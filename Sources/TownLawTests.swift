@@ -451,6 +451,10 @@ extension TownTests {
     // MARK: Voices
 
     static func voices(_ g: Game, _ check: (Bool, String) -> Void) {
+        // (These count recorded takes: R20's written lines for the hour and the moment are off here.)
+        let linesOn = TownLines.on
+        TownLines.on = false
+        defer { TownLines.on = linesOn }
         let takes = TownVoice.takes
         check(TownVoice.loaded >= takes.count && TownVoice.bankBytes < 6_000_000,
               String(format: "voices: %d/%d takes packed (%.2f MB)", TownVoice.loaded, takes.count, Double(TownVoice.bankBytes) / 1e6))

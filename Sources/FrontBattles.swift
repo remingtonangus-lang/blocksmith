@@ -49,6 +49,8 @@ extension Game {
             let (gx, gz) = Greywall.centre(gs)
             if simd_length(V2(p.x - Float(gx), p.z - Float(gz))) < 260 { return }
         }
+        // R23: nor at a Capital citadel (a Greywall-coloured squad marching through its garrison read as one mixed base).
+        if bases.records.values.contains(where: { simd_length(V2(p.x - Float($0.cx), p.z - Float($0.cz))) < 260 }) { return }
         let here = Countries.at(self, p)
         for n in Countries.neighbours(self, here) {
             let k = Countries.warKey(here.key, n.key)

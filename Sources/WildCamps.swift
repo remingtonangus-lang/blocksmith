@@ -303,7 +303,7 @@ enum WildCamps {
             let t: Float = max(0, min(1, (d - flat) / (Float(r) + 0.5 - flat)))
             let gy: Int = y + Int((Float(top - y) * t).rounded())
             for yy in (gy + 1)...(y + 8) { w.set(px, yy, pz, AIR) }
-            w.pillarDown(px, gy - 1, pz, DIRT, minY: gy - 14)          // down to solid ground (caves, ledges: structcheck floating)
+            w.groundDown(px, gy - 1, pz, DIRT, minY: gy - 14)          // down to solid ground (caves, ledges: structcheck floating)
             var surf = natural
             let wear = hashf(px, 3, pz, s32)
             if d2 <= 16 && wear < 0.55 { surf = wear < 0.3 ? path : coarse }

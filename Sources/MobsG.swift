@@ -217,10 +217,17 @@ extension Mob {
             // Hover above the target (lower when armored).
             let hdir = V2(t.x - pos.x, t.z - pos.z)
             let hd = simd_length(hdir)
-            // Reference movement: 5 blocks above the target (level with it once armoured), closing to within 3.
-            let want: Float = armored ? -1.2 : 3.8          // t is ~1.2 above the target's feet
+            // R25 (Oct 13 evening, old T3a: "the Blight hovers out of sword reach"; the --playthrough fight landed 0 sword
+            // hits in 601 s): it sat 5 blocks over the target and 3 out, so its body began ~5 blocks above the player's
+            // feet and no blade (a VR blade least of all) could touch it. Now it hangs low, its body from a block over
+            // the target's feet, and closes to 2: still airborne and shooting, but in reach of a swing. Every ~10 s it
+            // climbs for a few seconds to rain skulls, so it isn't simply a ground brawler.
+            phaseTime += dt
+            let climbing = !armored && phaseTime.truncatingRemainder(dividingBy: 10) > 7.5
+            let want: Float = armored ? -1.2 : (climbing ? 2.6 : -0.2)        // t is ~1.2 above the target's feet
             goal = V3(pos.x, t.y + want, pos.z)
-            if hd > 3 { goal.x += hdir.x / hd * min(3, hd - 3); goal.z += hdir.y / hd * min(3, hd - 3) }
+            let close: Float = climbing ? 3 : 2
+            if hd > close { goal.x += hdir.x / hd * min(3, hd - close); goal.z += hdir.y / hd * min(3, hd - close) }
             // Heads: the middle one fires at the target every 2 s (range 20); each side head picks the nearest
             // living target within 20 blocks (the player included) and fires every 2-3 s.
             attackCooldown -= dt

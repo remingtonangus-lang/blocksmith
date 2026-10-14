@@ -31,11 +31,23 @@ extension Mob {
     func cartExtras(_ dt: Float, _ g: Game) {
         switch variant {
         case 2:
-            // Hopper cart: vacuums items lying on or just above it.
+            // Hopper cart: vacuums items lying on or just above it and (W6) pulls one item a tick from a container
+            // above the track. An activator rail turns it off while powered and back on while unpowered (reference);
+            // hoppers under the track empty it (Game.hopperTransfer through Game.cartContainer).
             if cargo == nil { cargo = ItemContainer(5) }
+            let cell = IVec3(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
+            let rb = g.world.block(cell.x, cell.y, cell.z)
+            if Circuit.kind(rb) == .activatorRail { hopperDisabled = Int(rb - Blocks.groupBase[Int(rb)]) >= 6 }
+            if hopperDisabled { break }
             for e in g.drops.items where e.pickupDelay <= 0 && simd_length(e.pos - (pos + V3(0, 0.6, 0))) < 1 {
                 let rest = cargo!.add(e.stack)
                 if rest.count != e.stack.count { e.stack = rest; if rest.isEmpty { e.age = 1e9 } }
+            }
+            jobTimer = min(jobTimer, 0.05) - dt
+            if jobTimer <= 0 {
+                jobTimer = 0.05
+                let above = cell + IVec3(0, 1, 0)
+                if g.world.blockEntities[above] != nil, let c = cargo, g.containerExtract(above, into: c) { g.world.redstone.wakeAround(above) }
             }
         case 3:
             // TNT cart: fuse lit by an active activator rail, fire, or a hard hit; blows up when the fuse ends.
@@ -62,6 +74,15 @@ extension Mob {
             }
         default: break
         }
+    }
+}
+
+extension Mob {
+    // W6: a hopper minecart switched off by a powered activator rail (kept in `sheared`, which is saved for every mob
+    // and means nothing else for a cart).
+    var hopperDisabled: Bool {
+        get { sheared }
+        set { sheared = newValue }
     }
 }
 

@@ -243,9 +243,9 @@ extension ShipManager {
 
     // A 42 cm shell striking a Capital vessel (Quest round 4: hits barely scratched them): the drive engines are
     // knocked out (a frigate goes down, a crawler stops: CapitalShips' disable check) and the hull is torn open.
-    func heavyHit(_ s: Ship, at p: V3, game: Game, power: Float = 6) {
+    func heavyHit(_ s: Ship, at p: V3, game: Game, power: Float = 6, resistCap: Float = .infinity) {
         let r = s.root
-        blast(at: p, power: power, game: game)
+        blast(at: p, power: power, game: game, resistCap: resistCap)
         if r.kinematic && r.parent == nil && r.role != nil { r.engines = 0 }   // after the blast (its rebuild recounts them)
     }
 
@@ -273,7 +273,7 @@ extension ShipManager {
 
     // Explosion damage to ships near c (Explosion.explode calls this): rays lose strength by blast resistance
     // like in the world; blocks they get through are destroyed (dropping with chance 1/power); the hull is pushed.
-    func blast(at c: V3, power: Float, game: Game?) {
+    func blast(at c: V3, power: Float, game: Game?, resistCap: Float = .infinity) {
         let reach = power * 2 + 1
         for s in list where c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
             && c.y < s.worldMax.y + reach && c.z > s.worldMin.z - reach && c.z < s.worldMax.z + reach {
@@ -290,7 +290,7 @@ extension ShipManager {
                     let cell = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
                     let b = g.get(cell.x, cell.y, cell.z)
                     if b != AIR {
-                        let cost: Float = (Blocks.resistance[Int(b)] + 0.3) * 0.3
+                        let cost: Float = (Explosion.capped(b, Blocks.resistance[Int(b)], resistCap) + 0.3) * 0.3
                         if intensity <= cost && intensity > 0 { shaken[cell] = max(shaken[cell] ?? 0, intensity / cost) }
                         intensity -= cost
                         if intensity > 0 && Blocks.hardness[Int(b)] >= 0 { destroyed.insert(cell) }

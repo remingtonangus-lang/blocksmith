@@ -77,7 +77,12 @@ final class QuestRig {
             recenters += 1
             anchor = V3(trackingHead.x, 0, trackingHead.z)
             // Standing or seated, the current head height becomes the game's eye height (ducking still lowers the view).
-            let h = trackingHead.y
+            // S6: standing with a measured height (first-launch setup), that height is the eye height instead, so a
+            // recentre made crouched or leaning doesn't leave the view low. Seated and lying down keep the head as it is
+            // now: the view is raised to a standing player's eyes.
+            let cal = QuestSettings.standHeight
+            let standing = !QuestSettings.seated && !QuestSettings.reclined
+            let h: Float = standing && xr.floorSpace && cal > 1.0 ? cal : trackingHead.y
             heightOffset = QuestRig.eyeHeight - h
             pivotY = h
             if QuestSettings.reclined {

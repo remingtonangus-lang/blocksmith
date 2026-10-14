@@ -29,6 +29,15 @@ extension Game {
     // P211 (Oct 13 18:47-18:50, "fog banks keep rolling in and blinding me, especially high up"): fog is a weather
     // of its own now (rarer, announced), and it lies low: it thins above the valleys and is gone 60 blocks up.
     var weatherFogEnd: Float? {
+        if let s = Storms.sight() {                                         // D49 blizzards and sandstorms
+            let up = simd_clamp((player.pos.y - Float(YOFF) - 150) / 60, 0, 1)
+            let f = s + (260 - s) * up
+            if let o = fogBankEnd { return min(o, f) }
+            return f
+        }
+        return fogBankEnd
+    }
+    private var fogBankEnd: Float? {
         guard WeatherWar.fog > 0.02, dim.dim == .overworld else { return nil }
         let up = simd_clamp((player.pos.y - Float(YOFF) - 90) / 60, 0, 1)
         let f = WeatherWar.fog * (1 - up)

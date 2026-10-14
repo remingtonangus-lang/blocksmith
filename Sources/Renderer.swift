@@ -664,7 +664,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let droppedBefore = MobDrawStats.dropped
         var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap,
                                  cull: cull, maxDist: mobMaxDist, corpses: game.mobs.corpses,
-                                 ragdolls: World.realistic ? game.debris.ragdolls : nil)
+                                 ragdolls: game.debris.ragdolls)
         if game.showsPlayerModel { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
         n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
         n += NetCoop.writeRemote(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
@@ -2394,6 +2394,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let k = Float(c.scroll) / Float(c.maxScroll)
                 rect(tx + s, ty + (th - 15 * s) * k, 10 * s, 15 * s, V4(0.8, 0.8, 0.8, 1))
             }
+            // R3 (Oct 13, after P72/P140/P176): every screen draws its own hover, many as a slightly lighter grey that
+            // reads as nothing in the headset. One frame for all of them: whatever the pointer or stick is on gets a
+            // thick white outline over a blue one, in every menu (the pause pages draw their own, P201).
+            if let h = game.menuHover, !h.hidden, !(m is PauseMenu) {
+                let pad: Float = h.isButton ? 1 : 2
+                let hx = o.x + (Float(h.x) - pad) * s, hy = o.y + (Float(h.y) - pad) * s
+                let hw = (Float(h.w) + 2 * pad) * s, hh = (Float(h.h) + 2 * pad) * s
+                frame(hx - 2 * s, hy - 2 * s, hw + 4 * s, hh + 4 * s, 2 * s, V4(1, 1, 1, 1))
+                frame(hx, hy, hw, hh, s, MenuColors.hover)
+            }
             // Cursor stack follows the mouse, or the controller's hovered slot.
             var cursorPos = V2(game.input.mouseX, game.input.mouseY)
             if cursorPos.x < 0, let h = game.menuHover { cursorPos = o + V2(Float(h.x + 8), Float(h.y + 8)) * s }
@@ -2476,6 +2486,19 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(x + s, y + s, (w - 2 * s) * frac, 2 * s, m.hs.spent ? V4(0.9, 0.25, 0.2, 1) : V4(0.95, 0.78, 0.3, 1))
             let t = "Bond \(m.bondLevel)"
             text(t, x - textWidth(t, s) - 3 * s, y - 2 * s, s, V4(0.95, 0.85, 0.6, 1))
+            // H10: the horse's health over its stamina, and its two cores (filled squares: health red, stamina gold)
+            // left of the bond level, an empty core outlined.
+            let hf = simd_clamp(Float(m.health) / Float(max(1, m.horseMaxHealth)), 0, 1)
+            rect(x, y - 5 * s, w, 4 * s, V4(0, 0, 0, 0.7))
+            rect(x + s, y - 4 * s, (w - 2 * s) * hf, 2 * s, V4(0.85, 0.2, 0.2, 1))
+            let cs = 7 * s, cx0 = x - textWidth(t, s) - 3 * s - 2 * (cs + 2 * s)
+            for (k, core) in [m.hs.healthCore, m.hs.staminaCore].enumerated() {
+                let cx = cx0 + Float(k) * (cs + 2 * s), cy = y - 3 * s
+                let f = simd_clamp(core / 100, 0, 1)
+                let col = k == 0 ? V4(0.85, 0.2, 0.2, 1) : V4(0.95, 0.78, 0.3, 1)
+                rect(cx, cy, cs, cs, V4(0, 0, 0, 0.75))
+                rect(cx + s, cy + s + (cs - 2 * s) * (1 - f), cs - 2 * s, (cs - 2 * s) * f, f < 0.2 ? V4(col.x, col.y, col.z, 0.6) : col)
+            }
         }
         if !game.survival, let m = game.riding, m.gaited, m.tamed { horseBar(m, y0 - 8 * s) }
         // Taming a wild horse (HorseLife.tameStep): the calm meter and what to do now, centred over the hearts (there was

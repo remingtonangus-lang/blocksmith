@@ -149,20 +149,43 @@ enum Honour {
     // Returns false when there's no bounty here (the talk goes on as usual).
     static func settle(_ g: Game, _ lawman: Mob) -> Bool {
         let town = TownLaw.town(of: lawman, g)
+        // R20: in a cell, the law answers through the bars: the jail's ledger (pay the fine, or wait).
+        if Jail.term != nil && TownLaw.isLaw(lawman) {
+            lawman.face(g.player.pos)
+            g.openMenu(JailMenu(game: g))
+            return true
+        }
         // An outlaw surrenders to any lawman: the fine on top of what's owed here, and honour back to Disreputable.
         let fine = isOutlaw ? outlawFine : 0
         let owed = bounty(town) + fine
         guard owed > 0, TownLaw.isLaw(lawman) else { return false }
         lawman.face(g.player.pos)
         let who = lawman.villager?.person ?? "The sheriff"
+        // R20: caught (the town is fighting you), an outlaw, or short of the money: the law takes you to its jail, where
+        // the term settles what's owed (TownJail.swift). A town without a jail to hand keeps the old answer below.
+        if TownLaw.isHostile(town) || fine > 0 || g.money < owed, Jail.arrest(g, lawman, town: town, owed: owed, outlaw: fine > 0) {
+            return true
+        }
         guard g.money >= owed else {
             Townsfolk.say(g, lawman, fine > 0 ? "Your fine's \(Money.format(owed)), outlaw. Come back when you can pay it."
                                               : "There's \(Money.format(owed)) on your head. Come back when you can pay it.")
             return true
         }
         g.money -= owed
+        pardon(g, town)
+        Jail.returnImpounded(g, town)
+        Townsfolk.townLastLine = -100
+        Townsfolk.say(g, lawman, "That settles it. Keep your nose clean in \(town).")
+        g.onToast?("\(fine > 0 ? "Fine" : "Bounty") of \(Money.format(owed)) paid to \(who)")
+        if fine > 0 { change(g, outlaw + 5 - value, "you gave yourself up") } else { change(g, 3, "you paid your bounty") }
+        return true
+    }
+
+    // The town lets it go (a bounty paid, or a jail term begun): its bounty, hostility and heat cleared, its people's
+    // bad gossip about you dropped. An outlaw's surrender clears the empty bounty entries everywhere.
+    static func pardon(_ g: Game, _ town: String) {
         clearBounty(town)
-        if fine > 0 { for t in Array((TownLaw.state.bounty ?? [:]).keys) where bounty(t) == 0 { clearBounty(t) } }
+        if isOutlaw { for t in Array((TownLaw.state.bounty ?? [:]).keys) where bounty(t) == 0 { clearBounty(t) } }
         TownLaw.state.hostile[town] = nil
         TownLaw.state.heat[town] = nil
         TownLaw.pending.removeAll { TownLaw.town(of: $0.0, g) == town }
@@ -176,12 +199,7 @@ enum Honour {
             }
         }
         challengedVisit = town
-        Townsfolk.townLastLine = -100
-        Townsfolk.say(g, lawman, "That settles it. Keep your nose clean in \(town).")
         outlawSpotted = nil
-        g.onToast?("\(fine > 0 ? "Fine" : "Bounty") of \(Money.format(owed)) paid to \(who)")
-        if fine > 0 { change(g, outlaw + 5 - value, "you gave yourself up") } else { change(g, 3, "you paid your bounty") }
-        return true
     }
 
     // MARK: Hooks

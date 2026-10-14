@@ -92,7 +92,7 @@ enum Legendaries {
         found.insert(d.key)
         awarded += 1
         if let p { g.drops.spawn(s, at: p) } else if !g.inventory.main.add(s).isEmpty { g.dropItem(s) }
-        g.onToast?("Legendary: \(d.name), from \(from)")
+        g.onToast?("Legendary: \(d.name), from \(from)." + Spine.legendHint(g))       // Y6: the next legend along the spine
         g.sfx(.goatHorn, 0.5, at: p ?? g.player.pos)
         return true
     }

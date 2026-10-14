@@ -108,10 +108,12 @@ enum CapitalCity {
             let c = gen.column(x, z)
             guard CapitalCity.biomes.contains(c.biome), c.height > SEA + 2 else { return nil }
             // Clear of citadels and villages.
-            for k in ["military_base", "village"] {
+            // R22: and off temples and outposts (their pieces under a lot), on ground no save has seen before R22.
+            let fresh = sc.clear(cx: floorDiv(x, CS), cz: floorDiv(z, CS), reach: 10, guardSet: sc.legacyR22)
+            for k in fresh ? ["military_base", "village", "temple", "pillager_outpost"] : ["military_base", "village"] {
                 if let s = sc.nearest(k, x: x, z: z, maxRegions: 1) {
                     let d = simd_length(V2(Float((s.min.x + s.max.x) / 2 - x), Float((s.min.z + s.max.z) / 2 - z)))
-                    if d < 240 { return nil }
+                    if d < (k == "temple" || k == "pillager_outpost" ? 150 : 240) { return nil }
                 }
             }
             let plan = Plan(ox: x - N * lot, oz: z - N * lot)
@@ -242,7 +244,7 @@ enum CapitalCity {
             let hh = plan.walkHalf(x, z)
             let base = hh >> 1, half = hh & 1 == 1
             w.fill(x, base + 1, z, x, base + 40, z, AIR)
-            w.pillarDown(x, base - 1, z, grey, minY: base - 30)
+            w.groundDown(x, base - 1, z, grey, minY: base - 30)
             w.set(x, base, z, pave)
             if half { w.set(x, base + 1, z, paveSlab) }
             // Canopy: the lot's west (and east edge) strip runs north-south, its north (and south edge) strip
@@ -283,7 +285,7 @@ enum CapitalCity {
             w.fill(x, L + 1, z, x, L + 40, z, AIR)
             // The terrace's outer ring is a white retaining edge (paved on top, also round gardens); inside, earth.
             let ring = u == street || v == street || u == lot - 1 || v == lot - 1
-            w.pillarDown(x, L - 1, z, ring ? white : (garden ? DIRT : grey), minY: L - 30)
+            w.groundDown(x, L - 1, z, ring ? white : (garden ? DIRT : grey), minY: L - 30)
             // Distance from each side's walkway and whether this cell is in that side's entrance.
             var hh = 2 * L
             let sides: [(Int, Bool, Int, Int)] = [(u - street, v >= 17 && v <= 20, x0 + street - 1, z), (v - street, u >= 17 && u <= 20, x, z0 + street - 1),
@@ -409,7 +411,7 @@ enum CapitalCity {
         // ground) it is carried down to the ground (Oct 11 playtest P35: "a few pillars are off the ground").
         for x in stride(from: bx0, through: bx1, by: 4) {
             for y in (L + 1)...(L + 4) { w.set(x, y, bz0 - 3, white) }
-            w.pillarDown(x, L, bz0 - 3, white, minY: L - 30)
+            w.groundDown(x, L, bz0 - 3, white, minY: L - 30)
         }
         for x in (bx0 - 1)...(bx1 + 1) { w.set(x, L + 4, bz0 - 3, grey) }
         // Entrance: a 3-wide opening in the north (walkway) face, glass panels round it.

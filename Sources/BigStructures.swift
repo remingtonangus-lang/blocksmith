@@ -40,7 +40,7 @@ enum BigStructures {
         let pr = g("prismarine"), br = g("prismarine_bricks"), dk = g("dark_prismarine"), lamp = g("sea_lantern"), gold = g("gold_block")
         let sponge = g("wet_sponge")
         // Foundation pillars down to the sea floor.
-        for z in stride(from: cz - 28, through: cz + 28, by: 4) { for x in stride(from: cx - 28, through: cx + 28, by: 4) { w.pillarDown(x, y0 - 1, z, br, minY: y0 - 30) } }
+        for z in stride(from: cz - 28, through: cz + 28, by: 4) { for x in stride(from: cx - 28, through: cx + 28, by: 4) { w.groundDown(x, y0 - 1, z, br, minY: y0 - 30) } }
         // Main body: a hollow box of bricks with a dark tidestone roof band, filled with water inside.
         w.fill(cx - 28, y0, cz - 28, cx + 28, y0 + 8, cz + 28, br)
         w.fill(cx - 27, y0 + 1, cz - 27, cx + 27, y0 + 7, cz + 27, WATER)
@@ -106,7 +106,7 @@ enum BigStructures {
         let cob = COBBLE, pl = g("dark_oak_planks"), log = g("dark_oak_log"), glass = g("glass_pane"), carpet = g("white_carpet")
         let stairs = g("cobblestone_stairs"), roof = g("dark_oak_stairs"), slab = g("dark_oak_slab"), panel = g("birch_planks")
         // Cleared plot and cobblestone base.
-        for z in (cz - 22)...(cz + 22) { for x in (cx - 22)...(cx + 22) { w.pillarDown(x, y - 1, z, cob, minY: y - 8) } }
+        for z in (cz - 22)...(cz + 22) { for x in (cx - 22)...(cx + 22) { w.groundDown(x, y - 1, z, cob, minY: y - 8) } }
         w.fill(cx - 22, y, cz - 22, cx + 22, y + 46, cz + 22, AIR)          // clears tree tops above the plot too
         w.fill(cx - 22, y - 1, cz - 22, cx + 22, y - 1, cz + 22, cob)
         // Three floors of 6 blocks.
@@ -394,7 +394,7 @@ enum BigStructures {
                 let r = big ? 6 : 4, top = big ? 7 : 5
                 func pick(_ xx: Int, _ yy: Int, _ zz: Int) -> BlockID { mat[Int(hashf(xx, yy, zz, 0x0CEB) * 3) % 3] }
                 for zz in (z - r)...(z + r) { for xx in (x - r)...(x + r) {
-                    w.pillarDown(xx, y - 1, zz, warm ? SANDSTONE : STONE, minY: y - 5)
+                    w.groundDown(xx, y - 1, zz, warm ? SANDSTONE : STONE, minY: y - 5)
                     w.set(xx, y, zz, hashf(xx, y, zz, 0x0CEC) < 0.15 ? (warm ? SAND : GRAVEL) : floorMat)
                     let edge = abs(xx - x) == r || abs(zz - z) == r
                     let corner = abs(xx - x) == r && abs(zz - z) == r

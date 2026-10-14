@@ -62,6 +62,12 @@ enum TownLaw {
         var stabled: [StabledHorse]? = nil          // horses kept in town stables (HorseStable.swift)
         var horseSold: [String: Int]? = nil         // town -> the day its stable last bought a horse from you
         var emeraldTip: Bool? = nil                 // the one-time "emeralds sell at a bank" tip was shown (G14)
+        // R20 (TownJail.swift, TownServices.swift): a jail term being served, weapons a jailbreak left locked up (town ->
+        // items), an outlaw in tow ([name, job key]), and the one-time exchange hint given in a town.
+        var jail: Jail.Term? = nil
+        var impounded: [String: [ItemStack]]? = nil
+        var prisoner: [String]? = nil
+        var exchangeTip: Bool? = nil
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -84,6 +90,7 @@ enum TownLaw {
         Honour.challengedVisit = nil; Honour.changedAt = -100; Honour.delta = 0; Honour.lastToast = -100
         Honour.lastWhy = ""; Honour.outlawSpotted = nil
         offences = 0; lastTick = -1; sleptBeds = [:]
+        lastShot = nil; Jail.passPack = false; TownLines.forget()          // R20
         TownConquest.reset(); TownConquest.wary = []
     }
     // Keeps the newest `n` remembered blocks that are still the player's.
@@ -192,10 +199,12 @@ enum TownLaw {
     // four nearest grown townsfolk within 32, walk over to where the shot came from and look about (law 20 s, others
     // 12 s). Nobody already fighting, asleep or a child.
     static var shotsHeard = 0
+    static var lastShot: (at: V3, clock: Double)?   // R20: the last gunfire in a town (townsfolk talk about it: TownLines)
     static func gunfire(_ g: Game, at p: V3) {
         if let gu = g.netGuest { gu.gunfire(at: p); return }                   // C14: the host's townsfolk hear it
         MiningTowns.spark(g, at: p)                                            // C12: a muzzle flash in mine gas
         guard g.dim.dim == .overworld, isTownSpot(g, IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))) else { return }
+        lastShot = (p, g.clock)
         var folk: [(Mob, Float)] = []
         for m in g.mobs.mobs where isTownsperson(m) && !m.lying && !m.baby && m.town.anger <= 0 && m.villager?.role != "child" {
             let d = simd_length(m.pos - p)
@@ -267,6 +276,13 @@ enum TownLaw {
     }
     // Game.openMenu: a container menu from a town chest or barrel: count what's inside.
     static func opened(_ g: Game, _ m: Menu) {
+        if Jail.interceptPack(g, m) { return }                                 // R20: in a cell, the pack opens the jail's ledger
+        if let p = openPos, g.clock - openStart < 0.5, m is ChestMenu || m is DoubleChestMenu, Jail.lockedBox(g, p) {
+            openPos = nil
+            g.closeMenu()
+            g.onToast?("Locked. The sheriff keeps the strongbox key while it holds your things.")
+            return
+        }
         guard let p = openPos, g.clock - openStart < 0.5, m is ChestMenu || m is DoubleChestMenu,
               !placedSet.contains(p), isTownOwned(g, p) else { openPos = nil; return }
         openKey = chestKey(g, p)
@@ -309,11 +325,14 @@ enum TownLaw {
         // Unseen, it still costs honour (a third of what a witness would make it): stealing is stealing.
         guard let first = ws.first else { Honour.unseenTheft(g, 0.5 * add); return }
         let town = town(of: first, g)
-        Countries.crime(g, town: town, at: p, heat: add)
+        if heat(town) + add < hostileHeat, Witnesses.start(g, witness: first, town: town, heat: add, at: p, victim: victim) { return }   // D23
+        let masked = Bandana.masked(g)                   // D22: a masked crime is held, not pinned on him
+        if !masked { Countries.crime(g, town: town, at: p, heat: add) }
         let h = heat(town) + add
         state.heat[town] = h
         offences += 1
-        Honour.crime(g, heat: add, assault: victim != nil)
+        if masked { Bandana.hold(town, honour: victim != nil ? 3 : 1.5 * add, bounty: 0) }
+        else { Honour.crime(g, heat: add, assault: victim != nil) }
         let law = g.mobs.mobs.filter { isTownsperson($0) && isLaw($0) && simd_length($0.pos - g.player.pos) < 40 }
             .min { simd_length($0.pos - g.player.pos) < simd_length($1.pos - g.player.pos) }
         if h >= hostileHeat {
@@ -356,8 +375,11 @@ enum TownLaw {
             }
         }
         if fresh {
-            Honour.townTurned(g, town)
-            Countries.townTurned(g, town: town, at: p)
+            if Bandana.masked(g) { Bandana.hold(town, honour: 5, bounty: 500) }      // D22
+            else {
+                Honour.townTurned(g, town)
+                Countries.townTurned(g, town: town, at: p)
+            }
             if witness.villager?.role != "sheriff" { Townsfolk.townLastLine = -100; TownVoice.speak(g, witness, .angry) }
             g.onToast?("\(town) has turned on you!")
         }
@@ -365,15 +387,21 @@ enum TownLaw {
 
     // MARK: Every frame (from HudExtras.tick); real work once a second.
 
-    // G14: the first emerald you carry in survival says what it is for (the exchange was undiscoverable).
+    // G14, R20: the exchange hint, once, the first time you carry emeralds in a town (G14's tip fired the moment the
+    // first emerald was picked up, usually out in the hills far from any counter, and named only the bank, which a
+    // hamlet doesn't have). Every shop counter now leads with an Exchange row while you carry emeralds (Exchange).
     static func emeraldTip(_ g: Game) {
-        guard g.survival, state.emeraldTip != true, Items.has("emerald"), g.inventory.main.countOf(Items.id("emerald")) > 0 else { return }
+        guard g.survival, inTown != nil, state.exchangeTip != true, Items.has("emerald"), g.inventory.main.countOf(Items.id("emerald")) > 0 else { return }
+        state.exchangeTip = true
         state.emeraldTip = true
-        g.onToast?("Emeralds: a town bank buys them at \(Money.format(Bank.sellEmerald)) each (the sign says BANK)")
+        g.onToast?(Exchange.hint)
     }
 
     static func tick(_ g: Game) {
         if worldSeed != g.world.seed { reset(); worldSeed = g.world.seed }
+        Jail.watchOutlaws(g)                             // R20: a beaten outlaw gives up (per frame while one is out)
+        Bandana.tick(g)                                  // D22
+        Witnesses.tick(g)                                // D23
         // Sheriffs draw after their challenge.
         if !pending.isEmpty {
             pending.removeAll { (m, t) in
@@ -391,6 +419,7 @@ enum TownLaw {
         Nation.tick(g)                                   // C3: your provinces' days, settlers and buildings
         if let m = g.menu, openPos != nil { checkTaking(g, m) }
         emeraldTip(g)
+        Jail.tick(g, dt)                                 // R20: the jail term, a prisoner in tow
         // Heat cools; hostility runs out.
         let cool = Honour.coolRate(Honour.value)
         for (t, h) in state.heat where !isHostile(t) {
@@ -437,7 +466,8 @@ enum TownLaw {
             appointSheriff(g, here, near: near)
         }
         // Outlaws are fought on sight (Honour.outlawSeen); the WANTED boards show your poster; outlaws from jobs.
-        if g.survival && Honour.outlawKnown(g) && !isHostile(here) && !TownConquest.owns(here) { Honour.outlawSeen(g, here) }
+        // (Not at a man serving his time in the cell.)
+        if g.survival && Jail.term == nil && Honour.outlawKnown(g) && !isHostile(here) && !TownConquest.owns(here) { Honour.outlawSeen(g, here) }
         // A hostile town keeps its armed folk on you while you're about.
         if isHostile(here) {
             for o in g.mobs.mobs where isTownsperson(o) && o.townWeapon != .none && !o.baby && simd_length(o.pos - g.player.pos) < 32 {

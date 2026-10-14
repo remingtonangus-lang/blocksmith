@@ -183,7 +183,8 @@ final class PauseMenu: Menu {
         subtitle = ""
         if let hp = hostPageID, let r = PauseMenu.hostPage?(hp) {
             title = r.title; subtitle = r.subtitle
-            rows = r.rows + [("Done", "back")]
+            // (A page that ends in its own finishing row, the Quest's first-launch setup, has no extra Done.)
+            rows = r.rows + (r.rows.last?.1.hasSuffix("_done") == true ? [] : [("Done", "back")])
             layout()
             return
         }
@@ -213,6 +214,8 @@ final class PauseMenu: Menu {
                 rows.removeAll { $0.1 == "photo" || $0.1 == "worlds" }
             }
             if let e = PauseMenu.hostEntry, g.coop.current == 0 { rows.insert(e, at: 2) }
+            // S4: after a crash, the newest rolling backup of this world can be put back.
+            if CrashGuard.crashed && g.coop.current == 0 { rows.insert(("Restore Last Backup (after a crash)", "restorebackup"), at: 1) }
         case .options:
             title = "Options: \(cat.name)"
             let next = Cat(rawValue: (cat.rawValue + 1) % Cat.allCases.count) ?? .video
@@ -628,7 +631,14 @@ final class PauseMenu: Menu {
         case "launchfs": st.launchFullscreen.toggle()
         case "graphics": g.fancyGraphics.toggle()
         case "chipping": st.chipping.toggle()
-        case "smooth": g.smoothTerrain.toggle(); SmoothTerrain.use(world: g.smoothTerrain, world: g.world)
+        case "smooth":
+            g.smoothTerrain.toggle(); SmoothTerrain.use(world: g.smoothTerrain, world: g.world)
+            // R26 (Oct 13 evening: "his world loaded without smooth terrain after being smooth"): the switch lived only in
+            // the game until the next autosave, so a headset taken off (the app killed, no quit save) reopened the world
+            // in its old mode; and before the world-mode fix a world could look smooth only because the last world's
+            // mode leaked into it, never saving "smooth" at all. The choice is written to this world's save at once.
+            if g.persistent, let s = g.save { s.saveMeta(g.meta, background: true) }
+            g.onToast?(g.smoothTerrain ? "Smooth terrain on: saved with this world" : "Block terrain: saved with this world")
         case "wscale": g.renderScale = step([1, 0.85, 0.7], g.renderScale)
         case "display":
             let list = VideoState.displays
@@ -681,6 +691,7 @@ final class PauseMenu: Menu {
         case "volume": g.volumeSetting = step([0, 0.1, 0.25, 0.5, 0.8, 1], g.volumeSetting)
         case "music": g.musicVolume = step([0, 0.25, 0.5, 0.75, 1], g.musicVolume)
         case "quit": g.appAction?("quit")
+        case "restorebackup": g.appAction?("restorebackup")
         default: g.appAction?(id)
         }
         g.sfx(.click, 0.5)

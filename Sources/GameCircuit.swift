@@ -60,6 +60,7 @@ extension Game {
             world.setBlock(p.x, p.y, p.z, base + BlockID(ns))
             rs.switchChanged(p, ns)
             sfx(.lever, 0.6, at: at)
+            rs.vibrate(at: at, freq: ns >= 12 ? 10 : 9)          // W9: block activate / deactivate
         case .button:
             guard s < 12 else { return true }
             world.setBlock(p.x, p.y, p.z, base + BlockID(s + 12))
@@ -67,6 +68,7 @@ extension Game {
             let stone = Blocks.key(base).hasPrefix("stone") || Blocks.key(base).hasPrefix("polished")
             rs.schedule(p, stone ? 20 : 30)
             sfx(stone ? .buttonStone : .buttonWood, 0.6, at: at)
+            rs.vibrate(at: at, freq: 10)
         case .repeater:
             let delay = ((s >> 2) & 3 + 1) & 3
             world.setBlock(p.x, p.y, p.z, base + BlockID((s & ~12) | (delay << 2)))
@@ -119,12 +121,35 @@ extension Game {
             // Standing on top of a moved block.
             return set.contains(IVec3(Int(floor(pos.x)), Int(floor(pos.y - 0.05)), Int(floor(pos.z))))
         }
+        // W5: a slime block that moves into an entity launches it along the push (reference: 1 block a tick).
+        let slime = Blocks.id("slime_block")
+        func onSlime(_ pos: V3, _ hw: Float, _ h: Float) -> Bool {
+            for q in cells where world.block(q.x, q.y, q.z) == slime {
+                let c: V3 = V3(Float(q.x), Float(q.y), Float(q.z))
+                let lo: V3 = c - V3(hw + 0.05, h + 0.05, hw + 0.05)
+                let hi: V3 = c + V3(1 + hw, 1.05, 1 + hw)
+                if pos.x > lo.x && pos.x < hi.x && pos.y > lo.y && pos.y < hi.y && pos.z > lo.z && pos.z < hi.z { return true }
+            }
+            return false
+        }
+        func launch(_ v: inout V3) {
+            if dir.x != 0 { v.x = d.x * 20 }
+            if dir.y != 0 { v.y = d.y * 20 }
+            if dir.z != 0 { v.z = d.z * 20 }
+        }
         // Every player (split screen: a piston didn't carry player 2).
         coop.eachSeat(self) {
             let pl = self.player
             if inside(pl.pos, pl.halfW, pl.height) { pl.pos += d; pl.airPeak = pl.pos.y }
+            if onSlime(pl.pos, pl.halfW, pl.height) { launch(&pl.vel); pl.airPeak = pl.pos.y }
         }
         for m in mobs.mobs where inside(m.pos, m.halfW, m.height) { m.pos += d }
+        for m in mobs.mobs where onSlime(m.pos, m.halfW, m.height) { launch(&m.vel) }
+        // W5: item entities are pushed too (and launched by slime) (reference; they stayed inside the moved block).
+        for e in drops.items where inside(e.pos, 0.125, 0.25) {
+            e.pos += d
+            if onSlime(e.pos, 0.125, 0.25) { launch(&e.vel) }
+        }
     }
 
     // How many entities press a plate (players and mobs; items too for wooden/weighted plates).
@@ -162,23 +187,12 @@ extension Game {
         let key = Items.key(stack.item)
         func take() { stack.count -= 1; c[slot] = stack.count > 0 ? stack : .empty }
         if dropper {
-            // Into a container in front, else out as an item.
-            if let t = world.blockEntities[front], t.kind == .furnace {
-                // By face like a hopper (reference): from above into the input, from the side fuel only; else it holds.
-                let one = stack.with(count: 1)
-                let slot = fd.y < -0.5 ? 0 : (fd.y > 0.5 ? -1 : (Recipes.fuel(one.item) > 0 ? 1 : -1))
-                if slot >= 0 {
-                    let cur = t.container[slot]
-                    if cur.isEmpty || (cur.stacks(with: one) && cur.count < cur.maxStack) {
-                        var n = cur.isEmpty ? one : cur
-                        if !cur.isEmpty { n.count += 1 }
-                        t.container[slot] = n
-                        take()
-                    }
-                }
-            } else if let t = world.blockEntities[front], t.kind != .spawner {
-                let one = stack.with(count: 1)
-                if t.container.add(one).isEmpty { take() }
+            // Into a container in front (by its face, like a hopper: Game.containerInsert; a full one holds the item),
+            // else out as an item.
+            let isContainer = (world.blockEntities[front].map { $0.container.count > 0 && $0.kind != .spawner && $0.kind != .campfire && $0.kind != .frame } ?? false)
+                || cartContainer(at: front) != nil
+            if isContainer {
+                if containerInsert(front, stack.with(count: 1), dir: dir) { take() }
             } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
             sfx(.click, 0.5, at: from)
             return
@@ -271,52 +285,122 @@ extension Game {
 
     static let hopperOut: [IVec3] = [IVec3(0, -1, 0), IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)]
 
-    // One hopper step: push one item out, then pull one in from above (container or dropped items).
+    // One item into the container at t, arriving while travelling in dir6 `dir` (0 down: through its top, 1 up:
+    // through its bottom, 2-5 through a side), by the reference's per-face rules: furnaces take the input from above
+    // and fuel elsewhere, brewing stands the ingredient from above and powder/bottles from the sides, crafters fill
+    // their enabled slots evenly, a double chest is one 54-slot inventory, a chest or hopper minecart in the cell takes
+    // it when there is no block container. Not into spawners, campfires or item frames. Returns true if it went in.
+    func containerInsert(_ t: IVec3, _ one: ItemStack, dir: Int) -> Bool {
+        guard let be = world.blockEntities[t] else {
+            // W6: chest and hopper minecarts take items from hoppers and droppers like containers.
+            if let cart = cartContainer(at: t), cart.add(one).isEmpty { return true }
+            return false
+        }
+        switch be.kind {
+        case .spawner, .campfire, .frame: return false
+        case .furnace:
+            let slot = dir == 0 ? 0 : 1                          // from above: input; from the side or below: fuel only
+            if slot == 1 && Recipes.fuel(one.item) == 0 && Items.key(one.item) != "bucket" { return false }
+            let cur = be.container[slot]
+            guard cur.isEmpty || (cur.stacks(with: one) && cur.count < cur.maxStack) else { return false }
+            var n = cur.isEmpty ? one : cur
+            if !cur.isEmpty { n.count += 1 }
+            be.container[slot] = n
+            return true
+        case .brewing:
+            // Brewing stand faces (reference): from above the ingredient slot only; from the side blaze powder into the
+            // fuel slot and potions into empty bottle slots; from below bottles or the ingredient.
+            var slot = -1
+            let ingredient = Potions.isIngredient(one.item)
+            if dir == 0 { slot = ingredient ? 3 : -1 }
+            else if Items.key(one.item) == "blaze_powder" && dir != 1 { slot = 4 }
+            else if Potions.potion(of: one.item) != nil { slot = (0..<3).first { be.container[$0].isEmpty } ?? -1 }
+            else if dir == 1 && ingredient { slot = 3 }
+            if slot < 0 || slot >= be.container.count { return false }
+            let cur = be.container[slot]
+            guard cur.isEmpty || (slot >= 3 && cur.stacks(with: one) && cur.count < cur.maxStack) else { return false }
+            var n = cur.isEmpty ? one : cur
+            if !cur.isEmpty { n.count += 1 }
+            be.container[slot] = n
+            return true
+        case .crafter:
+            return crafterInsert(be, one)
+        case .chest:
+            // W4: a double chest takes items into the first half first, then the second (one 54-slot inventory).
+            if let o = world.redstone.chestPartner(t), let ob = world.blockEntities[o], ob.kind == .chest {
+                let first = (o.x + o.z) < (t.x + t.z) ? ob : be, second = first === be ? ob : be
+                if first.container.add(one).isEmpty { return true }
+                return second.container.add(one).isEmpty
+            }
+            return be.container.add(one).isEmpty
+        default:
+            return be.container.add(one).isEmpty
+        }
+    }
+
+    // One item out of the container at src into c (a hopper or hopper minecart below it): furnaces give their output,
+    // brewing stands their bottles, a double chest both halves (first half first), a cart in the cell its cargo.
+    func containerExtract(_ src: IVec3, into c: ItemContainer) -> Bool {
+        func takeOne(_ from: ItemContainer, _ range: Range<Int>) -> Bool {
+            for i in range where !from[i].isEmpty {
+                let one = from[i].with(count: 1)
+                if c.add(one).isEmpty {
+                    var s = from[i]; s.count -= 1; from[i] = s.count > 0 ? s : .empty
+                    return true
+                }
+            }
+            return false
+        }
+        guard let be = world.blockEntities[src] else {
+            if let cart = cartContainer(at: src) { return takeOne(cart, 0..<cart.count) }
+            return false
+        }
+        switch be.kind {
+        case .spawner, .campfire, .frame: return false
+        case .furnace: return be.container.count > 2 && takeOne(be.container, 2..<3)
+        case .brewing: return takeOne(be.container, 0..<min(3, be.container.count))
+        case .chest:
+            if let o = world.redstone.chestPartner(src), let ob = world.blockEntities[o], ob.kind == .chest {
+                let first = (o.x + o.z) < (src.x + src.z) ? ob : be, second = first === be ? ob : be
+                return takeOne(first.container, 0..<first.container.count) || takeOne(second.container, 0..<second.container.count)
+            }
+            return takeOne(be.container, 0..<be.container.count)
+        default: return takeOne(be.container, 0..<be.container.count)
+        }
+    }
+
+    // The cargo of a chest or hopper minecart whose body is in cell q (a disabled hopper cart still gives and takes).
+    func cartContainer(at q: IVec3) -> ItemContainer? {
+        guard Rails.isRail(world.block(q.x, q.y, q.z)) else { return nil }      // carts on a track only (cheap first test)
+        for m in mobs.mobs where m.kind == .minecart && (m.variant == 1 || m.variant == 2) && m.health > 0 {
+            guard Int(floor(m.pos.x)) == q.x && Int(floor(m.pos.z)) == q.z && Int(floor(m.pos.y + 0.3)) == q.y else { continue }
+            if m.cargo == nil { m.cargo = ItemContainer(m.variant == 1 ? 27 : 5) }
+            return m.cargo
+        }
+        return nil
+    }
+
+    // One hopper step: push one item out, then pull one in from above (container, minecart or dropped items).
     func hopperTransfer(_ p: IVec3, out: Int) -> Bool {
         let be = world.blockEntities[p] ?? { let e = BlockEntity(.hopper); world.blockEntities[p] = e; return e }()
         let c = be.container
         var moved = false
         let target = p + Game.hopperOut[out]
-        // Not into campfires or item frames (a campfire turned whatever arrived into its smelt result or nothing).
-        if let t = world.blockEntities[target], t.kind != .spawner, t.kind != .campfire, t.kind != .frame {
-            let wasEmpty = t.kind == .hopper && (0..<t.container.count).allSatisfy { t.container[$0].isEmpty }
-            for i in 0..<c.count where !c[i].isEmpty {
-                let one = c[i].with(count: 1)
-                let ok: Bool
-                if t.kind == .furnace {
-                    let slot = out == 0 ? 0 : 1                                  // from above: input; from the side: fuel
-                    if slot == 1 && Recipes.fuel(one.item) == 0 { continue }
-                    let cur = t.container[slot]
-                    ok = cur.isEmpty || (cur.stacks(with: one) && cur.count < cur.maxStack)
-                    if ok { var n = cur.isEmpty ? one : cur; if !cur.isEmpty { n.count += 1 }; t.container[slot] = n }
-                } else if t.kind == .brewing {
-                    // Brewing stand faces (reference): from above the ingredient slot only; from the side blaze powder
-                    // into the fuel slot and potions into empty bottle slots (everything went into slot 0 first).
-                    var slot = -1
-                    if out == 0 { slot = Potions.isIngredient(one.item) ? 3 : -1 }
-                    else if Items.key(one.item) == "blaze_powder" { slot = 4 }
-                    else if Potions.potion(of: one.item) != nil { slot = (0..<3).first { t.container[$0].isEmpty } ?? -1 }
-                    if slot < 0 || slot >= t.container.count { continue }
-                    let cur = t.container[slot]
-                    ok = cur.isEmpty || (slot >= 3 && cur.stacks(with: one) && cur.count < cur.maxStack)
-                    if ok { var n = cur.isEmpty ? one : cur; if !cur.isEmpty { n.count += 1 }; t.container[slot] = n }
-                } else { ok = t.container.add(one).isEmpty }
-                if ok { var s = c[i]; s.count -= 1; c[i] = s.count > 0 ? s : .empty; moved = true; break }
+        let dir = out == 0 ? 0 : out + 1                         // hopper output index -> dir6 of travel
+        let tbe = world.blockEntities[target]
+        let wasEmpty = tbe.map { t in t.kind == .hopper && (0..<t.container.count).allSatisfy { t.container[$0].isEmpty } } ?? false
+        for i in 0..<c.count where !c[i].isEmpty {
+            if containerInsert(target, c[i].with(count: 1), dir: dir) {
+                var s = c[i]; s.count -= 1; c[i] = s.count > 0 ? s : .empty
+                moved = true
+                break
             }
-            if moved && wasEmpty { world.redstone.hopperReceived(target) }
         }
+        if moved && wasEmpty { world.redstone.hopperReceived(target) }
         // Pull from above.
         let above = p + IVec3(0, 1, 0)
-        if let src = world.blockEntities[above], src.kind != .spawner {
-            // Furnaces give their output, brewing stands their bottles (not the ingredient or the powder).
-            let range: Range<Int> = src.kind == .furnace ? 2..<3 : (src.kind == .brewing ? 0..<min(3, src.container.count) : 0..<src.container.count)
-            for i in range where !src.container[i].isEmpty {
-                let one = src.container[i].with(count: 1)
-                if c.add(one).isEmpty {
-                    var s = src.container[i]; s.count -= 1; src.container[i] = s.count > 0 ? s : .empty
-                    moved = true; break
-                }
-            }
+        if world.blockEntities[above] != nil || cartContainer(at: above) != nil {
+            if containerExtract(above, into: c) { moved = true }
         } else if !Blocks.opaque[Int(world.block(above.x, above.y, above.z))] {
             for e in drops.items where !e.stack.isEmpty && Int(floor(e.pos.x)) == p.x && Int(floor(e.pos.z)) == p.z && e.pos.y >= Float(p.y) + 0.6 && e.pos.y < Float(p.y) + 2 {
                 let rest = c.add(e.stack)

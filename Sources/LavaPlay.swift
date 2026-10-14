@@ -7,10 +7,16 @@ import simd
 // cell along the aim, as building out over a pool needs.
 extension Game {
     @discardableResult
-    func placeIntoLava(reach: Float = 6) -> Bool {
+    func placeIntoLava(reach: Float = 6, before hit: IVec3? = nil) -> Bool {
         guard let b = held.def.block, Blocks.render[Int(b)] == RenderType.cube.rawValue, Blocks.shape[Int(b)].isEmpty,
               !Blocks.isLiquid(b) else { return false }
-        let eye = player.eye, dir = player.look
+        // R17 (Oct 13 evening, again): on the Quest the aim is the hand's ray (vrAim), not the eye's look; the eye's
+        // line toward a far point along the hand ray crossed other cells, so the block went in "only sometimes".
+        let eye = vrAim?.origin ?? player.eye, dir = simd_normalize(vrAim?.dir ?? player.look)
+        // With a block targeted through the lava (the pool's floor or far side), the lava surface the aim crosses
+        // first takes the block: building out over a pool, not on its floor.
+        var reach = reach
+        if let h = hit { reach = min(reach, simd_length(V3(Float(h.x), Float(h.y), Float(h.z)) + 0.5 - eye) - 0.9) }
         var t: Float = 0.3
         while t <= reach {
             let q = eye + dir * t

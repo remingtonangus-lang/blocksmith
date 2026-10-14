@@ -96,7 +96,7 @@ enum Stronghold {
             let wall = x == x0 || x == x1 || z == z0 || z == z1 || y == y0 || y == y1
             w.set(x, y, z, wall ? mat(x, y, z) : AIR)
             // Foundations down through cave air under the floor (structcheck floating: up to 242 columns hung over caves).
-            if y == y0 { w.pillarDown(x, y0 - 1, z, mat(x, y0 - 1, z), minY: y0 - 40) }      // 10 left 28-223 columns over deeper caves (run 357)
+            if y == y0 { w.groundDown(x, y0 - 1, z, mat(x, y0 - 1, z), minY: y0 - 40) }      // 10 left 28-223 columns over deeper caves (run 357)
         } } }
     }
 

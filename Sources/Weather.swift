@@ -81,6 +81,7 @@ extension Game {
         bolts.removeAll { $0.life <= 0 }
         lightningFlash = max(0, lightningFlash - dt * 3)
         skyTick(dt)
+        stormTick(dt)                                                      // D49 (Storms.swift)
         guard wetWorld else { return }
         // Splashes where rain lands around the player.
         if w.rain > 0.2 {
@@ -109,12 +110,15 @@ extension Game {
             lightningTimer -= dt
             if lightningTimer <= 0 {
                 lightningTimer = Rand.float(in: 5...20)
+                if let hit = riderLightning() { strike(hit); return }          // D49: riders in the open draw strikes
                 let a = Rand.float(in: 0..<(2 * .pi)), d = Rand.float(in: 0...96)
                 var x = Int(floor(player.pos.x + cosf(a) * d)), z = Int(floor(player.pos.z + sinf(a) * d))
-                // Lightning rods within 128 blocks attract it (reference: strikes the rod instead).
-                if let rod = lightningRods.first(where: { abs($0.x - x) < 64 && abs($0.z - z) < 64 }) { x = rod.x; z = rod.z }
+                // W3: the nearest lightning rod within 128 blocks open to the sky takes the strike (reference); rods are
+                // registered as their chunks load and pruned when broken (Circuit.rods).
+                var rodY: Int?
+                if world.isLoaded(x, z), let rod = world.redstone.nearestRod(x: x, y: world.topY(x, z), z: z) { x = rod.x; z = rod.z; rodY = rod.y }
                 if world.isLoaded(x, z) {
-                    let y = world.topY(x, z)
+                    let y = rodY ?? world.topY(x, z)
                     if precipitation(x, y, z) == 1 { strike(V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5)) }
                 }
             }
@@ -133,7 +137,11 @@ extension Game {
         if d > 72 { sfx(.thunderFar, max(0.4, 1.2 - d / 300)) } else { sfx(.thunder, max(0.3, 1.4 - d / 120), at: d < 32 ? at : nil) }
         if d < 24 { sfx(.lightning, 1.2, at: at) }
         let b = IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z)))
-        if world.block(b.x, b.y, b.z) == AIR && Blocks.opaque[Int(world.block(b.x, b.y - 1, b.z))] && Blocks.flammable[Int(world.block(b.x, b.y - 1, b.z))] == false {
+        // W3: a struck lightning rod gives an 8-tick signal and no fire is lit on it.
+        world.redstone.vibrate(at: at, freq: 14)                      // W9: lightning
+        if Circuit.kind(world.block(b.x, b.y - 1, b.z)) == .lightningRod {
+            world.redstone.rodStruck(IVec3(b.x, b.y - 1, b.z))
+        } else if world.block(b.x, b.y, b.z) == AIR && Blocks.opaque[Int(world.block(b.x, b.y - 1, b.z))] && Blocks.flammable[Int(world.block(b.x, b.y - 1, b.z))] == false {
             world.placeFire(b)
         } else if world.block(b.x, b.y, b.z) == AIR { world.placeFire(b) }
         // Whichever player stands under it (split screen: player 2 too).

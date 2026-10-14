@@ -15,6 +15,8 @@ struct Particle {
     var color: V3
     var collide: Bool
     var glow = false
+    var follow: Mob? = nil        // R11: carried along with this mob (a cut mark stays on the body it was cut into)
+    var followAt = V3.zero
 }
 
 final class ParticleManager {
@@ -151,15 +153,17 @@ final class ParticleManager {
 
     // The mark a blade leaves where it hit (VRMelee, Oct 11 playtest P16): a red streak along the swing across the
     // contact point, lingering a second, drawn a little toward the viewer so it sits on the mob's surface.
-    func slashMark(at c: V3, along dir: V3, toward eye: V3, power: Float) {
+    func slashMark(at c: V3, along dir: V3, toward eye: V3, power: Float, on mob: Mob? = nil) {
         let smoke = Int(Tex.id("smoke"))
         let d = simd_normalize(dir + V3(0, 1e-4, 0)), out = simd_normalize(eye - c + V3(0, 1e-4, 0))
         let n = 9, len: Float = 0.3 + 0.25 * power
         for i in 0..<n {
             let t = Float(i) / Float(n - 1) - 0.5
             let w: Float = 1 - abs(t) * 1.2                     // thick in the middle, tapering to the ends
-            add(Particle(pos: c + d * (t * len) + out * 0.06, vel: V3(0, -0.04, 0), life: 1.1, maxLife: 1.1, layer: smoke,
-                         uv0: V2(0, 0), uvSize: 1, size: 0.05 + 0.04 * w, gravity: 0, color: V3(0.75, 0.04, 0.03), collide: false, glow: false))
+            // R11 (Oct 13: "the red hit mark should stay on the target"): it rides on the mob it was cut into, for 2.5 s.
+            add(Particle(pos: c + d * (t * len) + out * 0.06, vel: V3(0, mob == nil ? -0.04 : 0, 0), life: mob == nil ? 1.1 : 2.5, maxLife: mob == nil ? 1.1 : 2.5,
+                         layer: smoke, uv0: V2(0, 0), uvSize: 1, size: 0.05 + 0.04 * w, gravity: 0, color: V3(0.75, 0.04, 0.03), collide: false, glow: false,
+                         follow: mob, followAt: mob?.pos ?? .zero))
         }
     }
 
@@ -169,6 +173,9 @@ final class ParticleManager {
             list[i].life -= dt
             list[i].vel.y -= list[i].gravity * dt
             var np = list[i].pos + list[i].vel * dt
+            if let m = list[i].follow {
+                if m.health <= 0 && m.deathT > 1 { list[i].follow = nil } else { np += m.pos - list[i].followAt; list[i].followAt = m.pos }
+            }
             if list[i].collide && (Blocks.collide[Int(w.block(Int(floor(np.x)), Int(floor(np.y)), Int(floor(np.z))))] || (ships && w.ships.solid(at: np))) {
                 list[i].vel = V3(list[i].vel.x * 0.3, 0, list[i].vel.z * 0.3)
                 np = list[i].pos

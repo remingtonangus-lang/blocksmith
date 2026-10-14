@@ -1,4 +1,11 @@
 import Foundation
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Android)
+import Android
+#elseif canImport(Darwin)
+import Darwin
+#endif
 
 struct WorldMeta: Codable {
     var seed: UInt64
@@ -79,7 +86,10 @@ final class SaveManager {
         return true
     }
 
+    // The save whose guard was read last (StructureCache.legacyC13 takes R20's guard from it).
+    static weak var guarding: SaveManager?
     func structureGuard(file: String = "structure-guard.txt") -> Set<Int64> {
+        SaveManager.guarding = self
         let url = dir.appendingPathComponent(file)
         var out = Set<Int64>()
         if let s = try? String(contentsOf: url, encoding: .utf8) {
@@ -104,7 +114,17 @@ final class SaveManager {
     func loadMeta() -> WorldMeta? {
         SaveIO.flush()              // a background autosave of this world still writing (SaveIO.writeJSON)
         guard let d = try? Data(contentsOf: metaURL) else { return nil }
-        guard let m = try? SaveIO.decoder().decode(WorldMeta.self, from: d) else { return nil }
+        guard let m = try? SaveIO.decoder().decode(WorldMeta.self, from: d) else {
+            // S1: a damaged world.json made the world open as a brand new one (the seed lost, the next save writing over
+            // the player's world). It is kept as world.json.corrupt and the newest backup copy is used instead.
+            SaveIO.quarantine(metaURL, what: "world file")
+            if let b = SaveIO.latestBackup(dir, "world.json"), let bd = try? Data(contentsOf: b),
+               let bm = try? SaveIO.decoder().decode(WorldMeta.self, from: bd) {
+                SaveIO.report("The world was restored from its last backup copy")
+                return bm
+            }
+            return nil
+        }
         if !backupChecked { backupChecked = true; SaveMigration.backupIfNeeded(dir: dir, meta: m) }
         return m
     }
@@ -113,17 +133,30 @@ final class SaveManager {
     func saveMeta(_ m0: WorldMeta, background: Bool = false) {
         var m = m0
         m.extra = (m.extra ?? [:]).merging(["format": String(SaveMigration.format)]) { _, n in n }
-        if background { SaveIO.writeJSON(m, to: metaURL, pretty: true); return }
-        let enc = SaveIO.encoder()
-        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        if let d = try? enc.encode(m) { try? d.write(to: metaURL, options: .atomic) }
+        if background { SaveIO.writeJSON(m, to: metaURL, pretty: true) } else { SaveIO.storeJSON(m, to: metaURL, pretty: true) }
+        SaveIO.snapshot(dir)                   // S3 (queued after the writes above)
     }
 
     var blockEntityURL: URL { dir.appendingPathComponent("blockentities.json") }
 
     func loadBlockEntities() -> [IVec3: BlockEntity] {
-        guard let d = try? Data(contentsOf: blockEntityURL),
-              let s = try? JSONDecoder().decode(BlockEntitySave.self, from: d) else { return [:] }
+        guard let d = try? Data(contentsOf: blockEntityURL) else { return [:] }
+        guard let s = try? JSONDecoder().decode(BlockEntitySave.self, from: d) else {
+            // S1: chests and furnaces that won't decode are kept as .corrupt (and the backup copy is loaded), not
+            // silently replaced by an empty list on the next save.
+            SaveIO.quarantine(blockEntityURL, what: "chest and furnace file")
+            if let b = SaveIO.latestBackup(dir, "blockentities.json"), let bd = try? Data(contentsOf: b),
+               let bs = try? JSONDecoder().decode(BlockEntitySave.self, from: bd) {
+                SaveIO.report("Chests and furnaces were restored from the last backup copy")
+                var out: [IVec3: BlockEntity] = [:]
+                for (k, v) in bs.entries {
+                    let p = k.split(separator: ",").compactMap { Int($0) }
+                    if p.count == 3 { out[IVec3(p[0], p[1], p[2])] = v }
+                }
+                return out
+            }
+            return [:]
+        }
         var out: [IVec3: BlockEntity] = [:]
         for (k, v) in s.entries {
             let p = k.split(separator: ",").compactMap { Int($0) }
@@ -132,10 +165,13 @@ final class SaveManager {
         return out
     }
 
-    func saveBlockEntities(_ m: [IVec3: BlockEntity]) {
+    // F1 (Oct 13 evening: "~1 s freezes"): the autosave encoded every block entity of the world as JSON on the frame
+    // thread. Now copies (BlockEntity.snapshot: plain fields and the slots) are taken here and encoded on the save queue.
+    func saveBlockEntities(_ m: [IVec3: BlockEntity], background: Bool = false) {
         var e: [String: BlockEntity] = [:]
-        for (k, v) in m { e["\(k.x),\(k.y),\(k.z)"] = v }
-        if let d = try? JSONEncoder().encode(BlockEntitySave(entries: e)) { try? d.write(to: blockEntityURL, options: .atomic) }
+        e.reserveCapacity(m.count)
+        for (k, v) in m { e["\(k.x),\(k.y),\(k.z)"] = background ? v.snapshot() : v }
+        SaveIO.write(BlockEntitySave(entries: e), to: blockEntityURL, background: background)
     }
 
     func loadPortals() -> [IVec3] {
@@ -145,9 +181,7 @@ final class SaveManager {
     }
 
     func savePortals(_ p: [IVec3]) {
-        if let d = try? JSONEncoder().encode(p.map { [$0.x, $0.y, $0.z] }) {
-            try? d.write(to: dir.appendingPathComponent("portals.json"), options: .atomic)
-        }
+        SaveIO.storeJSON(p.map { [$0.x, $0.y, $0.z] }, to: dir.appendingPathComponent("portals.json"))
     }
 
     func chunkURL(_ k: ChunkKey) -> URL { chunkDir.appendingPathComponent("c.\(k.x).\(k.z).lz") }
@@ -157,7 +191,13 @@ final class SaveManager {
     // Thread-safe: called from world worker threads.
     func loadChunk(_ k: ChunkKey) -> [BlockID]? {
         if let queued = SaveIO.pending(chunkURL(k).path) { return queued }     // written in the background, not on disk yet
-        guard let d = try? Data(contentsOf: chunkURL(k)), var out = SaveManager.decodeBlocks([UInt8](d)) else { return nil }
+        guard let d = try? Data(contentsOf: chunkURL(k)) else { return nil }
+        guard var out = SaveManager.decodeBlocks([UInt8](d)) else {
+            // S1: a chunk file that won't decode was regenerated from the seed and the next save wrote over the player's
+            // building. It is kept as .corrupt beside the chunks.
+            SaveIO.quarantine(chunkURL(k), what: "piece of the world (chunk \(k.x), \(k.z))")
+            return nil
+        }
         if overworldFloor { SaveManager.stripBedrockFloor(&out); HellGate.stamp(&out) }
         if deepSeal { DeepSeal.stamp(&out); AshFinal.stamp(&out, cx: k.x, cz: k.z) }
         return out
@@ -201,8 +241,8 @@ final class SaveManager {
     }
 
     func saveChunk(_ k: ChunkKey, _ blocks: [BlockID]) {
-        guard let c = SaveManager.encodeBlocks(blocks) else { return }
-        try? Data(c).write(to: chunkURL(k), options: .atomic)
+        guard let c = SaveManager.encodeBlocks(blocks) else { SaveIO.report("Couldn't pack chunk \(k.x), \(k.z) for saving"); return }
+        SaveIO.store(Data(c), to: chunkURL(k))
     }
 
     static func encodeBlocks(_ blocks: [BlockID]) -> [UInt8]? {
@@ -261,6 +301,119 @@ enum SaveIO {
 
     static func flush() { queue.sync {} }
 
+    // S2 (store readiness: "save errors are shown to the player, not swallowed by try?"): problems noted here from any
+    // thread; Game.tick hands them to the toast line (takeProblems), each message once a minute at most.
+    private static var problems: [String] = []
+    private static var lastSaid: [String: Double] = [:]
+    static func report(_ msg: String) {
+        print("save problem: " + msg)
+        lock.lock(); defer { lock.unlock() }
+        let now = CFAbsoluteTimeGetCurrent()
+        if let t = lastSaid[msg], now - t < 60 { return }
+        lastSaid[msg] = now
+        if problems.count < 8 { problems.append(msg) }
+    }
+    static func takeProblems() -> [String] {
+        lock.lock(); defer { lock.unlock() }
+        if problems.isEmpty { return [] }
+        let p = problems
+        problems.removeAll()
+        return p
+    }
+
+    // S3: a write a dead battery can't half-finish: the bytes go to a temporary file beside the target, are flushed to
+    // the storage (fsync) and only then renamed over it (one atomic step). A failure is reported (S2), never swallowed,
+    // and the old file stays as it was.
+    static func store(_ data: Data, to url: URL) {
+        let tmp = url.deletingLastPathComponent().appendingPathComponent("." + url.lastPathComponent + ".tmp")
+        do {
+            let fm = FileManager.default
+            if fm.fileExists(atPath: tmp.path) { try? fm.removeItem(at: tmp) }
+            guard fm.createFile(atPath: tmp.path, contents: nil) else {
+                throw NSError(domain: "save", code: 1, userInfo: [NSLocalizedDescriptionKey: "can't create a file (is the storage full?)"])
+            }
+            let h = try FileHandle(forWritingTo: tmp)
+            h.write(data)
+            h.synchronizeFile()
+            h.closeFile()
+            if rename(tmp.path, url.path) != 0 {
+                throw NSError(domain: "save", code: Int(errno), userInfo: [NSLocalizedDescriptionKey: String(cString: strerror(errno))])
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: tmp)
+            report("Couldn't save \(url.lastPathComponent): \(error.localizedDescription)")
+        }
+    }
+    static func storeJSON<T: Encodable>(_ value: T, to url: URL, pretty: Bool = false) {
+        let enc = encoder()
+        if pretty { enc.outputFormatting = [.prettyPrinted, .sortedKeys] }
+        do { store(try enc.encode(value), to: url) } catch { report("Couldn't encode \(url.lastPathComponent): \(error.localizedDescription)") }
+    }
+
+    // S1: a file that will not decode is kept beside the world as <name>.corrupt (the next save writes a fresh file;
+    // the broken one is never overwritten) and the player is told.
+    static func quarantine(_ url: URL, what: String) {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: url.path) else { return }
+        var dest = url.appendingPathExtension("corrupt")
+        var n = 1
+        while fm.fileExists(atPath: dest.path) { n += 1; dest = url.appendingPathExtension("corrupt\(n)") }
+        do { try fm.moveItem(at: url, to: dest) } catch { report("A damaged \(what) couldn't be set aside: \(error.localizedDescription)"); return }
+        report("A damaged \(what) was kept as \(dest.lastPathComponent); a backup is in the world's backups folder")
+    }
+
+    // S3: rolling snapshots of the world's small files (player, inventory, chests, mobs, ships, maps) in
+    // <world>/backups/auto-1...3, newest first, taken at most every 5 minutes on the save queue after the files are
+    // written. Chunks are left out (many, and regenerated or rewritten as they change).
+    private static var lastSnapshot: [String: Double] = [:]
+    static let snapshotFiles = ["world.json", "blockentities.json", "mobs.json", "ships.json", "maps.json", "populated.json",
+                                "hives.json", "portals.json", "xporbs.json", "mapfog.json", "mapmarks.json"]
+    static func snapshot(_ dir: URL) {
+        let key = dir.standardizedFileURL.path
+        let now = CFAbsoluteTimeGetCurrent()
+        lock.lock()
+        let due = now - (lastSnapshot[key] ?? 0) > 300
+        if due { lastSnapshot[key] = now }
+        lock.unlock()
+        guard due else { return }
+        queue.async {
+            let fm = FileManager.default
+            let root = dir.appendingPathComponent("backups", isDirectory: true)
+            try? fm.createDirectory(at: root, withIntermediateDirectories: true)
+            let a3 = root.appendingPathComponent("auto-3"), a2 = root.appendingPathComponent("auto-2"), a1 = root.appendingPathComponent("auto-1")
+            try? fm.removeItem(at: a3)
+            try? fm.moveItem(at: a2, to: a3)
+            try? fm.moveItem(at: a1, to: a2)
+            let tmp = root.appendingPathComponent(".auto-new")
+            try? fm.removeItem(at: tmp)
+            do {
+                try fm.createDirectory(at: tmp, withIntermediateDirectories: true)
+                for f in snapshotFiles where fm.fileExists(atPath: dir.appendingPathComponent(f).path) {
+                    try fm.copyItem(at: dir.appendingPathComponent(f), to: tmp.appendingPathComponent(f))
+                }
+                try fm.moveItem(at: tmp, to: a1)
+            } catch {
+                report("Couldn't make the world's backup copy: \(error.localizedDescription)")
+            }
+        }
+    }
+    // The newest snapshot's copy of a file, if any (S1: a damaged world.json is read from it).
+    static func latestBackup(_ dir: URL, _ file: String) -> URL? {
+        for n in 1...3 {
+            let u = dir.appendingPathComponent("backups/auto-\(n)/\(file)")
+            if FileManager.default.fileExists(atPath: u.path) { return u }
+        }
+        return nil
+    }
+
+    // F1: work for the save queue (encoding from value snapshots the frame thread no longer touches).
+    static func run(_ work: @escaping () -> Void) { queue.async(execute: work) }
+    // A value snapshot written as JSON: on the save queue (the autosave) or right here (quit, pause, world switch).
+    static func write<T: Encodable>(_ value: T, to url: URL, background: Bool) {
+        if background { writeJSON(value, to: url); return }
+        storeJSON(value, to: url)
+    }
+
     // Encodes and writes a value snapshot (structs only: nothing the frame thread keeps mutating) on the save queue,
     // after any chunk writes already queued. The autosave's JSON encoding ran on the frame thread: the Oct 9 Quest
     // playtest logged a ~190 ms tick once a minute, every minute.
@@ -279,10 +432,6 @@ enum SaveIO {
     }
 
     static func writeJSON<T: Encodable>(_ value: T, to url: URL, pretty: Bool = false) {
-        queue.async {
-            let enc = encoder()
-            if pretty { enc.outputFormatting = [.prettyPrinted, .sortedKeys] }
-            if let d = try? enc.encode(value) { try? d.write(to: url, options: .atomic) }
-        }
+        queue.async { storeJSON(value, to: url, pretty: pretty) }
     }
 }

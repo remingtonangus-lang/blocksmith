@@ -158,7 +158,7 @@ enum CapitalBase {
         if bank { w.berm(cx, cz, half: A, floor: y0, reach: 8) }         // P91: banked into the land round it
         columns(-A, A, -A, A) { dx, dz in
             let x = cx + dx, z = cz + dz
-            w.pillarDown(x, y0, z, DIRT, minY: y0 - 48)
+            w.groundDown(x, y0, z, DIRT, minY: y0 - 48)
             if CapitalBase.octagon(dx, dz, PO, 14) {
                 for y in (y0 - 6)...P1 { w.set(x, y, z, white) }
                 w.set(x, P1, z, (abs(dx) + abs(dz)) % 8 == 0 || dx == 0 || dz == 0 ? grey : white)   // paving lines

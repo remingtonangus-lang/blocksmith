@@ -260,6 +260,7 @@ final class SoundBank {
     static let rate: Double = 44100
     private var clips: [Snd: [[Float]]] = [:]
     private var evicted = Set<Snd>()          // held as PCM by the engine: a late prewarm must not cache it again
+    private var recorded = Set<Snd>()         // played from a recording (RealSounds.swift), not synthesized
     private let lock = NSLock()
 
     // Everything with a fixed identity (note blocks are open-ended and made on demand).
@@ -397,6 +398,14 @@ final class SoundBank {
         return out
     }
 
+    // How many takes the engine should pull for a sound: the recorded files when there are any, else the synth's.
+    func takeCount(_ s: Snd) -> Int {
+        let n = RealSounds.count(s)
+        return n > 0 ? n : SoundBank.variants(for: s)
+    }
+    // True once a sound has been loaded from a recording (the engines vary those per play).
+    func isRecorded(_ s: Snd) -> Bool { lock.lock(); defer { lock.unlock() }; return recorded.contains(s) }
+
     func has(_ s: Snd) -> Bool {
         if case .voice = s { return true }          // decoded on demand in well under a millisecond
         lock.lock(); defer { lock.unlock() }
@@ -410,8 +419,9 @@ final class SoundBank {
         if let vs = clips[s], !vs.isEmpty { lock.unlock(); return vs[variant % vs.count] }
         lock.unlock()
         var vs: [[Float]] = []
-        for v in 0..<SoundBank.variants(for: s) { vs.append(SoundBank.render(s, variant: v)) }
-        lock.lock(); if !evicted.contains(s) { clips[s] = vs }; lock.unlock()
+        let rec = RealSounds.load(s)                 // a recording dropped in Resources/Sounds/real wins (SND2)
+        if let r = rec { vs = r } else { for v in 0..<SoundBank.variants(for: s) { vs.append(SoundBank.render(s, variant: v)) } }
+        lock.lock(); if !evicted.contains(s) { clips[s] = vs }; if rec != nil { recorded.insert(s) }; lock.unlock()
         return vs[variant % vs.count]
     }
 

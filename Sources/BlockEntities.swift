@@ -47,6 +47,17 @@ final class BlockEntity: Codable {
         }
     }
 
+    // F1: a copy for the save queue to encode while the game keeps changing the original.
+    func snapshot() -> BlockEntity {
+        let c = BlockEntity(kind)
+        c.items = container.slots
+        c.mob = mob; c.delay = delay; c.burn = burn; c.burnMax = burnMax; c.cook = cook; c.fuel = fuel
+        c.brewTime = brewTime; c.brewIngredient = brewIngredient; c.level = level; c.secondary = secondary
+        c.cooks = cooks; c.xp = xp; c.trial = trial; c.spawned = spawned; c.cooldown = cooldown; c.used = used
+        c.lines = lines; c.patterns = patterns; c.last = last
+        return c
+    }
+
     init(_ k: Kind) {
         kind = k
         items = Array(repeating: .empty, count: BlockEntity.slotCount(k))
@@ -157,7 +168,9 @@ final class BlockEntity: Codable {
 
 extension BlockEntity {
     static func allowed(_ out: ItemID, _ input: ItemID, in kind: String) -> Bool {
-        if Items.key(input) == "steel_blend" || Items.key(input) == "sunderite_flux" { return kind == "blast_furnace" }
+        // (H3: titanium, raw or ore, needs a blast furnace's heat too.)
+        let ik = Items.key(input)
+        if ik == "steel_blend" || ik == "sunderite_flux" || ik == "raw_titanium" || ik.hasSuffix("diamond_ore") { return kind == "blast_furnace" }
         switch kind {
         case "smoker": return Items.def(out).food != nil
         case "blast_furnace":

@@ -27,7 +27,9 @@ enum RenderTest {
                        try scene.makeTarget(image: img.image, width: width, height: height)]
         // Stereo rig: 64 mm apart, symmetric field of view, head at the player's eye.
         let t = tanf(fovDeg * .pi / 360)
-        let far = Float(game.world.renderDistance * 16 + 96)
+        // (As QuestApp.farPlane: the F4 middle ring reaches FarRing.outer in the overworld.)
+        let ringFar: Float = FarRing.enabled && game.dim.dim == .overworld ? FarRing.outer + 96 : 0
+        let far = max(Float(game.world.renderDistance * 16 + 96), ringFar)
         let proj = XRMath.projection(tanLeft: -t, tanRight: t, tanUp: t, tanDown: -t, near: 0.05, far: far)
         let head = simd_quatf(angle: yaw, axis: V3(0, 1, 0)) * simd_quatf(angle: pitch, axis: V3(1, 0, 0))
         var vps: [float4x4] = []
@@ -70,6 +72,10 @@ enum RenderTest {
         landmarkVerts = wr.landmarkCount
         drawnQuads = scene.drawnQuads; recordMs = wr.frameCPUMs
         if wr.landmarkCount > 0 { print(String(format: "rendertest: landmark impostors %d vertices, %.2f ms", wr.landmarkCount, wr.landmarkMs)) }
+        if wr.farRingQuads > 0 || scene.deepSeaSkipped > 0 || scene.batchedWater > 0 {
+            print(String(format: "rendertest: far ring %d quads (build %.0f ms), deep-sea sections skipped %d, far water sections batched %d",
+                         wr.farRingQuads, FarRing.shared.lastBuildMs, scene.deepSeaSkipped, scene.batchedWater))
+        }
         // Side by side, left eye first.
         let src = readback.mapped!.bindMemory(to: UInt8.self, capacity: width * height * 8)
         var out = [UInt8](repeating: 0, count: width * 2 * height * 4)

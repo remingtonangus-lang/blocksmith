@@ -52,10 +52,10 @@ extension MobManager {
         mobs.append(b)
     }
 
-    func saveHives(to s: SaveManager?) {
+    func saveHives(to s: SaveManager?, background: Bool = false) {
         guard let s = s else { return }
         let recs = hives.map { HiveRecord(p: [$0.key.x, $0.key.y, $0.key.z], bees: $0.value.map { $0.nectar }, t: $0.value.map { $0.time }) }
-        if let d = try? JSONEncoder().encode(recs) { try? d.write(to: s.dir.appendingPathComponent("hives.json"), options: .atomic) }
+        SaveIO.write(recs, to: s.dir.appendingPathComponent("hives.json"), background: background)      // F1
     }
 
     func loadHives(from s: SaveManager?) {

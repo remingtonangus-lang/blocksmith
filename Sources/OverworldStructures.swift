@@ -66,7 +66,7 @@ enum OverworldStructures {
             w.fill(cx + x0, y + y0, cz + z0, cx + x1, y + y1, cz + z1, b)
         }
         // Foundation, a clear volume (dunes), the floor.
-        for dz in -14...10 { for dx in -10...10 { w.pillarDown(cx + dx, y - 1, cz + dz, ss, minY: y - 10) } }
+        for dz in -14...10 { for dx in -10...10 { w.groundDown(cx + dx, y - 1, cz + dz, ss, minY: y - 10) } }
         F(-10, 1, -14, 10, 15, 10, AIR)
         F(-10, 0, -14, 10, 0, 10, ss)
         F(-9, 0, -9, 9, 0, 9, smooth)
@@ -194,7 +194,7 @@ enum OverworldStructures {
             return h < 0.4 ? mossy : (h < 0.75 ? cob : (h < 0.9 ? mbr : cbr))
         }
         let y = gy
-        for z in (cz - 11)...(cz + 7) { for x in (cx - 6)...(cx + 6) { w.pillarDown(x, y - 1, z, cob, minY: y - 20) } }      // 6 left a jungle slope under 3 columns (run 357)
+        for z in (cz - 11)...(cz + 7) { for x in (cx - 6)...(cx + 6) { w.groundDown(x, y - 1, z, cob, minY: y - 20) } }      // 6 left a jungle slope under 3 columns (run 357)
         // Three tiers, each smaller, with a carved band near the top of each and chiseled corner pillars.
         for (tier, (rx, rz, h)) in [(6, 7, 4), (5, 6, 4), (3, 4, 4)].enumerated() {
             let by = y + tier * 4
@@ -272,7 +272,7 @@ enum OverworldStructures {
 
     static func swampHut(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
         let pl = Blocks.id("spruce_planks"), log = Blocks.id("oak_log"), st = Blocks.id("spruce_stairs")
-        for (dx, dz) in [(-2, -2), (2, -2), (-2, 3), (2, 3)] { w.pillarDown(cx + dx, y - 1, cz + dz, log, minY: y - 10) }
+        for (dx, dz) in [(-2, -2), (2, -2), (-2, 3), (2, 3)] { w.groundDown(cx + dx, y - 1, cz + dz, log, minY: y - 10) }
         w.fill(cx - 3, y, cz - 3, cx + 3, y, cz + 4, pl)
         for yy in (y + 1)...(y + 3) { for z in (cz - 2)...(cz + 3) { for x in (cx - 2)...(cx + 2) {
             let edge = abs(x - cx) == 2 || z == cz - 2 || z == cz + 3
@@ -288,7 +288,7 @@ enum OverworldStructures {
         // The floor's overhang is a porch: stilts at its corners, a fence rail round it (open at the door), windows.
         // (The bare overhang read as a tray: blind critic, run 395 temple2.)
         let fence = Blocks.id("oak_fence")
-        for (dx, dz) in [(-3, -3), (3, -3), (-3, 4), (3, 4)] { w.pillarDown(cx + dx, y - 1, cz + dz, log, minY: y - 10) }
+        for (dx, dz) in [(-3, -3), (3, -3), (-3, 4), (3, 4)] { w.groundDown(cx + dx, y - 1, cz + dz, log, minY: y - 10) }
         for x in (cx - 3)...(cx + 3) where abs(x - cx) > 1 { w.set(x, y + 1, cz - 3, fence) }
         for z in (cz - 3)...(cz + 4) { w.set(cx - 3, y + 1, z, fence); w.set(cx + 3, y + 1, z, fence) }
         for x in (cx - 3)...(cx + 3) { w.set(x, y + 1, cz + 4, fence) }
@@ -318,7 +318,7 @@ enum OverworldStructures {
         w.fill(cx, y, cz - 4, cx, y + 1, cz - 3, AIR)
         // The entrance tunnel and a step in front of it stand on snow down to the ground (on a slope the tunnel had no
         // floor, so the walk never got in: structcheck, both basement chests unreachable, run 358).
-        for dz in -5...(-3) { w.pillarDown(cx, y - 1, cz + dz, snow, minY: y - 12) }
+        for dz in -5...(-3) { w.groundDown(cx, y - 1, cz + dz, snow, minY: y - 12) }
         w.fill(cx, y, cz - 5, cx, y + 1, cz - 5, AIR)
         w.fill(cx - 1, y, cz - 4, cx - 1, y + 2, cz - 4, snow); w.fill(cx + 1, y, cz - 4, cx + 1, y + 2, cz - 4, snow)
         w.set(cx, y + 2, cz - 4, snow)
@@ -333,7 +333,7 @@ enum OverworldStructures {
             w.fill(cx - 3, by - 1, cz - 3, cx + 3, by + 4, cz + 3, Blocks.id("stone_bricks"))
             // Over a cave the lab's floor hung in the air (structcheck floating, seeds 12345/777): a brick footing (not stone:
             // pillarDown runs on through blocks equal to its own).
-            for px in (cx - 3)...(cx + 3) { for pz in (cz - 3)...(cz + 3) { w.pillarDown(px, by - 2, pz, Blocks.id("stone_bricks"), minY: by - 24) } }
+            for px in (cx - 3)...(cx + 3) { for pz in (cz - 3)...(cz + 3) { w.groundDown(px, by - 2, pz, Blocks.id("stone_bricks"), minY: by - 24) } }
             w.fill(cx - 2, by, cz - 2, cx + 2, by + 3, cz + 2, AIR)
             // The ladder after the room: laid first, the lab's ceiling covered the shaft (structcheck, run 368: both
             // basements' chest and cauldron unreachable).
@@ -383,7 +383,7 @@ enum OverworldStructures {
         var rng = SRng(seed)
         let log = Blocks.id("dark_oak_log"), pl = Blocks.id("dark_oak_planks"), cob = COBBLE, fence = Blocks.id("dark_oak_fence")
         let wall = Blocks.id("birch_planks"), mossy = Blocks.has("mossy_cobblestone") ? Blocks.id("mossy_cobblestone") : COBBLE
-        for z in (cz - 4)...(cz + 4) { for x in (cx - 4)...(cx + 4) { w.pillarDown(x, y - 1, z, cob, minY: y - 8) } }
+        for z in (cz - 4)...(cz + 4) { for x in (cx - 4)...(cx + 4) { w.groundDown(x, y - 1, z, cob, minY: y - 8) } }
         w.fill(cx - 4, y - 1, cz - 4, cx + 4, y - 1, cz + 4, cob)
         for fl in 0..<4 {
             let by = y + fl * 5
@@ -450,7 +450,7 @@ enum OverworldStructures {
         switch kind {
         case 0:
             for z in (cz - 2)...(cz + 2) { for x in (cx - 2)...(cx + 2) {
-                w.pillarDown(x, y - 1, z, DIRT, minY: y - 5)
+                w.groundDown(x, y - 1, z, DIRT, minY: y - 5)
                 let edge = abs(x - cx) == 2 || abs(z - cz) == 2
                 for yy in y...(y + 2) { w.set(x, yy, z, edge ? fence : AIR) }
                 w.set(x, y + 3, z, pl)
@@ -459,7 +459,7 @@ enum OverworldStructures {
         case 1:
             let wool = Blocks.id("white_wool")
             for z in (cz - 2)...(cz + 2) {
-                for x in (cx - 2)...(cx + 2) { w.pillarDown(x, y - 1, z, DIRT, minY: y - 5); for yy in y...(y + 2) { w.set(x, yy, z, AIR) } }
+                for x in (cx - 2)...(cx + 2) { w.groundDown(x, y - 1, z, DIRT, minY: y - 5); for yy in y...(y + 2) { w.set(x, yy, z, AIR) } }
                 w.set(cx - 2, y, z, wool); w.set(cx + 2, y, z, wool)
                 w.set(cx - 1, y + 1, z, wool); w.set(cx + 1, y + 1, z, wool)
                 w.set(cx, y + 2, z, wool)
@@ -467,7 +467,7 @@ enum OverworldStructures {
             // Level aprons at both open ends (on a slope the ground outside stood a block over the tent floor:
             // structcheck, run 417).
             for z in [cz - 3, cz + 3] { for x in (cx - 1)...(cx + 1) {
-                w.pillarDown(x, y - 1, z, DIRT, minY: y - 5)
+                w.groundDown(x, y - 1, z, DIRT, minY: y - 5)
                 for yy in y...(y + 2) { w.set(x, yy, z, AIR) }
             } }
             // A dark ridge pole along the peak (the bare wool A-frame read as white steps: run 408 outpost). No end
@@ -477,7 +477,7 @@ enum OverworldStructures {
             w.set(cx, y, cz + 1, Blocks.id("crafting_table"))
             w.set(cx + 1, y, cz - 1, Blocks.id("hay_block"))
         case 2:
-            for z in (cz - 1)...(cz + 1) { for x in (cx - 2)...(cx + 2) { w.pillarDown(x, y - 1, z, DIRT, minY: y - 5) } }
+            for z in (cz - 1)...(cz + 1) { for x in (cx - 2)...(cx + 2) { w.groundDown(x, y - 1, z, DIRT, minY: y - 5) } }
             let along = Blocks.has("dark_oak_log[x]") ? Blocks.id("dark_oak_log[x]") : log
             for x in (cx - 2)...(cx + 2) { w.set(x, y, cz - 1, along); w.set(x, y, cz, along) }
             for x in (cx - 1)...(cx + 1) { w.set(x, y + 1, cz - 1, along) }
@@ -486,7 +486,7 @@ enum OverworldStructures {
         default:
             let target = Blocks.has("target") ? Blocks.id("target") : Blocks.id("hay_block")
             for dx in [-2, 0, 2] {
-                w.pillarDown(cx + dx, y - 1, cz, DIRT, minY: y - 5)
+                w.groundDown(cx + dx, y - 1, cz, DIRT, minY: y - 5)
                 w.set(cx + dx, y, cz, fence); w.set(cx + dx, y + 1, cz, target)
             }
         }
@@ -517,7 +517,7 @@ enum OverworldStructures {
             w.set(cx + dx, y, cz + dz, rng.chance(0.15) ? mag : nr)
         } }
         // Earth under the patch and frame down to the real ground, so nothing floats.
-        for dz in -3...3 { for dx in -5...5 { w.pillarDown(cx + dx, y - 1, cz + dz, DIRT, minY: y - 10) } }
+        for dz in -3...3 { for dx in -5...5 { w.groundDown(cx + dx, y - 1, cz + dz, DIRT, minY: y - 10) } }
         // Broken 4x5 frame (interior 2x3): each side pillar is worn down from the top, and a lintel block
         // only stays where the pillar under its end is whole, so no piece hangs in the air.
         let leftH = 5 - rng.int(3), rightH = 5 - rng.int(3)

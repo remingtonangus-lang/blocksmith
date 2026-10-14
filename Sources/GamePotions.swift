@@ -71,6 +71,12 @@ extension Game {
 
     // Tipped arrow hit: 1/8 duration.
     func arrowEffects(_ tip: ItemID, onPlayer: Bool, mob: Mob?) {
+        // Spectral arrows (W8: a dispenser fires them too): Glowing for 10 s (reference).
+        if Items.key(tip) == "spectral_arrow" {
+            if onPlayer { applyEffect(.glowing, amp: 0, seconds: 10) }
+            mob?.applyEffect(.glowing, amp: 0, seconds: 10, game: self)
+            return
+        }
         guard case let (_, t)? = Potions.potion(of: tip) else { return }
         if onPlayer { applyPotion(t, scale: 1, durationScale: 0.125) }
         if let m = mob { applyPotion(t, to: m, scale: 1, durationScale: 0.125) }

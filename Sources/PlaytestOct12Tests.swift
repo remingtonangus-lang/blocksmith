@@ -205,8 +205,9 @@ enum PlaytestOct12Tests {
         Rand.seed(4242)
         BountyHunters.send(g)
         let h = g.mobs.mobs.filter { BountyHunters.isHunter($0) }
-        let guns = h.filter { $0.townWeapon == .revolver }.count
-        let tough = h.allSatisfy { $0.health >= $0.spec.health * 2 - 1 }
+        // R21: a posse of two to four on the soldier AI (an outlaw draws three), the leader with a six-iron, 60 % tougher.
+        let guns = h.filter { ($0.brain?.gun ?? -1) == Guns.revolver }.count
+        let tough = h.allSatisfy { $0.health >= $0.kind.spec.health * 3 / 2 }
         // On the map: a red cross for each.
         var lines: [HudLine] = []
         MapDraw.markers(&lines, g, x0: 0, y0: 0, cols: 152, rows: 82, px: 2, wx: g.player.pos.x, wz: g.player.pos.z, bpc: 2, s: 1)
@@ -214,8 +215,8 @@ enum PlaytestOct12Tests {
         g.audio.combatCheck = 0; g.audio.combatHold = 0
         g.combatTick(0.6)
         let music = g.audio.combat
-        check(h.count >= 4 && guns == 2 && tough && crosses == h.count && music >= 1,
-              "P88 bounty hunters: \(h.count) come for an outlaw, \(guns) with six-irons, twice as tough (\(tough)); \(crosses) on the map; music level \(music)")
+        check(h.count >= 3 && h.count <= 4 && guns >= 1 && tough && crosses == h.count && music >= 1,
+              "P88/R21 bounty hunters: \(h.count) come for an outlaw, \(guns) with six-irons, 60 % tougher (\(tough)); \(crosses) on the map; music level \(music)")
     }
 
     // P94 (09:45): ice you can see through: both the 16 px and the HD tile are mostly clear (mean alpha under 0.45).

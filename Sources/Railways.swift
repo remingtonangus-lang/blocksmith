@@ -15,7 +15,9 @@ import simd
 //   Stations  a platform between the track and the town with lamps, a station house across the track with the
 //             town's name and a TICKETS sign (Trains.swift sells the fares), buffer stops at both ends of the line.
 //   Old saves ground any save had generated before railways (structure-guard-c1.txt) keeps no line, so nothing
-//             explored grows half a railway.
+//             explored grows half a railway. Y5 ("saved worlds get new content in unexplored ground"): a line the old
+//             rule drops is planned again from its runs on ground no save had generated before Y5 (FreshGround), so
+//             a long line no longer vanishes because one end touches explored land; it never crosses saved ground.
 // Trains run the lines on a timetable (Trains.swift).
 enum Railways {
     static let span = 34 * CS              // a village region, blocks
@@ -131,7 +133,21 @@ enum Railways {
     struct Town { let name: String; let box: (IVec3, IVec3); let sq: IVec3; var halt = false }
 
     static func plan(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+        if let l = plan(gen, row: row, stretch: s, avoid: nil) { return l }
+        // Y5: the line as before failed; on an old save, its stations and legs on fresh ground still make a line.
+        guard let sc = gen.structures, !sc.legacyC1.isEmpty, let fresh = FreshGround.guardSet(sc) else { return nil }
+        return plan(gen, row: row, stretch: s, avoid: fresh)
+    }
+
+    // `avoid`: chunks no part of the line may come within 3 chunks of (a town or leg there ends the run).
+    static func plan(_ gen: WorldGen, row: Int, stretch s: Int, avoid: Set<Int64>?) -> Line? {
         guard let sc = gen.structures, let vt = sc.types.first(where: { $0.name == "village" }) else { return nil }
+        func fresh(_ cells: [(Int, Int)]) -> Bool {
+            guard let avoid, !avoid.isEmpty else { return true }
+            for i in stride(from: 0, to: cells.count, by: 8) where !sc.clear(cx: floorDiv(cells[i].0, CS), cz: floorDiv(cells[i].1, CS), reach: 3, guardSet: avoid) { return false }
+            if let l = cells.last, !sc.clear(cx: floorDiv(l.0, CS), cz: floorDiv(l.1, CS), reach: 3, guardSet: avoid) { return false }
+            return true
+        }
         // The towns along the stretch, west to east.
         var towns: [Town] = []
         for rx in (s * stretch)..<((s + 1) * stretch) {
@@ -157,6 +173,7 @@ enum Railways {
             let xa = t.box.0.x - stationRun, xb = t.box.1.x + stationRun
             // The town's own straight must be clear (other structures beside the town).
             let townClear = !blocked(gen, sc, x0: xa, z0: z, x1: xb, z1: z + 8, except: except)
+                && (avoid == nil || fresh(stride(from: xa, through: xb, by: 4).map { ($0, z) }))
             if !townClear { flush(); prevEnd = nil; continue }
             if let pe = prevEnd {
                 // A dog-leg from the last town's straight to this one.
@@ -182,6 +199,7 @@ enum Railways {
                         break
                     }
                 }
+                if let l = leg, !fresh(l) { leg = nil }                          // (Y5: a leg over saved ground ends the run)
                 if let leg { for (x, zz) in leg { cur.append(IVec3(x, 0, zz)) } }
                 else { flush() }
             }
@@ -326,16 +344,18 @@ enum Railways {
                 var yy = y + 4
                 while yy < CH - 1 && Int(w.get(x, yy, z)) < clearable.count && clearable[Int(w.get(x, yy, z))] { w.set(x, yy, z, AIR); yy += 1 }
                 let ground = w.get(x, y - 1, z)
-                if Blocks.opaque[Int(ground)] && Blocks.collide[Int(ground)] { w.set(x, y - 1, z, ballast) }
+                // R22: gravel only on firm ground; over a cave or a ravine's lip the bed is stone (gravel fell out at the
+                // first block update and left the rail over the hole).
+                if Blocks.opaque[Int(ground)] && Blocks.collide[Int(ground)] { w.set(x, y - 1, z, w.firmUnder(x, y - 1, z) ? ballast : plat) }
                 else {
                     w.set(x, y - 1, z, deck)                                       // trestle deck
                     let edge = (alongX && z != c.z) || (!alongX && x != c.x)
-                    if edge && i % 4 == 0 { w.pillarDown(x, y - 2, z, leg, minY: y - 48) }
+                    if edge && i % 4 == 0 { w.groundDown(x, y - 2, z, leg, minY: y - 48) }
                 }
             }
             // Over water the deck's centre gets a leg too (a bridge pier).
             if i % 8 == 4, w.inside(c.x, y - 2, c.z), w.get(c.x, y - 2, c.z) == water || w.get(c.x, y - 2, c.z) == AIR {
-                if !(Blocks.opaque[Int(w.get(c.x, y - 1, c.z))]) || w.get(c.x, y - 1, c.z) == deck { w.pillarDown(c.x, y - 2, c.z, leg, minY: y - 48) }
+                if !(Blocks.opaque[Int(w.get(c.x, y - 1, c.z))]) || w.get(c.x, y - 1, c.z) == deck { w.groundDown(c.x, y - 2, c.z, leg, minY: y - 48) }
             }
         }
         // Buffer stops past both ends.
@@ -356,7 +376,7 @@ enum Railways {
                 for dz in 2...3 where w.inside(x, yy, c.z - dz) {
                     w.set(x, yy - 1, c.z - dz, dz == 2 ? platEdge : plat)
                     for k in 0...3 { w.set(x, yy + k, c.z - dz, AIR) }
-                    w.pillarDown(x, yy - 2, c.z - dz, plat, minY: yy - 24)
+                    w.groundDown(x, yy - 2, c.z - dz, plat, minY: yy - 24)
                 }
                 if dx % 6 == 0 && w.inside(x, yy, c.z - 3) { w.set(x, yy, c.z - 3, post); w.set(x, yy + 1, c.z - 3, post); w.set(x, yy + 2, c.z - 3, lamp) }
             }
@@ -370,7 +390,7 @@ enum Railways {
             for hx in hx0...(hx0 + 6) { for hz in hz0...(hz0 + 4) where w.inside(hx, y, hz) {
                 let edge = hx == hx0 || hx == hx0 + 6 || hz == hz0 || hz == hz0 + 4
                 w.set(hx, y - 1, hz, plat)
-                w.pillarDown(hx, y - 2, hz, plat, minY: y - 24)
+                w.groundDown(hx, y - 2, hz, plat, minY: y - 24)
                 for k in 0...3 { w.set(hx, y + k, hz, edge ? wall : AIR) }
                 w.set(hx, y + 4, hz, roof)
                 if edge && (hx == hx0 + 1 || hx == hx0 + 5 || hz == hz0 + 2) && (hx != hx0 + 3) { w.set(hx, y + 1, hz, glass) }

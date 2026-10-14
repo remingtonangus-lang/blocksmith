@@ -19,6 +19,7 @@ final class World {
     // World.netQuiet), and a guest's chunks come from the host instead of the generator.
     var netEdit: ((Int, Int, Int, BlockID) -> Void)?
     var remoteChunk: ((ChunkKey) -> ([BlockID], [(IVec3, BlockEntity)])?)?
+    static var lessWaterUnsaved = false      // H8 water, the same way
     static var fewerLakesUnsaved = false     // P44 water for worlds with no save (harness; a co-op guest takes the host's)
     static var netQuiet = false
     var pendingMobs: [(String, V3)] = []
@@ -104,7 +105,10 @@ final class World {
         }
         self.device = device
         self.save = save
-        if let wg = gen as? WorldGen { wg.terrain.fewerLakes = save?.newTerrain("terrain-p44-water.txt") ?? World.fewerLakesUnsaved }
+        if let wg = gen as? WorldGen {
+            wg.terrain.fewerLakes = save?.newTerrain("terrain-p44-water.txt") ?? World.fewerLakesUnsaved
+            wg.terrain.lessWater = save?.newTerrain("terrain-h8-water.txt") ?? World.lessWaterUnsaved   // H8
+        }
         maxJobs = max(2, ProcessInfo.processInfo.activeProcessorCount - 2)
         workQueue.maxConcurrentOperationCount = maxJobs
         rebuildOffsets()
@@ -127,6 +131,7 @@ final class World {
             sc.legacyC1 = save.structureGuard(file: "structure-guard-c1.txt")              // Railways.swift
             sc.legacyC12 = save.structureGuard(file: "structure-guard-c12.txt")            // MiningTowns.swift
             sc.legacyC13 = save.structureGuard(file: "structure-guard-c13.txt")            // TownSizes.swift
+            sc.legacyR22 = save.structureGuard(file: "structure-guard-r22.txt")            // StructureCache.keepR22
         }
         // G20 on the surface (strongholds, monuments, mansions, trial chambers): its own snapshot, taken the first time a save
         // loads under G20 (the P44 one was taken earlier, so ground generated between the two would get half a new design).
@@ -1152,15 +1157,16 @@ final class World {
         fluidPending.removeAll(); lavaPending.removeAll()
     }
 
-    func saveAll() {
+    func saveAll(background: Bool = false) {
         // Only chunks changed since their last save, written on the background save queue.
         for (k, c) in chunks where c.needsSave {
             save?.saveChunkAsync(k, c.blocks)
             c.savedBlocks = c.blocks
         }
-        save?.saveBlockEntities(blockEntities)
+        save?.saveBlockEntities(blockEntities, background: background)
+        redstone.save(background: background)            // W1: pending circuit ticks and edges (circuit.json)
         save?.savePortals(Array(portals))
-        ships.save()
+        ships.save(background: background)
     }
 
     // MARK: Raycast (voxel DDA + per-box tests for partial blocks)
@@ -1284,6 +1290,7 @@ final class World {
     // 1024-cell batch took ~20 ms on the M1 (the --quest bench's top tick spike on the plains and cave routes).
     static var fluidSeconds = Double.infinity
     private static let sideDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+    static let lavaMeet = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0)]
     static let allDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
     var onFluidEvent: ((IVec3) -> Void)?     // lava/water reactions (sound)
 
@@ -1371,6 +1378,18 @@ final class World {
             let cur = block(p.x, p.y, p.z)
             guard fkT[Int(cur)] == kind else { continue }
             var lv = Int(lvT[Int(cur)])
+            if !lava {
+                // R17 ("obsidian forms quickly"): water reaching lava hardens it now, not on the lava's own 1.5 s tick
+                // after a wait in its queue: a source to obsidian, a flow to cobblestone.
+                for d in World.lavaMeet {
+                    let q = IVec3(p.x + d.x, p.y + d.y, p.z + d.z)
+                    let nb = block(q.x, q.y, q.z)
+                    guard fkT[Int(nb)] == 2 else { continue }
+                    setBlockAsync(q.x, q.y, q.z, lvT[Int(nb)] == 0 ? OBSIDIAN : COBBLE)
+                    scheduleFluid(around: q)
+                    onFluidEvent?(q)
+                }
+            }
             if lava {
                 // Lava touching water hardens: source -> obsidian, flowing -> cobblestone.
                 var touching = false
@@ -1570,21 +1589,30 @@ struct FluidQueue {
     private var incoming = Set<IVec3>()
     private var queue: [IVec3] = []
     private var head = 0
-    var count: Int { urgent.count + incoming.count + queue.count - head }
+    var count: Int { hot.count + urgent.count + incoming.count + queue.count - head }
     var isEmpty: Bool { count == 0 }
     var urgentCount: Int { urgent.count }
+    // R17 (Oct 13 evening, again: "lava flows only sometimes"): the urgent set also holds every cell of a cave's lava
+    // lake within 24 blocks, handed out in hash order a few hundred per 1.5 s tick, so the block he had just broken
+    // beside lava could wait several ticks. Cells within 6 blocks of him go first of all.
+    private var hot = Set<IVec3>()
     mutating func insert(_ p: IVec3) {
-        if let f = World.focus, abs(p.x - f.x) <= 24 && abs(p.z - f.z) <= 24 && abs(p.y - f.y) <= 24 { urgent.insert(p) } else { incoming.insert(p) }
+        if let f = World.focus, abs(p.x - f.x) <= 24 && abs(p.z - f.z) <= 24 && abs(p.y - f.y) <= 24 {
+            if abs(p.x - f.x) <= 6 && abs(p.z - f.z) <= 6 && abs(p.y - f.y) <= 6 { hot.insert(p) } else { urgent.insert(p) }
+        } else { incoming.insert(p) }
     }
-    mutating func removeAll() { urgent.removeAll(); incoming.removeAll(); queue.removeAll(); head = 0; urgentTaken = 0 }
+    mutating func removeAll() { hot.removeAll(); urgent.removeAll(); incoming.removeAll(); queue.removeAll(); head = 0; urgentTaken = 0 }
     private var urgentBatch: [IVec3] = []
     private(set) var urgentTaken = 0                 // cells the last take() handed out from the urgent set
     // Up to `limit` cells: the urgent ones first, then the oldest round.
     mutating func take(_ limit: Int) -> ArraySlice<IVec3> {
-        if !urgent.isEmpty {
+        if !hot.isEmpty || !urgent.isEmpty {
             urgentBatch.removeAll(keepingCapacity: true)
+            for p in hot { if urgentBatch.count >= limit { break }; urgentBatch.append(p) }
+            for p in urgentBatch { hot.remove(p) }
+            let nHot = urgentBatch.count
             for p in urgent { if urgentBatch.count >= limit { break }; urgentBatch.append(p) }
-            for p in urgentBatch { urgent.remove(p) }
+            for p in urgentBatch[nHot...] { urgent.remove(p) }
             urgentTaken = urgentBatch.count
             return urgentBatch[...]
         }
@@ -1601,7 +1629,7 @@ struct FluidQueue {
     }
     // The last `n` cells taken go back to the front (out of time).
     mutating func giveBack(_ n: Int) {
-        if urgentTaken > 0 { for p in urgentBatch.suffix(n) { urgent.insert(p) }; return }
+        if urgentTaken > 0 { for p in urgentBatch.suffix(n) { insert(p) }; return }
         head -= n
     }
 }

@@ -41,6 +41,7 @@ final class SoundEngine {
     private var spatialEnd: [Double] = []              // when each spatial voice's current sound ends
     private var spatialGain: [Float] = []              // how loud it started (quiet voices are stolen first)
     private var flat: [AVAudioPlayerNode] = []         // one-shots at the listener (own steps, hurt...)
+    private var flatSpeed: [AVAudioUnitVarispeed] = [] // per flat voice: the per-play pitch of recorded steps/shots (RealSounds)
     private var ui: [AVAudioPlayerNode] = []           // interface clicks: never filtered
     private var buffers: [Snd: [AVAudioPCMBuffer]] = [:]
     private var nextSpatial = 0, nextFlat = 0, nextUI = 0, variant = 0
@@ -107,9 +108,12 @@ final class SoundEngine {
         }
         for _ in 0..<6 {
             let p = AVAudioPlayerNode()
+            let vs = AVAudioUnitVarispeed()
             engine.attach(p)
-            engine.connect(p, to: pre, format: mono)
-            flat.append(p)
+            engine.attach(vs)
+            engine.connect(p, to: vs, format: mono)
+            engine.connect(vs, to: pre, format: mono)
+            flat.append(p); flatSpeed.append(vs)
         }
         for _ in 0..<4 {
             let p = AVAudioPlayerNode()
@@ -204,7 +208,7 @@ final class SoundEngine {
     private func buffer(_ s: Snd, variant v: Int) -> AVAudioPCMBuffer? {
         if let list = buffers[s], !list.isEmpty { return list[v % list.count] }
         var list: [AVAudioPCMBuffer] = []
-        for k in 0..<SoundBank.variants(for: s) {
+        for k in 0..<bank.takeCount(s) {
             let data = bank.clip(s, variant: k)
             guard !data.isEmpty, let b = AVAudioPCMBuffer(pcmFormat: mono, frameCapacity: AVAudioFrameCount(data.count)), let ch = b.floatChannelData else { continue }
             b.frameLength = AVAudioFrameCount(data.count)
@@ -221,7 +225,7 @@ final class SoundEngine {
     // Plays a sound. With a world position it is spatialized; `occlusion` 0...1 (solid blocks in the way) muffles it.
     func play(_ s: Snd, volume v: Float = 1, at pos: V3? = nil, occlusion: Float = 0) {
         guard enabled else { return }
-        let gain = v * AudioSettings.gain(s)
+        var gain = v * AudioSettings.gain(s)
         if gain <= 0.001 { return }
         if let p = pos {
             let d = simd_length(p - eye)
@@ -230,6 +234,10 @@ final class SoundEngine {
         }
         variant += 1
         guard let buf = buffer(s, variant: variant) else { return }
+        // Recordings that repeat (steps, shots, hits) vary in pitch (+-4%) and level (+-2 dB) every play (RealSounds.swift).
+        let vary = SoundBank.variesPerPlay(s) && bank.isRecorded(s)
+        let speed: Float = vary ? RealSounds.pitchJitter() : 1
+        if vary { gain *= RealSounds.volumeJitter() }
         if s.category == .ui {
             let node = ui[nextUI]; nextUI = (nextUI + 1) % ui.count
             node.volume = gain
@@ -238,7 +246,9 @@ final class SoundEngine {
             return
         }
         guard let p = pos else {
-            let node = flat[nextFlat]; nextFlat = (nextFlat + 1) % flat.count
+            let fi = nextFlat
+            let node = flat[fi]; nextFlat = (nextFlat + 1) % flat.count
+            flatSpeed[fi].rate = speed
             node.volume = min(1.5, gain)
             node.scheduleBuffer(buf, at: nil, options: .interrupts, completionHandler: nil)
             if !node.isPlaying { node.play() }
@@ -274,9 +284,11 @@ final class SoundEngine {
         node.obstruction = -32 * occlusion
         node.occlusion = -18 * occlusion
         // A little pitch variety per voice (footsteps, blocks and creatures), so repeats don't sound identical.
-        switch s.category {
-        case .blocks, .hostile, .friendly, .players: node.rate = Rand.float(in: 0.95...1.05)
-        default: node.rate = 1
+        if vary { node.rate = speed } else {
+            switch s.category {
+            case .blocks, .hostile, .friendly, .players: node.rate = Rand.float(in: 0.95...1.05)
+            default: node.rate = 1
+            }
         }
         node.scheduleBuffer(buf, at: nil, options: .interrupts, completionHandler: nil)
         if !node.isPlaying { node.play() }

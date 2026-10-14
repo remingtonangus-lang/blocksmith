@@ -395,6 +395,10 @@ extension Mob {
         if let ls = b.lastSeen, out(ls) {
             b.lastSeen = V3(max(L.x - L.z, min(L.x + L.z, ls.x)), ls.y, max(L.y - L.z, min(L.y + L.z, ls.z)))
         }
+        // R23: the search round a player outside keeps to the yard too (the next spot comes once this one is reached).
+        if let hs = b.hunt, out(hs) {
+            b.hunt = V3(max(L.x - L.z + 1, min(L.x + L.z - 1, hs.x)), hs.y, max(L.y - L.z + 1, min(L.y + L.z - 1, hs.z)))
+        }
         if out(pos) {
             // Back in through the gate (south wall): round the outside of the wall to the front first, so the wall doesn't
             // pin it, then along the front to the gate and in.

@@ -27,6 +27,11 @@ final class QuestControls {
     // The interact hint beside the laser dot ("Grip Open" on a chest), its own small panel.
     private var hintPanel: HudPanel?
     private(set) var hint: String?
+    private var offTracked = false
+    private var offRelAvg = V3(0, -0.8, 0)      // R1: the off hand against the head, smoothed over ~0.5 s
+    private var wellCued = false
+    private var laserFade: Float = 1            // R12: the laser fades out during a swing
+    private var braceRot: simd_quatf?          // R6: the braced rifle's world rotation (barrel between the hands)
     private var hintShown: String?
     private var hintKey = ""
     static var keyboardHook: ((Bool) -> Void)?
@@ -109,8 +114,10 @@ final class QuestControls {
     private(set) var aimOrigin = V3.zero
     private(set) var aimDir = V3(0, 0, -1)
     private(set) var aimHit: V3?
-    private var aimHand: Int { QuestSettings.leftHanded ? 0 : 1 }
-    private var moveHand: Int { QuestSettings.leftHanded ? 1 : 0 }
+    // S7: logical hands. Dominant Hand: Left is applied below this layer (HandedInput swaps the controllers), so hand 1
+    // is always the aiming hand and hand 0 the moving one, and haptics to them reach the right physical controller.
+    private let aimHand = 1
+    private let moveHand = 0
 
     // Panel placement. Panels live in tracking space (the user's room), which the rig carries with the player: on a
     // moving ship, while turning or walking they stay put around the user instead of being left behind in the world.
@@ -146,7 +153,7 @@ final class QuestControls {
     static let teleportRange: Float = 14
     private var panelHitUV: V2?
     private var prevTrigger = false, prevGrip = false
-    private var lastHoverSlot = -1
+    private var lastHoverSlot = -1, hoverRest: Float = 1
 
     // Forget held and latched buttons (the Touch matrix starts each cell clean).
     func clearLatches() { sneakLatch = false; l3Rode = false; l3Hold = 0; bHold = 0; bPulse = 0; bBlock = false }
@@ -186,6 +193,12 @@ final class QuestControls {
 
     func update(dt: Float) {
         let xr = app.input, rig = app.rig
+        // S7/S8: swapped hands, the One Hand stick and lost controllers (HandedInput) before anything reads them.
+        if let hi = xr as? HandedInput {
+            hi.refresh(dt: dt, walk: game.menu == nil && !game.paused && !WeaponWheel.shared.open)
+            if hi.lost[aimHand] { lastAimHand = nil }      // a lost controller: no laser or held item from a stale pose
+        }
+        ContextPrompts.vrMirror = QuestSettings.leftHanded
         let hands = xr.hands
         let L = hands[moveHand], R = hands[aimHand]
         let inMenu = game.menu != nil || game.paused
@@ -199,7 +212,7 @@ final class QuestControls {
         // Turning (never inside a menu: the panel stays put).
         if !inMenu && !wheel {
             let tx = R.stick.x
-            if QuestSettings.smoothTurn {
+            if QuestSettings.smoothTurn && !QuestSettings.reclined {      // (lying down always snap-turns: S6)
                 if abs(tx) > 0.15 {
                     let k = (abs(tx) - 0.15) / 0.85 * (tx > 0 ? 1 : -1)
                     rig.bodyYaw -= k * QuestSettings.smoothTurnSpeed * .pi / 180 * dt
@@ -241,11 +254,32 @@ final class QuestControls {
             aimDir = simd_normalize(rig.toWorldDir(rig.headRot.act(V3(0, 0, -1))))
         }
         // P159: a long gun braced with the other hand on its front grip and that trigger held aims between the hands.
+        // R6 (Oct 13, after P32/G21/P159/P82: "two-handed aiming doesn't work"): the brace only turned the shot, while the
+        // drawn rifle stayed on the right hand's ray, and the next frame judged the front hand against that ray again, so
+        // as soon as he lined up the drawn gun the brace dropped. Now the brace holds while the left trigger stays down
+        // and the hands stay a rifle's length apart and roughly ahead, and the drawn gun lies along the line between the
+        // hands (braceRot), as a real rifle does. The 3.2x model's foregrip sits up to a metre ahead (far = 1.05).
         game.vrTwoHanded = false
-        if let gi = game.heldGun, R.aimValid, L.aimValid, gi < CapitalArms.models.count,
-           let d = VRTwoHand.braced(rear: aimOrigin, rearForward: aimDir, front: rig.toWorld(L.gripPos), frontTrigger: L.trigger,
-                                    shouldered: CapitalArms.models[gi].shouldered) {
-            aimDir = d; game.vrTwoHanded = true
+        let wasBraced = braceRot != nil
+        braceRot = nil
+        if let gi = game.heldGun, R.aimValid, L.aimValid, gi < CapitalArms.models.count, CapitalArms.models[gi].shouldered, !inMenu {
+            let front = rig.toWorld(L.gripPos)
+            let hold = max(L.trigger, L.squeeze)           // the left trigger, or the grip squeezed round the foregrip
+            var d: V3? = VRTwoHand.braced(rear: aimOrigin, rearForward: aimDir, front: front, frontTrigger: hold, shouldered: true)
+            if d == nil && wasBraced && hold > 0.3 {
+                let span = front - aimOrigin, len = simd_length(span)
+                if len > 0.1 && len < 1.2 && simd_dot(span / len, aimDir) > 0.4 { d = span / len }
+            }
+            if let d {
+                let up0 = rig.toWorldRot(R.aimRot).act(V3(0, 1, 0))
+                var x = simd_cross(up0, -d)
+                if simd_length(x) < 1e-3 { x = simd_cross(V3(0, 1, 0), -d) }
+                x = simd_normalize(x)
+                let y = simd_cross(-d, x)
+                braceRot = simd_quatf(float3x3(columns: (x, y, -d)))
+                aimDir = d; game.vrTwoHanded = true
+                if !wasBraced { app.input.haptic(moveHand, amplitude: 0.35, seconds: 0.04, frequency: 160) }
+            }
         }
 
         // Pad for the game.
@@ -261,7 +295,7 @@ final class QuestControls {
         p.rt = R.trigger
         p.lt = L.trigger                                    // use / place (hold to repeat)
         // Only real melee weapons hit by contact; with anything else (fist, blocks, torches, food) the trigger attacks.
-        if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false; bladeTrail.clear() }
+        if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false; bladeTrail.clear(); laserFade = min(1, laserFade + dt * 3) }
         // First use of each melee style with a weapon in hand: how it works, once (VRMelee.swingTutorial / reclinedTutorial).
         if !inMenu && game.alive && game.vrWeaponHeld {
             if QuestSettings.swingMode && !QuestSettings.swingTutorialShown {
@@ -327,13 +361,21 @@ final class QuestControls {
         // doesn't step the hotbar.
         var magGrip = false
         if !inMenu && !bagGrip && !handGrab && game.heldGun != nil && L.gripValid && R.gripValid {
+            // R1 (Oct 13, fifth report after P74/P109/P162/P176: "the left grip is dead while I hold a gun"): a relaxed arm
+            // hangs right in the hip zone, so after the first shot (the magazine no longer full) every grip with the
+            // hand at rest took a magazine instead of stepping the hotbar. Only a hand that has just reached there
+            // (moved against the head in the last half second) takes one; a resting hand steps the hotbar.
+            let rel = rig.toWorld(L.gripPos) - rig.headWorld
+            if !offTracked { offRelAvg = rel; offTracked = true }          // (a hand already at the side when the gun comes out rests)
+            offRelAvg += (rel - offRelAvg) * min(1, dt * 4)
+            let resting = simd_length(rel - offRelAvg) < 0.06
             let ev = VRReload.tick(game, offHand: rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), head: rig.headWorld,
-                                   grip: lGrip, gripWas: prevGripL, gunForward: aimDir)
+                                   grip: lGrip, gripWas: prevGripL, gunForward: aimDir, resting: resting, well: drawnWell())
             switch ev {
             case .grabbed: app.input.haptic(moveHand, amplitude: 0.35, seconds: 0.03, frequency: 220)
             case .inserted:
-                app.input.haptic(moveHand, amplitude: 0.6, seconds: 0.05, frequency: 160)
-                app.input.haptic(aimHand, amplitude: 0.6, seconds: 0.05, frequency: 160)
+                app.input.haptic(moveHand, amplitude: 1, seconds: 0.09, frequency: 120)
+                app.input.haptic(aimHand, amplitude: 1, seconds: 0.09, frequency: 120)
             default: break
             }
             // Only a grip that took or slotted a magazine (P74, Oct 12 playtest: a hand resting at the side is "at the
@@ -341,9 +383,16 @@ final class QuestControls {
             // P162 (Oct 13: "while reloading, the left grip can't step the hotbar"): only the press that took or seated a
             // magazine is the reload's; holding one no longer swallows the next press (that press puts it back and steps).
             magGrip = ev == .grabbed || ev == .inserted
-        } else if game.heldGun == nil { game.arms.magInHand = false }
+            // R7: a magazine in hand near the well ticks the off hand once (the snap is close).
+            if game.arms.magInHand, let w = drawnWell() {
+                let close = simd_length(rig.toWorld(L.gripPos) - w) < VRReload.wellSnap + 0.12
+                if close && !wellCued { app.input.haptic(moveHand, amplitude: 0.3, seconds: 0.02, frequency: 250) }
+                wellCued = close
+            } else { wellCued = false }
+        } else if game.heldGun == nil { game.arms.magInHand = false; offTracked = false }
+        // (A grip squeezed round the braced rifle's foregrip holds the gun, R6: it doesn't step the hotbar.)
         if !inMenu && !bagGrip && !magGrip && !handGrab && game.world.ships.pilot == nil {
-            if lGrip && !prevGripL { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
+            if lGrip && !prevGripL && braceRot == nil { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
             if rGrip && !prevGripR { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
             if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
         }
@@ -505,6 +554,24 @@ final class QuestControls {
         lastFeet = game.player.pos
     }
 
+    // The held gun model's offset in the hand's frame (drawHeld): the screen model's sight is at its origin, so the
+    // eyepiece of the drawn gun sits at the hand plus this shift.
+    static func heldGunShift(_ gi: Int) -> V3 {
+        let gk: Float = 3.2 * QuestSettings.heldScale
+        let ads = V3(0, -0.085, -0.44)
+        let grip = CapitalArms.models[gi].grip * (0.0125 * gk)
+        return -ads - grip + V3(0, 0.015, 0.06)
+    }
+
+    // R7: the held gun's magazine well where it is drawn (world space), from the model's magAt.
+    private func drawnWell() -> V3? {
+        guard let gi = game.heldGun, gi < CapitalArms.models.count, let hd = lastAimHand else { return nil }
+        let gm = CapitalArms.models[gi]
+        let k: Float = 0.0125 * 3.2 * QuestSettings.heldScale
+        let local = (gm.magAt - gm.grip) * k + V3(0, 0.015, 0.06)
+        return app.rig.toWorld(hd.aimPos) + (braceRot ?? app.rig.toWorldRot(hd.aimRot)).act(local)
+    }
+
     // G21: the Farsight raised to the eye (VRScope): eased 0...1, the views zoom with it.
     private(set) var scopeT: Float = 0
     private func scopeTick(_ dt: Float) {
@@ -512,7 +579,13 @@ final class QuestControls {
         var up = false
         if game.menu == nil && !game.paused, let aim = game.vrAim {
             let fwd = rig.toWorldRot(rig.headRot).act(V3(0, 0, -1))
-            up = VRScope.raised(heldKey: Items.key(game.held.item), head: rig.headWorld, headForward: fwd, aimOrigin: aim.origin, aimDir: aim.dir)
+            // R6: judged at the drawn scope's eyepiece, not at the hand. The model is drawn 3.2x with its sight about half a
+            // metre behind the grip, so with the scope at his eye the hand was far past the 0.24 m reach and it never zoomed.
+            var eyepiece = aim.origin
+            if let gi = game.heldGun, gi < CapitalArms.models.count, let hd = lastAimHand {
+                eyepiece = rig.toWorld(hd.aimPos) + (braceRot ?? rig.toWorldRot(hd.aimRot)).act(QuestControls.heldGunShift(gi))
+            }
+            up = VRScope.raised(heldKey: Items.key(game.held.item), head: rig.headWorld, headForward: fwd, aimOrigin: eyepiece, aimDir: aim.dir)
         }
         scopeT = up ? min(1, scopeT + dt * 6) : max(0, scopeT - dt * 8)
         rig.zoom = VRScope.zoom(scopeT)
@@ -933,6 +1006,7 @@ final class QuestControls {
         // A jump of more than 1.5 m (teleport, respawn, boarding) is not a swing.
         guard simd_length(a1 - a0) < 1.5 else { bladeTrail.clear(); return }
         let speed = simd_length(tipRel - prevRel) / dt
+        laserFade = speed > VRMelee.rearmSpeed ? max(0, laserFade - dt * 12) : min(1, laserFade + dt * 3)
         bladeTrail.add(base: a1, tip: b1, speed: speed, now: game.clock)
         trailPeak = max(trailPeak, bladeTrail.segmentCount(now: game.clock))
         if speed < VRMelee.rearmSpeed { bladeHits.removeAll(keepingCapacity: true); bladeHitAt.removeAll(keepingCapacity: true); bladeTravel = 0 }
@@ -1090,7 +1164,10 @@ final class QuestControls {
         }
         panelHitUV = uv
         let input = game.input
-        let trig = R.trigger > 0.6, grip = R.squeeze > 0.6
+        // R4 (Oct 13, after P73/P195: "pointing at the map and pulling the trigger doesn't set a waypoint"): the analog
+        // trigger hovering around one threshold read as press, release, press within a pull, and the map's tap toggles a
+        // pin (the second click took the first one away again). Pressed past 0.6, let go under 0.35.
+        let trig = R.trigger > (prevTrigger ? 0.35 : 0.6), grip = R.squeeze > (prevGrip ? 0.35 : 0.6)
         if let uv {
             let mx = uv.x * Float(QuestControls.panelW), my = uv.y * Float(QuestControls.panelH)
             // P176 (Oct 13: "I'm not able to use the left slider still"): the left stick moves the menu cursor and
@@ -1105,11 +1182,15 @@ final class QuestControls {
                 input.mouseX = mx; input.mouseY = my
             }
             if trig && !prevTrigger && input.mouseX < 0 { input.mouseX = mx; input.mouseY = my; input.mouseMoved = true }
-            if trig && !prevTrigger { input.leftClicked = true; app.input.haptic(aimHand, amplitude: 0.3, seconds: 0.02, frequency: 300) }
+            // R5 (Oct 13, after P10/P129: stairs crafted by accident): a laser sweeping across a crafting result while the
+            // trigger comes down took it. A result or output only takes a click once the laser has rested on it 0.15 s.
+            var sweep = false
+            if let h = game.menuHover { switch h.kind { case .result, .output: sweep = hoverRest < 0.15; default: break } }
+            if trig && !prevTrigger && !sweep { input.leftClicked = true; app.input.haptic(aimHand, amplitude: 0.3, seconds: 0.02, frequency: 300) }
             if grip && !prevGrip { input.rightClicked = true; app.input.haptic(aimHand, amplitude: 0.3, seconds: 0.02, frequency: 300) }
             input.leftDown = trig
             input.rightDown = grip
-            if game.menuCursor != lastHoverSlot { lastHoverSlot = game.menuCursor; app.input.haptic(aimHand, amplitude: 0.12, seconds: 0.01, frequency: 320) }
+            if game.menuCursor != lastHoverSlot { lastHoverSlot = game.menuCursor; hoverRest = 0; app.input.haptic(aimHand, amplitude: 0.12, seconds: 0.01, frequency: 320) } else { hoverRest += 1.0 / 72 }
         } else {
             input.leftDown = false; input.rightDown = false
         }
@@ -1166,15 +1247,20 @@ final class QuestControls {
         // (Quest round 4: it vanished at times): a tracking blip keeps the last aim (aimOrigin/aimDir hold it), it has
         // priority room in the scratch ring, and with nothing hit it no longer fades out to nothing within 0.6 m.
         let inMenu = game.menu != nil || game.paused
-        if xr.hands[aimHand].aimValid || lastAimHand != nil {
+        if (xr.hands[aimHand].aimValid || lastAimHand != nil) && (inMenu || laserFade > 0.02) {
             let o = aimOrigin - eye
             let len: Float = aimHit.map { max(0.05, simd_length($0 - aimOrigin)) } ?? (inMenu ? 1.5 : 3)
             let end = o + aimDir * len
             let side0 = simd_normalize(simd_cross(aimDir, simd_normalize(o + aimDir * 0.5 + V3(0.0001, 0, 0))))
             let side = side0 * 0.002
             let hot = inMenu ? (panelHitUV != nil) : (game.target != nil)
-            let c0 = hot ? V4(0.55, 0.9, 1, 0.85) : V4(1, 1, 1, 0.6)
-            let c1 = V4(c0.x, c0.y, c0.z, aimHit == nil ? 0.2 : c0.w)
+            // R12 (Oct 13, after P77/P170: "the sword still strobes when swung"; the ribbon was already off): the laser
+            // from the sword hand swept across blocks every frame, flipping between a 3 m white beam and a short cyan
+            // one, a white strobe along the blade. During a swing (the tip moving past the re-arm speed) the laser fades
+            // out, and comes back once the hand is still.
+            let k = inMenu ? 1 : laserFade
+            let c0 = (hot ? V4(0.55, 0.9, 1, 0.85) : V4(1, 1, 1, 0.6)) * V4(1, 1, 1, k)
+            let c1 = V4(c0.x, c0.y, c0.z, (aimHit == nil ? 0.2 : c0.w / max(k, 1e-3)) * k)
             var lv = takeVerts()
             defer { giveVerts(lv) }
             QuestControls.quad(&lv, V4(o - side, 1), V4(end - side, 1), V4(end + side, 1), V4(o + side, 1), c0, c1, c1, c0)
@@ -1199,7 +1285,7 @@ final class QuestControls {
         if held.isEmpty || scopeT > 0.5 { return }            // (G21: looking through the scope, the rifle is out of view)
         let rig = app.rig
         let pos = rig.toWorld(hd.aimPos) - eye
-        let rot = rig.toWorldRot(hd.aimRot)
+        let rot = braceRot ?? rig.toWorldRot(hd.aimRot)
         let pe = game.player.eye
         let l = game.world.lightAt(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
         let skyK: Float = 0.12 + 0.88 * game.renderDaylight
@@ -1211,11 +1297,10 @@ final class QuestControls {
             let gk: Float = 3.2 * QuestSettings.heldScale
             let n = Guns.writeFirstPerson(gi, aim: 1, kick: game.arms.kick, lower: 0, bob: .zero, light: light,
                                           rounds: game.arms.reload > 0 ? 0 : game.held.tag, scale: gk, upgrades: game.held.ench, into: ptr)
-            let ads = V3(0, -0.085, -0.44)
-            let grip = CapitalArms.models[gi].grip * (0.0125 * gk)
+            let shift = QuestControls.heldGunShift(gi)
             for i in 0..<n {
                 let v = ptr[i].pos
-                let local = V3(v.x, v.y, v.z) - ads - grip + V3(0, 0.015, 0.06)      // the grip sits in the hand
+                let local = V3(v.x, v.y, v.z) + shift      // the grip sits in the hand
                 let w = rot.act(local) + pos
                 ptr[i].pos = V4(w.x, w.y, w.z, v.w)
             }
@@ -1457,13 +1542,14 @@ final class QuestControls {
     // Burning (P114, Oct 12 PM: "a fire burning animation, that way I know when I fall in lava"): flame tongues licking
     // up from the bottom of the view, each flickering on its own, orange at the root and yellow, fading, at the tip.
     private func flames(_ v: inout [SimpleVert], _ t: Float, _ fx: Float) {
-        let n = 16
+        // R17 (Oct 13 evening: "an on-fire overlay on the Quest"): taller and denser, so burning is unmistakable.
+        let n = 22
         for i in 0..<n {
             let h = hashf(i, 3, 17, 0xF1A3)
             let x: Float = -1.35 + 2.7 * (Float(i) + 0.5) / Float(n) + (h - 0.5) * 0.08
             let lick: Float = 0.5 + 0.5 * sinf(t * (7 + 5 * h) + h * 11)
-            let tall: Float = (0.32 + 0.38 * h) * (0.7 + 0.45 * lick)
-            let half: Float = 0.11 + 0.05 * h
+            let tall: Float = (0.55 + 0.6 * h) * (0.7 + 0.45 * lick)
+            let half: Float = 0.1 + 0.05 * h
             let sway: Float = 0.06 * sinf(t * 5.3 + h * 7)
             let y0: Float = -1.35, y1: Float = y0 + tall
             let a: Float = 0.75 * max(0.3, fx)

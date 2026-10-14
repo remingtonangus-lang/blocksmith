@@ -72,7 +72,9 @@ struct StructWriter {
             guard y0 != Int.max && y0 > 1 else { continue }
             let x = bx + k % CS, z = bz + k / CS
             var y = y0 - 1
-            while y > max(0, y0 - depth) {
+            // R22 ("pillars ending in air"): `depth` is the usual fill; a column over a ravine, cave mouth or cliff
+            // carries on down to the ground (as StructWriter.groundDown), so nothing ends in mid-air.
+            while y > max(0, y0 - max(depth, StructWriter.groundReach)) {
                 let i = Chunk.index(x - bx, y, z - bz)
                 let cur = blocks[i]
                 // Through grass and flowers too (a Steelhold fill stopped on tall grass, leaving its base over air:
@@ -245,7 +247,23 @@ final class StructureCache {
     var legacyOverlap: Set<Int64> = []            // ground saved before small starts gave way to big ones (Q2, below)
     var legacyC1: Set<Int64> = []                 // ground saved before railways (C1, Railways.swift)
     var legacyC12: Set<Int64> = []                // ground saved before mining towns (C12, MiningTowns.swift)
-    var legacyC13: Set<Int64> = []                // ground saved before town sizes (C13, TownSizes.swift)
+    var legacyC13: Set<Int64> = [] {              // ground saved before town sizes (C13, TownSizes.swift)
+        // R20 (wide main streets and lanes, door walks, the stone jail: Village.layout) keeps its own guard, taken from
+        // the same save as the C13 one (World.init reads that guard and assigns it here; SaveManager.guarding is it).
+        didSet { legacyR20 = SaveManager.guarding?.structureGuard(file: "structure-guard-r20.txt") ?? [] }
+    }
+    var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
+    var legacyR22: Set<Int64> = []                // ground saved before the R22 rarity pass (StructureCache.keepR22)
+
+    // R22 (Oct 13 evening: "structure rarity everywhere; ships 8x rarer was P190, check all"): the share of regions that
+    // keep their start, per kind, on ground not saved before. The reference's grid spacing is kept (moving a grid would
+    // move every start, found ones included); a region simply stays empty. Towns, Capital places, citadels, Greywall
+    // and stations already have their own rarity rules (WorldRules) and are not thinned again.
+    static let keepR22: [String: Float] = [
+        "ocean_ruin": 0.3, "ruined_portal": 0.3, "desert_well": 0.35, "fossil": 0.45, "pillager_outpost": 0.45,
+        "temple": 0.5, "trail_ruins": 0.5, "great_ruin": 0.5, "mineshaft": 0.6, "wild_camp": 0.4, "sky_isle": 0.5,
+        "monument": 0.6, "trial_chambers": 0.7, "ancient_city": 0.7,
+    ]
 
     // Q2 (scorecard "world gen: no structure overlaps", 138 piece overlaps in 50 seeds): a small start gives way to a
     // bigger one whose pieces it would cut into, so a ruined portal never stands in a village street or a citadel wall,
@@ -258,6 +276,11 @@ final class StructureCache {
         "mineshaft": ["trial_chambers", "ancient_city", "military_base", "monument", "mineshaft"],
         "desert_well": ["village", "temple", "military_base", "capital_city"],
         "fossil": ["trial_chambers", "ancient_city"],
+        // R22 ("citadels built over pyramids"): a temple or an outpost gives way to a town whose pieces it would cut
+        // into. Citadels, Greywall bases, Boreal stations and Capital cities move off temples and outposts themselves
+        // (their site checks look these up), so listing them here would loop (start -> givesWay -> their start).
+        "temple": ["village"],
+        "pillager_outpost": ["village"],
     ]
     private func givesWay(_ s: StructureStart, _ t: StructureType, _ srx: Int, _ srz: Int) -> Bool {
         guard let big = StructureCache.yields[t.name] else { return false }
@@ -278,7 +301,9 @@ final class StructureCache {
                 } }
                 continue
             }
-            guard let o = types.first(where: { $0.name == name }), StructureCache.yields[o.name] == nil else { continue }
+            // (A kind that itself gives way may be a big one here too: the yields graph has no cycles, so its own
+            // check ends; R22 made temples and outposts give way, and portals still give way to them.)
+            guard let o = types.first(where: { $0.name == name }) else { continue }
             let cx0 = floorDiv(s.min.x, CS) - o.reach, cx1 = floorDiv(s.max.x, CS) + o.reach
             let cz0 = floorDiv(s.min.z, CS) - o.reach, cz1 = floorDiv(s.max.z, CS) + o.reach
             for rz in floorDiv(cz0, o.spacing)...floorDiv(cz1, o.spacing) { for rx in floorDiv(cx0, o.spacing)...floorDiv(cx1, o.spacing) {
@@ -313,7 +338,14 @@ final class StructureCache {
         lock.unlock()
         let t0: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
         let (cx, cz) = candidate(t, rx, rz)
-        var s = t.make(seed &+ t.salt &+ UInt64(bitPattern: Int64(cx &* 31 &+ cz)), cx, cz)
+        var s: StructureStart?
+        if let keep = StructureCache.keepR22[t.name], WorldRules.p44,
+           hashf(rx, 2207, rz, UInt32(truncatingIfNeeded: seed) ^ UInt32(truncatingIfNeeded: t.salt)) >= keep,
+           clear(cx: cx, cz: cz, reach: t.reach + 1, guardSet: legacyR22) {
+            s = nil                                                  // R22: this region stays empty on new ground
+        } else {
+            s = t.make(seed &+ t.salt &+ UInt64(bitPattern: Int64(cx &* 31 &+ cz)), cx, cz)
+        }
         if let st = s, StructureCache.yields[t.name] != nil, clear(cx: cx, cz: cz, reach: t.reach, guardSet: legacyOverlap),
            givesWay(st, t, rx, rz) { s = nil }
         lock.lock()

@@ -201,7 +201,7 @@ extension Game {
         let c = point ?? (m.pos + V3(0, m.height * 0.6, 0) - V3(player.look.x, 0, player.look.z) * m.halfW)
         particles.bladeSpark(at: c, along: dir ?? player.look, power: min(1.3, max(0.3, power)))
         // A red streak where the blade cut, along the swing (P16).
-        particles.slashMark(at: c, along: dir ?? player.look, toward: player.eye, power: min(1.4, max(0.5, power)))
+        particles.slashMark(at: c, along: dir ?? player.look, toward: player.eye, power: min(1.4, max(0.5, power)), on: m)
     }
 
     // How far a mob's arms are from the player's body, for melee reach (Mob.update): the horizontal distance from the

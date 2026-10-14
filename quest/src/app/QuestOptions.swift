@@ -10,6 +10,10 @@ enum QuestOptions {
         var setRate: (Float) -> Void = { _ in }
         var foveated: () -> Bool = { false }
         var setFoveation: (Int) -> Void = { _ in }
+        // S6: the head's height above the floor now (nil without a floor-level space), and closing the setup panel.
+        var headHeight: () -> Float? = { nil }
+        var finishSetup: () -> Void = {}
+        var toast: (String) -> Void = { _ in }
     }
     static var hooks = Hooks()
 
@@ -34,9 +38,15 @@ enum QuestOptions {
         // Bug Notes stays: the playtest build's voice notes (QuestVoiceNotes); store builds' stub has available = false.
         PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
                                 "graphics", "fov", "controls", "keys", "padmap"]
-        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
+            "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
+            "q_pos": "Standing: your real height and movements. Seated: the view is raised to a standing player's eye height and leaning doesn't walk. Lying Down: also levels the world to your gaze and keeps snap turning.",
+            "q_comfort": "Comfort: teleport, snap turns, a strong vignette, no blast shake. Moderate: stick walking, snap turns, a medium vignette. Free: stick walking, smooth turning, no vignette.",
+            "q_preset": "Default: the standard layout. Classic: the stick walks and snap-turns (no teleport, no smooth turning). One Hand: the dominant stick also walks forward and back while its sideways push turns.",
+            "q_height": "Stand up straight, look ahead and select this: standing play then always recentres to this height.",
+            "q_setup_done": "Start playing. All of this is in VR Comfort & Controls later.",
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
             "q_snap": "How far one snap turn goes.",
             "q_tspeed": "How fast smooth turning goes.",
@@ -51,7 +61,7 @@ enum QuestOptions {
             "q_swing": VRMelee.optionHelp,
             "q_recenter": "Puts you back at the centre of your play space at the current height and facing (or hold the Menu button).",
             "q_held": "How big swords, tools, blocks and guns look in your hand (0.8x to 1.5x).",
-            "q_hand": "Which hand aims, breaks and uses (the other hand moves).",
+            "q_hand": "Which hand aims, breaks and uses (the other hand moves). Left swaps every button, stick, trigger and grip between the hands; the Menu button stays on the left controller.",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
             "host:touch": "Every Touch controller button and what it does.",
@@ -61,7 +71,11 @@ enum QuestOptions {
             "q_fov": "Renders the edges of the view at lower resolution (fixed foveated rendering): faster, slightly softer edges.",
         ]
         PauseMenu.hostPage = { id in
-            if id == "touch" { return ("Touch Controls", "Right hand aims; the left hand moves", touchRows.map { ($0, "noop") } + [("Back to VR Comfort", "host:vr")]) }
+            if id == "touch" {
+                let sub = QuestSettings.leftHanded ? "Left-handed: the left hand aims, the right hand moves" : "Right hand aims; the left hand moves"
+                return ("Touch Controls", sub, touchRowsHanded().map { ($0, "noop") } + [("Back to VR Comfort", "host:vr")])
+            }
+            if id == "setup" { return setupPage() }
             guard id == "vr" else { return nil }
             let S = QuestSettings.self
             func on(_ b: Bool) -> String { b ? "On" : "Off" }
@@ -69,8 +83,10 @@ enum QuestOptions {
             let fovNote = hooks.foveated() || S.foveation == 0 ? "" : " (next launch)"
             var rows: [(String, String)] = [
                 ("Touch Controls...", "host:touch"),
-                ("Turning: \(S.smoothTurn ? "Smooth" : "Snap")", "q_turn"),
-                S.smoothTurn ? ("Smooth Turn Speed: \(Int(S.smoothTurnSpeed)) deg/s", "q_tspeed")
+                ("First-Launch Setup...", "host:setup"),
+                ("Controls: \(presetName(S.controlPreset))", "q_preset"),
+                ("Turning: \(S.reclined ? "Snap (lying down)" : (S.smoothTurn ? "Smooth" : "Snap"))", "q_turn"),
+                S.smoothTurn && !S.reclined ? ("Smooth Turn Speed: \(Int(S.smoothTurnSpeed)) deg/s", "q_tspeed")
                              : ("Snap Angle: \(angle(S.snapAngle)) deg", "q_snap"),
                 ("Movement: \(S.teleport ? "Teleport" : "Smooth")", "q_move"),
                 ("Comfort Vignette: \(vignetteName(S.vignette))", "q_vig"),
@@ -144,10 +160,30 @@ enum QuestOptions {
     static func act(_ id: String, back: Bool) {
         let S = QuestSettings.self
         switch id {
-        case "q_turn": S.smoothTurn.toggle()
+        case "q_turn":
+            S.smoothTurn.toggle()
+            if S.smoothTurn && S.controlPreset == 1 { S.controlPreset = 0 }       // (Classic means snap turns)
+        case "q_pos":
+            let next = step([0, 1, 2], playPosition, back)
+            setPlayPosition(next)
+        case "q_comfort": applyComfort(step([0, 1, 2], comfortPreset ?? (back ? 0 : 2), back))
+        case "q_preset": applyControlPreset(step([0, 1, 2], S.controlPreset, back))
+        case "q_height":
+            if let h = hooks.headHeight(), h > 1.0 && h < 2.4 {
+                S.standHeight = h
+                hooks.recenter()
+                hooks.toast(String(format: "Height measured: eyes %.2f m above the floor", h))
+            } else {
+                hooks.toast("Couldn't measure: stand up straight, look ahead and try again")
+            }
+        case "q_setup_done":
+            QuestSettings.setupShown = true
+            hooks.finishSetup()
         case "q_snap": S.snapAngle = step(snapAngles, S.snapAngle, back)
         case "q_tspeed": S.smoothTurnSpeed = step(turnSpeeds, S.smoothTurnSpeed, back)
-        case "q_move": S.teleport.toggle()
+        case "q_move":
+            S.teleport.toggle()
+            if S.teleport && S.controlPreset == 1 { S.controlPreset = 0 }
         case "q_vig": S.vignette = step(vignettes, vignettes.min { abs($0 - S.vignette) < abs($1 - S.vignette) } ?? 0.6, back)
         case "q_ring": S.deckRing = S.deckRing > 0 ? 0 : 1
         case "q_saddle": S.steadySaddle.toggle()
@@ -176,5 +212,73 @@ enum QuestOptions {
             if hooks.foveated() { hooks.setFoveation(S.foveation) }
         default: break
         }
+    }
+
+    // MARK: S6 first-launch setup and presets
+
+    // Play position: 0 Standing, 1 Seated, 2 Lying Down (QuestSettings.seated / reclined).
+    static var playPosition: Int { QuestSettings.reclined ? 2 : (QuestSettings.seated ? 1 : 0) }
+    static let positionNames = ["Standing", "Seated", "Lying Down"]
+    static func setPlayPosition(_ p: Int) {
+        let S = QuestSettings.self
+        reclinedPosture(p == 2)
+        S.seated = p >= 1
+        hooks.recenter()
+    }
+
+    // Comfort presets (0 Comfort, 1 Moderate, 2 Free) over the existing options; nil when the options match none
+    // (shown as Custom). Moderate is the headset's defaults.
+    static let comfortNames = ["Comfort", "Moderate", "Free"]
+    static func applyComfort(_ c: Int) {
+        let S = QuestSettings.self
+        switch c {
+        case 0:
+            S.vignette = 1; S.smoothTurn = false; S.snapAngle = 45; S.teleport = true; S.steadySaddle = true; S.blastShake = false
+        case 1:
+            S.vignette = 0.6; S.smoothTurn = false; S.snapAngle = 45; S.teleport = false; S.steadySaddle = true; S.blastShake = true
+        default:
+            S.vignette = 0; S.smoothTurn = true; S.smoothTurnSpeed = 120; S.teleport = false; S.steadySaddle = false; S.blastShake = true
+        }
+        if S.controlPreset == 1 && (S.teleport || S.smoothTurn) { S.controlPreset = 0 }
+    }
+    static var comfortPreset: Int? {
+        let S = QuestSettings.self
+        if S.teleport && !S.smoothTurn && S.vignette >= 0.8 && !S.blastShake { return 0 }
+        if !S.teleport && !S.smoothTurn && abs(S.vignette - 0.6) < 0.05 && S.blastShake { return 1 }
+        if !S.teleport && S.smoothTurn && S.vignette < 0.05 { return 2 }
+        return nil
+    }
+
+    // S7: controller presets.
+    static func presetName(_ p: Int) -> String { ["Default", "Classic", "One Hand"][max(0, min(2, p))] }
+    static func applyControlPreset(_ p: Int) {
+        let S = QuestSettings.self
+        S.controlPreset = p
+        if p == 1 { S.teleport = false; S.smoothTurn = false }       // Classic: the stick walks, the other snap-turns
+    }
+
+    // The Touch rows with the hands named as the player holds them (Dominant Hand: Left mirrors every binding).
+    static func touchRowsHanded() -> [String] {
+        var rows = touchRows
+        if QuestSettings.controlPreset == 2 { rows.insert("One Hand: R stick forward/back walks too", at: 1) }
+        return QuestSettings.leftHanded ? rows.map { mirrorHands($0) } : rows
+    }
+    // "Right" <-> "Left", A <-> X, B <-> Y as whole words (what the swapped hands press; shared with the lessons).
+    static func mirrorHands(_ s: String) -> String { ContextPrompts.mirrorHands(s) }
+
+    // The first-launch setup (PauseMenu host page "setup"): shown once, over the first world, and from the VR page.
+    static func setupPage() -> (title: String, subtitle: String, rows: [(String, String)]) {
+        let S = QuestSettings.self
+        let h = S.standHeight
+        let measured = h > 0 ? String(format: "%.2f m", h) : "not measured"
+        let rows: [(String, String)] = [
+            ("Play Position: \(positionNames[playPosition])", "q_pos"),
+            ("Comfort: \(comfortPreset.map { comfortNames[$0] } ?? "Custom")", "q_comfort"),
+            ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
+            ("Controls: \(presetName(S.controlPreset))", "q_preset"),
+            ("Measure Height (stand tall, press \(S.leftHanded ? "X" : "A")): \(measured)", "q_height"),
+            ("Start Playing", "q_setup_done"),
+        ]
+        return ("Welcome to Blocksmith", "Set up how you play. Point and pull the trigger to change a row.", rows)
     }
 }

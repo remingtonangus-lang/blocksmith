@@ -122,7 +122,8 @@ extension TownTests {
             b.pressed(2)
             check(g.inventory.main.countOf(Items.id("emerald")) == 1 && g.money == 1000 - 2 * Bank.buyEmerald + Bank.sellEmerald,
                   "town gap: and buys them at \(Money.format(Bank.sellEmerald))")
-            let cheapest = ShopPricing(reputation: 1000, hero: 1, honour: 100).buy(Economy.value(of: Items.id("emerald")) ?? 100)
+            // (R20: stores sell emeralds at a fixed price whatever the discounts, Economy.buyPrice; the bank pays the exchange's dollar.)
+            let cheapest = Economy.buyPrice(Items.id("emerald"), ShopPricing(reputation: 1000, hero: 1, honour: 100))
             check(Bank.sellEmerald < cheapest, "town gap: the bank buys an emerald back for less than the cheapest store sells one (\(Money.format(Bank.sellEmerald)) < \(Money.format(cheapest)))")
             let m0 = g.money
             b.pressed(5)                                   // deposit all

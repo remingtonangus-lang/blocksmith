@@ -52,11 +52,17 @@ final class MapFog {
         version &+= 1
     }
 
-    func save(_ g: Game) {
+    // F2 (Oct 13 evening): every 10 s the whole explored set was sorted and encoded on the frame thread, and it only
+    // grows. The timed save hands a copy (sets copy on write) to the save queue; quit and world switch write at once.
+    func save(_ g: Game, background: Bool = false) {
         guard dirty, let u = url(g), g.save?.dir.lastPathComponent == world else { return }   // (only this world's own fog)
         dirty = false
-        let out = tiles.mapValues { $0.sorted() }
-        if let d = try? JSONEncoder().encode(out) { try? d.write(to: u, options: .atomic) }
+        let snap = tiles
+        let write = {
+            let out = snap.mapValues { $0.sorted() }
+            if let d = try? JSONEncoder().encode(out) { try? d.write(to: u, options: .atomic) }
+        }
+        if background { SaveIO.run(write) } else { write() }
     }
 
     // Every frame from the HUD (MapCache.tick's caller): reveal round every player once a second, save every 10 s.
@@ -68,7 +74,7 @@ final class MapFog {
         guard g.clock - timer >= 1 else { return }
         timer = g.clock
         for i in 0..<max(1, g.coop.seatCount) { reveal(around: g.coop.seatPlayer(i, g).pos) }
-        if g.clock - saveTimer >= 10 { saveTimer = g.clock; save(g) }
+        if g.clock - saveTimer >= 10 { saveTimer = g.clock; save(g, background: true) }
     }
 
     // Marks the tiles within `reveal` blocks of a point explored.

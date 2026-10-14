@@ -35,6 +35,14 @@ final class WorldRenderer {
     private var landmarkVerts: [SimpleVert] = []
     private(set) var landmarkCount = 0
     private(set) var landmarkMs = 0.0
+    // F4 middle ring (Sources/FarRing.swift): two host-visible vertex buffers, one drawn while a new build goes into
+    // the other (only once the other has been out of use for 3 frames: both frames in flight are done with it).
+    private(set) var farRingOn = false           // this frame's uniforms showed it (open overworld sky)
+    private var farBufs: [VkBuf?] = [nil, nil]
+    private var farLive = -1, farQuads = 0, farGen = -1, farFrame = 0
+    private var farUsed = [-10, -10]
+    private var farOrigin = (0, 0), farSeed: UInt64 = 0
+    private(set) var farRingQuads = 0            // drawn last frame (perf lines)
 
     init(scene: SceneRenderer, game: Game) {
         self.scene = scene
@@ -73,7 +81,28 @@ final class WorldRenderer {
     private func updateUnderground(_ eye: V3) {
         guard game.dim.dim.hasSky, !game.player.headInWater else { underground = false; return }
         let top = game.world.topY(Int(floor(eye.x)), Int(floor(eye.z)))
-        underground = top > Int(floor(eye.y)) + 6 && caveK < 0.45
+        // R18 (Oct 13 evening, again: "sky and far trees visible from underground"): skylight alone missed caves lit
+        // by a shaft or a ravine nearby (eye skylight over 0.45), so there was no cave fog cap: the far ring drops its
+        // unlit cave walls (Mesher.farDarkCull) and the surface's trees showed through the rock. Rock overhead decides
+        // too: most of five columns round the eye with 8+ solid natural blocks over it within 64 is underground.
+        underground = (top > Int(floor(eye.y)) + 6 && caveK < 0.45) || (caveK < 0.7 && rockOverhead(eye))
+    }
+    private func rockOverhead(_ eye: V3) -> Bool {
+        let w = game.world
+        let x = Int(floor(eye.x)), y = Int(floor(eye.y)), z = Int(floor(eye.z))
+        var covered = 0
+        for (dx, dz) in [(0, 0), (5, 0), (-5, 0), (0, 5), (0, -5)] {
+            var n = 0
+            var yy = y + 2
+            while yy < min(CH, y + 64) && n < 8 {
+                let b = Int(w.block(x + dx, yy, z + dz))
+                if Blocks.opaque[b] && SmoothTerrain.natural[b] { n += 1 }
+                yy += 2
+            }
+            if n >= 8 { covered += 1 }
+            if covered >= 3 { return true }
+        }
+        return false
     }
     static var testCaveK: Float?           // SkyTest: a dark-cave eye without building a cave
 
@@ -94,9 +123,19 @@ final class WorldRenderer {
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         if !underwater, hasSky, let wf = game.weatherFogEnd, wf < fogEnd {      // O7: fog banks (WeatherWar.swift)
             fogEnd = wf; fogStart = wf * 0.2
+            if let tint = game.stormFogTint { fogColor = fogColor * 0.35 + tint * 0.65 * max(0.25, game.daylight) }   // D49
             fogColor = fogColor * (1 - 0.5 * WeatherWar.fog) + V3(0.6, 0.62, 0.64) * (0.5 * WeatherWar.fog * game.daylight)
         }
         if !underwater, hasSky, let cap = World.caveSight(caveK: underground ? 0 : caveK), cap < fogEnd { fogEnd = cap; fogStart = min(fogStart, cap * 0.55) }
+        // F4: the middle ring (Sources/FarRing.swift) shows past the loaded chunks whenever the view reaches them (the
+        // overworld's open sky: no cave, weather, blindness, vault or underwater fog cut it short). The fog then runs
+        // out to the ring's rim, so chunks and ring share one fog (no fog wall at the loaded edge with clearer land
+        // beyond) and the rim melts into the horizon shell.
+        let baseEnd: Float = rd * 16 - 12
+        farRingOn = FarRing.enabled && game.dim.dim == .overworld && !underwater && !p.headInLava && !vaultSky && !underground
+            && game.blindFog == nil && fogEnd >= baseEnd - 0.01 && game.world.gen is WorldGen
+        // (Only once a ring is up: until its first build lands the loaded edge keeps the usual fog.)
+        if farRingOn && farLive >= 0 && farSeed == game.world.seed { fogEnd = max(fogEnd, FarRing.outer - 16); fogStart = fogEnd * 0.4 }
         let daylight = game.renderDaylight
         let nv = game.nightVision
         let ambient = 1 - (1 - game.dimAmbient) * (1 - 0.85 * nv)
@@ -163,6 +202,7 @@ final class WorldRenderer {
         scene.beginPass(s, t, clear: clear)
         let skip = WorldRenderer.debugSkip
         if !skip.contains("opaque") { scene.drawOpaque(s) }
+        if !skip.contains("far") { drawFarRing(s, eye) }
         stage(2)
         if !skip.contains("ships") { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("landmarks") { drawLandmarks(s, eye, far: cam.far, fogColor: V3(u.fogColor.x, u.fogColor.y, u.fogColor.z)) }
@@ -185,15 +225,53 @@ final class WorldRenderer {
         frameCPUMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }
 
+    // F4: the middle ring after the opaque terrain (the loaded chunks win the depth test; far.vert sinks the ring under
+    // them) and before the landmarks and the sky (its depth hides the horizon shell and the sky dome behind it).
+    private func drawFarRing(_ s: SceneRenderer.Slot, _ eye: V3) {
+        farFrame += 1
+        farRingQuads = 0
+        guard farRingOn else { return }
+        let ring = FarRing.shared
+        ring.request(game, eye: eye)
+        if let m = ring.current(), m.seed == game.world.seed, m.gen != farGen, m.quads > 0 {
+            let k = farLive < 0 ? 0 : 1 - farLive
+            let bytes = m.verts.count * MemoryLayout<SimpleVert>.stride
+            if farFrame - farUsed[k] >= 3 {
+                if farBufs[k] == nil || farBufs[k]!.size < bytes {
+                    // Room for a bigger ring (a higher render distance) up front: replaced only when a build outgrows it.
+                    farBufs[k] = nil
+                    farBufs[k] = try? VkBuf(scene.ctx, size: max(bytes * 5 / 4, 1 << 21), usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true)
+                }
+                if let b = farBufs[k], let p = b.mapped {
+                    m.verts.withUnsafeBytes { src in _ = memcpy(p, src.baseAddress!, bytes) }
+                    farLive = k; farQuads = m.quads; farGen = m.gen; farOrigin = (m.cx, m.cz); farSeed = m.seed
+                }
+            }
+        }
+        guard farLive >= 0, farSeed == game.world.seed, farQuads > 0, let b = farBufs[farLive] else { return }
+        farUsed[farLive] = farFrame
+        let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
+        let ox: Float = Float(farOrigin.0) - eye.x, oz: Float = Float(farOrigin.1) - eye.z
+        let lx: Float = Float(pcx * CS + CS / 2) - eye.x, lz: Float = Float(pcz * CS + CS / 2) - eye.z
+        let rin = FarRing.loadedRadius(game.world.renderDistance)
+        let params = float4x4(columns: (V4(ox, -eye.y, oz, 0), V4(lx, lz, rin, 12), V4(0, 0, 0, 0), V4(0, 0, 0, 0)))
+        scene.drawFar(s, b, quads: farQuads, params: params)
+        farRingQuads = farQuads
+    }
+
     // Opaque cones / spires (depth-writing, so the sky goes behind them) here; their blended smoke after the sky
     // (drawLandmarkSmoke: it writes no depth, so the sky drawn after it covered every volcano plume on the Quest).
     private var landmarkSmoke: (offset: Int, count: Int)?
     private func drawLandmarks(_ s: SceneRenderer.Slot, _ eye: V3, far: Float, fogColor: V3) {
         landmarkSmoke = nil                         // before the guard: never a stale offset from an earlier frame
-        guard let host = landmarkHost, far > 0, game.dim.dim.hasSky, !game.player.headInWater else { return }
+        // (Not underground: past the cave fog's section cull the far-plane impostors showed down long tunnels, R18.)
+        guard let host = landmarkHost, far > 0, game.dim.dim.hasSky, !game.player.headInWater, !underground else { return }
         var smokeStart = 0
         let t0 = CFAbsoluteTimeGetCurrent()
         defer { landmarkMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
+        // With the middle ring up (F4) the impostors and the horizon shell still go on the far-plane shell, now behind
+        // the ring (the far plane moved out past its rim): its depth hides them wherever it has ground, the volcano
+        // plumes and peaks still rise over it, and past its rim the shell carries the horizon on.
         host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
                             rd: Float(game.world.renderDistance))
         if let off = scene.push(s, landmarkVerts) {
@@ -271,7 +349,7 @@ final class WorldRenderer {
         guard cap > 36 else { return }
         var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.renderDaylight, world: game.world, into: ptr, capacity: cap,
                                  cull: frustum, maxDist: mobMaxDist, corpses: game.mobs.corpses,
-                                 ragdolls: World.realistic ? game.debris.ragdolls : nil)
+                                 ragdolls: game.debris.ragdolls)
         if tp { n += writePlayerModel(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n) }
         if others {
             n += game.coop.writeOthers(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n)
@@ -307,7 +385,7 @@ final class WorldRenderer {
         game.writeArms(&wr, eye: eye)
         game.writeLecternBooks(&wr, eye: eye)
         game.writeShelves(&wr, eye: eye)
-        if World.realistic { game.debris.write(&wr, eye: eye, world: w, daylight: daylight) }
+        game.debris.write(&wr, eye: eye, world: w, daylight: daylight)      // (R15: ragdolls and debris in every world)
         game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight)
         let nItems = wr.n
         game.writeShadows(&wr, eye: eye)

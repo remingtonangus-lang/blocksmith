@@ -226,6 +226,7 @@ extension Mob {
     func waitWhereLeft(_ dt: Float, _ g: Game) -> Float {
         // A predator near a young bond: it bolts (passive panic), then comes back to where it was left.
         if panic <= 0 && predatorNear(g) { panic = 3; HorseLife.bolted += 1 }
+        coreTick(dt, ridden: false, galloping: false)
         let here = stayAt ?? pos
         if stayAt == nil { stayAt = pos }
         // Never into the player: within 3.5 blocks it stands and faces you (a spare horse grazing round its spot kept

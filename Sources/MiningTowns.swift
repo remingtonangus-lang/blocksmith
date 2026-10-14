@@ -204,7 +204,7 @@ enum MiningTowns {
                 for y in (gy + 1)...(gy + 9) { w.set(x, y, z, AIR) }
                 if abs(dx) <= 1 && abs(dz) <= 1 { w.set(x, gy, z, dx == ex && dz == ez ? ladder : AIR); continue }
                 w.set(x, gy, z, planks)
-                w.pillarDown(x, gy - 1, z, COBBLE, minY: gy - 6)
+                w.groundDown(x, gy - 1, z, COBBLE, minY: gy - 6)
                 if abs(dx) == 2 && abs(dz) == 2 { for y in (gy + 1)...(gy + 7) { w.set(x, y, z, log) } }
                 else if abs(dx) == 2 || abs(dz) == 2 {
                     if !(dx == ex * 2 && dz == ez * 2) { w.set(x, gy + 1, z, fence) }   // the way onto the ladder

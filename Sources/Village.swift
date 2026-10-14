@@ -57,6 +57,7 @@ enum Village {
         let seed: UInt64
         let job: String
         var frontier = false      // frontier town fittings (FrontierTown.swift): boardwalks, the sheriff's office
+        var r20 = false           // the office is R20's stone jail (TownJail.swift)
     }
 
     static func size(_ k: Kind) -> (Int, Int) {
@@ -99,8 +100,11 @@ enum Village {
             // C13: a size (hamlet to city) on ground no save had generated before sizes (TownSizes.swift).
             let size = gap && TownSizes.on && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyC13) } ?? true)
                 ? TownSizes.size(ox, oz, seed: gen.seed) : nil
+            // R20 (Oct 13 evening, said again after P71): streets as wide as the lots are spread, a walk to every door
+            // and the stone jail, only where no save had generated any of the town before R20.
+            let r20 = streets && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyR20) } ?? true)
             return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets,
-                          townSize: size)
+                          townSize: size, r20: r20)
         }
     }
 
@@ -118,7 +122,7 @@ enum Village {
     static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
 
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
-                       wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil) -> StructureStart? {
+                       wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil, r20: Bool = false) -> StructureStart? {
         let sz = townSize.map { TownSizes.spec[$0.rawValue] }
         func scaled(_ n: Int) -> Int { sz.map { max(8, Int(Float(n) * $0.length)) } ?? n }
         let gap = townsGap ?? frontier
@@ -185,6 +189,14 @@ enum Village {
         // by the road step's centre column, so the stepping code below still reads three columns a step); lots stand a
         // block further back and the street lamps move onto the shoulders.
         var shoulders: [IVec2Key: [(Int, Int, Int)]] = [:]
+        // R20 (Oct 13 evening: "wider paths for the house spacing", again after P71): P62 spread the lots (four blocks
+        // spare either side, 9-13 between them along a street) but every street stayed 5 across, its shoulders set at the
+        // centre's height (buried under the grass wherever the ground rose a block across the street) and dropped on any
+        // slope, so the paths still read as narrow strips between far-apart houses. On R20 ground the street's width
+        // follows the lot spacing: main streets 7 across (spare - 1 each side of the centre), lanes 5 (spare / 2), each
+        // shoulder paved at its own ground height, and the lots set back past the outer shoulder.
+        let spare = wide ? 4 : 2
+        func halfWidth(_ r: Road) -> Int { r20 ? (r.main ? spare - 1 : spare / 2) : 2 }
         for r in roads {
             var cols: [(Int, Int, Int)] = []
             var sh: [IVec2Key: [(Int, Int, Int)]] = [:]
@@ -197,10 +209,16 @@ enum Village {
                 lastY = y
                 for w in -1...1 { cols.append((x + (r.dz != 0 ? w : 0), z + (r.dx != 0 ? w : 0), y)) }
                 if streets {
-                    sh[IVec2Key(x, z)] = [-2, 2].compactMap { w -> (Int, Int, Int)? in
-                        let sx = x + (r.dz != 0 ? w : 0), sz = z + (r.dx != 0 ? w : 0)
-                        return abs(gen.groundY(sx, sz) - y) <= 1 ? (sx, sz, y) : nil
+                    var list: [(Int, Int, Int)] = []
+                    for side in [-1, 1] {
+                        for k in 2...halfWidth(r) {
+                            let sx = x + (r.dz != 0 ? side * k : 0), sz = z + (r.dx != 0 ? side * k : 0)
+                            let gy = gen.groundY(sx, sz)
+                            guard abs(gy - y) <= 1 else { break }       // (R20: no paved strip beyond a gap)
+                            list.append((sx, sz, r20 ? gy : y))
+                        }
                     }
+                    sh[IVec2Key(x, z)] = list
                 }
             }
             guard ok, cols.count >= 15 else { continue }
@@ -211,8 +229,14 @@ enum Village {
                 // A street lamp every 8 steps, on alternate sides (lots clear the one in front of a door).
                 for st in stride(from: 4, to: cols.count / 3, by: 8) {
                     let e = cols[st * 3 + ((st / 8) % 2 == 0 ? 0 : 2)], c = cols[st * 3 + 1]
-                    // (Wide streets: the shoulder beyond that edge, when it has one.)
-                    let out = shoulders[IVec2Key(c.0, c.1)]?.first { abs($0.0 - e.0) + abs($0.1 - e.1) == 1 }
+                    // (Wide streets: the shoulder beyond that edge, when it has one; R20: the outermost on that side,
+                    // so the lamps line the street's edge instead of standing in a 7-wide street.)
+                    var out = shoulders[IVec2Key(c.0, c.1)]?.first { abs($0.0 - e.0) + abs($0.1 - e.1) == 1 }
+                    if r20 {
+                        let side = (e.0 - c.0, e.1 - c.1)
+                        out = shoulders[IVec2Key(c.0, c.1)]?.filter { ($0.0 - c.0) * side.0 + ($0.1 - c.1) * side.1 > 0 }
+                            .max { abs($0.0 - c.0) + abs($0.1 - c.1) < abs($1.0 - c.0) + abs($1.1 - c.1) } ?? out
+                    }
                     lamps.insert(IVec2Key(out?.0 ?? e.0, out?.1 ?? e.1))
                 }
                 do { let c = cols[cols.count - 2]; ends.append((c.0, c.1, c.2, r.dx, r.dz, r.main)) }
@@ -246,7 +270,7 @@ enum Village {
                     let nx = r.dz * side, nz = r.dx * side             // outward normal from road
                     let face: Int = nz == 1 ? 0 : (nz == -1 ? 1 : (nx == 1 ? 2 : 3))
                     let ux = face == 0 ? 1 : (face == 1 ? -1 : 0), uz = face == 2 ? -1 : (face == 3 ? 1 : 0)
-                    let off = streets ? 3 : 2                          // (P71: past the shoulder)
+                    let off = r20 ? halfWidth(r) + 1 : (streets ? 3 : 2)   // (P71: past the shoulder; R20: past the outer one)
                     let ax = px + nx * off - ux * (w / 2), az = pz + nz * off - uz * (w / 2)
                     let fx = ax + ux * (w - 1) + nx * (d - 1), fz = az + uz * (w - 1) + nz * (d - 1)
                     guard free(ax, az, fx, fz) else { continue }
@@ -263,7 +287,7 @@ enum Village {
                     // Two blocks spare on each side along the street too: neighbours stood wall to wall and their roof
                     // eaves ran into each other (blind critic, run 364 cherry-grove village).
                     // (P62 wide towns: four blocks, and a deeper yard behind.)
-                    let spare = wide ? 4 : 2, back = wide ? 3 : 1
+                    let back = wide ? 3 : 1
                     claim(ax - nx - spare * ux, az - nz - spare * uz, fx + nx * back + spare * ux, fz + nz * back + spare * uz)
                     if [.smithy, .library, .temple, .pen].contains(kind) { haveSpecial.insert("\(kind)") }
                     let job = shopHere ? shopQueue.removeFirst().rawValue : jobs[rng.int(jobs.count)]
@@ -276,7 +300,7 @@ enum Village {
             }
         }
         guard lots.count >= (sz?.minLots ?? 6) else { return nil }
-        if frontier && sz?.office != false { frontierLots(&lots, ox: ox, oz: oz, bank: gap && sz?.bank != false) }
+        if frontier && sz?.office != false { frontierLots(&lots, ox: ox, oz: oz, bank: gap && sz?.bank != false, r20: r20) }
         planLog?(ox, oz, style, plan, lots.count)
         var pieces: [Piece] = []
         let plaza = cy
@@ -318,11 +342,13 @@ enum Village {
                     guard (h(back) ?? ylo) == ylo, (h(ahead) ?? yhi) <= yhi else { continue }
                     for j in 0..<3 { halfSteps.insert(IVec2Key(pathCols[run[lo] + j].0, pathCols[run[lo] + j].1)) }
                     let c = pathCols[run[lo] + 1]
-                    for q in shoulders[IVec2Key(c.0, c.1)] ?? [] { halfSteps.insert(IVec2Key(q.0, q.1)) }
+                    // (Shoulders at the centre's height only: an R20 shoulder on its own ground keeps its own step.)
+                    for q in shoulders[IVec2Key(c.0, c.1)] ?? [] where q.2 == c.2 { halfSteps.insert(IVec2Key(q.0, q.1)) }
                     _ = hi
                 }
             }
         }
+        let cut = r20
         for cols in colsByRoad {
             let xs = cols.map { $0.0 }, zs = cols.map { $0.1 }, yv = cols.map { $0.2 }
             let half = halfSteps, lampSet = lamps
@@ -331,6 +357,9 @@ enum Village {
                     let cur = w.get(x, y, z)
                     if Blocks.isLiquid(cur) || cur == AIR { w.set(x, y, z, m.planks) } else { w.set(x, y, z, m.path) }
                     for k in 1...3 where Blocks.replaceable[Int(w.get(x, y + k, z))] && !Blocks.isLiquid(w.get(x, y + k, z)) { w.set(x, y + k, z, AIR) }
+                    // R20: soft ground a block or two over the road is cut away (a street across a rise was paved under
+                    // the grass and showed as a strip one or two blocks wide).
+                    if cut { for k in 1...2 where Village.streetCut.contains(w.get(x, y + k, z)) { w.set(x, y + k, z, AIR) } }
                     if half.contains(IVec2Key(x, z)) { w.set(x, y + 1, z, m.slab); continue }
                     // Lamp posts now and then along the edge (frontier towns: street lamps at a steady spacing).
                     if lampSet.contains(IVec2Key(x, z)) || hash3(x, y, z, 0x1A4F) % 97 == 0 {
@@ -373,6 +402,9 @@ enum Village {
                 }
             }
         }
+        // R20: a paved walk from every door to the street where a shoulder gave out on a slope (before the lots: T2,
+        // pieces.last is a lot).
+        if r20 { pieces += doorWalks(gen, lots, pathCols: pathCols, shoulders: shoulders, m) }
         let lotPieces = pieces.count                  // (the mine's pieces go in before the lots: T2, pieces.last is a lot)
         for lot in lots {
             let (x0, z0, x1, z1) = bounds(lot)
@@ -393,6 +425,7 @@ enum Village {
         start.info = ["lots": lots.count, "shops": lots.filter { $0.kind == .shop || $0.kind == .saloon }.count,
                       "deputies": sz?.deputies ?? 1, "office": lots.contains { $0.kind == .office } ? 1 : 0]
         if let townSize { start.info["size"] = townSize.rawValue }
+        if let office = lots.first(where: { $0.kind == .office }) { Jail.record(office, into: &start.info) }   // R20 (TownJail.swift)
         return start
     }
 
@@ -467,7 +500,7 @@ enum Village {
         let clear = [Kind.farm, .pen].contains(l.kind) ? 3 : (l.kind == .temple ? 14 : ([.bigHouse, .shop, .saloon].contains(l.kind) ? 13 : 9))
         for v in 0..<l.d { for u in 0..<l.w {
             let (x, z) = world(l, u, v)
-            w.pillarDown(x, l.y - 1, z, m.foundation, minY: l.y - 40)      // over deeper caves too (structcheck floating; 24 left 6-8 columns, run 357)
+            w.groundDown(x, l.y - 1, z, m.foundation, minY: l.y - 40)      // over deeper caves too (structcheck floating; 24 left 6-8 columns, run 357)
             for dy in 0...clear where w.inside(x, l.y + dy, z) && w.get(x, l.y + dy, z) != AIR { w.set(x, l.y + dy, z, AIR) }
         } }
         // A ring two blocks wide round the lot cut back to a one-block step: the hillside left standing at the lot's
@@ -685,7 +718,7 @@ enum Village {
     static func meetingPoint(_ w: inout StructWriter, _ ox: Int, _ y: Int, _ oz: Int, _ m: Mats, _ style: Style, deputies: Int = 1) {
         // Plaza of path blocks with a well in the middle and a bell beside it.
         for dz in -4...4 { for dx in -4...4 {
-            w.pillarDown(ox + dx, y - 1, oz + dz, m.foundation, minY: y - 24)
+            w.groundDown(ox + dx, y - 1, oz + dz, m.foundation, minY: y - 24)
             w.set(ox + dx, y, oz + dz, m.path)
             for k in 1...6 where w.get(ox + dx, y + k, oz + dz) != AIR { w.set(ox + dx, y + k, oz + dz, AIR) }
         } }

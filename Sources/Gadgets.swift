@@ -39,6 +39,7 @@ extension Game {
 
     // Right-click a mob with a lead (or a leashed mob with anything to let it go).
     func useLead(_ m: Mob) -> Bool {
+        if m.hitched { unhitch(m); return true }                 // D3: untie the rein (no lead in it)
         if m.leashed {
             m.leashed = false
             m.knot = nil
@@ -125,6 +126,10 @@ extension Mob {
 
     // Pulled toward the anchor beyond 6 blocks; the lead snaps beyond 10 (reference distances).
     func leashTick(_ dt: Float, _ g: Game) {
+        if hitched {
+            if let k = knot, !Blocks.key(Blocks.groupBase[Int(g.world.block(k.x, k.y, k.z))]).hasSuffix("_fence") { g.unhitch(self); return }
+            hitchedTick(dt, g); return
+        }
         let anchor: V3
         if let k = knot {
             let b = g.world.block(k.x, k.y, k.z)
@@ -147,6 +152,7 @@ extension Mob {
     }
 
     func breakLeash(_ g: Game) {
+        if hitched { g.unhitch(self); return }          // a rein, not a lead: nothing to drop
         leashed = false
         knot = nil
         g.drops.spawn(ItemStack(Items.id("lead"), 1), at: pos + V3(0, height * 0.7, 0))

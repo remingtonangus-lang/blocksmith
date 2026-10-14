@@ -87,7 +87,7 @@ enum BrigandRoost {
         let lantern = g("lantern"), barrel = g("barrel"), hay = g("hay_block"), wool = g("red_wool"), fire = g("campfire", g("netherrack"))
         let ladder = g("ladder"), cob = COBBLE
         // The plot: cleared to the sky, levelled with packed dirt over a cobble footing.
-        for z in (cz - r - 1)...(cz + r + 1) { for x in (cx - r - 1)...(cx + r + 1) { w.pillarDown(x, y - 2, z, cob, minY: y - 8) } }
+        for z in (cz - r - 1)...(cz + r + 1) { for x in (cx - r - 1)...(cx + r + 1) { w.groundDown(x, y - 2, z, cob, minY: y - 8) } }
         w.fill(cx - r - 1, y, cz - r - 1, cx + r + 1, y + 20, cz + r + 1, AIR)
         w.fill(cx - r - 1, y - 1, cz - r - 1, cx + r + 1, y - 1, cz + r + 1, dirt)
         // The palisade: logs 5 high, every other one a block taller (the sharpened tips), a plank walk inside at y + 3.
@@ -174,7 +174,7 @@ enum SunkenDreadnought {
                 // Taper toward the ends: the beam narrows over the last eight blocks of bow and stern.
                 let end = min(x - (cx - 30), (cx + 30) - x)
                 let hw = end < 8 ? max(2, beam - (8 - end) / 2) : beam
-                for z in (cz - hw)...(cz + hw) { w.pillarDown(x, yb - 1, z, hull, minY: yb - 12) }
+                for z in (cz - hw)...(cz + hw) { w.groundDown(x, yb - 1, z, hull, minY: yb - 12) }
                 w.fill(x, yb, cz - hw, x, yb + 7, cz + hw, hull)
                 w.fill(x, yb + 1, cz - hw + 1, x, yb + 6, cz + hw - 1, WATER)
                 w.fill(x, yb + 7, cz - hw + 1, x, yb + 7, cz + hw - 1, deck)
@@ -216,7 +216,7 @@ enum SunkenDreadnought {
                 let x = cx - 28 + k * 8, z = cz + (k & 1 == 0 ? -8 : 8)
                 let y = min(SEA - 3, y0 + 9 + Int(rng.float() * 6))
                 w.set(x, y, z, mine)
-                w.pillarDown(x, y - 1, z, chain, minY: y0 - 12)
+                w.groundDown(x, y - 1, z, chain, minY: y0 - 12)
             }
         }
         // The drowned crew, through the decks and on the bridge.

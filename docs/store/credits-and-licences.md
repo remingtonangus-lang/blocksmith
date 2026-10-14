@@ -1,0 +1,26 @@
+# Credits and licences (draft)
+
+## Credits
+- **Created by:** Remington [surname]
+- **Engine, game code, procedural textures, synthesized sound and music:** written for Blocksmith. All game code is
+  original, with no third-party gameplay code.
+- **Design reference:** genre conventions of block-building survival games. Every name, text, texture and sound in
+  Blocksmith is Blocksmith's own (see docs/status/ip-renames.md).
+
+## Third-party software in the Quest build
+| Component | Use | Licence |
+|---|---|---|
+| Swift standard library, Foundation (swift-corelibs-foundation), Dispatch | Language runtime on the headset | Apache 2.0 with Runtime Library Exception |
+| Khronos OpenXR loader | VR session | Apache 2.0 |
+| Vulkan headers | Rendering API definitions | Apache 2.0 / MIT |
+| Android NDK system libraries (libc, AAudio, android) | Platform | Platform-provided |
+| Platform entitlement loader (store builds, once enabled) | Ownership check | Platform SDK licence |
+
+Ship the Apache 2.0 licence text and the NOTICE files of these components in the app (an "Open source licences" page
+under Options). Before submission, check the APK's lib/ folder against this table.
+
+## Assets
+No third-party textures, models, sounds or music. Every texture is painted procedurally in code (Textures.swift and
+related files), and every sound and piece of music is synthesized in code. Image requests in docs/art/image-requests.md
+and recordings in docs/audio/sound-list.md will be commissioned or generated for Blocksmith. Record their source and
+licence here as they arrive.

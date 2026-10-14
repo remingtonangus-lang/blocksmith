@@ -166,7 +166,7 @@ final class SoundEngine {
     private func clip(_ s: Snd, variant v: Int) -> QuestClip? {
         if let list = clips[s], !list.isEmpty { return list[v % list.count] }
         var list: [QuestClip] = []
-        for k in 0..<SoundBank.variants(for: s) {
+        for k in 0..<bank.takeCount(s) {             // recorded takes when Resources/Sounds/real has them (RealSounds.swift)
             let data = bank.clip(s, variant: k)
             if !data.isEmpty { list.append(QuestClip(data)) }
         }
@@ -213,7 +213,10 @@ final class SoundEngine {
         nv.baseGain = min(1.5, gain)
         nv.endTime = now + Double(c.data.count) / SoundEngine.rate
         let idx: Int
-        if s.category == .ui {
+        var ownStep = false
+        if case .step = s, pos == nil { ownStep = true }
+        // (R19: your own footsteps skip the world bus's cave reverb, which smeared each step into a wet thud.)
+        if s.category == .ui || ownStep {
             idx = SoundEngine.spatialCount + SoundEngine.flatCount + nextUI
             nextUI = (nextUI + 1) % (voices.count - SoundEngine.spatialCount - SoundEngine.flatCount)
             nv.bus = 1
@@ -249,6 +252,12 @@ final class SoundEngine {
             case .blocks, .hostile, .friendly, .players: nv.rate = Double(Rand.float(in: 0.95...1.05))
             default: nv.rate = 1
             }
+        }
+        // Recordings that repeat (steps, shots, hits) vary in pitch (+-4%) and level (+-2 dB) every play, own steps too.
+        if SoundBank.variesPerPlay(s) && bank.isRecorded(s) {
+            nv.rate = Double(RealSounds.pitchJitter())
+            nv.baseGain = min(1.5, nv.baseGain * RealSounds.volumeJitter())
+            nv.endTime = now + Double(c.data.count) / (SoundEngine.rate * nv.rate)
         }
         aim(&nv)
         nv.gl = nv.tl; nv.gr = nv.tr; nv.itd = nv.titd

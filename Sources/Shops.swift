@@ -103,6 +103,7 @@ enum Economy {
         "compass": 480, "clock": 1100, "shears": 220,
         "saddle_salve": 600, "brush": 150,
         "fishing_rod": 60, "lead": 60, "flint_and_steel": 120, "spyglass": 900, "name_tag": 800, "treasure_map": 2500,
+        "greywall_dispatch": 4000,                                  // Y6: a saloon's stolen Greywall papers (Spine.swift)
         // Blacksmith
         "stone_sword": 20, "stone_pickaxe": 24, "stone_axe": 24, "stone_shovel": 12, "stone_hoe": 16,
         "iron_sword": 260, "iron_pickaxe": 360, "iron_axe": 360, "iron_shovel": 140, "iron_hoe": 240,
@@ -140,8 +141,11 @@ enum Economy {
                    ("glass_bottle", 16), ("map", 2), ("compass", 1), ("clock", 1), ("paper", 32), ("book", 8),
                    ("shears", 2), ("fishing_rod", 2), ("lead", 4), ("flint_and_steel", 2), ("wheat_seeds", 32),
                    ("beetroot_seeds", 16), ("carrot", 16), ("potato", 16), ("treasure_map", 1), ("emerald", 12)],
-        .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("rifle_rounds", 48),
-                    ("shotgun_shells", 24), ("heavy_rounds", 32), ("greywall_rounds", 32), ("bow", 2), ("arrow", 64), ("crossbow", 1), ("spyglass", 1)],
+        // R8 (Oct 13: "everything takes slate rounds"): every gun on the shelf has its rounds on the shelf: the six-iron
+        // (rifle rounds) is stocked, and a Capital city's gunsmith sells Capital rounds for the Capital guns it sells.
+        .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("gun_revolver", 1), ("rifle_rounds", 64),
+                    ("capital_rounds", 48), ("shotgun_shells", 32), ("heavy_rounds", 32), ("greywall_rounds", 24), ("bow", 2), ("arrow", 64),
+                    ("crossbow", 1), ("spyglass", 1)],
         .butcher: [("beef", 12), ("porkchop", 12), ("chicken", 12), ("mutton", 12), ("cooked_beef", 16), ("cooked_porkchop", 16),
                    ("cooked_chicken", 16), ("cooked_mutton", 16), ("cooked_rabbit", 8), ("rabbit_stew", 6), ("leather", 8),
                    ("hunters_map", 1)],
@@ -159,7 +163,7 @@ enum Economy {
                       ("chainmail_helmet", 1), ("chainmail_chestplate", 1), ("chainmail_leggings", 1), ("chainmail_boots", 1),
                       ("shield", 2), ("bucket", 2), ("iron_bars", 16), ("anvil", 1)],
         .saloon: [("beetroot_soup", 8), ("mushroom_stew", 8), ("rabbit_stew", 6), ("bread", 12), ("cooked_beef", 8),
-                  ("pumpkin_pie", 6), ("cookie", 24), ("honey_bottle", 8), ("treasure_map", 1)],
+                  ("pumpkin_pie", 6), ("cookie", 24), ("honey_bottle", 8), ("treasure_map", 1), ("greywall_dispatch", 1)],
     ]
     // What each shop buys from the player.
     static let buys: [ShopKind: [String]] = [
@@ -186,8 +190,8 @@ enum Economy {
     static let services: [ShopKind: [ShopService]] = [.doctor: [.treatment], .saloon: [.meal]]
 
     static func value(of item: ItemID) -> Int? { value[Items.key(item)] }
-    // P40: sold only by gunsmiths in a Capital city (their rounds, capital_rounds, are never sold: only looted).
-    static let capitalOnly: Set<String> = ["gun_sidearm", "gun_rifle", "gun_smg"]
+    // P40: sold only by gunsmiths in a Capital city, their rounds too (R8: Capital guns bought there had nothing to fire).
+    static let capitalOnly: Set<String> = ["gun_sidearm", "gun_rifle", "gun_smg", "capital_rounds"]
     // P42: the doctor doesn't carry every tonic. These turn up only in some shops (the chance a given keeper stocks it,
     // fixed per keeper), so finding one is worth the ride.
     static let rare: [String: Float] = ["potion_regeneration": 0.35, "potion_fire_resistance": 0.3, "potion_night_vision": 0.4,
@@ -271,7 +275,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
     // Name column width (GUI px): TownTests checks every catalogue name fits.
     static var nameWidth: Int { rowW - 24 - 52 }
 
-    enum Row { case item(Int), service(ShopService), sell(ItemID) }
+    enum Row { case item(Int), service(ShopService), sell(ItemID), exchange }
 
     init(game: Game, keeper: Mob, kind: ShopKind) {
         mob = keeper
@@ -346,13 +350,15 @@ final class ShopMenu: Menu, CustomDrawnMenu {
             }
             return out
         }
+        // R20: the exchange heads every counter's list while you carry emeralds (Exchange, TownServices.swift).
+        let exchange: [Row] = Exchange.count(game) > 0 ? [.exchange] : []
         // A country's capital: its general store draws up treaties (Countries.swift).
         let treaty: [Row] = kind == .general && mob.map { Countries.offersTreaty(game, $0) } == true ? [.service(.treaty)] : []
         // P40: the Capital's arms are sold only in the Capital's own towns.
         let capital = mob.map { CapitalTown.city(game, x: Int(floorf($0.pos.x)), z: Int(floorf($0.pos.z))) != nil } ?? false
         let cat = Economy.catalog(kind)
         let look = mob?.villager?.look ?? 0
-        return treaty + (Economy.services[kind] ?? []).map { Row.service($0) }
+        return exchange + treaty + (Economy.services[kind] ?? []).map { Row.service($0) }
             + cat.indices.filter { i in
                 let k = Items.key(cat[i].item)
                 return (capital || !Economy.capitalOnly.contains(k)) && Economy.carries(k, keeper: look)
@@ -389,6 +395,10 @@ final class ShopMenu: Menu, CustomDrawnMenu {
             let st = ItemStack(it, 1)
             let n = have(it)
             return (st, st.def.display, "You have \(n)", Money.format(Economy.sellPrice(it, p)), n > 0)
+        case .exchange:
+            let n = Exchange.count(game)
+            let st = Items.has("emerald") ? ItemStack(Items.id("emerald"), 1) : ItemStack.empty
+            return (st, Exchange.rowName(n), Exchange.rowDetail(n), "+" + Money.format(n * Exchange.rate), n > 0)
         }
     }
 
@@ -444,6 +454,10 @@ final class ShopMenu: Menu, CustomDrawnMenu {
             say(r.0, good: r.1)
         case .sell(let it):
             let r = Shop.sell(game, m, kind, item: it, count: want == 0 ? Int.max : want)
+            say(r.0, good: r.1)
+            scroll = max(0, min(scroll, rows.count - ShopMenu.visible))
+        case .exchange:
+            let r = Exchange.sellAll(game)
             say(r.0, good: r.1)
             scroll = max(0, min(scroll, rows.count - ShopMenu.visible))
         }

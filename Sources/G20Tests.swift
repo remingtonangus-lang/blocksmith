@@ -90,14 +90,16 @@ extension G20Tests {
         // (Each blow also sets its fuse back, so the fuse alone can't fail: the kill must come within one plain fuse.)
         check(m.health <= 0 && m.fuse < Mob.hisserFuse && t < Mob.hisserFuse && blows <= 3,
               String(format: "G16 Powderwight: %d iron-sword blows of %.0f kill it at %.2f s with its fuse at %.2f of %.2f s", blows, blow, t, m.fuse, Mob.hisserFuse))
-        let survival0 = g.survival, tip0 = TownLaw.state.emeraldTip, held0 = g.inventory.main[g.selected], toast0 = g.onToast
+        let survival0 = g.survival, tip0 = TownLaw.state.exchangeTip, held0 = g.inventory.main[g.selected], toast0 = g.onToast
+        let town0 = TownLaw.inTown
         var said: [String] = []
         g.onToast = { said.append($0) }
-        defer { g.survival = survival0; TownLaw.state.emeraldTip = tip0; g.inventory.main[g.selected] = held0; g.onToast = toast0 }
-        g.survival = true; TownLaw.state.emeraldTip = nil
+        defer { g.survival = survival0; TownLaw.state.exchangeTip = tip0; g.inventory.main[g.selected] = held0; g.onToast = toast0; TownLaw.inTown = town0 }
+        g.survival = true; TownLaw.state.exchangeTip = nil
+        TownLaw.inTown = "Test Town"                      // (R20: the hint waits until you carry emeralds in a town)
         g.inventory.main[g.selected] = ItemStack(Items.id("emerald"), 1)
         TownLaw.emeraldTip(g); TownLaw.emeraldTip(g)
-        check(said.count == 1 && said[0].contains("bank") && said[0].contains(Money.format(Bank.sellEmerald)),
+        check(said.count == 1 && said[0].contains("BANK") && said[0].contains(Money.format(Bank.sellEmerald)),
               "G14 emeralds: the first one carried says a town bank buys them (\"\(said.first ?? "nothing")\"), once")
     }
 

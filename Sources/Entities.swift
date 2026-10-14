@@ -207,8 +207,11 @@ final class ItemEntityManager {
         // P114 (Oct 12 PM: "items should burn when they're thrown into lava"): a dropped item in lava or fire burns up
         // with a hiss and a puff of smoke (Duskium gear and the Emberdeep's star survive, as in the reference).
         for e in items where !e.stack.isEmpty && ItemEntityManager.burns(e.stack) {
-            let b = w.block(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.1)), Int(floor(e.pos.z)))
-            guard Blocks.fluidKind[Int(b)] == 2 || b == FIRE else { continue }
+            // R17: any touch burns it. Items bob in a liquid, so on a lava surface the one cell at its middle was
+            // often the air above (it floated on the lava for a while, then got picked up again).
+            let ix = Int(floor(e.pos.x)), iz = Int(floor(e.pos.z))
+            let b = w.block(ix, Int(floor(e.pos.y + 0.1)), iz), b0 = w.block(ix, Int(floor(e.pos.y - 0.05)), iz)
+            guard Blocks.fluidKind[Int(b)] == 2 || b == FIRE || Blocks.fluidKind[Int(b0)] == 2 || b0 == FIRE else { continue }
             e.stack = ItemStack()
             burned += 1
             for _ in 0..<4 { game.particles.smoke(at: e.pos + V3(0, 0.2, 0)) }

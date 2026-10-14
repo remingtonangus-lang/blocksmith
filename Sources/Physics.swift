@@ -72,7 +72,30 @@ extension Game {
         stepVibe -= dt
         if stepVibe <= 0 && player.onGround && !player.sneaking && simd_length(V2(player.vel.x, player.vel.z)) > 0.5 {
             stepVibe = 0.5
-            world.redstone.vibrate(at: player.pos)
+            // W9: a step is frequency 1; steps on wool make none.
+            let under = world.block(Int(floor(player.pos.x)), Int(floor(player.pos.y - 0.05)), Int(floor(player.pos.z)))
+            let wool = Blocks.key(Blocks.groupBase[Int(under)]).hasSuffix("_wool") || Blocks.key(Blocks.groupBase[Int(under)]).hasSuffix("_carpet")
+            world.redstone.vibrate(at: player.pos, freq: 1, onWool: wool)
+        }
+        honeySlideTick(dt)                  // (the per-frame player physics hook this file owns)
+    }
+
+    // W5: sliding down the side of a honey block (reference): falling against one, the fall slows to 1 block a second
+    // and the fall distance resets.
+    func honeySlideTick(_ dt: Float) {
+        let pl = player
+        guard !pl.onGround, !pl.flying, pl.vel.y < -1.6, Player.honeyID != AIR else { return }
+        let y = Int(floor(pl.pos.y + 0.5))
+        let r: Float = pl.halfW + 0.06
+        for i in 0..<4 {
+            let dx: Float = i == 0 ? r : (i == 1 ? -r : 0)
+            let dz: Float = i == 2 ? r : (i == 3 ? -r : 0)
+            let x = Int(floor(pl.pos.x + dx)), z = Int(floor(pl.pos.z + dz))
+            if world.block(x, y, z) == Player.honeyID {
+                pl.vel.y = -1
+                pl.airPeak = pl.pos.y
+                return
+            }
         }
     }
 

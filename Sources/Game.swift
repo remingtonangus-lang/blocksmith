@@ -523,10 +523,14 @@ final class Game {
         if coop.current != 0 { coop.withSeat(0, self) { self.saveNow(background: background) }; return }
         // A synchronous save must land after any autosave still queued, or the older queued meta/mobs overwrite it.
         if !background { SaveIO.flush() }
-        world.saveAll()
+        world.saveAll(background: background)
         mobs.save(to: world.save, background: background)
         drops.save(to: world.save, background: background)
-        if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
+        // F1: map pixels go as raw bytes (MapData's own coding), from copies, encoded on the save queue by the autosave.
+        if background {
+            let snap = maps.mapValues { $0.snapshot() }
+            SaveIO.writeJSON(snap, to: s.dir.appendingPathComponent("maps.json"))
+        } else if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
         if !background { MapFog.shared.save(self) }       // A5: the explored ground survives a quit (not only the 10 s save)
         // Experience orbs (all dimensions): the XP dropped at a death survives a quit like the items do.
         let orbs = xpOrbs.filter { $0.pos.x.isFinite && $0.pos.y.isFinite && $0.pos.z.isFinite }
@@ -1143,7 +1147,10 @@ final class Game {
                 // Attack cooldown: damage scales with how charged the swing is.
                 let spd = held.isEmpty ? 4 : held.def.attackSpeed
                 // Swings too (swinging deals about what the trigger does), but a quick re-swing still lands a weaker hit.
-                let charge = swung ? max(VRMelee.swingChargeFloor, min(1, attackTimer * spd)) : min(1, attackTimer * spd)
+                // R11 (Oct 13: "several hits a second when swinging fast; damage from swing speed"): a real swing's damage
+                // comes from the blade's speed alone (swingPow, 0.45 to 2x), not from the click cooldown, which cut quick
+                // follow-up swings to 40 % whatever their speed.
+                let charge = swung ? 1 : min(1, attackTimer * spd)
                 var base = held.isEmpty ? 1 : held.def.attack
                 base += 3 * Float(effects.level(.strength)) - 4 * Float(effects.level(.weakness))
                 var dmg = max(0, base) * (0.2 + 0.8 * charge * charge) * (swung ? swingPow : 1)
@@ -1459,6 +1466,7 @@ final class Game {
         if useBucket() { return }
         if useNow && placeBoat() { return }
         guard let t = target else { if useNow { placeIntoLava() }; return }
+        if useNow && !isInteractive(t.hit) && placeIntoLava(before: t.hit) { return }
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && (radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net
@@ -1538,6 +1546,9 @@ final class Game {
             let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
             id = blockItem + BlockID(f)
         case "lantern": id = blockItem + (t.normal.y == -1 ? 1 : 0)
+        case "rod":                                                // W3: points away from the face it is placed on
+            let rf: Int = t.normal.y == 1 ? 0 : (t.normal.y == -1 ? 1 : (t.normal.z == -1 ? 2 : (t.normal.z == 1 ? 3 : (t.normal.x == -1 ? 4 : 5))))
+            id = blockItem + BlockID(rf)
         case "sign":
             if t.normal.y == 0 {
                 let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
@@ -1624,7 +1635,7 @@ final class Game {
             placedReactions(at)
             AutoTurrets.placed(self, at)                                  // P93: a cannon by a computer
             PlayerTurrets.placed(self, at)                                // P200: a wall turret on your side
-            world.redstone.vibrate(at: V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5))
+            world.redstone.vibrate(at: V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5), freq: 13)     // W9: block placed
             if Blocks.shape[Int(id)] == "sign" || Blocks.shape[Int(id)] == "hsign" { openSignEditor(at) }
             if Blocks.shape[Int(id)] == "banner" { let be = BlockEntity(.banner); be.patterns = h.pat ?? []; world.blockEntities[at] = be }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
@@ -1800,13 +1811,13 @@ final class Game {
         blockSound(audioBreakSound(b), at: p)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
-        if World.realistic { debris.blockChanged(p) }
+        debris.blockChanged(p)                  // (R15: ragdolls in every world)
         // Ice broken without Silk Touch over something solid or liquid leaves water (reference; not in the Emberdeep).
         if drop && b == Game.iceID && !world.dim.ultrawarm && Enchant.level(.silkTouch, held) == 0 {
             let under = world.block(p.x, p.y - 1, p.z)
             if Blocks.collide[Int(under)] || Blocks.isLiquid(under) { world.setBlock(p.x, p.y, p.z, WATER); world.scheduleFluid(around: p) }
         }
-        world.redstone.vibrate(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+        world.redstone.vibrate(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), freq: 12)     // W9: block broken
         // Wall torches hanging on this block fall off.
         for (f, d) in [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)].enumerated() {
             let q = p + d
@@ -1968,6 +1979,7 @@ final class Game {
         // Game you killed leaves its body to skin instead of loot (Hunting.swift).
         let body = Hunting.died(self, m)
         Legendaries.bossDied(self, m)                          // C10
+        if m.killedByPlayer { Deeds.killed(self, m) }          // D21: blood on your clothes (Deeds.swift)
         if (!m.baby || m.isZombie) && !body {
             let looting = m.killedByPlayer ? m.lootingLevel : 0
             // Drops with reference rules of their own are rolled below (and skipped here).
@@ -1975,7 +1987,10 @@ final class Game {
             let pkOnly = (m.kind == .vindicator || m.kind == .evoker) ? "emerald" : (m.kind == .phantom ? "phantom_membrane" : "")
             for (n0, lo, hi) in m.spec.drops where Items.has(n0) && !(m.kind == .minecart && m.variant > 0) && !custom.contains(m.kind) {
                 // P196 (Oct 13: "why does one of the guys have Capital rounds?"): a Greywall soldier carries slate rounds.
-                let n = n0 == "capital_rounds" && m.factionValue == .greywall ? GreywallArms.ammo : n0
+                // R8 (Oct 13, again): every soldier drops the rounds of the gun it actually carried (whatever its spec
+                // lists), so a Greywall trooper with a Slatefall drops slate rounds and a Longwatch marksman heavy rounds.
+                var n = n0 == "capital_rounds" && m.factionValue == .greywall ? GreywallArms.ammo : n0
+                if let b = m.brain, b.gun >= 0, b.gun < Guns.all.count, Guns.ammo.contains(where: { $0.0 == n0 }) { n = Guns.all[Guns.current(b.gun)].ammo }
                 if m.kind == .slime && m.sized && m.slimeSize > 1 { break }               // only the smallest slimes drop balls
                 if n == "copper_ingot" && m.kind == .drowned { continue }                 // a chance drop below
                 if n == pkOnly && !m.killedByPlayer { continue }                          // player kills only
@@ -1983,6 +1998,7 @@ final class Game {
                 let once = ["gate_shard", "warden_brand", "marshal_cap"].contains(n)
                 var c = Rand.int(in: lo...(hi + (once ? 0 : looting)))
                 if m.kind == .witherSkeleton && n == "coal" { c = max(0, Rand.int(in: -1...(1 + looting))) }     // 1 in 3
+                if n == "rocket_ammo" { c = min(c, 2) }
                 var item = Items.id(n)
                 if m.fire > 0, let cooked = Recipes.smelt(item), Items.def(item).food != nil { item = cooked }
                 if c > 0 { drops.spawn(ItemStack(item, c), at: at) }
@@ -2568,7 +2584,7 @@ final class Game {
         tnts.update(Float(dt), game: self)
         TickProf.mark("tnt")
         particles.update(Float(dt), world)
-        if World.realistic { debris.tick(Float(dt), world: world) }
+        debris.tick(Float(dt), world: world)    // (R15: ragdolls fall in block worlds too)
         ambientParticles(Float(dt))
         emberMotes(Float(dt))
         updateFlashes(Float(dt))
@@ -2626,6 +2642,7 @@ final class Game {
         coop.withSeat(spawnSeat, self) { self.siegeTick() }
         TickProf.mark("siege")
         basesTick(Float(dt))                                  // reactive citadels (CapitalBases.swift), once a second
+        Horde.tick(self, Float(dt))                           // D15 night hordes (MonsterHearing.swift)
         TickProf.mark("bases")
         ashenTick(Float(dt))
         TickProf.mark("ashen")
@@ -2676,6 +2693,11 @@ final class Game {
         time += dt
         autosaveTimer += dt
         if autosaveTimer > 60 { autosaveTimer = 0; saveNow(background: true) }
+        for msg in SaveIO.takeProblems() { onToast?(msg) }          // S2: save problems reach the player
+        if CrashGuard.crashed && !CrashGuard.told && clock > 3 {    // S4
+            CrashGuard.told = true
+            onToast?("The last session ended unexpectedly. Pause > Restore Last Backup puts back the last saved copy")
+        }
         TickProf.mark("autosave")
     }
 

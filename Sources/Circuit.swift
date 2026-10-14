@@ -38,8 +38,28 @@ final class Circuit {
     var lastNote: (Int, Int)?                         // (instrument, pitch) of the last note block played (tests)
     private(set) var notesPlayed = 0
     private(set) var bellsRung = 0
+    // W1: ticks that fell due while their chunk was unloaded (a button pressed as the player walked away stayed
+    // pressed for ever): they fire once the chunk is back.
+    private var parked: [IVec3: Int] = [:]
+    // W3: lightning rods in loaded chunks (registered by the periodic pass, pruned when broken) and the struck ones
+    // giving their 8-tick pulse.
+    var rods = Set<IVec3>()
+    var rodOn = Set<IVec3>()
+    // W5: cells a piston moved blocks into this tick or the last (the reference keeps them as moving blocks for 2
+    // ticks: nothing pushes them again) and the tick each piston last started to extend (a sticky piston retracting
+    // within that time leaves its block behind: block spitting).
+    var moving: [IVec3: Int] = [:]
+    var pistonStarted: [IVec3: Int] = [:]
+    // W9: murk sensors' last vibration frequency (1-15: a comparator reads it) and their cooldown after firing.
+    var sensorFreq: [IVec3: Int] = [:]
+    var sensorCool: [IVec3: Int] = [:]
+    // W6: plain rails at a T junction and whether power had them switched (edge detection for the junction swap).
+    var railPowered = Set<IVec3>()
 
-    init(world: World) { w = world }
+    init(world: World) {
+        w = world
+        load()
+    }
 
     // MARK: Kinds
 
@@ -48,6 +68,7 @@ final class Circuit {
         case dispenser, dropper, hopper, note, daylight, target, door, trapdoor, gate, tnt, pistonHead, bell, ironDoor, ironTrapdoor
         case rail, poweredRail, detectorRail, activatorRail
         case tripHook, trappedChest, copperBulb, crafter, sculkSensor, lectern
+        case lightningRod
     }
     // Components that are also solid blocks and conduct power like stone (reference: lamps, note blocks, dispensers...).
     static let conducting: Set<K> = [.lamp, .note, .dispenser, .dropper, .crafter, .copperBulb]
@@ -72,7 +93,14 @@ final class Circuit {
         set("iron_door", .ironDoor); set("iron_trapdoor", .ironTrapdoor)
         set("crafter", .crafter); set("sculk_sensor", .sculkSensor); set("calibrated_sculk_sensor", .sculkSensor)
         set("tripwire_hook", .tripHook); set("trapped_chest", .trappedChest)
-        for i in 1..<Blocks.count where Int(Blocks.groupBase[i]) == i && Blocks.key(BlockID(i)).hasSuffix("copper_bulb") { set(Blocks.key(BlockID(i)), .copperBulb) }
+        for i in 1..<Blocks.count where Int(Blocks.groupBase[i]) == i {
+            let k = Blocks.key(BlockID(i))
+            if k.hasSuffix("copper_bulb") { set(k, .copperBulb) }
+            // W2: copper doors and trapdoors follow power like wooden ones (and break when a piston pushes them).
+            else if k.hasSuffix("copper_door") { set(k, .door) }
+            else if k.hasSuffix("copper_trapdoor") { set(k, .trapdoor) }
+            else if k.hasSuffix("lightning_rod") { set(k, .lightningRod) }
+        }
         set("lectern", .lectern)
         set("rail", .rail); set("powered_rail", .poweredRail); set("detector_rail", .detectorRail); set("activator_rail", .activatorRail)
         return t
@@ -123,8 +151,11 @@ final class Circuit {
             }
         }
         let k = Circuit.kind(new)
-        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail || k == .tripHook || k == .sculkSensor || k == .comparator { tracked.insert(p) }
+        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail || k == .tripHook || k == .sculkSensor || k == .comparator || k == .lightningRod { tracked.insert(p) }
         else if tracked.contains(p) { tracked.remove(p) }
+        if Circuit.kind(old) == .lightningRod && k != .lightningRod { rods.remove(p); rodOn.remove(p) }     // W3: pruned on break
+        if Circuit.kind(old) == .sculkSensor && k != .sculkSensor { sensor[p] = nil; sensorFreq[p] = nil; sensorCool[p] = nil }
+        if Circuit.kind(old) == .rail && k != .rail { railPowered.remove(p) }
         settledWires.remove(p)
         if condLevel[p] != nil && Circuit.kind(new) != Circuit.kind(old) { condLevel[p] = nil }
         if Circuit.kind(new) != .lectern { lecternOn.remove(p) }
@@ -155,9 +186,17 @@ final class Circuit {
         let bx = cx * CS, bz = cz * CS
         var out: [IVec3] = []
         for i in 0..<min(blocks.count, CSQ * CH) {
-            let k = kinds[Int(blocks[i])]
-            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook || k == .sculkSensor || k == .comparator {
+            let b = blocks[i]
+            let k = kinds[Int(b)]
+            switch k {
+            case .hopper, .daylight, .plate, .weightedPlate, .detectorRail, .tripHook, .sculkSensor, .comparator, .lightningRod:
                 out.append(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))
+            case .button, .observer:
+                // W1: a pressed button or a lit observer whose release tick was lost (a save from before circuit.json, or
+                // a chunk that unloaded with it pending) gets one again (the periodic pass drops it from the list).
+                let s = Int(b - Blocks.groupBase[Int(b)])
+                if (k == .button && s >= 12) || (k == .observer && s >= 6) { out.append(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15))) }
+            default: break
             }
         }
         return out
@@ -185,6 +224,7 @@ final class Circuit {
         case .tripHook: return s >= 4 && d == Circuit.opp[Circuit.d6(s & 3)] ? 15 : 0
         case .trappedChest: return d == 0 ? (trapped[q] ?? 0) : 0
         case .lectern: return d == 0 && lecternOn.contains(q) ? 15 : 0
+        case .lightningRod: return rodOn.contains(q) && d == Circuit.opp[Circuit.rodDir(s)] ? 15 : 0     // into what it is on
         default: return 0
         }
     }
@@ -213,6 +253,7 @@ final class Circuit {
         case .sculkSensor: return sensor[q]?.0 ?? 0
         case .trappedChest: return trapped[q] ?? 0
         case .lectern: return lecternOn.contains(q) ? 15 : 0
+        case .lightningRod: return rodOn.contains(q) ? 15 : 0
         default: return 0
         }
     }
@@ -394,8 +435,20 @@ final class Circuit {
             // Each one leaves the schedule as it fires, not all first: one firing earlier in the tick that touches a
             // component already due (an observer clock's partner) must not schedule it again (reference: a block with
             // a tick pending ignores the update). Order: as scheduled.
-            for e in due { scheduledSet.remove(e.p); fire(e.p) }
+            for e in due {
+                scheduledSet.remove(e.p)
+                // W1: a tick due in an unloaded chunk waits for it (it was lost: buttons stayed pressed).
+                if !w.isLoaded(e.p.x, e.p.z) { if parked.count < 20000 { parked[e.p] = 1 }; continue }
+                fire(e.p)
+            }
         }
+        if !parked.isEmpty && now % 20 == 0 {
+            var back: [IVec3] = []
+            for (p, _) in parked where w.isLoaded(p.x, p.z) { back.append(p) }
+            for p in back { schedule(p, parked.removeValue(forKey: p) ?? 1) }
+        }
+        if !moving.isEmpty && now % 20 == 0 { moving = moving.filter { $0.value > now } }
+        if !pistonStarted.isEmpty && now % 200 == 0 { pistonStarted = pistonStarted.filter { now - $0.value < 10 } }
         // First in, first out by a read index (removeFirst() moved the whole queue each time: quadratic in a big
         // circuit's 20,000 updates); updates may append more, which this tick still reaches up to the cap.
         var head = 0
@@ -470,6 +523,7 @@ final class Circuit {
                     }
                     let iron = k == .ironDoor || Blocks.key(base(b)).hasPrefix("iron")
                     game?.audioOpenable(shape: Blocks.shape[Int(b)], iron: iron, opening: powered, at: p)
+                    vibrate(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), freq: powered ? 10 : 9)
                 }
             }
         case .tnt:
@@ -493,23 +547,68 @@ final class Circuit {
                 setQuiet(p, base(b) + BlockID(s % 6 + (on ? 6 : 0)))
                 for d in 2..<6 { for dy in -1...1 { let n = p + Circuit.D[d] + IVec3(0, dy, 0); if base(block(n)) == base(b) { mark(n) } } }
             }
+        case .rail:
+            // W6: a plain rail at a T junction switches its curve when power arrives or goes (reference: unpowered it
+            // takes the south-east curve, powered the north-west one).
+            let on = received(p) > 0
+            if on != railPowered.contains(p) {
+                if on { railPowered.insert(p) } else { railPowered.remove(p) }
+                Rails.junctionSwitch(w, p, powered: on)
+            }
         default:
             // A conductor changed power: wake the components around it.
             if conductor(b) { for d in 0..<6 { let n = p + Circuit.D[d]; if Circuit.kind(block(n)) != .none { mark(n) } } }
         }
     }
 
-    // A vibration (steps, block changes, landings...): murk sensors within 8 blocks fire for 30 ticks
-    // with a strength that falls off with distance, then rest.
-    func vibrate(at pos: V3) {
+    // A vibration (steps, block changes, landings...) of a reference frequency (W9: 1 step, 2 landing/projectile,
+    // 3 item use, 9 close/deactivate, 10 open/activate, 11 block change, 12 block broken, 13 block placed, 14 entity
+    // placed/lightning, 15 death/explosion). Murk sensors within 8 blocks (calibrated: 16) fire with a strength that
+    // falls off with distance: 30 ticks (calibrated 10), then a 10-tick cooldown. A calibrated sensor powered from a
+    // side listens only to the frequency equal to that power. Wool between the source and the sensor blocks it, and
+    // steps on wool make none. A comparator reads the sensor's last frequency.
+    func vibrate(at pos: V3, freq: Int = 11, onWool: Bool = false) {
+        if onWool && freq == 1 { return }
+        let f = max(1, min(15, freq))
         for p in tracked where Circuit.kind(block(p)) == .sculkSensor && sensor[p] == nil {
-            let d = simd_length(V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5) - pos)
-            guard d <= 8 else { continue }
-            sensor[p] = (max(1, 15 - Int(d * 15 / 8)), now + 30)
+            if let c = sensorCool[p], c > now { continue }
+            let calibrated = Blocks.key(base(block(p))) == "calibrated_sculk_sensor"
+            let range: Float = calibrated ? 16 : 8
+            let centre = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
+            let d = simd_length(centre - pos)
+            guard d <= range else { continue }
+            if calibrated {
+                var input = 0
+                for e in 2..<6 { input = max(input, powerFrom(p, e)) }
+                if input > 0 && input != f { continue }
+            }
+            if woolBetween(pos, centre) { continue }
+            let level = max(1, 15 - Int(d * 15 / range))
+            sensor[p] = (level, now + (calibrated ? 10 : 30))
+            sensorFreq[p] = f
             game?.sfx(.sculkClick, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
             wakeAround(p)
             let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
         }
+    }
+
+    // Wool blocks on the straight line from a vibration to a sensor (sampled every quarter block; the end cells
+    // themselves don't count: a sheep's step on wool is handled by onWool).
+    static let woolTable: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_wool") }
+    func woolBetween(_ a: V3, _ b: V3) -> Bool {
+        let v = b - a
+        let len = simd_length(v)
+        guard len > 1 else { return false }
+        let steps = Int(len * 4)
+        let ca = IVec3(Int(floor(a.x)), Int(floor(a.y)), Int(floor(a.z))), cb = IVec3(Int(floor(b.x)), Int(floor(b.y)), Int(floor(b.z)))
+        for i in 1..<steps {
+            let t = Float(i) / Float(steps)
+            let q = a + v * t
+            let c = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+            if c == ca || c == cb { continue }
+            if Circuit.woolTable[Int(block(c))] { return true }
+        }
+        return false
     }
 
     // Trapped chests emit the number of viewers (the player: 0 or 1).
@@ -551,6 +650,12 @@ final class Circuit {
         switch Circuit.kind(b) {
         case .target:
             if s > 0 { setQuiet(p, base(b)); wakeAround(p) }
+        case .lightningRod:
+            if rodOn.remove(p) != nil {
+                wakeAround(p)
+                let q = p + Circuit.D[Circuit.opp[Circuit.rodDir(s)]]
+                mark(q); wakeAround(q)
+            }
         case .lectern:
             if lecternOn.remove(p) != nil { wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q) }
         case .torch:
@@ -702,6 +807,11 @@ final class Circuit {
             let off = Int(block(q) - base(block(q)))
             switch k {                                                          // reference readings (they read nothing)
             case "composter": return off                                        // fill level 0-8
+            case "water_cauldron": return off + 1                               // W4: water level 1-3
+            case "lava_cauldron", "powder_snow_cauldron": return 3              // full
+            case "cauldron": return 0
+            case "bee_nest", "beehive": return off                              // honey level 0-5
+            case "sculk_sensor", "calibrated_sculk_sensor": return sensorFreq[q] ?? 0   // W9: last vibration's frequency
             case "cake": return (7 - off) * 2                                   // slices left x 2
             case "end_portal_frame": return off > 0 ? 15 : 0                    // with an eye
             case "respawn_anchor": return off * 15 / 4                          // 0, 3, 7, 11, 15
@@ -728,8 +838,42 @@ final class Circuit {
             if pages <= 1 { return 15 }
             let page = min(pages - 1, max(0, Int(be.delay)))
             return Int(floor(1 + Float(page) / Float(pages - 1) * 14))
+        case .crafter:                                                          // W4: slots filled or disabled
+            var n = 0
+            for i in 0..<min(9, be.container.count) where !be.container[i].isEmpty || be.crafterDisabled(i) { n += 1 }
+            return n
+        case .shelf: return max(0, min(6, be.level))                            // last slot used (1-6)
+        case .chest:                                                            // W4: a double chest reads as one
+            if let o = chestPartner(q), let ob = w.blockEntities[o], ob.kind == .chest {
+                return Circuit.fill(be.container, ob.container)
+            }
+            return Circuit.fill(be.container)
         default: return Circuit.fill(be.container)
         }
+    }
+
+    // W4: the other half of a double chest at p (two chests of the same kind side by side facing the same way, the
+    // pairing the chest screen uses: the +x/+z neighbour first).
+    func chestPartner(_ p: IVec3) -> IVec3? {
+        let b = block(p)
+        let k = Blocks.key(base(b))
+        guard k == "chest" || k == "trapped_chest" else { return nil }
+        let facing = st(b) & 3
+        let a = facing < 2 ? IVec3(1, 0, 0) : IVec3(0, 0, 1)
+        if block(p + a) == b { return p + a }
+        if block(p - a) == b { return p - a }
+        return nil
+    }
+
+    // Both halves of a double chest as one 54-slot reading.
+    static func fill(_ a: ItemContainer, _ b: ItemContainer) -> Int {
+        let n = a.count + b.count
+        guard n > 0 else { return 0 }
+        var fill: Float = 0
+        var any = false
+        for i in 0..<a.count where !a[i].isEmpty { fill += Float(a[i].count) / Float(a[i].maxStack); any = true }
+        for i in 0..<b.count where !b[i].isEmpty { fill += Float(b[i].count) / Float(b[i].maxStack); any = true }
+        return any ? min(15, Int(floor(1 + fill / Float(n) * 14))) : 0
     }
 
     // Reference container reading: floor(1 + average slot fullness * 14), 0 when empty.
@@ -783,7 +927,10 @@ final class Circuit {
                 // Containers (menus, mobs, crafters, cake bites...) change without a block update: re-read the rear.
                 if comparatorOutput(p, s) != (comparatorOut[p] ?? 0) { schedule(p, 2) }
             case .sculkSensor:
-                if let v = sensor[p], now >= v.1 { sensor[p] = nil; wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q) }
+                if let v = sensor[p], now >= v.1 {
+                    sensor[p] = nil; sensorCool[p] = now + 10
+                    wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
+                }
             case .tripHook:
                 // Armed when string runs (up to 40 blocks) to a hook facing back; pulled while anything touches the string.
                 guard now % 2 == 0 else { continue }
@@ -805,6 +952,17 @@ final class Circuit {
                     let a = p + Circuit.D[Circuit.opp[Circuit.d6(s & 3)]]
                     mark(a); wakeAround(a)
                 }
+            case .button:
+                // W1: pressed with no release pending (an old save, or the tick was lost): it releases as usual.
+                if s >= 12 && !scheduledSet.contains(p) && parked[p] == nil { schedule(p, Circuit.stoneButton(b) ? 20 : 30) }
+                remove.append(p)
+            case .observer:
+                if s >= 6 && !scheduledSet.contains(p) && parked[p] == nil { schedule(p, 2) }
+                remove.append(p)
+            case .lightningRod:
+                rods.insert(p)                                          // W3: rebuilt from the chunks as they load
+                if rodOn.contains(p) && !scheduledSet.contains(p) && parked[p] == nil { schedule(p, 8) }
+                remove.append(p)
             case .none: remove.append(p)
             default: break
             }
@@ -882,30 +1040,51 @@ final class Circuit {
         let sticky = Circuit.kind(b) == .stickyPiston
         let powered = pistonPowered(p, face)
         if powered && !extended {
-            if move(from: p + Circuit.D[face], dir: face, push: true, piston: p) {
+            let head = p + Circuit.D[face]
+            guard head.y >= 0 && head.y < CH else { return }               // W5: not out of the world
+            // A fragile block where the head goes breaks and drops (the head used to overwrite it: a torch or a flower
+            // right in front vanished).
+            let hb = block(head)
+            if move(from: head, dir: face, push: true, piston: p) {
+                let nb = block(head)
+                if nb == hb && hb != AIR && !Blocks.isLiquid(hb) && Circuit.fragile(hb) { game?.breakDrops(head, hb) }
                 setQuiet(p, base(b) + BlockID(face + 6))
-                setQuiet(p + Circuit.D[face], Blocks.id("piston_head") + BlockID(face + (sticky ? 6 : 0)))
+                setQuiet(head, Blocks.id("piston_head") + BlockID(face + (sticky ? 6 : 0)))
+                pistonStarted[p] = now
+                moving[head] = now + 2
                 wakeAround(p)
                 game?.sfx(.pistonExtend, 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
-                wakeAround(p + Circuit.D[face] + Circuit.D[face])
+                wakeAround(head + Circuit.D[face])
             }
         } else if !powered && extended {
             let head = p + Circuit.D[face]
             if Circuit.kind(block(head)) == .pistonHead { setQuiet(head, AIR) }
             setQuiet(p, base(b) + BlockID(face))
             wakeAround(p)                                    // its neighbours see it change (a quasi-powered piston below retracts too)
-            if sticky {
+            // W5: retracting within the 2 ticks of its extension, a sticky piston leaves the block where it was pushed
+            // (block spitting: an observer's pulse); later it pulls it back. Glazed terracotta is never pulled.
+            let spit = now - (pistonStarted[p] ?? -100) <= 2
+            if sticky && !spit {
                 let q = head + Circuit.D[face]
                 let qb = block(q)
-                if !Circuit.fragile(qb) && !Circuit.immovable(qb, w, q) { _ = move(from: q, dir: Circuit.opp[face], push: false, piston: p) }
+                if !Circuit.fragile(qb) && !Circuit.immovable(qb, w, q) && !Circuit.glazed(qb) && !isMoving(q) {
+                    _ = move(from: q, dir: Circuit.opp[face], push: false, piston: p)
+                }
             }
             game?.sfx(.pistonContract, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
             wakeAround(head)
         }
     }
 
+    // W5: glazed terracotta doesn't stick to slime or honey and sticky pistons can't pull it (reference).
+    static let glazedTable: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("glazed_terracotta") }
+    @inline(__always) static func glazed(_ b: BlockID) -> Bool { glazedTable[Int(b)] }
+    // A cell a piston moved a block into this tick or the last: still a moving block (it can't be pushed again).
+    @inline(__always) func isMoving(_ q: IVec3) -> Bool { (moving[q] ?? -1) > now }
+
     // Moves the block structure starting at `start` one step in `dir` (slime/honey drag their
-    // neighbours). Push fails beyond 12 blocks or on immovable blocks; fragile blocks in the way break.
+    // neighbours). Push fails beyond 12 blocks, on immovable or still-moving blocks, or past the top or bottom of the
+    // world; fragile blocks in the way break.
     private func move(from start: IVec3, dir: Int, push: Bool, piston: IVec3) -> Bool {
         var set: [IVec3] = []
         var inSet = Set<IVec3>()
@@ -917,7 +1096,7 @@ final class Circuit {
             if inSet.contains(q) || q == piston { continue }
             let b = block(q)
             if Circuit.fragile(b) { continue }
-            if Circuit.immovable(b, w, q) { return false }
+            if Circuit.immovable(b, w, q) || isMoving(q) { return false }
             inSet.insert(q); set.append(q)
             if set.count > 12 { return false }
             queue.append(q + Circuit.D[dir])
@@ -927,7 +1106,8 @@ final class Circuit {
                     if n == piston { continue }
                     let nb = block(n)
                     if (b == slime && nb == honey) || (b == honey && nb == slime) { continue }
-                    if !Circuit.fragile(nb) && !Circuit.immovable(nb, w, n) { queue.append(n) }
+                    if Circuit.glazed(nb) { continue }
+                    if !Circuit.fragile(nb) && !Circuit.immovable(nb, w, n) && !isMoving(n) { queue.append(n) }
                 }
             }
         }
@@ -935,6 +1115,7 @@ final class Circuit {
         var destroy: [IVec3] = []
         for q in set {
             let t = q + Circuit.D[dir]
+            if t.y < 0 || t.y >= CH { return false }                    // W5: the world's height limits
             if inSet.contains(t) { continue }
             if t == piston { return false }
             let tb = block(t)
@@ -949,13 +1130,29 @@ final class Circuit {
                 let at = V3(Float(q.x), Float(q.y), Float(q.z)) + 0.5
                 for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: at) }
             }
+            // W5: a door broken by the push takes its other half with it (copper and wooden doors break when pushed).
+            let k = Circuit.kind(block(q))
+            if k == .door || k == .ironDoor {
+                let o = q + IVec3(0, (st(block(q)) & 8) != 0 ? -1 : 1, 0)
+                if base(block(o)) == base(block(q)) && !inSet.contains(o) { setQuiet(o, AIR) }
+            }
             setQuiet(q, AIR)
         }
         let ids = set.map { block($0) }
-        for q in set where !inSet.contains(q - Circuit.D[dir]) { setQuiet(q, AIR) }
-        for (i, q) in set.enumerated() { setQuiet(q + Circuit.D[dir], ids[i]) }
-        game?.entitiesPushed(set.map { $0 + Circuit.D[dir] }, dir: Circuit.D[dir])
-        for q in set { wakeAround(q); wakeAround(q + Circuit.D[dir]) }
+        let dv = Circuit.D[dir]
+        for q in set where !inSet.contains(q - dv) { setQuiet(q, AIR) }
+        for (i, q) in set.enumerated() { setQuiet(q + dv, ids[i]) }
+        let moved = set.map { $0 + dv }
+        let until = now + 2
+        for q in moved { moving[q] = until }
+        // W5: moved observers: a lit one turns off as usual; one whose front block moved with it sees the change.
+        let movedSet = Set(moved)
+        for (i, q) in moved.enumerated() where Circuit.kind(ids[i]) == .observer {
+            let s = st(ids[i])
+            if s >= 6 || movedSet.contains(q + Circuit.D[s % 6]) { schedule(q, 2) }
+        }
+        game?.entitiesPushed(moved, dir: dv)
+        for q in set { wakeAround(q); wakeAround(q + dv) }
         return true
     }
 
@@ -995,5 +1192,145 @@ final class Circuit {
         lastNote = (inst, note); notesPlayed += 1
         game?.sfx(.note(inst, note), 1, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         game?.particles.hearts(at: V3(Float(p.x) + 0.5, Float(p.y) + 1.2, Float(p.z) + 0.5))
+    }
+}
+
+// MARK: Lightning rods (W3)
+
+extension Circuit {
+    // Lightning rod states: 0 up (the old single state), 1 down, 2 north, 3 south, 4 west, 5 east -> the dir6 it
+    // points along (the block it is mounted on is the opposite way).
+    @inline(__always) static func rodDir(_ s: Int) -> Int { s == 0 ? 1 : (s == 1 ? 0 : min(5, s)) }
+
+    // The lightning rod nearest (x, y, z) within `within` blocks that is the top block of its column; broken ones
+    // are pruned on the way (reference: a strike within 128 blocks of a rod goes to the closest one).
+    func nearestRod(x: Int, y: Int, z: Int, within: Int = 128) -> IVec3? {
+        var best: IVec3?
+        var bd = within * within
+        var gone: [IVec3] = []
+        for r in rods {
+            guard w.isLoaded(r.x, r.z) else { continue }
+            guard Circuit.kind(block(r)) == .lightningRod else { gone.append(r); continue }
+            let dx = r.x - x, dy = r.y - y, dz = r.z - z
+            let d = dx * dx + dy * dy + dz * dz
+            guard d <= bd else { continue }
+            // Exposed to the sky: nothing solid above it.
+            var open = true
+            var yy = r.y + 1
+            while yy < CH && yy <= r.y + 48 {
+                let ab = w.block(r.x, yy, r.z)
+                if ab != AIR && Blocks.collide[Int(ab)] { open = false; break }
+                yy += 1
+            }
+            if open { bd = d; best = r }
+        }
+        for r in gone { rods.remove(r); rodOn.remove(r) }
+        return best
+    }
+
+    // Lightning struck the rod at p: signal 15 for 8 ticks (strong into the block it is mounted on).
+    func rodStruck(_ p: IVec3) {
+        let b = block(p)
+        guard Circuit.kind(b) == .lightningRod else { return }
+        rods.insert(p)
+        rodOn.insert(p)
+        wakeAround(p)
+        let q = p + Circuit.D[Circuit.opp[Circuit.rodDir(st(b))]]
+        mark(q); wakeAround(q)
+        schedule(p, 8)
+    }
+}
+
+// MARK: Save (W1)
+
+// The engine's pending state, written with the world (circuit.json in each dimension's folder) so a reload carries
+// on where it stopped: pending ticks (button releases, observer and torch ticks, repeater delays), the edges powered
+// components saw (bulbs, dispensers, droppers, crafters, doors would fire again), torch burnout history, hopper
+// cooldowns, comparator outputs, plate presses, murk sensors, lectern pulses, struck rods, junction rails.
+// Positions are [x, y, z, values...]; a missing file (an older save) starts empty as before.
+struct CircuitSave: Codable {
+    var now: Int
+    var sched: [[Int]]? = nil        // x, y, z, tick due
+    var edge: [[Int]]? = nil
+    var burn: [[Int]]? = nil         // x, y, z, turn-off ticks...
+    var hop: [[Int]]? = nil          // x, y, z, cooldown
+    var cmp: [[Int]]? = nil          // x, y, z, output
+    var press: [[Int]]? = nil        // x, y, z, tick last pressed
+    var sensor: [[Int]]? = nil       // x, y, z, output, until, frequency, cooldown until
+    var lectern: [[Int]]? = nil
+    var rods: [[Int]]? = nil         // x, y, z, powered (0/1)
+    var rails: [[Int]]? = nil        // junction rails switched by power
+    var pistons: [[Int]]? = nil      // x, y, z, tick its extension started
+}
+
+extension Circuit {
+    var saveURL: URL? { w.save?.dir.appendingPathComponent("circuit.json") }
+
+    func snapshot() -> CircuitSave {
+        func row(_ p: IVec3, _ v: [Int] = []) -> [Int] { [p.x, p.y, p.z] + v }
+        // Entries for blocks that are gone are dropped (where the chunk is loaded to tell).
+        func keep(_ p: IVec3) -> Bool { !w.isLoaded(p.x, p.z) || Circuit.kind(block(p)) != .none }
+        var sv = CircuitSave(now: now)
+        sv.sched = scheduled.map { row($0.p, [$0.at]) } + parked.map { row($0.key, [now + $0.value]) }
+        sv.edge = edge.filter(keep).map { row($0) }
+        sv.burn = burn.compactMap { kv -> [Int]? in
+            let r = kv.value.filter { now - $0 < 60 }
+            return r.isEmpty ? nil : row(kv.key, r)
+        }
+        sv.hop = hopperCooldown.filter { $0.value > 0 && keep($0.key) }.map { row($0.key, [$0.value]) }
+        sv.cmp = comparatorOut.filter { $0.value > 0 && keep($0.key) }.map { row($0.key, [$0.value]) }
+        sv.press = pressedAt.filter { now - $0.value < 40 }.map { row($0.key, [$0.value]) }
+        var sens: [[Int]] = []
+        for p in Set(sensor.keys).union(sensorFreq.keys).union(sensorCool.keys) where keep(p) {
+            let v = sensor[p]
+            sens.append(row(p, [v?.0 ?? 0, v?.1 ?? 0, sensorFreq[p] ?? 0, sensorCool[p] ?? 0]))
+        }
+        sv.sensor = sens
+        sv.lectern = lecternOn.map { row($0) }
+        sv.rods = rods.filter(keep).map { row($0, [rodOn.contains($0) ? 1 : 0]) }
+        sv.rails = railPowered.filter(keep).map { row($0) }
+        sv.pistons = pistonStarted.filter { now - $0.value < 10 }.map { row($0.key, [$0.value]) }
+        return sv
+    }
+
+    // With the world's other files (World.saveAll): on the save queue for the autosave.
+    func save(background: Bool = false) {
+        guard let url = saveURL else { return }
+        SaveIO.write(snapshot(), to: url, background: background)
+    }
+
+    // Before the first tick (Circuit.init). Every field is optional: older files and a missing file load as empty.
+    fileprivate func load() {
+        guard let url = saveURL, let d = try? Data(contentsOf: url),
+              let sv = try? JSONDecoder().decode(CircuitSave.self, from: d) else { return }
+        restore(sv)
+    }
+
+    func restore(_ sv: CircuitSave) {
+        now = max(0, sv.now)
+        func pos(_ r: [Int]) -> IVec3? { r.count >= 3 ? IVec3(r[0], r[1], r[2]) : nil }
+        for r in sv.sched ?? [] where r.count >= 4 {
+            guard let p = pos(r), scheduledSet.insert(p).inserted else { continue }
+            scheduled.append((at: max(now + 1, r[3]), p: p))
+        }
+        for r in sv.edge ?? [] { if let p = pos(r) { edge.insert(p) } }
+        for r in sv.burn ?? [] where r.count > 3 { if let p = pos(r) { burn[p] = Array(r[3...]) } }
+        for r in sv.hop ?? [] where r.count >= 4 { if let p = pos(r) { hopperCooldown[p] = r[3] } }
+        for r in sv.cmp ?? [] where r.count >= 4 { if let p = pos(r) { comparatorOut[p] = r[3] } }
+        for r in sv.press ?? [] where r.count >= 4 { if let p = pos(r) { pressedAt[p] = r[3] } }
+        for r in sv.sensor ?? [] where r.count >= 7 {
+            guard let p = pos(r) else { continue }
+            if r[3] > 0 { sensor[p] = (r[3], r[4]) }
+            if r[5] > 0 { sensorFreq[p] = r[5] }
+            if r[6] > now { sensorCool[p] = r[6] }
+        }
+        for r in sv.lectern ?? [] { if let p = pos(r) { lecternOn.insert(p) } }
+        for r in sv.rods ?? [] where r.count >= 4 {
+            guard let p = pos(r) else { continue }
+            rods.insert(p)
+            if r[3] != 0 { rodOn.insert(p) }
+        }
+        for r in sv.rails ?? [] { if let p = pos(r) { railPowered.insert(p) } }
+        for r in sv.pistons ?? [] where r.count >= 4 { if let p = pos(r) { pistonStarted[p] = r[3] } }
     }
 }

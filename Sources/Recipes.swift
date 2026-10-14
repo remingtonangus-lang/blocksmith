@@ -205,6 +205,7 @@ enum Recipes {
         r.append(shaped(["##", "##"], ["#": "sand"], "sandstone"))
         r.append(shaped(["##", "##"], ["#": "brick"], "bricks"))
         r.append(shaped(["##", "##"], ["#": "snowball"], "snow_block"))
+        for c in ["red", "black", "white", "blue"] { r.append(shapeless(["\(c)_wool", "string"], "bandana")) }   // D22
         r.append(shaped(["##", "##"], ["#": "clay_ball"], "clay"))
         r.append(shaped(["##", "##"], ["#": "glowstone_dust"], "glowstone"))
         // Tools and weapons

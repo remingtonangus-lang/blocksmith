@@ -101,7 +101,10 @@ final class Terrain {
     // fed by 3+ nodes) and 60% of the river reaches (rivers start at 4.5 nodes). Worlds made before keep the old water
     // (World.init: SaveManager.newTerrain), since the graph would seam their saved ground.
     var fewerLakes = false
-    var riverAccMin: Float { fewerLakes ? 4.5 : Terrain.accMin }
+    // H8 (Oct 13 evening): still too much standing water. Worlds made since then keep only the bigger rivers and the
+    // lakes of real catchments (a basin fed by 5+ upstream nodes).
+    var lessWater = false
+    var riverAccMin: Float { lessWater ? 6 : fewerLakes ? 4.5 : Terrain.accMin }
 
     private let macroCache: GridCache<Macro>
     private let nodeCache: GridCache<Node>
@@ -443,6 +446,7 @@ final class Terrain {
             let a = racc(i, j)
             guard !n.ocean && a >= 2 else { return Lake() }
             if fewerLakes { guard a >= 3 else { return Lake() } }
+            if lessWater { guard a >= 5 else { return Lake() } }
             let r2 = min(130, 22 + 11 * a.squareRoot())
             var ring: Float = 1e9
             for k in 0..<24 {

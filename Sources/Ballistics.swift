@@ -72,12 +72,17 @@ final class Armory {
     // P150 (Oct 12 playtest: "something shot the cattle with rifle rounds"): rounds the player didn't fire himself
     // (soldiers, townsfolk, companions, wall turrets, trains) pass through livestock and other peaceful animals.
     static func mobHit(_ g: Game, _ o: V3, _ d: V3, _ len: Float, shooter: ObjectIdentifier?, friendly: Bool, skip: [ObjectIdentifier] = [],
-                       spareStock: Bool = false) -> (Mob, Float)? {
+                       spareStock: Bool = false, side: Faction? = nil) -> (Mob, Float)? {
         var best: (Mob, Float)?
         for m in g.mobs.mobs where m.health > 0 && m !== g.riding {
             if !skip.isEmpty && skip.contains(ObjectIdentifier(m)) { continue }
             if let sh = shooter, ObjectIdentifier(m) == sh { continue }
-            if friendly && (m.kind.steelhold || m.kind.ash) { continue }
+            // R23 (Oct 13 evening, "factions fighting each other"): a soldier's round passes through its own side's
+            // soldiers only. Every enemy round flew through every soldier, so Greywall and Capital troops shot at each
+            // other for ever without a hit. Rounds of no side (townsfolk, turrets, unknown shooters) still pass all.
+            if friendly && (m.kind.steelhold || m.kind.ash) {
+                guard let sd = side, sd != .none, m.factionValue != sd else { continue }
+            }
             if spareStock && m.kind.livestock { continue }
             if let t = m.rayHit(o, d, maxDist: len), t < (best?.1 ?? .greatestFiniteMagnitude) { best = (m, t) }
         }
@@ -148,7 +153,7 @@ final class Armory {
             var player = false
             if s.kind != .grenade {
                 if !s.fromPlayer, let t = Armory.playerHit(g, s.pos, dir, len, pad: s.kind == .bullet ? 0 : 0.2) { hitT = t; player = true }
-                if let h = Armory.mobHit(g, s.pos, dir, len, shooter: s.shooter, friendly: !s.fromPlayer, skip: s.pierced, spareStock: !Armory.playersOwn(s)), h.1 < hitT { hitT = h.1; mob = h.0; player = false }
+                if let h = Armory.mobHit(g, s.pos, dir, len, shooter: s.shooter, friendly: !s.fromPlayer, skip: s.pierced, spareStock: !Armory.playersOwn(s), side: s.side), h.1 < hitT { hitT = h.1; mob = h.0; player = false }
             }
             // Shells and rockets burst on ship hulls (they flew through them); the shooter's own deck aside.
             if s.kind == .shell || s.kind == .rocket {
@@ -159,7 +164,7 @@ final class Armory {
                     s.dead = true
                     slugs[i] = s
                     detonate(s, at: at, g)
-                    if s.kind == .shell { w.ships.heavyHit(h.1, at: at, game: g, power: s.breach.isFinite ? HeavyTurret.mannedShipPower : 6) }
+                    if s.kind == .shell { w.ships.heavyHit(h.1, at: at, game: g, power: s.breach.isFinite ? HeavyTurret.mannedShipPower : 6, resistCap: s.breach) }
                     continue
                 }
             }
@@ -340,7 +345,8 @@ final class Armory {
         if let b = Armory.blockHit(g.world, o, dir, range) { end = b.0 }
         var mob: Mob?
         var player = false
-        if let h = Armory.mobHit(g, o, dir, end, shooter: shooter.map { ObjectIdentifier($0) }, friendly: !fromPlayer, spareStock: !fromPlayer || shooter != nil) { end = h.1; mob = h.0 }
+        if let h = Armory.mobHit(g, o, dir, end, shooter: shooter.map { ObjectIdentifier($0) }, friendly: !fromPlayer, spareStock: !fromPlayer || shooter != nil,
+                                    side: fromPlayer ? nil : shooter?.factionValue) { end = h.1; mob = h.0 }
         if !fromPlayer, let t = Armory.playerHit(g, o, dir, end) { end = t; player = true; mob = nil }
         let hit = o + dir * end
         beams.append(Beam(a: o, b: hit, life: 0.18, color: V4(0.9, 2.2, 2.6, 1), width: 0.09))
@@ -350,9 +356,30 @@ final class Armory {
             var dmg = damage * (boss ? 0.35 : 1)
             // A soldier's plate takes the beam where it strikes (TroopClasses.swift, T7).
             if m.troop > 0 && m.shield <= 0 && Soldier.rank(m.kind) != nil { dmg = m.troopArmourHit(dmg, seg: m.troopSegment(at: hit.y), g) }
-            m.hit(from: o, damage: Int(dmg), knockback: 0.4)
+            m.hit(from: o, damage: Int(dmg), knockback: 0.9)
             if !m.spec.fireImmune { m.fire = max(m.fire, incendiary ? 4 : 3) }
             if fromPlayer { m.killedByPlayer = true; m.provoke(g); hitMarker = 0.18; hits += 1 }
+            // H7: the arc jumps to the two nearest other targets within 5 blocks (60 % each), drawn as forks.
+            if !incendiary {
+                var from = hit, jumped = 0
+                var done: [ObjectIdentifier] = [ObjectIdentifier(m)]
+                if let s = shooter { done.append(ObjectIdentifier(s)) }
+                while jumped < 2 {
+                    var best: Mob?, bd: Float = 25
+                    for c in g.mobs.mobs where c.health > 0 && !done.contains(ObjectIdentifier(c)) && c.kind.spec.behavior != .vehicle {
+                        if fromPlayer && (!c.kind.hostile && Soldier.rank(c.kind) == nil || c === g.riding) { continue }   // (never the horse or the townsfolk)
+                        if !fromPlayer, let side = shooter?.factionValue, c.factionValue == side { continue }
+                        let d2 = simd_length_squared(c.pos + V3(0, c.height * 0.5, 0) - from)
+                        if d2 < bd { bd = d2; best = c }
+                    }
+                    guard let c = best else { break }
+                    let to = c.pos + V3(0, c.height * 0.5, 0)
+                    beams.append(Beam(a: from, b: to, life: 0.18, color: V4(0.9, 2.2, 2.6, 1), width: 0.05))
+                    c.hit(from: from, damage: Int(dmg * 0.6), knockback: 0.5)
+                    if fromPlayer { c.killedByPlayer = true; c.provoke(g) }
+                    done.append(ObjectIdentifier(c)); from = to; jumped += 1
+                }
+            }
         } else if player {
             g.hurtPlayer(Int(damage), from: o, cause: "was vaporised by \(by)", knockback: 0.4, type: .projectile)
             if g.survival { g.onFire = max(g.onFire, 2) }

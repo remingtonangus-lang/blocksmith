@@ -11,6 +11,9 @@ enum PlantSupport {
     // something, leaves water behind), 4 a vine (a solid side or a vine above), 5 an amethyst bud or cluster (any solid
     // face next to it: P121, Oct 12 PM "floating amethysts").
     static var rule: [UInt8] = []
+    // Natural vegetation (R22): grass, ferns, flowers, bushes, saplings, cane, cactus, bamboo, crops, mushrooms: a plant
+    // with a soil (GenCheck.soils). Structure fittings drawn as crosses (wire, chains) are left alone.
+    static var vegetation: [Bool] = []
 
     static func build() {
         let n = Blocks.count
@@ -38,6 +41,11 @@ enum PlantSupport {
             if k.hasSuffix("amethyst_bud") || k == "amethyst_cluster" { r[i] = 5; continue }
             if free.contains(k) || k.contains("amethyst") || k.hasSuffix("_bud") || k.contains("coral") { continue }
             if Blocks.isPlant(BlockID(i)) { r[i] = 1 }
+        }
+        // (Before `rule`: a generator thread that finds `rule` filled reads this too.)
+        vegetation = (0..<n).map { i in
+            let k = Blocks.key(Blocks.groupBase[i])
+            return r[i] == 1 && Blocks.isPlant(BlockID(i)) && (GenCheck.soils(k) != nil || k.hasSuffix("_mushroom"))
         }
         rule = r
     }
@@ -93,10 +101,15 @@ enum PlantSupport {
     // P121 (Oct 12 PM: "a rail floating in the air", "floating amethysts"): a chunk as it is generated or loaded loses
     // rails with nothing under them and amethyst buds and clusters touching no solid block (a cave carved under a
     // mine track, a geode cut open). Cells at the chunk's sides count their unseen neighbour as holding.
+    // R22 (Oct 13 evening, "floating grass"): and vegetation with air or water under it. The generator lays plants on
+    // the ground it made, but every structure, road and rail line written after it clears ground to air (a cutting, a
+    // levelled lot, a walkway cut into a slope) and only took the plants off ground it built over: a plant standing on
+    // a cell a structure cleared stayed in mid-air (a line of grass along the top of every cutting). Bottom-up, so a
+    // stack (cane, a tall flower's upper half) goes with its base. Column-local: the same from any neighbour.
     static func dropFloating(_ b: inout [BlockID]) -> Int {
         if rule.isEmpty { build() }
         var n = 0
-        let op = Blocks.opaque, co = Blocks.collide
+        let op = Blocks.opaque, co = Blocks.collide, veg = vegetation, fk = Blocks.fluidKind, gb = Blocks.groupBase
         b.withUnsafeMutableBufferPointer { p in
             for y in 1..<(CH - 1) { for z in 0..<CS { for x in 0..<CS {
                 let i = Chunk.index(x, y, z)
@@ -110,6 +123,10 @@ enum PlantSupport {
                     if !held {
                         for o in [1, -1, CS, -CS, CSQ, -CSQ] where co[Int(p[i + o])] && op[Int(p[i + o])] { held = true; break }
                     }
+                    if !held { p[i] = AIR; n += 1 }
+                } else if id < veg.count && veg[id] {
+                    let below = Int(p[i - CSQ])
+                    let held = co[below] || gb[below] == gb[id] || (below != 0 && fk[below] == 0 && !Blocks.isPlant(BlockID(below)))
                     if !held { p[i] = AIR; n += 1 }
                 }
             } } }

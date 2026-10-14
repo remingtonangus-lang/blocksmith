@@ -316,6 +316,14 @@ final class Mob {
     var hurtSound = false           // set by hit(); MobManager plays the hurt call once
     var teleportSound = false       // set by teleport(); MobManager plays it at both ends
     var stepAcc: Float = 0          // distance walked since the last footstep sound
+    var hoofPh: Float = 0           // R13: the stride phase at the last hoof beat check
+    // Where in a stride (0...1) each hoof lands, by speed: walk, trot, canter, gallop.
+    static func hoofBeats(_ hs: Float) -> [Float] {
+        if hs < 3 { return [0, 0.25, 0.5, 0.75] }
+        if hs < 6.5 { return [0, 0.5] }
+        if hs < 10 { return [0, 0.28, 0.42] }
+        return [0, 0.11, 0.24, 0.36]
+    }
     var callTimer: Float
     var attackCooldown: Float = 0
     var fuse: Float = 0             // powderwight: seconds of fuse burnt
@@ -387,6 +395,8 @@ final class Mob {
     var leashed = false
     var leashSeat = 0               // split screen: the player holding the lead (rope, pull and fence tying follow them)
     var knot: IVec3?               // fence the lead is tied to (nil = the player)
+    var hitched = false            // D3: a horse's rein tied to a post (no lead item; Hitching.swift)
+    var hitchWater = false
     var raider = false              // part of a raid
     var breakTimer: Float = 0       // blight: breaks surrounding blocks when this runs out
     var lifeSpan: Float = 1e9       // hexling: seconds before it starts to blight away
@@ -451,6 +461,9 @@ final class Mob {
     var waveUnit = false            // the last battle's units (AshFinal): never despawn, never saved
     weak var patrolLeader: Mob?
     var patrolGoal: V3?
+    var heardAt: V3?                // D15: a gunshot or blast it is going to look into (MonsterHearing.swift)
+    var heardTime: Float = 0
+    var hordeSlot = -1              // D15: its place in a night horde's ring
     var hasEgg = false              // turtle / frog / snuffler carrying an egg after breeding
     var hive: IVec3?                // bee: its nest / hive (Bees.swift)
     var golemGoal: IVec3?           // copper golem: the chest it is walking to (CopperGolem.swift)
@@ -775,6 +788,7 @@ final class Mob {
         case .snowGolem: speed = aiSnowGolem(dt, g, inWater: inWater)
         case .animal: speed = bondedHorseAI(dt, g, dist: dist) ?? animalAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
             if kind == .horse { speed *= horseSpeed / 10.4 }            // a fast horse visibly trots and bolts faster
+            if !tamed { speed *= vary.speed }                            // R16: each wild animal its own pace
         case .monster: speed = monsterAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater) * Difficulty.row.speed * vary.speed
         case .witch:
             // Reference witch: drinks water breathing / fire resistance / healing / swiftness as needed, and
@@ -876,6 +890,7 @@ final class Mob {
                 speed = moving ? spec.speed * 0.4 : 0
             }
         case .melee, .spider:
+            if hordeSlot >= 0, let hs = Horde.step(self, dt, g) { speed = hs; break }      // D15: stalking in a night horde
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.5)), Int(floor(pos.z)))
             // Spiders: hostile below raw light 12 (block light or darkened sky); a spider already after you gives up in
             // the light only 1 time in 100 a tick (reference; any shade at all turned them, and light dropped the chase).
@@ -916,9 +931,10 @@ final class Mob {
                     }
                     if kind == .husk { g.applyEffect(.hunger, amp: 0, seconds: 7) }
                 }
-            } else if let ps = patrolStep(g) { speed = ps } else if let es = trampleEggs(dt, g) { speed = es } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
+            } else if let hs = investigateStep(dt, g) { speed = hs } else if let ps = patrolStep(g) { speed = ps } else if let es = trampleEggs(dt, g) { speed = es } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ranged:
             aimHold = max(0, aimHold - dt)
+            if hordeSlot >= 0, let hs = Horde.step(self, dt, g) { speed = hs; break }      // D15
             if kind == .illusioner && canTarget { illusionerSpells(dt, g) }
             if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height / 3, 0)) {
                 face(v.pos)
@@ -961,7 +977,7 @@ final class Mob {
                     tipArrow(g.projectiles.shoot(from: bowMuzzle, dir: dir, speed: kind == .pillager ? 32 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))   // 1.6 a tick (reference)
                     g.sfx(.bow, 0.7, at: pos)
                 }
-            } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
+            } else if let hs = investigateStep(dt, g) { speed = hs } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .creeper:
             if canTarget {
                 face(player)
@@ -1237,9 +1253,12 @@ final class Mob {
         if pos.y < -10 { health = 0 }
 
         let hs = simd_length(V2(vel.x, vel.z))
-        // Horses: long strides, so the gait rate grows slower than the speed (a gallop is ~4 strides/s, not 10).
+        // Horses: long strides at a horse's own rhythm. R13 (Oct 13, fifth report: "the gallop feels like a one-cylinder
+        // whipper snipper"): the stride ran at ~4.6 a second at a gallop (and the body bounced twice a stride, 9 Hz);
+        // a real horse strides about once a second at the walk, rising to ~2.3 a second at the gallop.
         let horsey = kind == .horse || kind == .donkey || kind == .mule || kind == .skeletonHorse || kind == .zombieHorse
-        walkPhase += hs * dt * 5.5 / (horsey ? 1 + hs * 0.12 : 1)
+        if horsey { walkPhase += 2 * .pi * min(2.3, 0.85 + 0.105 * hs) * dt * min(1, hs / 0.6) }
+        else { walkPhase += hs * dt * 5.5 }
         walkAmount += (min(1, hs / 1.2) - walkAmount) * min(1, dt * 8)
     }
 
@@ -2363,7 +2382,24 @@ final class MobManager {
                 // Hooves fall faster than a walker's steps, closer still at a gallop (HorseLife.hoof).
                 let hsp: Float = m.gaited ? sqrtf(m.vel.x * m.vel.x + m.vel.z * m.vel.z) : 0
                 let stride: Float = m.gaited ? (hsp < 3 ? 0.6 : (hsp < 9 ? 1.0 : 1.5)) : sp.stride
-                if m.stepAcc > stride {
+                // R13: hooves fall on the gait's own beats in each stride (Mob.hoofBeats): four even at the walk, two at
+                // the trot, three at the canter and the gallop's rolling four then a lift, not one clop per 1.5 blocks.
+                var beat = false
+                if m.gaited {
+                    let tau: Float = 2 * .pi
+                    let a = m.hoofPh, b = m.walkPhase
+                    m.hoofPh = b
+                    if b - a > 0 && b - a < tau {
+                        let fa = (a / tau) - floorf(a / tau), span = (b - a) / tau
+                        for t in Mob.hoofBeats(hsp) {
+                            var d = t - fa
+                            if d < 0 { d += 1 }
+                            if d < span { beat = true; break }
+                        }
+                    }
+                    m.stepAcc = 0
+                }
+                if (m.gaited && beat) || (!m.gaited && m.stepAcc > stride) {
                     m.stepAcc = 0
                     do {
                         let under = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.2)), Int(floor(m.pos.z)))

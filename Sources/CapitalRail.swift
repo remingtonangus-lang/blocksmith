@@ -112,10 +112,10 @@ enum CapitalRail {
                 for yy in y...(y + 3) { w.set(x, yy, z, AIR) }
                 let ground = w.get(x, y - 1, z)
                 let solid = Blocks.opaque[Int(ground)] && Blocks.collide[Int(ground)]
-                if solid { w.set(x, y - 1, z, ballast) }
+                if solid { w.set(x, y - 1, z, w.firmUnder(x, y - 1, z) ? ballast : plat) }      // R22: no gravel over a hollow
                 else {
                     w.set(x, y - 1, z, deck)                                  // trestle deck
-                    if i % 4 == 0 && dz != 0 { w.pillarDown(x, y - 2, z, leg, minY: y - 40) }
+                    if i % 4 == 0 && dz != 0 { w.groundDown(x, y - 2, z, leg, minY: y - 40) }
                 }
             }
             w.set(x, y, l.z, rail + BlockID(shape(l, i)))
@@ -131,7 +131,7 @@ enum CapitalRail {
             for dz in 2...3 {
                 w.set(x, y - 1, l.z - dz, plat)
                 for yy in y...(y + 3) { w.set(x, yy, l.z - dz, AIR) }
-                if dz == 3 { w.pillarDown(x, y - 2, l.z - dz, plat, minY: y - 30) }
+                if dz == 3 { w.groundDown(x, y - 2, l.z - dz, plat, minY: y - 30) }
             }
             if i % 6 == 1 { w.set(x, y, l.z - 3, post); w.set(x, y + 1, l.z - 3, post); w.set(x, y + 2, l.z - 3, lamp) }
         }

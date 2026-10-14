@@ -5,6 +5,18 @@ import simd
 // blast resistance; blocks the rays get through are destroyed (dropping with chance 1/power);
 // entities take damage scaled by distance and exposure and are knocked back.
 enum Explosion {
+    // A breaching shell's view of a block's blast resistance (P70 `resistCap`). Stone-class blocks count at most the
+    // cap. R10 (Oct 13: "naval guns do nothing to crawlers and the Capital tower"): armour plate (resistance 600: steel
+    // plating, the crawlers' hulls and the Capital tower's cladding) stayed whole against every shell; it now counts
+    // three times the cap, so a manned gun's burst bites a few plates where stone opens a hole. Obsidian, vaults
+    // (over 600) and unbreakable blocks stay.
+    static func capped(_ id: BlockID, _ r0: Float, _ cap: Float) -> Float {
+        guard cap.isFinite else { return r0 }
+        if r0 <= 12 { return min(cap, r0) }
+        if r0 <= 600 && Blocks.hardness[Int(id)] >= 0 { return min(r0, cap * 3) }
+        return r0
+    }
+
     // `decay`: blocks drop with chance 1/power (creepers, fireballs, beds...); primed blocks of TNT drop everything
     // (reference: the TNT drop-decay rule is off by default).
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
@@ -14,7 +26,7 @@ enum Explosion {
         let own = g.bases.quiet
         let breakBlocks = breakBlocks && !(own && g.bases.inAnyBase(c))
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
-        w.ships.blast(at: c, power: power, game: g)          // ship blocks (ShipCombat.swift)
+        w.ships.blast(at: c, power: power, game: g, resistCap: resistCap)          // ship blocks (ShipCombat.swift)
         var destroyed = Set<IVec3>()
         var shaken: [IVec3: Float] = [:]                    // blocks that stopped a ray: share of their cost it carried
         // (The rays only find blocks to break or chip: a blast that breaks none skips them, 17 ms at power 8.)
@@ -30,7 +42,7 @@ enum Explosion {
                 if id != AIR {
                     let fluid = Blocks.isLiquid(id)
                     let r0 = Blocks.resistance[Int(id)]
-                    let res = fluid ? 100 : (r0 <= 12 ? min(resistCap, r0) : r0)       // (only stone-class blocks; vaults, obsidian, bedrock stay)
+                    let res = fluid ? 100 : Explosion.capped(id, r0, resistCap)
                     let cost: Float = (res + 0.3) * 0.3
                     if intensity <= cost && !fluid && breakBlocks && intensity > 0 {
                         shaken[b] = max(shaken[b] ?? 0, intensity / cost)
@@ -45,7 +57,7 @@ enum Explosion {
         var tnt: [IVec3] = []
         let tntID = Blocks.id("tnt")
         // Realistic world: bodies lying round (ragdolls, MobRagdoll.swift) are thrown too.
-        if World.realistic && g.mobs.corpses.contains(where: { $0.ragdoll != nil }) {
+        if g.mobs.corpses.contains(where: { $0.ragdoll != nil }) {      // (R15: every world)
             let rw = g.debris.ragdolls, reach = power * 2.5
             for d in g.mobs.corpses {
                 guard let r = d.ragdoll, rw.isLive(r.id) else { continue }

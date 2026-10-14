@@ -197,6 +197,11 @@ enum TownVoice {
     // Says a line for the context: a toast (or subtitle) and the recorded take at the speaker.
     @discardableResult
     static func speak(_ g: Game, _ m: Mob, _ ctx: Ctx) -> String? {
+        // R20: a line for the hour, the weather and the moment when one fits (TownLines.swift), else a recorded take.
+        if let text = TownLines.line(g, m, ctx) {
+            Townsfolk.say(g, m, text)
+            return text
+        }
         guard let (text, _) = line(ctx, m, late: isLate(Double(g.dayFraction))) else { return nil }
         Townsfolk.say(g, m, text)
         return text
@@ -213,6 +218,7 @@ enum TownVoice {
     static var captions: [Int: String] = [:]
     static var played = 0                     // takes played (TownTests)
     static var murmured = 0                   // text-only lines voiced with a murmur
+    static var written = 0                    // R20: TownLines' lines (written to be captioned, with a murmur)
 
     // Returns true when a recorded take played.
     @discardableResult
@@ -225,7 +231,7 @@ enum TownVoice {
             g.sfx(.voice(id), 1, at: m.eye)
             return true
         }
-        murmured += 1
+        if TownLines.spoken(text) { written += 1 } else { murmured += 1 }
         g.sfx(m.baby ? .babyMob(.villager, .ambient) : .mob(.villager, .ambient), 0.5, at: m.eye)
         return false
     }

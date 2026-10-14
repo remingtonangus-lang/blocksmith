@@ -96,6 +96,8 @@ extension Mob {
         if playerBuilt { d["built"] = 1 }
         if bond != 0 { d["bond"] = bond }
         if let h = horse, h.bondXP > 0 { d["bxp"] = h.bondXP }
+        if hitched { d["hitch"] = 1 }                                                    // D3
+        if let h = horse, h.healthCore < 100 || h.staminaCore < 100 { d["hc"] = h.healthCore; d["sc"] = h.staminaCore }   // H10
         if breed >= 0 { d["breed"] = Float(breed) }
         if bred { d["bred"] = 1 }
         if downed > 0 { d["down"] = downed }
@@ -142,6 +144,9 @@ extension Mob {
         playerBuilt = (d["built"] ?? 0) > 0
         bond = d["bond"] ?? 0
         if let x = d["bxp"] { hs.bondXP = x }
+        hitched = (d["hitch"] ?? 0) > 0
+        if let x = d["hc"] { hs.healthCore = x }
+        if let x = d["sc"] { hs.staminaCore = x }
         breed = Int(d["breed"] ?? -1)
         bred = (d["bred"] ?? 0) > 0
         downed = d["down"] ?? 0
@@ -203,15 +208,18 @@ extension MobManager {
         let url = s.dir.appendingPathComponent("mobs.json")
         if background { SaveIO.writeJSON(all, to: url) }       // (MobRecord: value snapshots)
         else if let d = try? JSONEncoder().encode(all) { try? d.write(to: url, options: .atomic) }
-        savePopulated(to: s)
-        saveHives(to: s)
+        savePopulated(to: s, background: background)
+        saveHives(to: s, background: background)
     }
 
     func load(from s: SaveManager?) {
         loadPopulated(from: s)
         loadHives(from: s)
-        guard let s = s, let d = try? Data(contentsOf: s.dir.appendingPathComponent("mobs.json")),
-              let all = try? JSONDecoder().decode([String: [MobRecord]].self, from: d) else { return }
+        guard let s = s, let d = try? Data(contentsOf: s.dir.appendingPathComponent("mobs.json")) else { return }
+        guard let all = try? JSONDecoder().decode([String: [MobRecord]].self, from: d) else {
+            SaveIO.quarantine(s.dir.appendingPathComponent("mobs.json"), what: "animals and people file")      // S1
+            return
+        }
         for (key, v) in all {
             let p = key.split(separator: ",").compactMap { Int($0) }
             guard p.count == 2 else { continue }

@@ -383,7 +383,7 @@ enum BorealStation {
         columns(-Y - 2, Y + 2, -Y - 2, Y + 2) { dx, dz in
             let x = cx + dx, z = cz + dz
             w.fill(x, S + 1, z, x, S + 32, z, AIR)
-            w.pillarDown(x, S - 1, z, DIRT, minY: S - 30)
+            w.groundDown(x, S - 1, z, DIRT, minY: S - 30)
             w.set(x, S, z, snowB)
         }
         let ring = Y + 8

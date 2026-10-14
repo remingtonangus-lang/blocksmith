@@ -112,7 +112,8 @@ enum Wallet {
             shown = money
         }
         let recent = g.clock - changedAt < 6
-        guard recent || TownLaw.inTown != nil || inv else { return [] }
+        let jail = inv ? nil : Jail.status(g)                      // R20: the jail term, or an outlaw in tow
+        guard recent || TownLaw.inTown != nil || inv || jail != nil else { return [] }
         let s = L.s
         var y = L.insetY + 6 * s + (g.effects.any && !inv ? 54 * s : 0)
         if Settings.shared.minimap && !inv { y += 64 * s + Minimap.below(g) * s }          // under the minimap, its coordinates and waypoint line
@@ -126,6 +127,13 @@ enum Wallet {
             let dw = Float(Font.width(d)) * s
             out.append(HudLine(text: d, x: x - dw - 6 * s, y: y, scale: s,
                                color: delta > 0 ? V4(0.45, 1, 0.45, fade) : V4(1, 0.45, 0.4, fade)))
+        }
+        if let st = jail {
+            let room = Int((L.W - 2 * L.insetX) / s) - 16
+            let t = ShopMenu.fit(st.0, room)
+            let color = st.1
+            let jw = Float(Font.width(t)) * s
+            out.append(HudLine(text: t, x: L.W - L.insetX - jw - 8 * s, y: y + 12 * s, scale: s, color: color, bg: V4(0, 0, 0, 0.55)))
         }
         return out
     }

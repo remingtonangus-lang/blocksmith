@@ -175,6 +175,21 @@ final class MapCache {
         saveMarks(g)
     }
 
+    // Y6: the spine's next objective (Spine.track / Spine.lead), one marker replaced as the goal moves on; nil clears it.
+    func setObjective(_ g: Game, x: Int?, z: Int?, name: String?) {
+        loadMarks(g)
+        let old = marks.first { $0.kind == "objective" }
+        if let x, let z {
+            if let o = old, o.x == x, o.z == z, o.name == name { return }
+            marks.removeAll { $0.kind == "objective" }
+            marks.append(Mark(kind: "objective", x: x, z: z, name: name))
+        } else {
+            guard old != nil else { return }
+            marks.removeAll { $0.kind == "objective" }
+        }
+        saveMarks(g)
+    }
+
     // Nearest waypoint to a point (for the HUD distance line).
     func nearestPin(_ x: Float, _ z: Float) -> Mark? {
         var best: Mark?
@@ -190,10 +205,11 @@ final class MapCache {
     // Marker letter, colour and name per discovery kind.
     static func style(_ kind: String) -> (letter: String, color: V4, name: String) {
         switch kind {
-        case "military_base": return ("B", V4(0.85, 0.2, 0.15, 1), "Capital citadel")
+        case "military_base": return ("B", V4(0.85, 0.2, 0.15, 1), "Capital citadel (the enemy)")
         case "capital_city": return ("C", V4(0.92, 0.94, 0.97, 1), "Capital city")
         case "boreal_station": return ("N", V4(0.45, 0.72, 1, 1), "Boreal Station")
         case "greywall_base": return ("G", V4(0.55, 0.62, 0.72, 1), "Greywall base")
+        case "objective": return ("!", V4(1, 0.85, 0.2, 1), "Next objective")           // Y6 (Spine.swift)
         case "sky_isle": return ("K", V4(0.6, 0.85, 1.0, 1), "Sky isle")
         case "village": return ("V", V4(0.95, 0.8, 0.3, 1), "Village")
         case "vessel_frigate", "vessel_capfrigate": return ("F", V4(0.55, 0.62, 0.4, 1), "Meridian frigate patrol")
@@ -240,7 +256,7 @@ final class MapCache {
         let rx = floorDiv(px, Vessels.region), rz = floorDiv(pz, Vessels.region)
         for dz in -1...1 { for dx in -1...1 {
             guard let e = Vessels.encounter(seed: g.world.seed, rx: rx + dx, rz: rz + dz, gen: g.world.gen) else { continue }
-            if !g.postGame && Vessels.warship(e.0) { continue }          // faction warships sail after the end game
+            if !g.fleetSails && Vessels.warship(e.0) { continue }        // faction warships sail once a Greywall Fortress falls (Y3)
             let ex = e.1.x - px, ez = e.1.z - pz
             if ex * ex + ez * ez < 200 * 200 { discover(g, kind: "vessel_" + e.0, x: e.1.x, z: e.1.z) }
         } }
@@ -490,6 +506,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
     static let zooms = [2, 4, 8, 16, 32, 64]
     var zoom = 2                   // index into zooms (blocks per cell)
     var dragFrom: V2?
+    var pressWorld: (Int, Int)?
     var pressAt: V2?, dragged: Float = 0    // a left press: where, and how far it has dragged since (a tap places a pin)
 
     init(game: Game) {
@@ -535,19 +552,22 @@ final class MapMenu: Menu, CustomDrawnMenu {
         if g.input.rightClicked {
             if let w = world(at: mouse, L) { pin(w.0, w.1) } else { pin(Int(floor(cx)), Int(floor(cz))) }
         }
+        // R4 (Oct 13, after P73/P195): a press only pans once the pointer has really left where it went down (a headset
+        // laser shakes 10-30 px as the trigger is pulled, which panned the map under the pin and could pass the tap
+        // limit); a press that never started panning puts the pin where it went down, however long it was held.
+        let tapTol: Float = (g.vrHead != nil ? 18 : 4) * L.s
         if g.input.leftDown {
-            if let f = dragFrom {
-                let d = (mouse - f) / (2 * L.s) * Float(bpc)
-                cx -= d.x; cz -= d.y
-                // P195 (Oct 13: "I can't place a pin on the map"): a tap is judged by how far the pointer got from the
-                // press, not by the path it wandered (the headset laser shakes a few pixels every frame, which summed past
-                // the old 2-pixel limit before the trigger came up).
-                if let at = pressAt { dragged = max(dragged, simd_length(mouse - at)) }
-            } else { pressAt = mouse; dragged = 0 }
+            if let at = pressAt {
+                dragged = max(dragged, simd_length(mouse - at))
+                if dragged >= tapTol, let f = dragFrom {
+                    let d = (mouse - f) / (2 * L.s) * Float(bpc)
+                    cx -= d.x; cz -= d.y
+                }
+            } else { pressAt = mouse; dragged = 0; pressWorld = world(at: mouse, L) }
             dragFrom = mouse
         } else {
-            if let at = pressAt, dragged < 8 * L.s, let w = world(at: at, L) { pin(w.0, w.1) }
-            dragFrom = nil; pressAt = nil
+            if pressAt != nil, dragged < tapTol, let w = pressWorld { pin(w.0, w.1) }
+            dragFrom = nil; pressAt = nil; pressWorld = nil
         }
         if g.input.tapped(KeyBinds.key(.map)) { g.closeMenu() }
         MapMenu.prevPad = p
@@ -588,9 +608,12 @@ final class MapMenu: Menu, CustomDrawnMenu {
         out.append(HudLine(text: info, x: o.x + 8 * s, y: o.y + Float(height - 13) * s, scale: s, color: V4(0.2, 0.2, 0.22, 1)))
         let marks = MapCache.shared.marks
         let bases = marks.filter { $0.kind == "military_base" }.count
+        let grey = marks.filter { $0.kind == Greywall.kind }.count
         let vill = marks.filter { $0.kind == "village" }.count
         let vessels = marks.filter { $0.kind.hasPrefix("vessel_") }.count
-        let key = "B bases \(bases)   V villages \(vill)" + (vessels > 0 ? "   F/C patrols \(vessels)" : "")
+        // Y4: which force is the enemy over everything and which is the stage to take; Y6: the next objective.
+        let goal = marks.contains { $0.kind == "objective" } ? "   ! next objective" : ""
+        let key = "B Capital (enemy) \(bases)   G Greywall \(grey)   V towns \(vill)" + (vessels > 0 ? "   F/C patrols \(vessels)" : "") + goal
         out.append(HudLine(text: key, x: o.x + Float(width - 8) * s - Float(Font.width(key)) * s, y: o.y + 6 * s, scale: s, color: V4(0.25, 0.25, 0.28, 1)))
         return out
     }

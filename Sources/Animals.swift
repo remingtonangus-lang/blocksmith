@@ -518,6 +518,19 @@ extension Mob {
 // a long head with a muzzle, jointed legs (upper leg, cannon, hoof) and a hanging tail. Walk: diagonal pairs with knee /
 // hock bend; gallop at speed (pairs close up, bigger swing, the body rocks); idle: the tail swishes and the head drops to
 // graze now and then. Units 1/16 block, model faces -Z; the body top stays at y 22 (horse) so saddle and rider line up.
+// R13 (Oct 13, fifth report: "the gallop feels like a one-cylinder whipper snipper"): the body's rise and fall over a
+// stride, model units. A walk and trot lift twice a stride (each diagonal pair), small; the canter and gallop roll
+// once a stride, a smooth swell rather than a cusp (|sin| made a hard bounce at every footfall). The rider rises with
+// it (Riding: HorseFeel.riderLift), so horse and saddle move as one.
+func horseBob(_ m: Mob) -> Float {
+    let amt = m.walkAmount
+    let hs = simd_length(V2(m.vel.x, m.vel.z))
+    let gal = max(0, min(1, (hs - 4.5) / 3.5)) * amt
+    let ph = m.walkPhase
+    let pair = abs(sinf(ph)), roll = 0.5 + 0.5 * sinf(ph - 0.6)
+    return ((1 - gal) * pair * 0.3 * amt + gal * roll * 1.1)
+}
+
 func horseParts(_ m: Mob) -> [Part] {
     let small = m.kind == .donkey || m.kind == .mule
     let c: V3
@@ -548,7 +561,10 @@ func horseParts(_ m: Mob) -> [Part] {
     let gal = max(0, min(1, (hs - 4.5) / 3.5)) * amt
     let ph = m.walkPhase
     let amp: Float = (0.5 + 0.35 * gal) * amt
-    let bob: Float = abs(sinf(ph)) * (0.3 + 0.9 * gal) * amt
+    let bob: Float = horseBob(m)
+    // R13: at the canter and gallop the body rocks once a stride (forehand down as the leading leg lands, up as the
+    // hind legs drive), pivoting at the girth, instead of bouncing.
+    let rock: Float = sinf(ph - 0.6) * 0.07 * gal
     let clock = m.callTimer                                   // counts down steadily between calls
     let idle = max(0, 1 - amt * 2)
     let gw: Float = min(clock - 1.5, 6 - clock) * 1.5
@@ -562,9 +578,10 @@ func horseParts(_ m: Mob) -> [Part] {
     var p: [Part] = []
     p.reserveCapacity(40)
     // Body: barrel, deeper chest in front, rounded rump behind.
-    p.append(Part(mn: V3(-4.2, bot, -8), mx: V3(4.2, top - 0.5, 8), color: c, pattern: pat))
-    p.append(Part(mn: V3(-4.5, bot - 0.5, -11), mx: V3(4.5, top, -4), color: c, pattern: pat))
-    p.append(Part(mn: V3(-4.6, bot + 0.5, 4), mx: V3(4.6, top + 0.3, 11), color: c, pattern: pat))
+    let girth = V3(0, (bot + top) / 2, 0)
+    p.append(Part(mn: V3(-4.2, bot, -8), mx: V3(4.2, top - 0.5, 8), pivot: girth, rotX: rock, color: c, pattern: pat))
+    p.append(Part(mn: V3(-4.5, bot - 0.5, -11), mx: V3(4.5, top, -4), pivot: girth, rotX: rock, color: c, pattern: pat))
+    p.append(Part(mn: V3(-4.6, bot + 0.5, 4), mx: V3(4.6, top + 0.3, 11), pivot: girth, rotX: rock, color: c, pattern: pat))
 
     // Legs: (x, z, phase offset, front?). Walk: diagonal pairs; gallop: front pair and hind pair close up.
     let fo: Float = 0.5 * gal
