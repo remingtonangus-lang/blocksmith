@@ -26,29 +26,31 @@ enum NetMsg {
     // shared rides, vessels and robberies (NetShare.swift)
     static let shipFull: UInt8 = 13, shipPoses: UInt8 = 14, shipGone: UInt8 = 15, useResult: UInt8 = 16
     static let ride: UInt8 = 107, crime: UInt8 = 108, gunfire: UInt8 = 109, useMob: UInt8 = 110
+    // partners (CoopPartner.swift, D52): a revive and a share of pay, each way
+    static let revive: UInt8 = 17, share: UInt8 = 18, reviveHost: UInt8 = 111, shareHost: UInt8 = 112
     static let version: UInt16 = 3
 }
 
 // A player's pose as the other side draws it.
 struct NetPose {
     var pos = V3(0, 0, 0), yaw: Float = 0, pitch: Float = 0, swing: Float = 0
-    var sneaking = false, flying = false, alive = true
+    var sneaking = false, flying = false, alive = true, downed = false
     var held = ""
     func write(_ o: inout NetOut) {
         o.v3(pos); o.f32(yaw); o.f32(pitch); o.f32(swing)
-        o.u8((sneaking ? 1 : 0) | (flying ? 2 : 0) | (alive ? 4 : 0)); o.str(held)
+        o.u8((sneaking ? 1 : 0) | (flying ? 2 : 0) | (alive ? 4 : 0) | (downed ? 8 : 0)); o.str(held)
     }
     static func read(_ r: inout NetIn) -> NetPose {
         var p = NetPose()
         p.pos = r.v3(); p.yaw = r.f32(); p.pitch = r.f32(); p.swing = r.f32()
         let f = r.u8()
-        p.sneaking = f & 1 != 0; p.flying = f & 2 != 0; p.alive = f & 4 != 0
+        p.sneaking = f & 1 != 0; p.flying = f & 2 != 0; p.alive = f & 4 != 0; p.downed = f & 8 != 0
         p.held = r.str()
         return p
     }
     static func of(_ g: Game) -> NetPose {
         NetPose(pos: g.player.pos, yaw: g.player.yaw, pitch: g.player.pitch, swing: g.swing, sneaking: g.player.sneaking,
-                flying: g.player.flying, alive: g.alive, held: g.held.isEmpty ? "" : Items.key(g.held.item))
+                flying: g.player.flying, alive: g.alive, downed: Partner.isDowned(g), held: g.held.isEmpty ? "" : Items.key(g.held.item))
     }
 }
 
@@ -360,6 +362,8 @@ final class NetHost {
             }
         case NetMsg.guestEntity:
             NetCoop.applyEntity(g, &r)
+        case NetMsg.reviveHost, NetMsg.shareHost:
+            Partner.netMessage(g, type, &r)
         case NetMsg.ride, NetMsg.crime, NetMsg.gunfire, NetMsg.useMob:
             handleShared(g, type, &r)
         default: break
@@ -645,6 +649,8 @@ final class NetGuest {
             NetCoop.applyEntity(g, &r)
         case NetMsg.shipFull, NetMsg.shipPoses, NetMsg.shipGone, NetMsg.useResult:
             applyShared(g, type, &r)
+        case NetMsg.revive, NetMsg.share:
+            Partner.netMessage(g, type, &r)
         default: break
         }
     }
