@@ -664,6 +664,7 @@ final class BlockRegistry {
         chest.render = .model; chest.opaque = false; chest.hardness = 2.5; chest.tool = .axe; chest.sound = .wood
         chest.skyStop = true
         addFacing(chest, front: "chest_front", boxes: [Box(1, 0, 1, 15, 14, 15)])
+        ChestJoin.register()                                   // P264: the joined chest's seam layers
         cube("cobbled_deepslate", "Cobbled Deeprock", "cobbled_deepslate", h: 3.5, req: true)
         cube("andesite", "Andesite", "andesite", h: 1.5, req: true)
         cube("diorite", "Diorite", "diorite", h: 1.5, req: true)

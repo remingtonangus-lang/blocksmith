@@ -494,6 +494,8 @@ final class DoubleChestMenu: Menu {
         }
         addPlayerInventory(y: 140)
     }
+    var closed: (() -> Void)?                      // P264: a trapped double chest lets its circuit go
+    override func onClose() { closed?() }
 }
 
 final class ShellBoxMenu: Menu {

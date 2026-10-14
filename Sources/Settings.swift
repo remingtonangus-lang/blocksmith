@@ -101,6 +101,7 @@ final class Settings {
     // P266 the Director (Director.swift): on, its planner (0 Rules, 1 On-Device Model, 2 Cloud), event frequency
     // (0 rare, 1 normal, 2 often), and switching it on before the story ends (testing). The cloud endpoint is the
     // UserDefaults string "directorCloud" ("mock" when unset).
+    @Pref("chestJoinTold") var chestJoinTold = false   // P264: the first double chest was announced
     @Pref("directorOn") var directorOn = true
     @Pref("directorBackend") var directorBackend = 1
     @Pref("directorFreq") var directorFreq = 1

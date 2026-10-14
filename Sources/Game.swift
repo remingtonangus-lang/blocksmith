@@ -1550,6 +1550,8 @@ final class Game {
         if Blocks.has(key + "[south]") && Blocks.shape[Int(blockItem)].isEmpty {
             // Any block registered with four facings turns its front toward the player.
             id = blockItem + BlockID(BlockRegistry.facingToward(yaw: player.yaw))
+            // P264: beside a single chest of its kind it turns to join it (ChestJoin.swift).
+            if key == "chest" || key == "trapped_chest" { id = blockItem + BlockID(ChestJoin.placedFacing(self, blockItem, at: at, chosen: Int(id - blockItem))) }
         }
         if Blocks.has(key + "[x]") && Blocks.shape[Int(blockItem)].isEmpty {
             // Pillars (logs, stems, basalt...) lie along the axis of the clicked face.
@@ -1653,6 +1655,7 @@ final class Game {
             world.setBlock(at.x, at.y, at.z, id)
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
             if key == "chest" || key.hasSuffix("copper_chest") { world.blockEntities[at] = BlockEntity(.chest) }
+            if key == "chest" || key == "trapped_chest" { ChestJoin.placed(self, at: at) }                // P264
             if key == "dispenser" || key == "dropper" { world.blockEntities[at] = BlockEntity(.dispenser) }
             if key == "hopper" { world.blockEntities[at] = BlockEntity(.hopper) }
             if key == "brewing_stand" { world.blockEntities[at] = BlockEntity(.brewing) }
@@ -1818,6 +1821,18 @@ final class Game {
         case "trapped_chest":
             let be = world.entity(p, .chest)
             world.blockEntities[p] = be
+            // P264: a trapped double chest opens as one and trips both halves.
+            if let q = world.redstone.chestPartner(p) {
+                let other = world.entity(q, .chest)
+                world.blockEntities[q] = other
+                let first = (q.x + q.z) < (p.x + p.z) ? other : be, second = first === be ? other : be
+                let m = DoubleChestMenu(game: self, a: first.container, b: second.container)
+                m.title = "Large Trapped Chest"
+                world.redstone.setTrapped(p, 1); world.redstone.setTrapped(q, 1)
+                m.closed = { [weak self] in self?.world.redstone.setTrapped(p, 0); self?.world.redstone.setTrapped(q, 0) }
+                openMenu(m)
+                return
+            }
             let m = ChestMenu(game: self, entity: be)
             m.title = "Trapped Chest"
             world.redstone.setTrapped(p, 1)

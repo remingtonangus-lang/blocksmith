@@ -271,7 +271,7 @@ enum Mesher {
         let rCube = RenderType.cube.rawValue, rCross = RenderType.cross.rawValue
         let rLiquid = RenderType.liquid.rawValue, rModel = RenderType.model.rawValue, rNone = RenderType.none.rawValue
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
-        let rWire = RenderType.wire.rawValue, rsK = Circuit.kinds, gbT = Blocks.groupBase
+        let rWire = RenderType.wire.rawValue, rsK = Circuit.kinds, gbT = Blocks.groupBase, joinT = ChestJoin.joinable
         let rRail = RenderType.rail.rawValue
         let waterTex = Int(WATER) * 6
         let translucent = RenderLayer.translucent.rawValue
@@ -908,6 +908,11 @@ enum Mesher {
                             let ck = connT[bi]
                             boxes = BlockRegistry.connectBoxes(ck, n: Blocks.connects(ck, R[i - RW]), s: Blocks.connects(ck, R[i + RW]),
                                                                w: Blocks.connects(ck, R[i - 1]), e: Blocks.connects(ck, R[i + 1]), collision: false)
+                        } else if joinT[bi] {
+                            // P264: a double chest's half runs to the seam (ChestJoin.swift).
+                            let wide = bi - Int(gbT[bi]) < 2
+                            if let jb = ChestJoin.boxes(R[i], lo: R[i - (wide ? 1 : RW)], hi: R[i + (wide ? 1 : RW)], base: boxes,
+                                                        tex: { texT[bi * 6 + $0] }) { boxes = jb }
                         }
                         for box in boxes {
                             let mn = [Int(box.x0), Int(box.y0), Int(box.z0)], mx = [Int(box.x1), Int(box.y1), Int(box.z1)]
