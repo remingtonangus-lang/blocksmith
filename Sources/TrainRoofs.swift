@@ -107,6 +107,10 @@ extension Trains {
                     raidsLost += 1
                     if let ex = tr.cars.last { Explosion.explode(at: ex.pos + V3(0, 1, 0), power: 0.8, game: g, except: ex) }
                     g.onToast?("The robbers blow the strongbox and ride off with the takings")
+                } else if g.alive {
+                    tr.robbedDay = day                              // Q2: left behind, the train is still robbed
+                    raidsLost += 1
+                    g.onToast?("Behind you, the robbers clean out the \(tr.track.name) and ride off")
                 }
             } else {
                 tr.heldBy = true; tr.stoppedFor = 0
