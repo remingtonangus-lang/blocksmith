@@ -430,7 +430,7 @@ D35. [DONE] Keycards, locked doors and security cameras.
 D36. [DONE] Bodies found raise the alarm; stealth plays differently from going loud.
 D37. [DONE] Disguise in a looted uniform to pass through base towns.
 D38. [DONE] Lost bases counter-attack; alarm state survives a reload.
-D39. Naval ports and dockyards to raid; buy and repair hulls there.
+D39. [DONE] Naval ports and dockyards to raid; buy and repair hulls there.
 D40. Hire a crew to man ship guns.
 D41. Broadside battles and boarding by grapple.
 D42. Aim the Field Tank turret from the helm.

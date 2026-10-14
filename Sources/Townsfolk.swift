@@ -411,6 +411,7 @@ extension Game {
         if survival && !m.baby && Honour.settle(self, m) { return true }
         if Strangers.talk(self, m) { return true }                       // D20: a stranger's story
         if Saloon.tip(self, m) { return true }                           // D17: the piano player
+        if NavalPort.talk(self, m) { return true }                       // D39: the harbourmaster
         if m.town.anger > 0 { TownVoice.speak(self, m, .angry); return true }
         if TownLaw.isHostile(self, m) { TownVoice.speak(self, m, .angry); return true }
         if m.lying {
