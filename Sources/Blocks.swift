@@ -230,7 +230,7 @@ final class BlockRegistry {
         let naturallyFlammable = (d.sound == .wood && !n.hasPrefix("crimson") && !n.hasPrefix("warped") && n != "torch" && d.render != .model)
             || n.hasSuffix("leaves") || (d.render == .cross && n != "fire" && n != "soul_fire" && !n.hasPrefix("crimson") && !n.hasPrefix("warped"))
         flammable.append(d.flammable || naturallyFlammable || BlockRegistry.extraFlammable.contains(d.group ?? n))
-        randomTicks.append(d.randomTicks)
+        randomTicks.append(d.randomTicks || n == "dirt" || n == "snowy_grass_block")      // P235: dirt greens beside grass
         tool.append(d.tool.rawValue)
         harvestLevel.append(UInt8(d.harvestLevel))
         requiresTool.append(d.requiresTool)
