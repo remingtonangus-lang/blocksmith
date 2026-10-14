@@ -111,6 +111,17 @@ enum VehicleAudio {
             let fans = prop(&g, dur: 6.0, bladeRate: 4.5, p: p * 0.6)
             o = Synth.mix(Synth.lowpass(o, 700), Synth.scaled(fans, 0.6))
             return Synth.loopify(o, fade: 0.6)
+        case .strikeRoarLoop:
+            // P228: a strike team's dropship: turbines screaming over a growl that swells and ebbs, and a slow beating
+            // throb under it, so the menace is heard long before the ship is seen.
+            var o = engine(&g, dur: 6.0, rate: 11, p: p * 0.5, rough: 0.8)
+            o = Synth.mix(o, engine(&g, dur: 6.0, rate: 11.7, p: p * 0.47, rough: 0.8))
+            o = Synth.mix(o, g.tone(6.0, f0: 33 * p, f1: 33 * p, wave: .saw, attack: 0.5, release: 0.5, vib: 0.06, vibRate: 0.33, gain: 0.2))
+            let howl = g.tone(6.0, f0: 260 * p, f1: 260 * p, wave: .saw, attack: 0.5, release: 0.5, vib: 0.05, vibRate: 0.5, gain: 0.05)
+            o = Synth.mix(Synth.lowpass(o, 520), Synth.lowpass(howl, 1400))
+            o = Synth.mix(o, Synth.scaled(g.wash(6.0, lp: 900 * p, hp: 120, wobble: 0.6, rate: 0.5, gain: 1.2), 0.5))
+            o = Synth.mix(o, Synth.scaled(prop(&g, dur: 6.0, bladeRate: 3.5, p: p * 0.5), 0.7))
+            return Synth.loopify(o, fade: 0.6)
         case .carriageTreadLoop:
             // Armoured carriage: a laboured heavy engine, squealing drive gear and clanking track plates.
             var o = engine(&g, dur: 4.0, rate: 15, p: p * 0.7, rough: 0.7)
@@ -181,7 +192,8 @@ extension Game {
                 let dc = simd_length(c - eye)
                 if s.isFlyingCapital && dc < 400 { ask("vessel\(s.id)", .frigateDroneLoop, 1.0, c) }
                 if s.role == "crawler" && dc < 220 { ask("vessel\(s.id)", .carriageTreadLoop, 1.0, c) }
-                if s.role == "dropship" && dc < 140 { ask("vessel\(s.id)", .frigateDroneLoop, 0.55, c) }
+                // P228 (Oct 13 21:44): a strike team's dropship roars from far off, the warning that it is coming.
+                if s.role == "dropship" && dc < 380 { ask("vessel\(s.id)", .strikeRoarLoop, simd_length(s.vel) > 0.5 ? 1.0 : 0.5, c) }
                 continue
             }
             if s.role == "frigate" && d < 180 && !s.grounded {
