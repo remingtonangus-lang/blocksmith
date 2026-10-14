@@ -143,6 +143,7 @@ final class PauseMenu: Menu {
         "resethints": "Show the first-steps tips again from the start.",
         "controls": "Every control for keyboard, mouse and controller.",
         "keys": "Choose which keys walk, jump, open the inventory and more.",
+        "about": "Who made Blocksmith, and the open source parts it is built on with their licences.",
         "padmap": "Move actions to other controller buttons. Prompts follow your layout.",
         "pbindreset": "Put every controller button back to the standard layout.",
         "playout": "Shooter: Y switches to your last hotbar slot, hold Y for the inventory. Classic: Y opens the inventory.",
@@ -271,7 +272,7 @@ final class PauseMenu: Menu {
                         ("Split Screen: \(st.splitSideBySide ? "Side by Side" : "Top / Bottom")", "splitlayout"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
                         ("Performance Overlay: \(on(st.perfOverlay))", "perf"),
-                        ("Reset Options...", "resetask")]
+                        ("About and Licences...", "about"), ("Reset Options...", "resetask")]
                 if BugNotes.available {
                     rows.insert(("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"), at: rows.count - 1)
                 }
@@ -679,6 +680,7 @@ final class PauseMenu: Menu {
             }
         case "flashes": st.screenEffects.toggle()
         case "narrator": st.narrator.toggle(); if st.narrator { Narrator.shared.say("Narrator on", clock: g.clock) }
+        case "about": g.closeMenu(); g.openMenu(AboutMenu(game: g))      // Q2 (AboutMenu.swift)
         case "resetask": go(.confirm); confirmReset = true; resetCursor = true
         case "reset_yes":
             st.resetAll(g)
