@@ -170,7 +170,8 @@ enum Tracking {
         if !caughtToasted.contains(id) {
             caughtToasted.insert(id)
             snared += 1
-            if simd_length(m.pos - g.player.pos) < 96 { g.onToast?("A \(m.spec.name.lowercased()) is caught in your snare") }
+            let d = simd_length(m.pos - g.player.pos)
+            if d < 96 { g.onToast?("A \(m.spec.name.lowercased()) is caught in your snare, \(Int(d)) m \(Waymarks.side(g, m.pos))") }   // Q2: where
         }
         return true
     }
