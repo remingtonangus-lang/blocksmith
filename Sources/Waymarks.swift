@@ -17,6 +17,7 @@ enum Waymarks {
     static let beaconRange: Float = 600
     static var cache: (Double, Target?) = (-1e9, nil)
     static var marksAt: Double = -1e9
+    static var arrivedAt: String?                              // the target last arrived at (Q2)
     static var beacons = 0                                     // (harness)
 
     static var trackedKey: String? {
@@ -111,6 +112,13 @@ enum Waymarks {
         guard g.dim.dim == .overworld else { return }
         if let t = current(g) {
             let d = simd_length(V2(t.pos.x - g.player.pos.x, t.pos.z - g.player.pos.z))
+            // Q2: arriving says so once (a chime and the name), and leaving again re-arms it.
+            let id = t.kind + "|" + t.key
+            if d < 10 && arrivedAt != id && !["my_horse", "my_ship", "my_vehicle"].contains(t.kind) {
+                arrivedAt = id
+                g.sfx(.xp, 0.8)
+                g.onToast?("You've reached \(t.name.split(separator: ":").last.map { String($0).trimmingCharacters(in: .whitespaces) } ?? t.name)")
+            } else if d > 40 && arrivedAt == id { arrivedAt = nil }
             if d > 12 && d < beaconRange {
                 let x = Int(floor(t.pos.x)), z = Int(floor(t.pos.z))
                 let ground: Float = g.world.isLoaded(x, z) ? Float(g.world.topY(x, z)) + 1 : t.pos.y
