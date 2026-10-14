@@ -455,6 +455,7 @@ enum HudExtras {
         g.liberationTick()                                           // O1: outlaw camps freed
         g.repHuntersTick()                                           // O3: hunters for a hunted player
         g.factionRaidsTick()                                         // O5: raids on your places
+        Director.frame(g)                                            // P266: the Director's post-game events
         g.baseSpecialtyTick()                                        // P242: specialty bases
         g.trophiesTick()                                             // O6: trophy room and museum
         g.weatherWarTick()                                           // O7: weather that matters

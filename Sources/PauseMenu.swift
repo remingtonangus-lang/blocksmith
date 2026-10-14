@@ -13,8 +13,8 @@ final class PauseMenu: Menu {
     enum Cat: Int, CaseIterable {
         // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
         // distance setting" - it sat on page 3 behind the input pages).
-        case video, controls, controller, audio, interface, accessibility
-        var name: String { ["Video", "Keyboard & Mouse", "Controller", "Audio", "Interface", "Accessibility"][rawValue] }
+        case video, controls, controller, audio, interface, accessibility, director
+        var name: String { ["Video", "Keyboard & Mouse", "Controller", "Audio", "Interface", "Accessibility", "Director"][rawValue] }
     }
     var page: Page = .main
     var cat: Cat = .video
@@ -79,7 +79,8 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "chipping", "smooth", "new_terrain", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness",
+                                        "dir_on", "dir_backend", "dir_freq", "dir_early"]
 
     static func isValue(_ id: String) -> Bool {
         valueIDs.contains(id) || id.hasPrefix("vol:") || id.hasPrefix("fx") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol"].contains(id)
@@ -167,6 +168,12 @@ final class PauseMenu: Menu {
         "difficulty": "Set when the world was made: monster damage, toughness, speed and numbers, and hunger.",
         "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
         "narrator": "Reads the highlighted menu item and messages aloud with the system voice.",
+        "dir_on": "After the story, the Director keeps the land alive: raids, outlaws, wrecks, storms, traders and more, one every so often, announced by radio and marked on your map.",
+        "dir_backend": "Who plans the events. Rules: built in. On-Device Model: a small language model on this device (an optional download), thinking only while paused or idle; Rules stand in when it is missing or slow. Cloud: a server you set (off unless chosen; sends only a summary of your world).",
+        "dir_freq": "How much play time passes between events.",
+        "dir_early": "Lets the Director start before the story is finished (for trying it out).",
+        "dir_cloud": "The cloud planner's address (directorCloud in the settings file; quest-settings.txt on the headset). Mock answers from a built-in test server without using the network.",
+        "dir_journal": "Every Director event, under way and finished, with its outcome: the journal's Events shelf.",
         "bugnotes": BugNotes.hint,
         "flashes": "Reduced makes the red damage flash and portal tint faint.",
         "resetask": "Put every option and key binding back to its default.",
@@ -291,6 +298,15 @@ final class PauseMenu: Menu {
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble")]
+            case .director:
+                // P266 (h, n): the Director's switches, and what it is doing now (the hover help says it in full).
+                rows = [("Director: \(on(st.directorOn))", "dir_on"),
+                        ("Planner: \(Director.backendNames[max(0, min(2, st.directorBackend))])", "dir_backend"),
+                        ("Event Frequency: \(Director.freqNames[max(0, min(2, st.directorFreq))])", "dir_freq"),
+                        ("Before the Story Ends: \(on(st.directorEarly))", "dir_early"),
+                        (Director.shortStatus(g), "dir_status"), (Director.shortPlanner(), "dir_model"),
+                        ("Cloud Endpoint: \(DirectorPlanner.shared.cloud.endpoint == "mock" ? "Mock (built in)" : "Custom")", "dir_cloud"),
+                        ("Director Events (Journal)...", "dir_journal")]
             }
             rows.append(("Done", "back"))
         case .padmap:
@@ -412,6 +428,7 @@ final class PauseMenu: Menu {
             return c == .master ? "Volume of every sound and the music together."
                                 : "Volume of \(c.label.lowercased()) sounds, on top of Master."
         }
+        if id == "dir_status" || id == "dir_model" { return Director.statusLines(game).joined(separator: ". ") }   // P266 (n)
         return PauseMenu.help[id] ?? PauseMenu.hostHelp[id] ?? ""
     }
 
@@ -686,6 +703,19 @@ final class PauseMenu: Menu {
             }
         case "flashes": st.screenEffects.toggle()
         case "narrator": st.narrator.toggle(); if st.narrator { Narrator.shared.say("Narrator on", clock: g.clock) }
+        case "dir_on": st.directorOn.toggle(); if !st.directorOn { DirectorLLM.release() }      // P266 (h)
+        case "dir_backend":
+            st.directorBackend = step([0, 1, 2], st.directorBackend)
+            DirectorPlanner.shared.reset(); Director.fallbackNote = ""
+            if st.directorBackend != 1 { DirectorLLM.release() }
+            if st.directorBackend == 2 { g.onToast?("Cloud planner: only a summary of your world is sent, nothing about you or this device") }
+        case "dir_freq":
+            let was = st.directorFreq
+            st.directorFreq = step([0, 1, 2], st.directorFreq)
+            Director.rescheduled(from: was)
+        case "dir_early": st.directorEarly.toggle()
+        case "dir_status", "dir_model", "dir_cloud": return
+        case "dir_journal": g.closeMenu(); g.openJournal(tab: .events)
         case "about": g.closeMenu(); g.openMenu(AboutMenu(game: g))      // Q2 (AboutMenu.swift)
         case "resetask": go(.confirm); confirmReset = true; resetCursor = true
         case "reset_yes":

@@ -47,6 +47,7 @@ enum Waymarks {
             let land = VehicleDepot.usesFuel(s)
             out.append(Target(kind: land ? "my_vehicle" : "my_ship", key: "\(s.id)", name: (land ? "Vehicle: " : "Ship: ") + s.name, pos: s.pos))
         }
+        out += Director.targets(g)                                  // P266: the Director's events
         for m in MapCache.shared.marks where m.kind == "note" || m.kind == "pin" {
             out.append(Target(kind: m.kind, key: "\(m.x),\(m.z)", name: (m.kind == "note" ? "Note: " : "Waypoint: ") + (m.name ?? "\(m.x), \(m.z)"), pos: v(m.x, m.z, py)))
         }
@@ -156,7 +157,7 @@ enum Waymarks {
         marksAt = g.clock
         func q(_ f: Float) -> Int { Int(floor(f / 8)) * 8 + 4 }        // to 8 blocks (fewer map writes as things move)
         let all = candidates(g)
-        for kind in ["contract", "bounty", "my_horse", "my_ship", "my_vehicle"] {
+        for kind in ["contract", "bounty", "my_horse", "my_ship", "my_vehicle", "director"] {
             let list = all.filter { $0.kind == kind }.prefix(12).map { t in
                 MapCache.Mark(kind: kind, x: q(t.pos.x), z: q(t.pos.z), name: t.name.split(separator: ":").last.map { String($0).trimmingCharacters(in: .whitespaces) })
             }

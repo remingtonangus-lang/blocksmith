@@ -273,7 +273,7 @@ enum BountyHunters {
 
     // P51: killed with hunters or a posse on you, they collect: every bounty is paid off and your purse is gone.
     static func claim(_ g: Game) {
-        guard g.survival, g.mobs.mobs.contains(where: { $0.posse == 3 && $0.health > 0 && simd_length($0.pos - g.player.pos) < 48 }),
+        guard g.survival, g.mobs.mobs.contains(where: { $0.posse == 3 && $0.health > 0 && !Director.owns($0) && simd_length($0.pos - g.player.pos) < 48 }),
               totalBounty > 0 || Honour.isOutlaw else { return }   // (nothing on your head: they have no claim)
         TownLaw.state.bounty = [:]
         g.money = 0
@@ -285,7 +285,7 @@ enum BountyHunters {
     static func leave(_ g: Game) {
         let paid = !wanted() || !g.survival || g.difficulty == 0
         g.mobs.mobs.removeAll { m in
-            guard m.posse == 3, m.health > 0 else { return false }
+            guard m.posse == 3, m.health > 0, !Director.owns(m) else { return false }     // (P266: the Director's gunmen stay)
             let far = simd_length(m.pos - g.player.pos) > 48
             return (paid && far) || (far && (m.posseSince < 0 || g.clock - m.posseSince > lifetime))
                 || simd_length(m.pos - g.player.pos) > 128

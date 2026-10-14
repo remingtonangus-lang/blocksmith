@@ -438,6 +438,7 @@ extension Game {
         d["factionRaids"] = FactionRaids.encode()                                   // O5 (FactionRaids.swift)
         d["baseSpecials"] = BaseSpecialties.encode()                               // P242 (BaseSpecialties.swift)
         d["trophies"] = Trophies.encode()                                           // O6 (Trophies.swift)
+        d["director"] = Director.encode()                                           // P266 (Director.swift)
         let rs = radio.saved
         if !rs.0.isEmpty { d["radioSus"] = rs.0 }
         if !rs.1.isEmpty { d["radioBurned"] = rs.1 }
@@ -521,6 +522,7 @@ extension Game {
         }
         FactionRep.decode(d["factionRep"] ?? "")
         FactionRaids.decode(d["factionRaids"] ?? "")
+        Director.decode(d["director"])                                             // P266
         BaseSpecialties.decode(d["baseSpecials"] ?? "")
         Trophies.decode(d["trophies"] ?? "")
         radio.load(d["radioSus"] ?? "", d["radioBurned"] ?? "")

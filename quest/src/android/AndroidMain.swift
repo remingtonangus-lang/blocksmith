@@ -75,6 +75,9 @@ private func handleCmd(_ app: UnsafeMutablePointer<android_app>?, _ cmd: Int32) 
         state.app?.saveNow()
         CrashGuard.mark(false)                    // S4: a paused app may be ended by the system: not a crash
         print("android: paused")
+    case Int32(APP_CMD_LOW_MEMORY):
+        DirectorLLM.release()                     // P266 (d): the Director's model leaves memory first
+        print("android: low memory")
     case Int32(APP_CMD_SAVE_STATE):
         state.app?.saveNow()
     case Int32(APP_CMD_DESTROY):
@@ -145,6 +148,8 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     }
     let dataPath = activity.pointee.internalDataPath.map { String(cString: $0) } ?? "/data/local/tmp/blocksmith"
     QuestPaths.setDataRoot(dataPath)
+    // P266 (d): the Director's on-device model is looked for in files/director/model.gguf (external first: adb push).
+    DirectorLLM.searchDirs = (extPath.map { [$0] } ?? []) + [dataPath]
     CrashGuard.begin(root: dataPath)
     print("Blocksmith Quest \(QuestBuild.commit) (\(QuestBuild.milestone)) starting; data in \(dataPath)")
     if let ext = extPath { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }

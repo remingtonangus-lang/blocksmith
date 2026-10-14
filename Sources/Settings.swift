@@ -97,7 +97,14 @@ final class Settings {
     @Pref("tutorialStep") var tutorialStep = 0       // how far the first-steps hints have got
     @Pref("bugNotes") var bugNotes = 0               // voice bug notes: 0 off, 1 always listening, 2 push-to-talk (BugNotes.swift)
     @Pref("narrator") var narrator = false           // speak highlighted menu items and toasts
-    @Pref("screenEffects") var screenEffects = true  // full-strength red damage flash and portal tint (off = faint)
+    @Pref("screenEffects") var screenEffects = true
+    // P266 the Director (Director.swift): on, its planner (0 Rules, 1 On-Device Model, 2 Cloud), event frequency
+    // (0 rare, 1 normal, 2 often), and switching it on before the story ends (testing). The cloud endpoint is the
+    // UserDefaults string "directorCloud" ("mock" when unset).
+    @Pref("directorOn") var directorOn = true
+    @Pref("directorBackend") var directorBackend = 1
+    @Pref("directorFreq") var directorFreq = 1
+    @Pref("directorEarly") var directorEarly = false  // full-strength red damage flash and portal tint (off = faint)
 
     // Options > Interface > Reset Options: everything back to the defaults (key bindings included).
     func resetAll(_ g: Game) {
@@ -106,7 +113,8 @@ final class Settings {
         musicSource = 0; musicShuffle = true; customMusicVolume = 1
         safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
-        display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0   // (tutorialStep is progress, not an option)
+        display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0
+        directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1
         for c in SoundCategory.allCases { AudioSettings.set(c, c == .master ? 0.8 : 1) }

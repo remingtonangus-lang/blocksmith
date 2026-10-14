@@ -258,6 +258,7 @@ final class MapCache {
         case "naval_port": return ("D", V4(0.3, 0.55, 0.85, 1), "Meridian dockyard")       // D39
         case "contract": return ("$", V4(0.95, 0.75, 0.25, 1), "Contract")                 // D51 (Waymarks.swift)
         case "bounty": return ("X", V4(0.9, 0.25, 0.2, 1), "Bounty")
+        case "director": return ("E", V4(0.85, 0.5, 1, 1), "Event")                         // P266 (Director.swift)
         case "my_horse": return ("Y", V4(0.85, 0.65, 0.4, 1), "Your horse")
         case "my_ship": return ("^", V4(0.4, 0.75, 1, 1), "Your ship")
         case "my_vehicle": return ("=", V4(0.7, 0.75, 0.5, 1), "Your vehicle")

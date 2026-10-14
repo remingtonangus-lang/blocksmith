@@ -33,9 +33,9 @@ enum Journal {
     static var rev = 0
 
     enum Cat: Int, CaseIterable {
-        case all, orders, logs, notes, pamphlets, other, messages
-        var key: String { ["all", "orders", "logs", "notes", "pamphlets", "other", "messages"][rawValue] }
-        var tab: String { ["All", "Orders", "Logs", "Notes", "Pamphlets", "Other", "Messages"][rawValue] }
+        case all, orders, logs, notes, pamphlets, other, messages, events      // events: the Director's (P266)
+        var key: String { ["all", "orders", "logs", "notes", "pamphlets", "other", "messages", "events"][rawValue] }
+        var tab: String { ["All", "Orders", "Logs", "Notes", "Pamphlets", "Other", "Messages", "Events"][rawValue] }
         static func from(_ k: String) -> Cat? { allCases.first { $0.key == k } }
     }
 
@@ -209,8 +209,10 @@ extension Game {
         return pages.isEmpty ? ["Nothing written yet."] : pages
     }
 
-    func openJournal() {
-        openMenu(JournalMenu(game: self))
+    func openJournal(tab: Journal.Cat = .all) {
+        let m = JournalMenu(game: self)
+        if tab != .all { m.tab = tab; m.refresh() }
+        openMenu(m)
     }
 }
 

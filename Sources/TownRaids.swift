@@ -46,7 +46,9 @@ enum TownRaids {
     // Raid.swift, on a night raid's victory.
     // Only for a player who stood with the town: near it at the end and killed at least one raider.
     static func won(_ g: Game, _ r: Raid) {
-        guard simd_length(g.player.pos - r.center) < 96, r.playerKills > 0 else {
+        let stood = simd_length(g.player.pos - r.center) < 96 && r.playerKills > 0
+        Director.raidResults[Townsfolk.town(g, at: r.center)] = stood             // P266: a Director raid on this town
+        guard stood else {
             g.onToast?("The raiders are beaten off")
             return
         }
