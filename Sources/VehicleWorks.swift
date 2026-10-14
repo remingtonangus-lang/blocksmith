@@ -12,7 +12,7 @@ enum VehicleWorks {
     // The bill: a ludicrous amount of iron on top of the parts.
     static let bill: [(String, Int)] = [("iron_ingot", 96), ("ship_engine", 2), ("ship_wheel", 8), ("ship_turret_ring", 1),
                                         ("ship_cannon", 1), ("ship_helm", 1)]
-    static let footprint = IVec3(11, 7, 18)         // the clear space beside the Works (x, y, z): the hull, and the barrel past the bow
+    static let footprint = IVec3(11, 8, 20)         // the clear space beside the Works (x, y, z): the hull, and the barrel past the bow (D43: room for the biggest preset)
 
     // Field Tank, front toward -Z, wheels at y 0, centreline x 0.
     static func fieldTank() -> Blueprint {
@@ -35,24 +35,32 @@ enum VehicleWorks {
     }
 
     // What the player is short of (empty: they have it all, or play creative).
-    static func missing(_ g: Game) -> [(String, Int)] {
+    static func missing(_ g: Game, _ list: [(String, Int)] = bill) -> [(String, Int)] {
         guard g.survival else { return [] }
-        return bill.compactMap { (k, n) in
+        return list.compactMap { (k, n) in
             guard Items.has(k) else { return nil }
             let have = g.ammoCount(k)                  // (counts any item by key: inventory and off hand)
             return have < n ? (k, n - have) : nil
         }
     }
 
-    // Use on the block: build the tank on the side away from the player, if the parts are there and so is the room.
+    // Use on the block: with more than the Field Tank's drawings learned, the Works asks which (D43, VehiclePresets);
+    // otherwise it builds the tank.
     static func use(_ g: Game, _ p: IVec3) {
-        let short = missing(g)
+        if VehiclePresets.known(g).count > 1 { g.openMenu(VehicleWorksMenu(game: g, at: p)); return }
+        build(g, p, VehiclePresets.all[0])
+    }
+
+    // Build a preset on the side away from the player, if the parts are there and so is the room.
+    @discardableResult
+    static func build(_ g: Game, _ p: IVec3, _ v: VehiclePresets.Preset) -> Bool {
+        let short = missing(g, v.bill)
         if !short.isEmpty {
             let list = short.prefix(3).map { "\($0.1) \(Items.def(Items.id($0.0)).display)" }.joined(separator: ", ")
-            g.onToast?("Vehicle Works: a Field Tank needs \(list)\(short.count > 3 ? "..." : "") more")
-            return
+            g.onToast?("Vehicle Works: a \(v.name) needs \(list)\(short.count > 3 ? "..." : "") more")
+            return false
         }
-        // The side of the Works facing away from the player, the tank's long axis pointing away too.
+        // The side of the Works facing away from the player, the vehicle's long axis pointing away too.
         let d = V2(Float(p.x) + 0.5 - g.player.pos.x, Float(p.z) + 0.5 - g.player.pos.z)
         let alongX = abs(d.x) > abs(d.y)
         let sgn: Float = alongX ? (d.x >= 0 ? 1 : -1) : (d.y >= 0 ? 1 : -1)
@@ -60,12 +68,12 @@ enum VehicleWorks {
         let c = V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5) + (alongX ? V3(sgn * gap, 0, 0) : V3(0, 0, sgn * gap))
         guard clear(g.world, centre: c, alongX: alongX) else {
             g.onToast?("Vehicle Works: clear a \(footprint.x) x \(footprint.z) yard beside it first")
-            return
+            return false
         }
-        if g.survival { for (k, n) in bill where Items.has(k) { g.takeAmmo(k, n) } }
-        // Heading: the tank's front (-Z in the blueprint) points away from the Works.
+        if g.survival { for (k, n) in v.bill where Items.has(k) { g.takeAmmo(k, n) } }
+        // Heading: the vehicle's front (-Z in the blueprint) points away from the Works.
         let yaw: Float = alongX ? (sgn > 0 ? -.pi / 2 : .pi / 2) : (sgn > 0 ? .pi : 0)
-        let s = g.world.ships.spawn(fieldTank(), at: c + V3(0, 3, 0), yaw: yaw, name: "Field Tank", role: "")
+        let s = g.world.ships.spawn(v.blueprint(), at: c + V3(0, 3, 0), yaw: yaw, name: v.name, role: "")
         s.role = nil
         let lift = c.y + 0.6 - s.toWorld(V3(0, s.localMin.y, 0)).y
         s.pos.y += lift
@@ -73,7 +81,8 @@ enum VehicleWorks {
         s.updateBounds()
         s.initialBlocks = s.blockCount
         g.sfx(.engineStart, 1, at: c)
-        g.onToast?("A Field Tank rolls out of the Vehicle Works")
+        g.onToast?("A \(v.name) rolls out of the Vehicle Works")
+        return true
     }
 
     static func clear(_ w: World, centre c: V3, alongX: Bool) -> Bool {

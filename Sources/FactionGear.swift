@@ -91,6 +91,7 @@ extension Game {
         if submarineUse() { return true }              // C8 (Submarines.swift)
         if sundryUse() { return true }                 // P133 (BaseSundries.swift)
         if blueprintUse() { return true }              // P138 (Blueprints.swift)
+        if vehicleBlueprintUse() { return true }       // D43 (VehiclePresets.swift)
         if spineItemUse() { return true }              // Y2 (Spine.swift): dispatch, naval orders, ledger
         let k = Items.key(held.item)
         if k == "radar_set" {
