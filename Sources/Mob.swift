@@ -855,6 +855,7 @@ final class Mob {
                 restock(g)
                 villageTick(g)
             }
+            if let s = Brawls.step(self, dt, g) { speed = s; break }          // D13: fists up, or out cold
             // P51: a rider on the road keeps to the road (Riders.swift).
             if Riders.isRider(self) || Stagecoach.isDriver(self) { speed = Riders.step(self, dt, g); break }
             // Townsfolk: fight monsters (and a player who hurt one of them), react to the player, then the routine.
@@ -1465,6 +1466,7 @@ final class Mob {
         // A downed horse takes no more (HorseLife.swift), except the player's own blow, which puts it down for good (he
         // struck his spare horse and it lay there for five minutes, "stuck in place": Oct 11 playtest P26).
         if downed > 0 { if Mob.playerMelee && damage > 0 { downed = min(downed, 0.01) }; return }
+        if kind == .villager && Brawls.absorb(self, damage) { return }      // D13: knocked out, not killed
         var damage = damage
         var knockback = knockback
         // A bonded horse is hardier (P83, Oct 12: bond should raise health as well as stamina): bond levels 2-4 take
