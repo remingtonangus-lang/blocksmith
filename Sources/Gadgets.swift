@@ -41,6 +41,7 @@ extension Game {
     // Right-click a mob with a lead (or a leashed mob with anything to let it go).
     func useLead(_ m: Mob) -> Bool {
         if m.hitched { unhitch(m); return true }                 // D3: untie the rein (no lead in it)
+        if m.leashed && m.roped > 0 && Jail.hogtie(self, m) { return true }      // D24: hogtie a roped outlaw
         if m.leashed {
             m.leashed = false
             m.knot = nil

@@ -36,6 +36,7 @@ extension Game {
         guard Items.key(held.item) == Lasso.key else { return false }
         swing = 1
         sfx(.throwItem, 0.8, at: player.eye)
+        if let (m, d) = mobs.raycast(player.eye, player.look, maxDist: 4), d < 4, m.leashed, m.roped > 0, Jail.hogtie(self, m) { return true }  // D24
         guard let (m, _) = mobs.raycast(player.eye, player.look, maxDist: Lasso.reach), m.health > 0, !m.leashed, riding !== m else {
             sfx(.fishReel, 0.5, at: player.eye)
             return true
