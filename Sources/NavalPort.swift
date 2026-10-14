@@ -287,6 +287,7 @@ enum NavalPort {
         Offer(name: "Sky Skiff Kit", detail: "A small airship, crated", price: 35000),
         Offer(name: "Ship Cannon", detail: "One cannon for your own hull", price: 6000),
         Offer(name: "Ship Engine", detail: "One engine for your own hull", price: 4000),
+        Offer(name: "Gun Hand", detail: "A sailor joins you to man your guns", price: 6000),        // D40 (GunCrew.swift)
     ]
     static let chipPrice = 150, repairMin = 1000
     static let hullRole = "hull"                         // a hull bought here: no faction, no crew orders
@@ -332,7 +333,8 @@ enum NavalPort {
         case 1: r = Quartermaster.give(g, [(Submarine.kitKey, 1)])
         case 2: r = Quartermaster.give(g, [(SkySkiff.key, 1)])
         case 3: r = Quartermaster.give(g, [("ship_cannon", 1)])
-        default: r = Quartermaster.give(g, [("ship_engine", 1)])
+        case 4: r = Quartermaster.give(g, [("ship_engine", 1)])
+        default: r = Quartermaster.hire(g, 1)
         }
         if r.1 { g.money -= o.price; bought += 1; g.sfx(.villagerTrade, 0.7) }
         return r

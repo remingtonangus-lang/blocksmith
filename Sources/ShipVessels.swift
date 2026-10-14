@@ -259,6 +259,7 @@ extension ShipManager {
             }
         }
         crewTick(dt, game: g)
+        gunCrewTick(dt, game: g)                         // D40: your companions at your guns
     }
 
     @discardableResult
