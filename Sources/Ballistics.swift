@@ -486,11 +486,11 @@ extension Game {
     }
 
     // Fills the held gun's magazine from the pack (a finished timed reload, or a VR magazine slotted in by hand).
-    func loadMagazine(_ gi: Int) {
+    func loadMagazine(_ gi: Int, shells: Int? = nil) {
         let gs = Guns.all[gi]
         var h = held
         let mag = Guns.magSize(h)
-        let n = min(mag - h.tag, ammoCount(gs.ammo))
+        let n = min(mag - h.tag, ammoCount(gs.ammo), shells ?? Int.max)          // D7: a shotgun takes one shell at a time
         takeAmmo(gs.ammo, n)
         h.tag += n
         inventory.held = h
@@ -502,7 +502,7 @@ extension Game {
     func startReload(_ gi: Int) -> Bool {
         let gs = Guns.all[gi]
         guard held.tag < Guns.magSize(held), ammoCount(gs.ammo) > 0, arms.reload <= 0 else { return false }
-        arms.reload = Guns.reloadTime(held, gi)
+        arms.reload = Guns.reloadTime(held, gi) / (GunActions.shellByShell(gi) ? Float(max(1, Guns.magSize(held))) * 0.5 : 1)
         arms.reloadGun = gi
         arms.aim = 0
         sfx(.gunReload(gs.sound), 0.8)
@@ -521,13 +521,21 @@ extension Game {
             a.heldGun = gi; a.heldSlot = selected
             a.reload = 0
             a.cooldown = max(a.cooldown, 0.3)
+            GunActions.drawn()
         }
         a.cooldown -= dt
         let aiming = aim && a.reload <= 0 && !player.sprinting
         a.aim += ((aiming ? 1 : 0) - a.aim) * min(1, dt * 12)
+        // D7: a trigger mid-way through loading shells fires what is in the tube.
+        if a.reload > 0 && GunActions.shellByShell(gi) && firePressed && held.tag > 0 { a.reload = 0 }
         if a.reload > 0 {
             a.reload -= dt
-            if a.reload <= 0 { loadMagazine(gi) }
+            if a.reload <= 0 {
+                if GunActions.shellByShell(gi) {
+                    loadMagazine(gi, shells: 1)
+                    if held.tag < Guns.magSize(held) { startReload(gi) }       // the next shell (stops with the pack empty)
+                } else { loadMagazine(gi) }
+            }
             return true
         }
         // P119 (Oct 12 PM: "reloading is done by taking a magazine from the hip only; remove the reload button"): in the
@@ -560,6 +568,7 @@ extension Game {
             return true
         }
         guard a.cooldown <= 0 else { return true }
+        if !GunActions.ready(self, gi, pressed: firePressed) { return true }     // D7: the action wants working
         if gunJams(gi) { return true }                     // O4: a worn gun can jam
         fireHeldGun(gi)
         return true
@@ -604,6 +613,7 @@ extension Game {
         var h = held
         h.tag -= 1
         inventory.held = h
+        GunActions.fired(gi)
         if h.tag == 0 { sfx(.gun(15), 0.75) }           // the last round: the bolt locks open with a ping
         damageHeld(1)
         let k = gs.recoil * (1 - 0.45 * a.aim) * steady * Repairs.recoil(st) * twoHandRecoil

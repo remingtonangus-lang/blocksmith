@@ -366,7 +366,17 @@ final class QuestControls {
         // P56: with a gun out, the off hand at the hip takes a magazine and slots it into the gun (VRReload); that grip
         // doesn't step the hotbar.
         var magGrip = false
-        if !inMenu && !bagGrip && !handGrab && game.heldGun != nil && L.gripValid && R.gripValid {
+        // D7: the off hand to the gun and gripped works a bolt, pump or hammer (GunActions); swing play only.
+        GunActions.manual = QuestSettings.swingMode
+        if !inMenu && !bagGrip && !handGrab && game.heldGun != nil && L.gripValid && R.gripValid && lGrip && !prevGripL
+            && !game.arms.magInHand && !GunActions.cocked
+            && VRReload.toGun(rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), forward: aimDir) < VRReload.wellReach + 0.08
+            && GunActions.work(game) {
+            app.input.haptic(moveHand, amplitude: 0.8, seconds: 0.06, frequency: 110)
+            app.input.haptic(aimHand, amplitude: 0.5, seconds: 0.05, frequency: 110)
+            magGrip = true
+        }
+        if !inMenu && !bagGrip && !handGrab && !magGrip && game.heldGun != nil && L.gripValid && R.gripValid {
             // R1 (Oct 13, fifth report after P74/P109/P162/P176: "the left grip is dead while I hold a gun"): a relaxed arm
             // hangs right in the hip zone, so after the first shot (the magazine no longer full) every grip with the
             // hand at rest took a magazine instead of stepping the hotbar. Only a hand that has just reached there
