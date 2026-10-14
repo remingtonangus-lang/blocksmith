@@ -84,6 +84,7 @@ final class ItemEntity {
         // the death however far away the player was; the reference ages items only in loaded chunks).
         // A non-finite position (a NaN launch velocity) can't be converted to a block: the item goes (removed below).
         guard pos.x.isFinite && pos.y.isFinite && pos.z.isFinite else { stack = .empty; return }
+        if HandGrab.holds(self) { return }                    // H12: in a hand (HandGrab.swift moves it)
         if !w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) { return }
         age += dt
         pickupDelay -= dt
