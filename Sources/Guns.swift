@@ -171,7 +171,7 @@ enum Guns {
         case "rifle_rounds": return "any town gunsmith; Ashguard soldiers"
         case "shotgun_shells", "heavy_rounds": return "any town gunsmith; military crates"
         case "capital_rounds": return "Capital soldiers, citadel crates and Capital city gunsmiths"
-        case "rocket_ammo", "arc_cell": return "military base and citadel crates"
+        case "rocket_ammo", "arc_cell": return "craft them (\(Wrecks.recipeText(key))); military base and citadel crates"
         case GreywallArms.ammo: return "any town gunsmith; Greywall soldiers and their armouries"
         default: return "military crates"
         }
