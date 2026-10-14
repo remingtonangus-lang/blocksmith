@@ -350,12 +350,12 @@ S7. [DONE] Touch controller presets and a left-handed swap in the headset.
 S8. [DONE] Boundary appearing, recenter and tracking loss handled; the game saves on pause, headset off and Quit.
 S9. [DONE] Draft docs: privacy policy, IARC age-rating answers, store listing text, comfort rating, credits and licences (docs/store/).
 
-Y1. The Goals path follows THE GAME'S SPINE: iron, take a village, Greywall bases, the navy, hell, the Reich. Remove the leftover reference chain (Ember Gate, Foundry, blaze rods, eyes, Stronghold) from the main path.
-Y2. Each stage hands over the key to the next: taking a town gives base intel; Greywall's top tier gives what opens the navy; the navy gives the hell key (the Ember Charge is only in Capital vaults today).
-Y3. The navy comes before hell (FactionGear.swift: warships sail only after the end game today).
-Y4. Make it obvious which military force is the progression stage (Greywall) and which is the enemy over everything (the Capital).
-Y5. Saved worlds get new content in unexplored ground: roads, base towns, railways, Greywall and wide streets currently skip old worlds, so his world never shows them.
-Y6. Hook the side systems to the spine: money, contracts, the war map, legendaries and countries lead toward the next stage.
+Y1. [DONE] The Goals path follows THE GAME'S SPINE: iron, take a village, Greywall bases, the navy, hell, the Reich. Remove the leftover reference chain (Ember Gate, Foundry, blaze rods, eyes, Stronghold) from the main path. (built in the Oct 14 batch: Spine.swift, Goals.swift.)
+Y2. [DONE] Each stage hands over the key to the next: taking a town gives base intel; Greywall's top tier gives what opens the navy; the navy gives the hell key (the Ember Charge is only in Capital vaults today). (built in the Oct 14 batch: Spine.swift.)
+Y3. [DONE] The navy comes before hell (FactionGear.swift: warships sail only after the end game today). (built in the Oct 14 batch: FactionGear.swift, Game.fleetSails.)
+Y4. [DONE] Make it obvious which military force is the progression stage (Greywall) and which is the enemy over everything (the Capital). (built in the Oct 14 batch: Spine intro document.)
+Y5. [DONE] Saved worlds get new content in unexplored ground: roads, base towns, railways, Greywall and wide streets currently skip old worlds, so his world never shows them. (built in the Oct 14 batch: FreshGround.swift.)
+Y6. [DONE] Hook the side systems to the spine: money, contracts, the war map, legendaries and countries lead toward the next stage. (built in the Oct 14 batch: Spine.lead in Contracts, Countries, Legendaries.)
 
 U1. Realistic world leftovers from the stopped ultracode thread (read its design/status doc): animals walk on the drawn surface instead of hovering, blocks that refuse to smooth, polygon trees with real round branches, the pickaxe in the polygon world only mines what it touches. T17 is folded into this.
 
@@ -366,15 +366,15 @@ SH1. A prettier shader pass inside the 72 fps budget, each piece switchable: gra
 
 IMG1. [DONE] Image request list: write docs/art/image-requests.md listing every image the game still wants (the 268 AR1 block layers, AR2 items, icons, paintings, posters, signs, UI art, the Upgrade Bench), one line each: file name and path, size, what it shows, a ready-to-paste prompt and the style reference. Remington's Gemini account will generate them; the Mac drops results in. Do not try to generate images in the cloud thread.
 
-W1. Circuit state is never saved: pending ticks, edges, burn, hopper cooldown and comparator output reset on reload, so buttons stay pressed, powered observers stay on, and bulbs/dispensers/droppers/crafters fire falsely. Save it per chunk or keep POWERED/TRIGGERED in the block state.
-W2. Copper doors and trapdoors respond to power; both door halves age, wax and scrape together; an axe opens them unless sneaking.
-W3. Lightning rods: rebuilt on load and pruned on break, nearest rod within 128, signal 15 for 8 ticks when struck, no fire on top, can face 6 ways.
-W4. Comparator readings: crafter (filled or disabled slots), double chests as one 54-slot inventory (hoppers too), cauldron, beehive/nest, chiseled bookshelf, decorated pot.
-W5. Pistons with a 2-tick moving block so flying machines, piston doors and block spitting work; pistons push item entities; slime bounces, honey slows; glazed terracotta does not stick; copper doors break when pushed; world height limits respected.
-W6. Rails: powered T-junction switching, connected rails keep their shape, junction priority; hopper minecart pulls from containers above and empties into hoppers below; activator rails disable hopper carts and eject riders.
-W7. Crafter: disabled-slot toggling, hoppers fill slots evenly, output into any container, bottle and bucket leftovers.
+W1. [DONE] Circuit state is never saved: pending ticks, edges, burn, hopper cooldown and comparator output reset on reload, so buttons stay pressed, powered observers stay on, and bulbs/dispensers/droppers/crafters fire falsely. Save it per chunk or keep POWERED/TRIGGERED in the block state. (built in the Oct 14 batch: Circuit.swift save.)
+W2. [DONE] Copper doors and trapdoors respond to power; both door halves age, wax and scrape together; an axe opens them unless sneaking. (built in the Oct 14 batch: Circuit.swift.)
+W3. [DONE] Lightning rods: rebuilt on load and pruned on break, nearest rod within 128, signal 15 for 8 ticks when struck, no fire on top, can face 6 ways. (built in the Oct 14 batch: Circuit.swift, Weather.swift.)
+W4. [DONE] Comparator readings: crafter (filled or disabled slots), double chests as one 54-slot inventory (hoppers too), cauldron, beehive/nest, chiseled bookshelf, decorated pot. (built in the Oct 14 batch: Circuit.swift.)
+W5. [DONE] Pistons with a 2-tick moving block so flying machines, piston doors and block spitting work; pistons push item entities; slime bounces, honey slows; glazed terracotta does not stick; copper doors break when pushed; world height limits respected. (built in the Oct 14 batch: Circuit.swift.)
+W6. [DONE] Rails: powered T-junction switching, connected rails keep their shape, junction priority; hopper minecart pulls from containers above and empties into hoppers below; activator rails disable hopper carts and eject riders. (built in the Oct 14 batch: Rails.swift, MinecartVariants.swift.)
+W7. [DONE] Crafter: disabled-slot toggling, hoppers fill slots evenly, output into any container, bottle and bucket leftovers. (built in the Oct 14 batch: Crafter.swift.)
 W8. Dispenser behaviours: fireworks, tipped/spectral arrows, waxing copper, golem building, armour stands, saddles and horse armour, respawn-anchor charging, fish and powder-snow buckets, every minecart type.
-W9. Sensor (sculk equivalent): vibration frequencies, the calibrated sensor, wool blocking, comparator frequency output.
+W9. [DONE] Sensor (sculk equivalent): vibration frequencies, the calibrated sensor, wool blocking, comparator frequency output. (built in the Oct 14 batch: Circuit.swift.)
 
 H1. [DONE] Cave mobs spawn about 10 blocks farther away.
 H2. [DONE] Ravines and more cave styles.
@@ -394,7 +394,7 @@ H15. [DONE] Snowballs clogging the inventory.
 
 D1. Lasso: catch wild horses, rope outlaws.
 D2. Wild horse herds, rare coats, a legendary horse.
-D3. Hitching posts in towns.
+D3. [DONE] Hitching posts in towns. (built in the Oct 14 batch: Hitching.swift.)
 D4. Wagons and stagecoaches: escort contracts and robberies.
 D5. Melee from the saddle.
 D6. Holsters on the body; draw from hip or chest.
