@@ -75,17 +75,17 @@ enum Contracts {
     static func make(_ g: Game, _ board: String, _ a: IVec3, _ day: Int, _ slot: Int) -> Contract {
         let h = TownBoard.hash(board, day, 40 + slot)
         let base = isBase(board)
-        let kinds = base ? ["camp", "courier"] : (slot == 0 ? ["courier", "escort"] : ["camp", "defend"])
+        let kinds = base ? ["camp", "courier"] : (slot == 0 ? ["courier", "escort", "stage"] : ["camp", "defend"])
         let kind = kinds[Int(h % UInt64(kinds.count))]
         var c = Contract(day: day, kind: kind, board: board, pay: 0, honour: 5)
         switch kind {
-        case "courier", "escort":
+        case "courier", "escort", "stage":
             if let (name, at) = destination(g, from: a, h) {
                 let d = simd_length(V2(Float(at.0 - a.x), Float(at.1 - a.z)))
                 c.dest = name; c.destAt = [at.0, at.1]
-                c.pay = (kind == "escort" ? 400 : 200) + Int(d * (kind == "escort" ? 0.9 : 0.5))
-                c.honour = kind == "escort" ? 7 : 4
-                if kind == "escort" { c.who = "\(Townsfolk.pick(Townsfolk.firstNames, h >> 20)) \(Townsfolk.pick(Townsfolk.surnames, h >> 36))" }
+                c.pay = (kind == "stage" ? 600 : kind == "escort" ? 400 : 200) + Int(d * (kind == "stage" ? 1.1 : kind == "escort" ? 0.9 : 0.5))
+                c.honour = kind == "stage" ? 8 : kind == "escort" ? 7 : 4
+                if kind != "courier" { c.who = "\(Townsfolk.pick(Townsfolk.firstNames, h >> 20)) \(Townsfolk.pick(Townsfolk.surnames, h >> 36))" }
             } else {
                 c.kind = "camp"
             }
@@ -132,6 +132,9 @@ enum Contracts {
         case "escort":
             let what = "Escort \(c.who ?? "a traveller")"
             return (what, left ?? (c.taken ? "To \(c.dest ?? "town"): \(c.destAt.map(far) ?? "")" : "To \(c.dest ?? "town"). Press to set off"))
+        case "stage":
+            let what = "Ride guard on the stage"
+            return (what, left ?? (c.taken ? "To \(c.dest ?? "town"): \(c.destAt.map(far) ?? "")" : "To \(c.dest ?? "town"). Press to ride with it"))
         case "camp":
             let what = "Clear a bandit camp"
             if c.done && !c.paid { return (what, "Done: press to collect") }
@@ -171,6 +174,11 @@ enum Contracts {
             save(board, slot, c)
             fileOrders(g, board, slot, c)
             return ("\(c.who ?? "The traveller") will follow you to \(c.dest ?? "town").", true)
+        case "stage":
+            guard Stagecoach.take(g, &c) else { return ("The stage can't stand here. Try in the open.", false) }
+            save(board, slot, c)
+            fileOrders(g, board, slot, c)
+            return ("\(c.who ?? "The driver") whips up. Stay close: the stage waits for no one but you.", true)
         case "defend":
             save(board, slot, c)
             fileOrders(g, board, slot, c)
@@ -191,6 +199,8 @@ enum Contracts {
             body += "Carry the sealed parcel to \(c.dest ?? "the town") and hand it over there yourself."
         case "escort":
             body += "\(c.who ?? "A traveller") walks with you to \(c.dest ?? "town"). Keep them alive: bandits wait on the road."
+        case "stage":
+            body += "Ride guard on \(c.who ?? "the driver")'s stage to \(c.dest ?? "town"). It waits while you fall behind; road agents work that road."
         case "camp":
             var far = "out in the wilds"
             if let t = c.target, t.count == 2 {
@@ -268,6 +278,8 @@ enum Contracts {
                     if var v2 = m.villager { v2.town = c.dest; m.villager = v2 }
                     pay(g, board, slot, &c)
                 }
+            case "stage":
+                Stagecoach.tick(g, board, slot, c)
             case "camp":
                 guard !c.spawned, let t = c.target, simd_length(V2(Float(t[0]) - pos.x, Float(t[1]) - pos.z)) < 60, g.world.isLoaded(t[0], t[1]) else { continue }
                 let y = g.world.topY(t[0], t[1]) + 1

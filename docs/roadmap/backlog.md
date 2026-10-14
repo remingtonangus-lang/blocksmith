@@ -395,7 +395,7 @@ H15. [DONE] Snowballs clogging the inventory.
 D1. [DONE] Lasso: catch wild horses, rope outlaws.
 D2. [DONE] Wild horse herds, rare coats, a legendary horse.
 D3. [DONE] Hitching posts in towns. (built in the Oct 14 batch: Hitching.swift.)
-D4. Wagons and stagecoaches: escort contracts and robberies.
+D4. [DONE] Wagons and stagecoaches: escort contracts and robberies.
 D5. Melee from the saddle.
 D6. Holsters on the body; draw from hip or chest.
 D7. Working levers, bolts and revolver hammers; shotguns loaded shell by shell (unblocks C5 in the cloud).

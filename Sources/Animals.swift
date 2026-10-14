@@ -689,6 +689,7 @@ func horseParts(_ m: Mob) -> [Part] {
         p.append(hb(-2.6, -0.3, -5.0, -2.35, 1.6, -2.2, trim)); p.append(hb(2.35, -0.3, -5.0, 2.6, 1.6, -2.2, trim))   // eye guards
         p.append(hb(-0.5, 2.4, -4.4, 0.5, 5.2, -3.2, cloth, 4))                             // plume
     }
+    if m.coach != 0 { p += Stagecoach.parts(m, bob: bob) }                   // D4
     return p
 }
 
