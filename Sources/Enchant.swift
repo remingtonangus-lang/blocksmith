@@ -17,6 +17,7 @@ enum Ench: Int, CaseIterable {
     case density, breach, windBurst
     case lunge
     case extendedMag, quickReload, stability, penetration, incendiary     // guns (Steelhold)
+    case ricochet, serrated                                               // D32: behaviour upgrades (BehaviourUpgrades.swift)
 }
 
 // What an item is, for enchantment purposes.
@@ -106,6 +107,9 @@ enum Enchant {
             d("stability", "Stabilising Scope", 3, 10, .gun, nil, (1, 10), (21, 10), anvil: 1),
             d("penetration", "Piercing Rounds", 4, 2, .gun, nil, (12, 10), (42, 10), anvil: 4),
             d("incendiary", "Incendiary Rounds", 1, 2, .gun, nil, (20, 0), (50, 0), anvil: 4),
+            // D32: upgrades that change what happens, not just how much (BehaviourUpgrades.swift).
+            d("ricochet", "Ricochet Rounds", 2, 2, .gun, nil, (18, 12), (48, 12), anvil: 4),
+            d("serrated", "Serrated Edge", 2, 3, .sword, [.sword, .axe, .spear], (12, 10), (42, 10), anvil: 4),
         ]
     }()
     static func def(_ e: Ench) -> EnchDef { defs[e.rawValue] }

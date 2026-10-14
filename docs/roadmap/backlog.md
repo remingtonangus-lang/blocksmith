@@ -423,7 +423,7 @@ D28. [DONE] Buy a homestead or a town house.
 D29. [DONE] Mail-order catalog for rare items.
 D30. [DONE] Late-game money sinks tied to the spine: vehicle presets, base upgrades, hired crews.
 D31. [DONE] Gunsmith bench that assembles guns from parts (receiver, barrel, stock tiers).
-D32. Upgrades that change behaviour (ricochet rounds, serrated bleed), not just stats.
+D32. [DONE] Upgrades that change behaviour (ricochet rounds, serrated bleed), not just stats.
 D33. Wearable faction armour sets (Greywall, Capital, Ashguard).
 D34. Base objectives: destroy the comms array, steal the plans, free a prisoner, for bonus loot or intel.
 D35. Keycards, locked doors and security cameras.
