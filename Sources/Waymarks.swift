@@ -120,7 +120,8 @@ enum Waymarks {
                 for i in 0..<20 {
                     let h = Float(i) * (2 + d / 60)
                     g.particles.add(Particle(pos: V3(t.pos.x, ground + h, t.pos.z), vel: V3(0, 1.5, 0), life: 1.1, maxLife: 1.1, layer: smoke,
-                                             uv0: .zero, uvSize: 1, size: size, gravity: 0, color: V3(col.x, col.y, col.z) * 1.4, collide: false))
+                                             uv0: .zero, uvSize: 1, size: size * (0.8 + 0.2 * sinf(Float(g.clock) * 3 + Float(i))), gravity: 0,
+                                             color: V3(col.x, col.y, col.z) * 1.4, collide: false, glow: true))   // Q2: lit, reads at night
                 }
                 beacons += 1
             }
