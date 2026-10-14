@@ -76,6 +76,9 @@ enum TownLaw {
         // D26 gang leaders (GangLeaders.swift): bosses beaten, hideouts whose gang has turned up.
         var gangsBeaten: [String]? = nil
         var gangsMet: [String]? = nil
+        // D27 (Fence.swift): stolen units per item key, and the day of the last theft.
+        var hot: [String: Int]? = nil
+        var hotDay: Int? = nil
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -272,6 +275,7 @@ enum TownLaw {
                 let left = (dep[k] ?? 0) - own
                 dep[k] = left > 0 ? left : nil
                 taken += -d - own
+                if -d - own > 0 { Fence.mark(k, -d - own, day: Fence.today) }   // D27: hot goods
             }
         }
         if state.deposits == nil { state.deposits = [:] }
@@ -430,6 +434,8 @@ enum TownLaw {
         emeraldTip(g)
         Strangers.tick(g)                                // D20
         GangLeaders.tick(g)                              // D26: gang bosses at their hideouts
+        Fence.tick(g)                                    // D27: hot goods cool off
+        Fence.today = Int(g.time / DAY_LENGTH)
         Saloon.tick(g)                                   // D17: the piano player
         Jail.tick(g, dt)                                 // R20: the jail term, a prisoner in tow
         // Heat cools; hostility runs out.

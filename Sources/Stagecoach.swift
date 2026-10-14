@@ -50,7 +50,7 @@ enum Stagecoach {
             let cash = Rand.int(in: 30...90) * 100
             for (k, lo, hi) in [("gold_nugget", 4, 12), ("gold_ingot", 0, 2), ("paper", 1, 3)] where Items.has(k) {
                 let n = Rand.int(in: lo...hi)
-                if n > 0 { g.drops.spawn(ItemStack(Items.id(k), n), at: at) }
+                if n > 0 { g.drops.spawn(ItemStack(Items.id(k), n), at: at); Fence.mark(k, n, day: Fence.today) }   // D27: hot
             }
             g.onToast?("The driver throws down the strongbox: \(Money.format(cash))")
             return (cash, Riders.robBounty * 2)
@@ -58,7 +58,7 @@ enum Stagecoach {
         let cash = Rand.int(in: 5...15) * 100
         for (k, lo, hi) in [("wheat", 4, 12), ("iron_ingot", 1, 4), ("leather", 1, 4), ("bread", 2, 6), ("barrel", 0, 1)] where Items.has(k) {
             let n = Rand.int(in: lo...hi)
-            if n > 0 { g.drops.spawn(ItemStack(Items.id(k), n), at: at) }
+            if n > 0 { g.drops.spawn(ItemStack(Items.id(k), n), at: at); Fence.mark(k, n, day: Fence.today) }
         }
         g.onToast?("The teamster cuts the freight loose: \(Money.format(cash)) and the load")
         return (cash, Riders.robBounty + Riders.robBounty / 2)
