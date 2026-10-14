@@ -602,6 +602,8 @@ final class ShipManager {
     var target: (ship: Ship, cell: IVec3, normal: IVec3)?   // ship block under the crosshair
     var mineCell: (Ship, IVec3)?
     var mineProgress: Float = 0
+    // P224: progress on the last few ship cells mined (a hand's ray wobbling between two cells keeps both).
+    var mineMemory: [(ship: ObjectIdentifier, cell: IVec3, progress: Float, at: Double)] = []
     var breakCooldown: Float = 0
     private var boxScratch: [(V3, V3)] = []
     var mobRiders: [(Mob, Ship)] = []        // per-frame scratch (ShipPhysics.update): riders before the ships move
