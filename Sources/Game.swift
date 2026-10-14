@@ -1147,6 +1147,12 @@ final class Game {
                 if breakNow && !ready { attackQueued = 0.7; attackNow = false }
                 else if attackQueued > 0 && ready { attackQueued = 0; attackNow = true }
             }
+            // D12: crouched behind an unaware target with a blade: a silent takedown (Takedowns.swift).
+            if attackNow, Takedowns.attempt(self, m, sneaking: input.shift || p.b || player.sneaking) {
+                attackTimer = 0
+                swing = 1
+                return
+            }
             // D10: a raised guard glances or parries the blow; sneaking kicks it open (Guards.swift).
             if attackNow, Guards.meet(self, m, kick: input.shift || p.b,
                                       damage: (held.isEmpty ? 1 : held.def.attack) * min(1, attackTimer * (held.isEmpty ? 4 : held.def.attackSpeed))) == true {
