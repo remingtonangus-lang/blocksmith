@@ -2179,6 +2179,10 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal
         let lit = glow ? max(bright, 0.85) : bright
         let body = parts(m), worn = equipmentParts(m)          // walked in turn: no concatenated array per mob per frame
+        // P222 (Oct 13 21:30, "these guns are spawning without a top, half generated"): a mob that no longer fits the
+        // buffer whole is skipped, not cut off part way (a far turret drew its barbette skirt and base, then the buffer
+        // ran out before its gunhouse). Its parts are counted at full detail, an upper bound.
+        if n + (body.count + worn.count) * 36 > capacity && n > 0 { MobDrawStats.dropped += 1; continue }
         let lie = m.lying
         let side: Float = m.carcass ? m.spec.halfW * 16 : 0, sideX: Float = m.spec.height * 8
         let pose = MobAnim.pose(m)

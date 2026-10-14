@@ -109,6 +109,7 @@ extension Mob {
         if let h = heading { m.yaw = -h * .pi / 180; m.soldierBrain.turret = m.yaw }
         if tag == "fuel" { m.variant = 1 }
         if tag == "light" && k0 == .deckGun { m.variant = HeavyTurret.lightVariant }
+        if k0 == .deckGun, let v = HeavyTurret.smallTags[tag] { m.variant = v }        // P222: the Capital's small guns
         if tag == "heavy" && !grey && !ash { m.setTroop(.hannibal, rearm: false) }     // T7: a Capital fortress heavy     // T6: a light coastal gun
         if k0 == .minecart { CapitalRail.setupCar(m, tag: tag) }                // P92 trains
         if tag == "warden" { m.makeKeepWarden() }
