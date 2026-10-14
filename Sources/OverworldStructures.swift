@@ -9,7 +9,8 @@ enum OverworldStructures {
         // No ruined gates any more (Remington, Oct 10 09:25: "not really any point"): ruinedPortal stays for reference and
         // its key and loot table stay registered; a gate a save already generated stays in its chunk (one chunk wide).
         // Wild camps (WildCamps.swift) are the small finds of the open country now.
-        [Village.type(gen), temple(gen), outpost(gen), shipwreck(gen), buriedTreasure(gen), mineshaft(gen), desertWell(gen), WildCamps.type(gen)]
+        [Village.type(gen), temple(gen), outpost(gen), shipwreck(gen), buriedTreasure(gen), mineshaft(gen), desertWell(gen), WildCamps.type(gen),
+         NavalPort.type(gen)]                                   // D39: dockyards on deep-water coasts
     }
 
     static func piece(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ f: @escaping (inout StructWriter) -> Void) -> Piece {

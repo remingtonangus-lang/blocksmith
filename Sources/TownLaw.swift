@@ -86,6 +86,8 @@ enum TownLaw {
         var loudBases: [String]? = nil               // D36 (Bodies.swift): bases whose alarm has sounded
         var alarms: [String]? = nil                  // D38 (BaseCounter.swift): bases whose alarm was up at the save
         var counter: [String: Int]? = nil            // D38: base key -> the day it fell or was last counter-attacked
+        var portsMet: [String]? = nil                // D39 (NavalPort.swift): dockyards whose garrison has turned up
+        var portsTaken: [String]? = nil              // D39: dockyards whose garrison you cleared
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -446,6 +448,7 @@ enum TownLaw {
         MailOrder.tick(g)                                // D29: parcels come in
         FactionArmour.tick(g)                            // D33: a full faction set's edge
         Disguise.tick(g, dt)                             // D37: a close look through a disguise
+        NavalPort.tick(g)                                // D39: dockyard garrisons and harbourmasters
         Fence.today = Int(g.time / DAY_LENGTH)
         Saloon.tick(g)                                   // D17: the piano player
         Jail.tick(g, dt)                                 // R20: the jail term, a prisoner in tow

@@ -127,6 +127,7 @@ final class World {
             sc.legacyP95 = save.structureGuard(file: "structure-guard-p95.txt")            // WorldRules.savedBeforeP95
             sc.legacyGreywall = save.structureGuard(file: "structure-guard-greywall.txt")  // Greywall.swift
             sc.legacySkyIsle = save.structureGuard(file: "structure-guard-skyisle.txt")    // SkyIsle.swift
+            sc.legacyPorts = save.structureGuard(file: "structure-guard-ports.txt")        // NavalPort.swift
             sc.legacyOverlap = save.structureGuard(file: "structure-guard-overlap.txt")    // StructureCache.yields
             sc.legacyC1 = save.structureGuard(file: "structure-guard-c1.txt")              // Railways.swift
             sc.legacyC12 = save.structureGuard(file: "structure-guard-c12.txt")            // MiningTowns.swift
