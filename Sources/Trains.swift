@@ -100,6 +100,7 @@ enum Trains {
         var robbedDay = -1
         var wrecked = false
         var gunCool: Float = 2
+        var bullion = false                     // D47: today's run is a bullion train (VaultObjectives.swift)
         var chuff: Float = 0
         var lastS: Float = 0
         init(_ t: Track) { track = t }
@@ -167,7 +168,7 @@ enum Trains {
             let c0 = t.cells[max(0, min(t.cells.count - 1, Int(t.at(tr.time).s)))]
             guard g.world.isLoaded(c0.x, c0.z), Rails.isRail(g.world.block(c0.x, c0.y, c0.z)) else { continue }
             want.insert(t.id)
-            if tr.cars.isEmpty || tr.cars.contains(where: { $0.health <= 0 && !t.armoured }) || !tr.cars.allSatisfy({ m in g.mobs.mobs.contains { $0 === m } }) {
+            if tr.cars.isEmpty || tr.cars.contains(where: { $0.health <= 0 && !t.armoured && !tr.bullion }) || !tr.cars.allSatisfy({ m in g.mobs.mobs.contains { $0 === m } }) {
                 build(g, tr)
             }
         }
@@ -185,15 +186,23 @@ enum Trains {
 
     static func build(_ g: Game, _ tr: Train) {
         remove(g, tr)
-        let kinds = tr.track.armoured ? [armouredLoco, gunCar] : [loco, coach, express]
+        // D47: one day in three the line runs a bullion train (VaultObjectives.swift).
+        let day = Int(g.time / DAY_LENGTH)
+        let wasBullion = tr.bullion
+        tr.bullion = !tr.track.armoured && tr.track.dim == .overworld && VaultObjectives.bullionDay(tr.track.id, day) && tr.robbedDay != day
+        if tr.bullion && !wasBullion {
+            g.onToast?("A bullion train runs the \(tr.track.name) today: armoured, guarded, and carrying the bank's gold")
+        }
+        let kinds = tr.track.armoured ? [armouredLoco, gunCar] : (tr.bullion ? [armouredLoco, gunCar, express] : [loco, coach, express])
         for (k, v) in kinds.enumerated() {
             let m = Mob(.minecart, at: tr.track.point(0))
             m.variant = v
             m.scale = carScale
             m.persistent = false
             m.customName = tr.track.armoured ? (v == gunCar ? "Ashguard Gun Car" : "Ashguard Armoured Train")
-                                             : ["\(tr.track.name) Locomotive", "\(tr.track.name) Coach", "\(tr.track.name) Express Car"][k]
-            if tr.track.armoured { m.health = v == gunCar ? 160 : 240 }
+                : (tr.bullion ? ["\(tr.track.name) Bullion Train", "Guard Car", "Bullion Car"][k]
+                              : ["\(tr.track.name) Locomotive", "\(tr.track.name) Coach", "\(tr.track.name) Express Car"][k])
+            if tr.track.armoured || tr.bullion { m.health = v == gunCar ? 160 : (v == express ? m.spec.health : 240) }
             carOf[ObjectIdentifier(m)] = (tr, k)
             tr.cars.append(m)
             g.mobs.mobs.append(m)
@@ -212,7 +221,7 @@ enum Trains {
     // Mob.update for a car: the train's head car moves the whole train; every car keeps its pose.
     static func drive(_ m: Mob, _ dt: Float, _ g: Game) {
         guard let (tr, k) = carOf[ObjectIdentifier(m)] else { m.health = -1; return }
-        if !tr.track.armoured { m.health = m.spec.health; m.hurt = 0 }
+        if !tr.track.armoured && !(tr.bullion && k == 1) { m.health = m.spec.health; m.hurt = 0 }
         if k == 0 { place(g, tr, dt: dt) }
         if g.riding === m {
             g.player.pos = m.pos + V3(0, 1.0, 0)
@@ -260,7 +269,7 @@ enum Trains {
             if sp > 0.3 || stop != nil { g.sfx(.steamChuff, tr.track.armoured ? 0.5 : 0.7, at: top) }
         }
         if let st = stop, t.at(tr.time + 2).stop == nil, t.at(tr.time - Double(dt)).stop == st, tr.brake < 0.1 { whistle(g, tr) }
-        if t.armoured { gunCar(g, tr, dt) }
+        if t.armoured || tr.bullion { gunCar(g, tr, dt) }
     }
 
     static func whistle(_ g: Game, _ tr: Train) {
@@ -271,7 +280,7 @@ enum Trains {
     // MARK: Hold-ups and robbery
 
     static func holdUpTick(_ g: Game, _ tr: Train, _ dt: Float) {
-        guard !tr.track.armoured, !tr.heldBy, let lead = tr.cars.first, g.alive, g.survival, Guns.index(g.held.item) != nil else { tr.holdUp = 0; return }
+        guard !tr.track.armoured, !tr.bullion, !tr.heldBy, let lead = tr.cars.first, g.alive, g.survival, Guns.index(g.held.item) != nil else { tr.holdUp = 0; return }
         let from = g.vrAim?.origin ?? g.player.eye, dir = simd_normalize(g.vrAim?.dir ?? g.player.look)
         let cab = lead.pos + V3(0, 2.2, 0) - lead.forward * 0.9
         let to = cab - from, d = simd_length(to)
@@ -322,18 +331,19 @@ enum Trains {
         // Open: the line's takings.
         tr.cracks = 0
         tr.robbedDay = day
-        let cash = Rand.int(in: 40...120) * 100
+        let cash = Rand.int(in: 40...120) * 100 * (tr.bullion ? 3 : 1)      // D47: bullion
         g.money += cash
         for (k, lo, hi) in [("gold_ingot", 2, 5), ("gold_nugget", 4, 12), ("emerald", 1, 3), ("paper", 1, 4)] where Items.has(k) {
             let n = Rand.int(in: lo...hi)
             if n > 0 { g.drops.spawn(ItemStack(Items.id(k), n), at: m.pos + V3(0, 1, 0)) }
         }
-        g.onToast?("The strongbox gives up \(Money.format(cash))")
+        g.onToast?(tr.bullion ? "The bullion car gives up \(Money.format(cash)) and its gold" : "The strongbox gives up \(Money.format(cash))")
+        if tr.bullion { for _ in 0..<2 { if Items.has("gold_ingot") { g.drops.spawn(ItemStack(Items.id("gold_ingot"), Rand.int(in: 4...8)), at: m.pos + V3(0, 1, 0)) } } }
         Trains.robbed += 1
         if g.survival {
             let town = Townsfolk.town(g, at: m.pos)
             Honour.change(g, robHonour, "robbed the \(tr.track.name)")
-            Honour.addBounty(g, town, robBounty)
+            Honour.addBounty(g, town, robBounty * (tr.bullion ? 2 : 1))
             _ = Riders.sendPosse(g, from: town)
             _ = Riders.sendPosse(g, from: town)
         }
@@ -345,8 +355,8 @@ enum Trains {
 
     static func gunCar(_ g: Game, _ tr: Train, _ dt: Float) {
         guard tr.cars.count > 1 else { return }
-        // Wrecked: both cars down (explosives and heavy rounds).
-        if tr.cars.allSatisfy({ $0.health <= 0 }) || tr.cars[0].health <= 0 {
+        // Wrecked: both cars down (explosives and heavy rounds). A bullion train's guard car just falls silent (D47).
+        if !tr.bullion && tr.cars.allSatisfy({ $0.health <= 0 }) || tr.cars[0].health <= 0 {
             for c in tr.cars { Explosion.explode(at: c.pos + V3(0, 1, 0), power: 2.5, game: g, except: c) }
             tr.wrecked = true
             g.onToast?("The armoured train is wrecked")
@@ -354,7 +364,7 @@ enum Trains {
             return
         }
         let gun = tr.cars[1]
-        guard gun.health > 0, g.alive, g.survival, !g.ashVictory else { return }
+        guard gun.health > 0, g.alive, g.survival, tr.bullion || !g.ashVictory else { return }
         let muzzle = gun.pos + V3(0, 2.6, 0)
         let to = g.player.eye - muzzle, d = simd_length(to)
         tr.gunCool -= dt
@@ -367,7 +377,7 @@ enum Trains {
             let dir = Guns.scatter(simd_normalize(to), 0.03)
             let dmg: Float = 1.5 * Soldier.difficultyScale(g.difficulty) + 0.5
             g.arms.spawn(Slug(pos: muzzle + dir * 1.2, vel: dir * 140, kind: .bullet, damage: dmg, fromPlayer: false, shooter: ObjectIdentifier(gun),
-                              by: "an Ashguard Gun Car", life: 0.6 + Float(k) * 0.02, gravity: 1.5))
+                              by: tr.bullion ? "a bullion train's Guard Car" : "an Ashguard Gun Car", life: 0.6 + Float(k) * 0.02, gravity: 1.5))
         }
         g.addFlash(at: muzzle + simd_normalize(to) * 1.2, color: V3(6, 3.5, 1.6), radius: 5, life: 0.06)
         g.sfx(.gun(1), 1, at: muzzle)
