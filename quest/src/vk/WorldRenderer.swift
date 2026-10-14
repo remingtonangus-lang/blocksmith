@@ -9,6 +9,7 @@ final class WorldRenderer {
     let scene: SceneRenderer
     let game: Game
     private var caveK: Float = -1
+    private var sheenBits: [UInt32] = []                      // SH1: ShaderFX.sheenBits, built once the textures exist
     var extraOpaque: ((SceneRenderer.Slot, V3) -> Void)?     // hands, rays, panels (the XR layer)
     var extraOverlay: ((SceneRenderer.Slot, V3) -> Void)?    // drawn last (panels over everything)
     var prePass: ((SceneRenderer.Slot) -> Void)?              // offscreen passes before the world pass (the HUD panel)
@@ -176,6 +177,11 @@ final class WorldRenderer {
         let biomeT: Float = max(-0.2, min(0.25, (game.audio.biomeHere.info.temp - 0.7) * 0.25))
         let grade: Float = hasSky && !underground && !underwater && game.dim.dim == .overworld ? max(-1, min(1, max(0, warmT) + nightT + biomeT)) : 0
         u.fx = V4(Float(Settings.shared.shaderFX), mist, Float(SEA + 8), grade)
+        if sheenBits.isEmpty { sheenBits = ShaderFX.sheenBits() }
+        withUnsafeMutableBytes(of: &u.sheen) { raw in
+            let p = raw.bindMemory(to: UInt32.self)
+            for i in 0..<min(p.count, sheenBits.count) { p[i] = sheenBits[i] }
+        }
         let skyKind: Float = underwater || underground || game.blindFog != nil ? 0 : (hasSky || vaultSky ? 1 : (game.dim.dim == .end ? 2 : 0))
         // Eye darkness: skylight 13.5+ around the eye (daylight, near the surface) 0 ... 4.5 or less (caves, deep dives) 1;
         // a wide ramp so the fill grows in step with the walls darkening.

@@ -39,5 +39,18 @@ void main() {
         }
     }
     vec3 t = (oOverlay > 0.5 && c.a > 0.95) ? vec3(1.0) : oTint;
-    outColor = worldColor(vec4(applyFogDir(waterAmbient(c.rgb * t * oShade, c.rgb * t), oRel, oDist), 1.0));
+    vec3 lit = c.rgb * t * oShade;
+    // SH1 surface sheen: metal and ice catch the sun, and so do tops left wet by rain, as much as the sky lights them.
+    if (fxOn(16) && u.params.y > 0.05) {
+        uint li = uint(oLayer + 0.5), f = uint(oFace + 0.5);
+        bool metal = (u.sheen[(li >> 7u) & 15u][(li >> 5u) & 3u] & (1u << (li & 31u))) != 0u;
+        bool wet = u.waves.y > 0.05 && f == 2u;
+        if ((metal || wet) && f < 6u) {
+            vec3 v = normalize(-oRel), h = normalize(v + normalize(u.sunDir.xyz));
+            float sky = clamp(dot(oShade, vec3(0.333)) * 1.4, 0.0, 1.0);
+            float sp = metal ? pow(max(dot(faceNormal(f), h), 0.0), 48.0) * 0.55 : pow(max(dot(faceNormal(f), h), 0.0), 90.0) * 0.4 * u.waves.y;
+            lit += vec3(1.0, 0.95, 0.85) * sp * u.params.y * sky;
+        }
+    }
+    outColor = worldColor(vec4(applyFogDir(waterAmbient(lit, c.rgb * t), oRel, oDist), 1.0));
 }

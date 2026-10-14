@@ -154,4 +154,17 @@ enum ShaderFX {
     static let names: [(Int, String)] = [(leaves, "Waving Leaves"), (valleyFog, "Valley Mist"), (halos, "Light Halos"),
                                          (grading, "Colour Grading"), (sheen, "Surface Sheen")]
     static func on(_ bit: Int) -> Bool { Settings.shared.shaderFX & bit != 0 }
+
+    // Texture layers that take a metal or ice sheen (bit per layer, 2048 layers: the frame uniforms' `sheen`).
+    static func sheenBits() -> [UInt32] {
+        var bits = [UInt32](repeating: 0, count: 64)
+        let metal = ["iron_block", "gold_block", "diamond_block", "netherite_block", "copper_block", "cut_copper", "copper_grate",
+                     "steel", "plating", "bulkhead", "iron_door", "iron_trapdoor", "iron_bars", "anvil", "chain", "_metal",
+                     "ice", "lightning_rod", "copper_bulb", "copper_door", "copper_trapdoor"]
+        for (i, n) in Tex.names.enumerated() where i < 2048 {
+            guard !n.contains("ore"), !n.hasPrefix("raw_"), !n.contains("rice"), !n.contains("dice"), metal.contains(where: { n.contains($0) }) else { continue }
+            bits[i >> 5] |= 1 << UInt32(i & 31)
+        }
+        return bits
+    }
 }

@@ -21,6 +21,7 @@ layout(set = 0, binding = 0, std140) uniform Frame {
     vec4 wind;             // xy = wind direction (unit, world xz), z = biome haze 0...1, w = cave dimming (caveScale)
     vec4 fx;               // SH1: x = switched-on pieces (Sources/Settings.swift ShaderFX bits), y = valley mist strength,
                            // z = mist top (world y), w = colour grade (-1 night cool ... 0 day ... 1 sunrise/sunset warm)
+    uvec4 sheen[16];       // SH1: a bit per texture layer that shines like metal or ice (2048 layers)
 } u;
 
 // SH1: is a shader piece switched on (Video options)?
