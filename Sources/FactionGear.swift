@@ -93,6 +93,7 @@ extension Game {
         if blueprintUse() { return true }              // P138 (Blueprints.swift)
         if vehicleBlueprintUse() { return true }       // D43 (VehiclePresets.swift)
         if VehicleDepot.useCan(self) { return true }   // D44 (VehicleDepot.swift)
+        if Tracking.useBait(self) { return true }      // D46 (Tracking.swift)
         if spineItemUse() { return true }              // Y2 (Spine.swift): dispatch, naval orders, ledger
         let k = Items.key(held.item)
         if k == "radar_set" {

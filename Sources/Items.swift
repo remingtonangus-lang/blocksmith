@@ -460,6 +460,7 @@ final class ItemRegistry {
         registerLasso()
         registerDeeds()                                   // D28 (Property.swift)
         registerFuelCan()                                 // D44 (VehicleDepot.swift)
+        registerTrackingItems()                           // D46 (Tracking.swift)
         registerGunCare()
         registerThrownBlades()
         registerSaloonDrinks()

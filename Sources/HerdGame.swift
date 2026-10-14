@@ -77,7 +77,8 @@ extension Mob {
             return spec.speed
         }
         // Spooked: a player too close, or a hit.
-        let r = HerdGame.spookRange(kind) * (g.player.sneaking ? 0.45 : 1)
+        let r = HerdGame.spookRange(kind) * (g.player.sneaking ? 0.45 : 1) * Tracking.scent(g, player: p, animal: pos)   // D46: the wind
+            * (Tracking.isEating(self) ? 0.5 : 1)
         if (g.alive && dist < r) || (provoked && !fights) {
             aggro = false; wasHit = false
             spookHerd(g, from: p)
@@ -88,6 +89,7 @@ extension Mob {
             moving = true
             return spec.speed * 1.6
         }
+        if let sp = Tracking.baitStep(self, g, dt) { return sp }             // D46: bait
         // Keep with the herd.
         circleAngle -= dt
         if circleAngle <= 0 {

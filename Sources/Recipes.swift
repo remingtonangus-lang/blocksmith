@@ -484,6 +484,7 @@ enum Recipes {
         r += WeaponPrinter.recipes()
         r += GunsmithBench.recipes()                      // D31
         r += VehicleDepot.recipes()                       // D44
+        r += Tracking.recipes()                           // D46
         r += Magazines.recipes()
         r += deepRecipes()
         r += deepGateRecipes()
