@@ -1,5 +1,14 @@
 # Status
 
+> **Backlog D39-D52 and the first Q2 passes (main thread, 2026-10-14, PRs #207-#222):** Meridian dockyards to raid
+> and trade at (NavalPort), gun crews and broadsides with grapple boarding, the Field Tank sight, vehicle presets from
+> blueprints, fuel pumps and the Vehicle Works garage, deer/elk/bison/boar herds with wind, tracks, bait and snares,
+> the Vault side objectives and the bullion train (boss bars for it, gang leaders and legendary animals), frontier
+> sites (ghost towns, homesteads, stilt hamlets, pueblos: FrontierSites), train roofs and robber hold-ups
+> (TrainRoofs), Pause > Track a Target (HUD marker, beacon, map marks and notes: Waymarks), co-op gun seats, pillion,
+> shared pay and downed/revive (CoopPartner). Q2 so far: sight and fuel on the real vehicle panel, a downed partner is
+> out of the fight, frontier folk trade by biome. Typechecked on the Linux Quest host check only; not yet played.
+
 > **Art gaps (25b4zzz, 2026-10-11, done):** style 3 now covers 1221 of 1489 layers (82%, was 61%): doors/trapdoors
 > (all woods, copper, iron), glass + stained glass, beds, candles, shulkers, glazed terracotta, torches, lanterns, rails,
 > tall plants, vines, lily pads, ancient debris, gilded blackstone; every item icon; 39 effect icons + XP bar; bigger gold
