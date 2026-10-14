@@ -21,6 +21,10 @@ struct FrameUniforms {
     var cloudFlash = V4(0, 0.3, 1, 0) // flash direction, storm darkness
     var wind = V4(1, 0, 0, 1)        // wind direction (xz), biome haze, cave dimming
     var fx = V4(Float(ShaderFX.all), 0, 0, 0)   // SH1: piece bits (ShaderFX), valley mist strength, mist top (world y), grade
+    // SH1 sheen: a bit per texture layer that shines like metal or ice (ShaderFX.sheenBits), 2048 bits.
+    var sheen: (U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4) =
+        (U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4())
+    typealias U4 = SIMD4<UInt32>
 }
 
 // One frame's camera: the head centre in world space and each eye's camera-relative view-projection.
