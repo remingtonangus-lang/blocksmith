@@ -109,7 +109,7 @@ final class World {
         self.device = device
         self.save = save
         if dim == .overworld {
-            if let save { fieldTerrain = FieldTerrain.newWorlds ? save.newTerrain("terrain-field.txt") : save.hasMarker("terrain-field.txt") }
+            if let save { fieldTerrain = save.hasMarker("terrain-field.txt") }        // (made one: makeFieldWorld)
             else { fieldTerrain = FieldTerrain.unsaved }
         } else if save == nil { fieldTerrain = FieldTerrain.unsaved }
         if let wg = gen as? WorldGen {
@@ -438,6 +438,8 @@ final class World {
     // sink into a slope's uphill side up to half a block (collides ignores the field's ground in the body's lowest part).
     var fieldSplit = false
     var fieldSink: [(V3, V3)] = []
+    // PG2 rewrite: the last raycast's hit on the field's ground (its cell, the point on the drawn surface, the distance).
+    var fieldHit: (cell: IVec3, at: V3, t: Float)?
 
     func collides(_ mn: V3, _ mx: V3) -> Bool {
         let eps: Float = 1e-4
@@ -1093,7 +1095,7 @@ final class World {
             let heights = Chunk.computeHeights(merged)
             return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                             fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
-                            emitMask: BlockStore.emitMask(of: blocks), springs: World.springs(merged, k, heights), field: field,
+                            emitMask: BlockStore.emitMask(of: merged), springs: World.springs(merged, k, heights), field: field,
                             ground: g, netBlocks: merged)
         }
         _ = PlantSupport.dropFloating(&blocks)
@@ -1106,7 +1108,7 @@ final class World {
             let f = FieldTerrain.split(&blocks, cx: k.x, cz: k.z, gen: gen)
             return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                             fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
-                            emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field, ground: f, netBlocks: merged)
+                            emitMask: BlockStore.emitMask(of: merged), springs: springs, field: field, ground: f, netBlocks: merged)
         }
         return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                         fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
@@ -1366,8 +1368,23 @@ final class World {
         var tmx = first(origin.x, dir.x, x), tmy = first(origin.y, dir.y, y), tmz = first(origin.z, dir.z, z)
         var n = IVec3(0, 0, 0)
         var t: Float = 0
+        fieldHit = nil
         while t <= maxDist {
-            let b = block(x, y, z)
+            var b = block(x, y, z)
+            // PG2 rewrite: in a field world the ray meets the ground where the field crosses zero (the drawn surface), and
+            // the cell it names is the ground cell there; built blocks are targeted as blocks.
+            if fieldTerrain && y >= 0 && y < CH, let c = chunkAt(x, z) {
+                let i = Chunk.index(mod(x, CS), y, mod(z, CS))
+                if fieldNear(c, x, y, z, i), let h = fieldRaySegment(origin, dir, from: t, to: min(tmx, tmy, tmz, maxDist)) {
+                    fieldHit = h
+                    let g = fieldGradient(h.at)
+                    let a = simd_abs(g)
+                    let nrm = a.x >= a.y && a.x >= a.z ? IVec3(g.x > 0 ? -1 : 1, 0, 0)
+                        : (a.y >= a.z ? IVec3(0, g.y > 0 ? -1 : 1, 0) : IVec3(0, 0, g.z > 0 ? -1 : 1))
+                    return (h.cell, nrm)
+                }
+                b = c.blocks.raw(i)
+            }
             if Blocks.targetable(b) {
                 if Blocks.render[Int(b)] == RenderType.cube.rawValue { return (IVec3(x, y, z), n) }
                 let o = V3(Float(x), Float(y), Float(z))

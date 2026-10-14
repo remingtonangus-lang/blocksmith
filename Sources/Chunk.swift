@@ -125,6 +125,7 @@ struct BlockStore {
             if !fd.isEmpty {
                 let m = FieldMat.index[Int(newValue)]
                 if m != 0 {
+                    if Blocks.emit[Int(newValue)] > 0 { emitMask |= 1 << UInt32(i / BlockStore.section) }
                     setDensity(i, max(density(i), FieldTerrain.cellIn), material: m)
                     if i < data.count && data[i] != AIR { data[i] = AIR }
                     return

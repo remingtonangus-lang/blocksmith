@@ -334,6 +334,7 @@ final class NetHost {
             o.f64(g.time); o.v3(spawn); o.str(g.save?.dir.lastPathComponent ?? "World")
             o.bool((g.world.gen as? WorldGen)?.terrain.fewerLakes ?? false)
             o.bool((g.world.gen as? WorldGen)?.terrain.lessWater ?? false)
+            o.bool(g.world.fieldTerrain)                     // PG1 rewrite: the guest's ground is a field too
             link?.send(NetMsg.welcome, o.b)
             g.onToast?("\(guestName) joined your world")
         case NetMsg.pose:
@@ -418,7 +419,7 @@ final class NetGuest {
     private(set) var time: Double = 0
     private(set) var spawn = V3(0, 100, 0)
     private(set) var worldName = "a friend's world"
-    private(set) var fewerLakes = false, lessWater = false
+    private(set) var fewerLakes = false, lessWater = false, field = false
     var hostPose: NetPose?
     private let cacheLock = NSCondition()
     private var cache: [ChunkKey: ([BlockID], [(IVec3, BlockEntity)])] = [:]
@@ -466,6 +467,7 @@ final class NetGuest {
             time = r.f64(); spawn = r.v3(); worldName = r.str()
             fewerLakes = r.bool()
             lessWater = r.bool()             // (an older host sends none: false)
+            field = r.bool()                 // (PG1 rewrite: the host's world is a field world)
             connected = true
         case NetMsg.refuse:
             refused = r.str()

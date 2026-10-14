@@ -80,6 +80,28 @@ final class DeepGen: TerrainGenerator {
 
     // MARK: Generation
 
+    // PG1 rewrite: the Ash Vault's ground continuous: blocks over the floor's surface and under the roof's (the same
+    // noise as floorY / ceilingY before rounding), the hell band's lattice; pillars and the seal rounded (NaN).
+    func groundField(cx: Int, cz: Int) -> [Float]? {
+        var g = [Float](repeating: .nan, count: CSQ * CH)
+        let bx = cx * CS, bz = cz * CS
+        for lz in 0..<CS { for lx in 0..<CS {
+            let wx = bx + lx, wz = bz + lz
+            if pillar(wx, wz) { continue }
+            let rough = max(0.15, min(1, (AshWar.clearance(wx, wz) - 12) / 90))
+            let n = floorN.fbm2(Float(wx) / 140, Float(wz) / 140, 3) * 9 + floorN.noise2(Float(wx) / 37, Float(wz) / 37) * 2.5
+            var f = Float(DeepGen.floorBase) + n * rough
+            if lavaRiver(wx, wz) { f -= 2 }
+            let c = Float(DeepGen.ceilingBase) + ceilN.fbm2(Float(wx) / 90, Float(wz) / 90, 3) * 14
+            for y in (DeepGen.coreTop + 1)..<DeepGen.hellBase where !DeepSeal.inBand(y) {
+                let yc = Float(y)
+                g[Chunk.index(lx, y, lz)] = max(f + 0.5 - yc, yc - c + 0.5)     // (surfaces at f + 1 and c, as rounded)
+            }
+        } }
+        ember.bandField(&g, cx: cx, cz: cz)
+        return g
+    }
+
     func generate(cx: Int, cz: Int) -> [BlockID] {
         var b = [BlockID](repeating: AIR, count: CSQ * CH)
         let bx = cx * CS, bz = cz * CS

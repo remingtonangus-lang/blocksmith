@@ -106,6 +106,7 @@ final class Armory {
             for (mn, mx) in w.selectionBoxes(id) {
                 if let h = World.rayBox(from, d, c + mn, c + mx) { t = min(t, h.0) }
             }
+            if let fh = w.fieldHit, fh.cell == b.hit { t = fh.t }        // (PG2 rewrite: the field's drawn surface)
             if t == .greatestFiniteMagnitude { t = min(len - start, simd_length(c + V3(0.5, 0.5, 0.5) - from)) }
             if !Blocks.collide[Int(id)] {
                 start += t + 0.3

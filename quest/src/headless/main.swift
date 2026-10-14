@@ -84,7 +84,8 @@ if let out = arg("--texdump"), let i = CommandLine.arguments.firstIndex(of: "--t
 if let out = arg("--view"), let ctx = vkctx {
     let at = (arg("--at") ?? "0,100,0").split(separator: ",").compactMap { Float($0) }
     let look = (arg("--look") ?? "0,-10").split(separator: ",").compactMap { Float($0) }
-    let vw = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: device, save: nil)
+    // --dim nether|end|deep: that dimension's world instead (looks work; PG6 field checks).
+    let vw = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: device, save: nil, dim: Dim(rawValue: arg("--dim") ?? "") ?? .overworld)
     vw.renderDistance = Int(arg("--rd") ?? "") ?? 6
     let vg = Game(world: vw, save: nil, persistent: false)
     vg.time = (Double(arg("--time") ?? "") ?? 0.25) * DAY_LENGTH

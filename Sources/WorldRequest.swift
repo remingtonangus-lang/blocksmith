@@ -11,8 +11,10 @@ struct WorldRequest {
     static func guestGame(_ gu: NetGuest, device: MTLDevice, renderDistance: Int) -> Game {
         World.fewerLakesUnsaved = gu.fewerLakes             // the host's terrain (P44 water), set before World.init
         World.lessWaterUnsaved = gu.lessWater               // (H8 water)
+        let wasField = FieldTerrain.unsaved
+        FieldTerrain.unsaved = gu.field                     // (PG1 rewrite: the host's ground is a field: the guest's is too)
         let world = World(seed: gu.seed, device: device, save: nil)
-        World.fewerLakesUnsaved = false; World.lessWaterUnsaved = false
+        World.fewerLakesUnsaved = false; World.lessWaterUnsaved = false; FieldTerrain.unsaved = wasField
         world.renderDistance = renderDistance
         let game = Game(world: world, save: nil, persistent: false)
         game.survival = gu.survival
@@ -54,6 +56,7 @@ struct WorldRequest {
             if let sv = survival { game.survival = sv }
             if let d = difficulty { game.difficulty = d }
             game.smoothTerrain = smooth ?? Settings.shared.smoothTerrain     // (PG6: a new world is Polygons unless chosen)
+            if game.smoothTerrain { game.world.makeFieldWorld() }             // (PG1 rewrite: its ground is a density field)
         }
         SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
         // P107: a new world's meta (seed, options, the terrain mode) is on disk from the start, so a world closed before
