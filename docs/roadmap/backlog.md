@@ -433,7 +433,7 @@ D38. [DONE] Lost bases counter-attack; alarm state survives a reload.
 D39. [DONE] Naval ports and dockyards to raid; buy and repair hulls there.
 D40. [DONE] Hire a crew to man ship guns.
 D41. [DONE] Broadside battles and boarding by grapple.
-D42. Aim the Field Tank turret from the helm.
+D42. [DONE] Aim the Field Tank turret from the helm.
 D43. Vehicle presets unlocked by blueprints per stage.
 D44. Fuel depots; recall or garage a vehicle.
 D45. Deer, elk, bison herds and boar.

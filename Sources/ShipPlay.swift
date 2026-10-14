@@ -168,6 +168,7 @@ extension Game {
         if s.balloons > 0 { t += String(format: "  lift %d%%", Int(s.liftLevel * 100)) }
         let guns = ([s] + world.ships.turrets(of: s)).reduce(0) { $0 + $1.cannons.count }
         if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
+        if guns > 0, let sight = tankSightHUD(s) { t += sight }                 // D42
         if let (m, _, _) = world.ships.mainGunStatus(s.root) {
             t += "  \(MainGun.name) " + m
             // Range to the helm's aim marker (MainGun.swift mainGunAimTick), or that the shot would land nowhere.
@@ -246,6 +247,7 @@ extension Game {
             t.aimAt = nil
             t.aimYaw = rel
         }
+        tankSightTick(s)                                                  // D42: a vehicle's gun laid on the sight
         player.pos = at
         player.vel = s.velocity(at: at)
         player.onGround = true
@@ -336,7 +338,7 @@ extension Game {
                 if guns > 0 && balls < guns {         // a broadside takes one ball a gun ready
                     onToast?(balls == 0 ? "No cannonballs in your pack: craft them (\(Wrecks.recipeText(Wrecks.cannonball))), each cannon takes one a shot" : "\(guns) guns ready, \(balls) cannonball\(balls == 1 ? "" : "s"): one each to fire")
                 } else {
-                    let fired = ships.fire(s, pitch: player.pitch + 0.05, game: self)
+                    let fired = ships.fire(s, pitch: pilotGunPitch(s), game: self)
                     if fired > 0 { swing = 1; if survival && s.role == nil { Wrecks.useCannonballs(self, fired) } }
                 }
             }
