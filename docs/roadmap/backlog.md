@@ -421,7 +421,7 @@ D26. [DONE] Named gang leaders with hideouts.
 D27. [DONE] A fence for stolen goods; shops refuse flagged items.
 D28. [DONE] Buy a homestead or a town house.
 D29. [DONE] Mail-order catalog for rare items.
-D30. Late-game money sinks tied to the spine: vehicle presets, base upgrades, hired crews.
+D30. [DONE] Late-game money sinks tied to the spine: vehicle presets, base upgrades, hired crews.
 D31. Gunsmith bench that assembles guns from parts (receiver, barrel, stock tiers).
 D32. Upgrades that change behaviour (ricochet rounds, serrated bleed), not just stats.
 D33. Wearable faction armour sets (Greywall, Capital, Ashguard).
