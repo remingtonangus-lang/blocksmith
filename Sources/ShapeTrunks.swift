@@ -81,14 +81,19 @@ enum ShapeTrunks {
                 let under = Int(ctx.column(x, bot - 1, z))
                 let grounded = !isTrunk[under] && !leafT[under] && (opaqueT[under] || collideT[under])
                 let vertical = axisOf[Int(ctx.column(x, bot, z))] == 1
+                // PG4 ("birch trees get real birch shapes, not random procedural sticks"): an upright run of 3+ that
+                // springs from the side of another trunk (a birch's twin stem, the upper half of a kinked birch) is a
+                // trunk of its own too, joined at its foot (column), not a chain of ever thinner limbs.
+                let joined = !grounded && vertical && H >= 3 && !leafT[under] && sideLog(ctx, x, bot, z) != nil
                 var kind: UInt8 = 0
-                if grounded {
+                if grounded || joined {
                     // A living tree has leaves round the top of its column (or where its lean carries the crown).
                     var crown = false
                     if H >= 3 && vertical {
                         scan: for dy in -2...6 { for dz in -4...4 { for dx in -4...4 where leafT[Int(ctx.column(x + dx, top + dy, z + dz))] { crown = true; break scan } } }
                     }
                     if crown { kind = 1 }
+                    else if joined { kind = 0 }
                     else if H <= 2 && rootBeside(ctx, x, bot, z) { kind = 3 }     // a root beside a trunk's foot (upright or lying)
                     else if !vertical || H == 1 && lyingBeside(ctx, x, bot, z) { kind = 0 }   // a log lying on the ground
                     else { kind = 2 }                                               // a stump, a post
@@ -169,6 +174,14 @@ enum ShapeTrunks {
         } }
         return false
     }
+    // PG4: the trunk log a run's foot grows out of sideways: a face neighbour at the foot's height or one below
+    // (offset from the foot, in blocks), nil when there is none.
+    static func sideLog(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int) -> SIMD3<Int>? {
+        for dy in [0, -1] { for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where isTrunk[Int(ctx.column(x + dx, y + dy, z + dz))] {
+            return SIMD3(dx, dy, dz)
+        } }
+        return nil
+    }
     // A single upright log with a log beside it at its height and none above or below: one block of a log lying on the
     // ground (the generators write fallen trunks in the upright state).
     static func lyingBeside(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -220,7 +233,16 @@ enum ShapeTrunks {
         let r0 = (r + rBelow) * 0.5, r1 = (r + rAbove) * 0.5
         let y0 = Float(y), y1 = Float(y + 1)
         var prof: [(Float, Float)] = []              // (height, radius) from the bottom up
-        if !below && living {
+        // PG4: a living trunk whose foot is on another trunk's side (no ground under it) grows out of that trunk: no
+        // root flare, its foot sunk into a short bough from the other trunk's centre.
+        let footCell = Int(ctx.block(x, y - 1, z))
+        let onGround = !isTrunk[footCell] && (Blocks.opaque[footCell] || Blocks.collide[footCell])
+        if !below && living && !onGround, let o = sideLog(ctx, x, y, z) {
+            let from = SIMD3<Float>(Float(x + o.x) + 0.5, Float(y + o.y) + 0.5, Float(z + o.z) + 0.5)
+            let to = SIMD3<Float>(cx, y0 + 0.35, cz)
+            tube(ctx, from, to, r * 0.95, r, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: x &* 31 &+ z))
+            prof.append((y0 + 0.2, r))
+        } else if !below && living {
             // Root flare into the ground (the smooth ground covers its foot).
             // (The flare is a fixed width past the trunk, so a wide 2x2 foot doesn't spread into a skirt.)
             prof.append((y0 - 0.5, r + 0.3)); prof.append((y0 + 0.02, r + 0.19)); prof.append((y0 + 0.3, r + 0.09)); prof.append((y0 + 0.7, r + 0.02))
@@ -234,7 +256,7 @@ enum ShapeTrunks {
         } else {
             prof.append((y1, r0))
         }
-        let roots = !below && living
+        let roots = !below && living && onGround
         let wrap = max(1, (2 * .pi * r).rounded())          // bark repeats round the trunk (one count for every ring)
         var prev: [SIMD3<Float>] = [], prevN: [SIMD3<Float>] = []
         for (k, (h, rr)) in prof.enumerated() {
@@ -378,6 +400,12 @@ enum ShapeTrunks {
         var o = SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
         var d = SIMD3<Float>(0, 0, 0); d[axis] = 1
         let r: Float = 0.46
+        // PG4 ("fallen logs sit on the ground, none floating"): a lying log on natural ground with nothing stacked on it
+        // (a fallen trunk, not a cabin's bottom course) beds into the ground; the drawn ground dips below the block
+        // tops round it, and a round log only touched them along one line.
+        if axis != 1 && SmoothTerrain.natural[Int(ctx.block(x, y - 1, z))] && !isTrunk[Int(ctx.block(x, y + 1, z))] {
+            o.y -= 0.24
+        }
         o -= d * 0.5
         let a = o, b = o + d
         tube(ctx, a, b, r, r, bark: bark, sides: sides, salt: 0)

@@ -846,7 +846,9 @@ extension WorldGen {
                         let lx = lx0 + (alongX ? k : 0), lz = lz0 + (alongX ? 0 : k)
                         b[Chunk.index(lx, y + 1, lz)] = log
                         let top = Chunk.index(lx, y + 2, lz)
-                        if b[top] == AIR || Blocks.replaceable[Int(b[top])] {
+                        // (Polygon worlds bed the log into the ground (ShapeTrunks.timber): moss or a mushroom on its
+                        // block top would float over it.)
+                        if !World.realistic && (b[top] == AIR || Blocks.replaceable[Int(b[top])]) {
                             let h = hashf(bx + lx, y, bz + lz, s32 ^ 0xFA11)
                             b[top] = h < 0.3 ? g("moss_carpet") : (h < 0.4 ? g("brown_mushroom") : (h < 0.45 ? g("red_mushroom") : AIR))
                         }
