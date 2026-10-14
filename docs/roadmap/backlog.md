@@ -407,7 +407,7 @@ D12. [DONE] Silent knife takedowns from behind.
 D13. [DONE] Fist brawls in the saloon (non-lethal knockouts).
 D14. [DONE] Frontier predators: cougars, rattlesnakes, alligators.
 D15. [DONE] Monsters hear gunshots and investigate; night hordes that stalk and surround.
-D16. Bandit gangs that use cover and flank.
+D16. [DONE] Bandit gangs that use cover and flank.
 D17. Saloon bartender with drinks (mild, comfort-safe) and a piano player.
 D18. The knife-between-the-fingers game and poker.
 D19. Hotel rooms: paid save, heal, bath.
