@@ -117,6 +117,7 @@ enum NetCoop {
         let swing = g.swing
         let body = Player()
         body.pos = p.pos; body.yaw = p.yaw; body.pitch = p.pitch; body.sneaking = p.sneaking; body.flying = p.flying
+        body.crawling = p.downed                          // Q2: a downed friend lies on the ground
         var n = 0
         g.swing = p.swing
         g.withStandIn(body) { n = writePlayerModel(g, eye: eye, daylight: daylight, into: out, capacity: capacity) }
@@ -376,6 +377,7 @@ final class NetHost {
         let was = p.pos
         p.pos = pose.pos; p.yaw = pose.yaw; p.pitch = pose.pitch
         p.sneaking = pose.sneaking; p.flying = pose.flying
+        p.crawling = pose.downed                          // Q2: a downed guest's body lies on the ground
         p.vel = (pose.pos - was) / Float(max(dt, 0.001))
         g.swing = pose.swing
         g.alive = pose.alive
