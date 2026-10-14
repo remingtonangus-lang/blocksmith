@@ -172,6 +172,8 @@ enum NavalPort {
         for dy in 2...9 { S(-8, dy, 1, log) }
         for v in 1...6 { S(-8, 10, v, plank) }
         for dy in 6...9 { S(-8, dy, 6, fence) }
+        // A fuel pump on the quay (D44, VehicleDepot.swift).
+        S(8, 1, 1, b(VehicleDepot.pumpKey, "iron_block"))
         // Lamps on the yard.
         for u in [-12, 12] { S(u, 1, -1, fence); S(u, 2, -1, lantern) }
     }

@@ -169,6 +169,7 @@ extension Game {
         let guns = ([s] + world.ships.turrets(of: s)).reduce(0) { $0 + $1.cannons.count }
         if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
         if guns > 0, let sight = tankSightHUD(s) { t += sight }                 // D42
+        if let f = VehicleDepot.hud(s) { t += f }                                  // D44
         if let (m, _, _) = world.ships.mainGunStatus(s.root) {
             t += "  \(MainGun.name) " + m
             // Range to the helm's aim marker (MainGun.swift mainGunAimTick), or that the shot would land nowhere.
@@ -235,6 +236,7 @@ extension Game {
         }
         s.steer = c.steer
         s.climb = c.climb
+        VehicleDepot.burn(self, s, dt)                                    // D44: land vehicles burn fuel
         if let fm = s.flight { fm.playerInput(self, s, mi, dt) }          // helicopter controls (FlightModel.swift)
         // Turrets follow the view; barrels rise with it.
         let elev = max(-0.2, min(0.6, player.pitch + 0.05))

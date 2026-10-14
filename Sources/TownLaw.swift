@@ -88,6 +88,8 @@ enum TownLaw {
         var counter: [String: Int]? = nil            // D38: base key -> the day it fell or was last counter-attacked
         var portsMet: [String]? = nil                // D39 (NavalPort.swift): dockyards whose garrison has turned up
         var portsTaken: [String]? = nil              // D39: dockyards whose garrison you cleared
+        var vehicleFuel: [String: Float]? = nil      // D44 (VehicleDepot.swift): ship id -> tank level
+        var garage: [String]? = nil                  // D44: garaged vehicles ("name|ships json, base64#fuel")
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
