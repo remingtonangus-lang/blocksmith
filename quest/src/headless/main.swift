@@ -138,6 +138,7 @@ if let out = arg("--view"), let ctx = vkctx {
     // and quads of each (P142 cost on the mesh workers; single thread, this build's optimization level).
     // --groundline: the smooth ground offset (World.smoothGroundOffset, the view follows it) at 12 standing spots ahead.
     if CommandLine.arguments.contains("--fieldwalk") { print(World.fieldWalkCheck(vg)) }     // (PG2 rewrite)
+    if CommandLine.arguments.contains("--fieldbodies") { print(World.fieldBodiesCheck(vg)) } // (PG2 rewrite)
     if FieldTerrain.statsOn { print(FieldTerrain.statsLine()) }
     // --fielddump: the ground the view's centre ray meets, and the field's densities (1/32 block) round it, slice by slice.
     if CommandLine.arguments.contains("--fielddump") {

@@ -42,8 +42,16 @@ extension World {
 
     // The same with the 4 column heights cached by the caller (mobs): recomputed only when the cell changes.
     func smoothGroundOffset(_ pos: V3, key: inout Int, heights h: inout SIMD4<Float>) -> Float {
-        // (PG2 rewrite: a field world's bodies already stand on the field's surface.)
-        guard SmoothTerrain.enabled && SmoothTerrain.fromField, !fieldTerrain, let g = gen as? WorldGen else { return 0 }
+        // PG2 rewrite: a field world's body rests its box on the highest of the field's quarter-block columns under its
+        // footprint, so on a slope its middle stood up to a quarter block over the ground (a cow's downhill legs in the
+        // air). Drawn, it goes to the surface under its middle; recomputed when it moves an eighth of a block.
+        if fieldTerrain {
+            let q = (Int((pos.x * 8).rounded()) & 0xFFFFF) | ((Int((pos.z * 8).rounded()) & 0xFFFFF) << 20)
+                | ((Int((pos.y * 8).rounded()) & 0x3FFF) << 40) | ((fieldStamp & 0x3FF) << 54)
+            if q != key { key = q; h.x = fieldSurfaceOffset(pos) }
+            return h.x
+        }
+        guard SmoothTerrain.enabled && SmoothTerrain.fromField, let g = gen as? WorldGen else { return 0 }
         let fy = Int(floor(pos.y - 0.01))
         let fb = Int(block(Int(floor(pos.x)), fy, Int(floor(pos.z))))
         guard SmoothTerrain.natural[fb] || (!Blocks.collide[fb] && SmoothTerrain.natural[Int(block(Int(floor(pos.x)), fy - 1, Int(floor(pos.z))))])
@@ -61,6 +69,21 @@ extension World {
         } }
         let s = (h[0] * (1 - tx) + h[1] * tx) * (1 - tz) + (h[2] * (1 - tx) + h[3] * tx) * tz
         return max(-0.6, min(0.6, s - pos.y))     // (PG2: from the feet, which stand on the column's drawn top)
+    }
+}
+
+extension World {
+    // The field's surface under a point, from the point (-0.5...0.25 blocks; 0 where none is that near).
+    func fieldSurfaceOffset(_ pos: V3) -> Float {
+        var y = pos.y + 0.25, prev = fieldDensity(at: V3(pos.x, y, pos.z))
+        if prev > 0 { return 0 }
+        while y > pos.y - 0.5 {
+            let y2 = y - 0.1
+            let d = fieldDensity(at: V3(pos.x, y2, pos.z))
+            if d > 0 { return y - 0.1 * prev / (prev - d) - pos.y }
+            prev = d; y = y2
+        }
+        return 0
     }
 }
 
