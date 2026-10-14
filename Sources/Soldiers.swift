@@ -903,6 +903,11 @@ extension Game {
     func soldierDied(_ m: Mob) {
         guard m.kind.steelhold else { return }
         repSoldierKilled(m)                                            // O3: the faction remembers (FactionRep.swift)
+        // P236: corsairs killed at sea (you or they aboard or by a sloop, or in the water) may come for your home once.
+        if m.killedByPlayer && m.factionValue == .corsairs
+            && (world.ships.aboard != nil || Blocks.isLiquid(world.block(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z)))) || world.ships.list.contains { $0.role == "sloop" && simd_length($0.pos - m.pos) < 40 }) {
+            FactionRaids.owe("corsairs", .corsairs, chance: 0.5, clock: clock)
+        }
         let at = m.pos + V3(0, 0.6, 0)
         if m.kind == .deckGun {
             particles.explosion(at: m.pos + V3(0, 1, 0), power: 3)
