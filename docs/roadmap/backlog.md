@@ -288,7 +288,11 @@ P255. [DONE] [12:05-12:09] Small Greywall outposts: (a) keep them as a variant b
 P256. [CLAIMED console 2026-10-14] [12:07, 12:08, repeat of R8/P216] Greywall chests and troops still hold Capital rounds and the Capital Service Rifle. (a) Greywall loot only has Greywall guns and their ammo; (b) Capital gear only at Capital sites.
 P257. [12:04, repeat of R7] Taking a magazine from the hip is still too hard. (a) A larger grab zone at the hip; (b) a haptic tick when the hand is in it; (c) the magazine snaps into the well when brought near.
 P258. [12:43] Pick up a body (person or animal) by holding grip on it and drag or carry it (with H12).
-P259. [12:14] Calling the horse: (a) if the horse is dead, say so when called; (b) show where it is or died on the map.
+P259. [CLAIMED console 2026-10-14] [12:14] Calling the horse: (a) if the horse is dead, say so when called; (b) show where it is or died on the map.
+ (c) [console] The death is remembered (its name, the place, the day; saved with the world), so a call after it says which horse, when and where it died, instead of the button silently doing something else.
+ (d) [console] Where it fell is a marker on the world map and minimap ("Where <name> fell") that Track a Target can follow; it clears when he bonds a new horse.
+ (e) [console] A living horse's call says how far and which way it is (and it shows on the map as before; a stabled one names the stable's town), so he knows where to look while it runs to him.
+ (f) [console] The moment it dies the toast says so and that the spot is marked, whether it bled out while down or was killed outright.
 P260. [DONE] [12:16, 12:17] No guns or swords while piloting a ship or vehicle: the hands hold the helm or controls.
  (a) His intent: at the helm or the controls of any ship or vehicle (boats, airships, crawlers, carriages, helicopters, planes) his hands are on the controls: no gun, sword or tool in them.
  (b) [console] Nothing in hand works while steering: no shots, no sword or tool swings, no blade hits in VR, no reloading or magazine grabs; the attack button stays the helm's (the cannons), as before.
