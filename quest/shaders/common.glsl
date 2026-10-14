@@ -19,7 +19,12 @@ layout(set = 0, binding = 0, std140) uniform Frame {
     vec4 clouds;           // clouds.frag: xy = the eye in cloud space (world xz + wind drift), z = cover 0...1, w = flash
     vec4 cloudFlash;       // xyz = direction of the storm flash (unit), w = storm darkness 0...1
     vec4 wind;             // xy = wind direction (unit, world xz), z = biome haze 0...1, w = cave dimming (caveScale)
+    vec4 fx;               // SH1: x = switched-on pieces (Sources/Settings.swift ShaderFX bits), y = valley mist strength,
+                           // z = mist top (world y), w = colour grade (-1 night cool ... 0 day ... 1 sunrise/sunset warm)
 } u;
+
+// SH1: is a shader piece switched on (Video options)?
+bool fxOn(int bit) { return (int(u.fx.x + 0.5) & bit) != 0; }
 
 layout(set = 0, binding = 1) uniform sampler2DArray tex;
 
@@ -128,7 +133,15 @@ vec3 fogColorAlong(vec3 rel) {
 
 vec3 applyFogDir(vec3 c, vec3 rel, float dist) {
     float f = fogAmount(dist);
-    return mix(c, fogColorAlong(rel), f);
+    c = mix(c, fogColorAlong(rel), f);
+    // SH1 valley mist: at dawn, dusk and night a thin white mist lies in the low ground (below u.fx.z), thickening with
+    // depth under its top and with distance, so valleys and lake shores fill with it while hills stand clear.
+    if (u.fx.y > 0.0 && fxOn(2)) {
+        float wy = rel.y + u.eye.y;
+        float m = u.fx.y * smoothstep(u.fx.z, u.fx.z - 9.0, wy) * smoothstep(6.0, 70.0, dist);
+        c = mix(c, mix(u.fogColor.rgb, vec3(0.82, 0.86, 0.92) * max(0.25, u.params.y), 0.6), m);
+    }
+    return c;
 }
 
 vec3 waterAmbient(vec3 lit, vec3 albedo) {
