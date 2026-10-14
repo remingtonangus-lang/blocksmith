@@ -124,6 +124,10 @@ enum MobVoice {
         case .cougar: return Profile(family: .growl, f0: 210, size: 1.0)
         case .rattlesnake: return Profile(family: .rattle, f0: 2400, size: 0.4)
         case .alligator: return Profile(family: .hiss, f0: 90, size: 1.5)
+        case .deer: return Profile(family: .bleat, f0: 640, size: 0.8)                 // D45
+        case .elk: return Profile(family: .trill, f0: 880, size: 1.3)
+        case .bison: return Profile(family: .grunt, f0: 85, size: 1.7)
+        case .boar: return Profile(family: .snort, f0: 190, size: 0.9)
         }
     }
 
