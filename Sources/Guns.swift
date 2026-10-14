@@ -373,7 +373,8 @@ enum Guns {
             let fy0: Float = (hi.y - q.mx.y) * k + oy, fy1: Float = (hi.y - q.mn.y) * k + oy
             let x0 = Int(fx0.rounded(.down)), x1 = max(x0, Int(fx1.rounded(.up)) - 1)
             let y0 = Int(fy0.rounded(.down)), y1 = max(y0, Int(fy1.rounded(.up)) - 1)
-            let base = simd_min(q.color, V3(1, 1, 1))
+            // P232: dark gunmetal lifted a little, so a black-finished gun still reads on the dark inventory slot.
+            let base = simd_min(q.color * 0.82 + V3(repeating: 0.12), V3(1, 1, 1))
             let rows = Float(max(1, y1 - y0))
             for y in max(0, y0)...min(n - 1, max(0, y1)) {
                 let t = Float(y - y0) / rows                                   // 0 top .. 1 bottom

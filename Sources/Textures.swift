@@ -1134,7 +1134,9 @@ enum TextureGen {
                 var px: [V4]
                 if n == S {
                     px = src
-                } else if !TextureGen.painted.contains(name), let imp = TextureImport.image(name, size: n) {
+                // P232 (Oct 13 21:47, "the image in inventory is still black"): a gun's icon is always drawn from its
+                // model (Guns.iconHD), never the old imported pictures, which were dark and showed other guns.
+                } else if !TextureGen.painted.contains(name), !name.hasPrefix("item_gun_"), let imp = TextureImport.image(name, size: n) {
                     px = imp
                 } else if let g = HDTex.generator(name, src) {
                     px = g(n, Int(hash3(layer, 7, 3, 0x7E57) & 0xFFFF)).px
