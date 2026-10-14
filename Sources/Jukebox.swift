@@ -64,6 +64,7 @@ extension Game {
     // Right-click a jukebox: insert the held disc, or eject the playing one.
     func useJukebox(_ p: IVec3) -> Bool {
         if let i = jukeboxes.firstIndex(where: { $0.pos == p }) {
+            if jukeboxes[i].disc.hasPrefix(Saloon.pianoPrefix) { onToast?("The piano player's at the keys"); return true }   // D17
             let j = jukeboxes.remove(at: i)
             drops.spawn(ItemStack(Items.id("music_disc_\(j.disc)"), 1), at: V3(Float(p.x) + 0.5, Float(p.y) + 1.1, Float(p.z) + 0.5))
             if audio.discPlaying === j { audio.discPlaying = nil; sound?.disc?.stop(fade: 0.3); sound?.setDisc(at: nil) }

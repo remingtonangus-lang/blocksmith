@@ -580,6 +580,7 @@ extension Game {
 // Music disc rendering: discs become scores on the same engine (original pieces, seeded by the disc's name).
 extension MusicDiscs {
     static func score(_ name: String) -> MusicScore {
+        if name.hasPrefix(Saloon.pianoPrefix) { return Saloon.ragtime(name) }      // D17: the saloon piano
         var h: UInt64 = 0xcbf29ce484222325
         for b in name.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
         let moods: [MusicMood] = [.day, .night, .creative, .rain, .title, .hollow, .ember]

@@ -409,6 +409,7 @@ extension Game {
         guard let v = m.villager else { return false }
         // The law takes a bounty owed in their town (and your surrender, mid-fight): Honour.swift.
         if survival && !m.baby && Honour.settle(self, m) { return true }
+        if Saloon.tip(self, m) { return true }                           // D17: the piano player
         if m.town.anger > 0 { TownVoice.speak(self, m, .angry); return true }
         if TownLaw.isHostile(self, m) { TownVoice.speak(self, m, .angry); return true }
         if m.lying {

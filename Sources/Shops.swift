@@ -112,7 +112,7 @@ enum Economy {
         // Crops and farm goods
         "wheat": 6, "wheat_seeds": 2, "carrot": 6, "potato": 6, "beetroot": 6, "beetroot_seeds": 2, "pumpkin": 25,
         "pumpkin_seeds": 3, "melon_slice": 4, "melon_seeds": 3, "sugar_cane": 5, "sugar": 6, "egg": 5, "sweet_berries": 4,
-        "glow_berries": 6, "cocoa_beans": 8, "apple": 20, "hay_block": 70, "honeycomb": 25, "honey_bottle": 60,
+        "glow_berries": 6, "cocoa_beans": 8, "apple": 20, "hay_block": 70, "honeycomb": 25, "honey_bottle": 60, "sarsaparilla_bottle": 40, "coffee_bottle": 30, "lemonade_bottle": 35,   // D17
         // Food
         "requisition_form": 2, "duty_roster": 2, "boot_polish": 4, "radio_valve": 6, "typewriter_ribbon": 3, "rubber_stamp": 5,
         "empty_sandbag": 3, "tent_pegs": 2, "mess_tin": 5, "spent_casings": 1,                       // P133 base sundries
@@ -202,7 +202,7 @@ enum Economy {
                       ("chainmail_helmet", 1), ("chainmail_chestplate", 1), ("chainmail_leggings", 1), ("chainmail_boots", 1),
                       ("shield", 2), ("bucket", 2), ("iron_bars", 16), ("anvil", 1)],
         .saloon: [("beetroot_soup", 8), ("mushroom_stew", 8), ("rabbit_stew", 6), ("bread", 12), ("cooked_beef", 8),
-                  ("pumpkin_pie", 6), ("cookie", 24), ("honey_bottle", 8), ("treasure_map", 1), ("greywall_dispatch", 1)],
+                  ("pumpkin_pie", 6), ("cookie", 24), ("honey_bottle", 8), ("sarsaparilla_bottle", 16), ("coffee_bottle", 16), ("lemonade_bottle", 16), ("treasure_map", 1), ("greywall_dispatch", 1)],
     ]
     // What each shop buys from the player.
     static let buys: [ShopKind: [String]] = [

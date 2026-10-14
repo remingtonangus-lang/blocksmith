@@ -1472,11 +1472,13 @@ final class Game {
             if eatProgress >= 1.61 {
                 if let f = h.def.food { eat(f, h.def.display) }
                 foodEffects(hk)
+                Saloon.drunk(self, hk)                                   // D17: the saloon's soft drinks
                 if h.def.drink {
                     finishDrink(h)
                     if hk == "honey_bottle" { consumeHeld(); giveOrReplaceHeldAfterConsume(ItemStack(Items.id("glass_bottle"), 1)) }
                 } else {
                     consumeHeld()
+                    if Saloon.isDrink(hk) { giveOrReplaceHeldAfterConsume(ItemStack(Items.id("glass_bottle"), 1)) }
                     if hk == "mushroom_stew" || hk == "beetroot_soup" || hk == "rabbit_stew" || hk.hasPrefix("suspicious_stew") {
                         giveOrReplaceHeldAfterConsume(ItemStack(Items.id("bowl"), 1))
                     }
