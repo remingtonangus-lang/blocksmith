@@ -1095,8 +1095,9 @@ final class Game {
         var mobHit: Mob?
         if swung { mobHit = touchedMob }
         // Never the mount you sit on (the ray starts inside its box when looking down: Quest round 3).
-        else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : 3.5, except: riding)
-                    ?? (vrHead != nil && !swingMelee ? reclinedAssist(reach: 3.5) : (swordHeld ? mobNearAim(reach: 3.5) : nil)) {
+        else if let hit = mobs.raycast(player.eye, player.look, maxDist: SaddleMelee.meleeReach(self, Spear.isSpear(held.item) ? Spear.reach : 3.5), except: riding)
+                    ?? (vrHead != nil && !swingMelee ? reclinedAssist(reach: 3.5) : (swordHeld ? mobNearAim(reach: SaddleMelee.meleeReach(self, 3.5)) : nil))
+                    ?? SaddleMelee.assist(self) {                             // D5: from the saddle
             let (m, dist) = hit
             // A sword means to hit the creature: it wins over a block in front of it (grass, a leaf, a fence).
             if swordHeld {
@@ -1170,6 +1171,7 @@ final class Game {
                 }
                 dmg += Enchant.damageBonus(held, against: m) * charge
                 dmg *= Legendaries.meleeScale(self, m)               // C10
+                dmg *= SaddleMelee.damageMult(self)                  // D5: the horse's speed in the blow
                 // Mace smash: bonus damage from the fall, which is then cancelled.
                 let fallen = player.airPeak - player.pos.y
                 if Items.key(held.item) == "mace" && fallen > 1.5 && !player.onGround {
@@ -1188,7 +1190,7 @@ final class Game {
                 attackTimer = 0
                 let kb = Float(Enchant.level(.knockback, held))
                 // Knockback: each Knockback level and a charged sprint hit add 1.25x the base (reference 0.5 on 0.4).
-                let kbLevels: Float = (kb + (player.sprinting && charge > 0.9 ? 1 : 0)) * Legendaries.knockbackScale(self)
+                let kbLevels: Float = (kb + (player.sprinting && charge > 0.9 ? 1 : 0) + SaddleMelee.knockback(self)) * Legendaries.knockbackScale(self)
                 let hp0 = m.health
                 Mob.playerMelee = true
                 Mob.meleeGame = self
