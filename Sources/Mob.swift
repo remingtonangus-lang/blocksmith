@@ -398,6 +398,7 @@ final class Mob {
     var armorTier = 0               // horse / wolf armour
     var armorHP = 0                 // wolf armour durability
     var chested = false
+    var coach: UInt8 = 0            // D4: a horse drawing a stagecoach (1) or freight wagon (2) (Stagecoach.swift)
     var cargo: ItemContainer?      // chest boat / pack animal inventory
     var spin: Float = 0            // boat turn rate (deg per tick)
     var equip: [ItemStack]?        // head, chest, legs, feet, main hand
@@ -854,7 +855,7 @@ final class Mob {
                 villageTick(g)
             }
             // P51: a rider on the road keeps to the road (Riders.swift).
-            if Riders.isRider(self) { speed = Riders.step(self, dt, g); break }
+            if Riders.isRider(self) || Stagecoach.isDriver(self) { speed = Riders.step(self, dt, g); break }
             // Townsfolk: fight monsters (and a player who hurt one of them), react to the player, then the routine.
             // (TownStats: each person's own pace, a deputy's run to an elder's shuffle.)
             if let s = townDefend(dt, g) {

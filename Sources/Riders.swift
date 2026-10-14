@@ -44,7 +44,7 @@ enum Riders {
     // which riders don't otherwise use); off any road they head straight for the goal.
     static func steer(_ g: Game) {
         guard let gen = g.world.gen as? WorldGen else { return }
-        for m in g.mobs.mobs where isRider(m) && m.mount != nil {
+        for m in g.mobs.mobs where (isRider(m) || Stagecoach.isDriver(m)) && m.mount != nil {
             guard let goal = m.patrolGoal else { m.wanderGoal = nil; continue }
             // The rider's own road: the one ending at their goal (at a crossing the nearest road may be the other one).
             let p2 = V2(m.pos.x, m.pos.z), g2 = V2(goal.x, goal.z)
@@ -85,6 +85,7 @@ enum Riders {
         if horse.collides(horse.pos, g.world) { return nil }
         horse.saddled = true
         horse.posse = riding
+        if Rand.float(in: 0..<1) < Stagecoach.chance { horse.coach = Rand.float(in: 0..<1) < 0.6 ? 1 : 2; horse.saddled = false }   // D4
         horse.persistent = true
         let r = Mob(.villager, at: at + V3(0, horse.height * 0.8, 0))
         r.home = at
@@ -133,6 +134,13 @@ enum Riders {
     static func rob(_ m: Mob, _ g: Game) {
         m.posse = robbed
         m.town.handsUp = 1.5
+        if let (cash, bounty) = Stagecoach.robbed(g, m) {                        // D4: a coach's strongbox or freight
+            g.money += cash
+            TownVoice.speak(g, m, .handsup)
+            if let goal = m.patrolGoal, let h = m.mount { m.patrolGoal = h.pos * 2 - goal; m.wanderGoal = nil }
+            crime(g, at: m.pos, bounty: bounty, honour: -15, why: "robbed a stagecoach")
+            return
+        }
         let cash = Rand.int(in: 8...30) * 100
         g.money += cash
         for (k, lo, hi) in [("bread", 1, 3), ("gold_nugget", 2, 7), ("arrow", 0, 6), ("apple", 0, 2)] where Items.has(k) {

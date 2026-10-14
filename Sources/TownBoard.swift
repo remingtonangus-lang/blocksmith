@@ -183,6 +183,7 @@ enum TownBoard {
     // Hunts and outlaws: kills by the player (Honour.mobDied).
     static func mobDied(_ g: Game, _ m: Mob) {
         Contracts.mobDied(g, m)                          // C11: camp bandits
+        Stagecoach.mobDied(g, m)                         // D4: a guarded coach's driver
         guard var all = TownLaw.state.jobs else { return }
         var changed = false
         for (k, var j) in all where j.taken && !j.done {

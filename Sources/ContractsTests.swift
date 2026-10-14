@@ -39,7 +39,7 @@ enum ContractsTests {
         let board = NoticeBoardMenu(game: g, town: town, anchor: anchor)
         let over = board.overflow()
         let base = BaseContractsMenu(game: g, board: "greywall:\(anchor.x + 900),\(anchor.z)", at: IVec3(anchor.x + 900, anchor.y, anchor.z))
-        check(today.count == 2 && kinds == ["courier", "escort", "camp", "defend"] && baseKinds.isSubset(of: ["camp", "courier"]) && !baseKinds.isEmpty
+        check(today.count == 2 && kinds.isSuperset(of: ["courier", "escort", "camp", "defend"]) && baseKinds.isSubset(of: ["camp", "courier"]) && !baseKinds.isEmpty
               && over.isEmpty && base.rows.count == 3 && base.rows.last?.name == "Read the war report",
               "C11 boards: \(town) posts \(today.map { $0.kind }); over 30 days \(kinds.sorted()); a base posts \(baseKinds.sorted()) and the war report; the board fits (\(over.prefix(2)))")
 

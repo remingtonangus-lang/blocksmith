@@ -83,6 +83,7 @@ extension Mob {
         if armorTier != 0 { d["armor"] = Float(armorTier) }
         if armorHP != 0 { d["armorHP"] = Float(armorHP) }
         if chested { d["chest"] = 1 }
+        if coach != 0 { d["coach"] = Float(coach) }
         if raider { d["raider"] = 1 }
         if captain { d["captain"] = 1 }
         if trap { d["trap"] = 1 }
@@ -132,6 +133,7 @@ extension Mob {
         armorTier = Int(d["armor"] ?? 0)
         armorHP = Int(d["armorHP"] ?? 0)
         chested = (d["chest"] ?? 0) > 0
+        coach = UInt8(max(0, min(2, d["coach"] ?? 0)))
         raider = (d["raider"] ?? 0) > 0
         captain = (d["captain"] ?? 0) > 0
         trap = (d["trap"] ?? 0) > 0
