@@ -530,6 +530,9 @@ extension Game {
     // Lava, fire, magma and cactus hurt; burning continues until water puts it out.
     func hazardTick(_ dt: Float) {
         frostWalkerTick()
+        // PG7 ("shouldn't damage anything if you're on Creative"): nothing burns or pricks a creative player, and no
+        // flames stay on the screen after a dip in lava.
+        guard survival else { onFire = 0; return }
         let p = player.pos
         let feet = world.block(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
         let body = world.block(Int(floor(p.x)), Int(floor(p.y + 1)), Int(floor(p.z)))

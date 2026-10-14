@@ -2508,7 +2508,18 @@ final class Game {
         hurtFlash = max(0, hurtFlash - Float(dt))
         let fall = player.pendingFall
         player.pendingFall = 0
-        guard survival else { air = 15; return }
+        guard survival else {
+            air = 15
+            // PG7: Creative takes no damage, not even from the void: a creative player who falls out of the world is
+            // set back on the ground above where they fell.
+            if player.pos.y < -60 {
+                let x = Int(floor(player.pos.x)), z = Int(floor(player.pos.z))
+                var y = CH - 2
+                while y > 1 && !Blocks.collide[Int(world.block(x, y, z))] { y -= 1 }
+                player.pos.y = Float(max(y + 1, YOFF + 64)); player.vel = .zero
+            }
+            return
+        }
 
         // Reference: ceil(distance - 3 - Jump Boost), scaled by what you land on (hay and honey 0.2, beds 0.5, slime 0
         // unless sneaking). Softened for Blocksmith (Remington, v61): 4 blocks are free and each block past that does
