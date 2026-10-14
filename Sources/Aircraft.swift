@@ -23,8 +23,10 @@ enum Aircraft {
         b.box(-2, 2, 4, 4, -4, 4, frame)
         for x in -1...1 { b.set(x, 2, -5, glass); b.set(x, 3, -5, glass); b.set(x, 4, -5, glass) }
         for z in [-4, -3, 0, 1] { b.set(-2, 3, z, glass); b.set(2, 3, z, glass) }
-        // Door gaps on both sides behind the cockpit.
+        // Door gaps on both sides behind the cockpit, each with a step outside it off the skid (P251: the cabin floor
+        // stands two blocks over the pad, so on foot there was no way up into it).
         for y in 2...3 { b.clear(-2, y, -1); b.clear(2, y, -1) }
+        b.set(-3, 0, -1, trim); b.set(3, 0, -1, trim)
         b.box(-2, 2, 3, 3, 4, 4, trim)                         // grey band across the back
         // A rounded nose: the corners cut back, a glazed chin.
         for y in 1...4 { b.clear(-2, y, -5); b.clear(2, y, -5) }

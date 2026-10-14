@@ -118,6 +118,29 @@ final class ShipDraw {
                 let pmodel: float4x4 = m * translationMatrix(c) * spin * translationMatrix(V3(-0.5, -0.5, -0.5))
                 drawSec(sl, pm, pmodel, s.skyLight, f, pass)
             }
+            // P251 (b): helicopter rotors (FlightModel.swift) as the Mac ShipRenderer draws them: the head turned about the
+            // mast, two blades stretched to the rotor's diameter from a render-only blade block. The hull mesh leaves
+            // rotors out, so the Quest drew no rotor at all.
+            if let fm = s.flight, fm.kind == .heli, !s.rotors.isEmpty {
+                let bladeB: BlockID = Blocks.has("ship_rotor_blade") ? Blocks.id("ship_rotor_blade") : AIR
+                let span = fm.rotorRadius(s) * 2
+                let half = V3(-0.5, -0.5, -0.5)
+                for c in s.rotors {
+                    let hubB = s.grid.get(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z)))
+                    let turn = simd_quatf(angle: fm.spin, axis: V3(0, 1, 0))
+                    if hubB != AIR, let pm = propMesh(hubB) {
+                        let hm: float4x4 = m * translationMatrix(c) * float4x4(turn) * translationMatrix(half)
+                        drawSec(sl, pm, hm, s.skyLight, f, pass)
+                    }
+                    guard bladeB != AIR, let bm = propMesh(bladeB) else { continue }
+                    let stretch = float4x4(diagonal: SIMD4<Float>(span, 1, 1, 1))
+                    for k in 0..<2 {
+                        let r = turn * simd_quatf(angle: Float(k) * .pi / 2, axis: V3(0, 1, 0))
+                        let bmodel: float4x4 = m * translationMatrix(c + V3(0, 0.42, 0)) * float4x4(r) * stretch * translationMatrix(half)
+                        drawSec(sl, bm, bmodel, s.skyLight, f, pass)
+                    }
+                }
+            }
         }
         for pass in 0..<2 {
             vkCmdBindPipeline(sl.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scene.pipe(pass == 0 ? "shipSolid" : "shipCut"))

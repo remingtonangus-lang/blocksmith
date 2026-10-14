@@ -7,6 +7,7 @@ enum PlaytestOct14Tests {
     static func run(_ g: Game, only: String?, render: ((String, V3, Float, Float) -> Void)?, check: (Bool, String) -> Void) {
         func on(_ id: String) -> Bool { only == nil || only == id }
         if on("P250") { p250(g, check: check) }
+        if on("P251") { p251(g, render: render, check: check) }
     }
 
     // P250: (a) the render distance the player sets holds unless frames really suffer and comes back when they stop;
@@ -33,6 +34,64 @@ enum PlaytestOct14Tests {
         check(fs.c.y < ps.c.y && green > 1.05, String(format: "P250 (b): in leaf colours, darker than the plains' grass (green %.2f vs %.2f)", fs.c.y, ps.c.y))
     }
 
+    // P251: (a) on foot in survival, the Capital's helicopter on its pad can be boarded and flown off; (b) its rotor turns.
+    static func p251(_ g: Game, render: ((String, V3, Float, Float) -> Void)?, check: (Bool, String) -> Void) {
+        let w = g.world
+        let wasPos = g.player.pos, wasSurvival = g.survival, wasFlying = g.player.flying
+        let sx = Int(floor(g.player.pos.x)) + 40, sz = Int(floor(g.player.pos.z))
+        _ = w.loadSync(center: V3(Float(sx), 200, Float(sz)), radius: 3)
+        let Y = min(CH - 40, w.topY(sx, sz) + 40)
+        let stone = Blocks.id("smooth_stone")
+        w.deferRemesh = true
+        for dz in -12...12 { for dx in -12...12 {
+            for y in Y...(Y + 20) where w.block(sx + dx, y, sz + dz) != AIR { w.setBlock(sx + dx, y, sz + dz, AIR) }
+            w.setBlock(sx + dx, Y, sz + dz, stone)
+        } }
+        w.deferRemesh = false
+        defer {
+            for s in w.ships.list where s.role == "kestrel" { w.ships.remove(s) }
+            w.ships.pilot = nil; w.ships.aboard = nil
+            w.deferRemesh = true
+            for dz in -12...12 { for dx in -12...12 { w.setBlock(sx + dx, Y, sz + dz, AIR) } }
+            w.deferRemesh = false
+            g.player.pos = wasPos; g.survival = wasSurvival; g.player.flying = wasFlying
+        }
+        let padTop = Float(Y + 1)
+        let k = Aircraft.spawn("kestrel", at: V3(Float(sx) + 0.5, padTop + 3, Float(sz) + 0.5), yaw: .pi, game: g, crewed: false)
+        let dt: Float = 1.0 / 60
+        for _ in 0..<180 { w.ships.update(dt, game: g) }
+        // (a) A step up to the door on both sides: pad -> step -> cabin floor, a block each.
+        let lo = Aircraft.kestrel().cells.keys.reduce(IVec3(Int.max, Int.max, Int.max)) { IVec3(min($0.x, $1.x), min($0.y, $1.y), min($0.z, $1.z)) }
+        func cell(_ x: Int, _ y: Int, _ z: Int) -> BlockID { k.grid.get(x - lo.x, y - lo.y, z - lo.z) }
+        let stepL = cell(-3, 0, -1), stepR = cell(3, 0, -1), floorR = cell(2, 1, -1), doorR = cell(2, 2, -1), headR = cell(2, 3, -1)
+        check(Blocks.collide[Int(stepL)] && Blocks.collide[Int(stepR)] && Blocks.collide[Int(floorR)] && doorR == AIR && headR == AIR,
+              "P251 (a): a step outside each door, a block over the pad and a block under the cabin floor (\(Blocks.key(stepL)), \(Blocks.key(stepR)), door \(Blocks.key(doorR)))")
+        // On foot on the pad beside it, survival: the use button takes the controls.
+        g.survival = true; g.player.flying = false
+        g.player.pos = k.toWorld(V3(Float(4 - lo.x) + 0.5, 0.05, Float(-1 - lo.z) + 0.5)); g.player.vel = .zero
+        g.player.pos.y = padTop
+        let can = g.commandeerable()
+        check(can === k, "P251 (a): standing on the pad beside the Kestrel, use takes its controls (\(can?.name ?? "none"))")
+        guard can === k else { return }
+        g.takeCommand(k)
+        check(w.ships.pilot === k, "P251 (a): the player is at the Kestrel's controls")
+        // Collective up (jump) for 6 s: it lifts off the pad.
+        var input = MoveInput()
+        input.jump = true
+        let y0 = k.pos.y, spin0 = k.flight?.spin ?? 0
+        var turned: Float = 0, last = spin0
+        for _ in 0..<360 {
+            if !g.pilotTick(k, input, dt) { break }
+            w.ships.update(dt, game: g)
+            let sp = k.flight?.spin ?? last
+            turned += sp >= last ? sp - last : sp + 2 * .pi - last
+            last = sp
+        }
+        check(k.pos.y - y0 > 3, String(format: "P251 (a): in survival the collective lifts it off the pad (%.1f blocks up in 6 s)", k.pos.y - y0))
+        // (b) The rotor turns while it flies (drawn on the Quest by ShipDraw like the Mac's ShipRenderer).
+        check(turned > 1 && k.flight?.kind == .heli && !k.rotors.isEmpty, String(format: "P251 (b): the rotor turns (%.0f rad in 6 s)", turned))
+        render?("p251_kestrel", k.pos + V3(-9, 2, 9), atan2f(-9, 9), -0.12)
+    }
 
 
 

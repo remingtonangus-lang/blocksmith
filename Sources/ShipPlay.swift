@@ -261,7 +261,8 @@ extension Game {
     // MARK: Commandeering (Quest round 4: dropships and frigates couldn't be taken, and a helm had to be hit exactly)
     // A vessel whose helm the player may take from where they stand: within 6 blocks of the helm (a dropship: 9, it
     // hovers while unloading), or anywhere aboard a Capital flier. The use button takes it (Game.interact), with a toast
-    // on entering the zone and a label on the Quest.
+    // on entering the zone and a label on the Quest. P251 (Oct 14 midday, "no way to just hop up in there on
+    // survival"): the Capital's helicopter and plane too, standing beside them on the pad or the runway.
     func commandeerable() -> Ship? {
         let ships = world.ships
         guard ships.pilot == nil, alive, menu == nil else { return nil }
@@ -270,10 +271,10 @@ extension Game {
         var bd = Float.greatestFiniteMagnitude
         for s in ships.list where s.parent == nil && !s.wrecked && s.helm != nil {
             // Crewed vessels and Capital fliers only: near the player's own builds use keeps placing blocks.
-            if s.kinematic ? !ships.canCommandeer(s) : !s.isVessel { continue }
+            if s.kinematic ? !ships.canCommandeer(s) : !(s.isVessel || s.role == "kestrel" || s.role == "capplane") { continue }
             guard let stand = helmStand(s) else { continue }
             let d = simd_length(s.toWorld(stand) - p)
-            let zone: Float = s.role == "dropship" ? 9 : 6
+            let zone: Float = s.role == "dropship" ? 9 : (s.role == "kestrel" || s.role == "capplane" ? 8 : 6)
             let aboard = s.kinematic && (ships.aboard?.root === s || ships.boundsDistance(s, p) < (s.role == "dropship" ? 3 : 0.5))
             if (d < zone || aboard) && d < bd { best = s; bd = d }
         }
