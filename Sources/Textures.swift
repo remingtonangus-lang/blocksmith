@@ -1072,6 +1072,7 @@ enum TextureGen {
         springPainters(&p)
         shipPainters(&p)
         vehicleWorksPainters(&p)
+        fuelPumpPainters(&p)                              // D44 (VehicleDepot.swift)
         weaponPrinterPainters(&p)
         Guns.painters(&p)
         Magazines.painters(&p)

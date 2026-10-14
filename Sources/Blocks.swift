@@ -702,6 +702,7 @@ final class BlockRegistry {
         registerSpringBlocks()
         registerShipBlocks()
         registerVehicleWorks()
+        registerFuelPump()                                // D44 (VehicleDepot.swift)
         registerWeaponPrinter()
         registerGunsmithBench()                           // D31
         registerSecurityCamera()                          // D35

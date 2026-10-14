@@ -1698,7 +1698,7 @@ final class Game {
         let shape = Blocks.shape[Int(b)]
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
         if shape == "gate" { return true }
-        return k == "crafting_table" || k == "command_console" || k == VehicleWorks.key || k == WeaponPrinter.key || k == GunsmithBench.key || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
+        return k == "crafting_table" || k == "command_console" || k == VehicleWorks.key || k == WeaponPrinter.key || k == GunsmithBench.key || k == VehicleDepot.pumpKey || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || (k == "cave_vines" && b != Blocks.groupBase[Int(b)])          // a podded lanternvine is picked (P125)
@@ -1800,6 +1800,7 @@ final class Game {
         case WeaponPrinter.key: openMenu(WeaponPrinterMenu(game: self))           // H5 (WeaponPrinter.swift)
         case GunsmithBench.key: openMenu(GunsmithBenchMenu(game: self))           // D31 (GunsmithBench.swift)
         case VehicleWorks.key: VehicleWorks.use(self, p)                            // P54 (VehicleWorks.swift)
+        case VehicleDepot.pumpKey: VehicleDepot.pump(self, p)                         // D44 (VehicleDepot.swift)
         case "stonecutter": openMenu(StonecutterMenu(game: self))
         case "grindstone": openMenu(GrindstoneMenu(game: self))
         case "ender_chest": openMenu(ChestMenu(game: self, container: enderChest, title: "Void Chest"))

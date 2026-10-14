@@ -45,9 +45,10 @@ enum VehicleWorks {
     }
 
     // Use on the block: with more than the Field Tank's drawings learned, the Works asks which (D43, VehiclePresets);
-    // otherwise it builds the tank.
+    // with a vehicle of yours anywhere or one in its garage, it offers to garage, take out or recall it (D44,
+    // VehicleDepot); otherwise it builds the tank.
     static func use(_ g: Game, _ p: IVec3) {
-        if VehiclePresets.known(g).count > 1 { g.openMenu(VehicleWorksMenu(game: g, at: p)); return }
+        if VehiclePresets.known(g).count > 1 || VehicleDepot.anything(g) { g.openMenu(VehicleWorksMenu(game: g, at: p)); return }
         build(g, p, VehiclePresets.all[0])
     }
 
@@ -60,7 +61,20 @@ enum VehicleWorks {
             g.onToast?("Vehicle Works: a \(v.name) needs \(list)\(short.count > 3 ? "..." : "") more")
             return false
         }
-        // The side of the Works facing away from the player, the vehicle's long axis pointing away too.
+        guard let (c, yaw) = spot(g, p) else { return false }
+        if g.survival { for (k, n) in v.bill where Items.has(k) { g.takeAmmo(k, n) } }
+        let s = g.world.ships.spawn(v.blueprint(), at: c + V3(0, 3, 0), yaw: yaw, name: v.name, role: "")
+        s.role = nil
+        settle(s, on: c)
+        s.initialBlocks = s.blockCount
+        g.sfx(.engineStart, 1, at: c)
+        g.onToast?("A \(v.name) rolls out of the Vehicle Works")
+        return true
+    }
+
+    // The yard beside the Works on the side away from the player, and the heading away from it (nil, with a toast:
+    // not clear).
+    static func spot(_ g: Game, _ p: IVec3) -> (V3, Float)? {
         let d = V2(Float(p.x) + 0.5 - g.player.pos.x, Float(p.z) + 0.5 - g.player.pos.z)
         let alongX = abs(d.x) > abs(d.y)
         let sgn: Float = alongX ? (d.x >= 0 ? 1 : -1) : (d.y >= 0 ? 1 : -1)
@@ -68,21 +82,18 @@ enum VehicleWorks {
         let c = V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5) + (alongX ? V3(sgn * gap, 0, 0) : V3(0, 0, sgn * gap))
         guard clear(g.world, centre: c, alongX: alongX) else {
             g.onToast?("Vehicle Works: clear a \(footprint.x) x \(footprint.z) yard beside it first")
-            return false
+            return nil
         }
-        if g.survival { for (k, n) in v.bill where Items.has(k) { g.takeAmmo(k, n) } }
         // Heading: the vehicle's front (-Z in the blueprint) points away from the Works.
-        let yaw: Float = alongX ? (sgn > 0 ? -.pi / 2 : .pi / 2) : (sgn > 0 ? .pi : 0)
-        let s = g.world.ships.spawn(v.blueprint(), at: c + V3(0, 3, 0), yaw: yaw, name: v.name, role: "")
-        s.role = nil
+        return (c, alongX ? (sgn > 0 ? -.pi / 2 : .pi / 2) : (sgn > 0 ? .pi : 0))
+    }
+
+    // Sets a vehicle's wheels down on the yard at c.
+    static func settle(_ s: Ship, on c: V3) {
         let lift = c.y + 0.6 - s.toWorld(V3(0, s.localMin.y, 0)).y
         s.pos.y += lift
         s.prevPos = s.pos
         s.updateBounds()
-        s.initialBlocks = s.blockCount
-        g.sfx(.engineStart, 1, at: c)
-        g.onToast?("A \(v.name) rolls out of the Vehicle Works")
-        return true
     }
 
     static func clear(_ w: World, centre c: V3, alongX: Bool) -> Bool {

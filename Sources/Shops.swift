@@ -149,7 +149,7 @@ enum Economy {
         // Food
         "requisition_form": 2, "duty_roster": 2, "boot_polish": 4, "radio_valve": 6, "typewriter_ribbon": 3, "rubber_stamp": 5,
         "empty_sandbag": 3, "tent_pegs": 2, "mess_tin": 5, "spent_casings": 1,                       // P133 base sundries
-        "vehicle_blueprint": 400,                                                                      // D43
+        "vehicle_blueprint": 400, "fuel_can": 300,                                                                      // D43
         "upgrade_blueprint": 150,                                                                      // P138
         "bread": 30, "capital_ration": 90, "baked_potato": 25, "cookie": 10, "pumpkin_pie": 70, "beetroot_soup": 50, "mushroom_stew": 50,
         "rabbit_stew": 90, "cooked_beef": 45, "cooked_porkchop": 45, "cooked_chicken": 35, "cooked_mutton": 40,
@@ -217,7 +217,7 @@ enum Economy {
         .general: [("bread", 16), ("apple", 16), ("baked_potato", 12), ("torch", 64), ("lantern", 4), ("bucket", 2),
                    ("glass_bottle", 16), ("map", 2), ("compass", 1), ("clock", 1), ("paper", 32), ("book", 8),
                    ("shears", 2), ("fishing_rod", 2), ("lead", 4), ("flint_and_steel", 2), ("wheat_seeds", 32),
-                   ("beetroot_seeds", 16), ("carrot", 16), ("potato", 16), ("treasure_map", 1), ("emerald", 12)],
+                   ("beetroot_seeds", 16), ("carrot", 16), ("potato", 16), ("treasure_map", 1), ("emerald", 12), ("fuel_can", 4)],
         // R8 (Oct 13: "everything takes slate rounds"): every gun on the shelf has its rounds on the shelf: the six-iron
         // (rifle rounds) is stocked, and a Capital city's gunsmith sells Capital rounds for the Capital guns it sells.
         .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("gun_revolver", 1), ("rifle_rounds", 64),

@@ -1,4 +1,5 @@
 import Foundation
+import simd
 
 // D43: vehicle presets unlocked by blueprints, a stage at a time. The Vehicle Works always knows the Field Tank; four
 // more drawings turn up as Vehicle Blueprints in chests along the spine, each where its stage takes you, about one
@@ -119,24 +120,60 @@ extension Game {
 }
 
 final class VehicleWorksMenu: ListMenu {
+    enum Act { case build(VehiclePresets.Preset), takeOut(Int), store(Ship), recall(Ship) }
     let at: IVec3
+    var acts: [Act] = []
     init(game g: Game, at p: IVec3) {
         at = p
         super.init("Vehicle Works", game: g)
-        subtitle = "Pick a drawing; the parts come from your pack"
+        subtitle = "Build from a drawing, or see to your vehicles"
     }
-    var presets: [VehiclePresets.Preset] { VehiclePresets.known(game) }
     override var rows: [Row] {
-        presets.map { v in
+        acts = []
+        var out: [Row] = []
+        let c = V3(Float(at.x) + 0.5, Float(at.y), Float(at.z) + 0.5)
+        for v in VehiclePresets.known(game) {
             let short = VehicleWorks.missing(game, v.bill)
             let detail = short.isEmpty ? "All parts in your pack"
                 : "Needs " + short.prefix(2).map { "\($0.1) \(Items.def(Items.id($0.0)).display)" }.joined(separator: ", ") + (short.count > 2 ? "..." : "")
-            return Row(name: v.name, detail: detail, value: "", enabled: short.isEmpty, good: short.isEmpty)
+            acts.append(.build(v))
+            out.append(Row(name: "Build a \(v.name)", detail: detail, value: "", enabled: short.isEmpty, good: short.isEmpty))
         }
+        for (i, st) in VehicleDepot.garage().enumerated() {                         // D44: the garage
+            acts.append(.takeOut(i))
+            out.append(Row(name: "Take out the \(st.name)", detail: "In the garage", value: "", enabled: true, good: true))
+        }
+        for s in VehicleDepot.yours(game) {
+            let near = game.world.ships.boundsDistance(s, c) < VehicleDepot.garageReach
+            let busy = VehicleDepot.busy(game, s)
+            if near {
+                acts.append(.store(s))
+                out.append(Row(name: "Garage the \(s.name)", detail: busy ? "Step off her first" : "Store her out of the weather", value: "",
+                               enabled: !busy, good: true))
+            } else {
+                let price = game.survival ? Money.format(VehicleDepot.recallPrice) : ""
+                acts.append(.recall(s))
+                out.append(Row(name: "Recall the \(s.name)", detail: String(format: "%.0f blocks off: brought by road", simd_length(s.pos - c)),
+                               value: price, enabled: !busy && (!game.survival || game.money >= VehicleDepot.recallPrice), good: true))
+            }
+        }
+        corner = "Wallet " + Money.format(game.money)
+        return out
     }
     override func pressed(_ i: Int) {
-        let list = presets
-        guard i < list.count else { return }
-        if VehicleWorks.build(game, at, list[i]) { game.closeMenu() } else { say("Not yet: see what it needs", good: false) }
+        _ = rows
+        guard i < acts.count else { return }
+        switch acts[i] {
+        case .build(let v):
+            if VehicleWorks.build(game, at, v) { game.closeMenu() } else { say("Not yet: see what it needs", good: false) }
+        case .takeOut(let k):
+            let r = VehicleDepot.takeOut(game, k, at: at)
+            if r.1 { game.closeMenu() } else if !r.0.isEmpty { say(r.0, good: false) }
+        case .store(let s):
+            let r = VehicleDepot.store(game, s); say(r.0, good: r.1)
+        case .recall(let s):
+            let r = VehicleDepot.recall(game, s, at: at)
+            if r.1 { game.closeMenu(); game.onToast?(r.0) } else { say(r.0, good: false) }
+        }
     }
 }

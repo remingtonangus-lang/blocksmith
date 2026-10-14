@@ -435,7 +435,7 @@ D40. [DONE] Hire a crew to man ship guns.
 D41. [DONE] Broadside battles and boarding by grapple.
 D42. [DONE] Aim the Field Tank turret from the helm.
 D43. [DONE] Vehicle presets unlocked by blueprints per stage.
-D44. Fuel depots; recall or garage a vehicle.
+D44. [DONE] Fuel depots; recall or garage a vehicle.
 D45. Deer, elk, bison herds and boar.
 D46. Bait and wind, tracks and blood trails, snares.
 D47. Vault side objectives, the armoured train robbery, a boss bar on the Quest HUD.
