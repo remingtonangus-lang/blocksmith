@@ -50,7 +50,10 @@ enum Mining {
         }
         else if correctTool(b, tool) {
             speed = tool.def.toolSpeed
-            if eff > 0 { speed += Float(eff * eff + 1) }
+            // P234 (Oct 13 21:49, "used to having an efficiency shovel"): Titanium and Duskium shovels dig as an
+            // Efficiency V shovel does (dirt, sand, gravel and snow go in one tap); an enchantment adds only past that.
+            if t == .shovel && tool.def.tier >= 3 { speed += Float(max(eff, 5) * max(eff, 5) + 1) }
+            else if eff > 0 { speed += Float(eff * eff + 1) }
         }
         else if t == .sword && swordEfficient(b, key) { speed = 1.5 }
         // P165 (Oct 13: "the axe slices through leaves really quick"): leaves take a deliberate hack, 0.8 s by hand or
