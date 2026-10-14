@@ -79,6 +79,7 @@ enum TownLaw {
         // D27 (Fence.swift): stolen units per item key, and the day of the last theft.
         var hot: [String: Int]? = nil
         var hotDay: Int? = nil
+        var property: [[Int]]? = nil                 // D28 (Property.swift): your houses and homesteads
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -135,6 +136,7 @@ enum TownLaw {
 
     static func isTownSpot(_ g: Game, _ p: IVec3) -> Bool {
         if let f = forceTown { return f }
+        if Property.owns(p) { return false }                                    // D28: your own house or homestead
         guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
               let s = sc.nearest("village", x: p.x, z: p.z, maxRegions: 1) else { return false }
         return abs(s.anchor.x - p.x) < 72 && abs(s.anchor.z - p.z) < 72

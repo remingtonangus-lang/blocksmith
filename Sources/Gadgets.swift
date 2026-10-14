@@ -28,6 +28,7 @@ extension Game {
         let k = Items.key(held.item)
         if k == "spyglass" && useHeld { scoping = true; return true }
         if k == Lasso.key && useNow { return throwLasso() }                // D1 (Lasso.swift)
+        if (k == Property.townKey || k == Property.homeKey) && useNow { return Property.use(self, k) }   // D28
         if useNow && wearTroopSet() { return true }                      // P204
         if k == "goat_horn" && useNow {
             guard clock - lastHorn > 7 else { return true }
