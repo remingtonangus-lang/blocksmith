@@ -112,5 +112,6 @@ extension Game {
     }
 
     // Cloud cover as drawn: the biome's fair-weather cover, pushed to overcast by rain and thunder.
-    var cloudCover: Float { min(1, sky.cover + (1 - sky.cover) * min(1, weather.rain * 0.85 + weather.thunder * 0.3)) }
+    // (P253: foggy weather overcasts the sky before its fog thickens: WeatherWar.fogThick.)
+    var cloudCover: Float { min(1, sky.cover + (1 - sky.cover) * min(1, weather.rain * 0.85 + weather.thunder * 0.3 + min(1, WeatherWar.fog * 2.2))) }
 }

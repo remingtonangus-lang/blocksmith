@@ -18,6 +18,12 @@ enum WeatherWar {
     static var forceStorm: Bool?             // (the checks set the weather)
     static var forceSnow: Bool?
     static let fogSee: Float = 30
+    // P253 (Oct 14 12:00 and 12:16, "the mysterious fog just hit me... the air is still open, so it has to be fixed"):
+    // the fog banks started under a clear sky ("Fog is rolling in" a second before each note). Fog is now a weather you
+    // see coming: the sky clouds over first (Game.cloudCover follows `fog`), and the fog only thickens once the sky is
+    // overcast. Under a clear sky there is no fog: the bank, the valley mist (Quest) and the lowland mist (Fancy, Mac)
+    // all follow `fogThick`.
+    static var fogThick: Float { max(0, (fog - 0.4) / 0.6) }
 }
 
 extension Game {
@@ -40,7 +46,7 @@ extension Game {
     private var fogBankEnd: Float? {
         guard WeatherWar.fog > 0.02, dim.dim == .overworld else { return nil }
         let up = simd_clamp((player.pos.y - Float(YOFF) - 90) / 60, 0, 1)
-        let f = WeatherWar.fog * (1 - up)
+        let f = WeatherWar.fogThick * (1 - up)
         guard f > 0.02 else { return nil }
         return WeatherWar.fogSee + (1 - f) * (1 - f) * 220
     }
@@ -56,7 +62,7 @@ extension Game {
             } else {
                 let dawn = dayFraction > 0.95 || dayFraction < 0.1
                 WeatherWar.fogOn = over && weather.rain < 0.5 && Rand.float(in: 0..<1) < (dawn ? 0.2 : 0.05)   // (P211: was 0.8 / 0.35)
-                if WeatherWar.fogOn { onToast?("Fog is rolling in") }
+                if WeatherWar.fogOn { onToast?("The sky is clouding over: fog is coming") }
                 WeatherWar.fogTimer = WeatherWar.fogOn ? Double(Rand.float(in: 240...600)) : Double(Rand.float(in: 600...2400))
             }
         }
@@ -76,6 +82,13 @@ extension Game {
             WeatherWar.stormed = storm
             if over { onToast?(storm ? "A storm rolls in: flyers are grounded and no dropship will launch" : "The storm has passed: the skies are open again") }
         }
+    }
+
+    // P253: the valley mist's strength (the Quest's chunk shaders, SH1): only in foggy weather, never under a clear sky
+    // (it lay in the low ground every dawn, dusk and night).
+    var valleyMist: Float {
+        guard dim.dim == .overworld && dim.dim.hasSky else { return 0 }
+        return 0.55 * WeatherWar.fogThick * (1 - min(1, weather.rain * 2))
     }
 
     // A soldier's pace in the weather: snow falling near the player, or snow underfoot.
