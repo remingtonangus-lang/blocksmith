@@ -276,6 +276,7 @@ extension Recipes {
         r.append(shaped(["III", "IFI", "CCC"], ["I": "iron_ingot", "F": "furnace", "C": "cobblestone"], "ship_engine"))
         r.append(shaped(["WWW", "WSW", "WWW"], ["W": "white_wool", "S": "string"], "ship_balloon", 4))
         r.append(shaped(["SSS", "PPP"], ["S": "stick", "P": "#planks"], "ship_wing", 4))
+        r.append(shaped(["PIP", " I ", " I "], ["P": "ship_propeller", "I": "iron_ingot"], "ship_rotor"))                   // P263: the other way to fly
         r.append(shaped([" P ", "PIP", " P "], ["P": "#planks", "I": "iron_ingot"], "ship_wheel", 2))
         r.append(shaped(["III", "I I", "III"], ["I": "iron_ingot"], "ship_turret_ring"))
         r.append(shaped(["II ", "IGI", "PPP"], ["I": "iron_ingot", "G": "gunpowder", "P": "#planks"], "ship_cannon"))

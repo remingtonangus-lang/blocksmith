@@ -236,35 +236,83 @@ extension Wrecks {
         return order.map { "\(n[$0]!) \(name($0))" }.joined(separator: ", ") + (r.shapeless.isEmpty ? " (crafting table)" : "")
     }
 
-    // The guide's pages, or nil when the hull already has what it needs to move.
-    static func guide(_ s: Ship) -> [String]? {
+    // The guide's pages and whether the hull can already move, or nil when it has what it needs (P263, Oct 14
+    // 12:17-12:18, a repeat of P225: "lift plumes 0 of 10", "weighs 600 tons", "why do I need lift if it already
+    // drove"). The first page lists what the hull has and what it lacks, split into moving and flying; each missing part
+    // gets a page saying what it does, how many more, its recipe and where it goes; weight is given in blocks with the
+    // lift rule the physics uses (ShipTuning.liftPerBalloon), and the rotor is offered as the other way to fly.
+    struct Guide { let pages: [String]; let canMove: Bool }
+    static func guide(_ s: Ship) -> Guide? {
         let flier = s.name.contains("Dropship") || s.name.contains("Launch") || s.name.contains("Skiff") || s.balloons > 0 || !s.rotors.isEmpty || !s.wings.isEmpty
         let tonnes = s.mass                                       // (ship mass is in tonnes, ShipPhysics)
-        let lift = Int((tonnes / ShipTuning.balloonLift).rounded(.up))
-        var lines: [(String, String, Int, Int, String)] = []        // key, label, have, need, where
-        let driven = !s.props.isEmpty || !s.rotors.isEmpty
-        if s.helm == nil { lines.append(("ship_helm", "Ship Helm", 0, 1, "on deck, where you stand to steer; it faces the bow")) }
-        if !driven && s.sails == 0 && s.wheels.isEmpty {
-            lines.append(("ship_propeller", "Propeller", 0, 1, "on the stern (the back face), behind the hull: it pushes the ship forward"))
+        let per = ShipTuning.liftPerBalloon(tonnes)
+        let lift = max(1, Int((tonnes / per).rounded(.up)))
+        let wheelDrives = s.wheels.isEmpty ? 0 : Int(ceil(sqrtf(Float(s.wheels.count))))
+        let drives = s.props.count + wheelDrives
+        let enginesNeeded = drives == 0 && s.rotors.isEmpty ? 0 : max(1, (drives + ShipTuning.perEngine - 1) / ShipTuning.perEngine)
+        let rotor = !s.rotors.isEmpty
+        let powered = s.engines >= enginesNeeded
+        let canMove = s.helm != nil && ((drives > 0 && s.engines > 0) || s.sails > 0)
+        let flies = !flier || s.balloons >= lift || (rotor && s.engines > 0 && !s.props.isEmpty) || s.flight?.kind == .plane
+        typealias Line = (key: String, label: String, have: Int, need: Int, what: String, where: String)
+        var move: [Line] = [], fly: [Line] = []
+        if s.helm == nil {
+            move.append(("ship_helm", "Ship Helm", 0, 1, "you steer from it: take it and the throttle and steering are yours",
+                         "on deck, where you stand to steer; it faces the bow"))
         }
-        if (driven || s.sails == 0) && s.engines == 0 && s.wheels.isEmpty {
-            lines.append(("ship_engine", "Engine", 0, 1, "anywhere in the hull, touching it: one engine drives every propeller and rotor"))
+        if drives == 0 && s.sails == 0 && !rotor {
+            move.append(("ship_propeller", "Propeller", 0, 1, "pushes the hull along when an engine turns it",
+                         "on the stern (the back face), behind the hull, facing out"))
         }
-        if flier && s.rotors.isEmpty && s.flight == nil && s.balloons < lift {
-            lines.append(("ship_balloon", "Lift Balloon", s.balloons, lift,
-                          "on the deck or the roof; each holds up \(Int(ShipTuning.balloonLift)) tonnes and this hull weighs \(Int(tonnes.rounded())) tonnes"))
+        if (drives > 0 || rotor) && !powered {
+            move.append(("ship_engine", "Engine", s.engines, max(1, enginesNeeded),
+                         "turns the propellers, wheels and rotor; one engine drives up to \(ShipTuning.perEngine) propellers or wheels",
+                         "anywhere inside the hull, touching it"))
         }
-        guard !lines.isEmpty else { return nil }
-        var pages = ["\(s.name.uppercased())\n\nThis hull can't \(flier ? "fly" : "move") yet. It needs:\n\n"
-                     + lines.map { "- \($0.1): \($0.2) of \($0.3)" }.joined(separator: "\n")
-                     + "\n\nNext pages: each part, its recipe and where it goes. Then take the helm again."]
-        for l in lines {
-            pages.append("\(l.1.uppercased())\n\nNeeded: \(l.3 - l.2) more\n\nRecipe: \(recipeText(l.0))\n\nWhere: \(l.4)")
+        if flier && !flies {
+            if rotor {
+                if s.props.isEmpty {
+                    fly.append(("ship_propeller", "Tail Propeller", 0, 1, "stops a rotor craft spinning round under its rotor (the tail rotor)",
+                                "at the tail, facing sideways"))
+                }
+            } else {
+                fly.append(("ship_balloon", "Lift Balloon", s.balloons, lift,
+                            "holds the hull up in the air: \(Int(per)) tonnes each for this hull; with enough of them the climb control lifts it",
+                            "on the deck or the roof, spread out (any number of blocks high)"))
+            }
         }
-        if !flier { pages.append("OR SAILS\n\n" + mastHow) }
+        guard !move.isEmpty || !fly.isEmpty else { return nil }
+        func have(_ n: Int, _ one: String) -> String { "\(n) \(one)\(n == 1 ? "" : "s")" }
+        var has: [String] = [s.helm != nil ? "helm" : "no helm"]
+        if !s.props.isEmpty { has.append(have(s.props.count, "propeller")) }
+        if s.engines > 0 || drives > 0 { has.append(have(s.engines, "engine")) }
+        if !s.wheels.isEmpty { has.append("wheels") }
+        if s.sails > 0 { has.append("sails") }
+        if s.balloons > 0 { has.append(have(s.balloons, "balloon")) }
+        if rotor { has.append("a rotor head") }
+        var first = "\(s.name.uppercased())\n\nHas: \(has.joined(separator: ", ")).\n\n"
+        if move.isEmpty { first += "It can already \(s.sails > 0 && drives == 0 ? "sail" : "move") under its own power.\n\n" }
+        else { first += "To move it needs:\n" + move.map { "- \($0.label): \($0.have) of \($0.need)" }.joined(separator: "\n") + "\n\n" }
+        if !fly.isEmpty {
+            first += "To fly it also needs:\n" + fly.map { "- \($0.label): \($0.have) of \($0.need)" }.joined(separator: "\n")
+            if !rotor { first += "\n(or a Rotor Head instead of balloons: see Weight and Lift)" }
+            first += "\n\n"
+        }
+        first += "Next pages: each part, what it does, its recipe and where it goes. Then take the helm again."
+        var pages = [first]
+        for l in move + fly {
+            pages.append("\(l.label.uppercased())\n\nWhat it does: \(l.what).\n\nNeeded: \(max(1, l.need - l.have)) more\n\nRecipe: \(recipeText(l.key))\n\nWhere: \(l.where)")
+        }
+        if flier && !flies && !rotor {
+            pages.append("WEIGHT AND LIFT\n\nThis hull is \(s.blockCount) blocks, and each block weighs about a tonne: \(Int(tonnes.rounded())) tonnes. "
+                + "A balloon holds up 60 tonnes, or a sixth of the hull on a big one, so this hull needs \(lift). Breaking off loose or torn blocks lowers that.\n\n"
+                + "Or fly it like a helicopter: one Rotor Head on the roof over the middle, an Engine, and a Propeller facing sideways at the tail. "
+                + "A rotor lifts a hull of any size.\n\nRotor Head: \(recipeText("ship_rotor"))")
+        }
+        if !flier && move.contains(where: { $0.key == "ship_propeller" }) { pages.append("OR SAILS\n\n" + mastHow) }
         // P225: cannons need shot, and nothing said where it goes.
         if !s.cannons.isEmpty { pages.append(cannonHow(s.cannons.count)) }
-        return pages
+        return Guide(pages: pages, canMove: move.isEmpty)
     }
 
     static func cannonHow(_ n: Int) -> String {
@@ -278,13 +326,19 @@ extension Wrecks {
         // P220 (Oct 13 19:08-19:14, "the engine block and light panel requirements are unclear"): taking the helm of a
         // hull that can't go (no drive, or propellers with no engine, or too few balloons to lift a flier) opens the
         // repair guide: each missing part, how many, its recipe and where it goes. Once per hull a session.
-        if let s = g.world.ships.pilot, s.parent == nil, g.menu == nil, !guided.contains(s.id), let pages = guide(s) {
+        if let s = g.world.ships.pilot, s.parent == nil, g.menu == nil, !guided.contains(s.id), let gd = guide(s) {
             guided.insert(s.id)
             st.mastHint = true
-            var book = ItemStack(Items.id("written_book"), 1)
-            book.label = "Repairs: \(s.name)"
-            book.pages = pages
-            g.openMenu(BookMenu(game: g, stack: book, source: .hand(-1)))
+            if gd.canMove {
+                // P263 (g): it drives or sails already: no book in his face, the guide waits in the journal.
+                g.logDocument("Repairs: \(s.name)", gd.pages, cat: .notes)
+                g.onToast?("The \(s.name) can move, but not fly yet: what it needs is in your journal (Repairs)")
+            } else {
+                var book = ItemStack(Items.id("written_book"), 1)
+                book.label = "Repairs: \(s.name)"
+                book.pages = gd.pages
+                g.openMenu(BookMenu(game: g, stack: book, source: .hand(-1)))
+            }
         }
         guard !st.wreckHint, g.dim.dim == .overworld, rottenID != AIR else { return }
         let p = g.player.pos, px = Int(floor(p.x)), py = Int(floor(p.y)), pz = Int(floor(p.z))

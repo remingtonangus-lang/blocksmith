@@ -7,6 +7,8 @@ import simd
 enum ShipTuning {
     static let g: Float = 12
     static let balloonLift: Float = 60.0        // tonnes held up by one lift balloon (P225: a few balloons lift a craft)
+    // P263: on a big hull a balloon holds up a sixth of it, so no hull needs more than six (Wrecks.guide says the same).
+    static func liftPerBalloon(_ mass: Float) -> Float { max(balloonLift, mass / 6) }
     static let ballastTrim: Float = 4.0         // tonnes one ballast tank can add or take off (flooded or blown)
     static let propThrust: Float = 120          // per powered propeller at full throttle
     static let paddleThrust: Float = 18         // the helm alone moves a small boat slowly
@@ -512,7 +514,7 @@ extension ShipManager {
 
         // Lift balloons: hold an altitude, climb or sink on command.
         if s.balloons > 0 {
-            let cap = Float(s.balloons) * ShipTuning.balloonLift * g
+            let cap = Float(s.balloons) * ShipTuning.liftPerBalloon(s.mass) * g
             var vyTarget: Float
             if s.wrecked && !piloted { vyTarget = -1.5; s.hoverY = nil }                // holed envelope: settles down
             else if piloted && abs(s.climb) > 0.1 { vyTarget = s.climb * 5; s.hoverY = s.pos.y }
