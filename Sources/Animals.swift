@@ -89,6 +89,7 @@ extension Mob {
         // Being ridden: the rider steers (horses, camels, llamas with a carpet do not; pigs need the stick).
         if g.riding === self { return 0 }
         if kind == .copperGolem { return copperGolemAI(dt, g) }          // sorts chests (CopperGolem.swift)
+        if let sp = herdAI(dt, g, dist: dist, canTarget: canTarget) { return sp }      // D45 (HerdGame.swift)
         if kind == .horse && !tamed && !leashed && aiTimer <= 0 { herdTick(g) }     // D2: herds (HorseHerds.swift)
         // Tamed pets follow the owner, sit on command, and fight what hurt the owner.
         if tamed && (kind == .wolf || kind == .cat || kind == .parrot) {

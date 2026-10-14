@@ -75,6 +75,15 @@ enum Hunting {
                    trophy: nil, trophyChance: 0, value: 80, color: 0xD8D0C0),
         GameAnimal(kind: .polarBear, key: "bear", name: "Bear", pelt: "Bear Pelt", size: .large, hits: 5, meat: "game_meat",
                    trophy: "bear_claw", trophyChance: 0.5, value: 300, color: 0xE8E4D8),
+        // D45 (HerdGame.swift)
+        GameAnimal(kind: .deer, key: "deer", name: "Deer", pelt: "Deer Hide", size: .medium, hits: 2, meat: "game_meat",
+                   trophy: "deer_antler", trophyChance: 0.35, value: 110, color: 0xA8784A),
+        GameAnimal(kind: .elk, key: "elk", name: "Elk", pelt: "Elk Hide", size: .large, hits: 3, meat: "game_meat",
+                   trophy: "elk_antler", trophyChance: 0.45, value: 200, color: 0x8A6440),
+        GameAnimal(kind: .bison, key: "bison", name: "Bison", pelt: "Bison Robe", size: .large, hits: 4, meat: "game_meat",
+                   trophy: "bison_horn", trophyChance: 0.4, value: 260, color: 0x4A3424),
+        GameAnimal(kind: .boar, key: "boar", name: "Boar", pelt: "Boar Hide", size: .medium, hits: 2, meat: "game_meat",
+                   trophy: "boar_tusk", trophyChance: 0.4, value: 90, color: 0x4E4038),
     ]
     static let legends: [Legend] = [
         Legend(name: "the Ashen Wolf", kind: .wolf, scale: 1.6, health: 60,
@@ -117,6 +126,7 @@ enum Hunting {
     // Sale values for the shop table (Economy.value merges these).
     static let values: [String: Int] = {
         var v: [String: Int] = ["game_meat": 24, "cooked_game_meat": 40, "wolf_fang": 60, "bear_claw": 120, "hunters_map": 4000,
+                                "deer_antler": 80, "elk_antler": 140, "bison_horn": 120, "boar_tusk": 50,
                                 "perch": 12, "trout": 24, "pike": 30, "catfish": 26, "cooked_fish": 30, "pufferfish": 15, "tropical_fish": 20,
                                 "fur_helmet": 500, "fur_chestplate": 800, "fur_leggings": 700, "fur_boots": 400,
                                 "hunters_satchel": 1500, "legend_satchel": 6000]
@@ -125,7 +135,7 @@ enum Hunting {
         return v
     }()
     static let pelts: [String] = animals.flatMap { a in (1...3).map { peltKey(a, $0) } }
-    static let buys: [String] = pelts + legends.flatMap { [$0.pelt, $0.trophy] } + ["game_meat", "wolf_fang", "bear_claw", "perch", "trout", "pike", "catfish"]
+    static let buys: [String] = pelts + legends.flatMap { [$0.pelt, $0.trophy] } + ["game_meat", "wolf_fang", "bear_claw", "deer_antler", "elk_antler", "bison_horn", "boar_tusk", "perch", "trout", "pike", "catfish"]
 
     // MARK: Quality
 
@@ -468,6 +478,10 @@ extension Hunting {
         }
         item("wolf_fang", "Wolf Fang", "tear", 0xE8E0C8)
         item("bear_claw", "Bear Claw", "tear", 0x3A3430)
+        item("deer_antler", "Deer Antler", "horn", 0xD8CCB0)                // D45
+        item("elk_antler", "Elk Antler", "horn", 0xC8B898)
+        item("bison_horn", "Bison Horn", "horn", 0x2A2420)
+        item("boar_tusk", "Boar Tusk", "tear", 0xEDE4CC)
         item("game_meat", "Gamey Meat", "steak", 0xB83030, food: FoodInfo(hunger: 3, saturation: 1.8))
         item("cooked_game_meat", "Cooked Game Meat", "steak", 0x7A4228, food: FoodInfo(hunger: 8, saturation: 12.8))
         item("perch", "Yellow Perch", "fish", 0xC8B040, food: FoodInfo(hunger: 2, saturation: 0.4))
