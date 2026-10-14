@@ -115,7 +115,8 @@ if let out = arg("--view"), let ctx = vkctx {
         let h = vw.gen.column(Int(floor(vg.player.pos.x)), Int(floor(vg.player.pos.z))).height
         vg.player.pos.y = Float(max(h, SEA) + 1) + up
     }
-    _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+    let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+    print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
     // The note's "facing" yaw is the player's yaw negated (VoiceNoteCore).
     var yaw = (nearYaw ?? 0) - look[0] * .pi / 180, pitch = look[1] * .pi / 180
     // --cave: the eye in the nearest open cave below (spiralling out from the spot until one has room round the eye).
@@ -138,6 +139,27 @@ if let out = arg("--view"), let ctx = vkctx {
     // --groundline: the smooth ground offset (World.smoothGroundOffset, the view follows it) at 12 standing spots ahead.
     if CommandLine.arguments.contains("--fieldwalk") { print(World.fieldWalkCheck(vg)) }     // (PG2 rewrite)
     if FieldTerrain.statsOn { print(FieldTerrain.statsLine()) }
+    // --fielddump: the ground the view's centre ray meets, and the field's densities (1/32 block) round it, slice by slice.
+    if CommandLine.arguments.contains("--fielddump") {
+        let dir = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
+        let eye = vg.player.pos + V3(0, 1.62, 0)
+        if vw.raycast(eye, dir, maxDist: 60) != nil, let h = vw.fieldHit {
+            print("fielddump: hit \(h.at) cell \(h.cell.x) \(h.cell.y) \(h.cell.z)")
+            for dy in stride(from: 2, through: -2, by: -1) {
+                var lines: [String] = []
+                for dz in -3...3 {
+                    var row = ""
+                    for dx in -3...3 {
+                        let x = h.cell.x + dx, y = h.cell.y + dy, z = h.cell.z + dz
+                        let d = vw.chunkAt(x, z).map { Int($0.blocks.density(Chunk.index(mod(x, CS), y, mod(z, CS)))) } ?? 0
+                        row += String(format: "%5d", d) + (mod(x, CS) == 15 ? " |" : "")
+                    }
+                    lines.append(row + (mod(h.cell.z + dz, CS) == 15 ? "   (chunk border below)" : ""))
+                }
+                print("fielddump: y \(h.cell.y + dy) (x \(h.cell.x - 3)...\(h.cell.x + 3), z down \(h.cell.z - 3)...\(h.cell.z + 3))\n" + lines.joined(separator: "\n"))
+            }
+        } else { print("fielddump: the centre ray meets no ground") }
+    }
     // --fieldblast: a power-4 blast on the ground 8 blocks ahead, then the frame (PG1 rewrite: the crater in the field).
     if CommandLine.arguments.contains("--fieldblast") {
         let fx = vg.player.pos.x - sinf(yaw) * 8, fz = vg.player.pos.z - cosf(yaw) * 8
@@ -417,6 +439,47 @@ if CommandLine.arguments.contains("--structcheck") { exit(StructCheck.run(device
 // --gencheck [--seeds A,B --areas N]: the generated-world defect scan (Sources/GenCheck.swift: floating trunks and
 // plants, leaks, ...), as the Mac's `--gencheck` runs it.
 if CommandLine.arguments.contains("--gencheck") { exit(GenCheck.run(device: device)) }
+// --fieldsave (PG1 rewrite): a field world saved and opened again keeps its ground cell for cell (density, material and
+// the built layer) after a ball is carved out of it and another added near spawn.
+if CommandLine.arguments.contains("--fieldsave") {
+    FieldTerrain.newWorlds = true
+    let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("fieldsave-\(getpid())")
+    try? FileManager.default.removeItem(at: dir)
+    let w1 = World(seed: 4242, device: device, save: SaveManager(dir: dir))
+    w1.makeFieldWorld()
+    _ = w1.loadSync(center: V3(8, 150, 8), radius: 2)
+    func groundTop(_ x: Int, _ z: Int) -> Int {
+        var y = CH - 1
+        while y > 1 && !(w1.chunkAt(x, z)?.blocks.ground(Chunk.index(mod(x, CS), y, mod(z, CS))) ?? false) { y -= 1 }
+        return y
+    }
+    let dug = w1.fieldSphere(V3(8.5, Float(groundTop(8, 8)) + 0.5, 8.5), radius: 2.3, carve: true, material: nil)
+    let added = w1.fieldSphere(V3(20.5, Float(groundTop(20, 8)) + 1.2, 8.5), radius: 1.8, carve: false, material: nil)
+    w1.setBlock(14, w1.topY(14, 14) + 1, 14, Blocks.id("cobblestone"))
+    w1.saveAll(); SaveIO.flush()
+    let w2 = World(seed: 4242, device: device, save: SaveManager(dir: dir))
+    _ = w2.loadSync(center: V3(8, 150, 8), radius: 2)
+    var cells = 0, bad = 0, chunks = 0
+    for (k, c1) in w1.chunks where c1.modified {      // (the saved ones; the rest generate again from the seed)
+        guard let c2 = w2.chunks[k] else { continue }
+        chunks += 1
+        for i in 0..<(CSQ * CH) {
+            cells += 1
+            let d1 = c1.blocks.density(i)
+            if c1.blocks.raw(i) != c2.blocks.raw(i) || d1 != c2.blocks.density(i) || (d1 > 0 && c1.blocks.material(i) != c2.blocks.material(i)) {
+                if bad < 6 {
+                    print("fieldsave: differs at \(k.x * CS + i % CS) \(i / CSQ) \(k.z * CS + (i / CS) % CS) (saved \(c1.modified)): "
+                          + "\(Blocks.key(c1.blocks.raw(i))) / \(Blocks.key(c2.blocks.raw(i))), density \(d1) / \(c2.blocks.density(i)), "
+                          + "material \(c1.blocks.material(i)) / \(c2.blocks.material(i))")
+                }
+                bad += 1
+            }
+        }
+    }
+    print("fieldsave: field world \(w1.fieldTerrain) -> \(w2.fieldTerrain); \(dug.count) cells dug, \(added.count) added; \(chunks) saved chunks, \(cells) cells compared, \(bad) differ")
+    try? FileManager.default.removeItem(at: dir)
+    exit(bad == 0 && w2.fieldTerrain && chunks > 0 && dug.count > 0 && added.count > 0 ? 0 : 1)
+}
 // --playthrough [--only overworld,emberdeep,stronghold,end,blight] [--seed N]: the Mac's scripted full-game run
 // (Sources/Playthrough.swift), so cloud threads can run it too.
 if CommandLine.arguments.contains("--playthrough") { exit(Playthrough.run()) }

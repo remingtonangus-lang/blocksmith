@@ -218,6 +218,16 @@ extension Mesher {
             if opaqueT[b] && !(leafHoles && leafT[b]) && !(detailHoles && detT[b]) { return 0.35 }
             return max(-1.5, Float(d) / FieldTerrain.scale)
         }
+        // ...for a surface crossing: a cell the split never shaped (far inside or outside) beside one of the other sign can
+        // only be a chunk border where the two chunks' generators disagreed (a rule carved one side): half a block, as
+        // the cells meet, not four blocks (which pushed the surface almost onto the other cell: a seam of beads).
+        @inline(__always) func effX(_ r: Int) -> Float {
+            guard let E = stored else { return 0 }
+            let d = E[r]
+            if d == FieldTerrain.inside { return 0.5 }
+            let v = eff(r)
+            return d == FieldTerrain.outside && v < 0 ? -0.5 : v
+        }
         @inline(__always) func sToR(_ i: Int) -> Int { ri(i % N - SO, i / NN - SO, (i / N) % N - SO) }
 
         // Density for blocks -KO...KO+17 (index +KO): half the block, half its 3x3x3 mean. A chipped natural
@@ -296,7 +306,7 @@ extension Mesher {
                         let i1 = cell0 + (c & 1) + (c >> 2) * N + ((c >> 1) & 1) * NN
                         let i2 = cell0 + (c2 & 1) + (c2 >> 2) * N + ((c2 >> 1) & 1) * NN
                         let s1 = (mask >> c) & 1 == 1
-                        var da = eff(sToR(s1 ? i1 : i2)), db = eff(sToR(s1 ? i2 : i1))
+                        var da = effX(sToR(s1 ? i1 : i2)), db = effX(sToR(s1 ? i2 : i1))
                         if !dmg.isEmpty, let dv = dmg[sToR(s1 ? i1 : i2)] { da *= 1 - 0.9 * Float(min(7, Int(dv & 31)) + 1) / 8 }
                         da = max(0.02, da); db = min(-0.02, db)
                         let tt = da / (da - db)
@@ -326,13 +336,17 @@ extension Mesher {
             // P142: on the field, the field's own outward direction instead.
             let fieldN = field != nil && !loose && fnSeen != 0
             var g = fieldN ? -fn : SIMD3<Float>(0, 0, 0)
+            var occF: Float = 0
             if stored != nil {
-                // PG1: the field's gradient over the 4x4x4 cells round the vertex.
+                // PG1: the field's gradient over the 4x4x4 cells round the vertex, and how much of them is ground
+                // (ground +1, open -1, softened within half a block of the surface: smooth along a wall, where counting
+                // the cells' block steps put a dark dot at every other vertex of a sloping cave wall).
                 for j in 0..<4 { for k in 0..<4 { for i in 0..<4 {
                     let sv = eff(ri(cx - 1 + i, cy - 1 + j, cz - 1 + k))
                     g.x += sv * dW[i] * tW[j] * tW[k]
                     g.y += sv * tW[i] * dW[j] * tW[k]
                     g.z += sv * tW[i] * tW[j] * dW[k]
+                    occF += max(-1, min(1, sv * 2))
                 } } }
             } else if !fieldN { for j in 0..<4 { for k in 0..<4 { for i in 0..<4 {
                 let sv = Float(S[(cx + SO - 1 + i) + (cz + SO - 1 + k) * N + (cy + SO - 1 + j) * NN])
@@ -362,6 +376,7 @@ extension Mesher {
                     cnt += Int(S[(cx + SO - 1 + i) + (cz + SO - 1 + k) * N + (cy + SO - 1 + j) * NN])
                 } } }
                 ao = 3 - min(3, max(0, (cnt - 42) / 5))
+                if stored != nil { ao = 3 - min(3, max(0, Int(floor((occF - 20) / 10)))) }   // (the same scale: cnt = (occF + 64) / 2)
                 // The vertex's own material (P142 blending: the shader blends a quad's corners): snow under a snow layer and
                 // turf where the ground faces up, else the commonest ground among its 8 blocks; -1 keeps the quad's own.
                 let up = -g.y / max(1e-6, simd_length(g))
@@ -376,7 +391,25 @@ extension Mesher {
                     for c2 in 0..<8 where Int(R[ri(cx + (c2 & 1), cy + ((c2 >> 1) & 1), cz + (c2 >> 2))]) == b { n += 1 }
                     if n > mn { m = b; mn = n }
                 }
-                if snow && up > 0.3 { m = snowB } else if turf >= 0 && up > 0.35 { m = turf }
+                // PG1 field worlds: the material where the drawn surface really is, the ground just under the vertex (half a
+                // block in along the gradient), moved by world-stable noise up to ~0.8 block: a border between two grounds
+                // follows the smooth surface and wanders like real ground instead of tracing the cells' block steps.
+                var sampled = false
+                if let E = stored, let w = world {
+                    let gl = simd_length(g)
+                    if gl > 1e-5 {
+                        let pv = SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])
+                        let wp = pv + SIMD3<Float>(Float(w.x), Float(w.y), Float(w.z))
+                        let j = SIMD3<Float>(DetailMesh.noise(wp, 0.23, 0xB1E1), DetailMesh.noise(wp, 0.23, 0xB1E2),
+                                             DetailMesh.noise(wp, 0.23, 0xB1E3)) * 0.8
+                        let q = pv + g / gl * 0.5 + j
+                        let r = ri(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+                        let b = Int(R[r])
+                        if E[r] > 0 && blendT[b] { m = b; sampled = true }
+                    }
+                }
+                if snow && up > 0.3 { m = snowB }
+                else if turf >= 0 && up > 0.35 && (!sampled || m == Int(DIRT) || tintT[m] == 3) { m = turf }
                 VM[vi] = Int32(m)
             }
             VL[vi] = Int32(l | ao << 8)

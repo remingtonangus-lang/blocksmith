@@ -386,12 +386,14 @@ final class Playthrough {
         try? FileManager.default.removeItem(at: dir)
         let save = SaveManager(dir: dir)
         let world = World(seed: seed, device: device, save: save, dim: .overworld)
+        world.makeFieldWorld()          // PG1 rewrite: `--field` plays it through on a field world
         world.renderDistance = 8
         let game = Game(world: world, save: save, persistent: true)
+        if world.fieldTerrain { SmoothTerrain.use(world: true, world: world) }
         let t = Playthrough(game: game)
         let only = Set((arg("--only") ?? "").split(separator: ",").map(String.init))
         func want(_ s: String) -> Bool { only.isEmpty || only.contains(s) }
-        print("playthrough: seed \(seed)")
+        print("playthrough: seed \(seed)\(world.fieldTerrain ? ", field world" : "")")
         t.start()
         if want("overworld") { t.overworld() } else { t.kit(["diamond_pickaxe", "flint_and_steel", "diamond_sword", "bow"]); t.give("arrow", 64); t.give("obsidian", 10) }
         if want("emberdeep") { t.emberdeep() } else { t.give("blaze_rod", 7, bulk: "stage skipped"); t.give("ender_pearl", 12, bulk: "stage skipped") }

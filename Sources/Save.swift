@@ -61,6 +61,8 @@ final class SaveManager {
     var overworldFloor = true
     // The Deep's chunks saved before the Sealrock existed get it stamped in as they load (DeepSeal.stamp).
     var deepSeal = false
+    // PG1 rewrite: a field world's save (World.fieldTerrain): its chunk files hold only the built layer.
+    var fieldWorld = false
 
     init(dir d: URL) {
         dir = d
@@ -198,6 +200,8 @@ final class SaveManager {
             SaveIO.quarantine(chunkURL(k), what: "piece of the world (chunk \(k.x), \(k.z))")
             return nil
         }
+        // (Old saves' floors and seals; a field world was made with them, and its floor is ground in its field.)
+        if fieldWorld { return out }
         if overworldFloor { SaveManager.stripBedrockFloor(&out); HellGate.stamp(&out) }
         if deepSeal { DeepSeal.stamp(&out); AshFinal.stamp(&out, cx: k.x, cz: k.z) }
         return out
