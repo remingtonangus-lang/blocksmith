@@ -360,6 +360,13 @@ enum FrontierSites {
                 marked.insert(a)
                 MapCache.shared.discover(g, kind: s.kind, x: a.x, z: a.z, name: names[s.kind])
             }
+            // Q2: an empty town sounds empty: a gust down the street, a loose shutter banging, a gate swinging.
+            if s.kind == "ghost_town" && d < 40 && Rand.float(in: 0..<1) < 0.12 {
+                let ang = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 6..<16)
+                let at = V3(Float(a.x) + cosf(ang) * r, Float(a.y) + 2, Float(a.z) + sinf(ang) * r)
+                let k = Int(Rand.float(in: 0..<4)) % 4
+                g.sfx([Snd.windGust, .trapdoorClose, .gateClose, .doorClose][k], k == 0 ? 0.5 : 0.35, at: at)
+            }
             // The ghost town's dead, once a night, when you're in its street after dark.
             if s.kind == "ghost_town", g.survival, g.difficulty > 0, d < 40, g.daylight < 0.3, g.world.isLoaded(a.x, a.z) {
                 let night = Int((g.time + DAY_LENGTH * 0.3) / DAY_LENGTH)
