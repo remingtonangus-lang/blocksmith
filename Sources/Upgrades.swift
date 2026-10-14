@@ -48,6 +48,7 @@ enum Upgrades {
             s(.extendedMag, .mag, "iron_ingot", 2, iron), s(.quickReload, .loader, "iron_ingot", 1, iron),
             s(.stability, .scope, "glass", 1, V3(0.25, 0.3, 0.35)), s(.penetration, .rounds, "steel_ingot", 1, V3(0.9, 0.85, 0.4)),
             s(.incendiary, .rounds, "blaze_powder", 2, V3(1, 0.4, 0.1)),
+            s(.ricochet, .rounds, "copper_ingot", 2, adv: true, V3(0.95, 0.6, 0.35)), s(.serrated, .edge, "iron_nugget", 3, V3(0.75, 0.15, 0.12)),   // D32
             s(.protection, .lining, "white_wool", 2, V3(0.9, 0.9, 0.85)), s(.fireProtection, .lining, "clay_ball", 2, V3(1, 0.5, 0.2)),
             s(.blastProtection, .plates, "iron_ingot", 1, iron), s(.projectileProtection, .plates, "leather", 2, leather),
             s(.featherFalling, .soles, "white_wool", 2, V3(0.9, 0.9, 0.85)), s(.respiration, .visor, "glass", 1, V3(0.6, 0.85, 1)),

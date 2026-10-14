@@ -1229,6 +1229,7 @@ final class Game {
                 m.lootingLevel = Enchant.level(.looting, held)
                 let fa = Enchant.level(.fireAspect, held)
                 if fa > 0 && !m.spec.fireImmune { m.fire = max(m.fire, Float(4 * fa)) }
+                Serrated.cut(m, Enchant.level(.serrated, held))         // D32: a bleeding wound
                 if m.arthropod && Enchant.level(.baneOfArthropods, held) > 0 {
                     m.applyEffect(.slowness, amp: 3, seconds: Rand.float(in: 1...(1 + 0.5 * Float(Enchant.level(.baneOfArthropods, held)))), game: self)
                 }

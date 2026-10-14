@@ -44,6 +44,7 @@ enum DualWield {
                      shooter: nil, by: "Player", life: gs.range / gs.speed, gravity: 1.5)
         s.pierce = Int8(Enchant.level(.penetration, o))
         s.incendiary = Enchant.level(.incendiary, o) > 0
+        s.ricochet = Int8(Enchant.level(.ricochet, o))                  // D32
         g.arms.spawn(s)
         o.tag -= 1
         g.inventory.offhand[0] = o

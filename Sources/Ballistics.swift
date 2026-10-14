@@ -25,6 +25,7 @@ struct Slug {
     var seat: Int8 = -1           // split screen: the seat that fired it (its hits, marker and provoked mobs are theirs)
     var pierce: Int8 = 0          // Penetration: further mobs this round may pass on to (each at 70% damage)
     var incendiary = false        // Incendiary: hit mobs burn 4 s
+    var ricochet: Int8 = 0        // D32 Ricochet Rounds: bounces off hard blocks left
     var pierced: [ObjectIdentifier] = []   // mobs this round already went through
     var pulse = false             // a Pulse Charge: bursts shields instead of exploding (Navy.swift)
     var side: Faction?            // the shooter's side, taken on its first tick (its blast spares that side after the shooter dies)
@@ -183,6 +184,11 @@ final class Armory {
                     s.pos = at
                     s.vel = (s.vel - n * (2 * simd_dot(s.vel, n))) * 0.4
                     if simd_length(s.vel) > 2 { g.sfx(.grenadeBounce, 0.6, at: at) }
+                    slugs[i] = s
+                    continue
+                }
+                if s.kind == .bullet && s.ricochet > 0 && Ricochet.bounce(&s, at: at, normal: b.2, g) {     // D32
+                    impactBlock(s, at: at, block: b.1, normal: b.2, g)
                     slugs[i] = s
                     continue
                 }
@@ -602,6 +608,7 @@ extension Game {
                              life: quiet ? life0 * GunCare.rangeScale : life0, gravity: 1.5)
                 s.pierce = pierce
                 s.incendiary = fiery
+                s.ricochet = Int8(Enchant.level(.ricochet, st))         // D32
                 a.spawn(s)
             }
         case .rocket:
