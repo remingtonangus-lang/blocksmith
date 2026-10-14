@@ -419,6 +419,7 @@ enum TownLaw {
         Nation.tick(g)                                   // C3: your provinces' days, settlers and buildings
         if let m = g.menu, openPos != nil { checkTaking(g, m) }
         emeraldTip(g)
+        Saloon.tick(g)                                   // D17: the piano player
         Jail.tick(g, dt)                                 // R20: the jail term, a prisoner in tow
         // Heat cools; hostility runs out.
         let cool = Honour.coolRate(Honour.value)

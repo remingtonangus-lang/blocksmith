@@ -860,6 +860,7 @@ final class Mob {
                 restock(g)
                 villageTick(g)
             }
+            if let s = Saloon.pianistStep(self, g) { speed = s; break }       // D17: at the keys
             if let s = Brawls.step(self, dt, g) { speed = s; break }          // D13: fists up, or out cold
             // P51: a rider on the road keeps to the road (Riders.swift).
             if Riders.isRider(self) || Stagecoach.isDriver(self) { speed = Riders.step(self, dt, g); break }
