@@ -99,10 +99,34 @@ enum ShopKind: String, CaseIterable, Codable {
 
 // A paid service instead of an item (the doctor patching you up, a hot meal at the saloon).
 enum ShopService: String, CaseIterable {
-    case treatment, meal, treaty
-    var name: String { self == .treatment ? "Patch Me Up" : (self == .meal ? "Hot Meal" : "Treaty of Alliance") }
-    var icon: String { self == .treatment ? "potion_healing" : (self == .meal ? "rabbit_stew" : "writable_book") }
-    var detail: String { self == .treatment ? "Heals you fully" : (self == .meal ? "Fills you up" : "Ally with this country") }
+    case treatment, meal, treaty, room, bath
+    var name: String {
+        switch self {
+        case .treatment: return "Patch Me Up"
+        case .meal: return "Hot Meal"
+        case .treaty: return "Treaty of Alliance"
+        case .room: return "A Room for the Night"
+        case .bath: return "A Hot Bath"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .treatment: return "potion_healing"
+        case .meal: return "rabbit_stew"
+        case .treaty: return "writable_book"
+        case .room: return "red_bed"
+        case .bath: return "water_bucket"
+        }
+    }
+    var detail: String {
+        switch self {
+        case .treatment: return "Heals you fully"
+        case .meal: return "Fills you up"
+        case .treaty: return "Ally with this country"
+        case .room: return "Heal, sleep till sunrise, save the game"
+        case .bath: return "Wash off the blood and the road"
+        }
+    }
 }
 
 enum Economy {
@@ -165,6 +189,8 @@ enum Economy {
         case .treatment: return 100 + 10 * max(0, 20 - g.health)       // $1 plus 10 cents a half-heart
         case .meal: return 120
         case .treaty: return Countries.treatyFee
+        case .room: return 300                                             // D19 (Hotel.swift)
+        case .bath: return 100
         }
     }
 
@@ -226,7 +252,7 @@ enum Economy {
         .saloon: ["sweet_berries", "glow_berries", "cocoa_beans", "sugar", "honey_bottle", "wheat", "potato", "melon_slice",
                   "pumpkin", "cod", "salmon"],
     ]
-    static let services: [ShopKind: [ShopService]] = [.doctor: [.treatment], .saloon: [.meal]]
+    static let services: [ShopKind: [ShopService]] = [.doctor: [.treatment], .saloon: [.meal, .room, .bath]]
 
     static func value(of item: ItemID) -> Int? { value[Items.key(item)] }
     // P40: sold only by gunsmiths in a Capital city, their rounds too (R8: Capital guns bought there had nothing to fire).
@@ -427,6 +453,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
                 let (d, ok) = Countries.treatyDetail(game, m)
                 return (st, s.name, d, Money.format(price), ok && game.money >= price)
             }
+            if s == .room || s == .bath { return (st, s.name, s.detail, Money.format(price), game.money >= price) }      // D19
             let need = s == .treatment ? game.health < 20 : game.hunger < 20
             return (st, s.name, need ? s.detail : (s == .treatment ? "You're in good health" : "You're not hungry"),
                     Money.format(price), need && game.money >= price)
@@ -686,6 +713,10 @@ enum Shop {
         }
         guard g.money >= price else { return ("That's \(Money.format(price)). You have \(Money.format(g.money)).", false) }
         g.money -= price
+        if s == .room || s == .bath {                                       // D19: the hotel upstairs
+            if var v = m.villager { v.addGossip(.trading, 1); m.villager = v }
+            return (s == .room ? Hotel.room(g, m) : Hotel.bath(g), true)
+        }
         if s == .treatment {
             g.health = 20
             g.effects.remove(.poison)
