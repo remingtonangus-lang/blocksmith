@@ -19,11 +19,50 @@ enum Money {
     }
 }
 
+// P245 (Oct 13 21:58, "gold should be an easy currency at villages"): gold you carry is money. Nuggets, ingots and
+// blocks in the pack count at face value (25c, $2.50, $22.50) towards anything you pay for, after the wallet; paying
+// takes the smallest pieces first and the change goes into the wallet. Selling and earning still fill the wallet.
+extension Money {
+    static let gold: [(String, Int)] = [("gold_nugget", 25), ("gold_ingot", 250), ("gold_block", 2250)]
+    static func goldValue(_ g: Game) -> Int {
+        var v = 0
+        for (k, c) in gold where Items.has(k) {
+            let id = Items.id(k)
+            for s in g.inventory.main.slots where s.item == id { v += s.count * c }
+        }
+        return v
+    }
+    // Takes at least `cents` of gold from the pack (smallest pieces first); returns what was taken.
+    static func spendGold(_ g: Game, _ cents: Int) -> Int {
+        var taken = 0
+        for (k, c) in gold where Items.has(k) && taken < cents {
+            let id = Items.id(k)
+            let inv = g.inventory.main
+            for i in 0..<inv.count where taken < cents && inv[i].item == id {
+                var st = inv[i]
+                let n = min(st.count, (cents - taken + c - 1) / c)
+                st.count -= n
+                inv[i] = st.count > 0 ? st : ItemStack()
+                taken += n * c
+            }
+        }
+        return taken
+    }
+}
+
 extension Game {
-    // The wallet, in cents (stored in Game.townWallet, see Townsfolk.swift for the save hook).
+    // Money you can spend, in cents: the wallet (Game.townWallet, see Townsfolk.swift for the save hook) plus the gold
+    // you carry (P245). Paying below the wallet's balance takes gold; anything added goes to the wallet.
     var money: Int {
-        get { townWallet }
-        set { townWallet = max(0, newValue) }
+        get { townWallet + Money.goldValue(self) }
+        set {
+            let now = money
+            if newValue >= now { townWallet += newValue - now; return }
+            var due = now - newValue
+            let fromWallet = min(townWallet, due)
+            townWallet -= fromWallet; due -= fromWallet
+            if due > 0 { townWallet += max(0, Money.spendGold(self, due) - due) }
+        }
     }
 }
 
