@@ -13,6 +13,9 @@ final class World {
     let seed: UInt64
     let device: MTLDevice
     let save: SaveManager?
+    // PG1 rewrite: natural terrain is a density field, not blocks (FieldTerrain.swift). Decided once per world: a root
+    // save made as a field world keeps a marker (terrain-field.txt); its dimensions follow it (Game.dimensionState).
+    var fieldTerrain = false
     var chunks: [ChunkKey: Chunk] = [:]
     var blockEntities: [IVec3: BlockEntity] = [:]
     // Co-op over the network (NetCoop.swift): every block change is reported (unless it came from the other player,
@@ -105,6 +108,10 @@ final class World {
         }
         self.device = device
         self.save = save
+        if dim == .overworld {
+            if let save { fieldTerrain = FieldTerrain.newWorlds ? save.newTerrain("terrain-field.txt") : save.hasMarker("terrain-field.txt") }
+            else { fieldTerrain = FieldTerrain.unsaved }
+        } else if save == nil { fieldTerrain = FieldTerrain.unsaved }
         if let wg = gen as? WorldGen {
             wg.terrain.fewerLakes = save?.newTerrain("terrain-p44-water.txt") ?? World.fewerLakesUnsaved
             wg.terrain.lessWater = save?.newTerrain("terrain-h8-water.txt") ?? World.lessWaterUnsaved   // H8
@@ -297,7 +304,7 @@ final class World {
         var sync: [(Chunk, Int)] = []
         // Smooth vertices move with blocks up to 2 away (relaxing carries it 1 more a pass: those sections remesh in the
         // background with the rest below, so a Quest edit doesn't mesh the whole ring on the frame).
-        let r = SmoothTerrain.enabled ? 2 : 1
+        let r = SmoothTerrain.enabled || fieldTerrain ? 2 : 1
         for dz in -r...r {
             for dx in -r...r {
                 for dy in -r...r {
@@ -599,14 +606,14 @@ final class World {
         for c in chunks.values { for s in c.sections where s.meshedVersion != -1 { s.version += 1 } }
     }
 
-    private func remeshSync(_ c: Chunk, _ sy: Int) {
+    func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
         apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), site: smoothSite(c), chunk: (c.cx, c.cz)), to: c, sy: sy, version: c.sections[sy].version)
     }
 
     // P142: smooth sections of a world whose generator has continuous fields (the overworld) mesh those fields.
     func smoothSite(_ c: Chunk) -> SmoothSite? {
-        guard SmoothTerrain.enabled && SmoothTerrain.fromField, let g = gen as? WorldGen else { return nil }
+        guard SmoothTerrain.enabled && SmoothTerrain.fromField, !fieldTerrain, let g = gen as? WorldGen else { return nil }
         return SmoothSite(gen: g, cx: c.cx, cz: c.cz, edits: fieldEditSet(c))
     }
 
@@ -942,6 +949,8 @@ final class World {
         var emitMask: UInt32 = ~0            // sections holding light emitters (BlockStore.emitMask)
         var springs: [IVec3] = []            // fluid cells open to air (World.springs: flow once loaded)
         var field: [Int32: UInt16] = [:]     // PG1: saved terrain field edits (TerrainField.swift)
+        var ground: FieldData? = nil         // PG1 rewrite: the chunk's density field (field worlds, FieldTerrain.swift)
+        var netBlocks: [BlockID] = []        // (co-op host: the merged cells sent to a guest)
     }
 
     // Fluid cells beside or over air: scheduled for a fluid update on install so underground sources spill into caves
@@ -1009,25 +1018,59 @@ final class World {
         var blocks: [BlockID]
         var ents: [(IVec3, BlockEntity)] = []
         var mobs: [(String, V3)] = []
+        var ground: FieldData? = nil
         if let r = remoteChunk, let got = r(k) { blocks = got.0; ents = got.1 }        // a co-op guest: the host's chunk
-        else if let saved = save?.loadChunk(k) { blocks = saved; fromDisk = true }
-        else {
+        else if let saved = save?.loadChunk(k) {
+            blocks = saved; fromDisk = true
+            if fieldTerrain {
+                // PG1: the saved built layer and the saved ground. A lost ground file comes back from the seed under
+                // the saved built layer (what was dug stays dug only where something was built there since).
+                if let f = save?.loadField(k) { ground = f }
+                else {
+                    var gb = gen.generate(cx: k.x, cz: k.z)
+                    if let st = gen.structures { _ = st.place(into: &gb, cx: k.x, cz: k.z) }
+                    let f = FieldTerrain.split(&gb, cx: k.x, cz: k.z, gen: gen)
+                    ground = f
+                }
+                FieldTerrain.absorb(&blocks, into: &ground!)
+            }
+        } else {
             blocks = gen.generate(cx: k.x, cz: k.z)
             if let st = gen.structures { (ents, mobs) = st.place(into: &blocks, cx: k.x, cz: k.z) }
             ents += World.orphanEntities(blocks, k, have: ents)
         }
-        let field = fromDisk && gen is WorldGen ? save?.loadFieldEdits(k) ?? [:] : [:]
+        let field = fromDisk && keepsField ? save?.loadFieldEdits(k) ?? [:] : [:]
+        if let g = ground {
+            // A loaded field chunk: heights, springs and circuits from the merged cells.
+            var merged = blocks
+            FieldTerrain.merge(&merged, g)
+            let heights = Chunk.computeHeights(merged)
+            return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
+                            fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
+                            emitMask: BlockStore.emitMask(of: blocks), springs: World.springs(merged, k, heights), field: field,
+                            ground: g, netBlocks: merged)
+        }
         _ = PlantSupport.dropFloating(&blocks)
         let heights = Chunk.computeHeights(blocks)
+        let springs = World.springs(blocks, k, heights)
+        let tracked = Circuit.trackedCells(blocks, cx: k.x, cz: k.z)
+        if fieldTerrain {
+            // PG1: the generated (or the host's) chunk becomes the field and the built layer.
+            let merged = blocks
+            let f = FieldTerrain.split(&blocks, cx: k.x, cz: k.z, gen: gen)
+            return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
+                            fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
+                            emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field, ground: f, netBlocks: merged)
+        }
         return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
-                        fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
-                        emitMask: BlockStore.emitMask(of: blocks), springs: World.springs(blocks, k, heights), field: field)
+                        fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
+                        emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field)
     }
 
     // A chunk for a co-op guest (NetCoop.swift, any thread): from disk or generated, with its containers.
     func produceForNet(_ k: ChunkKey) -> ([BlockID], [(IVec3, BlockEntity)]) {
         let p = produce(k)
-        return (p.blocks, p.entities)
+        return (p.ground != nil ? p.netBlocks : p.blocks, p.entities)
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.
@@ -1057,7 +1100,7 @@ final class World {
     }
 
     private func install(_ k: ChunkKey, _ p: Produced) {
-        let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint)
+        let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint, field: p.ground)
         c.world = self
         c.blocks.emitMask = p.emitMask
         c.modified = p.fromDisk

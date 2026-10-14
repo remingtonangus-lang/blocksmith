@@ -49,6 +49,14 @@ final class Section {
 // block memory at large render distances. `data` is copy-on-write like any array.
 struct BlockStore {
     private(set) var data: [BlockID]
+    // Field worlds (FieldTerrain.swift): the natural terrain is not in `data` at all. It is a density field, one sample per
+    // cell centre in 1/32 block (> 0 inside the ground), and the ground's material per sample (FieldMat), stored like
+    // `data` only up to the highest section the ground reaches. Empty in block worlds. `data` holds what is not terrain
+    // (built blocks, plants, trees, fluids), and AIR wherever the ground is; reads merge the two (a cell inside the ground
+    // reads as its material), so the game's block queries see the ground the field describes.
+    private(set) var fd: [Int8] = []
+    private(set) var fm: [UInt8] = []
+    var isField: Bool { !fd.isEmpty }
     static let section = CSQ * 16
     // Bit per 16-high section that may hold a light-emitting block (all set = unknown). The mesher skips the
     // block-light pass when no section around the one it meshes has one (most of the surface).
@@ -80,13 +88,49 @@ struct BlockStore {
         if data.count < keep { data.append(contentsOf: repeatElement(AIR, count: keep - data.count)) }
     }
 
+    init(_ full: [BlockID], field: FieldData) {
+        self.init(full)
+        guard !field.fd.isEmpty else { return }
+        var top = min(field.fd.count, CSQ * CH)
+        while top > 0 && field.fd[top - 1] <= 0 { top -= 1 }
+        let keep = max(BlockStore.section, (top + BlockStore.section - 1) / BlockStore.section * BlockStore.section)
+        fd = Array(field.fd.prefix(keep)); fm = Array(field.fm.prefix(keep))
+        if fd.count < keep {
+            fd.append(contentsOf: repeatElement(FieldTerrain.outside, count: keep - fd.count))
+            fm.append(contentsOf: repeatElement(0, count: keep - fm.count))
+        }
+    }
+
     var count: Int { CSQ * CH }             // logical size
-    var storedCount: Int { data.count }     // everything at or above this index is AIR
+    var storedCount: Int { max(data.count, fd.count) }     // everything at or above this index is AIR
+
+    // The built layer only (no ground): saves, the mesher's cube pass.
+    @inline(__always) func raw(_ i: Int) -> BlockID { UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR }
+    // The ground's density at cell i (1/32 block, > 0 inside); outside everywhere in block worlds.
+    @inline(__always) func density(_ i: Int) -> Int8 { UInt(bitPattern: i) < UInt(fd.count) ? fd[i] : FieldTerrain.outside }
+    @inline(__always) func material(_ i: Int) -> UInt8 { UInt(bitPattern: i) < UInt(fm.count) ? fm[i] : 0 }
+    // Cell i is inside the ground (field worlds).
+    @inline(__always) func ground(_ i: Int) -> Bool { UInt(bitPattern: i) < UInt(fd.count) && fd[i] > 0 }
 
     @inline(__always) subscript(i: Int) -> BlockID {
-        get { UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR }      // a negative index reads as air too
+        get {
+            let b = UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR      // a negative index reads as air too
+            if b != AIR || fd.isEmpty { return b }
+            return UInt(bitPattern: i) < UInt(fd.count) && fd[i] > 0 ? FieldMat.blocks[Int(fm[i])] : AIR
+        }
         set {
             guard i >= 0 && i < CSQ * CH else { return }
+            // Field worlds: natural ground written to a cell becomes ground in the field (a cell-sized solid), anything else
+            // written into the ground opens the cell first. (World.setBlock rounds the shape round the cell afterwards.)
+            if !fd.isEmpty {
+                let m = FieldMat.index[Int(newValue)]
+                if m != 0 {
+                    setDensity(i, max(density(i), FieldTerrain.cellIn), material: m)
+                    if i < data.count && data[i] != AIR { data[i] = AIR }
+                    return
+                }
+                if ground(i) { setDensity(i, FieldTerrain.cellOut, material: nil) }
+            }
             if i >= data.count {
                 if newValue == AIR { return }
                 let need = min(CSQ * CH, (i / BlockStore.section + 1) * BlockStore.section)
@@ -97,18 +141,52 @@ struct BlockStore {
         }
     }
 
-    // Full-height copy (saving, tree growth scratch).
+    // Writes the field at cell i (field worlds), growing the stored part when the ground rises past it. A nil material
+    // keeps the cell's own.
+    mutating func setDensity(_ i: Int, _ d: Int8, material m: UInt8?) {
+        guard !fd.isEmpty, i >= 0 && i < CSQ * CH else { return }
+        if i >= fd.count {
+            if d <= 0 { return }
+            let need = min(CSQ * CH, (i / BlockStore.section + 1) * BlockStore.section)
+            fd.append(contentsOf: repeatElement(FieldTerrain.outside, count: need - fd.count))
+            fm.append(contentsOf: repeatElement(0, count: need - fm.count))
+        }
+        fd[i] = d
+        if let m { fm[i] = m }
+    }
+
+    // Full-height copy of what the cells read as (tree growth scratch, the co-op wire).
     func full() -> [BlockID] {
+        if fd.isEmpty {
+            if data.count >= CSQ * CH { return data }
+            var out = data
+            out.append(contentsOf: repeatElement(AIR, count: CSQ * CH - data.count))
+            return out
+        }
+        return [BlockID](unsafeUninitializedCapacity: CSQ * CH) { out, n in
+            for i in 0..<(CSQ * CH) { out[i] = self[i] }
+            n = CSQ * CH
+        }
+    }
+
+    // Full-height copy of the built layer alone (saving).
+    func rawFull() -> [BlockID] {
         if data.count >= CSQ * CH { return data }
         var out = data
         out.append(contentsOf: repeatElement(AIR, count: CSQ * CH - data.count))
         return out
     }
 
+    // The field as stored (saving).
+    var field: FieldData { FieldData(fd: fd, fm: fm) }
+
     // Same underlying storage: nothing was written since the copy was taken.
     func sameStorage(_ o: BlockStore) -> Bool {
-        if data.isEmpty && o.data.isEmpty { return true }
-        return data.withUnsafeBufferPointer { a in o.data.withUnsafeBufferPointer { b in a.baseAddress == b.baseAddress } }
+        func same<T>(_ a: [T], _ b: [T]) -> Bool {
+            if a.isEmpty && b.isEmpty { return true }
+            return a.withUnsafeBufferPointer { x in b.withUnsafeBufferPointer { y in x.baseAddress == y.baseAddress && x.count == y.count } }
+        }
+        return same(data, o.data) && same(fd, o.fd) && same(fm, o.fm)
     }
 }
 
@@ -157,11 +235,11 @@ final class Chunk {
     private(set) static var alive = 0
     deinit { Chunk.aliveLock.lock(); Chunk.alive -= 1; Chunk.aliveLock.unlock() }
 
-    init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32]) {
+    init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32], field: FieldData? = nil) {
         Chunk.aliveLock.lock(); Chunk.alive += 1; Chunk.aliveLock.unlock()
         self.cx = cx
         self.cz = cz
-        self.blocks = BlockStore(blocks)
+        self.blocks = field.map { BlockStore(blocks, field: $0) } ?? BlockStore(blocks)
         self.height = height
         self.tint = tint
         sections = (0..<NSEC).map { _ in Section() }

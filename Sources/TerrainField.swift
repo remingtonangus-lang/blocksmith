@@ -44,7 +44,7 @@ struct FieldEditSet {
 
 extension World {
     // Worlds whose generator has continuous fields (the overworld) keep field edits.
-    var keepsField: Bool { gen is WorldGen }
+    var keepsField: Bool { gen is WorldGen && !fieldTerrain }
 
     // Distance bounds at cell p (world block), merged into what is there.
     func fieldBound(_ p: IVec3, cap: Float? = nil, floor: Float? = nil) {
@@ -74,6 +74,12 @@ extension World {
     // round it: the cell itself sits half a block past the surface and its neighbours are bounded by their distance to
     // the cell's cube, so a single mined block leaves a block-sized rounded hollow and a placed one a rounded lump.
     func fieldBlockChanged(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
+        if fieldTerrain {
+            // PG1 rewrite: ground opened or placed reshapes the stored field round the cell (FieldTerrain.swift).
+            let o = FieldMat.index[Int(old)] != 0, n = FieldMat.index[Int(new)] != 0
+            if o != n { fieldShape(x, y, z, opened: o) }
+            return
+        }
         guard keepsField, old != new else { return }
         let wasSolid = Blocks.opaque[Int(old)], isSolid = Blocks.opaque[Int(new)]
         guard wasSolid != isSolid else { return }
