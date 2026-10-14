@@ -51,6 +51,12 @@ final class PauseMenu: Menu {
     static var hostAct: ((String, Bool) -> Void)?
     static var hostValues: Set<String> = []
     static var hostHelp: [String: String] = [:]
+    // Q2: the Track a Target row names what is followed now.
+    static func trackLabel(_ g: Game) -> String {
+        guard let t = Waymarks.current(g) else { return "Track a Target..." }
+        let name = t.name.split(separator: ":").last.map { String($0).trimmingCharacters(in: .whitespaces) } ?? t.name
+        return "Track a Target (\(name.count > 22 ? String(name.prefix(21)) + "." : name))..."
+    }
     static var hostHidden: Set<String> = []     // rows the host has no use for (the Quest: window and photo options)
     var hostPageID: String?
 
@@ -204,7 +210,7 @@ final class PauseMenu: Menu {
             } else if !currentWorld.isEmpty {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
             }
-            rows = [("Back to Game", "resume"), ("Journal (orders, logs, notes)", "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), ("Track a Target...", "track"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Journal (orders, logs, notes)", "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty]) (locked)", "difficulty"),
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
@@ -213,7 +219,7 @@ final class PauseMenu: Menu {
             if g.coop.current > 0 {
                 // Player 2's pause menu: their own screens, and leaving (the world itself belongs to player 1).
                 subtitle = "Player 2"
-                rows = [("Back to Game", "resume"), ("World Map", "worldmap"), ("Track a Target...", "track"), ("Advancements", "advancements"), ("Leave Split Screen", "coop")]
+                rows = [("Back to Game", "resume"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Leave Split Screen", "coop")]
             } else if g.coop.active {
                 rows.removeAll { $0.1 == "photo" || $0.1 == "worlds" }
             }
