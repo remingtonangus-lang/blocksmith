@@ -282,20 +282,25 @@ enum Mesher {
         let base = sy * 16 * CSQ
         let srcs = n9.map { $0.data }          // stored sections only; everything above is air
         let centre = srcs[4]
-        if base >= centre.count { return SectionMesh(opaque: [], trans: [], light: nil) }
+        // PG1 field worlds (FieldTerrain.swift): the ground is the chunks' density field, not blocks.
+        let fieldOn = n9[4].isField
+        if base >= n9[4].storedCount { return SectionMesh(opaque: [], trans: [], light: nil) }
         var anyBlock = false
-        for i in base..<(base + 16 * CSQ) where centre[i] != AIR { anyBlock = true; break }
+        if base < centre.count { for i in base..<(base + 16 * CSQ) where centre[i] != AIR { anyBlock = true; break } }
+        if !anyBlock && fieldOn { for i in base..<(base + 16 * CSQ) where n9[4].ground(i) { anyBlock = true; break } }
         // Smooth terrain: an empty section still owns the quads against its +x/+y/+z neighbours' first row.
-        let smooth = SmoothTerrain.enabled && smoothOK, natT = SmoothTerrain.natural, snowLayerID = SmoothTerrain.snowLayer
+        let smooth = (SmoothTerrain.enabled || n9[4].isField) && smoothOK, natT = SmoothTerrain.natural, snowLayerID = SmoothTerrain.snowLayer
         // T17: leaf canopies as rounded blobs in field worlds (smoothQuads leaves pass).
-        let leafBlob = smooth && site != nil && SmoothTerrain.leafBlobs
+        let leafBlob = smooth && (site != nil || fieldOn) && SmoothTerrain.leafBlobs
         let detail = smooth && Mesher.detailMeshes, detT = Mesher.detailT
         // PG3: far sections (lod 1) draw them round too, with the fewest sides (ShapeTrunks, ShapeOrganic): a polygon
         // world shows no square trunk at any distance.
         let detailDraw = detail
         // Realistic world: built blocks near the eye get a 1/16 chamfer on their exposed edges (Mesher.bevelT).
         let bevel = detail && lod == 0, bevelT = Mesher.bevelT
-        if !anyBlock && !(smooth && smoothEdgeNatural(srcs, sy: sy, leaves: leafBlob)) { return SectionMesh(opaque: [], trans: [], light: nil) }
+        if !anyBlock && !(smooth && (smoothEdgeNatural(srcs, sy: sy, leaves: leafBlob) || fieldOn && fieldEdgeGround(n9, sy: sy))) {
+            return SectionMesh(opaque: [], trans: [], light: nil)
+        }
 
         // Gather the region: index = x + z*RW + ry*RL, world y = y0 + ry.
         // All scratch memory is per worker thread and reused (allocating and zeroing three 110K-cell arrays
@@ -318,6 +323,33 @@ enum Mesher {
                         let si = z * CS + y * CSQ
                         let di = cx * CS + (cz * CS + z) * RW + ry * RL
                         for x in 0..<CS { region[di + x] = src[si + x] }
+                    }
+                }
+            }
+        }
+        // The field's ground into the region (as its material, so light, ao and the cube pass's culling see it) and its
+        // densities beside it (sc.dens, the same indices; inside below the world, outside above it).
+        let dens = sc.dens
+        if fieldOn {
+            let idx = FieldMat.blocks
+            for ry in 0..<RH {
+                let y = y0 + ry, row = ry * RL
+                if y < 0 { (dens + row).initialize(repeating: FieldTerrain.inside, count: RL); continue }
+                (dens + row).initialize(repeating: FieldTerrain.outside, count: RL)
+                if y >= CH { continue }
+                for cz in 0..<3 {
+                    for cx in 0..<3 {
+                        let st = n9[cx + cz * 3]
+                        if y * CSQ >= st.storedCount { continue }
+                        for z in 0..<CS {
+                            let si = z * CS + y * CSQ
+                            let di = cx * CS + (cz * CS + z) * RW + row
+                            for x in 0..<CS {
+                                let d = st.density(si + x)
+                                dens[di + x] = d
+                                if d > 0 && region[di + x] == AIR { region[di + x] = idx[Int(st.material(si + x))] }
+                            }
+                        }
                     }
                 }
             }
@@ -489,7 +521,7 @@ enum Mesher {
         }
         // T17 smooth water (field worlds): does a column sharing this top corner step down a level (open at y, still water
         // under it)? Then the corner drops to the lower surface, so a river's steps ramp down instead of standing as boxes.
-        let smoothWater = smooth && site != nil
+        let smoothWater = smooth && (site != nil || fieldOn)
         func stepDown(_ cx: Int, _ y: Int, _ cz: Int) -> Bool {
             for dz in -1...0 {
                 for dx in -1...0 {
@@ -604,7 +636,7 @@ enum Mesher {
         // The smooth ground first: the plants below stand on its drawn surface (P175), read back from its vertices.
         sc.smValid = false
         if smooth {
-            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy, leafHoles: leafBlob, detailHoles: detail,
+            smoothQuads(R, sc, dmg: dmg, site: fieldOn ? nil : site, stored: fieldOn ? dens : nil, sy: sy, leafHoles: leafBlob, detailHoles: detail,
                         crater: craters, carveOut: det) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
@@ -656,7 +688,7 @@ enum Mesher {
                     }
                     // A snow layer on smooth ground: the ground under it shows snow instead (smoothQuads); its slab drew a
                     // white sawtooth of block steps over every snowy slope (P142).
-                    if smooth && site != nil && bi == snowLayerID && natT[Int(R[i - RL])] { continue }
+                    if smooth && (site != nil || fieldOn) && bi == snowLayerID && natT[Int(R[i - RL])] { continue }
                     let lx = x - C0, lz = z - C0
                     let bx16 = lx * 16, by16 = ly * 16, bz16 = lz * 16
                     let tintB = Int(tintT[bi])
@@ -1335,13 +1367,14 @@ final class MeshScratch {
     // P142: which samples agree with the generator's fields (0 unknown, 1 yes, 2 no), and the fields themselves.
     let smF = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.smN0 * MeshScratch.smN0 * MeshScratch.smN0)
     let smM = UnsafeMutablePointer<Int32>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0)   // vertex material
+    let dens = UnsafeMutablePointer<Int8>.allocate(capacity: Mesher.RL * Mesher.RH)    // PG1: the region's field densities
     lazy var field = SmoothField()
     var smValid = false             // P175: smV/smL hold the section's ground surface (Mesher.smoothGroundTop)
 
     deinit {
         region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate()
         lit.deallocate(); aos.deallocate(); seen.deallocate(); stack.deallocate()
-        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate(); smQ.deallocate(); smR.deallocate(); smF.deallocate(); smM.deallocate()
+        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate(); smQ.deallocate(); smR.deallocate(); smF.deallocate(); smM.deallocate(); dens.deallocate()
     }
 
     static var current: MeshScratch {

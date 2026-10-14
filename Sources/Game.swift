@@ -548,6 +548,7 @@ final class Game {
         let sv = d.folder.flatMap { f in save.map { $0.sub(f) } }
         let w = World(seed: base.seed, device: base.device, save: sv, dim: d)
         w.renderDistance = base.renderDistance
+        w.fieldTerrain = base.fieldTerrain                  // PG1: a field world's dimensions are field worlds too
         let s = DimensionState(dim: d, world: w)
         dims[d] = s
         hookWorld(w)

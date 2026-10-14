@@ -237,7 +237,10 @@ final class SaveManager {
     // Queues a chunk write on the background save queue (the main thread only hands over the array).
     func saveChunkAsync(_ k: ChunkKey, _ blocks: BlockStore) {
         let url = chunkURL(k)
-        SaveIO.enqueue(url.path, blocks) { [self] in saveChunk(k, blocks.full()) }
+        SaveIO.enqueue(url.path, blocks) { [self] in
+            saveChunk(k, blocks.rawFull())
+            if blocks.isField { saveField(k, blocks.field) }        // PG1: the ground beside the built layer
+        }
     }
 
     func saveChunk(_ k: ChunkKey, _ blocks: [BlockID]) {
@@ -282,7 +285,11 @@ enum SaveIO {
 
     static func pending(_ path: String) -> [BlockID]? {
         lock.lock(); defer { lock.unlock() }
-        return queued[path]?.blocks.full()
+        return queued[path]?.blocks.rawFull()
+    }
+    static func pendingStore(_ path: String) -> BlockStore? {
+        lock.lock(); defer { lock.unlock() }
+        return queued[path]?.blocks
     }
 
     static func enqueue(_ path: String, _ blocks: BlockStore, _ write: @escaping () -> Void) {
