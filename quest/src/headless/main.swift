@@ -674,6 +674,24 @@ if CommandLine.arguments.contains("--oct13-only") {
     PlaytestOct13Tests.run(game, check: check)
     print(failures == 0 ? "oct13: all checks passed" : "oct13: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --oct14-only [P2xx]: Oct 14 midday playtest items (Sources/PlaytestOct14Tests.swift, backlog P250-P265); with
+// --render X, frames of what an item builds land next to X.
+if let i = CommandLine.arguments.firstIndex(of: "--oct14-only") {
+    let next = i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : ""
+    let shotDir = renderPath.flatMap { $0.isEmpty ? nil : ($0 as NSString).deletingLastPathComponent }
+    let render: ((String, V3, Float, Float) -> Void)? = shotDir.flatMap { dir in vkctx.map { ctx in { name, at, yaw, pitch in
+        let was = game.player.pos
+        game.player.pos = at - V3(0, game.player.eyeHeight, 0)
+        _ = game.world.loadSync(center: at, radius: 3)
+        do {
+            try RenderTest.render(game: game, ctx: ctx, path: (dir.isEmpty ? "." : dir) + "/\(name).png", yaw: yaw, pitch: pitch)
+            print("render: \(dir)/\(name).png")
+        } catch { check(false, "oct14 render \(name): \(error)") }
+        game.player.pos = was
+    } } }
+    PlaytestOct14Tests.run(game, only: next.hasPrefix("P") ? next : nil, render: render, check: check)
+    print(failures == 0 ? "oct14: all checks passed" : "oct14: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --water-only: P44 surface water in new worlds (Sources/NetTests.swift WaterTests).
 if CommandLine.arguments.contains("--water-only") {
     WaterTests.run(check: check)

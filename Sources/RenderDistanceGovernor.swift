@@ -4,17 +4,21 @@ import Foundation
 // (QuestApp's FrameStats, every 5 s). Pure value type, no clocks or globals, so a synthetic frame-time trace can drive
 // it in a test (`Blocksmith --rdgovernortest`, QuestSim's rdgovernor case).
 //
-// Down: a window (5 s; P240, was two in a row) that misses frames (> 5%) with the CPU or GPU near the budget (> 80%) take one step
-// off, not below `floor`. A single hitch, a chunk-loading burst (fast flight, a raise's new ring), a menu, a pause or
-// a save is not evidence: those windows count neither way.
-// Up: once the frame has headroom for `hold` seconds (no missed frames, and the busier of CPU and GPU, scaled by the
-// next step's extra area ((rd+1)/rd)^2, still under 70% of the budget) it takes one step back up, never above the
-// player's chosen distance. Hysteresis: the raise test (70% after scaling) sits well below the drop test (80%), every
-// step waits a settle time, and a drop soon after a raise doubles the hold (up to 5 min) so a scene on the edge does
-// not see-saw; five quiet minutes back at the chosen distance reset it.
+// P250 (Oct 14 midday, "it's 24, I'd like it to actually act like 24"): the distance the player sets is the one he gets
+// unless frames really suffer, and it comes back up when they stop.
+// Down: two windows in a row (10 s; P240 had made it one) that miss frames (> 5%) with the CPU or GPU near the budget
+// (> 80%) take one step off, not below `floor`. A single hitch, a chunk-loading burst (fast flight, a raise's new
+// ring), a menu, a pause or a save is not evidence: those windows count neither way.
+// Up: once the frame has headroom for `hold` seconds (no more than 1% missed frames, and the busier of CPU and GPU,
+// with half of it scaled by the next step's extra area ((rd+1)/rd)^2, still under 78% of the budget) it goes back up,
+// as far as that model says fits (one to five steps), never above the player's chosen distance. (Scaling the whole frame by the area kept a lowered distance
+// down for good: much of a frame is not the terrain.) Hysteresis: the raise test sits below the drop test (80%),
+// every step waits a settle time, and a drop soon after a raise doubles the hold (up to 5 min) so a scene on the edge
+// does not see-saw; five quiet minutes back at the chosen distance reset it.
 // Severe: a window whose busier side is over severeFrac of the budget (the Oct 11 playtest sat at 22-36 fps at
-// distance 22 for minutes: one step per 15 s never caught up, and every menu glance excused the window) drops at once,
-// loading or not, straight to the distance whose area fits 80% of the budget (cost scales with rd^2).
+// distance 22 for minutes: one step per 15 s never caught up, and every menu glance excused the window) drops at once
+// straight to the distance whose area fits 80% of the budget (cost scales with rd^2); while chunks are loading
+// (flying) only when the next window is severe too, so a burst of new ground alone never takes the distance down.
 // Only `chosen` is the player's setting (saved); `current` is session state and is never written anywhere.
 struct RenderDistanceGovernor {
     struct Window {
@@ -33,11 +37,11 @@ struct RenderDistanceGovernor {
     private(set) var current: Int
     let floor: Int
     // Tunables (seconds and budget fractions).
-    static let missFrac = 0.05, busyFrac = 0.8, raiseFrac = 0.7, severeFrac = 1.6
-    // P240 (Oct 13 21:52, lag and input lag before the distance came down): one bad window (5 s) is enough to step down.
-    static let badToDrop = 1, settle = 10.0, baseHold = 20.0, maxHold = 300.0, failWindow = 60.0, calmReset = 300.0
+    static let missFrac = 0.05, busyFrac = 0.8, raiseFrac = 0.78, severeFrac = 1.6
+    // P250: two bad windows in a row (10 s) step down (P240 had made it one).
+    static let badToDrop = 2, settle = 10.0, baseHold = 20.0, maxHold = 300.0, failWindow = 60.0, calmReset = 300.0
     private(set) var hold = RenderDistanceGovernor.baseHold
-    private var badStreak = 0, good = 0.0, sinceChange = 1e9, sinceRaise = 1e9, sinceDrop = 1e9
+    private var badStreak = 0, severeStreak = 0, good = 0.0, sinceChange = 1e9, sinceRaise = 1e9, sinceDrop = 1e9
 
     init(chosen: Int, floor: Int = 4) {
         self.chosen = chosen; self.current = chosen; self.floor = min(floor, chosen)
@@ -48,7 +52,7 @@ struct RenderDistanceGovernor {
     // The player picked a distance (pause menu): it is the new ceiling and the current distance; history is cleared.
     mutating func setChosen(_ rd: Int) {
         chosen = rd; current = rd
-        badStreak = 0; good = 0; sinceChange = 1e9; sinceRaise = 1e9; sinceDrop = 1e9; hold = Self.baseHold
+        badStreak = 0; severeStreak = 0; good = 0; sinceChange = 1e9; sinceRaise = 1e9; sinceDrop = 1e9; hold = Self.baseHold
     }
 
     // Whether a window is a sustained miss at the budget / has room for one more step.
@@ -63,7 +67,7 @@ struct RenderDistanceGovernor {
     }
     static func hasRoom(_ w: Window, at rd: Int) -> Bool {
         let grow = Double(rd + 1) / Double(max(1, rd))
-        let need: Double = max(w.cpuMs, w.gpuMs) * grow * grow
+        let need: Double = max(w.cpuMs, w.gpuMs) * (0.5 + 0.5 * grow * grow)
         return w.frames > 0 && w.missed * 100 <= w.frames && need < w.budgetMs * raiseFrac
     }
 
@@ -73,8 +77,9 @@ struct RenderDistanceGovernor {
         sinceChange += w.seconds; sinceRaise += w.seconds; sinceDrop += w.seconds
         // Five minutes at the choice since the last step either way: forget the backoff.
         if current == chosen && sinceDrop > Self.calmReset && sinceRaise > Self.calmReset { hold = Self.baseHold }
-        if !w.excused && Self.isSevere(w) && sinceChange >= Self.settle * 0.5 && (current > floor || canLowerRate) {
-            good = 0; badStreak = 0
+        severeStreak = !w.excused && Self.isSevere(w) ? severeStreak + 1 : 0
+        if severeStreak >= (w.loading ? 2 : 1) && sinceChange >= Self.settle * 0.5 && (current > floor || canLowerRate) {
+            good = 0; badStreak = 0; severeStreak = 0
             if canLowerRate { sinceChange = 0; return .lowerRate }
             current = severeTarget(w)
             if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
@@ -99,9 +104,18 @@ struct RenderDistanceGovernor {
         guard current < chosen, Self.hasRoom(w, at: current) else { good = 0; return .none }
         good += w.seconds
         guard good >= hold else { return .none }
-        current += 1
+        current = raiseTarget(w)
         good = 0; sinceChange = 0; sinceRaise = 0
         return .raise(current)
+    }
+
+    // P250: how far one raise goes: the distance whose frame (half of it scaling with the area) still fits the raise
+    // test, at least one step and at most five, never past the choice. One step per 25 s took minutes to undo a slump.
+    func raiseTarget(_ w: Window) -> Int {
+        let busy = max(max(w.cpuMs, w.gpuMs), 1e-3)
+        let q = (w.budgetMs * Self.raiseFrac / busy - 0.5) / 0.5
+        let r = Int(Double(current) * max(1, q).squareRoot())
+        return min(chosen, current + 5, max(current + 1, r))
     }
 
     // The host could not lower the refresh rate after .lowerRate: take the distance step instead.
@@ -202,6 +216,31 @@ enum RenderDistanceGovernorTest {
         log("trace 5 (distance 22 at 22 fps, flying): " + t5.map(String.init).joined(separator: " "))
         check(fitAt <= 2, "a severe miss (22 fps) drops straight to a fitting distance (window \(fitAt): \(t5[min(fitAt, 11)]))")
         check(t5.min() ?? 0 >= 8, "without overshooting far below it (min \(t5.min() ?? 0))")
+        // 6. P250 (Oct 14 midday): flying at the chosen 24, a burst of new ground makes one window severe; then the
+        // frame is fine (10.5 ms of 13.9 at 24). The distance stays 24.
+        func cost24(_ rd: Int) -> Double { cost(4.5, 6.0 / 576, rd) }
+        g = RenderDistanceGovernor(chosen: 24)
+        var t6: [Int] = []
+        for i in 0..<24 {
+            let c = i == 3 ? 30 : cost24(g.current)
+            _ = g.observe(window(cost: c, loading: i >= 2 && i <= 5))
+            t6.append(g.current)
+        }
+        log("trace 6 (flying at 24, one loading burst): " + t6.map(String.init).joined(separator: " "))
+        check(t6.allSatisfy { $0 == 24 }, "a loading burst alone never takes the chosen distance down")
+        // 7. A real slump (a heavy town scene, 45 ms for 15 s) takes it down; when the scene is back to 10.5 ms at 24 it
+        // climbs all the way back to 24.
+        g = RenderDistanceGovernor(chosen: 24)
+        var t7: [Int] = []
+        for i in 0..<120 {
+            let c = i < 3 ? 45 : cost24(g.current)
+            _ = g.observe(window(cost: c))
+            t7.append(g.current)
+        }
+        let back = t7.lastIndex { $0 < 24 }.map { ($0 + 1) * 5 } ?? 0
+        log("trace 7 (a slump at 24, then a scene that fits 24): " + t7.map(String.init).joined(separator: " "))
+        check((t7.min() ?? 24) < 24, "a real slump lowers it (min \(t7.min() ?? 24))")
+        check(t7.last == 24 && back <= 300, "and it comes back up to the chosen 24 (back at \(back) s)")
         var f = RenderDistanceGovernor(chosen: 5)
         for _ in 0..<40 { _ = f.observe(window(cost: 30)) }
         check(f.current == 4, "never below the floor (4)")
