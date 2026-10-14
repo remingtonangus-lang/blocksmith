@@ -101,6 +101,10 @@ enum Trains {
         var wrecked = false
         var gunCool: Float = 2
         var bullion = false                     // D47: today's run is a bullion train (VaultObjectives.swift)
+        var raid: [Mob] = []                    // D50 (TrainRoofs.swift): robbers holding the train up
+        var raidT: Float = 0
+        var raidedDay = -1
+        var roofAt: Double = -1e9               // when the player last stood on one of its roofs
         var chuff: Float = 0
         var lastS: Float = 0
         init(_ t: Track) { track = t }
@@ -176,7 +180,8 @@ enum Trains {
         // Cars not in a train (a save's leftovers) go.
         g.mobs.mobs.removeAll { isCar($0) && carOf[ObjectIdentifier($0)] == nil }
         // A held train with the player gone, or a minute on, runs again.
-        for tr in trains.values where tr.heldBy {
+        for tr in trains.values where !tr.cars.isEmpty { raidTick(g, tr) }       // D50: hold-ups of the train you ride
+        for tr in trains.values where tr.heldBy && tr.raid.isEmpty {
             tr.stoppedFor += 1
             let far = tr.cars.first.map { simd_length($0.pos - p) > 48 } ?? true
             if far || tr.stoppedFor > 60 { tr.heldBy = false; tr.brake = 0; tr.stoppedFor = 0; tr.holdUp = 0 }
@@ -248,6 +253,7 @@ enum Trains {
         let (s, dir, stop) = t.at(tr.time)
         let moving = abs(s - tr.lastS)
         tr.lastS = s
+        let before = tr.cars.map { ($0.pos, $0.yaw) }
         for (k, m) in tr.cars.enumerated() {
             let sk = s - dir * gap * Float(k)
             let p = t.point(sk)
@@ -258,6 +264,7 @@ enum Trains {
             m.walkPhase += moving * 1.6
             m.onGround = true
         }
+        if dt > 0 { carryRoofRider(g, tr, before: before) }                // D50: a rider on the roofs
         // Steam: chuffs with speed, a whistle leaving each stop.
         guard dt > 0, let lead = tr.cars.first, simd_length(lead.pos - g.player.pos) < 96 else { return }
         let sp = moving / max(dt, 1e-4)
@@ -297,6 +304,7 @@ enum Trains {
     static func use(_ g: Game, _ m: Mob) -> Bool {
         guard isCar(m), let (tr, k) = carOf[ObjectIdentifier(m)] else { return false }
         _ = k
+        if climbRoof(g, tr, m) { return true }                              // D50: sneak-use climbs onto the roof
         switch m.variant {
         case coach, loco:
             if g.riding === m { return false }
