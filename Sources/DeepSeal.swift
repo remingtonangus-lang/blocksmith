@@ -98,7 +98,11 @@ extension Recipes {
     static func deepRecipes() -> [Recipe?] {
         [shapeless(["raw_sunderite", "raw_sunderite", "blaze_powder"], "sunderite_flux"),
          shapeless(["netherite_pickaxe", "sunderite_ingot", "sunderite_ingot", "sunderite_ingot"], DeepSeal.pickaxe),
-         shapeless(["sunderite_ingot", "tnt"], "sunder_charge")]
+         shapeless(["sunderite_ingot", "tnt"], "sunder_charge"),
+         // P249 (Oct 13 22:02, "I gotta get to hell... and try the final battle"): a forged Ember Charge, so the way
+         // down never hangs on loot. A world whose nearby command chests were emptied before they held one, or one
+         // that never meets a fleet frigate, still gets through the floor: dear (titanium, a gold block), but certain.
+         shapeless(["diamond", "diamond", "diamond", "tnt", "tnt", "tnt", "gold_block"], HellGate.chargeKey)]
     }
 }
 

@@ -5,8 +5,10 @@ import simd
 //   the Deep's hell band  the surface's bottom three layers are Wardstone, which nothing breaks (pickaxe, blast, frigate
 //                         shell, piston, mob); an Ember Charge pressed onto it blasts a 3x3 shaft through to the Deep.
 //   the Emberdeep         a portal frame on the surface no longer lights with flint and steel; an Ember Charge wakes it.
-// Ember Charges are never crafted: base loot (every command chest holds one, a vault one or two: Loot.extraPools) and,
-// on the spine (Spine.swift), the strongroom of a fleet frigate sunk or seized.
+// Ember Charges are base loot (every command chest holds one, a vault one or two: Loot.extraPools) and, on the spine
+// (Spine.swift), the strongroom of a fleet frigate sunk or seized; P249 added a dear recipe (DeepSeal.deepRecipes) so
+// the way down never hangs on loot. The Ashguard's citadel stands under the world's centre (AshWar), so the hints say
+// how far it is when the player is about to break through far from it.
 // Saved surface chunks get the floor stamped in as they load (SaveManager.load), portals already lit stay lit, and the
 // way up out of the Deep cuts through the floor (DeepSeam.crossSeam).
 let WARDSTONE = Blocks.id("wardstone")
@@ -108,7 +110,7 @@ extension Game {
             consumeHeld()
             hell.charges.append((at: t.hit, t: HellGate.chargeFuse))
             sfx(.ignite, 0.8, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
-            onToast?("Ember Charge set: stand clear")
+            onToast?("Ember Charge set: stand clear" + vaultPointer())
             return true
         }
         for p in [t.hit + t.normal, t.hit] where tryLightPortal(at: p, probe: true) {
@@ -130,7 +132,7 @@ extension Game {
     func coldFrameHint() {
         guard clock - hell.hintAt > 20 else { return }
         hell.hintAt = clock
-        onToast?("The frame stays cold. Only an Ember Charge wakes it: fleet frigates carry them, Capital citadels keep them in their command rooms" + citadelPointer())
+        onToast?("The frame stays cold. Only an Ember Charge wakes it: fleet frigates carry them, Capital citadels keep them in their command rooms, or forge one from 3 Titanium Ingots, 3 TNT and a gold block" + citadelPointer())
     }
 
     // P139 (Oct 12 PM, 15:27 "I'm going to assume there's a certain ore type that I have to find... until I find it, I
@@ -138,7 +140,7 @@ extension Game {
     func wardHint() {
         guard clock - hell.hintAt > 60 else { return }
         hell.hintAt = clock
-        onToast?("Wardstone: no pickaxe, ore or blast breaks it, only an Ember Charge. Fleet frigates carry them, Capital citadels keep them in their command rooms" + citadelPointer())
+        onToast?("Wardstone: no pickaxe, ore or blast breaks it, only an Ember Charge. Fleet frigates carry them, Capital citadels keep them in their command rooms, or forge one from 3 Titanium Ingots, 3 TNT and a gold block" + citadelPointer() + vaultPointer())
         HellGate.wardHints += 1
     }
 
@@ -149,6 +151,14 @@ extension Game {
         let c = RadarContact(name: "Capital Citadel", kind: "military_base", x: (s.min.x + s.max.x) / 2, z: (s.min.z + s.max.z) / 2)
         MapCache.shared.discover(self, kind: c.kind, x: c.x, z: c.z)
         return ". The nearest is marked on your map: \(radarBearing(c))"
+    }
+
+    // P249: the Ashguard's citadel (the last battle) stands in the Ash Vault under the world's centre. Breaking through
+    // far from it means a long march underground, so say so while the player can still choose where to go down.
+    func vaultPointer() -> String {
+        let d = Int(simd_length(V2(player.pos.x, player.pos.z)))
+        guard d > 1200 else { return "" }
+        return ". The war below is fought under the world's centre, \(d) blocks from here: go down near it"
     }
 
     // Burns down placed charges (from hellTick).
