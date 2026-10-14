@@ -99,7 +99,7 @@ enum ShopKind: String, CaseIterable, Codable {
 
 // A paid service instead of an item (the doctor patching you up, a hot meal at the saloon).
 enum ShopService: String, CaseIterable {
-    case treatment, meal, treaty, room, bath, fence, catalog
+    case treatment, meal, treaty, room, bath, fence, catalog, quartermaster
     var name: String {
         switch self {
         case .treatment: return "Patch Me Up"
@@ -109,6 +109,7 @@ enum ShopService: String, CaseIterable {
         case .bath: return "A Hot Bath"
         case .fence: return "The Back Room"
         case .catalog: return "Mail-Order Catalog"
+        case .quartermaster: return "Quartermaster"
         }
     }
     var icon: String {
@@ -120,6 +121,7 @@ enum ShopService: String, CaseIterable {
         case .bath: return "water_bucket"
         case .fence: return "gold_nugget"
         case .catalog: return "book"
+        case .quartermaster: return "iron_ingot"
         }
     }
     var detail: String {
@@ -131,6 +133,7 @@ enum ShopService: String, CaseIterable {
         case .bath: return "Wash off the blood and the road"
         case .fence: return "Hot goods bought, no questions asked"
         case .catalog: return "Rare goods by the next coach"
+        case .quartermaster: return "Big orders for the long road"
         }
     }
 }
@@ -198,7 +201,7 @@ enum Economy {
         case .room: return 300                                             // D19 (Hotel.swift)
         case .bath: return 100
         case .fence: return 0                                              // D27: pays you (Fence.offer)
-        case .catalog: return 0                                            // D29: opens the catalog
+        case .catalog, .quartermaster: return 0                            // D29, D30: open their books
         }
     }
 
@@ -260,7 +263,7 @@ enum Economy {
         .saloon: ["sweet_berries", "glow_berries", "cocoa_beans", "sugar", "honey_bottle", "wheat", "potato", "melon_slice",
                   "pumpkin", "cod", "salmon"],
     ]
-    static let services: [ShopKind: [ShopService]] = [.doctor: [.treatment], .general: [.catalog], .saloon: [.meal, .room, .bath, .fence]]
+    static let services: [ShopKind: [ShopService]] = [.doctor: [.treatment], .general: [.catalog], .gunsmith: [.quartermaster], .saloon: [.meal, .room, .bath, .fence]]
 
     static func value(of item: ItemID) -> Int? { value[Items.key(item)] }
     // P40: sold only by gunsmiths in a Capital city, their rounds too (R8: Capital guns bought there had nothing to fire).
@@ -462,6 +465,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
                 return (st, s.name, d, Money.format(price), ok && game.money >= price)
             }
             if s == .room || s == .bath { return (st, s.name, s.detail, Money.format(price), game.money >= price) }      // D19
+            if s == .quartermaster { return (st, s.name, s.detail, "Open", true) }                                          // D30
             if s == .catalog {                                                                                                // D29
                 let r = MailOrder.ready(game).count
                 return (st, s.name, r > 0 ? "\(r) parcel\(r == 1 ? "" : "s") to collect" : s.detail, "Open", true)
@@ -729,6 +733,7 @@ enum Shop {
         if s == .treaty { return Countries.signTreaty(g, m) }
         if s == .fence { return Fence.sell(g, m) }                          // D27
         if s == .catalog { g.openMenu(CatalogMenu(game: g)); return ("", true) }   // D29
+        if s == .quartermaster { g.openMenu(QuartermasterMenu(game: g)); return ("", true) }   // D30
         let price = Economy.price(s, g)
         switch s {
         case .treatment where g.health >= 20: return ("You look healthy to me.", false)
