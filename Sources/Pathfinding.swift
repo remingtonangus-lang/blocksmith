@@ -405,6 +405,9 @@ extension Mob {
         pr.doors = opensDoors || (breaksDoors && g.difficulty == 3)
         pr.climbs = pr.span == 1
         if kind == .drowned || kind == .guardian || kind == .elderGuardian || kind == .axolotl || kind == .turtle || kind == .frog { pr.waterCost = 0 }
+        // P238 (Oct 13 21:52, "two of them walking on water"): townsfolk and golems go round water, never across it: a
+        // villager swimming a strait rides on the surface and reads as walking on it. (A path with no dry way still swims.)
+        if kind == .villager || kind == .ironGolem || kind == .wanderingTrader { pr.waterCost = 60 }
         // Calm garrison soldiers keep the ordinary drop limit with the player near (citadel behaviour sim: a recruit
         // strolling on a tower floor took a 5-block drop down the ladder shaft with the observer overhead).
         let disciplined = kind.steelhold && !aggro
