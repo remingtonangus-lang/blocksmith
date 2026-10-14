@@ -52,6 +52,13 @@ enum VaultObjectives {
         }
     }
 
+    // Q2: the three objectives' tally on the HUD while you're in the Vault and the war isn't won.
+    static func hud(_ g: Game) -> String? {
+        guard g.dim.dim == .deep, DeepGen.inVault(g.player.pos.y), !g.ashVictory, g.survival else { return nil }
+        guard !all.allSatisfy({ done($0.key) }) else { return nil }
+        return all.map { o in done(o.key) ? "\(o.name): done" : "\(o.name) \(count(o.key))/\(o.need)" }.joined(separator: "   ")
+    }
+
     // MARK: The bullion train
 
     static func bullionDay(_ id: Int64, _ day: Int) -> Bool {
