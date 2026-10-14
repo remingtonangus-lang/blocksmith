@@ -100,7 +100,7 @@ enum Advancements {
         Advancement(id: "adventure/break_citadel", tab: 3, title: "Siege Breaker", desc: "Break a Capital citadel with the Tidebreaker", crit: .event("citadel_broken"), challenge: true),
         Advancement(id: "adventure/hero_of_the_village", tab: 3, title: "Village Keeper", desc: "Successfully defend a village from a raid", crit: .event("raid_win"), challenge: true),
         Advancement(id: "adventure/totem_of_undying", tab: 3, title: "Second Chance", desc: "Use a Totem of Rebirth to cheat death", crit: .event("totem")),
-        Advancement(id: "adventure/summon_iron_golem", tab: 3, title: "Hired Muscle", desc: "Summon an Iron Golem", crit: .event("iron_golem")),
+        Advancement(id: "adventure/summon_iron_golem", tab: 3, title: "Hired Muscle", desc: "Summon an Iron Sentinel", crit: .event("iron_golem")),
         Advancement(id: "adventure/throw_trident", tab: 3, title: "A Throwaway Joke", desc: "Throw a Trident at something", crit: .event("trident_hit")),
         Advancement(id: "adventure/spyglass_at_parrot", tab: 3, title: "Look Closer", desc: "Look at something through a Spyglass", crit: .event("spyglass")),
         Advancement(id: "adventure/walk_on_powder_snow", tab: 3, title: "Light Step", desc: "Walk on Powder Snow with leather boots", crit: .event("powder_walk")),

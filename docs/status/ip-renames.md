@@ -136,3 +136,8 @@ Boarling Keep -> Boarling Mound. The Hollow is out of new worlds (strongholds th
 old-save rule: docs/status/ip-content-audit-oct11.md.
 
 ## Oct 13 (P125): Glow Berries -> Lumen Pods, Cave Vines -> Lanternvine (teal pods, picked by hand, regrow)
+
+## Oct 14 (P246): spiders are the Gravesworn; Iron Golem -> Iron Sentinel
+The spider and cave spider (keys "spider", "cave_spider") are now the Gravesworn Duellist and Gravesworn Squire: dead
+men-at-arms in tarnished plate who fight as sword duellists. The village guardian (key "iron_golem") is the Iron
+Sentinel, with a riveted ironclad model.

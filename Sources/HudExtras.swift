@@ -44,7 +44,7 @@ final class Subtitles {
         case .mobZombie: return "Zombie groans"
         case .mobSkeleton: return "Skeleton rattles"
         case .creeperHiss: return "Powderwight fuse sizzles"
-        case .mobSpider: return "Spider hisses"
+        case .mobSpider: return "Something skitters"
         case .mobVoidwalker: return "Voidwalker warbles"
         case .mobSlime: return "Slime squishes"
         case .bow: return "Arrow fired"

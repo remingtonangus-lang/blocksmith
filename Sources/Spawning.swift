@@ -64,7 +64,7 @@ enum Spawns {
         if b == .dripstoneCaves { zombie = [(.drowned, 95, 4, 4), (.zombieVillager, 5, 1, 1)] }
         if snowy.contains(b) { skeleton = [(.skeleton, 20, 4, 4), (.stray, 80, 4, 4)] }
         if b == .swamp || b == .mangroveSwamp { skeleton = [(.skeleton, 70, 4, 4), (.bogged, 50, 4, 4)] }
-        var list: [SpawnEntry] = [(.spider, 100, 4, 4)] + zombie + skeleton
+        var list: [SpawnEntry] = [(.spider, 70, 1, 2)]      // P246: Gravesworn duellists walk alone or in pairs + zombie + skeleton
             + [(.creeper, 100, 4, 4), (.slime, 100, 4, 4), (.enderman, 10, 1, 4), (.witch, 5, 1, 1)]
         if b.isRiver { list.append((.drowned, 100, 1, 1)) }
         else if b.isOcean { list.append((.drowned, 5, 1, 1)) }
@@ -521,13 +521,7 @@ extension MobManager {
             m.mount = n
             m.jockey = true
         }
-        // Spider jockey: 1% of spiders carry a skeleton.
-        if m.kind == .spider && Rand.int(in: 0..<100) == 0 {
-            let s = Mob(.skeleton, at: m.pos + V3(0, m.height, 0))
-            s.mount = m
-            s.jockey = true
-            mobs.append(s)
-        }
+        // (No spider jockeys: the spider is the Gravesworn now, P246.)
         _ = w
     }
 

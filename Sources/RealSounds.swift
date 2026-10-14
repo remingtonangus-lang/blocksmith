@@ -85,7 +85,7 @@ enum RealSounds {
         case .mobPig: return Snd.mob(.pig, .ambient).name
         case .mobZombie: return Snd.mob(.zombie, .ambient).name
         case .mobSkeleton: return Snd.mob(.skeleton, .ambient).name
-        case .mobSpider: return Snd.mob(.spider, .ambient).name
+        case .mobSpider: return Snd.mob(.silverfish, .ambient).name
         case .mobSlime: return Snd.mob(.slime, .ambient).name
         case .mobWailer: return Snd.mob(.ghast, .ambient).name
         case .mobCinderwisp: return Snd.mob(.blaze, .ambient).name
