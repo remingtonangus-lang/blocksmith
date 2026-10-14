@@ -132,6 +132,8 @@ final class Chunk {
         topSec = t
     }
     var modified = false
+    var fieldEdits: [Int32: UInt16] = [:]     // PG1: bounds on the terrain field per cell (TerrainField.swift)
+    var fieldDirty = false                    // ...changed since last saved
     // The block array as last saved or loaded. Any write to `blocks` copies it (copy-on-write), so
     // "same storage" means nothing changed since then and the save can be skipped.
     var savedBlocks: BlockStore?
