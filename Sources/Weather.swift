@@ -209,7 +209,8 @@ extension Game {
         if weather.rain > 0.05 && wetWorld {
             let ex = Int(floor(eye.x)), ez = Int(floor(eye.z))
             let right = simd_normalize(V3(cosf(player.yaw), 0, -sinf(player.yaw)))
-            let a = min(1, weather.rain) * 0.55
+            // H9: a thunderstorm's rain is heavier: denser, brighter streaks (SeaStorms.rainBoost).
+            let a = min(1, weather.rain) * 0.55 + SeaStorms.rainBoost(self) * 0.2
             for dz in -10...10 { for dx in -10...10 where dx * dx + dz * dz <= 100 {
                 let x = ex + dx, z = ez + dz
                 guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { continue }
@@ -221,7 +222,7 @@ extension Game {
                 let h = hashf(x, 0, z, 91)
                 let snow = kind == 2
                 let speed: Float = snow ? 2 : 14
-                for k in 0..<(snow ? 5 : 3 + Int(weather.rain * 4)) {
+                for k in 0..<(snow ? 5 : 3 + Int(weather.rain * 4) + Int(SeaStorms.rainBoost(self) * 4)) {
                     let span = yHi - yLo
                     let off = (t * speed + h * 97 + Float(k) * 7.3).truncatingRemainder(dividingBy: 22)
                     let y = yHi - off

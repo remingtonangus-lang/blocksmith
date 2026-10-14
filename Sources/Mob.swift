@@ -276,6 +276,7 @@ final class Mob {
     var viewGround: Float = 0, groundKey = Int.min, groundH = SIMD4<Float>(repeating: 0)
     var ragdoll: MobRagdoll?        // realistic world: a dead body falling as a ragdoll (MobRagdoll.swift)
     var health: Int
+    var boatRock = V2(0, 0)          // boats: drawn pitch and roll on the waves (H9, SeaStorms.swift)
     var boatWear: Float = 0         // boats: wear toward the next lost health point (Boats.updateBoat)
     var scale: Float = 1            // babies 0.5
     var walkPhase: Float = 0

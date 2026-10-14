@@ -4,6 +4,7 @@ import simd
 // The player's own body, drawn only in the third-person camera views (F5). Original look:
 // rust tunic, charcoal trousers, brown boots; worn armour tints the matching boxes.
 func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutablePointer<MobVert>, capacity: Int) -> Int {
+    if BoatLooks.drawsRider(g) { return 0 }        // H9: seated in a boat, the boat's model draws the body (BoatLooks.swift)
     let p = g.player
     let walk = sinf(g.walkBob) * 0.8 * g.walkAmount
     let sw = g.swing

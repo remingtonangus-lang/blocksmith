@@ -174,6 +174,8 @@ extension Mob {
             vel.y -= 28 * dt
             if onGround { friction = Boats.slipperiness(below) }      // reference: the block's slipperiness (ice ~40 b/s)
         }
+        boatSea(dt, g, onWater: surface != nil, ocean: ocean, sea: sea)    // H9: rock on the waves, storm drift, spray
+        BoatLooks.track(self, g, ridden: ridden)                          // H9: the seated rider drawn in the hull
         // Paddling: reference acceleration 0.04 b/tick forward, 0.005 backward, turn 1 deg/tick with 0.9 decay.
         if ridden {
             let inp = g.rideInput
@@ -209,26 +211,5 @@ extension Mob {
     }
 }
 
-// Boat model: flat bottom, four sides, two paddles (rowing while ridden). Faces -Z.
-func boatParts(_ m: Mob) -> [Part] {
-    let c = Boats.color(m.variant)
-    let dark = c * 0.8
-    var p: [Part] = [
-        box(-8, 0, -14, 16, 3, 28, dark),
-        box(-9, 3, -14, 1, 6, 28, c), box(8, 3, -14, 1, 6, 28, c),
-        box(-8, 3, -15, 16, 6, 1, c), box(-8, 3, 14, 16, 6, 1, c),
-        // P145: a pointed bow and a raised stern, like the inventory icon (it was a plain box).
-        box(-6, 1, -18, 12, 7, 3, c), box(-3, 2, -20, 6, 7, 2, c), box(-1, 3, -21, 2, 7, 1, dark),
-        box(-8, 3, 15, 16, 7, 1, dark),
-    ]
-    let row = sinf(m.walkPhase) * 0.6
-    for s: Float in [-1, 1] {
-        p.append(Part(mn: V3(s * 10 - 0.5, 6, -1), mx: V3(s * 10 + 0.5, 7, 14), pivot: V3(s * 10, 6.5, 2), rotX: row, color: dark))
-    }
-    if m.chested {
-        let wood = V3(0.62, 0.45, 0.22)
-        p.append(box(-6, 3, 3, 12, 10, 10, wood))
-        p.append(box(-1, 8, 2.6, 2, 3, 0.4, V3(0.8, 0.8, 0.8)))
-    }
-    return p
-}
+// Boat model: BoatLooks.parts (the inventory icon's hull, the seated rider, rocking on the waves).
+func boatParts(_ m: Mob) -> [Part] { BoatLooks.parts(m) }
