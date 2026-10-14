@@ -260,6 +260,49 @@ P219. [DONE] [19:08] A direct rocket hit should kill a soldier outright.
 P220. [DONE] [19:08-19:14] Ship repair: the engine block and light panel requirements are unclear. The repair UI shows each missing part, its recipe and where it goes.
 Repeats in this session: R1 (left grip with a gun, 19:06; he also wants grip-left to scroll the toolbar past weapons, 19:14) and F1 (freezes at 18:48, 19:11). Praise, keep: Capital raids are exciting, the alarm panel, the Breach shotgun, the Capital Service Rifle, the stone look.
 
+## THE POLYGON DIRECTION (Remington, Oct 13 22:05): the biggest item now, take right after P221-P251
+He played the polygon world on the 21:25 build and decided: "this will be the way forward, no more Minecrafty stuff." He loves the forests, fallen logs, caves and new village buildings. What is wrong comes from blocks still being the base under the smooth surface. A frozen block-world fallback build is kept on the Mac (git tag blocks-fallback-oct13); do NOT maintain a parallel block version, put the effort into the polygon game. Build these thoroughly; each is big, so split into several PRs (one per working piece), each pushed and merged.
+PG1. No blocks underneath: the polygon world's terrain is a true smooth volumetric field (density/SDF data meshed with dual contouring or marching cubes, materials blended), not smoothed block cells. Digging, explosions and bullets carve the field and break pieces off procedurally (the realistic-world fracture work), including the ground itself. Saves store the field.
+PG2. Physics on the surface: the player, creatures, items and vehicles collide with the mesh, not with block cells. Sheep and animals never sink into or hover over the ground; moving through caves is easy (capsule vs mesh, crouch to pass low gaps); ragdolls rest on the real surface.
+PG3. Distance: far terrain is drawn as cheap smooth meshes that keep the real silhouette, never square blocks (with F4).
+PG4. Objects as real shapes: tree trunks show their bark outside, never their inside; birch trees get real birch shapes (not random procedural sticks); fallen logs sit on the ground (none floating); pumpkins are round, and can be picked up instead of breaking apart; everything that looks boxy gets its real shape.
+PG5. Roads on smooth ground blend into each other and into the terrain.
+PG6. Port all content onto the polygon world: towns, bases, Capital sites, structures, caves, hell and the Reich layers, so a polygon world plays the whole game. Then make Polygon the default for new worlds.
+PG7. Creative mode: no damage to the player.
+
+## PLAYTEST Oct 13 night (P221-P251): top priority with the polygon items
+He played the 21:25 build (3148f425, before PR #112 merged the R/F/S batch) 21:27-22:02; notes in docs/playtests/2026-10-13/voice-notes.md after 21:27. Ragdolls (21:40), freezes (21:41, 21:57) and render-distance lag (21:52) may be covered by #112; check on the current build first.
+P221. [21:29] Explosions kill everyone inside the blast radius; nobody walks out of a rocket or shell hit.
+P222. [21:29-21:30] Capital tower base guns: too big for the base. Use a large variety of smaller naval/AA guns (he loved the small one at 21:30; do not just scale down the big gun). Some guns spawn without their top, half generated: fix the generation. Put a helicopter on a tower landing pad that he can steal.
+P223. [21:37] Opening his world has a very long wait before the loading screen: show the loading screen at once and cut the wait.
+P224. [21:38, 21:41] Blocks of the dropship are hard to break off; make breaking craft blocks as reliable as terrain.
+P225. [21:39-21:42] Wreck repair: "needs 299 lift balloons" is absurd. Size lift parts sensibly (a few balloons lift a craft), say where each part goes (propeller on the stern), and make cannon ammo obvious: where cannonballs load and how to get them.
+P226. [21:40] Crouch lets him pass under low gaps (repeat of 13:10).
+P227. [21:43] The gun inspect view (the one that shows a gun's details) is far too big.
+P228. [21:44] Strike-team ships make a loud, ominous engine sound heard from far away, as the warning that a strike is coming.
+P229. [21:44, with F4] In the block world the far chunks are too simple: they must still look like blocks from a distance (no mobs or detail needed).
+P230. [21:45] Pirates are their own faction, never the Capital.
+P231. [21:46] All random encounters (raids, strike teams, pirates, bounty hunters, convoys) are ultra rare: something a player sees after a long time and goes "wow, I've never seen that", never something to get used to. One global rarity pass.
+P232. [21:47] A Capital gun's inventory icon renders black.
+P233. [21:48] He could not scroll the craftables list.
+P234. [21:49] The titanium shovel digs faster (efficiency like a top-tier shovel).
+P235. [21:49] Dirt next to grass grows grass over time.
+P236. [21:50] Retaliation: after killing pirates at sea, a 50% chance they raid his home once; after robbing a base, a 1-in-8 chance it retaliates once. Only once each.
+P237. [21:51, H15] Shovelling snow must not fill the inventory with snowballs.
+P238. [21:52] Villagers walk on water.
+P239. [21:52, with SH1] Ice looks beautiful: mirror-like reflections.
+P240. [21:52] Input lag and general lag at render distance 17: performance must improve (with F1-F5).
+P241. [21:53] Rockets: he could not find how to make them; the crafting book shows rockets and their ammo clearly.
+P242. [21:54] Specialty bases, like GoldenEye missions: e.g. an ammo depot that supplies ammo for good once found, and other one-of-a-kind bases with their own speciality.
+P243. [21:55] A normal (non-futuristic) navy warship sailing the seas; also make sure the UNSC-like frigates can actually be found (he has never seen one).
+P244. [21:56-21:57] Some ground material, granite and gravel look cheap and blurry. Add to docs/art/image-requests.md a ranked list "blocks that don't look pretty enough" at the top, so he knows what to make first.
+P245. [21:58] Gold is an easy currency in villages, with more uses; no platinum (titanium covers it).
+P246. [21:59-22:00, with P79] Remove the spire for good (replaced by the duelling knight). Zombies look terrific; skeletons, golems and the creeper replacement need upgrades.
+P247. [22:00] Skeletons fall apart where the sword hits them.
+P248. [22:01] Safes in ground military bases, like GoldenEye: a key in a chest within about 100 blocks, or an ultra-rare reusable safe breaker (about 1 in 100 bases). Safes hold really good loot.
+P249. [22:02] He will try to beat the game next (hell, the Ash Vault, the final battle). Walk the whole completion path in code from his existing world and fix anything that would block finishing it. Gameplay fixes only, no test bots.
+Praise, keep: smaller guns like the one at 21:30, the new village buildings, caves, fallen logs, the cannon, German gun names, grip-left now works, walking through double doors, snow and changing weather.
+
 ## NEXT BATCH (Remington, Oct 13 18:25): take after any open P item, in this order: R, F, S, Y, U, SND, SH, IMG, W, H, D
 Remington accepted this list (S10 German and D53 online co-op left out). The realistic-world (ultracode) thread is stopped; its leftovers are U1 here and the main thread owns them. OBJECTIVES FIRST still applies: write your own fuller objectives for each item before building, and build the full version, not the literal minimum. ONE AND DONE and NO TEST WORK still apply.
 R items are complaints he made two or more times after an item was marked DONE. Treat each as NOT fixed: find the real cause on the Quest path (QuestInput/OpenXR, the Quest renderer), not only the Mac or headless path, and rebuild it properly instead of tweaking a number. Note in the DONE line what was actually wrong.
@@ -405,7 +448,7 @@ D52. Co-op: share a horse or vehicle with gun seats, shared contracts and bounti
 
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. [DONE: Lane A thread, 2026-10-12, PRs #50 and #51; docs/status/done-audit.md covers every done task since Oct 8 with MET/PARTIAL/MISSING, small gaps fixed, the rest as G items.] Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
-Q2. [REWRITTEN by Remington, Oct 13: no measuring, no scorecard, no verifier] Polish loop, only when every gameplay item is DONE: pick the thing a player would notice most (looks, feel, sound, clarity), improve it in one pass, push, merge, next.
+Q2. [REWRITTEN by Remington, Oct 13: no measuring, no scorecard, no verifier] QUALITY AND POLISH LOOP, never ends: when every item above is DONE, loop forever through: (a) bugs and rough edges from all his voice notes in docs/playtests/, (b) the thing a player would notice most (looks, feel, sound, clarity, prettiness), (c) making it ready to sell. Never stop; never declare the backlog finished. Each pass: pick the thing a player would notice most (looks, feel, sound, clarity), improve it in one pass, push, merge, next.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
