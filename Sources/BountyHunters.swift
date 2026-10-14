@@ -103,7 +103,7 @@ enum BountyHunters {
         let x = g.player.pos.x + sinf(a) * r, z = g.player.pos.z + cosf(a) * r
         TownLaw.state.trackers = [x, z, trackSeconds]
         let dir = TownBoard.direction(x - g.player.pos.x, z - g.player.pos.z)
-        g.onToast?("Bounty hunters have picked up your trail \(Int(r)) blocks to the \(dir). They're on the map. Outride them, or go to ground")
+        g.onToast?("Bounty hunters have picked up your trail \(Int(r)) blocks to the \(dir) (\(Waymarks.side(g, V3(x, g.player.pos.y, z)))). They're on the map. Outride them, or go to ground")
         g.sfx(.goatHorn, 0.35)
     }
 
