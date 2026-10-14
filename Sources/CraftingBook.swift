@@ -154,6 +154,10 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     static let craft1 = 800, craftStack = 801, craftMax = 802, amountDown = 803, amountUp = 804, craftAmount = 805, gridBtn = 806
     static let amounts = [1, 2, 3, 4, 5, 8, 10, 16, 20, 32, 64]
     static var lastTab: CraftCategory = .craftable
+    static func alwaysShown(_ id: ItemID) -> Bool {
+        let k = Items.key(id)
+        return Guns.index(id) != nil || Guns.all.contains { $0.ammo == k }
+    }
     static var showAll = true
 
     let size: Int
@@ -247,7 +251,9 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             list = CraftCategory.allCases.dropFirst().flatMap { cat[$0] ?? [] }.filter { RecipeBook.craftable(Recipes.all[$0], pool) }
         } else {
             let all = cat[tab] ?? []
-            list = CraftingBookMenu.showAll ? all : all.filter { RecipeBook.craftable(Recipes.all[$0], pool) }
+            // P241 (Oct 13 21:53, "couldn't find how to make rockets"): guns and their ammunition always show in their tab
+            // (greyed until you have the parts), so a recipe like the launcher's rockets can be found before it can be made.
+            list = CraftingBookMenu.showAll ? all : all.filter { RecipeBook.craftable(Recipes.all[$0], pool) || CraftingBookMenu.alwaysShown(Recipes.all[$0].result.item) }
         }
         page = min(page, pages - 1)
     }
