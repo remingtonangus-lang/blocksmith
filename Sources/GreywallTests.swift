@@ -100,13 +100,13 @@ enum GreywallTests {
         let r = StructCheck.check(world, s, typeName: Greywall.kind, seed: seed)
         let ms = (CFAbsoluteTimeGetCurrent() - tg) * 1000
         let byClass = Dictionary(grouping: r.issues, by: { $0.cls }).map { "\($0.key) \($0.value.count)" }.sorted().joined(separator: ", ")
-        let guns = t.deckGuns ? t.towers.count : 0
+        let guns = (t.deckGuns ? t.towers.count : 0) + (t.rawValue >= 1 ? 1 : 0)      // (+ P252: the keep roof's flak gun)
         check(r.issues.isEmpty, String(format: "%@ at %d %d: structcheck %d doors, %d chests, %d mobs, issues: %@ (%.0f ms)",
                                        tag, cx, cz, r.doors, r.pois, r.mobs, byClass.isEmpty ? "none" : byClass, ms))
         for i in r.issues.prefix(8) { print("  \(i.cls) at \(i.pos.x - cx) \(i.pos.y - S) \(i.pos.z - cz) (relative): \(i.detail)") }
         let ours = world.pendingMobs.filter { $0.0.contains("@grey") && s.contains(Int(floor($0.1.x)), Int(floor($0.1.y)), Int(floor($0.1.z))) }
         let others = Set(world.pendingMobs.filter { !$0.0.contains("@grey") && s.contains(Int(floor($0.1.x)), Int(floor($0.1.y)), Int(floor($0.1.z))) }.map { $0.0 })
-        check(ours.count == t.troops + guns, "\(tag): \(ours.count) troops and guns posted (\(t.troops) soldiers + \(guns) deck guns)\(others.isEmpty ? "" : "; others in the box: " + others.sorted().joined(separator: ", "))")
+        check(ours.count == t.troops + guns, "\(tag): \(ours.count) troops and guns posted (\(t.troops) soldiers + \(guns) deck and flak guns)\(others.isEmpty ? "" : "; others in the box: " + others.sorted().joined(separator: ", "))")
 
         // The keep where the plan puts it.
         let kx = t.keepX, kz = t.keepZ, kc = t.keepC

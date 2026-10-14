@@ -563,6 +563,10 @@ enum Greywall {
                 }
             }
         }
+        // P252: a flak gun on the keep roof (garrison and up) at its west end, facing out.
+        if t.rawValue >= 1 {
+            w.mob("deck_gun:flak@grey^-90", V3(Float(cx - (kx - 3)) + 0.5, Float(S + floorsH + 1), Float(cz + kc) + 0.5))
+        }
         let flag = g("greywall_flag", wool)
         let fx = kx - 1, fz = kz0 + 1
         for y in (floorsH + 1)...(floorsH + 6) { put(fx, y, fz, rail) }

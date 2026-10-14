@@ -223,6 +223,7 @@ final class Ship {
     var ballastLevel: Float = 0      // -1 (flooded: pulls down) ... 1 (blown: pushes up)
     var depthY: Float?               // depth held by an unpiloted submarine
     var engines = 0
+    var flakHits: Float = 0          // P252: flak damage (AirDefence.burst); at 1 the engines are dead until it lands a while
     var hull: [V3] = []              // centres of exposed solid cells (contacts)
     var buckets: [ShipBucket] = []
     var colMin: [Int16] = []         // per column (x + z*sx): lowest solid cell, Int16.max if none
