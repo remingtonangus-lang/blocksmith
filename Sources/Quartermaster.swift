@@ -17,7 +17,7 @@ enum Quartermaster {
         Offer(name: "Fortify Homestead", detail: "A stone wall and gate round it", stage: 1, price: 30000),
         Offer(name: "Field Tank Kit", detail: "The whole Vehicle Works bill, crated", stage: 2, price: 45000),
         Offer(name: "Gun Crew", detail: "Gunhands up to a full crew of three", stage: 3, price: 24000),
-        Offer(name: "Hell-Proof Kit", detail: "Fire tonics and golden carrots", stage: 4, price: 20000),
+        Offer(name: "Fireproof Kit", detail: "Fire tonics and golden carrots", stage: 4, price: 20000),
         Offer(name: "Siege Kit", detail: "A tank kit and a full crew", stage: 5, price: 60000),
     ]
     static var bought = 0                                // (harness)
