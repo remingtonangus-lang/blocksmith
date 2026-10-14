@@ -50,7 +50,7 @@ enum VRReload {
             if near {
                 a.magInHand = false
                 a.reload = 0
-                g.loadMagazine(gi)
+                g.loadMagazine(gi, shells: GunActions.shellByShell(gi) ? 1 : nil)     // D7: shell by shell
                 inserts += 1
                 return .inserted
             }
