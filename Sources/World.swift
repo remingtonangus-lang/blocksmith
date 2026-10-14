@@ -433,6 +433,8 @@ final class World {
     // the chunk count, while random ticks and fluids touched a few blocks every frame). Per world: harness probes run
     // more than one world in a process.
     var dirtyChunks: [Chunk] = []
+    // PG2: bumped by every terrain field change (TerrainField), so cached drawn ground heights (mobs, items) refresh.
+    var fieldStamp = 0
     func sweep(_ mn: V3, _ mx: V3, axis a: Int, _ d: Float) -> Float {
         if d == 0 { return 0 }
         var lo = mn, hi = mx

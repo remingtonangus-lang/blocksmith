@@ -59,6 +59,7 @@ extension World {
         guard e != e0 else { return }
         c.fieldEdits[i] = e
         c.fieldDirty = true
+        fieldStamp &+= 1
     }
 
     // Clears the bounds at p (a block that changes back to what the generator made keeps the surface the field had).
@@ -140,6 +141,28 @@ extension World {
         for (p, v) in caps { fieldBound(p, cap: v) }
         if !caps.isEmpty { fieldTouched(lo, hi) }
         return gone.count
+    }
+
+    // The field edit at a cell (FieldEdit.none where there is none).
+    @inline(__always) func fieldEdit(_ x: Int, _ y: Int, _ z: Int) -> UInt16 {
+        guard y >= 0 && y < CH, let c = chunkAt(x, z), !c.fieldEdits.isEmpty else { return FieldEdit.none }
+        return c.fieldEdits[Int32(Chunk.index(mod(x, CS), y, mod(z, CS)))] ?? FieldEdit.none
+    }
+
+    // PG2: the drawn surface over a column whose top solid cell is y (y + 1 open), as the smooth mesher draws it: the
+    // generator's crossing between the two cells (half a block either side of the block top where the field made no
+    // surface there: dug, built over), with the field edits of both cells applied. Built blocks keep their block top.
+    // The one height the view, mobs, items and debris stand on (smoothGroundOffset, WorldGround).
+    func drawnTop(_ g: WorldGen, _ x: Int, _ y: Int, _ z: Int) -> Float {
+        guard SmoothTerrain.natural[Int(block(x, y, z))] else { return Float(y + 1) }
+        var a: Float = 0.5, b: Float = -0.5
+        let da = g.terrainDensity(x, y, z), db = g.terrainDensity(x, y + 1, z)
+        if da > 0 && db <= 0 { let t = da / (da - db); a = t; b = t - 1 }
+        let ea = fieldEdit(x, y, z), eb = fieldEdit(x, y + 1, z)
+        if ea != FieldEdit.none { a = FieldEdit.apply(a, ea) }
+        if eb != FieldEdit.none { b = FieldEdit.apply(b, eb) }
+        a = max(a, 0.02); b = min(b, -0.02)
+        return Float(y) + 0.5 + a / (a - b)
     }
 
     // The edits a mesh job of chunk c needs.

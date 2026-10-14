@@ -33,8 +33,8 @@ extension WorldGen {
 extension World {
     // P142: how far the drawn smooth ground at a standing spot is above (+) or below (-) the block top the feet stand
     // on: the field's surface height in the four columns round the spot (block centres, as the mesher samples them),
-    // blended by position. A column whose top block is not what the field made there (dug, placed, built) counts as
-    // its block top. 0 outside smooth field worlds or off natural ground.
+    // blended by position (World.drawnTop: the field's crossing with the dug and placed ground's edits; built blocks
+    // count as their block top). 0 outside smooth field worlds or off natural ground.
     func smoothGroundOffset(_ pos: V3) -> Float {
         var key = Int.min, h = SIMD4<Float>(repeating: 0)
         return smoothGroundOffset(pos, key: &key, heights: &h)
@@ -47,16 +47,12 @@ extension World {
         guard SmoothTerrain.natural[Int(block(Int(floor(pos.x)), fy, Int(floor(pos.z))))] else { return 0 }
         let bx = floor(pos.x - 0.5), bz = floor(pos.z - 0.5)
         let tx = pos.x - 0.5 - bx, tz = pos.z - 0.5 - bz
-        let ck = (Int(bx) & 0xFFFFF) | ((Int(bz) & 0xFFFFF) << 20) | ((fy & 0x3FF) << 40)
+        let ck = (Int(bx) & 0xFFFFF) | ((Int(bz) & 0xFFFFF) << 20) | ((fy & 0x3FF) << 40) | ((fieldStamp & 0x1FFF) << 50)
         if ck != key { key = ck; for k in 0..<4 {
             let x = Int(bx) + (k & 1), z = Int(bz) + (k >> 1)
             var top = Float(fy + 1)
             for y in (fy - 1)...(fy + 1) where Blocks.opaque[Int(block(x, y, z))] && !Blocks.opaque[Int(block(x, y + 1, z))] {
-                top = Float(y + 1)
-                if SmoothTerrain.natural[Int(block(x, y, z))] {
-                    let a = g.terrainDensity(x, y, z), b = g.terrainDensity(x, y + 1, z)
-                    if a > 0 && b <= 0 { top = Float(y) + 0.5 + a / (a - b) }
-                }
+                top = drawnTop(g, x, y, z)
             }
             h[k] = top
         } }
