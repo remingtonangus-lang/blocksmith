@@ -389,6 +389,11 @@ final class World {
                 let (mn, mx) = Mesher.chipBox(face: Int(dv >> 5), level: Int(dv & 31), x: x, y: y, z: z)
                 out.append((o + mn, o + mx)); return
             }
+            // PG2: natural ground under open air is walked on at its drawn surface, not its block top.
+            if SmoothTerrain.natural[b] && SmoothTerrain.enabled && SmoothTerrain.fromField && y + 1 < CH,
+               !Blocks.collide[Int(block(x, y + 1, z))], let g = gen as? WorldGen {
+                out.append((o, V3(o.x + 1, groundTop(g, x, y, z), o.z + 1))); return
+            }
             out.append((o, o + 1)); return
         }
         for bx in shapeBoxes(x, y, z, BlockID(b), collision: true) { out.append((o + bx.minV, o + bx.maxV)) }
@@ -435,6 +440,10 @@ final class World {
     var dirtyChunks: [Chunk] = []
     // PG2: bumped by every terrain field change (TerrainField), so cached drawn ground heights (mobs, items) refresh.
     var fieldStamp = 0
+    // PG2: drawn ground tops for collision (groundTop), direct-mapped by cell; an entry holds while fieldStamp does.
+    // Main thread only, like sweep's scratch.
+    var groundTopKey = [Int](repeating: Int.min, count: 4096)
+    var groundTopVal = [Float](repeating: 0, count: 4096)
     func sweep(_ mn: V3, _ mx: V3, axis a: Int, _ d: Float) -> Float {
         if d == 0 { return 0 }
         var lo = mn, hi = mx

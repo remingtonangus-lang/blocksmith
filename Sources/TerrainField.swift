@@ -165,6 +165,18 @@ extension World {
         return Float(y) + 0.5 + a / (a - b)
     }
 
+    // PG2: the collision top of natural cell (x, y, z) under open air: its drawn surface (drawnTop) where that is below
+    // the block top (never above: a body already standing at the block top would be inside a raised box, which sweeps
+    // ignore; ground drawn higher stays a view offset, smoothGroundOffset), at most half a block down. Cached (field changes bump fieldStamp).
+    func groundTop(_ g: WorldGen, _ x: Int, _ y: Int, _ z: Int) -> Float {
+        let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40) | ((fieldStamp & 0x1FFF) << 50)
+        let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> 52)
+        if groundTopKey[slot] == key { return groundTopVal[slot] }
+        let t = max(Float(y) + 0.5, min(Float(y) + 1, drawnTop(g, x, y, z)))
+        groundTopKey[slot] = key; groundTopVal[slot] = t
+        return t
+    }
+
     // The edits a mesh job of chunk c needs.
     func fieldEditSet(_ c: Chunk) -> FieldEditSet {
         var s = FieldEditSet()
