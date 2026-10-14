@@ -293,7 +293,13 @@ P260. [12:16, 12:17] No guns or swords while piloting a ship or vehicle: the han
 P261. [12:16] Ship motion made him slightly sick: (a) smooth, predictable ship motion (no sudden jerks or turns he did not steer); (b) the comfort vignette also applies while piloting.
 P262. [12:16] Momentum: a fast, heavy object (ship, vehicle, falling debris) breaks through blocks it hits, scaled by speed and mass.
 P263. [12:17-12:18, repeat of P225] Wreck repair still confusing: "lift plumes 0 of 10", "weighs 600 tons", and why lift is needed if it already drove. (a) The repair screen explains what each part does; (b) the part counts are sensible for the craft's size; (c) a craft that can already move says what is missing for flight specifically.
-P264. [12:18] Two chests placed side by side join into one double chest.
+P264. [CLAIMED console 2026-10-14] [12:18] Two chests placed side by side join into one double chest.
+ (a) His intent: two chests side by side become one double chest (one Large Chest of 54 slots) without fiddling.
+ (b) [console] Placing joins: a chest placed beside a single chest of the same kind turns to match it, so the two join whichever way he faces; sneaking places it as its own chest; a chest never joins a third onto a double (it turns away instead).
+ (c) [console] It looks like one chest: the halves meet with no gap and no frame line between them (seamless lid, front, back, top and bottom), and one latch sits in the middle across the seam; this holds for the imported textures and the built-in ones, on the Mac and the Quest.
+ (d) [console] It works as one: opening either half shows the Large Chest (trapped chests too: a trapped double chest opens as one and still trips its circuit), hoppers and comparators already read it as one.
+ (e) [console] Feedback: the first join says so ("Chests joined: a Large Chest, 54 slots") with a wooden clunk; breaking one half leaves a single chest that looks single again, its items dropping as before.
+ (f) [console] Edge cases: chests of different kinds (plain and trapped, copper chests) never join; chests already standing in a row from older saves pair the way the chest screen pairs them.
 P265. [DONE] [12:19] The player figure in the inventory wears the armour he has equipped.
  (a) His intent: the figure in the inventory (and his body in third person) visibly wears every equipped piece: helmet, chest, legs, boots.
  (b) [console] Armour reads as armour, not a recoloured shirt: shells over the clothes (a helmet dome with cheek and neck guards that leaves the face open, a breastplate with pauldrons and sleeves, leggings with a belt, boots with toe caps); the tunic, trousers and boots show again when a piece comes off.
