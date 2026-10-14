@@ -31,8 +31,8 @@ extension WorldGen {
 }
 
 extension World {
-    // P142: how far the drawn smooth ground at a standing spot is above (+) or below (-) the block top the feet stand
-    // on: the field's surface height in the four columns round the spot (block centres, as the mesher samples them),
+    // P142: how far the drawn smooth ground at a standing spot is above (+) or below (-) the feet (PG2: which stand on
+    // the block top, or lower on the drawn top where the ground dips: World.groundTop): the field's surface height in the four columns round the spot (block centres, as the mesher samples them),
     // blended by position (World.drawnTop: the field's crossing with the dug and placed ground's edits; built blocks
     // count as their block top). 0 outside smooth field worlds or off natural ground.
     func smoothGroundOffset(_ pos: V3) -> Float {
@@ -44,7 +44,9 @@ extension World {
     func smoothGroundOffset(_ pos: V3, key: inout Int, heights h: inout SIMD4<Float>) -> Float {
         guard SmoothTerrain.enabled && SmoothTerrain.fromField, let g = gen as? WorldGen else { return 0 }
         let fy = Int(floor(pos.y - 0.01))
-        guard SmoothTerrain.natural[Int(block(Int(floor(pos.x)), fy, Int(floor(pos.z))))] else { return 0 }
+        let fb = Int(block(Int(floor(pos.x)), fy, Int(floor(pos.z))))
+        guard SmoothTerrain.natural[fb] || (!Blocks.collide[fb] && SmoothTerrain.natural[Int(block(Int(floor(pos.x)), fy - 1, Int(floor(pos.z))))])
+        else { return 0 }
         let bx = floor(pos.x - 0.5), bz = floor(pos.z - 0.5)
         let tx = pos.x - 0.5 - bx, tz = pos.z - 0.5 - bz
         let ck = (Int(bx) & 0xFFFFF) | ((Int(bz) & 0xFFFFF) << 20) | ((fy & 0x3FF) << 40) | ((fieldStamp & 0x1FFF) << 50)
@@ -57,7 +59,7 @@ extension World {
             h[k] = top
         } }
         let s = (h[0] * (1 - tx) + h[1] * tx) * (1 - tz) + (h[2] * (1 - tx) + h[3] * tx) * tz
-        return max(-0.6, min(0.6, s - Float(fy + 1)))
+        return max(-0.6, min(0.6, s - pos.y))     // (PG2: from the feet, which stand on the column's drawn top)
     }
 }
 
