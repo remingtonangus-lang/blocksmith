@@ -91,6 +91,7 @@ enum TownLaw {
         var vehicleFuel: [String: Float]? = nil      // D44 (VehicleDepot.swift): ship id -> tank level
         var garage: [String]? = nil                  // D44: garaged vehicles ("name|ships json, base64#fuel")
         var vaultObj: [String: Int]? = nil           // D47: Vault side objectives
+        var tracked: String? = nil                   // D51: the one target the HUD marker and beacon follow ("kind|key")
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -453,6 +454,7 @@ enum TownLaw {
         Disguise.tick(g, dt)                             // D37: a close look through a disguise
         NavalPort.tick(g)                                // D39: dockyard garrisons and harbourmasters
         FrontierSites.tick(g)                            // D48: frontier sites on the map, the ghost town's dead
+        Waymarks.tick(g)                                 // D51: the tracked target's beacon, moving map marks
         Tracking.tick(g)                                 // D46: tracks, blood trails, the wind
         Fence.today = Int(g.time / DAY_LENGTH)
         Saloon.tick(g)                                   // D17: the piano player

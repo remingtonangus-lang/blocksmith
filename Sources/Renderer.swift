@@ -1599,7 +1599,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let a = game.ashAlarmBar() { bars.append(a) }
             bars += game.huntedBars()               // D47
             for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
-            Goals.bars = bars.count + (game.deepWayUpHUD() != nil ? 1 : 0)
+            Goals.bars = bars.count + (game.deepWayUpHUD() != nil ? 1 : 0) + (Waymarks.hud(game) != nil ? 2 : 0)
             // The way up out of the Deep (DeepWayUp.swift), under the bars.
             if let up = game.deepWayUpHUD() {
                 let uy = L.insetY + 12 * s + Float(bars.count) * 19 * s
@@ -1610,6 +1610,20 @@ final class Renderer: NSObject, MTKViewDelegate {
                 text(b.0, (W - textWidth(b.0, s)) / 2, by - 9 * s, s)
                 rect(bx, by, bw, 5 * s, V4(b.2.x * 0.3, b.2.y * 0.3, b.2.z * 0.3, 1))
                 rect(bx, by, bw * max(0, min(1, b.1)), 5 * s, b.2)
+            }
+            // D51: the tracked target's marker along the top, at its bearing (Waymarks.swift).
+            if let (rel, label, col) = Waymarks.hud(game) {
+                let span: Float = 1.1, half = 150 * s
+                let f = max(-1, min(1, rel / span))
+                let mx = W / 2 + f * half
+                let my = L.insetY + 12 * s + Float(bars.count) * 19 * s + (game.deepWayUpHUD() != nil ? 12 * s : 0)
+                rect(W / 2 - half, my + 2.5 * s, half * 2, 1 * s, V4(1, 1, 1, 0.25))
+                rect(mx - 3 * s, my, 6 * s, 6 * s, V4(0, 0, 0, 0.6))
+                rect(mx - 2 * s, my + 1 * s, 4 * s, 4 * s, col)
+                let edge = abs(rel) > span
+                let tag = edge ? (rel < 0 ? "< " + label : label + " >") : label
+                let tw = textWidth(tag, s)
+                text(tag, max(4 * s, min(W - tw - 4 * s, mx - tw / 2)), my + 8 * s, s, col)
             }
             // Piloting gauges (speed, altitude, throttle, hull, guns) are drawn by CombatHUD.swift; shipHUDLine stays for the harness.
         }
