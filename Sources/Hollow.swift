@@ -453,7 +453,7 @@ extension Mob {
             for dy in 0...3 { for dz in -2...2 { for dx in -2...2 {
                 let b = w.block(c.x + dx, c.y + dy, c.z + dz)
                 let k = Blocks.key(b)
-                if b != AIR && !Blocks.isLiquid(b) && b != OBSIDIAN && b != BEDROCK && b != FIRE && k != "end_stone"
+                if b != AIR && !Blocks.isPureLiquid(b) && b != OBSIDIAN && b != BEDROCK && b != FIRE && k != "end_stone"
                     && k != "iron_bars" && k != "end_portal" && k != "end_gateway" && Blocks.hardness[Int(b)] >= 0 {
                     w.setBlockAsync(c.x + dx, c.y + dy, c.z + dz, AIR)
                 }

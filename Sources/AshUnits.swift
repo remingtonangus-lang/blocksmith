@@ -361,7 +361,7 @@ extension Mob {
             let x = Int(floor(ahead.x)), z = Int(floor(ahead.z)), y = Int(floor(pos.y))
             let floorBlk = w.block(x, y - 1, z), lower = w.block(x, y - 2, z)
             let drop = !Blocks.collide[Int(floorBlk)] && !Blocks.collide[Int(lower)]
-            if drop || Blocks.isLiquid(floorBlk) || Blocks.isLiquid(w.block(x, y, z)) {
+            if drop || Blocks.isPureLiquid(floorBlk) || Blocks.isPureLiquid(w.block(x, y, z)) {
                 speed = 0
                 if circle { soldierBrain.strafeDir = -soldierBrain.strafeDir }
             }

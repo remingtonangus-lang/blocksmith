@@ -81,7 +81,7 @@ enum ShipParts {
         var t = [Float](repeating: 0, count: Blocks.count)
         for i in 0..<Blocks.count {
             let b = BlockID(i)
-            if b == AIR || Blocks.isLiquid(b) { continue }
+            if b == AIR || Blocks.isPureLiquid(b) { continue }
             let key = Blocks.key(Blocks.groupBase[i])
             let snd = Blocks.def(b).sound
             var d: Float = 2.3                                  // stone and anything heavier-sounding
@@ -127,7 +127,7 @@ enum ShipParts {
         var t = [Bool](repeating: false, count: Blocks.count)
         for i in 0..<Blocks.count {
             let k = Blocks.key(Blocks.groupBase[i])
-            if i == Int(AIR) || Blocks.isLiquid(BlockID(i)) || Blocks.isPlant(BlockID(i)) || keys.contains(k) || k.hasSuffix("_ore")
+            if i == Int(AIR) || Blocks.isPureLiquid(BlockID(i)) || Blocks.isPlant(BlockID(i)) || keys.contains(k) || k.hasSuffix("_ore")
                 || k.hasSuffix("_leaves") || k.contains("kelp") || k.contains("seagrass") || k.contains("coral") || Blocks.hardness[i] < 0 {
                 t[i] = true
             }
@@ -535,7 +535,7 @@ final class Ship {
         if hullCol { return AIR }
         let wb = w.rawBlock(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
         // Inside the hull's columns the world's water never reaches above the ship's floor.
-        if Blocks.isLiquid(wb) && grid.inside(x, y, z) && Int(colMin[x + z * grid.sx]) < y && Blocks.fluidKind[Int(wb)] == 1 { return AIR }
+        if Blocks.isPureLiquid(wb) && grid.inside(x, y, z) && Int(colMin[x + z * grid.sx]) < y && Blocks.fluidKind[Int(wb)] == 1 { return AIR }
         return wb
     }
 
@@ -811,7 +811,7 @@ final class ShipManager {
             hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z))
         }
         let grid = ShipGrid(sx: hi.x - lo.x + 1, sy: hi.y - lo.y + 1, sz: hi.z - lo.z + 1)
-        for c in cells { grid.set(c.x - lo.x, c.y - lo.y, c.z - lo.z, w.rawBlock(c.x, c.y, c.z)) }
+        for c in cells { grid.set(c.x - lo.x, c.y - lo.y, c.z - lo.z, Blocks.dry[Int(w.rawBlock(c.x, c.y, c.z))]) }    // the water stays behind
         let s = Ship(id: newId(), grid: grid)
         for c in cells { if let be = w.blockEntities.removeValue(forKey: c) { s.blockEntities[ivSub(c, lo)] = be } }
         s.rebuild()
@@ -852,7 +852,7 @@ final class ShipManager {
             let here = w.rawBlock(p.x, p.y, p.z)
             if b == AIR {
                 // Keep the hull's enclosed air dry.
-                if s.dry(x, y, z) && Blocks.isLiquid(here) { w.setBlockAsync(p.x, p.y, p.z, AIR) }
+                if s.dry(x, y, z) && Blocks.isPureLiquid(here) { w.setBlockAsync(p.x, p.y, p.z, AIR) }
                 continue
             }
             if !Blocks.replaceable[Int(here)] {

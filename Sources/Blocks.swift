@@ -745,6 +745,7 @@ final class BlockRegistry {
                     var t = defs[s]
                     t.fluid = 0; t.fluidKind = 1; t.hidden = true; t.skyStop = true
                     let tid = add(t, as: saveNames[s] + "~wl", groupKey: gk)
+                    flammable[Int(tid)] = false              // waterlogged blocks don't burn (reference burn odds 0)
                     dry[Int(tid)] = BlockID(s)
                     wet[s] = tid
                     wetInvalid[Int(tid)] = defs[s].name.hasSuffix("[double]")
@@ -755,6 +756,8 @@ final class BlockRegistry {
     }
 
     @inline(__always) func isWaterlogged(_ id: BlockID) -> Bool { dry[Int(id)] != id }
+    // Water or lava itself (not a block holding water): for "is this cell just fluid" tests.
+    @inline(__always) func isPureLiquid(_ id: BlockID) -> Bool { fluidLevel[Int(id)] >= 0 && dry[Int(id)] == id }
     func saveKey(_ id: BlockID) -> String { Int(id) < saveNames.count ? saveNames[Int(id)] : "?" }
 
     // Stairs (8 states: 4 facings x bottom/top), slabs (bottom/top/double), fence, wall for one material.

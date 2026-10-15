@@ -69,7 +69,7 @@ enum Mining {
     static func enchantedDrops(_ b: BlockID, _ tool: ItemStack) -> [ItemStack] {
         guard !tool.isEmpty, tool.ench != 0 else { return drops(b, tool) }
         let key = Blocks.key(Blocks.groupBase[Int(b)])
-        if Enchant.level(.silkTouch, tool) > 0 && canHarvest(b, tool) && !noSilk.contains(key) && !Blocks.isLiquid(b) {
+        if Enchant.level(.silkTouch, tool) > 0 && canHarvest(b, tool) && !noSilk.contains(key) && !Blocks.isPureLiquid(b) {
             if let i = Items.item(forBlock: b) { return [ItemStack(i, 1)] }
         }
         var out = drops(b, tool)

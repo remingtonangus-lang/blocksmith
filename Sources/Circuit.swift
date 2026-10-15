@@ -845,7 +845,7 @@ final class Circuit {
     }
     // Broken (and dropped) instead of pushed.
     static func fragile(_ b: BlockID) -> Bool {
-        if b == AIR || Blocks.isLiquid(b) { return true }
+        if b == AIR || (Blocks.isLiquid(b) && !Blocks.isWaterlogged(b)) { return true }      // waterlogged blocks are pushed
         let r = Blocks.render[Int(b)]
         if r == RenderType.cross.rawValue || r == RenderType.wire.rawValue { return true }
         let k = kind(b)
@@ -926,7 +926,7 @@ final class Circuit {
             if inSet.contains(t) { continue }
             if t == piston { return false }
             let tb = block(t)
-            if tb != AIR && !Blocks.isLiquid(tb) { destroy.append(t) }
+            if tb != AIR && !(Blocks.isLiquid(tb) && !Blocks.isWaterlogged(tb)) { destroy.append(t) }
         }
         for q in destroy {
             game?.breakDrops(q, block(q))
@@ -940,7 +940,13 @@ final class Circuit {
             setQuiet(q, AIR)
         }
         let ids = set.map { block($0) }
-        for q in set where !inSet.contains(q - Circuit.D[dir]) { setQuiet(q, AIR) }
+        // A waterlogged block takes its water along: its old cell is emptied dry first (AIR written over it straight
+        // away would leave a new water source behind every push).
+        for q in set where !inSet.contains(q - Circuit.D[dir]) {
+            let b = block(q)
+            if Blocks.isWaterlogged(b) { setQuiet(q, Blocks.dry[Int(b)]) }
+            setQuiet(q, AIR)
+        }
         for (i, q) in set.enumerated() { setQuiet(q + Circuit.D[dir], ids[i]) }
         game?.entitiesPushed(set.map { $0 + Circuit.D[dir] }, dir: Circuit.D[dir])
         for q in set { wakeAround(q); wakeAround(q + Circuit.D[dir]) }

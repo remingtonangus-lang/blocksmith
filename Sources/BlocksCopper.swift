@@ -31,7 +31,8 @@ enum Copper {
         guard case let (f, _, _)? = index[Blocks.key(base)] else { return nil }
         let n = name(f, stage: stage, waxed: waxed)
         guard Blocks.has(n) else { return nil }
-        return Blocks.id(n) + (b - base)
+        let r = Blocks.id(n) + (b - base)
+        return Blocks.isWaterlogged(b) && Blocks.wet[Int(r)] != AIR ? Blocks.wet[Int(r)] : r      // keeps its water
     }
 }
 

@@ -1000,7 +1000,7 @@ final class World {
         for i in 1..<steps {
             let p = a + d * (Float(i) / Float(steps))
             let id = Int(block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))
-            if Blocks.collide[id] && Blocks.fluidKind[id] == 0 { return false }
+            if Blocks.collide[id] && (Blocks.fluidKind[id] == 0 || Blocks.isWaterlogged(BlockID(id))) { return false }
         }
         return true
     }

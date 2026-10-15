@@ -1236,8 +1236,9 @@ final class Game {
         let clicked = world.block(t.hit.x, t.hit.y, t.hit.z)
         // Slabs: clicking a matching half slab from the open side makes a double slab.
         if Blocks.shape[Int(blockItem)] == "slab" {
-            let cb = Blocks.groupBase[Int(clicked)]
-            let part = Int(clicked) - Int(cb)
+            let cd = Blocks.dry[Int(clicked)]                  // a waterlogged half slab merges too
+            let cb = Blocks.groupBase[Int(cd)]
+            let part = Int(cd) - Int(cb)
             if cb == blockItem && ((part == 0 && t.normal.y == 1) || (part == 1 && t.normal.y == -1)) {
                 world.setBlock(t.hit.x, t.hit.y, t.hit.z, blockItem + 2)
                 sfx(.place(soundMat(blockItem)), at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
@@ -1245,7 +1246,7 @@ final class Game {
                 return
             }
             let nb = t.hit + t.normal
-            let nbb = world.block(nb.x, nb.y, nb.z)
+            let nbb = Blocks.dry[Int(world.block(nb.x, nb.y, nb.z))]
             if Blocks.groupBase[Int(nbb)] == blockItem && Int(nbb) - Int(blockItem) < 2 {
                 world.setBlock(nb.x, nb.y, nb.z, blockItem + 2)
                 consumeHeld(); swing = 1

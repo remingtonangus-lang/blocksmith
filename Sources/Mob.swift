@@ -955,7 +955,7 @@ final class Mob {
         // (behaviour sim: pigs, wolves, rabbits, chickens spinning 800-1100 degrees in 10 s on strolls).
         if spec.behavior == .passive && speed > 0 && onGround && panic <= 0 && !onPath {
             let a = pos + forward * (halfW + 0.45)
-            let wet = Blocks.isLiquid(w.block(Int(floor(a.x)), Int(floor(pos.y - 0.5)), Int(floor(a.z))))
+            let wet = Blocks.isPureLiquid(w.block(Int(floor(a.x)), Int(floor(pos.y - 0.5)), Int(floor(a.z))))
             let drop = !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w)
             if wet || drop { yaw += .pi * Rand.float(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Rand.float(in: 1...3) }
         }

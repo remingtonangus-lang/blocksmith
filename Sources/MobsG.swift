@@ -259,7 +259,7 @@ extension Mob {
                 for dy in 0...3 { for dz in -1...1 { for dx in -1...1 {
                     let q = c + IVec3(dx, dy, dz)
                     let b = w.block(q.x, q.y, q.z)
-                    if b != AIR && !Blocks.isLiquid(b) && Blocks.hardness[Int(b)] >= 0 && Blocks.key(b) != "bedrock" && Blocks.key(b) != "end_portal_frame" {
+                    if b != AIR && !Blocks.isPureLiquid(b) && Blocks.hardness[Int(b)] >= 0 && Blocks.key(b) != "bedrock" && Blocks.key(b) != "end_portal_frame" {
                         w.setBlockAsync(q.x, q.y, q.z, AIR); broke = true
                     }
                 } } }
