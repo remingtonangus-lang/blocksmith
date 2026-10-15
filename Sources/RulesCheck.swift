@@ -162,6 +162,18 @@ enum RulesCheck {
             }
         }
 
+        // Waterlogged copper ages and waxes with its water; waterlogged blocks don't burn; a twin is not "pure" liquid.
+        if Blocks.has("cut_copper_stairs") && Blocks.has("oak_stairs") {
+            let st = Blocks.id("cut_copper_stairs")
+            let wst = Blocks.wet[Int(st)]
+            if wst != AIR, let aged = Copper.convert(wst, stage: 1, waxed: false) {
+                check(Blocks.isWaterlogged(aged) && Blocks.key(aged).hasPrefix("exposed_"), "waterlogged copper stairs age with their water (\(Blocks.saveKey(aged)))")
+            }
+            let oak = Blocks.wet[Int(Blocks.id("oak_stairs"))]
+            check(oak != AIR && !Blocks.flammable[Int(oak)] && Blocks.flammable[Int(Blocks.id("oak_stairs"))], "waterlogged oak stairs don't burn, dry ones do")
+            check(oak != AIR && Blocks.isLiquid(oak) && !Blocks.isPureLiquid(oak) && Blocks.isPureLiquid(WATER), "a waterlogged block holds water but is not pure liquid")
+        }
+
         g.survival = keepSurvival
         print("rulescheck: \(fails == 0 ? "PASS" : "\(fails) FAILED")")
         return fails
