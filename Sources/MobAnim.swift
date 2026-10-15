@@ -196,7 +196,7 @@ extension MobManager {
     }
 
     func corpseTick(_ dt: Float, _ g: Game) {
-        guard !corpses.isEmpty else { return }
+        guard !corpses.isEmpty || !Hunting.bodyMobs.isEmpty else { g.world.bodyBoxes.removeAll(keepingCapacity: true); return }
         for c in corpses { c.deathT += dt; c.hitFlash = max(0, c.hitFlash - dt) }   // the killing hit's flash fades (Mob.update no longer runs)
         // P171 (Oct 13: "one hung in the air after dying on a hill"): a body falls. Killed in the air, knocked off a
         // ledge or lying on a slope's edge, it drops under gravity, slides off with what is left of its knockback and
@@ -214,6 +214,20 @@ extension MobManager {
             c.onGround = hit.y && falling
             if c.pos.y < -80 { c.deathT = MobAnim.deathTime; c.pos.y = -80; c.vel = .zero; c.onGround = true }
         }
+        // P306: the bodies at rest near the player as low boxes to step onto (World.bodyBoxes): a settled ragdoll by its
+        // root bone, a plain body by where it lies; game carcasses waiting to be skinned too. Not one in a hand.
+        w.bodyBoxes.removeAll(keepingCapacity: true)
+        func lay(_ m: Mob, _ c: V3, _ y0: Float) {
+            guard simd_length_squared(c - g.player.pos) < 24 * 24, !HandGrab.holds(m) else { return }
+            let r: Float = max(0.3, min(0.6, m.height * 0.3))
+            let top: Float = min(0.35, max(0.2, m.height * 0.2))
+            w.bodyBoxes.append((V3(c.x - r, y0, c.z - r), V3(c.x + r, y0 + top, c.z + r)))
+        }
+        for c in corpses where c.deathT > 1.2 {
+            if let r = c.ragdoll { let at = g.debris.ragdolls.pose(r.id, 0).position; lay(c, at, at.y - 0.2) }
+            else if c.onGround { lay(c, c.pos, c.pos.y) }
+        }
+        for b in Hunting.bodyMobs { lay(b, b.pos, b.pos.y) }
         // P57: a body lies where it fell (no puff) until the player is out of the area; it is gone when they come back.
         let p = g.player.pos, far = MobAnim.bodyLeaveDistance * MobAnim.bodyLeaveDistance
         corpses.removeAll { c in

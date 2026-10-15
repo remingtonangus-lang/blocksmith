@@ -347,7 +347,9 @@ final class Player {
         // reference, whose water check is the whole body box: it keeps pushing until the feet clear the surface).
         wetGrace = inWater ? 0.15 : max(0, wetGrace - dt)
         let wetish = inFluid || wetGrace > 0
+        w.bodiesSolid = !flying                // P306: step onto the bodies lying about, not through them
         let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround || wetish)
+        w.bodiesSolid = false
         var landed = false
         var bounce: Float = 0
         if hit.y {

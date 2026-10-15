@@ -458,6 +458,12 @@ final class World {
     // PG2 rewrite: the last raycast's hit on the field's ground (its cell, the point on the drawn surface, the distance).
     var fieldHit: (cell: IVec3, at: V3, t: Float)?
 
+    // P306 (Oct 15 12:13, "walk over bodies, not through them"): dead bodies lying on the ground as low boxes (about a
+    // third of a block, so a walk steps up onto them), set each tick by MobManager.corpseTick. Only the player's own
+    // move counts them (bodiesSolid around Player's moveBody), so bodies, mobs and items never catch on one.
+    var bodyBoxes: [(V3, V3)] = []
+    var bodiesSolid = false
+
     func collides(_ mn: V3, _ mx: V3) -> Bool {
         let eps: Float = 1e-4
         var boxes = boxScratch
@@ -542,6 +548,9 @@ final class World {
             }
         }
         if plain && !ships.isEmpty { ships.boxes(lo, hi, &boxes) }
+        if plain && bodiesSolid {
+            for b in bodyBoxes where b.0.x < hi.x && b.1.x > lo.x && b.0.y < hi.y && b.1.y > lo.y && b.0.z < hi.z && b.1.z > lo.z { boxes.append(b) }
+        }
         var dd = d
         let b1 = (a + 1) % 3, b2 = (a + 2) % 3
         for (bmn, bmx) in boxes {
