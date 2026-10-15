@@ -511,23 +511,68 @@ final class FurnaceMenu: Menu {
     }
 }
 
+// Q2c-console-22: Take and Store buttons at a chest screen's top right. Take moves everything that fits into the pack
+// and hotbar; Store puts away every pack stack (not the hotbar) of an item the chest already holds. The town's theft
+// check reads the chest's contents as it always has, so a button counts the same as moving the items by hand.
+extension Menu {
+    static let takeBtn = 470, storeBtn = 471
+    func addChestButtons() {
+        let st = MenuSlot(110, 3, nil, 0, .button(Menu.storeBtn)); st.w = 30; st.h = 11; slots.append(st)
+        let t = MenuSlot(142, 3, nil, 0, .button(Menu.takeBtn)); t.w = 28; t.h = 11; slots.append(t)
+    }
+    func chestButton(_ i: Int, _ parts: [ItemContainer]) {
+        let g = game
+        if i == Menu.takeBtn {
+            var moved = 0, stuck = false
+            for p in parts { for k in 0..<p.count where !p[k].isEmpty {
+                let before = p[k].count
+                let rest = g.inventory.add(p[k])
+                if rest.count != before { moved += 1 }
+                if !rest.isEmpty { stuck = true }
+                p[k] = rest
+            } }
+            g.sfx(.pickup, 0.6)
+            g.onToast?(moved == 0 ? (stuck ? "Your pack is full" : "The chest is empty") : "Took \(moved) stack\(moved == 1 ? "" : "s")" + (stuck ? ": your pack is full" : ""))
+        } else if i == Menu.storeBtn {
+            let have = Set(parts.flatMap { $0.slots.filter { !$0.isEmpty }.map { $0.item } })
+            let main = g.inventory.main
+            var moved = 0
+            for k in 9..<main.count where !main[k].isEmpty && have.contains(main[k].item) {
+                var rest = main[k]
+                for p in parts where !rest.isEmpty { rest = p.add(rest) }
+                if rest.count != main[k].count { moved += 1 }
+                main[k] = rest
+            }
+            g.sfx(.click, 0.6)
+            g.onToast?(moved == 0 ? "Nothing in your pack matches this chest" : "Stored \(moved) stack\(moved == 1 ? "" : "s")")
+        }
+    }
+}
+
 final class ChestMenu: Menu {
+    let box: ItemContainer
     convenience init(game: Game, entity: BlockEntity) { self.init(game: game, container: entity.container, title: "Chest") }
     init(game: Game, container: ItemContainer, title: String) {
+        box = container
         super.init(title, game: game)
         let rows = container.count / 9
         height = 114 + rows * 18
         inventoryLabelY = height - 94
         for r in 0..<rows { for c in 0..<9 { slots.append(MenuSlot(8 + c * 18, 18 + r * 18, container, c + r * 9)) } }
         addPlayerInventory(y: height - 82)
+        addChestButtons()                           // Q2c-console-22
     }
+    override func buttonPressed(_ i: Int) { chestButton(i, [box]) }
     var closed: (() -> Void)?
     override func onClose() { closed?() }
 }
 
 // Two chests side by side facing the same way: one 54-slot screen.
 final class DoubleChestMenu: Menu {
+    let halves: [ItemContainer]
+    override func buttonPressed(_ i: Int) { chestButton(i, halves) }      // Q2c-console-22
     init(game: Game, a: ItemContainer, b: ItemContainer) {
+        halves = [a, b]
         super.init("Large Chest", game: game)
         height = 222
         inventoryLabelY = 128
@@ -535,6 +580,7 @@ final class DoubleChestMenu: Menu {
             for r in 0..<3 { for col in 0..<9 { slots.append(MenuSlot(8 + col * 18, 18 + (r + k * 3) * 18, c, col + r * 9)) } }
         }
         addPlayerInventory(y: 140)
+        addChestButtons()                           // Q2c-console-22
     }
     var closed: (() -> Void)?                      // P264: a trapped double chest lets its circuit go
     override func onClose() { closed?() }

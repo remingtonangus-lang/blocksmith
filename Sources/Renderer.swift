@@ -1887,6 +1887,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
             }
             if m is CraftingTableMenu { arrowRight(o.x + 89 * s, o.y + 36 * s, 24 * s, s, V4(0.5, 0.5, 0.5, 1)) }
+            if m is ChestMenu || m is DoubleChestMenu {
+                // Q2c-console-22: Store and Take at the chest's top right.
+                for sl in m.slots where sl.isButton {
+                    guard case .button(let i) = sl.kind, i == Menu.takeBtn || i == Menu.storeBtn else { continue }
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, game.menuHover === sl ? MenuColors.hover : V4(0.36, 0.36, 0.4, 1))
+                    let lb = i == Menu.takeBtn ? "Take" : "Store"
+                    text(lb, x + (Float(sl.w) * s - textWidth(lb, s)) / 2, y + 2 * s, s, V4(0.95, 0.95, 0.95, 1))
+                }
+            }
             if let b = m as? BrewingMenu {
                 // Cinderwisp fuel bar, brew progress (downward arrow) and bubbles.
                 rect(o.x + 60 * s, o.y + 44 * s, 18 * s, 4 * s, V4(0.3, 0.3, 0.3, 1))
