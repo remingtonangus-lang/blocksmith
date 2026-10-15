@@ -90,6 +90,35 @@ final class QuestControls {
     var heldQuads = 0                                  // (harness) quads in the last held item model (P17)
     private(set) var bladeContacts = 0                 // (harness) hits landed by the blade
     private var lastHurtFlash: Float = 0
+    // Q2c-console-61: Mining: Toggle: one pull at a block keeps the trigger "held" for it until it breaks, the laser
+    // leaves it, the trigger is pulled again, the held item changes or a menu opens. A creature under the laser or a gun
+    // in hand leaves the trigger alone.
+    private var mineLatch: IVec3?, mineLatchItem: ItemID = 0, mineTrigDown = false, mineCancelHeld = false
+    private func mineToggleUpdate(_ R: XRHand, inMenu: Bool, _ p: inout PadSnapshot) {
+        let down = R.trigger > (mineTrigDown ? 0.35 : 0.6)
+        let pressed = down && !mineTrigDown
+        mineTrigDown = down
+        guard QuestSettings.mineToggle, !inMenu, game.alive, game.heldGun == nil else { mineLatch = nil; mineCancelHeld = false; return }
+        let t = game.target?.hit
+        // A creature between the laser and the block: the trigger is its own again (no auto-swinging at it).
+        let mobFirst = game.target.map { tg in
+            game.mobs.raycast(game.player.eye, game.player.look, maxDist: 4.5).map { $0.1 < simd_length(game.hitPoint(tg) - game.player.eye) } ?? false
+        } ?? false
+        if let l = mineLatch, t != l || game.held.item != mineLatchItem || mobFirst {
+            mineLatch = nil                                 // broken (the target moved on), looked away, another item, a creature
+        }
+        if pressed {
+            if mineLatch != nil {
+                mineLatch = nil; mineCancelHeld = true      // a second pull stops it (and this pull doesn't mine)
+                app.input.haptic(aimHand, amplitude: 0.2, seconds: 0.03, frequency: 120)
+            } else if let t, !mobFirst {
+                mineLatch = t; mineLatchItem = game.held.item
+                app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.03, frequency: 220)
+            }
+        }
+        if !down { mineCancelHeld = false }
+        if mineCancelHeld { p.rt = 0 } else if mineLatch != nil { p.rt = 1 }
+    }
     // Q2c-console-42: a controller that stops being tracked is named (and its return felt); both put down: paused.
     private var lostSecs: [Float] = [0, 0], lostSaid = [false, false], bothLost: Float = 0, oneHandHinted = false
     private func controllerWatch(_ hi: HandedInput, dt: Float) {
@@ -338,6 +367,7 @@ final class QuestControls {
         game.vrShake = QuestSettings.blastShake
         game.vrHead = rig.headWorld
         p.rt = R.trigger
+        mineToggleUpdate(R, inMenu: inMenu, &p)             // Q2c-console-61
         p.lt = L.trigger                                    // use / place (hold to repeat)
         // Only real melee weapons hit by contact; with anything else (fist, blocks, torches, food) the trigger attacks.
         if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false; bladeTrail.clear(); laserFade = min(1, laserFade + dt * 3) }

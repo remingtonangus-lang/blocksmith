@@ -74,6 +74,7 @@ enum QuestOptions {
             "q_saddle": "Riding a horse or another mount, a boat or a minecart, the view eases over jumps, bucks and waves instead of following every bob; real climbs and drops are still followed.",
             "q_chase": "Taking the controls of a ship, airship, crawler, drop craft or boat moves your view out behind it, like a chase camera; back to first person when you let go. Off keeps you in first person.",
             "q_shake": "The view jolts a little when the Tidebreaker fires and blasts land nearby. Off keeps the view still (the controllers still rumble).",
+            "q_minetoggle": "Hold: keep the trigger pulled to mine. Toggle: one pull at a block mines it to the end; look away or pull again to stop.",   // Q2c-console-61
             "q_knock": "How far hits and blasts push you: Reduced moves you 40% as far, Off not at all. Damage, the red flash and the thump in your hands stay.",   // Q2c-console-60
             "q_vib": "How strongly the Touch controllers vibrate: hits, mining, attacks, the bow, low health, explosions and menus. Off stops every buzz. Also in Options > Accessibility.",   // Q2c-console-35
             "q_ring": "A steady ring at your feet while a ship you stand on moves or turns: a fixed reference for your eyes.",
@@ -121,6 +122,7 @@ enum QuestOptions {
                 ("Movement: \(S.teleport ? "Teleport" : "Smooth")", "q_move"),
                 ("Comfort Vignette: \(vignetteName(S.vignette))", "q_vig"),
                 ("Knockback: \(S.knockback > 0.7 ? "Full" : (S.knockback > 0.05 ? "Reduced" : "Off"))", "q_knock"),     // Q2c-console-60
+                ("Mining: \(S.mineToggle ? "Toggle" : "Hold")", "q_minetoggle"),                                       // Q2c-console-61
                 ("Controller Vibration: \(Settings.shared.rumble == 0 ? "Off" : "\(Int((Settings.shared.rumble * 100).rounded()))%")", "q_vib"),
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
                 ("Steady Ride: \(on(S.steadySaddle))", "q_saddle"),          // (Q2c-console-56: was Steady Saddle)
@@ -248,6 +250,7 @@ enum QuestOptions {
         case "q_vig": S.vignette = step(vignettes, vignettes.min { abs($0 - S.vignette) < abs($1 - S.vignette) } ?? 0.6, back)
         case "q_subs": Settings.shared.subtitles.toggle()          // Q2c-console-53 (the Accessibility row's value)
         case "q_resetlessons": if let g = hooks.game() { PauseMenu.resetHints(g) }
+        case "q_minetoggle": S.mineToggle.toggle()
         case "q_knock":
             let o: [Float] = [1, 0.4, 0]
             S.knockback = step(o, o.min { abs($0 - S.knockback) < abs($1 - S.knockback) } ?? 0.4, back)
