@@ -58,10 +58,31 @@ final class SmithingMenu: Menu {
         slots.append(MenuSlot(26, 48, box, 1))
         slots.append(MenuSlot(44, 48, box, 2))
         slots.append(MenuSlot(98, 48, out, 0, .result))
-        addPlayerInventory()
+        // Q2c-console-67: room for the reason line under the slots.
+        height = 186
+        inventoryLabelY = 93
+        addPlayerInventory(y: 104)
     }
     override func changed() {
         out[0] = Smithing.result(template: box[0], base: box[1], addition: box[2]) ?? .empty
+    }
+    // Q2c-console-67: what the bench needs next, or why the pieces don't fit (nil while the output is ready).
+    var reason: String? {
+        guard out[0].isEmpty else { return nil }
+        func n(_ k: String) -> String { Items.has(k) ? Items.name(Items.id(k)) : k.replacingOccurrences(of: "_", with: " ") }
+        let t = box[0], b = box[1], a = box[2]
+        if t.isEmpty { return "Put a smithing template in the first slot" }
+        let tk = Items.key(t.item)
+        let upgrade = tk == "netherite_upgrade_smithing_template", trim = tk.hasSuffix("_armor_trim_smithing_template")
+        guard upgrade || trim else { return "\(t.def.display) isn't a smithing template" }
+        if b.isEmpty { return "Put the gear to upgrade in the second slot" }
+        if upgrade && !Items.key(b.item).hasPrefix("diamond_") { return "Only \(n("diamond")) gear takes this upgrade" }
+        if trim && b.def.armorSlot == nil { return "Trims go on armour" }
+        if trim && Items.key(b.item) == "elytra" { return "\(b.def.display) can't be trimmed" }
+        if a.isEmpty { return upgrade ? "Add \(n("netherite_ingot")) in the third slot" : "Add a trim material in the third slot: an ingot, a gem or quartz" }
+        if upgrade && Items.key(a.item) != "netherite_ingot" { return "The upgrade takes \(n("netherite_ingot"))" }
+        if trim && !Smithing.trimMaterials.contains(Items.key(a.item)) { return "\(a.def.display) isn't a trim material" }
+        return "These pieces don't fit together"
     }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? {
         guard let r = Smithing.result(template: box[0], base: box[1], addition: box[2]) else { return nil }

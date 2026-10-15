@@ -2416,6 +2416,12 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text("\(sc.page + 1)/\(sc.pages)", x - 2 * s, y + 18 * s, s, V4(0.25, 0.25, 0.25, 1), shadow: false)
                 }
             }
+            // Q2c-console-67: the smithing table's next step or why the pieces don't fit, under the slots.
+            if let sm = m as? SmithingMenu, let why = sm.reason {
+                for (k, line) in wrapLines(why, maxW: 160 * s, s, maxLines: 2).enumerated() {
+                    text(line, o.x + 8 * s, o.y + Float(74 + 9 * k) * s, s, V4(0.62, 0.36, 0.02, 1), shadow: false)
+                }
+            }
             if m is SmithingMenu || m is GrindstoneMenu {
                 rect(o.x + (m is SmithingMenu ? 68 : 94) * s, o.y + (m is SmithingMenu ? 50 : 36) * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))
             }
