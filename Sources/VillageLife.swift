@@ -136,7 +136,12 @@ extension Mob {
         let f = g.dayFraction
         guard f > 0.5 && f < 0.995, let b = villager?.bed else { wake(); return false }
         let bedPos = V3(Float(b[0]) + 0.5, Float(b[1]) + 0.6, Float(b[2]) + 0.5)
-        if simd_length(V2(bedPos.x - pos.x, bedPos.z - pos.z)) > 1.2 {
+        // In bed: within 1.2 of the head's middle, or already lying in the sleeping spot at the foot end (1.45 from it).
+        // Measured against 1.2 alone, the sleeper was out of bed the next check: it woke, stepped toward the pillow,
+        // fell asleep and was put back at the foot, over and over (behaviour sim: villagers stuck and spinning in their
+        // beds every night, run 770).
+        let fromHead = simd_length(V2(bedPos.x - pos.x, bedPos.z - pos.z))
+        if fromHead > 1.2 && !(lying && fromHead < 1.6) {
             // Walk there through villagerDay (threats, panic and raids still come first; it used to face the bed
             // here and then let the day schedule re-aim the same tick, so few villagers ever reached their beds).
             if !gaveUp(V3(bedPos.x, Float(b[1]), bedPos.z)) { bedWalk = V3(bedPos.x, Float(b[1]), bedPos.z) }
