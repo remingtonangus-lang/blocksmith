@@ -193,7 +193,7 @@ extension Game {
             sfx(.explodeLarge, 1.4, at: c)
             addFlash(at: c + V3(0, -2, 0), color: V3(6, 2.4, 0.9), radius: 24, life: 1.2)
             addShake(simd_length(player.pos - c) < 16 ? 0.8 : 0.4)
-            onToast?("The Wardstone gives way. Below it, the Deep")
+            onToast?("The Wardstone gives way. Below it, Hell")
         }
         return removed
     }
