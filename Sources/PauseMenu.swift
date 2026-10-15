@@ -239,11 +239,11 @@ final class PauseMenu: Menu {
             if let t = PadManager.shared.disconnectedAt, g.clock - t < 600, !PadManager.shared.connected {
                 subtitle = "Controller disconnected - reconnect it or use the keyboard"
             } else if !currentWorld.isEmpty {
-                subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)" + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2
+                subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1) - \(Game.difficultyNames[max(0, min(3, g.difficulty))])"
+                    + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2, -16
             }
-            rows = [("Back to Game", "resume"), ("Journal (orders, logs, notes)", "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
-                    ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
-                    ("Difficulty: \(Game.difficultyNames[g.difficulty]) (locked)", "difficulty"),
+            rows = [("Back to Game", "resume"), ("Journal", "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+                    ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),        // (Q2c-console-16: the locked difficulty is in the subtitle)
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
                     ("Play Together (network)...", "netmenu"),
                     ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
@@ -334,10 +334,11 @@ final class PauseMenu: Menu {
                 rows = [("Director: \(on(st.directorOn))", "dir_on"),
                         ("Planner: \(Director.backendNames[max(0, min(2, st.directorBackend))])", "dir_backend"),
                         ("Event Frequency: \(Director.freqNames[max(0, min(2, st.directorFreq))])", "dir_freq"),
-                        ("Before the Story Ends: \(on(st.directorEarly))", "dir_early"),
+                        ("Before the Story Ends: \(on(st.directorEarly))", "dir_early"),       // (Q2c-console-16: testing; below)
                         (Director.shortStatus(g), "dir_status"), (Director.shortPlanner(), "dir_model"),
                         ("Cloud Endpoint: \(DirectorPlanner.shared.cloud.endpoint == "mock" ? "Mock (built in)" : "Custom")", "dir_cloud"),
                         ("Director Events (Journal)...", "dir_journal")]
+                if !st.devTools && !st.directorEarly { rows.removeAll { $0.1 == "dir_early" } }     // Q2c-console-16
             }
             rows.append(("Done", "back"))
         case .padmap:
