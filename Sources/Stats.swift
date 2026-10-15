@@ -8,6 +8,16 @@ enum Stats {
     private(set) static var c: [String: Double] = [:]
     private static var lastPos: V3?
     static func add(_ k: String, _ n: Double = 1) { c[k, default: 0] += n }
+    // Q2c-console-59: this life's length (play time since the last respawn) and the longest one.
+    static var life: Double { max(0, (c["time"] ?? 0) - (c["lifeStart"] ?? 0)) }
+    static func lifeEnded() { if life > (c["bestLife"] ?? 0) { c["bestLife"] = life } }
+    static func lifeBegan() { c["lifeStart"] = c["time"] ?? 0 }
+    // The play time in a saved world's extras string (nil when it has none), for the worlds list.
+    static func playedIn(_ s: String?) -> Double? {
+        guard let s else { return nil }
+        for kv in s.split(separator: ";") where kv.hasPrefix("time=") { return Double(kv.dropFirst(5)) }
+        return nil
+    }
 
     static func encode() -> String { c.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ";") }
     static func decode(_ s: String?) {
@@ -53,6 +63,7 @@ enum Stats {
                 "Blocks mined: " + count(v("mined")) + "   Placed: " + count(v("placed")),
                 "Creatures defeated: " + count(v("kills")) + "   Deaths: " + count(v("deaths")),
                 "Items crafted: " + count(v("crafted")),
-                "Food eaten: " + count(v("eaten")) + "   Fish caught: " + count(v("fish"))]
+                "Food eaten: " + count(v("eaten")) + "   Fish caught: " + count(v("fish")),
+                "Longest life: " + duration(max(v("bestLife"), life))]
     }
 }

@@ -120,7 +120,10 @@ extension Game {
         } else if lost {
             d = "Your things are on the ground where you fell: about five minutes before they are gone."
         }
-        return d + (d.isEmpty ? "" : " ") + "You keep your experience."
+        // Q2c-console-59: how long this life lasted (survival play time since the last respawn).
+        let life = Stats.life
+        let lasted = persistent && survival ? " You lasted " + (life < 60 ? "under a minute" : Stats.duration(life)) + " this time." : ""
+        return d + (d.isEmpty ? "" : " ") + "You keep your experience." + lasted
     }
 
     // After Respawn: follow the stash and say how far it is.

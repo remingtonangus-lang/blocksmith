@@ -2665,6 +2665,7 @@ final class Game {
     func die(_ cause: String) {
         guard !(menu is DeathMenu) else { return }
         Stats.add("deaths")                                            // Q2c-console-57
+        Stats.lifeEnded()                                              // Q2c-console-59
         sfx(.playerDeath)
         deathScore = xpPoints + xpLevel * 7
         lastDeath = player.pos
@@ -2700,6 +2701,7 @@ final class Game {
     // Respawn (from the death screen): anchor, bed/world spawn.
     func respawn() {
         alive = true
+        Stats.lifeBegan()                                              // Q2c-console-59
         calmMobs()
         if let a = anchorSpawn {
             // Respawn at a charged anchor in the Emberdeep (uses a charge).
