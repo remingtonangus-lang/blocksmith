@@ -983,6 +983,13 @@ Q2c-console-57. [DONE] A world's statistics (nothing recorded what he had done i
  (e) Counting costs nothing noticeable: a few additions per event, the distance once per game tick.
  (f) The page fits on one screen with a Back row, and its subtitle names the world.
  Done Oct 15 (console; new Sources/Stats.swift; Game.swift, Effects.swift, Fishing.swift, CraftingBook.swift, PauseMenu.swift): (a) Stats, a per-world counter table; (b) the pause menu's "Statistics" row (after Advancements) opens PauseMenu page .stats, seven info rows built by Stats.rows; counters: breakBlock with drop (mined), a successful placement (placed), a player kill in the mob death path (kills), Game.die (deaths), CraftBook.craft's made x result count (crafted), Game.eat (eaten), a landed fish (fish), and per game tick time and horizontal distance on foot or riding (ships count as riding); (c) Stats.count adds thousands commas, distance switches to km with one decimal, time reads min or h + min; (d) encoded into the world extras as "stats" and decoded on every world load (a world without it starts at zero; days come from the world's own time); (e) one dictionary add per event and per tick (survival, persistent worlds only); a jump over 8 blocks in a tick (teleport, respawn) isn't distance; (f) seven rows plus Back, subtitle = the world's name.
+Q2c-console-58. [CLAIMED console 2026-10-15] More silent no-ops explain themselves (seeds pressed onto grass, a boat aimed at nothing it could sit on, a minecart off the rails and bone meal on something that can't grow all did nothing at all: the classic first-hour farming and travel mistakes).
+ (a) Intent (Q2 c, nothing broken-looking): like Q2c-console-33 and -39, a use that does nothing says why.
+ (b) Seeds, carrots or potatoes pressed onto grass or dirt: "Plant it on farmland: till grass or dirt with a hoe first"; nether wart off soul sand: "Nether wart grows on soul sand".
+ (c) A boat aimed where it can't sit: "Point at water or the top of a block to set the boat down".
+ (d) A minecart aimed off the rails: "Minecarts go on rails".
+ (e) Bone meal on something it can't grow: "Bone meal only works on plants that can still grow".
+ (f) Same manners as Q2c-console-39: on a fresh press only, each reason at most every four seconds, with the soft refusal click and a light tick in the hands; nothing changes when the use does work.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
