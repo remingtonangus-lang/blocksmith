@@ -473,7 +473,8 @@ final class PauseMenu: Menu {
     func layout() {
         let n = min(rows.count, PauseMenu.visible)
         scroll = max(0, min(scroll, rows.count - n))
-        let top = subtitle.isEmpty ? 22 : 32
+        // Q2c-console-53: a subtitle too long for one line wraps onto two smaller ones (Renderer), with room for them.
+        let top = subtitle.isEmpty ? 22 : (Font.width(subtitle) > 228 ? 38 : 32)
         width = 244
         height = top + n * 21 + 22 + (rows.count > n ? 4 : 0)   // + help line
         // P201 (Oct 13 18:33, "on the Create New World page nothing shows which button is selected"): the create,

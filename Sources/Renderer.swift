@@ -2197,7 +2197,16 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let pm = m as? PauseMenu {
                 // Big labelled buttons; the controller cursor shows as the highlighted one.
                 if !pm.subtitle.isEmpty {
-                    text(pm.subtitle, o.x + (pw - textWidth(pm.subtitle, s)) / 2, o.y + 17 * s, s, V4(0.3, 0.3, 0.32, 1), shadow: false)
+                    let subC = V4(0.3, 0.3, 0.32, 1), room = pw - 12 * s
+                    if textWidth(pm.subtitle, s) <= room {
+                        text(pm.subtitle, o.x + (pw - textWidth(pm.subtitle, s)) / 2, o.y + 17 * s, s, subC, shadow: false)
+                    } else {
+                        // Q2c-console-53: two smaller lines (it ran off both edges of the panel), cut only past that.
+                        let hs = textWidth(pm.subtitle, s * 0.85) <= room * 2 - 20 * s ? s * 0.85 : s * 0.72
+                        for (k, line) in wrapLines(pm.subtitle, maxW: room, hs, maxLines: 2).enumerated() {
+                            text(line, o.x + (pw - textWidth(line, hs)) / 2, o.y + (14 + Float(k) * 9) * s, hs, subC, shadow: false)
+                        }
+                    }
                 }
                 for sl in pm.slots where sl.isButton {
                     guard case .button(let i) = sl.kind, let r = pm.row(forSlot: i) else { continue }

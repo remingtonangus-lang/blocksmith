@@ -88,6 +88,7 @@ enum QuestOptions {
             "host:lessons": "The lessons you have been shown, to read again.",
             "q_resetlessons": "Every tip and lesson shows again from the start, as for a new player.",
             "q_bright": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
+            "q_subs": "Shows captions for sounds, with the direction they come from (also in Options > Accessibility).",
             "q_menusize": "How big menus look in front of you (at the same distance): larger is easier to read, smaller keeps more of the world in view.",   // Q2c-console-49
             "q_hudsize": "How big the floating HUD (hotbar, health, messages) looks; the hotbar stays at the height HUD Position puts it.",
             "q_hud": "Where the HUD (hotbar, health, messages) floats: lower keeps more of the view clear.",
@@ -243,6 +244,7 @@ enum QuestOptions {
             S.teleport.toggle()
             if S.teleport && S.controlPreset == 1 { S.controlPreset = 0 }
         case "q_vig": S.vignette = step(vignettes, vignettes.min { abs($0 - S.vignette) < abs($1 - S.vignette) } ?? 0.6, back)
+        case "q_subs": Settings.shared.subtitles.toggle()          // Q2c-console-53 (the Accessibility row's value)
         case "q_resetlessons": if let g = hooks.game() { PauseMenu.resetHints(g) }
         case "q_vib":                       // Q2c-console-35: the shared Vibration value, with a sample buzz at the new strength
             let st = Settings.shared
@@ -346,12 +348,16 @@ enum QuestOptions {
             ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
             ("Controls: \(presetName(S.controlPreset))", "q_preset"),
             ("Measure Height (stand tall, press \(S.leftHanded ? "X" : "A")): \(measured)", "q_height"),
+            // Q2c-console-53: reading, hearing and touch from the first minute.
+            ("Menu Size: \(S.menuScale < 0.95 ? "Small" : (S.menuScale < 1.05 ? "Normal" : (S.menuScale < 1.2 ? "Large" : "Extra Large")))", "q_menusize"),
+            ("Subtitles: \(Settings.shared.subtitles ? "On" : "Off")", "q_subs"),
+            ("Controller Vibration: \(Settings.shared.rumble == 0 ? "Off" : "\(Int((Settings.shared.rumble * 100).rounded()))%")", "q_vib"),
             ("Start Playing", "q_setup_done"),
         ]
         if let g = newWorld() {
             rows.insert(("First World: \(Game.difficultyNames[max(0, min(3, g.difficulty))])", "q_firstdiff"), at: rows.count - 1)
-            return ("Welcome to Blocksmith", "Set up how you play and how hard your first world is. Point and pull the trigger to change a row.", rows)
+            return ("Welcome to Blocksmith", "Pull the trigger on a row to change it. All but the difficulty can change later in VR Comfort & Controls.", rows)
         }
-        return ("Welcome to Blocksmith", "Set up how you play. Point and pull the trigger to change a row.", rows)
+        return ("Welcome to Blocksmith", "Pull the trigger on a row to change it. All of it can change later in VR Comfort & Controls.", rows)
     }
 }
