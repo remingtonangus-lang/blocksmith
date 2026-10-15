@@ -17,7 +17,7 @@ civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale deta
   - four weapons plus grenades, collapsing towers and wrecks, weather and day-night;
   - synthesized audio.
 - Checks:
-  - every push: 91 headless tests and 12 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
+  - every push: 91 headless tests and 13 scripted scenarios (ride, drive, fly, dropship, battle, weapons, explore,
     destroy, parked, trees, forest_drive, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
   - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
     and the pad bridge build.
@@ -126,6 +126,16 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-15 00:30: bug hunting, explorer bot. New scenario `explore` (in "all"): from every named site and 30 seeded
+  random land points the player walks / sprints 12 s, turning every 3 s and jumping, with per-tick oracles: fell
+  through the ground, more than 1.5 m under it, NaN, and stalled in the open (under 1 m in 3 s on land with no
+  wall contact; stops against walls are counted, a head-on approach under Godot's 15 degree minimum slide angle
+  stops a CharacterBody). The player's fall-through safety net used to fix falls silently; it now counts them
+  (Player.rescues) and logs "player: fell .. m under the ground" so the oracle (and the fleet logs) see every one.
+  Result over seeds 7311 / 99 / 4242: 43 walks each, 3.3 / 3.1 / 3.0 km walked, 0 falls, 0 NaN, 0 stalls in the
+  open, 1-2 wall stops (cinder camp perimeter, head-on). EXPLORE_SEED, EXPLORE_ONLY=<site>, EXPLORE_TRACE=1 for
+  local runs. CI runs the scenarios with --fixed-fps 60: headless then runs faster than real time with exact
+  1/60 s steps (all 13 scenarios 2 min 9 s, was over 7 min; explore alone 54 s vs 4 min 20 s, same verdicts).
 - 2026-10-06 00:45: run 57 (405f4f3) green. Paired verdict on the far impostor thinning: "trees: impostors unthinned"
   -0.65 ms (drawing every card costs 0.65 ms more in alternating windows of the same run). Kept: it clears the -0.3
   ms bar set beforehand and is visually neutral, but this run's noise floor was high (raymarched clouds -2.25,

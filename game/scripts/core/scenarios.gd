@@ -89,8 +89,9 @@ func _process(delta: float) -> void:
 	if current == "":
 		return
 	t += delta
-	if t > 400.0:
-		_done(false, "watchdog: still running after 400 s")
+	var limit: float = data.get("watchdog", 400.0)
+	if t > limit:
+		_done(false, "watchdog: still running after %.0f s" % limit)
 		return
 	call("_tick_" + current, delta)
 
@@ -680,3 +681,138 @@ func _tick_menu(_delta: float) -> void:
 	elif data["phase"] == 2 and t > 0.9:
 		var closed := not m.open and not get_tree().paused
 		_done(bool(data["opened"]) and bool(data["low"]) and closed, "opened and paused %s, preset applied %s, closed and resumed %s" % [data["opened"], data["low"], closed])
+
+
+# ---------------------------------------------------------------------------------------------- explore
+
+## Explorer bot on foot: from every named site and a seeded set of random land points, walk / sprint for 12 s,
+## turning every 3 s and jumping now and then, with per-tick oracles: fell through the ground (the player's
+## safety net fired, or the player was found more than 1.5 m under it), position NaN, and stuck (under 1 m of
+## progress in a 3 s window while holding forward on land; the bot then turns away like a person would).
+## Fails on any fall-through, NaN or stall in the open; stops against walls are counted, not failed.
+const EXPLORE_WALK := 12.0
+
+
+func _setup_explore() -> void:
+	_leave_vehicle()
+	G.player.invulnerable = true
+	var pts: Array = []
+	var names: Array = G.gen.sites.keys()
+	names.sort()
+	for nm in names:
+		var s: Vector3 = G.gen.sites[nm]
+		pts.append([nm, Vector2(s.x + 40.0, s.z + 25.0)])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(OS.get_environment("EXPLORE_SEED")) if OS.get_environment("EXPLORE_SEED") != "" else 7311
+	var tries := 0
+	while pts.size() < names.size() + 30 and tries < 800:
+		tries += 1
+		var q := Vector2(rng.randf_range(-7000.0, 7000.0), rng.randf_range(-7000.0, 7000.0))
+		if G.gen.water_at(q.x, q.y) > -100.0 or G.gen.height_at(q.x, q.y) < 3.0:
+			continue
+		pts.append(["random %d" % (pts.size() - names.size() + 1), q])
+	if OS.get_environment("EXPLORE_ONLY") != "":
+		pts = pts.filter(func(e): return e[0] == OS.get_environment("EXPLORE_ONLY"))
+	data["pts"] = pts
+	data["watchdog"] = pts.size() * EXPLORE_WALK + 60.0
+	data["i"] = -1
+	data["rng"] = rng
+	data["fails"] = []
+	data["stuck"] = []
+	data["walled"] = []
+	data["windows"] = 0
+	data["dist"] = 0.0
+	_explore_next()
+
+
+func _explore_next() -> void:
+	_release()
+	Input.action_release("sprint")
+	Input.action_release("jump")
+	data["i"] += 1
+	var pts: Array = data["pts"]
+	if data["i"] >= pts.size():
+		return
+	var q: Vector2 = pts[data["i"]][1]
+	var p: Player = G.player
+	var at := Vector3(q.x, 0.0, q.y)
+	G.world.focus(at)
+	G.terrain.collision_now(at)
+	p.global_position = Vector3(q.x, G.world.surface_at(q.x, q.y) + 0.05, q.y)
+	p.velocity = Vector3.ZERO
+	var rng: RandomNumberGenerator = data["rng"]
+	p.rotation.y = rng.randf() * TAU
+	p.pitch = 0.0
+	data["t0"] = t
+	data["win_t"] = t
+	data["win_p"] = p.global_position
+	data["prev"] = p.global_position
+	data["rescues"] = p.rescues
+	data["next_turn"] = t + 3.0
+	data["next_jump"] = t + 1.0 + rng.randf() * 2.0
+	Input.action_press("move_forward")
+	if rng.randf() < 0.5:
+		Input.action_press("sprint")
+
+
+func _tick_explore(delta: float) -> void:
+	var pts: Array = data["pts"]
+	var p: Player = G.player
+	var fails: Array = data["fails"]
+	if data["i"] >= pts.size():
+		var stuck: Array = data["stuck"]
+		var windows: int = data["windows"]
+		G.player.invulnerable = false
+		_done(fails.is_empty() and stuck.is_empty(), "%d walks, %.0f m walked; fell through / NaN: %d %s; stuck in the open %d of %d windows %s; stopped at walls %d" % [
+			pts.size(), data["dist"], fails.size(), fails, stuck.size(), windows, stuck, (data["walled"] as Array).size()])
+		return
+	var nm: String = pts[data["i"]][0]
+	var rng: RandomNumberGenerator = data["rng"]
+	var pos := p.global_position
+	if OS.get_environment("EXPLORE_TRACE") != "" and int(t * 4.0) != int((t - delta) * 4.0):
+		var hits := []
+		for k in p.get_slide_collision_count():
+			var c := p.get_slide_collision(k)
+			hits.append("%s n%s" % [(c.get_collider() as Node).get_path() if c.get_collider() is Node else c.get_collider(), c.get_normal().snapped(Vector3.ONE * 0.01)])
+		print("  explore t %.2f pos %s vel %s floor %s yaw %.0f hits %s" % [t, pos.snapped(Vector3.ONE * 0.01), p.velocity.snapped(Vector3.ONE * 0.01), p.is_on_floor(), rad_to_deg(p.rotation.y), hits])
+	if is_nan(pos.x) or is_nan(pos.y) or is_nan(pos.z):
+		fails.append("%s: NaN position" % nm)
+		_explore_next()
+		return
+	data["dist"] = float(data["dist"]) + Vector2(pos.x - data["prev"].x, pos.z - data["prev"].z).length()
+	data["prev"] = pos
+	if p.rescues > int(data["rescues"]):
+		fails.append("%s: fell through the ground at %s" % [nm, p.last_rescue.snapped(Vector3.ONE * 0.1)])
+		data["rescues"] = p.rescues
+	var g: float = G.world.ground_at(pos.x, pos.z)
+	if pos.y < g - 1.5 and not p.swimming:
+		fails.append("%s: %.1f m under the ground at %s" % [nm, g - pos.y, pos.snapped(Vector3.ONE * 0.1)])
+		_explore_next()
+		return
+	# Jumps: a press for a few frames every 2-4 s.
+	if t >= float(data["next_jump"]):
+		Input.action_press("jump")
+		data["next_jump"] = t + 2.0 + rng.randf() * 2.0
+	elif t >= float(data["next_jump"]) - 1.9:
+		Input.action_release("jump")
+	if t >= float(data["next_turn"]):
+		data["windows"] = int(data["windows"]) + 1
+		var w0: Vector3 = data["win_p"]
+		var moved := Vector2(pos.x - w0.x, pos.z - w0.z).length()
+		var wl: float = G.gen.water_at(pos.x, pos.z)
+		if moved < 1.0 and wl < -100.0:
+			# Against a wall is normal (walking nearly head-on, under the 15 degree minimum slide angle, stops a
+			# CharacterBody): only a stall with no wall contact is a bug (caught on a seam or invisible geometry).
+			var wall := false
+			for k in p.get_slide_collision_count():
+				if absf(p.get_slide_collision(k).get_normal().y) < 0.4:
+					wall = true
+			var e := "%s at %s (moved %.1f m, slope %.2f)" % [nm, pos.snapped(Vector3.ONE * 0.1), moved, G.gen.slope_at(pos.x, pos.z)]
+			(data["walled"] if wall else data["stuck"]).append(e)
+			p.rotation.y += PI * rng.randf_range(0.6, 1.4)
+		else:
+			p.rotation.y += rng.randf_range(-1.0, 1.0)
+		data["win_p"] = pos
+		data["next_turn"] = t + 3.0
+	if t - float(data["t0"]) > EXPLORE_WALK:
+		_explore_next()

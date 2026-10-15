@@ -156,6 +156,10 @@ func _physics_process(delta: float) -> void:
 	if G.world and not flying:
 		var g: float = G.world.ground_at(global_position.x, global_position.z)
 		if global_position.y < g - 2.5:
+			# Counted and logged: each rescue is a fall-through bug the net hid (the explore scenario fails on any).
+			rescues += 1
+			last_rescue = global_position
+			G.log_line("player: fell %.1f m under the ground at %s, put back on top" % [g - global_position.y, global_position])
 			global_position.y = G.world.surface_at(global_position.x, global_position.z) + 0.1
 			velocity = Vector3.ZERO
 	var mv := Controls.move_vector()
@@ -241,6 +245,8 @@ func _footsteps(delta: float, on_floor: bool) -> void:
 			Sfx.footstep(global_position, hv)
 
 
+var rescues := 0                   # times the fall-through safety net fired
+var last_rescue := Vector3.ZERO
 var invulnerable := false        # scenarios that test terrain or teleports, not combat
 
 
