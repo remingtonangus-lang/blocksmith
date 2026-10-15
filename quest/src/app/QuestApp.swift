@@ -453,6 +453,20 @@ final class QuestApp {
 
     // MARK: Loading scene
 
+    // Q2c-console-3: tips while the world loads (one every 8 s).
+    static let loadingTips = [
+        "Tip: grip your chest pocket with your right hand to open the journal.",
+        "Tip: in survival, Y calls your horse to you.",
+        "Tip: pause menu, Track a Target, puts a beacon over what you follow.",
+        "Tip: VR Comfort & Controls has snap turns, teleport and the vignette.",
+        "Tip: your world saves itself every minute; look for the Saved badge.",
+        "Tip: grips step through your hotbar; click the right stick for the weapon wheel.",
+        "Tip: with a gun out, reach to your hip and grip to take a magazine.",
+        "Tip: sneak by clicking the left stick; pushed hard, the click sprints.",
+        "Tip: beat the story and the Director keeps the land busy (Options, Director).",
+        "Tip: crouch to pass under low gaps and through tight caves.",
+    ]
+
     // Sky gradient, a ring of slowly turning blocks at eye height and a progress bar in front of the user.
     private func recordLoading(_ s: SceneRenderer.Slot, _ t: RenderTarget, _ cam: EyeCamera) {
         var u = FrameUniforms()
@@ -497,6 +511,44 @@ final class QuestApp {
         }
         rect(-0.6, 0.6, -0.04, 0.04, 0, V4(0.1, 0.1, 0.12, 0.85))
         rect(-0.58, -0.58 + 1.16 * max(0.02, min(1, p)), -0.025, 0.025, 0.005, V4(0.45, 0.85, 0.4, 1))
+        // Q2c-console-3: what is happening and a tip, in the game's pixel font drawn as quads (no textures needed, so
+        // it shows on the very first launch): 6 mm a font pixel, white on a dark shadow, centred under the bar.
+        loadLock.lock(); let what = loadStatus; loadLock.unlock()
+        func label(_ str: String, _ y: Float, _ px: Float, _ col: V4) {
+            let w = Float(Font.width(str)) * px
+            var x = -w / 2
+            for u in str.unicodeScalars {
+                let code = Int(u.value)
+                guard code >= 32 && code < 127 else { x += 6 * px; continue }
+                let g = Font.glyphs[code - 32]
+                for r in 0..<(g.count - 1) {
+                    let bits = g[r + 1]
+                    if bits == 0 { continue }
+                    for c in 0..<g[0] where bits & (1 << c) != 0 {
+                        let x0 = x + Float(c) * px, y0 = y - Float(r) * px
+                        rect(x0 + px * 0.45, x0 + px * 1.45, y0 - px * 1.45, y0 - px * 0.45, 0.002, V4(0.05, 0.06, 0.1, 0.9))
+                        rect(x0, x0 + px, y0 - px, y0, 0.006, col)
+                    }
+                }
+                x += Float(g[0] + 1) * px
+            }
+        }
+        label("\(what)  \(Int((max(0, min(1, p)) * 100).rounded()))%", -0.08, 0.006, V4(1, 1, 1, 1))
+        let tips = QuestApp.loadingTips
+        let tip = tips[Int(time / 8) % tips.count]
+        let words = tip.split(separator: " ")
+        if Font.width(tip) > 230, words.count > 3 {
+            // Two lines, split at the word nearest the middle.
+            var best = 1, bestD = Int.max
+            for k in 1..<words.count {
+                let d = abs(Font.width(words[..<k].joined(separator: " ")) - Font.width(words[k...].joined(separator: " ")))
+                if d < bestD { bestD = d; best = k }
+            }
+            label(words[..<best].joined(separator: " "), -0.16, 0.0055, V4(0.85, 0.9, 1, 1))
+            label(words[best...].joined(separator: " "), -0.21, 0.0055, V4(0.85, 0.9, 1, 1))
+        } else {
+            label(tip, -0.16, 0.0055, V4(0.85, 0.9, 1, 1))
+        }
         if let off = scene.push(s, v) { scene.drawScratch(s, "simpleSolid", offset: off, count: v.count) }
         scene.drawSky(s)
     }
