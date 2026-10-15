@@ -181,6 +181,14 @@ final class QuestApp {
     private var adoptStep = 0
     private var wasFocused = false
     private var awayFor = 0.0, savedAway = false, headLostFor = 0.0      // S8
+    private var awayStart = 0.0                                          // Q2c-console-44: when the away pause began
+    // Q2c-console-44: the pause for the headset taken off, the Meta menu or the session stopping, with its reason.
+    private func awayPause(_ g: Game) {
+        g.paused = true
+        if PauseMenu.autoReason == nil || awayStart == 0 { awayStart = CFAbsoluteTimeGetCurrent() }
+        PauseMenu.autoReason = "Paused while you were away"
+        (g.menu as? PauseMenu)?.build()
+    }
     private var firstWorldFrames = 0
 
     private func adoptLoaded() {
@@ -330,7 +338,7 @@ final class QuestApp {
             // system menu): the world is paused and saved once, before anything else can end the process.
             if let g = game, !savedAway {
                 savedAway = true
-                if g.menu == nil && g.credits == nil { g.paused = true }
+                if g.menu == nil && g.credits == nil { awayPause(g) }
                 saveNow()
             }
             Thread.sleep(forTimeInterval: 0.02); return true
@@ -362,7 +370,15 @@ final class QuestApp {
             let a = CFAbsoluteTimeGetCurrent()
             // Input focus lost (headset off, the system menu or a dialog up): the world stops and the pause menu is up
             // when the user comes back, so nothing happens to them meanwhile.
-            if !xr.focused && wasFocused && g.menu == nil && g.credits == nil { g.paused = true }
+            if !xr.focused && wasFocused && g.menu == nil && g.credits == nil { awayPause(g) }
+            // Q2c-console-44: back to a game paused while he was away: how long, whether it was saved, and a chime.
+            if xr.focused && !wasFocused && PauseMenu.autoReason != nil && awayStart > 0 {
+                let secs = CFAbsoluteTimeGetCurrent() - awayStart
+                PauseMenu.autoReason = "Paused while you were away" + (secs >= 60 ? " (\(Int(secs / 60)) min)" : "") + (savedAway ? " - your world is saved" : "")
+                (g.menu as? PauseMenu)?.build()
+                g.sfx(.click, 0.35)
+                awayStart = 0
+            }
             wasFocused = xr.focused
             // Q2c-console-37: silent while away; the world and its music ducked while paused (not at the title, not
             // while he sets volumes on Options > Audio).
@@ -377,6 +393,8 @@ final class QuestApp {
             headLostFor = xr.headTracked ? 0 : headLostFor + dt
             if headLostFor > 0.3 && !g.paused && g.menu == nil && g.credits == nil {
                 g.paused = true
+                PauseMenu.autoReason = "Paused: the headset lost tracking (light the room or wipe its cameras)"   // Q2c-console-44
+                (g.menu as? PauseMenu)?.build()
                 g.onToast?("Headset tracking lost: paused")
             }
             // Game.tick streams the world first thing; unfocused, keep chunks arriving without ticking.

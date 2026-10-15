@@ -52,6 +52,9 @@ final class PauseMenu: Menu {
     static var hostAct: ((String, Bool) -> Void)?
     static var hostValues: Set<String> = []
     static var hostHelp: [String: String] = [:]
+    // Q2c-console-44: why the host paused the game by itself (the headset: away, tracking lost, controllers put down);
+    // the pause screen's subtitle until he resumes (Game.paused clears it).
+    static var autoReason: String?
     // Q2c-console-10: the first-steps tips, the headset's lessons, the one-time notes and the button prompts (Accessibility
     // and, Q2c-console-43, the headset's Lessons page).
     static func resetHints(_ g: Game) {
@@ -264,6 +267,8 @@ final class PauseMenu: Menu {
             title = "Game Paused"
             if let t = PadManager.shared.disconnectedAt, g.clock - t < 600, !PadManager.shared.connected {
                 subtitle = "Controller disconnected - reconnect it or use the keyboard"
+            } else if let r = PauseMenu.autoReason {
+                subtitle = r
             } else if !currentWorld.isEmpty {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1) - \(Game.difficultyNames[max(0, min(3, g.difficulty))])"
                     + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2, -16

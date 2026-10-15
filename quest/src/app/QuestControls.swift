@@ -121,6 +121,8 @@ final class QuestControls {
         bothLost = hi.lost[0] && hi.lost[1] ? bothLost + dt : 0
         if bothLost > 3 && !game.paused && game.menu == nil && game.credits == nil && game.alive {
             game.paused = true
+            PauseMenu.autoReason = "Paused: controllers put down"         // Q2c-console-44
+            (game.menu as? PauseMenu)?.build()
             game.onToast?("Controllers put down: paused")
         }
     }

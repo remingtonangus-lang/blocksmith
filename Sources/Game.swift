@@ -35,6 +35,7 @@ final class Game {
     var paused = true {
         didSet {
             guard paused != oldValue else { return }
+            if !paused { PauseMenu.autoReason = nil }                // Q2c-console-44
             // Pausing opens the in-game pause menu (unless another screen is up); resuming closes it.
             if paused && menu == nil { openMenu(PauseMenu(game: self)) }
             else if !paused && menu is PauseMenu { menu = nil }
