@@ -920,6 +920,9 @@ final class Mob {
             }
         case .melee, .spider:
             if hordeSlot >= 0, let hs = Horde.step(self, dt, g) { speed = hs; break }      // D15: stalking in a night horde
+            // P272 ("there's no sword fighting with him"): a Brigand met outside a raid duels as the order's squire does:
+            // a guard that turns blows, wind-ups with a whine, feints and ripostes, staggered when his guard breaks.
+            if kind == .vindicator && !raider { speed = hellAI(dt, g, dist: dist, canTarget: canTarget); break }
             if let gs = GangTactics.step(self, dt, g, dist: dist, canTarget: canTarget) { speed = gs; break }   // D16: flanks
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.5)), Int(floor(pos.z)))
             // Spiders: hostile below raw light 12 (block light or darkened sky); a spider already after you gives up in
@@ -1120,6 +1123,10 @@ final class Mob {
             mount = nil
         }
         if lostBones & 12 != 0 { speed *= lostBones & 12 == 12 ? 0.22 : 0.5 }     // P247: hobbling on one leg, dragging itself
+        // P272 (Oct 14 19:26, "this guy runs too quick, it doesn't even look right"): a person-sized foe on foot never
+        // outruns a walking player (4.3 b/s); the order's charge keeps its burst.
+        if speed > HumanGait.maxRun && mount == nil && !spec.flying && kind.hostile && !kind.brandOrder
+            && spec.height > 1.6 && spec.height < 2.4 && halfW < 0.45 { speed = HumanGait.maxRun }
         // Walking towards something: follow a path around obstacles instead of straight at it.
         var onPath = false
         if speed > 0, let t = faceGoal, !spec.flying, spec.behavior != .slime {
@@ -1289,7 +1296,9 @@ final class Mob {
         // a real horse strides about once a second at the walk, rising to ~2.3 a second at the gallop.
         let horsey = kind == .horse || kind == .donkey || kind == .mule || kind == .skeletonHorse || kind == .zombieHorse
         if horsey { walkPhase += 2 * .pi * min(2.3, 0.85 + 0.105 * hs) * dt * min(1, hs / 0.6) }
-        else { walkPhase += hs * dt * 5.5 }
+        // P272: a stride lengthens with speed (5.5 rad a block was a stroll's cadence; at a run the legs blurred, so a
+        // jog read as a sprint): the cadence rises with the square root of speed past a walk.
+        else { walkPhase += hs * dt * HumanGait.radPerBlock(hs) }
         walkAmount += (min(1, hs / 1.2) - walkAmount) * min(1, dt * 8)
     }
 
@@ -2688,4 +2697,10 @@ final class MobManager {
         }
         return best
     }
+}
+
+// P272: gait limits shared by every walker.
+enum HumanGait {
+    static let maxRun: Float = 4.0
+    static func radPerBlock(_ hs: Float) -> Float { hs <= 1.6 ? 5.5 : 5.5 * sqrtf(1.6 / hs) }
 }
