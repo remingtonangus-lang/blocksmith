@@ -1296,6 +1296,7 @@ func _run_living() -> Dictionary:
 		h.dirt = 0.8
 		h.mud = 0.6
 		var cleaned: float = hc.brush()
+		var left_after: float = h.dirt + h.mud     # read now: by the end of the check he has stood 380 m off for 3 s
 		var spot_ok: bool = h.get_node_or_null("CareSpot") != null
 		for it in ["horse_oats", "apple", "carrot"]:
 			st.add_item(it, 2)
@@ -1328,10 +1329,10 @@ func _run_living() -> Dictionary:
 			await get_tree().create_timer(1.1).timeout
 		saved_xp = float(st.flags.get("horse_bond_xp", 0.0))
 		lines.append("horse: care spot %s; brushed %.2f of dirt+mud off (now %.2f); fed %d kinds, calmed, patted %s -> bond xp %.0f (level %d)" % [
-			spot_ok, cleaned, h.dirt + h.mud, fed, patted, xp1, lvl1])
+			spot_ok, cleaned, left_after, fed, patted, xp1, lvl1])
 		lines.append("bond 1 vs 4: whistle at 380 m heard %s / %s (range %d / %d m); stamina %d / %d; fear after 1 s %.2f / %.2f; throw chance %.2f / %.2f; saved xp %.0f" % [
 			heard1, heard4, int(h.WHISTLE_RANGE[0]), int(h.WHISTLE_RANGE[3]), int(st1), int(st4), fear_l1, fear_l4, h.THROW_CHANCE[0], h.THROW_CHANCE[3], saved_xp])
-		if not spot_ok or cleaned < 1.3 or h.dirt + h.mud > 0.01 or fed != 3 or not patted or xp1 < 60.0 or heard1 or not heard4 \
+		if not spot_ok or cleaned < 1.3 or left_after > 0.01 or fed != 3 or not patted or xp1 < 60.0 or heard1 or not heard4 \
 				or st4 < st1 * 1.29 or fear_l4 >= fear_l1 or saved_xp < 1100.0:
 			_fail(res, "horse bond: %s / %s" % [lines[-2], lines[-1]])
 		h.global_position = Game.player.global_position + Vector3(3, 0, 2)
