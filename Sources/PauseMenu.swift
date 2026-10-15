@@ -52,6 +52,16 @@ final class PauseMenu: Menu {
     static var hostAct: ((String, Bool) -> Void)?
     static var hostValues: Set<String> = []
     static var hostHelp: [String: String] = [:]
+    // Q2c-console-10: the first-steps tips, the headset's lessons, the one-time notes and the button prompts (Accessibility
+    // and, Q2c-console-43, the headset's Lessons page).
+    static func resetHints(_ g: Game) {
+        let st = Settings.shared
+        st.tutorialStep = 0; st.tutorialHints = true; st.hintSeconds = 0
+        st.gunLesson = false; st.wreckHint = false; st.mastHint = false; st.chestJoinTold = false
+        g.journalTold = false; Game.handsTold = false
+        ContextPrompts.resetLessons()
+        g.onToast?("Tips, lessons and button prompts will show again from the start")
+    }
     // Q2: the Track a Target row names what is followed now.
     static func trackLabel(_ g: Game) -> String {
         guard let t = Waymarks.current(g) else { return "Track a Target..." }
@@ -804,13 +814,7 @@ final class PauseMenu: Menu {
         case "subtitles": st.subtitles.toggle()
         case "colorblind": st.colorblind.toggle()
         case "tutorial": st.tutorialHints.toggle()
-        case "resethints":
-            // Q2c-console-10: the first-steps tips, the headset's lessons, the one-time notes and the button prompts.
-            st.tutorialStep = 0; st.tutorialHints = true; st.hintSeconds = 0
-            st.gunLesson = false; st.wreckHint = false; st.mastHint = false; st.chestJoinTold = false
-            g.journalTold = false; Game.handsTold = false
-            ContextPrompts.resetLessons()
-            g.onToast?("Tips, lessons and button prompts will show again from the start")
+        case "resethints": PauseMenu.resetHints(g)
         case "volume": g.volumeSetting = step([0, 0.1, 0.25, 0.5, 0.8, 1], g.volumeSetting)
         case "music": g.musicVolume = step([0, 0.25, 0.5, 0.75, 1], g.musicVolume)
         case "quit": g.appAction?("quit")

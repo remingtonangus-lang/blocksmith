@@ -236,7 +236,46 @@ enum ContextPrompts {
         if lessonBits < 0 { lessonBits = UserDefaults.standard.integer(forKey: "vrLessons") }
         return lessonBits & (1 << l.rawValue) != 0
     }
-    private static func teach(_ g: Game, _ l: VRLesson, _ text: String) {
+    // Q2c-console-43: every lesson's name and text in first-hour order (the headset's Lessons page lists the ones seen).
+    static let lessonInfo: [(VRLesson, String, String)] = [
+        (.basics, "The basics",
+         "Left stick walks, right stick turns. A jumps. Right trigger mines, left trigger places and uses. Grips step the hotbar, hold Y for the inventory, Menu pauses"),
+        (.craft, "Crafting",
+         "Crafting: hold Y for the inventory and point at Craft. Logs make planks; planks make sticks and a Crafting Table. Recipes with a table badge need one placed"),
+        (.hunger, "Eating",
+         "Hungry: hold some food and hold the left trigger to eat. A full hunger bar is what heals you; at zero it starts to hurt"),
+        (.night, "The first night",
+         "Night is coming: monsters come out in the dark. Light torches, wall yourself in, or sleep in a bed (left trigger on it): you skip the night and wake there after a death"),
+        (.hurt, "Low health",
+         "Low health: step back from the fight and eat. Health comes back on its own while your hunger bar is nearly full"),
+        (.water, "Swimming",
+         "Under water: hold A to swim up. The bubbles above your hunger bar are your air: when they run out you start to drown"),
+        (.drop, "Dropping things",
+         "Dropped: holding B drops what's in your hand. Walk over it to pick it back up"),
+        (.boat, "Boats",
+         "Boat: push the left stick forward to row and sideways to steer. B gets out"),
+        (.cart, "Minecarts",
+         "Minecart: push the left stick forward to roll the way you look along the rails. B gets out"),
+        (.horse, "Horses",
+         "Riding: the left stick steers; click it while pushing to spur up a gait. B gets off. Reach behind the saddle and grip for the saddlebags"),
+        (.mount, "Other mounts",
+         "Riding: the left stick steers (a pig or strider follows the bait on its rod). B gets off"),
+        (.town, "Towns",
+         "A town: point at a shopkeeper and pull the left trigger to buy and sell. Your money and honour show on the HUD while you're here"),
+        (.contracts, "Contracts",
+         "Contracts: point at one on the board and pull the trigger to take it. Taken ones wait in your Journal (right hand to the chest pocket, grip). Each pays money and honour"),
+        (.honour, "Honour",
+         "Honour: good deeds raise it; stealing or hurting townsfolk lowers it and calls the sheriff. Low honour raises prices and puts a bounty on you"),
+    ]
+    static let gunLessonText = "Guns: right trigger fires, left trigger aims. Hold the left hand on the front grip to steady it. Bring a magazine to the gun to load. Click the right stick: weapon wheel"
+    static func lessonText(_ l: VRLesson) -> String { lessonInfo.first { $0.0 == l }?.2 ?? "" }
+    // Shown already (whatever Tutorial Hints says now).
+    static func lessonSeen(_ l: VRLesson) -> Bool {
+        if lessonBits < 0 { lessonBits = UserDefaults.standard.integer(forKey: "vrLessons") }
+        return lessonBits & (1 << l.rawValue) != 0
+    }
+    private static func teach(_ g: Game, _ l: VRLesson) {
+        let text = lessonText(l)
         _ = lessonDone(l)                           // (loads the saved bits first)
         lessonBits |= 1 << l.rawValue
         UserDefaults.standard.set(lessonBits, forKey: "vrLessons")
@@ -270,79 +309,79 @@ enum ContextPrompts {
         if g.menu is NoticeBoardMenu || g.menu is BaseContractsMenu { boardSeen = true }
         guard g.menu == nil, !g.paused, g.alive else { return }
         if !lessonDone(.basics) {
-            teach(g, .basics, "Left stick walks, right stick turns. A jumps. Right trigger mines, left trigger places and uses. Grips step the hotbar, hold Y for the inventory, Menu pauses")
+            teach(g, .basics)
             return
         }
         // Q2c-console-41: an item just dropped by holding B (often by accident).
         if g.clock - g.heldDroppedAt < 3 && !lessonDone(.drop) {
-            teach(g, .drop, "Dropped: holding B drops what's in your hand. Walk over it to pick it back up")
+            teach(g, .drop)
             return
         }
         // Q2c-console-9: the survival basics, each when it first matters (low health at once; the calm ones wait until
         // nothing is chasing him).
         if g.survival {
             if g.health <= 8 && !lessonDone(.hurt) {
-                teach(g, .hurt, "Low health: step back from the fight and eat. Health comes back on its own while your hunger bar is nearly full")
+                teach(g, .hurt)
                 return
             }
             if g.player.headInWater && !lessonDone(.water) {                // Q2c-console-41
-                teach(g, .water, "Under water: hold A to swim up. The bubbles above your hunger bar are your air: when they run out you start to drown")
+                teach(g, .water)
                 return
             }
             let chased = g.mobs.mobs.contains { $0.health > 0 && $0.aggro && $0.kind.hostile && simd_length($0.pos - g.player.pos) < 16 }
             if !chased {
                 if g.hunger <= 14 && !lessonDone(.hunger) {
-                    teach(g, .hunger, "Hungry: hold some food and hold the left trigger to eat. A full hunger bar is what heals you; at zero it starts to hurt")
+                    teach(g, .hunger)
                     return
                 }
                 let f = g.dayFraction
                 if g.dim.dim == .overworld && f > 0.42 && f < 0.52 && !lessonDone(.night) {
-                    teach(g, .night, "Night is coming: monsters come out in the dark. Light torches, wall yourself in, or sleep in a bed (left trigger on it): you skip the night and wake there after a death")
+                    teach(g, .night)
                     return
                 }
                 if !lessonDone(.craft) && g.inventory.main.slots.contains(where: { !$0.isEmpty && Items.key($0.item).hasSuffix("_log") }) {
                     // Q2c-console-41: the inventory has a Craft button (the crafting book), not a grid.
-                    teach(g, .craft, "Crafting: hold Y for the inventory and point at Craft. Logs make planks; planks make sticks and a Crafting Table. Recipes with a table badge need one placed")
+                    teach(g, .craft)
                     return
                 }
             }
         }
         if boardSeen && !lessonDone(.contracts) {
-            teach(g, .contracts, "Contracts: point at one on the board and pull the trigger to take it. Taken ones wait in your Journal (right hand to the chest pocket, grip). Each pays money and honour")
+            teach(g, .contracts)
             return
         }
         if let h = g.riding, h.kind == .horse, !lessonDone(.horse) {
-            teach(g, .horse, "Riding: the left stick steers; click it while pushing to spur up a gait. B gets off. Reach behind the saddle and grip for the saddlebags")
+            teach(g, .horse)
             return
         }
         // Q2c-console-41: boats, minecarts and the other animals that carry him.
         if let h = g.riding {
             if h.kind == .boat && !lessonDone(.boat) {
-                teach(g, .boat, "Boat: push the left stick forward to row and sideways to steer. B gets out")
+                teach(g, .boat)
                 return
             }
             if h.kind == .minecart && !lessonDone(.cart) {
-                teach(g, .cart, "Minecart: push the left stick forward to roll the way you look along the rails. B gets out")
+                teach(g, .cart)
                 return
             }
             if lessonMounts.contains(h.kind) && !lessonDone(.mount) {
-                teach(g, .mount, "Riding: the left stick steers (a pig or strider follows the bait on its rod). B gets off")
+                teach(g, .mount)
                 return
             }
         }
         if Honour.changedAt > honourSeenAt && g.clock - Honour.changedAt < 6 && !lessonDone(.honour) {
             honourSeenAt = Honour.changedAt
-            teach(g, .honour, "Honour: good deeds raise it; stealing or hurting townsfolk lowers it and calls the sheriff. Low honour raises prices and puts a bounty on you")
+            teach(g, .honour)
             return
         }
         if TownLaw.inTown != nil && !lessonDone(.town) {
-            teach(g, .town, "A town: point at a shopkeeper and pull the left trigger to buy and sell. Your money and honour show on the HUD while you're here")
+            teach(g, .town)
             return
         }
         if let gi = g.heldGun {
             if !Settings.shared.gunLesson {
                 Settings.shared.gunLesson = true
-                let t = "Guns: right trigger fires, left trigger aims. Hold the left hand on the front grip to steady it. Bring a magazine to the gun to load. Click the right stick: weapon wheel"
+                let t = gunLessonText
                 g.onToast?(vrMirror ? mirrorHands(t) : t)
             }
             if g.held.tag <= 0 && Guns.all[gi].mag > 0 && !emptyTold.contains(gi) {
