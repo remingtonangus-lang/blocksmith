@@ -10,9 +10,10 @@ import simd
 //                        Options > Controller > Flight Stick)
 //   any                  A climb, B leave the helm
 enum VehicleControls {
-    enum Kind { case boat, land, airship, aircraft, helicopter }
+    enum Kind { case boat, land, airship, aircraft, helicopter, warship }
 
     static func kind(_ s: Ship) -> Kind {
+        if s.isFlyingCapital { return .warship }      // the far-future frigates fly on their drive (CapitalFrigate.swift)
         if !s.rotors.isEmpty { return .helicopter }
         if s.kinematic && (s.role == "dropship" || s.isFlyingCapital) { return .airship }   // commandeered Capital fliers
         if !s.wings.isEmpty && s.balloons == 0 { return .aircraft }
@@ -27,6 +28,7 @@ enum VehicleControls {
         case .airship: return "Airship"
         case .aircraft: return "Aircraft"
         case .helicopter: return "Helicopter"
+        case .warship: return "Warship"
         }
     }
 
@@ -50,7 +52,7 @@ enum VehicleControls {
             switch kind(s) {
             case .boat, .land:
                 throttle = keysForward + trig + ls.y * 0.5
-            case .airship:
+            case .airship, .warship:
                 throttle = keysForward + trig
                 climb += ls.y
             case .aircraft:
@@ -82,7 +84,7 @@ enum VehicleControls {
         if armed(g, s) { return [ls + " Throttle / Steer", rt + " Fire", climb + " Climb", b + " Leave"] }
         switch kind(s) {
         case .boat, .land: return [rt + " Throttle", lt + " Reverse", ls + " Steer", b + " Leave"]
-        case .airship: return [rt + " Forward", ls + " Turn / Climb", lt + " Reverse", b + " Leave"]
+        case .airship, .warship: return [rt + " Forward", ls + " Turn / Climb", lt + " Reverse", b + " Leave"]
         case .aircraft: return [rt + " Throttle", ls + " Bank / Pitch", lt + " Brake", b + " Leave"]
         case .helicopter: return [rt + lt + " Collective", ls + " Cyclic", Glyph.rs.s + " Turn", b + " Leave"]
         }

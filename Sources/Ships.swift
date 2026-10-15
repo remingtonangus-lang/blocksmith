@@ -261,6 +261,13 @@ final class Ship {
     var soundTimer: Float = 0
 
     // Capital ships and factions (CapitalShips.swift).
+    var debris = false               // a falling piece of a structure (Debris.swift): laid back into the world once at rest
+    var age: Float = 0               // debris: seconds since it came loose
+    var restTime: Float = 0          // debris: seconds it has been still
+    var hitCD: Float = 0             // debris: seconds until it can hurt a body again
+    var lastSpeed: Float = 0         // debris: speed last frame (a sudden drop is a crash: dust and a thud)
+    var splitCheck: Float = -1       // capital hulls: seconds until the full split check a blast asked for (-1 none)
+    var baking = false               // being laid into the world over several frames (Wrecks.swift, a big wreck)
     var kinematic = false            // moved by its AI (velocity and turn rate set directly): no rigid-body forces or contacts
     var faction = 0                  // Faction raw value (0 none)
     // Guns of this ship (or turret): shell muzzle speed, gravity, blast power, reload, barrel elevation limits, scatter.
@@ -614,10 +621,27 @@ final class ShipManager {
     var capitalReady: [([Ship], CapitalState)] = []
     var capitalPending = Set<String>()
     var capState: [Int: CapitalState] = [:]
+    // Destruction (Destruction.swift, Debris.swift, Wrecks.swift).
+    var smashed: [IVec3] = []        // world blocks debris broke this frame (ShipPhysics.step)
+    var collapseQueue: [([IVec3], V3?, Bool)] = []   // blast holes waiting for their support check (one a frame), as-built rule
+    var asBuiltKept = 0              // blocks left standing because they stood unsupported before the damage (harness)
+    var asBuiltCells = Collapse.CellTable(capacity: 4096)   // cells found standing unsupported as built (Debris.swift)
+    var collapseMs: Double = 0       // the last support analysis (harness)
+    var settleQueue: [IVec3] = []    // blocks of debris just laid down, checked next frame (Debris.swift)
+    var worstBakeMs: Double = 0      // the slowest laying-down of a body (harness)
+    var bakeJobs: [BakeJob] = []     // big wrecks being laid into the world a few thousand blocks a frame (Wrecks.swift)
+    var worstSplitMs: Double = 0     // the slowest hull split check (harness)
+    var collapses = 0                // analyses that set something falling
+    var bakedBlocks = 0              // blocks laid back into the world
+    var hullSplits = 0               // capital hulls cut into pieces
+    var spentMs: [String: Double] = [:]   // destruction work this frame by kind (harness: reset per tick)
+    var wrecks: [WreckRecord] = []
+    var wreckTimer: Float = 0
 
     init(world: World) {
         self.world = world
         load()
+        loadWrecks()
     }
 
     var isEmpty: Bool { list.isEmpty }
@@ -973,7 +997,7 @@ final class ShipManager {
     func encode() -> Data? {
         var out: [Saved] = []
         // Capital ships aren't saved (a 5-million-cell grid per save): their region brings them back.
-        for s in list where !s.root.kinematic {
+        for s in list where !s.root.kinematic && !s.root.debris {        // debris is transient (laid down within ~40 s)
             var map: [BlockID: UInt16] = [:]
             var names: [String] = []
             var idx = [UInt16](repeating: 0, count: s.grid.blocks.count)

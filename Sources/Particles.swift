@@ -28,7 +28,17 @@ final class ParticleManager {
 
     func add(_ p: Particle) { if list.count < ParticleManager.cap { list.append(p) } }
 
+    // Block-textured bits of air would draw the "missing" texture (magenta specks: collapse_frigate_3 and _40 showed a
+    // column of them). Callers reading the world where a ship's block was hit get air; they are skipped and counted
+    // (`--collapsecheck` reports the count).
+    static var airBits = 0
+    @inline(__always) private func textured(_ b: BlockID) -> Bool {
+        if b == AIR || Blocks.render[Int(b)] == RenderType.none.rawValue { ParticleManager.airBits += 1; return false }
+        return true
+    }
+
     func blockBreak(_ b: BlockID, at p: IVec3) {
+        guard textured(b) else { return }
         let layer = Int(Blocks.tex[Int(b) * 6 + 2])
         let tint: V3 = Blocks.tint[Int(b)] == 2 ? V3(0.47, 0.67, 0.18) : (Blocks.tint[Int(b)] != 0 ? V3(0.57, 0.74, 0.35) : V3(1, 1, 1))
         for i in 0..<3 { for j in 0..<3 { for k in 0..<3 {
@@ -43,6 +53,7 @@ final class ParticleManager {
 
     // Small block-textured bits around the feet (landing, sprinting).
     func dust(_ b: BlockID, at c: V3, count: Int, spread: Float) {
+        guard textured(b) else { return }
         let layer = Int(Blocks.tex[Int(b) * 6 + 2])
         let tint: V3 = Blocks.tint[Int(b)] == 2 ? V3(0.47, 0.67, 0.18) : (Blocks.tint[Int(b)] != 0 ? V3(0.57, 0.74, 0.35) : V3(1, 1, 1))
         for _ in 0..<count {
@@ -56,6 +67,7 @@ final class ParticleManager {
     // Pieces breaking off a struck face (progressive block damage): chunky fragments of that face's texture thrown
     // out along its normal, tumbling down; face 0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z.
     func chipBits(_ b: BlockID, at c: V3, normal n: V3, face: Int, count: Int) {
+        guard textured(b) else { return }
         let layer = Int(Blocks.tex[Int(b) * 6 + max(0, min(5, face))])
         let tint: V3 = Blocks.tint[Int(b)] == 2 ? V3(0.47, 0.67, 0.18) : (Blocks.tint[Int(b)] != 0 ? V3(0.57, 0.74, 0.35) : V3(1, 1, 1))
         for _ in 0..<count {

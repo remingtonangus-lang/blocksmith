@@ -113,6 +113,9 @@ done
 "$BIN" --snapshot snaps/ship_frigate_side.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:side
 "$BIN" --snapshot snaps/ship_frigate_top.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:top
 "$BIN" --snapshot snaps/ship_frigate_deck.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:deck
+"$BIN" --snapshot snaps/ship_warfrigate_corridor.png --seed 12345 --find plains --time 0.3 --rd 8 --ship warfrigate:corridor
+"$BIN" --snapshot snaps/ship_warfrigate_room.png --seed 12345 --find plains --time 0.3 --rd 8 --ship warfrigate:room
+"$BIN" --snapshot snaps/ship_warfrigate_hangar.png --seed 12345 --find plains --time 0.3 --rd 8 --ship warfrigate:hangar
 "$BIN" --snapshot snaps/ship_carriage.png --seed 12345 --find plains --time 0.3 --ship carriage
 "$BIN" --snapshot snaps/ship_battle.png --seed 12345 --find plains --time 0.3 --rd 10 --ship battle
 "$BIN" --snapshot snaps/physicstest.png --seed 12345 --time 0.3 --physicstest
@@ -122,6 +125,8 @@ done
 "$BIN" --snapshot snaps/capitaltest.png --seed 12345 --find plains --time 0.3 --rd 12 --capitaltest || echo "::error::capitaltest failed (new: reported, not gating yet)"
 # Vehicle riding: bots ride the crawler and the frigates through Game.tick (decks, boarding, crew, disabled vehicles).
 "$BIN" --ridecheck --seed 12345 --out snaps
+# Capital ship interiors: every room, chest and the helm walkable from the hangar (ShipInteriors.swift).
+"$BIN" --interiorcheck
 # Every mob kind must draw something, Fancy and Fast (playtest 2026-10-05: mobs invisible in game).
 "$BIN" --snapshot snaps/plantcheck.png --seed 12345 --find plains --yaw 45 --pitch -10 --time 0.3 --up 6 --rd 4 --plantcheck        # gating: plants that lose their support pop (Remington, 2026-10-05)
 "$BIN" --snapshot snaps/rulescheck.png --seed 12345 --find plains --yaw 45 --pitch -10 --time 0.3 --up 6 --rd 4 --rulescheck || true      # world rules from the fidelity audits (not gating yet)
@@ -135,6 +140,18 @@ python3 tools/namecheck.py --coined        # gating: coined reference-game displ
 "$BIN" --snapshot snaps/coop.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --ground --rd 8 --coop --cooptest        # gating: split screen seat checks (green since run 563)
 "$BIN" --snapshot snaps/tv_coop.png --seed 12345 --find plains --yaw 200 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop
 "$BIN" --snapshot snaps/tv_coop_side.png --seed 12345 --find plains --yaw 200 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop --splitside
+# Destruction physics and wrecks: collapses and wreck overgrowth through Game.tick (report snaps/collapsecheck.md), and shots.
+"$BIN" --collapsecheck --seed 12345 --out snaps
+# (One line per shot, so a [fastshots ...] marker can name them.)
+"$BIN" --snapshot snaps/collapse_bridge_0.png --seed 12345 --time 0.3 --rd 8 --collapse bridge --at 0
+"$BIN" --snapshot snaps/collapse_bridge_2.5.png --seed 12345 --time 0.3 --rd 8 --collapse bridge --at 2.5
+"$BIN" --snapshot snaps/collapse_bridge_12.png --seed 12345 --time 0.3 --rd 8 --collapse bridge --at 12
+"$BIN" --snapshot snaps/collapse_tower_2.png --seed 12345 --time 0.3 --rd 8 --collapse tower --at 2
+"$BIN" --snapshot snaps/collapse_tower_12.png --seed 12345 --time 0.3 --rd 8 --collapse tower --at 12
+"$BIN" --snapshot snaps/collapse_frigate_3.png --seed 12345 --time 0.3 --rd 8 --collapse frigate --at 3
+"$BIN" --snapshot snaps/collapse_frigate_40.png --seed 12345 --time 0.3 --rd 8 --collapse frigate --at 40
+"$BIN" --snapshot snaps/collapse_wreck_30.png --seed 12345 --time 0.3 --rd 8 --collapse wreck --at 30
+"$BIN" --snapshot snaps/collapse_dropship_8.png --seed 12345 --time 0.3 --rd 8 --collapse dropship --at 8
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
 "$BIN" --snapshot snaps/aerial16_fast.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16 --fast

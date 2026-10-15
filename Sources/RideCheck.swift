@@ -333,6 +333,9 @@ enum RideCheck {
             }
         }
         let minLaps = max(1, seconds / 60)
+        let oc = sc.agent.counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        r.note("agent oracles: \(oc.isEmpty ? "none" : oc)")
+        r.check(sc.agent.counts["inside_solid"] == nil, "the general bot oracle sees no inside-solid either (\(sc.agent.counts["inside_solid"] ?? 0))")
         r.note(String(format: "drove %.0f blocks, turned %.0f degrees; bot walked %ld laps (%ld legs)", odo.dist, odo.turned * 180 / .pi, laps, legs))
         r.check(odo.dist > Float(seconds) * 2.5 && odo.turned > 1, String(format: "the vehicle drives and turns (%.0f blocks, %.1f rad)", odo.dist, odo.turned))
         r.check(mon.offTicks == 0 && mon.belowTicks == 0, "the bot never leaves the deck (\(mon.offTicks) ticks off, \(mon.belowTicks) below)\(mon.firstOff.isEmpty ? "" : ", first at " + mon.firstOff)")
@@ -372,7 +375,7 @@ enum RideCheck {
         var phase = 0
         var stuckT: Float = 0
         var lastPos = g.player.pos
-        var wp = 0
+        var wp = 0, underRamp = 0
         var reached: [String] = []
         var phaseT: Float = 0
         let names = ["reach the port ladder", "climb it to the roof walkway", "walk through the hatch into the command deck",
@@ -422,7 +425,17 @@ enum RideCheck {
                 }
                 let target = route[wp]
                 let tw = s.toWorld(target)
-                if simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z)) < 0.45 { wp += 1; return AgentAction.idle }
+                if simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z)) < 0.45 {
+                    // A point up on the ramp counts only at its height: the stairs have open space under them, and a bot
+                    // that missed the bottom step walked on under the ramp past every point (run of c7bad4f). Back to
+                    // the foot and up again.
+                    if target.y > 2 && l.y < target.y - 2.5 && wp > 0 {
+                        underRamp += 1
+                        wp = max(0, (route.firstIndex { $0.y > 2 } ?? 1) - 1)
+                        return AgentAction.idle
+                    }
+                    wp += 1; return AgentAction.idle
+                }
                 var a = walk(stt, to: tw)
                 // Stuck on the ground (a bush, a step the auto-jump won't take): jump, then side-step a moment.
                 let moved = simd_length(V2(stt.pos.x - lastPos.x, stt.pos.z - lastPos.z))
@@ -452,6 +465,15 @@ enum RideCheck {
             }
         }
         r.note("reached: " + (reached.isEmpty ? "nothing" : reached.joined(separator: "; ")))
+        if underRamp > 0 || phase == 4 {
+            // The ramp as it stands: its stairs present (of 50) and the ground under its foot (ship space).
+            let ox = s.grid.sx / 2
+            let stairs = Capital.crawlerRamp(down: true).filter { $0.1 != AIR && s.grid.get($0.0.x + ox, $0.0.y, $0.0.z) == $0.1 }.count
+            let foot = s.toWorld(V3(Float(ox) + 0.5, 0, 83.5))
+            let gy = Float(w.topY(Int(floor(foot.x)), Int(floor(foot.z))) + 1)
+            r.note(String(format: "ramp: %@, %ld of 50 stairs in place, ground under its foot at ship-space y %.2f; the bot went back to the foot %ld times",
+                          st.rampDown ? "down" : "up", stairs, s.toLocal(V3(foot.x, gy, foot.z)).y, underRamp))
+        }
         for (k, n) in names.enumerated() { r.check(phase > k, "the bot can \(n) while the crawler moves") }
         r.check(mon.insideTicks == 0, "never inside a solid while aboard (\(mon.insideTicks) ticks)\(mon.firstInside.isEmpty ? "" : ", first at " + mon.firstInside)")
         r.check(mon.transitions >= 2 && mon.maxTransitionJump < 3, String(format: "boarding and leaving keep the bot's world velocity (%ld changes, worst jump %.2f b/s)",
@@ -568,6 +590,7 @@ enum RideCheck {
         var jumps = 0, inside = 0, rampSeen = false
         var last: [ObjectIdentifier: (V3, Bool)] = [:]
         var firstJump = "", firstInside = ""
+        var streak: [ObjectIdentifier: Int] = [:], deepest: Float = 0, longest = 0, grazes = 0
         var t: Float = 0
         while t < 80 {
             for m in foes { m.health = max(m.health, 50) }        // they must outlast the crawler's guns for the test
@@ -599,12 +622,24 @@ enum RideCheck {
                 if m.deck === s {
                     w.frame = s
                     if m.collides(l + V3(0, 0.05, 0), w) {
+                        // How deep, and for how many ticks running: the hull settling a stair onto a troop on the ground
+                        // at the ramp's foot overlaps it by a few hundredths for a tick before its step-up lifts it
+                        // (0.92 against a stair top at 1.0, run of 0ea1c81); stuck in a block is deeper or lasts.
+                        var lift: Float = 0.05
+                        while lift < 1.0 && m.collides(l + V3(0, lift, 0), w) { lift += 0.05 }
+                        let run = (streak[id] ?? 0) + 1
+                        streak[id] = run
+                        deepest = max(deepest, lift - 0.05)
+                        longest = max(longest, run)
+                        if lift - 0.05 < 0.2 && run < 3 { grazes += 1; w.frame = nil; continue }
                         inside += 1
                         if firstInside.isEmpty {
                             let c = IVec3(Int(floor(l.x)), Int(floor(l.y + 0.5)), Int(floor(l.z)))
                             firstInside = String(format: "t %.1f s: %.2f,%.2f,%.2f ship space (block %@ there, %@ under), route %ld left, ramp %@", t, l.x, l.y, l.z,
                                                  Blocks.key(s.grid.get(c.x, c.y, c.z)), Blocks.key(s.grid.get(c.x, c.y - 1, c.z)), m.crewRoute.count, st.rampDown ? "down" : "up")
                         }
+                    } else {
+                        streak[id] = 0
                     }
                     w.frame = nil
                 } else if m.onGround && l.z > 76 { out.insert(id) }
@@ -615,6 +650,7 @@ enum RideCheck {
         r.check(!rampAtStart && rampSeen, "the ramp is up while it drives and comes down for the troops")
         r.check(out.count >= 2, "bay troops walk out by the ramp onto the ground (\(out.count))")
         r.check(jumps == 0, "no troop is teleported (\(jumps) jumps over a block in a tick)\(firstJump.isEmpty ? "" : "; first " + firstJump)")
+        r.note(String(format: "overlaps with the hull: deepest %.2f, longest %ld ticks running; %ld brief grazes (under 0.2 deep, under 3 ticks) not counted", deepest, longest, grazes))
         r.check(inside == 0, "no troop inside a solid on the way out (\(inside) troop-ticks)\(firstInside.isEmpty ? "" : "; first " + firstInside)")
     }
 
@@ -627,6 +663,7 @@ enum RideCheck {
         let floorY: Float = frigate ? 8.5 : 9.5          // no crew member ever below the lowest deck
         var worstPost: Float = 0, worstWho = "", worstWhen = ""
         var off = 0, inside = 0, firstOff = ""
+        var dispatched = Set<Int>()
         func crewCheck(_ i: Int, posts: Bool) {
             for (k, m) in st.crewMobs where m.health > 0 {
                 let l = s.toLocal(m.pos)
@@ -639,6 +676,8 @@ enum RideCheck {
                 if m.collides(l + V3(0, 0.05, 0), w) { inside += 1 }
                 w.frame = nil
                 if posts, k < st.crew.count {
+                    // Troops the vehicle sent out (a route to the ramp, or released) aren't holding a post by design.
+                    if !m.crewRoute.isEmpty || m.crewPost == nil { dispatched.insert(k); continue }
                     let p = st.crew[k]
                     let e = simd_length(V2(l.x - p.x, l.z - p.z))
                     if e > worstPost {
@@ -660,6 +699,7 @@ enum RideCheck {
         r.note(String(format: "crew %ld of %ld aboard; ship at %.0f,%.0f,%.0f speed %.1f", spawned, st.crew.count, s.pos.x, s.pos.y, s.pos.z, simd_length(s.vel)))
         r.check(spawned == st.crew.count, "every crew post is manned (\(spawned)/\(st.crew.count))")
         r.check(off == 0, "the crew ride the moving vehicle (\(off) crew-ticks off it)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
+        if !dispatched.isEmpty { r.note("sent out or released while it drove (not judged at their posts): posts \(dispatched.sorted())") }
         r.check(worstPost < 1.0, String(format: "every soldier holds its post while it drives and turns (worst %.2f blocks: %@)", worstPost, worstWho))
         if worstPost >= 1.0 { r.note("ride crew worst post: " + worstWhen) }
         r.check(inside == 0, "no crew member inside a solid (\(inside) crew-ticks)")
@@ -695,7 +735,8 @@ enum RideCheck {
             worstDrop = max(worstDrop, (lastY - s.pos.y) * 60)
             lastV = v; lastY = s.pos.y
             if stopT < 0 && st.settled { stopT = Float(i) / 60; aliveAtRest = st.crewMobs.values.filter { $0.health > 0 }.count }
-            if i > 60 { crewCheck(i, posts: false) }
+            // (Once it is being laid down as a wreck of world blocks the crew stand on those: no deck to stay on.)
+            if i > 60 && w.ships.list.contains(where: { $0 === s }) && !s.baking { crewCheck(i, posts: false) }
             // Two enemy soldiers turn up beside the wreck once it is still: the crew fight them from aboard.
             if !frigate && st.settled && foes.isEmpty {
                 let side = s.dirToWorld(V3(1, 0, 0))
@@ -718,12 +759,12 @@ enum RideCheck {
             }
             if stopT >= 0 && Float(i) / 60 > stopT + 30 { break }
         }
-        let inList = w.ships.list.contains { $0 === s }
+        let inList = w.ships.list.contains { $0 === s } || !w.ships.wrecks.isEmpty
         let alive = st.crewMobs.values.filter { $0.health > 0 }.count
         r.note(String(format: "disabled at %.1f b/s (%@): came to rest after %.1f s; worst deceleration %.2f b/s2, fastest drop %.2f b/s; impact %.1f b/s; %ld crew alive",
                       speed0, st.disabledWhy, stopT, worstDecel, worstDrop, st.impact, alive))
         r.check(s.wrecked && stopT >= 0, "the disabled vehicle comes to rest (\(st.disabledWhy))")
-        r.check(inList, "it stays in the world (no despawn)")
+        r.check(inList, "it stays in the world (no despawn: still a vessel, or laid down as a wreck, \(w.ships.wrecks.count))")
         if frigate {
             r.check(stopT > 6, String(format: "it comes down over time, not at once (%.1f s)", stopT))
             r.check(worstDrop < 8.5, String(format: "it never drops faster than 8 b/s (%.2f)", worstDrop))
@@ -766,7 +807,7 @@ enum RideCheck {
             if st.settled { after += 1.0 / 60; if after > 5 { break } }
         }
         r.note(String(format: "came down %.0f blocks in %.0f s, touchdown at %.1f b/s; bot health %ld -> %ld", y0 - s.pos.y, t, st.impact, h0, g.health))
-        r.check(st.settled && w.ships.list.contains { $0 === s }, "the frigate crash-lands and stays (no despawn)")
+        r.check(st.settled && (w.ships.list.contains { $0 === s } || !w.ships.wrecks.isEmpty), "the frigate crash-lands and stays (no despawn)")
         r.check(mon.offTicks == 0 && mon.belowTicks == 0, "the bot rides it down on the deck (\(mon.offTicks) ticks off)\(mon.firstOff.isEmpty ? "" : ", first at " + mon.firstOff)")
         r.check(mon.insideTicks == 0, "never inside a solid (\(mon.insideTicks) ticks)")
         r.check(mon.worstDrift < 0.05, String(format: "standing, it drifts %.4f blocks over the deck on the way down", mon.worstDrift))

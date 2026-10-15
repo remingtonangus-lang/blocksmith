@@ -1201,6 +1201,7 @@ enum Snapshot {
 
         // Ships (ShipTest.swift): a demo vessel under way, or the scripted physics checks.
         if let kind = arg("--ship") { pos = ShipTest.scene(kind, game: game, at: pos, rd: rd) }
+        if let kind = arg("--collapse") { pos = CollapseCheck.shot(kind, game: game, at: Float(arg("--at") ?? "") ?? 0); ShipTest.settle(game, rd: rd) }
         var shipFails = 0
         if let out = arg("--inputmatrix") { return InputMatrix.run(game: game, at: pos, out: out) > 0 ? 1 : 0 }   // STORE_QUALITY objective 3
         if let out = arg("--audioaudit") { return AudioAudit.run(game: game, out: out) > 0 ? 1 : 0 }   // STORE_QUALITY objective 5
@@ -1721,6 +1722,8 @@ if CommandLine.arguments.contains("--worldaudit") { exit(WorldAudit.run()) }   /
 if CommandLine.arguments.contains("--fidelitycheck") { exit(FidelityCheck.run()) }      // reference numbers (FidelityCheck.swift)
 if arg("--agent") != nil { exit(AgentRun.run()) }
 if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }
+if CommandLine.arguments.contains("--collapsecheck") { exit(CollapseCheck.run()) }
+if CommandLine.arguments.contains("--interiorcheck") { exit(InteriorCheck.run()) }
 if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }
 if CommandLine.arguments.contains("--collisiontest") {
     guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }

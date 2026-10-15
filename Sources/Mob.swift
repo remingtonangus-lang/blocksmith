@@ -960,8 +960,10 @@ final class Mob {
             if wet || drop { yaw += .pi * Rand.float(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Rand.float(in: 1...3) }
         }
         // Calm soldiers walking straight (no path to an order or stroll goal) stop at a ledge rather than step off it
-        // (citadel behaviour sim: a patrol leader searching a hillside fell 5 blocks).
-        if kind.steelhold && !aggro && speed > 0 && onGround && !onPath {
+        // (citadel behaviour sim: a patrol leader searching a hillside fell 5 blocks). Not aboard a vehicle: the probe
+        // reads world blocks, and under a moving hull's deck there are none, so crew shoved off their posts could never
+        // walk back (ridecheck crew: 1.8-3.0 blocks off for good); crew have their own ledge guard in the hull's frame.
+        if kind.steelhold && !aggro && speed > 0 && onGround && !onPath && deck == nil {
             let a = pos + forward * (halfW + 0.45)
             if !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w) { speed = 0 }
         }
@@ -1041,10 +1043,22 @@ final class Mob {
                 // Crew never step off a ledge of their vehicle: no floor within three blocks where the next step lands.
                 // Freed crew of a disabled vehicle stay on their deck level: any step down is a ledge to them (they
                 // walked down the lowered ramp onto the ground: ridecheck crew, 851 crew-ticks off, run on 5cd19c5).
-                let h = simd_normalize(V2(lv.x, lv.z))
-                let a = l + V3(h.x, 0, h.y) * (halfW + 0.35)
+                // Along the edge they still slide (the part of the step that keeps a floor under it): stopping dead, a
+                // trooper on the roof walkway whose way back to its post ran diagonally past the edge stayed 3 blocks
+                // off it for good (ridecheck crew, run of d3cf5f8).
                 let reach: Float = crewFree && crewRoute.isEmpty ? 0.45 : 3
-                if !w.collides(V3(a.x - 0.2, a.y - reach, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2)) { lv.x = 0; lv.z = 0 }
+                func floored(_ v: V2) -> Bool {
+                    let n = simd_length(v)
+                    guard n > 1e-5 else { return true }
+                    let a = l + V3(v.x / n, 0, v.y / n) * (halfW + 0.35)
+                    return w.collides(V3(a.x - 0.2, a.y - reach, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2))
+                }
+                if !floored(V2(lv.x, lv.z)) {
+                    if abs(lv.x) >= abs(lv.z) && floored(V2(lv.x, 0)) { lv.z = 0 }
+                    else if floored(V2(0, lv.z)) { lv.x = 0 }
+                    else if floored(V2(lv.x, 0)) { lv.z = 0 }
+                    else { lv.x = 0; lv.z = 0 }
+                }
             }
             hit = w.moveBody(&l, halfW: halfW, height: height, lv * dt, step: 0.6, onGround: onGround)
             w.frame = nil

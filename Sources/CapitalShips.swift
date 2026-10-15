@@ -80,6 +80,7 @@ final class CapitalState {
     var ground: V3?                    // crawler: smoothed ground under it (height, pitch, roll)
     var grind: Float = -1              // disabled crawler: forward speed while it grinds to a stop (-1 not yet)
     var impact: Float = 0              // crash-landed frigate: sink speed at touchdown (b/s)
+    var settledTime: Float = 0         // seconds at rest after it went down (then it is laid into the world: Wrecks.swift)
     var sag = V2(0, 0)                 // disabled crawler: pitch / roll toward its lost wheels
     var wantSpeed: Float = 0           // crawler: the speed its AI wants (before the lowered ramp holds it to a creep)
     var goal: V3?                      // a citadel's crawler patrol (CapitalBases.swift): drive here when nothing is in sight
@@ -128,6 +129,7 @@ final class HullBuilder {
     var mainGun: (V3, V3) = (V3(0, 0, 0), V3(0, 0, -1))
     var crew: [V3] = []                  // crew posts, grid coordinates (feet)
     var crewRoles: [CrewRole] = []       // per post (missing entries are troops)
+    var roomCells: [(IVec3, ShipRoom)] = []   // interior rooms: the cell just inside each doorway (grid coordinates, feet)
     // A crew post at builder coordinates (x relative to the centreline).
     func post(_ x: Int, _ y: Int, _ z: Int, _ role: CrewRole) {
         crew.append(V3(Float(x + ox) + 0.5, Float(y), Float(z) + 0.5))
@@ -314,6 +316,27 @@ enum Capital {
             hb.set(26, 27, z, Blocks.id("chest") + 3)
             hb.chests.append((hb.grid(26, 27, z), i % 2 == 0 ? "steelhold_armory" : "steelhold_supply"))
         }
+        // Decks of corridors and rooms above the hangar (Remington 2026-10-05: a warship you can walk through, like the
+        // citadel): the crew deck on the hangar's ceiling (46), a second deck (51) and the command deck over the rail
+        // cannon's tube (66), each a corridor down the centreline with quarters, mess, armory, medbay, brig, storage,
+        // briefing and engineering rooms off it; ladder wells join them (the hangar and bridge ladders stay).
+        let style = InteriorStyle(floor: deck, wall: panel, trim: stripe, light: light, bed: "gray",
+                                  armoryLoot: "steelhold_armory", supplyLoot: "steelhold_supply")
+        let inside: (Int, Int, Int) -> Bool = { x, y, z in Capital.frigateInside(x, y, z) }
+        hb.interiorDeck(y: 46, h: 4, hw: 29, z0: 142, z1: 358, rooms: [.mess, .quarters, .quarters, .armory, .medbay, .storage, .quarters, .briefing],
+                        style: style, seed: 0x5F01, inside: inside)
+        hb.interiorDeck(y: 51, h: 4, hw: 29, z0: 142, z1: 358, rooms: [.quarters, .quarters, .storage, .brig, .quarters, .armory, .engineering],
+                        style: style, seed: 0x5F02, inside: inside)
+        hb.interiorDeck(y: 66, h: 4, hw: 29, z0: 142, z1: 358, rooms: [.briefing, .quarters, .engineering, .armory, .quarters, .storage],
+                        style: style, seed: 0x5F03, inside: inside)
+        // The second deck's ceiling (the rail cannon's tube runs in the space above it, under the command deck).
+        for z in 142...358 { for x in -29...29 where inside(x, 56, z) && hb.get(x, 56, z) == AIR { hb.set(x, 56, z, panel) } }
+        // Wells: crew deck to the second at both ends of the corridor; the second deck to the command deck clear of
+        // the gun tube (in the end rooms, beside their doors).
+        hb.ladderWell(x: -1, z: 144, y0: 46, y1: 51, back: -1)
+        hb.ladderWell(x: 1, z: 356, y0: 46, y1: 51, back: 1)
+        hb.ladderWell(x: 8, z: 146, y0: 51, y1: 66, back: 1)
+        hb.ladderWell(x: -8, z: 354, y0: 51, y1: 66, back: -1)
         // Bridge: floor 76 in the tower, armoured glass round the front, the helm, consoles, the captain's chest.
         hb.fill(-9, 9, 76, 76, 298, 335, deck)
         for x in -8...8 { for y in 80...84 { hb.set(x, y, 296 + Int(ceilf(Float(y - 72) * 0.5)), glass) } }
@@ -327,6 +350,10 @@ enum Capital {
         let ladder = Blocks.id("ladder")
         for y in 27...46 { hb.set(-7, y, 300, panel); hb.set(-6, y, 300, ladder + 3) }
         for y in 47...76 { hb.set(7, y, 330, panel); hb.set(6, y, 330, ladder + 2) }
+        // A gangway from the hangar's aft end to the engine room and a ladder down to its floor (it had no way in:
+        // its chest was out of reach, --interiorcheck).
+        hb.fill(-2, 2, 26, 26, 341, 386, deck)
+        hb.ladderWell(x: 2, z: 386, y0: 20, y1: 26, back: 1)
         // Engine room: four drive cores (critical systems) and the stern nozzles glowing in their recesses.
         hb.fill(-38, 38, 20, 20, 384, 474, deck)
         for x in [-18, 18] { for cy in [30, 54] { hb.fill(x - 2, x + 2, cy - 2, cy + 2, 438, 446, engine) } }
@@ -576,6 +603,13 @@ extension BlockRegistry {
         }
         registerCapitalFactionBlocks()
         registerMeridianBlocks()
+        // Wrecks rust (Wrecks.swift): any hull plate left out under the sky long enough turns to this.
+        if !has("rusted_plating") {
+            var d = BlockDef("rusted_plating", "Rusted Plating")
+            d.tex = ["rusted_plating"]
+            d.hardness = 5; d.resistance = 6; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 1; d.sound = .metal
+            add(d)
+        }
     }
 }
 
@@ -583,6 +617,15 @@ extension TextureGen {
     static func capitalPainters(_ p: inout [String: Painter]) {
         capitalFactionPainters(&p)
         meridianPainters(&p)
+        // Rusted plating: the hull's grey eaten into orange-brown blooms, darker pits, a seam still showing.
+        p["rusted_plating"] = { x, y in
+            if y == 0 || x == 0 { return hex(0x6E4A32) }
+            if y == 15 || x == 15 { return hex(0x3A261A) }
+            let bloom = r(x / 3, y / 3, 2111) + 0.6 * r(x, y, 2112)
+            if bloom > 1.15 { return hex(0x2E2A28, 0.9 + 0.1 * r(x, y, 2113)) }
+            if bloom > 0.55 { return hex(0x9A5A2E, 0.85 + 0.2 * r(x, y, 2114)) }
+            return hex(0x6F6A64, 0.9 + 0.08 * r(x, y, 2115))
+        }
         p["warship_hull"] = { x, y in
             if y == 0 || x == 0 { return hex(0x5C636B) }
             if y == 15 || x == 15 { return hex(0x30353B) }
@@ -699,7 +742,7 @@ extension ShipManager {
         }
     }
 
-    private func installCapital(_ built: ([Ship], CapitalState)) {
+    func installCapital(_ built: ([Ship], CapitalState)) {
         let (ships, st) = built
         for s in ships {
             add(s)
@@ -1306,7 +1349,9 @@ extension ShipManager {
                     fireMAC(s, from: mw, dir: dir, game: g)
                     return
                 }
-                var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
+                let lead: V3 = t.vel * (dist / 260)
+                let aim: V3 = t.point + lead - mw
+                var dir = simd_normalize(aim)
                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
                 let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: frigate ? 10 : 7)
                 sh.gravity = 1.5
@@ -1518,13 +1563,20 @@ extension ShipManager {
             for t in turrets(of: s) { t.aimAt = nil }
         }
         if s.wrecked {
+            if st.settled {
+                s.vel = .zero; s.angVel = .zero
+                st.settledTime += dt
+                if st.settledTime > 3 { makeWreck(s, kind: "dropship", game: g); capState.removeValue(forKey: s.id) }
+                return
+            }
             s.vel.y = max(-30, s.vel.y - 12 * dt)
             s.angVel = V3(0.4, 1.2, 0.2)
             if Int(st.phaseT * 6) % 2 == 0 { g.particles.smoke(at: s.pos) }
             if keelY <= ground + 1 || st.phaseT > 30 {
-                Explosion.explode(at: s.pos, power: 4, game: g, breakBlocks: !g.bases.inAnyBase(s.pos))
-                remove(s)
-                capState.removeValue(forKey: s.id)
+                // It hits the ground and stays there, broken (a persistent wreck, not a vanishing fireball).
+                Explosion.explode(at: s.pos - V3(0, keel * 0.5, 0), power: 2.5, game: g, breakBlocks: !g.bases.inAnyBase(s.pos))
+                st.settled = true
+                s.vel = .zero; s.angVel = .zero
             }
             return
         }
@@ -1606,7 +1658,17 @@ extension ShipManager {
     // A crippled capital ship: a frigate comes down out of the sky with fires breaking out and crash-lands; a crawler
     // grinds to a halt, burning. Neither vanishes: the wreck stays where it came to rest, its crew aboard.
     private func founder(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
-        if st.settled { s.vel = .zero; s.angVel = .zero; return }
+        if st.settled {
+            s.vel = .zero; s.angVel = .zero
+            // A while after it came to rest the wreck becomes part of the world (persistent wrecks): its crew stay, now
+            // on ordinary blocks.
+            st.settledTime += dt
+            if st.settledTime > 8 && pilot !== s {
+                makeWreck(s, kind: s.role ?? "wreck", game: g)
+                capState.removeValue(forKey: s.id)
+            }
+            return
+        }
         st.wreckFx -= dt
         let lo = s.localMin, hi = s.localMax
         // (A hull shot down to nothing has empty bounds, min above max: no range to pick from.)
@@ -1702,7 +1764,7 @@ extension ShipManager {
         let lo = s.localMin, hi = s.localMax
         for k in 0..<3 {
             let p = V3((lo.x + hi.x) * 0.5, lo.y + 0.5, lo.z + (hi.z - lo.z) * (0.2 + 0.3 * Float(k)))
-            Explosion.explode(at: s.toWorld(p) - V3(0, 1, 0), power: 3, game: g)
+            Explosion.explode(at: s.toWorld(p) - V3(0, 1, 0), power: 3, game: g, spare: s)
         }
         g.sfx(.shipCollideHard, 2, at: s.pos)
         // The jolt: riders on deck take damage for a hard touchdown (over 3.5 b/s), none for a flared one.
