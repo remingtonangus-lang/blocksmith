@@ -1087,6 +1087,13 @@ Q2c-console-70. [DONE] Look at a controller to see its buttons (in the headset n
  (e) The basics lesson ends with "Look at a controller to see its buttons"; "Controller Hints: On/Off" on VR Comfort & Controls turns the cards off.
  (f) The card faces him, about 16 cm wide, drawn over the world like the use hint so a block never hides it.
  Done Oct 15 (console; quest/src/app/QuestControls.swift, QuestLabel.swift, QuestSettings.swift, QuestOptions.swift, Sources/HudExtras.swift): (a) a third world-space panel, ctrlPanel (512 x 192), beside the HUD and the use hint; (b) QuestControls.controllerGaze picks the nearer tracked grip 12-50 cm from the head within about 23 degrees of the gaze; QuestLabel.card draws the lines (gold title) for ctrlLines: trigger, grip, the face buttons, the stick and its click, plus the Menu button on the physical left controller; (c) with leftHanded the lines pass through ContextPrompts.mirrorHands and the Menu line follows the physical left; the panel re-records when the hand or the setting changes; (d) shown after 0.33 s on the same hand, alpha eased in at 8/s and out at 6/s; not with a menu or pause up, not while dead, not while laserFade is low (a swing); (e) the basics lesson ends with the hint, and QuestSettings.ctrlHints ("Controller Hints" row with help, in snapshot); (f) the card faces the head 7 cm above the grip, 20 cm wide (a little wider than the 16 the plan said, for the 2x font), drawn onTop like the use hint.
+Q2c-console-71. [CLAIMED console 2026-10-15] The game's version is visible (nothing a player could see said which version he was running: a store player reporting a problem, a review or support answering one, had no way to name the build).
+ (a) Intent (Q2 c, ready to sell): the version is one look away, the way every store game shows it.
+ (b) The title screen shows it small and faint in its top-right corner ("Version 0.130 (1a64088)").
+ (c) Options > Interface > About and Licences lists "Version" first, with the same text.
+ (d) The headset reads it from the build stamp the APK is built with; the Mac from its app bundle; a development build says "Development build".
+ (e) The About row's help line mentions the version, so it is found from the options too.
+ (f) It never shows in play or over other menus.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
