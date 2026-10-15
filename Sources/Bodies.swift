@@ -9,10 +9,15 @@ import simd
 //   loud       once a base's alarm has sounded it is marked loud (saved: TownLaw.state.loudBases).
 //   ghost      take a base that never went loud and the garrison's pay chest is yours on top ($100, honour 3).
 enum Bodies {
-    struct Body { let key: String; let pos: V3; let t: Double }
+    struct Body { let key: String; var pos: V3; let t: Double }
     static var list: [Body] = []
     static let lasts: Double = 300, sight: Float = 10
     static var found = 0, ghosts = 0                      // (harness)
+
+    // P258: a body dragged off: it is found where it now lies.
+    static func moved(from a: V3, to b: V3) {
+        for i in list.indices where simd_length(list[i].pos - a) < 1.5 { list[i].pos = b }
+    }
 
     static func loud(_ key: String) -> Bool { TownLaw.state.loudBases?.contains(key) ?? false }
     static func markLoud(_ key: String) {

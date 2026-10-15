@@ -265,7 +265,7 @@ final class Player {
         else if sneaking || crawling { speed = 4.317 * min(1, 0.3 + 0.15 * Float(swiftSneak)) }
         // VR sprints at 1.6x a walk (the reference's 1.3x is near invisible in a headset: playtest v78, fourth report).
         else { speed = sprinting ? (moveYaw != nil ? Player.vrSprintSpeed : 5.612) : 4.317 }
-        if !flying { speed *= speedMul }
+        if !flying { speed *= speedMul * HandGrab.slow }          // P258: a body dragged or carried
         if soulSpeed > 0 && onGround {
             let under = Blocks.key(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))
             if under == "soul_sand" || under == "soul_soil" { speed *= 1.3 + 0.105 * Float(soulSpeed) }

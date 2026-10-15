@@ -21,9 +21,23 @@ enum HandGrab {
         let item: ItemEntity?             // H12: a dropped item in the hand (`mob` is then a placeholder)
         var last: V3
         var vel: V3 = .zero               // the hand's speed, smoothed over a few frames
+        // P258: a fallen body (MobManager.corpses): the ragdoll bone and the point on it the hand holds (rag -1: a body
+        // with no ragdoll, dragged by its position).
+        var corpse = false
+        var rag = -1, bone = 0
+        var local = SIMD3<Float>(0, 0, 0)
         init(_ m: Mob, body: Bool, at p: V3, carcass: Bool = false, item: ItemEntity? = nil) {
             mob = m; self.body = body; self.carcass = carcass; self.item = item; last = p
         }
+    }
+    // P258 (Oct 14 12:43, "pick up a body by holding grip on it and drag or carry it"): one hand drags (the part held
+    // no higher than his waist), both hands on the same body carry it; his walk slows with the load.
+    static func both(_ m: Mob) -> Bool { held[0]?.mob === m && held[1]?.mob === m }
+    static var slow: Float {
+        var k: Float = 1
+        for h in held { if let h, h.body || h.corpse { k = min(k, 0.75) } }
+        if let a = held[0], a.mob !== placeholder, both(a.mob) { k = 0.6 }
+        return k
     }
     static let placeholder = Mob(.armorStand, at: V3(0, -1000, 0))
     static func holds(_ e: ItemEntity) -> Bool { held[0]?.item === e || held[1]?.item === e }
@@ -53,9 +67,10 @@ enum HandGrab {
         if let h = held[i] {
             let gone: Bool
             if let it = h.item { gone = it.stack.isEmpty || !g.drops.items.contains { $0 === it } }
+            else if h.corpse { gone = !g.mobs.corpses.contains { $0 === h.mob } }
             else if h.carcass { gone = !Hunting.bodies.contains { $0.mob === h.mob } }
             else { gone = h.mob.health <= 0 || !g.mobs.mobs.contains { $0 === h.mob } }
-            if gone { held[i] = nil; return grip }
+            if gone { if h.corpse { g.debris.ragdolls.release(hand: i) }; held[i] = nil; return grip }
             if grip {
                 // The hand's speed while it holds (the release frame's own sample is left out: let go mid-swing, the
                 // throw keeps the swing's speed).
@@ -65,10 +80,20 @@ enum HandGrab {
                 if let it = h.item {
                     it.pos = p - V3(0, 0.125, 0); it.vel = .zero; it.onGround = false
                     it.pickupDelay = max(it.pickupDelay, 0.4)              // not swept into the pack while it is in the hand
+                } else if h.corpse { holdBody(g, h, hand: i, at: p) }
+                else if h.body && both(h.mob) {
+                    // P258 (c): two hands under a carcass (or anything dragged) lift it between them.
+                    if i == 1, let o = held[0] { carry(h.mob, at: (p + o.last) * 0.5 + V3(0, -0.1, 0)) }
                 } else if h.body { drag(g, h.mob, toward: p) } else { carry(h.mob, at: p) }
                 return true
             }
             held[i] = nil
+            if h.corpse {
+                // P258 (d, e): let go: it drops (the ragdoll keeps the hand's swing); a carried body lands with a thud.
+                g.debris.ragdolls.release(hand: i)
+                if held[1 - i]?.mob !== h.mob { g.sfx(.land, 0.9, at: p); g.sfx(.plantBrush, 0.6, at: p) }
+                return true
+            }
             if let it = h.item {
                 var t = h.vel
                 let s = simd_length(t)
@@ -96,10 +121,24 @@ enum HandGrab {
             if d < reach && d < bestD { bestD = d; best = (m, false) }
         }
         var carcass = false
-        for b in Hunting.bodies where b.dim == g.world.dim && !holds(b.mob) {
+        for b in Hunting.bodies where b.dim == g.world.dim && (!holds(b.mob) || held[1 - i]?.mob === b.mob) && held[i]?.mob !== b.mob {
             let m = b.mob
             let d = simd_length(m.pos + V3(0, 0.3, 0) - p) - max(m.halfW, m.height * 0.5)
             if d < reach && d < bestD { bestD = d; best = (m, true); carcass = true }
+        }
+        // P258 (b): a fallen body: the ragdoll bone under the hand (or the body itself when it has no ragdoll). The other
+        // hand may hold it already: that is the carry.
+        var corpseHold: (Mob, Int, Int, SIMD3<Float>)?
+        let rw = g.debris.ragdolls
+        for c in g.mobs.corpses where held[i]?.mob !== c && (!holds(c) || held[1 - i]?.mob === c) {
+            if let r = c.ragdoll, rw.isLive(r.id) {
+                guard let nb = rw.nearestBone(r.id, to: p, reach: reach + 0.1), nb.dist < bestD else { continue }
+                bestD = nb.dist; corpseHold = (c, r.id, nb.bone, nb.local); best = nil
+            } else {
+                let lo = c.pos - V3(c.halfW, 0, c.halfW), hi = c.pos + V3(c.halfW, 0.6, c.halfW)
+                let d = simd_length(simd_clamp(p, lo, hi) - p)
+                if d < reach && d < bestD { bestD = d; corpseHold = (c, -1, 0, .zero); best = nil }
+            }
         }
         // H12: a dropped item in reach of the hand.
         var item: ItemEntity?
@@ -113,8 +152,17 @@ enum HandGrab {
                 let lo = m.pos - V3(m.halfW * m.scale, 0, m.halfW * m.scale)
                 let hi = m.pos + V3(m.halfW * m.scale, m.height * m.scale, m.halfW * m.scale)
                 let d = simd_length(simd_clamp(p, lo, hi) - p)
-                if d < reach && d < bestD { bestD = d; best = (m, true); carcass = false }
+                if d < reach && d < bestD { bestD = d; best = (m, true); carcass = false; corpseHold = nil }
             }
+        }
+        if item == nil, let (c, rag, bone, local) = corpseHold {
+            let h = Hold(c, body: true, at: p)
+            h.corpse = true; h.rag = rag; h.bone = bone; h.local = local
+            held[i] = h
+            grabs += 1; drags += 1
+            g.sfx(.plantBrush, 0.9, at: p)
+            if both(c) { g.onToast?("Carrying \(c.customName ?? c.spec.name)") }
+            return true
         }
         if let e = item {
             held[i] = Hold(placeholder, body: false, at: p, item: e)
@@ -127,6 +175,25 @@ enum HandGrab {
         grabs += 1
         if body { drags += 1; g.sfx(carcass ? .plantBrush : .mob(m.kind, .hurt), 0.9, at: p) } else { g.sfx(.mob(m.kind, .hurt), 0.8, at: p); g.sfx(.pickup, 0.5, at: p) }
         return true
+    }
+
+    // P258: a held body's ragdoll point follows the hand (one hand: no higher than his waist, so it drags); a body
+    // with no ragdoll is dragged, or carried between two hands. A Greywall body is then found where it lies (D36).
+    static func holdBody(_ g: Game, _ h: Hold, hand i: Int, at p: V3) {
+        let two = both(h.mob)
+        let rw = g.debris.ragdolls
+        var t = p
+        if !two { t.y = min(t.y, g.player.pos.y + 0.85) }
+        let was = h.mob.pos
+        if h.rag >= 0 && rw.isLive(h.rag) {
+            rw.hold(hand: i, h.rag, bone: h.bone, local: h.local, at: t)
+            h.mob.pos = rw.pose(h.rag, 0).position
+        } else if two {
+            if i == 1, let o = held[0] { carry(h.mob, at: (p + o.last) * 0.5 + V3(0, -0.1, 0)) }
+        } else {
+            drag(g, h.mob, toward: t)
+        }
+        if simd_length(h.mob.pos - was) > 0.01 { Bodies.moved(from: was, to: h.mob.pos) }
     }
 
     // A lifted creature hangs from the hand by its middle.

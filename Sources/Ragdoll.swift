@@ -417,6 +417,42 @@ final class RagdollWorld {
         return (gen[s] << RagdollWorld.slotBits) | s
     }
 
+    // MARK: hands (P258)
+
+    // A hand holding a body (two hands at most): a point of one bone is pulled to the hand every sub-step; the joints
+    // bring the rest along, so a held arm lifts the shoulder and the legs trail on the ground.
+    private var grabSlot = [-1, -1], grabBone = [0, 0]
+    private var grabLocal = [SIMD3<Float>](repeating: .zero, count: 2), grabTarget = [SIMD3<Float>](repeating: .zero, count: 2)
+
+    // The bone of ragdoll `id` nearest p (within reach of its box) and p in that bone's frame.
+    func nearestBone(_ id: Int, to p: SIMD3<Float>, reach: Float) -> (bone: Int, local: SIMD3<Float>, dist: Float)? {
+        guard let s = slot(id) else { return nil }
+        let base = s * RagdollWorld.maxBones
+        var best: (Int, SIMD3<Float>, Float)?
+        for i in 0..<count[s] {
+            let k = base + i
+            let l = RagdollMath.rotInv(q[k], p - x[k])
+            let e = pointwiseMax(RagdollMath.abs(l) - half[k], .zero)
+            let d = RagdollMath.length(e)
+            if d <= reach && d < (best?.2 ?? .infinity) { best = (i, RagdollMath.clamp(l, half[k]), d) }
+        }
+        return best.map { (bone: $0.0, local: $0.1, dist: $0.2) }
+    }
+    func hold(hand h: Int, _ id: Int, bone: Int, local: SIMD3<Float>, at target: SIMD3<Float>) {
+        guard h >= 0, h < 2, let s = slot(id), bone >= 0, bone < count[s], RagdollMath.finite(target) else { return }
+        grabSlot[h] = s; grabBone[h] = bone; grabLocal[h] = local; grabTarget[h] = target
+        if !awake[s] { rouse(s) }
+    }
+    func release(hand h: Int) { if h >= 0 && h < 2 { grabSlot[h] = -1 } }
+    private func held(_ s: Int) -> Bool { grabSlot[0] == s || grabSlot[1] == s }
+    private func pull(_ s: Int, _ base: Int) {
+        for h in 0..<2 where grabSlot[h] == s {
+            let k = base + grabBone[h]
+            let p = x[k] + RagdollMath.rot(q[k], grabLocal[h])
+            x[k] += (grabTarget[h] - p) * 0.5
+        }
+    }
+
     // A later blow on a corpse (a second shot, a blast): on the bone it hits alone, and it wakes the body.
     func push(_ id: Int, at point: SIMD3<Float>, impulse: SIMD3<Float>) {
         guard let s = slot(id), RagdollMath.finite(point), RagdollMath.finite(impulse) else { return }
@@ -505,6 +541,7 @@ final class RagdollWorld {
                 spheres(base, n, t)
                 contacts(base, n, t)
                 attach(base, n)
+                if held(s) { pull(s, base) }                // P258: a hand holds it
                 velocities(base, n, t)
             }
             damp(base, n, t)                    // once a frame: it only bleeds energy, sub-steps don't need it
@@ -734,6 +771,7 @@ final class RagdollWorld {
     private func settle(_ s: Int, _ base: Int, _ n: Int, _ dt: Float) {
         typealias M = RagdollMath
         awakeFor[s] += dt
+        if held(s) { still[s] = 0; return }            // P258: never asleep in a hand
         let tol = restTolerance * Swift.min(4, Swift.max(1, awakeFor[s] - 2))
         var moved = false
         for k in base..<(base + n) {
