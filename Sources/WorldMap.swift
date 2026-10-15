@@ -167,6 +167,15 @@ final class MapCache {
         return true
     }
 
+    // Q2c-console-20: a waypoint named after a place's marker, on the marker (no second one there).
+    func pinPlace(_ g: Game, x: Int, z: Int, name: String) {
+        loadMarks(g)
+        guard !marks.contains(where: { $0.kind == "pin" && $0.x == x && $0.z == z }) else { return }
+        if marks.filter({ $0.kind == "pin" }).count >= 32, let i = marks.firstIndex(where: { $0.kind == "pin" }) { marks.remove(at: i) }
+        marks.append(Mark(kind: "pin", x: x, z: z, name: name))
+        saveMarks(g)
+    }
+
     // P242: a named pin (a base the radar station found); one already within 16 blocks is kept as it is.
     func pinNamed(_ g: Game, x: Int, z: Int, name: String) {
         loadMarks(g)
@@ -598,6 +607,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
         // doesn't drag: the headset's laser and trigger) puts it where you point (P73: on the headset the centre cross
         // was the only way and he never found it). Again on a waypoint removes it.
         func pin(_ x: Int, _ z: Int) {
+            if MapMenu.follow(g, x: x, z: z, near: Float(max(4, bpc * 3))) { return }      // Q2c-console-20
             let added = MapCache.shared.togglePin(g, x: x, z: z, near: max(3, bpc * 3))
             g.sfx(added ? .click : .uiBack, 0.4)
         }
@@ -629,6 +639,31 @@ final class MapMenu: Menu, CustomDrawnMenu {
     }
     static var prevPad = PadSnapshot()
     static let cols = 152, rows = 82
+
+    // Q2c-console-20: a tap on a marker follows it: a followable one (contract, bounty, horse, ship, vehicle, Director
+    // event, the fallen horse, the story's objective) is tracked; a place (town, base, landmark) gets a named waypoint
+    // that is tracked. Pins and notes keep their own tap (remove). False: nothing to follow there.
+    static func follow(_ g: Game, x: Int, z: Int, near: Float) -> Bool {
+        guard g.dim.dim == .overworld else { return false }
+        let at = V2(Float(x) + 0.5, Float(z) + 0.5)
+        func dist(_ p: V2) -> Float { simd_length(p - at) }
+        if MapCache.shared.marks.contains(where: { ($0.kind == "pin" || $0.kind == "note") && dist(V2(Float($0.x), Float($0.z))) <= near }) { return false }
+        if let t = Waymarks.candidates(g).filter({ $0.kind != "pin" && $0.kind != "note" })
+            .min(by: { dist(V2($0.pos.x, $0.pos.z)) < dist(V2($1.pos.x, $1.pos.z)) }), dist(V2(t.pos.x, t.pos.z)) <= near {
+            Waymarks.track(g, t)
+            g.sfx(.xp, 0.4)
+            return true
+        }
+        let moving: Set<String> = ["contract", "bounty", "my_horse", "my_ship", "my_vehicle", "director", "horse_grave", "objective"]
+        guard let m = MapCache.shared.marks.filter({ !moving.contains($0.kind) && $0.kind != "pin" && $0.kind != "note" })
+            .min(by: { dist(V2(Float($0.x), Float($0.z))) < dist(V2(Float($1.x), Float($1.z))) }), dist(V2(Float(m.x), Float(m.z))) <= near else { return false }
+        let name = m.name ?? MapCache.style(m.kind).name
+        MapCache.shared.pinPlace(g, x: m.x, z: m.z, name: name)
+        Waymarks.track(g, Waymarks.Target(kind: "pin", key: "\(m.x),\(m.z)", name: "Waypoint: " + name,
+                                          pos: V3(Float(m.x) + 0.5, g.player.pos.y, Float(m.z) + 0.5)))
+        g.sfx(.xp, 0.4)
+        return true
+    }
 
     // The world column under a point on the screen, if it is over the map (drawLines' grid).
     func world(at m: V2, _ L: HudLayout) -> (Int, Int)? {
@@ -675,7 +710,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
 
     var legend: String {
         // (On the headset: the laser and trigger, P73.)
-        if game.vrHead != nil { return Prompt.line([(.move, "Pan"), (.tabs, "Zoom"), (.select, "Centre"), (.back, "Close")]) + "   Point + trigger: waypoint" }
+        if game.vrHead != nil { return Prompt.line([(.move, "Pan"), (.tabs, "Zoom"), (.select, "Centre"), (.back, "Close")]) + "   Point + trigger: follow a marker or drop a waypoint" }
         if Prompt.pad {
             return Prompt.line([(.move, "Pan"), (.tabs, "Zoom"), (.select, "Centre"), (.alt, "Waypoint"), (.back, "Close")])
         }
