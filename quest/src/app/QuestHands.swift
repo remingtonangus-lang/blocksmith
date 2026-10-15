@@ -31,7 +31,10 @@ final class HandedInput: XRInput {
     func physical(_ logical: Int) -> Int { swapped ? 1 - logical : logical }
     func haptic(_ hand: Int, amplitude: Float, seconds: Float, frequency: Float) {
         guard hand >= 0 && hand < 2, !lost[hand] else { return }
-        raw.haptic(physical(hand), amplitude: amplitude, seconds: seconds, frequency: frequency)
+        // Q2c-console-35: Options' Vibration scales every Touch buzz (0.7, its default, leaves them as tuned; Off stops them).
+        let k = amplitude * Settings.shared.rumble / 0.7
+        guard k > 0.01 else { return }
+        raw.haptic(physical(hand), amplitude: min(1, k), seconds: seconds, frequency: frequency)
     }
 
     // Once per frame, before anything reads `hands` (QuestControls.update). `walk`: the One Hand remap may take the

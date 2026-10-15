@@ -56,7 +56,7 @@ enum QuestOptions {
         PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]
-        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_vib", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
@@ -74,6 +74,7 @@ enum QuestOptions {
             "q_saddle": "While riding a horse, the view eases over its jumps and bucks instead of following every hop.",
             "q_chase": "Taking the controls of a ship, airship, crawler, drop craft or boat moves your view out behind it, like a chase camera; back to first person when you let go. Off keeps you in first person.",
             "q_shake": "The view jolts a little when the Tidebreaker fires and blasts land nearby. Off keeps the view still (the controllers still rumble).",
+            "q_vib": "How strongly the Touch controllers vibrate: hits, mining, attacks, the bow, low health, explosions and menus. Off stops every buzz. Also in Options > Accessibility.",   // Q2c-console-35
             "q_ring": "A steady ring at your feet while a ship you stand on moves or turns: a fixed reference for your eyes.",
             "q_seated": "Seated: leaning doesn't walk you through the world, and recentring sets standing eye height.",
             "q_reclined": VRMelee.reclinedPostureHelp,
@@ -111,6 +112,7 @@ enum QuestOptions {
                              : ("Snap Angle: \(angle(S.snapAngle)) deg", "q_snap"),
                 ("Movement: \(S.teleport ? "Teleport" : "Smooth")", "q_move"),
                 ("Comfort Vignette: \(vignetteName(S.vignette))", "q_vig"),
+                ("Controller Vibration: \(Settings.shared.rumble == 0 ? "Off" : "\(Int((Settings.shared.rumble * 100).rounded()))%")", "q_vib"),
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
                 ("Steady Saddle: \(on(S.steadySaddle))", "q_saddle"),
                 ("Blast Shake: \(on(S.blastShake))", "q_shake"),
@@ -209,6 +211,10 @@ enum QuestOptions {
             S.teleport.toggle()
             if S.teleport && S.controlPreset == 1 { S.controlPreset = 0 }
         case "q_vig": S.vignette = step(vignettes, vignettes.min { abs($0 - S.vignette) < abs($1 - S.vignette) } ?? 0.6, back)
+        case "q_vib":                       // Q2c-console-35: the shared Vibration value, with a sample buzz at the new strength
+            let st = Settings.shared
+            st.rumble = step([0, 0.35, 0.7, 1], [0, 0.35, 0.7, 1].min { abs($0 - st.rumble) < abs($1 - st.rumble) } ?? 0.7, back)
+            PadManager.shared.rumble(0.8, 0.15)
         case "q_ring": S.deckRing = S.deckRing > 0 ? 0 : 1
         case "q_saddle": S.steadySaddle.toggle()
         case "q_shake": S.blastShake.toggle()

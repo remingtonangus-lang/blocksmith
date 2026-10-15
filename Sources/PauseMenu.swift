@@ -117,7 +117,7 @@ final class PauseMenu: Menu {
         "lookouter": "Look stick: how far before the edge the stick already counts as fully pushed.",
         "moveouter": "Move stick: how far before the edge the stick already counts as fully pushed.",
         "aim": "Controller only: the view slows over hostile mobs and while mining.",
-        "rumble": "Controller vibration when you are hit, mine, attack or something explodes.",
+        "rumble": "How strongly the controllers vibrate: when you are hit, mine, attack, draw a bow, run low on health or something explodes, and in menus. Off stops it all.",
         "southpaw": "Southpaw swaps the sticks: look with the left, move with the right.",
         "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
         "splitlayout": "How the screen divides for two players: top and bottom (wide views) or side by side (menus stay bigger on a TV).",
