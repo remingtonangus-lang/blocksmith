@@ -100,6 +100,8 @@ Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thund
   rebased once. Merges: playtest's waterlogged-water faces replace my water-plant faces (same fix, broader); their
   starAlpha (hides in rain) replaces mine; their per-block fire odds (World.fireOdds, ignite + burn) and no age cap
   are carried into Fire.swift with my wind, scorch, charcoal and cap; their jetpack part kept in the player model.
+- Fast lane on e0ad896: fxtest 0 failed (fire with the reference odds: peak 47 burning, downwind 30 / upwind 3),
+  itemcheck 0 fail, 12 pixel-art fallbacks (playtest's new steel armour, jetpack, radar parts, orders, optic).
 
 ## HANDOFF (2026-10-05, usage nearly out)
 
