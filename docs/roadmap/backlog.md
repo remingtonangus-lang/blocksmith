@@ -901,6 +901,14 @@ Q2c-console-47. [DONE] Armour goes on from the hand (pulling the use trigger wit
  (e) A headset lesson the first time he holds armour: hold it and pull the left trigger to put it on.
  (f) The hand feels a light buzz as it goes on; the HUD's armour bar updates at once; creative and survival alike.
  Done Oct 15 (console; Sources/Game.swift, HudExtras.swift): (a) Game.wearHeld, tried on a use press before placement; (b) a held count-1 stack with def.armorSlot goes into inventory.armor[slot] and the old piece into the hand; AudioAmbience's armour watch plays the material's equip sound as for any other way on; (c) skipped when the target isInteractive; armour stands are handled earlier by useItemOnMob; (d) a survival worn piece with bindingCurse refuses with the 0.25 click and "Your X is stuck fast"; (e) VRLesson .armour (row "Armour" on the Lessons page) when he first holds a piece at a calm moment; (f) PadManager.shared.rumble(0.25, 0.06) (QuestPad on the headset), the armour bar reads inventory.armor so it updates at once; no survival check except the curse.
+Q2c-console-48. [CLAIMED console 2026-10-15] Tooltips show what an item does (pointing at a sword, a pickaxe, a chestplate, food or coal showed its name, its recipe and its durability, never a number to compare: is the stone sword better than the iron axe, which food is worth eating, what burns longest).
+ (a) Intent (Q2 c, first-hour clarity): two items can be compared at a glance in the inventory, chests and the crafting book.
+ (b) Weapons and tools: "Attack: 6 (3 hearts)", with the swing speed when it differs from a fist's ("1.6 swings a second").
+ (c) Pickaxes say what they can mine: wood "stone and coal", stone "iron, copper and lapis ore", iron "gold, diamond, redstone and emerald ore", diamond and up "obsidian and ancient debris too".
+ (d) Armour: "Armour: +6" and its toughness when it has any.
+ (e) Food: "Food: +4 hunger", "filling" when it keeps him full long; raw food that cooks says "Cook it for more"; risky food (rotten flesh, raw chicken, spider eyes, pufferfish, poisonous potatoes) says "Risky: can make you sick".
+ (f) Fuel: "Fuel: smelts 8 items" (or "part of an item"), matching the furnace's own count (Q2c-console-40).
+ (g) The stats sit right under the name in light grey, before the recipe lines; guns keep their own card.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
