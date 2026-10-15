@@ -41,6 +41,7 @@ final class PauseMenu: Menu {
     var renameText = ""
     var worlds: [WorldStore.Info] = []
     var confirmReset = false              // the confirm page is asking about options, not a world
+    var confirmMode = false               // Q2c-console-5: ... or about switching the game mode
     var padBinding: Int? = nil             // Button Mapping: logical button waiting for a physical press
     var padBindArmed: Double = 0
     var binding: KeyBinds.Action? = nil   // waiting for a key press on the Key Bindings page
@@ -354,13 +355,20 @@ final class PauseMenu: Menu {
             subtitle = info.map { WorldStore.describe($0) } ?? ""
             rows = [(selWorld == currentWorld ? "Continue" : "Play", "w_play"), ("Rename...", "w_rename"), ("Copy", "w_copy"),
                     ("Delete...", "w_delete"), ("Back", "back")]
+        case .confirm where confirmMode:
+            // Q2c-console-5: a stray click on the Mode row no longer flips the world's mode.
+            title = g.survival ? "Switch to Creative?" : "Switch to Survival?"
+            subtitle = g.survival ? "No damage or hunger, fly freely, every block to hand. You can switch back here."
+                                  : "Health, hunger and gathering again. You can switch back here."
+            rows = [("Cancel", "back"), (g.survival ? "Switch to Creative" : "Switch to Survival", "mode_yes")]
         case .confirm where confirmReset:
             title = "Reset Options?"
             subtitle = "Every option and key binding goes back to its default."
             rows = [("Cancel", "back"), ("Reset", "reset_yes")]
         case .confirm:
             title = "Delete World?"
-            subtitle = "\"\(selWorld)\" will be moved to the Trash."
+            // Q2c-console-5: the headset has no Trash: a deleted world is gone for good.
+            subtitle = WorldStore.useTrash ? "\"\(selWorld)\" will be moved to the Trash." : "\"\(selWorld)\" will be deleted for good: this can't be undone."
             rows = [("Cancel", "back"), ("Delete", "w_delete_yes")]
         case .rename:
             title = "Rename World"
@@ -442,6 +450,8 @@ final class PauseMenu: Menu {
                                 : "Volume of \(c.label.lowercased()) sounds, on top of Master."
         }
         if id == "dir_status" || id == "dir_model" { return Director.statusLines(game).joined(separator: ". ") }   // P266 (n)
+        if id == "w_delete" && !WorldStore.useTrash { return "Delete this world for good (there is no Trash on this device): Copy it first to keep a backup." }   // Q2c-console-5
+        if id == "mode" { return "Survival: health, hunger, mining. Creative: fly and build freely. Asks before switching." }
         return PauseMenu.help[id] ?? PauseMenu.hostHelp[id] ?? ""
     }
 
@@ -544,7 +554,7 @@ final class PauseMenu: Menu {
         case "back" where hostPageID != nil:
             hostPageID = nil; scroll = 0; resetCursor = true
         case "back":
-            confirmReset = false
+            confirmReset = false; confirmMode = false
             page = stack.popLast() ?? (page == .title ? .title : .main)
             editing = nil
             scroll = 0
@@ -616,7 +626,7 @@ final class PauseMenu: Menu {
             go(.confirm); resetCursor = true
         case "w_delete_yes":
             let ok = WorldStore.delete(selWorld)
-            g.onToast?(ok ? "Moved \(selWorld) to the Trash" : "Couldn't delete \(selWorld)")
+            g.onToast?(ok ? (WorldStore.useTrash ? "Moved \(selWorld) to the Trash" : "Deleted \(selWorld) for good") : "Couldn't delete \(selWorld)")
             // Back to the worlds list (skip the world page).
             while let p = stack.popLast() { page = p; if p == .worlds { break } }
             if page != .worlds { page = .worlds }
@@ -640,7 +650,13 @@ final class PauseMenu: Menu {
         case "splitlayout": st.splitSideBySide.toggle()
         case "brightness": st.brightness = step([0, 0.25, 0.5, 0.75, 1], st.brightness)
         case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
-        case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
+        case "mode": go(.confirm); confirmMode = true; resetCursor = true          // Q2c-console-5: ask first
+        case "mode_yes":
+            g.toggleMode(); g.onModeChanged?(g.survival)
+            g.onToast?((g.survival ? "Survival mode" : "Creative mode") + ": switch back from the pause menu's Mode row")
+            confirmMode = false
+            page = stack.popLast() ?? .main
+            resetCursor = true
         // G19: a world's difficulty is chosen when it is made (Create New World) and locked afterwards.
         case "difficulty": g.onToast?("Difficulty is chosen when a world is made and stays \(Game.difficultyNames[g.difficulty]) for this one")
         case "fov": g.fovSetting = step([50, 60, 70, 80, 90, 100, 110], g.fovSetting)
