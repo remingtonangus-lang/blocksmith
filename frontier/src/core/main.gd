@@ -228,6 +228,10 @@ func _apply_viewport_quality() -> void:
 	vp.msaa_3d = Viewport.MSAA_DISABLED if q.msaa == 0 else (Viewport.MSAA_2X if q.msaa == 2 else Viewport.MSAA_4X)
 	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_SMAA if (not q.taa and scale >= 0.999) else Viewport.SCREEN_SPACE_AA_DISABLED
 	vp.mesh_lod_threshold = 1.0 / maxf(q.lod_bias, 0.1)
+	# --lod_ref_height 1080: pick mesh LODs as a window that tall would (imported meshes choose LODs by on-screen
+	# size), so geometry counts from a small software-rendered window match the real resolution
+	if Game.args.has("lod_ref_height"):
+		vp.mesh_lod_threshold *= float(vp.size.y) / maxf(Game.arg_f("lod_ref_height", 1080.0), 1.0)
 	RenderingServer.directional_shadow_atlas_set_size(q.shadow_size, true)
 
 func _exit_tree() -> void:
