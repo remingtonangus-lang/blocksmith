@@ -292,6 +292,7 @@ final class Game {
     var vrBow: (draw: Float, origin: V3, dir: V3)?
     // Quest: the aiming hand's ray (world), set each frame; the crossbow shoots from it (GameCombat.crossbowUse).
     var vrAim: (origin: V3, dir: V3)?
+    var vrPinch: Float?                // VR, in a menu: the distance between the hands while both grips are held (P273 map pinch)
     var grapple: GrappleLine.Hook?           // a Grapple Line's hook, reeling the player in (SkyIsle.swift, C7)
     var consoleRadarUntil: Double = -1      // a citadel console's readout shows on the radar until then (FactionGear, P36)
     var attackQueued: Float = 0

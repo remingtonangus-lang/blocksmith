@@ -82,6 +82,7 @@ final class Settings {
     @Pref("smoothTerrainPG6") var smoothTerrain = true
     // SH1: the Quest shader pass's pieces, one bit each (ShaderFX), all on by default (Video options).
     @Pref("shaderFX") var shaderFX = ShaderFX.all
+    @Pref("mapZoom") var mapZoom = 3                 // P273: the world map's zoom level (index into MapMenu.zooms; 3 = 8 blocks a cell)
     @Pref("chipping") var chipping = true           // mining chips pieces off a block until it breaks (World.chip)
     @Pref("crosshair") var crosshair = 0             // 0 classic, 1 bold (high contrast), 2 dot
     @Pref("splitSideBySide") var splitSideBySide = false   // split screen (Coop.swift): left / right instead of top / bottom
