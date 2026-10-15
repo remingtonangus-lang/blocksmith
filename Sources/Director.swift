@@ -315,7 +315,10 @@ enum Director {
             return
         }
         DirectorLLM.idle(g, wanted: Settings.shared.directorBackend == 1)
-        if !state.woke {
+        // Q2c-console-24: when this world started being played here, and his last death.
+        if arrivedAt < 0 || g.clock < arrivedAt { arrivedAt = g.clock }
+        if !g.alive { diedAt = g.clock }
+        if !state.woke && g.credits == nil && g.menu == nil && !g.paused && g.alive {
             state.woke = true
             state.nextDue = state.play + 60 * Rand.double(in: 4...8)
             radio(g, caller: "A crackle on the radio", "Word of what you did below is spreading. The land is stirring: listen for calls, and watch your map.")
@@ -361,9 +364,14 @@ enum Director {
         if state.play - state.nextDue > 600, !state.queue.isEmpty { state.queue.removeFirst(); state.nextDue = state.play }
     }
 
-    // A safe moment for a new event (l).
+    // A safe moment for a new event (l). Q2c-console-24: not asleep, not under the credits, not just arrived or revived.
+    static var arrivedAt: Double = -1, diedAt: Double = -1000
     static func unsafe(_ g: Game) -> String? {
         if !g.alive { return "you are down" }
+        if g.sleeping > 0 { return "you are asleep" }
+        if g.credits != nil { return "the credits are rolling" }
+        if g.clock - arrivedAt < 60 { return "you have just arrived" }
+        if g.clock - diedAt < 60 { return "you have just come back" }
         if g.world.ships.pilot != nil { return "you are at the controls of a craft" }
         if g.player.flying { return "you are flying" }
         if g.dim.dim == .overworld {
@@ -603,7 +611,7 @@ enum Director {
         return s
     }
     static func decode(_ s: String?) {
-        refs = [:]; lastSecond = -1; waitNote = ""; fallbackNote = ""
+        refs = [:]; lastSecond = -1; waitNote = ""; fallbackNote = ""; arrivedAt = -1; diedAt = -1000
         state = s.flatMap { $0.data(using: .utf8) }.flatMap { try? JSONDecoder().decode(DirectorState.self, from: $0) } ?? DirectorState()
         // Creatures that were not saved with the world come back when he is near again.
         for i in state.active.indices where state.active[i].t == "legend" || state.active[i].t == "warband" { state.active[i].spawned = false }
