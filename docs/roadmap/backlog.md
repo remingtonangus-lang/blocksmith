@@ -745,6 +745,12 @@ Q2c-console-27. [DONE] The last dead rows in the headset's options (Audio offere
  (d) Tutorial Hints now switches the headset's lessons on and off as well as the Mac's tips, so the row does what it says everywhere.
  (e) Its help line says it covers the lessons too.
  Done Oct 15 (console; QuestOptions hostHidden, ContextPrompts.lessonDone, PauseMenu help): (a) the headset's Audio and Accessibility pages are all live rows now. (b) Soundtrack, My Music, Shuffle and My Music Volume hidden on the headset (QuestSound.custom is nil there); Skip Track and Show Song Titles stay. (c) Narrator hidden on the headset (it speaks through AVFoundation, which the headset build has not). (d) with Tutorial Hints Off every headset lesson counts as done (lessonDone), so none show, while status prompts (an empty gun, the helm and turret controls, the gun lesson) still do; back On, the lessons not yet seen return. (e) help: "First-steps tips while you play, and the headset's lessons (crafting, hunger, night, riding...)."
+Q2c-console-28. [CLAIMED console 2026-10-15] The journal's Events shelf stays current (a Director event's entry was written when it began and when it ended: its "time left" went stale, a moving gang's or rival's place was where it started, and nothing said how much was left to do).
+ (a) Intent (Q2 c, nothing misleading): the shelf tells the truth whenever he opens it.
+ (b) Every minute of play each running event's entry is rewritten: time left, where it is now (a gang on its route, a rival or a messenger on the move), and how far along it is.
+ (c) Progress where it can be counted: "3 of 5 outlaws left", "2 kidnappers left, then free the hostage", "the chest still holds most of its load", "waiting for nightfall at Dunmore".
+ (d) An entry keeps the day and hour it began (refreshing no longer moves it in the list or changes its date).
+ (e) A finished entry leads with its outcome, then the story of it.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
