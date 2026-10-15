@@ -264,7 +264,7 @@ enum Mesher {
         let far = lod == 1
         let renderT = Blocks.render, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let crossT = Blocks.crossSize
-        let swayT = Blocks.sway, swayOn = Mesher.plantSway
+        let swayT = Blocks.sway, swayOn = Mesher.plantSway, driftT = Blocks.drift
         let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let layerT = Blocks.layer, boxesT = Blocks.boxes, collideT = Blocks.collide
         let CT = cornerTable, NT = normalTable, PTab = plantTable
@@ -447,6 +447,21 @@ enum Mesher {
             while g > -SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { g -= 1; j -= RL }
             return natAt(j)
         }
+        // P281 (a): the bottom and top offsets (1/16) of a plant lowered onto the drawn ground by dy16, `below` plants of
+        // its stack under it. A stack the ground lookup reaches whole (maxRelax blocks or fewer) moves as one; in a taller
+        // one (kelp, 20+ blocks) only the blocks within reach knew the ground and moved, the rest stayed: a gap (or an
+        // overlap) opened between the 4th and 5th block of every strand. There the bottom block alone stretches to
+        // the ground and every joint stays on its block line.
+        func stackOffsets(_ i: Int, below: Int, _ dy16: Int) -> (Int, Int) {
+            guard dy16 != 0 else { return (0, 0) }
+            var n = below + 1, j = i + RL
+            while n <= SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { n += 1; j += RL }
+            if n <= SmoothTerrain.maxRelax { return (dy16, dy16) }
+            return below == 0 ? (dy16, 0) : (0, 0)
+        }
+        // P281 (b): a drifting water plant's corner moves unless it is the stalk's foot (no drifting plant under it).
+        // Its AO bits hold 3, which tells chunk.vert to move the bottom corners as well (wind-swayed crosses use 0-2).
+        func driftFoot(_ i: Int) -> Bool { !(renderT[Int(R[i - RL])] == rCross && driftT[Int(R[i - RL])]) }
         // Packed sky | blk << 4, or -1 for solid cells (excluded from smoothing).
         func light(_ x: Int, _ y: Int, _ z: Int) -> Int {
             let i = x + z * RW + y * RL
@@ -770,18 +785,21 @@ enum Mesher {
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         // P175: a plant (or a stack of them, cane) on smooth ground stands on the drawn surface, not on the
                         // block top it was rounded from (grass floated over every dip).
-                        var dy16 = 0
+                        var dy16 = 0, dyTop = 0
                         if sc.smValid {
                             var g = ly - 1, j = i - RL
                             while g > -SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { g -= 1; j -= RL }
                             if natAt(j), let top = Mesher.smoothGroundTop(sc, lx, g, lz) {
-                                dy16 = max(-by16, max(-12, min(12, Int(((top - Float(g + 1)) * 16).rounded()))))
+                                let want = max(-by16, max(-12, min(12, Int(((top - Float(g + 1)) * 16).rounded()))))
+                                (dy16, dyTop) = stackOffsets(i, below: ly - 1 - g, want)
                             }
                         }
                         let layer = Int(texT[bi * 6 + 2])
                         let cs = Int(crossT[bi]), ci0 = (16 - cs) / 2
-                        let sway = swayOn && swayT[bi]
-                        let aoC = sway ? (x &* 5 &+ z &* 3 &+ y) & 3 : 3      // swaying: the AO bits hold its phase (crosses draw unshaded)
+                        let drift = swayOn && driftT[bi], foot = drift && driftFoot(i)
+                        let sway = drift || swayOn && swayT[bi]
+                        // swaying: the AO bits hold its phase 0-2 (crosses draw unshaded); 3 marks a drifting stalk (P281 b)
+                        let aoC = drift ? 3 : (sway ? (x &* 5 &+ z &* 3 &+ y) % 3 : 3)
                         // Pointed driprock: the texture hangs (point down); one growing up from a floor is drawn flipped
                         // so its point is on top (Oct 11 Quest playtest P3: "the drip stone's still upside down").
                         var flipV = false
@@ -797,8 +815,9 @@ enum Mesher {
                         for q in 0..<4 {
                             for k in 0..<4 {
                                 let ci = (q * 4 + k) * 3
-                                vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + dy16 + PTab[ci + 1] * cs, bz16 + ci0 + PTab[ci + 2] * cs,
-                                     6, tintV, cornerU[k], flipV ? 16 - cornerV[k] : cornerV[k], layer, aoC, l, sway)
+                                let up = PTab[ci + 1]
+                                vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + (up == 1 ? dyTop : dy16) + up * cs, bz16 + ci0 + PTab[ci + 2] * cs,
+                                     6, tintV, cornerU[k], flipV ? 16 - cornerV[k] : cornerV[k], layer, aoC, l, sway && !(foot && up == 0))
                             }
                         }
                         continue
@@ -1129,13 +1148,13 @@ enum Mesher {
                 let bi = Int(b)
                 guard renderT[bi] == rCross, plantOnNatural(i) else { continue }
                 let lx = x - C0, lz = z - C0
-                var dy16 = 0
+                var dy16 = 0, dyTop = 0
                 if sc.smValid {
                     var g = 15, j = i - RL
                     while g > 16 - SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { g -= 1; j -= RL }
                     if let top = Mesher.smoothGroundTop(sc, lx, g, lz) {
                         let want: Float = (top - Float(g + 1)) * 16
-                        dy16 = max(-12, min(12, Int(want.rounded())))
+                        (dy16, dyTop) = stackOffsets(i, below: 15 - g, max(-12, min(12, Int(want.rounded()))))
                     }
                 }
                 let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
@@ -1145,8 +1164,9 @@ enum Mesher {
                 curCut = true
                 let layer = Int(texT[bi * 6 + 2])
                 let cs = Int(crossT[bi]), ci0 = (16 - cs) / 2
-                let sway = swayOn && swayT[bi]
-                let aoC = sway ? (x &* 5 &+ z &* 3 &+ y) & 3 : 3
+                let drift = swayOn && driftT[bi], foot = drift && driftFoot(i)
+                let sway = drift || swayOn && swayT[bi]
+                let aoC = drift ? 3 : (sway ? (x &* 5 &+ z &* 3 &+ y) % 3 : 3)
                 var flipV = false
                 if b == Mesher.pointedDrip {
                     var j = i, hangs = false
@@ -1161,8 +1181,9 @@ enum Mesher {
                 for q in 0..<4 {
                     for k in 0..<4 {
                         let ci = (q * 4 + k) * 3
-                        vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + PTab[ci + 1] * cs, bz16 + ci0 + PTab[ci + 2] * cs,
-                             6, tintV, cornerU[k], flipV ? 16 - cornerV[k] : cornerV[k], layer, aoC, l, sway)
+                        let up = PTab[ci + 1]
+                        vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + (up == 1 ? dyTop - dy16 : 0) + up * cs, bz16 + ci0 + PTab[ci + 2] * cs,
+                             6, tintV, cornerU[k], flipV ? 16 - cornerV[k] : cornerV[k], layer, aoC, l, sway && !(foot && up == 0))
                     }
                 }
             } }

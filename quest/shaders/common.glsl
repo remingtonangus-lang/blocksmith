@@ -81,6 +81,17 @@ vec2 plantSway(vec3 w, float phase) {
     return d * (lean + 0.022 * storm * flutter) + vec2(-d.y, d.x) * (0.014 * storm * sin(t * 2.3 + phase * 2.1));
 }
 
+// P281 (b): water plants (kelp, seagrass) in a slow current: the xz offset of a corner at world point w. A swell rolls
+// up each strand (the phase climbs with height) and a slower side-to-side drift crosses the bed; about a sixteenth of a
+// block either way, steady under water whatever the weather above.
+vec2 waterDrift(vec3 w) {
+    vec2 d = length(u.wind.xy) > 0.01 ? normalize(u.wind.xy) : vec2(0.7071, 0.7071);
+    float t = u.params.z;
+    float swell = sin(t * 0.9 - w.y * 0.45 + dot(w.xz, d) * 0.25);
+    float side = sin(t * 0.63 - w.y * 0.3 + w.x * 0.21 - w.z * 0.17);
+    return d * (0.065 * swell) + vec2(-d.y, d.x) * (0.04 * side);
+}
+
 float hash21(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
     p3 += dot(p3, p3.yzx + 33.33);

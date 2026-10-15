@@ -73,7 +73,10 @@ void main() {
     // Plants bend in the wind (L3): Mesher marks the crosses that sway with the overlay bit and their phase in the AO
     // bits. Only top corners move (v = 0), so the stem stays planted; a slow gust wave rolls downwind across a meadow.
     bool sway = face == 6u && ((w1 >> 30) & 1u) == 1u;
-    if (sway && vv == 0u) rel.xz += plantSway(rel + u.eye.xyz, float(ao)) * smoothstep(0.3, 0.8, skyL);   // no wind in caves
+    // P281 (b): water plants (AO bits 3) drift with the current instead: every corner but the stalk's foot moves by a
+    // function of its world point only, so a kelp strand's stacked blocks bend as one and no joint opens.
+    if (sway && ao == 3u) rel.xz += waterDrift(rel + u.eye.xyz);
+    else if (sway && vv == 0u) rel.xz += plantSway(rel + u.eye.xyz, float(ao)) * smoothstep(0.3, 0.8, skyL);   // no wind in caves
     gl_Position = u.viewProj[gl_ViewIndex] * vec4(rel, 1.0);
     oUV = uv;
     oLayer = float(layer);
