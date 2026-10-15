@@ -247,7 +247,6 @@ enum Feedback {
             near = max(0, 1 - d / 12)
         }
         Subtitles.shared.add(g, s, at: pos)
-        Tutorial.sound(g, s, near: near > 0.55)
         let pm = PadManager.shared
         guard pm.connected && pm.usingPad && Settings.shared.rumble > 0 else { return }
         switch s {

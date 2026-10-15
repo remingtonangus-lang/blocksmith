@@ -48,12 +48,6 @@ enum VRCombatFeelTests {
             if !c.ok || !SoundBank.allSounds.contains(where: { $0.name == s.name }) { bad.append("\(s.name): " + c.problems.joined(separator: ", ")) }
         }
         check(bad.isEmpty, "combat feel: wind-up, parry clang, bow creak and nock sounds in the bank (\(bad.isEmpty ? "all 4" : bad.joined(separator: "; ")))")
-        let swing = VRMelee.swingTutorial.joined(separator: " "), reclined = VRMelee.reclinedTutorial.joined(separator: " ")
-        // Each line is one toast: it must fit the Quest HUD (1024 px at scale 2: 512 units, with its backing margin).
-        let widest = (VRMelee.swingTutorial + VRMelee.reclinedTutorial).map { Font.width($0) }.max() ?? 0
-        check(swing.contains("dodge") && swing.contains("parry") && reclined.contains("Melee") && widest <= 480
-              && Double(VRMelee.swingTutorial.count) * VRMelee.tutorialGap < 12,
-              "combat feel: the Swing tutorial teaches the dodge and the parry, the Reclined one where to switch; each toast fits (widest \(widest) of 480 units)")
         check(Float(Font.width(VRMelee.reclinedPostureHelp)) <= 2 * 232 / 0.85,
               "combat feel: the Lying Down View help (\(Font.width(VRMelee.reclinedPostureHelp)) units) fits the pause menu's two lines")
     }

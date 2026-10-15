@@ -87,8 +87,6 @@ enum QuestSettings {
     static var swingMode: Bool { get { bool("quest.swingMode", true) } set { store(newValue, "quest.swingMode") } }
     // The melee style before the Reclined posture switched it to Reclined (-1 none): turning the posture off restores it.
     static var swingBeforeReclined: Int { get { int("quest.swingBeforeReclined", -1) } set { store(newValue, "quest.swingBeforeReclined") } }
-    static var swingTutorialShown: Bool { get { bool("quest.swingTutorial", false) } set { store(newValue, "quest.swingTutorial") } }
-    static var reclinedTutorialShown: Bool { get { bool("quest.reclinedTutorial", false) } set { store(newValue, "quest.reclinedTutorial") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { store(newValue, "quest.leftHanded") } }
     // S7: controller preset: 0 Default, 1 Classic (stick walks, snap turns: no teleport, no smooth turning), 2 One Hand
     // (the dominant stick also walks; HandedInput). Dominant Hand (leftHanded) swaps the hands under any preset.

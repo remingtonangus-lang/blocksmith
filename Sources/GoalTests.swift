@@ -27,7 +27,7 @@ enum GoalTests {
             HudExtras.enabled = en0
         }
         HudExtras.enabled = true
-        st.tutorialHints = true; st.tutorialStep = Tutorial.steps
+        st.tutorialHints = true
         g.survival = true; g.advancements = []; g.paused = false
         // Hovering at noon, healthy: the banner check ticks the game for ten seconds.
         g.player.flying = true; g.player.vel = .zero; g.time = DAY_LENGTH * 0.25; g.health = 20; g.alive = true

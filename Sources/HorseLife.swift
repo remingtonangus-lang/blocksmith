@@ -260,7 +260,7 @@ extension Game {
         m.persistent = true
         m.stayAt = nil
         if m.customName == nil { m.customName = HorseLife.names[Rand.int(in: 0..<HorseLife.names.count)] }
-        onToast?("\(m.customName ?? "This horse") is your horse now: \(Prompt.g(.fly)) calls it")
+        onToast?("\(m.customName ?? "This horse") is your horse now")      // P300 (b)
     }
 
     // A Saddle Salve used on a downed horse (any of yours, or one lying near): true when used.

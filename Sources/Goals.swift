@@ -11,8 +11,8 @@ import simd
 //                       the Ash Chancellor (his ledger names the Capital's citadels)
 //   6 The Capital       storm a citadel, then break the Capital (three citadels cleared, or one by the Tidebreaker)
 // The reference chain (Ember Gate, Foundry, rods, eyes, the Stronghold, the Hollow, the Blight) is side content now.
-// A new goal shows for a few seconds in the tips slot with its stage and, where the target is known, a bearing to it
-// (the world map carries it as the "Next objective"); it stays at the top of the inventory screen. Steps are met by the
+// A new goal chimes; it shows at the top of the inventory screen with its stage and, where the target is known, a
+// bearing to it (the world map carries it as the "Next objective"); P300: never as a banner over play. Steps are met by the
 // saved advancements (the spine's own are granted by Spine.tick), or by what is carried for the first few; the goal is
 // the step after the furthest one met, so it never goes backwards. Off with the tips (Options > Accessibility >
 // Tutorial Hints) and in creative. `questcheck --firsthour-only` and the scripted playthrough check the path
@@ -80,7 +80,7 @@ enum Goals {
     // The stage (0...5) of a goal, nil for an unknown id.
     static func stage(_ id: String) -> Int? { all.first { $0.id == id }?.stage }
 
-    static var on: Bool { HudExtras.enabled && Settings.shared.tutorialHints && Settings.shared.tutorialStep >= Tutorial.steps }
+    static var on: Bool { HudExtras.enabled && Settings.shared.tutorialHints }
     // The next goal: the step after the furthest one met, so a skipped step (no night in a bed) never holds the goal
     // back once the player is past it (nil in creative or with the path walked).
     static func next(_ g: Game) -> Goal? {
@@ -122,8 +122,10 @@ enum Goals {
     static var head = "Next goal"      // with the stage, built when the goal changes (not every frame)
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         guard on, Tutorial.ownSeat(g), let n = current, g.alive, !WeaponWheel.shared.open else { return [] }
+        // P300 (b, d): no goal banner over play; the goal waits at the top of the inventory screen (a new one still
+        // chimes in Goals.tick).
         let inv = g.menu is InventoryMenu
-        guard inv || (g.menu == nil && g.clock - shownAt < 8) else { return [] }
+        guard inv else { return [] }
         // In the inventory: above its panel if there is room, else below it (the panel fills the headset's screen from
         // the top); the banner sits under any boss and alarm bars (Renderer: 19 px a bar from insetY + 12).
         let F = inv ? L.fitted(g.menu!) : L

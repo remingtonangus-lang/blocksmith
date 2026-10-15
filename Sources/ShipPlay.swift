@@ -286,7 +286,7 @@ extension Game {
         world.ships.aboard = s
         startPiloting(s)
         player.vel = s.velocity(at: player.pos)
-        if first { onToast?("You have taken command of the \(s.name)! \(Prompt.g(.sneak)) leaves the helm") }
+        if first { onToast?("You have taken command of the \(s.name)!") }      // P300 (b)
     }
 
     static var handsTold = false

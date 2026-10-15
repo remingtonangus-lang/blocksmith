@@ -157,7 +157,7 @@ enum Partner {
         if g.riding != nil { g.dismount() }
         pillion[seat(g)] = m
         g.sfx(.armorEquip(0), 0.5, at: m.pos)
-        g.onToast?("Riding behind your partner. Sneak to slide off")
+        g.onToast?("Riding behind your partner")         // P300 (b)
         return true
     }
 

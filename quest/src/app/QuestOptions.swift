@@ -88,8 +88,6 @@ enum QuestOptions {
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
             "host:touch": "Every Touch controller button and what it does.",
-            "host:lessons": "The lessons you have been shown, to read again.",
-            "q_resetlessons": "Every tip and lesson shows again from the start, as for a new player.",
             "q_bright": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
             "q_subs": "Shows captions for sounds, with the direction they come from (also in Options > Accessibility).",
             "q_menusize": "How big menus look in front of you (at the same distance): larger is easier to read, smaller keeps more of the world in view.",   // Q2c-console-49
@@ -106,7 +104,6 @@ enum QuestOptions {
                 return ("Touch Controls", sub, touchRowsHanded().map { ($0, "noop") } + [("Back to VR Comfort", "host:vr")])
             }
             if id == "setup" { return setupPage() }
-            if id == "lessons" { return lessonsPage() }
             guard id == "vr" else { return nil }
             let S = QuestSettings.self
             func on(_ b: Bool) -> String { b ? "On" : "Off" }
@@ -114,7 +111,6 @@ enum QuestOptions {
             let fovNote = hooks.foveated() || S.foveation == 0 ? "" : " (next launch)"
             var rows: [(String, String)] = [
                 ("Touch Controls...", "host:touch"),
-                ("Lessons...", "host:lessons"),                  // Q2c-console-43
                 ("First-Launch Setup...", "host:setup"),
                 ("Controls: \(presetName(S.controlPreset))", "q_preset"),
                 ("Turning: \(S.reclined ? "Snap (lying down)" : (S.smoothTurn ? "Smooth" : "Snap"))", "q_turn"),
@@ -151,30 +147,6 @@ enum QuestOptions {
             return ("VR Comfort & Controls", "Snap turning, teleport and a strong vignette are the gentlest", rows)
         }
         PauseMenu.hostAct = { id, back in act(id, back: back) }
-    }
-
-    // Q2c-console-43: the lessons seen so far, by name; pointing at one shows its text in the help line.
-    static func lessonsPage() -> (title: String, subtitle: String, rows: [(String, String)]) {
-        let C = ContextPrompts.self
-        guard Settings.shared.tutorialHints else {
-            return ("Lessons", "Tutorial Hints are off: turn them on in Options > Accessibility", [("Back to VR Comfort", "host:vr")])
-        }
-        func say(_ t: String) -> String { QuestSettings.leftHanded ? C.mirrorHands(t) : t }
-        var rows: [(String, String)] = []
-        var later = 0
-        for (l, title, text) in C.lessonInfo {
-            guard C.lessonSeen(l) else { later += 1; continue }
-            rows.append((title, "lesson:\(l.rawValue)"))
-            PauseMenu.hostHelp["lesson:\(l.rawValue)"] = say(text)
-        }
-        if Settings.shared.gunLesson {
-            rows.append(("Guns", "lesson:guns"))
-            PauseMenu.hostHelp["lesson:guns"] = say(C.gunLessonText)
-        } else { later += 1 }
-        if later > 0 { rows.append(("\(later) more come up as you play", "noop")) }
-        rows.append(("Reset Tutorial Hints", "q_resetlessons"))
-        rows.append(("Back to VR Comfort", "host:vr"))
-        return ("Lessons", rows.count > 3 ? "Point at one to read it again" : "None yet: they come up as you play", rows)
     }
 
     // The Touch layout (right-handed; Dominant Hand swaps the hands).
@@ -251,7 +223,6 @@ enum QuestOptions {
             if S.teleport && S.controlPreset == 1 { S.controlPreset = 0 }
         case "q_vig": S.vignette = step(vignettes, vignettes.min { abs($0 - S.vignette) < abs($1 - S.vignette) } ?? 0.6, back)
         case "q_subs": Settings.shared.subtitles.toggle()          // Q2c-console-53 (the Accessibility row's value)
-        case "q_resetlessons": if let g = hooks.game() { PauseMenu.resetHints(g) }
         case "q_minetoggle": S.mineToggle.toggle()
         case "q_ctrlhints": S.ctrlHints.toggle()
         case "q_knock":
@@ -345,7 +316,7 @@ enum QuestOptions {
         if QuestSettings.controlPreset == 2 { rows.insert("One Hand: R stick forward/back walks too", at: 1) }
         return QuestSettings.leftHanded ? rows.map { mirrorHands($0) } : rows
     }
-    // "Right" <-> "Left", A <-> X, B <-> Y as whole words (what the swapped hands press; shared with the lessons).
+    // "Right" <-> "Left", A <-> X, B <-> Y as whole words (what the swapped hands press).
     static func mirrorHands(_ s: String) -> String { ContextPrompts.mirrorHands(s) }
 
     // The first-launch setup (PauseMenu host page "setup"): shown once, over the first world, and from the VR page.
