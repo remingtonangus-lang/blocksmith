@@ -60,11 +60,12 @@ extension Game {
         defer { p.viewLastY = y; p.viewLastGround = p.onGround }
         if let m = riding {
             p.viewDY = m.viewDY; p.viewDV = m.viewDV
-            // Steady Saddle (the VR comfort page): the view follows the saddle's height through a second-order filter
+            // Steady Ride (the VR comfort page): the view follows the seat's height through a second-order filter
             // (its climb rate eased, then its position): a horse's jumps, bucks and hops barely lift or drop the
             // horizon, while a long climb or descent is followed with no lag (the eased rate matches the slope), so
             // the head never trails into a hillside. The offset is kept within 1.5 blocks (a jump's height).
-            if steadySaddle && m.gaited {
+            // Q2c-console-56: every mount, boats and minecarts too (a boat's chop and swell bobbed the horizon).
+            if steadySaddle {
                 let target = m.pos.y + m.viewDY
                 if let s = p.steadyY, abs(target - s) < 4 {
                     let v = (target - p.steadyLast) / max(dt, 1e-4)

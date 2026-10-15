@@ -309,7 +309,7 @@ final class Game {
     var restedAt: Double = -100          // last rest by a campfire (GameBlocks; T14: per world, was shared by every world)
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
     var vrTwoHanded = false            // VR: a long gun braced with both hands (VRTwoHand.swift)
-    var steadySaddle = false           // VR comfort: the view eases over a ridden horse's jumps and bucks (ViewStep.swift)
+    var steadySaddle = false           // VR comfort (Steady Ride): the view eases over a mount's or boat's hops and waves (ViewStep.swift)
     var swingPower: Float = 0          // Quest Swing melee: the blade hit swingMob this frame (VRMelee.power 0.6 ... 1.3); consumed by interact
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0

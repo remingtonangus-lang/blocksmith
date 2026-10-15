@@ -71,7 +71,7 @@ enum QuestOptions {
             "q_tspeed": "How fast smooth turning goes.",
             "q_move": "Smooth: the left stick walks. Teleport: push the left stick forward, aim the arc, release to jump there.",
             "q_vig": "Darkens the edges of the view while moving, turning, riding horses and riding ships. Higher is more comfortable.",
-            "q_saddle": "While riding a horse, the view eases over its jumps and bucks instead of following every hop.",
+            "q_saddle": "Riding a horse or another mount, a boat or a minecart, the view eases over jumps, bucks and waves instead of following every bob; real climbs and drops are still followed.",
             "q_chase": "Taking the controls of a ship, airship, crawler, drop craft or boat moves your view out behind it, like a chase camera; back to first person when you let go. Off keeps you in first person.",
             "q_shake": "The view jolts a little when the Tidebreaker fires and blasts land nearby. Off keeps the view still (the controllers still rumble).",
             "q_vib": "How strongly the Touch controllers vibrate: hits, mining, attacks, the bow, low health, explosions and menus. Off stops every buzz. Also in Options > Accessibility.",   // Q2c-console-35
@@ -121,7 +121,7 @@ enum QuestOptions {
                 ("Comfort Vignette: \(vignetteName(S.vignette))", "q_vig"),
                 ("Controller Vibration: \(Settings.shared.rumble == 0 ? "Off" : "\(Int((Settings.shared.rumble * 100).rounded()))%")", "q_vib"),
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
-                ("Steady Saddle: \(on(S.steadySaddle))", "q_saddle"),
+                ("Steady Ride: \(on(S.steadySaddle))", "q_saddle"),          // (Q2c-console-56: was Steady Saddle)
                 ("Blast Shake: \(on(S.blastShake))", "q_shake"),
                 ("Vehicle View: \(S.chaseView ? "Chase" : "First Person")", "q_chase"),
                 ("Seated Mode: \(on(S.seated))", "q_seated"),
