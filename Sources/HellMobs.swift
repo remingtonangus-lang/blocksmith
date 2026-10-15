@@ -60,6 +60,7 @@ extension MobKind {
     var orderRank: Int {
         switch self {
         case .brandSquire, .caveSpider: return 0          // P246: the Gravesworn fight as the order's squire and knight
+        case .vindicator: return 0                        // P272: the Brigand duels as a squire (guard, wind-up, stagger)
         case .brandKnight, .spider: return 1
         case .brandChampion: return 2
         case .brandCommander: return 3
