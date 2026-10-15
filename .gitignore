@@ -4,3 +4,4 @@ snaps/
 .cc/
 .DS_Store
 shots/
+tools/__pycache__/

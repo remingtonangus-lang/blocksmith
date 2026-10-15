@@ -19,6 +19,7 @@ struct Uniforms {
     var lightDir = V4(0, 1, 0, 0)
     var screen = V4(1, 1, 1, 1)
     var dimTint = V4(1, 1, 1, 0)
+    var swell = V4(0, 0, 0, 0)
 }
 struct SkyParams { var invViewProj: float4x4; var zenith: V4; var horizon: V4; var sun: V4 }
 
@@ -829,6 +830,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Dimension ambient colour: ember-warm in the Emberdeep, cool violet in the Hollow (night vision stays white).
             let dimC: V3 = game.dim.dim == .nether ? V3(1.0, 0.78, 0.68) : (game.dim.dim == .end ? V3(0.86, 0.8, 1.0) : V3(1, 1, 1))
             u.dimTint = V4(simd_mix(dimC, V3(1, 1, 1), V3(repeating: game.nightVision)), Settings.shared.lightBrightness)
+            u.swell = V4(Waves.shaderParam, 0, 0, 0)                                          // storm swell (Storms.swift)
             // Post: sun position for god rays, bloom, haze and grading.
             var pp = PostParams()
             // Eyes adapt at night: exposure rises as daylight falls (only with open sky above).
@@ -1149,6 +1151,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let right = V3(cosf(camYaw), 0, -sinf(camYaw))
                 let up = simd_normalize(simd_cross(right, camLook))
                 game.drops.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight, time: Float(game.clock))
+                if tp { game.writeHeldThirdPerson(&wr, eye: eye, daylight: daylight) }          // ItemModels.swift
+                game.writeHeldOtherSeats(&wr, eye: eye, daylight: daylight)
                 game.projectiles.write(&wr, eye: eye, world: game.world, daylight: daylight)
                 game.tnts.write(&wr, eye: eye, world: game.world, daylight: daylight)
                 game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
@@ -1171,6 +1175,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 // Blended pass: entity shadows, rain / snow / lightning glow, then the crack overlay.
                 game.writeShadows(&wr, eye: eye)
                 game.writeWeather(&wr, eye: eye)
+                game.writeWear(&wr, eye: eye)
                 // (A chipped block shows its missing pieces instead of the crack overlay.)
                 if let m = game.mining, game.mineProgress > 0, game.world.damageLevel(m) == 0 {
                     let layer = HudTex.destroy(Int(game.mineProgress * 10))
@@ -1298,7 +1303,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         // First-person arm + held item, squeezed into the front of the depth range so it never clips.
         // Both are written without per-vertex bounds checks, so the pass only runs when its worst case
         // (1024 arm / gun vertices + 64 held-item vertices) fits in what is left of the ring.
-        let firstPersonEnd = ((scratchOff + 255) & ~255) + 1024 * MemoryLayout<MobVert>.stride + 256 + 64 * MemoryLayout<EntityVert>.stride
+        let firstPersonEnd = ((scratchOff + 255) & ~255) + 1024 * MemoryLayout<MobVert>.stride + 256 + Renderer.heldVertCap * MemoryLayout<EntityVert>.stride
         if drawHUD && !game.hideHUD && !tp && game.menu == nil && game.sleeping == 0 && firstPersonEnd <= ringSize {
             var uh = u
             uh.viewProj = perspectiveRH(fovy: 70 * .pi / 180, aspect: W / max(H, 1), near: 0.01, far: 8)
@@ -1365,21 +1370,18 @@ final class Renderer: NSObject, MTKViewDelegate {
             enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: an)
             if !held.isEmpty && gunIndex == nil {
                 let itOff = (scratchOff + 255) & ~255
-                let itPtr = (scratch.contents() + itOff).bindMemory(to: EntityVert.self, capacity: 64)
-                var wr = EntityWriter(out: itPtr, capacity: 64)
+                let itPtr = (scratch.contents() + itOff).bindMemory(to: EntityVert.self, capacity: Renderer.heldVertCap)
+                var wr = EntityWriter(out: itPtr, capacity: Renderer.heldVertCap)
                 if let b = held.def.block, !Blocks.flatIcon(b) {
                     let t = Blocks.tint[Int(b)]
                     let tint = t == 1 || t == 3 ? V3(0.57, 0.74, 0.35) : (t == 2 ? V3(0.47, 0.67, 0.18) : V3(1, 1, 1))
                     wr.cube(center: base + V3(-0.02, 0.0, -0.05), half: 0.115, yaw: 0.8, block: b, light: light, tint: tint)
                 } else {
                     let layer = Items.texLayer(held.item) ?? Int(Blocks.tex[Int(held.def.block ?? 0) * 6])
-                    // Tools lean forward like they're gripped; two layers make the sprite look solid.
-                    let r = simd_normalize(V3(-0.25, 0.1, -1)), up = simd_normalize(V3(0.1, 1, -0.05))
-                    let c = base + V3(-0.02, 0.1, -0.1) + V3(0, 0, bowPull())
-                    for (i, off) in [Float(0), 0.02].enumerated() {
-                        let n = simd_normalize(simd_cross(r, up)) * off
-                        let k: Float = i == 0 ? 1 : 0.7
-                        wr.sprite(center: c + n, half: 0.2, right: r, up: up, layer: layer, light: light * k)
+                    if !writeHeldModel(&wr, held: held, layer: layer, base: base, light: light, swing: sw) {
+                        // No model for this layer (a texture built without one): the old card.
+                        let r = simd_normalize(V3(-0.25, 0.1, -1)), up = simd_normalize(V3(0.1, 1, -0.05))
+                        wr.sprite(center: base + V3(-0.02, 0.1, -0.1), half: 0.2, right: r, up: up, layer: layer, light: light)
                     }
                 }
                 if wr.n > 0 {
@@ -1631,7 +1633,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let base = V3(0xA0 / 255.0, 0x59 / 255.0, 0x2B / 255.0)
                     tint = V4(Float((c >> 16) & 255) / 255 / base.x, Float((c >> 8) & 255) / 255 / base.y, Float(c & 255) / 255 / base.z, 1)
                 }
-                quad(pts, uvs, tint, Float(layer))
+                // HD item art (ItemHD.swift) samples the mip chain (a 128 px icon shrunk to a slot aliased at level 0).
+                quad(pts, uvs, tint, Float(layer + (TextureGen.size > TextureGen.S ? 4096 : 0)))
                 // Live compass / clock: a needle toward spawn (or the lodestone / last death) or the time of day.
                 let ik = st.def.name
                 if ik == "compass" || ik == "clock" || ik == "recovery_compass" {
@@ -1656,13 +1659,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 if case let (ol, col)? = Items.overlayLayer(st.item) {
                     let t = TextureGen.hex(col)
-                    quad(pts, uvs, V4(t.x, t.y, t.z, 1), Float(ol))
+                    quad(pts, uvs, V4(t.x, t.y, t.z, 1), Float(ol + (TextureGen.size > TextureGen.S ? 4096 : 0)))
                 }
                 let k = st.def.name
                 if st.ench != 0 || k == "enchanted_golden_apple" || k == "experience_bottle" || k == "nether_star" || k == "enchanted_book" {
-                    // Enchantment glint: a pulsing violet sheen over the sprite.
-                    let a = 0.25 + 0.15 * sinf(Float(game.clock) * 3 + Float(x) * 0.01)
-                    quad(pts, uvs, V4(0.75, 0.35, 1, a), Float(layer))
+                    // Enchantment glint: a violet band sweeping across the icon's own shape (hudFS, layer + 8192; the
+                    // colour's alpha is the sweep phase).
+                    let phase = (Float(game.clock) * 0.45 + Float(x + y) * 0.0013).truncatingRemainder(dividingBy: 1)
+                    quad(pts, uvs, V4(0.72, 0.42, 1, phase), Float(layer + 8192))
                 }
             } else if let b = st.def.block {
                 icon(b, center: c, size: size * 0.78, quad)
@@ -2587,6 +2591,20 @@ final class Renderer: NSObject, MTKViewDelegate {
                 y += 10 * s
             }
         }
+        // Harness item sheet (--itemsheet, ItemSheet.swift): every item's icon in a grid on slot-grey tiles.
+        if let req = ItemSheet.request {
+            let list = ItemSheet.items(req.kind)
+            let cell = 16 * req.scale, gap = 2 * req.scale
+            rect(0, 0, W, H, V4(0.12, 0.12, 0.14, 1))
+            let cols = max(1, Int((W - gap) / (cell + gap))), rows = max(1, Int((H - gap) / (cell + gap)))
+            let start = req.page * cols * rows
+            for k in 0..<(cols * rows) where start + k < list.count {
+                let x = gap + Float(k % cols) * (cell + gap), y = gap + Float(k / cols) * (cell + gap)
+                rect(x, y, cell, cell, V4(0.55, 0.55, 0.57, 1))
+                rect(x + req.scale * 0.5, y + req.scale * 0.5, cell - req.scale, cell - req.scale, V4(0.42, 0.42, 0.45, 1))
+                itemIcon(list[start + k], x, y, cell, counts: false)
+            }
+        }
         return v
     }
 
@@ -2609,6 +2627,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             "Target \(tgt)",
             "\(p.flying ? "flying" : (p.onGround ? "on ground" : "in air"))\(p.inWater ? ", in water" : "")  Time \(String(format: "%02d:00", hour))  Controller \(game.padConnected ? "yes" : "no")",
             "Mobs: " + MobDrawStats.line + "  Fluid queue \(w.fluidPending.count)",
+            game.worldFXDebugLine(),
             String(format: "GPU %.1f ms  Graphics %@  Render scale %d%%", gpuFrameMs, game.fancyGraphics ? "Fancy" : "Fast", Int((game.renderScale * 100).rounded())),
             game.audioDebugLine(),
         ]
@@ -2680,6 +2699,27 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         let leftC: V4 = full * V4(0.78, 0.78, 0.78, 1), rightC: V4 = full * V4(0.6, 0.6, 0.6, 1)
         let backC: V4 = full * V4(0.38, 0.38, 0.38, 1)
+        // One-box icons get the item icons' frame (ItemHD): a soft drop shadow and a dark outline behind the cube.
+        let solo = order.count == 1 && !glassy && !leafy
+        if solo {
+            let lo: V3 = order[0].minV, hi: V3 = order[0].maxV
+            let hex: [V2] = [P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, lo.y, lo.z), P(hi.x, lo.y, hi.z), P(lo.x, lo.y, hi.z), P(lo.x, hi.y, hi.z)]
+            var ctr = V2(0, 0)
+            for v in hex { ctr += v }
+            ctr /= 6
+            let e: Float = max(1, sz * 0.035)
+            let grown: [V2] = hex.map { v in
+                let d = v - ctr, l = simd_length(d)
+                return l > 1e-4 ? v + d / l * e : v
+            }
+            let zero = [V2](repeating: .zero, count: 4)
+            let sh = V2(sz * 0.03, sz * 0.045)
+            let shadow: [V2] = grown.map { $0 + sh }
+            quad([shadow[0], shadow[1], shadow[2], shadow[3]], zero, V4(0, 0, 0, 0.28), -1)
+            quad([shadow[3], shadow[4], shadow[5], shadow[0]], zero, V4(0, 0, 0, 0.28), -1)
+            quad([grown[0], grown[1], grown[2], grown[3]], zero, V4(0.05, 0.04, 0.06, 0.92), -1)
+            quad([grown[3], grown[4], grown[5], grown[0]], zero, V4(0.05, 0.04, 0.06, 0.92), -1)
+        }
         for b in order {
             let lo: V3 = b.minV, hi: V3 = b.maxV
             let tl: Float = 1 - hi.y, bl: Float = 1 - lo.y          // v at the top and bottom of a side face
@@ -2710,6 +2750,15 @@ final class Renderer: NSObject, MTKViewDelegate {
             let tp: [V2] = [P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, hi.y, hi.z), P(lo.x, hi.y, hi.z)]
             let tu: [V2] = [V2(lo.x, lo.z), V2(hi.x, lo.z), V2(hi.x, hi.z), V2(lo.x, hi.z)]
             quad(tp, tu, topC, layer(2))
+            if solo {
+                // A lit rim along the top face's two front edges (the bevel highlight of the item icons).
+                let w: Float = max(0.8, sz * 0.022)
+                let a = tp[3], f = tp[2], r = tp[1], back = tp[0]
+                let inL: V2 = simd_normalize(back - a) * w, inR: V2 = simd_normalize(back - r) * w
+                let zero = [V2](repeating: .zero, count: 4)
+                quad([a, f, f + inL, a + inL], zero, V4(1, 1, 1, 0.22), -1)
+                quad([f, r, r + inR, f + inR], zero, V4(1, 1, 1, 0.14), -1)
+            }
         }
     }
 

@@ -62,6 +62,9 @@ grep '\*\*leak\*\*' snaps/gencheck.md 2>/dev/null | grep -o '`--snapshot [^`]*`'
   "$BIN" --snapshot "snaps/gencheck_leak_$k.png" $v --rd 4 || true
 done
 "$BIN" --collisiontest --out snaps/collisiontest.md --strict      # gating: 170 shapes, no issues on 076df09 (guards World.sweep)
+# Material damage and weather (WorldFXTest.swift): staged cracks, a burning house in a wind, a flood rising and
+# receding, snow piling up and melting, a ship rolling in a storm; shots fx_*.png, report snaps/fxtest.md.
+"$BIN" --snapshot snaps/fx_end.png --seed 12345 --time 0.3 --rd 8 --fxtest cracks,fire,flood,snow,storm,wildfire,shallows --out snaps
 "$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps --strict      # gating: every door entered (0 unmet on the 076df09 run)
 "$BIN" --agent explorer --seeds 12345,777 --ticks 3600 --out snaps
 "$BIN" --agent life --seeds 12345,777 --ticks 6600 --out snaps --strict      # gating: trade, sleep, the night passes (0 unmet on 076df09)
@@ -196,7 +199,23 @@ done
 "$BIN" --snapshot snaps/controls_ref.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --padview controls
 "$BIN" --snapshot snaps/tv_hud.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --survival 13 --slot 2 --pad --hints
 "$BIN" --snapshot snaps/furnace.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu furnace
+# Item art sheets (ItemSheet.swift): every icon through the HUD path, desktop (2x) and TV (4x at 1080p).
+"$BIN" --snapshot snaps/itemsheet_tools.png --seed 12345 --rd 2 --itemsheet tools:2
+"$BIN" --snapshot snaps/itemsheet_tools_tv.png --seed 12345 --rd 2 --w 1920 --h 1080 --itemsheet tools:4
+"$BIN" --snapshot snaps/itemsheet_items.png --seed 12345 --rd 2 --itemsheet items:2
+"$BIN" --snapshot snaps/itemsheet_items_tv_0.png --seed 12345 --rd 2 --w 1920 --h 1080 --itemsheet items:4:0
+"$BIN" --snapshot snaps/itemsheet_items_tv_1.png --seed 12345 --rd 2 --w 1920 --h 1080 --itemsheet items:4:1
+"$BIN" --snapshot snaps/itemsheet_blocks.png --seed 12345 --rd 2 --itemsheet blocks:2
+"$BIN" --snapshot snaps/itemsheet_enchanted_tv.png --seed 12345 --rd 2 --w 1920 --h 1080 --itemsheet enchanted:4
 "$BIN" --snapshot snaps/drops.png --seed 12345 --yaw 30 --pitch -30 --time 0.22 --up 1 --drops
+# Item models (ItemModels.swift): held in first person (tool, enchanted tool, food, bow), every tool tier dropped on a
+# stage in daylight, and dropped items in a torch-lit cave.
+"$BIN" --snapshot snaps/held_sword.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold iron_sword
+"$BIN" --snapshot snaps/held_pickaxe_ench.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold diamond_pickaxe:ench
+"$BIN" --snapshot snaps/held_apple.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold apple
+"$BIN" --snapshot snaps/held_bow.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold bow
+"$BIN" --snapshot snaps/dropgrid.png --seed 12345 --find plains --yaw 30 --pitch -32 --time 0.28 --up 1.6 --stage --dropgrid
+"$BIN" --snapshot snaps/drops_cave.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --torches --drops
 "$BIN" --snapshot snaps/subtitles.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --subtitles
 "$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8 --debug
 "$BIN" --snapshot snaps/sim.png --seed 12345 --sim 12 --yaw 30 --pitch -10 --time 0.25
@@ -289,6 +308,7 @@ done
 "$BIN" --snapshot snaps/beacon.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.55 --up 3 --beacon
 "$BIN" --snapshot snaps/rain.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --weather rain
 "$BIN" --snapshot snaps/thunder.png --seed 12345 --find plains --yaw 30 --pitch 5 --time 0.3 --up 1 --weather thunder
+"$BIN" --snapshot snaps/storm_sea.png --seed 12345 --find ocean --yaw 30 --pitch -8 --time 0.3 --up 4 --weather thunder
 "$BIN" --snapshot snaps/snowfall.png --seed 12345 --find snowy_plains --yaw 30 --pitch -5 --time 0.3 --up 1 --weather rain
 "$BIN" --snapshot snaps/animals1.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --spawn rabbit,fox,wolf,cat,horse,donkey,llama,goat,panda --stage
 "$BIN" --snapshot snaps/animals2.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --spawn polar_bear,turtle,frog,armadillo,sniffer,mooshroom,camel,wandering_trader --stage

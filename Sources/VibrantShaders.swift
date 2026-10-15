@@ -389,6 +389,7 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     float2 suv = in.pos.xy * u.screen.zw;
     float3 wp = in.rel + u.eye.xyz;
     float3 n = normalize(in.nrm);
+    float swellFoam = 0.0;
     if (in.face == 2.0) {
         float2 w1 = wp.xz * 0.8 + float2(t * 0.55, t * 0.3);
         float2 w2 = wp.xz * 2.1 - float2(t * 0.35, -t * 0.6);
@@ -406,6 +407,32 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
             float dd = length(dv);
             float ring = sin((dd - ph * 0.22) * 90.0) * (1.0 - ph) * (1.0 - smoothstep(0.0, 0.25, abs(dd - ph * 0.22) * 6.0));
             g += dv / max(dd, 1e-3) * ring * 0.12 * u.ambColor.w;
+        }
+        // Storm swell (Storms.swift Waves, swell.x = direction in whole degrees + sea state): the slopes of the same
+        // three travelling waves the ship physics floats on, steeper with the storm, whitecaps on the crests.
+        float sea = fract(u.swell.x);
+        if (sea > 0.01) {
+            // Shallow water (rivers, lakes, shore) heaves less, as the physics' open-water factor has it.
+            float dS = sdepth.sample(ls, suv);
+            float thickS = dS >= 1.0 ? 64.0 : max(0.0, length(relAt(suv, dS, u)) - dist);
+            sea *= 0.25 + 0.75 * smoothstep(2.0, 12.0, thickS);
+            float ang = floor(u.swell.x) * 0.00174533;           // tenths of a degree
+            float2 dir = float2(cos(ang), sin(ang));
+            float2 perp = float2(-dir.y, dir.x);
+            float along = dot(wp.xz, dir), across = dot(wp.xz, perp);
+            float p1 = along * 0.42 - t * 1.6, p2 = along * 0.7 + across * 0.33 - t * 2.3, p3 = across * 0.55 - t * 1.1 + 1.7;
+            float amp = sea * 1.4;
+            float2 grad = dir * (amp * 0.6 * 0.42 * cos(p1) + amp * 0.3 * 0.7 * cos(p2)) + perp * (amp * 0.3 * 0.33 * cos(p2) + amp * 0.2 * 0.55 * cos(p3));
+            // Half the true slope: at full slope the faces toward the camera mirrored the white storm sky in broad
+            // regular bands (fx_storm_ship, run 473); finer chop on top breaks them up.
+            float2 chopP = wp.xz * 1.3 + dir * t * 1.6;
+            float2 chop = (float2(vnoise(chopP), vnoise(chopP + 5.1)) - 0.5) * 0.12 * sea;
+            g -= (grad * 0.45 + chop) * (1.0 - 0.6 * smoothstep(48.0, 160.0, dist));
+            // Whitecaps: only the sharpest crests, torn into streaks along the wind (broad bands read as snow on the
+            // first storm shot).
+            float crest = smoothstep(0.9, 1.0, sin(p1) * 0.7 + sin(p2) * 0.3 + 0.05);
+            float broken = vnoise(float2(along * 0.6, across * 2.4) + float2(t * 1.2, 0.0)) * 0.6 + vnoise(wp.xz * 4.0 + dir * t) * 0.4;
+            swellFoam = crest * smoothstep(0.55, 0.85, broken) * smoothstep(0.3, 0.8, sea);
         }
         n = normalize(float3(g.x, 1.0, g.y));
     }
@@ -490,6 +517,7 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
         float foam = shore * shore * smoothstep(0.5, 0.85, fn + shore * 0.15);
         float3 foamLit = u.ambColor.rgb * skyC + u.sunColor.rgb * sunVis * 0.75 + blkL * float3(1.0, 0.82, 0.6) * 0.5;
         col = mix(col, foamLit * 0.85, foam * 0.5);
+        col = mix(col, foamLit * 0.9, swellFoam * 0.5);
     }
     float3 h = normalize(u.lightDir.xyz - v);
     float sp = pow(saturate(dot(n, h)), 500.0) * 7.0 + pow(saturate(dot(n, h)), 70.0) * 0.18;

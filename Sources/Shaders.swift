@@ -20,6 +20,7 @@ struct Uniforms {
     float4 lightDir;      // xyz = direction toward the light, w = time of day fraction
     float4 screen;        // xy = render size in pixels, zw = 1 / size
     float4 dimTint;       // rgb = colour of the dimension ambient lift (Fancy; white in the overworld)
+    float4 swell;         // x = storm swell (Storms.swift Waves.shaderParam: tenths of a degree * 10 + sea state)
 };
 
 struct ChunkOut {
@@ -542,7 +543,7 @@ fragment float4 mobFS(MobOut in [[stage_in]], constant Uniforms& u [[buffer(1)]]
 
 // Textured entities: dropped items (cutout) and the block-breaking crack overlay (blended).
 struct EntityVert { float4 pos; float4 uv; float4 color; };
-struct EntOut { float4 pos [[position]]; float2 uv; float layer [[flat]]; float4 color; float dist; float overlay [[flat]]; };
+struct EntOut { float4 pos [[position]]; float2 uv; float layer [[flat]]; float4 color; float dist; float overlay [[flat]]; float glint [[flat]]; };
 
 vertex EntOut entityVS(uint vid [[vertex_id]],
                        const device EntityVert* verts [[buffer(0)]],
@@ -555,6 +556,7 @@ vertex EntOut entityVS(uint vid [[vertex_id]],
     o.color = e.color;
     o.dist = length(e.pos.xyz);
     o.overlay = e.uv.z;
+    o.glint = e.uv.w;
     return o;
 }
 
@@ -562,10 +564,33 @@ fragment float4 entityFS(EntOut in [[stage_in]],
                          texture2d_array<float> tex [[texture(0)]],
                          constant Uniforms& u [[buffer(1)]]) {
     float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
+    float2 uvdx = dfdx(in.uv), uvdy = dfdy(in.uv);     // (before the discard: the item model faces' inner sample)
     if (c.a < 0.5) { discard_fragment(); }
     float3 rgb = c.rgb;
+    if (in.overlay < -0.5) {
+        // An item model's face: the icon's dark outline (there for the HUD) would read as a sticker's border on a 3D
+        // item, so within ~3 texels of the cutout edge take the colour 3 texels further in (the side walls carry the
+        // silhouette instead).
+        float2 px = 1.0 / float2(tex.get_width(), tex.get_height());
+        uint L = uint(in.layer);
+        float d = 3.0;
+        float aR = tex.sample(texSampler, in.uv + float2(px.x * d, 0), L).a, aL = tex.sample(texSampler, in.uv - float2(px.x * d, 0), L).a;
+        float aD = tex.sample(texSampler, in.uv + float2(0, px.y * d), L).a, aU = tex.sample(texSampler, in.uv - float2(0, px.y * d), L).a;
+        float2 g = float2(aR - aL, aD - aU);
+        bool edge = min(min(aR, aL), min(aD, aU)) < 0.5 && dot(g, g) > 1e-4;
+        // (The face's own gradients: the offset jumps between neighbouring pixels, so implicit derivatives picked a
+        // blurred mip right at the outline.)
+        float4 inner = tex.sample(texSampler, in.uv + (edge ? normalize(g) : float2(0.0)) * px * (d + 1.0), L, gradient2d(uvdx, uvdy));
+        if (edge && inner.a > 0.5) { rgb = inner.rgb; }
+    }
     if (in.overlay > 0.5 && c.a < 0.95) { rgb *= float3(0.57, 0.74, 0.35); }   // grass-side overlay (default grass colour)
-    float3 o = applyFog(rgb * in.color.rgb, in.dist, u);
+    rgb *= in.color.rgb;
+    if (in.glint > 0.5) {
+        // Enchantment glint on item models: violet light sweeping diagonally across the surface (ItemModels.swift).
+        float s = sin((in.uv.x + in.uv.y) * 6.0 - u.params.z * 3.0) * 0.5 + 0.5;
+        rgb += float3(0.5, 0.28, 1.0) * (0.12 + 0.55 * smoothstep(0.75, 1.0, s));
+    }
+    float3 o = applyFog(rgb, in.dist, u);
     return float4(u.eye.w < 0.5 ? filmic(o) : o, 1.0);   // Fancy shares this shader and tone-maps later
 }
 
@@ -597,6 +622,15 @@ fragment float4 hudFS(HudOut in [[stage_in]], texture2d_array<float> tex [[textu
     // chain, so a 128 px face shrunk to a ~35 px icon doesn't alias.
     float L = in.layer;
     float4 c;
+    if (L >= 8192.0) {
+        // Enchantment glint over an item icon (layer + 8192, mip sampled): a violet band sweeping across the icon's
+        // own shape; colour alpha carries the sweep phase (0...1 of a turn).
+        c = tex.sample(texSampler, in.uv, uint(L - 8192.0));
+        if (c.a < 0.5) { discard_fragment(); }
+        float s = sin((in.uv.x + in.uv.y) * 7.0 - in.color.a * 6.2831853) * 0.5 + 0.5;
+        float a = 0.16 + 0.5 * smoothstep(0.72, 1.0, s);
+        return float4(in.color.rgb, a);
+    }
     if (L >= 4096.0) { c = tex.sample(texSampler, in.uv, uint(L - 4096.0)); }
     else { c = tex.sample(texSampler, in.uv, uint(L), level(0.0)); }
     if (c.a < 0.1) { discard_fragment(); }

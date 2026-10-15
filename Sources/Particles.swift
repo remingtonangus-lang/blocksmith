@@ -25,6 +25,8 @@ final class ParticleManager {
     static var glowBoost: Float = 1
     // Active light flashes (explosions, muzzle flashes...) so smoke near them is lit, set by the renderer.
     static var flashes: [LightFlash] = []
+    // Rising smoke and flames lean with the weather's wind (set by the game, Storms.swift).
+    static var drift = V3(0, 0, 0)
 
     func add(_ p: Particle) { if list.count < ParticleManager.cap { list.append(p) } }
 
@@ -119,9 +121,14 @@ final class ParticleManager {
     }
 
     func update(_ dt: Float, _ w: World) {
+        let drift = ParticleManager.drift, k = min(1, dt * 0.8)
         for i in list.indices {
             list[i].life -= dt
             list[i].vel.y -= list[i].gravity * dt
+            if list[i].gravity < 0 && !list[i].collide {
+                list[i].vel.x += (drift.x - list[i].vel.x) * k
+                list[i].vel.z += (drift.z - list[i].vel.z) * k
+            }
             var np = list[i].pos + list[i].vel * dt
             if list[i].collide && Blocks.collide[Int(w.block(Int(floor(np.x)), Int(floor(np.y)), Int(floor(np.z))))] {
                 list[i].vel = V3(list[i].vel.x * 0.3, 0, list[i].vel.z * 0.3)

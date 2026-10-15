@@ -115,6 +115,8 @@ enum Mining {
         // removed both halves and dropped nothing, Quest v63).
         if gkey.hasSuffix("_bed_head") { return one(String(gkey.dropLast(5))) }
         switch gkey {
+        case "snow_layers_2": return one("snowball", 1 + stage / 2)      // the group's base state: layers 2...7
+        case "charcoal_block", "smoldering_charcoal": return one("charcoal", rnd(2, 4))
         case "wheat":
             return stage == 7 ? one("wheat") + one("wheat_seeds", 1 + binom(3, 0.5714)) : one("wheat_seeds")
         case "carrots": return one("carrot", stage == 7 ? 1 + binom(3, 0.5714) : 1)

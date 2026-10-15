@@ -131,6 +131,7 @@ enum Mesher {
         return chipTable[(f * 8 + lv) * 4 + Int(hash3(x, y, z, 0xD4A6) & 3)]
     }
 
+
     @inline(__always) static func faceUV(_ f: Int, _ x: Int, _ y: Int, _ z: Int) -> (Int, Int) {
         switch f {
         case 0: return (16 - z, 16 - y)

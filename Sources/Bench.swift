@@ -16,6 +16,10 @@ enum Bench {
     static var metrics: [String: Double] = [:]
     static var now: Double { CFAbsoluteTimeGetCurrent() }
 
+    // A/B switches for the flight memory gate (session H's item art and world-fx ticks off): --ab-noitemart, --ab-noworldfx.
+    static let abNoItemArt = CommandLine.arguments.contains("--ab-noitemart")
+    static let abNoWorldFX = CommandLine.arguments.contains("--ab-noworldfx")
+
     static func put(_ k: String, _ v: Double) { metrics[k] = (v * 1000).rounded() / 1000 }
 
     struct Dist { var mean = 0.0, p50 = 0.0, p95 = 0.0, p99 = 0.0, max = 0.0 }
@@ -62,7 +66,7 @@ enum Bench {
         guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); return 1 }
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
         let quick = CommandLine.arguments.contains("--quick")
-        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,ships,flight8,flight16,flight24"
+        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,weather,ships,flight8,flight16,flight24"
         let scenes = (arg("--scenes") ?? all).split(separator: ",").map(String.init)
         print("bench: device \(device.name), \(ProcessInfo.processInfo.activeProcessorCount) cores, seed \(seed)\(quick ? ", quick" : "")")
         if !scenes.allSatisfy({ $0.hasPrefix("flight") || $0.hasPrefix("route_") }) { calibrate() }
@@ -79,6 +83,7 @@ enum Bench {
             case "save": save(device, seed)
             case "tnt": tnt(device, seed)
             case "fluids": fluids(device, seed)
+            case "weather": weather(device, seed)
             case "ships": ships(device, seed)
             case "meshprof": meshLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case "genprof": genLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
@@ -518,6 +523,42 @@ enum Bench {
         print("bench fluids: tick p50 \(f(t.p50)) p95 \(f(t.p95)) max \(f(t.max)) ms, \(Int(sections)) sections re-meshed in 6 s, \(world.fluidPending.count) cells still pending")
     }
 
+    // A thunderstorm over a burning plank field in a gale (Storms / Fire / Flood.swift): whole game ticks at 60 Hz
+    // for 8 s with the flood model, snow passes, wind-driven fire and the decal cache all running.
+    static func weather(_ device: MTLDevice, _ seed: UInt64) {
+        let (world, game, pos) = setup(device, seed, rd: 6)
+        _ = world.loadSync(center: pos, radius: 6)
+        let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
+        let gy = world.topY(bx, bz) + 1
+        for dz in -20...20 { for dx in -20...20 { world.setBlockAsync(bx + dx, gy + 3, bz + dz, PLANKS) } }
+        for dz in stride(from: -20, through: 20, by: 4) { for dx in stride(from: -20, through: 20, by: 4) { world.placeFire(IVec3(bx + dx, gy + 4, bz + dz)) } }
+        for k in 0..<400 { world.chipAsync(IVec3(bx - 20 + k % 41, gy + 3, bz - 20 + k / 41), level: 1 + k % 7, face: 2) }
+        game.weather.raining = true; game.weather.rain = 1; game.weather.thundering = true; game.weather.thunder = 1
+        game.fx.storm = 1
+        world.fireStats = FireStats()
+        let dt = 1.0 / 60
+        var ticks: [Double] = []
+        let start = now
+        for i in 0..<480 {
+            game.player.pos = pos + V3(0, 12, 0)
+            let a = now
+            game.tick(dt)
+            var wr = EntityWriterProbe()
+            _ = wr.count(game, eye: game.player.eye)
+            ticks.append((now - a) * 1000)
+            let slack = start + Double(i + 1) * dt - now
+            if slack > 0 { usleep(useconds_t(slack * 1e6)) }
+        }
+        let t = dist(ticks)
+        put("weather.tick_ms", t, "p50,p95,max")
+        put("weather.fire_tick_ms_worst", world.fireStats.worstMs)
+        put("weather.fire_burning_peak", Double(world.fireStats.peak))
+        put("weather.flood_step_ms_worst", game.fx.flood.worstMs)
+        put("weather.storm_ms_worst", game.fx.stormWorstMs)
+        put("weather.decal_quads", Double(game.fx.decals.quads.count))
+        print("bench weather: tick p50 \(f(t.p50)) p95 \(f(t.p95)) max \(f(t.max)) ms, fire tick worst \(f(world.fireStats.worstMs)) ms (peak \(world.fireStats.peak) burning), flood step worst \(f(game.fx.flood.worstMs)) ms, \(game.fx.decals.quads.count) decal quads")
+    }
+
     static func save(_ device: MTLDevice, _ seed: UInt64) {
         let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("blocksmith-bench-\(getpid())", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -559,12 +600,20 @@ enum Bench {
         game.player.pos = pos
         game.player.yaw = -.pi / 2                                  // looking along +x, the flight direction
         game.player.pitch = -8 * .pi / 180
+        let m0 = residentMB()
         let a = now
         _ = world.loadSync(center: pos, radius: rd)
         let preload = now - a
+        let m1 = residentMB()
         guard let r = try? Renderer(device: device, game: game, colorFormat: .bgra8Unorm),
               let target = OffscreenTarget(device, 1280, 800) else { return }
         for _ in 0..<3 { _ = r.benchFrame(target) }
+        // Where the resident memory comes from (flight24's peak gate): the world before loading, the loaded chunks,
+        // the renderer (textures and their generation, item art, meshes uploaded).
+        let m2 = residentMB()
+        print(String(format: "bench flight%ld: resident %.0f MB at start, %.0f after loading, %.0f after the renderer", rd, m0, m1, m2))
+        put("flight\(rd).resident_after_load_mb", m1)
+        put("flight\(rd).resident_after_renderer_mb", m2)
         let dt = 1.0 / 60
         let frames = Int(seconds / dt)
         var tick: [Double] = [], enc: [Double] = [], gpu: [Double] = [], upd: [Double] = [], est: [Double] = [], cov: [Double] = [], cull: [Double] = []

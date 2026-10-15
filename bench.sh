@@ -15,7 +15,7 @@ rm -f snaps/bench_part_*.json
 if [[ " $* " == *" --scenes "* ]]; then
   run "$BIN" --bench snaps/bench_part_0.json "$@"
 else
-  run "$BIN" --bench snaps/bench_part_0.json --scenes gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,ships "$@"
+  run "$BIN" --bench snaps/bench_part_0.json --scenes gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,weather,ships "$@"
   for f in flight8 flight16 flight24; do
     run "$BIN" --bench "snaps/bench_part_$f.json" --scenes "$f" "$@"
   done

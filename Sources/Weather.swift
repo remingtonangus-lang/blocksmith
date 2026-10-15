@@ -55,7 +55,7 @@ extension Game {
     // Is (x,y,z) open to the sky (for rain)?
     func skyExposed(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { return false }
-        return y > Int(c.height[mod(x, CS) + mod(z, CS) * CS])
+        return y > Int(c.rainTop[mod(x, CS) + mod(z, CS) * CS])
     }
 
     func isRainingAt(_ p: V3) -> Bool {
@@ -77,6 +77,7 @@ extension Game {
         w.rain += ((w.raining ? 1 : 0) - w.rain) * min(1, dt * 0.2)
         w.thunder += ((w.raining && w.thundering ? 1 : 0) - w.thunder) * min(1, dt * 0.2)
         weather = w
+        if !Bench.abNoWorldFX { stormTick(dt) }
         for i in bolts.indices { bolts[i].life -= dt }
         bolts.removeAll { $0.life <= 0 }
         lightningFlash = max(0, lightningFlash - dt * 3)
@@ -88,7 +89,7 @@ extension Game {
                 for _ in 0..<Int(w.rain * 6) {
                     let x = Int(floor(pp.x)) + Rand.int(in: -8...8), z = Int(floor(pp.z)) + Rand.int(in: -8...8)
                     guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { continue }
-                    let top = Int(c.height[mod(x, CS) + mod(z, CS) * CS])
+                    let top = Int(c.rainTop[mod(x, CS) + mod(z, CS) * CS])
                     guard precipitation(x, top + 1, z) == 1 else { continue }
                     let p = V3(Float(x) + Rand.float(in: 0...1), Float(top + 1) + 0.02, Float(z) + Rand.float(in: 0...1))
                     particles.add(Particle(pos: p, vel: V3(Rand.float(in: -0.4...0.4), Rand.float(in: 0.8...1.6), Rand.float(in: -0.4...0.4)),
@@ -103,7 +104,8 @@ extension Game {
             coop.eachSeat(self) { if self.onFire > 0 && self.isRainingAt(self.player.pos) { self.onFire = 0 } }   // each player
             for m in mobs.mobs where m.fire > 0 && isRainingAt(m.pos) { m.fire = 0 }
         }
-        // Lightning: roughly every 5-20 s somewhere within 96 blocks during a thunderstorm.
+        // Lightning: roughly every 5-20 s somewhere within 96 blocks during a thunderstorm, on the tallest thing about
+        // (Storms.swift); dry country gets dry lightning (no rain to put the fires out).
         if w.thunder > 0.5 {
             lightningTimer -= dt
             if lightningTimer <= 0 {
@@ -112,9 +114,10 @@ extension Game {
                 var x = Int(floor(player.pos.x + cosf(a) * d)), z = Int(floor(player.pos.z + sinf(a) * d))
                 // Lightning rods within 128 blocks attract it (reference: strikes the rod instead).
                 if let rod = lightningRods.first(where: { abs($0.x - x) < 64 && abs($0.z - z) < 64 }) { x = rod.x; z = rod.z }
+                else if world.isLoaded(x, z) { (x, z) = lightningTarget(near: x, z) }
                 if world.isLoaded(x, z) {
-                    let y = world.topY(x, z)
-                    if precipitation(x, y, z) == 1 { strike(V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5)) }
+                    let y = world.rainTopY(x, z)
+                    if precipitation(x, y, z) != 2 { strike(V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5)) }
                 }
             }
         }
@@ -131,9 +134,10 @@ extension Game {
         if d > 72 { sfx(.thunderFar, max(0.4, 1.2 - d / 300)) } else { sfx(.thunder, max(0.3, 1.4 - d / 120), at: d < 32 ? at : nil) }
         if d < 24 { sfx(.lightning, 1.2, at: at) }
         let b = IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z)))
-        if world.block(b.x, b.y, b.z) == AIR && Blocks.opaque[Int(world.block(b.x, b.y - 1, b.z))] && Blocks.flammable[Int(world.block(b.x, b.y - 1, b.z))] == false {
-            world.placeFire(b)
-        } else if world.block(b.x, b.y, b.z) == AIR { world.placeFire(b) }
+        if !lightningOnShips(at) {
+            world.placeFire(b)          // air or grass and flowers (placeFire takes any replaceable, non-liquid cell)
+            lightningFires(at)
+        }
         // Whichever player stands under it (split screen: player 2 too).
         coop.eachSeat(self) {
             guard self.survival && simd_length(at - self.player.pos) < 3 else { return }
@@ -162,13 +166,12 @@ extension Game {
         guard wetWorld else { return }
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
         let r = min(6, world.renderDistance)
-        let snowId: BlockID? = Blocks.has("snow") ? Blocks.id("snow") : nil
         let iceId: BlockID? = Blocks.has("ice") ? Blocks.id("ice") : nil
         for dz in -r...r { for dx in -r...r where Rand.int(in: 0..<16) == 0 {
             guard let c = world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
             let lx = Rand.int(in: 0..<16), lz = Rand.int(in: 0..<16)
             let x = c.cx * CS + lx, z = c.cz * CS + lz
-            let y = Int(c.height[lx + lz * CS])
+            let y = Int(c.rainTop[lx + lz * CS])
             guard y > 0 && y < CH - 1 else { continue }
             let top = world.block(x, y, z)
             let biome = world.gen.column(x, z).biome
@@ -179,14 +182,11 @@ extension Game {
                 }
                 continue
             }
-            // Water surfaces freeze (not next to light); snow settles while it snows.
+            // Water surfaces freeze (not next to light). Snow piles up and melts in snowTick (Storms.swift).
             // Water freezes from the shore inwards: a source with some side that isn't water (reference).
             let shore = world.block(x + 1, y, z) != WATER || world.block(x - 1, y, z) != WATER || world.block(x, y, z + 1) != WATER || world.block(x, y, z - 1) != WATER
             if top == WATER, shore, let ice = iceId, world.lightAt(x, y + 1, z).block < 10 {
                 world.setBlockAsync(x, y, z, ice)
-            } else if weather.rain > 0.5, let sn = snowId, world.block(x, y + 1, z) == AIR,
-                      Blocks.opaque[Int(top)] || Blocks.key(top).hasSuffix("_leaves"), world.lightAt(x, y + 1, z).block < 10 {
-                world.setBlockAsync(x, y + 1, z, sn)
             }
         } }
     }
@@ -202,7 +202,7 @@ extension Game {
             for dz in -10...10 { for dx in -10...10 where dx * dx + dz * dz <= 100 {
                 let x = ex + dx, z = ez + dz
                 guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { continue }
-                let top = Float(Int(c.height[mod(x, CS) + mod(z, CS) * CS]) + 1)
+                let top = Float(Int(c.rainTop[mod(x, CS) + mod(z, CS) * CS]) + 1)
                 let yLo = max(top, eye.y - 10), yHi = eye.y + 12
                 guard yHi > yLo else { continue }
                 let kind = precipitation(x, Int(top), z)
@@ -220,6 +220,9 @@ extension Game {
                     if simd_length(c3) < 1.5 { continue }
                     if snow {
                         c3.x += sinf(t * 1.3 + h * 10 + Float(k)) * 0.3
+                        // Drift with the wind (flakes fall at 2 b/s, so they lean far in a gale).
+                        let fall = yHi - y
+                        c3 += V3(fx.wind.x, 0, fx.wind.z) * min(0.5, fall * 0.04) * 0.25
                         // Bigger with distance so far flakes stay a pixel or two instead of vanishing (snowfall read as
                         // about thirty stray sparkles: blind critic, run 364).
                         let s: Float = max(0.07, simd_length(c3) * 0.005)
@@ -230,9 +233,11 @@ extension Game {
                         let len: Float = min(0.9, span)
                         let r = right * 0.012
                         let lum = 0.35 + 0.65 * daylight
+                        // Streaks lean with the wind (drops fall at 14 b/s: the top trails upwind).
+                        let lean = V3(-fx.wind.x, 0, -fx.wind.z) * (len / 14)
+                        let up3 = V3(0, len, 0) + lean
                         let uv = EntityWriter.fullUV
-                        let top = V3(0, len, 0)
-                        wr.quad4(c3 - r, c3 + r, c3 + r + top, c3 - r + top, uv.0, uv.1, uv.2, uv.3, layer, V4(0.8 * lum, 0.85 * lum, 0.95 * lum, a))
+                        wr.quad4(c3 - r, c3 + r, c3 + r + up3, c3 - r + up3, uv.0, uv.1, uv.2, uv.3, layer, V4(0.8 * lum, 0.85 * lum, 0.95 * lum, a))
                     }
                 }
             } }

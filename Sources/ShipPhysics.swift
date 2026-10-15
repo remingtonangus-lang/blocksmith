@@ -74,12 +74,8 @@ extension ShipManager {
     func update(_ dt: Float, game: Game?) {
         riderStamp += 1
         if !ghosts.isEmpty { ghosts = ghosts.map { ($0.0, $0.1 - dt) }.filter { $0.1 > 0 } }
-        if let game {
-            // Wind turns slowly over the days; rain and thunder strengthen it.
-            let a = Float((game.time / 900).truncatingRemainder(dividingBy: 2 * .pi)) + Float(world.seed % 628) / 100
-            let strength: Float = 5 + 4 * game.weather.rain + 5 * game.weather.thunder
-            wind = V3(cosf(a), 0, sinf(a)) * strength
-        }
+        // The weather's wind (Storms.swift: turns over the days, rain and thunder strengthen it, storms gust).
+        if let game { wind = game.fx.wind }
         if encounters, let game { encounterTick(dt, game: game) }
         if let game { capitalTick(dt, game: game) }
         if list.isEmpty { return }
@@ -378,7 +374,8 @@ extension ShipManager {
         var sub: Float = 0
         for b in s.buckets {
             let wp = s.toWorld(b.centre)
-            guard let top = rd.waterTop(wp) else { continue }
+            guard let calm = rd.waterTop(wp) else { continue }
+            let top = calm + Waves.height(wp.x, wp.z)         // storm swell (Storms.swift): hulls roll and pitch
             let f = min(1, max(0, (top - (wp.y - b.height * 0.5)) / b.height))
             if f <= 0 { continue }
             let v = b.volume * f
@@ -402,6 +399,13 @@ extension ShipManager {
         // fuselage alone meets the air head-on.
         airLocal[fwdAxis] *= s.flight?.kind == .plane ? 0.15 : 0.6
         F -= s.dirToWorld(airLocal)
+        // In a storm the wind leans on the hull and rigging (above the waterline, so it heels the ship too).
+        if Waves.amp > 0.05 && sub > 0 {
+            let rel = V3(wind.x - s.vel.x, 0, wind.z - s.vel.z)
+            let side: Float = (s.area.x + s.area.z) * 0.5
+            let push: V3 = rel * (simd_length(rel) * side * 0.0012 * min(1, Waves.amp))
+            apply(push, at: s.pos + s.dirToWorld(V3(0, 1.5, 0)))
+        }
         s.angVel *= expf(-(sub > 0 ? 0.4 : 0.8) * h)
 
         let up = s.dirToWorld(V3(0, 1, 0))

@@ -34,6 +34,39 @@ struct EntityWriter {
     static let fullUV = (V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0))
     static let cubeShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
 
+    // A whole-texture quad from four corners (counter-clockwise from the bottom left), without arrays: for per-frame
+    // decal batches (Wear.swift).
+    mutating func quad(_ a: V3, _ b: V3, _ c: V3, _ d: V3, _ layer: Int, _ color: V4) {
+        guard n + 6 <= capacity else { return }
+        let l = Float(layer)
+        let va = EntityVert(pos: V4(a, l), uv: V4(0, 1, 0, 0), color: color)
+        let vc = EntityVert(pos: V4(c, l), uv: V4(1, 0, 0, 0), color: color)
+        out[n] = va
+        out[n + 1] = EntityVert(pos: V4(b, l), uv: V4(1, 1, 0, 0), color: color)
+        out[n + 2] = vc
+        out[n + 3] = va
+        out[n + 4] = vc
+        out[n + 5] = EntityVert(pos: V4(d, l), uv: V4(0, 0, 0, 0), color: color)
+        n += 6
+    }
+
+    // The same with explicit texture coordinates (item model side walls) and the enchantment glint flag (uv.w).
+    // kind (uv.z): -1 an item model's face (entityFS fills the icon's outline band with the colour just inside it).
+    mutating func quad(_ a: V3, _ b: V3, _ c: V3, _ d: V3, _ ua: V2, _ ub: V2, _ uc: V2, _ ud: V2, _ layer: Int, _ color: V4,
+                       glint: Float = 0, kind: Float = 0) {
+        guard n + 6 <= capacity else { return }
+        let l = Float(layer)
+        let va = EntityVert(pos: V4(a, l), uv: V4(ua.x, ua.y, kind, glint), color: color)
+        let vc = EntityVert(pos: V4(c, l), uv: V4(uc.x, uc.y, kind, glint), color: color)
+        out[n] = va
+        out[n + 1] = EntityVert(pos: V4(b, l), uv: V4(ub.x, ub.y, kind, glint), color: color)
+        out[n + 2] = vc
+        out[n + 3] = va
+        out[n + 4] = vc
+        out[n + 5] = EntityVert(pos: V4(d, l), uv: V4(ud.x, ud.y, kind, glint), color: color)
+        n += 6
+    }
+
     // Axis-aligned textured cube (block icon in the world), faces shaded like terrain.
     mutating func cube(center c: V3, half h: Float, yaw: Float, block b: BlockID, light: Float, tint: V3 = V3(1, 1, 1)) {
         let cy = cosf(yaw), sy = sinf(yaw)
@@ -55,7 +88,8 @@ struct EntityWriter {
     // Flat sprite facing the camera (both sides visible: drawn without culling).
     mutating func sprite(center c: V3, half h: Float, right r: V3, up u: V3, layer: Int, light: Float, tint: V3 = V3(1, 1, 1)) {
         let rr = r * h, uu = u * h
-        quad([c - rr - uu, c + rr - uu, c + rr + uu, c - rr + uu], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, V4(tint * light, 1))
+        let uv = EntityWriter.fullUV
+        quad4(c - rr - uu, c + rr - uu, c + rr + uu, c - rr + uu, uv.0, uv.1, uv.2, uv.3, layer, V4(tint * light, 1))
     }
 }
 
@@ -105,6 +139,8 @@ final class ItemEntity {
 final class ItemEntityManager {
     var items: [ItemEntity] = []
     private var mergeTimer: Float = 0
+    private var nearIdx: [Int] = []
+    private var modelled: [Bool] = []
 
     // Dropped items are saved with their dimension (drops.json): they lived only in memory, so quitting before going
     // back for the things dropped at a death lost them all.
@@ -206,7 +242,19 @@ final class ItemEntityManager {
     }
 
     func write(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3, world: World, daylight: Float, time: Float) {
-        for e in items {
+        // Item models (ItemModels.swift) for the nearest 32 within 24 blocks (both faces only past 12), sprites beyond.
+        // (Scratch buffers kept between frames: no per-frame allocation.)
+        nearIdx.removeAll(keepingCapacity: true)
+        for (k, e) in items.enumerated() where simd_length_squared(e.pos - eye) < 24 * 24 { nearIdx.append(k) }
+        if nearIdx.count > 32 {
+            let its = items
+            nearIdx.sort { simd_length_squared(its[$0].pos - eye) < simd_length_squared(its[$1].pos - eye) }
+            nearIdx.removeLast(nearIdx.count - 32)
+        }
+        if modelled.count < items.count { modelled = [Bool](repeating: false, count: max(64, items.count * 2)) }
+        for k in nearIdx { modelled[k] = true }
+        defer { for k in nearIdx { modelled[k] = false } }
+        for (idx, e) in items.enumerated() {
             let bob = sinf(e.age * 2.5 + e.spin) * 0.06 + 0.12
             let c = e.pos + V3(0, bob, 0) - eye
             let l = world.lightAt(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.2)), Int(floor(e.pos.z)))
@@ -215,15 +263,48 @@ final class ItemEntityManager {
             let fill: Float = max(0.08, MobLight.fill * near)
             let light = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             let copies = e.stack.count > 32 ? 3 : (e.stack.count > 1 ? 2 : 1)
+            // Readable from the sofa: past 10 blocks items grow, up to 1.35x at 24 and beyond (at 20 blocks a dropped
+            // item was ~16 px tall on a 1080p TV).
+            let grow: Float = 1 + 0.35 * Terrain.smooth(10, 24, simd_length(c))
             for k in 0..<copies {
-                let off = V3(Float(k) * 0.06, Float(k) * 0.05, Float(k) * -0.05)
+                // (Raised as it grows, so the bottom stays above the ground.)
+                let off = V3(Float(k) * 0.06, Float(k) * 0.05 + (grow - 1) * 0.22, Float(k) * -0.05)
                 if let b = e.stack.def.block, !Blocks.flatIcon(b) {
                     let t = Blocks.tint[Int(b)]
                     let tint = t == 1 || t == 3 ? V3(0.57, 0.74, 0.35) : (t == 2 ? V3(0.47, 0.67, 0.18) : V3(1, 1, 1))
-                    wr.cube(center: c + off, half: 0.125, yaw: e.age * 1.5 + e.spin, block: b, light: light, tint: tint)
+                    wr.cube(center: c + off, half: 0.125 * grow, yaw: e.age * 1.5 + e.spin, block: b, light: light, tint: tint)
                 } else {
                     let layer = Items.texLayer(e.stack.item) ?? Int(Blocks.tex[Int(e.stack.def.block ?? 0) * 6])
-                    wr.sprite(center: c + off + V3(0, 0.05, 0), half: 0.2, right: right, up: up, layer: layer, light: light)
+                    var drawn = false
+                    if modelled[idx] && ItemModels.has(layer) {
+                        // The face toward the viewer, rocking gently through +-50 degrees (a full spin showed every item
+                        // edge-on, a thin line, half the time), leaned back 18 degrees so the top catches the light. Tools
+                        // lie level (the icon's handle-to-head diagonal horizontal), not stood on the handle's tip
+                        // (blind critic, dropped round 1).
+                        let face = atan2f(-c.x, -c.z)
+                        let yaw = face + 0.85 * sinf(e.age * 1.1 + e.spin) + Float(k) * 0.35
+                        let tool = ItemModels.isTool(e.stack.def)
+                        let s: Float = (tool ? 0.46 : 0.42) * grow
+                        let rt = V3(cosf(yaw), 0, -sinf(yaw))
+                        let back = V3(-sinf(yaw), 0, -cosf(yaw))
+                        let lean: Float = 0.31
+                        let upv = V3(0, cosf(lean), 0) + back * sinf(lean)
+                        let fwd = simd_cross(rt, upv)
+                        let r2: Float = 0.70710678
+                        let ax = (tool ? (rt - upv) * r2 : rt) * s, ay = (tool ? (rt + upv) * r2 : upv) * s, az = fwd * s
+                        let full = simd_length_squared(c) < 12 * 12
+                        // Close over the ground, a gentle bob (the general 0.06-0.18 hover left the 3D items floating
+                        // well above their shadows: blind critic, dropped round 2): a level tool's middle 0.05-0.1 up,
+                        // an upright item's 0.2-0.25 (about its half height).
+                        let rest: Float = tool ? 0.075 : 0.225
+                        let hover: Float = rest + sinf(e.age * 2.5 + e.spin) * 0.025 - bob
+                        drawn = ItemModels.write(&wr, layer: layer, o: c + off + V3(0, hover, 0), ax: ax, ay: ay, az: az, light: light,
+                                                 glint: e.stack.ench != 0, full: full, overlay: ItemModels.overlay(e.stack.item))
+                    }
+                    if !drawn {
+                        // Far away, or the model still being built (ItemModels.quads).
+                        wr.sprite(center: c + off + V3(0, 0.05 * grow, 0), half: 0.2 * grow, right: right, up: up, layer: layer, light: light)
+                    }
                 }
             }
         }
