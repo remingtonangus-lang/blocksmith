@@ -228,3 +228,9 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
     fixed by 2e844e5). No mob change in this batch touches crew; the check now prints the worst moment (tick,
     ship-space position vs post, aggro / free / route / ground, ship speed). Next push runs `[fast: --ridecheck
     --scenes crew]` for the read-out.
+- 2026-10-15: integration session resumed (fresh week). Heavy run 770 (5cd19c5): checks red (structcheck floating 2:
+  a jungle temple over a mineshaft gap, a capital city's trim over 5 of air; underground kinds and the fixed
+  strongholds now build before surface structures, so foundations pillar down through their corridors), play red
+  (Blight: 30 damage from 388 arrows with the player seeing it; the first six shots are now traced), tours red
+  (ridecheck crew: freed crew of a wrecked crawler walked down its lowered ramp, now any step down is a ledge to them;
+  rulescheck water case was a test flaw: the floating pad's own edges are drops, checked after 6 ticks now).

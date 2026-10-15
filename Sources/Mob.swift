@@ -1036,9 +1036,12 @@ final class Mob {
             // and normalizing those gave NaN, which trapped in the collision test (Int(floor(NaN)); level frigate decks).
             if (crewPost != nil || crewFree || !crewRoute.isEmpty) && onGround && lv.x * lv.x + lv.z * lv.z > 1e-6 {
                 // Crew never step off a ledge of their vehicle: no floor within three blocks where the next step lands.
+                // Freed crew of a disabled vehicle stay on their deck level: any step down is a ledge to them (they
+                // walked down the lowered ramp onto the ground: ridecheck crew, 851 crew-ticks off, run on 5cd19c5).
                 let h = simd_normalize(V2(lv.x, lv.z))
                 let a = l + V3(h.x, 0, h.y) * (halfW + 0.35)
-                if !w.collides(V3(a.x - 0.2, a.y - 3, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2)) { lv.x = 0; lv.z = 0 }
+                let reach: Float = crewFree && crewRoute.isEmpty ? 0.45 : 3
+                if !w.collides(V3(a.x - 0.2, a.y - reach, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2)) { lv.x = 0; lv.z = 0 }
             }
             hit = w.moveBody(&l, halfW: halfW, height: height, lv * dt, step: 0.6, onGround: onGround)
             w.frame = nil

@@ -1271,8 +1271,28 @@ final class Playthrough {
                 // Bow while it's unarmoured.
                 let h0 = b.health
                 let here = game.player.pos
+                let before = Set(game.projectiles.arrows.map { ObjectIdentifier($0) })
                 shoot(at: b, from: here)
-                _ = tick(0.4, pin: here)
+                if arrows < 6 {
+                    // Trace the first shots: draw speed, closest approach to the Blight's body, where the arrow ended.
+                    let fresh = game.projectiles.arrows.first { !before.contains(ObjectIdentifier($0)) }
+                    let speed0 = fresh.map { simd_length($0.vel) } ?? -1
+                    var closest: Float = 999
+                    for _ in 0..<8 {
+                        _ = tick(0.05, pin: here)
+                        if let a = fresh {
+                            let c = b.pos + V3(0, b.height / 2, 0)
+                            closest = min(closest, simd_length(a.pos - c))
+                        }
+                    }
+                    let endAt = fresh.map { "\($0.pos)" } ?? "none"
+                    let blk = fresh.map { baseKey(world.block(Int(floor($0.pos.x)), Int(floor($0.pos.y)), Int(floor($0.pos.z)))) } ?? "-"
+                    info(String(format: "blight shot %ld: arrow %@, speed %.1f, closest %.2f to its middle, stuck %@, dead %@, ends %@ in %@; blight %ld -> %ld, inv %.2f, at %@ (h %.1f, half-width %.2f)",
+                                arrows, fresh == nil ? "MISSING" : "flew", speed0, closest, fresh?.stuck == true ? "yes" : "no", fresh?.dead == true ? "yes" : "no",
+                                endAt, blk, h0, b.health, b.invulnerable, "\(b.pos)", b.height, b.halfW))
+                } else {
+                    _ = tick(0.4, pin: here)
+                }
                 arrows += 1
                 arrowDmg += max(0, h0 - b.health)
             } else if armoredArrows < 3 {

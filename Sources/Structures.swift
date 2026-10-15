@@ -177,8 +177,15 @@ final class StructureCache {
         for z in (cz - r)...(cz + r) { for x in (cx - r)...(cx + r) where legacy.contains(StructureCache.key(x, z)) { return false } }
         return true
     }
+    // Underground kinds build first (and the fixed strongholds before every type): built after a temple or a city, a
+    // mineshaft or stronghold corridor cut the ground out from under its foundations (structcheck floating, run on
+    // 5cd19c5: a jungle temple over a 4-high gap, a capital city's trim over 5 of air). Built before, the surface
+    // foundations pillar down through the corridor instead.
+    static let underground: Set<String> = ["mineshaft", "ancient_city", "trial_chambers"]
+    private let buildOrder: [StructureType]
     init(seed: UInt64, types: [StructureType], fixed: [StructureStart] = []) {
         self.seed = seed; self.types = types; self.fixed = fixed
+        buildOrder = types.filter { StructureCache.underground.contains($0.name) } + types.filter { !StructureCache.underground.contains($0.name) }
     }
 
     // The structure start in the region containing chunk (rx, rz) for a type, if any.
@@ -229,17 +236,18 @@ final class StructureCache {
         var mobs: [(String, V3)] = []
         blocks.withUnsafeMutableBufferPointer { buf in
             var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
-            for t in types {
+            let bx = cx * CS, bz = cz * CS
+            for s in fixed where s.max.x >= bx && s.min.x < bx + CS && s.max.z >= bz && s.min.z < bz + CS {
+                for p in s.pieces where p.overlaps(bx, bz) { p.build(&w) }
+            }
+            for k in 0..<(CS * CS) { w.low.y[k] = Int.max }
+            for t in buildOrder {
                 for s in startsNear(cx: cx, cz: cz, t) {
                     for p in s.pieces where p.overlaps(cx * CS, cz * CS) { p.build(&w) }
                     // Village houses on slopes get foundations; their paths and bridges never dam rivers.
                     if let d = StructureCache.fillDepth[s.kind] { w.fillUnder(depth: d, surface: COBBLE, intoWater: s.kind != "village") }
                     else { for k in 0..<(CS * CS) { w.low.y[k] = Int.max } }
                 }
-            }
-            let bx = cx * CS, bz = cz * CS
-            for s in fixed where s.max.x >= bx && s.min.x < bx + CS && s.max.z >= bz && s.min.z < bz + CS {
-                for p in s.pieces where p.overlaps(bx, bz) { p.build(&w) }
             }
             ents = w.entities
             mobs = w.mobs
