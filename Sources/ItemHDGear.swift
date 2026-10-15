@@ -27,20 +27,23 @@ extension ItemHD {
             cv.add(rect(cv, 0.26, 0.38, 0.74, 0.47), xs, M("leather", ex["s"] ?? 0x3A3E44), r: 0.03)
             cv.add(cap(cv, V2(0.33, 0.26), V2(0.67, 0.26), 0.025), xs, "copper", r: 0.02)
         case "mechanism":
-            // A trigger group: receiver block, trigger, a brass gear and a spring.
-            cv.add(rect(cv, 0.14, 0.28, 0.86, 0.56), ys, M("metal", base), r: 0.04)
-            cv.add(cv.poly(band(V2(0.42, 0.56), V2(0.38, 0.74), V2(0.52, 0.84), 0.07, 0.03, 10)), xs, M("metal", darker(base, 0.7)), r: 0.025)
-            let gc = V2(0.68, 0.42)
+            // A trigger group: receiver block with a trigger in a guard, a brass gear and a spring (it read as a thin
+            // grey card with a hair of a trigger at slot size).
+            cv.add(rect(cv, 0.08, 0.24, 0.92, 0.6), ys, M("metal", base), r: 0.05)
+            cv.add(ring(ellipse(cv, V2(0.4, 0.72), 0.16, 0.12), 0.03), xs, M("metal", darker(base, 0.7)), r: 0.03)
+            cv.add(cv.poly(band(V2(0.36, 0.58), V2(0.33, 0.72), V2(0.43, 0.8), 0.09, 0.04, 10)), xs, M("metal", darker(base, 0.6)), r: 0.03)
+            let gc = V2(0.7, 0.42)
+            let brass = M("metal", ex["c"] ?? 0xC8A24A)
             for k in 0..<8 {
                 let a: Float = Float(k) * Float.pi / 4
-                let tip: V2 = gc + V2(cosf(a), sinf(a)) * 0.13
-                cv.add(cap(cv, gc, tip, 0.03), ys, M("metal", ex["c"] ?? 0xC8A24A), r: 0.02)
+                let tip: V2 = gc + V2(cosf(a), sinf(a)) * 0.17
+                cv.add(cap(cv, gc, tip, 0.038), ys, brass, r: 0.025)
             }
-            cv.add(cv.circle(gc, 0.09), ys, M("metal", ex["c"] ?? 0xC8A24A), r: 0.05)
-            cv.add(cv.circle(gc, 0.03), ys, M("metal", darker(base, 0.5)), r: 0.02)
+            cv.add(cv.circle(gc, 0.12), ys, brass, r: 0.06)
+            cv.add(cv.circle(gc, 0.04), ys, M("metal", darker(base, 0.5)), r: 0.02)
             for k in 0..<4 {
-                let x0: Float = 0.22 + Float(k) * 0.07
-                cv.add(cap(cv, V2(x0, 0.34), V2(x0 + 0.05, 0.5), 0.016), xs, "iron", r: 0.015)
+                let x0: Float = 0.16 + Float(k) * 0.08
+                cv.add(cap(cv, V2(x0, 0.31), V2(x0 + 0.06, 0.52), 0.02), xs, "iron", r: 0.018)
             }
         case "optic":
             // A rifle scope: tube, objective bell, a cyan lens, turret and mount.
