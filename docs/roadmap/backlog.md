@@ -1023,6 +1023,13 @@ Q2c-console-62. [DONE] Sudden relocations fade in (an ender pearl landing, a por
  (e) Respawns and dimension changes get it as well, softening the cut from the death and loading screens.
  (f) Two jumps close together (a portal straight into a fall respawn) make one fade, never a flicker.
  Done Oct 15 (console; quest/src/app/QuestControls.swift): (a) QuestControls.relocateFade, drawn by screenEffects as a full-view black tint at its value; (b) afterTick compares the feet after Game.tick with lastFeet (taken at the end of update, before the tick) and sets the fade to 1 past 3 blocks; it falls at 4 a second (0.25 s); (c) at 72 Hz even a 42 b/s frigate moves 0.6 blocks a frame; the teleport locomotion moves the feet inside update, before lastFeet, so it is not counted; (d) it is a tint independent of QuestSettings.vignette; (e) respawn, dimension changes and a freshly loaded world (lastFeet starts at the origin) all exceed 3 blocks; (f) a new jump just sets the value back to 1, one continuous fade.
+Q2c-console-63. [CLAIMED console 2026-10-15] No stack thrown away by a stray pull in the headset's inventory (the inventory window floats in a larger panel; a trigger pull with the laser just off the window, moving a stack between chest and pack, threw the whole carried stack out into the world, near lava or a cliff gone for good).
+ (a) Intent (Q2 c, nothing lost to one stray click): dropping items from a screen is always deliberate in the headset.
+ (b) While a stack is on the cursor, a "Drop" box shows in the panel's margin to the right of the window, labelled, with the stack's count.
+ (c) Only a pull inside that box throws the stack out (the grip throws one, as before); a pull anywhere else off the window does nothing and the stack stays on the cursor.
+ (d) The box lights up while the laser is on it.
+ (e) A screen too wide to leave room for the box (the crafting book at large sizes) simply can't drop by clicking off it in the headset; closing a screen still puts a carried stack back in the pack.
+ (f) The Mac is unchanged: clicking outside the window drops, as in the reference game.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
