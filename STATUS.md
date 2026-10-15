@@ -27,16 +27,18 @@ add docs/status/<stream>.md and a link here.
 > compiler, so only docs/assets were touched (assets/gemini/processed holds 128 px imports, not adopted; brick/plank
 > sheets need a re-roll). Resume from the HANDOFF, BUGS.md and the Playtest feedback queue.
 
-## HANDOFF (2026-10-05 ~12:35 UTC, integration session stopped: usage nearly gone)
-- Pushed as a WIP batch (not compile-checked by CI yet): fidelity rounds 5 (enchantments / movement) and 6 (mobs /
-  animals), stonecutter paging, and waterlogging (twin states: Blocks.registerWaterlogged, World.storedState / wetFloor,
-  Mesher water in twin cells, buckets, placement, sponge, saveKey). A subagent hazard audit of waterlogging was still
-  running and did NOT report: first job next session is to read the fast lane, fix compile errors, then re-audit twins
-  (name->id maps, liquid checks in mining/raycast, Circuit/Pathfinding treating twins as water).
-- Run 692 (1b8f474) heavy: play red (Blight fight dealt/took 0; player stood outside the cleared arena, moved to +10.5,
-  sight diagnostic added) and tours red (ridecheck crew trooper 3.96 off post 0; diagnostic added; this push runs
-  `[fast: --ridecheck --scenes crew]`). Not done: StructWriter waterlogging (gencheck leak risk), PR #9 body update
-  (draft in the session scratchpad, rounds 5-6 + waterlogging; re-write from STATUS.md rounds if lost).
+## HANDOFF (2026-10-15 ~23:25 UTC, integration session, resumed for a fresh week)
+- Run 770 (5cd19c5) red items and their fixes: structcheck floaters (underground structures build first, 0430fec),
+  ridecheck crew off a wrecked crawler's ramp (0430fec), ride troops cutting the engine corner (waypoints at 0.3,
+  local), rulescheck water test flaw (0430fec), villagers waking in bed every few ticks (6404a6d; most of the behaviour
+  sim's 41 stuck / 6 spinning). Playthrough Blight (30 damage from 388 arrows, neither side's projectiles land): the
+  first six shots are traced in the fast lane of 6404a6d (`[fast: --playthrough --only blight]`); read focus.log.
+- Waterlogging audit (8 gameplay bugs, no crashes) fixed locally: slab merge, pistons, ship assembly/docking, copper,
+  burning, Silk Touch panes, soldier line of sight; dispensers and save migration too; rulescheck cases added.
+- PR #9 body condensed; full history in docs/status/pr9-whats-new.md.
+- Blocked: Session L's USB controller patches (5) sit on Remington's Mac (~/ClaudeTools/projects/blocksmith-qa/
+  usb-gip-patches/); asked him to push them to a branch or paste them.
+- Fidelity audit round 7 (anvil, enchanting table, brewing, food) running as a subagent.
 
 ## HANDOFF (2026-10-03 ~12:00 UTC, builder session parked by Remington; supersedes the notes below)
 
