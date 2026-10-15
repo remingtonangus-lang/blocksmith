@@ -92,6 +92,8 @@ enum TownLaw {
         var garage: [String]? = nil                  // D44: garaged vehicles ("name|ships json, base64#fuel")
         var vaultObj: [String: Int]? = nil           // D47: Vault side objectives
         var tracked: String? = nil                   // D51: the one target the HUD marker and beacon follow ("kind|key")
+        var beds: [[Int]]? = nil                     // P284 (a): both halves of every bed that is yours (placed or bought)
+        var innRoom: [Int]? = nil                    // P284 (c): the hotel room paid for [x, y, z of the inn, night]
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -114,6 +116,7 @@ enum TownLaw {
         Honour.challengedVisit = nil; Honour.changedAt = -100; Honour.delta = 0; Honour.lastToast = -100
         Honour.lastWhy = ""; Honour.outlawSpotted = nil
         offences = 0; lastTick = -1; sleptBeds = [:]
+        ownBeds = []; builtBed = [:]                    // P284
         lastShot = nil; Jail.passPack = false; TownLines.forget()          // R20
         TownConquest.reset(); TownConquest.wary = []
         GangLeaders.spawnedHere = []                    // D26
@@ -131,6 +134,7 @@ enum TownLaw {
     static func save(_ d: inout [String: String]) {
         compactPlaced(4096)
         state.placed = placedOrder.map { [$0.x, $0.y, $0.z] }
+        state.beds = ownBeds.isEmpty ? nil : ownBeds.map { [$0.x, $0.y, $0.z] }          // P284 (a)
         if let e = try? JSONEncoder().encode(state), let s = String(data: e, encoding: .utf8) { d["townLaw"] = s }
     }
     static var worldSeed: UInt64?                  // the world this state belongs to (a new world starts clean)
@@ -141,6 +145,7 @@ enum TownLaw {
             state = st
             placedOrder = st.placed.compactMap { $0.count == 3 ? IVec3($0[0], $0[1], $0[2]) : nil }
             placedSet = Set(placedOrder)
+            ownBeds = Set((st.beds ?? []).compactMap { $0.count == 3 ? IVec3($0[0], $0[1], $0[2]) : nil })     // P284 (a)
         }
     }
 
@@ -209,12 +214,65 @@ enum TownLaw {
 
     // P59: sleeping in a town bed that isn't yours (not one you placed, not a town you own) costs honour, once a night
     // per bed; taking the bed is already an offence (property, broke()).
+    // P284 (Oct 14 19:38, "I slept in my own bed, and they didn't like that"): placing a bed never told the town it was
+    // yours (Game.placeBed skipped TownLaw.placed), so a bed he set down in town was charged as someone else's.
+    // (a) Beds remember their owner: both halves of a bed you place are yours (saved with the world, never forgotten
+    // like the capped placed-block list), as are beds in a house you bought (Property). (b) Only a bed the town built
+    // costs honour. (c) The saloon bed in the town where you paid for a room is yours that night. (d) Old saves never
+    // recorded placed beds: a bed the village did not generate at that spot is yours (TownLaw.townBuiltBed), and it is
+    // claimed the first time you sleep in it.
     static var sleptBeds: [IVec3: Int] = [:]
     static let bedHonour: Float = -3
+    static var ownBeds = Set<IVec3>()
+    static var builtBed: [IVec3: Bool] = [:]        // townBuiltBed answers (generation never changes)
+
+    // Both halves of the bed at p (just p when the block there is not a bed, or when `b` names it).
+    static func bedHalves(_ g: Game, _ p: IVec3, _ b0: BlockID? = nil) -> [IVec3] {
+        let b = b0 ?? g.world.block(p.x, p.y, p.z)
+        guard Int(b) < VillageLife.bedAny.count, VillageLife.bedAny[Int(b)] else { return [p] }
+        let facing = Int(b - Blocks.groupBase[Int(b)])
+        let dirs = [IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(1, 0, 0), IVec3(-1, 0, 0)]
+        guard facing >= 0 && facing < 4 else { return [p] }
+        return [p, VillageLife.bedHead[Int(b)] ? p - dirs[facing] : p + dirs[facing]]
+    }
+    // P284 (a): the player set this bed down (Game.placeBed) or it came with something he paid for.
+    static func claimBed(_ g: Game, _ p: IVec3) {
+        for h in bedHalves(g, p) { ownBeds.insert(h) }
+    }
+    static func bedIsYours(_ g: Game, _ p: IVec3) -> Bool {
+        var halves = bedHalves(g, p)
+        if halves.count == 1 { halves += [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].map { p + $0 } }  // not loaded: either side
+        if halves.contains(where: { ownBeds.contains($0) || placedSet.contains($0) || Property.owns($0) }) { return true }
+        // (c) The room you paid for: the bed in that saloon (the keeper's back corner) is yours until sunrise.
+        if let r = state.innRoom, r.count == 4, r[3] == Int(g.time / DAY_LENGTH) {
+            let dx = Float(p.x - r[0]), dz = Float(p.z - r[2])
+            if abs(dx) <= 12 && abs(dz) <= 12 && abs(p.y - r[1]) <= 6 { return true }
+        }
+        // (d) Not a bed the town built here: one you set down (an old save that never wrote it down).
+        if !halves.contains(where: { townBuiltBed(g, $0) }) { claimBed(g, p); return true }
+        return false
+    }
+    // The village generated a bed at p: rebuild its pieces over p's chunk into a scratch column and look.
+    static func townBuiltBed(_ g: Game, _ p: IVec3) -> Bool {
+        if let f = forceTown { return f }                                   // tests: every spot is the town's
+        if let known = builtBed[p] { return known }
+        guard p.y >= 0 && p.y < CH, let sc = g.world.gen.structures,
+              let s = sc.nearest("village", x: p.x, z: p.z, maxRegions: 1) else { return false }
+        let cx = floorDiv(p.x, CS), cz = floorDiv(p.z, CS)
+        var scratch = [BlockID](repeating: AIR, count: CS * CS * CH)
+        var built = false
+        scratch.withUnsafeMutableBufferPointer { buf in
+            var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
+            for pc in s.pieces where pc.overlaps(cx * CS, cz * CS) { pc.build(&w) }
+            built = VillageLife.bedAny[Int(w.get(p.x, p.y, p.z))]
+        }
+        builtBed[p] = built
+        return built
+    }
     static func sleptIn(_ g: Game, _ p: IVec3) {
-        let halves = [p, p + IVec3(1, 0, 0), p - IVec3(1, 0, 0), p + IVec3(0, 0, 1), p - IVec3(0, 0, 1)]
-        guard g.survival, !halves.contains(where: { placedSet.contains($0) }), isTownOwned(g, p) else { return }
+        guard g.survival, isTownOwned(g, p) else { return }
         guard !TownConquest.owns(Townsfolk.town(g, at: V3(Float(p.x), Float(p.y), Float(p.z)))) else { return }
+        guard !bedIsYours(g, p) else { return }                             // P284 (b)
         let night = Int(g.time / DAY_LENGTH)
         guard sleptBeds[p] != night else { return }
         sleptBeds[p] = night
@@ -249,6 +307,13 @@ enum TownLaw {
     // A town container costs what taking its contents would (less what the player put in), at least 1.
     static func broke(_ g: Game, _ p: IVec3, _ b: BlockID) {
         guard Int(b) < property.count, property[Int(b)] else { return }
+        if VillageLife.bedAny[Int(b)] {                                     // P284 (a): a bed you took up is no longer yours
+            let halves = bedHalves(g, p, b)
+            if halves.contains(where: { ownBeds.contains($0) }) {
+                for h in halves { ownBeds.remove(h); placedSet.remove(h) }
+                return
+            }
+        }
         if placedSet.remove(p) != nil { return }
         guard g.survival, isTownOwned(g, p) else { return }
         var heat: Float = 1

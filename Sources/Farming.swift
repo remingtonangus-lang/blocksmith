@@ -528,6 +528,9 @@ extension Game {
         let headBase = Blocks.id(Blocks.key(base) + "_head")
         world.setBlock(foot.x, foot.y, foot.z, base + BlockID(facing))
         world.setBlock(head.x, head.y, head.z, headBase + BlockID(facing))
+        // P284 (a): the bed is yours wherever it stands, and in town neither half is the town's to miss.
+        TownLaw.claimBed(self, foot)
+        TownLaw.placed(self, foot); TownLaw.placed(self, head)
         return true
     }
 
