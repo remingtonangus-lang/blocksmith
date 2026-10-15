@@ -1872,6 +1872,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                     var t = im.query.isEmpty && !im.searching ? "Search..." : im.query + caret
                     while textWidth(t, s) > Float(sb.w - 4) * s && t.count > 1 { t.removeFirst() }
                     text(t, x + 2 * s, y + 3 * s, s, im.query.isEmpty && !im.searching ? V4(0.85, 0.85, 0.85, 1) : V4(1, 1, 0.7, 1))
+                    // Q2c-console-21: Sort, beside Search.
+                    if let so = im.slots.first(where: { if case .button(let i) = $0.kind { return i == InventoryMenu.sortBtn } else { return false } }) {
+                        let sx = o.x + Float(so.x) * s, sy = o.y + Float(so.y) * s
+                        let done = game.clock - im.sortedAt < 1.2
+                        rect(sx, sy, Float(so.w) * s, Float(so.h) * s, game.menuHover === so ? MenuColors.hover : (done ? V4(0.2, 0.42, 0.22, 1) : V4(0.36, 0.36, 0.4, 1)))
+                        let lb = done ? "Done" : "Sort"
+                        text(lb, sx + (Float(so.w) * s - textWidth(lb, s)) / 2, sy + 3 * s, s, V4(0.95, 0.95, 0.95, 1))
+                    }
                     if !im.query.isEmpty {
                         let n = im.slots.filter { $0.isPlayerInv && im.matches($0.stack) }.count
                         text(n == 0 ? "Not carried" : "\(n) found", o.x + 97 * s, o.y + 46 * s, s, n == 0 ? V4(0.6, 0.12, 0.1, 1) : V4(0.1, 0.42, 0.12, 1), shadow: false)

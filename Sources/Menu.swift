@@ -353,12 +353,20 @@ final class InventoryMenu: Menu, HasRecipeBook {
     let book = RecipeBook(size: 2)
     var craftGrid: ItemContainer { craft.grid }
     static let searchBtn = 480          // outside the recipe book's 490..<600 range (it rebuilds those)
+    static let sortBtn = 481            // Q2c-console-21
+    var sortedAt: Double = -10
     var query = ""                     // search: matching slots light up, the rest dim (Renderer)
     var searching = false
     override var capturesText: Bool { searching }
     override func typed(_ s: String) { searching = ItemSearch.type(s, into: &query) }
     func matches(_ st: ItemStack) -> Bool { !st.isEmpty && ItemSearch.matches(st.item, query) }
     override func buttonPressed(_ i: Int) {
+        if i == InventoryMenu.sortBtn {
+            InventoryMenu.sortPack(game.inventory.main)
+            sortedAt = game.clock
+            game.sfx(.pageTurn, 0.5)
+            return
+        }
         if i == InventoryMenu.searchBtn {
             searching.toggle()
             if !searching { query = "" }
@@ -374,8 +382,10 @@ final class InventoryMenu: Menu, HasRecipeBook {
         for i in 0..<4 { slots.append(MenuSlot(8, 8 + i * 18, game.inventory.armor, i, .armor(ArmorSlot(rawValue: i)!))) }
         slots.append(MenuSlot(77, 62, game.inventory.offhand, 0))
         // No 2x2 grid (recipe-book crafting only): the Craft button opens the crafting book.
-        let sb = MenuSlot(97, 62, nil, 0, .button(InventoryMenu.searchBtn)); sb.w = 72; sb.h = 14
+        let sb = MenuSlot(97, 62, nil, 0, .button(InventoryMenu.searchBtn)); sb.w = 46; sb.h = 14
         slots.append(sb)
+        let so = MenuSlot(145, 62, nil, 0, .button(InventoryMenu.sortBtn)); so.w = 24; so.h = 14       // Q2c-console-21
+        slots.append(so)
         addPlayerInventory()
         showInventoryLabel = false
         // Only the book button: crafting by recipe is the crafting book's job (LB/RB or the button open it).
@@ -384,6 +394,38 @@ final class InventoryMenu: Menu, HasRecipeBook {
     }
     override func changed() { craft.update() }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? { craft.take() }
+
+    // Q2c-console-21: the pack (not the hotbar) sorted, identical stacks merged up to their stack size.
+    static func category(_ s: ItemStack) -> Int {
+        let d = s.def, k = Items.key(s.item)
+        if Guns.index(s.item) != nil || d.tool != .none || k.hasSuffix("_sword") || ["bow", "crossbow", "trident", "shield", "mace"].contains(k) { return 0 }
+        if d.armorSlot != nil { return 1 }
+        if d.food != nil { return 2 }
+        if Guns.ammo.contains(where: { $0.0 == k }) || k == "arrow" || k.hasSuffix("_arrow") { return 3 }
+        if d.block != nil { return 4 }
+        return 5
+    }
+    static func sortPack(_ c: ItemContainer) {
+        var merged: [ItemStack] = []
+        for i in 9..<c.count where !c[i].isEmpty {
+            var left = c[i]
+            for j in merged.indices where left.count > 0 {
+                var a = merged[j], b = left
+                a.count = 1; b.count = 1
+                guard a == b else { continue }
+                let move = min(max(0, merged[j].def.maxStack - merged[j].count), left.count)
+                merged[j].count += move; left.count -= move
+            }
+            if left.count > 0 { merged.append(left) }
+        }
+        merged.sort {
+            let ca = category($0), cb = category($1)
+            if ca != cb { return ca < cb }
+            let na = $0.displayName, nb = $1.displayName
+            return na != nb ? na < nb : $0.count > $1.count
+        }
+        for i in 9..<c.count { c[i] = i - 9 < merged.count ? merged[i - 9] : .empty }
+    }
     override func quickMoveTargets(from: MenuSlot) -> [MenuSlot] {
         if from.isPlayerInv, let a = from.stack.def.armorSlot {
             let t = slots.filter { if case .armor(let s) = $0.kind { return s == a && $0.stack.isEmpty } else { return false } }
