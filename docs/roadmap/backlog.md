@@ -975,6 +975,13 @@ Q2c-console-56. [DONE] Boats stop rocking the view (a small boat rides the chop 
  (e) Only the view is steadied: the boat still visibly rides the waves under him, and the view never strays more than a block and a half from the seat.
  (f) Ships at the helm or on deck keep their own comfort (the deck ring and the eased heave of P261), unchanged.
  Done Oct 15 (console; Sources/ViewStep.swift, Game.swift, quest/src/app/QuestOptions.swift): (a) Game.updateViewStep's steadying now runs for whatever he rides; (b) the m.gaited condition is gone, so a boat's heave (chop and swell) goes through the second-order filter (rate eased at 3/s, position at 2/s) that follows real climbs without lag; (c) pigs, striders, llamas, camels, minecarts and coach seats likewise; (d) the row reads "Steady Ride" (QuestSettings.steadySaddle, the same saved key, so a player's choice carries over), with a help line naming horses, mounts, boats and minecarts; the Comfort presets still switch it; (e) the filter offsets only the view (p.viewDY) and clamps it to 1.5 blocks from the seat; the boat's motion is untouched; (f) ships are not riding (world.ships.aboard/pilot paths), so their deck ring and P261 heave smoothing are unchanged.
+Q2c-console-57. [CLAIMED console 2026-10-15] A world's statistics (nothing recorded what he had done in a world beyond the advancements: how long he had played it, how far he had gone, how much he had mined, built, fought, crafted and eaten; a store player likes to look back at a world's story).
+ (a) Intent (Q2 c, ready to sell): each world keeps a short, satisfying record of his play.
+ (b) Pause > Statistics lists this world's time played, days survived, distance on foot and riding, blocks mined and placed, creatures defeated, deaths, items crafted, food eaten and fish caught.
+ (c) Numbers read naturally: "3 h 12 min", "12.4 km", "1,204".
+ (d) Saved with the world, each world its own; a world from before this shows what has happened since (and its days from its own clock).
+ (e) Counting costs nothing noticeable: a few additions per event, the distance once per game tick.
+ (f) The page fits on one screen with a Back row, and its subtitle names the world.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
