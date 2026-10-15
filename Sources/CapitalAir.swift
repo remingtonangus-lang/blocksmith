@@ -45,11 +45,13 @@ extension Game {
     }
 
     // The highest ground, crown or building top in a disc (a 7 x 7 grid of samples).
-    private func groundTop(around c: V3, radius: Float) -> Float {
+    // With `outside`, samples inside that citadel's site are skipped (its buildings aren't under the circle).
+    private func groundTop(around c: V3, radius: Float, outside site: BaseRecord? = nil) -> Float {
         var top: Float = 0
         for j in -3...3 {
             for i in -3...3 {
                 let x = Int(floor(c.x + Float(i) * radius / 3)), z = Int(floor(c.z + Float(j) * radius / 3))
+                if let st = site, abs(x - st.cx) < CapitalBase.A + 2 && abs(z - st.cz) < CapitalBase.A + 2 { continue }
                 let h = world.isLoaded(x, z) ? world.topY(x, z) : world.gen.column(x, z).height
                 top = max(top, Float(max(h, SEA)))
             }
@@ -147,14 +149,20 @@ extension Game {
             else if t > 120 { ph = 4; t = 0; b.note("\(r.key) kestrel turned back (\(Int(flat)) blocks short)") }
         case 3:
             // Circles the spot (the citadel itself on lockdown) for 40 s, as long as the lockdown lasts.
-            let centre = lockdown ? r.centre : goal
+            // A noise by the walls: the circle is moved out until it clears the site by 4 (circling over the walls put
+            // its height over the citadel's, 52 blocks above a player at the noise).
+            var centre = lockdown ? r.centre : goal
+            if !lockdown {
+                let out = simd_normalize(V3(goal.x - r.centre.x, 0, goal.z - r.centre.z) + V3(1e-3, 0, 0))
+                for _ in 0..<12 where max(abs(centre.x - r.centre.x), abs(centre.z - r.centre.z)) - 10 < Float(CapitalBase.A + 4) { centre += out * 2 }
+            }
             // Low and tight over a noise (the door gunners' rifles reach about 26 blocks); wide over the citadel.
             let radius: Float = lockdown ? 50 : 10
             let a = t * (lockdown ? 0.22 : 0.35)
             let p = centre + V3(cosf(a) * radius, 0, sinf(a) * radius)
             // Over a noise: 10 over the highest ground or crown anywhere under the circle (taken along the short leg to
             // the next point only, a taller tree beside it caught the 19-block hull and it never got home: basetest air).
-            let alt: Float = lockdown ? airCruise(r, k.pos, p, clear: 22) : groundTop(around: centre, radius: radius + 10) + 10
+            let alt: Float = lockdown ? airCruise(r, k.pos, p, clear: 22) : groundTop(around: centre, radius: radius + 8, outside: r) + 10
             fm.hold = V3(p.x, alt, p.z); fm.holdSpeed = 9
             if t > 40 && !lockdown { ph = 4; t = 0; b.note("\(r.key) kestrel heading back") }
         case 4:
