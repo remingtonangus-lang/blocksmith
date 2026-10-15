@@ -317,6 +317,22 @@ final class Game {
     var fullToldAt: Double = -100      // Q2c-console-33: the last "You're full"
     var refusedAt: [String: Double] = [:]   // Q2c-console-39: when each placement refusal was last said
     var heldDroppedAt: Double = -100        // Q2c-console-41: the last dropHeld
+    // Q2c-console-50: the pickup feed (newest last): the item, how many, when last added to, and whether it is a rare find.
+    var pickups: [(item: ItemID, count: Int, at: Double, rare: Bool)] = []
+    static let rareKeys: Set<String> = ["diamond", "emerald", "netherite_ingot", "netherite_scrap", "ancient_debris",
+                                        "enchanted_golden_apple", "totem_of_undying", "nether_star", "heart_of_the_sea"]
+    func notePickup(_ s: ItemStack, _ n: Int) {
+        guard n > 0, Settings.shared.pickupFeed else { return }
+        pickups.removeAll { clock - $0.at > 4 }
+        if let i = pickups.lastIndex(where: { $0.item == s.item }), clock - pickups[i].at < 3 {
+            var p = pickups.remove(at: i)
+            p.count += n; p.at = clock
+            pickups.append(p)
+        } else {
+            pickups.append((s.item, n, clock, s.legend != nil || s.ench != 0 || Game.rareKeys.contains(Items.key(s.item))))
+            if pickups.count > 3 { pickups.removeFirst() }
+        }
+    }
     private(set) var attackTimer: Float = 10    // seconds since last attack (attack cooldown)
     var swing: Float = 0              // arm swing animation 1 -> 0
 

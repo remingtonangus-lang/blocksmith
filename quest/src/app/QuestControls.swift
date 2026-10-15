@@ -70,6 +70,7 @@ final class QuestControls {
     private func hudFadeTick(_ dt: Float) {
         hudSolid = max(0, hudSolid - dt)
         if game.hurtFlash > 0 || game.health <= 6 { hudSolid = max(hudSolid, 1) }
+        if let p = game.pickups.last, game.clock - p.at < 0.2 { hudSolid = max(hudSolid, 2) }      // Q2c-console-50
         let want: Float = !QuestSettings.hudFade || hudSolid > 0 ? 0.95 : QuestControls.hudRest
         hudAlpha += (want - hudAlpha) * min(1, dt * (want > hudAlpha ? 10 : 2))
     }

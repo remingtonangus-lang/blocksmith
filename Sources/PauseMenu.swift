@@ -134,6 +134,7 @@ final class PauseMenu: Menu {
         "southpaw": "Southpaw swaps the sticks: look with the left, move with the right.",
         "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
         "splitlayout": "How the screen divides for two players: top and bottom (wide views) or side by side (menus stay bigger on a TV).",
+        "pickupfeed": "Shows what you pick up beside the hotbar for a few seconds (\"+4 Oak Log\"), rare finds in gold.",
         "minimap": "A small biome map in the corner with nearby bases and villages. M or hold View for the full map.",
         "brightness": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
         "fov": "How wide the view is. Wider shows more at the sides; narrower looks closer.",
@@ -343,7 +344,7 @@ final class PauseMenu: Menu {
                         ("Safe Area: \(st.safeArea)%", "safe"), ("Button Hints: \(on(st.buttonHints))", "hints"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
-                        ("Minimap: \(on(st.minimap))", "minimap"),
+                        ("Minimap: \(on(st.minimap))", "minimap"), ("Pickup Feed: \(on(st.pickupFeed))", "pickupfeed"),   // Q2c-console-50
                         ("Split Screen: \(st.splitSideBySide ? "Side by Side" : "Top / Bottom")", "splitlayout"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Coordinates & Details: \(on(g.showDebug))", "debug"),
                         ("Performance Overlay: \(on(st.perfOverlay))", "perf"),
@@ -705,6 +706,7 @@ final class PauseMenu: Menu {
             else if g.coop.secondPadAvailable { g.closeMenu(); g.paused = false; g.coop.join(g, controller: nil) }
             else { g.onToast?("Connect a second controller, then press its Menu button") }
         case "minimap": st.minimap.toggle()
+        case "pickupfeed": st.pickupFeed.toggle()
         case "splitlayout": st.splitSideBySide.toggle()
         case "brightness": st.brightness = step([0, 0.25, 0.5, 0.75, 1], st.brightness)
         case "commands": g.closeMenu(); g.openCommands()

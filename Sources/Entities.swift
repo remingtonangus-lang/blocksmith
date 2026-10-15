@@ -222,8 +222,12 @@ final class ItemEntityManager {
                         }
                     }
                     let before = e.stack.count
+                    let got = e.stack
                     e.stack = game.inventory.add(e.stack)
-                    if e.stack.count != before || e.stack.isEmpty { picked += 1 }
+                    if e.stack.count != before || e.stack.isEmpty {
+                        picked += 1
+                        game.notePickup(got, before - (e.stack.isEmpty ? 0 : e.stack.count))      // Q2c-console-50
+                    }
                     else if game.menu == nil && game.clock - fullToldAt > 30 {
                         // Q2c-console-7: nothing of it fit: say why it stays on the ground (once in 30 s).
                         fullToldAt = game.clock
