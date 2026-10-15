@@ -52,13 +52,15 @@ void main() {
             float fres = 0.06 + 0.94 * pow(1.0 - cosT, 5.0);
             vec3 r = reflect(v, n); r.y = abs(r.y);
             vec3 refl = skyAlong(r) * mix(0.2, 1.0, skyVis);
-            float k = clamp(0.38 + 0.62 * fres, 0.0, 1.0) * mix(0.35, 1.0, skyVis);
+            // P275 (a): a glassy mirror, not a white sheet: the reflection is strong only at grazing angles, so looking
+            // down you see through the blue-tinted ice to the water and blocks below.
+            float k = clamp(0.08 + 0.72 * fres, 0.0, 1.0) * mix(0.35, 1.0, skyVis);
             vec3 col = mix(rgb, refl, k);
             float sunVis = smoothstep(-0.04, 0.12, u.sunDir.y) * skyVis;
             vec3 hv = normalize(u.sunDir.xyz - v);
             float nh = clamp(dot(n, hv), 0.0, 1.0);
             col += vec3(1.0, 0.95, 0.85) * (pow(nh, 900.0) * 6.0 + pow(nh, 90.0) * 0.12) * sunVis;
-            float a = max(c.a, k * 0.9 + 0.1);
+            float a = max(c.a, k * 0.85);
             outColor = worldColor(vec4(mix(col, fogColorAlong(oRel), f), mix(a, 1.0, f * 0.8)));
             return;
         }
