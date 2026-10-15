@@ -76,10 +76,17 @@ final class FloodModel {
     // MARK: Window
 
     // Keeps the player inside the middle half of the window; cells that scroll out take their water with them.
+    // Split screen: the window centres between the players while they are within half a window of each other (the
+    // flood only ever followed player 1, so player 2's valley never flooded or drained); farther apart, player 1.
     private func recentre(_ g: Game) {
         let cs = FloodModel.cellSize
-        let px = Int(floor(g.player.pos.x)), pz = Int(floor(g.player.pos.z))
         let span = N * cs
+        var focus = g.player.pos
+        if g.coop.active && g.coop.seatCount > 1 {
+            let other = g.coop.seatPlayer(g.coop.current == 0 ? 1 : 0, g).pos
+            if abs(other.x - focus.x) < Float(span / 2) && abs(other.z - focus.z) < Float(span / 2) { focus = (focus + other) * 0.5 }
+        }
+        let px = Int(floor(focus.x)), pz = Int(floor(focus.z))
         let wantX = floorDiv(px - span / 2, 64) * 64, wantZ = floorDiv(pz - span / 2, 64) * 64
         if ox != Int.min && abs(px - (ox + span / 2)) < span / 4 && abs(pz - (oz + span / 2)) < span / 4 { return }
         if ox == wantX && oz == wantZ { return }
