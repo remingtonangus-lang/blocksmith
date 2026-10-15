@@ -724,12 +724,13 @@ Q2c-console-24. [DONE] The Director picks its moments (P266 could start an event
  (c) The Director's first radio call ("the land is stirring") waits until the credits and the epilogue are over and he is back in play, with no menu open.
  (d) The page's status names the wait ("next waits: you are asleep", "the credits are rolling", "you have just arrived", "you have just come back").
  Done Oct 15 (console; Director.unsafe/arrivedAt/diedAt, second): (a) events start only in play. (b) Director.unsafe now also waits while g.sleeping, while g.credits is set (the credits and the Ashguard epilogue), for 60 s after the Director first ticks in a loaded world, and for 60 s after the last moment he was dead. (c) the wake call needs no credits, no menu, not paused and alive. (d) the wait reasons go into the status line ("next waits: you are asleep" and the others).
-Q2c-console-25. [CLAIMED console 2026-10-15] Developer wording and test worlds out of a store player's way (the Worlds page offered "Sparkstone Workshop (circuits)", a creative test world he never made; Interface called the coordinates readout "Debug Info"; the pause menu said "Play Together (network)").
+Q2c-console-25. [DONE] Developer wording and test worlds out of a store player's way (the Worlds page offered "Sparkstone Workshop (circuits)", a creative test world he never made; Interface called the coordinates readout "Debug Info"; the pause menu said "Play Together (network)").
  (a) Intent (Q2 c, nothing that looks unfinished): every row reads like a player's option.
  (b) The Sparkstone Workshop row shows only with Cheats & Shortcuts on (it builds a creative test world).
  (c) "Debug Info" becomes "Coordinates & Details" (position, biome, frame rate), its help line saying so.
  (d) "Play Together (network)..." becomes "Play Together...", its help line already saying it is over Wi-Fi.
  (e) Nothing else changes: the same ids, values and keyboard keys (F3 still toggles it on the Mac).
+ Done Oct 15 (console; PauseMenu worlds, interface and main pages): (a) the rows read as player options. (b) the Worlds page lists Sparkstone Workshop only while Cheats & Shortcuts is on (On in playtest and Mac builds, Off in the store APK). (c) Interface shows "Coordinates & Details: Off" with the help "Shows your position, the biome, the frame rate and chunk details in the corner (F3 on the keyboard)." (d) the main pause row reads "Play Together...". (e) ids, values and the F3 key are unchanged.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.

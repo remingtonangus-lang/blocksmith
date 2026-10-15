@@ -207,7 +207,7 @@ final class PauseMenu: Menu {
         "flashes": "Reduced makes the red damage flash and portal tint faint.",
         "resetask": "Put every option and key binding back to its default.",
         "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
-        "debug": "Position, biome, frame rate and chunk details (F3).",
+        "debug": "Shows your position, the biome, the frame rate and chunk details in the corner (F3 on the keyboard).",
         "devtools": "Shows Commands (time, weather, items, mode) and Shortcuts (teleport) in the pause menu in survival. Creative always has them.",
         "perf": "Frame rate, frame times (average and worst of the last second), render distance and chunk jobs in the corner of the view.",
         "quit": "Save the world and close Blocksmith.",
@@ -252,7 +252,7 @@ final class PauseMenu: Menu {
             rows = [("Back to Game", "resume"), ("Journal", "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),        // (Q2c-console-16: the locked difficulty is in the subtitle)
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
-                    ("Play Together (network)...", "netmenu"),
+                    ("Play Together...", "netmenu"),
                     ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
             if g.coop.current > 0 {
                 // Player 2's pause menu: their own screens, and leaving (the world itself belongs to player 1).
@@ -320,7 +320,7 @@ final class PauseMenu: Menu {
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Minimap: \(on(st.minimap))", "minimap"),
                         ("Split Screen: \(st.splitSideBySide ? "Side by Side" : "Top / Bottom")", "splitlayout"),
-                        ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
+                        ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Coordinates & Details: \(on(g.showDebug))", "debug"),
                         ("Performance Overlay: \(on(st.perfOverlay))", "perf"),
                         ("Cheats & Shortcuts: \(on(st.devTools))", "devtools"),          // Q2c-console-15
                         ("About and Licences...", "about"), ("Reset Options...", "resetask")]
@@ -371,7 +371,7 @@ final class PauseMenu: Menu {
             title = "Worlds"
             worlds = WorldStore.list()
             rows = [("Create New World...", "create"), ("Quick New World (random seed)", "newworld"),
-                    ("Sparkstone Workshop (circuits)", "workshop")]
+                    ("Sparkstone Workshop (circuits)", "workshop")].filter { $0.1 != "workshop" || st.devTools }   // Q2c-console-25
                 + worlds.map { (WorldStore.rowLabel($0, open: $0.name == currentWorld), "world:" + $0.name) }   // Q2c-console-8
                 + [("Back", "back")]
         case .world:
