@@ -248,9 +248,14 @@ extension Game {
         case "arrow": projectiles.shoot(from: from, dir: simd_normalize(fd + V3(0, 0.1, 0)), speed: 22, fromPlayer: true, damage: 2); take(); sfx(.bow, 0.6, at: from)
         case "fire_charge": projectiles.fireball(from: from, dir: fd, big: false, byPlayer: true); take(); sfx(.fireball, 0.5, at: from)
         case "water_bucket", "lava_bucket":
-            if Blocks.replaceable[Int(fb)] { world.setBlock(front.x, front.y, front.z, key == "water_bucket" ? WATER : LAVA); c[slot] = ItemStack(Items.id("bucket"), 1) }
+            // Water fills a waterloggable block in front (reference), else goes into an open cell.
+            let wb = Blocks.wet[Int(fb)]
+            if key == "water_bucket" && wb != AIR && !Blocks.wetInvalid[Int(wb)] && world.dim != .nether {
+                world.setBlock(front.x, front.y, front.z, wb); c[slot] = ItemStack(Items.id("bucket"), 1)
+            } else if Blocks.replaceable[Int(fb)] { world.setBlock(front.x, front.y, front.z, key == "water_bucket" ? WATER : LAVA); c[slot] = ItemStack(Items.id("bucket"), 1) }
         case "bucket":
             if fb == WATER || fb == LAVA { world.setBlock(front.x, front.y, front.z, AIR); c[slot] = ItemStack(Items.id(fb == WATER ? "water_bucket" : "lava_bucket"), 1) }
+            else if Blocks.isWaterlogged(fb) { world.setBlock(front.x, front.y, front.z, Blocks.dry[Int(fb)]); c[slot] = ItemStack(Items.id("water_bucket"), 1) }
         case "flint_and_steel":
             if fb == AIR { world.placeFire(front) } else if Blocks.key(fb) == "tnt" { world.setBlock(front.x, front.y, front.z, AIR); tnts.prime(at: front) }
             stack.damage += 1; c[slot] = stack.damage >= stack.def.durability ? .empty : stack
