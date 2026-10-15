@@ -70,7 +70,7 @@ extension BlockRegistry {
             add(d)
         }
         if !has(DeepGates.liftKey) {
-            var d = BlockDef(DeepGates.liftKey, "Deep Lift")
+            var d = BlockDef(DeepGates.liftKey, "Hell Lift")
             d.tex = ["deep_lift_side", "deep_lift_side", "deep_lift", "deep_lift_side", "deep_lift_side", "deep_lift_side"]
             d.render = .model; d.opaque = false; d.boxes = [Box(0, 0, 0, 16, 3, 16)]
             d.hardness = 4; d.tool = .pickaxe; d.sound = .metal; d.emit = 9
@@ -229,7 +229,7 @@ extension Game {
         }
         gateHold = 0
         if world.block(x, y, z) == lift || (world.block(x, y - 1, z) == lift && f.y - Float(y) < 0.3) {
-            rideUp(from: V3(Float(x) + 0.5, Float(world.block(x, y, z) == lift ? y : y - 1) + 0.25, Float(z) + 1.5), how: "The Deep Lift carries you up to the surface")
+            rideUp(from: V3(Float(x) + 0.5, Float(world.block(x, y, z) == lift ? y : y - 1) + 0.25, Float(z) + 1.5), how: "The Hell Lift carries you up to the surface")
         }
     }
 
@@ -254,7 +254,7 @@ extension Game {
             return true
         }
         guard let to = deepReturn else {
-            onToast?("The Gate Shard has no gate to find yet: wake an Ember Gate or ride a Deep Lift up first")
+            onToast?("The Gate Shard has no gate to find yet: wake an Ember Gate or ride a Hell Lift up first")
             return true
         }
         gateCooldown = DeepGates.cooldown
@@ -277,7 +277,7 @@ extension Game {
         player.vel = .zero
         player.airPeak = land.y
         sfx(.click, 0.8)
-        onToast?("The Gate Shard pulls you down into the Deep")
+        onToast?("The Gate Shard pulls you down into Hell")
         return true
     }
 }

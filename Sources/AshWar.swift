@@ -10,7 +10,7 @@ enum AshWar {
     static let epilogue: [String] = [
         "VICTORY", "", "", "The Ash Chancellor is dead.", "His banners burn in the vault.", "The Ashguard lays down its arms.", "",
         "You broke through the bottom of the world,", "dug through rock that glowed with heat,",
-        "crossed the fire of the deep fortresses,", "broke their lines, their armour and their last army,",
+        "crossed the fire of the fortresses of Hell,", "broke their lines, their armour and their last army,",
         "and went down into the bunker where the war was made.", "",
         "The war below the world is over.", "Their tanks are cold. Their guns are silent.", "The red lamps burn for no one now.", "",
         "A lift in the command bunker", "will carry you back to the surface.", "", "", "THE END", "", "", "",

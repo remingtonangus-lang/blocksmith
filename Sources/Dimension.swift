@@ -29,7 +29,7 @@ enum Dim: String, Codable, CaseIterable {
         switch self { case .overworld: return nil; case .nether: return "DIM-1"; case .end: return "DIM1"; case .deep: return "DIM-2" }
     }
     var displayName: String {
-        switch self { case .overworld: return "Surface"; case .nether: return "The Emberdeep"; case .end: return "The Hollow"; case .deep: return "The Deep" }
+        switch self { case .overworld: return "Surface"; case .nether: return "The Emberdeep"; case .end: return "The Hollow"; case .deep: return "Hell" }   // P290: shown as Hell (code name deep)
     }
     // Hot, dry dimensions: water boils away, beds blow up.
     var ultrawarm: Bool { self == .nether || self == .deep }

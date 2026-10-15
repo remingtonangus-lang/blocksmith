@@ -119,9 +119,9 @@ enum Advancements {
         Advancement(id: "adventure/steelhold_ironclad", tab: 3, title: "The Bigger They Are", desc: "Defeat a Capital Bulwark",
                     crit: .event("ironclad"), challenge: true),
         // The Deep and the Ashguard (task 22).
-        Advancement(id: "adventure/deep", tab: 3, title: "Bottom of the World", desc: "Dig through the bottom of the world into the Deep",
+        Advancement(id: "adventure/deep", tab: 3, title: "Bottom of the World", desc: "Dig through the bottom of the world into Hell",
                     crit: .event("deep_visit")),
-        Advancement(id: "adventure/deep_hell", tab: 3, title: "Under the Fire Sky", desc: "Reach the fire band of the Deep", crit: .event("deep_hell")),
+        Advancement(id: "adventure/deep_hell", tab: 3, title: "Under the Fire Sky", desc: "Reach the fire band of Hell", crit: .event("deep_hell")),
         Advancement(id: "adventure/keep_warden", tab: 3, title: "Castellan's Fall", desc: "Defeat a Brimstone Keep's Castellan and wake its Ember Gate",
                     crit: .event("keep_warden"), challenge: true),
         Advancement(id: "adventure/sunderite", tab: 3, title: "Keyholder", desc: "Take Sunderite from a Brimstone Keep's strongroom",

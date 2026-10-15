@@ -19,11 +19,11 @@ extension Game {
         if DeepGen.inVault(p.y) {
             for s in sealShafts { consider(V3(Float(s.x) + 0.5, Float(s.y), Float(s.z) + 0.5), "your shaft through the seal") }
             if ashVictory { consider(V3(Float(AshWar.liftAt.x) + 0.5, Float(AshWar.liftAt.y), Float(AshWar.liftAt.z) + 0.5), "the bunker lift") }
-            for l in deepLifts { consider(V3(Float(l.x) + 0.5, Float(l.y), Float(l.z) + 0.5), "your Deep Lift") }
+            for l in deepLifts { consider(V3(Float(l.x) + 0.5, Float(l.y), Float(l.z) + 0.5), "your Hell Lift") }
             if best == nil { return nil }
         } else {
             if let e = deepEntry { consider(e, "the hole you came down") }
-            for l in deepLifts where !DeepGen.inVault(Float(l.y)) { consider(V3(Float(l.x) + 0.5, Float(l.y), Float(l.z) + 0.5), "your Deep Lift") }
+            for l in deepLifts where !DeepGen.inVault(Float(l.y)) { consider(V3(Float(l.x) + 0.5, Float(l.y), Float(l.z) + 0.5), "your Hell Lift") }
             if let sc = world.gen.structures {
                 for key in wokenGates {
                     let xz = key.split(separator: ",").compactMap { Int(String($0)) }
