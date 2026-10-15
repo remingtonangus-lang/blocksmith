@@ -121,6 +121,7 @@ final class Game {
     var deepVisited = false
     var smoothTerrain = false     // world option: natural ground meshes smooth (SmoothTerrain.swift), saved as extra "terrain"
     var deepUpdraftHinted = false
+    var hellDrop = HellDropState()   // P291: a drop through the blasted floor into hell under way (HellDrop.swift)
     var sunderCharges: [(at: IVec3, t: Float)] = []    // Sunder Charges burning on Sealrock (DeepSeal.swift)
     var hell = HellWorld()                              // hell's own mobs and the gate: slag in flight, charges, musters (HellMobs.swift)
     var sealHintAt: Double = -100
@@ -659,7 +660,8 @@ final class Game {
     }
 
     // Moves the player to another dimension (saving and unloading the one we leave).
-    func changeDimension(to d: Dim, at p: V3) {
+    // syncRadius: chunks loaded before play goes on (P291: a drop into hell loads only the nearest, no loading pause).
+    func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil) {
         let old = world
         let oldMobs = mobs
         hell.slag.removeAll(); hell.charges.removeAll()      // nothing in flight or burning follows you (HellMobs.swift)
@@ -675,7 +677,7 @@ final class Game {
         player.pos = p
         player.vel = .zero
         player.airPeak = p.y
-        _ = world.loadSync(center: p, radius: min(4, rd))
+        _ = world.loadSync(center: p, radius: min(syncRadius ?? 4, rd))
         onToast?(d.displayName)
     }
 
@@ -2846,6 +2848,8 @@ final class Game {
             if land == "hay_block" || land == "honey_block" { k = 0.12 }
             else if land.hasSuffix("_bed") || land.hasSuffix("_bed_head") { k = 0.3 }
             else if land == "slime_block" && !player.sneaking { k = 0 }
+            // P291 (d, Oct 15): no slow drift down hell's tall halls any more; a landing there takes a tenth of the damage.
+            if dim.dim == .deep && DeepGen.inHell(p.y) { k *= 0.1 }
             let over: Float = fall - safeFall
             let dmg = Int(ceilf(over * k))                          // safeFall carries a 0.05 margin for measuring noise
             if dmg > 0 { damage(dmg, "fell from a high place", bypassArmor: true, type: .fall) }

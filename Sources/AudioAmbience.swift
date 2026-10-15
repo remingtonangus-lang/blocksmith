@@ -227,6 +227,12 @@ extension Game {
         if player.headInWater { ask("underwater", .underwaterLoop, 0.9) }
         if player.jetThrust { ask("jetpack", .rocketFlightLoop, 0.85) }
         if player.gliding { ask("glide", .elytraLoop, min(1, simd_length(player.vel) / 28)) }
+        // P291 (a): a long fall roars: air rushing past once you fall faster than ~16 b/s (about 5 blocks down), louder
+        // toward full speed; loudest on a drop into hell.
+        if player.vel.y < -16 && !player.flying && !player.gliding && !player.inWater && !player.inLava && riding == nil && world.frame == nil {
+            let rush: Float = min(1, (-player.vel.y - 16) / 30)
+            ask("fallrush", .fallRushLoop, rush * (hellDrop.active ? 1 : 0.75))
+        }
         if let r = riding, r.kind == .minecart { ask("cart", .minecartLoop, min(1, simd_length(r.vel) / 8 + 0.1)) }
         if let r = riding, r.kind == .boat {
             let spd = simd_length(V2(r.vel.x, r.vel.z))

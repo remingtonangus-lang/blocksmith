@@ -928,6 +928,7 @@ struct Synth {
             out = Synth.echo(Synth.lowpass(Synth.mix(one, one, at: frames(2.6)), 2400), delay: 0.45, feedback: 0.35, mix: 0.4, tail: 1.2)
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop, .thunderFar, .iceCreak, .rockfall, .volcanoRumble:
             out = TerrainAudio.render(&self, s, p: p)
+        case .fallRushLoop, .hellImpact, .hellArrival: out = HellDropAudio.render(&self, s, p: p)
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop,
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .trainWhistle, .steamChuff:
