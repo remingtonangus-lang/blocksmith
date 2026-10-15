@@ -489,7 +489,48 @@ final class FurnaceMenu: Menu {
         fuel.filter = { Recipes.fuel($0.item) > 0 || Items.key($0.item) == "bucket" }      // fuels only (anything went in)
         slots.append(fuel)
         slots.append(MenuSlot(116, 35, be.container, 2, .output))
-        addPlayerInventory()
+        // Q2c-console-40: room for the status lines between the slots and the pack.
+        height = 186
+        inventoryLabelY = 93
+        addPlayerInventory(y: 104)
+    }
+    var note = "", noteAt: Double = -10          // a refusal shown on the status line for a few seconds
+    override func click(_ slot: MenuSlot, button: Int, shift: Bool) {
+        if case .fuel = slot.kind, !game.carried.isEmpty, !slot.accepts(game.carried) {
+            note = "\(game.carried.def.display) isn't fuel"; noteAt = game.clock
+            game.sfx(.click, 0.25)
+            return
+        }
+        super.click(slot, button: button, shift: shift)
+    }
+    // Q2c-console-40: what it is doing, or why it is stuck: up to two lines, each amber when he must act.
+    var status: [(String, Bool)] {
+        if !note.isEmpty && game.clock - noteAt < 3 { return [(note, true)] }
+        let c = be.container, input = c[0], fuel = c[1], out = c[2]
+        let kind = be.mob, fast = kind == "smoker" || kind == "blast_furnace"
+        let cook = kind == "smoker" ? "cook" : "smelt"
+        if input.isEmpty {
+            if be.burn > 0 { return [("Burning its fuel: nothing to \(cook)", false)] }
+            return [(kind == "smoker" ? "Put food to cook in the top slot, fuel below" : "Put something to smelt in the top slot, fuel below", false)]
+        }
+        guard let r = Recipes.smelt(input.item) else { return [("\(input.def.display) can't be \(cook)ed", true)] }
+        guard BlockEntity.allowed(r, input.item, in: kind) else {
+            let kinds = [("", "Furnace"), ("blast_furnace", "Blast Furnace"), ("smoker", "Smoker")].filter { BlockEntity.allowed(r, input.item, in: $0.0) }
+            return [("\(input.def.display) needs a " + kinds.map { $0.1 }.joined(separator: " or "), true)]
+        }
+        if !out.isEmpty && (out.item != r || out.count >= out.maxStack) { return [("Take out the \(out.def.display) to keep going", true)] }
+        let fuelTicks = fuel.isEmpty ? 0 : Recipes.fuel(fuel.item) * fuel.count
+        if be.burn == 0 && fuelTicks == 0 { return [("Add fuel below: coal, charcoal, logs or planks", true)] }
+        var lines: [(String, Bool)] = [("\(kind == "smoker" ? "Cooking" : "Smelting") \(input.def.display): \(input.count) left", false)]
+        // One item takes 200 units of cooking and of fuel (a smoker or blast furnace spends both twice as fast).
+        let fuelled = (be.burn + fuelTicks + be.cook) / 200
+        if fuelled < input.count {
+            lines.append(("Fuel for \(max(1, fuelled)) more: add more to finish", true))
+        } else {
+            let secs = Int((Double(input.count) * 200 - Double(be.cook)) / (fast ? 40 : 20))
+            lines.append((secs < 60 ? "About \(max(1, secs)) s" : "About \((secs + 30) / 60) min", false))
+        }
+        return lines
     }
     override func quickMoveTargets(from: MenuSlot) -> [MenuSlot] {
         if from.isPlayerInv {

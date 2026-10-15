@@ -1850,6 +1850,15 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let ax = o.x + 79 * s, ay = o.y + 34 * s
                 arrowRight(ax, ay + 8 * s, 24 * s, s, V4(0.5, 0.5, 0.5, 1))
                 arrowRight(ax, ay + 8 * s, 24 * s, s, V4(1, 1, 1, 1), upTo: Float(f.be.cook) / 200)
+                // Q2c-console-40: what it is doing, or why it is stuck (amber), wrapped to the panel, at most two lines.
+                var sy = o.y + 74 * s
+                let st = f.status
+                for (t, stuck) in st {
+                    for line in wrapLines(t, maxW: 160 * s, s, maxLines: st.count > 1 ? 1 : 2) where sy < o.y + 92 * s {
+                        text(line, o.x + 8 * s, sy, s, stuck ? V4(0.62, 0.36, 0.02, 1) : V4(0.25, 0.25, 0.25, 1), shadow: false)
+                        sy += 9 * s
+                    }
+                }
             }
             if let im = m as? InventoryMenu, game.effects.any {
                 var y = o.y
