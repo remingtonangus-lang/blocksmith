@@ -201,6 +201,7 @@ final class QuestControls {
     // Aim (world space, this frame)
     private(set) var aimOrigin = V3.zero
     private(set) var aimDir = V3(0, 0, -1)
+    private var dryFelt: Double = -10                 // P301 (b): the last dry click felt in the gun hand
     private(set) var aimHit: V3?
     // S7: logical hands. Dominant Hand: Left is applied below this layer (HandedInput swaps the controllers), so hand 1
     // is always the aiming hand and hand 0 the moving one, and haptics to them reach the right physical controller.
@@ -468,7 +469,30 @@ final class QuestControls {
         var magGrip = false
         // D7: the off hand to the gun and gripped works a bolt, pump or hammer (GunActions); swing play only.
         GunActions.manual = QuestSettings.swingMode
-        if !inMenu && !bagGrip && !handGrab && game.heldGun != nil && L.gripValid && R.gripValid && lGrip && !prevGripL
+        // P301 (a): a pistol's slide: the off hand grips the rear serrations as drawn, pulls back along the barrel and lets
+        // go (GunActions.slideTick). A tick in both hands as it takes, a hard stop at the back, a heavy clack home.
+        if !inMenu && !bagGrip && !handGrab && game.heldGun != nil && L.gripValid && R.gripValid {
+            let ev = GunActions.slideTick(game, hand: rig.toWorld(L.gripPos), grip: lGrip, gripWas: prevGripL,
+                                          serrations: drawnBolt(), forward: aimDir)
+            switch ev {
+            case .grabbed: app.input.haptic(moveHand, amplitude: 0.4, seconds: 0.03, frequency: 240)
+            case .back:
+                app.input.haptic(moveHand, amplitude: 0.7, seconds: 0.04, frequency: 160)
+                app.input.haptic(aimHand, amplitude: 0.4, seconds: 0.03, frequency: 160)
+            case .chambered:
+                app.input.haptic(moveHand, amplitude: 0.9, seconds: 0.07, frequency: 110)
+                app.input.haptic(aimHand, amplitude: 0.8, seconds: 0.07, frequency: 110)
+            case .home: app.input.haptic(aimHand, amplitude: 0.3, seconds: 0.03, frequency: 300)
+            case .none: break
+            }
+            if ev != .none || GunActions.slideHeld { magGrip = true }            // that grip is the slide's, not the hotbar's
+        } else { GunActions.slideHeld = false }
+        // P301 (b): a dry click is felt in the gun hand too: one dead tick.
+        if GunActions.dryAt != dryFelt {
+            dryFelt = GunActions.dryAt
+            app.input.haptic(aimHand, amplitude: 0.35, seconds: 0.015, frequency: 320)
+        }
+        if !inMenu && !bagGrip && !handGrab && !magGrip && game.heldGun != nil && L.gripValid && R.gripValid && lGrip && !prevGripL
             && !game.arms.magInHand && !GunActions.cocked
             && VRReload.toGun(rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), forward: aimDir) < VRReload.wellReach + 0.08
             && GunActions.work(game) {
@@ -697,10 +721,22 @@ final class QuestControls {
 
     // R7: the held gun's magazine well where it is drawn (world space), from the model's magAt.
     private func drawnWell() -> V3? {
+        guard let gi = game.heldGun, gi < CapitalArms.models.count else { return nil }
+        return drawnPoint(CapitalArms.models[gi].magAt)
+    }
+
+    // P301: the held gun's charging point (a pistol's rear slide serrations) where it is drawn (world space).
+    private func drawnBolt() -> V3? {
+        guard let gi = game.heldGun, gi < CapitalArms.models.count else { return nil }
+        return drawnPoint(CapitalArms.models[gi].bolt)
+    }
+
+    // A point of the held gun model (gun pixels) where it is drawn in the aiming hand.
+    private func drawnPoint(_ at: V3) -> V3? {
         guard let gi = game.heldGun, gi < CapitalArms.models.count, let hd = lastAimHand else { return nil }
         let gm = CapitalArms.models[gi]
         let k: Float = 0.0125 * 3.2 * QuestSettings.heldScale
-        let local = (gm.magAt - gm.grip) * k + V3(0, 0.015, 0.06)
+        let local = (at - gm.grip) * k + V3(0, 0.015, 0.06)
         return app.rig.toWorld(hd.aimPos) + (braceRot ?? app.rig.toWorldRot(hd.aimRot)).act(local)
     }
 
@@ -1494,7 +1530,8 @@ final class QuestControls {
             // Larger than life (rifle ~1.2 m, sidearm ~0.33 m): 3.2x the screen model. Empty: no magazine, red light.
             let gk: Float = 3.2 * QuestSettings.heldScale
             let n = Guns.writeFirstPerson(gi, aim: 1, kick: game.arms.kick, lower: 0, bob: .zero, light: light,
-                                          rounds: game.arms.reload > 0 ? 0 : game.held.tag, scale: gk, upgrades: game.held.ench, into: ptr)
+                                          rounds: game.arms.reload > 0 ? 0 : game.held.tag, scale: gk, upgrades: game.held.ench,
+                                          slide: GunActions.slideDrawn(gi), into: ptr)
             let shift = QuestControls.heldGunShift(gi)
             for i in 0..<n {
                 let v = ptr[i].pos

@@ -516,7 +516,9 @@ extension Game {
         h.tag += n
         inventory.held = h
         arms.cooldown = 0.15
-        if n > 0 { sfx(.gun(14), 0.9); onToast?("Loaded: \(h.tag) / \(mag)") }
+        // P301 (c): a magazine seated in a pistol locked open only seats (the slide stays back until it is racked).
+        let locked = GunActions.manual && !GunActions.cocked && GunActions.action(gi) == .slide
+        if n > 0 { if locked { sfx(.gunReload(gs.sound), 0.6) } else { sfx(.gun(14), 0.9) }; onToast?("Loaded: \(h.tag) / \(mag)") }
     }
 
     @discardableResult
@@ -542,7 +544,7 @@ extension Game {
             a.heldGun = gi; a.heldSlot = selected
             a.reload = 0
             a.cooldown = max(a.cooldown, 0.3)
-            GunActions.drawn()
+            GunActions.drawn(gi, rounds: held.tag)          // P301: an empty pistol comes up locked back
         }
         a.cooldown -= dt
         let dual = DualWield.tick(self, down: aim, dt: dt)                         // D8: the off trigger fires the other gun
@@ -579,7 +581,9 @@ extension Game {
             if vr {
                 if firePressed {
                     sfx(.gun(7), 0.8)
-                    // P300 (b): the dry click says it's empty; only "none left" is worth words.
+                    // P300 (b): the dry click says it's empty; only "none left" is worth words. P301 (b): a dead tick in the
+                    // gun hand with it (QuestControls), and a pistol shows its slide locked back.
+                    GunActions.dryAt = clock
                     if ammoCount(gs.ammo) <= 0 { onToast?("No \(Items.def(Items.id(gs.ammo)).display)") }
                 }
                 return true
@@ -641,7 +645,7 @@ extension Game {
         var h = held
         h.tag -= 1
         inventory.held = h
-        GunActions.fired(gi)
+        GunActions.fired(gi, left: h.tag)               // P301: a pistol's last round locks its slide back
         if h.tag == 0 { sfx(.gun(15), 0.75) }           // the last round: the bolt locks open with a ping
         damageHeld(1)
         let k = gs.recoil * (1 - 0.45 * a.aim) * steady * Repairs.recoil(st) * twoHandRecoil

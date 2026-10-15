@@ -16,6 +16,8 @@ struct GunModel {
     var bolt: V3                 // charging handle / pump / bolt the left hand works after the magazine
     var scale: Float             // gun pixel -> model pixel on a soldier
     var shouldered = true        // fired from the shoulder (pistols are held out in both hands)
+    var slide: [Int] = []        // P301: parts that ride the pistol's slide (drawn back when it is racked or locked open)
+    var slideTravel: Float = 0   // pixels the slide runs back
 }
 
 enum CapitalArms {
@@ -272,8 +274,10 @@ enum CapitalArms {
             }
             let m = p.count
             p += [b(-0.5, -3.55, 0.2, 1.0, 0.45, 1.6, graphite, pMetal)]          // magazine base
+            // P301: the slide, bushing, bore, ejection port, both sights and the serrations run back together.
             return GunModel(parts: p, mag: [m], grip: V3(0, -1.9, 0.5), fore: V3(-0.4, -2.6, 0.8), butt: V3(0, -1.9, 0.5),
-                            muzzle: V3(0, 0.6, -6.6), magAt: V3(0, -3.3, 0.9), bolt: V3(0, 0.7, -0.6), scale: 0.68, shouldered: false)
+                            muzzle: V3(0, 0.6, -6.6), magAt: V3(0, -3.3, 0.9), bolt: V3(0, 0.7, -0.6), scale: 0.68, shouldered: false,
+                            slide: [0, 1, 2, 4, 6, 7] + Array(17..<25), slideTravel: 2.2)
         }
     }
 }
