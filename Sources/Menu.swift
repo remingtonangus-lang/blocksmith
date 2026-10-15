@@ -117,6 +117,14 @@ class Menu {
 
     // Main click handler. button 0 = left, 1 = right.
     func click(_ slot: MenuSlot, button: Int, shift: Bool) {
+        // Q2c-console-65: a slot that won't take the carried item says so (result, output and palette slots, where a
+        // click takes, and the pack's own slots are left alone).
+        if !game.carried.isEmpty, !shift, !slot.isPlayerInv, !slot.isButton, !slot.accepts(game.carried) {
+            switch slot.kind {
+            case .result, .output, .palette, .button: break
+            default: refuse(slot); return
+            }
+        }
         var carried = game.carried
         defer { game.carried = carried; changed() }
         // Double left click with a stack on the cursor gathers the same item from the screen's slots, up to a full
@@ -298,6 +306,16 @@ class Menu {
         let w = min(56 * s, L.W - x - 4 * s), h = 44 * s
         guard w >= 36 * s else { return nil }
         return (x, o.y + (Float(height) * s - h) / 2, w, h)
+    }
+    func refuse(_ slot: MenuSlot) {
+        let c = game.carried
+        var why = "\(c.def.display) can't go in that slot"
+        if case .armor(let a) = slot.kind {
+            why = ["Only helmets and heads go here", "Only chestplates and wings go here", "Only leggings go here", "Only boots go here"][a.rawValue]
+        }
+        game.menuNote = (why, game.clock)
+        game.sfx(.click, 0.25)
+        PadManager.shared.rumble(0.12, 0.03, sharpness: 0.9)
     }
     func inDropBox(_ p: V2, _ L: HudLayout) -> Bool {
         guard let d = dropBox(L) else { return false }

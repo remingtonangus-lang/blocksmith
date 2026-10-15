@@ -1824,6 +1824,13 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(o.x + pw - 3 * s, o.y + 2 * s, 2 * s, ph - 3 * s, V4(0.333, 0.333, 0.333, 1))
             let titleC = V4(0.25, 0.25, 0.25, 1)
             text(m.title, o.x + 8 * s, o.y + 6 * s, s, titleC, shadow: false)
+            // Q2c-console-65: why a slot refused the carried item, above the window for 2.5 s.
+            if let n = game.menuNote, game.clock - n.at < 2.5, game.clock >= n.at {
+                let a = Float(min(1, (2.5 - (game.clock - n.at)) / 0.4))
+                let tw = textWidth(n.text, s), nx = floor(o.x + (pw - tw) / 2), ny = max(2 * s, o.y - 13 * s)
+                rect(nx - 3 * s, ny - 2 * s, tw + 6 * s, 11 * s, V4(0, 0, 0, 0.7 * a))
+                text(n.text, nx, ny, s, V4(1, 0.75, 0.35, a))
+            }
             // Q2c-console-63: in the headset a carried stack drops only in this box (a stray pull off the window used
             // to throw it out into the world).
             if game.vrHead != nil && !game.carried.isEmpty && !(m is PauseMenu), let d = m.dropBox(ML) {
