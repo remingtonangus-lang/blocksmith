@@ -150,14 +150,16 @@ jobs:
       - name: Bots (oracles)
         id: bots
         if: ${{ !cancelled() }}
-        timeout-minutes: 40
+        timeout-minutes: 45
         run: |
           set -o pipefail
           mkdir -p snaps
           # three parallel bot processes (3 cores), each with its own HOME (user:// saves, caches) and watchdog
+          # a hard alarm (watchdog + 150 s) kills a process whose in-game watchdog hangs too, so the logs below always
+          # get written inside the step timeout
           run_bots() {   # $1 = name, $2 = bot list, $3 = watchdog s
             mkdir -p "$RUNNER_TEMP/home_$1"
-            HOME="$RUNNER_TEMP/home_$1" "$GODOT" --headless --path frontier -- --bot "$2" --seconds 75 --report "$PWD/snaps/bot_report_$1.json" --watchdog "$3" > "bots_$1.log" 2>&1 || true
+            HOME="$RUNNER_TEMP/home_$1" perl -e 'alarm shift; exec @ARGV' $(( $3 + 150 )) "$GODOT" --headless --path frontier -- --bot "$2" --seconds 75 --report "$PWD/snaps/bot_report_$1.json" --watchdog "$3" > "bots_$1.log" 2>&1 || true
           }
           run_bots story presentation,living,roam,ecology,missions 2100 &
           P1=$!
@@ -330,7 +332,7 @@ jobs:
             echo; echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"; echo
             echo "GPU probe: $(cat probe/result.txt 2>/dev/null)"; echo
             for f in *.png features/*.png vr/*.png probe/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
-            echo '```'; grep -hE "BOT|oracle|BENCH" ../bots.log ../bench.log 2>/dev/null; echo '```'
+            echo '```'; cat ../bots.log ../bench.log 2>/dev/null | grep -E "BOT|oracle|BENCH|WATCHDOG" || true; echo '```'
           } > README.md
           git init -q; git checkout -q --orphan ci-snaps-claude-frontier-game; git add -A
           git -c user.name="frontier-ci" -c user.email="ci@users.noreply.github.com" commit -qm "Frontier CI ${GITHUB_SHA}"
