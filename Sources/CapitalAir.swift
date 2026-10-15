@@ -44,6 +44,19 @@ extension Game {
         return min(top, Float(CH - 30))
     }
 
+    // The highest ground, crown or building top in a disc (a 7 x 7 grid of samples).
+    private func groundTop(around c: V3, radius: Float) -> Float {
+        var top: Float = 0
+        for j in -3...3 {
+            for i in -3...3 {
+                let x = Int(floor(c.x + Float(i) * radius / 3)), z = Int(floor(c.z + Float(j) * radius / 3))
+                let h = world.isLoaded(x, z) ? world.topY(x, z) : world.gen.column(x, z).height
+                top = max(top, Float(max(h, SEA)))
+            }
+        }
+        return top
+    }
+
     // What keeps the Kestrel on the ground: nil when the pad is there and clear (not blasted away, nothing on it).
     private func padProblem(_ r: BaseRecord) -> String? {
         let p = r.pad
@@ -139,7 +152,10 @@ extension Game {
             let radius: Float = lockdown ? 50 : 10
             let a = t * (lockdown ? 0.22 : 0.35)
             let p = centre + V3(cosf(a) * radius, 0, sinf(a) * radius)
-            fm.hold = V3(p.x, airCruise(r, k.pos, p, clear: lockdown ? 22 : 10), p.z); fm.holdSpeed = 9
+            // Over a noise: 10 over the highest ground or crown anywhere under the circle (taken along the short leg to
+            // the next point only, a taller tree beside it caught the 19-block hull and it never got home: basetest air).
+            let alt: Float = lockdown ? airCruise(r, k.pos, p, clear: 22) : groundTop(around: centre, radius: radius + 10) + 10
+            fm.hold = V3(p.x, alt, p.z); fm.holdSpeed = 9
             if t > 40 && !lockdown { ph = 4; t = 0; b.note("\(r.key) kestrel heading back") }
         case 4:
             // Up to the cruise height first, then across (low over a noise by the walls it flew into the citadel).
