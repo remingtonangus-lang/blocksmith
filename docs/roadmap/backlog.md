@@ -689,6 +689,12 @@ Q2c-console-19. [DONE] Tooltips answer "how do I make it?" and "what is it for?"
  (d) Ammunition shows the guns it fits ("For: Service Rifle, Falke Pistol") and where to get it.
  (e) Those lines use the small wrapped detail style under the name (at most three lines each), in the Mac's and the headset's inventory alike, worked out once per item, not every frame.
  Done Oct 15 (console; ItemHelp in Wrecks.swift, Renderer tooltip): (a) every inventory tooltip now says how to get the item. (b) items with a recipe: "Made from: <ingredients>" from the first recipe (Wrecks.recipeText, with "(crafting table)" for the big grid). (c) furnace products: "Smelt: <input> in a furnace" (Recipes.smelting and smeltingExtra). (d) ammunition: "For: <the current guns that take it>" and "Get it: <where>" (Guns.ammoSource). (e) pale blue detail lines under the name, wrapped by the P227 small-card code (three lines at most each), the same renderer on the Mac and the headset, cached per item id.
+Q2c-console-20. [CLAIMED console 2026-10-15] Tap a marker on the World Map to follow it (to follow a contract, a bounty, his horse or a town he had to find it again in the pause menu's Track a Target list; tapping the marker on the map just dropped a waypoint on top of it).
+ (a) Intent (Q2 c, clear and direct): what he sees on the map he can go to in one tap.
+ (b) A tap (the laser and trigger, a click, the pad's waypoint button at the centre cross) on a followable marker (contracts, bounties, his horse, ships and vehicles, Director events, where his horse fell, the story's objective) tracks it: the gold beacon and the HUD arrow lead there, with a chime and "Tracking <name>".
+ (c) A tap on a place's marker (a town, a base, a landmark) puts a named waypoint there ("Waypoint: Dunmore") and tracks it.
+ (d) A tap on an empty spot drops a waypoint as before, and a tap on a waypoint still removes it (tracking returns to the story).
+ (e) The map's control line says so ("Point + trigger: follow a marker or drop a waypoint").
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
