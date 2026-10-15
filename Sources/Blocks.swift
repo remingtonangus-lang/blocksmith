@@ -103,6 +103,9 @@ final class BlockRegistry {
     var shape: [String] = []
     var hidden: [Bool] = []
     var sway: [Bool] = []           // cross plants whose top corners bend in the wind (Quest chunk.vert; Mesher flags them)
+    // P281 (b): water plants (kelp, seagrass) that drift with the current: every corner of a stalk moves by a function of
+    // its world position only, so stacked blocks move together and the strand stays whole (Quest chunk.vert).
+    var drift: [Bool] = []
     var hardness: [Float] = []
     var resistance: [Float] = []
     // Flammable in the reference though neither wooden-sounding, leaves nor a plant (World.fireOdds gives their odds).
@@ -224,6 +227,7 @@ final class BlockRegistry {
         shape.append(d.shape)
         hidden.append(d.hidden)
         sway.append(d.sway ?? BlockRegistry.swayDefault(d))
+        drift.append(d.render == .cross && d.sound == .plant && d.fluid >= 0)
         hardness.append(d.hardness)
         resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : (BlockRegistry.refResistance(d) ?? d.hardness)))
         let n = d.name

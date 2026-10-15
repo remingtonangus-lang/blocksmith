@@ -694,7 +694,9 @@ enum HDTex {
                 img[x, y] = V4(c.x, c.y, c.z, 1)
             } }
         }
-        let w: Float = fn / 22
+        // P281 (c): the stalk is an eighth of the block across (it was an eleventh), so the coverage-kept mips still
+        // hold an unbroken stem a few texels wide: past ~20 blocks the 1/11-wide one broke into dashes, a dotted strand.
+        let w: Float = fn / 16
         for y in 0..<n {
             let c0: Float = cx(Float(y))
             for x in Int(c0 - w)...Int(c0 + w) {
