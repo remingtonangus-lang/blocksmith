@@ -731,6 +731,12 @@ Q2c-console-25. [DONE] Developer wording and test worlds out of a store player's
  (d) "Play Together (network)..." becomes "Play Together...", its help line already saying it is over Wi-Fi.
  (e) Nothing else changes: the same ids, values and keyboard keys (F3 still toggles it on the Mac).
  Done Oct 15 (console; PauseMenu worlds, interface and main pages): (a) the rows read as player options. (b) the Worlds page lists Sparkstone Workshop only while Cheats & Shortcuts is on (On in playtest and Mac builds, Off in the store APK). (c) Interface shows "Coordinates & Details: Off" with the help "Shows your position, the biome, the frame rate and chunk details in the corner (F3 on the keyboard)." (d) the main pause row reads "Play Together...". (e) ids, values and the F3 key are unchanged.
+Q2c-console-26. [CLAIMED console 2026-10-15] No dead settings left in the headset's options (after Q2c-console-1: Video's Brightness changed a value the headset never reads, its own Brightness living on the VR Comfort page; the crosshair styles, Couch Mode (TV), Safe Area and the split-screen layout did nothing useful in VR).
+ (a) Intent (Q2 c, clear settings): every row on the headset's options pages acts in the headset.
+ (b) Video's Brightness on the headset is the headset's own (the same setting as on VR Comfort & Controls), so changing it in either place changes the view.
+ (c) The crosshair style rows are hidden on the headset (the laser replaces the crosshair there).
+ (d) The TV rows are hidden on the headset: Couch Mode (TV), Safe Area and Split Screen layout (the HUD size stays under GUI Scale).
+ (e) The Mac keeps all of them as they were.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
