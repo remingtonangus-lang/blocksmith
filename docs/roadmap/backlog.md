@@ -766,6 +766,12 @@ Q2c-console-30. [DONE] The World Map says what a marker is when he points at it 
  (d) The card stays inside the map, never under the pointer's tip, and reads at the headset's panel scale.
  (e) Nothing changes for tapping: a tap still follows the marker or drops a waypoint (Q2c-console-20).
  Done Oct 15 (console; MapMenu.drawLines): (a) every marker reads under the pointer. (b) on the surface the map finds the marker nearest the pointer within three cells and draws a dark card by it: the marker's kind (MapCache.style name), its name after a colon when it has one, and "(420 blocks)" from him. (c) his home ("Home: where you wake" or "Spawn: ...") counts too, and so does every kept mark: contracts, bounties, his horse and where it fell, ships, vehicles, Director events, waypoints and "Your things". (d) the card sits up and right of the pointer, flips left at the map's right edge and below at its top, at the HUD scale (the headset panel's too). (e) tapping is unchanged.
+Q2c-console-31. [CLAIMED console 2026-10-15] The first-launch setup lets him choose his first world's difficulty (on the headset the first world is made before the setup page opens, so it was always Normal, then locked for good).
+ (a) Intent (Q2 c, first hour): a new player picks how hard his first world is before he plays it.
+ (b) The setup page shows "First World: Normal" while that world is brand new; pointing and pulling the trigger steps Peaceful, Easy, Normal, Hard.
+ (c) Only while the world is new (its first in-game day and his first ten minutes in it): after that the row is gone and the difficulty is fixed as before; reopening the setup later never shows it.
+ (d) The choice takes effect at once (monster rules, hunger) and is saved with the world.
+ (e) Its help line says what the levels mean and that it is fixed once he plays on; the page's subtitle mentions the choice while the row is there.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
