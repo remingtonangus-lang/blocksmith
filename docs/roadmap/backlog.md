@@ -1007,6 +1007,13 @@ Q2c-console-60. [DONE] Knockback as a comfort option (a zombie's hit shoved him 
  (e) New players start at Reduced, matching the Moderate preset the headset starts on; a help line says what each does.
  (f) Only the headset: the Mac keeps the full push.
  Done Oct 15 (console; Sources/Game.swift, Explosion.swift, quest/src/app/QuestSettings.swift, QuestControls.swift, QuestOptions.swift): (a) Game.knockbackScale multiplies every push on the player; (b) "Knockback: Full / Reduced / Off" (q_knock: 1, 0.4, 0) on VR Comfort & Controls; only player.vel is scaled, the damage path before it is untouched; (c) Game.hurtPlayer (creatures, weapons, arrows, shots) and Explosion's push both use it; (d) applyComfort sets 0 / 0.4 / 1 for Comfort / Moderate / Free, and the q_comfort help mentions it; (e) QuestSettings.knockback defaults to 0.4 (in snapshot, so Reset Options returns it there), help line q_knock; (f) QuestControls copies it into the game each frame; the Mac never sets it, so it stays 1.
+Q2c-console-61. [CLAIMED console 2026-10-15] Mining can be a toggle (breaking a block means holding the trigger for seconds, block after block: tiring over an hour and hard or impossible for players with weak or painful hands, and there was no alternative).
+ (a) Intent (Q2 c, accessibility and comfort): mining doesn't require holding a trigger down.
+ (b) "Mining: Hold / Toggle" on VR Comfort & Controls (default Hold): with Toggle, one pull at a block starts mining it and it keeps going after the trigger is let go, until the block breaks.
+ (c) It stops when the laser leaves that block, the trigger is pulled again, the held item changes, or a menu opens; the next block needs its own pull, so it never tunnels on by itself.
+ (d) Only blocks: with a creature under the laser or a gun in hand the trigger works exactly as before.
+ (e) Starting and stopping are felt: a short tick in the aiming hand.
+ (f) The help line says how it works; Reset Options returns to Hold.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
