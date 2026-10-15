@@ -787,6 +787,13 @@ Q2c-console-33. [DONE] Silent no-ops explain themselves (mining iron ore with a 
  (d) Survival only; creative never shows them.
  (e) Wording reads right: "an Iron Pickaxe", shears named without "or better", the block named as its item (Deepslate Iron Ore), and every state of a block (lit and unlit redstone ore) counts as one kind.
  Done Oct 15 (console; Sources/Game.swift): (a) both silent no-ops now toast a reason; (b) Game.harvestHint, called from breakBlock when drop && survival && !Mining.canHarvest, names the tier and tool from Blocks.tool/harvestLevel via the item registry, remembered per groupBase in Game.harvestTold; (c) fullToldAt gates "You're full" to once per 8 s, skipped for drinks, always-edible foods and when the food would be planted or placed at the target; (d) both checks require survival; (e) a/an chosen by the first letter, shears without "or better", block name from Items.item(forBlock:), groupBase key so states share one hint.
+Q2c-console-34. [CLAIMED console 2026-10-15] Near death is felt, not just shown (in the headset the hearts sit low on the HUD, below where he looks in a fight; nothing else changed at two hearts, so the first warning of being nearly dead was dying. The gamepad already had a heartbeat rumble; the Touch controllers, the view and the sound had nothing).
+ (a) Intent (Q2 c, nothing confusing in the first hour): he knows he is about to die while he can still back off and eat.
+ (b) At 4 health or less (two hearts) in survival a lub-dub heartbeat beats in both Touch controllers about once a second, quicker (every 0.75 s) at one heart or less; the gamepad's heartbeat rumble keeps the same beat.
+ (c) The edges of the view pulse a faint dark red with each beat (a soft ring like the hurt glow, weaker with Screen Effects off) in the headset; the Mac screen gets the same edge pulse, never a full-screen flash.
+ (d) A quiet heartbeat thump sounds with each beat (not positional; the subtitle reads "Heart beats").
+ (e) The hearts on the HUD jiggle while health is that low, as in the reference game, so a glance at them shows it too.
+ (f) Never in creative, while dead, paused, in a menu, asleep or during the credits; it stops the moment health climbs above two hearts, and the existing Low health lesson still comes first.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
