@@ -161,6 +161,8 @@ enum MobKind: Int, CaseIterable {
     var livestock: Bool { spec.behavior == .passive || spec.behavior == .animal }
     // Save / command keys: fixed forever so saves survive display-name changes.
     var key: String { MobKind.keys[self] ?? "\(self)" }
+    // P279 (a): walkers that sink and walk the bottom instead of floating (reference: the Sunken and the zombies).
+    var sinksInWater: Bool { self == .drowned || self == .zombie || self == .husk || self == .zombieVillager }
     static let keys: [MobKind: String] = [
         .cow: "cow",
         .sheep: "sheep",
@@ -434,6 +436,7 @@ final class Mob {
     var heldItem: ItemID = 0        // fetchling: item it collects
     var carried = 0                 // fetchling: collected count
     var airTime: Float = 0          // aquatic mobs out of water
+    var swimClimb: Float = 0        // P279 (b): seconds left of a swimmer kicking up a bank it bumped (head-out floaters sit low)
     var beam: Float = 0             // spikefish laser charge
     var anger: Float = 0            // deep stalker
     var jumpCharge: Float = 0       // horse jump when ridden
@@ -1186,14 +1189,35 @@ final class Mob {
             if abs(vel.x) < 1e-5 { vel.x = 0 }          // settled: no subnormal tail for `!= 0` tests to see
             if abs(vel.z) < 1e-5 { vel.z = 0 }
         }
-        if kind == .drowned && inWater && canTarget {
-            vel.y += ((player.y - pos.y) * 2 - vel.y) * min(1, dt * 3)
-        } else if kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 2 {
+        if swimClimb > 0 { swimClimb -= dt }
+        if kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 2 {
             vel.y = 2          // magmastriders stand on lava
         } else if inWater {
-            vel.y += 18 * dt
-            vel.y = min(vel.y, 1.6)
-            vel.y *= expf(-2 * dt)
+            // P279 (Oct 14 19:34, "the Drowned is walking on top of the water"): buoyancy pushed every mob up until its
+            // feet left the water, so it rode the surface standing up, and a Sunken chasing a player in a boat rose to the
+            // player's feet and stood on the sea. Now the water's surface over the mob sets how it sits in it.
+            let surf = liquidTop(w)
+            let headOut: Float = surf - max(0.35, height * 0.78)       // the highest the feet go: head and shoulders out
+            if swimClimb > 0 {
+                vel.y = 5.5                 // kicking up onto the bank it swam into (it sits too low to step out)
+            } else if kind.sinksInWater {
+                // P279 (a): the Sunken (and the zombies the sea turns into them) sink and walk the bottom. Only a Sunken
+                // after a target swims up, and then no higher than head-out: it never stands on the water.
+                if kind == .drowned && canTarget {
+                    let want: Float = min(player.y - 0.3, headOut)
+                    vel.y += ((want - pos.y) * 2 - vel.y) * min(1, dt * 3)
+                } else {
+                    vel.y -= 9 * dt
+                    vel.y = max(vel.y, -2.5)
+                }
+            } else {
+                // P279 (b): everything else floats low, body under and head above the surface, bobbing a little.
+                let ph: Float = Float(g.clock.truncatingRemainder(dividingBy: 600)) * 2.6 + pos.x * 0.7
+                let bob: Float = sinf(ph) * 0.06
+                let want: Float = headOut + bob
+                vel.y += ((want - pos.y) * 3 - vel.y) * min(1, dt * 4)
+                vel.y = max(-3, min(1.6, vel.y))
+            }
         } else if jet > 0 {
             // P192: on its jets: climbs to jetY and holds there, then settles back down when they cut out.
             jet -= dt
@@ -1283,6 +1307,10 @@ final class Mob {
         }
         if bumped && speed != 0 {
             if onLadder { vel.y = 2.35 }
+            // P279 (b): a floater (or a Sunken coming up after its target) bumping the bank kicks up and out.
+            else if inWater && !onGround && (!kind.sinksInWater || (kind == .drowned && canTarget)) { swimClimb = 0.25 }
+            // P279 (a): a hop on the bottom is slowed by the water (a full 8.6 launched a walker four blocks up).
+            else if onGround && inWater && kind.sinksInWater { vel.y = 4.5 }
             // Hop up one block: gravity acts before the first move, so 7.4 left the ground at 6.0 and peaked 0.8 up,
             // short of a full block (behaviour-sim trace, run 355: villagers bounced at every 1-block step for
             // minutes). The player's 8.6 peaks at 1.1.
@@ -1300,6 +1328,15 @@ final class Mob {
         // jog read as a sprint): the cadence rises with the square root of speed past a walk.
         else { walkPhase += hs * dt * HumanGait.radPerBlock(hs) }
         walkAmount += (min(1, hs / 1.2) - walkAmount) * min(1, dt * 8)
+    }
+
+    // P279: the height of the top of the liquid column this mob is in (the first block above its feet that isn't liquid).
+    func liquidTop(_ w: World) -> Float {
+        let x = Int(floor(pos.x)), z = Int(floor(pos.z))
+        var y = Int(floor(pos.y + 0.2))
+        let cap = y + 48
+        while y < cap && Blocks.isLiquid(w.block(x, y, z)) { y += 1 }
+        return Float(y)
     }
 
     // Capital crew aboard (see crewPost): the speed to walk this tick, setting yaw / strafe in the ship's frame.
