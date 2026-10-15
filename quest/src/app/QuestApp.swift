@@ -364,6 +364,11 @@ final class QuestApp {
             // when the user comes back, so nothing happens to them meanwhile.
             if !xr.focused && wasFocused && g.menu == nil && g.credits == nil { g.paused = true }
             wasFocused = xr.focused
+            // Q2c-console-37: silent while away; the world and its music ducked while paused (not at the title, not
+            // while he sets volumes on Options > Audio).
+            let pm = g.menu as? PauseMenu
+            let audioPage = pm.map { $0.page == .options && $0.cat == .audio } ?? false
+            g.sound?.setAway(!xr.focused, duck: g.paused && !(pm?.cameFromTitle ?? false) && !audioPage)
             // S8: away (the boundary or the system menu up, the headset taken off) for two seconds: saved once.
             awayFor = xr.focused ? 0 : awayFor + dt
             if xr.focused { savedAway = false } else if awayFor > 2 && !savedAway { savedAway = true; saveNow() }

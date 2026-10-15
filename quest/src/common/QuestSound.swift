@@ -53,6 +53,10 @@ final class SoundEngine {
     private(set) var cave: Float = 0
     private var underwater = false
     private var underwaterMix: Float = 0       // 0...1, glides (mixer reads it)
+    // Q2c-console-37: away (input focus lost) every sound fades out; paused, the world bus and the music duck (the
+    // interface bus stays). The game thread sets the targets (setAway); the mixer glides toward them per sample.
+    private var awayTarget: Float = 1, duckTarget: Float = 1
+    private var awayGain: Float = 1, duckGain: Float = 1
     private var reverb = QuestReverb()
 
     final class Loop {
@@ -306,6 +310,10 @@ final class SoundEngine {
         }
     }
 
+    func setAway(_ away: Bool, duck: Bool) {
+        mixLock.lock(); awayTarget = away ? 0 : 1; duckTarget = duck ? 0.33 : 1; mixLock.unlock()
+    }
+
     func update(_ dt: Float, asked: Set<String>) {
         var dead: [String] = []
         for (k, l) in loops {
@@ -369,6 +377,7 @@ final class SoundEngine {
         for i in 0..<loopVoices.count where loopVoices[i].active { mixVoice(&loopVoices[i], &scratchL, &scratchR, n) }
         let uw = underwater
         let caveAmt = cave
+        let awayT = awayTarget, duckT = duckTarget
         mixLock.unlock()
         // World bus: a little reverb (more in caves), then the underwater low-pass.
         reverb.process(&scratchL, &scratchR, n, wet: 0.04 + 0.3 * caveAmt)
@@ -384,8 +393,11 @@ final class SoundEngine {
         music?.mix(into: &scratchL, &scratchR, n)
         disc?.mix(into: &scratchL, &scratchR, n)
         for i in 0..<n {
+            // Q2c-console-37: out in ~0.35 s when away, back in ~0.5 s; the pause duck glides in ~0.4 s.
+            awayGain += (awayT - awayGain) * (awayT > awayGain ? 0.0001 : 0.00018)
+            duckGain += (duckT - duckGain) * 0.00013
             // Soft clip.
-            let l = scratchL[i] + uiL[i], r = scratchR[i] + uiR[i]
+            let l = (scratchL[i] * duckGain + uiL[i]) * awayGain, r = (scratchR[i] * duckGain + uiR[i]) * awayGain
             out[i * 2] = l / (1 + abs(l) * 0.25)
             out[i * 2 + 1] = r / (1 + abs(r) * 0.25)
         }
