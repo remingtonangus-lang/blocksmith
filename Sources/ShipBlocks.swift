@@ -274,7 +274,9 @@ extension Recipes {
         r.append(shaped(["SSS", "SPS", " P "], ["S": "stick", "P": "#planks"], "ship_helm"))
         r.append(shaped(["P P", " I ", "P P"], ["P": "#planks", "I": "iron_ingot"], "ship_propeller"))
         r.append(shaped(["III", "IFI", "CCC"], ["I": "iron_ingot", "F": "furnace", "C": "cobblestone"], "ship_engine"))
-        r.append(shaped(["WWW", "WSW", "WWW"], ["W": "white_wool", "S": "string"], "ship_balloon", 4))
+        // P269 (Oct 14 19:25, eight wool a balloon was "insane"): three wool over a string or a piece of leather make two.
+        r.append(shaped(["WWW", " S "], ["W": "white_wool", "S": "string"], "ship_balloon", 2))
+        r.append(shaped(["WWW", " L "], ["W": "white_wool", "L": "leather"], "ship_balloon", 2))
         r.append(shaped(["SSS", "PPP"], ["S": "stick", "P": "#planks"], "ship_wing", 4))
         r.append(shaped(["PIP", " I ", " I "], ["P": "ship_propeller", "I": "iron_ingot"], "ship_rotor"))                   // P263: the other way to fly
         r.append(shaped([" P ", "PIP", " P "], ["P": "#planks", "I": "iron_ingot"], "ship_wheel", 2))
