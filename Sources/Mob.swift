@@ -1366,9 +1366,11 @@ final class Mob {
     // day pushing against house walls and hopping). Falls back to a random heading when no spot is found.
     func wander() {
         if panic > 0 {
+            // P285 (c): a panicking animal runs one way with small swerves (a 70-degree turn every 0.6 s ran it round
+            // in circles near where it was hit); hit() points it away from the blow first.
             moving = true
             wanderGoal = nil
-            if aiTimer <= 0 { yaw += Rand.float(in: -1.2...1.2); aiTimer = 0.6 }
+            if aiTimer <= 0 { yaw += Rand.float(in: -0.35...0.35); aiTimer = Rand.float(in: 0.9...1.6) }
         } else if aiTimer <= 0 {
             moving.toggle()
             wanderGoal = nil
@@ -1576,7 +1578,11 @@ final class Mob {
         if kind == .shulker { aggro = true; return }
         if kind == .boat { spin += Rand.float(in: -8...8); return }
         if kind == .armorStand { return }
-        if spec.behavior == .passive { panic = 5; aiTimer = 0 }
+        // (P285 (c): horses, donkeys and the other harmless .animal kinds bolt too; herd game has its own flight.)
+        if spec.behavior == .passive || (spec.behavior == .animal && spec.attack == 0 && !kind.herdGame) {
+            panic = 5; aiTimer = Rand.float(in: 0.9...1.6)
+            face(pos + V3(pos.x - src.x, 0, pos.z - src.z)); faceGoal = nil       // P285: bolt away from the blow
+        }
         aggro = true
         lockTime = max(lockTime, 10)
         wasHit = true

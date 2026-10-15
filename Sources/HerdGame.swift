@@ -85,7 +85,20 @@ extension Mob {
         }
         if fleeTime > 0, let goal = fleeGoal {
             fleeTime -= dt
-            face(goal)
+            // P285 (Oct 14 19:41, "the deer sometimes run in circles"): a deer at 5 blocks a second reached its goal 16
+            // blocks off in about 3 s and spent the rest of the bolt turning round the point (face() flipping it each
+            // step). At the goal: still too close to the player, run on the same way; otherwise stop and look back.
+            if simd_length(V2(goal.x - pos.x, goal.z - pos.z)) < 2.5 {
+                let away: V3 = fd > 0.5 ? -flat / fd : V3(-sinf(yaw), 0, -cosf(yaw))
+                if g.alive && dist < r * 1.2 {
+                    fleeGoal = pos + away * 12
+                } else {
+                    fleeTime = 0; fleeGoal = nil; moving = false; aiTimer = Rand.float(in: 1.5...3.5)
+                    face(p); faceGoal = nil
+                    return 0
+                }
+            }
+            face(fleeGoal ?? goal)
             moving = true
             return spec.speed * 1.6
         }
