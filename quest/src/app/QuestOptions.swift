@@ -41,7 +41,11 @@ enum QuestOptions {
                                 // Q2c-console-1: a gamepad's stick tuning and prompt styles do nothing with Touch controllers
                                 // (turning, walking and sprinting are the VR Comfort & Controls page's).
                                 "lookx", "looky", "accel", "curve", "invert", "lookdead", "lookouter", "dead", "moveouter",
-                                "aim", "southpaw", "sneaktoggle", "autosprint", "glyphs"]
+                                "aim", "southpaw", "sneaktoggle", "autosprint", "glyphs",
+                                // Q2c-console-26: the laser replaces the crosshair; TV framing and split screen don't apply;
+                                // the headset's brightness is its own (q_bright, below on the Video page too).
+                                "crosshair", "couch", "safe", "splitlayout", "brightness"]
+        PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]
         PauseMenu.hostValues = ["q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]

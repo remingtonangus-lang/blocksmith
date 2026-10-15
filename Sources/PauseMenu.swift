@@ -63,6 +63,7 @@ final class PauseMenu: Menu {
     // (the Quest: Touch Controls).
     static var hostHiddenCats: Set<Cat> = []
     static var savedNote: String?                 // Q2c-console-2: the title screen's "World1 saved" after Save and Quit
+    static var hostVideoRows: (() -> [(String, String)])?   // Q2c-console-26: the host's own rows on the Video page
     static var hostCatNames: [Cat: String] = [:]
     static var shownCats: [Cat] { Cat.allCases.filter { !hostHiddenCats.contains($0) } }
     static func catName(_ c: Cat) -> String { hostCatNames[c] ?? c.name }
@@ -309,6 +310,7 @@ final class PauseMenu: Menu {
                         ("Brightness: \(PauseMenu.brightnessName(st.brightness))", "brightness"),
                         ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui"),
                         ("Block Chipping: \(on(st.chipping))", "chipping")]
+                rows += PauseMenu.hostVideoRows?() ?? []                                              // Q2c-console-26
                 rows += ShaderFX.names.map { ("\($0.1): \(on(ShaderFX.on($0.0)))", "fx\($0.0)") }      // SH1 (headset shaders)
             case .audio:
                 // One slider per sound category, subtitles and a test sound (AudioMenu.swift); its own Done row is ours.
@@ -550,6 +552,8 @@ final class PauseMenu: Menu {
         case _ where id.hasPrefix("host:"):
             hostPageID = String(id.dropFirst(5)); scroll = 0; resetCursor = true
         case _ where hostPageID != nil && id != "back":
+            PauseMenu.hostAct?(id, back)
+        case _ where id.hasPrefix("q_") && PauseMenu.hostValues.contains(id):        // Q2c-console-26: a host row on our page
             PauseMenu.hostAct?(id, back)
         case _ where id.hasPrefix("vol:") || id.hasPrefix("audio_music_") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
         case "resume":
