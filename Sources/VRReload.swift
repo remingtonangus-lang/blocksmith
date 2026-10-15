@@ -11,25 +11,35 @@ enum VRReload {
     // to keep squeezing) for up to `holdFor` seconds; it seats anywhere within `wellReach` of the gun, from the gun hand
     // along the barrel to `barrelReach` ahead of it; a fresh grip press away from the gun puts it back (and steps the
     // hotbar, P162). The hip zone is deeper and wider.
-    static let wellReach: Float = 0.26          // m from the gun (was 0.16 from the gun hand only)
+    static let wellReach: Float = 0.32          // m from the gun (was 0.16 from the gun hand only; P257: 0.26 -> 0.32)
     static let barrelReach: Float = 0.4
     static let holdFor: Double = 6
-    static let wellSnap: Float = 0.3            // R7: m from the drawn magazine well
+    static let wellSnap: Float = 0.42           // R7: m from the drawn magazine well (P257: 0.3 -> 0.42, it snaps in from nearer the side)
+    static let fresh: Double = 2                // P257: seconds after the hand reaches the hip that its grip takes a magazine
     static var takenAt: Double = 0
 
     // Low beside the body: 0.4-1.2 m under the head and within 0.5 m of it sideways, and not out in front of the body
     // (P109, Oct 12 PM: "still can't grip left when I'm holding a gun": a hand held at the waist in front, the usual
     // pose for pressing a grip, counted as the hip, so with a gun not full every left grip took a magazine and the
     // hotbar never stepped). `forward`: the way the body faces (level).
-    static let frontLimit: Float = 0.12
+    // P257 (Oct 14 12:04, a repeat of R7: "taking a magazine from the hip is still too hard"): a bigger zone, 0.2-1.4 m
+    // under the head (seated and lying back too), within 0.75 m sideways and up to 0.22 m in front of the body.
+    static let frontLimit: Float = 0.22
     static func atHip(head: V3, hand: V3, forward: V3? = nil) -> Bool {
         let d = hand - head
-        guard d.y < -0.3 && d.y > -1.3 && simd_length(V2(d.x, d.z)) < 0.6 else { return false }
+        guard d.y < -0.2 && d.y > -1.4 && simd_length(V2(d.x, d.z)) < 0.75 else { return false }
         if let f = forward { return simd_dot(V2(d.x, d.z), simd_normalize(V2(f.x, f.z))) < frontLimit }
         return true
     }
 
     static var grabs = 0, inserts = 0           // tests
+
+    // P257 (e): there is a magazine to take: a gun in hand, not full, rounds for it in the pack (or a second gun to load).
+    static func canTake(_ g: Game) -> Bool {
+        guard let gi = g.heldGun, !g.arms.magInHand else { return false }
+        if g.held.tag >= Guns.magSize(g.held) && !DualWield.offEmptyOrLow(g) { return false }
+        return g.ammoCount(Guns.all[gi].ammo) > 0
+    }
 
     // Distance from the hand to the gun: the segment from the gun hand along the barrel.
     static func toGun(_ hand: V3, gunHand: V3, forward: V3?) -> Float {

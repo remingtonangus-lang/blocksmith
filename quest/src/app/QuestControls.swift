@@ -155,6 +155,7 @@ final class QuestControls {
     private var panelHitUV: V2?
     private var prevTrigger = false, prevGrip = false
     private var lastHoverSlot = -1, hoverRest: Float = 1
+    private var hipWas = false, hipAt: Double = -100          // P257: the off hand reached the hip (and when)
 
     // Forget held and latched buttons (the Touch matrix starts each cell clean).
     func clearLatches() { sneakLatch = false; l3Rode = false; l3Hold = 0; bHold = 0; bPulse = 0; bBlock = false }
@@ -387,7 +388,16 @@ final class QuestControls {
             let rel = rig.toWorld(L.gripPos) - rig.headWorld
             if !offTracked { offRelAvg = rel; offTracked = true }          // (a hand already at the side when the gun comes out rests)
             offRelAvg += (rel - offRelAvg) * min(1, dt * 4)
-            let resting = simd_length(rel - offRelAvg) < 0.06
+            // P257 (b, d, e): the hand arriving at the hip ticks it once when there is a magazine to take, and for two
+            // seconds after arriving its grip is the pouch's even if the hand has stopped (reach, pause, squeeze).
+            let fwdL = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            let inHip = VRReload.atHip(head: rig.headWorld, hand: rig.toWorld(L.gripPos), forward: fwdL)
+            if inHip && !hipWas {
+                hipAt = game.clock
+                if VRReload.canTake(game) { app.input.haptic(moveHand, amplitude: 0.3, seconds: 0.025, frequency: 320) }
+            }
+            hipWas = inHip
+            let resting = simd_length(rel - offRelAvg) < 0.06 && !(inHip && game.clock - hipAt < VRReload.fresh)
             let ev = VRReload.tick(game, offHand: rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), head: rig.headWorld,
                                    grip: lGrip, gripWas: prevGripL, gunForward: aimDir, resting: resting, well: drawnWell())
             switch ev {
