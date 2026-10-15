@@ -14,6 +14,12 @@ enum QuestOptions {
         var headHeight: () -> Float? = { nil }
         var finishSetup: () -> Void = {}
         var toast: (String) -> Void = { _ in }
+        var game: () -> Game? = { nil }                 // Q2c-console-31: the world being played (its first difficulty)
+    }
+    // Q2c-console-31: the first world is still new (its first day, his first ten minutes in it): its difficulty may change.
+    static func newWorld() -> Game? {
+        guard let g = hooks.game(), Int(g.time / DAY_LENGTH) == 0, g.clock < 600 else { return nil }
+        return g
     }
     static var hooks = Hooks()
 
@@ -50,7 +56,7 @@ enum QuestOptions {
         PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]
-        PauseMenu.hostValues = ["q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
@@ -59,6 +65,7 @@ enum QuestOptions {
             "q_preset": "Default: the standard layout. Classic: the stick walks and snap-turns (no teleport). One Hand: the dominant stick also walks forward and back, and turns sideways.",
             "q_height": "Stand up straight, look ahead and select this: standing play then always recentres to this height.",
             "q_setup_done": "Start playing. All of this is in VR Comfort & Controls later.",
+            "q_firstdiff": "Peaceful: no monsters. Easy: gentler monsters and hunger. Normal: as intended. Hard: tougher in every way. Fixed once you play on.",
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
             "q_snap": "How far one snap turn goes.",
             "q_tspeed": "How fast smooth turning goes.",
@@ -174,6 +181,9 @@ enum QuestOptions {
     static func act(_ id: String, back: Bool) {
         let S = QuestSettings.self
         switch id {
+        case "q_firstdiff":
+            guard let g = newWorld() else { break }
+            g.difficulty = step([0, 1, 2, 3], g.difficulty, back)
         case "q_turn":
             S.smoothTurn.toggle()
             if S.smoothTurn && S.controlPreset == 1 { S.controlPreset = 0 }       // (Classic means snap turns)
@@ -285,7 +295,7 @@ enum QuestOptions {
         let S = QuestSettings.self
         let h = S.standHeight
         let measured = h > 0 ? String(format: "%.2f m", h) : "not measured"
-        let rows: [(String, String)] = [
+        var rows: [(String, String)] = [
             ("Play Position: \(positionNames[playPosition])", "q_pos"),
             ("Comfort: \(comfortPreset.map { comfortNames[$0] } ?? "Custom")", "q_comfort"),
             ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
@@ -293,6 +303,10 @@ enum QuestOptions {
             ("Measure Height (stand tall, press \(S.leftHanded ? "X" : "A")): \(measured)", "q_height"),
             ("Start Playing", "q_setup_done"),
         ]
+        if let g = newWorld() {
+            rows.insert(("First World: \(Game.difficultyNames[max(0, min(3, g.difficulty))])", "q_firstdiff"), at: rows.count - 1)
+            return ("Welcome to Blocksmith", "Set up how you play and how hard your first world is. Point and pull the trigger to change a row.", rows)
+        }
         return ("Welcome to Blocksmith", "Set up how you play. Point and pull the trigger to change a row.", rows)
     }
 }

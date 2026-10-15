@@ -237,7 +237,8 @@ final class QuestApp {
                 if g.menu is PauseMenu { g.closeMenu() }
                 g.paused = false
             },
-            toast: { [weak self] t in self?.game?.onToast?(t) }))
+            toast: { [weak self] t in self?.game?.onToast?(t) },
+            game: { [weak self] in self?.game }))
         PadManager.shared.haptic = { [weak self] k, secs, sharp in
             guard let self else { return }
             let f: Float = 80 + 240 * sharp
