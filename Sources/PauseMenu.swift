@@ -42,6 +42,8 @@ final class PauseMenu: Menu {
     var worlds: [WorldStore.Info] = []
     var confirmReset = false              // the confirm page is asking about options, not a world
     var confirmMode = false               // Q2c-console-5: ... or about switching the game mode
+    var confirmQuit = false               // Q2c-console-54: ... or about quitting the game
+    var confirmAt: Double = 0             // wall clock when that page opened (a pull in the first 0.4 s doesn't quit)
     var padBinding: Int? = nil             // Button Mapping: logical button waiting for a physical press
     var padBindArmed: Double = 0
     var binding: KeyBinds.Action? = nil   // waiting for a key press on the Key Bindings page
@@ -226,7 +228,8 @@ final class PauseMenu: Menu {
         "debug": "Shows your position, the biome, the frame rate and chunk details in the corner (F3 on the keyboard).",
         "devtools": "Shows Commands (time, weather, items, mode) and Shortcuts (teleport) in the pause menu in survival. Creative always has them.",
         "perf": "Frame rate, frame times (average and worst of the last second), render distance and chunk jobs in the corner of the view.",
-        "quit": "Save the world and close Blocksmith.",
+        "quit": "Save the world and close Blocksmith (asks first).",
+        "quit_yes": "Saves your world, then closes Blocksmith.",
         "totitle": "Save the world and return to the title screen.",
         "create": "Choose a name, seed, game mode and difficulty (the difficulty is locked once the world is made).",
         "newworld": "Start a new world with a random seed straight away.",
@@ -419,6 +422,11 @@ final class PauseMenu: Menu {
             subtitle = g.survival ? "No damage or hunger, fly freely, every block to hand. You can switch back here."
                                   : "Health, hunger and gathering again. You can switch back here."
             rows = [("Cancel", "back"), (g.survival ? "Switch to Creative" : "Switch to Survival", "mode_yes")]
+        case .confirm where confirmQuit:
+            // Q2c-console-54: one stray pull no longer closes the app.
+            title = "Quit Blocksmith?"
+            subtitle = "Your world is saved first and waits on the title screen next time."
+            rows = [("Cancel", "back"), ("Save and Quit", "quit_yes")]
         case .confirm where confirmReset:
             title = "Reset Options?"
             subtitle = "Every option and key binding goes back to its default."
@@ -618,7 +626,7 @@ final class PauseMenu: Menu {
         case "back" where hostPageID != nil:
             hostPageID = nil; scroll = 0; resetCursor = true
         case "back":
-            confirmReset = false; confirmMode = false
+            confirmReset = false; confirmMode = false; confirmQuit = false
             page = stack.popLast() ?? (page == .title ? .title : .main)
             editing = nil
             scroll = 0
@@ -833,7 +841,11 @@ final class PauseMenu: Menu {
         case "resethints": PauseMenu.resetHints(g)
         case "volume": g.volumeSetting = step([0, 0.1, 0.25, 0.5, 0.8, 1], g.volumeSetting)
         case "music": g.musicVolume = step([0, 0.25, 0.5, 0.75, 1], g.musicVolume)
-        case "quit": g.appAction?("quit")
+        case "quit": go(.confirm); confirmQuit = true; confirmAt = CFAbsoluteTimeGetCurrent(); resetCursor = true    // Q2c-console-54
+        case "quit_yes":
+            guard CFAbsoluteTimeGetCurrent() - confirmAt >= 0.4 else { break }
+            confirmQuit = false
+            g.appAction?("quit")
         case "restorebackup": g.appAction?("restorebackup")
         default: g.appAction?(id)
         }
