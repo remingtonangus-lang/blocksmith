@@ -115,14 +115,33 @@ enum BoatLooks {
             q.mn += shift; q.mx += shift; q.pivot += shift
             out.append(q)
         }
-        let armor = g.inventory.armor
-        func tone(_ slot: Int, _ c: V3) -> V3 { armor[slot].isEmpty ? c : (ArmorLook.color(armor[slot].item) ?? c) }
-        let legs = tone(2, V3(0.22, 0.22, 0.26)), feet = tone(3, V3(0.35, 0.22, 0.12))
+        // P276 (Oct 14 19:32, "the armour still looks like shit ... make it look the same as in the inventory"): the
+        // bent legs wear the same shells as the standing figure (playerArmorParts): leggings over thigh and shin with
+        // the belt's trim, boots with a toe cap and a trimmed cuff, in ArmorLook.style's colours and finishes (the old
+        // seat only recoloured the trousers flat).
+        let armor = playerArmorOverride ?? g.inventory.armor.slots
+        let ls: ArmorLook.Style? = armor.count > 2 && !armor[2].isEmpty ? ArmorLook.style(armor[2]) : nil
+        let fs: ArmorLook.Style? = armor.count > 3 && !armor[3].isEmpty ? ArmorLook.style(armor[3]) : nil
+        let legs = V3(0.22, 0.22, 0.26), feet = V3(0.35, 0.22, 0.12)
         for left in [true, false] {
             let xa: Float = left ? -4 : 0.01, xb: Float = left ? -0.01 : 4
             out.append(Part(mn: V3(xa, 7.5, -6), mx: V3(xb, 11.5, 4), color: legs, pattern: 4))          // thigh over the thwart
             out.append(Part(mn: V3(xa, 5.5, -8), mx: V3(xb, 10, -4), color: legs, pattern: 4))           // shin down to the boards
             out.append(Part(mn: V3(xa - 0.15, 3.25, -8.3), mx: V3(xb + 0.15, 6, -3.8), color: feet, pattern: 4))   // boot
+            // Shells: open on the inner side (no fight with the other leg), like the standing figure's.
+            let sa: Float = left ? xa - 0.45 : xa, sb: Float = left ? xb : xb + 0.45
+            if let s = ls {
+                out.append(Part(mn: V3(sa, 7.05, -6.45), mx: V3(sb, 11.95, 3.6), color: s.color * 0.92, pattern: s.pattern))
+                out.append(Part(mn: V3(sa, 6.1, -8.45), mx: V3(sb, 10.45, -4.4), color: s.color * 0.92, pattern: s.pattern))
+                out.append(Part(mn: V3(sa - 0.05, 9.6, -6.6), mx: V3(sb + 0.05, 10.9, -4.6), color: s.trim ?? s.color * 0.75,
+                                pattern: s.trim == nil ? s.pattern : s.trimPattern))                                  // knee cop
+            }
+            if let s = fs {
+                let ba: Float = left ? xa - 0.65 : xa + 0.01, bb: Float = left ? xb - 0.01 : xb + 0.65
+                out.append(Part(mn: V3(ba, 3.1, -8.6), mx: V3(bb, 6.4, -3.6), color: s.color * 0.85, pattern: s.pattern))
+                out.append(Part(mn: V3(ba, 3.15, -9.3), mx: V3(bb, 4.6, -8.5), color: s.color * 0.75, pattern: s.pattern))   // toe cap
+                if let t = s.trim { out.append(Part(mn: V3(ba - 0.05, 5.8, -8.7), mx: V3(bb + 0.05, 6.6, -3.5), color: t, pattern: s.trimPattern)) }
+            }
         }
         return out
     }
