@@ -95,6 +95,13 @@ final class PauseMenu: Menu {
             || hostValues.contains(id)
     }
 
+    // Q2c-console-17: the level shown on Create New World, in a line (docs/status/difficulty.md).
+    static let difficultyHelp = [
+        "Peaceful: no monsters, and hunger never harms you. Fixed once the world is made.",
+        "Easy: gentler, slower, fewer monsters; starving stops at five hearts. Fixed once the world is made.",
+        "Normal: monsters and hunger as the game intends; starving stops at half a heart. Fixed once the world is made.",
+        "Hard: monsters hit harder, take more blows, move faster and come in numbers; starving can kill. Fixed once made.",
+    ]
     static let help: [String: String] = [
         "resume": "Return to the game.",
         "worlds": "Play, create, rename, copy or delete worlds.",
@@ -120,7 +127,7 @@ final class PauseMenu: Menu {
         "autojump": "Walk into a one-block step to climb it without jumping.",
         "advancements": "Goals you have reached and the ones still ahead.",
         "commands": "Type a command (time, weather, teleport, give...).",
-        "new_mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
+        "new_mode": "Survival: health, hunger, mining. Creative: fly and build freely. You can switch later from the pause menu.",
         "new_diff": "How much damage mobs do and whether hunger can kill.",
         "edit_name": "The name shown in the worlds list.",
         "edit_seed": "Leave empty for a random world; the same seed always makes the same world.",
@@ -415,11 +422,13 @@ final class PauseMenu: Menu {
             }
         case .create:
             title = "Create New World"
+            // Q2c-console-17: what is about to be made.
+            subtitle = "A \(newSurvival ? "Survival" : "Creative") world on \(Game.difficultyNames[newDifficulty]), " + (newSeed.isEmpty ? "random seed" : "seed \(newSeed)")
             let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
             rows = [("Name: \(newName)\(editing == 0 ? caret : "")", "edit_name"),
                     ("Seed: \(newSeed.isEmpty && editing != 1 ? "(random)" : newSeed)\(editing == 1 ? caret : "")", "edit_seed"),
                     ("Game Mode: \(newSurvival ? "Survival" : "Creative")", "new_mode"),
-                    ("Difficulty: \(Game.difficultyNames[newDifficulty])", "new_diff"),
+                    ("Difficulty: \(Game.difficultyNames[newDifficulty]) (fixed once made)", "new_diff"),
                     ("Create World", "new_create"), ("Back", "back")]
         }
         if !PauseMenu.hostHidden.isEmpty { rows.removeAll { PauseMenu.hostHidden.contains($0.1) } }
@@ -470,6 +479,7 @@ final class PauseMenu: Menu {
         if id == "dir_status" || id == "dir_model" { return Director.statusLines(game).prefix(2).joined(separator: ". ") }   // P266 (n)
         if id == "w_delete" && !WorldStore.useTrash { return "Delete this world for good (there is no Trash on this device): Copy it first to keep a backup." }   // Q2c-console-5
         if id == "mode" { return "Survival: health, hunger, mining. Creative: fly and build freely. Asks before switching." }
+        if id == "new_diff" { return PauseMenu.difficultyHelp[max(0, min(3, newDifficulty))] }     // Q2c-console-17
         return PauseMenu.help[id] ?? PauseMenu.hostHelp[id] ?? ""
     }
 
