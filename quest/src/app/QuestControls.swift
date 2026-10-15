@@ -731,6 +731,7 @@ final class QuestControls {
 
     // G21: the Farsight raised to the eye (VRScope): eased 0...1, the views zoom with it.
     private(set) var scopeT: Float = 0
+    private var scopeUp = false
     private func scopeTick(_ dt: Float) {
         let rig = app.rig
         var up = false
@@ -742,10 +743,14 @@ final class QuestControls {
             if let gi = game.heldGun, gi < CapitalArms.models.count, let hd = lastAimHand {
                 eyepiece = rig.toWorld(hd.aimPos) + (braceRot ?? rig.toWorldRot(hd.aimRot)).act(QuestControls.heldGunShift(gi))
             }
-            up = VRScope.raised(heldKey: Items.key(game.held.item), head: rig.headWorld, headForward: fwd, aimOrigin: eyepiece, aimDir: aim.dir)
+            up = VRScope.raisedBraced(held: game.held, braced: braceRot != nil, head: rig.headWorld, headForward: fwd,
+                                      rearHand: aim.origin, eyepiece: eyepiece, barrel: aim.dir)
         }
+        // P270 (d): a short tick in the rear hand as the scope engages.
+        if up && !scopeUp { app.input.haptic(aimHand, amplitude: 0.3, seconds: 0.025, frequency: 220) }
+        scopeUp = up
         scopeT = up ? min(1, scopeT + dt * 6) : max(0, scopeT - dt * 8)
-        rig.zoom = VRScope.zoom(scopeT)
+        rig.zoom = VRScope.zoom(scopeT, full: VRScope.scopeZoom(game.held) ?? VRScope.zoom)
     }
 
     // After Game.tick: the camera follows the moved player; head-space audio; vignette from motion.
