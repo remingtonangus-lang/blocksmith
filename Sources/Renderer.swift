@@ -1610,6 +1610,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             bars += game.huntedBars()               // D47
             if let b = Partner.bar(game) { bars.insert(b, at: 0) }          // D52: downed, reviving
             for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
+            if bars.isEmpty, let tb = game.targetBar() { bars.append(tb) }        // Q2c-console-52: the creature he is fighting
             Goals.bars = bars.count + (game.deepWayUpHUD() != nil || VaultObjectives.hud(game) != nil ? 1 : 0) + (Waymarks.hud(game) != nil ? 2 : 0)
             // The way up out of the Deep (DeepWayUp.swift), under the bars.
             if let up = game.deepWayUpHUD() {
@@ -1621,8 +1622,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             for (i, b) in bars.enumerated() {
                 let bw = 182 * s, bx = (W - bw) / 2, by = L.insetY + 12 * s + Float(i) * 19 * s
-                text(b.0, (W - textWidth(b.0, s)) / 2, by - 9 * s, s)
-                rect(bx, by, bw, 5 * s, V4(b.2.x * 0.3, b.2.y * 0.3, b.2.z * 0.3, 1))
+                text(b.0, (W - textWidth(b.0, s)) / 2, by - 9 * s, s, V4(1, 1, 1, b.2.w))      // (b.2.w: a fading bar, Q2c-console-52)
+                rect(bx, by, bw, 5 * s, V4(b.2.x * 0.3, b.2.y * 0.3, b.2.z * 0.3, b.2.w))
                 rect(bx, by, bw * max(0, min(1, b.1)), 5 * s, b.2)
             }
             // D51: the tracked target's marker along the top, at its bearing (Waymarks.swift).

@@ -317,6 +317,37 @@ final class Game {
     var fullToldAt: Double = -100      // Q2c-console-33: the last "You're full"
     var refusedAt: [String: Double] = [:]   // Q2c-console-39: when each placement refusal was last said
     var heldDroppedAt: Double = -100        // Q2c-console-41: the last dropHeld
+    // Q2c-console-52: the creature he hurt last (Mob.playerHurtAt within 3 s) as a bar under the boss bars: its name,
+    // the bar's full width (its health when first hit, or more), colour, the fraction shown, his last hit, and when it
+    // died (then the bar empties and fades for 0.8 s).
+    var targetMemo: (mob: Mob, name: String, full: Float, color: V4, frac: Float, hitAt: Double, deadAt: Double)?
+    func targetBar() -> (String, Float, V4)? {
+        guard Settings.shared.targetBar, menu == nil else { return nil }
+        var best: Mob?
+        for m in mobs.mobs where m.health > 0 && m.playerHurtAt <= clock && clock - m.playerHurtAt < 3 && m.kind != .enderDragon && m.kind != .wither {
+            if best == nil || m.playerHurtAt > best!.playerHurtAt { best = m }
+        }
+        if let m = best {
+            if targetMemo?.mob !== m {
+                let b = m.kind.spec.behavior
+                let col: V4 = b == .animal || b == .passive ? V4(0.35, 0.8, 0.3, 1)
+                    : (m.kind.hostile && b != .villager ? V4(0.85, 0.2, 0.15, 1) : V4(0.95, 0.75, 0.25, 1))
+                targetMemo = (m, m.customName ?? m.kind.name, Float(max(m.health, m.kind.spec.health)), col, 1, m.playerHurtAt, -1)
+            }
+            targetMemo!.full = max(targetMemo!.full, Float(m.health))
+            targetMemo!.frac = Float(m.health) / targetMemo!.full
+            targetMemo!.hitAt = m.playerHurtAt
+        } else if var t = targetMemo {
+            if t.mob.health > 0 || clock - t.hitAt > 3.5 { targetMemo = nil; return nil }    // out of time: gone
+            if t.deadAt < 0 { t.deadAt = clock; t.frac = 0; targetMemo = t }
+            if clock - t.deadAt > 0.8 { targetMemo = nil; return nil }
+        }
+        guard let t = targetMemo else { return nil }
+        let a: Float = t.deadAt >= 0 ? max(0, 1 - Float(clock - t.deadAt) / 0.8) : 1
+        let flash = clock - t.hitAt < 0.12 && t.deadAt < 0
+        return (t.name, t.frac, flash ? V4(1, 1, 1, 1) : V4(t.color.x, t.color.y, t.color.z, a))
+    }
+
     // Q2c-console-50: the pickup feed (newest last): the item, how many, when last added to, and whether it is a rare find.
     var pickups: [(item: ItemID, count: Int, at: Double, rare: Bool)] = []
     static let rareKeys: Set<String> = ["diamond", "emerald", "netherite_ingot", "netherite_scrap", "ancient_debris",

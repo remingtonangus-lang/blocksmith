@@ -100,6 +100,7 @@ final class Settings {
     @Pref("narrator") var narrator = false           // speak highlighted menu items and toasts
     @Pref("screenEffects") var screenEffects = true
     @Pref("pickupFeed") var pickupFeed = true        // Q2c-console-50: "+4 Oak Log" beside the hotbar
+    @Pref("targetBar") var targetBar = true          // Q2c-console-52: the health of the creature he last hurt
     // P266 the Director (Director.swift): on, its planner (0 Rules, 1 On-Device Model, 2 Cloud), event frequency
     // (0 rare, 1 normal, 2 often), and switching it on before the story ends (testing). The cloud endpoint is the
     // UserDefaults string "directorCloud" ("mock" when unset).
@@ -124,7 +125,7 @@ final class Settings {
         musicSource = 0; musicShuffle = true; customMusicVolume = 1; songTitles = true
         safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
-        pickupFeed = true
+        pickupFeed = true; targetBar = true
         display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0
         directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false; devTools = Settings.devToolsDefault   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
