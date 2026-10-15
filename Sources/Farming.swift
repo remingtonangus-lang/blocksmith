@@ -280,7 +280,11 @@ extension Game {
         let bkey = Blocks.key(Blocks.groupBase[Int(b)])
         if useNewBlock(t) { swing = 1; return true }
         // Bone meal on any plant it grows (BoneMeal.swift).
-        if key == "bone_meal" { return useBoneMeal(t.hit) }
+        if key == "bone_meal" {
+            if useBoneMeal(t.hit) { return true }
+            placeRefused("Bone meal only works on plants that can still grow")         // Q2c-console-58
+            return true
+        }
         // Cocoa beans go on the side of jungle logs.
         if key == "cocoa_beans" && bkey.hasPrefix("jungle_") && bkey.hasSuffix("_log") && t.normal.y == 0 && Blocks.has("cocoa") {
             let at = t.hit + t.normal
@@ -297,6 +301,7 @@ extension Game {
             swing = 1
             return true
         }
+        if Carts.variant(of: key) != nil { placeRefused("Minecarts go on rails"); return true }          // Q2c-console-58
         if key.hasSuffix("_axe") && reviveCopperStatue(t.hit) { return true }
         if (key == "honeycomb" || key.hasSuffix("_axe")) && copperInteract(t.hit, key: key) { return true }
         if placeArmorStand(t) { return true }
@@ -370,6 +375,17 @@ extension Game {
             consumeHeld()
             swing = 1
             return true
+        }
+        // Q2c-console-58: a crop item pressed onto ground it can't grow in (not onto farmland that is merely occupied).
+        if let crop = h.def.plants, bkey != "farmland" && bkey != "soul_sand" {
+            if crop == "nether_wart" {
+                // (the game's own names: both are renamed from the reference)
+                func n(_ k: String) -> String { Items.has(k) ? Items.name(Items.id(k)) : k.replacingOccurrences(of: "_", with: " ") }
+                placeRefused("\(n("nether_wart")) grows on \(n("soul_sand"))")
+            }
+            else if bkey.hasSuffix("grass_block") || bkey == "dirt" || bkey == "coarse_dirt" || bkey == "rooted_dirt" || bkey == "podzol" {
+                placeRefused("Plant it on farmland: till grass or dirt with a hoe first")
+            }
         }
         // Flint and steel: prime TNT, light a portal frame, or start a fire.
         if key == "flint_and_steel" {

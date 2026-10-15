@@ -53,7 +53,10 @@ extension Game {
             }
             t += 0.05
         }
-        guard let at = spot else { return false }
+        guard let at = spot else {
+            placeRefused("Point at water or the top of a block to set the boat down")       // Q2c-console-58
+            return true
+        }
         let boat = Mob(.boat, at: at)
         boat.variant = variant
         boat.chested = chest
