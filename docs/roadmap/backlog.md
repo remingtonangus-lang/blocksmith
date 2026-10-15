@@ -926,6 +926,13 @@ Q2c-console-50. [DONE] A pickup feed: what he just picked up (in the headset the
  (e) In the headset a pickup brings a faded HUD (HUD Fade) up solid for a moment so the line can be read.
  (f) Options > Interface: "Pickup Feed: On/Off" (default On; Reset Options turns it back on); only things picked up from the world count, not items moved in menus or crafted.
  Done Oct 15 (console; Sources/Entities.swift, Game.swift, Renderer.swift, Settings.swift, PauseMenu.swift, quest/src/app/QuestControls.swift): (a) ItemEntityManager.update calls Game.notePickup with the stack and how many went in; (b) Renderer draws Game.pickups right of the hotbar (icon + "+N Name", newest at the bottom, cut to the room left), 3 lines or 2 with heldGun, not under a menu; (c) notePickup adds to the same item's line if it was touched under 3 s ago and moves it to the bottom; (d) alpha fades over the last 0.8 s of 4 s; rare = legend, enchanted or Game.rareKeys, drawn gold; (e) QuestControls.hudFadeTick holds the HUD solid for 2 s after a pickup; (f) Settings.pickupFeed (Interface row, help line, resetAll sets it true); only the world pickup path calls notePickup.
+Q2c-console-51. [CLAIMED console 2026-10-15] Low storage is warned before saves fail (a headset whose storage fills up, with videos, other games' downloads, captures, makes the world's saves fail; S2 reports the failure after it happens, when progress may already be lost).
+ (a) Intent (Q2 c, save safety): he hears about a full headset while there is still room to fix it.
+ (b) When a world is being played, free storage where the worlds live is measured at once and every five minutes, off the frame thread; under 300 MB he is told "Storage almost full (120 MB left): free some space on the headset so your world keeps saving", once until it is freed.
+ (c) Under 60 MB it says "Storage full: your world may stop saving" every two minutes, with the save badge's red "Save failed" look until there is room.
+ (d) The pause screen's subtitle adds "storage low" beside the saved time while it is under 300 MB.
+ (e) The Worlds page's subtitle shows the free space while it is low ("120 MB free on this headset").
+ (f) Freeing space stops every warning at the next check; a storage that can't be measured never warns.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
