@@ -572,6 +572,42 @@ enum DirectorEvents {
         }
     }
 
+    // Q2c-console-28: how far along a running event is, for its journal entry.
+    static func progress(_ g: Game, _ e: DirectorEvent) -> String? {
+        func left(_ total: Int, _ what: String) -> String {
+            let n = alive(g, e)
+            return n == 0 ? "none left" : "\(n) of \(max(n, total)) \(what) left"
+        }
+        switch e.t {
+        case "bounty":
+            guard e.spawned else { return "the gang rides its route (the marker follows it)" }
+            return alive(g, e, only: e.name) > 0 ? "\(e.name) is at the camp; " + left(e.int("posse") + 1, "outlaws") : "\(e.name) is down"
+        case "hostage":
+            guard e.spawned else { return "the kidnappers' camp waits at the marker" }
+            let k = alive(g, e, only: "Kidnapper")
+            return k > 0 ? "\(k) kidnapper\(k == 1 ? "" : "s") left, then free \(e.s["who"] ?? "the hostage")" : "go to \(e.s["who"] ?? "the hostage") and cut them loose"
+        case "wreck", "supply_drop":
+            guard e.spawned, let c = e.chest, let n = stock(g, c) else { return "not reached yet" }
+            return n * 2 > e.stock ? "the chest still holds most of its load" : "the chest is nearly empty"
+        case "outpost": return e.spawned ? left(e.int("troops"), "soldiers") : "not reached yet"
+        case "incursion", "dead_rise", "beasts", "warband":
+            if e.t == "dead_rise" && !e.spawned { return "waiting for nightfall by \(e.place ?? "the town")" }
+            return e.spawned ? left(e.int("count"), e.t == "beasts" ? "prowlers" : "creatures") : "not reached yet"
+        case "town_raid": return e.fired ? "the raid is on" : "waiting for nightfall at \(e.place ?? "the town")"
+        case "counteroffensive":
+            if e.fired { return "the raid is on" }
+            let m = Int(((e.due - Director.state.play) / 60).rounded())
+            return m > 0 ? "the strike comes in about \(m) min" : "they are at \(e.place ?? "your place"): get there"
+        case "trader": return "the peddler waits near the marker"
+        case "gift": return "the messenger is on the way to you"
+        case "rival": return "he is coming for you"
+        case "storm": return "the storm rages"
+        case "legend": return e.spawned ? "it roams near the marker" : "not found yet"
+        case "eruption": return "the mountain is erupting"
+        default: return nil
+        }
+    }
+
     // MARK: Time up (l)
 
     static func expire(_ g: Game, _ e: inout DirectorEvent) {

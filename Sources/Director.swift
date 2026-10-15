@@ -325,6 +325,9 @@ enum Director {
         }
         let playing = g.survival && g.alive && !g.paused && g.menu == nil
         if playing { state.play += dt }
+        // Q2c-console-28: the Events shelf refreshed once a minute of play.
+        let refresh = state.play - lastFiled >= 60
+        if refresh { lastFiled = state.play; for e in state.active where e.open { file(g, e) } }
         // The active events.
         for i in state.active.indices where state.active[i].open {
             var e = state.active[i]
@@ -366,6 +369,7 @@ enum Director {
 
     // A safe moment for a new event (l). Q2c-console-24: not asleep, not under the credits, not just arrived or revived.
     static var arrivedAt: Double = -1, diedAt: Double = -1000
+    static var lastFiled: Double = 0
     static func unsafe(_ g: Game) -> String? {
         if !g.alive { return "you are down" }
         if g.sleeping > 0 { return "you are asleep" }
@@ -564,19 +568,22 @@ enum Director {
     static func file(_ g: Game, _ e: DirectorEvent) {
         let word = ["Planned", "Under way", "Won", "Failed", "Expired"][max(0, min(4, e.state))]
         let title = "\(word): \(e.name)"
-        var body = "\(template(e.t)?.title ?? "Event") (\(template(e.t)?.blurb ?? "")).\n\n"
+        // Q2c-console-28: a finished entry leads with its outcome; a running one says how far along it is.
+        var body = e.outcome.map { $0 + "\n\n" } ?? ""
+        body += "\(template(e.t)?.title ?? "Event") (\(template(e.t)?.blurb ?? "")).\n\n"
         body += "\(e.s["caller"] ?? "Radio"): \"\(fill(g, e, e.s["open"] ?? ""))\"\n\n"
         if let p = e.place { body += "Where: \(p)" + (e.at.map { " (\(Int($0.x)), \(Int($0.y)))" } ?? "") + "\n" }
         else if let a = e.at { body += "Where: \(Int(a.x)), \(Int(a.y)) (on your map)\n" }
-        if e.open { body += "Time left: about \(max(1, Int(((e.until - state.play) / 60).rounded()))) minutes of play\n" }
-        if let o = e.outcome { body += "\n\(o)" }
+        if e.open {
+            if let pr = DirectorEvents.progress(g, e) { body += "Now: \(pr)\n" }
+            body += "Time left: about \(max(1, Int(((e.until - state.play) / 60).rounded()))) minutes of play\n"
+        }
         let (d, h, m) = g.journalStamp
         let id = "director:\(e.id)"
         if let i = g.journal.lastIndex(where: { $0.id == id }) {
             g.journal[i].title = title
             g.journal[i].text = "Event: \(e.name)"
-            g.journal[i].pages = [body]
-            g.journal[i].day = d; g.journal[i].hour = h; g.journal[i].minute = m
+            g.journal[i].pages = [body]                    // (Q2c-console-28: it keeps the day and hour it began)
         } else {
             var j = JournalEntry(day: d, hour: h, minute: m, text: "Event: \(e.name)", title: title, pages: [body])
             j.cat = Journal.Cat.events.key
