@@ -567,8 +567,14 @@ enum Minimap {
 // LB/RB or the mouse wheel; A or Space recentres on you; B / M / Esc closes. The game keeps running.
 final class MapMenu: Menu, CustomDrawnMenu {
     var cx: Float, cz: Float
-    static let zooms = [2, 4, 8, 16, 32, 64]
-    var zoom = 2                   // index into zooms (blocks per cell)
+    // P273 (Oct 14 19:31, "can't zoom in on the world map"): on the headset only zoom-out reached the map (the left
+    // trigger and grip; the right trigger is the laser's click). Now the right stick and a two-hand pinch zoom both
+    // ways about the spot the laser points at, from a few chunks (1 block a cell: 152 x 82 blocks) out to the whole
+    // explored world (256 a cell: 39 x 21 thousand), and the level is remembered (Settings.mapZoom).
+    static let zooms = [1, 2, 4, 8, 16, 32, 64, 128, 256]
+    var zoom = max(0, min(MapMenu.zooms.count - 1, Settings.shared.mapZoom))   // index into zooms (blocks per cell)
+    var zoomRepeat: Float = 0
+    var pinch0: Float?
     var dragFrom: V2?
     var pressWorld: (Int, Int)?
     var pressAt: V2?, dragged: Float = 0    // a left press: where, and how far it has dragged since (a tap places a pin)
@@ -601,7 +607,35 @@ final class MapMenu: Menu, CustomDrawnMenu {
         if (p.rt > 0.5 && q.rt <= 0.5) || (p.rb && !q.rb) { dz -= 1 }
         if (p.lt > 0.5 && q.lt <= 0.5) || (p.lb && !q.lb) { dz += 1 }
         dz -= g.input.scrollSteps
-        if dz != 0 { zoom = max(0, min(MapMenu.zooms.count - 1, zoom + (dz > 0 ? 1 : -1))); g.sfx(.click, 0.3) }
+        if g.vrHead != nil {
+            // (the left trigger and grip are not zoom on the headset: a pinch starts with a grip)
+            dz = 0
+            zoomRepeat -= dt
+            if abs(p.ry) > 0.6 { if zoomRepeat <= 0 { dz += p.ry > 0 ? -1 : 1; zoomRepeat = 0.28 } } else if abs(p.ry) < 0.3 { zoomRepeat = 0 }
+            if let d = g.vrPinch {
+                if let d0 = pinch0 {
+                    if d > d0 * 1.3 { dz -= 1; pinch0 = d } else if d < d0 / 1.3 { dz += 1; pinch0 = d }
+                } else { pinch0 = d }
+            } else { pinch0 = nil }
+        }
+        if dz != 0 {
+            let nz = max(0, min(MapMenu.zooms.count - 1, zoom + (dz > 0 ? 1 : -1)))
+            if nz != zoom {
+                // About the pointed spot: the ground under the laser or the mouse stays under it.
+                let L0 = HudLayout(g.screen.x, g.screen.y).fitted(self)
+                let m = V2(g.input.mouseX, g.input.mouseY)
+                let o = origin(L0), px = 2 * L0.s
+                let c = (m.x - (o.x + 8 * L0.s)) / px, r = (m.y - (o.y + 18 * L0.s)) / px
+                if c >= 0 && c < Float(MapMenu.cols) && r >= 0 && r < Float(MapMenu.rows) {
+                    let wx = cx + (c - Float(MapMenu.cols) / 2) * Float(bpc), wz = cz + (r - Float(MapMenu.rows) / 2) * Float(bpc)
+                    let k = Float(MapMenu.zooms[nz]) / Float(bpc)
+                    cx = wx - (wx - cx) * k; cz = wz - (wz - cz) * k
+                }
+                zoom = nz
+                Settings.shared.mapZoom = nz
+                g.sfx(.click, 0.3)
+            }
+        }
         if (p.a && !q.a) || g.input.tapped(Key.space) { cx = g.player.pos.x; cz = g.player.pos.z }
         // Waypoint at the centre cross: X on the pad or Enter; a click on the map (a right-click, or a left tap that
         // doesn't drag: the headset's laser and trigger) puts it where you point (P73: on the headset the centre cross
@@ -687,7 +721,9 @@ final class MapMenu: Menu, CustomDrawnMenu {
         Countries.mapBorders(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s)
         WarFront.mapFronts(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc)
         Nation.mapProvinces(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s)
-        MapDraw.markers(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s, labels: true)
+        // P273 (c): marks keep their size at every zoom; past 64 blocks a cell the names give way to the hover label
+        // (dozens of towns' names piled over each other).
+        MapDraw.markers(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s, labels: bpc <= 64)
         // Centre cross and what is under it.
         let mx = x0 + Float(cols) * px / 2, my = y0 + Float(rows) * px / 2
         out.append(HudLine(text: "", x: mx - 4 * s, y: my - s / 2, scale: s, bg: V4(1, 1, 1, 0.8), box: V2(8 * s, s)))

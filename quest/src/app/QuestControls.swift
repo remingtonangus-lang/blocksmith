@@ -651,10 +651,12 @@ final class QuestControls {
             p.rx = R.stick.x; p.ry = R.stick.y          // scrolling lists, flipping crafting-book pages, panning the map
             p.lt = L.trigger; p.rt = 0
             p.lb = L.squeeze > 0.6; p.rb = false
+            game.vrPinch = L.squeeze > 0.6 && R.squeeze > 0.6 ? simd_length(rig.toWorld(L.gripPos) - rig.toWorld(R.gripPos)) : nil
             menuPointer(R)
             teleAiming = false; teleArc.removeAll(); teleTarget = nil
         } else {
             panelHitUV = nil
+            game.vrPinch = nil
             prevTrigger = R.trigger > 0.6; prevGrip = R.squeeze > 0.6
             // Locomotion frame: the head yaw only (snap/smooth turns included). The right hand aims, the left hand
             // just holds the stick: neither controller's pointing direction steers walking or swimming.
