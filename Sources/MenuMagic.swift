@@ -98,9 +98,29 @@ final class EnchantMenu: Menu {
             b.w = 106; b.h = 17
             slots.append(b)
         }
-        addPlayerInventory()
+        // Q2c-console-68: room for the bench's two lines under the slots.
+        height = 186
+        inventoryLabelY = 93
+        addPlayerInventory(y: 104)
         shelves = Enchant.countBookshelves(game.world, p)
         changed()
+    }
+
+    // Q2c-console-68: what the bench wants and what would make it better (true: he must act; drawn amber).
+    var status: [(String, Bool)] {
+        func n(_ k: String) -> String { Items.has(k) ? Items.name(Items.id(k)) : k.replacingOccurrences(of: "_", with: " ") }
+        let s = box[0]
+        if s.isEmpty { return [("Put a tool, weapon, armour or book in the left slot", false)] }
+        if s.ench != 0 { return [("Already enchanted: add more with an enchanted book at an anvil", true)] }
+        if s.def.enchantability <= 0 { return [("\(s.def.display) can't be enchanted", true)] }
+        let bs = n("bookshelf"), shelvesName = bs.hasSuffix("shelf") ? String(bs.dropLast()) + "ves" : bs + "s"
+        let shelvesLine = ("\(shelvesName) around: \(shelves) of 15 (more give stronger offers)", false)
+        guard game.survival else { return [shelvesLine] }
+        if box[1].isEmpty { return [("Add \(n("lapis_lazuli")) on the right: 1 to 3 per offer", true), shelvesLine] }
+        if let low = costs.filter({ $0 > 0 }).min(), game.xpLevel < low {
+            return [("You need more levels: you have \(game.xpLevel)", true), shelvesLine]
+        }
+        return [shelvesLine]
     }
 
     override func changed() {

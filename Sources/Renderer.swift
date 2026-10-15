@@ -1966,6 +1966,17 @@ final class Renderer: NSObject, MTKViewDelegate {
                     }
                 }
             }
+            // Q2c-console-68: the bench's needs and the bookshelf count, under the slots.
+            if let em = m as? EnchantMenu {
+                var sy = o.y + 74 * s
+                let st = em.status
+                for (t, act) in st {
+                    for line in wrapLines(t, maxW: 160 * s, s, maxLines: st.count > 1 ? 1 : 2) where sy < o.y + 92 * s {
+                        text(line, o.x + 8 * s, sy, s, act ? V4(0.62, 0.36, 0.02, 1) : V4(0.25, 0.25, 0.25, 1), shadow: false)
+                        sy += 9 * s
+                    }
+                }
+            }
             if let e = m as? EnchantMenu {
                 // Open book on the left, then the three offers: cost, clue and lapis needed.
                 rect(o.x + 12 * s, o.y + 14 * s, 36 * s, 26 * s, V4(0.45, 0.22, 0.1, 1))
