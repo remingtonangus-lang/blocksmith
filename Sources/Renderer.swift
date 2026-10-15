@@ -2498,6 +2498,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             else if let h = game.menuHover, !h.stack.isEmpty {
                 let st = h.stack
                 var lines: [(String, V4)] = [(st.displayName, st.legend != nil ? Legendaries.gold : st.ench != 0 ? V4(0.33, 1, 1, 1) : (st.label != nil ? V4(1, 1, 1, 1) : V4(1, 1, 1, 1)))]
+                for l in ItemHelp.stats(st) { lines.append((l, V4(0.85, 0.85, 0.85, 1))) }       // Q2c-console-48
                 for (e, l) in Enchant.list(st) {
                     lines.append((Enchant.displayLine(e, l), Enchant.def(e).curse ? V4(1, 0.33, 0.33, 1) : V4(0.67, 0.67, 0.67, 1)))
                 }

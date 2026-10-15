@@ -356,6 +356,42 @@ extension Wrecks {
 // ammunition the guns it fits and where it comes from. Worked out once per item.
 enum ItemHelp {
     private static var cache: [ItemID: [String]] = [:]
+    private static var statCache: [ItemID: [String]] = [:]
+    // Q2c-console-48: what the item does, in numbers to compare: attack, what a pickaxe mines, armour, food, fuel.
+    static func stats(_ s: ItemStack) -> [String] {
+        if let c = statCache[s.item] { return c }
+        var out: [String] = []
+        let d = s.def, k = Items.key(s.item)
+        func num(_ f: Float) -> String { f == f.rounded() ? "\(Int(f))" : String(format: "%.1f", f) }
+        if Guns.index(s.item) == nil && d.attack > 1 {
+            let hearts = d.attack / 2
+            var line = "Attack: \(num(d.attack)) (\(num(hearts)) heart\(hearts == 1 ? "" : "s"))"
+            if abs(d.attackSpeed - 4) > 0.05 { line += ", \(num(d.attackSpeed)) swings a second" }
+            out.append(line)
+        }
+        if d.tool == .pickaxe {
+            // (the game's own names for the ores: several are renamed from the reference)
+            func n(_ k: String) -> String { Items.has(k) ? Items.name(Items.id(k)) : k.replacingOccurrences(of: "_", with: " ") }
+            let mines = ["Mines \(n("stone")) and \(n("coal_ore"))", "Mines \(n("iron_ore")), \(n("copper_ore")) and \(n("lapis_ore"))",
+                         "Mines \(n("gold_ore")), \(n("diamond_ore")), \(n("redstone_ore")) and \(n("emerald_ore"))",
+                         "Mines \(n("obsidian")) and \(n("ancient_debris")) too", "Mines everything"]
+            out.append(mines[max(0, min(mines.count - 1, d.tier))])
+        }
+        if d.armorSlot != nil && d.armor > 0 {
+            out.append("Armour: +\(d.armor)" + (d.toughness > 0 ? ", toughness \(num(d.toughness))" : ""))
+        }
+        if let f = d.food {
+            out.append("Food: +\(f.hunger) hunger" + (f.saturation >= Float(f.hunger) * 1.2 ? ", filling" : ""))
+            if let r = Recipes.smelt(s.item), Items.def(r).food != nil { out.append("Cook it for more") }
+            if ["rotten_flesh", "chicken", "spider_eye", "pufferfish", "poisonous_potato"].contains(k) { out.append("Risky: can make you sick") }
+        }
+        let fuel = Recipes.fuel(s.item)
+        if fuel > 0 && d.food == nil {
+            out.append(fuel >= 200 ? "Fuel: smelts \(fuel / 200) item\(fuel / 200 == 1 ? "" : "s")" : "Fuel: smelts part of an item")
+        }
+        statCache[s.item] = out
+        return out
+    }
     static func lines(_ s: ItemStack) -> [String] {
         if let c = cache[s.item] { return c }
         var out: [String] = []
