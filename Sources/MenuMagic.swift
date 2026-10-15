@@ -176,7 +176,33 @@ final class AnvilMenu: Menu {
         let field = MenuSlot(60, 20, nil, 0, .button(0))
         field.w = 103; field.h = 12
         slots.append(field)
-        addPlayerInventory()
+        // Q2c-console-66: room for the reason line under the slots, clear of the cost plate.
+        height = 193
+        inventoryLabelY = 100
+        addPlayerInventory(y: 111)
+    }
+
+    // Q2c-console-66: why the output is empty (nil when it isn't, or when nothing is in).
+    var reason: String? {
+        let l = box[0], r = box[1]
+        guard !l.isEmpty, out[0].isEmpty else { return nil }
+        func a(_ n: String) -> String { ("AEIOU".contains(n.first ?? "x") ? "an " : "a ") + n }
+        if r.isEmpty { return name.isEmpty || name == l.displayName ? "Add a second item to repair or enchant it, or type a new name" : nil }
+        if cost > 0 && !tooExpensive && game.survival && game.xpLevel < cost { return "You need \(cost) levels (you have \(game.xpLevel))" }
+        if tooExpensive { return nil }                                       // the plate says it
+        let rk = Items.key(r.item)
+        if l.def.durability > 0, let mat = Enchant.repairMaterial(l.item) {
+            if rk == mat && l.damage == 0 { return "Your \(l.displayName) isn't damaged" }
+            if rk != mat && r.item != l.item && rk != "enchanted_book" {
+                let mn = Items.has(mat) ? Items.name(Items.id(mat)) : mat.replacingOccurrences(of: "_", with: " ")
+                return "\(a(l.def.display).capitalizedFirst) is repaired with \(mn)"
+            }
+        }
+        if rk != "enchanted_book" && r.item != l.item { return "These two can't be combined: use two of the same item, or a book" }
+        if Items.key(l.item) != "enchanted_book" && !Enchant.list(r).contains(where: { Enchant.applies($0.0, l.item, table: false) }) {
+            return "None of these enchantments can go on \(a(l.def.display))"
+        }
+        return "Nothing to gain: these enchantments clash with what it has"
     }
 
     override var capturesText: Bool { editing }

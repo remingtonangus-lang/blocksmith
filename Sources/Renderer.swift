@@ -2033,6 +2033,12 @@ final class Renderer: NSObject, MTKViewDelegate {
                     rect(tx - 3 * s, o.y + 67 * s, tw + 6 * s, 11 * s, V4(0.12, 0.12, 0.14, 0.9))
                     text(t, tx, o.y + 69 * s, s, ok ? Settings.shared.goodColor : Settings.shared.badColor)
                 }
+                // Q2c-console-66: why nothing comes out, under the slots and the cost plate.
+                if let why = a.reason {
+                    for (k, line) in wrapLines(why, maxW: 160 * s, s, maxLines: 2).enumerated() {
+                        text(line, o.x + 8 * s, o.y + Float(82 + 9 * k) * s, s, V4(0.62, 0.36, 0.02, 1), shadow: false)
+                    }
+                }
             }
             if let sm = m as? SignMenu {
                 // The sign board with its four lines; the edited line shows a cursor.
