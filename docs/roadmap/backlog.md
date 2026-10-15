@@ -893,6 +893,13 @@ Q2c-console-46. [DONE] Headset lessons for the first-hour tools (only guns and t
  (e) A bucket: the left trigger scoops water or lava and pours it again; poured lava burns everything near it, him included.
  (f) Each comes once ever at a calm moment (not while something hostile is chasing him), mirrored for a left hand, and joins the Lessons page (Q2c-console-43) in first-hour order with Reset bringing it back.
  Done Oct 15 (console; Sources/HudExtras.swift): (a) four VRLesson bits (fish, shield, farm, bucket) taught from the held item; (b) fishing_rod; (c) shield; (d) any _hoe or an item with def.plants (seeds, carrots, potatoes); (e) bucket, water_bucket, lava_bucket; (f) the checks sit in vrLessons' calm branch after crafting (survival, nothing chasing), go through teach (once ever, mirrorHands) and are rows of ContextPrompts.lessonInfo after Dropping things, so the Lessons page lists them and resetLessons clears them.
+Q2c-console-47. [CLAIMED console 2026-10-15] Armour goes on from the hand (pulling the use trigger with a helmet or chestplate in hand did nothing at all: the only way to wear armour was dragging it onto the small slots beside his figure in the inventory, fiddly with a laser; the reference game puts it on with one press).
+ (a) Intent (Q2 c, nothing broken-looking): the obvious action, using the armour, wears it.
+ (b) Use (the left trigger) with a helmet, chestplate, leggings, boots, Glider Wings or a jetpack in hand puts it on at once, with the material's equip sound; the piece worn there before comes into his hand, so a swap is one press.
+ (c) Not when aiming at something that opens (a chest, a door) or at an armour stand, which still takes it as before.
+ (d) A worn piece cursed with Stuck Fast can't come off: "Your Iron Helmet is stuck fast" with the soft refusal click.
+ (e) A headset lesson the first time he holds armour: hold it and pull the left trigger to put it on.
+ (f) The hand feels a light buzz as it goes on; the HUD's armour bar updates at once; creative and survival alike.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
