@@ -176,6 +176,13 @@ final class MapCache {
     }
 
     // P205: the last death's chests as a named pin (the one before it is replaced).
+    // Q2c-console-4: his things are back: the pin goes.
+    func unpinDeath(_ g: Game) {
+        loadMarks(g)
+        marks.removeAll { $0.kind == "pin" && $0.name == "Your things" }
+        saveMarks(g)
+    }
+
     func pinDeath(_ g: Game, x: Int, z: Int) {
         loadMarks(g)
         marks.removeAll { $0.kind == "pin" && $0.name == "Your things" }

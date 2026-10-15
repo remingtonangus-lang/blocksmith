@@ -453,6 +453,7 @@ extension Game {
         if journalTold { d["journalTold"] = "1" }
         if !journal.isEmpty, let e = try? JSONEncoder().encode(journal), let str = String(data: e, encoding: .utf8) { d["journal"] = str }
         if let l = lastDeath { d["lastDeath"] = "\(l.x),\(l.y),\(l.z)" }
+        if let ds = deathStash, let e = try? JSONEncoder().encode(ds), let str = String(data: e, encoding: .utf8) { d["deathStash"] = str }   // Q2c-console-4
         if Blueprints.seedPending { Blueprints.seed(self) }
         d["blueprints"] = Blueprints.known.sorted().joined(separator: ",")         // P138
         return d
@@ -512,6 +513,7 @@ extension Game {
             let v = a.split(separator: ",").compactMap { Int($0) }
             if v.count == 3 { anchorSpawn = IVec3(v[0], v[1], v[2]) }
         }
+        deathStash = d["deathStash"].flatMap { $0.data(using: .utf8) }.flatMap { try? JSONDecoder().decode(DeathStash.self, from: $0) }
         if let l = d["lastDeath"] {
             let v = l.split(separator: ",").compactMap { Float($0) }
             if v.count == 3, v.allSatisfy({ $0.isFinite }) { lastDeath = V3(v[0], v[1], v[2]) }

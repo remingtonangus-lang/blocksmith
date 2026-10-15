@@ -2120,6 +2120,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                 text(dm.message, o.x + (Float(dm.width) * s - textWidth(dm.message, s)) / 2, o.y + 30 * s, s, V4(0.2, 0.2, 0.2, 1), shadow: false)
                 let score = "Score: \(game.deathScore)"
                 text(score, o.x + (Float(dm.width) * s - textWidth(score, s)) / 2, o.y + 42 * s, s, V4(0.35, 0.3, 0.1, 1), shadow: false)
+                for (k, line) in dm.detailLines.enumerated() {          // Q2c-console-4: where his things are
+                    text(line, o.x + (Float(dm.width) * s - textWidth(line, s)) / 2, o.y + Float(54 + k * 9) * s, s, V4(0.15, 0.2, 0.3, 1), shadow: false)
+                }
                 for (i, sl) in dm.slots.enumerated() {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl

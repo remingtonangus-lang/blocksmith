@@ -131,6 +131,7 @@ enum Waymarks {
 
     // Once a second (TownLaw.tick): the beacon over the target, and the map's moving marks every five seconds.
     static func tick(_ g: Game) {
+        g.stashTick()                                             // Q2c-console-4: his things recovered
         guard g.dim.dim == .overworld else { return }
         if let t = current(g) {
             let d = simd_length(V2(t.pos.x - g.player.pos.x, t.pos.z - g.player.pos.z))

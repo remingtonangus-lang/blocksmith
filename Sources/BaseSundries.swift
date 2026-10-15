@@ -1,4 +1,5 @@
 import Foundation
+import simd
 
 // P133 (Oct 12 PM, 15:19 "it'd be funny if these barrels had stuff... something that might be considered useful to a
 // base, but not really to you"): base sundries. About half the supply chests of Steelhold, Greywall and Ashguard sites
@@ -96,7 +97,61 @@ extension Game {
             world.blockEntities[q] = be
         }
         MapCache.shared.pinDeath(self, x: at.x, z: at.z)
-        onToast?("Your things are in a chest where you fell (pinned on the map)")
+        deathStash = DeathStash(x: at.x, y: at.y, z: at.z, n: need, dim: dim.dim.rawValue)     // (the death screen says where)
         return true
+    }
+}
+
+// Q2c-console-4 (store readiness: a death explains itself and points the way back). The death screen says where his
+// things are; after Respawn the stash is tracked (HUD bearing, beacon) unless he follows something else; emptied or
+// broken, its pin leaves the map and tracking goes back. Saved with the world extras ("deathStash").
+struct DeathStash: Codable {
+    var x: Int, y: Int, z: Int
+    var n: Int
+    var dim: String
+}
+
+extension Game {
+    // The death screen's words about his things (and his experience).
+    func deathDetail(lost: Bool, stashed: Bool) -> String {
+        var d = ""
+        if stashed, let s = deathStash {
+            d = "Your things are in a chest where you fell, at \(s.x), \(s.z)" + (s.dim == Dim.overworld.rawValue ? ", on your map." : ".")
+        } else if lost {
+            d = "Your things are on the ground where you fell: about five minutes before they are gone."
+        }
+        return d + (d.isEmpty ? "" : " ") + "You keep your experience."
+    }
+
+    // After Respawn: follow the stash and say how far it is.
+    func stashHint() {
+        guard let s = deathStash, s.dim == dim.dim.rawValue else { return }
+        let off = V2(Float(s.x) + 0.5 - player.pos.x, Float(s.z) + 0.5 - player.pos.z)
+        let d = Int(simd_length(off))
+        if dim.dim == .overworld && Waymarks.trackedKey == nil {
+            Waymarks.trackedKey = "pin|\(s.x),\(s.z)"
+            Waymarks.cache = (-1e9, nil)
+        }
+        onToast?(d > 8 ? "Your things are \(d) blocks \(TownBoard.direction(off.x, off.y))" + (dim.dim == .overworld ? ": follow the beacon" : "")
+                       : "Your things are in the chest beside you")
+    }
+
+    // Once a second (Waymarks.tick): the stash emptied or broken closes the loop.
+    func stashTick() {
+        guard let s = deathStash, s.dim == dim.dim.rawValue, world.isLoaded(s.x, s.z) else { return }
+        var present = false, left = 0
+        for k in 0..<max(1, s.n) {
+            let p = IVec3(s.x + k, s.y, s.z)
+            let b = world.block(p.x, p.y, p.z)
+            guard Blocks.key(Blocks.groupBase[Int(b)]) == "chest" else { continue }
+            present = true
+            left += world.blockEntities[p]?.container.slots.reduce(0) { $0 + ($1.isEmpty ? 0 : 1) } ?? 0
+        }
+        guard !present || left == 0 else { return }
+        deathStash = nil
+        MapCache.shared.unpinDeath(self)
+        if Waymarks.trackedKey == "pin|\(s.x),\(s.z)" { Waymarks.trackedKey = nil; Waymarks.cache = (-1e9, nil) }
+        onToast?("You have your things back")
+        sfx(.xp, 0.6)
     }
 }

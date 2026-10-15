@@ -202,6 +202,7 @@ final class Game {
     var lastWind: Double = -10
     var deathScore = 0
     var lastDeath: V3?
+    var deathStash: DeathStash?        // Q2c-console-4: the chest(s) holding what he carried when he died (BaseSundries.swift)
     let music = MusicDirector()
     var caveTimer: Float = 30
     let audio = AudioState()
@@ -2460,14 +2461,17 @@ final class Game {
         // P205 (Oct 13 18:40, "after dying at the base my stuff was missing, no boots"): scattered drops burnt in fire
         // and lava, fell off walls, were picked up and worn by mobs, and vanished after five minutes. Everything goes
         // into chests at the spot instead (they never despawn and are saved with the world), pinned on the map.
-        if !lost.isEmpty && !deathChests(lost, near: player.pos) {
+        let stashed = !lost.isEmpty && deathChests(lost, near: player.pos)
+        if !lost.isEmpty && !stashed {
             for st in lost { drops.spawn(st, at: at, vel: V3(Rand.float(in: -2...2), Rand.float(in: 1...4), Rand.float(in: -2...2)), delay: 1) }
         }
         if menu != nil { closeMenu() }
         riding = nil
         alive = false        // no pickups, no targeting until respawn (the dropped items stay where they fell)
         calmMobs()
-        openMenu(DeathMenu(game: self, message: "Player \(cause)"))
+        // Q2c-console-4: in his words ("You were slain by...", "You drowned"), with where his things are.
+        let said = cause.hasPrefix("was ") ? "You were " + cause.dropFirst(4) : "You " + cause
+        openMenu(DeathMenu(game: self, message: said, detail: deathDetail(lost: !lost.isEmpty, stashed: stashed)))
     }
 
     // Respawn (from the death screen): anchor, bed/world spawn.
@@ -2484,6 +2488,7 @@ final class Game {
                 if dim.dim != .nether { changeDimension(to: .nether, at: at) }
                 player.pos = at; player.vel = .zero; player.airPeak = at.y; player.pendingFall = 0
                 health = 20; hunger = 20; saturation = 5; exhaustion = 0; air = 15; timeSinceRest = 0
+                stashHint()                                       // Q2c-console-4
                 return
             }
             anchorSpawn = nil
@@ -2513,6 +2518,7 @@ final class Game {
         exhaustion = 0
         air = 15
         timeSinceRest = 0
+        stashHint()                                               // Q2c-console-4: the way back to his things
     }
 
     // The player died (and again on respawn): every mob forgets them - anger, sight memory, chase path, a hisser's fuse,
