@@ -107,6 +107,43 @@ def dist_to_polyline(n, poly_px, maxd):
     return np.minimum(d, maxd), inds
 
 
+def _line_param(poly_px, inds, n):
+    """Fractional sample index along poly_px of each cell's nearest polyline point. The distance transform only
+    names the nearest pixel of the rasterised line, and far from a slanted line that snaps to the corners of its
+    pixel staircase (the index jumped every few samples: long straight terraces across river floodplains and
+    embankments), so each cell is projected exactly onto the segments either side of that sample instead."""
+    lab = np.zeros((n, n), np.float32)
+    rs = resample(poly_px, 0.5)
+    tpar = np.linspace(0, len(poly_px) - 1, len(rs)).astype(np.float32)
+    rx = np.clip(np.round(rs[:, 0]).astype(int), 0, n - 1)
+    ry = np.clip(np.round(rs[:, 1]).astype(int), 0, n - 1)
+    lab[ry, rx] = tpar
+    t0 = lab[inds[0], inds[1]]
+    P = np.asarray(poly_px, np.float32)
+    m = len(P)
+    ys, xs = np.mgrid[0:n, 0:n].astype(np.float32)
+    best_d = np.full((n, n), np.inf, np.float32)
+    best_t = t0.copy()
+    base = np.clip(np.floor(t0).astype(np.int64), 0, m - 2)
+    for k in (-3, -2, -1, 0, 1, 2):
+        i = np.clip(base + k, 0, m - 2)
+        ax = P[i, 0]; ay = P[i, 1]
+        sx = P[i + 1, 0] - ax; sy = P[i + 1, 1] - ay
+        ln2 = np.maximum(sx * sx + sy * sy, 1e-6)
+        u = np.clip(((xs - ax) * sx + (ys - ay) * sy) / ln2, 0.0, 1.0)
+        dx = xs - (ax + u * sx); dy = ys - (ay + u * sy)
+        d2 = dx * dx + dy * dy
+        better = d2 < best_d
+        best_d = np.where(better, d2, best_d)
+        best_t = np.where(better, i + u, best_t)
+    return best_t.astype(np.float32)
+
+
+def _interp_profile(t, values):
+    """values (per polyline sample) at fractional sample positions t."""
+    return np.interp(t, np.arange(len(values), dtype=np.float32), np.asarray(values, np.float32)).astype(np.float32)
+
+
 def m2px(p, n):
     """metres (origin centre) -> pixel coords for an n grid"""
     return (np.asarray(p, float) + SIZE_M / 2) / SIZE_M * n
@@ -255,6 +292,12 @@ def stream_power_erosion(h, iters, cell_m, k=0.0035, m=0.5, n_exp=1.0, uplift=No
     return h, acc
 
 
+BRUSH_R = 2
+BRUSH = [(oy, ox, BRUSH_R + 0.5 - np.hypot(oy, ox)) for oy in range(-BRUSH_R, BRUSH_R + 1) for ox in range(-BRUSH_R, BRUSH_R + 1)
+         if np.hypot(oy, ox) < BRUSH_R + 0.5]
+BRUSH = [(oy, ox, w / sum(b[2] for b in BRUSH)) for (oy, ox, w) in BRUSH]
+
+
 def droplet_erosion(h, drops, steps, cell_m, seed):
     """Vectorised particle hydraulic erosion (all droplets advance together)."""
     t0 = time.time()
@@ -295,13 +338,19 @@ def droplet_erosion(h, drops, steps, cell_m, seed):
             deposit = np.where((sed > cap) | (dh > 0),
                                np.where(dh > 0, np.minimum(dh, sed), (sed - cap) * dep_k), 0.0)
             erode = np.where((sed <= cap) & (dh <= 0), np.minimum(np.minimum((cap - sed) * ero_k, -dh * 0.35), 0.6), 0.0)
-            amt = (deposit - erode) * alive
-            sed = sed - amt
-            # bilinear splat onto the four corners
+            dep = deposit * alive
+            ero = erode * alive
+            sed = sed - dep + ero
+            # deposition: bilinear splat onto the four corners
             w00 = (1 - fx) * (1 - fy); w10 = fx * (1 - fy); w01 = (1 - fx) * fy; w11 = fx * fy
             for (oy, ox, w) in ((0, 0, w00), (0, 1, w10), (1, 0, w01), (1, 1, w11)):
-                np.add.at(hf, (iy + oy, ix + ox), amt * w)
-                np.add.at(sed_map, (iy + oy, ix + ox), np.maximum(amt, 0) * w)
+                np.add.at(hf, (iy + oy, ix + ox), dep * w)
+                np.add.at(sed_map, (iy + oy, ix + ox), dep * w)
+            # erosion: taken through a radius brush; a one-cell footprint self-reinforces into a comb of straight,
+            # evenly spaced rills on every smooth planar slope (alluvial fans, lake shores, foothills)
+            bx = np.clip(ix, BRUSH_R, n - 1 - BRUSH_R); by = np.clip(iy, BRUSH_R, n - 1 - BRUSH_R)
+            for (oy, ox, w) in BRUSH:
+                np.add.at(hf, (by + oy, bx + ox), -ero * w)
             vel = np.minimum(np.sqrt(np.maximum(vel * vel + (-dh) * g, 0.01)), 6.0)
             water *= (1 - evap)
             px, py = npx, npy
@@ -347,19 +396,12 @@ def carve_river(h, poly_uv, width_m, depth_m, valley_m, n, name, min_drop=0.0004
     bed = bank - depth_m * (0.6 + 0.4 * np.linspace(0, 1, len(bank)))
     d_px, inds = dist_to_polyline(n, px, valley_m / cell * 1.2)
     d_m = d_px * cell
-    # nearest sample index for each cell
-    near = np.zeros((n, n), np.int64)
-    # map nearest pixel back to polyline sample via KD-ish lookup: rasterize sample indices
-    lab = np.full((n, n), -1, np.int64)
-    rs = resample(px, 0.5)
-    tpar = np.linspace(0, len(px) - 1, len(rs))
-    rx = np.clip(np.round(rs[:, 0]).astype(int), 0, n - 1)
-    ry = np.clip(np.round(rs[:, 1]).astype(int), 0, n - 1)
-    lab[ry, rx] = np.round(tpar).astype(np.int64)
-    near = lab[inds[0], inds[1]]
-    near = np.clip(near, 0, len(px) - 1)
-    w_half = widths[near] * 0.5
-    bed_c = bed[near]; bank_c = bank[near]
+    # position along the polyline for each cell (fractional sample index of the nearest point), so the bank/bed
+    # profile is interpolated: a whole-sample lookup made it piecewise constant and every step between two 8 m
+    # samples ran out across the 420 m floodplain as a long straight stripe
+    tf = _line_param(px, inds, n)
+    w_half = _interp_profile(tf, widths) * 0.5
+    bed_c = _interp_profile(tf, bed); bank_c = _interp_profile(tf, bank)
     # channel profile: smooth U shape
     t = np.clip(d_m / np.maximum(w_half, 1), 0, 1)
     chan = bed_c + (bank_c - bed_c) * (t * t * (3 - 2 * t))
@@ -475,14 +517,7 @@ def grade_corridor(h, n, poly_m, half_w, blend, max_grade, cut=8.0, fill=5.0, sm
     reach = half_w + blend + max(cut, fill) * 2.0
     d_px, inds = dist_to_polyline(n, px, reach / cell + 4)
     d = d_px * cell
-    lab = np.full((n, n), -1, np.int64)
-    rs = resample(px, 0.5)
-    tpar = np.linspace(0, len(px) - 1, len(rs))
-    rx = np.clip(np.round(rs[:, 0]).astype(int), 0, n - 1)
-    ry = np.clip(np.round(rs[:, 1]).astype(int), 0, n - 1)
-    lab[ry, rx] = np.round(tpar).astype(np.int64)
-    near = np.clip(lab[inds[0], inds[1]], 0, len(prof) - 1)
-    target = prof[near]
+    target = _interp_profile(_line_param(px, inds, n), prof)     # interpolated: no cross-line steps
     side = np.minimum(np.abs(target - h) * 2.0 + blend, reach - half_w - 1.0)   # 1:2 embankment / cutting slope
     w = smoothstep(half_w + side, half_w, d) * (d < reach - 0.5)
     hn = h * (1 - w) + target * w
@@ -526,7 +561,11 @@ def main():
     frac = (hw % period) / period
     riser = smoothstep(0.68, 0.97, frac) ** 1.3          # thick cap-rock cliff over a long talus/tread
     terr = np.floor(hw / period) * period + (frac * 0.3 + riser * 0.7) * period - warp
-    wmask = desert1 ** 1.5
+    # ledges show where the beds are cut steeply (mesa faces, canyon walls); stepping gentle fans and pediments
+    # only drew concentric contour lines across them
+    sgy, sgx = np.gradient(ndimage.gaussian_filter(h1, 3.0), SIZE_M / n1)
+    steep = smoothstep(0.10, 0.32, np.hypot(sgx, sgy))
+    wmask = desert1 ** 1.5 * (0.15 + 0.85 * steep)
     h1 = h1 * (1 - wmask * 0.7) + terr * wmask * 0.7
     # soften the comb of parallel erosion rills on the desert slopes (keeps the big ledges)
     soft = ndimage.gaussian_filter(h1, 1.3)

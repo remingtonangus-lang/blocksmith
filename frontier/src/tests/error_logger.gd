@@ -6,8 +6,15 @@ var mutex := Mutex.new()
 var errors: Array = []        # [type, file:line, message]
 var ignore := ["audio_driver", "init_output_device", "ALSA", "status < 0", "dummy driver"]
 
-func _log_error(function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool, error_type: int, _bt: Array) -> void:
+func _log_error(function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool, error_type: int, bt: Array) -> void:
 	var msg := "%s %s" % [code, rationale]
+	# thread-guard violations crash the engine a moment later: print which script made the call (the worker's stack)
+	if msg.contains("caller thread can't call"):
+		var lines := PackedStringArray()
+		for b in bt:
+			if b is ScriptBacktrace:
+				lines.append((b as ScriptBacktrace).format())
+		printerr("THREAD GUARD (thread %d): %s\n%s" % [OS.get_thread_caller_id(), msg, "\n".join(lines) if not lines.is_empty() else "  (no script frames: native caller)"])
 	for ig in ignore:
 		if msg.contains(ig) or file.contains(ig) or function.contains(ig):
 			return
