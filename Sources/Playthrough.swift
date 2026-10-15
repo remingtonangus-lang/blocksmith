@@ -707,7 +707,7 @@ final class Playthrough {
         check(!Mining.canHarvest(obsidian, ItemStack(id("iron_pickaxe"), 1)), "rules: iron pickaxe can't harvest obsidian")
         _ = hold("diamond_pickaxe")
         let secs = Mining.breakSeconds(obsidian, ItemStack(id("diamond_pickaxe"), 1), onGround: true, inWater: false)
-        check(abs(secs - 9.4) < 0.2, "rules: obsidian takes 9.4 s with a diamond pickaxe (\(secs))")
+        check(abs(secs - 14.45) < 0.2, "rules: obsidian takes 14.45 s with a titanium pickaxe (P267) (\(secs))")
         if mine(op, maxSeconds: 15) { collect(near: center(op)) }
         check(count("obsidian") >= 1, "mine: obsidian with a diamond pickaxe (\(count("obsidian")))")
         if count("obsidian") < 10 { give("obsidian", 10 - count("obsidian"), bulk: "more obsidian") }

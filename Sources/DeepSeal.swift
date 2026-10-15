@@ -18,7 +18,7 @@ enum DeepSeal {
     }
 
     static let pickaxe = "sunderite_pickaxe"
-    static let pickHardness: Float = 25                // how hard Sealrock is to a Sunderite Pickaxe (~3 s a block)
+    static let pickHardness: Float = 25                // how hard Sealrock is to a Sunderite Pickaxe (~6 s a block with P267)
     static let chargeFuse: Float = 3
     static let chargeRadius = 1                        // 3x3 shaft
     static var moments = 0

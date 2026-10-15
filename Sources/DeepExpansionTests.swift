@@ -115,7 +115,7 @@ enum DeepExpansionTests {
         let tHand = Mining.breakSeconds(SEALROCK, .empty, onGround: true, inWater: false)
         let tSun = Mining.breakSeconds(SEALROCK, sunder, onGround: true, inWater: false)
         let tOther = Mining.breakSeconds(BEDROCK, sunder, onGround: true, inWater: false)
-        check(tDusk.isInfinite && tHand.isInfinite && tOther.isInfinite && tSun > 1 && tSun < 5 && Mining.drops(SEALROCK, sunder).map { Items.def($0.item).name } == ["sealrock_shard"],
+        check(tDusk.isInfinite && tHand.isInfinite && tOther.isInfinite && tSun > 1 && tSun < 7 && Mining.drops(SEALROCK, sunder).map { Items.def($0.item).name } == ["sealrock_shard"],
               String(format: "deep seal: Duskium pickaxe and hand never break it, a Sunderite Pickaxe takes %.2f s (bedrock still unbreakable; it drops one Sealrock Shard)", tSun))
         check(DeepSeal.crosses(210, 185) && DeepSeal.crosses(150, 201) && !DeepSeal.crosses(205, 230) && !DeepSeal.crosses(60, 150),
               "deep seal: a teleport across it is recognised (spiral fruit never crosses)")

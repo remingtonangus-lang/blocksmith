@@ -27,11 +27,11 @@ enum FidelityCheck {
             check(abs(got - want) < 0.026, "\(label): \(String(format: "%.2f", got)) s (reference \(String(format: "%.2f", want)) s)")
         }
         secs("stone", nil, 7.5)
-        secs("stone", "wooden_pickaxe", 1.15)
+        secs("stone", "wooden_pickaxe", 1.75)                                           // P267 tool heft (reference 1.15)
         secs("stone", "diamond_pickaxe", ench: [(.efficiency, 5)], 0.1)
-        secs("stone", "diamond_pickaxe", ench: [(.efficiency, 5)], mul: 1.4, 0)               // Haste II: instant
-        secs("stone", "diamond_pickaxe", mul: 0.0027, 104.2)                              // Mining Fatigue III
-        secs("obsidian", "diamond_pickaxe", 9.4)
+        secs("stone", "diamond_pickaxe", ench: [(.efficiency, 5)], mul: 1.4, 0.1)             // Haste II (P267: was instant)
+        secs("stone", "diamond_pickaxe", mul: 0.0027, 160.3)                              // Mining Fatigue III
+        secs("obsidian", "diamond_pickaxe", 14.45)                                       // P267 (reference 9.4)
         secs("dirt", nil, 0.75)
         secs("oak_log", nil, 3)
         secs("cobweb", "diamond_sword", 0.4)

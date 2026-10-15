@@ -26,6 +26,7 @@ enum Mining {
     // Seconds to break a block (0 = instant, .infinity = unbreakable).
     // `mul`: Haste / Mining Fatigue, applied to the speed before the instant-break test (reference order: Haste II
     // with an efficiency pickaxe insta-mines stone; dividing the finished time missed that).
+    static let toolHeft: Float = 0.65               // P267: tools dig at this share of their reference speed
     static func breakSeconds(_ b: BlockID, _ tool: ItemStack, onGround: Bool, inWater: Bool, mul: Float = 1) -> Float {
         var h = Blocks.hardness[Int(b)]
         if h < 0 {
@@ -49,10 +50,13 @@ enum Mining {
             if speed > 1 && eff > 0 { speed += Float(eff * eff + 1) }
         }
         else if correctTool(b, tool) {
-            speed = tool.def.toolSpeed
+            // P267 (Oct 14 19:20, "may have overdone it with the shovel"): every tool digs at toolHeft of its
+            // reference speed, so a block takes a few honest strikes (hand unchanged: slow; stone moderate; titanium
+            // fast), and the hardest blocks stay slow.
+            speed = tool.def.toolSpeed * toolHeft
             // P234 (Oct 13 21:49, "used to having an efficiency shovel"): Titanium and Duskium shovels dig as an
-            // Efficiency V shovel does (dirt, sand, gravel and snow go in one tap); an enchantment adds only past that.
-            if t == .shovel && tool.def.tier >= 3 { speed += Float(max(eff, 5) * max(eff, 5) + 1) }
+            // Efficiency II shovel does (P267: was V, dirt went in one tap); an enchantment adds only past that.
+            if t == .shovel && tool.def.tier >= 3 { speed += Float(max(eff, 2) * max(eff, 2) + 1) }
             else if eff > 0 { speed += Float(eff * eff + 1) }
         }
         else if t == .sword && swordEfficient(b, key) { speed = 1.5 }
