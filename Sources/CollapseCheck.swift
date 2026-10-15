@@ -80,6 +80,21 @@ enum CollapseCheck {
         let spot = RideCheck.land(w, near: g.player.pos, rough: false, verify: true)
         _ = w.loadSync(center: V3(Float(spot.0), 100, Float(spot.1)), radius: 5)
         st.origin = IVec3(spot.0, w.topY(spot.0, spot.1) + 1, spot.1)
+        // A stage of its own: a stone floor under every scene's footprint and open air over it. The spot near spawn
+        // follows world gen (on playtest 7629ff8 it was a wet hollow: lily pads on water round the piers, a pillar
+        // standing on water so the whole relic read as never held), and a scene judges its own structure, not the
+        // ground it happens to land on.
+        let o = st.origin
+        var cells: [IVec3] = [], ids: [BlockID] = []
+        cells.reserveCapacity(65 * 53 * 70)
+        ids.reserveCapacity(65 * 53 * 70)
+        for z in (o.z - 12)...(o.z + 40) { for x in (o.x - 32)...(o.x + 32) {
+            for y in (o.y - 3)..<(o.y + 66) where y > 0 && y < CH - 1 {
+                cells.append(IVec3(x, y, z)); ids.append(y < o.y ? STONE : AIR)
+            }
+        } }
+        w.setBlocksBulk(cells, ids)
+        w.remeshArea(x0: o.x - 33, z0: o.z - 13, x1: o.x + 33, z1: o.z + 41, y0: max(0, o.y - 4), y1: min(CH - 1, o.y + 66))
     }
 
     static func fill(_ w: World, _ a: IVec3, _ b: IVec3, _ id: BlockID) {

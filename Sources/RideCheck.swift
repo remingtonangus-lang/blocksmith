@@ -627,6 +627,10 @@ enum RideCheck {
                         // (0.92 against a stair top at 1.0, run of 0ea1c81); stuck in a block is deeper or lasts.
                         var lift: Float = 0.05
                         while lift < 1.0 && m.collides(l + V3(0, lift, 0), w) { lift += 0.05 }
+                        // Sideways too: a body a tenth narrower that is clear was only brushing a wall beside it (a
+                        // 0.03 shove into the bay wall read as 0.95 deep, measured upward only: run of 4aa5e64).
+                        let hw = m.halfW - 0.1
+                        if !w.collides(V3(l.x - hw, l.y + 0.05, l.z - hw), V3(l.x + hw, l.y + m.height, l.z + hw)) { lift = min(lift, 0.1) }
                         let run = (streak[id] ?? 0) + 1
                         streak[id] = run
                         deepest = max(deepest, lift - 0.05)

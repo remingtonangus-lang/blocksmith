@@ -74,6 +74,7 @@ enum BlockMaterial {
             // Trees and other growths hold themselves up (a branch is no beam to check).
             let growth = k.hasSuffix("_log") || k.hasSuffix("_wood") || k.hasSuffix("_stem") || k.hasSuffix("_hyphae")
                 || k.contains("mushroom_block") || k == "bamboo" || k == "cactus" || k.hasSuffix("_roots")
+                || k == "lily_pad" || k == "frogspawn"                 // they float on water, they don't span it
             // Generated terrain the helm's natural list leaves out (it can be built with, but mostly isn't): a desert's
             // sandstone sheet, basalt and blackstone deltas and volcano flanks, icebergs, geodes, the Emberdeep's
             // glowstone ceilings and ore veins. (A blast in them would otherwise search a whole desert's sandstone.)
