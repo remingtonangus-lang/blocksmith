@@ -103,6 +103,12 @@ static func cast(idx: Dictionary, kind: String) -> Array:
 		res["name"] = name_for(r, res.female)
 		out.append(res)
 		hi += 1
+	# a piano player where the saloon has a piano
+	var sal: String = idx.get("saloon", "")
+	if sal != "" and idx.buildings[sal].spots.any(func(sp): return sp.type == "piano"):
+		var pn := _resident(r, idx, out.size(), "pianist", "", {"role": "gambler", "look": "gentleman", "types": []}, "", homes, hi)
+		out.append(pn)
+		hi += 1
 	if idx.get("school", "") != "":
 		for i in int(CHILDREN.get(kind, 0)):
 			var c := _resident(r, idx, out.size(), "child", "", {"role": "townsfolk", "look": "", "types": []}, "", homes, hi)
@@ -177,6 +183,10 @@ static func block(res: Dictionary, h: float, wday: int, idx: Dictionary) -> Dict
 			# the cook and bartender eat on the job; others take a noon hour at the cafe sometimes
 			if h >= 12.0 and h < 13.0 and cafe != "" and job not in ["cook", "bartender", "hotelier"] and _coin(res, h, 9) < 0.35:
 				return _b("eat", cafe)
+			# first thing after opening, the storekeeper sweeps the boardwalk out front
+			if job in ["storekeeper", "barber", "butcher", "gunsmith", "bartender", "cook"] and h >= float(hours[0]) - 0.3 \
+					and h < float(hours[0]) + 1.2 and _coin(res, h, 13) < 0.5:
+				return _b("sweep", res.work)
 			return _b("work", res.work, res.types)
 		if sunday and church != "" and h >= 9.0 and h < 11.5 and _coin(res, 0.0, 3) < 0.8:
 			return _b("church", church)
@@ -193,8 +203,19 @@ static func block(res: Dictionary, h: float, wday: int, idx: Dictionary) -> Dict
 		"drunk":
 			if h < 2.0 or h >= 21.5:
 				return _b("stagger", saloon)
+			if h < 6.5 and int(res.seed) % 2 == 0:
+				return _b("passout")                 # asleep where he sat down: a bench or a porch chair
+
 			if h >= 11.0 and saloon != "":
 				return _b("bar", saloon) if _coin(res, h, 1) < 0.75 else _b("tables", saloon)
+			return _b("home", res.home)
+		"pianist":
+			if (h < 1.0 or h >= 19.0) and saloon != "":
+				return _b("piano", saloon)
+			if h >= 12.0 and h < 14.0:
+				return _b("eat", cafe) if cafe != "" else _b("loiter")
+			if h >= 14.0 and h < 19.0:
+				return _b("loiter") if _coin(res, h, 11) < 0.5 else _b("porch", res.home)
 			return _b("home", res.home)
 		"gambler":
 			if (h < 3.0 or h >= 14.0) and saloon != "":
@@ -218,6 +239,11 @@ static func block(res: Dictionary, h: float, wday: int, idx: Dictionary) -> Dict
 
 static func _evening(res: Dictionary, h: float, saloon: String, cafe: String, _idx: Dictionary, female := false) -> Dictionary:
 	var e: float = res.evening
+	if h < 6.0:
+		# after midnight: a few still at the saloon until one, everyone else asleep
+		if not female and e < 0.25 and h < 1.0 and saloon != "":
+			return _b("bar", saloon)
+		return _b("home", res.home)
 	if female or res.kind in ["elder", "matron", "townswoman", "lady"]:
 		if h < 19.0:
 			return _b("porch", res.home) if e < 0.5 else _b("loiter")

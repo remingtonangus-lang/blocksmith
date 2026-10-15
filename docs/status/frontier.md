@@ -135,6 +135,14 @@ runner, Metal) and the Mac monitor.
   daily supplies, companions' chores at camp spots, morale-coloured barks (`src/ai/camp.gd`). Temperature by
   altitude, hour, season and the southern heat; breath fog, stamina and health drain, outfit warmth
   (`src/systems/climate.gd`).
+- **Outlaw life** (`--bot roam`; saving in `--bot systems`): stage coaches and the Meridian train pass on the stage
+  roads and the main line; hold them up at gunpoint (crew down, passengers to rob, strongbox / express safe),
+  witnesses make a county bounty, deputies ride out, papers and gossip follow (`src/systems/holdups.gd`). Bounty
+  hunter posses sized by the bounty ride in to take her alive (lasso + struggle, fists, guns past $300 or when shot);
+  capture means a night in the county jail, paying at a sheriff calls them off (`src/systems/hunters.gd`). Songs and
+  stories at the Willow Bend fire at night (`campfire.json`, camp.gd). Eight places with a story: notes, caches, a
+  hermit, map marks, journal pages (`src/systems/landmarks.gd`). Autosave every 5 min, on travel and mission end;
+  manual saves refused in a fight or when wanted 2+ (`src/systems/autosave.gd`).
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.
@@ -163,11 +171,14 @@ runner, Metal) and the Mac monitor.
   (AnimationTree, coats), `HorseIK` (terrain foot IK + foot locking), coat/hair shaders, `--bot ride|gaits` with gait
   oracle, look-dev scene `scenes/horse_test.tscn`, player's horse spawned in `main.gd`.
 - **VR**: OpenXR start on Android, XROrigin rig, controller → intent mapping, snap turn, comfort vignette, HUD/menu
-  sheets. Desktop simulator `--vr_sim` (fake XR trackers drive the same rig; `--vr_stereo` side-by-side), gloved
-  procedural hands with finger curl, physical guns (holster draw, real sights, two-hand fore-end snap, trigger +
-  haptics, lever/bolt/pump by hand, gate/break reloads with rounds from the belt, Nerve by pointing), reach-to-grab
+  sheets. Desktop simulator `--vr_sim` (fake XR trackers drive the same rig; `--vr_stereo` side-by-side), the
+  player's own character as the body (VRBody: head follow, two-bone arm IK to the controllers, finger curl, visible
+  from the neck down), physical guns (holster draw, real sights, two-hand fore-end snap, trigger + haptics,
+  lever/bolt/pump by hand, gate/break reloads, bolt-open and pump-gate loading, Nerve by pointing), comfort settings
+  (snap/smooth turn, vignette strength, seated/standing + height calibration), reach-to-grab
   doors/counters/boards/horse, menu laser, reins. Evidence: `res://scenes/vr_studio.tscn` (CI step "VR shots"),
-  `--features DIR --vr_sim` in-world. Design + Quest knobs: frontier/design/VR.md.
+  `--features DIR --vr_sim` in-world. Design + Quest knobs: frontier/design/VR.md. Mobile renderer fixes: town
+  build deadlock at boot, StandardMaterial surfaces unlit under soft shadows, horse hair alpha-to-coverage.
 
 ## In flight (parallel worktree agents; merged here when they report)
 - Settlements: NPC routines, draw-call and memory cuts (settlements ≈ 680 MB headless), sign renames.
@@ -253,3 +264,11 @@ Work order from this round:
 - 2026-10-05: merged writer presentation round (conversation cameras, title/results cards, medals, gold, outfits,
   any-sheriff turn-ins), character round 3, geometry budget (tree LODs, closer impostor hand-off), settlements
   round (prop decimation, interior culling, town-life layers). Container restart mid-session: agents resumed.
+- 2026-10-05 HANDOFF (session paused for usage): pushed everything. State: combat round done (cover, melee with
+  guard/grapple/knife, lasso/hogtie, disarms, archetypes, weapon wear + special ammo, Nerve core/ranks, loco
+  accents), merged writer round 3, wildlife round 4, settlements round, VR round 2. CI bots run in 3 parallel
+  processes. Last change (untested on CI): Game.render_threads_unsafe() makes settlements commit meshes on the main
+  thread and skips character warm-up under MoltenVK/Mobile (suspected cause of the CI GPU stall; VR agent saw the
+  same deadlock on Mobile). Next: read ci-snaps probe/result.txt — if towns+characters now render, run critic
+  round 2; otherwise check the town kill-switch bisect lines. Agents (settlements, characters, wildlife) were
+  mid-round in their worktrees (uncommitted work may exist there). No FRONTIER BUILD READY yet.

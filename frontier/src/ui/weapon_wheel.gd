@@ -84,8 +84,13 @@ func _close(apply: bool) -> void:
 			"weapon":
 				player.gun.select(int(e.idx))
 				player.gun.drawn = true
+				player.set("knife_out", false)
 			"holster":
 				player.gun.drawn = false
+				player.set("knife_out", false)
+			"knife":
+				player.gun.drawn = false
+				player.set("knife_out", true)
 			"item":
 				if Game.state and Game.state.use_item(e.id):
 					Game.say("Used %s." % e.label.to_lower(), 2.0)
@@ -94,6 +99,7 @@ func _close(apply: bool) -> void:
 func _build_entries() -> void:
 	_entries.clear()
 	_entries.append({"kind": "holster", "id": "holster", "label": "Holster", "sub": "", "ring": 0})
+	_entries.append({"kind": "knife", "id": "knife", "label": "Bowie Knife", "sub": "melee", "ring": 0})
 	var g = player.gun
 	for i in g.weapons.size():
 		var id: String = g.weapons[i]

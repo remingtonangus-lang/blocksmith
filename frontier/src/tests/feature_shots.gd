@@ -6,7 +6,8 @@ extends Node
 const LIST := ["town_hud", "face_closeup", "gunfight_nerve", "riding", "wildlife", "camp_night", "dialogue",
 	"map", "journal", "shop", "poker", "satchel", "weapon_wheel", "mission_talk", "results_card"]
 ## With --vr_sim the run takes the VR view instead: head camera, HUD/menu sheets, hands, guns (src/tests/vr_shots.gd).
-const VR_LIST := ["vr_hud", "vr_menu", "vr_hands", "vr_gun_aim", "vr_fire", "vr_two_hand", "vr_reload", "vr_nerve", "vr_riding",
+const VR_LIST := ["vr_hud", "vr_menu", "vr_comfort", "vr_hands", "vr_body", "vr_gun_aim", "vr_fire", "vr_two_hand", "vr_reload",
+	"vr_bolt", "vr_pump", "vr_nerve", "vr_riding",
 	"vr_door"]
 
 var main: Node
@@ -335,6 +336,27 @@ func _vr_nerve() -> void:
 func _vr_riding() -> void:
 	await _riding()
 	await _vrs.riding()
+
+func _vr_comfort() -> void:
+	var c := _town("bitter_spring")
+	_place(c.x + 30.0, c.z + 40.0, 60.0, 15.0)
+	await _vrs.comfort(60.0)
+
+func _vr_body() -> void:
+	var c := _town("bitter_spring")
+	_place(c.x + 30.0, c.z + 40.0, 60.0, 15.0)
+	await _settle(10)
+	await _vrs.body(60.0)
+
+func _vr_bolt() -> void:
+	_place(500.0, 1500.0, 60.0, 15.0)
+	await _settle(10)
+	await _vrs.bolt_reload(60.0)
+
+func _vr_pump() -> void:
+	_place(500.0, 1500.0, 60.0, 15.0)
+	await _settle(10)
+	await _vrs.pump_reload(60.0)
 
 func _vr_door() -> void:
 	var c := _town("bitter_spring")

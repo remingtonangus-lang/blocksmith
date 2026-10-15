@@ -21,6 +21,8 @@ const SUPPORT_REACH := 0.2
 const ROUND_REACH := 0.11
 const BELT_REACH := 0.3
 const INTERACT_REACH := 0.75
+## Pump guns load through the gate under the receiver, ahead of the trigger guard (model space, -Z = muzzle).
+const LOAD_GATE := {"brennan_pump": Vector3(0.0, -0.034, 0.088)}
 
 var vr: Node                      # VR
 var player: Node
@@ -40,6 +42,11 @@ var laser_dot: MeshInstance3D
 var _rein := false
 var _rein_ref := Vector3.ZERO
 var _nerve_env := {}
+var _bolt_drag := false             # left hand on the bolt knob, working it
+var _bolt_ref := Vector3.ZERO
+var _bolt_v0 := 0.0
+var bolt_v := 0.0                   # 0 closed .. 1 fully back (bolt guns)
+var _bolt_ejected := false
 
 func setup(v: Node, p: Node, l: XRController3D, r: XRController3D) -> void:
 	vr = v
@@ -55,10 +62,15 @@ func setup(v: Node, p: Node, l: XRController3D, r: XRController3D) -> void:
 	_body_shadow_only.call_deferred()
 
 var _shadow_t := 0.0
+var body_mode := false              # VRBody drives the character: only the head is hidden (shadows only)
+var hide_self := true               # false while a spectator camera looks at the player (evidence shots)
 
 func _body_shadow_only() -> void:
 	var vis = player.get("visual")
-	if vis is Node3D:
+	if vis is Node3D and hide_self:
+		if body_mode:
+			VRBody.hide_head(vis)
+			return
 		for mi in (vis as Node3D).find_children("*", "GeometryInstance3D", true, false):
 			(mi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 
@@ -134,6 +146,8 @@ func _guns(dt: float) -> void:
 			var m0 := model()
 			if m0 != null:
 				m0.manual_cycle = true
+				bolt_v = float(m0._ch.get("bolt", 0.0)) if m0.action == "bolt" else 0.0
+				_bolt_drag = false
 	elif holding and not rgrip:
 		holding = false
 		two_hand = false
@@ -182,7 +196,7 @@ func _guns(dt: float) -> void:
 		var mt := m.muzzle_transform()
 		if nerve != null and nerve.active:
 			nerve.mark(mt.origin, -mt.basis.z)
-		elif m.needs_cycle or _gate_open:
+		elif m.needs_cycle or _gate_open or bolt_v > 0.1:
 			_haptic(right, 0.15, 0.03)
 			if Game.audio != null:
 				Game.audio.gun_mech("dry", mt.origin)
@@ -210,18 +224,63 @@ func _guns(dt: float) -> void:
 					m.cycle_action()
 					_haptic(right, 0.4, 0.05)
 			"bolt":
-				if m.parts.has("bolt") and GunHands.BOLT_KNOB.has(m.weapon_id):
-					var knob: Vector3 = (m.parts["bolt"].node as Node3D).global_transform * (GunHands.BOLT_KNOB[m.weapon_id] as Vector3)
-					var hand := left if not two_hand else right
-					if _edge(left, "bolt", lgrip) and left.global_position.distance_to(knob) < 0.14:
-						m.cycle_action()
-						_haptic(hand, 0.4, 0.05)
+				pass                                              # worked by the left hand: _bolt() below
 			"pump":
 				if two_hand and _vel.left.dot(basis.z) > 0.9:  # jerk the fore-end back toward the shooter
 					m.cycle_action()
 					_haptic(left, 0.5, 0.06)
+	if m.action == "bolt":
+		_bolt(m, basis, lgrip)
 	# ---- reloads
 	_reload(dt, m, g, basis)
+
+## Bolt guns: grab the knob with the left hand, lift and draw it back (the case flies at the back of the stroke),
+## let go with it open to load through the port, push it forward and down to chamber.
+func _bolt(m: WeaponModel, basis: Basis, lgrip: bool) -> void:
+	if not m.parts.has("bolt") or not GunHands.BOLT_KNOB.has(m.weapon_id):
+		return
+	var bolt_node: Node3D = m.parts["bolt"].node
+	var knob: Vector3 = bolt_node.global_transform * (GunHands.BOLT_KNOB[m.weapon_id] as Vector3)
+	var open_len: float = float((m.parts["bolt"].anim as Dictionary).get("open", 0.09))
+	if not _bolt_drag and _edge(left, "bolt", lgrip) and not two_hand and _round == null and left.global_position.distance_to(knob) < 0.14:
+		_bolt_drag = true
+		_bolt_ref = left.global_position
+		_bolt_v0 = bolt_v
+		_haptic(left, 0.3, 0.03)
+		if Game.audio != null:
+			Game.audio.gun_mech("bolt", knob)
+	if not lgrip:
+		_edge(left, "bolt", false)
+	if _bolt_drag:
+		if not lgrip:
+			_bolt_drag = false
+			if bolt_v < 0.15:
+				_close_bolt(m)
+			elif bolt_v > 0.8:
+				bolt_v = 1.0
+			m.pose({"bolt_rot": 1.0 if bolt_v > 0.0 else 0.0, "bolt": bolt_v})
+			return
+		var back := (left.global_position - _bolt_ref).dot(basis.z.normalized())   # +Z = toward the shooter
+		bolt_v = clampf(_bolt_v0 + back / open_len, 0.0, 1.0)
+		m.pose({"bolt_rot": 1.0, "bolt": bolt_v})
+		if bolt_v > 0.75 and not _bolt_ejected and (m.needs_cycle or m.spent > 0):
+			_bolt_ejected = true
+			m.needs_cycle = false
+			m.spent = 0
+			m._eject()
+			_haptic(left, 0.4, 0.04)
+		if bolt_v < 0.05 and _bolt_v0 > 0.3:
+			_bolt_drag = false
+			_close_bolt(m)
+
+func _close_bolt(m: WeaponModel) -> void:
+	bolt_v = 0.0
+	_bolt_ejected = false
+	m.needs_cycle = false
+	m.pose({"bolt_rot": 0.0, "bolt": 0.0})
+	_haptic(left, 0.4, 0.05)
+	if Game.audio != null:
+		Game.audio.gun_mech("bolt", m.global_position)
 
 ## Which weapon slot the hand is reaching for: the sidearm at the hip, the long gun on the back / scabbard.
 func _reach_gun(p: Vector3) -> int:
@@ -237,8 +296,10 @@ func _reach_gun(p: Vector3) -> int:
 		var gp := wm.grip_transform("grip_r").origin
 		var d := p.distance_to(gp)
 		var reach := DRAW_REACH if pistol else DRAW_REACH * 1.5
-		if not pistol:
-			# over the right shoulder counts too
+		if not pistol and player.get("on_horse") != null:
+			reach = 0.16                      # the scabbard mouth is by the pommel, where the rein hands are
+		if not pistol and player.get("on_horse") == null:
+			# over the right shoulder counts too (on foot: the long gun is slung)
 			var cam3 := vr.cam as Node3D
 			var rel := p - cam3.global_position
 			var fwd := -cam3.global_basis.z
@@ -289,6 +350,8 @@ func _reload(dt: float, m: WeaponModel, g: GunHandler, basis: Basis) -> void:
 	if _round != null:
 		var port := _port(m)
 		var can_load: bool = _gate_open or not (gate_style or breaks)
+		if m.action == "bolt":
+			can_load = bolt_v > 0.8                                     # through the open action only
 		if can_load and left.global_position.distance_to(port) < ROUND_REACH and g.clip.get(g.weapon_id(), 0) < int(m.def.capacity):
 			var id := g.weapon_id()
 			g.clip[id] += 1
@@ -321,6 +384,8 @@ func _belt_point() -> Vector3:
 	return player.global_position + Vector3(0, 0.98, 0) + b * Vector3(-0.12, 0, -0.1)
 
 func _port(m: WeaponModel) -> Vector3:
+	if LOAD_GATE.has(m.weapon_id):
+		return m.global_transform * (LOAD_GATE[m.weapon_id] as Vector3)
 	if m.parts.has("loading_gate"):
 		return (m.parts["loading_gate"].node as Node3D).global_position
 	var se := m.marker("shell_eject")

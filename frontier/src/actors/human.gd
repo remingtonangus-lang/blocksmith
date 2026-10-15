@@ -13,6 +13,7 @@ const WALK := 1.45
 const JOG := 3.5
 const SPRINT := 6.0
 
+var loco := LocoAccents.new()       # turn-in-place / stop one-shots over the gait blend
 var role := "townsfolk"            # townsfolk, lawman, gunman, rancher, worker, shopkeeper...
 var faction := "civilian"          # civilian, law, outfit, shale, syndicate, bandit
 var display_name := "Stranger"
@@ -34,6 +35,7 @@ var nav: NavigationAgent3D
 # town life (src/ai/routine.gd): anchored = held kinematically on an interaction spot (seat, counter, bar rail);
 # doors on the way are opened via TownDoor.open_from; in_town = floors come from the navmesh when gliding far away
 var anchored := false
+var lying := false
 var in_town := false
 var doors_used := 0
 var _anchor_from := Transform3D.IDENTITY
@@ -297,6 +299,8 @@ func _physics_process_impl(dt: float) -> void:
 				str(ActorLOD.far(self)), _ghost_t, _path_i, _path.size(), rt.phase if rt else "-", brain.debug_state])
 	if visual.has_method("set_locomotion"):
 		visual.set_locomotion(speed, "idle" if speed < 0.2 else ("walk" if speed < 2.4 else "run"), is_on_floor())
+		if not ActorLOD.far(self):
+			loco.tick(visual, facing, speed, dt, intent.aim_at != null or anchored or Melee.is_down(self))
 	if visual.has_method("set_aim"):
 		var kind := ""
 		if intent.aim_at != null and gun and not gun.weapons.is_empty():
@@ -344,7 +348,29 @@ func anchor_to(xf: Transform3D, blend := 0.6) -> void:
 		global_position = xf.origin
 		facing = spot_yaw(xf)
 
+## Lie on a bed spot (anchor first): face up, head towards `head` (world point), mattress `height` above the spot.
+func lie_down(head: Vector3, height: float) -> void:
+	var d := head - global_position
+	d.y = 0.0
+	if d.length() < 0.05:
+		d = Vector3(-sin(facing), 0, -cos(facing))
+	lying = true
+	var sc := visual.scale.x
+	visual.transform = FrontierCharacter.lie_transform(d.normalized(), height).scaled_local(Vector3.ONE * sc)
+	if visual.has_method("set_hat_visible"):
+		visual.set_hat_visible(false)
+
+func get_up() -> void:
+	if not lying:
+		return
+	lying = false
+	var sc := visual.basis.get_scale().x
+	visual.transform = Transform3D(Basis(Vector3.UP, facing).scaled(Vector3.ONE * sc), Vector3.ZERO)
+	if visual.has_method("set_hat_visible"):
+		visual.set_hat_visible(true)
+
 func release_anchor() -> void:
+	get_up()
 	anchored = false
 	_stuck_t = 0.0
 	_last_pos = global_position
@@ -366,7 +392,8 @@ func _anchor_tick(dt: float) -> void:
 		if fd.length() > 0.01:
 			facing = lerp_angle(facing, atan2(-fd.x, -fd.z), 1.0 - exp(-4.0 * dt))
 	speed = 0.0
-	visual.rotation.y = facing
+	if not lying:
+		visual.rotation.y = facing
 	if visual.has_method("set_locomotion"):
 		visual.set_locomotion(0.0, "idle", true)
 	if visual.has_method("set_aim"):

@@ -1212,6 +1212,36 @@
    "speaker": "townsfolk",
    "line": "Heard you sassed the deputy. Five-dollar mouth, my mother would have called that.",
    "emotion": "neutral"
+  },
+  {
+   "id": "gos_stage1",
+   "speaker": "townsfolk",
+   "line": "Stage got stopped out on the road. Driver swears it was a woman, and she said please.",
+   "emotion": "calm"
+  },
+  {
+   "id": "gos_stage3",
+   "speaker": "townsfolk",
+   "line": "Another coach held up. The stage line's hiring two guards a run now, and neither wants the job.",
+   "emotion": "calm"
+  },
+  {
+   "id": "gos_train1",
+   "speaker": "lady",
+   "line": "They stopped the Meridian train out on the line and opened the express safe. Left the mail, they say.",
+   "emotion": "calm"
+  },
+  {
+   "id": "gos_train_law",
+   "speaker": "lawman",
+   "line": "Express company's put up its own reward for whoever stopped that train. A handsome one.",
+   "emotion": "calm"
+  },
+  {
+   "id": "gos_caught",
+   "speaker": "townsfolk",
+   "line": "Bounty men brought a woman in trussed like a calf. Sheriff let her out in the morning, once she'd paid.",
+   "emotion": "calm"
   }
  ],
  "social": {
@@ -2325,6 +2355,58 @@
    },
    "who": [],
    "priority": 1
+  },
+  {
+   "id": "gos_stage1",
+   "when": {
+    "flag_set": [
+     "stage_robbery"
+    ]
+   },
+   "who": [],
+   "priority": 3
+  },
+  {
+   "id": "gos_stage3",
+   "when": {
+    "flag_set": [
+     "stage_robbery_3"
+    ]
+   },
+   "who": [],
+   "priority": 4
+  },
+  {
+   "id": "gos_train1",
+   "when": {
+    "flag_set": [
+     "train_robbery"
+    ]
+   },
+   "who": [],
+   "priority": 4
+  },
+  {
+   "id": "gos_train_law",
+   "when": {
+    "flag_set": [
+     "train_robbery"
+    ]
+   },
+   "who": [
+    "lawman"
+   ],
+   "priority": 4
+  },
+  {
+   "id": "gos_caught",
+   "when": {
+    "flag_set": [
+     "captured_by_hunters"
+    ]
+   },
+   "who": [],
+   "priority": 3
   }
  ]
 }

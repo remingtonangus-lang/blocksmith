@@ -21,9 +21,11 @@ var calls := 0
 var use_cam_range := true       # tests turn the camera-distance sleep off
 
 ## Adds foot IK under the actor's character skeleton (no-op headless, for stand-ins or skeletons without legs).
-static func attach(actor: CharacterBody3D, force := false) -> HumanFootIK:
-	if (Game.headless and not force) or not is_instance_valid(actor):
+## Untyped on purpose: callers defer this, and a typed parameter rejects an actor freed before the call runs.
+static func attach(actor_ref, force := false) -> HumanFootIK:
+	if (Game.headless and not force) or not is_instance_valid(actor_ref) or not (actor_ref is CharacterBody3D):
 		return null
+	var actor: CharacterBody3D = actor_ref
 	var vis = actor.get("visual")
 	var sk: Skeleton3D = vis.get("skeleton") if vis != null and vis.get("skeleton") != null else null
 	if sk == null or sk.find_bone("LeftUpperLeg") < 0 or sk.has_node("FootIK"):

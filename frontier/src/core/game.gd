@@ -25,7 +25,7 @@ const PRESETS := {
 	"quest": {"fur_shells": 0, "tree_near": 45.0, "shrub_near": 30.0, "render_scale": 1.0, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,
 		"shadow_distance": 60.0, "shadow_size": 2048, "terrain_range": 1.5, "grass_density": 0.25, "grass_dist": 30.0,
 		"tree_dist": 700.0, "moon_shadows": false, "cloud_shadows": false, "upscale": "none", "msaa": 2, "taa": false, "lod_bias": 0.4,
-		"shadow_splits": 2, "glow": false},     # see design/VR.md (Mobile renderer, stereo)
+		"shadow_splits": 2, "glow": false, "water_refraction": false, "mounted_horse_lod1": true},     # see design/VR.md (Mobile renderer, stereo)
 }
 
 var args := {}                 # --key value / --flag from the command line (after "--" too)
@@ -149,3 +149,19 @@ func arm_watchdog(seconds: float) -> void:
 func _ready() -> void:
 	if args.has("shot") or args.has("tour") or args.has("bot") or args.has("benchmark") or args.has("smoke"):
 		arm_watchdog(float(args.get("watchdog", 1800)))
+	# Mobile renderer (Quest): with the project's soft shadow filter quality 3 (and Soft Low, 2), every StandardMaterial3D
+	# surface lost all direct sunlight whenever the sun cast shadows (props, guns, ground read dark grey); custom
+	# shaders were unaffected. Soft Very Low (1) renders correctly and is the right cost for a Quest anyway. See design/VR.md.
+	if not headless and RenderingServer.get_current_rendering_method() == "mobile":
+		RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW)
+		RenderingServer.positional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW)
+
+## Renderer resources made on worker threads deadlocked the Mobile renderer (VR agent, gdb) and are the prime suspect
+## for the CI GPU stalls under MoltenVK (macOS + Vulkan driver: towns and characters, the two systems that build
+## meshes/textures off the main thread). On those, workers only prepare data and the main thread commits.
+func render_threads_unsafe() -> bool:
+	if args.has("main_thread_commit"):
+		return true
+	var mobile := RenderingServer.get_current_rendering_method() == "mobile"
+	var moltenvk := OS.get_name() == "macOS" and RenderingServer.get_current_rendering_driver_name().to_lower().contains("vulkan")
+	return mobile or moltenvk

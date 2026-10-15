@@ -57,6 +57,24 @@ static func run(runner: Node) -> Dictionary:
 	res.checks["taken_guard"] = snappedf(taken_guard, 0.1)
 	if taken_open > 0.0 and taken_guard > taken_open * 0.5:
 		_fail(res, "the guard did not soak his blows (%.1f vs %.1f open)" % [taken_guard, taken_open])
+	# 2b. grapple: a fresh man is shoved off balance, a hurt one is thrown down
+	var g1 := Melee.grapple(p, p.facing)
+	res.checks["grapple_fresh"] = "thrown" if g1.get("thrown", false) else ("shoved" if g1.get("grabbed", false) else "missed")
+	await _physics(60)
+	h.damageable.health = h.damageable.max_health * 0.4
+	h.set_meta("stagger_t", 0.0)
+	var to2: Vector3 = h.global_position - p.global_position
+	p.facing = atan2(-to2.x, -to2.z)
+	var g2 := Melee.grapple(p, p.facing)
+	res.checks["grapple_hurt"] = "thrown" if g2.get("thrown", false) else ("shoved" if g2.get("grabbed", false) else "missed")
+	if res.checks.grapple_hurt != "thrown":
+		_fail(res, "grappling a hurt man did not throw him (%s)" % res.checks.grapple_hurt)
+	for i in 60 * 7:                          # let him get back up before the knockdown test
+		await tree.physics_frame
+		if not Melee.is_down(h):
+			break
+	await _physics(30)
+	h.damageable.health = h.damageable.max_health
 	# 3. knock him down (not dead)
 	p.damageable.health = p.damageable.max_health
 	var ko := false
@@ -82,13 +100,33 @@ static func run(runner: Node) -> Dictionary:
 		_fail(res, "still down after 7 s")
 	if h.brain.state == h.brain.State.FIST:
 		_fail(res, "still fighting after the knockdown")
+	# 5. the knife: lethal (the brawler goes first so the blade finds the new man)
+	h.queue_free()
+	await _physics(2)
+	var k := Human.spawn(Game.main, p.global_position + Vector3(0, 0.1, -1.1), {"seed": 516, "faction": "civilian", "name": "Knifed"})
+	k.brain.set_physics_process(false)          # holds still: this checks the blade, not a chase
+	await _physics(10)
+	p.gun.drawn = false
+	p.knife_out = true
+	p.facing = 0.0
+	for i in 3:
+		if not k.damageable.alive:
+			break
+		p.set_meta("melee_t", 0.0)
+		p.intent.melee = true
+		await _physics(40)
+	res.checks["knife_kills"] = not k.damageable.alive
+	if k.damageable.alive:
+		_fail(res, "three knife strikes did not kill (hp %.1f)" % k.damageable.health)
+	p.knife_out = false
+	if is_instance_valid(k):
+		k.queue_free()
 	print("  melee: %s" % str(res.checks))
 	p.bot_driven = was_bot
 	p.intent.aim = false
 	for m in ["in_fight", "blocking", "melee_t", "stagger_t", "knocked_down"]:
 		if p.has_meta(m):
 			p.remove_meta(m)
-	h.queue_free()
 	floor.queue_free()
 	await _physics(2)
 	return res

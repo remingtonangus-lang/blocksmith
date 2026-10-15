@@ -120,7 +120,11 @@ func _setup_combat() -> void:
 			var t: Damageable = info.get("target")
 			hud.hit_confirm(t != null and not t.alive)
 		if nerve and info.get("zone", "") == "head":
-			nerve.reward(6.0))
+			nerve.reward(6.0)
+		# kills while Nerve is running build its rank (a headshot kill counts double)
+		var tk: Damageable = info.get("target")
+		if nerve and nerve.active and tk != null and not tk.alive and tk.kind == "human":
+			nerve.add_xp(2.0 if info.get("zone", "") == "head" else 1.0))
 	if not Game.headless:
 		hud = load("res://src/ui/hud.gd").new()
 		hud.name = "HUD"
@@ -469,7 +473,8 @@ func _after_move(dt: float) -> void:
 	if visual and visual.has_method("set_locomotion"):
 		visual.set_locomotion(speed, "mounted" if get("on_horse") != null else gait, is_on_floor())
 	if visual and visual.has_method("set_aim"):
-		visual.set_aim(_aim_kind() if intent.aim else "")
+		visual.set_aim(_aim_kind() if intent.aim and not Game.is_vr else "")   # VR: the arms follow the controllers (VRBody); the aim clip would lean the torso past the camera
+	loco.tick(visual, facing, speed, dt, intent.aim or intent.crouch or cover.active or Melee.is_down(self) or busy != null)
 	# crouch: hitboxes drop, crouched idle pose
 	_crouch_k = move_toward(_crouch_k, 1.0 if intent.crouch else 0.0, dt * 6.0)
 	for h in _hitboxes:
@@ -481,6 +486,8 @@ func _after_move(dt: float) -> void:
 
 var _last_vy := 0.0
 var _melee_side := 0
+var knife_out := false
+var loco := LocoAccents.new()       # turn-in-place / stop one-shots over the gait blend             # weapon wheel: the Bowie knife makes Melee a lethal stab
 
 ## Fists: Melee throws jab / cross alternately at the person in front; Aim with no gun drawn raises the guard.
 func _melee(dt: float) -> void:
@@ -495,10 +502,15 @@ func _melee(dt: float) -> void:
 	intent.melee = false
 	if get_meta("melee_t", 0.0) > 0.05 or stag > 0.0 or cover.active or Melee.is_down(self):
 		return
+	if gun != null and gun.drawn:
+		knife_out = false
 	if Melee.target_for(self, facing) == null and not get_meta("in_fight", false):
 		return                              # nothing to hit: leave the button to mount/crouch
+	if get_meta("blocking", false) and not knife_out:
+		Melee.grapple(self, facing)          # Melee while guarding: grab and throw / shove
+		return
 	_melee_side = 1 - _melee_side
-	var r := Melee.strike(self, facing, "jab" if _melee_side == 0 else "cross")
+	var r := Melee.strike(self, facing, "stab" if knife_out else ("jab" if _melee_side == 0 else "cross"))
 	if r.get("hit", false):
 		set_meta("in_fight", true)
 		get_tree().create_timer(6.0).timeout.connect(func(): set_meta("in_fight", false))

@@ -252,6 +252,12 @@ func _draw_gauges() -> void:
 			gauges.draw_arc(c, r * 0.74, -PI * 0.5, -PI * 0.5 + TAU * v, 40, col, r * 0.3, true)
 		gauges.draw_arc(c, r, 0.0, TAU, 48, UITheme.BRASS, maxf(r * 0.09, 1.5), true)
 		gauges.draw_arc(c, r * 0.56, 0.0, TAU, 32, UITheme.INK, 1.2, true)
+		if vals[i][2] == "N" and player.get("nerve") != null:
+			# the core: a disc inside the Nerve dial that shrinks as the reserve runs down; rank pips under it
+			var cr: float = r * 0.5 * clampf(player.nerve.core / 100.0, 0.0, 1.0)
+			gauges.draw_circle(c, cr, Color(UITheme.SLATE, 0.55))
+			for k in player.nerve.rank:
+				gauges.draw_circle(c + Vector2((k - (player.nerve.rank - 1) * 0.5) * r * 0.22, r * 1.22), r * 0.06, UITheme.BRASS)
 		var fs := int(r * 0.78)
 		var tw := font.get_string_size(vals[i][2], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		gauges.draw_string(font, c + Vector2(-tw * 0.5, fs * 0.36), vals[i][2], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITheme.PAPER)

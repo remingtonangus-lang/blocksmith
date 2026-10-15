@@ -7,6 +7,7 @@ extends Node
 signal standing_changed(value: float, delta: float, reason: String)
 signal wanted_changed(level: int, county: String)
 signal money_changed(value: float)
+signal loaded                       # after load_game: systems re-read their state from flags
 
 const COUNTIES := {"bitter_spring": "Sable County", "coldwater": "Kestrel County", "mesquite_wells": "Ocotillo County",
 	"port_linden": "Linden County"}
@@ -20,6 +21,8 @@ const CRIMES := {
 	"theft": {"bounty": 15.0, "standing": -3.0, "witness": true},
 	"horse_theft": {"bounty": 35.0, "standing": -5.0, "witness": true},
 	"robbery": {"bounty": 60.0, "standing": -8.0, "witness": true},
+	"stage_robbery": {"bounty": 110.0, "standing": -10.0, "witness": true},
+	"train_robbery": {"bounty": 180.0, "standing": -14.0, "witness": true},
 	"trespass": {"bounty": 5.0, "standing": -0.5, "witness": true},
 	"animal_cruelty": {"bounty": 0.0, "standing": -2.0, "witness": false},
 }
@@ -82,7 +85,7 @@ func crime(kind: String, pos: Vector3, victim: Node = null) -> void:
 	var county := county_at(pos)
 	bounties[county] = float(bounties.get(county, 0.0)) + float(c.bounty)
 	var level := 1
-	if kind in ["murder", "murder_lawman", "robbery", "horse_theft"]:
+	if kind in ["murder", "murder_lawman", "robbery", "horse_theft", "stage_robbery", "train_robbery"]:
 		level = 2
 	if kind == "murder_lawman" or float(bounties[county]) > 200.0:
 		level = 3
@@ -152,16 +155,21 @@ func use_item(id: String) -> bool:
 		"tonic_nerve":
 			if Game.player and Game.player.nerve:
 				Game.player.nerve.reward(100.0)
+				Game.player.nerve.restore_core(100.0)
 		"jerky":
 			if Game.player and Game.player.damageable:
 				Game.player.damageable.heal(15.0)
 		"coffee":
 			if Game.player:
 				Game.player.stamina = Game.player.STAMINA_MAX
+				if Game.player.nerve:
+					Game.player.nerve.restore_core(30.0)
 		"cooked_meat":
 			if Game.player and Game.player.damageable:
 				Game.player.damageable.heal(35.0)
 				Game.player.stamina = Game.player.STAMINA_MAX
+				if Game.player.nerve:
+					Game.player.nerve.restore_core(40.0)
 		"gun_oil":
 			if Game.player and Game.player.gun:
 				Game.player.gun.clean_all()
@@ -186,7 +194,8 @@ func save_game(slot := "auto") -> bool:
 			"health": p.damageable.health if p.damageable else 100.0,
 			"ammo": p.gun.ammo if p.gun else {}, "clip": p.gun.clip if p.gun else {}, "weapons": p.gun.weapons if p.gun else [],
 			"condition": p.gun.condition if p.gun else {}, "ammo_sel": p.gun.ammo_sel if p.gun else {},
-			"loaded": p.gun.loaded if p.gun else {}},
+			"loaded": p.gun.loaded if p.gun else {},
+			"nerve": {"core": p.nerve.core, "rank": p.nerve.rank, "xp": p.nerve.xp} if p.nerve else {}},
 	}
 	var f := FileAccess.open("user://saves/%s.json" % slot, FileAccess.WRITE)
 	if f == null:
@@ -237,5 +246,12 @@ func load_game(slot := "auto") -> bool:
 		p.gun.condition = d.player.get("condition", {})
 		p.gun.ammo_sel = d.player.get("ammo_sel", {})
 		p.gun.loaded = d.player.get("loaded", {})
+	if p.nerve and d.player.has("nerve"):
+		var nv: Dictionary = d.player.nerve
+		p.nerve.core = float(nv.get("core", 100.0))
+		p.nerve.rank = clampi(int(nv.get("rank", 1)), 1, 5)
+		p.nerve.xp = float(nv.get("xp", 0.0))
+		p.nerve.max_meter = p.nerve.RANK_METER[p.nerve.rank - 1]
 	Game.log_event("loaded", {"slot": slot})
+	loaded.emit()
 	return true

@@ -1,0 +1,248 @@
+{
+ "note": "Songs and stories at the Willow Bend fire at night (src/ai/camp.gd sing_along): companions sit round, one leads, the others join the refrain. Lyrics and stories are original, in period style. Each entry: who must be in camp, the lines in order (speaker per line).",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "hap": {
+   "name": "Hap Lindqvist",
+   "voice": "man_old"
+  },
+  "del": {
+   "name": "Del Arceneaux",
+   "voice": "woman_town"
+  },
+  "doc": {
+   "name": "Cornelius Abernathy",
+   "voice": "man_town"
+  },
+  "billy": {
+   "name": "Billy Pruitt",
+   "voice": "man_young"
+  },
+  "joseph": {
+   "name": "Joseph Kehoe",
+   "voice": "lawman"
+  }
+ },
+ "lines": [
+  {
+   "id": "cf_sable_1",
+   "speaker": "hap",
+   "line": "Oh, the Sable runs brown and the Sable runs slow, and it took my last dollar a long time ago.",
+   "emotion": "tired"
+  },
+  {
+   "id": "cf_sable_2",
+   "speaker": "billy",
+   "line": "I gave it my boots and I gave it my mare, and it gave me a sandbar and left me there.",
+   "emotion": "calm"
+  },
+  {
+   "id": "cf_sable_3",
+   "speaker": "del",
+   "line": "So roll on, Sable, roll on by. There's nothing you owe me, and nothing owe I.",
+   "emotion": "calm"
+  },
+  {
+   "id": "cf_sable_4",
+   "speaker": "doc",
+   "line": "I courted a widow in Port Linden town. She married a banker and burned my coat down.",
+   "emotion": "dry"
+  },
+  {
+   "id": "cf_sable_5",
+   "speaker": "ruth",
+   "line": "So roll on, Sable, roll on by. There's nothing you owe me, and nothing owe I.",
+   "emotion": "calm"
+  },
+  {
+   "id": "cf_lantern_1",
+   "speaker": "del",
+   "line": "There's a lamp in a window of a house that I knew, and it burns every evening though nobody's due.",
+   "emotion": "sad"
+  },
+  {
+   "id": "cf_lantern_2",
+   "speaker": "joseph",
+   "line": "It burns for the riders, it burns for the dead, it burns for the fool who rode off instead.",
+   "emotion": "sad"
+  },
+  {
+   "id": "cf_lantern_3",
+   "speaker": "del",
+   "line": "So I'll ride past that window and I'll lift up my hat, for the light that's left burning. There's no more than that.",
+   "emotion": "sad"
+  },
+  {
+   "id": "cf_lantern_4",
+   "speaker": "hap",
+   "line": "There's no more than that.",
+   "emotion": "tired"
+  },
+  {
+   "id": "cf_mule_1",
+   "speaker": "doc",
+   "line": "In seventy-nine I sold a mule in Mesquite Wells that could count. Stamped a hoof for every dollar.",
+   "emotion": "dry"
+  },
+  {
+   "id": "cf_mule_2",
+   "speaker": "billy",
+   "line": "He could really count?",
+   "emotion": "calm"
+  },
+  {
+   "id": "cf_mule_3",
+   "speaker": "doc",
+   "line": "To four. Unhappily, I had told the buyer he could count to ten.",
+   "emotion": "dry"
+  },
+  {
+   "id": "cf_mule_4",
+   "speaker": "hap",
+   "line": "That ain't a story. That's a confession.",
+   "emotion": "dry"
+  },
+  {
+   "id": "cf_pass_1",
+   "speaker": "joseph",
+   "line": "My first winter with the county we found a rider froze in the saddle at Kestrel Pass. Horse still standing under him.",
+   "emotion": "tired"
+  },
+  {
+   "id": "cf_pass_2",
+   "speaker": "joseph",
+   "line": "Letter in his coat, addressed to nobody. Just: To whoever finds me, the coffee is in the left bag.",
+   "emotion": "calm"
+  },
+  {
+   "id": "cf_pass_3",
+   "speaker": "ruth",
+   "line": "Was it?",
+   "emotion": "calm"
+  },
+  {
+   "id": "cf_pass_4",
+   "speaker": "joseph",
+   "line": "It was. Best coffee I ever drank. I think of him every time I make it.",
+   "emotion": "sad"
+  },
+  {
+   "id": "cf_hap_alone_1",
+   "speaker": "hap",
+   "line": "Nobody else up? Then you'll get the short version. Once there was a cook who was never thanked. The end.",
+   "emotion": "dry"
+  },
+  {
+   "id": "cf_ruth_alone_1",
+   "speaker": "ruth",
+   "line": "Roll on, Sable. Roll on by.",
+   "emotion": "tired"
+  }
+ ],
+ "songs": [
+  {
+   "id": "sable_song",
+   "kind": "song",
+   "title": "Roll On, Sable",
+   "who": [
+    "hap",
+    "billy",
+    "del",
+    "doc"
+   ],
+   "lead": "hap",
+   "lines": [
+    "cf_sable_1",
+    "cf_sable_2",
+    "cf_sable_3",
+    "cf_sable_4",
+    "cf_sable_5"
+   ],
+   "join": [
+    "cf_sable_3",
+    "cf_sable_5"
+   ]
+  },
+  {
+   "id": "lantern_song",
+   "kind": "song",
+   "title": "The Lamp in the Window",
+   "who": [
+    "del",
+    "joseph",
+    "hap"
+   ],
+   "lead": "del",
+   "lines": [
+    "cf_lantern_1",
+    "cf_lantern_2",
+    "cf_lantern_3",
+    "cf_lantern_4"
+   ],
+   "join": [
+    "cf_lantern_4"
+   ]
+  },
+  {
+   "id": "counting_mule",
+   "kind": "story",
+   "title": "The Counting Mule",
+   "who": [
+    "doc",
+    "billy",
+    "hap"
+   ],
+   "lead": "doc",
+   "lines": [
+    "cf_mule_1",
+    "cf_mule_2",
+    "cf_mule_3",
+    "cf_mule_4"
+   ],
+   "join": []
+  },
+  {
+   "id": "kestrel_rider",
+   "kind": "story",
+   "title": "The Rider at Kestrel Pass",
+   "who": [
+    "joseph"
+   ],
+   "lead": "joseph",
+   "lines": [
+    "cf_pass_1",
+    "cf_pass_2",
+    "cf_pass_3",
+    "cf_pass_4"
+   ],
+   "join": []
+  },
+  {
+   "id": "hap_alone",
+   "kind": "story",
+   "title": "The Short Version",
+   "who": [
+    "hap"
+   ],
+   "lead": "hap",
+   "lines": [
+    "cf_hap_alone_1"
+   ],
+   "join": []
+  },
+  {
+   "id": "ruth_alone",
+   "kind": "song",
+   "title": "Roll On, Sable (alone)",
+   "who": [],
+   "lead": "ruth",
+   "lines": [
+    "cf_ruth_alone_1"
+   ],
+   "join": []
+  }
+ ]
+}

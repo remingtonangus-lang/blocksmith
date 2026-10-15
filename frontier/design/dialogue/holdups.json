@@ -1,0 +1,143 @@
+{
+ "note": "Hold-ups on the road and the rail (src/systems/holdups.gd) and the posses that come after (src/systems/hunters.gd): Ruth's demands, the crew, passengers, bounty hunters and county deputies. Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "stage_driver": {
+   "name": "Stage Driver",
+   "voice": "man_rough"
+  },
+  "shotgun_guard": {
+   "name": "Shotgun Guard",
+   "voice": "man_town"
+  },
+  "engineer": {
+   "name": "Engineer",
+   "voice": "man_old"
+  },
+  "messenger": {
+   "name": "Express Messenger",
+   "voice": "man_young"
+  },
+  "hunter_boss": {
+   "name": "Bounty Hunter",
+   "voice": "man_rough"
+  },
+  "deputy": {
+   "name": "County Deputy",
+   "voice": "lawman"
+  }
+ },
+ "lines": [
+  {
+   "id": "hu_ruth_stop_coach",
+   "speaker": "ruth",
+   "line": "Rein in! Hands where the sun can find them.",
+   "emotion": "shout"
+  },
+  {
+   "id": "hu_ruth_stop_train",
+   "speaker": "ruth",
+   "line": "Shut her down, engineer. Nobody needs to be brave today.",
+   "emotion": "shout"
+  },
+  {
+   "id": "hu_ruth_box",
+   "speaker": "ruth",
+   "line": "The box. Gently. It's done nothing to you.",
+   "emotion": "dry"
+  },
+  {
+   "id": "hu_ruth_safe",
+   "speaker": "ruth",
+   "line": "Open the safe, son, and you'll have a story for your grandchildren.",
+   "emotion": "dry"
+  },
+  {
+   "id": "hu_driver_yield",
+   "speaker": "stage_driver",
+   "line": "Easy, easy! The line don't pay me near enough to argue.",
+   "emotion": "scared"
+  },
+  {
+   "id": "hu_guard_resist",
+   "speaker": "shotgun_guard",
+   "line": "Not on my run, you don't!",
+   "emotion": "angry"
+  },
+  {
+   "id": "hu_guard_yield",
+   "speaker": "shotgun_guard",
+   "line": "All right. All right. I've a wife in Coldwater.",
+   "emotion": "scared"
+  },
+  {
+   "id": "hu_engineer_yield",
+   "speaker": "engineer",
+   "line": "Throttle's shut. She's yours till somebody says otherwise, God help us.",
+   "emotion": "scared"
+  },
+  {
+   "id": "hu_messenger_resist",
+   "speaker": "messenger",
+   "line": "The express company pays me to say no, and I mean to earn it!",
+   "emotion": "angry"
+  },
+  {
+   "id": "hu_messenger_yield",
+   "speaker": "messenger",
+   "line": "Combination's in my head and my head's in your sights. Here.",
+   "emotion": "scared"
+  },
+  {
+   "id": "bh2_boss_call",
+   "speaker": "hunter_boss",
+   "line": "Ruth Caddell! There's paper on you, and we'd sooner bring it in breathing.",
+   "emotion": "shout"
+  },
+  {
+   "id": "bh2_boss_rope",
+   "speaker": "hunter_boss",
+   "line": "Throw the loop! Keep her down!",
+   "emotion": "shout"
+  },
+  {
+   "id": "bh2_boss_guns",
+   "speaker": "hunter_boss",
+   "line": "Dead weighs the same across a saddle. Open up!",
+   "emotion": "angry"
+  },
+  {
+   "id": "bh2_boss_capture",
+   "speaker": "hunter_boss",
+   "line": "That's the end of the ride. The county can have the rest of you.",
+   "emotion": "dry"
+  },
+  {
+   "id": "bh2_boss_calloff",
+   "speaker": "hunter_boss",
+   "line": "Wire says your debt's settled. No profit in you now. Good day to you.",
+   "emotion": "dry"
+  },
+  {
+   "id": "bh2_ruth_free",
+   "speaker": "ruth",
+   "line": "Not today, gentlemen.",
+   "emotion": "angry"
+  },
+  {
+   "id": "bh2_ruth_caught",
+   "speaker": "ruth",
+   "line": "Mind the hat.",
+   "emotion": "tired"
+  },
+  {
+   "id": "law_deputy_call",
+   "speaker": "deputy",
+   "line": "In the name of the county, throw down that iron!",
+   "emotion": "shout"
+  }
+ ]
+}

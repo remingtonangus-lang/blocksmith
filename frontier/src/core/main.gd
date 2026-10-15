@@ -85,7 +85,8 @@ func _ready() -> void:
 	print("boot: world built in %d ms" % (Time.get_ticks_msec() - t0))
 	# character scenes + animation library load on a worker from here: started after the boot draws (impostor bake
 	# force_draw) so their texture uploads never race a synchronous frame (CI's GPU hung there, b873a47 probe)
-	if not Game.args.has("looks"):          # --looks N (low-memory shots): only the looks towns use, on demand
+	# screenshot tours cap town residents and looks (src/tests/shots.gd) and load looks on demand: no warm-up
+	if not Game.args.has("looks") and not Game.args.has("tour") and not Game.args.has("shot"):          # --looks N (low-memory shots): only the looks towns use, on demand
 		CharacterFactory.warm_up()
 	var ws := WorldState.new()
 	ws.name = "WorldState"
@@ -228,6 +229,10 @@ func _apply_viewport_quality() -> void:
 	vp.msaa_3d = Viewport.MSAA_DISABLED if q.msaa == 0 else (Viewport.MSAA_2X if q.msaa == 2 else Viewport.MSAA_4X)
 	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_SMAA if (not q.taa and scale >= 0.999) else Viewport.SCREEN_SPACE_AA_DISABLED
 	vp.mesh_lod_threshold = 1.0 / maxf(q.lod_bias, 0.1)
+	# --lod_ref_height 1080: pick mesh LODs as a window that tall would (imported meshes choose LODs by on-screen
+	# size), so geometry counts from a small software-rendered window match the real resolution
+	if Game.args.has("lod_ref_height"):
+		vp.mesh_lod_threshold *= float(vp.size.y) / maxf(Game.arg_f("lod_ref_height", 1080.0), 1.0)
 	RenderingServer.directional_shadow_atlas_set_size(q.shadow_size, true)
 
 func _exit_tree() -> void:

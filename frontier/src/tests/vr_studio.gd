@@ -11,7 +11,8 @@ var door: TownDoor
 var _spawned: Array = []
 
 func _ready() -> void:
-	Game.args["vr_sim"] = true
+	if not Game.args.has("flat"):
+		Game.args["vr_sim"] = true          # --flat: the same set without VR (third-person comparisons)
 	out_dir = str(Game.args.get("out", out_dir))
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	if Game.has_method("arm_watchdog"):
@@ -35,7 +36,9 @@ func _ready() -> void:
 		Horse.player_horse = hz
 	shots = VRShots.new(self)
 	await _settle(10)
-	for v in str(Game.args.get("views", "hud,menu,hands,gun_aim,fire,two_hand,reload,nerve,riding,door,door_open,stereo")).split(","):
+	if Game.args.has("dump"):
+		_dump()
+	for v in str(Game.args.get("views", "hud,menu,comfort,hands,body,body_ext,gun_aim,fire,two_hand,two_hand_ext,reload,bolt,pump,nerve,riding,riding_ext,door,door_open,stereo")).split(","):
 		var t0 := Time.get_ticks_msec()
 		_reset_player()
 		await call("_view_" + v)
@@ -131,6 +134,107 @@ func _view_door_open() -> void:
 	await _view_door()
 	_open_door = false
 
+func _view_comfort() -> void:
+	await shots.comfort(0.0)
+
+func _view_body() -> void:
+	await shots.body(0.0)
+
+func _view_bolt() -> void:
+	await shots.bolt_reload(0.0)
+
+func _view_pump() -> void:
+	await shots.pump_reload(0.0)
+
+## Third-person checks of the IK'd body: a studio camera looks at the player while the VR pose holds.
+func _ext(from: Vector3, at: Vector3) -> void:
+	var pl: Node3D = Game.player
+	cam.global_position = pl.global_position + from
+	cam.look_at(pl.global_position + at)
+	cam.fov = 45.0
+	cam.make_current()
+	var v := shots.vr()
+	if v != null and v.play != null:
+		v.play.hide_self = false          # stop the periodic re-hide while the spectator camera looks
+		VRBody.hide_head(pl.get("visual"), true)
+	await _settle(3)
+
+func _restore_cam() -> void:
+	var v := shots.vr() if Game.is_vr else null
+	if v != null:
+		v.cam.make_current()
+		if v.body != null and v.play != null:
+			v.play.hide_self = true
+			VRBody.hide_head(Game.player.get("visual"))
+
+func _view_body_ext() -> void:
+	await shots.reach_out(0.0)
+	await _ext(Vector3(1.6, 1.3, -2.2), Vector3(0, 1.15, 0))
+
+func _view_two_hand_ext() -> void:
+	await shots.two_hand(0.0)
+	await _ext(Vector3(2.0, 1.4, -1.2), Vector3(0, 1.35, -0.3))
+
+func _view_two_hand_ots() -> void:
+	await shots.two_hand(0.0)
+	await _ext(Vector3(0.35, 1.85, 0.7), Vector3(-0.05, 1.5, -0.6))
+
+func _view_riding_ext() -> void:
+	await _view_riding()
+	if Game.args.has("vr_debug"):
+		var holder0 = Game.player.get("holder")
+		for bn in ["Hips", "Head", "RightHand", "LeftFoot"]:
+			var dot := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 0.05
+			sm.height = 0.1
+			var mm := StandardMaterial3D.new()
+			mm.albedo_color = Color(1, 0, 0)
+			mm.no_depth_test = true
+			mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			sm.material = mm
+			dot.mesh = sm
+			add_child(dot)
+			dot.top_level = true
+			dot.global_position = holder0._bone(bn, Vector3.ZERO)
+			_spawned.append(dot)
+		var sk4: Skeleton3D = holder0.skel
+		for bn2 in ["Root", "Hips"]:
+			var bi := GunHands.bone_index(sk4, bn2)
+			if bi >= 0:
+				print("  dbg bone %s parent %d pose_pos %s rest_pos %s global %s" % [bn2, sk4.get_bone_parent(bi), sk4.get_bone_pose_position(bi), sk4.get_bone_rest(bi).origin, sk4.get_bone_global_pose(bi).origin])
+		print("  dbg skel xf %s  model pos %s" % [sk4.global_transform, (Game.player.visual as Node3D).get("model").position if Game.player.visual.get("model") else "-"])
+	await _ext(Vector3(2.6, 2.2, -2.2), Vector3(0, 0.9, 0))
+
+func _view_mount_flat() -> void:
+	var hz: Horse = Horse.player_horse
+	hz.mount(Game.player)
+	await _settle(60)
+	if Game.args.has("vr_debug"):
+		var holder0 = Game.player.get("holder")
+		for bn in ["Hips", "Head", "RightHand", "LeftFoot"]:
+			var dot := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 0.06
+			sm.height = 0.12
+			var mm := StandardMaterial3D.new()
+			mm.albedo_color = Color(1, 0, 0)
+			mm.no_depth_test = true
+			mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			sm.material = mm
+			dot.mesh = sm
+			add_child(dot)
+			dot.global_position = holder0._bone(bn, Vector3.ZERO)
+			_spawned.append(dot)
+	var pl: Node3D = Game.player
+	cam.global_position = pl.global_position + Vector3(2.6, 2.2, -2.2)
+	cam.look_at(pl.global_position + Vector3(0, 0.9, 0))
+	cam.make_current()
+	var holder = pl.get("holder")
+	if holder != null and holder.skel != null:
+		print("  dbg hips bone %s  rider root %s" % [holder._bone("Hips", Vector3.ZERO), pl.global_position])
+	await _settle(3)
+
 func _view_stereo() -> void:
 	Game.args["vr_stereo"] = true
 	await shots.gun_aim(0.0, false)
@@ -146,6 +250,7 @@ func _reset_player() -> void:
 		door.close()
 
 func _cleanup() -> void:
+	_restore_cam()
 	shots.reset()
 	for n in _spawned:
 		if is_instance_valid(n):
@@ -155,6 +260,9 @@ func _cleanup() -> void:
 		Game.menus.close_all()
 
 func _shot(name: String) -> void:
+	if Game.args.has("hide_mesh"):           # debug: which mesh is that?
+		for mi in Game.player.find_children(str(Game.args["hide_mesh"]), "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).visible = false
 	await _settle(2)
 	await RenderingServer.frame_post_draw
 	if Game.args.has("vr_debug"):
@@ -167,6 +275,15 @@ func _shot(name: String) -> void:
 			v.left.get_is_active(), v.right.get_is_active(), v.play._gate_open, v.play._round != null, pl.gun.clip,
 			pl.nerve.active if pl.nerve else false, pl.nerve.marks.size() if pl.nerve else 0, v.play._rein])
 		print("  dbg lhand %s vis %s fist %s" % [v.left.global_position, v.hands.left.is_visible_in_tree(), v.hands.left.aim_transform().origin])
+		if v.body != null:
+			var sk3: Skeleton3D = v.body.get_skeleton()
+			print("  dbg hips process %s  modification %s" % [(sk3.global_transform * sk3.get_bone_global_pose(GunHands.bone_index(sk3, "Hips"))).origin, v.body.mod_hips])
+		if v.body != null:
+			var hd = pl.get("holder")
+			for bn in ["Hips", "Spine", "Chest", "UpperChest", "LeftShoulder", "Neck", "Head", "LeftUpperArm"]:
+				print("  dbg bone %s %s" % [bn, hd._bone(bn, Vector3.ZERO)])
+			print("  dbg lfist %s rfist %s" % [v.hands.left.aim_transform().origin, v.hands.right.aim_transform().origin])
+		print("  dbg eye %s user_eye %.2f cam %s player %s body %s" % [v.eye_anchor(), v.user_eye(), v.cam.global_position, pl.global_position, v.body != null])
 		if m != null:
 			print("  dbg gun pos %s fwd %s  rhand %s aim_fwd %s" % [m.global_position, -m.global_basis.z, v.right.global_position, -v.play.aim_frame(v.right).basis.z])
 	var p := out_dir.path_join(name + ".png")
@@ -196,8 +313,15 @@ func _studio() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-40, 30, 0)
 	sun.light_energy = 1.5
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 40.0
+	# the game's sun settings for the active preset (sky.gd), so draw/prim counts match the preset
+	sun.shadow_enabled = float(Game.quality.get("shadow_distance", 300.0)) > 0.0
+	sun.directional_shadow_max_distance = minf(float(Game.quality.get("shadow_distance", 300.0)), 120.0)
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if int(Game.quality.get("shadow_splits", 4)) == 2 and not Game.args.has("splits4") else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	env.glow_enabled = Game.quality.get("glow", true)
+	if Game.args.has("shadow_q"):
+		RenderingServer.directional_soft_shadow_filter_set_quality(int(Game.args["shadow_q"]))
+	sun.shadow_bias = float(Game.args.get("sun_bias", 0.04))          # the game's sun (sky.gd)
+	sun.shadow_normal_bias = float(Game.args.get("sun_nbias", 1.4))
 	add_child(sun)
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
@@ -212,7 +336,35 @@ func _studio() -> void:
 	var pm := PlaneMesh.new()
 	pm.size = Vector2(120, 120)
 	g.mesh = pm
-	g.material_override = _mat(Color(0.55, 0.46, 0.34), "res://assets/ext/packed/terrain_ah.png", 0.5)
+	# (terrain_ah.png is a Texture2DArray for the terrain shader: as a StandardMaterial albedo it rendered as an
+	# unbound texture — beige on Forward+, dark grey on Mobile. A noise texture stands in.)
+	var gm := _mat(Color(0.62, 0.52, 0.38), "", 1.0)
+	var nt := NoiseTexture2D.new()
+	nt.width = 256
+	nt.height = 256
+	nt.seamless = true
+	nt.noise = FastNoiseLite.new()
+	nt.noise.frequency = 0.05
+	nt.color_ramp = Gradient.new()
+	nt.color_ramp.set_color(0, Color(0.78, 0.72, 0.62))
+	nt.color_ramp.set_color(1, Color(1, 1, 1))
+	if not Game.args.has("ground_plain"):
+		gm.albedo_texture = nt
+		gm.uv1_triplanar = not Game.args.has("ground_uv")
+		gm.uv1_scale = Vector3(0.6, 0.6, 0.6) if gm.uv1_triplanar else Vector3(60, 60, 60)
+	g.material_override = gm
+	if Game.args.has("ground_shader"):
+		var shm := ShaderMaterial.new()
+		var sh := Shader.new()
+		sh.code = "shader_type spatial;\nvoid fragment() { ALBEDO = vec3(0.62, 0.52, 0.38); ROUGHNESS = 0.95; }"
+		shm.shader = sh
+		g.material_override = shm
+	if Game.args.has("ground_std"):
+		var sm0 := StandardMaterial3D.new()
+		sm0.albedo_color = Color(0.62, 0.52, 0.38)
+		g.material_override = sm0
+	if Game.args.has("ground_noshadow"):
+		g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(g)
 	# plank wall with a door to the left of the start
 	var wood := _mat(Color(0.42, 0.3, 0.2), "res://assets/ext/packed/build_planks_brown_ah.png", 1.0)
@@ -249,6 +401,18 @@ func _studio() -> void:
 	var knob2 := knob.duplicate()
 	knob2.position.z = 0.05
 	door.add_child(knob2)
+	# a pond with the game's water material on the quest preset (its no-refraction variant needs no depth below;
+	# the refracting desktop water would read this flat studio floor as a 3 cm shallow and foam all over)
+	if not Game.quality.get("water_refraction", true):
+		var wnode = load("res://src/world/water.gd").new()
+		var pond := MeshInstance3D.new()
+		var pqm := PlaneMesh.new()
+		pqm.size = Vector2(5, 4)
+		pond.mesh = pqm
+		pond.material_override = wnode._material(0.0, 0.5, Color(0.32, 0.36, 0.26), Color(0.05, 0.12, 0.13))
+		pond.position = Vector3(7.0, 0.03, -7.0)
+		add_child(pond)
+		wnode.free()
 	# campfire ring to the right
 	for i in 8:
 		var st := MeshInstance3D.new()
@@ -270,3 +434,17 @@ func _mat(c: Color, tex: String, scale: float) -> StandardMaterial3D:
 		m.uv1_triplanar = true
 		m.uv1_scale = Vector3(scale, scale, scale)
 	return m
+
+## --dump: every mesh in the set with its triangle count, LOD/visibility range and shadow mode (Quest budgets).
+func _dump() -> void:
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null:
+			continue
+		var tris := 0
+		for si in m.mesh.get_surface_count():
+			var arr := m.mesh.surface_get_arrays(si)
+			var idx = arr[Mesh.ARRAY_INDEX]
+			tris += (idx.size() if idx != null and idx.size() > 0 else (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
+		print("dump %-40s %7d tris  range %.0f-%.0f  shadow %d  vis %s  owner %s" % [str(m.get_path()).right(60), tris,
+			m.visibility_range_begin, m.visibility_range_end, m.cast_shadow, m.is_visible_in_tree(), m.owner.name if m.owner else "-"])

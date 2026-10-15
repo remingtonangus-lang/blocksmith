@@ -9,9 +9,22 @@ func setup(w: WorldData, _b = null) -> void:
 	for r in world.features.get("rivers", []):
 		_build_river(r)
 
+var _shader: Shader
+
+## The water shader; on the quest preset the WATER_OPAQUE variant (no refraction: no screen/depth copies per eye).
+func _water_shader() -> Shader:
+	if _shader == null:
+		var base: Shader = load("res://shaders/water.gdshader")
+		if Game.quality.get("water_refraction", true):
+			_shader = base
+		else:
+			_shader = Shader.new()
+			_shader.code = base.code.replace("shader_type spatial;", "shader_type spatial;\n#define WATER_OPAQUE")
+	return _shader
+
 func _material(flow: float, murk: float, shallow: Color, deep: Color) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
-	m.shader = load("res://shaders/water.gdshader")
+	m.shader = _water_shader()
 	m.set_shader_parameter("flow_speed", flow)
 	m.set_shader_parameter("murk", murk)
 	m.set_shader_parameter("shallow_color", shallow)

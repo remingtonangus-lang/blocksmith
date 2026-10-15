@@ -120,7 +120,9 @@ func _ready() -> void:
 	for sys in [["social", "res://src/systems/social.gd"], ["news", "res://src/systems/newspaper.gd"],
 			["legendary", "res://src/systems/legendary.gd"], ["treasure", "res://src/systems/treasure.gd"],
 			["presentation", "res://src/missions/presentation.gd"], ["outfits", "res://src/systems/outfits.gd"],
-			["horse_care", "res://src/systems/horse_care.gd"], ["travel", "res://src/systems/travel.gd"], ["climate", "res://src/systems/climate.gd"]]:
+			["horse_care", "res://src/systems/horse_care.gd"], ["travel", "res://src/systems/travel.gd"], ["climate", "res://src/systems/climate.gd"],
+			["holdups", "res://src/systems/holdups.gd"], ["hunters", "res://src/systems/hunters.gd"],
+			["landmarks", "res://src/systems/landmarks.gd"], ["autosave", "res://src/systems/autosave.gd"]]:
 		if not Game.has_meta(sys[0]):
 			var n: Node = load(sys[1]).new()
 			n.name = "Sys_" + sys[0]
@@ -234,7 +236,10 @@ func start(m: Mission) -> void:
 		if _pres():
 			_pres().finish(m)          # the results card, objectives and medal
 		if Game.state and not autopilot:
-			Game.state.save_game("auto")
+			if Game.has_meta("autosave"):
+				Game.get_meta("autosave").autosave("mission")
+			else:
+				Game.state.save_game("auto")
 		mission_completed.emit(m.id)
 		if Game.hud:
 			Game.hud.notice("%s — complete" % m.title, 5.0)

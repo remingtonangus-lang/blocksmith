@@ -4,7 +4,9 @@ extends Node
 ## XROrigin3D rig that follows the player (seated or standing height), and maps controllers to the player's
 ## intent: left stick moves (head-relative), right stick snap/smooth turns, triggers aim/fire with the right hand,
 ## grips interact/mount. Comfort: vignette while moving or riding, snap turn by default, height calibration.
-## Physical play (guns, reloads, reach-to-interact, menu laser, reins) lives in VRPlay (vr_play.gd); hands are VRHand.
+## Physical play (guns, reloads, reach-to-interact, menu laser, reins) lives in VRPlay (vr_play.gd). The player's own
+## character is the body (VRBody, vr_body.gd: head follow, arm IK to the controllers, finger curl, head shadow-only);
+## VRHand gloves stand in when there is no character skeleton.
 ## `--vr_sim` runs all of it without a headset: VRSim (vr_sim.gd) drives the XR trackers and the head camera
 ## renders to the window instead of an HMD.
 
@@ -16,6 +18,14 @@ var right: XRController3D
 var player: Node
 var snap_turn := true
 var snap_deg := 30.0
+var smooth_speed := 100.0          # deg/s (smooth turning)
+var vignette_strength := 1.0       # 0 = off (Settings > Accessibility)
+var height_mode := "standing"      # "standing" (real height, 1:1 or calibrated) | "seated" (raised to the character)
+var stand_eye := 0.0               # calibrated standing eye height (0 = not calibrated: 1:1)
+var seated_eye := 1.2              # seated eye height (calibrate to measure)
+var body: VRBody
+var _body_t := 0.0
+var _lean_rest := Vector2.ZERO     # where the head "belongs" in the room; leaning away from it moves the view
 var _snap_ready := true
 var vignette: MeshInstance3D
 # HUD and menus are CanvasLayers, which XR doesn't draw: in VR they render into SubViewports shown on panels
@@ -83,6 +93,8 @@ func attach(p: Node, root: Node) -> void:
 		cam.keep_aspect = Camera3D.KEEP_WIDTH     # a Quest 3 eye sees ~104 deg across; the window shows about that
 		cam.fov = SIM_FOV
 	_build_vignette()
+	if Game.get("menus") != null and Game.menus.get("settings") is Dictionary:
+		apply_settings(Game.menus.settings)
 	play = VRPlay.new()
 	add_child(play)
 	play.setup(self, player, left, right)
@@ -228,12 +240,27 @@ func _physics_process(dt: float) -> void:
 		elif absf(turn) < 0.3:
 			_snap_ready = true
 	else:
-		origin.rotate_y(-turn * 1.6 * dt)
-	# keep the origin under the player (head offset removed horizontally)
+		origin.rotate_y(-deg_to_rad(smooth_speed) * turn * dt)
+	# put the camera at the character's eyes: real head height relative to the calibrated eye height; leaning in the
+	# room moves the view (up to 35 cm) while the body catches up over a couple of seconds
+	_body_t -= dt
+	if _body_t <= 0.0:
+		_body_t = 1.0
+		_ensure_body()
 	var head_local := cam.position
-	var target: Vector3 = player.global_position - origin.global_basis * Vector3(head_local.x, 0.0, head_local.z)
+	if _auto_eye <= 0.5 and cam.position.y > 0.5:
+		_auto_t += dt
+		if _auto_t > 1.0:
+			_auto_eye = cam.position.y          # standing uncalibrated: your eyes become the character's eyes
+	var hl := Vector2(head_local.x, head_local.z)
+	_lean_rest = _lean_rest.lerp(hl, 1.0 - exp(-0.6 * dt))
+	if (hl - _lean_rest).length() > 0.35:
+		_lean_rest = hl - (hl - _lean_rest).normalized() * 0.35
+	var eye := eye_anchor()
 	var on_horse = player.get("on_horse")
-	origin.global_position = target           # mounted: the rider's origin sits below the seat, so the head lands right
+	origin.global_position = Vector3(eye.x, eye.y - user_eye(), eye.z) - origin.global_basis * Vector3(_lean_rest.x, 0.0, _lean_rest.y)
+	_update_body()
+	_horse_lod(on_horse)
 	if hands.has("right"):
 		hands.right.holding = play.holding
 	if hands.has("left"):
@@ -244,4 +271,138 @@ func _physics_process(dt: float) -> void:
 		var hs: float = absf(float(on_horse.get("speed"))) if on_horse.get("speed") != null else 0.0
 		var yr: float = absf(float(on_horse.get("yaw_rate"))) if on_horse.get("yaw_rate") != null else 0.0
 		moving = clampf((0.35 if hs > 0.5 else 0.0) + hs / 12.0 + yr * 0.25, 0.0, 1.0)
-	(vignette.material_override as ShaderMaterial).set_shader_parameter("amount", moving * 0.7)
+	(vignette.material_override as ShaderMaterial).set_shader_parameter("amount", clampf(moving * 0.7 * vignette_strength, 0.0, 1.0))
+
+# ------------------------------------------------------------------------------------------------- body + comfort
+## The character model can arrive after the rig: keep trying to put VRBody on its skeleton.
+func _ensure_body() -> void:
+	if body != null and is_instance_valid(body):
+		return
+	var vis = player.get("visual")
+	if not (vis is Node3D):
+		return
+	var sk: Skeleton3D = null
+	var holder = player.get("holder")
+	if holder != null and holder.get("skel") != null:
+		sk = holder.skel
+	if sk == null:
+		var found := (vis as Node3D).find_children("*", "Skeleton3D", true, false)
+		sk = found[0] if not found.is_empty() else null
+	if sk == null:
+		return
+	var b := VRBody.new()
+	b.name = "VRBody"
+	sk.add_child(b)                       # last modifier: after the animation, GunHands and the look-at
+	if not b.setup_vr(sk, self, str(vis.get("character_id")) if vis.get("character_id") != null else "default"):
+		b.queue_free()
+		return
+	body = b
+	body.driving = true
+	VRBody.hide_head(vis)
+	for h in hands.values():
+		h.visible = false                 # the character's own hands now
+	if play != null:
+		play.body_mode = true
+
+func _update_body() -> void:
+	if body == null or not is_instance_valid(body):
+		return
+	body.body = Basis(Vector3.UP, float(player.facing))
+	body.held_model = play.model() if play.holding else null
+	body.head_xf = cam.global_transform
+	for side in ["Right", "Left"]:
+		var c := right if side == "Right" else left
+		var h: VRHand = hands["right" if side == "Right" else "left"]
+		body.hand_on[side] = c.get_is_active()
+		body.hand_xf[side] = h.aim_transform()
+		body.inputs[side] = {"grip": c.get_float(&"grip"), "trigger": c.get_float(&"trigger"), "thumb": h.thumb,
+			"holding": play.holding if side == "Right" else play.two_hand}
+
+## Where the camera belongs: the character's eyes (rest pose, so walk bob never moves the view). At the eyes the
+## collar opening stays behind and below the view when looking down at yourself.
+const EYE_PUSH := 0.05
+func eye_anchor() -> Vector3:
+	if body != null and is_instance_valid(body) and body.get_skeleton() != null:
+		var horse = player.get("on_horse")
+		if horse != null:
+			# seated: straight up from the saddle seat by the character's hips->eyes height (the rider's readable
+			# pose is not where the seated body is drawn: see WeaponHolder.mount_offset)
+			var hv = horse.get("visual")
+			if hv != null and hv.has_method("seat_transform"):
+				var st: Transform3D = hv.seat_transform()
+				var fwd: Vector3 = horse.forward() if horse.has_method("forward") else -st.basis.z
+				return st.origin + st.basis.y.normalized() * (body.eye_height - body.hips_height + 0.06) + fwd * 0.04
+			# on foot: the animated eyes (the gameplay clips stand ~10 cm taller than the rest pose, so a rest-pose
+		# camera sat inside the neck), low-passed in the player's frame so walk bob never moves the view
+		var pg := (player as Node3D).global_transform
+		var local: Vector3 = pg.affine_inverse() * body.posed_eye(EYE_PUSH)
+		if _eye_local == Vector3.ZERO:
+			_eye_local = local
+		_eye_local = _eye_local.lerp(local, 1.0 - exp(-1.5 * get_physics_process_delta_time()))
+		return pg * _eye_local
+	return player.global_position + Vector3(0, 1.62, 0)
+
+var _eye_local := Vector3.ZERO
+var _auto_t := 0.0
+var _auto_eye := 0.0                # standing, not calibrated: the head height measured after the first second
+
+func character_eye_height() -> float:
+	if body != null and is_instance_valid(body):
+		return _eye_local.y if _eye_local != Vector3.ZERO else body.eye_height
+	return 1.62
+
+## The user's own eye height for the current play position (standing uncalibrated = 1:1 with the character).
+func user_eye() -> float:
+	if height_mode == "seated":
+		return seated_eye
+	if stand_eye > 0.5:
+		return stand_eye
+	return _auto_eye if _auto_eye > 0.5 else character_eye_height()
+
+## Measure the user's eye height now (stand or sit naturally) for the current play position, and save it.
+func calibrate() -> float:
+	var h := cam.position.y
+	if height_mode == "seated":
+		seated_eye = h
+	else:
+		stand_eye = h
+	if Game.get("menus") != null and Game.menus.get("settings") is Dictionary:
+		Game.menus.settings["vr_seated_eye" if height_mode == "seated" else "vr_stand_eye"] = h
+		if Game.menus.has_method("_save_settings"):
+			Game.menus._save_settings()
+	return h
+
+func apply_settings(st: Dictionary) -> void:
+	var t := str(st.get("vr_turn", "snap30" if st.get("snap_turn", true) else "smooth"))
+	snap_turn = t != "smooth"
+	snap_deg = 45.0 if t == "snap45" else 30.0
+	smooth_speed = float(st.get("vr_turn_speed", 100.0))
+	vignette_strength = float(st.get("vr_vignette", 1.0))
+	height_mode = str(st.get("vr_height_mode", "standing"))
+	stand_eye = float(st.get("vr_stand_eye", 0.0))
+	seated_eye = float(st.get("vr_seated_eye", 1.2))
+
+## Quest preset: the horse you sit on keeps its 26k hero body for the eyes (LOD1 looked faceted a metre away) but
+## casts its shadows with the 8k LOD1 body, so the shadow cascades skip the hero mesh.
+var _lod_horse: Node = null
+func _horse_lod(on_horse) -> void:
+	var want: Node = on_horse if (on_horse != null and Game.quality.get("mounted_horse_lod1", false)) else null
+	if want == _lod_horse:
+		return
+	if _lod_horse != null and is_instance_valid(_lod_horse):
+		_set_horse_lod(_lod_horse, false)
+	_lod_horse = want
+	if want != null:
+		_set_horse_lod(want, true)
+
+static func _set_horse_lod(h: Node, on: bool) -> void:
+	for n in h.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		match String(mi.name):
+			"Body":
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if on else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			"Body_LOD1":
+				if not mi.has_meta("vr_begin"):
+					mi.set_meta("vr_begin", mi.visibility_range_begin)
+				mi.visibility_range_begin = 0.0 if on else float(mi.get_meta("vr_begin"))
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if on else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
