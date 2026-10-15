@@ -662,6 +662,12 @@ Q2c-console-15. [DONE] Cheats stay out of a survival game unless asked for (the 
  (d) The keyboard's T and / and the pad's D-pad left open Commands only where the menu would show it; otherwise a toast says where to turn it on.
  (e) Its help line says what it does; Reset Options returns it to the build's default.
  Done Oct 15 (console; Settings.devTools/devToolsDefault, Game.cheatsAllowed/openCommands, PauseMenu, PadActions): (a) a survival game shows no cheat menus unless asked. (b) the main pause page drops Commands and Shortcuts while Game.cheatsAllowed is false (survival with the option off); creative keeps both. (c) Options > Interface > Cheats & Shortcuts (Settings.devTools): default Off on Android builds without VOICE_NOTES (the store APK), On in playtest APKs and on the Mac. (d) T, / and the pad's D-pad left go through Game.openCommands, which says "Commands are off in survival (Options > Interface > Cheats & Shortcuts)" instead of opening. (e) help line written; Reset Options puts the build's default back.
+Q2c-console-16. [CLAIMED console 2026-10-15] A shorter, clearer pause menu (on the headset its fifteen rows needed scrolling to reach Save and Quit; one row was only a locked label, another a testing switch).
+ (a) Intent (Q2 c, clear menus): the pause menu lists things to do, not things to read.
+ (b) The locked "Difficulty: Normal (locked)" row leaves the list; the difficulty joins the line under "Game Paused" ("World1 - day 3 - Normal - saved just now").
+ (c) "Journal (orders, logs, notes)" becomes "Journal" (its help line says what is in it), so the row reads at a glance and fits a big HUD scale.
+ (d) The Director's "Before the Story Ends" (a testing switch) shows only with Cheats & Shortcuts on, or while it is on, so it can always be switched off.
+ (e) Fewer rows to scroll on the headset: Save and Quit sits one row higher.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
