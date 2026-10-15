@@ -696,6 +696,12 @@ Q2c-console-20. [DONE] Tap a marker on the World Map to follow it (to follow a c
  (d) A tap on an empty spot drops a waypoint as before, and a tap on a waypoint still removes it (tracking returns to the story).
  (e) The map's control line says so ("Point + trigger: follow a marker or drop a waypoint").
  Done Oct 15 (console; MapMenu.follow, MapCache.pinPlace): (a) a map marker is one tap from being followed. (b) every waypoint tap (laser and trigger tap, right-click, the pad's waypoint at the centre cross) first looks for the nearest Track a Target candidate within three map cells (at least 4 blocks) and tracks it with Waymarks.track ("Tracking <name>") and a chime. (c) failing that, the nearest place marker (towns, bases, landmarks, any kept mark) gets a waypoint named after it on the marker, tracked as "Waypoint: <name>". (d) taps near an existing waypoint or note keep toggling it off, and empty ground still gets a plain waypoint. (e) the headset's control line reads "Point + trigger: follow a marker or drop a waypoint". Surface only (Track a Target is).
+Q2c-console-21. [CLAIMED console 2026-10-15] A Sort button for the pack (tidying 27 slots one laser drag at a time is the most tedious thing in a VR inventory; there was no way to sort or merge).
+ (a) Intent (Q2 c, first hour comfort in VR): one press tidies the pack.
+ (b) A Sort button beside Search in the inventory screen sorts the pack (not the hotbar, which he arranged on purpose) and merges partial stacks of the same thing.
+ (c) The order reads like a store game's: weapons and tools, armour, food, ammunition, blocks, then materials and the rest, alphabetical within each.
+ (d) Nothing about an item changes: only identical stacks merge (same enchantments, wear, name, load, contents), never past their stack size.
+ (e) Feedback: a soft page sound and the button reads "Sorted" for a moment; the laser, pad and mouse press it like any button.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
