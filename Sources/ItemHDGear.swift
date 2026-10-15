@@ -9,6 +9,79 @@ extension ItemHD {
         func soft(_ h: UInt32) -> String { M("soft", h) }
         let up = V2(0.707, -0.707), rt = V2(0.707, 0.707)
         switch s.mask {
+        case "copper_wire":
+            // A coil of copper wire with a loose end (the circuit "dust" item).
+            for k in 0..<3 {
+                let c = V2(0.42 + Float(k) * 0.05, 0.54 - Float(k) * 0.04)
+                cv.add(ring(ellipse(cv, c, 0.27, 0.2), 0.032), xs, "copper", r: 0.032)
+            }
+            cv.add(cap(cv, V2(0.7, 0.42), V2(0.88, 0.16), 0.032), xs, "copper", r: 0.032)
+        case "jetpack":
+            // Two fuel tanks on a harness, copper nozzles below.
+            for x: Float in [0.33, 0.67] {
+                let (d, t) = cv.capsule(V2(x, 0.22), V2(x, 0.68), 0.135)
+                cv.add(d, t, M("metal", base), r: 0.13)
+                let noz = cv.poly([V2(x - 0.07, 0.7), V2(x + 0.07, 0.7), V2(x + 0.1, 0.86), V2(x - 0.1, 0.86)])
+                cv.add(noz, ys, "copper", r: 0.03)
+            }
+            cv.add(rect(cv, 0.26, 0.38, 0.74, 0.47), xs, M("leather", ex["s"] ?? 0x3A3E44), r: 0.03)
+            cv.add(cap(cv, V2(0.33, 0.26), V2(0.67, 0.26), 0.025), xs, "copper", r: 0.02)
+        case "mechanism":
+            // A trigger group: receiver block, trigger, a brass gear and a spring.
+            cv.add(rect(cv, 0.14, 0.28, 0.86, 0.56), ys, M("metal", base), r: 0.04)
+            cv.add(cv.poly(band(V2(0.42, 0.56), V2(0.38, 0.74), V2(0.52, 0.84), 0.07, 0.03, 10)), xs, M("metal", darker(base, 0.7)), r: 0.025)
+            let gc = V2(0.68, 0.42)
+            for k in 0..<8 {
+                let a: Float = Float(k) * Float.pi / 4
+                let tip: V2 = gc + V2(cosf(a), sinf(a)) * 0.13
+                cv.add(cap(cv, gc, tip, 0.03), ys, M("metal", ex["c"] ?? 0xC8A24A), r: 0.02)
+            }
+            cv.add(cv.circle(gc, 0.09), ys, M("metal", ex["c"] ?? 0xC8A24A), r: 0.05)
+            cv.add(cv.circle(gc, 0.03), ys, M("metal", darker(base, 0.5)), r: 0.02)
+            for k in 0..<4 {
+                let x0: Float = 0.22 + Float(k) * 0.07
+                cv.add(cap(cv, V2(x0, 0.34), V2(x0 + 0.05, 0.5), 0.016), xs, "iron", r: 0.015)
+            }
+        case "optic":
+            // A rifle scope: tube, objective bell, a cyan lens, turret and mount.
+            let (d, t) = cv.capsule(V2(0.14, 0.52), V2(0.8, 0.52), 0.1)
+            cv.add(d, t, M("metal", base), r: 0.1)
+            cv.add(cap(cv, V2(0.74, 0.52), V2(0.86, 0.52), 0.15), t, M("metal", darker(base, 0.8)), r: 0.08)
+            cv.add(ellipse(cv, V2(0.88, 0.52), 0.05, 0.12), ys, M("gem", ex["c"] ?? 0x7FD4FF), r: 0.04)
+            cv.add(rect(cv, 0.42, 0.3, 0.52, 0.42), ys, M("metal", base), r: 0.03)
+            cv.add(rect(cv, 0.3, 0.6, 0.62, 0.72), ys, M("metal", darker(base, 0.75)), r: 0.03)
+        case "module":
+            // A circuit board: green board, a dark chip with gold pins, gold traces.
+            cv.add(rect(cv, 0.14, 0.2, 0.86, 0.8), xs, soft(base), r: 0.03)
+            let gold = M("metal", ex["c"] ?? 0xD8C66A)
+            for k in 0..<4 {
+                let y: Float = 0.36 + Float(k) * 0.07
+                cv.add(cap(cv, V2(0.22, y), V2(0.34, y), 0.012), xs, gold, r: 0.01)
+                cv.add(cap(cv, V2(0.62, y), V2(0.78, y), 0.012), xs, gold, r: 0.01)
+            }
+            cv.add(rect(cv, 0.34, 0.32, 0.62, 0.62), ys, M("stone", ex["d"] ?? 0x16181A), r: 0.02)
+            cv.add(cv.circle(V2(0.24, 0.7), 0.04), ys, gold, r: 0.02)
+            cv.add(cv.circle(V2(0.76, 0.7), 0.04), ys, gold, r: 0.02)
+        case "radar":
+            // A hand-held radar: a grey case, a round green scope with range rings, a sweep line and a blip, an aerial.
+            cv.add(cap(cv, V2(0.74, 0.2), V2(0.86, 0.04), 0.022), xs, "iron", r: 0.02)
+            cv.add(rect(cv, 0.12, 0.18, 0.88, 0.88), ys, M("metal", base), r: 0.08)
+            let c = V2(0.5, 0.52)
+            let glow = ex["c"] ?? 0x58E07A
+            cv.add(cv.circle(c, 0.28), ys, soft(ex["d"] ?? 0x0C1A10), r: 0.04)
+            cv.add(ring(cv.circle(c, 0.18), 0.008), ys, soft(darker(glow, 0.6)), r: 0.006)
+            cv.add(cap(cv, c, c + V2(0.19, -0.13), 0.014), ys, soft(glow), r: 0.01)
+            cv.add(cv.circle(V2(0.4, 0.62), 0.035), ys, soft(glow), r: 0.02)
+        case "orders":
+            // A folded dispatch sealed in red wax.
+            cv.add(cv.poly([V2(0.2, 0.14), V2(0.78, 0.1), V2(0.84, 0.86), V2(0.26, 0.9)]), ys, "paper", r: 0.03)
+            for k in 0..<5 {
+                let y: Float = 0.26 + Float(k) * 0.09
+                let x1: Float = k == 4 ? 0.5 : 0.68
+                cv.add(cap(cv, V2(0.32, y), V2(x1, y - 0.02), 0.011), xs, soft(ex["d"] ?? 0x3A3A3A), r: 0.01)
+            }
+            cv.add(cv.circle(V2(0.62, 0.72), 0.12), ys, soft(ex["c"] ?? 0xA02A20), r: 0.08)
+            cv.add(cv.circle(V2(0.62, 0.72), 0.05), ys, soft(darker(ex["c"] ?? 0xA02A20, 0.7)), r: 0.03)
         case "banner":
             // Dyed cloth on a crossbar: the pole showing below a swallowtail hem, a bound top edge and two soft folds.
             cv.add(cap(cv, V2(0.5, 0.08), V2(0.5, 0.94), 0.03), ys, "handle", r: 0.03)

@@ -29,6 +29,7 @@ enum ItemHD {
         "diamond": Mat(kind: .gem, base: hex(0x46D8E0), dark: hex(0x146A7A), light: hex(0xD8FFFF)),
         "netherite": Mat(kind: .dusk, base: hex(0x5E5272), dark: hex(0x221C2C), light: hex(0xD4BEF4)),     // (critic: too dark on the slot)
         "copper": Mat(kind: .copper, base: hex(0xDA7240), dark: hex(0x6E2E12), light: hex(0xFFC29A)),
+        "steel": Mat(kind: .metal, base: hex(0x76828F), dark: hex(0x262C34), light: hex(0xD2DCE8)),       // Steelhold blued gunmetal
         "leather": Mat(kind: .leather, base: hex(0x8E5430), dark: hex(0x4A2812), light: hex(0xC08458)),
         "grip": Mat(kind: .leather, base: hex(0x5A3A26), dark: hex(0x2A1A10), light: hex(0x8A6040)),
         "chainmail": Mat(kind: .chain, base: hex(0xA0A4AA), dark: hex(0x4A4C52), light: hex(0xE8EAEE)),
@@ -69,7 +70,7 @@ enum ItemHD {
 
     static let tiers = ["wooden", "stone", "iron", "golden", "diamond", "netherite", "copper"]
     static let toolKinds = ["sword", "pickaxe", "axe", "shovel", "hoe", "spear"]
-    static let armorSets = ["leather", "chainmail", "iron", "golden", "diamond", "netherite", "copper"]
+    static let armorSets = ["leather", "chainmail", "iron", "golden", "diamond", "netherite", "copper", "steel"]
     static let armorKinds = ["helmet", "chestplate", "leggings", "boots"]
 
     // The vector design for an item name: (kind, material), nil for items drawn from their pixel art.
@@ -552,7 +553,8 @@ enum ItemHD {
     static func armor(_ cv: Canvas, _ kind: String, _ m: String) {
         let ys = cv.axis(V2(0.5, 0), V2(0.5, 1)), xs = cv.axis(V2(0, 0.5), V2(1, 0.5))
         let soft = m == "leather" || m == "turtle"
-        let trim = m == "netherite" ? "golden" : (m == "diamond" ? "iron" : m)     // (gold trim pulled diamond toward gold)
+        // (gold trim pulled diamond toward gold; steel takes copper rivets so it doesn't read as iron)
+        let trim = m == "netherite" ? "golden" : (m == "diamond" ? "iron" : (m == "steel" ? "copper" : m))
         switch kind {
         case "helmet":
             // A dome cut flat at the brim, cheek guards, a visor slot, nasal and crest (metal) or a stitched seam.
