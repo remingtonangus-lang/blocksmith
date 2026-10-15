@@ -1071,6 +1071,13 @@ Q2c-console-68. [DONE] The enchanting table explains itself (the Upgrade Bench s
  (e) Up to two lines under the slots, amber when he must act; the window grows a little and the pack moves down.
  (f) Creative players see only the bookshelf line (no lapis or levels needed there).
  Done Oct 15 (console; Sources/MenuMagic.swift, Renderer.swift): (a) EnchantMenu.status; (b) empty slot, s.ench != 0, def.enchantability 0, each with its line; (c) survival only: no lapis in the right slot, or fewer levels than the cheapest offer (costs), amber; (d) the bookshelf count from countBookshelves with the game's plural of its bookshelf name; (e) Renderer draws up to two lines at y 74/83 (one each when two), amber where he must act; the panel is 186 tall, the pack at 104, its label at 93; (f) in creative the status is just the bookshelf line.
+Q2c-console-69. [CLAIMED console 2026-10-15] The grindstone and the stonecutter say what they take (both showed empty slots and an empty output: nothing said that the grindstone strips enchantments or joins two worn copies, or that the stonecutter wants stone and a picked shape; wrong inputs gave nothing without a word).
+ (a) Intent (Q2 c, clarity in workstations, the last two after -66 to -68): every workstation tells him what it does and why it is idle.
+ (b) Grindstone empty: "Put in an enchanted item to strip it, or two worn copies of one tool to join them".
+ (c) Grindstone misfits: "Oak Planks have no enchantments to strip", "Two different items can't be joined", "Only tools, weapons and armour join"; with a result up, what it gives: "Curses stay on; some experience comes back".
+ (d) Stonecutter empty: "Put in a stone-type block to cut it into stairs, slabs and walls"; a block it can't cut: "Oak Log can't be cut here"; options up but none picked: "Pick a shape on the right".
+ (e) One or two lines under the slots (amber when he must act); both windows grow a little and the pack moves down.
+ (f) Names as the game names them.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
