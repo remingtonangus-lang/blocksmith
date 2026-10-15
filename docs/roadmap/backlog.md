@@ -752,6 +752,12 @@ Q2c-console-28. [DONE] The journal's Events shelf stays current (a Director even
  (d) An entry keeps the day and hour it began (refreshing no longer moves it in the list or changes its date).
  (e) A finished entry leads with its outcome, then the story of it.
  Done Oct 15 (console; Director.file/lastFiled, DirectorEvents.progress): (a) the Events shelf is rewritten while events run. (b) once a minute of play every running event's entry is refiled: time left, the marker's current place (gangs, rivals, messengers and peddlers move it), and a "Now:" line. (c) progress per template: the outlaw and his gang ("3 of 5 outlaws left"), kidnappers then the hostage, the chest's load, soldiers, creatures or prowlers left, waiting for nightfall, the strike's countdown, the messenger or rival on the way, the storm, the legend, the eruption. (d) refiling no longer touches an entry's day and hour. (e) finished entries start with the outcome line ("Won: $120, honour", "Failed: ...").
+Q2c-console-29. [CLAIMED console 2026-10-15] New journal entries stand out (documents, orders, posters and Director events pile into the journal, but nothing said there was something new to read; in his notes: "where's the journal?").
+ (a) Intent (Q2 c, onboarding): he knows when there is something new to read and finds it at once.
+ (b) The pause menu's row reads "Journal (3 new)" when documents have arrived since he last opened it.
+ (c) In the journal's list each unread document is marked "New" in its second line, and opening the journal lands on the newest one.
+ (d) Opening the journal (the pause row or the chest pocket in VR) counts everything as read; messages never count as new, only documents.
+ (e) A world just loaded starts with nothing marked new (no stale badge from an old session).
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
