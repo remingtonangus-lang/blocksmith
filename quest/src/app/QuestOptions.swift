@@ -37,7 +37,13 @@ enum QuestOptions {
         // the field of view (the lenses set it), photo mode's free camera (the head is the camera) and split screen.
         // Bug Notes stays: the playtest build's voice notes (QuestVoiceNotes); store builds' stub has available = false.
         PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
-                                "graphics", "fov", "controls", "keys", "padmap"]
+                                "graphics", "fov", "controls", "keys", "padmap",
+                                // Q2c-console-1: a gamepad's stick tuning and prompt styles do nothing with Touch controllers
+                                // (turning, walking and sprinting are the VR Comfort & Controls page's).
+                                "lookx", "looky", "accel", "curve", "invert", "lookdead", "lookouter", "dead", "moveouter",
+                                "aim", "southpaw", "sneaktoggle", "autosprint", "glyphs"]
+        PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
+        PauseMenu.hostCatNames = [.controller: "Touch Controls"]
         PauseMenu.hostValues = ["q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",

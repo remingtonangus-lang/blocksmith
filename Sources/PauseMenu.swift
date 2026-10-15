@@ -58,6 +58,12 @@ final class PauseMenu: Menu {
         return "Track a Target (\(name.count > 22 ? String(name.prefix(21)) + "." : name))..."
     }
     static var hostHidden: Set<String> = []     // rows the host has no use for (the Quest: window and photo options)
+    // Q2c-console-1: option pages the host has no use for (the Quest: Keyboard & Mouse) and pages it names its own way
+    // (the Quest: Touch Controls).
+    static var hostHiddenCats: Set<Cat> = []
+    static var hostCatNames: [Cat: String] = [:]
+    static var shownCats: [Cat] { Cat.allCases.filter { !hostHiddenCats.contains($0) } }
+    static func catName(_ c: Cat) -> String { hostCatNames[c] ?? c.name }
     var hostPageID: String?
 
     init(game: Game) {
@@ -234,9 +240,13 @@ final class PauseMenu: Menu {
             // S4: after a crash, the newest rolling backup of this world can be put back.
             if CrashGuard.crashed && g.coop.current == 0 { rows.insert(("Restore Last Backup (after a crash)", "restorebackup"), at: 1) }
         case .options:
-            title = "Options: \(cat.name)"
-            let next = Cat(rawValue: (cat.rawValue + 1) % Cat.allCases.count) ?? .video
-            subtitle = "Page \(cat.rawValue + 1) of \(Cat.allCases.count) - next page: \(next.name)"
+            // Q2c-console-1: the host's own page list (the Quest leaves out Keyboard & Mouse) and page names.
+            let shown = PauseMenu.shownCats
+            if !shown.contains(cat) { cat = shown.first ?? .video }
+            let at = shown.firstIndex(of: cat) ?? 0
+            let next = shown[(at + 1) % shown.count]
+            title = "Options: \(PauseMenu.catName(cat))"
+            subtitle = "Page \(at + 1) of \(shown.count) - next page: \(PauseMenu.catName(next))"
             let gui = HudLayout.userScale == 0 ? "Auto" : "\(HudLayout.userScale)"
             switch cat {
             case .controls:
@@ -257,6 +267,7 @@ final class PauseMenu: Menu {
                         ("Stick Layout: \(st.southpaw ? "Southpaw" : "Standard")", "southpaw"),
                         ("Sneak: \(st.sneakToggle ? "Toggle" : "Hold")", "sneaktoggle"), ("Auto-Sprint: \(on(st.autoSprint))", "autosprint"),
                         ("Flight Stick: \(st.flightInverted ? "Pull Back to Climb" : "Push Up to Climb")", "flight"),
+                        ("Auto-Jump: \(on(g.autoJump))", "autojump"),                     // Q2c-console-1
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Button Mapping...", "padmap")]
             case .video:
@@ -293,7 +304,7 @@ final class PauseMenu: Menu {
                 rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Narrator: \(on(st.narrator))", "narrator"),
                         ("Colorblind-Safe Colors: \(on(st.colorblind))", "colorblind"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
-                        ("Tutorial Hints: \(on(st.tutorialHints))", "tutorial"),
+                        ("Tutorial Hints: \(on(st.tutorialHints))", "tutorial"), ("Reset Tutorial Hints", "resethints"),
                         ("Flashes & Shake: \(st.screenEffects ? "Full" : "Reduced")", "flashes"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
@@ -466,8 +477,9 @@ final class PauseMenu: Menu {
     }
     func switchTab(_ d: Int) {
         guard page == .options else { return }
-        let n = Cat.allCases.count
-        cat = Cat(rawValue: (cat.rawValue + d + n) % n) ?? .controller
+        let shown = PauseMenu.shownCats, n = shown.count
+        let at = shown.firstIndex(of: cat) ?? 0
+        cat = shown[(at + d + n) % n]
         scroll = 0
         build()
         game.menuCursor = 0
@@ -504,7 +516,7 @@ final class PauseMenu: Menu {
             if page == .title { g.paused = false } else { g.closeMenu() }
         case "options":
             // Controller players land on the Controller page, everyone else on Video (render distance first).
-            cat = PadManager.shared.usingPad ? .controller : .video
+            cat = PadManager.shared.usingPad && PauseMenu.hostHiddenCats.isEmpty ? .controller : .video   // (the Quest: Video)
             go(.options); resetCursor = true
         case "controls": go(.controls); resetCursor = true
         case "shortcuts": go(.shortcuts); resetCursor = true
