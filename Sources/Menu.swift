@@ -385,6 +385,7 @@ final class InventoryMenu: Menu, HasRecipeBook {
     var craftGrid: ItemContainer { craft.grid }
     static let searchBtn = 480          // outside the recipe book's 490..<600 range (it rebuilds those)
     static let sortBtn = 481            // Q2c-console-21
+    static let journalBtn = 482         // P296: the journal, a tab under the crafting book's, beside the armour
     var sortedAt: Double = -10
     var query = ""                     // search: matching slots light up, the rest dim (Renderer)
     var searching = false
@@ -398,6 +399,7 @@ final class InventoryMenu: Menu, HasRecipeBook {
             game.sfx(.pageTurn, 0.5)
             return
         }
+        if i == InventoryMenu.journalBtn { game.sfx(.pageTurn, 0.5); game.closeMenu(); game.openJournal(); return }
         if i == InventoryMenu.searchBtn {
             searching.toggle()
             if !searching { query = "" }
@@ -417,6 +419,9 @@ final class InventoryMenu: Menu, HasRecipeBook {
         slots.append(sb)
         let so = MenuSlot(145, 62, nil, 0, .button(InventoryMenu.sortBtn)); so.w = 24; so.h = 14       // Q2c-console-21
         slots.append(so)
+        // P296 (a): the journal tab, under the crafting book's tab outside the panel's left edge.
+        let jb = MenuSlot(-22, 36, nil, 0, .button(InventoryMenu.journalBtn)); jb.w = 18; jb.h = 18
+        slots.append(jb)
         addPlayerInventory()
         showInventoryLabel = false
         // Only the book button: crafting by recipe is the crafting book's job (LB/RB or the button open it).
