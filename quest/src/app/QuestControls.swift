@@ -26,6 +26,38 @@ final class QuestControls {
     private(set) var panel: HudPanel?
     // The interact hint beside the laser dot ("Grip Open" on a chest), its own small panel.
     private var hintPanel: HudPanel?
+    // Q2c-console-70: the card over a controller held up and looked at: the hand looked at and for how long, the hand
+    // whose card is shown (kept while it fades out), the card recorded in the panel, and its alpha.
+    private var ctrlPanel: HudPanel?
+    private var ctrlLookHand = -1, ctrlLook: Float = 0, ctrlShowHand = -1, ctrlRecorded = -1, ctrlAlpha: Float = 0
+    private func controllerGaze(_ hands: [XRHand], dt: Float, inMenu: Bool) {
+        var want = -1
+        if QuestSettings.ctrlHints && !inMenu && game.alive && laserFade > 0.5 {
+            let rig = app.rig
+            let fwd = simd_normalize(rig.toWorldDir(rig.headRot.act(V3(0, 0, -1))))
+            var best: Float = 0.5
+            let lost = (app.input as? HandedInput)?.lost ?? [false, false]
+            for h in 0..<min(2, hands.count) where hands[h].gripValid && !lost[h] {
+                let d = rig.toWorld(hands[h].gripPos) - rig.headWorld, l = simd_length(d)
+                guard l > 0.12 && l < best, simd_dot(d / l, fwd) > 0.92 else { continue }
+                best = l; want = h
+            }
+        }
+        if want != ctrlLookHand { ctrlLookHand = want; ctrlLook = 0 } else if want >= 0 { ctrlLook += dt }
+        let show = want >= 0 && ctrlLook > 0.33
+        if show { ctrlShowHand = want }
+        ctrlAlpha += ((show ? 1 : 0) - ctrlAlpha) * min(1, dt * (show ? 8 : 6))
+    }
+    // The buttons of the controller in logical hand `h`, named for the physical controller (Dominant Hand Left swaps
+    // the actions; the Menu button is always on the physical left controller).
+    private func ctrlLines(_ h: Int) -> [String] {
+        var lines = h == aimHand
+            ? ["Right controller", "Trigger: mine, attack, fire", "Grip: next hotbar slot", "A: jump", "B: back (hold: drop item)", "Stick: turn (click: weapon wheel)"]
+            : ["Left controller", "Trigger: use, place, eat", "Grip: previous hotbar slot", "X: pick block (hold: off hand)", "Y: hold for inventory (tap: fly)", "Stick: move (click: sneak)"]
+        if QuestSettings.leftHanded { lines = lines.map { ContextPrompts.mirrorHands($0) } }
+        if (QuestSettings.leftHanded ? 1 - h : h) == 0 { lines.append("Menu: pause (hold: recenter)") }
+        return lines
+    }
     private(set) var hint: String?
     private var offTracked = false
     private var offRelAvg = V3(0, -0.8, 0)      // R1: the off hand against the head, smoothed over ~0.5 s
@@ -240,6 +272,7 @@ final class QuestControls {
         Renderer.questHideCrosshair = true
         self.panel = panel
         if let p = panel { hintPanel = try? HudPanel(scene: p.scene, width: QuestControls.hintW, height: QuestControls.hintH, maxVerts: 4096) }
+        if let p = panel { ctrlPanel = try? HudPanel(scene: p.scene, width: 512, height: 192, maxVerts: 8192) }        // Q2c-console-70
         // Prompts name the Touch controls: the game's LT (use) is the left trigger, RT the right one.
         Glyphs.labelOverride = { g in
             switch g {
@@ -274,6 +307,7 @@ final class QuestControls {
         let hands = xr.hands
         let L = hands[moveHand], R = hands[aimHand]
         let inMenu = game.menu != nil || game.paused
+        controllerGaze(hands, dt: dt, inMenu: inMenu)                // Q2c-console-70
         hudFadeTick(dt)
         // Text boxes (command console, signs, world names) bring up the system keyboard (Android hook; nil in the sim).
         QuestControls.keyboardHook?(game.menu.map { $0.capturesText && !($0 is KeyboardMenu) } ?? false)
@@ -1357,6 +1391,12 @@ final class QuestControls {
             hp.record(s, QuestLabel.verts(h, width: Float(hp.width), height: Float(hp.height), scale: 4))
             hintShown = h
         }
+        // Q2c-console-70: the controller card, recorded when the hand (or the dominant hand setting) changes.
+        let ck = ctrlShowHand + (QuestSettings.leftHanded ? 10 : 0)
+        if let cp = ctrlPanel, ctrlShowHand >= 0, ck != ctrlRecorded {
+            cp.record(s, QuestLabel.card(ctrlLines(ctrlShowHand), width: Float(cp.width), height: Float(cp.height), scale: 2))
+            ctrlRecorded = ck
+        }
     }
 
     func drawOpaque(_ s: SceneRenderer.Slot, eye: V3) {
@@ -1628,6 +1668,19 @@ final class QuestControls {
             let c = hit + toHead * 0.05 + up * hgt * 1.1 + right * (wid * wpx / Float(hp.width) * 0.5 + hgt * 0.4) - eye
             let m = float4x4(columns: (V4(right * wid, 0), V4(up * hgt, 0), V4(toHead, 0), V4(c, 1)))
             hp.draw(s, model: m, alpha: 1, onTop: true)
+        }
+        // Q2c-console-70: the card above the controller he is looking at, facing him, about 20 cm wide.
+        if let cp = ctrlPanel, ctrlAlpha > 0.02, ctrlShowHand >= 0, ctrlRecorded == ctrlShowHand + (QuestSettings.leftHanded ? 10 : 0),
+           ctrlShowHand < app.input.hands.count, app.input.hands[ctrlShowHand].gripValid {
+            let head = app.rig.headWorld
+            let p = app.rig.toWorld(app.input.hands[ctrlShowHand].gripPos)
+            let toHead = simd_normalize(head - p)
+            let right = simd_normalize(simd_cross(V3(0, 1, 0), toHead) + V3(1e-5, 0, 0))
+            let up = simd_cross(toHead, right)
+            let wid: Float = 0.2, hgt = wid * Float(cp.height) / Float(cp.width)
+            let c = p + up * (0.07 + hgt * 0.5) + toHead * 0.03 - eye
+            let m = float4x4(columns: (V4(right * wid, 0), V4(up * hgt, 0), V4(toHead, 0), V4(c, 1)))
+            cp.draw(s, model: m, alpha: ctrlAlpha, onTop: true)
         }
         drawDeckReference(s, eye: eye)
         drawBladeTrail(s, eye: eye)

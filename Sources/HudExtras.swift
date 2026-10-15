@@ -240,7 +240,7 @@ enum ContextPrompts {
     // Q2c-console-43: every lesson's name and text in first-hour order (the headset's Lessons page lists the ones seen).
     static let lessonInfo: [(VRLesson, String, String)] = [
         (.basics, "The basics",
-         "Left stick walks, right stick turns. A jumps. Right trigger mines, left trigger places and uses. Grips step the hotbar, hold Y for the inventory, Menu pauses"),
+         "Left stick walks, right stick turns. A jumps. Right trigger mines, left trigger places and uses. Grips step the hotbar, hold Y for the inventory, Menu pauses. Look at a controller to see its buttons"),
         (.craft, "Crafting",
          "Crafting: hold Y for the inventory and point at Craft. Logs make planks; planks make sticks and a Crafting Table. Recipes with a table badge need one placed"),
         (.hunger, "Eating",
