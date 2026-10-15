@@ -32,9 +32,12 @@ extension StructWriter {
 
     // A support column of `b` from y down to the ground (inside this chunk only): through air, water, lava, plants,
     // leaves and tree parts; `minY` is the usual depth, never the limit.
-    func groundDown(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, minY: Int) {
+    // P289 ("very perfect pillars" in a lush cave under a station): `reach` caps how far past it a column may run. A
+    // wide footprint (a yard, a plaza) passes its usual depth: over a cave its columns stop as a plug, a cave roof,
+    // instead of each one dropping a lone straight column to the cave floor wherever air ran straight down.
+    func groundDown(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, minY: Int, reach: Int = StructWriter.groundReach) {
         guard inside(x, y, z) else { return }
-        let bottom = max(1, min(minY, y - StructWriter.groundReach))
+        let bottom = max(1, min(minY, y - reach))
         var yy = y
         while yy >= bottom {
             let i = Chunk.index(x - bx, yy, z - bz)

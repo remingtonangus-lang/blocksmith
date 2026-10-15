@@ -459,7 +459,7 @@ enum BorealStation {
         columns(-Y - 2, Y + 2, -Y - 2, Y + 2) { dx, dz in
             let x = cx + dx, z = cz + dz
             w.fill(x, S + 1, z, x, S + 32, z, AIR)
-            w.groundDown(x, S - 1, z, DIRT, minY: S - 30)
+            w.groundDown(x, S - 1, z, DIRT, minY: S - 30, reach: 30)     // P289: a plug over a cave, no dirt pillars
             w.set(x, S, z, snowB)
         }
         let ring = Y + 8
@@ -481,7 +481,12 @@ enum BorealStation {
         // MARK: Bunker monolith, rooms, surfaces
         columns(-B, B, -B, B) { dx, dz in
             let x = cx + dx, z = cz + dz
-            w.pillarDown(x, F - 3, z, STONE, minY: 2)
+            // P289 (Oct 14 19:55, "very perfect pillars"): the rock under the monolith ran down to the first solid block
+            // (minY 2), so wherever a cave's air ran straight down from under the bunker a lone 1x1 stone column stood
+            // from its roof to its floor, a grove of them in the lush cave at (11222, 8, -12043) on seed
+            // 3931512493184456980. Now a roof slab 4-6 thick (ragged underneath) over any cave, which stays open below.
+            let roof = 3 + Int(hashf(x, 0, z, 0x289) * 2.99)
+            w.pillarDown(x, F - 3, z, STONE, minY: F - 3 - roof)
             for ly in -2...12 {
                 let y = F + ly
                 let u = open(dx, ly, dz)

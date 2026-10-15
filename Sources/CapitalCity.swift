@@ -244,7 +244,7 @@ enum CapitalCity {
             let hh = plan.walkHalf(x, z)
             let base = hh >> 1, half = hh & 1 == 1
             w.fill(x, base + 1, z, x, base + 40, z, AIR)
-            w.groundDown(x, base - 1, z, grey, minY: base - 30)
+            w.groundDown(x, base - 1, z, grey, minY: base - 30, reach: 30)     // P289: a plug over a cave
             w.set(x, base, z, pave)
             if half { w.set(x, base + 1, z, paveSlab) }
             // Canopy: the lot's west (and east edge) strip runs north-south, its north (and south edge) strip
@@ -285,7 +285,7 @@ enum CapitalCity {
             w.fill(x, L + 1, z, x, L + 40, z, AIR)
             // The terrace's outer ring is a white retaining edge (paved on top, also round gardens); inside, earth.
             let ring = u == street || v == street || u == lot - 1 || v == lot - 1
-            w.groundDown(x, L - 1, z, ring ? white : (garden ? DIRT : grey), minY: L - 30)
+            w.groundDown(x, L - 1, z, ring ? white : (garden ? DIRT : grey), minY: L - 30, reach: 30)   // P289
             // Distance from each side's walkway and whether this cell is in that side's entrance.
             var hh = 2 * L
             let sides: [(Int, Bool, Int, Int)] = [(u - street, v >= 17 && v <= 20, x0 + street - 1, z), (v - street, u >= 17 && u <= 20, x, z0 + street - 1),
