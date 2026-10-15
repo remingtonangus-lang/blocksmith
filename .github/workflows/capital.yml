@@ -90,6 +90,8 @@ jobs:
             --resolution 1280x720 -- --shots "$PWD/ci/shots" --preset High --scale 1 --shard ${{ matrix.shard }}/4 2>&1 \
             | grep -v ALSA | tee ci/shots_${{ matrix.shard }}.log || true
           ls -la ci/shots
+          grep "oracle:" ci/shots_${{ matrix.shard }}.log || true
+          ! grep -q "oracle: FAIL" ci/shots_${{ matrix.shard }}.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

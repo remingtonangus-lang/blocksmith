@@ -107,7 +107,53 @@ func _process(_delta: float) -> void:
 	if OS.get_environment("SHOT_PROBE") != "" and vc:
 		_probe(vc, OS.get_environment("SHOT_PROBE"))
 	print("shot %s: %s (%d ms) camera %s at %s" % [s["name"], path, Time.get_ticks_msec() - t_shot, vc.name if vc else "none", vc.global_position if vc else Vector3.ZERO])
+	print("shot %s oracle: %s" % [s["name"], _image_oracle(img)])
 	_next()
+
+
+## Image oracles on a 160x90 copy: a black frame (over 50 % of pixels near black), blown out (over 25 % clipped
+## white), missing textures (over 0.2 % magenta) or a flat frame (luminance spread under 0.02). The 34 CI shots
+## measured at most 6.8 % black (capital_dusk), 0 % clipped, 0 % magenta and a spread of 0.06 or more. CI fails
+## the shots job on "oracle FAIL".
+static func _image_oracle(src: Image) -> String:
+	var img := src.duplicate() as Image
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGB8)
+	img.resize(160, 90, Image.INTERPOLATE_BILINEAR)
+	var data := img.get_data()
+	var n := 160 * 90
+	var black := 0
+	var clipped := 0
+	var magenta := 0
+	var sum := 0.0
+	var sum2 := 0.0
+	for k in n:
+		var r := data[k * 3] / 255.0
+		var g := data[k * 3 + 1] / 255.0
+		var b := data[k * 3 + 2] / 255.0
+		var l := 0.2126 * r + 0.7152 * g + 0.0722 * b
+		sum += l
+		sum2 += l * l
+		if l < 0.02:
+			black += 1
+		if minf(r, minf(g, b)) >= 0.995:
+			clipped += 1
+		if r > 0.85 and b > 0.85 and g < 0.25:
+			magenta += 1
+	var mean := sum / n
+	var spread := sqrt(maxf(sum2 / n - mean * mean, 0.0))
+	var bad: Array[String] = []
+	if black > n * 0.5:
+		bad.append("black frame (%.0f %% near black)" % (100.0 * black / n))
+	if clipped > n * 0.25:
+		bad.append("blown out (%.0f %% clipped)" % (100.0 * clipped / n))
+	if magenta > n * 0.002:
+		bad.append("missing textures (%.1f %% magenta)" % (100.0 * magenta / n))
+	if spread < 0.02:
+		bad.append("flat frame (spread %.3f)" % spread)
+	var stats := "mean %.2f, spread %.3f, black %.1f %%, clipped %.1f %%" % [mean, spread, 100.0 * black / n, 100.0 * clipped / n]
+	return ("FAIL " + ", ".join(bad) + "; " if not bad.is_empty() else "ok, ") + stats
 
 
 ## SHOT_PROBE="x,y;x,y" (pixels): what lies under those pixels: the physics hit, and every visible mesh whose
