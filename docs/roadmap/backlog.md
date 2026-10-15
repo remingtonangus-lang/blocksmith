@@ -951,6 +951,13 @@ Q2c-console-53. [DONE] The first-launch setup covers reading, hearing and touch 
  (f) Each new row has the same help line it has elsewhere, and Start Playing stays the last row.
  (g) A pause-menu subtitle too long for one line (the setup's own ran off both edges of the panel) wraps onto two smaller lines, on every page.
  Done Oct 15 (console; quest/src/app/QuestOptions.swift, Sources/PauseMenu.swift, Renderer.swift): (a) three rows added to QuestOptions.setupPage before Start Playing; (b) q_menusize (the open panel follows QuestControls.menuPanelSize every frame); (c) q_subs toggles Settings.subtitles; (d) q_vib with PadManager's sample buzz; (e) both setup subtitles now say a row changes with the trigger and that it can all change later in VR Comfort & Controls (all but the difficulty, when the first world's row is there); (f) q_subs gets the Accessibility wording as its help, q_menusize and q_vib keep theirs, and Start Playing is still last; (g) PauseMenu.layout leaves 38 px over the rows when Font.width(subtitle) > 228 and Renderer wraps such a subtitle with wrapLines onto two lines at 0.85 (0.72 if needed) of the scale at y 14 and 23.
+Q2c-console-54. [CLAIMED console 2026-10-15] Quitting asks first (one stray trigger pull on "Save and Quit Game" in the pause menu, or "Quit Game" on the title screen, closed the app to the headset's home; getting back meant relaunching and waiting for the world to load).
+ (a) Intent (Q2 c, nothing lost to one stray click): leaving the game is always a deliberate choice.
+ (b) Save and Quit Game (pause menu) and Quit Game (title screen) open a "Quit Blocksmith?" page instead of quitting at once.
+ (c) It says what will happen: the world is saved first and is waiting on the title screen next time.
+ (d) Cancel is the first row and where the cursor starts; B or Back returns to the page he came from.
+ (e) The Quit row ignores a pull in the first 0.4 s after the page opens, so a double pull (or the laser resting where the old row was) can't quit.
+ (f) Save and Quit to Title still goes straight to the title (it never leaves the game).
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
