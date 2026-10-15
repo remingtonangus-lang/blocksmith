@@ -93,6 +93,14 @@ fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_stor
 Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thunderstorm over a burning plank field with
 400 damaged blocks: weather.tick_ms p50/p95/max, fire / flood / storm worst, decal quads. Not gated.
 
+## 2026-10-15: squashed and rebased onto playtest 7629ff8
+
+- Playtest's own heavy run (5cd19c5) fails checks, play (the Blight: 388 arrows for 30 damage) and tours: those were
+  base failures, not this branch's. The 150-commit history was squashed into one commit (old history: 07e106d) and
+  rebased once. Merges: playtest's waterlogged-water faces replace my water-plant faces (same fix, broader); their
+  starAlpha (hides in rain) replaces mine; their per-block fire odds (World.fireOdds, ignite + burn) and no age cap
+  are carried into Fire.swift with my wind, scorch, charcoal and cap; their jetpack part kept in the player model.
+
 ## HANDOFF (2026-10-05, usage nearly out)
 
 - Branch claude/bs-world-fx is rebased on playtest 313ecce (head d5a0af2 + this note). NOT yet fast-forwarded into
