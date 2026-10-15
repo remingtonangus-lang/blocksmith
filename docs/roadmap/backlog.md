@@ -669,6 +669,12 @@ Q2c-console-16. [DONE] A shorter, clearer pause menu (on the headset its fifteen
  (d) The Director's "Before the Story Ends" (a testing switch) shows only with Cheats & Shortcuts on, or while it is on, so it can always be switched off.
  (e) Fewer rows to scroll on the headset: Save and Quit sits one row higher.
  Done Oct 15 (console; PauseMenu main and Director pages): (a) the main pause list is all actions now. (b) the locked difficulty row is gone; the subtitle reads "World1 - day 3 - Normal - saved just now". (c) the row reads "Journal" (help: every order, log, note, pamphlet, message and Director event received). (d) Options > Director shows Before the Story Ends only with Cheats & Shortcuts on or while it is on. (e) with Commands and Shortcuts also gone in a survival store build (Q2c-console-15), the headset's main list is three rows shorter.
+Q2c-console-17. [CLAIMED console 2026-10-15] Create New World explains its choices (the difficulty help said only "how much damage mobs do and whether hunger can kill", nothing said it is locked for good, and nothing said the mode can change later).
+ (a) Intent (Q2 c, clear menus, first hour): a new player picks a difficulty and a mode knowing what they mean.
+ (b) The Difficulty row says it is fixed once made ("Difficulty: Normal (fixed once made)").
+ (c) Its help line describes the level shown: Peaceful (no monsters, hunger never harms), Easy (gentler monsters, starving stops at five hearts), Normal, Hard (monsters hit harder, are tougher, faster and more numerous; starving can kill).
+ (d) The Game Mode help says it can be switched later from the pause menu (it asks first).
+ (e) The page's line under the title sums up the world about to be made ("A Survival world on Normal, random seed").
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
