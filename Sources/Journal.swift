@@ -211,6 +211,8 @@ extension Game {
 
     func openJournal(tab: Journal.Cat = .all) {
         let m = JournalMenu(game: self)
+        m.markNew(from: journalSeen < 0 ? journal.count : journalSeen)     // Q2c-console-29: what is new this time
+        journalSeen = journal.count
         if tab != .all { m.tab = tab; m.refresh() }
         openMenu(m)
     }
@@ -228,6 +230,7 @@ final class JournalMenu: Menu, CustomDrawnMenu {
     static let tabBase = 200, scrollUp = 100, scrollDown = 101, prevPage = 110, nextPage = 111, close = 120
 
     var tab: Journal.Cat = .all
+    var newFrom = Int.max                    // Q2c-console-29: entries at or past this index arrived since the last visit
     var scroll = 0
     var selected = 0                         // index into `shown`
     var page = 0
@@ -270,6 +273,7 @@ final class JournalMenu: Menu, CustomDrawnMenu {
         refresh()
     }
 
+    func markNew(from i: Int) { newFrom = i; builtRev = -1; refresh() }
     var pageCount: Int { max(1, (lines.count + JournalMenu.linesPerPage - 1) / JournalMenu.linesPerPage) }
     var entry: JournalEntry? {
         guard selected >= 0 && selected < shown.count, shown[selected] < game.journal.count else { return nil }
@@ -291,6 +295,7 @@ final class JournalMenu: Menu, CustomDrawnMenu {
                 shown.append(i)
                 rowName.append(ShopMenu.fit(Journal.name(e).replacingOccurrences(of: "\n", with: " "), nameW))
                 var d = String(format: "Day %d, %02d:%02d", e.day, e.hour, e.minute)
+                if i >= newFrom && e.pages != nil { d = "New - " + d }
                 if tab == .all { d += " - " + Journal.cat(e).tab }
                 else if let p = e.place { d += " - " + p }
                 rowDetail.append(ShopMenu.fit(d, nameW))

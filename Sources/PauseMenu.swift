@@ -250,7 +250,7 @@ final class PauseMenu: Menu {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1) - \(Game.difficultyNames[max(0, min(3, g.difficulty))])"
                     + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2, -16
             }
-            rows = [("Back to Game", "resume"), ("Journal", "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Journal" + (g.journalNewDocs > 0 ? " (\(g.journalNewDocs) new)" : ""), "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),        // (Q2c-console-16: the locked difficulty is in the subtitle)
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
                     ("Play Together...", "netmenu"),

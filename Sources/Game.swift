@@ -300,6 +300,11 @@ final class Game {
     var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)
     var journalLast: Double = 0
     var journalTold = false             // P207: the one tip saying where the journal is (saved)
+    var journalSeen = -1                // Q2c-console-29: the journal's length when he last opened it (-1: not yet counted)
+    var journalNewDocs: Int {
+        if journalSeen < 0 || journalSeen > journal.count { journalSeen = journal.count }
+        return journal[journalSeen...].reduce(0) { $0 + ($1.pages != nil ? 1 : 0) }
+    }
     var restedAt: Double = -100          // last rest by a campfire (GameBlocks; T14: per world, was shared by every world)
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
     var vrTwoHanded = false            // VR: a long gun braced with both hands (VRTwoHand.swift)

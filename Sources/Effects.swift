@@ -467,6 +467,7 @@ extension Game {
         else { Blueprints.known = []; Blueprints.seedPending = true }         // saved before blueprints (P138)
         journalTold = d["journalTold"] == "1"
         journal = d["journal"].flatMap { $0.data(using: .utf8) }.flatMap { try? JSONDecoder().decode([JournalEntry].self, from: $0) } ?? []
+        journalSeen = journal.count                          // Q2c-console-29: a loaded world starts with nothing new
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
         money = d["money"].flatMap { Int($0) } ?? Money.start
