@@ -309,6 +309,7 @@ final class Game {
     var restedAt: Double = -100          // last rest by a campfire (GameBlocks; T14: per world, was shared by every world)
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
     var vrTwoHanded = false            // VR: a long gun braced with both hands (VRTwoHand.swift)
+    var knockbackScale: Float = 1      // VR comfort (Q2c-console-60): how far hits and blasts push him (the Quest sets it)
     var steadySaddle = false           // VR comfort (Steady Ride): the view eases over a mount's or boat's hops and waves (ViewStep.swift)
     var swingPower: Float = 0          // Quest Swing melee: the blade hit swingMob this frame (VRMelee.power 0.6 ... 1.3); consumed by interact
     var mineProgress: Float = 0       // 0...1
@@ -2513,7 +2514,8 @@ final class Game {
             var d = player.pos - src
             d.y = 0
             let l = simd_length(d)
-            if l > 0.01 { player.vel += d / l * 6 * knockback + V3(0, 4 * knockback, 0) }
+            let k = knockback * knockbackScale                         // Q2c-console-60: the headset's Knockback comfort option
+            if l > 0.01 && k > 0 { player.vel += d / l * 6 * k + V3(0, 4 * k, 0) }
         }
     }
 

@@ -334,6 +334,7 @@ final class QuestControls {
         let held = game.held
         game.swingMelee = QuestSettings.swingMode
         game.steadySaddle = QuestSettings.steadySaddle
+        game.knockbackScale = QuestSettings.knockback               // Q2c-console-60
         game.vrShake = QuestSettings.blastShake
         game.vrHead = rig.headWorld
         p.rt = R.trigger

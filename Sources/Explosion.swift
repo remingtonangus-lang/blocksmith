@@ -154,7 +154,7 @@ enum Explosion {
             let raw: Float = base * 7 * radius + 1
             g.hurtPlayer(Int(raw.rounded()), from: c, cause: "blew up", knockback: 0, type: .explosion)
             let push: V3 = dir * (k * 12)
-            if g.survival { g.player.vel += push }       // (PG7: a blast doesn't throw a creative player about either)
+            if g.survival { g.player.vel += push * g.knockbackScale }       // (PG7: a blast doesn't throw a creative player about either; Q2c-console-60)
         }
         g.coop.eachSeat(g, hitPlayer)
         for m in g.mobs.mobs where m !== except && !(own && m.kind.steelhold && m.factionValue == .steelhold) && !(g.ashQuiet && m.factionValue == .ashguard)

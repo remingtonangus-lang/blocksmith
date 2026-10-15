@@ -56,12 +56,12 @@ enum QuestOptions {
         PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]
-        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
             "q_pos": "Standing: your real height and moves. Seated: the view is raised to standing eye height and leaning doesn't walk. Lying Down: also levels the world to your gaze.",
-            "q_comfort": "Comfort: teleport, snap turns, a strong vignette, no blast shake. Moderate: stick walking, snap turns, a medium vignette. Free: stick walking, smooth turning, no vignette.",
+            "q_comfort": "Comfort: teleport, snap turns, a strong vignette, no shake or knockback. Moderate: stick walking, snap turns, a medium vignette, less knockback. Free: stick walking, smooth turning, no vignette.",
             "q_preset": "Default: the standard layout. Classic: the stick walks and snap-turns (no teleport). One Hand: the dominant stick also walks forward and back, and turns sideways.",
             "q_height": "Stand up straight, look ahead and select this: standing play then always recentres to this height.",
             "q_setup_done": "Start playing. All of this is in VR Comfort & Controls later.",
@@ -74,6 +74,7 @@ enum QuestOptions {
             "q_saddle": "Riding a horse or another mount, a boat or a minecart, the view eases over jumps, bucks and waves instead of following every bob; real climbs and drops are still followed.",
             "q_chase": "Taking the controls of a ship, airship, crawler, drop craft or boat moves your view out behind it, like a chase camera; back to first person when you let go. Off keeps you in first person.",
             "q_shake": "The view jolts a little when the Tidebreaker fires and blasts land nearby. Off keeps the view still (the controllers still rumble).",
+            "q_knock": "How far hits and blasts push you: Reduced moves you 40% as far, Off not at all. Damage, the red flash and the thump in your hands stay.",   // Q2c-console-60
             "q_vib": "How strongly the Touch controllers vibrate: hits, mining, attacks, the bow, low health, explosions and menus. Off stops every buzz. Also in Options > Accessibility.",   // Q2c-console-35
             "q_ring": "A steady ring at your feet while a ship you stand on moves or turns: a fixed reference for your eyes.",
             "q_seated": "Seated: leaning doesn't walk you through the world, and recentring sets standing eye height.",
@@ -119,6 +120,7 @@ enum QuestOptions {
                              : ("Snap Angle: \(angle(S.snapAngle)) deg", "q_snap"),
                 ("Movement: \(S.teleport ? "Teleport" : "Smooth")", "q_move"),
                 ("Comfort Vignette: \(vignetteName(S.vignette))", "q_vig"),
+                ("Knockback: \(S.knockback > 0.7 ? "Full" : (S.knockback > 0.05 ? "Reduced" : "Off"))", "q_knock"),     // Q2c-console-60
                 ("Controller Vibration: \(Settings.shared.rumble == 0 ? "Off" : "\(Int((Settings.shared.rumble * 100).rounded()))%")", "q_vib"),
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
                 ("Steady Ride: \(on(S.steadySaddle))", "q_saddle"),          // (Q2c-console-56: was Steady Saddle)
@@ -246,6 +248,9 @@ enum QuestOptions {
         case "q_vig": S.vignette = step(vignettes, vignettes.min { abs($0 - S.vignette) < abs($1 - S.vignette) } ?? 0.6, back)
         case "q_subs": Settings.shared.subtitles.toggle()          // Q2c-console-53 (the Accessibility row's value)
         case "q_resetlessons": if let g = hooks.game() { PauseMenu.resetHints(g) }
+        case "q_knock":
+            let o: [Float] = [1, 0.4, 0]
+            S.knockback = step(o, o.min { abs($0 - S.knockback) < abs($1 - S.knockback) } ?? 0.4, back)
         case "q_vib":                       // Q2c-console-35: the shared Vibration value, with a sample buzz at the new strength
             let st = Settings.shared
             st.rumble = step([0, 0.35, 0.7, 1], [0, 0.35, 0.7, 1].min { abs($0 - st.rumble) < abs($1 - st.rumble) } ?? 0.7, back)
@@ -304,11 +309,11 @@ enum QuestOptions {
         let S = QuestSettings.self
         switch c {
         case 0:
-            S.vignette = 1; S.smoothTurn = false; S.snapAngle = 45; S.teleport = true; S.steadySaddle = true; S.blastShake = false
+            S.vignette = 1; S.smoothTurn = false; S.snapAngle = 45; S.teleport = true; S.steadySaddle = true; S.blastShake = false; S.knockback = 0
         case 1:
-            S.vignette = 0.6; S.smoothTurn = false; S.snapAngle = 45; S.teleport = false; S.steadySaddle = true; S.blastShake = true
+            S.vignette = 0.6; S.smoothTurn = false; S.snapAngle = 45; S.teleport = false; S.steadySaddle = true; S.blastShake = true; S.knockback = 0.4
         default:
-            S.vignette = 0; S.smoothTurn = true; S.smoothTurnSpeed = 120; S.teleport = false; S.steadySaddle = false; S.blastShake = true
+            S.vignette = 0; S.smoothTurn = true; S.smoothTurnSpeed = 120; S.teleport = false; S.steadySaddle = false; S.blastShake = true; S.knockback = 1
         }
         if S.controlPreset == 1 && (S.teleport || S.smoothTurn) { S.controlPreset = 0 }
     }
