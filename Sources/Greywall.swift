@@ -539,7 +539,7 @@ enum Greywall {
                 w.chest(cx - (kx - 1), S - 5, cz + dz, loot: "greywall_vault", seed: rng.next(), facing: 3)
                 put(-(kx - 1), -5, dz + (dz == kz0 + 1 ? 1 : -1), gold)
             }
-            w.safe(cx - (kx - 1), S - 5, cz + kc, seed: safeSeed &+ 1, facing: 3)          // P248 (BaseSafes.swift)
+            w.safe(cx - (kx - 1), S - 5, cz + kc, seed: safeSeed &+ 1, facing: 3, grey: true)          // P248 (BaseSafes.swift)
             wallLamp(alarm, -(kx - 1), -2, kc, wall: 2)
         }
 
@@ -608,12 +608,13 @@ enum Greywall {
         "greywall_armory": (3...6, [("gun_slatefall", 1, 1, 12), ("gun_repeater", 1, 1, 5),
                                     ("greywall_rounds", 16, 48, 22), ("heavy_rounds", 4, 12, 8),
                                     ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("shield", 1, 1, 3), ("firing_mechanism", 1, 2, 6)]),
-        "greywall_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_sniper", 1, 1, 6), ("gun_launcher", 1, 1, 5),
-                                     ("rocket_ammo", 2, 6, 6), ("heavy_rounds", 6, 15, 8), ("golden_apple", 1, 2, 5),
+        // P256: no Capital guns or rounds in Greywall's chests (the Fernblick, launcher and arc gun were the Capital's).
+        "greywall_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_kessel", 1, 1, 6), ("gun_repeater", 1, 1, 5),
+                                     ("greywall_rounds", 16, 40, 6), ("heavy_rounds", 6, 15, 8), ("golden_apple", 1, 2, 5),
                                      ("experience_bottle", 3, 8, 6), ("targeting_optic", 1, 1, 5), ("radar_module", 1, 1, 4),
                                      ("diamond_chestplate@20-30", 1, 1, 3), ("greywall_field_notes", 1, 1, 6)]),
-        "greywall_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_launcher", 1, 1, 6),
-                                   ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 8, 8), ("arc_cell", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
+        "greywall_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_repeater", 1, 1, 6),
+                                   ("gun_slatefall", 1, 1, 6), ("greywall_rounds", 24, 64, 8), ("heavy_rounds", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
                                    ("diamond_sword@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("radar_module", 1, 1, 5)]),
     ]
 }

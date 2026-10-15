@@ -40,6 +40,11 @@ enum GreywallArms {
     ]
 
     // Greywall's loadouts by rank and troop class.
+    // P256: the guns a Greywall soldier may carry (its own and the frontier's).
+    static func allowed(_ gi: Int) -> Bool {
+        !Guns.isRetired(gi) && (Guns.isGreyArm(gi) || gi == Guns.revolver || gi == Guns.kessel || gi == Guns.sturmwind)
+    }
+
     static func pickGun(_ c: TroopClass, _ k: MobKind, roll r: Float) -> Int {
         switch k {
         case .soldierOfficer: return Guns.revolver
@@ -48,9 +53,11 @@ enum GreywallArms {
         // Longwatch are gone; officers and crews carry the six-iron, marksmen the Kessel (heavy rounds).
         case .soldierCrew: return Guns.revolver
         case .soldierMarksman: return c == .regular && r < 0.4 ? Guns.slatefall : Guns.kessel
-        case .soldierIronclad: return r < 0.35 ? Guns.arc : Guns.repeater
-        case .soldierTrooper: return c == .regular && r < 0.2 ? Guns.repeater : (r > 0.7 ? Guns.shotgun : Guns.slatefall)
-        default: return r < 0.7 ? Guns.slatefall : Guns.shotgun
+        // P256 (Oct 14 12:07-12:08): Greywall carries Greywall and frontier arms only; the Brecher shotgun and the
+        // Blitzlanze arc gun are the Capital's (they stay with its troops, so shells and arc cells still have guns).
+        case .soldierIronclad: return Guns.repeater
+        case .soldierTrooper: return r < 0.25 ? Guns.repeater : (r > 0.85 ? Guns.revolver : Guns.slatefall)
+        default: return r < 0.8 ? Guns.slatefall : Guns.revolver
         }
     }
 
@@ -128,9 +135,11 @@ extension Mob {
     // takes all of it.
     func aimKick(_ gs: GunSpec) -> Float { troop == Int8(TroopClass.hannibal.rawValue) ? 0 : gs.recoil * 0.6 }
 
-    // A Greywall soldier saved with a Capital gun (before P104) takes its own on load, like the Ashguard's.
+    // A Greywall soldier saved with a Capital gun (before P104) takes its own on load, like the Ashguard's. P256: the
+    // same the moment anything puts a soldier in Greywall colours (Mob.faction -> crewSetup): dropship squads, raids,
+    // hunters, front battles and station details were spawned with the Capital's default gun.
     func greyRearm() {
-        guard factionValue == .greywall, Soldier.rank(kind) != nil, !Guns.isGreyArm(variant) || Guns.isRetired(variant) else { return }
+        guard factionValue == .greywall, Soldier.rank(kind) != nil, !GreywallArms.allowed(variant) else { return }
         let c = TroopClass(rawValue: Int(troop)) ?? .regular
         variant = GreywallArms.pickGun(c, kind, roll: hashf(Int(pos.x * 7), Int(pos.y * 3), Int(pos.z * 5), 8101))
         if let b = brain { b.gun = variant; b.mag = Guns.all[variant].mag }

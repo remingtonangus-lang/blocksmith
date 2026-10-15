@@ -1329,6 +1329,7 @@ extension Mob {
     func crewSetup() {
         guard !kind.ash, faction != Faction.ashguard.rawValue, let r = Soldier.rank(kind) else { return }
         if let names = Mob.crewNames[factionValue] { spec.name = names[r] } else { spec.name = kind.spec.name }
+        greyRearm()                                                        // P256: Greywall arms, whoever spawned him
     }
 }
 

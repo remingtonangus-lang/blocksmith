@@ -29,7 +29,11 @@ enum Corsairs {
     static func dress(_ m: Mob) {
         m.faction = Faction.corsairs.rawValue
         m.customName = "Corsair"
-        if m.kind == .soldierTrooper { m.variant = Guns.rifle }
+        // P256: corsairs carry frontier arms, never the Capital's (the Service Rifle and its rounds stay at Capital sites).
+        if Soldier.rank(m.kind) != nil && m.kind != .deckGun {
+            m.variant = m.kind == .soldierOfficer || m.kind == .soldierCrew ? Guns.revolver : (m.kind == .soldierMarksman ? Guns.kessel : Guns.sturmwind)
+            if let b = m.brain { b.gun = m.variant; b.mag = Guns.all[m.variant].mag }
+        }
     }
 
     // Bow -Z: 13 long, 5 wide; a closed hold under the deck, rails, a mast with a sail, the helm and screw aft, a

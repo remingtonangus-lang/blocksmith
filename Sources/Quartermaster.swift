@@ -65,7 +65,7 @@ enum Quartermaster {
         for i in 0..<max(1, room) {
             let p = g.world.freeSpawn(g.player.pos + V3(Float(i) * 1.5 - 1.5, 0, 2))
             let c = Mob(.soldierRecruit, at: p)
-            c.variant = Guns.rifle
+            c.variant = Guns.sturmwind                    // P256: a frontier carbine (the Service Rifle is the Capital's)
             c.faction = Faction.none.rawValue
             c.hired = true; c.persistent = true; c.aggro = false
             c.customName = names[(g.companions.count + Int(g.clock)) % names.count]

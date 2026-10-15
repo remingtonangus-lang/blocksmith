@@ -720,8 +720,11 @@ enum Loot {
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
         if table == "base_sundries" { roll(c, BaseSundries.barrel.rolls, BaseSundries.barrel.entries, rng: &rng); return }
         if table == BaseMaterials.loot { roll(c, BaseMaterials.table.rolls, BaseMaterials.table.entries, rng: &rng); return }   // P254
-        if table == BaseSafes.loot {                                     // P248
-            roll(c, BaseSafes.table.rolls, BaseSafes.table.entries, rng: &rng)
+        if table == BaseSafes.loot || table == BaseSafes.greyLoot {     // P248
+            // P256: Greywall's safe swaps the Capital's Fernblick for its own Slate Repeater.
+            let entries = table == BaseSafes.greyLoot ? BaseSafes.table.entries.map { $0.0 == "gun_sniper" ? ("gun_repeater", $0.1, $0.2, $0.3) : $0 }
+                                                      : BaseSafes.table.entries
+            roll(c, BaseSafes.table.rolls, entries, rng: &rng)
             Loot.matchGuns(c, rng: &rng)
             GunGrade.gradeChest(c, table: "steelhold_vault", rng: &rng)
             return

@@ -11,6 +11,7 @@ enum BaseSafes {
     static let key = "safe_key"
     static let cracker = "safe_breaker"
     static let loot = "base_safe"
+    static let greyLoot = "base_safe_grey"            // P256: a Greywall safe holds no Capital gun
     static let opened = "open"                        // BlockEntity.mob of a safe that has been unlocked
 
     // Really good loot (Loot.fill rolls it; graded guns and their rounds as in any chest).
@@ -82,12 +83,12 @@ extension TextureGen {
 
 extension StructWriter {
     // A Steel Safe facing `facing` (0 north ... 3 east) holding the safe loot.
-    mutating func safe(_ x: Int, _ y: Int, _ z: Int, seed: UInt64, facing: Int) {
+    mutating func safe(_ x: Int, _ y: Int, _ z: Int, seed: UInt64, facing: Int, grey: Bool = false) {
         guard inside(x, y, z), Blocks.has(BaseSafes.block) else { return }
         set(x, y, z, Blocks.id(BaseSafes.block) + BlockID(facing))
         let be = BlockEntity(.chest)
         var rng = SRng(seed)
-        Loot.fill(be.container, table: BaseSafes.loot, rng: &rng)
+        Loot.fill(be.container, table: grey ? BaseSafes.greyLoot : BaseSafes.loot, rng: &rng)
         entities.append((IVec3(x, y, z), be))
     }
 

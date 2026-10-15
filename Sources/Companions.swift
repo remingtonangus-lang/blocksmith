@@ -54,7 +54,7 @@ extension Game {
             // A townsperson takes up a carbine and joins as a gunhand (a soldier's body and rig, the person's name).
             c = Mob(.soldierRecruit, at: m.pos)
             c.yaw = m.yaw
-            c.variant = Guns.rifle
+            c.variant = Guns.sturmwind                    // P256: a frontier carbine (the Service Rifle is the Capital's)
             mobs.mobs.removeAll { $0 === m }
             mobs.mobs.append(c)
         } else {

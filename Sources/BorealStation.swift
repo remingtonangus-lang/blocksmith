@@ -528,7 +528,9 @@ enum BorealStation {
         for dz in stride(from: -21, through: -11, by: 3) { w.fill(X(22), F + 1, Z(dz), X(23), F + 2, Z(dz + 1), crate) }
         for dz in [-21, -18, -15] { w.chest(X(16), F + 1, Z(dz), loot: grey ? "greywall_armory" : "steelhold_armory", seed: rng.next(), facing: 3) }
         for dx in 17...21 where rng.chance(0.75) {
-            let rack: [Int] = [Guns.rifle, Guns.rifle, Guns.shotgun, Guns.shotgun, Guns.arc, Guns.sniper]   // (P217)
+            // (P217) P256: a Greywall-held station racks Greywall and frontier arms, never the Capital's.
+            let rack: [Int] = grey ? [Guns.slatefall, Guns.slatefall, Guns.repeater, Guns.repeater, Guns.kessel, Guns.revolver]
+                                   : [Guns.rifle, Guns.rifle, Guns.shotgun, Guns.shotgun, Guns.arc, Guns.sniper]
             let gun = Guns.all[rack[rng.int(6)]]
             if Items.has(gun.key) { w.frame(X(dx), F + 2, Z(-23), state: 1, item: ItemStack(Items.id(gun.key), 1)) }
         }
