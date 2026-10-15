@@ -124,8 +124,10 @@ extension AshWar {
                             AshSite(kind: "battery", x: -300, z: 46, r: 22, face: 270),
                             AshSite(kind: "battery", x: 236, z: 262, r: 22, face: 135)]
         for k in 0..<8 {
-            let a = (Float(k) * 45 + 22.5) * .pi / 180
-            s.append(AshSite(kind: "outpost", x: Int(sinf(a) * 470), z: Int(-cosf(a) * 470), r: 16, face: k * 45 + 22))
+            let deg: Float = Float(k) * 45 + 22.5
+            let a: Float = deg * Float.pi / 180
+            let ox: Float = sinf(a) * 470, oz: Float = -cosf(a) * 470
+            s.append(AshSite(kind: "outpost", x: Int(ox), z: Int(oz), r: 16, face: k * 45 + 22))
         }
         return s
     }()

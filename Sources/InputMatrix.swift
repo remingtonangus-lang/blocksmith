@@ -80,7 +80,9 @@ enum InputMatrix {
             }),
         ]
         var md = "# Input binding matrix (Blocksmith --inputmatrix)\n\nController layout: \(PadMap.layoutName). Each cell: what a tap / a 0.8 s hold changed.\n\n"
-        md += "| button | " + contexts.map { $0.0 }.joined(separator: " | ") + " |\n|---|" + contexts.map { _ in "---|" }.joined() + "\n"
+        let heads: String = contexts.map { $0.0 }.joined(separator: " | ")
+        let rule: String = String(repeating: "---|", count: contexts.count)
+        md += "| button | " + heads + " |\n|---|" + rule + "\n"
         var conflicts: [String] = []
         var cells: [String: [String]] = [:]
         for b in buttons {

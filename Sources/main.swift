@@ -1376,7 +1376,8 @@ enum Snapshot {
             }
             // A dropped apple two blocks ahead: does anything in the entity pass reach the image here?
             let side = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))          // beside the crosshair, not under it
-            let dropAt = e + game.player.look * 3 + side * 0.8 - V3(0, 0.25, 0)
+            let ahead: V3 = game.player.look * 3, aside: V3 = side * 0.8
+            let dropAt: V3 = e + ahead + aside - V3(0, 0.25, 0)
             game.drops.spawn(ItemStack(Items.id("apple"), 1), at: dropAt, vel: .zero, delay: 100)
             renderer.probes.append(("dropped apple", dropAt + V3(0, 0.25, 0)))
             print("frames listed: \(n) (block entities \(world.blockEntities.count))")

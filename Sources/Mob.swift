@@ -442,7 +442,10 @@ final class Mob {
     var bowMuzzle: V3 {
         guard Mob.bowKinds.contains(kind) else { return eye + forward * 0.3 }
         let r = V3(cosf(yaw), 0, -sinf(yaw))
-        return pos + V3(0, 22.0 / 16 * scale, 0) + forward * 0.5 * scale + r * 0.31 * scale
+        let up = V3(0, 1.375 * scale, 0)                 // 22/16 (typed steps: 4-5 s in the type checker as one line)
+        let ahead: V3 = forward * (0.5 * scale)
+        let side: V3 = r * (0.31 * scale)
+        return pos + up + ahead + side
     }
     static let bowKinds: Set<MobKind> = [.skeleton, .stray, .parched, .bogged]
     static let hisserFuse: Float = 1.75   // s of swell to blow (reference 1.5; playtest v78: a VR swing needs the extra)
