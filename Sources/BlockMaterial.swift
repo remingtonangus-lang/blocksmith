@@ -47,8 +47,8 @@ enum BlockMaterial {
                 case .glass: k = key.contains("glass") ? .glass : .ice
                 case .metal: k = .metal
                 case .wool: k = .cloth
-                case .plant: k = .plant
-                case .dirt, .sand, .gravel, .mud, .snow, .soul: k = .earth
+                case .plant, .leaves: k = .plant
+                case .dirt, .grass, .sand, .gravel, .mud, .snow, .soul: k = .earth
                 case .stone, .deepslate, .netherrack, .bone, .amethyst, .sculk, .slime: k = .stone
                 }
                 if key.contains("brick") || key.contains("tile") { k = .brick }
