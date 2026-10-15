@@ -959,6 +959,13 @@ Q2c-console-54. [DONE] Quitting asks first (one stray trigger pull on "Save and 
  (e) The Quit row ignores a pull in the first 0.4 s after the page opens, so a double pull (or the laser resting where the old row was) can't quit.
  (f) Save and Quit to Title still goes straight to the title (it never leaves the game).
  Done Oct 15 (console; Sources/PauseMenu.swift): (a) PauseMenu.confirmQuit, a third confirm page beside Mode and Reset; (b) the shared "quit" id (the pause menu's Save and Quit Game and the title's Quit Game) now opens .confirm with confirmQuit; (c) title "Quit Blocksmith?", subtitle "Your world is saved first and waits on the title screen next time.", the quit row's help says it saves then closes; (d) rows Cancel (back) then Save and Quit, resetCursor puts the cursor on Cancel, back clears the flag and pops to the page before; (e) quit_yes is ignored until 0.4 s of wall clock (CFAbsoluteTimeGetCurrent, since the game clock stands still while paused) after the page opened; (f) totitle is unchanged.
+Q2c-console-55. [CLAIMED console 2026-10-15] What he points at is named ("I don't know what this is" came up again and again in the voice notes: in the headset there is no tooltip for the world, so a strange block or creature stayed a mystery unless he broke it or it hurt him).
+ (a) Intent (Q2 c, first-hour clarity): any block or creature can be identified by pointing at it.
+ (b) Resting the laser (the crosshair on a screen) on one block or creature for half a second shows its name in a small label at the middle of the view: "Deepslate Iron Ore", "Zombie", a named horse's own name.
+ (c) A block his held tool can't harvest adds, in amber, what it needs: "needs a Stone Pickaxe or better" (the same naming as Q2c-console-33).
+ (d) The label fades in and out and stays about two and a half seconds; sweeping the aim across the landscape shows nothing (it needs the aim to rest on the same block or creature), so walking around stays quiet.
+ (e) Nothing in menus, while dead, or on air and plain water; the text background setting applies to it like other messages.
+ (f) Options > Interface "Look-at Names: On/Off" (default On; Reset Options turns it back on).
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
