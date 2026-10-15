@@ -1055,6 +1055,13 @@ Q2c-console-66. [DONE] The anvil says why nothing comes out (two items that can'
  (e) The line sits under the slots in amber, clear of the cost plate; the window grows a little and the pack moves down.
  (f) Every item is named as the game names it.
  Done Oct 15 (console; Sources/MenuMagic.swift, Renderer.swift): (a) AnvilMenu.reason, non-nil only while the left slot is filled and the output empty; (b) for an item with a repair material (Enchant.repairMaterial): the material on an undamaged item says it isn't damaged, any other non-book, non-same item names the material in the game's words; (c) a different non-book item says the two can't be combined; when no enchantment of the right item applies to the left (Enchant.applies) it says none can go on it; otherwise that they clash; (d) a cost over his level in survival says both numbers; only one item and no rename gives the hint; Too Expensive stays the plate's; (e) the panel is 193 tall, the pack at 111 with its label at 100, the reason in amber at y 82 (and 91 when it wraps), under the cost plate at 67-78; (f) names via def.display / displayName and Items.name, IP check clean.
+Q2c-console-67. [CLAIMED console 2026-10-15] The smithing table says what it needs (its three input slots and an empty output gave no clue which goes where, and a wrong piece, a wrong ingot or gear that can't take the upgrade left it empty without a word).
+ (a) Intent (Q2 c, clarity in a workstation, after Q2c-console-66): the upgrade bench walks him through it.
+ (b) Step by step while slots are empty: "Put a smithing template in the first slot", then "Put the gear to upgrade in the second slot", then what the third slot wants for that template (the upgrade's ingot, or a trim material).
+ (c) Wrong pieces say why: "Only Diamond gear takes this upgrade", "The upgrade takes a Duskium Ingot", "Trims go on armour", "Glider Wings can't be trimmed", "Sugar isn't a trim material".
+ (d) The line sits under the slots in amber; the window grows a little and the pack moves down.
+ (e) Every item is named as the game names it (the reference's names are renamed here).
+ (f) Nothing shows while an upgrade is ready in the output.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
