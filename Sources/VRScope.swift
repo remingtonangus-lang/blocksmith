@@ -21,6 +21,25 @@ enum VRScope {
 
     // The zoom for an eased amount t (0 off ... 1 fully up).
     static func zoom(_ t: Float) -> Float { 1 + (zoom - 1) * max(0, min(1, t)) }
+    static func zoom(_ t: Float, full: Float) -> Float { 1 + (full - 1) * max(0, min(1, t)) }
+
+    // P270 (Oct 14 19:25, 19:45: "only zooms when held one-handed; with both hands it won't zoom"). The test used the drawn
+    // eyepiece, half a metre behind the grip on the 3.2x model: with one arm out it reached the eye, but with both hands
+    // the rear hand sits at the cheek and the eyepiece fell behind the head. Now every scoped gun follows one rule:
+    // braced with both hands (the line between the hands is the barrel), the rear hand or the eyepiece at the eye, and
+    // the barrel along the look. One-handed it never zooms.
+    static let cheekReach: Float = 0.34
+    static func scopeZoom(_ held: ItemStack) -> Float? {
+        guard !held.isEmpty else { return nil }
+        if Items.key(held.item) == gun { return zoom }
+        let lv = Enchant.level(.stability, held)                    // a scope fitted at the gunsmith (Upgrades)
+        return lv > 0 ? min(3, 1.5 + 0.5 * Float(lv)) : nil
+    }
+    static func raisedBraced(held: ItemStack, braced: Bool, head: V3, headForward: V3, rearHand: V3, eyepiece: V3, barrel: V3) -> Bool {
+        guard braced, scopeZoom(held) != nil else { return false }
+        let near = min(simd_length(rearHand - head), simd_length(eyepiece - head)) < cheekReach
+        return near && simd_dot(simd_normalize(barrel), simd_normalize(headForward)) > alignCos
+    }
 
     // Where the round lands, in normalized device coordinates of a camera-relative view-projection (nil behind the eye).
     static func reticle(viewProj: float4x4, center: V3, aimOrigin: V3, aimDir: V3) -> V2? {
