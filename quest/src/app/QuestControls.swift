@@ -178,6 +178,7 @@ final class QuestControls {
     private(set) var wallFade: Float = 0       // the view fading to black with the head inside a solid block, 0...1
     private var turnFlash: Float = 0
     private var lastFeet = V3.zero
+    private var relocateFade: Float = 0                // Q2c-console-62: 1 right after a sudden jump, fading to 0
 
     // Aim (world space, this frame)
     private(set) var aimOrigin = V3.zero
@@ -717,6 +718,11 @@ final class QuestControls {
     func afterTick(dt: Float) {
         let rig = app.rig
         scopeTick(dt)
+        // Q2c-console-62: a jump of more than 3 blocks inside the game tick (pearl, portal, respawn, bed, command, helm)
+        // fades in from dark over a quarter second; a second jump during the fade restarts it rather than flickering.
+        // (The teleport locomotion moves the feet before lastFeet is taken, so it keeps its own blink.)
+        if simd_length(game.player.pos - lastFeet) > 3 { relocateFade = 1 }
+        relocateFade = max(0, relocateFade - dt * 4)
         let ships = game.world.ships
         let ship = ships.pilot ?? ships.aboard
         // Ship riding: the deck turned under the player this tick (ShipPhysics carried the feet and the game's yaw);
@@ -1735,6 +1741,7 @@ final class QuestControls {
         if g.player.headInLava { tint(V4(0.9, 0.3, 0.02, 0.45)) }
         if g.portalTime > 0 { tint(V4(0.45, 0.1, 0.8, min(0.7, g.portalTime / 4 * 0.7) * fx)) }
         if g.sleeping > 0 { tint(V4(0.02, 0.02, 0.06, min(1, g.sleeping / 1.5))) }
+        if relocateFade > 0.01 { tint(V4(0, 0, 0, relocateFade)) }                         // Q2c-console-62
         if g.hurtFlash > 0 { ring(&v, min(1, g.hurtFlash * 2.5), V3(0.75, 0.02, 0.02), maxAlpha: 0.6 * fx) }
         if Feedback.heartPulse > 0.01 { ring(&v, Feedback.heartPulse * 0.45, V3(0.5, 0, 0.02), maxAlpha: 0.35 * fx) }   // Q2c-console-34
         if g.freeze > 0 { ring(&v, min(1, g.freeze / 7) * 0.7, V3(0.85, 0.93, 1), maxAlpha: 0.55) }
