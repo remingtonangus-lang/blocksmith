@@ -36,9 +36,11 @@ struct NetPose {
     var pos = V3(0, 0, 0), yaw: Float = 0, pitch: Float = 0, swing: Float = 0
     var sneaking = false, flying = false, alive = true, downed = false
     var held = ""
+    var armor = ["", "", "", ""]                           // P276 (a): worn pieces by key, so the friend sees them
     func write(_ o: inout NetOut) {
         o.v3(pos); o.f32(yaw); o.f32(pitch); o.f32(swing)
         o.u8((sneaking ? 1 : 0) | (flying ? 2 : 0) | (alive ? 4 : 0) | (downed ? 8 : 0)); o.str(held)
+        for k in armor.prefix(4) { o.str(k) }
     }
     static func read(_ r: inout NetIn) -> NetPose {
         var p = NetPose()
@@ -46,11 +48,13 @@ struct NetPose {
         let f = r.u8()
         p.sneaking = f & 1 != 0; p.flying = f & 2 != 0; p.alive = f & 4 != 0; p.downed = f & 8 != 0
         p.held = r.str()
+        p.armor = (0..<4).map { _ in r.str() }
         return p
     }
     static func of(_ g: Game) -> NetPose {
         NetPose(pos: g.player.pos, yaw: g.player.yaw, pitch: g.player.pitch, swing: g.swing, sneaking: g.player.sneaking,
-                flying: g.player.flying, alive: g.alive, downed: Partner.isDowned(g), held: g.held.isEmpty ? "" : Items.key(g.held.item))
+                flying: g.player.flying, alive: g.alive, downed: Partner.isDowned(g), held: g.held.isEmpty ? "" : Items.key(g.held.item),
+                armor: g.inventory.armor.slots.prefix(4).map { $0.isEmpty ? "" : Items.key($0.item) })
     }
 }
 
@@ -120,7 +124,10 @@ enum NetCoop {
         body.crawling = p.downed                          // Q2: a downed friend lies on the ground
         var n = 0
         g.swing = p.swing
+        // P276 (a): the friend's own armour, not this player's.
+        playerArmorOverride = p.armor.map { Items.has($0) ? ItemStack(Items.id($0), 1) : .empty }
         g.withStandIn(body) { n = writePlayerModel(g, eye: eye, daylight: daylight, into: out, capacity: capacity) }
+        playerArmorOverride = nil
         g.swing = swing
         return n
     }

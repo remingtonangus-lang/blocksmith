@@ -60,7 +60,7 @@ func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float) -> [Part] {
     // Player 2 (split screen) wears a blue tunic.
     let chest: V3 = g.coop.current == 1 ? V3(0.16, 0.34, 0.62) : V3(0.62, 0.26, 0.16)
     let legs = V3(0.22, 0.22, 0.26), feet = V3(0.35, 0.22, 0.12)
-    let armor = g.inventory.armor
+    let armor = playerArmorOverride ?? g.inventory.armor.slots
     var parts: [Part] = [
         Part(mn: V3(-4, 0, -2), mx: V3(0, 3, 2), pivot: V3(-2, 12, 0), rotX: walk, color: feet, pattern: 4),
         Part(mn: V3(0, 0, -2), mx: V3(4, 3, 2), pivot: V3(2, 12, 0), rotX: -walk, color: feet, pattern: 4),
@@ -83,7 +83,7 @@ func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float) -> [Part] {
     parts.append(head(V3(-2, 27, -4.2), V3(-1, 28.5, -4.1), V3(0.2, 0.3, 0.55)))
     parts.append(head(V3(2, 27, -4.2), V3(3, 28.5, -4.1), V3(0.2, 0.3, 0.55)))
     parts.append(head(V3(-2, 25, -4.15), V3(2, 25.8, -4.05), V3(0.55, 0.35, 0.3)))
-    parts += playerArmorParts(armor.slots, pitch: pitch, walk: walk, hit: hit)
+    parts += playerArmorParts(armor, pitch: pitch, walk: walk, hit: hit)
     if Items.key(armor[1].item) == "jetpack" && !armor[1].isEmpty {
         // Jetpack on the back: two steel tanks with copper nozzles.
         for x: Float in [-3.6, 0.4] {
@@ -98,6 +98,9 @@ func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float) -> [Part] {
 
     return parts
 }
+
+// P276 (a): another player's worn pieces while their body is drawn (NetCoop.writeRemote); nil: this player's own.
+var playerArmorOverride: [ItemStack]?
 
 // P265 (Oct 14 12:19, "the player figure in the inventory wears the armour he has equipped"): worn pieces as shells
 // over the clothes (the old look only recoloured the shirt, which never read as armour). A helmet dome with a brow

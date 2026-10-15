@@ -1411,6 +1411,11 @@ final class QuestControls {
         var v = takeVerts()
         let CT = Mesher.cornerTable
         let shades = QuestControls.faceShades
+        // P276 (c): a worn chest piece shows on the VR forearms as a gauntlet: a bracer behind each grip with a cuff,
+        // in the piece's ArmorLook.style colour and trim (the same finish as on the figure).
+        let chestPiece = game.inventory.armor[1]
+        let ck = chestPiece.isEmpty ? "" : Items.key(chestPiece.item)
+        let gauntlet: ArmorLook.Style? = ck.isEmpty || ck == "elytra" || ck == "jetpack" ? nil : ArmorLook.style(chestPiece)
         // Controllers: a grip block and a pointer nose, in each hand's grip pose.
         for h in 0..<2 {
             let hd = xr.hands[h]
@@ -1422,10 +1427,16 @@ final class QuestControls {
             // P260 (c): at the controls each hand holds one: a throttle lever (moving hand) or a helm grip (aiming hand),
             // a dark grip rising out of the fist with a brass cap.
             let pilot = game.world.ships.pilot != nil, lever = h == moveHand
-            for pi in 0..<6 {
+            for pi in 0..<8 {
                 let c: V3, half: V3
                 switch pi {
                 case 0, 1, 2: (c, half) = QuestControls.controllerParts[pi]
+                case 6:
+                    guard gauntlet != nil else { continue }
+                    (c, half) = (V3(0, -0.012, 0.125), V3(0.032, 0.031, 0.05))         // the bracer down the forearm
+                case 7:
+                    guard gauntlet != nil else { continue }
+                    (c, half) = (V3(0, -0.012, 0.072), V3(0.036, 0.035, 0.008))        // the cuff at the wrist
                 case 3:
                     guard lever && game.arms.magInHand else { continue }
                     (c, half) = (V3(0, -0.05, -0.01), V3(0.014, 0.045, 0.024))
@@ -1443,6 +1454,8 @@ final class QuestControls {
                 case 2: col = V3(0.12, 0.12, 0.14)
                 case 3: col = V3(0.2, 0.2, 0.22)
                 case 4: col = V3(0.16, 0.12, 0.09)
+                case 6: col = gauntlet?.color ?? base
+                case 7: col = gauntlet?.trim ?? (gauntlet?.color ?? base) * 0.78
                 default: col = V3(0.78, 0.6, 0.26)
                 }
                 for f in 0..<6 {
