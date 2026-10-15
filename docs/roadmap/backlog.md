@@ -759,6 +759,12 @@ Q2c-console-29. [DONE] New journal entries stand out (documents, orders, posters
  (d) Opening the journal (the pause row or the chest pocket in VR) counts everything as read; messages never count as new, only documents.
  (e) A world just loaded starts with nothing marked new (no stale badge from an old session).
  Done Oct 15 (console; Game.journalSeen/journalNewDocs, Game.openJournal, JournalMenu.markNew, PauseMenu): (a) new reading is flagged. (b) the pause row reads "Journal (3 new)" while documents (entries with pages: orders, logs, notes, pamphlets, posters, letters, Director events) have been added since the last visit. (c) each such entry's second line starts "New -" in the list, which still opens on the newest. (d) every openJournal (the pause row, the chest pocket, the Director page's link) marks all as read; messages never count. (e) loading a world sets the seen mark to the journal's length.
+Q2c-console-30. [CLAIMED console 2026-10-15] The World Map says what a marker is when he points at it (unnamed markers were a bare letter on a square: K, L, P, R, D, h, s, p, # meant nothing to a new player, and the key line only covered B, G, V and patrols).
+ (a) Intent (Q2 c, clear and readable): every marker on the map can be read.
+ (b) Pointing at a marker (the laser, the mouse) shows a small card by it: what it is ("Sky isle", "Legendary animal's den", "Railway station"), its name when it has one, and how far it is from him.
+ (c) The card also works for his home marker ("Home: your bed"), the tracked target, Director events and his things.
+ (d) The card stays inside the map, never under the pointer's tip, and reads at the headset's panel scale.
+ (e) Nothing changes for tapping: a tap still follows the marker or drops a waypoint (Q2c-console-20).
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
