@@ -222,7 +222,7 @@ enum ContextPrompts {
     private static var lessonBits = -1
     private static var boardSeen = false
     private static var honourSeenAt: Double = 0
-    enum VRLesson: Int { case basics = 0, horse, honour, town, contracts }
+    enum VRLesson: Int { case basics = 0, horse, honour, town, contracts, craft, hunger, night, hurt }   // (Q2c-console-9: the last four)
     static func lessonDone(_ l: VRLesson) -> Bool {
         if lessonBits < 0 { lessonBits = UserDefaults.standard.integer(forKey: "vrLessons") }
         return lessonBits & (1 << l.rawValue) != 0
@@ -263,6 +263,30 @@ enum ContextPrompts {
         if !lessonDone(.basics) {
             teach(g, .basics, "Left stick walks, right stick turns. A jumps. Right trigger mines, left trigger places and uses. Grips step the hotbar, hold Y for the inventory, Menu pauses")
             return
+        }
+        // Q2c-console-9: the survival basics, each when it first matters (low health at once; the calm ones wait until
+        // nothing is chasing him).
+        if g.survival {
+            if g.health <= 8 && !lessonDone(.hurt) {
+                teach(g, .hurt, "Low health: step back from the fight and eat. Health comes back on its own while your hunger bar is nearly full")
+                return
+            }
+            let chased = g.mobs.mobs.contains { $0.health > 0 && $0.aggro && $0.kind.hostile && simd_length($0.pos - g.player.pos) < 16 }
+            if !chased {
+                if g.hunger <= 14 && !lessonDone(.hunger) {
+                    teach(g, .hunger, "Hungry: hold some food and hold the left trigger to eat. A full hunger bar is what heals you; at zero it starts to hurt")
+                    return
+                }
+                let f = g.dayFraction
+                if g.dim.dim == .overworld && f > 0.42 && f < 0.52 && !lessonDone(.night) {
+                    teach(g, .night, "Night is coming: monsters come out in the dark. Light torches, wall yourself in, or sleep in a bed (left trigger on it): you skip the night and wake there after a death")
+                    return
+                }
+                if !lessonDone(.craft) && g.inventory.main.slots.contains(where: { !$0.isEmpty && Items.key($0.item).hasSuffix("_log") }) {
+                    teach(g, .craft, "Crafting: hold Y for the inventory; its small grid turns logs into planks and planks into sticks. Make a crafting table there for the big grid")
+                    return
+                }
+            }
         }
         if boardSeen && !lessonDone(.contracts) {
             teach(g, .contracts, "Contracts: point at one on the board and pull the trigger to take it. Taken ones wait in your Journal (right hand to the chest pocket, grip). Each pays money and honour")
