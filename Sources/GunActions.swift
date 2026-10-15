@@ -14,7 +14,6 @@ enum GunActions {
     static var manual = false                         // QuestControls: on in swing play
     static var cocked = true                          // the held gun's action is worked (a round up, the hammer back)
     static var cycles = 0                             // (tests)
-    static var lastHint: Double = -10
 
     static func action(_ gi: Int) -> Action {
         switch gi {
@@ -36,15 +35,7 @@ enum GunActions {
     static func ready(_ g: Game, _ gi: Int, pressed: Bool) -> Bool {
         if cocked || !manual || action(gi) == .none { cocked = true; return true }
         if pressed {
-            g.sfx(.gun(7), 0.5)
-            if g.clock - lastHint > 4 {
-                lastHint = g.clock
-                switch action(gi) {
-                case .bolt: g.onToast?("Work the bolt: off hand to the rifle and grip")
-                case .pump: g.onToast?("Rack it: off hand to the fore-end and grip")
-                default: g.onToast?("Cock the hammer: off hand to the gun and grip")
-                }
-            }
+            g.sfx(.gun(7), 0.5)              // P300 (b): the dead click is the cue; no how-to toast
         }
         return false
     }

@@ -352,12 +352,13 @@ final class Game {
         return (t.name, t.frac, flash ? V4(1, 1, 1, 1) : V4(t.color.x, t.color.y, t.color.z, a))
     }
 
-    // Q2c-console-50: the pickup feed (newest last): the item, how many, when last added to, and whether it is a rare find.
+    // Q2c-console-50: recent pickups (newest last): the item, how many, when last added to, and whether it is a rare find.
+    // P300 (c): no "+34 Cobblestone" feed on screen any more; the Quest HUD only comes up solid on a pickup.
     var pickups: [(item: ItemID, count: Int, at: Double, rare: Bool)] = []
     static let rareKeys: Set<String> = ["diamond", "emerald", "netherite_ingot", "netherite_scrap", "ancient_debris",
                                         "enchanted_golden_apple", "totem_of_undying", "nether_star", "heart_of_the_sea"]
     func notePickup(_ s: ItemStack, _ n: Int) {
-        guard n > 0, Settings.shared.pickupFeed else { return }
+        guard n > 0 else { return }
         pickups.removeAll { clock - $0.at > 4 }
         if let i = pickups.lastIndex(where: { $0.item == s.item }), clock - pickups[i].at < 3 {
             var p = pickups.remove(at: i)
@@ -758,7 +759,7 @@ final class Game {
 
     func select(_ i: Int) {
         let n = (i % 9 + 9) % 9
-        if n != selected { eatProgress = 0; mining = nil; equipAnim = 1; attackTimer = 0; Tutorial.selected(self) }   // a fresh weapon starts uncharged
+        if n != selected { eatProgress = 0; mining = nil; equipAnim = 1; attackTimer = 0 }   // a fresh weapon starts uncharged
         selected = n
         let h = held
         if !h.isEmpty { onToast?(h.def.display) }

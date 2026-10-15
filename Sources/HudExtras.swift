@@ -168,8 +168,8 @@ enum ContextPrompts {
     static func items(_ g: Game) -> [String] {
         // R2 (Oct 13, sixth report after P53/P85/P108/P143/P160): in the headset no control hint is drawn in play at
         // all, not at a helm or a deck gun either (those returned before the headset check, so the right-hand stack
-        // came back whenever he steered or manned a gun). The controls are taught by the tutorial and one-time toasts.
-        if g.vrHead != nil { vrLessons(g); return [] }
+        // came back whenever he steered or manned a gun). P300: no lesson toasts either; the world teaches.
+        if g.vrHead != nil { return [] }
         // Vehicles and guns have their own layouts (VehicleControls.swift, Guns.swift).
         if let s = g.world.ships.pilot { return VehicleControls.prompts(g, s) }
         if Turrets.shared.active { return Turrets.shared.prompts() }
@@ -211,87 +211,9 @@ enum ContextPrompts {
         return out.prefix(4).map { Prompt.g($0.0) + " " + $0.1 }
     }
 
-    // The headset's one-time lessons in place of the prompts: guns (P143), an empty gun's rounds (P158, once per gun
-    // kind a session), the helm and deck guns.
-    // S6: the headset's lessons replace the flat-screen tips (Tutorial): the basics once the first-launch setup is
-    // closed, then one short line the first time each part of the game comes up: a gun in hand, a horse ridden, honour
-    // changing (a crime seen, a good deed), a town (shops and money), a notice board's contracts. Each once ever
-    // (UserDefaults "vrLessons", a bit per lesson), the button named as the player holds the controllers.
-    private static var emptyTold = Set<Int>(), helmTold = false, turretTold = false
+    // P300 (b): the headset's one-time lessons (the basics, crafting, hunger, night, guns, mounts, towns...) and the
+    // helm, deck gun and empty-gun how-to toasts are gone: players learn from the world (NO TEXT, P328).
     static var vrMirror = false                     // Dominant Hand: Left (set by the Quest controls each frame)
-    private static var lessonBits = -1
-    private static var boardSeen = false
-    private static var honourSeenAt: Double = 0
-    // (Q2c-console-9: craft ... hurt; Q2c-console-41: boat ... drop)
-    enum VRLesson: Int { case basics = 0, horse, honour, town, contracts, craft, hunger, night, hurt, boat, cart, mount, water, drop,
-                              fish, shield, farm, bucket, armour }  // (Q2c-console-46: fish ... bucket; -47: armour)
-    static let lessonMounts: Set<MobKind> = [.donkey, .mule, .llama, .traderLlama, .camel, .pig, .strider, .skeletonHorse, .zombieHorse]
-    // Q2c-console-10: Reset Tutorial Hints brings every lesson back (a second player on the same headset).
-    static func resetLessons() {
-        lessonBits = 0
-        UserDefaults.standard.set(0, forKey: "vrLessons")
-        emptyTold = []; helmTold = false; turretTold = false; boardSeen = false
-    }
-    static func lessonDone(_ l: VRLesson) -> Bool {
-        if !Settings.shared.tutorialHints { return true }             // Q2c-console-27: Tutorial Hints Off: no lessons
-        if lessonBits < 0 { lessonBits = UserDefaults.standard.integer(forKey: "vrLessons") }
-        return lessonBits & (1 << l.rawValue) != 0
-    }
-    // Q2c-console-43: every lesson's name and text in first-hour order (the headset's Lessons page lists the ones seen).
-    static let lessonInfo: [(VRLesson, String, String)] = [
-        (.basics, "The basics",
-         "Left stick walks, right stick turns. A jumps. Right trigger mines, left trigger places and uses. Grips step the hotbar, hold Y for the inventory, Menu pauses. Look at a controller to see its buttons"),
-        (.craft, "Crafting",
-         "Crafting: hold Y for the inventory and point at Craft. Logs make planks; planks make sticks and a Crafting Table. Recipes with a table badge need one placed"),
-        (.hunger, "Eating",
-         "Hungry: hold some food and hold the left trigger to eat. A full hunger bar is what heals you; at zero it starts to hurt"),
-        (.night, "The first night",
-         "Night is coming: monsters come out in the dark. Light torches, wall yourself in, or sleep in a bed (left trigger on it): you skip the night and wake there after a death"),
-        (.hurt, "Low health",
-         "Low health: step back from the fight and eat. Health comes back on its own while your hunger bar is nearly full"),
-        (.water, "Swimming",
-         "Under water: hold A to swim up. The bubbles above your hunger bar are your air: when they run out you start to drown"),
-        (.drop, "Dropping things",
-         "Dropped: holding B drops what's in your hand. Walk over it to pick it back up"),
-        (.armour, "Armour",
-         "Armour: hold a piece and pull the left trigger to put it on. Whatever you wore there comes into your hand"),
-        (.shield, "Shields",
-         "Shield: hold the left trigger to raise it. It stops hits from the front; an axe can knock it down for a moment"),
-        (.bucket, "Buckets",
-         "Bucket: the left trigger scoops water or lava and pours it again. Poured lava burns everything near it, you too"),
-        (.farm, "Farming",
-         "Farming: a hoe and the left trigger turn grass or dirt into farmland; plant seeds on it. Crops need light and water within four blocks"),
-        (.fish, "Fishing",
-         "Fishing: the left trigger casts. When the bobber dips, pull to hook it, then hold to reel; ease off while the fish runs or the line snaps"),
-        (.boat, "Boats",
-         "Boat: push the left stick forward to row and sideways to steer. B gets out"),
-        (.cart, "Minecarts",
-         "Minecart: push the left stick forward to roll the way you look along the rails. B gets out"),
-        (.horse, "Horses",
-         "Riding: the left stick steers; click it while pushing to spur up a gait. B gets off. Reach behind the saddle and grip for the saddlebags"),
-        (.mount, "Other mounts",
-         "Riding: the left stick steers (a pig or strider follows the bait on its rod). B gets off"),
-        (.town, "Towns",
-         "A town: point at a shopkeeper and pull the left trigger to buy and sell. Your money and honour show on the HUD while you're here"),
-        (.contracts, "Contracts",
-         "Contracts: point at one on the board and pull the trigger to take it. Taken ones wait in your Journal (right hand to the chest pocket, grip). Each pays money and honour"),
-        (.honour, "Honour",
-         "Honour: good deeds raise it; stealing or hurting townsfolk lowers it and calls the sheriff. Low honour raises prices and puts a bounty on you"),
-    ]
-    static let gunLessonText = "Guns: right trigger fires, left trigger aims. Hold the left hand on the front grip to steady it. Bring a magazine to the gun to load. Click the right stick: weapon wheel"
-    static func lessonText(_ l: VRLesson) -> String { lessonInfo.first { $0.0 == l }?.2 ?? "" }
-    // Shown already (whatever Tutorial Hints says now).
-    static func lessonSeen(_ l: VRLesson) -> Bool {
-        if lessonBits < 0 { lessonBits = UserDefaults.standard.integer(forKey: "vrLessons") }
-        return lessonBits & (1 << l.rawValue) != 0
-    }
-    private static func teach(_ g: Game, _ l: VRLesson) {
-        let text = lessonText(l)
-        _ = lessonDone(l)                           // (loads the saved bits first)
-        lessonBits |= 1 << l.rawValue
-        UserDefaults.standard.set(lessonBits, forKey: "vrLessons")
-        g.onToast?(vrMirror ? mirrorHands(text) : text)
-    }
     // "Right" <-> "Left", "R" <-> "L", A <-> X and B <-> Y as whole words: what a left-handed player presses.
     static func mirrorHands(_ s: String) -> String {
         var out = "", word = ""
@@ -315,113 +237,9 @@ enum ContextPrompts {
         flush()
         return out
     }
-    static func vrLessons(_ g: Game) {
-        // The contracts lesson follows a notice board's screen (read once it closes, not under the open panel).
-        if g.menu is NoticeBoardMenu || g.menu is BaseContractsMenu { boardSeen = true }
-        guard g.menu == nil, !g.paused, g.alive else { return }
-        if !lessonDone(.basics) {
-            teach(g, .basics)
-            return
-        }
-        // Q2c-console-41: an item just dropped by holding B (often by accident).
-        if g.clock - g.heldDroppedAt < 3 && !lessonDone(.drop) {
-            teach(g, .drop)
-            return
-        }
-        // Q2c-console-9: the survival basics, each when it first matters (low health at once; the calm ones wait until
-        // nothing is chasing him).
-        if g.survival {
-            if g.health <= 8 && !lessonDone(.hurt) {
-                teach(g, .hurt)
-                return
-            }
-            if g.player.headInWater && !lessonDone(.water) {                // Q2c-console-41
-                teach(g, .water)
-                return
-            }
-            let chased = g.mobs.mobs.contains { $0.health > 0 && $0.aggro && $0.kind.hostile && simd_length($0.pos - g.player.pos) < 16 }
-            if !chased {
-                if g.hunger <= 14 && !lessonDone(.hunger) {
-                    teach(g, .hunger)
-                    return
-                }
-                let f = g.dayFraction
-                if g.dim.dim == .overworld && f > 0.42 && f < 0.52 && !lessonDone(.night) {
-                    teach(g, .night)
-                    return
-                }
-                if !lessonDone(.craft) && g.inventory.main.slots.contains(where: { !$0.isEmpty && Items.key($0.item).hasSuffix("_log") }) {
-                    // Q2c-console-41: the inventory has a Craft button (the crafting book), not a grid.
-                    teach(g, .craft)
-                    return
-                }
-                // Q2c-console-46: the first time each first-hour tool is in his hand.
-                let hk = Items.key(g.held.item)
-                if hk == "fishing_rod" && !lessonDone(.fish) { teach(g, .fish); return }
-                if g.held.def.armorSlot != nil && !lessonDone(.armour) { teach(g, .armour); return }   // Q2c-console-47
-                if hk == "shield" && !lessonDone(.shield) { teach(g, .shield); return }
-                if (hk.hasSuffix("_hoe") || g.held.def.plants != nil) && !lessonDone(.farm) { teach(g, .farm); return }
-                if (hk == "bucket" || hk == "water_bucket" || hk == "lava_bucket") && !lessonDone(.bucket) { teach(g, .bucket); return }
-            }
-        }
-        if boardSeen && !lessonDone(.contracts) {
-            teach(g, .contracts)
-            return
-        }
-        if let h = g.riding, h.kind == .horse, !lessonDone(.horse) {
-            teach(g, .horse)
-            return
-        }
-        // Q2c-console-41: boats, minecarts and the other animals that carry him.
-        if let h = g.riding {
-            if h.kind == .boat && !lessonDone(.boat) {
-                teach(g, .boat)
-                return
-            }
-            if h.kind == .minecart && !lessonDone(.cart) {
-                teach(g, .cart)
-                return
-            }
-            if lessonMounts.contains(h.kind) && !lessonDone(.mount) {
-                teach(g, .mount)
-                return
-            }
-        }
-        if Honour.changedAt > honourSeenAt && g.clock - Honour.changedAt < 6 && !lessonDone(.honour) {
-            honourSeenAt = Honour.changedAt
-            teach(g, .honour)
-            return
-        }
-        if TownLaw.inTown != nil && !lessonDone(.town) {
-            teach(g, .town)
-            return
-        }
-        if let gi = g.heldGun {
-            if !Settings.shared.gunLesson {
-                Settings.shared.gunLesson = true
-                let t = gunLessonText
-                g.onToast?(vrMirror ? mirrorHands(t) : t)
-            }
-            if g.held.tag <= 0 && Guns.all[gi].mag > 0 && !emptyTold.contains(gi) {
-                emptyTold.insert(gi)
-                let a = Guns.all[gi].ammo
-                let name = Items.has(a) ? Items.def(Items.id(a)).display : a
-                let have = Items.has(a) && g.inventory.main.countOf(Items.id(a)) > 0
-                g.onToast?("Empty: bring \(name) from your hip to the gun" + (have ? "" : " (none on you: " + Guns.ammoSource(a) + ")"))
-            }
-        }
-        if let s = g.world.ships.pilot, !helmTold {
-            helmTold = true
-            g.onToast?(VehicleControls.prompts(g, s).joined(separator: ", "))
-        }
-        if Turrets.shared.active && !turretTold {
-            turretTold = true
-            g.onToast?(Turrets.shared.prompts().joined(separator: ", "))
-        }
-    }
 
     // P53 (Oct 11 evening playtest: "players won't need to know that after they've been playing a while"): the
-    // in-game button prompts show for the first three hours of play, then retire (once, with a toast). Button Hints
+    // in-game button prompts show for the first three hours of play, then retire quietly (P300: no toast). Button Hints
     // in Options turns them off sooner, or on again for another three hours. Menu legends are unaffected.
     static let retireAfter: Float = 3 * 3600
     static var shown: Bool { HudExtras.enabled && Settings.shared.buttonHints && Settings.shared.hintSeconds < retireAfter }
@@ -435,11 +253,10 @@ enum ContextPrompts {
         let st = Settings.shared
         st.hintSeconds += pending
         pending = 0
-        if st.hintSeconds >= retireAfter { g.onToast?("Button prompts are now hidden (Options > Button Hints brings them back)") }
     }
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        if g.vrHead != nil { if g.alive { vrLessons(g) }; return [] }       // (vrLessons: in play only, and the board's screen)
+        if g.vrHead != nil { return [] }
         guard shown, g.menu == nil, g.alive else { return [] }
         let list = items(g)
         let s = L.s
@@ -461,92 +278,11 @@ enum ContextPrompts {
 
 // MARK: Tutorial
 
-// First-steps tips: one at a time at the top of the screen until the player has done it.
+// P300 (b): the first-steps tips ("Look around with...", "Tip 1/7") are gone: the world and the controls reference in
+// the pause menu teach the basics (NO TEXT, P328). What is left: whose half of a split screen the goal banner uses.
 enum Tutorial {
-    static var lookAccum: Float = 0
-    static var moveAccum: Float = 0
-    static var lastYaw: Float = 0
-    static var lastPitch: Float = 0
-    static var lastPos = V3(0, 0, 0)
-    static var shownAt: Double = -1
-    static var doneFlash: Double = -10
-
-    static let steps = 7
-    static func text(_ step: Int) -> String {
-        switch step {
-        case 0: return "Look around with " + (Prompt.pad ? Glyph.rs.s : "the mouse")
-        case 1: return "Move with " + Prompt.g(.move)
-        case 2: return "Jump with " + Prompt.g(.jump)
-        case 3: return "Hold " + Prompt.g(.attack) + " to break a block"
-        case 4: return "Place a block with " + Prompt.g(.use)
-        case 5: return "Open your inventory with " + Prompt.g(.inventory)
-        case 6: return "Switch items with " + Prompt.g(.hotbar)
-        default: return ""
-        }
-    }
-
-    // Per frame (from Game.tick): advances when the current step's action is seen.
-    static func tick(_ g: Game) {
-        let st = Settings.shared
-        guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps else { return }
-        // S6: no flat-screen tips in the headset (its lessons replace them: ContextPrompts.vrLessons); the tips count
-        // as done so the next-goal line (Goals) comes up as it does after them on the Mac.
-        if g.vrHead != nil { st.tutorialStep = steps; return }
-        let p = g.player
-        let dLook = abs(p.yaw - lastYaw) + abs(p.pitch - lastPitch)
-        if dLook < 1 { lookAccum += dLook }
-        lastYaw = p.yaw; lastPitch = p.pitch
-        let dMove = simd_length(V2(p.pos.x - lastPos.x, p.pos.z - lastPos.z))
-        if dMove < 2 { moveAccum += dMove }
-        lastPos = p.pos
-        var done = false
-        switch st.tutorialStep {
-        case 0: done = lookAccum > 2.5
-        case 1: done = moveAccum > 6
-        case 2: done = !p.onGround && p.vel.y > 2 && !p.flying
-        case 5: done = g.menu is InventoryMenu || g.menu is CreativeMenu
-        default: break
-        }
-        if done { advance(g) }
-    }
-
-    // Sound hook: breaking / placing / switching items near the player completes those steps.
-    static func sound(_ g: Game, _ s: Snd, near: Bool) {
-        let st = Settings.shared
-        guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps, near, ownSeat(g) else { return }
-        if case .breakBlock = s, st.tutorialStep == 3 { advance(g) }
-        if case .place = s, st.tutorialStep == 4 { advance(g) }
-    }
-    // Split screen: the tips (one saved step, Settings.tutorialStep) belong to player 1: shown on their half and moved
-    // on by what they do (player 2's block breaks used to tick player 1's tip over, and both halves showed it).
+    // Split screen: the goal banner belongs to player 1 (shown on their half).
     static func ownSeat(_ g: Game) -> Bool { !g.coop.active || g.coop.current == 0 }
-    static func selected(_ g: Game) {
-        if HudExtras.enabled && Settings.shared.tutorialHints && Settings.shared.tutorialStep == 6 && ownSeat(g) { advance(g) }
-    }
-
-    static func advance(_ g: Game) {
-        Settings.shared.tutorialStep += 1
-        lookAccum = 0; moveAccum = 0
-        doneFlash = g.clock
-        g.sfx(.xp, 0.4)
-        if Settings.shared.tutorialStep >= steps { g.onToast?("Tips done! Pause for options and the controls list.") }
-    }
-
-    static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        let st = Settings.shared
-        guard ownSeat(g) else { return [] }
-        guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps, g.menu == nil, g.alive, !WeaponWheel.shared.open, g.vrHead == nil else { return [] }
-        let s = L.s
-        let t = text(st.tutorialStep)
-        let head = "Tip \(st.tutorialStep + 1)/\(steps)"
-        let y = L.insetY + 34 * s
-        let w = Float(max(Font.width(t), Font.width(head))) * s
-        let x = floor((L.W - w) / 2)
-        let flash = Float(max(0, 1 - (g.clock - doneFlash) * 2))
-        return [HudLine(text: "", x: x - 8 * s, y: y - 4 * s, scale: s, bg: V4(0.08 + 0.3 * flash, 0.1 + 0.4 * flash, 0.16, 0.8), box: V2(w + 16 * s, 26 * s)),
-                HudLine(text: head, x: floor((L.W - Float(Font.width(head)) * s) / 2), y: y, scale: s, color: V4(1, 0.85, 0.35, 1)),
-                HudLine(text: t, x: floor((L.W - Float(Font.width(t)) * s) / 2), y: y + 12 * s, scale: s)]
-    }
 }
 
 enum HudExtras {
@@ -562,7 +298,6 @@ enum HudExtras {
     // Per frame from Game.tick (also while a menu is open).
     static func tick(_ g: Game) {
         g.toastQueueTick()                                           // Q2c-console-12
-        Tutorial.tick(g)
         Goals.tick(g)
         Feedback.tick(g)
         Narrator.shared.tick(g)
@@ -585,7 +320,7 @@ enum HudExtras {
     private static var counterN = -1, counterLost = false, counterText = ""
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        var out = Tutorial.lines(g, L) + Goals.lines(g, L)
+        var out = Goals.lines(g, L)
         // P98: the Reckoning's counter (top right) while war bands hunt the player.
         if Reckoning.stage == 2 && g.menu == nil && g.dim.dim == .overworld {
             let s = L.s, n = Reckoning.groupsLeft

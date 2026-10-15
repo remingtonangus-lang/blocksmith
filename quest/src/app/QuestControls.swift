@@ -84,14 +84,11 @@ final class QuestControls {
     private var prevStickClickL = false
     private var clickSprint = false             // this stick click began with the stick pushed out: sprint, not sneak
     private var prevClickSprint = false         // (riding: one spur per click)
-    private var sprintHold: Float = 0           // s the left stick has been pushed fully out without sprinting
     private var sprintPulse = 0
     private var sprintCool: Float = 0
     private var hungryToast: Float = 0
-    private var sprintShown = false             // the first sprint of a session says so in a toast
     private var sprintFx: Float = 0             // speed streaks 0...1 (eased in and out)
     private var bBlock = false                  // B went down in a menu: its release outside isn't a sneak / dismount
-    private var sprintHinted = false            // the click-to-sprint hint was shown
     private var prevGripL = false, prevGripR = false
     private var prevLRel: V3?                      // D10: the left hand against the head last frame (shoves)
     // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
@@ -116,7 +113,6 @@ final class QuestControls {
     private var touchBuzz: Float = 0
     private var scrapeBuzz: Float = 0                  // the blade knocking into stone: haptic rate limit
     private var bladeTrail = BladeTrail()              // the fading ribbon behind a fast blade (VRCombatFeel.swift)
-    private var tutorialSwing = true, tutorialStep = 99, tutorialNext: Double = 0   // the first-use tutorial toasts in progress
     private(set) var parriesLanded = 0                 // (harness)
     var trailPeak = 0                                  // (harness) most trail segments seen
     var heldQuads = 0                                  // (harness) quads in the last held item model (P17)
@@ -152,7 +148,7 @@ final class QuestControls {
         if mineCancelHeld { p.rt = 0 } else if mineLatch != nil { p.rt = 1 }
     }
     // Q2c-console-42: a controller that stops being tracked is named (and its return felt); both put down: paused.
-    private var lostSecs: [Float] = [0, 0], lostSaid = [false, false], bothLost: Float = 0, oneHandHinted = false
+    private var lostSecs: [Float] = [0, 0], lostSaid = [false, false], bothLost: Float = 0
     private func controllerWatch(_ hi: HandedInput, dt: Float) {
         for l in 0..<2 {
             let name = (QuestSettings.leftHanded ? 1 - l : l) == 1 ? "Right" : "Left"      // the physical controller
@@ -162,15 +158,6 @@ final class QuestControls {
                 if lostSecs[l] > 2 && !lostSaid[l] {
                     lostSaid[l] = true
                     game.onToast?("\(name) controller lost: bring it into view of the headset, or check its battery")
-                }
-                if lostSecs[l] > 30 && !oneHandHinted {
-                    oneHandHinted = true
-                    let other = name == "Right" ? "left" : "right"
-                    if l == moveHand {
-                        if QuestSettings.controlPreset != 2 { game.onToast?("Playing with one controller? VR Comfort & Controls > Controls: One Hand lets the \(other) stick walk too") }
-                    } else {
-                        game.onToast?("Playing with one controller? VR Comfort & Controls > Dominant Hand: \(other.capitalized) lets the \(other) controller aim")
-                    }
                 }
             } else {
                 if lostSaid[l] {
@@ -196,7 +183,6 @@ final class QuestControls {
     private var bowNockT: Float = 1                     // seconds since the arrow was nocked (it slides onto the string)
     private var bowDrawLast: Float = 0                  // last frame's draw (creaks as it crosses VRBow.creaks)
     private var bowReleaseT: Float = 1, bowReleaseDraw: Float = 0   // the string shivering after a shot
-    private var bowHinted = false
     private var hotbarHover: Int?
     private var yHold: Float = 0, yLong = false, yPulse = 0
     // Holding Y this long opens the inventory (a tap calls the horse or toggles flying): 0.35 s felt slow on the headset
@@ -407,19 +393,8 @@ final class QuestControls {
         p.lt = L.trigger                                    // use / place (hold to repeat)
         // Only real melee weapons hit by contact; with anything else (fist, blocks, torches, food) the trigger attacks.
         if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false; bladeTrail.clear(); laserFade = min(1, laserFade + dt * 3) }
-        // First use of each melee style with a weapon in hand: how it works, once (VRMelee.swingTutorial / reclinedTutorial).
-        if !inMenu && game.alive && game.vrWeaponHeld {
-            if QuestSettings.swingMode && !QuestSettings.swingTutorialShown {
-                QuestSettings.swingTutorialShown = true; tutorialSwing = true; tutorialStep = 0; tutorialNext = game.clock
-            } else if !QuestSettings.swingMode && !QuestSettings.reclinedTutorialShown {
-                QuestSettings.reclinedTutorialShown = true; tutorialSwing = false; tutorialStep = 0; tutorialNext = game.clock
-            }
-        }
-        // ... one short toast at a time, so each line is readable.
-        let tutorial = tutorialSwing ? VRMelee.swingTutorial : VRMelee.reclinedTutorial
-        if tutorialStep < tutorial.count && game.clock >= tutorialNext && !inMenu {
-            game.onToast?(tutorial[tutorialStep]); tutorialStep += 1; tutorialNext = game.clock + VRMelee.tutorialGap
-        }
+        // P300 (a): no melee tutorial toasts ("an enemy rearing back is about to strike" showed with no one near); a
+        // mob's rear-back pose and grunt are the cue to dodge or parry.
         // The bow: drawn by pulling its string back with the other hand (bowUpdate); the left trigger nocks and looses.
         // Aimed at a body to skin (Hunting.swift), the left trigger skins instead of nocking.
         if !inMenu && game.alive && !held.isEmpty && Items.key(held.item) == "bow"
@@ -688,7 +663,6 @@ final class QuestControls {
             // plain walk at full push never existed and a sprint felt no faster than walking (playtest v78); now the
             // click is a clear 1.6x jump (Player: VR sprint 6.9 b/s), with a haptic tick and speed streaks.
             let st = L.stick, sm = simd_length(st)
-            if sm > 0.7 && !game.player.sprinting && game.world.ships.pilot == nil { sprintHold += dt } else { sprintHold = 0 }
             sprintCool -= dt
             let fed = !(game.survival && game.hunger <= 6)          // too hungry to sprint (reference)
             // Riding a horse every click is a spur (up a gait: HorseFeel.swift), sprinting or not.
@@ -700,13 +674,11 @@ final class QuestControls {
                 sprintPulse = 3; sprintCool = 0.3
                 sneakLatch = false
                 app.input.haptic(moveHand, amplitude: 0.6, seconds: 0.08, frequency: 120)
-                if !sprintShown { sprintShown = true; game.onToast?("Sprinting: let the stick back to the middle to stop") }
             }
             prevClickSprint = clickSprint
-            // A long full-push walk that never sprinted gets a one-time hint.
-            if sprintHold > 4 && !sprintShown && !sprintHinted && fed { sprintHinted = true; game.onToast?("Click the left stick while moving to sprint") }
+            // P300 (b): no sprint how-to toasts (the speed and the haptic pulse show it).
             hungryToast -= dt
-            if clickSprint && sm > 0.3 && !fed && !spurring && hungryToast <= 0 { hungryToast = 15; game.onToast?("Too hungry to sprint: eat something") }
+            if clickSprint && sm > 0.3 && !fed && !spurring && hungryToast <= 0 { hungryToast = 15; game.onToast?("Too hungry to sprint") }
             p.l3 = sprintPulse > 0
             if sprintPulse > 0 { sprintPulse -= 1 }
         }
@@ -1252,9 +1224,6 @@ final class QuestControls {
                 bowNocked = true; bowTick = 0; bowHum = 0; bowNockT = 0; bowDrawLast = 0
                 app.input.haptic(moveHand, amplitude: 0.35, seconds: 0.03, frequency: 220)
                 game.sfx(.bowNock, 0.6, at: rig.toWorld(grip))
-            } else if !bowHinted {
-                bowHinted = true
-                game.onToast?("Bow: put your other hand on the string, hold its trigger and pull back")
             }
         }
         let wasNocked = bowNocked

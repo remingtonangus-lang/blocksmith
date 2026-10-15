@@ -291,7 +291,7 @@ extension Mob {
         guard h.spookCool <= 0, h.rear <= 0 else { return }
         h.spookCool = 4
         rearUp(g, canThrow: true)
-        g.onToast?(h.rearThrow ? "Your horse rears: \(Prompt.g(.use)) with an empty hand to calm it!" : "Your horse rears!")
+        g.onToast?("Your horse rears!")             // P300 (b)
     }
 
     // P49 (Oct 11 evening playtest: "a mob hit makes the horse rear and locks the player", "a creeper killed his horse",

@@ -57,15 +57,13 @@ final class PauseMenu: Menu {
     // Q2c-console-44: why the host paused the game by itself (the headset: away, tracking lost, controllers put down);
     // the pause screen's subtitle until he resumes (Game.paused clears it).
     static var autoReason: String?
-    // Q2c-console-10: the first-steps tips, the headset's lessons, the one-time notes and the button prompts (Accessibility
-    // and, Q2c-console-43, the headset's Lessons page).
+    // Q2c-console-10: the one-time notes and the button prompts (Accessibility). P300: the tips and lessons are gone.
     static func resetHints(_ g: Game) {
         let st = Settings.shared
         st.tutorialStep = 0; st.tutorialHints = true; st.hintSeconds = 0
-        st.gunLesson = false; st.wreckHint = false; st.mastHint = false; st.chestJoinTold = false
+        st.wreckHint = false; st.mastHint = false; st.chestJoinTold = false
         g.journalTold = false; Game.handsTold = false
-        ContextPrompts.resetLessons()
-        g.onToast?("Tips, lessons and button prompts will show again from the start")
+        g.onToast?("Button prompts will show again")
     }
     // Q2: the Track a Target row names what is followed now.
     static func trackLabel(_ g: Game) -> String {
@@ -138,7 +136,6 @@ final class PauseMenu: Menu {
         "splitlayout": "How the screen divides for two players: top and bottom (wide views) or side by side (menus stay bigger on a TV).",
         "looknames": "Rest your aim on a block or creature for a moment to see its name (and, for a block, the tool it needs).",
         "targetbar": "After you hit a creature, its name and health show at the top of the view for a few seconds.",
-        "pickupfeed": "Shows what you pick up beside the hotbar for a few seconds (\"+4 Oak Log\"), rare finds in gold.",
         "minimap": "A small biome map in the corner with nearby bases and villages. M or hold View for the full map.",
         "brightness": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
         "fov": "How wide the view is. Wider shows more at the sides; narrower looks closer.",
@@ -182,7 +179,7 @@ final class PauseMenu: Menu {
         "subtitles": "Shows captions for sounds, with the direction they come from.",
         "colorblind": "Uses blue and orange instead of green and red for cues.",
         "tutorial": "First-steps tips while you play, and the headset's lessons (crafting, hunger, night, riding...).",
-        "resethints": "Show the first-steps tips, the headset's lessons, one-time notes and button prompts again from the start.",
+        "resethints": "Show the button prompts and one-time notes again from the start.",
         "controls": "Every control for keyboard, mouse and controller.",
         "keys": "Choose which keys walk, jump, open the inventory and more.",
         "about": "Who made Blocksmith, and the open source parts it is built on with their licences.",
@@ -351,7 +348,7 @@ final class PauseMenu: Menu {
                         ("Safe Area: \(st.safeArea)%", "safe"), ("Button Hints: \(on(st.buttonHints))", "hints"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
-                        ("Minimap: \(on(st.minimap))", "minimap"), ("Pickup Feed: \(on(st.pickupFeed))", "pickupfeed"),   // Q2c-console-50
+                        ("Minimap: \(on(st.minimap))", "minimap"),
                         ("Target Health Bar: \(on(st.targetBar))", "targetbar"),                                  // Q2c-console-52
                         ("Look-at Names: \(on(st.lookNames))", "looknames"),                                      // Q2c-console-55
                         ("Split Screen: \(st.splitSideBySide ? "Side by Side" : "Top / Bottom")", "splitlayout"),
@@ -727,7 +724,6 @@ final class PauseMenu: Menu {
             else if g.coop.secondPadAvailable { g.closeMenu(); g.paused = false; g.coop.join(g, controller: nil) }
             else { g.onToast?("Connect a second controller, then press its Menu button") }
         case "minimap": st.minimap.toggle()
-        case "pickupfeed": st.pickupFeed.toggle()
         case "targetbar": st.targetBar.toggle()
         case "looknames": st.lookNames.toggle()
         case "splitlayout": st.splitSideBySide.toggle()
@@ -736,7 +732,7 @@ final class PauseMenu: Menu {
         case "mode": go(.confirm); confirmMode = true; resetCursor = true          // Q2c-console-5: ask first
         case "mode_yes":
             g.toggleMode(); g.onModeChanged?(g.survival)
-            g.onToast?((g.survival ? "Survival mode" : "Creative mode") + ": switch back from the pause menu's Mode row")
+            g.onToast?(g.survival ? "Survival mode" : "Creative mode")        // P300 (b): the mode, no how-to
             confirmMode = false
             page = stack.popLast() ?? .main
             resetCursor = true

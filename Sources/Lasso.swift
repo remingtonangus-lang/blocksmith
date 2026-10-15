@@ -54,7 +54,7 @@ extension Game {
             onToast?("Roped! He can't fight or run while the rope holds")
         } else if horse {
             m.panic = max(m.panic, 2)
-            onToast?("Caught! Hold it on the rope to settle it, then ride it to tame it")
+            onToast?("Caught!")             // P300 (b)
         }
         Lasso.catches += 1
         if survival { consumeHeld() }

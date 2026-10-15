@@ -2664,23 +2664,6 @@ final class Renderer: NSObject, MTKViewDelegate {
             itemIcon(game.inventory.main[i], x + 2 * s, y0 + 2 * s, slot - 4 * s)
         }
 
-        // Q2c-console-50: the pickup feed right of the hotbar, newest at the bottom (two lines with a gun in hand, clear of
-        // its ammo count above the hotbar's right end), fading after four seconds; rare finds in gold.
-        if Settings.shared.pickupFeed && !game.pickups.isEmpty && game.menu == nil {
-            let fx = x0 + total + 6 * s, maxW = W - L.insetX - fx - 12 * s
-            var fy = y0 + slot - 9 * s
-            for p in game.pickups.reversed().prefix(game.heldGun != nil ? 2 : 3) {
-                let age = Float(game.clock - p.at)
-                guard age < 4, maxW > 20 * s else { continue }
-                let a = min(1, (4 - age) / 0.8)
-                var t = "+\(p.count) " + Items.name(p.item)
-                while textWidth(t, s) > maxW && t.count > 4 { t = String(t.dropLast(2)) + "." }
-                itemIcon(ItemStack(p.item, 1), fx, fy - s, 9 * s, counts: false)
-                text(t, fx + 11 * s, fy, s, p.rare ? V4(1, 0.82, 0.3, a) : V4(1, 1, 1, a))
-                fy -= 10 * s
-            }
-        }
-
         // A ridden horse's stamina (gold; red while it is blown) and bond level, over the right half of the hotbar
         // (survival: above its hearts). HorseFeel.swift.
         func horseBar(_ m: Mob, _ y: Float) {

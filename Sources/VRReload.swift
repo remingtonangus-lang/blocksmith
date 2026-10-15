@@ -72,7 +72,7 @@ enum VRReload {
         let gs = Guns.all[gi]
         // A full gun: the grip is the hotbar's (no toast; P74).
         if g.held.tag >= Guns.magSize(g.held) && !DualWield.offEmptyOrLow(g) { return .none }
-        if g.ammoCount(gs.ammo) <= 0 { g.onToast?("No \(Items.def(Items.id(gs.ammo)).display) to reload: " + Guns.ammoSource(gs.ammo)); return .refused }
+        if g.ammoCount(gs.ammo) <= 0 { g.onToast?("No \(Items.def(Items.id(gs.ammo)).display)"); return .refused }   // P300 (b)
         // D8: both hands full (two revolvers): a speedloader for each gun, at once.
         if DualWield.active(g) != nil {
             g.loadMagazine(gi)

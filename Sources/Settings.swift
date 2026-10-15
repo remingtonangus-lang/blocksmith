@@ -95,12 +95,10 @@ final class Settings {
     @Pref("tutorialHints") var tutorialHints = true
     @Pref("wreckHint") var wreckHint = false        // P144: first wreck seen
     @Pref("mastHint") var mastHint = false          // P144: first hull steered with no drive
-    @Pref("gunLesson") var gunLesson = false        // P143: the headset's one-time gun lesson was given
     @Pref("tutorialStep") var tutorialStep = 0       // how far the first-steps hints have got
     @Pref("bugNotes") var bugNotes = 0               // voice bug notes: 0 off, 1 always listening, 2 push-to-talk (BugNotes.swift)
     @Pref("narrator") var narrator = false           // speak highlighted menu items and toasts
     @Pref("screenEffects") var screenEffects = true
-    @Pref("pickupFeed") var pickupFeed = true        // Q2c-console-50: "+4 Oak Log" beside the hotbar
     @Pref("targetBar") var targetBar = true          // Q2c-console-52: the health of the creature he last hurt
     @Pref("lookNames") var lookNames = true          // Q2c-console-55: name what the aim rests on
     // P266 the Director (Director.swift): on, its planner (0 Rules, 1 On-Device Model, 2 Cloud), event frequency
@@ -127,7 +125,7 @@ final class Settings {
         musicSource = 0; musicShuffle = true; customMusicVolume = 1; songTitles = true
         safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
-        pickupFeed = true; targetBar = true; lookNames = true
+        targetBar = true; lookNames = true
         display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0
         directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false; devTools = Settings.devToolsDefault   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08

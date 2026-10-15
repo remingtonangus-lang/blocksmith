@@ -579,13 +579,14 @@ extension Game {
             if vr {
                 if firePressed {
                     sfx(.gun(7), 0.8)
-                    onToast?(ammoCount(gs.ammo) > 0 ? "Empty: reach to your hip for a magazine" : "No \(Items.def(Items.id(gs.ammo)).display)")
+                    // P300 (b): the dry click says it's empty; only "none left" is worth words.
+                    if ammoCount(gs.ammo) <= 0 { onToast?("No \(Items.def(Items.id(gs.ammo)).display)") }
                 }
                 return true
             }
             if !startReload(gi) && firePressed {
                 sfx(.gun(7), 0.8)
-                onToast?("No \(Items.def(Items.id(gs.ammo)).display): " + Guns.ammoSource(gs.ammo))
+                onToast?("No \(Items.def(Items.id(gs.ammo)).display)")      // P300 (b): no where-to-get-it how-to
             }
             return true
         }

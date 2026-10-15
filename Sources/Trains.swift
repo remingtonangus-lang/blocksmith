@@ -313,7 +313,7 @@ enum Trains {
             g.riding = m
             g.player.pos = m.pos + V3(0, 1.0, 0)
             g.sfx(.armorEquip(0), 0.5, at: m.pos)
-            g.onToast?("Riding the \(tr.track.name). Sneak to get off")
+            g.onToast?("Riding the \(tr.track.name)")         // P300 (b)
             return true
         case express:
             return crack(g, tr, m)
