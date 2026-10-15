@@ -48,6 +48,7 @@ enum MobAnim {
         case .sheep: return HeadJoint(maxZ: -7, pivot: V3(0, 18, -7))
         case .pig: return HeadJoint(maxZ: -7, pivot: V3(0, 12, -7))
         case .chicken: return HeadJoint(maxZ: -4, pivot: V3(0, 11, -4))
+        case .mooshroom: return HeadJoint(maxZ: -9, pivot: V3(0, 6.5, -9))          // P280: the Shellback's head
         default: return nil
         }
     }

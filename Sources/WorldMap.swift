@@ -113,7 +113,7 @@ final class MapCache {
         else if b.isBeach { base = b == .stonyShore ? 0x8C8C88 : 0xDCCB8E }
         else if b == .desert { base = 0xE0D29A }
         else if b.isBadlands { base = 0xC0673A }
-        else if b == .mushroomFields { base = 0x9C7FA2 }
+        else if b == .mushroomFields { base = 0x45C873 }        // P280: Saltpalm Isles
         else if b == .cherryGrove { base = 0xE4B2CF }
         else if b == .stonyPeaks || b == .windsweptGravellyHills { base = 0x9A9A96 }
         else if b.isPeak || b.info.temp < 0.15 || b == .iceSpikes { base = 0xEEF2F6 }

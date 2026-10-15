@@ -24,7 +24,7 @@ enum MobVoice {
     static func profile(_ k: MobKind) -> Profile {
         switch k {
         case .cow: return Profile(family: .moo, f0: 150, size: 1)
-        case .mooshroom: return Profile(family: .moo, f0: 140, size: 1.1)
+        case .mooshroom: return Profile(family: .snort, f0: 150, size: 0.9)     // P280: Shellback
         case .sniffer: return Profile(family: .snort, f0: 90, size: 1.6)
         case .sheep: return Profile(family: .bleat, f0: 420, size: 1)
         case .goat: return Profile(family: .bleat, f0: 360, size: 1.1)

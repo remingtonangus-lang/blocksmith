@@ -16,7 +16,7 @@ enum SpawnEggs {
     // Shell colour per kind (original palette).
     static func color(_ k: MobKind) -> UInt32 {
         switch k {
-        case .cow, .mooshroom: return k == .cow ? 0x443626 : 0xA00F10
+        case .cow, .mooshroom: return k == .cow ? 0x443626 : 0x4C7A34
         case .sheep: return 0xE7E7E7
         case .chicken: return 0xA1A1A1
         case .pig: return 0xF0A5A2

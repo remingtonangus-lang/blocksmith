@@ -19,7 +19,7 @@ enum TerrainTools {
         .windsweptForest: 0x506E50, .windsweptSavanna: 0xAA9664, .jungle: 0x149614, .sparseJungle: 0x46AA28, .bambooJungle: 0x6EB41E,
         .badlands: 0xC86428, .erodedBadlands: 0xDC501E, .woodedBadlands: 0xAA6E3C, .meadow: 0x96D278, .cherryGrove: 0xF0AAC8,
         .grove: 0xB4D2C8, .snowySlopes: 0xE1E6F0, .frozenPeaks: 0xC8D2FF, .jaggedPeaks: 0xEBEBF5, .stonyPeaks: 0x968C82,
-        .mushroomFields: 0xAA5AAA, .paleGarden: 0xAAAFA0,
+        .mushroomFields: 0x45C873, .paleGarden: 0xAAAFA0,
     ]
 
     static func writePNG(_ path: String, _ w: Int, _ h: Int, _ rgba: [UInt8]) {
