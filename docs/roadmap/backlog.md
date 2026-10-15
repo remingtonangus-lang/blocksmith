@@ -861,6 +861,13 @@ Q2c-console-42. [DONE] Controller trouble is explained (a controller that stops 
  (e) After half a minute on one controller the way to play with one is named: the moving hand lost -> Controls: One Hand (the dominant stick also walks); the aiming hand lost -> Dominant Hand: Left/Right (the other controller aims). Once a session.
  (f) Names follow the physical controller (Dominant Hand Left swaps the logical hands); no pause while a menu, the pause screen or the credits are up.
  Done Oct 15 (console; quest/src/app/QuestControls.swift): (a) QuestControls.controllerWatch runs every frame right after HandedInput.refresh; (b) per logical hand it times HandedInput.lost and toasts the physical controller's name and the fix after 2 s, once per loss (not while both are gone); (c) on return it toasts "is back" and buzzes that hand (0.35, 80 ms) through HandedInput, so Vibration scales it; (d) both lost for 3 s with no menu, no pause, no credits and alive sets game.paused (which opens the pause menu) and toasts "Controllers put down: paused"; (e) at 30 s on one controller, once a session: the move hand lost suggests One Hand (skipped when it is already on), the aim hand lost suggests the other Dominant Hand; (f) the name comes from the logical hand through QuestSettings.leftHanded; the pause test skips menus, pause and credits.
+Q2c-console-43. [CLAIMED console 2026-10-15] Lessons can be read again (each headset lesson shows once as a passing message; one missed in a fight or forgotten an hour later could only come back by resetting every tip and lesson from the start).
+ (a) Intent (Q2 c, onboarding): what the game has taught him stays at hand.
+ (b) "Lessons..." on VR Comfort & Controls (beside Touch Controls) opens a page listing every lesson he has been shown, by name, in first-hour order (the basics, crafting, eating, the first night, low health, swimming, dropping things, boats, minecarts, horses, other mounts, towns, contracts, honour, guns).
+ (c) Pointing at one shows its full text in the help line, wrapped, with the buttons mirrored for a left-handed player.
+ (d) Lessons not met yet are only counted ("4 more come up as you play"), never spoiled.
+ (e) Reset Tutorial Hints sits on the page too, doing exactly what the Accessibility row does (one shared reset).
+ (f) With Tutorial Hints off the page says so and where to turn them back on.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
