@@ -3149,7 +3149,7 @@ final class Game {
 //   attack 0.1 | hit taken 0.1 | healing half a heart 4
 enum HungerRates {
     static let swim: Float = 0.01
-    static let sprint: Float = 0.04
+    static let sprint: Float = 0.032         // per block; P274: a quarter faster sprint, so the drain a second stays as tuned (0.04 a block)
     static let jump: Float = 0.03
     static let sprintJump: Float = 0.1
     static let heal: Float = 4

@@ -123,7 +123,10 @@ final class Player {
     }
 
     static var quarantined = 0
-    static let vrSprintSpeed: Float = 4.317 * 1.6
+    // P274 (Oct 14 19:32, "sprint isn't fast enough"): 2x a walk in VR (was 1.6x), 7.0 flat (was the reference 5.612);
+    // the walk keeps 4.317.
+    static let vrSprintSpeed: Float = 4.317 * 2.0
+    static let sprintSpeed: Float = 7.0
     static let slimeID: BlockID = Blocks.has("slime_block") ? Blocks.id("slime_block") : AIR
     static let cobwebID: BlockID = Blocks.has("cobweb") ? Blocks.id("cobweb") : AIR
     static let soulSandID: BlockID = Blocks.has("soul_sand") ? Blocks.id("soul_sand") : AIR
@@ -263,8 +266,8 @@ final class Player {
             if dolphinsGrace { speed *= 2.2 }
         }
         else if sneaking || crawling { speed = 4.317 * min(1, 0.3 + 0.15 * Float(swiftSneak)) }
-        // VR sprints at 1.6x a walk (the reference's 1.3x is near invisible in a headset: playtest v78, fourth report).
-        else { speed = sprinting ? (moveYaw != nil ? Player.vrSprintSpeed : 5.612) : 4.317 }
+        // VR sprints at 2x a walk (P274; 1.6x before; the reference's 1.3x is near invisible in a headset: playtest v78, fourth report).
+        else { speed = sprinting ? (moveYaw != nil ? Player.vrSprintSpeed : Player.sprintSpeed) : 4.317 }
         if !flying { speed *= speedMul * HandGrab.slow }          // P258: a body dragged or carried
         if soulSpeed > 0 && onGround {
             let under = Blocks.key(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))
