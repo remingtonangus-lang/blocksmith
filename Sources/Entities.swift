@@ -186,6 +186,7 @@ final class ItemEntityManager {
         return j
     }
     private var junkHinted = false
+    private var fullToldAt: Double = -100                // Q2c-console-7: the last "pack is full" toast
 
     private(set) var burned = 0                    // items burnt up in lava or fire (tests)
     static func burns(_ s: ItemStack) -> Bool {
@@ -223,6 +224,12 @@ final class ItemEntityManager {
                     let before = e.stack.count
                     e.stack = game.inventory.add(e.stack)
                     if e.stack.count != before || e.stack.isEmpty { picked += 1 }
+                    else if game.menu == nil && game.clock - fullToldAt > 30 {
+                        // Q2c-console-7: nothing of it fit: say why it stays on the ground (once in 30 s).
+                        fullToldAt = game.clock
+                        game.onToast?("Your pack is full: the \(e.stack.def.display) stays on the ground")
+                        game.sfx(.click, 0.25)
+                    }
                 } else { e.hover = 0 }
             }
         }

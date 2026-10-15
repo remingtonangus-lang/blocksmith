@@ -1806,7 +1806,11 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(o.x + pw - 3 * s, o.y + 2 * s, 2 * s, ph - 3 * s, V4(0.333, 0.333, 0.333, 1))
             let titleC = V4(0.25, 0.25, 0.25, 1)
             text(m.title, o.x + 8 * s, o.y + 6 * s, s, titleC, shadow: false)
-            if m.showInventoryLabel { text("Inventory", o.x + 8 * s, o.y + Float(m.inventoryLabelY) * s, s, titleC, shadow: false) }
+            if m.showInventoryLabel {
+                // Q2c-console-7: a full pack shows on its label before he goes looting.
+                let full = !game.inventory.main.slots.contains { $0.isEmpty }
+                text(full ? "Inventory (full)" : "Inventory", o.x + 8 * s, o.y + Float(m.inventoryLabelY) * s, s, full ? V4(0.75, 0.45, 0.05, 1) : titleC, shadow: false)
+            }
             if Settings.shared.buttonHints {
                 // Control legend under the panel (controller glyphs or keys, following the last device used).
                 let legend = Prompt.menuLegend(m, game)
