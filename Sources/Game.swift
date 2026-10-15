@@ -2964,6 +2964,7 @@ final class Game {
         autosaveTimer += dt
         if autosaveTimer > 60 { autosaveTimer = 0; saveNow(background: true) }
         for msg in SaveIO.takeProblems() { onToast?(msg); SaveBadge.failedAt = clock }          // S2: save problems reach the player
+        if persistent { StorageCheck.tick(self) }                                               // Q2c-console-51
         if CrashGuard.crashed && !CrashGuard.told && clock > 3 {    // S4
             CrashGuard.told = true
             onToast?("The last session ended unexpectedly. Pause > Restore Last Backup puts back the last saved copy")

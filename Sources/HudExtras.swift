@@ -631,9 +631,46 @@ enum HudExtras {
 // top-left corner (inside the safe area, so on the headset's HUD panel too) for two seconds, fading, never flashing;
 // a save problem reported by SaveIO (S2) turns it red, "Save failed", until a later save. The pause menu says how long
 // ago the world was saved (PauseMenu: savedAgo).
+// Q2c-console-51: free storage where the world is saved, measured off the frame thread when a world starts and every
+// five minutes; under 300 MB he is told once (until it is freed), under 60 MB every two minutes with a red badge.
+enum StorageCheck {
+    private static let lock = NSLock()
+    private static var measured: Int = -1                  // MB free at the last measure (-1: unknown)
+    private static var askedAt: Double = -1000, warnedLow = false, warnedFullAt: Double = -1000
+    private static var dir = ""
+    static var freeMB: Int { lock.lock(); defer { lock.unlock() }; return measured }
+    static var low: Bool { let f = freeMB; return f >= 0 && f < 300 }
+    static var critical: Bool { let f = freeMB; return f >= 0 && f < 60 }
+    static func tick(_ g: Game) {
+        guard let path = g.save?.dir.path else { return }
+        if path != dir || g.clock - askedAt > 300 || g.clock < askedAt {
+            dir = path; askedAt = g.clock
+            DispatchQueue.global(qos: .utility).async {
+                let attrs = try? FileManager.default.attributesOfFileSystem(forPath: path)
+                let free = (attrs?[.systemFreeSize] as? NSNumber)?.int64Value
+                lock.lock(); measured = free.map { Int($0 / 1_048_576) } ?? -1; lock.unlock()
+            }
+        }
+        let f = freeMB
+        guard f >= 0 else { return }
+        if f >= 300 { warnedLow = false; return }
+        if f < 60 {
+            if g.clock - warnedFullAt > 120 || g.clock < warnedFullAt {
+                warnedFullAt = g.clock
+                SaveBadge.storageFullAt = g.clock
+                g.onToast?("Storage full: your world may stop saving. Free some space")
+            }
+        } else if !warnedLow {
+            warnedLow = true
+            g.onToast?("Storage almost full (\(f) MB left): free some space so your world keeps saving")
+        }
+    }
+}
+
 enum SaveBadge {
     static var savedAt: Double = -100
     static var failedAt: Double = -100
+    static var storageFullAt: Double = -100        // Q2c-console-51: shown as a red "Storage full" for 30 s
     static var failing: Bool { failedAt >= savedAt }
 
     static func savedAgo(_ g: Game) -> String? {
@@ -647,11 +684,12 @@ enum SaveBadge {
     static func lines(_ g: Game, _ L: HudLayout, below: Bool) -> [HudLine] {
         guard g.menu == nil, HudExtras.enabled else { return [] }
         let age = Float(g.clock - savedAt)
-        let bad = failing && g.clock - failedAt < 30
+        let full = g.clock - storageFullAt < 30 && g.clock >= storageFullAt && StorageCheck.critical
+        let bad = (failing && g.clock - failedAt < 30) || full
         guard bad || (age >= 0 && age < 2.2) else { return [] }
         let a: Float = bad ? 1 : min(1, (2.2 - age) / 0.7)
         let s = L.s, x = L.insetX + 4 * s, y = L.insetY + 4 * s + (below ? 12 * s : 0)
-        let t = bad ? "Save failed" : "Saved"
+        let t = full && !(failing && g.clock - failedAt < 30) ? "Storage full" : (bad ? "Save failed" : "Saved")
         let body = bad ? V4(0.75, 0.16, 0.14, a) : V4(0.22, 0.36, 0.62, a)
         return [
             HudLine(text: "", x: x - s, y: y - s, scale: s, bg: V4(0, 0, 0, 0.45 * a), box: V2(Float(Font.width(t)) * s + 13 * s, 9 * s)),
