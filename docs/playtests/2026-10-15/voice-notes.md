@@ -1,6 +1,6 @@
 # Voice bug notes 2026-10-15 (Quest)
 
-Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 140 notes.
+Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 389 notes.
 
 ## 11:48:45 - Okay, what are we dealing with here?
 
@@ -3302,3 +3302,5775 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 - **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-122159-968.aac
 
 ![12:21:59](voice-shots/vn-20261015-122159-968.jpg)
+
+## 18:16:08 - Okay, what the heck?
+
+- **Transcript:** Okay, what the heck?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11394.5 173.5 -12104.3
+- **Facing:** south-west (yaw 221, pitch -23)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** Ghost Sand at 11393 173 -12103
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 14:00, clear
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -23 dBFS
+- **Length:** 2.7 s (voice 0.7 s)
+- **Just before:** -29s message: Creative mode: switch back from the pause menu's Mode row; -29s closed PauseMenu; -26s message: Flying; -25s message: Walking; -24s opened PauseMenu; -22s message: Survival mode: switch back from the pause menu's Mode row; -22s closed PauseMenu; -21s holding Falke Pistol; -21s holding Titanium Sword; -21s holding Golden Apple; -19s took 1 damage (health 5/20); -14s holding Field Ration; -14s message: Field Ration; -14s holding Keeper's Journal; -14s message: Keeper's Journal; -13s holding Blitzlanze Arc Gun; -13s message: Blitzlanze Arc Gun; -13s holding Slatefall Carbine; -13s message: Slatefall Carbine; -13s holding Titanium Pickaxe; -13s message: Titanium Pickaxe; -13s holding Sturmwind Carbine; -13s message: Sturmwind Carbine; -12s holding Falke Pistol; -12s message: Falke Pistol; -9s message: Empty: reach to your hip for a magazine; -8s opened PauseMenu; -7s message: View recentred; -6s closed PauseMenu; -4s message: Loaded: 18 / 18; -4s holding Titanium Sword; -3s took 2 damage (health 20/20); -2s holding Falke Pistol; -2s holding Titanium Sword; -1s holding Falke Pistol; -1s message: Falke Pistol; -1s holding Sturmwind Carbine; -1s message: Sturmwind Carbine; -1s holding Falke Pistol; -1s message: Falke Pistol
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11394.5 --z -12104.3 --yaw 139 --pitch -23 --time 0.334 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-181608-776.aac
+
+![18:16:08](voice-shots/vn-20261015-181608-776.jpg)
+
+## 18:28:22 - Okay, so right now I can't switch
+
+- **Transcript:** Okay, so right now I can't switch
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.7 173.0 -12023.4
+- **Facing:** west (yaw 282, pitch -27)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 11368 172 -12024
+- **Mode:** Survival, health 4/20
+- **Time:** day 31 16:34, clear
+- **Fps:** 90
+- **Levels:** mic -35 dBFS, game sound -22 dBFS
+- **Length:** 3.1 s (voice 1.4 s)
+- **Just before:** -30s holding Titanium Sword; -22s message: Your pack is full: the Iron Ingot stays on the ground; -21s holding Golden Apple; -21s holding Titanium Sword; -21s holding Falke Pistol; -18s took 2 damage (health 20/20); -17s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -16s holding Titanium Sword; -16s took 2 damage (health 20/20); -15s message: Loaded: 18 / 18; -12s took 5 damage (health 17/20); -9s took 6 damage (health 13/20); -6s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -6s holding Falke Pistol; -6s took 9 damage (health 5/20); -4s holding Titanium Sword; -4s took 2 damage (health 3/20); -3s holding Falke Pistol; -3s holding Titanium Sword; -3s holding Falke Pistol; -2s holding Titanium Sword; -2s holding Falke Pistol; -1s holding Titanium Sword; -1s message: Titanium Sword; -1s holding Falke Pistol; -1s message: Falke Pistol; -1s holding Titanium Sword; -1s message: Titanium Sword; -0s holding Falke Pistol; -0s message: Falke Pistol; -0s holding Titanium Sword; -0s message: Titanium Sword
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.7 --z -12023.4 --yaw 78 --pitch -27 --time 0.441 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182822-651.aac
+
+![18:28:22](voice-shots/vn-20261015-182822-651.jpg)
+
+## 18:28:25 - I had trouble switching from my store, which is on the furthest right 
+
+- **Transcript:** I had trouble switching from my store, which is on the furthest right slot
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11352.3 173.0 -12022.4
+- **Facing:** north (yaw 353, pitch -33)
+- **Held:** Golden Apple x28
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 11351 172 -12025
+- **Mode:** Survival, health 5/20
+- **Time:** day 31 16:38, clear
+- **Fps:** 90
+- **Levels:** mic -34 dBFS, game sound -23 dBFS
+- **Length:** 5.5 s (voice 3.0 s)
+- **Just before:** -20s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -19s holding Titanium Sword; -18s took 2 damage (health 20/20); -18s message: Loaded: 18 / 18; -15s took 5 damage (health 17/20); -12s took 6 damage (health 13/20); -9s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -9s holding Falke Pistol; -9s took 9 damage (health 5/20); -7s holding Titanium Sword; -7s took 2 damage (health 3/20); -6s holding Falke Pistol; -6s holding Titanium Sword; -6s holding Falke Pistol; -5s holding Titanium Sword; -5s holding Falke Pistol; -4s holding Titanium Sword; -4s message: Titanium Sword; -4s holding Falke Pistol; -4s message: Falke Pistol; -4s holding Titanium Sword; -4s message: Titanium Sword; -3s holding Falke Pistol; -3s message: Falke Pistol; -3s holding Titanium Sword; -3s message: Titanium Sword; -3s holding Falke Pistol; -3s message: Falke Pistol; -2s holding Titanium Sword; -2s message: Titanium Sword; -2s holding Falke Pistol; -2s message: Falke Pistol; -2s holding Titanium Sword; -2s message: Titanium Sword; -2s holding Golden Apple; -2s message: Golden Apple; -1s holding Field Ration; -1s message: Field Ration; -1s holding Golden Apple; -1s message: Golden Apple
+- **Position at the end:** 11353.9 173.0 -12026.0
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11352.3 --z -12022.4 --yaw 7 --pitch -33 --time 0.443 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182825-611.aac
+
+## 18:28:31 - To my food on the furthest left slot for some reason wouldn't carry ov
+
+- **Transcript:** To my food on the furthest left slot for some reason wouldn't carry over, but after I spammed it eventually went for some reason
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11352.1 173.0 -12033.4
+- **Facing:** north (yaw 21, pitch -25)
+- **Held:** Golden Apple x25
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 11353 172 -12037
+- **Mode:** Survival, health 19/20
+- **Time:** day 31 16:45, clear
+- **Fps:** 90
+- **Levels:** mic -31 dBFS, game sound -26 dBFS
+- **Length:** 6.8 s (voice 4.1 s)
+- **Just before:** -26s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -25s holding Titanium Sword; -25s took 2 damage (health 20/20); -24s message: Loaded: 18 / 18; -21s took 5 damage (health 17/20); -18s took 6 damage (health 13/20); -15s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -15s holding Falke Pistol; -15s took 9 damage (health 5/20); -13s holding Titanium Sword; -13s took 2 damage (health 3/20); -12s holding Falke Pistol; -12s holding Titanium Sword; -12s holding Falke Pistol; -11s holding Titanium Sword; -11s holding Falke Pistol; -10s holding Titanium Sword; -10s message: Titanium Sword; -10s holding Falke Pistol; -10s message: Falke Pistol; -10s holding Titanium Sword; -10s message: Titanium Sword; -9s holding Falke Pistol; -9s message: Falke Pistol; -9s holding Titanium Sword; -9s message: Titanium Sword; -9s holding Falke Pistol; -9s message: Falke Pistol; -8s holding Titanium Sword; -8s message: Titanium Sword; -8s holding Falke Pistol; -8s message: Falke Pistol; -8s holding Titanium Sword; -8s message: Titanium Sword; -8s holding Golden Apple; -8s message: Golden Apple; -8s holding Field Ration; -8s message: Field Ration; -7s holding Golden Apple; -7s message: Golden Apple
+- **While talking:** -4s holding Titanium Sword; -4s message: Titanium Sword; -4s holding Falke Pistol; -4s message: Falke Pistol; -0s holding Titanium Sword; -0s message: Titanium Sword
+- **Position at the end:** 11355.1 173.0 -12045.0
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11352.1 --z -12033.4 --yaw -21 --pitch -25 --time 0.448 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182831-711.aac
+
+## 18:28:38 - That's kind of some additional context for the right grip wouldn't wor
+
+- **Transcript:** That's kind of some additional context for the right grip wouldn't work issue I had. That was in the previous note
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11353.7 173.0 -12043.9
+- **Facing:** north-east (yaw 61, pitch -58)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 11354 172 -12045
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 16:54, clear
+- **Fps:** 89
+- **Levels:** mic -32 dBFS, game sound -16 dBFS
+- **Length:** 8.9 s (voice 4.6 s)
+- **Just before:** -22s holding Falke Pistol; -22s took 9 damage (health 5/20); -20s holding Titanium Sword; -20s took 2 damage (health 3/20); -20s holding Falke Pistol; -19s holding Titanium Sword; -19s holding Falke Pistol; -18s holding Titanium Sword; -18s holding Falke Pistol; -18s holding Titanium Sword; -18s message: Titanium Sword; -17s holding Falke Pistol; -17s message: Falke Pistol; -17s holding Titanium Sword; -17s message: Titanium Sword; -17s holding Falke Pistol; -17s message: Falke Pistol; -16s holding Titanium Sword; -16s message: Titanium Sword; -16s holding Falke Pistol; -16s message: Falke Pistol; -16s holding Titanium Sword; -16s message: Titanium Sword; -15s holding Falke Pistol; -15s message: Falke Pistol; -15s holding Titanium Sword; -15s message: Titanium Sword; -15s holding Golden Apple; -15s message: Golden Apple; -15s holding Field Ration; -15s message: Field Ration; -14s holding Golden Apple; -14s message: Golden Apple; -6s holding Titanium Sword; -6s message: Titanium Sword; -6s holding Falke Pistol; -6s message: Falke Pistol; -3s holding Titanium Sword; -3s message: Titanium Sword; -1s took 1 damage (health 20/20)
+- **Position at the end:** 11354.7 173.0 -12049.2
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11353.7 --z -12043.9 --yaw -61 --pitch -58 --time 0.454 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182838-951.aac
+
+![18:28:38](voice-shots/vn-20261015-182838-951.jpg)
+
+## 18:28:50 - Okay, this text about my hacking for some bullshit. We don't need that
+
+- **Transcript:** Okay, this text about my hacking for some bullshit. We don't need that
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11360.5 173.0 -12030.3
+- **Facing:** east (yaw 79, pitch -32)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 11362 172 -12031
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 17:07, clear
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -26 dBFS
+- **Length:** 5.8 s (voice 3.1 s)
+- **Just before:** -29s holding Titanium Sword; -29s holding Falke Pistol; -29s holding Titanium Sword; -29s message: Titanium Sword; -28s holding Falke Pistol; -28s message: Falke Pistol; -28s holding Titanium Sword; -28s message: Titanium Sword; -28s holding Falke Pistol; -28s message: Falke Pistol; -28s holding Titanium Sword; -28s message: Titanium Sword; -27s holding Falke Pistol; -27s message: Falke Pistol; -27s holding Titanium Sword; -27s message: Titanium Sword; -26s holding Falke Pistol; -26s message: Falke Pistol; -26s holding Titanium Sword; -26s message: Titanium Sword; -26s holding Golden Apple; -26s message: Golden Apple; -26s holding Field Ration; -26s message: Field Ration; -25s holding Golden Apple; -25s message: Golden Apple; -17s holding Titanium Sword; -17s message: Titanium Sword; -17s holding Falke Pistol; -17s message: Falke Pistol; -14s holding Titanium Sword; -14s message: Titanium Sword; -12s took 1 damage (health 20/20); -3s message: Your pack is full: the Iron Ingot stays on the ground
+- **Position at the end:** 11367.7 173.0 -12029.0
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11360.5 --z -12030.3 --yaw -79 --pitch -32 --time 0.463 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182850-071.aac
+
+![18:28:50](voice-shots/vn-20261015-182850-071.jpg)
+
+## 18:28:58 - Someone else can figure that out themselves
+
+- **Transcript:** Someone else can figure that out themselves
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11368.0 173.0 -12040.2
+- **Facing:** north-west (yaw 332, pitch -62)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 11367 172 -12041
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 17:16, clear
+- **Fps:** 89
+- **Levels:** mic -26 dBFS, game sound -22 dBFS
+- **Length:** 3.1 s (voice 1.3 s)
+- **Just before:** -25s holding Titanium Sword; -25s message: Titanium Sword; -25s holding Falke Pistol; -25s message: Falke Pistol; -22s holding Titanium Sword; -22s message: Titanium Sword; -20s took 1 damage (health 20/20); -11s message: Your pack is full: the Iron Ingot stays on the ground; -0s holding Falke Pistol; -0s message: Falke Pistol
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11368.0 --z -12040.2 --yaw 28 --pitch -62 --time 0.470 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182858-071.aac
+
+## 18:29:11 - Oh, shit. Okay
+
+- **Transcript:** Oh, shit. Okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.2 164.4 -12043.5
+- **Facing:** east (yaw 74, pitch -26)
+- **Held:** Polished Onyxstone Bricks x3
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11374 163 -12045
+- **Mode:** Survival, health 4/20
+- **Time:** day 31 17:33, clear
+- **Fps:** 90
+- **Levels:** mic -46 dBFS, game sound -23 dBFS
+- **Length:** 2.6 s (voice 0.6 s)
+- **Just before:** -25s message: Your pack is full: the Iron Ingot stays on the ground; -14s holding Falke Pistol; -14s message: Falke Pistol; -13s holding Titanium Sword; -13s message: Titanium Sword; -10s took 4 damage (health 18/20); -9s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -5s message: The Keep Castellan bellows for the wall guards; -1s took 17 damage (health 6/20); -0s holding Polished Onyxstone Bricks; -0s message: Polished Onyxstone Bricks
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.2 --z -12043.5 --yaw -74 --pitch -26 --time 0.482 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182911-931.aac
+
+## 18:29:29 - Yeah, so this Nazi boss guy shouldn't be in hell
+
+- **Transcript:** Yeah, so this Nazi boss guy shouldn't be in hell
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.2 163.0 -12043.0
+- **Facing:** south-east (yaw 136, pitch 8)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11374 165 -12040
+- **Mode:** Creative, health 4/20
+- **Time:** day 31 17:50, clear
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -26 dBFS
+- **Length:** 4.1 s (voice 2.3 s)
+- **Just before:** -28s took 4 damage (health 18/20); -26s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -23s message: The Keep Castellan bellows for the wall guards; -18s took 17 damage (health 6/20); -17s holding Polished Onyxstone Bricks; -17s message: Polished Onyxstone Bricks; -17s opened PauseMenu; -17s took 4 damage (health 4/20); -14s message: Creative mode: switch back from the pause menu's Mode row; -14s closed PauseMenu; -13s holding Falke Pistol; -7s holding Sturmwind Carbine; -7s message: Sturmwind Carbine; -7s holding Falke Pistol; -7s message: Falke Pistol; -7s message: Loaded: 18 / 18
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.2 --z -12043.0 --yaw -136 --pitch 8 --time 0.493 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182929-171.aac
+
+![18:29:29](voice-shots/vn-20261015-182929-171.jpg)
+
+## 18:29:33 - I understand the idea, but we need to have our own hell enemies that d
+
+- **Transcript:** I understand the idea, but we need to have our own hell enemies that do not include Nazis
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.2 163.0 -12043.0
+- **Facing:** south-east (yaw 143, pitch 1)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11374 164 -12039
+- **Mode:** Creative, health 4/20
+- **Time:** day 31 17:55, clear
+- **Fps:** 90
+- **Levels:** mic -30 dBFS, game sound -24 dBFS
+- **Length:** 6.6 s (voice 3.8 s)
+- **Just before:** -30s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -27s message: The Keep Castellan bellows for the wall guards; -22s took 17 damage (health 6/20); -21s holding Polished Onyxstone Bricks; -21s message: Polished Onyxstone Bricks; -21s opened PauseMenu; -21s took 4 damage (health 4/20); -18s message: Creative mode: switch back from the pause menu's Mode row; -18s closed PauseMenu; -17s holding Falke Pistol; -11s holding Sturmwind Carbine; -11s message: Sturmwind Carbine; -11s holding Falke Pistol; -11s message: Falke Pistol; -10s message: Loaded: 18 / 18
+- **While talking:** -4s holding Sturmwind Carbine; -4s message: Sturmwind Carbine; -4s holding Falke Pistol; -4s message: Falke Pistol; -4s message: Loaded: 18 / 18
+- **Position at the end:** 11370.2 163.0 -12043.0
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.2 --z -12043.0 --yaw -143 --pitch 1 --time 0.497 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182933-031.aac
+
+## 18:29:39 - At all
+
+- **Transcript:** At all
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.2 163.0 -12043.0
+- **Facing:** south-west (yaw 226, pitch 7)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 4/20
+- **Time:** day 31 18:03, clear
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -17 dBFS
+- **Length:** 1.9 s (voice 0.5 s)
+- **Just before:** -29s took 17 damage (health 6/20); -28s holding Polished Onyxstone Bricks; -28s message: Polished Onyxstone Bricks; -28s opened PauseMenu; -27s took 4 damage (health 4/20); -25s message: Creative mode: switch back from the pause menu's Mode row; -25s closed PauseMenu; -24s holding Falke Pistol; -18s holding Sturmwind Carbine; -18s message: Sturmwind Carbine; -18s holding Falke Pistol; -18s message: Falke Pistol; -17s message: Loaded: 18 / 18; -6s holding Sturmwind Carbine; -6s message: Sturmwind Carbine; -6s holding Falke Pistol; -6s message: Falke Pistol; -5s message: Loaded: 18 / 18
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.2 --z -12043.0 --yaw 134 --pitch 7 --time 0.502 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182939-971.aac
+
+![18:29:39](voice-shots/vn-20261015-182939-971.jpg)
+
+## 18:29:56 - Like this pig guy? You know what? Sure. You know
+
+- **Transcript:** Like this pig guy? You know what? Sure. You know
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.5 163.0 -12043.5
+- **Facing:** south-west (yaw 205, pitch -6)
+- **Held:** Titanium Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 4/20
+- **Time:** day 31 18:22, clear
+- **Fps:** 90
+- **Levels:** mic -32 dBFS, game sound -27 dBFS
+- **Length:** 4.2 s (voice 2.0 s)
+- **Just before:** -22s holding Sturmwind Carbine; -22s message: Sturmwind Carbine; -22s holding Falke Pistol; -22s message: Falke Pistol; -22s message: Loaded: 18 / 18; -16s holding Sturmwind Carbine; -16s message: Sturmwind Carbine; -15s message: Loaded: 30 / 30; -12s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -8s message: Empty: reach to your hip for a magazine; -6s message: Loaded: 30 / 30; -2s holding Titanium Pickaxe; -2s message: Titanium Pickaxe; -2s holding Sturmwind Carbine; -2s message: Sturmwind Carbine; -1s holding Titanium Pickaxe; -1s message: Titanium Pickaxe; -1s holding Slatefall Carbine; -1s message: Slatefall Carbine; -0s holding Titanium Pickaxe; -0s message: Titanium Pickaxe
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.5 --z -12043.5 --yaw 155 --pitch -6 --time 0.516 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-182956-011.aac
+
+![18:29:56](voice-shots/vn-20261015-182956-011.jpg)
+
+## 18:30:00 - Well, except for the fact it's too much like
+
+- **Transcript:** Well, except for the fact it's too much like
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.6 163.0 -12043.5
+- **Facing:** south-west (yaw 207, pitch -8)
+- **Held:** Sturmwind Carbine x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 4/20
+- **Time:** day 31 18:27, clear
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -21 dBFS
+- **Length:** 3.1 s (voice 1.2 s)
+- **Just before:** -26s holding Sturmwind Carbine; -26s message: Sturmwind Carbine; -26s holding Falke Pistol; -26s message: Falke Pistol; -26s message: Loaded: 18 / 18; -20s holding Sturmwind Carbine; -20s message: Sturmwind Carbine; -19s message: Loaded: 30 / 30; -16s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -12s message: Empty: reach to your hip for a magazine; -10s message: Loaded: 30 / 30; -6s holding Titanium Pickaxe; -6s message: Titanium Pickaxe; -6s holding Sturmwind Carbine; -6s message: Sturmwind Carbine; -5s holding Titanium Pickaxe; -5s message: Titanium Pickaxe; -5s holding Slatefall Carbine; -5s message: Slatefall Carbine; -4s holding Titanium Pickaxe; -4s message: Titanium Pickaxe; -4s holding Slatefall Carbine; -4s message: Slatefall Carbine; -4s holding Titanium Pickaxe; -4s message: Titanium Pickaxe; -3s holding Sturmwind Carbine; -3s message: Sturmwind Carbine; -3s holding Titanium Pickaxe; -3s message: Titanium Pickaxe; -3s holding Sturmwind Carbine; -3s message: Sturmwind Carbine; -2s message: Loaded: 30 / 30; -1s message: The Ember Gate in the courtyard wakes: step in to go home. The Gate Shard brings you back
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.6 --z -12043.5 --yaw 153 --pitch -8 --time 0.519 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183000-091.aac
+
+## 18:30:03 - Whatever, like Minecraft. But otherwise I'd say, yeah, all for it
+
+- **Transcript:** Whatever, like Minecraft. But otherwise I'd say, yeah, all for it
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11371.5 163.0 -12043.0
+- **Facing:** south (yaw 200, pitch -14)
+- **Held:** Sturmwind Carbine x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 4/20
+- **Time:** day 31 18:31, clear
+- **Fps:** 90
+- **Levels:** mic -22 dBFS, game sound -25 dBFS
+- **Length:** 6.1 s (voice 2.7 s)
+- **Just before:** -30s holding Sturmwind Carbine; -30s message: Sturmwind Carbine; -29s holding Falke Pistol; -29s message: Falke Pistol; -29s message: Loaded: 18 / 18; -23s holding Sturmwind Carbine; -23s message: Sturmwind Carbine; -22s message: Loaded: 30 / 30; -19s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -15s message: Empty: reach to your hip for a magazine; -13s message: Loaded: 30 / 30; -9s holding Titanium Pickaxe; -9s message: Titanium Pickaxe; -9s holding Sturmwind Carbine; -9s message: Sturmwind Carbine; -8s holding Titanium Pickaxe; -8s message: Titanium Pickaxe; -8s holding Slatefall Carbine; -8s message: Slatefall Carbine; -7s holding Titanium Pickaxe; -7s message: Titanium Pickaxe; -7s holding Slatefall Carbine; -7s message: Slatefall Carbine; -7s holding Titanium Pickaxe; -7s message: Titanium Pickaxe; -6s holding Sturmwind Carbine; -6s message: Sturmwind Carbine; -6s holding Titanium Pickaxe; -6s message: Titanium Pickaxe; -6s holding Sturmwind Carbine; -6s message: Sturmwind Carbine; -5s message: Loaded: 30 / 30; -4s message: The Ember Gate in the courtyard wakes: step in to go home. The Gate Shard brings you back
+- **While talking:** -5s opened PauseMenu
+- **Position at the end:** 11371.5 163.0 -12043.0
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11371.5 --z -12043.0 --yaw 160 --pitch -14 --time 0.522 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183003-191.aac
+
+## 18:30:15 - Okay, this is cool
+
+- **Transcript:** Okay, this is cool
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11371.5 163.0 -12042.1
+- **Facing:** south (yaw 193, pitch -17)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11370 162 -12038
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 18:39, clear
+- **Fps:** 90
+- **Levels:** mic -35 dBFS, game sound -23 dBFS
+- **Length:** 2.1 s (voice 0.5 s)
+- **Just before:** -28s message: Empty: reach to your hip for a magazine; -26s message: Loaded: 30 / 30; -22s holding Titanium Pickaxe; -22s message: Titanium Pickaxe; -21s holding Sturmwind Carbine; -21s message: Sturmwind Carbine; -21s holding Titanium Pickaxe; -21s message: Titanium Pickaxe; -20s holding Slatefall Carbine; -20s message: Slatefall Carbine; -20s holding Titanium Pickaxe; -20s message: Titanium Pickaxe; -20s holding Slatefall Carbine; -20s message: Slatefall Carbine; -19s holding Titanium Pickaxe; -19s message: Titanium Pickaxe; -19s holding Sturmwind Carbine; -19s message: Sturmwind Carbine; -19s holding Titanium Pickaxe; -19s message: Titanium Pickaxe; -18s holding Sturmwind Carbine; -18s message: Sturmwind Carbine; -18s message: Loaded: 30 / 30; -16s message: The Ember Gate in the courtyard wakes: step in to go home. The Gate Shard brings you back; -12s opened PauseMenu; -7s message: Survival mode: switch back from the pause menu's Mode row; -7s closed PauseMenu; -6s holding Falke Pistol; -6s holding Polished Onyxstone Bricks; -6s holding Golden Apple
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11371.5 --z -12042.1 --yaw 167 --pitch -17 --time 0.527 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183015-731.aac
+
+![18:30:15](voice-shots/vn-20261015-183015-731.jpg)
+
+## 18:30:18 - This is cool. Okay, so what do we have here?
+
+- **Transcript:** This is cool. Okay, so what do we have here?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11371.4 163.0 -12042.4
+- **Facing:** north (yaw 343, pitch -25)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11370 163 -12046
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 18:42, clear
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -16 dBFS
+- **Length:** 4.6 s (voice 1.9 s)
+- **Just before:** -28s message: Loaded: 30 / 30; -24s holding Titanium Pickaxe; -24s message: Titanium Pickaxe; -24s holding Sturmwind Carbine; -24s message: Sturmwind Carbine; -23s holding Titanium Pickaxe; -23s message: Titanium Pickaxe; -23s holding Slatefall Carbine; -23s message: Slatefall Carbine; -22s holding Titanium Pickaxe; -22s message: Titanium Pickaxe; -22s holding Slatefall Carbine; -22s message: Slatefall Carbine; -21s holding Titanium Pickaxe; -21s message: Titanium Pickaxe; -21s holding Sturmwind Carbine; -21s message: Sturmwind Carbine; -21s holding Titanium Pickaxe; -21s message: Titanium Pickaxe; -21s holding Sturmwind Carbine; -21s message: Sturmwind Carbine; -20s message: Loaded: 30 / 30; -19s message: The Ember Gate in the courtyard wakes: step in to go home. The Gate Shard brings you back; -15s opened PauseMenu; -10s message: Survival mode: switch back from the pause menu's Mode row; -9s closed PauseMenu; -9s holding Falke Pistol; -9s holding Polished Onyxstone Bricks; -8s holding Golden Apple
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11371.4 --z -12042.4 --yaw 17 --pitch -25 --time 0.529 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183018-032.aac
+
+## 18:30:26 - Okay, I can't drop shit right now. What-- I'm trying to drop something
+
+- **Transcript:** Okay, I can't drop shit right now. What-- I'm trying to drop something, it won't fucking drop
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11367.0 163.0 -12037.7
+- **Facing:** north-west (yaw 305, pitch -21)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen InventoryMenu
+- **Time:** day 31 18:52, clear
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -27 dBFS
+- **Length:** 5.9 s (voice 2.9 s)
+- **Just before:** -30s holding Slatefall Carbine; -30s message: Slatefall Carbine; -30s holding Titanium Pickaxe; -30s message: Titanium Pickaxe; -29s holding Sturmwind Carbine; -29s message: Sturmwind Carbine; -29s holding Titanium Pickaxe; -29s message: Titanium Pickaxe; -29s holding Sturmwind Carbine; -29s message: Sturmwind Carbine; -28s message: Loaded: 30 / 30; -27s message: The Ember Gate in the courtyard wakes: step in to go home. The Gate Shard brings you back; -23s opened PauseMenu; -18s message: Survival mode: switch back from the pause menu's Mode row; -17s closed PauseMenu; -17s holding Falke Pistol; -17s holding Polished Onyxstone Bricks; -17s holding Golden Apple; -5s message: Your pack is full: the Castellan's Brand stays on the ground; -4s opened InventoryMenu
+- **Position at the end:** 11367.0 163.0 -12037.7
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11367.0 --z -12037.7 --yaw 55 --pitch -21 --time 0.536 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183026-131.aac
+
+![18:30:26](voice-shots/vn-20261015-183026-131.jpg)
+
+## 18:30:31 - So I think it has to do with the fact that the inventory is full. When
+
+- **Transcript:** So I think it has to do with the fact that the inventory is full. When I try to drop something and I'm standing on objects, I could immediately pick up, it won't let me drop it.
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11367.1 163.0 -12038.5
+- **Facing:** north-west (yaw 294, pitch -16)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11362 163 -12041
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 18:59, clear
+- **Fps:** 90
+- **Levels:** mic -22 dBFS, game sound -24 dBFS
+- **Length:** 10.5 s (voice 6.9 s)
+- **Just before:** -29s opened PauseMenu; -24s message: Survival mode: switch back from the pause menu's Mode row; -23s closed PauseMenu; -23s holding Falke Pistol; -23s holding Polished Onyxstone Bricks; -22s holding Golden Apple; -11s message: Your pack is full: the Castellan's Brand stays on the ground; -10s opened InventoryMenu; -1s closed InventoryMenu
+- **While talking:** -1s opened InventoryMenu; -1s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -0s closed InventoryMenu; -4s opened InventoryMenu
+- **Position at the end:** 11370.0 163.0 -12038.3
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11367.1 --z -12038.5 --yaw 66 --pitch -16 --time 0.541 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183031-951.aac
+
+## 18:30:42 - I think that's, that's the key. I don't know why it's not, but yeah
+
+- **Transcript:** I think that's, that's the key. I don't know why it's not, but yeah
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.0 163.0 -12038.3
+- **Facing:** north (yaw 344, pitch -19)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen InventoryMenu
+- **Time:** day 31 19:12, clear
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -27 dBFS
+- **Length:** 4.0 s (voice 2.1 s)
+- **Just before:** -22s message: Your pack is full: the Castellan's Brand stays on the ground; -21s opened InventoryMenu; -12s closed InventoryMenu; -7s opened InventoryMenu; -7s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -6s closed InventoryMenu; -5s opened InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.0 --z -12038.3 --yaw 16 --pitch -19 --time 0.550 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183042-851.aac
+
+![18:30:42](voice-shots/vn-20261015-183042-851.jpg)
+
+## 18:30:47 - Oh yeah, another thing, um
+
+- **Transcript:** Oh yeah, another thing, um
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.0 163.0 -12038.3
+- **Facing:** north (yaw 344, pitch -19)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen InventoryMenu
+- **Time:** day 31 19:18, clear
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -28 dBFS
+- **Length:** 2.7 s (voice 1.2 s)
+- **Just before:** -27s message: Your pack is full: the Castellan's Brand stays on the ground; -26s opened InventoryMenu; -17s closed InventoryMenu; -12s opened InventoryMenu; -12s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -11s closed InventoryMenu; -10s opened InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.0 --z -12038.3 --yaw 16 --pitch -19 --time 0.554 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183047-971.aac
+
+## 18:30:51 - Some items look really realistic in inventory. Others really don't loo
+
+- **Transcript:** Some items look really realistic in inventory. Others really don't look realistic, like field rations, for example. So I think we need to make a consistent, uh
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.0 163.0 -12038.3
+- **Facing:** north (yaw 344, pitch -19)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen InventoryMenu
+- **Time:** day 31 19:21, clear
+- **Fps:** 90
+- **Levels:** mic -22 dBFS, game sound -26 dBFS
+- **Length:** 10.4 s (voice 6.5 s)
+- **Just before:** -30s message: Your pack is full: the Castellan's Brand stays on the ground; -29s opened InventoryMenu; -20s closed InventoryMenu; -15s opened InventoryMenu; -15s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -14s closed InventoryMenu; -13s opened InventoryMenu
+- **Position at the end:** 11370.0 163.0 -12038.3
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.0 --z -12038.3 --yaw 16 --pitch -19 --time 0.557 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183051-091.aac
+
+## 18:31:01 - Okay, no, that's not true. I'm trying to drop four sand right now. It 
+
+- **Transcript:** Okay, no, that's not true. I'm trying to drop four sand right now. It wouldn't let me drop the fucking sand
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.0 163.0 -12038.3
+- **Facing:** north (yaw 344, pitch -19)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen InventoryMenu
+- **Time:** day 31 19:34, clear
+- **Fps:** 90
+- **Levels:** mic -38 dBFS, game sound -25 dBFS
+- **Length:** 6.7 s (voice 3.8 s)
+- **Just before:** -26s opened InventoryMenu; -26s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -25s closed InventoryMenu; -24s opened InventoryMenu
+- **Position at the end:** 11370.0 163.0 -12038.3
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.0 --z -12038.3 --yaw 16 --pitch -19 --time 0.566 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183101-871.aac
+
+![18:31:01](voice-shots/vn-20261015-183101-871.jpg)
+
+## 18:31:09 - Right now I'm trying to drop the sand
+
+- **Transcript:** Right now I'm trying to drop the sand
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.0 163.0 -12038.3
+- **Facing:** north (yaw 344, pitch -19)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen InventoryMenu
+- **Time:** day 31 19:43, clear
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -27 dBFS
+- **Length:** 2.6 s (voice 0.8 s)
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.0 --z -12038.3 --yaw 16 --pitch -19 --time 0.572 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183109-231.aac
+
+## 18:31:11 - Okay, I see. So I have to press it in the Dropbox, which is... I don't
+
+- **Transcript:** Okay, I see. So I have to press it in the Dropbox, which is... I don't like that
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.0 163.0 -12038.3
+- **Facing:** north (yaw 344, pitch -19)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen InventoryMenu
+- **Time:** day 31 19:46, clear
+- **Fps:** 90
+- **Levels:** mic -21 dBFS, game sound -26 dBFS
+- **Length:** 6.8 s (voice 3.2 s)
+- **While talking:** -3s closed InventoryMenu
+- **Position at the end:** 11367.9 163.0 -12037.3
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.0 --z -12038.3 --yaw 16 --pitch -19 --time 0.574 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183111-691.aac
+
+## 18:31:18 - I don't like that
+
+- **Transcript:** I don't like that
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11369.6 163.0 -12037.4
+- **Facing:** west (yaw 270, pitch -1)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 19:54, clear
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -28 dBFS
+- **Length:** 2.8 s (voice 0.5 s)
+- **Just before:** -5s closed InventoryMenu; -1s opened PauseMenu; -0s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11369.6 --z -12037.4 --yaw 90 --pitch -1 --time 0.579 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183118-711.aac
+
+![18:31:18](voice-shots/vn-20261015-183118-711.jpg)
+
+## 18:31:24 - Sondre and Dunski? Okay
+
+- **Transcript:** Sondre and Dunski? Okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11369.7 163.0 -12037.2
+- **Facing:** north-west (yaw 304, pitch -27)
+- **Held:** Golden Apple x23
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11367 162 -12039
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 20:01, clear
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -25 dBFS
+- **Length:** 3.3 s (voice 1.4 s)
+- **Just before:** -11s closed InventoryMenu; -7s opened PauseMenu; -6s closed PauseMenu; -5s opened InventoryMenu; -1s closed InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11369.7 --z -12037.2 --yaw 56 --pitch -27 --time 0.584 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183124-731.aac
+
+## 18:31:44 - I'll take that, I guess
+
+- **Transcript:** I'll take that, I guess
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11370.9 163.4 -12038.5
+- **Facing:** north-west (yaw 316, pitch -35)
+- **Held:** Titanium Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11368 162 -12041
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 20:25, clear
+- **Fps:** 90
+- **Levels:** mic -39 dBFS, game sound -26 dBFS
+- **Length:** 2.0 s (voice 0.5 s)
+- **Just before:** -27s opened PauseMenu; -27s closed PauseMenu; -26s opened InventoryMenu; -21s closed InventoryMenu; -19s holding Field Ration; -19s message: Field Ration; -18s holding Keeper's Journal; -18s message: Keeper's Journal; -18s holding Blitzlanze Arc Gun; -18s message: Blitzlanze Arc Gun; -18s holding Slatefall Carbine; -18s message: Slatefall Carbine; -18s holding Titanium Pickaxe; -18s message: Titanium Pickaxe; -8s opened ChestMenu; -2s closed ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11370.9 --z -12038.5 --yaw 44 --pitch -35 --time 0.601 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183144-991.aac
+
+![18:31:44](voice-shots/vn-20261015-183144-991.jpg)
+
+## 18:32:25 - Uh, Nintendo. Okay
+
+- **Transcript:** Uh, Nintendo. Okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11372.3 163.0 -12038.7
+- **Facing:** north-west (yaw 294, pitch -38)
+- **Held:** Titanium Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11370 162 -12040
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 21:13, clear
+- **Fps:** 90
+- **Levels:** mic -33 dBFS, game sound -25 dBFS
+- **Length:** 3.8 s (voice 1.2 s)
+- **Just before:** -14s message: Your pack is full: the Gunpowder stays on the ground; -5s opened InventoryMenu; -3s closed InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11372.3 --z -12038.7 --yaw 66 --pitch -38 --time 0.635 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183225-091.aac
+
+## 18:32:41 - Not sure what the point of magma cream is, but
+
+- **Transcript:** Not sure what the point of magma cream is, but
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11373.0 163.0 -12039.1
+- **Facing:** west (yaw 255, pitch -28)
+- **Held:** Titanium Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11369 162 -12039
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 21:33, clear
+- **Fps:** 90
+- **Levels:** mic -25 dBFS, game sound -24 dBFS
+- **Length:** 2.8 s (voice 1.2 s)
+- **Just before:** -22s opened InventoryMenu; -19s closed InventoryMenu; -16s opened InventoryMenu; -1s closed InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11373.0 --z -12039.1 --yaw 105 --pitch -28 --time 0.648 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183241-631.aac
+
+![18:32:41](voice-shots/vn-20261015-183241-631.jpg)
+
+## 18:35:09 - How the fuck do I make it then, huh?
+
+- **Transcript:** How the fuck do I make it then, huh?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11373.0 163.0 -12038.4
+- **Facing:** west (yaw 248, pitch -22)
+- **Held:** Blast Furnace x63
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen CraftingBookMenu
+- **Time:** day 31 00:18, clear
+- **Fps:** 90
+- **Levels:** mic -66 dBFS, game sound -29 dBFS
+- **Length:** 2.6 s (voice 0.9 s)
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11373.0 --z -12038.4 --yaw 112 --pitch -22 --time 0.763 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183509-431.aac
+
+![18:35:09](voice-shots/vn-20261015-183509-431.jpg)
+
+## 18:35:12 - This is not a blast furnace
+
+- **Transcript:** This is not a blast furnace
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11373.4 163.0 -12037.8
+- **Facing:** south-west (yaw 227, pitch -28)
+- **Held:** Blast Furnace x63
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen FurnaceMenu
+- **Time:** day 31 00:22, clear
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -26 dBFS
+- **Length:** 2.3 s (voice 0.7 s)
+- **Just before:** -2s closed CraftingBookMenu; -1s opened FurnaceMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11373.4 --z -12037.8 --yaw 133 --pitch -28 --time 0.765 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183512-671.aac
+
+## 18:35:18 - Can't be smelted. Well, what the fuck am I supposed to do with it?
+
+- **Transcript:** Can't be smelted. Well, what the fuck am I supposed to do with it?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11373.4 163.0 -12037.8
+- **Facing:** south-west (yaw 227, pitch -28)
+- **Held:** Blast Furnace x63
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen FurnaceMenu
+- **Time:** day 31 00:29, clear
+- **Fps:** 90
+- **Levels:** mic -49 dBFS, game sound -27 dBFS
+- **Length:** 3.9 s (voice 1.5 s)
+- **Just before:** -8s closed CraftingBookMenu; -7s opened FurnaceMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11373.4 --z -12037.8 --yaw 133 --pitch -28 --time 0.770 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183518-731.aac
+
+## 18:35:29 - Okay, okay
+
+- **Transcript:** Okay, okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11373.7 163.0 -12038.0
+- **Facing:** west (yaw 256, pitch -31)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen FurnaceMenu
+- **Time:** day 31 00:41, clear
+- **Fps:** 90
+- **Levels:** mic -39 dBFS, game sound -27 dBFS
+- **Length:** 2.2 s (voice 0.7 s)
+- **Just before:** -18s closed CraftingBookMenu; -17s opened FurnaceMenu; -4s closed FurnaceMenu; -4s holding Furnace; -4s message: Furnace; -3s holding empty hand; -3s opened FurnaceMenu; -2s holding Raw Sunderite; -1s holding empty hand
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11373.7 --z -12038.0 --yaw 104 --pitch -31 --time 0.779 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183529-031.aac
+
+## 18:35:34 - Some sort of friggin' dunskin super smelter or something? Like, what t
+
+- **Transcript:** Some sort of friggin' dunskin super smelter or something? Like, what the hell?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11372.0 164.0 -12037.4
+- **Facing:** west (yaw 272, pitch -45)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen CraftingBookMenu
+- **Time:** day 31 00:47, clear
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -25 dBFS
+- **Length:** 4.9 s (voice 2.3 s)
+- **Just before:** -23s closed CraftingBookMenu; -22s opened FurnaceMenu; -9s closed FurnaceMenu; -9s holding Furnace; -9s message: Furnace; -8s holding empty hand; -8s opened FurnaceMenu; -7s holding Raw Sunderite; -6s holding empty hand; -4s closed FurnaceMenu; -3s opened CraftingBookMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11372.0 --z -12037.4 --yaw 88 --pitch -45 --time 0.783 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183534-031.aac
+
+![18:35:34](voice-shots/vn-20261015-183534-031.jpg)
+
+## 18:35:38 - What do I use to
+
+- **Transcript:** What do I use to
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11372.0 164.0 -12037.4
+- **Facing:** west (yaw 272, pitch -45)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen CraftingBookMenu
+- **Time:** day 31 00:53, clear
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -24 dBFS
+- **Length:** 2.1 s (voice 0.6 s)
+- **Just before:** -28s closed CraftingBookMenu; -27s opened FurnaceMenu; -14s closed FurnaceMenu; -14s holding Furnace; -14s message: Furnace; -13s holding empty hand; -13s opened FurnaceMenu; -12s holding Raw Sunderite; -11s holding empty hand; -9s closed FurnaceMenu; -8s opened CraftingBookMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11372.0 --z -12037.4 --yaw 88 --pitch -45 --time 0.787 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183538-971.aac
+
+## 18:35:47 - I don't understand
+
+- **Transcript:** I don't understand
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11372.0 164.0 -12037.4
+- **Facing:** west (yaw 268, pitch 12)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 01:03, clear
+- **Fps:** 90
+- **Levels:** mic -32 dBFS, game sound -26 dBFS
+- **Length:** 2.0 s (voice 0.6 s)
+- **Just before:** -23s closed FurnaceMenu; -22s holding Furnace; -22s message: Furnace; -22s holding empty hand; -21s opened FurnaceMenu; -20s holding Raw Sunderite; -19s holding empty hand; -18s closed FurnaceMenu; -16s opened CraftingBookMenu; -0s closed CraftingBookMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11372.0 --z -12037.4 --yaw 92 --pitch 12 --time 0.794 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183547-431.aac
+
+![18:35:47](voice-shots/vn-20261015-183547-431.jpg)
+
+## 18:35:49 - Okay, whatever. I don't know if s-sundry where the fuck it is
+
+- **Transcript:** Okay, whatever. I don't know if s-sundry where the fuck it is
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11368.1 163.0 -12034.8
+- **Facing:** north-west (yaw 294, pitch -26)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Brick Stairs at 11365 163 -12036
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 01:06, clear
+- **Fps:** 90
+- **Levels:** mic -32 dBFS, game sound -18 dBFS
+- **Length:** 4.6 s (voice 2.1 s)
+- **Just before:** -25s closed FurnaceMenu; -24s holding Furnace; -24s message: Furnace; -24s holding empty hand; -24s opened FurnaceMenu; -23s holding Raw Sunderite; -22s holding empty hand; -20s closed FurnaceMenu; -19s opened CraftingBookMenu; -3s closed CraftingBookMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11368.1 --z -12034.8 --yaw 66 --pitch -26 --time 0.796 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183549-791.aac
+
+## 18:36:02 - 20 left. Frig, what's this?
+
+- **Transcript:** 20 left. Frig, what's this?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11368.6 173.0 -12028.5
+- **Facing:** east (yaw 112, pitch -4)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 01:22, clear
+- **Fps:** 90
+- **Levels:** mic -31 dBFS, game sound -23 dBFS
+- **Length:** 2.8 s (voice 0.5 s)
+- **Just before:** -15s closed CraftingBookMenu; -10s holding Blast Furnace; -10s message: Blast Furnace; -10s holding Falke Pistol; -10s message: Falke Pistol; -9s holding Blast Furnace; -9s message: Blast Furnace; -9s holding Falke Pistol; -9s message: Falke Pistol; -9s message: Loaded: 18 / 18; -7s opened InventoryMenu; -7s closed InventoryMenu; -4s took 1 damage (health 20/20)
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11368.6 --z -12028.5 --yaw -112 --pitch -4 --time 0.807 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183602-731.aac
+
+![18:36:02](voice-shots/vn-20261015-183602-731.jpg)
+
+## 18:36:06 - What the fuck? Oh
+
+- **Transcript:** What the fuck? Oh
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11380.9 173.0 -12028.3
+- **Facing:** south (yaw 190, pitch -18)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 11380 172 -12024
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 01:27, clear
+- **Fps:** 90
+- **Levels:** mic -40 dBFS, game sound -24 dBFS
+- **Length:** 2.3 s (voice 0.7 s)
+- **Just before:** -20s closed CraftingBookMenu; -14s holding Blast Furnace; -14s message: Blast Furnace; -14s holding Falke Pistol; -14s message: Falke Pistol; -13s holding Blast Furnace; -13s message: Blast Furnace; -13s holding Falke Pistol; -13s message: Falke Pistol; -13s message: Loaded: 18 / 18; -11s opened InventoryMenu; -11s closed InventoryMenu; -8s took 1 damage (health 20/20); -3s holding Blast Furnace; -3s message: Blast Furnace; -3s holding empty hand; -2s opened DoubleChestMenu; -1s closed DoubleChestMenu; -1s holding Blast Furnace; -0s holding Falke Pistol; -0s message: Falke Pistol
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11380.9 --z -12028.3 --yaw 170 --pitch -18 --time 0.810 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183606-831.aac
+
+## 18:36:54 - What the fuck's this thing?
+
+- **Transcript:** What the fuck's this thing?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11688.0 226.7 -12267.4
+- **Facing:** north-west (yaw 333, pitch -55)
+- **Held:** Golden Apple x20
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 31 02:21, clear
+- **Fps:** 89
+- **Levels:** mic -56 dBFS, game sound -24 dBFS
+- **Length:** 2.5 s (voice 0.6 s)
+- **Just before:** -29s took 22 damage (health 8/20); -28s message: A horn in the dark: the Brand Commander's muster rides out; -24s holding Keeper's Journal; -24s message: Keeper's Journal; -24s took 4 damage (health 5/20); -24s holding Field Ration; -24s message: Field Ration; -24s holding Golden Apple; -24s message: Golden Apple; -21s took 3 damage (health 5/20); -19s walked into Ember Wastes; -13s opened PauseMenu; -12s message: Creative mode: switch back from the pause menu's Mode row; -12s closed PauseMenu; -9s message: Flying; -7s walked into Ghost Sand Valley; -5s walked into Basalt Deltas; -3s walked into Tealcap Forest; -1s walked into Ghost Sand Valley
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11688.0 --z -12267.4 --yaw 27 --pitch -55 --time 0.848 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183654-171.aac
+
+![18:36:54](voice-shots/vn-20261015-183654-171.jpg)
+
+## 18:36:57 - It must be a fashion of some kind
+
+- **Transcript:** It must be a fashion of some kind
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11692.2 226.7 -12289.4
+- **Facing:** north-west (yaw 322, pitch -72)
+- **Held:** Golden Apple x20
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 31 02:25, clear
+- **Fps:** 89
+- **Levels:** mic -30 dBFS, game sound -21 dBFS
+- **Length:** 3.0 s (voice 1.3 s)
+- **Just before:** -27s holding Keeper's Journal; -27s message: Keeper's Journal; -27s took 4 damage (health 5/20); -27s holding Field Ration; -27s message: Field Ration; -27s holding Golden Apple; -27s message: Golden Apple; -24s took 3 damage (health 5/20); -22s walked into Ember Wastes; -16s opened PauseMenu; -15s message: Creative mode: switch back from the pause menu's Mode row; -14s closed PauseMenu; -12s message: Flying; -10s walked into Ghost Sand Valley; -8s walked into Basalt Deltas; -6s walked into Tealcap Forest; -4s walked into Ghost Sand Valley; -2s walked into Ember Wastes
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11692.2 --z -12289.4 --yaw 38 --pitch -72 --time 0.851 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183657-151.aac
+
+## 18:37:09 - So right now I am not able-- I wasn't briefly able not to grip to the 
+
+- **Transcript:** So right now I am not able-- I wasn't briefly able not to grip to the right
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11693.1 203.3 -12293.1
+- **Facing:** north-west (yaw 328, pitch -29)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 19/20
+- **Time:** day 31 02:37, clear
+- **Fps:** 89
+- **Levels:** mic -24 dBFS, game sound -23 dBFS
+- **Length:** 5.8 s (voice 3.4 s)
+- **Just before:** -29s opened PauseMenu; -27s message: Creative mode: switch back from the pause menu's Mode row; -27s closed PauseMenu; -24s message: Flying; -22s walked into Ghost Sand Valley; -20s walked into Basalt Deltas; -18s walked into Tealcap Forest; -16s walked into Ghost Sand Valley; -14s walked into Ember Wastes; -9s message: Walking; -6s opened PauseMenu; -4s message: Survival mode: switch back from the pause menu's Mode row; -4s closed PauseMenu; -4s holding Falke Pistol; -3s holding Golden Apple; -3s holding Falke Pistol; -3s holding Golden Apple; -2s holding Falke Pistol; -2s holding Golden Apple; -2s holding Falke Pistol; -2s holding Polished Onyxstone Bricks; -1s holding Golden Apple; -0s holding Falke Pistol; -0s message: Falke Pistol
+- **While talking:** -5s holding Golden Apple; -5s message: Golden Apple; -5s holding Falke Pistol; -5s message: Falke Pistol; -5s holding Polished Onyxstone Bricks; -5s message: Polished Onyxstone Bricks; -4s holding Golden Apple; -4s message: Golden Apple; -4s holding Field Ration; -4s message: Field Ration; -4s holding Keeper's Journal; -4s message: Keeper's Journal; -4s holding Blitzlanze Arc Gun; -4s message: Blitzlanze Arc Gun; -3s holding Keeper's Journal; -3s message: Keeper's Journal; -3s holding Field Ration; -3s message: Field Ration; -3s walked into Ghost Sand Valley; -3s holding Golden Apple; -3s message: Golden Apple; -3s holding Polished Onyxstone Bricks; -3s message: Polished Onyxstone Bricks; -3s took 3 damage (health 20/20); -2s holding Falke Pistol; -2s message: Falke Pistol; -2s took 1 damage (health 20/20)
+- **Position at the end:** 11704.0 203.9 -12305.4
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11693.1 --z -12293.1 --yaw 32 --pitch -29 --time 0.860 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183709-671.aac
+
+![18:37:09](voice-shots/vn-20261015-183709-671.jpg)
+
+## 18:37:18 - I'm gonna give a shit. I'm going down
+
+- **Transcript:** I'm gonna give a shit. I'm going down
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11704.8 205.7 -12312.0
+- **Facing:** west (yaw 264, pitch -17)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 18/20
+- **Time:** day 31 02:48, clear
+- **Fps:** 90
+- **Levels:** mic -53 dBFS, game sound -20 dBFS
+- **Length:** 2.6 s (voice 0.6 s)
+- **Just before:** -11s holding Golden Apple; -11s holding Falke Pistol; -11s holding Golden Apple; -11s holding Falke Pistol; -10s holding Polished Onyxstone Bricks; -10s holding Golden Apple; -9s holding Falke Pistol; -9s message: Falke Pistol; -9s holding Golden Apple; -9s message: Golden Apple; -8s holding Falke Pistol; -8s message: Falke Pistol; -8s holding Polished Onyxstone Bricks; -8s message: Polished Onyxstone Bricks; -8s holding Golden Apple; -8s message: Golden Apple; -8s holding Field Ration; -8s message: Field Ration; -8s holding Keeper's Journal; -8s message: Keeper's Journal; -8s holding Blitzlanze Arc Gun; -8s message: Blitzlanze Arc Gun; -7s holding Keeper's Journal; -7s message: Keeper's Journal; -7s holding Field Ration; -7s message: Field Ration; -7s walked into Ghost Sand Valley; -7s holding Golden Apple; -7s message: Golden Apple; -6s holding Polished Onyxstone Bricks; -6s message: Polished Onyxstone Bricks; -6s took 3 damage (health 20/20); -6s holding Falke Pistol; -6s message: Falke Pistol; -5s took 1 damage (health 20/20); -3s holding Blast Furnace; -3s message: Blast Furnace; -2s holding Falke Pistol; -2s message: Falke Pistol; -1s message: Empty: reach to your hip for a magazine
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11704.8 --z -12312.0 --yaw 96 --pitch -17 --time 0.867 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183718-411.aac
+
+## 18:37:21 - Okay, down we go
+
+- **Transcript:** Okay, down we go
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11694.4 201.0 -12306.2
+- **Facing:** west (yaw 288, pitch -54)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 19/20
+- **Time:** day 31 02:51, clear
+- **Fps:** 90
+- **Levels:** mic -29 dBFS, game sound -21 dBFS
+- **Length:** 2.7 s (voice 1.1 s)
+- **Just before:** -14s holding Falke Pistol; -14s holding Golden Apple; -14s holding Falke Pistol; -13s holding Polished Onyxstone Bricks; -13s holding Golden Apple; -12s holding Falke Pistol; -12s message: Falke Pistol; -12s holding Golden Apple; -12s message: Golden Apple; -11s holding Falke Pistol; -11s message: Falke Pistol; -11s holding Polished Onyxstone Bricks; -11s message: Polished Onyxstone Bricks; -11s holding Golden Apple; -11s message: Golden Apple; -11s holding Field Ration; -11s message: Field Ration; -11s holding Keeper's Journal; -11s message: Keeper's Journal; -11s holding Blitzlanze Arc Gun; -11s message: Blitzlanze Arc Gun; -10s holding Keeper's Journal; -10s message: Keeper's Journal; -10s holding Field Ration; -10s message: Field Ration; -10s walked into Ghost Sand Valley; -10s holding Golden Apple; -10s message: Golden Apple; -9s holding Polished Onyxstone Bricks; -9s message: Polished Onyxstone Bricks; -9s took 3 damage (health 20/20); -9s holding Falke Pistol; -9s message: Falke Pistol; -8s took 1 damage (health 20/20); -6s holding Blast Furnace; -6s message: Blast Furnace; -5s holding Falke Pistol; -5s message: Falke Pistol; -4s message: Empty: reach to your hip for a magazine; -1s took 3 damage (health 20/20)
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11694.4 --z -12306.2 --yaw 72 --pitch -54 --time 0.869 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183721-371.aac
+
+![18:37:21](voice-shots/vn-20261015-183721-371.jpg)
+
+## 18:37:49 - Ooh, don't mind if I do
+
+- **Transcript:** Ooh, don't mind if I do
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11678.4 175.0 -12309.3
+- **Facing:** south-west (yaw 218, pitch -21)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 18/20, screen ChestMenu
+- **Time:** day 31 03:24, clear
+- **Fps:** 90
+- **Levels:** mic -37 dBFS, game sound -25 dBFS
+- **Length:** 3.1 s (voice 1.0 s)
+- **Just before:** -24s closed PauseMenu; -23s opened InventoryMenu; -22s closed InventoryMenu; -22s holding Blast Furnace; -22s message: Blast Furnace; -21s holding Titanium Sword; -21s message: Titanium Sword; -19s holding Falke Pistol; -19s message: Falke Pistol; -18s holding Titanium Sword; -18s message: Titanium Sword; -18s holding Birch Planks; -18s message: Birch Planks; -18s holding Titanium Sword; -18s message: Titanium Sword; -18s holding Blast Furnace; -18s message: Blast Furnace; -17s holding Falke Pistol; -17s message: Falke Pistol; -17s holding Blast Furnace; -17s message: Blast Furnace; -17s holding Falke Pistol; -17s message: Falke Pistol; -16s holding Blast Furnace; -16s message: Blast Furnace; -16s holding Falke Pistol; -16s message: Falke Pistol; -16s holding Blast Furnace; -16s message: Blast Furnace; -16s holding Falke Pistol; -16s message: Falke Pistol; -15s holding Blast Furnace; -15s message: Blast Furnace; -15s holding Titanium Sword; -15s message: Titanium Sword; -14s took 2 damage (health 19/20); -7s took 4 damage (health 18/20); -6s took 1 damage (health 17/20); -5s took 1 damage (health 16/20); -3s opened ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11678.4 --z -12309.3 --yaw 142 --pitch -21 --time 0.892 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183749-451.aac
+
+![18:37:49](voice-shots/vn-20261015-183749-451.jpg)
+
+## 18:38:07 - Reinforced. Okay
+
+- **Transcript:** Reinforced. Okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11670.0 175.0 -12309.3
+- **Facing:** north (yaw 359, pitch -33)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Gilded Onyxstone at 11669 174 -12312
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 03:46, clear
+- **Fps:** 90
+- **Levels:** mic -25 dBFS, game sound -14 dBFS
+- **Length:** 2.8 s (voice 0.6 s)
+- **Just before:** -25s took 4 damage (health 18/20); -24s took 1 damage (health 17/20); -23s took 1 damage (health 16/20); -21s opened ChestMenu; -16s closed ChestMenu; -14s opened ChestMenu; -9s closed ChestMenu; -7s opened InventoryMenu; -1s closed InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11670.0 --z -12309.3 --yaw 1 --pitch -33 --time 0.908 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183807-851.aac
+
+![18:38:07](voice-shots/vn-20261015-183807-851.jpg)
+
+## 18:38:20 - Rendering at eight works like a charm
+
+- **Transcript:** Rendering at eight works like a charm
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11633.8 237.0 -12685.1
+- **Facing:** north-east (yaw 53, pitch -32)
+- **Held:** Field Ration x16
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 31 04:00, clear
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -15 dBFS
+- **Length:** 3.1 s (voice 1.5 s)
+- **Just before:** -28s closed ChestMenu; -27s opened ChestMenu; -22s closed ChestMenu; -20s opened InventoryMenu; -13s closed InventoryMenu; -11s holding Falke Pistol; -11s message: Falke Pistol; -10s holding Polished Onyxstone Bricks; -10s message: Polished Onyxstone Bricks; -10s holding Golden Apple; -10s message: Golden Apple; -10s holding Field Ration; -10s message: Field Ration; -9s message: No flying in survival; -8s opened PauseMenu; -7s message: Creative mode: switch back from the pause menu's Mode row; -6s closed PauseMenu; -4s message: Flying; -1s walked into Tealcap Forest
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11633.8 --z -12685.1 --yaw -53 --pitch -32 --time 0.917 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183820-451.aac
+
+![18:38:20](voice-shots/vn-20261015-183820-451.jpg)
+
+## 18:38:23 - Yeah, these bastions are almost too common. Yeah, as expected
+
+- **Transcript:** Yeah, these bastions are almost too common. Yeah, as expected
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11637.4 237.0 -12725.6
+- **Facing:** north (yaw 14, pitch -62)
+- **Held:** Field Ration x16
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 31 04:03, clear
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -17 dBFS
+- **Length:** 4.6 s (voice 2.1 s)
+- **Just before:** -30s opened ChestMenu; -25s closed ChestMenu; -23s opened InventoryMenu; -16s closed InventoryMenu; -14s holding Falke Pistol; -14s message: Falke Pistol; -13s holding Polished Onyxstone Bricks; -13s message: Polished Onyxstone Bricks; -13s holding Golden Apple; -13s message: Golden Apple; -13s holding Field Ration; -13s message: Field Ration; -12s message: No flying in survival; -11s opened PauseMenu; -10s message: Creative mode: switch back from the pause menu's Mode row; -9s closed PauseMenu; -7s message: Flying; -4s walked into Tealcap Forest
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11637.4 --z -12725.6 --yaw -14 --pitch -62 --time 0.919 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183823-471.aac
+
+## 18:39:08 - It's letting me know that
+
+- **Transcript:** It's letting me know that
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11678.6 176.3 -12760.9
+- **Facing:** north-east (yaw 25, pitch -35)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Cinderstone at 11681 176 -12764
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 04:54, rain
+- **Fps:** 90
+- **Levels:** mic -35 dBFS, game sound -15 dBFS
+- **Length:** 2.6 s (voice 0.8 s)
+- **Just before:** -20s message: Field Ration; -20s holding Golden Apple; -20s message: Golden Apple; -19s holding Polished Onyxstone Bricks; -19s message: Polished Onyxstone Bricks; -19s holding Falke Pistol; -19s message: Falke Pistol; -19s holding Blast Furnace; -19s message: Blast Furnace; -19s holding Titanium Sword; -19s message: Titanium Sword; -16s took 1 damage (health 19/20); -9s took 9 damage (health 10/20); -9s holding Birch Planks; -9s message: Birch Planks; -8s holding Blitzlanze Arc Gun; -8s message: Blitzlanze Arc Gun; -8s holding Keeper's Journal; -8s message: Keeper's Journal; -8s holding Field Ration; -8s message: Field Ration; -7s holding Golden Apple; -7s message: Golden Apple; -6s message: Your Hannibal Helmet is nearly worn out; -5s took 1 damage (health 11/20); -2s holding Falke Pistol; -2s message: Falke Pistol; -2s holding Golden Apple; -2s message: Golden Apple; -2s holding Falke Pistol; -2s message: Falke Pistol; -1s holding Blast Furnace; -1s message: Blast Furnace; -1s holding Falke Pistol; -1s message: Falke Pistol; -1s holding Blast Furnace; -1s message: Blast Furnace; -1s holding Titanium Sword; -1s message: Titanium Sword; -0s walked into Ember Wastes
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11678.6 --z -12760.9 --yaw -25 --pitch -35 --time 0.955 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183908-091.aac
+
+## 18:39:20 - Okay, yeah, man, just everybody can fucking die, yep
+
+- **Transcript:** Okay, yeah, man, just everybody can fucking die, yep
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11645.9 170.0 -12744.3
+- **Facing:** south-east (yaw 119, pitch -19)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone Bricks at 11649 169 -12743
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 05:09, rain
+- **Fps:** 90
+- **Levels:** mic -34 dBFS, game sound -12 dBFS
+- **Length:** 4.0 s (voice 1.5 s)
+- **Just before:** -29s took 1 damage (health 19/20); -21s took 9 damage (health 10/20); -21s holding Birch Planks; -21s message: Birch Planks; -21s holding Blitzlanze Arc Gun; -21s message: Blitzlanze Arc Gun; -20s holding Keeper's Journal; -20s message: Keeper's Journal; -20s holding Field Ration; -20s message: Field Ration; -20s holding Golden Apple; -20s message: Golden Apple; -18s message: Your Hannibal Helmet is nearly worn out; -17s took 1 damage (health 11/20); -15s holding Falke Pistol; -15s message: Falke Pistol; -15s holding Golden Apple; -15s message: Golden Apple; -14s holding Falke Pistol; -14s message: Falke Pistol; -14s holding Blast Furnace; -14s message: Blast Furnace; -14s holding Falke Pistol; -14s message: Falke Pistol; -13s holding Blast Furnace; -13s message: Blast Furnace; -13s holding Titanium Sword; -13s message: Titanium Sword; -13s walked into Ember Wastes
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11645.9 --z -12744.3 --yaw -119 --pitch -19 --time 0.965 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183920-471.aac
+
+![18:39:20](voice-shots/vn-20261015-183920-471.jpg)
+
+## 18:39:47 - Hey, fuck you, bitch ass
+
+- **Transcript:** Hey, fuck you, bitch ass
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11624.6 170.0 -12746.7
+- **Facing:** north (yaw 359, pitch 36)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 31 05:41, rain
+- **Fps:** 90
+- **Levels:** mic -42 dBFS, game sound -15 dBFS
+- **Length:** 3.8 s (voice 0.8 s)
+- **Just before:** -16s holding Blast Furnace; -16s message: Blast Furnace; -14s took 1 damage (health 20/20); -13s holding Titanium Sword; -13s message: Titanium Sword; -12s took 3 damage (health 18/20); -9s message: Your pack is full: the Iron Nugget stays on the ground; -7s walked into Tealcap Forest; -5s took 2 damage (health 19/20)
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11624.6 --z -12746.7 --yaw 1 --pitch 36 --time 0.987 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-183947-231.aac
+
+![18:39:47](voice-shots/vn-20261015-183947-231.jpg)
+
+## 18:41:13 - Okay, this is so annoying
+
+- **Transcript:** Okay, this is so annoying
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11344.8 234.8 -13607.4
+- **Facing:** west (yaw 292, pitch -57)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 07:21, rain
+- **Fps:** 89
+- **Levels:** mic -27 dBFS, game sound -34 dBFS
+- **Length:** 2.9 s (voice 0.8 s)
+- **Just before:** -24s opened PauseMenu; -22s message: Creative mode: switch back from the pause menu's Mode row; -21s closed PauseMenu; -19s walked into Rustcap Forest; -19s message: Flying; -17s walked into Tealcap Forest; -15s walked into Ember Wastes; -13s walked into Basalt Deltas; -11s walked into Ghost Sand Valley; -9s walked into Tealcap Forest; -7s walked into Ember Wastes; -5s walked into Rustcap Forest; -4s message: Walking; -3s walked into Tealcap Forest; -2s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11344.8 --z -13607.4 --yaw 68 --pitch -57 --time 0.057 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184113-431.aac
+
+![18:41:13](voice-shots/vn-20261015-184113-431.jpg)
+
+## 18:41:53 - Nice. I can actually rapid place blocks under me. That's nice
+
+- **Transcript:** Nice. I can actually rapid place blocks under me. That's nice
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11352.2 194.0 -13617.3
+- **Facing:** east (yaw 105, pitch -28)
+- **Held:** Cobblestone x29
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 08:05, rain
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -26 dBFS
+- **Length:** 4.8 s (voice 2.4 s)
+- **Just before:** -24s opened InventoryMenu; -22s closed InventoryMenu; -22s holding Golden Apple; -22s message: Golden Apple; -21s holding Titanium Pickaxe; -21s message: Titanium Pickaxe; -21s took 1 damage (health 19/20); -19s holding Keeper's Journal; -19s message: Keeper's Journal; -19s holding Blitzlanze Arc Gun; -19s message: Blitzlanze Arc Gun; -19s holding Birch Planks; -19s message: Birch Planks; -19s holding Titanium Sword; -19s message: Titanium Sword; -17s took 3 damage (health 16/20); -17s message: No flying in survival; -15s holding Blast Furnace; -15s holding Falke Pistol; -15s took 5 damage (health 11/20); -15s holding Polished Onyxstone Bricks; -15s holding Golden Apple; -15s message: Golden Apple; -11s holding Titanium Pickaxe; -11s message: Titanium Pickaxe; -10s holding Keeper's Journal; -10s message: Keeper's Journal; -10s holding Blitzlanze Arc Gun; -10s message: Blitzlanze Arc Gun; -10s holding Birch Planks; -10s message: Birch Planks; -10s holding Titanium Sword; -10s message: Titanium Sword; -9s opened InventoryMenu; -7s closed InventoryMenu; -6s holding Cobblestone; -6s message: Cobblestone; -5s opened InventoryMenu; -4s closed InventoryMenu; -1s message: You're standing there
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11352.2 --z -13617.3 --yaw -105 --pitch -28 --time 0.087 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184153-792.aac
+
+![18:41:53](voice-shots/vn-20261015-184153-792.jpg)
+
+## 18:42:00 - Wasn't able to do that before
+
+- **Transcript:** Wasn't able to do that before
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11352.3 194.0 -13617.5
+- **Facing:** south-west (yaw 235, pitch 87)
+- **Held:** Titanium Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 08:13, rain
+- **Fps:** 90
+- **Levels:** mic -41 dBFS, game sound -24 dBFS
+- **Length:** 2.8 s (voice 1.1 s)
+- **Just before:** -26s holding Blitzlanze Arc Gun; -26s message: Blitzlanze Arc Gun; -26s holding Birch Planks; -26s message: Birch Planks; -26s holding Titanium Sword; -26s message: Titanium Sword; -24s took 3 damage (health 16/20); -24s message: No flying in survival; -22s holding Blast Furnace; -22s holding Falke Pistol; -22s took 5 damage (health 11/20); -22s holding Polished Onyxstone Bricks; -22s holding Golden Apple; -22s message: Golden Apple; -18s holding Titanium Pickaxe; -18s message: Titanium Pickaxe; -18s holding Keeper's Journal; -18s message: Keeper's Journal; -17s holding Blitzlanze Arc Gun; -17s message: Blitzlanze Arc Gun; -17s holding Birch Planks; -17s message: Birch Planks; -17s holding Titanium Sword; -17s message: Titanium Sword; -16s opened InventoryMenu; -14s closed InventoryMenu; -13s holding Cobblestone; -13s message: Cobblestone; -12s opened InventoryMenu; -11s closed InventoryMenu; -8s message: You're standing there; -6s holding Titanium Sword; -6s holding Birch Planks; -5s holding Blitzlanze Arc Gun; -5s message: Blitzlanze Arc Gun; -5s holding Keeper's Journal; -5s message: Keeper's Journal; -5s holding Titanium Pickaxe; -5s message: Titanium Pickaxe; -3s message: Your pack is full: the Bricks stays on the ground
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11352.3 --z -13617.5 --yaw 125 --pitch 87 --time 0.093 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184200-871.aac
+
+## 18:42:04 - Oh yeah, that's awesome
+
+- **Transcript:** Oh yeah, that's awesome
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11352.5 200.0 -13617.5
+- **Facing:** south-east (yaw 151, pitch -82)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** Cobblestone at 11352 199 -13618
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 08:18, rain
+- **Fps:** 90
+- **Levels:** mic -34 dBFS, game sound -24 dBFS
+- **Length:** 2.5 s (voice 0.7 s)
+- **Just before:** -26s holding Blast Furnace; -26s holding Falke Pistol; -26s took 5 damage (health 11/20); -26s holding Polished Onyxstone Bricks; -25s holding Golden Apple; -25s message: Golden Apple; -22s holding Titanium Pickaxe; -22s message: Titanium Pickaxe; -21s holding Keeper's Journal; -21s message: Keeper's Journal; -21s holding Blitzlanze Arc Gun; -21s message: Blitzlanze Arc Gun; -21s holding Birch Planks; -21s message: Birch Planks; -21s holding Titanium Sword; -21s message: Titanium Sword; -20s opened InventoryMenu; -17s closed InventoryMenu; -17s holding Cobblestone; -17s message: Cobblestone; -15s opened InventoryMenu; -15s closed InventoryMenu; -11s message: You're standing there; -10s holding Titanium Sword; -9s holding Birch Planks; -9s holding Blitzlanze Arc Gun; -9s message: Blitzlanze Arc Gun; -9s holding Keeper's Journal; -9s message: Keeper's Journal; -8s holding Titanium Pickaxe; -8s message: Titanium Pickaxe; -7s message: Your pack is full: the Bricks stays on the ground; -3s holding Golden Apple; -3s message: Golden Apple; -2s holding Polished Onyxstone Bricks; -2s message: Polished Onyxstone Bricks; -2s holding Falke Pistol; -2s message: Falke Pistol; -2s holding Cobblestone; -2s message: Cobblestone
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11352.5 --z -13617.5 --yaw -151 --pitch -82 --time 0.096 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184204-631.aac
+
+![18:42:04](voice-shots/vn-20261015-184204-631.jpg)
+
+## 18:42:07 - Fucking hell, I can't grip left. Just
+
+- **Transcript:** Fucking hell, I can't grip left. Just
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11352.3 198.0 -13612.6
+- **Facing:** east (yaw 84, pitch -39)
+- **Held:** Titanium Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Steel Plating at 11354 197 -13613
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 08:21, rain
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -17 dBFS
+- **Length:** 3.3 s (voice 1.3 s)
+- **Just before:** -24s holding Keeper's Journal; -24s message: Keeper's Journal; -24s holding Blitzlanze Arc Gun; -24s message: Blitzlanze Arc Gun; -23s holding Birch Planks; -23s message: Birch Planks; -23s holding Titanium Sword; -23s message: Titanium Sword; -23s opened InventoryMenu; -20s closed InventoryMenu; -19s holding Cobblestone; -19s message: Cobblestone; -18s opened InventoryMenu; -17s closed InventoryMenu; -14s message: You're standing there; -12s holding Titanium Sword; -12s holding Birch Planks; -12s holding Blitzlanze Arc Gun; -12s message: Blitzlanze Arc Gun; -12s holding Keeper's Journal; -12s message: Keeper's Journal; -11s holding Titanium Pickaxe; -11s message: Titanium Pickaxe; -10s message: Your pack is full: the Bricks stays on the ground; -5s holding Golden Apple; -5s message: Golden Apple; -5s holding Polished Onyxstone Bricks; -5s message: Polished Onyxstone Bricks; -5s holding Falke Pistol; -5s message: Falke Pistol; -4s holding Cobblestone; -4s message: Cobblestone; -2s holding Falke Pistol; -2s message: Falke Pistol; -0s holding Polished Onyxstone Bricks; -0s message: Polished Onyxstone Bricks; -0s holding Golden Apple; -0s message: Golden Apple; -0s holding Titanium Pickaxe; -0s message: Titanium Pickaxe
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11352.3 --z -13612.6 --yaw -84 --pitch -39 --time 0.098 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184207-272.aac
+
+## 18:42:12 - Sometimes it... Okay. Sometimes can't grip left, sometimes can't grip 
+
+- **Transcript:** Sometimes it... Okay. Sometimes can't grip left, sometimes can't grip right
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11345.8 198.0 -13612.9
+- **Facing:** north-east (yaw 27, pitch -64)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Steel Plating at 11346 197 -13614
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 08:28, rain
+- **Fps:** 90
+- **Levels:** mic -25 dBFS, game sound -27 dBFS
+- **Length:** 4.9 s (voice 2.6 s)
+- **Just before:** -28s opened InventoryMenu; -25s closed InventoryMenu; -25s holding Cobblestone; -25s message: Cobblestone; -24s opened InventoryMenu; -23s closed InventoryMenu; -20s message: You're standing there; -18s holding Titanium Sword; -18s holding Birch Planks; -17s holding Blitzlanze Arc Gun; -17s message: Blitzlanze Arc Gun; -17s holding Keeper's Journal; -17s message: Keeper's Journal; -17s holding Titanium Pickaxe; -17s message: Titanium Pickaxe; -15s message: Your pack is full: the Bricks stays on the ground; -11s holding Golden Apple; -11s message: Golden Apple; -11s holding Polished Onyxstone Bricks; -11s message: Polished Onyxstone Bricks; -10s holding Falke Pistol; -10s message: Falke Pistol; -10s holding Cobblestone; -10s message: Cobblestone; -7s holding Falke Pistol; -7s message: Falke Pistol; -6s holding Polished Onyxstone Bricks; -6s message: Polished Onyxstone Bricks; -6s holding Golden Apple; -6s message: Golden Apple; -6s holding Titanium Pickaxe; -6s message: Titanium Pickaxe; -5s holding Keeper's Journal; -5s message: Keeper's Journal; -5s holding Blitzlanze Arc Gun; -5s message: Blitzlanze Arc Gun; -5s holding Birch Planks; -5s message: Birch Planks; -5s holding Titanium Sword; -5s message: Titanium Sword
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11345.8 --z -13612.9 --yaw -27 --pitch -64 --time 0.103 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184212-791.aac
+
+## 18:42:17 - I don't know what the issue is
+
+- **Transcript:** I don't know what the issue is
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11371.8 198.0 -13612.6
+- **Facing:** north-east (yaw 62, pitch -33)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Steel Plating at 11373 197 -13614
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 08:33, rain
+- **Fps:** 90
+- **Levels:** mic -33 dBFS, game sound -26 dBFS
+- **Length:** 2.4 s (voice 1.2 s)
+- **Just before:** -30s holding Cobblestone; -30s message: Cobblestone; -28s opened InventoryMenu; -27s closed InventoryMenu; -24s message: You're standing there; -22s holding Titanium Sword; -22s holding Birch Planks; -22s holding Blitzlanze Arc Gun; -22s message: Blitzlanze Arc Gun; -22s holding Keeper's Journal; -22s message: Keeper's Journal; -21s holding Titanium Pickaxe; -21s message: Titanium Pickaxe; -20s message: Your pack is full: the Bricks stays on the ground; -15s holding Golden Apple; -15s message: Golden Apple; -15s holding Polished Onyxstone Bricks; -15s message: Polished Onyxstone Bricks; -15s holding Falke Pistol; -15s message: Falke Pistol; -14s holding Cobblestone; -14s message: Cobblestone; -12s holding Falke Pistol; -12s message: Falke Pistol; -11s holding Polished Onyxstone Bricks; -11s message: Polished Onyxstone Bricks; -10s holding Golden Apple; -10s message: Golden Apple; -10s holding Titanium Pickaxe; -10s message: Titanium Pickaxe; -10s holding Keeper's Journal; -10s message: Keeper's Journal; -10s holding Blitzlanze Arc Gun; -10s message: Blitzlanze Arc Gun; -9s holding Birch Planks; -9s message: Birch Planks; -9s holding Titanium Sword; -9s message: Titanium Sword
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11371.8 --z -13612.6 --yaw -62 --pitch -33 --time 0.107 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184217-351.aac
+
+![18:42:17](voice-shots/vn-20261015-184217-351.jpg)
+
+## 18:42:47 - Where the hell do I smelt it then?
+
+- **Transcript:** Where the hell do I smelt it then?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11368.4 198.0 -13652.5
+- **Facing:** north (yaw 351, pitch -48)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen FurnaceMenu
+- **Time:** day 32 09:09, rain
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -32 dBFS
+- **Length:** 3.3 s (voice 1.7 s)
+- **Just before:** -30s holding Falke Pistol; -30s message: Falke Pistol; -30s holding Polished Onyxstone Bricks; -30s message: Polished Onyxstone Bricks; -29s holding Golden Apple; -29s message: Golden Apple; -29s walked into Ember Wastes; -29s holding Titanium Pickaxe; -29s message: Titanium Pickaxe; -27s holding Keeper's Journal; -27s message: Keeper's Journal; -27s holding Blitzlanze Arc Gun; -27s message: Blitzlanze Arc Gun; -27s holding Birch Planks; -27s message: Birch Planks; -27s holding Titanium Sword; -27s message: Titanium Sword; -23s walked into Tealcap Forest; -23s took 1 damage (health 20/20); -22s took 1 damage (health 20/20); -21s took 1 damage (health 20/20); -16s opened FurnaceMenu; -13s closed FurnaceMenu; -12s opened FurnaceMenu; -3s took 2 damage (health 20/20); -2s took 1 damage (health 20/20)
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11368.4 --z -13652.5 --yaw 9 --pitch -48 --time 0.132 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184247-631.aac
+
+![18:42:47](voice-shots/vn-20261015-184247-631.jpg)
+
+## 18:42:51 - Oh, okay. I need a freaking like
+
+- **Transcript:** Oh, okay. I need a freaking like
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11376.7 198.0 -13654.7
+- **Facing:** north-east (yaw 31, pitch 10)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Ember Wart at 11377 199 -13657
+- **Mode:** Survival, health 19/20
+- **Time:** day 32 09:14, rain
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -23 dBFS
+- **Length:** 3.0 s (voice 1.3 s)
+- **Just before:** -27s walked into Tealcap Forest; -27s took 1 damage (health 20/20); -26s took 1 damage (health 20/20); -25s took 1 damage (health 20/20); -20s opened FurnaceMenu; -17s closed FurnaceMenu; -16s opened FurnaceMenu; -7s took 2 damage (health 20/20); -6s took 1 damage (health 20/20); -3s closed FurnaceMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11376.7 --z -13654.7 --yaw -31 --pitch 10 --time 0.135 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184251-551.aac
+
+## 18:43:15 - I don't know what the deal is with the
+
+- **Transcript:** I don't know what the deal is with the
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11369.5 198.0 -13643.6
+- **Facing:** south-east (yaw 147, pitch -55)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Steel Plating at 11369 197 -13643
+- **Mode:** Survival, health 20/20, screen PauseMenu
+- **Time:** day 32 09:40, rain
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -34 dBFS
+- **Length:** 3.6 s (voice 1.7 s)
+- **Just before:** -28s closed FurnaceMenu; -24s took 1 damage (health 20/20); -23s took 1 damage (health 20/20); -21s took 1 damage (health 20/20); -3s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11369.5 --z -13643.6 --yaw -147 --pitch -55 --time 0.153 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184315-811.aac
+
+## 18:43:20 - Journal maybe?
+
+- **Transcript:** Journal maybe?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11367.6 198.0 -13644.3
+- **Facing:** south-east (yaw 130, pitch 1)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen PauseMenu
+- **Time:** day 32 09:41, rain
+- **Fps:** 90
+- **Levels:** mic -31 dBFS, game sound -34 dBFS
+- **Length:** 2.1 s (voice 0.7 s)
+- **Just before:** -29s took 1 damage (health 20/20); -28s took 1 damage (health 20/20); -26s took 1 damage (health 20/20); -8s opened PauseMenu; -4s message: Creative mode: switch back from the pause menu's Mode row; -3s closed PauseMenu; -2s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11367.6 --z -13644.3 --yaw -130 --pitch 1 --time 0.154 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184320-811.aac
+
+## 18:45:00 - I have no idea
+
+- **Transcript:** I have no idea
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 11368.1 198.0 -13639.1
+- **Facing:** south (yaw 188, pitch -51)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Steel Plating at 11367 197 -13638
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 11:41, rain
+- **Fps:** 90
+- **Levels:** mic -32 dBFS, game sound -28 dBFS
+- **Length:** 2.1 s (voice 0.7 s)
+- **Just before:** -2s closed JournalMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11368.1 --z -13639.1 --yaw 172 --pitch -51 --time 0.237 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184500-671.aac
+
+![18:45:00](voice-shots/vn-20261015-184500-671.jpg)
+
+## 18:45:08 - Some special location I'm supposed to find or something like
+
+- **Transcript:** Some special location I'm supposed to find or something like
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 11590.6 260.2 -13283.8
+- **Facing:** south-east (yaw 152, pitch -37)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 11:50, rain
+- **Fps:** 90
+- **Levels:** mic -37 dBFS, game sound -20 dBFS
+- **Length:** 4.0 s (voice 2.1 s)
+- **Just before:** -9s closed JournalMenu; -6s message: Flying; -6s walked into Ember Wastes; -4s walked into Basalt Deltas; -2s walked into Rustcap Forest
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11590.6 --z -13283.8 --yaw -152 --pitch -37 --time 0.243 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184508-271.aac
+
+## 18:45:23 - Oh, I can't fall down any faster than this. You kidding me?
+
+- **Transcript:** Oh, I can't fall down any faster than this. You kidding me?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11621.1 251.4 -13143.1
+- **Facing:** north (yaw 9, pitch -45)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 12:09, rain
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -24 dBFS
+- **Length:** 4.2 s (voice 1.7 s)
+- **Just before:** -25s closed JournalMenu; -22s message: Flying; -21s walked into Ember Wastes; -19s walked into Basalt Deltas; -17s walked into Rustcap Forest; -15s walked into Ember Wastes; -13s message: Walking; -11s message: Flying; -10s message: Walking; -8s message: Flying; -7s walked into Ghost Sand Valley; -5s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11621.1 --z -13143.1 --yaw -9 --pitch -45 --time 0.256 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184523-851.aac
+
+![18:45:23](voice-shots/vn-20261015-184523-851.jpg)
+
+## 18:45:40 - Fucking fall
+
+- **Transcript:** Fucking fall
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11600.9 232.2 -13194.4
+- **Facing:** south-east (yaw 148, pitch -56)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 12:28, rain
+- **Fps:** 89
+- **Levels:** mic -27 dBFS, game sound -25 dBFS
+- **Length:** 2.1 s (voice 0.5 s)
+- **Just before:** -29s message: Walking; -27s message: Flying; -26s message: Walking; -24s message: Flying; -23s walked into Ghost Sand Valley; -21s message: Walking; -7s walked into Ember Wastes
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11600.9 --z -13194.4 --yaw -148 --pitch -56 --time 0.270 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184540-011.aac
+
+![18:45:40](voice-shots/vn-20261015-184540-011.jpg)
+
+## 18:45:44 - Oh, thank you
+
+- **Transcript:** Oh, thank you
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11630.0 235.1 -13147.3
+- **Facing:** south (yaw 162, pitch -58)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 12:33, rain
+- **Fps:** 89
+- **Levels:** mic -37 dBFS, game sound -24 dBFS
+- **Length:** 2.4 s (voice 0.8 s)
+- **Just before:** -28s message: Flying; -27s walked into Ghost Sand Valley; -25s message: Walking; -11s walked into Ember Wastes; -4s message: Flying; -3s walked into Ghost Sand Valley; -2s message: Walking; -1s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11630.0 --z -13147.3 --yaw -162 --pitch -58 --time 0.273 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184544-211.aac
+
+## 18:45:54 - Yeah, yeah, yeah. What the fuck's this thing?
+
+- **Transcript:** Yeah, yeah, yeah. What the fuck's this thing?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11596.6 173.0 -13177.7
+- **Facing:** south (yaw 178, pitch -39)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Magma Block at 11596 172 -13176
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 12:45, rain
+- **Fps:** 90
+- **Levels:** mic -33 dBFS, game sound -24 dBFS
+- **Length:** 3.5 s (voice 0.9 s)
+- **Just before:** -21s walked into Ember Wastes; -14s message: Flying; -13s walked into Ghost Sand Valley; -12s message: Walking; -11s message: Flying; -10s message: Walking; -1s walked into Ember Wastes
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11596.6 --z -13177.7 --yaw -178 --pitch -39 --time 0.281 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184554-131.aac
+
+![18:45:54](voice-shots/vn-20261015-184554-131.jpg)
+
+## 18:46:01 - What is this? What do I do with it?
+
+- **Transcript:** What is this? What do I do with it?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11606.2 173.0 -13186.0
+- **Facing:** north (yaw 350, pitch -25)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 32 12:54, rain
+- **Fps:** 90
+- **Levels:** mic -31 dBFS, game sound -28 dBFS
+- **Length:** 3.1 s (voice 1.0 s)
+- **Just before:** -29s walked into Ember Wastes; -21s message: Flying; -21s walked into Ghost Sand Valley; -20s message: Walking; -18s message: Flying; -17s message: Walking; -9s walked into Ember Wastes; -3s walked into Ghost Sand Valley; -1s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11606.2 --z -13186.0 --yaw 10 --pitch -25 --time 0.288 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184601-672.aac
+
+## 18:46:15 - Thunder Charge, yeah, yeah, yeah. So whatever. Ember Charge
+
+- **Transcript:** Thunder Charge, yeah, yeah, yeah. So whatever. Ember Charge
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11606.2 173.0 -13186.0
+- **Facing:** north (yaw 350, pitch -25)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 32 13:10, rain
+- **Fps:** 90
+- **Levels:** mic -25 dBFS, game sound -26 dBFS
+- **Length:** 4.6 s (voice 2.8 s)
+- **Just before:** -22s walked into Ember Wastes; -16s walked into Ghost Sand Valley; -15s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11606.2 --z -13186.0 --yaw 10 --pitch -25 --time 0.299 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184615-211.aac
+
+![18:46:15](voice-shots/vn-20261015-184615-211.jpg)
+
+## 18:46:19 - What? Does the center charge do some horseshit
+
+- **Transcript:** What? Does the center charge do some horseshit
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11606.2 173.0 -13186.0
+- **Facing:** north (yaw 350, pitch -25)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 32 13:15, rain
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -25 dBFS
+- **Length:** 2.8 s (voice 1.2 s)
+- **Just before:** -27s walked into Ember Wastes; -21s walked into Ghost Sand Valley; -20s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11606.2 --z -13186.0 --yaw 10 --pitch -25 --time 0.303 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184619-811.aac
+
+## 18:46:24 - Like how the hell?
+
+- **Transcript:** Like how the hell?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11606.2 173.0 -13186.0
+- **Facing:** north (yaw 350, pitch -25)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 32 13:22, rain
+- **Fps:** 90
+- **Levels:** mic -37 dBFS, game sound -27 dBFS
+- **Length:** 2.1 s (voice 0.7 s)
+- **Just before:** -26s walked into Ghost Sand Valley; -25s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11606.2 --z -13186.0 --yaw 10 --pitch -25 --time 0.307 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184624-951.aac
+
+## 18:46:34 - Yeah, I don't, I don't know. I should just fucking-
+
+- **Transcript:** Yeah, I don't, I don't know. I should just fucking-
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11606.2 173.0 -13186.0
+- **Facing:** north (yaw 350, pitch -25)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 32 13:33, rain
+- **Fps:** 90
+- **Levels:** mic -37 dBFS, game sound -26 dBFS
+- **Length:** 3.4 s (voice 0.8 s)
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11606.2 --z -13186.0 --yaw 10 --pitch -25 --time 0.315 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184634-031.aac
+
+## 18:46:39 - Right. Okay, that doesn't do anything
+
+- **Transcript:** Right. Okay, that doesn't do anything
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11607.1 173.0 -13186.3
+- **Facing:** north (yaw 8, pitch -0)
+- **Held:** Sunder Charge x16
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 32 13:39, rain
+- **Fps:** 90
+- **Levels:** mic -49 dBFS, game sound -29 dBFS
+- **Length:** 2.5 s (voice 1.0 s)
+- **Just before:** -5s closed CreativeMenu; -4s holding Cobblestone; -4s message: Cobblestone; -4s holding Titanium Sword; -4s message: Titanium Sword; -4s holding Sunder Charge; -4s message: Sunder Charge; -3s message: A Sunder Charge only works pressed against Sealrock; -0s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11607.1 --z -13186.3 --yaw -8 --pitch -0 --time 0.319 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184639-471.aac
+
+## 18:47:03 - Ugh, I don't understand
+
+- **Transcript:** Ugh, I don't understand
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11608.4 173.0 -13199.7
+- **Facing:** north-east (yaw 30, pitch -63)
+- **Held:** Gate Shard x1
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 11608 172 -13201
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 14:08, rain
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -26 dBFS
+- **Length:** 3.5 s (voice 1.3 s)
+- **Just before:** -29s closed CreativeMenu; -29s holding Cobblestone; -29s message: Cobblestone; -28s holding Titanium Sword; -28s message: Titanium Sword; -28s holding Sunder Charge; -28s message: Sunder Charge; -27s message: A Sunder Charge only works pressed against Sealrock; -25s opened CreativeMenu; -16s holding Gate Shard; -16s closed CreativeMenu; -14s message: The Gate Shard is warm: it works from the surface; -12s message: Your pack is full: the Sunder Charge stays on the ground; -9s message: The Gate Shard is warm: it works from the surface
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11608.4 --z -13199.7 --yaw -30 --pitch -63 --time 0.339 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184703-831.aac
+
+![18:47:03](voice-shots/vn-20261015-184703-831.jpg)
+
+## 18:47:28 - All right, we don't really give a shit anymore. We're gonna go and pla
+
+- **Transcript:** All right, we don't really give a shit anymore. We're gonna go and place a charge
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11621.5 173.0 -13172.4
+- **Facing:** north-east (yaw 52, pitch -20)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 11624 172 -13176
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 14:38, rain
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -24 dBFS
+- **Length:** 4.6 s (voice 2.7 s)
+- **Just before:** -16s holding Falke Pistol; -16s message: Falke Pistol; -16s holding Cobblestone; -16s message: Cobblestone; -15s opened ChestMenu; -12s closed ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11621.5 --z -13172.4 --yaw -52 --pitch -20 --time 0.360 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184728-711.aac
+
+![18:47:28](voice-shots/vn-20261015-184728-711.jpg)
+
+## 18:47:33 - Uh, whatever the fuck you call a church on the bar because I don't kno
+
+- **Transcript:** Uh, whatever the fuck you call a church on the bar because I don't know what the fuck to do
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11628.1 173.0 -13174.7
+- **Facing:** north-east (yaw 63, pitch -17)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 32 14:43, rain
+- **Fps:** 90
+- **Levels:** mic -37 dBFS, game sound -29 dBFS
+- **Length:** 5.0 s (voice 2.7 s)
+- **Just before:** -21s holding Falke Pistol; -21s message: Falke Pistol; -20s holding Cobblestone; -20s message: Cobblestone; -19s opened ChestMenu; -17s closed ChestMenu; -3s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11628.1 --z -13174.7 --yaw -63 --pitch -17 --time 0.364 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184733-151.aac
+
+## 18:47:46 - Let's go see
+
+- **Transcript:** Let's go see
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11644.7 178.1 -13173.4
+- **Facing:** south-west (yaw 206, pitch 27)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** Ladder at 11644 179 -13174
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 14:59, rain
+- **Fps:** 90
+- **Levels:** mic -42 dBFS, game sound -26 dBFS
+- **Length:** 2.1 s (voice 0.5 s)
+- **Just before:** -30s closed ChestMenu; -16s opened CreativeMenu; -5s closed CreativeMenu; -3s walked into Ember Wastes
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11644.7 --z -13173.4 --yaw 154 --pitch 27 --time 0.375 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184746-191.aac
+
+![18:47:46](voice-shots/vn-20261015-184746-191.jpg)
+
+## 18:48:48 - What the fuck? What is this?
+
+- **Transcript:** What the fuck? What is this?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11695.1 99.9 -13096.8
+- **Facing:** south (yaw 201, pitch -27)
+- **Held:** Cobblestone x23
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 16:14, rain
+- **Fps:** 90
+- **Levels:** mic -43 dBFS, game sound -15 dBFS
+- **Length:** 3.4 s (voice 1.0 s)
+- **Just before:** -2s message: Flying; -2s walked into Basalt Deltas
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11695.1 --z -13096.8 --yaw 159 --pitch -27 --time 0.427 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184848-991.aac
+
+![18:48:48](voice-shots/vn-20261015-184848-991.jpg)
+
+## 18:48:54 - Okay, I see a void here. I'm currently walking on something. It looks 
+
+- **Transcript:** Okay, I see a void here. I'm currently walking on something. It looks like I'm in a void and yet, like
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11680.0 99.9 -13090.3
+- **Facing:** west (yaw 266, pitch -61)
+- **Held:** Cobblestone x23
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 16:22, rain
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -21 dBFS
+- **Length:** 9.2 s (voice 5.3 s)
+- **Just before:** -8s message: Flying; -8s walked into Basalt Deltas
+- **While talking:** -5s message: Walking
+- **Position at the end:** 11657.8 93.2 -13088.6
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11680.0 --z -13090.3 --yaw 94 --pitch -61 --time 0.432 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184854-891.aac
+
+## 18:49:06 - What even is this? Like, where am I?
+
+- **Transcript:** What even is this? Like, where am I?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11675.0 82.9 -13090.7
+- **Facing:** south-east (yaw 118, pitch -48)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 16:36, rain
+- **Fps:** 90
+- **Levels:** mic -38 dBFS, game sound -16 dBFS
+- **Length:** 3.4 s (voice 1.5 s)
+- **Just before:** -20s message: Flying; -19s walked into Basalt Deltas; -11s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11675.0 --z -13090.7 --yaw -118 --pitch -48 --time 0.442 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184906-731.aac
+
+![18:49:06](voice-shots/vn-20261015-184906-731.jpg)
+
+## 18:49:10 - Like I dug down looking for that special rock to get into the ash, asp
+
+- **Transcript:** Like I dug down looking for that special rock to get into the ash, asphalt, I guess
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11695.3 77.9 -13097.7
+- **Facing:** north (yaw 3, pitch -54)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 16:40, rain
+- **Fps:** 90
+- **Levels:** mic -30 dBFS, game sound -16 dBFS
+- **Length:** 6.5 s (voice 3.6 s)
+- **Just before:** -23s message: Flying; -23s walked into Basalt Deltas; -15s message: Walking
+- **Position at the end:** 11717.7 70.3 -13121.9
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11695.3 --z -13097.7 --yaw -3 --pitch -54 --time 0.445 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184910-071.aac
+
+## 18:49:21 - What is this?
+
+- **Transcript:** What is this?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11745.2 60.9 -13133.3
+- **Facing:** east (yaw 97, pitch -61)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 16:53, rain
+- **Fps:** 90
+- **Levels:** mic -35 dBFS, game sound -13 dBFS
+- **Length:** 2.3 s (voice 0.4 s)
+- **Just before:** -26s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11745.2 --z -13133.3 --yaw -97 --pitch -61 --time 0.454 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184921-171.aac
+
+![18:49:21](voice-shots/vn-20261015-184921-171.jpg)
+
+## 18:49:33 - Okay, uh
+
+- **Transcript:** Okay, uh
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11714.8 41.9 -13125.9
+- **Facing:** west (yaw 270, pitch -76)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 17:08, rain
+- **Fps:** 90
+- **Levels:** mic -48 dBFS, game sound -18 dBFS
+- **Length:** 2.8 s (voice 1.1 s)
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11714.8 --z -13125.9 --yaw 90 --pitch -76 --time 0.464 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184933-951.aac
+
+![18:49:33](voice-shots/vn-20261015-184933-951.jpg)
+
+## 18:49:52 - What are all these towers here for? A bunch of towers of netherite-loo
+
+- **Transcript:** What are all these towers here for? A bunch of towers of netherite-looking shit. I appear to still be in the Nether
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 11461.1 25.0 -13047.6
+- **Facing:** north (yaw 346, pitch -22)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 17:31, rain
+- **Fps:** 89
+- **Levels:** mic -29 dBFS, game sound -16 dBFS
+- **Length:** 7.0 s (voice 4.2 s)
+- **Just before:** -10s message: Flying; -9s walked into Ghost Sand Valley; -7s walked into Ember Wastes; -5s walked into Rustcap Forest; -5s message: Walking
+- **While talking:** -0s walked into Ember Wastes
+- **Position at the end:** 11454.2 17.6 -13022.2
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11461.1 --z -13047.6 --yaw 14 --pitch -22 --time 0.480 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184952-972.aac
+
+## 18:49:59 - But there's like-- It's like a Nether under the Nether
+
+- **Transcript:** But there's like-- It's like a Nether under the Nether
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11463.7 14.6 -13028.3
+- **Facing:** east (yaw 81, pitch -64)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 17:39, rain
+- **Fps:** 90
+- **Levels:** mic -39 dBFS, game sound -16 dBFS
+- **Length:** 3.0 s (voice 1.6 s)
+- **Just before:** -17s message: Flying; -16s walked into Ghost Sand Valley; -14s walked into Ember Wastes; -12s walked into Rustcap Forest; -12s message: Walking; -2s walked into Ember Wastes
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11463.7 --z -13028.3 --yaw -81 --pitch -64 --time 0.486 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-184959-791.aac
+
+![18:49:59](voice-shots/vn-20261015-184959-791.jpg)
+
+## 18:50:06 - There's just lava everywhere. Like, this better not be the Ash vault o
+
+- **Transcript:** There's just lava everywhere. Like, this better not be the Ash vault or Ash guard, whatever it's called, 'cause this doesn't look anything... Looks too similar to the Nether
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11468.0 3.9 -12991.3
+- **Facing:** south-east (yaw 146, pitch -53)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 17:48, rain
+- **Fps:** 90
+- **Levels:** mic -31 dBFS, game sound -15 dBFS
+- **Length:** 9.6 s (voice 6.0 s)
+- **Just before:** -24s message: Flying; -23s walked into Ghost Sand Valley; -21s walked into Ember Wastes; -19s walked into Rustcap Forest; -19s message: Walking; -9s walked into Ember Wastes
+- **Position at the end:** 11456.8 -3.7 -12972.8
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11468.0 --z -12991.3 --yaw -146 --pitch -53 --time 0.492 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185006-651.aac
+
+## 18:50:17 - Oh, I see. Okay. This is all certainly was meant by it though. Yeah, I
+
+- **Transcript:** Oh, I see. Okay. This is all certainly was meant by it though. Yeah, I can look up. I can see the murky sky
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11430.3 -12.0 -12983.7
+- **Facing:** north (yaw 12, pitch -50)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 18:00, rain
+- **Fps:** 90
+- **Levels:** mic -30 dBFS, game sound -19 dBFS
+- **Length:** 8.3 s (voice 4.4 s)
+- **Just before:** -30s walked into Rustcap Forest; -30s message: Walking; -20s walked into Ember Wastes
+- **Position at the end:** 11425.8 -19.6 -12990.1
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11430.3 --z -12983.7 --yaw -12 --pitch -50 --time 0.501 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185017-371.aac
+
+![18:50:17](voice-shots/vn-20261015-185017-371.jpg)
+
+## 18:50:28 - I think we need less of this, less murky sky-ness or whatever
+
+- **Transcript:** I think we need less of this, less murky sky-ness or whatever
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11425.7 -28.3 -12990.2
+- **Facing:** north-east (yaw 49, pitch -21)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 18:13, rain
+- **Fps:** 90
+- **Levels:** mic -29 dBFS, game sound -19 dBFS
+- **Length:** 7.6 s (voice 3.9 s)
+- **Position at the end:** 11427.5 -31.0 -12992.8
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11425.7 --z -12990.2 --yaw -49 --pitch -21 --time 0.510 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185028-311.aac
+
+![18:50:28](voice-shots/vn-20261015-185028-311.jpg)
+
+## 18:50:40 - See how many guess what this is
+
+- **Transcript:** See how many guess what this is
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11198.0 0.4 -13165.7
+- **Facing:** west (yaw 280, pitch -39)
+- **Held:** Cobblestone x23
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 18:28, rain
+- **Fps:** 90
+- **Levels:** mic -25 dBFS, game sound -27 dBFS
+- **Length:** 2.4 s (voice 0.9 s)
+- **Just before:** -4s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11198.0 --z -13165.7 --yaw 80 --pitch -39 --time 0.520 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185040-531.aac
+
+![18:50:40](voice-shots/vn-20261015-185040-531.jpg)
+
+## 18:51:06 - There's nothing here. Like... Oh, okay. Got a little camp with a fucki
+
+- **Transcript:** There's nothing here. Like... Oh, okay. Got a little camp with a fucking tank beside. There we go. Yeah, that's what I'm talking about right here. Okay. All right
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11136.5 -6.8 -13710.1
+- **Facing:** north-west (yaw 333, pitch -37)
+- **Held:** Cobblestone x23
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 18:59, rain
+- **Fps:** 89
+- **Levels:** mic -33 dBFS, game sound -24 dBFS
+- **Length:** 10.5 s (voice 5.1 s)
+- **Just before:** -29s message: Flying; -26s message: Walking; -24s message: Flying; -20s message: Walking; -14s walked into Basalt Deltas; -12s walked into Ember Wastes; -10s walked into Basalt Deltas; -9s message: Flying; -6s walked into Ember Wastes; -4s walked into Ghost Sand Valley; -2s walked into Rustcap Forest
+- **While talking:** -3s walked into Basalt Deltas
+- **Position at the end:** 11054.0 -6.8 -13860.9
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11136.5 --z -13710.1 --yaw 27 --pitch -37 --time 0.541 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185106-411.aac
+
+![18:51:06](voice-shots/vn-20261015-185106-411.jpg)
+
+## 18:51:19 - These guys, okay. So what I want it to be is I want it to be everythin
+
+- **Transcript:** These guys, okay. So what I want it to be is I want it to be everything in Asgard has to be replicas of
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11032.7 -6.8 -13866.6
+- **Facing:** south-east (yaw 133, pitch -47)
+- **Held:** Cobblestone x23
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 19:14, rain
+- **Fps:** 90
+- **Levels:** mic -25 dBFS, game sound -24 dBFS
+- **Length:** 8.0 s (voice 5.1 s)
+- **Just before:** -27s walked into Basalt Deltas; -25s walked into Ember Wastes; -23s walked into Basalt Deltas; -21s message: Flying; -19s walked into Ember Wastes; -17s walked into Ghost Sand Valley; -15s walked into Rustcap Forest; -11s walked into Basalt Deltas; -1s walked into Ember Wastes
+- **Position at the end:** 11002.8 -6.8 -13851.0
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11032.7 --z -13866.6 --yaw -133 --pitch -47 --time 0.552 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185119-091.aac
+
+![18:51:19](voice-shots/vn-20261015-185119-091.jpg)
+
+## 18:51:26 - Well, some of the most horrific scenes that would have been World War 
+
+- **Transcript:** Well, some of the most horrific scenes that would have been World War II are environments like no man's land or the fog or I don't know
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11005.4 -9.9 -13853.2
+- **Facing:** east (yaw 94, pitch -57)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 19:23, rain
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -20 dBFS
+- **Length:** 10.0 s (voice 5.7 s)
+- **Just before:** -29s message: Flying; -27s walked into Ember Wastes; -25s walked into Ghost Sand Valley; -23s walked into Rustcap Forest; -19s walked into Basalt Deltas; -9s walked into Ember Wastes; -2s message: Walking
+- **Position at the end:** 11003.9 -17.5 -13846.4
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11005.4 --z -13853.2 --yaw -94 --pitch -57 --time 0.558 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185126-871.aac
+
+## 18:51:37 - It should be f- maybe forests and trees and shit or something. Somethi
+
+- **Transcript:** It should be f- maybe forests and trees and shit or something. Something reminiscent, but everything's still dark or murky and you're kind of like this
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11004.5 -25.4 -13844.0
+- **Facing:** south-east (yaw 128, pitch -50)
+- **Held:** Cobblestone x23
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 19:36, rain
+- **Fps:** 90
+- **Levels:** mic -29 dBFS, game sound -23 dBFS
+- **Length:** 8.4 s (voice 5.5 s)
+- **Just before:** -29s walked into Basalt Deltas; -19s walked into Ember Wastes; -13s message: Walking
+- **Position at the end:** 11010.4 -33.0 -13845.5
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11004.5 --z -13844.0 --yaw -128 --pitch -50 --time 0.567 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185137-151.aac
+
+![18:51:37](voice-shots/vn-20261015-185137-151.jpg)
+
+## 18:52:00 - Get some rounds here
+
+- **Transcript:** Get some rounds here
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 10997.3 -33.0 -13862.8
+- **Facing:** west (yaw 290, pitch -18)
+- **Held:** Keeper's Journal x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 32 20:04, rain
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -24 dBFS
+- **Length:** 2.3 s (voice 0.8 s)
+- **Just before:** -9s holding Falke Pistol; -9s message: Falke Pistol; -9s holding Polished Onyxstone Bricks; -9s message: Polished Onyxstone Bricks; -9s holding Golden Apple; -9s message: Golden Apple; -9s holding Titanium Pickaxe; -9s message: Titanium Pickaxe; -8s holding Keeper's Journal; -8s message: Keeper's Journal; -6s opened BookMenu; -5s closed BookMenu; -4s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 10997.3 --z -13862.8 --yaw 70 --pitch -18 --time 0.586 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185200-431.aac
+
+## 18:53:14 - Oh my God. Okay. Yepper
+
+- **Transcript:** Oh my God. Okay. Yepper
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 10997.5 -33.0 -13862.0
+- **Facing:** east (yaw 107, pitch -6)
+- **Held:** Fernblick Rifle x1
+- **Mount:** on foot
+- **Looking at:** Emberslate at 11000 -32 -13862
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 21:30, rain
+- **Fps:** 90
+- **Levels:** mic -21 dBFS, game sound -15 dBFS
+- **Length:** 4.0 s (voice 1.8 s)
+- **Just before:** -13s closed CreativeMenu; -11s opened PauseMenu; -10s message: Survival mode: switch back from the pause menu's Mode row; -9s closed PauseMenu; -9s holding Heavy Magazine; -8s holding Fernblick Rifle; -7s message: Empty: bring Heavy Rounds from your hip to the gun; -6s holding Heavy Magazine; -6s holding Fernblick Rifle; -4s message: Loaded: 8 / 8; -3s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 10997.5 --z -13862.0 --yaw -107 --pitch -6 --time 0.646 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185314-471.aac
+
+![18:53:14](voice-shots/vn-20261015-185314-471.jpg)
+
+## 18:53:18 - Oh, [laughs] oh, that's great. Okay
+
+- **Transcript:** Oh, [laughs] oh, that's great. Okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 10997.1 -33.0 -13862.7
+- **Facing:** east (yaw 104, pitch -12)
+- **Held:** Fernblick Rifle x1
+- **Mount:** on foot
+- **Looking at:** Emberslate at 10999 -32 -13863
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 21:35, rain
+- **Fps:** 90
+- **Levels:** mic -37 dBFS, game sound -19 dBFS
+- **Length:** 5.0 s (voice 1.9 s)
+- **Just before:** -17s closed CreativeMenu; -15s opened PauseMenu; -14s message: Survival mode: switch back from the pause menu's Mode row; -13s closed PauseMenu; -13s holding Heavy Magazine; -12s holding Fernblick Rifle; -11s message: Empty: bring Heavy Rounds from your hip to the gun; -10s holding Heavy Magazine; -10s holding Fernblick Rifle; -8s message: Loaded: 8 / 8; -7s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 10997.1 --z -13862.7 --yaw -104 --pitch -12 --time 0.650 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185318-411.aac
+
+## 18:53:27 - I'm coming up on you, pal. All right, let's see who's in here, huh? Sh
+
+- **Transcript:** I'm coming up on you, pal. All right, let's see who's in here, huh? Should be able to mount the tank and get inside or some horseshit
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11015.3 -31.6 -13857.0
+- **Facing:** east (yaw 92, pitch -9)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 17/20
+- **Time:** day 32 21:46, rain
+- **Fps:** 90
+- **Levels:** mic -29 dBFS, game sound -8 dBFS
+- **Length:** 8.7 s (voice 5.4 s)
+- **Just before:** -26s closed CreativeMenu; -24s opened PauseMenu; -23s message: Survival mode: switch back from the pause menu's Mode row; -22s closed PauseMenu; -22s holding Heavy Magazine; -21s holding Fernblick Rifle; -20s message: Empty: bring Heavy Rounds from your hip to the gun; -19s holding Heavy Magazine; -19s holding Fernblick Rifle; -17s message: Loaded: 8 / 8; -16s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -6s holding Titanium Sword; -6s message: Titanium Sword; -5s holding Capital Magazine; -5s message: Capital Magazine; -5s holding Falke Pistol; -5s message: Falke Pistol; -4s message: Loaded: 18 / 18; -1s took 4 damage (health 17/20)
+- **While talking:** -4s message: No flying in survival; -4s took 1 damage (health 17/20); -1s took 1 damage (health 16/20)
+- **Position at the end:** 11025.1 -31.9 -13853.3
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11015.3 --z -13857.0 --yaw -92 --pitch -9 --time 0.657 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185327-611.aac
+
+![18:53:27](voice-shots/vn-20261015-185327-611.jpg)
+
+## 18:53:37 - All right, well, let's just
+
+- **Transcript:** All right, well, let's just
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 11030.1 -31.4 -13844.1
+- **Facing:** north-east (yaw 41, pitch -5)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 7/20, screen PauseMenu
+- **Time:** day 32 21:57, rain
+- **Fps:** 90
+- **Levels:** mic -32 dBFS, game sound -22 dBFS
+- **Length:** 2.3 s (voice 0.8 s)
+- **Just before:** -30s message: Empty: bring Heavy Rounds from your hip to the gun; -29s holding Heavy Magazine; -28s holding Fernblick Rifle; -27s message: Loaded: 8 / 8; -25s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -15s holding Titanium Sword; -15s message: Titanium Sword; -15s holding Capital Magazine; -15s message: Capital Magazine; -15s holding Falke Pistol; -15s message: Falke Pistol; -13s message: Loaded: 18 / 18; -11s took 4 damage (health 17/20); -8s message: No flying in survival; -8s took 1 damage (health 17/20); -6s took 1 damage (health 16/20); -4s took 1 damage (health 15/20); -1s took 4 damage (health 11/20); -1s walked into Ghost Sand Valley; -0s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11030.1 --z -13844.1 --yaw -41 --pitch -5 --time 0.665 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185337-191.aac
+
+## 18:53:45 - German soldiers are too tough. I'm calling it. Way too tough
+
+- **Transcript:** German soldiers are too tough. I'm calling it. Way too tough
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11043.1 -33.0 -13848.3
+- **Facing:** north-east (yaw 54, pitch -9)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 7/20
+- **Time:** day 32 22:04, rain
+- **Fps:** 90
+- **Levels:** mic -23 dBFS, game sound -18 dBFS
+- **Length:** 4.1 s (voice 1.8 s)
+- **Just before:** -23s holding Titanium Sword; -23s message: Titanium Sword; -23s holding Capital Magazine; -23s message: Capital Magazine; -23s holding Falke Pistol; -23s message: Falke Pistol; -22s message: Loaded: 18 / 18; -19s took 4 damage (health 17/20); -17s message: No flying in survival; -16s took 1 damage (health 17/20); -14s took 1 damage (health 16/20); -12s took 1 damage (health 15/20); -10s took 4 damage (health 11/20); -9s walked into Ghost Sand Valley; -9s opened PauseMenu; -8s took 4 damage (health 7/20); -6s message: Creative mode: switch back from the pause menu's Mode row; -6s closed PauseMenu; -5s holding Capital Magazine; -5s holding Falke Pistol; -4s message: Loaded: 18 / 18; -1s walked into Basalt Deltas; -1s holding Capital Magazine; -1s message: Capital Magazine; -0s holding Falke Pistol; -0s message: Falke Pistol
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11043.1 --z -13848.3 --yaw -54 --pitch -9 --time 0.670 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185345-391.aac
+
+![18:53:45](voice-shots/vn-20261015-185345-391.jpg)
+
+## 18:53:52 - I like the alarm. The alarm should be sound just like the Germans
+
+- **Transcript:** I like the alarm. The alarm should be sound just like the Germans
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11057.4 -33.0 -13850.7
+- **Facing:** north-east (yaw 48, pitch -33)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at 11058 -34 -13852
+- **Mode:** Creative, health 7/20
+- **Time:** day 32 22:13, rain
+- **Fps:** 90
+- **Levels:** mic -25 dBFS, game sound -15 dBFS
+- **Length:** 4.8 s (voice 3.0 s)
+- **Just before:** -29s message: Loaded: 18 / 18; -26s took 4 damage (health 17/20); -24s message: No flying in survival; -24s took 1 damage (health 17/20); -21s took 1 damage (health 16/20); -19s took 1 damage (health 15/20); -17s took 4 damage (health 11/20); -16s walked into Ghost Sand Valley; -16s opened PauseMenu; -15s took 4 damage (health 7/20); -14s message: Creative mode: switch back from the pause menu's Mode row; -13s closed PauseMenu; -12s holding Capital Magazine; -12s holding Falke Pistol; -11s message: Loaded: 18 / 18; -8s walked into Basalt Deltas; -8s holding Capital Magazine; -8s message: Capital Magazine; -7s holding Falke Pistol; -7s message: Falke Pistol; -7s holding Capital Magazine; -7s message: Capital Magazine; -7s holding Falke Pistol; -7s message: Falke Pistol; -6s message: Loaded: 18 / 18; -5s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; -3s holding Capital Magazine; -3s holding Titanium Sword; -1s message: Radio: "Squad from Cinderhold moving to the last contact."
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11057.4 --z -13850.7 --yaw -48 --pitch -33 --time 0.676 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185352-551.aac
+
+## 18:53:57 - Yeah, I have like an airy alarm somewhere too
+
+- **Transcript:** Yeah, I have like an airy alarm somewhere too
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11052.4 -33.0 -13843.0
+- **Facing:** south (yaw 202, pitch -24)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 7/20, screen ChestMenu
+- **Time:** day 32 22:19, rain
+- **Fps:** 90
+- **Levels:** mic -23 dBFS, game sound -14 dBFS
+- **Length:** 3.0 s (voice 1.5 s)
+- **Just before:** -29s message: No flying in survival; -29s took 1 damage (health 17/20); -26s took 1 damage (health 16/20); -24s took 1 damage (health 15/20); -22s took 4 damage (health 11/20); -21s walked into Ghost Sand Valley; -21s opened PauseMenu; -20s took 4 damage (health 7/20); -18s message: Creative mode: switch back from the pause menu's Mode row; -18s closed PauseMenu; -17s holding Capital Magazine; -17s holding Falke Pistol; -16s message: Loaded: 18 / 18; -13s walked into Basalt Deltas; -13s holding Capital Magazine; -13s message: Capital Magazine; -12s holding Falke Pistol; -12s message: Falke Pistol; -12s holding Capital Magazine; -12s message: Capital Magazine; -12s holding Falke Pistol; -12s message: Falke Pistol; -11s message: Loaded: 18 / 18; -10s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; -8s holding Capital Magazine; -8s holding Titanium Sword; -6s message: Radio: "Squad from Cinderhold moving to the last contact."; -3s message: Loaded: 18 / 18; -2s message: Your pack is full: the Rifle Rounds stays on the ground; -1s opened ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11052.4 --z -13843.0 --yaw 158 --pitch -24 --time 0.680 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185357-452.aac
+
+![18:53:57](voice-shots/vn-20261015-185357-452.jpg)
+
+## 18:54:03 - I'll also make a, uh, Panzerfaust, one of the weapons
+
+- **Transcript:** I'll also make a, uh, Panzerfaust, one of the weapons
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11052.4 -33.0 -13843.0
+- **Facing:** south (yaw 202, pitch -24)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 7/20, screen ChestMenu
+- **Time:** day 32 22:26, rain
+- **Fps:** 90
+- **Levels:** mic -30 dBFS, game sound -16 dBFS
+- **Length:** 4.1 s (voice 2.1 s)
+- **Just before:** -28s took 4 damage (health 11/20); -27s walked into Ghost Sand Valley; -27s opened PauseMenu; -26s took 4 damage (health 7/20); -25s message: Creative mode: switch back from the pause menu's Mode row; -24s closed PauseMenu; -23s holding Capital Magazine; -23s holding Falke Pistol; -22s message: Loaded: 18 / 18; -19s walked into Basalt Deltas; -19s holding Capital Magazine; -19s message: Capital Magazine; -18s holding Falke Pistol; -18s message: Falke Pistol; -18s holding Capital Magazine; -18s message: Capital Magazine; -18s holding Falke Pistol; -18s message: Falke Pistol; -17s message: Loaded: 18 / 18; -16s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; -14s holding Capital Magazine; -14s holding Titanium Sword; -12s message: Radio: "Squad from Cinderhold moving to the last contact."; -9s message: Loaded: 18 / 18; -8s message: Your pack is full: the Rifle Rounds stays on the ground; -7s opened ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11052.4 --z -13843.0 --yaw 158 --pitch -24 --time 0.685 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185403-551.aac
+
+## 18:54:31 - I should be able to drive the tank, by the way. Just, just saying. I d
+
+- **Transcript:** I should be able to drive the tank, by the way. Just, just saying. I don't know if that was missed
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 11022.6 -32.6 -13855.3
+- **Facing:** south (yaw 172, pitch -41)
+- **Held:** Fernblick Rifle x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at 11023 -34 -13854
+- **Mode:** Creative, health 7/20
+- **Time:** day 32 22:59, rain
+- **Fps:** 90
+- **Levels:** mic -25 dBFS, game sound -11 dBFS
+- **Length:** 5.9 s (voice 3.5 s)
+- **Just before:** -18s closed ChestMenu; -9s walked into Ghost Sand Valley; -7s walked into Ember Wastes; -1s holding Fernblick Rifle; -1s message: Fernblick Rifle
+- **While talking:** -0s holding Titanium Sword; -0s message: Titanium Sword
+- **Position at the end:** 11033.9 -33.0 -13858.1
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11022.6 --z -13855.3 --yaw -172 --pitch -41 --time 0.708 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185431-331.aac
+
+## 18:54:37 - But, uh, yeah, that was kind of a
+
+- **Transcript:** But, uh, yeah, that was kind of a
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11041.5 -33.0 -13856.6
+- **Facing:** south-east (yaw 132, pitch -9)
+- **Held:** Fernblick Rifle x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 7/20
+- **Time:** day 32 23:07, rain
+- **Fps:** 90
+- **Levels:** mic -43 dBFS, game sound -9 dBFS
+- **Length:** 3.7 s (voice 1.7 s)
+- **Just before:** -24s closed ChestMenu; -15s walked into Ghost Sand Valley; -13s walked into Ember Wastes; -7s holding Fernblick Rifle; -7s message: Fernblick Rifle; -1s holding Titanium Sword; -1s message: Titanium Sword; -1s holding Capital Magazine; -1s message: Capital Magazine; -1s holding Titanium Sword; -1s message: Titanium Sword; -1s holding Fernblick Rifle; -1s message: Fernblick Rifle
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11041.5 --z -13856.6 --yaw -132 --pitch -9 --time 0.713 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185437-451.aac
+
+## 18:54:41 - core fea- core feature, if you will
+
+- **Transcript:** core fea- core feature, if you will
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11046.4 -33.0 -13857.6
+- **Facing:** south-east (yaw 127, pitch -5)
+- **Held:** Fernblick Rifle x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 7/20
+- **Time:** day 32 23:11, rain
+- **Fps:** 90
+- **Levels:** mic -29 dBFS, game sound -15 dBFS
+- **Length:** 3.6 s (voice 1.4 s)
+- **Just before:** -28s closed ChestMenu; -19s walked into Ghost Sand Valley; -17s walked into Ember Wastes; -11s holding Fernblick Rifle; -11s message: Fernblick Rifle; -5s holding Titanium Sword; -5s message: Titanium Sword; -5s holding Capital Magazine; -5s message: Capital Magazine; -5s holding Titanium Sword; -5s message: Titanium Sword; -4s holding Fernblick Rifle; -4s message: Fernblick Rifle; -3s walked into Basalt Deltas; -2s opened CreativeMenu; -1s closed CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11046.4 --z -13857.6 --yaw -127 --pitch -5 --time 0.716 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185441-351.aac
+
+![18:54:41](voice-shots/vn-20261015-185441-351.jpg)
+
+## 18:55:45 - Seriously not dead?
+
+- **Transcript:** Seriously not dead?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11060.1 -33.0 -13844.5
+- **Facing:** west (yaw 285, pitch -13)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Black Wool at 11057 -33 -13846
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 00:26, rain
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -17 dBFS
+- **Length:** 2.4 s (voice 0.9 s)
+- **Just before:** -27s closed InventoryMenu; -27s holding Titanium Sword; -27s message: Titanium Sword; -27s holding Himmelsturm Launcher; -27s message: Himmelsturm Launcher; -26s holding Titanium Sword; -26s message: Titanium Sword; -26s holding Himmelsturm Launcher; -26s message: Himmelsturm Launcher; -25s message: Loaded: 2 / 2; -24s holding Titanium Sword; -24s holding Slatefall Carbine; -20s walked into Basalt Deltas; -9s holding Titanium Sword; -9s message: Titanium Sword; -9s holding Himmelsturm Launcher; -9s message: Himmelsturm Launcher; -6s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; -2s message: Loaded: 2 / 2; -1s holding Titanium Sword
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11060.1 --z -13844.5 --yaw 75 --pitch -13 --time 0.769 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185545-931.aac
+
+![18:55:45](voice-shots/vn-20261015-185545-931.jpg)
+
+## 18:55:51 - Oh my God. Okay
+
+- **Transcript:** Oh my God. Okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11061.3 -33.0 -13840.4
+- **Facing:** north-west (yaw 325, pitch -60)
+- **Held:** Slatefall Carbine x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at 11060 -34 -13842
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 00:33, rain
+- **Fps:** 90
+- **Levels:** mic -32 dBFS, game sound -10 dBFS
+- **Length:** 2.4 s (voice 0.8 s)
+- **Just before:** -30s holding Slatefall Carbine; -25s walked into Basalt Deltas; -15s holding Titanium Sword; -15s message: Titanium Sword; -15s holding Himmelsturm Launcher; -15s message: Himmelsturm Launcher; -11s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; -8s message: Loaded: 2 / 2; -6s holding Titanium Sword; -5s holding Slatefall Carbine; -5s message: Slatefall Carbine; -1s message: Loaded: 30 / 30
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11061.3 --z -13840.4 --yaw 35 --pitch -60 --time 0.773 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185551-511.aac
+
+## 18:55:57 - Wow. Okay then
+
+- **Transcript:** Wow. Okay then
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 11051.8 -33.0 -13847.5
+- **Facing:** west (yaw 272, pitch 26)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 3/20, screen DeathMenu
+- **Time:** day 32 00:40, rain
+- **Fps:** 90
+- **Levels:** mic -22 dBFS, game sound -13 dBFS
+- **Length:** 2.9 s (voice 0.8 s)
+- **Just before:** -21s holding Titanium Sword; -21s message: Titanium Sword; -20s holding Himmelsturm Launcher; -20s message: Himmelsturm Launcher; -17s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; -13s message: Loaded: 2 / 2; -12s holding Titanium Sword; -11s holding Slatefall Carbine; -11s message: Slatefall Carbine; -7s message: Loaded: 30 / 30; -5s holding Falke Pistol; -5s holding Himmelsturm Launcher; -5s message: Himmelsturm Launcher; -4s holding Titanium Sword; -4s message: Titanium Sword; -1s died; -1s opened DeathMenu; -1s holding empty hand; -0s took 22 damage (health 2/20)
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11051.8 --z -13847.5 --yaw 88 --pitch 26 --time 0.778 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185557-072.aac
+
+![18:55:57](voice-shots/vn-20261015-185557-072.jpg)
+
+## 18:56:01 - Wow, great. It's just fucking terrific. Okay
+
+- **Transcript:** Wow, great. It's just fucking terrific. Okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 11597.0 68.0 -12381.0
+- **Facing:** north (yaw 346, pitch -62)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Short Grass at 11596 68 -12382
+- **Mode:** Survival, health 20/20
+- **Time:** day 32 00:43, rain
+- **Fps:** 69
+- **Levels:** mic -27 dBFS, game sound -10 dBFS
+- **Length:** 4.7 s (voice 1.4 s)
+- **Just before:** -23s holding Titanium Sword; -23s message: Titanium Sword; -23s holding Himmelsturm Launcher; -23s message: Himmelsturm Launcher; -20s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; -16s message: Loaded: 2 / 2; -15s holding Titanium Sword; -14s holding Slatefall Carbine; -14s message: Slatefall Carbine; -10s message: Loaded: 30 / 30; -8s holding Falke Pistol; -7s holding Himmelsturm Launcher; -7s message: Himmelsturm Launcher; -7s holding Titanium Sword; -7s message: Titanium Sword; -4s died; -4s opened DeathMenu; -4s holding empty hand; -3s took 22 damage (health 2/20); -2s respawned; -2s entered Surface; -2s closed DeathMenu; -2s message: Surface; -2s walked into Forest; -1s message: The Capital is raiding your home! Hold it.
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11597.0 --z -12381.0 --yaw 14 --pitch -62 --time 0.780`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185601-131.aac
+
+## 18:56:06 - Back to where I was, I guess
+
+- **Transcript:** Back to where I was, I guess
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** Surface
+- **Biome:** Beach
+- **Position:** 11583.6 66.0 -12396.0
+- **Facing:** north-west (yaw 316, pitch -30)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Sand at 11582 65 -12398
+- **Mode:** Survival, health 20/20, screen PauseMenu
+- **Time:** day 32 00:49, rain
+- **Fps:** 89
+- **Levels:** mic -31 dBFS, game sound -20 dBFS
+- **Length:** 2.5 s (voice 1.1 s)
+- **Just before:** -29s holding Titanium Sword; -29s message: Titanium Sword; -28s holding Himmelsturm Launcher; -28s message: Himmelsturm Launcher; -25s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; -21s message: Loaded: 2 / 2; -20s holding Titanium Sword; -19s holding Slatefall Carbine; -19s message: Slatefall Carbine; -15s message: Loaded: 30 / 30; -13s holding Falke Pistol; -13s holding Himmelsturm Launcher; -13s message: Himmelsturm Launcher; -12s holding Titanium Sword; -12s message: Titanium Sword; -9s died; -9s opened DeathMenu; -9s holding empty hand; -8s took 22 damage (health 2/20); -7s respawned; -7s entered Surface; -7s closed DeathMenu; -7s message: Surface; -7s walked into Forest; -6s message: The Capital is raiding your home! Hold it.; -4s message: A stranger in town: Ezra Quill; -1s message: No flying in survival; -1s walked into Beach; -0s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11583.6 --z -12396.0 --yaw 44 --pitch -30 --time 0.784`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185606-391.aac
+
+## 18:56:10 - Pretty much instant killed me, which is, uh, in easy mode, which is no
+
+- **Transcript:** Pretty much instant killed me, which is, uh, in easy mode, which is not right
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** Surface
+- **Biome:** Ocean
+- **Position:** 11504.5 88.3 -12487.8
+- **Facing:** north (yaw 359, pitch -40)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 00:51, rain
+- **Fps:** 89
+- **Levels:** mic -32 dBFS, game sound -16 dBFS
+- **Length:** 5.1 s (voice 3.3 s)
+- **Just before:** -28s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; -25s message: Loaded: 2 / 2; -23s holding Titanium Sword; -23s holding Slatefall Carbine; -23s message: Slatefall Carbine; -19s message: Loaded: 30 / 30; -17s holding Falke Pistol; -16s holding Himmelsturm Launcher; -16s message: Himmelsturm Launcher; -16s holding Titanium Sword; -16s message: Titanium Sword; -13s died; -13s opened DeathMenu; -13s holding empty hand; -12s took 22 damage (health 2/20); -11s respawned; -11s entered Surface; -11s closed DeathMenu; -11s message: Surface; -10s walked into Forest; -9s message: The Capital is raiding your home! Hold it.; -7s message: A stranger in town: Ezra Quill; -5s message: No flying in survival; -4s walked into Beach; -4s opened PauseMenu; -2s message: Creative mode: switch back from the pause menu's Mode row; -2s closed PauseMenu; -0s walked into Ocean
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11504.5 --z -12487.8 --yaw 1 --pitch -40 --time 0.786`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185610-112.aac
+
+![18:56:10](voice-shots/vn-20261015-185610-112.jpg)
+
+## 18:56:14 - Easy mode is honestly way too, uh, tough
+
+- **Transcript:** Easy mode is honestly way too, uh, tough
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** Surface
+- **Biome:** Ocean
+- **Position:** 11345.2 88.3 -12770.1
+- **Facing:** north (yaw 12, pitch -45)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 00:56, rain
+- **Fps:** 83
+- **Levels:** mic -27 dBFS, game sound -20 dBFS
+- **Length:** 3.5 s (voice 2.0 s)
+- **Just before:** -29s message: Loaded: 2 / 2; -27s holding Titanium Sword; -27s holding Slatefall Carbine; -27s message: Slatefall Carbine; -23s message: Loaded: 30 / 30; -21s holding Falke Pistol; -20s holding Himmelsturm Launcher; -20s message: Himmelsturm Launcher; -20s holding Titanium Sword; -20s message: Titanium Sword; -17s died; -17s opened DeathMenu; -17s holding empty hand; -16s took 22 damage (health 2/20); -15s respawned; -15s entered Surface; -15s closed DeathMenu; -15s message: Surface; -14s walked into Forest; -14s message: The Capital is raiding your home! Hold it.; -11s message: A stranger in town: Ezra Quill; -9s message: No flying in survival; -8s walked into Beach; -8s opened PauseMenu; -7s message: Creative mode: switch back from the pause menu's Mode row; -6s closed PauseMenu; -4s walked into Ocean; -4s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11345.2 --z -12770.1 --yaw -12 --pitch -45 --time 0.789`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185614-931.aac
+
+## 18:56:19 - You know, here's what I'm gonna do. I'm gonna switch worlds
+
+- **Transcript:** You know, here's what I'm gonna do. I'm gonna switch worlds
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** World376 (seed 3931512493184456980)
+- **Dimension:** Surface
+- **Biome:** Beach
+- **Position:** 11248.3 88.3 -12559.8
+- **Facing:** south-west (yaw 209, pitch -32)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 32 01:01, rain
+- **Fps:** 79
+- **Levels:** mic -41 dBFS, game sound -24 dBFS
+- **Length:** 3.3 s (voice 1.4 s)
+- **Just before:** -26s message: Loaded: 30 / 30; -24s holding Falke Pistol; -24s holding Himmelsturm Launcher; -24s message: Himmelsturm Launcher; -24s holding Titanium Sword; -24s message: Titanium Sword; -21s died; -21s opened DeathMenu; -21s holding empty hand; -20s took 22 damage (health 2/20); -19s respawned; -19s entered Surface; -19s closed DeathMenu; -19s message: Surface; -18s walked into Forest; -17s message: The Capital is raiding your home! Hold it.; -15s message: A stranger in town: Ezra Quill; -13s message: No flying in survival; -12s walked into Beach; -12s opened PauseMenu; -10s message: Creative mode: switch back from the pause menu's Mode row; -10s closed PauseMenu; -8s walked into Ocean; -7s message: Flying; -0s walked into Beach
+- **Repro (Mac):** `./snap.sh note --seed 3931512493184456980 --x 11248.3 --z -12559.8 --yaw 151 --pitch -32 --time 0.793`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185619-411.aac
+
+## 18:56:43 - All right, well I'm curious to dig underground and shit, so it'll be n
+
+- **Transcript:** All right, well I'm curious to dig underground and shit, so it'll be nice
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 5948.5 65.7 -4330.1
+- **Facing:** south-east (yaw 133, pitch -59)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Grass Block at 5948 65 -4330
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 07:30, clear
+- **Fps:** 80
+- **Levels:** mic -27 dBFS, game sound -24 dBFS
+- **Length:** 5.5 s (voice 3.4 s)
+- **Just before:** --3360s walked into Basalt Deltas; --3370s holding Titanium Sword; --3370s message: Titanium Sword; --3371s holding Himmelsturm Launcher; --3371s message: Himmelsturm Launcher; --3374s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; --3377s message: Loaded: 2 / 2; --3379s holding Titanium Sword; --3380s holding Slatefall Carbine; --3380s message: Slatefall Carbine; --3384s message: Loaded: 30 / 30; --3386s holding Falke Pistol; --3386s holding Himmelsturm Launcher; --3386s message: Himmelsturm Launcher; --3387s holding Titanium Sword; --3387s message: Titanium Sword; --3390s died; --3390s opened DeathMenu; --3390s holding empty hand; --3391s took 22 damage (health 2/20); --3391s respawned; --3391s entered Surface; --3391s closed DeathMenu; --3391s message: Surface; --3392s walked into Forest; --3393s message: The Capital is raiding your home! Hold it.; --3395s message: A stranger in town: Ezra Quill; --3397s message: No flying in survival; --3398s walked into Beach; --3399s opened PauseMenu; --3400s message: Creative mode: switch back from the pause menu's Mode row; --3400s closed PauseMenu; --3402s walked into Ocean; --3403s message: Flying; --3410s walked into Beach; --3410s opened PauseMenu; -3s closed PauseMenu; -3s holding Grass Block; -3s message: Spring: the snow melts and the young are born. No hunting near towns; -0s message: Sprinting: let the stick back to the middle to stop
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5948.5 --z -4330.1 --yaw -133 --pitch -59 --time 0.063`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185643-051.aac
+
+![18:56:43](voice-shots/vn-20261015-185643-051.jpg)
+
+## 18:56:51 - Yeah, so digging down is not terribly easy in the new world, which is
+
+- **Transcript:** Yeah, so digging down is not terribly easy in the new world, which is
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 5964.5 59.8 -4322.5
+- **Facing:** south-east (yaw 151, pitch -87)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Stone at 5964 58 -4323
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 07:37, clear
+- **Fps:** 84
+- **Levels:** mic -25 dBFS, game sound -24 dBFS
+- **Length:** 6.2 s (voice 3.7 s)
+- **Just before:** --3363s holding Himmelsturm Launcher; --3363s message: Himmelsturm Launcher; --3366s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; --3369s message: Loaded: 2 / 2; --3371s holding Titanium Sword; --3372s holding Slatefall Carbine; --3372s message: Slatefall Carbine; --3376s message: Loaded: 30 / 30; --3378s holding Falke Pistol; --3378s holding Himmelsturm Launcher; --3378s message: Himmelsturm Launcher; --3378s holding Titanium Sword; --3378s message: Titanium Sword; --3382s died; --3382s opened DeathMenu; --3382s holding empty hand; --3383s took 22 damage (health 2/20); --3383s respawned; --3383s entered Surface; --3383s closed DeathMenu; --3383s message: Surface; --3384s walked into Forest; --3385s message: The Capital is raiding your home! Hold it.; --3387s message: A stranger in town: Ezra Quill; --3389s message: No flying in survival; --3390s walked into Beach; --3390s opened PauseMenu; --3392s message: Creative mode: switch back from the pause menu's Mode row; --3392s closed PauseMenu; --3394s walked into Ocean; --3395s message: Flying; --3402s walked into Beach; --3402s opened PauseMenu; -11s closed PauseMenu; -11s holding Grass Block; -11s message: Spring: the snow melts and the young are born. No hunting near towns; -8s message: Sprinting: let the stick back to the middle to stop; -5s opened PauseMenu; -4s message: Creative mode: switch back from the pause menu's Mode row; -4s closed PauseMenu
+- **While talking:** --3358s holding Himmelsturm Launcher; --3358s message: Himmelsturm Launcher; --3361s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; --3364s message: Loaded: 2 / 2; --3366s holding Titanium Sword; --3367s holding Slatefall Carbine; --3367s message: Slatefall Carbine; --3371s message: Loaded: 30 / 30; --3373s holding Falke Pistol; --3373s holding Himmelsturm Launcher; --3373s message: Himmelsturm Launcher; --3373s holding Titanium Sword; --3373s message: Titanium Sword; --3377s died; --3377s opened DeathMenu; --3377s holding empty hand; --3378s took 22 damage (health 2/20); --3378s respawned; --3378s entered Surface; --3378s closed DeathMenu; --3378s message: Surface; --3379s walked into Forest; --3380s message: The Capital is raiding your home! Hold it.; --3382s message: A stranger in town: Ezra Quill; --3384s message: No flying in survival; --3385s walked into Beach; --3385s opened PauseMenu; --3387s message: Creative mode: switch back from the pause menu's Mode row; --3387s closed PauseMenu; --3389s walked into Ocean; --3390s message: Flying; --3397s walked into Beach; --3397s opened PauseMenu
+- **Position at the end:** 5964.4 43.0 -4322.5
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5964.5 --z -4322.5 --yaw -151 --pitch -87 --time 0.068`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185651-671.aac
+
+## 18:56:57 - Oh, it's fine
+
+- **Transcript:** Oh, it's fine
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 5964.4 39.0 -4322.5
+- **Facing:** east (yaw 102, pitch -85)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Stone at 5964 37 -4323
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 07:45, clear
+- **Fps:** 90
+- **Levels:** mic -23 dBFS, game sound -16 dBFS
+- **Length:** 3.0 s (voice 0.6 s)
+- **Just before:** --3356s holding Himmelsturm Launcher; --3356s message: Himmelsturm Launcher; --3360s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; --3363s message: Loaded: 2 / 2; --3365s holding Titanium Sword; --3365s holding Slatefall Carbine; --3365s message: Slatefall Carbine; --3370s message: Loaded: 30 / 30; --3372s holding Falke Pistol; --3372s holding Himmelsturm Launcher; --3372s message: Himmelsturm Launcher; --3372s holding Titanium Sword; --3372s message: Titanium Sword; --3375s died; --3375s opened DeathMenu; --3375s holding empty hand; --3376s took 22 damage (health 2/20); --3377s respawned; --3377s entered Surface; --3377s closed DeathMenu; --3377s message: Surface; --3378s walked into Forest; --3379s message: The Capital is raiding your home! Hold it.; --3381s message: A stranger in town: Ezra Quill; --3383s message: No flying in survival; --3384s walked into Beach; --3384s opened PauseMenu; --3386s message: Creative mode: switch back from the pause menu's Mode row; --3386s closed PauseMenu; --3388s walked into Ocean; --3389s message: Flying; --3396s walked into Beach; --3396s opened PauseMenu; -18s closed PauseMenu; -18s holding Grass Block; -18s message: Spring: the snow melts and the young are born. No hunting near towns; -14s message: Sprinting: let the stick back to the middle to stop; -12s opened PauseMenu; -10s message: Creative mode: switch back from the pause menu's Mode row; -10s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5964.4 --z -4322.5 --yaw -102 --pitch -85 --time 0.073`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185657-931.aac
+
+![18:56:57](voice-shots/vn-20261015-185657-931.jpg)
+
+## 18:57:03 - Gotten changed since our last logs
+
+- **Transcript:** Gotten changed since our last logs
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 5964.4 20.4 -4322.5
+- **Facing:** east (yaw 76, pitch -87)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Stone at 5964 19 -4323
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 07:52, clear
+- **Fps:** 90
+- **Levels:** mic -34 dBFS, game sound -34 dBFS
+- **Length:** 2.7 s (voice 1.1 s)
+- **Just before:** --3351s holding Himmelsturm Launcher; --3351s message: Himmelsturm Launcher; --3354s message: Alarm raised. Radio: "Alarm, alarm! Squads to the last contact. Mortars, fire on spotting."; --3357s message: Loaded: 2 / 2; --3359s holding Titanium Sword; --3360s holding Slatefall Carbine; --3360s message: Slatefall Carbine; --3364s message: Loaded: 30 / 30; --3366s holding Falke Pistol; --3366s holding Himmelsturm Launcher; --3366s message: Himmelsturm Launcher; --3367s holding Titanium Sword; --3367s message: Titanium Sword; --3370s died; --3370s opened DeathMenu; --3370s holding empty hand; --3371s took 22 damage (health 2/20); --3371s respawned; --3371s entered Surface; --3371s closed DeathMenu; --3371s message: Surface; --3372s walked into Forest; --3373s message: The Capital is raiding your home! Hold it.; --3375s message: A stranger in town: Ezra Quill; --3377s message: No flying in survival; --3378s walked into Beach; --3379s opened PauseMenu; --3380s message: Creative mode: switch back from the pause menu's Mode row; --3380s closed PauseMenu; --3382s walked into Ocean; --3383s message: Flying; --3390s walked into Beach; --3390s opened PauseMenu; -23s closed PauseMenu; -23s holding Grass Block; -23s message: Spring: the snow melts and the young are born. No hunting near towns; -20s message: Sprinting: let the stick back to the middle to stop; -17s opened PauseMenu; -16s message: Creative mode: switch back from the pause menu's Mode row; -15s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5964.4 --z -4322.5 --yaw -76 --pitch -87 --time 0.078`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185703-631.aac
+
+## 18:57:35 - Okay, so here's one thing. Um, none of the blocks are rendered in the,
+
+- **Transcript:** Okay, so here's one thing. Um, none of the blocks are rendered in the, in Hell, so that's an issue. I'm playing on a, on the, uh, polygonal world thing, so
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 5962.6 305.8 -4324.7
+- **Facing:** north-east (yaw 44, pitch -80)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Cinderstone at 5962 304 -4325
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:29, clear
+- **Fps:** 74
+- **Levels:** mic -31 dBFS, game sound -25 dBFS
+- **Length:** 13.0 s (voice 7.6 s)
+- **Just before:** --3328s holding Titanium Sword; --3329s holding Slatefall Carbine; --3329s message: Slatefall Carbine; --3333s message: Loaded: 30 / 30; --3335s holding Falke Pistol; --3335s holding Himmelsturm Launcher; --3335s message: Himmelsturm Launcher; --3336s holding Titanium Sword; --3336s message: Titanium Sword; --3339s died; --3339s opened DeathMenu; --3339s holding empty hand; --3340s took 22 damage (health 2/20); --3341s respawned; --3341s entered Surface; --3341s closed DeathMenu; --3341s message: Surface; --3341s walked into Forest; --3342s message: The Capital is raiding your home! Hold it.; --3345s message: A stranger in town: Ezra Quill; --3347s message: No flying in survival; --3347s walked into Beach; --3348s opened PauseMenu; --3349s message: Creative mode: switch back from the pause menu's Mode row; --3350s closed PauseMenu; --3351s walked into Ocean; --3352s message: Flying; --3359s walked into Beach; --3360s opened PauseMenu; -7s entered The Deep; -7s message: The Deep; -6s message: You broke through the bottom of the world; -2s message: Sealrock under this fire blocks the way down. A Brimstone Keep about 74 blocks off holds the Sunderite that breaks it (compasses point there)
+- **While talking:** --3324s message: Slatefall Carbine; --3328s message: Loaded: 30 / 30; --3330s holding Falke Pistol; --3330s holding Himmelsturm Launcher; --3330s message: Himmelsturm Launcher; --3331s holding Titanium Sword; --3331s message: Titanium Sword; --3334s died; --3334s opened DeathMenu; --3334s holding empty hand; --3335s took 22 damage (health 2/20); --3336s respawned; --3336s entered Surface; --3336s closed DeathMenu; --3336s message: Surface; --3336s walked into Forest; --3337s message: The Capital is raiding your home! Hold it.; --3340s message: A stranger in town: Ezra Quill; --3342s message: No flying in survival; --3342s walked into Beach; --3343s opened PauseMenu; --3344s message: Creative mode: switch back from the pause menu's Mode row; --3345s closed PauseMenu; --3346s walked into Ocean; --3347s message: Flying; --3354s walked into Beach; --3355s opened PauseMenu; -4s message: Flying; -1s message: Walking; --3319s message: Slatefall Carbine; --3324s message: Loaded: 30 / 30; --3326s holding Falke Pistol; --3326s holding Himmelsturm Launcher; --3326s message: Himmelsturm Launcher; --3326s holding Titanium Sword; --3326s message: Titanium Sword; --3329s died; --3329s opened DeathMenu; --3329s holding empty hand; --3330s took 22 damage (health 2/20); --3331s respawned; --3331s entered Surface; --3331s closed DeathMenu; --3331s message: Surface; --3332s walked into Forest; --3333s message: The Capital is raiding your home! Hold it.; --3335s message: A stranger in town: Ezra Quill; --3337s message: No flying in survival; --3338s walked into Beach; --3338s opened PauseMenu; --3340s message: Creative mode: switch back from the pause menu's Mode row; --3340s closed PauseMenu; --3342s walked into Ocean; --3343s message: Flying; --3350s walked into Beach; --3350s opened PauseMenu
+- **Position at the end:** 5962.4 296.0 -4327.2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5962.6 --z -4324.7 --yaw -44 --pitch -80 --time 0.104 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185735-571.aac
+
+## 18:57:48 - Clearly nothing was really fixed here very well
+
+- **Transcript:** Clearly nothing was really fixed here very well
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 5962.4 286.6 -4327.3
+- **Facing:** south-west (yaw 220, pitch -83)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:43, clear
+- **Fps:** 81
+- **Levels:** mic -25 dBFS, game sound -12 dBFS
+- **Length:** 3.7 s (voice 2.1 s)
+- **Just before:** --3317s message: Slatefall Carbine; --3321s message: Loaded: 30 / 30; --3323s holding Falke Pistol; --3324s holding Himmelsturm Launcher; --3324s message: Himmelsturm Launcher; --3324s holding Titanium Sword; --3324s message: Titanium Sword; --3327s died; --3327s opened DeathMenu; --3327s holding empty hand; --3328s took 22 damage (health 2/20); --3329s respawned; --3329s entered Surface; --3329s closed DeathMenu; --3329s message: Surface; --3329s walked into Forest; --3330s message: The Capital is raiding your home! Hold it.; --3333s message: A stranger in town: Ezra Quill; --3335s message: No flying in survival; --3336s walked into Beach; --3336s opened PauseMenu; --3337s message: Creative mode: switch back from the pause menu's Mode row; --3338s closed PauseMenu; --3340s walked into Ocean; --3340s message: Flying; --3348s walked into Beach; --3348s opened PauseMenu; -19s entered The Deep; -19s message: The Deep; -18s message: You broke through the bottom of the world; -14s message: Sealrock under this fire blocks the way down. A Brimstone Keep about 74 blocks off holds the Sunderite that breaks it (compasses point there); -11s message: Flying; -8s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5962.4 --z -4327.3 --yaw 140 --pitch -83 --time 0.114 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185748-472.aac
+
+![18:57:48](voice-shots/vn-20261015-185748-472.jpg)
+
+## 18:57:54 - Now I've gotta wait forever while I slowly drift downwards
+
+- **Transcript:** Now I've gotta wait forever while I slowly drift downwards
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 5972.7 277.4 -4343.5
+- **Facing:** north (yaw 351, pitch -69)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:50, clear
+- **Fps:** 79
+- **Levels:** mic -30 dBFS, game sound -12 dBFS
+- **Length:** 4.5 s (voice 2.8 s)
+- **Just before:** --3316s message: Loaded: 30 / 30; --3318s holding Falke Pistol; --3318s holding Himmelsturm Launcher; --3318s message: Himmelsturm Launcher; --3318s holding Titanium Sword; --3318s message: Titanium Sword; --3321s died; --3321s opened DeathMenu; --3321s holding empty hand; --3322s took 22 damage (health 2/20); --3323s respawned; --3323s entered Surface; --3323s closed DeathMenu; --3323s message: Surface; --3324s walked into Forest; --3325s message: The Capital is raiding your home! Hold it.; --3327s message: A stranger in town: Ezra Quill; --3329s message: No flying in survival; --3330s walked into Beach; --3330s opened PauseMenu; --3332s message: Creative mode: switch back from the pause menu's Mode row; --3332s closed PauseMenu; --3334s walked into Ocean; --3335s message: Flying; --3342s walked into Beach; --3342s opened PauseMenu; -25s entered The Deep; -25s message: The Deep; -23s message: You broke through the bottom of the world; -20s message: Sealrock under this fire blocks the way down. A Brimstone Keep about 74 blocks off holds the Sunderite that breaks it (compasses point there); -16s message: Flying; -14s message: Walking; -5s message: Hot air rising from the lava sea slows your fall
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5972.7 --z -4343.5 --yaw 9 --pitch -69 --time 0.118 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185754-251.aac
+
+## 18:57:58 - Well, maybe I can put a jetpack on and be-- you know what? I, I need t
+
+- **Transcript:** Well, maybe I can put a jetpack on and be-- you know what? I, I need to test the jetpack
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 5979.4 272.4 -4357.9
+- **Facing:** north-west (yaw 324, pitch -22)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:55, clear
+- **Fps:** 88
+- **Levels:** mic -29 dBFS, game sound -13 dBFS
+- **Length:** 4.7 s (voice 2.5 s)
+- **Just before:** --3311s message: Loaded: 30 / 30; --3313s holding Falke Pistol; --3314s holding Himmelsturm Launcher; --3314s message: Himmelsturm Launcher; --3314s holding Titanium Sword; --3314s message: Titanium Sword; --3317s died; --3317s opened DeathMenu; --3317s holding empty hand; --3318s took 22 damage (health 2/20); --3319s respawned; --3319s entered Surface; --3319s closed DeathMenu; --3319s message: Surface; --3320s walked into Forest; --3320s message: The Capital is raiding your home! Hold it.; --3323s message: A stranger in town: Ezra Quill; --3325s message: No flying in survival; --3326s walked into Beach; --3326s opened PauseMenu; --3328s message: Creative mode: switch back from the pause menu's Mode row; --3328s closed PauseMenu; --3330s walked into Ocean; --3330s message: Flying; --3338s walked into Beach; --3338s opened PauseMenu; -29s entered The Deep; -29s message: The Deep; -27s message: You broke through the bottom of the world; -24s message: Sealrock under this fire blocks the way down. A Brimstone Keep about 74 blocks off holds the Sunderite that breaks it (compasses point there); -21s message: Flying; -18s message: Walking; -10s message: Hot air rising from the lava sea slows your fall
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5979.4 --z -4357.9 --yaw 36 --pitch -22 --time 0.122 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185758-571.aac
+
+![18:57:58](voice-shots/vn-20261015-185758-571.jpg)
+
+## 18:58:04 - I think there is a jetpack here. Yes, there is. Okay
+
+- **Transcript:** I think there is a jetpack here. Yes, there is. Okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 5979.5 267.6 -4357.9
+- **Facing:** north (yaw 349, pitch 14)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 1 08:59, clear
+- **Fps:** 88
+- **Levels:** mic -31 dBFS, game sound -13 dBFS
+- **Length:** 3.9 s (voice 1.8 s)
+- **Just before:** --3308s message: Himmelsturm Launcher; --3308s holding Titanium Sword; --3308s message: Titanium Sword; --3312s died; --3312s opened DeathMenu; --3312s holding empty hand; --3313s took 22 damage (health 2/20); --3313s respawned; --3313s entered Surface; --3313s closed DeathMenu; --3313s message: Surface; --3314s walked into Forest; --3315s message: The Capital is raiding your home! Hold it.; --3317s message: A stranger in town: Ezra Quill; --3319s message: No flying in survival; --3320s walked into Beach; --3320s opened PauseMenu; --3322s message: Creative mode: switch back from the pause menu's Mode row; --3322s closed PauseMenu; --3324s walked into Ocean; --3325s message: Flying; --3332s walked into Beach; --3332s opened PauseMenu; -30s message: Sealrock under this fire blocks the way down. A Brimstone Keep about 74 blocks off holds the Sunderite that breaks it (compasses point there); -26s message: Flying; -24s message: Walking; -15s message: Hot air rising from the lava sea slows your fall; -6s opened PauseMenu; -4s closed PauseMenu; -3s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5979.5 --z -4357.9 --yaw 11 --pitch 14 --time 0.125 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185804-371.aac
+
+## 18:58:31 - Copper. Why is copper under-- have done to you?
+
+- **Transcript:** Copper. Why is copper under-- have done to you?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 5979.5 239.8 -4357.9
+- **Facing:** north (yaw 358, pitch 9)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 1 09:27, clear
+- **Fps:** 90
+- **Levels:** mic -47 dBFS, game sound -18 dBFS
+- **Length:** 3.7 s (voice 1.5 s)
+- **Just before:** --3286s message: Surface; --3287s walked into Forest; --3287s message: The Capital is raiding your home! Hold it.; --3290s message: A stranger in town: Ezra Quill; --3292s message: No flying in survival; --3293s walked into Beach; --3293s opened PauseMenu; --3294s message: Creative mode: switch back from the pause menu's Mode row; --3295s closed PauseMenu; --3297s walked into Ocean; --3297s message: Flying; --3305s walked into Beach; --3305s opened PauseMenu; -19s closed CreativeMenu; -18s opened PauseMenu; -17s message: Survival mode: switch back from the pause menu's Mode row; -16s closed PauseMenu; -16s opened InventoryMenu; -15s closed InventoryMenu; -14s opened PauseMenu; -12s message: Creative mode: switch back from the pause menu's Mode row; -12s closed PauseMenu; -12s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5979.5 --z -4357.9 --yaw 2 --pitch 9 --time 0.144 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185831-791.aac
+
+![18:58:31](voice-shots/vn-20261015-185831-791.jpg)
+
+## 18:58:55 - So the jetpack, it should make me go faster forward
+
+- **Transcript:** So the jetpack, it should make me go faster forward
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 5997.4 220.6 -4336.5
+- **Facing:** south-east (yaw 134, pitch -22)
+- **Held:** Duskium Chestplate x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 09:53, clear
+- **Fps:** 90
+- **Levels:** mic -22 dBFS, game sound -16 dBFS
+- **Length:** 4.1 s (voice 2.0 s)
+- **Just before:** -18s closed CreativeMenu; -16s opened PauseMenu; -15s message: Survival mode: switch back from the pause menu's Mode row; -14s closed PauseMenu; -14s holding Dirt; -14s holding Duskium Helmet; -13s holding empty hand; -13s holding Duskium Chestplate; -13s holding Jetpack; -13s holding Duskium Leggings; -12s holding empty hand; -12s holding Duskium Boots; -12s holding empty hand; -9s holding Jetpack; -9s message: Jetpack; -8s holding Duskium Chestplate
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5997.4 --z -4336.5 --yaw -134 --pitch -22 --time 0.162 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185855-591.aac
+
+![18:58:55](voice-shots/vn-20261015-185855-591.jpg)
+
+## 18:58:59 - Not just upwards. I should be able to, like, Iron Man my way around
+
+- **Transcript:** Not just upwards. I should be able to, like, Iron Man my way around
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 6025.6 217.2 -4330.6
+- **Facing:** east (yaw 110, pitch -43)
+- **Held:** Duskium Chestplate x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 09:59, clear
+- **Fps:** 90
+- **Levels:** mic -44 dBFS, game sound -15 dBFS
+- **Length:** 6.1 s (voice 3.0 s)
+- **Just before:** -23s closed CreativeMenu; -21s opened PauseMenu; -19s message: Survival mode: switch back from the pause menu's Mode row; -19s closed PauseMenu; -18s holding Dirt; -18s holding Duskium Helmet; -18s holding empty hand; -17s holding Duskium Chestplate; -17s holding Jetpack; -17s holding Duskium Leggings; -17s holding empty hand; -17s holding Duskium Boots; -16s holding empty hand; -13s holding Jetpack; -13s message: Jetpack; -12s holding Duskium Chestplate
+- **Position at the end:** 6058.2 211.3 -4335.5
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6025.6 --z -4330.6 --yaw -110 --pitch -43 --time 0.166 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185859-991.aac
+
+## 18:59:06 - In fact, if I get a Hannibal suit, I should also be able to fly, but i
+
+- **Transcript:** In fact, if I get a Hannibal suit, I should also be able to fly, but it takes a lot of fuel in the Hannibal suit
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 6066.6 209.7 -4332.4
+- **Facing:** north-east (yaw 57, pitch -41)
+- **Held:** Duskium Chestplate x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 10:06, clear
+- **Fps:** 90
+- **Levels:** mic -33 dBFS, game sound -14 dBFS
+- **Length:** 5.9 s (voice 3.4 s)
+- **Just before:** -29s closed CreativeMenu; -27s opened PauseMenu; -25s message: Survival mode: switch back from the pause menu's Mode row; -25s closed PauseMenu; -24s holding Dirt; -24s holding Duskium Helmet; -24s holding empty hand; -24s holding Duskium Chestplate; -23s holding Jetpack; -23s holding Duskium Leggings; -23s holding empty hand; -23s holding Duskium Boots; -23s holding empty hand; -20s holding Jetpack; -20s message: Jetpack; -19s holding Duskium Chestplate
+- **Position at the end:** 6099.0 203.7 -4325.8
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6066.6 --z -4332.4 --yaw -57 --pitch -41 --time 0.171 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185906-331.aac
+
+![18:59:06](voice-shots/vn-20261015-185906-331.jpg)
+
+## 18:59:18 - All right, let's say there's like a
+
+- **Transcript:** All right, let's say there's like a
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 6141.7 195.6 -4333.8
+- **Facing:** east (yaw 73, pitch -45)
+- **Held:** Duskium Chestplate x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 10:20, clear
+- **Fps:** 89
+- **Levels:** mic -34 dBFS, game sound -17 dBFS
+- **Length:** 2.8 s (voice 1.4 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6141.7 --z -4333.8 --yaw -73 --pitch -45 --time 0.181 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185918-131.aac
+
+![18:59:18](voice-shots/vn-20261015-185918-131.jpg)
+
+## 18:59:21 - Yeah, let's say you have to like strategically kill the Hannibal guy, 
+
+- **Transcript:** Yeah, let's say you have to like strategically kill the Hannibal guy, like maybe, um
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 6165.4 191.2 -4332.3
+- **Facing:** east (yaw 86, pitch -41)
+- **Held:** Duskium Chestplate x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 10:25, clear
+- **Fps:** 90
+- **Levels:** mic -39 dBFS, game sound -15 dBFS
+- **Length:** 5.4 s (voice 3.4 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6165.4 --z -4332.3 --yaw -86 --pitch -41 --time 0.184 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185921-791.aac
+
+## 18:59:28 - I don't know
+
+- **Transcript:** I don't know
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 6207.0 183.4 -4319.3
+- **Facing:** south-east (yaw 113, pitch -25)
+- **Held:** Duskium Chestplate x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 10:32, clear
+- **Fps:** 88
+- **Levels:** mic -28 dBFS, game sound -17 dBFS
+- **Length:** 2.0 s (voice 0.6 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6207.0 --z -4319.3 --yaw -113 --pitch -25 --time 0.189 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185928-371.aac
+
+![18:59:28](voice-shots/vn-20261015-185928-371.jpg)
+
+## 18:59:31 - Maybe make it like a 1% chance that they drop a suit
+
+- **Transcript:** Maybe make it like a 1% chance that they drop a suit
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 6220.2 179.4 -4316.0
+- **Facing:** north-east (yaw 55, pitch -27)
+- **Held:** Duskium Chestplate x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 10:36, clear
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -16 dBFS
+- **Length:** 5.3 s (voice 2.6 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6220.2 --z -4316.0 --yaw -55 --pitch -27 --time 0.192 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185931-731.aac
+
+## 18:59:58 - So right now it looks like I'm digging through the void, so that's an 
+
+- **Transcript:** So right now it looks like I'm digging through the void, so that's an issue
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 6203.4 126.9 -4290.6
+- **Facing:** south-east (yaw 122, pitch -80)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** Emberslate at 6203 125 -4291
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 11:06, clear
+- **Fps:** 91
+- **Levels:** mic -28 dBFS, game sound -18 dBFS
+- **Length:** 4.5 s (voice 2.7 s)
+- **Just before:** -19s holding empty hand; -18s holding Duskium Chestplate; -18s message: Duskium Chestplate; -17s holding Jetpack; -16s opened PauseMenu; -16s took 4 damage (health 16/20); -15s message: Creative mode: switch back from the pause menu's Mode row; -14s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6203.4 --z -4290.6 --yaw -122 --pitch -80 --time 0.213 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-185958-492.aac
+
+![18:59:58](voice-shots/vn-20261015-185958-492.jpg)
+
+## 19:00:06 - By the way, in survival, I don't think there was a
+
+- **Transcript:** By the way, in survival, I don't think there was a
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 6203.9 112.4 -4290.7
+- **Facing:** south-east (yaw 118, pitch -85)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** Emberslate at 6204 109 -4291
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 11:16, clear
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -20 dBFS
+- **Length:** 3.7 s (voice 2.0 s)
+- **Just before:** -27s holding empty hand; -26s holding Duskium Chestplate; -26s message: Duskium Chestplate; -25s holding Jetpack; -24s opened PauseMenu; -24s took 4 damage (health 16/20); -23s message: Creative mode: switch back from the pause menu's Mode row; -22s closed PauseMenu; -4s message: The Ashguard holds this vault: their citadel is 7542 blocks away (compasses and roads lead there)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6203.9 --z -4290.7 --yaw -118 --pitch -85 --time 0.219 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190006-531.aac
+
+## 19:00:11 - I don't think it was an Asheville charge or anything like that unless 
+
+- **Transcript:** I don't think it was an Asheville charge or anything like that unless I dug through it
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 6205.7 108.0 -4289.3
+- **Facing:** south-east (yaw 140, pitch -71)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at 6206 105 -4289
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 11:22, clear
+- **Fps:** 90
+- **Levels:** mic -33 dBFS, game sound -14 dBFS
+- **Length:** 6.0 s (voice 3.5 s)
+- **Just before:** -30s opened PauseMenu; -29s took 4 damage (health 16/20); -28s message: Creative mode: switch back from the pause menu's Mode row; -27s closed PauseMenu; -10s message: The Ashguard holds this vault: their citadel is 7542 blocks away (compasses and roads lead there)
+- **Position at the end:** 6208.7 108.0 -4289.1
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6205.7 --z -4289.3 --yaw -140 --pitch -71 --time 0.224 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190011-711.aac
+
+![19:00:11](voice-shots/vn-20261015-190011-711.jpg)
+
+## 19:00:18 - Which case, whoops. I don't remember if I was in creative or not when 
+
+- **Transcript:** Which case, whoops. I don't remember if I was in creative or not when I dug through it
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 6209.5 107.8 -4288.7
+- **Facing:** south-east (yaw 115, pitch -82)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at 6210 105 -4289
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 11:30, clear
+- **Fps:** 88
+- **Levels:** mic -32 dBFS, game sound -15 dBFS
+- **Length:** 5.7 s (voice 2.7 s)
+- **Just before:** -16s message: The Ashguard holds this vault: their citadel is 7542 blocks away (compasses and roads lead there)
+- **Position at the end:** 6216.9 99.3 -4294.7
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6209.5 --z -4288.7 --yaw -115 --pitch -82 --time 0.229 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190018-391.aac
+
+## 19:00:24 - Yeah. So this environment just looks too much like hell. It's just not
+
+- **Transcript:** Yeah. So this environment just looks too much like hell. It's just not like
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 6222.1 96.9 -4295.0
+- **Facing:** south-east (yaw 135, pitch -35)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 11:37, clear
+- **Fps:** 89
+- **Levels:** mic -39 dBFS, game sound -14 dBFS
+- **Length:** 4.8 s (voice 2.4 s)
+- **Just before:** -23s message: The Ashguard holds this vault: their citadel is 7542 blocks away (compasses and roads lead there)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6222.1 --z -4295.0 --yaw -135 --pitch -35 --time 0.235 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190024-931.aac
+
+![19:00:24](voice-shots/vn-20261015-190024-931.jpg)
+
+## 19:00:46 - Let me drop ship where you need one
+
+- **Transcript:** Let me drop ship where you need one
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 6227.9 68.6 -4268.1
+- **Facing:** east (yaw 71, pitch -51)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 12:04, clear
+- **Fps:** 90
+- **Levels:** mic -32 dBFS, game sound -18 dBFS
+- **Length:** 2.6 s (voice 0.9 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6227.9 --z -4268.1 --yaw -71 --pitch -51 --time 0.253 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190046-811.aac
+
+![19:00:46](voice-shots/vn-20261015-190046-811.jpg)
+
+## 19:00:53 - [sighs] Friggin' falling. Who decided to do this stupid falling? I tel
+
+- **Transcript:** [sighs] Friggin' falling. Who decided to do this stupid falling? I tell you
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 6249.6 57.7 -4299.7
+- **Facing:** west (yaw 253, pitch -58)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 12:12, clear
+- **Fps:** 90
+- **Levels:** mic -37 dBFS, game sound -18 dBFS
+- **Length:** 5.7 s (voice 3.1 s)
+- **Position at the end:** 6276.6 50.3 -4312.3
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6249.6 --z -4299.7 --yaw 107 --pitch -58 --time 0.259 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190053-771.aac
+
+## 19:01:01 - Yeah, lava rivers, we don't need that. Just, I don't know
+
+- **Transcript:** Yeah, lava rivers, we don't need that. Just, I don't know
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 6293.7 46.2 -4311.3
+- **Facing:** west (yaw 273, pitch -51)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 12:21, clear
+- **Fps:** 90
+- **Levels:** mic -21 dBFS, game sound -14 dBFS
+- **Length:** 4.0 s (voice 2.3 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6293.7 --z -4311.3 --yaw 87 --pitch -51 --time 0.265 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190101-511.aac
+
+![19:01:01](voice-shots/vn-20261015-190101-511.jpg)
+
+## 19:01:06 - Make it depressing weather, foggy, but still vegetation. It's kind of 
+
+- **Transcript:** Make it depressing weather, foggy, but still vegetation. It's kind of like World War II at its worst moments for the Germans.
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 6323.0 38.1 -4312.4
+- **Facing:** north-west (yaw 295, pitch -25)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 12:28, clear
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -20 dBFS
+- **Length:** 10.5 s (voice 5.5 s)
+- **Position at the end:** 6326.4 30.5 -4332.6
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6323.0 --z -4312.4 --yaw 65 --pitch -25 --time 0.270 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190106-971.aac
+
+## 19:01:19 - Maybe, um, little fallen crashed airplanes and shit
+
+- **Transcript:** Maybe, um, little fallen crashed airplanes and shit
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 6331.5 18.8 -4359.9
+- **Facing:** west (yaw 261, pitch -36)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 12:43, clear
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -15 dBFS
+- **Length:** 6.6 s (voice 3.2 s)
+- **Position at the end:** 6343.6 11.2 -4376.2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6331.5 --z -4359.9 --yaw 99 --pitch -36 --time 0.280 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190119-551.aac
+
+![19:01:19](voice-shots/vn-20261015-190119-551.jpg)
+
+## 19:01:27 - Maybe like massacres where it's just like
+
+- **Transcript:** Maybe like massacres where it's just like
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 6355.4 6.3 -4380.1
+- **Facing:** north-west (yaw 293, pitch -52)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 12:53, clear
+- **Fps:** 90
+- **Levels:** mic -29 dBFS, game sound -15 dBFS
+- **Length:** 3.2 s (voice 1.6 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6355.4 --z -4380.1 --yaw 67 --pitch -52 --time 0.287 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190127-751.aac
+
+## 19:01:30 - A bunch of soldiers dead all around
+
+- **Transcript:** A bunch of soldiers dead all around
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 6367.0 2.2 -4382.8
+- **Facing:** west (yaw 265, pitch -60)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 12:56, clear
+- **Fps:** 90
+- **Levels:** mic -30 dBFS, game sound -14 dBFS
+- **Length:** 4.1 s (voice 1.8 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6367.0 --z -4382.8 --yaw 95 --pitch -60 --time 0.289 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190130-771.aac
+
+![19:01:30](voice-shots/vn-20261015-190130-771.jpg)
+
+## 19:01:36 - Bunch of Allied soldiers dead. Yeah, I remember thinking
+
+- **Transcript:** Bunch of Allied soldiers dead. Yeah, I remember thinking
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 6382.5 -7.1 -4400.0
+- **Facing:** west (yaw 265, pitch -61)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 13:03, clear
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -18 dBFS
+- **Length:** 3.6 s (voice 1.7 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6382.5 --z -4400.0 --yaw 95 --pitch -61 --time 0.294 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190136-751.aac
+
+## 19:01:40 - Bunch of, you know, bunch of Nazis dead. Nah, that's not very scary. I
+
+- **Transcript:** Bunch of, you know, bunch of Nazis dead. Nah, that's not very scary. It's like, "Ha ha, yeah, suckers." But with Allied dead, and it's like, "Wow, what happened here?"
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 6389.5 -12.3 -4412.0
+- **Facing:** west (yaw 282, pitch -58)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 13:08, clear
+- **Fps:** 90
+- **Levels:** mic -44 dBFS, game sound -9 dBFS
+- **Length:** 9.3 s (voice 5.6 s)
+- **Position at the end:** 6394.7 -19.9 -4432.4
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6389.5 --z -4412.0 --yaw 78 --pitch -58 --time 0.297 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190140-231.aac
+
+## 19:01:50 - Yeah. So I think I'm more interested in that
+
+- **Transcript:** Yeah. So I think I'm more interested in that
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 6411.6 -27.5 -4444.2
+- **Facing:** west (yaw 275, pitch -45)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at 6407 -31 -4445
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 13:20, clear
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -14 dBFS
+- **Length:** 3.5 s (voice 1.5 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6411.6 --z -4444.2 --yaw 85 --pitch -45 --time 0.306 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190150-231.aac
+
+![19:01:50](voice-shots/vn-20261015-190150-231.jpg)
+
+## 19:02:06 - Yeah, so there should be little German bases all around. Like, there s
+
+- **Transcript:** Yeah, so there should be little German bases all around. Like, there should be
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 5991.0 -27.1 -3659.8
+- **Facing:** south-east (yaw 117, pitch -41)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 13:39, clear
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -17 dBFS
+- **Length:** 5.1 s (voice 3.0 s)
+- **Just before:** -16s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5991.0 --z -3659.8 --yaw -117 --pitch -41 --time 0.319 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190206-171.aac
+
+![19:02:06](voice-shots/vn-20261015-190206-171.jpg)
+
+## 19:02:11 - Based on like actual German bases, what they would have. Could even ha
+
+- **Transcript:** Based on like actual German bases, what they would have. Could even have like a nuclear heavy water site or something like that. I don't, I don't know
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** 5861.6 -27.1 -3219.1
+- **Facing:** south-east (yaw 115, pitch -40)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 13:45, clear
+- **Fps:** 89
+- **Levels:** mic -21 dBFS, game sound -14 dBFS
+- **Length:** 8.3 s (voice 5.5 s)
+- **Just before:** -21s message: Flying
+- **Position at the end:** 5761.2 -27.1 -2798.4
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5861.6 --z -3219.1 --yaw -115 --pitch -40 --time 0.323 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190211-531.aac
+
+## 19:02:20 - Up to you. They should have their, like all the guns they have. You ca
+
+- **Transcript:** Up to you. They should have their, like all the guns they have. You can name them, like you can call them the MP40 if you want and so on
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 5713.7 -27.1 -2566.1
+- **Facing:** south-east (yaw 121, pitch -35)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 13:55, clear
+- **Fps:** 89
+- **Levels:** mic -27 dBFS, game sound -25 dBFS
+- **Length:** 9.1 s (voice 4.9 s)
+- **Just before:** -29s message: Flying
+- **Position at the end:** 5541.7 -27.1 -2176.9
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5713.7 --z -2566.1 --yaw -121 --pitch -35 --time 0.330 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190220-091.aac
+
+![19:02:20](voice-shots/vn-20261015-190220-091.jpg)
+
+## 19:02:29 - Well, up to you, I guess. Use your own judgment
+
+- **Transcript:** Well, up to you, I guess. Use your own judgment
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 5386.6 -27.1 -1888.9
+- **Facing:** south-east (yaw 129, pitch -39)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 14:07, clear
+- **Fps:** 90
+- **Levels:** mic -33 dBFS, game sound -35 dBFS
+- **Length:** 3.2 s (voice 1.5 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 5386.6 --z -1888.9 --yaw -129 --pitch -39 --time 0.338 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190229-711.aac
+
+## 19:02:52 - Yeah, so an easy difficulty, this should be a cakewalk. Even someone w
+
+- **Transcript:** Yeah, so an easy difficulty, this should be a cakewalk. Even someone who doesn't know what the hell they're doing, they should generally be able to get through this, maybe die a few times. But me, I'm a seasoned player
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 4418.0 -27.1 -225.2
+- **Facing:** south-east (yaw 132, pitch -38)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 14:34, clear
+- **Fps:** 90
+- **Levels:** mic -33 dBFS, game sound -23 dBFS
+- **Length:** 11.8 s (voice 7.6 s)
+- **Position at the end:** 4101.9 -27.1 489.4
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 4418.0 --z -225.2 --yaw -132 --pitch -38 --time 0.357 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190252-351.aac
+
+![19:02:52](voice-shots/vn-20261015-190252-351.jpg)
+
+## 19:03:04 - You know, normal, I should have a bit of difficulty on normal, you kno
+
+- **Transcript:** You know, normal, I should have a bit of difficulty on normal, you know, and die several times until I get the hang of it. And then on hard, well, that should be for people who hate themselves and, you know, and really want to struggle.
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 4085.9 -27.1 614.1
+- **Facing:** south-east (yaw 116, pitch -36)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 14:48, clear
+- **Fps:** 90
+- **Levels:** mic -25 dBFS, game sound -25 dBFS
+- **Length:** 14.8 s (voice 9.4 s)
+- **Position at the end:** 3696.9 -27.1 1233.4
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 4085.9 --z 614.1 --yaw -116 --pitch -36 --time 0.367 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190304-171.aac
+
+![19:03:04](voice-shots/vn-20261015-190304-171.jpg)
+
+## 19:03:19 - I think the key is though, we wanna keep everything needs to have real
+
+- **Transcript:** I think the key is though, we wanna keep everything needs to have realistic health. So when it-- Yeah, so maybe the enemies will have a fixed health even from e-easy, medium, and hard, but the idea is
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 3388.2 -27.1 1539.1
+- **Facing:** south (yaw 159, pitch -33)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 15:06, clear
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -22 dBFS
+- **Length:** 15.0 s (voice 8.8 s)
+- **Position at the end:** 3109.8 -27.1 1897.4
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 3388.2 --z 1539.1 --yaw -159 --pitch -33 --time 0.379 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190319-251.aac
+
+![19:03:19](voice-shots/vn-20261015-190319-251.jpg)
+
+## 19:03:34 - The, uh
+
+- **Transcript:** The, uh
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 2907.8 -27.1 1987.3
+- **Facing:** west (yaw 249, pitch -34)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 15:24, clear
+- **Fps:** 90
+- **Levels:** mic -29 dBFS, game sound -22 dBFS
+- **Length:** 1.9 s (voice 0.6 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 2907.8 --z 1987.3 --yaw 111 --pitch -34 --time 0.392 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190334-791.aac
+
+![19:03:34](voice-shots/vn-20261015-190334-791.jpg)
+
+## 19:03:37 - Um, everything else changes. So like your own health, like you're very
+
+- **Transcript:** Um, everything else changes. So like your own health, like you're very weak even with armor on. Your armor doesn't help you very much or
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 2838.1 -27.1 1914.4
+- **Facing:** west (yaw 268, pitch -34)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 15:28, clear
+- **Fps:** 89
+- **Levels:** mic -39 dBFS, game sound -23 dBFS
+- **Length:** 8.1 s (voice 4.8 s)
+- **Position at the end:** 2675.8 -27.1 1710.6
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 2838.1 --z 1914.4 --yaw 92 --pitch -34 --time 0.395 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190337-991.aac
+
+## 19:03:45 - Maybe other enemies are faster. Maybe they have
+
+- **Transcript:** Maybe other enemies are faster. Maybe they have
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 2560.6 -27.1 1557.6
+- **Facing:** west (yaw 255, pitch -33)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 15:38, clear
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -24 dBFS
+- **Length:** 3.6 s (voice 2.2 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 2560.6 --z 1557.6 --yaw 105 --pitch -33 --time 0.401 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190345-971.aac
+
+![19:03:45](voice-shots/vn-20261015-190345-971.jpg)
+
+## 19:03:49 - I don't know, special, more special AI. And the tanks, I've got to be 
+
+- **Transcript:** I don't know, special, more special AI. And the tanks, I've got to be able to drive a fucking tank. There should be more than tanks. You should have like their rocket half trucks and, you know, their motorcycles with the sidecar and I think all German vehicles, not just their tanks.
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 2367.3 -27.1 1401.0
+- **Facing:** south-west (yaw 236, pitch -64)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** Emberslate at 2366 -27 1401
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 15:42, clear
+- **Fps:** 90
+- **Levels:** mic -34 dBFS, game sound -25 dBFS
+- **Length:** 16.6 s (voice 10.3 s)
+- **Position at the end:** 1619.0 -27.1 1092.4
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 2367.3 --z 1401.0 --yaw 124 --pitch -64 --time 0.404 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190349-471.aac
+
+## 19:04:06 - Half-assery right there
+
+- **Transcript:** Half-assery right there
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 1491.2 -27.1 1047.1
+- **Facing:** south-west (yaw 238, pitch -36)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 16:02, clear
+- **Fps:** 90
+- **Levels:** mic -34 dBFS, game sound -19 dBFS
+- **Length:** 2.5 s (voice 1.0 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 1491.2 --z 1047.1 --yaw 122 --pitch -36 --time 0.418 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190406-351.aac
+
+![19:04:06](voice-shots/vn-20261015-190406-351.jpg)
+
+## 19:04:09 - Um, like just, you know, German stuff. Just be like a fucking World Wa
+
+- **Transcript:** Um, like just, you know, German stuff. Just be like a fucking World War II
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 1317.7 -27.1 968.4
+- **Facing:** south-west (yaw 237, pitch -33)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 16:05, clear
+- **Fps:** 90
+- **Levels:** mic -35 dBFS, game sound -18 dBFS
+- **Length:** 6.7 s (voice 3.3 s)
+- **Position at the end:** 1055.0 -27.1 752.1
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 1317.7 --z 968.4 --yaw 123 --pitch -33 --time 0.421 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190409-031.aac
+
+## 19:04:15 - Campaign sort of
+
+- **Transcript:** Campaign sort of
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Tealcap Forest
+- **Position:** 981.4 -27.1 722.2
+- **Facing:** south-west (yaw 227, pitch -30)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 16:13, clear
+- **Fps:** 90
+- **Levels:** mic -29 dBFS, game sound -24 dBFS
+- **Length:** 2.2 s (voice 0.9 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 981.4 --z 722.2 --yaw 133 --pitch -30 --time 0.426 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190415-651.aac
+
+## 19:04:18 - For people who want that
+
+- **Transcript:** For people who want that
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 809.6 -27.1 639.9
+- **Facing:** south-west (yaw 233, pitch -31)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 16:16, clear
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -25 dBFS
+- **Length:** 2.0 s (voice 0.6 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 809.6 --z 639.9 --yaw 127 --pitch -31 --time 0.428 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190418-391.aac
+
+![19:04:18](voice-shots/vn-20261015-190418-391.jpg)
+
+## 19:04:21 - Yeah, it'll just be like a fun surprise. All right, I better see somet
+
+- **Transcript:** Yeah, it'll just be like a fun surprise. All right, I better see something real soon. What the fuck? Oh, yeah. [laughs] What do we got here?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 565.6 -27.1 483.4
+- **Facing:** south-west (yaw 234, pitch -31)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 16:20, clear
+- **Fps:** 89
+- **Levels:** mic -31 dBFS, game sound -22 dBFS
+- **Length:** 8.6 s (voice 5.1 s)
+- **Position at the end:** 327.2 -27.1 248.2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 565.6 --z 483.4 --yaw 126 --pitch -31 --time 0.431 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190421-851.aac
+
+## 19:04:30 - Okay, so w-what, what was that I just passed? Oh, yeah, we got a nice 
+
+- **Transcript:** Okay, so w-what, what was that I just passed? Oh, yeah, we got a nice little... [laughs] Very good. Yes, flags there. Very nice. Oh, we got a little, uh, railway line. What is... Oh, okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 275.9 -27.1 132.7
+- **Facing:** west (yaw 258, pitch -35)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 16:31, clear
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -24 dBFS
+- **Length:** 14.3 s (voice 9.1 s)
+- **Position at the end:** 410.7 -19.2 30.9
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 275.9 --z 132.7 --yaw 102 --pitch -35 --time 0.438 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190430-271.aac
+
+![19:04:30](voice-shots/vn-20261015-190430-271.jpg)
+
+## 19:04:44 - Yeah, yeah. A little, uh, rail cart line that goes back and forth, and
+
+- **Transcript:** Yeah, yeah. A little, uh, rail cart line that goes back and forth, and we got a shitload of tanks and okay, yeah, neat
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Basalt Deltas
+- **Position:** 312.5 -19.2 1.2
+- **Facing:** west (yaw 253, pitch -38)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 16:48, clear
+- **Fps:** 89
+- **Levels:** mic -28 dBFS, game sound -21 dBFS
+- **Length:** 7.9 s (voice 5.0 s)
+- **Position at the end:** 68.1 -19.2 22.3
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 312.5 --z 1.2 --yaw 107 --pitch -38 --time 0.450 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190444-991.aac
+
+![19:04:44](voice-shots/vn-20261015-190444-991.jpg)
+
+## 19:04:53 - It'd be fun if you could commandeer a frigate, which I've never driven
+
+- **Transcript:** It'd be fun if you could commandeer a frigate, which I've never driven by the way. I need to fly one of these frigates
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 53.9 -19.2 17.4
+- **Facing:** south (yaw 172, pitch -30)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 16:58, clear
+- **Fps:** 89
+- **Levels:** mic -25 dBFS, game sound -26 dBFS
+- **Length:** 6.2 s (voice 3.2 s)
+- **Position at the end:** -18.1 -19.2 10.3
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 53.9 --z 17.4 --yaw -172 --pitch -30 --time 0.457 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190453-231.aac
+
+## 19:05:00 - Anyways, what I'm gonna do, I'm just gonna
+
+- **Transcript:** Anyways, what I'm gonna do, I'm just gonna
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -47.4 -19.2 -1.8
+- **Facing:** south (yaw 182, pitch -49)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 17:06, clear
+- **Fps:** 89
+- **Levels:** mic -25 dBFS, game sound -22 dBFS
+- **Length:** 2.8 s (voice 1.4 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -47.4 --z -1.8 --yaw 178 --pitch -49 --time 0.463 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190500-111.aac
+
+![19:05:00](voice-shots/vn-20261015-190500-111.jpg)
+
+## 19:05:02 - 'Cause it'd be fucking suicide to do this in survival
+
+- **Transcript:** 'Cause it'd be fucking suicide to do this in survival
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -74.1 -19.2 -5.9
+- **Facing:** south-east (yaw 124, pitch -54)
+- **Held:** Jetpack x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 17:09, clear
+- **Fps:** 89
+- **Levels:** mic -38 dBFS, game sound -25 dBFS
+- **Length:** 3.9 s (voice 2.0 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -74.1 --z -5.9 --yaw -124 --pitch -54 --time 0.465 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190502-771.aac
+
+## 19:05:06 - I'm literally just gonna do this on creative
+
+- **Transcript:** I'm literally just gonna do this on creative
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -66.1 -23.9 -8.7
+- **Facing:** west (yaw 270, pitch -43)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 17:14, clear
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -15 dBFS
+- **Length:** 2.7 s (voice 1.4 s)
+- **Just before:** -4s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -66.1 --z -8.7 --yaw 90 --pitch -43 --time 0.468 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190506-551.aac
+
+## 19:05:10 - 'Cause there's just, there's no way I do it on survival. It's just, ev
+
+- **Transcript:** 'Cause there's just, there's no way I do it on survival. It's just, everything's just too difficult
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -67.9 -29.7 0.3
+- **Facing:** west (yaw 283, pitch -38)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 17:18, clear
+- **Fps:** 90
+- **Levels:** mic -40 dBFS, game sound -24 dBFS
+- **Length:** 4.9 s (voice 2.8 s)
+- **Just before:** -7s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -67.9 --z 0.3 --yaw 77 --pitch -38 --time 0.471 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190510-092.aac
+
+## 19:05:17 - Okay, so I'm gonna have, um, the best weaponry, of course
+
+- **Transcript:** Okay, so I'm gonna have, um, the best weaponry, of course
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** -68.2 -33.0 1.5
+- **Facing:** east (yaw 70, pitch 3)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20, screen CreativeMenu
+- **Time:** day 1 17:26, clear
+- **Fps:** 90
+- **Levels:** mic -29 dBFS, game sound -25 dBFS
+- **Length:** 4.6 s (voice 2.3 s)
+- **Just before:** -15s message: Walking; -4s opened PauseMenu; -4s closed PauseMenu; -3s opened PauseMenu; -2s closed PauseMenu; -2s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -68.2 --z 1.5 --yaw -70 --pitch 3 --time 0.477 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190517-591.aac
+
+![19:05:17](voice-shots/vn-20261015-190517-591.jpg)
+
+## 19:05:26 - Dong, yeah. Donor or whatever. Service rifle, okay
+
+- **Transcript:** Dong, yeah. Donor or whatever. Service rifle, okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** -68.2 -33.0 1.5
+- **Facing:** east (yaw 70, pitch 3)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20, screen CreativeMenu
+- **Time:** day 1 17:37, clear
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -15 dBFS
+- **Length:** 4.1 s (voice 1.3 s)
+- **Just before:** -24s message: Walking; -14s opened PauseMenu; -13s closed PauseMenu; -12s opened PauseMenu; -11s closed PauseMenu; -11s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -68.2 --z 1.5 --yaw -70 --pitch 3 --time 0.484 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190526-851.aac
+
+## 19:05:31 - Himmelstürm. Yep, good
+
+- **Transcript:** Himmelstürm. Yep, good
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** -68.2 -33.0 1.5
+- **Facing:** east (yaw 70, pitch 3)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20, screen CreativeMenu
+- **Time:** day 1 17:43, clear
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -22 dBFS
+- **Length:** 3.4 s (voice 1.8 s)
+- **Just before:** -29s message: Walking; -19s opened PauseMenu; -18s closed PauseMenu; -17s opened PauseMenu; -17s closed PauseMenu; -16s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -68.2 --z 1.5 --yaw -70 --pitch 3 --time 0.488 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190531-891.aac
+
+![19:05:31](voice-shots/vn-20261015-190531-891.jpg)
+
+## 19:05:35 - Yeah, that's probably all I need there. Remember Brand Greatsword, whe
+
+- **Transcript:** Yeah, that's probably all I need there. Remember Brand Greatsword, wherever the hell that is
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** -68.2 -33.0 1.5
+- **Facing:** east (yaw 70, pitch 3)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20, screen CreativeMenu
+- **Time:** day 1 17:47, clear
+- **Fps:** 90
+- **Levels:** mic -30 dBFS, game sound -23 dBFS
+- **Length:** 6.1 s (voice 3.7 s)
+- **Just before:** -23s opened PauseMenu; -22s closed PauseMenu; -21s opened PauseMenu; -20s closed PauseMenu; -20s opened CreativeMenu
+- **Position at the end:** -68.2 -33.0 1.5
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -68.2 --z 1.5 --yaw -70 --pitch 3 --time 0.492 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190535-711.aac
+
+## 19:05:42 - Yeah, I'm okay with that, wherever that is. Sun Ray Pick. Yeah, intere
+
+- **Transcript:** Yeah, I'm okay with that, wherever that is. Sun Ray Pick. Yeah, interesting. I'm curious to try that sword. It could be an interesting sword. Do I not, like, already shoot shit? Oh, yeah. Here we go
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ghost Sand Valley
+- **Position:** -68.2 -33.0 1.5
+- **Facing:** east (yaw 70, pitch 3)
+- **Held:** Jetpack x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20, screen CreativeMenu
+- **Time:** day 1 17:55, clear
+- **Fps:** 90
+- **Levels:** mic -35 dBFS, game sound -24 dBFS
+- **Length:** 10.1 s (voice 5.3 s)
+- **Just before:** -29s opened PauseMenu; -28s closed PauseMenu; -27s opened PauseMenu; -27s closed PauseMenu; -26s opened CreativeMenu
+- **Position at the end:** -68.2 -33.0 1.5
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -68.2 --z 1.5 --yaw -70 --pitch 3 --time 0.497 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190542-191.aac
+
+![19:05:42](voice-shots/vn-20261015-190542-191.jpg)
+
+## 19:05:54 - I'm not able to get into the fucking tank for some reason, which would
+
+- **Transcript:** I'm not able to get into the fucking tank for some reason, which would be an awesome feature. You know, it was just never decided to be
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -56.4 -33.0 -4.2
+- **Facing:** east (yaw 79, pitch -68)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** Smooth Basalt at -56 -34 -5
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 18:09, clear
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -21 dBFS
+- **Length:** 8.1 s (voice 4.7 s)
+- **Just before:** -6s closed CreativeMenu; -5s holding Donnerkeil Service Rifle; -5s message: Donnerkeil Service Rifle; -5s message: Empty: bring Capital Rounds from your hip to the gun (none on you: Capital soldiers, citadel crates and Capital city gunsmiths); -5s holding Himmelsturm Launcher; -2s holding Glass; -2s holding Torch; -2s message: Loaded: 2 / 2
+- **While talking:** -2s holding Glass; -2s message: Glass; -2s holding Himmelsturm Launcher; -2s message: Himmelsturm Launcher; -2s holding Donnerkeil Service Rifle; -2s message: Donnerkeil Service Rifle; -1s message: Loaded: 45 / 45
+- **Position at the end:** -46.8 -33.0 -0.2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -56.4 --z -4.2 --yaw -79 --pitch -68 --time 0.507 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190554-011.aac
+
+![19:05:54](voice-shots/vn-20261015-190554-011.jpg)
+
+## 19:06:03 - Okay, are these guys just invincible?
+
+- **Transcript:** Okay, are these guys just invincible?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -39.4 -33.0 1.4
+- **Facing:** east (yaw 74, pitch -2)
+- **Held:** Donnerkeil Service Rifle x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 18:21, clear
+- **Fps:** 90
+- **Levels:** mic -44 dBFS, game sound -11 dBFS
+- **Length:** 3.9 s (voice 1.5 s)
+- **Just before:** -15s closed CreativeMenu; -15s holding Donnerkeil Service Rifle; -15s message: Donnerkeil Service Rifle; -15s message: Empty: bring Capital Rounds from your hip to the gun (none on you: Capital soldiers, citadel crates and Capital city gunsmiths); -15s holding Himmelsturm Launcher; -12s holding Glass; -11s holding Torch; -11s message: Loaded: 2 / 2; -7s holding Glass; -7s message: Glass; -7s holding Himmelsturm Launcher; -7s message: Himmelsturm Launcher; -7s holding Donnerkeil Service Rifle; -7s message: Donnerkeil Service Rifle; -6s message: Loaded: 45 / 45
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -39.4 --z 1.4 --yaw -74 --pitch -2 --time 0.515 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190603-571.aac
+
+## 19:06:20 - Okay. Yeah, these guys are cool. These guys with the little red eyes, 
+
+- **Transcript:** Okay. Yeah, these guys are cool. These guys with the little red eyes, red eye troops with the freaking gas masks. Yeah, that's neat. They should go entirely over their head, though
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -17.5 -33.0 12.8
+- **Facing:** east (yaw 88, pitch -5)
+- **Held:** Donnerkeil Service Rifle x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 18:41, clear
+- **Fps:** 90
+- **Levels:** mic -57 dBFS, game sound -9 dBFS
+- **Length:** 10.8 s (voice 7.0 s)
+- **Just before:** -29s holding Glass; -28s holding Torch; -28s message: Loaded: 2 / 2; -24s holding Glass; -24s message: Glass; -24s holding Himmelsturm Launcher; -24s message: Himmelsturm Launcher; -24s holding Donnerkeil Service Rifle; -24s message: Donnerkeil Service Rifle; -23s message: Loaded: 45 / 45; -10s holding Jetpack; -10s message: Jetpack; -9s holding Brand Greatsword; -9s message: Brand Greatsword; -4s holding Jetpack; -4s message: Jetpack; -3s holding Donnerkeil Service Rifle; -3s message: Donnerkeil Service Rifle; -2s opened CreativeMenu; -2s closed CreativeMenu
+- **While talking:** -1s holding Himmelsturm Launcher; -1s message: Himmelsturm Launcher
+- **Position at the end:** 21.5 -33.0 2.8
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -17.5 --z 12.8 --yaw -88 --pitch -5 --time 0.529 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190620-631.aac
+
+## 19:06:31 - That way it's more obviously spec ops
+
+- **Transcript:** That way it's more obviously spec ops
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 21.5 -33.0 2.8
+- **Facing:** north-west (yaw 328, pitch -13)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 18:54, clear
+- **Fps:** 89
+- **Levels:** mic -29 dBFS, game sound -15 dBFS
+- **Length:** 3.3 s (voice 1.4 s)
+- **Just before:** -20s holding Jetpack; -20s message: Jetpack; -20s holding Brand Greatsword; -20s message: Brand Greatsword; -14s holding Jetpack; -14s message: Jetpack; -14s holding Donnerkeil Service Rifle; -14s message: Donnerkeil Service Rifle; -13s opened CreativeMenu; -12s closed CreativeMenu; -1s holding Himmelsturm Launcher; -1s message: Himmelsturm Launcher
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 21.5 --z 2.8 --yaw 32 --pitch -13 --time 0.538 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190631-131.aac
+
+![19:06:31](voice-shots/vn-20261015-190631-131.jpg)
+
+## 19:06:34 - And my, um, missile launcher should damage
+
+- **Transcript:** And my, um, missile launcher should damage
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 16.8 -33.0 0.1
+- **Facing:** west (yaw 282, pitch -10)
+- **Held:** Brand Greatsword x1
+- **Mount:** on foot
+- **Looking at:** Ashcrete at 13 -33 -1
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 18:58, clear
+- **Fps:** 89
+- **Levels:** mic -26 dBFS, game sound -18 dBFS
+- **Length:** 4.2 s (voice 2.6 s)
+- **Just before:** -23s holding Jetpack; -23s message: Jetpack; -23s holding Brand Greatsword; -23s message: Brand Greatsword; -17s holding Jetpack; -17s message: Jetpack; -17s holding Donnerkeil Service Rifle; -17s message: Donnerkeil Service Rifle; -16s opened CreativeMenu; -16s closed CreativeMenu; -5s holding Himmelsturm Launcher; -5s message: Himmelsturm Launcher; -3s message: Flying; -1s holding Glass; -1s message: Glass; -1s holding Himmelsturm Launcher; -1s message: Himmelsturm Launcher; -1s holding Donnerkeil Service Rifle; -1s message: Donnerkeil Service Rifle; -1s holding Jetpack; -1s message: Jetpack; -0s holding Brand Greatsword; -0s message: Brand Greatsword
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 16.8 --z 0.1 --yaw 78 --pitch -10 --time 0.541 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190634-671.aac
+
+## 19:07:10 - Everything's still block here, by the way
+
+- **Transcript:** Everything's still block here, by the way
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 15.9 -33.0 -2.0
+- **Facing:** north-east (yaw 39, pitch -20)
+- **Held:** Brand Greatsword x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at 18 -34 -6
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 19:41, clear
+- **Fps:** 90
+- **Levels:** mic -34 dBFS, game sound -10 dBFS
+- **Length:** 3.3 s (voice 1.7 s)
+- **Just before:** -22s message: Console: patrols and Capital sites on your radar for 30 s; -18s opened ChestMenu; -13s closed ChestMenu; -12s opened ChestMenu; -8s closed ChestMenu; -6s opened ChestMenu; -4s closed ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 15.9 --z -2.0 --yaw -39 --pitch -20 --time 0.571 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190710-751.aac
+
+![19:07:10](voice-shots/vn-20261015-190710-751.jpg)
+
+## 19:07:14 - Just to let you know
+
+- **Transcript:** Just to let you know
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 39.4 -33.0 -2.1
+- **Facing:** east (yaw 68, pitch -40)
+- **Held:** Brand Greatsword x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at 40 -34 -3
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 19:45, clear
+- **Fps:** 90
+- **Levels:** mic -23 dBFS, game sound -16 dBFS
+- **Length:** 2.1 s (voice 0.7 s)
+- **Just before:** -26s message: Console: patrols and Capital sites on your radar for 30 s; -22s opened ChestMenu; -17s closed ChestMenu; -15s opened ChestMenu; -12s closed ChestMenu; -9s opened ChestMenu; -7s closed ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 39.4 --z -2.1 --yaw -68 --pitch -40 --time 0.574 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190714-392.aac
+
+## 19:07:17 - Okay, so that was, uh, not obvious
+
+- **Transcript:** Okay, so that was, uh, not obvious
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 58.5 -27.2 -45.0
+- **Facing:** north-east (yaw 23, pitch -41)
+- **Held:** Brand Greatsword x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 19:49, clear
+- **Fps:** 89
+- **Levels:** mic -40 dBFS, game sound -10 dBFS
+- **Length:** 3.8 s (voice 1.8 s)
+- **Just before:** -29s message: Console: patrols and Capital sites on your radar for 30 s; -25s opened ChestMenu; -20s closed ChestMenu; -18s opened ChestMenu; -15s closed ChestMenu; -12s opened ChestMenu; -10s closed ChestMenu; -2s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 58.5 --z -45.0 --yaw -23 --pitch -41 --time 0.576 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190717-391.aac
+
+## 19:07:21 - Okay, so I could
+
+- **Transcript:** Okay, so I could
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 61.4 -26.8 -172.9
+- **Facing:** south-west (yaw 242, pitch -52)
+- **Held:** Brand Greatsword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 19:54, clear
+- **Fps:** 89
+- **Levels:** mic -29 dBFS, game sound -16 dBFS
+- **Length:** 2.3 s (voice 0.8 s)
+- **Just before:** -29s opened ChestMenu; -23s closed ChestMenu; -22s opened ChestMenu; -19s closed ChestMenu; -16s opened ChestMenu; -14s closed ChestMenu; -6s message: Flying; -0s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 61.4 --z -172.9 --yaw 118 --pitch -52 --time 0.579 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190721-251.aac
+
+![19:07:21](voice-shots/vn-20261015-190721-251.jpg)
+
+## 19:07:23 - I don't know if they're not dying 'cause they're uncreative or what th
+
+- **Transcript:** I don't know if they're not dying 'cause they're uncreative or what the deal is
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 59.9 -30.9 -172.1
+- **Facing:** south-west (yaw 242, pitch -50)
+- **Held:** Brand Greatsword x1
+- **Mount:** on foot
+- **Looking at:** Emberslate at 57 -33 -172
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 19:57, clear
+- **Fps:** 90
+- **Levels:** mic -23 dBFS, game sound -12 dBFS
+- **Length:** 4.0 s (voice 2.5 s)
+- **Just before:** -26s closed ChestMenu; -25s opened ChestMenu; -21s closed ChestMenu; -19s opened ChestMenu; -17s closed ChestMenu; -8s message: Flying; -3s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 59.9 --z -172.1 --yaw 118 --pitch -50 --time 0.581 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190723-891.aac
+
+## 19:07:27 - Uh, no, I wanna, I wanna test this. Hold on
+
+- **Transcript:** Uh, no, I wanna, I wanna test this. Hold on
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 59.7 -33.0 -171.4
+- **Facing:** south-west (yaw 206, pitch -1)
+- **Held:** Brand Greatsword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 20:00, clear
+- **Fps:** 90
+- **Levels:** mic -34 dBFS, game sound -21 dBFS
+- **Length:** 3.4 s (voice 1.1 s)
+- **Just before:** -30s closed ChestMenu; -28s opened ChestMenu; -25s closed ChestMenu; -23s opened ChestMenu; -21s closed ChestMenu; -12s message: Flying; -7s message: Walking; -2s opened PauseMenu; -0s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 59.7 --z -171.4 --yaw 154 --pitch -1 --time 0.583 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190727-731.aac
+
+## 19:07:33 - Well, he died, I think
+
+- **Transcript:** Well, he died, I think
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 18.6 -17.0 -43.3
+- **Facing:** south-east (yaw 150, pitch -43)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 20:06, clear
+- **Fps:** 90
+- **Levels:** mic -47 dBFS, game sound -22 dBFS
+- **Length:** 2.9 s (voice 0.6 s)
+- **Just before:** -28s opened ChestMenu; -26s closed ChestMenu; -18s message: Flying; -12s message: Walking; -7s opened PauseMenu; -6s closed PauseMenu; -5s message: Flying; -5s holding Jetpack; -5s holding Donnerkeil Service Rifle; -4s holding Himmelsturm Launcher
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 18.6 --z -43.3 --yaw -150 --pitch -43 --time 0.588 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190733-331.aac
+
+![19:07:33](voice-shots/vn-20261015-190733-331.jpg)
+
+## 19:07:36 - Oh yeah, there's trucks here. Okay. There's trucks
+
+- **Transcript:** Oh yeah, there's trucks here. Okay. There's trucks
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 22.4 -17.0 -40.8
+- **Facing:** south-east (yaw 129, pitch -51)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 20:10, clear
+- **Fps:** 90
+- **Levels:** mic -20 dBFS, game sound -21 dBFS
+- **Length:** 4.0 s (voice 1.6 s)
+- **Just before:** -29s closed ChestMenu; -21s message: Flying; -15s message: Walking; -10s opened PauseMenu; -9s closed PauseMenu; -8s message: Flying; -8s holding Jetpack; -8s holding Donnerkeil Service Rifle; -7s holding Himmelsturm Launcher; -3s message: Loaded: 2 / 2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 22.4 --z -40.8 --yaw -129 --pitch -51 --time 0.591 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190736-391.aac
+
+## 19:07:41 - None are driving around though, which is not good
+
+- **Transcript:** None are driving around though, which is not good
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 42.2 -21.0 -22.8
+- **Facing:** south (yaw 190, pitch -28)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 20:16, clear
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -16 dBFS
+- **Length:** 4.3 s (voice 2.1 s)
+- **Just before:** -26s message: Flying; -20s message: Walking; -15s opened PauseMenu; -14s closed PauseMenu; -13s message: Flying; -13s holding Jetpack; -12s holding Donnerkeil Service Rifle; -12s holding Himmelsturm Launcher; -7s message: Loaded: 2 / 2; -3s message: Walking; -1s message: Loaded: 2 / 2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 42.2 --z -22.8 --yaw 170 --pitch -28 --time 0.595 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190741-251.aac
+
+## 19:07:49 - Fucking die, would you?
+
+- **Transcript:** Fucking die, would you?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 45.4 -33.0 0.0
+- **Facing:** south (yaw 202, pitch -0)
+- **Held:** Donnerkeil Service Rifle x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 20:26, clear
+- **Fps:** 90
+- **Levels:** mic -46 dBFS, game sound -7 dBFS
+- **Length:** 3.1 s (voice 1.2 s)
+- **Just before:** -29s message: Walking; -24s opened PauseMenu; -22s closed PauseMenu; -22s message: Flying; -21s holding Jetpack; -21s holding Donnerkeil Service Rifle; -21s holding Himmelsturm Launcher; -16s message: Loaded: 2 / 2; -12s message: Walking; -10s message: Loaded: 2 / 2; -8s holding Donnerkeil Service Rifle; -8s holding Himmelsturm Launcher; -7s holding Donnerkeil Service Rifle; -7s message: Donnerkeil Service Rifle; -6s holding Jetpack; -6s message: Jetpack; -6s holding Donnerkeil Service Rifle; -6s message: Donnerkeil Service Rifle; -5s holding Jetpack; -5s message: Jetpack; -5s holding Donnerkeil Service Rifle; -5s message: Donnerkeil Service Rifle; -5s holding Jetpack; -5s message: Jetpack; -4s holding Donnerkeil Service Rifle; -4s message: Donnerkeil Service Rifle; -4s holding Jetpack; -4s message: Jetpack; -3s holding Donnerkeil Service Rifle; -3s message: Donnerkeil Service Rifle; -3s message: Loaded: 45 / 45
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 45.4 --z 0.0 --yaw 158 --pitch -0 --time 0.602 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190749-991.aac
+
+![19:07:49](voice-shots/vn-20261015-190749-991.jpg)
+
+## 19:07:52 - Okay, I don't think they're dying to machine gun rounds 'cause they, [
+
+- **Transcript:** Okay, I don't think they're dying to machine gun rounds 'cause they, [chuckles] well, they die to the fucking rocket launcher though
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Rustcap Forest
+- **Position:** 45.4 -33.0 1.2
+- **Facing:** south (yaw 198, pitch -1)
+- **Held:** Donnerkeil Service Rifle x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 20:29, clear
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -9 dBFS
+- **Length:** 6.3 s (voice 4.0 s)
+- **Just before:** -27s opened PauseMenu; -25s closed PauseMenu; -25s message: Flying; -24s holding Jetpack; -24s holding Donnerkeil Service Rifle; -24s holding Himmelsturm Launcher; -19s message: Loaded: 2 / 2; -14s message: Walking; -13s message: Loaded: 2 / 2; -11s holding Donnerkeil Service Rifle; -10s holding Himmelsturm Launcher; -10s holding Donnerkeil Service Rifle; -10s message: Donnerkeil Service Rifle; -9s holding Jetpack; -9s message: Jetpack; -8s holding Donnerkeil Service Rifle; -8s message: Donnerkeil Service Rifle; -8s holding Jetpack; -8s message: Jetpack; -8s holding Donnerkeil Service Rifle; -8s message: Donnerkeil Service Rifle; -7s holding Jetpack; -7s message: Jetpack; -7s holding Donnerkeil Service Rifle; -7s message: Donnerkeil Service Rifle; -7s holding Jetpack; -7s message: Jetpack; -6s holding Donnerkeil Service Rifle; -6s message: Donnerkeil Service Rifle; -6s message: Loaded: 45 / 45
+- **While talking:** -4s holding Himmelsturm Launcher; -4s message: Himmelsturm Launcher; -2s message: Loaded: 2 / 2
+- **Position at the end:** 42.3 -33.0 2.0
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 45.4 --z 1.2 --yaw 162 --pitch -1 --time 0.604 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190752-811.aac
+
+## 19:08:28 - Fucking I tell you, reloading is not consistent enough
+
+- **Transcript:** Fucking I tell you, reloading is not consistent enough
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -28.9 -33.0 1.7
+- **Facing:** north-east (yaw 34, pitch -8)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 21:12, clear
+- **Fps:** 90
+- **Levels:** mic -34 dBFS, game sound -20 dBFS
+- **Length:** 3.9 s (voice 2.4 s)
+- **Just before:** -20s holding Donnerkeil Service Rifle; -20s holding Himmelsturm Launcher; -19s holding Donnerkeil Service Rifle; -19s message: Donnerkeil Service Rifle; -19s holding Himmelsturm Launcher; -19s message: Himmelsturm Launcher; -18s message: Loaded: 2 / 2; -16s holding Donnerkeil Service Rifle; -16s message: Donnerkeil Service Rifle; -15s holding Himmelsturm Launcher; -15s message: Himmelsturm Launcher; -15s holding Donnerkeil Service Rifle; -15s message: Donnerkeil Service Rifle; -15s holding Himmelsturm Launcher; -15s message: Himmelsturm Launcher; -14s message: Loaded: 2 / 2; -9s holding Donnerkeil Service Rifle; -9s message: Donnerkeil Service Rifle; -8s holding Himmelsturm Launcher; -8s message: Himmelsturm Launcher; -8s holding Donnerkeil Service Rifle; -8s message: Donnerkeil Service Rifle; -8s holding Himmelsturm Launcher; -8s message: Himmelsturm Launcher; -7s message: Loaded: 2 / 2; -5s holding Donnerkeil Service Rifle; -5s message: Donnerkeil Service Rifle; -4s holding Himmelsturm Launcher; -4s message: Himmelsturm Launcher; -4s message: Loaded: 2 / 2; -3s holding Donnerkeil Service Rifle; -3s holding Himmelsturm Launcher; -2s holding Donnerkeil Service Rifle; -2s holding Himmelsturm Launcher; -2s message: Himmelsturm Launcher; -2s holding Donnerkeil Service Rifle; -2s message: Donnerkeil Service Rifle; -1s holding Himmelsturm Launcher; -1s message: Himmelsturm Launcher; -1s message: Loaded: 2 / 2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -28.9 --z 1.7 --yaw -34 --pitch -8 --time 0.633 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190828-031.aac
+
+![19:08:28](voice-shots/vn-20261015-190828-031.jpg)
+
+## 19:08:31 - Not fucking consistent
+
+- **Transcript:** Not fucking consistent
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -24.9 -33.0 0.5
+- **Facing:** east (yaw 91, pitch -2)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 21:16, clear
+- **Fps:** 90
+- **Levels:** mic -42 dBFS, game sound -12 dBFS
+- **Length:** 2.3 s (voice 0.8 s)
+- **Just before:** -24s holding Donnerkeil Service Rifle; -24s holding Himmelsturm Launcher; -23s holding Donnerkeil Service Rifle; -23s message: Donnerkeil Service Rifle; -22s holding Himmelsturm Launcher; -22s message: Himmelsturm Launcher; -22s message: Loaded: 2 / 2; -19s holding Donnerkeil Service Rifle; -19s message: Donnerkeil Service Rifle; -19s holding Himmelsturm Launcher; -19s message: Himmelsturm Launcher; -19s holding Donnerkeil Service Rifle; -19s message: Donnerkeil Service Rifle; -18s holding Himmelsturm Launcher; -18s message: Himmelsturm Launcher; -18s message: Loaded: 2 / 2; -12s holding Donnerkeil Service Rifle; -12s message: Donnerkeil Service Rifle; -12s holding Himmelsturm Launcher; -12s message: Himmelsturm Launcher; -12s holding Donnerkeil Service Rifle; -12s message: Donnerkeil Service Rifle; -11s holding Himmelsturm Launcher; -11s message: Himmelsturm Launcher; -11s message: Loaded: 2 / 2; -9s holding Donnerkeil Service Rifle; -9s message: Donnerkeil Service Rifle; -8s holding Himmelsturm Launcher; -8s message: Himmelsturm Launcher; -8s message: Loaded: 2 / 2; -7s holding Donnerkeil Service Rifle; -6s holding Himmelsturm Launcher; -6s holding Donnerkeil Service Rifle; -6s holding Himmelsturm Launcher; -6s message: Himmelsturm Launcher; -5s holding Donnerkeil Service Rifle; -5s message: Donnerkeil Service Rifle; -5s holding Himmelsturm Launcher; -5s message: Himmelsturm Launcher; -5s message: Loaded: 2 / 2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -24.9 --z 0.5 --yaw -91 --pitch -2 --time 0.636 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190831-751.aac
+
+## 19:08:36 - Okay. Yeah, okay. I can slowly break through a wall, but, you know, be
+
+- **Transcript:** Okay. Yeah, okay. I can slowly break through a wall, but, you know, being a futuristic fucking, what do you call it? I expect a little better
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -19.4 -33.0 0.9
+- **Facing:** east (yaw 92, pitch -11)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 21:22, clear
+- **Fps:** 90
+- **Levels:** mic -23 dBFS, game sound -14 dBFS
+- **Length:** 10.2 s (voice 5.7 s)
+- **Just before:** -24s holding Himmelsturm Launcher; -24s message: Himmelsturm Launcher; -24s holding Donnerkeil Service Rifle; -24s message: Donnerkeil Service Rifle; -23s holding Himmelsturm Launcher; -23s message: Himmelsturm Launcher; -23s message: Loaded: 2 / 2; -17s holding Donnerkeil Service Rifle; -17s message: Donnerkeil Service Rifle; -17s holding Himmelsturm Launcher; -17s message: Himmelsturm Launcher; -17s holding Donnerkeil Service Rifle; -17s message: Donnerkeil Service Rifle; -16s holding Himmelsturm Launcher; -16s message: Himmelsturm Launcher; -16s message: Loaded: 2 / 2; -14s holding Donnerkeil Service Rifle; -14s message: Donnerkeil Service Rifle; -13s holding Himmelsturm Launcher; -13s message: Himmelsturm Launcher; -13s message: Loaded: 2 / 2; -12s holding Donnerkeil Service Rifle; -11s holding Himmelsturm Launcher; -11s holding Donnerkeil Service Rifle; -11s holding Himmelsturm Launcher; -11s message: Himmelsturm Launcher; -10s holding Donnerkeil Service Rifle; -10s message: Donnerkeil Service Rifle; -10s holding Himmelsturm Launcher; -10s message: Himmelsturm Launcher; -10s message: Loaded: 2 / 2; -4s holding Donnerkeil Service Rifle; -4s message: Donnerkeil Service Rifle; -4s holding Himmelsturm Launcher; -4s message: Himmelsturm Launcher; -4s message: Loaded: 2 / 2; -3s holding Donnerkeil Service Rifle; -2s holding Himmelsturm Launcher; -1s holding Donnerkeil Service Rifle; -1s holding Himmelsturm Launcher
+- **While talking:** -3s holding Donnerkeil Service Rifle; -3s message: Donnerkeil Service Rifle; -2s holding Himmelsturm Launcher; -2s message: Himmelsturm Launcher; -2s message: Loaded: 2 / 2; -1s holding Donnerkeil Service Rifle; -0s holding Himmelsturm Launcher
+- **Position at the end:** -17.3 -33.0 0.6
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -19.4 --z 0.9 --yaw -92 --pitch -11 --time 0.641 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190836-831.aac
+
+## 19:08:47 - Okay, and the browns don't damage blocks at all
+
+- **Transcript:** Okay, and the browns don't damage blocks at all
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -14.9 -33.0 5.1
+- **Facing:** east (yaw 77, pitch -5)
+- **Held:** Donnerkeil Service Rifle x1
+- **Mount:** on foot
+- **Looking at:** Ashcrete at -13 -32 4
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 21:35, clear
+- **Fps:** 90
+- **Levels:** mic -30 dBFS, game sound -9 dBFS
+- **Length:** 4.2 s (voice 2.3 s)
+- **Just before:** -28s holding Himmelsturm Launcher; -28s message: Himmelsturm Launcher; -28s holding Donnerkeil Service Rifle; -28s message: Donnerkeil Service Rifle; -27s holding Himmelsturm Launcher; -27s message: Himmelsturm Launcher; -27s message: Loaded: 2 / 2; -25s holding Donnerkeil Service Rifle; -25s message: Donnerkeil Service Rifle; -24s holding Himmelsturm Launcher; -24s message: Himmelsturm Launcher; -24s message: Loaded: 2 / 2; -23s holding Donnerkeil Service Rifle; -22s holding Himmelsturm Launcher; -22s holding Donnerkeil Service Rifle; -22s holding Himmelsturm Launcher; -22s message: Himmelsturm Launcher; -21s holding Donnerkeil Service Rifle; -21s message: Donnerkeil Service Rifle; -21s holding Himmelsturm Launcher; -21s message: Himmelsturm Launcher; -21s message: Loaded: 2 / 2; -15s holding Donnerkeil Service Rifle; -15s message: Donnerkeil Service Rifle; -15s holding Himmelsturm Launcher; -15s message: Himmelsturm Launcher; -15s message: Loaded: 2 / 2; -14s holding Donnerkeil Service Rifle; -13s holding Himmelsturm Launcher; -12s holding Donnerkeil Service Rifle; -12s holding Himmelsturm Launcher; -9s holding Donnerkeil Service Rifle; -9s message: Donnerkeil Service Rifle; -8s holding Himmelsturm Launcher; -8s message: Himmelsturm Launcher; -8s message: Loaded: 2 / 2; -7s holding Donnerkeil Service Rifle; -6s holding Himmelsturm Launcher; -3s holding Donnerkeil Service Rifle; -3s message: Donnerkeil Service Rifle
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -14.9 --z 5.1 --yaw -77 --pitch -5 --time 0.650 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190847-831.aac
+
+![19:08:47](voice-shots/vn-20261015-190847-831.jpg)
+
+## 19:08:52 - I do like the crater that makes though with the rocket launcher. That'
+
+- **Transcript:** I do like the crater that makes though with the rocket launcher. That's kinda cool
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -19.3 -33.0 -2.9
+- **Facing:** north-east (yaw 43, pitch -39)
+- **Held:** Donnerkeil Service Rifle x1
+- **Mount:** on foot
+- **Looking at:** Smooth Basalt at -18 -34 -5
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 21:40, clear
+- **Fps:** 90
+- **Levels:** mic -26 dBFS, game sound -13 dBFS
+- **Length:** 5.3 s (voice 2.7 s)
+- **Just before:** -29s holding Donnerkeil Service Rifle; -29s message: Donnerkeil Service Rifle; -28s holding Himmelsturm Launcher; -28s message: Himmelsturm Launcher; -28s message: Loaded: 2 / 2; -27s holding Donnerkeil Service Rifle; -26s holding Himmelsturm Launcher; -26s holding Donnerkeil Service Rifle; -26s holding Himmelsturm Launcher; -26s message: Himmelsturm Launcher; -25s holding Donnerkeil Service Rifle; -25s message: Donnerkeil Service Rifle; -25s holding Himmelsturm Launcher; -25s message: Himmelsturm Launcher; -25s message: Loaded: 2 / 2; -20s holding Donnerkeil Service Rifle; -20s message: Donnerkeil Service Rifle; -19s holding Himmelsturm Launcher; -19s message: Himmelsturm Launcher; -19s message: Loaded: 2 / 2; -18s holding Donnerkeil Service Rifle; -18s holding Himmelsturm Launcher; -16s holding Donnerkeil Service Rifle; -16s holding Himmelsturm Launcher; -13s holding Donnerkeil Service Rifle; -13s message: Donnerkeil Service Rifle; -12s holding Himmelsturm Launcher; -12s message: Himmelsturm Launcher; -12s message: Loaded: 2 / 2; -11s holding Donnerkeil Service Rifle; -11s holding Himmelsturm Launcher; -7s holding Donnerkeil Service Rifle; -7s message: Donnerkeil Service Rifle
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -19.3 --z -2.9 --yaw -43 --pitch -39 --time 0.653 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190852-051.aac
+
+## 19:08:57 - This just doesn't break through
+
+- **Transcript:** This just doesn't break through
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 7.8 -33.0 -13.1
+- **Facing:** south-east (yaw 133, pitch -18)
+- **Held:** Donnerkeil Service Rifle x1
+- **Mount:** on foot
+- **Looking at:** Ashcrete at 10 -33 -10
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 21:46, clear
+- **Fps:** 90
+- **Levels:** mic -66 dBFS, game sound -14 dBFS
+- **Length:** 2.3 s (voice 0.8 s)
+- **Just before:** -30s message: Loaded: 2 / 2; -25s holding Donnerkeil Service Rifle; -25s message: Donnerkeil Service Rifle; -24s holding Himmelsturm Launcher; -24s message: Himmelsturm Launcher; -24s message: Loaded: 2 / 2; -23s holding Donnerkeil Service Rifle; -23s holding Himmelsturm Launcher; -22s holding Donnerkeil Service Rifle; -21s holding Himmelsturm Launcher; -18s holding Donnerkeil Service Rifle; -18s message: Donnerkeil Service Rifle; -18s holding Himmelsturm Launcher; -18s message: Himmelsturm Launcher; -17s message: Loaded: 2 / 2; -16s holding Donnerkeil Service Rifle; -16s holding Himmelsturm Launcher; -12s holding Donnerkeil Service Rifle; -12s message: Donnerkeil Service Rifle
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7.8 --z -13.1 --yaw -133 --pitch -18 --time 0.658 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190857-172.aac
+
+## 19:09:10 - That guy dead. Yeah, that one's dead now
+
+- **Transcript:** That guy dead. Yeah, that one's dead now
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -1.9 -33.0 -5.2
+- **Facing:** south (yaw 196, pitch 1)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 22:02, clear
+- **Fps:** 89
+- **Levels:** mic -26 dBFS, game sound -13 dBFS
+- **Length:** 4.2 s (voice 2.2 s)
+- **Just before:** -29s holding Donnerkeil Service Rifle; -29s holding Himmelsturm Launcher; -25s holding Donnerkeil Service Rifle; -25s message: Donnerkeil Service Rifle; -8s holding Himmelsturm Launcher; -8s message: Himmelsturm Launcher; -6s message: Loaded: 2 / 2; -5s message: The Ash Marshal is dead. Sirens: the Ashguard is throwing its last army at you. Hold the citadel; -1s message: Legendary: The Marshal's Word, from The Ash Marshal.
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -1.9 --z -5.2 --yaw 164 --pitch 1 --time 0.668 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190910-071.aac
+
+![19:09:10](voice-shots/vn-20261015-190910-071.jpg)
+
+## 19:09:15 - Okay. Now we're just gonna... I don't know. Have everybody done Scion 
+
+- **Transcript:** Okay. Now we're just gonna... I don't know. Have everybody done Scion Armor? Yeah, that's what I'm thinking. I already have this shit, right? Okay, I d- I already have it. Um, okay. We're just gonna give myself a shitload of clips then
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -8.9 -33.0 -0.2
+- **Facing:** south-east (yaw 126, pitch -2)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20
+- **Time:** day 1 22:07, clear
+- **Fps:** 90
+- **Levels:** mic -40 dBFS, game sound -24 dBFS
+- **Length:** 15.2 s (voice 8.9 s)
+- **Just before:** -14s holding Himmelsturm Launcher; -14s message: Himmelsturm Launcher; -12s message: Loaded: 2 / 2; -10s message: The Ash Marshal is dead. Sirens: the Ashguard is throwing its last army at you. Hold the citadel; -7s message: Legendary: The Marshal's Word, from The Ash Marshal.; -4s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -1s opened PauseMenu; -1s message: Loaded: 2 / 2; -0s closed PauseMenu
+- **While talking:** -5s opened CreativeMenu; -4s message: The Chancellor, over the loudspeakers: "Every last man to the citadel. Crush them!"; -1s message: Wave 1 of 3: their reserve infantry and half-tracks are coming
+- **Position at the end:** -8.9 -33.0 -0.2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -8.9 --z -0.2 --yaw -126 --pitch -2 --time 0.672 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190915-771.aac
+
+## 19:09:31 - That's what I need, clips
+
+- **Transcript:** That's what I need, clips
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -8.9 -33.0 -0.2
+- **Facing:** south-east (yaw 127, pitch 1)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20, screen CreativeMenu
+- **Time:** day 1 22:26, clear
+- **Fps:** 90
+- **Levels:** mic -31 dBFS, game sound -19 dBFS
+- **Length:** 2.4 s (voice 0.7 s)
+- **Just before:** -29s holding Himmelsturm Launcher; -29s message: Himmelsturm Launcher; -27s message: Loaded: 2 / 2; -26s message: The Ash Marshal is dead. Sirens: the Ashguard is throwing its last army at you. Hold the citadel; -22s message: Legendary: The Marshal's Word, from The Ash Marshal.; -20s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -17s opened PauseMenu; -16s message: Loaded: 2 / 2; -16s closed PauseMenu; -15s opened CreativeMenu; -15s message: The Chancellor, over the loudspeakers: "Every last man to the citadel. Crush them!"; -11s message: Wave 1 of 3: their reserve infantry and half-tracks are coming
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -8.9 --z -0.2 --yaw -127 --pitch 1 --time 0.685 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190931-331.aac
+
+![19:09:31](voice-shots/vn-20261015-190931-331.jpg)
+
+## 19:09:38 - Could make a whole World War II campaign, couldn't I?
+
+- **Transcript:** Could make a whole World War II campaign, couldn't I?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -8.9 -33.0 -0.2
+- **Facing:** south-east (yaw 127, pitch 1)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20, screen CreativeMenu
+- **Time:** day 1 22:34, clear
+- **Fps:** 90
+- **Levels:** mic -28 dBFS, game sound -11 dBFS
+- **Length:** 3.6 s (voice 1.9 s)
+- **Just before:** -29s message: Legendary: The Marshal's Word, from The Ash Marshal.; -26s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -24s opened PauseMenu; -23s message: Loaded: 2 / 2; -23s closed PauseMenu; -22s opened CreativeMenu; -22s message: The Chancellor, over the loudspeakers: "Every last man to the citadel. Crush them!"; -18s message: Wave 1 of 3: their reserve infantry and half-tracks are coming
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -8.9 --z -0.2 --yaw -127 --pitch 1 --time 0.691 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190938-111.aac
+
+## 19:09:42 - Yeah, it's probably something for later though. We're-- I need to make
+
+- **Transcript:** Yeah, it's probably something for later though. We're-- I need to make this game ready to go, so that's my goal right-- Hold on. That's my goal right now, making everything ready to ship.
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -8.9 -33.0 -0.2
+- **Facing:** south-east (yaw 127, pitch 1)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20, screen CreativeMenu
+- **Time:** day 1 22:39, clear
+- **Fps:** 90
+- **Levels:** mic -23 dBFS, game sound -23 dBFS
+- **Length:** 12.7 s (voice 7.1 s)
+- **Just before:** -28s opened PauseMenu; -27s message: Loaded: 2 / 2; -27s closed PauseMenu; -26s opened CreativeMenu; -26s message: The Chancellor, over the loudspeakers: "Every last man to the citadel. Crush them!"; -22s message: Wave 1 of 3: their reserve infantry and half-tracks are coming; -3s message: 6 of the wave still stand: the nearest 42 m NW, behind
+- **While talking:** -2s closed CreativeMenu; -5s opened PauseMenu; -3s closed PauseMenu; -3s opened CreativeMenu
+- **Position at the end:** -8.9 -33.0 -0.3
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -8.9 --z -0.2 --yaw -127 --pitch 1 --time 0.694 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190942-372.aac
+
+![19:09:42](voice-shots/vn-20261015-190942-372.jpg)
+
+## 19:09:58 - All right. We're gonna go to survival briefly
+
+- **Transcript:** All right. We're gonna go to survival briefly
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -9.9 -33.0 -0.7
+- **Facing:** east (yaw 107, pitch 1)
+- **Held:** Himmelsturm Launcher x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 16/20, screen PauseMenu
+- **Time:** day 1 22:55, clear
+- **Fps:** 90
+- **Levels:** mic -40 dBFS, game sound -30 dBFS
+- **Length:** 3.6 s (voice 1.6 s)
+- **Just before:** -20s message: 6 of the wave still stand: the nearest 42 m NW, behind; -14s closed CreativeMenu; -11s opened PauseMenu; -10s closed PauseMenu; -9s opened CreativeMenu; -4s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -3s closed CreativeMenu; -2s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -9.9 --z -0.7 --yaw -107 --pitch 1 --time 0.705 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-190958-871.aac
+
+![19:09:58](voice-shots/vn-20261015-190958-871.jpg)
+
+## 19:10:05 - Close to this thing. Yeah, all good. All right
+
+- **Transcript:** Close to this thing. Yeah, all good. All right
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -5.1 -33.0 -5.0
+- **Facing:** east (yaw 95, pitch 11)
+- **Held:** Donnerkeil Service Rifle x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 23:02, clear
+- **Fps:** 90
+- **Levels:** mic -36 dBFS, game sound -12 dBFS
+- **Length:** 3.5 s (voice 1.6 s)
+- **Just before:** -26s message: 6 of the wave still stand: the nearest 42 m NW, behind; -20s closed CreativeMenu; -18s opened PauseMenu; -16s closed PauseMenu; -16s opened CreativeMenu; -10s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -9s closed CreativeMenu; -8s opened PauseMenu; -6s message: Survival mode: switch back from the pause menu's Mode row; -6s closed PauseMenu; -5s holding Donnerkeil Service Rifle; -4s opened InventoryMenu; -2s closed InventoryMenu; -2s message: 6 of the wave still stand: the nearest 40 m NW, behind; -2s holding Himmelsturm Launcher; -2s holding Donnerkeil Service Rifle
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -5.1 --z -5.0 --yaw -95 --pitch 11 --time 0.710 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191005-351.aac
+
+## 19:10:08 - Why are there a bunch of crafting tables on top of the
+
+- **Transcript:** Why are there a bunch of crafting tables on top of the
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 0.7 -32.0 -2.2
+- **Facing:** south (yaw 161, pitch -37)
+- **Held:** Donnerkeil Service Rifle x1
+- **Mount:** on foot
+- **Looking at:** Crafting Table at 1 -32 -1
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 23:06, clear
+- **Fps:** 90
+- **Levels:** mic -24 dBFS, game sound -14 dBFS
+- **Length:** 3.6 s (voice 1.9 s)
+- **Just before:** -29s message: 6 of the wave still stand: the nearest 42 m NW, behind; -24s closed CreativeMenu; -21s opened PauseMenu; -19s closed PauseMenu; -19s opened CreativeMenu; -14s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -12s closed CreativeMenu; -11s opened PauseMenu; -9s message: Survival mode: switch back from the pause menu's Mode row; -9s closed PauseMenu; -8s holding Donnerkeil Service Rifle; -7s opened InventoryMenu; -5s closed InventoryMenu; -5s message: 6 of the wave still stand: the nearest 40 m NW, behind; -5s holding Himmelsturm Launcher; -5s holding Donnerkeil Service Rifle; -2s message: Loaded: 45 / 45
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 0.7 --z -2.2 --yaw -161 --pitch -37 --time 0.713 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191008-491.aac
+
+## 19:10:13 - What's the point of that?
+
+- **Transcript:** What's the point of that?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 0.3 -33.0 -5.4
+- **Facing:** south-east (yaw 120, pitch -17)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 4 -34 -3
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 23:11, clear
+- **Fps:** 89
+- **Levels:** mic -28 dBFS, game sound -17 dBFS
+- **Length:** 2.1 s (voice 0.6 s)
+- **Just before:** -28s closed CreativeMenu; -26s opened PauseMenu; -24s closed PauseMenu; -23s opened CreativeMenu; -18s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -17s closed CreativeMenu; -16s opened PauseMenu; -14s message: Survival mode: switch back from the pause menu's Mode row; -13s closed PauseMenu; -12s holding Donnerkeil Service Rifle; -12s opened InventoryMenu; -10s closed InventoryMenu; -10s message: 6 of the wave still stand: the nearest 40 m NW, behind; -10s holding Himmelsturm Launcher; -9s holding Donnerkeil Service Rifle; -7s message: Loaded: 45 / 45; -1s holding Himmelsturm Launcher; -1s message: Himmelsturm Launcher; -1s holding Duskium Boots; -1s message: Duskium Boots; -0s holding Torch; -0s message: Torch
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 0.3 --z -5.4 --yaw -120 --pitch -17 --time 0.716 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191013-111.aac
+
+![19:10:13](voice-shots/vn-20261015-191013-111.jpg)
+
+## 19:10:23 - Spike the guns, burn the fuel. Okay, say spike the guns, burn the fuel
+
+- **Transcript:** Spike the guns, burn the fuel. Okay, say spike the guns, burn the fuel. I can't read all that. Okay? It fades away
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 6.3 -33.0 1.1
+- **Facing:** south-east (yaw 140, pitch -39)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** Blast Door at 7 -34 2
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 23:23, clear
+- **Fps:** 87
+- **Levels:** mic -39 dBFS, game sound -16 dBFS
+- **Length:** 6.4 s (voice 3.5 s)
+- **Just before:** -28s message: Alarm: Quiet. Radio: "Stand down. Back to your posts."; -27s closed CreativeMenu; -26s opened PauseMenu; -24s message: Survival mode: switch back from the pause menu's Mode row; -24s closed PauseMenu; -23s holding Donnerkeil Service Rifle; -22s opened InventoryMenu; -20s closed InventoryMenu; -20s message: 6 of the wave still stand: the nearest 40 m NW, behind; -20s holding Himmelsturm Launcher; -20s holding Donnerkeil Service Rifle; -17s message: Loaded: 45 / 45; -11s holding Himmelsturm Launcher; -11s message: Himmelsturm Launcher; -11s holding Duskium Boots; -11s message: Duskium Boots; -10s holding Torch; -10s message: Torch; -9s opened ChestMenu; -7s closed ChestMenu
+- **While talking:** -5s message: 6 of the wave still stand: the nearest 53 m SW, right
+- **Position at the end:** 6.9 -33.0 1.2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6.3 --z 1.1 --yaw -140 --pitch -39 --time 0.725 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191023-431.aac
+
+![19:10:23](voice-shots/vn-20261015-191023-431.jpg)
+
+## 19:10:31 - Glass door
+
+- **Transcript:** Glass door
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 7.1 -33.0 4.9
+- **Facing:** south-east (yaw 143, pitch -21)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at 9 -34 7
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 23:33, clear
+- **Fps:** 90
+- **Levels:** mic -36 dBFS, game sound -14 dBFS
+- **Length:** 2.1 s (voice 0.5 s)
+- **Just before:** -29s closed InventoryMenu; -28s message: 6 of the wave still stand: the nearest 40 m NW, behind; -28s holding Himmelsturm Launcher; -28s holding Donnerkeil Service Rifle; -25s message: Loaded: 45 / 45; -20s holding Himmelsturm Launcher; -20s message: Himmelsturm Launcher; -19s holding Duskium Boots; -19s message: Duskium Boots; -19s holding Torch; -19s message: Torch; -17s opened ChestMenu; -15s closed ChestMenu; -8s message: 6 of the wave still stand: the nearest 53 m SW, right
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7.1 --z 4.9 --yaw -143 --pitch -21 --time 0.732 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191031-811.aac
+
+## 19:10:34 - Use the command console. Okay
+
+- **Transcript:** Use the command console. Okay
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 8.6 -33.0 6.8
+- **Facing:** south-east (yaw 151, pitch -37)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** Command Console at 9 -33 8
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 23:37, clear
+- **Fps:** 90
+- **Levels:** mic -33 dBFS, game sound -15 dBFS
+- **Length:** 3.0 s (voice 1.2 s)
+- **Just before:** -28s message: Loaded: 45 / 45; -23s holding Himmelsturm Launcher; -23s message: Himmelsturm Launcher; -22s holding Duskium Boots; -22s message: Duskium Boots; -22s holding Torch; -22s message: Torch; -20s opened ChestMenu; -18s closed ChestMenu; -11s message: 6 of the wave still stand: the nearest 53 m SW, right; -3s message: Console: patrols and Capital sites on your radar for 30 s
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 8.6 --z 6.8 --yaw -151 --pitch -37 --time 0.734 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191034-831.aac
+
+![19:10:34](voice-shots/vn-20261015-191034-831.jpg)
+
+## 19:10:37 - How the hell do I open the blast door?
+
+- **Transcript:** How the hell do I open the blast door?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 8.0 -33.0 6.1
+- **Facing:** north (yaw 3, pitch -39)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** Blast Door at 8 -34 4
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 23:40, clear
+- **Fps:** 90
+- **Levels:** mic -27 dBFS, game sound -17 dBFS
+- **Length:** 2.7 s (voice 1.4 s)
+- **Just before:** -25s holding Himmelsturm Launcher; -25s message: Himmelsturm Launcher; -25s holding Duskium Boots; -25s message: Duskium Boots; -24s holding Torch; -24s message: Torch; -23s opened ChestMenu; -21s closed ChestMenu; -14s message: 6 of the wave still stand: the nearest 53 m SW, right; -5s message: Console: patrols and Capital sites on your radar for 30 s; -1s opened ChestMenu; -1s closed ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 8.0 --z 6.1 --yaw -3 --pitch -39 --time 0.737 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191037-471.aac
+
+## 19:10:44 - Like literally, how the fuck do I do that?
+
+- **Transcript:** Like literally, how the fuck do I do that?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** -5.6 -33.0 7.7
+- **Facing:** north-west (yaw 323, pitch -31)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** Polished Onyxstone at -8 -34 5
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 23:48, clear
+- **Fps:** 90
+- **Levels:** mic -32 dBFS, game sound -16 dBFS
+- **Length:** 3.2 s (voice 1.6 s)
+- **Just before:** -30s opened ChestMenu; -27s closed ChestMenu; -20s message: 6 of the wave still stand: the nearest 53 m SW, right; -12s message: Console: patrols and Capital sites on your radar for 30 s; -8s opened ChestMenu; -7s closed ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x -5.6 --z 7.7 --yaw 37 --pitch -31 --time 0.742 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191044-011.aac
+
+## 19:10:48 - Open apply. That's kinda cool, but how do I do it?
+
+- **Transcript:** Open apply. That's kinda cool, but how do I do it?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 6.8 -33.0 6.3
+- **Facing:** north (yaw 22, pitch -32)
+- **Held:** Torch x63
+- **Mount:** on foot
+- **Looking at:** Torch at 7 -33 4
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 23:53, clear
+- **Fps:** 90
+- **Levels:** mic -43 dBFS, game sound -17 dBFS
+- **Length:** 3.5 s (voice 2.0 s)
+- **Just before:** -24s message: 6 of the wave still stand: the nearest 53 m SW, right; -16s message: Console: patrols and Capital sites on your radar for 30 s; -12s opened ChestMenu; -11s closed ChestMenu; -2s message: 6 of the wave still stand: the nearest 41 m SW, behind left
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6.8 --z 6.3 --yaw -22 --pitch -32 --time 0.746 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191048-291.aac
+
+![19:10:48](voice-shots/vn-20261015-191048-291.jpg)
+
+## 19:10:54 - Oh, yeah, yeah. Okay. Yep. Asgard rifleman. Mm, totally
+
+- **Transcript:** Oh, yeah, yeah. Okay. Yep. Asgard rifleman. Mm, totally
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** The Deep
+- **Biome:** Ember Wastes
+- **Position:** 15.2 -32.0 -1.8
+- **Facing:** north-east (yaw 50, pitch -34)
+- **Held:** Brand Greatsword x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at 17 -34 -4
+- **Mode:** Survival, health 5/20
+- **Time:** day 1 00:00, clear
+- **Fps:** 87
+- **Levels:** mic -32 dBFS, game sound -14 dBFS
+- **Length:** 7.5 s (voice 3.9 s)
+- **Just before:** -22s message: Console: patrols and Capital sites on your radar for 30 s; -18s opened ChestMenu; -17s closed ChestMenu; -8s message: 6 of the wave still stand: the nearest 41 m SW, behind left; -5s message: Torches need a solid wall; -4s holding Golden Apple; -3s holding Torch; -3s holding Duskium Boots; -3s holding Himmelsturm Launcher; -3s holding Donnerkeil Service Rifle; -2s holding Jetpack; -2s message: Jetpack; -2s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -2s holding Brand Greatsword
+- **While talking:** -5s died; -5s opened DeathMenu; -5s holding empty hand; -4s took 20 damage (health 0/20)
+- **Position at the end:** 15.7 -33.0 -4.4
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 15.2 --z -1.8 --yaw -50 --pitch -34 --time 0.750 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191054-231.aac
+
+## 19:11:11 - All right, all I need now is a frigate
+
+- **Transcript:** All right, all I need now is a frigate
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 6000.0 95.0 -4402.9
+- **Facing:** north (yaw 20, pitch -9)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 00:15, clear
+- **Fps:** 86
+- **Levels:** mic -26 dBFS, game sound -16 dBFS
+- **Length:** 2.7 s (voice 1.2 s)
+- **Just before:** -22s message: 6 of the wave still stand: the nearest 41 m SW, behind left; -19s message: Torches need a solid wall; -18s holding Golden Apple; -18s holding Torch; -17s holding Duskium Boots; -17s holding Himmelsturm Launcher; -17s holding Donnerkeil Service Rifle; -17s holding Jetpack; -17s message: Jetpack; -16s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -16s holding Brand Greatsword; -14s died; -14s opened DeathMenu; -14s holding empty hand; -13s took 20 damage (health 0/20); -8s respawned; -8s entered Surface; -8s closed DeathMenu; -8s message: Surface; -6s message: No flying in survival; -5s opened PauseMenu; -4s message: Creative mode: switch back from the pause menu's Mode row; -3s closed PauseMenu; -1s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6000.0 --z -4402.9 --yaw -20 --pitch -9 --time 0.761`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191111-611.aac
+
+## 19:11:24 - I wanna see where Frigate is. So
+
+- **Transcript:** I wanna see where Frigate is. So
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 6000.2 95.2 -4403.3
+- **Facing:** north (yaw 19, pitch 9)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen PauseMenu
+- **Time:** day 1 00:21, clear
+- **Fps:** 57
+- **Levels:** mic -29 dBFS, game sound -42 dBFS
+- **Length:** 4.3 s (voice 1.6 s)
+- **Just before:** -27s message: Torches need a solid wall; -26s holding Golden Apple; -26s holding Torch; -25s holding Duskium Boots; -25s holding Himmelsturm Launcher; -25s holding Donnerkeil Service Rifle; -25s holding Jetpack; -25s message: Jetpack; -24s message: Alarm: Alert. Radio: "All posts, intruder in the vault. Eyes open."; -24s holding Brand Greatsword; -22s died; -22s opened DeathMenu; -22s holding empty hand; -21s took 20 damage (health 0/20); -16s respawned; -16s entered Surface; -16s closed DeathMenu; -16s message: Surface; -14s message: No flying in survival; -13s opened PauseMenu; -12s message: Creative mode: switch back from the pause menu's Mode row; -11s closed PauseMenu; -9s message: Flying; -8s opened PauseMenu; -6s opened CommandMenu; -2s closed CommandMenu; -1s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6000.2 --z -4403.3 --yaw -19 --pitch 9 --time 0.765`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191124-451.aac
+
+![19:11:24](voice-shots/vn-20261015-191124-451.jpg)
+
+## 19:11:51 - Seventy-one, negative sixty-seven
+
+- **Transcript:** Seventy-one, negative sixty-seven
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 6000.2 95.2 -4403.3
+- **Facing:** north (yaw 19, pitch 9)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CommandMenu
+- **Time:** day 1 00:41, clear
+- **Fps:** 59
+- **Levels:** mic -36 dBFS, game sound -49 dBFS
+- **Length:** 3.2 s (voice 1.5 s)
+- **Just before:** -29s message: Creative mode: switch back from the pause menu's Mode row; -28s closed PauseMenu; -26s message: Flying; -25s opened PauseMenu; -23s opened CommandMenu; -19s closed CommandMenu; -18s opened PauseMenu; -17s opened CommandMenu; -15s opened KeyboardMenu; -13s message: The sky is clouding over: fog is coming; -3s message: Meridian Frigate: 7123 ~ -6727 (2580 blocks, patrols); -2s opened CommandMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6000.2 --z -4403.3 --yaw -19 --pitch 9 --time 0.779`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191151-831.aac
+
+![19:11:51](voice-shots/vn-20261015-191151-831.jpg)
+
+## 19:12:37 - Okay, let's take a look at this puppy
+
+- **Transcript:** Okay, let's take a look at this puppy
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Lukewarm Ocean
+- **Position:** 7091.5 240.3 -6638.4
+- **Facing:** north (yaw 4, pitch -60)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 01:34, thunderstorm
+- **Fps:** 90
+- **Levels:** mic -54 dBFS, game sound -13 dBFS
+- **Length:** 3.0 s (voice 1.3 s)
+- **Just before:** -6s message: Entering Valiwick; -2s message: A Meridian Frigate looms on the horizon
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7091.5 --z -6638.4 --yaw -4 --pitch -60 --time 0.816`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191237-531.aac
+
+![19:12:37](voice-shots/vn-20261015-191237-531.jpg)
+
+## 19:12:42 - Okay, so we should have a big ass gun in the back. Doesn't look enough
+
+- **Transcript:** Okay, so we should have a big ass gun in the back. Doesn't look enough like a Halo One frigate
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Lukewarm Ocean
+- **Position:** 7110.4 139.5 -6635.3
+- **Facing:** north-west (yaw 333, pitch -52)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 01:38, thunderstorm
+- **Fps:** 86
+- **Levels:** mic -26 dBFS, game sound -17 dBFS
+- **Length:** 6.6 s (voice 4.3 s)
+- **Just before:** -10s message: Entering Valiwick; -5s message: A Meridian Frigate looms on the horizon; -3s message: Walking; -1s message: Flying
+- **While talking:** -4s message:  Take command of the Meridian Frigate
+- **Position at the end:** 6973.2 139.5 -6754.1
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7110.4 --z -6635.3 --yaw 27 --pitch -52 --time 0.819`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191242-011.aac
+
+## 19:12:50 - Doesn't look enough
+
+- **Transcript:** Doesn't look enough
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Deep Lukewarm Ocean
+- **Position:** 6964.0 139.5 -6614.6
+- **Facing:** east (yaw 112, pitch -44)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 01:48, thunderstorm
+- **Fps:** 81
+- **Levels:** mic -20 dBFS, game sound -14 dBFS
+- **Length:** 2.8 s (voice 0.9 s)
+- **Just before:** -18s message: Entering Valiwick; -13s message: A Meridian Frigate looms on the horizon; -11s message: Walking; -8s message: Flying; -7s message:  Take command of the Meridian Frigate; -0s message: The frigate's cargo winch hangs a line from its port hangar: stand at its foot to be hauled aboard
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6964.0 --z -6614.6 --yaw -112 --pitch -44 --time 0.825`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191250-511.aac
+
+## 19:12:53 - But you know what? Fuck it. Good enough
+
+- **Transcript:** But you know what? Fuck it. Good enough
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Lukewarm Ocean
+- **Position:** 6979.5 138.6 -6620.1
+- **Facing:** east (yaw 74, pitch -60)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 01:51, thunderstorm
+- **Fps:** 84
+- **Levels:** mic -30 dBFS, game sound -17 dBFS
+- **Length:** 3.4 s (voice 1.5 s)
+- **Just before:** -20s message: Entering Valiwick; -16s message: A Meridian Frigate looms on the horizon; -13s message: Walking; -11s message: Flying; -10s message:  Take command of the Meridian Frigate; -3s message: The frigate's cargo winch hangs a line from its port hangar: stand at its foot to be hauled aboard
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6979.5 --z -6620.1 --yaw -74 --pitch -60 --time 0.827`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191253-531.aac
+
+## 19:12:56 - Good enough for this game. Now it should be a shitload of hallways ins
+
+- **Transcript:** Good enough for this game. Now it should be a shitload of hallways inside. This is just too lazy. This is lazy, okay? The whole thing's hollow. I can see through the side. Like, this is supposed to be a spaceship with doors and it should be like a fucking base. What is this shit?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Lukewarm Ocean
+- **Position:** 6979.2 117.4 -6580.9
+- **Facing:** south-east (yaw 134, pitch -23)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 01:55, thunderstorm
+- **Fps:** 84
+- **Levels:** mic -24 dBFS, game sound -19 dBFS
+- **Length:** 18.2 s (voice 11.6 s)
+- **Just before:** -23s message: Entering Valiwick; -19s message: A Meridian Frigate looms on the horizon; -16s message: Walking; -14s message: Flying; -13s message:  Take command of the Meridian Frigate; -6s message: The frigate's cargo winch hangs a line from its port hangar: stand at its foot to be hauled aboard; -2s message: Walking; -1s message:  Take command of the Meridian Frigate
+- **While talking:** -4s message: Flying; -4s message: Walking
+- **Position at the end:** 7255.7 103.0 -6525.5
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 6979.2 --z -6580.9 --yaw -134 --pitch -23 --time 0.830`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191256-971.aac
+
+## 19:13:15 - Okay, take command
+
+- **Transcript:** Okay, take command
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Lukewarm Ocean
+- **Position:** 7338.4 108.1 -6556.7
+- **Facing:** north-east (yaw 64, pitch -30)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 02:16, thunderstorm
+- **Fps:** 89
+- **Levels:** mic -42 dBFS, game sound -13 dBFS
+- **Length:** 2.5 s (voice 0.9 s)
+- **Just before:** -24s message: The frigate's cargo winch hangs a line from its port hangar: stand at its foot to be hauled aboard; -20s message: Walking; -19s message:  Take command of the Meridian Frigate; -17s message: Flying; -7s message: Walking; -2s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7338.4 --z -6556.7 --yaw -64 --pitch -30 --time 0.845`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191315-071.aac
+
+![19:13:15](voice-shots/vn-20261015-191315-071.jpg)
+
+## 19:13:19 - Okay, and I can't even move it 'cause I don't have a propeller? Is tha
+
+- **Transcript:** Okay, and I can't even move it 'cause I don't have a propeller? Is that, that what you're saying? Why does it say I can't move it?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Lukewarm Ocean
+- **Position:** 7295.7 125.9 -6549.7
+- **Facing:** west (yaw 251, pitch -33)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen BookMenu
+- **Time:** day 1 02:21, thunderstorm
+- **Fps:** 89
+- **Levels:** mic -21 dBFS, game sound -15 dBFS
+- **Length:** 6.3 s (voice 4.0 s)
+- **Just before:** -28s message: The frigate's cargo winch hangs a line from its port hangar: stand at its foot to be hauled aboard; -24s message: Walking; -23s message:  Take command of the Meridian Frigate; -21s message: Flying; -11s message: Walking; -6s message: Flying; -4s piloting Meridian Frigate; -4s message: Steering Meridian Frigate (Airship, throttle holds); -4s opened BookMenu; -4s message: Steering Meridian Frigate (Airship, throttle holds). Added to journal: Repairs: Meridian Frigate. Reread it any time: grip your chest pocket with your right hand, or Menu > Journal; -0s message: You have taken command of the Meridian Frigate!  leaves the helm
+- **While talking:** -5s message: You have taken command of the Meridian Frigate!  leaves the helm; -4s closed BookMenu; -2s message: Capital citadel (the enemy) marked on the map
+- **Position at the end:** 7363.4 127.0 -6603.9
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7295.7 --z -6549.7 --yaw 109 --pitch -33 --time 0.848`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191319-171.aac
+
+## 19:13:30 - The frigate gun should only go straight. I have to, I have to turn the
+
+- **Transcript:** The frigate gun should only go straight. I have to, I have to turn the entire ship to fire the frigate gun and hit something
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7472.3 125.8 -6787.3
+- **Facing:** north-east (yaw 67, pitch 34)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 02:33, thunderstorm
+- **Fps:** 86
+- **Levels:** mic -25 dBFS, game sound -17 dBFS
+- **Length:** 8.1 s (voice 4.8 s)
+- **Just before:** -21s message: Walking; -16s message: Flying; -14s piloting Meridian Frigate; -14s message: Steering Meridian Frigate (Airship, throttle holds); -14s opened BookMenu; -14s message: Steering Meridian Frigate (Airship, throttle holds). Added to journal: Repairs: Meridian Frigate. Reread it any time: grip your chest pocket with your right hand, or Menu > Journal; -10s message: You have taken command of the Meridian Frigate!  leaves the helm; -10s closed BookMenu; -7s message: Capital citadel (the enemy) marked on the map; -5s message: Capital city marked on the map
+- **Position at the end:** 7597.5 125.7 -6906.1
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7472.3 --z -6787.3 --yaw -67 --pitch 34 --time 0.857`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191330-011.aac
+
+![19:13:30](voice-shots/vn-20261015-191330-011.jpg)
+
+## 19:13:38 - So I'm gonna just
+
+- **Transcript:** So I'm gonna just
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7635.1 126.8 -6941.4
+- **Facing:** north-west (yaw 318, pitch 16)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 02:41, thunderstorm
+- **Fps:** 73
+- **Levels:** mic -30 dBFS, game sound -17 dBFS
+- **Length:** 2.0 s (voice 0.5 s)
+- **Just before:** -28s message: Walking; -22s message: Flying; -21s piloting Meridian Frigate; -21s message: Steering Meridian Frigate (Airship, throttle holds); -21s opened BookMenu; -21s message: Steering Meridian Frigate (Airship, throttle holds). Added to journal: Repairs: Meridian Frigate. Reread it any time: grip your chest pocket with your right hand, or Menu > Journal; -17s message: You have taken command of the Meridian Frigate!  leaves the helm; -16s closed BookMenu; -14s message: Capital citadel (the enemy) marked on the map; -11s message: Capital city marked on the map
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7635.1 --z -6941.4 --yaw 42 --pitch 16 --time 0.862`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191338-111.aac
+
+## 19:14:01 - All right, gun's ready
+
+- **Transcript:** All right, gun's ready
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7659.7 130.1 -6818.7
+- **Facing:** west (yaw 265, pitch 16)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 02:58, thunderstorm
+- **Fps:** 55
+- **Levels:** mic -25 dBFS, game sound -15 dBFS
+- **Length:** 3.2 s (voice 1.3 s)
+- **Just before:** -29s message: Capital city marked on the map; -14s message: 72 Hz to keep the frame rate (VR Comfort & Controls); -5s opened PauseMenu; -5s opened MapMenu; -4s opened PauseMenu; -4s closed PauseMenu; -3s opened PauseMenu; -2s opened MapMenu; -2s closed MapMenu; -2s opened PauseMenu; -1s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7659.7 --z -6818.7 --yaw 95 --pitch 16 --time 0.874`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191401-911.aac
+
+![19:14:01](voice-shots/vn-20261015-191401-911.jpg)
+
+## 19:14:10 - What the hell happened?
+
+- **Transcript:** What the hell happened?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7698.2 144.5 -6753.3
+- **Facing:** west (yaw 278, pitch 7)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 03:02, thunderstorm
+- **Fps:** 21
+- **Levels:** mic -28 dBFS, game sound -11 dBFS
+- **Length:** 2.2 s (voice 0.7 s)
+- **Just before:** -17s message: 72 Hz to keep the frame rate (VR Comfort & Controls); -9s opened PauseMenu; -8s opened MapMenu; -7s opened PauseMenu; -7s closed PauseMenu; -7s opened PauseMenu; -6s opened MapMenu; -5s closed MapMenu; -5s opened PauseMenu; -4s closed PauseMenu; -1s message: Render distance 11 for now, to keep the frame rate
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7698.2 --z -6753.3 --yaw 82 --pitch 7 --time 0.877`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191410-511.aac
+
+## 19:14:15 - I didn't fucking shoot over there
+
+- **Transcript:** I didn't fucking shoot over there
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7671.2 147.5 -6794.5
+- **Facing:** north (yaw 340, pitch 15)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 03:07, thunderstorm
+- **Fps:** 39
+- **Levels:** mic -41 dBFS, game sound -15 dBFS
+- **Length:** 2.7 s (voice 1.2 s)
+- **Just before:** -21s message: 72 Hz to keep the frame rate (VR Comfort & Controls); -12s opened PauseMenu; -11s opened MapMenu; -11s opened PauseMenu; -11s closed PauseMenu; -10s opened PauseMenu; -9s opened MapMenu; -9s closed MapMenu; -8s opened PauseMenu; -8s closed PauseMenu; -5s message: Render distance 11 for now, to keep the frame rate; -2s message: Render distance 7 for now, to keep the frame rate
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7671.2 --z -6794.5 --yaw 20 --pitch 15 --time 0.880`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191415-171.aac
+
+![19:14:15](voice-shots/vn-20261015-191415-171.jpg)
+
+## 19:14:17 - Why is it-- okay, it doesn't matter where it's pointed, it fired like 
+
+- **Transcript:** Why is it-- okay, it doesn't matter where it's pointed, it fired like a giant arc. Should be a freaking, like, howitzer, like... By howitzer, I don't mean arcing, I mean, like, straight. I know it's a myth that howitzers shoot straight, that's not actually what it is. But, like, you, you understand. It should shoot straight like a fucking laser. It's a MAC round. It doesn't
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7624.7 156.3 -6880.1
+- **Facing:** north-west (yaw 332, pitch 41)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 03:10, thunderstorm
+- **Fps:** 39
+- **Levels:** mic -23 dBFS, game sound -12 dBFS
+- **Length:** 20.2 s (voice 12.7 s)
+- **Just before:** -23s message: 72 Hz to keep the frame rate (VR Comfort & Controls); -15s opened PauseMenu; -14s opened MapMenu; -13s opened PauseMenu; -13s closed PauseMenu; -13s opened PauseMenu; -12s opened MapMenu; -11s closed MapMenu; -11s opened PauseMenu; -10s closed PauseMenu; -7s message: Render distance 11 for now, to keep the frame rate; -5s message: Render distance 7 for now, to keep the frame rate
+- **Position at the end:** 7407.6 193.9 -7434.6
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7624.7 --z -6880.1 --yaw 28 --pitch 41 --time 0.882`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191417-776.aac
+
+## 19:14:38 - Doesn't drift like that
+
+- **Transcript:** Doesn't drift like that
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7368.7 193.9 -7427.4
+- **Facing:** east (yaw 68, pitch -33)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 03:33, thunderstorm
+- **Fps:** 66
+- **Levels:** mic -28 dBFS, game sound -15 dBFS
+- **Length:** 2.5 s (voice 0.8 s)
+- **Just before:** -30s closed PauseMenu; -27s message: Render distance 11 for now, to keep the frame rate; -24s message: Render distance 7 for now, to keep the frame rate
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7368.7 --z -7427.4 --yaw -68 --pitch -33 --time 0.898`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191438-031.aac
+
+![19:14:38](voice-shots/vn-20261015-191438-031.jpg)
+
+## 19:14:41 - Man, I can't even see the ground, you know?
+
+- **Transcript:** Man, I can't even see the ground, you know?
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7388.6 193.9 -7380.8
+- **Facing:** east (yaw 98, pitch 25)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 03:36, thunderstorm
+- **Fps:** 66
+- **Levels:** mic -33 dBFS, game sound -13 dBFS
+- **Length:** 3.1 s (voice 1.5 s)
+- **Just before:** -30s message: Render distance 11 for now, to keep the frame rate; -27s message: Render distance 7 for now, to keep the frame rate
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7388.6 --z -7380.8 --yaw -98 --pitch 25 --time 0.901`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191441-471.aac
+
+## 19:14:51 - Like, frick, I can't-- I'm trying to inspect the damage that the gun d
+
+- **Transcript:** Like, frick, I can't-- I'm trying to inspect the damage that the gun did
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 7530.8 192.7 -7159.0
+- **Facing:** south (yaw 172, pitch 51)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 03:48, thunderstorm
+- **Fps:** 71
+- **Levels:** mic -47 dBFS, game sound -16 dBFS
+- **Length:** 5.6 s (voice 2.8 s)
+- **Just before:** -9s message: Render distance 6 for now, to keep the frame rate
+- **Position at the end:** 7641.4 192.6 -6989.4
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7530.8 --z -7159.0 --yaw -172 --pitch 51 --time 0.909`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191451-591.aac
+
+![19:14:51](voice-shots/vn-20261015-191451-591.jpg)
+
+## 19:14:57 - And yeah, I can't even
+
+- **Transcript:** And yeah, I can't even
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7653.4 192.6 -6966.1
+- **Facing:** south-west (yaw 205, pitch 49)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 03:55, thunderstorm
+- **Fps:** 71
+- **Levels:** mic -29 dBFS, game sound -13 dBFS
+- **Length:** 2.6 s (voice 1.1 s)
+- **Just before:** -14s message: Render distance 6 for now, to keep the frame rate
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7653.4 --z -6966.1 --yaw 155 --pitch 49 --time 0.914`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191457-191.aac
+
+## 19:15:00 - I'm not able to even see that
+
+- **Transcript:** I'm not able to even see that
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7712.9 190.3 -6838.4
+- **Facing:** south (yaw 185, pitch 46)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 03:59, thunderstorm
+- **Fps:** 71
+- **Levels:** mic -29 dBFS, game sound -16 dBFS
+- **Length:** 2.7 s (voice 1.3 s)
+- **Just before:** -18s message: Render distance 6 for now, to keep the frame rate
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7712.9 --z -6838.4 --yaw 175 --pitch 46 --time 0.916`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191500-611.aac
+
+## 19:15:13 - So right now I'm trying to crash the ship, and it's not crashing. Like
+
+- **Transcript:** So right now I'm trying to crash the ship, and it's not crashing. Like, if I go way into the ground the way I just did, I should be fucking dead
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7819.2 123.7 -6338.2
+- **Facing:** south (yaw 179, pitch -3)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 04:14, thunderstorm
+- **Fps:** 71
+- **Levels:** mic -27 dBFS, game sound -23 dBFS
+- **Length:** 8.7 s (voice 5.5 s)
+- **Just before:** -30s message: Render distance 6 for now, to keep the frame rate; -3s message: Entering Kesstad
+- **Position at the end:** 7854.8 193.3 -6138.2
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7819.2 --z -6338.2 --yaw -179 --pitch -3 --time 0.927`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191513-011.aac
+
+![19:15:13](voice-shots/vn-20261015-191513-011.jpg)
+
+## 19:15:21 - And also the way it drops, like it should be like a drivable fucking s
+
+- **Transcript:** And also the way it drops, like it should be like a drivable fucking ship where I angle it and momentum goes forward, not this up and down, left, right nonsense
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Cherry Grove
+- **Position:** 7909.9 205.6 -6005.0
+- **Facing:** north-east (yaw 64, pitch -72)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 04:24, thunderstorm
+- **Fps:** 70
+- **Levels:** mic -23 dBFS, game sound -18 dBFS
+- **Length:** 10.6 s (voice 7.5 s)
+- **Just before:** -11s message: Entering Kesstad
+- **Position at the end:** 8042.1 141.8 -6149.1
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7909.9 --z -6005.0 --yaw -64 --pitch -72 --time 0.934`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191521-531.aac
+
+## 19:15:32 - That's what it feels like it is. It feels like I'm pushing forward and
+
+- **Transcript:** That's what it feels like it is. It feels like I'm pushing forward and it's descending because I'm pressing another button. That's not, that's not what we want
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Meadow
+- **Position:** 8022.2 142.3 -6165.0
+- **Facing:** north-east (yaw 37, pitch -54)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 04:37, thunderstorm
+- **Fps:** 71
+- **Levels:** mic -31 dBFS, game sound -19 dBFS
+- **Length:** 8.5 s (voice 4.9 s)
+- **Just before:** -22s message: Entering Kesstad
+- **Position at the end:** 7849.7 180.8 -6175.0
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 8022.2 --z -6165.0 --yaw -37 --pitch -54 --time 0.943`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191532-331.aac
+
+![19:15:32](voice-shots/vn-20261015-191532-331.jpg)
+
+## 19:15:43 - Oh, okay. All right. Got a little, uh
+
+- **Transcript:** Oh, okay. All right. Got a little, uh
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** 7738.9 212.1 -5962.8
+- **Facing:** east (yaw 74, pitch -23)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 04:50, thunderstorm
+- **Fps:** 71
+- **Levels:** mic -24 dBFS, game sound -13 dBFS
+- **Length:** 3.7 s (voice 2.3 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7738.9 --z -5962.8 --yaw -74 --pitch -23 --time 0.952`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191543-795.aac
+
+![19:15:43](voice-shots/vn-20261015-191543-795.jpg)
+
+## 19:15:47 - Okay, hold on here. Very nice. All right, knock around, you know
+
+- **Transcript:** Okay, hold on here. Very nice. All right, knock around, you know
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** 7693.1 212.5 -5875.7
+- **Facing:** east (yaw 109, pitch -37)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 04:54, thunderstorm
+- **Fps:** 71
+- **Levels:** mic -24 dBFS, game sound -12 dBFS
+- **Length:** 4.6 s (voice 2.8 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7693.1 --z -5875.7 --yaw -109 --pitch -37 --time 0.955`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191547-331.aac
+
+## 19:15:51 - Let me see here. I'm just gonna inspect
+
+- **Transcript:** Let me see here. I'm just gonna inspect
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** 7678.6 212.5 -5815.9
+- **Facing:** north-east (yaw 41, pitch -43)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 04:59, thunderstorm
+- **Fps:** 71
+- **Levels:** mic -38 dBFS, game sound -15 dBFS
+- **Length:** 2.7 s (voice 1.4 s)
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7678.6 --z -5815.9 --yaw -41 --pitch -43 --time 0.958`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191551-771.aac
+
+## 19:15:55 - We'll see what this was. Hold on
+
+- **Transcript:** We'll see what this was. Hold on
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** 7673.5 203.6 -5834.7
+- **Facing:** north-east (yaw 60, pitch -33)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:03, thunderstorm
+- **Fps:** 68
+- **Levels:** mic -34 dBFS, game sound -18 dBFS
+- **Length:** 3.0 s (voice 1.1 s)
+- **Just before:** -1s stopped piloting Meridian Frigate
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7673.5 --z -5834.7 --yaw -60 --pitch -33 --time 0.961`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191555-351.aac
+
+![19:15:55](voice-shots/vn-20261015-191555-351.jpg)
+
+## 19:15:59 - Inspect the macaroned
+
+- **Transcript:** Inspect the macaroned
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** 7677.3 203.4 -5837.4
+- **Facing:** east (yaw 98, pitch -45)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:07, thunderstorm
+- **Fps:** 65
+- **Levels:** mic -24 dBFS, game sound -14 dBFS
+- **Length:** 2.1 s (voice 0.6 s)
+- **Just before:** -4s stopped piloting Meridian Frigate; -3s message: Flying; -1s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7677.3 --z -5837.4 --yaw -98 --pitch -45 --time 0.964`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191559-231.aac
+
+## 19:16:05 - Now this is a pretty appropriate
+
+- **Transcript:** Now this is a pretty appropriate
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** 7711.0 146.4 -5836.0
+- **Facing:** east (yaw 97, pitch -41)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Coarse Dirt at 7713 146 -5836
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:14, thunderstorm
+- **Fps:** 67
+- **Levels:** mic -27 dBFS, game sound -12 dBFS
+- **Length:** 2.9 s (voice 1.2 s)
+- **Just before:** -10s stopped piloting Meridian Frigate; -9s message: Flying; -7s message: Walking; -6s message: Flying; -4s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7711.0 --z -5836.0 --yaw -97 --pitch -41 --time 0.969`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191605-231.aac
+
+## 19:16:08 - Yeah, this was pretty appropriate for a Mac round. This was-- I like t
+
+- **Transcript:** Yeah, this was pretty appropriate for a Mac round. This was-- I like this
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Meadow
+- **Position:** 7722.3 130.0 -5831.3
+- **Facing:** east (yaw 85, pitch -58)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Dirt at 7723 130 -5832
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:19, thunderstorm
+- **Fps:** 72
+- **Levels:** mic -26 dBFS, game sound -15 dBFS
+- **Length:** 4.8 s (voice 2.6 s)
+- **Just before:** -14s stopped piloting Meridian Frigate; -13s message: Flying; -10s message: Walking; -9s message: Flying; -8s message: Walking; -0s message: Plants and dirt aren't picked up on the move: stand over them a moment or crouch
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7722.3 --z -5831.3 --yaw -85 --pitch -58 --time 0.972`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191608-731.aac
+
+![19:16:08](voice-shots/vn-20261015-191608-731.jpg)
+
+## 19:16:13 - Although I can't see through the fucking
+
+- **Transcript:** Although I can't see through the fucking
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Meadow
+- **Position:** 7720.9 153.1 -5823.8
+- **Facing:** north-east (yaw 51, pitch -57)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** Coarse Dirt at 7722 151 -5825
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:24, thunderstorm
+- **Fps:** 72
+- **Levels:** mic -27 dBFS, game sound -16 dBFS
+- **Length:** 3.0 s (voice 1.4 s)
+- **Just before:** -18s stopped piloting Meridian Frigate; -17s message: Flying; -15s message: Walking; -14s message: Flying; -12s message: Walking; -5s message: Plants and dirt aren't picked up on the move: stand over them a moment or crouch; -1s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7720.9 --z -5823.8 --yaw -51 --pitch -57 --time 0.975`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191613-291.aac
+
+## 19:16:16 - Okay, like after
+
+- **Transcript:** Okay, like after
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Meadow
+- **Position:** 7725.0 137.2 -5830.2
+- **Facing:** north-east (yaw 62, pitch -52)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:28, thunderstorm
+- **Fps:** 72
+- **Levels:** mic -39 dBFS, game sound -23 dBFS
+- **Length:** 1.8 s (voice 0.6 s)
+- **Just before:** -21s stopped piloting Meridian Frigate; -20s message: Flying; -18s message: Walking; -17s message: Flying; -15s message: Walking; -8s message: Plants and dirt aren't picked up on the move: stand over them a moment or crouch; -4s message: Flying; -2s message: The sky is clouding over: fog is coming
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7725.0 --z -5830.2 --yaw -62 --pitch -52 --time 0.978`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191616-291.aac
+
+## 19:16:18 - There's like this invisible sheen that I can't see how deep the pit is
+
+- **Transcript:** There's like this invisible sheen that I can't see how deep the pit is and all that crap. This green sheen that's over it. I don't know what that is. Probably has something to do with the polygon, whatever. No fires around all that. That's great. It was great
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Meadow
+- **Position:** 7725.1 131.5 -5830.5
+- **Facing:** north-east (yaw 34, pitch -52)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Stone at 7726 129 -5834
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:30, thunderstorm
+- **Fps:** 72
+- **Levels:** mic -36 dBFS, game sound -21 dBFS
+- **Length:** 15.0 s (voice 8.7 s)
+- **Just before:** -23s stopped piloting Meridian Frigate; -22s message: Flying; -20s message: Walking; -19s message: Flying; -17s message: Walking; -10s message: Plants and dirt aren't picked up on the move: stand over them a moment or crouch; -6s message: Flying; -4s message: The sky is clouding over: fog is coming; -2s message: Walking; -0s message: Flying
+- **While talking:** -3s message: Walking; -2s message: Flying
+- **Position at the end:** 7739.8 164.4 -5827.5
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7725.1 --z -5830.5 --yaw -34 --pitch -52 --time 0.980`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191618-411.aac
+
+## 19:16:33 - But yeah, the frigate itself needs some work
+
+- **Transcript:** But yeah, the frigate itself needs some work
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** 7689.6 178.0 -5924.4
+- **Facing:** south (yaw 193, pitch -3)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:48, thunderstorm
+- **Fps:** 71
+- **Levels:** mic -26 dBFS, game sound -24 dBFS
+- **Length:** 3.3 s (voice 1.7 s)
+- **Just before:** -25s message: Plants and dirt aren't picked up on the move: stand over them a moment or crouch; -22s message: Flying; -19s message: The sky is clouding over: fog is coming; -17s message: Walking; -16s message: Flying; -14s message: Walking; -12s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7689.6 --z -5924.4 --yaw 167 --pitch -3 --time 0.992`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191633-731.aac
+
+![19:16:33](voice-shots/vn-20261015-191633-731.jpg)
+
+## 19:16:40 - So does the physics and performance and all of that needs work
+
+- **Transcript:** So does the physics and performance and all of that needs work
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Dark Forest
+- **Position:** 7668.3 209.7 -5667.8
+- **Facing:** east (yaw 103, pitch -36)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:56, thunderstorm
+- **Fps:** 72
+- **Levels:** mic -21 dBFS, game sound -17 dBFS
+- **Length:** 5.3 s (voice 2.7 s)
+- **Just before:** -28s message: Flying; -26s message: The sky is clouding over: fog is coming; -23s message: Walking; -22s message: Flying; -20s message: Walking; -19s message: Flying; -6s message:  Take command of the Meridian Frigate
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7668.3 --z -5667.8 --yaw -103 --pitch -36 --time 0.998`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191640-112.aac
+
+## 19:16:55 - All right. Well, that's enough for now
+
+- **Transcript:** All right. Well, that's enough for now
+- **Status:** open
+- **Build:** 0.129 (a23b56a3, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Meadow
+- **Position:** 7739.7 158.0 -5651.8
+- **Facing:** south-east (yaw 134, pitch -23)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen PauseMenu
+- **Time:** day 2 06:14, thunderstorm
+- **Fps:** 72
+- **Levels:** mic -29 dBFS, game sound -22 dBFS
+- **Length:** 2.8 s (voice 0.6 s)
+- **Just before:** -22s message:  Take command of the Meridian Frigate; -12s message: Kesstad has gone to war with Valiwick; -10s message: Walking; -0s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7739.7 --z -5651.8 --yaw -134 --pitch -23 --time 0.010`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261015-191655-931.aac
+
+![19:16:55](voice-shots/vn-20261015-191655-931.jpg)
