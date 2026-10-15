@@ -4,8 +4,10 @@ import simd
 // The seam between the surface and the Deep stacked under it (task 22). The surface has no bedrock floor: break through
 // its lowest layer and you carry on digging at the top of the Deep (same x, z), and climb out of the Deep's top layer to
 // come back up. The Ash Vault's hot updrafts slow long falls into it; below the vault floor is the molten core.
+// P291: a fall through an Ember Charge's shaft carries straight on into hell (HellDrop.swift).
 extension Game {
     func deepTick(_ dt: Float) {
+        hellDropTick(dt)
         if dim.dim == .deep {
             sunderTick(dt); hellHints(); gatesTick(dt); ashArmyTick(dt)
             for m in mobs.mobs where m.warden { m.wardenTick(dt, self) }
@@ -19,24 +21,12 @@ extension Game {
             crossSeam(down: true)
         case .deep where p.y >= Float(CH - 1):
             crossSeam(down: false)
-        case .deep where DeepGen.inHell(p.y) && !player.onGround && !player.flying && (player.vel.y < -18 || effects.has(.slowFalling)):
-            // The hell band's halls run 100+ blocks floor to roof under a thin crust: a long drop into one (digging
-            // down from the surface) rides the lava sea's rising heat instead of killing you. Ordinary falls still hurt:
-            // only over a drop of 24+ blocks. Once floating it lasts until you land.
-            if effects.has(.slowFalling) { applyEffect(.slowFalling, amp: 0, seconds: 1.5); break }
-            let x = Int(floor(p.x)), z = Int(floor(p.z)), y = Int(floor(p.y))
-            var open = 0
-            while open < 24 && y - open > 0 && !Blocks.collide[Int(world.block(x, y - open - 1, z))] { open += 1 }
-            if open >= 24 {
-                if !effects.has(.slowFalling) && !deepUpdraftHinted {
-                    deepUpdraftHinted = true
-                    onToast?("Hot air rising from the lava sea slows your fall")
-                }
-                applyEffect(.slowFalling, amp: 0, seconds: 1.5)
-            }
+        // P291 (d, Oct 15): the hell band's slow updraft drift is gone; falls there are normal speed and a landing takes
+        // a tenth of the fall damage (Game.survivalTick).
         case .deep:
             // Updrafts: a long drop into the vault floats down (no fall damage), so breaking through its roof is survivable.
-            if DeepGen.inVault(p.y) && !player.onGround && !player.flying && player.vel.y < -6 {
+            // P291 (d): creative falls at the normal speed.
+            if survival && DeepGen.inVault(p.y) && !player.onGround && !player.flying && player.vel.y < -6 {
                 if !effects.has(.slowFalling) && !deepUpdraftHinted {
                     deepUpdraftHinted = true
                     onToast?("Hot air rising from the vault slows your fall")
@@ -53,7 +43,23 @@ extension Game {
         let x = Int(floor(player.pos.x)), z = Int(floor(player.pos.z))
         let feet = down ? CH - 3 : 1
         let to = V3(player.pos.x, Float(feet), player.pos.z)
-        changeDimension(to: down ? .deep : .overworld, at: to)
+        // P291 (b): falling through the blasted floor keeps falling: the shaft runs on into the hell band over the
+        // nearest column with solid ground at the bottom, with the fall's speed carried over. Only the nearest chunks
+        // load first (no loading pause); without such ground in reach it is the pocket below as before.
+        let falling = down && player.vel.y < -1 && !player.flying
+        let carried = player.vel.y
+        changeDimension(to: down ? .deep : .overworld, at: to, syncRadius: falling ? 2 : nil)
+        if falling, let site = hellLanding(nearX: x, z: z) {
+            openHellShaft(site.x, site.z, roof: site.roof)
+            let at = V3(Float(site.x) + 0.5, Float(feet), Float(site.z) + 0.5)
+            player.pos = at
+            player.vel = V3(0, min(carried, -10), 0)
+            player.airPeak = at.y
+            hellDrop = HellDropState(active: true, broke: false, roof: site.roof, floor: site.floor, t: 0)
+            achieve("deep_visit"); deepEntry = at
+            deepVisited = true
+            return
+        }
         // Climbing out into the surface's Wardstone floor cuts a way up through it (the floor below stays shut).
         for y in feet...(down ? feet + 1 : max(feet + 1, HellGate.floorTop)) where world.block(x, y, z) != AIR { world.setBlock(x, y, z, AIR) }
         if !Blocks.opaque[Int(world.block(x, feet - 1, z))] { world.setBlock(x, feet - 1, z, EMBERSLATE) }
@@ -61,10 +67,7 @@ extension Game {
         player.vel = .zero
         player.airPeak = to.y
         if down { achieve("deep_visit"); deepEntry = to }
-        if down && !deepVisited {
-            deepVisited = true
-            onToast?("You broke through the bottom of the world")
-        }
+        if down { deepVisited = true }       // NO TEXT (P328): the arrival speaks for itself
     }
 }
 

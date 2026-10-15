@@ -97,6 +97,7 @@ enum Snd: Hashable {
     case riverLoop, waterfallLoop, mountainWindLoop, tundraWindLoop, rainLeavesLoop, snowWindLoop, swampInsectsLoop
     case thunderFar, iceCreak, rockfall
     case volcanoRumble                 // a volcano's eruption boom (Eruptions.swift)
+    case fallRushLoop, hellImpact, hellArrival   // P291: a long fall's rushing air; dropping into hell (HellDrop.swift)
     // A recorded townsfolk line (TownVoice.swift: index into TownVoice.takes; decoded on demand, never cached).
     case voice(Int)
 
@@ -116,7 +117,8 @@ enum Snd: Hashable {
              .attackCrit, .attackKnockback, .attackWeak, .shieldBlock, .shieldBreak, .armorEquip, .itemBreak, .bucketFill, .bucketEmpty, .bucketFillLava,
              .bucketEmptyLava, .fishCast, .fishSplash, .fishReel, .xp, .levelUp, .totem, .gasp, .throwItem, .pearlThrow, .potionThrow, .potionSplash,
              .snowballHit, .eggCrack, .bowDraw, .bow, .arrowHit, .crossbowLoad, .crossbowShoot, .tridentThrow, .tridentHit, .tridentReturn, .riptide,
-             .windCharge, .shearsSnip, .ignite, .spyglass, .goatHorn, .elytraLoop, .underwaterLoop, .boatPaddle, .minecartLoop, .plantBrush, .parryClang, .bowCreak, .bowNock:
+             .windCharge, .shearsSnip, .ignite, .spyglass, .goatHorn, .elytraLoop, .underwaterLoop, .boatPaddle, .minecartLoop, .plantBrush, .parryClang, .bowCreak, .bowNock,
+             .fallRushLoop, .hellImpact:
             return .players
         case .click, .open, .uiHover, .uiBack, .toast: return .ui
         case .rain, .rainRoof, .thunder, .lightning, .windGust: return .weather
@@ -138,7 +140,7 @@ enum Snd: Hashable {
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop,
              .trainWhistle, .steamChuff,
              .mainGunCharge, .mainGunFire, .mainGunRumble: return .blocks
-        case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .swampInsectsLoop, .iceCreak, .rockfall, .volcanoRumble: return .ambient
+        case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .swampInsectsLoop, .iceCreak, .rockfall, .volcanoRumble, .hellArrival: return .ambient
         case .rainLeavesLoop, .snowWindLoop, .thunderFar: return .weather
         default: return .blocks
         }
@@ -185,7 +187,7 @@ enum Snd: Hashable {
              .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop,
              .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
-             .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop:
+             .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop, .fallRushLoop:
             return true
         default: return false
         }
@@ -225,6 +227,7 @@ enum Snd: Hashable {
         case .gunDistant: return 0.5...6
         case .thunderFar: return 2...9
         case .volcanoRumble: return 3...10
+        case .hellArrival: return 3...10
         case .explodeLarge: return 1.5...8
         case .mainGunCharge: return 2.4...3.4
         case .mainGunFire: return 2...8
@@ -311,6 +314,7 @@ final class SoundBank {
               .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop, .mainGunCharge, .mainGunFire, .mainGunRumble]
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
               .thunderFar, .iceCreak, .rockfall, .volcanoRumble]
+        s += [.fallRushLoop, .hellImpact, .hellArrival]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         for k in 0...5 { s.append(.hoof(k)) }
         return s
