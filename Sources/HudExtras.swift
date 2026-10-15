@@ -223,7 +223,8 @@ enum ContextPrompts {
     private static var boardSeen = false
     private static var honourSeenAt: Double = 0
     // (Q2c-console-9: craft ... hurt; Q2c-console-41: boat ... drop)
-    enum VRLesson: Int { case basics = 0, horse, honour, town, contracts, craft, hunger, night, hurt, boat, cart, mount, water, drop }
+    enum VRLesson: Int { case basics = 0, horse, honour, town, contracts, craft, hunger, night, hurt, boat, cart, mount, water, drop,
+                              fish, shield, farm, bucket }        // (Q2c-console-46: the last four)
     static let lessonMounts: Set<MobKind> = [.donkey, .mule, .llama, .traderLlama, .camel, .pig, .strider, .skeletonHorse, .zombieHorse]
     // Q2c-console-10: Reset Tutorial Hints brings every lesson back (a second player on the same headset).
     static func resetLessons() {
@@ -252,6 +253,14 @@ enum ContextPrompts {
          "Under water: hold A to swim up. The bubbles above your hunger bar are your air: when they run out you start to drown"),
         (.drop, "Dropping things",
          "Dropped: holding B drops what's in your hand. Walk over it to pick it back up"),
+        (.shield, "Shields",
+         "Shield: hold the left trigger to raise it. It stops hits from the front; an axe can knock it down for a moment"),
+        (.bucket, "Buckets",
+         "Bucket: the left trigger scoops water or lava and pours it again. Poured lava burns everything near it, you too"),
+        (.farm, "Farming",
+         "Farming: a hoe and the left trigger turn grass or dirt into farmland; plant seeds on it. Crops need light and water within four blocks"),
+        (.fish, "Fishing",
+         "Fishing: the left trigger casts. When the bobber dips, pull to hook it, then hold to reel; ease off while the fish runs or the line snaps"),
         (.boat, "Boats",
          "Boat: push the left stick forward to row and sideways to steer. B gets out"),
         (.cart, "Minecarts",
@@ -344,6 +353,12 @@ enum ContextPrompts {
                     teach(g, .craft)
                     return
                 }
+                // Q2c-console-46: the first time each first-hour tool is in his hand.
+                let hk = Items.key(g.held.item)
+                if hk == "fishing_rod" && !lessonDone(.fish) { teach(g, .fish); return }
+                if hk == "shield" && !lessonDone(.shield) { teach(g, .shield); return }
+                if (hk.hasSuffix("_hoe") || g.held.def.plants != nil) && !lessonDone(.farm) { teach(g, .farm); return }
+                if (hk == "bucket" || hk == "water_bucket" || hk == "lava_bucket") && !lessonDone(.bucket) { teach(g, .bucket); return }
             }
         }
         if boardSeen && !lessonDone(.contracts) {
