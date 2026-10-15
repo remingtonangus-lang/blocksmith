@@ -60,6 +60,50 @@ extension BlockRegistry {
                 add(d)
             }
         }
+        // P288: the station's power, readable in the world. The generator's vents glow amber while it runs; the cables
+        // under the corridor ceilings lead to it; when it dies every lamp of the station goes to its dark twin.
+        if !has("generator_vent") {
+            var d = BlockDef("generator_vent", "Generator Vent")
+            d.tex = ["generator_vent"]; d.hardness = 3; d.resistance = 30; d.tool = .pickaxe; d.requiresTool = true
+            d.sound = .stone; d.emit = 10
+            add(d)
+            var off = d
+            off.name = "generator_vent_dead"; off.display = "Burnt Generator Vent"; off.tex = ["generator_vent_dead"]
+            off.emit = 0; off.hidden = true
+            add(off)
+        }
+        if !has("light_panel_off") {
+            var d = BlockDef("light_panel_off", "Dead Light Panel")
+            d.tex = ["light_panel_off"]; d.hardness = 3; d.resistance = 600; d.tool = .pickaxe; d.requiresTool = true
+            d.harvestLevel = 2; d.sound = .stone; d.hidden = true
+            add(d)
+        }
+        if !has("corner_lamp_off") {
+            // Same states and boxes as the corner lamp (lampOff + k is lamp + k's dark twin).
+            var d = BlockDef("corner_lamp_off", "Dead Corner Lamp")
+            d.tex = ["corner_lamp_off_side"]; d.render = .model; d.layer = .cutout; d.opaque = false; d.skyStop = false
+            d.collide = false; d.noCollideBoxes = true; d.hardness = 1; d.sound = .glass; d.hidden = true
+            let lens: [Box] = [Box(5, 11, 13, 11, 16, 16), Box(5, 11, 0, 11, 16, 3), Box(13, 11, 5, 16, 16, 11), Box(0, 11, 5, 3, 16, 11)]
+            addFacing(d, front: "corner_lamp_off", boxesFor: { k in [lens[k]] })
+        }
+        // Power cable: a heavy cable run just under a ceiling. State k is a mask of arms out of the cell's middle
+        // (1 +x, 2 -x, 4 +z, 8 -z, 16 down), so one block draws straight runs, corners, junctions and drops.
+        if !has("power_cable") {
+            for k in 0..<32 {
+                var d = BlockDef(k == 0 ? "power_cable" : "power_cable[\(k)]", "Power Cable")
+                d.tex = ["power_cable"]; d.render = .model; d.layer = .cutout; d.opaque = false; d.skyStop = false
+                d.collide = false; d.noCollideBoxes = true; d.hardness = 1; d.tool = .axe; d.sound = .wool
+                d.group = "power_cable"; d.hidden = k != 0
+                var b = [Box(6, 12, 6, 10, 16, 10)]
+                if k & 1 != 0 { b.append(Box(10, 12, 6, 16, 16, 10)) }
+                if k & 2 != 0 { b.append(Box(0, 12, 6, 6, 16, 10)) }
+                if k & 4 != 0 { b.append(Box(6, 12, 10, 10, 16, 16)) }
+                if k & 8 != 0 { b.append(Box(6, 12, 0, 10, 16, 6)) }
+                if k & 16 != 0 { b.append(Box(6, 0, 6, 10, 12, 10)) }
+                d.boxes = b
+                add(d)
+            }
+        }
     }
 }
 
@@ -153,6 +197,38 @@ extension TextureGen {
         }
         p["bulkhead_door_top"] = { x, y in door(x, y, true) }
         p["bulkhead_door_bottom"] = { x, y in door(x, y, false) }
+        // P288: generator vent: a steel frame round slanted louvres with the machine's amber glow between them, and a
+        // red running lamp in the corner; the burnt one is sooted black louvres over a dead, dark interior.
+        func vent(_ x: Int, _ y: Int, _ live: Bool) -> V4 {
+            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x34383D) }
+            if x == 1 || y == 1 || x == 14 || y == 14 { return hex(live ? 0x6E747C : 0x2E3135, 0.95 + 0.05 * r(x, y, 4120)) }
+            if x == 12 && y == 2 { return live ? hex(0xFF4A30) : hex(0x3A1A16) }
+            let louvre = (y + x / 6) % 3 == 0
+            if louvre { return hex(live ? 0x4A5058 : 0x1E2023, 0.92 + 0.08 * r(x, y, 4121)) }
+            let heat: Float = 0.8 + 0.2 * r(x / 2, y, 4122)
+            return live ? hex(0xFFA42E, heat) : hex(0x141516, 0.9 + 0.2 * r(x, y, 4123))
+        }
+        p["generator_vent"] = { x, y in vent(x, y, true) }
+        p["generator_vent_dead"] = { x, y in vent(x, y, false) }
+        // A light panel with its tube dead: the same frame round dark smoked glass.
+        p["light_panel_off"] = { x, y in
+            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x3A3E43) }
+            if x == 1 || y == 1 || x == 14 || y == 14 { return hex(0x6A727A) }
+            return hex(y % 4 == 0 ? 0x2E353C : 0x242A30, 0.95 + 0.05 * r(x, y, 4124))
+        }
+        p["corner_lamp_off"] = { x, y in
+            if x < 2 || x > 13 || y < 2 || y > 13 { return hex(0x2A3038) }
+            return hex(0x22303C, 0.9 + 0.1 * r(x, y, 4125))
+        }
+        p["corner_lamp_off_side"] = { x, y in
+            if y > 9 { return hex(0x2A3A48) }
+            return hex(0x3A414A, 0.95 + 0.05 * r(x, y, 4107))
+        }
+        // Power cable: black rubber sheathing with a yellow tracer band every few pixels.
+        p["power_cable"] = { x, y in
+            if (x + 2 * y) % 8 == 0 { return hex(0xC89A1C, 0.9 + 0.1 * r(x, y, 4126)) }
+            return hex(0x1E2124, 0.9 + 0.2 * r(x, y, 4127))
+        }
     }
 }
 
@@ -539,10 +615,35 @@ enum BorealStation {
         // MARK: Generator hall (south-east): the machine, cable chains, fuel barrels
         w.fill(X(18), F + 1, Z(13), X(21), F + 1, Z(19), hazard)
         w.fill(X(18), F + 2, Z(13), X(21), F + 4, Z(19), steel)
-        for dz in stride(from: 14, through: 18, by: 2) { put(18, F + 3, dz, panel); put(21, F + 3, dz, panel) }
-        for dx in 19...20 { put(dx, F + 3, 13, panel); put(dx, F + 3, 19, panel) }
+        // P288: amber-glowing vents round the machine's waist (it hums while it runs, Game.stationGeneratorHum).
+        let vent = g("generator_vent", panel)
+        for dz in stride(from: 14, through: 18, by: 2) { put(18, F + 3, dz, vent); put(21, F + 3, dz, vent) }
+        for dx in 19...20 { put(dx, F + 3, 13, vent); put(dx, F + 3, 19, vent) }
         for (dx, dz) in [(18, 13), (21, 13), (18, 19), (21, 19)] { put(dx, F + 5, dz, chain); put(dx, F + 6, dz, chain) }
         for dz in 10...12 { w.sundryBarrel(cx + 23, F + 1, cz + dz, seed: seed) }              // P133
+        // P288: the station's power cable, a heavy black-and-yellow run just under the ceiling from the stair hall's
+        // bulkhead (where every visitor comes in) along the south ring corridor, through the generator hall's bulkhead,
+        // up to the hall's ceiling and down into the top of the machine: follow it and it ends at the generator.
+        // Cells that are wall (the bulkheads, the machine) stay in the path so the runs either side point into them.
+        let cable = g("power_cable", AIR)
+        if cable != AIR {
+            var path: [IVec3] = (13...15).map { IVec3(-5, 4, $0) }
+            for dx in -5...16 { path.append(IVec3(dx, 4, 12)) }
+            path.append(IVec3(16, 5, 12))
+            for dx in 16...20 { path.append(IVec3(dx, 6, 12)) }
+            for dz in 13...16 { path.append(IVec3(20, 6, dz)) }
+            path.append(IVec3(20, 5, 16)); path.append(IVec3(20, 4, 16))
+            let cells = Set(path)
+            for c in cells where open(c.x, c.y, c.z) != 0 && !isGenerator(c.x, c.y, c.z) {
+                var arms = 0
+                if cells.contains(IVec3(c.x + 1, c.y, c.z)) { arms |= 1 }
+                if cells.contains(IVec3(c.x - 1, c.y, c.z)) { arms |= 2 }
+                if cells.contains(IVec3(c.x, c.y, c.z + 1)) { arms |= 4 }
+                if cells.contains(IVec3(c.x, c.y, c.z - 1)) { arms |= 8 }
+                if cells.contains(IVec3(c.x, c.y - 1, c.z)) { arms |= 16 }
+                put(c.x, F + c.y, c.z, cable + BlockID(arms))
+            }
+        }
         w.chest(X(16), F + 1, Z(22), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 3)
 
         // MARK: Mess (south-west): two long tables with slab benches, the galley along the south wall

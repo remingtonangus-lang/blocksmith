@@ -29,6 +29,7 @@ struct StationOp: Codable {
     var waveT: Float = 0
     var silent: Bool? = nil           // the rating, once done
     var doneClock: Double? = nil
+    var dark = 0                      // P288: bands of the station blacked out since the generator died (blackoutBands: all)
 
     var F: Int { S - BorealStation.depth }
     var console: V3 { V3(Float(cx) + 0.5, Float(F + 1), Float(cz - 21) + 0.5) }
@@ -52,6 +53,7 @@ struct StationOp: Codable {
         waves = (try? c.decodeIfPresent(Int.self, forKey: .waves)) ?? 0
         waveT = (try? c.decodeIfPresent(Float.self, forKey: .waveT)) ?? 0
         silent = try? c.decodeIfPresent(Bool.self, forKey: .silent)
+        dark = (try? c.decodeIfPresent(Int.self, forKey: .dark)) ?? 0     // P288: a station blown in an older save goes dark too
         doneClock = nil
     }
 }
@@ -62,6 +64,23 @@ extension BorealStation {
     static let waveEvery: Float = 25
     static let maxWaves = 3
     static let copyReach: Float = 4
+    // P288: the blackout sweeps the station (yard and bunker) in bands of 16 rows of z, south (the generator) to north,
+    // one band a second.
+    static let blackoutBand = 16
+    static var blackoutBands: Int { (2 * (yard + 2) + blackoutBand) / blackoutBand }
+    // Each powered block's dark twin (0: not powered): light panels, the blue corner lamps (same facing), the vents.
+    static let powerOff: [BlockID] = {
+        var t = [BlockID](repeating: 0, count: Blocks.count)
+        func twin(_ on: String, _ off: String, _ n: Int) {
+            guard Blocks.has(on), Blocks.has(off) else { return }
+            let a = Blocks.id(on), b = Blocks.id(off)
+            for k in 0..<n { t[Int(a) + k] = b + BlockID(k) }
+        }
+        twin("light_panel", "light_panel_off", 1)
+        twin("corner_lamp", "corner_lamp_off", 4)
+        twin("generator_vent", "generator_vent_dead", 1)
+        return t
+    }()
 
     // The generator machine (BorealStation.build: hazard base and steel body, x 18...21, z 13...19, rows 1...4).
     static func isGenerator(_ dx: Int, _ ly: Int, _ dz: Int) -> Bool { dx >= 18 && dx <= 21 && dz >= 13 && dz <= 19 && ly >= 1 && ly <= 4 }
@@ -174,6 +193,15 @@ extension Game {
                 if alarm ? (m.health > 0 && BorealStation.insideSite(site, m.pos))
                          : max(abs(m.pos.x - Float(op.cx)), abs(m.pos.z - Float(op.cz))) < Float(BorealStation.yard + 80) { m.stationDoors = alarm }
             }
+            // A generator wrecked some other way (rockets, a blast of the player's own, its glowing vents broken out with
+            // a pick: P288 (c)) counts as sabotaged: there would be nothing left to set the charge on.
+            if !op.planted && stationGeneratorDead(op) {
+                op.planted = true; op.blown = true
+                onToast?("The generator is wrecked")
+                st.log.append("\(key) generator wrecked")
+            }
+            // P288 (d): a dead generator takes the station's power with it: every light goes dark, the alarm falls silent.
+            if op.blown && op.dark < BorealStation.blackoutBands { stationBlackout(&op, players) }
             guard op.stage == 1 else { continue }
 
             // Alarm consequences: a loud rating, the garrison through the doors, squads from the blockhouse.
@@ -196,14 +224,6 @@ extension Game {
                 }
             }
             op.alarmWas = alarm
-
-            // A generator wrecked some other way (rockets, a blast of the player's own) counts as sabotaged: there
-            // would be nothing left to set the charge on.
-            if !op.planted && stationGeneratorLeft(op) < 56 {
-                op.planted = true; op.blown = true
-                onToast?("The generator is wrecked")
-                st.log.append("\(key) generator wrecked")
-            }
 
             // The copy: progresses while a player stays at the console and the uplink isn't locked.
             if let c = op.copyAt, op.codes < 1 {
@@ -245,6 +265,70 @@ extension Game {
             guard world.block(x, y, z) != AIR, hashf(dx, ly, dz, 0xB0E5) < 0.6 else { continue }
             world.setBlock(x, y, z, ly == 1 && hashf(dx, 0, dz, 0xF1E) < 0.3 ? fire : AIR)
         } } }
+    }
+
+    // P288 (c): the generator is dead when most of its body is gone or six of its ten glowing vents are broken out
+    // (stations built before the vents have light panels in their places, which count the same).
+    func stationGeneratorDead(_ op: StationOp) -> Bool {
+        let vent = Blocks.has("generator_vent") ? Blocks.id("generator_vent") : AIR
+        let panel = Blocks.has("light_panel") ? Blocks.id("light_panel") : AIR
+        guard world.isLoaded(op.cx + 18, op.cz + 13), world.isLoaded(op.cx + 21, op.cz + 19) else { return false }
+        var body = 0, lit = 0
+        for dz in 13...19 { for dx in 18...21 { for ly in 1...4 {
+            let b = world.block(op.cx + dx, op.F + ly, op.cz + dz)
+            guard b != AIR else { continue }
+            body += 1
+            if b == vent || b == panel { lit += 1 }
+        } } }
+        return body < 56 || lit <= 4
+    }
+
+    // P288 (d): one band of the blackout a second. The first band brings the machine's death rattle (sparks, a falling
+    // power-down whine everyone in the station hears) and silences the alarm; a band whose ground isn't loaded waits.
+    func stationBlackout(_ op: inout StationOp, _ players: [V3]) {
+        let st = bases.boreal
+        let e = BorealStation.yard + 2, band = BorealStation.blackoutBand
+        let z1 = e - op.dark * band, z0 = max(-e, z1 - band + 1)
+        for dz in z0...z1 { for dx in stride(from: -e, through: e, by: 8) where !world.isLoaded(op.cx + dx, op.cz + dz) { return } }
+        if op.dark == 0 {
+            st.log.append("\(op.key) power out")
+            particles.explosion(at: op.generator + V3(0, 1.5, 0), power: 1)
+            sfx(.fizz, 1.2, at: op.generator)
+            sfx(.beaconDeactivate, 1.4, at: op.generator)
+            let site = BorealAlarmState.Site(cx: op.cx, cz: op.cz, S: op.S)
+            if players.contains(where: { BorealStation.insideSite(site, $0) }) { sfx(.beaconDeactivate, 0.6) }
+            if st.sites[op.key]?.on == true { st.sites[op.key]?.on = false; st.log.append("\(op.key) alarm off (power out)") }
+        }
+        let off = BorealStation.powerOff
+        let y0 = op.F - 1, y1 = op.S + 32
+        var swaps: [(Int, Int, Int, BlockID)] = []
+        for dz in z0...z1 { for dx in -e...e { for y in y0...y1 {
+            let x = op.cx + dx, z = op.cz + dz
+            let b = world.block(x, y, z)
+            if Int(b) < off.count, off[Int(b)] != 0 { swaps.append((x, y, z, off[Int(b)])) }
+        } } }
+        for s in swaps { world.setBlockAsync(s.0, s.1, s.2, s.3) }
+        op.dark += 1
+    }
+
+    // P288 (d): a station whose generator is dead has no power for its guns: point inside its fence.
+    func stationPowerOut(at p: V3) -> Bool {
+        guard world.dim == .overworld else { return false }
+        for op in bases.boreal.ops.values where op.blown {
+            if max(abs(p.x - Float(op.cx)), abs(p.z - Float(op.cz))) < Float(BorealStation.yard + 4) { return true }
+        }
+        return false
+    }
+
+    // P288 (a): the running generator throbs like a big engine, loud enough to follow through the corridors (the
+    // occlusion muffles it through walls, so it grows as you find the way). Nil when no live generator is in earshot.
+    func stationGeneratorHum(_ eye: V3) -> (V3, Float)? {
+        guard world.dim == .overworld else { return nil }
+        for op in bases.boreal.ops.values where !op.blown {
+            let d = simd_length(op.generator - eye)
+            if d < 40 { return (op.generator, 0.9 * (1 - d / 40)) }
+        }
+        return nil
     }
 
     // Machine blocks still standing (112 when whole).

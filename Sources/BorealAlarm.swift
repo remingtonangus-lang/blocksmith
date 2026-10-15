@@ -40,6 +40,11 @@ extension Game {
         }
         for key in Array(st.sites.keys) {
             guard var site = st.sites[key], world.isLoaded(site.cx, site.cz) else { continue }
+            // P288 (d): with the generator dead the alarm has no power: no klaxon, nothing to rouse the garrison with.
+            if st.ops[key]?.blown == true {
+                if site.on { site.on = false; st.log.append("\(key) alarm off (power out)"); st.sites[key] = site }
+                continue
+            }
             var trigger: V3? = nil
             for n in b.noises where n.hostile && BorealStation.insideSite(site, n.pos) { trigger = n.pos }
             // A soldier of the station who can see a player inside it.
