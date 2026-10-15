@@ -756,6 +756,11 @@ extension Mob {
         if Turrets.shared.manned === self { vel = .zero; soldierBrain.kick = max(0, soldierBrain.kick - dt * 1.5); return }   // the player has it (VehicleControls.swift)
         let b = soldierBrain
         vel = .zero
+        // P288 (d): a Boreal Station gun goes dead with the station's generator (it neither sees nor fires).
+        if g.stationPowerOut(at: pos) {
+            b.sees = false; aggro = false; b.seenAgo = 99; b.kick = 0
+            return
+        }
         attackCooldown = max(attackCooldown, -1)
         if fire > 0 { fire -= dt }
         b.reload -= dt
