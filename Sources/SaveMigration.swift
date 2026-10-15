@@ -16,6 +16,12 @@ enum SaveMigration {
     // has that state, else falls back to the target's default state.
     static func block(_ name: String) -> String? {
         if Blocks.has(name) { return name }
+        // A waterlogged state ("<state>~wl"): resolve the dry state, then take its twin (or the dry one if the new
+        // block holds no water).
+        if name.hasSuffix("~wl") {
+            guard let d = block(String(name.dropLast(3))) else { return nil }
+            return !d.hasPrefix("#group:") && Blocks.has(d + "~wl") ? d + "~wl" : d
+        }
         let base: String, suffix: String
         if let b = name.firstIndex(of: "[") { base = String(name[..<b]); suffix = String(name[b...]) } else { base = name; suffix = "" }
         guard let to = blockAliases[base] else { return nil }
