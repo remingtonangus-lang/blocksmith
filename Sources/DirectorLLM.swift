@@ -546,7 +546,7 @@ final class DirectorPlanner {
     // Ask for plans (once a second while the queue is short): rules at once, the others on a background thread.
     func ask(_ g: Game, wanted: Int) {
         guard wanted > 0 else { return }
-        let which = Settings.shared.directorBackend
+        let which = Director.effectiveBackend                 // Q2c-console-45: a choice that can't work here plans with the rules
         let b = backend(which)
         if which == 0 || !b.ready {
             if which != 0 { Director.fallbackNote = b.status() }

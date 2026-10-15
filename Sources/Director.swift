@@ -231,7 +231,21 @@ enum Director {
         switch Settings.shared.directorFreq { case 0: return 30...45; case 2: return 8...15; default: return 15...30 }
     }
     static let freqNames = ["Rare (30-45 min)", "Normal (15-30 min)", "Often (8-15 min)"]
-    static let backendNames = ["Rules", "On-Device Model", "Cloud"]
+    static let backendNames = ["Built-in Rules", "On-Device AI", "Cloud AI"]
+    // Q2c-console-45: the planners that can work here: the rules always, the on-device AI once its model is installed,
+    // the cloud once a server is set (with Cheats & Shortcuts on, all three, for testing). A saved choice outside these
+    // plans with the rules (effectiveBackend) and reads so on the Director page.
+    static func plannerChoices() -> [Int] {
+        let dev = Settings.shared.devTools
+        var out = [0]
+        if dev || DirectorLLM.modelPath != nil { out.append(1) }
+        if dev || DirectorPlanner.shared.cloud.endpoint != "mock" { out.append(2) }
+        return out
+    }
+    static var effectiveBackend: Int {
+        let b = Settings.shared.directorBackend
+        return plannerChoices().contains(b) ? b : 0
+    }
 
     // The Director page's status line (n): what it is doing now.
     static func statusLines(_ g: Game) -> [String] {
@@ -248,8 +262,8 @@ enum Director {
             out.append(s)
         }
         if g.difficulty == 0 { out[0] += " (Peaceful: only peaceful events)" }         // Q2c-console-23
-        out.append("Planner: " + DirectorPlanner.shared.status(st.directorBackend))
-        if !fallbackNote.isEmpty && st.directorBackend != 0 { out.append("Last plan: " + fallbackNote) }
+        out.append("Planner: " + backendNames[effectiveBackend] + ", " + DirectorPlanner.shared.status(effectiveBackend))
+        if !fallbackNote.isEmpty && effectiveBackend != 0 { out.append("Last plan: " + fallbackNote) }
         return out
     }
 
@@ -265,17 +279,17 @@ enum Director {
         return left > 0 ? "Now: Next event in ~\(left) min" : "Now: Next event soon"
     }
     static func shortPlanner() -> String {
-        switch Settings.shared.directorBackend {
+        switch effectiveBackend {
         case 1:
-            if DirectorLLM.slow { return "Model: Too slow here (Rules)" }
-            if DirectorLLM.modelPath == nil { return "Model: Not installed (Rules)" }
-            if !DirectorLLM.open() { return "Model: Not in this build (Rules)" }
-            if DirectorLLM.busy { return "Model: Thinking" }
-            return DirectorLLM.loaded ? "Model: Loaded" : "Model: Ready"
+            if DirectorLLM.slow { return "On-Device AI: too slow here (using rules)" }
+            if DirectorLLM.modelPath == nil { return "On-Device AI: not installed (using rules)" }
+            if !DirectorLLM.open() { return "On-Device AI: not in this version (rules)" }
+            if DirectorLLM.busy { return "On-Device AI: thinking" }
+            return DirectorLLM.loaded ? "On-Device AI: loaded" : "On-Device AI: ready"
         case 2:
-            if DirectorPlanner.shared.cloud.endpoint == "mock" { return "Cloud: Mock server" }
-            return DirectorCloudBackend.https ? "Cloud: On" : "Cloud: No HTTPS here (Rules)"
-        default: return "Planner state: Rules, ready"
+            if DirectorPlanner.shared.cloud.endpoint == "mock" { return "Cloud AI: test server" }
+            return DirectorCloudBackend.https ? "Cloud AI: on" : "Cloud AI: no secure link here (rules)"
+        default: return "Built-in Rules: ready"
         }
     }
     // Event Frequency changed: the wait already running follows the new pace.
@@ -314,7 +328,7 @@ enum Director {
             DirectorLLM.idle(g, wanted: false)
             return
         }
-        DirectorLLM.idle(g, wanted: Settings.shared.directorBackend == 1)
+        DirectorLLM.idle(g, wanted: effectiveBackend == 1)
         // Q2c-console-24: when this world started being played here, and his last death.
         if arrivedAt < 0 || g.clock < arrivedAt { arrivedAt = g.clock }
         if !g.alive { diedAt = g.clock }

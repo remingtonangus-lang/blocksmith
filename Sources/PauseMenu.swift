@@ -199,10 +199,10 @@ final class PauseMenu: Menu {
         "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
         "narrator": "Reads the highlighted menu item and messages aloud with the system voice.",
         "dir_on": "After the story the Director keeps the land alive: raids, outlaws, wrecks, storms, traders, announced by radio and marked on your map.",
-        "dir_backend": "Who plans events. Rules: built in. On-Device: a small model (optional download) that thinks only while paused. Cloud: a server you set; only a world summary is sent.",
+        "dir_backend": "Who plans the events. Built-in Rules always work. On-Device AI: a small model on this device that thinks only while you are paused. Cloud AI: a server; only a summary of the world is sent.",
         "dir_freq": "How much play time passes between events.",
         "dir_early": "Lets the Director start before the story is finished (for trying it out).",
-        "dir_cloud": "The cloud planner's address (directorCloud in the settings file). Mock: a built-in test server, no network used.",
+        "dir_cloud": "For testing (Cheats & Shortcuts): the Cloud AI's server. Test: a built-in stand-in that uses no network.",
         // Q2c-console-6: rows that had no help.
         "journal": "Every order, log, note, pamphlet, message and Director event you have received, to read again.",
         "shortcuts": "Teleport to the nearest place of a kind (testing).",
@@ -364,13 +364,16 @@ final class PauseMenu: Menu {
             case .director:
                 // P266 (h, n): the Director's switches, and what it is doing now (the hover help says it in full).
                 rows = [("Director: \(on(st.directorOn))", "dir_on"),
-                        ("Planner: \(Director.backendNames[max(0, min(2, st.directorBackend))])", "dir_backend"),
+                        ("Planner: \(Director.backendNames[Director.effectiveBackend])", "dir_backend"),
                         ("Event Frequency: \(Director.freqNames[max(0, min(2, st.directorFreq))])", "dir_freq"),
                         ("Before the Story Ends: \(on(st.directorEarly))", "dir_early"),       // (Q2c-console-16: testing; below)
                         (Director.shortStatus(g), "dir_status"), (Director.shortPlanner(), "dir_model"),
-                        ("Cloud Endpoint: \(DirectorPlanner.shared.cloud.endpoint == "mock" ? "Mock (built in)" : "Custom")", "dir_cloud"),
+                        ("Cloud Server: \(DirectorPlanner.shared.cloud.endpoint == "mock" ? "Test (built in)" : "Custom")", "dir_cloud"),
                         ("Director Events (Journal)...", "dir_journal")]
                 if !st.devTools && !st.directorEarly { rows.removeAll { $0.1 == "dir_early" } }     // Q2c-console-16
+                // Q2c-console-45: only planners that can work here; the cloud's server is a testing row.
+                if Director.plannerChoices().count < 2 { rows.removeAll { $0.1 == "dir_backend" || $0.1 == "dir_model" } }
+                if !st.devTools { rows.removeAll { $0.1 == "dir_cloud" } }
             }
             rows.append(("Done", "back"))
         case .padmap:
@@ -791,7 +794,7 @@ final class PauseMenu: Menu {
         case "narrator": st.narrator.toggle(); if st.narrator { Narrator.shared.say("Narrator on", clock: g.clock) }
         case "dir_on": st.directorOn.toggle(); if !st.directorOn { DirectorLLM.release() }      // P266 (h)
         case "dir_backend":
-            st.directorBackend = step([0, 1, 2], st.directorBackend)
+            st.directorBackend = step(Director.plannerChoices(), Director.effectiveBackend)      // Q2c-console-45
             DirectorPlanner.shared.reset(); Director.fallbackNote = ""
             if st.directorBackend != 1 { DirectorLLM.release() }
             if st.directorBackend == 2 { g.onToast?("Cloud planner: only a summary of your world is sent, nothing about you or this device") }
