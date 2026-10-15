@@ -313,6 +313,7 @@ final class Game {
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
+    var fullToldAt: Double = -100      // Q2c-console-33: the last "You're full"
     private(set) var attackTimer: Float = 10    // seconds since last attack (attack cooldown)
     var swing: Float = 0              // arm swing animation 1 -> 0
 
@@ -1505,6 +1506,12 @@ final class Game {
         let alwaysEdible = ["golden_apple", "enchanted_golden_apple", "chorus_fruit", "honey_bottle", "suspicious_stew"]
         let hk = Items.key(h.item)
         let canEat = h.def.food != nil && survival && (hunger < 20 || alwaysEdible.contains { hk.hasPrefix($0) })
+        // Q2c-console-33: food held with a full hunger bar, pointing where it would not be planted or placed.
+        if useNow && h.def.food != nil && survival && !canEat && !h.def.drink && clock - fullToldAt > 8
+            && (target == nil || (h.def.plants == nil && h.def.block == nil)) {
+            fullToldAt = clock
+            onToast?("You're full")
+        }
         let canDrink = h.def.drink && (survival || Potions.potion(of: h.item) != nil)
         // P186 (Oct 13: "shouldn't I be able to cook stuff on the fire?"): raw food aimed at a lit campfire goes on
         // the fire (GameBlocks.useNewBlock) instead of being eaten.
@@ -1918,6 +1925,21 @@ final class Game {
 
     static let iceID: BlockID = Blocks.has("ice") ? Blocks.id("ice") : AIR
 
+    // Q2c-console-33: a block broken with the wrong or too weak a tool drops nothing: say what it needs, once a kind.
+    static var harvestTold = Set<BlockID>()
+    func harvestHint(_ b: BlockID) {
+        let base = Blocks.groupBase[Int(b)]
+        guard Game.harvestTold.insert(base).inserted else { return }
+        let tiers = ["wooden", "stone", "iron", "diamond", "netherite"]
+        let tools = ["", "pickaxe", "axe", "shovel", "hoe", "sword", "shears"]
+        let t = Int(Blocks.tool[Int(b)]), lvl = min(tiers.count - 1, Int(Blocks.harvestLevel[Int(b)]))
+        guard t > 0 && t < tools.count else { return }
+        let key = t == 6 ? "shears" : "\(tiers[lvl])_\(tools[t])"
+        let toolName = Items.has(key) ? Items.name(Items.id(key)) : key.replacingOccurrences(of: "_", with: " ")
+        let blockName = Items.item(forBlock: b).map { Items.name($0) } ?? Blocks.key(base).replacingOccurrences(of: "_", with: " ").capitalizedFirst
+        onToast?("\(blockName) needs a\(toolName.first.map { "AEIOU".contains($0) } == true ? "n" : "") \(toolName)" + (t == 6 ? "" : " or better") + " to drop anything")
+    }
+
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
         boarlingsGuard(p, block: b)
         if Blocks.key(b) == DeepGates.liftKey { noteDeepLift(p, placed: false) }
@@ -1948,6 +1970,7 @@ final class Game {
         placedLeaves.remove(p)
         let bk = Blocks.key(b)
         if bk.hasSuffix("_log") || bk.hasSuffix("_wood") { queueLeafDecay(around: p) }
+        if drop && survival && !Mining.canHarvest(b, held) { harvestHint(b) }          // Q2c-console-33
         if drop {
             let ores: [String: ClosedRange<Int>] = ["coal_ore": 0...2, "deepslate_coal_ore": 0...2, "diamond_ore": 3...7, "deepslate_diamond_ore": 3...7,
                                                      "emerald_ore": 3...7, "lapis_ore": 2...5, "deepslate_lapis_ore": 2...5,
