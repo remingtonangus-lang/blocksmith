@@ -89,6 +89,7 @@ final class QuestControls {
     var heldQuads = 0                                  // (harness) quads in the last held item model (P17)
     private(set) var bladeContacts = 0                 // (harness) hits landed by the blade
     private var lastHurtFlash: Float = 0
+    private var lastHeartBeats = 0, dubIn: Float = 0        // Q2c-console-34
     // The bow (bowUpdate): an arrow nocked by the drawing hand, the draw (0...1), the haptic ramp's last step.
     private(set) var bowNocked = false
     private(set) var bowPose: VRBow.Pose?               // tracking space, while a bow is held
@@ -323,6 +324,20 @@ final class QuestControls {
             app.input.haptic(1, amplitude: 0.7, seconds: 0.09, frequency: 90)
         }
         lastHurtFlash = game.hurtFlash
+        // Q2c-console-34: near death, a lub-dub heartbeat in both hands with each beat (Feedback.tick times them).
+        if Feedback.heartBeats != lastHeartBeats {
+            lastHeartBeats = Feedback.heartBeats
+            dubIn = 0.2
+            app.input.haptic(0, amplitude: 0.45, seconds: 0.06, frequency: 70)
+            app.input.haptic(1, amplitude: 0.45, seconds: 0.06, frequency: 70)
+        }
+        if dubIn > 0 {
+            dubIn -= dt
+            if dubIn <= 0 && Feedback.heartPulse > 0 {
+                app.input.haptic(0, amplitude: 0.3, seconds: 0.05, frequency: 60)
+                app.input.haptic(1, amplitude: 0.3, seconds: 0.05, frequency: 60)
+            }
+        }
         // Grips step the hotbar: left = previous slot, right = next (a press; at a ship's helm the left grip descends).
         let lGrip = L.squeeze > 0.6, rGrip = R.squeeze > 0.6
         // P177: a grip with the hand on a small creature picks it up (let go to throw it); on a carcass, drags it
@@ -1640,6 +1655,7 @@ final class QuestControls {
         if g.portalTime > 0 { tint(V4(0.45, 0.1, 0.8, min(0.7, g.portalTime / 4 * 0.7) * fx)) }
         if g.sleeping > 0 { tint(V4(0.02, 0.02, 0.06, min(1, g.sleeping / 1.5))) }
         if g.hurtFlash > 0 { ring(&v, min(1, g.hurtFlash * 2.5), V3(0.75, 0.02, 0.02), maxAlpha: 0.6 * fx) }
+        if Feedback.heartPulse > 0.01 { ring(&v, Feedback.heartPulse * 0.45, V3(0.5, 0, 0.02), maxAlpha: 0.35 * fx) }   // Q2c-console-34
         if g.freeze > 0 { ring(&v, min(1, g.freeze / 7) * 0.7, V3(0.85, 0.93, 1), maxAlpha: 0.55) }
         // Sprinting (VR has no FOV kick): faint streaks rushing outward at the edges of the view.
         if sprintFx > 0.01 { speedStreaks(&v, sprintFx * fx, Float(g.clock)) }

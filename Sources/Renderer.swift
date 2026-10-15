@@ -1553,6 +1553,18 @@ final class Renderer: NSObject, MTKViewDelegate {
         if game.sleeping > 0 { rect(0, 0, W, H, V4(0.02, 0.02, 0.06, min(1, game.sleeping / 1.5))) }
         let fx: Float = Settings.shared.screenEffects ? 1 : 0.3       // Accessibility > Screen Flashes
         if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3) * fx)) }
+        // Q2c-console-34: near death, the screen's edges pulse dark red with each heartbeat (Feedback.tick).
+        if Feedback.heartPulse > 0.01 {
+            let a = Feedback.heartPulse * 0.4 * fx, t = floor(min(W, H) * 0.14)
+            let o = [V2(0, 0), V2(W, 0), V2(W, H), V2(0, H)], n = [V2(t, t), V2(W - t, t), V2(W - t, H - t), V2(t, H - t)]
+            let co = V4(0.5, 0, 0.02, a), ci = V4(0.5, 0, 0.02, 0), z = V2(0, 0), ex = V4(-1, 0, 0, 0)
+            for k in 0..<4 {
+                let j = (k + 1) % 4
+                let q0 = HudVert(pos: o[k], uv: z, color: co, extra: ex), q1 = HudVert(pos: o[j], uv: z, color: co, extra: ex)
+                let q2 = HudVert(pos: n[j], uv: z, color: ci, extra: ex), q3 = HudVert(pos: n[k], uv: z, color: ci, extra: ex)
+                v.append(q0); v.append(q1); v.append(q2); v.append(q0); v.append(q2); v.append(q3)
+            }
+        }
         if Partner.isDowned(game) { rect(0, 0, W, H, V4(0.3, 0, 0, (0.32 + 0.1 * sinf(Float(game.clock) * 2.5)) * max(fx, 0.6))) }   // Q2: down (D52)
         if game.portalTime > 0 { rect(0, 0, W, H, V4(0.45, 0.1, 0.8, min(0.7, game.portalTime / 4 * 0.7) * fx)) }
         if game.onFire > 0 && game.menu == nil {
@@ -2609,8 +2621,12 @@ final class Renderer: NSObject, MTKViewDelegate {
             func heartSprite(_ layer: Int, _ x: Float, _ y: Float, _ c: V4) {
                 quad([V2(x, y), V2(x + isz, y), V2(x + isz, y + isz), V2(x, y + isz)], uv4, c, Float(layer))
             }
+            // Q2c-console-34: at two hearts or less they jiggle (a pixel up or down each heart, 20 times a second).
+            let jiggle = game.alive && game.health <= 4
+            let jig = UInt(max(0, game.clock * 20))
             for i in 0..<totalHearts {
-                let x = x0 + Float(i % 10) * step, y = yh - Float(i / 10) * rowStep
+                let x = x0 + Float(i % 10) * step
+                let y = yh - Float(i / 10) * rowStep + (jiggle ? Float(Int((jig &* 2654435761 &+ UInt(i) &* 40503) >> 7 % 3) - 1) * s : 0)
                 if i < slotsH {
                     let h = game.health - i * 2
                     heartSprite(h >= 2 ? fullH : (h == 1 ? halfH : HudTex.heartEmpty), x, y, V4(1, 1, 1, 1))

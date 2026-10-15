@@ -282,6 +282,9 @@ enum Feedback {
 
 extension Feedback {
     static var heartTimer: Double = 0
+    static var heartClock: Double = 0
+    static var heartBeats = 0           // Q2c-console-34: counts low-health beats (the headset's haptics follow it)
+    static var heartPulse: Float = 0    // 1 on a beat, fading: the red edge pulse
     static var lastShipVel: [Int: V3] = [:]
     static var lastShipBlocks: [Int: Int] = [:]
     static var lastClock: Double = 0
@@ -302,12 +305,22 @@ extension Feedback {
         lastShipVel = [s.id: s.vel]
         lastShipBlocks = [s.id: s.blockCount]
     }
-    // Per frame: a heartbeat pulse while health is low in survival.
+    // Per frame: a heartbeat while health is low in survival (Q2c-console-34: once a second at two hearts, every
+    // 0.75 s at one). Each beat: a quiet thump, the gamepad's rumble, heartBeats + 1 (the headset's Touch lub-dub,
+    // QuestControls) and heartPulse = 1 (the red edge pulse, Renderer / QuestControls.screenEffects).
     static func tick(_ g: Game) {
         if PadManager.shared.usingPad && Settings.shared.rumble > 0 { vehicleTick(g) }
-        guard g.survival, g.alive, g.health <= 4, g.menu == nil, !g.paused else { heartTimer = 0; return }
-        if g.clock - heartTimer > 1.1 {
+        let dt = Float(max(0, min(0.1, g.clock - heartClock)))
+        heartClock = g.clock
+        heartPulse = max(0, heartPulse - dt * 2.5)
+        guard g.survival, g.alive, g.health <= 4, g.menu == nil, !g.paused, g.sleeping <= 0, g.credits == nil else {
+            heartTimer = 0; heartPulse = 0; return
+        }
+        if g.clock - heartTimer > (g.health <= 2 ? 0.75 : 1.1) {
             heartTimer = g.clock
+            heartBeats &+= 1
+            heartPulse = 1
+            g.sfx(.wardenHeartbeat, 0.3)
             let pm = PadManager.shared
             guard pm.usingPad else { return }
             pm.rumble(0.35, 0.07, sharpness: 0.2)

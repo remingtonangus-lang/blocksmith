@@ -35,11 +35,11 @@ for i, l in enumerate(rest):
 # Quest draws them over the whole view instead (QuestControls.drawScreenEffects), so they are off on the panel.
 fx = {'if game.player.headInWater {': 'water', 'if game.player.headInLava {': 'lava', 'if game.sleeping > 0 {': 'sleep',
       'if game.hurtFlash > 0 {': 'hurt', 'if game.portalTime > 0 {': 'portal', 'if game.onFire > 0 && game.menu == nil {': 'fire',
-      'if game.freeze > 0 {': 'freeze',
+      'if game.freeze > 0 {': 'freeze', 'if Feedback.heartPulse > 0.01 {': 'heart',
       # Lens overlays black out the screen around a zoomed view; VR has no zoomed view, so they would only black out
       # the HUD panel.
       'if game.fovScale < 0.5 && Items.key(game.held.item) == "spyglass" {': 'spyglass', 'if game.sniperScoped {': 'scope'}
-multiline = {'fire', 'freeze', 'spyglass', 'scope'}
+multiline = {'fire', 'freeze', 'spyglass', 'scope', 'heart'}
 found = set()
 for i, l in enumerate(rest):
     t = l.strip()
