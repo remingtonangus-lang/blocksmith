@@ -942,6 +942,13 @@ Q2c-console-52. [DONE] The creature he is fighting shows its health (in the head
  (e) No bar while a boss bar is up (the boss has its own), and none in a menu.
  (f) Named creatures (name tags, his horse) show their names; Options > Interface "Target Health Bar: On/Off" (default On, Reset Options turns it back on).
  Done Oct 15 (console; Sources/Game.swift, Renderer.swift, Settings.swift, PauseMenu.swift): (a) Game.targetBar picks the living mob with the newest Mob.playerHurtAt under 3 s (melee, arrows, guns all set it through provoke or the ballistics) and remembers it in targetMemo; (b) Renderer appends it to the top bars, full width = its health at the first hit (or more), for 3 s after his last hit; (c) the fill is white for 0.12 s after each hit; a dead target's bar shows empty and fades over 0.8 s (the bars' background and title now take the colour's alpha); (d) animal/passive green, hostile non-villager red, the rest gold; (e) only when no other bar is up, never under a menu; the Hollow Wyrm and the Blight are skipped; (f) customName before the kind's name; Settings.targetBar is an Interface row with a help line, true again on Reset Options.
+Q2c-console-53. [CLAIMED console 2026-10-15] The first-launch setup covers reading, hearing and touch (it set play position, comfort, hand, controls, height and the first world's difficulty; a player who can't read the panels comfortably, needs captions or dislikes the buzz had to find Options first, past menus he might not be able to read).
+ (a) Intent (Q2 c, accessibility from the first minute): the first screen he meets can be made readable and suited to him.
+ (b) A "Menu Size" row in the setup (Small to Extra Large, Q2c-console-49); the setup panel itself grows or shrinks as he steps it.
+ (c) A "Subtitles: On/Off" row (the same captions as Options > Accessibility, with directions).
+ (d) A "Controller Vibration" row (Off to 100%, Q2c-console-35) with its sample buzz.
+ (e) The setup's subtitle line says everything here can be changed any time under VR Comfort & Controls and Options.
+ (f) Each new row has the same help line it has elsewhere, and Start Playing stays the last row.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
