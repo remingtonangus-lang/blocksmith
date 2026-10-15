@@ -247,6 +247,7 @@ enum Director {
             s += left > 0.5 ? ", next in about \(Int(left.rounded())) min" : (waitNote.isEmpty ? ", next one soon" : ", next waits: " + waitNote)
             out.append(s)
         }
+        if g.difficulty == 0 { out[0] += " (Peaceful: only peaceful events)" }         // Q2c-console-23
         out.append("Planner: " + DirectorPlanner.shared.status(st.directorBackend))
         if !fallbackNote.isEmpty && st.directorBackend != 0 { out.append("Last plan: " + fallbackNote) }
         return out
@@ -373,9 +374,14 @@ enum Director {
         return nil
     }
 
+    // Q2c-console-23: what a Peaceful world can get (no monsters, raiders or gunfights).
+    static let peaceful: Set<String> = ["trader", "gift", "storm", "eruption", "wreck", "supply_drop", "legend"]
+    static let foeKeys = ["posse", "guards", "troops", "count", "scavengers"]
+
     // Whether a template fits where he is and the hour (l, f).
     static func unfit(_ g: Game, _ t: DirectorTemplate) -> String? {
         if !t.dims.contains(g.dim.dim) { return "not in this land" }
+        if g.difficulty == 0 && !peaceful.contains(t.id) { return "not on Peaceful" }      // Q2c-console-23
         let night = TownRaids.night(g.dayFraction)
         if t.when == 1 && !night { return "it comes after dark" }
         if t.when == 2 && night { return "it comes by day" }
@@ -432,6 +438,12 @@ enum Director {
             let v = r.n[p.key].flatMap { $0.isFinite ? $0 : nil } ?? rules.n[p.key] ?? p.lo
             n[p.key] = max(p.lo, min(hi, v))
         }
+        // Q2c-console-23: Peaceful sends nobody to fight; Easy keeps the foes to the bottom of each range.
+        if g.difficulty == 0 { for k in ["scavengers", "guards"] where n[k] != nil { n[k] = 0 } }
+        if g.difficulty == 1 {
+            for p in t.nums where foeKeys.contains(p.key) { n[p.key] = min(n[p.key] ?? p.lo, (p.lo + (p.hi - p.lo) * 0.25).rounded()) }
+            if let p = t.param("grit") { n["grit"] = min(n["grit"] ?? p.lo, p.lo + 0.5) }
+        }
         var s: [String: String] = [:]
         for (k, list) in t.picks {
             if let v = r.s[k], list.contains(v) { s[k] = v } else { s[k] = rules.s[k] ?? list.first }
@@ -450,6 +462,7 @@ enum Director {
         var added = 0
         for r in list {
             guard state.queue.count < 3, var e = accept(g, r) else { continue }
+            if g.difficulty == 0 && !peaceful.contains(e.t) { continue }            // Q2c-console-23: whoever planned it
             let recent = Set(state.history.suffix(3).map { String($0.split(separator: "|").first ?? "") } + state.active.map { $0.t })
             if recent.contains(e.t) || state.queue.contains(where: { $0.t == e.t }) { continue }
             e.source = source
