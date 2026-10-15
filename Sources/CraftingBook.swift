@@ -159,6 +159,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         return Guns.index(id) != nil || Guns.all.contains { $0.ammo == k }
     }
     static var showAll = true
+    static let tableItem: ItemID? = Items.has("crafting_table") ? Items.id("crafting_table") : nil
 
     let size: Int
     var tab: CraftCategory = CraftingBookMenu.lastTab
@@ -179,22 +180,34 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         refresh()
     }
 
-    // Every recipe that fits this grid, one per result item, grouped by category (cached per grid size).
+    // Every recipe that fits this grid, one per result item, grouped by category (cached per grid size). Q2c-console-38:
+    // the pack's 2x2 book also lists, after them in each category, the results only a Crafting Table makes (shown with
+    // a table badge and refused here, never hidden).
     static var byCategory: [Int: [CraftCategory: [Int]]] = [:]
+    static func fits(_ r: Recipe, _ size: Int) -> Bool {
+        // (Magazines are packed straight from the inventory: more rounds than a grid holds, P119.)
+        r.shapeless.isEmpty ? (r.w <= size && r.h <= size) : (r.shapeless.count <= size * size || Magazines.isMagazine(Items.key(r.result.item)))
+    }
     static func catalogue(_ size: Int) -> [CraftCategory: [Int]] {
         if let c = byCategory[size] { return c }
         var out: [CraftCategory: [Int]] = [:]
         var seen = Set<ItemID>()
         for (i, r) in Recipes.all.enumerated() {
-            // (Magazines are packed straight from the inventory: more rounds than a grid holds, P119.)
-            let fits = r.shapeless.isEmpty ? (r.w <= size && r.h <= size) : (r.shapeless.count <= size * size || Magazines.isMagazine(Items.key(r.result.item)))
-            guard fits, !seen.contains(r.result.item) else { continue }
+            guard fits(r, size), !seen.contains(r.result.item) else { continue }
             seen.insert(r.result.item)
             out[CraftCategory.of(r.result.item), default: []].append(i)
+        }
+        if size < 3 {
+            for (c, list) in catalogue(3) {
+                out[c, default: []] += list.filter { !seen.contains(Recipes.all[$0].result.item) }
+            }
         }
         byCategory[size] = out
         return out
     }
+    // Q2c-console-38: made in this book's grid (false: a table recipe shown in the pack's book).
+    func fitsHere(_ i: Int) -> Bool { size >= 3 || CraftingBookMenu.fits(Recipes.all[i], size) }
+    var tableReady = false                     // the pack's book: a table recipe's items are all here
 
     init(game: Game, size: Int = 3) {
         self.size = size
@@ -255,6 +268,13 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             // (greyed until you have the parts), so a recipe like the launcher's rockets can be found before it can be made.
             list = CraftingBookMenu.showAll ? all : all.filter { RecipeBook.craftable(Recipes.all[$0], pool) || CraftingBookMenu.alwaysShown(Recipes.all[$0].result.item) }
         }
+        if size < 3 {
+            // Q2c-console-38: what can be made here first, then the table recipes.
+            list = list.filter { fitsHere($0) } + list.filter { !fitsHere($0) }
+            tableReady = CraftCategory.allCases.dropFirst().contains { c in
+                (cat[c] ?? []).contains { !fitsHere($0) && RecipeBook.craftable(Recipes.all[$0], pool) }
+            }
+        }
         page = min(page, pages - 1)
     }
 
@@ -289,6 +309,11 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     func craftTile(_ i: Int, times: Int) {
         let r = Recipes.all[i]
         selected = i
+        if !fitsHere(i) {                      // Q2c-console-38: a table recipe in the pack's book
+            lastCraftMessage = "Needs a Crafting Table"
+            game.sfx(.click, 0.25)
+            return
+        }
         let made = CraftBook.craft(r, times: times, game: game)
         if made == 0 {
             let can = CraftBook.maxCrafts(r, CraftBook.pool(game)) > 0
@@ -364,7 +389,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     // (Not in the headset, P129: there A is jump, and holding it over a tile kept crafting; the trigger crafts there.)
     func padHold(_ aHeld: Bool, _ dt: Double) {
         guard aHeld, game.vrHead == nil, game.clock - openedAt >= CraftingBookMenu.openGuard, let h = game.menuHover, case .button(let id) = h.kind, id >= CraftingBookMenu.tileBase,
-              id < CraftingBookMenu.tileBase + CraftingBookMenu.perPage, let i = recipe(at: id - CraftingBookMenu.tileBase) else {
+              id < CraftingBookMenu.tileBase + CraftingBookMenu.perPage, let i = recipe(at: id - CraftingBookMenu.tileBase), fitsHere(i) else {
             holdA = 0; repeatT = 0; return
         }
         holdA += dt
@@ -427,12 +452,25 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             let sl = slots[CraftCategory.allCases.count + k]
             guard let i = recipe(at: k) else { box(sl.x, sl.y, sl.w, sl.h, V4(0.66, 0.66, 0.68, 1)); continue }
             let r = Recipes.all[i]
-            let ok = RecipeBook.craftable(r, pool)
+            // Q2c-console-38: a table recipe in the pack's book: dimmed, a gold rim when its items are all here, a badge.
+            let here = fitsHere(i)
+            let has = RecipeBook.craftable(r, pool)
+            let ok = has && here
             let hot = hover === sl
-            box(sl.x - 1, sl.y - 1, sl.w + 2, sl.h + 2, hot ? focus : (ok ? good : V4(0.42, 0.42, 0.44, 1)))
+            box(sl.x - 1, sl.y - 1, sl.w + 2, sl.h + 2, hot ? focus : (ok ? good : (has ? V4(0.85, 0.66, 0.15, 1) : V4(0.42, 0.42, 0.44, 1))))
             box(sl.x, sl.y, sl.w, sl.h, ok ? V4(0.86, 0.9, 0.86, 1) : V4(0.6, 0.6, 0.62, 1))
             icon(r.result, sl.x + 3, sl.y + 3, sl.w - 6)
             if !ok { box(sl.x, sl.y, sl.w, sl.h, V4(0.35, 0.35, 0.38, 0.55)) }
+            if !here, let t = CraftingBookMenu.tableItem {
+                box(sl.x + sl.w - 11, sl.y, 11, 11, V4(0.2, 0.15, 0.1, 0.85))
+                icon(ItemStack(t, 1), sl.x + sl.w - 10, sl.y + 1, 9)
+            }
+            // The next step when table recipes are ready and he has no table: the Crafting Table's tile pulses gold.
+            if size < 3 && tableReady && ok, let t = CraftingBookMenu.tableItem, r.result.item == t, (pool[t] ?? 0) == 0 {
+                let k = 0.5 + 0.5 * sinf(Float(game.clock) * 5)
+                box(sl.x - 2, sl.y - 2, sl.w + 4, 2, V4(1, 0.8, 0.2, k)); box(sl.x - 2, sl.y + sl.h, sl.w + 4, 2, V4(1, 0.8, 0.2, k))
+                box(sl.x - 2, sl.y, 2, sl.h, V4(1, 0.8, 0.2, k)); box(sl.x + sl.w, sl.y, 2, sl.h, V4(1, 0.8, 0.2, k))
+            }
             // How many you can make, on the tile (Oct 11 playtest P28: it only showed that you could, "show 6 chests").
             if ok {
                 let times = CraftBook.maxCrafts(r, pool, cap: 99)            // (capped: 15 tiles a frame)
@@ -464,7 +502,12 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             icon(r.result, 198, 42, 32)
             label(r.result.def.display, 236, 42, ink, maxW: 100)
             label("Makes \(r.result.count)", 236, 54, V4(0.3, 0.3, 0.34, 1), maxW: 100)
-            label(have > 0 ? "You can make \(have * r.result.count)" : "Missing items", 236, 66, have > 0 ? (cb ? V4(0.15, 0.3, 0.6, 1) : V4(0.1, 0.42, 0.12, 1)) : V4(0.6, 0.12, 0.1, 1), maxW: 100)
+            if !fitsHere(i) {                  // Q2c-console-38
+                label("Needs a", 236, 66, V4(0.55, 0.36, 0.02, 1), maxW: 100)
+                label("Crafting Table", 236, 75, V4(0.55, 0.36, 0.02, 1), maxW: 100)
+            } else {
+                label(have > 0 ? "You can make \(have * r.result.count)" : "Missing items", 236, 66, have > 0 ? (cb ? V4(0.15, 0.3, 0.6, 1) : V4(0.1, 0.42, 0.12, 1)) : V4(0.6, 0.12, 0.1, 1), maxW: 100)
+            }
             // Ingredient grid (3x3 or 2x2) with each cell's item; red where you have none.
             var uniq: [String] = []
             for s in r.shapeless where !uniq.contains(s) { uniq.append(s) }
