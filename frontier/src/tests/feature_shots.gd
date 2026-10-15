@@ -4,7 +4,8 @@ extends Node
 ## renders, saves DIR/<name>.png and cleans up after itself.
 
 const LIST := ["town_hud", "face_closeup", "gunfight_nerve", "riding", "wildlife", "camp_night", "dialogue",
-	"map", "journal", "shop", "poker", "satchel", "weapon_wheel", "mission_talk", "results_card"]
+	"map", "journal", "shop", "poker", "satchel", "weapon_wheel", "mission_talk", "results_card",
+	"fistfight", "cover_fight", "lasso", "holdup", "horse_closeup"]
 ## With --vr_sim the run takes the VR view instead: head camera, HUD/menu sheets, hands, guns (src/tests/vr_shots.gd).
 const VR_LIST := ["vr_hud", "vr_menu", "vr_comfort", "vr_hands", "vr_body", "vr_gun_aim", "vr_fire", "vr_two_hand", "vr_reload",
 	"vr_bolt", "vr_pump", "vr_nerve", "vr_riding",
@@ -96,6 +97,12 @@ func _cleanup() -> void:
 	pl.bot_driven = false
 	pl.intent.aim = false
 	pl.intent.fire = false
+	pl.intent.melee = false
+	pl.intent.lasso = false
+	if pl.get("lasso") != null:
+		pl.lasso.release()
+	if pl.get("cover") != null and pl.cover.active:
+		pl.cover.leave()
 	pl.set_process(true)
 	pl.set_physics_process(true)
 	if pl.get("on_horse") != null and Horse.player_horse:
@@ -283,6 +290,150 @@ func _weapon_wheel() -> void:
 		wheel._pick()
 		wheel._ctl.queue_redraw()
 	await _settle(10)
+
+## A street fistfight in Bitter Spring, side-on, Ruth's cross landing while townsfolk gather to watch.
+func _fistfight() -> void:
+	var c := _town("bitter_spring")
+	var p := _place(c.x, c.z + 14.0, 110.0, 12.5)
+	var pl = Game.player
+	pl.bot_driven = true
+	pl.gun.drawn = false
+	var to := _ahead(p, 110.0, 1.15)
+	var h := _human(to, {"seed": 515, "role": "rancher", "faction": "civilian", "name": "Brawler", "bravery": 0.95})
+	h.facing = deg_to_rad(-110.0) + PI
+	var r := RandomNumberGenerator.new()
+	r.seed = 21
+	for i in 5:                                   # onlookers in a loose ring, facing the fight
+		var a := r.randf_range(-1.0, 1.0) + (PI if i % 2 == 0 else 0.0)
+		var q := (p + to) * 0.5 + Vector3(cos(a), 0, sin(a)) * r.randf_range(4.5, 7.0)
+		q.y = Game.world.height(q.x, q.z) + 0.3
+		var o := _human(q, {"seed": 340 + i, "role": ["townsfolk", "worker", "woman", "gambler", "townsfolk"][i], "faction": "civilian", "name": "Onlooker"})
+		var d: Vector3 = (p + to) * 0.5 - q
+		o.facing = atan2(-d.x, -d.z)
+		if o.brain.has_method("watch"):
+			o.brain.watch((p + to) * 0.5, 60.0)
+	await _settle(40)
+	pl.facing = deg_to_rad(-110.0)
+	pl.cam_yaw = pl.facing + deg_to_rad(75.0)     # side-on
+	pl.cam_pitch = deg_to_rad(-4.0)
+	pl.intent.melee = true
+	for i in 9:                                   # mid-swing
+		await get_tree().process_frame
+
+## A gunfight from cover: Ruth tucked against a Bitter Spring storefront beside its door, popping out to aim at
+## two road agents in the street.
+func _cover_fight() -> void:
+	var c := _town("bitter_spring")
+	var st = main.get("settlements")
+	var door: TownDoor = st.nearest_door(Vector3(-526.4, Game.world.height(-526.4, -252.9), -252.9), 60.0) if st != null else null
+	if door == null:
+		door = st.nearest_door(Vector3(c.x, Game.world.height(c.x, c.z), c.z), 200.0) if st != null else null
+	if door == null:
+		return
+	var out := -door.global_basis.z
+	out.y = 0.0
+	out = out.normalized()
+	var along := door.global_basis.x
+	along.y = 0.0
+	along = along.normalized()
+	var spot := door.global_transform * Vector3(door.width * 0.5 * door.hinge_sign, 0.0, 0.0) + along * (door.width + 1.4) + out * 0.7
+	var yaw_out := rad_to_deg(atan2(out.x, -out.z))
+	_place(spot.x, spot.z, yaw_out + 180.0, 15.5)
+	var pl = Game.player
+	pl.bot_driven = true
+	await _settle(10)
+	pl.cover.try_enter(-out)
+	var foes: Array = []
+	for i in 2:
+		var q := spot + out * (14.0 + i * 5.0) + along * (-3.0 + i * 7.0)
+		q.y = Game.world.height(q.x, q.z) + 0.3
+		var h := _human(q, {"seed": 560 + i, "role": "gunman", "faction": "bandit", "name": "Road Agent", "weapon": "lockhart_sa"})
+		h.brain.aggressive = true
+		h.brain.target = pl
+		foes.append(h)
+	await _settle(40)
+	var d: Vector3 = foes[0].global_position - pl.global_position
+	pl.cam_yaw = atan2(-d.x, -d.z)
+	pl.cam_pitch = deg_to_rad(-3.0)
+	pl.gun.drawn = true
+	pl.intent.aim = true
+	await _settle(25)
+
+## The lasso: a runaway caught at nine metres on open range, the rope taut as he tries to bolt.
+func _lasso() -> void:
+	var c := _town("bitter_spring")
+	var o: Vector3 = load("res://src/tests/combat_bot.gd")._arena(Game.world, Vector3(c.x + 220.0, 0.0, c.z + 260.0))
+	var p := _place(o.x, o.z, 0.0, 17.8)
+	var pl = Game.player
+	pl.bot_driven = true
+	pl.gun.drawn = false
+	var h := _human(_ahead(p, 0.0, 9.0), {"seed": 811, "role": "gunman", "faction": "bandit", "name": "Runaway", "bravery": 0.2})
+	await _settle(30)
+	pl.intent.lasso = true
+	for i in 4:
+		await get_tree().physics_frame
+	h.brain.state = h.brain.State.FLEE
+	for i in 50:
+		h.intent.move_to = h.global_position + Vector3(0, 0, -40.0)
+		h.intent.speed = Human.SPRINT
+		await get_tree().physics_frame
+	pl.cam_yaw = deg_to_rad(55.0)                 # three-quarter view across the rope
+	pl.cam_pitch = deg_to_rad(-8.0)
+	await _settle(4)
+
+## A stagecoach held up on the Coldwater road: the coach stopped, crew and passengers out with their hands up,
+## Ruth covering them with her revolver.
+func _holdup() -> void:
+	var hd = Game.get_meta("holdups") if Game.has_meta("holdups") else null
+	if hd == null:
+		return
+	hd.enabled = false
+	var road_p := Mission.road_point("bitter_spring", "coldwater", 0.45)
+	_place(road_p.x + 6.0, road_p.z, 0.0, 16.4)
+	await _settle(20)
+	var v: Dictionary = hd.spawn_stage(Game.player.global_position, 45.0, 7.0)
+	if v.is_empty():
+		return
+	var pl = Game.player
+	pl.bot_driven = true
+	pl.gun.drawn = true
+	var wt := 0
+	while wt < 900 and hd.aim_point(v).distance_to(pl.global_position) > 22.0:
+		await get_tree().physics_frame
+		wt += 1
+	await hd.holdup(v)
+	for h in v.people + v.crew.map(func(cr): return cr.h):
+		if is_instance_valid(h):
+			_spawned.append(h)
+	await _settle(90)
+	var d: Vector3 = v.stopped_at - pl.global_position
+	pl.facing = atan2(-d.x, -d.z)
+	pl.cam_yaw = pl.facing + deg_to_rad(18.0)
+	pl.cam_pitch = deg_to_rad(-5.0)
+	pl.intent.aim = true
+	await _settle(25)
+
+## Ruth's horse up close in golden light (coat, mane, tack).
+func _horse_closeup() -> void:
+	var cp: Dictionary = Game.world.poi("caddell_camp")
+	var p := _place(cp.x + 14.0, cp.z - 10.0, 300.0, 17.4)
+	var hz: Horse = Horse.player_horse
+	if hz == null:
+		return
+	var at := _ahead(p, 300.0, 4.5)
+	hz.global_position = at
+	hz.velocity = Vector3.ZERO
+	hz.rotation.y = deg_to_rad(-300.0) + PI * 0.5      # broadside to the camera
+	await _settle(30)
+	var pl = Game.player
+	pl.set_process(false)
+	pl.set_physics_process(false)
+	var cam: Camera3D = Game.camera
+	var side: Vector3 = hz.global_basis.x.normalized()
+	cam.global_position = hz.global_position + side * 3.6 + Vector3(0, 1.55, 0) - hz.global_basis.z * 0.4
+	cam.look_at(hz.global_position + Vector3(0, 1.25, 0) - hz.global_basis.z * 0.3, Vector3.UP)
+	cam.fov = 40.0
+	await _settle(20)
 
 # ------------------------------------------------------------------ VR (--vr_sim; scenes in vr_shots.gd)
 func _ground(x: float, z: float) -> float:
