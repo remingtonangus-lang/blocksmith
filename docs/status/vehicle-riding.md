@@ -178,3 +178,11 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
   world-block ledge probe skipped aboard), interiorcheck PASS (no bare halls), collapsecheck failed only mine + relic
   (both addressed in d876ec3). Next: read run 37304754050 (collapsecheck all scenes, heavy lane); if green, fast-forward
   claude/blocksmith-playtest; then paste docs/status/pr9-destruction-section.md (destruction/wrecks/frigates) into PR #9's list.
+- 2026-10-15 (resumed after the usage reset): claude/bs-destruction rebuilt on playtest 7629ff8 as one port commit
+  (b8ac05e), because playtest had moved 282 commits and the frigate is now the Meridian Navy hull (another session,
+  453bbf5, CapitalFrigate.swift). Left out: this branch's 200-block Capital frigate rework and its frigate ride
+  scenes / shots / interior-check entry (the Meridian versions stay). Kept: destruction physics, as-built rule, wrecks,
+  Stormwarden interiors (interiorcheck covers that hull only), crash-landing spare, crew ledge fixes, Warship HUD,
+  particle air guard, collapse queue fold. New in the port: the Meridian MAC crater queues a collapse round its rim.
+  The Meridian hull has no walkable decks yet (Remington wanted hallways on frigates): ask its owner before adding
+  them with HullBuilder.interiorDeck.
