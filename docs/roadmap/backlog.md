@@ -934,6 +934,13 @@ Q2c-console-51. [DONE] Low storage is warned before saves fail (a headset whose 
  (e) The Worlds page's subtitle shows the free space while it is low ("120 MB free on this headset").
  (f) Freeing space stops every warning at the next check; a storage that can't be measured never warns.
  Done Oct 15 (console; Sources/HudExtras.swift, Game.swift, PauseMenu.swift): (a) StorageCheck, ticked by a persistent Game each frame; (b) it measures FileManager.attributesOfFileSystem(.systemFreeSize) for the world's save dir on a utility queue when the world starts (a new dir) and every 300 s, behind a lock; under 300 MB one toast with the MB left (warnedLow until it is back over); (c) under 60 MB a toast every 120 s and SaveBadge.storageFullAt, which SaveBadge.lines draws as a red "Storage full" badge for 30 s (a real save failure keeps its own wording); (d) the pause main subtitle appends " - storage low"; (e) the Worlds page's subtitle reads "Storage almost full: N MB free"; (f) at 300 MB or more warnedLow resets and nothing shows; an unmeasurable store leaves freeMB at -1, which never warns. (The lettered (e) said "on this headset": the line is shared with the Mac, so it names no device.)
+Q2c-console-52. [CLAIMED console 2026-10-15] The creature he is fighting shows its health (in the headset a sword swing, an arrow or a shot gave a flash and a sound but no sense of how hurt the creature was, or whether the last hit landed at all; only bosses had a bar).
+ (a) Intent (Q2 c, clarity and feel in VR combat): he can see each hit land and how close the fight is to over.
+ (b) After he hurts a creature, a bar under the boss bars at the top of the HUD shows its name and health, for three seconds after his last hit on it.
+ (c) The bar flashes white for a moment at each hit; when the creature dies it empties and fades instead of vanishing.
+ (d) Colours say what it is: hostile red, animals green, townsfolk and other neutrals gold.
+ (e) No bar while a boss bar is up (the boss has its own), and none in a menu.
+ (f) Named creatures (name tags, his horse) show their names; Options > Interface "Target Health Bar: On/Off" (default On, Reset Options turns it back on).
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
