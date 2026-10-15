@@ -61,6 +61,7 @@ final class PauseMenu: Menu {
     // Q2c-console-1: option pages the host has no use for (the Quest: Keyboard & Mouse) and pages it names its own way
     // (the Quest: Touch Controls).
     static var hostHiddenCats: Set<Cat> = []
+    static var savedNote: String?                 // Q2c-console-2: the title screen's "World1 saved" after Save and Quit
     static var hostCatNames: [Cat: String] = [:]
     static var shownCats: [Cat] { Cat.allCases.filter { !hostHiddenCats.contains($0) } }
     static func catName(_ c: Cat) -> String { hostCatNames[c] ?? c.name }
@@ -214,6 +215,7 @@ final class PauseMenu: Menu {
         switch page {
         case .title:
             title = ""
+            if let n = PauseMenu.savedNote { subtitle = n }                 // Q2c-console-2: "World1 saved"
             let last = UserDefaults.standard.string(forKey: "lastWorld") ?? "World1"
             rows = [("Play: \(last)", "resume"), ("Worlds...", "worlds"), ("Options...", "options"), ("Quit Game", "quit")]
         case .main:
@@ -221,7 +223,7 @@ final class PauseMenu: Menu {
             if let t = PadManager.shared.disconnectedAt, g.clock - t < 600, !PadManager.shared.connected {
                 subtitle = "Controller disconnected - reconnect it or use the keyboard"
             } else if !currentWorld.isEmpty {
-                subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
+                subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)" + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2
             }
             rows = [("Back to Game", "resume"), ("Journal (orders, logs, notes)", "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
@@ -621,6 +623,7 @@ final class PauseMenu: Menu {
             resetCursor = true
         case "totitle":
             g.saveNow()
+            PauseMenu.savedNote = SaveBadge.failing ? "\(currentWorld) could not be saved: see the message" : "\(currentWorld) saved"
             stack = []
             page = .title
             resetCursor = true

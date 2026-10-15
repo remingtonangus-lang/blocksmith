@@ -491,6 +491,7 @@ enum HudExtras {
             out.append(HudLine(text: "", x: x, y: y, scale: s, bg: bn.recording ? V4(0.95, 0.15, 0.15, pulse) : V4(0.7, 0.7, 0.72, 0.8), box: V2(6 * s, 6 * s)))
             if bn.recording { out.append(HudLine(text: "Note", x: x + 10 * s, y: y, scale: s, color: V4(1, 0.6, 0.6, 1))) }
         }
+        out += SaveBadge.lines(g, L, below: bn.listening)                 // Q2c-console-2
         // (Not on the headset: the grips step the hotbar there, and he wanted the labels gone: P85, Oct 12 playtest.)
         if ContextPrompts.shown && Prompt.pad && g.menu == nil && g.vrHead == nil {
             // LB / RB beside the hotbar.
@@ -506,5 +507,41 @@ enum HudExtras {
         if g.menu is InventoryMenu && g.alive { out = Wallet.lines(g, L) + HonourHUD.lines(g, L) + out }
         if g.menu == nil && g.alive { out = Minimap.lines(g, L) + Wallet.lines(g, L) + HonourHUD.lines(g, L) + CombatHUD.shared.lines(g, L) + CompassHUD.lines(g, L) + glanceLines(g, L) + out }
         return out
+    }
+}
+
+// Q2c-console-2 (store readiness, save safety): every save shows a small "Saved" badge with a disc icon in the HUD's
+// top-left corner (inside the safe area, so on the headset's HUD panel too) for two seconds, fading, never flashing;
+// a save problem reported by SaveIO (S2) turns it red, "Save failed", until a later save. The pause menu says how long
+// ago the world was saved (PauseMenu: savedAgo).
+enum SaveBadge {
+    static var savedAt: Double = -100
+    static var failedAt: Double = -100
+    static var failing: Bool { failedAt >= savedAt }
+
+    static func savedAgo(_ g: Game) -> String? {
+        guard savedAt > -100 else { return nil }
+        let d = max(0, g.clock - savedAt)
+        if d < 5 { return "saved just now" }
+        if d < 60 { return "saved \(Int(d)) s ago" }
+        return "saved \(Int(d / 60)) min ago"
+    }
+
+    static func lines(_ g: Game, _ L: HudLayout, below: Bool) -> [HudLine] {
+        guard g.menu == nil, HudExtras.enabled else { return [] }
+        let age = Float(g.clock - savedAt)
+        let bad = failing && g.clock - failedAt < 30
+        guard bad || (age >= 0 && age < 2.2) else { return [] }
+        let a: Float = bad ? 1 : min(1, (2.2 - age) / 0.7)
+        let s = L.s, x = L.insetX + 4 * s, y = L.insetY + 4 * s + (below ? 12 * s : 0)
+        let t = bad ? "Save failed" : "Saved"
+        let body = bad ? V4(0.75, 0.16, 0.14, a) : V4(0.22, 0.36, 0.62, a)
+        return [
+            HudLine(text: "", x: x - s, y: y - s, scale: s, bg: V4(0, 0, 0, 0.45 * a), box: V2(Float(Font.width(t)) * s + 13 * s, 9 * s)),
+            HudLine(text: "", x: x, y: y, scale: s, bg: body, box: V2(7 * s, 7 * s)),                         // the disc
+            HudLine(text: "", x: x + 2 * s, y: y, scale: s, bg: V4(0.9, 0.92, 0.95, a), box: V2(3 * s, 2 * s)),  // its shutter
+            HudLine(text: "", x: x + 1.5 * s, y: y + 4 * s, scale: s, bg: V4(0.95, 0.95, 0.9, a), box: V2(4 * s, 3 * s)),   // its label
+            HudLine(text: t, x: x + 10 * s, y: y, scale: s, color: bad ? V4(1, 0.6, 0.55, a) : V4(0.92, 0.95, 1, a)),
+        ]
     }
 }

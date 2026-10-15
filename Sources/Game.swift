@@ -520,6 +520,7 @@ final class Game {
     func saveNow(background: Bool = false) {
         guard persistent, let s = save else { return }
         saveCount += 1
+        SaveBadge.savedAt = clock                         // Q2c-console-2: the HUD's "Saved" badge
         // The save holds player 1 (split screen: whoever's turn it is, the meta is written from seat 0).
         if coop.current != 0 { coop.withSeat(0, self) { self.saveNow(background: background) }; return }
         // A synchronous save must land after any autosave still queued, or the older queued meta/mobs overwrite it.
@@ -2798,7 +2799,7 @@ final class Game {
         time += dt
         autosaveTimer += dt
         if autosaveTimer > 60 { autosaveTimer = 0; saveNow(background: true) }
-        for msg in SaveIO.takeProblems() { onToast?(msg) }          // S2: save problems reach the player
+        for msg in SaveIO.takeProblems() { onToast?(msg); SaveBadge.failedAt = clock }          // S2: save problems reach the player
         if CrashGuard.crashed && !CrashGuard.told && clock > 3 {    // S4
             CrashGuard.told = true
             onToast?("The last session ended unexpectedly. Pause > Restore Last Backup puts back the last saved copy")
