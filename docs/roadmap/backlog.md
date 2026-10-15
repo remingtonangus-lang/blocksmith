@@ -682,12 +682,13 @@ Q2c-console-18. [DONE] Hotbar names never hold up a message (with messages now w
  (c) A real message replaces a showing item name at once (it does not wait for the name's reading time).
  (d) Names already waiting are dropped when a newer name or a message comes, so the queue holds only messages.
  Done Oct 15 (console; Game.onToast): (a) item names are instant again. (b) a hotbar name (Journal.itemNames) shows at once when nothing or another name is showing, and is skipped while a real message is still up. (c) a real message arriving over a showing name takes the line at once. (d) every call clears names from the waiting list, so only messages wait.
-Q2c-console-19. [CLAIMED console 2026-10-15] Tooltips answer "how do I make it?" and "what is it for?" (from his notes: "Rockets. How do I make a rocket?", "How do I make them?", "Service rifle. What does it shoot, capital rounds?").
+Q2c-console-19. [DONE] Tooltips answer "how do I make it?" and "what is it for?" (from his notes: "Rockets. How do I make a rocket?", "How do I make them?", "Service rifle. What does it shoot, capital rounds?").
  (a) Intent (Q2 c, nothing confusing): hovering an item tells him how to get it and what it goes with.
  (b) Any item that can be crafted shows "Made from: 1 Gunpowder, 1 Paper (crafting table)" (its first recipe, the table noted when the big grid is needed).
  (c) Anything smelted shows "Smelt: <what> in a furnace".
  (d) Ammunition shows the guns it fits ("For: Service Rifle, Falke Pistol") and where to get it.
  (e) Those lines use the small wrapped detail style under the name (at most three lines each), in the Mac's and the headset's inventory alike, worked out once per item, not every frame.
+ Done Oct 15 (console; ItemHelp in Wrecks.swift, Renderer tooltip): (a) every inventory tooltip now says how to get the item. (b) items with a recipe: "Made from: <ingredients>" from the first recipe (Wrecks.recipeText, with "(crafting table)" for the big grid). (c) furnace products: "Smelt: <input> in a furnace" (Recipes.smelting and smeltingExtra). (d) ammunition: "For: <the current guns that take it>" and "Get it: <where>" (Guns.ammoSource). (e) pale blue detail lines under the name, wrapped by the P227 small-card code (three lines at most each), the same renderer on the Mac and the headset, cached per item id.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.

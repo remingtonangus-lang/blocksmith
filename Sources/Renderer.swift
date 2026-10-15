@@ -2467,6 +2467,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 for l in Fireworks.tooltip(st) { lines.append((l, V4(0.67, 0.67, 0.67, 1))) }
                 for l in Guns.tooltip(st) { lines.append((l, l.hasPrefix(GunGrade.names[GunGrade.tier(st)] + ":") ? GunGrade.colours[GunGrade.tier(st)] : V4(0.67, 0.67, 0.67, 1))) }
                 for (i, l) in Legendaries.tooltip(st).enumerated() { lines.append((l, i < 2 ? Legendaries.gold : V4(0.67, 0.67, 0.67, 1))) }
+                for l in ItemHelp.lines(st) { lines.append((l, V4(0.62, 0.78, 0.95, 1))) }        // Q2c-console-19: how to get it
                 if st.def.name == "ominous_bottle" { lines.append(("Ill Omen " + Effect.roman(st.damage + 1) + " (100:00)", V4(0.33, 0.33, 1, 1))) }
                 if st.def.durability > 0 && st.damage > 0 {
                     lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))

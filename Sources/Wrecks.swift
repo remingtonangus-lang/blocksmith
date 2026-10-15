@@ -350,3 +350,27 @@ extension Wrecks {
         } } }
     }
 }
+
+// Q2c-console-19 (his notes: "How do I make a rocket?", "Service rifle, what does it shoot?"): the inventory tooltip's
+// "how do I get it" lines: the first crafting recipe ("Made from: ..."), a furnace input ("Smelt: ..."), and for
+// ammunition the guns it fits and where it comes from. Worked out once per item.
+enum ItemHelp {
+    private static var cache: [ItemID: [String]] = [:]
+    static func lines(_ s: ItemStack) -> [String] {
+        if let c = cache[s.item] { return c }
+        var out: [String] = []
+        let k = Items.key(s.item)
+        if Recipes.all.contains(where: { Items.key($0.result.item) == k }) {
+            out.append("Made from: " + Wrecks.recipeText(k))
+        } else if let src = Recipes.smelting.first(where: { $0.value == k }) ?? Recipes.smeltingExtra.first(where: { $0.value == k }) {
+            out.append("Smelt: \(Items.has(src.key) ? Items.name(Items.id(src.key)) : src.key.replacingOccurrences(of: "_", with: " ")) in a furnace")
+        }
+        if Guns.ammo.contains(where: { $0.0 == k }) {
+            let guns = Guns.all.enumerated().filter { $0.element.ammo == k && !Guns.isRetired($0.offset) && Items.has($0.element.key) }.map { $0.element.name }
+            if !guns.isEmpty { out.append("For: " + guns.joined(separator: ", ")) }
+            out.append("Get it: " + Guns.ammoSource(k))
+        }
+        cache[s.item] = out
+        return out
+    }
+}
