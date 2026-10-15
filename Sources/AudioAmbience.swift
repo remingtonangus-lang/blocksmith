@@ -550,7 +550,7 @@ extension Game {
                 m.customOn = true
                 m.mood = nil
                 m.pieces += 1
-                onToast?("♪ \(c.title ?? "")")
+                NowPlaying.show(c.title ?? "", clock: clock)                 // Q2c-console-14: not a toast
                 return
             }
             let seed = Rand.u64(in: 0...UInt64(Int32.max))
@@ -558,7 +558,7 @@ extension Game {
             stream.play(score, fadeIn: want == .boss || want == .combat ? 0.5 : 3)
             m.mood = want
             m.pieces += 1
-            if want != .title && want != .combat && want != .tension { onToast?("♪ \(score.title)") }
+            if want != .title && want != .combat && want != .tension { NowPlaying.show(score.title, clock: clock) }
         }
     }
 }

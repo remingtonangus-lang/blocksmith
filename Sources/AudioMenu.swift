@@ -18,6 +18,7 @@ extension PauseMenu {
         r.append(("My Music: \(game.sound?.custom?.summary ?? "no audio")", "audio_music_folder"))
         r.append(("Shuffle: \(st.musicShuffle ? "On" : "Off")", "audio_music_shuffle"))
         r.append(("My Music Volume: \(Int((st.customMusicVolume * 100).rounded()))%", "audio_music_vol"))
+        r.append(("Show Song Titles: \(st.songTitles ? "On" : "Off")", "audio_music_titles"))      // Q2c-console-14
         r.append(("Skip Track", "audio_music_skip"))
         r.append(("Test Sound", "audio_test"))
         return r
@@ -36,6 +37,7 @@ extension PauseMenu {
             return
         case "audio_music_folder": g.sound?.custom?.scan(force: true); return
         case "audio_music_shuffle": st.musicShuffle.toggle(); return
+        case "audio_music_titles": st.songTitles.toggle(); return
         case "audio_music_vol":
             let steps: [Float] = [0.25, 0.5, 0.75, 1]
             let k = steps.firstIndex(where: { abs($0 - st.customMusicVolume) < 0.01 }) ?? 3

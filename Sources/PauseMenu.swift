@@ -91,7 +91,7 @@ final class PauseMenu: Menu {
                                         "dir_on", "dir_backend", "dir_freq", "dir_early"]
 
     static func isValue(_ id: String) -> Bool {
-        valueIDs.contains(id) || id.hasPrefix("vol:") || id.hasPrefix("fx") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol"].contains(id)
+        valueIDs.contains(id) || id.hasPrefix("vol:") || id.hasPrefix("fx") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol", "audio_music_titles"].contains(id)
             || hostValues.contains(id)
     }
 
@@ -169,6 +169,7 @@ final class PauseMenu: Menu {
         "audio_music_src": "Built-in: the game's own music. My Music: your files from ~/Library/Application Support/Blocksmith/Music. Mixed: they take turns.",
         "audio_music_folder": "Audio files (mp3, m4a, wav, aiff) in ~/Library/Application Support/Blocksmith/Music. Select to look again after adding some.",
         "audio_music_shuffle": "Plays your music in a random order (off: by file name).",
+        "audio_music_titles": "Shows each new piece's title for a few seconds in the bottom-left corner of the view.",
         "audio_music_vol": "How loud your own music plays, on top of the Music volume.",
         "audio_music_skip": "Ends the piece that is playing and starts the next. Also Y on the pause menu, or the Skip Music Track key (N).",
         "music": "Background music volume.",

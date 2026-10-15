@@ -523,6 +523,7 @@ enum HudExtras {
             if bn.recording { out.append(HudLine(text: "Note", x: x + 10 * s, y: y, scale: s, color: V4(1, 0.6, 0.6, 1))) }
         }
         out += SaveBadge.lines(g, L, below: bn.listening)                 // Q2c-console-2
+        out += NowPlaying.lines(g, L)                                       // Q2c-console-14
         // (Not on the headset: the grips step the hotbar there, and he wanted the labels gone: P85, Oct 12 playtest.)
         if ContextPrompts.shown && Prompt.pad && g.menu == nil && g.vrHead == nil {
             // LB / RB beside the hotbar.
@@ -574,5 +575,25 @@ enum SaveBadge {
             HudLine(text: "", x: x + 1.5 * s, y: y + 4 * s, scale: s, bg: V4(0.95, 0.95, 0.9, a), box: V2(4 * s, 3 * s)),   // its label
             HudLine(text: t, x: x + 10 * s, y: y, scale: s, color: bad ? V4(1, 0.6, 0.55, a) : V4(0.92, 0.95, 1, a)),
         ]
+    }
+}
+
+// Q2c-console-14: a new piece of music's title, a small faint line in the bottom-left corner for four seconds (it was a
+// toast: it took the message line, could hide a real message and filled the journal). Options > Audio > Show Song
+// Titles turns it off.
+enum NowPlaying {
+    static var title = ""
+    static var at: Double = -100
+    static func show(_ t: String, clock: Double) {
+        guard !t.isEmpty else { return }
+        title = "Now playing: " + t           // (the pixel font has no note sign)
+        at = clock
+    }
+    static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
+        let age = Float(g.clock - at)
+        guard Settings.shared.songTitles, g.menu == nil, HudExtras.enabled, age >= 0, age < 4 else { return [] }
+        let a = min(1, (4 - age) / 1, age / 0.4) * 0.75
+        let s = L.s
+        return [HudLine(text: title, x: L.insetX + 4 * s, y: L.H - L.insetY - 10 * s, scale: s, color: V4(0.9, 0.92, 1, a))]
     }
 }
