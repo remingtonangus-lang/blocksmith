@@ -615,6 +615,13 @@ Q2c-console-8. [DONE] The worlds list tells worlds apart (it showed bare names; 
  (d) A world whose story is finished says so ("story finished"), so he knows which world has the Director running.
  (e) Old worlds with missing details still list cleanly (what is not known is left out, never "nil" or a placeholder).
  Done Oct 15 (console; WorldStore.Info/describe/rowLabel, PauseMenu worlds list): (a) worlds now read apart. (b) rows read "World1 - Survival, day 27 (open)", names shortened with a dot to fit the 224-pixel row. (c) the world page and the hovered row's help: "Survival, Normal, polygon terrain - day 27 - in the Emberdeep - last played Oct 14, 12:20" (difficulty and day from the world's own save). (d) "story finished" for a world whose Ash Chancellor is down (the Director's worlds). (e) a save without a difficulty, day or dimension simply leaves that part out; an unread one shows "New".
+Q2c-console-9. [CLAIMED console 2026-10-15] First-hour survival lessons in the headset (the headset's lessons covered the controls, horses, towns, honour, contracts and guns, but nothing told a new player about crafting, hunger, nightfall or low health; the Mac's first-steps tips are off in VR).
+ (a) Intent (Q2 c, onboarding): the survival basics are taught in the moment they matter, in VR terms.
+ (b) Crafting: the first time he carries logs, how to open the inventory (hold Y) and turn logs into planks and sticks in its grid, and that a crafting table gives the bigger grid.
+ (c) Hunger: the first time hunger falls to seven drumsticks, how to eat (food in hand, hold the left trigger) and that a full stomach is what heals him.
+ (d) Nightfall: at his first dusk on the surface in survival, that monsters come out in the dark and the three answers (torches, a shelter, a bed: use it to sleep through the night and wake there after a death).
+ (e) Low health: the first time he drops to four hearts, to step back, eat and let it come back.
+ (f) Each once per player (saved with the other lessons), one at a time, only in survival; the calm ones wait until no monster is chasing him; left-handed players read their own hands.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
