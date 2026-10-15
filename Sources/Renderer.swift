@@ -3082,7 +3082,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             yaw = max(-1.1, min(1.1, atanf(dx)))
             pitch = max(-0.6, min(0.6, -atanf(dy)))
         }
-        let parts = playerParts(game, pitch: pitch, walk: 0, hit: 0)
+        let parts = playerParts(game, pitch: pitch, walk: 0, hit: 0, posed: false)      // P282: the figure stands free
         let k: Float = h * 0.86 / 32.5
         let feetY: Float = y + h * 0.95
         let cyw = cosf(yaw), syw = sinf(yaw)

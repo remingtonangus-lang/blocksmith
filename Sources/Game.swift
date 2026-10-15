@@ -745,7 +745,14 @@ final class Game {
     // P260 (Oct 14 12:16-12:17, "no guns or swords while piloting: the hands hold the helm or controls"): at the
     // controls of any ship or vehicle nothing is in hand (no shots, swings, blade hits, reloads; the attack button stays
     // the helm's cannons); the item stays in its slot and is back the moment he lets go.
-    var held: ItemStack { world.ships.pilot != nil ? .empty : inventory.held }
+    // P282 (a) (Oct 14 19:36, "I can still hold the gun while I'm driving a vehicle"): every seat with controls counts,
+    // the helm of any ship or vehicle and a manned deck gun alike (its trigger is the gun's, not the rifle's). A saddle,
+    // a rowboat, a cart or a coach seat keeps a weapon in the free hand (mountedOneHand).
+    var handsOnControls: Bool { world.ships.pilot != nil || Turrets.shared.manned != nil }
+    // P282 (b): mounted (horse, rowboat, pig, minecart, a coach seat) one hand holds the reins, paddle or rail: the
+    // weapon in the other hand still fires, but there is no second hand for a rifle brace or a second revolver.
+    var mountedOneHand: Bool { riding != nil && !handsOnControls }
+    var held: ItemStack { handsOnControls ? .empty : inventory.held }
 
     func select(_ i: Int) {
         let n = (i % 9 + 9) % 9
@@ -1226,7 +1233,7 @@ final class Game {
             if bk.contains("campfire") && useNewBlock(t) { mining = nil; return }   // (P97)
         }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
-        if !swung && world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
+        if !swung && !handsOnControls && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
         if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
 
         // Attack: an animal in front of the block takes priority.

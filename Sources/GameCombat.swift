@@ -19,7 +19,8 @@ final class Bobber {
 extension Game {
     // MARK: Shield
 
-    var shieldInHand: Bool { Items.key(held.item) == "shield" || (Items.key(inventory.offhand[0].item) == "shield" && !heldHasUse) }
+    // P282 (a): both hands on the controls, the offhand shield hangs on the arm unused.
+    var shieldInHand: Bool { !handsOnControls && (Items.key(held.item) == "shield" || (Items.key(inventory.offhand[0].item) == "shield" && !heldHasUse)) }
     var heldHasUse: Bool {
         let d = held.def
         let k = d.name
