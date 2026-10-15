@@ -2569,6 +2569,18 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(cx - th / 2, cy - arm, th, arm * 2, white)
         }
 
+        // Q2c-console-55: the name of what the aim rests on, under the middle of the view (a block's tool need in amber).
+        if let la = game.lookAtLabel() {
+            let tb = Settings.shared.textBackground
+            var ly = floor(H / 2) + 12 * s
+            for (t, c) in [(la.name, V4(1, 1, 1, la.alpha))] + (la.note.map { [($0, V4(1, 0.72, 0.3, la.alpha))] } ?? []) {
+                let tw = textWidth(t, s)
+                rect(floor((W - tw) / 2) - 3 * s, ly - 2 * s, tw + 6 * s, 11 * s, V4(0, 0, 0, (0.3 + tb * 0.4) * la.alpha))
+                text(t, floor((W - tw) / 2), ly, s, c)
+                ly += 11 * s
+            }
+        }
+
         // Hotbar
         let total = slot * 9
         let x0 = L.hotbarX0

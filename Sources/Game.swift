@@ -2047,15 +2047,45 @@ final class Game {
     static var harvestTold = Set<BlockID>()
     func harvestHint(_ b: BlockID) {
         let base = Blocks.groupBase[Int(b)]
-        guard Game.harvestTold.insert(base).inserted else { return }
+        guard Game.harvestTold.insert(base).inserted, let need = Game.harvestNeed(b) else { return }
+        onToast?("\(Game.blockName(b)) \(need) to drop anything")
+    }
+    // "needs a Stone Pickaxe or better" (or nil): the tool a block wants to drop anything (Q2c-console-33, -55).
+    static func harvestNeed(_ b: BlockID) -> String? {
         let tiers = ["wooden", "stone", "iron", "diamond", "netherite"]
         let tools = ["", "pickaxe", "axe", "shovel", "hoe", "sword", "shears"]
         let t = Int(Blocks.tool[Int(b)]), lvl = min(tiers.count - 1, Int(Blocks.harvestLevel[Int(b)]))
-        guard t > 0 && t < tools.count else { return }
+        guard t > 0 && t < tools.count else { return nil }
         let key = t == 6 ? "shears" : "\(tiers[lvl])_\(tools[t])"
         let toolName = Items.has(key) ? Items.name(Items.id(key)) : key.replacingOccurrences(of: "_", with: " ")
-        let blockName = Items.item(forBlock: b).map { Items.name($0) } ?? Blocks.key(base).replacingOccurrences(of: "_", with: " ").capitalizedFirst
-        onToast?("\(blockName) needs a\(toolName.first.map { "AEIOU".contains($0) } == true ? "n" : "") \(toolName)" + (t == 6 ? "" : " or better") + " to drop anything")
+        return "needs a\(toolName.first.map { "AEIOU".contains($0) } == true ? "n" : "") \(toolName)" + (t == 6 ? "" : " or better")
+    }
+    static func blockName(_ b: BlockID) -> String {
+        Items.item(forBlock: b).map { Items.name($0) } ?? Blocks.key(Blocks.groupBase[Int(b)]).replacingOccurrences(of: "_", with: " ").capitalizedFirst
+    }
+
+    // Q2c-console-55: the block or creature the aim has rested on for half a second, named for about 2.5 s (the key is
+    // the block's place or the creature itself, so sweeping the view shows nothing). Second string: what a block needs.
+    var lookKey = "", lookSince: Double = 0
+    func lookAtLabel() -> (name: String, note: String?, alpha: Float)? {
+        guard Settings.shared.lookNames, menu == nil, alive else { lookKey = ""; return nil }
+        var key = "", name = "", note: String? = nil
+        let blockDist: Float = target.map { simd_length(hitPoint($0) - player.eye) } ?? 99
+        if let hit = mobs.raycast(player.eye, player.look, maxDist: 8, except: riding), hit.1 < blockDist {
+            let m = hit.0
+            key = "m\(ObjectIdentifier(m).hashValue)"
+            name = m.customName ?? m.kind.name
+        } else if let t = target {
+            let b = world.block(t.hit.x, t.hit.y, t.hit.z)
+            guard b != AIR, b != WATER else { lookKey = ""; return nil }
+            key = "b\(t.hit.x),\(t.hit.y),\(t.hit.z)"
+            name = Game.blockName(b)
+            if survival && Blocks.requiresTool[Int(b)] && !Mining.canHarvest(b, held) { note = Game.harvestNeed(b) }
+        } else { lookKey = ""; return nil }
+        if key != lookKey { lookKey = key; lookSince = clock }
+        let age = Float(clock - lookSince)
+        guard age >= 0.5 && age < 3 else { return nil }
+        return (name, note, min(1, (age - 0.5) / 0.15, (3 - age) / 0.4))
     }
 
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
