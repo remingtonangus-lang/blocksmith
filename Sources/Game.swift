@@ -979,8 +979,8 @@ final class Game {
         }
         if input.tapped(Key.f3) { showDebug.toggle() }
         if input.tapped(Key.f1) { hideHUD.toggle() }
-        if input.tapped(KeyBinds.key(.chat)) { openMenu(CommandMenu(game: self)); return }
-        if input.tapped(Key.slash) { openMenu(CommandMenu(game: self, prefill: "/")); return }
+        if input.tapped(KeyBinds.key(.chat)) { openCommands(); return }
+        if input.tapped(Key.slash) { openCommands(prefill: "/"); return }
         if input.tapped(Key.f2) || (p.share && !q.share) { screenshotRequested = true }
         if PadActions.extras(p, q, self) { return }
         if input.tapped(KeyBinds.key(.map)) { openMenu(MapMenu(game: self)); return }
@@ -2327,6 +2327,13 @@ final class Game {
             let l = simd_length(d)
             if l > 0.01 { player.vel += d / l * 6 * knockback + V3(0, 4 * knockback, 0) }
         }
+    }
+
+    // Q2c-console-15: the command console and the shortcuts only in creative, or with Cheats & Shortcuts on.
+    var cheatsAllowed: Bool { !survival || Settings.shared.devTools }
+    func openCommands(prefill: String = "") {
+        guard cheatsAllowed else { onToast?("Commands are off in survival (Options > Interface > Cheats & Shortcuts)"); return }
+        openMenu(CommandMenu(game: self, prefill: prefill))
     }
 
     func toggleMode() {

@@ -88,7 +88,7 @@ final class PauseMenu: Menu {
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "chipping", "smooth", "new_terrain", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
                                         "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness",
-                                        "dir_on", "dir_backend", "dir_freq", "dir_early"]
+                                        "dir_on", "dir_backend", "dir_freq", "dir_early", "devtools"]
 
     static func isValue(_ id: String) -> Bool {
         valueIDs.contains(id) || id.hasPrefix("vol:") || id.hasPrefix("fx") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol", "audio_music_titles"].contains(id)
@@ -201,6 +201,7 @@ final class PauseMenu: Menu {
         "resetask": "Put every option and key binding back to its default.",
         "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
         "debug": "Position, biome, frame rate and chunk details (F3).",
+        "devtools": "Shows Commands (time, weather, items, mode) and Shortcuts (teleport) in the pause menu in survival. Creative always has them.",
         "perf": "Frame rate, frame times (average and worst of the last second), render distance and chunk jobs in the corner of the view.",
         "quit": "Save the world and close Blocksmith.",
         "totitle": "Save the world and return to the title screen.",
@@ -254,6 +255,7 @@ final class PauseMenu: Menu {
                 rows.removeAll { $0.1 == "photo" || $0.1 == "worlds" }
             }
             if let e = PauseMenu.hostEntry, g.coop.current == 0 { rows.insert(e, at: 2) }
+            if !g.cheatsAllowed { rows.removeAll { $0.1 == "commands" || $0.1 == "shortcuts" } }    // Q2c-console-15
             // S4: after a crash, the newest rolling backup of this world can be put back.
             if CrashGuard.crashed && g.coop.current == 0 { rows.insert(("Restore Last Backup (after a crash)", "restorebackup"), at: 1) }
         case .options:
@@ -313,6 +315,7 @@ final class PauseMenu: Menu {
                         ("Split Screen: \(st.splitSideBySide ? "Side by Side" : "Top / Bottom")", "splitlayout"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
                         ("Performance Overlay: \(on(st.perfOverlay))", "perf"),
+                        ("Cheats & Shortcuts: \(on(st.devTools))", "devtools"),          // Q2c-console-15
                         ("About and Licences...", "about"), ("Reset Options...", "resetask")]
                 if BugNotes.available {
                     rows.insert(("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"), at: rows.count - 1)
@@ -663,7 +666,7 @@ final class PauseMenu: Menu {
         case "minimap": st.minimap.toggle()
         case "splitlayout": st.splitSideBySide.toggle()
         case "brightness": st.brightness = step([0, 0.25, 0.5, 0.75, 1], st.brightness)
-        case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
+        case "commands": g.closeMenu(); g.openCommands()
         case "mode": go(.confirm); confirmMode = true; resetCursor = true          // Q2c-console-5: ask first
         case "mode_yes":
             g.toggleMode(); g.onModeChanged?(g.survival)
@@ -774,6 +777,7 @@ final class PauseMenu: Menu {
         case "hidehud": g.hideHUD.toggle()
         case "debug": g.showDebug.toggle()
         case "perf": st.perfOverlay.toggle(); PerfOverlay.shared.reset()
+        case "devtools": st.devTools.toggle()
         case "subtitles": st.subtitles.toggle()
         case "colorblind": st.colorblind.toggle()
         case "tutorial": st.tutorialHints.toggle()

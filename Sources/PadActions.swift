@@ -57,7 +57,7 @@ enum PadActions {
         let keySwap = g.input.tapped(offKey) && !(g.heldGun != nil && offKey == KeyBinds.key(.reload))
         if (p.right && !q.right) || keySwap { swapOffhand(g) }
         // D-pad left: command console (it has pad quick buttons and the on-screen keyboard).
-        if p.left && !q.left { g.openMenu(CommandMenu(game: g)); return true }
+        if p.left && !q.left { g.openCommands(); return true }
         return false
     }
 

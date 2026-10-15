@@ -103,6 +103,14 @@ final class Settings {
     // (0 rare, 1 normal, 2 often), and switching it on before the story ends (testing). The cloud endpoint is the
     // UserDefaults string "directorCloud" ("mock" when unset).
     @Pref("chestJoinTold") var chestJoinTold = false   // P264: the first double chest was announced
+    // Q2c-console-15: Commands and Shortcuts in a survival game. Off in store builds (the Quest without the playtest's
+    // VOICE_NOTES), on in playtest and Mac builds; creative always has them.
+    #if os(Android) && !VOICE_NOTES
+    static let devToolsDefault = false
+    #else
+    static let devToolsDefault = true
+    #endif
+    @Pref("devTools") var devTools = Settings.devToolsDefault
     @Pref("directorOn") var directorOn = true
     @Pref("directorBackend") var directorBackend = 1
     @Pref("directorFreq") var directorFreq = 1
@@ -116,7 +124,7 @@ final class Settings {
         safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
         display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0
-        directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false   // (tutorialStep is progress, not an option)
+        directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false; devTools = Settings.devToolsDefault   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1
         for c in SoundCategory.allCases { AudioSettings.set(c, c == .master ? 0.8 : 1) }
