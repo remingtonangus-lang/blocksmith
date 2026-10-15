@@ -1039,6 +1039,13 @@ Q2c-console-64. [DONE] The brewing stand says what it is doing and why it is stu
  (e) Every item is named in the game's own words (the reference's names are renamed here).
  (f) The status sits between the stand and the pack, like the furnace's: the pack moves down to make room.
  Done Oct 15 (console; Sources/MenuMagic.swift, Renderer.swift): (a) BrewingMenu.status, computed each frame from the stand's block entity; (b) brewTime / 20 seconds left, and the fuel left (be.fuel brews, or 20 per powder waiting in the slot); (c) amber lines for no bottles, only empty glass bottles, no ingredient, an ingredient Potions.brew turns none of the bottles with, and no fuel at all (none burning, none in the slot); otherwise "Ready to brew" and the fuel line; (d) BrewingMenu.click refuses a carried stack a stand slot won't accept with a 3 s note per slot kind and the 0.25 click; (e) BrewingMenu.name uses the item registry (Cinder Powder, Ember Wart), and the IP name check stays clean; (f) the panel is 190 tall, the pack at y 108 and its label at 98, the two status lines at y 80 and 89 under the bottles (one line each when there are two).
+Q2c-console-65. [CLAIMED console 2026-10-15] A slot that won't take an item says so, on every screen (dropping a carried item on an armour slot it doesn't fit, an anvil, smithing, loom, beacon or enchanting slot it doesn't belong in did nothing at all: the item stayed on the cursor without a sound, the "is it broken?" feeling in every workstation).
+ (a) Intent (Q2 c, nothing broken-looking): every refused drop on a screen is answered.
+ (b) The soft refusal click plays and a short line above the window says why: armour slots name what fits ("Only boots go here"), other slots "Stone can't go in that slot".
+ (c) The line fades after two and a half seconds and never covers the slots or the window.
+ (d) The furnace and the brewing stand keep their own, more specific words (Q2c-console-40, -64); result and output slots, where a click takes, are untouched.
+ (e) In the headset the refusal is felt too: a light tick in the hands with the click.
+ (f) Shift-moves and drops into the pack are unchanged; only a direct drop onto a slot that refuses it is answered.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
