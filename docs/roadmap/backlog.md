@@ -608,12 +608,13 @@ Q2c-console-7. [DONE] A full pack says so (walking over loot with no room left d
  (c) The inventory screen's label reads "Inventory (full)" in amber while every pack slot is taken, so he sees it before he goes looting.
  (d) Only when nothing of the stack fit (a stack that partly fits says nothing), never for items in flight or still in their pickup delay, never while dead or in a menu.
  Done Oct 15 (console; ItemEntityManager pickup, Renderer inventory label): (a) loot that cannot be picked up now says why. (b) "Your pack is full: the <item> stays on the ground" with a quiet click, at most once in 30 s. (c) the inventory screens' label reads "Inventory (full)" in amber while no pack slot is empty. (d) only when none of the stack fit, only for items past their pickup delay, never while dead or with a menu open.
-Q2c-console-8. [CLAIMED console 2026-10-15] The worlds list tells worlds apart (it showed bare names; the world page said "Survival, smooth terrain - last played 2026-10-14 12:20").
+Q2c-console-8. [DONE] The worlds list tells worlds apart (it showed bare names; the world page said "Survival, smooth terrain - last played 2026-10-14 12:20").
  (a) Intent (Q2 c, clear menus): a player with a few worlds picks the right one at a glance.
  (b) Each row in Worlds names the world with its mode and day ("World1 - Survival, day 27"), the open one marked, long names shortened to fit the row.
  (c) The world page and its help line read like a store game: "Survival, Normal, polygon terrain - day 27 - in the Emberdeep - last played Oct 14, 12:20" (difficulty, terrain, the day, where he stands if not on the surface, a plain date).
  (d) A world whose story is finished says so ("story finished"), so he knows which world has the Director running.
  (e) Old worlds with missing details still list cleanly (what is not known is left out, never "nil" or a placeholder).
+ Done Oct 15 (console; WorldStore.Info/describe/rowLabel, PauseMenu worlds list): (a) worlds now read apart. (b) rows read "World1 - Survival, day 27 (open)", names shortened with a dot to fit the 224-pixel row. (c) the world page and the hovered row's help: "Survival, Normal, polygon terrain - day 27 - in the Emberdeep - last played Oct 14, 12:20" (difficulty and day from the world's own save). (d) "story finished" for a world whose Ash Chancellor is down (the Director's worlds). (e) a save without a difficulty, day or dimension simply leaves that part out; an unread one shows "New".
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.

@@ -14,6 +14,9 @@ enum WorldStore {
         let seed: UInt64?
         let dimension: String?
         var smooth = false        // Terrain: Smooth (test)
+        var difficulty: Int? = nil    // Q2c-console-8: what the list says about each world
+        var day: Int? = nil
+        var storyDone = false
     }
 
     static func url(_ name: String) -> URL { base.appendingPathComponent(name, isDirectory: true) }
@@ -30,13 +33,19 @@ enum WorldStore {
             let date = ((try? fm.attributesOfItem(atPath: meta.path))?[.modificationDate] as? Date)
                 ?? ((try? fm.attributesOfItem(atPath: url(n).path))?[.modificationDate] as? Date) ?? .distantPast
             var survival: Bool?, seed: UInt64?, dim: String?, smooth = false
+            var diff: Int?, day: Int?, done = false
             if let d = try? Data(contentsOf: meta), let m = try? SaveIO.decoder().decode(WorldMeta.self, from: d) {
                 survival = m.survival ?? false
                 seed = m.seed
-                dim = m.dimension.map { "\($0)" }
+                dim = m.dimension.map { $0.rawValue }
                 smooth = m.extra?["terrain"] == "smooth"
+                diff = m.extra?["difficulty"].flatMap { Int($0) }
+                day = m.time.isFinite ? Int(m.time / DAY_LENGTH) + 1 : nil
+                done = m.extra?["ashVictory"] == "1"
             }
-            out.append(Info(name: n, lastPlayed: date, survival: survival, seed: seed, dimension: dim, smooth: smooth))
+            var info = Info(name: n, lastPlayed: date, survival: survival, seed: seed, dimension: dim, smooth: smooth)
+            info.difficulty = diff; info.day = day; info.storyDone = done
+            out.append(info)
         }
         return out.sorted { $0.lastPlayed != $1.lastPlayed ? $0.lastPlayed > $1.lastPlayed : $0.name < $1.name }
     }
@@ -88,12 +97,31 @@ enum WorldStore {
         return (try? fm.removeItem(at: url(name))) != nil
     }
 
+    // Q2c-console-8: "Survival, Normal, polygon terrain - day 27 - in the Emberdeep - story finished - last played
+    // Oct 14, 12:20"; what an old save doesn't record is left out.
     static func describe(_ i: Info) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd HH:mm"
-        let mode = (i.survival.map { $0 ? "Survival" : "Creative" } ?? "New") + (i.smooth ? ", smooth terrain" : "")
-        let when = i.lastPlayed == .distantPast ? "never played" : f.string(from: i.lastPlayed)
-        return "\(mode) - last played \(when)"
+        f.dateFormat = "MMM d, HH:mm"
+        var kind = [i.survival.map { $0 ? "Survival" : "Creative" } ?? "New"]
+        if let d = i.difficulty, d >= 0, d < Game.difficultyNames.count { kind.append(Game.difficultyNames[d]) }
+        kind.append(i.smooth ? "polygon terrain" : "block terrain")
+        var parts = [kind.joined(separator: ", ")]
+        if let d = i.day { parts.append("day \(d)") }
+        if let dm = i.dimension, let dd = Dim(rawValue: dm), dd != .overworld { parts.append("in " + dd.displayName.replacingOccurrences(of: "The ", with: "the ")) }
+        if i.storyDone { parts.append("story finished") }
+        parts.append(i.lastPlayed == .distantPast ? "never played" : "last played " + f.string(from: i.lastPlayed))
+        return parts.joined(separator: " - ")
+    }
+
+    // The worlds list row: the name, its mode and day, shortened to fit a menu row.
+    static func rowLabel(_ i: Info, open: Bool) -> String {
+        var tail = i.survival.map { $0 ? "Survival" : "Creative" } ?? "New"
+        if let d = i.day { tail += ", day \(d)" }
+        if open { tail += " (open)" }
+        var name = i.name
+        let room = 214
+        while name.count > 3 && Font.width(name + " - " + tail) > room { name = String(name.dropLast(2)) + "." }
+        return name + " - " + tail
     }
 }

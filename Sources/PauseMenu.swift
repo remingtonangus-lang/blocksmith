@@ -360,7 +360,7 @@ final class PauseMenu: Menu {
             worlds = WorldStore.list()
             rows = [("Create New World...", "create"), ("Quick New World (random seed)", "newworld"),
                     ("Sparkstone Workshop (circuits)", "workshop")]
-                + worlds.map { ($0.name == currentWorld ? "\($0.name)  (open)" : $0.name, "world:" + $0.name) }
+                + worlds.map { (WorldStore.rowLabel($0, open: $0.name == currentWorld), "world:" + $0.name) }   // Q2c-console-8
                 + [("Back", "back")]
         case .world:
             title = selWorld
