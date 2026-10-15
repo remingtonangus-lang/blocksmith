@@ -270,10 +270,13 @@ func block_for(r: Dictionary) -> Dictionary:
 	return TownSchedule.block(r, h, posmod(day, 7), index.get(r.town, {}))
 
 func _pick_look(tid: String, r: Dictionary) -> String:
-	if r.has("look_id"):
-		return r.look_id
 	var used: Dictionary = index[tid].used_looks
 	var cap := int(Game.args.get("looks", 0))
+	if r.has("look_id"):
+		if cap <= 0 or used.has(r.look_id) or used.size() < cap:
+			used[r.look_id] = true
+			return r.look_id
+		return used.keys()[posmod(int(r.seed), used.size())]
 	if cap > 0 and used.size() >= cap:
 		# low-memory runs: reuse the looks already cast (clothing colours still vary per seed)
 		var have: Array = used.keys().filter(func(id): return r.look == "" or Array(CharacterFactory.ids(r.look)).has(id))
