@@ -1186,12 +1186,13 @@ final class Game {
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && (useBook() || useBundle()) { return }
         let alwaysEdible = ["golden_apple", "enchanted_golden_apple", "chorus_fruit", "honey_bottle", "suspicious_stew"]
         let hk = Items.key(h.item)
-        let canEat = h.def.food != nil && survival && (hunger < 20 || alwaysEdible.contains { hk.hasPrefix($0) })
+        let canEat = h.def.food != nil && (!survival || hunger < 20 || alwaysEdible.contains { hk.hasPrefix($0) })   // creative always eats
         let canDrink = h.def.drink && (survival || Potions.potion(of: h.item) != nil)
         if (canEat || canDrink) && useHeld && target.map({ !isInteractive($0.hit) }) ?? true {
             eatProgress += fdt
             if Int(eatProgress * 5) != Int((eatProgress - fdt) * 5) { sfx(h.def.drink || hk.hasSuffix("_bottle") || hk.hasSuffix("_stew") || hk.hasSuffix("_soup") ? .drink : .eat, 0.5) }
-            if eatProgress >= 1.61 {
+            let useTime: Float = hk == "dried_kelp" ? 0.81 : (hk == "honey_bottle" ? 2.01 : 1.61)     // reference 16 / 40 / 32 ticks
+            if eatProgress >= useTime {
                 if let f = h.def.food { eat(f, h.def.display) }
                 foodEffects(hk)
                 if h.def.drink {

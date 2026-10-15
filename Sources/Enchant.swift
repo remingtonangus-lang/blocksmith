@@ -344,7 +344,7 @@ enum Enchant {
         if !right.isEmpty {
             let rk = Items.key(right.item)
             let isBook = rk == "enchanted_book"
-            if ld.durability > 0, let mat = repairMaterial(left.item), rk == mat, left.damage > 0 {
+            if ld.durability > 0, repairs(left.item, with: rk), left.damage > 0 {
                 // Material repair: 25% of max durability per unit.
                 var dmg = left.damage
                 var used = 0
@@ -356,7 +356,7 @@ enum Enchant {
                 out.damage = dmg
                 rightUsed = used
             } else {
-                guard isBook || right.item == left.item else { return nil }
+                guard isBook || (right.item == left.item && (ld.durability > 0 || right.ench != 0)) else { return nil }
                 if !isBook && ld.durability > 0 && left.damage > 0 {
                     let remain = (ld.durability - left.damage) + (ld.durability - right.damage) + ld.durability * 12 / 100
                     out.damage = max(0, ld.durability - remain)
@@ -377,7 +377,7 @@ enum Enchant {
                     anyApplied = true
                     cost += (isBook ? max(1, d.anvil / 2) : d.anvil) * nl
                 }
-                if !anyApplied && anyBlocked && out.damage == left.damage { return nil }
+                if !anyApplied && anyBlocked { return nil }          // nothing applied: the whole combine fails (reference)
                 out.ench = pack(cur)
                 rightUsed = 1
             }
@@ -389,13 +389,23 @@ enum Enchant {
             cost += 1
         }
         if right.isEmpty && renameCost == 0 { return nil }
+        let opCost = cost                      // the work itself: nothing to do fails even with a prior penalty (reference)
         let prior = left.repairCost + (right.isEmpty ? 0 : right.repairCost)
         cost += prior
         if right.isEmpty { cost = min(cost, 39) }
         if !right.isEmpty { out.repairCost = max(left.repairCost, right.repairCost) * 2 + 1 }
-        if cost <= 0 { return nil }
+        if opCost <= 0 { return nil }
         if cost >= 40 && !creative { return AnvilResult(out: .empty, cost: cost, rightUsed: 0) }
         return AnvilResult(out: out, cost: cost, rightUsed: rightUsed)
+    }
+
+    // Any planks for wooden tools and shields, blackstone or cobbled deeprock for stone tools (reference tags); one exact
+    // material otherwise.
+    static func repairs(_ item: ItemID, with rk: String) -> Bool {
+        let k = Items.key(item)
+        if k.hasPrefix("wooden_") || k == "shield" { return rk.hasSuffix("_planks") }
+        if k.hasPrefix("stone_") { return rk == "cobblestone" || rk == "blackstone" || rk == "cobbled_deepslate" }
+        return repairMaterial(item) == rk
     }
 
     static func repairMaterial(_ item: ItemID) -> String? {

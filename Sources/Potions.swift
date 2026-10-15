@@ -115,7 +115,7 @@ enum Potions {
         // Corruption with a fermented spider eye.
         let fse: [(String, String)] = [("night_vision", "invisibility"), ("long_night_vision", "long_invisibility"),
                                        ("swiftness", "slowness"), ("long_swiftness", "long_slowness"), ("leaping", "slowness"),
-                                       ("long_leaping", "long_slowness"), ("strong_swiftness", "strong_slowness"),
+                                       ("long_leaping", "long_slowness"),       // (Swiftness II -> Slowness IV is Bedrock only)
                                        ("healing", "harming"), ("strong_healing", "strong_harming"), ("poison", "harming"),
                                        ("long_poison", "harming"), ("strong_poison", "strong_harming")]
         for (a, b) in fse { m.append((a, "fermented_spider_eye", b)) }
