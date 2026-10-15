@@ -1824,6 +1824,16 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(o.x + pw - 3 * s, o.y + 2 * s, 2 * s, ph - 3 * s, V4(0.333, 0.333, 0.333, 1))
             let titleC = V4(0.25, 0.25, 0.25, 1)
             text(m.title, o.x + 8 * s, o.y + 6 * s, s, titleC, shadow: false)
+            // Q2c-console-63: in the headset a carried stack drops only in this box (a stray pull off the window used
+            // to throw it out into the world).
+            if game.vrHead != nil && !game.carried.isEmpty && !(m is PauseMenu), let d = m.dropBox(ML) {
+                let hot = m.inDropBox(V2(game.input.mouseX, game.input.mouseY), ML)
+                rect(d.x, d.y, d.w, d.h, hot ? V4(0.85, 0.28, 0.16, 0.95) : V4(0.42, 0.14, 0.1, 0.85))
+                frame(d.x, d.y, d.w, d.h, s, hot ? V4(1, 1, 1, 1) : V4(0.75, 0.5, 0.45, 1))
+                let t1 = "Drop", t2 = "x\(game.carried.count)"
+                text(t1, d.x + (d.w - textWidth(t1, s)) / 2, d.y + 8 * s, s)
+                text(t2, d.x + (d.w - textWidth(t2, s)) / 2, d.y + 24 * s, s, V4(1, 0.9, 0.8, 1))
+            }
             if m.showInventoryLabel {
                 // Q2c-console-7: a full pack shows on its label before he goes looting.
                 let full = !game.inventory.main.slots.contains { $0.isEmpty }

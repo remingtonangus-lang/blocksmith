@@ -135,7 +135,7 @@ extension Game {
                 // A press with a stack on the cursor may start a drag: decided on release (one slot = a plain click).
                 menuDrag = [s]; menuDragButton = b
             } else if let s = m.slotAt(mouse, L) { m.mouseClick = true; m.click(s, button: b, shift: shift); m.mouseClick = false }
-            else if !m.inside(mouse, L) && !carried.isEmpty {
+            else if !m.inside(mouse, L) && !carried.isEmpty && (vrHead == nil || m.inDropBox(mouse, L)) {     // Q2c-console-63
                 if b == 0 { dropItem(carried); carried = .empty }
                 else { dropItem(carried.with(count: 1)); carried.count -= 1; if carried.count <= 0 { carried = .empty } }
             }

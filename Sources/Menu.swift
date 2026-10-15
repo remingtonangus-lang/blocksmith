@@ -290,6 +290,19 @@ class Menu {
         let o = origin(L)
         return p.x >= o.x && p.y >= o.y && p.x < o.x + Float(width) * L.s && p.y < o.y + Float(height) * L.s
     }
+    // Q2c-console-63: the headset's Drop box in the margin right of the window (nil when there is no room for it): the
+    // only place a pull off the window throws the carried stack out.
+    func dropBox(_ L: HudLayout) -> (x: Float, y: Float, w: Float, h: Float)? {
+        let o = origin(L), s = L.s
+        let x = o.x + Float(width) * s + 8 * s
+        let w = min(56 * s, L.W - x - 4 * s), h = 44 * s
+        guard w >= 36 * s else { return nil }
+        return (x, o.y + (Float(height) * s - h) / 2, w, h)
+    }
+    func inDropBox(_ p: V2, _ L: HudLayout) -> Bool {
+        guard let d = dropBox(L) else { return false }
+        return p.x >= d.x && p.x < d.x + d.w && p.y >= d.y && p.y < d.y + d.h
+    }
 
     // Controller navigation: nearest slot in a direction.
     func neighbour(of cur: Int, dx: Int, dy: Int) -> Int {
