@@ -118,7 +118,7 @@ MOB = [
  ("trader_llama", "Trader Llama", "a llama's soft hum and snort"), ("camel", "Camel", "a camel's grumbling groan"), ("goat", "Goat", "a goat's bleat (higher, harsher than sheep)"),
  ("panda", "Panda", "a panda's bleaty grunt"), ("polar_bear", "Polar Bear", "a bear's grunt and growl"), ("turtle", "Turtle", "a quiet shuffle and soft creak"),
  ("frog", "Frog", "a frog's croak"), ("tadpole", "Tadpole", "tiny bubbly wiggle"), ("armadillo", "Armadillo", "a small sniffing grunt"),
- ("sniffer", "Snuffler", "a big ancient beast's deep sniff and snort"), ("mooshroom", "Mushroom Cow", "a moo like the cow, slightly earthier"), ("bee", "Bee", "a bee's buzz"),
+ ("sniffer", "Snuffler", "a big ancient beast's deep sniff and snort"), ("mooshroom", "Shellback", "a low, slow snort from under a mossy shell"), ("bee", "Bee", "a bee's buzz"),
  ("parrot", "Parrot", "a parrot squawk and chirp"), ("bat", "Bat", "high bat squeaks and wing flutter"), ("allay", "Fetchling", "a little spirit's sweet humming trill"),
  ("axolotl", "Axolotl", "a soft squeaky chirp under water"), ("squid", "Squid", "soft watery squelch and bubbles"), ("glow_squid", "Glow Squid", "soft watery squelch, a bit brighter"),
  ("dolphin", "Dolphin", "dolphin clicks and whistles"), ("cod", "Cod", "a fish flop and bubbles"), ("salmon", "Salmon", "a fish flop and bubbles"),

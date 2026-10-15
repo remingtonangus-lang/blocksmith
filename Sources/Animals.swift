@@ -37,7 +37,9 @@ extension MobKind {
         case .tadpole: return a("Tadpole", 0.2, 0.3, 6, 2, xp: 0, call: .mobSlime, aquatic: true)
         case .armadillo: return a("Armadillo", 0.35, 0.65, 12, 2.5, xp: 2, call: .mobPig)
         case .sniffer: return a("Snuffler", 0.95, 1.75, 14, 1.8, xp: 2, call: .mobCow)
-        case .mooshroom: return a("Mushroom Cow", 0.45, 1.4, 10, 1, drops: [("beef", 1, 3), ("leather", 1, 3)], xp: 2, call: .mobCow)
+        // P280 (c): key "mooshroom" kept for saves; the creature is the Shellback, a slow grazer of the Saltpalm Isles
+        // with a mossy, flowering shell (was a mushroom-covered cow copy).
+        case .mooshroom: return a("Shellback", 0.55, 1.0, 16, 0.7, drops: [("beef", 1, 3), ("leather", 1, 3)], xp: 2, call: .mobPig)
         case .bee: return a("Bee", 0.35, 0.6, 10, 3, xp: 2, call: .mobBee, attack: 2, flying: true)
         case .parrot: return a("Parrot", 0.25, 0.9, 6, 3, drops: [("feather", 1, 2)], xp: 2, call: .mobChicken, flying: true)
         case .bat: return a("Bat", 0.25, 0.9, 6, 3, xp: 0, call: .mobVex, flying: true)
@@ -73,7 +75,7 @@ extension MobKind {
         .rabbit: ["carrot", "golden_carrot", "dandelion"], .fox: ["sweet_berries", "glow_berries"], .wolf: ["beef", "cooked_beef", "porkchop", "cooked_porkchop", "chicken", "cooked_chicken", "mutton", "cooked_mutton", "rabbit", "cooked_rabbit", "rotten_flesh"],
         .cat: ["cod", "salmon"], .ocelot: ["cod", "salmon"], .horse: ["golden_apple", "golden_carrot"], .donkey: ["golden_apple", "golden_carrot"],
         .llama: ["hay_block"], .traderLlama: ["hay_block"], .camel: ["cactus"], .goat: ["wheat"], .panda: ["bamboo"], .turtle: ["seagrass"],
-        .frog: ["slime_ball"], .armadillo: ["spider_eye"], .sniffer: ["torchflower_seeds"], .mooshroom: ["wheat"], .bee: ["dandelion", "poppy", "blue_orchid", "allium", "azure_bluet", "oxeye_daisy", "cornflower", "lily_of_the_valley", "sunflower"],
+        .frog: ["slime_ball"], .armadillo: ["spider_eye"], .sniffer: ["torchflower_seeds"], .mooshroom: ["sweet_berries", "kelp", "seagrass"], .bee: ["dandelion", "poppy", "blue_orchid", "allium", "azure_bluet", "oxeye_daisy", "cornflower", "lily_of_the_valley", "sunflower"],
         .axolotl: ["tropical_fish_bucket"], .polarBear: [],
     ]
 }
@@ -817,9 +819,32 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(box(-4, 12, -28, 8, 5, 3, V3(0.35, 0.6, 0.3)))
         return p
     case .mooshroom:
-        let c = m.variant == 1 ? V3(0.55, 0.42, 0.3) : V3(0.72, 0.15, 0.12)
-        var p = quadruped(.zero, V3(12, 10, 18), legH: 12, head: V3(0, 16, -9), headSize: V3(8, 8, 6), c)
-        p.append(box(-3, 22, 2, 3, 3, 3, V3(0.9, 0.2, 0.15))); p.append(box(1, 22, -4, 3, 3, 3, V3(0.9, 0.2, 0.15)))
+        // P280 (c): Shellback. A low, broad grazer under a stepped dome shell; unshorn, a moss mat with a few blooms
+        // grows on top (variant 0 pink blooms on a dark shell, 1 yellow on a sandy one). Shears take the moss; it
+        // grows back while the Shellback grazes.
+        let skin = V3(0.45, 0.47, 0.36), belly = V3(0.62, 0.6, 0.46)
+        let shell = m.variant == 1 ? V3(0.66, 0.56, 0.38) : V3(0.36, 0.3, 0.22)
+        let rim = shell * 0.8, moss = V3(0.3, 0.52, 0.2)
+        let bloom = m.variant == 1 ? V3(0.95, 0.82, 0.25) : V3(0.95, 0.55, 0.7)
+        var p: [Part] = [
+            box(-6, 3, -8, 12, 3, 16, belly, 4),
+            box(-8, 5, -10, 16, 2, 20, rim, 4),
+            box(-7.5, 7, -9, 15, 4, 18, shell, 4),
+            box(-6, 11, -7, 12, 3, 14, shell * 1.08, 4),
+            box(-4, 14, -4.5, 8, 1.5, 9, shell * 1.15, 4),
+            Part(mn: V3(-2.5, 4.5, -15), mx: V3(2.5, 8.5, -9), pivot: V3(0, 6.5, -9), color: skin, pattern: 4),
+            box(-1.5, 5, -15.2, 3, 1, 0.2, V3(0.2, 0.18, 0.14)),                                   // mouth line
+            box(-0.75, 4, 9.5, 1.5, 1.5, 3, skin),                                                   // stub tail
+            leg(-5, -6, 3.5, 4, 1, skin), leg(5, -6, 3.5, 4, -1, skin), leg(-5, 6, 3.5, 4, -1, skin), leg(5, 6, 3.5, 4, 1, skin),
+        ] + eyes(7.2, -15, 1.4, 0.9)
+        if !m.sheared {
+            p.append(box(-5.5, 13.8, -6.5, 11, 1.2, 13, moss, 2))
+            p.append(box(-3.5, 15.3, -4, 7, 1, 8, moss * 1.1, 2))
+            for (bx, bz) in [(-3.5, -4.0), (2.0, -1.5), (-1.0, 3.0), (3.5, 4.5)] as [(Float, Float)] {
+                p.append(box(bx - 0.4, 15, bz - 0.4, 0.8, 2.2, 0.8, moss * 0.8))
+                p.append(box(bx - 1, 17, bz - 1, 2, 1.2, 2, bloom))
+            }
+        }
         return p
     case .bee:
         let y = V3(0.95, 0.75, 0.2), b = V3(0.15, 0.1, 0.08)

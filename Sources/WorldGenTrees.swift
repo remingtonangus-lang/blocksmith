@@ -7,6 +7,7 @@ import Foundation
 enum TreeKind {
     case oak, fancyOak, birch, tallBirch, spruce, pine, megaSpruce, megaPine, jungle, megaJungle, jungleBush
     case acacia, darkOak, swampOak, mangrove, cherry, hugeRed, hugeBrown, iceSpike, smallOak, paleOak
+    case saltpalm                                   // P280 (a): the Saltpalm Isles' leaning palm
     case shrubOak, shrubSpruce, shrubAcacia
     // L1 trees (docs/status/look-upgrade.md part 3): woodland litter and the rare old giants.
     case deadOak, deadSpruce, stumpOak, stumpSpruce, stumpBirch, fallenOak, ancientOak
@@ -93,7 +94,7 @@ enum TreePlacer {
         case .paleGarden: return p(0.32) ? (pick < 0.85 ? .paleOak : .darkOak) : nil
         case .swamp: return p(0.07) ? .swampOak : nil
         case .mangroveSwamp: return p(0.35) ? .mangrove : nil
-        case .mushroomFields: return p(0.02) ? (pick < 0.5 ? .hugeRed : .hugeBrown) : nil
+        case .mushroomFields: return p(0.05) ? (pick < 0.85 ? .saltpalm : .jungleBush) : nil
         case .plains, .sunflowerPlains: return p(0.002) ? (pick < 0.33 ? .fancyOak : .oak) : (p(0.007) ? .shrubOak : nil)
         case .snowyPlains: return p(0.004) ? .spruce : (p(0.012) ? .shrubSpruce : nil)
         case .iceSpikes: return p(0.035) ? .iceSpike : nil
@@ -485,6 +486,28 @@ enum TreePlacer {
                 }
                 blob(w, bxp, byp + 1, bzp, rx: 3.3, ry: 1.8, leaf, &rng)
             }
+        case .saltpalm:
+            // P280 (a): a slim trunk that leans one block partway up (both blocks at the step, so it never reads as a
+            // gap), then a star of drooping fronds: eight arms, level for two blocks, then curling down at the tips.
+            let log = g("jungle_log"), leaf = g("jungle_leaves")
+            let h = rng.range(6, 9), bend = rng.range(2, h - 2)
+            let (ldx, ldz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
+            var tx = x, tz = z
+            for k in 0..<h {
+                if k == bend { w.log(tx, y + k, tz, log); tx += ldx; tz += ldz }
+                w.log(tx, y + k, tz, log)
+            }
+            if w.inside(x, y - 1, z) && Blocks.key(w.get(x, y - 1, z)).contains("grass") { w.force(x, y - 1, z, DIRT) }
+            let top = y + h
+            w.leaf(tx, top, tz, leaf)
+            for (fx, fz) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)] {
+                let reach = (fx != 0 && fz != 0) ? rng.range(2, 3) : rng.range(3, 4)
+                for s in 1...reach {
+                    let droop = s <= 2 ? 0 : s - 2
+                    w.leaf(tx + fx * s, top - droop, tz + fz * s, leaf)
+                    if s == reach && droop > 0 { w.leaf(tx + fx * s, top - droop - 1, tz + fz * s, leaf) }
+                }
+            }
         case .hugeRed, .hugeBrown:
             let h = rng.range(5, 7)
             let stem = g("mushroom_stem")
@@ -627,6 +650,7 @@ extension WorldGen {
             case .swamp: return g("blue_orchid")
             case .forest, .birchForest, .oldGrowthBirchForest: return g(["dandelion", "poppy", "lily_of_the_valley"][pick % 3])
             case .cherryGrove: return g("pink_petals")
+            case .mushroomFields: return g(["pink_petals", "azure_bluet", "dandelion"][pick % 3])
             default:
                 if pick < 45 { return YELLOW_FLOWER }
                 if pick < 80 { return RED_FLOWER }
@@ -731,8 +755,12 @@ extension WorldGen {
                 } else if grassy.contains(ground) && h < 0.1 * calm(0.11) { b[above] = TALL_GRASS }
                 continue
             case .mushroomFields:
-                if h < 0.012 * calm(0.75) { b[above] = h2 < 0.5 ? g("red_mushroom") : g("brown_mushroom") }
-                continue
+                // P280 (a): Saltpalm Isles ground: moss mats in patches, azalea shrubs, then ferns, grass and blooms below.
+                if ground == GRASS {
+                    let mat = flora.noise2(Float(wx) / 7 + 610, Float(wz) / 7 - 220)
+                    if mat > 0.3 { b[i] = g("moss_block"); if h2 < 0.35 { b[above] = g("moss_carpet") }; continue }
+                    if h > 0.975 { b[above] = g("azalea"); continue }
+                }
             default: break
             }
             guard grassy.contains(ground) else { continue }
@@ -749,6 +777,7 @@ extension WorldGen {
             case .savanna, .savannaPlateau, .windsweptSavanna: grassP = 0.3; tallP = 0.06
             case .swamp: grassP = 0.12; flowerP = 0.01
             case .cherryGrove: grassP = 0.12; flowerP = 0.2
+            case .mushroomFields: grassP = 0.25; flowerP = 0.03; fernP = 0.2; tallP = 0.04
             case .windsweptHills, .windsweptForest, .windsweptGravellyHills: grassP = 0.06
             case .beach, .stonyShore, .snowyBeach, .river, .frozenRiver: grassP = 0.02
             default: grassP = 0.04; flowerP = 0

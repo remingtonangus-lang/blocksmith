@@ -727,6 +727,8 @@ final class Mob {
                 speed = moving ? (panic > 0 ? (kind == .chicken ? 2.4 : 2.8) : spec.speed) : 0
             }
             if kind == .sheep { sheepGraze(dt, g) }
+            // P280 (c): a shorn Shellback's moss grows back over a few minutes of grazing in the open.
+            if kind == .mooshroom && sheared && onGround && Rand.float(in: 0..<1) < dt / 240 { sheared = false }
             if variant == 0 && (kind == .cow || kind == .pig || kind == .chicken) { variant = FarmVariant.forBiome(g.world, pos) }
             if kind == .chicken && !baby {
                 eggTimer -= dt
@@ -2625,7 +2627,7 @@ final class MobManager {
         case .bambooJungle: t = std + [(.parrot, 40, 1, 2), (.panda, 80, 1, 2), (.ocelot, 2, 1, 1)]
         case .swamp: t = std + [(.frog, 10, 2, 5), (.alligator, 2, 1, 2)]
         case .mangroveSwamp: t = [(.frog, 10, 2, 5), (.alligator, 3, 1, 2)]
-        case .mushroomFields: t = [(.mooshroom, 8, 4, 8)]
+        case .mushroomFields: t = [(.mooshroom, 8, 2, 4), (.parrot, 4, 1, 2)]       // P280: Saltpalm Isles
         case .beach: t = [(.turtle, 5, 2, 5)]
         case .badlands, .woodedBadlands, .erodedBadlands: t = [(.armadillo, 6, 1, 2), (.rattlesnake, 3, 1, 2), (.cougar, 1, 1, 1)] + (b == .woodedBadlands ? [(.wolf, 2, 4, 8)] : [])
         default: return nil
@@ -2636,14 +2638,14 @@ final class MobManager {
         return nil
     }
 
-    // Grass-like ground with room above (sand for turtles/rabbits, snow for bears, mycelium for mushroom cows).
+    // Grass-like ground with room above (sand for turtles/rabbits, snow for bears, island ground for Shellbacks).
     func animalSurface(_ w: World, _ x: Int, _ z: Int, _ k: MobKind) -> Int? {
         let y = MobManager.surfaceScan(w, x, z)
         let g = Blocks.key(w.block(x, y, z))
         let ok: Bool
         switch k {
         case .turtle: ok = g == "sand"
-        case .mooshroom: ok = g == "mycelium"
+        case .mooshroom: ok = ["grass_block", "moss_block", "sand", "mycelium"].contains(g)     // P280: Shellback (mycelium: old islands)
         case .rabbit, .polarBear, .goat, .fox, .wolf, .armadillo, .camel, .cougar, .rattlesnake, .deer, .elk, .bison, .boar: ok = ["grass_block", "snowy_grass_block", "sand", "red_sand", "snow_block", "snow", "stone", "podzol", "coarse_dirt", "terracotta", "packed_ice", "ice", "powder_snow"].contains(g) || g.hasSuffix("_terracotta")
         case .frog, .alligator: ok = ["grass_block", "mud", "mangrove_roots", "muddy_mangrove_roots"].contains(g)
         case .parrot, .panda, .ocelot: ok = ["grass_block", "podzol"].contains(g) || g.hasSuffix("_leaves")

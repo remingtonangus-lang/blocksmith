@@ -78,7 +78,8 @@ enum Biome: Int, CaseIterable {
         Info(id: "frozen_peaks", temp: -0.7, grass: 0x80B497, foliage: 0x60A17B, water: 0x3F76E4),
         Info(id: "jagged_peaks", temp: -0.7, grass: 0x80B497, foliage: 0x60A17B, water: 0x3F76E4),
         Info(id: "stony_peaks", temp: 1.0, grass: 0x9ABE4B, foliage: 0x82AC1E, water: 0x3F76E4),
-        Info(id: "mushroom_fields", temp: 0.9, grass: 0x55C93F, foliage: 0x2BBB0F, water: 0x3F76E4),
+        // P280 (a): key "mushroom_fields" kept for saves; the biome is now the Saltpalm Isles (sea-green grass, lagoon water).
+        Info(id: "mushroom_fields", temp: 0.9, grass: 0x45C873, foliage: 0x2FB25C, water: 0x2FB8C4),
         Info(id: "dripstone_caves", temp: 0.8, grass: 0x91BD59, foliage: 0x77AB2F, water: 0x3F76E4),
         Info(id: "lush_caves", temp: 0.5, grass: 0x8EB971, foliage: 0x71A74D, water: 0x3F76E4),
         Info(id: "deep_dark", temp: 0.8, grass: 0x91BD59, foliage: 0x77AB2F, water: 0x3F76E4),
@@ -96,7 +97,8 @@ enum Biome: Int, CaseIterable {
     // Player-facing biome name (Blocksmith names for the other dimensions).
     var displayName: String {
         let own: [String: String] = ["nether_wastes": "Ember Wastes", "soul_sand_valley": "Ghost Sand Valley", "crimson_forest": "Rustcap Forest",
-                                     "warped_forest": "Tealcap Forest", "basalt_deltas": "Basalt Deltas", "the_end": "The Hollow", "deep_dark": "Murk Depths", "pale_garden": "Ashen Grove"]
+                                     "warped_forest": "Tealcap Forest", "basalt_deltas": "Basalt Deltas", "the_end": "The Hollow", "deep_dark": "Murk Depths", "pale_garden": "Ashen Grove",
+                                     "mushroom_fields": "Saltpalm Isles"]
         return own[info.id] ?? info.id.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
     }
     static func named(_ n: String) -> Biome? { allCases.first { $0.name == n } }

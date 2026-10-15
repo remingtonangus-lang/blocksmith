@@ -44,15 +44,14 @@ extension Game {
         case .allay:
             if !held.isEmpty && m.heldItem == 0 { m.heldItem = held.item; m.owner = true; m.persistent = true; particles.hearts(at: pos); return true }
             if held.isEmpty && m.heldItem != 0 { m.heldItem = 0; m.owner = nil; return true }
-        case .mooshroom where key == "bowl":
-            consumeHeld(); giveOrReplaceHeldAfterConsume(ItemStack(Items.id("mushroom_stew"), 1)); if !survival { _ = inventory.add(ItemStack(Items.id("mushroom_stew"), 1)) }
-            return true
-        case .mooshroom where key == "shears" && !m.baby:
-            let cow = Mob(.cow, at: m.pos); cow.yaw = m.yaw; mobs.mobs.append(cow)
-            let mush = m.variant == 1 ? "brown_mushroom" : "red_mushroom"
-            if Items.has(mush) { drops.spawn(ItemStack(Items.id(mush), 5), at: pos) }
-            m.health = -2000
+        case .mooshroom where key == "shears" && !m.baby && !m.sheared:
+            // P280 (c): shearing a Shellback takes its shell moss (and a bloom); it regrows while it grazes.
+            m.sheared = true
+            if Items.has("moss_carpet") { drops.spawn(ItemStack(Items.id("moss_carpet"), Rand.int(in: 2...3)), at: pos) }
+            let bloom = m.variant == 1 ? "dandelion" : "pink_petals"
+            if Items.has(bloom) { drops.spawn(ItemStack(Items.id(bloom), 1), at: pos) }
             damageHeld(1)
+            sfx(.shearsSnip, 1, at: m.pos)
             return true
         case .happyGhast where Cloudwailer.harnessColor[held.item] != nil && !m.saddled && !m.baby:
             m.saddled = true; m.collar = Cloudwailer.harnessColor[held.item] ?? 0; m.persistent = true; m.home = m.pos

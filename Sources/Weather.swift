@@ -161,7 +161,6 @@ extension Game {
             default:
                 if !m.spec.fireImmune { m.hit(from: at, damage: 5, knockback: 0.2); m.fire = max(m.fire, 8) }
             }
-            if m.kind.key == "mooshroom" { m.variant = m.variant == 0 ? 1 : 0 }
         }
         mobs.mobs += add
         lightningTrap(at)

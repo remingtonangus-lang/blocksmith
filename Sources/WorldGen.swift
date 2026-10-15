@@ -703,7 +703,9 @@ final class WorldGen: TerrainGenerator {
             if high { topBlock = n > 0 ? g("coarse_dirt") : GRASS; filler = DIRT }
             else if !steep && top < YOFF + 72 + Int(n * 6) { topBlock = g("red_sand"); filler = g("red_sand"); depth = 1 + (n > 0.3 ? 1 : 0) }
             else { topBlock = bands[(top + Int(n * 3)) & 63]; filler = topBlock; depth = 1 }
-        case .mushroomFields: topBlock = g("mycelium")
+        case .mushroomFields:
+            // P280 (a): Saltpalm Isles (was a mycelium copy): grass inland, a sand rim where the island meets the sea.
+            if top <= SEA + 1 + Int(n * 2) { topBlock = SAND; filler = SAND; under = SANDSTONE; underDepth = 2 }
         case .oldGrowthPineTaiga, .oldGrowthSpruceTaiga:
             topBlock = n > 0.25 ? g("coarse_dirt") : (n < -0.1 ? g("podzol") : GRASS)
         case .windsweptGravellyHills: topBlock = n > -0.1 ? GRAVEL : STONE; filler = n > -0.1 ? GRAVEL : STONE
