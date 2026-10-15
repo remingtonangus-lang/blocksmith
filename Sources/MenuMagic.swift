@@ -23,7 +23,47 @@ final class BrewingMenu: Menu {
         let fuel = MenuSlot(17, 17, be.container, 4, .fuel)
         fuel.filter = { Items.key($0.item) == "blaze_powder" }
         slots.append(fuel)
-        addPlayerInventory()
+        // Q2c-console-64: room for the status lines between the stand and the pack.
+        height = 190
+        inventoryLabelY = 98
+        addPlayerInventory(y: 108)
+    }
+    static func name(_ k: String) -> String { Items.has(k) ? Items.name(Items.id(k)) : k.replacingOccurrences(of: "_", with: " ") }
+    var note = "", noteAt: Double = -10
+    // Something a slot won't take says why (it bounced off in silence).
+    override func click(_ slot: MenuSlot, button: Int, shift: Bool) {
+        let c = game.carried
+        if !c.isEmpty, !slot.isPlayerInv, slot.container === be.container, !slot.accepts(c) {
+            switch slot.index {
+            case 0, 1, 2: note = "Only bottles go here"
+            case 3: note = "\(c.def.display) isn't a brewing ingredient"
+            default: note = "Only \(BrewingMenu.name("blaze_powder")) fuels the stand"
+            }
+            noteAt = game.clock
+            game.sfx(.click, 0.25)
+            return
+        }
+        super.click(slot, button: button, shift: shift)
+    }
+    // Q2c-console-64: what it is doing, or why it is stuck (amber): up to two lines.
+    var status: [(String, Bool)] {
+        if !note.isEmpty && game.clock - noteAt < 3 { return [(note, true)] }
+        let c = be.container
+        let bottles = (0..<3).map { c[$0] }.filter { !$0.isEmpty }
+        let powder = BrewingMenu.name("blaze_powder")
+        let fuelLine = be.fuel > 0 ? "Fuel for \(be.fuel) more brew\(be.fuel == 1 ? "" : "s")"
+            : (c[4].isEmpty ? "No \(powder) left: add some on the left" : "Fuel for \(20 * c[4].count) more brews")
+        if be.brewTime > 0 {
+            let secs = max(1, be.brewTime / 20)
+            return [("Brewing: about \(secs) s", false), (fuelLine, be.fuel == 0 && c[4].isEmpty)]
+        }
+        if bottles.isEmpty { return [("Put water bottles in the three bottom slots", true)] }
+        if bottles.allSatisfy({ Items.key($0.item) == "glass_bottle" }) { return [("Fill the bottles with water first: use them on water", true)] }
+        let ing = c[3]
+        if ing.isEmpty { return [("Add an ingredient on top: start with \(BrewingMenu.name("nether_wart"))", true)] }
+        if !bottles.contains(where: { Potions.brew($0.item, ing.item) != nil }) { return [("\(ing.def.display) does nothing to these bottles", true)] }
+        if be.fuel <= 0 && c[4].isEmpty { return [("Add \(powder) on the left to fuel it", true)] }
+        return [("Ready to brew", false), (fuelLine, false)]
     }
     override func quickMoveTargets(from: MenuSlot) -> [MenuSlot] {
         if from.isPlayerInv {

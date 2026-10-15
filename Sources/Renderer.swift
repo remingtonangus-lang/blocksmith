@@ -1949,6 +1949,15 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 // Tubes from the ingredient to the bottles.
                 rect(o.x + 63 * s, o.y + 36 * s, 50 * s, 2 * s, V4(0.45, 0.45, 0.45, 1))
+                // Q2c-console-64: what it is doing, or why it is stuck (amber), under the bottles.
+                var sy = o.y + 80 * s
+                let st = b.status
+                for (t, stuck) in st {
+                    for line in wrapLines(t, maxW: 160 * s, s, maxLines: st.count > 1 ? 1 : 2) where sy < o.y + 97 * s {
+                        text(line, o.x + 8 * s, sy, s, stuck ? V4(0.62, 0.36, 0.02, 1) : V4(0.25, 0.25, 0.25, 1), shadow: false)
+                        sy += 9 * s
+                    }
+                }
             }
             if let e = m as? EnchantMenu {
                 // Open book on the left, then the three offers: cost, clue and lapis needed.
