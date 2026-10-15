@@ -356,8 +356,11 @@ extension Game {
             }
             return true
         }
-        let eye = player.eye, look = player.look
-        let reach: Float = 6                              // as on the ground (Game.interact)
+        // P268 (Oct 14 19:24, "still can't break blocks on the little drop ship"): on the Quest the hand's laser picks the
+        // block (8 blocks, QuestControls.updateAim); the eye's 6-block ray through that point fell short of a hull the
+        // laser reached, so the wreck showed nothing to break. The hand's own ray picks ship blocks now.
+        let eye = vrAim?.origin ?? player.eye, look = vrAim?.dir ?? player.look
+        let reach: Float = vrAim == nil ? 6 : 8           // as on the ground (Game.interact; the Quest laser's reach)
         var best: (Ship, IVec3, IVec3, Float)?
         for s in ships.list where eye.x > s.worldMin.x - reach && eye.x < s.worldMax.x + reach && eye.y > s.worldMin.y - reach
             && eye.y < s.worldMax.y + reach && eye.z > s.worldMin.z - reach && eye.z < s.worldMax.z + reach {
@@ -388,7 +391,13 @@ extension Game {
         if let tg = target, simd_length(hitPoint(tg) - eye) < t {
             let l = s.toLocal(hitPoint(tg) + look * 0.02)
             let inside = s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))) != AIR
-            if !inside { ships.target = nil; return false }
+            // P268: snow, grass or a plant lying on or against the hull (a wreck in the snow) doesn't hide it either.
+            let wb = world.block(tg.hit.x, tg.hit.y, tg.hit.z)
+            let hp = hitPoint(tg)
+            let loose = (Blocks.replaceable[Int(wb)] || !Blocks.collide[Int(wb)]) && t - simd_length(hp - eye) < 1.5
+                && hp.x > s.worldMin.x - 0.5 && hp.x < s.worldMax.x + 0.5 && hp.y > s.worldMin.y - 0.5 && hp.y < s.worldMax.y + 0.5
+                && hp.z > s.worldMin.z - 0.5 && hp.z < s.worldMax.z + 0.5
+            if !inside && !loose { ships.target = nil; return false }
         }
         if let mh = mobs.raycast(eye, look, maxDist: 3.5), mh.1 < t { ships.target = nil; return false }
         ships.target = (s, cell, normal)
@@ -399,6 +408,16 @@ extension Game {
 
         // Breaking.
         if breakHeld {
+            // P268 (c): the parts that hold a craft up (helm, engines, balloons, rotors, propellers) can't be broken off
+            // while it is in the air with you: it would come down. On the ground or afloat every block comes off.
+            let kind = ShipParts.kinds[Int(b)]
+            let r = s.root
+            if survival && !r.grounded && r.submerged < 0.05 && (r.flight != nil || r.balloons > 0 || !r.rotors.isEmpty)
+                && (ships.aboard === r || ships.pilot === r)
+                && [ShipParts.Kind.helm, .engine, .balloon, .rotor, .propeller].contains(kind) {
+                if breakNow { onToast?("Not while it flies: breaking that would bring the craft down. Land it first") }
+                return true
+            }
             var done = false
             if !survival {
                 if breakNow || ships.breakCooldown <= 0 { done = true; ships.breakCooldown = 0.3 }
@@ -456,8 +475,12 @@ extension Game {
                     onToast?("Salvaged the \(MainGun.name)'s breech: set it on a ship of your own and attack from the helm to fire it")
                     sfx(.anvil, 0.8, at: centre)
                 }
+                let lift0 = s.root.balloons, eng0 = s.root.engines
                 ships.setBlock(s, cell, AIR)
                 ships.mineCell = nil
+                // P268 (d): the craft's lift and drive follow the part (Ship.rebuild recounts); say what it lost.
+                if s.root.balloons < lift0 { onToast?("Lift balloon removed: \(s.root.balloons) left") }
+                else if s.root.engines < eng0 { onToast?("Engine removed: \(s.root.engines) left") }
             }
             return true
         }
