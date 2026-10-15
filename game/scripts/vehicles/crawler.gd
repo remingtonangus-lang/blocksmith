@@ -364,6 +364,40 @@ func _pursuit() -> Vector2:
 	return Vector2(clampf((want - speed) * 0.25, -0.6, 1.0), clampf(ang * 1.3, -0.5, 0.5))
 
 
+## Beyond the terrain collision window the body is frozen (its wheels would find no ground); an AI crawler still
+## drives its path there, kinematically: along the path at its cruise speed, at the parked ride height on the
+## analytic ground, nose along the path and level with the slope. (Frozen, the front's patrol crawler stood still
+## whenever the player was more than a few hundred metres away: 0 m in 40 s.)
+const FAR_RIDE := -0.2                 # body origin above the ground when resting on its wheels (measured parked)
+
+
+func far_drive(delta: float) -> void:
+	if path.size() < 2:
+		return
+	var p := global_position
+	while path_i < path.size() - 1 and Vector2(p.x - path[path_i].x, p.z - path[path_i].z).length() < 22.0:
+		path_i += 1
+	var tgt := path[path_i]
+	var to := Vector3(tgt.x - p.x, 0.0, tgt.z - p.z)
+	var d := to.length()
+	if d < 0.5:
+		return
+	var dir := to / d
+	var np := p + dir * minf(ai_speed * delta, d)
+	var w: Node = G.world
+	var g: float = w.ground_at(np.x, np.z)
+	var e := 2.0
+	var n := Vector3(w.ground_at(np.x - e, np.z) - w.ground_at(np.x + e, np.z), 2.0 * e,
+		w.ground_at(np.x, np.z - e) - w.ground_at(np.x, np.z + e)).normalized()
+	var back := -(dir - n * dir.dot(n)).normalized()
+	var right := n.cross(back).normalized()
+	global_transform = Transform3D(Basis(right, n, right.cross(n)), Vector3(np.x, g + FAR_RIDE, np.z))
+	_far_v = dir * ai_speed
+
+
+var _far_v := Vector3.ZERO           # far-drive velocity, handed to the body when physics takes over again
+
+
 func follow(points: PackedVector3Array) -> void:
 	path = points
 	path_i = 0

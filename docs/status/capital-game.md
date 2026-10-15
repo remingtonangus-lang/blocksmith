@@ -17,7 +17,7 @@ civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale deta
   - four weapons plus grenades, collapsing towers and wrecks, weather and day-night;
   - synthesized audio.
 - Checks:
-  - every push: 91 headless tests and 13 scripted scenarios (ride, drive, fly, dropship, battle, weapons, explore,
+  - every push: 91 headless tests and 14 scripted scenarios (ride, drive, fly, dropship, battle, weapons, explore, vehicles_ground,
     destroy, parked, trees, forest_drive, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
   - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
     and the pad bridge build.
@@ -126,6 +126,15 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-15 01:10: far AI crawlers drive. New scenario `vehicles_ground` (in "all"): the player stays at the spawn
+  40 s, every crawler must stay on the ground and upright. It found the front's AI patrol crawler standing still:
+  0 m in 40 s, 3.7 km from the player. Rigid bodies outside the terrain collision window are frozen by design (their
+  wheels would find no ground), so the patrol only ever drove while the player was within a few hundred metres;
+  seen from a gunship over the front it sat parked. Now a frozen AI crawler drives its path kinematically
+  (Crawler.far_drive: cruise speed along the path, parked ride height on the analytic ground, nose along the path,
+  level with the slope) and gets its speed back when the window reaches it: patrol 431 m in 40 s, always 0.2 m
+  under the analytic ground's ride height as parked; phase 2 puts the player 40 m alongside: physics takes over,
+  worst 0.3 m off the ground, min up 0.99, 58 m in 6 s. All 14 scenarios pass in 3 min 19 s.
 - 2026-10-15 00:30: bug hunting, explorer bot. New scenario `explore` (in "all"): from every named site and 30 seeded
   random land points the player walks / sprints 12 s, turning every 3 s and jumping, with per-tick oracles: fell
   through the ground, more than 1.5 m under it, NaN, and stalled in the open (under 1 m in 3 s on land with no

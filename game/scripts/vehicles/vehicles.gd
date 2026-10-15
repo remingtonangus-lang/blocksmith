@@ -194,7 +194,15 @@ func _physics_process(_delta: float) -> void:
 	for v in get_tree().get_nodes_in_group("vehicles"):
 		var rb := v as RigidBody3D
 		if rb:
-			G.terrain.guard_body(rb, 1.0)
+			var c := rb as Crawler
+			var was_frozen := rb.freeze
+			if G.terrain.guard_body(rb, 1.0):
+				# Out of the collision window: AI crawlers keep driving their path kinematically.
+				if c and c.driver == null:
+					c.far_drive(_delta)
+			elif was_frozen and c and c._far_v != Vector3.ZERO:
+				rb.linear_velocity = c._far_v       # back in the window: carry on at speed
+				c._far_v = Vector3.ZERO
 
 
 func _process(_delta: float) -> void:

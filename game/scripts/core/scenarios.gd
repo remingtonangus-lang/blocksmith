@@ -816,3 +816,87 @@ func _tick_explore(delta: float) -> void:
 		data["next_turn"] = t + 3.0
 	if t - float(data["t0"]) > EXPLORE_WALK:
 		_explore_next()
+
+
+# ---------------------------------------------------------------------------------------- vehicles_ground
+
+## The player stays at the spawn for 40 s while the AI drives: every crawler (rigid bodies on raycast wheels;
+## terrain collision exists only in a window around the player) must still be on the ground and upright, and the
+## front's patrol crawler, kilometres away, must have kept driving its track.
+func _setup_vehicles_ground() -> void:
+	_leave_vehicle()
+	var p: Player = G.player
+	var s: Vector3 = G.world.site("spawn")
+	p.global_position = Vector3(s.x, G.world.surface_at(s.x, s.z) + 0.05, s.z)
+	p.velocity = Vector3.ZERO
+	G.player.invulnerable = true
+	data["trace"] = 0.0
+	data["start"] = {}
+	for c in (G.vehicles as Vehicles).crawlers:
+		data["start"][c] = c.global_position
+
+
+func _tick_vehicles_ground(_delta: float) -> void:
+	var v: Vehicles = G.vehicles
+	if t - float(data["trace"]) > 5.0:
+		data["trace"] = t
+		for c in v.crawlers:
+			if is_instance_valid(c):
+				var q := c.global_position
+				print("  vehicles_ground t %.0f %s at %s, %.1f m above ground, %.1f m from the player" % [t, c.name, q.snapped(Vector3.ONE * 0.1), q.y - G.world.ground_at(q.x, q.z), q.distance_to(G.player.global_position)])
+	if t < 40.0:
+		return
+	if not data.has("phase2"):
+		_vg_check()
+		# Phase 2: the player arrives next to the far-driving patrol; when the collision window reaches it, physics
+		# takes over from the kinematic drive and it must not drop, bounce or tip.
+		for c in v.crawlers:
+			if is_instance_valid(c) and c.has_meta("patrol"):
+				data["patrol"] = c
+		if not data.has("patrol"):
+			return
+		var c: Crawler = data["patrol"]
+		var at: Vector3 = c.global_position + c.global_transform.basis.x * 40.0
+		G.terrain.collision_now(at)
+		G.player.global_position = Vector3(at.x, G.world.surface_at(at.x, at.z) + 0.05, at.z)
+		G.player.velocity = Vector3.ZERO
+		data["phase2"] = t
+		data["worst"] = 0.0
+		data["min_up"] = 1.0
+		data["p2_start"] = c.global_position
+		return
+	var pc: Crawler = data["patrol"]
+	var q2 := pc.global_position
+	data["worst"] = maxf(data["worst"], absf(q2.y - G.world.ground_at(q2.x, q2.z)))
+	data["min_up"] = minf(data["min_up"], pc.global_transform.basis.y.dot(Vector3.UP))
+	if t - float(data["phase2"]) < 6.0:
+		return
+	var a2: Vector3 = data["p2_start"]
+	var moved2 := Vector2(q2.x - a2.x, q2.z - a2.z).length()
+	var res: Array = data["res"]
+	var ok2: bool = data["worst"] < 3.0 and data["min_up"] > 0.8 and moved2 > 20.0 and not pc.freeze
+	G.player.invulnerable = false
+	_done(res[0] and ok2, "%s; with the player alongside, physics took over: frozen %s, worst %.1f m off the ground, min up %.2f, drove %.0f m in 6 s" % [
+		res[1], pc.freeze, data["worst"], data["min_up"], moved2])
+
+
+func _vg_check() -> void:
+	var v: Vehicles = G.vehicles
+	var bad: Array = []
+	var n := 0
+	for c in v.crawlers:
+		if not is_instance_valid(c):
+			continue
+		n += 1
+		var q := c.global_position
+		var above := q.y - G.world.ground_at(q.x, q.z)
+		var up := c.global_transform.basis.y.dot(Vector3.UP)
+		if absf(above) > 5.0 or up < 0.7 or is_nan(q.y):
+			bad.append("%s %.1f m above ground, up %.2f, %.0f m from the player" % [c.name, above, up, q.distance_to(G.player.global_position)])
+	# The front's patrol keeps driving its track while the player is kilometres away (it stood frozen: 0 m).
+	var patrol := -1.0
+	for c in v.crawlers:
+		if is_instance_valid(c) and c.has_meta("patrol") and data["start"].has(c):
+			var a: Vector3 = data["start"][c]
+			patrol = Vector2(c.global_position.x - a.x, c.global_position.z - a.z).length()
+	data["res"] = [bad.is_empty() and patrol > 100.0, "%d crawlers after 40 s with the player at the spawn; off the ground or tipped: %s; the patrol crawler drove %.0f m (needs > 100)" % [n, bad, patrol]]
