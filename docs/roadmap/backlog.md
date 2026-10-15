@@ -635,6 +635,12 @@ Q2c-console-11. [DONE] Messages readable anywhere in the headset (toasts, lesson
  (c) Reset Options on the headset puts it back to 50%, the headset's default, not Off.
  (d) The Mac keeps Off as its default (a flat screen has its own contrast), and the option still steps Off, 25%, 50%, 75% on both.
  Done Oct 15 (console; QuestSettings.platformDefaults/reset): (a) messages in the headset sit on a dark band by default. (b) QuestSettings.platformDefaults sets Text Background to 50% when the player has never set it (UserDefaults has no textBackground), which backs toasts (lessons, radio calls, the Director, horse calls) and every other HUD line that honours it. (c) the headset's Reset Options clears the key before applying its defaults, so it returns to 50%. (d) the Mac never runs platformDefaults: Off stays its default; the option steps Off, 25%, 50%, 75% on both. Not seen on the headset.
+Q2c-console-12. [CLAIMED console 2026-10-15] Messages never vanish before they can be read (the HUD shows one message at a time and every new one replaced the last at once, so two arriving together, a death and its chest, a radio call and a raid horn, a lesson and a pickup, lost the first one unread).
+ (a) Intent (Q2 c, nothing confusing): every message stays up long enough to read.
+ (b) A message stays at least 1.2 s plus 0.03 s a letter (up to 3.5 s) before a newer one takes its place; newer ones wait their turn in order.
+ (c) At most four wait; a line already waiting is not queued twice; past four the oldest waiting one gives way (the journal keeps them all).
+ (d) Every message still goes into the journal the moment it arrives, in the order it arrived.
+ (e) While others wait, the one showing hands over as soon as its reading time is up instead of lingering its full life.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
