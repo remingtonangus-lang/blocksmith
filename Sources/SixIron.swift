@@ -195,7 +195,9 @@ extension Game {
             && !["elytra", "jetpack"].contains(Items.key(inventory.armor[i].item)) {
             var s = inventory.armor[i]
             if Enchant.wearSkipped(s) { continue }
+            let was = s
             s.damage += 2
+            wearNote(was, s, uses: false)                           // Q2c-console-36
             inventory.armor[i] = s.damage >= s.def.durability ? .empty : s
         }
         var k = player.pos - m.pos

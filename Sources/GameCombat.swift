@@ -40,7 +40,9 @@ extension Game {
         let slotIsMain = Items.key(held.item) == "shield"
         var s = slotIsMain ? held : inventory.offhand[0]
         if amount >= 3 && survival && !Enchant.wearSkipped(s) {
+            let was = s
             s.damage += 1 + amount
+            wearNote(was, s, uses: false, sound: false)             // Q2c-console-36 (its own break sound below)
             if s.damage >= s.def.durability { s = .empty; sfx(.shieldBreak, 0.9) }
             if slotIsMain { inventory.held = s } else { inventory.offhand[0] = s }
         }

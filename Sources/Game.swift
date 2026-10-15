@@ -723,13 +723,25 @@ final class Game {
         guard survival else { return }
         var h = held
         guard !h.isEmpty, h.def.durability > 0 else { return }
+        let was = h
         for _ in 0..<amount where !Enchant.wearSkipped(h) { h.damage += 1 }
-        if h.damage >= h.def.durability {
-            inventory.held = .empty
-            sfx(.breakBlock(.glass), 0.5)
-            onToast?("\(h.def.display) broke")
-        } else {
-            inventory.held = h
+        wearNote(was, h)
+        inventory.held = h.damage >= h.def.durability ? .empty : h
+    }
+
+    // Q2c-console-36: worn gear speaks up once as it crosses its last tenth of durability (at least 3 uses left) and
+    // when it breaks (armour vanished in silence). `was` / `now`: the stack before and after one wear step (`now` not
+    // yet emptied). `uses`: say how many uses are left (tools; armour and wings wear by hits and seconds).
+    func wearNote(_ was: ItemStack, _ now: ItemStack, uses: Bool = true, sound: Bool = true) {
+        guard survival, !was.isEmpty, was.def.durability > 0 else { return }
+        let dur = was.def.durability, mark = max(3, dur / 10)
+        let name = was.label ?? was.def.display
+        if now.damage >= dur {
+            if sound { sfx(.itemBreak, 0.8) }
+            onToast?("Your \(name) broke")
+        } else if dur - was.damage > mark && dur - now.damage <= mark {
+            let left = dur - now.damage
+            onToast?("Your \(name) \(name.hasSuffix("s") ? "are" : "is") nearly worn out" + (uses ? " (\(left) \(left == 1 ? "use" : "uses") left)" : ""))
         }
     }
 
@@ -977,7 +989,12 @@ final class Game {
             if elytraWear >= 1 && survival {
                 elytraWear = 0
                 var c = inventory.armor[1]
-                if !c.isEmpty && !Enchant.wearSkipped(c, asTool: true) { c.damage += 1; inventory.armor[1] = c; if c.damage >= c.def.durability - 1 { player.gliding = false } }
+                if !c.isEmpty && !Enchant.wearSkipped(c, asTool: true) {
+                    let was = c
+                    c.damage += 1; inventory.armor[1] = c
+                    wearNote(was, c, uses: false)                   // Q2c-console-36
+                    if c.damage >= c.def.durability - 1 { player.gliding = false }
+                }
             }
         }
         if player.impact > 0 {
@@ -2447,7 +2464,9 @@ final class Game {
             for i in 0..<4 where !inventory.armor[i].isEmpty && inventory.armor[i].def.durability > 0 && !["elytra", "jetpack"].contains(Items.key(inventory.armor[i].item)) {
                 var s = inventory.armor[i]
                 if Enchant.wearSkipped(s) { continue }
+                let was = s
                 s.damage += max(1, amount / 4)
+                wearNote(was, s, uses: false)                       // Q2c-console-36
                 inventory.armor[i] = s.damage >= s.def.durability ? .empty : s
             }
         }
@@ -2471,7 +2490,9 @@ final class Game {
                 if t > 0 && Rand.float(in: 0..<1) < 0.15 * Float(t) {
                     m.hit(from: player.pos, damage: Rand.int(in: 1...4), knockback: 0.3)
                     if s.def.durability > 0 && !Enchant.wearSkipped(s) {
+                        let was = s
                         s.damage += 2
+                        wearNote(was, s, uses: false)               // Q2c-console-36
                         inventory.armor[i] = s.damage >= s.def.durability ? .empty : s
                     }
                 }

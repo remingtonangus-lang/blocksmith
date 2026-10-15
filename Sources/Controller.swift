@@ -274,6 +274,7 @@ enum Feedback {
         case .dig: if near > 0.55 { pm.rumble(0.15, 0.03, sharpness: 0.9) }
         case .pickup: pm.rumble(0.1, 0.03, sharpness: 0.9)
         case .eat: pm.rumble(0.12, 0.05, sharpness: 0.3)
+        case .itemBreak, .shieldBreak: pm.rumble(0.6, 0.12, sharpness: 0.8)        // Q2c-console-36: gear breaking
         case .fireworkBlastLarge, .witherSpawn, .raidHorn: pm.rumble(0.5 * max(0.3, near), 0.4, sharpness: 0.2)
         default: break
         }

@@ -1771,6 +1771,11 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let bw = size * 13 / 16, bx = x + size * 1.5 / 16, by = y + size * 13 / 16
                 rect(bx, by, bw, size / 8, V4(0, 0, 0, 1))
                 rect(bx, by, bw * f, size / 16, Settings.shared.colorblind ? V4(1 - f * 0.8, 0.5 + 0.2 * f, 0.1 + 0.9 * f, 1) : V4(1 - f, f, 0, 1))
+                // Q2c-console-36: nearly worn out (its last tenth, at least 3 uses): the bar's empty track pulses red.
+                if def.durability - st.damage <= max(3, def.durability / 10) {
+                    let k = 0.5 + 0.5 * sinf(Float(game.clock) * 6)
+                    rect(bx + bw * f, by, bw * (1 - f), size / 16, V4(0.95, 0.1, 0.05, 0.3 + 0.55 * k))
+                }
             }
             if counts && st.count > 1 {
                 // At TV scales a slightly smaller count covers less of the icon and stays above 14 px at 1080p (the
