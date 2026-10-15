@@ -114,6 +114,7 @@ enum CraftBook {
             made += 1
         }
         if made > 0 {
+            Stats.add("crafted", Double(made * r.result.count))             // Q2c-console-57
             // Feedback on three channels: the pickup sound, a flash on the tile, a light tap on the controller.
             g.sfx(.pickup, 0.6)
             flashItem = r.result.item

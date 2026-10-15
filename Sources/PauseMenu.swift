@@ -9,7 +9,7 @@ final class PauseMenu: Menu {
     static let sens: [Float] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10]
     static let zones: [Float] = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25]
     static let outers: [Float] = [0, 0.02, 0.05, 0.08, 0.1, 0.15, 0.2]
-    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, net }
+    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, net, stats }
     enum Cat: Int, CaseIterable {
         // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
         // distance setting" - it sat on page 3 behind the input pages).
@@ -145,6 +145,7 @@ final class PauseMenu: Menu {
         "invert": "Moving the mouse or stick up looks down.",
         "autojump": "Walk into a one-block step to climb it without jumping.",
         "advancements": "Goals you have reached and the ones still ahead.",
+        "stats": "What you have done in this world: time, distance, mining, building, fighting, crafting.",
         "commands": "Type a command (time, weather, teleport, give...).",
         "new_mode": "Survival: health, hunger, mining. Creative: fly and build freely. You can switch later from the pause menu.",
         "new_diff": "How much damage mobs do and whether hunger can kill.",
@@ -280,7 +281,7 @@ final class PauseMenu: Menu {
                     + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2, -16
                     + (StorageCheck.low ? " - storage low" : "")         // Q2c-console-51
             }
-            rows = [("Back to Game", "resume"), ("Journal" + (g.journalNewDocs > 0 ? " (\(g.journalNewDocs) new)" : ""), "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Journal" + (g.journalNewDocs > 0 ? " (\(g.journalNewDocs) new)" : ""), "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),        // (Q2c-console-16: the locked difficulty is in the subtitle)
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
                     ("Play Together...", "netmenu"),
@@ -400,6 +401,10 @@ final class PauseMenu: Menu {
         case .controls:
             title = "Controls"
             rows = ControlsReference.rows().map { ($0, "noop") } + [("Done", "back")]
+        case .stats:                                                    // Q2c-console-57 (Stats.swift)
+            title = "Statistics"
+            subtitle = currentWorld.isEmpty ? "This world" : currentWorld
+            rows = Stats.rows(g).map { ($0, "noop") } + [("Back", "back")]
         case .shortcuts:
             title = "Shortcuts"
             subtitle = "Teleport to the nearest one"
@@ -712,6 +717,7 @@ final class PauseMenu: Menu {
             page = .title
             resetCursor = true
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
+        case "stats": go(.stats); resetCursor = true                          // Q2c-console-57
         case "journal": g.closeMenu(); g.openJournal()
         case "worldmap": g.closeMenu(); g.openMenu(MapMenu(game: g))
         case "track": g.closeMenu(); g.openTrackMenu()               // D51 (Waymarks.swift)

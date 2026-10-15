@@ -163,6 +163,7 @@ extension Game {
             sfx(.fishSplash, 0.5, at: b.pos)
         case .landed:
             Fishing.landedCount += 1
+            Stats.add("fish")                                          // Q2c-console-57
             Fishing.lastCatch = (s.key, f.weight)
             achieve("fish")
             let n = Fishing.big(s, f.weight) ? 2 : 1

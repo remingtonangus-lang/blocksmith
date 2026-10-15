@@ -1829,6 +1829,7 @@ final class Game {
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             swing = 1
             consumeHeld()
+            Stats.add("placed")                                        // Q2c-console-57
         } else if useNow {
             // Q2c-console-39: why nothing was placed (no word mid-jump, where pillar timing misses are normal).
             if !supported {
@@ -2119,6 +2120,7 @@ final class Game {
         let bk = Blocks.key(b)
         if bk.hasSuffix("_log") || bk.hasSuffix("_wood") { queueLeafDecay(around: p) }
         if drop && survival && !Mining.canHarvest(b, held) { harvestHint(b) }          // Q2c-console-33
+        if drop { Stats.add("mined") }                                                    // Q2c-console-57
         if drop {
             let ores: [String: ClosedRange<Int>] = ["coal_ore": 0...2, "deepslate_coal_ore": 0...2, "diamond_ore": 3...7, "deepslate_diamond_ore": 3...7,
                                                      "emerald_ore": 3...7, "lapis_ore": 2...5, "deepslate_lapis_ore": 2...5,
@@ -2278,7 +2280,7 @@ final class Game {
         // Game you killed leaves its body to skin instead of loot (Hunting.swift).
         let body = Hunting.died(self, m)
         Legendaries.bossDied(self, m)                          // C10
-        if m.killedByPlayer { Deeds.killed(self, m) }          // D21: blood on your clothes (Deeds.swift)
+        if m.killedByPlayer { Deeds.killed(self, m); Stats.add("kills") }          // D21: blood on your clothes (Deeds.swift); Q2c-console-57
         if (!m.baby || m.isZombie) && !body {
             let looting = m.killedByPlayer ? m.lootingLevel : 0
             // Drops with reference rules of their own are rolled below (and skipped here).
@@ -2532,6 +2534,7 @@ final class Game {
         achieve("eat")
         // Omnivore: the reference list of 40 foods.
         if eatenFoods.insert(name).inserted && eatenFoods.count >= 40 { achieve("ate_all") }
+        Stats.add("eaten")                                             // Q2c-console-57
         hunger = min(20, hunger + f.hunger)
         saturation = min(Float(hunger), saturation + f.saturation)
         if name == "Spiral Fruit" { chorusTeleport() }
@@ -2661,6 +2664,7 @@ final class Game {
 
     func die(_ cause: String) {
         guard !(menu is DeathMenu) else { return }
+        Stats.add("deaths")                                            // Q2c-console-57
         sfx(.playerDeath)
         deathScore = xpPoints + xpLevel * 7
         lastDeath = player.pos
@@ -3074,6 +3078,7 @@ final class Game {
 
     // 20 Hz fixed-rate logic (furnaces...).
     private func gameTick() {
+        if persistent && survival { Stats.tick(self) }                 // Q2c-console-57
         randomTicks()
         TickProf.mark("random ticks")
         precipitationTicks()
