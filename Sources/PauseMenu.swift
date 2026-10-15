@@ -162,7 +162,7 @@ final class PauseMenu: Menu {
         "textbg": "Dark boxes behind HUD text for readability.",
         "subtitles": "Shows captions for sounds, with the direction they come from.",
         "colorblind": "Uses blue and orange instead of green and red for cues.",
-        "tutorial": "First-steps tips while you play.",
+        "tutorial": "First-steps tips while you play, and the headset's lessons (crafting, hunger, night, riding...).",
         "resethints": "Show the first-steps tips, the headset's lessons, one-time notes and button prompts again from the start.",
         "controls": "Every control for keyboard, mouse and controller.",
         "keys": "Choose which keys walk, jump, open the inventory and more.",

@@ -230,6 +230,7 @@ enum ContextPrompts {
         emptyTold = []; helmTold = false; turretTold = false; boardSeen = false
     }
     static func lessonDone(_ l: VRLesson) -> Bool {
+        if !Settings.shared.tutorialHints { return true }             // Q2c-console-27: Tutorial Hints Off: no lessons
         if lessonBits < 0 { lessonBits = UserDefaults.standard.integer(forKey: "vrLessons") }
         return lessonBits & (1 << l.rawValue) != 0
     }
