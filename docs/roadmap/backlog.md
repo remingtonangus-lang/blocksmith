@@ -910,6 +910,13 @@ Q2c-console-48. [DONE] Tooltips show what an item does (pointing at a sword, a p
  (f) Fuel: "Fuel: smelts 8 items" (or "part of an item"), matching the furnace's own count (Q2c-console-40).
  (g) The stats sit right under the name in light grey, before the recipe lines; guns keep their own card.
  Done Oct 15 (console; Sources/Wrecks.swift, Renderer.swift): (a) ItemHelp.stats(stack), cached per item, feeds every item tooltip (inventory, chests, crafting book); (b) def.attack > 1 gives "Attack: N (N/2 hearts)" plus def.attackSpeed when it isn't the fist's 4; (c) pickaxes name what their def.tier mines, using the game's own item names for the ores (several are renamed from the reference, so the IP name check stays clean); (d) armorSlot pieces show def.armor and toughness; (e) def.food shows hunger and "filling" (saturation at least 1.2x hunger), "Cook it for more" when Recipes.smelt gives a food, and the risky-food list; (f) Recipes.fuel / 200 items for non-food fuels (or part of one), the furnace's own rate; (g) Renderer appends the stats right after the name line in light grey (0.85), before enchantments and the recipe lines; Guns.index items skip the attack line.
+Q2c-console-49. [CLAIMED console 2026-10-15] Menu and HUD size in the headset (the menu panel and the floating HUD had one fixed size each: text that is comfortable for one pair of eyes, lenses and IPD is small or blurry at the edge of the sweet spot for another, and there was no way to make it bigger).
+ (a) Intent (Q2 c, comfort and accessibility): he can make the menus and the HUD as big as he needs to read them.
+ (b) "Menu Size: Small / Normal / Large / Extra Large" on VR Comfort & Controls scales the menu panel (0.85x to 1.25x) at the same distance; the open menu resizes at once so he sees the change while choosing.
+ (c) "HUD Size: Small / Normal / Large" scales the floating HUD (0.9x to 1.15x); the hotbar stays at the height HUD Position puts it.
+ (d) The laser keeps hitting what it points at: the hit test uses the same scaled panel.
+ (e) Reset Options puts both back to Normal; each has a help line saying what it changes.
+ (f) Even Extra Large keeps the whole menu inside the view (under 80 degrees wide), so nothing ends up in the lens edges.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
