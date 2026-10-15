@@ -314,6 +314,7 @@ final class Game {
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
     var fullToldAt: Double = -100      // Q2c-console-33: the last "You're full"
+    var refusedAt: [String: Double] = [:]   // Q2c-console-39: when each placement refusal was last said
     private(set) var attackTimer: Float = 10    // seconds since last attack (attack cooldown)
     var swing: Float = 0              // arm swing animation 1 -> 0
 
@@ -1607,7 +1608,10 @@ final class Game {
         }
         let at = Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal
         let existing = world.block(at.x, at.y, at.z)
-        guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else { return }
+        guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
+            if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
+            return
+        }
         var id = blockItem
         let key = Blocks.key(blockItem)
         if key.hasSuffix("_bed") {
@@ -1634,7 +1638,13 @@ final class Game {
             // Two blocks tall; needs room above and ground below.
             guard useNow, at.y + 1 < CH, Blocks.replaceable[Int(world.block(at.x, at.y + 1, at.z))],
                   Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))] || Blocks.collide[Int(world.block(at.x, at.y - 1, at.z))],
-                  !player.intersectsBlock(at), !player.intersectsBlock(IVec3(at.x, at.y + 1, at.z)) else { return }
+                  !player.intersectsBlock(at), !player.intersectsBlock(IVec3(at.x, at.y + 1, at.z)) else {
+                if useNow {                                                                     // Q2c-console-39
+                    let inside = player.intersectsBlock(at) || player.intersectsBlock(IVec3(at.x, at.y + 1, at.z))
+                    placeRefused(inside ? "You're standing there" : "A door needs two free blocks with ground under them")
+                }
+                return
+            }
             world.setBlock(at.x, at.y + 1, at.z, blockItem + BlockID(facing + 8))
             world.setBlock(at.x, at.y, at.z, blockItem + BlockID(facing))
             sfx(.place(soundMat(blockItem)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
@@ -1643,7 +1653,7 @@ final class Game {
         case "trapdoor": id = blockItem + BlockID(facing + (upperHalf ? 8 : 0))
         case "gate": id = blockItem + BlockID(facing)
         case "ladder":
-            guard t.normal.y == 0 else { return }
+            guard t.normal.y == 0 else { if useNow { placeRefused("Ladders go on the side of a block") }; return }
             let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
             id = blockItem + BlockID(f)
         case "lantern": id = blockItem + (t.normal.y == -1 ? 1 : 0)
@@ -1656,14 +1666,14 @@ final class Game {
                 id = blockItem + BlockID(4 + f)
             } else if t.normal.y == 1 {
                 id = blockItem + BlockID(facing)
-            } else { return }
+            } else { if useNow { placeRefused("Signs go on top or on the side of a block") }; return }
         case "frame":
             if t.normal.y == 0 { id = blockItem + BlockID(t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))) }
             else { id = blockItem + (t.normal.y == 1 ? 4 : 5) }
         case "torch":
-            if t.normal.y == -1 { return }
+            if t.normal.y == -1 { if useNow { placeRefused("Torches can't hang from a ceiling") }; return }
             if t.normal.y == 0 {
-                guard Blocks.opaque[Int(clicked)] else { return }
+                guard Blocks.opaque[Int(clicked)] else { if useNow { placeRefused("Torches need a solid wall") }; return }
                 id = blockItem + BlockID(1 + (t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))))
             }
         case "hsign":
@@ -1749,6 +1759,17 @@ final class Game {
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             swing = 1
             consumeHeld()
+        } else if useNow {
+            // Q2c-console-39: why nothing was placed (no word mid-jump, where pillar timing misses are normal).
+            if !supported {
+                if Blocks.isPlant(id) { placeRefused("\(h.def.display) needs grass, dirt or farmland under it") }
+                else if Blocks.shape[Int(id)] == "rail" { placeRefused("Rails need a solid block under them") }
+                else { placeRefused("Torches need a solid block below or beside them") }
+            } else if solid && player.intersectsBlock(at) {
+                if player.onGround { placeRefused("You're standing there") }
+            } else {
+                placeRefused("Something is in the way")
+            }
         }
     }
 
@@ -1941,6 +1962,16 @@ final class Game {
     }
 
     static let iceID: BlockID = Blocks.has("ice") ? Blocks.id("ice") : AIR
+
+    // Q2c-console-39: a placement that can't happen says why (callers: fresh presses only), each reason at most every
+    // 4 s, with the soft refusal click and a light tick in the hands.
+    func placeRefused(_ why: String) {
+        guard clock - (refusedAt[why] ?? -100) > 4 else { return }
+        refusedAt[why] = clock
+        sfx(.click, 0.25)
+        PadManager.shared.rumble(0.15, 0.03, sharpness: 0.9)
+        onToast?(why)
+    }
 
     // Q2c-console-33: a block broken with the wrong or too weak a tool drops nothing: say what it needs, once a kind.
     static var harvestTold = Set<BlockID>()
