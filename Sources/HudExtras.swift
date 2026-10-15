@@ -223,6 +223,12 @@ enum ContextPrompts {
     private static var boardSeen = false
     private static var honourSeenAt: Double = 0
     enum VRLesson: Int { case basics = 0, horse, honour, town, contracts, craft, hunger, night, hurt }   // (Q2c-console-9: the last four)
+    // Q2c-console-10: Reset Tutorial Hints brings every lesson back (a second player on the same headset).
+    static func resetLessons() {
+        lessonBits = 0
+        UserDefaults.standard.set(0, forKey: "vrLessons")
+        emptyTold = []; helmTold = false; turretTold = false; boardSeen = false
+    }
     static func lessonDone(_ l: VRLesson) -> Bool {
         if lessonBits < 0 { lessonBits = UserDefaults.standard.integer(forKey: "vrLessons") }
         return lessonBits & (1 << l.rawValue) != 0

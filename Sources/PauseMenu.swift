@@ -155,7 +155,7 @@ final class PauseMenu: Menu {
         "subtitles": "Shows captions for sounds, with the direction they come from.",
         "colorblind": "Uses blue and orange instead of green and red for cues.",
         "tutorial": "First-steps tips while you play.",
-        "resethints": "Show the first-steps tips again from the start.",
+        "resethints": "Show the first-steps tips, the headset's lessons, one-time notes and button prompts again from the start.",
         "controls": "Every control for keyboard, mouse and controller.",
         "keys": "Choose which keys walk, jump, open the inventory and more.",
         "about": "Who made Blocksmith, and the open source parts it is built on with their licences.",
@@ -776,7 +776,13 @@ final class PauseMenu: Menu {
         case "subtitles": st.subtitles.toggle()
         case "colorblind": st.colorblind.toggle()
         case "tutorial": st.tutorialHints.toggle()
-        case "resethints": st.tutorialStep = 0; st.tutorialHints = true; g.onToast?("Tutorial hints will show again")
+        case "resethints":
+            // Q2c-console-10: the first-steps tips, the headset's lessons, the one-time notes and the button prompts.
+            st.tutorialStep = 0; st.tutorialHints = true; st.hintSeconds = 0
+            st.gunLesson = false; st.wreckHint = false; st.mastHint = false; st.chestJoinTold = false
+            g.journalTold = false; Game.handsTold = false
+            ContextPrompts.resetLessons()
+            g.onToast?("Tips, lessons and button prompts will show again from the start")
         case "volume": g.volumeSetting = step([0, 0.1, 0.25, 0.5, 0.8, 1], g.volumeSetting)
         case "music": g.musicVolume = step([0, 0.25, 0.5, 0.75, 1], g.musicVolume)
         case "quit": g.appAction?("quit")
