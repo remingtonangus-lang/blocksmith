@@ -13,6 +13,15 @@ final class AboutMenu: ListMenu {
         out += [Part(name: "Khronos OpenXR loader", licence: "Apache License 2.0", notice: "Copyright The Khronos Group Inc."),
                 Part(name: "Vulkan headers", licence: "Apache License 2.0 / MIT", notice: "Copyright The Khronos Group Inc.")]
         #endif
+        // Q2c-console-13: the Director's on-device runner and model, when this build or device has them (P266).
+        if DirectorLLM.open() {
+            out.append(Part(name: "llama.cpp and ggml", licence: "MIT License", notice: "Copyright (c) 2023-2026 The ggml authors"))
+        }
+        if DirectorLLM.modelPath != nil {
+            out.append(Part(name: "Qwen2.5 Instruct model (Director)", licence: "Apache License 2.0", notice: "Copyright Alibaba Cloud (Qwen team)"))
+        }
+        out.append(Part(name: "Privacy", licence: "Nothing leaves this device unless you choose to",
+                        notice: "Only Play Together (your local network) or the Director's Cloud planner (a world summary) send anything. No account, no tracking"))
         out.append(Part(name: "Licence texts", licence: "apache.org/licenses/LICENSE-2.0  opensource.org/license/mit",
                         notice: "Each licence's full text is published at these addresses"))
         return out

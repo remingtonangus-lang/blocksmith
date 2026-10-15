@@ -6,7 +6,7 @@ _Draft for review before store submission. Fill in the publisher name, contact a
 
 ## What Blocksmith collects
 
-Nothing leaves your headset unless you start Play Together. Blocksmith has no account, no analytics, no advertising and no
+Nothing leaves your headset unless you start Play Together (or choose the Director's Cloud planner, below). Blocksmith has no account, no analytics, no advertising and no
 telemetry, and it never contacts a server run by the publisher.
 
 ## What stays on your headset
@@ -24,6 +24,14 @@ When you host or join a Play Together session, the game connects directly to the
 Each headset sends the other its player name, position, actions and the world data needed to play. Hosting also
 announces the game on the local network so friends can find it. Nothing goes over the internet or to the publisher.
 This data is not stored after the session ends, except that edits to the host's world are saved in the host's world.
+
+## The Director (after the story)
+
+Once the story is finished, the Director plans new events for your world. Its built-in rules and the optional
+on-device model run entirely on your headset. A Cloud planner exists for future versions: it is off unless you choose
+it in Options > Director, and it would send only a short summary of your game world (your gear, standing and nearby
+places, no names or account details) to the address you set. The headset build ships only a built-in test server for
+it, which uses no network at all.
 
 ## Platform services
 
