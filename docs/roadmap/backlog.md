@@ -918,6 +918,13 @@ Q2c-console-49. [DONE] Menu and HUD size in the headset (the menu panel and the 
  (e) Reset Options puts both back to Normal; each has a help line saying what it changes.
  (f) Even Extra Large keeps the whole menu inside the view (under 80 degrees wide), so nothing ends up in the lens edges.
  Done Oct 15 (console; quest/src/app/QuestSettings.swift, QuestControls.swift, QuestOptions.swift): (a) two saved options, QuestSettings.menuScale and hudScale; (b) "Menu Size" (q_menusize: 0.85, 1, 1.15, 1.25) on VR Comfort & Controls; QuestControls.menuPanelSize is applied every frame while a menu is up, so the open menu resizes as he steps it; (c) "HUD Size" (q_hudsize: 0.9, 1, 1.15) through hudPanelSize, whose height also places the hotbar at HUD Position's drop; (d) both only change panelSize, which the laser's hit test (menuPointer) and the panel drawing share; (e) both keys are in QuestSettings.snapshot, so Reset Options clears them, and each has a help line; (f) 1.5 m x 1.25 at 1.15 m is about 78 degrees wide.
+Q2c-console-50. [CLAIMED console 2026-10-15] A pickup feed: what he just picked up (in the headset the pack is out of sight: mined blocks, loot and drops vanished into it with only a pop, so he couldn't tell what he got, or whether he got it, without opening the inventory).
+ (a) Intent (Q2 c, clarity and feel): every pickup from the world is seen.
+ (b) A short feed right of the hotbar: the item's icon and "+4 Oak Log", newest at the bottom, up to three lines (two while a gun is in hand, clear of its ammo count).
+ (c) Repeated pickups of the same item within three seconds add up on one line ("+1", then "+6 Oak Log") instead of stacking lines.
+ (d) Lines fade out after four seconds; rare finds (diamonds, emeralds, netherite, enchanted or legendary gear) show in gold.
+ (e) In the headset a pickup brings a faded HUD (HUD Fade) up solid for a moment so the line can be read.
+ (f) Options > Interface: "Pickup Feed: On/Off" (default On; Reset Options turns it back on); only things picked up from the world count, not items moved in menus or crafted.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
