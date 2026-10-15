@@ -703,6 +703,13 @@ Q2c-console-21. [DONE] A Sort button for the pack (tidying 27 slots one laser dr
  (d) Nothing about an item changes: only identical stacks merge (same enchantments, wear, name, load, contents), never past their stack size.
  (e) Feedback: a soft page sound and the button reads "Done" in green for a moment; the laser, pad and mouse press it like any button.
  Done Oct 15 (console; InventoryMenu.sortPack/category, Renderer inventory panel): (a) the pack tidies in one press. (b) a 24-pixel Sort button sits right of a narrower Search box on the inventory screen; it sorts main slots 9-35 and leaves the hotbar alone, merging identical partial stacks. (c) order: weapons and tools (guns, tools, swords, bows, crossbow, trident, shield), armour, food, ammunition (rounds, shells, cells, rockets, arrows), blocks, then the rest; by display name within each, larger stacks first. (d) stacks merge only when everything but the count is equal (enchantments, wear, name, gun load, contents, legend, grade), never past maxStack. (e) a page-turn sound and the button shows "Done" in green for 1.2 s; it is a normal menu button for the laser, the pad cursor and the mouse.
+Q2c-console-22. [CLAIMED console 2026-10-15] Take and Store buttons on chests (emptying a chest or putting the stone away meant one laser drag per stack, the slowest chore in a VR inventory).
+ (a) Intent (Q2 c, comfort in the headset): looting and storing are one press each.
+ (b) Every chest screen (chests, barrels, large and trapped chests, supply crates, safes, death chests) has Take and Store buttons at its top right.
+ (c) Take moves everything it can into his pack and hotbar; what does not fit stays in the chest.
+ (d) Store puts away what the chest already holds: every stack in his pack (not the hotbar) of an item already in the chest goes in, filling partial stacks first; nothing else moves.
+ (e) Feedback: the chest's own sound and a short line ("Took 12 stacks", "Stored 5 stacks", "Nothing in your pack matches this chest", "Your pack is full").
+ (f) A trapped chest and a town's chests behave as if he had moved the items by hand (the theft rules see them the same way).
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
