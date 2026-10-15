@@ -1047,6 +1047,13 @@ Q2c-console-65. [DONE] A slot that won't take an item says so, on every screen (
  (e) In the headset the refusal is felt too: a light tick in the hands with the click.
  (f) Shift-moves and drops into the pack are unchanged; only a direct drop onto a slot that refuses it is answered.
  Done Oct 15 (console; Sources/Menu.swift, Game.swift, Renderer.swift): (a) Menu.click checks first whether a non-pack, non-button slot refuses the carried stack, and Menu.refuse answers it; (b) refuse plays the 0.25 click and sets Game.menuNote: armour slots by ArmorSlot (helmets and heads, chestplates and wings, leggings, boots), others "X can't go in that slot"; Renderer draws it centred on a dark band 13 px above the window; (c) 0.4 s fade at the end of 2.5 s, clamped to stay on screen; (d) FurnaceMenu and BrewingMenu answer their own slots before calling super; .result, .output and .palette are skipped; (e) PadManager.shared.rumble(0.12, 0.03) with it (QuestPad in the headset); (f) shift clicks and the pack's slots (isPlayerInv) never reach refuse.
+Q2c-console-66. [CLAIMED console 2026-10-15] The anvil says why nothing comes out (two items that can't be combined, a repair with the wrong material, an undamaged tool, a book whose enchantments don't fit, or too few levels left the output slot empty with no word except the cost when there was one).
+ (a) Intent (Q2 c, clarity in a workstation): an empty output always comes with a reason he can act on.
+ (b) The wrong repair material names the right one: "An Iron Pickaxe is repaired with Iron Ingots"; an undamaged tool says "Your Iron Pickaxe isn't damaged".
+ (c) Two different items say "These two can't be combined: use two of the same item, or a book"; enchantments that can't go on it say so ("None of these enchantments can go on a Bow").
+ (d) Too few levels says how many he has: "You need 12 levels (you have 7)"; with only one item in, a hint: "Add a second item to repair or enchant it, or type a new name".
+ (e) The line sits under the slots in amber, clear of the cost plate; the window grows a little and the pack moves down.
+ (f) Every item is named as the game names it.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
