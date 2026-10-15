@@ -128,7 +128,11 @@ final class FarRing {
             return t < -0.25 || (b.snows(at: y + 1) && t < -0.15)
         }
         if wl > top {
-            if cold(wl) { return Sample(y: Float(wl) + 1, c: FarRing.ice, kind: 0, side: FarRing.ice * 0.92) }
+            // P275 (d): clear ice reads as the water under it with a pale blue tint, as the near ice does now.
+            if cold(wl) {
+                let ic = simd_mix(rgb(b.info.water), FarRing.ice, V3(repeating: 0.45))
+                return Sample(y: Float(wl) + 1, c: ic, kind: 0, side: ic * 0.92)
+            }
             return Sample(y: Float(wl) + 0.875, c: rgb(b.info.water), kind: 1)
         }
         // Map colours are the raw biome tints; the blocks' own textures darken them (grass, sand and stone art average
