@@ -48,9 +48,9 @@ enum QuestOptions {
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
-            "q_pos": "Standing: your real height and movements. Seated: the view is raised to a standing player's eye height and leaning doesn't walk. Lying Down: also levels the world to your gaze and keeps snap turning.",
+            "q_pos": "Standing: your real height and moves. Seated: the view is raised to standing eye height and leaning doesn't walk. Lying Down: also levels the world to your gaze.",
             "q_comfort": "Comfort: teleport, snap turns, a strong vignette, no blast shake. Moderate: stick walking, snap turns, a medium vignette. Free: stick walking, smooth turning, no vignette.",
-            "q_preset": "Default: the standard layout. Classic: the stick walks and snap-turns (no teleport, no smooth turning). One Hand: the dominant stick also walks forward and back while its sideways push turns.",
+            "q_preset": "Default: the standard layout. Classic: the stick walks and snap-turns (no teleport). One Hand: the dominant stick also walks forward and back, and turns sideways.",
             "q_height": "Stand up straight, look ahead and select this: standing play then always recentres to this height.",
             "q_setup_done": "Start playing. All of this is in VR Comfort & Controls later.",
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
@@ -75,6 +75,8 @@ enum QuestOptions {
             "q_hud": "Where the HUD (hotbar, health, messages) floats: lower keeps more of the view clear.",
             "q_tex": "High: 128-pixel block textures (sharpest up close). Medium: 64 pixels, less memory. Applies at the next launch.",
             "q_fov": "Renders the edges of the view at lower resolution (fixed foveated rendering): faster, slightly softer edges.",
+            "q_clouds": "The cloud layer in the sky. Off saves a little time on the headset each frame.",       // Q2c-console-6
+            "q_hudfade": "The HUD rests translucent and comes up solid for a few seconds when you step the hotbar. Off keeps it solid.",
         ]
         PauseMenu.hostPage = { id in
             if id == "touch" {

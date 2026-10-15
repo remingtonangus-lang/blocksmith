@@ -2217,14 +2217,33 @@ final class Renderer: NSObject, MTKViewDelegate {
                                 }
                                 if textWidth(rest, hs) <= room { break }
                             }
-                            let full = rest.count
-                            while !rest.isEmpty && textWidth(rest, hs) > room { rest.removeLast() }
-                            if rest.count < full {
-                                while !rest.isEmpty && textWidth(rest + "...", hs) > room { rest.removeLast() }
-                                rest += "..."
+                            // Q2c-console-6: a third line at the small size before anything is cut (the headset's VR
+                            // Comfort help ended in "..."): lines at -24, -17 and -10 fit under the last row.
+                            var l2 = rest, l3 = ""
+                            if textWidth(rest, hs) > room {
+                                l2 = ""
+                                for sub in rest.split(separator: " ") {
+                                    let wd = String(sub)
+                                    let tryL: String = l2.isEmpty ? wd : l2 + " " + wd
+                                    if l3.isEmpty && textWidth(tryL, hs) <= room { l2 = tryL; continue }
+                                    if !l3.isEmpty { l3 += " " }
+                                    l3 += wd
+                                }
                             }
-                            text(l1, o.x + (pw - textWidth(l1, hs)) / 2, o.y + ph - 20 * s, hs, helpC, shadow: false)
-                            text(rest, o.x + (pw - textWidth(rest, hs)) / 2, o.y + ph - 11 * s, hs, helpC, shadow: false)
+                            let full = l3.count
+                            while !l3.isEmpty && textWidth(l3, hs) > room { l3.removeLast() }
+                            if l3.count < full {
+                                while !l3.isEmpty && textWidth(l3 + "...", hs) > room { l3.removeLast() }
+                                l3 += "..."
+                            }
+                            if l3.isEmpty {
+                                text(l1, o.x + (pw - textWidth(l1, hs)) / 2, o.y + ph - 20 * s, hs, helpC, shadow: false)
+                                text(l2, o.x + (pw - textWidth(l2, hs)) / 2, o.y + ph - 11 * s, hs, helpC, shadow: false)
+                            } else {
+                                for (k, line) in [l1, l2, l3].enumerated() {
+                                    text(line, o.x + (pw - textWidth(line, hs)) / 2, o.y + ph - Float(24 - 7 * k) * s, hs, helpC, shadow: false)
+                                }
+                            }
                         }
                     }
                 }

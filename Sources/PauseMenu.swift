@@ -176,11 +176,24 @@ final class PauseMenu: Menu {
         "difficulty": "Set when the world was made: monster damage, toughness, speed and numbers, and hunger.",
         "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
         "narrator": "Reads the highlighted menu item and messages aloud with the system voice.",
-        "dir_on": "After the story, the Director keeps the land alive: raids, outlaws, wrecks, storms, traders and more, one every so often, announced by radio and marked on your map.",
-        "dir_backend": "Who plans the events. Rules: built in. On-Device Model: a small language model on this device (an optional download), thinking only while paused or idle; Rules stand in when it is missing or slow. Cloud: a server you set (off unless chosen; sends only a summary of your world).",
+        "dir_on": "After the story the Director keeps the land alive: raids, outlaws, wrecks, storms, traders, announced by radio and marked on your map.",
+        "dir_backend": "Who plans events. Rules: built in. On-Device: a small model (optional download) that thinks only while paused. Cloud: a server you set; only a world summary is sent.",
         "dir_freq": "How much play time passes between events.",
         "dir_early": "Lets the Director start before the story is finished (for trying it out).",
-        "dir_cloud": "The cloud planner's address (directorCloud in the settings file; quest-settings.txt on the headset). Mock answers from a built-in test server without using the network.",
+        "dir_cloud": "The cloud planner's address (directorCloud in the settings file). Mock: a built-in test server, no network used.",
+        // Q2c-console-6: rows that had no help.
+        "journal": "Every order, log, note, pamphlet, message and Director event you have received, to read again.",
+        "shortcuts": "Teleport to the nearest place of a kind (testing).",
+        "restorebackup": "The game closed unexpectedly: put back the newest rolling backup of this world.",
+        "new_create": "Make the world with these settings and start playing.",
+        "reset_yes": "Yes: every option and key binding back to its default.",
+        "w_rename_yes": "Give the world the name above.",
+        "w_delete_yes": "Yes, delete this world.",
+        "mode_yes": "Yes, switch the game mode now.",
+        "net_host": "Let a friend on the same network join this world.",
+        "net_stop": "Stop letting others join (anyone here is sent home).",
+        "net_leave": "Leave the host's world and go back to your own.",
+        "net_addr": "Join the world at the address typed above.",
         "dir_journal": "Every Director event, under way and finished, with its outcome: the journal's Events shelf.",
         "bugnotes": BugNotes.hint,
         "flashes": "Reduced makes the red damage flash and portal tint faint.",
@@ -449,7 +462,7 @@ final class PauseMenu: Menu {
             return c == .master ? "Volume of every sound and the music together."
                                 : "Volume of \(c.label.lowercased()) sounds, on top of Master."
         }
-        if id == "dir_status" || id == "dir_model" { return Director.statusLines(game).joined(separator: ". ") }   // P266 (n)
+        if id == "dir_status" || id == "dir_model" { return Director.statusLines(game).prefix(2).joined(separator: ". ") }   // P266 (n)
         if id == "w_delete" && !WorldStore.useTrash { return "Delete this world for good (there is no Trash on this device): Copy it first to keep a backup." }   // Q2c-console-5
         if id == "mode" { return "Survival: health, hunger, mining. Creative: fly and build freely. Asks before switching." }
         return PauseMenu.help[id] ?? PauseMenu.hostHelp[id] ?? ""
