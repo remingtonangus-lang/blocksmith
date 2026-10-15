@@ -158,11 +158,9 @@ extension Game {
         // time, where to find it too. A message shown a moment ago (the orders' bearing) keeps its place: the note goes
         // after it.
         var note = Journal.tag + title
-        if !journalTold {
-            journalTold = true
-            note += vrHead != nil ? ". Reread it any time: grip your chest pocket with your right hand, or Menu > Journal"
-                                  : ". Reread it any time: pause menu > Journal"
-        }
+        // P296 / NO TEXT (Oct 15): no "where to reread it" hint any more; the journal sits in the inventory beside the
+        // armour, with a badge when something is new.
+        journalTold = true
         let old = toastText
         if clock - toastTime < 1.5, !old.isEmpty, !old.contains(Journal.tag), !Journal.itemNames.contains(old) {
             let end = old.hasSuffix(".") || old.hasSuffix("!") || old.hasSuffix("?")

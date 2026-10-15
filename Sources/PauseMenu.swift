@@ -281,7 +281,7 @@ final class PauseMenu: Menu {
                     + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2, -16
                     + (StorageCheck.low ? " - storage low" : "")         // Q2c-console-51
             }
-            rows = [("Back to Game", "resume"), ("Journal" + (g.journalNewDocs > 0 ? " (\(g.journalNewDocs) new)" : ""), "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),        // (Q2c-console-16: the locked difficulty is in the subtitle)
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
                     ("Play Together...", "netmenu"),

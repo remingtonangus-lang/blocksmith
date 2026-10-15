@@ -1924,6 +1924,22 @@ final class Renderer: NSObject, MTKViewDelegate {
                         let lb = done ? "Done" : "Sort"
                         text(lb, sx + (Float(so.w) * s - textWidth(lb, s)) / 2, sy + 3 * s, s, V4(0.95, 0.95, 0.95, 1))
                     }
+                    // P296 (a, c): the journal tab (a written book) with the new-entries badge on its corner.
+                    if let jb = im.slots.first(where: { if case .button(let i) = $0.kind { return i == InventoryMenu.journalBtn } else { return false } }) {
+                        let jx = o.x + Float(jb.x) * s, jy = o.y + Float(jb.y) * s
+                        let hot = game.menuHover === jb
+                        rect(jx, jy, Float(jb.w) * s, Float(jb.h) * s, hot ? V4(0.6, 0.75, 0.6, 1) : V4(0.42, 0.3, 0.22, 1))
+                        itemIcon(ItemStack(Items.id(Items.has("writable_book") ? "writable_book" : "book"), 1), jx + s, jy + s, 16 * s, counts: false)
+                        let lw = textWidth("Journal", s)
+                        text("Journal", jx + Float(jb.w) * s - lw, jy + Float(jb.h + 2) * s, s, hot ? V4(1, 1, 0.7, 1) : V4(1, 1, 1, 1))
+                        let fresh = game.journalNewDocs
+                        if fresh > 0 {
+                            let badge = fresh > 9 ? "9+" : "\(fresh)"
+                            let bw: Float = textWidth(badge, s) + 4 * s
+                            rect(jx + Float(jb.w) * s - bw * 0.6, jy - 4 * s, bw, 10 * s, V4(0.8, 0.12, 0.1, 1))
+                            text(badge, jx + Float(jb.w) * s - bw * 0.6 + 2 * s, jy - 3 * s, s, V4(1, 1, 1, 1))
+                        }
+                    }
                     if !im.query.isEmpty {
                         let n = im.slots.filter { $0.isPlayerInv && im.matches($0.stack) }.count
                         text(n == 0 ? "Not carried" : "\(n) found", o.x + 97 * s, o.y + 46 * s, s, n == 0 ? V4(0.6, 0.12, 0.1, 1) : V4(0.1, 0.42, 0.12, 1), shadow: false)
