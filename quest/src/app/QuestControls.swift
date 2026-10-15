@@ -89,6 +89,41 @@ final class QuestControls {
     var heldQuads = 0                                  // (harness) quads in the last held item model (P17)
     private(set) var bladeContacts = 0                 // (harness) hits landed by the blade
     private var lastHurtFlash: Float = 0
+    // Q2c-console-42: a controller that stops being tracked is named (and its return felt); both put down: paused.
+    private var lostSecs: [Float] = [0, 0], lostSaid = [false, false], bothLost: Float = 0, oneHandHinted = false
+    private func controllerWatch(_ hi: HandedInput, dt: Float) {
+        for l in 0..<2 {
+            let name = (QuestSettings.leftHanded ? 1 - l : l) == 1 ? "Right" : "Left"      // the physical controller
+            if hi.lost[l] {
+                lostSecs[l] += dt
+                guard !hi.lost[1 - l] else { continue }                    // both gone: the pause below says it
+                if lostSecs[l] > 2 && !lostSaid[l] {
+                    lostSaid[l] = true
+                    game.onToast?("\(name) controller lost: bring it into view of the headset, or check its battery")
+                }
+                if lostSecs[l] > 30 && !oneHandHinted {
+                    oneHandHinted = true
+                    let other = name == "Right" ? "left" : "right"
+                    if l == moveHand {
+                        if QuestSettings.controlPreset != 2 { game.onToast?("Playing with one controller? VR Comfort & Controls > Controls: One Hand lets the \(other) stick walk too") }
+                    } else {
+                        game.onToast?("Playing with one controller? VR Comfort & Controls > Dominant Hand: \(other.capitalized) lets the \(other) controller aim")
+                    }
+                }
+            } else {
+                if lostSaid[l] {
+                    game.onToast?("\(name) controller is back")
+                    hi.haptic(l, amplitude: 0.35, seconds: 0.08, frequency: 160)
+                }
+                lostSecs[l] = 0; lostSaid[l] = false
+            }
+        }
+        bothLost = hi.lost[0] && hi.lost[1] ? bothLost + dt : 0
+        if bothLost > 3 && !game.paused && game.menu == nil && game.credits == nil && game.alive {
+            game.paused = true
+            game.onToast?("Controllers put down: paused")
+        }
+    }
     private var lastHeartBeats = 0, dubIn: Float = 0        // Q2c-console-34
     // The bow (bowUpdate): an arrow nocked by the drawing hand, the draw (0...1), the haptic ramp's last step.
     private(set) var bowNocked = false
@@ -200,6 +235,7 @@ final class QuestControls {
         if let hi = xr as? HandedInput {
             hi.refresh(dt: dt, walk: game.menu == nil && !game.paused && !WeaponWheel.shared.open)
             if hi.lost[aimHand] { lastAimHand = nil }      // a lost controller: no laser or held item from a stale pose
+            controllerWatch(hi, dt: dt)
         }
         ContextPrompts.vrMirror = QuestSettings.leftHanded
         let hands = xr.hands
