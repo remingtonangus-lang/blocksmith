@@ -1102,7 +1102,9 @@ final class Mob {
         var goal: V3
         if walking {
             goal = crewRoute[0]
-            if simd_length(V2(goal.x - l.x, goal.z - l.z)) < 0.6 {
+            // Reached at 0.3: at 0.6 a troop turned for the doorway early and cut the corner of the troop bay's engines
+            // (ridecheck troops: inside a solid at 24.3, 10, 71.3, run 770).
+            if simd_length(V2(goal.x - l.x, goal.z - l.z)) < 0.3 {
                 crewRoute.removeFirst()
                 if crewRoute.isEmpty { faceGoal = nil; strafe = 0; return 0 }
                 goal = crewRoute[0]
