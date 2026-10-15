@@ -141,7 +141,11 @@ extension QuestSettings {
     }
     // The headset's own defaults for shared options: the TV-style HUD scale (bigger text), since the panel is read at
     // arm's length, unless the player picked one.
-    static func platformDefaults() { if d.object(forKey: "couchMode") == nil { HudLayout.couch = true } }
+    static func platformDefaults() {
+        if d.object(forKey: "couchMode") == nil { HudLayout.couch = true }
+        // Q2c-console-11: messages on a dark band by default in the headset (bare white text washed out over snow and sky).
+        if d.object(forKey: "textBackground") == nil { Settings.shared.textBackground = 0.5 }
+    }
     // Options > Interface > Reset Options in the headset: the shared options (Settings.resetAll) and then every Quest
     // option above back to its default, the render distance included; couch mode back to the headset's default (the
     // shared reset turns it off, the Mac's default).
@@ -149,6 +153,7 @@ extension QuestSettings {
         for (k, _) in snapshot() { d.removeObject(forKey: k) }
         clearCache()
         d.removeObject(forKey: "couchMode")
+        d.removeObject(forKey: "textBackground")           // (Q2c-console-11: back to the headset's 50%, not the Mac's Off)
         platformDefaults()
         g.setRenderDistance(renderDistance)
     }

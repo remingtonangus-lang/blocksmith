@@ -629,11 +629,12 @@ Q2c-console-10. [DONE] Lessons can be replayed (Reset Tutorial Hints only reset 
  (c) The button prompts that retire after three hours come back for another three.
  (d) Its toast and help line say what it brings back; the controls lesson shows again as soon as he is back in the game.
  Done Oct 15 (console; PauseMenu resethints, ContextPrompts.resetLessons): (a) every lesson can be seen again. (b) Reset Tutorial Hints (Controls and Accessibility pages) now also clears the headset's lesson bits (UserDefaults vrLessons), the gun lesson, the session's empty-gun, helm and turret prompts, the board note, the wreck and mast hints, the journal's where-to-find-it note, the double chest note and the hands-on-the-controls note. (c) the button prompts' three-hour clock (hintSeconds) starts again. (d) toast "Tips, lessons and button prompts will show again from the start"; the help line lists them; the controls lesson is the first to come back once the menu closes.
-Q2c-console-11. [CLAIMED console 2026-10-15] Messages readable anywhere in the headset (toasts, lessons, radio calls and subtitles were bare white letters with a thin shadow: over snow, sky, sand or a lit wall they washed out, and the Text Background that fixes it was Off by default and three pages deep).
+Q2c-console-11. [DONE] Messages readable anywhere in the headset (toasts, lessons, radio calls and subtitles were bare white letters with a thin shadow: over snow, sky, sand or a lit wall they washed out, and the Text Background that fixes it was Off by default and three pages deep).
  (a) Intent (Q2 c, nothing hard to read in the first hour): every message reads at a glance whatever is behind it.
- (b) On the headset Text Background starts at 45% (a dark band behind each message line), unless the player has chosen his own value.
- (c) Reset Options on the headset puts it back to 45%, the headset's default, not Off.
- (d) The Mac keeps Off as its default (a flat screen has its own contrast), and the option still goes from Off to 80% on both.
+ (b) On the headset Text Background starts at 50% (a dark band behind each message line), unless the player has chosen his own value.
+ (c) Reset Options on the headset puts it back to 50%, the headset's default, not Off.
+ (d) The Mac keeps Off as its default (a flat screen has its own contrast), and the option still steps Off, 25%, 50%, 75% on both.
+ Done Oct 15 (console; QuestSettings.platformDefaults/reset): (a) messages in the headset sit on a dark band by default. (b) QuestSettings.platformDefaults sets Text Background to 50% when the player has never set it (UserDefaults has no textBackground), which backs toasts (lessons, radio calls, the Director, horse calls) and every other HUD line that honours it. (c) the headset's Reset Options clears the key before applying its defaults, so it returns to 50%. (d) the Mac never runs platformDefaults: Off stays its default; the option steps Off, 25%, 50%, 75% on both. Not seen on the headset.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
