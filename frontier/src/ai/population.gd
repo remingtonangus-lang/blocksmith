@@ -41,8 +41,14 @@ var _seen_town := {}         # town id -> true once Ruth has been near (first fi
 var _pending_spectacles: Array = []
 var _last_gunfire := -100.0
 
+var talk: Node                # ambient conversations (src/ai/town_talk.gd)
+
 func _ready() -> void:
 	Game.population = self
+	talk = load("res://src/ai/town_talk.gd").new()
+	talk.name = "TownTalk"
+	add_child(talk)
+	talk.setup(self)
 	Game.noise.connect(func(_p: Vector3, radius: float, _s: Node): if radius >= 100.0: _last_gunfire = Time.get_ticks_msec() * 0.001)
 
 ## A body fell in town: once the shooting has stopped for a while, people come out and gather round.
@@ -217,7 +223,7 @@ func _despawn(key: String, h: Human) -> void:
 func _spawn_town_resident(r: Dictionary, place: bool) -> bool:
 	var idx: Dictionary = index[r.town]
 	var b := block_for(r)
-	if b.kind == "home":
+	if b.kind == "home" and not sleeps_in_bed(r):
 		indoors[r.key] = true
 		return false
 	if b.kind in ["play", "stagger", "patrol"] and not nav_ready(r.town):
@@ -264,10 +270,13 @@ func block_for(r: Dictionary) -> Dictionary:
 	return TownSchedule.block(r, h, posmod(day, 7), index.get(r.town, {}))
 
 func _pick_look(tid: String, r: Dictionary) -> String:
-	if r.has("look_id"):
-		return r.look_id
 	var used: Dictionary = index[tid].used_looks
 	var cap := int(Game.args.get("looks", 0))
+	if r.has("look_id"):
+		if cap <= 0 or used.has(r.look_id) or used.size() < cap:
+			used[r.look_id] = true
+			return r.look_id
+		return used.keys()[posmod(int(r.seed), used.size())]
 	if cap > 0 and used.size() >= cap:
 		# low-memory runs: reuse the looks already cast (clothing colours still vary per seed)
 		var have: Array = used.keys().filter(func(id): return r.look == "" or Array(CharacterFactory.ids(r.look)).has(id))
@@ -448,7 +457,7 @@ func claim(rt: TownRoutine, bid: String, types: Array, need := "") -> Dictionary
 			return s2
 	return {}
 
-func claim_street(rt: TownRoutine) -> Dictionary:
+func claim_street(rt: TownRoutine, types: Array = []) -> Dictionary:
 	var idx: Dictionary = index.get(rt.res.town, {})
 	if idx.is_empty():
 		return {}
@@ -456,8 +465,42 @@ func claim_street(rt: TownRoutine) -> Dictionary:
 	var cands: Array = []
 	var bp := rt.body.global_position
 	for s in idx.street:
-		if _free(s) and s.transform.origin.distance_to(bp) < 140.0:
+		if _free(s) and s.transform.origin.distance_to(bp) < 140.0 and (types.is_empty() or types.has(s.type)):
 			cands.append(s)
+	if cands.is_empty():
+		return {}
+	var s2: Dictionary = cands[rt.rng.randi() % cands.size()]
+	s2["by"] = rt.body.get_instance_id()
+	return s2
+
+## Night with Ruth close by: residents sleep in their beds instead of vanishing indoors.
+func sleeps_in_bed(r: Dictionary) -> bool:
+	var h: float = Game.sky.hours if Game.sky else 12.0
+	if not (h >= 21.5 or h < 6.5):
+		return false
+	var b: Dictionary = index.get(r.town, {}).get("buildings", {}).get(r.home, {})
+	if b.is_empty() or not b.spots.any(func(sp): return sp.type == "bed" and _free(sp) and (sp.transform.origin.y - float(b.floor_y)) < 1.2):
+		return false
+	return (b.transform.origin as Vector3).distance_to(ref_pos()) < 60.0
+
+## A place on the boardwalk in front of a shop to sweep (alternating sides of the door).
+func sweep_spot(rt: TownRoutine, bid: String) -> Dictionary:
+	var b: Dictionary = index.get(rt.res.town, {}).get("buildings", {}).get(bid, {})
+	if b.is_empty():
+		return {}
+	if not b.has("sweep_spots"):
+		var list := []
+		for sp in b.spots:
+			if sp.type == "door_out":
+				var xf: Transform3D = sp.transform
+				for side: float in [-1.0, 1.0]:
+					var p: Vector3 = xf.origin + xf.basis.x * side * 1.3 - xf.basis.z * 0.1
+					var fb := Basis(Vector3.UP, side * PI * 0.5) * xf.basis
+					list.append({"type": "sweep", "transform": Transform3D(fb, p), "building": bid, "town": rt.res.town,
+						"synthetic": true})
+				break
+		b["sweep_spots"] = list
+	var cands: Array = b.sweep_spots.filter(func(sp): return _free(sp))
 	if cands.is_empty():
 		return {}
 	var s2: Dictionary = cands[rt.rng.randi() % cands.size()]
@@ -681,7 +724,9 @@ func town_metrics() -> Dictionary:
 		"trips": walked, "arrived": metrics.reached, "failed": metrics.failed, "skipped": metrics.skipped,
 		"home": metrics.home, "doors": doors, "stuck": stuck, "chats": metrics.chats,
 		"npc_minutes": metrics.npc_seconds / 60.0, "greetings": metrics.greetings, "fled_inside": metrics.fled_inside,
-		"reports": metrics.reports, "crowd": metrics.crowd, "nudges": metrics.nudges}
+		"reports": metrics.reports, "crowd": metrics.crowd, "nudges": metrics.nudges,
+		"conversations": metrics.get("conversations", 0), "convo_lines": metrics.get("convo_lines", 0),
+		"overheard": metrics.get("overheard", 0)}
 
 # ------------------------------------------------------------------ POIs and travellers
 

@@ -79,7 +79,7 @@ func tick(dt: float) -> void:
 ## Arrive on a spot at once (spawning mid-day: people are already where the hour puts them).
 func place_now() -> bool:
 	block = pop.block_for(res)
-	if block.kind == "home":
+	if block.kind == "home" and not pop.sleeps_in_bed(res):
 		return false
 	if not _choose():
 		return false
@@ -98,6 +98,7 @@ func interrupt() -> void:
 	partner = null
 	if body.anchored:
 		body.release_anchor()
+	_undress()
 	_set_activity("")
 	phase = "plan"
 	t = 0.0
@@ -152,12 +153,23 @@ func _choose() -> bool:
 	var bid: String = block.get("bid", "")
 	match k:
 		"home":
+			# Ruth nearby at night: go to bed in the house (lamps out, someone asleep); otherwise just go indoors
+			if pop.sleeps_in_bed(res):
+				spot = pop.claim(self, res.home, ["bed"])
+				if not spot.is_empty():
+					goal = spot.transform.origin
+					task = "spot"
+					return true
 			var hs: Dictionary = pop.home_spot(res)
 			if hs.is_empty():
 				return false
 			goal = hs.transform.origin
 			task = "home"
 			return true
+		"sweep":
+			spot = pop.sweep_spot(self, res.work)
+		"passout":
+			spot = pop.claim_street(self, ["porch_sit", "bench"])
 		"work":
 			spot = pop.claim(self, res.work, block.types)
 			if spot.is_empty():
@@ -329,9 +341,12 @@ func _arrive(instant: bool) -> void:
 		body.anchor_to(spot.transform, 0.0 if instant else 0.45)
 		seated = spot.has("sit_height") and str(spot.type) != "bath"
 		var act := TownSchedule.activity_for(spot, k, rng)
+		if spot.has("lie_height"):
+			act = ""
 		_set_activity(act)
 		if seated and not instant and body.visual.has_method("gesture"):
 			body.visual.gesture("sit_down")
+		_dress(k)
 	else:
 		seated = false
 		_set_activity("" if k != "stagger" else "idle_shift")
@@ -348,6 +363,10 @@ func _arrive(instant: bool) -> void:
 			dwell = rng.randf_range(4.0, 14.0)
 		"patrol":
 			dwell = rng.randf_range(4.0, 9.0)
+		"sweep":
+			dwell = rng.randf_range(20.0, 45.0)
+		"passout", "home":
+			dwell = 99999.0
 		_:
 			dwell = rng.randf_range(150.0, 400.0)
 	if instant and task == "spot":
@@ -367,6 +386,8 @@ func _micro() -> void:
 	if not v.has_method("gesture"):
 		return
 	var k: String = block.get("kind", "")
+	if body.lying or k == "passout":
+		return
 	if task == "point":
 		if k == "patrol":
 			body.intent.face = Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1))
@@ -398,7 +419,57 @@ func _micro() -> void:
 	elif rng.randf() < 0.3:
 		_set_activity(TownSchedule.activity_for(spot, k, rng))
 
+## Props and poses that go with the place: a glass at the bar, cards at the card table, the piano, a broom on the
+## boardwalk, a hammer at the forge, the morning paper on a bench, coffee at the cafe, asleep in bed or on a bench.
+func _dress(k: String) -> void:
+	var v = body.visual
+	var st: String = spot.get("type", "")
+	var coin := float(posmod(int(res.seed), 100)) / 100.0
+	var prop := ""
+	var pose := ""
+	if spot.has("lie_height"):
+		body.lie_down(spot.get("head", spot.transform.origin - spot.transform.basis.z), float(spot.lie_height))
+		return
+	match st:
+		"bar_patron":
+			prop = "schooner" if coin < 0.4 else "glass"
+		"piano":
+			pose = "play"
+		"sweep":
+			prop = "broom"
+		"chair":
+			if spot.get("cards", false):
+				pose = "cards"
+				prop = "cards"
+			elif k in ["bar", "tables"] and rng.randf() < 0.7:
+				prop = "glass" if coin < 0.6 else "schooner"
+			elif k == "eat" and rng.randf() < 0.6:
+				prop = "cup"
+		"porch_sit", "bench":
+			if k == "passout":
+				pose = "slump"
+			elif k in ["loiter", "porch", "errands"] and res.kind in ["elder", "townsman", "drinker", "worker"] and rng.randf() < 0.5:
+				prop = "newspaper"
+				pose = "read"
+		"work":
+			if pop.btype(str(spot.get("building", ""))) == "smithy":
+				prop = "hammer"
+	if k == "passout" and pose == "":
+		pose = "slump"
+	if prop != "":
+		HandProps.hold(v, prop)
+	if pose != "" and v.has_method("set_pose"):
+		v.set_pose(pose)
+
+func _undress() -> void:
+	var v = body.visual
+	HandProps.clear(v)
+	if v.has_method("set_pose"):
+		v.set_pose("")
+	body.get_up()
+
 func _leave() -> void:
+	_undress()
 	_release()
 	if partner != null:
 		_end_chat()

@@ -553,6 +553,8 @@ static func _gameplay_library(full: AnimationLibrary) -> AnimationLibrary:
 				_tree_lib.add_animation(c + "_loop", a)
 	return _tree_lib
 
+var _pending_activity := "-"
+
 func _ensure_tree() -> void:
 	if tree != null or anim == null or skeleton == null or _lib_pending:
 		return
@@ -564,6 +566,8 @@ func _ensure_tree() -> void:
 	var t0 := Time.get_ticks_usec()
 	_build_tree()
 	Game.prof("AnimationTree build", t0)
+	if tree != null and _pending_activity != "-":
+		set_activity(_pending_activity)
 
 func _build_tree() -> void:
 	_game_mode = true
@@ -706,7 +710,9 @@ func set_locomotion(speed: float, state := "", _on_floor := true) -> void:
 func set_activity(clip: String) -> void:
 	_ensure_tree()
 	if tree == null:
+		_pending_activity = clip          # trees build one per frame: apply when this one exists
 		return
+	_pending_activity = "-"
 	if clip == "":
 		_act_target = 0.0
 		return
@@ -736,6 +742,31 @@ func gesture(clip: String) -> float:
 	((tree.tree_root as AnimationNodeBlendTree).get_node("gest_anim") as AnimationNodeAnimation).animation = full
 	tree.set("parameters/gesture/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 	return tree.get_animation(full).length
+
+## Procedural pose over the animation (src/actors/pose_override.gd): "hands_up", "cower", "slump", "play", "" off.
+func set_pose(mode: String) -> void:
+	if skeleton == null:
+		return
+	var po := skeleton.get_node_or_null("PoseOverride") as PoseOverride
+	if po == null:
+		if mode == "":
+			return
+		po = PoseOverride.new()
+		po.name = "PoseOverride"
+		skeleton.add_child(po)
+	po.set_mode(mode)
+
+func pose() -> String:
+	var po := skeleton.get_node_or_null("PoseOverride") as PoseOverride if skeleton else null
+	return po.mode if po != null and po.target > 0.5 else ""
+
+## Lying on a bed: the visual's transform relative to a parent standing at the bed centre with the bed's head
+## towards `head_dir` (parent-local, horizontal); `height` = mattress top above the parent origin. Face up.
+static func lie_transform(head_dir: Vector3, height: float) -> Transform3D:
+	var y := Vector3(head_dir.x, 0.0, head_dir.z).normalized()       # body up -> towards the pillow
+	var z := Vector3.DOWN                                             # body -Z (front) -> up
+	var x := y.cross(z).normalized()
+	return Transform3D(Basis(x, y, z), -y * 0.88 + Vector3.UP * (height + 0.04))
 
 ## kind: "" (none), "pistol", "rifle". Raises the upper body into an aim pose over the locomotion.
 func set_aim(kind: String) -> void:
