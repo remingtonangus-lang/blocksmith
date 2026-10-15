@@ -279,7 +279,7 @@ enum Greywall {
         columns(-E, E, -E, E) { dx, dz in
             let x = cx + dx, z = cz + dz
             w.fill(x, S + 1, z, x, S + W + 16, z, AIR)
-            w.groundDown(x, S - 1, z, DIRT, minY: S - 30)
+            w.groundDown(x, S - 1, z, DIRT, minY: S - 30, reach: 30)     // P289: a plug over a cave, no dirt pillars
             w.set(x, S, z, yardB)
         }
         let ring = H + margin
