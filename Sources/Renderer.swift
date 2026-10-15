@@ -2427,6 +2427,12 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text("\(sc.page + 1)/\(sc.pages)", x - 2 * s, y + 18 * s, s, V4(0.25, 0.25, 0.25, 1), shadow: false)
                 }
             }
+            // Q2c-console-69: the grindstone's and the stonecutter's line, under the slots.
+            if let st = (m as? GrindstoneMenu)?.status ?? (m as? StonecutterMenu)?.status {
+                for (k, line) in wrapLines(st.0, maxW: 160 * s, s, maxLines: 2).enumerated() {
+                    text(line, o.x + 8 * s, o.y + Float(74 + 9 * k) * s, s, st.1 ? V4(0.62, 0.36, 0.02, 1) : V4(0.25, 0.25, 0.25, 1), shadow: false)
+                }
+            }
             // Q2c-console-67: the smithing table's next step or why the pieces don't fit, under the slots.
             if let sm = m as? SmithingMenu, let why = sm.reason {
                 for (k, line) in wrapLines(why, maxW: 160 * s, s, maxLines: 2).enumerated() {

@@ -153,7 +153,18 @@ final class StonecutterMenu: Menu {
         self.more = more
         slots.append(more)
         slots.append(MenuSlot(143, 33, out, 0, .result))
-        addPlayerInventory()
+        // Q2c-console-69: room for the status line under the shapes.
+        height = 186
+        inventoryLabelY = 93
+        addPlayerInventory(y: 104)
+    }
+    // Q2c-console-69: what it takes, and why it is idle (true: he must act).
+    var status: (String, Bool)? {
+        let s = input[0]
+        if s.isEmpty { return ("Put in a stone-type block to cut it into stairs, slabs and walls", false) }
+        if all.isEmpty { return ("\(s.def.display) can't be cut here", true) }
+        if selected < 0 { return ("Pick a shape on the right", true) }
+        return nil
     }
     override func buttonPressed(_ i: Int) {
         if i == 12 { if pages > 1 { page = (page + 1) % pages; selected = -1; changed() }; return }
@@ -194,7 +205,25 @@ final class GrindstoneMenu: Menu {
         slots.append(MenuSlot(49, 19, box, 0))
         slots.append(MenuSlot(49, 40, box, 1))
         slots.append(MenuSlot(129, 34, out, 0, .result))
-        addPlayerInventory()
+        // Q2c-console-69: room for the status line under the slots.
+        height = 186
+        inventoryLabelY = 93
+        addPlayerInventory(y: 104)
+    }
+    // Q2c-console-69: what it does, why nothing comes out, or what the result gives (true: he must act).
+    var status: (String, Bool) {
+        let a = box[0], b = box[1]
+        if a.isEmpty && b.isEmpty { return ("Put in an enchanted item to strip it, or two worn copies of one tool to join them", false) }
+        if let r = compute() {
+            let curses = Enchant.list(r.0).contains { Enchant.def($0.0).curse }
+            return ((curses ? "Curses stay on" : "Ready") + (r.1 > 0 ? "; some experience comes back" : ""), false)
+        }
+        if !a.isEmpty && !b.isEmpty {
+            if a.item != b.item { return ("Two different items can't be joined", true) }
+            return ("Only tools, weapons and armour join", true)
+        }
+        let s = a.isEmpty ? b : a
+        return ("\(s.def.display) has no enchantments to strip", true)
     }
     func compute() -> (ItemStack, Int)? {
         let a = box[0], b = box[1]
