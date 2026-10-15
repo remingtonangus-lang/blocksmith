@@ -233,7 +233,11 @@ extension Wrecks {
             if k.hasPrefix("#") { return "any " + k.dropFirst().replacingOccurrences(of: "_", with: " ") }
             return Items.has(k) ? Items.name(Items.id(k)) : k.replacingOccurrences(of: "_", with: " ")
         }
-        return order.map { "\(n[$0]!) \(name($0))" }.joined(separator: ", ") + (r.shapeless.isEmpty ? " (crafting table)" : "")
+        // P269: the yield is part of the cost ("8 wool" read as eight a balloon when the recipe made four).
+        let makes = r.result.count > 1 ? " makes \(r.result.count)" : ""
+        var alt = ""
+        if key == "ship_balloon" { alt = " (or Leather instead of the String)" }
+        return order.map { "\(n[$0]!) \(name($0))" }.joined(separator: ", ") + alt + (r.shapeless.isEmpty ? " (crafting table)" : "") + makes
     }
 
     // The guide's pages and whether the hull can already move, or nil when it has what it needs (P263, Oct 14
@@ -317,7 +321,7 @@ extension Wrecks {
 
     static func cannonHow(_ n: Int) -> String {
         "CANNON SHOT\n\nThis hull carries \(n) cannon\(n == 1 ? "" : "s"). Each shot takes one Cannonball from the pack of whoever steers: "
-            + "there is no loading slot, keep them in your inventory.\n\nRecipe: \(recipeText(cannonball)) makes 4.\n\n"
+            + "there is no loading slot, keep them in your inventory.\n\nRecipe: \(recipeText(cannonball)).\n\n"
             + "Fire: attack while at the helm; every cannon that is ready fires and takes one ball."
     }
     static let mastHow = "A mast: stand logs or fences upright on deck and hang wool on them - wool sails catch the wind while you steer (or fit a propeller and an engine)"
