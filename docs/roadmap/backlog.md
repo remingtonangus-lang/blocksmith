@@ -780,6 +780,11 @@ Q2c-console-32. [DONE] The title screen says what Play continues and offers comf
  (d) The title's subtitle (when there is no "saved" note) reads the world's difficulty and terrain ("Normal, polygon terrain").
  (e) Nothing else moves: Worlds, Options and Quit as before.
  Done Oct 15 (console; PauseMenu title page): (a) the title says what comes next. (b) the first row reads "Continue: World1 (Survival, day 27)" once the loaded world has been played past its first moments, "Play: World1" before. (c) the host entry (the headset's "VR Comfort & Controls...") is the second row on the title page as on the pause menu. (d) without a saved note the subtitle reads "Normal, polygon terrain" for the loaded world. (e) Worlds, Options and Quit Game follow as before.
+Q2c-console-33. [CLAIMED console 2026-10-15] Silent no-ops explain themselves (mining iron ore with a wooden pickaxe broke it and dropped nothing, and holding food with a full hunger bar did nothing, both without a word: the two most common "is it broken?" moments of a first hour).
+ (a) Intent (Q2 c, nothing broken-looking): when an action gives nothing, the game says why.
+ (b) Breaking a block with the wrong or too weak a tool, so that it drops nothing: "Iron Ore needs a Stone Pickaxe or better to drop anything" (the tool named as the game names it), once per kind of block per session.
+ (c) Trying to eat with a full hunger bar: "You're full", at most every eight seconds, and not when the food would be planted or placed where he points.
+ (d) Survival only; creative never shows them.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
