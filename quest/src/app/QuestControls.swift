@@ -370,7 +370,8 @@ final class QuestControls {
         game.vrTwoHanded = false
         let wasBraced = braceRot != nil
         braceRot = nil
-        if let gi = game.heldGun, R.aimValid, L.aimValid, gi < CapitalArms.models.count, CapitalArms.models[gi].shouldered, !inMenu {
+        // P282 (b): mounted, the left hand is on the reins or the paddle: a long gun fires from the right hand alone.
+        if let gi = game.heldGun, R.aimValid, L.aimValid, gi < CapitalArms.models.count, CapitalArms.models[gi].shouldered, !inMenu, !game.mountedOneHand {
             let front = rig.toWorld(L.gripPos)
             let hold = max(L.trigger, L.squeeze)           // the left trigger, or the grip squeezed round the foregrip
             var d: V3? = VRTwoHand.braced(rear: aimOrigin, rearForward: aimDir, front: front, frontTrigger: hold, shouldered: true)

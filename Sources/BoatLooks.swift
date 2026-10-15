@@ -71,11 +71,15 @@ enum BoatLooks {
         // Paddles in oarlocks on the gunwale: the handle forward by the rider, the blade aft, dipping as they row.
         let row = sinf(m.walkPhase)
         let dip: Float = 0.5 + row * 0.35
+        // P282 (c): the rider's right hand on a weapon lets its paddle rest shipped in the oarlock.
+        var rightFree = true
+        if let g = game, rider === m, g.riding === m, !g.held.isEmpty { rightFree = false }
         for s: Float in [-1, 1] {
             let x = s * 9.8
             let piv = V3(x, 10, 0)
-            p.append(Part(mn: V3(x - 0.5, 9.5, -3), mx: V3(x + 0.5, 10.5, 11), pivot: piv, rotX: dip, color: dark))
-            p.append(Part(mn: V3(x - 0.25, 8.5, 10), mx: V3(x + 0.25, 11.5, 15), pivot: piv, rotX: dip, color: c))
+            let d: Float = s > 0 && !rightFree ? 0.15 : dip
+            p.append(Part(mn: V3(x - 0.5, 9.5, -3), mx: V3(x + 0.5, 10.5, 11), pivot: piv, rotX: d, color: dark))
+            p.append(Part(mn: V3(x - 0.25, 8.5, 10), mx: V3(x + 0.25, 11.5, 15), pivot: piv, rotX: d, color: c))
         }
         if m.chested {
             // The icon's chest: amber wood with a dark latch, aft of the rider.
@@ -97,6 +101,7 @@ enum BoatLooks {
         let turn = pl.yaw - m.yaw
         let headYaw = max(-1.3, min(1.3, atan2f(sinf(turn), cosf(turn))))
         let body = playerParts(g, pitch: pl.pitch, walk: 0, hit: playerHitAngle(g.swing))
+        let armed = !g.held.isEmpty
         var out: [Part] = []
         out.reserveCapacity(body.count + 6)
         let shift = V3(0, -0.5, 2)                                  // hips on the thwart, a little aft of the middle
@@ -107,7 +112,12 @@ enum BoatLooks {
             let arm = pv.y == 22 && abs(pv.x) == 6                  // (the held item rides with the right arm)
             if (head || arm) && !away { continue }
             if head { q.rotY = headYaw }
-            if arm {
+            if arm && pv.x > 0 && armed {
+                // P282 (c): a weapon in the right hand leaves its paddle: a gun points along the look, a blade is held
+                // up ready (and still swings); the left hand keeps rowing and steering.
+                q.rotX = g.heldGun != nil ? HandsPose.aim(pl.pitch) : 0.5 + playerHitAngle(g.swing)
+                q.rotZ = -0.1
+            } else if arm {
                 // Reaching out and forward to the paddle handles, pulling with the stroke.
                 q.rotX += 0.3 + row * 0.22
                 q.rotZ = pv.x > 0 ? 0.33 : -0.33

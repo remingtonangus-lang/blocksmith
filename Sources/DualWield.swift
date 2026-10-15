@@ -15,7 +15,8 @@ enum DualWield {
 
     // The offhand gun's index when both hands hold handguns.
     static func active(_ g: Game) -> Int? {
-        guard let gi = g.heldGun, Guns.isHandgun(gi) else { return nil }
+        // P282 (b): in the saddle or a rowboat the off hand is on the reins or the paddle, so one revolver at a time.
+        guard !g.mountedOneHand, let gi = g.heldGun, Guns.isHandgun(gi) else { return nil }
         let o = g.inventory.offhand[0]
         guard !o.isEmpty, let oi = Guns.index(o.item), Guns.isHandgun(oi) else { return nil }
         return oi

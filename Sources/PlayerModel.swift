@@ -55,7 +55,7 @@ func playerHitAngle(_ sw: Float) -> Float { sw > 0 ? sinf(sqrtf(sw) * .pi) * 1.3
 
 // The player's boxes (model space, 1/16 block, facing -Z): clothes, head pitched about the neck, worn armour as shells
 // over them (P265: playerArmorParts), a held item.
-func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float) -> [Part] {
+func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float, posed: Bool = true) -> [Part] {
     let skin = V3(0.85, 0.66, 0.5), hair = V3(0.3, 0.2, 0.12)
     // Player 2 (split screen) wears a blue tunic.
     let chest: V3 = g.coop.current == 1 ? V3(0.16, 0.34, 0.62) : V3(0.62, 0.26, 0.16)
@@ -91,12 +91,38 @@ func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float) -> [Part] {
             parts.append(Part(mn: V3(x + 0.6, 11, 2.6), mx: V3(x + 2.6, 13, 4.4), pivot: .zero, rotX: 0, color: V3(0.78, 0.45, 0.23)))
         }
     }
-    if !g.inventory.held.isEmpty {
-        let c: V3 = g.inventory.held.def.block != nil ? V3(0.55, 0.45, 0.35) : V3(0.7, 0.7, 0.72)
+    // P282 (c): the hand shows what the game holds (Game.held: nothing at the helm or a deck gun), not the slot.
+    let inHand = g.held
+    if !inHand.isEmpty {
+        let c: V3 = inHand.def.block != nil ? V3(0.55, 0.45, 0.35) : V3(0.7, 0.7, 0.72)
         parts.append(Part(mn: V3(5, 9, -5), mx: V3(7, 13, -1), pivot: V3(6, 22, 0), rotX: walk + hit, color: c))
     }
+    if posed { seatArms(g, &parts, pitch: pitch, hit: hit) }
 
     return parts
+}
+
+// P282 (c) (Oct 14 19:36, "from third person it looks as if I'm holding the gun"): the arms (sleeves, armour shells and
+// the held item ride the same shoulder pivots) do what the hands do in the seat. At the controls both reach forward and
+// down to the helm, wheel or deck-gun handles; mounted, the left hand holds the reins low ahead, and a gun in the right
+// points along the look. The rowboat poses its own arms on the paddles (BoatLooks.seated).
+func seatArms(_ g: Game, _ parts: inout [Part], pitch: Float, hit: Float) {
+    let mounted = g.mountedOneHand && !BoatLooks.drawsRider(g)
+    guard g.handsOnControls || mounted else { return }
+    var left: Float = 0.95, right: Float = 0.95
+    if mounted {
+        left = 0.6
+        right = g.heldGun != nil ? HandsPose.aim(pitch) : 0.25 + hit          // a blade still swings
+    }
+    for i in parts.indices where parts[i].pivot.y == 22 && abs(parts[i].pivot.x) == 6 {
+        parts[i].rotX = parts[i].pivot.x > 0 ? right : left
+        parts[i].rotZ = parts[i].pivot.x > 0 ? -0.12 : 0.12
+    }
+}
+
+enum HandsPose {
+    // A shoulder rotation pointing the arm along the view: level is a quarter turn up from hanging, the look's pitch on top.
+    static func aim(_ pitch: Float) -> Float { .pi / 2 + max(-0.8, min(0.8, pitch)) }
 }
 
 // P276 (a): another player's worn pieces while their body is drawn (NetCoop.writeRemote); nil: this player's own.
