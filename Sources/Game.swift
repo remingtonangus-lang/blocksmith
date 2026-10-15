@@ -315,6 +315,7 @@ final class Game {
     var eatProgress: Float = 0        // seconds held while eating
     var fullToldAt: Double = -100      // Q2c-console-33: the last "You're full"
     var refusedAt: [String: Double] = [:]   // Q2c-console-39: when each placement refusal was last said
+    var heldDroppedAt: Double = -100        // Q2c-console-41: the last dropHeld
     private(set) var attackTimer: Float = 10    // seconds since last attack (attack cooldown)
     var swing: Float = 0              // arm swing animation 1 -> 0
 
@@ -717,6 +718,7 @@ final class Game {
         dropItem(h.with(count: n))
         h.count -= n
         inventory.held = h.count > 0 ? h : .empty
+        heldDroppedAt = clock                      // Q2c-console-41: the headset's drop lesson
     }
 
     // Uses up durability of the held tool; breaks it when worn out.

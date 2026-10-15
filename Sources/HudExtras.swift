@@ -222,7 +222,9 @@ enum ContextPrompts {
     private static var lessonBits = -1
     private static var boardSeen = false
     private static var honourSeenAt: Double = 0
-    enum VRLesson: Int { case basics = 0, horse, honour, town, contracts, craft, hunger, night, hurt }   // (Q2c-console-9: the last four)
+    // (Q2c-console-9: craft ... hurt; Q2c-console-41: boat ... drop)
+    enum VRLesson: Int { case basics = 0, horse, honour, town, contracts, craft, hunger, night, hurt, boat, cart, mount, water, drop }
+    static let lessonMounts: Set<MobKind> = [.donkey, .mule, .llama, .traderLlama, .camel, .pig, .strider, .skeletonHorse, .zombieHorse]
     // Q2c-console-10: Reset Tutorial Hints brings every lesson back (a second player on the same headset).
     static func resetLessons() {
         lessonBits = 0
@@ -271,11 +273,20 @@ enum ContextPrompts {
             teach(g, .basics, "Left stick walks, right stick turns. A jumps. Right trigger mines, left trigger places and uses. Grips step the hotbar, hold Y for the inventory, Menu pauses")
             return
         }
+        // Q2c-console-41: an item just dropped by holding B (often by accident).
+        if g.clock - g.heldDroppedAt < 3 && !lessonDone(.drop) {
+            teach(g, .drop, "Dropped: holding B drops what's in your hand. Walk over it to pick it back up")
+            return
+        }
         // Q2c-console-9: the survival basics, each when it first matters (low health at once; the calm ones wait until
         // nothing is chasing him).
         if g.survival {
             if g.health <= 8 && !lessonDone(.hurt) {
                 teach(g, .hurt, "Low health: step back from the fight and eat. Health comes back on its own while your hunger bar is nearly full")
+                return
+            }
+            if g.player.headInWater && !lessonDone(.water) {                // Q2c-console-41
+                teach(g, .water, "Under water: hold A to swim up. The bubbles above your hunger bar are your air: when they run out you start to drown")
                 return
             }
             let chased = g.mobs.mobs.contains { $0.health > 0 && $0.aggro && $0.kind.hostile && simd_length($0.pos - g.player.pos) < 16 }
@@ -290,7 +301,8 @@ enum ContextPrompts {
                     return
                 }
                 if !lessonDone(.craft) && g.inventory.main.slots.contains(where: { !$0.isEmpty && Items.key($0.item).hasSuffix("_log") }) {
-                    teach(g, .craft, "Crafting: hold Y for the inventory; its small grid turns logs into planks and planks into sticks. Make a crafting table there for the big grid")
+                    // Q2c-console-41: the inventory has a Craft button (the crafting book), not a grid.
+                    teach(g, .craft, "Crafting: hold Y for the inventory and point at Craft. Logs make planks; planks make sticks and a Crafting Table. Recipes with a table badge need one placed")
                     return
                 }
             }
@@ -302,6 +314,21 @@ enum ContextPrompts {
         if let h = g.riding, h.kind == .horse, !lessonDone(.horse) {
             teach(g, .horse, "Riding: the left stick steers; click it while pushing to spur up a gait. B gets off. Reach behind the saddle and grip for the saddlebags")
             return
+        }
+        // Q2c-console-41: boats, minecarts and the other animals that carry him.
+        if let h = g.riding {
+            if h.kind == .boat && !lessonDone(.boat) {
+                teach(g, .boat, "Boat: push the left stick forward to row and sideways to steer. B gets out")
+                return
+            }
+            if h.kind == .minecart && !lessonDone(.cart) {
+                teach(g, .cart, "Minecart: push the left stick forward to roll the way you look along the rails. B gets out")
+                return
+            }
+            if lessonMounts.contains(h.kind) && !lessonDone(.mount) {
+                teach(g, .mount, "Riding: the left stick steers (a pig or strider follows the bait on its rod). B gets off")
+                return
+            }
         }
         if Honour.changedAt > honourSeenAt && g.clock - Honour.changedAt < 6 && !lessonDone(.honour) {
             honourSeenAt = Honour.changedAt
