@@ -224,7 +224,7 @@ enum ContextPrompts {
     private static var honourSeenAt: Double = 0
     // (Q2c-console-9: craft ... hurt; Q2c-console-41: boat ... drop)
     enum VRLesson: Int { case basics = 0, horse, honour, town, contracts, craft, hunger, night, hurt, boat, cart, mount, water, drop,
-                              fish, shield, farm, bucket }        // (Q2c-console-46: the last four)
+                              fish, shield, farm, bucket, armour }  // (Q2c-console-46: fish ... bucket; -47: armour)
     static let lessonMounts: Set<MobKind> = [.donkey, .mule, .llama, .traderLlama, .camel, .pig, .strider, .skeletonHorse, .zombieHorse]
     // Q2c-console-10: Reset Tutorial Hints brings every lesson back (a second player on the same headset).
     static func resetLessons() {
@@ -253,6 +253,8 @@ enum ContextPrompts {
          "Under water: hold A to swim up. The bubbles above your hunger bar are your air: when they run out you start to drown"),
         (.drop, "Dropping things",
          "Dropped: holding B drops what's in your hand. Walk over it to pick it back up"),
+        (.armour, "Armour",
+         "Armour: hold a piece and pull the left trigger to put it on. Whatever you wore there comes into your hand"),
         (.shield, "Shields",
          "Shield: hold the left trigger to raise it. It stops hits from the front; an axe can knock it down for a moment"),
         (.bucket, "Buckets",
@@ -356,6 +358,7 @@ enum ContextPrompts {
                 // Q2c-console-46: the first time each first-hour tool is in his hand.
                 let hk = Items.key(g.held.item)
                 if hk == "fishing_rod" && !lessonDone(.fish) { teach(g, .fish); return }
+                if g.held.def.armorSlot != nil && !lessonDone(.armour) { teach(g, .armour); return }   // Q2c-console-47
                 if hk == "shield" && !lessonDone(.shield) { teach(g, .shield); return }
                 if (hk.hasSuffix("_hoe") || g.held.def.plants != nil) && !lessonDone(.farm) { teach(g, .farm); return }
                 if (hk == "bucket" || hk == "water_bucket" || hk == "lava_bucket") && !lessonDone(.bucket) { teach(g, .bucket); return }

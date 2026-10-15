@@ -733,6 +733,24 @@ final class Game {
         inventory.held = h.damage >= h.def.durability ? .empty : h
     }
 
+    // Q2c-console-47: the held armour piece put on, the one worn there before into the hand (reference). The equip
+    // sound comes from AudioAmbience's armour watch, as for every other way armour goes on.
+    func wearHeld() -> Bool {
+        let h = held
+        guard !h.isEmpty, h.count == 1, let slot = h.def.armorSlot else { return false }
+        let i = slot.rawValue
+        let old = inventory.armor[i]
+        if !old.isEmpty && Enchant.level(.bindingCurse, old) > 0 && survival {
+            sfx(.click, 0.25)
+            onToast?("Your \(old.label ?? old.def.display) is stuck fast")
+            return true
+        }
+        inventory.armor[i] = h
+        inventory.held = old
+        PadManager.shared.rumble(0.25, 0.06, sharpness: 0.5)
+        return true
+    }
+
     // Q2c-console-36: worn gear speaks up once as it crosses its last tenth of durability (at least 3 uses left) and
     // when it breaks (armour vanished in silence). `was` / `now`: the stack before and after one wear step (`now` not
     // yet emptied). `uses`: say how many uses are left (tools; armour and wings wear by hits and seconds).
@@ -1562,6 +1580,8 @@ final class Game {
             return
         }
         eatProgress = 0
+        // Q2c-console-47: armour in hand goes on with use (not at a block that opens; armour stands took theirs above).
+        if useNow && held.def.armorSlot != nil && !(target.map { isInteractive($0.hit) } ?? false) && wearHeld() { swing = 1; return }
         guard useNow || (useHeld && placeCooldown <= 0 && useRepeatItem == Int(held.item)) else { return }
         placeCooldown = 0.2       // 4 ticks, like the reference's held right-click
         if useNow && useBottleOrCauldron(target) { swing = 1; return }
