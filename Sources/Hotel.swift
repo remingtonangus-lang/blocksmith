@@ -14,6 +14,9 @@ enum Hotel {
         g.spawnPoint = g.player.pos
         g.anchorSpawn = nil
         let f = g.dayFraction
+        // P284 (c): the room is paid for: the saloon's bed is yours tonight (TownLaw.bedIsYours).
+        let inn = m.home ?? m.pos
+        TownLaw.state.innRoom = [Int(floor(inn.x)), Int(floor(inn.y)), Int(floor(inn.z)), Int(g.time / DAY_LENGTH)]
         var slept = false
         if Game.canSleep(f) || f > 0.45 {
             // To the next sunrise.
