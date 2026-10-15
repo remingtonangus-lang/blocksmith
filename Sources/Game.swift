@@ -399,7 +399,17 @@ final class Game {
             // Q2c-console-12: the message showing keeps the HUD until it has been readable (Game.readFor); newer ones
             // wait their turn (toastQueueTick). A line that extends the one showing (the journal's note) replaces it.
             let shown = self.clock - self.toastTime
-            if !self.toastText.isEmpty && s != self.toastText && !s.hasPrefix(self.toastText) && shown >= 0
+            // Q2c-console-18: hotbar item names flash and never wait: skipped under a real message, replacing another
+            // name at once; a real message replaces a showing name at once; waiting names make way.
+            let names = Journal.itemNames
+            let isName = names.contains(s), showingName = names.contains(self.toastText)
+            self.toastQueue.removeAll { names.contains($0) }
+            if isName {
+                let busy = !self.toastText.isEmpty && !showingName && shown >= 0 && shown < Game.toastLife(self.toastText)
+                if !busy { self.toastText = s; self.toastTime = self.clock }
+                return
+            }
+            if !self.toastText.isEmpty && !showingName && s != self.toastText && !s.hasPrefix(self.toastText) && shown >= 0
                 && shown < min(Game.readFor(self.toastText), Game.toastLife(self.toastText)) {
                 if !self.toastQueue.contains(s) {
                     self.toastQueue.append(s)

@@ -676,11 +676,12 @@ Q2c-console-17. [DONE] Create New World explains its choices (the difficulty hel
  (d) The Game Mode help says it can be switched later from the pause menu (it asks first).
  (e) The page's line under the title sums up the world about to be made ("A Survival world on Normal, random seed").
  Done Oct 15 (console; PauseMenu create page, difficultyHelp): (a) the choices explain themselves. (b) "Difficulty: Normal (fixed once made)". (c) the help line follows the level shown: Peaceful (no monsters, hunger never harms), Easy (gentler, slower, fewer monsters, starving stops at five hearts), Normal (starving stops at half a heart), Hard (harder hits, tougher, faster, more monsters, starving can kill), each noting it is fixed once made (from docs/status/difficulty.md). (d) Game Mode's help adds that it can be switched later from the pause menu. (e) subtitle "A Survival world on Normal, random seed" (or the seed typed).
-Q2c-console-18. [CLAIMED console 2026-10-15] Hotbar names never hold up a message (with messages now waiting their turn, stepping through the hotbar with the grips queued each item's name behind a radio call or a lesson, then played them back one by one).
+Q2c-console-18. [DONE] Hotbar names never hold up a message (with messages now waiting their turn, stepping through the hotbar with the grips queued each item's name behind a radio call or a lesson, then played them back one by one).
  (a) Intent (Q2 c, clear HUD): the item names that flash while choosing a slot are instant and never in the way.
  (b) An item name never waits: if a real message is showing, the name is skipped (the hotbar already shows what is held); if a name is showing, the new one replaces it at once.
  (c) A real message replaces a showing item name at once (it does not wait for the name's reading time).
  (d) Names already waiting are dropped when a newer name or a message comes, so the queue holds only messages.
+ Done Oct 15 (console; Game.onToast): (a) item names are instant again. (b) a hotbar name (Journal.itemNames) shows at once when nothing or another name is showing, and is skipped while a real message is still up. (c) a real message arriving over a showing name takes the line at once. (d) every call clears names from the waiting list, so only messages wait.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
