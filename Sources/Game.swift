@@ -366,6 +366,17 @@ final class Game {
     var toastText = ""
     static func toastLife(_ t: String) -> Double { min(9, 2.2 + Double(max(0, t.count - 30)) * 0.06) }   // P209: time to read it
     var toastTime: Double = -100
+    var toastQueue: [String] = []       // Q2c-console-12: messages waiting their turn on the HUD
+    static func readFor(_ t: String) -> Double { min(3.5, 1.2 + Double(t.count) * 0.03) }
+    // Per frame (HudExtras.tick): the next waiting message once the one showing has been up long enough to read.
+    func toastQueueTick() {
+        guard !toastQueue.isEmpty else { return }
+        let shown = clock - toastTime
+        if toastText.isEmpty || shown < 0 || shown >= Game.readFor(toastText) {
+            toastText = toastQueue.removeFirst()
+            toastTime = clock
+        }
+    }
     private var prevPad = PadSnapshot()
     private var autosaveTimer: Double = 0
     private var fluidTimer: Double = 0
@@ -384,9 +395,20 @@ final class Game {
         if persistent { Blueprints.known = []; Blueprints.seedPending = false }      // a new world knows none (P138; a load sets them)
         onToast = { [weak self] s in
             guard let self else { return }
+            self.logMessage(s)                                         // (the journal gets every one at once, in order)
+            // Q2c-console-12: the message showing keeps the HUD until it has been readable (Game.readFor); newer ones
+            // wait their turn (toastQueueTick). A line that extends the one showing (the journal's note) replaces it.
+            let shown = self.clock - self.toastTime
+            if !self.toastText.isEmpty && s != self.toastText && !s.hasPrefix(self.toastText) && shown >= 0
+                && shown < min(Game.readFor(self.toastText), Game.toastLife(self.toastText)) {
+                if !self.toastQueue.contains(s) {
+                    self.toastQueue.append(s)
+                    if self.toastQueue.count > 4 { self.toastQueue.removeFirst() }
+                }
+                return
+            }
             self.toastText = s
             self.toastTime = self.clock
-            self.logMessage(s)
         }
         giveCreativeStarter()
         hookWorld(world)

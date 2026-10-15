@@ -476,6 +476,7 @@ enum HudExtras {
 
     // Per frame from Game.tick (also while a menu is open).
     static func tick(_ g: Game) {
+        g.toastQueueTick()                                           // Q2c-console-12
         Tutorial.tick(g)
         Goals.tick(g)
         Feedback.tick(g)
