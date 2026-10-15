@@ -705,6 +705,32 @@ final class MapMenu: Menu, CustomDrawnMenu {
         let goal = marks.contains { $0.kind == "objective" } ? "   ! next objective" : ""
         let key = "B Capital (enemy) \(bases)   G Greywall \(grey)   V towns \(vill)" + (vessels > 0 ? "   F/C patrols \(vessels)" : "") + goal
         out.append(HudLine(text: key, x: o.x + Float(width - 8) * s - Float(Font.width(key)) * s, y: o.y + 6 * s, scale: s, color: V4(0.25, 0.25, 0.28, 1)))
+        // Q2c-console-30: a card for the marker under the pointer: what it is, its name, how far.
+        let mouse = V2(g.input.mouseX, g.input.mouseY)
+        if g.dim.dim == .overworld, let w = world(at: mouse, L) {
+            let reach = Float(bpc) * 3
+            var best: (String, Float, V2)?
+            func consider(_ label: String, _ x: Float, _ z: Float) {
+                let d = simd_length(V2(x - Float(w.0), z - Float(w.1)))
+                if d <= reach && d < (best?.1 ?? .infinity) { best = (label, d, V2(x, z)) }
+            }
+            consider(HomeFinder.name(g) + ": where you wake", g.spawnPoint.x, g.spawnPoint.z)
+            for m in marks {
+                let st = MapCache.style(m.kind)
+                consider(m.name.map { st.name + ": " + $0 } ?? st.name, Float(m.x) + 0.5, Float(m.z) + 0.5)
+            }
+            if let b = best {
+                let far = Int(simd_length(V2(b.2.x - g.player.pos.x, b.2.y - g.player.pos.z)))
+                let t = b.0 + "  (\(far) blocks)"
+                let tw = Float(Font.width(t)) * s
+                let right = x0 + Float(cols) * px
+                var lx = mouse.x + 8 * s, ly = mouse.y - 14 * s
+                if lx + tw + 4 * s > right { lx = max(x0 + 2 * s, mouse.x - 8 * s - tw) }
+                if ly < y0 + 2 * s { ly = mouse.y + 10 * s }
+                out.append(HudLine(text: "", x: lx - 3 * s, y: ly - 2 * s, scale: s, bg: V4(0.08, 0.08, 0.1, 0.92), box: V2(tw + 6 * s, 11 * s)))
+                out.append(HudLine(text: t, x: lx, y: ly, scale: s, color: V4(1, 0.95, 0.8, 1)))
+            }
+        }
         return out
     }
 
