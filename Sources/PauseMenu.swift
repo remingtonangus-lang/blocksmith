@@ -241,7 +241,15 @@ final class PauseMenu: Menu {
             title = ""
             if let n = PauseMenu.savedNote { subtitle = n }                 // Q2c-console-2: "World1 saved"
             let last = UserDefaults.standard.string(forKey: "lastWorld") ?? "World1"
-            rows = [("Play: \(last)", "resume"), ("Worlds...", "worlds"), ("Options...", "options"), ("Quit Game", "quit")]
+            // Q2c-console-32: what Play continues (the world loaded behind the title), comfort first on the headset.
+            let day = Int(g.time / DAY_LENGTH) + 1
+            let played = day > 1 || g.time > DAY_LENGTH * 0.1
+            let play = played ? "Continue: \(last) (\(g.survival ? "Survival" : "Creative"), day \(day))" : "Play: \(last)"
+            rows = [(play, "resume"), ("Worlds...", "worlds"), ("Options...", "options"), ("Quit Game", "quit")]
+            if let e = PauseMenu.hostEntry { rows.insert(e, at: 1) }
+            if PauseMenu.savedNote == nil {
+                subtitle = "\(Game.difficultyNames[max(0, min(3, g.difficulty))]), \(g.smoothTerrain ? "polygon" : "block") terrain"
+            }
         case .main:
             title = "Game Paused"
             if let t = PadManager.shared.disconnectedAt, g.clock - t < 600, !PadManager.shared.connected {
