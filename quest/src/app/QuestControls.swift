@@ -777,6 +777,7 @@ final class QuestControls {
         // Panel follows the menu state.
         if game.menu != nil || game.paused {
             if mode != .menu { placeMenuPanel() }
+            panelSize = QuestControls.menuPanelSize          // Q2c-console-49: Menu Size applies to the open menu at once
         } else if mode != .hud { mode = .hud }
         if mode == .hud { placeHudPanel(dt) }
     }
@@ -1047,7 +1048,17 @@ final class QuestControls {
         panelCenterT = rig.levelHead + fwd * QuestControls.menuDistM + V3(0, -0.1, 0)
         panelYawT = yaw
         panelPitch = 0
-        panelSize = V2(QuestControls.menuWidthM, QuestControls.menuWidthM * Float(QuestControls.panelH) / Float(QuestControls.panelW))
+        panelSize = QuestControls.menuPanelSize
+    }
+    // Q2c-console-49: Menu Size and HUD Size scale the panels' width at the same distance (the laser's hit test reads
+    // the same panelSize).
+    static var menuPanelSize: V2 {
+        let w = menuWidthM * QuestSettings.menuScale
+        return V2(w, w * Float(panelH) / Float(panelW))
+    }
+    static var hudPanelSize: V2 {
+        let w = hudWidthM * QuestSettings.hudScale
+        return V2(w, w * Float(panelH) / Float(panelW))
     }
 
     // HUD: in the lower view, turning with the head once it looks more than 25 degrees away.
@@ -1063,7 +1074,7 @@ final class QuestControls {
         let drop = QuestSettings.hudDrop
         // `drop` is where the hotbar sits below eye level (0.42 at 1.25 m is ~18 degrees): the panel is raised to match.
         let Lh = HudLayout(Float(QuestControls.panelW), Float(QuestControls.panelH))
-        let panelH = QuestControls.hudWidthM * Float(QuestControls.panelH) / Float(QuestControls.panelW)
+        let panelH = QuestControls.hudPanelSize.y
         let hotbarBelowCentre = ((Lh.hotbarY0 + Lh.slot / 2) / Float(QuestControls.panelH) - 0.5) * panelH
         let want = rig.levelHead + fwd * QuestControls.hudDistM + V3(0, -drop + hotbarBelowCentre, 0)
         var pos = hudPosT ?? want
@@ -1073,7 +1084,7 @@ final class QuestControls {
         panelCenterT = pos
         panelYawT = hudYawT
         panelPitch = -atan2f(drop, 1.25) * 0.7              // the hotbar end tilted to face the eyes
-        panelSize = V2(QuestControls.hudWidthM, QuestControls.hudWidthM * Float(QuestControls.panelH) / Float(QuestControls.panelW))
+        panelSize = QuestControls.hudPanelSize
     }
 
     // Panel axes (world): right, up, normal toward the viewer.

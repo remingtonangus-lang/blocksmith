@@ -56,7 +56,7 @@ enum QuestOptions {
         PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]
-        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_vib", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
@@ -88,6 +88,8 @@ enum QuestOptions {
             "host:lessons": "The lessons you have been shown, to read again.",
             "q_resetlessons": "Every tip and lesson shows again from the start, as for a new player.",
             "q_bright": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
+            "q_menusize": "How big menus look in front of you (at the same distance): larger is easier to read, smaller keeps more of the world in view.",   // Q2c-console-49
+            "q_hudsize": "How big the floating HUD (hotbar, health, messages) looks; the hotbar stays at the height HUD Position puts it.",
             "q_hud": "Where the HUD (hotbar, health, messages) floats: lower keeps more of the view clear.",
             "q_tex": "High: 128-pixel block textures (sharpest up close). Medium: 64 pixels, less memory. Applies at the next launch.",
             "q_fov": "Renders the edges of the view at lower resolution (fixed foveated rendering): faster, slightly softer edges.",
@@ -130,6 +132,8 @@ enum QuestOptions {
                 ("Refresh Rate: \(Int(hooks.currentRate())) Hz", "q_hz"),
                 ("Foveated Rendering: \(fovNames[max(0, min(3, S.foveation))])\(fovNote)", "q_fov"),
                 ("HUD Position: \(S.hudDrop < 0.33 ? "Middle" : (S.hudDrop < 0.5 ? "Low" : "Lower"))", "q_hud"),
+                ("HUD Size: \(S.hudScale < 0.95 ? "Small" : (S.hudScale < 1.05 ? "Normal" : "Large"))", "q_hudsize"),
+                ("Menu Size: \(S.menuScale < 0.95 ? "Small" : (S.menuScale < 1.05 ? "Normal" : (S.menuScale < 1.2 ? "Large" : "Extra Large")))", "q_menusize"),
                 ("Brightness: \(PauseMenu.brightnessName(S.brightness))", "q_bright"),
                 ("Auto Render Distance: \(on(S.autoRenderDistance))", "q_autord"),
                 ("Clouds: \(on(S.clouds))", "q_clouds"),
@@ -260,6 +264,12 @@ enum QuestOptions {
             let next = step(rates, hooks.currentRate(), back)
             S.refreshRate = next
             hooks.setRate(next)
+        case "q_menusize":                  // Q2c-console-49
+            let o: [Float] = [0.85, 1, 1.15, 1.25]
+            S.menuScale = step(o, o.min { abs($0 - S.menuScale) < abs($1 - S.menuScale) } ?? 1, back)
+        case "q_hudsize":
+            let o: [Float] = [0.9, 1, 1.15]
+            S.hudScale = step(o, o.min { abs($0 - S.hudScale) < abs($1 - S.hudScale) } ?? 1, back)
         case "q_hud": S.hudDrop = step([Float(0.25), 0.42, 0.6], [Float(0.25), 0.42, 0.6].min { abs($0 - S.hudDrop) < abs($1 - S.hudDrop) } ?? 0.42, back)
         case "q_bright": S.brightness = step([0, 0.25, 0.5, 0.75, 1], S.brightness, back)
         case "q_autord": S.autoRenderDistance.toggle()

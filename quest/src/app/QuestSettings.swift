@@ -109,6 +109,9 @@ enum QuestSettings {
     static var autoRenderDistance: Bool { get { bool("quest.autoRenderDistance", true) } set { store(newValue, "quest.autoRenderDistance") } }
     // How far below eye level the HUD panel sits, metres at 1.25 m (0.25 middle, 0.42 low, 0.6 lower).
     static var hudDrop: Float { get { float("quest.hudDrop", 0.42) } set { store(newValue, "quest.hudDrop") } }
+    // Q2c-console-49: the menu panel's and the floating HUD's size (x their default width, at the same distance).
+    static var menuScale: Float { get { float("quest.menuScale", 1) } set { store(newValue, "quest.menuScale") } }
+    static var hudScale: Float { get { float("quest.hudScale", 1) } set { store(newValue, "quest.hudScale") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { store(newValue, "quest.foveation") } }
     // Texture pixels per face: 128 by default, the imported art's own resolution (tools/texpack.py packs it at 128).
     // 64 was the default for a day and halved the art's detail: "everything's blurry, too compressed" (playtest
@@ -136,7 +139,7 @@ extension QuestSettings {
          ("quest.blastShake", blastShake), ("quest.chaseView", chaseView), ("quest.teleport", teleport), ("quest.headLocomotion", headLocomotion), ("quest.seated", seated),
          ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.swingBeforeReclined", swingBeforeReclined),
          ("quest.leftHanded", leftHanded), ("quest.controlPreset", controlPreset), ("quest.standHeight", standHeight), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
-         ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.hudDrop", hudDrop),
+         ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.hudDrop", hudDrop), ("quest.menuScale", menuScale), ("quest.hudScale", hudScale),
          ("quest.foveation", foveation), ("quest.textureRes", textureRes)]
     }
     // The headset's own defaults for shared options: the TV-style HUD scale (bigger text), since the panel is read at
