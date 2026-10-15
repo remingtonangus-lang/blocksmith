@@ -30,6 +30,7 @@ final class QuestApp {
     private var saveDone = false
     private var loadStatus = "Starting"
     private var loadProgress: Float = 0
+    private var loadTitle = ""                     // P293 (a): the world being opened (or saved), shown on the loading scene
     private var loadStart = CFAbsoluteTimeGetCurrent()
     let stats = FrameStats()
     var platformName = "Quest"
@@ -80,8 +81,12 @@ final class QuestApp {
 
     private func startLoading(_ req: WorldRequest = WorldRequest()) {
         loadStart = CFAbsoluteTimeGetCurrent()
-        loadLock.lock(); loadProgress = 0; loadStatus = "Starting"; loadLock.unlock()
         let old = savingGame
+        // P293 (a): the loading scene names the world: the one being saved on a quit, else the one opening (a join's
+        // name arrives with the host's welcome).
+        let title = exitWhenSaved ? (old?.save?.dir.lastPathComponent ?? "")
+            : req.join != nil ? "" : (req.name ?? UserDefaults.standard.string(forKey: "lastWorld") ?? "Quest World")
+        loadLock.lock(); loadProgress = 0; loadStatus = "Starting"; loadTitle = title; loadLock.unlock()
         savingGame = nil
         let quitting = exitWhenSaved
         let t = Thread { [weak self] in
@@ -134,6 +139,7 @@ final class QuestApp {
                 let game = WorldRequest.guestGame(gu, device: device, renderDistance: min(QuestSettings.renderDistance, 8))
                 Game.oceanSwellDrawn = true
                 game.rdGovernor = RenderDistanceGovernor(chosen: game.world.renderDistance)
+                loadLock.lock(); loadTitle = gu.worldName; loadLock.unlock()
                 status("Receiving \(gu.worldName)", 0.55)
                 _ = game.world.loadSync(center: game.player.pos, radius: min(2, game.world.renderDistance))
                 HorizonRing.shared.request(game, eye: game.player.eye)
@@ -477,67 +483,179 @@ final class QuestApp {
 
     // MARK: Loading scene
 
-    // Q2c-console-3: tips while the world loads (one every 8 s).
-    static let loadingTips = [
-        "Tip: grip your chest pocket with your right hand to open the journal.",
-        "Tip: in survival, Y calls your horse to you.",
-        "Tip: pause menu, Track a Target, puts a beacon over what you follow.",
-        "Tip: VR Comfort & Controls has snap turns, teleport and the vignette.",
-        "Tip: your world saves itself every minute; look for the Saved badge.",
-        "Tip: grips step through your hotbar; click the right stick for the weapon wheel.",
-        "Tip: with a gun out, reach to your hip and grip to take a magazine.",
-        "Tip: sneak by clicking the left stick; pushed hard, the click sprints.",
-        "Tip: beat the story and the Director keeps the land busy (Options, Director).",
-        "Tip: crouch to pass under low gaps and through tight caves.",
-    ]
+    // P293 (Oct 14 19:19 "we need a better loading screen"; Oct 15 11:56 "all these weird blocks floating around"): a calm
+    // dawn plain ringed by stepped blue hills, a stone pedestal 2.6 m ahead on which a grass block assembles itself
+    // cubelet by cubelet as the load goes on, the game's name and the world's name above it, the bar and the stage
+    // under it. No tips (NO TEXT). The whole scene is fixed in the room where he faced when the load began (nothing
+    // head-locked, nothing moving but the settling cubelets and the pedestal's slow turn), and the bar eases forward
+    // so nothing flickers or jumps back.
+    private var loadAnchorFor = -1.0                     // loadStart of the load the anchor was taken for
+    private var loadAnchor = V3(0, 0, 0)                 // tracking-space head x/z and eye height at that moment
+    private var loadYaw: Float = 0
+    private var loadShown: Float = 0                     // the bar's eased progress (never goes back within a load)
+    private var loadShownFor = -1.0
+    private var loadLastFrame = 0.0
+    private var loadSettle = [Float](repeating: -1, count: 27)   // when each cubelet started settling (s into the load)
+    private var loadVerts: [SimpleVert] = []
 
-    // Sky gradient, a ring of slowly turning blocks at eye height and a progress bar in front of the user.
     private func recordLoading(_ s: SceneRenderer.Slot, _ t: RenderTarget, _ cam: EyeCamera) {
+        let now = CFAbsoluteTimeGetCurrent()
+        let time = Float(now - loadStart)
+        // P293 (b): the anchor is taken once per load, on the first frame the head is tracked: where he stands, which
+        // way he faces and his eye height then. Everything below is placed in that frame.
+        if loadAnchorFor != loadStart && xr.headTracked {
+            loadAnchorFor = loadStart
+            loadAnchor = V3(rig.trackingHead.x, rig.floorEyeY(xr: xr), rig.trackingHead.z)
+            loadYaw = rig.headYaw
+        }
+        if loadShownFor != loadStart {
+            loadShownFor = loadStart
+            loadShown = 0
+            for i in 0..<loadSettle.count { loadSettle[i] = -1 }
+        }
+        loadLock.lock(); let p = max(0, min(1, loadProgress)); let what = loadStatus; let title = loadTitle; loadLock.unlock()
+        // P293 (b): the shown progress eases toward the loader's (about a quarter second) and never steps back.
+        let dt = Float(max(0, min(0.1, now - loadLastFrame)))
+        loadLastFrame = now
+        loadShown = max(loadShown, loadShown + (p - loadShown) * min(1, dt * 4))
+        let shown = loadShown
+
+        let fwd = V3(-sinf(loadYaw), 0, -cosf(loadYaw))
+        let right = V3(cosf(loadYaw), 0, -sinf(loadYaw))
+        let back = -fwd
+        let up = V3(0, 1, 0)
+        let headY = loadAnchor.y
+        let floorY: Float = xr.floorSpace ? 0 : headY - 1.6
+        // Camera-relative = tracking position - head.
+        let origin = V3(loadAnchor.x, 0, loadAnchor.z) - rig.trackingHead
+        func place(_ l: V3) -> V3 { origin + right * l.x + up * l.y + back * l.z }
+
+        // A calm dawn: deep blue overhead, warm haze at the horizon, the low sun glowing behind the hills ahead.
         var u = FrameUniforms()
         u.viewProj = (cam.viewProj[0], cam.viewProj.count > 1 ? cam.viewProj[1] : cam.viewProj[0])
         u.invViewProj = (u.viewProj.0.inverse, u.viewProj.1.inverse)
-        u.fogColor = V4(0.52, 0.72, 0.96, 1000)
-        u.params = V4(2000, 1, Float(CFAbsoluteTimeGetCurrent().truncatingRemainder(dividingBy: 1000)), 0)
-        u.sunDir = V4(simd_normalize(V3(0.3, 0.8, -0.5)), 1)
-        u.zenith = V4(0.22, 0.4, 0.8, 0)
-        u.horizon = V4(0.52, 0.72, 0.96, 0.2)
+        let haze = V3(0.84, 0.74, 0.64)
+        u.fogColor = V4(haze, 1000)
+        u.params = V4(2000, 0.7, Float(now.truncatingRemainder(dividingBy: 1000)), 0)
+        u.sunDir = V4(simd_normalize(fwd * 0.97 + V3(0, 0.1, 0)), 1)
+        u.zenith = V4(0.2, 0.33, 0.62, 0)
+        u.horizon = V4(haze, 0.5)
         u.misc = V4(1, 1, scene.linearOutput ? 2.2 : 1, 0)
         scene.setUniforms(s, u)
         scene.resetScratch()
-        scene.beginPass(s, t, clear: V3(0.52, 0.72, 0.96))
-        loadLock.lock(); let p = loadProgress; loadLock.unlock()
+        scene.beginPass(s, t, clear: haze)
+
         var v: [SimpleVert] = []
-        let time = Float(CFAbsoluteTimeGetCurrent() - loadStart)
-        let headY = rig.floorEyeY(xr: xr)
-        let colors: [V4] = [V4(0.36, 0.62, 0.25, 1), V4(0.55, 0.38, 0.22, 1), V4(0.6, 0.6, 0.62, 1), V4(0.85, 0.75, 0.45, 1),
-                            V4(0.25, 0.45, 0.8, 1), V4(0.8, 0.3, 0.25, 1), V4(0.95, 0.85, 0.3, 1), V4(0.4, 0.3, 0.6, 1)]
-        let shades: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
-        let CT = Mesher.cornerTable
-        // The ring is placed in tracking space around the head's starting point: camera-relative = trackingPos - head.
-        for i in 0..<8 {
-            let a = Float(i) / 8 * 2 * .pi + time * 0.15
-            let c = V3(sinf(a) * 3, headY - 0.2 + 0.25 * sinf(time * 1.3 + Float(i)), -cosf(a) * 3) - rig.trackingHead
-            let spin = simd_quatf(angle: time * 0.6 + Float(i), axis: simd_normalize(V3(0.3, 1, 0.2)))
-            for f in 0..<6 {
-                for k in [0, 1, 2, 0, 2, 3] {
-                    let ci = (f * 4 + k) * 3
-                    let lp = V3(Float(CT[ci]) - 0.5, Float(CT[ci + 1]) - 0.5, Float(CT[ci + 2]) - 0.5) * 0.45
-                    let col = colors[i] * V4(shades[f], shades[f], shades[f], 1)
-                    v.append(SimpleVert(pos: V4(spin.act(lp) + c, 1), color: col))
-                }
+        swap(&v, &loadVerts)
+        v.removeAll(keepingCapacity: true)
+        func tri(_ a: V3, _ b: V3, _ c: V3, _ ca: V4, _ cb: V4, _ cc: V4) {
+            v.append(SimpleVert(pos: V4(place(a), 1), color: ca))
+            v.append(SimpleVert(pos: V4(place(b), 1), color: cb))
+            v.append(SimpleVert(pos: V4(place(c), 1), color: cc))
+        }
+        func quad(_ a: V3, _ b: V3, _ c: V3, _ d: V3, _ col: V4) {
+            tri(a, b, c, col, col, col); tri(a, c, d, col, col, col)
+        }
+        func mixc(_ a: V3, _ b: V3, _ k: Float) -> V4 { V4(a + (b - a) * k, 1) }
+
+        // The ground: a meadow disc fading into the haze toward the hills (which hide its edge).
+        let meadow = V3(0.3, 0.45, 0.25)
+        let radii: [Float] = [0, 4, 14, 34, 80]
+        let segs = 48
+        for r in 0..<(radii.count - 1) {
+            let r0 = radii[r], r1 = radii[r + 1]
+            let c0 = mixc(meadow, haze, r0 / 90), c1 = mixc(meadow, haze, r1 / 90)
+            for k in 0..<segs {
+                let a0 = Float(k) / Float(segs) * 2 * .pi, a1 = Float(k + 1) / Float(segs) * 2 * .pi
+                let p00 = V3(sinf(a0) * r0, floorY, cosf(a0) * r0), p01 = V3(sinf(a1) * r0, floorY, cosf(a1) * r0)
+                let p10 = V3(sinf(a0) * r1, floorY, cosf(a0) * r1), p11 = V3(sinf(a1) * r1, floorY, cosf(a1) * r1)
+                tri(p00, p10, p11, c0, c1, c1)
+                if r0 > 0 { tri(p00, p11, p01, c0, c1, c0) }
             }
         }
-        // Progress bar 2 m ahead (in the direction the user faced at start).
-        let bar = V3(0, headY - 0.35, -2) - rig.trackingHead
-        func rect(_ x0: Float, _ x1: Float, _ y0: Float, _ y1: Float, _ z: Float, _ col: V4) {
-            let q = [V3(x0, y0, z), V3(x1, y0, z), V3(x1, y1, z), V3(x0, y1, z)].map { $0 + bar }
-            for k in [0, 1, 2, 0, 2, 3] { v.append(SimpleVert(pos: V4(q[k], 1), color: col)) }
+
+        // Two rings of stepped hills (2 m terraces, the blocky land he is about to walk into), the far one paler.
+        let hillCols = 72
+        for ring in 0..<2 {
+            let far = ring == 1
+            let radius: Float = far ? 96 : 60
+            let depth: Float = far ? 14 : 8
+            let tint = far ? mixc(V3(0.34, 0.42, 0.5), haze, 0.62) : mixc(V3(0.24, 0.36, 0.3), haze, 0.45)
+            func height(_ k: Int) -> Float {
+                let a = Float(k) / Float(hillCols) * 2 * .pi
+                let w1: Float = 3 * sinf(a * 3 + (far ? 2.1 : 0.4))
+                let w2: Float = 2 * sinf(a * 7 + (far ? 0.7 : 1.9))
+                let w3: Float = 1.5 * sinf(a * 13 + 0.3)
+                let raw: Float = (far ? 11 : 5) + w1 + w2 + w3
+                let step: Float = (raw / 2).rounded() * 2
+                return floorY + max(far ? 6 : 4, step)
+            }
+            let front = tint * V4(0.8, 0.8, 0.8, 1), side = tint * V4(0.68, 0.68, 0.68, 1)
+            for k in 0..<hillCols {
+                let a0 = Float(k) / Float(hillCols) * 2 * .pi, a1 = Float(k + 1) / Float(hillCols) * 2 * .pi
+                let h = height(k), hl = height((k + hillCols - 1) % hillCols), hr = height((k + 1) % hillCols)
+                let n0 = V3(sinf(a0), 0, cosf(a0)), n1 = V3(sinf(a1), 0, cosf(a1))
+                let i0 = n0 * radius, i1 = n1 * radius, o0 = n0 * (radius + depth), o1 = n1 * (radius + depth)
+                let lo = floorY - 1
+                quad(V3(i0.x, lo, i0.z), V3(i1.x, lo, i1.z), V3(i1.x, h, i1.z), V3(i0.x, h, i0.z), front)
+                quad(V3(i0.x, h, i0.z), V3(i1.x, h, i1.z), V3(o1.x, h, o1.z), V3(o0.x, h, o0.z), tint)
+                // The terrace steps between neighbouring columns.
+                if hl < h { quad(V3(i0.x, hl, i0.z), V3(o0.x, hl, o0.z), V3(o0.x, h, o0.z), V3(i0.x, h, i0.z), side) }
+                if hr < h { quad(V3(i1.x, hr, i1.z), V3(o1.x, hr, o1.z), V3(o1.x, h, o1.z), V3(i1.x, h, i1.z), side) }
+            }
         }
-        rect(-0.6, 0.6, -0.04, 0.04, 0, V4(0.1, 0.1, 0.12, 0.85))
-        rect(-0.58, -0.58 + 1.16 * max(0.02, min(1, p)), -0.025, 0.025, 0.005, V4(0.45, 0.85, 0.4, 1))
-        // Q2c-console-3: what is happening and a tip, in the game's pixel font drawn as quads (no textures needed, so
-        // it shows on the very first launch): 6 mm a font pixel, white on a dark shadow, centred under the bar.
-        loadLock.lock(); let what = loadStatus; loadLock.unlock()
+
+        // Boxes (the pedestal and the cubelets), turned by `spin` about a vertical axis through `pivot`.
+        let shades: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
+        let CT = Mesher.cornerTable
+        func box(_ c: V3, _ half: V3, _ col: V4, pivot: V3 = V3(0, 0, 0), spin: Float = 0) {
+            let cs = cosf(spin), sn = sinf(spin)
+            var q = [V3](repeating: V3(0, 0, 0), count: 4)
+            for f in 0..<6 {
+                let sh = col * V4(shades[f], shades[f], shades[f], 1)
+                for k in 0..<4 {
+                    let ci = (f * 4 + k) * 3
+                    let lx: Float = (Float(CT[ci]) * 2 - 1) * half.x
+                    let ly: Float = (Float(CT[ci + 1]) * 2 - 1) * half.y
+                    let lz: Float = (Float(CT[ci + 2]) * 2 - 1) * half.z
+                    let d = c + V3(lx, ly, lz) - pivot
+                    q[k] = pivot + V3(d.x * cs + d.z * sn, d.y, d.z * cs - d.x * sn)
+                }
+                quad(q[0], q[1], q[2], q[3], sh)
+            }
+        }
+        // The pedestal: a stone column from the floor to just under eye level, a darker cap.
+        let pz: Float = -2.6
+        let top = headY - 0.5
+        let colH = max(0.1, top - 0.05 - floorY)
+        box(V3(0, floorY + colH / 2, pz), V3(0.22, colH / 2, 0.22), V4(0.56, 0.56, 0.58, 1))
+        box(V3(0, top - 0.025, pz), V3(0.28, 0.025, 0.28), V4(0.42, 0.42, 0.45, 1))
+        // P293 (a): the brand mark and the in-world progress: a grass block of 27 cubelets that sets itself together
+        // bottom layer first, each one lowering gently onto the last as the load passes its share.
+        let cell: Float = 0.14
+        let spinA = time * 0.12
+        let pivot = V3(0, top, pz)
+        for i in 0..<27 {
+            if shown * 27 >= Float(i) + 0.5 && loadSettle[i] < 0 { loadSettle[i] = time }
+            let st = loadSettle[i]
+            if st < 0 { continue }
+            let x = i % 3, z = (i / 3) % 3, y = i / 9
+            let d = min(1, (time - st) / 0.45)
+            let e = 1 - d
+            let drop: Float = 0.16 * e * e * e
+            let tone: Float = 0.94 + 0.12 * Float((i * 37 + 11) % 13) / 13
+            let base = y == 2 ? V3(0.36, 0.62, 0.25) : V3(0.52, 0.36, 0.22)
+            let cx: Float = (Float(x) - 1) * cell, cz: Float = pz + (Float(z) - 1) * cell
+            let cy: Float = top + (Float(y) + 0.5) * cell + drop
+            box(V3(cx, cy, cz), V3(1, 1, 1) * (cell / 2 - 0.004), V4(base * tone, 1), pivot: pivot, spin: spinA)
+        }
+
+        // Words on a plane 2.3 m ahead, in the game's pixel font drawn as quads (no textures needed, so this shows on the
+        // very first launch), white on a dark shadow just behind.
+        let tz: Float = -2.3
+        func rect(_ x0: Float, _ x1: Float, _ y0: Float, _ y1: Float, _ dz: Float, _ col: V4) {
+            quad(V3(x0, y0, tz + dz), V3(x1, y0, tz + dz), V3(x1, y1, tz + dz), V3(x0, y1, tz + dz), col)
+        }
         func label(_ str: String, _ y: Float, _ px: Float, _ col: V4) {
             let w = Float(Font.width(str)) * px
             var x = -w / 2
@@ -557,23 +675,17 @@ final class QuestApp {
                 x += Float(g[0] + 1) * px
             }
         }
-        label("\(what)  \(Int((max(0, min(1, p)) * 100).rounded()))%", -0.08, 0.006, V4(1, 1, 1, 1))
-        let tips = QuestApp.loadingTips
-        let tip = tips[Int(time / 8) % tips.count]
-        let words = tip.split(separator: " ")
-        if Font.width(tip) > 230, words.count > 3 {
-            // Two lines, split at the word nearest the middle.
-            var best = 1, bestD = Int.max
-            for k in 1..<words.count {
-                let d = abs(Font.width(words[..<k].joined(separator: " ")) - Font.width(words[k...].joined(separator: " ")))
-                if d < bestD { bestD = d; best = k }
-            }
-            label(words[..<best].joined(separator: " "), -0.16, 0.0055, V4(0.85, 0.9, 1, 1))
-            label(words[best...].joined(separator: " "), -0.21, 0.0055, V4(0.85, 0.9, 1, 1))
-        } else {
-            label(tip, -0.16, 0.0055, V4(0.85, 0.9, 1, 1))
-        }
+        // P293 (a): the game's name, then the world's.
+        label("BLOCKSMITH", headY + 0.34, 0.011, V4(1, 0.93, 0.74, 1))
+        if !title.isEmpty { label(title, headY + 0.2, 0.0065, V4(1, 1, 1, 1)) }
+        // The bar and the stage with its percent under it.
+        let by = headY - 0.62
+        rect(-0.6, 0.6, by - 0.035, by + 0.035, 0, V4(0.1, 0.1, 0.12, 1))
+        rect(-0.58, -0.58 + 1.16 * max(0.02, shown), by - 0.022, by + 0.022, 0.004, V4(0.45, 0.85, 0.4, 1))
+        label("\(what)  \(Int((shown * 100).rounded()))%", by - 0.07, 0.006, V4(1, 1, 1, 1))
+
         if let off = scene.push(s, v) { scene.drawScratch(s, "simpleSolid", offset: off, count: v.count) }
+        swap(&v, &loadVerts)
         scene.drawSky(s)
     }
 }
