@@ -27,6 +27,8 @@ final class BrewingMenu: Menu {
     }
     override func quickMoveTargets(from: MenuSlot) -> [MenuSlot] {
         if from.isPlayerInv {
+            // Blaze powder fills the fuel slot first (it is also an ingredient: it went into the ingredient slot).
+            if Items.key(from.stack.item) == "blaze_powder" { return [slots[4], slots[3]] }
             let t = slots.prefix(5).filter { $0.accepts(from.stack) }
             if !t.isEmpty { return Array(t) }
             return from.isHotbar ? slots.filter { $0.isPlayerInv && !$0.isHotbar } : slots.filter { $0.isHotbar }
@@ -66,13 +68,11 @@ final class EnchantMenu: Menu {
         costs = [0, 0, 0]
         clues = [nil, nil, nil]
         guard !s.isEmpty, s.ench == 0, s.def.enchantability > 0 else { return }
-        var rng = SRng(game.enchantSeed)
-        costs = Enchant.tableCosts(bookshelves: shelves, rng: &rng)
+        costs = Enchant.tableCosts(bookshelves: shelves, seed: game.enchantSeed)
         for i in 0..<3 {
             if costs[i] < i + 1 { costs[i] = 0; continue }
-            var r = SRng(game.enchantSeed &+ UInt64(i))
-            let l = Enchant.select(item: s.item, level: costs[i], rng: &r)
-            if let first = l.first { clues[i] = first } else { costs[i] = 0 }
+            let o = Enchant.tableOffer(item: s.item, cost: costs[i], seed: game.enchantSeed, slot: i)
+            if let c = o.clue { clues[i] = c } else { costs[i] = 0 }
         }
     }
 
@@ -86,20 +86,15 @@ final class EnchantMenu: Menu {
         guard available(i) else { return }
         game.achieve("enchant")
         var s = box[0]
-        var r = SRng(game.enchantSeed &+ UInt64(i))
-        var l = Enchant.select(item: s.item, level: costs[i], rng: &r)
-        if Items.key(s.item) == "book" {
-            s = ItemStack(Items.id("enchanted_book"), 1)
-            // Books drop one random enchantment when they would get several (reference rule).
-            if l.count > 1 { l.remove(at: Int.random(in: 0..<l.count)) }
-        }
+        let l = Enchant.tableOffer(item: s.item, cost: costs[i], seed: game.enchantSeed, slot: i).ench
+        if Items.key(s.item) == "book" { s = ItemStack(Items.id("enchanted_book"), 1) }   // (one entry fewer: tableOffer)
         s.ench = Enchant.pack(l)
         box[0] = s
         if game.survival {
             game.xpLevel = max(0, game.xpLevel - (i + 1))
             var lap = box[1]; lap.count -= i + 1; box[1] = lap
         }
-        game.enchantSeed = UInt64.random(in: 1...UInt64.max)
+        game.enchantSeed = Rand.u64(in: 1...UInt64.max)
         game.sfx(.enchant, 0.7)
         changed()
     }
@@ -175,7 +170,11 @@ final class AnvilMenu: Menu {
         let r = out[0]
         guard !r.isEmpty else { return nil }
         if game.survival { game.xpLevel = max(0, game.xpLevel - cost) }
-        box[0] = .empty
+        // Only what went into the result leaves the left slot (clearing it lost the rest of a stack: renaming 64
+        // diamonds gave one and deleted 63).
+        var left = box[0]
+        left.count -= r.count
+        box[0] = left.count > 0 ? left : .empty
         var right = box[1]
         right.count -= rightUsed
         box[1] = right.count > 0 ? right : .empty
@@ -183,7 +182,7 @@ final class AnvilMenu: Menu {
         editing = false
         game.sfx(.anvil, 0.6, at: V3(Float(pos.x), Float(pos.y), Float(pos.z)) + 0.5)
         // 12% chance to wear the anvil a stage (chipped -> damaged -> gone).
-        if game.survival && Float.random(in: 0..<1) < 0.12 {
+        if game.survival && Rand.float(in: 0..<1) < 0.12 {
             let k = Blocks.key(game.world.block(pos.x, pos.y, pos.z))
             let next = k == "anvil" ? "chipped_anvil" : (k == "chipped_anvil" ? "damaged_anvil" : "")
             if next.isEmpty { game.world.setBlock(pos.x, pos.y, pos.z, AIR) }

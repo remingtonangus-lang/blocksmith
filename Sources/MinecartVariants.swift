@@ -29,7 +29,7 @@ extension Mob {
                 if fuse <= 0 {
                     health = -1000
                     let speed = min(5, simd_length(vel))
-                    Explosion.explode(at: pos + V3(0, 0.5, 0), power: 4 + Float.random(in: 0...1.5) * speed, game: g, except: self)
+                    Explosion.explode(at: pos + V3(0, 0.5, 0), power: 4 + Rand.float(in: 0...1.5) * speed, game: g, except: self)
                 }
             }
         case 4:
@@ -40,7 +40,7 @@ extension Mob {
                 vel += V3(dir.x, 0, dir.z) * 6 * dt
                 let sp = simd_length(V2(vel.x, vel.z))
                 if sp > 4 { vel.x *= 4 / sp; vel.z *= 4 / sp }
-                if Float.random(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(0, 1, 0), dark: true) }
+                if Rand.float(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(0, 1, 0), dark: true) }
             }
         default: break
         }
@@ -66,7 +66,14 @@ extension Game {
         guard m.kind == .minecart else { return false }
         switch m.variant {
         case 1, 2:
-            if m.cargo == nil { m.cargo = ItemContainer(m.variant == 1 ? 27 : 5) }
+            // Its own size (a saved cart came back with whatever slot count was stored, an empty list included).
+            let want = m.variant == 1 ? 27 : 5
+            if m.cargo == nil { m.cargo = ItemContainer(want) }
+            if let c = m.cargo, c.count < want {
+                let grown = ItemContainer(want)
+                for i in 0..<c.count { grown[i] = c[i] }
+                m.cargo = grown
+            }
             openMenu(m.variant == 1 ? ChestMenu(game: self, container: m.cargo!, title: "Minecart with Chest")
                                     : PackMenu(game: self, container: m.cargo!, title: "Minecart with Hopper"))
             return true
@@ -103,8 +110,8 @@ extension Mob {
         variant = (variant & ~(3 << 12)) | ((dropped + 1) << 12)
         var h = ItemStack(Items.id("goat_horn"), 1)
         let screaming = variant & 1 == 1
-        h.tag = (screaming ? 4 : 0) + Int.random(in: 0..<4)
+        h.tag = (screaming ? 4 : 0) + Rand.int(in: 0..<4)
         g.drops.spawn(h, at: a)
-        g.sfx(.place(.stone), 0.9, at: a)
+        g.sfx(.goatRam, 1, at: a)
     }
 }

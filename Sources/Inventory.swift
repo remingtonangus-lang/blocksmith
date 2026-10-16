@@ -17,7 +17,7 @@ struct ItemStack: Codable, Equatable {
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         let name = try c.decode(String.self, forKey: .id)
-        item = Items.has(name) ? Items.id(name) : 0
+        item = SaveMigration.itemID(name) ?? 0
         count = try (item == 0 ? 0 : c.decode(Int.self, forKey: .n))
         damage = (try? c.decode(Int.self, forKey: .d)) ?? 0
         if let e = try? c.decode([String].self, forKey: .e) { ench = Enchant.decode(e) }

@@ -9,8 +9,8 @@ extension Game {
         let result: ItemStack
         var keep = Set<Int>()
         if let sp = Fireworks.craft(grid) { result = sp.0; keep = sp.keep }
-        else if let r = Recipes.match(grid.map { $0.item }, 3, 3) { result = r.result }
-        else { sfx(.click, 0.3, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5); return }
+        else if let r = Recipes.match(grid.map { $0.item }, 3, 3) { result = Recipes.keepContents(r.result, grid) }
+        else { sfx(.crafterFail, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5); return }
         for i in 0..<9 where !grid[i].isEmpty && !keep.contains(i) {
             var s = be.container[i]
             let k = Items.key(s.item)
@@ -29,7 +29,7 @@ extension Game {
             rest = fb.container.add(rest)
         }
         if !rest.isEmpty { drops.spawn(rest, at: c + d * 0.7, vel: d * 3 + V3(0, 1, 0)) }
-        sfx(.click, 0.6, at: c)
+        sfx(.crafterCraft, 0.7, at: c)
         particles.smoke(at: c + d * 0.6, dark: false)
     }
 }

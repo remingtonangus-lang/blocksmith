@@ -4,18 +4,23 @@ import Foundation
 extension TextureGen {
     static func redstonePainters(_ p: inout [String: Painter]) {
         for pw in 0..<16 {
-            // Dust brightens from dark red (0) to vivid red (15).
+            // Copper wire brightens from dull dark copper (0x5E3420) to glowing copper-orange (0xFFA860) at 15.
             let k = Float(pw) / 15
             p["redstone_dust_\(pw)"] = { x, y in
                 if r(x, y, 700) < 0.12 { return clear }
-                let v = 0.3 + 0.7 * k
-                return V4(v * (0.85 + 0.2 * r(x, y, 701)), v * 0.08 + 0.02, 0.02, 1)
+                let n: Float = 0.85 + 0.2 * r(x, y, 701)
+                let cr: Float = (0x5E + (0xFF - 0x5E) * k) / 255, cg: Float = (0x34 + (0xA8 - 0x34) * k) / 255
+                let cb: Float = (0x20 + (0x60 - 0x20) * k) / 255
+                return V4(min(1, cr * n), min(1, cg * n), min(1, cb * n), 1)
             }
         }
         func torch(_ lit: Bool) -> Painter {
             { x, y in
                 guard x == 7 || x == 8 else { return clear }
-                if y == 6 || y == 7 { return lit ? hex(y == 6 ? 0xFF6A5A : 0xE8201A) : hex(0x5A1A14) }
+                if y >= 4 && y <= 7 {   // copper coil head
+                    let band = y % 2 == 0
+                    return lit ? hex(band ? 0xFFC080 : 0xF08A40) : hex(band ? 0x7A4A2C : 0x5E3420)
+                }
                 if y >= 8 { return hex(0x6B4F2C, 0.85 + 0.2 * r(x, y, 702)) }
                 return clear
             }
@@ -23,14 +28,20 @@ extension TextureGen {
         p["redstone_torch"] = torch(true)
         p["redstone_torch_off"] = torch(false)
         p["redstone_block"] = { x, y in
-            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x7A0A06) }
-            return hex(r(x / 2, y / 2, 703) < 0.3 ? 0xC81A10 : 0xA8120A, 0.9 + 0.2 * r(x, y, 704))
+            // Copper battery: copper casing, dark cell window, bright coil terminal.
+            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x6A3A22) }
+            if x >= 6 && x <= 9 && y <= 2 { return hex(0xFFC080) }
+            if x >= 3 && x <= 12 && y >= 4 && y <= 12 {
+                if x == 3 || x == 12 || y == 4 || y == 12 { return hex(0x3A2014) }
+                return y % 2 == 0 ? hex(0xFFA860) : hex(0xC8683A)
+            }
+            return hex(0xB8693E, 0.9 + 0.2 * r(x, y, 704))
         }
         func lamp(_ on: Bool) -> Painter {
             { x, y in
                 let frame = x % 5 == 0 || y % 5 == 0
                 if frame { return hex(on ? 0x8A5A2A : 0x4A2A1A) }
-                return on ? hex(0xF8D080, 0.9 + 0.15 * r(x, y, 705)) : hex(0x6A3A22, 0.85 + 0.2 * r(x, y, 706))
+                return on ? hex(0xFFE8C8, 0.9 + 0.15 * r(x, y, 705)) : hex(0x6A3A22, 0.85 + 0.2 * r(x, y, 706))
             }
         }
         p["redstone_lamp"] = lamp(false)
@@ -38,9 +49,9 @@ extension TextureGen {
         p["lever"] = { x, y in hex(0x7A5A30, 0.85 + 0.2 * r(x, y, 707)) }
         func diode(_ on: Bool, comparator: Bool) -> Painter {
             { x, y in
-                // Smooth stone slab with a red trace down the middle.
+                // Smooth stone slab with a copper trace down the middle.
                 let trace = (x == 7 || x == 8) || (comparator && (y == 4 || y == 11) && x > 2 && x < 13)
-                if trace { return on ? hex(0xE81A10) : hex(0x5A1410) }
+                if trace { return on ? hex(0xFFA860) : hex(0x5E3420) }
                 if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x8A8A8A) }
                 return hex(0xA8A8A8, 0.94 + 0.08 * r(x, y, 708))
             }

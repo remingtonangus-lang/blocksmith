@@ -1,0 +1,1 @@
+Gemini-generated textures, uploaded by chat-Claude: one PNG per texture, named <texture_name>.png (list and rules in docs/texture_requests.md). Imported by tools/gemini_import.sh into Resources/Textures.

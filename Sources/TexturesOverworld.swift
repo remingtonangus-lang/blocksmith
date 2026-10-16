@@ -27,13 +27,24 @@ extension TextureGen {
             }
         }
         func speckle(_ base: UInt32, _ dot: UInt32, _ amount: Float, _ salt: Int) -> Painter {
-            { x, y in r(x, y, salt) < amount ? hex(dot, 0.9 + 0.2 * r(x, y, salt + 1)) : hex(base, 0.88 + 0.2 * r(x, y, salt + 2)) }
+            { x, y in
+                // Dots gather in clumps (blotch-weighted), the base gets soft two-scale mottling.
+                let clump: Float = blot(x, y, salt + 3, 4)
+                if r(x, y, salt) < amount * (0.4 + 1.2 * clump) { return hex(dot, 0.9 + 0.2 * r(x, y, salt + 1)) }
+                let m: Float = (blot(x, y, salt + 4, 8) - 0.5) * 0.12 + (r(x, y, salt + 2) - 0.5) * 0.12
+                return hex(base, 0.96 + m)
+            }
         }
         func bricks(_ c: UInt32, _ mortar: UInt32, rowH: Int = 4, len: Int = 8, _ salt: Int) -> Painter {
             { x, y in
-                let row = y / rowH
-                if y % rowH == rowH - 1 || (x + (row % 2) * len / 2) % len == len - 1 { return hex(mortar) }
-                return hex(c, 0.9 + 0.18 * r(x, y, salt))
+                let row = y / rowH, ly = y % rowH
+                let lx = (x + (row % 2) * len / 2) % len
+                if ly == rowH - 1 || lx == len - 1 { return hex(mortar) }
+                // Per-brick tone, lit top edge and left end, shaded bottom edge, fine grain.
+                let brick = (x + (row % 2) * len / 2) / len
+                var k: Float = 0.94 + (r(row, brick, salt + 7) - 0.5) * 0.12 + (r(x, y, salt) - 0.5) * 0.1
+                if ly == 0 || lx == 0 { k += 0.08 } else if ly == rowH - 2 { k -= 0.07 }
+                return hex(c, k)
             }
         }
         func tallPlant(_ bottom: Bool, _ stem: UInt32, _ bloom: UInt32, _ salt: Int) -> Painter {
@@ -64,11 +75,7 @@ extension TextureGen {
             p["\(w.0)_log_top"] = rings(w.1, w.2)
             p["\(w.0)_planks"] = planks(w.2, salt: s + 3)
             if w.3 == 0 {
-                p["\(w.0)_leaves"] = { x, y in
-                    if r(x, y, s + 4) < (w.0 == "jungle" ? 0.12 : 0.2) { return clear }
-                    let v: Float = 0.5 + 0.45 * r(x, y, s + 5)
-                    return V4(v, v, v, 1)
-                }
+                p["\(w.0)_leaves"] = leafy(nil, holes: w.0 == "jungle" ? 0.1 : 0.2, salt: s + 4)
             } else {
                 p["\(w.0)_leaves"] = foliage(w.3, holes: 0.15, salt: s + 4)
             }
@@ -95,8 +102,22 @@ extension TextureGen {
             let crack = (x * 3 + y * 7) % 13 == 0
             return V4(0.62, 0.78, 1.0, crack ? 0.9 : 0.62 + 0.08 * r(x, y, 373))
         }
-        p["packed_ice"] = speckle(0x8DB4FA, 0xB8D2FC, 0.15, 374)
-        p["blue_ice"] = speckle(0x74A8FB, 0x9CC4FF, 0.15, 375)
+        // Packed / blue ice: frosty mottling, pale fracture lines and a few bright crystal glints.
+        func iceP(_ c: UInt32, _ salt: Int) -> Painter {
+            { x, y in
+                var k: Float = 0.94 + (blot(x, y, salt, 4) - 0.5) * 0.14 + (r(x, y, salt + 1) - 0.5) * 0.05
+                let w1: Float = sinf(Float(y) * 0.8) * 1.2
+                let e1: Float = Float(x) - Float(y) * 0.6 - 4 + w1
+                let f1 = abs(e1) < 0.55
+                let e2: Float = Float(y) - Float(x) * 0.35 - 9
+                let f2 = abs(e2) < 0.5 && x > 4
+                if f1 || f2 { k += 0.16 }
+                if r(x, y, salt + 2) > 0.985 { k += 0.25 }
+                return hex(c, k)
+            }
+        }
+        p["packed_ice"] = iceP(0x8DB4FA, 374)
+        p["blue_ice"] = iceP(0x74A8FB, 375)
         p["calcite"] = speckle(0xDFE0DC, 0xC8C8C0, 0.12, 376)
         p["dripstone_block"] = { x, y in hex(0x866B5C, (x + Int(r(0, y / 3, 377) * 4)) % 4 == 0 ? 0.8 : 0.95 + 0.1 * r(x, y, 378)) }
         p["pointed_dripstone"] = { x, y in
@@ -191,7 +212,8 @@ extension TextureGen {
         p["lily_pad"] = { x, y in
             let dx = Float(x) - 7.5, dy = Float(y) - 7.5
             if dx * dx + dy * dy > 56 || (dx > 0 && abs(dy) < 1) { return clear }
-            let v: Float = 0.55 + 0.35 * r(x, y, 460)
+            let rim: Float = dx * dx + dy * dy > 40 ? 0.85 : 1            // a darker wet edge, not a bright outline
+            let v: Float = (0.4 + 0.22 * r(x, y, 460)) * rim
             return V4(v, v, v, 1)
         }
         p["vine"] = { x, y in
@@ -199,7 +221,7 @@ extension TextureGen {
             let v: Float = 0.5 + 0.4 * r(x, y, 463)
             return strand ? V4(v, v, v, 1) : clear
         }
-        p["bamboo_stalk"] = { x, y in y % 6 == 0 ? hex(0x5A8A1A) : hex(0x7AAA2A, 0.9 + 0.15 * r(x, y, 464)) }
+        p["bamboo_stalk"] = { x, y in y % 6 == 0 ? hex(0x5E843A) : hex(0x7FA240, 0.9 + 0.15 * r(x, y, 464)) }
         p["melon_side"] = { x, y in hex(x % 4 < 2 ? 0x6A9A1E : 0x8AB82E, 0.9 + 0.15 * r(x, y, 465)) }
         p["melon_top"] = { x, y in
             let d = abs(Float(x) - 7.5) + abs(Float(y) - 7.5)

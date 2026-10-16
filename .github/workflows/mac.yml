@@ -1,110 +1,362 @@
 name: mac
-# Builds Blocksmith on an Apple Silicon runner, renders the headless snapshots and
-# publishes them (plus build/snap logs) to the orphan branch `ci-snaps-<branch>` (slashes -> dashes), overwritten
-# each run; runs of the main line (claude/eloquent-lovelace-bsc5v1) also update `ci-snaps`.
-# View: https://github.com/<owner>/blocksmith/tree/ci-snaps  (README.md shows every image)
+# Two lanes (2026-10-02 throughput fix: runs took 22-52 min and mostly failed on the type-check gate).
+#
+# FAST lane, every push (target < 6 min): unoptimized parallel build, type-check times collected as WARNINGS into
+# typecheck.log (never a failure), one 16 px snapshot at render distance 4. Published to `ci-fast-<branch>`.
+#
+# HEAVY lane: every 5th run, any push whose head commit message contains [full], a manual dispatch (full: true) or the
+# nightly schedule (schedules fire only from the default branch's copy of this file). One release build shared as an
+# artifact, then six parallel jobs: smoke test, benchmarks + profile, playthrough + terrain check, snap.sh "checks"
+# (audio, structure walker, gen check, behaviour sim, bots), snap.sh "tours", snap.sh "shots". Published to
+# `ci-snaps-<branch>` (runs of claude/eloquent-lovelace-bsc5v1 also update `ci-snaps`).
 on:
   push:
-    branches-ignore: ['ci-snaps', 'ci-snaps-*']
+    branches-ignore: ['ci-snaps', 'ci-snaps-*', 'ci-qa-*', 'ci-assets', 'ci-fast-*']
   workflow_dispatch:
+    inputs:
+      full:
+        description: 'Run the heavy lane too'
+        type: boolean
+        default: true
+  schedule:
+    - cron: '41 6 * * *'          # nightly heavy lane (default branch only)
 
 permissions:
   contents: write
 
-concurrency:
-  group: mac-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  build:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      full: ${{ steps.p.outputs.full }}
+    steps:
+      - id: p
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+          EVENT: ${{ github.event_name }}
+          DISPATCH_FULL: ${{ github.event.inputs.full }}
+          RUN: ${{ github.run_number }}
+        run: |
+          full=false
+          if [ "$EVENT" = schedule ]; then full=true; fi
+          if [ "$EVENT" = workflow_dispatch ] && [ "$DISPATCH_FULL" != false ]; then full=true; fi
+          if printf '%s' "$MSG" | grep -qF '[full]'; then full=true; fi
+          if [ $((RUN % 5)) -eq 0 ]; then full=true; fi
+          echo "run $RUN, event $EVENT: heavy lane $full"
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+
+  fast:
     runs-on: macos-14
-    timeout-minutes: 30
+    timeout-minutes: 44
+    concurrency:
+      group: fast-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
       - name: Toolchain
         run: |
-          sw_vers; uname -m
           X=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1 || true)
           if [ -n "$X" ]; then sudo xcode-select -s "$X/Contents/Developer"; fi
           xcrun swiftc --version
 
-      - name: Build
+      - name: Build (unoptimized, parallel; optimized for a focused check)
         id: build
+        env:
+          MSG: ${{ github.event.head_commit.message }}
         run: |
           set -o pipefail
-          bash ./build.sh 2>&1 | tee build.log
+          # A [fast: ARGS] check runs simulations that an -Onone build can't finish in time (the ride check: 1 min
+          # optimized, over 24 min unoptimized), so that push builds the release way (about 6 min).
+          MODE=fast
+          if printf '%s' "$MSG" | grep -qF '[fast: '; then MODE=release; fi
+          EXTRA_SWIFTC_FLAGS="-Xfrontend -warn-long-expression-type-checking=150" bash ./build.sh $MODE 2>&1 | tee build.log
 
-      - name: Snapshots
+      - name: Type-check report (warnings only)
+        if: ${{ !cancelled() }}
+        run: bash tools/typecheck_report.sh build.log typecheck.log
+
+      - name: Snapshot
         id: snap
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        timeout-minutes: 6
         run: |
           set -o pipefail
-          bash ./snap.sh 2>&1 | tee snap.log
-
-      - name: Debug rerun of the failing shot
-        if: failure() && steps.snap.outcome == 'failure'
-        run: |
-          L=$(grep -o 'snap.sh: line [0-9]*' snap.log | tail -1 | grep -o '[0-9]*$' || true)
-          bash ./build.sh debug 2>&1 | tail -5
-          BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
           mkdir -p snaps
-          CMD=$(sed -n "${L:-10}p" snap.sh)
-          echo "rerun (debug build): $CMD" > debug.log
-          ARGS=${CMD#\"\$BIN\" }
-          (eval "lldb --batch -o run -o 'bt 40' -- \"$BIN\" $ARGS") >> debug.log 2>&1 || true
-          tail -80 debug.log
+          BLOCKSMITH_TEXRES=16 build/Blocksmith.app/Contents/MacOS/Blocksmith --snapshot snaps/fast.png --seed 12345 --time 0.25 --rd 4 --posecheck 2>&1 | tee snap.log
+          [ -f snaps/imagecheck.log ] && python3 tools/imagecheck.py snaps/imagecheck.log 2>&1 | tee -a snap.log || true
 
-      - name: Publish to ci-snaps
-        if: always()
+      # A [fastshots a,b_*] tag (the last one) in the head commit message renders those snap.sh shots (by PNG name, * globs) here too,
+      # so a session can look at its shots without waiting for a heavy run. Max 16 shots.
+      - name: Shots named in the commit message
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        timeout-minutes: 14
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          LIST=$(printf '%s' "$MSG" | grep -o '\[fastshots [^]]*\]' | tail -1 | sed 's/^\[fastshots //; s/\]$//' | tr ',' ' ' || true)
+          [ -n "$LIST" ] || { echo "no [fastshots ...] in the commit message"; exit 0; }
+          BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
+          k=0
+          for n in $LIST; do
+            pat=$(printf '%s' "$n" | sed 's/[^a-zA-Z0-9_*]//g; s/\*/[a-zA-Z0-9_]*/g')
+            { grep -E "snaps/${pat}\.(png|md)" snap.sh || echo "fastshot: no shot matches $n" >&2; } | while IFS= read -r L; do
+              echo "fastshot: $L" | tee -a snap.log
+              (eval "BLOCKSMITH_TEXRES=32 $L" < /dev/null) 2>&1 | tee -a fastshots.log | tail -30 | tee -a snap.log || true
+            done
+            k=$((k + 1)); [ "$k" -lt 16 ] || break
+          done
+
+      # A focused harness run for the pushing session's loop: the head commit message's `[fast: ARGS]` runs
+      # `Blocksmith ARGS` on this (unoptimized) build; its log and any snaps/*.md land on ci-fast-<branch>.
+      - name: 'Focused check ([fast: ARGS] in the commit message)'
+        id: focus
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        timeout-minutes: 24
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          ARGS=$(printf '%s' "$MSG" | grep -o '\[fast: [^]]*\]' | head -1 | sed 's/^\[fast: //; s/\]$//' || true)
+          if [ -z "$ARGS" ]; then echo "no [fast: ...] marker"; exit 0; fi
+          set -o pipefail
+          mkdir -p snaps
+          echo "focused check: Blocksmith $ARGS" | tee focus.log
+          eval "build/Blocksmith.app/Contents/MacOS/Blocksmith $ARGS" 2>&1 | tee -a focus.log
+
+      - name: Publish to ci-fast
+        if: ${{ !cancelled() }}
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           SNAP_OUTCOME: ${{ steps.snap.outcome }}
+          FOCUS_OUTCOME: ${{ steps.focus.outcome }}
         run: |
-          PUB="$RUNNER_TEMP/pub"
-          rm -rf "$PUB"; mkdir -p "$PUB"
-          cp snaps/*.png "$PUB/" 2>/dev/null || true
-          if [ -d snaps/sounds ]; then cp -r snaps/sounds "$PUB/sounds"; fi
-          cp build.log snap.log debug.log "$PUB/" 2>/dev/null || true
+          PUB="$RUNNER_TEMP/pub"; rm -rf "$PUB"; mkdir -p "$PUB"
+          cp snaps/*.png snaps/*.md build.log typecheck.log snap.log focus.log fastshots.log "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
-            echo "# Blocksmith CI snapshots"
+            echo "# Blocksmith fast lane"
             echo
-            echo "Commit \`${GITHUB_SHA}\` on \`${GITHUB_REF_NAME}\` — build: **${BUILD_OUTCOME}**, snapshots: **${SNAP_OUTCOME}**"
+            echo "Commit \`${GITHUB_SHA}\` on \`${GITHUB_REF_NAME}\`: build **${BUILD_OUTCOME}**, snapshot **${SNAP_OUTCOME}**"
             echo
             echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo
-            echo '```'
-            tail -n 80 snap.log 2>/dev/null || true
-            echo '```'
-            if [ -d sounds ]; then
-              echo "### Synthesized sounds"
-              for f in sounds/*.wav; do echo "- [${f#sounds/}](${f})"; done
-            fi
+            echo "### Build errors"; echo '```'; grep -E "error:" build.log | head -30 || true; echo '```'
+            echo "### Type-check (warnings, slowest first)"; echo '```'; head -40 typecheck.log 2>/dev/null || true; echo '```'
+            echo "### Snapshot"; echo '```'; tail -20 snap.log 2>/dev/null || true; echo '```'
+            if [ -f focus.log ]; then echo "### Focused check: ${FOCUS_OUTCOME}"; echo '```'; tail -60 focus.log; echo '```'; fi
+            echo "![fast](fast.png)"
             for f in *.png; do
-              [ -e "$f" ] || continue
-              echo "### ${f%.png}"
-              echo "![${f}](${f})"
+              if [ -e "$f" ] && [ "$f" != fast.png ]; then echo "### ${f%.png}"; echo "![${f}](${f})"; fi
             done
           } > README.md
-          git init -q
-          git checkout -q --orphan ci-snaps
-          git add -A
+          git init -q; git checkout -q --orphan ci-fast; git add -A
+          git -c user.name="blocksmith-ci" -c user.email="ci@users.noreply.github.com" commit -qm "Fast lane for ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "ci-fast:ci-fast-${GITHUB_REF_NAME//\//-}"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.full == 'true'
+    runs-on: macos-14
+    timeout-minutes: 30
+    concurrency:
+      group: heavy-build-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          X=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$X" ]; then sudo xcode-select -s "$X/Contents/Developer"; fi
+          xcrun swiftc --version
+      - name: Build (release)
+        run: |
+          set -o pipefail
+          EXTRA_SWIFTC_FLAGS="-Xfrontend -warn-long-expression-type-checking=150" bash ./build.sh 2>&1 | tee build.log
+          tar -czf app.tgz build/Blocksmith.app
+      - name: Type-check report (warnings only)
+        if: always()
+        run: bash tools/typecheck_report.sh build.log typecheck.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: app.tgz
+          retention-days: 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: out-build
+          path: |
+            build.log
+            typecheck.log
+          retention-days: 7
+
+  heavy:
+    needs: [plan, build]
+    if: needs.plan.outputs.full == 'true'
+    runs-on: macos-14
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [smoke, perf, play, checks, tours, shots]
+    concurrency:
+      group: heavy-${{ matrix.part }}-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain (debug reruns rebuild)
+        run: |
+          X=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$X" ]; then sudo xcode-select -s "$X/Contents/Developer"; fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: app
+      - name: Unpack
+        run: tar -xzf app.tgz && mkdir -p snaps out
+
+      - name: Smoke test (60 s at render distance 8, 16, 24, and 24 in Fast)
+        id: smoke
+        if: matrix.part == 'smoke'
+        timeout-minutes: 25
+        run: |
+          set -o pipefail
+          bash ./smoke.sh 60 2>&1 | tee out/smoke.log
+
+      - name: Benchmarks
+        id: bench
+        if: matrix.part == 'perf'
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          bash ./bench.sh 2>&1 | tee out/bench.log
+      - name: Debug rerun of a crashed benchmark scene
+        if: failure() && steps.bench.outcome == 'failure'
+        continue-on-error: true
+        timeout-minutes: 12
+        run: |
+          S=$(grep -E 'Segmentation fault|Abort trap|Illegal instruction|Trace/BPT trap|Bus error' out/bench.log | head -1 || true)
+          [ -n "$S" ] || { echo "benchmarks failed without a crash (see compare)"; exit 0; }
+          SCENE=$(grep -o 'bench: [a-z0-9]* took' out/bench.log | tail -1 | awk '{print $2}')
+          case "$SCENE" in flight8) NEXT=flight16;; flight16) NEXT=flight24;; fluids) NEXT=flight8;; *) NEXT=flight8;; esac
+          BLOCKSMITH_APP=build/debug/Blocksmith.app bash ./build.sh debug > out/debugbuild.log 2>&1 || { grep -E "error|ld:|Undefined" out/debugbuild.log | head -60; }
+          echo "rerun (debug build) of bench scene $NEXT" > out/benchdebug.log
+          lldb --batch -o run -o 'bt 40' -o 'thread backtrace all' -- build/debug/Blocksmith.app/Contents/MacOS/Blocksmith \
+            --bench snaps/bench_debug.json --scenes "$NEXT" >> out/benchdebug.log 2>&1 || true
+          grep -v '^bench flight' out/benchdebug.log | tail -150
+      - name: Profile (sample)
+        if: ${{ !cancelled() && matrix.part == 'perf' }}
+        continue-on-error: true
+        timeout-minutes: 8
+        run: |
+          bash perf/profile.sh flight16 10 2>&1 | tee out/profile.log
+          bash perf/profile.sh meshprof 8 2>&1 | tee -a out/profile.log
+          bash perf/profile.sh genprof 8 2>&1 | tee -a out/profile.log
+          bash perf/profile.sh mobprof 8 2>&1 | tee -a out/profile.log
+
+      - name: Playthrough (progression tests)
+        id: play
+        if: matrix.part == 'play'
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          build/Blocksmith.app/Contents/MacOS/Blocksmith --playthrough 2>&1 | tee out/playthrough.log
+      - name: Terrain check
+        if: ${{ !cancelled() && matrix.part == 'play' }}
+        timeout-minutes: 5
+        run: |
+          set -o pipefail
+          build/Blocksmith.app/Contents/MacOS/Blocksmith --terrainmap snaps/check --step 32 --strict 2>&1 | tee out/terrain.log
+
+      - name: Snapshots (checks)
+        id: snapc
+        if: matrix.part == 'checks'
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          SNAP_SHARD=checks bash ./snap.sh 2>&1 | tee out/snap_checks.log
+      - name: Snapshots (tours)
+        id: snapt
+        if: matrix.part == 'tours'
+        timeout-minutes: 25
+        run: |
+          set -o pipefail
+          SNAP_SHARD=tours bash ./snap.sh 2>&1 | tee out/snap_tours.log
+      - name: Snapshots (shots)
+        id: snaps
+        if: matrix.part == 'shots'
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          SNAP_SHARD=shots bash ./snap.sh 2>&1 | tee out/snap_shots.log
+      - name: Debug rerun of the failing shot
+        if: failure() && (steps.snapc.outcome == 'failure' || steps.snapt.outcome == 'failure' || steps.snaps.outcome == 'failure')
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          L=$(cat out/snap_*.log | grep -o 'snap.sh: line [0-9]*' | tail -1 | grep -o '[0-9]*$' || true)
+          BLOCKSMITH_APP=build/debug/Blocksmith.app bash ./build.sh debug > out/debugbuild.log 2>&1 || { grep -E "error|ld:|Undefined" out/debugbuild.log | head -60; }
+          BIN=build/debug/Blocksmith.app/Contents/MacOS/Blocksmith
+          CMD=$(sed -n "${L:-10}p" snap.sh)
+          echo "rerun (debug build): $CMD" > out/debug.log
+          ARGS=${CMD#\"\$BIN\" }
+          (eval "lldb --batch -o run -o 'bt 40' -- \"$BIN\" $ARGS") >> out/debug.log 2>&1 || true
+          tail -80 out/debug.log
+
+      - name: Collect outputs
+        if: always()
+        run: |
+          cp snaps/*.png out/ 2>/dev/null || true
+          cp snaps/*.md snaps/bench.json snaps/profile_*.txt snaps/replay_*.jsonl out/ 2>/dev/null || true
+          cp snaps/imagecheck.log out/imagecheck_${{ matrix.part }}.log 2>/dev/null || true
+          if [ -d snaps/sounds ]; then cp -r snaps/sounds out/sounds; fi
+          echo "${{ job.status }}" > out/status_${{ matrix.part }}.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: out-${{ matrix.part }}
+          path: out/
+          retention-days: 7
+
+  publish:
+    needs: [plan, build, heavy]
+    if: ${{ always() && needs.plan.outputs.full == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: out-*
+          path: pub
+          merge-multiple: true
+      - name: Publish to ci-snaps
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_OUTCOME: ${{ needs.build.result }}
+          HEAVY_OUTCOME: ${{ needs.heavy.result }}
+        run: |
+          cd pub
+          cat snap_checks.log snap_tours.log snap_shots.log > snap.log 2>/dev/null || true
+          cat imagecheck_*.log > imagecheck.log 2>/dev/null || true
+          {
+            echo "# Blocksmith CI snapshots (heavy lane)"
+            echo
+            echo "Commit \`${GITHUB_SHA}\` on \`${GITHUB_REF_NAME}\`: build **${BUILD_OUTCOME}**, heavy jobs **${HEAVY_OUTCOME}**"
+            for f in status_*.txt; do [ -e "$f" ] && echo "- ${f#status_}: $(cat "$f")" | sed 's/\.txt:/:/'; done
+            echo
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo '```'; tail -n 60 snap.log 2>/dev/null || true; echo '```'
+            if [ -f bench.md ]; then echo "### Benchmarks (vs perf/baseline.json)"; echo '```'; grep '^bench' bench.log 2>/dev/null || true; echo '```'; cat bench.md; fi
+            if [ -f smoke.log ]; then echo "### Smoke test"; echo '```'; grep -E '^smoke' smoke.log | tail -n 20; echo '```'; fi
+            if [ -f playthrough.log ]; then echo "### Playthrough"; echo '```'; grep -E '^(PASS|FAIL|INFO|----|playthrough)' playthrough.log | tail -n 150; echo '```'; fi
+            if [ -d sounds ]; then echo "### Synthesized sounds"; for f in sounds/*.wav; do echo "- [${f#sounds/}](${f})"; done; fi
+            for f in *.png; do [ -e "$f" ] || continue; echo "### ${f%.png}"; echo "![${f}](${f})"; done
+          } > README.md
+          git init -q; git checkout -q --orphan ci-snaps; git add -A
           git -c user.name="blocksmith-ci" -c user.email="ci@users.noreply.github.com" commit -qm "Snapshots for ${GITHUB_SHA}"
           SNAPS="ci-snaps-${GITHUB_REF_NAME//\//-}"
           git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "ci-snaps:${SNAPS}"
           if [ "${GITHUB_REF_NAME}" = "claude/eloquent-lovelace-bsc5v1" ]; then
             git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-snaps
           fi
-
-      - name: Upload artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: snaps
-          path: |
-            snaps/*.png
-            snaps/sounds/*.wav
-            build.log
-            snap.log
-          if-no-files-found: ignore

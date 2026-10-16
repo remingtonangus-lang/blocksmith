@@ -1,0 +1,5 @@
+- **stone** from `aerial_rocks.jpg`: source 1024 px; large-scale luminance flattened (strength 0.85); colour locked to mean #7c7c7e; seam ratio 1.12
+- **dirt** from `ambientcg_Ground111.jpg`: source 1024 px; large-scale luminance flattened (strength 0.85); colour locked to mean #6e4e34; seam ratio 0.84
+- **grass_block_top** from `ambientcg_Grass001.jpg`: source 1024 px; large-scale luminance flattened (strength 0.85); seam ratio 0.95; greyscale for biome tint (mean 0.72)
+- **oak_log** from `polyhaven_bark_bark_brown_02.jpg`: source 1024 px; large-scale luminance flattened (strength 0.85); colour locked to mean #60482c; seam ratio 0.99
+- **oak_planks** from `ambientcg_WoodFloor043.jpg`: source 512 px; large-scale luminance flattened (strength 0.85); colour locked to mean #a67e4c; seam ratio 2.37; seams cross-faded: ratio 1.84

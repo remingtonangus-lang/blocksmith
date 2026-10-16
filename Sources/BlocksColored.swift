@@ -94,9 +94,19 @@ extension TextureGen {
         for (c, _) in BlockRegistry.colors {
             let dye = BlockRegistry.colorHex[c] ?? 0xFFFFFF
             let tc = BlockRegistry.terracottaHex[c] ?? 0x985E43
-            if p["\(c)_terracotta"] == nil { p["\(c)_terracotta"] = { x, y in hex(tc, 0.9 + 0.12 * r(x / 2, y / 2, 900)) } }
-            p["\(c)_concrete"] = { x, y in hex(dye, 0.95 + 0.06 * r(x, y, 901)) }
-            p["\(c)_concrete_powder"] = { x, y in hex(dye, 0.85 + 0.3 * r(x, y, 902) + 0.1) }
+            // Terracotta: fired clay, soft mottling with faint horizontal strata and fine grain.
+            if p["\(c)_terracotta"] == nil { p["\(c)_terracotta"] = { x, y in
+                let strata: Float = (y + Int(r(x / 5, 0, 911) * 2)) % 5 == 0 ? -0.04 : 0
+                let k: Float = 0.96 + (blot(x, y, 910, 4) - 0.5) * 0.1 + (r(x, y, 900) - 0.5) * 0.05 + strata
+                return hex(tc, k)
+            } }
+            // Concrete: smooth with faint trowel blotches; powder: grainy with light and dark specks.
+            p["\(c)_concrete"] = { x, y in hex(dye, 0.96 + (blot(x, y, 908, 8) - 0.5) * 0.06 + (r(x, y, 901) - 0.5) * 0.03) }
+            p["\(c)_concrete_powder"] = { x, y in
+                let n = r(x, y, 902)
+                let k: Float = n < 0.12 ? 0.82 : (n > 0.9 ? 1.12 : 0.95 + (blot(x, y, 909, 4) - 0.5) * 0.1)
+                return hex(dye, k)
+            }
             p["\(c)_stained_glass"] = { x, y in
                 let edge = x == 0 || y == 0 || x == 15 || y == 15
                 let k = hex(dye)

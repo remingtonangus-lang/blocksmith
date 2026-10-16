@@ -39,12 +39,18 @@ final class SaveManager {
     let chunkDir: URL
 
     convenience init(name: String) {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        self.init(dir: base.appendingPathComponent("Blocksmith/Worlds/\(name)", isDirectory: true))
+        self.init(dir: WorldStore.url(name))
     }
 
     // Save folder for another dimension inside this world's folder.
-    func sub(_ folder: String) -> SaveManager { SaveManager(dir: dir.appendingPathComponent(folder, isDirectory: true)) }
+    func sub(_ folder: String) -> SaveManager {
+        let m = SaveManager(dir: dir.appendingPathComponent(folder, isDirectory: true))
+        m.overworldFloor = false
+        return m
+    }
+    // The surface's chunks lost their bedrock floor (task 22, the Deep below): saved chunks still holding the old
+    // floor (bedrock in internal layers 0-4) get emberslate there as they load, like freshly generated ones.
+    var overworldFloor = true
 
     init(dir d: URL) {
         dir = d
@@ -55,12 +61,42 @@ final class SaveManager {
 
     var metaURL: URL { dir.appendingPathComponent("world.json") }
 
-    func loadMeta() -> WorldMeta? {
-        guard let d = try? Data(contentsOf: metaURL) else { return nil }
-        return try? JSONDecoder().decode(WorldMeta.self, from: d)
+    // The chunks this world had generated when it first loaded with task 23's structures (Capital cities, denser
+    // citadels): taken once from the chunk folder and kept in structure-guard.txt ("x,z" per line), so the set never
+    // grows with chunks generated afterwards (those already have the new structures). A new world's guard is empty.
+    func structureGuard() -> Set<Int64> {
+        let url = dir.appendingPathComponent("structure-guard.txt")
+        var out = Set<Int64>()
+        if let s = try? String(contentsOf: url, encoding: .utf8) {
+            for line in s.split(separator: "\n") {
+                let p = line.split(separator: ",")
+                if p.count == 2, let x = Int(p[0]), let z = Int(p[1]) { out.insert(StructureCache.key(x, z)) }
+            }
+            return out
+        }
+        var lines: [String] = []
+        for f in (try? FileManager.default.contentsOfDirectory(atPath: chunkDir.path)) ?? [] where f.hasPrefix("c.") && f.hasSuffix(".lz") {
+            let p = f.dropFirst(2).dropLast(3).split(separator: ".", omittingEmptySubsequences: false)
+            // "c.-1.-21.lz": the split keeps the signs ("-1", "-21").
+            guard p.count == 2, let x = Int(p[0]), let z = Int(p[1]) else { continue }
+            out.insert(StructureCache.key(x, z))
+            lines.append("\(x),\(z)")
+        }
+        try? lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+        return out
     }
 
-    func saveMeta(_ m: WorldMeta) {
+    func loadMeta() -> WorldMeta? {
+        guard let d = try? Data(contentsOf: metaURL) else { return nil }
+        guard let m = try? JSONDecoder().decode(WorldMeta.self, from: d) else { return nil }
+        if !backupChecked { backupChecked = true; SaveMigration.backupIfNeeded(dir: dir, meta: m) }
+        return m
+    }
+    private var backupChecked = false
+
+    func saveMeta(_ m0: WorldMeta) {
+        var m = m0
+        m.extra = (m.extra ?? [:]).merging(["format": String(SaveMigration.format)]) { _, n in n }
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         if let d = try? enc.encode(m) { try? d.write(to: metaURL, options: .atomic) }
@@ -103,6 +139,7 @@ final class SaveManager {
     // Block names instead of raw IDs keep saves valid when the block registry grows.
     // Thread-safe: called from world worker threads.
     func loadChunk(_ k: ChunkKey) -> [BlockID]? {
+        if let queued = SaveIO.pending(chunkURL(k).path) { return queued }     // written in the background, not on disk yet
         guard let d = try? Data(contentsOf: chunkURL(k)) else { return nil }
         guard let raw = try? (d as NSData).decompressed(using: .lzfse) as Data else { return nil }
         let bytes = [UInt8](raw)
@@ -117,7 +154,7 @@ final class SaveManager {
             guard p + len <= bytes.count else { return nil }
             let name = String(decoding: bytes[p..<(p + len)], as: UTF8.self)
             p += len
-            palette.append(Blocks.has(name) ? Blocks.id(name) : AIR)
+            palette.append(SaveMigration.blockID(name) ?? AIR)
         }
         guard bytes.count - p == CSQ * CH * 2 else { return nil }
         var out = [BlockID](repeating: 0, count: CSQ * CH)
@@ -126,18 +163,31 @@ final class SaveManager {
             p += 2
             out[i] = idx < palette.count ? palette[idx] : AIR
         }
+        if overworldFloor { SaveManager.stripBedrockFloor(&out) }
         return out
     }
 
+    static func stripBedrockFloor(_ b: inout [BlockID]) {
+        for i in 0..<(CSQ * 5) where b[i] == BEDROCK { b[i] = EMBERSLATE }
+    }
+
+    // Queues a chunk write on the background save queue (the main thread only hands over the array).
+    func saveChunkAsync(_ k: ChunkKey, _ blocks: BlockStore) {
+        let url = chunkURL(k)
+        SaveIO.enqueue(url.path, blocks) { [self] in saveChunk(k, blocks.full()) }
+    }
+
     func saveChunk(_ k: ChunkKey, _ blocks: [BlockID]) {
-        var map: [BlockID: UInt16] = [:]
+        // Palette through a flat table (block id -> palette index + 1) instead of a dictionary per block.
+        var map = [UInt16](repeating: 0, count: max(Blocks.count, 1) + 1)
         var names: [String] = []
         var idx = [UInt16](repeating: 0, count: blocks.count)
-        for (i, b) in blocks.enumerated() {
-            if let m = map[b] { idx[i] = m; continue }
+        for i in 0..<blocks.count {
+            let b = Int(blocks[i])
+            if b < map.count, map[b] != 0 { idx[i] = map[b] - 1; continue }
             let m = UInt16(names.count)
-            map[b] = m
-            names.append(Blocks.key(b))
+            if b < map.count { map[b] = m + 1 }
+            names.append(Blocks.saveKey(BlockID(b)))
             idx[i] = m
         }
         var d = Data()
@@ -152,4 +202,34 @@ final class SaveManager {
         guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return }
         try? c.write(to: chunkURL(k), options: .atomic)
     }
+}
+
+// Background chunk writes. Queued arrays stay readable (loadChunk) until they are on disk, so a chunk that
+// unloads and comes straight back never reads a stale file. flush() waits for every queued write (quit).
+enum SaveIO {
+    private static let queue = DispatchQueue(label: "blocksmith.save", qos: .utility)
+    private static let lock = NSLock()
+    private static var queued: [String: (id: Int, blocks: BlockStore)] = [:]
+    private static var nextID = 0
+
+    static func pending(_ path: String) -> [BlockID]? {
+        lock.lock(); defer { lock.unlock() }
+        return queued[path]?.blocks.full()
+    }
+
+    static func enqueue(_ path: String, _ blocks: BlockStore, _ write: @escaping () -> Void) {
+        lock.lock()
+        nextID += 1
+        let id = nextID
+        queued[path] = (id, blocks)
+        lock.unlock()
+        queue.async {
+            write()
+            lock.lock()
+            if queued[path]?.id == id { queued[path] = nil }     // a newer write of the same chunk keeps its entry
+            lock.unlock()
+        }
+    }
+
+    static func flush() { queue.sync {} }
 }

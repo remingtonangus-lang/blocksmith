@@ -1,0 +1,737 @@
+import Foundation
+import simd
+
+// The Capital garrison (save keys from the Steelhold days): six soldier ranks, and the heavy deck guns on the
+// fortress corners. Models, stances and the crew-station pose hooks: SoldierRig.swift.
+//  Trooper  (recruit)  20 HP, rifle or chatter gun; short bursts from mid range, falls back when hurt.
+//  Vanguard (trooper)  30 HP, cuirass; shotgun (rushes in) or rifle (strafes); lobs grenades at players in cover.
+//  Marksman            26 HP; farsight rifle from long range with an aiming laser before each shot; backs away.
+//  Bulwark  (ironclad) 60 HP, full plate, shrugs off knockback; skybreaker or arc lance; advances, enrages.
+//  Officer             28 HP, sidearm; points the squad at the threat and quickens everyone's reaction.
+//  Pilot    (crew)     18 HP, sidearm or chatter gun; vehicle drivers, gunners and pilots.
+// They alert each other, chase the last place they saw the player, and reload between magazines.
+// Deck guns traverse slowly, solve a ballistic arc, glow while charging, then fire twin shells.
+
+final class SoldierBrain {
+    var gun: Int
+    var mag: Int
+    var reload: Float = 0
+    var burst = 0
+    var shotTimer: Float = 0
+    var react: Float = 1
+    var aimTime: Float = 0
+    var strafeTimer: Float = 0
+    var strafeDir: Float = 1
+    var lastSeen: V3?
+    var seenAgo: Float = 99
+    var sees = false
+    var losTimer: Float = 0
+    var grenadeCD: Float = Rand.float(in: 4...10)
+    var retreat: Float = 0
+    var retreatCD: Float = 0
+    var pitch: Float = 0            // deck gun barrel elevation / soldier aim elevation
+    var charge: Float = 0
+    var kick: Float = 0             // deck gun barrel recoil 1 -> 0
+    var turret: Float = 0           // Ashguard vehicles: turret / gun world yaw (AshUnits.swift)
+    var ashTimer: Float = 5         // the Ash Marshal: seconds to his next marked barrage
+    var ashCalls = 0                // ... and how often he has called his guard
+    var crewed = false              // deck gun: a live soldier stands at it in the gunner stance
+    var cover: V3?                  // a spot out of the player's sight to reload in
+    var coverSearch: Float = 0
+    var flank: V3?                  // where a flanking trooper / relocating marksman is heading
+    var flankTimer: Float = Rand.float(in: 2...5)
+    // Animation state (SoldierRig.swift).
+    var clock: Float = 0             // seconds alive (idle breathing, glances, parade-rest cycle)
+    var aimHold: Float = 0           // keeps the weapon shouldered this long after seeing the target / firing
+    var recoil: Float = 0            // 1 at a shot, decays fast
+    var reloadTotal: Float = 1       // length of the current reload
+    var throwT: Float = 0            // grenade throw left (0.7 s)
+    var pointT: Float = 0            // officer pointing the squad at the threat
+    var station = StationPose.none   // crew station pose (vehicles / ships)
+    var homing = false               // calm: walking back to the post after straying
+    var seat: Float = 0.45           // seat top above the feet (blocks), seated stations
+    // Citadel orders (CapitalBases.swift): walk to `order` (running if orderRun), take `orderStation` there facing
+    // `orderFace`; `ready` carries the weapon at low ready (patrols, lockdown) instead of shouldered for the march.
+    var order: V3?
+    var orderStation = StationPose.none
+    var orderRun = false
+    var orderFace: V3?
+    var ready = false
+    init(gun: Int) { self.gun = gun; mag = gun >= 0 ? Guns.all[gun].mag : 0 }
+}
+
+enum Soldier {
+    struct Rank {
+        let near: Float, far: Float     // preferred distance band (overridden per gun below)
+        let sight: Float
+        let spread: Float               // aim error (radians)
+        let burst: ClosedRange<Int>
+        let gap: ClosedRange<Float>     // pause between bursts
+        let react: Float                // delay before the first shot after spotting
+        let strafe: Float               // 0...1 how much they sidestep
+        let damage: Float               // multiplier on the gun's damage
+        let armor: Int
+        let toughness: Float
+    }
+    static let ranks: [Rank] = [
+        Rank(near: 8, far: 14, sight: 26, spread: 0.07, burst: 3...5, gap: 1.0...1.8, react: 0.9, strafe: 0.3, damage: 0.8, armor: 4, toughness: 0),
+        Rank(near: 7, far: 12, sight: 32, spread: 0.045, burst: 4...6, gap: 0.8...1.4, react: 0.7, strafe: 0.8, damage: 0.9, armor: 10, toughness: 2),
+        Rank(near: 16, far: 40, sight: 60, spread: 0.012, burst: 1...1, gap: 1.6...2.4, react: 0.4, strafe: 0.2, damage: 0.75, armor: 8, toughness: 0),
+        Rank(near: 8, far: 20, sight: 40, spread: 0.03, burst: 1...2, gap: 1.8...2.6, react: 0.8, strafe: 0, damage: 0.9, armor: 14, toughness: 4),
+        Rank(near: 6, far: 14, sight: 34, spread: 0.04, burst: 1...3, gap: 0.6...1.2, react: 0.5, strafe: 0.4, damage: 0.85, armor: 6, toughness: 0),
+        Rank(near: 6, far: 14, sight: 28, spread: 0.06, burst: 1...3, gap: 0.7...1.4, react: 0.8, strafe: 0.5, damage: 0.7, armor: 4, toughness: 0),
+    ]
+    // Voice (SoldierVoice / footsteps) per rank: officers speak like vanguards, pilots like troopers.
+    static func voice(_ r: Int) -> Int { [0, 1, 2, 3, 1, 0][max(0, min(5, r))] }
+
+    static func rank(_ k: MobKind) -> Int? {
+        switch k {
+        case .soldierRecruit: return 0
+        case .soldierTrooper: return 1
+        case .soldierMarksman: return 2
+        case .soldierIronclad: return 3
+        case .soldierOfficer, .ashMarshal: return 4
+        case .soldierCrew: return 5
+        default: return nil
+        }
+    }
+
+    // Which gun a new soldier carries.
+    static func pickGun(_ k: MobKind) -> Int {
+        let r = Rand.float(in: 0..<1)
+        switch k {
+        case .soldierRecruit: return r < 0.6 ? Guns.rifle : Guns.smg
+        case .soldierTrooper: return r < 0.5 ? Guns.shotgun : Guns.rifle
+        case .soldierMarksman: return r < 0.8 ? Guns.sniper : Guns.rifle
+        case .soldierOfficer: return Guns.pistol
+        case .ashMarshal: return Guns.smg
+        case .soldierCrew: return r < 0.7 ? Guns.pistol : Guns.smg
+        default: return r < 0.5 ? Guns.launcher : Guns.arc
+        }
+    }
+
+    // Preferred distance band for a gun (the rank's own for its main weapon).
+    static func band(_ rank: Int, _ gun: Int) -> (Float, Float) {
+        switch gun {
+        case Guns.shotgun: return (2.5, 6)
+        case Guns.smg: return (5, 10)
+        case Guns.launcher: return (10, 26)
+        case Guns.arc: return (6, 18)
+        case Guns.pistol: return (4, 12)
+        case Guns.rifle where rank == 2: return (12, 26)
+        default: return (ranks[rank].near, ranks[rank].far)
+        }
+    }
+
+    // Garrison posts: about one vanguard post in four is held by an officer instead (stable per post). Structures
+    // can also place "soldier_officer" / "soldier_crew" directly.
+    static func garrison(_ k: MobKind, at p: V3) -> MobKind {
+        guard k == .soldierTrooper else { return k }
+        return hash3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)), 0x0FF1) % 4 == 0 ? .soldierOfficer : k
+    }
+
+    // Reference-style difficulty scaling of their damage against the player.
+    static let difficultyTable: [Float] = [0, 0.5, 0.75, 1]
+    static func difficultyScale(_ d: Int) -> Float { difficultyTable[max(0, min(3, d))] }
+}
+
+extension MobKind {
+    var militarySpec: Spec {
+        switch self {
+        case .soldierRecruit:
+            return Spec(name: "Capital Trooper", halfW: 0.3, height: 1.9, health: 20, speed: 3.0, behavior: .monster,
+                        drops: [("rifle_rounds", 1, 4), ("iron_nugget", 0, 3)], xp: 8, call: .gun(11))
+        case .soldierTrooper:
+            return Spec(name: "Capital Vanguard", halfW: 0.32, height: 1.95, health: 30, speed: 3.2, behavior: .monster,
+                        drops: [("rifle_rounds", 0, 4), ("shotgun_shells", 0, 3), ("bread", 0, 1)], xp: 12, call: .gun(11))
+        case .soldierMarksman:
+            return Spec(name: "Capital Marksman", halfW: 0.3, height: 1.9, health: 26, speed: 2.8, behavior: .monster,
+                        drops: [("heavy_rounds", 1, 3), ("iron_nugget", 0, 2)], xp: 14, call: .gun(11))
+        case .soldierIronclad:
+            return Spec(name: "Capital Bulwark", halfW: 0.42, height: 2.25, health: 60, speed: 2.0, behavior: .monster,
+                        drops: [("iron_ingot", 1, 4), ("rocket_ammo", 0, 2), ("arc_cell", 0, 3)], xp: 30, call: .gun(11), fireImmune: true)
+        case .soldierOfficer:
+            return Spec(name: "Capital Officer", halfW: 0.3, height: 1.95, health: 28, speed: 3.0, behavior: .monster,
+                        drops: [("rifle_rounds", 1, 4), ("gold_nugget", 0, 3)], xp: 16, call: .gun(11))
+        case .soldierCrew:
+            return Spec(name: "Capital Pilot", halfW: 0.3, height: 1.9, health: 18, speed: 3.1, behavior: .monster,
+                        drops: [("rifle_rounds", 0, 3), ("iron_nugget", 0, 2)], xp: 8, call: .gun(11))
+        default:
+            // A true-scale twin 42 cm turret (HeavyTurret): 14 m wide, 5.5 m tall gunhouse on a barbette.
+            return Spec(name: "Twin 42 cm Turret", halfW: 7, height: 5.5, health: 400, speed: 0, behavior: .monster,
+                        drops: [("iron_ingot", 4, 9), ("gunpowder", 2, 6), ("rocket_ammo", 1, 3)], xp: 40, call: .gun(12), fireImmune: true)
+        }
+    }
+}
+
+extension Mob {
+    var soldierBrain: SoldierBrain {
+        if let b = brain { return b }
+        let b = SoldierBrain(gun: kind == .deckGun ? -1 : (variant >= 0 && variant < Guns.all.count ? variant : Guns.rifle))
+        brain = b
+        return b
+    }
+
+    // Base armour of the garrison ranks (added to any worn pieces).
+    var steelholdArmor: (Int, Float) {
+        if kind == .deckGun { return (20, 8) }
+        if kind.ash { return ashArmor }
+        guard let r = Soldier.rank(kind) else { return (0, 0) }
+        return (Soldier.ranks[r].armor, Soldier.ranks[r].toughness)
+    }
+
+    // Knockback taken (ironclads barely budge, deck guns not at all).
+    // 1 - knockback resistance (reference: iron golems and deep stalkers 1, siegebeasts 0.75, tuskers 0.6).
+    var knockbackTaken: Float {
+        switch kind {
+        case .soldierIronclad: return 0.15
+        case .deckGun, .ironGolem, .warden, .ashTank, .ashHalftrack, .ashArtillery, .ashTruck: return 0
+        case .ashMarshal: return 0.3
+        case .ravager: return 0.25
+        case .hoglin, .zoglin: return 0.4
+        default: return 1
+        }
+    }
+
+    // Wakes every soldier within `r` and tells them where the player was.
+    func alertGarrison(_ g: Game, _ at: V3, radius r: Float = 24) {
+        for m in g.mobs.mobs where m.kind.steelhold && m !== self && m.health > 0 && simd_length(m.pos - pos) < r {
+            let b = m.soldierBrain
+            if !m.aggro { m.aggro = true; b.react = max(b.react, 0.6) }
+            if kind == .soldierOfficer { b.react = min(b.react, 0.35) }      // an officer's call: quicker to fire
+            if b.seenAgo > 1 { b.lastSeen = at; b.seenAgo = min(b.seenAgo, 2) }
+            m.lockTime = max(m.lockTime, 20)
+        }
+    }
+
+    // Called from monsterAI for the four ranks; returns the walk speed.
+    func soldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
+        guard let r = Soldier.rank(kind) else { return 0 }
+        let rank = Soldier.ranks[r]
+        let b = soldierBrain
+        let gs = Guns.all[b.gun]
+        let w = g.world
+        if home == nil { home = pos }
+        b.clock += dt
+        b.aimHold -= dt
+        b.recoil = max(0, b.recoil - dt * 7)
+        b.throwT = max(0, b.throwT - dt)
+        b.pointT = max(0, b.pointT - dt)
+        b.shotTimer -= dt
+        b.grenadeCD -= dt
+        b.retreat -= dt
+        b.retreatCD -= dt
+        b.seenAgo += dt
+        b.strafeTimer -= dt
+        if b.reload > 0 {
+            b.reload -= dt
+            if b.reload <= 0 { b.mag = gs.mag }
+        }
+        // Line of sight, a few times a second.
+        let target = g.player.eye - V3(0, 0.3, 0)
+        b.losTimer -= dt
+        if b.losTimer <= 0 {
+            b.losTimer = 0.2 + Rand.float(in: 0..<0.1)
+            b.sees = canTarget && dist < rank.sight && w.canSee(eye, g.player.eye)
+        }
+        let sees = b.sees && canTarget
+        // No player in sight: fire on an enemy faction's vessel or crawler in range (frigates, crawlers: CapitalShips.swift).
+        if !sees, let foe = w.ships.nearestFoe(of: factionValue, near: pos, range: rank.sight * 1.5, game: g), foe.ship != nil || foe.mob != nil {
+            aggro = true
+            b.react -= dt
+            face(foe.point)
+            let tp = foe.point - eye
+            b.pitch += (max(-0.9, min(1.2, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
+            soldierFire(dt, g, b, gs, rank: r, dist: min(simd_length(tp), rank.sight - 1), target: foe.point)
+            return 0
+        }
+        if sees {
+            // Noticed up close, in front, or once alerted.
+            let toP = simd_normalize(V3(g.player.pos.x - pos.x, 0, g.player.pos.z - pos.z) + V3(1e-4, 0, 0))
+            if !aggro && (dist < 10 || simd_dot(toP, forward) > 0.2 || hurt > 0) {
+                aggro = true
+                b.react = rank.react
+                g.sfx(.soldier(Soldier.voice(r), .alert), 1.1, at: eye)
+                if Rand.float(in: 0..<1) < 0.5 { g.sfx(.gun(11), 0.6, at: eye) }
+                if r == 4 { b.pointT = 1.4 }
+                alertGarrison(g, g.player.pos)
+            }
+            if aggro {
+                b.aimHold = 1.2
+                if b.seenAgo > 3 { b.react = max(b.react, rank.react) }
+                b.lastSeen = g.player.pos
+                b.seenAgo = 0
+            }
+        }
+        if hurt > 0.35 && !aggro { aggro = true; alertGarrison(g, g.player.pos) }
+        // Pilots and passengers stay in their seats (aircraft, vehicles: FlightCrew in Aircraft.swift). Passengers
+        // with a long arm are door gunners: turned in the seat (FlightCrew), they fire at the player in sight.
+        if b.station == .seated || b.station == .passenger {
+            strafe = 0
+            if b.station == .passenger && sees && aggro && b.gun != Guns.pistol {
+                b.react -= dt
+                let tp = target - eye
+                let flat: Float = simd_length(V2(tp.x, tp.z))
+                b.pitch += (max(-0.9, min(1.0, atan2f(tp.y, flat))) - b.pitch) * min(1, dt * 8)
+                soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+            }
+            return 0
+        }
+        // Turret crews stay at their guns whatever happens round them.
+        if b.orderStation == .gunner, let sp = followOrder(g) { return sp }
+        guard aggro && canTarget else {
+            b.aimTime = 0
+            if let sp = followOrder(g) { return sp }
+            // Garrison duty: stroll near the post; marksmen keep watch, and so does a vehicle's crew at its post in the
+            // hull's frame (a stroll round `home`, where it spawned in the world, pulled it off its post as the vehicle
+            // drove away: ridecheck crew, a trooper 1.9 blocks off post 0, runs 605 and 634).
+            let aboard = crewPost != nil && deck != nil
+            if r == 2 || aboard {
+                if aboard { wanderGoal = nil; moving = false }
+                if aiTimer <= 0 { aiTimer = Rand.float(in: 2...5); yaw += Rand.float(in: -1.2...1.2) }
+                return 0
+            }
+            // Strolls stay within 7 of the post; one who strayed past 12 (a chase, a push) walks back to within 5. A
+            // stroll goal out past the old 10-block line flipped it between the goal and home every tick (behaviour
+            // sim on a citadel: 19 of 42 soldiers spinning).
+            if let h = home {
+                strollArea = (h, 7)
+                let off = simd_length(V2(h.x - pos.x, h.z - pos.z))
+                if off > 12 { b.homing = true }
+                if b.homing && gaveUp(h) { b.homing = false; home = pos }        // can't get back: this is the post now
+                if b.homing {
+                    if off > 5 { wanderGoal = nil; moving = true; face(h); return spec.speed * 0.5 }
+                    b.homing = false; moving = false; aiTimer = Rand.float(in: 1...3)
+                }
+            }
+            wander()
+            return moving ? spec.speed * 0.45 : 0
+        }
+        b.react -= dt
+        b.coverSearch -= dt
+        b.flankTimer -= dt
+        if b.mag <= 0 && b.reload <= 0 {
+            b.reload = gs.reload * (r == 3 ? 1.3 : 1)
+            b.reloadTotal = b.reload
+            g.sfx(.gunReload(gs.sound), 0.6, at: eye)
+            if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
+        }
+        if b.reload <= 0 { b.cover = nil }
+        let (near, far) = Soldier.band(r, b.gun)
+        var speed: Float = 0
+        // Recruits fall back when badly hurt; marksmen back off from anyone who gets close.
+        if r == 0 && health < spec.health * 3 / 10 && b.retreatCD <= 0 { b.retreat = 4; b.retreatCD = 12 }
+        if r == 2 && sees && dist < 9 && b.retreatCD <= 0 { b.retreat = 2.5; b.retreatCD = 5 }
+        if b.retreat > 0 {
+            face(pos * 2 - g.player.pos)
+            return spec.speed * 1.15
+        }
+        // Reloading: duck out of sight first (ironclads don't bother).
+        if b.reload > 0 && r != 3 {
+            if b.cover == nil && b.coverSearch <= 0 && sees { b.cover = findCover(g, from: g.player.eye); b.coverSearch = 1 }
+            if let c = b.cover {
+                if simd_length(V2(c.x - pos.x, c.z - pos.z)) > 0.6 { face(c); return spec.speed * 1.1 }
+                face(g.player.pos)
+                return 0
+            }
+        }
+        if sees {
+            face(g.player.pos)
+            let tp = g.player.eye - V3(0, 0.3, 0) - eye
+            b.pitch += (max(-0.9, min(0.9, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
+            if b.reload > 0 {
+                speed = dist < far ? -spec.speed * 0.7 : 0                       // give ground while reloading
+            } else if let f = b.flank, b.flankTimer > 0 {
+                // Flank / relocate while facing the target: walk the offset with forward + sideways steps.
+                var d = f - pos
+                d.y = 0
+                let l = simd_length(d)
+                if l < 1 { b.flank = nil } else {
+                    let right = V3(cosf(yaw), 0, -sinf(yaw))
+                    speed = simd_dot(d / l, forward) * spec.speed
+                    strafe = simd_dot(d / l, right) * spec.speed
+                }
+            } else if dist > far {
+                speed = spec.speed
+            } else if dist < near {
+                speed = -spec.speed * 0.8
+            } else if rank.strafe > 0 {
+                if b.strafeTimer <= 0 { b.strafeTimer = Rand.float(in: 0.8...2.2); b.strafeDir = Rand.float(in: 0..<1) < 0.5 ? -1 : 1 }
+                strafe = b.strafeDir * spec.speed * 0.75 * rank.strafe
+            }
+            if b.gun == Guns.shotgun && dist > near { speed = spec.speed * 1.25 }   // shotgunners rush in
+            if r == 3 && health < spec.health / 2 { speed = max(speed, spec.speed * 0.6) }
+            // Rifle troopers swing round the target's side every few seconds.
+            if r == 1 && b.gun != Guns.shotgun && b.flankTimer <= 0 && b.reload <= 0 {
+                b.flankTimer = Rand.float(in: 4...7)
+                let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
+                let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
+                b.flank = g.player.pos + simd_normalize(toMe + side * 1.4) * min(dist, (near + far) / 2)
+                if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(Soldier.voice(r), .attack), 0.9, at: eye) }      // "flanking!"
+            }
+            let shotsBefore = b.mag
+            soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+            // Marksmen move to a new spot after a shot now and then.
+            if r == 2 && b.mag < shotsBefore && Rand.float(in: 0..<1) < 0.5 {
+                let right = V3(cosf(yaw), 0, -sinf(yaw))
+                b.flank = pos + right * (Rand.float(in: 0..<1) < 0.5 ? -5 : 5)
+                b.flankTimer = 2.5
+                if Rand.float(in: 0..<1) < 0.3 { g.sfx(.soldier(Soldier.voice(r), .retreat), 0.8, at: eye) }     // "moving!"
+            }
+        } else {
+            b.aimTime = 0
+            // Suppressing fire: automatic guns keep shooting where the player ducked out of sight.
+            if let ls = b.lastSeen, b.seenAgo < 2.5, b.gun == Guns.rifle || b.gun == Guns.smg || r == 3,
+               b.reload <= 0, b.react <= 0, b.shotTimer <= 0, b.mag > 0, simd_length(ls - pos) < rank.sight {
+                suppress(g, b, gs, at: ls + V3(0, 1.2, 0), rank: rank)
+            }
+            if let ls = b.lastSeen, b.seenAgo < 14 {
+                // Troopers flush players out of cover with a grenade, everyone closes in on the last sighting.
+                let d = simd_length(ls - pos)
+                if r == 1 && b.grenadeCD <= 0 && b.seenAgo < 5 && d > 5 && d < 22 {
+                    throwGrenade(g, at: ls)
+                    b.grenadeCD = Rand.float(in: 9...14)
+                }
+                face(ls)
+                speed = d > 2 ? spec.speed : 0
+                if d <= 2 { b.lastSeen = nil }
+            } else {
+                wander()
+                speed = moving ? spec.speed * 0.5 : 0
+            }
+        }
+        return speed
+    }
+
+    private func soldierFire(_ dt: Float, _ g: Game, _ b: SoldierBrain, _ gs: GunSpec, rank r: Int, dist: Float, target: V3) {
+        guard b.reload <= 0, b.react <= 0, dist < Soldier.ranks[r].sight else { b.aimTime = 0; return }
+        if b.mag <= 0 {
+            b.reload = gs.reload * (r == 3 ? 1.3 : 1)
+            b.reloadTotal = b.reload
+            g.sfx(.gunReload(gs.sound), 0.6, at: eye)
+            if Rand.float(in: 0..<1) < 0.4 { g.sfx(.soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
+            return
+        }
+        guard b.shotTimer <= 0 else { return }
+        // Marksmen hold a laser on the target before every shot.
+        if b.gun == Guns.sniper {
+            b.aimTime += dt
+            if b.aimTime < 1.1 { return }
+            b.aimTime = 0
+        }
+        let rank = Soldier.ranks[r]
+        let enraged = r == 3 && health < spec.health / 2
+        b.aimHold = max(b.aimHold, 1.5)
+        let muzzle = SoldierRig.muzzleWorld(self)
+        // Clear line of fire from the muzzle (the sight check is from the eye, every 0.2-0.3 s, through opaque blocks
+        // only): a wall, window, door or fence between the gun and the target holds the shot.
+        guard g.world.clearShot(muzzle, target) else { b.aimTime = 0; return }
+        var aimAt = target
+        let flight = gs.speed > 0 ? simd_length(target - muzzle) / gs.speed : 0
+        aimAt += g.player.vel * flight * 0.8
+        if b.gun == Guns.launcher { aimAt = g.player.pos + V3(0, 0.3, 0) + g.player.vel * flight * 0.6 }
+        let dir = simd_normalize(aimAt - muzzle)
+        // Soldiers' shotgun pellets hit softer (a point-blank volley shouldn't one-shot a full-health player).
+        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * (gs.pellets > 1 ? 0.6 : 1)
+        switch gs.shot {
+        case .bullet:
+            for _ in 0..<gs.pellets {
+                let d = Guns.scatter(dir, rank.spread + gs.spread * 0.5)
+                g.arms.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * scale, fromPlayer: false,
+                                  shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
+            }
+        case .rocket:
+            var s = Slug(pos: muzzle + dir * 0.5, vel: Guns.scatter(dir, rank.spread) * gs.speed, kind: .rocket, damage: 0, fromPlayer: false,
+                         shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 0.6)
+            s.power = 1.8
+            g.arms.spawn(s)
+        case .beam:
+            g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, rank.spread), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
+        }
+        g.sfx(.gun(gs.sound), 1, at: muzzle)
+        if factionValue != .steelhold { g.baseNoise(at: muzzle, kind: .gunshot) }      // other factions' fire carries to citadels
+        g.particles.add(Particle(pos: muzzle + dir * 0.2, vel: dir * 0.5, life: 0.06, maxLife: 0.06, layer: Int(Tex.id("smoke")), uv0: V2(0, 0),
+                                 uvSize: 1, size: 0.14, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6), collide: false, glow: true))
+        g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)
+        b.mag -= 1
+        b.recoil = 1
+        if b.burst <= 0 { b.burst = Rand.int(in: rank.burst) }
+        b.burst -= 1
+        let rate: Float = enraged ? 0.6 : 1
+        b.shotTimer = b.burst > 0 ? gs.interval * 1.4 * rate : Rand.float(in: rank.gap) * rate
+    }
+
+    // A short burst into the player's last position (wider spread; it pins them behind cover).
+    private func suppress(_ g: Game, _ b: SoldierBrain, _ gs: GunSpec, at t: V3, rank: Soldier.Rank) {
+        let muzzle = SoldierRig.muzzleWorld(self)
+        guard g.world.clearShot(muzzle, t) else { return }           // suppressing fire never goes through a wall either
+        b.aimHold = max(b.aimHold, 1.2)
+        b.recoil = 1
+        let dir = simd_normalize(t - muzzle)
+        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage
+        if gs.shot == .bullet {
+            g.arms.spawn(Slug(pos: muzzle, vel: Guns.scatter(dir, rank.spread + 0.05) * gs.speed, kind: .bullet, damage: gs.damage * scale,
+                              fromPlayer: false, shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
+            b.shotTimer = gs.interval * 2.5
+        } else if gs.shot == .rocket {
+            var s = Slug(pos: muzzle + dir * 0.5, vel: dir * gs.speed, kind: .rocket, damage: 0, fromPlayer: false,
+                         shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 0.6)
+            s.power = 1.8
+            g.arms.spawn(s)
+            b.shotTimer = 3
+        } else {
+            g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, 0.03), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
+            b.shotTimer = 2.5
+        }
+        b.mag -= 1
+        g.sfx(.gun(gs.sound), 1, at: muzzle)
+        g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)
+    }
+
+    // A nearby standing spot the player can't see (sampled in a ring of 2-6 blocks).
+    // The nearest standable cell within 6 blocks that the threat can't see (14 random rays at random radii missed
+    // the few cells behind a 3-wide wall often enough to fail the reload-in-cover check: run 371).
+    private func findCover(_ g: Game, from threat: V3) -> V3? {
+        let w = g.world
+        let y = Int(floor(pos.y + 0.1))
+        let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
+        var spots: [(Float, V3)] = []
+        for dz in -6...6 { for dx in -6...6 where dx * dx + dz * dz <= 36 && (dx != 0 || dz != 0) {
+            let x = bx + dx, z = bz + dz
+            for dy in [0, 1, -1] {
+                let fy = y + dy
+                guard Blocks.collide[Int(w.block(x, fy - 1, z))], !Blocks.collide[Int(w.block(x, fy, z))], !Blocks.collide[Int(w.block(x, fy + 1, z))] else { continue }
+                let spot = V3(Float(x) + 0.5, Float(fy), Float(z) + 0.5)
+                spots.append((simd_length(spot - pos), spot))
+                break
+            }
+        } }
+        spots.sort { $0.0 < $1.0 }
+        // Sight checks nearest first (short rays; a search runs at most once a second per reloading soldier).
+        for (_, spot) in spots.prefix(120) where !w.canSee(spot + V3(0, 1.5, 0), threat) { return spot }
+        return nil
+    }
+
+    private func throwGrenade(_ g: Game, at t: V3) {
+        let from = eye + forward * 0.4
+        var d = t - from
+        let horiz = simd_length(V2(d.x, d.z))
+        // Lob at 45 degrees: v^2 = g x / sin(2a) with a little height correction.
+        let grav: Float = 20
+        let v = sqrtf(grav * max(2, horiz + max(0, d.y) * 0.5))
+        d.y = 0
+        let flat = horiz > 0.01 ? d / horiz : forward
+        var s = Slug(pos: from, vel: (flat + V3(0, 1, 0)) * (v * 0.7071), kind: .grenade, damage: 0, fromPlayer: false,
+                     shooter: ObjectIdentifier(self), by: spec.name, life: 2.6, gravity: grav)
+        s.power = 2
+        g.arms.spawn(s)
+        g.sfx(.soldier(Soldier.voice(Soldier.rank(kind) ?? 1), .grenade), 1.1, at: eye)
+        soldierBrain.throwT = 0.7
+    }
+
+    // MARK: Deck gun
+
+    func updateDeckGun(_ dt: Float, _ g: Game) {
+        if Turrets.shared.manned === self { vel = .zero; return }      // the player has it (VehicleControls.swift)
+        let b = soldierBrain
+        vel = .zero
+        attackCooldown = max(attackCooldown, -1)
+        if fire > 0 { fire -= dt }
+        b.reload -= dt
+        b.kick = max(0, b.kick - dt * 1.5)
+        let pivot = pos + V3(0, HeavyTurret.trunnionY, 0)
+        let player = g.player.eye - V3(0, 0.6, 0)
+        let to = player - pivot
+        let dist = simd_length(to)
+        // Unprovoked the turrets guard the citadel's grounds; provoked (hit, or the garrison alerted) they reach their full
+        // range. They shelled players 220 blocks off in a nearby village without a reason (agent bots died, run 482).
+        let engage: Float = aggro ? HeavyTurret.range : HeavyTurret.guardRange
+        let canTarget = g.survival && g.alive && dist < engage
+        b.losTimer -= dt
+        if b.losTimer <= 0 {
+            b.losTimer = 0.4
+            b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye)
+            b.crewed = deckGunCrewed(g)
+        }
+        if b.sees && canTarget {
+            if !aggro { aggro = true; g.sfx(.gun(10), 1.5, at: pivot); alertGarrison(g, g.player.pos, radius: 40) }
+            b.lastSeen = player
+            b.seenAgo = 0
+        } else {
+            b.seenAgo += dt
+            if aggro && b.seenAgo > 60 { aggro = false }             // stands down a minute after losing the target
+            // An enemy faction's vessel in range instead (CapitalShips.swift).
+            if let foe = g.world.ships.nearestFoe(of: factionValue, near: pivot, range: HeavyTurret.range * 1.5, game: g), foe.ship != nil || foe.mob != nil {
+                b.lastSeen = foe.point
+                b.seenAgo = 0
+            }
+        }
+        // Spotting still raises the alarm (above), but only a live gunner lays and fires the gun: an empty turret kept
+        // shelling the player after the whole garrison was dead (Quest round 4).
+        guard b.crewed, let tgt = b.lastSeen, b.seenAgo < 3 else { b.charge = 0; return }
+        // Ballistic solution (low arc) for the heavy shells, half-leading the target.
+        let v: Float = HeavyTurret.speed, grav: Float = HeavyTurret.gravity
+        var aimP = tgt
+        let flat0 = simd_length(V2(aimP.x - pivot.x, aimP.z - pivot.z))
+        aimP += g.player.vel * (flat0 / v) * 0.5
+        let dx = simd_length(V2(aimP.x - pivot.x, aimP.z - pivot.z)), dy = aimP.y - pivot.y
+        let disc = v * v * v * v - grav * (grav * dx * dx + 2 * dy * v * v)
+        var wantPitch: Float = 0.75
+        if disc >= 0 && dx > 0.5 { wantPitch = atanf((v * v - sqrtf(disc)) / (grav * dx)) }
+        wantPitch = max(HeavyTurret.pitchMin, min(HeavyTurret.pitchMax, wantPitch))
+        let wantYaw = atan2f(-(aimP.x - pivot.x), -(aimP.z - pivot.z))
+        var dyaw = wantYaw - yaw
+        while dyaw > .pi { dyaw -= 2 * .pi }
+        while dyaw < -.pi { dyaw += 2 * .pi }
+        let turn: Float = HeavyTurret.traverse * dt               // a 1,000-tonne gunhouse traverses slowly
+        yaw += max(-turn, min(turn, dyaw))
+        b.pitch += max(-0.15 * dt, min(0.15 * dt, wantPitch - b.pitch))
+        walkPhase += abs(max(-turn, min(turn, dyaw)))
+        let aligned = abs(dyaw) < 0.04 && abs(wantPitch - b.pitch) < 0.03 && dx > 24
+        if aligned && b.reload <= 0 {
+            if b.charge == 0 { g.sfx(.gun(12), 1.2, at: pivot) }
+            b.charge += dt
+            if b.charge >= 1.2 {
+                b.charge = 0
+                b.reload = g.difficulty >= 3 ? HeavyTurret.reload * 0.8 : HeavyTurret.reload
+                let fwd = V3(-sinf(yaw) * cosf(b.pitch), sinf(b.pitch), -cosf(yaw) * cosf(b.pitch))
+                for sx: Float in [-1, 1] {
+                    let muzzle = HeavyTurret.muzzle(self, sx)
+                    var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.006) * v, kind: .shell, damage: 0, fromPlayer: false,
+                                 shooter: ObjectIdentifier(self), by: spec.name, life: 3.5, gravity: grav)   // ~900 blocks at 260 m/s, then it's gone
+                    HeavyTurret.arm(&s)
+                    g.arms.spawn(s)
+                    for _ in 0..<6 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
+                    g.particles.add(Particle(pos: muzzle, vel: fwd, life: 0.08, maxLife: 0.08, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
+                                             size: 0.5, gravity: 0, color: V3(2.6, 1.8, 0.7), collide: false, glow: true))
+                    g.addFlash(at: muzzle + fwd * 0.5, color: V3(6, 4, 2), radius: 10, life: 0.1)
+                }
+                g.sfx(.gun(9), 2, at: pivot)
+                b.kick = 1
+            }
+        } else if !aligned {
+            b.charge = max(0, b.charge - dt * 2)
+        }
+    }
+}
+
+extension Mob {
+    // A live soldier posted at this deck gun (CapitalBases sends two per barbette, ~9 blocks behind it, as gunners).
+    func deckGunCrewed(_ g: Game) -> Bool {
+        for m in g.mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil && m.brain?.orderStation == .gunner {
+            let d = V2(m.pos.x - pos.x, m.pos.z - pos.z)
+            if simd_length_squared(d) < 13 * 13 && abs(m.pos.y - pos.y) < 8 { return true }
+        }
+        return false
+    }
+}
+
+extension Game {
+    // Guns and ammo from a fallen soldier; deck guns burst into smoke and scrap.
+    func soldierDied(_ m: Mob) {
+        guard m.kind.steelhold else { return }
+        let at = m.pos + V3(0, 0.6, 0)
+        if m.kind == .deckGun {
+            particles.explosion(at: m.pos + V3(0, 1, 0), power: 3)
+            sfx(.explode, 1.2, at: at)
+            return
+        }
+        let b = m.soldierBrain
+        guard b.gun >= 0, b.gun < Guns.all.count else { return }
+        let gs = Guns.all[b.gun]
+        let looting = m.killedByPlayer ? Float(m.lootingLevel) : 0
+        if Items.has(gs.ammo) { drops.spawn(ItemStack(Items.id(gs.ammo), Rand.int(in: gs.mag <= 6 ? 1...3 : 4...12)), at: at) }
+        if m.killedByPlayer && Rand.float(in: 0..<1) < 0.25 + 0.05 * looting && Items.has(gs.key) {
+            var s = ItemStack(Items.id(gs.key), 1)
+            s.damage = Rand.int(in: gs.durability / 4...gs.durability * 3 / 4)
+            s.tag = max(0, b.mag)
+            drops.spawn(s, at: at)
+        }
+    }
+
+    func writeSoldierLasers(_ wr: inout EntityWriter, eye: V3) {
+        for m in mobs.of(.soldierMarksman) {
+            guard let b = m.brain, b.aimTime > 0 else { continue }
+            let k = min(1, b.aimTime / 1.1)
+            let from = SoldierRig.muzzleWorld(m)
+            Armory.streak(&wr, eye, from, player.eye - V3(0, 0.3, 0), 0.012 + 0.012 * k, V4(2.6, 0.15, 0.1, 0.5 + 0.5 * k))
+        }
+    }
+}
+
+// MARK: Models
+
+// The jointed Capital uniform models and their stances (SoldierRig.swift).
+func soldierParts(_ m: Mob, swing: Float) -> [Part] { SoldierRig.build(m).parts }
+
+// The twin 42 cm heavy-gun turret, true to scale (1 block = 1 m; parts in 1/16 block). An original model after
+// WWII battleship twin turrets (the H-class 42 cm design, a scaled-up Bismarck-type turret): a long flat-roofed
+// gunhouse with an inclined face plate and chamfered front corners, a rear overhang, rangefinder hoods on both
+// flanks, roof periscope hoods, two 20 m barrels (L/48) 4.5 m apart through armoured gun ports, on a barbette
+// ring (the barbette itself is built in blocks under it). Origin: the barbette top centre; the guns face -Z.
+enum HeavyTurret {
+    static let trunnionY: Float = 3                 // gun trunnions above the barbette top (blocks)
+    static let trunnionZ: Float = -6                // ... and ahead of the turret centre
+    static let barrel: Float = 21                   // trunnion to muzzle
+    static let spacing: Float = 2.25                // half the distance between the barrels
+    static let speed: Float = 260, gravity: Float = 3  // flat direct fire: ~2 m of drop at 220 m (Quest round 4)
+    static let pitchMin: Float = -0.09, pitchMax: Float = 0.52     // -5 to +30 degrees
+    static let traverse: Float = 0.2                // radians per second
+    static let reload: Float = 9
+    static let range: Float = 220                   // once provoked
+    static let guardRange: Float = 72               // unprovoked: the citadel's grounds
+    static let power: Float = 2.4                   // TNT-like burst, about a 3-block crater
+
+    static func muzzle(_ m: Mob, _ sx: Float) -> V3 {
+        let p = m.brain?.pitch ?? 0
+        let fwd = V3(-sinf(m.yaw) * cosf(p), sinf(p), -cosf(m.yaw) * cosf(p))
+        let side = V3(cosf(m.yaw), 0, -sinf(m.yaw))
+        let flat = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
+        let trunnion = m.pos + V3(0, trunnionY, 0) + flat * (-trunnionZ) + side * (sx * spacing)
+        return trunnion + fwd * barrel
+    }
+    // A heavy shell: bursts like TNT where it lands, breaking blocks and hurting everything near.
+    static func arm(_ s: inout Slug) {
+        s.power = power
+        s.breaks = true
+    }
+}
+
+func deckGunParts(_ m: Mob) -> [Part] {
+    let grey = V3(0.56, 0.58, 0.6), dark = V3(0.2, 0.21, 0.23), mid = V3(0.42, 0.44, 0.47), deck = V3(0.32, 0.33, 0.35)
+    let pitch = m.brain?.pitch ?? 0
+    let charge = m.brain?.charge ?? 0
+    let kick = (m.brain?.kick ?? 0) * 19                // 1.2 m recoil after a salvo
+    let tz: Float = HeavyTurret.trunnionZ * 16, ty: Float = HeavyTurret.trunnionY * 16
+    var p: [Part] = [
+        // Barbette ring skirt and the turret's rotating base.
+        box(-100, -6, -100, 200, 8, 200, deck),
+        box(-104, 2, -96, 208, 6, 230, dark),
+        // Gunhouse: the main armoured box, roof, rear overhang.
+        box(-108, 8, -96, 216, 72, 236, grey),
+        box(-104, 80, -100, 208, 8, 236, mid),
+        box(-100, 20, 140, 200, 56, 20, grey * 0.94),
+        // The face plate leaning back in three steps, narrower than the flanks (chamfered front corners).
+        box(-92, 8, -124, 184, 32, 28, grey * 0.97), box(-96, 40, -114, 192, 24, 18, grey * 0.97), box(-100, 64, -104, 200, 16, 8, grey * 0.97),
+        // Rangefinder hoods on both flanks at the rear, and their arms.
+        box(-140, 52, 80, 32, 18, 40, mid), box(108, 52, 80, 32, 18, 40, mid),
+        box(-144, 56, 84, 6, 10, 32, dark), box(138, 56, 84, 6, 10, 32, dark),
+        // Roof periscope hoods and the commander's cupola.
+        box(-60, 88, -40, 18, 8, 22, mid), box(42, 88, -40, 18, 8, 22, mid), box(-14, 88, 60, 28, 12, 28, mid),
+        box(-12, 96, 58, 24, 2, 4, V3(0.1, 0.12, 0.14)),
+    ]
+    for x: Float in [-36, 36] {
+        let pv = V3(x, ty, tz)
+        // Gun port mantlet (moves with the gun), the barrel in three tapering sections, a muzzle ring.
+        p.append(Part(mn: V3(x - 22, ty - 22, tz - 30), mx: V3(x + 22, ty + 22, tz + 4), pivot: pv, rotX: pitch, color: dark))
+        p.append(Part(mn: V3(x - 13, ty - 13, tz - 140 + kick), mx: V3(x + 13, ty + 13, tz - 30 + kick), pivot: pv, rotX: pitch, color: mid))
+        p.append(Part(mn: V3(x - 10.5, ty - 10.5, tz - 260 + kick), mx: V3(x + 10.5, ty + 10.5, tz - 140 + kick), pivot: pv, rotX: pitch, color: mid * 0.95))
+        p.append(Part(mn: V3(x - 8.5, ty - 8.5, tz - 330 + kick), mx: V3(x + 8.5, ty + 8.5, tz - 260 + kick), pivot: pv, rotX: pitch, color: mid * 0.9))
+        p.append(Part(mn: V3(x - 10, ty - 10, tz - 340 + kick), mx: V3(x + 10, ty + 10, tz - 330 + kick), pivot: pv, rotX: pitch, color: dark))
+        p.append(Part(mn: V3(x - 4, ty - 4, tz - 340.5 + kick), mx: V3(x + 4, ty + 4, tz - 339.5 + kick), pivot: pv, rotX: pitch, color: V3(0.03, 0.03, 0.04)))
+        if charge > 0 {
+            p.append(Part(mn: V3(x - 5, ty - 5, tz - 341), mx: V3(x + 5, ty + 5, tz - 340.6), pivot: pv, rotX: pitch, color: V3(1.5 + charge, 0.8, 0.2)))
+        }
+    }
+    return p
+}

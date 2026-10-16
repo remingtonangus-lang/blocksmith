@@ -65,6 +65,7 @@ final class SmithingMenu: Menu {
     }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? {
         guard let r = Smithing.result(template: box[0], base: box[1], addition: box[2]) else { return nil }
+        if Items.key(box[0].item).hasSuffix("_armor_trim_smithing_template") { game.achieve("trim") }
         for i in 0..<3 { var s = box[i]; s.count -= 1; box[i] = s.count > 0 ? s : .empty }
         game.sfx(.anvil, 0.5)
         changed()
@@ -111,8 +112,12 @@ enum Stonecutting {
 final class StonecutterMenu: Menu {
     let input = ItemContainer(1)
     let out = ItemContainer(1)
-    var options: [(ItemID, Int)] = []
+    var options: [(ItemID, Int)] = []          // the page on show (12)
+    var all: [(ItemID, Int)] = []              // every cut of the input (deeprock has more than 12: they were cut off)
+    var page = 0
+    var pages: Int { max(1, (all.count + 11) / 12) }
     var selected = -1
+    private var more: MenuSlot?
     init(game: Game) {
         super.init("Stonecutter", game: game)
         slots.append(MenuSlot(20, 33, input, 0))
@@ -121,10 +126,16 @@ final class StonecutterMenu: Menu {
             b.w = 14; b.h = 16
             slots.append(b)
         }
+        let more = MenuSlot(120, 51, nil, 0, .button(12))         // next page (drawn only when there is one)
+        more.w = 10; more.h = 16
+        more.hidden = true
+        self.more = more
+        slots.append(more)
         slots.append(MenuSlot(143, 33, out, 0, .result))
         addPlayerInventory()
     }
     override func buttonPressed(_ i: Int) {
+        if i == 12 { if pages > 1 { page = (page + 1) % pages; selected = -1; changed() }; return }
         guard i < options.count else { return }
         selected = i
         changed()
@@ -132,15 +143,19 @@ final class StonecutterMenu: Menu {
     override func changed() {
         let s = input[0]
         let opts = s.isEmpty ? [] : (Stonecutting.recipes[s.item] ?? [])
-        if opts.map({ $0.0 }) != options.map({ $0.0 }) { selected = -1 }
-        options = Array(opts.prefix(12))
+        if opts.map({ $0.0 }) != all.map({ $0.0 }) { selected = -1; page = 0 }
+        all = opts
+        options = Array(all.dropFirst(page * 12).prefix(12))
+        more?.hidden = pages <= 1
+        // The pad cursor never rests on the hidden button.
+        if let mo = more, mo.hidden, let i = slots.firstIndex(where: { $0 === mo }), game.menuCursor == i { game.menuCursor = 0 }
         out[0] = selected >= 0 && selected < options.count && !s.isEmpty ? ItemStack(options[selected].0, options[selected].1) : .empty
     }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? {
         guard !out[0].isEmpty else { return nil }
         let r = out[0]
         var s = input[0]; s.count -= 1; input[0] = s.count > 0 ? s : .empty
-        game.sfx(.dig, 0.5)
+        game.sfx(.smithing, 0.6)
         changed()
         return r
     }
@@ -171,7 +186,7 @@ final class GrindstoneMenu: Menu {
             o.damage = max(0, d - remain)
             let curses = (Enchant.list(a) + Enchant.list(b)).filter { Enchant.def($0.0).curse }
             o.ench = Enchant.pack(curses)
-            o.repairCost = 0
+            o.repairCost = Enchant.list(o).reduce(0) { r, _ in r * 2 + 1 }      // rebuilt from what's left (each curse kept)
             let xp = (Enchant.list(a) + Enchant.list(b)).filter { !Enchant.def($0.0).curse }.reduce(0) { $0 + Enchant.def($1.0).minCost($1.1) }
             return (o, xp)
         }
@@ -180,7 +195,7 @@ final class GrindstoneMenu: Menu {
         let keep = Enchant.list(s).filter { Enchant.def($0.0).curse }
         var o = s
         o.ench = Enchant.pack(keep)
-        o.repairCost = 0
+        o.repairCost = keep.reduce(0) { r, _ in r * 2 + 1 }      // prior work rebuilt from the curses kept (reference; it was 0)
         if Items.key(s.item) == "enchanted_book" && keep.isEmpty { o = ItemStack(Items.id("book"), 1) }
         let xp = Enchant.list(s).filter { !Enchant.def($0.0).curse }.reduce(0) { $0 + Enchant.def($1.0).minCost($1.1) }
         return (o, xp)
@@ -190,8 +205,8 @@ final class GrindstoneMenu: Menu {
         guard case let (o, xp)? = compute() else { return nil }
         box[0] = .empty; box[1] = .empty
         // XP back: between half and all of the (minimum) enchantment cost.
-        if xp > 0 { game.addXP(Int.random(in: (xp + 1) / 2...max((xp + 1) / 2, xp))) }
-        game.sfx(.dig, 0.6)
+        if xp > 0 { game.addXP(Rand.int(in: (xp + 1) / 2...max((xp + 1) / 2, xp))) }
+        game.sfx(.grindstone, 0.7)
         changed()
         return o
     }

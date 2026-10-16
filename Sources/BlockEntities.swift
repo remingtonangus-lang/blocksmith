@@ -2,7 +2,9 @@ import Foundation
 
 // Per-block state that doesn't fit in a block ID: chest and furnace inventories, furnace progress.
 final class BlockEntity: Codable {
-    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting, banner, lectern, shelf, pot, crafter }
+    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting, banner, lectern, shelf, pot, crafter
+        case display    // wooden shelf: three items shown on its front (Shelf.swift)
+    }
     let kind: Kind
     var items: [ItemStack]
     var mob: String = ""      // spawner: mob kind name
@@ -16,6 +18,8 @@ final class BlockEntity: Codable {
     var level = 0        // beacon: pyramid layers (0 = off)
     var secondary = ""   // beacon: secondary power (primary is kept in `mob`)
     var cooks = [0, 0, 0, 0]  // campfire: ticks left per slot
+    var xp: Float = 0         // furnace: experience stored from smelting, paid out when the output is taken
+    var bottleOut = false     // brewing stand: a used dragon's breath left a glass bottle to drop (not saved)
     var trial = false    // proving spawner (waves, then a reward and a 30-minute cooldown)
     var spawned = 0      // proving spawner: mobs spawned this round
     var cooldown: Float = 0
@@ -28,16 +32,40 @@ final class BlockEntity: Codable {
         return c
     }()
 
-    init(_ k: Kind) {
-        kind = k
-        items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : k == .shelf ? 6 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : k == .frame || k == .lectern || k == .pot ? 1 : (k == .dispenser || k == .crafter ? 9 : 0))))
+    // Container slots per kind (a switch: the old ternary chain had no wooden-shelf case, so shelves got none).
+    static func slotCount(_ k: Kind) -> Int {
+        switch k {
+        case .chest, .shulker: return 27
+        case .shelf: return 6
+        case .furnace, .display: return 3
+        case .hopper, .brewing: return 5
+        case .campfire: return 4
+        case .frame, .lectern, .pot: return 1
+        case .dispenser, .crafter: return 9
+        default: return 0
+        }
     }
 
-    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat }
+    init(_ k: Kind) {
+        kind = k
+        items = Array(repeating: .empty, count: BlockEntity.slotCount(k))
+        // Item frames keep their rotation (45 degree steps) in `delay`: they start upright (the spawner default of 10
+        // turned every framed item a quarter turn).
+        if k == .frame { delay = 0 }
+    }
+
+    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat, cd, sp, cooks, xp }
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         kind = try c.decode(Kind.self, forKey: .kind)
         items = try c.decode([ItemStack].self, forKey: .items)
+        // Wooden shelves were made with no slots (the count had no .display case: using one indexed past the end);
+        // saved ones come back with their three.
+        if kind == .display && items.count < 3 { items += Array(repeating: .empty, count: 3 - items.count) }
+        // Every kind comes back with at least its own slot count: the container screens use fixed slot numbers (a short
+        // array from an older build or a damaged file was read past its end as soon as the screen drew).
+        let need = BlockEntity.slotCount(kind)
+        if items.count < need { items += Array(repeating: .empty, count: need - items.count) }
         burn = (try? c.decode(Int.self, forKey: .burn)) ?? 0
         burnMax = (try? c.decode(Int.self, forKey: .burnMax)) ?? 0
         cook = (try? c.decode(Int.self, forKey: .cook)) ?? 0
@@ -51,6 +79,12 @@ final class BlockEntity: Codable {
         if kind == .frame || kind == .lectern { delay = (try? c.decode(Float.self, forKey: .delay)) ?? 0 }
         if kind == .shelf { level = Int((try? c.decode(Float.self, forKey: .delay)) ?? 0) }
         patterns = (try? c.decode([Int].self, forKey: .pat)) ?? []
+        // A proving spawner's cooldown and round, and a campfire's cooking (a reload reset them: a beaten spawner fought
+        // and rewarded again at once, raw food cooked instantly).
+        cooldown = (try? c.decode(Float.self, forKey: .cd)) ?? 0
+        spawned = (try? c.decode(Int.self, forKey: .sp)) ?? 0
+        if let k = try? c.decode([Int].self, forKey: .cooks), k.count == 4 { cooks = k }
+        xp = (try? c.decode(Float.self, forKey: .xp)) ?? 0
     }
     func encode(to e: Encoder) throws {
         var c = e.container(keyedBy: CodingKeys.self)
@@ -68,6 +102,10 @@ final class BlockEntity: Codable {
         if kind == .frame || kind == .lectern { try c.encode(delay, forKey: .delay) }
         if kind == .shelf { try c.encode(Float(level), forKey: .delay) }
         if !patterns.isEmpty { try c.encode(patterns, forKey: .pat) }
+        if cooldown != 0 { try c.encode(cooldown, forKey: .cd) }
+        if spawned != 0 { try c.encode(spawned, forKey: .sp) }
+        if kind == .campfire && cooks.contains(where: { $0 != 0 }) { try c.encode(cooks, forKey: .cooks) }
+        if xp > 0 { try c.encode(xp, forKey: .xp) }
     }
 
     // One furnace game tick (20 per second). Returns true if the lit state changed.
@@ -105,6 +143,7 @@ final class BlockEntity: Codable {
                 var o = c[2]
                 if o.isEmpty { o = ItemStack(out, 1) } else { o.count += 1 }
                 c[2] = o
+                xp += Recipes.smeltXP(out)
             }
         } else if cook > 0 {
             cook = max(0, cook - 2)
@@ -115,6 +154,7 @@ final class BlockEntity: Codable {
 
 extension BlockEntity {
     static func allowed(_ out: ItemID, _ input: ItemID, in kind: String) -> Bool {
+        if Items.key(input) == "steel_blend" { return kind == "blast_furnace" }
         switch kind {
         case "smoker": return Items.def(out).food != nil
         case "blast_furnace":
@@ -127,4 +167,16 @@ extension BlockEntity {
 
 struct BlockEntitySave: Codable {
     var entries: [String: BlockEntity]
+}
+
+extension World {
+    // The block entity at p if it is of this kind, else a fresh one stored there. A stale entity of another kind (left
+    // when a container was replaced without being broken: setBlock keeps entities) would open a 27-slot screen on a
+    // 3-slot furnace container and crash (smoke-test menu tour).
+    func entity(_ p: IVec3, _ kind: BlockEntity.Kind) -> BlockEntity {
+        if let e = blockEntities[p], e.kind == kind { return e }
+        let e = BlockEntity(kind)
+        blockEntities[p] = e
+        return e
+    }
 }

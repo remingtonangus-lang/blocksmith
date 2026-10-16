@@ -13,7 +13,7 @@ enum Bundles {
 
     // Moves as much of `s` into bundle `b` as fits. Returns (new bundle, rest of s).
     static func insert(_ b: ItemStack, _ s: ItemStack) -> (ItemStack, ItemStack) {
-        guard !s.isEmpty else { return (b, s) }
+        guard !s.isEmpty, !Items.key(s.item).hasSuffix("shulker_box") else { return (b, s) }   // no shell boxes in bundles
         let per = isBundle(s) ? weight(s) : 64 / max(1, s.maxStack)
         let room = 64 - fill(b)
         let n = min(s.count, room / max(1, per))
@@ -49,14 +49,14 @@ extension Menu {
         let s = slot.stack
         if Bundles.isBundle(carried) {
             if s.isEmpty {
-                guard case let (nb, out)? = Bundles.takeOut(carried), slot.accepts(out) else { return false }
+                guard case let (nb, out)? = Bundles.takeOut(carried), slot.accepts(out), out.count <= slotLimit(slot, out) else { return false }
                 carried = nb; slot.stack = out
             } else {
                 let (nb, rest) = Bundles.insert(carried, s)
                 guard nb != carried else { return false }
                 carried = nb; slot.stack = rest
             }
-            game.sfx(.place(.plant), 0.4)
+            game.sfx(.bundleInsert, 0.6)
             return true
         }
         if Bundles.isBundle(s) && slot.container != nil {
@@ -68,7 +68,7 @@ extension Menu {
                 guard nb != s else { return false }
                 slot.stack = nb; carried = rest
             }
-            game.sfx(.place(.plant), 0.4)
+            game.sfx(.bundleRemove, 0.6)
             return true
         }
         return false
@@ -82,7 +82,7 @@ extension Game {
         for s in list { drops.spawn(s, at: player.eye + player.look * 0.5) }
         h.contents = nil
         inventory.held = h
-        sfx(.place(.plant), 0.6)
+        sfx(.bundleRemove, 0.7)
         return true
     }
 }

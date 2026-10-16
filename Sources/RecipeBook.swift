@@ -108,10 +108,13 @@ extension Menu {
         case RecipeBook.base..<(RecipeBook.base + RecipeBook.perPage):
             let k = book.page * RecipeBook.perPage + id - RecipeBook.base
             guard k < book.list.count else { return true }
+            // Tiles craft straight into the inventory: click / A one, shift-click / Y a stack, right-click / X the most.
             let r = Recipes.all[book.list[k]]
-            if RecipeBook.craftable(r, poolFor(grid)) { book.fill(book.list[k], game, grid: grid) }
+            let times = lastClickShift ? CraftBook.stackTimes(r) : (lastClickButton == 1 ? 9999 : 1)
+            if CraftBook.craft(r, times: times, game: game) == 0 { game.sfx(.click, 0.25) }
             changed()
             book.refresh(game, grid: grid)
+            return true
         default: return false
         }
         game.sfx(.click, 0.4)

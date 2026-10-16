@@ -1,0 +1,7 @@
+spawn: 2 flicker px (2 ppm) ok
+forest: 0 flicker px (0 ppm) ok
+cave_torch: 0 flicker px (0 ppm) ok
+the_deep: 0 flicker px (0 ppm) ok
+ash_vault: 0 flicker px (0 ppm) ok
+dusk: 4 flicker px (4 ppm) ok
+night: 1 flicker px (1 ppm) ok

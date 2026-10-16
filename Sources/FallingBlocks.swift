@@ -19,6 +19,7 @@ extension Game {
         let q = world.gravityQueue
         world.gravityQueue.removeAll(keepingCapacity: true)
         for p in q {
+            if plantSupportCheck(p) { continue }          // plants that lost their support pop (PlantSupport.swift)
             let b = world.block(p.x, p.y, p.z)
             guard World.fallingIDs[Int(b)], p.y > 0 else {
                 hardenConcrete(p)
@@ -34,15 +35,23 @@ extension Game {
         }
     }
 
+    // Concrete powder -> its concrete, per block state (0: not a powder). A table, not the key's suffix: this runs
+    // for every cell the gravity queue holds, thousands a tick while water flows (bench fluids: worst tick 31 ms).
+    static let hardened: [BlockID] = (0..<Blocks.count).map { i in
+        let k = Blocks.key(BlockID(i))
+        guard k.hasSuffix("_concrete_powder") else { return 0 }
+        let c = String(k.dropLast("_powder".count))
+        return Blocks.has(c) ? Blocks.id(c) : 0
+    }
+
     // Concrete powder touching water becomes concrete.
     func hardenConcrete(_ p: IVec3) {
         let b = world.block(p.x, p.y, p.z)
-        let k = Blocks.key(b)
-        guard k.hasSuffix("_concrete_powder") else { return }
+        let c = Game.hardened[Int(b)]
+        guard c != 0 else { return }
         for d in World.allDirs where d.y >= 0 {
             if Blocks.fluidKind[Int(world.block(p.x + d.x, p.y + d.y, p.z + d.z))] == 1 {
-                let c = String(k.dropLast("_powder".count))
-                if Blocks.has(c) { world.setBlock(p.x, p.y, p.z, Blocks.id(c)) }
+                world.setBlock(p.x, p.y, p.z, c)
                 return
             }
         }
@@ -51,11 +60,17 @@ extension Game {
     func fallingTick(_ dt: Float) {
         guard !falling.isEmpty else { return }
         for f in falling {
-            f.vel.y = max(-40, f.vel.y - 28 * dt)
+            f.vel.y = max(-40, f.vel.y - 16 * dt)                     // 0.04 a tick squared (reference; 28)
             let next = f.pos + f.vel * dt
             let cell = IVec3(Int(floor(next.x)), Int(floor(next.y)), Int(floor(next.z)))
             let b = world.block(cell.x, cell.y, cell.z)
             if next.y < 0 { f.dead = true; continue }
+            // Concrete powder sets where it first meets water (reference; it sank to the bottom first).
+            if Blocks.fluidKind[Int(b)] == 1 && Int(f.block) < Game.hardened.count && Game.hardened[Int(f.block)] != 0 {
+                world.setBlock(cell.x, cell.y, cell.z, Game.hardened[Int(f.block)])
+                f.dead = true
+                continue
+            }
             if Blocks.collide[Int(b)] && !Blocks.isLiquid(b) {
                 // Land in the cell above.
                 let at = IVec3(cell.x, cell.y + 1, cell.z)
@@ -63,11 +78,14 @@ extension Game {
                 let key = Blocks.key(f.block)
                 let fell = f.start - Float(at.y)
                 if key.hasSuffix("anvil") && fell > 1 {
-                    // Up to 40 damage (2 per block fallen) to whatever is below; 5% wear per block.
-                    let dmg = min(40, Int(fell * 2))
+                    // 2 per block fallen past the first, up to 40 (reference ceil(fell - 1) x 2; it counted the first).
+                    let dmg = min(40, 2 * Int((fell - 1).rounded(.up)))
                     let c = V3(Float(at.x) + 0.5, Float(at.y), Float(at.z) + 0.5)
-                    if simd_length(V2(player.pos.x - c.x, player.pos.z - c.z)) < 0.8 && abs(player.pos.y - c.y) < 1.8 {
-                        damage(dmg, "was squashed by a falling anvil")
+                    coop.eachSeat(self) {                         // whichever player is under it (player 2 too)
+                        let pp = self.player.pos
+                        if simd_length(V2(pp.x - c.x, pp.z - c.z)) < 0.8 && abs(pp.y - c.y) < 1.8 {
+                            self.damage(dmg, "was squashed by a falling anvil")
+                        }
                     }
                     for m in mobs.mobs where simd_length(V2(m.pos.x - c.x, m.pos.z - c.z)) < 0.5 + m.halfW && abs(m.pos.y - c.y) < 1.5 {
                         m.hit(from: c + V3(0, 2, 0), damage: dmg, knockback: 0)
@@ -77,7 +95,7 @@ extension Game {
                 let there = world.block(at.x, at.y, at.z)
                 if there == AIR || Blocks.replaceable[Int(there)] || Blocks.isLiquid(there) {
                     var place = f.block
-                    if key.hasSuffix("anvil") && Float.random(in: 0..<1) < 0.05 * fell {
+                    if key.hasSuffix("anvil") && Rand.float(in: 0..<1) < 0.05 * fell {
                         place = key == "anvil" ? Blocks.id("chipped_anvil") : (key == "chipped_anvil" ? Blocks.id("damaged_anvil") : AIR)
                     }
                     world.setBlock(at.x, at.y, at.z, place)

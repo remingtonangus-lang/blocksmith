@@ -18,7 +18,13 @@ final class Arrow {
     var hitMobs: [ObjectIdentifier] = []
     var trident: ItemStack?        // a thrown trident (keeps its enchantments / wear)
     var returning = false          // Loyalty: flying back to the player
-    init(_ p: V3, _ v: V3, fromPlayer: Bool, damage: Float) { pos = p; vel = v; self.fromPlayer = fromPlayer; self.damage = damage }
+    // Split screen: the seat that shot it (a returning trident flew into whichever player's turn moved it).
+    var seat = -1
+    var crit = false               // a fully drawn bow's arrow (adds up to half again)
+    init(_ p: V3, _ v: V3, fromPlayer: Bool, damage: Float) {
+        pos = p; vel = v; self.fromPlayer = fromPlayer; self.damage = damage
+        if fromPlayer { seat = Coop.liveSeat }
+    }
 }
 
 // What a Fireball object actually is: fire charges, blight skulls, or thrown items.
@@ -35,8 +41,13 @@ final class Fireball {
     var dragon = false             // hollow wyrm fireball: leaves a cloud of acid instead of exploding
     var potion: ItemID = 0         // thrown splash / lingering potion or bottle o' enchanting (item)
     var kind: Thrown = .fire
+    var egg: ItemID = 0            // thrown egg: which one (the chick's climate variant)
     weak var shooter: Mob?
-    init(_ p: V3, _ v: V3, big: Bool, byPlayer: Bool) { pos = p; vel = v; self.big = big; self.byPlayer = byPlayer }
+    var seat = -1                  // split screen: the seat that threw it (a pearl teleported whoever's turn moved it)
+    init(_ p: V3, _ v: V3, big: Bool, byPlayer: Bool) {
+        pos = p; vel = v; self.big = big; self.byPlayer = byPlayer
+        if byPlayer { seat = Coop.liveSeat }
+    }
 }
 
 final class ProjectileManager {
@@ -57,6 +68,7 @@ final class ProjectileManager {
             if World.rayBox(o, d, f.pos - V3(r, r, r), f.pos + V3(r, r, r)).map({ $0.0 < 4 }) ?? false {
                 f.vel = d * simd_length(f.vel)
                 f.byPlayer = true
+                f.seat = Coop.liveSeat
                 return true
             }
         }
@@ -65,7 +77,9 @@ final class ProjectileManager {
 
     private func updateFireballs(_ dt: Float, game g: Game) {
         let w = g.world
-        for f in fireballs {
+        // A player's throw flies in its thrower's turn (a pearl teleports them, a hit is theirs); the rest in the turn of
+        // the nearest seat.
+        for f in fireballs where (f.seat >= 0 && g.coop.active) ? (f.seat == g.coop.current) : g.seatOwns(f.pos) {
             f.age += dt
             if f.age > 10 { f.dead = true; continue }
             if f.potion > 0 || f.kind == .snowball || f.kind == .egg || f.kind == .pearl { f.vel.y -= 20 * dt; f.vel *= expf(-0.2 * dt) }
@@ -107,16 +121,26 @@ final class ProjectileManager {
                     g.thrownImpact(f, at: at, mob: hitMob, player: hitPlayer, block: blockHit)
                     continue
                 }
-                if hitPlayer {
+                if f.dragon {
+                    // Wyrm fireballs only burst into a lingering breath cloud (below).
+                } else if hitPlayer && g.effects.has(.fireResistance) {
+                    // A fireball is fire damage: Fire Resistance stops the hit (reference; it only stopped the burning).
+                } else if hitPlayer {
                     g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Wailer" : "was fireballed by Cinderwisp", type: .projectile)
                     if !f.big { g.onFire = max(g.onFire, 5) }
                 } else if let m = hitMob {
                     m.hit(from: f.pos, damage: f.big && f.byPlayer && m.kind == .ghast ? 1000 : (f.big ? 6 : 5), knockback: 0.5)
                     if f.byPlayer { m.killedByPlayer = true }
+                    // A wailer brought down by its own fireball sent back: the "Sent Back" advancement and its disc.
+                    if f.big && f.byPlayer && m.kind == .ghast {
+                        g.achieve("ghast_fireball")
+                        if Items.has("music_disc_tears") { g.drops.spawn(ItemStack(Items.id("music_disc_tears"), 1), at: m.pos + V3(0, 1, 0)) }
+                    }
                     if !f.big && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                 }
                 if f.dragon {
-                    g.clouds.append(AcidCloud(pos: at, radius: 3, time: 8))
+                    // Reference: a breath cloud lasting 30 s that spreads from radius 3 to 7.
+                    g.clouds.append(AcidCloud(pos: at, radius: 3, time: 30, maxTime: 30))
                 } else if f.big {
                     Explosion.explode(at: at, power: 1, game: g, fire: true)
                 } else if let b = blockHit {
@@ -125,7 +149,7 @@ final class ProjectileManager {
                 continue
             }
             f.pos += step
-            if (f.kind == .fire || f.kind == .witherSkull || f.kind == .blueSkull) && Float.random(in: 0..<1) < dt * 30 { g.particles.smoke(at: f.pos) }
+            if (f.kind == .fire || f.kind == .witherSkull || f.kind == .blueSkull) && Rand.float(in: 0..<1) < dt * 30 { g.particles.smoke(at: f.pos) }
         }
         fireballs.removeAll { $0.dead }
     }
@@ -133,7 +157,7 @@ final class ProjectileManager {
     @discardableResult
     func shoot(from p: V3, dir: V3, speed: Float, fromPlayer: Bool, damage: Float) -> Arrow {
         let spread: Float = fromPlayer ? 0.0075 : 0.03
-        let d = simd_normalize(dir + V3(Float.random(in: -1...1), Float.random(in: -1...1), Float.random(in: -1...1)) * spread)
+        let d = simd_normalize(dir + V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1)) * spread)
         let a = Arrow(p, d * speed, fromPlayer: fromPlayer, damage: damage)
         arrows.append(a)
         return a
@@ -142,7 +166,9 @@ final class ProjectileManager {
     func update(_ dt: Float, game g: Game) {
         let w = g.world
         updateFireballs(dt, game: g)
-        for a in arrows {
+        // In flight a player's arrow or trident is its shooter's (a returning trident flies back to them); stuck in the
+        // ground anyone may pick it up, so it goes to the nearest seat.
+        for a in arrows where (!a.stuck && a.seat >= 0 && g.coop.active) ? (a.seat == g.coop.current) : g.seatOwns(a.pos) {
             a.age += dt
             if a.returning, let t = a.trident {
                 // Loyalty: fly back and drop into the inventory.
@@ -204,15 +230,29 @@ final class ProjectileManager {
                 }
                 if blockT == .greatestFiniteMagnitude { blockT = len }
             }
+            if hitT < blockT, let m = hitMob, a.trident == nil,
+               (m.kind == .enderDragon && m.phase == 4) || (m.kind == .wither && m.phase == 0 && m.health <= m.spec.health / 2) {
+                // A perched wyrm and an armoured Blight (below half health) shrug arrows off: they bounce away.
+                a.pos += dir * max(0, hitT - 0.05)
+                a.vel = V3(-a.vel.x * 0.1, 1.5, -a.vel.z * 0.1)
+                a.hitMobs.append(ObjectIdentifier(m))
+                g.sfx(.arrowHit, 0.5, at: a.pos)
+                continue
+            }
             if hitT < blockT {
                 let speedPerTick = simd_length(a.vel) / 20
                 var dmg = Int(ceilf(speedPerTick * a.damage))
-                if a.fromPlayer && Float.random(in: 0..<1) < 0.25 { dmg += Int.random(in: 0...(dmg / 2 + 1)) }
-                if let m = hitMob {
+                if a.crit { dmg += Rand.int(in: 0...(dmg / 2 + 1)) }       // only a full draw (it was a 25 % roll on any shot)
+                if let m = hitMob, m.kind == .enderman, a.trident == nil {
+                    m.teleport(w)                                  // voidwalkers dodge arrows
+                } else if let m = hitMob {
                     if let t = a.trident { dmg = 8 + Int(Enchant.damageBonus(t, against: m)) }
-                    m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch))
+                    let h0 = m.health
+                    m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch), iframes: true)
+                    m.arrowDamage += max(0, h0 - m.health)
                     if a.trident != nil { g.tridentHit(a, mob: m) }
-                    if a.fromPlayer { m.killedByPlayer = true; m.provoke(g) } else { m.lastHitBySkeleton = true }
+                    if a.fromPlayer { m.killedByPlayer = true; m.provoke(g); g.achieve(a.trident != nil ? "trident_hit" : "arrow_hit") }
+                    else { m.lastHitBySkeleton = true }
                     if a.flame && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                     if a.tip != 0 { g.arrowEffects(a.tip, onPlayer: false, mob: m) }
                     g.sfx(.arrowHit, 0.7, at: a.pos)
@@ -236,6 +276,11 @@ final class ProjectileManager {
                 a.stuck = true
                 a.age = 0
                 g.sfx(.arrowHit, 0.5, at: a.pos)
+                let hitAt = a.pos + dir * 0.1
+                let cell = IVec3(Int(floor(hitAt.x)), Int(floor(hitAt.y)), Int(floor(hitAt.z)))
+                if Circuit.kind(w.block(cell.x, cell.y, cell.z)) == .target { w.redstone.hitTarget(cell, at: hitAt, arrow: true) }
+                // The cell the arrow rests in (a button on the face it hit has no collision box).
+                w.redstone.arrowLanded(IVec3(Int(floor(a.pos.x)), Int(floor(a.pos.y)), Int(floor(a.pos.z))))
                 if a.trident != nil { g.tridentHit(a, mob: nil); a.returning = false }
             } else {
                 a.pos += step
@@ -256,7 +301,7 @@ final class ProjectileManager {
                 let layer: Int
                 switch f.kind {
                 case .snowball: layer = Items.texLayer(Items.id("snowball")) ?? fl
-                case .egg: layer = Items.texLayer(Items.id("egg")) ?? fl
+                case .egg: layer = Items.texLayer(f.egg != 0 ? f.egg : Items.id("egg")) ?? fl
                 case .pearl: layer = Items.texLayer(Items.id("ender_pearl")) ?? fl
                 default: layer = Int(Tex.id(f.kind == .blueSkull ? "skull_skeleton_face" : "skull_wither_face"))
                 }

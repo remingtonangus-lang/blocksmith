@@ -7,6 +7,7 @@ import Foundation
 enum TreeKind {
     case oak, fancyOak, birch, tallBirch, spruce, pine, megaSpruce, megaPine, jungle, megaJungle, jungleBush
     case acacia, darkOak, swampOak, mangrove, cherry, hugeRed, hugeBrown, iceSpike, smallOak, paleOak
+    case shrubOak, shrubSpruce, shrubAcacia
 }
 
 struct TreeWriter {
@@ -21,7 +22,7 @@ struct TreeWriter {
         guard inside(x, y, z) else { return }
         let i = Chunk.index(x - bx, y, z - bz)
         let c = b[i]
-        if c == AIR || Blocks.replaceable[Int(c)] && !Blocks.isLiquid(c) || Blocks.key(c).hasSuffix("_leaves") { b[i] = id }
+        if c == AIR || Blocks.replaceable[Int(c)] && !Blocks.isLiquid(c) || Mesher.leafT[Int(c)] { b[i] = id }
     }
     func leaf(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
         guard inside(x, y, z) else { return }
@@ -47,7 +48,7 @@ enum TreePlacer {
         case .windsweptForest: return p(0.15) ? (pick < 0.5 ? .spruce : .oak) : nil
         case .oldGrowthPineTaiga: return p(0.35) ? (pick < 0.3 ? .megaPine : (pick < 0.7 ? .pine : .spruce)) : nil
         case .oldGrowthSpruceTaiga: return p(0.35) ? (pick < 0.3 ? .megaSpruce : .spruce) : nil
-        case .savanna, .windsweptSavanna: return p(0.035) ? (pick < 0.8 ? .acacia : .oak) : nil
+        case .savanna, .windsweptSavanna: return p(0.035) ? (pick < 0.8 ? .acacia : .oak) : (p(0.06) ? .shrubAcacia : nil)
         case .savannaPlateau: return p(0.07) ? (pick < 0.8 ? .acacia : .oak) : nil
         case .jungle:
             guard p(0.7) else { return nil }
@@ -56,14 +57,14 @@ enum TreePlacer {
         case .bambooJungle: return p(0.35) ? (pick < 0.2 ? .jungle : .jungleBush) : nil
         case .woodedBadlands: return y > YOFF + 94 && p(0.15) ? .smallOak : nil
         case .windsweptHills, .windsweptGravellyHills: return p(0.02) ? (pick < 0.7 ? .oak : .spruce) : nil
-        case .meadow: return p(0.002) ? (pick < 0.5 ? .fancyOak : .birch) : nil
+        case .meadow: return p(0.002) ? (pick < 0.5 ? .fancyOak : .birch) : (p(0.008) ? .shrubOak : nil)
         case .cherryGrove: return p(0.18) ? .cherry : nil
         case .paleGarden: return p(0.32) ? (pick < 0.85 ? .paleOak : .darkOak) : nil
         case .swamp: return p(0.07) ? .swampOak : nil
         case .mangroveSwamp: return p(0.35) ? .mangrove : nil
         case .mushroomFields: return p(0.02) ? (pick < 0.5 ? .hugeRed : .hugeBrown) : nil
-        case .plains, .sunflowerPlains: return p(0.002) ? (pick < 0.33 ? .fancyOak : .oak) : nil
-        case .snowyPlains: return p(0.004) ? .spruce : nil
+        case .plains, .sunflowerPlains: return p(0.002) ? (pick < 0.33 ? .fancyOak : .oak) : (p(0.007) ? .shrubOak : nil)
+        case .snowyPlains: return p(0.004) ? .spruce : (p(0.012) ? .shrubSpruce : nil)
         case .iceSpikes: return p(0.035) ? .iceSpike : nil
         default: return nil
         }
@@ -90,11 +91,20 @@ enum TreePlacer {
                     if tx < bx - margin || tx >= bx + CS + margin || tz < bz - margin || tz >= bz + CS + margin { continue }
                     let roll = Float((hv >> 4) & 0xFFFF) / 65536
                     if roll > 0.7 { continue }
-                    let k = gen.climate(tx, tz), s = gen.shape(k, tx, tz)
-                    let biome = gen.biome(k, s)
+                    // Each tree samples the climate with its own small offset, so species and density mix
+                    // across a border (ecotone) instead of changing at a line; glades thin forests in patches.
+                    let k = gen.terrain.column(tx, tz)
+                    let dT = (hashf(tx, 2, tz, gen.s32 ^ 0x7EE8) - 0.5) * 0.16
+                    let dW = (hashf(tx, 3, tz, gen.s32 ^ 0x7EE9) - 0.5) * 0.18
+                    let dith = gen.terrain.biome(k, k.h, dT: dT, dW: dW)
+                    let base = gen.terrain.biome(k, k.h)
+                    let biome = dith.isDry == base.isDry ? dith : base
+                    let glade = gen.flora.noise2(Float(tx) / 70 + 300, Float(tz) / 70)
+                    let r2 = roll / max(0.3, 0.8 + 0.9 * glade)
                     let pick = hashf(tx, 1, tz, gen.s32 ^ 0x7EE6)
-                    let hint = YOFF + Int(s.h) + 30
-                    guard let kind = choose(biome, roll, pick, YOFF + Int(s.h)), let gy = top(tx, tz, hint), gy >= SEA else { continue }
+                    let hint = YOFF + Int(k.h) + 30
+                    guard k.rv > 1.2, let kind = choose(biome, r2, pick, YOFF + Int(k.h)), let gy = top(tx, tz, hint),
+                          gy >= SEA, gy - YOFF >= Int(floorf(k.wl)) else { continue }
                     if !keepOut.isEmpty && blocked(tx, gy, tz) { continue }
                     // Soil check where we can see it (inside this chunk).
                     if w.inside(tx, gy, tz) {
@@ -113,7 +123,12 @@ enum TreePlacer {
 
     static func blob(_ w: TreeWriter, _ x: Int, _ y: Int, _ z: Int, rx: Float, ry: Float, _ leaf: BlockID, _ rng: inout SRng) {
         let ix = Int(rx.rounded(.up)), iy = Int(ry.rounded(.up))
+        // Crowns of trees in the 7-block margin mostly miss this chunk: skip them (and the outside voxels) before the
+        // per-voxel hash (tree placement was half of world generation's time: bench gen phases, run 365).
+        if x + ix < w.bx || x - ix >= w.bx + CS || z + ix < w.bz || z - ix >= w.bz + CS { return }
         for dy in -iy...iy { for dz in -ix...ix { for dx in -ix...ix {
+            let qx = x + dx, qz = z + dz
+            if qx < w.bx || qx >= w.bx + CS || qz < w.bz || qz >= w.bz + CS { continue }
             let e = Float(dx * dx + dz * dz) / (rx * rx) + Float(dy * dy) / (ry * ry)
             if e > 1 + (hashf(x + dx, y + dy, z + dz, 0x1EAF) - 0.5) * 0.3 { continue }
             w.leaf(x + dx, y + dy, z + dz, leaf)
@@ -165,8 +180,13 @@ enum TreePlacer {
                 let a = rng.float() * 2 * .pi, len = Float(rng.range(2, 3))
                 let bxo = Int((cosf(a) * len).rounded()), bzo = Int((sinf(a) * len).rounded())
                 let by = y + h - rng.range(2, 4)
-                w.log(x + bxo / 2, by, z + bzo / 2, LOG)
-                w.log(x + bxo, by + 1, z + bzo, LOG)
+                // A connected limb out to the tip (one log per step, rising one at the tip); a log at len / 2 and
+                // one at len left a gap for len 3 (gencheck trunk_floating: floating branch tips).
+                let steps = max(1, max(abs(bxo), abs(bzo)))
+                for i in 1...steps {
+                    let t = Float(i) / Float(steps)
+                    w.log(x + Int((Float(bxo) * t).rounded()), by + (i == steps ? 1 : 0), z + Int((Float(bzo) * t).rounded()), LOG)
+                }
                 blob(w, x + bxo, by + 2, z + bzo, rx: 2.2, ry: 1.6, LEAVES, &rng)
             }
         case .spruce, .pine:
@@ -180,12 +200,15 @@ enum TreePlacer {
                     } }
                 }
             } else {
-                let pattern = [0, 1, 2, 1, 2, 3, 2, 3]
+                // The tier under the tip is a leafy cross (a bare trunk block between the tip and the first tier read as a
+                // stump poking out of every snowy crown: blind critic, run 395 snowy).
+                let pattern = [1, 2, 1, 2, 3, 2, 3]
                 var yy = y + h - 1, k = 0
                 while yy >= y + 2 {
                     let r = pattern[min(k, pattern.count - 1)]
+                    let round: Int = k == 0 ? 1 : r * r + 1
                     if r > 0 {
-                        for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r + 1 { w.leaf(x + dx, yy, z + dz, SPRUCE_LEAVES) } }
+                        for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= round { w.leaf(x + dx, yy, z + dz, SPRUCE_LEAVES) } }
                     } else { w.leaf(x, yy, z, SPRUCE_LEAVES) }
                     yy -= 1; k += 1
                 }
@@ -221,8 +244,14 @@ enum TreePlacer {
             while by > y + 4 {
                 let a = rng.float() * 2 * .pi
                 let ex = x + Int((cosf(a) * 4).rounded()), ez = z + Int((sinf(a) * 4).rounded())
-                w.log(x + (ex - x) / 2, by, z + (ez - z) / 2, log)
-                w.log(ex, by + 1, ez, log)
+                // A connected limb from the (2x2) trunk out to the tip, rising one at the tip (the half-way log and
+                // the tip log left gaps: gencheck trunk_floating).
+                let steps = max(1, max(abs(ex - x), abs(ez - z)))
+                for i in 1...steps {
+                    let t = Float(i) / Float(steps)
+                    let lx = x + Int((Float(ex - x) * t).rounded()), lz = z + Int((Float(ez - z) * t).rounded())
+                    w.log(lx, by + (i == steps ? 1 : 0), lz, log)
+                }
                 blob(w, ex, by + 2, ez, rx: 2.5, ry: 1.2, leaf, &rng)
                 by -= rng.range(3, 5)
             }
@@ -326,6 +355,12 @@ enum TreePlacer {
                     w.leaf(x + dx, y + h - dy, z + dz, cap)
                 } } }
             }
+        case .shrubOak, .shrubSpruce, .shrubAcacia:
+            // A knee-high woody shrub: one log and a low, lopsided leaf mound.
+            let log = kind == .shrubSpruce ? SPRUCE_LOG : (kind == .shrubAcacia ? g("acacia_log") : LOG)
+            let leaf = kind == .shrubSpruce ? SPRUCE_LEAVES : (kind == .shrubAcacia ? g("acacia_leaves") : LEAVES)
+            w.log(x, y, z, log)
+            blob(w, x + rng.range(-1, 1) / 2, y + 1, z + rng.range(-1, 1) / 2, rx: 1.4 + rng.float() * 0.8, ry: 0.9, leaf, &rng)
         case .iceSpike:
             let ice = g("packed_ice")
             let giant = rng.int(60) == 0
@@ -341,9 +376,16 @@ enum TreePlacer {
 
 extension WorldGen {
     // Ground plants, flowers, sugar cane, cacti, water plants and icebergs, per column (own chunk only).
-    func placeVegetation(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ biomes: [Biome], _ rng: inout SRng) {
+    func placeVegetation(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ biomes: [Biome], _ rng: inout SRng, cols: [Terrain.Column]? = nil) {
         let g = Blocks.id
         let grassy: Set<BlockID> = [GRASS, SNOWY_GRASS, DIRT, g("podzol"), g("coarse_dirt"), g("moss_block")]
+        // Looked up once: these ran per column (several string dictionary lookups each).
+        let iceID = g("ice"), snowLayerID = g("snow"), clayID = g("clay"), mudID = g("mud"), seagrassID = g("seagrass"), redSandID = g("red_sand")
+        // Playtest Oct 9 PM #3 ("too much vegetation; grass about 1/8; cactus far too common; review all plants"):
+        // `calm` scales each plant against the v78 densities (old = 1). Measured per biome in
+        // docs/status/evidence/2026-10-09-pm/plants.md; check: `--questbugs --only pm9b`.
+        let old = plantsBeforePM9
+        func calm(_ v: Float) -> Float { old ? 1 : v }
         func flowerFor(_ biome: Biome, _ h: Float, _ wx: Int, _ wz: Int) -> BlockID {
             let pick = Int(h * 997) % 100
             switch biome {
@@ -374,12 +416,12 @@ extension WorldGen {
             let h2 = hashf(wx, 9, wz, s32 ^ 0x3C3D)
             guard y + 3 < CH else { continue }
             // Water columns: plants on the floor, lily pads on the surface.
-            if ground == WATER || ground == Blocks.id("ice") {
+            if ground == WATER || ground == iceID {
                 var fy = y
                 while fy > 1 && (b[Chunk.index(lx, fy, lz)] == WATER) { fy -= 1 }
                 let depth = y - fy
                 let floor = b[Chunk.index(lx, fy, lz)]
-                guard floor == SAND || floor == GRAVEL || floor == DIRT || floor == g("clay") || floor == g("mud") else { continue }
+                guard floor == SAND || floor == GRAVEL || floor == DIRT || floor == clayID || floor == mudID else { continue }
                 if biome == .warmOcean && depth > 2 {
                     if h < 0.25 {
                         let c = ["tube", "brain", "bubble", "fire", "horn"][Int(h2 * 5) % 5]
@@ -387,24 +429,33 @@ extension WorldGen {
                         for k in 1...min(reefH, depth - 2) { b[Chunk.index(lx, fy + k, lz)] = g("\(c)_coral_block") }
                         b[Chunk.index(lx, fy + min(reefH, depth - 2) + 1, lz)] = g("\(c)_coral")
                     } else if h < 0.4 { b[Chunk.index(lx, fy + 1, lz)] = g(["tube", "brain", "bubble", "fire", "horn"][Int(h2 * 5) % 5] + "_coral") }
-                    else if h < 0.6 { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }
+                    else if h < 0.6 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                 } else if (biome.isOcean || biome.isRiver) && biome != .frozenOcean && biome != .deepFrozenOcean {
                     let kelpPatch = flora.noise2(Float(wx) / 18 + 700, Float(wz) / 18 + 700) > 0.2
                     if kelpPatch && h < 0.12 && depth > 3 && biome != .warmOcean && !biome.isRiver {
                         let len = min(depth - 2, 1 + Int(h2 * h2 * Float(depth)))
                         for k in 1...len { b[Chunk.index(lx, fy + k, lz)] = g("kelp") }
-                    } else if h < 0.4 { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }
+                    } else {
+                        // Seagrass grows in meadows (dense where a low-frequency noise is high, a few strands elsewhere)
+                        // instead of 40 % of every seabed column (underwater.png: a uniform field of sticks).
+                        let meadow = flora.noise2(Float(wx) / 22 + 410, Float(wz) / 22 + 410)
+                        let t: Float = max(0, min(1, (meadow + 0.05) / 0.35))
+                        let chance: Float = 0.04 + 0.5 * t * t
+                        // Two blocks deep at least: in one-deep shallows the seagrass took the only water block and stood
+                        // dry in a hole in the surface (kelpcheck: ~300 per 1369 chunks, all at sea level).
+                        if h2 < chance && depth >= 2 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
+                    }
                 } else if biome == .swamp || biome == .mangroveSwamp {
-                    if depth <= 2 && h < 0.08 && ground == WATER { b[Chunk.index(lx, y + 1, lz)] = g("lily_pad") }
-                    else if h > 0.8 { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }
+                    if depth <= 2 && h < 0.08 * calm(0.6) && ground == WATER { b[Chunk.index(lx, y + 1, lz)] = g("lily_pad") }
+                    else if h > 0.8 && depth >= 2 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                 }
                 continue
             }
             let above = Chunk.index(lx, y + 1, lz)
-            guard b[above] == AIR || b[above] == g("snow") else { continue }
-            if b[above] == g("snow") { continue }
+            guard b[above] == AIR || b[above] == snowLayerID else { continue }
+            if b[above] == snowLayerID { continue }
             // Sugar cane beside water.
-            if (ground == GRASS || ground == SAND || ground == DIRT) && h < 0.12 {
+            if (ground == GRASS || ground == SAND || ground == DIRT) && h < 0.12 * calm(0.4) {
                 let nearWater = [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { d in
                     let nx = lx + d.0, nz = lz + d.1
                     return nx >= 0 && nx < CS && nz >= 0 && nz < CS && b[Chunk.index(nx, y, nz)] == WATER
@@ -416,8 +467,9 @@ extension WorldGen {
             }
             switch biome {
             case .desert, .badlands, .erodedBadlands, .woodedBadlands:
-                if ground == SAND || ground == g("red_sand") {
-                    if h < (biome == .desert ? 0.008 : 0.004) {
+                if ground == SAND || ground == redSandID {
+                    // Cactus: one every ~16-20 blocks of desert (it was one every ~11, in clumps of 1-3 tall).
+                    if h < (biome == .desert ? 0.008 : 0.004) * calm(0.35) {
                         let clear = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in
                             let nx = lx + d.0, nz = lz + d.1
                             return nx < 0 || nx >= CS || nz < 0 || nz >= CS || b[Chunk.index(nx, y + 1, nz)] == AIR
@@ -427,13 +479,13 @@ extension WorldGen {
                             for k in 1...len { b[Chunk.index(lx, y + k, lz)] = CACTUS }
                             if hashf(wx, 11, wz, s32 ^ 0x3C3E) < 0.25 { b[Chunk.index(lx, y + len + 1, lz)] = g("cactus_flower") }
                         }
-                    } else if h < 0.015 { b[above] = g("dead_bush") }
-                    else if h < 0.03 { b[above] = g("short_dry_grass") }
-                    else if h < 0.036 { b[above] = g("tall_dry_grass") }
-                } else if grassy.contains(ground) && h < 0.1 { b[above] = TALL_GRASS }
+                    } else if h >= 0.008 && h < 0.008 + 0.007 * calm(0.75) { b[above] = g("dead_bush") }
+                    else if h >= 0.015 && h < 0.015 + 0.015 * calm(0.3) { b[above] = g("short_dry_grass") }
+                    else if h >= 0.03 && h < 0.03 + 0.006 * calm(0.3) { b[above] = g("tall_dry_grass") }
+                } else if grassy.contains(ground) && h < 0.1 * calm(0.11) { b[above] = TALL_GRASS }
                 continue
             case .mushroomFields:
-                if h < 0.012 { b[above] = h2 < 0.5 ? g("red_mushroom") : g("brown_mushroom") }
+                if h < 0.012 * calm(0.75) { b[above] = h2 < 0.5 ? g("red_mushroom") : g("brown_mushroom") }
                 continue
             default: break
             }
@@ -456,6 +508,8 @@ extension WorldGen {
             default: grassP = 0.04; flowerP = 0
             }
             if biome.snows(at: y + 1) { continue }
+            // Riverside: lusher grass and ferns along channels and lake shores.
+            if let cols, cols[lx + lz * CS].rv < 2.5 { grassP += 0.2; tallP += 0.06; fernP += 0.04 }
             // Specials.
             if (biome == .taiga || biome == .oldGrowthPineTaiga || biome == .oldGrowthSpruceTaiga) && h > 0.995 {
                 b[above] = g("sweet_berry_bush_3"); continue
@@ -468,7 +522,7 @@ extension WorldGen {
             if biome == .sunflowerPlains && h > 0.97 {
                 b[above] = g("sunflower"); b[Chunk.index(lx, y + 2, lz)] = g("sunflower") + 1; continue
             }
-            if (biome == .darkForest || biome == .oldGrowthSpruceTaiga) && h > 0.985 {
+            if (biome == .darkForest || biome == .oldGrowthSpruceTaiga) && h > 1 - 0.015 * calm(0.5) {
                 b[above] = h2 < 0.5 ? g("red_mushroom") : g("brown_mushroom"); continue
             }
             if biome == .paleGarden {
@@ -480,16 +534,28 @@ extension WorldGen {
             // Newer ground cover: leaf litter under forests, wildflowers, bushes, firefly bushes by swamps.
             switch biome {
             case .forest, .darkForest, .birchForest, .oldGrowthBirchForest, .windsweptForest:
-                if h > 0.94 { b[above] = g("leaf_litter"); continue }
-                if (biome == .birchForest || biome == .oldGrowthBirchForest) && h > 0.92 { b[above] = g("wildflowers"); continue }
+                let litter: Float = 0.06 * calm(0.35), wild: Float = 0.02 * calm(0.6)
+                if h > 1 - litter { b[above] = g("leaf_litter"); continue }
+                if (biome == .birchForest || biome == .oldGrowthBirchForest) && h > 1 - litter - wild { b[above] = g("wildflowers"); continue }
             case .meadow:
                 if h > 0.93 { b[above] = g("wildflowers"); continue }
             case .plains, .sunflowerPlains, .windsweptHills:
-                if h > 0.985 { b[above] = g("bush"); continue }
+                if h > 0.993 { b[above] = g("bush"); continue }
             case .swamp, .mangroveSwamp:
-                if h > 0.975 { b[above] = g("firefly_bush"); continue }
+                if h > 1 - 0.025 * calm(0.4) { b[above] = g("firefly_bush"); continue }
+            case .jungle, .sparseJungle, .bambooJungle:
+                if h > 1 - 0.05 * calm(0.4) { b[above] = g("bush"); continue }
+            case .savanna, .savannaPlateau, .windsweptSavanna:
+                if h > 1 - 0.03 * calm(0.3) { b[above] = g("short_dry_grass"); continue }
             default: break
             }
+            // A calmer ground (playtest v78: "too noisy"): no tall grass, about a third of the short grass, half the
+            // flowers and ferns (themed biomes keep their relative richness).
+            grassP *= 0.35; flowerP *= 0.5; fernP *= 0.5; tallP = 0
+            // PM9: short grass about 1/8 again (0.11: measured 0.10-0.12 over nine biomes), ferns ~1/3; flowers stay
+            // (themed flower biomes a little calmer).
+            grassP *= calm(0.11); fernP *= calm(0.35)
+            if biome == .flowerForest || biome == .cherryGrove || biome == .meadow { flowerP *= calm(0.7) }
             if h < flowerP {
                 if biome == .flowerForest && h2 < 0.15 {
                     let tall = ["lilac", "rose_bush", "peony"][Int(h2 * 20) % 3]
@@ -503,6 +569,64 @@ extension WorldGen {
                 b[above] = TALL_GRASS
             }
         } }
+        // Fallen trunks on forest floors, lying along x or z, sometimes with moss or mushrooms on top.
+        let fallen: [Biome: String] = [.forest: "oak_log", .flowerForest: "oak_log", .birchForest: "birch_log", .oldGrowthBirchForest: "birch_log",
+                                       .darkForest: "dark_oak_log", .taiga: "spruce_log", .oldGrowthPineTaiga: "spruce_log",
+                                       .oldGrowthSpruceTaiga: "spruce_log", .snowyTaiga: "spruce_log", .jungle: "jungle_log", .windsweptForest: "spruce_log"]
+        if rng.chance(0.3) {
+            let lx0 = rng.range(2, 9), lz0 = rng.range(2, 9), len = rng.range(3, 5), alongX = rng.chance(0.5)
+            if let key = fallen[biomes[lx0 + lz0 * CS]], Blocks.has(key + (alongX ? "[x]" : "[z]")) {
+                let log = g(key + (alongX ? "[x]" : "[z]"))
+                var y = CH - 2
+                while y > 1 && !Blocks.opaque[Int(b[Chunk.index(lx0, y, lz0)])] { y -= 1 }
+                var ok = y > SEA
+                for k in 0..<len where ok {
+                    let lx = lx0 + (alongX ? k : 0), lz = lz0 + (alongX ? 0 : k)
+                    let ground = b[Chunk.index(lx, y, lz)], above = b[Chunk.index(lx, y + 1, lz)]
+                    if !Blocks.opaque[Int(ground)] || !(above == AIR || Blocks.replaceable[Int(above)]) || Blocks.isLiquid(above) { ok = false }
+                }
+                if ok {
+                    for k in 0..<len {
+                        let lx = lx0 + (alongX ? k : 0), lz = lz0 + (alongX ? 0 : k)
+                        b[Chunk.index(lx, y + 1, lz)] = log
+                        let top = Chunk.index(lx, y + 2, lz)
+                        if b[top] == AIR || Blocks.replaceable[Int(b[top])] {
+                            let h = hashf(bx + lx, y, bz + lz, s32 ^ 0xFA11)
+                            b[top] = h < 0.3 ? g("moss_carpet") : (h < 0.4 ? g("brown_mushroom") : (h < 0.45 ? g("red_mushroom") : AIR))
+                        }
+                    }
+                }
+            }
+        }
+        // Boulders of mossy cobble, cobble and andesite in rocky, cold and upland country.
+        let rocky: Set<Biome> = [.taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga, .snowyPlains, .snowyTaiga, .windsweptHills,
+                                 .windsweptGravellyHills, .windsweptForest, .grove, .meadow, .stonyShore, .plains]
+        if rng.chance(0.4) {
+            let lx0 = rng.range(3, 12), lz0 = rng.range(3, 12)
+            let biome = biomes[lx0 + lz0 * CS]
+            if rocky.contains(biome) && (biome != .plains || rng.chance(0.2)) {
+                var y = CH - 2
+                while y > 1 && !Blocks.opaque[Int(b[Chunk.index(lx0, y, lz0)])] { y -= 1 }
+                let r = 1.1 + rng.float() * 1.3
+                let mats = [g("mossy_cobblestone"), COBBLE, g("andesite"), g("mossy_cobblestone")]
+                let ground = Blocks.key(b[Chunk.index(lx0, y, lz0)])
+                if y > SEA && (ground.contains("grass") || ground == "podzol" || ground == "dirt" || ground == "coarse_dirt" || ground == "stone" || ground == "gravel") {
+                    for dy in -1...2 { for dz in -3...3 { for dx in -3...3 {
+                        let lx = lx0 + dx, lz = lz0 + dz, yy = y + dy
+                        guard lx >= 0 && lx < CS && lz >= 0 && lz < CS && yy < CH - 1 else { continue }
+                        let e = Float(dx * dx + dz * dz) / (r * r) + Float(dy * dy) / (r * r * 0.7)
+                        if e > 1 + (hashf(bx + lx, yy, bz + lz, s32 ^ 0xB01D) - 0.5) * 0.6 { continue }
+                        let i = Chunk.index(lx, yy, lz)
+                        if b[i] == AIR || Blocks.replaceable[Int(b[i])] || dy <= 0 {
+                            b[i] = mats[Int(hashf(bx + lx, yy, bz + lz, s32 ^ 0xB01E) * 4) % 4]
+                            // No grass or flowers left standing on the boulder's rim (gencheck plant_soil).
+                            let up = Chunk.index(lx, yy + 1, lz)
+                            if StructWriter.soilPlant[Int(b[up])] { b[up] = AIR }
+                        }
+                    } } }
+                }
+            }
+        }
         // Icebergs in frozen oceans (1 in 12 chunks).
         if biomes.contains(where: { $0 == .frozenOcean || $0 == .deepFrozenOcean }) && rng.int(12) == 0 {
             let cxr = rng.range(4, 11), czr = rng.range(4, 11)

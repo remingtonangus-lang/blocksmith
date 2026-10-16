@@ -40,9 +40,13 @@ struct VillagerData: Codable {
     var levelUpTimer: Float = 0
     var bed: [Int]? = nil                // claimed bed head
     var food: Int? = nil                 // food points (breeding needs 12)
+    var gossip: [Int]? = nil             // what it has heard about the player: see Gossip (VillageLife.swift)
+    var gossipDay: Int? = nil            // last day gossip decayed
 }
 
 enum Villagers {
+    // Per block state: the profession whose job site it is (dictionary lookups on the block key ran per scanned cell).
+    static let jobSiteOf: [String?] = (0..<Blocks.count).map { $0 == Int(AIR) ? nil : jobSites[Blocks.key(Blocks.groupBase[$0])] }
     static let jobSites: [String: String] = [
         "blast_furnace": "armorer", "smoker": "butcher", "cartography_table": "cartographer", "brewing_stand": "cleric",
         "composter": "farmer", "barrel": "fisherman", "fletching_table": "fletcher", "cauldron": "leatherworker",
@@ -70,7 +74,8 @@ enum Villagers {
     static func ench(_ i: String, _ base: Int, _ uses: Int, _ xp: Int, _ m: Float = 0.05) -> T {
         T(buy: "emerald", buyN: base, sell: i + "@ench", sellN: 1, uses: uses, xp: xp, mult: m)
     }
-    static let book = T(buy: "emerald", buyN: 0, buyB: "book", buyBN: 1, sell: "enchanted_book@book", sellN: 1, uses: 12, xp: 0, mult: 0.2)
+    // Enchanted-book offers give the villager 1 / 5 / 10 / 15 experience by level (0: book-only librarians never levelled).
+    static func book(_ xp: Int) -> T { T(buy: "emerald", buyN: 0, buyB: "book", buyBN: 1, sell: "enchanted_book@book", sellN: 1, uses: 12, xp: xp, mult: 0.2) }
 
     static let colorsL1 = ["white", "gray", "black", "light_blue", "lime"]
     static let colorsL2 = ["yellow", "light_gray", "orange", "red", "pink"]
@@ -112,18 +117,18 @@ enum Villagers {
              T(buy: "arrow", buyN: 5, buyB: "emerald", buyBN: 2, sell: "tipped_arrow@tipped", sellN: 5, uses: 12, xp: 30)],
         ],
         "librarian": [
-            [emeraldFor("paper", 24, 16, 2), book, forEmeralds("bookshelf", 9, 1, 12, 1)],
-            [emeraldFor("book", 4, 12, 10), book, forEmeralds("lantern", 1, 1, 12, 5)],
-            [emeraldFor("ink_sac", 5, 12, 20), book, forEmeralds("glass", 1, 4, 12, 10)],
-            [emeraldFor("writable_book", 2, 12, 30), book, forEmeralds("clock", 5, 1, 12, 15), forEmeralds("compass", 4, 1, 12, 15)],
+            [emeraldFor("paper", 24, 16, 2), book(1), forEmeralds("bookshelf", 9, 1, 12, 1)],
+            [emeraldFor("book", 4, 12, 10), book(5), forEmeralds("lantern", 1, 1, 12, 5)],
+            [emeraldFor("ink_sac", 5, 12, 20), book(10), forEmeralds("glass", 1, 4, 12, 10)],
+            [emeraldFor("writable_book", 2, 12, 30), book(15), forEmeralds("clock", 5, 1, 12, 15), forEmeralds("compass", 4, 1, 12, 15)],
             [forEmeralds("name_tag", 20, 1, 12, 30)],
         ],
         "cartographer": [
             [emeraldFor("paper", 24, 16, 2), forEmeralds("map", 7, 1, 12, 1)],
-            [emeraldFor("glass_pane", 11, 16, 10), forEmeralds("map", 13, 1, 12, 5)],
-            [emeraldFor("compass", 1, 12, 20), forEmeralds("map", 14, 1, 12, 10)],
+            [emeraldFor("glass_pane", 11, 16, 10), swap("compass", 1, 13, "sea_temple_explorer_map", 1, 12, 5)],
+            [emeraldFor("compass", 1, 12, 20), swap("compass", 1, 14, "manor_explorer_map", 1, 12, 10)],
             [forEmeralds("item_frame", 7, 1, 12, 15)] + BlockRegistry.colors.map { forEmeralds("\($0.0)_banner", 3, 1, 12, 15) },
-            [forEmeralds("globe_banner_pattern", 8, 1, 12, 30)],
+            [forEmeralds("globe_banner_pattern", 8, 1, 12, 30), swap("compass", 1, 24, "steelhold_explorer_map", 1, 6, 30)],
         ],
         "cleric": [
             [emeraldFor("rotten_flesh", 32, 16, 2), forEmeralds("redstone", 1, 2, 12, 1)],
@@ -205,22 +210,22 @@ enum Villagers {
         var buyN = t.buyN
         switch suffix {
         case "ench":
-            let lv = Int.random(in: 5...19)
+            let lv = Rand.int(in: 5...19)
             sell = Enchant.withLevels(sell.item, lv)
             buyN = min(64, t.buyN + lv)
         case "book":
             // Random tradeable enchantment at a random level; treasure costs double.
             let opts = Ench.allCases.filter { ![.soulSpeed, .swiftSneak, .windBurst].contains($0) }
-            let e = opts.randomElement()!
+            let e = opts.pick()!
             let d = Enchant.def(e)
-            let l = Int.random(in: 1...d.max)
+            let l = Rand.int(in: 1...d.max)
             sell.ench = Enchant.pack([(e, l)])
-            var cost = 2 + Int.random(in: 0..<(5 + l * 10)) + 3 * l
+            var cost = 2 + Rand.int(in: 0..<(5 + l * 10)) + 3 * l
             if d.treasure { cost *= 2 }
             buyN = min(64, cost)
         case "tipped":
             let opts = Potions.types.filter { !$0.effects.isEmpty && !$0.key.hasPrefix("strong_turtle") }
-            if let p = opts.randomElement(), let it = Potions.item(3, p.key) { sell = ItemStack(it, t.sellN) }
+            if let p = opts.pick(), let it = Potions.item(3, p.key) { sell = ItemStack(it, t.sellN) }
         default: break
         }
         let a = ItemStack(Items.id(t.buy), buyN)
@@ -234,7 +239,7 @@ enum Villagers {
         var pool = pools[level - 1].filter { has($0.buy) && has($0.sell) }
         var picks = 0
         while picks < 2 && !pool.isEmpty {
-            let i = Int.random(in: 0..<pool.count)
+            let i = Rand.int(in: 0..<pool.count)
             if let o = make(pool[i]) { v.offers.append(o); picks += 1 }
             pool.remove(at: i)
         }
@@ -266,14 +271,15 @@ extension Mob {
         var claimed = Set<IVec3>()
         for o in g.mobs.mobs where o !== self && o.kind == .villager { if let j = o.villager?.jobSite { claimed.insert(IVec3(j[0], j[1], j[2])) } }
         var best: (IVec3, String)?
-        var bd = Int.max
-        for dy in -3...3 { for dz in -16...16 { for dx in -16...16 {
-            let p = IVec3(c.x + dx, c.y + dy, c.z + dz)
-            let b = g.world.block(p.x, p.y, p.z)
-            guard b != AIR, let prof = Villagers.jobSites[Blocks.key(Blocks.groupBase[Int(b)])], !claimed.contains(p) else { continue }
-            let d = dx * dx + dy * dy + dz * dz
-            if d < bd { bd = d; best = (p, prof) }
-        } } }
+        var bk = (Int.max, 0, 0, 0)              // (distance, dy, dz, dx): the nearest, ties in the old scan order
+        let table = Villagers.jobSiteOf
+        g.world.forEachBlock(around: c, r: 16, ry: 3) { b, x, y, z in
+            guard Int(b) < table.count, let prof = table[Int(b)] else { return }
+            let dx = x - c.x, dy = y - c.y, dz = z - c.z
+            let k = (dx * dx + dy * dy + dz * dz, dy, dz, dx)
+            guard k < bk, !claimed.contains(IVec3(x, y, z)) else { return }
+            bk = k; best = (IVec3(x, y, z), prof)
+        }
         guard let (p, prof) = best else { return }
         v.profession = prof
         v.jobSite = [p.x, p.y, p.z]
@@ -300,6 +306,7 @@ extension Mob {
         }
         v.restocksToday += 1
         villager = v
+        if let w = MobVoice.workIndex(v.profession) { g.sfx(.villagerWork(w), 0.8, at: site + V3(0, 0.8, 0)) }
     }
 }
 
@@ -311,7 +318,7 @@ extension Game {
         guard m.kind == .villager, !m.baby else { return false }
         var v = m.vdata
         if v.profession == "none" || v.profession == "nitwit" {
-            sfx(.mobVillager, 0.7, at: m.pos + V3(0, 1.6, 0))       // shakes head
+            sfx(.villagerNo, 0.8, at: m.pos + V3(0, 1.6, 0))       // shakes head
             return true
         }
         if v.offers.isEmpty { Villagers.addOffers(&v, level: 1); m.villager = v }
@@ -322,7 +329,7 @@ extension Game {
     // Village Hero discount applied while a trade screen is open.
     func heroDiscount(_ o: TradeOffer) -> Int {
         let h = effects.level(.heroOfTheVillage)
-        guard h > 0, o.buyA.item == Items.id("emerald") else { return 0 }
+        guard h > 0, !o.buyA.isEmpty else { return 0 }                   // every offer, not only emerald prices (20 wheat -> 14)
         let k = 0.3 + 0.0625 * Float(h - 1)
         return -max(1, Int(floor(k * Float(o.buyA.count))))
     }
@@ -360,7 +367,9 @@ final class MerchantMenu: Menu {
 
     func price(_ o: TradeOffer) -> ItemStack {
         var o2 = o
-        o2.special += game.heroDiscount(o) + ((mob?.villager?.cured ?? false) ? -max(1, o.buyA.count * 3 / 4) : 0)
+        // Reference special price: -floor(reputation x price multiplier), then the Village Hero discount.
+        let rep = mob?.villager?.reputation ?? 0
+        o2.special += game.heroDiscount(o) - Int(floor(Float(rep) * o.priceMult))
         return o2.costA
     }
 
@@ -411,19 +420,20 @@ final class MerchantMenu: Menu {
             }
         }
         v.offers[selected].uses += 1
+        v.addGossip(.trading, 2)
         v.xp += o.xp
         v.locked = true
         // Trades give the player XP too (3-6, more when the villager levels up).
-        game.addXP(Int.random(in: 3...6))
+        game.addXP(Rand.int(in: 3...6))
         if v.level < 5 && v.xp >= Villagers.levelXP[v.level] {
             v.level += 1
             Villagers.addOffers(&v, level: v.level)
             game.addXP(5)
             game.particles.hearts(at: m.pos + V3(0, 2.2, 0))
-            game.sfx(.levelUp, 0.5, at: m.pos)
+            game.sfx(.villagerCelebrate, 0.8, at: m.pos + V3(0, 1.6, 0))
         }
         m.villager = v
-        game.sfx(.mobVillager, 0.6, at: m.pos + V3(0, 1.6, 0))
+        game.sfx(.villagerTrade, 0.7, at: m.pos + V3(0, 1.6, 0))
         let out = o.sell
         changed()
         return out

@@ -65,9 +65,9 @@ enum Biome: Int, CaseIterable {
         Info(id: "windswept_gravelly_hills", temp: 0.2, grass: 0x8AB689, foliage: 0x6DA36B, water: 0x3F76E4),
         Info(id: "windswept_forest", temp: 0.2, grass: 0x8AB689, foliage: 0x6DA36B, water: 0x3F76E4),
         Info(id: "windswept_savanna", temp: 2.0, grass: 0xBFB755, foliage: 0xAEA42A, water: 0x3F76E4),
-        Info(id: "jungle", temp: 0.95, grass: 0x59C93C, foliage: 0x30BB0B, water: 0x3F76E4),
-        Info(id: "sparse_jungle", temp: 0.95, grass: 0x64C73F, foliage: 0x3EB80F, water: 0x3F76E4),
-        Info(id: "bamboo_jungle", temp: 0.95, grass: 0x59C93C, foliage: 0x30BB0B, water: 0x3F76E4),
+        Info(id: "jungle", temp: 0.95, grass: 0x60B84A, foliage: 0x47A032, water: 0x3F76E4),
+        Info(id: "sparse_jungle", temp: 0.95, grass: 0x6AB84C, foliage: 0x51A43A, water: 0x3F76E4),
+        Info(id: "bamboo_jungle", temp: 0.95, grass: 0x60B84A, foliage: 0x47A032, water: 0x3F76E4),
         Info(id: "badlands", temp: 2.0, grass: 0x90814D, foliage: 0x9E814D, water: 0x3F76E4),
         Info(id: "eroded_badlands", temp: 2.0, grass: 0x90814D, foliage: 0x9E814D, water: 0x3F76E4),
         Info(id: "wooded_badlands", temp: 2.0, grass: 0x90814D, foliage: 0x9E814D, water: 0x3F76E4),
@@ -106,6 +106,10 @@ enum Biome: Int, CaseIterable {
     var isRiver: Bool { self == .river || self == .frozenRiver }
     var isBeach: Bool { self == .beach || self == .snowyBeach || self == .stonyShore }
     var isBadlands: Bool { self == .badlands || self == .erodedBadlands || self == .woodedBadlands }
+    // Dry ground (sand or terracotta): the per-column dither never moves a column across this line, so deserts and
+    // mesas stay bare inside and keep a clean edge (their marginal climate had grass and savanna trees through ~40 %
+    // of a desert: blind critic, run 373 biome_desert / tour_desert).
+    var isDry: Bool { self == .desert || isBadlands }
     var isPeak: Bool { self == .frozenPeaks || self == .jaggedPeaks || self == .stonyPeaks || self == .snowySlopes }
     // Snow falls here at the given internal y (temperature drops 0.05 per 30 blocks above y 80).
     func snows(at y: Int) -> Bool {

@@ -8,6 +8,7 @@ final class CommandMenu: Menu {
     var line = ""
     var historyPos = -1
     static let buttons = ["Run", "Day", "Night", "Clear Sky", "Rain", "Survival", "Creative", "Keyboard"]
+    static let suggestBase = 100           // suggestion buttons under the input line
 
     init(game: Game, prefill: String = "") {
         line = prefill
@@ -17,6 +18,11 @@ final class CommandMenu: Menu {
         for i in CommandMenu.buttons.indices {
             let b = MenuSlot(8 + (i % 4) * 67, 136 + (i / 4) * 19, nil, 0, .button(i))
             b.w = 63; b.h = 16
+            slots.append(b)
+        }
+        for k in 0..<3 {                       // three chips wide enough for names like pillager_outpost
+            let b = MenuSlot(8 + k * 88, 31, nil, 0, .button(CommandMenu.suggestBase + k))
+            b.w = 86; b.h = 12
             slots.append(b)
         }
     }
@@ -40,6 +46,7 @@ final class CommandMenu: Menu {
         }
     }
     override func buttonPressed(_ i: Int) {
+        if i >= CommandMenu.suggestBase { complete(i - CommandMenu.suggestBase); game.sfx(.click, 0.4); return }
         switch i {
         case 0: run()
         case 1: game.command("/time set day")
@@ -60,25 +67,50 @@ final class CommandMenu: Menu {
         line = ""; historyPos = -1
     }
 
-    // Tab: complete the word being typed from command names, then items, mobs, structures.
-    func complete() {
-        var words = line.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
-        guard let last = words.last else { return }
-        let pool: [String]
-        if words.count == 1 { pool = Game.commandNames.map { "/" + $0 } }
-        else {
-            switch words[0] {
-            case "/give": pool = Items.allKeys
-            case "/summon": pool = MobKind.allCases.map { $0.key }
-            case "/locate": pool = Game.structureNames.map { $0.0 }
-            case "/effect": pool = ["give", "clear"] + Effect.allCases.map { Game.snake("\($0)") }
-            default: pool = []
-            }
+    // Suggestions for what is being typed (shown as buttons under the input line; Tab or a click takes one). Names
+    // match with spaces or hyphens where the key has an underscore ("military base", "diamond-sword"): the Quest's
+    // keyboard has no underscore. Taking a suggestion writes the key with its underscores.
+    var suggestions: [String] {
+        let words = line.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+        guard let first = words.first else { return [] }
+        if words.count == 1 {
+            let pool = first.isEmpty ? Game.shortcutNames.map { "/" + $0 } : (Game.commandNames + Game.shortcutNames).map { "/" + $0 }
+            let w = first.lowercased()
+            return Array(pool.filter { $0.hasPrefix(w) && $0 != w }.sorted { ($0.count, $0) < ($1.count, $1) }.prefix(3))
         }
-        let hits = pool.filter { $0.hasPrefix(last) && $0 != last }.sorted()
-        guard let first = hits.first else { return }
-        words[words.count - 1] = first
-        line = words.joined(separator: " ")
+        let pool: [(key: String, name: String)]
+        switch first.lowercased() {
+        case "/give": pool = Items.allKeys.map { ($0, Items.name(Items.id($0))) }
+        case "/summon": pool = MobKind.allCases.map { ($0.key, $0.name) }
+        case "/locate": pool = Game.structureNames.map { ($0.0, $0.1) }
+        case "/effect": pool = (["give", "clear"] + Effect.allCases.map { Game.snake("\($0)") }).map { ($0, $0) }
+        default: return []
+        }
+        // The name is everything after the command up to a number or ~coordinate.
+        var nameWords: [String] = []
+        for w in words.dropFirst() { if Int(w) != nil || w.hasPrefix("~") || Float(w) != nil { break }; nameWords.append(w) }
+        let typed = Game.norm(nameWords.joined(separator: " "))
+        guard !typed.isEmpty || words.count == 2 else { return [] }
+        var hits = pool.filter { $0.key.hasPrefix(typed) || Game.norm($0.name).hasPrefix(typed) }.map { $0.key }
+        if hits.count < 4 { hits += pool.filter { $0.key.contains(typed) && !$0.key.hasPrefix(typed) }.map { $0.key } }
+        if hits.count == 1 && hits[0] == typed { return [] }
+        var seen = Set<String>()
+        return Array(hits.filter { seen.insert($0).inserted }.sorted { ($0.count, $0) < ($1.count, $1) }.prefix(3))
+    }
+
+    // Tab / a suggestion button: take a suggestion (the first by default).
+    func complete(_ k: Int = 0) {
+        let sug = suggestions
+        guard k < sug.count else { return }
+        let words = line.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+        if words.count <= 1 { line = sug[k] + " "; return }
+        var rest: [String] = []
+        var inName = true
+        for w in words.dropFirst() {
+            if inName && (Int(w) != nil || w.hasPrefix("~") || Float(w) != nil) { inName = false }
+            if !inName { rest.append(w) }
+        }
+        line = ([words[0], sug[k]] + rest).joined(separator: " ") + (rest.isEmpty ? " " : "")
     }
 }
 
@@ -88,21 +120,29 @@ extension ItemRegistry {
 
 extension Game {
     static let commandNames = ["help", "time", "weather", "gamemode", "difficulty", "tp", "give", "summon", "kill", "clear",
-                               "effect", "xp", "locate", "seed", "spawnpoint", "setblock"]
+                               "effect", "xp", "locate", "seed", "spawnpoint", "setblock", "vessel"]
     static let structureNames: [(String, String)] = [
         ("village", "Village"), ("stronghold", "Stronghold"), ("monument", "Sea Temple"), ("mansion", "Forest Manor"),
         ("ancient_city", "Buried Citadel"), ("trial_chambers", "Proving Halls"), ("temple", "Temple"),
         ("pillager_outpost", "Marauder Watchtower"), ("ruined_portal", "Ruined Gate"), ("shipwreck", "Shipwreck"),
         ("buried_treasure", "Buried Treasure"), ("mineshaft", "Mineshaft"), ("ocean_ruin", "Ocean Ruin"),
         ("trail_ruins", "Trail Ruins"), ("desert_well", "Desert Well"), ("fossil", "Fossil"),
-        ("fortress", "Cinder Fortress"), ("bastion", "Boarling Keep"), ("end_city", "Hollow Spire")]
+        ("fortress", "Cinder Fortress"), ("bastion", "Boarling Keep"), ("end_city", "Hollow Spire"),
+        ("military_base", "Capital Citadel"), ("capital_city", "Capital City"), ("great_ruin", "Ancient Spire"),
+        // Vessel encounters (ShipVessels.swift / CapitalShips.swift), found by region rather than as structures.
+        ("warfrigate", "Stormwarden Frigate"), ("crawler", "Ironback Crawler"), ("frigate", "Meridian Frigate"), ("carriage", "Siege Carriage")]
 
     static func snake(_ s: String) -> String {
         var out = ""
         for c in s { if c.isUppercase { out += "_" + c.lowercased() } else { out.append(c) } }
         return out
     }
-    static func norm(_ s: String) -> String { s.lowercased().replacingOccurrences(of: " ", with: "_") }
+    // Names typed with spaces or hyphens for underscores (the Quest's keyboard has no underscore).
+    static func norm(_ s: String) -> String {
+        s.lowercased().trimmingCharacters(in: .whitespaces).replacingOccurrences(of: " ", with: "_").replacingOccurrences(of: "-", with: "_")
+    }
+    // Shortcuts that locate the interesting places (Commands: /bases, /citadels, /frigates, /villages, /rare).
+    static let shortcutNames = ["bases", "citadels", "frigates", "villages", "rare"]
 
     func say(_ s: String) {
         commandLog.append(s)
@@ -123,14 +163,40 @@ extension Game {
         if let f = out.first { onToast?(f) }
     }
 
-    private func execute(_ a: [String]) -> [String] {
-        guard let cmd = a.first?.lowercased() else { return [] }
+    // The nearest of each kind, one line each (the shortcut commands), nearest first.
+    private func locateAll(_ keys: [String]) -> [String] {
+        var out: [(Int, String)] = []
+        for k in keys {
+            for l in execute(["locate", k]) {
+                let d = l.range(of: "(").flatMap { Int(l[$0.upperBound...].prefix { $0.isNumber }) } ?? Int.max
+                out.append((d, l))
+            }
+        }
+        return out.sorted { $0.0 < $1.0 }.map { $0.1 }
+    }
+
+    private func execute(_ raw: [String]) -> [String] {
+        guard let cmd = raw.first?.lowercased() else { return [] }
+        // Multi-word names (spaces for underscores) join into one argument: "/give diamond sword 3", "/locate military base".
+        var a = raw
+        if ["give", "summon", "locate", "setblock"].contains(cmd) && a.count > 2 {
+            let start = cmd == "setblock" ? 4 : 1
+            if a.count > start {
+                var end = start + 1
+                if cmd == "setblock" { end = a.count }
+                else { while end < a.count && Int(a[end]) == nil && Float(a[end]) == nil && !a[end].hasPrefix("~") { end += 1 } }
+                if end - start > 1 { a = Array(a[..<start]) + [a[start..<end].joined(separator: "_")] + Array(a[end...]) }
+            }
+        }
         func num(_ i: Int) -> Int? { i < a.count ? Int(a[i]) : nil }
         func coord(_ i: Int, _ base: Float) -> Float? {
             guard i < a.count else { return nil }
             let s = a[i]
-            if s.hasPrefix("~") { return base + (Float(s.dropFirst()) ?? 0) }
-            return Float(s)
+            // Finite and inside 30 million blocks: "nan", "inf" or 1e20 parsed fine and then trapped in the first
+            // Int(floor()) of a block coordinate.
+            let v: Float? = s.hasPrefix("~") ? base + (Float(s.dropFirst()) ?? 0) : Float(s)
+            guard let r = v, r.isFinite, abs(r) < 30_000_000 else { return nil }
+            return r
         }
         switch cmd {
         case "help", "?":
@@ -142,7 +208,10 @@ extension Game {
             guard a.count >= 2 else { return ["Usage: /time set|add|query <value>"] }
             let day = floor(time / DAY_LENGTH) * DAY_LENGTH
             let named: [String: Double] = ["day": 1000, "noon": 6000, "sunset": 12000, "night": 13000, "midnight": 18000, "sunrise": 23000]
-            let value = a.count > 2 ? (named[a[2].lowercased()] ?? Double(a[2])) : nil
+            // Finite and of sane size: "nan", "inf" or 1e30 made the clock NaN / huge, and the pause screen's day number
+            // and the moon phase convert it to Int (undefined in the release build).
+            let raw = a.count > 2 ? (named[a[2].lowercased()] ?? Double(a[2])) : nil
+            let value: Double? = raw.flatMap { $0.isFinite && abs($0) < 1e12 ? $0 : nil }
             switch a[1] {
             case "set":
                 guard let v = value else { return ["Usage: /time set day|noon|night|midnight|<ticks>"] }
@@ -213,6 +282,8 @@ extension Game {
             m.yaw = player.yaw + .pi
             mobs.mobs.append(m)
             return ["Summoned new \(k.name)"]
+        case "vessel":
+            return vesselCommand(a)
         case "kill":
             if a.count >= 2 && a[1] == "@e" {
                 let n = mobs.mobs.count
@@ -233,27 +304,50 @@ extension Game {
             guard a[1] == "give", a.count >= 3 else { return ["Usage: /effect give <effect> [seconds] [level]"] }
             let n = Game.norm(a[2]).replacingOccurrences(of: "_", with: "")
             guard let e = Effect.allCases.first(where: { "\($0)".lowercased() == n }) else { return ["Unknown effect \(a[2])"] }
-            applyEffect(e, amp: max(0, (num(4) ?? 1) - 1), seconds: Float(num(3) ?? 30))
+            // Clamped: an Int.min level overflowed the - 1, a huge duration overflowed the HUD timer.
+            applyEffect(e, amp: min(255, max(1, num(4) ?? 1)) - 1, seconds: Float(min(1_000_000, max(0, num(3) ?? 30))))
             return ["Applied effect \(Game.snake("\(e)")) to Player"]
         case "xp", "experience":
             guard a.count >= 2 else { return ["Usage: /xp <amount>[L]"] }
             if a[1].hasSuffix("L") || a[1].hasSuffix("l"), let l = Int(a[1].dropLast()) {
-                xpLevel = max(0, xpLevel + l)
+                xpLevel = max(0, min(1_000_000, xpLevel + max(-1_000_000, min(1_000_000, l))))
                 return ["Gave \(l) experience levels to Player"]
             }
             guard let v = Int(a[1]), v > 0 else { return ["Usage: /xp <amount>[L]"] }
-            addXP(v)
+            addXP(min(v, 100_000_000))                   // n * 2 in the Mending split overflowed near Int.max
             return ["Gave \(v) experience points to Player"]
+        case "bases": return locateAll(["military_base"])
+        case "cities": return locateAll(["capital_city"])
+        case "citadels": return locateAll(["military_base", "ancient_city"])
+        case "frigates": return locateAll(["frigate", "warfrigate"])
+        case "villages": return locateAll(["village"])
+        case "rare": return locateAll(["mansion", "great_ruin", "temple", "pillager_outpost", "trail_ruins", "monument", "trial_chambers"])
         case "locate":
-            guard a.count >= 2 else { return ["Usage: /locate <structure>"] }
+            guard a.count >= 2 else { return ["Usage: /locate <structure>   Shortcuts: /bases /citadels /frigates /villages /rare"] }
             let n = Game.norm(a[1])
             guard let entry = Game.structureNames.first(where: { $0.0 == n || Game.norm($0.1) == n }) else { return ["Unknown structure \(a[1])"] }
+            if ["warfrigate", "crawler", "frigate", "carriage"].contains(entry.0) {
+                // Nearest encounter region of that vessel (a battle region has both capital ships).
+                let R = Vessels.region
+                let rx = floorDiv(Int(player.pos.x), R), rz = floorDiv(Int(player.pos.z), R)
+                var best: (IVec3, Float)?
+                for r in 0...12 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                    guard let e = Vessels.encounter(seed: world.seed, rx: rx + dx, rz: rz + dz, gen: world.gen) else { continue }
+                    let match = e.0 == entry.0 || (e.0 == "battle" && (entry.0 == "warfrigate" || entry.0 == "crawler"))
+                    if !match { continue }
+                    let d = simd_length(V2(Float(e.1.x) - player.pos.x, Float(e.1.z) - player.pos.z))
+                    if best == nil || d < best!.1 { best = (e.1, d) }
+                } }
+                if best != nil && r >= 2 { break } }
+                guard let b = best else { return ["Could not find a \(entry.1) nearby"] }
+                return ["\(entry.1): \(b.0.x) ~ \(b.0.z) (\(Int(b.1)) blocks, patrols)"]
+            }
             guard let sc = world.gen.structures,
                   let s = sc.nearest(entry.0, x: Int(player.pos.x), z: Int(player.pos.z)) else {
                 return ["Could not find a \(entry.1) nearby"]
             }
             let dx = Float(s.anchor.x) - player.pos.x, dz = Float(s.anchor.z) - player.pos.z
-            return ["The nearest \(entry.1) is at [\(s.anchor.x), ~, \(s.anchor.z)] (\(Int(sqrtf(dx * dx + dz * dz))) blocks away)"]
+            return ["\(entry.1): \(s.anchor.x) ~ \(s.anchor.z) (\(Int(sqrtf(dx * dx + dz * dz))) blocks)"]
         case "spawnpoint":
             spawnPoint = player.pos
             return [String(format: "Set spawn point to %.0f, %.0f, %.0f", player.pos.x, player.pos.y - Float(YOFF), player.pos.z)]

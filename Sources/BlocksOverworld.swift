@@ -58,19 +58,20 @@ extension BlockRegistry {
         cube("coarse_dirt", "Coarse Dirt", h: 0.5, tool: .shovel, snd: .dirt)
         cube("rooted_dirt", "Rooted Dirt", h: 0.5, tool: .shovel, snd: .dirt)
         sided("mycelium", "Mycelium", side: "mycelium_side", top: "mycelium_top", bottom: "dirt", h: 0.6, tool: .shovel, snd: .dirt)
+        randomTicks[Int(id("mycelium"))] = true                        // spreads like grass (Farming.grassTick)
         cube("mud", "Mud", h: 0.5, tool: .shovel, snd: .dirt)
         cube("packed_mud", "Packed Mud", h: 1, tool: .pickaxe, snd: .dirt)
         cube("mud_bricks", "Mud Bricks", h: 1.5, req: true)
         var ice = BlockDef("ice", "Ice")
         ice.tex = ["ice"]; ice.opaque = false; ice.layer = .translucent; ice.hardness = 0.5; ice.tool = .pickaxe; ice.sound = .glass
-        ice.cullSame = true; ice.skyStop = true
+        ice.cullSame = true; ice.skyStop = true; ice.randomTicks = true          // melts by torchlight (Farming.randomTick)
         add(ice)
         cube("packed_ice", "Packed Ice", h: 0.5, snd: .glass)
         cube("blue_ice", "Blue Ice", h: 2.8, snd: .glass)
         var layer = BlockDef("snow", "Snow")
         layer.tex = ["snow_block"]; layer.render = .model; layer.opaque = false; layer.hardness = 0.1; layer.tool = .shovel
         layer.sound = .snow; layer.replaceable = true; layer.boxes = [Box(0, 0, 0, 16, 2, 16)]; layer.skyStop = false
-        layer.noCollideBoxes = true; layer.collide = false
+        layer.noCollideBoxes = true; layer.collide = false; layer.randomTicks = true    // melts by torchlight
         add(layer)
         var ps = BlockDef("powder_snow", "Powder Snow")
         ps.tex = ["snow_block"]; ps.hardness = 0.25; ps.tool = .shovel; ps.sound = .snow; ps.collide = false
@@ -140,6 +141,7 @@ extension BlockRegistry {
         var vine = BlockDef("vine", "Vines")
         vine.tex = ["vine"]; vine.render = .cross; vine.layer = .cutout; vine.opaque = false; vine.collide = false
         vine.hardness = 0.2; vine.tool = .shears; vine.tint = 2; vine.sound = .plant; vine.replaceable = true; vine.skyStop = false
+        vine.randomTicks = true                                              // grows down (Farming.randomTick)
         add(vine)
         var bamboo = BlockDef("bamboo", "Bamboo")
         bamboo.tex = ["bamboo_stalk"]; bamboo.render = .model; bamboo.opaque = false; bamboo.hardness = 1; bamboo.tool = .axe

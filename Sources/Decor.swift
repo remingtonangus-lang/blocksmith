@@ -104,23 +104,60 @@ extension TextureGen {
 
 extension Game {
     // After placing a sign, open the editor.
+    // Dye, glow ink sac or ink sac on a sign: text colour (burn = dye index + 1), glowing text (burnMax = 1) or plain.
+    func dyeSign(_ p: IVec3) -> Bool {
+        let k = Items.key(held.item)
+        guard k == "glow_ink_sac" || k == "ink_sac" || k.hasSuffix("_dye"), let be = world.blockEntities[p] else { return false }
+        let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
+        if k == "glow_ink_sac" {
+            guard be.burnMax == 0 else { return false }
+            be.burnMax = 1
+            achieve("glow_sign")
+            sfx(.place(.slime), 0.6, at: c)
+        } else if k == "ink_sac" {
+            guard be.burnMax != 0 else { return false }
+            be.burnMax = 0
+            sfx(.place(.slime), 0.6, at: c)
+        } else {
+            let name = String(k.dropLast(4))
+            guard let i = Array(BlockRegistry.colorHex.keys).sorted().firstIndex(of: name), be.burn != i + 1 else { return false }
+            be.burn = i + 1
+            sfx(.place(.wool), 0.5, at: c)
+        }
+        if survival { consumeHeld() }
+        swing = 1
+        return true
+    }
+
+    // Sign text colour: black by default, the dye's colour once dyed; glowing text is bright and unlit.
+    static func signTextColor(_ be: BlockEntity, light: Float) -> V4 {
+        let names = Array(BlockRegistry.colorHex.keys).sorted()
+        var c = V3(0.05, 0.05, 0.05)
+        if be.burn > 0 && be.burn <= names.count, let h = BlockRegistry.colorHex[names[be.burn - 1]] {
+            c = V3(Float((h >> 16) & 255), Float((h >> 8) & 255), Float(h & 255)) / 255
+        }
+        if be.burnMax != 0 { return V4(min(V3(1, 1, 1), c * 1.4 + 0.15), 1) }
+        return V4(c * light, 1)
+    }
+
     func openSignEditor(_ p: IVec3) {
-        let be = world.blockEntities[p] ?? BlockEntity(.sign)
+        let be = world.entity(p, .sign)
         world.blockEntities[p] = be
         openMenu(SignMenu(game: self, entity: be))
     }
 
     // Item frames: right-click puts the held item in (or rotates it); punching takes it out.
     func useItemFrame(_ p: IVec3) -> Bool {
-        let be = world.blockEntities[p] ?? BlockEntity(.frame)
+        let be = world.entity(p, .frame)
         world.blockEntities[p] = be
         if be.container[0].isEmpty {
             guard !held.isEmpty else { return true }
             be.container[0] = held.with(count: 1)
             consumeHeld()
+            blockSound(.itemFrameAdd, at: p, 0.7)
         } else {
             be.delay = Float((Int(be.delay) + 1) % 8)          // rotation in 45° steps
-            sfx(.click, 0.4)
+            sfx(.itemFrameRotate, 0.6)
         }
         return true
     }
@@ -140,7 +177,7 @@ extension Game {
             if ok { fits.append(i) }
         }
         guard let best = fits.map({ Paintings.motives[$0].1 * Paintings.motives[$0].2 }).max() else { return }
-        let pick = fits.filter { Paintings.motives[$0].1 * Paintings.motives[$0].2 == best }.randomElement()!
+        let pick = fits.filter { Paintings.motives[$0].1 * Paintings.motives[$0].2 == best }.pick()!
         world.setBlock(p.x, p.y, p.z, Blocks.id("painting") + BlockID(f))
         let be = BlockEntity(.painting)
         be.mob = Paintings.motives[pick].0
@@ -175,6 +212,7 @@ extension Game {
                     let ctr: V3 = st < 4 ? c + V3(0, 0.22, 0) + nOff : c - n * 0.37
                     faces.append((ctr, side * -1, Float(1.0 / 90)))
                 }
+                let textColor = Game.signTextColor(be, light: light)
                 for (center, right, s) in faces {
                 for (li, line) in be.lines.enumerated() where !line.isEmpty {
                     let wpx = Float(Font.width(line))
@@ -185,10 +223,12 @@ extension Game {
                         let adv = Float(Font.advance(code))
                         if code > 32 && code < 127 {
                             let gw = Float(Font.glyphs[code - 32][0])
-                            let o = center - eye + right * (x * s) + V3(0, (y - 7) * s, 0)
-                            let a = o, bb = o + right * (gw * s), cc = bb + V3(0, 7 * s, 0), d = a + V3(0, 7 * s, 0)
-                            wr.quad([a, bb, cc, d], [V2(0, 7 / 16), V2(gw / 16, 7 / 16), V2(gw / 16, 0), V2(0, 0)], Font.layerBase + code - 32,
-                                    V4(0.05 * light, 0.05 * light, 0.05 * light, 1))
+                            let rows = Float(Font.rows(code))         // 8: a descender below the baseline
+                            let o = center - eye + right * (x * s) + V3(0, (y - rows) * s, 0)
+                            let a = o, bb = o + right * (gw * s), cc = bb + V3(0, rows * s, 0), d = a + V3(0, rows * s, 0)
+                            let vb: Float = rows / 16
+                            wr.quad([a, bb, cc, d], [V2(0, vb), V2(gw / 16, vb), V2(gw / 16, 0), V2(0, 0)], Font.layerBase + code - 32,
+                                    textColor)
                         }
                         x += adv
                     }

@@ -1,0 +1,113 @@
+# Blocksmith --snapshot /tmp/pm9d.png --seed 12345 --find plains --time 0.3 --rd 4 --questbugs --only pm9d  (2026-10-09, fast build)
+# 10,000 rolls per item: 15 bookshelves, slot 3 (cost 30), reference enchanting-table algorithm
+questbugs: ok   pm9d names: tools/coined-terms.txt readable (run from the repo root)
+questbugs: ok   pm9d names: 2081 display names (dump /tmp/names.txt), coined terms: 
+questbugs: ok   pm9d table: 15 shelves -> slot 3 costs [30] (want [30]); 0 shelves max 8 (want <= 8)
+pm9d dist diamond_pickaxe: multi 68.1% sizes 1:31.9% 2:45.2% 3:22.9%
+pm9d dist diamond_pickaxe: Efficiency 80.4%, Unbreaking 62.5%, Fortune 31.5%, Gentle Touch 16.5%
+pm9d dist diamond_pickaxe levels: Efficiency IV 6894, Unbreaking III 6249, Fortune III 1912, Gentle Touch 1655, Fortune II 1238, Efficiency III 1148
+questbugs: ok   pm9d table diamond_pickaxe: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table diamond_pickaxe: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table diamond_pickaxe: multi-enchant rate 68.1% in 45...90%
+questbugs: ok   pm9d table diamond_pickaxe: Fortune 31.5% and Gentle Touch (silk_touch) 16.5% both offered, never together
+pm9d dist iron_pickaxe: multi 70.1% sizes 1:30.0% 2:45.1% 3:24.9%
+pm9d dist iron_pickaxe: Efficiency 80.8%, Unbreaking 64.3%, Fortune 33.6%, Gentle Touch 16.3%
+pm9d dist iron_pickaxe levels: Efficiency IV 7295, Unbreaking III 6427, Fortune III 2451, Gentle Touch 1634, Fortune II 907, Efficiency III 718, Efficiency V 67
+questbugs: ok   pm9d table iron_pickaxe: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table iron_pickaxe: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table iron_pickaxe: multi-enchant rate 70.1% in 45...90%
+questbugs: ok   pm9d table iron_pickaxe: Fortune 33.6% and Gentle Touch (silk_touch) 16.3% both offered, never together
+pm9d dist golden_pickaxe: multi 74.7% sizes 1:25.3% 2:46.9% 3:27.8%
+pm9d dist golden_pickaxe: Efficiency 82.4%, Unbreaking 66.2%, Fortune 35.7%, Gentle Touch 18.1%
+pm9d dist golden_pickaxe levels: Efficiency IV 7128, Unbreaking III 6624, Fortune III 3082, Gentle Touch 1814, Efficiency V 777, Fortune II 491, Efficiency III 335
+questbugs: ok   pm9d table golden_pickaxe: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table golden_pickaxe: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table golden_pickaxe: multi-enchant rate 74.7% in 45...90%
+questbugs: ok   pm9d table golden_pickaxe: Fortune 35.7% and Gentle Touch (silk_touch) 18.1% both offered, never together
+pm9d dist iron_shovel: multi 70.3% sizes 1:29.7% 2:44.7% 3:25.6%
+pm9d dist iron_shovel: Efficiency 81.6%, Unbreaking 64.5%, Fortune 34.2%, Gentle Touch 15.7%
+pm9d dist iron_shovel levels: Efficiency IV 7349, Unbreaking III 6446, Fortune III 2527, Gentle Touch 1572, Fortune II 889, Efficiency III 754, Efficiency V 55
+questbugs: ok   pm9d table iron_shovel: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table iron_shovel: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table iron_shovel: multi-enchant rate 70.3% in 45...90%
+pm9d dist diamond_axe: multi 67.1% sizes 1:32.9% 2:44.2% 3:22.9%
+pm9d dist diamond_axe: Efficiency 81.0%, Unbreaking 60.9%, Fortune 32.7%, Gentle Touch 15.3%
+pm9d dist diamond_axe levels: Efficiency IV 6942, Unbreaking III 6090, Fortune III 2005, Gentle Touch 1534, Fortune II 1268, Efficiency III 1159
+questbugs: ok   pm9d table diamond_axe: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table diamond_axe: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table diamond_axe: multi-enchant rate 67.1% in 45...90%
+pm9d dist diamond_sword: multi 68.0% sizes 1:32.0% 2:44.7% 3:19.1% 4:3.8% 5:0.4% 6:0.0%
+pm9d dist diamond_sword: Sharpness 37.8%, Unbreaking 36.4%, Knockback 35.5%, Bugbane 19.9%, Smite 19.5%, Looting 16.1%, Searing Edge 15.5%, Wide Arc 15.4%
+pm9d dist diamond_sword levels: Unbreaking III 3636, Knockback II 3545, Sharpness III 2241, Bugbane IV 1803, Smite IV 1774, Sharpness IV 1543, Wide Arc III 1537, Searing Edge II 1449, Looting III 975, Looting II 632, Bugbane V 153, Smite V 136, Searing Edge I 100, Smite III 41, Bugbane III 38
+questbugs: ok   pm9d table diamond_sword: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table diamond_sword: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table diamond_sword: multi-enchant rate 68.0% in 45...90%
+pm9d dist iron_sword: multi 69.8% sizes 1:30.2% 2:44.4% 3:20.6% 4:4.4% 5:0.4% 6:0.1%
+pm9d dist iron_sword: Sharpness 38.2%, Knockback 36.7%, Unbreaking 36.5%, Smite 20.1%, Bugbane 19.8%, Searing Edge 17.0%, Looting 16.5%, Wide Arc 15.9%
+pm9d dist iron_sword levels: Knockback II 3673, Unbreaking III 3645, Sharpness IV 2248, Searing Edge II 1642, Bugbane IV 1596, Wide Arc III 1591, Sharpness III 1576, Smite IV 1571, Looting III 1229, Looting II 417, Smite V 414, Bugbane V 364, Searing Edge I 55, Smite III 24, Bugbane III 19
+questbugs: ok   pm9d table iron_sword: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table iron_sword: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table iron_sword: multi-enchant rate 69.8% in 45...90%
+pm9d dist diamond_helmet: multi 68.3% sizes 1:31.7% 2:44.6% 3:19.6% 4:4.1%
+pm9d dist diamond_helmet: Unbreaking 53.5%, Protection 50.8%, Respiration 28.7%, Tidehand 28.6%, Fire Protection 24.8%, Blast Protection 9.6%, Projectile Protection 0.1%
+pm9d dist diamond_helmet levels: Unbreaking III 5353, Protection III 2946, Tidehand 2856, Respiration III 2701, Protection IV 2136, Fire Protection III 1443, Fire Protection IV 1040, Blast Protection IV 941, Respiration II 165, Blast Protection III 19, Projectile Protection IV 7
+questbugs: ok   pm9d table diamond_helmet: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table diamond_helmet: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table diamond_helmet: multi-enchant rate 68.3% in 45...90%
+pm9d dist diamond_chestplate: multi 68.5% sizes 1:31.5% 2:44.9% 3:23.6%
+pm9d dist diamond_chestplate: Unbreaking 68.0%, Protection 53.0%, Thorns 33.1%, Fire Protection 27.1%, Blast Protection 10.8%, Projectile Protection 0.1%
+pm9d dist diamond_chestplate levels: Unbreaking III 6801, Thorns II 3127, Protection III 3062, Protection IV 2240, Fire Protection III 1524, Fire Protection IV 1187, Blast Protection IV 1053, Thorns I 183, Blast Protection III 23, Projectile Protection IV 9
+questbugs: ok   pm9d table diamond_chestplate: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table diamond_chestplate: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table diamond_chestplate: multi-enchant rate 68.5% in 45...90%
+pm9d dist iron_leggings: multi 67.2% sizes 1:32.8% 2:67.2%
+pm9d dist iron_leggings: Unbreaking 74.9%, Protection 54.1%, Fire Protection 27.6%, Blast Protection 10.6%, Projectile Protection 0.1%
+pm9d dist iron_leggings levels: Unbreaking III 7487, Protection III 3092, Protection IV 2315, Fire Protection III 1565, Fire Protection IV 1199, Blast Protection IV 1032, Blast Protection III 24, Projectile Protection IV 10
+questbugs: ok   pm9d table iron_leggings: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table iron_leggings: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table iron_leggings: multi-enchant rate 67.2% in 45...90%
+pm9d dist diamond_boots: multi 67.5% sizes 1:32.5% 2:44.4% 3:23.0% 4:0.1%
+pm9d dist diamond_boots: Unbreaking 61.8%, Protection 51.5%, Deep Stride 39.0%, Fire Protection 26.0%, Blast Protection 9.7%, Soft Landing 2.7%, Projectile Protection 0.1%
+pm9d dist diamond_boots levels: Unbreaking III 6185, Deep Stride III 3773, Protection III 2961, Protection IV 2190, Fire Protection III 1533, Fire Protection IV 1072, Blast Protection IV 954, Soft Landing IV 266, Deep Stride II 125, Blast Protection III 19, Projectile Protection IV 5
+questbugs: ok   pm9d table diamond_boots: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table diamond_boots: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table diamond_boots: multi-enchant rate 67.5% in 45...90%
+pm9d dist bow: multi 64.4% sizes 1:35.6% 2:44.0% 3:16.9% 4:3.1% 5:0.4%
+pm9d dist bow: Power 72.8%, Unbreaking 51.1%, Punch 25.9%, Flame 24.9%, Infinity 13.9%
+pm9d dist bow levels: Unbreaking III 5112, Power IV 4387, Power III 2891, Flame 2494, Punch I 1536, Infinity 1388, Punch II 1055
+questbugs: ok   pm9d table bow: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table bow: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table bow: multi-enchant rate 64.4% in 45...90%
+pm9d dist crossbow: multi 64.2% sizes 1:35.8% 2:42.9% 3:21.4%
+pm9d dist crossbow: Piercing 65.5%, Unbreaking 53.8%, Quick Charge 53.4%, Spread Shot 13.0%
+pm9d dist crossbow levels: Unbreaking III 5375, Piercing IV 4010, Quick Charge I 3082, Piercing III 2538, Quick Charge II 2260, Spread Shot 1296
+questbugs: ok   pm9d table crossbow: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table crossbow: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table crossbow: multi-enchant rate 64.2% in 45...90%
+pm9d dist trident: multi 63.5% sizes 1:36.5% 2:43.2% 3:17.6% 4:2.8%
+pm9d dist trident: Unbreaking 62.9%, Loyalty 51.9%, Impaling 35.4%, Surge 19.8%, Channeling 16.6%
+pm9d dist trident levels: Unbreaking III 6291, Loyalty III 5192, Impaling IV 2651, Channeling 1657, Surge III 1182, Impaling V 892, Surge II 799
+questbugs: ok   pm9d table trident: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table trident: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table trident: multi-enchant rate 63.6% in 45...90%
+pm9d dist fishing_rod: multi 63.5% sizes 1:36.5% 2:42.8% 3:20.8%
+pm9d dist fishing_rod: Unbreaking 78.5%, Lure 53.2%, Angler's Luck 52.6%
+pm9d dist fishing_rod levels: Unbreaking III 7848, Lure II 4067, Angler's Luck II 3969, Angler's Luck III 1290, Lure III 1256
+questbugs: ok   pm9d table fishing_rod: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table fishing_rod: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table fishing_rod: multi-enchant rate 63.5% in 45...90%
+pm9d dist book: multi 21.3% sizes 1:78.7% 2:17.7% 3:3.3% 4:0.3% 5:0.0%
+pm9d dist book: Efficiency 8.3%, Piercing 8.2%, Power 8.0%, Stability 8.0%, Protection 7.6%, Sharpness 7.2%, Unbreaking 4.3%, Loyalty 4.2%, Knockback 4.2%, Fire Protection 4.1%, Extended Magazine 4.1%, Lunge 4.0%, Quick Reload 3.9%, Density 3.8%, Smite 3.7%, Quick Charge 3.7%, Bugbane 3.6%, Punch 1.9%, Impaling 1.8%, Wide Arc 1.8%, Lure 1.8%, Deep Stride 1.8%, Searing Edge 1.8%, Blast Protection 1.7%, Looting 1.7%, Penetration 1.7%, Incendiary 1.6%, Tidehand 1.6%, Fortune 1.6%, Angler's Luck 1.6%, Flame 1.6%, Surge 1.5%, Respiration 1.5%, Spread Shot 1.5%, Breach 1.3%, Gentle Touch 1.0%, Soft Landing 0.8%, Infinity 0.8%, Thorns 0.8%, Channeling 0.8%, Projectile Protection 0.1%
+pm9d dist book levels: Stability III 797, Protection III 675, Sharpness III 650, Piercing IV 530, Power IV 510, Efficiency IV 487, Unbreaking III 432, Loyalty III 424, Knockback II 421, Extended Magazine III 409, Lunge III 401, Quick Reload III 381, Fire Protection III 375, Efficiency III 340, Density IV 338, Smite IV 337, Bugbane IV 327, Piercing III 294, Power III 287, Quick Charge I 224, Wide Arc III 179, Incendiary 165, Tidehand 163, Blast Protection IV 159, Flame 157, Spread Shot 152, Lure II 146, Searing Edge II 144, Quick Charge II 142, Impaling IV 140, Deep Stride III 136, Looting II 135, Respiration III 129, Angler's Luck II 119, Fortune II 117, Punch I 114, Penetration II 108, Gentle Touch 99, Surge III 97, Breach II 94, Protection IV 84, Soft Landing IV 82, Infinity 80, Channeling 77, Sharpness IV 75, Punch II 74, Thorns II 66, Penetration III 64, Surge II 58, Fortune III 45, Impaling V 44, Angler's Luck III 43, Deep Stride II 41, Density III 39, Looting III 39, Fire Protection IV 34, Bugbane III 34, Breach III 33, Lure III 32, Searing Edge I 32, Smite III 31, Respiration II 23, Blast Protection III 15, Thorns I 14, Quick Reload II 12, Projectile Protection IV 10
+questbugs: ok   pm9d table book: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table book: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table book: multi-enchant rate 21.3% in 15...60%
+pm9d dist gun_rifle: multi 70.1% sizes 1:29.9% 2:45.2% 3:20.4% 4:4.2% 5:0.3% 6:0.0%
+pm9d dist gun_rifle: Stability 57.5%, Unbreaking 36.9%, Quick Reload 36.8%, Extended Magazine 36.1%, Incendiary 16.4%, Penetration 16.2%
+pm9d dist gun_rifle levels: Stability III 5753, Unbreaking III 3687, Quick Reload III 3676, Extended Magazine III 3608, Incendiary 1637, Penetration III 1373, Penetration II 239, Quick Reload II 6, Penetration IV 4
+questbugs: ok   pm9d table gun_rifle: every table enchantment appears at level 30 (missing [])
+questbugs: ok   pm9d table gun_rifle: no incompatible pairs ([]) and no treasure (0)
+questbugs: ok   pm9d table gun_rifle: multi-enchant rate 70.1% in 45...90%
+questbugs: ok   pm9d table: offers vary (3 slots alike 0/500, 49 distinct slot-3 pickaxe offers, pickaxe==sword 19)
+questbugs: ok   pm9d table menu: enchant applies the offer 20/20, clue in offer 20/20, seed re-rolls 20/20, offers change 20/20 (shelves 0)
+questbugs: 0 failures

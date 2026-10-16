@@ -1,0 +1,28 @@
+name: assets
+# Fetches texture trial material (tools/fetch_assets.py) from hosts the cloud sessions can't reach and publishes
+# it to the orphan branch `ci-assets` for review. Manual only.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/blocksmith-playtest']
+    paths: ['tools/fetch_assets.py']
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch
+        run: python3 tools/fetch_assets.py assets_trial || true
+      - name: Publish to ci-assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd assets_trial
+          git init -q; git checkout -q --orphan ci-assets; git add -A
+          git -c user.name="blocksmith-ci" -c user.email="ci@users.noreply.github.com" commit -qm "Texture trial assets for ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-assets

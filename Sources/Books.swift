@@ -84,7 +84,12 @@ final class BookMenu: Menu {
             }
         default: break
         }
-        lectern?.delay = Float(page)
+        if let be = lectern {
+            let turned = Int(be.delay) != page
+            be.delay = Float(page)
+            // A turned page pulses copper wire (reference); comparators read the new page on their own.
+            if turned, let p = game.world.blockEntities.first(where: { $0.value === be })?.key { game.world.redstone.lecternTurned(p) }
+        }
     }
     override func typed(_ s: String) {
         guard editable else { return }
@@ -119,7 +124,7 @@ final class BookMenu: Menu {
         b.label = bookTitle
         b.tag = 0
         game.inventory.main[slot] = b
-        game.sfx(.levelUp, 0.3)
+        game.sfx(.pageTurn, 0.7)
         signed = true
         game.closeMenu()
     }
@@ -145,7 +150,7 @@ extension Game {
 
     // Lecterns: put a book on (right-click with it), read it (right-click), take it back from the reading screen.
     func useLectern(_ p: IVec3) {
-        let be = world.blockEntities[p] ?? BlockEntity(.lectern)
+        let be = world.entity(p, .lectern)
         world.blockEntities[p] = be
         if be.container[0].isEmpty {
             let k = Items.key(held.item)
@@ -153,7 +158,7 @@ extension Game {
             be.container[0] = held.with(count: 1)
             be.delay = 0
             consumeHeld()
-            sfx(.place(.wood), 0.6, at: V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5))
+            sfx(.pageTurn, 0.7, at: V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5))
             return
         }
         openMenu(BookMenu(game: self, stack: be.container[0], source: .lectern(be)))
