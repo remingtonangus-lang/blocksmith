@@ -481,31 +481,169 @@ final class PauseMenu: Menu {
         layout()
     }
 
-    // One column of buttons; only `visible` rows at a time, scrolled with the cursor / right stick.
+    // P304 (Oct 15 12:09, "the world menu is too dense: I try to hit Achievements and hit Statistics instead"): the
+    // pause, title, world and confirm pages lay their buttons out in groups instead of one tight column. Each group
+    // starts a new line of up to `cols` buttons that share the width, groups sit 12 apart with a thin rule between
+    // them, and the buttons are 30 tall with 6-12 between them (the old column was 18 tall, 3 apart: a laser pointer
+    // that wobbled a few pixels landed on the next row). Long settings pages keep the scrolling column.
+    struct Style {
+        var width = 244, btnH = 18, gapX = 0, gapY = 3, groupGap = 0, cols = 1, lines = PauseMenu.visible
+        var groups: [(ids: [String], cols: Int)] = []        // action ids per group (cols 0: as many as fit)
+        static let list = Style()
+    }
+    var style: Style {
+        if hostPageID != nil { return .list }
+        let vr = PauseMenu.hostEntry?.1 ?? "host:vr"
+        switch page {
+        case .main:
+            return Style(width: 440, btnH: 30, gapX: 12, gapY: 6, groupGap: 12, cols: 4, lines: 8, groups: [
+                (["resume", "restorebackup"], 0),
+                (["options", vr, "rd", "mode"], 0),                              // settings
+                (["worldmap", "track", "advancements", "stats"], 0),             // map and progress
+                (["worlds", "netmenu", "coop", "photo", "commands", "shortcuts"], 0),
+                (["totitle", "quit"], 0)])                                        // leaving, apart from the rest
+        case .title:
+            return Style(width: 440, btnH: 30, gapX: 12, gapY: 6, groupGap: 12, cols: 4, lines: 6, groups: [
+                (["resume"], 0), ([vr, "worlds", "options"], 0), (["quit"], 0)])
+        case .world:
+            // (b) the per-world buttons: Play alone and widest, Rename / Copy / Delete together, Back apart.
+            // (Kept short enough to stay at the headset's larger menu scale.)
+            return Style(width: 300, btnH: 30, gapX: 10, gapY: 6, groupGap: 10, cols: 3, lines: 4, groups: [
+                (["w_play"], 0), (["w_rename", "w_copy", "w_delete"], 0), (["back"], 0)])
+        case .worlds:
+            // New-world buttons side by side on top, then one wide button per world, Back apart at the end.
+            return Style(width: 320, btnH: 24, gapX: 10, gapY: 5, groupGap: 10, cols: 3, lines: 7, groups: [
+                (["create", "newworld", "workshop"], 0),
+                (rows.map { $0.1 }.filter { $0.hasPrefix("world:") }, 1),
+                (["back"], 0)])
+        case .confirm:
+            // Cancel and the action side by side, well apart.
+            return Style(width: 300, btnH: 30, gapX: 24, gapY: 6, groupGap: 12, cols: 2, lines: 2, groups: [
+                (rows.map { $0.1 }, 2)])
+        default:
+            return .list
+        }
+    }
+    // The laid-out lines: each a run of row indices, with its group and top (units from the first line).
+    private var lines: [(rows: [Int], group: Int, y: Int)] = []
+    private var slotRow: [Int] = []             // slot index -> row index
+    var dividers: [Int] = []                    // y of the rules between groups on the page (P304), panel units
+    var lineCount: Int { lines.count }
+    private(set) var shownLines = 0             // lines on screen at once (set by layout)
+    private var grouped = false                 // this page uses the grouped layout
+
+    // The buttons; only `style.lines` lines at a time, scrolled a line at a time with the cursor / right stick.
     func layout() {
-        let n = min(rows.count, PauseMenu.visible)
-        scroll = max(0, min(scroll, rows.count - n))
+        let st = style
+        // Rows in group order (rows no group names keep their order, in a last group).
+        var lineRows: [[Int]] = [], lineGroup: [Int] = []
+        if st.groups.isEmpty {
+            for i in rows.indices { lineRows.append([i]); lineGroup.append(0) }
+        } else {
+            var ordered: [[(String, String)]] = []
+            var used = Set<String>()
+            for gr in st.groups {
+                let rs = gr.ids.compactMap { id in rows.first { $0.1 == id } }
+                used.formUnion(gr.ids)
+                ordered.append(rs)
+            }
+            let rest = rows.filter { !used.contains($0.1) }
+            var cols = st.groups.map { $0.cols }
+            if !rest.isEmpty { ordered.append(rest); cols.append(1) }
+            rows = ordered.flatMap { $0 }
+            var k = 0
+            for (gi, grp) in ordered.enumerated() where !grp.isEmpty {
+                let n = grp.count
+                // Auto: one line when they fit, else as even as possible (6 -> 3 + 3, 5 -> 3 + 2).
+                let auto = n <= st.cols ? n : min(st.cols, (n + 1) / 2)
+                let per = max(1, cols[gi] > 0 ? cols[gi] : auto)
+                var j = 0
+                while j < n {
+                    let m = min(per, n - j)
+                    lineRows.append(Array(k + j ..< k + j + m)); lineGroup.append(gi)
+                    j += m
+                }
+                k += n
+            }
+        }
+        var ys: [Int] = []
+        for i in lineRows.indices {
+            let gap = i == 0 ? 0 : (lineGroup[i] == lineGroup[i - 1] ? st.gapY : st.groupGap)
+            ys.append(i == 0 ? 0 : ys[i - 1] + st.btnH + gap)
+        }
+        lines = lineRows.indices.map { (rows: lineRows[$0], group: lineGroup[$0], y: ys[$0]) }
+        let n = min(lines.count, st.lines)
+        shownLines = n
+        grouped = !st.groups.isEmpty
+        scroll = max(0, min(scroll, lines.count - n))
+        // The tallest window of n lines (the panel keeps one height while it scrolls).
+        var span = 0
+        if n > 0 { for s0 in 0...(lines.count - n) { span = max(span, lines[s0 + n - 1].y - lines[s0].y + st.btnH) } }
         // Q2c-console-53: a subtitle too long for one line wraps onto two smaller ones (Renderer), with room for them.
-        let top = subtitle.isEmpty ? 22 : (Font.width(subtitle) > 228 ? 38 : 32)
-        width = 244
-        height = top + n * 21 + 22 + (rows.count > n ? 4 : 0)   // + help line
+        let top = subtitle.isEmpty ? 22 : (Font.width(subtitle) > st.width - 16 ? 38 : 32)
+        width = st.width
+        height = top + span + st.gapY + 22 + (lines.count > n ? 4 : 0)   // + help line
+        // Buttons of the visible lines, each line's buttons sharing the inner width.
+        var geo: [(x: Int, y: Int, w: Int, row: Int)] = []
+        dividers = []
+        if n > 0 {
+            let y0 = lines[scroll].y
+            let inner = st.width - 20
+            for li in scroll ..< scroll + n {
+                let ln = lines[li]
+                let y = top + ln.y - y0
+                if li > scroll && ln.group != lines[li - 1].group { dividers.append(y - st.groupGap / 2) }
+                let c = ln.rows.count
+                let w = (inner - (c - 1) * st.gapX) / c
+                for (j, r) in ln.rows.enumerated() {
+                    // The last button takes the rounding so every line ends at the same edge.
+                    let x = 10 + j * (w + st.gapX)
+                    geo.append((x: x, y: y, w: j == c - 1 ? 10 + inner - x : w, row: r))
+                }
+            }
+        }
+        slotRow = geo.map { $0.row }
         // P201 (Oct 13 18:33, "on the Create New World page nothing shows which button is selected"): the create,
         // rename and controller pages rebuild every frame (blinking caret, live battery), and fresh slot objects left
         // the hovered one (game.menuHover) pointing at a slot no longer on the page, so nothing drew as hovered.
-        // The same number of rows in the same places keep their slots.
-        if slotsKept.count == n && slotsKept.first?.y == top { slots = slotsKept; return }
+        // The same buttons in the same places keep their slots.
+        let same = slotsKept.count == geo.count
+            && zip(slotsKept, geo).allSatisfy { $0.x == $1.x && $0.y == $1.y && $0.w == $1.w && $0.h == st.btnH }
+        if same { slots = slotsKept; return }
         defer { slotsKept = slots }
         slots = []
-        for i in 0..<n {
-            let b = MenuSlot(10, top + i * 21, nil, 0, .button(i))
-            b.w = 224; b.h = 18
+        for (i, gm) in geo.enumerated() {
+            let b = MenuSlot(gm.x, gm.y, nil, 0, .button(i))
+            b.w = gm.w; b.h = st.btnH
             slots.append(b)
         }
     }
 
     func row(forSlot i: Int) -> (String, String)? {
-        let k = scroll + i
+        guard i >= 0 && i < slotRow.count else { return nil }
+        let k = slotRow[i]
         return k >= 0 && k < rows.count ? rows[k] : nil
+    }
+    // P304: on the grouped pages left / right stay on the line, and up / down go to the next line's nearest button.
+    override func neighbour(of cur: Int, dx: Int, dy: Int) -> Int {
+        guard grouped, cur < slots.count else { return super.neighbour(of: cur, dx: dx, dy: dy) }
+        let a = slots[cur]
+        let ac = a.x * 2 + a.w
+        var best = cur, bestScore = Int.max
+        for (i, s) in slots.enumerated() where i != cur && !s.hidden {
+            let score: Int
+            if dx != 0 {
+                let along = (s.x - a.x) * dx
+                guard s.y == a.y, along > 0 else { continue }
+                score = along
+            } else {
+                let along = (s.y - a.y) * dy
+                guard along > 0 else { continue }
+                score = along * 10_000 + abs(s.x * 2 + s.w - ac)
+            }
+            if score < bestScore { bestScore = score; best = i }
+        }
+        return best
     }
     var hoveredID: String? {
         guard let h = game.menuHover, let i = slots.firstIndex(where: { $0 === h }) else { return nil }
@@ -573,7 +711,7 @@ final class PauseMenu: Menu {
     }
     func scrollList(_ d: Int) {
         let before = scroll
-        scroll = max(0, min(rows.count - min(rows.count, PauseMenu.visible), scroll + d))
+        scroll = max(0, min(lines.count - shownLines, scroll + d))     // P304: a line at a time
         if scroll != before { build() }
     }
 
