@@ -326,6 +326,7 @@ final class Game {
     var vrTwoHanded = false            // VR: a long gun braced with both hands (VRTwoHand.swift)
     var knockbackScale: Float = 1      // VR comfort (Q2c-console-60): how far hits and blasts push him (the Quest sets it)
     var steadySaddle = false           // VR comfort (Steady Ride): the view eases over a mount's or boat's hops and waves (ViewStep.swift)
+    var vrBlade: (a: V3, b: V3)?       // P308: the held melee blade this frame, world space (QuestControls.swingContact; SwordPlay blocks)
     var swingPower: Float = 0          // Quest Swing melee: the blade hit swingMob this frame (VRMelee.power 0.6 ... 1.3); consumed by interact
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0
@@ -1388,6 +1389,7 @@ final class Game {
                 m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: !swung)
                 Mob.playerMelee = false
                 if m.health < hp0 { skeletonBlow(m, at: hitAt, power: Mob.playerMeleePower, blade: !held.isEmpty) }   // P247
+                if m.health < hp0 { swordBlowLanded(m, power: swung ? swingPow : (held.def.tool == .sword && charge > 0.9 ? 1.2 : charge)) }   // P308
                 // The contact flash (VRMelee.swift) only when the hit did damage (not into hurt invulnerability or an
                 // emerging Warden); sparks from weapons only, at the Quest blade's contact point when it swung.
                 if m.health < hp0 {

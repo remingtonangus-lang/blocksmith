@@ -110,13 +110,15 @@ extension Game {
         if m.windUp > 0 { return false }
         if m.windUpDone {
             m.windUpDone = false
-            if gap < reach + VRMelee.dodgeGrace { return true }
+            // P308: a feint breaks off (and the real one comes straight after); a blade across the strike takes it.
+            if m.feint { m.feint = false; m.attackCooldown = 0.2; SwordPlay.feints += 1; return false }
+            if gap < reach + VRMelee.dodgeGrace { return !bladeBlocks(m) }
             m.attackCooldown = 0.5                 // dodged: a beat before it tries again
             dodges += 1
             return false
         }
         if gap < reach && m.attackCooldown <= 0 {
-            m.windUp = VRMelee.windUpTime
+            startWindUp(m)                          // P308: high or low, a feint now and then, a quick counter
             sfx(.meleeWindUp, 0.8, at: m.pos + V3(0, m.height * 0.7, 0))
         }
         return false

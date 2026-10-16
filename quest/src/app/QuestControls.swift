@@ -113,6 +113,7 @@ final class QuestControls {
     private var bladeHits: [ObjectIdentifier] = []
     private var bladeHitAt: [Double] = []               // when each bladeHits mob was hit (VRMelee.rehit)
     private var touchBuzz: Float = 0
+    private var blockFelt = 0                          // P308: the last SwordPlay.blockFelt felt
     private var scrapeBuzz: Float = 0                  // the blade knocking into stone: haptic rate limit
     private var bladeTrail = BladeTrail()              // the fading ribbon behind a fast blade (VRCombatFeel.swift)
     private(set) var parriesLanded = 0                 // (harness)
@@ -401,7 +402,7 @@ final class QuestControls {
         mineToggleUpdate(R, inMenu: inMenu, &p)             // Q2c-console-61
         p.lt = trigBtn[0].padValue                          // use / place (hold to repeat)
         // Only real melee weapons hit by contact; with anything else (fist, blocks, torches, food) the trigger attacks.
-        if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false; bladeTrail.clear(); laserFade = min(1, laserFade + dt * 3) }
+        if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { game.vrBlade = nil; bladeValid = false; bladeTrail.clear(); laserFade = min(1, laserFade + dt * 3) }
         // P300 (a): no melee tutorial toasts ("an enemy rearing back is about to strike" showed with no one near); a
         // mob's rear-back pose and grunt are the cue to dodge or parry.
         // The bow: drawn by pulling its string back with the other hand (bowUpdate); the left trigger nocks and looses.
@@ -1206,10 +1207,18 @@ final class QuestControls {
     private func swingContact(_ R: XRHand, dt: Float) {
         let rig = app.rig
         game.swingPower = 0; game.swingMob = nil                  // never a stale hit from a frame interact didn't run
+        game.vrBlade = nil
         guard dt > 1e-3, R.aimValid else { bladeValid = false; return }
         let (h, tool) = heldSize()
         let (base, tip, radius) = VRMelee.blade(handPos: R.aimPos, handRot: R.aimRot, size: h, tool: tool)
         let a1 = rig.toWorld(base), b1 = rig.toWorld(tip)
+        game.vrBlade = (a1, b1)                                    // P308: a blade held across a strike blocks it
+        // P308: each block lands in both hands.
+        if SwordPlay.blockFelt != blockFelt {
+            blockFelt = SwordPlay.blockFelt
+            app.input.haptic(aimHand, amplitude: 0.9, seconds: 0.06, frequency: 300)
+            app.input.haptic(moveHand, amplitude: 0.45, seconds: 0.05, frequency: 300)
+        }
         let tipRel = tip - rig.trackingHead
         let a0 = bladeA, b0 = bladeB, prevRel = bladeTipRel
         bladeA = a1; bladeB = b1; bladeTipRel = tipRel
@@ -1245,7 +1254,10 @@ final class QuestControls {
                 app.input.haptic(moveHand, amplitude: 0.5, seconds: 0.05, frequency: 340)
                 return
             }
-            let pow = VRMelee.power(speed) * VRMelee.travelBonus(bladeTravel)
+            // P308 (a): how it struck: a cut across the blade, a drag along it, a thrust; square into the body or a graze.
+            let bladeDir = simd_normalize(b1 - a1 + V3(0, 1e-5, 0))
+            let into = simd_normalize(m.pos + V3(0, m.height * 0.5, 0) - point + V3(0, 1e-5, 0))
+            let pow = VRMelee.power(speed) * VRMelee.travelBonus(bladeTravel) * SwordPlay.cut(blade: bladeDir, motion: along, into: into)
             game.swingPower = pow
             game.swingMob = m
             bladeHits.append(ObjectIdentifier(m)); bladeHitAt.append(game.clock)

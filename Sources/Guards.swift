@@ -59,11 +59,13 @@ enum Guards {
         if m.guardAge < parryWindow {
             g.player.vel += -away * 7 + V3(0, 2.5, 0)
             stagger = true                              // off balance (Game resets its swing)
+            m.riposte = SwordPlay.riposteFor; m.attackCooldown = 0      // P308: and it counters
             g.sfx(.shieldBlock, 1, at: m.pos)
             parries += 1
             return true
         }
         g.sfx(.shieldBlock, 0.8, at: m.pos)
+        m.riposte = SwordPlay.riposteFor                // P308: a turned blow invites the counter
         Mob.playerMelee = true
         m.hit(from: g.player.pos, damage: max(0, Int((damage * chip).rounded())), knockback: 0.4)
         Mob.playerMelee = false
