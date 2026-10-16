@@ -557,6 +557,7 @@ extension Game {
         let gs = Guns.all[gi]
         guard held.tag < Guns.magSize(held) || DualWield.offEmptyOrLow(self), ammoCount(gs.ammo) > 0, arms.reload <= 0 else { return false }
         arms.reload = Guns.reloadTime(held, gi) / (GunActions.shellByShell(gi) ? Float(max(1, Guns.magSize(held))) * 0.5 : 1)
+        if VRReload.buttonMode { arms.reload *= VRReload.buttonScale }               // P286 (b): the comfort option
         arms.reloadGun = gi
         arms.aim = 0
         sfx(.gunReload(gs.sound), 0.8)

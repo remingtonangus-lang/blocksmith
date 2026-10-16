@@ -244,6 +244,7 @@ final class QuestControls {
     private var prevTrigger = false, prevGrip = false
     private var lastHoverSlot = -1, hoverRest: Float = 1
     private var hipWas = false, hipAt: Double = -100          // P257: the off hand reached the hip (and when)
+    private var hipReady = false                              // P286: a magazine is there to take (the hand shows it)
 
     // Forget held and latched buttons (the Touch matrix starts each cell clean).
     func clearLatches() { sneakLatch = false; l3Rode = false; l3Hold = 0; bHold = 0; bPulse = 0; bBlock = false }
@@ -469,6 +470,7 @@ final class QuestControls {
         var magGrip = false
         // D7: the off hand to the gun and gripped works a bolt, pump or hammer (GunActions); swing play only.
         GunActions.manual = QuestSettings.swingMode
+        VRReload.buttonMode = QuestSettings.buttonReload                 // P286 (b)
         // P301 (a): a pistol's slide: the off hand grips the rear serrations as drawn, pulls back along the barrel and lets
         // go (GunActions.slideTick). A tick in both hands as it takes, a hard stop at the back, a heavy clack home.
         if !inMenu && !bagGrip && !handGrab && game.heldGun != nil && L.gripValid && R.gripValid {
@@ -512,14 +514,18 @@ final class QuestControls {
             // seconds after arriving its grip is the pouch's even if the hand has stopped (reach, pause, squeeze).
             let fwdL = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
             let inHip = VRReload.atHip(head: rig.headWorld, hand: rig.toWorld(L.gripPos), forward: fwdL)
-            if inHip && !hipWas {
+            // P286 (a): a firmer tick, and the hand shows a brass magazine while one is there to take (hipReady).
+            let canTake = !VRReload.buttonMode && VRReload.canTake(game)
+            let entered = inHip && !hipWas
+            if entered {
                 hipAt = game.clock
-                if VRReload.canTake(game) { app.input.haptic(moveHand, amplitude: 0.3, seconds: 0.025, frequency: 320) }
+                if canTake { app.input.haptic(moveHand, amplitude: 0.5, seconds: 0.03, frequency: 300) }
             }
             hipWas = inHip
+            hipReady = canTake && inHip && game.clock - hipAt < VRReload.fresh + 2
             let resting = simd_length(rel - offRelAvg) < 0.06 && !(inHip && game.clock - hipAt < VRReload.fresh)
             let ev = VRReload.tick(game, offHand: rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), head: rig.headWorld,
-                                   grip: lGrip, gripWas: prevGripL, gunForward: aimDir, resting: resting, well: drawnWell())
+                                   grip: lGrip, gripWas: prevGripL, gunForward: aimDir, resting: resting, well: drawnWell(), entered: entered)
             switch ev {
             case .grabbed: app.input.haptic(moveHand, amplitude: 0.35, seconds: 0.03, frequency: 220)
             case .inserted:
@@ -531,14 +537,14 @@ final class QuestControls {
             // hip", so with a gun out and a full magazine every left grip was refused and the hotbar never stepped).
             // P162 (Oct 13: "while reloading, the left grip can't step the hotbar"): only the press that took or seated a
             // magazine is the reload's; holding one no longer swallows the next press (that press puts it back and steps).
-            magGrip = ev == .grabbed || ev == .inserted
+            magGrip = ev == .grabbed || ev == .inserted || ev == .kept
             // R7: a magazine in hand near the well ticks the off hand once (the snap is close).
             if game.arms.magInHand, let w = drawnWell() {
                 let close = simd_length(rig.toWorld(L.gripPos) - w) < VRReload.wellSnap + 0.12
                 if close && !wellCued { app.input.haptic(moveHand, amplitude: 0.3, seconds: 0.02, frequency: 250) }
                 wellCued = close
             } else { wellCued = false }
-        } else if game.heldGun == nil { game.arms.magInHand = false; offTracked = false }
+        } else if game.heldGun == nil { game.arms.magInHand = false; offTracked = false; hipReady = false }
         // (A grip squeezed round the braced rifle's foregrip holds the gun, R6: it doesn't step the hotbar.)
         if !inMenu && !bagGrip && !magGrip && !handGrab && game.world.ships.pilot == nil {
             if lGrip && !prevGripL && braceRot == nil { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
@@ -1456,7 +1462,7 @@ final class QuestControls {
                     guard gauntlet != nil else { continue }
                     (c, half) = (V3(0, -0.012, 0.072), V3(0.036, 0.035, 0.008))        // the cuff at the wrist
                 case 3:
-                    guard lever && game.arms.magInHand else { continue }
+                    guard lever && (game.arms.magInHand || hipReady) else { continue }
                     (c, half) = (V3(0, -0.05, -0.01), V3(0.014, 0.045, 0.024))
                 case 4:
                     guard pilot else { continue }
@@ -1470,7 +1476,8 @@ final class QuestControls {
                 case 0: col = base
                 case 1: col = base * 1.4
                 case 2: col = V3(0.12, 0.12, 0.14)
-                case 3: col = V3(0.2, 0.2, 0.22)
+                // P286: brass while one waits at the hip, green beside the well, dark steel in hand otherwise.
+                case 3: col = !game.arms.magInHand ? V3(0.85, 0.66, 0.28) : (wellCued ? V3(0.3, 0.75, 0.38) : V3(0.2, 0.2, 0.22))
                 case 4: col = V3(0.16, 0.12, 0.09)
                 case 6: col = gauntlet?.color ?? base
                 case 7: col = gauntlet?.trim ?? (gauntlet?.color ?? base) * 0.78

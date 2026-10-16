@@ -85,6 +85,8 @@ enum QuestSettings {
     // swinging: the right trigger attacks). The right trigger mines in both. The key is the old Swing Mode on/off, so
     // saved settings and `swingMode = off` overrides carry over (off = Reclined).
     static var swingMode: Bool { get { bool("quest.swingMode", true) } set { store(newValue, "quest.swingMode") } }
+    // P286 (b): reload with X only (no hip pouch; X reloads faster: VRReload.buttonMode).
+    static var buttonReload: Bool { get { bool("quest.buttonReload", false) } set { store(newValue, "quest.buttonReload") } }
     // The melee style before the Reclined posture switched it to Reclined (-1 none): turning the posture off restores it.
     static var swingBeforeReclined: Int { get { int("quest.swingBeforeReclined", -1) } set { store(newValue, "quest.swingBeforeReclined") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { store(newValue, "quest.leftHanded") } }
@@ -141,7 +143,7 @@ extension QuestSettings {
          ("quest.smoothTurn2", smoothTurn), ("quest.brightness", brightness), ("quest.pitchStep", pitchStep), ("quest.snapAngle", snapAngle),
          ("quest.smoothTurnSpeed", smoothTurnSpeed), ("quest.vignette", vignette), ("quest.steadySaddle", steadySaddle),
          ("quest.blastShake", blastShake), ("quest.chaseView", chaseView), ("quest.teleport", teleport), ("quest.headLocomotion", headLocomotion), ("quest.seated", seated),
-         ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.swingBeforeReclined", swingBeforeReclined),
+         ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.buttonReload", buttonReload), ("quest.swingBeforeReclined", swingBeforeReclined),
          ("quest.leftHanded", leftHanded), ("quest.controlPreset", controlPreset), ("quest.standHeight", standHeight), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
          ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.hudDrop", hudDrop), ("quest.menuScale", menuScale), ("quest.hudScale", hudScale), ("quest.knockback", knockback), ("quest.mineToggle", mineToggle), ("quest.ctrlHints", ctrlHints),
          ("quest.foveation", foveation), ("quest.textureRes", textureRes)]
