@@ -190,6 +190,8 @@ final class RagdollWorld {
     var jointFriction: Float = 3                // rad/s per s: and loses this much outright, so slow flops stop
     var restTolerance: Float = 0.02             // no point of any bone strays further than this from where it was...
     var sleepDelay: Float = 1                   // ...for this long, and the ragdoll sleeps
+    var settleAfter: Float = 2                  // P271: awake this long, a body bleeds its motion fast...
+    var maxAwake: Float = 3.5                   // ...and this long, it sleeps unless it is falling
     var contactMargin: Float = 0.03             // corners this close above the ground get a contact plane
     var depenetration: Float = 2                // blocks/s: a corner that starts inside the ground leaves this fast
     var hitShare: Float = 0.3                   // part of the blow given to the bone it hit alone (the limb flails)
@@ -771,7 +773,24 @@ final class RagdollWorld {
     private func settle(_ s: Int, _ base: Int, _ n: Int, _ dt: Float) {
         typealias M = RagdollMath
         awakeFor[s] += dt
-        if held(s) { still[s] = 0; return }            // P258: never asleep in a hand
+        if held(s) { still[s] = 0; awakeFor[s] = 0; return }     // P258: never asleep in a hand (P271: its clock restarts)
+        // P271 (Oct 14 19:26, Oct 15 build 129: "bodies still roll around after death"): past settleAfter seconds awake
+        // a body bleeds its motion fast (a creep across the ground or a slow roll dies in a fraction of a second), and
+        // past maxAwake it sleeps outright unless it is really falling (a bone faster than 3 blocks/s). A blast or a dug
+        // floor wakes it afresh (wake resets the clock).
+        if awakeFor[s] > settleAfter {
+            let keep = expf(-6 * dt)
+            var fast = false
+            for k in base..<(base + n) {
+                v[k] *= keep; w[k] *= keep
+                if M.dot(v[k], v[k]) > 9 { fast = true }
+            }
+            if awakeFor[s] > maxAwake && !fast {
+                awake[s] = false
+                for k in base..<(base + n) { v[k] = .zero; w[k] = .zero }
+                return
+            }
+        }
         let tol = restTolerance * Swift.min(4, Swift.max(1, awakeFor[s] - 2))
         var moved = false
         for k in base..<(base + n) {
