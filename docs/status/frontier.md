@@ -282,13 +282,28 @@ Work order from this round:
   Evidence shots: fistfight, cover_fight, lasso, holdup, horse_closeup added; `--settle_scale 0.2` for llvmpipe.
   Seen once locally: worker-thread SIGSEGV mid-missions after "caller thread can't call propagate_notification()
   on /root" — the bot ErrorLogger now prints the script backtrace of such thread-guard errors.
-- 2026-10-16 HANDOFF: critic round 2 NOT run yet. Blocker: local llvmpipe feature shots take ~8 min each at
-  1280x720 and the first came out overexposed (auto exposure under software Vulkan; test pair in progress:
-  --shot with --frames 6 vs 40 at bs_main_street). CI shots still run with characters+settlements disabled (GPU
-  probe), so the critic pack needs local shots for towns/people. Next: fix exposure for software shots (or render
-  at 960x540 with fixed exposure), render features + town tour locally (one heavy Godot at a time; 15 GB box, a
-  features run peaks ~10 GB), build the pack with the scratch make_pack.sh recipe (QUALITY_BAR + local/ci shots +
-  bots/bench/inventory/audio verify), run 2 blind critics per design/CRITIC.md, record Ranked gaps, take the top
-  gap. Character agent round 4 WIP sits uncommitted in worktree agent-ae10dd4bb0af55b0e (stopped by the usage
-  limit mid look-dev). Read CI run for the latest push (bots should now pass except anything new; probe result in
-  ci-snaps probe/result.txt).
+- 2026-10-16 HANDOFF (2nd, supersedes the one before): pushed through 50a07ac.
+  State: CI run 27 (f76aebf): combat process all green; living/roam/horsework/missions failures are fixed in later
+  commits (horse coat read late; foot-IK deferred attach on freed actors; horsework town unload; roam leaked
+  c1_drover into completed). Ecology fixed (predators range to scented prey). Terrain stripes fixed in worldgen
+  (CI world cache key is worldgen.py's hash, so CI regenerates). Nerve: 'is' on a freed mark target fixed.
+  Critic round 2 NOT run yet. Local evidence in progress: scratchpad feat/ has 9 feature shots at 960x540
+  (town_hud..journal); a second process was rendering the other 11 (shop..horse_closeup) — rerun with
+  `xvfb-run -a godot --path frontier --resolution 960x540 -- --features DIR --only <list> --looks 6
+  --settle_scale 0.2 --fixed_exposure 1.0` (2-7 min/shot; a process OOMs after ~9 shots on the 15 GB box, so batch
+  ~8 per process; one heavy Godot at a time).
+  Next: (1) finish shots + a local town tour (bs_main_street, bs_saloon_interior, bs_night_street, store_clerk via
+  `--tour DIR --only ...`), build the pack (QUALITY_BAR.md + local/ + ci/ shots from ci-snaps + bots/bench/
+  features.txt via tools/critic_pack.sh + audio verify.log), run 2 blind critics (design/CRITIC.md), record Ranked
+  gaps, take the top one. (2) Likely top gaps from what the shots show: Characters and faces (male faces read
+  feminine/soft, orange skin, jagged vest hems, flat white shirts — character round 4 WIP is uncommitted in worktree
+  agent-ae10dd4bb0af55b0e: merge claude/frontier-game into it, finish, verify look-dev, merge), AI/towns and
+  combat evidence (new fistfight/cover/lasso/holdup shots), CI shots still lack people/towns.
+  Gotchas: llvmpipe mis-meters auto exposure on the player camera (washed-out frames) -> --fixed_exposure;
+  `pkill -f`/`pgrep -f` with a pattern also matches your own bash command line and kills it — match /proc cmdline
+  of `pgrep -x godot` instead; a new class_name file needs `godot --headless --path frontier --import` before
+  --shot/--features runs (parse error otherwise); CI GPU probe still disables characters+settlements: the probe
+  bisect shows no single town feature at fault (any one removed still loses the device) -> likely the paravirtual
+  GPU's TDR on a heavy frame, not a code bug; a rare worker-thread SIGSEGV mid-missions follows "caller thread
+  can't call propagate_notification() on /root" — ErrorLogger now prints the script backtrace (THREAD GUARD line)
+  when it recurs. Pushing cancels the in-progress CI run: batch and push after a run publishes.
