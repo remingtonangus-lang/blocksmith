@@ -266,7 +266,10 @@ extension Mob {
             yaw = h.chargeYaw
             let toP = V2(player.x - pos.x, player.z - pos.z)
             let ahead = simd_dot(toP, V2(forward.x, forward.z))
-            if gap < 0.6 && !h.chargeHit {
+            // P311 (a): the player's body stops the charge at arm's length (both widths, up to a box's corner), so the
+            // blow lands there instead of the knight running into him.
+            let contact: Float = max(0.6, (halfW + g.player.halfW) * 1.42 + 0.1)
+            if (gap < contact || pressedPlayer) && !h.chargeHit {
                 h.chargeHit = true
                 HellStats.chargeHits += 1
                 let dmg = HellMobs.chargeDamage[min(3, rank)]

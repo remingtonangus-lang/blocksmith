@@ -463,6 +463,16 @@ final class World {
     // move counts them (bodiesSolid around Player's moveBody), so bodies, mobs and items never catch on one.
     var bodyBoxes: [(V3, V3)] = []
     var bodiesSolid = false
+    // P311 (a) (Oct 15 12:19, "he can't go through me, I can't go through him"): the player and the mobs are solid to
+    // each other, sideways only (no one stands on a head or is lifted by one). The player's own moves (mobsSolid,
+    // around Player's moveBody and the headset's room-scale steps) meet the living mobs near him (solidMobs, kept by
+    // MobManager.separate; at least a block tall, so a step-up never carries him over a small one); each mob's move
+    // meets the player's box (playerBox, set around Mob.update by MobManager), and a sweep cut short by it sets
+    // touchedPlayer (a mob pressed against him neither hops nor counts as stuck).
+    var solidMobs: [Mob] = []
+    var mobsSolid = false
+    var playerBox: (V3, V3)?
+    var touchedPlayer = false
 
     func collides(_ mn: V3, _ mx: V3) -> Bool {
         let eps: Float = 1e-4
@@ -551,6 +561,14 @@ final class World {
         if plain && bodiesSolid {
             for b in bodyBoxes where b.0.x < hi.x && b.1.x > lo.x && b.0.y < hi.y && b.1.y > lo.y && b.0.z < hi.z && b.1.z > lo.z { boxes.append(b) }
         }
+        if plain && mobsSolid && a != 1 {
+            for m in solidMobs where m.health > 0 {
+                let r = m.halfW, top: Float = m.pos.y + max(1, m.height)
+                if m.pos.x - r < hi.x && m.pos.x + r > lo.x && m.pos.y < hi.y && top > lo.y && m.pos.z - r < hi.z && m.pos.z + r > lo.z {
+                    boxes.append((V3(m.pos.x - r, m.pos.y, m.pos.z - r), V3(m.pos.x + r, top, m.pos.z + r)))
+                }
+            }
+        }
         var dd = d
         let b1 = (a + 1) % 3, b2 = (a + 2) % 3
         for (bmn, bmx) in boxes {
@@ -558,6 +576,15 @@ final class World {
             if bmn[b2] >= mx[b2] - eps || bmx[b2] <= mn[b2] + eps { continue }
             if dd > 0 && bmn[a] >= mx[a] - eps { dd = min(dd, bmn[a] - mx[a]) }
             if dd < 0 && bmx[a] <= mn[a] + eps { dd = max(dd, bmx[a] - mn[a]) }
+        }
+        // P311 (a): a mob's sideways move stops at the player's body.
+        if plain && a != 1, let pb = playerBox, case let (bmn, bmx) = pb,
+           bmn.x < hi.x && bmx.x > lo.x && bmn.y < hi.y && bmx.y > lo.y && bmn.z < hi.z && bmx.z > lo.z,
+           !(bmn[b1] >= mx[b1] - eps || bmx[b1] <= mn[b1] + eps || bmn[b2] >= mx[b2] - eps || bmx[b2] <= mn[b2] + eps) {
+            let was = dd
+            if dd > 0 && bmn[a] >= mx[a] - eps { dd = min(dd, bmn[a] - mx[a]) }
+            if dd < 0 && bmx[a] <= mn[a] + eps { dd = max(dd, bmx[a] - mn[a]) }
+            if dd != was { touchedPlayer = true }
         }
         if !fieldSink.isEmpty {
             var fmn = mn, fmx = mx

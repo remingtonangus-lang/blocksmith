@@ -31,6 +31,7 @@ final class Player {
     var sneaking = false
     var ducking = false            // VR: the user physically crouched (QuestControls.roomScale): counts as sneaking
     var sprinting = false
+    var walkWant = V2(0, 0)        // P311 (a): the walk asked for this tick (blocks/s), even when a mob stops it: shoves
     var airPeak: Float = 0         // highest feet y since last touching ground/water (fall damage)
     var lastUpdatePos = V3(0, 0, 0)  // where the last update left the body (a jump of 6+ blocks is a teleport)
     var pendingFall: Float = 0     // fall distance of the last landing; Game consumes and clears it
@@ -147,6 +148,7 @@ final class Player {
     }
     private var lastGoodPos: V3?
     func update(dt: Float, input: MoveInput, world w: World) {
+        walkWant = V2(0, 0)
         // NaN quarantine: a body left non-finite (a degenerate push or knockback, here or before this step) goes back to
         // its last finite position instead of reaching Int(floor()) in every block lookup (undefined in the release
         // build). Every repair is counted: the agents' non_finite oracle and the smoke line report it.
@@ -282,6 +284,7 @@ final class Player {
 
         if jetThrust { speed *= 1.3 }
         let target = wish * speed
+        walkWant = V2(target.x, target.z)
         let accel: Float = flying ? 10 : (onGround ? 20 : (inFluid ? 8 : (jetThrust ? 8 : 5)))
         let k = 1 - expf(-accel * dt)
         vel.x += (target.x - vel.x) * k
@@ -348,8 +351,10 @@ final class Player {
         wetGrace = inWater ? 0.15 : max(0, wetGrace - dt)
         let wetish = inFluid || wetGrace > 0
         w.bodiesSolid = !flying                // P306: step onto the bodies lying about, not through them
+        w.mobsSolid = true                     // P311 (a): and never walk through a living mob
         let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround || wetish)
         w.bodiesSolid = false
+        w.mobsSolid = false
         var landed = false
         var bounce: Float = 0
         if hit.y {

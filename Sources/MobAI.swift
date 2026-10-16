@@ -424,7 +424,9 @@ extension Game {
             let r = Rand.float(in: 0..<1)
             let name = table.first { r < $0.1 }?.0 ?? "string"
             if Items.has(name) { drops.spawn(ItemStack(Items.id(name), 1), at: player.pos + V3(0, 0.5, 0)) }
-            c.pos = player.pos + V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1))
+            // P311 (b): beside him, never inside him.
+            let ga = Rand.float(in: 0..<(2 * Float.pi)), gr = Rand.float(in: 1.2...1.8)
+            c.pos = player.pos + V3(cosf(ga) * gr, 0, sinf(ga) * gr)
         }
     }
 
