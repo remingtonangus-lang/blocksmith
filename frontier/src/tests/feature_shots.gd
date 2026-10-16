@@ -71,6 +71,8 @@ func _human(pos: Vector3, opts: Dictionary) -> Human:
 	return h
 
 func _settle(frames := 30) -> void:
+	# --settle_scale 0.2 on software renderers (seconds per frame): streaming is settled explicitly below anyway
+	frames = maxi(3, int(round(frames * Game.arg_f("settle_scale", 1.0))))
 	await get_tree().process_frame
 	if main.scatter != null:
 		main.scatter.settle_now()

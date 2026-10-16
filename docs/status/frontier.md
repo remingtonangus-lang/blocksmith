@@ -272,3 +272,23 @@ Work order from this round:
   same deadlock on Mobile). Next: read ci-snaps probe/result.txt — if towns+characters now render, run critic
   round 2; otherwise check the town kill-switch bisect lines. Agents (settlements, characters, wildlife) were
   mid-round in their worktrees (uncommitted work may exist there). No FRONTIER BUILD READY yet.
+- 2026-10-16: me: CI hardened (per-process alarm so bot logs always land; snaps README tolerates a missing
+  bots.log — run 26 lost everything to that). Fixed: living bot read the horse's coat 3 s late; deferred foot-IK
+  attach on freed hold-up passengers (5 errors in --bot roam). Terrain: the long straight stripes across the Sable
+  floodplain, embankments and fans (critic round 1 "contour stripes") came from looking up river/corridor profiles
+  by the nearest pixel of a rasterised staircase line — cells now project exactly onto the polyline; droplet erosion
+  erodes through a radius brush (no rill comb); desert strata only on steep faces. Merged settlements (town talk,
+  hand props), wildlife round 5 (animal voices, pressed prints, ecology fix: predators range to scented prey).
+  Evidence shots: fistfight, cover_fight, lasso, holdup, horse_closeup added; `--settle_scale 0.2` for llvmpipe.
+  Seen once locally: worker-thread SIGSEGV mid-missions after "caller thread can't call propagate_notification()
+  on /root" — the bot ErrorLogger now prints the script backtrace of such thread-guard errors.
+- 2026-10-16 HANDOFF: critic round 2 NOT run yet. Blocker: local llvmpipe feature shots take ~8 min each at
+  1280x720 and the first came out overexposed (auto exposure under software Vulkan; test pair in progress:
+  --shot with --frames 6 vs 40 at bs_main_street). CI shots still run with characters+settlements disabled (GPU
+  probe), so the critic pack needs local shots for towns/people. Next: fix exposure for software shots (or render
+  at 960x540 with fixed exposure), render features + town tour locally (one heavy Godot at a time; 15 GB box, a
+  features run peaks ~10 GB), build the pack with the scratch make_pack.sh recipe (QUALITY_BAR + local/ci shots +
+  bots/bench/inventory/audio verify), run 2 blind critics per design/CRITIC.md, record Ranked gaps, take the top
+  gap. Character agent round 4 WIP sits uncommitted in worktree agent-ae10dd4bb0af55b0e (stopped by the usage
+  limit mid look-dev). Read CI run for the latest push (bots should now pass except anything new; probe result in
+  ci-snaps probe/result.txt).
