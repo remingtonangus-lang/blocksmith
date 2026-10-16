@@ -111,7 +111,8 @@ extension Mob {
     // set remembers the life its pieces had left (tag: helmet, vest, greaves as percent, 7 bits each).
     func troopLoot(_ g: Game) {
         guard killedByPlayer, let c = troopClass, Items.has(c.setItem) else { return }
-        guard (0..<3).contains(where: { troopSeg[$0] > 0 }), Rand.float(in: 0..<1) < 0.35 else { return }
+        // P322 (d): a Hannibal trooper's plate (it flies) drops about 1 time in 100.
+        guard (0..<3).contains(where: { troopSeg[$0] > 0 }), Rand.float(in: 0..<1) < (c == .hannibal ? 0.01 : 0.35) else { return }
         var s = ItemStack(Items.id(c.setItem), 1)
         var tag = 0
         for seg in 0..<3 { tag |= Int(max(0, min(100, troopSeg[seg] / c.segMax[seg] * 100)).rounded()) << (7 * seg) }

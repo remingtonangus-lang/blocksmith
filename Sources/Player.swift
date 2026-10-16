@@ -41,6 +41,9 @@ final class Player {
     var jetHold: Float = 0         // seconds jump has been held (jetpack takes over after 0.15 s)
     var jetBurn: Float = 0         // fractional fuel ticks burnt
     var jetEmptyWarned = false
+    var jetBoost: Float = 0        // P322: 0...1, the thrust leaning forward (flies along jetDir instead of straight up)
+    var jetDir = V3(0, 1, 0)       // ... where it thrusts (the look, or the headset's)
+    var suitFuel: Float = 0        // ... the Hannibal plate's fuel buffer, in jetpack ticks (filled from the pack's coal)
     var boost: Float = 0           // firework rocket boost left (s)
     var levitate: Float = 0        // sentry bolt levitation left (s)
     var levitateAmp = 0
@@ -287,8 +290,10 @@ final class Player {
         walkWant = V2(target.x, target.z)
         let accel: Float = flying ? 10 : (onGround ? 20 : (inFluid ? 8 : (jetThrust ? 8 : 5)))
         let k = 1 - expf(-accel * dt)
-        vel.x += (target.x - vel.x) * k
-        vel.z += (target.z - vel.z) * k
+        if !(jetThrust && jetBoost > 0) {                // (P322: a forward thrust steers the whole velocity below)
+            vel.x += (target.x - vel.x) * k
+            vel.z += (target.z - vel.z) * k
+        }
         if held != nil { vel.x = target.x; vel.z = target.z }        // no momentum carried into a web or a bush
 
         if flying {
@@ -314,6 +319,15 @@ final class Player {
         } else if levitate > 0 {
             levitate -= dt
             vel.y += (0.9 * Float(levitateAmp + 1) - vel.y) * (1 - expf(-4 * dt))
+            airPeak = pos.y
+        } else if jetThrust && jetBoost > 0 {
+            // P322 (a): leaning into it, the thrust flies him where he looks: up to 16 b/s (22 sprinting) along jetDir,
+            // the lift holding him up; the strafe input slides him sideways.
+            let top: Float = (sprinting ? 22 : 16) * jetBoost
+            var want = jetDir * top + r * (input.strafe * 4)
+            want.y = max(want.y, -6) + 1.2 * (1 - jetBoost)
+            let kk: Float = 1 - expf(-2.6 * dt)
+            vel += (want - vel) * kk
             airPeak = pos.y
         } else if jetThrust {
             // Jetpack: ease the climb toward ~6 blocks/s; the fall restarts from wherever the thrust stops.
