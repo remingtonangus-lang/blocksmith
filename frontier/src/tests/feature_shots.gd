@@ -51,6 +51,13 @@ func _place(x: float, z: float, yaw_deg: float, hour: float, weather := "fair") 
 	main.sky.set_weather(SkySystem.Weather.get(weather.to_upper(), SkySystem.Weather.FAIR), true)
 	main.sky.paused = true
 	main.sky.cam_attr.auto_exposure_speed = 30.0
+	# --fixed_exposure X: software Vulkan (llvmpipe) mis-meters auto exposure on the player camera and washes the
+	# frame out; evidence shots from the cloud box use a fixed exposure instead
+	if Game.args.has("fixed_exposure"):
+		main.sky.cam_attr.auto_exposure_enabled = false
+		var night := hour < 5.5 or hour > 19.8
+		var dusk := not night and (hour < 7.0 or hour > 18.3)
+		main.sky.cam_attr.exposure_multiplier = Game.arg_f("fixed_exposure", 1.0) * (3.5 if night else (1.6 if dusk else 1.0))
 	return p
 
 func _town(id: String) -> Vector3:
