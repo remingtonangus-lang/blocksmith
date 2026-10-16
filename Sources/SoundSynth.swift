@@ -920,12 +920,7 @@ struct Synth {
             let fall = tone(1.6, f0: 1900 * p, f1: 650 * p, wave: .sine, attack: 0.25, release: 0.05, gain: 0.45)
             let tear = wash(1.6, lp: 2400 * p, hp: 300, wobble: 0.5, rate: 11, gain: 0.35)
             out = Synth.mix(fall, tear)
-        case .ashSiren:
-            // The vault's alarm siren: a hand-cranked wail rising and falling twice.
-            let up = tone(1.4, f0: 260 * p, f1: 720 * p, wave: .saw, attack: 0.3, release: 0.1, gain: 0.3)
-            let down = tone(1.4, f0: 720 * p, f1: 300 * p, wave: .saw, attack: 0.05, release: 0.4, gain: 0.3)
-            let one = Synth.mix(up, down, at: frames(1.3))
-            out = Synth.echo(Synth.lowpass(Synth.mix(one, one, at: frames(2.6)), 2400), delay: 0.45, feedback: 0.35, mix: 0.4, tail: 1.2)
+        case .ashSiren: out = AshSiren.render(&self, p: p)          // P319: the motor siren loop (AshSiren.swift)
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop, .thunderFar, .iceCreak, .rockfall, .volcanoRumble:
             out = TerrainAudio.render(&self, s, p: p)
         case .fallRushLoop, .hellImpact, .hellArrival: out = HellDropAudio.render(&self, s, p: p)
