@@ -396,7 +396,16 @@ final class Armory {
             var dmg = damage * (boss ? 0.35 : 1)
             // A soldier's plate takes the beam where it strikes (TroopClasses.swift, T7).
             if m.troop > 0 && m.shield <= 0 && Soldier.rank(m.kind) != nil { dmg = m.troopArmourHit(dmg, seg: m.troopSegment(at: hit.y), g) }
-            m.hit(from: o, damage: Int(dmg), knockback: 0.9)
+            // P312 (Oct 15 12:18, "his arc doesn't do enough"): a bolt on a soldier is worked out like a round (P321),
+            // not through the deep army's power and the melee armour formula (an Ashguard heavy took about 7 a bolt).
+            let infantry = Soldier.rank(m.kind) != nil && !m.kind.ashVehicle && m.kind != .deckGun
+            if infantry {
+                if m.troop == 0 { dmg *= 1 - min(0.35, Float(m.armorPoints.0) * 0.015) }
+                dmg /= max(0.5, m.vary.tough)
+            }
+            Mob.roundHit = infantry
+            m.hit(from: o, damage: max(1, Int(dmg)), knockback: 0.9)
+            Mob.roundHit = false
             if !m.spec.fireImmune { m.fire = max(m.fire, incendiary ? 4 : 3) }
             if fromPlayer { m.killedByPlayer = true; m.provoke(g); hitMarker = 0.18; hits += 1 }
             // H7: the arc jumps to the two nearest other targets within 5 blocks (60 % each), drawn as forks.

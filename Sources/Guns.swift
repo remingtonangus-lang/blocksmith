@@ -49,9 +49,9 @@ enum Guns {
         GunSpec(key: "gun_launcher", name: "Himmelsturm Launcher", ammo: "rocket_ammo", mag: 2, interval: 1.0, auto: false, damage: 0, pellets: 1,
                 spread: 0.02, aimSpread: 0.008, speed: 34, recoil: 0.12, reload: 2.6, range: 160, durability: 150, zoom: 0.85,
                 shot: .rocket, sound: 4, accent: V3(0.9, 0.9, 0.88)),
-        // H7 ("the shock weapon is as strong as it looks"): 22 a bolt (was 14, under a rifle's two shots), and the bolt
+        // H7 ("the shock weapon is as strong as it looks"): 28 a bolt (P312; was 22, before that 14, under a rifle's two shots), and the bolt
         // jumps on to two more targets nearby (Armory.beam).
-        GunSpec(key: "gun_arc", name: "Blitzlanze Arc Gun", ammo: "arc_cell", mag: 12, interval: 0.9, auto: false, damage: 22, pellets: 1,
+        GunSpec(key: "gun_arc", name: "Blitzlanze Arc Gun", ammo: "arc_cell", mag: 12, interval: 0.9, auto: false, damage: 28, pellets: 1,
                 spread: 0.01, aimSpread: 0, speed: 0, recoil: 0.05, reload: 2.4, range: 48, durability: 300, zoom: 0.75,
                 shot: .beam, sound: 5, accent: V3(0.9, 0.9, 0.88)),
         // The Capital officers' and pilots' sidearm (CapitalArms.swift); its own sound slot (WeaponAudio 13).
