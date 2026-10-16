@@ -529,6 +529,18 @@ extension Mob {
             }
         } else {
             b.aimTime = 0
+            // P305 (b): he is behind a wall it can't get round (the path finder gave him up) or close behind thin cover,
+            // and it knows where he is: it stands and shoots through the cover (BlockWear wears it away round by round).
+            if (b.seenAgo < 12 || lockTime > 0) && b.reload <= 0 && b.react <= 0 && b.shotTimer <= 0 && b.mag > 0
+                && gs.shot != .rocket && dist < min(rank.sight, 40) && (gaveUp(g.player.pos) || dist < 16)
+                && BlockWear.thinCover(g.world, eye, target, max: 3) {
+                face(g.player.pos)
+                let tp = target - eye
+                b.pitch += (max(-0.9, min(0.9, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
+                BlockWear.throughShots += 1
+                soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+                return 0
+            }
             // Suppressing fire: automatic guns keep shooting where the player ducked out of sight.
             if let ls = b.lastSeen, b.seenAgo < 2.5, b.gun == Guns.rifle || b.gun == Guns.sturmwind || b.gun == Guns.slatefall || b.gun == Guns.repeater || r == 3,
                b.reload <= 0, b.react <= 0, b.shotTimer <= 0, b.mag > 0, simd_length(ls - pos) < rank.sight {
@@ -630,7 +642,8 @@ extension Mob {
         let muzzle = SoldierRig.muzzleWorld(self)
         // Clear line of fire from the muzzle (the sight check is from the eye, every 0.2-0.3 s, through opaque blocks
         // only): a wall, window, door or fence between the gun and the target holds the shot.
-        guard g.world.clearShot(muzzle, target) else { b.aimTime = 0; return }
+        // P305 (b): thin cover the rounds can wear through (glass, a plank wall, a bush, up to two blocks) doesn't.
+        guard g.world.clearShot(muzzle, target) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else { b.aimTime = 0; return }
         if glintDone { b.glinted = true }          // (a glint held up by a wall doesn't use up the warning)
         var aimAt = target
         let flight = gs.speed > 0 ? simd_length(target - muzzle) / gs.speed : 0
