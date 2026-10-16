@@ -422,8 +422,13 @@ enum Collapse {
             let carriers = layer.filter { inAbove.contains($0 + IVec3(0, 1, 0)) }
             // The damage must have narrowed this layer (a quarter of what carried it gone): one mined block, or a
             // blast beside an L-shaped house, never brings down a building that leaned or was loaded that way whole.
+            // Lost: the layer's holes under the structure above it, anywhere above (a blast empties whole columns: counted
+            // only right under a standing cell, a tower's half-cut base read as barely touched and never tipped:
+            // collapsecheck tower, run of e7b0c60).
+            var foot = Set<Int64>()
+            for c in above { foot.insert(Int64(c.x) << 32 | Int64(UInt32(bitPattern: Int32(c.z)))) }
             var lost = 0
-            for h in holes where h.y == y && inAbove.contains(h + IVec3(0, 1, 0)) { lost += 1 }
+            for h in holes where h.y == y && foot.contains(Int64(h.x) << 32 | Int64(UInt32(bitPattern: Int32(h.z)))) { lost += 1 }
             let narrowed = lost * 4 >= carriers.count + lost
             var bear: Float = 0
             var lo = V2(Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude), hi = -lo

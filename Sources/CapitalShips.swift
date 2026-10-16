@@ -345,7 +345,11 @@ enum Capital {
         for x in [-6, -3, 3, 6] { hb.set(x, 77, 310, console) }
         hb.set(0, 77, 330, Blocks.id("chest"))
         hb.chests.append((hb.grid(0, 77, 330), "steelhold_vault"))
-        for x in [-6, 6] { hb.set(x, 88, 320, light) }
+        for x in [-6, 6] {                            // against the bridge roof (at 88 they hung loose)
+            var y = 88
+            while y < 110 && hb.get(x, y + 1, 320) == AIR { y += 1 }
+            if hb.get(x, y + 1, 320) != AIR { hb.set(x, y, 320, light) }
+        }
         // Ladders: hangar -> upper deck -> bridge.
         let ladder = Blocks.id("ladder")
         for y in 27...46 { hb.set(-7, y, 300, panel); hb.set(-6, y, 300, ladder + 3) }
