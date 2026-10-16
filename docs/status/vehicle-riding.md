@@ -186,3 +186,10 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
   particle air guard, collapse queue fold. New in the port: the Meridian MAC crater queues a collapse round its rim.
   The Meridian hull has no walkable decks yet (Remington wanted hallways on frigates): ask its owner before adding
   them with HullBuilder.interiorDeck.
+- 2026-10-16: after the port, fixed on CI: block sound kinds grass/leaves (build), collapse scenes on their own stage,
+  stronger scene blasts (reference resistances), tower tips again (neck rule), ship parts join at faces/edges/corners
+  in the split and per-blast breakaway, only what a blast cut comes away (as-built loose fittings stay), Stormwarden
+  drive cores on pylons and its lights against ceilings, decks get ceilings, crawler bay lights against the deck. Fast
+  lane of a358cf6: collapsecheck 10/10, ridecheck, interiorcheck PASS. The Meridian frigate (CapitalFrigate.swift,
+  another session's) has four drive cores loose as built (475 blocks each): harmless now (a split only takes what a
+  blast cut), but its owner may want pylons like the Stormwarden's; interiorcheck reports it as a NOTE.
