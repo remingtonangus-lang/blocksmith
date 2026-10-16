@@ -642,11 +642,11 @@ enum Loot {
                                          ("enchanted_golden_apple", 1, 1, 1), ("experience_bottle", 3, 8, 6), ("blaze_powder", 2, 6, 8)]),
         // The Ashguard's sites in the Deep (AshSites.swift): what an army at war keeps in its depots.
         "ash_armory": (3...6, [("gun_kessel", 1, 1, 10), ("gun_sturmwind", 1, 1, 10),
-                               ("gun_launcher", 1, 1, 4), ("rifle_rounds", 16, 48, 20),
+                               ("gun_launcher", 1, 1, 4), ("gun_faust", 1, 1, 10), ("faust_warhead", 1, 4, 12), ("rifle_rounds", 16, 48, 20),
                                ("heavy_rounds", 6, 16, 10), ("rocket_ammo", 2, 6, 12), ("shotgun_shells", 6, 18, 6), ("tnt", 2, 6, 8),
                                ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("golden_apple", 1, 1, 3)]),
         "ash_supply": (4...8, [("ashguard_journal", 1, 1, 5), ("bread", 3, 8, 15), ("cooked_beef", 2, 6, 12), ("baked_potato", 3, 8, 10), ("iron_ingot", 3, 8, 10),
-                               ("gold_ingot", 2, 6, 8), ("gunpowder", 3, 9, 10), ("rifle_rounds", 12, 40, 12), ("rocket_ammo", 1, 4, 8),
+                               ("gold_ingot", 2, 6, 8), ("gunpowder", 3, 9, 10), ("rifle_rounds", 12, 40, 12), ("rocket_ammo", 1, 4, 8), ("faust_warhead", 1, 3, 6),
                                ("coal", 4, 12, 8), ("golden_apple", 1, 1, 3), ("potion_healing", 1, 2, 4)]),
         "ash_fuel": (3...6, [("coal_block", 1, 4, 12), ("blaze_powder", 2, 6, 8), ("gunpowder", 4, 12, 12), ("tnt", 2, 6, 8),
                              ("fire_charge", 2, 6, 8), ("rocket_ammo", 2, 4, 6), ("iron_ingot", 2, 6, 8)]),

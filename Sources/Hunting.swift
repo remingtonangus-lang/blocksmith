@@ -20,7 +20,7 @@ enum HuntWeapon: Int {
         case "gun_sidearm", "gun_revolver": return .pistol
         case "gun_rifle", "gun_sniper", "gun_slatefall", "gun_kessel", "gun_sturmwind", "gun_repeater": return .rifle
         case "gun_shotgun": return .shotgun
-        case "gun_launcher", "gun_arc": return .heavy
+        case "gun_launcher", "gun_arc", "gun_faust": return .heavy
         case "trident": return .spear
         default: return k.hasSuffix("_spear") ? .spear : .melee
         }

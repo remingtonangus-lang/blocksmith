@@ -153,7 +153,7 @@ enum Soldier {
         case .soldierRecruit: return r < 0.6 ? Guns.kessel : Guns.sturmwind
         case .soldierTrooper: return Guns.sturmwind
         case .soldierMarksman: return Guns.kessel
-        case .soldierIronclad: return Guns.kessel
+        case .soldierIronclad: return r < 0.3 ? Guns.faust : Guns.kessel       // P320: the heavies' anti-tank tubes
         case .ashMarshal: return Guns.sturmwind
         case .ashChancellor: return Guns.sturmwind
         default: return Guns.sturmwind
@@ -169,6 +169,7 @@ enum Soldier {
         case Guns.sturmwind: return (8, 18)
         case Guns.shotgun: return (2.5, 6)
         case Guns.launcher: return (10, 26)
+        case Guns.faust: return (10, 30)
         case Guns.arc: return (6, 18)
         case Guns.pistol: return (4, 12)
         case Guns.rifle where rank == 2: return (12, 26)
@@ -634,7 +635,7 @@ extension Mob {
         var aimAt = target
         let flight = gs.speed > 0 ? simd_length(target - muzzle) / gs.speed : 0
         aimAt += g.player.vel * flight * 0.8
-        if b.gun == Guns.launcher { aimAt = g.player.pos + V3(0, 0.3, 0) + g.player.vel * flight * 0.6 }
+        if Guns.isLauncher(b.gun) { aimAt = g.player.pos + V3(0, 0.3, 0) + g.player.vel * flight * 0.6 }
         let dir = simd_normalize(aimAt - muzzle)
         // Soldiers' shotgun pellets hit softer (a point-blank volley shouldn't one-shot a full-health player).
         // The Ashguard are veterans (the Deep's harder army, docs/status/deep-balance.md): 60 % more damage and a
@@ -656,7 +657,8 @@ extension Mob {
         case .rocket:
             var s = Slug(pos: muzzle + dir * 0.5, vel: Guns.scatter(dir, rank.spread * Difficulty.row.aim) * gs.speed, kind: .rocket, damage: 0, fromPlayer: false,
                          shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 0.6)
-            s.power = 1.8
+            s.power = b.gun == Guns.faust ? 2.2 : 1.8
+            if b.gun == Guns.faust { s.antiTank = Guns.faustAntiTank }          // P320
             s.breaks = customName == FactionRaids.rocketeerName              // P215: a raider's rockets hole houses
             g.arms.spawn(s)
         case .beam:

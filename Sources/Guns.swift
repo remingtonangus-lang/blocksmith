@@ -77,10 +77,19 @@ enum Guns {
         GunSpec(key: "gun_ashsaw", name: "Kettensturm Machine Gun", ammo: "rifle_rounds", mag: 75, interval: 0.055, auto: true, damage: 3.5, pellets: 1,
                 spread: 0.075, aimSpread: 0.016, speed: 150, recoil: 0.011, reload: 4.2, range: 110, durability: 1600, zoom: 0.85,
                 shot: .bullet, sound: 19, accent: V3(0.2, 0.2, 0.22)),
-    ] + GreywallArms.specs                   // (appended: soldiers keep their gun as an index)
+    ] + GreywallArms.specs + [               // (appended: soldiers keep their gun as an index)
+        // P320 (Oct 15 18:54): the Faustrohr, the Ashguard's single-shot anti-tank launcher (AshArms.swift): one
+        // warhead on the tube, a hard-hitting shaped charge (Slug.antiTank) and a crater, then a slow reload of the next.
+        GunSpec(key: "gun_faust", name: "Faustrohr", ammo: "faust_warhead", mag: 1, interval: 1.0, auto: false, damage: 0, pellets: 1,
+                spread: 0.03, aimSpread: 0.012, speed: 28, recoil: 0.1, reload: 3.4, range: 90, durability: 40, zoom: 0.9,
+                shot: .rocket, sound: 4, accent: V3(0.34, 0.36, 0.22)),
+    ]
     static let rifle = 0, smg = 1, shotgun = 2, sniper = 3, launcher = 4, arc = 5, pistol = 6, revolver = 7
     static let kessel = 8, hagel = 9, sturmwind = 10, ashsaw = 11
-    static func isAshArm(_ gi: Int) -> Bool { gi >= kessel && gi <= ashsaw }
+    static let faust = all.count - 1                                                         // P320
+    static func isAshArm(_ gi: Int) -> Bool { (gi >= kessel && gi <= ashsaw) || gi == faust }
+    static func isLauncher(_ gi: Int) -> Bool { gi == launcher || gi == faust }
+    static let faustPower: Float = 3.4, faustAntiTank: Float = 90
     static let slatefall = 12, longwatch = 13, needle = 14, breaker = 15, repeater = 16      // Greywall's (GreywallArms.swift)
     static func isGreyArm(_ gi: Int) -> Bool { gi >= slatefall && gi <= repeater }
     // P217 (Oct 13 19:02, "several guns look identical; cut the roster to fewer, clearly different guns"; redone Oct 14:
@@ -108,7 +117,7 @@ enum Guns {
     // from Capital soldiers and citadels); rifle rounds are the frontier's (the six-iron, the Ashguard's arms).
     static let ammo: [(String, String)] = [("rifle_rounds", "Rifle Rounds"), ("shotgun_shells", "Shotgun Shells"), ("heavy_rounds", "Heavy Rounds"),
                                            ("rocket_ammo", "Rocket"), ("arc_cell", "Arc Cell"), ("capital_rounds", "Capital Rounds"),
-                                           (GreywallArms.ammo, "Slate Rounds")]
+                                           (GreywallArms.ammo, "Slate Rounds"), ("faust_warhead", "Faustrohr Warhead")]
     static let rocketPower: Float = 2.5
 
     private(set) static var byItem: [ItemID: Int] = [:]
@@ -118,7 +127,7 @@ enum Guns {
         for (n, disp) in ammo where !reg.has(n) {
             var d = ItemDef(n, disp)
             d.texKey = "item_" + n
-            d.maxStack = n == "rocket_ammo" ? 16 : 64
+            d.maxStack = n == "rocket_ammo" || n == "faust_warhead" ? 16 : 64
             reg.add(d)
         }
         for (k, to) in retiredKeys { SaveMigration.itemAliases[k] = to }
@@ -143,6 +152,9 @@ enum Guns {
          Recipes.shapeless(["iron_ingot", "iron_ingot", "gunpowder", "gunpowder"], "heavy_rounds", 5),
          Recipes.shaped([" I ", "ITI", "IGI"], ["I": "iron_ingot", "T": "tnt", "G": "gunpowder"], "rocket_ammo", 2),
          Recipes.shapeless(["copper_ingot", "redstone", "redstone", "gold_nugget"], "arc_cell", 4),
+         // P320: the Faustrohr is a cheap tube anyone can make (no citadel parts); its warhead takes TNT.
+         Recipes.shaped(["  I", "ILI", "I  "], ["I": "iron_ingot", "L": "lever"], "gun_faust"),
+         Recipes.shapeless(["tnt", "iron_ingot", "iron_ingot", "copper_ingot"], "faust_warhead", 2),
          // Guns (task 23): only with components from Capital citadels (FactionGear.swift).
          Recipes.shapeless(["steel_ingot", "steel_ingot", "firing_mechanism"], "gun_sidearm"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "firing_mechanism"], "gun_rifle"),
@@ -171,7 +183,7 @@ enum Guns {
         case "rifle_rounds": return "any town gunsmith; Ashguard soldiers"
         case "shotgun_shells", "heavy_rounds": return "any town gunsmith; military crates"
         case "capital_rounds": return "Capital soldiers, citadel crates and Capital city gunsmiths"
-        case "rocket_ammo", "arc_cell": return "craft them (\(Wrecks.recipeText(key))); military base and citadel crates"
+        case "rocket_ammo", "arc_cell", "faust_warhead": return "craft them (\(Wrecks.recipeText(key))); military base and citadel crates"
         case GreywallArms.ammo: return "any town gunsmith; Greywall soldiers and their armouries"
         default: return "military crates"
         }
@@ -316,6 +328,9 @@ enum Guns {
         "heavy_rounds": ["................", "................", ".....b.....b....", "....bbb...bbb...", "....bbb...bbb...",
                          "....bbb...bbb...", "....yyy...yyy...", "....yyy...yyy...", "....yyy...yyy...", "....yyy...yyy...",
                          "....yyy...yyy...", "....yyy...yyy...", "....yyy...yyy...", "....ddd...ddd...", "................", "................"],
+        "faust_warhead": ["................", "................", "......1111......", ".....1aaaa1.....", "....1aaaaaa1....",
+                          "....1aaayaa1....", "....1aaaaaa1....", ".....1aaaa1.....", "......1dd1......", "......1dd1......",
+                          "......1dd1......", "......1dd1......", ".....11dd11.....", "....1d1dd1d1....", "....11.11.11....", "................"],
         "rocket_ammo": ["................", "..............rr", ".............rrr", "............aaar", "...........aaa..",
                         "..........aaa...", ".........aaa....", "........aaa.....", ".......aaa......", "......aaa.......",
                         ".....aaa........", "...ddaa.........", "..dddd..........", "..ddd...........", "..yd............", ".yy............."],
