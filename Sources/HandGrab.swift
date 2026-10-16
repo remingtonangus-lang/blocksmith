@@ -100,6 +100,7 @@ enum HandGrab {
                 if s > maxThrow { t *= maxThrow / s }
                 it.vel = t
                 it.pickupDelay = s > 2.5 ? 1.0 : 0.4
+                if s > 2.5 { it.leftLying = true }                         // P309 (b): thrown away, not swept back in
                 if s > 2.5 { flings += 1; g.sfx(.throwItem, 0.8, at: p) }
                 return true
             }

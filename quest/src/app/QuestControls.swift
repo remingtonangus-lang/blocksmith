@@ -652,6 +652,7 @@ final class QuestControls {
             p.lt = L.trigger; p.rt = 0
             p.lb = L.squeeze > 0.6; p.rb = false
             game.vrPinch = L.squeeze > 0.6 && R.squeeze > 0.6 ? simd_length(rig.toWorld(L.gripPos) - rig.toWorld(R.gripPos)) : nil
+            game.vrAim = (aimOrigin, aimDir)                // P309 (b): a stack thrown out of the window leaves this hand
             menuPointer(R)
             teleAiming = false; teleArc.removeAll(); teleTarget = nil
         } else {
@@ -1386,6 +1387,15 @@ final class QuestControls {
             if game.menuCursor != lastHoverSlot { lastHoverSlot = game.menuCursor; hoverRest = 0; app.input.haptic(aimHand, amplitude: 0.12, seconds: 0.01, frequency: 320) } else { hoverRest += 1.0 / 72 }
         } else {
             input.leftDown = false; input.rightDown = false
+            // P309 (b): the laser off the panel altogether, out into the world: a pull throws the carried stack that
+            // way (the grip one item), from the hand (Game.throwAway).
+            let m = game.menu
+            if !game.carried.isEmpty && m != nil && !(m is PauseMenu) && !(m is KeyboardMenu) && ((trig && !prevTrigger) || (grip && !prevGrip)) {
+                let c = game.carried
+                if trig && !prevTrigger { game.throwAway(c); game.carried = .empty }
+                else { game.throwAway(c.with(count: 1)); game.carried = c.count > 1 ? c.with(count: c.count - 1) : .empty }
+                app.input.haptic(aimHand, amplitude: 0.35, seconds: 0.03, frequency: 220)
+            }
         }
         prevTrigger = trig; prevGrip = grip
     }

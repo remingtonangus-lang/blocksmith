@@ -68,6 +68,10 @@ final class ItemEntity {
     var onGround = false
     var deliberate = false          // dropped by a block the player broke: picked up even if junk
     var hover: Float = 0            // seconds the player has stood over it (junk pickup)
+    // P309 (b): thrown away by the player, or left lying because the pack was full: not vacuumed back in while he
+    // stays over it (a throw freed a slot and the stack he stood on, or the one just thrown, came straight back). Cleared
+    // once he is out of its reach; crouching over it, or taking it in the hand, still picks it up.
+    var leftLying = false
     // P142: drawn this far up or down onto the smooth ground it rests on (World.smoothGroundOffset), eased.
     var viewDY: Float = 0, groundKey = Int.min, groundH = SIMD4<Float>(repeating: 0)
     let spin = Rand.float(in: 0..<(2 * .pi))
@@ -162,12 +166,13 @@ final class ItemEntityManager {
         }
     }
 
-    func spawn(_ s: ItemStack, at p: V3, vel: V3? = nil, delay: Float = 0.5, deliberate: Bool = false) {
+    func spawn(_ s: ItemStack, at p: V3, vel: V3? = nil, delay: Float = 0.5, deliberate: Bool = false, leftLying: Bool = false) {
         if s.isEmpty { return }
         if let h = NetCoop.redirect { h.drop(s, at: p); return }      // C14: loot of a mob the co-op guest killed
         let v = vel ?? V3(Rand.float(in: -1...1), Rand.float(in: 2...3.5), Rand.float(in: -1...1))
         let e = ItemEntity(s, at: p, vel: v, delay: delay)
         e.deliberate = deliberate
+        e.leftLying = leftLying
         items.append(e)
     }
 
@@ -211,6 +216,7 @@ final class ItemEntityManager {
             if e.pickupDelay <= 0 && game.alive {
                 let d = e.pos - pp
                 if abs(d.x) < reachXZ && abs(d.z) < reachXZ && d.y > -reachDown && d.y < 2.3 {
+                    if e.leftLying && !game.player.sneaking { continue }          // P309 (b)
                     if !e.deliberate && ItemEntityManager.isJunk(e.stack) {
                         e.hover += dt
                         if e.hover < 1 && !game.player.sneaking {
@@ -228,13 +234,23 @@ final class ItemEntityManager {
                         picked += 1
                         game.notePickup(got, before - (e.stack.isEmpty ? 0 : e.stack.count))      // Q2c-console-50
                     }
-                    else if game.menu == nil && game.clock - fullToldAt > 30 {
+                    else {
+                        // P309 (b): nothing fit: it lies until he steps off it, so a slot a throw frees isn't refilled
+                        // from under his feet.
+                        e.leftLying = true
+                    }
+                    if e.stack.count == before && !e.stack.isEmpty && game.menu == nil && game.clock - fullToldAt > 30 {
                         // Q2c-console-7: nothing of it fit: say why it stays on the ground (once in 30 s).
                         fullToldAt = game.clock
                         game.onToast?("Your pack is full: the \(e.stack.def.display) stays on the ground")
                         game.sfx(.click, 0.25)
                     }
-                } else { e.hover = 0 }
+                } else {
+                    e.hover = 0
+                    // P309 (b): out of reach (a little slack past it, so a step at the edge doesn't re-arm it): the
+                    // next walk over it picks it up again.
+                    if e.leftLying && (abs(d.x) > reachXZ + 0.4 || abs(d.z) > reachXZ + 0.4 || d.y < -reachDown - 0.4 || d.y > 2.7) { e.leftLying = false }
+                }
             }
         }
         if pickOnly { if picked > 0 { game.sfx(.pickup, 0.5) }; return picked }
@@ -266,6 +282,7 @@ final class ItemEntityManager {
                     let n = min(b.stack.count, a.stack.maxStack - a.stack.count)
                     a.stack.count += n
                     b.stack.count -= n
+                    if n > 0 && b.leftLying { a.leftLying = true }          // P309 (b): a thrown stack stays thrown
                 }
             }
             items.removeAll { $0.stack.isEmpty }

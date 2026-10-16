@@ -1834,7 +1834,9 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Q2c-console-63: in the headset a carried stack drops only in this box (a stray pull off the window used
             // to throw it out into the world).
             if game.vrHead != nil && !game.carried.isEmpty && !(m is PauseMenu), let d = m.dropBox(ML) {
-                let hot = m.inDropBox(V2(game.input.mouseX, game.input.mouseY), ML)
+                // P309 (b): it lights wherever a pull would throw (anywhere clear of the window), the in-world cue.
+                let mp = V2(game.input.mouseX, game.input.mouseY)
+                let hot = game.input.mouseX >= 0 && !m.inside(mp, ML) && m.throwsOff(mp, ML)
                 rect(d.x, d.y, d.w, d.h, hot ? V4(0.85, 0.28, 0.16, 0.95) : V4(0.42, 0.14, 0.1, 0.85))
                 frame(d.x, d.y, d.w, d.h, s, hot ? V4(1, 1, 1, 1) : V4(0.75, 0.5, 0.45, 1))
                 let t1 = "Drop", t2 = "x\(game.carried.count)"

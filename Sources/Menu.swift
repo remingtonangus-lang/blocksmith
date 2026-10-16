@@ -321,6 +321,16 @@ class Menu {
         guard let d = dropBox(L) else { return false }
         return p.x >= d.x && p.x < d.x + d.w && p.y >= d.y && p.y < d.y + d.h
     }
+    // P309 (b): in the headset a pull anywhere clear of the window throws the carried stack (the drop box was the only
+    // place, and he had to find it). A band just round the window still does nothing: the stray pull Q2c-console-63
+    // guarded against was the laser slipping a hair off the edge while moving a stack between chest and pack.
+    static let throwMargin: Float = 14
+    func throwsOff(_ p: V2, _ L: HudLayout) -> Bool {
+        if inDropBox(p, L) { return true }
+        let o = origin(L), m = Menu.throwMargin * L.s
+        let x1: Float = o.x + Float(width) * L.s, y1: Float = o.y + Float(height) * L.s
+        return p.x < o.x - m || p.y < o.y - m || p.x >= x1 + m || p.y >= y1 + m
+    }
 
     // Controller navigation: nearest slot in a direction.
     func neighbour(of cur: Int, dx: Int, dy: Int) -> Int {

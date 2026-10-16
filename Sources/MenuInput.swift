@@ -135,9 +135,9 @@ extension Game {
                 // A press with a stack on the cursor may start a drag: decided on release (one slot = a plain click).
                 menuDrag = [s]; menuDragButton = b
             } else if let s = m.slotAt(mouse, L) { m.mouseClick = true; m.click(s, button: b, shift: shift); m.mouseClick = false }
-            else if !m.inside(mouse, L) && !carried.isEmpty && (vrHead == nil || m.inDropBox(mouse, L)) {     // Q2c-console-63
-                if b == 0 { dropItem(carried); carried = .empty }
-                else { dropItem(carried.with(count: 1)); carried.count -= 1; if carried.count <= 0 { carried = .empty } }
+            else if !m.inside(mouse, L) && !carried.isEmpty && (vrHead == nil || m.throwsOff(mouse, L)) {     // Q2c-console-63, P309 (b)
+                if b == 0 { throwAway(carried); carried = .empty }
+                else { throwAway(carried.with(count: 1)); carried.count -= 1; if carried.count <= 0 { carried = .empty } }
             }
         }
 
@@ -274,7 +274,7 @@ extension Game {
             if case .palette = s.kind {} else if case .result = s.kind {} else {
                 var st = s.stack
                 let n = input.control ? st.count : 1
-                dropItem(st.with(count: n))
+                throwAway(st.with(count: n))
                 st.count -= n
                 s.stack = st.count > 0 ? st : .empty
                 if case .output = s.kind { m.tookOutput(s) }
@@ -283,11 +283,11 @@ extension Game {
         }
         // RT drops the held stack (or one item from the hovered slot), like dropping outside the panel.
         if p.rt > 0.5 && q.rt <= 0.5 && !(m is PauseMenu) && !(m is KeyboardMenu) && creative == nil && !(m is CraftingBookMenu) {
-            if !carried.isEmpty { dropItem(carried); carried = .empty }
+            if !carried.isEmpty { throwAway(carried); carried = .empty }
             else if let s = menuHover, !s.isButton, !s.stack.isEmpty {
                 if case .palette = s.kind {} else if case .result = s.kind {} else {
                     var st = s.stack
-                    dropItem(st.with(count: 1))
+                    throwAway(st.with(count: 1))
                     st.count -= 1
                     s.stack = st.count > 0 ? st : .empty
                     m.changed()

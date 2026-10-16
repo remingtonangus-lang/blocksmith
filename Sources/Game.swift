@@ -779,11 +779,23 @@ final class Game {
         drops.spawn(s, at: p, vel: thrown ? dir * 6 + V3(0, 1, 0) : V3(0, 1, 0), delay: 2)
     }
 
+    // P309 (b): the player throwing a stack away (the drop key, the pad's drop, a pull off a menu window): in the headset
+    // it leaves the aiming hand along its laser, elsewhere the eye's look. It is marked left lying (ItemEntity), so
+    // neither it nor a stack he stands on comes back into the slot it freed until he steps off it.
+    func throwAway(_ s: ItemStack) {
+        if s.isEmpty { return }
+        let aim = vrAim
+        let dir = aim?.dir ?? player.look
+        let from = aim.map { $0.origin + $0.dir * 0.25 } ?? player.eye - V3(0, 0.3, 0)
+        drops.spawn(s, at: from, vel: dir * 6 + V3(0, 1, 0), delay: 2, leftLying: true)
+        sfx(.throwItem, 0.45, at: from)
+    }
+
     func dropHeld(all: Bool) {
         var h = held
         if h.isEmpty { return }
         let n = all ? h.count : 1
-        dropItem(h.with(count: n))
+        throwAway(h.with(count: n))
         h.count -= n
         inventory.held = h.count > 0 ? h : .empty
         heldDroppedAt = clock                      // Q2c-console-41: the headset's drop lesson
