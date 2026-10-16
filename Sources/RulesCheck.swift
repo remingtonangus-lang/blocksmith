@@ -13,7 +13,8 @@ enum RulesCheck {
             print("rulescheck: \(ok ? "PASS" : "FAIL") \(what)")
             if !ok { fails += 1 }
         }
-        let floorY = Int(floor(p.y)) + 2
+        // 40 up in open air: beside a lake or the sea the pads (cleared to air) filled from outside water.
+        let floorY = min(CH - 12, Int(floor(p.y)) + 40)
         var cx = Int(floor(p.x)) + 5
         let cz = Int(floor(p.z)) + 5
         // A clear 9x9 pad of stone with air above, a fresh one per case.
@@ -45,7 +46,12 @@ enum RulesCheck {
             w.scheduleFluid(around: IVec3(x, floorY, cz))
             for _ in 0..<30 { w.fluidTick() }
             let east = Blocks.isLiquid(w.block(x + 1, floorY, cz)), west = Blocks.isLiquid(w.block(x - 1, floorY, cz))
-            check(east && !west, "water heads for the drop 3 east and not west (east \(east), west \(west))")
+            var row = ""
+            for dz in -1...1 {
+                row += " z\(dz):"
+                for dx in -4...4 { let b = w.block(x + dx, floorY, cz + dz); row += Blocks.isLiquid(b) ? "\(Blocks.fluidLevel[Int(b)])" : (Blocks.collide[Int(b)] ? "#" : ".") }
+            }
+            check(east && !west, "water heads for the drop 3 east and not west (east \(east), west \(west);\(row))")
         }
 
         // Ice broken without Silk Touch over stone leaves water.

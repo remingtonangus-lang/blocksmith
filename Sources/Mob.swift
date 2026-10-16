@@ -1128,7 +1128,9 @@ final class Mob {
             return spec.speed
         }
         // Back to the post without turning from the fight: forward and sideways steps.
-        let sp = spec.speed * min(1, dist + 0.3)
+        // Up to 1.5x walking pace when well off: the hull's turns drift a soldier faster than a walk wins back
+        // (ridecheck crew: worst 0.76-1.05 blocks against the 1.0 limit, runs 770-1691+).
+        let sp = spec.speed * min(1.5, dist * 2 + 0.3)
         let right = V3(cosf(yaw), 0, -sinf(yaw))
         strafe = simd_dot(dir, right) * sp
         return simd_dot(dir, forward) * sp
