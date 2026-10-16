@@ -74,6 +74,8 @@ var _blood_d := 0.0
 var _foot := 1.0
 var carried_by: Node3D = null       # the horse carrying this carcass
 var resting := false                # bedded down in its inactive hours (the ecology oracle samples this)
+var ranging := false                # predator travelling toward prey it scented beyond hunting range (pack follows)
+const RANGE_M := 450.0              # how far a hunting predator scents prey to range toward
 
 static func spawn(parent: Node, pos: Vector3, sp: String, seed: int) -> Animal:
 	var t0 := Time.get_ticks_usec()
@@ -301,8 +303,10 @@ func _calm(dt: float) -> void:
 			goal = leader.global_position + Vector3(rng.randf_range(-4, 4), 0, rng.randf_range(-4, 4))
 		state = State.WANDER if goal != Vector3.INF else State.GRAZE
 		resting = goal == Vector3.INF
+		ranging = false
 	elif t_state <= 0.0:
 		resting = false
+		ranging = false
 		t_state = rng.randf_range(4.0, 12.0)
 		if leader != null and is_instance_valid(leader) and leader.alive:
 			goal = leader.global_position + Vector3(rng.randf_range(-8, 8), 0, rng.randf_range(-8, 8))
@@ -314,6 +318,7 @@ func _calm(dt: float) -> void:
 	var t := _senses()
 	if t != null:
 		threat = t
+		ranging = false
 		if spec.diet == "predator" and spec.has("attack_player") and rng.randf() < float(spec.attack_player) * dt:
 			state = State.STALK
 			prey = t
@@ -329,6 +334,18 @@ func _calm(dt: float) -> void:
 		prey = _find_prey()
 		if prey != null:
 			state = State.STALK
+			ranging = false
+		elif active and not ranging and (leader == null or leader == self or not is_instance_valid(leader) or not leader.alive):
+			# nothing within reach: in its hours the hunter (the pack leader; the pack follows) travels toward
+			# prey it scents further off instead of waiting for prey to wander by
+			var far := _find_prey(RANGE_M)
+			if far != null:
+				goal = far.global_position
+				state = State.WANDER
+				t_state = rng.randf_range(20.0, 35.0)
+				ranging = true
+				Game.log_event("predator_range", {"who": species, "prey": far.species,
+					"d": snappedf(far.global_position.distance_to(global_position), 1.0)})
 
 func _alert(_dt: float) -> void:
 	goal = Vector3.INF
@@ -350,9 +367,9 @@ func _flee(_dt: float) -> void:
 		state = State.WANDER
 		threat = null
 
-func _find_prey() -> Node3D:
+func _find_prey(radius := 120.0) -> Node3D:
 	var best: Node3D = null
-	var bd := 120.0
+	var bd := radius
 	for a in get_tree().get_nodes_in_group("animals"):
 		if a != self and a.alive and a.species in spec.get("prey", []):
 			var d := global_position.distance_to(a.global_position)
@@ -396,6 +413,8 @@ func _move(dt: float) -> void:
 			var want := atan2(-to.x, -to.z)
 			var fast := state in [State.FLEE, State.CHASE, State.ATTACK]
 			tspeed = float(spec.run) if fast else (float(spec.walk) * 0.6 if state == State.STALK else float(spec.walk))
+			if state == State.WANDER and (ranging or (leader != null and leader != self and is_instance_valid(leader) and leader.ranging)):
+				tspeed = float(spec.walk) * 1.8                      # ranging trot
 			heading = lerp_angle(heading, want, 1.0 - exp(-(4.0 if fast else 2.0) * dt))
 			# avoid water and cliffs
 			var ahead := global_position + Vector3(-sin(heading), 0, -cos(heading)) * 3.0

@@ -131,6 +131,13 @@ Four species bring the roster to 15: wild turkey, sage grouse, red-tailed hawk a
 ## Ecology
 - **Activity:** animals follow their hours (day, night, crepuscular) and bed down outside them. Herd members
   drift back to the leader first; predators rarely start a hunt while resting.
+- **Hunting range:** a predator hunts prey within 120 m. In its hours, with nothing that close, the hunter (a
+  pack's leader; the pack trots after it) ranges toward prey it scents up to 450 m away (`predator_range` in the
+  log), so whether wolves eat no longer depends on where the herds happened to spawn.
+- **Food web at spawn** (`wildlife.gd _balance`): with no predator about, the next group is a predator whose prey
+  is present; grazer herds stop at 65 % of the 26-animal budget, and a herd is cut to the room left. Before this,
+  a fill of nothing but big herds left no hunters for the day (and with nothing dying, no turnover).
+  `--disable eco_balance` turns it off for comparison.
 - **Oracle:** `--bot ecology` runs two in-game days on a compressed clock (the sky 10× faster, the engine 3×,
   about 3 real minutes) around a still observer. It measures population, predation, herd cohesion and activity
   by hour (see Results).
@@ -269,6 +276,17 @@ Round 4 (birds, hunting, ecology):
   | day | 0.70 | 0.03 | 23.6 |
   | night | 0.66 | 0.24 | 2.75 |
   | crepuscular | 0.47 | 0.04 | 11.0 |
+
+Round 5 (voices, pressed-in prints, hunting range; 2026-10-16, one process
+`--bot ecology,hunt,birds,horsework`):
+- **`--bot ecology` PASS:** population 25 / 26.0 / 27, CV 0.01; 10 chases, 10 rangings, 9 kills (wolf 6, coyote
+  2, fox 1); 14 hawk dives; calls: 6 howls, 2 yip bouts; herd cohesion 0.88; activity ratios day 26.3, night 3.1,
+  crepuscular 5.0. Before the ranging fix the same census (3 wolves, 7 deer) gave 2 chases and no wolf kills, and
+  an unlucky fill gave none at all ("no predator chases in 2 days").
+- **`--bot hunt` PASS:** the wounded deer blows once as it bolts; a print in mud has albedo mix 1.00 and shade
+  0.50 against 0.92 and 1.00 on dry ground, both with normal maps.
+- **`--bot birds` PASS:** one flush gives 1 turkey putt, 3 wing whirrs and 2 crow caws (not one per bird).
+- **`--bot horsework` PASS** (the bot now builds the town it hitches in, if earlier bots unloaded it).
 
 ## Gaps
 - Fur is shells only, with no fins or cards:

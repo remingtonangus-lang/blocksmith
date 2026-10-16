@@ -459,6 +459,7 @@ func _horsework(res: Dictionary) -> void:
 	var spot := {}
 	if st != null:
 		for tid in ["bitter_spring", "mesquite_wells"]:
+			st.ensure_built(tid)                # earlier bots may have taken Ruth far enough to unload the town
 			var sp: Array = st.spots(tid, "hitch")
 			if not sp.is_empty():
 				spot = sp[0]
