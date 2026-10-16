@@ -193,3 +193,25 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
   lane of a358cf6: collapsecheck 10/10, ridecheck, interiorcheck PASS. The Meridian frigate (CapitalFrigate.swift,
   another session's) has four drive cores loose as built (475 blocks each): harmless now (a split only takes what a
   blast cut), but its owner may want pylons like the Stormwarden's; interiorcheck reports it as a NOTE.
+
+## HANDOFF (2026-10-16 ~07:30 UTC, session B ending: context full)
+State: claude/bs-destruction = playtest d929a4b + 13 commits (destruction physics, as-built rule, wrecks, Stormwarden
+interiors, ship-split fixes, crew/troop ride fixes, collapse scene fixes). NOT merged into claude/blocksmith-playtest.
+- Last verified fast lane (a358cf6, pre-rebase): collapsecheck 10/10, ridecheck, interiorcheck PASS.
+- Last heavy (a358cf6): red items shared with playtest (structcheck exit at snap.sh line 77, playthrough Blight,
+  perf gen.chunk_ms_mean ~1.6-1.8x, rulescheck water) plus three to check: questbugs cave spawning (18 underground,
+  1 near), basetest "patrol members back at their posts: 1 of 4 away", collapsecheck tower "no floating leftovers"
+  (3 bricks at the base after the tip). Fast lane passed tower; may be random ray strengths.
+- The run for this push carries [full]; read ci-snaps-claude-bs-destruction (CI publish sometimes fails on runner
+  DNS: then read the job log with get_job_logs). If its red items are only playtest's own, fast-forward
+  claude/blocksmith-playtest (rebase first if playtest moved; conflicts so far only BUGS.md and Mob.swift's crew
+  ledge guard: keep integration's `reach` for freed crew inside my `floored` slide).
+Next steps:
+1. Merge as above; then add docs/status/pr9-destruction-section.md to docs/status/pr9-whats-new.md and a line in PR #9.
+2. If the tower leftover recurs: the 3 bricks are debris laid at the base; check bake's island drop / settle queue.
+3. Meridian frigate (CapitalFrigate.swift, another session's): 4 drive cores loose as built (interiorcheck NOTE);
+   harmless now (splits only take what a blast cut) but tell its owner; it has no walkable decks (Remington wanted
+   hallways): ask before adding HullBuilder.interiorDeck to it.
+Gotchas: chain fast-lane commands with `|| true;` (a failing first command stops the rest); fastshots need literal
+snap.sh PNG names; collapse scenes stand on their own stone stage (CollapseCheck.prepare); blast resistance is the
+reference now (stone bricks 6), so scene blasts are 6-7; ship parts join at faces/edges/corners (Ships.joins26).
