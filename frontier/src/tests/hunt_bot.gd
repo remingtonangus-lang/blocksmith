@@ -112,7 +112,7 @@ static func run(runner: Node, seconds: float) -> Dictionary:
 		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
 	print("  hunt: pelt quality %d, population samples %s" % [res.pelt_quality, str(samples.slice(0, 8))])
 	res["metrics"] = {}
-	for k in ["skin_s", "prints", "blood_drops", "blood_path_m", "blood_lead_m", "carry", "unload"]:
+	for k in ["skin_s", "prints", "mud_print", "deer_snorts", "blood_drops", "blood_path_m", "blood_lead_m", "carry", "unload"]:
 		if res.has(k):
 			res.metrics[k] = str(res[k]).replace(" ", "_")
 	return res
@@ -135,10 +135,25 @@ static func _tracks_and_blood(runner: Node, res: Dictionary, c: Vector3) -> void
 	if prints < 6:
 		_fail(res, "a walking deer left %d prints in 10 s" % prints)
 	walker.queue_free()
+	# prints in mud are darker and stronger than on dry ground; every print carries its pressed-in normal map
+	var trk: Tracks = Tracks.ensure()
+	var mixes := []
+	for mud in [0.0, 1.0]:
+		Tracks.mud_override = mud
+		Tracks.print_at(q + Vector3(0, 0, 3.0 + mud), 0.0, "cloven", 0.14)
+		var dk: Decal = trk._pool[(trk._next - 1 + trk._pool.size()) % trk._pool.size()]
+		mixes.append([dk.albedo_mix, dk.modulate.r, dk.texture_normal != null])
+	Tracks.mud_override = -1.0
+	res["mud_print"] = "mix %.2f->%.2f shade %.2f->%.2f" % [mixes[0][0], mixes[1][0], mixes[0][1], mixes[1][1]]
+	if not (mixes[1][0] > mixes[0][0] and mixes[1][1] < mixes[0][1]):
+		_fail(res, "a print in mud is not darker/stronger than on dry ground (%s)" % res["mud_print"])
+	if not (mixes[0][2] and mixes[1][2]):
+		_fail(res, "prints have no normal map")
 	# wound a deer (a leg hit) and let it run: blood drops along its path, the last one near it
 	var q2 := c + Vector3(-20, 0, 15)
 	q2.y = w.height(q2.x, q2.z) + 0.3
 	Game.terrain.ensure_collision_at(q2)
+	var snort0: int = int(AnimalVoices.plays.get("deer_snort", 0))   # (it may already blow at Ruth before the shot)
 	var hurt := Animal.spawn(Game.main, q2, "mule_deer", 778)
 	for i in 5:
 		await tree.physics_frame
@@ -152,6 +167,11 @@ static func _tracks_and_blood(runner: Node, res: Dictionary, c: Vector3) -> void
 		last = hurt.global_position
 	var drops := Tracks.count("blood") - blood0
 	res["blood_drops"] = drops
+	# the deer blows its alarm when it notices Ruth or bolts (one voice per bolt, not a din)
+	var snorts: int = int(AnimalVoices.plays.get("deer_snort", 0)) - snort0
+	res["deer_snorts"] = snorts
+	if snorts < 1 or snorts > 6:
+		_fail(res, "a wounded deer snorted %d times as it bolted (want 1-6; others nearby may join)" % snorts)
 	res["blood_path_m"] = snappedf(path_len, 0.1)
 	if not hurt.alive:
 		_fail(res, "the wounded deer died of a 35-point hit")

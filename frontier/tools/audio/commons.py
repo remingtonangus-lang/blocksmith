@@ -51,6 +51,13 @@ TARGETS = {
                          "amb_loop", 2, 1, (20, 900)),
     "rec_crowd_outdoor": (["street crowd ambience", "market crowd", "crowd outdoor"], "loop", "amb_bed", 2, 1, (20, 900)),
     "rec_coyote": (["coyote howl", "coyotes howling", "coyote"], "oneshot", "creature", 3, 4, (1.0, 180)),
+    "rec_wolf_howl": (["wolf howl", "wolves howling", "gray wolf howling"], "oneshot", "creature", 3, 4, (1.5, 240)),
+    "rec_elk_bugle": (["elk bugle", "elk bugling", "wapiti bugle", "red deer roar"], "oneshot", "creature", 3, 4, (1.0, 240)),
+    "rec_turkey_gobble": (["turkey gobble", "wild turkey gobbling", "Meleagris gallopavo"], "oneshot", "creature", 3, 4, (0.5, 180)),
+    "rec_crow_caw": (["crow caw", "american crow", "Corvus brachyrhynchos", "crow calling"], "oneshot", "creature", 3, 6, (0.3, 180)),
+    "rec_hawk_scream": (["red-tailed hawk", "Buteo jamaicensis", "hawk scream", "hawk call"], "oneshot", "creature", 3, 4, (0.5, 180)),
+    "rec_deer_snort": (["deer snort", "deer alarm call", "white-tailed deer snort"], "oneshot", "creature", 2, 4, (0.2, 120)),
+    "rec_bear_huff": (["black bear huff", "bear growl", "bear huffing"], "oneshot", "creature", 2, 4, (0.3, 120)),
     "rec_steam_whistle": (["steam locomotive whistle", "steam whistle"], "oneshot", "foley", 2, 3, (1.0, 180)),
 }
 LOUD = {"horse": -18.0, "creature": -20.0, "weather": -16.0, "foley": -20.0, "amb_loop": -26.0, "amb_bed": -32.0}

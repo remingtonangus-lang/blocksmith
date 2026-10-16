@@ -1,6 +1,7 @@
 """Creatures (original synthesis): insects (cricket chorus, cicadas, grasshoppers), birds (FM/whistle/formant call
 types, species-like but invented), frogs (chorus trills, bullfrog), owls and poorwill at night, coyotes and wolves
-(formant howls, distance-processed), elk bugle; synthesised fallbacks for cattle and dog (recordings preferred).
+(formant howls, distance-processed), elk bugle; wildlife event voices (deer snort, turkey gobble and putt, bear
+huff, coyote yips, canid snarl, wing flush); synthesised fallbacks for cattle and dog (recordings preferred).
 """
 from __future__ import annotations
 
@@ -434,6 +435,127 @@ def elk_bugle(rng, v):
         grunts.append((dur + 0.1 + k * 0.28, g * 0.5))
     x = phrase([(0, x)] + grunts, rng)
     return fade(distant(x, rng, rng.uniform(0.7, 1.2), 2.5) * 0.5, 0.01, 0.4)
+
+
+# ------------------------------------------------------------------------------------------------ wildlife voices
+# (animal events in src/actors/animal.gd / bird.gd / horse.gd; recordings rec_* are preferred when CI fetched them)
+@sound("deer_snort", "creature", variations=5, max_dist=180, unit_size=8.0, folder="creatures", pitch_var=0.06)
+def deer_snort(rng, v):
+    """Alarm 'blow' of a deer: a sharp blast of air through the nose, one to three times."""
+    parts, t = [], 0.0
+    for k in range(int(rng.integers(1, 4))):
+        dur = rng.uniform(0.28, 0.45)
+        n = n_of(dur)
+        x = white(n, rng)
+        x = bp(x, rng.uniform(650, 800), rng.uniform(1400, 1700)) * 0.8 + bp(x, 2400, 3600) * 0.35
+        x += reson(white(n, rng) * 0.3, rng.uniform(420, 520), 18)          # nasal cavity resonance
+        x *= env_points(n, [(0, 0), (0.012, 1), (0.06, 0.7), (dur * 0.6, 0.25), (dur, 0)])
+        parts.append((t, x))
+        t += dur + rng.uniform(0.5, 1.1)
+    return fade(distant(phrase(parts, rng) * 0.6, rng, rng.uniform(0.1, 0.4), 1.0), 0.002, 0.15)
+
+
+@sound("turkey_gobble", "creature", variations=4, max_dist=900, unit_size=20.0, folder="birds", pitch_var=0.03)
+def turkey_gobble(rng, v):
+    """Tom turkey gobble: a fast, rolling, descending series of throaty 'gobble-obble-obble' pulses."""
+    pulses = int(rng.integers(12, 18))
+    dur_p = rng.uniform(0.045, 0.06)
+    parts = []
+    for k in range(pulses):
+        n = n_of(dur_p)
+        f_top = 1100 - 25 * k + rng.uniform(-40, 40)
+        f0 = env_points(n, [(0, f_top), (dur_p * 0.4, f_top * 1.15), (dur_p, f_top * 0.7)])
+        x = harsh(f0, dur_p, rng, [(900, 220, 0), (1700, 300, -5), (2800, 400, -12)], rough=0.5, noise=0.15)
+        x *= np.hanning(n) * (1.0 - 0.35 * k / pulses)
+        parts.append((k * dur_p * 1.15, x))
+    x = phrase(parts, rng)
+    return fade(distant(x * 0.45, rng, rng.uniform(0.3, 0.8), 1.4), 0.002, 0.2)
+
+
+@sound("turkey_putt", "creature", variations=4, max_dist=200, unit_size=6.0, folder="birds", pitch_var=0.05)
+def turkey_putt(rng, v):
+    """Turkey alarm 'putt': short sharp clucks."""
+    parts, t = [], 0.0
+    for k in range(int(rng.integers(2, 5))):
+        d = rng.uniform(0.04, 0.07)
+        n = n_of(d)
+        f0 = env_points(n, [(0, rng.uniform(1300, 1500)), (d, rng.uniform(800, 1000))])
+        x = harsh(f0, d, rng, [(1400, 300, 0), (2600, 400, -6)], rough=0.2, noise=0.2) * np.hanning(n)
+        parts.append((t, x))
+        t += d + rng.uniform(0.25, 0.6)
+    return bird_out(phrase(parts, rng) * 0.5, rng, rng.uniform(0.2, 0.6))
+
+
+@sound("bear_huff", "creature", variations=5, max_dist=150, unit_size=6.0, folder="creatures", pitch_var=0.05)
+def bear_huff(rng, v):
+    """Black bear warning: deep breathy huffs with jaw pops (teeth clacking), sometimes a low moan."""
+    parts, t = [], 0.0
+    for k in range(int(rng.integers(2, 5))):
+        dur = rng.uniform(0.3, 0.5)
+        n = n_of(dur)
+        x = lp(white(n, rng), 700, 2) * 1.2 + reson(white(n, rng) * 0.2, rng.uniform(180, 240), 10)
+        x *= env_points(n, [(0, 0), (0.03, 1), (dur * 0.5, 0.6), (dur, 0)])
+        parts.append((t, x))
+        if rng.uniform() < 0.6:                                     # jaw pop
+            m = n_of(0.02)
+            pop = bp(white(m, rng), 1200, 2600) * np.hanning(m) * 2.5
+            parts.append((t + dur + 0.08, pop))
+        t += dur + rng.uniform(0.25, 0.55)
+    if rng.uniform() < 0.4:
+        d = rng.uniform(0.8, 1.2)
+        n = n_of(d)
+        moan = formants(glottal(env_points(n, [(0, 110), (d * 0.4, 135), (d, 90)]), n, rng, 0.04, 0.2, 1.2),
+                        [(450, 120, 0), (900, 160, -6)]) * env_points(n, [(0, 0), (0.1, 1), (d, 0)])
+        parts.append((t, moan * 0.6))
+    return fade(distant(phrase(parts, rng) * 0.7, rng, rng.uniform(0.1, 0.4), 1.0), 0.002, 0.2)
+
+
+@sound("coyote_yip", "creature", variations=5, max_dist=1500, unit_size=30.0, folder="creatures", pitch_var=0.05)
+def coyote_yip(rng, v):
+    """Dusk yipping of one or two coyotes: fast high yips and short barks, a quavering howl at the end."""
+    parts = []
+    for a in range(int(rng.integers(1, 3))):
+        t = rng.uniform(0, 0.6)
+        base = rng.uniform(750, 950)
+        for k in range(int(rng.integers(6, 12))):
+            d = rng.uniform(0.05, 0.12)
+            n = n_of(d)
+            f0 = env_points(n, [(0, base * 1.35), (d * 0.3, base * 1.5), (d, base * rng.uniform(0.8, 1.0))])
+            x = formants(glottal(f0, n, rng, 0.02, 0.2, 1.0), [(1000, 220, 0), (1900, 260, -6)]) * np.hanning(n)
+            parts.append((t, x * rng.uniform(0.6, 1.0)))
+            t += d + rng.uniform(0.04, 0.16)
+        if rng.uniform() < 0.6:
+            d = rng.uniform(0.7, 1.2)
+            x = howl(rng, d, base * 0.85, base * 1.4, "coyote")
+            x *= 1 + 0.5 * np.sin(2 * np.pi * rng.uniform(8, 12) * t_axis(len(x)))
+            parts.append((t, x * 0.8))
+    return fade(distant(phrase(parts, rng) * 0.45, rng, rng.uniform(0.5, 1.0), 1.8), 0.005, 0.3)
+
+
+@sound("canid_snarl", "creature", variations=4, max_dist=60, unit_size=4.0, folder="creatures", pitch_var=0.06)
+def canid_snarl(rng, v):
+    """Wolf / coyote attack: a rough growl rising into a snarl and a snap of the jaws."""
+    dur = rng.uniform(0.7, 1.1)
+    n = n_of(dur)
+    f0 = env_points(n, [(0, rng.uniform(90, 110)), (dur * 0.6, rng.uniform(160, 200)), (dur, 120)])
+    x = harsh(f0, dur, rng, [(500, 150, 0), (1100, 200, -4), (2500, 400, -10)], rough=0.9, noise=0.35)
+    x *= env_points(n, [(0, 0), (0.08, 0.7), (dur * 0.7, 1), (dur, 0)])
+    m = n_of(0.03)
+    snap = bp(white(m, rng), 1500, 3500) * np.hanning(m) * 3.0
+    return fade(phrase([(0, x * 0.6), (dur - 0.05, snap)], rng), 0.002, 0.1)
+
+
+@sound("wing_flush", "creature", variations=4, max_dist=120, unit_size=5.0, folder="birds", pitch_var=0.08)
+def wing_flush(rng, v):
+    """Ground birds flushing: a loud whirr of wingbeats fading as they fly off."""
+    dur = rng.uniform(1.2, 1.8)
+    n = n_of(dur)
+    t = t_axis(n)
+    rate = env_points(n, [(0, 22), (dur, 14)])
+    beat = 0.5 + 0.5 * np.sin(phase_of(rate))
+    x = bp(white(n, rng), 300, 1100) * beat ** 2 + bp(white(n, rng), 1600, 3600) * beat * 0.3
+    x *= env_points(n, [(0, 0), (0.05, 1), (0.5, 0.7), (dur, 0)])
+    return fade(x * 0.5, 0.002, 0.2)
 
 
 # ------------------------------------------------------------------------------------------------ farm (synth fallbacks)

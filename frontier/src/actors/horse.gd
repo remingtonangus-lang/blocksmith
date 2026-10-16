@@ -760,18 +760,21 @@ func _frighten(amount: float, from: Vector3, kind: String) -> void:
 			var buck: bool = (kind == "predator" or fear > 1.0) and _rng.randf() < 0.45
 			if buck and _try_action("buck"):
 				bucks += 1
+				AnimalVoices.play("horse_whinny_synth", global_position + Vector3(0, 1.8, 0))
 				speed *= 0.5
 				Game.log_event("horse_buck", {"kind": kind})
 				if _rng.randf() < THROW_CHANCE[clampi(bond_level - 1, 0, 3)] * 1.5:
 					_throw_rider()
 			elif _try_action("rear"):
 				rears += 1
+				AnimalVoices.play("horse_whinny_synth", global_position + Vector3(0, 2.0, 0))
 				speed *= 0.3
 				var chance: float = THROW_CHANCE[clampi(bond_level - 1, 0, 3)] * (1.3 if kind == "predator" else 1.0)
 				if _rng.randf() < chance:
 					_throw_rider()
 		else:
 			_try_action("shy")
+			AnimalVoices.play("horse_snort", global_position + Vector3(0, 1.6, 0))
 			_flee_dir = (global_position - from)
 			_flee_dir.y = 0
 			_flee_dir = _flee_dir.normalized() if _flee_dir.length() > 0.1 else -forward()

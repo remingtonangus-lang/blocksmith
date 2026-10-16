@@ -59,6 +59,9 @@ var anim_gait := ""
 var _idle_t := 0.0
 var _idle_kind := "idle"
 var _prev_state := -1
+var _voice_state := -1
+var _voice_cd := 0.0                # seconds before the next alarm / attack voice
+var variant := ""                  # model variant rolled at spawn ("doe", "cow"; "" = buck / bull)
 var _last_heading := 0.0
 var _yaw_rate := 0.0               # rad/s, + = turning left (smoothed; drives the turn-in-place clips)
 var _body_shape: CollisionShape3D
@@ -187,6 +190,7 @@ func _build_visual() -> void:
 			var variants: Dictionary = v.meta.get("variants", {})
 			for vn in variants:
 				if rng.randf() < 0.5:                       # e.g. does: no antlers, a little smaller
+					variant = vn
 					var vd: Dictionary = variants[vn]
 					for part in vd.get("hide", []):
 						v.hide_part(part)
@@ -287,6 +291,7 @@ func _senses() -> Node3D:
 
 func _calm(dt: float) -> void:
 	var active := is_active_now()
+	_voice_calls(dt)
 	if t_state <= 0.0 and not active:
 		# resting hours: bedded down where it stands (herd members drift back to the leader first)
 		t_state = rng.randf_range(10.0, 25.0)
@@ -409,6 +414,14 @@ func _move(dt: float) -> void:
 	if _body_shape:
 		_body_shape.rotation.y = heading
 	_lay_tracks(dt)
+	_voice_cd -= dt
+	if state != _voice_state:                     # voices on state entry (stand-ins too)
+		if _voice_cd <= 0.0:
+			if state == State.ALERT or (state == State.FLEE and _voice_state != State.ALERT):
+				_voice_alarm()
+			elif state == State.ATTACK:
+				_voice_attack()
+		_voice_state = state
 	if model_vis != null:
 		_animate(dt)
 	elif visual.has_method("set_gait"):
@@ -490,6 +503,47 @@ func _lay_tracks(dt: float) -> void:
 			var q := global_position + Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.2, 0.2))
 			q.y = Game.world.height(q.x, q.z) if Game.world else q.y
 			Tracks.blood_at(q, bleed)
+
+## Voices: alarm (deer and pronghorn blow, the elk barks, the bear huffs), attack (snarls, the bear's huff), and
+## calls at their hours (wolves howl at night, coyotes yip at dusk, bull elk bugle at dawn and dusk in the rut).
+func _voice_alarm() -> void:
+	_voice_cd = 3.0
+	match species:
+		"mule_deer", "pronghorn":
+			AnimalVoices.play("deer_snort", global_position + Vector3(0, 1.0, 0))
+		"elk":
+			AnimalVoices.play("deer_snort", global_position + Vector3(0, 1.4, 0), {"pitch": 0.72})
+		"black_bear":
+			AnimalVoices.play("bear_huff", global_position + Vector3(0, 0.8, 0))
+
+func _voice_attack() -> void:
+	_voice_cd = 2.5
+	match species:
+		"wolf", "coyote", "fox":
+			AnimalVoices.play("canid_snarl", global_position + Vector3(0, 0.6, 0), {"pitch": {"wolf": 0.9, "coyote": 1.1, "fox": 1.3}[species]})
+		"cougar":
+			AnimalVoices.play("canid_snarl", global_position + Vector3(0, 0.6, 0), {"pitch": 0.75})
+		"black_bear":
+			AnimalVoices.play("bear_huff", global_position + Vector3(0, 0.8, 0), {"volume_db": 3.0})
+
+func _voice_calls(dt: float) -> void:
+	if Game.sky == null or not alive:
+		return
+	var h: float = Game.sky.hours
+	var r := rng.randf()
+	match species:
+		"wolf":
+			if (h < 5.5 or h > 20.0) and r < dt / 240.0:
+				AnimalVoices.play("wolf_howl", global_position + Vector3(0, 1.0, 0), {"occlude": false})
+				Game.log_event("animal_call", {"species": species, "call": "howl"})
+		"coyote":
+			if h > 18.0 and h < 21.5 and r < dt / 150.0:
+				AnimalVoices.play("coyote_yip", global_position + Vector3(0, 0.6, 0), {"occlude": false})
+				Game.log_event("animal_call", {"species": species, "call": "yip"})
+		"elk":
+			if ((h > 5.0 and h < 9.0) or (h > 17.0 and h < 21.0)) and r < dt / 200.0 and variant == "":
+				AnimalVoices.play("elk_bugle", global_position + Vector3(0, 2.0, 0), {"occlude": false})
+				Game.log_event("animal_call", {"species": species, "call": "bugle"})
 
 func _on_damaged(info: Dictionary) -> void:
 	shots_taken += 1

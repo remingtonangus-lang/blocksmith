@@ -115,6 +115,10 @@ Four species bring the roster to 15: wild turkey, sage grouse, red-tailed hawk a
   - A wounded animal drips blood (denser for worse wounds; a chest or head hit counts double) wherever it goes,
     so the trail leads to it; a pool marks where it dies.
   - Marks fade over about 10 game-minutes.
+  - Prints are pressed in: each print texture has a normal map built from its depth mask, so the walls of a hoof
+    or paw catch a low sun on one side and fall into shade on the other.
+  - Ground sets how strongly they show (`Tracks.mud_at` / `dry_at`): in mud (wet bottoms, lake shores and river
+    banks, roads and grass after rain) they are darker and stronger; on dry sand and hardpan fainter.
 - **Skinning** (`SkinningTask`): Ruth kneels (crouch activity plus the reaching pick-up clip) for 3.2 s, held via
   `player.busy`. Then the carcass takes its lying pose and the skinned shader state, and the pelt and meat go
   into the satchel.
@@ -130,6 +134,23 @@ Four species bring the roster to 15: wild turkey, sage grouse, red-tailed hawk a
 - **Oracle:** `--bot ecology` runs two in-game days on a compressed clock (the sky 10× faster, the engine 3×,
   about 3 real minutes) around a still observer. It measures population, predation, herd cohesion and activity
   by hour (see Results).
+
+## Voices
+`src/audio/animal_voices.gd` (`AnimalVoices.play(id, pos, opts)`) voices gameplay events at the animal, through
+`Game.audio`. A CC0/public-domain recording (`rec_*`, fetched by the CI audio job from Wikimedia Commons) wins
+when the build has it; otherwise the synthesized voice from `tools/audio/sfx_creatures.py` plays.
+- **Alarm** (on ALERT, or on bolting without one): deer and pronghorn blow (`deer_snort`), the elk's lower
+  blow, the bear huffs (`bear_huff`). A 3 s cooldown keeps it to one voice per bolt.
+- **Attack** (on the lunge): canids and the cougar snarl (`canid_snarl`, pitched per species), the bear huffs
+  louder.
+- **Calls at their hours** (one roll per animal while calm): wolves howl at night, coyotes yip at dusk, bulls
+  (not cows) bugle at dawn and dusk in the rut. Each is logged as `animal_call` for the ecology oracle.
+- **Birds:** a flushing flock is heard once (the tom's putt and the whirr of wings, the covey's wings, the
+  crows' caws), not once per bird; the flock's first bird calls for the flock (toms gobble in the morning,
+  crows caw, the hawk screams while it soars).
+- **Horse:** a whinny when it rears or bucks, a snort when it shies.
+- **Ambience:** the mixer's distant beds gain dusk coyote yips, morning gobbles in the forest and more dusk
+  bugling in the mountains (the rut); recordings replace the synthesized calls when present.
 
 ## Fur (shells)
 `shaders/animal_fur_shell.gdshader`, set up by `HorseVisual._setup_fur()` for the wolf, coyote, fox, cougar,

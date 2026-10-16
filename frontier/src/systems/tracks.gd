@@ -4,7 +4,9 @@ extends Node3D
 ## (cloven hooves for deer, elk, pronghorn and bison; paws for canids and the cougar; plantigrade prints for
 ## bears and raccoons; the jackrabbit's bound; three-toed bird prints). A wounded animal leaves blood drops
 ## along its path, denser for worse wounds, and a pool where it dies. The textures are painted at start-up; old
-## marks fade and the pool is recycled.
+## marks fade and the pool is recycled. Prints are pressed in: a normal map (from the print's depth mask) shades
+## the walls of each hoof or paw; in mud (wet bottoms, roads after rain) they are darker, sharper and deeper, on
+## dry sand and hardpan fainter.
 ## API: Tracks.print_at(pos, heading, kind, size), Tracks.blood_at(pos, amount), Tracks.count(kind).
 
 const MAX_MARKS := 320
@@ -14,9 +16,12 @@ static var inst: Tracks = null
 var _pool: Array[Decal] = []
 var _age: Array[float] = []
 var _kind: Array[String] = []
+var _mix: Array[float] = []        # albedo_mix at laying (mud: more)
 var _next := 0
 var _tex := {}
+var _nrm := {}
 var counts := {}                   # kind -> marks laid (oracle / tests)
+var last_mud := 0.0                # mud factor of the last mark (tests)
 
 static func ensure() -> Tracks:
 	if inst == null or not is_instance_valid(inst):
@@ -40,6 +45,7 @@ func _ready() -> void:
 		_pool.append(d)
 		_age.append(INF)
 		_kind.append("")
+		_mix.append(0.92)
 
 func _process(dt: float) -> void:
 	# fade marks with age (a few per frame)
@@ -49,7 +55,7 @@ func _process(dt: float) -> void:
 			continue
 		_age[i] += dt * 12.0
 		var a := clampf(1.0 - _age[i] / FADE_TIME, 0.0, 1.0)
-		_pool[i].albedo_mix = a * 0.92
+		_pool[i].albedo_mix = a * _mix[i]
 		if a <= 0.0:
 			_pool[i].visible = false
 			_age[i] = INF
@@ -70,11 +76,68 @@ func _place(pos: Vector3, heading: float, kind: String, size: Vector3) -> void:
 	_kind[_next] = kind
 	_next = (_next + 1) % _pool.size()
 	d.texture_albedo = _tex[kind]
+	d.texture_normal = _nrm.get(kind)
 	d.size = size
 	d.global_transform = Transform3D(Basis(Vector3.UP, heading), pos + Vector3(0, 0.1, 0))
-	d.albedo_mix = 0.92
+	var m := mud_at(pos) if not kind in ["blood", "pool"] else 0.0
+	var dry := dry_at(pos) if m < 0.1 and not kind in ["blood", "pool"] else 0.0
+	var mix := lerpf(0.92, 1.0, m) * (1.0 - 0.35 * dry)
+	var shade := 1.0 - 0.5 * m
+	d.modulate = Color(shade, shade * 0.97, shade * 0.95)
+	d.normal_fade = 0.0
+	_mix[(_next - 1 + _pool.size()) % _pool.size()] = mix
+	d.albedo_mix = mix
+	last_mud = m
 	d.visible = true
 	counts[kind] = int(counts.get(kind, 0)) + 1
+
+## 0..1 how muddy the ground is here: wet bottoms (moisture), roads and grass after rain (sky.wet).
+static var mud_override := -1.0     # tests: force the mud factor
+
+static func mud_at(pos: Vector3) -> float:
+	if mud_override >= 0.0:
+		return mud_override
+	var w: WorldData = Game.world
+	if w == null or not w.ok:
+		return 0.0
+	var c := w.ctrl(pos.x, pos.z)
+	var wet := float(Game.sky.get("wet")) if Game.sky != null else 0.0
+	var m := clampf((c.g - 0.65) / 0.25, 0.0, 1.0)
+	if c.r > 0.45:
+		m = maxf(m, clampf((wet - 0.3) / 0.4, 0.0, 1.0))
+	m = maxf(m, clampf((wet - 0.5) / 0.4, 0.0, 1.0) * clampf((c.g - 0.3) / 0.4, 0.0, 1.0))
+	var gh := w.height(pos.x, pos.z)
+	for o in [Vector2.ZERO, Vector2(3.5, 0), Vector2(-3.5, 0), Vector2(0, 3.5), Vector2(0, -3.5)]:
+		if w.water_level(pos.x + o.x, pos.z + o.y) > gh - 0.6:
+			m = maxf(m, 0.8)                                      # lake shore and river banks
+			break
+	return m
+
+## 0..1 dry hardpan / sand (desert, low moisture): prints show less.
+static func dry_at(pos: Vector3) -> float:
+	var w: WorldData = Game.world
+	if w == null or not w.ok:
+		return 0.0
+	var c := w.ctrl(pos.x, pos.z)
+	return clampf((0.3 - c.b) / 0.2, 0.0, 1.0) * clampf((0.4 - c.g) / 0.3, 0.0, 1.0)
+
+## Normal map of a pressed-in print: the depth mask as a height field (h = -mask), its gradient tilts the
+## normals so the print's walls catch the light on one side and fall into shade on the other.
+func _paint_normal(mask: PackedFloat32Array, n: int, depth: float) -> ImageTexture:
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var hl := mask[y * n + maxi(x - 1, 0)]
+			var hr := mask[y * n + mini(x + 1, n - 1)]
+			var hu := mask[maxi(y - 1, 0) * n + x]
+			var hd := mask[mini(y + 1, n - 1) * n + x]
+			# h = -mask: dh/dx = -(hr - hl) / 2 ; normal = (-dh/dx, dh/dy, 1) with image y down (OpenGL convention)
+			var nx := (hr - hl) * 0.5 * depth
+			var ny := -(hd - hu) * 0.5 * depth
+			var nv := Vector3(nx, ny, 1.0).normalized()
+			img.set_pixel(x, y, Color(nv.x * 0.5 + 0.5, nv.y * 0.5 + 0.5, nv.z * 0.5 + 0.5, 1.0))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
 
 ## Paint a print / blood texture (alpha mask, darkened earth or blood colour), 64x64.
 func _paint(kind: String) -> ImageTexture:
@@ -100,6 +163,8 @@ func _paint(kind: String) -> ImageTexture:
 				blobs.append([0.5 + rng.randf_range(-0.3, 0.3), 0.5 + rng.randf_range(-0.3, 0.3), rng.randf_range(0.04, 0.14), 0.0])
 		"pool":
 			blobs = [[0.5, 0.5, 0.36, 0.0], [0.38, 0.42, 0.22, 0.0], [0.62, 0.6, 0.2, 0.0]]
+	var mask := PackedFloat32Array()
+	mask.resize(n * n)
 	for y in n:
 		for x in n:
 			var u := (x + 0.5) / n
@@ -119,6 +184,9 @@ func _paint(kind: String) -> ImageTexture:
 					var py := 0.4 + dy * t
 					var dd2 := Vector2(u - px, v - py).length()
 					a = maxf(a, clampf((0.045 - dd2) * 40.0, 0.0, 1.0))
+			mask[y * n + x] = a
 			img.set_pixel(x, y, Color(col.r, col.g, col.b, a * (0.85 + 0.15 * rng.randf())))
+	if not kind in ["blood", "pool"]:
+		_nrm[kind] = _paint_normal(mask, n, 2.2)
 	img.generate_mipmaps()
 	return ImageTexture.create_from_image(img)

@@ -23,23 +23,26 @@ const BIRDS_DAY := {
 	"plains": [["bird_meadow", 0.05], ["bird_chip", 0.03], ["bird_dove", 0.015], ["bird_hawk", 0.004], ["bird_caw", 0.008]],
 	"desert": [["bird_quail", 0.035], ["bird_dove", 0.015], ["bird_hawk", 0.007], ["bird_caw", 0.012], ["bird_chip", 0.015]],
 	"forest": [["bird_feebee", 0.035], ["bird_trill", 0.035], ["bird_warble", 0.035], ["bird_woodpecker", 0.012],
-		["bird_caw", 0.012], ["bird_chip", 0.025]],
+		["bird_caw", 0.012], ["bird_chip", 0.025], ["turkey_gobble", 0.004]],
 	"mountain": [["bird_hawk", 0.01], ["bird_caw", 0.02], ["bird_trill", 0.02], ["bird_feebee", 0.015]],
 	"marsh": [["bird_warble", 0.03], ["bird_chip", 0.03], ["bird_trill", 0.02], ["bullfrog", 0.01]],
 }
 const NIGHT := {
-	"plains": [["owl_hoot", 0.006], ["poorwill", 0.01], ["coyote_chorus", 0.004]],
-	"desert": [["poorwill", 0.015], ["coyote_chorus", 0.005], ["owl_hoot", 0.003]],
+	"plains": [["owl_hoot", 0.006], ["poorwill", 0.01], ["coyote_chorus", 0.004], ["coyote_yip", 0.004]],
+	"desert": [["poorwill", 0.015], ["coyote_chorus", 0.005], ["owl_hoot", 0.003], ["coyote_yip", 0.005]],
 	"forest": [["owl_hoot", 0.012], ["wolf_howl", 0.002], ["coyote_chorus", 0.002]],
 	"mountain": [["wolf_howl", 0.004], ["owl_hoot", 0.006], ["elk_bugle", 0.004]],
 	"marsh": [["bullfrog", 0.04], ["owl_hoot", 0.005], ["coyote_chorus", 0.002]],
 }
-const FAR_CALLS := ["coyote_chorus", "rec_coyote", "wolf_howl", "elk_bugle", "bird_hawk"]
+const FAR_CALLS := ["coyote_chorus", "rec_coyote", "wolf_howl", "elk_bugle", "bird_hawk", "coyote_yip", "turkey_gobble",
+	"rec_wolf_howl", "rec_elk_bugle", "rec_turkey_gobble"]
 # preferred recordings (CI, Wikimedia Commons CC0/PD) over synthesised fallbacks
 const REC := {"dog_bark_synth": "rec_dog_bark", "cattle_moo_synth": "rec_cattle_moo", "horse_whinny_synth": "rec_horse_whinny",
 	"horse_snort": "rec_horse_snort", "horse_breath": "rec_horse_breath", "thunder_close": "rec_thunder",
 	"thunder_far": "rec_thunder_far", "crowd_saloon": "rec_crowd_indoor", "crowd_street": "rec_crowd_outdoor",
-	"rooster": "rec_rooster", "coyote_chorus": "rec_coyote", "train_whistle": "rec_steam_whistle"}
+	"rooster": "rec_rooster", "coyote_chorus": "rec_coyote", "train_whistle": "rec_steam_whistle",
+	"wolf_howl": "rec_wolf_howl", "elk_bugle": "rec_elk_bugle", "turkey_gobble": "rec_turkey_gobble", "bird_caw": "rec_crow_caw",
+	"bird_hawk": "rec_hawk_scream", "coyote_yip": "rec_coyote"}
 
 var director: Node
 var beds: Dictionary = {}            # id -> {player, cur, target, base}
@@ -325,8 +328,11 @@ func _spawn_calls(lp: Vector3, dt: float) -> void:
 		var bw := float(biome_w[b])
 		if day > 0.2:
 			for c in BIRDS_DAY.get(b, []):
-				if _rng.randf() < float(c[1]) * bw * day * chorus * act * dt:
-					_call(c[0], lp)
+				var rate_d := float(c[1])
+				if c[0] == "turkey_gobble":
+					rate_d *= clampf(1.0 - absf(h - 7.0) / 2.5, 0.0, 1.0)                 # toms gobble in the morning
+				if _rng.randf() < rate_d * bw * day * chorus * act * dt:
+					_call(rec_or(c[0]), lp)
 		if day < 0.6:
 			for c in NIGHT.get(b, []):
 				var rate := float(c[1])
@@ -334,6 +340,10 @@ func _spawn_calls(lp: Vector3, dt: float) -> void:
 					rate *= clampf(1.0 - water_dist / 200.0, 0.0, 1.0) + float(b == "marsh")
 				if c[0] == "coyote_chorus":
 					rate *= 1.0 + 2.0 * clampf(1.0 - absf(h - 20.0) / 1.5, 0.0, 1.0)     # they sing at dusk
+				if c[0] == "coyote_yip":
+					rate *= 3.0 * clampf(1.0 - absf(h - 19.5) / 1.5, 0.0, 1.0)           # yipping only around dusk
+				if c[0] == "elk_bugle":
+					rate *= 1.0 + 2.0 * clampf(1.0 - absf(h - 19.0) / 2.0, 0.0, 1.0)     # October rut: dusk bugling
 				if _rng.randf() < rate * bw * (1.0 - day) * act * dt:
 					_call(rec_or(c[0]), lp)
 	if not town_id.is_empty() and not inside:
