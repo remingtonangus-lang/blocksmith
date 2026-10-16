@@ -337,7 +337,7 @@ final class NetHost {
             let spawn = g.coop.seatPlayer(1, g).pos
             pose.pos = spawn
             var o = NetOut()
-            o.u64(g.world.seed); o.bool(g.survival); o.u8(UInt8(g.difficulty)); o.bool(g.smoothTerrain)
+            o.u64(g.world.seed); o.bool(g.survival); o.u8(UInt8(g.diffLevel)); o.bool(g.smoothTerrain)
             o.f64(g.time); o.v3(spawn); o.str(g.save?.dir.lastPathComponent ?? "World")
             o.bool((g.world.gen as? WorldGen)?.terrain.fewerLakes ?? false)
             o.bool((g.world.gen as? WorldGen)?.terrain.lessWater ?? false)
@@ -422,7 +422,7 @@ final class NetGuest {
     private(set) var connected = false
     private(set) var refused: String?
     private(set) var seed: UInt64 = 0
-    private(set) var survival = true, difficulty = 2, smooth = false
+    private(set) var survival = true, difficulty = 3, smooth = false   // (difficulty: the host's P302 level)
     private(set) var time: Double = 0
     private(set) var spawn = V3(0, 100, 0)
     private(set) var worldName = "a friend's world"

@@ -1,24 +1,74 @@
 import Foundation
 
-// Difficulty levels (backlog G19; docs/status/difficulty.md): Easy, Normal (the "medium" of the ask) and Hard, chosen
-// when the world is made and locked afterwards (a Peaceful world stays Peaceful). Each level scales the monsters'
-// damage (the reference formula, Game.damage), their toughness, their speed, how fast hunger drains and how many
-// monsters the spawner keeps around the player.
+// Difficulty levels (backlog G19; docs/status/difficulty.md), chosen when the world is made and locked afterwards (a
+// Peaceful world stays Peaceful).
+// P302 (Oct 15, "easy is too hard"; "easy all but instakilled him"): five fighting levels with big steps between them,
+// Very Easy, Easy, Normal, Hard, Very Hard, plus Peaceful. Easy is a cakewalk even for a new player (a few deaths at
+// most), Normal is the reference game a seasoned player still dies in while learning, Hard and Very Hard are for a
+// struggle. Enemy health is realistic and the SAME on every level; what changes is the player's side (how much of a
+// blow lands, how much armour stops, the biggest single hit, how fast health comes back, hunger) and the enemy's
+// edge (speed, aim, how often they strike, how far they notice you, how many are about). Fliers (Searwings and the
+// rest) are easy kills on the easy levels: hits on them count for more and knock them down within reach.
+//
+// Game.diffLevel holds the level (0...5). Game.difficulty stays the older four-step band (0 peaceful, 1 easy, 2 normal,
+// 3 hard) the rest of the game keys on (patrol sizes, door breaking, starving floors...): Very Easy and Easy read as
+// band 1, Hard and Very Hard as band 3. A world saved before P302 keeps its level: Easy -> Easy, Normal -> Normal,
+// Hard -> Hard.
 enum Difficulty {
-    struct Row { let toughness: Float, speed: Float, hunger: Float, spawns: Float }
-    //                       peaceful                                           easy
-    static let rows: [Row] = [Row(toughness: 1, speed: 1, hunger: 0.6, spawns: 0), Row(toughness: 0.75, speed: 0.9, hunger: 0.75, spawns: 0.65),
-    //                       normal                                             hard
-                              Row(toughness: 1, speed: 1, hunger: 1, spawns: 1), Row(toughness: 1.4, speed: 1.12, hunger: 1.3, spawns: 1.35)]
+    static let names = ["Peaceful", "Very Easy", "Easy", "Normal", "Hard", "Very Hard"]
+    // One line per level for the Create World page and the settings (what the level means for you).
+    static let help = [
+        "Peaceful: no monsters or raiders, and hunger never harms you. Fixed once the world is made.",
+        "Very Easy: blows barely scratch you and none takes more than a heart and a half; enemies are slow, miss a lot and are few. Fliers fall to a hit or two.",
+        "Easy: enemies hit softly (never more than two and a half hearts at once), aim poorly, strike slowly and come in small numbers; armour helps more. Fliers are easy kills.",
+        "Normal: the game as intended. Enemies hit, aim and move as they should; expect to die a few times while learning.",
+        "Hard: blows land half again as hard and armour helps less; enemies are faster, sharper shots, quicker to strike and more numerous.",
+        "Very Hard: double damage, armour helps little, health returns slowly; enemies are fast, accurate, relentless and everywhere.",
+    ]
+    struct Row {
+        let taken: Float      // share of an attack's damage that lands on the player
+        let cap: Int          // most half-hearts one attack can take (0: no limit)
+        let armour: Float     // how much armour helps (its stopping power times this)
+        let regen: Float      // how fast health comes back
+        let hunger: Float     // hunger drain
+        let speed: Float      // enemy speed
+        let aim: Float        // enemy gun spread (more is wider)
+        let pace: Float       // how often enemies strike or fire
+        let sight: Float      // how far enemies notice the player
+        let spawns: Float     // how many monsters the spawner keeps about
+        let flier: Float      // what a hit on a hostile flier counts for
+    }
+    static let rows: [Row] = [
+        // peaceful
+        Row(taken: 0, cap: 0, armour: 1, regen: 1.5, hunger: 0.6, speed: 1, aim: 1, pace: 1, sight: 1, spawns: 0, flier: 1),
+        // very easy
+        Row(taken: 0.25, cap: 3, armour: 1.3, regen: 2, hunger: 0.5, speed: 0.75, aim: 2.4, pace: 0.5, sight: 0.6, spawns: 0.4, flier: 2.5),
+        // easy
+        Row(taken: 0.45, cap: 5, armour: 1.15, regen: 1.5, hunger: 0.7, speed: 0.88, aim: 1.7, pace: 0.7, sight: 0.8, spawns: 0.65, flier: 1.8),
+        // normal
+        Row(taken: 1, cap: 0, armour: 1, regen: 1, hunger: 1, speed: 1, aim: 1, pace: 1, sight: 1, spawns: 1, flier: 1),
+        // hard
+        Row(taken: 1.5, cap: 0, armour: 0.85, regen: 0.85, hunger: 1.25, speed: 1.12, aim: 0.75, pace: 1.2, sight: 1.15, spawns: 1.35, flier: 1),
+        // very hard
+        Row(taken: 2, cap: 0, armour: 0.7, regen: 0.7, hunger: 1.5, speed: 1.25, aim: 0.55, pace: 1.45, sight: 1.3, spawns: 1.7, flier: 1),
+    ]
     // The level the mobs read each update (MobManager.update sets it from the game, like Mob.hardMode).
-    static var level = 2
-    static var row: Row { rows[max(0, min(3, level))] }
+    static var level = 3
+    static var row: Row { rows[clamp(level)] }
+    static func clamp(_ l: Int) -> Int { max(0, min(5, l)) }
+    // P302: the older band (0 peaceful, 1 easy, 2 normal, 3 hard) of a level, and the level a band (an old save, an
+    // old create action, a co-op host on an older build) stands for.
+    static func band(_ l: Int) -> Int { [0, 1, 1, 2, 3, 3][clamp(l)] }
+    static func level(band b: Int) -> Int { [0, 2, 3, 4][max(0, min(3, b))] }
+    static func name(_ l: Int) -> String { names[clamp(l)] }
 
-    // A monster's share of a hit at this level: an Easy monster drops in three quarters of the blows, a Hard one takes
-    // 1.4 times as many. Fractions round at random so the average holds; every landed hit does at least 1.
+    // The share of a hit a mob takes. Enemy health is fixed across levels (P302); only the mob's own build roll
+    // (MobVary) and, on the easy levels, a hostile flier's frailty change it. Fractions round at random so the average
+    // holds; every landed hit does at least 1.
     static func scaleHit(_ damage: Int, _ m: Mob) -> Int {
         guard damage > 0 else { return damage }
-        let t = (m.kind.hostile && m.kind.category == .monster ? row.toughness : 1) * m.vary.tough
+        let flier: Float = m.kind.hostile && m.spec.flying ? row.flier : 1
+        let t = m.vary.tough / flier
         guard t != 1 else { return damage }
         let d = Float(damage) / t, whole = floorf(d)
         return max(1, Int(whole) + (Rand.float(in: 0..<1) < d - whole ? 1 : 0))

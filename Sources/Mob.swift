@@ -611,7 +611,8 @@ final class Mob {
         callTimer -= dt
         aiTimer -= dt
         unreachableTimer -= dt
-        attackCooldown -= dt
+        // P302: enemies strike less often on the easy levels, more often on the hard ones.
+        attackCooldown -= kind.hostile ? dt * Difficulty.row.pace : dt
         // A finished wind-up is used by the next AI tick or dropped (the target died, left, or the AI skipped its
         // strike), so a stale one never lands a later strike without its warning.
         if windUpDone { windUpAge += dt; if windUpAge > 0.1 { windUpDone = false } }
@@ -1011,7 +1012,9 @@ final class Mob {
                     d.y += horiz * 0.2
                     // Marauders fire crossbow bolts (faster, flatter).
                     // P55: each archer's own aim: a steady hand lands nearly every arrow, a shaky one sprays them.
-                    let a = vary.aim
+                    // P302: archers spray on the easy levels (even a steady hand) and group tighter on the hard ones.
+                    let lvlAim: Float = Difficulty.row.aim
+                    let a: Float = vary.aim * lvlAim + max(0, lvlAim - 1) * 0.05
                     let dir = simd_normalize(simd_normalize(d) + V3(Rand.float(in: -a...a), Rand.float(in: -a...a) * 0.6, Rand.float(in: -a...a)))
                     tipArrow(g.projectiles.shoot(from: bowMuzzle, dir: dir, speed: kind == .pillager ? 32 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))   // 1.6 a tick (reference)
                     g.sfx(.bow, 0.7, at: pos)
@@ -1559,7 +1562,7 @@ final class Mob {
             let d = troopArmourHit(Float(damage), seg: 1, Mob.meleeGame)
             damage = max(1, Int(d) + (Rand.float(in: 0..<1) < d - floorf(d) ? 1 : 0))
         }
-        damage = Difficulty.scaleHit(damage, self)                          // G19: Easy monsters are frailer, Hard tougher
+        damage = Difficulty.scaleHit(damage, self)                          // G19, P302: health fixed per level; easy-level fliers frail
         // Townsfolk: tougher people take less of a hit, frailer ones more (TownStats; fractions round at random so
         // the average holds, except that every hit does at least 1).
         if kind == .villager && villager?.person != nil && damage > 0 {
@@ -1626,7 +1629,8 @@ final class Mob {
         lockTime = max(lockTime, 10)
         wasHit = true
         admire = 0
-        if spec.flying { vel += V3(0, 1, 0); return }
+        // P302 (b): on the easy levels a hit knocks a hostile flier down toward the player's reach instead of up.
+        if spec.flying { vel += kind.hostile && Difficulty.row.flier > 1 ? V3(0, -4, 0) : V3(0, 1, 0); return }
         // A hit hisser flinches: its swell drops back 0.6 s and pauses 0.4 s, so steady melee (one swing per sword
         // cooldown) can finish it before it blows (playtest v78: it went off before enough hits landed).
         if kind == .creeper && damage > 0 { fuse = max(0, fuse - 0.8); flinch = 0.4 }
@@ -2412,7 +2416,7 @@ final class MobManager {
         if !TownLaw.golemsAllowed, mobs.contains(where: { $0.kind == .ironGolem && !$0.playerBuilt }) { mobs.removeAll { $0.kind == .ironGolem && !$0.playerBuilt } }
         rebuildIndex()
         Mob.hardMode = game.difficulty == 3
-        Difficulty.level = game.difficulty
+        Difficulty.level = game.diffLevel                  // (P302: the level, 0...5)
         let second = game.coop.current > 0          // split screen: a second seat updates only the mobs nearest it
         if !second { hiveTick(dt, game); separate(dt, game) }
         for m in mobs where game.seatOwns(m.pos) {

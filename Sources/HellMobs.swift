@@ -343,6 +343,9 @@ extension Mob {
 
     private func searwingAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         let h = hellState
+        // P302 (b): on the easy levels a Searwing winds up longer, dives slower and climbs away slowly for longer
+        // (the moment to hit it), and rests longer between dives; on the hard ones it is quicker at all of it.
+        let pace: Float = Difficulty.row.pace, lvlSpeed: Float = Difficulty.row.speed
         h.t -= dt; h.cool -= dt
         circleAngle += dt * 0.9
         if Rand.float(in: 0..<1) < dt * 6 { g.particles.flame(at: pos + V3(Rand.float(in: -0.4...0.4), 0.3, Rand.float(in: -0.4...0.4))) }
@@ -362,21 +365,21 @@ extension Mob {
         case .dive:
             let d = head - pos
             let l = max(0.01, simd_length(d))
-            vel += (d * (15 / l) - vel) * min(1, dt * 4)
+            vel += (d * (15 * lvlSpeed / l) - vel) * min(1, dt * 4)
             face(pos + vel)
             if l < 1.1 {
                 HellStats.diveHits += 1
                 g.hurtPlayer(spec.attack, from: pos, cause: "was struck down by a Searwing", attacker: self)
                 if !g.effects.has(.fireResistance) { g.onFire = max(g.onFire, 3) }
-                h.s = .climb; h.t = 2.4
+                h.s = .climb; h.t = 2.4 / pace
             } else if h.t <= 0 || g.world.collides(pos + vel * 0.15 - V3(halfW, 0, halfW), pos + vel * 0.15 + V3(halfW, height, halfW)) {
-                h.s = .climb; h.t = 2.4
+                h.s = .climb; h.t = 2.4 / pace
             }
         case .climb:
             // Climbing away slowly: the moment to hit it.
-            let up = V3(forward.x * 2, 2.5, forward.z * 2)
+            let up = V3(forward.x * 2, 2.5, forward.z * 2) * lvlSpeed
             vel += (up - vel) * min(1, dt * 3)
-            if h.t <= 0 { h.s = .idle; h.cool = Rand.float(in: 3.5...6) }
+            if h.t <= 0 { h.s = .idle; h.cool = Rand.float(in: 3.5...6) / pace }
         default:
             // About once a second: how much open air is over the player (low halls: circle under the roof).
             h.sideT -= dt
@@ -391,10 +394,10 @@ extension Mob {
             let c = g.player.pos + V3(cosf(circleAngle) * r, h.hover + sinf(circleAngle * 2) * 1.2, sinf(circleAngle) * r)
             let d = c - pos
             let l = max(0.01, simd_length(d))
-            vel += (d * (spec.speed / l) - vel) * min(1, dt * 2)
+            vel += (d * (spec.speed * lvlSpeed / l) - vel) * min(1, dt * 2)
             face(pos + vel)
             if h.cool <= 0 && dist < 28 && g.world.canSee(eye, head) {
-                h.s = .windup; h.t = 0.7
+                h.s = .windup; h.t = 0.7 / pace
                 g.sfx(.mob(kind, .ambient), 1.3, at: pos)
             }
         }

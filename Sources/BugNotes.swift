@@ -241,7 +241,7 @@ final class BugNotes {
                 + String(format: ", facing %@ (yaw %.0f°, pitch %.0f°)", facing, yawDeg, Double(p.pitch * 180 / .pi))),
             ("Biome", biome),
             ("Looking at", target),
-            ("Mode", "\(g.survival ? "Survival" : "Creative"), \(Game.difficultyNames[g.difficulty])\(p.flying ? ", flying" : "")\(g.menu.map { ", screen open: \(type(of: $0))" } ?? "")"),
+            ("Mode", "\(g.survival ? "Survival" : "Creative"), \(Difficulty.name(g.diffLevel))\(p.flying ? ", flying" : "")\(g.menu.map { ", screen open: \(type(of: $0))" } ?? "")"),
             ("Time / weather", "day \(Int(g.time / DAY_LENGTH) + 1), \(clock), \(weather)"),
             ("Frame time", ms > 0 ? String(format: "%.1f ms (%.0f fps)", ms, 1000 / ms) : "n/a"),
             ("Repro", String(format: "`./snap.sh note --seed %llu --x %.1f --z %.1f --yaw %.0f --pitch %.0f --time %.3f%@`",

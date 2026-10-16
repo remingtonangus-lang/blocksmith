@@ -405,7 +405,8 @@ extension Game {
         if let w = try? JSONEncoder().encode(weather), let s = String(data: w, encoding: .utf8) { d["weather"] = s }
         d["patrol"] = "\(patrolTimer)"
         d["rest"] = "\(timeSinceRest)"
-        d["difficulty"] = "\(difficulty)"
+        d["difficulty"] = "\(difficulty)"                       // (the older band, for builds before P302)
+        d["diffLevel"] = "\(diffLevel)"                         // P302: the five-level choice
         d["money"] = "\(money)"
         TownLaw.save(&d)
         Reckoning.save(&d)
@@ -470,7 +471,8 @@ extension Game {
         journal = d["journal"].flatMap { $0.data(using: .utf8) }.flatMap { try? JSONDecoder().decode([JournalEntry].self, from: $0) } ?? []
         journalSeen = journal.count                          // Q2c-console-29: a loaded world starts with nothing new
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
-        if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
+        if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }   // (a world from before P302: its band)
+        if let p = d["diffLevel"], let v = Int(p) { diffLevel = Difficulty.clamp(v) }    // P302
         money = d["money"].flatMap { Int($0) } ?? Money.start
         TownLaw.load(d, seed: world.seed)
         Reckoning.load(d, game: self)

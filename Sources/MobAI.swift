@@ -64,6 +64,7 @@ extension Mob {
         if aggro && lockTime < -30 && Mob.forgiving.contains(kind) && !(kind == .wolf && tamed) { aggro = false }
         guard g.survival && g.alive else { lockTime = 0; return false }
         var range = kind.followRange
+        if kind.hostile { range *= Difficulty.row.sight }               // P302: how far enemies notice you, per level
         if g.player.sneaking { range *= 0.8 }
         if let h = kind.disguiseHead, Items.key(g.inventory.armor[0].item) == h { range *= 0.5 }
         if g.effects.has(.invisibility) { range = min(range, 7) }

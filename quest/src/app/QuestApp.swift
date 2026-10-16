@@ -300,14 +300,14 @@ final class QuestApp {
         case _ where id.hasPrefix("play:"):
             switchWorld(WorldRequest(name: String(id.dropFirst(5))))
         case "newworld":
-            switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.difficulty, smooth: true))   // (PG6: Polygons, even from a block world)
+            switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.diffLevel, smooth: true))   // (PG6: Polygons, even from a block world)
         case _ where id.hasPrefix("netjoin:"):
             switchWorld(WorldRequest(join: String(id.dropFirst(8))))
         case "netleave":
             if let g = game, let gu = g.netGuest { gu.detach(g); gu.clearMirrors(g); g.netGuest = nil }
             switchWorld(WorldRequest())
         case "workshop":
-            switchWorld(WorldRequest(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 1))
+            switchWorld(WorldRequest(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 2))
         case _ where id.hasPrefix("create:"):
             if let req = WorldRequest.create(action: id) { switchWorld(req) }
         default: break
