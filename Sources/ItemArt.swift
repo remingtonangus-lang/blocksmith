@@ -1265,6 +1265,25 @@ enum ItemArt {
             "................",
             "................",
         ],
+        // P278 Depth Charge (DepthCharges.swift): an olive drum with two hoops and a brass pistol on top.
+        "depth_charge": [
+            "................",
+            "................",
+            "......eeee......",
+            ".....1e11e1.....",
+            "...1111111111...",
+            "..1dddddddddd1..",
+            "..1cccccccccc1..",
+            "..1cccccccccc1..",
+            "..1cccc1ccccc1..",
+            "..1cccc1ccccc1..",
+            "..1cccccccccc1..",
+            "..1cccccccccc1..",
+            "..1dddddddddd1..",
+            "...1111111111...",
+            "................",
+            "................",
+        ],
         // A4 Sky Skiff Kit (SkySkiff.swift): a folded envelope over a little gondola.
         "airship": [
             "................",

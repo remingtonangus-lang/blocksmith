@@ -354,6 +354,7 @@ extension Game {
                     if fired > 0 { swing = 1; if survival && s.role == nil { Wrecks.useCannonballs(self, fired) } }
                 }
             }
+            if useNow && dropFromRacks(s) { swing = 1 }                // P278: the racks let go (DepthCharges.swift)
             return true
         }
         // P268 (Oct 14 19:24, "still can't break blocks on the little drop ship"): on the Quest the hand's laser picks the
@@ -487,6 +488,7 @@ extension Game {
         ships.mineCell = nil
         guard useNow else { return true }
         swing = 1
+        if rackUse(s, cell, b, sneak: sneak) { return true }         // P278: a depth charge rack (DepthCharges.swift)
 
         // T9: an ingot of steel (or iron) used on a captured land vehicle rebuilds a damaged wheel.
         if s.root.kinematic && s.root.captured, ["steel_ingot", "iron_ingot"].contains(Items.key(held.item)),

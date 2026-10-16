@@ -89,6 +89,7 @@ extension Game {
         if skySkiffUse() { return true }               // A4 (SkySkiff.swift)
         if grappleUse() { return true }                // C7 (SkyIsle.swift)
         if submarineUse() { return true }              // C8 (Submarines.swift)
+        if depthChargeUse() { return true }            // P278 (DepthCharges.swift)
         if sundryUse() { return true }                 // P133 (BaseSundries.swift)
         if blueprintUse() { return true }              // P138 (Blueprints.swift)
         if vehicleBlueprintUse() { return true }       // D43 (VehiclePresets.swift)

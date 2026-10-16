@@ -496,6 +496,7 @@ enum Recipes {
         r += springRecipes()
         r += Cloudwailer.recipes()
         r += shipRecipes()
+        r += depthChargeRecipes()                     // P278
         return r.compactMap { $0 }
     }
 

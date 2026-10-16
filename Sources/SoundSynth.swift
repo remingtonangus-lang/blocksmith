@@ -920,6 +920,15 @@ struct Synth {
             let fall = tone(1.6, f0: 1900 * p, f1: 650 * p, wave: .sine, attack: 0.25, release: 0.05, gain: 0.45)
             let tear = wash(1.6, lp: 2400 * p, hp: 300, wobble: 0.5, rate: 11, gain: 0.35)
             out = Synth.mix(fall, tear)
+        case .depthBoom:
+            // P278: a depth charge under water: a heavy, muffled thud dropping in pitch, a long rolling body, then the
+            // column of water rushing up and spattering back.
+            let thud = tone(2.2, f0: 72 * p, f1: 26 * p, wave: .sine, attack: 0.004, release: 1.7, gain: 1.3)
+            let body = burst(2.8, lp: 240 * p, hp: 18, attack: 0.003, decay: 0.95, gain: 3.2)
+            let rush = wash(1.6, lp: 2000 * p, hp: 250, wobble: 0.5, rate: 6, gain: 0.45)
+            let spatter = grains(36, spread: 1.6, lp: 4200, hp: 700, decay: 0.02, gain: 0.55)
+            out = Synth.mix(Synth.mix(Synth.mix(thud, body), rush, at: frames(0.45)), spatter, at: frames(1.3))
+            out = Synth.echo(out, delay: 0.45, feedback: 0.3, mix: 0.3, tail: 1.0)
         case .ashSiren: out = AshSiren.render(&self, p: p)          // P319: the motor siren loop (AshSiren.swift)
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop, .thunderFar, .iceCreak, .rockfall, .volcanoRumble:
             out = TerrainAudio.render(&self, s, p: p)

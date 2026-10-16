@@ -170,6 +170,8 @@ extension ShipManager {
                 if sh.kind == 5 { sh.vel.y = wet ? max(sh.vel.y - 8 * dt, -Submarine.chargeSink) : sh.vel.y - 20 * dt }
                 if wet, let g = game, Int(sh.age * 20) % 3 == 0 { g.particles.bubble(at: start) }
                 if sh.kind == 5 && start.y <= sh.fuseY { near = true }
+                // P278: a charge passing close by a hull goes off beside it.
+                if sh.kind == 5 && wet && sh.age > 0.4 && nearHull(start, except: sh.owner, reach: DepthCharge.proximity) { near = true }
             }
             let end = start + sh.vel * dt
             let len = simd_length(end - start)
@@ -216,6 +218,7 @@ extension ShipManager {
                 // (Not a hull the player steers: a captured frigate's guns hit its old side.)
                 let steered = from != nil && g.world.ships.pilot?.root.id == from?.root.id
                 g.blastSpares = steered ? .none : (from?.factionValue ?? .none)
+                if kind == 5 { g.depthChargeBurst(at: p, power: power, owner: owner) }     // P278: boom, plume, pressure wave
                 Explosion.explode(at: p, power: power, game: g, breakBlocks: !gentle)
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
