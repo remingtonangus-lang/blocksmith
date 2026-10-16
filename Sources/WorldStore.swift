@@ -40,7 +40,7 @@ enum WorldStore {
                 seed = m.seed
                 dim = m.dimension.map { $0.rawValue }
                 smooth = m.extra?["terrain"] == "smooth"
-                diff = m.extra?["difficulty"].flatMap { Int($0) }
+                diff = m.extra?["diffLevel"].flatMap { Int($0) } ?? m.extra?["difficulty"].flatMap { Int($0) }.map { Difficulty.level(band: $0) }   // (P302: a level)
                 day = m.time.isFinite ? Int(m.time / DAY_LENGTH) + 1 : nil
                 done = m.extra?["ashVictory"] == "1"
                 played = Stats.playedIn(m.extra?["stats"])

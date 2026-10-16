@@ -244,13 +244,15 @@ extension Game {
             if survival != want { toggleMode() }
             return ["Set own game mode to \(want ? "Survival" : "Creative") Mode"]
         case "difficulty":
-            guard a.count >= 2 else { return ["The difficulty is \(Game.difficultyNames[difficulty])"] }
-            let names = Game.difficultyNames.map { $0.lowercased() }
-            guard let d = names.firstIndex(of: a[1].lowercased()) ?? num(1).flatMap({ (0...3).contains($0) ? $0 : nil }) else {
+            // P302: six levels; a name without its space ("veryeasy", "very_easy") or a number 0-5.
+            guard a.count >= 2 else { return ["The difficulty is \(Difficulty.name(diffLevel))"] }
+            func squash(_ t: String) -> String { t.lowercased().replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "_", with: "") }
+            let names = Difficulty.names.map(squash)
+            guard let d = names.firstIndex(of: squash(a[1])) ?? num(1).flatMap({ (0...5).contains($0) ? $0 : nil }) else {
                 return ["Unknown difficulty \(a[1])"]
             }
-            difficulty = d
-            return ["The difficulty has been set to \(Game.difficultyNames[d])"]
+            diffLevel = d
+            return ["The difficulty has been set to \(Difficulty.name(d))"]
         case "tp", "teleport":
             let p = player.pos
             guard let x = coord(1, p.x), let y = coord(2, p.y - Float(YOFF)), let z = coord(3, p.z) else { return ["Usage: /tp <x> <y> <z> (~ for relative)"] }

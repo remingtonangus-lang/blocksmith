@@ -228,8 +228,15 @@ final class Game {
     var composterReady: [IVec3: Double] = [:]
     var scoping = false
     var lastHorn: Double = -100
-    var difficulty = 2               // 0 peaceful, 1 easy, 2 normal, 3 hard
-    static let difficultyNames = ["Peaceful", "Easy", "Normal", "Hard"]
+    // P302: the world's level, 0 Peaceful, 1 Very Easy, 2 Easy, 3 Normal, 4 Hard, 5 Very Hard (Difficulty.swift).
+    var diffLevel = 3
+    // The older four-step band (0 peaceful, 1 easy, 2 normal, 3 hard) most systems key on; setting it picks that
+    // band's level (Very Easy and Very Hard are only chosen through diffLevel).
+    var difficulty: Int {
+        get { Difficulty.band(diffLevel) }
+        set { diffLevel = Difficulty.level(band: newValue) }
+    }
+    static let difficultyNames = Difficulty.names                  // (indexed by diffLevel)
     var maps: [Int: MapData] = [:]
     var mapRow = 0
     var brushProgress: Float = 0
@@ -2504,21 +2511,21 @@ final class Game {
         if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
         var amount = amount
         if attacker != nil || type == .projectile || type == .explosion {
-            // Reference difficulty scaling of mob damage: easy min(x/2+1, x), hard x*1.5 (blasts always scale).
+            // P302: the level's share of an attack (Very Easy a quarter ... Very Hard double; blasts scale too).
             // Half points round up at random so the average holds (a hard zombie hits 4.5: 4 or 5).
-            let a = Float(amount)
-            var scaled: Float = a
-            switch difficulty {
-            case 0: return
-            case 1: scaled = min(a / 2 + 1, a)
-            case 3: scaled = a * 1.5
-            default: break
-            }
+            let row = Difficulty.rows[Difficulty.clamp(diffLevel)]
+            guard row.taken > 0 else { return }
+            var scaled: Float = Float(amount) * row.taken
             if let a = attacker { scaled *= a.power }
-            // P64 (Oct 11 evening playtest): bare skin takes more than the reference: a fifth more with no armour on.
-            if inventory.armorPoints == 0 { scaled *= 1.2 }
+            // P64 (Oct 11 evening playtest): bare skin takes more than the reference: a fifth more with no armour on
+            // (P302: from Normal up; the easy levels forgive a new player who has none yet).
+            if inventory.armorPoints == 0 && diffLevel >= 3 { scaled *= 1.2 }
             let whole = floorf(scaled)
             amount = Int(whole) + (Rand.float(in: 0..<1) < scaled - whole ? 1 : 0)
+            // P302 (Oct 15 18:53, "easy all but instakilled me"): on the easy levels no single attack takes more
+            // than a heart and a half (Very Easy) or two and a half (Easy), however big the gun or the blast.
+            if row.cap > 0 { amount = min(amount, row.cap) }
+            guard amount > 0 else { return }
         }
         amount = Legendaries.taken(self, amount, type, attacker: attacker)   // C10: legendary armour
         damage(amount, cause, type: type, attacker: attacker)
@@ -2601,11 +2608,14 @@ final class Game {
         var dmg = Float(amount)
         if !bypassArmor {
             let a = Float(inventory.armorPoints), tough = inventory.toughness
-            var eff = min(20, max(a / 5, a - dmg / (2 + tough / 4)))
+            // P302: armour stops more on the easy levels and less on the hard ones (at most 80%, as ever).
+            let armourHelp: Float = Difficulty.rows[Difficulty.clamp(diffLevel)].armour
+            let base: Float = max(a / 5, a - dmg / (2 + tough / 4))
+            var eff = min(20, base * armourHelp)
             // Gun rounds: armour stops at most 60% (full titanium stopped 80%, and the rounding left most rounds doing
             // nothing: "I lost no health at all under gunfire", Oct 11 playtest P30). The wear below stays heavy. P45
             // (Oct 11 evening, "with titanium armour it was too easy to collect these guns"): at most 48% now.
-            if bulletHit { eff = min(eff, 12) }
+            if bulletHit { eff = min(eff, 12 * armourHelp) }
             dmg *= 1 - eff / 25
             // Only wearable armour wears: a carved pumpkin or a head (durability 0) vanished on the first hit, and
             // Glider Wings don't take damage from hits (reference).
@@ -2860,7 +2870,8 @@ final class Game {
         let moved = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
         // Swimming 0.01 a metre, sprinting on the ground HungerRates.sprint, walking nothing (HungerRates).
         // G19: Easy drains hunger slower, Hard faster (Difficulty.rows), movement and jumps alike.
-        let hm = Difficulty.rows[max(0, min(3, difficulty))].hunger
+        let diffRow = Difficulty.rows[Difficulty.clamp(diffLevel)]
+        let hm = diffRow.hunger
         exhaustion += moved * (player.inWater ? HungerRates.swim : (player.sprinting && player.onGround ? HungerRates.sprint : 0)) * hm
         if player.jumped { exhaustion += (player.sprinting ? HungerRates.sprintJump : HungerRates.jump) * hm }
         while exhaustion >= 4 {
@@ -2869,8 +2880,9 @@ final class Game {
         }
 
         // Fast regen with full hunger and saturation, slow regen at hunger >= 18.
+        // P302: health comes back faster on the easy levels, slower on the hard ones.
         if hunger >= 20 && saturation > 0 && health < maxHealth {
-            regenTimer += dt
+            regenTimer += dt * Double(diffRow.regen)
             // Reference: min(saturation, 6) / 6 of a half-heart every 0.5 s, costing that much x 6 in exhaustion (it
             // healed a whole half-heart however little saturation was left).
             if regenTimer >= 0.5 {
@@ -2881,7 +2893,7 @@ final class Game {
                 if regenFrac >= 1 { regenFrac -= 1; health += 1 }
             }
         } else if hunger >= 18 && health < maxHealth {
-            regenTimer += dt
+            regenTimer += dt * Double(diffRow.regen)
             if regenTimer >= 4 { regenTimer = 0; health += 1; exhaustion += HungerRates.heal }
         } else {
             regenTimer = 0

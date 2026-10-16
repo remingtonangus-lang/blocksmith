@@ -65,7 +65,7 @@ enum QuestOptions {
             "q_preset": "Default: the standard layout. Classic: the stick walks and snap-turns (no teleport). One Hand: the dominant stick also walks forward and back, and turns sideways.",
             "q_height": "Stand up straight, look ahead and select this: standing play then always recentres to this height.",
             "q_setup_done": "Start playing. All of this is in VR Comfort & Controls later.",
-            "q_firstdiff": "Peaceful: no monsters. Easy: gentler monsters and hunger. Normal: as intended. Hard: tougher in every way. Fixed once you play on.",
+            "q_firstdiff": "Very Easy to Very Hard, or Peaceful (no monsters). Fixed once you play on.",   // (P302: PauseMenu.describe shows the chosen level's line)
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
             "q_snap": "How far one snap turn goes.",
             "q_tspeed": "How fast smooth turning goes.",
@@ -196,7 +196,7 @@ enum QuestOptions {
         switch id {
         case "q_firstdiff":
             guard let g = newWorld() else { break }
-            g.difficulty = step([0, 1, 2, 3], g.difficulty, back)
+            g.diffLevel = step([0, 1, 2, 3, 4, 5], g.diffLevel, back)          // P302: six levels
         case "q_turn":
             S.smoothTurn.toggle()
             if S.smoothTurn && S.controlPreset == 1 { S.controlPreset = 0 }       // (Classic means snap turns)
@@ -337,7 +337,7 @@ enum QuestOptions {
             ("Start Playing", "q_setup_done"),
         ]
         if let g = newWorld() {
-            rows.insert(("First World: \(Game.difficultyNames[max(0, min(3, g.difficulty))])", "q_firstdiff"), at: rows.count - 1)
+            rows.insert(("First World: \(Difficulty.name(g.diffLevel))", "q_firstdiff"), at: rows.count - 1)
             return ("Welcome to Blocksmith", "Pull the trigger on a row to change it. All but the difficulty can change later in VR Comfort & Controls.", rows)
         }
         return ("Welcome to Blocksmith", "Pull the trigger on a row to change it. All of it can change later in VR Comfort & Controls.", rows)

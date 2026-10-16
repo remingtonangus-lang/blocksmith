@@ -4,7 +4,7 @@ import Metal
 // A world to open or create, from a menu action (QuestApp.appAction; the Mac's AppDelegate parses the same action).
 // Shared so questcheck tests the exact create path the headset runs.
 struct WorldRequest {
-    var name: String?; var seed: UInt64?; var survival: Bool?; var difficulty: Int?; var smooth: Bool? = nil
+    var name: String?; var seed: UInt64?; var survival: Bool?; var difficulty: Int?; var smooth: Bool? = nil   // (difficulty: a P302 level, 0...5)
     var join: String? = nil          // C14: a host's address (Play Together); the world is the host's, nothing is saved
 
     // A guest's world from the host's welcome: the host's seed and rules, a game that never saves.
@@ -18,7 +18,7 @@ struct WorldRequest {
         world.renderDistance = renderDistance
         let game = Game(world: world, save: nil, persistent: false)
         game.survival = gu.survival
-        game.difficulty = gu.difficulty
+        game.diffLevel = Difficulty.clamp(gu.difficulty)          // P302: the host sends its level
         game.smoothTerrain = gu.smooth
         SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
         game.time = gu.time
@@ -34,7 +34,7 @@ struct WorldRequest {
         guard id.hasPrefix("create:") else { return nil }
         let parts = id.split(separator: ":", maxSplits: 5, omittingEmptySubsequences: false).map(String.init)
         guard parts.count == 6 else { return nil }
-        return WorldRequest(name: parts[4], seed: seedValue(parts[5]), survival: parts[1] == "1", difficulty: Int(parts[2]) ?? 2,
+        return WorldRequest(name: parts[4], seed: seedValue(parts[5]), survival: parts[1] == "1", difficulty: Int(parts[2]) ?? 3,
                             smooth: parts[3] == "1")
     }
 
@@ -54,7 +54,7 @@ struct WorldRequest {
         if let m = meta { game.apply(m) } else {
             game.player.pos = game.spawnPoint
             if let sv = survival { game.survival = sv }
-            if let d = difficulty { game.difficulty = d }
+            if let d = difficulty { game.diffLevel = Difficulty.clamp(d) }     // P302: a level (0...5)
             game.smoothTerrain = smooth ?? Settings.shared.smoothTerrain     // (PG6: a new world is Polygons unless chosen)
             if game.smoothTerrain { game.world.makeFieldWorld() }             // (PG1 rewrite: its ground is a density field)
         }

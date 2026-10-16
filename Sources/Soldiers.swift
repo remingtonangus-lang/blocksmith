@@ -183,8 +183,10 @@ enum Soldier {
         return hash3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)), 0x0FF1) % 4 == 0 ? .soldierOfficer : k
     }
 
-    // Reference-style difficulty scaling of their damage against the player.
-    static let difficultyTable: [Float] = [0, 0.5, 0.75, 1]
+    // Reference-style difficulty scaling of their damage against the player, by band. P302: the easy band matches
+    // Normal here because Game.hurtPlayer now scales every attack by the level (Very Easy a quarter, Easy 0.45); their
+    // aim and rate of fire follow the level too (Difficulty.row.aim and .pace in fire()).
+    static let difficultyTable: [Float] = [0, 0.75, 0.75, 1]
     static func difficultyScale(_ d: Int) -> Float { difficultyTable[max(0, min(3, d))] }
 }
 
@@ -646,18 +648,19 @@ extension Mob {
                 // a Hannibal trooper: the power suit takes it.
                 let kick = aimKick(gs)
                 let hunter: Float = posse == 3 ? 0.7 : 1                 // R21: bounty hunters shoot straighter than the ranks
-                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : 1) * hunter)
+                let levelAim: Float = Difficulty.row.aim                 // P302: wide on the easy levels, tight on the hard
+                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : 1) * hunter * levelAim)
                 g.arms.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * scale, fromPlayer: false,
                                   shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
             }
         case .rocket:
-            var s = Slug(pos: muzzle + dir * 0.5, vel: Guns.scatter(dir, rank.spread) * gs.speed, kind: .rocket, damage: 0, fromPlayer: false,
+            var s = Slug(pos: muzzle + dir * 0.5, vel: Guns.scatter(dir, rank.spread * Difficulty.row.aim) * gs.speed, kind: .rocket, damage: 0, fromPlayer: false,
                          shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 0.6)
             s.power = 1.8
             s.breaks = customName == FactionRaids.rocketeerName              // P215: a raider's rockets hole houses
             g.arms.spawn(s)
         case .beam:
-            g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, rank.spread), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
+            g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, rank.spread * Difficulty.row.aim), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
         }
         let quiet = TroopClass.suppressed(self)                       // Spec Ops suppressors: hushed, no alarm noise
         g.sfx(.gun(gs.sound), quiet ? 0.35 : 1, at: muzzle)
@@ -672,8 +675,9 @@ extension Mob {
         b.burst -= 1
         if b.burst <= 0 { b.spun = false }
         let rate: Float = enraged ? 0.6 : 1
-        b.shotTimer = b.burst > 0 ? gs.interval * (b.gun == Guns.ashsaw ? 1 : 1.4) * rate
-                                  : Rand.float(in: rank.gap) * rate * (b.gun == Guns.ashsaw ? 1.3 : 1)
+        let pace: Float = Difficulty.row.pace                    // P302: slower fire on the easy levels
+        b.shotTimer = b.burst > 0 ? gs.interval * (b.gun == Guns.ashsaw ? 1 : 1.4) * rate / pace
+                                  : Rand.float(in: rank.gap) * rate * (b.gun == Guns.ashsaw ? 1.3 : 1) / pace
     }
 
     // A short burst into the player's last position (wider spread; it pins them behind cover).

@@ -29,7 +29,7 @@ final class PauseMenu: Menu {
     var newName = "New World"
     var newSeed = ""
     var newSurvival = true
-    var newDifficulty = 2
+    var newDifficulty = 3                           // P302: a level (0 Peaceful ... 3 Normal ... 5 Very Hard)
     var newSmooth = true                            // Q2: every new world is the polygon world (PG6; no block option)
     var editing: Int? = nil        // 0 name, 1 seed, 2 rename, 3 host address
     private var slotsKept: [MenuSlot] = []   // the last layout's buttons (P201)
@@ -109,13 +109,6 @@ final class PauseMenu: Menu {
             || hostValues.contains(id)
     }
 
-    // Q2c-console-17: the level shown on Create New World, in a line (docs/status/difficulty.md).
-    static let difficultyHelp = [
-        "Peaceful: no monsters, and hunger never harms you. Fixed once the world is made.",
-        "Easy: gentler, slower, fewer monsters; starving stops at five hearts. Fixed once the world is made.",
-        "Normal: monsters and hunger as the game intends; starving stops at half a heart. Fixed once the world is made.",
-        "Hard: monsters hit harder, take more blows, move faster and come in numbers; starving can kill. Fixed once made.",
-    ]
     static let help: [String: String] = [
         "resume": "Return to the game.",
         "worlds": "Play, create, rename, copy or delete worlds.",
@@ -198,7 +191,7 @@ final class PauseMenu: Menu {
         "audio_music_skip": "Ends the piece that is playing and starts the next. Also Y on the pause menu, or the Skip Music Track key (N).",
         "music": "Background music volume.",
         "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
-        "difficulty": "Set when the world was made: monster damage, toughness, speed and numbers, and hunger.",
+        "difficulty": "Set when the world was made: how hard blows land, how much armour helps, enemy speed, aim and numbers, and hunger.",
         "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
         "narrator": "Reads the highlighted menu item and messages aloud with the system voice.",
         "dir_on": "After the story the Director keeps the land alive: raids, outlaws, wrecks, storms, traders, announced by radio and marked on your map.",
@@ -265,7 +258,7 @@ final class PauseMenu: Menu {
             rows = [(play, "resume"), ("Worlds...", "worlds"), ("Options...", "options"), ("Quit Game", "quit")]
             if let e = PauseMenu.hostEntry { rows.insert(e, at: 1) }
             if PauseMenu.savedNote == nil {
-                subtitle = "\(Game.difficultyNames[max(0, min(3, g.difficulty))]), \(g.smoothTerrain ? "polygon" : "block") terrain"
+                subtitle = "\(Difficulty.name(g.diffLevel)), \(g.smoothTerrain ? "polygon" : "block") terrain"
             }
         case .main:
             title = "Game Paused"
@@ -274,7 +267,7 @@ final class PauseMenu: Menu {
             } else if let r = PauseMenu.autoReason {
                 subtitle = r
             } else if !currentWorld.isEmpty {
-                subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1) - \(Game.difficultyNames[max(0, min(3, g.difficulty))])"
+                subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1) - \(Difficulty.name(g.diffLevel))"
                     + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2, -16
                     + (StorageCheck.low ? " - storage low" : "")         // Q2c-console-51
             }
@@ -468,12 +461,12 @@ final class PauseMenu: Menu {
         case .create:
             title = "Create New World"
             // Q2c-console-17: what is about to be made.
-            subtitle = "A \(newSurvival ? "Survival" : "Creative") world on \(Game.difficultyNames[newDifficulty]), " + (newSeed.isEmpty ? "random seed" : "seed \(newSeed)")
+            subtitle = "A \(newSurvival ? "Survival" : "Creative") world on \(Difficulty.name(newDifficulty)), " + (newSeed.isEmpty ? "random seed" : "seed \(newSeed)")
             let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
             rows = [("Name: \(newName)\(editing == 0 ? caret : "")", "edit_name"),
                     ("Seed: \(newSeed.isEmpty && editing != 1 ? "(random)" : newSeed)\(editing == 1 ? caret : "")", "edit_seed"),
                     ("Game Mode: \(newSurvival ? "Survival" : "Creative")", "new_mode"),
-                    ("Difficulty: \(Game.difficultyNames[newDifficulty]) (fixed once made)", "new_diff"),
+                    ("Difficulty: \(Difficulty.name(newDifficulty)) (fixed once made)", "new_diff"),
                     ("Create World", "new_create"), ("Back", "back")]
         }
         if !PauseMenu.hostHidden.isEmpty { rows.removeAll { PauseMenu.hostHidden.contains($0.1) } }
@@ -525,7 +518,8 @@ final class PauseMenu: Menu {
         if id == "dir_status" || id == "dir_model" { return Director.statusLines(game).prefix(2).joined(separator: ". ") }   // P266 (n)
         if id == "w_delete" && !WorldStore.useTrash { return "Delete this world for good (there is no Trash on this device): Copy it first to keep a backup." }   // Q2c-console-5
         if id == "mode" { return "Survival: health, hunger, mining. Creative: fly and build freely. Asks before switching." }
-        if id == "new_diff" { return PauseMenu.difficultyHelp[max(0, min(3, newDifficulty))] }     // Q2c-console-17
+        if id == "new_diff" { return Difficulty.help[Difficulty.clamp(newDifficulty)] }     // Q2c-console-17 (P302: per level)
+        if id == "difficulty" || id == "q_firstdiff" { return Difficulty.help[Difficulty.clamp(game.diffLevel)] }   // P302 (c): the level in play
         return PauseMenu.help[id] ?? PauseMenu.hostHelp[id] ?? ""
     }
 
@@ -667,7 +661,7 @@ final class PauseMenu: Menu {
             editing = id == "edit_name" ? 0 : (id == "edit_seed" ? 1 : 2)
             if Prompt.pad || HudLayout.couch { g.openMenu(KeyboardMenu(game: g, target: self)) }
         case "new_mode": newSurvival.toggle()
-        case "new_diff": newDifficulty = step([0, 1, 2, 3], newDifficulty)
+        case "new_diff": newDifficulty = step([0, 1, 2, 3, 4, 5], newDifficulty)          // P302: six levels
         case "new_terrain": newSmooth.toggle(); st.smoothTerrain = newSmooth
         case "new_create":
             let name = WorldStore.unique(WorldStore.clean(newName))
@@ -737,7 +731,7 @@ final class PauseMenu: Menu {
             page = stack.popLast() ?? .main
             resetCursor = true
         // G19: a world's difficulty is chosen when it is made (Create New World) and locked afterwards.
-        case "difficulty": g.onToast?("Difficulty is chosen when a world is made and stays \(Game.difficultyNames[g.difficulty]) for this one")
+        case "difficulty": g.onToast?("Difficulty is chosen when a world is made and stays \(Difficulty.name(g.diffLevel)) for this one")
         case "fov": g.fovSetting = step([50, 60, 70, 80, 90, 100, 110], g.fovSetting)
         case "sens": g.sensitivity = step([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3], g.sensitivity)
         case "invert": g.invertY.toggle()

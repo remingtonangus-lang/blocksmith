@@ -125,7 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let m = meta { game.apply(m) } else {
             game.player.pos = game.spawnPoint
             if let sv = survival { game.survival = sv }
-            if let d = difficulty { game.difficulty = d }
+            if let d = difficulty { game.diffLevel = Difficulty.clamp(d) }     // P302: a level (0...5)
             game.smoothTerrain = smooth ?? Settings.shared.smoothTerrain     // (PG6: a new world is Polygons unless chosen)
             if game.smoothTerrain { game.world.makeFieldWorld() }             // (PG1 rewrite: its ground is a density field)
         }
@@ -298,13 +298,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "quit": self.saveQuit()
             case "worlds": self.showWorlds()
             case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)
-            case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty, smooth: true)   // (PG6: a new world is Polygons, even from a block world)
+            case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.diffLevel, smooth: true)   // (PG6: a new world is Polygons, even from a block world)
             case _ where id.hasPrefix("netjoin:"):
                 self.switchWorld(name: "", seed: nil, survival: nil, difficulty: nil, join: String(id.dropFirst(8)))
             case "netleave":
                 if let gu = self.game.netGuest { gu.detach(self.game); gu.clearMirrors(self.game); self.game.netGuest = nil }
                 self.switchWorld(name: UserDefaults.standard.string(forKey: "lastWorld") ?? "World", seed: nil, survival: nil, difficulty: nil)
-            case "workshop": self.switchWorld(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 1)
+            case "workshop": self.switchWorld(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 2)
             case _ where id.hasPrefix("create:"):
                 // create:<survival 0/1>:<difficulty>:<smooth terrain 0/1>:<name>:<seed text>
                 guard let r = WorldRequest.create(action: id) else { return }
@@ -369,7 +369,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                         button("Back to Game", #selector(resume)),
                                         rdButton,
                                         modeButton,
-                                        button("Difficulty: \(Game.difficultyNames[game.difficulty])", #selector(cycleDifficulty)),
+                                        button("Difficulty: \(Game.difficultyNames[game.diffLevel])", #selector(cycleDifficulty)),
                                         button("FOV: \(Int(game.fovSetting))", #selector(cycleFOV)),
                                         button("Mouse Sensitivity: \(Int(game.sensitivity * 100))%", #selector(cycleSens)),
                                         button("Volume: \(Int(game.volumeSetting * 100))%", #selector(cycleVolume)),
@@ -416,7 +416,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     @objc func cycleDifficulty(_ sender: NSButton) {
         // G19: chosen when the world is made, locked afterwards.
-        game.onToast?("Difficulty is chosen when a world is made and stays \(Game.difficultyNames[game.difficulty]) for this one")
+        game.onToast?("Difficulty is chosen when a world is made and stays \(Game.difficultyNames[game.diffLevel]) for this one")
     }
 
     // MARK: Worlds screen
@@ -452,13 +452,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         mode.identifier = NSUserInterfaceItemIdentifier("newMode")
         let diff = NSPopUpButton(frame: .zero, pullsDown: false)
         diff.addItems(withTitles: Game.difficultyNames)
-        diff.selectItem(at: 2)
+        diff.selectItem(at: 3)                        // (P302: Normal)
         diff.identifier = NSUserInterfaceItemIdentifier("newDifficulty")
+        // P302 (c): each level explained under the picker (and in each item's tooltip).
+        for (i, it) in diff.itemArray.enumerated() { it.toolTip = Difficulty.help[Difficulty.clamp(i)] }
+        let diffHelp = label(size: 13, mono: false)
+        diffHelp.stringValue = Difficulty.help[3]
+        diffHelp.preferredMaxLayoutWidth = 320
+        diffHelp.widthAnchor.constraint(equalToConstant: 320).isActive = true
+        diffHelp.identifier = NSUserInterfaceItemIdentifier("newDifficultyHelp")
+        diff.target = self
+        diff.action = #selector(difficultyPicked(_:))
         let create = NSButton(title: "Create New World", target: self, action: #selector(createWorld(_:)))
         create.bezelStyle = .rounded; create.controlSize = .large
         let back = NSButton(title: "Back", target: self, action: #selector(hideWorlds))
         back.bezelStyle = .rounded
-        views += [nameField, seedField, mode, diff, create, back]
+        views += [nameField, seedField, mode, diff, diffHelp, create, back]
         let stack = NSStackView(views: views)
         stack.orientation = .vertical
         stack.spacing = 10
@@ -469,6 +478,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         worldsPanel = panel
         overlay.isHidden = false
         setCapture(false)
+    }
+    @objc func difficultyPicked(_ sender: NSPopUpButton) {
+        guard let panel = worldsPanel else { return }
+        let views = panel.subviews.flatMap { ($0 as? NSStackView)?.views ?? [] }
+        let help = views.first { $0.identifier?.rawValue == "newDifficultyHelp" } as? NSTextField
+        help?.stringValue = Difficulty.help[Difficulty.clamp(sender.indexOfSelectedItem)]
     }
     @objc func hideWorlds() { worldsPanel?.removeFromSuperview(); worldsPanel = nil; overlay.isHidden = true }
     @objc func playWorld(_ sender: NSButton) {
@@ -482,7 +497,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let name = fieldName.isEmpty ? "World\(Rand.int(in: 100...999))" : fieldName.replacingOccurrences(of: "/", with: "-")
         let seed = AppDelegate.seedValue((find("newSeed") as NSTextField?)?.stringValue ?? "")
         let survival = (find("newMode") as NSPopUpButton?)?.indexOfSelectedItem != 1
-        let diff = (find("newDifficulty") as NSPopUpButton?)?.indexOfSelectedItem ?? 2
+        let diff = (find("newDifficulty") as NSPopUpButton?)?.indexOfSelectedItem ?? 3
         switchWorld(name: name, seed: seed, survival: survival, difficulty: diff)
     }
     // Seed text -> seed: numbers as they are, other text via a stable 64-bit FNV-1a hash, empty = random.
