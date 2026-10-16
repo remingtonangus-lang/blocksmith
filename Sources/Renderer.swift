@@ -1611,14 +1611,11 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let b = Partner.bar(game) { bars.insert(b, at: 0) }          // D52: downed, reviving
             for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
             if bars.isEmpty, let tb = game.targetBar() { bars.append(tb) }        // Q2c-console-52: the creature he is fighting
-            Goals.bars = bars.count + (game.deepWayUpHUD() != nil || VaultObjectives.hud(game) != nil ? 1 : 0) + (Waymarks.hud(game) != nil ? 2 : 0)
+            Goals.bars = bars.count + (game.deepWayUpHUD() != nil ? 1 : 0) + (Waymarks.hud(game) != nil ? 2 : 0)
             // The way up out of the Deep (DeepWayUp.swift), under the bars.
             if let up = game.deepWayUpHUD() {
                 let uy = L.insetY + 12 * s + Float(bars.count) * 19 * s
                 text(up, (W - textWidth(up, s)) / 2, uy, s, V4(1, 0.78, 0.5, 1))
-            } else if let vo = VaultObjectives.hud(game) {                  // Q2: the Vault's side objectives (D47)
-                let uy = L.insetY + 12 * s + Float(bars.count) * 19 * s
-                text(vo, (W - textWidth(vo, s)) / 2, uy, s, V4(0.95, 0.7, 0.45, 1))
             }
             for (i, b) in bars.enumerated() {
                 let bw = 182 * s, bx = (W - bw) / 2, by = L.insetY + 12 * s + Float(i) * 19 * s

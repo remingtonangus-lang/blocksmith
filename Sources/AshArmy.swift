@@ -91,7 +91,8 @@ extension Mob {
         case AshArmy.mortar:
             // Up close the crew fights; otherwise it stays at the tube and fires on what the army has spotted.
             // Nothing the tube can reach (closer than 24 or no fresh spot): the crew fights with its rifles.
-            guard !VaultObjectives.done("guns"), canTarget, !g.ashVictory, let spot = g.ashSpot, g.clock - g.ashSpotSeen < VaultObjectives.spotWindow else { return aggro ? nil : 0 }
+            guard !VaultObjectives.done("guns"), canTarget, !g.ashVictory, let spot = g.ashSpot, g.clock - g.ashSpotSeen < VaultObjectives.spotWindow,
+                  g.ashTubeNear(pos) else { return aggro ? nil : 0 }                // P318: a spiked tube doesn't fire
             let flat = simd_length(V2(spot.x - pos.x, spot.z - pos.z))
             guard flat > 24 && flat < 170, dist > 18 || !aggro else { return nil }
             moving = false; wanderGoal = nil; strafe = 0

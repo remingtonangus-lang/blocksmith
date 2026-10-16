@@ -28,9 +28,16 @@ extension BlockRegistry {
             // A mortar tube on its baseplate (the gap pass: the crews beside one lob shells, AshArmy.swift).
             var d = BlockDef("ash_mortar", "Ashguard Mortar")
             d.tex = ["ash_mortar", "ash_mortar", "ash_mortar_top", "ash_mortar", "ash_mortar", "ash_mortar"]
-            d.render = .model; d.opaque = false; d.boxes = [Box(2, 0, 2, 14, 2, 14), Box(6, 2, 6, 10, 15, 10)]
+            // P318: the breech handle at the tube's foot (use it to spike the tube: AshSabotage.swift).
+            d.render = .model; d.opaque = false; d.boxes = [Box(2, 0, 2, 14, 2, 14), Box(6, 2, 6, 10, 15, 10), Box(10, 3, 7, 14, 5, 9), Box(13, 2, 7, 15, 7, 9)]
             d.hardness = 3; d.tool = .pickaxe; d.sound = .metal
             add(d)
+            // A spiked tube: split and blackened, the handle gone.
+            var s = BlockDef("ash_mortar_spiked", "Spiked Mortar")
+            s.tex = ["ash_mortar_spiked", "ash_mortar_spiked", "ash_mortar_top", "ash_mortar_spiked", "ash_mortar_spiked", "ash_mortar_spiked"]
+            s.render = .model; s.opaque = false; s.boxes = [Box(2, 0, 2, 14, 2, 14), Box(6, 2, 6, 10, 9, 10), Box(5, 9, 6, 7, 12, 10), Box(9, 9, 6, 11, 11, 10)]
+            s.hardness = 3; s.tool = .pickaxe; s.sound = .metal
+            add(s)
         }
         // The last war (AshLines.swift, AshFinal.swift): banners, the citadel's standard, the lines' wire, the
         // Chancellor's Bunker (its concrete and blast door break for nothing; the door opens when the last battle is won).
@@ -65,7 +72,8 @@ extension BlockRegistry {
         if !has("ash_drum") {
             var d = BlockDef("ash_drum", "Fuel Drum")
             d.tex = ["ash_drum_side", "ash_drum_side", "ash_drum_top", "ash_drum_top", "ash_drum_side", "ash_drum_side"]
-            d.render = .model; d.opaque = false; d.boxes = [Box(2, 0, 2, 14, 15, 14)]
+            // P318: a brass bung on top (put a flame to it: AshSabotage.swift).
+            d.render = .model; d.opaque = false; d.boxes = [Box(2, 0, 2, 14, 15, 14), Box(9, 15, 4, 12, 16, 7)]
             d.hardness = 2; d.tool = .pickaxe; d.sound = .stone
             add(d)
         }
@@ -126,6 +134,10 @@ extension TextureGen {
         p["ash_mortar"] = { x, y in
             if y == 3 || y == 12 { return hex(0x9E1616) }
             return hex(0x2A2A2E, 0.9 + 0.12 * Float(abs(x - 8)) / 8 + 0.04 * r(x, y, 3312))
+        }
+        p["ash_mortar_spiked"] = { x, y in
+            if y == 3 { return hex(0x5A1414) }
+            return hex(0x18181A, 0.8 + 0.25 * r(x, y, 3314) + 0.06 * Float(abs(x - 8)) / 8)
         }
         p["ash_mortar_top"] = { x, y in
             let d = max(abs(Float(x) - 7.5), abs(Float(y) - 7.5))
@@ -192,7 +204,7 @@ extension TextureGen {
             return TextureGen.clear
         }
         p["ash_drum_top"] = { x, y in
-            if (x - 10) * (x - 10) + (y - 5) * (y - 5) < 3 { return hex(0x48484E) }
+            if (x - 10) * (x - 10) + (y - 5) * (y - 5) < 4 { return hex(0xB8903C, 0.9 + 0.15 * r(x, y, 3311)) }   // P318: the brass bung
             return hex(0x1C1C1E, 0.95 + 0.05 * r(x, y, 3310))
         }
     }

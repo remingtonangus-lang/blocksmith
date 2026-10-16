@@ -148,6 +148,7 @@ extension Game {
         let s = lastWar.clock
         lastWar.clock = 0
         if ashVictory { ashStage = 3 }
+        ashHatchTick()                                    // P318: the hatch console (AshSabotage.swift)
         switch ashStage {
         case 1: lastBattleSecond(s)
         case 2: bunkerSecond(s)
@@ -251,7 +252,7 @@ extension Game {
             ashWave = 0
             achieve("ash_last_battle")
             sfx(.gun(14), 1.4, at: player.pos)
-            onToast?("The Ashguard's last army is broken. Below the command bunker, the blast door grinds open")
+            onToast?("The Ashguard's last army is broken")            // P318: the hatch console's lamp lights (AshSabotage.swift)
             bunkerSecond(0)
         } else {
             lw.breather = AshFinal.breather
@@ -327,11 +328,6 @@ extension Game {
     // The bunker open: the hatch stays open, and the Chancellor waits in his study for the player to come down.
     private func bunkerSecond(_ s: Float) {
         let lw = lastWar
-        if world.isLoaded(AshFinal.hatchX.lowerBound, AshFinal.hatchZ.lowerBound) && world.isLoaded(AshFinal.hatchX.upperBound, AshFinal.hatchZ.upperBound) {
-            for z in AshFinal.hatchZ { for x in AshFinal.hatchX where world.block(x, AshFinal.hatchY, z) == AshFinal.door {
-                world.setBlock(x, AshFinal.hatchY, z, AIR)
-            } }
-        }
         guard AshFinal.inside(player.pos) else { lw.inBunker = 0; return }
         lw.inBunker += s
         guard lw.inBunker >= 3, !ashVictory, !mobs.mobs.contains(where: { $0.kind == .ashChancellor && $0.health > 0 }) else { return }

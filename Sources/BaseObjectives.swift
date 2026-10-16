@@ -34,11 +34,7 @@ extension Game {
         let pp = player.pos
         for (key, site) in st.sites where !st.taken.contains(key) {
             let inside = Greywall.inside(site, pp)
-            if inside && !BaseObjectives.told.contains(key) {
-                BaseObjectives.told.insert(key)
-                let l = BaseObjectives.left(key)
-                if !l.isEmpty { onToast?("\(site.tier.name) objectives: " + l.joined(separator: ", ")) }
-            }
+            if inside && !BaseObjectives.told.contains(key) { BaseObjectives.told.insert(key) }      // P318: no objective list
             // The scout, placed once (persistent: saved with the ground after that).
             if BaseObjectives.bits(key) & 12 == 0, simd_length(V2(pp.x - Float(site.cx), pp.z - Float(site.cz))) < 96,
                world.isLoaded(site.cx, site.cz + site.tier.keepC) {
@@ -59,7 +55,6 @@ extension Game {
                 BaseObjectives.set(key, 1); BaseObjectives.done += 1
                 for (k, n) in [("intercepted_orders", 1), ("diamond", 2)] where Items.has(k) { drops.spawn(ItemStack(Items.id(k), n), at: pp + V3(0, 0.5, 0)) }
                 sfx(.levelUp, 0.6)
-                onToast?("Comms array down: the orders on the comms desk are yours")
             }
             // The plans.
             if bits & 2 == 0 {
@@ -71,7 +66,6 @@ extension Game {
                     if Items.has("greywall_dispatch") { let r = inventory.add(ItemStack(Items.id("greywall_dispatch"), 1)); if !r.isEmpty { dropItem(r) } }
                     money += 4000
                     sfx(.pageTurn, 0.8)
-                    onToast?("You've taken the base's plans and its war chest (+\(Money.format(4000))). Read the dispatch for the next base")
                 }
             }
             // The prisoner.

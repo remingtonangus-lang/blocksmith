@@ -8,7 +8,8 @@ import simd
 //                  burn the fuel       break 10 fuel drums: the Ashguard's tanks, half-tracks and trucks crawl (60%)
 //                  cut the signals     break 12 red signal lamps: the army's sightings go stale in 3 s, not 8, so
 //                                      its guns lose you sooner
-//                progress shows in toasts and the journal; kept with the world (TownLaw.state.vaultObj).
+//                kept with the world (TownLaw.state.vaultObj). P318: no text: no tally pop-ups or HUD line; the
+//                mortars are spiked and the drums lit by hand too (AshSabotage.swift).
 //   bullion      one day in three a line's train runs as a bullion train: an armoured locomotive, a guard car with
 //                a gun turret and the bullion car. It won't stop at gunpoint; block the line to halt it, silence the
 //                guard car (heavy rounds, explosives) and crack the bullion car for three times the takings. A big
@@ -43,20 +44,7 @@ enum VaultObjectives {
         var m = TownLaw.state.vaultObj ?? [:]
         m[o.key] = n + 1
         TownLaw.state.vaultObj = m
-        if n + 1 >= o.need {
-            g.sfx(.levelUp, 0.8)
-            g.onToast?(o.done)
-            g.logMessage("The Vault: " + o.done + ".")
-        } else if n == 0 || (n + 1) % 3 == 0 {
-            g.onToast?("\(o.name): \(n + 1) of \(o.need)")
-        }
-    }
-
-    // Q2: the three objectives' tally on the HUD while you're in the Vault and the war isn't won.
-    static func hud(_ g: Game) -> String? {
-        guard g.dim.dim == .deep, DeepGen.inVault(g.player.pos.y), !g.ashVictory, g.survival else { return nil }
-        guard !all.allSatisfy({ done($0.key) }) else { return nil }
-        return all.map { o in done(o.key) ? "\(o.name): done" : "\(o.name) \(count(o.key))/\(o.need)" }.joined(separator: "   ")
+        if n + 1 >= o.need { g.sfx(.levelUp, 0.8) }
     }
 
     // MARK: The bullion train
