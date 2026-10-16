@@ -1,0 +1,302 @@
+focused check: Blocksmith --collapsecheck --out snaps || true; build/Blocksmith.app/Contents/MacOS/Blocksmith --interiorcheck || true; build/Blocksmith.app/Contents/MacOS/Blocksmith --ridecheck --out snaps
+PASS ride bridge: the scene stands before the blast (0 unsupported)
+ride bridge: blasts 2 ms; 1 collapses, 0 hull splits, up to 3 debris bodies, 72 blocks laid back; tick mean 0.24 p95 0.95 worst 4.2 ms over 544 ticks; last analysis 0.1 ms
+ride bridge: slowest laying-down 0.2 ms, slowest hull split 0.0 ms
+ride bridge: collapses: falling 18 (y 138-139), 34 (y 142-144), 18 (y 134-135); tipping none
+PASS ride bridge: no particle draws the missing texture (0 seen; 0 bits of air skipped)
+PASS ride bridge: the part that lost its support falls (0 of 15 watched blocks left)
+PASS ride bridge: it falls as a moving body (3 at once)
+PASS ride bridge: debris bodies stay under the cap (3 of 32)
+PASS ride bridge: every piece is laid back into the world once it rests
+PASS ride bridge: no floating leftovers (0 unsupported blocks)
+PASS ride bridge: nothing ends up inside the player (0 ticks)
+PASS ride bridge: tick time within budget during the collapse (p95 0.95 ms under 16, worst 4.2 under 120)
+ride bridge: scene took 1 s
+PASS ride mine: the scene stands before the blast (0 unsupported)
+ride mine: blasts 60 ms; 1 collapses, 0 hull splits, up to 1 debris bodies, 25 blocks laid back; tick mean 0.21 p95 0.79 worst 4.5 ms over 281 ticks; last analysis 0.0 ms
+ride mine: slowest laying-down 0.1 ms, slowest hull split 0.0 ms
+ride mine: collapses: falling 25 (y 143-144); tipping none
+PASS ride mine: no particle draws the missing texture (0 seen; 0 bits of air skipped)
+PASS ride mine: the part that lost its support falls (0 of 15 watched blocks left)
+PASS ride mine: it falls as a moving body (1 at once)
+PASS ride mine: debris bodies stay under the cap (1 of 32)
+PASS ride mine: every piece is laid back into the world once it rests
+PASS ride mine: no floating leftovers (0 unsupported blocks)
+PASS ride mine: nothing ends up inside the player (0 ticks)
+PASS ride mine: tick time within budget during the collapse (p95 0.79 ms under 16, worst 4.5 under 120)
+ride mine: scene took 1 s
+PASS ride tower: the scene stands before the blast (0 unsupported)
+ride tower: blasts 4 ms; 1 collapses, 0 hull splits, up to 2 debris bodies, 422 blocks laid back; tick mean 0.17 p95 0.49 worst 4.0 ms over 2400 ticks; last analysis 0.3 ms
+ride tower: slowest laying-down 1.2 ms, slowest hull split 0.0 ms
+ride tower: collapses: falling 78 (y 135-160); tipping 372 (y 134-160) | settle: falling 2 (y 144-145); tipping none
+PASS ride tower: no particle draws the missing texture (0 seen; 0 bits of air skipped)
+PASS ride tower: the part that lost its support falls (0 of 16 watched blocks left)
+PASS ride tower: it falls as a moving body (2 at once)
+PASS ride tower: debris bodies stay under the cap (2 of 32)
+FAIL ride tower: every piece is laid back into the world once it rests
+PASS ride tower: no floating leftovers (0 unsupported blocks)
+PASS ride tower: nothing ends up inside the player (0 ticks)
+PASS ride tower: tick time within budget during the collapse (p95 0.49 ms under 16, worst 4.0 under 120)
+ride tower: scene took 1 s
+PASS ride stands: the scene stands before the blast (0 unsupported)
+ride stands: blasts 1 ms; 0 collapses, 0 hull splits, up to 0 debris bodies, 0 blocks laid back; tick mean 0.17 p95 0.88 worst 3.8 ms over 122 ticks; last analysis 1.4 ms
+ride stands: slowest laying-down 0.0 ms, slowest hull split 0.0 ms
+PASS ride stands: no particle draws the missing texture (0 seen; 0 bits of air skipped)
+PASS ride stands: the tower stands (250 of 250 floor blocks left)
+PASS ride stands: nothing falls (0 debris bodies)
+PASS ride stands: debris bodies stay under the cap (0 of 32)
+PASS ride stands: every piece is laid back into the world once it rests
+PASS ride stands: no floating leftovers (0 unsupported blocks)
+PASS ride stands: nothing ends up inside the player (0 ticks)
+PASS ride stands: tick time within budget during the collapse (p95 0.88 ms under 16, worst 3.8 under 120)
+ride stands: scene took 1 s
+PASS ride massive: the scene stands before the blast (0 unsupported)
+ride massive: blasts 1 ms; 0 collapses, 0 hull splits, up to 0 debris bodies, 0 blocks laid back; tick mean 0.20 p95 1.04 worst 4.8 ms over 122 ticks; last analysis 4.5 ms
+ride massive: slowest laying-down 0.0 ms, slowest hull split 0.0 ms
+PASS ride massive: no particle draws the missing texture (0 seen; 0 bits of air skipped)
+PASS ride massive: a crater in a solid block brings nothing down (0 debris bodies)
+PASS ride massive: a search that hits its cap stays within budget (4.5 ms under 15)
+PASS ride massive: debris bodies stay under the cap (0 of 32)
+PASS ride massive: every piece is laid back into the world once it rests
+PASS ride massive: no floating leftovers (0 unsupported blocks)
+PASS ride massive: nothing ends up inside the player (0 ticks)
+PASS ride massive: tick time within budget during the collapse (p95 1.04 ms under 16, worst 4.8 under 120)
+ride massive: scene took 1 s
+PASS ride desert: the scene stands before the blast (0 unsupported)
+ride desert: slow tick at 0.0 s: 51.2 ms (no destruction work; world update 0.0 with 0 sections sent to mesh; the rest 51.2): 0 ships, 0 debris, 0 wreck jobs
+ride desert: slow tick at 0.8 s: 32.2 ms (no destruction work; world update 0.0 with 0 sections sent to mesh; the rest 32.2): 0 ships, 0 debris, 0 wreck jobs
+ride desert: blasts 5 ms; 0 collapses, 0 hull splits, up to 0 debris bodies, 0 blocks laid back; tick mean 2.37 p95 14.92 worst 51.2 ms over 122 ticks; last analysis 0.1 ms
+ride desert: slowest laying-down 0.0 ms, slowest hull split 0.0 ms
+PASS ride desert: no particle draws the missing texture (0 seen; 0 bits of air skipped)
+PASS ride desert: terrain blasts bring nothing down (0 debris bodies)
+PASS ride desert: the support search round the craters stays small (0.1 ms)
+PASS ride desert: debris bodies stay under the cap (0 of 32)
+PASS ride desert: every piece is laid back into the world once it rests
+PASS ride desert: no floating leftovers (0 unsupported blocks)
+PASS ride desert: nothing ends up inside the player (0 ticks)
+ride desert: (streaming, not judged) tick time within budget during the collapse (p95 14.92 ms under 16, worst 51.2 under 120)
+ride desert: scene took 1 s
+ride relic: as built: 533 blocks the analysis can't hold up (4598,75,1793 (stone_bricks); 3 pieces in 4573,75,1791 to 4601,81,1824: stone_bricks 533)
+PASS ride relic: the scene has an overhang and a hulk the analysis can't hold up as built (533 blocks)
+PASS ride relic: mining the tip of an old overhang brings nothing else down (38 of 38 arm blocks stand)
+PASS ride relic: nor mining into its middle (37 of 37)
+PASS ride relic: mining a floating hulk brings nothing else down (47 of 47)
+PASS ride relic: the as-built rule held them (87 blocks kept)
+PASS ride relic: mining into an old hall roof brings nothing else down (573 of 573)
+PASS ride relic: and costs a frame's budget at most (1.8 ms, under 10)
+ride relic: pillar foot: 9 of 9 mined (first at 4586,131,1792); 1 collapses, 115 blocks laid back, 0 more kept as built; arm blocks a layer down 6
+PASS ride relic: cut from its pillar, the old overhang falls with it (0 of 39 arm blocks left up there)
+PASS ride relic: every piece is laid back into the world once it rests
+PASS ride relic: no new floating leftovers (0 unsupported blocks)
+PASS ride relic: the hulk still floats as built (47 of 47)
+ride relic: scene took 1 s
+ride frigate: blasts 1480 ms; 0 collapses, 1 hull splits, up to 0 debris bodies, 14889 blocks laid back; tick mean 0.42 p95 1.70 worst 17.9 ms over 1149 ticks; last analysis 0.0 ms
+ride frigate: slowest laying-down 17.3 ms, slowest hull split 2.8 ms
+PASS ride frigate: no particle draws the missing texture (0 seen; 0 bits of air skipped)
+ride frigate: after: 0 still flying (), wrecks capfrigate, capfrigate
+PASS ride frigate: the cut hull breaks in two (1 splits)
+PASS ride frigate: the severed half falls (45 blocks)
+PASS ride frigate: both halves come down and stay as wrecks (2 wrecks, 0 still flying)
+PASS ride frigate: debris bodies stay under the cap (0 of 32)
+PASS ride frigate: every piece is laid back into the world once it rests
+PASS ride frigate: no floating leftovers (0 unsupported blocks)
+PASS ride frigate: nothing ends up inside the player (0 ticks)
+PASS ride frigate: tick time within budget during the collapse (p95 1.70 ms under 16, worst 17.9 under 120)
+ride frigate: scene took 3 s
+PASS ride wreck: the disabled crawler becomes a wreck in the world (after 12 s)
+PASS ride wreck: its hull is world blocks now (9860 plates)
+PASS ride wreck: salvage to be had: 8 containers, 8 with loot
+PASS ride wreck: sheltered floor inside it for mobs to move into (1915 cells)
+ride wreck: overgrowth: 63 steps; rusted plates 0 -> 76, moss and vines 168 -> 560
+PASS ride wreck: three weeks of overgrowth catch up while the player is near (63 steps)
+PASS ride wreck: it has rusted and overgrown (76 rusted plates, 560 moss and vines)
+PASS ride wreck: wreck records survive a save round trip
+ride wreck: scene took 2 s
+ride dropship: fell 26 blocks, a wreck after 4.9 s; 1 wrecks
+PASS ride dropship: the shot-down dropship falls (26 blocks)
+PASS ride dropship: it stays where it fell as a wreck (1 wrecks)
+PASS ride dropship: its hull is world blocks now (264 blocks)
+ride dropship: scene took 1 s
+collapsecheck: 1 FAILED (10 scenes in 13 s)
+interior warfrigate: 249213 blocks built in 219 ms, 144 rooms, 124 chests, 93309 walkable cells from the hangar
+PASS warfrigate: the hangar floor is standable at the boarding point
+PASS warfrigate: decks of rooms (144)
+PASS warfrigate: every room reachable from the hangar (144 of 144)
+PASS warfrigate: every chest reachable (124 of 124)
+PASS warfrigate: the bridge helm reachable (-12,28,226)
+PASS warfrigate: no bare halls (widest open square 4 across)
+PASS warfrigate: no crew post inside a block (0)
+PASS warfrigate: the hull is one piece as built (1 pieces, 0 blocks loose)
+PASS crawler: the hull is one piece as built (1 pieces, 0 blocks loose)
+PASS dropship: the hull is one piece as built (1 pieces, 0 blocks loose)
+NOTE capfrigate: the hull is one piece as built (8 pieces, 1903 blocks loose): 475 at -8,8,132 (ship_engine); 475 at 4,8,132 (ship_engine); 475 at -8,18,132 (ship_engine); 475 at 4,18,132 (ship_engine); 1 at -4,23,122 (light_panel) (another session's hull: reported)
+interiorcheck: PASS
+ride crawler: t   0 s: ship at 4588,147,1793 yaw 0.40 speed 0.0; bot ship-space 12.50,22.01,46.50 standing
+ride crawler: t  30 s: ship at 4685,145,1819 yaw -1.42 speed 5.9; bot ship-space 22.39,22.14,51.82
+ride crawler: t  60 s: ship at 4693,145,1864 yaw 0.87 speed 5.9; bot ship-space 12.62,22.14,43.12
+ride crawler: t  90 s: ship at 4640,157,1957 yaw 2.25 speed 6.0; bot ship-space 22.33,22.14,41.71
+ride crawler: t 120 s: ship at 4531,164,1983 yaw -2.28 speed 5.9; bot ship-space 15.29,22.14,60.38
+ride crawler: t 150 s: ship at 4438,184,2011 yaw 2.20 speed 6.1; bot ship-space 22.16,22.00,37.23 standing
+ride crawler: t 180 s: ship at 4374,186,1994 yaw -1.19 speed 5.9; bot ship-space 12.60,22.00,44.06 standing
+ride crawler: t 210 s: ship at 4294,162,1940 yaw 0.61 speed 5.9; bot ship-space 22.47,22.00,57.90 standing
+ride crawler: agent oracles: none
+PASS ride crawler: the general bot oracle sees no inside-solid either (0)
+ride crawler: drove 1335 blocks, turned 2394 degrees; bot walked 11 laps (44 legs)
+PASS ride crawler: the vehicle drives and turns (1335 blocks, 41.8 rad)
+PASS ride crawler: the bot never leaves the deck (0 ticks off, 0 below)
+PASS ride crawler: the bot is never inside a solid (0 ticks)
+PASS ride crawler: standing still, the bot drifts 0.0088 blocks over the deck (limit 0.05)
+PASS ride crawler: no deck-relative velocity spikes (0 over 3 b/s in a tick, worst 1.61)
+PASS ride crawler: never shoved across the deck (fastest 5.64 b/s relative; sprint is 5.6)
+PASS ride crawler: no bouncing on the flat deck (0 ticks, worst 0.02 b/s)
+PASS ride crawler: world velocity never jumps (worst change 1.74 b/s in a tick, limit 6)
+PASS ride crawler: the bot walks laps (11, at least 4)
+ride crawler: scene took 3 s
+ride rough: t   0 s: ship at 4540,186,2072 yaw 0.40 speed 0.1; bot ship-space 12.50,22.01,46.50 standing
+ride rough: t  30 s: ship at 4637,181,2099 yaw -1.43 speed 5.9; bot ship-space 22.39,22.14,51.81
+ride rough: t  60 s: ship at 4730,163,2038 yaw 3.10 speed 6.0; bot ship-space 12.62,22.14,43.11
+ride rough: t  90 s: ship at 4810,145,1991 yaw -1.09 speed 2.9; bot ship-space 22.33,22.14,41.91
+ride rough: t 120 s: ship at 4755,148,1973 yaw -2.75 speed 5.9; bot ship-space 15.21,22.14,60.41
+ride rough: t 150 s: ship at 4660,154,1957 yaw 1.74 speed 6.0; bot ship-space 22.23,22.00,37.16 standing
+ride rough: t 180 s: ship at 4568,175,2019 yaw -0.02 speed 6.0; bot ship-space 12.60,22.00,44.32 standing
+ride rough: t 210 s: ship at 4491,190,2067 yaw 2.44 speed 1.9; bot ship-space 22.48,22.00,57.53 standing
+ride rough: agent oracles: none
+PASS ride rough: the general bot oracle sees no inside-solid either (0)
+ride rough: drove 1309 blocks, turned 2352 degrees; bot walked 11 laps (44 legs)
+PASS ride rough: the vehicle drives and turns (1309 blocks, 41.1 rad)
+PASS ride rough: the bot never leaves the deck (0 ticks off, 0 below)
+PASS ride rough: the bot is never inside a solid (0 ticks)
+PASS ride rough: standing still, the bot drifts 0.0093 blocks over the deck (limit 0.05)
+PASS ride rough: no deck-relative velocity spikes (0 over 3 b/s in a tick, worst 1.61)
+PASS ride rough: never shoved across the deck (fastest 5.64 b/s relative; sprint is 5.6)
+PASS ride rough: no bouncing on the flat deck (0 ticks, worst 0.02 b/s)
+PASS ride rough: world velocity never jumps (worst change 1.87 b/s in a tick, limit 6)
+PASS ride rough: the bot walks laps (11, at least 4)
+ride rough: scene took 2 s
+ride frigate: t   0 s: ship at 4623,189,1843 yaw 0.40 speed 0.1; bot ship-space 13.50,9.01,110.50 standing
+ride frigate: t  30 s: ship at 4766,187,1801 yaw 2.94 speed 10.3; bot ship-space 8.54,9.14,81.55
+ride frigate: t  60 s: ship at 4912,187,1854 yaw 0.24 speed 10.1; bot ship-space 8.36,9.14,85.27
+ride frigate: t  90 s: ship at 5055,186,1795 yaw 2.94 speed 9.8; bot ship-space 8.57,9.14,82.93
+ride frigate: t 120 s: ship at 5201,186,1848 yaw 0.24 speed 9.8; bot ship-space 8.57,9.14,86.34
+ride frigate: t 150 s: ship at 5345,187,1789 yaw 2.94 speed 9.8; bot ship-space 8.52,9.00,75.52 standing
+ride frigate: t 180 s: ship at 5491,186,1842 yaw 0.24 speed 9.8; bot ship-space 18.27,9.00,75.03 standing
+ride frigate: t 210 s: ship at 5635,181,1783 yaw 2.94 speed 9.8; bot ship-space 18.25,9.00,84.32 standing
+ride frigate: agent oracles: none
+PASS ride frigate: the general bot oracle sees no inside-solid either (0)
+ride frigate: drove 2338 blocks, turned 1689 degrees; bot walked 7 laps (31 legs)
+PASS ride frigate: the vehicle drives and turns (2338 blocks, 29.5 rad)
+PASS ride frigate: the bot never leaves the deck (0 ticks off, 0 below)
+PASS ride frigate: the bot is never inside a solid (0 ticks)
+PASS ride frigate: standing still, the bot drifts 0.0141 blocks over the deck (limit 0.05)
+PASS ride frigate: no deck-relative velocity spikes (0 over 3 b/s in a tick, worst 1.60)
+PASS ride frigate: never shoved across the deck (fastest 5.64 b/s relative; sprint is 5.6)
+PASS ride frigate: no bouncing on the flat deck (0 ticks, worst 0.00 b/s)
+PASS ride frigate: world velocity never jumps (worst change 1.62 b/s in a tick, limit 6)
+PASS ride frigate: the bot walks laps (7, at least 4)
+ride frigate: scene took 1 s
+ride warfrigate: t   0 s: ship at 4623,211,1843 yaw 0.40 speed 0.1; bot ship-space 56.50,27.01,190.50 standing
+ride warfrigate: t  30 s: ship at 4741,204,1635 yaw -1.61 speed 9.9; bot ship-space 59.35,27.14,190.91
+ride warfrigate: t  60 s: ship at 4927,200,1464 yaw 0.31 speed 9.9; bot ship-space 53.73,27.14,201.48
+ride warfrigate: agent oracles: none
+PASS ride warfrigate: the general bot oracle sees no inside-solid either (0)
+ride warfrigate: drove 879 blocks, turned 342 degrees; bot walked 3 laps (12 legs)
+PASS ride warfrigate: the vehicle drives and turns (879 blocks, 6.0 rad)
+PASS ride warfrigate: the bot never leaves the deck (0 ticks off, 0 below)
+PASS ride warfrigate: the bot is never inside a solid (0 ticks)
+PASS ride warfrigate: standing still, the bot drifts 0.0035 blocks over the deck (limit 0.05)
+PASS ride warfrigate: no deck-relative velocity spikes (0 over 3 b/s in a tick, worst 1.60)
+PASS ride warfrigate: never shoved across the deck (fastest 5.64 b/s relative; sprint is 5.6)
+PASS ride warfrigate: no bouncing on the flat deck (0 ticks, worst 0.00 b/s)
+PASS ride warfrigate: world velocity never jumps (worst change 1.60 b/s in a tick, limit 6)
+PASS ride warfrigate: the bot walks laps (3, at least 1)
+ride warfrigate: scene took 2 s
+ride board: crawler at 4586.9,146.9,1792.1, wheels' bottom 130.1, ground under it 130 (world top 130, generator 130), up 0.03,1.00,-0.01; ground at the ladder foot 135
+ride board: t   0 s: phase 0 step 0, bot ship-space 3.12,4.78,29.52, aboard no, ramp down, ship speed 1.10
+ride board: reached: reach the port ladder
+ride board: reached: climb it to the roof walkway
+ride board: reached: walk through the hatch into the command deck
+ride board: reached: walk back out and down the ladder to the ground
+ride board: t  20 s: phase 4 step 1, bot ship-space -1.65,-0.43,61.28, aboard no, ramp down, ship speed 0.80
+ride board: t  40 s: phase 4 step 6, bot ship-space 21.85,10.00,71.30, aboard yes, ramp down, ship speed 0.80
+ride board: reached: walk round to the rear ramp and up it into the troop bay
+ride board: reached: walk down the ramp to the ground
+ride board: reached: reach the port ladder at 1 s; climb it to the roof walkway at 1 s; walk through the hatch into the command deck at 3 s; walk back out and down the ladder to the ground at 5 s; walk round to the rear ramp and up it into the troop bay at 34 s; walk down the ramp to the ground at 8 s
+PASS ride board: the bot can reach the port ladder while the crawler moves
+PASS ride board: the bot can climb it to the roof walkway while the crawler moves
+PASS ride board: the bot can walk through the hatch into the command deck while the crawler moves
+PASS ride board: the bot can walk back out and down the ladder to the ground while the crawler moves
+PASS ride board: the bot can walk round to the rear ramp and up it into the troop bay while the crawler moves
+PASS ride board: the bot can walk down the ramp to the ground while the crawler moves
+PASS ride board: never inside a solid while aboard (0 ticks)
+PASS ride board: boarding and leaving keep the bot's world velocity (12 changes, worst jump 0.23 b/s)
+PASS ride board: no deck-relative velocity spikes aboard (0, worst 1.87)
+ride board: scene took 2 s
+ride frigateboard: t   0 s: phase 0, bot ship-space 13.51,31.96,111.99, aboard no, flying yes
+ride frigateboard: reached: fly down onto the spine deck behind the bridge
+ride frigateboard: reached: walk the starboard edge of the spine forward to the bridge, round the gun mount and back aft
+ride frigateboard: t  20 s: phase 2, bot ship-space 12.28,25.00,111.91, aboard yes, flying no
+ride frigateboard: reached: do the same on the port side
+ride frigateboard: t  40 s: phase 3, bot ship-space -1.26,38.36,114.59, aboard yes, flying yes
+ride frigateboard: reached: take off and fly clear
+ride frigateboard: reached: fly down onto the spine deck behind the bridge at 1 s; walk the starboard edge of the spine forward to the bridge, round the gun mount and back aft at 19 s; do the same on the port side at 18 s; take off and fly clear at 2 s
+PASS ride frigateboard: the bot can fly down onto the spine deck behind the bridge while the frigate cruises and turns
+PASS ride frigateboard: the bot can walk the starboard edge of the spine forward to the bridge, round the gun mount and back aft while the frigate cruises and turns
+PASS ride frigateboard: the bot can do the same on the port side while the frigate cruises and turns
+PASS ride frigateboard: the bot can take off and fly clear while the frigate cruises and turns
+PASS ride frigateboard: aboard all the way round (0 ticks off)
+PASS ride frigateboard: never inside a solid (0 ticks)
+PASS ride frigateboard: landing and taking off keep the bot's world velocity (2 changes, worst jump 1.14 b/s)
+PASS ride frigateboard: no velocity spikes or bouncing aboard (0, 0; worst 1.68)
+ride frigateboard: scene took 1 s
+ride crew: crew 15 of 15 aboard; ship at 4530,165,1982 speed 5.9
+PASS ride crew: every crew post is manned (15/15)
+PASS ride crew: the crew ride the moving vehicle (0 crew-ticks off it)
+PASS ride crew: every soldier holds its post while it drives and turns (worst 0.30 blocks: soldier_trooper at post 13)
+PASS ride crew: no crew member inside a solid (0 crew-ticks)
+ride crew: disabled at 5.9 b/s (wheels destroyed): came to rest after 7.3 s; worst deceleration 1.46 b/s2, fastest drop 0.40 b/s; impact 0.0 b/s; 15 crew alive
+PASS ride crew: the disabled vehicle comes to rest (wheels destroyed)
+PASS ride crew: it stays in the world (no despawn: still a vessel, or laid down as a wreck, 1)
+PASS ride crew: it grinds to a stop, not at once (7.3 s from 5.9 b/s)
+PASS ride crew: no sudden stop (worst deceleration 1.46 b/s2)
+PASS ride crew: the crew fight enemy soldiers from aboard (52 shots)
+PASS ride crew: the crew stay aboard the disabled vehicle (0 crew-ticks off)
+PASS ride crew: the crew survive it (15 of 15 alive when it came to rest, 15 at the end)
+PASS ride crew: the crew are released to fight
+ride crew: scene took 3 s
+ride troops: before the foes: ramp up, AI wants 3.0 b/s, speed 3.0, driver alive yes
+ride troops: t 5 s: ramp down, AI wants 0.0 b/s, speed 0.0, target yes, 2 troops walking out 25.0,10.0,62.4 (5 left); 8.1,10.0,42.0 (5 left)
+ride troops: t 10 s: ramp down, AI wants 0.0 b/s, speed 0.0, target yes, 2 troops walking out 18.1,10.0,72.4 (4 left); 8.0,10.0,52.0 (5 left)
+ride troops: t 15 s: ramp down, AI wants 0.0 b/s, speed 0.0, target yes, 1 troops walking out 8.0,10.0,62.0 (5 left)
+ride troops: t 20 s: ramp down, AI wants 0.0 b/s, speed 0.5, target yes, 1 troops walking out 8.7,10.0,71.4 (4 left)
+ride troops: t 25 s: ramp down, AI wants 0.0 b/s, speed 0.0, target yes, 1 troops walking out 17.5,10.0,73.7 (3 left)
+ride troops: t 30 s: ramp down, AI wants 0.0 b/s, speed 0.0, target yes, 2 troops walking out 25.0,10.0,38.5 (5 left); 8.0,10.0,49.7 (5 left)
+ride troops: ramp up before the foes came; 2 troops walked out in 30 s; troops left 4
+PASS ride troops: the ramp is up while it drives and comes down for the troops
+PASS ride troops: bay troops walk out by the ramp onto the ground (2)
+PASS ride troops: no troop is teleported (0 jumps over a block in a tick)
+ride troops: overlaps with the hull: deepest 0.00, longest 0 ticks running; 0 brief grazes (under 0.2 deep, under 3 ticks) not counted
+PASS ride troops: no troop inside a solid on the way out (0 troop-ticks)
+ride troops: scene took 2 s
+ride frigatecrew: crew 11 of 11 aboard; ship at 5096,178,1391 speed 9.8
+PASS ride frigatecrew: every crew post is manned (11/11)
+PASS ride frigatecrew: the crew ride the moving vehicle (0 crew-ticks off it)
+PASS ride frigatecrew: every soldier holds its post while it drives and turns (worst 0.03 blocks: soldier_recruit at post 6)
+PASS ride frigatecrew: no crew member inside a solid (0 crew-ticks)
+ride frigatecrew: disabled at 9.6 b/s (engines destroyed): came to rest after 8.0 s; worst deceleration 382.90 b/s2, fastest drop 6.50 b/s; impact 3.7 b/s; 11 crew alive
+PASS ride frigatecrew: the disabled vehicle comes to rest (engines destroyed)
+PASS ride frigatecrew: it stays in the world (no despawn: still a vessel, or laid down as a wreck, 1)
+PASS ride frigatecrew: it comes down over time, not at once (8.0 s)
+PASS ride frigatecrew: it never drops faster than 8 b/s (6.50)
+PASS ride frigatecrew: the crew flare it: touchdown at 3.7 b/s (under 5)
+PASS ride frigatecrew: the crew stay aboard the disabled vehicle (0 crew-ticks off)
+PASS ride frigatecrew: the crew survive it (11 of 11 alive when it came to rest, 11 at the end)
+PASS ride frigatecrew: the crew are released to fight
+ride frigatecrew: scene took 1 s
+ride frigatecrash: came down 48 blocks in 14 s, touchdown at 3.8 b/s; bot health 20 -> 20
+PASS ride frigatecrash: the frigate crash-lands and stays (no despawn)
+PASS ride frigatecrash: the bot rides it down on the deck (0 ticks off)
+PASS ride frigatecrash: never inside a solid (0 ticks)
+PASS ride frigatecrash: standing, it drifts 0.0131 blocks over the deck on the way down
+PASS ride frigatecrash: the bot survives with sensible damage (20 -> 20)
+ride frigatecrash: scene took 1 s
+ridecheck: PASS (10 scenes in 19 s)
