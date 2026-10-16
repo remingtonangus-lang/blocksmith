@@ -1542,6 +1542,8 @@ final class Mob {
     // knockback (player melee and arrows: fists and hoes hit 4 times a second, and all three Multishot arrows landed).
     // Off for guns, blasts and scripted hits, which have their own rates.
     static var plateHit = false
+    // P321: a gun round on a soldier, its armour and toughness already worked out (Armory.impactMob): taken as dealt.
+    static var roundHit = false
     func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         if let f = Mob.netHit, f(self, src, damage, knockback) { return }     // a co-op guest's view of a host's mob (NetCoop)
         Mob.onHit?(self, src, damage)
@@ -1571,13 +1573,13 @@ final class Mob {
                 lastHurtAmount = damage
             }
         }
-        if power > 1 && damage > 0 { damage = max(1, Int((Float(damage) / power).rounded())) }
+        if power > 1 && damage > 0 && !Mob.roundHit { damage = max(1, Int((Float(damage) / power).rounded())) }
         // A melee blow on a soldier lands on the vest (TroopClasses.swift; rounds pick their segment in Ballistics).
         if Mob.playerMelee && damage > 0 && troop != 0 && Soldier.rank(kind) != nil {
             let d = troopArmourHit(Float(damage), seg: 1, Mob.meleeGame)
             damage = max(1, Int(d) + (Rand.float(in: 0..<1) < d - floorf(d) ? 1 : 0))
         }
-        damage = Difficulty.scaleHit(damage, self)                          // G19, P302: health fixed per level; easy-level fliers frail
+        if !Mob.roundHit { damage = Difficulty.scaleHit(damage, self) }     // G19, P302: health fixed per level; easy-level fliers frail
         // Townsfolk: tougher people take less of a hit, frailer ones more (TownStats; fractions round at random so
         // the average holds, except that every hit does at least 1).
         if kind == .villager && villager?.person != nil && damage > 0 {
@@ -1617,7 +1619,7 @@ final class Mob {
             return
         }
         // A closed sentry shell shrugs off most of a hit. (A heavy shell on a deck gun's plate goes past it: NavalGuns.)
-        if !Mob.plateHit { damage = armorReduced(damage) }
+        if !Mob.plateHit && !Mob.roundHit { damage = armorReduced(damage) }
         // Wolf armour takes the hit until it breaks; horse armour reduces like player armour.
         if kind == .wolf && armorTier == 5 && damage > 0 {
             armorHP -= damage; damage = 0
