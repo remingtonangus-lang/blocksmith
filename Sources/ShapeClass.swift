@@ -57,7 +57,7 @@ enum ShapeClass {
         "andesite", "diorite", "granite", "tuff", "calcite", "dripstone_block", "moss_block", "smooth_basalt",
         "terracotta", "netherrack", "soul_soil", "blackstone", "end_stone",
         "basalt", "magma_block", "amethyst_block", "budding_amethyst", "sculk", "packed_ice", "blue_ice",
-        "infested_stone", "infested_deepslate", "soul_sand", "crimson_nylium", "warped_nylium",
+        "infested_stone", "infested_deepslate", "soul_sand", "crimson_nylium", "warped_nylium", "sulfur_crust",
     ]
     static let legacyGround: [Bool] = (0..<Blocks.count).map { i in
         guard Blocks.opaque[i] && Blocks.render[i] == RenderType.cube.rawValue else { return false }

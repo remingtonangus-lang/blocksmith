@@ -194,7 +194,7 @@ extension MobManager {
             if abs(cx - p.x) < limit - 16 && abs(cz - p.z) < limit - 16 && w.isLoaded(k.x * CS + 8, k.z * CS + 8) { back.append(k) }
         }
         for k in back {
-            for r in stored.removeValue(forKey: k) ?? [] { if let m = Mob.from(r) { mobs.append(m) } }
+            for r in stored.removeValue(forKey: k) ?? [] { if let m = Mob.from(r) { admit(m, w) } }      // (P292 fates)
         }
     }
 

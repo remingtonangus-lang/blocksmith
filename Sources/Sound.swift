@@ -61,6 +61,7 @@ enum Snd: Hashable {
     // Loops (seamless, 2-6 s): fire, furnaces, lava, water, portals, beacons, minecarts, gliding, breathing under water, weather, biome ambience.
     case fireLoop, furnaceLoop, campfireLoop, lavaLoop, waterLoop, portalLoop, beaconLoop, minecartLoop, elytraLoop, underwaterLoop, rain, rainRoof
     case respawnAnchorLoop, spawnerLoop, netherWastesLoop, soulValleyLoop, crimsonLoop, warpedLoop, basaltLoop, ashVaultLoop, endLoop, deepDarkLoop, lushLoop, dripstoneLoop
+    case sulfurLoop                                  // P292: the Sulfur Flats' vents (the other hell beds are re-voiced, SoundHell.swift)
     case cricketsLoop, oceanLoop, swampLoop, windLoop, jungleLoop, fireflyLoop, hiveLoop, stationHumLoop
     // One-shot ambience stings
     case birdCall, owlHoot, dryGrassRustle, heartCreak, caveAmbience, caveDrip, caveWind, netherMood, underwaterMood, thunder, lightning, windGust
@@ -124,7 +125,7 @@ enum Snd: Hashable {
         case .click, .open, .uiHover, .uiBack, .toast: return .ui
         case .rain, .rainRoof, .thunder, .lightning, .windGust: return .weather
         case .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .respawnAnchorLoop, .spawnerLoop,
-             .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .ashVaultLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
+             .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .sulfurLoop, .ashVaultLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
              .caveAmbience, .caveDrip, .caveWind, .netherMood, .underwaterMood, .lavaPop,
              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot, .fireflyLoop, .dryGrassRustle, .heartCreak, .hiveLoop, .stationHumLoop:
             return .ambient
@@ -184,7 +185,7 @@ enum Snd: Hashable {
     var isLoop: Bool {
         switch self {
         case .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .minecartLoop, .elytraLoop, .underwaterLoop, .rain, .rainRoof,
-             .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .ashVaultLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
+             .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .sulfurLoop, .ashVaultLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .fireflyLoop, .hiveLoop, .stationHumLoop,
              .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop,
@@ -291,7 +292,7 @@ final class SoundBank {
               .portalTravel, .portalTrigger, .endPortalOpen, .endPortalFrame, .beaconActivate, .beaconPower, .beaconDeactivate,
               .fireExtinguish, .lavaPop, .boatPaddle, .railClick, .plantBrush, .meleeWindUp, .parryClang, .bowCreak, .bowNock,
               .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .minecartLoop, .elytraLoop, .underwaterLoop, .rain, .rainRoof,
-              .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .ashVaultLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
+              .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .sulfurLoop, .ashVaultLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
               .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot, .fireflyLoop, .dryGrassRustle, .heartCreak, .hiveLoop, .stationHumLoop,
               .caveAmbience, .caveDrip, .caveWind, .netherMood, .underwaterMood, .thunder, .lightning, .windGust,
               .creeperHiss, .fireball, .evokerCast, .fangs, .raidHorn, .mobVoidwalker, .teleport,

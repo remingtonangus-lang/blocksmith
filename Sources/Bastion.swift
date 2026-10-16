@@ -9,14 +9,17 @@ enum Bastion {
     static let type = StructureType(name: "bastion", spacing: 27, separation: 4, salt: 30084232, reach: 4) { seed, cx, cz in
         var rng = SRng(seed)
         if rng.int(5) < 2 { return nil }             // the other 2 in 5 are fortresses
-        return start(&rng, ox: cx * CS + 8, oz: cz * CS + 8, y: YOFF + 33, mound: !G20Guard.legacy(G20Guard.nether, cx, cz, reach: 4))
+        let g20 = G20Guard.legacy(G20Guard.nether, cx, cz, reach: 4)
+        return start(&rng, ox: cx * CS + 8, oz: cz * CS + 8, y: YOFF + 33, mound: !g20, roost: !g20 && !G20Guard.legacy(P292Guard.nether, cx, cz, reach: 4))
     }
 
     // One of the four layouts at (ox, oz) with its floor level y (the Deep's hell band too: Bastion.deepType). Draws
     // from the caller's generator exactly as the Emberdeep always has, so its saved bastions keep their layouts.
-    static func start(_ rng: inout SRng, ox: Int, oz: Int, y: Int, mound: Bool = true) -> StructureStart {
+    static func start(_ rng: inout SRng, ox: Int, oz: Int, y: Int, mound: Bool = true, roost: Bool = false) -> StructureStart {
         let variant = rng.int(4)
         let s = rng.next()
+        // P292: the Searwing Roost (BrandChapterhouse.swift) on fresh ground.
+        if roost { return SearwingRoost.start(ox: ox, oz: oz, y: y, base: y - 33, seed: s) }
         // G20: the Boarling Mound (OriginalSites.swift) in place of the reference's four bastion layouts.
         if mound {
             let h = BoarlingMound.half

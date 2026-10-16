@@ -128,7 +128,7 @@ extension Game {
         ("pillager_outpost", "Marauder Watchtower"), ("wild_camp", "Wild Camp"), ("frontier_site", "Frontier Site"), ("shipwreck", "Shipwreck"),
         ("buried_treasure", "Buried Treasure"), ("mineshaft", "Mineshaft"), ("ocean_ruin", "Ocean Ruin"),
         ("trail_ruins", "Trail Ruins"), ("desert_well", "Desert Well"), ("fossil", "Fossil"),
-        ("fortress", "Ash Foundry"), ("bastion", "Boarling Mound"), ("end_city", "Hollow Spire"),
+        ("fortress", "Brand Chapterhouse"), ("bastion", "Searwing Roost"), ("end_city", "Hollow Spire"),
         ("military_base", "Capital Citadel"), ("capital_city", "Capital City"), ("great_ruin", "Ancient Spire"), ("boreal_station", "Boreal Station"),
         ("brimstone_keep", "Brimstone Keep"),
         // Vessel encounters (ShipVessels.swift / CapitalShips.swift), found by region rather than as structures.

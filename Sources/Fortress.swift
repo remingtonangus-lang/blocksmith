@@ -1,7 +1,7 @@
 import Foundation
 
-// Emberdeep fortress (G20: built as an Ash Foundry, OriginalSites.swift; this is the old Cinder Fortress style, kept for
-// ground a save generated with it): a network on a 10-block grid. Open "bridge" cells (5-wide decks with railings,
+// Emberdeep fortress (P292: built as a Brand Chapterhouse, BrandChapterhouse.swift; G20's Ash Foundry, OriginalSites.swift, and
+// this, the old Cinder Fortress style, are kept for ground a save generated with them): a network on a 10-block grid. Open "bridge" cells (5-wide decks with railings,
 // support pillars down to the ground) lead from the start crossing to an enclosed "castle" part
 // (7-wide corridors with fence windows, chests). Leaves become cinderwisp spawner platforms (bridge) and
 // emberdeep wart rooms (castle). Fortresses and bastions share a 27-chunk grid (separation 4); a start
@@ -15,12 +15,17 @@ enum Fortress {
     static let type = StructureType(name: "fortress", spacing: 27, separation: 4, salt: 30084232, reach: 6) { seed, cx, cz in
         var rng = SRng(seed)
         if rng.int(5) >= 2 { return nil }            // 3 in 5: a bastion slot
-        return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, foundry: !G20Guard.legacy(G20Guard.nether, cx, cz, reach: 6))
+        // P292: a Brand Chapterhouse (BrandChapterhouse.swift) on fresh ground; ground generated before keeps its design.
+        if G20Guard.legacy(G20Guard.nether, cx, cz, reach: 6) { return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, foundry: false) }
+        if G20Guard.legacy(P292Guard.nether, cx, cz, reach: 6) { return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, foundry: true) }
+        return BrandChapterhouse.start(&rng, ox: cx * CS + 8, oz: cz * CS + 8, base: YOFF)
     }
     // The Deep's hell band (DeepGen): a fortress in every slot, its floor at internal y DeepGen.hellBase.
     static let deepType = StructureType(name: "fortress", spacing: 62, separation: 5, salt: 30084291, reach: 6) { seed, cx, cz in
         var rng = SRng(seed)
-        return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, base: DeepGen.hellBase, foundry: !G20Guard.legacy(G20Guard.deep, cx, cz, reach: 6))
+        if G20Guard.legacy(G20Guard.deep, cx, cz, reach: 6) { return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, base: DeepGen.hellBase, foundry: false) }
+        if G20Guard.legacy(P292Guard.deep, cx, cz, reach: 6) { return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, base: DeepGen.hellBase, foundry: true) }
+        return BrandChapterhouse.start(&rng, ox: cx * CS + 8, oz: cz * CS + 8, base: DeepGen.hellBase)
     }
 
     static func layout(_ rng: inout SRng, originX ox: Int, originZ oz: Int, base: Int = YOFF, foundry: Bool = true) -> StructureStart {

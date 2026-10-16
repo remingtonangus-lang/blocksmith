@@ -289,7 +289,7 @@ enum Snapshot {
                 let pm = PauseMenu(game: game); pm.page = .options; pm.build()
                 game.openMenu(pm)
             case "advancements":
-                for id in ["root", "mine_stone", "upgrade_tools", "smelt_iron", "enter_the_nether", "mine_diamond", "adventure/trade", "nether/return_to_sender"] {
+                for id in ["root", "mine_stone", "upgrade_tools", "smelt_iron", "enter_the_nether", "mine_diamond", "adventure/trade", "nether/wing_clipper"] {
                     if let i = Advancements.index[id] { game.advancements.insert(Advancements.all[i].id) }
                 }
                 game.advToasts.append(("Shiny!", false, game.clock - 1))
@@ -642,7 +642,7 @@ enum Snapshot {
             let kindNames = arg("--mobkind")?.split(separator: ",").map(String.init) ?? []
             let mobKinds: [(MobKind, Float, Float)] = kindNames.compactMap { MobKind.named($0) }.enumerated().map { ($0.element, Float(5), Float($0.offset) * 3.5 - 1.75) }
             let spots: [(MobKind, Float, Float)] = nether
-                ? [(.zombifiedPiglin, 5, -2.5), (.piglin, 5, 0), (.witherSkeleton, 6, 2.5), (.blaze, 8, -3.5), (.magmaCube, 7, 3.5), (.ghast, 22, 2)]
+                ? [(.brandSquire, 5, -2.5), (.brandKnight, 5, 0), (.brandChampion, 6, 2.5), (.slagthrower, 8, -3.5), (.scorchling, 7, 3.5), (.searwing, 22, 2)]   // P292: hell's own
                 : CommandLine.arguments.contains("--hostile")
                 ? [(.zombie, 5, -2.5), (.skeleton, 6, 0), (.creeper, 5, 2.5), (.spider, 9, -3.5), (.enderman, 10, 1), (.slime, 8, 4)]
                 : mobKinds.isEmpty == false ? mobKinds
@@ -656,7 +656,7 @@ enum Snapshot {
                 if nether || y > Int(floor(pos.y)) + 4 {
                     y = Int(floor(pos.y)) + 1
                     while y > Int(pos.y) - 12 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
-                    if spot.0 == .ghast || spot.0 == .blaze { y += spot.0 == .ghast ? 5 : 2 }
+                    if spot.0 == .searwing { y += 5 }
                 }
                 let m = Mob(spot.0, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                 if spot.0 == .slime || spot.0 == .magmaCube { m.makeSlime(size: 2) }
@@ -1636,11 +1636,11 @@ if let dir = arg("--sounds") {
         ("cave", [(.dripstoneLoop, 0.5), (.waterLoop, 0.2)], [(.caveAmbience, 0.6, 0.06), (.caveDrip, 0.4, 0.3)]),
         ("deep_dark", [(.deepDarkLoop, 0.7)], [(.wardenHeartbeat, 0.4, 0.3)]),
         ("lava_lake", [(.lavaLoop, 0.8), (.fireLoop, 0.3)], [(.lavaPop, 0.6, 0.8)]),
-        ("emberdeep_wastes", [(.netherWastesLoop, 0.7), (.lavaLoop, 0.3)], [(.netherMood, 0.5, 0.08)]),
-        ("ghost_valley", [(.soulValleyLoop, 0.8)], [(.netherMood, 0.4, 0.06)]),
-        ("rustcap_forest", [(.crimsonLoop, 0.8)], []),
-        ("tealcap_forest", [(.warpedLoop, 0.8)], []),
-        ("basalt_deltas", [(.basaltLoop, 0.8)], []),
+        ("cinder_plains", [(.netherWastesLoop, 0.7), (.lavaLoop, 0.3)], [(.netherMood, 0.5, 0.08)]),
+        ("ash_dunes", [(.soulValleyLoop, 0.8)], [(.netherMood, 0.4, 0.06)]),
+        ("charwood_thicket", [(.crimsonLoop, 0.8)], []),
+        ("gloamwood", [(.warpedLoop, 0.8)], []),
+        ("sulfur_flats", [(.sulfurLoop, 0.8)], []),
         ("hollow", [(.endLoop, 0.8)], [(.teleport, 0.3, 0.1)]),
         ("underwater", [(.underwaterLoop, 0.8)], [(.underwaterMood, 0.5, 0.08)]),
         ("portal", [(.portalLoop, 0.8)], []),

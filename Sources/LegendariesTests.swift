@@ -38,7 +38,7 @@ enum LegendariesTests {
         // Found once.
         let n0 = g.drops.items.count
         func boss(_ k: MobKind) { let m = Mob(k, at: g.player.pos + V3(4, 0, 0)); m.killedByPlayer = true; Legendaries.bossDied(g, m) }
-        boss(.wither); boss(.wither)
+        boss(.brandCommander); boss(.brandCommander)
         let wither = g.drops.items.count - n0
         let notMine = Mob(.warden, at: g.player.pos); Legendaries.bossDied(g, notMine)
         Legendaries.animalDied(g, 1, at: g.player.pos)

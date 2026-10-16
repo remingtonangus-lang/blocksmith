@@ -2483,6 +2483,7 @@ final class MobManager {
         // gone; only one the player builds himself stays.
         if !TownLaw.golemsAllowed, mobs.contains(where: { $0.kind == .ironGolem && !$0.playerBuilt }) { mobs.removeAll { $0.kind == .ironGolem && !$0.playerBuilt } }
         rebuildIndex()
+        retireHellIfNeeded(game)                            // P292: the reference nether's creatures give way to hell's own
         Mob.hardMode = game.difficulty == 3
         Difficulty.level = game.diffLevel                  // (P302: the level, 0...5)
         let second = game.coop.current > 0          // split screen: a second seat updates only the mobs nearest it
@@ -2746,33 +2747,15 @@ final class MobManager {
         return y + 1
     }
 
-    // Emberdeep spawning (no light requirement): per-biome weighted lists, overridden inside fortresses.
+    // Emberdeep spawning (no light requirement). P292: hell's own creatures only (HellMobs.swift), the mix leaning by
+    // land (MobManager.hellLean); inside a Brand Order fortress its garrison: order ranks, Slagthrowers and Scorchlings.
+    // The magmastriders and the rest of the reference nether's creatures are gone (HellOwn.swift).
     func trySpawnEmberdeep(_ game: Game, base: Int = YOFF, height: Int = 128) {
         let w = game.world
         let pp = game.player.pos
         let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 32...80)       // P307 (a): 32-80 out (was 24-64)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
         guard w.isLoaded(x, z) else { return }
-        // Magmastriders: groups on the lava sea surface.
-        let lavaY = base + EmberGen.lavaLevel
-        if Rand.float(in: 0..<1) < 0.1 {
-            if Blocks.fluidKind[Int(w.block(x, lavaY, z))] == 2 && w.block(x, lavaY + 1, z) == AIR && w.block(x, lavaY + 2, z) == AIR
-                && mobs.filter({ $0.kind == .strider }).count < 8 {
-                for i in 0..<Rand.int(in: 1...2) {
-                    let st = Mob(.strider, at: V3(Float(x + i) + 0.5, Float(lavaY + 1), Float(z) + 0.5))
-                    mobs.append(st)
-                    // Reference jockeys: 1 in 30 carry an undead boarling, otherwise 1 in 10 a young magmastrider.
-                    let riderKind: MobKind? = Rand.int(in: 0..<30) == 0 ? .zombifiedPiglin : (Rand.int(in: 0..<10) == 0 ? .strider : nil)
-                    if let rk = riderKind {
-                        let r = Mob(rk, at: st.pos + V3(0, st.height, 0))
-                        if rk == .strider { r.baby = true; r.scale = 0.5 }
-                        r.mount = st; r.jockey = true
-                        mobs.append(r)
-                    }
-                }
-            }
-            return
-        }
         var y = base + Rand.int(in: 1...(height - 2))
         // Walk down to a floor with two free blocks above it.
         while y > base + 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]
@@ -2780,47 +2763,8 @@ final class MobManager {
         if y <= base + 1 || Blocks.isLiquid(w.block(x, y, z)) || w.block(x, y - 1, z) == BEDROCK { return }
         let spawnPos = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
         if !game.spawnHidden(spawnPos, min: 32) { return }                      // P307 (a): never in sight
-        typealias Entry = (MobKind, Int, Int, Int)      // kind, weight, min group, max group
-        var list: [Entry]
-        let inFortress = w.gen.structures?.structure(at: x, y, z, kind: "fortress") != nil && Blocks.key(w.block(x, y - 1, z)) == "nether_bricks"
-        // Hell's own (HellMobs.swift): order patrols, Searwings, Scorchling packs, Slagthrowers.
-        if !inFortress && hellOwnSpawn(game, at: spawnPos) { return }
-        if inFortress {
-            list = [(.blaze, 10, 2, 3), (.zombifiedPiglin, 5, 4, 4), (.witherSkeleton, 10, 5, 5), (.magmaCube, 3, 4, 4)]
-        } else {
-            // Hell's own kinds only (G17): the surface's skeletons and Voidwalkers no longer wander in (Blight Skeletons
-            // take the skeletons' place in the soul valleys; the blue forests get magma cubes and wailers).
-            switch w.gen.column(x, z).biome {
-            case .soulSandValley: list = [(.witherSkeleton, 20, 2, 4), (.ghast, 50, 4, 4)]
-            case .basaltDeltas: list = [(.ghast, 40, 1, 1), (.magmaCube, 100, 2, 5)]
-            case .crimsonForest: list = [(.zombifiedPiglin, 1, 2, 4), (.hoglin, 9, 3, 4), (.piglin, 5, 3, 4)]
-            case .warpedForest: list = [(.magmaCube, 10, 2, 4), (.ghast, 10, 1, 1)]
-            default: list = [(.zombifiedPiglin, 100, 4, 4), (.ghast, 50, 4, 4), (.magmaCube, 2, 4, 4), (.piglin, 15, 4, 4)]
-            }
-        }
-        let total = list.reduce(0) { $0 + $1.1 }
-        var roll = Rand.int(in: 0..<total)
-        var pick = list[0]
-        for e in list { roll -= e.1; if roll < 0 { pick = e; break } }
-        // Wailers are rare per attempt (they need a big open space) — the reference game's spawn
-        // attempts fail for them most of the time.
-        if pick.0 == .ghast && Rand.float(in: 0..<1) < 0.8 { return }
-        let n = Rand.int(in: pick.2...pick.3)
-        for _ in 0..<n {
-            let sx = x + Rand.int(in: -3...3), sz = z + Rand.int(in: -3...3)
-            var sy = y + 2
-            while sy > y - 4 && !Blocks.opaque[Int(w.block(sx, sy - 1, sz))] { sy -= 1 }
-            let p = V3(Float(sx) + 0.5, Float(sy), Float(sz) + 0.5)
-            let m = Mob(pick.0, at: pick.0 == .ghast ? p + V3(0, 3, 0) : p)
-            if m.sized { m.makeSlime(size: [1, 2, 4][Rand.int(in: 0...2)]) }
-            // Young boarlings: 20%; young undead boarlings: 5% (reference).
-            if (pick.0 == .piglin && Rand.float(in: 0..<1) < 0.2) || (pick.0 == .zombifiedPiglin && Rand.float(in: 0..<1) < 0.05) {
-                m.baby = true; m.scale = 0.5
-            }
-            if m.collides(m.pos, w) { continue }
-            mobs.append(m)
-            if mobs.count >= MobManager.hostileCap + 10 { return }
-        }
+        let inFortress = w.gen.structures?.structure(at: x, y, z, kind: "fortress") != nil && BrandChapterhouse.isFloor(w.block(x, y - 1, z))
+        _ = hellOwnSpawn(game, at: spawnPos, lean: inFortress ? [45, 20, 35, 0] : MobManager.hellLean(w.gen.column(x, z).biome), always: true)
     }
 
     // Nearest mob along a ray.

@@ -8,7 +8,7 @@ enum TextureGen {
     // Layers drawn by the painters even where imported art exists (P75/P86 looks, Oct 12). BLOCKSMITH_PAINTED
     // ("a,b,c", or "" for none) overrides it for looks work in a thread (questcheck --view).
     static let painted: Set<String> = ProcessInfo.processInfo.environment["BLOCKSMITH_PAINTED"]
-        .map { Set($0.split(separator: ",").map(String.init)) } ?? ["short_grass", "cobweb", "amethyst_block"]   // P75: full blade tufts, not the stubby imported one; P111: the painted web and amethyst
+        .map { Set($0.split(separator: ",").map(String.init)) } ?? Set(["short_grass", "cobweb", "amethyst_block"]).union(HellLooks.painted)   // P75: full blade tufts, not the stubby imported one; P111: the painted web and amethyst
     static let S = 16              // the painters' grid (16 x 16 "pixels" per face)
     // Texture resolution on the GPU (pixels per face, default 128; BC3-compressed about 35 MB with mips): HD materials (TexturesHD.swift) where they exist, the 16 px
     // painters upscaled otherwise. BLOCKSMITH_TEXRES or the "textureRes" setting picks 16 / 32 / 64 / 128.
@@ -1089,6 +1089,7 @@ enum TextureGen {
         deepPainters(&p)
         deepGatePainters(&p)
         hellPainters(&p)
+        hellLandPainters(&p)                              // P292: hell's own looks (HellLooks.swift)
         greywallPainters(&p)
         securityCameraPainters(&p)                        // D35
         for (k, v) in ItemTextures.painters() { p[k] = v }

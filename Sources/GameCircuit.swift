@@ -287,8 +287,7 @@ extension Game {
             // W8: set in front, finishing a golem or a Blight body built there; otherwise out as an item (reference).
             if Blocks.replaceable[Int(fb)] && Blocks.has(key) {
                 world.setBlock(front.x, front.y, front.z, Blocks.id(key)); take()
-                if key == "wither_skeleton_skull" { trySummonBlight(front) }
-                else if !trySummonCopperGolem(front) { trySummonGolem(front) }
+                if key != "wither_skeleton_skull" && !trySummonCopperGolem(front) { trySummonGolem(front) }     // (P292: no Blight)
             } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
         case "armor_stand":
             // W8: stands up in front, facing away from the dispenser.

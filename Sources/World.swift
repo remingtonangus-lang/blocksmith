@@ -144,6 +144,9 @@ final class World {
         // G20: the Emberdeep's and the Deep's fortresses are Ash Foundries on ground no save generated before them.
         if dim == .nether { G20Guard.nether = save?.structureGuard(file: "structure-guard-g20.txt") ?? [] }
         if dim == .deep { G20Guard.deep = save?.structureGuard(file: "structure-guard-g20.txt") ?? [] }
+        // P292: Brand Chapterhouses and Searwing Roosts on ground no save generated before them (BrandChapterhouse.swift).
+        if dim == .nether { P292Guard.nether = save?.structureGuard(file: "structure-guard-p292.txt") ?? [] }
+        if dim == .deep { P292Guard.deep = save?.structureGuard(file: "structure-guard-p292.txt") ?? [] }
         if dim == .deep, let save, let dg = gen as? DeepGen {
             dg.keepGuard.chunks = save.structureGuard(file: "structure-guard-deep-keeps.txt")      // BrimstoneKeep.swift
             dg.vaultGuard.chunks = save.structureGuard(file: "structure-guard-vault.txt")          // AshVault.swift

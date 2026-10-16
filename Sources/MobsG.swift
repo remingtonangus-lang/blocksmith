@@ -10,33 +10,9 @@ struct Fang { var pos: V3; var delay: Float; var life: Float = 1.1; var bit = fa
 extension Game {
     // MARK: Summoning
 
-    // Blight: ghost sand/soil T with three blight skeleton skulls on top (either axis).
-    func trySummonBlight(_ p: IVec3) {
-        let skull = Blocks.id("wither_skeleton_skull")
-        func isSkull(_ q: IVec3) -> Bool { Blocks.groupBase[Int(world.block(q.x, q.y, q.z))] == skull }
-        func isSoul(_ q: IVec3) -> Bool { let k = Blocks.key(world.block(q.x, q.y, q.z)); return k == "soul_sand" || k == "soul_soil" }
-        func clear(_ q: IVec3) -> Bool { let b = world.block(q.x, q.y, q.z); return b == AIR || Blocks.replaceable[Int(b)] }
-        for axis in [IVec3(1, 0, 0), IVec3(0, 0, 1)] {
-            for o in -2...0 {
-                let s = (0..<3).map { k in p + IVec3(axis.x * (o + k), 0, axis.z * (o + k)) }
-                guard s.allSatisfy(isSkull), s.allSatisfy({ isSoul($0 - IVec3(0, 1, 0)) }) else { continue }
-                let mid = s[1] - IVec3(0, 2, 0)
-                guard isSoul(mid), clear(s[0] - IVec3(0, 2, 0)), clear(s[2] - IVec3(0, 2, 0)) else { continue }
-                for q in s { world.setBlock(q.x, q.y, q.z, AIR); world.setBlock(q.x, q.y - 1, q.z, AIR) }
-                world.setBlock(mid.x, mid.y, mid.z, AIR)
-                let w = Mob(.wither, at: V3(Float(mid.x) + 0.5, Float(mid.y), Float(mid.z) + 0.5))
-                w.phase = 1
-                w.phaseTime = 11
-                achieve("summon_wither")
-                w.health = 100
-                w.persistent = true
-                mobs.mobs.append(w)
-                sfx(.witherSpawn, 1.5, at: w.pos)
-                onToast?("The Blight has awoken")
-                return
-            }
-        }
-    }
+    // The Blight (a soul sand T under three skulls) was retired in P292 with the rest of the reference nether's
+    // creatures: the T and skulls stay where they are set. The Brand Commander (HellMobs.swift) is hell's boss.
+    func trySummonBlight(_ p: IVec3) {}
 
     // Iron golem: T of four iron blocks + carved pumpkin; snow golem: two snow blocks + pumpkin.
     func trySummonGolem(_ p: IVec3) {

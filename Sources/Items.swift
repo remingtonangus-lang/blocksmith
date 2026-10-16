@@ -171,10 +171,10 @@ final class ItemRegistry {
         item("ender_pearl", "Void Pearl", "pearl", 0x2F8C7C, stack: 16)
         item("ender_eye", "Seeker Eye", "eye", 0x2F8C7C, ["c": 0x7ED957, "d": 0x173D1A])
         item("blaze_rod", "Cinder Rod", "rod", 0xF7C23A)
-        item("ghast_tear", "Wailer Tear", "tear", 0xDDF2F2)
+        item("ghast_tear", "Searwing Tear", "tear", 0xFFD8A8)
         item("wheat", "Wheat", "wheat", 0xD8B64A, ["c": 0xB0902A])
         item("wheat_seeds", "Wheat Seeds", "seeds", 0x3EA42B)
-        item("nether_wart", "Ember Wart", "berries", 0x8A1A20, ["a": 0x5A0E12])
+        item("nether_wart", "Brimroot", "berries", 0xC0581E, ["a": 0x5A2410])
         item("saddle", "Saddle", "saddle", 0x8A4A22, stack: 1)
         item("name_tag", "Name Tag", "name_tag", 0xE6E0C8)
         item("magma_cream", "Lava Cream", "ball", 0xE8762A)
@@ -235,7 +235,7 @@ final class ItemRegistry {
         item("breeze_rod", "Gust Rod", "rod", 0xBDC9FF)
         item("experience_bottle", "Bottle of Experience", "bottle", 0xD0DCF0, ["c": 0x7ED957])
         item("enchanted_book", "Upgrade Kit", "book", 0x8A3AA8, ["c": 0xE8C850], stack: 1)
-        item("nether_star", "Blight Star", "star", 0xF0F0FF)
+        item("nether_star", "Brand Star", "star", 0xFFD8B0)
         item("totem_of_undying", "Totem of Rebirth", "totem", 0xE8C040, ["c": 0x2A8A3A], stack: 1)
         item("turtle_scute", "Turtle Scute", "scute", 0x4A9A3A)
         item("ink_sac", "Ink Sac", "sac", 0x1A1A2A)
@@ -253,7 +253,7 @@ final class ItemRegistry {
                           ("axolotl_bucket", "Bucket of Axolotl", 0xF09AB0), ("tadpole_bucket", "Bucket of Tadpole", 0x5A4A30)] as [(String, String, UInt32)] {
             item(n, d, "bucket", 0xC8C8C8, ["c": c], stack: 1)
         }
-        item("warped_fungus_on_a_stick", "Tealcap Fungus on a Stick", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0x2A9A8A], stack: 1)
+        item("warped_fungus_on_a_stick", "Gloam Sprout on a Stick", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0x2A9A8A], stack: 1)
         for (c, d) in BlockRegistry.colors {
             item("\(c)_dye", "\(d) Dye", "dust", BlockRegistry.colorHex[c] ?? 0xFFFFFF)
         }
