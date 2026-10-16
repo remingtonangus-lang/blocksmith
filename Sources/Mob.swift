@@ -415,6 +415,7 @@ final class Mob {
     var posseSince: Double = -1     // the game clock when a hunter rode in (not saved: reloaded hunters leave when far)
     var owner: Bool?                // tamed by the player (wolves, cats, horses, parrots)
     var variant = 0                 // colour / breed variant
+    var coatSeed: UInt32 = 0        // P295: a steady cosmetic seed (coat, face colours) from where it was made; saved
     var sitting = false
     var lying = false               // a villager asleep in its bed: drawn on its back along the bed (VillageLife)
     var collar = 0
@@ -533,6 +534,9 @@ final class Mob {
         health = kind.spec.health
         aiTimer = Rand.float(in: 0.5...3)
         callTimer = Rand.float(in: 6...20)
+        if p.x.isFinite && p.y.isFinite && p.z.isFinite && abs(p.x) < 1e7 && abs(p.y) < 1e7 && abs(p.z) < 1e7 {
+            coatSeed = hash3(Int(p.x * 64), Int(p.y * 64), Int(p.z * 64), 0x295) & 0xFFFF
+        }
         randomizeVariant()
         if kind.ash { ashSetup() }
         if kind.hellOwn { hellSetup() }
@@ -1758,65 +1762,10 @@ private func parts(_ m: Mob) -> [Part] {
          Part(mn: V3(sep, y, z - 0.2), mx: V3(sep + size, y + size, z), color: c)]
     }
     switch m.kind {
-    case .cow:
-        let hide = [V3(0.36, 0.24, 0.16), V3(0.36, 0.24, 0.16), V3(0.6, 0.3, 0.17), V3(0.3, 0.22, 0.17)][min(3, m.variant)]
-        let fv = FarmVariant.climate(m.variant)
-        var extra: [Part] = []
-        if fv == 2 { extra = [box(-6, 21, -13, 2, 1.5, 1.5, V3(0.9, 0.85, 0.7)), box(4, 21, -13, 2, 1.5, 1.5, V3(0.9, 0.85, 0.7))] }   // long horns
-        if fv == 3 { extra = [box(-6.5, 11, -9.5, 13, 3, 19, hide * 0.85, 2), box(-4.5, 22, -14, 9, 2, 5, hide * 0.85, 2)] }          // shaggy coat
-        let hoofC = V3(0.17, 0.13, 0.1)
-        return extra + [
-            Part(mn: V3(-6, 12, -9), mx: V3(6, 22, 9), color: hide, pattern: 1),
-            Part(mn: V3(-4, 15, -15), mx: V3(4, 23, -9), pivot: V3(0, 19, -9), color: hide, pattern: 1),
-            Part(mn: V3(-2.5, 15.5, -15.6), mx: V3(2.5, 18.5, -15), color: V3(0.82, 0.6, 0.55)),
-            box(-5, 21, -13, 1, 3, 1, V3(0.85, 0.82, 0.72)), box(4, 21, -13, 1, 3, 1, V3(0.85, 0.82, 0.72)),
-            leg(-3.5, -6, 4, 12, 1, hide, 1), leg(3.5, -6, 4, 12, -1, hide, 1),
-            leg(-3.5, 6, 4, 12, -1, hide, 1), leg(3.5, 6, 4, 12, 1, hide, 1),
-            box(-1.8, 16.6, -15.8, 1, 0.9, 0.2, V3(0.32, 0.18, 0.16)), box(0.8, 16.6, -15.8, 1, 0.9, 0.2, V3(0.32, 0.18, 0.16)),   // nostrils
-            hoof(-3.5, -6, 4, 12, 1, hoofC), hoof(3.5, -6, 4, 12, -1, hoofC), hoof(-3.5, 6, 4, 12, -1, hoofC), hoof(3.5, 6, 4, 12, 1, hoofC),
-        ] + eyes(20, -15, 1.8)
-    case .sheep:
-        let wc = TextureGen.hex(BlockRegistry.colorHex[m.woolColor] ?? 0xE9ECEC)
-        let wool = V3(wc.x, wc.y, wc.z), skin = V3(0.72, 0.62, 0.52), hoofC = V3(0.24, 0.2, 0.17)
-        var p = [
-            Part(mn: V3(-3, 15, -14), mx: V3(3, 21, -7), pivot: V3(0, 18, -7), color: skin),
-            leg(-3, -5, 3.5, 12, 1, skin), leg(3, -5, 3.5, 12, -1, skin),
-            leg(-3, 5, 3.5, 12, -1, skin), leg(3, 5, 3.5, 12, 1, skin),
-            box(-1, 15.8, -14.2, 2, 0.8, 0.2, V3(0.34, 0.25, 0.22)),                          // nose
-            hoof(-3, -5, 3.5, 12, 1, hoofC), hoof(3, -5, 3.5, 12, -1, hoofC), hoof(-3, 5, 3.5, 12, -1, hoofC), hoof(3, 5, 3.5, 12, 1, hoofC),
-        ] + eyes(18, -14, 1.2)
-        if m.sheared { p.append(box(-4.5, 12, -7, 9, 8, 14, skin)) }
-        else { p.append(box(-6, 11, -8, 12, 11, 16, wool, 2)); p.append(box(-3.5, 19.5, -12.5, 7, 2.5, 5.5, wool, 2)) }
-        return p
-    case .chicken:
-        let white = [V3(0.95, 0.94, 0.9), V3(0.95, 0.94, 0.9), V3(0.75, 0.45, 0.24), V3(0.72, 0.76, 0.82)][min(3, m.variant)]
-        let orange = V3(0.95, 0.6, 0.15)
-        let flap: Float = m.onGround ? 0 : sinf(m.walkPhase * 6 + m.hurt * 30) * 0.9
-        return [
-            box(-3, 5, -4, 6, 6, 8, white, 3),
-            Part(mn: V3(-2, 9, -7), mx: V3(2, 15, -4), pivot: V3(0, 11, -4), color: white, pattern: 3),
-            box(-2, 11.5, -9, 4, 1.5, 2, orange),
-            box(-1, 9.5, -8, 2, 2, 1, V3(0.85, 0.12, 0.1)),
-            Part(mn: V3(-4, 6, -3), mx: V3(-3, 10, 3), pivot: V3(-3, 10, 0), rotZ: -flap, color: white, pattern: 3),
-            Part(mn: V3(3, 6, -3), mx: V3(4, 10, 3), pivot: V3(3, 10, 0), rotZ: flap, color: white, pattern: 3),
-            leg(-1.5, 0.5, 1, 5, 1, orange), leg(1.5, 0.5, 1, 5, -1, orange),
-            // three-toed feet, swinging with the legs
-            Part(mn: V3(-2.5, 0, -1), mx: V3(-0.5, 0.4, 1.2), pivot: V3(-1.5, 5, 0.5), rotX: swing, color: orange * 0.9),
-            Part(mn: V3(0.5, 0, -1), mx: V3(2.5, 0.4, 1.2), pivot: V3(1.5, 5, 0.5), rotX: -swing, color: orange * 0.9),
-        ] + eyes(13, -7, 1.2, 1)
-    case .pig:
-        let pink = [V3(0.94, 0.62, 0.6), V3(0.94, 0.62, 0.6), V3(0.56, 0.37, 0.27), V3(0.88, 0.66, 0.6)][min(3, m.variant)]
-        var fluff: [Part] = []
-        if FarmVariant.climate(m.variant) == 3 { fluff = [box(-5.5, 11, -8.5, 11, 3.5, 17, V3(0.95, 0.92, 0.88), 2)] }         // woolly back
-        return fluff + [
-            box(-5, 6, -8, 10, 8, 16, pink, 4),
-            Part(mn: V3(-4, 8, -15), mx: V3(4, 16, -7), pivot: V3(0, 12, -7), color: pink, pattern: 4),
-            box(-2, 9, -16, 4, 3, 1, V3(0.98, 0.72, 0.7)),
-            box(-1.2, 10, -16.2, 0.8, 1, 0.3, V3(0.4, 0.2, 0.2)), box(0.4, 10, -16.2, 0.8, 1, 0.3, V3(0.4, 0.2, 0.2)),
-            leg(-3, -5, 4, 6, 1, pink), leg(3, -5, 4, 6, -1, pink), leg(-3, 5, 4, 6, -1, pink), leg(3, 5, 4, 6, 1, pink),
-            hoof(-3, -5, 4, 6, 1, pink * 0.55, 1.2), hoof(3, -5, 4, 6, -1, pink * 0.55, 1.2),
-            hoof(-3, 5, 4, 6, -1, pink * 0.55, 1.2), hoof(3, 5, 4, 6, 1, pink * 0.55, 1.2),
-        ] + eyes(13, -15, 2)
+    case .cow: return cowParts(m)                                    // P295: FarmLooks.swift
+    case .sheep: return sheepParts(m)
+    case .chicken: return chickenParts(m)
+    case .pig: return pigParts(m)
     case .wither, .snowGolem, .evoker, .vex, .ravager, .zombieVillager:
         return extraParts(m, swing: swing)
     case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
@@ -2213,7 +2162,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
     var n = 0
     SoldierRig.eye = eye                    // soldier level of detail by distance
     SoldierRig.drawing = true
-    defer { SoldierRig.drawing = false }
+    defer { SoldierRig.drawing = false; MobDetail.level = 0 }
     // Dimension ambient, lifted by night vision like the terrain (Renderer: 1 - (1 - dim) * (1 - 0.85 nv)).
     let amb: Float = 1 - (1 - world.dim.ambient) * (1 - 0.85 * MobLight.nightVision)
     // Nearest first, and nothing past the fog: the buffer holds ~2400 model parts, and with the hundreds of mobs loaded
@@ -2274,6 +2223,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let scale: Float = m.sized ? 1 : m.scale
         let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal
         let lit = glow ? max(bright, 0.85) : bright
+        MobDetail.level = MobDetail.level(forDistanceSquared: simd_length_squared(base))    // P295: near, middle, far models
         let body = parts(m), worn = equipmentParts(m)          // walked in turn: no concatenated array per mob per frame
         // P222 (Oct 13 21:30, "these guns are spawning without a top, half generated"): a mob that no longer fits the
         // buffer whole is skipped, not cut off part way (a far turret drew its barbette skirt and base, then the buffer

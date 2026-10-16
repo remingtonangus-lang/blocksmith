@@ -271,7 +271,7 @@ enum SoldierRig {
         o.parts.append(Part(mn: V3(-4, 0, -2), mx: V3(0, 12, 2), pivot: hip, rotX: sw, color: lv.legs))
         o.parts.append(Part(mn: V3(0, 0, -2), mx: V3(4, 12, 2), pivot: hip, rotX: -sw, color: lv.legs))
         o.parts.append(Part(mn: V3(-4, 12, -2.5), mx: V3(4, 24, 2.5), color: lv.cloth))
-        o.parts.append(Part(mn: V3(-3.5, 24, -3.5), mx: V3(3.5, 31, 3.5), color: lv.plate))
+        o.parts.append(Part(mn: V3(-2.9, 24.5, -2.9), mx: V3(2.9, 30.9, 2.9), color: lv.plate))           // (P295 proportions)
         o.parts.append(Part(mn: V3(-6.5, 13, -2), mx: V3(-4, 23.5, 2), color: lv.cloth))
         o.parts.append(Part(mn: V3(4, 13, -2), mx: V3(6.5, 23.5, 2), color: lv.cloth))
         o.parts.append(Part(mn: V3(-1, 16, -11), mx: V3(1, 18.5, -1), color: lv.metal))
@@ -651,12 +651,15 @@ enum SoldierRig {
                 tb(x0, y0, z0, x1 - x0, max(0.4, y1 - y0), depth, c, pat)
             }
         }
-        // Head-group box (standing coordinates of the head: 24...32).
+        // Head-group box (standing coordinates of the head: 24...32). P295: drawn at a person's proportions, the head and
+        // its headgear a sixth smaller about the neck and raised a little out of the collar.
         let neck0 = V3(0, 24, 0)
         let neck = p.t(neck0)
+        let hs = V3(0.82, 0.86, 0.84), hl = V3(0, 0.5, 0)
         func hb(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, _ pat: Float) {
-            let off = neck - neck0
-            o.parts.append(Part(mn: V3(x, y, z) + off, mx: V3(x + w, y + h, z + d) + off, pivot: neck,
+            let off = neck - neck0 + hl
+            let a = neck0 + (V3(x, y, z) - neck0) * hs, e = neck0 + (V3(x + w, y + h, z + d) - neck0) * hs
+            o.parts.append(Part(mn: a + off, mx: e + off, pivot: neck,
                                 rotX: p.lean + p.headPitch, rotZ: 0, color: c, pattern: pat, rotY: p.headYaw))
         }
         // A box hanging from a torso joint with its own extra tilt (sabre, holster).
@@ -896,8 +899,14 @@ enum SoldierRig {
         hb(-4, 24, -4, 8, 8, 8, lv.skin, Pat.skin)
         if full && faceOpen {
             let white = V3(0.92, 0.91, 0.88), iris = V3(0.16, 0.2, 0.26)
-            hb(-3.1, 27.3, -4.1, 2.0, 1.1, 0.12, white, 0); hb(1.1, 27.3, -4.1, 2.0, 1.1, 0.12, white, 0)
-            hb(-2.0, 27.3, -4.16, 0.9, 1.1, 0.12, iris, 0); hb(1.1, 27.3, -4.16, 0.9, 1.1, 0.12, iris, 0)
+            if m.blinking {                                                                   // P295: lids now and then
+                hb(-3.15, 27.25, -4.16, 2.1, 1.2, 0.18, lv.skin * 0.9, Pat.skin); hb(1.05, 27.25, -4.16, 2.1, 1.2, 0.18, lv.skin * 0.9, Pat.skin)
+            } else {
+                hb(-3.1, 27.3, -4.1, 2.0, 1.1, 0.12, white, 0); hb(1.1, 27.3, -4.1, 2.0, 1.1, 0.12, white, 0)
+                hb(-2.0, 27.3, -4.16, 0.9, 1.1, 0.12, iris, Pat.enamel); hb(1.1, 27.3, -4.16, 0.9, 1.1, 0.12, iris, Pat.enamel)
+                hb(-1.75, 27.5, -4.2, 0.4, 0.6, 0.06, V3(0.03, 0.03, 0.03), Pat.enamel); hb(1.35, 27.5, -4.2, 0.4, 0.6, 0.06, V3(0.03, 0.03, 0.03), Pat.enamel)
+            }
+            hb(-1.6, 24.0, -4.25, 3.2, 1.0, 0.3, lv.skin * 0.96, Pat.skin)                     // chin
             hb(-3.2, 28.6, -4.12, 2.3, 0.5, 0.14, lv.hair, 0); hb(0.9, 28.6, -4.12, 2.3, 0.5, 0.14, lv.hair, 0)
             hb(-0.6, 25.9, -4.6, 1.2, 1.8, 0.62, lv.skin * 0.93, Pat.skin)                      // nose
             hb(-1.4, 25.0, -4.08, 2.8, 0.4, 0.1, lv.skin * 0.62, 0)                             // mouth

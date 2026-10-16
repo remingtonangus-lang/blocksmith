@@ -291,7 +291,8 @@ if let out = arg("--view"), let ctx = vkctx {
             let off = (Float(i) - Float(keys.count - 1) / 2) * 1.6
             let at = vg.player.pos + ahead * d + right * off
             let m = Mob(kind, at: V3(at.x, Float(vw.topY(Int(floor(at.x)), Int(floor(at.z))) + 1), at.z))
-            m.yaw = yaw + .pi
+            m.yaw = yaw + .pi + (Float(arg("--mobyaw") ?? "") ?? 0) * .pi / 180     // --mobyaw DEG: turned (a profile at 90)
+            if let c = Float(arg("--mobclock") ?? "") { m.callTimer = c }               // --mobclock S: the call clock (P295 idles)
             m.aggro = CommandLine.arguments.contains("--aggro")
             m.persistent = true
             vg.mobs.mobs.append(m)
@@ -513,6 +514,8 @@ if CommandLine.arguments.contains("--fieldsave") {
 if CommandLine.arguments.contains("--playthrough") { exit(Playthrough.run()) }
 // --hellcheck: P292, hell made our own (Sources/HellCheck.swift): its fortress, roost, lands, spawns and old saves.
 if CommandLine.arguments.contains("--hellcheck") { exit(HellCheck.run()) }
+// --modelcheck: P295, the rebuilt people and animals (Sources/ModelCheck.swift): detail levels, feet, grazing, heads.
+if CommandLine.arguments.contains("--modelcheck") { exit(ModelCheck.run()) }
 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("questcheck-\(getpid())")
 try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
 QuestPaths.setDataRoot(tmp.path)

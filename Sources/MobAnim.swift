@@ -12,11 +12,14 @@ import simd
 // Platform-neutral: the Mac and the Quest draw through writeMobVertices.
 
 // Which boxes are the head (box centre above `minY`, or in front of `maxZ`) and where its neck is (model pixels).
+// fixedOnly: only unjointed boxes (pivot zero) count, so a tool held up past the neck stays in the hand (P295).
 struct HeadJoint {
     var minY: Float = -.greatestFiniteMagnitude
     var maxZ: Float = .greatestFiniteMagnitude
     var pivot: V3
+    var fixedOnly = false
     func holds(_ p: Part) -> Bool {
+        if fixedOnly && p.pivot != .zero { return false }
         let c = (p.mn + p.mx) * 0.5
         return c.y > minY && c.z < maxZ
     }
@@ -43,11 +46,12 @@ enum MobAnim {
         case .zombie, .skeleton, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:
             return HeadJoint(minY: 24, pivot: V3(0, 24, 0))
         case .enderman: return HeadJoint(minY: 42, pivot: V3(0, 42, 0))
-        case .villager: return HeadJoint(minY: 23.4, pivot: V3(0, 23.5, 0))
-        case .cow: return HeadJoint(maxZ: -9, pivot: V3(0, 19, -9))
-        case .sheep: return HeadJoint(maxZ: -7, pivot: V3(0, 18, -7))
-        case .pig: return HeadJoint(maxZ: -7, pivot: V3(0, 12, -7))
-        case .chicken: return HeadJoint(maxZ: -4, pivot: V3(0, 11, -4))
+        case .villager: return HeadJoint(minY: 23.4, pivot: V3(0, 23.5, 0), fixedOnly: true)
+        // P295 (FarmLooks.swift): the neck's root; the low parts (legs, brisket, a grazing muzzle) never turn with it.
+        case .cow: return HeadJoint(minY: 8, maxZ: -9.6, pivot: V3(0, 16.5, -10))
+        case .sheep: return HeadJoint(minY: 8, maxZ: -8.6, pivot: V3(0, 15.8, -8.4))
+        case .pig: return HeadJoint(minY: 4, maxZ: -8.4, pivot: V3(0, 10, -8))
+        case .chicken: return HeadJoint(minY: 8, maxZ: -2.6, pivot: V3(0, 8.6, -3.0))
         case .mooshroom: return HeadJoint(maxZ: -9, pivot: V3(0, 6.5, -9))          // P280: the Shellback's head
         default: return nil
         }

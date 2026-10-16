@@ -77,6 +77,7 @@ extension Mob {
     func saveExtra(_ d: inout [String: Float]) {
         if let o = owner { d["owned"] = o ? 1 : 0 }
         if variant != 0 { d["variant"] = Float(variant) }
+        if kind == .cow || kind == .pig || kind == .sheep || kind == .chicken { d["look"] = Float(coatSeed) }   // P295
         if sitting { d["sit"] = 1 }
         if collar != 0 { d["collar"] = Float(collar) }
         if saddled { d["saddle"] = 1 }
@@ -127,6 +128,7 @@ extension Mob {
     func loadExtra(_ d: [String: Float]) {
         if let o = d["owned"] { owner = o > 0 }
         variant = Int(d["variant"] ?? 0)
+        if let l = d["look"], l >= 0 { coatSeed = UInt32(l) & 0xFFFF }
         sitting = (d["sit"] ?? 0) > 0
         collar = Int(d["collar"] ?? 0)
         saddled = (d["saddle"] ?? 0) > 0

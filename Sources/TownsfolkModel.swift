@@ -91,12 +91,19 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
     func b(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = Pat.cloth) {
         p.append(Part(mn: V3(x0, y0, z0), mx: V3(x1, y1, z1), color: c, pattern: pat))
     }
-    // Legs (with boots) swing from the hips.
-    for (side, ph) in [(Float(-1), Float(1)), (1, -1)] {
-        let x0: Float = side < 0 ? -3.8 : 0.2, x1: Float = side < 0 ? -0.2 : 3.8
-        let pivot = V3(side * 2, 13, 0)
-        p.append(Part(mn: V3(x0, 3, -1.8), mx: V3(x1, 13, 1.8), pivot: pivot, rotX: swing * ph, color: l.overalls ?? l.legs, pattern: Pat.cloth))
-        p.append(Part(mn: V3(x0 - 0.15, 0, -2.3), mx: V3(x1 + 0.15, 3.4, 1.95), pivot: pivot, rotX: swing * ph, color: l.boots, pattern: Pat.leather))
+    let lv = MobDetail.level
+    // Legs swing from the hips, thigh and shin jointed at the knee (it folds as the foot comes through, P295); boots
+    // with a toe.
+    for (side, sgn) in [(Float(-1), Float(1)), (1, -1)] {
+        let x0: Float = -1.8, x1: Float = 1.8
+        let thigh = ModelJoint(o: V3(side * 2, 13, 0), a: swing * sgn)
+        let flex: Float = max(0, cosf(m.walkPhase) * sgn) * 0.9 * m.walkAmount
+        let shin = thigh.at(V3(0, -6, 0), -flex)
+        let cloth = l.overalls ?? l.legs
+        p.append(thigh.box(x0, -6.4, -1.8, x1, 0, 1.8, cloth, Pat.cloth))
+        p.append(shin.box(x0 + 0.1, -3.6, -1.7, x1 - 0.1, 0.3, 1.7, cloth, Pat.cloth))
+        p.append(shin.box(x0 - 0.15, -7, -2.3, x1 + 0.15, -3.6, 1.95, l.boots, Pat.leather))
+        if lv < 2 { p.append(shin.box(x0 - 0.05, -7, -3.1, x1 + 0.05, -5.7, -2.3, l.boots * 0.92, Pat.leather)) }
     }
     // Skirt over the legs (women), a long coat (the doctor).
     if let s = l.skirt { b(-4.6, 2.6, -2.9, 4.6, 14, 2.9, s) }
@@ -145,26 +152,64 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
     } else if engaged && w != .none {
         right = 1.0
     }
+    // At rest the arms hang loose and sway a little with the breath (P295).
+    let still: Float = max(0, 1 - m.walkAmount * 3) * (engaged || m.town.handsUp > 0 ? 0 : 1)
+    let sway: Float = sinf(m.animT * 1.25 + Float((m.villager?.look ?? 0) % 7)) * 0.04 * still
+    right += sway; left -= sway * 0.8
     let sleeve = l.coat ?? l.shirt
     for (side, rot) in [(Float(-1), left), (1, right)] {
         let x0: Float = side < 0 ? -7.0 : 4.2, x1: Float = side < 0 ? -4.2 : 7.0
         let pivot = V3(side * 5.6, 23, 0)
-        let z = side * rz
-        p.append(Part(mn: V3(x0, l.rolledSleeves ? 18 : 14.5, -1.4), mx: V3(x1, 23.6, 1.4), pivot: pivot, rotX: rot, rotZ: z, color: sleeve, pattern: Pat.cloth))
-        p.append(Part(mn: V3(x0 + 0.1, 12.6, -1.3), mx: V3(x1 - 0.1, l.rolledSleeves ? 18 : 14.5, 1.3), pivot: pivot, rotX: rot, rotZ: z, color: l.skin, pattern: Pat.skin))
+        let z = side * rz + side * 0.03 * still
+        func arm(_ mn: V3, _ mx: V3, _ c: V3, _ pat: Float) {
+            p.append(Part(mn: mn, mx: mx, pivot: pivot, rotX: rot, rotZ: z, color: c, pattern: pat))
+        }
+        let cuff: Float = l.rolledSleeves ? 18 : 14.4
+        arm(V3(x0, cuff, -1.4), V3(x1, 23.6, 1.4), sleeve, Pat.cloth)
+        if l.rolledSleeves { arm(V3(x0 + 0.15, 14.2, -1.25), V3(x1 - 0.15, 18, 1.25), l.skin, Pat.skin) }
+        else if lv < 2 { arm(V3(x0 - 0.05, 14.4, -1.45), V3(x1 + 0.05, 15.0, 1.45), sleeve * 0.9, Pat.cloth) }       // cuff
+        // The hand: narrower and flatter than the arm, the thumb forward on the inner side.
+        arm(V3(x0 + 0.35, 11.7, -1.05), V3(x1 - 0.35, 14.4, 1.15), l.skin, Pat.skin)
+        if lv == 0 {
+            let tx0: Float = side < 0 ? x1 - 1.0 : x0 + 0.2, tx1: Float = side < 0 ? x1 - 0.2 : x0 + 1.0
+            arm(V3(tx0, 12.8, -1.5), V3(tx1, 14.1, -0.95), l.skin * 0.96, Pat.skin)
+        }
     }
     // The weapon or tool in the right hand.
     p += townWeaponParts(w, combat: engaged && m.town.handsUp <= 0, pivot: V3(5.6, 23, 0), rotX: right, rotZ: rz)
-    // Head: face, hair, beard, glasses, headgear.
+    // Head: face, hair, beard, glasses, headgear. P295: built in the old head's frame (23.5 to 30.5), then drawn at a
+    // person's proportions (a fifth smaller, about one in five and a half of their height) on a neck: ears, chin, lips,
+    // pupils and lids, blinking now and then.
+    let headStart = p.count
     let skin = l.skin
+    let shut = m.blinking && lv == 0
     b(-3.2, 23.5, -3.2, 3.2, 30.5, 3.2, skin, Pat.skin)
     b(-0.6, 25.9, -3.85, 0.6, 27.6, -3.2, skin * 0.92, Pat.skin)                              // nose
-    b(-2.2, 27, -3.3, -0.9, 28, -3.2, V3(0.95, 0.95, 0.93), Pat.skin)                          // eyes
-    b(0.9, 27, -3.3, 2.2, 28, -3.2, V3(0.95, 0.95, 0.93), Pat.skin)
-    let iris = [V3(0.22, 0.15, 0.1), V3(0.25, 0.4, 0.55), V3(0.3, 0.42, 0.25)][(m.villager?.look ?? 0) % 3]
-    b(-1.7, 27, -3.36, -1.0, 27.9, -3.28, iris, Pat.skin); b(1.0, 27, -3.36, 1.7, 27.9, -3.28, iris, Pat.skin)
+    b(-3.55, 25.8, -0.6, -3.2, 28.2, 0.9, skin * 0.94, Pat.skin); b(3.2, 25.8, -0.6, 3.55, 28.2, 0.9, skin * 0.94, Pat.skin)   // ears
+    if lv < 2 {
+        b(-1.5, 23.5, -3.45, 1.5, 24.4, -3.2, skin * 0.97, Pat.skin)                         // chin
+        b(-0.85, 25.7, -4.0, 0.85, 26.4, -3.5, skin * 0.9, Pat.skin)                         // the nose's tip
+    }
+    if shut {
+        b(-2.25, 26.95, -3.36, -0.85, 28.05, -3.2, skin * 0.9, Pat.skin); b(0.85, 26.95, -3.36, 2.25, 28.05, -3.2, skin * 0.9, Pat.skin)
+    } else {
+        b(-2.2, 27, -3.3, -0.9, 28, -3.2, V3(0.95, 0.95, 0.93), Pat.skin)                      // eyes
+        b(0.9, 27, -3.3, 2.2, 28, -3.2, V3(0.95, 0.95, 0.93), Pat.skin)
+        let iris = [V3(0.22, 0.15, 0.1), V3(0.25, 0.4, 0.55), V3(0.3, 0.42, 0.25)][(m.villager?.look ?? 0) % 3]
+        b(-1.7, 27, -3.36, -1.0, 27.9, -3.28, iris, Pat.enamel); b(1.0, 27, -3.36, 1.7, 27.9, -3.28, iris, Pat.enamel)
+        if lv == 0 {
+            b(-1.5, 27.2, -3.4, -1.2, 27.7, -3.36, V3(0.04, 0.03, 0.03), Pat.enamel); b(1.2, 27.2, -3.4, 1.5, 27.7, -3.36, V3(0.04, 0.03, 0.03), Pat.enamel)
+            b(-2.25, 27.85, -3.34, -0.85, 28.1, -3.2, skin * 0.78, Pat.skin); b(0.85, 27.85, -3.34, 2.25, 28.1, -3.2, skin * 0.78, Pat.skin)   // lids
+        }
+    }
     b(-2.4, 28.4, -3.32, -0.8, 28.9, -3.2, l.hair * 0.8); b(0.8, 28.4, -3.32, 2.4, 28.9, -3.2, l.hair * 0.8)  // brows
-    b(-1.2, 24.8, -3.3, 1.2, 25.3, -3.2, V3(0.5, 0.25, 0.22), Pat.skin)                         // mouth
+    let lip = skin * V3(0.82, 0.58, 0.55)
+    b(-1.2, 25.0, -3.3, 1.2, 25.3, -3.2, lip * 0.85, Pat.skin)                                 // lips
+    if lv < 2 { b(-0.95, 24.7, -3.32, 0.95, 25.0, -3.2, lip, Pat.skin) }
+    if lv == 0 {
+        let cheek = skin * V3(1.03, 0.93, 0.92)
+        b(-2.8, 25.3, -3.25, -1.6, 26.4, -3.2, cheek, Pat.skin); b(1.6, 25.3, -3.25, 2.8, 26.4, -3.2, cheek, Pat.skin)
+    }
     if !l.bald { b(-3.4, 29.6, -3.4, 3.4, 31, 3.4, l.hair); b(-3.4, 25.5, 2.4, 3.4, 31, 3.45, l.hair) }
     else { b(-3.35, 26, 0, -3.15, 29, 3.3, l.hair); b(3.15, 26, 0, 3.35, 29, 3.3, l.hair) }
     if l.longHair { b(-3.5, 21.5, 2.2, 3.5, 30, 3.6, l.hair); b(-3.5, 25.5, -1.5, -3.2, 30, 3, l.hair); b(3.2, 25.5, -1.5, 3.5, 30, 3, l.hair) }
@@ -193,10 +238,18 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
     case .cap:
         b(-3.5, 30.2, -3.5, 3.5, 32.6, 3.5, h)
     }
+    // The head to a person's proportions, on a neck.
+    let hs = V3(0.8, 0.8, 0.82), h0 = V3(0, 23.5, 0), lift = V3(0, 1.1, 0)
+    for i in headStart..<p.count {
+        p[i].mn = h0 + (p[i].mn - h0) * hs + lift
+        p[i].mx = h0 + (p[i].mx - h0) * hs + lift
+    }
+    b(-1.45, 23.3, -1.5, 1.45, 24.9, 1.4, skin, Pat.skin)                                     // neck
+    if lv < 2 { b(-2.1, 22.9, -1.9, 2.1, 23.85, 1.8, l.coat ?? l.vest ?? l.shirt) }            // collar
     // Build (TownStats): the body below the neck broader for the strong and tough, slighter for the frail.
     let k = m.townStats.build
     if abs(k - 1) > 0.01 {
-        for i in p.indices where p[i].mn.y < 23.4 {
+        for i in 0..<headStart where p[i].mn.y < 23.4 {
             p[i].mn.x *= k; p[i].mx.x *= k; p[i].mn.z *= k; p[i].mx.z *= k; p[i].pivot.x *= k; p[i].pivot.z *= k
         }
     }
