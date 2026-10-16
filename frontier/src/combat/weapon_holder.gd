@@ -293,7 +293,7 @@ func _holster_global(wm: WeaponModel, ref: Transform3D) -> Transform3D:
 	if _is_pistol(wm):
 		return _hip_socket(ref) * anchor.affine_inverse()
 	var horse = actor.get("on_horse")
-	if horse is Node3D and is_instance_valid(horse):
+	if is_instance_valid(horse) and horse is Node3D:
 		return _saddle_socket(horse) * anchor.affine_inverse()
 	# slung across the back, muzzle up over the left shoulder, top of the gun facing away from the back
 	var chest := _bone("UpperChest", Vector3(0, 1.3, 0))
@@ -335,7 +335,7 @@ func _gear() -> void:
 			add_child(_belt)
 		_belt.global_transform = Transform3D(ref.basis, _bone("Hips", Vector3(0, 0.95, 0)) + ref.basis * Vector3(0, 0.02, 0.0))
 	var horse = actor.get("on_horse")
-	if horse is Node3D and is_instance_valid(horse):
+	if is_instance_valid(horse) and horse is Node3D:
 		var lg: WeaponModel = null
 		for id in models:
 			if not _is_pistol(models[id]):

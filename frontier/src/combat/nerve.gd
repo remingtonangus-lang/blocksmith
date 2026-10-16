@@ -203,14 +203,14 @@ func _ink(m: Dictionary) -> Node3D:
 	sp.render_priority = 10
 	sp.modulate = Color(1, 1, 1, 0.95)
 	sp.add_to_group("nerve_ink")
-	var parent: Node = m.node if m.node is Node3D and is_instance_valid(m.node) else gun.owner_actor.get_tree().current_scene
+	var parent: Node = m.node if is_instance_valid(m.node) and m.node is Node3D else gun.owner_actor.get_tree().current_scene
 	parent.add_child(sp)
 	sp.global_position = m.pos
 	return sp
 
 func _free_ink(m: Dictionary) -> void:
 	var sp = m.get("ink")
-	if sp is Node and is_instance_valid(sp):
+	if is_instance_valid(sp) and sp is Node:      # validity first: "is" on a freed instance is a script error
 		sp.queue_free()
 	m["ink"] = null
 
