@@ -489,6 +489,7 @@ extension Game {
         guard useNow else { return true }
         swing = 1
         if rackUse(s, cell, b, sneak: sneak) { return true }         // P278: a depth charge rack (DepthCharges.swift)
+        if fellUse(s, sneak: sneak) { return true }                   // P298: pick up a felled trunk (Felling.swift)
 
         // T9: an ingot of steel (or iron) used on a captured land vehicle rebuilds a damaged wheel.
         if s.root.kinematic && s.root.captured, ["steel_ingot", "iron_ingot"].contains(Items.key(held.item)),

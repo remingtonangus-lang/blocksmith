@@ -1226,6 +1226,7 @@ final class Game {
         if useNow, let r = riding, r.gaited, !r.tamed, held.isEmpty, !(target.map { isInteractive($0.hit) } ?? false), horseUse(r) { return }
         if useNow, let r = riding, mobs.raycast(player.eye, player.look, maxDist: 4).map({ $0.0 === r }) ?? false, horseUse(r) { return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && jetpackEquip() { return }
+        if useNow && Felling.carried != nil { dropCarried(throwing: true); swing = 1; return }      // P298: set the trunk down
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && factionGearUse() { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).
         if useNow, world.ships.pilot == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 4), Turrets.canMan(hit.0) {
@@ -2238,6 +2239,7 @@ final class Game {
             if drop { for s in Mining.drops(above, .empty) { drops.spawn(s, at: center + V3(0, 1, 0)) } }
         }
         _ = plantSupportCheck(IVec3(p.x, p.y + 1, p.z))        // the plant on it goes at once, as before
+        fellCheck(p, b)                                         // P298: a tree cut at its foot falls (Felling.swift)
     }
 
     // Buckets: pick up a water or lava source / pour it out.
@@ -2958,6 +2960,7 @@ final class Game {
         defer { w.deferRemesh = false }
         FlightCrew.tick(self)                                  // seated aircraft crews (Aircraft.swift)
         aircraftCrashTick(Float(dt))                           // P294: crashes and rotor strikes (AircraftCrash.swift)
+        fellingTick(Float(dt))                                 // P298: felled trees and a carried trunk (Felling.swift)
         TickProf.mark("flight crews")
         mobs.update(Float(dt), game: self)
         TickProf.mark("mobs")

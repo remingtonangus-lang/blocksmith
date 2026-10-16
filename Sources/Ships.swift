@@ -673,7 +673,7 @@ final class ShipManager {
     // rotated centre, widened halfway toward the rotated cube's bounds so turned decks have no gaps.
     func boxes(_ mn: V3, _ mx: V3, _ out: inout [(V3, V3)]) {
         for s in list where s.worldMax.x > mn.x - 1 && s.worldMin.x < mx.x + 1 && s.worldMax.y > mn.y - 1 && s.worldMin.y < mx.y + 1
-            && s.worldMax.z > mn.z - 1 && s.worldMin.z < mx.z + 1 {
+            && s.worldMax.z > mn.z - 1 && s.worldMin.z < mx.z + 1 && !ShipManager.ghosts.contains(s.id) {
             let r = simd_float3x3(s.rot)
             let ax: V3 = simd_abs(r[0]), ay: V3 = simd_abs(r[1]), az: V3 = simd_abs(r[2])
             let full: V3 = (ax + ay + az) * 0.5
@@ -742,7 +742,7 @@ final class ShipManager {
         }
         if let c = current, list.contains(where: { $0 === c }), test(c, 1.5) { return c }
         for s in list where p.x > s.worldMin.x - 2 && p.x < s.worldMax.x + 2 && p.z > s.worldMin.z - 2 && p.z < s.worldMax.z + 2
-            && p.y > s.worldMin.y - 3 && p.y < s.worldMax.y + 4 {
+            && p.y > s.worldMin.y - 3 && p.y < s.worldMax.y + 4 && !ShipManager.ghosts.contains(s.id) {
             if test(s, 0.45) { return s }
         }
         return nil

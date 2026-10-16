@@ -641,9 +641,12 @@ extension ShipManager {
         var err = simd_cross(up, desiredUp)
         if aircraft { err = fwdW * simd_dot(err, fwdW) }
         if s.flight != nil { err = .zero }                  // flown by its flight model, nothing holds it upright
+        let felled = s.name == Felling.name                 // P298: a felled tree topples and rolls freely
+        if felled { err = .zero }
         let kr: Float = s.balloons > 0 ? 8 : (aircraft ? 5 : (s.grounded ? 1.5 : (sub > 0 ? 1.2 : 2)))
         let wHoriz = s.angVel - up * simd_dot(s.angVel, up)
-        let damped: V3 = s.flight != nil ? .zero : (aircraft ? fwdW * simd_dot(wHoriz, fwdW) : wHoriz)
+        let damped: V3 = s.flight != nil ? .zero : (felled ? s.angVel * (s.contacts > 0 ? 0.4 : 0.05)
+                                                    : (aircraft ? fwdW * simd_dot(wHoriz, fwdW) : wHoriz))
         let kd: Float = iAvg * (s.balloons > 0 ? 3 : 1.2)
         T += err * (kr * iAvg) - damped * kd
         if aircraft && piloted && s.flight == nil {
