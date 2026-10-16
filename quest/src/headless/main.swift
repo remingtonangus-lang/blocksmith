@@ -549,6 +549,11 @@ if CommandLine.arguments.contains("--maingun-quick") {
     MainGunTests.run(game, check, render: nil)
     print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --frigatecheck: P325, the Meridian frigate's interior, flight, main gun and crash from its helm (Sources/FrigateCheck.swift).
+if CommandLine.arguments.contains("--frigatecheck") {
+    FrigateCheck.run(game, check)
+    print(failures == 0 ? "frigate: all checks passed" : "frigate: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --rules-only: the Mac --rulescheck world rules (Sources/RulesCheck.swift) beside the questcheck player.
 if CommandLine.arguments.contains("--rules-only") {
     let n = RulesCheck.run(game)

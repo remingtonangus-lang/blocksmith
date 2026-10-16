@@ -75,12 +75,28 @@ final class CombatHUD {
         if let ship = g.world.ships.pilot ?? g.world.ships.aboard, g.menu == nil {
             // A Meridian frigate's panel has one more row: the Tidebreaker's gauge.
             let gun = g.world.ships.mainGunStatus(ship.root)
-            let extra: Float = gun == nil ? 0 : 11
+            let kind = VehicleControls.kind(ship)
+            // P325 (e): a commandeered warship's drive (the engines left) and the bow's pitch on a row of their own.
+            let war = kind == .warship ? g.world.ships.capState[ship.root.id] : nil
+            let extra: Float = (gun == nil ? 0 : 11) + (war == nil ? 0 : 11)
             let x = L.insetX + 6 * s, y0 = L.H - L.insetY - (64 + extra) * s
             let w = 104 * s
             out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, (58 + extra) * s)))
+            if let st = war {
+                let dy = y0 + 54 * s
+                let d = Capital.drive(ship.root, st)
+                let out0 = d <= 0
+                let tag = out0 ? "Engines out" : String(format: "Pitch %+d", Int((st.helmPitch * 180 / .pi).rounded()))
+                let tw = Float(Font.width(tag)) * s
+                let dc = out0 ? Settings.shared.badColor : (d < 0.6 ? V4(0.95, 0.75, 0.2, 1) : V4(0.55, 0.85, 1, 1))
+                out.append(HudLine(text: "Drive", x: x, y: dy, scale: s, color: out0 ? dc : V4(0.85, 0.85, 0.85, 1)))
+                out.append(HudLine(text: tag, x: x + w - tw, y: dy, scale: s, color: out0 ? dc : V4(0.8, 0.9, 1, 1)))
+                let bw = max(0, w - tw - 30 * s)
+                out.append(HudLine(text: "", x: x + 26 * s, y: dy + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(bw, 5 * s)))
+                out.append(HudLine(text: "", x: x + 26 * s, y: dy + s, scale: s, bg: dc, box: V2(bw * d, 5 * s)))
+            }
             if let (state, fill, ready) = gun {
-                let gy = y0 + 54 * s
+                let gy = y0 + (war == nil ? 54 : 65) * s
                 let c = ready ? V4(0.55, 0.85, 1, 1) : V4(0.95, 0.75, 0.2, 1)
                 out.append(HudLine(text: MainGun.name, x: x, y: gy, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
                 let sw = Float(Font.width(state)) * s
@@ -89,7 +105,6 @@ final class CombatHUD {
                 out.append(HudLine(text: "", x: bx, y: gy + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(bw, 5 * s)))
                 out.append(HudLine(text: "", x: bx, y: gy + s, scale: s, bg: c, box: V2(bw * fill, 5 * s)))
             }
-            let kind = VehicleControls.kind(ship)
             let speed = simd_length(ship.vel) * 3.6
             out.append(HudLine(text: "\(ship.name) - \(VehicleControls.name(kind))", x: x, y: y0, scale: s, color: V4(1, 0.9, 0.6, 1)))
             out.append(HudLine(text: String(format: "%3.0f km/h", speed), x: x, y: y0 + 11 * s, scale: s))
@@ -98,7 +113,7 @@ final class CombatHUD {
             if hd < 0 { hd += 360 }
             let heading = dirs[Int((hd + 22.5) / 45) % 8]
             out.append(HudLine(text: heading, x: x + w - Float(Font.width(heading)) * s, y: y0 + 11 * s, scale: s, color: V4(0.7, 0.9, 1, 1)))
-            if kind == .airship || kind == .aircraft || kind == .helicopter {
+            if kind == .airship || kind == .aircraft || kind == .helicopter || kind == .warship {
                 let alt = Int(ship.pos.y) - SEA
                 out.append(HudLine(text: "Alt \(alt)", x: x + 56 * s, y: y0 + 11 * s, scale: s, color: V4(0.8, 0.95, 0.8, 1)))
             }

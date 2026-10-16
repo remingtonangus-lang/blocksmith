@@ -1134,6 +1134,11 @@ enum Snapshot {
         if CommandLine.arguments.contains("--structscan") { return Int32(StructScan.run(seeds: Int(arg("--structscan") ?? "") ?? 24)) }
         if CommandLine.arguments.contains("--smoothtest") { return SmoothTests.run(game) > 0 ? 1 : 0 }   // smooth terrain prototype
         if CommandLine.arguments.contains("--questbugs") { return QuestBugTests.run(game) > 0 ? 1 : 0 }   // task 20 checks
+        if CommandLine.arguments.contains("--frigatecheck") {                                       // P325, the frigate
+            var n = 0
+            FrigateCheck.run(game) { ok, what in print((ok ? "ok   " : "FAIL ") + what); if !ok { n += 1 } }
+            return n > 0 ? 1 : 0
+        }
         if CommandLine.arguments.contains("--swingtest") { return VRMeleeTests.run(game) > 0 ? 1 : 0 }   // VR melee + bow (VRMelee.swift)
         // Auto Render Distance (RenderDistanceGovernor.swift): synthetic frame-time traces + the save keeping the choice.
         if CommandLine.arguments.contains("--rdgovernortest") {

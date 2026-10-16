@@ -79,8 +79,8 @@ enum MainGunTests {
             if s.grid.get(ox + 2, 9, z) != AIR && s.grid.get(ox - 2, 9, z) != AIR && s.grid.get(ox, 11, z) != AIR && s.grid.get(ox, 7, z) != AIR { tube += 1 }
             if s.grid.get(ox + 3, 9, z) == thr { coils += 1 }
         }
-        check(tube == 63 && bore == 63 && coils >= 9 && st.mainGunLength == 63 && st.mainGunMuzzle.z < 1,
-              "maingun: a 63-block barrel between the booms (tube \(tube), clear bore \(bore), \(coils) glowing coil rings), muzzle at the bow (z \(st.mainGunMuzzle.z))")
+        check(tube == 63 && bore == 63 && coils >= 9 && st.mainGunLength == 115 && st.mainGunMuzzle.z < 1,
+              "maingun: a 63-block barrel between the booms (tube \(tube), clear bore \(bore), \(coils) glowing coil rings), muzzle at the bow (z \(st.mainGunMuzzle.z)), \(Int(st.mainGunLength)) blocks to the breech")
         // The world around the camera meshed and the ships' meshes built (released far away, rebuilt on the workers).
         func settle() {
             _ = w.loadSync(center: g.player.pos, radius: 4)
@@ -163,14 +163,14 @@ enum MainGunTests {
         // 3. A shot from the helm, through the game loop.
         s.captured = true
         st.mainGunCD = 0                                        // (a new frigate's first shot waits 8 s)
-        let mw0 = s.toWorld(st.mainGunMuzzle)
-        let md = s.dirToWorld(st.mainGunDir)
+        var mw0 = s.toWorld(st.mainGunMuzzle)
+        var md = s.dirToWorld(st.mainGunDir)
         // The frigate holds still for the shot (the commandeered helm with nobody steering holds station): where the
         // slug lands no longer follows its drift while chunks stream in (known-test-issues: a busy machine moved the
         // landing onto shallow water, a 1425-block crater).
         s.vel = .zero
         s.angVel = .zero
-        let h = simd_normalize(V2(md.x, md.z))
+        // P325: the gun is fixed along the keel, so the hull is pointed (pitched down) to lay it.
         // The steepest pitch whose landing (the helm's own prediction over the loaded world) is dry ground: a crater dug in
         // a pond or a swamp is mostly water and says nothing about the gun.
         g.player.pos = mw0 + V3(-50, 0, -10)
@@ -188,8 +188,10 @@ enum MainGunTests {
         }
         var pitch: Float = .nan
         for k in 0..<10 {
-            let pk = -0.52 + Float(k) * 0.03
-            let ray = V3(h.x * cosf(pk), sinf(pk), h.y * cosf(pk))
+            let pk = -Capital.maxPitch + Float(k) * 0.03
+            w.ships.pointHull(s, pitch: pk)
+            mw0 = s.toWorld(st.mainGunMuzzle)
+            let ray = s.dirToWorld(st.mainGunDir)
             var t: Float = 0, guess = mw0
             while t < 600 {
                 t += 2
@@ -197,7 +199,7 @@ enum MainGunTests {
                 if p.y <= Float(w.gen.column(Int(floor(p.x)), Int(floor(p.z))).height) + 1 { guess = p; break }
             }
             _ = w.loadSync(center: guess, radius: 2)
-            guard let at = w.ships.mainGunAimPoint(s, st, pitch: pk) else { continue }
+            guard let at = w.ships.mainGunAimPoint(s, st) else { continue }
             _ = w.loadSync(center: at, radius: 2)                   // (the bowl and its rim, round the predicted landing)
             // On the ground itself, not in a tree's crown (a slug that bursts in a jungle canopy digs half a bowl of air).
             let ground = Float(w.gen.column(Int(floor(at.x)), Int(floor(at.z))).height) + 1
@@ -209,7 +211,11 @@ enum MainGunTests {
             check(false, String(format: "maingun: a dry landing ahead of the frigate at %.0f,%.0f (every pitch lands in water or past the world)", mw0.x, mw0.z))
             return
         }
-        let dir = V3(h.x * cosf(pitch), sinf(pitch), h.y * cosf(pitch))
+        w.ships.pointHull(s, pitch: pitch)
+        mw0 = s.toWorld(st.mainGunMuzzle)
+        md = s.dirToWorld(st.mainGunDir)
+        let h = simd_normalize(V2(md.x, md.z))
+        let dir = md
         // Where the slug will land (the generator's heights along its path), loaded beforehand.
         var land = mw0
         var t: Float = 0
@@ -231,28 +237,26 @@ enum MainGunTests {
         print(String(format: "maingun: aiming %.0f blocks ahead of the muzzle, %.0f from the player", simd_length(land - mw0), simd_length(land - g.player.pos)))
         // The helm's aim marker: where the shot will land, predicted before it is fired, drawn as a ring.
         let ta = CFAbsoluteTimeGetCurrent()
-        let predicted = w.ships.mainGunAimPoint(s, st, pitch: pitch)
+        let predicted = w.ships.mainGunAimPoint(s, st)
         var aimMs = (CFAbsoluteTimeGetCurrent() - ta) * 1000
-        // The longest trace: raised all the way, the slug's whole 3.5 s flight over unstreamed country.
+        // The longest trace: raised all the way, the slug's whole flight over unstreamed country.
+        w.ships.pointHull(s, pitch: Capital.maxPitch)
         let tl = CFAbsoluteTimeGetCurrent()
-        _ = w.ships.mainGunAimPoint(s, st, pitch: 0.26)
+        _ = w.ships.mainGunAimPoint(s, st)
         aimMs = max(aimMs, (CFAbsoluteTimeGetCurrent() - tl) * 1000)
+        w.ships.pointHull(s, pitch: pitch)
         g.particles.list.removeAll()                           // (the earlier checks filled the particle cap)
         let parts0 = g.particles.list.count, aims0 = MainGun.aimUpdates
         st.aimTimer = 0
-        let wasPitch = g.player.pitch
-        g.player.pitch = pitch                                  // (the marker follows the helm's view)
         w.ships.mainGunAimTick(s, st, 1.0 / 72, g)
-        g.player.pitch = wasPitch
         let puff = Int(Tex.id("puff"))
         let ring = g.particles.list.dropFirst(parts0).filter { $0.layer == puff && $0.glow }.count
         check(predicted != nil && MainGun.aimUpdates == aims0 + 1 && ring >= 21 && aimMs < 4,
               "maingun: the helm shows where the shot will land (a \(ring)-puff ring \(String(format: "%.0f", predicted.map { simd_length($0 - mw0) } ?? -1)) blocks out, predicted in \(String(format: "%.2f", aimMs)) ms)")
         pm.rumbleLog.removeAll()
         let shells0 = w.ships.shells.filter { $0.kind == 3 }.count
-        let started = w.ships.playerMainGun(s, pitch: pitch, game: g)
-        st.gunPitch = pitch
-        let again = w.ships.playerMainGun(s, pitch: pitch, game: g)
+        let started = w.ships.playerMainGun(s, game: g)
+        let again = w.ships.playerMainGun(s, game: g)
         var maxShake: Float = 0, flashes = 0, frames = 0
         var shotRendered = false
         // The shot as a sequence of frames (EF5, "the shot recorded as a video-like screenshot sequence"): with

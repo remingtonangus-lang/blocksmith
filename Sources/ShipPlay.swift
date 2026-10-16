@@ -340,9 +340,9 @@ extension Game {
         if Partner.gunSeatTick(self, breakNow: breakNow, breakHeld: breakHeld) { return true }   // D52: a gun seat
         if let s = ships.pilot {
             ships.target = nil; target = nil; mining = nil
-            // Attack charges the Tidebreaker when a Meridian frigate's is loaded (it fires 2.6 s later), else fires the
-            // cannons, raised to the view pitch.
-            if breakNow && ships.playerMainGun(s, pitch: player.pitch, game: self) { swing = 1; return true }
+            // Attack charges the Tidebreaker when a Meridian frigate's is loaded (it fires 2.6 s later along the bow), else
+            // fires the cannons, raised to the view pitch.
+            if breakNow && ships.playerMainGun(s, game: self) { swing = 1; return true }
             // P93: in survival the guns use cannonballs from the pack, one a gun.
             if breakNow {
                 let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }
@@ -522,6 +522,19 @@ extension Game {
             } else {
                 startPiloting(s)
             }
+            return true
+        }
+        // P325 (b): a ship's doors (the frigate's bulkheads), trapdoors and gates open and close like the world's.
+        let shape = Blocks.shape[Int(b)]
+        if !sneak && (shape == "door" || shape == "trapdoor" || shape == "gate") {
+            let base = Blocks.groupBase[Int(b)], st = Int(b - base)
+            ships.setBlock(s, cell, base + BlockID(st ^ 4))
+            if shape == "door" {
+                let other = IVec3(cell.x, cell.y + (st & 8 != 0 ? -1 : 1), cell.z)
+                let ob = s.grid.get(other.x, other.y, other.z)
+                if Blocks.groupBase[Int(ob)] == base { ships.setBlock(s, other, base + BlockID(Int(ob - base) ^ 4)) }
+            }
+            audioOpenable(shape: shape, base: base, opening: st & 4 == 0, at: IVec3(Int(floor(centre.x)), Int(floor(centre.y)), Int(floor(centre.z))))
             return true
         }
         if !sneak, let be = s.blockEntities[cell] ?? (Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("chest") ? newShipChest(s, cell) : nil) {

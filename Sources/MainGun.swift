@@ -3,11 +3,13 @@ import simd
 
 // The Meridian frigate's spinal gun, the Tidebreaker (Remington, Oct 9 2026: "make the gun the centrepiece"). It was
 // the "MAC", a Halo term, renamed in everything the player sees (docs/status/ip-renames.md).
-//   Barrel: 63 blocks between the bow booms with glowing coil rings (CapitalFrigate.swift).
+//   Barrel: 63 blocks between the bow booms with glowing coil rings, the accelerator on back down the gun deck to the
+//     breech in the stern, 115 blocks in all (CapitalFrigate.swift). P325 (a): fixed along the hull: a shot from the
+//     helm goes where the bow points (turn and pitch the ship to aim it), flat, with no drop.
 //   Charge: 2.6 s, telegraphed to everyone: a rising whine with accelerating coil thumps, a light pulse running
 //     breech to muzzle faster and brighter, sparks drawn into the muzzle; on board the deck shakes and the
 //     controllers pulse harder and faster.
-//   Shot: a white-blue slug at 420 b/s with a glowing wake, a muzzle blast that lights the sky, steam venting from
+//   Shot: a white-blue slug at 700 b/s, straight (no drop), with a glowing wake, a muzzle blast that lights the sky, steam venting from
 //     every coil, a recoil lurch, a crack heard 480 blocks off.
 //   Impact: a crater bounded to MainGun.craterCap blocks (nearest first, so a capped crater is still a round
 //     bowl) and carved 400 blocks a frame (Explosion.swift CraterJob), a light column, a dust shockwave that runs out at 64 b/s and flattens mobs out to 48 blocks, a long
@@ -19,7 +21,7 @@ enum MainGun {
     static let chargeTime: Float = 2.6
     static let playerReload: Float = 22
     static let aiReload: Float = 30
-    static let slugSpeed: Float = 420
+    static let slugSpeed: Float = 700
     static let craterRadius: Float = 13
     // P99 (Remington, Oct 12: "a crater at least 20 blocks deep"): the bowl reaches 26 down at its deepest (the
     // ragged edge takes up to a fifth off, so never less than 20 under the impact); it was two thirds of the radius.
@@ -50,12 +52,6 @@ enum MainGun {
         return max(0, 1 - d / 160) * 0.6
     }
 
-    // The shot's direction from the helm: along the bow, raised or lowered with the view, 30 degrees down to 15 up.
-    static func helmDir(_ md: V3, pitch: Float) -> V3 {
-        let p = max(-0.52, min(0.26, pitch))
-        let h = simd_normalize(V2(md.x, md.z) + V2(1e-5, 0))
-        return simd_normalize(V3(h.x * cosf(p), sinf(p), h.y * cosf(p)))
-    }
 
     static func noteImpact(at p: V3) { impacts += 1; lastImpact = p; lastCrater = 0; lastScorched = 0 }
     static func noteCrater(_ n: Int, scorched: Int = 0) { lastCrater = n; lastScorched = scorched }
@@ -105,7 +101,7 @@ extension ShipManager {
         // at a structure region plans it (76 ms on the host, the impact frame's whole hitch). Plan the regions round the
         // likely landing on a worker during the charge, so the impact finds them cached.
         if world.dim == .overworld, let sc = world.gen.structures {
-            let warm = (byPlayer ? mainGunAimPoint(s, st, pitch: st.gunPitch) : st.target?.point) ?? (s.toWorld(st.mainGunMuzzle) + md * 200)
+            let warm = (byPlayer ? mainGunAimPoint(s, st) : st.target?.point) ?? (s.toWorld(st.mainGunMuzzle) + md * 200)
             DispatchQueue.global(qos: .utility).async {
                 MainGunStrikes.prewarm(sc, at: warm)
                 _ = Explosion.craterOffsets(Int(ceilf(MainGun.craterRadius)), depth: MainGun.craterDepth)   // (sorted once: the bowl's cells)
@@ -139,7 +135,6 @@ extension ShipManager {
         guard st.gunCharge >= 0 else { return }
         if let b = st.bombardAt { bombardMark(b, charge: st.gunCharge / MainGun.chargeTime, dt: dt, game: g) }
         if s.wrecked || (!st.gunByPlayer && !st.driverAlive) { st.gunCharge = -1; return }
-        if st.gunByPlayer && pilot === s { st.gunPitch = g.player.pitch }
         st.gunCharge += dt
         let k = min(1, st.gunCharge / MainGun.chargeTime)
         let md = s.dirToWorld(st.mainGunDir)
@@ -192,7 +187,7 @@ extension ShipManager {
         st.gunCharge = -1
         var dir = md
         if st.gunByPlayer {
-            dir = MainGun.helmDir(md, pitch: st.gunPitch)
+            dir = md                                                     // P325 (a): along the barrel, where the bow points
         } else if let b = st.bombardAt {
             dir = simd_normalize(b - mw + V3(1e-5, 0, 0))                // the marked ground (P99)
             if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
@@ -211,7 +206,7 @@ extension ShipManager {
         let mw = s.toWorld(st.mainGunMuzzle)
         let md = s.dirToWorld(st.mainGunDir)
         let sh = Shell(pos: mw + dir * 3, vel: dir * MainGun.slugSpeed + s.vel, owner: s.id, power: 12)
-        sh.gravity = 0.4
+        sh.gravity = 0                                                   // P325 (a): flat, "straight like a laser"
         sh.kind = 3
         sh.life = 3.5
         shells.append(sh)
@@ -457,19 +452,17 @@ extension ShipManager {
         shockwaves.removeAll { $0.r >= MainGun.shockFelt && $0.age >= 5 && ($0.crater?.done ?? true) }
     }
 
-    // Where a shot from the helm would land now: the slug's flight (ShipCombat.updateShells: 420 b/s plus the
-    // hull's drift, gravity 0.4, 3.5 s) traced in 1-block steps through the streamed world, stopping at another ship's
-    // hull. Nil when it lands nowhere in sight (the sky, or past the streamed world).
-    func mainGunAimPoint(_ s: Ship, _ st: CapitalState, pitch: Float) -> V3? {
-        let md = s.dirToWorld(st.mainGunDir)
-        let dir = MainGun.helmDir(md, pitch: pitch)
+    // Where a shot from the helm would land now: the slug's flight along the barrel (ShipCombat.updateShells: 700 b/s
+    // plus the hull's drift, no drop, 3.5 s) traced in 1-block steps through the streamed world, stopping at another
+    // ship's hull. Nil when it lands nowhere in sight (the sky, or past the streamed world).
+    func mainGunAimPoint(_ s: Ship, _ st: CapitalState) -> V3? {
+        let dir = s.dirToWorld(st.mainGunDir)
         var pos = s.toWorld(st.mainGunMuzzle) + dir * 3
-        var vel = dir * MainGun.slugSpeed + s.vel
+        let vel = dir * MainGun.slugSpeed + s.vel
         let dt: Float = 1.0 / 72
         var reader = ShipBlockReader(world)
         var t: Float = 0
         while t < 3.5 {
-            vel.y -= 0.4 * dt
             let end = pos + vel * dt
             let n = max(1, Int(ceil(simd_length(end - pos))))
             for i in 1...n {
@@ -494,7 +487,7 @@ extension ShipManager {
         st.aimTimer -= dt
         if st.aimTimer <= 0 {
             st.aimTimer = 0.1
-            st.aimPoint = mainGunAimPoint(s, st, pitch: st.gunCharge >= 0 ? st.gunPitch : g.player.pitch)
+            st.aimPoint = mainGunAimPoint(s, st)
             if st.aimPoint != nil { MainGun.aimUpdates += 1 }
         }
         guard let c = st.aimPoint else { return }
@@ -540,11 +533,10 @@ extension ShipManager {
     }
 
     // The player at a commandeered Meridian frigate's helm: attack starts the Tidebreaker's charge when it is
-    // loaded (it fires 2.6 s later along the bow, raised or lowered with the view). False when it can't (reloading,
+    // loaded (it fires 2.6 s later along the barrel, wherever the bow then points). False when it can't (reloading,
     // already charging, not a Meridian frigate): attack then fires the point-defence guns.
-    func playerMainGun(_ s: Ship, pitch: Float, game g: Game) -> Bool {
+    func playerMainGun(_ s: Ship, game g: Game) -> Bool {
         guard let st = gunState(s), st.mainGunCD <= 0, st.gunCharge < 0 else { return false }
-        st.gunPitch = pitch
         startMainGunCharge(s, st, g, byPlayer: true)
         return true
     }
