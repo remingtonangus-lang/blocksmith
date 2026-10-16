@@ -27,18 +27,22 @@ add docs/status/<stream>.md and a link here.
 > compiler, so only docs/assets were touched (assets/gemini/processed holds 128 px imports, not adopted; brick/plank
 > sheets need a re-roll). Resume from the HANDOFF, BUGS.md and the Playtest feedback queue.
 
-## HANDOFF (2026-10-15 ~23:25 UTC, integration session, resumed for a fresh week)
-- Run 770 (5cd19c5) red items and their fixes: structcheck floaters (underground structures build first, 0430fec),
-  ridecheck crew off a wrecked crawler's ramp (0430fec), ride troops cutting the engine corner (waypoints at 0.3,
-  local), rulescheck water test flaw (0430fec), villagers waking in bed every few ticks (6404a6d; most of the behaviour
-  sim's 41 stuck / 6 spinning). Playthrough Blight (30 damage from 388 arrows, neither side's projectiles land): the
-  first six shots are traced in the fast lane of 6404a6d (`[fast: --playthrough --only blight]`); read focus.log.
-- Waterlogging audit (8 gameplay bugs, no crashes) fixed locally: slab merge, pistons, ship assembly/docking, copper,
-  burning, Silk Touch panes, soldier line of sight; dispensers and save migration too; rulescheck cases added.
-- PR #9 body condensed; full history in docs/status/pr9-whats-new.md.
-- Blocked: Session L's USB controller patches (5) sit on Remington's Mac (~/ClaudeTools/projects/blocksmith-qa/
-  usb-gip-patches/); asked him to push them to a branch or paste them.
-- Fidelity audit round 7 (anvil, enchanting table, brewing, food) running as a subagent.
+## HANDOFF (2026-10-16 ~06:40 UTC, integration session; context full, next session resumes here)
+- CI: run 1771 on ca63ec1 green except ride crew post drift 1.05 (limit 1.0) and rulescheck water (not gating).
+  84c49b1 is in the full suite now (watch ci-snaps for it): firmer crew post-holding (5bd9334), rulescheck pads 40 up
+  with a water-row diagnostic, fidelity round 8 (ore air exposure, large-vein sign, titanium floor clamp, emerald,
+  buried treasure 1 %). World gen changed: expect gen.terrain_hash "changed" and check gen.chunk_ms (1.61x last time,
+  gate 1.6x; likely runner noise).
+- Fixed this stretch (all in BUGS.md): mob in the crosshair swallowed every use (bows, shields, food; the Blight
+  fight), villagers waking in bed, structures over caves / valleys, freed crew on a wrecked crawler's ramp, troops
+  cutting the engine corner, wooden stairs not flammable, waterlogging audit (8 bugs), fidelity rounds 7-8.
+- If rulescheck water still fails, read its printed row ("z-1: ..." levels) before changing the test again.
+- Blocked: Session L's 5 USB controller patches sit on Remington's Mac (~/ClaudeTools/projects/blocksmith-qa/
+  usb-gip-patches/), not reachable from the cloud; he needs to push them to a branch or paste them.
+- Next ideas: blind critic round on the newest ci-snaps (tools/gemini_critic.py with a short --shots list; the
+  12-shot default ran past 15 min), behaviour sim's last 3 stuck mobs, gencheck chunk-border lone stones.
+- Usage: Remington asked for lean sessions (subagents for reading, trimmed output, one long CI wait, handoff at
+  ~150k context).
 
 ## HANDOFF (2026-10-03 ~12:00 UTC, builder session parked by Remington; supersedes the notes below)
 
