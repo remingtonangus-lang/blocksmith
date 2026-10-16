@@ -201,6 +201,7 @@ final class DeepGen: TerrainGenerator {
             }
         } }
         ember.fill(&b, cx: cx, cz: cz, smoothCaps: field)
+        sunderSeam(&b, cx: cx, cz: cz)
         crustPockets(&b, bx, bz, floors, ceils)
         // The Ashguard's lines (teeth, wire, trench) where they cross this chunk.
         for lz in 0..<CS { for lx in 0..<CS {
@@ -228,6 +229,42 @@ final class DeepGen: TerrainGenerator {
             }
         } }
         return b
+    }
+
+    // P323 (c, Oct 15 18:49: "I dug down looking for that special rock", and never found the way in): one chunk in five
+    // has a short seam of Sunderite Ore in the hell band's floor, the few layers just above the Sealrock, so whoever digs
+    // down to the rock that won't break finds the ore that breaks it beside it, glowing in the dark (the keeps'
+    // strongrooms still hold the worked chain).
+    static let seamShare: UInt32 = 5
+    private func sunderSeam(_ b: inout [BlockID], cx: Int, cz: Int) {
+        let h = hash3(cx, 0x5EA, cz, s32 ^ 0x5D2)
+        guard h % DeepGen.seamShare == 0 else { return }
+        let ore = Blocks.id("sunderite_ore")
+        let n = 3 + Int((h >> 4) % 4)
+        var x = 2 + Int((h >> 8) % 12), z = 2 + Int((h >> 12) % 12), y = DeepGen.hellBase + Int((h >> 16) % 4)
+        for k in 0..<n {
+            let i = Chunk.index(x, y, z)
+            if b[i] == EMBERSLATE || b[i] == NETHERRACK { b[i] = ore }
+            let s = hash3(cx &* 16 &+ k, y, cz, s32 ^ 0x5D3)
+            switch s % 6 {
+            case 0: x = min(14, x + 1)
+            case 1: x = max(1, x - 1)
+            case 2: z = min(14, z + 1)
+            case 3: z = max(1, z - 1)
+            case 4: y = min(DeepGen.hellBase + 5, y + 1)
+            default: y = max(DeepGen.hellBase, y - 1)
+            }
+        }
+    }
+
+    // P323 (a): which layer of the Deep a height is in, by name (the voice notes' and bug notes' place line read the hell
+    // band's biome at every height, so a note from the vault said "Basalt Deltas"); nil in the hell band itself.
+    func layerName(_ x: Int, _ y: Int, _ z: Int) -> String? {
+        if y <= DeepGen.coreTop { return "Molten Core" }
+        if y < DeepSeal.bottom { return y < ceilingY(x, z) ? "Ash Vault" : "Lower Crust" }
+        if DeepSeal.inBand(y) { return "Sealrock" }
+        if y >= DeepGen.crustTop { return "Upper Crust" }
+        return nil
     }
 
     // Sealed lava pockets in the crusts above the vault and below the surface: rock solid on all six sides turns to lava,

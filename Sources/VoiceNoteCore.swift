@@ -99,7 +99,9 @@ final class VoiceEvents {
 
 enum VoiceNoteContext {
     static func biome(_ g: Game) -> String {
-        g.world.gen.column(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.z))).biome.displayName
+        let x = Int(floor(g.player.pos.x)), z = Int(floor(g.player.pos.z))
+        if let dg = g.world.gen as? DeepGen, let l = dg.layerName(x, Int(floor(g.player.pos.y)), z) { return l }     // P323 (a)
+        return g.world.gen.column(x, z).biome.displayName
     }
 
     // Game state for a note's sidecar, in display order.

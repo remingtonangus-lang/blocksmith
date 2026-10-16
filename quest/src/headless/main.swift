@@ -21,6 +21,8 @@ TownSizes.on = false                   // and their towns as they were (C13 town
 MobVary.on = false                      // checks count exact blows and steps (the P55 check turns it on)
 // --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.
 if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }
+// --deepscan: the Deep's layers over a few seeds (P323, Sources/DeepScan.swift), generator only.
+if CommandLine.arguments.contains("--deepscan") { exit(DeepScan.run()) }
 // --agent BOT / --behaviorsim: the bots and the mob behaviour sim, shared with the Mac (Sources/Agent*.swift,
 // Sources/BehaviorSim.swift), on the Linux host too (Q2: scorecard "Behaviour" measured off the Mac).
 if arg("--agent") != nil { exit(AgentRun.run()) }
