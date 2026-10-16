@@ -706,6 +706,7 @@ final class BlockRegistry {
         registerAshenGrove()
         registerSpringBlocks()
         registerShipBlocks()
+        registerDepthChargeBlocks()                       // P278 (DepthCharges.swift)
         registerVehicleWorks()
         registerFuelPump()                                // D44 (VehicleDepot.swift)
         registerSnare()                                   // D46 (Tracking.swift)

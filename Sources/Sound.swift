@@ -85,6 +85,7 @@ enum Snd: Hashable {
     case hoof(Int)                  // a hoof fall by the ground: 0 stone, 1 wood, 2 earth, 3 sand, 4 snow, 5 water (HorseLife)
     case rocketFlightLoop, shellFlightLoop          // projectiles in flight (heard as they pass)
     case shellIncoming, ashSiren                    // the Ash Vault: an incoming shell's falling whistle, the alarm siren
+    case depthBoom                                  // P278: a depth charge bursting under water (DepthCharges.swift)
     case explodeSmall, explodeLarge, debrisRain       // grenades / big blasts, and the debris pattering down after
     // Ships, airships and land vehicles (VehicleAudio.swift): idle/full layers are cross-faded by throttle.
     case engineIdleLoop, engineFullLoop, propSlowLoop, propFastLoop, airshipWindLoop, wheelRollLoop, hullWaterLoop
@@ -153,6 +154,7 @@ enum Snd: Hashable {
         case .gun(let k): return k == 9 ? 128 : (k == 10 ? 96 : (k <= 5 || k == WeaponAudio.sidearmSlot || WeaponAudio.ashSlots.contains(k) ? 48 : 16))
         case .gunDistant: return 220
         case .explodeLarge: return 128
+        case .depthBoom: return 160
         case .explodeSmall: return 48
         case .shipCollideHard: return 48
         case .shipCannon: return 96
@@ -316,6 +318,7 @@ final class SoundBank {
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
               .thunderFar, .iceCreak, .rockfall, .volcanoRumble]
         s += [.fallRushLoop, .hellImpact, .hellArrival]
+        s += [.shellIncoming, .ashSiren, .depthBoom]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         for k in 0...5 { s.append(.hoof(k)) }
         return s
@@ -329,7 +332,7 @@ final class SoundBank {
         s.append(.gunDistant(WeaponAudio.heavySlot))
         for m in [SoundMat.stone, .dirt, .sand, .wood, .plant, .glass, .gravel, .metal, .deepslate] { s.append(.bulletImpact(m)) }
         s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
-        s += [.shellIncoming, .ashSiren]
+        s += [.shellIncoming, .ashSiren, .depthBoom]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         return s
     }

@@ -334,6 +334,7 @@ extension Snd {
         case .debrisRain: return "Debris falls"
         case .shellFlightLoop: return "Shell whistles"
         case .shellIncoming: return "Incoming shell"
+        case .depthBoom: return "Depth charge bursts"
         case .ashSiren: return "Alarm siren wails"
         case .bulletFlesh: return "Bullet hits flesh"
         case .grenadeBounce: return "Grenade bounces"
