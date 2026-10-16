@@ -333,6 +333,7 @@ final class Mob {
     var arrowDamage = 0               // harness: health lost to arrow hits (not saved)
     var hurtSound = false           // set by hit(); MobManager plays the hurt call once
     var teleportSound = false       // set by teleport(); MobManager plays it at both ends
+    var pressedPlayer = false       // P311 (a): its last move was stopped by the player's body (World.touchedPlayer)
     var stepAcc: Float = 0          // distance walked since the last footstep sound
     var hoofPh: Float = 0           // R13: the stride phase at the last hoof beat check
     // Where in a stride (0...1) each hoof lands, by speed: walk, trot, canter, gallop.
@@ -1083,7 +1084,8 @@ final class Mob {
                     let to = player + back * Rand.float(in: 3...8)
                     let x = Int(floor(to.x)), z = Int(floor(to.z))
                     let top = w.topY(x, z)
-                    if top > 0 && abs(Float(top + 1) - player.y) < 8 && !Blocks.isLiquid(w.block(x, top, z)) {
+                    if top > 0 && abs(Float(top + 1) - player.y) < 8 && !Blocks.isLiquid(w.block(x, top, z))
+                        && Mob.clearOfPlayer(V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)) {
                         pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
                         vel = .zero
                     }
@@ -1257,6 +1259,7 @@ final class Mob {
         if let s = deck {
             // On a moving deck: walk and collide in the ship's own frame (its blocks are exact there; the
             // world-space boxes of a turned hull are only an approximation), with velocity relative to the deck.
+            pressedPlayer = false
             var l = s.toLocal(pos)
             var lv = s.dirToLocal(vel)
             w.frame = s
@@ -1286,7 +1289,9 @@ final class Mob {
             if hit.x || hit.z { let wv = s.dirToWorld(lv); vel.x = wv.x; vel.z = wv.z; deckBumped = true }
             hit.x = false; hit.z = false                  // handled in the ship's axes above
         } else {
+            w.touchedPlayer = false
             hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0.6, onGround: onGround)
+            pressedPlayer = w.touchedPlayer
         }
         if self === Mob.trace {
             print(String(format: "      pre %.3f,%.3f,%.3f vel %.2f,%.2f,%.2f -> %.3f,%.3f,%.3f hit %@%@%@ ground %@ speed %.2f yaw %.0f", before.x, before.y, before.z,
@@ -1310,7 +1315,8 @@ final class Mob {
         } else {
             onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
         }
-        if bumped && speed != 0 {
+        // P311 (a): stopped by the player's body, not a wall: no hop up at him.
+        if bumped && speed != 0 && !(pressedPlayer && !onLadder && !inWater) {
             if onLadder { vel.y = 2.35 }
             // P279 (b): a floater (or a Sunken coming up after its target) bumping the bank kicks up and out.
             else if inWater && !onGround && (!kind.sinksInWater || (kind == .drowned && canTarget)) { swimClimb = 0.25 }
@@ -1506,12 +1512,21 @@ final class Mob {
         return nil
     }
 
+    // P311 (b): where the player stands (set by MobManager.update while he is on foot): a teleport never lands on him.
+    static var keepClearOf: V3?
+    static func clearOfPlayer(_ q: V3) -> Bool {
+        guard let c = keepClearOf else { return true }
+        let dx = q.x - c.x, dz = q.z - c.z
+        return dx * dx + dz * dz > 2.5 * 2.5 || abs(q.y - c.y) > 3
+    }
+
     func teleport(_ w: World) {
         for _ in 0..<16 {
             let x = Int(floor(pos.x)) + Rand.int(in: -16...16), z = Int(floor(pos.z)) + Rand.int(in: -16...16)
             let top = w.topY(x, z)
             if top < 1 { continue }
             if Blocks.isLiquid(w.block(x, top, z)) { continue }
+            if !Mob.clearOfPlayer(V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)) { continue }
             teleportSound = true
             pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
             vel = .zero
@@ -2351,6 +2366,15 @@ final class MobManager {
             let d = m.pos - p
             if d.x * d.x + d.z * d.z < 48 * 48 { sepNear.append(m) }
         }
+        // P311 (a): the living mobs near the player that his own moves meet as solid bodies (World.solidMobs).
+        w.solidMobs.removeAll(keepingCapacity: true)
+        if g.alive {
+            for m in mobs where m.health > 0 && m.downed <= 0 && m.deck == nil && m.mount == nil && g.riding !== m && !m.lying
+                && MobManager.bodySolid(m.kind) {
+                let d = m.pos - p
+                if d.x * d.x + d.z * d.z < 12 * 12 && abs(d.y) < 12 { w.solidMobs.append(m) }
+            }
+        }
         let step = min(0.25, 4 * dt)
         func nudge(_ m: Mob, _ dir: V2, _ by: Float) {
             let q = m.pos + V3(dir.x, 0, dir.y) * min(step, by)
@@ -2368,6 +2392,11 @@ final class MobManager {
                 guard dy > -m.height && dy < g.player.height else { continue }
                 let (dir, l) = dirOf(m.pos.x - p.x, m.pos.z - p.z), need = m.halfW + g.player.halfW
                 if l < need { nudge(m, dir, need - l) }
+                // P311 (a): walking into a mob shoves it along (an animal gives way; a foe barely), never through it.
+                else if max(abs(m.pos.x - p.x), abs(m.pos.z - p.z)) < need + 0.08 {
+                    let into: Float = simd_dot(g.player.walkWant, dir)
+                    if into > 0.5 { nudge(m, dir, into * dt * (m.kind.hostile ? 0.3 : 0.8)) }
+                }
             }
         }
         guard n > 1 else { return }
@@ -2387,6 +2416,12 @@ final class MobManager {
                 nudge(a, -dir, half)
             }
         }
+    }
+
+    // P311 (a): mobs with a body the player meets (not vehicles, the dragon and its crystals, block-like shells, deck
+    // guns or stands).
+    static func bodySolid(_ k: MobKind) -> Bool {
+        k != .boat && k != .minecart && k != .enderDragon && k != .endCrystal && k != .shulker && k != .deckGun && k != .armorStand
     }
 
     func rebuildIndex() {
@@ -2419,11 +2454,18 @@ final class MobManager {
         Difficulty.level = game.diffLevel                  // (P302: the level, 0...5)
         let second = game.coop.current > 0          // split screen: a second seat updates only the mobs nearest it
         if !second { hiveTick(dt, game); separate(dt, game) }
+        // P311 (a): the player's body, which every mob's own move stops at (World.playerBox); (b) teleports land clear of it.
+        let pl = game.player
+        let bodyOn = game.alive && game.riding == nil
+        let pBox = (V3(p.x - pl.halfW, p.y, p.z - pl.halfW), V3(p.x + pl.halfW, p.y + pl.height, p.z + pl.halfW))
+        Mob.keepClearOf = bodyOn ? p : nil
         for m in mobs where game.seatOwns(m.pos) {
             if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
             let before = m.pos, wasGround = m.onGround
             if m.hitStop > 0 { m.hitStop -= dt; continue }      // frozen by a landed blade (VRCombatFeel.swift)
+            w.playerBox = bodyOn && game.riding !== m && m.deck == nil && m.mount == nil && MobManager.bodySolid(m.kind) ? pBox : nil
             m.update(dt, game: game)
+            w.playerBox = nil
             // Smooth worlds (P142): mobs near the player stand on the drawn ground, not the block steps under it (U1: out
             // to 96 blocks, where a herd on a hillside still read as hovering; the 4 column heights are cached per cell).
             let gnd: Float = (SmoothTerrain.enabled || w.fieldTerrain) && m.onGround && simd_length_squared(m.pos - p) < 96 * 96
@@ -2435,7 +2477,8 @@ final class MobManager {
             if !sane || !m.yaw.isFinite {
                 MobManager.quarantined += 1
                 if MobManager.quarantined <= 5 { print("mob NaN quarantine: \(m.kind.key) at \(before) (\(MobManager.quarantined) so far)") }
-                m.pos = before.x.isFinite && before.y.isFinite && before.z.isFinite ? before : p
+                // P311 (b): with no finite spot of its own, it goes a few blocks off, never into the player.
+                m.pos = before.x.isFinite && before.y.isFinite && before.z.isFinite ? before : p + V3(3, 1, 0)
                 m.vel = .zero
                 if !m.yaw.isFinite { m.yaw = 0 }
             }

@@ -1060,7 +1060,9 @@ final class QuestControls {
             if pl.flying || game.riding != nil || game.world.ships.aboard != nil {
                 if game.riding == nil { pos += delta }
             } else {
+                game.world.mobsSolid = true        // P311 (a): a real step doesn't carry him through a mob either
                 _ = game.world.moveBody(&pos, halfW: pl.halfW, height: pl.height, delta, step: pl.onGround ? 0.6 : 0, onGround: pl.onGround)
+                game.world.mobsSolid = false
             }
             if game.riding == nil { pl.pos = pos }
         }

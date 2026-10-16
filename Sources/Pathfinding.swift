@@ -453,7 +453,8 @@ extension Mob {
         // the bed / job block itself kept it pushing there forever). Not while a zombie hammers at a door.
         // Horizontal progress only: hopping in place at a step bobbed 0.8 up and down and reset a 3D check every hop.
         let progress: Float = simd_length(V2(pos.x - path.stallPos.x, pos.z - path.stallPos.z))
-        if progress > 0.75 || path.breakTime > 0 { path.stallPos = pos; path.stallTime = 0 } else {
+        // P311 (a): pressed up against the player's body is being there, not stuck.
+        if progress > 0.75 || path.breakTime > 0 || pressedPlayer { path.stallPos = pos; path.stallTime = 0 } else {
             path.stallTime += dt
             if path.stallTime > 4 { path.stallTime = 0; path.nodes.removeAll(keepingCapacity: true); path.timer = 0; dropSearch(); giveUp(target); return }
         }
