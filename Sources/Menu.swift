@@ -307,14 +307,11 @@ class Menu {
         guard w >= 36 * s else { return nil }
         return (x, o.y + (Float(height) * s - h) / 2, w, h)
     }
-    func refuse(_ slot: MenuSlot) {
-        let c = game.carried
-        var why = "\(c.def.display) can't go in that slot"
-        if case .armor(let a) = slot.kind {
-            why = ["Only helmets and heads go here", "Only chestplates and wings go here", "Only leggings go here", "Only boots go here"][a.rawValue]
-        }
-        game.menuNote = (why, game.clock)
-        game.sfx(.click, 0.25)
+    // P317 (a): a slot that won't take the carried item just doesn't: the stack stays on the cursor with a dull clunk
+    // and a short buzz, no words (NO TEXT, P328). What goes where is learned by trying.
+    func refuse(_ slot: MenuSlot) { clunk() }
+    func clunk() {
+        game.sfx(.vaultReject, 0.35)
         PadManager.shared.rumble(0.12, 0.03, sharpness: 0.9)
     }
     func inDropBox(_ p: V2, _ L: HudLayout) -> Bool {
@@ -530,7 +527,11 @@ final class FurnaceMenu: Menu {
     init(game: Game, entity: BlockEntity) {
         be = entity
         super.init("Furnace", game: game)
-        slots.append(MenuSlot(56, 17, be.container, 0))
+        // P317 (a): the top slot takes only what this furnace can smelt (Raw Sunderite went in and sat there under a
+        // "can't be smelted" line); anything else bounces off with a clunk (Menu.refuse).
+        let input = MenuSlot(56, 17, be.container, 0)
+        input.filter = { [be] s in Recipes.smelt(s.item).map { BlockEntity.allowed($0, s.item, in: be.mob) } ?? false }
+        slots.append(input)
         let fuel = MenuSlot(56, 53, be.container, 1, .fuel)
         fuel.filter = { Recipes.fuel($0.item) > 0 || Items.key($0.item) == "bucket" }      // fuels only (anything went in)
         slots.append(fuel)
@@ -540,18 +541,10 @@ final class FurnaceMenu: Menu {
         inventoryLabelY = 93
         addPlayerInventory(y: 104)
     }
-    var note = "", noteAt: Double = -10          // a refusal shown on the status line for a few seconds
-    override func click(_ slot: MenuSlot, button: Int, shift: Bool) {
-        if case .fuel = slot.kind, !game.carried.isEmpty, !slot.accepts(game.carried) {
-            note = "\(game.carried.def.display) isn't fuel"; noteAt = game.clock
-            game.sfx(.click, 0.25)
-            return
-        }
-        super.click(slot, button: button, shift: shift)
-    }
     // Q2c-console-40: what it is doing, or why it is stuck: up to two lines, each amber when he must act.
+    // P317 (a): no refusal lines ("isn't fuel", "can't be smelted", "needs a Blast Furnace"): the slots refuse those
+    // items with a clunk, and one that still got in (a hopper) just sits there, unlit.
     var status: [(String, Bool)] {
-        if !note.isEmpty && game.clock - noteAt < 3 { return [(note, true)] }
         let c = be.container, input = c[0], fuel = c[1], out = c[2]
         let kind = be.mob, fast = kind == "smoker" || kind == "blast_furnace"
         let cook = kind == "smoker" ? "cook" : "smelt"
@@ -559,11 +552,7 @@ final class FurnaceMenu: Menu {
             if be.burn > 0 { return [("Burning its fuel: nothing to \(cook)", false)] }
             return [(kind == "smoker" ? "Put food to cook in the top slot, fuel below" : "Put something to smelt in the top slot, fuel below", false)]
         }
-        guard let r = Recipes.smelt(input.item) else { return [("\(input.def.display) can't be \(cook)ed", true)] }
-        guard BlockEntity.allowed(r, input.item, in: kind) else {
-            let kinds = [("", "Furnace"), ("blast_furnace", "Blast Furnace"), ("smoker", "Smoker")].filter { BlockEntity.allowed(r, input.item, in: $0.0) }
-            return [("\(input.def.display) needs a " + kinds.map { $0.1 }.joined(separator: " or "), true)]
-        }
+        guard let r = Recipes.smelt(input.item), BlockEntity.allowed(r, input.item, in: kind) else { return [] }
         if !out.isEmpty && (out.item != r || out.count >= out.maxStack) { return [("Take out the \(out.def.display) to keep going", true)] }
         let fuelTicks = fuel.isEmpty ? 0 : Recipes.fuel(fuel.item) * fuel.count
         if be.burn == 0 && fuelTicks == 0 { return [("Add fuel below: coal, charcoal, logs or planks", true)] }

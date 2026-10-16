@@ -21,6 +21,7 @@ enum DeepSeal {
     static let pickHardness: Float = 25                // how hard Sealrock is to a Sunderite Pickaxe (~6 s a block with P267)
     static let chargeFuse: Float = 3
     static let chargeRadius = 1                        // 3x3 shaft
+    static let setCharge = "set_charge"                // P317 (c): a placed charge, seen while its fuse burns
     static var moments = 0
 
     // What the generator ever put in the band's layers (lower crust rock, ores, lava pockets, caves): the only blocks
@@ -61,6 +62,16 @@ extension BlockRegistry {
             d.tex = ["sunderite_ore"]
             d.hardness = 30; d.resistance = 1200
             d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 3; d.sound = .stone; d.emit = 6
+            add(d)
+        }
+        if !has(DeepSeal.setCharge) {
+            // P317 (c): a charge pressed against the rock, seen in the world: a squat dark casing with a red band and a
+            // glowing fuse cap. The player's own charges show it while their fuse burns; the Ashguard's dig under each
+            // Brimstone Keep has one set against the Sealrock. Breaks at a touch and gives nothing.
+            var d = BlockDef(DeepSeal.setCharge, "Set Charge")
+            d.tex = ["set_charge_side", "set_charge_side", "set_charge_top", "set_charge_side", "set_charge_side", "set_charge_side"]
+            d.render = .model; d.opaque = false; d.boxes = [Box(4, 0, 4, 12, 6, 12), Box(7, 6, 7, 9, 8, 9)]
+            d.hardness = 0.3; d.sound = .metal; d.emit = 5; d.skyStop = false
             add(d)
         }
     }
@@ -108,6 +119,15 @@ extension Recipes {
 
 extension TextureGen {
     static func deepPainters(_ p: inout [String: Painter]) {
+        // P317 (c): the set charge's casing (the Sunder Charge's colours): dark, a red band round it, an amber fuse cap.
+        p["set_charge_side"] = { x, y in
+            if y >= 6 && y <= 8 { return hex(0xE0485A, 0.85 + 0.2 * r(x, y, 4120)) }
+            return hex(0x3A2228, 0.8 + 0.3 * r(x, y, 4121))
+        }
+        p["set_charge_top"] = { x, y in
+            if abs(x - 8) <= 1 && abs(y - 8) <= 1 { return hex(0xFFB060) }
+            return hex(0x3A2228, 0.8 + 0.3 * r(x, y, 4122))
+        }
         // Sealrock: near-black glassy rock, cracked with thin dull-red seams that never quite meet.
         p["sealrock"] = { x, y in
             let n = r(x / 2, y / 2, 4101) * 0.6 + r(x, y, 4102) * 0.4
@@ -130,18 +150,50 @@ extension TextureGen {
 
 extension Game {
     // A Sunder Charge pressed onto Sealrock: it burns for a few seconds, then blows a 3x3 shaft through the whole seal.
+    // P317 (c): no words either way. Set, it shows on the rock (the set charge block, on a top face) with a hissing,
+    // sparking fuse; anywhere else it fizzles in a puff of sparks and stays in the hand.
     func useSunderCharge(on hit: (hit: IVec3, normal: IVec3)?) -> Bool {
         guard Items.key(held.item) == "sunder_charge" else { return false }
         guard dim.dim == .deep, let t = hit, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)) == "sealrock",
               DeepSeal.inBand(t.hit.y) else {
-            onToast?("A Sunder Charge only works pressed against Sealrock")
+            chargeFizzle(hit)
             return true
         }
         consumeHeld()
         sunderCharges.append((at: t.hit, t: DeepSeal.chargeFuse))
-        sfx(.click, 0.8, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
-        onToast?("Sunder Charge set: stand clear")
+        showSetCharge(t)
+        sfx(.tntFuse, 0.9, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
         return true
+    }
+
+    // P317 (c): a charge used where it does nothing: a dud's fizz, a puff of smoke and a spray of sparks where it was
+    // pressed (or just ahead of the hand, against nothing). The charge is kept.
+    func chargeFizzle(_ hit: (hit: IVec3, normal: IVec3)?) {
+        let c: V3
+        if let t = hit {
+            let face = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
+            let mid: V3 = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5
+            c = mid + face * 0.55
+        } else {
+            c = player.eye + player.look * 1.2
+        }
+        sfx(.fizz, 0.8, at: c)
+        for _ in 0..<6 { particles.smoke(at: c + V3(Rand.float(in: -0.15...0.15), 0, Rand.float(in: -0.15...0.15))) }
+        for _ in 0..<10 { particles.flame(at: c + V3(Rand.float(in: -0.25...0.25), Rand.float(in: -0.1...0.2), Rand.float(in: -0.25...0.25))) }
+        addFlash(at: c, color: V3(1.6, 0.7, 0.3), radius: 4, life: 0.25)
+        PadManager.shared.rumble(0.15, 0.05, sharpness: 0.9)
+    }
+
+    // P317 (c): the charge seen on the rock while its fuse burns (top faces only, into air); the blast clears it.
+    func showSetCharge(_ t: (hit: IVec3, normal: IVec3)) {
+        guard t.normal == IVec3(0, 1, 0), Blocks.has(DeepSeal.setCharge) else { return }
+        let p = t.hit + t.normal
+        if world.block(p.x, p.y, p.z) == AIR { world.setBlock(p.x, p.y, p.z, Blocks.id(DeepSeal.setCharge)) }
+    }
+    func clearSetCharge(over at: IVec3) {
+        guard Blocks.has(DeepSeal.setCharge) else { return }
+        let p = at + IVec3(0, 1, 0)
+        if world.block(p.x, p.y, p.z) == Blocks.id(DeepSeal.setCharge) { world.setBlock(p.x, p.y, p.z, AIR) }
     }
 
     // Burns down placed charges (from deepTick).
@@ -152,8 +204,10 @@ extension Game {
             let at = sunderCharges[i].at
             let c = V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5
             if Rand.float(in: 0..<1) < 0.4 { particles.smoke(at: c + V3(0, 0.6, 0)) }
+            if Rand.float(in: 0..<1) < 0.5 { particles.flame(at: c + V3(0, 0.9, 0)) }      // P317 (c): the fuse sparks
             if sunderCharges[i].t <= 0 {
                 sunderCharges.remove(at: i)
+                clearSetCharge(over: at)
                 sunderBlast(at)
             }
         }
@@ -207,10 +261,22 @@ extension Game {
         onToast?("The seal breaks. Far below, the Ash Vault glows")
     }
 
-    // Hitting Sealrock with anything but Sunderite says what it takes (once a minute at most).
+    // Hitting Sealrock with anything but Sunderite: P317 (a) no words, the tool rings off it with a dull clunk and a
+    // spark (at most twice a second), so the rock reads as something ordinary tools can't touch.
     func sealHint() {
-        guard clock - sealHintAt > 60 else { return }
+        guard clock - sealHintAt > 0.5 || clock < sealHintAt else { return }
         sealHintAt = clock
-        onToast?("Sealrock: only Sunderite breaks it. Brimstone Keeps in the fire above hold the ore")
+        toolBounce()
+    }
+
+    // P317 (a): a tool that can't bite (Sealrock, Wardstone): a dull clunk, a spark off the face and a short buzz.
+    func toolBounce() {
+        guard let t = target else { return }
+        let face = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
+        let mid: V3 = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5
+        let c = mid + face * 0.52
+        sfx(.vaultReject, 0.5, at: c)
+        for _ in 0..<3 { particles.flame(at: c + V3(Rand.float(in: -0.2...0.2), Rand.float(in: -0.2...0.2), Rand.float(in: -0.2...0.2))) }
+        PadManager.shared.rumble(0.1, 0.04, sharpness: 1)
     }
 }

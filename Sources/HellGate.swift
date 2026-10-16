@@ -19,6 +19,7 @@ enum HellGate {
     static let chargeFuse: Float = 3
     static var blasts = 0, lit = 0             // harness counters
     static var wardHints = 0
+    static var markedAt: Double = -100         // P317: the last time a refusal put the nearest citadel on the map
 
     // A freshly generated surface chunk's floor (WorldGen.generate, after the caves and lava).
     static func floor(_ b: inout [BlockID]) {
@@ -100,27 +101,31 @@ extension TextureGen {
 extension Game {
     // An Ember Charge: against Wardstone it burns for a few seconds, then blows a 3x3 shaft through the floor; used on a
     // portal frame (the obsidian or the space inside it) it wakes the frame.
+    // P317 (c): no words. Set on Wardstone it shows there with a hissing, sparking fuse; in a frame the frame lights;
+    // anywhere else it fizzles (DeepSeal.chargeFizzle) and stays in the hand.
     func useEmberCharge(on hit: (hit: IVec3, normal: IVec3)?) -> Bool {
         guard !held.isEmpty, Items.key(held.item) == HellGate.chargeKey else { return false }
         guard let t = hit else {
-            onToast?("Press an Ember Charge against Wardstone, or into a portal frame")
+            chargeFizzle(nil)
             return true
         }
         if world.block(t.hit.x, t.hit.y, t.hit.z) == WARDSTONE {
             consumeHeld()
             hell.charges.append((at: t.hit, t: HellGate.chargeFuse))
-            sfx(.ignite, 0.8, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
-            onToast?("Ember Charge set: stand clear" + vaultPointer())
+            showSetCharge(t)
+            sfx(.tntFuse, 0.9, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             return true
         }
         for p in [t.hit + t.normal, t.hit] where tryLightPortal(at: p, probe: true) {
             consumeHeld()
             _ = tryLightPortal(at: p)
             HellGate.lit += 1
-            onToast?("The Ember Charge burns into the frame and wakes it")
+            let c: V3 = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
+            sfx(.ignite, 1, at: c)
+            addFlash(at: c, color: V3(5, 2.2, 0.8), radius: 10, life: 0.6)
             return true
         }
-        onToast?("An Ember Charge works only against Wardstone or in a portal frame")
+        chargeFizzle(t)
         return true
     }
 
@@ -129,18 +134,22 @@ extension Game {
         dim.dim == .overworld && survival && tryLightPortal(at: p, probe: true)
     }
 
+    // P317 (a, c): flint in a frame that only a charge wakes: the spark fizzles in it, no words. The nearest citadel
+    // (where charges are kept) still goes on the map, as it did with the old hint.
     func coldFrameHint() {
-        guard clock - hell.hintAt > 20 else { return }
+        guard clock - hell.hintAt > 0.5 || clock < hell.hintAt else { return }
         hell.hintAt = clock
-        onToast?("The frame stays cold. Only an Ember Charge wakes it: fleet frigates carry them, Capital citadels keep them in their command rooms, or forge one from 3 Titanium Ingots, 3 TNT and a gold block" + citadelPointer())
+        if let t = target { chargeFizzle(t) }
+        if clock - HellGate.markedAt > 60 || clock < HellGate.markedAt { HellGate.markedAt = clock; _ = citadelPointer() }
     }
 
-    // P139 (Oct 12 PM, 15:27 "I'm going to assume there's a certain ore type that I have to find... until I find it, I
-    // can't break through"): the hint says plainly that no ore or tool does it, and puts the nearest citadel on the map.
+    // P139 put the nearest citadel on the map when Wardstone would not break; P317 (a): that stays, the words go. The
+    // pick just clunks off it with a spark (DeepSeal.toolBounce).
     func wardHint() {
-        guard clock - hell.hintAt > 60 else { return }
+        guard clock - hell.hintAt > 0.5 || clock < hell.hintAt else { return }
         hell.hintAt = clock
-        onToast?("Wardstone: no pickaxe, ore or blast breaks it, only an Ember Charge. Fleet frigates carry them, Capital citadels keep them in their command rooms, or forge one from 3 Titanium Ingots, 3 TNT and a gold block" + citadelPointer() + vaultPointer())
+        toolBounce()
+        if clock - HellGate.markedAt > 60 || clock < HellGate.markedAt { HellGate.markedAt = clock; _ = citadelPointer() }
         HellGate.wardHints += 1
     }
 
@@ -171,6 +180,7 @@ extension Game {
             if Rand.float(in: 0..<1) < 0.5 { particles.flame(at: c + V3(0, 0.6, 0)) }
             if hell.charges[i].t <= 0 {
                 hell.charges.remove(at: i)
+                clearSetCharge(over: at)
                 wardBlast(at)
             }
         }
