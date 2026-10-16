@@ -1038,7 +1038,11 @@ final class Game {
                 let tl = held.isEmpty ? ToolType.none : held.def.tool
                 if tl == .sword || hk == "trident" || hk == "mace" || hk.hasSuffix("_spear") { damageHeld(1) } else if tl != .none { damageHeld(2) }
             }
-            return
+            // Only an attack (or holding break) takes the frame: returning always meant that with any mob in the
+            // crosshair within 3.5 blocks a bow couldn't draw, a shield couldn't rise and food couldn't be eaten
+            // (playthrough: 386 Blight shots swallowed once it hovered close overhead; trace on 9ad4e54).
+            if attackNow || breakHeld { return }
+            target = nil                // the mob is in front: no block behind it is mined or built on this frame
         }
 
         // Mining

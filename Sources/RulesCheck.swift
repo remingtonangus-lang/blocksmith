@@ -33,13 +33,17 @@ enum RulesCheck {
         // Water spreads only toward a drop in reach: a hole 2 east of the spring, nothing west.
         do {
             let x = site()
+            // A rim wall: the pad stands above the ground, so its edges are drops too, and once the channel filled they
+            // tied with it and drew water every way (the reference rule spreads to every nearest drop).
+            for d in -4...4 {
+                w.setBlock(x + d, floorY, cz - 4, STONE); w.setBlock(x + d, floorY, cz + 4, STONE)
+                w.setBlock(x - 4, floorY, cz + d, STONE); w.setBlock(x + 4, floorY, cz + d, STONE)
+            }
             w.setBlock(x + 3, floorY - 1, cz, AIR)
             w.setBlock(x + 3, floorY - 2, cz, AIR)
             w.setBlock(x, floorY, cz, WATER)
             w.scheduleFluid(around: IVec3(x, floorY, cz))
-            // Six ticks: the water has reached the drop. Later, with the channel full, the pad's own edges (it stands
-            // above the ground, a drop 5 out on every side) draw water every way, as in the reference.
-            for _ in 0..<6 { w.fluidTick() }
+            for _ in 0..<30 { w.fluidTick() }
             let east = Blocks.isLiquid(w.block(x + 1, floorY, cz)), west = Blocks.isLiquid(w.block(x - 1, floorY, cz))
             check(east && !west, "water heads for the drop 3 east and not west (east \(east), west \(west))")
         }

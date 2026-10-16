@@ -223,7 +223,10 @@ final class BlockRegistry {
         hardness.append(d.hardness)
         resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : (BlockRegistry.refResistance(d) ?? d.hardness)))
         let n = d.name
-        let naturallyFlammable = (d.sound == .wood && !n.hasPrefix("crimson") && !n.hasPrefix("warped") && n != "torch" && d.render != .model)
+        // Wooden stairs, slabs, fences and gates burn like planks (reference); other wooden models (doors, trapdoors,
+        // chests, signs) don't. Stairs and slabs were left out with them, so a wooden house's stairs never caught.
+        let woodShape = d.shape == "stairs" || d.shape == "slab" || d.shape == "gate" || d.render == .connect
+        let naturallyFlammable = (d.sound == .wood && !n.hasPrefix("crimson") && !n.hasPrefix("warped") && n != "torch" && (d.render != .model || woodShape))
             || n.hasSuffix("leaves") || (d.render == .cross && n != "fire" && n != "soul_fire" && !n.hasPrefix("crimson") && !n.hasPrefix("warped"))
         flammable.append(d.flammable || naturallyFlammable || BlockRegistry.extraFlammable.contains(d.group ?? n))
         randomTicks.append(d.randomTicks)
