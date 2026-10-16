@@ -169,6 +169,7 @@ extension Game {
     // Snow layers and ice form during snowfall / cold weather (a few columns per tick).
     func precipitationTicks() {
         guard wetWorld else { return }
+        seasonalMeltSweep()                                  // P277 (Seasons.swift)
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
         let r = min(6, world.renderDistance)
         let snowId: BlockID? = Blocks.has("snow") ? Blocks.id("snow") : nil
@@ -192,7 +193,10 @@ extension Game {
             // Water surfaces freeze (not next to light); snow settles while it snows.
             // Water freezes from the shore inwards: a source with some side that isn't water (reference).
             let shore = world.block(x + 1, y, z) != WATER || world.block(x - 1, y, z) != WATER || world.block(x, y, z + 1) != WATER || world.block(x, y, z - 1) != WATER
-            if top == WATER, shore, let ice = iceId, world.lightAt(x, y + 1, z).block < 10 {
+            // P277: the sea doesn't freeze with the seasons (only where it is cold all year): winter's floes were left
+            // lying out on the open water in spring.
+            let sea = biome.isOcean && Seasons.seasonal(biome, at: y)
+            if top == WATER, shore, !sea, let ice = iceId, world.lightAt(x, y + 1, z).block < 10 {
                 world.setBlockAsync(x, y, z, ice)
             } else if weather.rain > 0.5, let sn = snowId, world.block(x, y + 1, z) == AIR,
                       Blocks.opaque[Int(top)] || Blocks.key(top).hasSuffix("_leaves"), world.lightAt(x, y + 1, z).block < 10 {
