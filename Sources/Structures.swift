@@ -226,7 +226,8 @@ final class StructureCache {
 
     // Kinds whose footprint is filled underneath (and how deep): buried ones over caves, hillside ones over slopes.
     static let fillDepth: [String: Int] = ["ancient_city": 12, "trial_chambers": 10, "stronghold": 10, "mansion": 8,
-                                           "military_base": 24, "trail_ruins": 4]     // Steelhold: hillside bases hung 8+ over slopes
+                                           "military_base": 24, "trail_ruins": 4,
+                                           "jungle_temple": 6]       // over a cave roof its lowest course hung over 4 of air (structcheck, run 1691)     // Steelhold: hillside bases hung 8+ over slopes
     // Not villages: filling under each column's lowest block also filled under the roof eaves overhanging the
     // doorways, building cobblestone pillars in front of doors (structcheck door_needs_jump, run 349).
 
