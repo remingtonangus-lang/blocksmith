@@ -724,9 +724,9 @@ enum Village {
         } }
         for dz in -1...2 { for dx in -1...2 {
             let edge = dx == -1 || dx == 2 || dz == -1 || dz == 2
-            w.set(ox + dx, y, oz + dz, edge ? m.foundation : WATER)
-            w.set(ox + dx, y - 1, oz + dz, edge ? m.foundation : WATER)
-            w.set(ox + dx, y - 2, oz + dz, m.foundation)
+            // P299: a real shaft: the 2x2 hole drops 9 blocks inside a stone lining, water in its bottom two.
+            for d in 0...8 { w.set(ox + dx, y - d, oz + dz, edge ? m.foundation : (d >= 7 ? WATER : AIR)) }
+            w.set(ox + dx, y - 9, oz + dz, m.foundation)
             if edge { w.set(ox + dx, y + 1, oz + dz, m.foundation) }
             if (dx == -1 || dx == 2) && (dz == -1 || dz == 2) {
                 w.set(ox + dx, y + 2, oz + dz, m.fence); w.set(ox + dx, y + 3, oz + dz, m.fence)
