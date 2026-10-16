@@ -1553,6 +1553,7 @@ func _run_roam() -> Dictionary:
 	var lines := []
 	st.money = 300.0
 	var keep_flags: Dictionary = st.flags.duplicate(true)
+	var keep_completed: Array[String] = md.completed.duplicate()   # the campfire step marks c1_drover done; missions plays it later
 	# ---------------------------------------------------------------- 1. hold-ups
 	var hd = Game.get_meta("holdups") if Game.has_meta("holdups") else null
 	var hu = Game.get_meta("hunters") if Game.has_meta("hunters") else null
@@ -1841,6 +1842,7 @@ func _run_roam() -> Dictionary:
 		if found != 8 or built != 8 or readn != 8 or caches != 8 or not shore or marks.size() != 8 or done_marks != 8 or pages != 8 or not bad.is_empty():
 			_fail(res, "places: %s" % lines.back())
 	st.flags = keep_flags
+	md.completed = keep_completed
 	for ln in lines:
 		print("  " + ln)
 	var errs: Array = Game.error_logger.take().slice(err0)
