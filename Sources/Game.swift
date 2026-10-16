@@ -138,6 +138,7 @@ final class Game {
     var deepLifts: [IVec3] = []     // Deep Lifts the player set down (the way-up marker), saved
     var sealShafts: [IVec3] = []    // shafts the player blew through the seal (the way-up marker in the vault), saved
     var ashVictory = false
+    var ashHatchOpen = false        // P318: the hatch console has opened the blast door (AshSabotage.swift; saved)
     var ashStage = 0                // the last war (AshFinal.swift): 0 the war, 1 the last battle, 2 the bunker open, 3 won (saved)
     var ashWave = 0                 // the last battle's wave (saved)
     let lastWar = LastWar()
@@ -1254,6 +1255,7 @@ final class Game {
         if useNow && heldGun != nil && !(input.shift || p.b), let t = target,
            simd_length(V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 - player.eye) < 4.5 {
             if isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; mining = nil; return }
+            if ashBaseUse(t.hit) { swing = 1; mining = nil; return }                                           // P318
             if isInteractive(t.hit) { openBlock(t.hit); mining = nil; return }
             let bk = Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z))
             if bk.hasPrefix("campfire") && !bk.contains("[off]") { openMenu(GunCampMenu(game: self)); mining = nil; return }   // D9: gun care at camp
@@ -1675,6 +1677,7 @@ final class Game {
         if useNow && !isInteractive(t.hit) && placeIntoLava(before: t.hit) { return }
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
+        if useNow && !(input.shift || p.b) && ashBaseUse(t.hit) { swing = 1; return }                    // P318
         if useNow && !(input.shift || p.b) && (radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
