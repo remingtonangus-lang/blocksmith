@@ -117,12 +117,30 @@ drivers, pilots and gunners (CapitalShips crew posts currently spawn vanguards /
   killed -> autopilot off, it falls, the citadel goes to alert. Saved: `air`, `airPhase`, `airT`, `airShip`,
   `airCD`; after a reload `FlightCrew.relink` buckles the crew still at the seats back in. Check: `--basetest air`.
 
-## Handoff (2026-10-05 12:20, paused for usage)
-- Merged into playtest: everything up to 22d6cd6 (citadels, aircraft, door gunners' first pass). Branch head carries
-  unmerged, mostly verified work: planeplayer + hand-flown attitude assist + turn coordinator, --basetest reload, crew
-  re-seat on load, throttle on landing wheels, door gunners (fire on a player below: green in d518b3f).
-- Open blocker before the next merge: since the low/tight circle (CapitalAir phase 3, radius 10, 10 over canopy) the
-  Kestrel fails to get home ("never made it back", 74 blocks off) in --basetest air/all and reload (run c320be2).
-  Commit 27363ee adds its height/cruise/speed/rotor to that log line; read focus.log of that run first. Suspects:
-  stuck in the canopy at the low circle, or the phase-4 climb branch.
-- Then: rebase on playtest, run [fast: ... --basetest all] + fastshots flighttest,basetest_reload, ff-merge if green.
+## HANDOFF (2026-10-16 00:20 UTC; context budget reached, a fresh session continues from here)
+State
+- Branch claude/bs-capital-soldiers head 7f1a931 is FULLY GREEN on the fast lane (release `[fast:]` build):
+  `--basetest all` 0 failed, `--basetest air` 0 failed (door gunners fire at 30 blocks after 16 s), `--basetest
+  reload` 0 failed, posecheck 568 / 0. It is rebased on playtest 7629ff8 and NOT yet merged.
+- Already in playtest (22d6cd6 and before): soldiers, reactive citadels, aircraft, first air patrols.
+- Unmerged on the branch: planeplayer flight test + hand-flown attitude assist + turn coordinator; --basetest reload
+  (real save mid-patrol) with crew re-seat and rotor spin-up on load; aircraft throttle on landing wheels; door
+  gunners (troopers, notice all round, aim seated); Kestrel circle fixes (below); BUGS.md rows for all of these.
+Next steps
+1. Merge: `git fetch origin claude/blocksmith-playtest`; if playtest moved, rebase (conflicts so far were trivial:
+   precheck.py, Effects.swift save keys, mac.yml cp line), precheck, push the branch with
+   `[fast: --snapshot snaps/basetest_all.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time
+   0.3 --rd 8 --basetest all]` plus `[fastshots flighttest,basetest_reload]`, and when green
+   `git push origin <sha>:claude/blocksmith-playtest` (fast-forward only).
+2. Bug hunting in this area: `--behaviorsim --site citadel --seeds 12345,777 --minutes 15` (last: stuck 0,
+   spinning 0-1, fell 2 = patrols stepping down a valley; mobs take no fall damage); critic shots base_*; flighttest.
+Gotchas
+- The Kestrel's way home (CapitalAir phase 3/4): circle over a noise is 10 over the highest ground/crown in the whole
+  disc (`groundTop`), moved out until it clears the site by 4 and ignoring the site's buildings; the crown floor
+  (y0 + 74) applies only within 40 of the centre; phase 4 climbs to cruise before crossing. Taking ground only along
+  the short leg let a tree catch the hull ('never made it back'); circling near the wall flew at citadel height.
+- ci-fast-<branch> keeps only the latest run: read focus.log / fastshots.log before the next push overwrites them,
+  and match the commit on README line 3 (`sed -n 3p`), not anywhere in the file.
+- macOS runners queue 10-50 min; batch pushes. `[fast: ...]` makes the whole fast lane a release build.
+- Playtest has new factions: the frigate is the Meridian Navy (no frigate stationed over citadels any more); its MAC
+  slug craters (Explosion.crater r 9 + power-8 blast: the citadel records an 11.5 damage sphere and rebuilds it).
