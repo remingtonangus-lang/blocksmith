@@ -11,23 +11,35 @@ extension Game {
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
         let r = min(8, w.renderDistance)
         let rt = Blocks.randomTicks
+        // P283: the draws first, the ticks after. The chunk's blocks are read through one local copy and the generator
+        // through a local (each draw paid an exclusivity check on the global and on the chunk's storage, some 9000 a
+        // game tick at render distance 8+, and it was one of the Quest frame's dearest stages); the hits run once the
+        // copy is gone, so a tick that changes a block never copies the chunk's storage.
+        var rng = RandomTickRng.state
+        var hits = RandomTickRng.hits
+        RandomTickRng.hits = []
+        hits.removeAll(keepingCapacity: true)
         for dz in -r...r {
             for dx in -r...r {
                 guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
+                let blocks = c.blocks, x0 = c.cx * CS, z0 = c.cz * CS
                 var hmax = 0
                 for h in c.height where Int(h) > hmax { hmax = Int(h) }
                 for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) {
                     for _ in 0..<3 {
                         // One fast PRNG draw per tick position (the system generator was the main-thread hot spot).
-                        let r = Int(truncatingIfNeeded: RandomTickRng.state.next() >> 20)
+                        let r = Int(truncatingIfNeeded: rng.next() >> 20)
                         let lx = r & 15, ly = (r >> 4) & 15, lz = (r >> 8) & 15
                         let y = sy * 16 + ly
-                        let b = c.blocks[Chunk.index(lx, y, lz)]
-                        if rt[Int(b)] { randomTick(IVec3(c.cx * CS + lx, y, c.cz * CS + lz), b) }
+                        let b = blocks[Chunk.index(lx, y, lz)]
+                        if rt[Int(b)] { hits.append((IVec3(x0 + lx, y, z0 + lz), b)) }
                     }
                 }
             }
         }
+        RandomTickRng.state = rng
+        for (p, b) in hits where world.block(p.x, p.y, p.z) == b { randomTick(p, b) }     // (an earlier tick may have changed it)
+        RandomTickRng.hits = hits
         // Leaves whose tree was cut decay a few at a time.
         var n = 0
         while n < 4, let p = leafQueue.popLast() {
@@ -651,4 +663,5 @@ extension IVec3 {
 // Random-tick positions (main thread only): xorshift instead of the system CSPRNG behind Int.random.
 enum RandomTickRng {
     static var state = SRng(0x5EED_71C4)
+    static var hits: [(IVec3, BlockID)] = []          // (Game.randomTicks' reused list)
 }

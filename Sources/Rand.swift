@@ -14,8 +14,17 @@ enum Rand {
     // frame (T3: "the impact itself is cheap", puffs 9.8 ms of 13.2).
     private static var fast: UInt64 = { var g = SystemRandomNumberGenerator(); return g.next() }()
 
+    // P283: Thread.isMainThread is two system calls on Linux and Android (the thread's id against the process's): 8% of
+    // the frame thread's samples on the Quest replay of his homestead went there, from the grass ticks' and the
+    // particles' draws. The first Game (always made on the main thread) notes the thread; it is compared directly.
+    static var mainThread: pthread_t? = nil
+    @inline(__always) static var onMain: Bool {
+        if let m = mainThread { return pthread_equal(pthread_self(), m) != 0 }
+        return Thread.isMainThread
+    }
+
     @inline(__always) static func next() -> UInt64 {
-        if Thread.isMainThread {
+        if onMain {
             var z: UInt64
             if deterministic { state &+= 0x9E3779B97F4A7C15; z = state } else { fast &+= 0x9E3779B97F4A7C15; z = fast }
             z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9

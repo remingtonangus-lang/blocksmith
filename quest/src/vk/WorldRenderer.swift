@@ -289,32 +289,68 @@ final class WorldRenderer {
 
     // Opaque cones / spires (depth-writing, so the sky goes behind them) here; their blended smoke after the sky
     // (drawLandmarkSmoke: it writes no depth, so the sky drawn after it covered every volcano plume on the Quest).
-    private var landmarkSmoke: (offset: Int, count: Int)?
+    private var landmarkSmoke: (buffer: VkBuffer?, offset: Int, count: Int)?      // (nil buffer: the scratch ring)
     private func drawLandmarks(_ s: SceneRenderer.Slot, _ eye: V3, far: Float, fogColor: V3) {
         landmarkSmoke = nil                         // before the guard: never a stale offset from an earlier frame
         // (Not underground: past the cave fog's section cull the far-plane impostors showed down long tunnels, R18.)
         guard let host = landmarkHost, far > 0, game.dim.dim.hasSky, !game.player.headInWater, !underground else { return }
-        var smokeStart = 0
         let t0 = CFAbsoluteTimeGetCurrent()
         defer { landmarkMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
         // With the middle ring up (F4) the impostors and the horizon shell still go on the far-plane shell, now behind
         // the ring (the far plane moved out past its rim): its depth hides them wherever it has ground, the volcano
         // plumes and peaks still rise over it, and past its rim the shell carries the horizon on.
-        host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
-                            rd: Float(game.world.renderDistance))
-        if let off = scene.push(s, landmarkVerts) {
-            let stride = MemoryLayout<SimpleVert>.stride
+        // P283: rebuilt every 6th frame (every 2nd while a volcano's smoke rises in it), or once the eye has moved a block
+        // or the far plane changed (it cost 1.2 ms of every frame's record, rebuilt each frame): the shell sits near the
+        // far plane, where a block of eye travel moves it a twentieth of a degree.
+        // Behind the middle ring (F4) the nearest of it shows past the ring's rim, 1024 blocks out: 3 blocks of travel
+        // there is a sixth of a degree, so a flight at full speed rebuilds it every third frame, not every frame.
+        lmFrameNo += 1
+        let every = !TickProf.lighter ? 1 : (landmarkVerts.count > lmSmokeStart && lmSmokeStart > 0 ? 2 : 6)
+        let move: Float = TickProf.lighter && FarRing.enabled ? 9 : 1
+        if lmFrameNo - lmBuilt >= every || simd_length_squared(eye - lmEye) > move || far != lmFar || landmarkVerts.isEmpty {
+            landmarkVerts.removeAll(keepingCapacity: true)
+            var smokeStart = 0
+            host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
+                                rd: Float(game.world.renderDistance))
+            lmSmokeStart = smokeStart; lmEye = eye; lmFar = far; lmBuilt = lmFrameNo
+        }
+        let smokeStart = lmSmokeStart
+        let stride = MemoryLayout<SimpleVert>.stride
+        // P283: a build goes into one of three vertex buffers of its own (one out of use for 3 frames: both frames in
+        // flight are done with it) and is drawn from there until the next, instead of copying the whole shell into the
+        // frame's scratch ring every frame (0.4 ms of each frame's record on the replay).
+        if lmBuilt == lmFrameNo { lmLive = TickProf.lighter ? lmStore(landmarkVerts) : -1 }
+        if lmLive >= 0, let b = lmBufs[lmLive] {
+            lmUsed[lmLive] = lmFrameNo
+            if smokeStart > 0 { scene.drawBuffer(s, "simpleSolid", b.buffer, offset: 0, count: smokeStart) }
+            if landmarkVerts.count > smokeStart { landmarkSmoke = (b.buffer, smokeStart * stride, landmarkVerts.count - smokeStart) }
+        } else if let off = scene.push(s, landmarkVerts) {
             if smokeStart > 0 { scene.drawScratch(s, "simpleSolid", offset: off, count: smokeStart) }
-            if landmarkVerts.count > smokeStart { landmarkSmoke = (off + smokeStart * stride, landmarkVerts.count - smokeStart) }
+            if landmarkVerts.count > smokeStart { landmarkSmoke = (nil, off + smokeStart * stride, landmarkVerts.count - smokeStart) }
         }
         landmarkCount = landmarkVerts.count
-        landmarkVerts.removeAll(keepingCapacity: true)
+    }
+    private var lmFrameNo = 0, lmBuilt = -100, lmSmokeStart = 0, lmEye = V3(1e9, 0, 0), lmFar: Float = 0
+    private var lmBufs: [VkBuf?] = [nil, nil, nil], lmUsed = [-10, -10, -10], lmLive = -1
+    // The build into a buffer none of the frames in flight reads (index), or -1 (drawn from the scratch ring this time).
+    private func lmStore(_ verts: [SimpleVert]) -> Int {
+        guard !verts.isEmpty else { return -1 }
+        let bytes = verts.count * MemoryLayout<SimpleVert>.stride
+        guard let k = (0..<3).first(where: { $0 != lmLive && lmFrameNo - lmUsed[$0] >= 3 }) else { return -1 }
+        if lmBufs[k] == nil || lmBufs[k]!.size < bytes {
+            lmBufs[k] = nil
+            lmBufs[k] = try? VkBuf(scene.ctx, size: max(bytes * 5 / 4, 1 << 20), usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true)
+        }
+        guard let b = lmBufs[k], let p = b.mapped else { return -1 }
+        verts.withUnsafeBytes { src in _ = memcpy(p, src.baseAddress!, bytes) }
+        return k
     }
 
     private func drawLandmarkSmoke(_ s: SceneRenderer.Slot) {
         guard let sm = landmarkSmoke else { return }
         landmarkSmoke = nil
-        scene.drawScratch(s, "simple", offset: sm.offset, count: sm.count)
+        if let b = sm.buffer { scene.drawBuffer(s, "simple", b, offset: sm.offset, count: sm.count) }
+        else { scene.drawScratch(s, "simple", offset: sm.offset, count: sm.count) }
     }
 
     private func drawSkyLayer(_ s: SceneRenderer.Slot, _ eye: V3) {

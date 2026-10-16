@@ -50,7 +50,7 @@ if let secs = Double(arg("--xr") ?? "") {
 }
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
-let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") ? "" : nil)
+let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes") ? "" : nil)
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -60,6 +60,9 @@ if renderPath != nil {
     if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
 }
 let device = sharedSystemDevice
+// --perfscenes [--rd 12,16] [--only NAME,...] [--blockworld]: the Quest frame's CPU side in the playtest scenes (P283,
+// quest/src/test/QuestPerf.swift).
+if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }
 // --settings-phase P ROOT: one launch of the settings check (quest/src/headless/SettingsCheck.swift), before anything
 // else touches UserDefaults.
 if let i = CommandLine.arguments.firstIndex(of: "--settings-phase"), i + 2 < CommandLine.arguments.count {
@@ -90,6 +93,8 @@ if let out = arg("--view"), let ctx = vkctx {
     // --dim nether|end|deep: that dimension's world instead (looks work; PG6 field checks).
     let vw = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: device, save: nil, dim: Dim(rawValue: arg("--dim") ?? "") ?? .overworld)
     vw.renderDistance = Int(arg("--rd") ?? "") ?? 6
+    // --questlod: the headset's far-detail and leaf rings (QuestApp: lodNear 5, leafNear 2) instead of the Mac's.
+    if CommandLine.arguments.contains("--questlod") { World.lodNear = 5; World.leafNear = 2 }
     let vg = Game(world: vw, save: nil, persistent: false)
     vg.time = (Double(arg("--time") ?? "") ?? 0.25) * DAY_LENGTH
     vg.player.pos = V3(at[0], at[1], at[2]); vg.player.flying = true

@@ -42,22 +42,26 @@ func rotationZ(_ a: Float) -> float4x4 {
 }
 
 struct Frustum {
-    var planes: [V4]
+    // P283: six planes held inline (an array cost a buffer retain and a bounds check per plane in the section cull,
+    // the Quest frame's costliest loop).
+    let p0, p1, p2, p3, p4, p5: V4
+    var planes: [V4] { [p0, p1, p2, p3, p4, p5] }
     init(_ m: float4x4) {
         let r0 = V4(m.columns.0.x, m.columns.1.x, m.columns.2.x, m.columns.3.x)
         let r1 = V4(m.columns.0.y, m.columns.1.y, m.columns.2.y, m.columns.3.y)
         let r2 = V4(m.columns.0.z, m.columns.1.z, m.columns.2.z, m.columns.3.z)
         let r3 = V4(m.columns.0.w, m.columns.1.w, m.columns.2.w, m.columns.3.w)
-        planes = [r3 + r0, r3 - r0, r3 + r1, r3 - r1, r2, r3 - r2]
+        p0 = r3 + r0; p1 = r3 - r0; p2 = r3 + r1; p3 = r3 - r1; p4 = r2; p5 = r3 - r2
+    }
+    @inline(__always) private static func outside(_ p: V4, _ a: V3, _ b: V3) -> Bool {
+        let x = p.x >= 0 ? b.x : a.x
+        let y = p.y >= 0 ? b.y : a.y
+        let z = p.z >= 0 ? b.z : a.z
+        return p.x * x + p.y * y + p.z * z + p.w < 0
     }
     func visible(min a: V3, max b: V3) -> Bool {
-        for p in planes {
-            let x = p.x >= 0 ? b.x : a.x
-            let y = p.y >= 0 ? b.y : a.y
-            let z = p.z >= 0 ? b.z : a.z
-            if p.x * x + p.y * y + p.z * z + p.w < 0 { return false }
-        }
-        return true
+        !(Frustum.outside(p0, a, b) || Frustum.outside(p1, a, b) || Frustum.outside(p2, a, b)
+          || Frustum.outside(p3, a, b) || Frustum.outside(p4, a, b) || Frustum.outside(p5, a, b))
     }
 }
 

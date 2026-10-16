@@ -28,6 +28,7 @@ final class Section {
     var detailBuf: MeshSlice?   // realistic world: round shapes (DetailMesh, 16-byte vertices), solid quads first
     var detailQuads = 0
     var detailSolid = 0
+    var groundQuads = 0, blobQuads = 0          // P283: of the opaque quads, the smooth ground's and the leaf blobs'
     var version = 0 {           // bumped when the section (or light around it) changes
         didSet {
             MeshEpoch.value &+= 1
@@ -126,7 +127,9 @@ struct BlockStore {
                 let m = FieldMat.index[Int(newValue)]
                 if m != 0 {
                     if Blocks.emit[Int(newValue)] > 0 { emitMask |= 1 << UInt32(i / BlockStore.section) }
-                    setDensity(i, max(density(i), FieldTerrain.cellIn), material: m)
+                    // (Ground turned into other ground, grass creeping onto dirt or dying back, keeps its shape: it filled
+                    // the cell out to a full block, a little bump in the slope wherever the grass went.)
+                    setDensity(i, ground(i) ? density(i) : max(density(i), FieldTerrain.cellIn), material: m)
                     if i < data.count && data[i] != AIR { data[i] = AIR }
                     return
                 }

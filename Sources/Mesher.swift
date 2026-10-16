@@ -11,6 +11,8 @@ struct SectionMesh {
     // Realistic world (DetailMesh): round shapes in 16-byte vertices, solid quads first, then alpha-tested ones.
     var detail: [UInt32] = []
     var detailSolid = 0
+    var groundQuads = 0     // P283: of the opaque quads, the smooth ground's and the leaf blobs' (questcheck --perfscenes)
+    var blobQuads = 0
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -257,7 +259,7 @@ enum Mesher {
     // `bites` (realistic world): where blows struck blocks round this section (World.biteList), carved as craters.
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
                              bites: [(Int, Int, Int, Bite)] = [],
-                             smoothOK: Bool = true, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil) -> SectionMesh {
+                             smoothOK: Bool = true, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil, nearSides: Int = 0) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
         // but "fast" leaves: no faces between leaves; World.leafNear, Quest).
@@ -424,6 +426,7 @@ enum Mesher {
         let opq = sc.opq, cut = sc.cut, trn = sc.trn     // cut: alpha-tested faces (leaves, plants, models), after the solid ones
         opq.count = 0; cut.count = 0; trn.count = 0
         var curCut = false
+        var groundV = 0, blobV = 0                       // (P283 stats: vertices from the two smooth passes)
         var leafy = false                                // faces between leaf blocks met (lod 0 and 2 differ)
         let solidLayer = RenderLayer.opaque.rawValue
         let leafT = Mesher.leafT, farLeaf = Mesher.farLeaves
@@ -661,10 +664,18 @@ enum Mesher {
         let craters = crater.flatMap { $0.isEmpty ? nil : $0 }
         // The smooth ground first: the plants below stand on its drawn surface (P175), read back from its vertices.
         sc.smValid = false
-        if smooth {
+        if smooth && fieldOn && far && Mesher.farGround {
+            // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround).
+            coarseGround(R, dens, sc, nearSides: nearSides) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                curCut = false
+                groundV += 1
+                vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
+            }
+        } else if smooth {
             smoothQuads(R, sc, dmg: dmg, site: fieldOn ? nil : site, stored: fieldOn ? dens : nil, sy: sy, leafHoles: leafBlob, detailHoles: detail,
                         world: fieldOn ? SIMD3<Int>(wox, sy * 16, woz) : nil, crater: craters, carveOut: det) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
+                groundV += 1
                 // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
             }
@@ -1199,8 +1210,14 @@ enum Mesher {
         if smooth {
             if leafBlob {
                 let wo = detail ? SIMD3<Int>((chunk?.x ?? site?.cx ?? 0) * CS, sy * 16, (chunk?.z ?? site?.cz ?? 0) * CS) : nil
-                smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, world: wo) { x16, y16, z16, f, tint, layer, ao, l, ncode in
-                    curCut = true
+                // P283: far canopies (lod 1, past World.lodNear) are one solid shell, the blob's "fast leaves": the inner
+                // shell behind the cut-out one doubled every canopy (leaf blobs were half of a Polygons world's quads) and
+                // the alpha test cost the tiled GPU its early depth test; drawn solid, the leaf texture's clear texels show
+                // their mid grey under the leaf tint, a darker green where the inner shell showed through.
+                let farBlob = lod == 1 && Mesher.farLeaves
+                smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, shells: farBlob ? 1 : 2, world: wo) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                    curCut = !farBlob
+                    blobV += 1
                     vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
                 }
             }
@@ -1288,7 +1305,7 @@ enum Mesher {
             detailOut.append(contentsOf: UnsafeBufferPointer(start: detCut.ptr, count: detCut.count))
         }
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
-                           detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad)
+                           detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -1306,6 +1323,8 @@ enum Mesher {
     // Far (LOD 1) canopies: solid faces against leaves dropped, leaf light in steps of 4 so faces merge
     // (environment BS_FARLEAF=0 turns it off, for before/after measurements).
     static var farLeaves = ProcessInfo.processInfo.environment["BS_FARLEAF"] != "0"
+    // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround); BS_FARGROUND=0 meshes it in full.
+    static var farGround = ProcessInfo.processInfo.environment["BS_FARGROUND"] != "0"
     static var farDarkCull = true
     static let pointedDrip: BlockID = Blocks.has("pointed_dripstone") ? Blocks.id("pointed_dripstone") : 0
     static let iceT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)) == "ice" }
