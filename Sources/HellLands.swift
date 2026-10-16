@@ -32,9 +32,17 @@ extension EmberGen {
         let soulSand = Blocks.id("soul_sand"), soulSoil = Blocks.id("soul_soil"), magma = Blocks.id("magma_block")
         let crust = Blocks.has("sulfur_crust") ? Blocks.id("sulfur_crust") : Blocks.id("basalt")
         let blackstone = Blocks.id("blackstone"), stem = Blocks.id("crimson_stem"), wart = Blocks.id("nether_wart_3")
+        // P327 (a): the dunes' cells come from the band's density (EmberGen.duneCells), the same the field world's ground
+        // is raised by (bandField), so a polygon world draws the dunes as smooth ridges.
+        var lat: [Float] = []
+        var col = [Float](repeating: 0, count: H)
         for z in 0..<CS { for x in 0..<CS {
             let wx = bx + x, wz = bz + z
             let bio = biome(wx, wz)
+            if bio == .soulSandValley {
+                if lat.isEmpty { lat = bandLattice(cx: cx, cz: cz) }
+                for y in 0..<H { col[y] = latticeD(lat, x, y, z) }
+            }
             var past = -1                                   // rows this column's own drift or outcrop already filled
             for y in (EmberGen.lavaLevel + 1)..<(H - 8) where y > past {
                 let g = at(x, y, z)
@@ -44,8 +52,7 @@ extension EmberGen {
                 case .soulSandValley:
                     // Dunes: long ridges across the wind, 0-3 blocks of drift on the floor.
                     guard g == soulSand || g == soulSoil else { continue }
-                    let ridge: Float = deco.noise2(Float(wx) / 26, Float(wz) / 11) + deco.noise2(Float(wx) / 70, Float(wz) / 70) * 0.6
-                    let drift = Int(max(0, ridge + 0.15) * 3.2)
+                    let drift = col[y] > 0 && col[y + 1] <= 0 ? duneCells(col, y, duneDepth(wx, wz)).n : 0
                     var top = y
                     for dy in 1...max(1, drift) where drift > 0 && at(x, y + dy, z) == AIR && at(x, y + dy + 1, z) == AIR { set(x, y + dy, z, soulSand); top = y + dy }
                     past = top + 6

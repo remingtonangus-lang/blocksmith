@@ -74,6 +74,9 @@ struct DetailContext {
     let sc: MeshScratch
     let srcs: [[BlockID]]                     // the 3x3 chunks' full-height columns (Mesher.buildSection's n9 data)
     let sy: Int
+    // P297 (a): field worlds: the 3x3 chunks' stores, so a full-height read sees the ground the field holds (the built
+    // layer alone is air there: no trunk ever stood on anything, so no tree was read as a tree).
+    var field: [BlockStore]? = nil
 
     // A block anywhere in the 3x3 chunks (section-local x, z in -16..<32), any height: for shapes taller than the region
     // (a 25-block trunk measured from its foot). Below the world: bedrock; above the stored part: air.
@@ -85,7 +88,33 @@ struct DetailContext {
         if wy >= CH { return AIR }
         let src = srcs[cx + cz * 3]
         let i = ((x + 16) & 15) + ((z + 16) & 15) * CS + wy * CSQ
-        return i < src.count ? src[i] : AIR
+        let b = i < src.count ? src[i] : AIR
+        guard b == AIR, let field else { return b }
+        let st = field[cx + cz * 3]
+        return st.ground(i) ? FieldMat.blocks[Int(st.material(i))] : AIR
+    }
+
+    // P297 (a): the drawn ground's height (section-local y) round the top of block (x, y, z), section-local: the smooth
+    // surface's vertices at its four top corners (Mesher.smoothGroundTop), the first row of them found going down from
+    // there `reach` blocks (their mean), or with `lowest` the lowest of all of them in that reach (the downhill side of a
+    // slope). Nil where the section has no smooth ground there (block worlds, built ground, out of range).
+    func groundTop(_ x: Int, _ y: Int, _ z: Int, reach: Int = 3, lowest: Bool = false) -> Float? {
+        guard sc.smValid else { return nil }
+        let KO = SmoothTerrain.maxRelax, K = 17 + 2 * KO, KK = K * K
+        var lo: Float = .greatestFiniteMagnitude
+        for gy in stride(from: y, through: y - reach, by: -1) {
+            let cy = gy + KO
+            guard cy >= 0 && cy < K else { continue }
+            var sum: Float = 0, n: Float = 0
+            for dz in -1...0 { for dx in -1...0 {
+                let cx = x + dx + KO, cz = z + dz + KO
+                guard cx >= 0 && cx < K && cz >= 0 && cz < K else { continue }
+                let vi = cx + cz * K + cy * KK
+                if sc.smL[vi] >= 0 { let v = sc.smV[vi * 3 + 1]; sum += v; n += 1; lo = min(lo, v) }
+            } }
+            if n > 0 && !lowest { return sum / n }
+        }
+        return lo < .greatestFiniteMagnitude ? lo : nil
     }
 
     @inline(__always) func ri(_ x: Int, _ y: Int, _ z: Int) -> Int { (x + Mesher.C0) + (z + Mesher.C0) * Mesher.RW + (y + Mesher.C0) * Mesher.RL }

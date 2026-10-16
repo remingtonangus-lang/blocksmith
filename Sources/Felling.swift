@@ -28,6 +28,14 @@ enum Felling {
     static var felled = 0                        // (counter)
 
     static func isFelled(_ s: Ship) -> Bool { s.root.name == name }
+
+    // P297 (d): where the world draws trunks round and thin (ShapeTrunks: polygon and smooth worlds), a felled tree's
+    // logs are too: its hull mesh leaves them out (ShipMesh.build) and Game.writeFelled draws them as bark cylinders of
+    // the standing tree's girth. As cubes, a broken tree turned into a log far thicker than the tree it was.
+    static var roundTrunks = false
+    static func roundFor(_ w: World) -> Bool { Mesher.detailMeshes && (SmoothTerrain.enabled || w.fieldTerrain) }
+    // Per felled ship: its log cells with the radius each is drawn at (rebuilt when its block count changes).
+    static var trunkCells: [Int: (count: Int, cells: [(IVec3, BlockID, Float)])] = [:]
 }
 
 extension Game {
@@ -48,6 +56,7 @@ extension Game {
             } } }
         }
         guard logs.count >= 3 else { return }
+        Felling.roundTrunks = Felling.roundFor(world)
         // Resting on anything else (another trunk of a 2x2 tree, a wall, the ground beside the cut): it stands.
         for c in logs {
             let below = IVec3(c.x, c.y - 1, c.z)
@@ -106,6 +115,7 @@ extension Game {
     // Every frame (Game.advance): falling trees land and shed their leaves; a carried trunk follows the hands.
     func fellingTick(_ dt: Float) {
         guard dt > 0 else { return }
+        Felling.roundTrunks = Felling.roundFor(world)
         let live = world.ships.list
         Felling.falls.removeAll { f in f.ship.map { s in !live.contains { $0 === s } } ?? true }
         for f in Felling.falls {
@@ -189,6 +199,72 @@ extension Game {
         sfx(.hit(.wood), 1, at: r.pos)
         sfx(.place(.wood), 0.8, at: r.pos)
         return true
+    }
+
+    // P297 (d): felled trunks as round bark cylinders (entity pass, both renderers): each log cell a segment along its
+    // axis, ring caps where the log ends, lit by the light where it lies.
+    func writeFelled(_ wr: inout EntityWriter, eye: V3) {
+        guard Felling.roundTrunks else { return }
+        let ships = world.ships.list.filter { Felling.isFelled($0) }
+        if ships.isEmpty { if !Felling.trunkCells.isEmpty { Felling.trunkCells.removeAll() }; return }
+        let n = 8
+        let texT = Blocks.tex
+        for s in ships where simd_length(s.pos - eye) < 112 {
+            let g = s.grid
+            if Felling.trunkCells[s.id]?.count != s.blockCount {
+                // The trunk (vertical runs of 3 or more) at the standing tree's girth, limbs as limbs.
+                var cells: [(IVec3, BlockID, Float)] = []
+                for i in 0..<g.blocks.count where ShapeTrunks.isTrunk[Int(g.blocks[i])] {
+                    let c = IVec3(i % g.sx, i / (g.sx * g.sz), (i / g.sx) % g.sz)
+                    let b = g.blocks[i]
+                    var run = 1
+                    if ShapeTrunks.axisOf[Int(b)] == 1 {
+                        var y = c.y - 1
+                        while y >= 0 && ShapeTrunks.isTrunk[Int(g.get(c.x, y, c.z))] && ShapeTrunks.axisOf[Int(g.get(c.x, y, c.z))] == 1 { run += 1; y -= 1 }
+                        y = c.y + 1
+                        while y < g.sy && ShapeTrunks.isTrunk[Int(g.get(c.x, y, c.z))] && ShapeTrunks.axisOf[Int(g.get(c.x, y, c.z))] == 1 { run += 1; y += 1 }
+                    }
+                    cells.append((c, b, run >= 3 ? ShapeTrunks.treeRadius(run + 1) : 0.13))
+                }
+                Felling.trunkCells[s.id] = (s.blockCount, cells)
+            }
+            guard let cells = Felling.trunkCells[s.id]?.cells else { continue }
+            for (c, b, r) in cells {
+                let ax = Int(ShapeTrunks.axisOf[Int(b)])
+                let d = ax == 0 ? V3(1, 0, 0) : (ax == 1 ? V3(0, 1, 0) : V3(0, 0, 1))
+                let u = ax == 1 ? V3(1, 0, 0) : V3(0, 1, 0), v = simd_cross(d, u)
+                let mid = V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5
+                let wc = s.toWorld(mid)
+                let l = world.lightAt(Int(floor(wc.x)), Int(floor(wc.y)), Int(floor(wc.z)))
+                let light = max(0.2, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+                let bark = Int(texT[Int(b) * 6 + (ax == 0 ? 2 : 0)]), ring = Int(texT[Int(b) * 6 + ax * 2])
+                let a0 = mid - d * 0.5, a1 = mid + d * 0.5
+                func w(_ p: V3) -> V3 { s.toWorld(p) - eye }
+                for k in 0..<n {
+                    let t0 = Float(k) / Float(n) * 2 * .pi, t1 = Float(k + 1) / Float(n) * 2 * .pi
+                    let o0 = (u * cosf(t0) + v * sinf(t0)) * r, o1 = (u * cosf(t1) + v * sinf(t1)) * r
+                    let nrm = s.rot.act(simd_normalize(o0 + o1))
+                    let sh = light * (0.7 + 0.3 * nrm.y)
+                    let col = V4(sh, sh, sh, 1)
+                    let ua = Float(k) / Float(n), ub = Float(k + 1) / Float(n)
+                    wr.quad4(w(a0 + o0), w(a0 + o1), w(a1 + o1), w(a1 + o0), V2(ua, 1), V2(ub, 1), V2(ub, 0), V2(ua, 0), bark, col)
+                }
+                // Ring caps where the log ends along its axis.
+                for (end, sgn) in [(a0, Float(-1)), (a1, Float(1))] {
+                    let nb = c + IVec3(ax == 0 ? Int(sgn) : 0, ax == 1 ? Int(sgn) : 0, ax == 2 ? Int(sgn) : 0)
+                    let nbB = g.get(nb.x, nb.y, nb.z)
+                    if ShapeTrunks.isTrunk[Int(nbB)] && ShapeTrunks.axisOf[Int(nbB)] == UInt8(ax) { continue }
+                    let ny = s.rot.act(d * sgn).y
+                    let sh = light * (0.7 + 0.3 * ny)
+                    for k in 0..<n {
+                        let t0 = Float(k) / Float(n) * 2 * .pi, t1 = Float(k + 1) / Float(n) * 2 * .pi
+                        let o0 = u * cosf(t0) + v * sinf(t0), o1 = u * cosf(t1) + v * sinf(t1)
+                        let c0 = V2(0.5, 0.5), p0 = V2(0.5 + 0.5 * cosf(t0), 0.5 + 0.5 * sinf(t0)), p1 = V2(0.5 + 0.5 * cosf(t1), 0.5 + 0.5 * sinf(t1))
+                        wr.quad4(w(end), w(end + o0 * r), w(end + o1 * r), w(end), c0, p0, p1, c0, ring, V4(sh, sh, sh, 1))
+                    }
+                }
+            }
+        }
     }
 
     func dropCarried(throwing: Bool) {

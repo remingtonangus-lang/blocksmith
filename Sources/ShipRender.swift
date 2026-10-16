@@ -69,6 +69,7 @@ final class ShipMesh {
     private func submit(_ s: Ship, only: Set<Int>?, full: Bool, queue: DispatchQueue) {
         let gen = layoutGen
         let sx = s.grid.sx, sy = s.grid.sy, sz = s.grid.sz
+        let trunks = !(Felling.roundTrunks && Felling.isFelled(s))
         // Partial remesh of a big hull (a capital ship hit by a shell): copy only the columns around the wanted
         // sections (handing the job the whole 15 MB grid made every blast copy it once the next one changed it).
         if let only, sx * sy * sz > 1_000_000 {
@@ -93,7 +94,7 @@ final class ShipMesh {
                 for (p, v) in s.damage where p.x >= x0 && p.x < x1 && p.z >= z0 && p.z < z1 { dmg[IVec3(p.x - x0, p.y, p.z - z0)] = v }
                 lock.lock(); building += 1; lock.unlock()
                 queue.async { [weak self] in
-                    let built = ShipMesh.build(sx: w, sy: sy, sz: d, blocks: sub, only: local, damage: dmg)
+                    let built = ShipMesh.build(sx: w, sy: sy, sz: d, blocks: sub, only: local, damage: dmg, trunks: trunks)
                     let secs = built.map { (k, m, o) in
                         (ShipMesh.key((k & 0xFFF) + ox, (k >> 12) & 0xFF, ((k >> 20) & 0xFFF) + oz), m, o + V3(Float(x0), 0, Float(z0)))
                     }
@@ -109,7 +110,7 @@ final class ShipMesh {
         let blocks = s.grid.blocks, dmg = s.damage
         lock.lock(); building += 1; lock.unlock()
         queue.async { [weak self] in
-            let secs = ShipMesh.build(sx: sx, sy: sy, sz: sz, blocks: blocks, only: only, damage: dmg)
+            let secs = ShipMesh.build(sx: sx, sy: sy, sz: sz, blocks: blocks, only: only, damage: dmg, trunks: trunks)
             guard let self else { return }
             self.lock.lock()
             self.results.append((gen, full, secs))
@@ -142,8 +143,9 @@ final class ShipMesh {
     }
 
     // Builds section meshes for a grid snapshot (any thread).
+    // `trunks` false (P297 d): logs left out (a felled tree where trunks are drawn round: Game.writeFelled).
     static func build(sx: Int, sy: Int, sz: Int, blocks: [BlockID], only: Set<Int>?, spinning: Bool = true,
-                      damage: [IVec3: UInt8] = [:]) -> [(Int, SectionMesh, V3)] {
+                      damage: [IVec3: UInt8] = [:], trunks: Bool = true) -> [(Int, SectionMesh, V3)] {
         let ncx = (sx + 15) / 16, ncz = (sz + 15) / 16
         let vh = sy + 16
         let nsec = min(NSEC - 1, (vh + 15) / 16)
@@ -169,6 +171,7 @@ final class ShipMesh {
                         if gx >= sx { break }
                         let b = blocks[gx + gz * sx + y * sx * sz]
                         if b == AIR || (spinning && (kinds[Int(b)] == .propeller || kinds[Int(b)] == .wheel || kinds[Int(b)] == .cannon || kinds[Int(b)] == .rotor)) { continue }
+                        if !trunks && ShapeTrunks.isTrunk[Int(b)] { continue }
                         a[x + z * 16 + vy * CSQ] = b
                         if skyT[Int(b)] { h[x + z * 16] = Int16(vy) }
                     }

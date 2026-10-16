@@ -477,7 +477,9 @@ final class BlockRegistry {
         ad.hardness = 30; ad.resistance = 1200; ad.tool = .pickaxe; ad.harvestLevel = 3; ad.requiresTool = true
         add(ad)
         var ss = BlockDef("soul_sand", "Pale Ash")
-        ss.tex = ["soul_sand"]; ss.render = .model; ss.opaque = false; ss.boxes = [Box(0, 0, 0, 16, 14, 16)]
+        // P327 (a): a full cube (it still slows the feet, Player) so it is ground a polygon world shapes: as a 14 px model
+        // the Ash Dunes stayed block steps there.
+        ss.tex = ["soul_sand"]
         ss.hardness = 0.5; ss.tool = .shovel; ss.sound = .sand; ss.skyStop = true
         add(ss)
         cube("soul_soil", "Ash Silt", "soul_soil", h: 0.5, tool: .shovel, snd: .sand)

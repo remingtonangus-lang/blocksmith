@@ -357,7 +357,9 @@ final class WorldGen: TerrainGenerator {
     // side, NaN where none) to the shapes the carvers cut that the generator's terrain and cave fields don't know (lava
     // pockets, ravines, sinkholes, cupped floor lava), so the split shapes the field round them, not round their cells.
     // The carvers' rough edges come from world-stable smooth noise there instead of per-cell hashes.
-    func generate(cx: Int, cz: Int, carved cd: UnsafeMutablePointer<Float>?) -> [BlockID] {
+    // `added` (P297 c): the same for ground the generator adds that its fields don't know (boulders), + inside; the
+    // split takes the farther of the field's and this one, so a boulder is a rounded rock, not rounded cells.
+    func generate(cx: Int, cz: Int, carved cd: UnsafeMutablePointer<Float>?, added ad: UnsafeMutablePointer<Float>? = nil) -> [BlockID] {
         var tp: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
         func mark(_ k: Int) {
             guard WorldGen.timing else { return }
@@ -593,7 +595,7 @@ final class WorldGen: TerrainGenerator {
         // 5. Trees and vegetation.
         placeTrees(&b, cx, cz, lat)
         mark(5)
-        placeVegetation(&b, bx, bz, biomes, &rng, cols: cols)
+        placeVegetation(&b, bx, bz, biomes, &rng, cols: cols, added: ad)
         sealSwampPuddles(&b, biomes, wls)
         freeze(&b, bx, bz, biomes, cols, tops)
         hardenLava(&b)
