@@ -106,7 +106,11 @@ enum AshLook {
             hb(-5.0, 25.9, 4.1, 10.0, 2.4, 0.9, lv.plate, Pat.metal)
             if mid { hb(-4.2, 24.1, -1.0, 8.4, 0.4, 0.4, leather, Pat.leather) }                    // chin strap
             if r == 3 {
-                // Gas mask: rubber face, two round red lenses, the filter snout.
+                // Gas mask: rubber face, two round red lenses, the filter snout. P315 (Oct 15 19:06, "the mask should
+                // cover the whole head"): a full rubber hood under the helmet, over the sides, back and nape, so no skin
+                // shows anywhere; the face plate and lenses sit on it.
+                hb(-4.3, 24.0, -4.3, 8.6, 4.7, 8.6, leather * 0.85, Pat.leather)
+                hb(-3.9, 22.9, -3.9, 7.8, 1.2, 7.8, leather * 0.85, Pat.leather)                // the hood's neck skirt
                 hb(-3.7, 24.3, -4.5, 7.4, 4.8, 0.5, leather, Pat.leather)
                 hb(-2.9, 26.9, -4.62, 1.7, 1.5, 0.14, lv.glow * 0.6, Pat.glow); hb(1.2, 26.9, -4.62, 1.7, 1.5, 0.14, lv.glow * 0.6, Pat.glow)
                 hb(-1.0, 24.0, -5.7, 2.0, 1.8, 1.3, lv.metal, Pat.metal)
