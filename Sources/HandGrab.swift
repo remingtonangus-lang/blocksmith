@@ -61,6 +61,17 @@ enum HandGrab {
             && m.kind != .boat && m.kind != .minecart && !m.carcass
     }
 
+    // P303 (b): the hand lets go without a throw (a menu or the pause came up, the hand stopped being tracked, he died):
+    // whatever it held drops where it is, and a held body is let go by its ragdoll too (clearing only the hold left a
+    // corpse pinned to the hand's last spot: "it stays grabbed").
+    static func letGo(_ g: Game, hand i: Int) {
+        guard i >= 0 && i < 2, let h = held[i] else { return }
+        held[i] = nil
+        if h.corpse { g.debris.ragdolls.release(hand: i) }
+        if let it = h.item { it.vel = .zero; it.pickupDelay = max(it.pickupDelay, 0.4) }
+        else if !h.body && !h.corpse { h.mob.vel = .zero; h.mob.onGround = false }
+    }
+
     // Per frame for one hand (QuestControls): true while that hand holds something, and on the press that took it and
     // the release that let it go (those grip edges are the grab's, not the hotbar's).
     static func tick(_ g: Game, hand i: Int, at p: V3, grip: Bool, gripWas: Bool, empty: Bool, dt: Float) -> Bool {
