@@ -7,8 +7,9 @@ Checks that fail for reasons other than a game bug, and what was done about them
   3.48-3.54 vs 3.44-3.55 ms/chunk. The baseline dates from 3763 quads/chunk (now ~4950) and the previous run already
   read 4.38 ms (1.31x), so runner noise crossed the 1.6x gate. Baseline mesh / mesh_lod1 means and quads refreshed to
   run 37970910818 (4.38 / 4.10 ms, 4996 / 2535 quads).
-- **ridecheck `ride crew`**: fails on the local M1 at dad2af84 and HEAD alike (crew "deck lost"), passes on CI.
-  Pre-existing, not touched.
-- **ridecheck `ride troops`** (troop inside the troop-bay engines' z 71 face for one tick): pre-existing flake; troops
-  are mobs (Mob physics), the player-side fix for the same face is in Player.update's unstuck.
-- **playthrough `blight`**: pre-existing (the bot's arrows can't finish the Blight in 600 s).
+- **ridecheck `ride crew` / `ride troops`** (fixed 2026-10-15, 0430fec / ff2fb16, green on run 1691): freed crew of a
+  wrecked crawler walked down its lowered ramp (a half-block step down is now a ledge to them); a troop turning for the
+  doorway at 0.6 from a waypoint cut the troop-bay engines' corner (waypoints reached at 0.3).
+- **playthrough `blight`** (fixed 2026-10-16, ca63ec1): a game bug, not the bot. Any mob in the crosshair within 3.5
+  blocks swallowed every use (Game.interact's mob branch always returned), so once the Blight hovered close overhead
+  the bow never drew. Defeated in 26 s on the fast lane of ca63ec1.
