@@ -144,7 +144,9 @@ enum CollapseCheck {
             for dz in -2...2 { for dx in -2...2 where abs(dx) == 2 || abs(dz) == 2 { top.append(IVec3(o.x + dx, o.y + h - 1, o.z + dz)) } }
             st.watch = top
             let bx = Float(o.x + 3), by = Float(o.y + 1), bz = Float(o.z) + 0.5
-            st.blasts = [(V3(bx, by, bz), 6), (V3(bx, by, bz - 2), 5.5), (V3(bx, by, bz + 2), 5.5)]   // (bricks resist 6 now)
+            // (Bricks resist 6 now: at 6 / 5.5 a run's random ray strengths sometimes left enough of the base that the
+            // cut tower settled upright where it stood, run of 68b79bd.)
+            st.blasts = [(V3(bx, by, bz), 7), (V3(bx, by, bz - 2), 6.5), (V3(bx, by, bz + 2), 6.5)]
             st.view = (V3(Float(o.x + 4), Float(o.y + 14), Float(o.z + 46)), 0, -0.2)
         case "stands":
             let h = 60

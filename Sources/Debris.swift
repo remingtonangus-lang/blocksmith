@@ -458,7 +458,11 @@ extension ShipManager {
         // The part with the most drive engines stays the vessel (then the larger); the rest comes away. (Keeping the
         // part with the helm dropped a Stormwarden frigate's 150k-block hull with all 900 engines when shell holes cut
         // its bridge tower off: capitaltest.) A vessel left without its helm goes down below.
-        guard sizes.count > 1, let keep = sizes.indices.max(by: { (drives[$0], sizes[$0]) < (drives[$1], sizes[$1]) }) else { return }
+        // Never a part under a tenth of the largest's size, though: a block of machinery standing loose in the hull
+        // (the Stormwarden's drive cores before their pylons) would keep 225 blocks and drop the rest.
+        guard sizes.count > 1, let largest = sizes.max() else { return }
+        guard let keep = sizes.indices.filter({ sizes[$0] * 10 >= largest })
+            .max(by: { (drives[$0], sizes[$0]) < (drives[$1], sizes[$1]) }) else { return }
         var parts = [[Int]](repeating: [], count: sizes.count)
         for i in 0..<n where comp[i] >= 0 && Int(comp[i]) != keep { parts[Int(comp[i])].append(i) }
         let kinds = ShipParts.kinds

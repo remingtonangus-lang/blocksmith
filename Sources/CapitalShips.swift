@@ -357,6 +357,13 @@ enum Capital {
         // Engine room: four drive cores (critical systems) and the stern nozzles glowing in their recesses.
         hb.fill(-38, 38, 20, 20, 384, 474, deck)
         for x in [-18, 18] { for cy in [30, 54] { hb.fill(x - 2, x + 2, cy - 2, cy + 2, 438, 446, engine) } }
+        // Pylons from the engine room floor up through both cores: the cores floated free, and the hull split check
+        // (Debris.swift: the part with the most drive engines stays the vessel) kept one 225-block core as the frigate
+        // and sent the 239k-block hull down as a section at the first blast near it (capitaltest, run of 68b79bd).
+        for x in [-18, 18] {
+            hb.fill(x - 1, x + 1, 21, 27, 441, 443, hull)
+            hb.fill(x - 1, x + 1, 33, 51, 441, 443, hull)
+        }
         for x in stride(from: -30, through: 30, by: 15) { hb.set(x, 70, 410, light); hb.set(x, 70, 450, light) }
         hb.set(0, 21, 460, Blocks.id("chest"))
         hb.chests.append((hb.grid(0, 21, 460), "steelhold_supply"))

@@ -307,6 +307,45 @@ enum InteriorCheck {
             }
             check(buried.isEmpty, "\(name): no crew post inside a block (\(buried.count))\(buried.isEmpty ? "" : ": " + buried.prefix(4).joined(separator: "; "))")
         }
+        // Every capital hull is one connected piece as built: a part standing loose (machinery, a light, a fitting not
+        // touching the hull) is split off by the first blast near the ship (Debris.swift splitHull), and a loose block of
+        // drive cores was kept as the whole vessel (capitaltest, run of 68b79bd).
+        for (name, make, mine) in [("warfrigate", { Capital.frigate() }, true), ("crawler", { Capital.crawler() }, true),
+                                   ("dropship", { Capital.dropship() }, true),
+                                   ("capfrigate", { Capital.capitalFrigate() }, false)] as [(String, () -> HullBuilder, Bool)] {
+            let hb = make()
+            let sx = hb.sx, sy = hb.sy, sz = hb.sz, n = sx * sy * sz
+            var comp = [Int32](repeating: -1, count: n)
+            var sizes: [Int] = [], at: [Int] = []
+            var q: [Int] = []
+            for start in 0..<n where hb.blocks[start] != AIR && comp[start] < 0 {
+                let id = Int32(sizes.count)
+                comp[start] = id
+                q.removeAll(keepingCapacity: true); q.append(start)
+                var head = 0
+                while head < q.count {
+                    let i = q[head]; head += 1
+                    let y = i / (sx * sz), rem = i - y * sx * sz, z = rem / sx, x = rem - z * sx
+                    for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {
+                        let nx = x + dx, ny = y + dy, nz = z + dz
+                        guard nx >= 0 && nx < sx && ny >= 0 && ny < sy && nz >= 0 && nz < sz else { continue }
+                        let j = nx + nz * sx + ny * sx * sz
+                        if comp[j] < 0 && hb.blocks[j] != AIR { comp[j] = id; q.append(j) }
+                    }
+                }
+                sizes.append(q.count); at.append(start)
+            }
+            let biggest = sizes.indices.max { sizes[$0] < sizes[$1] } ?? 0
+            var loose: [String] = []
+            var looseBlocks = 0
+            for k in sizes.indices where k != biggest {
+                looseBlocks += sizes[k]
+                let i = at[k], y = i / (sx * sz), rem = i - y * sx * sz, z = rem / sx, x = rem - z * sx
+                loose.append("\(sizes[k]) at \(x - hb.ox),\(y),\(z) (\(Blocks.key(hb.blocks[i])))")
+            }
+            let line = "\(name): the hull is one piece as built (\(sizes.count) pieces, \(looseBlocks) blocks loose)\(loose.isEmpty ? "" : ": " + loose.prefix(5).joined(separator: "; "))"
+            if mine { check(loose.isEmpty, line) } else { print((loose.isEmpty ? "PASS " : "NOTE ") + line + " (another session's hull: reported)") }
+        }
         print("interiorcheck: \(fails == 0 ? "PASS" : "\(fails) FAILED")")
         return fails == 0 ? 0 : 3
     }
