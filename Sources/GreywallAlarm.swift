@@ -449,11 +449,15 @@ extension Game {
         guard !garrison && !parked else { site.hold = 0; return false }
         let atConsole = players.contains { p in s.consoles.contains { simd_length(V3(Float($0.x) + 0.5, Float($0.y), Float($0.z) + 0.5) - p) < 2.6 } }
         guard atConsole else {
-            if site.hold > 0 { onToast?("Taking the base stopped: stay at the command console") }
+            if site.hold > 0 { onToast?("Taking the base stopped") }
             site.hold = 0; return false
         }
-        if site.hold == 0 { onToast?("The garrison is down: hold the command console to take the base (10 s)") }
+        // P328 (NO TEXT): the console answers instead of a how-to: a power-up hum as he takes it, then a tick each
+        // second it is held.
+        if site.hold == 0 { onToast?("The garrison is down"); sfx(.beaconActivate, 0.4) }
+        let held0 = Int(site.hold)
         site.hold += dt
+        if Int(site.hold) != held0 { sfx(.click, 0.6) }
         guard site.hold >= GreywallAlarmState.holdFor else { return false }
         greywallTake(&site, key)
         return true
@@ -477,7 +481,7 @@ extension Game {
         spawnPoint = V3(Float(site.cx) + 0.5, Float(site.S + 1), Float(site.cz + site.tier.half - 5) + 0.5)
         st.log.append("\(key) taken")
         MapCache.shared.discover(self, kind: Greywall.kind, x: site.cx, z: site.cz, name: site.tier.name)
-        onToast?("The \(site.tier.name) is yours: its yard is your respawn point, its map table reads the radar net")
+        onToast?("The \(site.tier.name) is yours")
         if Items.has("greywall_flag") { _ = inventory.add(ItemStack(Items.id("greywall_flag"), 1)) }   // O6: its flag, a trophy
         Legendaries.fortressTaken(self, site.tier)            // C10
     }
@@ -492,7 +496,7 @@ extension Game {
         let codes = inventory.main.slots.contains { !$0.isEmpty && Items.key($0.item) == "greywall_codebook" }
         guard greywallAlarm.taken.contains("greywall:\(cx),\(cz)") || codes else {
             // P206: say where the key is.
-            onToast?("Locked to Greywall codes: the base's officer carries the code book (or take the base: clear it and hold a command console 10 s)")
+            onToast?("Locked to Greywall codes")
             return true
         }
         let n = greywallRadarNet(from: cx, cz)

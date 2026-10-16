@@ -65,7 +65,7 @@ extension Game {
         guard let e = Blueprints.line(held) else { return false }
         let k = Blueprints.key(e)
         if Blueprints.known.contains(k) && survival {
-            onToast?("You already know the \(Enchant.def(e).name) blueprint. A general store will buy it")
+            onToast?("You already know the \(Enchant.def(e).name) blueprint")
             return true
         }
         Blueprints.known.insert(k)
@@ -73,7 +73,7 @@ extension Game {
         if survival { consumeHeld() }
         sfx(.pageTurn, 0.8, at: player.pos)
         let part = Upgrades.specs[e]?.part.name ?? ""
-        onToast?("Blueprint learned: \(Enchant.def(e).name) (\(part)). Fit it at an Upgrade Bench")
+        onToast?("Blueprint learned: \(Enchant.def(e).name) (\(part))")
         return true
     }
 }

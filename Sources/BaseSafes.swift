@@ -133,6 +133,6 @@ extension Game {
             return
         }
         sfx(.ironDoorClose, 0.6, at: at)
-        onToast?("Locked. Its Safe Key is kept in a chest somewhere in this base")
+        onToast?("Locked")
     }
 }

@@ -176,7 +176,7 @@ enum Jail {
                                                  "In you go. I'll hold your irons in the strongbox till you're done.",
                                                  "Settle down, now. Everybody does their time in \(town)."]))
         let what = held.isEmpty ? "" : " Your weapons (\(held.count)) are in the jail's strongbox."
-        g.onToast?("Jailed in \(town): \(clock(total)), or pay \(Money.format(fineNow(term!))) to walk free (open your pack).\(what)")
+        g.onToast?("Jailed in \(town): \(clock(total)), or pay \(Money.format(fineNow(term!))) to walk free.\(what)")
         g.openMenu(JailMenu(game: g))
         return true
     }
@@ -234,7 +234,7 @@ enum Jail {
             if o.townWeapon != .none && !o.baby { o.town.anger = max(o.town.anger, o.villager?.role == "sheriff" ? TownLaw.hostileSeconds : 60) }
             else { o.panic = max(o.panic, 8) }
         }
-        g.onToast?("Jailbreak! \(t.town) is after you, $10 more on your head." + (t.held.isEmpty ? "" : " Your weapons stay locked up until you settle with its law."))
+        g.onToast?("Jailbreak! \(t.town) is after you, $10 more on your head." + (t.held.isEmpty ? "" : " Your weapons stay locked up."))
     }
 
     // Honour.settle (paid in full): what a jailbreak left in the strongbox comes back.
@@ -295,7 +295,7 @@ enum Jail {
             TownLaw.state.prisoner = [n, k]
             caught += 1
             g.sfx(.villagerNo, 0.8, at: m.eye)
-            g.onToast?("\(n): \"I give up! Don't shoot!\" He's in irons. Take him to a town jail for the reward and half again.")
+            g.onToast?("\(n): \"I give up! Don't shoot!\" He's in irons.")
             return
         }
     }
@@ -323,7 +323,7 @@ enum Jail {
             TownLaw.state.prisoner = [n, hit.key, "tied"]
             caught += 1
             hogties += 1
-            g.onToast?("\(n) is hogtied and slung over your saddle. Take him to a town jail alive for double the reward.")
+            g.onToast?("\(n) is hogtied and slung over your saddle.")
             return true
         }
         rope()
@@ -364,7 +364,7 @@ enum Jail {
             let tied = pr.count > 2                                     // D24: hogtied off the lasso pays double
             j.pay += tied ? j.pay : j.pay / 2
             TownLaw.state.jobs?[pr[1]] = j
-            g.onToast?("\(pr[0]) is behind bars in \(site.town). Collect \(Money.format(j.pay)) at the notice board (\(tied ? "double" : "half again") for bringing him in alive).")
+            g.onToast?("\(pr[0]) is behind bars in \(site.town).")
         } else {
             g.onToast?("\(pr[0]) is behind bars in \(site.town).")
         }

@@ -90,8 +90,7 @@ extension Game {
         var kinds = Set<Int>()
         for g in BaseSpecialties.given where g.hasPrefix("part:") { kinds.insert(WeaponPrinter.part(of: String(g.dropFirst(5)))) }
         sfx(.levelUp, 0.6, at: pp)
-        onToast?(kinds.count >= 3 ? "Workshop: you take its \(WeaponPrinter.parts[k].name). That's all three printer parts: craft the Weapon Printer"
-                                  : "Workshop: you take its \(WeaponPrinter.parts[k].name) (\(kinds.count) of 3 printer parts; other bases keep the rest)")
+        onToast?("Workshop: you take its \(WeaponPrinter.parts[k].name) (\(kinds.count) of 3)")
     }
 }
 

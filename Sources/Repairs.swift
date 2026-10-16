@@ -107,7 +107,7 @@ extension Game {
         guard c > 0, Repairs.jamRoll() < c else { return false }
         arms.cooldown = max(arms.cooldown, 0.8)
         sfx(.gun(7), 0.8)
-        onToast?("Jammed! A gunsmith or an anvil can mend it.")
+        onToast?("Jammed!")
         return true
     }
 }

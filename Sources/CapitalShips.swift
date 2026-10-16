@@ -1269,7 +1269,7 @@ extension ShipManager {
         let drives = lost < 0.5 && (st.engines0 == 0 || s.engines * 10 >= st.engines0 * 4)
         if steered && !drives && abs(s.throttle) > 0.1 && !st.winchTold {
             st.winchTold = true
-            g.onToast?("The \(s.name) is too damaged to drive: use steel or iron ingots on it to rebuild its wheels and engines")
+            g.onToast?("The \(s.name) is too damaged to drive")
         }
         if drives { st.winchTold = false }
         let fw = s.dirToWorld(V3(0, 0, -1))
@@ -1457,7 +1457,7 @@ extension ShipManager {
             }
         }
         if st.fuel > 30 { st.fuelTold = 0 }
-        if st.fuel <= 30 && st.fuel > 0 && st.fuelTold == 0 { st.fuelTold = 1; g.onToast?("\(s.name): fuel low. Carry coal or blaze rods") }
+        if st.fuel <= 30 && st.fuel > 0 && st.fuelTold == 0 { st.fuelTold = 1; g.onToast?("\(s.name): fuel low") }
         if st.fuel <= 0 {
             st.fuel = 0
             if st.fuelTold < 2 { st.fuelTold = 2; g.onToast?("\(s.name): out of fuel. It settles to the ground") }

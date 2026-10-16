@@ -133,7 +133,7 @@ enum Upgrades {
         var s = c[i]
         guard !s.isEmpty, tree(s.item).contains(e) else { return ("That doesn't fit this item.", false) }
         if let why = blocker(s, e) { return (why + ".", false) }
-        if !Blueprints.knows(g, e) { return ("You need the \(Enchant.def(e).name) blueprint first: look in chests at camps, wrecks, towns and bases.", false) }
+        if !Blueprints.knows(g, e) { return ("Needs the \(Enchant.def(e).name) blueprint.", false) }    // (P328: not where to find one)
         let lv = Enchant.level(e, s) + 1
         let k = cost(s.item, e, level: lv)
         if g.survival {

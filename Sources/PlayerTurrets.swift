@@ -20,7 +20,7 @@ enum PlayerTurrets {
     static func placed(_ g: Game, _ p: IVec3) {
         guard isTurret(g.world.block(p.x, p.y, p.z)) else { return }
         sites.insert(p)
-        g.onToast?("Your wall turret: it fires on hostiles in front of it within \(Int(range)) blocks")
+        g.onToast?("Wall turret ready")
     }
 
     static func save(_ d: inout [String: String]) {

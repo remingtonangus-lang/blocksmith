@@ -155,7 +155,7 @@ extension Game {
         guard landed > 0 else { return 0 }
         FactionRaids.lastAssault = clock
         FactionRaids.active = FactionRaids.Raid(faction: f, target: c, place: place, started: clock, turrets: raidTurrets(around: c), scanAt: clock + 20)
-        onToast?("\(f.name) is raiding \(place)! Hold it.")
+        onToast?("\(f.name) is raiding \(place)!")
         sfx(.raidHorn, 1)
         return landed
     }

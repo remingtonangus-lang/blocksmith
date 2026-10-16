@@ -435,7 +435,7 @@ enum DirectorEvents {
                 g.onToast?("\(who ?? "The hostage"): \"Thank you! I'll find my way home from here.\"")
             } else if captors == 0 && e.n["told"] == nil {
                 e.n["told"] = 1
-                g.onToast?("The kidnappers are down. Go to \(who ?? "the hostage") and cut them loose")
+                g.onToast?("The kidnappers are down")
             }
         case "storm":
             if play - e.born >= e.num("minutes") * 60 && g.alive { Director.pay(g, &e, dollars: 0) }

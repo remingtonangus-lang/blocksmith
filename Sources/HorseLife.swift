@@ -130,7 +130,7 @@ extension Mob {
                     temper = min(100, temper + 5)
                     h.calm = -1
                     g.dismount(); vel.y = 4; g.sfx(.mob(kind, .hurt), 1, at: pos)
-                    g.onToast?("Thrown! Sit still through the bucking and pat it when it settles")
+                    g.onToast?("Thrown!")
                     HorseLife.thrownCount += 1
                     return false
                 }
@@ -143,7 +143,7 @@ extension Mob {
         if h.calm >= 100 {
             owner = true; persistent = true; h.calm = -1
             g.particles.hearts(at: pos + V3(0, height, 0))
-            g.onToast?("Tamed! Put a saddle on to ride it")
+            g.onToast?("Tamed!")
             HorseLife.tamedCount += 1
         }
         vel.x *= max(0, 1 - 6 * dt); vel.z *= max(0, 1 - 6 * dt)
@@ -185,7 +185,7 @@ extension Mob {
         panic = 0
         if g.riding === self { g.dismount() }
         g.sfx(.mob(kind, .death), 0.8, at: pos)
-        g.onToast?("\(customName ?? "Your horse") is down! A Saddle Salve within 5 minutes saves it")
+        g.onToast?("\(customName ?? "Your horse") is down!")
         HorseLife.downs += 1
     }
 

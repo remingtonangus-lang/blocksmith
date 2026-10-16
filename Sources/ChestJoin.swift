@@ -161,7 +161,7 @@ enum ChestJoin {
         g.sfx(.place(.wood), 1.1, at: V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5))
         if !Settings.shared.chestJoinTold {
             Settings.shared.chestJoinTold = true
-            g.onToast?("Chests joined: a Large Chest, 54 slots (sneak while placing to keep them apart)")
+            g.onToast?("Large Chest")
         }
     }
 }

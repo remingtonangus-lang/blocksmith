@@ -70,7 +70,7 @@ enum Spine {
                 g.achieve("spine_take_town")
                 if !g.advancements.contains("spine/greywall_top") {
                     give(g, "greywall_dispatch")
-                    g.onToast?("In \(town)'s jail safe: a Greywall Dispatch. Read it to find the nearest Greywall base.")
+                    g.onToast?("In \(town)'s jail safe: a Greywall Dispatch")
                 }
             }
         }
@@ -91,11 +91,11 @@ enum Spine {
                     if !g.advancements.contains("spine/orders") {
                         g.advancements.insert("spine/orders")
                         give(g, "naval_orders")
-                        g.onToast?("In the war room: Naval Orders. The Meridian fleet puts to sea; read them to find it.")
+                        g.onToast?("In the war room: Naval Orders. The Meridian fleet puts to sea")
                     }
                 } else if !g.advancements.contains("spine/greywall_top") {
                     give(g, "greywall_dispatch")
-                    g.onToast?("The \(tier.name)'s dispatch box: orders from a Greywall Fortress. Read them to find it.")
+                    g.onToast?("The \(tier.name)'s dispatch box: orders from a Greywall Fortress")
                 }
             }
         }
@@ -106,7 +106,7 @@ enum Spine {
                 guard let r = s.role, r == "capfrigate" || r == "warfrigate", simd_length(s.pos - p) < 600 else { continue }
                 g.achieve("spine_flagship")
                 give(g, HellGate.chargeKey)
-                g.onToast?("From the \(s.name)'s strongroom: an Ember Charge. Press it on the Wardstone at the bottom of the world.")
+                g.onToast?("From the \(s.name)'s strongroom: an Ember Charge")
                 break
             }
         }
@@ -114,7 +114,7 @@ enum Spine {
         if g.ashVictory, !g.advancements.contains("spine/ledger") {
             g.advancements.insert("spine/ledger")
             give(g, "chancellor_ledger")
-            g.onToast?("The Chancellor's Ledger: the Capital paid for his war. Read it to find its citadels.")
+            g.onToast?("The Chancellor's Ledger: the Capital paid for his war")
         }
         // Stage 6: citadels cleared.
         var cleared = 0
@@ -231,11 +231,11 @@ enum Spine {
         return Game.RadarContact(name: "Capital Citadel", kind: "military_base", x: (s.min.x + s.max.x) / 2, z: (s.min.z + s.max.z) / 2)
     }
 
-    // Word of the current stage's target, from someone you did a good turn (a contract's patron, an ally's envoy, a
-    // legend's teller): it goes on the map as the next objective; the returned text is added to their own message
-    // ("" when there is nothing to tell, or outside play).
-    static func lead(_ g: Game, from: String) -> String {
-        guard active(g), g.dim.dim == .overworld, let n = Goals.next(g) else { return "" }
+    // Word of the current stage's target, from someone you did a good turn (a contract's patron, an ally's envoy): it
+    // goes on the map as the next objective. P328 (NO TEXT): the marker alone, nothing said (`from` names who passed it
+    // on, for the callers); the legends' tellers no longer hint at the next legend.
+    static func lead(_ g: Game, from: String) {
+        guard active(g), g.dim.dim == .overworld, let n = Goals.next(g) else { return }
         var t = known(g, n.id)
         if t == nil {
             switch n.id {
@@ -246,21 +246,9 @@ enum Spine {
             }
             if let f = t { MapCache.shared.discover(g, kind: f.kind, x: f.x, z: f.z, name: f.kind == Greywall.kind ? f.name : nil) }
         }
-        guard let tt = t else { return "" }
+        guard let tt = t else { return }
         target = tt; targetGoal = n.id; targetAt = g.clock; bearingAt = -100
         MapCache.shared.setObjective(g, x: tt.x, z: tt.z, name: tt.name)
-        return " \(from) passes on word: \(tt.name), \(g.radarBearing(tt)). On your map."
-    }
-
-    // A legend found: which legend waits further along the spine (Legendaries.award adds it to its message).
-    static func legendHint(_ g: Game) -> String {
-        guard active(g), let n = Goals.next(g), let i = Goals.stage(n.id) else { return "" }
-        let words = ["", " Tellers say the Greywall Aegis waits in a Command Fortress's strongbox.",
-                     " Tellers say the Greywall Aegis waits in a Command Fortress's strongbox.",
-                     " Tellers say the Ash Marshal's own six-iron waits below the world.",
-                     " Tellers say the Ash Marshal's own six-iron waits below the world.",
-                     " Tellers say the Capital's citadels keep what they took from the Chancellor's guard."]
-        return i < words.count ? words[i] + lead(g, from: "The teller") : ""
     }
 }
 
@@ -293,7 +281,7 @@ extension Game {
         guard !held.isEmpty else { return false }
         let k = Items.key(held.item)
         guard k == "greywall_dispatch" || k == "naval_orders" || k == "chancellor_ledger" else { return false }
-        guard dim.dim == .overworld else { onToast?("Its maps are of the surface: read it up there"); return true }
+        guard dim.dim == .overworld else { onToast?("Its maps are of the surface"); return true }
         switch k {
         case "greywall_dispatch":
             guard let t = Spine.dispatchTarget(self) else { onToast?("The dispatch names no Greywall base within reach"); return true }
@@ -311,7 +299,7 @@ extension Game {
                     "MERIDIAN FLEET - SAILING ORDERS\n\nThe \(w.name) to keep station at grid \(w.x), \(w.z), and to hold the coast against the towns.",
                     "Her strongroom carries an Ember Charge for the Capital. It is not to be lost.\n\nBoarders are to be met at the rails.\n\n- Flag Officer, Meridian Fleet"])
             } else {
-                onToast?("Naval Orders: the fleet is at sea, beyond this coast. A radar set finds its patrols.")
+                onToast?("Naval Orders: the fleet is at sea, beyond this coast")
                 spineDocument("Naval Orders", [
                     "MERIDIAN FLEET - SAILING ORDERS\n\nAll ships to put to sea and keep the far patrols.",
                     "Each flagship's strongroom carries an Ember Charge for the Capital. It is not to be lost.\n\n- Flag Officer, Meridian Fleet"])

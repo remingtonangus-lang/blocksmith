@@ -26,12 +26,12 @@ extension Game {
         case .deep:
             // Updrafts: a long drop into the vault floats down (no fall damage), so breaking through its roof is survivable.
             // P291 (d): creative falls at the normal speed.
-            if survival && DeepGen.inVault(p.y) && !player.onGround && !player.flying && player.vel.y < -6 {
-                if !effects.has(.slowFalling) && !deepUpdraftHinted {
-                    deepUpdraftHinted = true
-                    onToast?("Hot air rising from the vault slows your fall")
+            if survival && DeepGen.inVault(p.y) && !player.onGround && !player.flying {
+                if player.vel.y < -6 { applyEffect(.slowFalling, amp: 0, seconds: 1.5) }
+                // P328 (NO TEXT): the updraft shows instead of a toast: warm air streaming up past him as he floats down.
+                if effects.has(.slowFalling) && Rand.float(in: 0..<1) < 0.5 {
+                    particles.smoke(at: p + V3(Rand.float(in: -1.5...1.5), Rand.float(in: -2...1), Rand.float(in: -1.5...1.5)), dark: false)
                 }
-                applyEffect(.slowFalling, amp: 0, seconds: 1.5)
             }
         default: break
         }

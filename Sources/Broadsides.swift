@@ -23,7 +23,7 @@ enum Broadsides {
         guard s.isVessel, !s.captured, !s.wrecked, s.parent == nil else { return }
         if lashed[s.id] == nil {
             grapples += 1
-            g.onToast?("Grappled! The \(s.name) is lashed: get aboard, clear her crew and take her helm.")
+            g.onToast?("Grappled! The \(s.name) is lashed")
         }
         lashed[s.id] = lashTime
     }

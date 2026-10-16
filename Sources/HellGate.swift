@@ -140,7 +140,7 @@ extension Game {
         guard clock - hell.hintAt > 0.5 || clock < hell.hintAt else { return }
         hell.hintAt = clock
         if let t = target { chargeFizzle(t) }
-        if clock - HellGate.markedAt > 60 || clock < HellGate.markedAt { HellGate.markedAt = clock; _ = citadelPointer() }
+        if clock - HellGate.markedAt > 60 || clock < HellGate.markedAt { HellGate.markedAt = clock; citadelPointer() }
     }
 
     // P139 put the nearest citadel on the map when Wardstone would not break; P317 (a): that stays, the words go. The
@@ -149,26 +149,17 @@ extension Game {
         guard clock - hell.hintAt > 0.5 || clock < hell.hintAt else { return }
         hell.hintAt = clock
         toolBounce()
-        if clock - HellGate.markedAt > 60 || clock < HellGate.markedAt { HellGate.markedAt = clock; _ = citadelPointer() }
+        if clock - HellGate.markedAt > 60 || clock < HellGate.markedAt { HellGate.markedAt = clock; citadelPointer() }
         HellGate.wardHints += 1
     }
 
-    // ". The nearest is marked on your map: 1,240 m NW" (the nearest Capital citadel, put on the map the first time).
-    func citadelPointer() -> String {
+    // The nearest Capital citadel, put on the map (P328, NO TEXT: quietly, with no toast or bearing; the map shows it).
+    func citadelPointer() {
         guard dim.dim == .overworld, let sc = world.gen.structures,
-              let s = sc.nearest("military_base", x: Int(player.pos.x), z: Int(player.pos.z), maxRegions: 4) else { return "" }
-        let c = RadarContact(name: "Capital Citadel", kind: "military_base", x: (s.min.x + s.max.x) / 2, z: (s.min.z + s.max.z) / 2)
-        MapCache.shared.discover(self, kind: c.kind, x: c.x, z: c.z)
-        return ". The nearest is marked on your map: \(radarBearing(c))"
+              let s = sc.nearest("military_base", x: Int(player.pos.x), z: Int(player.pos.z), maxRegions: 4) else { return }
+        MapCache.shared.discover(self, kind: "military_base", x: (s.min.x + s.max.x) / 2, z: (s.min.z + s.max.z) / 2, silent: true)
     }
-
-    // P249: the Ashguard's citadel (the last battle) stands in the Ash Vault under the world's centre. Breaking through
-    // far from it means a long march underground, so say so while the player can still choose where to go down.
-    func vaultPointer() -> String {
-        let d = Int(simd_length(V2(player.pos.x, player.pos.z)))
-        guard d > 1200 else { return "" }
-        return ". The war below is fought under the world's centre, \(d) blocks from here: go down near it"
-    }
+    // (P328: vaultPointer, the unused "go down near the world's centre" line, is gone.)
 
     // Burns down placed charges (from hellTick).
     func emberChargesTick(_ dt: Float) {

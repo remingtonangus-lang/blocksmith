@@ -92,7 +92,7 @@ enum Seasons {
     }
     static func announce(_ s: Season) -> String {
         switch s {
-        case .spring: return "Spring: the snow melts and the young are born. No hunting near towns"
+        case .spring: return "Spring: the snow melts and the young are born"
         case .summer: return "Summer: the crops grow fastest"
         case .autumn: return "Autumn: hunting season opens, and the herds drift south"
         case .winter: return "Winter: snow on the plains, the lakes freeze and the fields lie still"

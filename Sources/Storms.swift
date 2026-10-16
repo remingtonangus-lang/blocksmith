@@ -87,8 +87,8 @@ extension Game {
         }
         Storms.bodyTemp += (pull - Storms.bodyTemp) * min(1, dt * rate * 4)
         let t = Storms.bodyTemp
-        if t < 0.22 && Storms.warned != -1 { Storms.warned = -1; onToast?("You're getting dangerously cold: find shelter or a fire") }
-        if t > 0.8 && Storms.warned != 1 { Storms.warned = 1; onToast?("The heat is getting to you: find shade or water") }
+        if t < 0.22 && Storms.warned != -1 { Storms.warned = -1; onToast?("You're getting dangerously cold") }
+        if t > 0.8 && Storms.warned != 1 { Storms.warned = 1; onToast?("The heat is getting to you") }
         if t > 0.3 && t < 0.7 { Storms.warned = 0 }
         Storms.hurtT -= dt
         if t < 0.12 {

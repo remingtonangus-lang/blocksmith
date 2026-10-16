@@ -58,7 +58,7 @@ extension Game {
             }
             let squad = Array(mobs.mobs[n0...])
             BaseCounter.active[key] = BaseCounter.Attack(start: clock, squad: squad)
-            onToast?("Greywall is counter-attacking the \(site.tier.name)! Hold the walls")
+            onToast?("Greywall is counter-attacking the \(site.tier.name)!")
         }
     }
 }

@@ -178,7 +178,7 @@ extension Game {
         lastWar.wave.removeAll()
         lastWar.breather = 8
         sfx(.gun(10), 1.8, at: player.pos)
-        onToast?("The Ash Marshal is dead. Sirens: the Ashguard is throwing its last army at you. Hold the citadel")
+        onToast?("The Ash Marshal is dead. Sirens: the Ashguard is throwing its last army at you")
         lastWar.voice = 4
     }
 
@@ -342,7 +342,6 @@ extension Game {
             if let g = Mob.structureMob("soldier_ironclad@ash", at: at + V3(dx, 0, -2)) { mobs.mobs.append(g) }
         }
         sfx(.gun(10), 1.2, at: at)
-        onToast?("The Ash Chancellor waits in his study at the end of the bunker")
     }
 
     // At half health the Chancellor's bunker shakes (the citadel above is burning): dust, a rumble, the lamps flicker.

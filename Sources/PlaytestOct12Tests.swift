@@ -709,7 +709,8 @@ enum PlaytestOct12Tests {
         let tv = labelled()
         g.vrHead = g.player.eye
         let vr = labelled()
-        check(tv && !vr, "P85 hotbar: the bumper labels beside the hotbar show on a screen with a pad (\(tv)) and not on the headset (\(vr))")
+        // P328 (NO TEXT): no control labels over play on a screen either (they never showed on the headset).
+        check(!tv && !vr, "P85 / P328 hotbar: no bumper labels beside the hotbar on a screen (\(tv)) or on the headset (\(vr))")
     }
 
     // P72 (09:21): the open menu tab stayed grey ("I can only tell by haptic feedback"). The crafting book's open tab

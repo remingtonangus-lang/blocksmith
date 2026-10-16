@@ -416,7 +416,8 @@ enum Countries {
         state.allies.append(c.key)
         g.sfx(.bell, 0.7, at: m.pos)
         g.achieve("trade")
-        return ("Signed. \(c.name) is your ally." + Spine.lead(g, from: "Its envoy"), true)     // Y6: allies share what they know
+        Spine.lead(g, from: "Its envoy")                 // Y6: allies share what they know (P328: on the map alone)
+        return ("Signed. \(c.name) is your ally.", true)
     }
 
     // MARK: Every second (HudExtras.tick)
@@ -583,7 +584,7 @@ enum Countries {
         if due == 0 { owed = 0; owedTo = nil; return }
         if owedPost != k || owedTo != target.key {
             owedPost = k; owedTo = target.key; owed = due; lastPostDistance = .infinity
-            g.onToast?("\(target.name) customs: \(Money.format(due)) duty on your minerals. Stop at the post to pay.")
+            g.onToast?("\(target.name) customs: \(Money.format(due)) duty on your minerals")
         }
         owed = due
         let d = simd_length(V2(Float(s.0) + 0.5 - p.x, Float(s.1) + 0.5 - p.z))
@@ -596,7 +597,7 @@ enum Countries {
                 g.onToast?("Paid \(Money.format(due)) duty to \(target.name)")
             } else if g.clock - postPause > 10 {
                 postPause = g.clock
-                g.onToast?("You can't pay the \(Money.format(due)) duty. Turn back or run it.")
+                g.onToast?("You can't pay the \(Money.format(due)) duty")
             }
         }
     }

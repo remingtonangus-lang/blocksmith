@@ -336,6 +336,9 @@ extension BrimstoneKeep {
         w.set(sx + 1, b - 1, sz + 3, Blocks.has(DeepSeal.setCharge) ? Blocks.id(DeepSeal.setCharge) : AIR)
         for (dx, dz) in [(3, 3), (3, 4), (1, 5)] { w.set(sx + dx, b, sz + dz, Blocks.id("magma_block")) }
         // (P292: no sentry: the dig was left when the charge was set; the Ashguard live below the seal, not in hell.)
+        // P328 (d): the diggers' own way home, a Hell Lift glowing in the corner by the ladder: step on it and it carries
+        // you up to the surface (the lift a Sunderite Ingot makes, shown working).
+        if Blocks.has(DeepGates.liftKey) { w.set(sx - 2, b, sz + 1, Blocks.id(DeepGates.liftKey)) }
     }
 }
 
@@ -409,13 +412,11 @@ extension Game {
         return k
     }
 
-    // First time in the hell band this session: what the Sealrock is and where the nearest keep stands.
+    // First time in the hell band this session: the advancement. P328 (NO TEXT): the Sealrock and the keep's Sunderite
+    // are told by the world (the keep's forge, the Ashguard's charge set in the seal: P317), not by a toast.
     func hellHints() {
         guard !hellHinted, DeepGen.inHell(player.pos.y) else { return }
         hellHinted = true
         achieve("deep_hell")
-        guard let k = nearestKeep() else { return }
-        let d = Int(simd_length(V2(Float(k.anchor.x) - player.pos.x, Float(k.anchor.z) - player.pos.z)))
-        onToast?("Sealrock under this fire blocks the way down. A Brimstone Keep about \(d) blocks off holds the Sunderite that breaks it (compasses point there)")
     }
 }

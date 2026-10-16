@@ -135,7 +135,7 @@ extension Game {
             Waymarks.trackedKey = "pin|\(s.x),\(s.z)"
             Waymarks.cache = (-1e9, nil)
         }
-        onToast?(d > 8 ? "Your things are \(d) blocks \(TownBoard.direction(off.x, off.y))" + (dim.dim == .overworld ? ": follow the beacon" : "")
+        onToast?(d > 8 ? "Your things are \(d) blocks \(TownBoard.direction(off.x, off.y))"
                        : "Your things are in the chest beside you")
     }
 

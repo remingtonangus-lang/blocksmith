@@ -225,7 +225,7 @@ enum Contracts {
         Honour.earn(g, c.honour, source: "job", "a contract for \(patron(g, board))")
         if !isBase(board), let k = Countries.ofKnown(g, town: board) { Countries.change(g, k, 3) }
         completed += 1
-        g.onToast?("Contract done: \(Money.format(c.pay)) from \(patron(g, board))." + Spine.lead(g, from: "Your patron"))   // Y6
+        g.onToast?("Contract done: \(Money.format(c.pay)) from \(patron(g, board))."); Spine.lead(g, from: "Your patron")   // Y6 (P328: the lead is the map marker alone)
         return ("Paid \(Money.format(c.pay)).", true)
     }
 
@@ -268,7 +268,7 @@ enum Contracts {
                 if !c.ambushed, c.count > 0, left < Float(c.count) * 0.55 {
                     c.ambushed = true; save(board, slot, c)
                     bandits(g, near: pos + V3(14, 0, 10), 3, "Road Agent")
-                    g.onToast?("Road agents! Keep \(c.who ?? "the traveller") alive")
+                    g.onToast?("Road agents!")
                 }
                 if left < 40 {
                     m.customName = nil
@@ -288,7 +288,7 @@ enum Contracts {
                 bandits(g, near: V3(Float(t[0]) + 0.5, Float(y), Float(t[1]) + 0.5), c.count, "Bandit")
                 c.spawned = true
                 save(board, slot, c)
-                g.onToast?("The bandit camp! Clear it")
+                g.onToast?("The bandit camp!")
             default:
                 // Defend: after dark in the town, the raid comes.
                 guard TownLaw.inTown == board, TownRaids.night(g.dayFraction), g.raid == nil, !c.spawned else { continue }
@@ -313,7 +313,7 @@ enum Contracts {
             guard let t = c0.target, simd_length(V2(Float(t[0]) - m.pos.x, Float(t[1]) - m.pos.z)) < 64, let (board, slot) = split(key) else { continue }
             var c = c0
             c.progress += 1
-            if c.progress >= c.count { c.done = true; g.onToast?("The camp is cleared. Collect your pay at \(isBase(board) ? "your base" : board)'s board") }
+            if c.progress >= c.count { c.done = true; g.onToast?("The camp is cleared") }
             save(board, slot, c)
             return
         }

@@ -58,12 +58,13 @@ final class PauseMenu: Menu {
     // the pause screen's subtitle until he resumes (Game.paused clears it).
     static var autoReason: String?
     // Q2c-console-10: the one-time notes and the button prompts (Accessibility). P300: the tips and lessons are gone.
+    // P328 (NO TEXT): the prompts and notes are gone over play too; what is left to reset is the goals.
     static func resetHints(_ g: Game) {
         let st = Settings.shared
         st.tutorialStep = 0; st.tutorialHints = true; st.hintSeconds = 0
         st.wreckHint = false; st.mastHint = false; st.chestJoinTold = false
-        g.journalTold = false; Game.handsTold = false
-        g.onToast?("Button prompts will show again")
+        g.journalTold = false
+        g.onToast?("Goals reset")
     }
     // Q2: the Track a Target row names what is followed now.
     static func trackLabel(_ g: Game) -> String {
@@ -167,12 +168,12 @@ final class PauseMenu: Menu {
         "gui": "Size of menus and the HUD. Auto picks the largest that fits.",
         "couch": "Bigger HUD and menus for playing from the sofa.",
         "safe": "Keeps the HUD away from the screen edges on TVs that crop them.",
-        "hints": "Control legends under menus and button prompts in the game.",
+        "hints": "Control legends under menus.",
         "textbg": "Dark boxes behind HUD text for readability.",
         "subtitles": "Shows captions for sounds, with the direction they come from.",
         "colorblind": "Uses blue and orange instead of green and red for cues.",
-        "tutorial": "First-steps tips while you play, and the headset's lessons (crafting, hunger, night, riding...).",
-        "resethints": "Show the button prompts and one-time notes again from the start.",
+        "tutorial": "Names the next goal on the inventory screen.",
+        "resethints": "Starts the goals again from the first one.",
         "controls": "Every control for keyboard, mouse and controller.",
         "keys": "Choose which keys walk, jump, open the inventory and more.",
         "about": "Who made Blocksmith, and the open source parts it is built on with their licences.",
@@ -300,7 +301,7 @@ final class PauseMenu: Menu {
             case .controls:
                 rows = [("Mouse Sensitivity: \(pct(g.sensitivity))", "sens"), ("Invert Y: \(on(g.invertY))", "invert"),
                         ("Auto-Jump: \(on(g.autoJump))", "autojump"), ("Field of View: \(Int(g.fovSetting))", "fov"),
-                        ("Key Bindings...", "keys"), ("Controls Reference...", "controls"), ("Reset Tutorial Hints", "resethints")]
+                        ("Key Bindings...", "keys"), ("Controls Reference...", "controls"), ("Reset Goals", "resethints")]
             case .controller:
                 let pm = PadManager.shared
                 let info = pm.connected ? pm.name + (pm.battery.map { " (\(Int($0 * 100))%)" } ?? "") : "No controller"
@@ -356,7 +357,7 @@ final class PauseMenu: Menu {
                 rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Narrator: \(on(st.narrator))", "narrator"),
                         ("Colorblind-Safe Colors: \(on(st.colorblind))", "colorblind"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
-                        ("Tutorial Hints: \(on(st.tutorialHints))", "tutorial"), ("Reset Tutorial Hints", "resethints"),
+                        ("Goals: \(on(st.tutorialHints))", "tutorial"), ("Reset Goals", "resethints"),
                         ("Flashes & Shake: \(st.screenEffects ? "Full" : "Reduced")", "flashes"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),

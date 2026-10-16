@@ -84,7 +84,7 @@ extension Game {
             if !mine {
                 if d < 90 && !BaseSpecialties.told.contains(key) {
                     BaseSpecialties.told.insert(key)
-                    onToast?("Intel: this base is an \(sp.name): \(sp.promise)")
+                    onToast?("Intel: this base is an \(sp.name)")
                 }
                 continue
             }

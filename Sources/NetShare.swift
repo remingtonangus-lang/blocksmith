@@ -141,7 +141,7 @@ extension NetGuest {
         let ships = g.world.ships
         if ships.pilot != nil {
             ships.pilot = nil
-            if !pilotWarned { pilotWarned = true; g.onToast?("The host steers this vessel: ride along on deck") }
+            if !pilotWarned { pilotWarned = true; g.onToast?("The host steers this vessel") }
         }
         if !ships.list.isEmpty {
             let aboard = ships.aboard

@@ -200,12 +200,12 @@ enum TownBoard {
             if j.kind == "hunt", m.kind.hostile, m.posse == 0, let a = j.anchor,
                simd_length(V2(m.pos.x - Float(a[0]), m.pos.z - Float(a[1]))) < 96 {
                 j.progress += 1
-                if j.progress >= j.count { j.done = true; g.onToast?("Job done: collect your pay at the notice board") }
+                if j.progress >= j.count { j.done = true; g.onToast?("Job done") }
                 all[k] = j; changed = true
             } else if j.kind == "outlaw", m.posse == 1, let n = j.outlaw, m.customName == n {
                 j.done = true; j.progress = 1
                 all[k] = j; changed = true
-                g.onToast?("\(n) is dead. Collect the reward at the notice board")
+                g.onToast?("\(n) is dead")
             }
         }
         if changed { TownLaw.state.jobs = all }
@@ -238,7 +238,7 @@ enum TownBoard {
             let pal = Mob(.pillager, at: g.world.freeSpawn(V3(c.x + 3, y, c.z + 2)))
             pal.customName = "\(name)'s Gang"; pal.persistent = true; pal.aggro = true; pal.lockTime = 20; pal.posse = 2
             g.mobs.mobs.append(pal)
-            g.onToast?("That's \(name)! Take him down")
+            g.onToast?("That's \(name)!")
             j.spawned = true
             var a2 = all; a2[k] = j; TownLaw.state.jobs = a2
         }

@@ -51,7 +51,7 @@ enum Submarine {
             if g.inventory.main[g.inventory.selected].count <= 0 { g.inventory.main[g.inventory.selected] = .empty }
         }
         g.sfx(.splash, 0.9, at: s.pos)
-        g.onToast?("The submarine is afloat: climb in through the hatch and take the helm (sink to dive)")
+        g.onToast?("The submarine is afloat")
         return true
     }
 
@@ -75,7 +75,7 @@ enum Submarine {
         var level = Int.min
         for dz in -5...5 { for dx in -5...5 {
             guard w.isLoaded(cx + dx, cz + dz), let s = surface(w, cx + dx, cz + dz) else {
-                g.onToast?("A submarine needs open water four blocks deep in front of you"); return nil
+                g.onToast?("Too shallow"); return nil
             }
             level = max(level, s)
         } }

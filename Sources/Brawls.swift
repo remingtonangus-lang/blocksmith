@@ -32,7 +32,7 @@ enum Brawls {
         if victim.town.out > 0 { return true }                      // (a punch at a man out cold: no harm done)
         if victim.town.brawl <= 0 {
             started += 1
-            g.onToast?("A brawl! Fists only")
+            g.onToast?("A brawl!")
             TownVoice.speak(g, victim, .angry)
             for o in g.mobs.mobs where o !== victim && fighter(o) && o.town.brawl <= 0 && o.town.out <= 0
                 && simd_length(o.pos - victim.pos) < 6 && Rand.float(in: 0..<1) < joinChance {

@@ -44,7 +44,7 @@ enum SkySkiff {
             if g.inventory.main[g.inventory.selected].count <= 0 { g.inventory.main[g.inventory.selected] = .empty }
         }
         g.sfx(.engineStart, 0.8, at: s.pos)
-        g.onToast?("The Sky Skiff inflates: take its helm to fly (climb and sink to change height)")
+        g.onToast?("The Sky Skiff inflates")
         return true
     }
 
@@ -66,7 +66,7 @@ enum SkySkiff {
         // The highest ground in reach is the keel's floor; anything over head height there is a roof, a tree or a hillside
         // (the skiff would come out on top of it), not open sky.
         guard ground <= Int(floor(g.player.pos.y)) + 3 else {
-            g.onToast?("A Sky Skiff needs open sky: no roof, hillside or trees in front of you")
+            g.onToast?("No open sky here")
             return nil
         }
         let s = w.ships.spawn(blueprint(), at: V3(c.x, Float(ground) + 6, c.z), yaw: quarter, name: name, role: "")

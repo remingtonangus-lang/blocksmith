@@ -124,7 +124,6 @@ final class Game {
     // The Deep (task 22): been there (saved), the updraft hint shown this session, the Ashguard war (AshWar.swift).
     var deepVisited = false
     var smoothTerrain = false     // world option: natural ground meshes smooth (SmoothTerrain.swift), saved as extra "terrain"
-    var deepUpdraftHinted = false
     var hellDrop = HellDropState()   // P291: a drop through the blasted floor into hell under way (HellDrop.swift)
     var sunderCharges: [(at: IVec3, t: Float)] = []    // Sunder Charges burning on Sealrock (DeepSeal.swift)
     var hell = HellWorld()                              // hell's own mobs and the gate: slag in flight, charges, musters (HellMobs.swift)
@@ -314,7 +313,7 @@ final class Game {
     var grapple: GrappleLine.Hook?           // a Grapple Line's hook, reeling the player in (SkyIsle.swift, C7)
     var consoleRadarUntil: Double = -1      // a citadel console's readout shows on the radar until then (FactionGear, P36)
     var attackQueued: Float = 0
-    weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
+    weak var commandeerHint: Ship?     // the vessel whose helm last creaked at him (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var horseGrave: HorseGrave?        // P259: where and when the bonded horse died (Riding.swift)
     var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)
@@ -1121,7 +1120,7 @@ final class Game {
         if input.tapped(KeyBinds.key(.skipTrack)) { skipMusicTrack() }
         if input.tapped(KeyBinds.key(.fastFly)) {
             player.fastFlight.toggle()
-            onToast?(player.fastFlight ? "Fast flight on (sprint while flying)" : "Fast flight off")
+            onToast?(player.fastFlight ? "Fast flight on" : "Fast flight off")
         }
         if input.tapped(Key.f3) { showDebug.toggle() }
         if input.tapped(Key.f1) { hideHUD.toggle() }
@@ -1239,8 +1238,7 @@ final class Game {
         if useNow, world.ships.pilot == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 4), Turrets.canMan(hit.0) {
             // P194: a gun with its gunner at the breech is his until he is dealt with.
             if survival, hit.0.deckGunCrewed(self) {
-                onToast?(hit.0.factionValue == .greywall ? "The tower's lookout holds this gun: take him out to take it"
-                                                          : "The gunner holds this gun: take him out to take it")
+                onToast?(hit.0.factionValue == .greywall ? "The tower's lookout holds this gun" : "The gunner holds this gun")
                 return
             }
             Turrets.shared.mount(self, hit.0); return
@@ -2148,32 +2146,14 @@ final class Game {
 
     static let iceID: BlockID = Blocks.has("ice") ? Blocks.id("ice") : AIR
 
-    // Q2c-console-39: a placement that can't happen says why (callers: fresh presses only), each reason at most every
-    // 4 s, with the soft refusal click and a light tick in the hands.
+    // Q2c-console-39: a placement that can't happen (callers: fresh presses only) gives the soft refusal click and a
+    // light tick in the hands, each reason at most every 4 s. P328 (NO TEXT): the reason is never said; `why` keys the
+    // repeat guard. Q2c-console-33's "needs a stone pickaxe to drop anything" is gone too: the block drops nothing.
     func placeRefused(_ why: String) {
         guard clock - (refusedAt[why] ?? -100) > 4 else { return }
         refusedAt[why] = clock
         sfx(.click, 0.25)
         PadManager.shared.rumble(0.15, 0.03, sharpness: 0.9)
-        onToast?(why)
-    }
-
-    // Q2c-console-33: a block broken with the wrong or too weak a tool drops nothing: say what it needs, once a kind.
-    static var harvestTold = Set<BlockID>()
-    func harvestHint(_ b: BlockID) {
-        let base = Blocks.groupBase[Int(b)]
-        guard Game.harvestTold.insert(base).inserted, let need = Game.harvestNeed(b) else { return }
-        onToast?("\(Game.blockName(b)) \(need) to drop anything")
-    }
-    // "needs a Stone Pickaxe or better" (or nil): the tool a block wants to drop anything (Q2c-console-33, -55).
-    static func harvestNeed(_ b: BlockID) -> String? {
-        let tiers = ["wooden", "stone", "iron", "diamond", "netherite"]
-        let tools = ["", "pickaxe", "axe", "shovel", "hoe", "sword", "shears"]
-        let t = Int(Blocks.tool[Int(b)]), lvl = min(tiers.count - 1, Int(Blocks.harvestLevel[Int(b)]))
-        guard t > 0 && t < tools.count else { return nil }
-        let key = t == 6 ? "shears" : "\(tiers[lvl])_\(tools[t])"
-        let toolName = Items.has(key) ? Items.name(Items.id(key)) : key.replacingOccurrences(of: "_", with: " ")
-        return "needs a\(toolName.first.map { "AEIOU".contains($0) } == true ? "n" : "") \(toolName)" + (t == 6 ? "" : " or better")
     }
     static func blockName(_ b: BlockID) -> String {
         Items.item(forBlock: b).map { Items.name($0) } ?? Blocks.key(Blocks.groupBase[Int(b)]).replacingOccurrences(of: "_", with: " ").capitalizedFirst
@@ -2184,7 +2164,8 @@ final class Game {
     var lookKey = "", lookSince: Double = 0
     func lookAtLabel() -> (name: String, note: String?, alpha: Float)? {
         guard Settings.shared.lookNames, menu == nil, alive else { lookKey = ""; return nil }
-        var key = "", name = "", note: String? = nil
+        var key = "", name = ""
+        let note: String? = nil                      // (P328: no "needs a pickaxe" note under the name)
         let blockDist: Float = target.map { simd_length(hitPoint($0) - player.eye) } ?? 99
         if let hit = mobs.raycast(player.eye, player.look, maxDist: 8, except: riding), hit.1 < blockDist {
             let m = hit.0
@@ -2195,7 +2176,7 @@ final class Game {
             guard b != AIR, b != WATER else { lookKey = ""; return nil }
             key = "b\(t.hit.x),\(t.hit.y),\(t.hit.z)"
             name = Game.blockName(b)
-            if survival && Blocks.requiresTool[Int(b)] && !Mining.canHarvest(b, held) { note = Game.harvestNeed(b) }
+
         } else { lookKey = ""; return nil }
         if key != lookKey { lookKey = key; lookSince = clock }
         let age = Float(clock - lookSince)
@@ -2233,7 +2214,7 @@ final class Game {
         placedLeaves.remove(p)
         let bk = Blocks.key(b)
         if bk.hasSuffix("_log") || bk.hasSuffix("_wood") { queueLeafDecay(around: p) }
-        if drop && survival && !Mining.canHarvest(b, held) { harvestHint(b) }          // Q2c-console-33
+
         if drop { Stats.add("mined") }                                                    // Q2c-console-57
         if drop {
             let ores: [String: ClosedRange<Int>] = ["coal_ore": 0...2, "deepslate_coal_ore": 0...2, "diamond_ore": 3...7, "deepslate_diamond_ore": 3...7,

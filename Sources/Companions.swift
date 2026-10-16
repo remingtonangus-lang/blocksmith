@@ -71,7 +71,7 @@ extension Game {
         let b = c.soldierBrain
         b.mag = Guns.all[b.gun].mag
         sfx(.levelUp, 0.6, at: c.pos)
-        onToast?("\(name) joins you for \(Money.format(fee)). Sneak and use them to let them go.")
+        onToast?("\(name) joins you for \(Money.format(fee)).")
         return true
     }
 
@@ -105,7 +105,7 @@ extension Game {
             onToast?("\(name) takes the \(Guns.all[gi].name).")
             return true
         }
-        onToast?("\(name): \"Lead on.\" (Hand me Regular, Spec Ops or Hannibal plate, or a gun.)")
+        onToast?("\(name): \"Lead on.\"")
         return true
     }
 }

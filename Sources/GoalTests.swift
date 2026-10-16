@@ -3,9 +3,9 @@ import Foundation
 // First hour and spine checks (Sources/Goals.swift, Spine.swift; `questcheck --firsthour-only`, and part of every
 // questcheck run): a fresh survival player past the tips always has one next goal, each step's goal moves on once it is
 // met and never goes back, the path walks the spine's six stages in order (iron, a town, Greywall, the fleet, hell, the
-// Capital) with none of the reference chain on it, every goal names things by their Blocksmith names and fits the
-// headset's HUD panel, the fleet sails once a Greywall Fortress falls, the banner shows a new goal and fades, the
-// inventory screen keeps it, and creative or hints off show nothing.
+// Capital) with none of the reference chain on it, every goal is a bare Blocksmith name (P328: no how-to) that fits the
+// headset's HUD panel, the fleet sails once a Greywall Fortress falls, no goal shows over play but the inventory screen
+// keeps it, and creative or hints off show nothing.
 enum GoalTests {
     // What meets a step that isn't an advancement: carrying the thing.
     static let carry: [String: String] = ["wood": "oak_log", "pickaxe": "wooden_pickaxe", "furnace": "furnace"]
@@ -77,10 +77,10 @@ enum GoalTests {
         let lastStage = path.last.map { Spine.stages[$0.stage] } ?? "-"
         check(ordered && onPath.isEmpty && lastStage == "The Capital",
               "spine: the goals walk \(Spine.stages.joined(separator: ", ")) in order (ends at \(lastStage)), no reference-chain step on the path\(onPath.isEmpty ? "" : ": " + onPath.joined(separator: ", "))")
-        // Y2: each stage's goal names the key it hands over; Y3: the fleet sails once a Greywall Fortress falls.
-        func text(_ id: String) -> String { path.first { $0.id == id }?.text ?? "" }
-        let keys = text("spine/greywall_base").contains("dispatch") && text("spine/greywall_top").contains("orders")
-            && text("spine/flagship").contains(Goals.name("ember_charge"))
+        // P328 (NO TEXT): each goal is a bare name, no how-to (no "x: do y", four words at most); Y3: the fleet sails
+        // once a Greywall Fortress falls.
+        let wordy = Goals.all.filter { $0.text.contains(":") || $0.text.split(separator: " ").count > 4 }.map { $0.text }
+        let keys = wordy.isEmpty
         g.dragonKilled = false; g.ashVictory = false
         g.advancements = ["spine/greywall_base"]
         let before = g.fleetSails
@@ -88,7 +88,7 @@ enum GoalTests {
         let after = g.fleetSails
         let items = ["greywall_dispatch", "naval_orders", "chancellor_ledger"].filter { Items.has($0) }.count
         check(keys && !before && after && items == 3,
-              "spine: each stage hands over the next key (dispatch, naval orders, Ember Charge: \(keys); \(items)/3 items), the fleet sails once a Fortress falls (before \(before), after \(after))")
+              "spine: every goal a bare name (\(keys)\(wordy.isEmpty ? "" : ": " + wordy.joined(separator: " | "))), the stages' keys are items (\(items)/3), the fleet sails once a Fortress falls (before \(before), after \(after))")
         g.advancements = []
 
         // The banner and the inventory line, with nothing left around from earlier checks that could kill the player
@@ -114,9 +114,9 @@ enum GoalTests {
         g.openInventory()
         let inv = Goals.lines(g, L).map { $0.text }
         g.closeMenu()
-        check(shown.contains(where: { $0.contains(Goals.name("wooden_pickaxe")) })
-              && next.contains(where: { $0.contains(Goals.name("stone_pickaxe")) }) && faded && inv.contains(where: { $0.contains(Goals.name("stone_pickaxe")) }),
-              "first hour: a new goal shows in the HUD, fades after 8 s and stays on the inventory screen (shown '\(shown.last ?? "")', next '\(next.last ?? "")', faded \(faded), inventory '\(inv.last ?? "")'; \(state))")
+        // P300 / P328: never a banner over play; the goal waits on the inventory screen, a bare name.
+        check(shown.isEmpty && next.isEmpty && faded && inv.contains(Goals.name("stone_pickaxe")),
+              "first hour: no goal over play, the goal on the inventory screen by its bare name (over play '\(shown.last ?? "")' '\(next.last ?? "")', inventory '\(inv.last ?? "")'; \(state))")
 
         // Creative and hints off: nothing.
         g.survival = false

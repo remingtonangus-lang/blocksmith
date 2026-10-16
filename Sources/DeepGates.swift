@@ -194,7 +194,7 @@ extension Game {
         if !wokenGates.contains(key) {
             wokenGates.append(key)
             DeepGates.woken += 1
-            onToast?("The Ember Gate in the courtyard wakes: step in to go home. The Gate Shard brings you back")
+            onToast?("The Ember Gate in the courtyard wakes")
         }
         fillGate(k)
     }
@@ -219,7 +219,9 @@ extension Game {
         let veil = Blocks.id(DeepGates.veilKey), lift = Blocks.id(DeepGates.liftKey)
         if world.block(x, y, z) == veil || world.block(x, y + 1, z) == veil {
             // Stand in it a moment to ride (the gate stands on the north path: walking through doesn't send you home).
-            if gateHold == 0 { onToast?("Stay in the Ember Gate to ride up") }
+            // P328 (NO TEXT): the gate answers as you step in (its trigger whoosh, flames rising round you), no toast.
+            if gateHold == 0 { sfx(.portalTrigger, 0.6, at: f) }
+            if Int(gateHold * 8) != Int((gateHold + dt) * 8) { particles.flame(at: f + V3(Rand.float(in: -0.4...0.4), Rand.float(in: 0.2...1.8), Rand.float(in: -0.4...0.4))) }
             gateHold += dt
             if gateHold >= DeepGates.holdTime, let k = keepAt(f) {
                 gateHold = 0
@@ -250,11 +252,11 @@ extension Game {
     func useGateShard() -> Bool {
         guard Items.key(held.item) == "gate_shard" else { return false }
         guard dim.dim == .overworld else {
-            onToast?(dim.dim == .deep ? "The Gate Shard is warm: it works from the surface" : "The Gate Shard is cold here")
+            onToast?(dim.dim == .deep ? "The Gate Shard is warm" : "The Gate Shard is cold here")
             return true
         }
         guard let to = deepReturn else {
-            onToast?("The Gate Shard has no gate to find yet: wake an Ember Gate or ride a Hell Lift up first")
+            onToast?("The Gate Shard is cold")
             return true
         }
         gateCooldown = DeepGates.cooldown

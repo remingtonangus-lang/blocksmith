@@ -289,23 +289,17 @@ extension Game {
         if first { onToast?("You have taken command of the \(s.name)!") }      // P300 (b)
     }
 
-    static var handsTold = false
-
-    // The zone prompt: a toast each time the player comes within reach of a helm they can take.
+    // The zone cue: each time the player comes within reach of a helm they can take, the ship's hull creaks there
+    // (P328, NO TEXT: it was a "take command" prompt).
     func commandeerHintTick() {
         let s = commandeerable()
-        if let s, s !== commandeerHint { onToast?("\(Prompt.g(.use)) Take command of the \(s.name)") }
+        if let s, s !== commandeerHint { sfx(.hullCreak, 0.5, at: s.pos) }
         commandeerHint = s
     }
 
     func startPiloting(_ s: Ship) {
         let ships = world.ships
-        // P260 (e): the first time he takes the controls with something in hand, say where it went.
-        let inHand = inventory.held
-        if !inHand.isEmpty && !Game.handsTold && (Guns.index(inHand.item) != nil || inHand.def.durability > 0) {
-            Game.handsTold = true
-            onToast?("Hands on the controls: your \(inHand.def.display) is stowed while you steer")
-        }
+
         ships.pilot = s
         ships.aboard = s
         s.piloted = true
@@ -318,7 +312,7 @@ extension Game {
         player.flying = false
         sfx(.helmTake, 0.8, at: player.pos)
         // Controls show as prompts (VehicleControls.prompts); ships and aircraft hold their throttle.
-        onToast?("Steering \(s.name) (\(VehicleControls.name(VehicleControls.kind(s)))\(s.wheels.isEmpty ? ", throttle holds" : ""))")
+        onToast?("Steering \(s.name)")
     }
 
     func leaveHelm() {
@@ -348,7 +342,7 @@ extension Game {
                 let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }
                 let balls = survival && s.role == nil ? Wrecks.cannonballs(self) : Int.max
                 if guns > 0 && balls < guns {         // a broadside takes one ball a gun ready
-                    onToast?(balls == 0 ? "No cannonballs in your pack: craft them (\(Wrecks.recipeText(Wrecks.cannonball))), each cannon takes one a shot" : "\(guns) guns ready, \(balls) cannonball\(balls == 1 ? "" : "s"): one each to fire")
+                    onToast?(balls == 0 ? "No cannonballs" : "\(guns) guns ready, \(balls) cannonball\(balls == 1 ? "" : "s")")
                 } else {
                     let fired = ships.fire(s, pitch: pilotGunPitch(s), game: self)
                     if fired > 0 { swing = 1; if survival && s.role == nil { Wrecks.useCannonballs(self, fired) } }
@@ -416,7 +410,7 @@ extension Game {
             if survival && !r.grounded && r.submerged < 0.05 && (r.flight != nil || r.balloons > 0 || !r.rotors.isEmpty)
                 && (ships.aboard === r || ships.pilot === r)
                 && [ShipParts.Kind.helm, .engine, .balloon, .rotor, .propeller].contains(kind) {
-                if breakNow { onToast?("Not while it flies: breaking that would bring the craft down. Land it first") }
+                if breakNow { onToast?("Not while it flies") }
                 return true
             }
             var done = false
@@ -473,7 +467,7 @@ extension Game {
                 if ships.pilot === s && s.helm == cell { leaveHelm() }
                 if let part = ships.salvageMainGun(s, cell: cell) {
                     drops.spawn(part, at: centre)
-                    onToast?("Salvaged the \(MainGun.name)'s breech: set it on a ship of your own and attack from the helm to fire it")
+                    onToast?("Salvaged the \(MainGun.name)'s breech")
                     sfx(.anvil, 0.8, at: centre)
                 }
                 let lift0 = s.root.balloons, eng0 = s.root.engines
@@ -512,7 +506,7 @@ extension Game {
             // cripple one (CapitalShips.swift).
             if s.root.kinematic && ships.canCommandeer(s) && !sneak { takeCommand(s); return true }
             if s.root.kinematic {
-                onToast?("The \(s.root.name)'s helm is locked. Destroy it to cripple the ship.")
+                onToast?("The \(s.root.name)'s helm is locked")
                 return true
             }
             if sneak {

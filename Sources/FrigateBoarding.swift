@@ -46,7 +46,7 @@ extension ShipManager {
                                      uvSize: 1, size: 0.45, gravity: 0, color: V3(1.4, 0.9, 0.3), collide: false, glow: true))
             if !st.winchTold && flat < 60 {
                 st.winchTold = true
-                g.onToast?("The frigate's cargo winch hangs a line from its port hangar: stand at its foot to be hauled aboard")
+                g.onToast?("The frigate's cargo winch lowers a line")
             }
         }
         // The haul: a player at the line (its foot or anywhere up it, below the door) rides it up and is set down inside.
