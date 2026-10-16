@@ -239,7 +239,9 @@ final class FlightModel {
         var up: Float = mi.jump ? 1 : 0
         if g.input.control { up -= 1 }
         if let p { up += p.rt - p.lt }
-        if agl > 6.5 && rpm > 0.8 {
+        // P294 (Oct 15 11:49, "too hard to fly"): the climb-rate collective from the moment the rotor is up to speed
+        // (it was only above 6.5 blocks: lifting off took a slow raw collective that overshot into a climb).
+        if rpm > 0.8 {
             // In the air the collective input asks for a climb rate (Space / RT up to 6 b/s, Ctrl / LT down to 4,
             // 1.5 within a few blocks of the ground); let go, it holds the height (a trigger has no friction lock).
             var vyWant: Float = max(-1, min(1, up)) * (up > 0 ? 6 : 4)
@@ -250,7 +252,17 @@ final class FlightModel {
         } else {
             collective = max(0, min(1, collective + up * 0.45 * dt))          // on the ground: straight collective
         }
-        cyclic = V2(max(-1, min(1, mi.strafe)), max(-1, min(1, mi.forward)))
+        // P294: the stick asks for a ground speed (16 b/s ahead, 10 sideways) and the cyclic flies it, as the hover
+        // autopilot does: let go and the craft brakes to a hover and levels itself (the stick was a raw tilt, so a
+        // released stick left it drifting at speed and every stop took an opposite push timed by eye).
+        let fw = s.dirToWorld(s.fwd)
+        let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
+        let rh = V2(-fh.y, fh.x)
+        let sx: Float = max(-1, min(1, mi.strafe)), sy: Float = max(-1, min(1, mi.forward))
+        let vw: V2 = fh * (sy * 16) + rh * (sx * 10)
+        let ah: V2 = (vw - V2(s.vel.x, s.vel.z)) * 0.6
+        let perA: Float = 1 / (ShipTuning.g * 0.4)
+        cyclic = V2(max(-1, min(1, simd_dot(ah, rh) * perA)), max(-1, min(1, simd_dot(ah, fh) * perA)))
         var e = g.player.yaw - s.yaw
         while e > Float.pi { e -= 2 * Float.pi }
         while e < -Float.pi { e += 2 * Float.pi }
