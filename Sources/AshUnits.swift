@@ -14,16 +14,16 @@ extension MobKind {
     var ashSpec: Spec {
         switch self {
         case .ashTank:
-            return Spec(name: "Cinder Tank", halfW: 1.7, height: 2.6, health: 180, speed: 2.4, behavior: .monster,
+            return Spec(name: "Tiger Tank", halfW: 1.7, height: 2.6, health: 180, speed: 2.4, behavior: .monster,
                         drops: [("iron_ingot", 3, 7), ("gunpowder", 2, 5), ("rocket_ammo", 0, 2)], xp: 60, call: .gun(12), fireImmune: true)
         case .ashHalftrack:
-            return Spec(name: "Ashguard Half-track", halfW: 1.3, height: 2.3, health: 110, speed: 4.4, behavior: .monster,
+            return Spec(name: "Half-track", halfW: 1.3, height: 2.3, health: 110, speed: 4.4, behavior: .monster,
                         drops: [("iron_ingot", 2, 4), ("rifle_rounds", 4, 12)], xp: 30, call: .gun(12), fireImmune: true)
         case .ashArtillery:
-            return Spec(name: "Ashguard Field Gun", halfW: 1.1, height: 1.8, health: 70, speed: 0, behavior: .monster,
+            return Spec(name: "88 mm Gun", halfW: 1.1, height: 1.8, health: 70, speed: 0, behavior: .monster,
                         drops: [("iron_ingot", 1, 3), ("gunpowder", 2, 6)], xp: 25, call: .gun(12), fireImmune: true)
         case .ashTruck:
-            return Spec(name: "Ashguard Truck", halfW: 1.2, height: 2.4, health: 40, speed: 3.6, behavior: .monster,
+            return Spec(name: "Army Truck", halfW: 1.2, height: 2.4, health: 40, speed: 3.6, behavior: .monster,
                         drops: [("iron_ingot", 0, 2), ("bread", 1, 4), ("rifle_rounds", 2, 8)], xp: 8, call: .gun(12))
         case .ashBehemoth:
             return Spec(name: "Ashguard Behemoth", halfW: 2.4, height: 3.5, health: 700, speed: 1.4, behavior: .monster,

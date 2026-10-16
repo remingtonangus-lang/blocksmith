@@ -153,12 +153,13 @@ enum Soldier {
         }
     }
 
-    // The Ashguard's loadouts (AshArms.swift): riflemen a bolt rifle or carbine, stormers a carbine or machine pistol,
-    // sharpshooters the bolt rifle, everyone else the carbine (P217: the machine pistol and machine gun are gone).
+    // The Ashguard's loadouts (AshArms.swift): riflemen the Kar98k or an StG 44, stormers an StG 44 or an MP40,
+    // sharpshooters the Kar98k, officers the MP40 (P326), the rest the StG 44 (P217: the machine gun is gone).
     static func ashGun(_ k: MobKind, roll r: Float) -> Int {
         switch k {
         case .soldierRecruit: return r < 0.6 ? Guns.kessel : Guns.sturmwind
-        case .soldierTrooper: return Guns.sturmwind
+        case .soldierTrooper: return r < 0.4 ? Guns.hagel : Guns.sturmwind
+        case .soldierOfficer: return Guns.hagel
         case .soldierMarksman: return Guns.kessel
         case .soldierIronclad: return r < 0.3 ? Guns.faust : Guns.kessel       // P320: the heavies' anti-tank tubes
         case .ashMarshal: return Guns.sturmwind
@@ -174,6 +175,7 @@ enum Soldier {
         case Guns.slatefall: return (8, 20)
         case Guns.repeater: return (10, 24)
         case Guns.sturmwind: return (8, 18)
+        case Guns.hagel: return (5, 14)
         case Guns.shotgun: return (2.5, 6)
         case Guns.launcher: return (10, 26)
         case Guns.faust: return (10, 30)

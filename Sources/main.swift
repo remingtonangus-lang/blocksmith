@@ -1139,6 +1139,11 @@ enum Snapshot {
             FrigateCheck.run(game) { ok, what in print((ok ? "ok   " : "FAIL ") + what); if !ok { n += 1 } }
             return n > 0 ? 1 : 0
         }
+        if CommandLine.arguments.contains("--ashfront") {                                           // P326, the Ash Vault front
+            var n = 0
+            AshFrontCheck.run(game) { ok, what in print((ok ? "ok   " : "FAIL ") + what); if !ok { n += 1 } }
+            return n > 0 ? 1 : 0
+        }
         if CommandLine.arguments.contains("--swingtest") { return VRMeleeTests.run(game) > 0 ? 1 : 0 }   // VR melee + bow (VRMelee.swift)
         // Auto Render Distance (RenderDistanceGovernor.swift): synthetic frame-time traces + the save keeping the choice.
         if CommandLine.arguments.contains("--rdgovernortest") {

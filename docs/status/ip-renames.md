@@ -121,6 +121,15 @@ Chancellor) and the emblem is fictional (a diamond split by a bar on a white dis
 mirror-symmetric). The period's real names (parties, units, people, arms, vehicles) were added to tools/coined-terms.txt
 so the namecheck in every build keeps them out of anything the player reads.
 
+## The last war's arms by their real names (2026-10-16, P326)
+Remington (Oct 15 19:04) asked for the Ash Vault's German bases "with their real WWII weapons by name (MP40 and the
+rest)". The Ashguard's guns and vehicles now carry their period designations (keys unchanged): gun_kessel Kessel Bolt
+Rifle -> Kar98k, gun_sturmwind Sturmwind Carbine -> StG 44, gun_faust Faustrohr -> Panzerfaust (faust_warhead ->
+Panzerfaust Warhead), gun_hagel (retired by P217) back as the MP40, ash_tank Cinder Tank -> Tiger Tank, ash_artillery
+-> 88 mm Gun, ash_halftrack -> Half-track, ash_truck -> Army Truck. tools/coined-terms.txt drops those words from its
+ban; parties, units, people, makers (Mauser, Luger, Messerschmitt) and emblems stay banned, and the Ashguard keeps its
+own ember mark.
+
 ## Oct 11 evening (P42): potions are frontier tonics
 Every "Potion of X" is now "X Tonic" with an original name (keys and effects unchanged): Night Vision -> Owl-Eye,
 Invisibility -> Ghostwalk, Leaping -> Jackrabbit, Fire Resistance -> Emberward, Swiftness -> Quickstep, Slowness ->

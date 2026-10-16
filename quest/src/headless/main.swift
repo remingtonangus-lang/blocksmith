@@ -125,6 +125,7 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
+    if CommandLine.arguments.contains("--fallen") { AshFallen.refresh(vg); print("view: \(AshFallen.mobs.count) fallen") }   // P326: the Ash Vault's dead
     // The note's "facing" yaw is the player's yaw negated (VoiceNoteCore).
     var yaw = (nearYaw ?? 0) - look[0] * .pi / 180, pitch = look[1] * .pi / 180
     // --cave: the eye in the nearest open cave below (spiralling out from the spot until one has room round the eye).
@@ -553,6 +554,11 @@ if CommandLine.arguments.contains("--maingun-quick") {
 if CommandLine.arguments.contains("--frigatecheck") {
     FrigateCheck.run(game, check)
     print(failures == 0 ? "frigate: all checks passed" : "frigate: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --ashfront: P326, the Ash Vault as the last war's front: its ground, sky, set pieces, fallen, bases, arms, old saves.
+if CommandLine.arguments.contains("--ashfront") {
+    AshFrontCheck.run(game, check)
+    print(failures == 0 ? "ashfront: all checks passed" : "ashfront: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --rules-only: the Mac --rulescheck world rules (Sources/RulesCheck.swift) beside the questcheck player.
 if CommandLine.arguments.contains("--rules-only") {

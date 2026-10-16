@@ -60,7 +60,7 @@ enum CapitalArms {
             p.append(b(-0.7, 3.8, 4, 1.4, 0.9, 0.3, graphite, pMetal))                                    // rear sight
         case Guns.arc:
             p.append(b(-1.4, 1.6, -4, 0.1, 0.5, 6, glow * 0.6, pGlow))                                    // charge strip
-        case Guns.kessel, Guns.sturmwind, Guns.faust:
+        case Guns.kessel, Guns.hagel, Guns.sturmwind, Guns.faust:
             p += AshArms.details(i)
         case Guns.slatefall, Guns.repeater:
             p += GreywallArms.details(i)
@@ -81,7 +81,7 @@ enum CapitalArms {
 
     static func model(_ i: Int) -> GunModel {
         switch i {
-        case Guns.kessel, Guns.sturmwind, Guns.faust:
+        case Guns.kessel, Guns.hagel, Guns.sturmwind, Guns.faust:
             return AshArms.model(i)
         case Guns.slatefall, Guns.repeater:
             return GreywallArms.model(i)
