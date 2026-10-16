@@ -900,7 +900,7 @@ final class Game {
     }
 
     func toggleFly() {
-        if survival { onToast?("No flying in survival"); return }
+        if survival { return }                                                  // P313: no nag
         player.flying.toggle()
         if player.flying { player.vel.y = 0 }
         onToast?(player.flying ? "Flying" : "Walking")
@@ -2561,7 +2561,7 @@ final class Game {
     // Q2c-console-15: the command console and the shortcuts only in creative, or with Cheats & Shortcuts on.
     var cheatsAllowed: Bool { !survival || Settings.shared.devTools }
     func openCommands(prefill: String = "") {
-        guard cheatsAllowed else { onToast?("Commands are off in survival (Options > Interface > Cheats & Shortcuts)"); return }
+        guard cheatsAllowed else { sfx(.dispenseFail, 0.5); return }            // P313: no cheat nag in play
         openMenu(CommandMenu(game: self, prefill: prefill))
     }
 
