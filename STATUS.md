@@ -36,6 +36,10 @@ add docs/status/<stream>.md and a link here.
 - Fixed this stretch (all in BUGS.md): mob in the crosshair swallowed every use (bows, shields, food; the Blight
   fight), villagers waking in bed, structures over caves / valleys, freed crew on a wrecked crawler's ramp, troops
   cutting the engine corner, wooden stairs not flammable, waterlogging audit (8 bugs), fidelity rounds 7-8.
+- Run on 84c49b1: perf / play / smoke / shots green. Still red: ridecheck crew "stay aboard the disabled vehicle"
+  (835 crew-ticks off; marksman post 4 at ship-space 5.6,10.1,70.4, deck lost: off the side, not the ramp, so the
+  0430fec ledge rule missed it), structcheck floating 1 (read structcheck.md), rulescheck water row z0 "#3210123#":
+  the drop at x+3 was never seen (water level 3 there, no fall): check the hole cells at 40 up.
 - If rulescheck water still fails, read its printed row ("z-1: ..." levels) before changing the test again.
 - Blocked: Session L's 5 USB controller patches sit on Remington's Mac (~/ClaudeTools/projects/blocksmith-qa/
   usb-gip-patches/), not reachable from the cloud; he needs to push them to a branch or paste them.
