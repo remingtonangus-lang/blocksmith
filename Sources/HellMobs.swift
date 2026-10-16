@@ -566,11 +566,12 @@ extension Game {
     func muster(at fixed: V3? = nil) -> Bool {
         var at: V3?
         if let f = fixed { at = MobManager.groundSpot(world, near: f) } else {
-            for _ in 0..<12 where at == nil {
-                let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 28...40)
+            // P307 (a): 44-64 blocks out and out of sight (it was 28-40, often in plain view); the horn calls them in.
+            for _ in 0..<16 where at == nil {
+                let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 44...64)
                 let q = player.pos + V3(cosf(a) * r, 0, sinf(a) * r)
                 guard world.isLoaded(Int(floor(q.x)), Int(floor(q.z))) else { continue }
-                at = MobManager.groundSpot(world, near: q)
+                if let s = MobManager.groundSpot(world, near: q), spawnHidden(s, min: 40) { at = s }
             }
         }
         guard let c = at else { return false }

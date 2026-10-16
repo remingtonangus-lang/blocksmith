@@ -81,7 +81,7 @@ extension Mob {
             while y > Int(floor(pos.y)) - 6 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }
             guard y > Int(floor(pos.y)) - 6, w.lightAt(x, y, z).block < 10 else { continue }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
-            if simd_length(at - g.player.pos) < 7 { continue }
+            if !g.spawnHidden(at, min: 16, near: 40, clear: 48) { continue }    // P307 (a): out of the player's sight
             let z2 = Mob(kind, at: at)
             if z2.collides(at, w) { continue }
             z2.lockTime = 10
