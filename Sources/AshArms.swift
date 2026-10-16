@@ -16,8 +16,31 @@ enum AshArms {
         Part(mn: V3(x, y, z), mx: V3(x + w, y + h, z + d), color: c, pattern: pat)
     }
 
+    static let olive = V3(0.27, 0.29, 0.18), drab = V3(0.33, 0.31, 0.17), warn = V3(0.62, 0.14, 0.1)
+
     static func model(_ i: Int) -> GunModel {
         switch i {
+        case Guns.faust:
+            // P320: the Faustrohr: a thin olive tube with the fat drab warhead on its muzzle (the magazine: it leaves
+            // with a reload), the leaf sight folded up, the trigger lever on top, a red warning band and the open
+            // back end.
+            var p: [Part] = [
+                b(-0.8, -0.8, -12, 1.6, 1.6, 30, olive, pMetal),                   // tube
+                b(-0.95, -0.95, -1.2, 1.9, 1.9, 0.6, warn, pMetal),               // warning band
+                b(-0.9, -0.9, 17.4, 1.8, 1.8, 0.6, steel, pMetal),                 // rear rim
+                b(-0.5, -0.5, 17.9, 1.0, 1.0, 0.15, bore, 0),                      // open back end
+                b(-0.6, 0.8, -6.4, 1.2, 2.8, 0.35, olive, pMetal),                 // folding leaf sight
+                b(-0.25, 3.2, -6.45, 0.5, 0.4, 0.45, steel, pMetal),
+                b(-0.35, 0.8, -4.2, 0.7, 0.55, 3.2, steel, pMetal),                // trigger lever
+                b(-0.3, 0.8, -1.2, 0.6, 0.9, 0.5, steel, pMetal),
+            ]
+            let m = p.count
+            p += [b(-2.4, -2.4, -20, 4.8, 4.8, 8, drab, pMetal),                   // warhead
+                  b(-1.6, -1.6, -23, 3.2, 3.2, 3, drab, pMetal),                   // nose
+                  b(-0.6, -0.6, -24.2, 1.2, 1.2, 1.2, steel, pMetal),              // fuze tip
+                  b(-0.5, -0.5, -12.6, 1.0, 1.0, 1.0, steel, pMetal)]              // tail boom into the tube
+            return GunModel(parts: p, mag: [m, m + 1, m + 2, m + 3], grip: V3(0, -1.2, -2.6), fore: V3(0, -1.2, -9.5), butt: V3(0, 0, 10),
+                            muzzle: V3(0, 0, -24.4), magAt: V3(0, 0, -16), bolt: V3(0, 1.4, -2.6), scale: 0.56)
         case Guns.kessel:
             let p: [Part] = [
                 b(-0.9, -1.2, -20, 1.8, 2.2, 20, walnut, pWood),                  // fore-end
@@ -66,6 +89,8 @@ enum AshArms {
     static func details(_ i: Int) -> [Part] {
         var p: [Part] = []
         switch i {
+        case Guns.faust:
+            break                                                                // (all in the model)
         case Guns.kessel:
             p.append(b(-0.2, -1.6, -19.8, 0.4, 0.4, 0.6, steel, pMetal))
             p.append(b(-0.2, -3.7, 9.0, 0.4, 0.4, 0.8, steel, pMetal))

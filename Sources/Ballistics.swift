@@ -27,6 +27,7 @@ struct Slug {
     var incendiary = false        // Incendiary: hit mobs burn 4 s
     var ricochet: Int8 = 0        // D32 Ricochet Rounds: bounces off hard blocks left
     var pierced: [ObjectIdentifier] = []   // mobs this round already went through
+    var antiTank: Float = 0       // P320: a Faustrohr's shaped charge: this much more to a vehicle it strikes, past its plate
     var pulse = false             // a Pulse Charge: bursts shields instead of exploding (Navy.swift)
     var side: Faction?            // the shooter's side, taken on its first tick (its blast spares that side after the shooter dies)
     var homing: Float = 0         // a small missile's turn toward the player, radians a second (SmallMissiles.swift)
@@ -285,6 +286,13 @@ final class Armory {
         if s.kind == .rocket, Soldier.rank(m.kind) != nil, m.kind != .deckGun, m.health > 0 {
             if s.fromPlayer { m.killedByPlayer = true; m.playerHurtAt = g.clock; hitMarker = 0.3; hits += 1 }
             m.hit(from: at - dir * 2, damage: m.health + 1000, knockback: 1.2)
+        }
+        // P320: a Faustrohr's shaped charge burns through a vehicle's plate (its rear still takes more: Mob.hit).
+        if s.kind == .rocket && s.antiTank > 0 && (m.kind.ashVehicle || m.kind == .deckGun) && m.health > 0 {
+            if s.fromPlayer { m.killedByPlayer = true; m.playerHurtAt = g.clock; hitMarker = 0.3; hits += 1 }
+            Mob.roundHit = true
+            m.hit(from: at - dir * 2, damage: Int(s.antiTank), knockback: 0)
+            Mob.roundHit = false
         }
         if s.kind == .rocket || s.kind == .shell { detonate(s, at: at - dir * 0.3, g); return }
         if m.kind == .enderman && s.fromPlayer { m.teleport(g.world); return }
@@ -650,7 +658,8 @@ extension Game {
             let d = Guns.scatter(look, spread)
             var s = Slug(pos: muzzle + d * 0.4, vel: d * gs.speed, kind: .rocket, damage: 0, fromPlayer: true, shooter: nil, by: "Player",
                          life: gs.range / gs.speed, gravity: 0.6)
-            s.power = Guns.rocketPower
+            s.power = gi == Guns.faust ? Guns.faustPower : Guns.rocketPower
+            if gi == Guns.faust { s.antiTank = Guns.faustAntiTank }             // P320
             a.spawn(s)
         case .beam:
             a.beam(self, from: muzzle, dir: Guns.scatter(look, spread), range: gs.range, damage: gs.damage * Legendaries.gunScale(st) * GunGrade.damage(st), fromPlayer: true, shooter: nil, by: "Player",

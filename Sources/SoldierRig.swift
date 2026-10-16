@@ -327,7 +327,7 @@ enum SoldierRig {
         let moving = walk > 0.15
         p.lift = sinf(t * 1.7) * 0.22                          // breathing
         let pistol = Guns.isHandgun(gi)
-        let launcher = gi == Guns.launcher
+        let launcher = Guns.isLauncher(gi)
         let aiming = m.aggro && b.aimHold > 0 && b.reload <= 0 && b.throwT <= 0
         let aimPitch = max(-0.9, min(1.0, b.pitch))
 

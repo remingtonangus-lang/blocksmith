@@ -45,7 +45,7 @@ enum CapitalArms {
     // barrel vents, slide serrations, muzzle devices.
     static func details(_ i: Int) -> [Part] {
         var p: [Part] = []
-        if i != Guns.launcher && i != Guns.revolver && i != Guns.slatefall { p.append(b(-0.12, -1.15, -1.9, 0.24, 0.95, 0.3, silver, pMetal)) }       // trigger blade (the six-iron has its own)
+        if !Guns.isLauncher(i) && i != Guns.revolver && i != Guns.slatefall { p.append(b(-0.12, -1.15, -1.9, 0.24, 0.95, 0.3, silver, pMetal)) }       // trigger blade (the six-iron has its own)
         switch i {
         case Guns.rifle:
             for z: Float in [-6.1, -5.1, 0.1, 1.1, 2.1] { p.append(b(-0.72, 3.25, z, 1.44, 0.22, 0.45, grey, pMetal)) }
@@ -60,7 +60,7 @@ enum CapitalArms {
             p.append(b(-0.7, 3.8, 4, 1.4, 0.9, 0.3, graphite, pMetal))                                    // rear sight
         case Guns.arc:
             p.append(b(-1.4, 1.6, -4, 0.1, 0.5, 6, glow * 0.6, pGlow))                                    // charge strip
-        case Guns.kessel, Guns.sturmwind:
+        case Guns.kessel, Guns.sturmwind, Guns.faust:
             p += AshArms.details(i)
         case Guns.slatefall, Guns.repeater:
             p += GreywallArms.details(i)
@@ -81,7 +81,7 @@ enum CapitalArms {
 
     static func model(_ i: Int) -> GunModel {
         switch i {
-        case Guns.kessel, Guns.sturmwind:
+        case Guns.kessel, Guns.sturmwind, Guns.faust:
             return AshArms.model(i)
         case Guns.slatefall, Guns.repeater:
             return GreywallArms.model(i)
