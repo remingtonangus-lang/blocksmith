@@ -27,7 +27,9 @@ func run(kind: String, seconds: float, r) -> Dictionary:
 	if kind == "ride":
 		await _ride(res, Game.arg_f("ride_seconds", seconds))
 	elif kind == "horsework":
+		var snap := _snapshot()
 		await _horsework(res)
+		await _restore(snap)
 	else:
 		await _gaits(res)
 	runner._recording = false
@@ -372,6 +374,7 @@ func _obstacle(at: Vector3, dir: Vector3, size: Vector3, log := false) -> Static
 	b.add_child(cs)
 	b.add_child(mi)
 	Game.main.add_child(b)
+	_obstacles_made.append(b)
 	var g := Game.world.height(at.x, at.z)
 	b.global_transform = Transform3D(Basis(Vector3.UP, atan2(-dir.x, -dir.z)), Vector3(at.x, g + size.y * 0.5, at.z))
 	return b
@@ -456,6 +459,7 @@ func _horsework(res: Dictionary) -> void:
 	var spot := {}
 	if st != null:
 		for tid in ["bitter_spring", "mesquite_wells"]:
+			st.ensure_built(tid)                # earlier bots may have taken Ruth far enough to unload the town
 			var sp: Array = st.spots(tid, "hitch")
 			if not sp.is_empty():
 				spot = sp[0]
@@ -482,8 +486,58 @@ func _horsework(res: Dictionary) -> void:
 		res["saddlebags"] = "stowed %d, took %d" % [moved, back]
 		if moved < 2 or back < 2:
 			_fail(res, "saddlebags stow/take failed (%s)" % res.saddlebags)
-	player.bot_driven = false
 	res["metrics"] = {}
 	for k in ["jumps", "past_m", "crash", "spook", "hitch", "saddlebags"]:
 		if res.has(k):
 			res.metrics[k] = str(res[k]).replace(" ", "_")
+
+## Bot hygiene: what the horsework bot changes, so it can put the horse, the rider and the world back.
+var _obstacles_made: Array = []
+
+func _snapshot() -> Dictionary:
+	return {"horse_pos": horse.global_position, "yaw": horse.yaw, "player_pos": player.global_position,
+		"rider": horse.rider == player, "player_phys": player.is_physics_processing(), "stamina": horse.stamina,
+		"health": horse.health, "bot_driven": player.bot_driven}
+
+func _restore(snap: Dictionary) -> void:
+	for o in _obstacles_made:
+		if is_instance_valid(o):
+			o.queue_free()
+	_obstacles_made.clear()
+	if horse.rider != null:
+		horse.dismount(-1.0)
+	if horse.carcass != null:
+		var c := horse.unload()
+		if c != null:
+			c.queue_free()
+	horse.unhitch()
+	horse.hitch_point = null
+	horse.fear = 0.0
+	horse._react_cooldown = 0.0
+	horse._flee_time = 0.0
+	horse.jump_assist = true
+	horse.debug_pace = -1
+	horse.speed = 0.0
+	horse.vy = 0.0
+	horse.airborne = false
+	if horse.state != Horse.State.DEAD:
+		horse.state = Horse.State.FREE
+	horse.stamina = snap.stamina
+	horse.health = maxf(horse.health, snap.health)
+	var hp: Vector3 = snap.horse_pos
+	hp.y = Game.world.height(hp.x, hp.z)
+	Game.terrain.ensure_collision_at(hp)
+	horse.global_position = hp
+	horse.yaw = snap.yaw
+	horse.rotation.y = horse.yaw
+	player.bot_driven = snap.bot_driven
+	player.intent.move = Vector2.ZERO
+	player.intent.sprint = false
+	player.global_position = snap.player_pos
+	player.velocity = Vector3.ZERO
+	for i in 10:
+		await get_tree().physics_frame
+	if snap.rider and horse.rider == null:
+		horse.mount(player, -1.0)
+		for i in 80:
+			await get_tree().physics_frame

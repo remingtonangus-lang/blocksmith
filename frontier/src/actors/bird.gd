@@ -167,6 +167,15 @@ func flush(from: Vector3) -> void:
 		speed = 3.0
 		_action("takeoff")
 		Game.log_event("bird_flush", {"species": species})
+		if flock.is_empty() or flock[0] == self or rng.randf() < 0.25:
+			match species:
+				"turkey":
+					AnimalVoices.play("turkey_putt", global_position + Vector3(0, 0.6, 0))
+					AnimalVoices.play("wing_flush", global_position + Vector3(0, 0.6, 0))
+				"sage_grouse":
+					AnimalVoices.play("wing_flush", global_position + Vector3(0, 0.3, 0), {"pitch": 1.2})
+				"crow":
+					AnimalVoices.play("bird_caw", global_position + Vector3(0, 0.5, 0))
 		for b in flock:
 			if is_instance_valid(b) and b != self and b.mode in [Mode.GROUND, Mode.RUN]:
 				b.call_deferred("flush", from + Vector3(rng.randf_range(-3, 3), 0, rng.randf_range(-3, 3)))
@@ -203,6 +212,8 @@ func interact(_who: Node) -> void:
 # ------------------------------------------------------------------------------------------------- update
 func _physics_process(dt: float) -> void:
 	t_mode -= dt
+	if alive:
+		_calls(dt)
 	var far := Game.player != null and is_instance_valid(Game.player) and Game.player.global_position.distance_to(global_position) > 260.0
 	if vis and vis.tree:
 		vis.tree.active = not far or not alive
@@ -228,6 +239,24 @@ func _physics_process(dt: float) -> void:
 	if mode in [Mode.TAKEOFF, Mode.FLY, Mode.LAND, Mode.SOAR, Mode.DIVE, Mode.CLIMB]:
 		air_time += dt
 	_orient(dt)
+
+## Calls: the tom gobbles in the morning, crows caw now and then (more when flying), the hawk screams while it
+## soars. One caller per flock (the first bird) keeps it from becoming a din.
+func _calls(dt: float) -> void:
+	if not flock.is_empty() and flock[0] != self and is_instance_valid(flock[0]) and flock[0].alive:
+		return
+	var h: float = Game.sky.hours if Game.sky else 9.0
+	var r := rng.randf()
+	match species:
+		"turkey":
+			if mode == Mode.GROUND and h > 5.0 and h < 10.5 and r < dt / 45.0:
+				AnimalVoices.play("turkey_gobble", global_position + Vector3(0, 0.8, 0), {"occlude": false})
+		"crow":
+			if r < dt / (12.0 if mode == Mode.FLY else 35.0):
+				AnimalVoices.play("bird_caw", global_position + Vector3(0, 0.5, 0), {"occlude": false})
+		"red_tailed_hawk":
+			if mode == Mode.SOAR and r < dt / 40.0:
+				AnimalVoices.play("bird_hawk", global_position, {"occlude": false})
 
 func _senses() -> Node3D:
 	var p = Game.player

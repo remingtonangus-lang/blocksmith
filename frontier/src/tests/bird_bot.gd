@@ -20,6 +20,9 @@ static func run(runner: Node, _seconds: float) -> Dictionary:
 	p.global_position = c
 	if Game.wildlife:
 		Game.wildlife.set_process(false)        # only the bot's birds
+	for b in tree.get_nodes_in_group("birds"):  # (earlier bots' flocks would flush and call at the shot too)
+		b.queue_free()
+	await tree.process_frame
 	var flocks := {}
 	var all: Array = []
 	var spots := {"crow": Vector3(28, 0, -10), "turkey": Vector3(-35, 0, -25), "sage_grouse": Vector3(10, 0, 32)}
@@ -68,8 +71,19 @@ static func run(runner: Node, _seconds: float) -> Dictionary:
 	if alt_min < 25.0 or alt_max > 95.0:
 		_fail(res, "hawk soaring altitude %.0f-%.0f m outside 25-95 m" % [alt_min, alt_max])
 	# 2. a gunshot
+	var voices0: Dictionary = AnimalVoices.plays.duplicate()
 	Game.noise.emit(p.global_position, 260.0, p)
 	await _wait(tree, 2.0)
+	# the flush is heard: turkeys putt and whirr off, the covey's wings, the crows caw (a few voices, not one per bird)
+	var vs := []
+	for id in ["turkey_putt", "wing_flush", "bird_caw"]:
+		var nv: int = int(AnimalVoices.plays.get(id, 0)) - int(voices0.get(id, 0))
+		vs.append("%s %d" % [id, nv])
+		if nv < 1:
+			_fail(res, "no %s when the flocks flushed" % id)
+		elif nv > 8:
+			_fail(res, "%d %s voices at one flush (a din)" % [nv, id])
+	res["flush_voices"] = ", ".join(vs)
 	for sp in flocks:
 		var up := 0
 		for b in flocks[sp]:

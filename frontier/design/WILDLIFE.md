@@ -115,6 +115,10 @@ Four species bring the roster to 15: wild turkey, sage grouse, red-tailed hawk a
   - A wounded animal drips blood (denser for worse wounds; a chest or head hit counts double) wherever it goes,
     so the trail leads to it; a pool marks where it dies.
   - Marks fade over about 10 game-minutes.
+  - Prints are pressed in: each print texture has a normal map built from its depth mask, so the walls of a hoof
+    or paw catch a low sun on one side and fall into shade on the other.
+  - Ground sets how strongly they show (`Tracks.mud_at` / `dry_at`): in mud (wet bottoms, lake shores and river
+    banks, roads and grass after rain) they are darker and stronger; on dry sand and hardpan fainter.
 - **Skinning** (`SkinningTask`): Ruth kneels (crouch activity plus the reaching pick-up clip) for 3.2 s, held via
   `player.busy`. Then the carcass takes its lying pose and the skinned shader state, and the pelt and meat go
   into the satchel.
@@ -127,9 +131,33 @@ Four species bring the roster to 15: wild turkey, sage grouse, red-tailed hawk a
 ## Ecology
 - **Activity:** animals follow their hours (day, night, crepuscular) and bed down outside them. Herd members
   drift back to the leader first; predators rarely start a hunt while resting.
+- **Hunting range:** a predator hunts prey within 120 m. In its hours, with nothing that close, the hunter (a
+  pack's leader; the pack trots after it) ranges toward prey it scents up to 450 m away (`predator_range` in the
+  log), so whether wolves eat no longer depends on where the herds happened to spawn.
+- **Food web at spawn** (`wildlife.gd _balance`): with no predator about, the next group is a predator whose prey
+  is present; grazer herds stop at 65 % of the 26-animal budget, and a herd is cut to the room left. Before this,
+  a fill of nothing but big herds left no hunters for the day (and with nothing dying, no turnover).
+  `--disable eco_balance` turns it off for comparison.
 - **Oracle:** `--bot ecology` runs two in-game days on a compressed clock (the sky 10× faster, the engine 3×,
   about 3 real minutes) around a still observer. It measures population, predation, herd cohesion and activity
   by hour (see Results).
+
+## Voices
+`src/audio/animal_voices.gd` (`AnimalVoices.play(id, pos, opts)`) voices gameplay events at the animal, through
+`Game.audio`. A CC0/public-domain recording (`rec_*`, fetched by the CI audio job from Wikimedia Commons) wins
+when the build has it; otherwise the synthesized voice from `tools/audio/sfx_creatures.py` plays.
+- **Alarm** (on ALERT, or on bolting without one): deer and pronghorn blow (`deer_snort`), the elk's lower
+  blow, the bear huffs (`bear_huff`). A 3 s cooldown keeps it to one voice per bolt.
+- **Attack** (on the lunge): canids and the cougar snarl (`canid_snarl`, pitched per species), the bear huffs
+  louder.
+- **Calls at their hours** (one roll per animal while calm): wolves howl at night, coyotes yip at dusk, bulls
+  (not cows) bugle at dawn and dusk in the rut. Each is logged as `animal_call` for the ecology oracle.
+- **Birds:** a flushing flock is heard once (the tom's putt and the whirr of wings, the covey's wings, the
+  crows' caws), not once per bird; the flock's first bird calls for the flock (toms gobble in the morning,
+  crows caw, the hawk screams while it soars).
+- **Horse:** a whinny when it rears or bucks, a snort when it shies.
+- **Ambience:** the mixer's distant beds gain dusk coyote yips, morning gobbles in the forest and more dusk
+  bugling in the mountains (the rut); recordings replace the synthesized calls when present.
 
 ## Fur (shells)
 `shaders/animal_fur_shell.gdshader`, set up by `HorseVisual._setup_fur()` for the wolf, coyote, fox, cougar,
@@ -248,6 +276,17 @@ Round 4 (birds, hunting, ecology):
   | day | 0.70 | 0.03 | 23.6 |
   | night | 0.66 | 0.24 | 2.75 |
   | crepuscular | 0.47 | 0.04 | 11.0 |
+
+Round 5 (voices, pressed-in prints, hunting range; 2026-10-16, one process
+`--bot ecology,hunt,birds,horsework`):
+- **`--bot ecology` PASS:** population 25 / 26.0 / 27, CV 0.01; 10 chases, 10 rangings, 9 kills (wolf 6, coyote
+  2, fox 1); 14 hawk dives; calls: 6 howls, 2 yip bouts; herd cohesion 0.88; activity ratios day 26.3, night 3.1,
+  crepuscular 5.0. Before the ranging fix the same census (3 wolves, 7 deer) gave 2 chases and no wolf kills, and
+  an unlucky fill gave none at all ("no predator chases in 2 days").
+- **`--bot hunt` PASS:** the wounded deer blows once as it bolts; a print in mud has albedo mix 1.00 and shade
+  0.50 against 0.92 and 1.00 on dry ground, both with normal maps.
+- **`--bot birds` PASS:** one flush gives 1 turkey putt, 3 wing whirrs and 2 crow caws (not one per bird).
+- **`--bot horsework` PASS** (the bot now builds the town it hitches in, if earlier bots unloaded it).
 
 ## Gaps
 - Fur is shells only, with no fins or cards:

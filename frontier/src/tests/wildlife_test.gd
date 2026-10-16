@@ -315,8 +315,21 @@ func _tracks() -> void:
 	for i in 14:
 		Tracks.blood_at(Vector3(5.2 + sin(i * 0.7) * 0.3, 0.0, i * 0.35), 0.4 + i * 0.03)
 	Tracks.blood_at(Vector3(5.2, 0.0, 5.2), 0.8, true)
-	_look(Vector3(2.6, 3.8, -1.6), Vector3(2.6, 0.0, 2.0), 50.0)
+	# the same prints in mud: darker, sharper
+	Tracks.mud_override = 1.0
+	for k in 2:
+		for i in 8:
+			var side := 1.0 if i % 2 == 0 else -1.0
+			Tracks.print_at(Vector3(-1.0 - k * 0.9 + side * 0.08, 0.0, i * 0.45), 0.0, kinds[k], 0.14)
+	Tracks.mud_override = -1.0
+	_look(Vector3(2.0, 3.8, -1.6), Vector3(2.0, 0.0, 2.0), 56.0)
 	await _save("tracks")
+	# low sun from the side and a low camera: the normal map should read as pressed-in walls
+	var rot := sun.rotation
+	sun.rotation = Vector3(deg_to_rad(-14), deg_to_rad(-90), 0)
+	_look(Vector3(-0.5, 0.75, -0.9), Vector3(-0.5, 0.0, 0.9), 40.0)
+	await _save("tracks_low")
+	sun.rotation = rot
 
 ## Wing tip positions (model space) in the rest pose and in each flight clip, both sides: a check on the
 ## generator's bone-rotation conventions (spread = tips far out and level; flap = tips swing up and down).

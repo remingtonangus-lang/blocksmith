@@ -90,6 +90,37 @@ func _birds_update(pp: Vector3) -> void:
 		Game.log_event("wildlife_spawn", {"species": sp, "n": n, "at": [p.x, p.z]})
 		return
 
+## Keep the food web whole: a fill of nothing but big herds would leave no hunters (and, with nothing dying,
+## no turnover for the rest of the day). When no predator is about, a predator whose prey is here comes next;
+## grazer herds stop at GRAZER_SHARE of the budget so there is room for the rest.
+const GRAZER_SHARE := 0.65
+
+func _balance(cands: Array) -> Array:
+	if Game.disabled("eco_balance"):
+		return cands
+	var have := {}
+	var grazers := 0
+	var predators := 0
+	for a in animals:
+		if is_instance_valid(a) and a.alive:
+			have[a.species] = true
+			grazers += int(a.spec.diet == "grazer")
+			predators += int(a.spec.diet == "predator")
+	for e in _queue:
+		have[e[0]] = true
+		grazers += int(Animal.SPECIES[e[0]].diet == "grazer")
+		predators += int(Animal.SPECIES[e[0]].diet == "predator")
+	if predators == 0 and grazers > 0:
+		var fed := cands.filter(func(sp): return Animal.SPECIES[sp].diet == "predator" \
+			and Animal.SPECIES[sp].get("prey", []).any(func(q): return have.has(q)))
+		if not fed.is_empty():
+			return fed
+	if grazers >= int(BUDGET * GRAZER_SHARE):
+		var rest := cands.filter(func(sp): return Animal.SPECIES[sp].diet != "grazer" or int(Animal.SPECIES[sp].herd[1]) == 1)
+		if not rest.is_empty():
+			return rest
+	return cands
+
 func _spawn_group(pp: Vector3) -> void:
 	var w: WorldData = Game.world
 	for attempt in 6:
@@ -109,9 +140,11 @@ func _spawn_group(pp: Vector3) -> void:
 				cands.append(sp)
 		if cands.is_empty():
 			continue
+		cands = _balance(cands)
 		var sp: String = cands[rng.randi() % cands.size()]
 		var spec: Dictionary = Animal.SPECIES[sp]
-		var n := rng.randi_range(spec.herd[0], spec.herd[1])
+		var room := BUDGET - animals.size() - _queue.size()
+		var n := mini(rng.randi_range(spec.herd[0], spec.herd[1]), maxi(room, int(spec.herd[0])))
 		var group := []
 		for i in n:
 			var q := p + Vector3(rng.randf_range(-7, 7), 0, rng.randf_range(-7, 7))

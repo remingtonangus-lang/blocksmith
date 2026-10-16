@@ -5,14 +5,15 @@ extends RefCounted
 ## Measures:
 ##   population   animal count sampled every 4 game-seconds after warm-up: min / mean / max, coefficient of
 ##                variation, and the first-day vs second-day means (no drift)
-##   predation    predator chases and kills logged by the animals (plus the hawk's stoops)
+##   predation    predator chases and kills logged by the animals (plus the hawk's stoops), and how often a
+##                hunter ranged toward prey it scented beyond hunting range
 ##   herds        herd cohesion: the share of samples where every live member of a herd of 2+ is within 30 m of
 ##                the herd's centroid
 ##   activity     share of animals moving (> 0.3 m/s) by hour and activity type (day / night / crepuscular),
 ##                and the ratio of moving shares in and out of each type's active hours
 ## Pass: population >= 8 and <= 40 after warm-up, CV < 0.35, |day2 - day1| / mean < 0.3; at least one predator
 ## chase and one kill; cohesion >= 0.8; day and night species each move at least 1.5x more in their active hours.
-## Options: --eco_days N (default 2).
+## Options: --eco_days N (default 2); --disable eco_balance turns off the spawner's food-web balance (to compare).
 
 const SKY_SCALE := 300.0
 const ENGINE_SCALE := 3.0
@@ -61,6 +62,7 @@ static func run(runner: Node, _seconds: float) -> Dictionary:
 	var moving := {"day": [], "night": [], "crepuscular": []}      # [hour, moving_share] samples
 	var next_sample := 0.0
 	var last_pos := {}
+	var census := {}                                                # species -> live count at the last sample
 	while game_t < total:
 		await tree.physics_frame
 		game_t += runner.get_physics_process_delta_time()
@@ -72,6 +74,9 @@ static func run(runner: Node, _seconds: float) -> Dictionary:
 		if game_t < warm:
 			continue
 		pops.append(animals.size())
+		census = {}
+		for a in animals:
+			census[a.species] = int(census.get(a.species, 0)) + 1
 		pop_day[mini(int(game_t / day_len), 1)].append(animals.size())
 		# activity: moving share per activity type
 		var counts := {"day": [0, 0], "night": [0, 0], "crepuscular": [0, 0]}
@@ -115,6 +120,8 @@ static func run(runner: Node, _seconds: float) -> Dictionary:
 	var kills := 0
 	var dives := 0
 	var by_pred := {}
+	var calls := {}
+	var ranges := 0
 	for i in range(log0, Game.log_lines.size()):
 		var line: String = Game.log_lines[i]
 		if line.contains(" predator_chase "):
@@ -126,6 +133,12 @@ static func run(runner: Node, _seconds: float) -> Dictionary:
 				by_pred[str(j.get("predator", "?"))] = int(by_pred.get(str(j.get("predator", "?")), 0)) + 1
 		elif line.contains(" hawk_dive "):
 			dives += 1
+		elif line.contains(" predator_range "):
+			ranges += 1
+		elif line.contains(" animal_call "):
+			var j = JSON.parse_string(line.substr(line.find("{")))
+			if j is Dictionary:
+				calls[str(j.get("call", "?"))] = int(calls.get(str(j.get("call", "?")), 0)) + 1
 	# numbers
 	var m := {}
 	var pmin := 9999
@@ -148,8 +161,11 @@ static func run(runner: Node, _seconds: float) -> Dictionary:
 	m["pop_day1_day2"] = "%.1f/%.1f" % [d1, d2]
 	m["chases"] = chases
 	m["kills"] = kills
+	m["ranging"] = ranges
 	m["kills_by"] = str(by_pred).replace(" ", "")
 	m["hawk_dives"] = dives
+	m["calls"] = str(calls).replace(" ", "")
+	m["census"] = str(census).replace(" ", "")
 	var coh := float(cohesion_ok) / maxf(cohesion_n, 1)
 	m["herd_cohesion"] = snappedf(coh, 0.01)
 	var ratios := {}
@@ -178,7 +194,7 @@ static func run(runner: Node, _seconds: float) -> Dictionary:
 		if pop_day[1].size() > 0 and absf(d2 - d1) / maxf(mean, 1.0) > 0.3:
 			_fail(res, "population drifted %.1f -> %.1f between the days" % [d1, d2])
 	if chases < 1:
-		_fail(res, "no predator chases in %.0f days" % days)
+		_fail(res, "no predator chases in %.0f days (census %s)" % [days, str(census).replace(" ", "")])
 	if kills < 1:
 		_fail(res, "no predation kills in %.0f days" % days)
 	if cohesion_n > 0 and coh < 0.8:
