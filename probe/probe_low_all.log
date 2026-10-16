@@ -1,0 +1,13 @@
+   0.4 Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+   0.5 Vulkan 1.2.334 - Forward+ - Using Device #0: Apple - Apple Paravirtual device
+   2.4 
+   4.4 world: water grid baked in 87 ms
+   4.4 world: loaded 4096x4096 heights in 198 ms
+   4.6 audio: director ready (209 sounds, 16 music tracks, 1547 voice lines)
+   4.7 boot: sky 447 ms
+   6.1 boot: terrain 1895 ms
+   6.4 boot: water 2147 ms
+   6.4 boot: roads 2189 ms
+  10.4 impostors: 30 entries, atlas 1920x1120 x2 RGBA8 + mips = 21.9 MB, loaded from cache in 50 ms
+  10.4 boot: vegetation 6203 ms
+  13.5 scatter: 21 CC0 models, 724k -> 21k triangles

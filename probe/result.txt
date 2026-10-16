@@ -1,0 +1,1 @@
+gpu probe: --quality low --disable 'sss,horse,characters,settlements'

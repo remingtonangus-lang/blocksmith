@@ -1,0 +1,19 @@
+   0.3 Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+   0.5 Vulkan 1.2.334 - Forward+ - Using Device #0: Apple - Apple Paravirtual device
+   2.1 
+   3.8 world: water grid baked in 78 ms
+   3.8 world: loaded 4096x4096 heights in 167 ms
+   4.0 audio: director ready (209 sounds, 16 music tracks, 1547 voice lines)
+   4.0 boot: sky 390 ms
+   5.1 boot: terrain 1420 ms
+   5.3 boot: water 1626 ms
+   5.3 boot: roads 1688 ms
+   8.3 impostors: 30 entries, atlas 1920x1120 x2 RGBA8 + mips = 21.9 MB, loaded from cache in 45 ms
+   8.3 boot: vegetation 4673 ms
+  10.8 scatter: 21 CC0 models, 724k -> 21k triangles
+  12.6 [mvk-error] VK_INCOMPLETE: Error writing pipeline cache data: Failed to write 4 bytes to output stream! Wrote 0
+  13.3 rail: 32 chunks of main line, far strip 1552 tris
+  13.3 settlements: 12 planned (atlases 527 ms, plans 1689 ms), 0 built at boot, 2232 ms total
+  13.3 boot: settlements 9670 ms
+  13.3 boot: world built in 9670 ms
+  14.5 roads: 133 ribbon tiles

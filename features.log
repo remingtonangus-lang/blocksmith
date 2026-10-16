@@ -1,0 +1,47 @@
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+Vulkan 1.2.334 - Forward+ - Using Device #0: Apple - Apple Paravirtual device
+
+world: water grid baked in 64 ms
+world: loaded 4096x4096 heights in 115 ms
+audio: director ready (209 sounds, 16 music tracks, 1547 voice lines)
+boot: sky 278 ms
+boot: terrain 1086 ms
+boot: water 1249 ms
+boot: roads 1299 ms
+impostors: 30 entries, atlas 1920x1120 x2 RGBA8 + mips = 21.9 MB, loaded from cache in 43 ms
+boot: vegetation 4627 ms
+scatter: 21 CC0 models, 724k -> 21k triangles
+boot: settlements 7436 ms
+boot: world built in 7437 ms
+roads: 133 ribbon tiles
+feature shot: town_hud (8591 ms)  draws 340 objects 442 prims 1814264 [forward_plus, low]
+feature shot: face_closeup (1513 ms)  draws 154 objects 577 prims 1297538 [forward_plus, low]
+feature shot: gunfight_nerve (8125 ms)  draws 404 objects 771 prims 1637404 [forward_plus, low]
+feature shot: riding (1693 ms)  draws 453 objects 814 prims 1553298 [forward_plus, low]
+feature shot: wildlife (4519 ms)  draws 454 objects 815 prims 1496032 [forward_plus, low]
+feature shot: camp_night (3551 ms)  draws 574 objects 996 prims 1708553 [forward_plus, low]
+feature shot: dialogue (2711 ms)  draws 519 objects 520 prims 1717825 [forward_plus, low]
+feature shot: map (1025 ms)  draws 915 objects 1108 prims 2454710 [forward_plus, low]
+feature shot: journal (472 ms)  draws 931 objects 6148 prims 2458726 [forward_plus, low]
+feature shot: shop (1734 ms)  draws 527 objects 1391 prims 1463683 [forward_plus, low]
+feature shot: poker (2841 ms)  draws 1176 objects 1916 prims 758366 [forward_plus, low]
+feature shot: satchel (519 ms)  draws 248 objects 900 prims 745047 [forward_plus, low]
+audio: unknown sound id wheel_open
+feature shot: weapon_wheel (844 ms)  draws 642 objects 1084 prims 1628357 [forward_plus, low]
+feature shot: mission_talk (5024 ms)  draws 661 objects 662 prims 1924693 [forward_plus, low]
+feature shot: results_card (2955 ms)  draws 643 objects 1282 prims 1647564 [forward_plus, low]
+feature shot: fistfight (1295 ms)  draws 709 objects 1185 prims 1681402 [forward_plus, low]
+feature shot: cover_fight (221 ms)  draws 649 objects 1082 prims 1514656 [forward_plus, low]
+feature shot: lasso (3555 ms)  draws 828 objects 1261 prims 1780900 [forward_plus, low]
+feature shot: holdup (13202 ms)  draws 1630 objects 1936 prims 2770537 [forward_plus, low]
+SCRIPT ERROR: Trying to assign invalid previously freed instance.
+          at: _tick_vehicle (res://src/systems/holdups.gd:186)
+          GDScript backtrace (most recent call first):
+              [0] _tick_vehicle (res://src/systems/holdups.gd:186)
+              [1] _process (res://src/systems/holdups.gd:49)
+feature shot: horse_closeup (255 ms)  draws 550 objects 912 prims 1641006 [forward_plus, low]
+SCRIPT ERROR: Trying to assign invalid previously freed instance.
+          at: _tick_vehicle (res://src/systems/holdups.gd:186)
+          GDScript backtrace (most recent call first):
+              [0] _tick_vehicle (res://src/systems/holdups.gd:186)
+              [1] _process (res://src/systems/holdups.gd:49)

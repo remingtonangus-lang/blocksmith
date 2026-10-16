@@ -1,0 +1,492 @@
+{
+  "bots": [
+    {
+      "bot": "road",
+      "distance": 274.092534118332,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_avg_ms": 14.2220809544803,
+      "frame_p99_ms": 74.193000793457,
+      "frame_spikes": 15,
+      "ok": true,
+      "stuck_events": 0,
+      "waypoints": 203,
+      "waypoints_reached": 34
+    },
+    {
+      "bot": "explore",
+      "distance": 296.664478559163,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_avg_ms": 9.71676162242637,
+      "frame_p99_ms": 51.7939987182617,
+      "frame_spikes": 5,
+      "ok": true,
+      "stuck_events": 1,
+      "waypoints": 12,
+      "waypoints_reached": 2
+    },
+    {
+      "arrived": false,
+      "avg_speed": 9.43029326612738,
+      "bot": "ride",
+      "distance": 707.429166513961,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_avg_ms": 9.67771906745996,
+      "frame_p99_ms": 50.5369987487793,
+      "frame_spikes": 8,
+      "gaits": {
+        "canter(ride)": {
+          "beat_count": 3,
+          "beats": [
+            [
+              "RH"
+            ],
+            [
+              "LH",
+              "RF"
+            ],
+            [
+              "LF"
+            ]
+          ],
+          "contact": {
+            "LF": 0.386533665835411,
+            "LH": 0.399002493765586,
+            "RF": 0.359102244389027,
+            "RH": 0.319201995012469
+          },
+          "failures": [],
+          "gait": "canter",
+          "ok": true,
+          "period": 0.550000000000438,
+          "phases": {
+            "LF": 0.420430885809477,
+            "LH": 0.220695319638229,
+            "RF": 0.225079147924969,
+            "RH": 0.0
+          },
+          "slide_cm_avg": 0.48818567194286,
+          "slide_cm_max": 4.84422110021114,
+          "stances": 27,
+          "type": ""
+        },
+        "gallop(ride)": {
+          "beat_count": 4,
+          "beats": [
+            [
+              "RH"
+            ],
+            [
+              "LH"
+            ],
+            [
+              "RF"
+            ],
+            [
+              "LF"
+            ]
+          ],
+          "contact": {
+            "LF": 0.254583333333333,
+            "LH": 0.198333333333333,
+            "RF": 0.244166666666667,
+            "RH": 0.160833333333333
+          },
+          "failures": [],
+          "gait": "gallop",
+          "ok": true,
+          "period": 0.483333333333718,
+          "phases": {
+            "LF": 0.427953759658986,
+            "LH": 0.101152017850072,
+            "RF": 0.327671904197093,
+            "RH": 0.0
+          },
+          "slide_cm_avg": 6.57590144439392,
+          "slide_cm_max": 29.1941553354263,
+          "stances": 179,
+          "type": ""
+        }
+      },
+      "ok": true,
+      "stuck_events": 0,
+      "stumbles": 0,
+      "waypoints": 351,
+      "waypoints_reached": 122
+    },
+    {
+      "bot": "gaits",
+      "distance": 128.314088563162,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_avg_ms": 9.61335377844755,
+      "frame_p99_ms": 50.3629989624023,
+      "frame_spikes": 8,
+      "gaits": {
+        "canter": {
+          "beat_count": 3,
+          "beats": [
+            [
+              "RH"
+            ],
+            [
+              "LH",
+              "RF"
+            ],
+            [
+              "LF"
+            ]
+          ],
+          "contact": {
+            "LF": 0.391076115485564,
+            "LH": 0.383202099737533,
+            "RF": 0.343832020997375,
+            "RH": 0.307086614173228
+          },
+          "failures": [],
+          "gait": "canter",
+          "ok": true,
+          "period": 0.550000000000438,
+          "phases": {
+            "LF": 0.429275955960051,
+            "LH": 0.22220861884876,
+            "RF": 0.237390710706616,
+            "RH": 0.0
+          },
+          "slide_cm_avg": 0.708525959518738,
+          "slide_cm_max": 6.74257874488831,
+          "stances": 25,
+          "type": ""
+        },
+        "gallop": {
+          "beat_count": 4,
+          "beats": [
+            [
+              "RH"
+            ],
+            [
+              "LH"
+            ],
+            [
+              "RF"
+            ],
+            [
+              "LF"
+            ]
+          ],
+          "contact": {
+            "LF": 0.236768802228412,
+            "LH": 0.186629526462396,
+            "RF": 0.242339832869081,
+            "RH": 0.183844011142061
+          },
+          "failures": [],
+          "gait": "gallop",
+          "ok": true,
+          "period": 0.483333333333718,
+          "phases": {
+            "LF": 0.423688014844125,
+            "LH": 0.0985457896006401,
+            "RF": 0.334999046115319,
+            "RH": 0.0
+          },
+          "slide_cm_avg": 5.07522264797444,
+          "slide_cm_max": 28.2997578382492,
+          "stances": 28,
+          "type": ""
+        },
+        "trot": {
+          "beat_count": 2,
+          "beats": [
+            [
+              "LH",
+              "RF"
+            ],
+            [
+              "LF",
+              "RH"
+            ]
+          ],
+          "contact": {
+            "LF": 0.479452054794521,
+            "LH": 0.446575342465753,
+            "RF": 0.410958904109589,
+            "RH": 0.495890410958904
+          },
+          "failures": [],
+          "gait": "trot",
+          "ok": true,
+          "period": 0.716666666667237,
+          "phases": {
+            "LF": 0.516271117319534,
+            "LH": 0.0,
+            "RF": 0.0348837209302326,
+            "RH": 0.493015303366046
+          },
+          "slide_cm_avg": 0.706004587229674,
+          "slide_cm_max": 2.44483929127455,
+          "stances": 18,
+          "type": ""
+        },
+        "walk": {
+          "beat_count": 4,
+          "beats": [
+            [
+              "LH"
+            ],
+            [
+              "LF"
+            ],
+            [
+              "RH"
+            ],
+            [
+              "RF"
+            ]
+          ],
+          "contact": {
+            "LF": 0.710669077757685,
+            "LH": 0.647377938517179,
+            "RF": 0.669077757685353,
+            "RH": 0.719710669077758
+          },
+          "failures": [],
+          "gait": "walk",
+          "ok": true,
+          "period": 1.0833333333342,
+          "phases": {
+            "LF": 0.253846153846154,
+            "LH": 0.0,
+            "RF": 0.763078074119197,
+            "RH": 0.495388070407275
+          },
+          "slide_cm_avg": 1.05067601867227,
+          "slide_cm_max": 2.48971991240978,
+          "stances": 18,
+          "type": ""
+        }
+      },
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "town",
+      "conversations": 0,
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "npc_minutes": 115.833333333333,
+      "npcs": 39,
+      "ok": true,
+      "reactions": {
+        "fled_inside": 29,
+        "greeted": 1,
+        "looked": true,
+        "scared": 35
+      },
+      "stuck_events": 3,
+      "town": {
+        "arrived": 44,
+        "cast": 41,
+        "chats": 4,
+        "conversations": 0,
+        "convo_lines": 0,
+        "crowd": 0,
+        "doors": 47,
+        "failed": 0,
+        "fled_inside": 0,
+        "greetings": 3,
+        "home": 0,
+        "npc_minutes": 115.833333333333,
+        "nudges": 0,
+        "on_schedule": 100.0,
+        "overheard": 0,
+        "reached": 100.0,
+        "reports": 0,
+        "residents": 36,
+        "skipped": 16,
+        "stuck": 3,
+        "trips": 69
+      }
+    },
+    {
+      "blood_drops": 86,
+      "blood_lead_m": 0.6,
+      "blood_path_m": 149.5,
+      "bot": "hunt",
+      "carry": "on horse, 47 kg",
+      "deer_snorts": 1,
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "gaits_checked": 33,
+      "metrics": {
+        "blood_drops": "86",
+        "blood_lead_m": "0.6",
+        "blood_path_m": "149.5",
+        "carry": "on_horse,_47_kg",
+        "deer_snorts": "1",
+        "mud_print": "mix_0.92->1.00_shade_1.00->0.50",
+        "prints": "37",
+        "skin_s": "3.2",
+        "unload": "true"
+      },
+      "mud_print": "mix 0.92->1.00 shade 1.00->0.50",
+      "ok": true,
+      "pelt_quality": 3,
+      "population": [
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28,
+        28
+      ],
+      "prints": 37,
+      "skin_s": 3.2,
+      "stuck_events": 0,
+      "unload": true
+    },
+    {
+      "airborne_crow": "8/8",
+      "airborne_sage_grouse": "5/5",
+      "airborne_turkey": "5/5",
+      "bot": "birds",
+      "errors": [],
+      "failures": [],
+      "flush_voices": "turkey_putt 1, wing_flush 3, bird_caw 2",
+      "ground_before": "18/18",
+      "hawk_alt": "55-58 m",
+      "hawk_dives": 1,
+      "hawk_kills": 1,
+      "land_s": 12.4,
+      "landed_crow": "6/8",
+      "landed_sage_grouse": "5/5",
+      "landed_turkey": "4/4",
+      "metrics": {
+        "airborne_crow": "8/8",
+        "airborne_sage_grouse": "5/5",
+        "airborne_turkey": "5/5",
+        "flush_voices": "turkey_putt 1, wing_flush 3, bird_caw 2",
+        "ground_before": "18/18",
+        "hawk_alt": "55-58 m",
+        "hawk_dives": "1",
+        "hawk_kills": "1",
+        "land_s": "12.4",
+        "landed_crow": "6/8",
+        "landed_sage_grouse": "5/5",
+        "landed_turkey": "4/4",
+        "turkey_fell": "true",
+        "us_per_bird_tick": "8.3"
+      },
+      "ok": true,
+      "turkey_fell": true,
+      "us_per_bird_tick": 8.3
+    },
+    {
+      "bot": "horsework",
+      "crash": "hits 1 stumbles 0 falls 1",
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_avg_ms": 9.61335377844755,
+      "frame_p99_ms": 50.3629989624023,
+      "frame_spikes": 8,
+      "gaits": {},
+      "hitch": "state HITCHED, 1.2 m from the rail",
+      "jumps": 2,
+      "metrics": {
+        "crash": "hits_1_stumbles_0_falls_1",
+        "hitch": "state_HITCHED,_1.2_m_from_the_rail",
+        "jumps": "2",
+        "past_m": "76.1",
+        "saddlebags": "stowed_5,_took_5",
+        "spook": "rears_2_bucks_4"
+      },
+      "ok": true,
+      "past_m": 76.1,
+      "saddlebags": "stowed 5, took 5",
+      "spook": "rears 2 bucks 4",
+      "stuck_events": 0
+    }
+  ],
+  "ok": true
+}

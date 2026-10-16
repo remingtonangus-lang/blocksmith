@@ -1,0 +1,96 @@
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+
+world: water grid baked in 154 ms
+world: loaded 4096x4096 heights in 331 ms
+audio: director ready (209 sounds, 16 music tracks, 1547 voice lines)
+boot: sky 614 ms
+boot: terrain 740 ms
+boot: water 761 ms
+boot: vegetation 4592 ms
+scatter: 21 CC0 models, 724k -> 21k triangles
+settlements: built bitter_spring: 50 structures, tris ext 106k int 27k, 1112 surfaces (meshes + props), 22 door meshes, build 1369 ms (commit 284), attach 19 ms
+settlements: built caddell_camp: 11 structures, tris ext 6k int 0k, 80 surfaces (meshes + props), 0 door meshes, build 35 ms (commit 7), attach 0 ms
+rail: 32 chunks of main line, far strip 1552 tris
+settlements: 12 planned (atlases 1346 ms, plans 1767 ms), 2 built at boot, 4565 ms total
+boot: settlements 12495 ms
+boot: world built in 12495 ms
+characters: animation library (76 clips) in 2590 ms on a worker
+characters: 16 looks ready in 1364 ms
+settlements: navigation for bitter_spring baked in 60 chunks, 3271 ms
+settlements: built port_linden: 170 structures, tris ext 283k int 53k, 3982 surfaces (meshes + props), 18 door meshes, build 3302 ms (commit 1223), attach 69 ms
+settlements: built greer_post: 4 structures, tris ext 2k int 0k, 29 surfaces (meshes + props), 1 door meshes, build 16 ms (commit 3), attach 0 ms
+settlements: built mesquite_wells: 25 structures, tris ext 41k int 13k, 461 surfaces (meshes + props), 11 door meshes, build 245 ms (commit 82), attach 6 ms
+settlements: built coldwater: 37 structures, tris ext 37k int 16k, 615 surfaces (meshes + props), 10 door meshes, build 288 ms (commit 104), attach 5 ms
+BOT road: PASS  errors=0  dist=274 m  stuck=0  falls=0  spikes=15  avg_ms=14.2  p99_ms=74.2
+BOT explore: PASS  errors=0  dist=297 m  stuck=1  falls=0  spikes=5  avg_ms=9.7  p99_ms=51.8
+settlements: unloaded port_linden
+settlements: unloaded greer_post
+settlements: unloaded mesquite_wells
+settlements: unloaded coldwater
+RIDE to mesquite_wells: en route  707 m in 75 s (avg 9.4 m/s)  waypoints 122/351  stumbles 0  stamina 33
+GAIT gallop(ride) PASS  beats=4  order=RH LH RF LF  period=0.48s  slide=6.6 cm/stance (max 29.2, 179 stances)
+GAIT canter(ride) PASS  beats=3  order=RH LH+RF LF  period=0.55s  slide=0.5 cm/stance (max 4.8, 27 stances)
+BOT ride: PASS  errors=0  dist=707 m  stuck=0  falls=0  spikes=8  avg_ms=9.7  p99_ms=50.5
+  foot IK: 23353 solves, last offsets { "LF": 0.00728293238028, "RF": 0.0, "LH": 0.02917662877994, "RH": 0.0279599711224 }
+HORSE API: dismount right side=ok; whistle: arrived in 6.7 s; brush dirt=0.0 bond_xp=42; mounted right: on_horse=true; gunfire fear 0.00 -> 1.01
+GAIT walk    PASS  beats=4  order=LH LF RH RF  period=1.08s  slide=1.1 cm/stance (max 2.5, 18 stances)
+GAIT trot    PASS  beats=2  order=LH+RF LF+RH  period=0.72s  slide=0.7 cm/stance (max 2.4, 18 stances)
+GAIT canter  PASS  beats=3  order=RH LH+RF LF  period=0.55s  slide=0.7 cm/stance (max 6.7, 25 stances)
+GAIT gallop  PASS  beats=4  order=RH LH RF LF  period=0.48s  slide=5.1 cm/stance (max 28.3, 28 stances)
+BOT gaits: PASS  errors=0  dist=128 m  stuck=0  falls=0  spikes=8  avg_ms=9.6  p99_ms=50.4
+  town metric: 36 residents on screen of a 41 cast | on schedule 100% | spots reached 44 of 44 walks (100%), 16 skipped unseen | went home 0 | doors used 47 | stuck 3 (0.026 per NPC-minute) | chats 4, conversations 0 (0 lines, 0 overheard), greetings 3, nudges 0 | draw calls n/a (headless)
+  town talk: pair found false, conversations 0, lines spoken 0, overheard 0
+  town reactions: resident looked at Ruth true, greetings 1 | gunshot: 35 fled or cowered, 29 ran inside within 6 s
+    stuck x1 VirgilJudd_80005 at (-412.9, 266.5, -232.5) state COWER work/plan goal (-407.3, 266.5, -241.3)
+    stuck x1 ObedAbbott_68121 at (-404.0, 266.5, -229.4) state COWER errands/plan goal (-405.2, 266.5, -229.8)
+  town: 39 npcs, 3 stuck events, 115.8 npc-minutes
+BOT town: PASS  errors=0  npcs=39  npc_minutes=115.8
+  hunt: shot hits [[@Area3D@51972:<Area3D#5355388049139>, "chest", 34.5104293823242]] deer at (500.0032, 211.689, 1534.997) origin (500.0, 214.1381, 1500.0)
+settlements: unloaded bitter_spring
+settlements: unloaded caddell_camp
+settlements: built halvorsen_ranch: 9 structures, tris ext 10k int 0k, 91 surfaces (meshes + props), 5 door meshes, build 103 ms (commit 47), attach 1 ms
+settlements: navigation for halvorsen_ranch baked in 9 chunks, 73 ms
+  GAIT mule_deer/gallop PASS  beats=4  order=RH LH RF LF  period=0.42s  slide=5.3 cm/stance (max 7.3, 8 stances)
+  GAIT mule_deer/stot PASS  beats=1  order=LF+LH+RF+RH  period=0.62s  slide=2.8 cm/stance (max 3.9, 8 stances)
+  GAIT mule_deer/trot PASS  beats=2  order=LH+RF LF+RH  period=0.55s  slide=3.4 cm/stance (max 4.4, 8 stances)
+  GAIT mule_deer/walk PASS  beats=4  order=LH LF RH RF  period=0.95s  slide=1.4 cm/stance (max 2.0, 8 stances)
+  GAIT elk/gallop PASS  beats=4  order=RH LH RF LF  period=0.50s  slide=5.9 cm/stance (max 7.5, 8 stances)
+  GAIT elk/trot PASS  beats=2  order=LH+RF LF+RH  period=0.70s  slide=4.6 cm/stance (max 5.5, 8 stances)
+  GAIT elk/walk PASS  beats=4  order=LH LF RH RF  period=1.15s  slide=1.8 cm/stance (max 2.5, 8 stances)
+  GAIT pronghorn/gallop PASS  beats=4  order=RH LH RF LF  period=0.38s  slide=8.1 cm/stance (max 11.2, 8 stances)
+  GAIT pronghorn/trot PASS  beats=2  order=LH+RF LF+RH  period=0.50s  slide=3.0 cm/stance (max 3.9, 8 stances)
+  GAIT pronghorn/walk PASS  beats=4  order=LH LF RH RF  period=0.85s  slide=2.7 cm/stance (max 4.0, 8 stances)
+  GAIT bison/gallop PASS  beats=4  order=RH LH RF LF  period=0.55s  slide=7.1 cm/stance (max 10.2, 8 stances)
+  GAIT bison/trot PASS  beats=2  order=LH+RF LF+RH  period=0.75s  slide=4.9 cm/stance (max 6.2, 8 stances)
+  GAIT bison/walk PASS  beats=4  order=LH LF RH RF  period=1.30s  slide=2.7 cm/stance (max 4.8, 8 stances)
+  GAIT rabbit/bound PASS  beats=3  order=LF RF LH+RH  period=0.22s  slide=3.4 cm/stance (max 6.5, 8 stances)
+  GAIT rabbit/hop PASS  beats=3  order=LF RF LH+RH  period=0.45s  slide=0.6 cm/stance (max 0.8, 8 stances)
+  GAIT coyote/gallop PASS  beats=4  order=RH LH LF RF  period=0.30s  slide=8.2 cm/stance (max 11.2, 8 stances)
+  GAIT coyote/trot PASS  beats=2  order=LH+RF LF+RH  period=0.45s  slide=2.1 cm/stance (max 2.7, 8 stances)
+  GAIT coyote/walk PASS  beats=4  order=LH LF RH RF  period=0.80s  slide=1.7 cm/stance (max 2.3, 8 stances)
+  GAIT wolf/gallop PASS  beats=4  order=RH LH LF RF  period=0.37s  slide=5.5 cm/stance (max 8.0, 8 stances)
+  GAIT wolf/trot PASS  beats=2  order=LH+RF LF+RH  period=0.55s  slide=2.2 cm/stance (max 2.8, 8 stances)
+  GAIT wolf/walk PASS  beats=4  order=LH LF RH RF  period=0.95s  slide=2.2 cm/stance (max 3.0, 8 stances)
+  GAIT cougar/gallop PASS  beats=4  order=RH LH LF RF  period=0.38s  slide=4.8 cm/stance (max 7.2, 8 stances)
+  GAIT cougar/trot PASS  beats=2  order=LH+RF LF+RH  period=0.55s  slide=2.8 cm/stance (max 3.3, 8 stances)
+  GAIT cougar/walk PASS  beats=4  order=LH LF RH RF  period=1.00s  slide=2.6 cm/stance (max 3.7, 8 stances)
+  GAIT black_bear/gallop PASS  beats=4  order=RH LH LF RF  period=0.42s  slide=2.3 cm/stance (max 3.2, 8 stances)
+  GAIT black_bear/trot PASS  beats=2  order=LH+RF LF+RH  period=0.60s  slide=2.0 cm/stance (max 2.6, 8 stances)
+  GAIT black_bear/walk PASS  beats=4  order=LH LF RH RF  period=1.10s  slide=2.2 cm/stance (max 2.4, 7 stances)
+  GAIT raccoon/gallop PASS  beats=4  order=RH LH LF RF  period=0.30s  slide=2.1 cm/stance (max 3.6, 8 stances)
+  GAIT raccoon/trot PASS  beats=2  order=LH+RF LF+RH  period=0.40s  slide=1.2 cm/stance (max 1.8, 8 stances)
+  GAIT raccoon/walk PASS  beats=4  order=LH LF RH RF  period=0.70s  slide=0.8 cm/stance (max 1.1, 8 stances)
+  GAIT fox/gallop PASS  beats=4  order=RH LH LF RF  period=0.27s  slide=5.7 cm/stance (max 8.9, 8 stances)
+  GAIT fox/trot PASS  beats=2  order=LH+RF LF+RH  period=0.38s  slide=2.1 cm/stance (max 2.8, 8 stances)
+  GAIT fox/walk PASS  beats=4  order=LH LF RH RF  period=0.70s  slide=1.4 cm/stance (max 1.9, 8 stances)
+  hunt: pelt quality 3, population samples [28, 28, 28, 28, 28, 28, 28, 28]
+BOT hunt: PASS  errors=0  pelt_quality=3  skin_s=3.2  prints=37  mud_print=mix_0.92->1.00_shade_1.00->0.50  deer_snorts=1  blood_drops=86  blood_path_m=149.5  blood_lead_m=0.6  carry=on_horse,_47_kg  unload=true
+BOT birds: PASS  errors=0  ground_before=18/18  hawk_alt=55-58 m  flush_voices=turkey_putt 1, wing_flush 3, bird_caw 2  airborne_crow=8/8  airborne_turkey=5/5  airborne_sage_grouse=5/5  turkey_fell=true  land_s=12.4  landed_crow=6/8  landed_turkey=4/4  landed_sage_grouse=5/5  hawk_dives=1  hawk_kills=1  us_per_bird_tick=8.3
+audio: unknown sound id step_dirt_scuff
+settlements: built bitter_spring: 50 structures, tris ext 106k int 27k, 1112 surfaces (meshes + props), 22 door meshes, build 691 ms (commit 231), attach 26 ms
+settlements: navigation for bitter_spring baked in 60 chunks, 1183 ms
+settlements: built caddell_camp: 11 structures, tris ext 6k int 0k, 80 surfaces (meshes + props), 0 door meshes, build 28 ms (commit 8), attach 0 ms
+BOT horsework: PASS  errors=0  jumps=2  past_m=76.1  crash=hits_1_stumbles_0_falls_1  spook=rears_2_bucks_4  hitch=state_HITCHED,_1.2_m_from_the_rail  saddlebags=stowed_5,_took_5
+BOTS PASS -> /Users/runner/work/blocksmith/blocksmith/snaps/bot_report_travel.json
+WARNING: 217 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)

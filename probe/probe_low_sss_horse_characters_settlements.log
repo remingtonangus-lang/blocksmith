@@ -1,0 +1,22 @@
+   0.2 Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+   0.3 Vulkan 1.2.334 - Forward+ - Using Device #0: Apple - Apple Paravirtual device
+   1.5 
+   2.5 world: water grid baked in 57 ms
+   2.5 world: loaded 4096x4096 heights in 86 ms
+   2.6 audio: director ready (209 sounds, 16 music tracks, 1547 voice lines)
+   2.7 boot: sky 289 ms
+   3.7 boot: terrain 1322 ms
+   3.9 boot: water 1509 ms
+   4.0 boot: roads 1571 ms
+   7.2 impostors: 30 entries, atlas 1920x1120 x2 RGBA8 + mips = 21.9 MB, loaded from cache in 66 ms
+   7.3 boot: vegetation 4895 ms
+  10.2 scatter: 21 CC0 models, 724k -> 21k triangles
+  10.4 boot: settlements 8036 ms
+  10.4 boot: world built in 8036 ms
+  12.0 roads: 133 ribbon tiles
+  13.7 [mvk-error] VK_INCOMPLETE: Error writing pipeline cache data: Failed to write 4 bytes to output stream! Wrote 0
+  30.6 [mvk-error] VK_INCOMPLETE: Error writing pipeline cache data: Failed to write 4 bytes to output stream! Wrote 0
+  36.4 [mvk-error] VK_INCOMPLETE: Error writing pipeline cache data: Failed to write 4 bytes to output stream! Wrote 0
+  38.2 vegetation: 7 regions, 20466 trees, 9 near chunks, 34 grass cells
+  43.0 render: 259 draw calls, 294 objects, 1665k primitives (probe_low_sss_horse_characters_settlements.png)
+  43.0 shot: /Users/runner/work/blocksmith/blocksmith/snaps/probe/probe_low_sss_horse_characters_settlements.png at (-369, 268, -205) yaw 110 pitch -3 9.0h  (cover 0.32 dark 0.00 rain 0.00)  ~1425.8 ms/frame

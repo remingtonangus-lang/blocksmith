@@ -1,0 +1,48 @@
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+Vulkan 1.2.334 - Forward+ - Using Device #0: Apple - Apple Paravirtual device
+
+characters: animation library (76 clips) in 795 ms on a worker
+[mvk-error] VK_INCOMPLETE: Error writing pipeline cache data: Failed to write 4 bytes to output stream! Wrote 0
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_hud.png  draws 108 objects 108 prims 141815 (forward_plus)
+vr_studio: hud (704 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_menu.png  draws 55 objects 123 prims 106306 (forward_plus)
+vr_studio: menu (1210 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_comfort.png  draws 88 objects 316 prims 95040 (forward_plus)
+vr_studio: comfort (846 ms)
+[mvk-error] VK_INCOMPLETE: Error writing pipeline cache data: Failed to write 4 bytes to output stream! Wrote 0
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_hands.png  draws 306 objects 310 prims 561307 (forward_plus)
+vr_studio: hands (1056 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_body.png  draws 309 objects 313 prims 560432 (forward_plus)
+vr_studio: body (1277 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_body_ext.png  draws 131 objects 131 prims 128930 (forward_plus)
+vr_studio: body_ext (1641 ms)
+[mvk-error] VK_INCOMPLETE: Error writing pipeline cache data: Failed to write 4 bytes to output stream! Wrote 0
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_gun_aim.png  draws 264 objects 264 prims 270161 (forward_plus)
+vr_studio: gun_aim (7254 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_fire.png  draws 267 objects 267 prims 270253 (forward_plus)
+vr_studio: fire (3094 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_two_hand.png  draws 272 objects 272 prims 316405 (forward_plus)
+vr_studio: two_hand (848 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_two_hand_ext.png  draws 136 objects 138 prims 118090 (forward_plus)
+vr_studio: two_hand_ext (1289 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_reload.png  draws 318 objects 322 prims 604392 (forward_plus)
+vr_studio: reload (1221 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_bolt.png  draws 300 objects 304 prims 551484 (forward_plus)
+vr_studio: bolt (1246 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_pump.png  draws 311 objects 315 prims 557843 (forward_plus)
+vr_studio: pump (1571 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_nerve.png  draws 266 objects 266 prims 270179 (forward_plus)
+vr_studio: nerve (1770 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_riding.png  draws 330 objects 334 prims 647706 (forward_plus)
+vr_studio: riding (4792 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_riding_ext.png  draws 162 objects 162 prims 182740 (forward_plus)
+vr_studio: riding_ext (1730 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_door.png  draws 305 objects 309 prims 497058 (forward_plus)
+vr_studio: door (1087 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_door_open.png  draws 310 objects 315 prims 501638 (forward_plus)
+vr_studio: door_open (1238 ms)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/vr/vr_stereo.png  draws 1119 objects 1127 prims 1872779 (forward_plus)
+vr_studio: stereo (1240 ms)
+vr_studio: done
+WARNING: 1 ObjectDB instance was leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)

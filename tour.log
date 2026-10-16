@@ -1,0 +1,116 @@
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+Vulkan 1.2.334 - Forward+ - Using Device #0: Apple - Apple Paravirtual device
+
+world: water grid baked in 69 ms
+world: loaded 4096x4096 heights in 185 ms
+audio: director ready (209 sounds, 16 music tracks, 1547 voice lines)
+boot: sky 415 ms
+boot: terrain 1505 ms
+boot: water 1760 ms
+boot: roads 1873 ms
+impostors: 30 entries, atlas 1920x1120 x2 RGBA8 + mips = 21.9 MB, loaded from cache in 74 ms
+boot: vegetation 5791 ms
+scatter: 21 CC0 models, 724k -> 21k triangles
+boot: settlements 9844 ms
+boot: world built in 9844 ms
+roads: 133 ribbon tiles
+vegetation: 8 regions, 25064 trees, 9 near chunks, 32 grass cells
+render: 125 draw calls, 126 objects, 1556k primitives (bitter_spring_street.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bitter_spring_street.png at (-369, 268, -205) yaw 110 pitch -2 10.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~421.5 ms/frame
+vegetation: 9 regions, 28959 trees, 9 near chunks, 32 grass cells
+render: 136 draw calls, 137 objects, 1636k primitives (river_valley_vista.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/river_valley_vista.png at (-380, 326, -400) yaw 140 pitch -8 16.5h fair (cover 0.32 dark 0.00 rain 0.00)  ~44.4 ms/frame
+vegetation: 11 regions, 36058 trees, 9 near chunks, 32 grass cells
+render: 165 draw calls, 165 objects, 1378k primitives (kestrel_range.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/kestrel_range.png at (-1400, 430, -900) yaw -30 pitch 6 8.0h clear (cover 0.05 dark 0.00 rain 0.00)  ~105.7 ms/frame
+vegetation: 14 regions, 31647 trees, 9 near chunks, 32 grass cells
+render: 250 draw calls, 250 objects, 1293k primitives (ocotillo_mesas.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/ocotillo_mesas.png at (-2200, 425, 1900) yaw 200 pitch -4 17.6h clear (cover 0.05 dark 0.00 rain 0.00)  ~68.2 ms/frame
+vegetation: 17 regions, 31449 trees, 8 near chunks, 31 grass cells
+render: 208 draw calls, 208 objects, 1334k primitives (plains_noon.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/plains_noon.png at (500, 214, 1500) yaw 60 pitch 0 12.5h fair (cover 0.32 dark 0.00 rain 0.00)  ~93.0 ms/frame
+vegetation: 16 regions, 31361 trees, 9 near chunks, 31 grass cells
+render: 227 draw calls, 227 objects, 1303k primitives (lake_agnes.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/lake_agnes.png at (2700, 164, 300) yaw 90 pitch -3 8.5h fair (cover 0.32 dark 0.00 rain 0.00)  ~62.6 ms/frame
+vegetation: 16 regions, 40218 trees, 8 near chunks, 31 grass cells
+render: 277 draw calls, 278 objects, 1549k primitives (river_fog_morning.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/river_fog_morning.png at (-300, 272, -300) yaw 160 pitch -2 6.6h fog (cover 0.60 dark 0.15 rain 0.00)  ~151.2 ms/frame
+vegetation: 8 regions, 25064 trees, 9 near chunks, 32 grass cells
+render: 304 draw calls, 304 objects, 774k primitives (night_town.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/night_town.png at (-369, 268, -205) yaw 290 pitch 2 22.5h clear (cover 0.05 dark 0.00 rain 0.00)  ~60.7 ms/frame
+[mvk-error] VK_INCOMPLETE: Error writing pipeline cache data: Failed to write 4 bytes to output stream! Wrote 0
+vegetation: 12 regions, 34518 trees, 9 near chunks, 32 grass cells
+render: 264 draw calls, 264 objects, 1372k primitives (storm_plains.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/storm_plains.png at (200, 238, 900) yaw 30 pitch 2 15.0h storm (cover 1.00 dark 0.80 rain 1.00)  ~82.8 ms/frame
+vegetation: 11 regions, 29920 trees, 8 near chunks, 32 grass cells
+render: 335 draw calls, 335 objects, 1479k primitives (bs_main_street.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bs_main_street.png at (-526, 268, -253) yaw 108 pitch -1 10.5h fair (cover 0.32 dark 0.00 rain 0.00)  ~107.2 ms/frame
+vegetation: 7 regions, 20466 trees, 8 near chunks, 32 grass cells
+render: 353 draw calls, 354 objects, 1577k primitives (bs_boardwalk.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bs_boardwalk.png at (-479, 268, -253) yaw 100 pitch -4 16.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~30.3 ms/frame
+vegetation: 7 regions, 20466 trees, 7 near chunks, 32 grass cells
+render: 275 draw calls, 275 objects, 1439k primitives (bs_saloon_interior.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bs_saloon_interior.png at (-481, 268, -256) yaw 30 pitch -6 11.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~25.3 ms/frame
+vegetation: 8 regions, 25064 trees, 8 near chunks, 31 grass cells
+render: 273 draw calls, 273 objects, 1334k primitives (bs_store_interior.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bs_store_interior.png at (-446, 268, -245) yaw 25 pitch -8 11.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~34.5 ms/frame
+vegetation: 8 regions, 25064 trees, 8 near chunks, 33 grass cells
+render: 279 draw calls, 279 objects, 1299k primitives (bs_sheriff_interior.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bs_sheriff_interior.png at (-506, 268, -235) yaw 205 pitch -6 11.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~24.7 ms/frame
+vegetation: 7 regions, 20466 trees, 9 near chunks, 32 grass cells
+render: 575 draw calls, 575 objects, 1657k primitives (bs_depot.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bs_depot.png at (-348, 268, -110) yaw 0 pitch 2 9.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~28.8 ms/frame
+vegetation: 8 regions, 24361 trees, 9 near chunks, 33 grass cells
+render: 320 draw calls, 320 objects, 1420k primitives (bs_aerial.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bs_aerial.png at (-600, 339, -330) yaw 70 pitch -24 15.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~48.8 ms/frame
+vegetation: 13 regions, 38294 trees, 8 near chunks, 32 grass cells
+render: 504 draw calls, 504 objects, 1207k primitives (bs_from_1km.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bs_from_1km.png at (332, 424, 495) yaw -45 pitch -10 16.5h clear (cover 0.05 dark 0.00 rain 0.00)  ~64.2 ms/frame
+vegetation: 12 regions, 34399 trees, 8 near chunks, 32 grass cells
+render: 152 draw calls, 152 objects, 734k primitives (bs_night_street.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bs_night_street.png at (-526, 268, -253) yaw 108 pitch -1 21.5h clear (cover 0.05 dark 0.00 rain 0.00)  ~79.7 ms/frame
+vegetation: 7 regions, 20466 trees, 8 near chunks, 32 grass cells
+render: 346 draw calls, 346 objects, 1496k primitives (bs_golden_street.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/bs_golden_street.png at (-526, 268, -253) yaw 108 pitch -1 16.8h clear (cover 0.05 dark 0.00 rain 0.00)  ~22.8 ms/frame
+vegetation: 12 regions, 40946 trees, 8 near chunks, 32 grass cells
+render: 348 draw calls, 349 objects, 1530k primitives (cw_street.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/cw_street.png at (-1843, 782, -2114) yaw 55 pitch 0 15.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~78.9 ms/frame
+vegetation: 6 regions, 24890 trees, 7 near chunks, 32 grass cells
+render: 440 draw calls, 441 objects, 1557k primitives (cw_aerial.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/cw_aerial.png at (-1880, 827, -2050) yaw 45 pitch -22 14.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~27.1 ms/frame
+vegetation: 12 regions, 34289 trees, 7 near chunks, 32 grass cells
+render: 471 draw calls, 472 objects, 1565k primitives (mw_street.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/mw_street.png at (-2280, 331, 1137) yaw 95 pitch 0 17.0h clear (cover 0.05 dark 0.00 rain 0.00)  ~56.2 ms/frame
+vegetation: 8 regions, 12082 trees, 8 near chunks, 32 grass cells
+render: 425 draw calls, 428 objects, 1365k primitives (mw_aerial.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/mw_aerial.png at (-2100, 375, 1250) yaw -35 pitch -20 15.0h clear (cover 0.05 dark 0.00 rain 0.00)  ~31.9 ms/frame
+vegetation: 13 regions, 26779 trees, 9 near chunks, 32 grass cells
+render: 486 draw calls, 489 objects, 1724k primitives (pl_street.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/pl_street.png at (2721, 155, -127) yaw 172 pitch 0 16.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~71.7 ms/frame
+vegetation: 8 regions, 19519 trees, 8 near chunks, 37 grass cells
+render: 449 draw calls, 454 objects, 1387k primitives (pl_aerial.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/pl_aerial.png at (2600, 223, 200) yaw 42 pitch -22 15.5h fair (cover 0.32 dark 0.00 rain 0.00)  ~33.1 ms/frame
+vegetation: 7 regions, 15154 trees, 8 near chunks, 32 grass cells
+render: 348 draw calls, 348 objects, 1113k primitives (pl_waterfront.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/pl_waterfront.png at (2990, 158, 60) yaw 100 pitch -12 9.5h fair (cover 0.32 dark 0.00 rain 0.00)  ~49.3 ms/frame
+vegetation: 12 regions, 31394 trees, 8 near chunks, 33 grass cells
+render: 490 draw calls, 490 objects, 1700k primitives (camp_dusk.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/camp_dusk.png at (-790, 362, -760) yaw 34 pitch -6 19.4h clear (cover 0.05 dark 0.00 rain 0.00)  ~131.2 ms/frame
+vegetation: 14 regions, 40467 trees, 9 near chunks, 32 grass cells
+render: 738 draw calls, 738 objects, 1597k primitives (ranch.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/ranch.png at (335, 220, 1170) yaw -10 pitch -3 9.0h fair (cover 0.32 dark 0.00 rain 0.00)  ~80.2 ms/frame
+vegetation: 13 regions, 24592 trees, 8 near chunks, 33 grass cells
+render: 371 draw calls, 371 objects, 1272k primitives (mission_ruin.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/mission_ruin.png at (-3031, 276, 2668) yaw 180 pitch 6 17.5h clear (cover 0.05 dark 0.00 rain 0.00)  ~56.7 ms/frame
+vegetation: 13 regions, 28634 trees, 8 near chunks, 31 grass cells
+render: 440 draw calls, 440 objects, 1489k primitives (town_morning.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/town_morning.png at (-516, 268, -252) yaw 108 pitch -2 8.8h fair (cover 0.32 dark 0.00 rain 0.00)  ~104.7 ms/frame
+vegetation: 7 regions, 20466 trees, 7 near chunks, 32 grass cells
+render: 134 draw calls, 134 objects, 728k primitives (saloon_night.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/saloon_night.png at (-481, 268, -256) yaw 30 pitch -8 21.5h clear (cover 0.05 dark 0.00 rain 0.00)  ~30.9 ms/frame
+vegetation: 8 regions, 25064 trees, 7 near chunks, 32 grass cells
+render: 376 draw calls, 376 objects, 1307k primitives (store_clerk.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/store_clerk.png at (-445, 268, -249) yaw -101 pitch -9 10.5h fair (cover 0.32 dark 0.00 rain 0.00)  ~35.7 ms/frame
+vegetation: 9 regions, 28959 trees, 8 near chunks, 32 grass cells
+render: 371 draw calls, 371 objects, 1431k primitives (town_noon_aerial.png)
+shot: /Users/runner/work/blocksmith/blocksmith/snaps/town_noon_aerial.png at (-540, 292, -290) yaw 60 pitch -22 12.4h fair (cover 0.32 dark 0.00 rain 0.00)  ~43.0 ms/frame

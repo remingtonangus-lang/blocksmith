@@ -1,0 +1,183 @@
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+
+world: water grid baked in 166 ms
+world: loaded 4096x4096 heights in 327 ms
+audio: director ready (209 sounds, 16 music tracks, 1547 voice lines)
+boot: sky 615 ms
+boot: terrain 721 ms
+boot: water 751 ms
+boot: vegetation 4405 ms
+scatter: 21 CC0 models, 724k -> 21k triangles
+settlements: built bitter_spring: 50 structures, tris ext 106k int 27k, 1112 surfaces (meshes + props), 22 door meshes, build 1191 ms (commit 198), attach 26 ms
+settlements: built caddell_camp: 11 structures, tris ext 6k int 0k, 80 surfaces (meshes + props), 0 door meshes, build 36 ms (commit 11), attach 0 ms
+rail: 32 chunks of main line, far strip 1552 tris
+settlements: 12 planned (atlases 1388 ms, plans 1716 ms), 2 built at boot, 4393 ms total
+boot: settlements 12262 ms
+boot: world built in 12262 ms
+characters: animation library (76 clips) in 2836 ms on a worker
+characters: 16 looks ready in 1374 ms
+gunfight: settling vegetation
+gunfight: settled
+settlements: navigation for bitter_spring baked in 60 chunks, 19931 ms
+settlements: built port_linden: 170 structures, tris ext 283k int 53k, 3982 surfaces (meshes + props), 18 door meshes, build 3562 ms (commit 1372), attach 111 ms
+settlements: built greer_post: 4 structures, tris ext 2k int 0k, 29 surfaces (meshes + props), 1 door meshes, build 20 ms (commit 14), attach 0 ms
+settlements: built mesquite_wells: 25 structures, tris ext 41k int 13k, 461 surfaces (meshes + props), 11 door meshes, build 547 ms (commit 142), attach 6 ms
+settlements: built coldwater: 37 structures, tris ext 37k int 16k, 615 surfaces (meshes + props), 10 door meshes, build 503 ms (commit 119), attach 15 ms
+  gunfight: enemies 3 engaged 3 cover 1 killed 3 | player shots 17 hits 9, hits taken 2, 10 s
+BOT gunfight: PASS  errors=0  enemies=3  enemy_shots=6  enemy_hits=2  engaged=3  used_cover=1  killed=3  player_shots=17  player_hits=9  player_hits_taken=2
+  ok    first night (chapter 1)    -> first_night
+  ok    a hold-up on the road      -> robbery
+  ok    a murder, Doc in camp      -> murder
+  ok    a murder, no Doc           -> murder_hap
+  ok    a $200 poster              -> poster
+  ok    low Standing               -> notorious
+  ok    high Standing with Joseph  -> respected
+  ok    Cutter jailed              -> cutter_jailed
+  ok    Cutter dead                -> cutter_dead
+  ok    Doc sober                  -> doc_sober
+  ok    Doc drinking               -> doc_drink
+  ok    Asa spared                 -> asa_spared
+  ok    Asa killed                 -> asa_killed
+  ok    a pelt in the satchel      -> hunting
+  ok    nothing special            -> tom
+  ok    stayed for the comet       -> comet
+  ok    paid Pip's debt            -> pip
+  ok    faced Rourke down          -> pip_rourke
+  ok    a share in the Locomobile  -> locomobile
+  ok    Del stayed                 -> del_stays
+  ok    Doc answered the letter    -> doc_letter
+  ok    Joseph said his piece      -> joseph_own
+  ok    Billy's colt               -> billy_example
+  ok    one-off talk plays once (then: tom)
+  ok    doc's bark for the situation: camp_doc_reading
+  ok    doc's bark for the situation: camp_doc_drinking
+  ok    del's bark for the situation: camp_del_robbery
+  ok    hap's bark for the situation: camp_hap_meat
+  ok    joseph's bark for the situation: camp_joseph_name
+  ok    doc's bark for the situation: camp_doc_barrels
+  ok    del's bark for the situation: camp_del_crane
+  ok    billy's bark for the situation: camp_billy_novel
+  ok    hap's bark for the situation: camp_hap_widow_alone
+  ok    joseph's bark for the situation: camp_joseph_map
+  ok    hap's bark for the situation: camp_hap_crew_sang
+  ok    hap's bark for the situation: camp_hap_crew_wire
+  ok    joseph's bark for the situation: camp_joseph_false
+  ok    billy's bark for the situation: camp_billy_paid
+  ok    del's bark for the situation: camp_del_paid
+  ok    doc's bark for the situation: camp_doc_burned
+  ok    a sober Doc never brags about drinking
+settlements: navigation for caddell_camp baked in 4 chunks, 181 ms
+  camp: 5 companions in camp (hap, billy, del, doc, joseph)
+  camp: at the fire -> first_night; after a hold-up -> robbery; again -> del_hymns
+  camp: stew true (health 100), second bowl false, Doc pours whiskey, cards with Del: 3 hands, net $2.25
+BOT camp: PASS  errors=0
+settlements: navigation for greer_post baked in 4 chunks, 44 ms
+  encounters pass A (standing +40, choices 0): wagon:-(+2.9) robbery:-(+0.0) prisoner:-(+0.0) snakebite:-(+2.9) hunter:-(+0.0) grave:-(+2.9) ambush:fought_off(+0.4) hanging:talked_down(+2.9) runaway:caught(+2.9) lost_child:home(+2.9) duel:shot(-1.0) snake_oil:bought(+0.0) bounty_hunters:paid(+0.7) stranded:robbed(+0.7) drunk:drank(+0.0) fire:saved(+2.9) preacher:gave(+1.4) stage:stopped(+2.9)
+  encounters pass B (standing -30, choices 1): wagon:-(+4.0) robbery:-(+0.0) prisoner:-(+0.0) snakebite:-(+4.0) hunter:-(+0.0) grave:-(+4.0) ambush:fought_off(+0.5) hanging:rode_on(-1.6) runaway:overturned(+0.0) lost_child:home(+4.0) duel:talked(+3.0) snake_oil:exposed(+1.0) bounty_hunters:fought(+0.0) stranded:fought(+1.0) drunk:disarmed(+1.0) fire:lost(+1.0) preacher:passed(+0.0) stage:rode_on(-0.8)
+  encounters pass C (standing +0, choices 0): hanging:fought(+4.0) bounty_hunters:fought(+0.0)
+  encounters: 38 staged, 103 lines said, 29 distinct outcomes
+BOT encounters: PASS  errors=0  lines_said=103
+  armed+brave: insult/shove/draw -> combat true; defuse stood_down (calm true, standing +0.6)
+  armed+brave, Ruth wanted: insult/shove/draw; defuse failed (still fighting true)
+  unarmed brave: insult/shove/fists -> FIST
+  unarmed: insult/shove/flee -> FLEE
+  armed coward: insult/shove/flee
+  lawman: insult/shove/draw; defuse failed
+  lady: insult, defuse calmed, again (nothing to calm)
+  greet follow-ups by band: {"high":"soc_greet_town_high_2","low":"soc_greet_town_low_1","mid":"soc_greet_town_mid_2","wanted":"soc_greet_town_wanted_2"}
+  greet (Standing 40): soc_greet_woman_wanted_1
+  gossip ok   Cutter jailed          -> gos_cutter_jail
+  gossip ok   Cutter dead            -> gos_cutter_dead
+  gossip ok   the train robbed       -> gos_payroll
+  gossip ok   Pell in print          -> gos_ledger
+  gossip ok   Pell arrested          -> gos_pell_arrest
+  gossip ok   a storm                -> gos_w_storm
+  gossip ok   night                  -> gos_night
+  gossip ok   lawman, Ruth wanted    -> gos_law_eye1
+  gossip ok   lawman, dead or alive  -> gos_law_eye2
+  gossip ok   shop, robbed twice     -> gos_shop_robbed2
+  gossip ok   shop, honourable Ruth  -> gos_shop_high
+  gossip ok   shop, low Ruth         -> gos_shop_low
+  gossip ok   three robberies        -> gos_robbed3
+  gossip ok   a murder               -> gos_murder
+  gossip ok   the comet              -> gos_comet
+  paper ok   chapter 1 start    -> land_offer | SYNDICATE OFFERS FOR SABLE BASIN LAND | Tuesday, October 17, 1899
+  paper ok   Willow Bend        -> willow_bend | SHOOTING AT WILLOW BEND | Tuesday, October 17, 1899
+  paper ok   the press attacked -> press | THE LANTERN WILL NOT BE PUT OUT | Thursday, November 2, 1899
+  paper ok   the poster         -> poster | WOMAN SOUGHT IN BANK AFFAIR | Thursday, November 16, 1899
+  paper ok   Cutter jailed      -> cutter_jailed | CUTTER SHALE IN THE COUNTY JAIL | Thursday, December 7, 1899
+  paper ok   the strike         -> strike | THE KESTREL STRIKE SETTLED | Friday, January 19, 1900
+  paper ok   the express        -> express | MERIDIAN EXPRESS STOPPED AT KESSLER'S TANK | Friday, January 19, 1900
+  paper ok   Pell's ledger      -> ledger | MR. PELL'S LEDGER | Thursday, February 15, 1900
+  paper ok   Pell arrested      -> pell_arrested | LUCIUS PELL ARRESTED | Thursday, February 15, 1900
+  paper ok   spring             -> spring | SPRING IN THE SABLE COUNTRY | Thursday, April 12, 1900
+  paper ok   a store robbed     -> store_robbery | STORE ROBBED IN COLDWATER | Tuesday, October 17, 1899
+  paper ok   robbery wave       -> robberies | WAVE OF ROBBERIES ALARMS THE COUNTY | Tuesday, October 17, 1899
+  paper ok   a gunfight         -> gunfight | GUNFIGHT IN THE STREETS OF BITTER SPRING | Tuesday, October 17, 1899
+  paper ok   a bounty           -> bounty | OUTLAW JUBAL PARDEE BROUGHT TO JUSTICE | Tuesday, October 17, 1899
+  paper ok   old news           -> willow_bend | SHOOTING AT WILLOW BEND | Monday, October 16, 1899
+  paper ok   the comet          -> comet | COMET SEEN OVER THE KESTREL | Tuesday, October 17, 1899
+  bought The Port Linden Lantern for 5 cents: SYNDICATE OFFERS FOR SABLE BASIN LAND, page opened false
+BOT social: PASS  errors=0
+settlements: built trapper_cabin_n: 3 structures, tris ext 2k int 0k, 42 surfaces (meshes + props), 2 door meshes, build 27 ms (commit 10), attach 0 ms
+  board at bitter_spring: Cole Hatcher ($60, hideout), Ezra Penn ($50, roaming), Judith Marlow ($75, roaming)
+  roaming camp moves: Marlow day 0 (1401.0, 235.0, 584.0), day 1 (2044.0, 228.0, 421.0)
+  bounty hatcher: alive, carried across the saddle true, paid $90.00 (expected $90.00)
+  bounty penn: dead, carried across the saddle false, paid $50.00 (expected $50.00)
+  Hatcher's saddlebag: treasure_map_1 true
+  journal extra pages: Cole Hatcher, Ezra Penn, The Hatcher Map
+  gossip after: gos_out_hatcher; paper lead: OUTLAW EZRA PENN BROUGHT TO JUSTICE
+  legend The Grey Widow (wolf): clues 3, beast hp 400 (species 80), pelt true, outfit true
+  legend Old Ironhide (black_bear): clues 3, beast hp 1040 (species 260), pelt true, outfit true
+  legend The Pale Ghost (cougar): clues 3, beast hp 440 (species 110), pelt true, outfit true
+  legend The Sable King (elk): clues 3, beast hp 560 (species 160), pelt true, outfit true
+  trapper stall at Greer's: true; paper lead after the hunts: THE SABLE KING BROUGHT DOWN; options left: 0
+  map 1: X at (646, -90) dry, relief 128 m, water cells 22, dig prompt 'Dig where the map's X is' -> treasure_map_2
+  map 2: X at (2969, 265) dry, relief 93 m, water cells 1157, dig prompt 'Dig where the map's X is' -> treasure_map_3
+  map 3: X at (-3031, 2758) dry, relief 167 m, water cells 0, dig prompt 'Dig where the map's X is' -> gold
+  lawman: insult -> fine $5, wanted 1; shove -> fine $15; paid at the board true ($15.00), wanted now 0
+  satchel: newspaper readable true, last edition 'BURIED GOLD AT SAN LAZARO?', opened true
+BOT openworld: PASS  errors=0
+settlements: built thornwood_logging: 12 structures, tris ext 8k int 0k, 74 surfaces (meshes + props), 1 door meshes, build 83 ms (commit 32), attach 1 ms
+  save/load: bond 480 (level 3) -> true; ledger $37.50, provisions 2 (props 4) -> true; discovered caddell_camp, greer_post, port_linden -> true; places -> true
+  saving: wanted -> false (Not with the law on your trail. Lose them first.); in a fight -> false (Not while there's shooting.); free -> true; autosave timer true, after travel true
+  interior audio: listener in bitter_spring/03_saloon, interior true, bed 'crowd_saloon'
+BOT systems: PASS  errors=0  checks=[wanted_after_murder:2, bounty:1, shops:9, encounters:56, robbery:2, fishing:1, save_state:6, saving:5, interior_audio:2]
+  ui: screens visited ["Pause", "Map", "Journal", "Satchel", "Today\'s Paper", "Settings", "Controls", "Accessibility"]
+BOT ui: PASS  errors=0  checks=[rebind:ok, glyphs:2, screens:8]
+  footik flat: ankle above ground L 0.076 R 0.076
+  footik off: ankle above ground L 0.132 R 0.037
+  footik ik: ankle above ground L 0.075 R 0.075  (ik solves 74, weight 1.00)
+BOT footik: PASS  errors=0  checks=[ankle_diff_cm:2]
+settlements: built halvorsen_ranch: 9 structures, tris ext 10k int 0k, 91 surfaces (meshes + props), 5 door meshes, build 84 ms (commit 29), attach 3 ms
+settlements: unloaded caddell_camp
+  cover: { "gap_m": 0.52, "hidden_crouched": true, "slid_m": 1.08, "exposed_aiming": true, "blind_fire_rounds": 1, "left_cover": true, "peek_m": 0.6, "edge": 1 }
+BOT cover: PASS  errors=0  checks=[gap_m:0.52, hidden_crouched:true, slid_m:1.08, exposed_aiming:true, blind_fire_rounds:1, left_cover:true, peek_m:0.6, edge:1]
+settlements: unloaded port_linden
+settlements: unloaded greer_post
+settlements: unloaded mesquite_wells
+settlements: unloaded coldwater
+  melee: { "first_blow_hp": 80.5, "taken_open": 20.4, "taken_guard": 8.8, "grapple_fresh": "shoved", "grapple_hurt": "thrown", "knocked_down": true, "alive": true, "got_up": true, "state_after": "IDLE", "knife_kills": true }
+BOT melee: PASS  errors=0  checks=[first_blow_hp:80.5, taken_open:20.4, taken_guard:8.8, grapple_fresh:shoved, grapple_hurt:thrown, knocked_down:true, alive:true, got_up:true, state_after:IDLE, knife_kills:true]
+  armory: { "cond_after_6": 0.985, "spread_clean_vs_fouled": [0.45, 1.03], "jams_in_120": 11, "loaded": "revolver_express", "damage_std_vs_express": [38.0, 44.8], "slug": { "pellets": 1, "damage": 78.0, "range": 40.0 }, "save_load": true }
+BOT armory: PASS  errors=0  checks=[cond_after_6:0.985, spread_clean_vs_fouled:2, jams_in_120:11, loaded:revolver_express, damage_std_vs_express:2, slug:3, save_load:true]
+settlements: unloaded bitter_spring
+  archetypes: { "rusher": { "archetype": "rusher", "min_m": 5.9, "end_m": 6.0, "shots": 8 }, "marksman": { "archetype": "marksman", "min_m": 40.0, "end_m": 40.0, "shots": 7 }, "gunman": { "archetype": "gunman", "min_m": 40.0, "end_m": 40.0, "shots": 12 } }
+BOT archetypes: PASS  errors=0  checks=[rusher:4, marksman:4, gunman:4]
+settlements: unloaded trapper_cabin_n
+settlements: built windmill_flats: 6 structures, tris ext 5k int 0k, 61 surfaces (meshes + props), 3 door meshes, build 47 ms (commit 19), attach 1 ms
+settlements: unloaded thornwood_logging
+  lasso: { "caught": true, "rope_m": 9.0, "max_dist_m": 9.1, "pulled_down": true, "hogtied": true, "down_after_8s": true, "up_after_cut": true }
+BOT lasso: PASS  errors=0  checks=[caught:true, rope_m:9.0, max_dist_m:9.1, pulled_down:true, hogtied:true, down_after_8s:true, up_after_cut:true]
+  disarm: { "brave": { "unarmed": true, "dropped": true, "state": "FIST" }, "timid": { "unarmed": true, "dropped": true, "state": "SURRENDER" }, "picked_up": true }
+BOT disarm: PASS  errors=0  checks=[brave:3, timid:3, picked_up:true]
+settlements: navigation for windmill_flats baked in 4 chunks, 151 ms
+settlements: built bitter_spring: 50 structures, tris ext 106k int 27k, 1112 surfaces (meshes + props), 22 door meshes, build 909 ms (commit 243), attach 19 ms
+settlements: navigation for bitter_spring baked in 60 chunks, 1733 ms
+  nerve: { "marks_rank1": 3, "slow_rank1": 0.34, "refill_5s_core_full_vs_empty": [15.9, 0.7], "core_after_bitters": 100.0, "rank_after_20xp": 3, "meter_max": 125.0, "slow_rank3": 0.28, "rank_after_load": 3 }
+BOT nerve: PASS  errors=0  checks=[marks_rank1:3, slow_rank1:0.34, refill_5s_core_full_vs_empty:2, core_after_bitters:100.0, rank_after_20xp:3, meter_max:125.0, slow_rank3:0.28, rank_after_load:3]
+  loco: { "steady": 0, "played": { "turn_in_place_L": 1, "turn_in_place_R": 1, "run_stop": 1, "walk_stop": 1 } }
+BOT loco: PASS  errors=0  checks=[steady:0, played:4]
+BOTS PASS -> /Users/runner/work/blocksmith/blocksmith/snaps/bot_report_combat.json
+WARNING: 217 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)

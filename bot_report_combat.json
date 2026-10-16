@@ -1,0 +1,413 @@
+{
+  "bots": [
+    {
+      "bot": "gunfight",
+      "distance": 0.0,
+      "duration": 9.63333333333339,
+      "enemies": 3,
+      "enemy_hits": 2,
+      "enemy_shots": 6,
+      "engaged": 3,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "killed": 3,
+      "ok": true,
+      "player_hits": 9,
+      "player_hits_taken": 2,
+      "player_shots": 17,
+      "stuck_events": 0,
+      "used_cover": 1
+    },
+    {
+      "bot": "camp",
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "encounters",
+      "distance": 0.0,
+      "encounters": 38,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "lines_said": 103,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "social",
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "gossip_cases": 15,
+      "ok": true,
+      "paper_cases": 16,
+      "social_cases": 7,
+      "stuck_events": 0
+    },
+    {
+      "bot": "openworld",
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "systems",
+      "checks": {
+        "bounty": {
+          "Sable County": 60.0
+        },
+        "encounters": [
+          "wagon",
+          "robbery",
+          "prisoner",
+          "snakebite",
+          "hunter",
+          "grave",
+          "ambush",
+          "hanging",
+          "runaway",
+          "lost_child",
+          "duel",
+          "snake_oil",
+          "bounty_hunters",
+          "stranded",
+          "drunk",
+          "fire",
+          "preacher",
+          "stage",
+          "wagon",
+          "robbery",
+          "prisoner",
+          "snakebite",
+          "hunter",
+          "grave",
+          "ambush",
+          "hanging",
+          "runaway",
+          "lost_child",
+          "duel",
+          "snake_oil",
+          "bounty_hunters",
+          "stranded",
+          "drunk",
+          "fire",
+          "preacher",
+          "stage",
+          "hanging",
+          "bounty_hunters",
+          "wagon",
+          "robbery",
+          "prisoner",
+          "snakebite",
+          "hunter",
+          "grave",
+          "ambush",
+          "hanging",
+          "runaway",
+          "lost_child",
+          "duel",
+          "snake_oil",
+          "bounty_hunters",
+          "stranded",
+          "drunk",
+          "fire",
+          "preacher",
+          "stage"
+        ],
+        "fishing": [
+          {
+            "fight": 1.14861034030058,
+            "lb": 3.4,
+            "name": "Brown Trout",
+            "species": "brown_trout",
+            "stamina": 0.15
+          }
+        ],
+        "interior_audio": {
+          "bed": "crowd_saloon",
+          "listener_inside": true
+        },
+        "robbery": [
+          {
+            "cash": 4.35,
+            "kind": "holdup",
+            "loot": ""
+          },
+          {
+            "cash": 55.6,
+            "kind": "store",
+            "shop": "general"
+          }
+        ],
+        "save_state": {
+          "bond": true,
+          "discovered": true,
+          "holdups": true,
+          "landmarks": true,
+          "ledger": true,
+          "stock": true
+        },
+        "saving": {
+          "fight": false,
+          "ok": true,
+          "timer": true,
+          "travel": true,
+          "wanted": false
+        },
+        "shops": 9,
+        "wanted_after_murder": 2
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "ui",
+      "checks": {
+        "glyphs": [
+          "[E]  Talk",
+          "[Y]  Talk"
+        ],
+        "rebind": "ok",
+        "screens": [
+          "Pause",
+          "Map",
+          "Journal",
+          "Satchel",
+          "Today's Paper",
+          "Settings",
+          "Controls",
+          "Accessibility"
+        ]
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "footik",
+      "checks": {
+        "ankle_diff_cm": {
+          "ik": 0.0,
+          "off": 9.5
+        }
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "cover",
+      "checks": {
+        "blind_fire_rounds": 1,
+        "edge": 1,
+        "exposed_aiming": true,
+        "gap_m": 0.52,
+        "hidden_crouched": true,
+        "left_cover": true,
+        "peek_m": 0.6,
+        "slid_m": 1.08
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "melee",
+      "checks": {
+        "alive": true,
+        "first_blow_hp": 80.5,
+        "got_up": true,
+        "grapple_fresh": "shoved",
+        "grapple_hurt": "thrown",
+        "knife_kills": true,
+        "knocked_down": true,
+        "state_after": "IDLE",
+        "taken_guard": 8.8,
+        "taken_open": 20.4
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "armory",
+      "checks": {
+        "cond_after_6": 0.985,
+        "damage_std_vs_express": [
+          38.0,
+          44.8
+        ],
+        "jams_in_120": 11,
+        "loaded": "revolver_express",
+        "save_load": true,
+        "slug": {
+          "damage": 78.0,
+          "pellets": 1,
+          "range": 40.0
+        },
+        "spread_clean_vs_fouled": [
+          0.45,
+          1.03
+        ]
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "archetypes",
+      "checks": {
+        "gunman": {
+          "archetype": "gunman",
+          "end_m": 40.0,
+          "min_m": 40.0,
+          "shots": 12
+        },
+        "marksman": {
+          "archetype": "marksman",
+          "end_m": 40.0,
+          "min_m": 40.0,
+          "shots": 7
+        },
+        "rusher": {
+          "archetype": "rusher",
+          "end_m": 6.0,
+          "min_m": 5.9,
+          "shots": 8
+        }
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "lasso",
+      "checks": {
+        "caught": true,
+        "down_after_8s": true,
+        "hogtied": true,
+        "max_dist_m": 9.1,
+        "pulled_down": true,
+        "rope_m": 9.0,
+        "up_after_cut": true
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "disarm",
+      "checks": {
+        "brave": {
+          "dropped": true,
+          "state": "FIST",
+          "unarmed": true
+        },
+        "picked_up": true,
+        "timid": {
+          "dropped": true,
+          "state": "SURRENDER",
+          "unarmed": true
+        }
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "nerve",
+      "checks": {
+        "core_after_bitters": 100.0,
+        "marks_rank1": 3,
+        "meter_max": 125.0,
+        "rank_after_20xp": 3,
+        "rank_after_load": 3,
+        "refill_5s_core_full_vs_empty": [
+          15.9,
+          0.7
+        ],
+        "slow_rank1": 0.34,
+        "slow_rank3": 0.28
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "loco",
+      "checks": {
+        "played": {
+          "run_stop": 1,
+          "turn_in_place_L": 1,
+          "turn_in_place_R": 1,
+          "walk_stop": 1
+        },
+        "steady": 0
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    }
+  ],
+  "ok": true
+}
