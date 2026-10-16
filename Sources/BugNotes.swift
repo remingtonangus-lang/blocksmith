@@ -221,7 +221,7 @@ final class BugNotes {
         let dirs = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"]
         let facing = dirs[Int((yawDeg + 22.5) / 45) % 8]
         let world = g.save?.dir.lastPathComponent ?? "(test world)"
-        let biome = g.world.gen.column(bx, bz).biome.displayName
+        let biome = (g.world.gen as? DeepGen)?.layerName(bx, by, bz) ?? g.world.gen.column(bx, bz).biome.displayName    // P323 (a)
         var target = "nothing"
         if let t = g.target {
             let b = g.world.block(t.hit.x, t.hit.y, t.hit.z)

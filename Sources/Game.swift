@@ -732,7 +732,7 @@ final class Game {
 
     var skyColor: V3 {
         if dim.dim == .nether { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }
-        if inVaultSky { return AshSky.haze }
+        if inVaultHaze { return AshSky.haze }                      // (P323: the whole cavern, not only under the sky)
         if !dim.dim.hasSky { return dim.dim.fogColor }
         let day = V3(0.64, 0.77, 0.92), night = V3(0.015, 0.02, 0.06)   // AV polish: a paler hazy horizon
         var c = simd_mix(night, day, V3(repeating: (daylight - 0.12) / 0.88))
@@ -750,7 +750,7 @@ final class Game {
 
     // Colour straight up for the Fancy sky gradient: a deeper blue than the horizon by day, near black at night.
     var skyZenith: V3 {
-        if inVaultSky { return AshSky.zenith }
+        if inVaultHaze { return AshSky.zenith }
         let c = skyColor
         // A hazy biome (desert) washes the zenith toward the horizon; a cold one keeps it deep.
         let deep = simd_mix(V3(0.48, 0.64, 0.9), V3(0.6, 0.68, 0.84), V3(repeating: sky.haze))   // P174: a less inky zenith
