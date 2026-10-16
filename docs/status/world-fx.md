@@ -93,6 +93,41 @@ fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_stor
 Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thunderstorm over a burning plank field with
 400 damaged blocks: weather.tick_ms p50/p95/max, fire / flood / storm worst, decal quads. Not gated.
 
+## HANDOFF (2026-10-16) - read this first
+
+State
+- Branch claude/bs-world-fx = playtest 7629ff8 + ONE squashed commit 3fe74f0 (all world fx + item art; the old
+  150-commit history was 07e106d) + small follow-ups: docs, new-item icons (18e6d24), firing mechanism icon, split-screen
+  flood window (9d1c6b1), fast-check commit f228364. NONE of this is in claude/blocksmith-playtest yet.
+- Full run on 95310bb (the squash + docs): perf, smoke, shots PASS; play, checks, tours FAIL. Playtest's own latest full
+  run (9ad4e54): play and checks FAIL too (same Blight failure: 388 arrows for ~30 damage), perf FAIL, tours PASS.
+  So play/checks are base failures; tours on this branch is the only one not seen on playtest's latest run - read
+  snap_tours.log on ci-snaps-claude-bs-world-fx (earlier it was the vehicle ride checks "ride crew" / "ride troops", a
+  timing-sensitive test owned by the vehicle stream; it also failed on playtest heads before).
+- My own checks are green on the rebased code: --fxtest 0 failed (45 PASS), --itemcheck 0 fail, 540/541 icons vector.
+
+Next steps
+1. Rebase claude/bs-world-fx onto the current playtest head (it moves fast: 9ad4e54 and later). The squash makes this one
+   conflict pass. Resolver scripts used: union for BUGS.md/STATUS.md (keep both sides), snap.sh keeps playtest's lines
+   but my --fxtest line. Code conflicts so far were real merges (see "2026-10-15" section above).
+2. Push with [full]; when the heavy lane shows no failure that playtest's own latest heavy run doesn't also have,
+   fast-forward: git push origin <head>:claude/blocksmith-playtest (check playtest hasn't moved; if it has and the new
+   commits don't touch my files, rebase + fast lane build green is enough).
+3. Then post the PR #9 entry (draft in the old session's scratchpad is lost: rewrite from the "Item art" and "How it
+   works" sections here; mention steel armour / jetpack / radar icons and the merged fire odds).
+4. After that: bug hunting in this area (fxtest, itemcheck, held/dropped critic rounds in docs/qa/items/critic.md).
+
+Gotchas
+- No Swift compiler in cloud sessions: use tools/precheck.py, then the fast lane ([fast: ARGS] in the HEAD commit message,
+  chain with ` ; build/Blocksmith.app/Contents/MacOS/Blocksmith ...`, `|| true` to keep going after a failing command).
+- A push without [full] does not cancel a running heavy lane (heavy jobs use cancel-in-progress: false); a new [full]
+  push does replace queued heavy jobs. Cancel obsolete runs with the GitHub MCP actions_run_trigger cancel_workflow_run.
+- Bench A/B switches: --ab-noitemart, --ab-noworldfx (Bench.swift) isolate this stream's cost (memory gate noise is
+  about 70 MB run to run on flight24).
+- Playtest rewrote things this branch touches: EntityWriter.quad4 (allocation-free; use it), the HUD icon cache (use
+  `order`, not `boxes`), waterlogged water faces (theirs replaced my water-plant faces), fire odds (World.fireOdds now
+  lives in Fire.swift), starAlpha (theirs).
+
 ## 2026-10-15: squashed and rebased onto playtest 7629ff8
 
 - Playtest's own heavy run (5cd19c5) fails checks, play (the Blight: 388 arrows for 30 damage) and tours: those were
