@@ -856,7 +856,10 @@ final class WorldGen: TerrainGenerator {
 
     // MARK: Ores
 
-    private func vein(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ rng: inout SRng, _ ore: BlockID, _ deepOre: BlockID, y: Int, size: Int) {
+    // `airDiscard`: the chance an ore block touching air is left out (reference: lower coal, gold and diamond 0.5,
+    // lapis's buried feature 1; caves are carved before ores, so without it cave walls showed twice the ore).
+    private func vein(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ rng: inout SRng, _ ore: BlockID, _ deepOre: BlockID, y: Int, size: Int,
+                      airDiscard: Float = 0) {
         let cxr = rng.int(16), czr = rng.int(16)
         // Scattered blob along a short random segment.
         let len = Float(size) / 8
@@ -875,6 +878,16 @@ final class WorldGen: TerrainGenerator {
             // Gravel blobs keep off cave ceilings: placed after the caves are carved, a blob over a cave hung there and
             // fell at the first block update (gencheck run 357: 623 gravel-over-air blocks in 288 chunks).
             if ore == GRAVEL && ly > 1 && b[Chunk.index(lx, ly - 1, lz)] == AIR { continue }
+            if airDiscard > 0 {
+                var open = false
+                if ly + 1 < CH && b[i + CSQ] == AIR { open = true }
+                else if b[i - CSQ] == AIR { open = true }
+                else if lx > 0 && b[i - 1] == AIR { open = true }
+                else if lx < CS - 1 && b[i + 1] == AIR { open = true }
+                else if lz > 0 && b[i - CS] == AIR { open = true }
+                else if lz < CS - 1 && b[i + CS] == AIR { open = true }
+                if open && rng.float() < airDiscard { continue }
+            }
             if host == STONE || host == GRANITE_ID || host == DIORITE_ID || host == ANDESITE_ID { b[i] = ore }
             else if host == DEEPSLATE || host == TUFF_ID || host == EMBERSLATE { b[i] = deepOre }
         }
@@ -899,7 +912,7 @@ final class WorldGen: TerrainGenerator {
         // 1.18+ ore distributions (count per chunk, height distribution, vein size).
         let coal = COAL_ORE, dCoal = g("deepslate_coal_ore")
         for _ in 0..<30 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(rng.range(136, 320)), size: 17) }
-        for _ in 0..<20 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(triangle(&rng, 0, 192)), size: 17) }
+        for _ in 0..<20 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(triangle(&rng, 0, 192)), size: 17, airDiscard: 0.5) }
         let iron = IRON_ORE, dIron = g("deepslate_iron_ore")
         for _ in 0..<90 { vein(&b, bx, bz, &rng, iron, dIron, y: y(triangle(&rng, 80, 384)), size: 9) }
         for _ in 0..<10 { vein(&b, bx, bz, &rng, iron, dIron, y: y(triangle(&rng, -24, 56)), size: 9) }
@@ -907,8 +920,8 @@ final class WorldGen: TerrainGenerator {
         let copper = g("copper_ore"), dCopper = g("deepslate_copper_ore")
         for _ in 0..<16 { vein(&b, bx, bz, &rng, copper, dCopper, y: y(triangle(&rng, -16, 112)), size: 10) }
         let gold = GOLD_ORE, dGold = g("deepslate_gold_ore")
-        for _ in 0..<4 { vein(&b, bx, bz, &rng, gold, dGold, y: y(triangle(&rng, -64, 32)), size: 9) }
-        if rng.int(2) == 0 { vein(&b, bx, bz, &rng, gold, dGold, y: y(rng.range(-64, -48)), size: 9) }
+        for _ in 0..<4 { vein(&b, bx, bz, &rng, gold, dGold, y: y(triangle(&rng, -64, 32)), size: 9, airDiscard: 0.5) }
+        if rng.int(2) == 0 { vein(&b, bx, bz, &rng, gold, dGold, y: y(rng.range(-64, -48)), size: 9, airDiscard: 0.5) }
         if biomes.contains(where: { $0.isBadlands }) {
             for _ in 0..<50 { vein(&b, bx, bz, &rng, gold, dGold, y: y(rng.range(32, 256)), size: 9) }
         }
@@ -916,16 +929,17 @@ final class WorldGen: TerrainGenerator {
         for _ in 0..<2 { vein(&b, bx, bz, &rng, copper, dCopper, y: y(rng.range(-64, 15)), size: 10) }
         let lapis = g("lapis_ore"), dLapis = g("deepslate_lapis_ore")
         for _ in 0..<2 { vein(&b, bx, bz, &rng, lapis, dLapis, y: y(triangle(&rng, -32, 32)), size: 7) }
-        for _ in 0..<4 { vein(&b, bx, bz, &rng, lapis, dLapis, y: y(rng.range(-64, 64)), size: 7) }
+        for _ in 0..<4 { vein(&b, bx, bz, &rng, lapis, dLapis, y: y(rng.range(-64, 64)), size: 7, airDiscard: 1) }    // buried
         let diamond = DIAMOND_ORE, dDiamond = g("deepslate_diamond_ore")
-        // Titanium (save key diamond_ore): rarer than the reference diamond veins.
-        for _ in 0..<5 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 3) }
-        if rng.int(12) == 0 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 8) }
-        for _ in 0..<2 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 6) }
-        if biomes.contains(where: { $0.isPeak || $0 == .windsweptHills || $0 == .windsweptGravellyHills || $0 == .windsweptForest || $0 == .meadow || $0 == .grove }) {
+        // Titanium (save key diamond_ore): deliberately rarer than the reference diamond veins. Attempts below y -64 fall
+        // out of the world as in the reference (clamped, half of them piled into the floor at y -64).
+        for _ in 0..<5 { let yy = triangle(&rng, -144, 16); if yy >= -63 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(yy), size: 3, airDiscard: 0.5) } }
+        if rng.int(12) == 0 { let yy = triangle(&rng, -144, 16); if yy >= -63 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(yy), size: 8, airDiscard: 1) } }
+        for _ in 0..<2 { let yy = triangle(&rng, -144, 16); if yy >= -63 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(yy), size: 6, airDiscard: 0.7) } }
+        if biomes.contains(where: { $0.isPeak || $0 == .windsweptHills || $0 == .windsweptGravellyHills || $0 == .windsweptForest || $0 == .meadow || $0 == .grove || $0 == .cherryGrove }) {
             let em = g("emerald_ore")
             let dEm = Blocks.has("deepslate_emerald_ore") ? g("deepslate_emerald_ore") : em
-            for _ in 0..<100 { vein(&b, bx, bz, &rng, em, dEm, y: y(triangle(&rng, -16, 480)), size: 3) }
+            for _ in 0..<100 { vein(&b, bx, bz, &rng, em, dEm, y: y(rng.range(-16, 480)), size: 3) }     // uniform (reference)
         }
     }
 
@@ -974,10 +988,14 @@ final class WorldGen: TerrainGenerator {
             for dy in 0..<4 {
                 let ly = cgy * 4 + dy, y = y0 + ly
                 if y >= y1 || (y >= YOFF - 8 && y < YOFF) { continue }
-                let kind = y < YOFF - 8 ? iron : copper
+                let deep = y < YOFF - 8
+                let kind = deep ? iron : copper
                 for dz in 0..<4 { for dx in 0..<4 {
                     let lx = cgx * 4 + dx, lz = cgz * 4 + dz
-                    guard abs(sample(0, lx, ly, lz)) > 0.3, abs(sample(1, lx, ly, lz)) < 0.07, abs(sample(2, lx, ly, lz)) < 0.07 else { continue }
+                    // The region field's sign picks the kind (reference: copper above 0, iron below), each only in its
+                    // band: both signs fed both bands, about twice the vein volume.
+                    let tg = sample(0, lx, ly, lz)
+                    guard (deep ? tg < -0.3 : tg > 0.3), abs(sample(1, lx, ly, lz)) < 0.07, abs(sample(2, lx, ly, lz)) < 0.07 else { continue }
                     let i = Chunk.index(lx, y, lz)
                     let host = b[i]
                     guard host == STONE || host == DEEPSLATE || host == GRANITE_ID || host == DIORITE_ID || host == ANDESITE_ID || host == TUFF_ID else { continue }

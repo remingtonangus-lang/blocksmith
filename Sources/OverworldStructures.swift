@@ -626,7 +626,7 @@ enum OverworldStructures {
     static func buriedTreasure(_ gen: WorldGen) -> StructureType {
         StructureType(name: "buried_treasure", spacing: 4, separation: 1, salt: 10387320, reach: 0) { [unowned gen] seed, cx, cz in
             var rng = SRng(seed)
-            guard rng.int(100) < 6 else { return nil }             // ~1% of beach chunks overall
+            guard rng.int(100) < 16 else { return nil }            // 1 in 16 chunks a candidate x 16 % = 1 % of beach chunks (reference; 6 gave 0.4 %)
             let x = cx * CS + 9, z = cz * CS + 9
             guard gen.column(x, z).biome.isBeach else { return nil }
             let y = gen.groundY(x, z) - rng.range(1, 3)
