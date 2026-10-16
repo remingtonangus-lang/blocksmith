@@ -1071,3 +1071,13 @@ final class ShipManager {
         }
     }
 }
+
+enum Ships {
+    // The 26 cells round a cell (faces, edges and corners): how a ship's plates hold together (a hull rasterised from
+    // curves meets itself diagonally all over; joined at faces only, the Stormwarden was 2161 pieces as built).
+    static let joins26: [IVec3] = {
+        var out: [IVec3] = []
+        for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dy != 0 || dz != 0 { out.append(IVec3(dx, dy, dz)) } } }
+        return out
+    }()
+}

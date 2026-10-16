@@ -307,7 +307,7 @@ enum InteriorCheck {
             }
             check(buried.isEmpty, "\(name): no crew post inside a block (\(buried.count))\(buried.isEmpty ? "" : ": " + buried.prefix(4).joined(separator: "; "))")
         }
-        // Every capital hull is one connected piece as built: a part standing loose (machinery, a light, a fitting not
+        // Every capital hull is one connected piece as built (joined at faces, edges or corners): a part standing loose (machinery, a light, a fitting not
         // touching the hull) is split off by the first blast near the ship (Debris.swift splitHull), and a loose block of
         // drive cores was kept as the whole vessel (capitaltest, run of 68b79bd).
         for (name, make, mine) in [("warfrigate", { Capital.frigate() }, true), ("crawler", { Capital.crawler() }, true),
@@ -326,8 +326,8 @@ enum InteriorCheck {
                 while head < q.count {
                     let i = q[head]; head += 1
                     let y = i / (sx * sz), rem = i - y * sx * sz, z = rem / sx, x = rem - z * sx
-                    for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {
-                        let nx = x + dx, ny = y + dy, nz = z + dz
+                    for k in 0..<27 where k != 13 {           // faces, edges and corners, as the split check joins them
+                        let nx = x + k % 3 - 1, ny = y + k / 9 - 1, nz = z + (k / 3) % 3 - 1
                         guard nx >= 0 && nx < sx && ny >= 0 && ny < sy && nz >= 0 && nz < sz else { continue }
                         let j = nx + nz * sx + ny * sx * sz
                         if comp[j] < 0 && hb.blocks[j] != AIR { comp[j] = id; q.append(j) }

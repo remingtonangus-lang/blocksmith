@@ -1809,7 +1809,7 @@ extension ShipManager {
             var open = true
             while head < comp.count {
                 let c = comp[head]; head += 1
-                for d in dirs {
+                for d in Ships.joins26 {                  // faces, edges, corners: hull plates meet diagonally (Debris.splitHull)
                     let n = c + d
                     if local.contains(n) || !g.inside(n.x, n.y, n.z) { continue }
                     let b = g.get(n.x, n.y, n.z)

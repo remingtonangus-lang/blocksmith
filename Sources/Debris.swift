@@ -445,12 +445,17 @@ extension ShipManager {
                 let i = Int(queue[head]); head += 1
                 if engineKind[Int(g.blocks[i])] == .engine { eng += 1 }
                 let y = i / (sx * sz), rem = i - y * sx * sz, z = rem / sx, x = rem - z * sx
-                if x > 0 { let j = i - 1; if comp[j] < 0 && g.blocks[j] != AIR { comp[j] = id; queue.append(Int32(j)) } }
-                if x < sx - 1 { let j = i + 1; if comp[j] < 0 && g.blocks[j] != AIR { comp[j] = id; queue.append(Int32(j)) } }
-                if z > 0 { let j = i - sx; if comp[j] < 0 && g.blocks[j] != AIR { comp[j] = id; queue.append(Int32(j)) } }
-                if z < sz - 1 { let j = i + sx; if comp[j] < 0 && g.blocks[j] != AIR { comp[j] = id; queue.append(Int32(j)) } }
-                if y > 0 { let j = i - sx * sz; if comp[j] < 0 && g.blocks[j] != AIR { comp[j] = id; queue.append(Int32(j)) } }
-                if y < sy - 1 { let j = i + sx * sz; if comp[j] < 0 && g.blocks[j] != AIR { comp[j] = id; queue.append(Int32(j)) } }
+                // Joined at a face, an edge or a corner: a hull rasterised from curves touches itself diagonally all
+                // over (face joins alone made the Stormwarden 2161 pieces as built and every shot ship shed 66k
+                // blocks at its first split check: interiorcheck, run of 10962e9).
+                for dy in -1...1 where y + dy >= 0 && y + dy < sy {
+                    for dz in -1...1 where z + dz >= 0 && z + dz < sz {
+                        for dx in -1...1 where x + dx >= 0 && x + dx < sx {
+                            let j = i + dx + dz * sx + dy * sx * sz
+                            if comp[j] < 0 && g.blocks[j] != AIR { comp[j] = id; queue.append(Int32(j)) }
+                        }
+                    }
+                }
             }
             sizes.append(queue.count)
             drives.append(eng)
