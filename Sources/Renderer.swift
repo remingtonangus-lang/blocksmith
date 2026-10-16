@@ -2267,6 +2267,10 @@ final class Renderer: NSObject, MTKViewDelegate {
                         }
                     }
                 }
+                // P304: a thin rule across the panel between button groups.
+                for dy in pm.dividers {
+                    rect(o.x + 14 * s, o.y + Float(dy) * s, pw - 28 * s, max(1, floor(s / 2)), V4(0.2, 0.2, 0.24, 0.45))
+                }
                 for sl in pm.slots where sl.isButton {
                     guard case .button(let i) = sl.kind, let r = pm.row(forSlot: i) else { continue }
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
@@ -2278,31 +2282,55 @@ final class Renderer: NSObject, MTKViewDelegate {
                     if hot && !info {
                         rect(x - 2 * s, y - 2 * s, Float(sl.w) * s + 4 * s, Float(sl.h) * s + 4 * s, V4(1, 1, 1, 1))
                     }
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? V4(0.16, 0.48, 1, 1) : V4(0.36, 0.36, 0.4, 1)))
+                    // P304: deleting a world reads apart from its neighbours (a dark red button).
+                    let danger = r.1 == "w_delete" || r.1 == "w_delete_yes"
+                    let idle = info ? V4(0.3, 0.3, 0.33, 1) : (danger ? V4(0.5, 0.24, 0.24, 1) : V4(0.36, 0.36, 0.4, 1))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot && !info ? V4(0.16, 0.48, 1, 1) : idle)
                     frame(x, y, Float(sl.w) * s, Float(sl.h) * s, s, hot ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.22, 1))
                     if hot && !info && !PauseMenu.isValue(r.1) {
                         text(">", x + 4 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 1, 1))
                         text("<", x + Float(sl.w) * s - 8 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 1, 1))
                     }
                     let label = r.0
-                    // Long labels (remapped buttons, long values) shrink to fit between the value arrows.
-                    let ls = min(s, (Float(sl.w) - 20) * s / max(1, textWidth(label, s)) * s)
-                    let lx = info ? x + 5 * s : x + (Float(sl.w) * s - textWidth(label, ls)) / 2
-                    text(label, lx, y + (Float(sl.h) * s - 7 * ls) / 2, ls)
+                    let room: Float = (Float(sl.w) - 20) * s
+                    // P304: the tall grouped buttons take a long label on two lines (full size, else a little smaller),
+                    // the tallest on three small ones, before shrinking it onto one.
+                    var wrapped: [String] = [], ts: Float = s
+                    if sl.h >= 24 && textWidth(label, s) > room {
+                        let tries: [(Float, Int)] = sl.h >= 30 ? [(1, 2), (0.85, 2), (0.85, 3), (0.72, 3)] : [(1, 2), (0.85, 2)]
+                        for (k, most) in tries {
+                            let ws = wrapLines(label, maxW: room, s * k, maxLines: 4)
+                            if ws.count > 1 && ws.count <= most && ws.allSatisfy({ textWidth($0, s * k) <= room }) { wrapped = ws; ts = s * k; break }
+                        }
+                    }
+                    if !wrapped.isEmpty {
+                        let lh: Float = 7 * ts
+                        let gap: Float = (wrapped.count > 2 ? 2 : 3) * s
+                        let blockH: Float = Float(wrapped.count) * lh + Float(wrapped.count - 1) * gap
+                        let ty: Float = y + (Float(sl.h) * s - blockH) / 2
+                        for (k, line) in wrapped.enumerated() {
+                            text(line, x + (Float(sl.w) * s - textWidth(line, ts)) / 2, ty + Float(k) * (lh + gap), ts)
+                        }
+                    } else {
+                        // Long labels (remapped buttons, long values) shrink to fit between the value arrows.
+                        let ls = min(s, room / max(1, textWidth(label, s)) * s)
+                        let lx = info ? x + 5 * s : x + (Float(sl.w) * s - textWidth(label, ls)) / 2
+                        text(label, lx, y + (Float(sl.h) * s - 7 * ls) / 2, ls)
+                    }
                     if hot && PauseMenu.isValue(r.1) {
                         // Arrows: D-pad left / right steps the setting.
                         text("<", x + 4 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))
                         text(">", x + Float(sl.w) * s - 8 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))
                     }
                 }
-                if pm.rows.count > pm.slots.count, let first = pm.slots.first, let last = pm.slots.last {
+                if pm.lineCount > pm.shownLines, let first = pm.slots.first, let last = pm.slots.last {
                     // Scroll position: a thin scrollbar beside the list (dots under it read as pages next to "Page 2 of 6":
-                    // blind UI critic, options).
-                    let n = pm.rows.count - pm.slots.count + 1
+                    // blind UI critic, options). P304: counted in lines (a grouped line holds several buttons).
+                    let n = pm.lineCount - pm.shownLines + 1
                     let top: Float = o.y + Float(first.y) * s, bottom: Float = o.y + Float(last.y + last.h) * s
-                    let bx: Float = o.x + Float(first.x + first.w + 3) * s
+                    let bx: Float = o.x + Float(pm.width - 7) * s
                     let trackH: Float = bottom - top
-                    let thumbH: Float = max(6 * s, trackH * Float(pm.slots.count) / Float(pm.rows.count))
+                    let thumbH: Float = max(6 * s, trackH * Float(pm.shownLines) / Float(pm.lineCount))
                     let thumbY: Float = top + (trackH - thumbH) * Float(pm.scroll) / Float(max(1, n - 1))
                     rect(bx, top, 3 * s, trackH, V4(0.5, 0.5, 0.52, 1))
                     rect(bx, thumbY, 3 * s, thumbH, MenuColors.hover)
