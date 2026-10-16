@@ -154,6 +154,11 @@ final class Game {
     var ashReinforceT: Float = 0
     var ashPatrolT: Float = 45
     var ashSquadsSent = 0                          // reinforcement squads sent since the alarm last fell to Quiet
+    // P307 (b) ("if I'm clearing a base, it should be cleared"): Ashguard sites whose garrison is dead (they send nobody
+    // again) and the squads each site has sent over the whole game (saved: "ashCleared", "ashSiteSquads").
+    var ashCleared: Set<String> = []
+    var ashSiteSquads: [String: Int] = [:]
+    var ashEmptyFor: [String: Int] = [:]           // seconds a site by the player has stood empty (in memory)
     var ashArmourCall: Double = -999
     var ashRadioT: Float = 0
     var ashWrecks: [(at: V3, t: Float)] = []        // burning vehicle wrecks

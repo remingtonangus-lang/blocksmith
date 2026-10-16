@@ -389,7 +389,8 @@ extension MobManager {
                 let d = simd_length(at - pp)
                 // H1 (Remington: "cave mobs spawn about 10 blocks farther away"): underground, where tunnels bring a
                 // spawn 24 blocks off round the next corner, the nearest is 34.
-                if d < (underground ? 34 : 24) || d > 128 { continue }
+                // P307 (a): on the surface the nearest is 32 (was 24), and never in sight (Game.spawnHidden, below).
+                if d < (underground ? 34 : 32) || d > 128 { continue }
                 let b = Spawns.biome(w, x, y, z)
                 if entry == nil {
                     guard let e = Spawns.pick(Spawns.monsters(b)) else { break }
@@ -400,6 +401,7 @@ extension MobManager {
                 let m = Mob(e.kind, at: at)
                 if e.kind == .slime { m.makeSlime(size: slimeSize(game)) }
                 if m.collides(at, w) { continue }
+                if !game.spawnHidden(at, min: underground ? 34 : 32) { continue }        // P307 (a): out of sight
                 finishMonster(m, game)
                 spawned += 1
                 surfaceLeft -= 1
@@ -417,7 +419,7 @@ extension MobManager {
         if sc.structure(at: x, top, z, kind: "pillager_outpost") != nil {
             guard let y = floorBelow(w, x, top + 1, z, minY: top - 24), !Blocks.isLiquid(w.block(x, y, z)) else { return true }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
-            if simd_length(at - pp) < 24 || mobs.filter({ $0.kind == .pillager && simd_length($0.pos - at) < 48 }).count >= 6 { return true }
+            if !game.spawnHidden(at, min: 32) || mobs.filter({ $0.kind == .pillager && simd_length($0.pos - at) < 48 }).count >= 6 { return true }
             let m = Mob(.pillager, at: at)
             if m.collides(at, w) { return true }
             m.applyRaidBuffs(wave: 0, level: 0)
@@ -526,15 +528,16 @@ extension MobManager {
         _ = w
     }
 
-    // The Hollow: voidwalkers (groups of up to 4) on hollow stone 24+ blocks out.
+    // The Hollow: voidwalkers (groups of up to 4) on hollow stone 32+ blocks out, out of sight.
     func trySpawnEnd(_ game: Game) {
         let w = game.world
         let pp = game.player.pos
-        let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 24...96)
+        let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 32...96)            // P307 (a): 32+ out (was 24)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
         guard w.isLoaded(x, z) else { return }
         let top = w.topY(x, z)
         guard top > 0, Blocks.key(w.block(x, top, z)) == "end_stone" else { return }
+        guard game.spawnHidden(V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5), min: 32) else { return }   // and unseen
         for _ in 0..<Rand.int(in: 1...4) {
             let sx = x + Rand.int(in: -2...2), sz = z + Rand.int(in: -2...2)
             let ty = w.topY(sx, sz)
@@ -634,5 +637,28 @@ extension MobManager {
               let flat = try? JSONDecoder().decode([Int].self, from: d) else { return }
         var i = 0
         while i + 1 < flat.count { populated.insert(ChunkKey(x: flat[i], z: flat[i + 1])); i += 2 }
+    }
+}
+
+extension Game {
+    // P307 (a) (Oct 15 12:13, "the spawning distance should be way further away"): a spawn spot no player can see.
+    // At least `min` blocks from every seat; nearer than `near`, no line of sight from the eyes at all (a head turn
+    // would find it); out to `clear`, out of the line of sight or outside a wide view cone (the headset's field plus a
+    // margin). Every spawner of hostiles (natural monsters, hell packs, the Hollow, zombie calls, Ashguard squads)
+    // asks it, so enemies walk in from out of view instead of appearing in it.
+    func spawnHidden(_ at: V3, min: Float, near: Float = 40, clear: Float = 96) -> Bool {
+        let body = at + V3(0, 1.2, 0)
+        for i in 0..<max(1, coop.seatCount) {
+            let pl = coop.seatPlayer(i, self)
+            let eye = pl.eye
+            let to = body - eye
+            let d = simd_length(to)
+            if d < min { return false }
+            if d >= clear { continue }
+            let facing: Float = simd_dot(to / max(d, 0.01), pl.look)
+            if d >= near && facing < 0.3 { continue }
+            if world.canSee(eye, body) { return false }
+        }
+        return true
     }
 }

@@ -427,6 +427,8 @@ extension Game {
         if !sealShafts.isEmpty { d["sealShafts"] = sealShafts.suffix(16).map { "\($0.x),\($0.y),\($0.z)" }.joined(separator: ";") }
         if ashAlarm > 0 { d["ashAlarm"] = String(ashAlarm) }
         if ashSquadsSent > 0 { d["ashSquads"] = String(ashSquadsSent) }
+        if !ashCleared.isEmpty { d["ashCleared"] = ashCleared.sorted().joined(separator: ";") }                   // P307 (b)
+        if !ashSiteSquads.isEmpty { d["ashSiteSquads"] = ashSiteSquads.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ";") }
         saveAdvancements(&d)
         d["eaten"] = eatenFoods.sorted().joined(separator: "|")
         if let e = try? JSONEncoder().encode(enderChest.slots), let str = String(data: e, encoding: .utf8) { d["ender"] = str }
@@ -506,6 +508,13 @@ extension Game {
         ashAlarm = Float(d["ashAlarm"] ?? "") ?? 0
         ashAlarmLevel = Int(ashAlarm)
         ashSquadsSent = Int(d["ashSquads"] ?? "") ?? 0
+        ashCleared = Set((d["ashCleared"] ?? "").split(separator: ";").map(String.init))                         // P307 (b)
+        ashSiteSquads = [:]
+        for e in (d["ashSiteSquads"] ?? "").split(separator: ";") {
+            let kv = e.split(separator: "=")
+            if kv.count == 2, let n = Int(kv[1]) { ashSiteSquads[String(kv[0])] = n }
+        }
+        ashEmptyFor = [:]
         loadAdvancements(d)
         eatenFoods = Set((d["eaten"] ?? "").split(separator: "|").map(String.init))
         if let str = d["ender"], let data = str.data(using: .utf8), let slots = try? JSONDecoder().decode([ItemStack].self, from: data) {

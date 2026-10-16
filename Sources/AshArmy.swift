@@ -299,6 +299,7 @@ extension Game {
         if Int(clock) != Int(clock - Double(dt)) {
             let p = player.pos
             mobs.mobs.removeAll { $0.brain?.extra == true && simd_length_squared($0.pos - p) > 160 * 160 }
+            ashClearedTick()
         }
         // Reinforcements, patrols, the radio rooms.
         ashReinforceT -= dt
@@ -354,9 +355,57 @@ extension Game {
         ashUnseen = 0
     }
 
+}
+
+extension AshArmy {
+    // P307 (b): the sites that send squads, their key and how many squads each has in it over the whole game.
+    static let senders = ["hq", "motorpool", "staging", "town", "supply", "airfield", "fueldepot"]
+    static func siteKey(_ s: AshSite) -> String { "\(s.kind)@\(s.x),\(s.z)" }
+    static func squadBudget(_ s: AshSite) -> Int {
+        switch s.kind {
+        case "hq": return 8
+        case "supply", "fueldepot": return 3
+        default: return 4
+        }
+    }
+    static let sendReach: Float = 400           // a reinforcement comes only from a garrison this near the last contact
+    static let patrolReach: Float = 300         // a patrol walks only between two sites this near the player
+}
+
+extension Game {
+    // P307 (b) (Oct 15 12:13, "if I'm clearing a base, it should be cleared; when I kill somebody, no one else is gonna
+    // bother me"): once a second, a sending site by the player with its ground loaded and not one of its own soldiers
+    // (patrols and squads passing through don't count) left alive for 3 s is cleared for good: it sends no patrol or
+    // squad again. Its garrison came with the ground and never comes back.
+    func ashClearedTick() {
+        let p = player.pos
+        for s in AshWar.sites where AshArmy.senders.contains(s.kind) {
+            let r = Float(s.r)
+            let cx = Float(s.x) + 0.5, cz = Float(s.z) + 0.5
+            guard max(abs(p.x - cx), abs(p.z - cz)) < r + 48 else { continue }
+            let key = AshArmy.siteKey(s)
+            guard !ashCleared.contains(key) else { continue }
+            guard world.isLoaded(s.x - s.r, s.z - s.r), world.isLoaded(s.x + s.r, s.z + s.r),
+                  world.isLoaded(s.x - s.r, s.z + s.r), world.isLoaded(s.x + s.r, s.z - s.r) else { ashEmptyFor[key] = 0; continue }
+            let pad = r + 10
+            let manned = mobs.mobs.contains { m in
+                m.health > 0 && m.faction == Faction.ashguard.rawValue && m.brain?.extra != true
+                    && abs(m.pos.x - cx) < pad && abs(m.pos.z - cz) < pad
+            }
+            if manned { ashEmptyFor[key] = 0; continue }
+            let t = (ashEmptyFor[key] ?? 0) + 1
+            ashEmptyFor[key] = t
+            if t >= 3 { ashCleared.insert(key); ashEmptyFor[key] = nil }
+        }
+    }
+
     // A squad on foot (and at Total War a vehicle) sent from the garrison nearest the player's last known spot: a
-    // reinforcement runs there; a patrol walks between the two sites nearest the player. Enters the loaded ground 40-52
-    // blocks from the player on the way from its site. False when the cap or the ground stops it.
+    // reinforcement runs there; a patrol walks between the two sites nearest the player. False when the cap, the
+    // ground or the army's own losses stop it.
+    // P307 (a): it enters the loaded ground out of every player's sight (Game.spawnHidden), 40-96 blocks out on the
+    // way from its site (it used to pick a spot 28-52 blocks off with a clear line to the player: in plain view).
+    // P307 (b): only an uncleared garrison within reach with squads left in its budget sends one; out in the far vault
+    // with no garrison near, nobody comes.
     @discardableResult
     func ashSendSquad(patrol: Bool, armour: Bool) -> Bool {
         let target = patrol ? player.pos : (ashSpot ?? player.pos)
@@ -367,30 +416,38 @@ extension Game {
         }
         let size = [3, 4, 5, 6][max(0, min(3, difficulty))]
         guard near + size <= AshArmy.unitCap, extras + size <= AshArmy.extrasCap else { AshArmy.capped += 1; return false }
-        let garrisons = AshWar.sites.filter { ["hq", "motorpool", "staging", "town", "supply", "airfield", "fueldepot"].contains($0.kind) }
-        let byDist = garrisons.sorted { hypotf(Float($0.x) - target.x, Float($0.z) - target.z) < hypotf(Float($1.x) - target.x, Float($1.z) - target.z) }
-        guard let from = byDist.first else { return false }
+        func dist(_ s: AshSite) -> Float { hypotf(Float(s.x) - target.x, Float(s.z) - target.z) }
+        let reach = patrol ? AshArmy.patrolReach : AshArmy.sendReach
+        let garrisons = AshWar.sites.filter { s in
+            AshArmy.senders.contains(s.kind) && !ashCleared.contains(AshArmy.siteKey(s))
+                && (ashSiteSquads[AshArmy.siteKey(s)] ?? 0) < AshArmy.squadBudget(s) && dist(s) < reach
+        }
+        let byDist = garrisons.sorted { dist($0) < dist($1) }
+        guard let from = byDist.first, !patrol || byDist.count > 1 else { return false }
         var dir = V2(Float(from.x) - target.x, Float(from.z) - target.z)
         let len = simd_length(dir)
         dir = len > 1 ? dir / len : V2(1, 0)
-        // A spot on the floor toward that garrison, 28-52 blocks out, preferring one with a clear line to the target
-        // (a squad dropped behind a compound wall walks into it: they march straight in).
-        var spawn: V3?, blind: V3?
-        search: for r: Float in [min(52, max(20, len)), 48, 44, 40, 36, 32, 28] {
-            for side: Float in [0, 6, -6, 12, -12] {
+        // A spot on the floor toward that garrison, as far out as the site (96 at most) down to 40 (or half the way to
+        // a site nearer than that), that no player can see: they march in from out of view.
+        let far = min(96, max(20, len))
+        let nearest = min(40, far * 0.5)
+        var spawn: V3?
+        var r = far
+        search: while r >= nearest {
+            for side: Float in [0, 8, -8, 16, -16] {
                 let x = Int(floor(target.x + dir.x * r - dir.y * side)), z = Int(floor(target.z + dir.y * r + dir.x * side))
                 guard world.isLoaded(x, z) else { continue }
                 for y in stride(from: Int(target.y) + 12, through: Int(target.y) - 12, by: -1)
                     where Blocks.collide[Int(world.block(x, y - 1, z))] && world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR {
                     let p = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
-                    if world.canSee(p + V3(0, 1.6, 0), target + V3(0, 1.6, 0)) { spawn = p; break search }
-                    if blind == nil { blind = p }
+                    if spawnHidden(p, min: nearest, near: 56, clear: 128) { spawn = p; break search }
                     break
                 }
             }
+            r -= 8
         }
-        spawn = spawn ?? blind
         guard let at = spawn else { return false }
+        ashSiteSquads[AshArmy.siteKey(from), default: 0] += 1
         let ends: (V3, V3)? = patrol && byDist.count > 1
             ? (V3(Float(byDist[0].x) + 0.5, at.y, Float(byDist[0].z) + 0.5), V3(Float(byDist[1].x) + 0.5, at.y, Float(byDist[1].z) + 0.5)) : nil
         var kinds: [(MobKind, Int)] = [(.soldierOfficer, 0), (.soldierTrooper, AshArmy.mg), (.soldierRecruit, AshArmy.medic)]

@@ -2665,7 +2665,7 @@ final class MobManager {
     func trySpawnEmberdeep(_ game: Game, base: Int = YOFF, height: Int = 128) {
         let w = game.world
         let pp = game.player.pos
-        let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 24...64)
+        let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 32...80)       // P307 (a): 32-80 out (was 24-64)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
         guard w.isLoaded(x, z) else { return }
         // Magmastriders: groups on the lava sea surface.
@@ -2694,7 +2694,7 @@ final class MobManager {
                                  && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }
         if y <= base + 1 || Blocks.isLiquid(w.block(x, y, z)) || w.block(x, y - 1, z) == BEDROCK { return }
         let spawnPos = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
-        if simd_length(spawnPos - pp) < 24 { return }
+        if !game.spawnHidden(spawnPos, min: 32) { return }                      // P307 (a): never in sight
         typealias Entry = (MobKind, Int, Int, Int)      // kind, weight, min group, max group
         var list: [Entry]
         let inFortress = w.gen.structures?.structure(at: x, y, z, kind: "fortress") != nil && Blocks.key(w.block(x, y - 1, z)) == "nether_bricks"
