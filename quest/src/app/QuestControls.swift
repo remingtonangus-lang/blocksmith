@@ -90,6 +90,8 @@ final class QuestControls {
     private var sprintFx: Float = 0             // speed streaks 0...1 (eased in and out)
     private var bBlock = false                  // B went down in a menu: its release outside isn't a sneak / dismount
     private var prevGripL = false, prevGripR = false
+    // P303: grips and triggers with press / release thresholds (VRButton), per logical hand (0 move, 1 aim).
+    private var gripBtn = [VRButton(), VRButton()], trigBtn = [VRButton(), VRButton()]
     private var prevLRel: V3?                      // D10: the left hand against the head last frame (shoves)
     // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
     // few seconds after a grip steps the hotbar, or while hurt; it eases between the two.
@@ -123,7 +125,7 @@ final class QuestControls {
     // in hand leaves the trigger alone.
     private var mineLatch: IVec3?, mineLatchItem: ItemID = 0, mineTrigDown = false, mineCancelHeld = false
     private func mineToggleUpdate(_ R: XRHand, inMenu: Bool, _ p: inout PadSnapshot) {
-        let down = R.trigger > (mineTrigDown ? 0.35 : 0.6)
+        let down = trigBtn[1].down
         let pressed = down && !mineTrigDown
         mineTrigDown = down
         guard QuestSettings.mineToggle, !inMenu, game.alive, game.heldGun == nil else { mineLatch = nil; mineCancelHeld = false; return }
@@ -295,6 +297,11 @@ final class QuestControls {
         let hands = xr.hands
         let L = hands[moveHand], R = hands[aimHand]
         let inMenu = game.menu != nil || game.paused
+        // P303 (b): grip and trigger states with hysteresis. A hand that isn't tracked (or a lost controller, whose
+        // inputs HandedInput zeroes) lets go of whatever it held; a menu or the pause lets go too.
+        gripBtn[0].update(L.squeeze); gripBtn[1].update(R.squeeze)
+        trigBtn[0].update(L.trigger); trigBtn[1].update(R.trigger)
+        if inMenu || !game.alive { HandGrab.letGo(game, hand: 0); HandGrab.letGo(game, hand: 1) }
         controllerGaze(hands, dt: dt, inMenu: inMenu)                // Q2c-console-70
         hudFadeTick(dt)
         // Text boxes (command console, signs, world names) bring up the system keyboard (Android hook; nil in the sim).
@@ -390,9 +397,9 @@ final class QuestControls {
         game.knockbackScale = QuestSettings.knockback               // Q2c-console-60
         game.vrShake = QuestSettings.blastShake
         game.vrHead = rig.headWorld
-        p.rt = R.trigger
+        p.rt = trigBtn[1].padValue                         // P303 (c): the game's 0.5 cut follows the trigger's state
         mineToggleUpdate(R, inMenu: inMenu, &p)             // Q2c-console-61
-        p.lt = L.trigger                                    // use / place (hold to repeat)
+        p.lt = trigBtn[0].padValue                          // use / place (hold to repeat)
         // Only real melee weapons hit by contact; with anything else (fist, blocks, torches, food) the trigger attacks.
         if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false; bladeTrail.clear(); laserFade = min(1, laserFade + dt * 3) }
         // P300 (a): no melee tutorial toasts ("an enemy rearing back is about to strike" showed with no one near); a
@@ -422,17 +429,17 @@ final class QuestControls {
             }
         }
         // Grips step the hotbar: left = previous slot, right = next (a press; at a ship's helm the left grip descends).
-        let lGrip = L.squeeze > 0.6, rGrip = R.squeeze > 0.6
+        let lGrip = gripBtn[0].down, rGrip = gripBtn[1].down
         // P177: a grip with the hand on a small creature picks it up (let go to throw it); on a carcass, drags it
         // (HandGrab.swift). Those grips don't step the hotbar.
         var handGrab = false
         if !inMenu {
             if L.gripValid, HandGrab.tick(game, hand: 0, at: rig.toWorld(L.gripPos), grip: lGrip, gripWas: prevGripL, empty: true, dt: dt) {
                 handGrab = true
-            } else if !L.gripValid { HandGrab.held[0] = nil }
+            } else if !L.gripValid { HandGrab.letGo(game, hand: 0) }
             if R.gripValid, HandGrab.tick(game, hand: 1, at: rig.toWorld(R.gripPos), grip: rGrip, gripWas: prevGripR, empty: game.held.isEmpty, dt: dt) {
                 handGrab = true
-            } else if !R.gripValid { HandGrab.held[1] = nil }
+            } else if !R.gripValid { HandGrab.letGo(game, hand: 1) }
             if handGrab && ((lGrip && !prevGripL) || (rGrip && !prevGripR)) { app.input.haptic(lGrip && !prevGripL ? moveHand : aimHand, amplitude: 0.45, seconds: 0.05, frequency: 140) }
         }
         // Riding: a hand reaching down to the horse's flank behind the saddle and gripping opens the saddlebags
@@ -618,7 +625,7 @@ final class QuestControls {
             p.y = yPulse > 0
             if yPulse > 0 { yPulse -= 1 }
         }
-        p.lb = L.squeeze > 0.6 && game.world.ships.pilot != nil      // (the helm's descend; the hotbar no longer scrolls)
+        p.lb = gripBtn[0].down && game.world.ships.pilot != nil      // (the helm's descend; the hotbar no longer scrolls)
         p.rb = R.stickClick
         // Left stick click: sneak. Held, you sneak while it is held; a tap (under 0.3 s) latches sneaking until the next
         // tap (cleared by flying or water, where holding it descends). A click with the stick pushed out sprints.
@@ -655,16 +662,16 @@ final class QuestControls {
             // Menus: the left stick moves the pad cursor as on the Mac; the laser is the mouse.
             p.lx = L.stick.x; p.ly = L.stick.y
             p.rx = R.stick.x; p.ry = R.stick.y          // scrolling lists, flipping crafting-book pages, panning the map
-            p.lt = L.trigger; p.rt = 0
-            p.lb = L.squeeze > 0.6; p.rb = false
-            game.vrPinch = L.squeeze > 0.6 && R.squeeze > 0.6 ? simd_length(rig.toWorld(L.gripPos) - rig.toWorld(R.gripPos)) : nil
+            p.lt = trigBtn[0].padValue; p.rt = 0
+            p.lb = gripBtn[0].down; p.rb = false
+            game.vrPinch = gripBtn[0].down && gripBtn[1].down ? simd_length(rig.toWorld(L.gripPos) - rig.toWorld(R.gripPos)) : nil
             game.vrAim = (aimOrigin, aimDir)                // P309 (b): a stack thrown out of the window leaves this hand
             menuPointer(R)
             teleAiming = false; teleArc.removeAll(); teleTarget = nil
         } else {
             panelHitUV = nil
             game.vrPinch = nil
-            prevTrigger = R.trigger > 0.6; prevGrip = R.squeeze > 0.6
+            prevTrigger = trigBtn[1].down; prevGrip = gripBtn[1].down
             // Locomotion frame: the head yaw only (snap/smooth turns included). The right hand aims, the left hand
             // just holds the stick: neither controller's pointing direction steers walking or swimming.
             rig.updateMoveYaw(dt: dt)
@@ -1227,7 +1234,7 @@ final class QuestControls {
         }
         // Hostiles take a casual swing; villagers, townsfolk, golems, animals and pets only with the trigger held.
         guard let (m, point) = game.bladeContact(a0: a0, b0: b0, a1: a1, b1: b1, radius: radius, eye: rig.headWorld, except: bladeHits,
-                                                 deliberate: R.trigger > 0.5) else { return }
+                                                 deliberate: trigBtn[1].down) else { return }
         if speed >= VRMelee.minTipSpeed {
             let along = simd_normalize(b1 - b0 + V3(0, 1e-4, 0))
             // Into a mob winding up, at its arms or weapon: a parry (no damage; it staggers back).
@@ -1262,7 +1269,7 @@ final class QuestControls {
         guard R.aimValid else { bowReset(); return 0 }
         let rig = app.rig, rot = R.aimRot
         let grip = R.aimPos + rot.act(V3(0, 0.01, -0.03))
-        let trig = L.trigger > 0.5
+        let trig = trigBtn[0].down
         let hasArrow = !game.survival || game.arrowSlot() != nil
         if trig && !bowNocked && L.aimValid && hasArrow {
             if simd_length(L.aimPos - VRBow.restNock(grip: grip, handRot: rot)) < VRBow.nockRange {
@@ -1327,7 +1334,7 @@ final class QuestControls {
     // Touch-select: pointing the laser at a hotbar slot on the HUD panel and pulling the trigger picks it (the trigger
     // does not break blocks meanwhile). Returns true while the laser is over the hotbar.
     private func hotbarPointer(_ R: XRHand) -> Bool {
-        let trig = R.trigger > 0.6
+        let trig = trigBtn[1].down
         defer { prevSelTrig = trig }
         guard mode == .hud, game.menu == nil, game.world.ships.pilot == nil else { hotbarHover = nil; return false }
         let (rx, uy, n) = panelAxes()
@@ -1369,7 +1376,7 @@ final class QuestControls {
         // R4 (Oct 13, after P73/P195: "pointing at the map and pulling the trigger doesn't set a waypoint"): the analog
         // trigger hovering around one threshold read as press, release, press within a pull, and the map's tap toggles a
         // pin (the second click took the first one away again). Pressed past 0.6, let go under 0.35.
-        let trig = R.trigger > (prevTrigger ? 0.35 : 0.6), grip = R.squeeze > (prevGrip ? 0.35 : 0.6)
+        let trig = trigBtn[1].down, grip = gripBtn[1].down          // (P303: VRButton's thresholds)
         if let uv {
             let mx = uv.x * Float(QuestControls.panelW), my = uv.y * Float(QuestControls.panelH)
             // P176 (Oct 13: "I'm not able to use the left slider still"): the left stick moves the menu cursor and
