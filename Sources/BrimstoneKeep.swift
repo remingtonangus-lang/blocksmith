@@ -8,7 +8,7 @@ import simd
 // Garrison: Blight Skeletons, Boarling Brutes and Cinderwisps at Deep strength ("@deep"), and an Ashguard detachment
 // guarding the strongroom ("@ash"): the army below keeps the key to its own vault.
 enum BrimstoneKeep {
-    static let spacing = 32                        // chunks
+    static let spacing = 90                        // chunks (P310: 8x rarer by area, was 32)
     static let floorUp = 36                        // courtyard floor over the hell band's base (lava sea at +31)
     static let half = 21                           // outer wall's outer face
     static let causeway = 36                       // the built causeway (trim deck, basalt piers) out from the centre
@@ -372,7 +372,7 @@ final class DeepGuard {
 extension Bastion {
     // The Deep's hell band gets the Emberdeep's bastions too (their own grid, kept clear of fortresses and keeps).
     static func deepType(worldSeed: UInt64, guardSet: DeepGuard) -> StructureType {
-        let spacing = 30
+        let spacing = 85                  // P310: 8x rarer by area (was 30)
         return StructureType(name: "bastion", spacing: spacing, separation: 8, salt: 0xBA5_7DEE, reach: 4) { seed, cx, cz in
             let rx = floorDiv(cx, spacing), rz = floorDiv(cz, spacing)
             var rng = SRng(worldSeed ^ 0xBA57_DEE9 &+ UInt64(bitPattern: Int64(rx)) &* 0x2545_F491 &+ UInt64(bitPattern: Int64(rz)) &* 0x9E37_79B9)
