@@ -115,7 +115,7 @@ func spawn(p: Vector3, faction: int, rank: int, sq: int) -> int:
 		n += 1
 	else:
 		return -1
-	var y := G.world.ground_at(p.x, p.z) if G.world else p.y
+	var y: float = G.world.walk_height(p) if G.world else p.y
 	pos[i] = Vector3(p.x, y, p.z)
 	yaw[i] = rng.randf() * TAU
 	fac[i] = faction
@@ -292,6 +292,12 @@ func _act(i: int, delta: float, player_p: Vector3) -> void:
 			var run := dist > 18.0
 			var speed := 4.2 if run else 1.5
 			var step := d / dist * minf(speed * delta, dist)
+			if G.world.step_blocked(p, p + step):
+				# A wall or building in the way: end this bound here (the next think picks another goal).
+				goal[i] = p
+				mode_t[i] = 0.0
+				state[i] = S_AIM if has_t else S_IDLE
+				return
 			p += step
 			# Round tree trunks; a goal next to a trunk counts as reached (it may lie inside it).
 			var veg: Node = G.world.vegetation
@@ -304,7 +310,7 @@ func _act(i: int, delta: float, player_p: Vector3) -> void:
 			phase[i] += delta * (1.45 if run else 0.9)
 			state[i] = S_RUN if run else S_WALK
 			if (i + G.frame) % 3 == 0:
-				p.y = G.world.ground_at(p.x, p.z)
+				p.y = G.world.walk_height(p)
 			var oc := _cell(pos[i])
 			pos[i] = p
 			var nc := _cell(p)

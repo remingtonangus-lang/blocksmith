@@ -56,7 +56,11 @@ func _commit(k: Kit, name: String, at: Vector3) -> void:
 	var body := StaticBody3D.new()
 	body.position = at
 	var cs := CollisionShape3D.new()
-	cs.shape = mi.mesh.create_trimesh_shape()
+	var tm := mi.mesh.create_trimesh_shape()
+	# Both sides: the trimesh collided only from inside (rays and walkers passed into every pier, wall and hall
+	# from outside and were trapped inside; the walls scenario walked 7.7 m through the citadel hall's glass).
+	tm.backface_collision = true
+	cs.shape = tm
 	body.add_child(cs)
 	add_child(body)
 

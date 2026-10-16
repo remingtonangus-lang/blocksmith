@@ -241,8 +241,30 @@ func _tick_battle(_delta: float) -> void:
 			if army.state[i] != Army.S_DEAD and army.state[i] != 255:
 				if army.pos[i].y < G.world.ground_at(army.pos[i].x, army.pos[i].z) - 1.0:
 					under += 1
-		var ok: bool = k[0] > data["k0"][0] and k[1] > data["k0"][1] and under == 0
-		_done(ok, "kills Capital %d Cinder %d, alive %d / %d, under ground %d" % [k[0], k[1], army.count_alive(0), army.count_alive(1), under])
+		# Inside geometry: a static surface (base platform, wall, building) more than 0.6 m above the feet. Soldiers
+		# are kinematic and follow the analytic ground, so walls and platforms do not stop them by themselves.
+		var inside := 0
+		var where: Array = []
+		for i in army.n:
+			if army.state[i] != Army.S_DEAD and army.state[i] != 255:
+				var q: Vector3 = army.pos[i]
+				var top: float = G.world.surface_at(q.x, q.z, 60.0)
+				if top > q.y + 0.6:
+					# Overhead cover is fine (a roof, a skyway); a body overlapping solid geometry is not.
+					var sq := PhysicsShapeQueryParameters3D.new()
+					var cap := CapsuleShape3D.new()
+					cap.radius = 0.3
+					cap.height = 1.6
+					sq.shape = cap
+					sq.transform = Transform3D(Basis.IDENTITY, q + Vector3(0, 0.95, 0))
+					sq.collision_mask = 1 | 4
+					if G.world.get_world_3d().direct_space_state.intersect_shape(sq, 1).is_empty():
+						continue
+					inside += 1
+					if where.size() < 6:
+						where.append("%s %.1f m under a surface" % [q.snapped(Vector3.ONE), top - q.y])
+		var ok: bool = k[0] > data["k0"][0] and k[1] > data["k0"][1] and under == 0 and inside == 0
+		_done(ok, "kills Capital %d Cinder %d, alive %d / %d, under ground %d, inside geometry %d %s" % [k[0], k[1], army.count_alive(0), army.count_alive(1), under, inside, where])
 
 
 # ---------------------------------------------------------------------------------------------- weapons
@@ -900,3 +922,60 @@ func _vg_check() -> void:
 			var a: Vector3 = data["start"][c]
 			patrol = Vector2(c.global_position.x - a.x, c.global_position.z - a.z).length()
 	data["res"] = [bad.is_empty() and patrol > 100.0, "%d crawlers after 40 s with the player at the spawn; off the ground or tipped: %s; the patrol crawler drove %.0f m (needs > 100)" % [n, bad, patrol]]
+
+
+# ------------------------------------------------------------------------------------------------- walls
+
+## Walk into base structures from outside: the citadel hall's south pier and its glass wall between piers. The
+## player must stop at the surface. (Kit geometry's trimesh collision was one-sided, facing inward: rays and
+## walkers passed into it from outside and were trapped inside.)
+func _setup_walls() -> void:
+	_leave_vehicle()
+	G.player.invulnerable = true
+	var c: Vector3 = (G.world.bases as Bases).sites["citadel"]["pos"]
+	# [name, start (relative to the citadel), face the walker must not cross (z, relative), direction -z]
+	data["cases"] = [["hall pier", Vector3(0, 6.0, 48.5), 42.5], ["hall glass", Vector3(9.0, 6.0, 45.0), 38.8]]
+	data["c"] = c
+	data["k"] = -1
+	data["res"] = []
+	_walls_next()
+
+
+func _walls_next() -> void:
+	Input.action_release("move_forward")
+	data["k"] += 1
+	var cases: Array = data["cases"]
+	if data["k"] >= cases.size():
+		return
+	var cs: Array = cases[data["k"]]
+	var c: Vector3 = data["c"]
+	var at: Vector3 = c + (cs[1] as Vector3)
+	var p: Player = G.player
+	G.terrain.collision_now(at)
+	p.global_position = Vector3(at.x, G.world.surface_at(at.x, at.z, 30.0) + 0.05, at.z)
+	p.velocity = Vector3.ZERO
+	p.rotation.y = 0.0          # facing -z, toward the hall
+	p.pitch = 0.0
+	data["t0"] = t
+	data["minz"] = 1e9
+	Input.action_press("move_forward")
+
+
+func _tick_walls(_delta: float) -> void:
+	var cases: Array = data["cases"]
+	if data["k"] >= cases.size():
+		var res: Array = data["res"]
+		G.player.invulnerable = false
+		_done(res.all(func(r): return r[1]), "%s" % ", ".join(res.map(func(r): return r[0])))
+		return
+	var cs: Array = cases[data["k"]]
+	var c: Vector3 = data["c"]
+	var p: Player = G.player
+	data["minz"] = minf(data["minz"], p.global_position.z - c.z)
+	if t - float(data["t0"]) > 3.0:
+		var face: float = cs[2]
+		var minz: float = data["minz"]
+		# The capsule (radius 0.35) stops with its centre at least ~0.3 m in front of the face.
+		var ok := minz > face + 0.2
+		(data["res"] as Array).append(["%s: closest %.2f m from the face (%s)" % [cs[0], minz - face, "stopped" if ok else "walked in"], ok])
+		_walls_next()

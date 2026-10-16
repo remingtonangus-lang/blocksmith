@@ -156,6 +156,69 @@ func ground_at(x: float, z: float) -> float:
 	return gen.height_at(x, z)
 
 
+var _walk_q := _make_walk_q()
+
+
+static func _make_walk_q() -> PhysicsRayQueryParameters3D:
+	var q := PhysicsRayQueryParameters3D.new()
+	q.collision_mask = 1
+	return q
+
+
+## True if a walker stepping from `a` to `b` would walk into static geometry (a wall, a building) at chest
+## height, inside base sites and the city only (elsewhere nothing but terrain and trees stands in the way).
+## Soldiers walked straight through the citadel's structures and the Capital's spire.
+func step_blocked(a: Vector3, b: Vector3, radius: float = 0.35) -> bool:
+	if not _near_base(b):
+		return false
+	var d := Vector3(b.x - a.x, 0.0, b.z - a.z)
+	var l := d.length()
+	if l < 0.0001:
+		return false
+	_step_q.from = a + Vector3(0, 1.1, 0)
+	_step_q.to = b + Vector3(0, 1.1, 0) + d / l * radius
+	if terrain and terrain.body:
+		_step_q.exclude = [terrain.body.get_rid()]
+	return not get_world_3d().direct_space_state.intersect_ray(_step_q).is_empty()
+
+
+var _step_q := _make_walk_q()
+
+
+func _near_base(p: Vector3) -> bool:
+	# The Capital's buildings too (its garrison patrols walked into the central spire).
+	for c in city_list:
+		if c.in_city(p.x, p.z, -20.0):
+			return true
+	if bases == null:
+		return false
+	for k in bases.sites:
+		var s: Dictionary = bases.sites[k]
+		var c: Vector3 = s["pos"]
+		var r: float = float(s["radius"]) + 20.0
+		if absf(p.x - c.x) < r and absf(p.z - c.z) < r:
+			return true
+	return false
+
+
+## Where a walker at `p` stands: the highest static surface within `step` metres above its feet (base platforms,
+## decks, stairs), else the analytic ground. Soldiers are kinematic: following ground_at alone sank the citadel
+## guards 6 m into the citadel's platform, walking around inside it.
+func walk_height(p: Vector3, step: float = 1.5) -> float:
+	var g := ground_at(p.x, p.z)
+	# Only bases put walkable static geometry above the analytic ground (city podiums are in ground_at): outside
+	# their sites no ray is cast (hundreds of soldiers re-snap every third frame).
+	if not _near_base(p):
+		return g
+	var from := maxf(p.y, g) + step
+	_walk_q.from = Vector3(p.x, from, p.z)
+	_walk_q.to = Vector3(p.x, g - 0.5, p.z)
+	var h := get_world_3d().direct_space_state.intersect_ray(_walk_q)
+	if not h.is_empty():
+		return maxf(g, (h["position"] as Vector3).y)
+	return g
+
+
 func site(name: String) -> Vector3:
 	return gen.sites.get(name, Vector3.ZERO)
 

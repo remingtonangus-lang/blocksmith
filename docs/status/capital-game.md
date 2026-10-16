@@ -17,7 +17,7 @@ civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale deta
   - four weapons plus grenades, collapsing towers and wrecks, weather and day-night;
   - synthesized audio.
 - Checks:
-  - every push: 97 headless tests and 14 scripted scenarios (ride, drive, fly, dropship, battle, weapons, explore, vehicles_ground,
+  - every push: 97 headless tests and 15 scripted scenarios (ride, drive, fly, dropship, battle, weapons, explore, vehicles_ground, walls,
     destroy, parked, trees, forest_drive, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
   - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
     and the pad bridge build.
@@ -126,6 +126,18 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-16 02:30: base collision was inside-out. The battle oracle now also counts living soldiers whose body
+  overlaps static geometry with a surface above them: 6-8 citadel guards per run, walking around inside the
+  citadel's 6 m platform and the glass hall. Three causes: (1) every base's trimesh collision (Kit meshes,
+  create_trimesh_shape) collided only from inside: rays, bullets and walkers passed into piers, walls and halls
+  from outside and were trapped inside. New scenario `walls`: the player walked 2.7 m into the hall's south pier
+  and 7.7 m through its glass wall; with backface_collision on the base shapes it stops 0.34 m in front of both.
+  (2) Soldiers snapped to ground_at, which knows terrain and city podiums but not base platforms: the guards sank
+  6 m into the platform at spawn. World.walk_height() takes the highest static surface within 1.5 m above the
+  feet (one ray, only inside base sites and the city). (3) Soldiers walked through structures sideways:
+  World.step_blocked() casts a chest-height ray along each step there, a blocked step ends the bound. The battle
+  oracle now fails on any soldier inside geometry: 0 in five runs, including after the long explore run (the
+  city patrols had walked into the Capital's spire). 15 scenarios, all pass.
 - 2026-10-15 01:40: shot image oracles and a blind critic. Every shot now prints "shot NAME oracle: ok/FAIL ..." from
   a 160x90 copy: black frame (over 50 % near black), blown out (over 25 % clipped white), missing textures (over
   0.2 % magenta), flat frame (luminance spread under 0.02); the CI shots job fails on any FAIL. Calibrated on the 34
