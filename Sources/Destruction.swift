@@ -289,7 +289,8 @@ enum Collapse {
                 }
                 for i in 0..<n where !held[i] { failed.insert(cells[start + i]) }
                 res.falling.append(contentsOf: pieces(Array(failed)))
-                continue
+                // What stands still gets the neck test below: a blast that brings one wall down beyond reach can leave
+                // the rest leaning on half its base (skipped here, the tower scene's top stood: run of 3e1b31f).
             }
             // Necks: a layer the damage narrowed, against what stands above it (not in a structure bigger than the
             // search: what stands above the neck isn't all known). Only layers holding a hole under one of its cells.
@@ -299,7 +300,8 @@ enum Collapse {
                 if let g = table.get(h + up), compOf[Int(g)] == compId { layers.insert(h.y) }
             }
             if layers.isEmpty { continue }
-            let comp = Set(cells[start..<(start + n)])
+            var comp = Set(cells[start..<(start + n)])
+            if !failed.isEmpty { comp.subtract(failed) }
             if let t = neck(w, comp: comp, holes: holeSet, layers: layers.sorted()) { res.tip.append(t) }
         }
         return res
