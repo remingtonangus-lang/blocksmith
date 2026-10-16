@@ -8,13 +8,18 @@ import simd
 //   airship              RT forward, LT reverse, LS left/right turn, LS up/down climb
 //   aircraft             RT throttle, LT brake, LS left/right bank and turn, LS up/down pitch (pull back to climb,
 //                        Options > Controller > Flight Stick)
+//   warship              a commandeered frigate (P325): LS throttle and turn, RB / LB pitch the bow up and down (on
+//                        Quest the right stick's up/down, so the grips stay free), RT the guns
 //   any                  A climb, B leave the helm
 enum VehicleControls {
-    enum Kind { case boat, land, airship, aircraft, helicopter }
+    enum Kind { case boat, land, airship, aircraft, helicopter, warship }
+    // Quest: the right stick's up/down while at a warship's helm (QuestControls sets it each frame; nil elsewhere).
+    static var vrPitch: Float?
 
     static func kind(_ s: Ship) -> Kind {
         if !s.rotors.isEmpty { return .helicopter }
-        if s.kinematic && (s.role == "dropship" || s.isFlyingCapital) { return .airship }   // commandeered Capital fliers
+        if s.kinematic && s.role == "dropship" { return .airship }                       // a commandeered drop craft
+        if s.kinematic && s.isFlyingCapital { return .warship }                          // ...and a frigate (P325)
         if !s.wings.isEmpty && s.balloons == 0 { return .aircraft }
         if s.balloons > 0 { return .airship }
         if !s.wheels.isEmpty && s.submerged <= 0.01 { return .land }
@@ -27,6 +32,7 @@ enum VehicleControls {
         case .airship: return "Airship"
         case .aircraft: return "Aircraft"
         case .helicopter: return "Helicopter"
+        case .warship: return "Warship"
         }
     }
 
@@ -41,8 +47,12 @@ enum VehicleControls {
         if mi.jump { climb += 1 }
         if g.input.control { climb -= 1 }
         if let p = g.seatPad {
-            if p.rb { climb += 1 }                       // RB / LB climb and descend on every vehicle
-            if p.lb { climb -= 1 }
+            if kind(s) == .warship, let v = vrPitch {
+                climb += abs(v) > 0.2 ? v : 0            // Quest: the right stick pitches the bow
+            } else {
+                if p.rb { climb += 1 }                   // RB / LB climb and descend on every vehicle (pitch, a warship)
+                if p.lb { climb -= 1 }
+            }
             let ls = stick(p.lx, p.ly, dead: g.deadZone)
             let keysForward = mi.forward - ls.y          // what the keys alone asked for
             let trig = p.rt - p.lt
@@ -50,7 +60,7 @@ enum VehicleControls {
             switch kind(s) {
             case .boat, .land:
                 throttle = keysForward + trig + ls.y * 0.5
-            case .airship:
+            case .airship, .warship:
                 throttle = keysForward + trig
                 climb += ls.y
             case .aircraft:
@@ -72,17 +82,19 @@ enum VehicleControls {
                 return [Glyphs.key(n(.forward) + n(.left) + n(.back) + n(.right)) + " Cyclic", Glyphs.key(n(.jump)) + Glyphs.key("Ctrl") + " Collective",
                         "Mouse Turn", Glyphs.key("Shift") + " Leave"]
             }
+            let up = kind(s) == .warship ? " Pitch" : " Climb"
             var k = [Glyphs.key(n(.forward) + "/" + n(.back)) + " Throttle", Glyphs.key(n(.left) + "/" + n(.right)) + " Steer",
-                     Glyphs.key(n(.jump)) + Glyphs.key("Ctrl") + " Climb", Glyphs.key("Shift") + " Leave"]
+                     Glyphs.key(n(.jump)) + Glyphs.key("Ctrl") + up, Glyphs.key("Shift") + " Leave"]
             if armed(g, s) { k.insert(Glyph.mouseL.s + " Fire", at: 2) }
             return k
         }
         let rt = PadMap.glyph(.rt).s, lt = PadMap.glyph(.lt).s, ls = Glyph.ls.s, b = PadMap.glyph(.b).s
         let climb = PadMap.glyph(.rb).s + PadMap.glyph(.lb).s
-        if armed(g, s) { return [ls + " Throttle / Steer", rt + " Fire", climb + " Climb", b + " Leave"] }
+        if armed(g, s) { return [ls + " Throttle / Steer", rt + " Fire", climb + (kind(s) == .warship ? " Pitch" : " Climb"), b + " Leave"] }
         switch kind(s) {
         case .boat, .land: return [rt + " Throttle", lt + " Reverse", ls + " Steer", b + " Leave"]
         case .airship: return [rt + " Forward", ls + " Turn / Climb", lt + " Reverse", b + " Leave"]
+        case .warship: return [rt + " Forward", ls + " Turn / Pitch", lt + " Reverse", b + " Leave"]
         case .aircraft: return [rt + " Throttle", ls + " Bank / Pitch", lt + " Brake", b + " Leave"]
         case .helicopter: return [rt + lt + " Collective", ls + " Cyclic", Glyph.rs.s + " Turn", b + " Leave"]
         }

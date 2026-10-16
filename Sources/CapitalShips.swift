@@ -57,8 +57,7 @@ final class CapitalState {
     var gunSalvaged = false            // H4: the Tidebreaker's breech was taken out of this frigate
     var mainGunLength: Float = 0       // barrel length back from the muzzle along -mainGunDir (the Tidebreaker's glow)
     var gunCharge: Float = -1          // the Tidebreaker: seconds charged (>= 0 while charging; MainGun.swift)
-    var gunByPlayer = false            // the charge was started from the helm (fires along the view pitch)
-    var gunPitch: Float = 0            // the helm's view pitch, kept current while it charges
+    var gunByPlayer = false            // the charge was started from the helm (fires along the barrel, P325)
     var gunPulse: Float = 0            // seconds to the next haptic coil thump while charging
     var aimPoint: V3?                  // the helm's predicted impact (MainGun.swift mainGunAimTick), nil when off the world
     var bombardAt: V3?                 // P99: the ground the crew's charging Tidebreaker will strike near a player
@@ -104,6 +103,11 @@ final class CapitalState {
     var goal: V3?                      // a citadel's crawler patrol (CapitalBases.swift): drive here when nothing is in sight
     var troopCD: Float = 12            // seconds until the next troop drop
     var parties = 0, partyCD: Float = 8   // Meridian boarding parties down the winch line (Navy.swift)
+    var helmPitch: Float = 0           // P325 (c): a commandeered frigate's bow pitch (radians, up +) the helm holds
+    var helmBank: Float = 0            // ... its bank into the turn
+    var probes: [V3]?                  // P325 (d): the hull's outline cells (ship space) tested against the ground
+    var probeBlocks = 0                // ... the hull's block count they were taken at (blasts change the outline)
+    var bumpCD: Float = 0              // ... seconds until a knock can tear the hull again
     var partyMobs: [Mob] = []
     var troops: [Mob] = []             // soldiers it has deployed (alive ones count toward its limit)
     var ramp = V3(0, 0, 0)             // crawler: the rear ramp's foot (ship space)
@@ -742,7 +746,7 @@ extension ShipManager {
             st.crew = hb.crew
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
             st.wheels = Capital.vehicleWheels(s)
-            if !frigate {
+            do {                                                  // (frigates too: P325's drive readout)
                 let kinds = ShipParts.kinds, gr = s.grid
                 for y in 0..<gr.sy { for z in 0..<gr.sz { for x in 0..<gr.sx {
                     let b = gr.get(x, y, z)
@@ -1277,32 +1281,163 @@ extension ShipManager {
         crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: steered && drives && abs(s.steer) > 0.05 ? 0.18 : 0)
     }
 
-    // A commandeered Capital flier, flown straight from the helm's throttle, steer and climb (kinematic, as its AI
-    // flew it); with nobody at the helm it holds station. Its AI, guns and troop drops stay off for good.
+    // A commandeered Capital flier: a dropship flown straight from the helm's throttle, steer and climb (kinematic, as
+    // its AI flew it), a frigate like a ship (flyCommandeered); with nobody at the helm it holds station. Its AI, guns and
+    // troop drops stay off for good.
     private func commandeeredTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
-        let steered = pilot === s
-        let drop = s.role == "dropship"
-        let fw = s.dirToWorld(V3(0, 0, -1))
-        let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
-        let meridian = s.role == "capfrigate"
-        let speed: Float = drop ? 24 : (meridian ? 42 : 16)
-        var want = V3(fh.x, 0, fh.y) * (steered ? s.throttle * speed : 0)
-        want.y = steered ? s.climb * (drop ? 8 : (meridian ? 10 : 5)) : 0
-        if drop && steered && !dropFuel(s, st, dt, g) { want = V3(0, -2.5, 0) }       // dry tanks: it settles to the ground
-        // Never into the ground: the keel keeps 2 blocks over the top block under the hull's centre.
-        let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
-        let top = Float(world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height)
-        if s.worldMin.y < top + 3 { want.y = max(want.y, (top + 3 - s.worldMin.y) * 2) }
-        if s.worldMax.y > Float(CH - 4) { want.y = min(want.y, 0) }
-        s.vel += (want - s.vel) * min(1, dt * (meridian ? 0.8 : 1.2))
-        let yawRate: Float = steered ? -s.steer * (drop ? 0.9 : (meridian ? 0.45 : 0.3)) : 0
-        s.angVel = V3(0, s.angVel.y + (yawRate - s.angVel.y) * min(1, dt * 2), 0)
-        levelUp(s, dt)
+        if s.role == "dropship" {
+            let steered = pilot === s
+            let fw = s.dirToWorld(V3(0, 0, -1))
+            let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
+            var want = V3(fh.x, 0, fh.y) * (steered ? s.throttle * 24 : 0)
+            want.y = steered ? s.climb * 8 : 0
+            if steered && !dropFuel(s, st, dt, g) { want = V3(0, -2.5, 0) }       // dry tanks: it settles to the ground
+            // Never into the ground: the keel keeps 2 blocks over the top block under the hull's centre.
+            let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
+            let top = Float(world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height)
+            if s.worldMin.y < top + 3 { want.y = max(want.y, (top + 3 - s.worldMin.y) * 2) }
+            if s.worldMax.y > Float(CH - 4) { want.y = min(want.y, 0) }
+            s.vel += (want - s.vel) * min(1, dt * 1.2)
+            let yawRate: Float = steered ? -s.steer * 0.9 : 0
+            s.angVel = V3(0, s.angVel.y + (yawRate - s.angVel.y) * min(1, dt * 2), 0)
+            levelUp(s, dt)
+        } else {
+            flyCommandeered(s, st, dt, g)
+            hullContact(s, st, dt, g)
+            if s.wrecked { return }
+        }
         st.target = nil
         driveGlow(s, st, boundsDistance(s, g.player.pos), dt, g)
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
         if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
         for t in turrets(of: s) { t.aimAt = nil }
+    }
+
+    // P325 (c) (Oct 15 19:15, "a drivable ship where I angle it and momentum goes forward, not this up and down, left,
+    // right nonsense"): a commandeered frigate flies like a ship. The climb control pitches the bow (the hull holds the
+    // angle it is left at, up to 26 degrees either way), the steer turns it and banks it into the turn, and the drive
+    // pushes along the bow: way builds and dies away slowly, sideways drift bleeds off as the hull carves round, and
+    // nothing moves it straight up, down or sideways. The drive's strength follows the engines left (the engine room's
+    // empty sockets smoke: driveGlow). With nobody at the helm it holds its attitude and coasts to a stop.
+    private func flyCommandeered(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        let steered = pilot === s
+        let meridian = s.role == "capfrigate"
+        let pitchIn: Float = steered ? s.climb : 0, steerIn: Float = steered ? s.steer : 0
+        st.helmPitch = max(-Capital.maxPitch, min(Capital.maxPitch, st.helmPitch + pitchIn * 0.32 * dt))
+        st.helmBank += (-steerIn * Capital.maxBank - st.helmBank) * min(1, dt * 1.5)
+        let fw = s.dirToWorld(V3(0, 0, -1))
+        var way = simd_dot(s.vel, fw)
+        var drift = s.vel - fw * way
+        let want = steered ? max(-0.35, s.throttle) * Capital.helmSpeed(s, st) : 0
+        let acc: Float = (abs(want) > abs(way) && want * way >= 0 ? 4.5 : 6) * (meridian ? 1 : 1.4)
+        way += max(-acc * dt, min(acc * dt, want - way))
+        drift *= max(0, 1 - dt * 2)                         // (the hull carves round: sideways way bleeds off fast)
+        s.vel = fw * way + drift
+        if s.worldMax.y > Float(CH - 4) { s.vel.y = min(s.vel.y, 0) }        // the sky's ceiling
+        // Turning: slow with no way on, quicker under way; the pitch and bank eased toward the helm's.
+        let under = min(1, abs(way) / 12)
+        let yawRate = -steerIn * (meridian ? 0.18 + 0.24 * under : 0.1 + 0.16 * under)
+        let wantRot = Capital.attitude(yaw: s.yaw, pitch: st.helmPitch, bank: st.helmBank)
+        var e = wantRot * s.rot.inverse
+        if e.real < 0 { e = Quat(vector: -e.vector) }
+        let ang = 2 * acosf(max(-1, min(1, e.real)))
+        let axis: V3 = ang > 1e-4 ? simd_normalize(e.imag) : V3(0, 1, 0)
+        s.angVel = axis * min(0.8, ang * 3) + V3(0, yawRate, 0)
+        // (e) The engine room shows what the drive has lost: smoke rises from the empty engine sockets.
+        if !st.engineCells.isEmpty && simd_length(g.player.pos - s.pos) < 160 {
+            for _ in 0..<4 {
+                let c = st.engineCells[Int.random(in: 0..<st.engineCells.count)].0
+                if s.grid.get(c.x, c.y, c.z) == AIR && Rand.float(in: 0..<1) < dt * 30 {
+                    g.particles.smoke(at: s.toWorld(V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5)), dark: true)
+                }
+            }
+        }
+    }
+
+    // P325 (d) (Oct 15 19:15, "if I go way into the ground the way I just did, I should be dead"): a commandeered
+    // frigate is solid against the world. The hull's outline (its outermost blocks, every fourth) is tested against the
+    // ground each frame. Driving into it tears hull and ground where they meet (blasts scaled by the speed), shakes and
+    // hurts those aboard and stops the hull there; at Capital.crashSpeed or more the drive goes up and the frigate is a
+    // wreck where it lies (a pilot is thrown from the helm and, in survival, takes a blow that kills at full speed).
+    // Leaves and plants don't count; resting against the ground without moving into it does nothing.
+    private func hullContact(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        st.bumpCD -= dt
+        // Broadphase: the hull's lowest point against the highest ground under its outline.
+        var high = -Float.greatestFiniteMagnitude
+        for i in 0..<3 { for j in 0..<3 {
+            let x = Int(floor(s.worldMin.x + (s.worldMax.x - s.worldMin.x) * Float(i) * 0.5))
+            let z = Int(floor(s.worldMin.z + (s.worldMax.z - s.worldMin.z) * Float(j) * 0.5))
+            high = max(high, Float(world.isLoaded(x, z) ? world.topY(x, z) : world.gen.column(x, z).height) + 1)
+        } }
+        guard s.worldMin.y < high + 2 else { return }
+        if st.probes == nil || abs(s.blockCount - st.probeBlocks) > 150 { st.probes = Capital.hullProbes(s.grid); st.probeBlocks = s.blockCount }
+        let leaf = Mesher.leafT
+        var hits: [V3] = []
+        for l in st.probes ?? [] {
+            let p = s.toWorld(l)
+            let b = world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+            if Blocks.collide[Int(b)] && !leaf[Int(b)] { hits.append(p); if hits.count >= 12 { break } }
+        }
+        guard !hits.isEmpty else { return }
+        var c = V3(0, 0, 0)
+        for h in hits { c += h }
+        c /= Float(hits.count)
+        // How fast the touching part drives in: the hull's velocity there along the way from the hull's middle out to it.
+        let inward = simd_normalize(c - s.pos + V3(0, 1e-4, 0))
+        let impact = simd_dot(s.velocity(at: c), inward)
+        guard impact > 0.3 else { return }
+        s.vel -= inward * max(0, simd_dot(s.vel, inward))                 // no further in
+        s.angVel = V3(0, s.angVel.y * 0.3, 0)
+        let aboard = (self.aboard?.root === s || pilot === s) && g.alive
+        if impact >= Capital.crashSpeed {
+            // The crash: the drive goes up and the hull is a wreck.
+            Capital.crashes += 1
+            let k = min(1, (impact - Capital.crashSpeed) / 12)
+            for h in hits.prefix(4) { Explosion.explode(at: h, power: 3 + 3 * k, game: g, fire: true) }
+            if !st.exhausts.isEmpty {                                    // the drive goes up
+                let e = st.exhausts.reduce(V3(0, 0, 0), +) / Float(st.exhausts.count)
+                blast(at: s.toWorld(e + V3(0, 0, -8)), power: 6, game: g)
+            }
+            g.sfx(.shipCollideHard, 2, at: c)
+            if simd_length(g.player.pos - c) < 200 { g.addShake(min(1, 0.6 + 0.4 * k)) }
+            s.wrecked = true
+            st.disabledWhy = "crashed"
+            st.gunCharge = -1
+            s.vel *= 0.15
+            s.angVel = .zero
+            if pilot === s { g.leaveHelm() }
+            let hurt = Int(((impact - 8) * 3).rounded())
+            if aboard && g.survival { g.hurtPlayer(hurt, from: c, cause: "crashed", knockback: 0, type: .generic) }
+            for m in g.mobs.mobs where m.deck === s && m.health > 0 { m.health -= hurt; m.hurt = 0.3; m.crewFree = true }
+            return
+        }
+        s.vel -= inward * min(2, impact * 0.25)                          // a recoil off the ground
+        guard impact >= 4, st.bumpCD <= 0 else {
+            if Rand.float(in: 0..<1) < dt * 20 { g.particles.smoke(at: c, dark: true) }
+            return
+        }
+        // A hard knock: hull and ground torn where they met, the deck jolts.
+        st.bumpCD = 0.8
+        let k = min(1, (impact - 4) / 10)
+        for h in hits.prefix(2) { Explosion.explode(at: h, power: 1.5 + 2 * k, game: g) }
+        g.sfx(.shipCollideHard, 1 + k, at: c)
+        for _ in 0..<Int(6 + 10 * k) { g.particles.smoke(at: c + V3(Rand.float(in: -2...2), Rand.float(in: 0...2), Rand.float(in: -2...2)), dark: true) }
+        if aboard {
+            g.addShake(0.35 + 0.4 * k)
+            if g.survival { g.hurtPlayer(Int(((impact - 4) * 0.8).rounded()), from: c, cause: "crashed", knockback: 0, type: .generic) }
+        }
+    }
+
+    // P325: sets a commandeered capital flier's attitude at once (its heading kept): the bow pitched, the wings level.
+    func pointHull(_ s: Ship, pitch: Float) {
+        guard let st = capState[s.id] else { return }
+        st.helmPitch = max(-Capital.maxPitch, min(Capital.maxPitch, pitch))
+        st.helmBank = 0
+        s.rot = Capital.attitude(yaw: s.yaw, pitch: st.helmPitch, bank: 0)
+        s.prevRot = s.rot
+        s.angVel = .zero
+        s.updateBounds()
+        for t in turrets(of: s) { t.followParent(0) }
     }
 
     // P66: a commandeered drop craft burns fuel while it thrusts (four minutes on full tanks). Running dry, it takes
@@ -2112,5 +2247,57 @@ extension ShipManager {
             part.mesh.rebuildAll(part, device: world.device, queue: meshQueue)
         }
         s.mesh.rebuildAround(s, changed, device: world.device, queue: meshQueue)
+    }
+}
+
+extension Capital {
+    // P325 (c), (d): a commandeered frigate's flight and its hull against the ground.
+    static let maxPitch: Float = 0.45          // the most the helm pitches the bow, up or down (radians, ~26 degrees)
+    static let maxBank: Float = 0.3            // the bank into a full turn
+    static let crashSpeed: Float = 14          // closing speed (blocks/s) at the touching part that wrecks the hull
+    static var crashes = 0                     // (FrigateCheck)
+
+    // The hull's attitude from its heading, bow pitch (up +) and bank (right wing up +): yaw about the world's up, then
+    // pitch about the hull's beam, then bank about its keel.
+    static func attitude(yaw: Float, pitch: Float, bank: Float) -> Quat {
+        Quat(angle: yaw, axis: V3(0, 1, 0)) * Quat(angle: pitch, axis: V3(1, 0, 0)) * Quat(angle: bank, axis: V3(0, 0, 1))
+    }
+
+    // The drive's strength, 0...1: nothing with under 40 % of the engine blocks left (the line that disables a frigate
+    // under its own crew), a third at that line, full with every engine.
+    static func drive(_ s: Ship, _ st: CapitalState) -> Float {
+        guard st.engines0 > 0 else { return 1 }
+        let k = Float(s.engines) / Float(st.engines0)
+        return k < 0.4 ? 0 : min(1, 0.35 + 0.65 * (k - 0.4) / 0.6)
+    }
+
+    // Top speed along the bow at full throttle (blocks/s).
+    static func helmSpeed(_ s: Ship, _ st: CapitalState) -> Float {
+        (s.role == "capfrigate" ? 42 : 18) * drive(s, st)
+    }
+
+    // The hull's outline in ship space: the outermost solid cell of every third row each way (the keel and the top of
+    // every column, both ends of every row along the keel and across it), each moved half a block out to its face.
+    static func hullProbes(_ g: ShipGrid) -> [V3] {
+        var out: [V3] = []
+        func solid(_ x: Int, _ y: Int, _ z: Int) -> Bool { Blocks.collide[Int(g.get(x, y, z))] }
+        func add(_ x: Int, _ y: Int, _ z: Int, _ n: V3) { out.append(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5) + n * 0.45) }
+        for z in stride(from: 0, to: g.sz, by: 3) {
+            for x in stride(from: 0, to: g.sx, by: 3) {
+                if let lo = (0..<g.sy).first(where: { solid(x, $0, z) }) { add(x, lo, z, V3(0, -1, 0)) }
+                if let hi = (0..<g.sy).reversed().first(where: { solid(x, $0, z) }) { add(x, hi, z, V3(0, 1, 0)) }
+            }
+            for y in stride(from: 0, to: g.sy, by: 3) {
+                if let lo = (0..<g.sx).first(where: { solid($0, y, z) }) { add(lo, y, z, V3(-1, 0, 0)) }
+                if let hi = (0..<g.sx).reversed().first(where: { solid($0, y, z) }) { add(hi, y, z, V3(1, 0, 0)) }
+            }
+        }
+        for y in stride(from: 0, to: g.sy, by: 3) {
+            for x in stride(from: 0, to: g.sx, by: 3) {
+                if let lo = (0..<g.sz).first(where: { solid(x, y, $0) }) { add(x, y, lo, V3(0, 0, -1)) }
+                if let hi = (0..<g.sz).reversed().first(where: { solid(x, y, $0) }) { add(x, y, hi, V3(0, 0, 1)) }
+            }
+        }
+        return out
     }
 }

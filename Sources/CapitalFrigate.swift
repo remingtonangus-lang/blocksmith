@@ -15,7 +15,8 @@ extension BlockRegistry {
     // The Meridian Navy's hull palette (warship-grade plate, resistance 9) and its lit portholes and thrusters.
     func registerMeridianBlocks() {
         for (n, disp) in [("frigate_hull", "Meridian Hull Plate"), ("frigate_plate", "Meridian Armour Panel"), ("frigate_trim", "Meridian Dark Trim"),
-                          ("frigate_mark", "Meridian Hull Marking")] where !has(n) {
+                          ("frigate_mark", "Meridian Hull Marking"), ("frigate_deck", "Meridian Deck Grating"),
+                          ("frigate_wall", "Meridian Bulkhead Panel")] where !has(n) {
             var d = BlockDef(n, disp)
             d.tex = [n]
             d.hardness = 8; d.resistance = 9; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 2; d.sound = .metal
@@ -54,6 +55,19 @@ extension TextureGen {
         p["frigate_mark"] = { x, y in
             if y == 3 || y == 12 { return hex(0x2C2F33) }
             return hex(0xC4C8CC, 0.95 + 0.04 * r(x / 2, y, 2605))
+        }
+        // P325 (b): the interior. Deck grating: dark plates crossed by a lighter grid, a rivet at each crossing.
+        p["frigate_deck"] = { x, y in
+            if (x % 8 == 0) && (y % 8 == 0) { return hex(0x6A7076) }
+            if x % 4 == 0 || y % 4 == 0 { return hex(0x45494E, 0.95 + 0.05 * r(x, y, 2607)) }
+            return hex(0x2E3236, 0.92 + 0.06 * r(x / 2, y / 2, 2608))
+        }
+        // Bulkhead panel: pale grey-green with a recessed frame and a dark seam at the block edge.
+        p["frigate_wall"] = { x, y in
+            if y == 15 || x == 15 { return hex(0x6E7470) }
+            if y == 0 || x == 0 { return hex(0xC9CEC8) }
+            if (x == 2 || x == 13) && y >= 2 && y <= 13 || (y == 2 || y == 13) && x >= 2 && x <= 13 { return hex(0x8F9690) }
+            return hex(0xADB3AC, 0.96 + 0.03 * r(x / 4, y / 4, 2609) + 0.015 * r(x, y, 2610))
         }
         // Porthole: hull plate round a warm lit window with a dark frame.
         p["frigate_porthole"] = { x, y in
@@ -222,18 +236,15 @@ extension Capital {
             while mfBoom(xe + 1, y, z) { xe += 1 }
             if mfBoom(xe, y, z) { hb.set(xe, y, z, port); hb.set(-xe, y, z, port) }
         } }
-        for z in stride(from: 54, through: 118, by: 3) where !(z >= 98 && z <= 114) { for y in [16, 20] {
+        for z in stride(from: 54, through: 118, by: 3) where !(z >= 98 && z <= 114) { for y in [16, 22] {     // (the main and upper decks' eye height)
             let xe = 9
             if mfSpine(xe, y, z) { hb.set(xe, y, z, port); hb.set(-xe, y, z, port) }
         } }
-        // The Tidebreaker's breech in the spine's lower front (a dark bore in a trim ring) and its barrel running forward
-        // between the booms to the bow: a dark tube round a bore, glowing coil rings every 6 blocks touching the booms'
-        // inner faces, and a muzzle brake at z 1-3 (playtest ask: a gun you can see from the frigate's own deck).
-        for y in 6...13 { for x in -3...3 {
-            let r = max(abs(x), abs(y - 9))
-            hb.set(x, y, 64, r <= 1 ? AIR : (r <= 2 ? trim : hull))
-            if r <= 1 { for z in 65...66 { hb.set(x, y, z, AIR) }; hb.set(x, y, 67, trim) }
-        } }
+        // P325 (a) (Remington, Oct 15 19:12: "a big gun in the back... fixed, aim by turning the ship"): the Tidebreaker
+        // runs the hull's whole length. The barrel between the booms, as before: a dark tube round a bore, glowing coil
+        // rings every 6 blocks touching the booms' inner faces, a muzzle brake at z 1-3. Behind it the accelerator: a
+        // housing down the middle of the gun deck (z 64-115) banded with coils, a keel fairing under the spine with the
+        // same rings glowing below, and the breech in the stern (z 116-119) between two capacitor banks.
         for z in 1...63 { for y in 6...12 { for x in -3...3 {
             let d2 = x * x + (y - 9) * (y - 9)
             let coil = z % 6 == 3 && z > 6, brake = z <= 3
@@ -243,16 +254,152 @@ extension Capital {
         } } }
         for y in [8, 10] { for sx in [-3, 3] { hb.set(sx, y, 2, AIR) } }                        // brake ports
         hb.mainGun = (V3(Float(W) + 0.5, 9.5, 0.5), V3(0, 0, -1))
-        hb.mainGunLength = 63
-        // Decks: the hangar deck (y 8) through the spine, the bridge deck (y 24) under the bridge.
-        for z in 65..<128 { for x in -8...8 where mfSpine(x, 8, z) && mfSpine(x + 1, 8, z) && mfSpine(x - 1, 8, z) { hb.set(x, 8, z, trim) } }
+        hb.mainGunLength = 115
+        // The interior: every cell inside the skin as the skin pass left it (air), before anything is built in.
+        let skin = hb.blocks
+        func inner(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            let gx = x + W
+            guard gx >= 0 && gx <= 2 * W && y >= 0 && y < 40 && z >= 0 && z < L else { return false }
+            return skin[gx + z * hb.sx + y * hb.sx * hb.sz] == AIR && solid(x, y, z)
+        }
+        func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) { if inner(x, y, z) { hb.set(x, y, z, b) } }
+        let deck = id("frigate_deck", trim), wall = id("frigate_wall", plate), door = id("bulkhead_door", id("iron_door"))
+        let wool = id("white_wool"), barrel = id("barrel"), slab = id("smooth_stone_slab", trim), bars = id("iron_bars")
+        let cabinet = id("data_cabinet", console)
+        // A two-high bulkhead door, closed, in a wall across x (the panel on side `f`: 0 -z, 1 +z) or along z (2 -x, 3 +x).
+        func doorway(_ x: Int, _ y: Int, _ z: Int, _ f: Int) {
+            hb.set(x, y, z, door + BlockID(f)); hb.set(x, y + 1, z, door + BlockID(f | 8))
+        }
+        // A ladder from y0 up to y1 (the decks it crosses opened round it) on the face of the block at side `f`.
+        func ladderUp(_ x: Int, _ y0: Int, _ y1: Int, _ z: Int, _ f: Int, backing: BlockID? = nil) {
+            let back = [IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(1, 0, 0), IVec3(-1, 0, 0)][f]
+            for y in y0...y1 {
+                hb.set(x, y, z, ladder + BlockID(f))
+                if let b = backing, inner(x + back.x, y, z + back.z) { hb.set(x + back.x, y, z + back.z, b) }
+            }
+        }
+
+        // Decks: floors at y 8 (the gun deck, and the booms' upper level; their lower level stands on the keel skin), 14
+        // (the main deck) and 20 (the upper deck) through the booms and the spine; the bridge deck at 24.
+        for z in 2...119 { for y in [8, 14, 20] { for x in -W...W { put(x, y, z, deck) } } }
         for z in 71...91 { for x in -6...6 where mfBridge(x, 25, z) { hb.set(x, 24, z, plate) } }
-        for z in stride(from: 68, through: 124, by: 6) { for x in [-4, 4] { hb.set(x, 23, z, light) } }
-        // Flank hangar doors (open), with a lit frame: the way aboard.
-        for sx in [-1, 1] { for z in 100...112 { for y in 9...13 { hb.set(sx * 9, y, z, AIR); hb.set(sx * 8, y, z, AIR) } }
-            for z in 99...113 { hb.set(sx * 9, 14, z, light); hb.set(sx * 9, 8, z, trim) } }
-        // Ladder from the hangar deck up to the bridge (a hole in the bridge deck).
+
+        // The accelerator: a housing |x| <= 2 from the gun deck's floor to its ceiling, a glowing coil band every 6 blocks.
+        for z in 64...115 { for y in 7...13 { for x in -2...2 {
+            let face = abs(x) == 2 || y == 13
+            hb.set(x, y, z, face && z % 6 == 3 ? thr : (face ? trim : hull))
+        } } }
+        // The keel fairing under it (y 2-5, |x| <= 3): between the booms from z 64, under the spine to z 118.
+        for z in 64...118 { for y in 2...5 { for x in -3...3 where !solid(x, y, z) {
+            if y == 2 && (abs(x) == 3 || z >= 116) { continue }                      // (chamfered below and at its tail)
+            let face = abs(x) == 3 || y == 2 || (y == 3 && abs(x) == 2 && z >= 116)
+            hb.set(x, y, z, face && z % 6 == 3 ? thr : (face ? trim : hull))
+        } } }
+        // The breech (z 116-119): a block of trim round a glowing core, capacitor banks along both walls.
+        for z in 116...119 { for y in 7...13 { for x in -3...3 {
+            let core = abs(x) <= 1 && abs(y - 10) <= 1
+            hb.set(x, y, z, core || (z == 117 && (abs(x) == 3 || y == 13)) ? thr : trim)
+        } } }
+        for sg in [-1, 1] { for z in 116...119 { for y in 9...12 { for ax in 7...8 { put(sg * ax, y, z, (y + z) % 2 == 0 ? thr : trim) } } } }
+
+        // The booms (z 12-63): on each level a corridor along the inner side (|x| 5-6), a wall at |x| 7 and cabins
+        // (|x| 8-10) between walls every 8 blocks, a door into each; bunks along the porthole side, a chest and lamps.
+        for sg in [-1, 1] {
+            for z in 12...63 { for y in [3, 4, 5, 6, 7, 9, 10, 11, 12, 13] { put(sg * 7, y, z, wall) } }
+            for z in stride(from: 16, through: 56, by: 8) { for y in [3, 4, 5, 6, 7, 9, 10, 11, 12, 13] { for ax in 8...10 { put(sg * ax, y, z, wall) } } }
+            for z0 in stride(from: 16, through: 56, by: 8) {
+                for yl in [3, 9] {
+                    doorway(sg * 7, yl, z0 + 4, sg > 0 ? 2 : 3)
+                    put(sg * 10, yl, z0 + 1, wool); put(sg * 10, yl, z0 + 2, wool)              // a bunk under the portholes
+                    put(sg * 10, yl, z0 + 6, barrel)
+                    hb.set(sg * 7, yl + 3, z0 + 2, light)                                         // a lamp lighting cabin and corridor
+                }
+            }
+            // The forward store (z 12-15) and the lamps along the lower corridor (in the upper level's floor).
+            for z in stride(from: 12, through: 60, by: 8) { put(sg * 5, 8, z, light) }
+            // Ladders between the levels at both ends of the corridor, on the boom's inner skin.
+            for z in [13, 62] { ladderUp(sg * 5, 3, 8, z, sg > 0 ? 3 : 2) }
+        }
+
+        // The gun deck (y 9-13, z 64-119) either side of the accelerator: gun crew consoles along the hull, the port
+        // hangar (z 97-115, its flank door open to the winch) and the starboard hold, then the breech room.
+        for sg in [-1, 1] {
+            for z in stride(from: 70, through: 94, by: 8) {
+                var ax = 10
+                while ax > 3 && !inner(sg * ax, 9, z) { ax -= 1 }
+                if ax > 3 { hb.set(sg * ax, 9, z, console); hb.set(sg * ax, 10, z, cabinet) }
+            }
+            for z in stride(from: 68, through: 116, by: 8) { put(sg * 5, 14, z, light) }
+            for x in 3...8 { for y in 9...13 { put(sg * x, y, 115, wall) } }               // the breech room's wall
+            doorway(sg * 6, 9, 115, 1)
+        }
+        for x in 3...8 { for y in 9...13 { put(x, y, 97, wall) } }                         // the hold's wall
+        doorway(6, 9, 97, 0)
+        for z in 100...106 { for y in 9...10 { put(8, y, z, barrel) } }
+        // The port hangar door (open) with a lit frame: the way aboard (the winch, FrigateBoarding).
+        for z in 100...112 { for y in 9...13 { hb.set(-9, y, z, AIR); hb.set(-8, y, z, AIR) } }
+        for z in 99...113 { hb.set(-9, 14, z, light); hb.set(-9, 8, z, trim) }
+
+        // The main deck (y 15-19): a corridor |x| <= 2 from the fire control room forward (z <= 59) to the engine
+        // room's bulkhead (z 120), rooms either side behind walls at |x| 3 with a door each.
+        for z in 60...119 { for y in 15...19 { put(-3, y, z, wall); put(3, y, z, wall) } }
+        for z in stride(from: 60, through: 108, by: 12) { for y in 15...19 { for ax in 4...8 { put(ax, y, z, wall); put(-ax, y, z, wall) } } }
+        for z in stride(from: 66, through: 114, by: 12) { doorway(-3, 15, z, 3); doorway(3, 15, z, 2) }
+        for z in stride(from: 62, through: 118, by: 6) { put(0, 20, z, light) }
+        for z in stride(from: 66, through: 114, by: 12) { put(-6, 20, z, light); put(6, 20, z, light) }
+        // Fire control, forward: consoles facing the bow and the plot between them.
+        for x in -4...4 where x != 0 { put(x, 15, 51, console) }
+        put(0, 15, 54, cabinet)
+        put(-5, 20, 54, light); put(5, 20, 54, light)
+        // Port: mess (tables down the middle), bunks, infirmary, chart room, stores. Starboard: galley, bunks, armoury,
+        // signals, workshop.
+        for z in [63, 64, 68, 69] { put(-6, 15, z, slab) }
+        for z in [62, 70] { put(4, 15, z, id("furnace")); put(5, 15, z, id("smoker", id("furnace"))) }
+        put(8, 15, 62, barrel); put(8, 15, 63, barrel); put(8, 15, 70, barrel)
+        for sg in [-1, 1] { for z in stride(from: 74, through: 82, by: 2) { put(sg * 8, 15, z, wool); put(sg * 8, 17, z, wool); put(sg * 8, 16, z, slab) } }
+        for z in [86, 88, 92] { put(-8, 15, z, wool) }
+        put(-6, 15, 94, id("brewing_stand"))
+        for z in 86...94 where z % 2 == 0 { put(8, 15, z, bars); put(8, 16, z, bars) }
+        put(6, 15, 94, Blocks.id("chest"))
+        hb.chests.append((hb.grid(6, 15, 94), "meridian_hold"))
+        put(-6, 15, 101, id("cartography_table")); put(-6, 15, 103, id("lectern"))
+        for z in 98...106 where z % 2 == 0 { put(8, 15, z, cabinet); put(8, 16, z, console) }
+        for z in 110...118 { put(-8, 15, z, barrel); if z % 2 == 0 { put(-8, 16, z, barrel) } }
+        put(8, 15, 110, id("crafting_table")); put(8, 15, 112, id("anvil")); put(8, 15, 114, id("smithing_table"))
+        put(6, 15, 118, Blocks.id("chest"))
+        hb.chests.append((hb.grid(6, 15, 118), "meridian_hold"))
+
+        // The upper deck (y 21-23): officers' cabins either side of its corridor.
+        for z in 56...119 { for y in 21...23 { put(-3, y, z, wall); put(3, y, z, wall) } }
+        for z in stride(from: 64, through: 114, by: 10) { for y in 21...23 { for ax in 4...8 { put(ax, y, z, wall); put(-ax, y, z, wall) } } }
+        for z in Array(stride(from: 60, through: 110, by: 10)) + [117] { doorway(-3, 21, z, 3); doorway(3, 21, z, 2) }
+        for z in stride(from: 62, through: 118, by: 8) { put(-3, 23, z, light); put(3, 23, z, light) }
+        for z in stride(from: 61, through: 111, by: 10) { put(-7, 21, z, wool); put(-7, 21, z + 1, wool); put(7, 21, z, wool); put(7, 21, z + 1, wool) }
+
+        // The ladder trunk (x -3, z 89): gun deck, main deck, upper deck and the bridge, one shaft; and the main deck's
+        // second ladder up to the upper deck (x 2, z 64).
         for y in 9...24 { hb.set(-3, y, 89, ladder + 3); hb.set(-4, y, 89, trim) }
+        ladderUp(2, 15, 20, 64, 2)
+
+        // The engine room (z 121-154): bulkheads fore and aft, the lower level beside the lower engines (floor y 8), a catwalk
+        // deck at y 14 (the main deck's level) down the middle, along both flanks and across at both ends and the middle,
+        // open over the engines; ladders between the levels at both ends.
+        for y in 7...27 { for x in -W...W { put(x, y, 120, wall); put(x, y, 155, wall) } }
+        doorway(0, 15, 120, 1)
+        doorway(-5, 9, 120, 1); doorway(5, 9, 120, 1)
+        hb.set(-5, 8, 120, deck); hb.set(5, 8, 120, deck); hb.set(0, 14, 120, deck)
+        for z in 121...154 { for x in -W...W {
+            put(x, 8, z, deck)
+            if abs(x) <= 2 || abs(x) >= 9 || z <= 123 || z >= 153 || (z >= 140 && z <= 141) { put(x, 14, z, deck) }
+        } }
+        ladderUp(0, 9, 14, 121, 1); ladderUp(0, 9, 14, 154, 0)
+        for z in stride(from: 126, through: 150, by: 8) { for sg in [-1, 1] {
+            var ax = W
+            while ax > 9 && !inner(sg * ax, 19, z) { ax -= 1 }
+            put(sg * ax, 19, z, light); put(sg * ax, 10, z, light)
+        } }
+        for x in [-10, 10] { put(x, 15, 140, console) }
+        put(0, 20, 155, light); put(-6, 24, 155, light); put(6, 24, 155, light)
         // Bridge: a glass band across the raked front and down the sides, the helm and consoles.
         for y in 26...28 { for x in -6...6 {
             let z = Int(ceilf(70 + Float(y - 25) * 0.8))
@@ -261,6 +408,8 @@ extension Capital {
         for z in 74...84 { for y in 26...27 { let h = 6 - (y - 25) / 2; hb.set(h, y, z, glass); hb.set(-h, y, z, glass) } }
         hb.set(0, 25, 74, Blocks.id("ship_helm[south]"))
         for x in [-3, -2, 2, 3] { hb.set(x, 25, 73, console) }
+        for z in [78, 81, 84] { hb.set(-5, 25, z, console); hb.set(5, 25, z, console) }        // P325 (b): stations under the side windows
+        hb.set(2, 25, 86, id("data_cabinet", console))                                          // ... and the plot table
         hb.set(0, 31, 80, light); hb.set(0, 31, 86, light)
         // Sensor dome and an antenna mast with a beacon.
         for y in 36...37 { hb.set(0, y, 85, trim) }
@@ -274,7 +423,7 @@ extension Capital {
             hb.set(x, y, z, Blocks.id("ship_turret_ring"))
             hb.turrets.append((hb.grid(x, y, z), meridianPD(), auto))
         }
-        // Engines (critical systems) inside the block, four great thrusters and two small ones in the stern.
+        // Engines (critical systems) in the engine room, four great thrusters and two small ones in the stern.
         for sx in [-1, 1] { hb.fill(sx * 6 - 2, sx * 6 + 2, 8, 12, 132, 150, engine); hb.fill(sx * 6 - 2, sx * 6 + 2, 18, 22, 132, 150, engine) }
         for (nx, ny, rr) in [(-7, 9, 4), (7, 9, 4), (-7, 21, 4), (7, 21, 4), (0, 15, 2)] {
             hb.exhausts.append(V3(Float(nx + W) + 0.5, Float(ny) + 0.5, Float(L) - 0.5))
@@ -288,14 +437,14 @@ extension Capital {
         // Navigation lights at the boom tips and the engine block's corners.
         for sx in [-1, 1] { hb.set(sx * 5, 7, 1, light); hb.set(sx * 13, 15, 157, light) }
         // Stores: the hangar's hold and the bridge locker.
-        hb.chests.append((hb.grid(5, 9, 118), "meridian_hold"))
-        hb.set(5, 9, 118, Blocks.id("chest"))
+        hb.chests.append((hb.grid(7, 9, 110), "meridian_hold"))
+        hb.set(7, 9, 110, Blocks.id("chest"))
         hb.chests.append((hb.grid(4, 25, 86), "meridian_hold"))
         hb.set(4, 25, 86, Blocks.id("chest"))
         // Crew: the helmsman, a gunner per mount, marines in the hangar.
         hb.post(0, 25, 75, .driver)
         for (x, y, z) in [(2, 25, 96), (2, 29, 126), (-7, 14, 33), (7, 14, 33)] { hb.post(x, y, z, .gunner) }
-        for (x, y, z) in [(-4, 9, 104), (4, 9, 108), (-2, 9, 116), (3, 9, 92), (-5, 9, 76), (0, 25, 82)] { hb.post(x, y, z, .troop) }
+        for (x, y, z) in [(-5, 9, 104), (5, 9, 106), (-6, 9, 80), (6, 9, 90), (0, 15, 100), (0, 25, 82)] { hb.post(x, y, z, .troop) }
         return hb
     }
 }

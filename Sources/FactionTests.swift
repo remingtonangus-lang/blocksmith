@@ -94,12 +94,22 @@ enum FactionTests {
         } }
         let top = tops.sorted()[tops.count / 2]
         let aim = V3(Float(cx) + 0.5, Float(top) + 0.5, Float(cz) + 0.5)
-        let mw = s.toWorld(st.mainGunMuzzle)
-        let pitch = atan2f(aim.y - mw.y, simd_length(V2(aim.x - mw.x, aim.z - mw.z)))
+        // P325: the gun is fixed along the keel, so the hull is pitched to lay it on the citadel (a few rounds: the
+        // muzzle moves with the bow), backed off south when the citadel lies steeper below than the helm pitches.
+        var pitch: Float = 0
+        for _ in 0..<5 {
+            w.ships.pointHull(s, pitch: pitch)
+            let mw = s.toWorld(st.mainGunMuzzle)
+            let run = simd_length(V2(aim.x - mw.x, aim.z - mw.z))
+            let want = atan2f(aim.y - mw.y, run)
+            if want < -0.4 { s.pos.z += (mw.y - aim.y) / tanf(0.35) - run; s.prevPos = s.pos }
+            pitch = max(-Capital.maxPitch, want)
+        }
+        w.ships.pointHull(s, pitch: pitch)
         let shells0 = w.ships.shells.filter { $0.kind == 3 }.count
         let blasts0 = MainGun.impacts
-        let fired = w.ships.playerMainGun(s, pitch: pitch, game: g)
-        let again = w.ships.playerMainGun(s, pitch: pitch, game: g)
+        let fired = w.ships.playerMainGun(s, game: g)
+        let again = w.ships.playerMainGun(s, game: g)
         var frames = 0, slugs = 0
         while st.gunCharge >= 0 && frames < 400 { g.tick(1.0 / 72); frames += 1 }
         slugs = w.ships.shells.filter { $0.kind == 3 }.count - shells0

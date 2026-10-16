@@ -332,7 +332,11 @@ final class QuestControls {
         }
         // Right stick up/down: only in Reclined Mode, where it looks up/down in snapped steps (like snap turn).
         let ty = R.stick.y
+        // P325: at a warship's helm it pitches the bow instead (VehicleControls.read).
+        let warHelm = game.world.ships.pilot.map { VehicleControls.kind($0) == .warship } ?? false
+        VehicleControls.vrPitch = warHelm && !inMenu ? ty : nil
         if wheel || inMenu { flickArmed = false; snapArmed = false }
+        else if warHelm { flickArmed = false }
         else if flickArmed && abs(ty) > 0.75 && abs(R.stick.x) < 0.5 {
             flickArmed = false
             if QuestSettings.reclined {

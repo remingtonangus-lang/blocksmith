@@ -71,8 +71,9 @@ enum RideCheck {
                           lap: [V3(12.5, 22, 32.5), V3(22.5, 22, 32.5), V3(22.5, 22, 60.5), V3(12.5, 22, 60.5)], seconds: secs(240), turnEvery: 20)
             case "frigate":
                 guard let sc = makeScene(device, seed: seed, kind: "capfrigate") else { r.check(false, "the frigate spawned"); continue }
-                deckScene(r, sc, deckY: 9, start: V3(13.5, 9.02, 110.5),                  // the Meridian frigate's hangar deck
-                          lap: [V3(8.5, 9, 116.5), V3(8.5, 9, 72.5), V3(18.5, 9, 72.5), V3(18.5, 9, 116.5)], seconds: secs(240), turnEvery: 30)
+                // The Meridian frigate's gun deck, port side (P325: the gun's accelerator runs down the middle).
+                deckScene(r, sc, deckY: 9, start: V3(7.5, 9.02, 110.5),
+                          lap: [V3(6.5, 9, 112.5), V3(6.5, 9, 72.5), V3(8.5, 9, 72.5), V3(8.5, 9, 112.5)], seconds: secs(240), turnEvery: 30)
             case "warfrigate":
                 guard let sc = makeScene(device, seed: seed, kind: "warfrigate") else { r.check(false, "the frigate spawned"); continue }
                 deckScene(r, sc, deckY: 27, start: V3(56.5, 27.02, 190.5),
@@ -650,7 +651,7 @@ enum RideCheck {
     // Crew: soldiers ride at their posts while the vehicle drives and turns; then it is disabled and they stay aboard.
     static func crewScene(_ r: Report, _ sc: Scene, seconds: Int, frigate: Bool) {
         let s = sc.ship, st = sc.st, g = sc.game, w = sc.world
-        place(sc, local: frigate ? V3(13.5, 9.02, 110.5) : V3(23.5, 22.02, 44.5))
+        place(sc, local: frigate ? V3(7.5, 9.02, 110.5) : V3(23.5, 22.02, 44.5))
         st.testTurn = 1
         let idle = Bot()
         let floorY: Float = frigate ? 8.5 : 9.5          // no crew member ever below the lowest deck
@@ -770,7 +771,7 @@ enum RideCheck {
     // A survival bot on the flight deck when the frigate's engines die: carried down, survives the touchdown.
     static func crashScene(_ r: Report, _ sc: Scene) {
         let s = sc.ship, st = sc.st, g = sc.game, w = sc.world
-        place(sc, local: V3(13.5, 9.02, 110.5))
+        place(sc, local: V3(7.5, 9.02, 110.5))
         st.testTurn = 0
         let mon = Monitor(sc, deckY: 9)
         let idle = Bot()

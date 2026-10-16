@@ -247,6 +247,9 @@ extension Wrecks {
     // lift rule the physics uses (ShipTuning.liftPerBalloon), and the rotor is offered as the other way to fly.
     struct Guide { let pages: [String]; let canMove: Bool }
     static func guide(_ s: Ship) -> Guide? {
+        // P325 (e): a commandeered Capital vessel (a kinematic hull) isn't a built ship: no propellers, balloons or engine
+        // count to make up (its drive shows on the vehicle panel), so no repairs book at its helm.
+        if s.kinematic { return nil }
         let flier = s.name.contains("Dropship") || s.name.contains("Launch") || s.name.contains("Skiff") || s.balloons > 0 || !s.rotors.isEmpty || !s.wings.isEmpty
         let tonnes = s.mass                                       // (ship mass is in tonnes, ShipPhysics)
         let per = ShipTuning.liftPerBalloon(tonnes)
