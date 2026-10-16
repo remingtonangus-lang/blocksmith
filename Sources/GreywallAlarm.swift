@@ -208,12 +208,18 @@ extension Game {
                 }
             }
             if site.on {
-                for m in mobs.mobs where mine(m) && m.kind != .deckGun {
+                // P287: the garrison answers in waves, the keep and the towers last; marksmen, officers and a share of
+                // the rest hold their posts (AlarmWaves). Truck squads that come later go at once.
+                let gar = mobs.mobs.filter { mine($0) && $0.kind != .deckGun }
+                let plan = AlarmWaves.plan(key, gar, src: site.src, now: clock)
+                for m in gar {
                     let br = m.soldierBrain
                     br.ready = true
+                    let (o, first) = AlarmWaves.send(m, plan, now: clock)
+                    guard o == .go else { continue }
                     if !m.aggro { m.aggro = true; br.react = max(br.react, 0.5) }
                     // P197: spread round the alarm's source (each soldier its own spot), not all on the one point.
-                    if fresh && !br.sees {
+                    if (fresh || first) && !br.sees {
                         let h = ObjectIdentifier(m).hashValue
                         let a = Float(h & 1023) / 1023 * 2 * .pi, rr: Float = 2 + Float((h >> 10) & 7)
                         br.lastSeen = site.src + V3(cosf(a) * rr, 0, sinf(a) * rr); br.seenAgo = min(br.seenAgo, 2)

@@ -397,16 +397,19 @@ extension Game {
     private func baseLockdown(_ r: inout BaseRecord, _ b: BaseWatch, _ dt: Float) {
         let src = r.lastNoise.map { V3($0[0], $0[1], $0[2]) } ?? r.centre
         let gar = garrison(r, b)
-        // Everyone turns on the source.
+        // P287: the garrison answers in waves; marksmen, officers and a share of the rest hold their posts (AlarmWaves).
+        let plan = AlarmWaves.plan("capital:" + r.key, gar, src: src, now: clock)
         for m in gar {
             let br = m.soldierBrain
             br.ready = true
+            let (o, first) = AlarmWaves.send(m, plan, now: clock)
+            guard o == .go else { continue }
             if !m.aggro { m.aggro = true; br.react = max(br.react, 0.5) }
             // R23 (Oct 13 evening, "spinning in place instead of hunting him"): sent to a noise once, when it is new to
             // this soldier, at its own spot round it. Every second this pointed the whole garrison back at the one
             // noise cell, undoing the hunt each soldier had moved on to (Soldiers.swift): they turned between the two
             // goals and bunched on the cell.
-            let fresh = br.alarmSrc.map { simd_length($0 - src) > 4 } ?? true
+            let fresh = first || (br.alarmSrc.map { simd_length($0 - src) > 4 } ?? true)
             if fresh && !br.sees {
                 br.alarmSrc = src
                 let h = ObjectIdentifier(m).hashValue
