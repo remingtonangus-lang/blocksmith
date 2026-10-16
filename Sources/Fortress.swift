@@ -18,7 +18,7 @@ enum Fortress {
         return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, foundry: !G20Guard.legacy(G20Guard.nether, cx, cz, reach: 6))
     }
     // The Deep's hell band (DeepGen): a fortress in every slot, its floor at internal y DeepGen.hellBase.
-    static let deepType = StructureType(name: "fortress", spacing: 22, separation: 5, salt: 30084291, reach: 6) { seed, cx, cz in
+    static let deepType = StructureType(name: "fortress", spacing: 62, separation: 5, salt: 30084291, reach: 6) { seed, cx, cz in
         var rng = SRng(seed)
         return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, base: DeepGen.hellBase, foundry: !G20Guard.legacy(G20Guard.deep, cx, cz, reach: 6))
     }
