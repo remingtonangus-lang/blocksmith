@@ -70,6 +70,19 @@ extension ShipManager {
             r.falling = kept
             r.tip = []
         }
+        if !r.falling.isEmpty || !r.tip.isEmpty {
+            // What the first collapses decided (harness: collapsecheck prints them).
+            func span(_ cells: [IVec3]) -> String {
+                let ys = cells.map { $0.y }
+                return "\(cells.count) (y \((ys.min() ?? 0))-\((ys.max() ?? 0)))"
+            }
+            if collapseLog.count < 6 {
+                let kind: String = only != nil ? "settle: " : ""
+                let falls: String = r.falling.isEmpty ? "none" : r.falling.prefix(4).map(span).joined(separator: ", ")
+                let tips: String = r.tip.isEmpty ? "none" : r.tip.prefix(4).map { span($0.cells) }.joined(separator: ", ")
+                collapseLog.append(kind + "falling " + falls + "; tipping " + tips)
+            }
+        }
         var made = 0
         for p in r.falling {
             // A piece knocked loose by a blast gets a shove away from it.

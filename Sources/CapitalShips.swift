@@ -364,7 +364,12 @@ enum Capital {
             hb.fill(x - 1, x + 1, 21, 27, 441, 443, hull)
             hb.fill(x - 1, x + 1, 33, 51, 441, 443, hull)
         }
-        for x in stride(from: -30, through: 30, by: 15) { hb.set(x, 70, 410, light); hb.set(x, 70, 450, light) }
+        // Ceiling lights against the engine room's roof (at 70 they hung in the air: interiorcheck "one piece").
+        for x in stride(from: -30, through: 30, by: 15) { for z in [410, 450] {
+            var y = 70
+            while y < 100 && hb.get(x, y + 1, z) == AIR { y += 1 }
+            if hb.get(x, y + 1, z) != AIR { hb.set(x, y, z, light) }
+        } }
         hb.set(0, 21, 460, Blocks.id("chest"))
         hb.chests.append((hb.grid(0, 21, 460), "steelhold_supply"))
         for nx in [-20, 20] { for ny in [30, 60] {

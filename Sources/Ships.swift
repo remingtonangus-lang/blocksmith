@@ -625,6 +625,7 @@ final class ShipManager {
     // Destruction (Destruction.swift, Debris.swift, Wrecks.swift).
     var smashed: [IVec3] = []        // world blocks debris broke this frame (ShipPhysics.step)
     var collapseQueue: [([IVec3], V3?, Bool)] = []   // blast holes waiting for their support check (one a frame), as-built rule
+    var collapseLog: [String] = []    // what the first few collapses brought down (harness)
     var asBuiltKept = 0              // blocks left standing because they stood unsupported before the damage (harness)
     var asBuiltCells = Collapse.CellTable(capacity: 4096)   // cells found standing unsupported as built (Debris.swift)
     var collapseMs: Double = 0       // the last support analysis (harness)
