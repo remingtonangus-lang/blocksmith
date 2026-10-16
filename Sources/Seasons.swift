@@ -74,6 +74,7 @@ enum Seasons {
 
     static var lastAnnounced = -1
     static var migrated = 0, shows = 0, outOfSeason = 0                   // (tests)
+    static var sweepTick = 0, sweepIndex = 0, swept = 0                   // P277: the melt sweep (Game.seasonalMeltSweep)
     static var nextShow: Double = 0
 
     static func tick(_ g: Game) {
@@ -151,5 +152,38 @@ extension Game {
     }
     private func isShallowIce(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { world.block(x + $0.0, y, z + $0.1) == WATER }
+    }
+
+    // P277 (Oct 14 19:33, out at sea in the first days of spring: "a ground somehow floating on the water"): winter's
+    // ice was left lying on the sea as floes. The melt above samples one column of a chunk now and then, so a frozen
+    // stretch took game-hours to go and chunks out of reach all spring kept their ice. Now a sweep walks every chunk
+    // round the player (one each half second) and melts its seasonal snow and ice: some of it on the first day of
+    // spring, the rest by the third, all of it at once in summer and autumn. (Oceans no longer freeze in winter
+    // either: Weather.precipitationTicks.)
+    func seasonalMeltSweep() {
+        Seasons.sweepTick += 1
+        guard wetWorld, Seasons.sweepTick % 10 == 0, Blocks.has("ice") else { return }
+        let s = Seasons.season
+        guard s != .winter else { return }
+        let p: Float = s == .spring ? min(1, Float(Seasons.dayInSeason + 1) / 3) : 1
+        let r = min(8, world.renderDistance), side = 2 * r + 1
+        let k = Seasons.sweepIndex % (side * side)
+        Seasons.sweepIndex += 1
+        let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
+        guard let c = world.chunks[ChunkKey(x: pcx + k % side - r, z: pcz + k / side - r)] else { return }
+        let ice = Blocks.id("ice"), snow: BlockID = Blocks.has("snow") ? Blocks.id("snow") : ice
+        for lz in 0..<CS { for lx in 0..<CS {
+            let x = c.cx * CS + lx, z = c.cz * CS + lz
+            let y = Int(c.height[lx + lz * CS])
+            guard y > 0 && y < CH - 1 else { continue }
+            let top = world.block(x, y, z)
+            let capped = top != ice && world.block(x, y + 1, z) == snow
+            guard top == ice || top == snow || capped else { continue }
+            let biome = world.gen.column(x, z).biome
+            guard Seasons.seasonal(biome, at: y), !Seasons.snows(biome, at: y), Rand.float(in: 0..<1) < p else { continue }
+            if capped { world.setBlockAsync(x, y + 1, z, AIR) }
+            else if top == snow { world.setBlockAsync(x, y, z, AIR) }
+            else if world.block(x, y - 1, z) == WATER || isShallowIce(x, y, z) { world.setBlockAsync(x, y, z, WATER); Seasons.swept += 1 }
+        } }
     }
 }
