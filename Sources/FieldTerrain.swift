@@ -120,7 +120,29 @@ enum FieldTerrain {
         return max(-4, min(4, (q - t) / max(g, 1e-4)))
     }
 
-    static func split(_ b: inout [BlockID], cx: Int, cz: Int, gen: TerrainGenerator, built: [UInt8]? = nil, carved: [Float]? = nil) -> FieldData {
+    // P297 (a): moss, mushrooms and the like the generator set on a fallen trunk come off in a field world: the trunk
+    // lies on the drawn ground, lower and thinner than its block (ShapeTrunks.timber), and they floated over it.
+    static func clearFallenTops(_ b: inout [BlockID]) {
+        let trunkT = ShapeTrunks.isTrunk, axisT = ShapeTrunks.axisOf, opaqueT = Blocks.opaque, leafT = Mesher.leafT
+        let top = min(CH - 1, b.count / CSQ - 1)
+        guard top > 1 else { return }
+        for y in 1..<top { for z in 0..<CS { for x in 0..<CS {
+            let i = x + z * CS + y * CSQ
+            let t = b[i]
+            guard t != AIR, !opaqueT[Int(t)], !leafT[Int(t)], !Blocks.isLiquid(t) else { continue }
+            let u = b[i - CSQ]
+            guard trunkT[Int(u)] else { continue }
+            var lying = axisT[Int(u)] != 1
+            if !lying && !trunkT[Int(b[i - 2 * CSQ])] {
+                if x > 0 && trunkT[Int(b[i - CSQ - 1])] || x < CS - 1 && trunkT[Int(b[i - CSQ + 1])]
+                    || z > 0 && trunkT[Int(b[i - CSQ - CS])] || z < CS - 1 && trunkT[Int(b[i - CSQ + CS])] { lying = true }
+            }
+            if lying { b[i] = AIR }
+        } } }
+    }
+
+    static func split(_ b: inout [BlockID], cx: Int, cz: Int, gen: TerrainGenerator, built: [UInt8]? = nil, carved: [Float]? = nil,
+                      added: [Float]? = nil) -> FieldData {
         let n = CSQ * CH
         var fd = [Int8](repeating: outside, count: n)
         var fm = [UInt8](repeating: 0, count: n)
@@ -196,8 +218,10 @@ enum FieldTerrain {
                 var d: Float
                 // The carvers' own shapes (lava pockets, ravines, sinkholes): the ground is the generator's field with
                 // them taken out (the nearer surface of the two).
-                let c = carved?[i] ?? .nan
-                let cg: Float = !c.isNaN && F != nil && y >= 1 ? min(F!.genDistance(si), c) : .nan
+                let c = carved?[i] ?? .nan, a = added?[i] ?? .nan
+                var cg: Float = !c.isNaN && F != nil && y >= 1 ? min(F!.genDistance(si), c) : .nan
+                // P297 (c): ground the generator added (boulders): the farther of the ground and the added shape.
+                if !a.isNaN, let F, y >= 1 { cg = max(cg.isNaN ? F.genDistance(si) : cg, a) }
                 if !cg.isNaN && (cg > 0) == s {
                     d = max(-1.5, min(1.5, cg)); st[0] += 1
                 } else if !c.isNaN, F == nil, (c > 0) == s {
@@ -340,11 +364,13 @@ extension TerrainGenerator {
     // generator's own continuous fields (FieldTerrain.split), never kept as cells.
     func generateField(cx: Int, cz: Int) -> FieldChunk {
         var b: [BlockID]
-        var carved: [Float]? = nil
+        var carved: [Float]? = nil, added: [Float]? = nil
         if let wg = self as? WorldGen {
             var cd = [Float](repeating: .nan, count: CSQ * CH)
-            b = cd.withUnsafeMutableBufferPointer { wg.generate(cx: cx, cz: cz, carved: $0.baseAddress) }
-            carved = cd
+            var ad = [Float](repeating: .nan, count: CSQ * CH)
+            b = cd.withUnsafeMutableBufferPointer { c in ad.withUnsafeMutableBufferPointer { a in
+                wg.generate(cx: cx, cz: cz, carved: c.baseAddress, added: a.baseAddress) } }
+            carved = cd; added = ad
         } else { b = fieldBlocks(cx: cx, cz: cz) }
         var mark = [UInt8](repeating: 0, count: b.count)
         var ents: [(IVec3, BlockEntity)] = [], mobs: [(String, V3)] = []
@@ -353,7 +379,8 @@ extension TerrainGenerator {
         }
         ents += World.orphanEntities(b, ChunkKey(x: cx, z: cz), have: ents)
         _ = PlantSupport.dropFloating(&b)
-        let ground = FieldTerrain.split(&b, cx: cx, cz: cz, gen: self, built: mark, carved: carved)
+        FieldTerrain.clearFallenTops(&b)
+        let ground = FieldTerrain.split(&b, cx: cx, cz: cz, gen: self, built: mark, carved: carved, added: added)
         return FieldChunk(built: b, ground: ground, entities: ents, mobs: mobs)
     }
 }

@@ -449,13 +449,14 @@ final class WorldRenderer {
         game.writeArms(&wr, eye: eye)
         game.writeLecternBooks(&wr, eye: eye)
         game.writeShelves(&wr, eye: eye)
+        game.writeFelled(&wr, eye: eye)                                       // (P297 d: round felled trunks)
         game.debris.write(&wr, eye: eye, world: w, daylight: daylight)      // (R15: ragdolls and debris in every world)
         game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight)
         let nItems = wr.n
         game.writeShadows(&wr, eye: eye)
         game.writeHalos(&wr, eye: eye, right: right, up: -up)          // SH1 light halos
         game.writeWeather(&wr, eye: eye)
-        if let m = game.mining, game.mineProgress > 0, w.damageLevel(m) == 0 {
+        if let m = game.mining, game.mineProgress > 0, w.damageLevel(m) == 0, game.targetGround?.cell != m {      // (P297 b: not on polygon ground)
             let layer = HudTex.destroy(Int(game.mineProgress * 10))
             let o = V3(Float(m.x), Float(m.y), Float(m.z)) - eye
             let CT = Mesher.cornerTable
@@ -482,10 +483,29 @@ final class WorldRenderer {
     private func drawOutline(_ s: SceneRenderer.Slot, _ eye: V3) {
         let pe = game.player.eye
         let eyeCell = IVec3(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
-        guard let t = game.target, t.hit != eyeCell else { return }
-        let o = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) - eye
+        guard let t = game.target, t.hit != eyeCell || game.targetGround != nil else { return }
         var verts: [SimpleVert] = []
         let col = V4(0.02, 0.02, 0.02, 0.75)
+        // P297 (b): polygon ground has no block outline: a thin ring lies on the surface where you aim, and while you dig
+        // a pale arc runs round it as the ground gives (no crack box either).
+        if let ring = game.groundMarkRing() {
+            let n = ring.count
+            let done = game.mining == t.hit ? Int(game.mineProgress * Float(n)) : 0
+            for k in 0..<n {
+                let p0 = ring[k] - eye, p1 = ring[(k + 1) % n] - eye
+                let dir = simd_normalize(p1 - p0)
+                var side = simd_cross(dir, simd_normalize((p0 + p1) * 0.5))
+                if simd_length_squared(side) < 1e-6 { side = simd_cross(dir, V3(0, 1, 0)) }
+                let lit = k < done
+                side = simd_normalize(side) * (lit ? 0.011 : 0.007)
+                let c = lit ? V4(0.92, 0.9, 0.84, 0.85) : col
+                let q = [p0 - side, p1 - side, p1 + side, p0 + side]
+                for i in [0, 1, 2, 0, 2, 3] { verts.append(SimpleVert(pos: V4(q[i], 1), color: c)) }
+            }
+            if let off = scene.push(s, verts) { scene.drawScratch(s, "simple", offset: off, count: verts.count) }
+            return
+        }
+        let o = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) - eye
         let edges = [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7]
         for (bmn, bmx) in game.world.selectionBoxes(game.world.block(t.hit.x, t.hit.y, t.hit.z)) {
             let a = o + bmn - V3(repeating: 0.004), b = o + bmx + V3(repeating: 0.004)

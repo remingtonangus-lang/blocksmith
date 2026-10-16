@@ -75,7 +75,12 @@ enum ShapeOrganic {
         // Sides resting on the ground below stay flat so the object sits.
         if covered[3] && fam != .bale { form.r[3] = min(form.r[3], 0.1) }
 
-        let base = SIMD3<Float>(Float(x), Float(y), Float(z))
+        var base = SIMD3<Float>(Float(x), Float(y), Float(z))
+        // P297 (a) ("a log and a pumpkin floating"): a lone form on natural ground (a pumpkin in the grass, a melon) sits
+        // on the drawn surface, which dips below the block's foot between the cells it was rounded from.
+        if covered[3] && !cont[2] && SmoothTerrain.natural[Int(ctx.block(x, y - 1, z))], let g = ctx.groundTop(x, y - 1, z, reach: 2) {
+            base.y = max(Float(y) - 0.8, min(Float(y), g - 0.04))
+        }
         let tint = Int(Blocks.tint[i] == 3 ? 1 : Blocks.tint[i])
         for f in 0..<6 where !cont[f] && !covered[f] {
             face(ctx, form, base: base, f: f, layer: Int(Blocks.tex[i * 6 + f]), tint: tint, grid: grid, cont: cont)

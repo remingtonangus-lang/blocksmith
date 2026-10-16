@@ -141,28 +141,34 @@ final class EmberGen: TerrainGenerator {
     func bandField(_ g: inout [Float], cx: Int, cz: Int) {
         let bx = cx * CS, bz = cz * CS
         let H = height
-        let lx = 5, ly = H / 8 + 1, lz = 5
-        var lat = [Float](repeating: 0, count: lx * ly * lz)
-        for k in 0..<lz { for j in 0..<ly { for i in 0..<lx {
-            lat[i + j * lx + k * lx * ly] = density(Float(bx + i * 4), Float(j * 8), Float(bz + k * 4))
-        } } }
-        func L(_ i: Int, _ j: Int, _ k: Int) -> Float { lat[i + j * lx + k * lx * ly] }
+        let lat = bandLattice(cx: cx, cz: cz)
+        var col = [Float](repeating: 0, count: H)
         for z in 0..<CS { for x in 0..<CS {
-            let i0 = x / 4, k0 = z / 4
-            let fx = Float(x % 4) / 4, fz = Float(z % 4) / 4
+            let wx = bx + x, wz = bz + z
+            for y in 0..<H { col[y] = latticeD(lat, x, y, z) }
+            // P327 (a): the Ash Dunes' drift is part of the ground: the floor's surface raised by the dune's depth, the
+            // same cells hellLand fills with pale ash (duneCells), so the dunes are smooth ridges, not rounded cells.
+            var lifted = col
+            if biome(wx, wz) == .soulSandValley {
+                let D = duneDepth(wx, wz)
+                var past = -1
+                for y in (EmberGen.lavaLevel + 1)..<(H - 8) where y > past && col[y] > 0 && col[y + 1] <= 0 {
+                    let (n, depth) = duneCells(col, y, D)
+                    if depth > 0 {
+                        for k in -1...(n + 2) where y + k > 0 && y + k < H - 1 {
+                            let f = Float(y + k) - depth
+                            let j = max(0, min(H - 2, Int(floor(f))))
+                            lifted[y + k] = col[j] + (col[j + 1] - col[j]) * (f - Float(j))
+                        }
+                    }
+                    past = y + n + 6
+                }
+            }
             for y in 0..<H {
-                let j0 = min(ly - 2, y / 8)
-                let fy = Float(y - j0 * 8) / 8
-                let c00 = L(i0, j0, k0) + (L(i0 + 1, j0, k0) - L(i0, j0, k0)) * fx
-                let c10 = L(i0, j0 + 1, k0) + (L(i0 + 1, j0 + 1, k0) - L(i0, j0 + 1, k0)) * fx
-                let c01 = L(i0, j0, k0 + 1) + (L(i0 + 1, j0, k0 + 1) - L(i0, j0, k0 + 1)) * fx
-                let c11 = L(i0, j0 + 1, k0 + 1) + (L(i0 + 1, j0 + 1, k0 + 1) - L(i0, j0 + 1, k0 + 1)) * fx
-                let c0 = c00 + (c10 - c00) * fy, c1 = c01 + (c11 - c01) * fy
-                let d = c0 + (c1 - c0) * fz
                 // The caps (fieldBlocks): solid below capFloor and above capRoof, in blocks.
-                let yc = Float(y) + 0.5, wx = bx + x, wz = bz + z
+                let yc = Float(y) + 0.5
                 let capD: Float = y < 6 ? capFloor(wx, wz) - yc : (y > H - 7 ? yc - capRoof(wx, wz) : -9)
-                g[Chunk.index(x, base + y, z)] = max(d, capD)
+                g[Chunk.index(x, base + y, z)] = max(lifted[y], capD)
             }
             // Just outside the band (open, unless the generator round it set those rows: the Deep's seal and crust), so
             // the caps' outer faces are flat planes too.
@@ -171,6 +177,53 @@ final class EmberGen: TerrainGenerator {
                 if g[i].isNaN { g[i] = v }
             }
         } }
+    }
+
+    // The band's density lattice for a chunk (4 x 8 x 4, as fill uses) and its trilinear value at a cell (band y).
+    func bandLattice(cx: Int, cz: Int) -> [Float] {
+        let bx = cx * CS, bz = cz * CS
+        let lx = 5, ly = height / 8 + 1, lz = 5
+        var lat = [Float](repeating: 0, count: lx * ly * lz)
+        for k in 0..<lz { for j in 0..<ly { for i in 0..<lx {
+            lat[i + j * lx + k * lx * ly] = density(Float(bx + i * 4), Float(j * 8), Float(bz + k * 4))
+        } } }
+        return lat
+    }
+    @inline(__always) func latticeD(_ lat: [Float], _ x: Int, _ y: Int, _ z: Int) -> Float {
+        let lx = 5, ly = height / 8 + 1
+        func L(_ i: Int, _ j: Int, _ k: Int) -> Float { lat[i + j * lx + k * lx * ly] }
+        let i0 = x / 4, k0 = z / 4
+        let fx = Float(x % 4) / 4, fz = Float(z % 4) / 4
+        let j0 = min(ly - 2, y / 8)
+        let fy = Float(y - j0 * 8) / 8
+        let c00 = L(i0, j0, k0) + (L(i0 + 1, j0, k0) - L(i0, j0, k0)) * fx
+        let c10 = L(i0, j0 + 1, k0) + (L(i0 + 1, j0 + 1, k0) - L(i0, j0 + 1, k0)) * fx
+        let c01 = L(i0, j0, k0 + 1) + (L(i0 + 1, j0, k0 + 1) - L(i0, j0, k0 + 1)) * fx
+        let c11 = L(i0, j0 + 1, k0 + 1) + (L(i0 + 1, j0 + 1, k0 + 1) - L(i0, j0 + 1, k0 + 1)) * fx
+        let c0 = c00 + (c10 - c00) * fy, c1 = c01 + (c11 - c01) * fy
+        return c0 + (c1 - c0) * fz
+    }
+
+    // The Ash Dunes: how deep the drift lies at a column (blocks, continuous): long ridges across the wind.
+    func duneDepth(_ wx: Int, _ wz: Int) -> Float {
+        let ridge: Float = deco.noise2(Float(wx) / 26, Float(wz) / 11) + deco.noise2(Float(wx) / 70, Float(wz) / 70) * 0.6
+        return max(0, ridge + 0.15) * 3.2
+    }
+
+    // How many cells of drift lie on a floor whose top solid cell is y (col: the column's lattice density, band y): the
+    // cells whose centres are under the floor's surface raised by D, up to the first that is not open (two open cells
+    // over each, as the drift always had).
+    // Where that stops short of the depth (no room, or 6 cells), the depth comes down to just under the next cell's
+    // centre, so the field's surface and the cells agree.
+    func duneCells(_ col: [Float], _ y: Int, _ D: Float) -> (n: Int, depth: Float) {
+        guard D > 0 else { return (0, 0) }
+        let t = col[y] / max(1e-5, col[y] - col[y + 1])          // the surface between the centres of y and y + 1
+        var n = 0
+        while Float(n + 1) < t + D {
+            guard n < 6, y + n + 3 < col.count, col[y + n + 1] <= 0, col[y + n + 2] <= 0 else { return (n, max(0, Float(n + 1) - t - 0.05)) }
+            n += 1
+        }
+        return (n, D)
     }
 
     private func decorate(_ b: inout [BlockID], _ cx: Int, _ cz: Int) {

@@ -1200,13 +1200,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeArms(&wr, eye: eye)
                 game.writeLecternBooks(&wr, eye: eye)
                 game.writeShelves(&wr, eye: eye)
+                game.writeFelled(&wr, eye: eye)                                       // (P297 d: round felled trunks)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
                 // Blended pass: entity shadows, rain / snow / lightning glow, then the crack overlay.
                 game.writeShadows(&wr, eye: eye)
                 game.writeWeather(&wr, eye: eye)
                 // (A chipped block shows its missing pieces instead of the crack overlay.)
-                if let m = game.mining, game.mineProgress > 0, game.world.damageLevel(m) == 0 {
+                if let m = game.mining, game.mineProgress > 0, game.world.damageLevel(m) == 0, game.targetGround?.cell != m {   // (P297 b)
                     let layer = HudTex.destroy(Int(game.mineProgress * 10))
                     let o = V3(Float(m.x), Float(m.y), Float(m.z)) - eye
                     let CT = Mesher.cornerTable
@@ -1246,13 +1247,24 @@ final class Renderer: NSObject, MTKViewDelegate {
         // Target block outline (the block's selection boxes)
         let pe = game.player.eye
         let eyeCell = IVec3(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
-        if let t = game.target, t.hit != eyeCell {   // never outline the block the camera is in
+        if let t = game.target, t.hit != eyeCell || game.targetGround != nil {   // never outline the block the camera is in
             let e: Float = 0.003
             let o = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) - eye
             var verts: [SimpleVert] = []
             let col = V4(0, 0, 0, 0.7)
             let edges = [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7]
-            for (bmn, bmx) in game.world.selectionBoxes(game.world.block(t.hit.x, t.hit.y, t.hit.z)) {
+            // P297 (b): polygon ground gets a ring on its surface (a pale arc as the dig progresses), not a block outline.
+            let ring = game.groundMarkRing()
+            if let ring {
+                let n = ring.count, done = game.mining == t.hit ? Int(game.mineProgress * Float(n)) : 0
+                for k in 0..<n {
+                    let c = k < done ? V4(0.92, 0.9, 0.84, 0.9) : col
+                    verts.append(SimpleVert(pos: V4(ring[k] - eye, 1), color: c))
+                    verts.append(SimpleVert(pos: V4(ring[(k + 1) % n] - eye, 1), color: c))
+                }
+            }
+            let boxes = ring != nil ? [] : game.world.selectionBoxes(game.world.block(t.hit.x, t.hit.y, t.hit.z))
+            for (bmn, bmx) in boxes {
                 let a = o + bmn - V3(repeating: e), b = o + bmx + V3(repeating: e)
                 let cs = [V3(a.x, a.y, a.z), V3(b.x, a.y, a.z), V3(b.x, a.y, b.z), V3(a.x, a.y, b.z),
                           V3(a.x, b.y, a.z), V3(b.x, b.y, a.z), V3(b.x, b.y, b.z), V3(a.x, b.y, b.z)]

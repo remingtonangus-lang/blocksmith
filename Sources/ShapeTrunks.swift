@@ -17,6 +17,11 @@ import simd
 //  - any other log (a log cabin wall, a fallen trunk, a pile): a round log along its own axis.
 // Every number comes from the blocks within 10 of a log and from world-position noise, so two sections meeting at a
 // joint compute the same ring there (no seams). Logs stay blocks for gameplay (chopping, collision, saves).
+// P297 (Oct 15 11:50-11:54, polygon world: "logs are far too thick", "roots not going in the ground", a floating log in a
+// crown): trunks are as thick as trees that height are (radius 0.2-0.36, was 0.33-0.44); a stump and a fallen trunk on
+// natural ground keep a tree's thickness (only built timber, a cabin's walls and posts, nearly fills its block); roots,
+// root flares, stumps and fallen trunks reach down to the drawn ground; a log in a crown that no limb walk reaches is a
+// thin bough, not a thick cut log.
 enum ShapeTrunks {
     static let axisOf: [UInt8] = (0..<Blocks.count).map { i in
         let k = Blocks.key(BlockID(i))
@@ -96,9 +101,10 @@ enum ShapeTrunks {
                     else if joined { kind = 0 }
                     else if H <= 2 && rootBeside(ctx, x, bot, z) { kind = 3 }     // a root beside a trunk's foot (upright or lying)
                     else if !vertical || H == 1 && lyingBeside(ctx, x, bot, z) { kind = 0 }   // a log lying on the ground
-                    else { kind = 2 }                                               // a stump, a post
+                    else if H <= 2 && SmoothTerrain.natural[under] { kind = 4 }    // P297: a tree's stump on the ground
+                    else { kind = 2 }                                               // a post (built timber)
                     if kind != 0 {
-                        let rb: Float = kind == 1 ? min(0.44, 0.25 + 0.016 * Float(min(H, 12))) : 0.45
+                        let rb: Float = kind == 1 ? treeRadius(H) : (kind == 4 ? treeRadius(5) : 0.45)
                         for yy in max(y, -M)...min(top, 15 + M) {
                             let i = wi(x, yy, z)
                             s.col[i] = kind
@@ -147,14 +153,31 @@ enum ShapeTrunks {
             let base = Int(Blocks.groupBase[Int(b)])
             let bark = Int(Blocks.tex[base * 6]), rings = Int(Blocks.tex[base * 6 + 2])
             let i = wi(x, y, z)
-            if s.col[i] == 1 || s.col[i] == 2 {
+            if s.col[i] == 1 || s.col[i] == 2 || s.col[i] == 4 {
                 column(ctx, s, x, y, z, bark: bark, rings: rings, sides: sides)
             } else if s.dist[i] > 0 && s.par[i] >= 0 {
                 limb(ctx, s, i, x, y, z, bark: bark, rings: rings, sides: limbSides)
+            } else if leafy(ctx, x, y, z) {
+                bough(ctx, x, y, z, axis: timberAxis(ctx, b, x, y, z), bark: bark, sides: limbSides)
             } else {
                 timber(ctx, x, y, z, axis: timberAxis(ctx, b, x, y, z), bark: bark, rings: rings, sides: sides)
             }
         } } }
+    }
+
+    // P297 (d): a living trunk's radius at its foot by its height (5 tall: 0.24, 10: 0.31, 14+: 0.37), the taper takes
+    // it to about half at the crown. (Was 0.25 + 0.016 H up to 0.44: a 5-block oak 2/3 of a block across.)
+    @inline(__always) static func treeRadius(_ H: Int) -> Float { 0.17 + 0.014 * Float(min(H, 14)) }
+    // Fallen trunks and the boughs nothing reaches.
+    static let fallenRadius: Float = 0.26
+    // P297 (a): leaves round a log (3x3x3): a log in a crown.
+    static func leafy(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        var n = 0
+        for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where Mesher.leafT[Int(ctx.block(x + dx, y + dy, z + dz))] {
+            n += 1
+            if n >= 3 { return true }
+        } } }
+        return false
     }
 
     // Neighbour steps, faces first, then edges, then corners (the breadth-first walk prefers the closest joint).
@@ -211,7 +234,7 @@ enum ShapeTrunks {
 
     static func column(_ ctx: DetailContext, _ s: Scratch, _ x: Int, _ y: Int, _ z: Int, bark: Int, rings: Int, sides: Int) {
         let i = wi(x, y, z)
-        let living = s.col[i] == 1
+        let living = s.col[i] == 1, stump = s.col[i] == 4
         // 2x2 trunks: one fat trunk round the cluster's centre, drawn by its lowest corner.
         var cx = Float(x) + 0.5, cz = Float(z) + 0.5, scale: Float = 1
         func colAt(_ a: Int, _ b: Int) -> Bool { a >= -M && b >= -M && a < 16 + M && b < 16 + M && s.col[wi(a, y, b)] != 0 }
@@ -237,15 +260,24 @@ enum ShapeTrunks {
         // root flare, its foot sunk into a short bough from the other trunk's centre.
         let footCell = Int(ctx.block(x, y - 1, z))
         let onGround = !isTrunk[footCell] && (Blocks.opaque[footCell] || Blocks.collide[footCell])
+        var flatFoot = !below
         if !below && living && !onGround, let o = sideLog(ctx, x, y, z) {
             let from = SIMD3<Float>(Float(x + o.x) + 0.5, Float(y + o.y) + 0.5, Float(z + o.z) + 0.5)
             let to = SIMD3<Float>(cx, y0 + 0.35, cz)
             tube(ctx, from, to, r * 0.95, r, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: x &* 31 &+ z))
             prof.append((y0 + 0.2, r))
-        } else if !below && living {
+            flatFoot = false
+        } else if !below && (living || stump) && onGround {
             // Root flare into the ground (the smooth ground covers its foot).
             // (The flare is a fixed width past the trunk, so a wide 2x2 foot doesn't spread into a skirt.)
+            // P297 (a): down to the drawn ground's lowest point round the foot (a trunk on a slope stood on its uphill
+            // side with its foot showing over the downhill one).
+            // (Straight down below the flare, so a deep foot reads as the trunk going into the ground, not a cone.)
+            var foot = y0 - 0.5
+            if let lo = ctx.groundTop(x, y, z, reach: 3, lowest: true) { foot = max(y0 - 2.5, min(foot, lo - 0.3)) }
+            if foot < y0 - 0.55 { prof.append((foot, r + 0.24)) }
             prof.append((y0 - 0.5, r + 0.3)); prof.append((y0 + 0.02, r + 0.19)); prof.append((y0 + 0.3, r + 0.09)); prof.append((y0 + 0.7, r + 0.02))
+            flatFoot = false
         } else {
             prof.append((y0, r0))
         }
@@ -256,7 +288,7 @@ enum ShapeTrunks {
         } else {
             prof.append((y1, r0))
         }
-        let roots = !below && living && onGround
+        let roots = !below && (living || stump) && onGround
         let wrap = max(1, (2 * .pi * r).rounded())          // bark repeats round the trunk (one count for every ring)
         var prev: [SIMD3<Float>] = [], prevN: [SIMD3<Float>] = []
         for (k, (h, rr)) in prof.enumerated() {
@@ -298,7 +330,7 @@ enum ShapeTrunks {
             let c = SIMD2<Float>(cx, cz)
             cap(ctx, center: SIMD3(c.x, y1, c.y), pts: prev, normal: SIMD3(0, 1, 0), layer: rings)
         }
-        if !below && !living {
+        if flatFoot {
             var ps: [SIMD3<Float>] = []
             for a in 0...sides {
                 let th = Float(a % sides) / Float(sides) * 2 * .pi
@@ -338,19 +370,25 @@ enum ShapeTrunks {
     // On a trunk the joint is the trunk's (leaning) centre line.
     static func joint(_ ctx: DetailContext, _ s: Scratch, _ j: Int) -> SIMD3<Float> {
         var c = centre(j)
-        if s.col[j] == 1 || s.col[j] == 2 {
+        if s.col[j] == 1 || s.col[j] == 2 || s.col[j] == 4 {
             let l = lean(ctx, c.x, c.z, c.y, living: s.col[j] == 1)
             c.x = l.x; c.z = l.y
             return c
         }
         let p = Int(s.par[j])
         guard p >= 0 else { return c }
-        let pc = s.col[p] == 1 || s.col[p] == 2 ? joint(ctx, s, p) : centre(p)
+        let pc = s.col[p] == 1 || s.col[p] == 2 || s.col[p] == 4 ? joint(ctx, s, p) : centre(p)
         return (c + pc) * 0.5
     }
 
     static func limb(_ ctx: DetailContext, _ s: Scratch, _ i: Int, _ x: Int, _ y: Int, _ z: Int, bark: Int, rings: Int, sides: Int) {
         let p = Int(s.par[i])
+        // P297 (a): a root (the generator's log beside a trunk's foot) leaves the trunk low and runs down into the drawn
+        // ground, its tip under the surface. (It was a level limb at mid-block ending in a point in the air.)
+        if s.col[i] == 3 && s.kids[i] == 0 {
+            root(ctx, s, i, p, x, y, z, bark: bark, sides: sides)
+            return
+        }
         let a = joint(ctx, s, p)
         // Through the cell to its own joint, or (a twig's last cell, nothing growing on) to its centre.
         let b = s.kids[i] > 0 ? joint(ctx, s, i) : SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
@@ -370,6 +408,39 @@ enum ShapeTrunks {
             let d = simd_normalize(b - a)
             tube(ctx, b, b + d * 0.38, rb, 0.02, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: i) ^ 0x7177)
         }
+    }
+
+    static func root(_ ctx: DetailContext, _ s: Scratch, _ i: Int, _ p: Int, _ x: Int, _ y: Int, _ z: Int, bark: Int, sides: Int) {
+        let pj = joint(ctx, s, p)
+        let ground = ctx.groundTop(x, y - 1, z, reach: 2) ?? Float(y)
+        let rb = s.rad[i]
+        // From low on the trunk (a quarter block up its foot cell) out to the root's cell, where it meets the ground.
+        let a = SIMD3<Float>(pj.x, Float(Int(floor(pj.y))) + 0.3, pj.z)
+        var b = SIMD3<Float>(Float(x) + 0.5, min(Float(y) + 0.45, ground + rb * 0.35), Float(z) + 0.5)
+        b.y = max(b.y, a.y - 1.2)
+        let ra = min(s.rad[p], rb * 1.4)
+        tube(ctx, a, b, ra, rb, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: i))
+        if ctx.lod != 0 { return }
+        knob(ctx, b, rb * 1.02, bark: bark, sides: sides)
+        // On out and down under the surface.
+        var out = SIMD3<Float>(b.x - a.x, 0, b.z - a.z)
+        out = simd_length(out) > 1e-4 ? simd_normalize(out) : SIMD3(1, 0, 0)
+        let tip = b + out * 0.4 + SIMD3(0, -max(0.45, b.y - ground + 0.35), 0)
+        tube(ctx, b, tip, rb, rb * 0.35, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: i) ^ 0x2007)
+    }
+
+    // P297 (a): a log in a crown that no limb walk reaches (a bough cut off from its tree by the window, a crown over a
+    // felled trunk's stump): a thin branch along its axis tapering at both ends, never a thick cut log hanging in the
+    // leaves.
+    static func bough(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, axis: Int, bark: Int, sides: Int) {
+        let c = SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+        var d = SIMD3<Float>(0, 0, 0); d[axis] = 1
+        var step = SIMD3<Int>(0, 0, 0); step[axis] = 1
+        let on = isTrunk[Int(ctx.block(x + step.x, y + step.y, z + step.z))]
+        let back = isTrunk[Int(ctx.block(x - step.x, y - step.y, z - step.z))]
+        let r: Float = 0.11
+        tube(ctx, c - d * 0.5, c, back ? r : 0.03, r, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: x &* 7 &+ y &* 13 &+ z))
+        tube(ctx, c, c + d * 0.5, r, on ? r : 0.03, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: x &* 11 &+ y &* 3 &+ z))
     }
 
     // A tapered tube from a (radius ra) to b (radius rb), bark wrapped round it.
@@ -416,20 +487,30 @@ enum ShapeTrunks {
 
     // A log on its own (a cabin wall, a fallen trunk, a pile): round along its axis, flat cut ends where the run stops.
     static func timber(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, axis: Int, bark: Int, rings: Int, sides: Int) {
-        var o = SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+        let o = SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
         var d = SIMD3<Float>(0, 0, 0); d[axis] = 1
-        let r: Float = 0.46
+        var step = SIMD3<Int>(0, 0, 0); step[axis] = 1
+        let next = ctx.block(x + step.x, y + step.y, z + step.z), prev = ctx.block(x - step.x, y - step.y, z - step.z)
+        var r: Float = 0.46
+        var a = o - d * 0.5, b = o + d * 0.5
         // PG4 ("fallen logs sit on the ground, none floating"): a lying log on natural ground with nothing stacked on it
         // (a fallen trunk, not a cabin's bottom course) beds into the ground; the drawn ground dips below the block
         // tops round it, and a round log only touched them along one line.
+        // P297 (d, a): a fallen trunk is a tree's thickness (built timber keeps nearly the whole block, so a cabin's walls
+        // stay closed), and it lies along the drawn ground itself, bedded a little: each end at the ground between this
+        // block and the next (the same height the next block's piece starts at, so the trunk bends with the slope unbroken).
         if axis != 1 && SmoothTerrain.natural[Int(ctx.block(x, y - 1, z))] && !isTrunk[Int(ctx.block(x, y + 1, z))] {
-            o.y -= 0.24
+            r = fallenRadius
+            let lift = r * 0.8
+            let g0 = ctx.groundTop(x, y - 1, z, reach: 2) ?? Float(y)
+            func end(_ nb: BlockID, _ sx: Int) -> Float {
+                var g = g0
+                if isTrunk[Int(nb)], let gn = ctx.groundTop(x + step.x * sx, y - 1, z + step.z * sx, reach: 2) { g = (g0 + gn) * 0.5 }
+                return max(Float(y) - 1, min(Float(y) + 0.5, g + lift))
+            }
+            a.y = end(prev, -1); b.y = end(next, 1)
         }
-        o -= d * 0.5
-        let a = o, b = o + d
         tube(ctx, a, b, r, r, bark: bark, sides: sides, salt: 0)
-        var step = SIMD3<Int>(0, 0, 0); step[axis] = 1
-        let next = ctx.block(x + step.x, y + step.y, z + step.z), prev = ctx.block(x - step.x, y - step.y, z - step.z)
         let e1v: SIMD3<Float> = axis == 1 ? SIMD3(1, 0, 0) : SIMD3(0, 1, 0)
         let e2v = simd_cross(d, e1v)
         func ring(_ c: SIMD3<Float>) -> [SIMD3<Float>] {

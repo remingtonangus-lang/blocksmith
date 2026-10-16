@@ -119,6 +119,22 @@ extension Mesher {
         return n > 0 ? sum / n : nil
     }
 
+    // P297 (b): the drawn ground's height (section-local) at block corner (X, Z) (section-local corner coordinates): the
+    // smooth surface vertex there in the rows over block ly, ly - 1 or ly - 2 (the first found); nil if none.
+    static func groundCorner(_ sc: MeshScratch, _ X: Int, _ ly: Int, _ Z: Int) -> Float? {
+        guard sc.smValid else { return nil }
+        let KO = SmoothTerrain.maxRelax, K = 17 + 2 * KO, KK = K * K
+        let cx = X - 1 + KO, cz = Z - 1 + KO
+        guard cx >= 0 && cx < K && cz >= 0 && cz < K else { return nil }
+        for gy in stride(from: ly, through: ly - 2, by: -1) {
+            let cy = gy + KO
+            guard cy >= 0 && cy < K else { continue }
+            let vi = cx + cz * K + cy * KK
+            if sc.smL[vi] >= 0 { return sc.smV[vi * 3 + 1] }
+        }
+        return nil
+    }
+
     // Does the +x / +z / +y boundary row of an all-air section's 17^3 block range hold natural ground? Then the
     // section still owns smooth quads there.
     static func smoothEdgeNatural(_ srcs: [[BlockID]], sy: Int, leaves: Bool = false) -> Bool {

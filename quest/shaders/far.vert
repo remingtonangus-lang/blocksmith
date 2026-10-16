@@ -17,6 +17,9 @@ void main() {
     float d = length(rel.xz - pc.m[1].xy);
     float inside = 1.0 - smoothstep(pc.m[1].z - 24.0, pc.m[1].z, d);
     rel.y -= 2.0 + pc.m[1].w * inside;
+    // P327 (b): well inside the disc it goes far under everything, so a pit or crater dug deeper than the sink never
+    // shows the ring's green ground as a sheen across it.
+    rel.y -= 4000.0 * (1.0 - smoothstep(pc.m[1].z - 72.0, pc.m[1].z - 40.0, d));
     gl_Position = u.viewProj[gl_ViewIndex] * vec4(rel, 1.0);
 
     float q = pos.w;

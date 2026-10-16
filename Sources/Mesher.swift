@@ -66,6 +66,9 @@ enum Mesher {
     static let RH = 48
     static let RL = RW * RW
     static let C0 = 16          // region coordinate of the section's local 0 (x, y and z)
+    // P297 (b): the cells two out from a shore cell (Mesher shoreWater), nearest first.
+    static let shoreRing2: [(Int, Int)] = [(2, 0), (-2, 0), (0, 2), (0, -2), (2, 1), (2, -1), (-2, 1), (-2, -1),
+                                            (1, 2), (-1, 2), (1, -2), (-1, -2), (2, 2), (2, -2), (-2, 2), (-2, -2)]
 
     // Faces +X,-X,+Y,-Y,+Z,-Z; corners BL,BR,TR,TL counter-clockwise seen from outside.
     static let cornerTable: [Int] = [
@@ -588,15 +591,29 @@ enum Mesher {
         }
 
         // Water depth at a top corner in the AO bits (mean depth of the up-to-4 columns sharing it; see the liquid faces).
+        // P297 (b): over smooth ground the depth runs from the water's top down to the drawn bed, not a count of water
+        // cells, so the line between the shallows and dark deep water follows the bed instead of tracing cell squares.
         func depthAO(_ cx: Int, _ y: Int, _ cz: Int) -> Int {
+            let smoothBed = smoothWater && sc.smValid          // (set by the ground pass, which runs before the faces)
             var sum = 0
+            var depth: Float = 0
             for dz in -1...0 {
                 for dx in -1...0 {
+                    let bx = cx + dx, bz = cz + dz
                     var k = 0
-                    while k < 9 && fkT[Int(at(cx + dx, y - k, cz + dz))] == 1 { k += 1 }
+                    while k < 9 && fkT[Int(at(bx, y - k, bz))] == 1 { k += 1 }
                     sum += k
+                    guard smoothBed else { continue }
+                    var g = y - k, d = Float(k)
+                    if k < 9 && g > 0 && R[bx + bz * RW + g * RL] == AIR && natAt(bx + bz * RW + (g - 1) * RL) { g -= 1 }
+                    if k < 9 && g >= 0 && natAt(bx + bz * RW + g * RL),
+                       let top = Mesher.smoothGroundTop(sc, bx - C0, g - C0, bz - C0) {
+                        d = max(0, Float(y - C0) + 0.875 - top)
+                    }
+                    depth += d
                 }
             }
+            if smoothBed { depth *= 0.25; return depth <= 0.75 ? 3 : (depth < 2 ? 2 : (depth < 5 ? 1 : 0)) }
             return sum <= 3 ? 3 : (sum < 8 ? 2 : (sum < 20 ? 1 : 0))
         }
         // P175 (polygon worlds): the water plane carries on over natural ground beside a water surface, under the ground's
@@ -610,6 +627,16 @@ enum Mesher {
                 let k = fkT[Int(R[j])]
                 if k != 0 && k != up && fkT[Int(R[j + RL])] != k { src = j; break }
             }
+            // P297 (b): two cells out too (water, then a cell of low ground, then this one), so the plane runs on until the
+            // ground has risen over it and never stops at a cell's edge with the bank still under the waterline.
+            if src < 0 {
+                for (dx, dz) in Mesher.shoreRing2 {
+                    let j = i + dx + dz * RW
+                    let k = fkT[Int(R[j])]
+                    let mid = i + dx / 2 + dz / 2 * RW                  // (through low bank, never through a wall)
+                    if k != 0 && k != up && fkT[Int(R[j + RL])] != k && (!opaqueT[Int(R[mid])] || natAt(mid)) { src = j; break }
+                }
+            }
             guard src >= 0 else { return }
             let fk = fkT[Int(R[src])]
             let x = i % RW, z = (i / RW) % RW, y = ly + C0
@@ -620,10 +647,15 @@ enum Mesher {
             for k in 0..<4 {
                 let ci = (2 * 4 + k) * 3
                 let px = CT[ci] * 16, pz = CT[ci + 2] * 16
-                var d = cornerDrop(x + CT[ci], y, z + CT[ci + 2], fk)
-                if d == 7 { d = 1 }
-                let py = 16 - 2 * d
-                let (u, v) = faceUV(2, px, py, pz)
+                let d = cornerDrop(x + CT[ci], y, z + CT[ci + 2], fk)
+                var py = 16 - 2 * (d == 7 ? 1 : d)
+                // P297 (b): a corner with no water round it goes just under the drawn ground there when that is lower
+                // than the water, so the plane meets the bank along the ground's own curve; at the full height it ended
+                // at the cell's edge over low ground, a saw-tooth waterline.
+                if d == 7, let g = Mesher.groundCorner(sc, lx + CT[ci], ly, lz + CT[ci + 2]) {
+                    py = max(-ly * 16, min(py, Int(((g - Float(ly)) * 16).rounded()) - 2))
+                }
+                let (u, v) = faceUV(2, px, max(0, py), pz)
                 if fk == 1 {
                     vert(true, lx * 16 + px, ly * 16 + py, lz * 16 + pz, 2, 3, u, v, layer,
                          Mesher.waterDepthAO ? depthAO(x + CT[ci], y, z + CT[ci + 2]) : 3, l, false)
@@ -686,7 +718,12 @@ enum Mesher {
                 for x in C0..<(C0 + 16) {
                     let i = x + z * RW + y * RL
                     let b = R[i]
-                    if b == AIR { continue }
+                    if b == AIR {
+                        // P297 (b): air over low ground on the bank carries the water plane on too (the bank's smooth
+                        // surface dips under the waterline inside it; the water used to end at the cell's square there).
+                        if smoothWater && natAt(i - RL) { shoreWater(i, ly) }
+                        continue
+                    }
                     let bi = Int(b)
                     let rt = renderT[bi]
                     if rt == rNone { continue }
@@ -915,18 +952,7 @@ enum Mesher {
                                 // Quest: the same shore factor (water depth at this corner) as the water corner under it,
                                 // so chunk.vert lifts pad and water by the same swell and they never part in storms.
                                 var padAO = 3
-                                if Mesher.waterDepthAO {
-                                    var sum = 0
-                                    for dz in -1...0 {
-                                        for dx in -1...0 {
-                                            let cx = x + CT[ci] + dx, cz = z + CT[ci + 2] + dz
-                                            var d = 0
-                                            while d < 9 && fkT[Int(at(cx, y - 1 - d, cz))] == 1 { d += 1 }
-                                            sum += d
-                                        }
-                                    }
-                                    padAO = sum <= 3 ? 3 : (sum < 8 ? 2 : (sum < 20 ? 1 : 0))
-                                }
+                                if Mesher.waterDepthAO { padAO = depthAO(x + CT[ci], y - 1, z + CT[ci + 2]) }
                                 vert(isTrans, bx16 + px, by16 - 1, bz16 + pz, f, tintV, u, v, layer, padAO, l, false)
                             }
                         }
@@ -989,6 +1015,8 @@ enum Mesher {
                             if fkT[Int(nb)] == fk { continue }
                             // P175: no water (or lava) walls against natural ground (the shore plane above carries it on).
                             if smoothWater && fk != 0 && NT[f * 3 + 1] == 0 && natAt(i + offs[f]) { continue }
+                            // P297 (b): nor against the air over low bank ground that carries the plane on.
+                            if smoothWater && liquidTop && NT[f * 3 + 1] == 0 && nb == AIR && natAt(i + offs[f] - RL) { continue }
                             // Water round a solid-but-not-full block (fence, slab, stair, wall) behaves as if that block were
                             // waterlogged: no inner faces. Seen through the surface, the faces over a shipwreck's sunken
                             // rail fences were bright blue tiles (blind critic, run 417; --slice, run 420).
@@ -1038,16 +1066,7 @@ enum Mesher {
                                 // shoreline foam: it has no copy of the scene's depth like the Mac's Fancy water.
                                 for c in 0..<4 {
                                     let ci = (f * 4 + c) * 3
-                                    var sum = 0
-                                    for dz in -1...0 {
-                                        for dx in -1...0 {
-                                            let cx = x + CT[ci] + dx, cz = z + CT[ci + 2] + dz
-                                            var k = 0
-                                            while k < 9 && fkT[Int(at(cx, y - k, cz))] == 1 { k += 1 }
-                                            sum += k
-                                        }
-                                    }
-                                    aos[c] = sum <= 3 ? 3 : (sum < 8 ? 2 : (sum < 20 ? 1 : 0))     // mean <= 0.75, < 2, < 5, 5+
+                                    aos[c] = depthAO(x + CT[ci], y, z + CT[ci + 2])     // mean <= 0.75, < 2, < 5, 5+
                                 }
                             }
                         } else {
@@ -1203,7 +1222,7 @@ enum Mesher {
         // (ShapeOrganic), into the detail stream.
         if detailDraw {
             let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: wox, wy0: sy * 16, wz0: woz,
-                                    lod: lod, sc: sc, srcs: srcs, sy: sy)
+                                    lod: lod, sc: sc, srcs: srcs, sy: sy, field: fieldOn ? n9 : nil)
             ShapeTrunks.emit(ctx)
             ShapeOrganic.emit(ctx)
         }

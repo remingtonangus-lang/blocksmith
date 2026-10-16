@@ -70,6 +70,10 @@ final class Game {
     var cameraMode = 0                // F5 / View button: 0 first person, 1 behind, 2 in front
     var screenshotRequested = false   // F2
     var target: (hit: IVec3, normal: IVec3)?
+    // P297 (b): the target is a polygon world's ground: where the aim meets the drawn surface and the surface's normal
+    // there (the renderers mark it with a ring on the ground, not a block outline).
+    var targetGround: (cell: IVec3, at: V3, normal: V3)?
+    var digDownCell: IVec3?                // P327 (c): the target is the ground under your own feet (dug straight down)
 
     // Open container screen (nil = playing). The carried stack is the one on the cursor.
     var menu: Menu? {
@@ -1206,6 +1210,7 @@ final class Game {
         let reach: Float = 6
         let ray = world.raycast(player.eye, player.look, maxDist: reach)
         target = AimAssist.sticky(self, ray, reach: reach)
+        aimGround()
         breakCooldown -= dt
         placeCooldown -= dt
         let breakHeld = input.leftDown || p.rt > 0.5
@@ -1442,6 +1447,7 @@ final class Game {
             if !survival {
                 if breakNow || breakCooldown <= 0 {
                     breakBlock(t.hit, b, drop: false)
+                    if t.hit == digDownCell { centreOverHole(t.hit) }
                     breakCooldown = 0.3
                 }
             } else {
@@ -1511,6 +1517,7 @@ final class Game {
                         breakBlock(t.hit, b, drop: true)
                         // PG1: the hole follows the tool: the field round it is shaped by a ball where the blow landed.
                         if natural { world.carve(at: dug + player.look * 0.25, radius: 0.62, mode: .shape) }
+                        if t.hit == digDownCell { centreOverHole(t.hit) }
                         if b == SEALROCK {
                             achieve("break_seal")
                             // Through the last layer: the same moment as a charge, and a way-up mark in the vault.
@@ -1885,6 +1892,70 @@ final class Game {
                 placeRefused("Something is in the way")
             }
         }
+    }
+
+    // P297 (b) / P327 (c): after the aim ray, in a polygon world: the drawn surface point and normal of a ground target,
+    // and, looking steeply down while standing, the ground cell under your own feet as the target. The drawn bowl a dig
+    // leaves belongs to the cells round it, so aiming into it took the side cells and the hole widened instead of going
+    // down; on a block grid you dig the block you stand on.
+    func aimGround() {
+        targetGround = nil; digDownCell = nil
+        guard world.fieldTerrain else { return }
+        if let t = target, let fh = world.fieldHit, fh.cell == t.hit {
+            let g = world.fieldGradient(fh.at)
+            let l = simd_length(g)
+            targetGround = (t.hit, fh.at, l > 1e-5 ? -g / l : V3(0, 1, 0))
+        }
+        guard player.look.y < -0.82, !player.flying, player.onGround,
+              target == nil || targetGround != nil else { return }
+        if let g = targetGround {
+            let off = V2(g.at.x - player.pos.x, g.at.z - player.pos.z)
+            guard simd_length(off) < 1.0 else { return }
+        }
+        let px = Int(floor(player.pos.x)), pz = Int(floor(player.pos.z)), fy = Int(floor(player.pos.y + 0.2))
+        for y in stride(from: fy, through: fy - 3, by: -1) {
+            let b = world.block(px, y, pz)
+            if b == AIR { continue }
+            guard SmoothTerrain.natural[Int(b)], Blocks.hardness[Int(b)] >= 0 else { return }
+            let o = V3(Float(px) + 0.5, player.eye.y, Float(pz) + 0.5)
+            var at = V3(Float(px) + 0.5, Float(y + 1), Float(pz) + 0.5)
+            if let h = world.fieldRaySegment(o, V3(0, -1, 0), from: 0, to: player.eye.y - Float(y) + 0.5) { at = h.at }
+            target = (IVec3(px, y, pz), IVec3(0, 1, 0))
+            targetGround = (IVec3(px, y, pz), at, V3(0, 1, 0))
+            digDownCell = IVec3(px, y, pz)
+            return
+        }
+    }
+
+    // P297 (b): the ring that marks aimed-at polygon ground (instead of a block outline): points round the aim point,
+    // each pulled onto the drawn surface along its normal and lifted a little off it. Nil when the target is not ground.
+    func groundMarkRing(segments n: Int = 20, radius r: Float = 0.4) -> [V3]? {
+        guard let g = targetGround, let t = target, g.cell == t.hit else { return nil }
+        let nrm = g.normal
+        let t1 = simd_normalize(simd_cross(nrm, abs(nrm.y) < 0.9 ? V3(0, 1, 0) : V3(1, 0, 0)))
+        let t2 = simd_cross(nrm, t1)
+        var pts: [V3] = []
+        pts.reserveCapacity(n)
+        for k in 0..<n {
+            let a = Float(k) / Float(n) * 2 * .pi
+            var p = g.at + (t1 * cosf(a) + t2 * sinf(a)) * r
+            var lo: Float = -0.6, hi: Float = 0.6                 // along the normal: inside the ground at lo, out at hi
+            if world.fieldDensity(at: p + nrm * lo) > 0 && world.fieldDensity(at: p + nrm * hi) <= 0 {
+                for _ in 0..<6 { let m = (lo + hi) * 0.5; if world.fieldDensity(at: p + nrm * m) > 0 { lo = m } else { hi = m } }
+                p += nrm * hi
+            }
+            pts.append(p + nrm * 0.025)
+        }
+        return pts
+    }
+
+    // P327 (c): the cell dug was the one under your own feet: step onto its middle (at most a third of a block sideways,
+    // and only into free space) so you drop into the hole, as you would standing on a block grid.
+    func centreOverHole(_ c: IVec3) {
+        let p = player.pos
+        let want = V3(max(Float(c.x) + 0.31, min(Float(c.x) + 0.69, p.x)), p.y, max(Float(c.z) + 0.31, min(Float(c.z) + 0.69, p.z)))
+        guard want != p, simd_length(want - p) <= 0.34, !player.collides(at: want, world) else { return }
+        player.pos = want
     }
 
     // Exact point where the look ray meets the targeted face.

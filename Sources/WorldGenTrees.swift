@@ -627,7 +627,8 @@ extension WorldGen {
     }
 
     // Ground plants, flowers, sugar cane, cacti, water plants and icebergs, per column (own chunk only).
-    func placeVegetation(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ biomes: [Biome], _ rng: inout SRng, cols: [Terrain.Column]? = nil) {
+    func placeVegetation(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ biomes: [Biome], _ rng: inout SRng, cols: [Terrain.Column]? = nil,
+                         added: UnsafeMutablePointer<Float>? = nil) {
         let g = Blocks.id
         let grassy: Set<BlockID> = [GRASS, SNOWY_GRASS, DIRT, g("podzol"), g("coarse_dirt"), g("moss_block")]
         // Looked up once: these ran per column (several string dictionary lookups each).
@@ -895,14 +896,28 @@ extension WorldGen {
                 var y = CH - 2
                 while y > 1 && !Blocks.opaque[Int(b[Chunk.index(lx0, y, lz0)])] { y -= 1 }
                 let r = 1.1 + rng.float() * 1.3
-                let mats = [g("mossy_cobblestone"), COBBLE, g("andesite"), g("mossy_cobblestone")]
+                // P297 (c): a polygon world's boulders are natural rock the field rounds (worked cobble stayed cubes there):
+                // the ellipsoid as a distance in `added`, its rough edge from smooth noise instead of a hash per cell.
+                let mats = added != nil ? [g("andesite"), STONE, g("andesite"), g("tuff")]
+                                        : [g("mossy_cobblestone"), COBBLE, g("andesite"), g("mossy_cobblestone")]
                 let ground = Blocks.key(b[Chunk.index(lx0, y, lz0)])
                 if y > SEA && (ground.contains("grass") || ground == "podzol" || ground == "dirt" || ground == "coarse_dirt" || ground == "stone" || ground == "gravel") {
-                    for dy in -1...2 { for dz in -3...3 { for dx in -3...3 {
+                    let h = r * 0.837                                // (the vertical radius: e's r * r * 0.7)
+                    for dy in -2...3 { for dz in -4...4 { for dx in -4...4 {
                         let lx = lx0 + dx, lz = lz0 + dz, yy = y + dy
-                        guard lx >= 0 && lx < CS && lz >= 0 && lz < CS && yy < CH - 1 else { continue }
+                        guard lx >= 0 && lx < CS && lz >= 0 && lz < CS && yy > 0 && yy < CH - 1 else { continue }
                         let e = Float(dx * dx + dz * dz) / (r * r) + Float(dy * dy) / (r * r * 0.7)
-                        if e > 1 + (hashf(bx + lx, yy, bz + lz, s32 ^ 0xB01D) - 0.5) * 0.6 { continue }
+                        if let added {
+                            let k = 1 + FieldTerrain.roughEdge(bx + lx, yy, bz + lz, s32 ^ 0xB01D) * 0.6
+                            let a = -FieldTerrain.ellipsoidDistance(Float(dx), Float(dy), Float(dz), r, h, k)
+                            guard a > -1.5 else { continue }
+                            let i = Chunk.index(lx, yy, lz)
+                            added[i] = added[i].isNaN ? a : max(added[i], a)
+                            if a <= 0 { continue }
+                        } else {
+                            guard abs(dy) <= 2 && dy >= -1 && abs(dx) <= 3 && abs(dz) <= 3 else { continue }
+                            if e > 1 + (hashf(bx + lx, yy, bz + lz, s32 ^ 0xB01D) - 0.5) * 0.6 { continue }
+                        }
                         let i = Chunk.index(lx, yy, lz)
                         if b[i] == AIR || Blocks.replaceable[Int(b[i])] || dy <= 0 {
                             b[i] = mats[Int(hashf(bx + lx, yy, bz + lz, s32 ^ 0xB01E) * 4) % 4]
