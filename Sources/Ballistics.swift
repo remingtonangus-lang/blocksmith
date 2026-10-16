@@ -205,7 +205,15 @@ final class Armory {
                 }
                 s.dead = true
                 slugs[i] = s
-                impactBlock(s, at: at, block: b.1, normal: b.2, g)
+                // P305 (a): a round that shot out a weak block (glass, leaves, a pane, wool) goes on through it.
+                let left = impactBlock(s, at: at, block: b.1, normal: b.2, g)
+                if s.kind == .bullet && left > 0.5 {
+                    s.dead = false
+                    s.damage = left
+                    s.pos = at + dir * 0.06
+                    s.traveled += b.0
+                    slugs[i] = s
+                }
                 continue
             }
             if hitT <= len {
@@ -249,19 +257,25 @@ final class Armory {
         beams.removeAll { $0.life <= 0 }
     }
 
-    private func impactBlock(_ s: Slug, at: V3, block b: IVec3, normal n: IVec3, _ g: Game) {
-        if s.kind == .rocket || s.kind == .shell { detonate(s, at: at, g); return }
+    @discardableResult
+    private func impactBlock(_ s: Slug, at: V3, block b: IVec3, normal n: IVec3, _ g: Game) -> Float {
+        if s.kind == .rocket || s.kind == .shell { detonate(s, at: at, g); return 0 }
         let w = g.world
         let id = w.block(b.x, b.y, b.z)
         // Player rounds shatter glass; everything kicks up a little dust and a spark.
         let key = Blocks.key(Blocks.groupBase[Int(id)])
-        if s.fromPlayer && ((key.hasSuffix("glass") || key.hasSuffix("glass_pane")) && !key.hasPrefix("tinted") && !key.hasPrefix("armored") || key == BaseSecurity.camera) {   // (+ D35 cameras)
+        if s.fromPlayer && key == BaseSecurity.camera {   // (D35 cameras)
             w.setBlock(b.x, b.y, b.z, AIR)
             g.sfx(.glassBreak, 0.8, at: at)
             g.particles.blockBreak(id, at: b)
-            return
+            return 0
         }
-        if s.fromPlayer && g.greywallBlockShot(b, id, at: at) { return }      // wall turrets and alarm panels (GreywallAlarm.swift)
+        if s.fromPlayer && g.greywallBlockShot(b, id, at: at) { return 0 }      // wall turrets and alarm panels (GreywallAlarm.swift)
+        // P305 (a): rounds wear what they strike by calibre and shoot it out once worn through (BlockWear.swift).
+        if s.kind == .bullet {
+            let left = g.wearBlock(b, damage: s.damage, at: at, fromPlayer: s.fromPlayer)
+            if w.block(b.x, b.y, b.z) != id { return left }
+        }
         // Realistic world: a round leaves its hole (a small bite, kept until the block changes) and knocks chips off.
         if World.realistic && Blocks.render[Int(id)] == RenderType.cube.rawValue && Blocks.collide[Int(id)] {
             let nv = V3(Float(n.x), Float(n.y), Float(n.z))
@@ -278,6 +292,7 @@ final class Armory {
                                  uv0: V2(0, 0), uvSize: 1, size: 0.06, gravity: 0, color: V3(1.4, 1.1, 0.5), collide: false, glow: true))
         g.sfx(.bulletImpact(soundMat(id)), 0.55, at: at)
         if Rand.float(in: 0..<1) < 0.2 { g.sfx(.gun(8), 0.35, at: at) }
+        return 0
     }
 
     private func impactMob(_ s: Slug, _ m: Mob, at: V3, dir: V3, _ g: Game) {
@@ -382,7 +397,8 @@ final class Armory {
     // Hitscan energy beam (arc lance): damages and ignites the first thing it meets.
     func beam(_ g: Game, from o: V3, dir: V3, range: Float, damage: Float, fromPlayer: Bool, shooter: Mob?, by: String, incendiary: Bool = false) {
         var end = range
-        if let b = Armory.blockHit(g.world, o, dir, range) { end = b.0 }
+        let struck = Armory.blockHit(g.world, o, dir, range)
+        if let b = struck { end = b.0 }
         var mob: Mob?
         var player = false
         if let h = Armory.mobHit(g, o, dir, end, shooter: shooter.map { ObjectIdentifier($0) }, friendly: !fromPlayer, spareStock: !fromPlayer || shooter != nil,
@@ -390,6 +406,14 @@ final class Armory {
         if !fromPlayer, let t = Armory.playerHit(g, o, dir, end) { end = t; player = true; mob = nil }
         let hit = o + dir * end
         beams.append(Beam(a: o, b: hit, life: 0.18, color: V4(0.9, 2.2, 2.6, 1), width: 0.09))
+        // P305 (a): a bolt that strikes a wall burns it three times as hard as a round and bores on into the block behind.
+        if mob == nil && !player, let b = struck, b.0 <= end + 0.01 {
+            let before = g.world.block(b.1.x, b.1.y, b.1.z)
+            g.wearBlock(b.1, damage: damage, at: hit, fromPlayer: fromPlayer, arc: true)
+            if g.world.block(b.1.x, b.1.y, b.1.z) != before, let n = Armory.blockHit(g.world, hit, dir, 1.6) {
+                g.wearBlock(n.1, damage: damage * 0.6, at: hit + dir * n.0, fromPlayer: fromPlayer, arc: true)
+            }
+        }
         if let m = mob {
             let boss = m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian
             if m.shield > 0 { m.shield = max(0.01, m.shield - damage * 2) }   // arc beams tear shields at triple (Navy.swift)
