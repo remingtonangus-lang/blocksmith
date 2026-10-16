@@ -8,6 +8,16 @@ import simd
 enum Jetpack {
     static let tank = 1200
     static let fuelValue: [String: Int] = ["coal": 300, "charcoal": 300, "blaze_powder": 600]
+    static let suitBurn: Float = 3                // P322 (c): the Hannibal plate's heavy thirst
+
+    // The plate takes one fuel item from the pack (coal or charcoal first, then blaze powder): ticks of thrust, 0 if none.
+    static func suitRefill(_ g: Game) -> Int {
+        for k in ["coal", "charcoal", "blaze_powder"] where Items.has(k) {
+            let id = Items.id(k)
+            if g.inventory.main.countOf(id) > 0 && g.inventory.main.remove(id, 1) == 1 { return fuelValue[k] ?? 0 }
+        }
+        return 0
+    }
 
     static func isJetpack(_ s: ItemStack) -> Bool { !s.isEmpty && Items.key(s.item) == "jetpack" }
     static func fuel(_ s: ItemStack) -> Int { max(0, s.def.durability - s.damage) }
@@ -57,27 +67,45 @@ extension Game {
         return true
     }
 
-    // Before Player.update: decide whether the jetpack thrusts this frame and burn fuel.
+    // Before Player.update: decide whether the jetpack (or the Hannibal plate, P322 c) thrusts this frame and burn fuel.
+    // P322 (a, b): jump held thrusts; the move stick pushed forward with it leans the thrust where he looks (the headset's
+    // gaze in VR), so he flies forward fast, not only straight up; fuel burns with the thrust: 1x hovering or climbing,
+    // up to 2.5x at full forward thrust (3.2x sprinting). The plate burns three times as much, from coal, charcoal or
+    // blaze powder in the pack.
     func jetpackTick(_ dt: Float, _ mi: MoveInput) {
         let p = player
         p.jetThrust = false
         var c = inventory.armor[1]
-        guard Jetpack.isJetpack(c) else { p.jetHold = 0; return }
+        let jet = Jetpack.isJetpack(c)
+        let suit = !jet && PowerSuit.worn(self)
+        guard jet || suit else { p.jetHold = 0; p.jetBoost = 0; return }
         p.jetHold = mi.jump ? p.jetHold + dt : 0
         let free = !p.flying && !p.gliding && !p.swimming && !p.inWater && !p.inLava && !p.onGround && riding == nil
-        let fuel = Jetpack.fuel(c)
-        if fuel > 0 { p.jetEmptyWarned = false }
-        guard mi.jump && free && p.jetHold >= 0.15 else { return }
+        let lean = max(0, mi.forward)
+        let boostWant: Float = mi.jump && free ? (lean > 0.2 ? min(1, (lean - 0.2) / 0.6) : 0) : 0
+        p.jetBoost += (boostWant - p.jetBoost) * min(1, dt * 4)
+        if p.jetBoost < 0.02 { p.jetBoost = 0 }
+        let look = simd_normalize(p.moveLook ?? p.look)
+        p.jetDir = simd_normalize(look + V3(0, 0.18, 0))
+        if jet && Jetpack.fuel(c) > 0 { p.jetEmptyWarned = false }
+        guard mi.jump && free && p.jetHold >= 0.15 else { if !mi.jump { p.jetBoost = 0 }; return }
+        // (the plate takes its next fuel item from the pack only as it thrusts)
+        if suit && survival && p.suitFuel <= 0 { p.suitFuel = Float(Jetpack.suitRefill(self)); if p.suitFuel > 0 { p.jetEmptyWarned = false } }
+        let fuel = jet ? Jetpack.fuel(c) : (survival ? Int(p.suitFuel.rounded(.up)) : 1)
         guard fuel > 0 else {
-            if !p.jetEmptyWarned { p.jetEmptyWarned = true; onToast?("Jetpack out of fuel") }
+            if !p.jetEmptyWarned { p.jetEmptyWarned = true; sfx(.fizz, 0.7, at: p.pos + V3(0, 1, 0)) }
+            p.jetBoost = 0
             return
         }
         p.jetThrust = true
         if survival {
-            p.jetBurn += dt * 20
-            let n = Int(p.jetBurn)
-            p.jetBurn -= Float(n)
-            if n > 0 { c.damage = min(c.def.durability, c.damage + n); inventory.armor[1] = c }
+            let rate: Float = (1 + 1.5 * p.jetBoost * (p.sprinting ? 1.48 : 1)) * (suit ? Jetpack.suitBurn : 1)
+            if suit { p.suitFuel = max(0, p.suitFuel - dt * 20 * rate) } else {
+                p.jetBurn += dt * 20 * rate
+                let n = Int(p.jetBurn)
+                p.jetBurn -= Float(n)
+                if n > 0 { c.damage = min(c.def.durability, c.damage + n); inventory.armor[1] = c }
+            }
         }
         // Flame and smoke from two nozzles low on the back.
         let back = V3(sinf(p.yaw), 0, cosf(p.yaw)), right = V3(cosf(p.yaw), 0, -sinf(p.yaw))

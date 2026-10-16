@@ -864,6 +864,11 @@ final class QuestControls {
             }
         }
         want = max(want, min(0.8, rig.chaseSpeed * 0.08))      // the chase view easing out or back in (P100)
+        // P322 (e): jet flight narrows the view with its speed and its turns (in step with the thrust easing in and out).
+        if game.player.jetThrust || game.player.jetBoost > 0 {
+            let fly = simd_length(game.player.vel)
+            want = max(want, min(0.85, max(0, fly - 3) / 14 + game.player.jetBoost * 0.15))
+        }
         want = max(want, turnFlash)
         turnFlash = max(0, turnFlash - dt * 5)
         vignette += (want - vignette) * min(1, dt * (want > vignette ? 10 : 3))
