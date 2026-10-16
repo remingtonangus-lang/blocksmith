@@ -126,9 +126,11 @@ enum CollapseCheck {
                 for dz in -1...1 { for dx in -1...1 { st.mine.append(IVec3(o.x + 10 + dx, deckY - 1, o.z + dz)) } }
                 for y in stride(from: deckY - 2, through: o.y, by: -1) { for dz in -1...1 { for dx in -1...1 { st.mine.append(IVec3(o.x + 10 + dx, y, o.z + dz)) } } }
             } else {
-                st.blasts = [(V3(Float(o.x + 10) + 0.5, Float(deckY - 2), Float(o.z) + 0.5), 4),
-                             (V3(Float(o.x + 10) + 0.5, Float(deckY - 6), Float(o.z) + 0.5), 4),
-                             (V3(Float(o.x + 10) + 0.5, Float(o.y + 2), Float(o.z) + 0.5), 4)]
+                // Power 7: with the reference blast resistances (stone bricks 6, d31579b) power-4 blasts only chipped
+                // the pier's outer bricks and nothing fell.
+                st.blasts = [(V3(Float(o.x + 10) + 0.5, Float(deckY - 2), Float(o.z) + 0.5), 7),
+                             (V3(Float(o.x + 10) + 0.5, Float(deckY - 6), Float(o.z) + 0.5), 7),
+                             (V3(Float(o.x + 10) + 0.5, Float(o.y + 2), Float(o.z) + 0.5), 7)]
             }
             st.view = (V3(Float(o.x + 10), Float(o.y + 8), Float(o.z + 34)), 0, -0.12)
         case "tower":
@@ -142,7 +144,7 @@ enum CollapseCheck {
             for dz in -2...2 { for dx in -2...2 where abs(dx) == 2 || abs(dz) == 2 { top.append(IVec3(o.x + dx, o.y + h - 1, o.z + dz)) } }
             st.watch = top
             let bx = Float(o.x + 3), by = Float(o.y + 1), bz = Float(o.z) + 0.5
-            st.blasts = [(V3(bx, by, bz), 4), (V3(bx, by, bz - 2), 3.5), (V3(bx, by, bz + 2), 3.5)]
+            st.blasts = [(V3(bx, by, bz), 6), (V3(bx, by, bz - 2), 5.5), (V3(bx, by, bz + 2), 5.5)]   // (bricks resist 6 now)
             st.view = (V3(Float(o.x + 4), Float(o.y + 14), Float(o.z + 46)), 0, -0.2)
         case "stands":
             let h = 60
