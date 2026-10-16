@@ -250,6 +250,8 @@ enum BrimstoneKeep {
         w.chest(ox + 3, f - 9, oz + 4, loot: "brimstone_strongroom", seed: seed ^ 0x51, facing: 1)
         w.chest(ox, f + 10, oz - 4, loot: "brimstone_keep", seed: seed ^ 0x52)
         w.chest(ox - 4, f + 10, oz + 4, loot: "brimstone_keep", seed: seed ^ 0x53)
+        forge(&w, ox: ox, oz: oz, f: f)
+        sealDig(&w, x: ox + 2, z: oz - 5, from: f - 9)
         // The Ember Gate (DeepGates.swift): in the courtyard north of the keep, asleep until the Warden falls.
         DeepGates.build(&w, ox: ox, oz: oz, f: f)
         // Spawners: Cinderwisps on two towers.
@@ -279,6 +281,79 @@ enum BrimstoneKeep {
         w.mob("soldier_ironclad@ash^180", V3(Float(ox + 1) + 0.5, Float(f - 9), Float(oz - 2) + 0.5))
         w.mob("soldier_recruit@ash^180", V3(Float(ox + 3) + 0.5, Float(f - 9), Float(oz) + 0.5))
         w.mob("soldier_recruit@ash^0", V3(Float(ox - 1) + 0.5, Float(f - 9), Float(oz - 3) + 0.5))
+    }
+}
+
+extension BrimstoneKeep {
+    // P317 (b): the Sunderite chain shown in the strongroom, no words. Against its east wall: the Ashguard's worked
+    // bench, a shelf beside it with two Raw Sunderite and a pinch of Cinder Powder laid out (what goes on the bench),
+    // a campfire and a blast furnace on a magma hearth, holding Sunderite Flux in its top slot and a finished Sunderite
+    // Ingot in its output (what the bench's flux becomes, and where). Its fuel slot is empty: fuel it and the flux
+    // melts while the player watches.
+    static func forge(_ w: inout StructWriter, ox: Int, oz: Int, f: Int) {
+        let y = f - 9, x = ox + 5
+        w.set(x, y, oz - 4, Blocks.id("crafting_table"))
+        let wood = Blocks.has("crimson_shelf") ? "crimson_shelf" : "oak_shelf"
+        if Blocks.has(wood) {
+            w.display(x, y, oz - 3, Blocks.id(wood) + 2,                     // facing west, into the room
+                      [ItemStack(Items.id("raw_sunderite"), 2), ItemStack(Items.id("blaze_powder"), 1), .empty])
+        }
+        if Blocks.has("campfire") { w.set(x, y, oz - 2, Blocks.id("campfire")) }
+        w.set(x, y - 1, oz - 1, Blocks.id("magma_block"))
+        w.furnace(x, y, oz - 1, kind: "blast_furnace",
+                  input: ItemStack(Items.id("sunderite_flux"), 1), output: ItemStack(Items.id("sunderite_ingot"), 1))
+    }
+
+    // P317 (c): the Ashguard's dig to the Sealrock under the keep. A laddered shaft from the strongroom floor (x, z: the
+    // ladder's cell, against the north wall) down through the plinth and the lava sea, lined in brick, to a lamp-lit
+    // chamber on the seal itself: sandbags, crates, a sentry, and a Sunder Charge set in a hollow scraped into the
+    // Sealrock (DeepSeal.setCharge, the same look a player's own charge has while its fuse burns). It shows what the
+    // charge is for, and where: the player can blast the seal right here.
+    static func sealDig(_ w: inout StructWriter, x sx: Int, z sz: Int, from top: Int) {
+        let dark = Blocks.id("polished_blackstone_bricks"), lamp = Blocks.id("ash_lamp")
+        let ladder = Blocks.id("ladder") + 1                                   // against the wall at -z
+        let b = DeepSeal.top                                                    // the chamber's floor stands on the seal
+        // The shaft's lining (through the plinth's underside, the piers' air and the lava sea), then the chamber's shell.
+        w.fill(sx - 1, b + 5, sz - 1, sx + 1, top - 2, sz + 1, dark)
+        w.fill(sx - 3, b, sz - 1, sx + 3, b + 4, sz + 5, dark)
+        w.fill(sx - 2, b, sz, sx + 2, b + 3, sz + 4, AIR)
+        w.fill(sx, b, sz - 1, sx, b + 3, sz - 1, dark)                         // the ladder's backing down to the floor
+        for y in b...top { w.set(sx, y, sz, ladder) }
+        // Lamps, sandbags and crates.
+        w.set(sx - 3, b + 2, sz + 2, lamp); w.set(sx + 3, b + 2, sz + 2, lamp)
+        if Blocks.has("ash_sandbags") {
+            let bags = Blocks.id("ash_sandbags")
+            for (dx, dz) in [(-2, 4), (-1, 4), (-2, 3)] { w.set(sx + dx, b, sz + dz, bags) }
+        }
+        if Blocks.has("ash_crate") {
+            let crate = Blocks.id("ash_crate")
+            w.set(sx + 2, b, sz + 4, crate); w.set(sx + 2, b + 1, sz + 4, crate); w.set(sx + 2, b, sz, crate)
+        }
+        // The set charge in its hollow, scorch round it on the walls (magma glow in the brick).
+        w.set(sx + 1, b - 1, sz + 3, Blocks.has(DeepSeal.setCharge) ? Blocks.id(DeepSeal.setCharge) : AIR)
+        for (dx, dz) in [(3, 3), (3, 4), (1, 5)] { w.set(sx + dx, b, sz + dz, Blocks.id("magma_block")) }
+        w.mob("soldier_recruit@ash^180", V3(Float(sx - 1) + 0.5, Float(b), Float(sz + 2) + 0.5))
+    }
+}
+
+extension StructWriter {
+    // P317 (b): a furnace (or smoker or blast furnace) with its slots filled, cold, as the structure leaves it.
+    mutating func furnace(_ x: Int, _ y: Int, _ z: Int, kind: String, input: ItemStack, output: ItemStack) {
+        guard inside(x, y, z), Blocks.has(kind) else { return }
+        set(x, y, z, Blocks.id(kind))
+        let be = BlockEntity(.furnace)
+        be.mob = kind == "furnace" ? "" : kind
+        be.container[0] = input
+        be.container[2] = output
+        entities.append((IVec3(x, y, z), be))
+    }
+    // A wooden shelf (`b`: its block state, facing) with up to three stacks standing on its ledge.
+    mutating func display(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, _ items: [ItemStack]) {
+        guard inside(x, y, z) else { return }
+        set(x, y, z, b)
+        let be = BlockEntity(.display)
+        for (i, s) in items.prefix(3).enumerated() { be.container[i] = s }
+        entities.append((IVec3(x, y, z), be))
     }
 }
 

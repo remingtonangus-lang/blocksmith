@@ -467,6 +467,11 @@ enum Recipes {
         r.append(shapeless(["spider_eye", "brown_mushroom", "sugar"], "fermented_spider_eye"))
         r.append(shaped(["###", "#M#", "###"], ["#": "gold_nugget", "M": "melon_slice"], "glistering_melon_slice"))
         r.append(shapeless(["blaze_powder", "slime_ball"], "magma_cream"))
+        // P317 (d): Lava Cream had no use a player could find without a brewing guide. Two show up in the crafting book
+        // as soon as he holds some: four pack into a Magma Block, and two stirred into a water bottle make an Emberward
+        // Tonic straight away (fire resistance, the hell band's need; brewing it still gives the longer forms).
+        r.append(shaped(["##", "##"], ["#": "magma_cream"], "magma_block"))
+        r.append(shapeless(["magma_cream", "magma_cream", "potion_water"], "potion_fire_resistance"))
         r.append(shapeless(["blaze_powder", "coal", "gunpowder"], "fire_charge", 3))
         r.append(shaped(["GGG", "GSG", "OOO"], ["G": "glass", "S": "nether_star", "O": "obsidian"], "beacon"))
         r.append(shaped(["###", "# #"], ["#": "turtle_scute"], "turtle_helmet"))
