@@ -17,6 +17,7 @@ struct WreckRecord: Codable {
 
 enum Wrecks {
     static let stepsPerDay: Double = 3          // overgrowth steps per in-game day
+    static let layPerFrame = 2000               // blocks a wreck lays into the world a frame (~3 ms a thousand)
     static let maxSteps = 63                    // three weeks: fully overgrown
     static let salvageTable = "wreck_salvage"
 
@@ -50,7 +51,7 @@ extension ShipManager {
         let name = s.name
         let near = game.map { simd_length(s.pos - $0.player.pos) < 300 } ?? false
         let finish: () -> Void = { [weak self] in self?.wreckLaid(rec, spots: spots, name: name, near: near, game: game) }
-        if s.blockCount > 12000 {
+        if s.blockCount > Wrecks.layPerFrame {        // (a 10k-block section laid at once cost 31 ms: collapsecheck frigate)
             // A big hull goes down a few thousand blocks a frame (a 177k-block frigate in one tick froze the game for
             // ~0.4 s); it stays as a ship, still and solid, until its last layer is in.
             s.baking = true
@@ -106,7 +107,7 @@ extension ShipManager {
             putC.append(c)
             putB.append(upright ? ShipParts.rotate(b, turns) : Blocks.groupBase[Int(b)])
         }
-        while j.layer < g.sy && used < 3000 {
+        while j.layer < g.sy && used < Wrecks.layPerFrame {
             let y = j.layer
             var first: [IVec3] = []
             for z in 0..<g.sz { for x in 0..<g.sx {
