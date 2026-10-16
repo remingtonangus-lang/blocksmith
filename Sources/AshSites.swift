@@ -512,7 +512,7 @@ extension AshWar {
             banner(-6, 11, top: y0 + 7); banner(6, 11, top: y0 + 7)
             for (u, v) in [(-8, -5), (8, -5), (-8, 5), (8, 5), (0, -6)] { put(u, y0 + 6, v, k.lamp) }
             box(-3, y0 + 1, -2, 3, y0 + 1, 2, k.console)
-            box(-2, y0 + 2, -1, 2, y0 + 2, 1, k.table)
+            // P314: (a row of crafting tables stood on the map console here as its "map table"; gone)
             box(-11, y0 + 1, -8, -9, y0 + 3, -8, k.console); box(9, y0 + 1, -8, 11, y0 + 3, -8, k.console)
             chest(-10, -6, "ash_command"); chest(10, -6, "ash_command"); chest(-10, 6, "ash_armory"); chest(10, 6, "ash_armory")
             for (u, v) in [(-13, -10), (13, -10), (-13, 10), (13, 10)] { put(u, y0 + 10, v, k.lamp) }
