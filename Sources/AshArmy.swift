@@ -340,7 +340,7 @@ extension Game {
         ashAlarmLevel = lvl
         if lvl == 0 { ashSquadsSent = 0 }
         if up {
-            if lvl >= 2 { sfx(.ashSiren, lvl == 3 ? 1.6 : 1.2, at: player.pos + V3(0, 24, 0)) } else { sfx(.gun(11), 1.0, at: player.eye) }
+            sfx(.gun(11), 1.0, at: player.eye)          // P319: from Alarm up the garrison sirens wail (AshSiren.swift)
             onToast?("\(AshArmy.levels[lvl] == "Alarm" ? "Alarm raised" : "Alarm: " + AshArmy.levels[lvl]). \(AshArmy.radioUp[lvl])")
         } else {
             sfx(.gun(11), 0.8, at: player.eye)

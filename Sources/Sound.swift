@@ -187,7 +187,7 @@ enum Snd: Hashable {
              .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop,
              .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
-             .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop, .fallRushLoop:
+             .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop, .fallRushLoop, .ashSiren:
             return true
         default: return false
         }
@@ -250,6 +250,7 @@ enum Snd: Hashable {
         case .witherSpawn, .wardenEmerge, .wardenSonicCharge, .raidHorn, .goatHorn, .endPortalOpen, .beaconActivate, .thunder, .explode, .bellResonate, .caveAmbience,
              .netherMood, .underwaterMood, .caveWind, .totem, .elderCurse, .tntFuse, .fireworkTwinkle, .enchant, .villagerCelebrate, .levelUp, .fireworkBlastLarge, .lightning:
             return 0.5...12
+        case .ashSiren: return 9...11
         case _ where isLoop: return 1.5...8
         default: return 0.03...4
         }
