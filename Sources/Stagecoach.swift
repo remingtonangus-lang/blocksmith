@@ -92,7 +92,7 @@ enum Stagecoach {
             c.ambushed = true; Contracts.save(board, slot, c)
             let side = simd_normalize(V3(goal.z - d.pos.z, 0, d.pos.x - goal.x) + V3(0.001, 0, 0))
             Contracts.bandits(g, near: d.pos + side * 14 + simd_normalize(V3(goal.x - d.pos.x, 0, goal.z - d.pos.z)) * 10, 4, "Road Agent")
-            g.onToast?("Road agents! Keep the stage rolling")
+            g.onToast?("Road agents!")
         }
         if left < 30 {
             // Into town: driver and coach go on their way (and off the books).

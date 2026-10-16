@@ -372,7 +372,7 @@ enum TownLaw {
         if let p = openPos, g.clock - openStart < 0.5, m is ChestMenu || m is DoubleChestMenu, Jail.lockedBox(g, p) {
             openPos = nil
             g.closeMenu()
-            g.onToast?("Locked. The sheriff keeps the strongbox key while it holds your things.")
+            g.onToast?("Locked")
             return
         }
         guard let p = openPos, g.clock - openStart < 0.5, m is ChestMenu || m is DoubleChestMenu,
@@ -479,14 +479,12 @@ enum TownLaw {
 
     // MARK: Every frame (from HudExtras.tick); real work once a second.
 
-    // G14, R20: the exchange hint, once, the first time you carry emeralds in a town (G14's tip fired the moment the
-    // first emerald was picked up, usually out in the hills far from any counter, and named only the bank, which a
-    // hamlet doesn't have). Every shop counter now leads with an Exchange row while you carry emeralds (Exchange).
+    // G14, R20: the exchange, once, the first time you carry emeralds in a town. P328 (NO TEXT): nothing said; every shop
+    // counter leads with an Exchange row while you carry emeralds, and the bank and store have the EXCHANGE sign.
     static func emeraldTip(_ g: Game) {
         guard g.survival, inTown != nil, state.exchangeTip != true, Items.has("emerald"), g.inventory.main.countOf(Items.id("emerald")) > 0 else { return }
         state.exchangeTip = true
         state.emeraldTip = true
-        g.onToast?(Exchange.hint)
     }
 
     static func tick(_ g: Game) {

@@ -292,7 +292,7 @@ enum BorealTests {
         g.player.pos = at(-5, S + 1, Float(BorealStation.yard - 6))
         secs(1)
         let bar0 = g.stationOpBar()?.0 ?? "none"
-        check(g.stationOps[key]?.stage == 1 && bar0.hasPrefix("Copy the uplink codes") && toasts.contains { $0.hasPrefix("Station operation") },
+        check(g.stationOps[key]?.stage == 1 && bar0.hasPrefix("Station operation 0 / 3") && !toasts.contains { $0.hasPrefix("Station operation") },
               "boreal ops: stepping inside starts the operation (bar \"\(bar0)\")")
         // Copy: two seconds, walk off (interrupted, progress kept), come back, finish.
         g.player.pos = at(0, F + 1, -21)
@@ -312,6 +312,19 @@ enum BorealTests {
               String(format: "boreal ops: the console copies (%.0f%% after 2 s, bar \"%@\"), walking off pauses it (%.0f%% kept), back at it the codes finish", part * 100, copyBar, kept * 100))
         // A desk console elsewhere in the station (the hall's screen wall) is not the uplink.
         check(!g.stationUse(IVec3(cx + 3, F + 3, cz - 8)), "boreal ops: the hall's screen wall is not an objective")
+        // P288 made a dead generator take the station's power and its alarm with it, so the loud run and the archive
+        // check below (same world) get the machine back as it stood before the charge; the loud extraction gets the
+        // wreck back.
+        func genBox() -> [BlockID] {
+            var out: [BlockID] = []
+            for dz in 13...19 { for dx in 18...21 { for ly in 1...4 { out.append(world.block(cx + dx, F + ly, cz + dz)) } } }
+            return out
+        }
+        func setGenBox(_ v: [BlockID]) {
+            var i = 0
+            for dz in 13...19 { for dx in 18...21 { for ly in 1...4 { world.setBlock(cx + dx, F + ly, cz + dz, v[i]); i += 1 } } }
+        }
+        let whole = genBox()
         // Charge, then out past the fence before it blows.
         g.player.pos = at(17, F + 1, 13)
         let planted = g.stationUse(gen)
@@ -348,6 +361,7 @@ enum BorealTests {
         steel1 = countGen()
         check(g.stationOps[key]?.blown == true && steel1 < steel0 && g.stationOps[key]?.fuse == nil,
               "boreal ops: the charge blows the generator after \(Int(BorealStation.fuseSeconds)) s (\(steel0) -> \(steel1) machine blocks)")
+        let wrecked = genBox()
         // Saved and loaded: a finished station stays finished.
         let saved = g.saveExtra()
         g = Game(world: world, save: nil, persistent: false)
@@ -357,7 +371,8 @@ enum BorealTests {
         g.player.pos = at(0, F + 1, -21)
         check(g.stationUse(console) && sniperCount(g) == 0, "boreal ops: a finished station pays only once")
 
-        // Loud run: a fresh operation with the garrison in place.
+        // Loud run: a fresh operation with the garrison in place, the generator whole again.
+        setGenBox(whole)
         g = Game(world: world, save: nil, persistent: false)
         g.paused = false; g.survival = false                       // the soldiers can't target the observer
         g.weather.raining = false; g.weather.rain = 0
@@ -391,8 +406,9 @@ enum BorealTests {
         secs(Int(BorealStation.waveEvery) * 4) { g.baseNoise(at: hall, kind: .gunshot) }
         check(g.stationOps[key]?.waves == BorealStation.maxWaves, "boreal ops: squads stop at \(BorealStation.maxWaves) (\(g.stationOps[key]?.waves ?? 0))")
 
-        // Loud extraction: both jobs, then out; the smaller reward and no silent challenge. The generator is
-        // already wrecked from the silent run (same world): that counts as the sabotage, no charge needed.
+        // Loud extraction: both jobs, then out; the smaller reward and no silent challenge. The generator wrecked as
+        // the silent run left it counts as the sabotage, no charge needed.
+        setGenBox(wrecked)
         g.stationOps[key]?.codes = 1
         secs(1)
         check(g.stationOps[key]?.planted == true && g.stationOps[key]?.blown == true, "boreal ops: a generator already wrecked counts as sabotaged (\(g.stationGeneratorLeft(g.stationOps[key]!)) machine blocks left)")
@@ -405,6 +421,7 @@ enum BorealTests {
         g.mobs.mobs.removeAll()
 
         // A roused soldier shut in the archive gets out through its bulkhead door (the game's own AI, 40 s).
+        setGenBox(whole)
         let g2 = Game(world: world, save: nil, persistent: false)
         g2.paused = false; g2.survival = true                        // soldiers only hunt a player they can hurt
         for (name, p) in world.pendingMobs { if let m = Mob.structureMob(name, at: p) { g2.mobs.mobs.append(m) } }

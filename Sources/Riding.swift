@@ -10,7 +10,7 @@ extension Game {
         // A downed horse: only a Saddle Salve helps (HorseLife.swift).
         if m.downed > 0 {
             if useReviver(on: m) { return true }
-            onToast?("\(m.customName ?? "This horse") is badly hurt: it needs a Saddle Salve (stable or doctor)")
+            onToast?("\(m.customName ?? "This horse") is badly hurt")
             return true
         }
         // Taming with a chance per item (reference: 1 in 3).
@@ -129,11 +129,11 @@ extension Game {
         let rideable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse, .zombieHorse, .nautilus]
         if key == "saddle" && rideable.contains(m.kind) && !m.saddled && !m.baby && (m.tamed || m.kind == .pig || m.kind == .strider) {
             m.saddled = true; m.persistent = true; consumeHeld(); sfx(.place(.wood), 0.6)
-            onToast?("Saddled: you can steer it now"); return true
+            onToast?("Saddled"); return true
         }
-        // A saddle on a wild horse: say how to tame it (then mount, below, or nothing when already riding it).
+        // A saddle on a wild horse: not yet (then mount, below, or nothing when already riding it).
         if key == "saddle" && m.horseLike && rideable.contains(m.kind) && !m.saddled && !m.tamed && !m.baby {
-            onToast?(riding === m ? "Not tamed yet: keep riding until hearts appear" : "Tame it first: ride it until hearts appear, then use the saddle")
+            onToast?("Not tamed yet")
             if riding === m { return true }
         }
         // Horse armour (leather/iron/gold/diamond) and wolf armour.
@@ -259,7 +259,7 @@ extension Game {
             for (k, list) in mobs.stored {
                 guard let i = list.firstIndex(where: { $0.extra?["bond"] == horseBond }) else { continue }
                 if (list[i].extra?["down"] ?? 0) > 0 {               // down out there: it stays where it lies
-                    onToast?("\(list[i].name ?? "Your horse") is down and can't come: it needs a Saddle Salve")
+                    onToast?("\(list[i].name ?? "Your horse") is down and can't come")
                     return true
                 }
                 var l = list
@@ -277,7 +277,7 @@ extension Game {
         // P259 (e): how far and which way it is, while it runs to him.
         let off = h.pos - player.pos
         let far = simd_length(V2(off.x, off.z))
-        if h.downed > 0 { onToast?("\(h.customName ?? "Your horse") is down and can't come: it needs a Saddle Salve"); return true }
+        if h.downed > 0 { onToast?("\(h.customName ?? "Your horse") is down and can't come"); return true }
         let d = simd_length(h.pos - player.pos)
         if h.hitched { unhitch(h) }                             // D3: a call unties it
         h.stayAt = nil
@@ -626,7 +626,7 @@ final class MountMenu: Menu {
         if MountMenu.saddleKinds.contains(mob.kind) {
             let had = mob.saddled
             mob.saddled = Items.key(gear[0].item) == "saddle"
-            if had && !mob.saddled && game.riding === mob && mob.tamed { game.onToast?("Saddle off: it won't steer") }
+            if had && !mob.saddled && game.riding === mob && mob.tamed { game.onToast?("Saddle off") }
         }
         if mob.kind == .horse { mob.armorTier = gear[1].isEmpty ? 0 : (MountMenu.armorTier(Items.key(gear[1].item)) ?? 0) }
         if mob.saddled || mob.armorTier > 0 { mob.persistent = true }

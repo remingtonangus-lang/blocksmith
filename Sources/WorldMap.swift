@@ -138,13 +138,14 @@ final class MapCache {
 
     func marked(kind: String, x: Int, z: Int) -> Bool { marks.contains { $0.kind == kind && abs($0.x - x) < 24 && abs($0.z - z) < 24 } }
 
-    func discover(_ g: Game, kind: String, x: Int, z: Int, name given: String? = nil) {
+    // `silent`: the mark goes on the map without the toast (P328: the Wardstone's pointer, a mark that is not news).
+    func discover(_ g: Game, kind: String, x: Int, z: Int, name given: String? = nil, silent: Bool = false) {
         guard !marks.contains(where: { $0.kind == kind && abs($0.x - x) < 24 && abs($0.z - z) < 24 }) else { return }
         // A town goes on the map under its name (the gap pass: "a name on a sign and the map").
         let name = kind == "village" ? Townsfolk.town(g, at: V3(Float(x), 64, Float(z))) : given
         marks.append(Mark(kind: kind, x: x, z: z, name: name))
         saveMarks(g)
-        g.onToast?("\(name ?? MapCache.style(kind).name) marked on the map")
+        if !silent { g.onToast?("\(name ?? MapCache.style(kind).name) marked on the map") }
     }
 
     private func saveMarks(_ g: Game) {

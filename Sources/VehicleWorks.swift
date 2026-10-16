@@ -81,7 +81,7 @@ enum VehicleWorks {
         let gap = Float(footprint.z) / 2 + 1.5
         let c = V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5) + (alongX ? V3(sgn * gap, 0, 0) : V3(0, 0, sgn * gap))
         guard clear(g.world, centre: c, alongX: alongX) else {
-            g.onToast?("Vehicle Works: clear a \(footprint.x) x \(footprint.z) yard beside it first")
+            g.onToast?("Vehicle Works: no room")
             return nil
         }
         // Heading: the vehicle's front (-Z in the blueprint) points away from the Works.

@@ -2433,6 +2433,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                     rect(o.x + 9 * s, y + s, 6 * s, 6 * s, mark)
                     if !got { rect(o.x + 10 * s, y + 2 * s, 4 * s, 4 * s, V4(0.26, 0.26, 0.29, 1)) }
                     text(a.title, o.x + 18 * s, y + s, s, got ? V4(1, 1, 0.8, 1) : V4(0.8, 0.8, 0.8, 1))
+                    // P328 (NO TEXT): the description (how to earn it) shows only once it is earned; ahead of that the
+                    // title alone.
+                    guard got else { continue }
                     let ds: Float = s * 0.85
                     let maxW: Float = 226 * s - textWidth(a.title, s) - 24 * s
                     var d = a.desc
@@ -2632,7 +2635,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 for l in Fireworks.tooltip(st) { lines.append((l, V4(0.67, 0.67, 0.67, 1))) }
                 for l in Guns.tooltip(st) { lines.append((l, l.hasPrefix(GunGrade.names[GunGrade.tier(st)] + ":") ? GunGrade.colours[GunGrade.tier(st)] : V4(0.67, 0.67, 0.67, 1))) }
                 for (i, l) in Legendaries.tooltip(st).enumerated() { lines.append((l, i < 2 ? Legendaries.gold : V4(0.67, 0.67, 0.67, 1))) }
-                for l in ItemHelp.lines(st) { lines.append((l, V4(0.62, 0.78, 0.95, 1))) }        // Q2c-console-19: how to get it
+                for l in ItemHelp.lines(st) { lines.append((l, V4(0.62, 0.78, 0.95, 1))) }        // Q2c-console-19: the guns it fits
                 if st.def.name == "ominous_bottle" { lines.append(("Ill Omen " + Effect.roman(st.damage + 1) + " (100:00)", V4(0.33, 0.33, 1, 1))) }
                 if st.def.durability > 0 && st.damage > 0 {
                     lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))
@@ -2727,14 +2730,13 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
         if !game.survival, let m = game.riding, m.gaited, m.tamed { horseBar(m, y0 - 8 * s) }
-        // Taming a wild horse (HorseLife.tameStep): the calm meter and what to do now, centred over the hearts (there was
-        // no pat prompt at all, Oct 11 playtest P26).
+        // Taming a wild horse (HorseLife.tameStep): the calm meter, centred over the hearts, orange while it bucks
+        // (P328, NO TEXT: no "sit still" or "pat it now" under it).
         if let m = game.riding, m.gaited, !m.tamed, m.hs.calm >= 0 {
             let w = floor(total * 0.6), x = floor(x0 + (total - w) / 2), y = y0 - 34 * s
             rect(x, y, w, 4 * s, V4(0, 0, 0, 0.7))
             rect(x + s, y + s, (w - 2 * s) * simd_clamp(m.hs.calm / 100, 0, 1), 2 * s, m.hs.bucking ? V4(0.9, 0.45, 0.25, 1) : V4(0.45, 0.85, 0.5, 1))
-            let t = m.hs.bucking ? "Bucking: sit still" : "\(Prompt.g(.use)) Pat it now"
-            text(t, floor((W - textWidth(t, s)) / 2), y - 9 * s, s, V4(1, 1, 1, 1))
+
         }
 
         // Survival status: XP bar + level, hearts (left), hunger (right), armor, air bubbles.

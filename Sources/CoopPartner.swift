@@ -57,7 +57,7 @@ enum Partner {
         if g.riding != nil { g.dismount() }
         downs += 1
         g.sfx(.hurt, 1)
-        g.onToast?("You're down! Your partner can crouch beside you to get you up")
+        g.onToast?("You're down!")
         return true
     }
 
@@ -192,7 +192,7 @@ enum Partner {
         }
         if gunner[s] != t.id {
             gunner[s] = t.id
-            g.onToast?("Gun seat: the turret follows your view, attack fires it")
+            g.onToast?("Gun seat")
         }
         mannedAt[t.id] = g.clock
         var rel = g.player.yaw - deck.yaw
@@ -205,7 +205,7 @@ enum Partner {
             let ready = t.reload <= 0 ? t.cannons.count : 0
             let balls = g.survival && deck.role == nil ? Wrecks.cannonballs(g) : Int.max
             if ready > 0 && balls < ready {
-                g.onToast?(balls == 0 ? "No cannonballs in your pack for the gun" : "\(ready) barrels, \(balls) cannonball\(balls == 1 ? "" : "s"): one each")
+                g.onToast?(balls == 0 ? "No cannonballs" : "\(ready) barrels, \(balls) cannonball\(balls == 1 ? "" : "s")")
             } else if ready > 0 {
                 let fired = ships.fire(t, pitch: t.gunPitch, game: g)
                 if fired > 0 {

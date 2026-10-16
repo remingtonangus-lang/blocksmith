@@ -805,6 +805,18 @@ if CommandLine.arguments.contains("--firsthour-only") {
     GoalTests.run(game: game, check: check)
     print(failures == 0 ? "firsthour: all checks passed" : "firsthour: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --notext: P328 (NO TEXT) checks that used to read hint text, as they read now. Goals are bare names. The emerald tip,
+// the citadel lead and the hotbar say nothing. The Keeper's Journal tells a story with no recipe. Boreal Station's bar
+// is a readout.
+if CommandLine.arguments.contains("--notext") {
+    GoalTests.run(game: game, check: check)
+    G20Tests.powderwightAndEmerald(game, check)
+    PlaytestOct12PMTests.p139(game, check)
+    PlaytestOct12Tests.hotbarHints(game, check)
+    DeepGapTests.bits(game, check)
+    BorealTests.run(device: device, check: check)
+    print(failures == 0 ? "notext: all checks passed" : "notext: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --balance-only: combat time-to-kill duels against the night roster (Sources/BalanceTests.swift, Q2; --write-balance).
 if CommandLine.arguments.contains("--balance-only") {
     BalanceTests.run(game: game, check: check)

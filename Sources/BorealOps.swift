@@ -121,8 +121,7 @@ extension Game {
     private func startOp(_ op: inout StationOp) {
         guard op.stage == 0 else { return }
         op.stage = 1
-        bases.boreal.log.append("\(op.key) operation started")
-        onToast?("Station operation: copy the uplink codes in the control room, sabotage the generator, then get out")
+        bases.boreal.log.append("\(op.key) operation started")      // (P328, NO TEXT: no toast listing the jobs)
     }
 
     // Use on a block (Game.interact, before guns and doors): a control-room console starts the copy, the generator
@@ -143,7 +142,7 @@ extension Game {
             if bases.boreal.sites[op.key]?.on == true { sfx(.dispenseFail, 0.8, at: hp); onToast?("Uplink locked down while the alarm sounds"); return true }
             op.copyAt = [hp.x, hp.y, hp.z]
             sfx(.click, 0.9, at: hp)
-            onToast?(op.codes > 0 ? "Copy resumed: \(Int(op.codes * 100))%" : "Copying the uplink codes: stay at the console")
+            onToast?(op.codes > 0 ? "Copy resumed: \(Int(op.codes * 100))%" : "Copying the uplink codes")
             bases.boreal.log.append("\(op.key) copy started")
         } else {
             if op.planted { onToast?(op.blown ? "The generator is already wrecked" : "The charge is already set"); return true }
@@ -231,14 +230,14 @@ extension Game {
                 let near = players.contains { simd_length($0 + V3(0, 1, 0) - at) <= BorealStation.copyReach + 0.5 }
                 if !near {
                     op.copyAt = nil
-                    onToast?("Copy interrupted at \(Int(op.codes * 100))%: go back to the console")
+                    onToast?("Copy interrupted at \(Int(op.codes * 100))%")
                     st.log.append("\(key) copy interrupted")
                 } else if !alarm {
                     op.codes = min(1, op.codes + dt / BorealStation.copySeconds)
                     if op.codes >= 1 {
                         op.copyAt = nil
                         sfx(.xp, 1, at: at)
-                        onToast?(op.planted ? "Uplink codes copied. Now get out!" : "Uplink codes copied. Next: the generator")
+                        onToast?("Uplink codes copied")
                         st.log.append("\(key) codes copied")
                     } else { sfx(.click, 0.5, at: at) }
                 }
@@ -371,7 +370,8 @@ extension Game {
         onToast?(silent ? "Operation complete, silent: Fernblick Rifle, rounds and $250" : "Operation complete, loud: rounds and $100")
     }
 
-    // The HUD bar (Renderer boss-bar row): the next objective, the copy, or the fuse; red while the alarm sounds.
+    // The HUD bar (Renderer boss-bar row): the operation's progress, the copy, or the fuse; red while the alarm sounds.
+    // P328 (NO TEXT): a status readout only, never the next job ("Copy the uplink codes", "get out").
     func stationOpBar() -> (String, Float, V4)? {
         let p = player.pos
         guard world.dim == .overworld else { return nil }
@@ -387,14 +387,13 @@ extension Game {
             guard op.stage == 1 else { continue }
             let tail = alarm ? " - ALARM" : ""
             if let f = op.fuse, op.codes >= 1 || f < 15 {
-                return ("Charge \(Int(f.rounded(.up))) s - get out\(tail)", f / BorealStation.fuseSeconds, V4(0.95, 0.55, 0.15, 1))
+                return ("Charge \(Int(f.rounded(.up))) s\(tail)", f / BorealStation.fuseSeconds, V4(0.95, 0.55, 0.15, 1))
             }
             if op.copyAt != nil && op.codes < 1 {
                 return ((alarm ? "Uplink locked" : "Copying uplink codes \(Int(op.codes * 100))%") + tail, op.codes, col)
             }
             let done = (op.codes >= 1 ? 1 : 0) + (op.planted ? 1 : 0)
-            let next = op.codes < 1 ? "Copy the uplink codes" : (!op.planted ? "Sabotage the generator" : "Extract past the fence")
-            return ("\(next)\(tail)", Float(done) / 3, col)
+            return ("Station operation \(done) / 3\(tail)", Float(done) / 3, col)
         }
         return nil
     }

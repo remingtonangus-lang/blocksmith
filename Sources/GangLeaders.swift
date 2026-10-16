@@ -62,7 +62,7 @@ enum GangLeaders {
                 m.persistent = true; m.posse = 2
                 g.mobs.mobs.append(m)
             }
-            g.onToast?("This is the hideout of \(gg.leader) and \(gg.gang). Bounty \(Money.format(gg.bounty)), double alive.")
+            g.onToast?("This is the hideout of \(gg.leader) and \(gg.gang). Bounty \(Money.format(gg.bounty)).")
         }
     }
 

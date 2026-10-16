@@ -288,7 +288,7 @@ enum Honour {
         Townsfolk.townLastLine = -100
         TownVoice.speak(g, law, .challenge)
         let owed = bounty(here)
-        g.onToast?(owed > 0 ? "Wanted in \(here): \(Money.format(owed)). Talk to the law to pay it." : "The law here knows your name, outlaw.")
+        g.onToast?(owed > 0 ? "Wanted in \(here): \(Money.format(owed))" : "The law here knows your name, outlaw.")
     }
 }
 
@@ -309,7 +309,7 @@ extension Honour {
                 o.face(g.player.pos)
                 Townsfolk.townLastLine = -100
                 Townsfolk.say(g, o, TownLaw.isLaw(o) ? "You've got some gall riding in here, outlaw." : "It's that outlaw! Somebody fetch the sheriff!")
-                g.onToast?("You're an outlaw: \(town) will fight you on sight. Surrender to the law to pay your fine")
+                g.onToast?("You're an outlaw: \(town) will fight you on sight")
             }
             guard let s = outlawSpotted, g.clock - s.at > 3 else { continue }
             if o.townWeapon != .none && !o.baby { o.town.anger = max(o.town.anger, 3) } else { o.panic = max(o.panic, 4) }

@@ -226,8 +226,7 @@ enum NavalPort {
                 var m = TownLaw.state.portsMet ?? []; m.append(key(a)); TownLaw.state.portsMet = m
                 MapCache.shared.discover(g, kind: kind, x: a.x, z: a.z, name: "Meridian dockyard")
                 if g.survival && g.difficulty > 0 { garrison(g, s) }
-                g.onToast?(FactionRep.of(.meridian) >= FactionRep.allyAt ? "A Meridian Navy dockyard. The harbourmaster deals with friends of the Navy."
-                                                                          : "A Meridian Navy dockyard, its marines on guard. Clear them and the harbour is yours to deal with.")
+                g.onToast?(FactionRep.of(.meridian) >= FactionRep.allyAt ? "A Meridian Navy dockyard" : "A Meridian Navy dockyard, its marines on guard")
             } else if !taken(a), seen[a, default: 0] >= 5, marines(g, s).isEmpty, g.survival {
                 var t = TownLaw.state.portsTaken ?? []; t.append(key(a)); TownLaw.state.portsTaken = t
                 g.sfx(.levelUp, 0.7)

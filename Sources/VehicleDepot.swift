@@ -40,7 +40,7 @@ enum VehicleDepot {
         if f > 0 { f -= abs(s.throttle) * dt / burnSeconds; setLevel(s, f) }
         if f <= 0 {
             s.throttle = max(-fumes, min(fumes, s.throttle))
-            if !dry.contains(s.id) { dry.insert(s.id); g.onToast?("Out of fuel: the \(s.name) crawls on fumes. Find a Fuel Pump or pour in a Fuel Can") }
+            if !dry.contains(s.id) { dry.insert(s.id); g.onToast?("Out of fuel: the \(s.name) crawls on fumes") }
         } else if f < low && !warned.contains(s.id) {
             warned.insert(s.id)
             g.onToast?("Fuel low on the \(s.name)")
@@ -61,7 +61,7 @@ enum VehicleDepot {
     // Game.openBlock: a pump.
     static func pump(_ g: Game, _ at: IVec3) {
         let c = V3(Float(at.x) + 0.5, Float(at.y), Float(at.z) + 0.5)
-        guard let s = nearestVehicle(g, c, pumpReach) else { g.onToast?("Fuel Pump: bring your vehicle alongside"); return }
+        guard let s = nearestVehicle(g, c, pumpReach) else { g.onToast?("No vehicle at the pump"); return }
         let need = Int(((1 - level(s)) * 100).rounded(.up))
         guard need > 0 else { g.onToast?("The \(s.name)'s tank is full"); return }
         let afford = g.survival ? min(need, g.money / pricePerHundredth) : need
@@ -77,7 +77,7 @@ enum VehicleDepot {
     static func useCan(_ g: Game) -> Bool {
         guard !g.held.isEmpty, Items.key(g.held.item) == canKey else { return false }
         let s = g.world.ships.pilot.map { $0.root } ?? nearestVehicle(g, g.player.pos, 6)
-        guard let v = s, usesFuel(v) else { g.onToast?("Stand beside your vehicle to pour in the fuel"); return true }
+        guard let v = s, usesFuel(v) else { g.onToast?("No vehicle beside you"); return true }
         guard level(v) < 0.99 else { g.onToast?("The \(v.name)'s tank is full"); return true }
         setLevel(v, level(v) + 0.5)
         if g.survival { g.consumeHeld() }

@@ -175,16 +175,17 @@ enum DeepGapTests {
         g.sealShafts = shafts0
         check(once && marked && g.flashes.count >= flashes0 + 6 && g.shake >= 0.99 && g.particles.list.count >= p0 + 150,
               "deep gap: the seal breaking is a moment (\(g.flashes.count - flashes0) light flashes up the shaft, shake \(g.shake), \(g.particles.list.count - p0) debris and smoke), once per shaft, marked for the way up (\(marked))")
-        // Journals: the chain and the keeps in the Keeper's Journal, found in Deep fortress and keep chests.
+        // Journals: the Keeper's Journal tells of the Sealrock, the keeps and their forge and flux as a soldier's story,
+        // with no recipe in it (P328 f), found in Deep fortress and keep chests.
         let kj = DeepJournals.all["keepers_journal"]?.pages.joined(separator: " ") ?? ""
-        let chain = ["Sealrock", "Brimstone Keep", "Raw Sunderite", "Cinder Powder", "Flux", "blast furnace", "Ingot", "Duskium Pickaxe", "Sunder Charge", "compass"]
-        let missing = chain.filter { !kj.contains($0) }
+        let missing = ["Sealrock", "Brimstone Keep", "Sunderite", "forge", "flux", "blast furnace"].filter { !kj.contains($0) }
+            + ["Two Raw", "make Sunderite", "Three Ingots", "An Ingot and", "at any bench", "compass"].filter { kj.contains($0) }.map { "recipe: " + $0 }
         let inLoot = ["fortress", "brimstone_keep"].allSatisfy { t in Loot.tables[t]?.entries.contains { $0.0 == "keepers_journal" } ?? false }
             && ["ash_supply", "ash_command"].allSatisfy { t in Loot.tables[t]?.entries.contains { $0.0 == "ashguard_journal" } ?? false }
         g.inventory.held = ItemStack(Items.id("keepers_journal"), 1)
         let opened = g.useJournal() && (g.menu as? BookMenu)?.pages.count == DeepJournals.all["keepers_journal"]?.pages.count
         g.closeMenu()
-        check(missing.isEmpty && inLoot && opened, "deep gap: the Keeper's Journal names the whole Sunderite chain and the keeps, is in fortress and keep chests, and reads as a book\(missing.isEmpty ? "" : " (missing \(missing))")")
+        check(missing.isEmpty && inLoot && opened, "deep gap: the Keeper's Journal tells of the seal, the keeps, their forge and flux as a story with no recipe, is in fortress and keep chests, and reads as a book\(missing.isEmpty ? "" : " (missing \(missing))")")
         let advs = ["adventure/deep_hell", "adventure/keep_warden", "adventure/break_seal", "adventure/ash_vault", "adventure/ash_victory", "adventure/sunderite"]
         let have = advs.filter { id in Advancements.all.contains { $0.id == id } }
         let trophies = ["warden_brand", "gate_shard", "sealrock_shard", "marshal_cap"].filter { Items.has($0) }

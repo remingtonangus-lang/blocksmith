@@ -82,7 +82,7 @@ enum TownConquest {
             Townsfolk.say(g, s, "Don't shoot! We give up. \(town) is yours.")
         }
         g.sfx(.bell, 0.8, at: p)
-        g.onToast?("\(town) surrenders. It's yours: its beds and chests, its best prices, and tribute every day.")
+        g.onToast?("\(town) surrenders. It's yours.")
         Countries.townTaken(g, town, at: p)
     }
 

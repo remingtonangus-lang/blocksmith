@@ -38,7 +38,7 @@ enum TownRaids {
         days[town] = Int(g.time / DAY_LENGTH)
         TownLaw.state.raidDay = days
         g.sfx(.raidHorn, 1.5, at: c)
-        g.onToast?("Raiders are riding on \(town)! Stand with the townsfolk")
+        g.onToast?("Raiders are riding on \(town)!")
         started += 1
         return true
     }

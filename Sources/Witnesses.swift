@@ -23,7 +23,7 @@ enum Witnesses {
         guard let l = law.filter({ simd_length($0.pos - w.pos) < 200 }).min(by: { simd_length($0.pos - w.pos) < simd_length($1.pos - w.pos) }) else { return false }
         runs.append(Run(who: w, law: l, town: town, heat: heat, at: p, assault: victim != nil, t: 0))
         Townsfolk.say(g, w, ["Sheriff! Sheriff!", "Somebody fetch the law!", "I saw that! I'm telling the sheriff!"][Rand.int(in: 0...2)])
-        g.onToast?("A witness is running for the sheriff: catch them")
+        g.onToast?("A witness is running for the sheriff!")
         return true
     }
 

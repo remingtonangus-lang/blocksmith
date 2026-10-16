@@ -150,7 +150,7 @@ extension Mob {
                     // Spurring a spent horse: it rears and resents it.
                     rearUp(g, canThrow: false)
                     addBond(-3, g)
-                    g.onToast?("Your horse is spent: let it walk to get its wind back")
+                    g.onToast?("Your horse is spent")
                 } else {
                     h.gait = min(.gallop, Gait(rawValue: max(h.gait, natural, .trot).rawValue + 1) ?? .gallop)
                     h.spurred = true
@@ -178,7 +178,7 @@ extension Mob {
             : (frac > 0.6 ? -0.5 * HorseFeel.drain[lvl - 1] : (12 - 12 * frac) * HorseFeel.regen[lvl - 1] * regenK)
         stamina += rateS * dt
         coreTick(dt, ridden: true, galloping: frac > 0.85)
-        if h.stamina <= 0 && !h.spent { h.spent = true; g.onToast?("Your horse is blown: ease off to a trot") }
+        if h.stamina <= 0 && !h.spent { h.spent = true; g.onToast?("Your horse is blown") }
         // Nerves: a hostile monster right beside the horse.
         h.monsterScan -= dt
         if h.monsterScan <= 0 {
@@ -303,7 +303,7 @@ extension Mob {
         h.spookCool = 12
         rearUp(g, canThrow: false)
         h.rear = 0.45
-        g.onToast?("Your horse shies: ride clear")
+        g.onToast?("Your horse shies")
     }
 
     func throwRider(_ g: Game) {
@@ -311,7 +311,7 @@ extension Mob {
         g.dismount()
         g.player.vel = -forward * 3 + V3(0, 4.5, 0)
         if g.survival { g.damage(2, "was thrown from a horse") }
-        g.onToast?("Thrown! Pats, brushing and riding build your bond")
+        g.onToast?("Thrown!")
     }
 
     func stumble(_ g: Game) {

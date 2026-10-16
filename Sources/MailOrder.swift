@@ -60,7 +60,7 @@ enum MailOrder {
     static func tick(_ g: Game) {
         guard TownLaw.state.ordersToasted == false, !ready(g).isEmpty else { return }
         TownLaw.state.ordersToasted = true
-        g.onToast?("Your catalog order has come in. Collect it at any general store")
+        g.onToast?("Your catalog order has come in")
     }
 }
 

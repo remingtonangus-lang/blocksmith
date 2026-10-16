@@ -192,7 +192,7 @@ enum Nation {
         if st.log.count > 20 { st.log.removeFirst(st.log.count - 20) }
         s = st
         if !news.isEmpty {
-            g.onToast?(news.prefix(2).joined(separator: ". ") + (news.count > 2 ? " (and \(news.count - 2) more: ring a town bell)" : ""))
+            g.onToast?(news.prefix(2).joined(separator: ". ") + (news.count > 2 ? " (and \(news.count - 2) more)" : ""))
         }
     }
 

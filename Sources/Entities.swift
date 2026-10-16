@@ -190,7 +190,6 @@ final class ItemEntityManager {
         junkCache[s.item] = j
         return j
     }
-    private var junkHinted = false
     private var fullToldAt: Double = -100                // Q2c-console-7: the last "pack is full" toast
 
     private(set) var burned = 0                    // items burnt up in lava or fire (tests)
@@ -219,13 +218,7 @@ final class ItemEntityManager {
                     if e.leftLying && !game.player.sneaking { continue }          // P309 (b)
                     if !e.deliberate && ItemEntityManager.isJunk(e.stack) {
                         e.hover += dt
-                        if e.hover < 1 && !game.player.sneaking {
-                            if !junkHinted && e.hover > 0.3 {
-                                junkHinted = true
-                                game.onToast?("Plants and dirt aren't picked up on the move: stand over them a moment or crouch")
-                            }
-                            continue
-                        }
+                        if e.hover < 1 && !game.player.sneaking { continue }      // (P328: no hint, standing over it is the cue)
                     }
                     let before = e.stack.count
                     let got = e.stack

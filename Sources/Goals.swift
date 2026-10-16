@@ -11,11 +11,11 @@ import simd
 //                       the Ash Chancellor (his ledger names the Capital's citadels)
 //   6 The Capital       storm a citadel, then break the Capital (three citadels cleared, or one by the Tidebreaker)
 // The reference chain (Ember Gate, Foundry, rods, eyes, the Stronghold, the Hollow, the Blight) is side content now.
-// A new goal chimes; it shows at the top of the inventory screen with its stage and, where the target is known, a
-// bearing to it (the world map carries it as the "Next objective"); P300: never as a banner over play. Steps are met by the
+// A new goal chimes; it shows at the top of the inventory screen as a bare name (P328, NO TEXT: what, never how) with
+// its stage and, where the target is known, a bearing to it (the world map carries it as the "Next objective"); P300: never as a banner over play. Steps are met by the
 // saved advancements (the spine's own are granted by Spine.tick), or by what is carried for the first few; the goal is
-// the step after the furthest one met, so it never goes backwards. Off with the tips (Options > Accessibility >
-// Tutorial Hints) and in creative. `questcheck --firsthour-only` and the scripted playthrough check the path
+// the step after the furthest one met, so it never goes backwards. Off with Options > Accessibility > Goals, and in
+// creative. `questcheck --firsthour-only` and the scripted playthrough check the path
 // (Sources/GoalTests.swift).
 enum Goals {
     struct Goal {
@@ -36,44 +36,42 @@ enum Goals {
     static func name(_ k: String) -> String { Items.has(k) ? Items.def(Items.id(k)).display : k }
     static func a(_ k: String) -> String { let n = name(k); return ("AEIOU".contains(n.first ?? "x") ? "an " : "a ") + n }
 
+    // P328 (NO TEXT): each goal is a bare name, what the step is about, never how to do it.
     static let all: [Goal] = [
         // 1. Iron.
-        Goal(id: "wood", stage: 0, text: "Break a tree trunk for wood") { g in g.advancements.contains("root") || carries(g) { $0.hasSuffix("_log") || $0.hasSuffix("_planks") || $0.hasSuffix("_stem") } },
-        Goal(id: "root", stage: 0, text: "Turn the wood into planks and make a \(name("crafting_table"))", done: adv("root")),
-        Goal(id: "pickaxe", stage: 0, text: "Make \(a("wooden_pickaxe")) at the \(name("crafting_table"))") { g in g.advancements.contains("mine_stone") || carries(g) { $0.hasSuffix("_pickaxe") } },
-        Goal(id: "mine_stone", stage: 0, text: "Dig down to stone with the pickaxe", done: adv("mine_stone")),
-        Goal(id: "upgrade_tools", stage: 0, text: "Make \(a("stone_pickaxe"))", done: adv("upgrade_tools")),
-        Goal(id: "adventure/sleep_in_bed", stage: 0, text: "Before dark: make a bed from wool and planks and sleep in it", done: adv("adventure/sleep_in_bed")),
-        Goal(id: "furnace", stage: 0, text: "Make \(a("furnace")) from eight \(name("cobblestone"))") { g in g.advancements.contains("smelt_iron") || carries(g) { $0 == "furnace" } },
-        Goal(id: "smelt_iron", stage: 0, text: "Mine iron ore and smelt it in the \(name("furnace"))", done: adv("smelt_iron")),
-        Goal(id: "iron_tools", stage: 0, text: "Make \(a("iron_pickaxe"))", done: adv("iron_tools")),
-        Goal(id: "spine/iron_set", stage: 0, text: "Wear a full iron set: then a sheriff can't kill you with one shot", done: adv("spine/iron_set")),
+        Goal(id: "wood", stage: 0, text: "Wood") { g in g.advancements.contains("root") || carries(g) { $0.hasSuffix("_log") || $0.hasSuffix("_planks") || $0.hasSuffix("_stem") } },
+        Goal(id: "root", stage: 0, text: name("crafting_table"), done: adv("root")),
+        Goal(id: "pickaxe", stage: 0, text: name("wooden_pickaxe")) { g in g.advancements.contains("mine_stone") || carries(g) { $0.hasSuffix("_pickaxe") } },
+        Goal(id: "mine_stone", stage: 0, text: "Stone", done: adv("mine_stone")),
+        Goal(id: "upgrade_tools", stage: 0, text: name("stone_pickaxe"), done: adv("upgrade_tools")),
+        Goal(id: "adventure/sleep_in_bed", stage: 0, text: "A Night's Sleep", done: adv("adventure/sleep_in_bed")),
+        Goal(id: "furnace", stage: 0, text: name("furnace")) { g in g.advancements.contains("smelt_iron") || carries(g) { $0 == "furnace" } },
+        Goal(id: "smelt_iron", stage: 0, text: name("iron_ingot"), done: adv("smelt_iron")),
+        Goal(id: "iron_tools", stage: 0, text: name("iron_pickaxe"), done: adv("iron_tools")),
+        Goal(id: "spine/iron_set", stage: 0, text: "Iron Armour", done: adv("spine/iron_set")),
         // 2. Take a town.
-        Goal(id: "spine/find_town", stage: 1, text: "Ride to a frontier town (roads run between them)", done: adv("spine/find_town")),
-        Goal(id: "spine/take_town", stage: 1, text: "Take the town: in iron, beat its sheriff and deputies", done: adv("spine/take_town")),
+        Goal(id: "spine/find_town", stage: 1, text: "A Frontier Town", done: adv("spine/find_town")),
+        Goal(id: "spine/take_town", stage: 1, text: "The Town's Sheriff", done: adv("spine/take_town")),
         // 3. Greywall Command, the proving ground.
-        Goal(id: "spine/greywall_base", stage: 2, text: "Read the dispatch, take that Greywall base: hold its console", done: adv("spine/greywall_base")),
-        Goal(id: "spine/greywall_top", stage: 2, text: "Take a Greywall Fortress: its war room keeps the fleet's orders", done: adv("spine/greywall_top")),
+        Goal(id: "spine/greywall_base", stage: 2, text: "A Greywall Base", done: adv("spine/greywall_base")),
+        Goal(id: "spine/greywall_top", stage: 2, text: "A Greywall Fortress", done: adv("spine/greywall_top")),
         // 4. The Meridian fleet (it sails once a Fortress falls).
-        Goal(id: "spine/fleet", stage: 3, text: "Read the Naval Orders: the Meridian fleet puts to sea", done: adv("spine/fleet")),
+        Goal(id: "spine/fleet", stage: 3, text: name("naval_orders"), done: adv("spine/fleet")),
         // P139 (Oct 12 PM, "I'm not entirely sure what I'm supposed to be doing here"): the Ember Charge is a step of its
         // own; a fleet frigate carries one (a Capital vault's does as well, so carrying one meets the step).
-        Goal(id: "spine/flagship", stage: 3, text: "Sink or seize a fleet frigate: she carries \(a("ember_charge"))") { g in
+        Goal(id: "spine/flagship", stage: 3, text: name("ember_charge")) { g in
             g.advancements.contains("spine/flagship") || carries(g) { $0 == HellGate.chargeKey }
         },
         // 5. Hell, down to the war below the world.
-        Goal(id: "adventure/break_ward", stage: 4, text: "Near the world's centre, press the charge on the Wardstone at the world's floor",
-             done: any(["adventure/break_ward", "adventure/deep", "enter_the_nether"])),
-        Goal(id: "adventure/deep_hell", stage: 4, text: "Dig down into Hell, to its fire band", done: adv("adventure/deep_hell")),
-        Goal(id: "adventure/keep_warden", stage: 4, text: "Defeat a Brimstone Keep's Castellan in the fire band", done: adv("adventure/keep_warden")),
-        Goal(id: "adventure/break_seal", stage: 4, text: "Forge the keep's Sunderite into \(a("sunder_charge")): blast the Sealrock",
-             done: adv("adventure/break_seal")),
-        Goal(id: "adventure/ash_vault", stage: 4, text: "Drop into the Ash Vault", done: adv("adventure/ash_vault")),
-        Goal(id: "adventure/ash_victory", stage: 4, text: "End the war below the world: defeat the Ash Chancellor", done: adv("adventure/ash_victory")),
+        Goal(id: "adventure/break_ward", stage: 4, text: "The Wardstone", done: any(["adventure/break_ward", "adventure/deep", "enter_the_nether"])),
+        Goal(id: "adventure/deep_hell", stage: 4, text: "The Fire Band", done: adv("adventure/deep_hell")),
+        Goal(id: "adventure/keep_warden", stage: 4, text: "The Keep Castellan", done: adv("adventure/keep_warden")),
+        Goal(id: "adventure/break_seal", stage: 4, text: "The Sealrock", done: adv("adventure/break_seal")),
+        Goal(id: "adventure/ash_vault", stage: 4, text: "The Ash Vault", done: adv("adventure/ash_vault")),
+        Goal(id: "adventure/ash_victory", stage: 4, text: "The Ash Chancellor", done: adv("adventure/ash_victory")),
         // 6. The Capital, the enemy over everything.
-        Goal(id: "spine/capital_citadel", stage: 5, text: "Storm a Capital citadel: down every soldier inside its walls", done: adv("spine/capital_citadel")),
-        Goal(id: "spine/capital_fall", stage: 5, text: "Break the Capital: clear three of its citadels",
-             done: any(["spine/capital_fall", "adventure/break_citadel"])),
+        Goal(id: "spine/capital_citadel", stage: 5, text: "A Capital Citadel", done: adv("spine/capital_citadel")),
+        Goal(id: "spine/capital_fall", stage: 5, text: "The Capital", done: any(["spine/capital_fall", "adventure/break_citadel"])),
     ]
     // The path for this world (every world walks the same spine now; kept for the callers).
     static func path(_ g: Game) -> [Goal] { all }

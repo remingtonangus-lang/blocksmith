@@ -138,6 +138,6 @@ extension Trains {
         }
         tr.heldBy = true; tr.stoppedFor = 0
         whistle(g, tr)
-        g.onToast?("Robbers on the line ahead! The train brakes. Defend it")
+        g.onToast?("Robbers on the line ahead! The train brakes")
     }
 }

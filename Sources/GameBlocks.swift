@@ -5,7 +5,7 @@ import simd
 // frogspawn, frosted ice, cocoa, conduits, lightning rods, murk shriekers (deep stalker) and catalysts.
 extension Game {
     func restByFire(_ c: V3) -> Bool {
-        guard clock - restedAt >= 60 else { onToast?("You've rested by the fire a while. Move on, or wait a bit."); return true }
+        guard clock - restedAt >= 60 else { onToast?("You've rested by the fire a while"); return true }
         restedAt = clock
         applyEffect(.regeneration, amp: 0, seconds: 12)
         sfx(.plantBrush, 0.4, at: c)

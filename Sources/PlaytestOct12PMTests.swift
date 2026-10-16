@@ -1047,9 +1047,10 @@ enum PlaytestOct12PMTests {
         g.wardHint()
         let hint = toasts.last ?? "-"
         let marked = MapCache.shared.marks.contains { $0.kind == "military_base" }
-        check(before?.id == "spine/flagship" && before?.text.contains("Ember Charge") == true && after?.id == "adventure/break_ward"
-              && hint.contains("no pickaxe, ore") && hint.contains("marked on your map") && marked,
-              "P139 next step: after Obsidian the goal is \"\(before?.text ?? "-")\", then \"\(after?.text ?? "-")\"; hitting Wardstone: \"\(hint)\" (citadel on the map \(marked))")
+        // P328 (NO TEXT): hitting the Wardstone bounces the tool and marks the citadel, nothing said.
+        check(before?.id == "spine/flagship" && before?.text == Goals.name("ember_charge") && after?.id == "adventure/break_ward"
+              && toasts.isEmpty && marked,
+              "P139 next step: after Obsidian the goal is \"\(before?.text ?? "-")\", then \"\(after?.text ?? "-")\"; hitting Wardstone says \"\(hint)\" (nothing), citadel on the map \(marked)")
     }
 
 }

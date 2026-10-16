@@ -99,8 +99,9 @@ extension G20Tests {
         TownLaw.inTown = "Test Town"                      // (R20: the hint waits until you carry emeralds in a town)
         g.inventory.main[g.selected] = ItemStack(Items.id("emerald"), 1)
         TownLaw.emeraldTip(g); TownLaw.emeraldTip(g)
-        check(said.count == 1 && said[0].contains("BANK") && said[0].contains(Money.format(Bank.sellEmerald)),
-              "G14 emeralds: the first one carried says a town bank buys them (\"\(said.first ?? "nothing")\"), once")
+        // P328 (NO TEXT): the tip is never said now; the counters' Exchange rows and the EXCHANGE sign show it.
+        check(said.isEmpty && TownLaw.state.exchangeTip == true,
+              "G14 emeralds: the first one carried in a town says nothing (\"\(said.first ?? "nothing")\") and marks the tip seen")
     }
 
     // T1: an angry townsperson's swing reaches the player's real body (Game.meleeGap) like a monster's: level ground and a

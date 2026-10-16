@@ -239,10 +239,11 @@ enum ContextPrompts {
     }
 
     // P53 (Oct 11 evening playtest: "players won't need to know that after they've been playing a while"): the
-    // in-game button prompts show for the first three hours of play, then retire quietly (P300: no toast). Button Hints
-    // in Options turns them off sooner, or on again for another three hours. Menu legends are unaffected.
+    // in-game button prompts showed for the first three hours of play. P328 (NO TEXT): none over play at all now, as on
+    // the headset; the controls reference in the pause menu tells the buttons, and Button Hints keeps the menu legends.
+    // `items` stays: what each layout offers (the pad checks).
     static let retireAfter: Float = 3 * 3600
-    static var shown: Bool { HudExtras.enabled && Settings.shared.buttonHints && Settings.shared.hintSeconds < retireAfter }
+    static var shown: Bool { false }
     private static var pending: Float = 0, lastClock: Double = -1
     static func tick(_ g: Game) {
         let dt = lastClock < 0 ? 0 : Float(max(0, min(1, g.clock - lastClock)))

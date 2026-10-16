@@ -5,8 +5,8 @@ import simd
 //   Way up   a HUD line in the Deep naming the nearest way to the surface, how far and which way (ahead, to your
 //            left...): in the hell band and the crusts the hole you broke in by or a woken Ember Gate; in the vault a
 //            shaft you blew through the seal, the command-bunker lift after victory, or a Deep Lift you set down.
-//   Journals Keeper's Journal (Deep fortresses, Brimstone Keeps): the whole Sunderite chain and where the keeps stand;
-//            the Ashguard field journals (the vault's chests) tell who the Ashguard are.
+//   Journals Keeper's Journal (Deep fortresses, Brimstone Keeps): a soldier's account of the Sealrock, the keeps and
+//            their forge (P328: story, no recipe); the Ashguard field journals (the vault's chests) tell who they are.
 extension Game {
     // The nearest way up from here: its place and what it is, or nil outside the Deep.
     func deepWayUp() -> (at: V3, what: String)? {
@@ -86,13 +86,14 @@ enum DeepJournals {
     // Every readable book item: the Deep's journals and the overworld's logs, notes and pamphlets (Readables.swift).
     static let all: [String: Journal] = deep.merging(Readables.all) { a, _ in a }
     static let deep: [String: Journal] = [
+        // P328 (f): a soldier's journal, not a manual: the forge and the flux are in it, the recipe is not.
         "keepers_journal": Journal(title: "Keeper's Journal", pages: [
             "Third week under the fire.\n\nThe floor of this place is not rock. Picks skate off it, powder only blackens it. The old hands call it Sealrock and say nothing made by smiths will bite it.",
-            "Sunderite does. Red crystal, warm to the touch, grown only in the walls of the Brimstone Keeps: black castles standing over the lava sea, one every few hundred paces. A compass down here turns to the nearest.",
+            "Sunderite does, they say. Red crystal, warm to the touch, grown only in the walls of the Brimstone Keeps: black castles standing over the lava sea.",
             "The keeps are held. Blight Skeletons on the walls, brutes at the gates, Cinderwisps on the towers, and the Ashguard's own men in the strongroom under the keep, with a Castellan to keep the hoard.",
-            "What the Ashguard taught me:\n\nTwo Raw Sunderite and a pinch of Cinder Powder make Sunderite Flux at any bench.\n\nOnly a blast furnace melts Flux into an Ingot.",
-            "Three Ingots on a Duskium Pickaxe make a pick that cuts Sealrock a block at a time.\n\nAn Ingot and a stick of TNT make a Sunder Charge: press it on the seal, stand clear, and it opens a shaft straight through.",
-            "Kill the Castellan and the gate in the keep's yard wakes. It goes home. The shard the Castellan carries brings you back.\n\nBelow the seal is the vault, and the vault is theirs.",
+            "The Ashguard smiths kept a forge in that strongroom. I watched them through the grate the night before they went down: the red crystal ground up with the cinder dust at the bench into a flux the colour of a bad bruise, and the flux fed to the blast furnace on its bed of magma. What came out rang like a bell when they dropped it on the stones.",
+            "They went down through the seal that same week. Sergeant Kell swears they never touched it with a pick, only knelt at it with something in their hands, and then the floor was not there.\n\nKell says a lot of things.",
+            "The gate in the keep's yard burned once last winter, the night the Castellan fell to his own men. Two of them walked into the light and we never saw them again.\n\nBelow the seal is the vault, and the vault is theirs.",
         ]),
         "ashguard_journal": Journal(title: "Field Journal of an Ashguard Rifleman", pages: [
             "They told us the vault would be a refuge. A whole army under the world, out of reach of the Capital, with our own sun.\n\nThe sun is a lamp of molten rock. It never sets.",

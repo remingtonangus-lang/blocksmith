@@ -39,7 +39,7 @@ enum Property {
     static func townHouse(_ g: Game, _ p: IVec3) -> Bool {
         guard let sc = g.world.gen.structures, let s = sc.nearest("village", x: p.x, z: p.z, maxRegions: 1),
               abs(s.anchor.x - p.x) < 200 && abs(s.anchor.z - p.z) < 200 else {
-            g.onToast?("Stand inside the town building you want to buy"); return true
+            g.onToast?("Nothing here for sale"); return true
         }
         if owns(p) { g.onToast?("This place is already yours"); return true }
         // The smallest building piece around you, under a roof.
@@ -49,11 +49,11 @@ enum Property {
         }
         guard let pc = around.min(by: { ($0.max.x - $0.min.x) * ($0.max.z - $0.min.z) < ($1.max.x - $1.min.x) * ($1.max.z - $1.min.z) }),
               roofed(g, p) else {
-            g.onToast?("Stand inside the town building you want to buy"); return true
+            g.onToast?("Nothing here for sale"); return true
         }
         let inside = { (q: V3) in Float(pc.min.x) <= q.x && q.x <= Float(pc.max.x + 1) && Float(pc.min.z) <= q.z && q.z <= Float(pc.max.z + 1) }
         if g.mobs.mobs.contains(where: { TownLaw.isTownsperson($0) && $0.villager?.role != "prisoner" && (inside($0.home ?? $0.pos) || ($0.villager?.bed).map { $0.count == 3 && inside(V3(Float($0[0]), 0, Float($0[2]))) } == true) }) {
-            g.onToast?("Somebody lives here. Find an empty building")
+            g.onToast?("Somebody lives here")
             return true
         }
         if TownLaw.isHostile(Townsfolk.town(g, at: g.player.pos)) {
@@ -64,7 +64,7 @@ enum Property {
         g.spawnPoint = g.player.pos
         MapCache.shared.discover(g, kind: "property", x: p.x, z: p.z, name: "Your house in \(Townsfolk.town(g, at: g.player.pos))")
         g.sfx(.levelUp, 0.7)
-        g.onToast?("The house is yours: build, store and sleep here as you like. You'll wake up here.")
+        g.onToast?("The house is yours")
         return true
     }
 
@@ -76,14 +76,14 @@ enum Property {
     static func homestead(_ g: Game, _ p: IVec3) -> Bool {
         if let sc = g.world.gen.structures, let s = sc.nearest("village", x: p.x, z: p.z, maxRegions: 2),
            abs(s.anchor.x - p.x) < wildFromTown && abs(s.anchor.z - p.z) < wildFromTown {
-            g.onToast?("Too close to town. A homestead needs \(wildFromTown) blocks of open country"); return true
+            g.onToast?("Too close to town"); return true
         }
         // A 7 x 7 footprint, ground within two blocks of level, dry.
         let y0 = g.world.topY(p.x, p.z) + 1
         for dx in -3...3 { for dz in -3...3 {
             let t = g.world.topY(p.x + dx, p.z + dz) + 1
             if abs(t - y0) > 2 || Blocks.isLiquid(g.world.block(p.x + dx, t - 1, p.z + dz)) {
-                g.onToast?("Find flatter, dry ground for the cabin"); return true
+                g.onToast?("Too rough for a cabin"); return true
             }
         } }
         build(g, p.x, y0, p.z)
@@ -93,7 +93,7 @@ enum Property {
         g.player.pos = g.spawnPoint
         MapCache.shared.discover(g, kind: "property", x: p.x, z: p.z, name: "Your homestead")
         g.sfx(.levelUp, 0.8)
-        g.onToast?("You've staked your homestead. The cabin is yours and you'll wake up here.")
+        g.onToast?("You've staked your homestead")
         return true
     }
 

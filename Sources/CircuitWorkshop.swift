@@ -202,6 +202,6 @@ extension Game {
         player.pos = CircuitWorkshop.walkwayStart(o)
         player.vel = .zero
         player.yaw = -.pi / 2                                          // looking east along the walkway (forward = -sin yaw, -cos yaw)
-        onToast?("Sparkstone Workshop: seven benches along the walkway")
+        onToast?("Sparkstone Workshop")
     }
 }

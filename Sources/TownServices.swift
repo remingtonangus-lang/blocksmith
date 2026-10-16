@@ -148,9 +148,7 @@ final class BankMenu: ListMenu {
 enum Exchange {
     static var rate: Int { Economy.emeraldSell }
     static let signLines = ["EXCHANGE", "Emeralds for", "dollars", "$1.00 each"]
-    static var hint: String {
-        "Emeralds trade for \(Money.format(rate)) each: any shop counter (Exchange, top of the list) or the BANK teller"
-    }
+
     static func rowName(_ n: Int) -> String { "Exchange: emeralds for dollars" }
     static func rowDetail(_ n: Int) -> String { n > 0 ? "You have \(n), \(Money.format(rate)) each" : "\(Money.format(rate)) each. You have none" }
     static func count(_ g: Game) -> Int { Items.has("emerald") ? g.inventory.main.countOf(Items.id("emerald")) : 0 }

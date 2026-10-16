@@ -37,7 +37,7 @@ enum BaseSecurity {
             return false
         }
         g.sfx(.villagerNo, 0.4, at: V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5))
-        g.onToast?("Locked. A Greywall keycard opens it: their officers carry them")
+        g.onToast?("Locked")
         return true
     }
 

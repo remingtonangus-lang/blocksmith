@@ -90,7 +90,7 @@ extension Game {
             FrontBattle.current = FrontBattle.Battle(war: k, sides: [L.lo, L.hi], mobs: mobsBySide, start: clock,
                                                      at: V3(c.x, p.y, c.y))
             FrontBattle.fought += 1
-            onToast?("\(L.lo.name) and \(L.hi.name) soldiers are fighting on the front nearby: shoot one side to fight for the other")
+            onToast?("\(L.lo.name) and \(L.hi.name) soldiers are fighting on the front nearby")
             sfx(.shipCannon, 0.7, at: V3(c.x, p.y, c.y))
             return
         }

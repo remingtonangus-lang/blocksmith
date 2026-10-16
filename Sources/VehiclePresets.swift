@@ -114,7 +114,7 @@ extension Game {
         Blueprints.known.insert(k)
         if survival { consumeHeld() }
         sfx(.pageTurn, 0.8, at: player.pos)
-        onToast?("Vehicle blueprint learned: \(p.name). Build it at a Vehicle Works")
+        onToast?("Vehicle blueprint learned: \(p.name)")
         return true
     }
 }

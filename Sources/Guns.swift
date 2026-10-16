@@ -178,24 +178,12 @@ enum Guns {
     static func reloadTime(_ s: ItemStack, _ gi: Int) -> Float { all[gi].reload * (1 - 0.18 * Float(Enchant.level(.quickReload, s))) * GunGrade.reload(s) }
     static func steadiness(_ s: ItemStack) -> Float { (1 - 0.18 * Float(Enchant.level(.stability, s))) * Legendaries.recoilScale(s) * GunGrade.recoil(s) }
 
-    // P158 (Oct 13: "he could not tell what the machine gun fires"): where each kind of round comes from.
-    static func ammoSource(_ key: String) -> String {
-        switch key {
-        case "rifle_rounds": return "any town gunsmith; Ashguard soldiers"
-        case "shotgun_shells", "heavy_rounds": return "any town gunsmith; military crates"
-        case "capital_rounds": return "Capital soldiers, citadel crates and Capital city gunsmiths"
-        case "rocket_ammo", "arc_cell", "faust_warhead": return "craft them (\(Wrecks.recipeText(key))); military base and citadel crates"
-        case GreywallArms.ammo: return "any town gunsmith; Greywall soldiers and their armouries"
-        default: return "military crates"
-        }
-    }
-
     // Tooltip lines for a gun: loaded rounds, ammunition, damage and fire rate.
     static func tooltip(_ s: ItemStack) -> [String] {
         guard let gi = index(s.item) else { return [] }
         let g = all[gi]
         let ammoName = Items.has(g.ammo) ? Items.def(Items.id(g.ammo)).display : g.ammo
-        var out = ["Loaded: \(s.tag) / \(magSize(s))", "Takes: \(ammoName)", "Get it: " + ammoSource(g.ammo)]
+        var out = ["Loaded: \(s.tag) / \(magSize(s))", "Takes: \(ammoName)"]          // (P328: no "Get it:" line)
         switch g.shot {
         case .bullet:
             let dmg = g.pellets > 1 ? "\(Int(g.damage)) x \(g.pellets)" : "\(Int(g.damage))"

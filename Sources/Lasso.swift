@@ -51,7 +51,7 @@ extension Game {
         if m.outlaw {
             m.roped = Lasso.ropeTime
             m.aggro = false
-            onToast?("Roped! He can't fight or run while the rope holds")
+            onToast?("Roped!")
         } else if horse {
             m.panic = max(m.panic, 2)
             onToast?("Caught!")             // P300 (b)
@@ -71,7 +71,7 @@ extension Mob {
             if lassoCalm >= 2 {
                 lassoCalm = 0
                 temper = min(100, temper + 3)
-                if temper >= 60 && temper - 3 < 60 { g.onToast?("It's settling on the rope: mount it now") }
+                if temper >= 60 && temper - 3 < 60 { g.onToast?("It's settling on the rope") }
             }
         }
     }

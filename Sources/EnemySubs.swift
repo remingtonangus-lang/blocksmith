@@ -95,7 +95,7 @@ extension Game {
             if let (top, _) = col { s.depthY = Float(top) + 2 }
             EnemySub.surrendered += 1
             EnemySub.nextSpawn = clock + EnemySub.cooldown
-            if d < 200 { onToast?("The navy submarine blows her tanks and surfaces: her crew gives up. Take her helm to claim her") }
+            if d < 200 { onToast?("The navy submarine blows her tanks and surfaces: her crew gives up") }
             sfx(.splash, 1, at: s.pos)
             return
         }

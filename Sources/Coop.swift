@@ -308,7 +308,7 @@ final class Coop {
             if gp.buttonMenu.isPressed { join(g, controller: c); return }
         }
         // A second controller just connected: say how to join (once per connection).
-        if others > otherPads && first != nil && g.menu == nil { g.onToast?("Second controller: press its Menu button for split screen") }
+        if others > otherPads && first != nil && g.menu == nil { g.onToast?("Second controller connected") }
         otherPads = others
     }
 

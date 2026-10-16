@@ -102,7 +102,7 @@ enum Tracking {
            g.mobs.mobs.contains(where: { $0.kind.herdGame && $0.health > 0 && simd_length($0.pos - p) < 48 }) {
             windToldAt = now
             let from = compass(-g.sky.wind)
-            g.onToast?("The wind's from the \(from)\(relative(g)): stay downwind of the game")
+            g.onToast?("The wind's from the \(from)\(relative(g))")
         }
         wasSneaking = sneak
     }
@@ -115,7 +115,7 @@ enum Tracking {
         g.drops.spawn(ItemStack(Items.id(baitKey), 1), at: at, vel: .zero, delay: 8)
         if g.survival { g.consumeHeld() }
         g.sfx(.place(.grass), 0.5, at: at)
-        g.onToast?("Bait set. Back off downwind and wait")
+        g.onToast?("Bait set")
         return true
     }
 

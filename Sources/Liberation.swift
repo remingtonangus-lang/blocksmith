@@ -63,7 +63,7 @@ extension Game {
             m.persistent = true
             mobs.mobs.append(m)
         }
-        onToast?("Camp freed! +\(Money.format(Liberation.reward)). A trader sets up here, and its fire is now a fast-travel post.")
+        onToast?("Camp freed! +\(Money.format(Liberation.reward))")
     }
 
     // A lit campfire used with an empty hand (or anything that is not a block): at a freed camp it offers, then makes,
@@ -74,7 +74,7 @@ extension Game {
         let others = Liberation.freedCamps().filter { $0 != home }
             .sorted { hypotf(Float($0.x - home.x), Float($0.z - home.z)) < hypotf(Float($1.x - home.x), Float($1.z - home.z)) }
         guard !others.isEmpty else {
-            onToast?("A freed camp. Free another outlaw camp to travel between them from its fire.")
+            onToast?("A freed camp")
             return false                                       // (then it rests you by the fire as before)
         }
         if let o = Liberation.offer, o.from == fire, clock - o.at < 6, others.contains(where: { $0.x == o.x && $0.z == o.z }) {
@@ -96,7 +96,7 @@ extension Game {
         let o = others[k]
         Liberation.offer = Liberation.Offer(x: o.x, z: o.z, at: clock, from: fire, index: k)
         let d = Int(hypotf(Float(o.x - home.x), Float(o.z - home.z)))
-        onToast?("Fast travel (\(k + 1) of \(others.count)): the freed camp \(d) blocks \(TownBoard.direction(Float(o.x - home.x), Float(o.z - home.z))). Use the fire again to go.")
+        onToast?("Fast travel (\(k + 1) of \(others.count)): the freed camp \(d) blocks \(TownBoard.direction(Float(o.x - home.x), Float(o.z - home.z))).")
         return true
     }
 }

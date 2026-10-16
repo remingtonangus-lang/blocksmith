@@ -145,7 +145,7 @@ enum Reckoning {
             timer -= dt
             guard timer <= 0 else { return }
             stage = 2; begin(g)
-            g.onToast?("\(hunts.count) war bands are hunting you. Only underground will they lose your trail")
+            g.onToast?("\(hunts.count) war bands are hunting you")
             g.sfx(.goatHorn, 0.9)
         default:
             hunt(g, dt)

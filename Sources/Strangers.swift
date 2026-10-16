@@ -58,7 +58,7 @@ enum Strangers {
             if case .visit = s.chapters[chapter(s.key)].goal, let t = TownLaw.state.strangerAt?[s.key], t.count == 2,
                count(s.key) == 0, simd_length(V2(Float(t[0]) - g.player.pos.x, Float(t[1]) - g.player.pos.z)) < 14 {
                 setCount(s.key, 1)
-                g.onToast?("The ridge Quill wanted. Find him in a town")
+                g.onToast?("The ridge Quill wanted")
             }
         }
         guard g.dim.dim == .overworld, TownLaw.inTown != nil, g.alive,

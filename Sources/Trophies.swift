@@ -98,7 +98,7 @@ extension Game {
                 money += pay
                 onToast?("Museum visitors paid \(Money.format(pay)) to see your \(now.count) trophies")
             } else {
-                onToast?("Your trophy room is a museum now: visitors will pay to see it")
+                onToast?("Your trophy room is a museum now")
             }
             Trophies.paidDay = day
         }
