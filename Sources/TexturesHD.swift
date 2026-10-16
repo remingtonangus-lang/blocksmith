@@ -5457,6 +5457,8 @@ enum HDTex {
         if name.hasPrefix("item_gun_"), let gi = Guns.all.firstIndex(where: { "item_" + $0.key == name }) {
             return { n, _ in Guns.iconHD(gi, n) }                          // P217: the icon drawn from the held model
         }
+        // P316: item icons without imported art are painted to match the imported ones (ItemIconsHD.swift).
+        if name.hasPrefix("item_"), let g = ItemIconsHD.generator(name, src) { return g }
         if name.hasSuffix("@r") {
             // Rotated variants (sideways logs, pillars...): the base's material turned a quarter (they fell back to the
             // generic detail, so a horizontal log didn't match the upright ones). Painter: rot(x, y) = base(y, 15 - x).
