@@ -298,9 +298,23 @@ final class Armory {
         if m.kind == .ashTank && s.kind == .bullet { dmg *= 0.2 }
         // A soldier's segmented plate (TroopClasses.swift): the helmet, vest or greaves the round strikes.
         if m.troop != 0 && m.shield <= 0 && Soldier.rank(m.kind) != nil { dmg = m.troopArmourHit(dmg, seg: m.troopSegment(at: at.y), g) }
+        // P321 (Oct 15 19:07, "machine-gun rounds don't seem to kill the soldiers, rockets do"): a round on a soldier
+        // went through four integer steps in Mob.hit (the deep army's power, its toughness roll, then the melee armour
+        // formula, which is built for sword-sized blows and turns a 2-point round into 0 or 1), so a machine gun did
+        // about half a point a hit to an Ashguard heavy (240 rounds to drop one) and a point or two to a trooper.
+        // A soldier's round is now worked out once here, in fractions: class plate soaks as above, otherwise its rank
+        // armour takes 1.5 % a point (at most 35 %), then its own toughness roll; Mob.hit takes it as dealt.
+        let infantry = Soldier.rank(m.kind) != nil && !m.kind.ashVehicle && m.kind != .deckGun && s.kind == .bullet
+        if infantry {
+            if m.troop == 0 { dmg *= 1 - min(0.35, Float(m.armorPoints.0) * 0.015) }
+            dmg /= max(0.5, m.vary.tough)
+        }
         let whole = floorf(dmg)
         let n = Int(whole) + (Rand.float(in: 0..<1) < dmg - whole ? 1 : 0)
+        if s.fromPlayer { m.killedByPlayer = true }
+        Mob.roundHit = infantry
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)
+        Mob.roundHit = false
         if s.incendiary && !m.spec.fireImmune { m.fire = max(m.fire, 4) }
         if m.kind == .soldierIronclad || m.kind == .deckGun || m.kind == .ironGolem || m.kind.ashArmoured {
             // Rounds spark off heavy plate.
