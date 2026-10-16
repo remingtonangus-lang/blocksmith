@@ -1,0 +1,35 @@
+      1 scenario ride: PASS rode 108 m, drifted 0.00 m on the deck (ended at (-0.049561, 2.574945, 3.213989))
+      1 vehicle destroyed: Gunship1 at (-1549.0, 220.0, 1669.0) (direct hit 0.7 from faction 0)
+      1 scenario drive: PASS travelled 212 m in 12 s, up 1.00, -0.2 m above ground
+      1 vehicle destroyed: Gunship2 at (-1666.0, 272.0, 1090.0) (direct hit 0.7 from faction 1)
+      1 scenario fly: PASS climbed 64 m in 6 s, flew 343 m in 8 s
+      1 scenario dropship: PASS delivered after 130 s, 13 m from the landing zone
+      1 scenario battle: PASS kills Capital 63 Cinder 49, alive 87 / 33, under ground 0, inside geometry 0 []
+      1 scenario weapons: PASS carbine fired 16 rounds in 1.5 s, view climbed 11.7 deg; launcher empty true, its rocket exploded true
+      1 scenario destroy: PASS 28 pieces, top piece fell 36 m in 8 s, 0 lost/NaN, collision removed true
+      1 scenario parked: PASS 1 spawn crawlers moved 0.01 m (up 0.98) in 30 s
+      1 scenario trees: PASS trunk radius 0.68 m: closest approach 1.04 m from its axis (needs > r + 0.2; without trunk collision the player walked through), soldier pushed out to 1.38 m
+      1 scenario forest_drive: PASS travelled 212 m in 12 s into forest (trunks within 2.5 m of the line: 15 on the path, 0 of them not felled), felled 17 trees, up 0.99
+      1 scenario stand: PASS 7 sites, fell or stuck at: 
+      1 vehicle destroyed: Gunship1 at (-1693.0, 225.0, 1626.0) (direct hit 0.7 from faction 0)
+      1 vehicle destroyed: Gunship2 at (-2237.0, 298.0, 1700.0) (direct hit 0.7 from faction 1)
+      1 scenario explore: PASS 43 walks, 3330 m walked; fell through / NaN: 0 []; stuck in the open 0 of 139 windows []; stopped at walls 1
+      1 scenario vehicles_ground: PASS 4 crawlers after 40 s with the player at the spawn; off the ground or tipped: []; the patrol crawler drove 428 m (needs > 100); with the player alongside, physics took over: frozen false, worst 0.3 m off the ground, min up 1.00, drove 61 m in 6 s
+      1 scenario walls: PASS hall pier: closest 0.34 m from the face (stopped), hall glass: closest 0.34 m from the face (stopped)
+      1 scenario menu: PASS opened and paused true, preset applied true, closed and resumed true
+      1 scenario ride: PASS rode 108 m, drifted 0.00 m on the deck (ended at (-0.049561, 2.574945, 3.213989))
+      1 scenario drive: PASS travelled 212 m in 12 s, up 1.00, -0.2 m above ground
+      1 scenario fly: PASS climbed 64 m in 6 s, flew 343 m in 8 s
+      1 scenario dropship: PASS delivered after 130 s, 13 m from the landing zone
+      1 scenario battle: PASS kills Capital 63 Cinder 49, alive 87 / 33, under ground 0, inside geometry 0 []
+      1 scenario weapons: PASS carbine fired 16 rounds in 1.5 s, view climbed 11.7 deg; launcher empty true, its rocket exploded true
+      1 scenario destroy: PASS 28 pieces, top piece fell 36 m in 8 s, 0 lost/NaN, collision removed true
+      1 scenario parked: PASS 1 spawn crawlers moved 0.01 m (up 0.98) in 30 s
+      1 scenario trees: PASS trunk radius 0.68 m: closest approach 1.04 m from its axis (needs > r + 0.2; without trunk collision the player walked through), soldier pushed out to 1.38 m
+      1 scenario forest_drive: PASS travelled 212 m in 12 s into forest (trunks within 2.5 m of the line: 15 on the path, 0 of them not felled), felled 17 trees, up 0.99
+      1 scenario stand: PASS 7 sites, fell or stuck at: 
+      1 scenario explore: PASS 43 walks, 3330 m walked; fell through / NaN: 0 []; stuck in the open 0 of 139 windows []; stopped at walls 1
+      1 scenario vehicles_ground: PASS 4 crawlers after 40 s with the player at the spawn; off the ground or tipped: []; the patrol crawler drove 428 m (needs > 100); with the player alongside, physics took over: frozen false, worst 0.3 m off the ground, min up 1.00, drove 61 m in 6 s
+      1 scenario walls: PASS hall pier: closest 0.34 m from the face (stopped), hall glass: closest 0.34 m from the face (stopped)
+      1 scenario menu: PASS opened and paused true, preset applied true, closed and resumed true
+      1 scenarios done: 0 failed

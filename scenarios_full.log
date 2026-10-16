@@ -1,0 +1,142 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+Alabaster 0.1.0 on Linux, vulkan / , preset High, args { "scenario": "all" }
+command line: /home/runner/godot/godot --headless --path game --fixed-fps 60 -- --scenario all
+world: loaded cache in 67 ms
+loading: cached (0.1 s)
+city Candor: 695 buildings, 55 skyways, 12409 trees, 4960 lamps
+setup: sky 5 ms, terrain 3013 ms, water 22 ms, capital 1042 ms, vegetation 1106 ms, bases 46 ms, roads 11 ms, battle 41 ms, combat 2 ms, vehicles 39 ms, weather 11 ms
+world ready in 5.42 s
+scenario ride: PASS rode 108 m, drifted 0.00 m on the deck (ended at (-0.049561, 2.574945, 3.213989))
+  drive t 0.5 pos (2438.0, 50.98112, -750.0) vel (0.0, 0.0, 0.0) (0.0 m/s) grounded 0
+  drive t 1.0 pos (2438.0, 50.9052, -750.0) vel (0.0, -1.135952, 0.0) (1.1 m/s) grounded 0
+  drive t 1.5 pos (2438.412, 49.96118, -750.0879) vel (2.521065, 0.027801, -0.869544) (2.7 m/s) grounded 6
+  drive t 2.0 pos (2440.61, 50.24563, -750.9625) vel (6.107885, 0.044455, -2.442167) (6.6 m/s) grounded 6
+  drive t 2.5 pos (2444.553, 50.12686, -752.6299) vel (9.534822, -0.259825, -4.043619) (10.4 m/s) grounded 6
+  drive t 3.0 pos (2450.137, 50.09794, -754.9628) vel (12.7324, -0.156302, -5.322762) (13.8 m/s) grounded 6
+  drive t 3.5 pos (2457.264, 50.14201, -757.9979) vel (15.55674, 0.337254, -6.698022) (16.9 m/s) grounded 6
+  drive t 4.0 pos (2465.73, 50.30324, -761.6741) vel (18.04579, 0.244319, -7.903517) (19.7 m/s) grounded 5
+  drive t 4.5 pos (2475.31, 50.39887, -765.9478) vel (20.3524, 1.489272, -8.691247) (22.2 m/s) grounded 6
+  drive t 5.0 pos (2485.994, 51.05315, -770.1157) vel (22.34893, 0.898582, -8.13127) (23.8 m/s) grounded 5
+  drive t 5.5 pos (2495.876, 51.03341, -772.3674) vel (18.83493, -0.114577, -1.814462) (18.9 m/s) grounded 6
+  drive t 6.0 pos (2506.011, 50.94683, -772.5936) vel (21.76204, -0.116594, -0.007742) (21.8 m/s) grounded 6
+  drive t 6.5 pos (2517.565, 50.91964, -772.5897) vel (23.9645, 0.012278, -0.011628) (24.0 m/s) grounded 6
+  drive t 7.0 pos (2529.568, 50.92641, -772.5909) vel (24.05636, -0.009197, -0.004266) (24.1 m/s) grounded 6
+vehicle destroyed: Gunship1 at (-1549.0, 220.0, 1669.0) (direct hit 0.7 from faction 0)
+  drive t 7.5 pos (2541.579, 50.92784, -772.5916) vel (24.00555, -0.002715, -0.00712) (24.0 m/s) grounded 6
+  drive t 8.0 pos (2553.589, 50.93394, -772.5901) vel (23.95815, 0.075526, 0.097521) (24.0 m/s) grounded 6
+  drive t 8.5 pos (2565.127, 50.76995, -772.514) vel (23.71234, -1.598913, 0.3918) (23.8 m/s) grounded 1
+  drive t 9.0 pos (2576.998, 49.86865, -772.2271) vel (24.07089, -0.296175, 0.430216) (24.1 m/s) grounded 6
+  drive t 9.5 pos (2589.001, 50.25661, -772.1215) vel (23.98836, 0.244468, 0.294178) (24.0 m/s) grounded 3
+  drive t 10.0 pos (2600.992, 50.29683, -771.9738) vel (24.04828, 0.098033, 0.197003) (24.0 m/s) grounded 5
+  drive t 10.5 pos (2612.996, 50.10234, -771.9431) vel (23.95502, 0.337817, 0.039533) (24.0 m/s) grounded 6
+  drive t 11.0 pos (2624.982, 50.14712, -771.9115) vel (23.96399, -0.361158, 0.067729) (24.0 m/s) grounded 6
+  drive t 11.5 pos (2636.991, 50.15977, -771.8771) vel (24.01771, 0.120564, -0.282844) (24.0 m/s) grounded 5
+  drive t 12.0 pos (2648.99, 50.15006, -772.0878) vel (23.93606, 0.326128, -0.088727) (23.9 m/s) grounded 5
+scenario drive: PASS travelled 212 m in 12 s, up 1.00, -0.2 m above ground
+  fly t 0.5 pos (2580.0, 58.36491, -910.0) vel (-0.0, 6.926151, -0.0) heading 0.00
+  fly t 1.0 pos (2580.0, 62.55939, -910.0) vel (-0.0, 9.876741, -0.0) heading 0.00
+  fly t 1.5 pos (2580.0, 68.03532, -910.0) vel (-0.0, 11.08409, -0.0) heading 0.00
+  fly t 2.0 pos (2580.0, 73.70747, -910.0) vel (-0.0, 11.52083, -0.0) heading 0.00
+  fly t 2.5 pos (2580.0, 79.51744, -910.0) vel (-0.0, 11.68716, -0.0) heading 0.00
+  fly t 3.0 pos (2580.0, 85.3799, -910.0) vel (-0.0, 11.75051, -0.0) heading 0.00
+  fly t 3.5 pos (2580.0, 91.26235, -910.0) vel (-0.0, 11.77464, -0.0) heading 0.00
+  fly t 4.0 pos (2580.0, 97.1524, -910.0) vel (-0.0, 11.78382, -0.0) heading 0.00
+  fly t 4.5 pos (2580.0, 103.0454, -910.0) vel (-0.0, 11.78732, -0.0) heading 0.00
+  fly t 5.0 pos (2580.0, 108.9394, -910.0) vel (-0.0, 11.78865, -0.0) heading 0.00
+vehicle destroyed: Gunship2 at (-1666.0, 272.0, 1090.0) (direct hit 0.7 from faction 1)
+  fly t 5.5 pos (2580.0, 114.8339, -910.0) vel (-0.0, 11.78916, -0.0) heading 0.00
+  fly t 6.0 pos (2580.0, 120.7285, -910.0) vel (-0.0, 11.78935, -0.0) heading 0.00
+  fly t 6.5 pos (2578.064, 124.961, -911.1311) vel (-9.391188, 5.380137, -1.119817) heading 2.24
+  fly t 7.0 pos (2572.58, 126.4847, -909.1314) vel (-12.47991, 0.68714, 10.02417) heading 2.88
+  fly t 7.5 pos (2566.726, 126.0407, -901.6846) vel (-10.47888, -2.434494, 20.60077) heading 3.07
+  fly t 8.0 pos (2562.072, 124.3026, -889.1653) vel (-7.512252, -4.244562, 29.48181) heading 3.12
+  fly t 8.5 pos (2558.975, 122.0105, -873.0828) vel (-4.96602, -4.968174, 36.68776) heading 3.14
+  fly t 9.0 pos (2556.951, 119.4953, -853.0683) vel (-2.98167, -4.894405, 42.92889) heading 3.14
+  fly t 9.5 pos (2555.773, 117.1868, -830.2119) vel (-1.642893, -4.227966, 48.10823) heading 3.14
+  fly t 10.0 pos (2555.141, 115.3203, -805.0075) vel (-0.821227, -3.194578, 52.38941) heading 3.14
+  fly t 10.5 pos (2554.831, 114.0271, -777.8632) vel (-0.3654, -1.982429, 55.93128) heading 3.14
+  fly t 11.0 pos (2554.692, 113.3475, -749.1272) vel (-0.143235, -0.837284, 58.67981) heading 3.14
+  fly t 11.5 pos (2554.634, 113.0818, -719.4247) vel (-0.054793, -0.318874, 59.88826) heading 3.14
+  fly t 12.0 pos (2554.612, 112.9806, -689.3421) vel (-0.020937, -0.121441, 60.3485) heading 3.14
+  fly t 12.5 pos (2554.604, 112.9422, -659.1154) vel (-0.007994, -0.04625, 60.52378) heading 3.14
+  fly t 13.0 pos (2554.604, 112.9276, -628.8337) vel (-0.003051, -0.017614, 60.59052) heading 3.14
+  fly t 13.5 pos (2554.604, 112.922, -598.5308) vel (-0.001165, -0.006709, 60.61594) heading 3.14
+  fly t 14.0 pos (2554.604, 112.9199, -568.2199) vel (-0.00044, -0.002555, 60.62563) heading 3.14
+scenario fly: PASS climbed 64 m in 6 s, flew 343 m in 8 s
+scenario dropship: PASS delivered after 130 s, 13 m from the landing zone
+scenario battle: PASS kills Capital 63 Cinder 49, alive 87 / 33, under ground 0, inside geometry 0 []
+scenario weapons: PASS carbine fired 16 rounds in 1.5 s, view climbed 11.7 deg; launcher empty true, its rocket exploded true
+  destroy: building 18 h 52 at (4179.0, 22.79345, -1129.0), hp 1900
+  destroy: collapsed after 4 shells, 28 pieces, top piece at 54 m
+scenario destroy: PASS 28 pieces, top piece fell 36 m in 8 s, 0 lost/NaN, collision removed true
+scenario parked: PASS 1 spawn crawlers moved 0.01 m (up 0.98) in 30 s
+scenario trees: PASS trunk radius 0.68 m: closest approach 1.04 m from its axis (needs > r + 0.2; without trunk collision the player walked through), soldier pushed out to 1.38 m
+scenario forest_drive: PASS travelled 212 m in 12 s into forest (trunks within 2.5 m of the line: 15 on the path, 0 of them not felled), felled 17 trees, up 0.99
+  stand fort_lumen: y 49.08 surface 49.08
+  stand citadel: y 56.28 surface 56.28
+  stand front: y 133.08 surface 133.08
+  stand forest: y 40.24 surface 40.24
+  stand radar: y 1350.99 surface 1350.99
+  stand harbor: y 6.98 surface 6.98
+  stand spawn: y 50.35 surface 50.35
+scenario stand: PASS 7 sites, fell or stuck at: 
+vehicle destroyed: Gunship1 at (-1693.0, 225.0, 1626.0) (direct hit 0.7 from faction 0)
+vehicle destroyed: Gunship2 at (-2237.0, 298.0, 1700.0) (direct hit 0.7 from faction 1)
+scenario explore: PASS 43 walks, 3330 m walked; fell through / NaN: 0 []; stuck in the open 0 of 139 windows []; stopped at walls 1
+player: fell 2.5 m under the ground at (2420.0, 47.89223, -760.0), put back on top
+  vehicles_ground t 5 Crawler0 at (964.0, 30.9, 3337.0), -0.2 m above ground, 4348.1 m from the player
+  vehicles_ground t 5 Crawler1 at (2445.9, 50.5, -766.2), -0.2 m above ground, 26.7 m from the player
+  vehicles_ground t 5 Crawler2 at (-660.0, 48.7, 1360.0), 1.7 m above ground, 3739.1 m from the player
+  vehicles_ground t 5 Crawler3 at (-1208.0, 105.3, 1440.6), -0.2 m above ground, 4243.6 m from the player
+  vehicles_ground t 10 Crawler0 at (964.0, 30.9, 3337.0), -0.2 m above ground, 4348.1 m from the player
+  vehicles_ground t 10 Crawler1 at (2445.9, 50.5, -766.2), -0.2 m above ground, 26.7 m from the player
+  vehicles_ground t 10 Crawler2 at (-660.0, 48.7, 1360.0), 1.7 m above ground, 3739.1 m from the player
+  vehicles_ground t 10 Crawler3 at (-1259.3, 107.6, 1458.5), -0.2 m above ground, 4296.8 m from the player
+  vehicles_ground t 15 Crawler0 at (964.0, 30.9, 3337.0), -0.2 m above ground, 4348.1 m from the player
+  vehicles_ground t 15 Crawler1 at (2445.9, 50.5, -766.2), -0.2 m above ground, 26.7 m from the player
+  vehicles_ground t 15 Crawler2 at (-660.0, 48.7, 1360.0), 1.7 m above ground, 3739.1 m from the player
+  vehicles_ground t 15 Crawler3 at (-1304.5, 110.0, 1489.7), -0.2 m above ground, 4351.6 m from the player
+  vehicles_ground t 20 Crawler0 at (964.0, 30.9, 3337.0), -0.2 m above ground, 4348.1 m from the player
+  vehicles_ground t 20 Crawler1 at (2445.9, 50.5, -766.2), -0.2 m above ground, 26.7 m from the player
+  vehicles_ground t 20 Crawler2 at (-660.0, 48.7, 1360.0), 1.7 m above ground, 3739.1 m from the player
+  vehicles_ground t 20 Crawler3 at (-1357.0, 111.3, 1506.3), -0.2 m above ground, 4405.2 m from the player
+  vehicles_ground t 25 Crawler0 at (964.0, 30.9, 3337.0), -0.2 m above ground, 4348.1 m from the player
+  vehicles_ground t 25 Crawler1 at (2445.9, 50.5, -766.2), -0.2 m above ground, 26.7 m from the player
+  vehicles_ground t 25 Crawler2 at (-660.0, 48.7, 1360.0), 1.7 m above ground, 3739.1 m from the player
+  vehicles_ground t 25 Crawler3 at (-1404.0, 109.1, 1534.6), -0.2 m above ground, 4460.0 m from the player
+  vehicles_ground t 30 Crawler0 at (964.0, 30.9, 3337.0), -0.2 m above ground, 4348.1 m from the player
+  vehicles_ground t 30 Crawler1 at (2445.9, 50.5, -766.2), -0.2 m above ground, 26.7 m from the player
+  vehicles_ground t 30 Crawler2 at (-660.0, 48.7, 1360.0), 1.7 m above ground, 3739.1 m from the player
+  vehicles_ground t 30 Crawler3 at (-1451.8, 109.2, 1561.3), -0.2 m above ground, 4514.7 m from the player
+  vehicles_ground t 35 Crawler0 at (964.0, 30.9, 3337.0), -0.2 m above ground, 4348.1 m from the player
+  vehicles_ground t 35 Crawler1 at (2445.9, 50.5, -766.2), -0.2 m above ground, 26.7 m from the player
+  vehicles_ground t 35 Crawler2 at (-660.0, 48.7, 1360.0), 1.7 m above ground, 3739.1 m from the player
+  vehicles_ground t 35 Crawler3 at (-1506.6, 111.7, 1567.2), -0.2 m above ground, 4564.8 m from the player
+  vehicles_ground t 40 Crawler0 at (964.0, 30.9, 3337.0), -0.2 m above ground, 3107.3 m from the player
+  vehicles_ground t 40 Crawler1 at (2445.9, 50.5, -766.2), -0.2 m above ground, 4617.7 m from the player
+  vehicles_ground t 40 Crawler2 at (-660.0, 48.7, 1360.0), 1.7 m above ground, 918.9 m from the player
+  vehicles_ground t 40 Crawler3 at (-1561.6, 113.4, 1567.9), -0.2 m above ground, 40.0 m from the player
+  vehicles_ground t 45 Crawler0 at (964.0, 30.9, 3337.0), -0.2 m above ground, 3107.3 m from the player
+  vehicles_ground t 45 Crawler1 at (2445.9, 50.4, -766.2), -0.3 m above ground, 4617.6 m from the player
+  vehicles_ground t 45 Crawler2 at (-660.0, 48.7, 1360.0), 1.7 m above ground, 918.9 m from the player
+  vehicles_ground t 45 Crawler3 at (-1612.9, 114.7, 1568.0), -0.3 m above ground, 65.6 m from the player
+scenario vehicles_ground: PASS 4 crawlers after 40 s with the player at the spawn; off the ground or tipped: []; the patrol crawler drove 428 m (needs > 100); with the player alongside, physics took over: frozen false, worst 0.3 m off the ground, min up 1.00, drove 61 m in 6 s
+scenario walls: PASS hall pier: closest 0.34 m from the face (stopped), hall glass: closest 0.34 m from the face (stopped)
+scenario menu: PASS opened and paused true, preset applied true, closed and resumed true
+scenario ride: PASS rode 108 m, drifted 0.00 m on the deck (ended at (-0.049561, 2.574945, 3.213989))
+scenario drive: PASS travelled 212 m in 12 s, up 1.00, -0.2 m above ground
+scenario fly: PASS climbed 64 m in 6 s, flew 343 m in 8 s
+scenario dropship: PASS delivered after 130 s, 13 m from the landing zone
+scenario battle: PASS kills Capital 63 Cinder 49, alive 87 / 33, under ground 0, inside geometry 0 []
+scenario weapons: PASS carbine fired 16 rounds in 1.5 s, view climbed 11.7 deg; launcher empty true, its rocket exploded true
+scenario destroy: PASS 28 pieces, top piece fell 36 m in 8 s, 0 lost/NaN, collision removed true
+scenario parked: PASS 1 spawn crawlers moved 0.01 m (up 0.98) in 30 s
+scenario trees: PASS trunk radius 0.68 m: closest approach 1.04 m from its axis (needs > r + 0.2; without trunk collision the player walked through), soldier pushed out to 1.38 m
+scenario forest_drive: PASS travelled 212 m in 12 s into forest (trunks within 2.5 m of the line: 15 on the path, 0 of them not felled), felled 17 trees, up 0.99
+scenario stand: PASS 7 sites, fell or stuck at: 
+scenario explore: PASS 43 walks, 3330 m walked; fell through / NaN: 0 []; stuck in the open 0 of 139 windows []; stopped at walls 1
+scenario vehicles_ground: PASS 4 crawlers after 40 s with the player at the spawn; off the ground or tipped: []; the patrol crawler drove 428 m (needs > 100); with the player alongside, physics took over: frozen false, worst 0.3 m off the ground, min up 1.00, drove 61 m in 6 s
+scenario walls: PASS hall pier: closest 0.34 m from the face (stopped), hall glass: closest 0.34 m from the face (stopped)
+scenario menu: PASS opened and paused true, preset applied true, closed and resumed true
+scenarios done: 0 failed
