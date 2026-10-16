@@ -979,3 +979,127 @@ func _tick_walls(_delta: float) -> void:
 		var ok := minz > face + 0.2
 		(data["res"] as Array).append(["%s: closest %.2f m from the face (%s)" % [cs[0], minz - face, "stopped" if ok else "walked in"], ok])
 		_walls_next()
+
+
+# ------------------------------------------------------------------------------------------ drive_explore
+
+## Explorer bot in a crawler: from 24 seeded random land points the player drives 15 s, steering toward a
+## wandering heading (the camera yaw) with boost now and then. Oracles: NaN, fell through the ground (more than
+## 2 m under it), launched (more than 15 m above it or over 45 m/s), tipped over (up under 0.3 for 2 s) and stuck
+## in the open (under 3 m in 5 s with throttle, no static contact in front).
+const DRIVE_WALK := 15.0
+
+
+func _setup_drive_explore() -> void:
+	var v: Vehicles = G.vehicles
+	var c: Crawler = v.crawlers[0]
+	data["c"] = c
+	c.enter(G.player)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(OS.get_environment("EXPLORE_SEED")) if OS.get_environment("EXPLORE_SEED") != "" else 5519
+	var pts: Array = []
+	var tries := 0
+	while pts.size() < 24 and tries < 800:
+		tries += 1
+		var q := Vector2(rng.randf_range(-7000.0, 7000.0), rng.randf_range(-7000.0, 7000.0))
+		if G.gen.water_at(q.x, q.y) > -100.0 or G.gen.height_at(q.x, q.y) < 3.0 or G.gen.slope_at(q.x, q.y) > 0.35:
+			continue
+		pts.append(q)
+	data["pts"] = pts
+	data["rng"] = rng
+	data["i"] = -1
+	data["fails"] = []
+	data["stuck"] = []
+	data["dist"] = 0.0
+	data["watchdog"] = pts.size() * DRIVE_WALK + 60.0
+	_drive_next()
+
+
+func _drive_next() -> void:
+	data["i"] += 1
+	var pts: Array = data["pts"]
+	if data["i"] >= pts.size():
+		Input.action_release("move_forward")
+		Input.action_release("boost")
+		return
+	var q: Vector2 = pts[data["i"]]
+	var c: Crawler = data["c"]
+	var rng: RandomNumberGenerator = data["rng"]
+	var at := Vector3(q.x, 0.0, q.y)
+	G.world.focus(at)
+	G.terrain.collision_now(at)
+	var yaw := rng.randf() * TAU
+	c.global_transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(q.x, G.world.surface_at(q.x, q.y) + 1.6, q.y))
+	c.linear_velocity = Vector3.ZERO
+	c.angular_velocity = Vector3.ZERO
+	if c.cam:
+		c.cam.yaw = yaw
+	data["t0"] = t
+	data["win_t"] = t
+	data["win_p"] = c.global_position
+	data["prev"] = c.global_position
+	data["tip_t"] = -1.0
+	data["next_turn"] = t + 2.5
+	Input.action_press("move_forward")
+
+
+func _tick_drive_explore(_delta: float) -> void:
+	var pts: Array = data["pts"]
+	var fails: Array = data["fails"]
+	if data["i"] >= pts.size():
+		var stuck: Array = data["stuck"]
+		_done(fails.is_empty() and stuck.size() <= 2, "%d drives, %.0f m driven; fails %d %s; stuck in the open %d %s" % [
+			pts.size(), data["dist"], fails.size(), fails, stuck.size(), stuck])
+		return
+	var c: Crawler = data["c"]
+	var rng: RandomNumberGenerator = data["rng"]
+	var q := c.global_position
+	var lbl := "drive %d at %s" % [data["i"], (pts[data["i"]] as Vector2).snapped(Vector2.ONE)]
+	if is_nan(q.x) or is_nan(q.y):
+		fails.append(lbl + ": NaN")
+		_drive_next()
+		return
+	if t - float(data["t0"]) < 1.0:
+		data["prev"] = q
+		data["win_p"] = q
+		return
+	data["dist"] = float(data["dist"]) + Vector2(q.x - data["prev"].x, q.z - data["prev"].z).length()
+	data["prev"] = q
+	var g: float = G.world.ground_at(q.x, q.z)
+	var above := q.y - g
+	var up := c.global_transform.basis.y.dot(Vector3.UP)
+	if above < -2.0:
+		fails.append("%s: %.1f m under the ground at %s" % [lbl, -above, q.snapped(Vector3.ONE)])
+		_drive_next()
+		return
+	if above > 15.0 or c.linear_velocity.length() > 45.0:
+		fails.append("%s: launched (%.0f m above ground, %.0f m/s) at %s" % [lbl, above, c.linear_velocity.length(), q.snapped(Vector3.ONE)])
+		_drive_next()
+		return
+	if up < 0.3:
+		if float(data["tip_t"]) < 0.0:
+			data["tip_t"] = t
+		elif t - float(data["tip_t"]) > 2.0:
+			fails.append("%s: tipped over (up %.2f, slope %.2f) at %s" % [lbl, up, G.gen.slope_at(q.x, q.z), q.snapped(Vector3.ONE)])
+			_drive_next()
+			return
+	else:
+		data["tip_t"] = -1.0
+	if t >= float(data["next_turn"]):
+		if c.cam:
+			c.cam.yaw += rng.randf_range(-0.9, 0.9)
+		if rng.randf() < 0.3:
+			Input.action_press("boost")
+		else:
+			Input.action_release("boost")
+		data["next_turn"] = t + 2.5
+	if t - float(data["win_t"]) > 5.0:
+		var w0: Vector3 = data["win_p"]
+		if Vector2(q.x - w0.x, q.z - w0.z).length() < 3.0 and G.gen.water_at(q.x, q.z) < -100.0:
+			(data["stuck"] as Array).append("%s: stuck at %s (slope %.2f, up %.2f)" % [lbl, q.snapped(Vector3.ONE), G.gen.slope_at(q.x, q.z), up])
+			if c.cam:
+				c.cam.yaw += PI
+		data["win_t"] = t
+		data["win_p"] = q
+	if t - float(data["t0"]) > DRIVE_WALK:
+		_drive_next()

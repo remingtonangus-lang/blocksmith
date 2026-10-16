@@ -5,6 +5,47 @@ mining or villagers). It takes Blocksmith's military world, The Capital (an opul
 civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale detail. The rival faction is the
 **Cinder Pact**, a rugged rust-and-olive coalition on the western plateau. Branch: `claude/capital-game` (only).
 
+## HANDOFF (2026-10-16 05:30 UTC) - read this first
+
+State: branch claude/capital-game, head = this commit. CI run 62 (ce7c08a) all green: 97 tests, 15 scenarios
+(--fixed-fps 60, about 4 min), shots with image oracles, Mac export + benchmark published to capital-latest. Last
+logged GAME BUILD READY is 9dadd13; ce7c08a is green and published but not yet logged as one (log it with the Mac
+job's fps after the next green run).
+
+Done this round (details in the Log): explorer bot `explore` (walking, 43 walks, fall-through / NaN / stall
+oracles, the player's safety net now counts and logs rescues); `vehicles_ground` (far AI crawlers now drive
+their path kinematically via Crawler.far_drive while outside the terrain collision window, clean hand-back to
+physics); `walls` + battle "inside geometry" oracle found base trimesh collision inside-out (backface_collision
+fix in bases._commit) and soldiers sinking into platforms / walking through structures (World.walk_height,
+World.step_blocked, only inside base sites and the city); shot image oracles (black / clipped / magenta / flat,
+CI shots job fails on "oracle: FAIL"); blind Gemini critic game/tools/critic.py (round 1 verified in
+docs/status/capital-critic.md: nothing broken).
+
+Next steps:
+1. `drive_explore` scenario (committed, NOT in "all"): crawler from 24 random land points, 15 s each. First run:
+   5.7 km driven, 3 "launched" fails (15-16 m above ground at 18-29 m/s at (-3254, 293, -1069), (-3854, 344,
+   3330), (-5836, 325, 594), all western plateau / canyon terrain) and 1 stuck at (4451, 22, 767) on flat ground
+   near the Capital (slope 0, upright: probably against a city building). Check whether the launches are real
+   (jumps off canyon edges / terrain-collision window seams) or legit airtime off a drop: trace with a per-tick
+   print like EXPLORE_TRACE, then fix or relax the oracle, then add it to "all" in main.gd.
+2. Impostor thinning (8d5f92f) kept on weak evidence: watch "trees: impostors unthinned" in each Mac ablation
+   (negative = saving; first sample -0.65 ms).
+3. Critic: free tier is 20 requests/day per model; gemini-flash-latest was exhausted, flash-lite works
+   (python3 game/tools/critic.py --models gemini-flash-lite-latest). Verify every claim on the PNG.
+4. White architecture reads flat (critic, taste): a measurable approach would be a luminance-contrast metric on
+   building pixels in capital_noon before / after any shading change.
+
+Gotchas:
+- Never `pkill -f <pattern>` in a command whose own text contains the pattern: it kills the shell (exit 144).
+- New class_name scripts need `godot --headless --path game --import` locally before running (CI imports).
+- GDScript calls to the same named function from WorkerThreadPool threads serialize: inline hot loops, use
+  locals for member arrays (see world_gen rows).
+- Scenario runs: `godot --headless --path game --fixed-fps 60 -- --scenario NAME` (5x faster than real time).
+- CI Mac GPU timings vary +-25 % run to run: judge GPU changes with paired ablation items, not across runs.
+- GitHub sometimes queues runs with no runner for 40+ min, or publish hits HTTP 408: one re-run, never wait idle.
+- Rules: push only to claude/capital-game, never main or other branches, never merge PRs, don't touch Sources/.
+  .claude/ALLOW_STOP deletion was denied by the classifier: do not retry.
+
 ## Current state (2026-10-05, handoff)
 - All seven milestones are done. Each later change fixes a measured bug or quality gap (see the Log).
 - Playable build: release `capital-latest` (Apple Silicon, ad-hoc signed); fetch and run as in
