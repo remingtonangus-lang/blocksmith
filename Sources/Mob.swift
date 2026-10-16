@@ -323,6 +323,9 @@ final class Mob {
     var windUp: Float = 0                // VR: seconds left of a melee wind-up (Game.meleeStrike, VRCombatFeel.swift)
     var windUpDone = false               // ... it just ended: the strike lands next if the player is still in reach
     var windUpAge: Float = 0             // ... seconds since it ended (dropped after 0.1 s unused)
+    var riposte: Float = 0               // P308: seconds a quick counter stays ready (SwordPlay.swift)
+    var feint = false                    // ... this wind-up breaks off (another comes straight after)
+    var strikeLow = false                // ... this strike comes low, at the hips (block it there)
     var hitStop: Float = 0               // a landed blade froze it for this long (VRMelee.hitStop)
     var hitFlash: Float = 0              // seconds of the blade-contact flash left (Game.bladeFlash; drawn brighter than hurt)
     var hell: HellState?                 // hell's own mobs: guard, wind-up, charge, dive (HellMobs.swift)
@@ -618,6 +621,7 @@ final class Mob {
         // strike), so a stale one never lands a later strike without its warning.
         if windUpDone { windUpAge += dt; if windUpAge > 0.1 { windUpDone = false } }
         if windUp > 0 { windUp -= dt; if windUp <= 0 { windUp = 0; windUpDone = true; windUpAge = 0 } }
+        if riposte > 0 { riposte -= dt }
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
         // Young animals and villagers grow up in 20 minutes; baby monsters (zombies, boarlings) never do.
