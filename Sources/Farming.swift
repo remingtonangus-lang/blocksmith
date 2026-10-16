@@ -430,6 +430,7 @@ extension Game {
         if copperGolemUse(m) { return true }
         if useBoat(m) || openPack(m) || useArmorStand(m) || useLead(m) { return true }
         if Trains.use(self, m) { return true }          // C1: a seat in the coach, the express car's strongbox
+        if ashCommandeer(m) { return true }             // P324: take a cleared Ashguard vehicle
         if useCart(m) { return true }
         if m.kind == .minecart {
             if riding === m { return false }

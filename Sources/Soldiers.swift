@@ -75,6 +75,13 @@ final class SoldierBrain {
     var healScan: Float = 0
     weak var patient: Mob?
     var leg: (V3, V3)?
+    // P324: an Ashguard vehicle's patrol (where it stood, the leg it drives, how long on it), rocket salvo, sidecar.
+    var patrolHome: V3?
+    var patrolLeg = 0
+    var patrolT: Float = 0
+    var salvoLeft = 0
+    var salvoCD: Float = Rand.float(in: 2...6)
+    var sidecarDone = false
     var spun = false                 // Ashsaw gunner: the bolt is racked for the next burst (a readable click first)
     // R23 (Oct 13 evening: "factions kept apart and fighting each other; base troops hunting him instead of spinning in
     // place"): a rival faction's soldier or vessel in range (looked for a few times a second, not every frame) and

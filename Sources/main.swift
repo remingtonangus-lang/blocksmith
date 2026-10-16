@@ -1766,6 +1766,7 @@ if CommandLine.arguments.contains("--volcanosites") { exit(WorldGenCheck.volcano
 if CommandLine.arguments.contains("--fidelitycheck") { exit(FidelityCheck.run()) }      // reference numbers (FidelityCheck.swift)
 if arg("--agent") != nil { exit(AgentRun.run()) }
 if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }
+if CommandLine.arguments.contains("--ashdrive") { exit(AshDriveCheck.run()) }     // P324 (Sources/AshCommandeer.swift)
 if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }
 if CommandLine.arguments.contains("--collisiontest") {
     guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }

@@ -28,6 +28,7 @@ if CommandLine.arguments.contains("--deepscan") { exit(DeepScan.run()) }
 if arg("--agent") != nil { exit(AgentRun.run()) }
 // --ridecheck [--scenes A,B --seed N --scale F --out DIR]: bots riding the capital vehicles (Sources/RideCheck.swift).
 if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }
+if CommandLine.arguments.contains("--ashdrive") { exit(AshDriveCheck.run()) }     // P324 (Sources/AshCommandeer.swift)
 if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }
 // --xr SECONDS: the real Quest app loop (QuestApp) against the desktop OpenXR runtime (Monado), then exit.
 if let secs = Double(arg("--xr") ?? "") {
