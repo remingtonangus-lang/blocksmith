@@ -9,7 +9,7 @@ final class CreativeMenu: Menu {
         var icon: String { ["compass", "bricks", "grass_block", "crafting_table", "redstone", "iron_pickaxe", "apple", "stick", "spyglass"][rawValue] }
         var short: String { ["All", "Build", "Nature", "Use", "Spark", "Tools", "Food", "Misc", "Find"][rawValue] }
     }
-    static let every: [ItemID] = Items.creativeList
+    static let every: [ItemID] = Items.creativeList.filter { !SpawnEggs.retired($0) }      // (P292)
     static var cache: [Int: [ItemID]] = [:]
     var all: [ItemID] = CreativeMenu.every
     var tab: Tab = .all

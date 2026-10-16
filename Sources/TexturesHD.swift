@@ -1586,7 +1586,7 @@ enum HDTex {
     // below, a window (clear; iron doors a grille) above.
     static let doorWoods: [String: UInt32] = ["oak": 0xA2824E, "spruce": 0x735531, "birch": 0xC5B57A, "jungle": 0xA07351,
                                               "acacia": 0xAD5D32, "dark_oak": 0x4F3218, "mangrove": 0x773631, "cherry": 0xE2B2AC,
-                                              "crimson": 0x6A344B, "warped": 0x2B6963, "iron": 0xD4D4D4, "pale_oak": 0xE4DAD3]
+                                              "crimson": 0x3A281C, "warped": 0x6A5E86, "iron": 0xD4D4D4, "pale_oak": 0xE4DAD3]
     static func door(_ name: String) -> Gen? {
         if name.hasSuffix("_trapdoor"), let c = doorWoods[String(name.dropLast(9))] {
             return trapdoorHD(c, iron: name == "iron_trapdoor")
@@ -5473,6 +5473,7 @@ enum HDTex {
                 return img
             }
         }
+        if let g = HellLooks.gen(name) { return g }                    // P292: hell's own looks (HellLooks.swift)
         if let g = table[name] { return g }
         if let g = crop(name) { return g }
         if let g = door(name) { return g }

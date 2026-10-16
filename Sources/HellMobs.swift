@@ -93,11 +93,11 @@ extension MobKind {
                         drops: [("gold_ingot", 1, 3), ("diamond", 0, 1)], xp: 30, call: .mob(self, .ambient), fireImmune: true)
         case .brandCommander:
             return Spec(name: "Brand Commander", halfW: 0.38, height: 2.05, health: 420, speed: 3.0, behavior: .monster, attack: 14,
-                        drops: [("brand_greatsword", 1, 1), ("diamond", 2, 4), ("gold_ingot", 4, 8), ("netherite_scrap", 1, 2)], xp: 200,
+                        drops: [("brand_greatsword", 1, 1), ("diamond", 2, 4), ("gold_ingot", 4, 8), ("netherite_scrap", 1, 2), ("nether_star", 1, 1)], xp: 200,
                         call: .mob(self, .ambient), fireImmune: true)
         case .searwing:
             return Spec(name: "Searwing", halfW: 0.45, height: 0.8, health: 16, speed: 7, behavior: .monster, attack: 5,
-                        drops: [("blaze_powder", 0, 1), ("leather", 0, 2)], xp: 10, call: .mob(self, .ambient), fireImmune: true, flying: true)
+                        drops: [("ghast_tear", 0, 1), ("blaze_powder", 0, 1), ("leather", 0, 2)], xp: 10, call: .mob(self, .ambient), fireImmune: true, flying: true)
         case .scorchling:
             return Spec(name: "Scorchling", halfW: 0.25, height: 0.6, health: 6, speed: 5, behavior: .monster, attack: 2,
                         drops: [("magma_cream", 0, 1)], xp: 3, call: .mob(self, .ambient), fireImmune: true)
@@ -478,7 +478,7 @@ extension Mob {
 
 enum HellMobs {
     static let slagGravity: Float = 20
-    static let caps: [Int] = [6, 4, 2, 1, 4, 14, 3]             // by MobKind.hellIndex (the Commander comes with musters)
+    static let caps: [Int] = [6, 4, 2, 1, 5, 14, 4]             // by MobKind.hellIndex (the Commander comes with musters)
     static let guardMax: [Int] = [4, 6, 8, 12]                   // by order rank (P185: harder)
     static let riposte: [Float] = [0, 0.35, 0.5, 0.6]           // P185: a blocked blow answered at once (not squires)
     static let feint: [Float] = [0, 0.2, 0.3, 0.4]              // P185: wind-ups that break off and come again
@@ -502,10 +502,11 @@ extension MobManager {
         return nil
     }
 
-    // Hell's own natural spawns (from trySpawnEmberdeep, outside fortresses): order patrols, Searwings in the open,
-    // Scorchling packs and lone Slagthrowers, about a third of the attempts, with caps for 72 fps.
-    func hellOwnSpawn(_ g: Game, at p: V3) -> Bool {
-        guard Rand.float(in: 0..<1) < 0.3 else { return false }
+    // Hell's own natural spawns (trySpawnEmberdeep): order patrols, Searwings in the open, Scorchling packs and lone
+    // Slagthrowers, with caps for 72 fps. P292: every attempt (they were a third, the rest the reference nether's
+    // creatures), leaning by land: `lean` weighs patrol, pack, slagthrower and searwings.
+    func hellOwnSpawn(_ g: Game, at p: V3, lean: [Int] = [35, 30, 15, 20], always: Bool = false) -> Bool {
+        guard always || Rand.float(in: 0..<1) < 0.3 else { return false }
         let w = g.world
         var count = (0, 0, 0, 0, 0, 0, 0)                           // by hellIndex (a tuple: no allocation)
         func get(_ i: Int) -> Int {
@@ -516,7 +517,7 @@ extension MobManager {
             switch k.hellIndex { case 0: count.0 += 1; case 1: count.1 += 1; case 2: count.2 += 1; case 3: count.3 += 1
                                  case 4: count.4 += 1; case 5: count.5 += 1; default: count.6 += 1 }
         }
-        for m in mobs where m.kind.hellOwn { bump(m.kind) }
+        for m in mobs where m.kind.hellOwn && simd_length_squared(m.pos - p) < 128 * 128 { bump(m.kind) }    // (P292: near, not a keep's garrison far off)
         func room(_ k: MobKind) -> Bool { get(k.hellIndex) < HellMobs.caps[k.hellIndex] }
         func put(_ k: MobKind, _ q: V3) {
             guard let s = MobManager.groundSpot(w, near: q) else { return }
@@ -524,16 +525,18 @@ extension MobManager {
             bump(k)
         }
         func around(_ i: Int) -> V3 { p + V3(Float(i % 3) - 1, 0, Float(i / 3) - 1) * 1.6 }
-        let r = Rand.int(in: 0..<100)
-        if r < 35 {
+        let total = max(1, lean.reduce(0, +))
+        var roll = Rand.int(in: 0..<total), pick = 0
+        for (i, wgt) in lean.enumerated() { if roll < wgt { pick = i; break }; roll -= wgt }
+        if pick == 0 {
             guard room(.brandKnight) || room(.brandSquire) else { return false }
             let lead: MobKind = Rand.int(in: 0..<5) == 0 && room(.brandChampion) ? .brandChampion : .brandKnight
             if room(lead) { put(lead, p) }
             for i in 0..<Rand.int(in: 1...2) where room(.brandSquire) { put(.brandSquire, around(i + 1)) }
-        } else if r < 65 {
+        } else if pick == 1 {
             guard room(.scorchling) else { return false }
             for i in 0..<Rand.int(in: 5...8) where room(.scorchling) { put(.scorchling, around(i)) }
-        } else if r < 80 {
+        } else if pick == 2 {
             guard room(.slagthrower) else { return false }
             put(.slagthrower, p)
         } else {
@@ -605,6 +608,7 @@ extension Game {
             for _ in 0..<6 { particles.flame(at: c + V3(Rand.float(in: -0.3...0.3), Rand.float(in: 0...0.4), Rand.float(in: -0.3...0.3))) }
             sfx(.fireball, 0.4, at: c)
             if simd_length(player.pos - m.pos) < 1.5 { hurtPlayer(1, from: c, cause: "was singed by a Scorchling", knockback: 0.2, type: .fire) }
+        case .searwing where m.killedByPlayer: achieve("searwing")
         case .brandChampion where m.killedByPlayer && Rand.int(in: 0..<12) == 0:
             drops.spawn(ItemStack(Items.id("brand_greatsword"), 1), at: m.pos + V3(0, 0.5, 0))
         case .brandCommander:

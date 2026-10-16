@@ -38,7 +38,7 @@ extension BlockRegistry {
             model(n, d, [n], [Box(2, 0, 2, 14, 4, 14), Box(4, 4, 3, 12, 5, 13), Box(6, 5, 4, 10, 10, 12), Box(3, 10, 0, 13, 16, 16)], h: 5, req: true)
         }
         // Mob heads: 4 floor facings (0-3) + 4 wall facings (4-7). Face texture on the facing side.
-        let heads: [(String, String, String)] = [("skeleton_skull", "Skeleton Skull", "skull_skeleton"), ("wither_skeleton_skull", "Blight Skeleton Skull", "skull_wither"),
+        let heads: [(String, String, String)] = [("skeleton_skull", "Skeleton Skull", "skull_skeleton"), ("wither_skeleton_skull", "Charred Skull", "skull_wither"),
                                                  ("zombie_head", "Zombie Head", "head_zombie"), ("creeper_head", "Powderwight Head", "head_creeper"),
                                                  ("piglin_head", "Boarling Head", "head_piglin"), ("dragon_head", "Wyrm Head", "head_dragon"),
                                                  ("player_head", "Player Head", "head_player")]

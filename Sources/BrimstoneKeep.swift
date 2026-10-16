@@ -3,10 +3,10 @@ import simd
 
 // Brimstone Keeps (the Deep expansion, docs/status/the-deep-expansion.md): the guarded strongholds of the Deep's hell
 // band. A walled castle on a plinth over the lava sea, one per ~512-block region: four gatehouses with causeways out
-// through the rock, solid corner towers with Cinderwisps on top, a two-floor central keep, and a strongroom under the
-// keep whose walls hold the Sunderite Ore, the only ore that breaks the Sealrock below the band (DeepSeal.swift).
-// Garrison: Blight Skeletons, Boarling Brutes and Cinderwisps at Deep strength ("@deep"), and an Ashguard detachment
-// guarding the strongroom ("@ash"): the army below keeps the key to its own vault.
+// through the rock, solid corner towers with Searwing roosts on top, a two-floor central keep, and a strongroom under
+// the keep whose walls hold the Sunderite Ore, the only ore that breaks the Sealrock below the band (DeepSeal.swift).
+// Garrison (P292): the Brand Order (knights, squires, champions, the Keep Castellan), Slagthrowers on the walls and
+// Searwings over the towers, at Deep strength ("@deep"). Nothing in hell carries a gun.
 enum BrimstoneKeep {
     static let spacing = 90                        // chunks (P310: 8x rarer by area, was 32)
     static let floorUp = 36                        // courtyard floor over the hell band's base (lava sea at +31)
@@ -98,7 +98,7 @@ enum BrimstoneKeep {
         // The open courtyard (cleared of rock up to well over the walls).
         w.fill(ox - h + 2, f + 1, oz - h + 2, ox + h - 2, f + 26, oz + h - 2, AIR)
         let layout = variant(seed)
-        // Tower tops (the Cinderwisps' perches): where each layout puts them.
+        // Tower tops (the Searwings' perches): where each layout puts them.
         var towers: [(Int, Int)] = []
         if layout == 1 {
             // Ring fort: a round curtain wall (two thick) on the square plinth, crenellated, six round towers on it.
@@ -254,33 +254,36 @@ enum BrimstoneKeep {
         sealDig(&w, x: ox + 2, z: oz - 5, from: f - 9)
         // The Ember Gate (DeepGates.swift): in the courtyard north of the keep, asleep until the Warden falls.
         DeepGates.build(&w, ox: ox, oz: oz, f: f)
-        // Spawners: Cinderwisps on two towers.
+        // Spawners: Searwing roosts on two towers (P292: they were cinderwisp cages).
         let top = layout == 2 ? f + 18 : f + 22
-        w.spawner(towers[1].0, top, towers[1].1, mob: "blaze")
-        w.spawner(towers[towers.count - 2].0, top, towers[towers.count - 2].1, mob: "blaze")
-        // The garrison.
+        w.spawner(towers[1].0, top, towers[1].1, mob: "searwing")
+        w.spawner(towers[towers.count - 2].0, top, towers[towers.count - 2].1, mob: "searwing")
+        // The garrison, all of hell's own (P292: no reference nether creatures, no guns; the Ashguard live below the
+        // Sealrock): Brand Knights in the courtyard's corners and on the walls, Champions at the gates, Searwings over
+        // the towers, a Slagthrower on each wall walk, the order's detachment at the gate, and the Keep Castellan (a
+        // Brand Champion grown huge) in the strongroom with the hoard and his guard of knights and squires.
         let y1 = Float(f + 1)
-        for (dx, dz) in [(-10, -10), (10, -10), (-10, 10), (10, 10)] { w.mob("wither_skeleton@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
-        // Gate guards (brutes at the north and south gates), wall guards (Blight Skeletons on the walls), tower guards
-        // (Cinderwisps), the strongroom's Ashguard detail, and the Keep Warden in the strongroom with the hoard.
-        for (dx, dz) in [(5, 16), (-5, -16)] { w.mob("piglin_brute@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
-        w.mob("piglin_brute:warden@deep", V3(Float(ox) + 0.5, Float(f - 9), Float(oz + 2) + 0.5))
+        for (dx, dz) in [(-10, -10), (10, -10), (-10, 10), (10, 10)] { w.mob("brand_knight@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
+        for (dx, dz) in [(5, 16), (-5, -16)] { w.mob("brand_champion@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
+        w.mob("brand_champion:warden@deep", V3(Float(ox) + 0.5, Float(f - 9), Float(oz + 2) + 0.5))
         // The Brand Order's detachment at the gate (HellMobs.swift): a knight and two squires.
         w.mob("brand_knight@deep", V3(Float(ox) + 0.5, y1, Float(oz + 13) + 0.5))
         for dx in [-2, 2] { w.mob("brand_squire@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + 12) + 0.5)) }
         if layout != 1 {
-            for (dx, dz) in [(-h, 0), (h, 0), (0, -h), (0, h)] { w.mob("wither_skeleton@deep", V3(Float(ox + dx) + 0.5, Float(f + 13), Float(oz + dz) + 0.5)) }
+            for (i, (dx, dz)) in [(-h, 0), (h, 0), (0, -h), (0, h)].enumerated() {
+                w.mob(i % 2 == 0 ? "brand_squire@deep" : "slagthrower@deep", V3(Float(ox + dx) + 0.5, Float(f + 13), Float(oz + dz) + 0.5))
+            }
         } else {
-            for (dx, dz) in [(-h + 1, 4), (h - 1, -4), (4, -h + 1), (-4, h - 1)] { w.mob("wither_skeleton@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
+            for (dx, dz) in [(-h + 1, 4), (h - 1, -4), (4, -h + 1), (-4, h - 1)] { w.mob("brand_squire@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
         }
-        for (tx, tz) in towers.prefix(4) { w.mob("blaze@deep", V3(Float(tx) + 1.5, Float(top - 1), Float(tz) + 1.5)) }
-        w.mob("soldier_trooper@ash^180", V3(Float(ox - 2) + 0.5, y1, Float(oz + 3) + 0.5))
-        w.mob("soldier_trooper@ash^180", V3(Float(ox + 1) + 0.5, y1, Float(oz + 2) + 0.5))
-        w.mob("soldier_officer@ash^180", V3(Float(ox) + 0.5, Float(f + 10), Float(oz) + 0.5))
-        w.mob("soldier_marksman@ash^180", V3(Float(ox - 3) + 0.5, Float(f + 10), Float(oz - 3) + 0.5))
-        w.mob("soldier_ironclad@ash^180", V3(Float(ox + 1) + 0.5, Float(f - 9), Float(oz - 2) + 0.5))
-        w.mob("soldier_recruit@ash^180", V3(Float(ox + 3) + 0.5, Float(f - 9), Float(oz) + 0.5))
-        w.mob("soldier_recruit@ash^0", V3(Float(ox - 1) + 0.5, Float(f - 9), Float(oz - 3) + 0.5))
+        for (tx, tz) in towers.prefix(4) { w.mob("searwing@deep", V3(Float(tx) + 1.5, Float(top + 2), Float(tz) + 1.5)) }
+        w.mob("brand_knight@deep^180", V3(Float(ox - 2) + 0.5, y1, Float(oz + 3) + 0.5))
+        w.mob("brand_squire@deep^180", V3(Float(ox + 1) + 0.5, y1, Float(oz + 2) + 0.5))
+        w.mob("brand_knight@deep^180", V3(Float(ox) + 0.5, Float(f + 10), Float(oz) + 0.5))
+        w.mob("brand_squire@deep^180", V3(Float(ox - 3) + 0.5, Float(f + 10), Float(oz - 3) + 0.5))
+        w.mob("brand_knight@deep^180", V3(Float(ox + 1) + 0.5, Float(f - 9), Float(oz - 2) + 0.5))
+        w.mob("brand_squire@deep^180", V3(Float(ox + 3) + 0.5, Float(f - 9), Float(oz) + 0.5))
+        w.mob("brand_squire@deep^0", V3(Float(ox - 1) + 0.5, Float(f - 9), Float(oz - 3) + 0.5))
     }
 }
 
@@ -306,7 +309,7 @@ extension BrimstoneKeep {
 
     // P317 (c): the Ashguard's dig to the Sealrock under the keep. A laddered shaft from the strongroom floor (x, z: the
     // ladder's cell, against the north wall) down through the plinth and the lava sea, lined in brick, to a lamp-lit
-    // chamber on the seal itself: sandbags, crates, a sentry, and a Sunder Charge set in a hollow scraped into the
+    // chamber on the seal itself: sandbags, crates, and a Sunder Charge set in a hollow scraped into the
     // Sealrock (DeepSeal.setCharge, the same look a player's own charge has while its fuse burns). It shows what the
     // charge is for, and where: the player can blast the seal right here.
     static func sealDig(_ w: inout StructWriter, x sx: Int, z sz: Int, from top: Int) {
@@ -332,7 +335,7 @@ extension BrimstoneKeep {
         // The set charge in its hollow, scorch round it on the walls (magma glow in the brick).
         w.set(sx + 1, b - 1, sz + 3, Blocks.has(DeepSeal.setCharge) ? Blocks.id(DeepSeal.setCharge) : AIR)
         for (dx, dz) in [(3, 3), (3, 4), (1, 5)] { w.set(sx + dx, b, sz + dz, Blocks.id("magma_block")) }
-        w.mob("soldier_recruit@ash^180", V3(Float(sx - 1) + 0.5, Float(b), Float(sz + 2) + 0.5))
+        // (P292: no sentry: the dig was left when the charge was set; the Ashguard live below the seal, not in hell.)
     }
 }
 
@@ -386,7 +389,9 @@ extension Bastion {
                 } }
                 if nearKeep { continue }
                 var brng = SRng(seed)
-                return start(&brng, ox: bx * CS + 8, oz: bz * CS + 8, y: DeepGen.hellBase + 33, mound: !G20Guard.legacy(G20Guard.deep, bx, bz, reach: 4))
+                let g20 = G20Guard.legacy(G20Guard.deep, bx, bz, reach: 4)
+                return start(&brng, ox: bx * CS + 8, oz: bz * CS + 8, y: DeepGen.hellBase + 33, mound: !g20,
+                             roost: !g20 && !G20Guard.legacy(P292Guard.deep, bx, bz, reach: 4))
             }
             return nil
         }

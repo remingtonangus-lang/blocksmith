@@ -732,7 +732,7 @@ final class Game {
     }
 
     var skyColor: V3 {
-        if dim.dim == .nether { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }
+        if dim.dim == .nether || (dim.dim == .deep && DeepGen.inHell(player.pos.y)) { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }   // (P292: both hells)
         if inVaultHaze { return AshSky.haze }                      // (P323: the whole cavern, not only under the sky)
         if !dim.dim.hasSky { return dim.dim.fogColor }
         let day = V3(0.64, 0.77, 0.92), night = V3(0.015, 0.02, 0.06)   // AV polish: a paler hazy horizon
@@ -1865,7 +1865,6 @@ final class Game {
             if Blocks.shape[Int(id)] == "sign" || Blocks.shape[Int(id)] == "hsign" { openSignEditor(at) }
             if Blocks.shape[Int(id)] == "banner" { let be = BlockEntity(.banner); be.patterns = h.pat ?? []; world.blockEntities[at] = be }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
-            if key == "wither_skeleton_skull" { trySummonBlight(at) }
             if key == "carved_pumpkin" || key == "jack_o_lantern" { if !trySummonCopperGolem(at) { trySummonGolem(at) } }
             if key.hasSuffix("leaves") { placedLeaves.insert(at) }
             if key == DeepGates.liftKey { noteDeepLift(at, placed: true) }
@@ -2378,8 +2377,9 @@ final class Game {
                 drops.spawn(ItemStack(Items.id(["iron_ingot", "carrot", "potato"][Rand.int(in: 0...2)]), 1), at: at)
             }
             let r = Rand.float(in: 0..<1)
-            if m.kind == .blaze && m.killedByPlayer {
-                // Cinder rods: 0-1, +0-1 per Looting level, only from player kills (reference loot table).
+            if m.kind == .slagthrower && m.killedByPlayer {
+                // Cinder rods: 0-1, +0-1 per Looting level, only from player kills (P292: the Slagthrower's, the
+                // cinderwisp retired).
                 let n = Rand.int(in: 0...1) + (looting > 0 ? Rand.int(in: 0...looting) : 0)
                 if n > 0 { drops.spawn(ItemStack(Items.id("blaze_rod"), n), at: at) }
             }
@@ -2444,7 +2444,8 @@ final class Game {
             let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
             // The nearest player wakes it (split screen: player 2's dungeon spawners stayed asleep).
             let pp = coop.active ? coop.seatPlayer(coop.nearestSeat(c, self), self).pos : player.pos
-            guard simd_length(c - pp) < 16, let kind = MobKind.named(be.mob) else { continue }
+            // P292: an old spawner of a retired kind brings its heir (a cinderwisp cage now holds slagthrowers).
+            guard simd_length(c - pp) < 16, let kind = MobKind.named(be.mob)?.living(inHell: world.inHellBand(c)) else { continue }
             if be.trial {
                 // Trial spawner: six mobs (two at a time) for a nearby player, then a reward and a 30-minute rest.
                 if be.cooldown > 0 { be.cooldown -= dt; continue }
@@ -2478,7 +2479,7 @@ final class Game {
                 let bx = Int(floor(sp.x)), by = Int(floor(sp.y)), bz = Int(floor(sp.z))
                 guard Blocks.collide[Int(world.block(bx, by - 1, bz))] else { continue }
                 // Hostile mobs from spawners need block light ≤ 11 (cinderwisps and silverfish ignore it in practice).
-                if kind != .blaze && world.lightAt(bx, by, bz).block > 11 { continue }
+                if !kind.hellOwn && world.lightAt(bx, by, bz).block > 11 { continue }
                 let m = Mob(kind, at: V3(Float(bx) + 0.5, sp.y, Float(bz) + 0.5))
                 if m.sized { m.makeSlime(size: 1) }
                 if m.collides(m.pos, world) { continue }
@@ -3071,7 +3072,7 @@ final class Game {
         }
         if !world.pendingMobs.isEmpty {
             for (name, p) in world.pendingMobs {
-                if let m = Mob.structureMob(name, at: p) { mobs.mobs.append(m) }
+                if let m = Mob.structureMob(name, at: p) { mobs.admit(m, world) }       // (P292: hell's own, no guns in hell)
             }
             world.pendingMobs.removeAll()
             TickProf.mark("structure mobs")

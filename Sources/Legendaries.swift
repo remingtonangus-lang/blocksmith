@@ -41,8 +41,8 @@ enum Legendaries {
             perkLine: "Fire resistance while worn", story: ["The Ember Fox's tail, sewn to a hood.", "Flame won't take it."], worn: true),
         Def(key: "wyrmbone_blade", name: "Wyrmbone Blade", base: ["netherite_sword", "diamond_sword", "iron_sword"], source: .boss(.enderDragon), perk: .wyrmfire,
             perkLine: "Sets foes alight; +50% against bosses", story: ["Ground from the Hollow Wyrm's spine.", "It remembers burning skies."], worn: false),
-        Def(key: "blightward_helm", name: "Blightward Helm", base: ["netherite_helmet", "diamond_helmet", "iron_helmet"], source: .boss(.wither), perk: .blightward,
-            perkLine: "Night vision; shrugs off withering", story: ["Beaten from the Blight's own crown.", "It sees in any dark."], worn: true),
+        Def(key: "blightward_helm", name: "Blightward Helm", base: ["netherite_helmet", "diamond_helmet", "iron_helmet"], source: .boss(.brandCommander), perk: .blightward,
+            perkLine: "Night vision; shrugs off withering", story: ["Beaten from a Brand Commander's crest.", "It sees in any dark."], worn: true),
         Def(key: "hush_boots", name: "Hush", base: ["diamond_boots", "iron_boots"], source: .boss(.warden), perk: .swift,
             perkLine: "Speed while worn", story: ["The blind keeper of the deep heard every step.", "These it never heard."], worn: true),
         Def(key: "tidecaller", name: "Tidecaller", base: ["trident", "iron_sword"], source: .boss(.elderGuardian), perk: .tide,
@@ -118,7 +118,7 @@ enum Legendaries {
     static func worn(_ g: Game) -> [Perk] { g.inventory.armor.slots.compactMap { s in def(s).flatMap { $0.worn ? $0.perk : nil } } }
     static func held(_ g: Game) -> Perk? { def(g.held).flatMap { $0.worn ? nil : $0.perk } }
     static func perk(_ s: ItemStack) -> Perk? { def(s).flatMap { $0.worn ? nil : $0.perk } }
-    static func isBoss(_ m: Mob) -> Bool { [.enderDragon, .wither, .warden, .elderGuardian, .ashMarshal, .ashChancellor, .ashBehemoth].contains(m.kind) }
+    static func isBoss(_ m: Mob) -> Bool { [.enderDragon, .brandCommander, .warden, .elderGuardian, .ashMarshal, .ashChancellor, .ashBehemoth].contains(m.kind) }
 
     static func meleeScale(_ g: Game, _ m: Mob) -> Float {
         switch held(g) {

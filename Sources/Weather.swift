@@ -154,8 +154,6 @@ extension Game {
         for m in mobs.mobs where simd_length(m.pos - at) < 3 && m.health > 0 {
             switch m.kind {
             case .creeper: m.charged = true
-            case .pig:
-                let z = Mob(.zombifiedPiglin, at: m.pos); z.yaw = m.yaw; add.append(z); m.health = -2000
             case .villager:
                 let wi = Mob(.witch, at: m.pos); wi.yaw = m.yaw; wi.persistent = true; add.append(wi); m.health = -2000
             default:

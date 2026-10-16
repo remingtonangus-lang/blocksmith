@@ -20,7 +20,7 @@ enum Trophies {
         }
         out.append(Def(key: "dragon_head", name: "Wyrm Head", kind: "Boss trophy"))
         out.append(Def(key: "dragon_egg", name: "Wyrm Egg", kind: "Boss trophy"))
-        out.append(Def(key: "nether_star", name: "Blight Star", kind: "Boss trophy"))
+        out.append(Def(key: "nether_star", name: "Brand Star", kind: "Boss trophy"))
         for d in Legendaries.all { out.append(Def(key: "legend:" + d.key, name: d.name, kind: "Legendary arms")) }
         out.append(Def(key: "greywall_flag", name: "Captured Greywall Flag", kind: "Captured flag"))
         return out

@@ -207,7 +207,7 @@ extension Snd {
         case .rain, .rainRoof: return "Rain falls"
         case .respawnAnchorLoop: return "Anchor hums"
         case .spawnerLoop: return "Spawner crackles"
-        case .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop, .ashVaultLoop: return nil
+        case .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .sulfurLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop, .ashVaultLoop: return nil
         case .cricketsLoop: return "Crickets chirp"
         case .oceanLoop: return "Waves crash"
         case .swampLoop: return "Frogs croak"

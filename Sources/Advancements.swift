@@ -62,16 +62,13 @@ enum Advancements {
                     crit: .event("spine_capital_fall"), challenge: true),
         // Emberdeep
         Advancement(id: "nether/root", tab: 1, title: "The Other Side", desc: "Bring summer clothes", crit: .dim(.nether)),
-        Advancement(id: "nether/return_to_sender", tab: 1, title: "Sent Back", desc: "Destroy a Wailer with a fireball", crit: .event("ghast_fireball"), challenge: true),
-        Advancement(id: "nether/find_fortress", tab: 1, title: "Fortified", desc: "Break your way into an Ash Foundry", crit: .event("fortress")),
-        Advancement(id: "nether/obtain_blaze_rod", tab: 1, title: "Fire Walker", desc: "Relieve a Cinderwisp of its rod", crit: .item("blaze_rod")),
+        Advancement(id: "nether/wing_clipper", tab: 1, title: "Wing Clipper", desc: "Bring down a Searwing", crit: .event("searwing")),
+        Advancement(id: "nether/find_fortress", tab: 1, title: "Fortified", desc: "Break your way into a Brand Chapterhouse", crit: .event("fortress")),
+        Advancement(id: "nether/obtain_blaze_rod", tab: 1, title: "Fire Walker", desc: "Relieve a Slagthrower of its rod", crit: .item("blaze_rod")),
         Advancement(id: "nether/brew_potion", tab: 1, title: "Home Chemist", desc: "Brew a potion", crit: .event("brew")),
         Advancement(id: "nether/obtain_ancient_debris", tab: 1, title: "Deep Buried", desc: "Obtain Dusk Relic", crit: .item("ancient_debris")),
         Advancement(id: "nether/netherite_armor", tab: 1, title: "Unbreakable Shell", desc: "Get a full suit of Duskium armor",
                     crit: .event("netherite_suit"), challenge: true),
-        Advancement(id: "nether/distract_piglin", tab: 1, title: "Gold Rush", desc: "Distract Boarlings with gold", crit: .event("barter")),
-        Advancement(id: "nether/ride_strider", tab: 1, title: "Hot Stroll", desc: "Ride a Magmastrider with a Tealcap Fungus on a Stick", crit: .event("ride_strider")),
-        Advancement(id: "nether/summon_wither", tab: 1, title: "Dark Summoning", desc: "Summon the Blight", crit: .event("summon_wither")),
         Advancement(id: "nether/create_beacon", tab: 1, title: "Signal Fire", desc: "Construct and place a Beacon", crit: .event("beacon")),
         Advancement(id: "nether/all_effects", tab: 1, title: "A Heady Mix", desc: "Have every potion effect at the same time", crit: .allEffects(13), challenge: true),
         Advancement(id: "nether/obtain_crying_obsidian", tab: 1, title: "Tearful Stone", desc: "Obtain Weeping Obsidian", crit: .item("crying_obsidian")),
@@ -210,7 +207,6 @@ extension Game {
         }
         if ["ochre_froglight", "verdant_froglight", "pearlescent_froglight"].allSatisfy({ have.contains($0) }) { achieve("froglights") }
         if riding?.kind == .boat { achieve("boat") }
-        if riding?.kind == .strider { achieve("ride_strider") }
         if mobs.mobs.contains(where: { $0.owner == true && simd_length($0.pos - player.pos) < 8 }) { achieve("tame") }
         if scoping { achieve("spyglass") }
         if have.contains(where: { k in Items.has(k) && Potions.potion(of: Items.id(k)) != nil && !k.contains("water") }) { achieve("brew") }
@@ -221,7 +217,8 @@ extension Game {
             return px >= s.min.x && px <= s.max.x && pz >= s.min.z && pz <= s.max.z && py >= s.min.y - 2 && py <= s.max.y + 2
         }
         let under = Blocks.key(Blocks.groupBase[Int(world.block(px, py - 1, pz))])
-        if dim.dim == .nether && under == "nether_bricks" { achieve("fortress") }
+        if (dim.dim == .nether || dim.dim == .deep) && !advancements.contains("nether/find_fortress") && BrandChapterhouse.floorKeys.contains(under)
+            && inside("fortress") { achieve("fortress") }
         if dim.dim == .end && (under == "purpur_block" || under == "purpur_pillar") { achieve("end_city") }
         if dim.dim == .overworld && Int(clock) % 5 == 0 {
             if !advancements.contains("follow_ender_eye") && inside("stronghold") { achieve("stronghold") }

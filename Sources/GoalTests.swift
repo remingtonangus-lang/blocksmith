@@ -72,7 +72,7 @@ enum GoalTests {
         let stages = path.map { $0.stage }
         let ordered = zip(stages, stages.dropFirst()).allSatisfy { $0 <= $1 } && Set(stages) == Set(0..<Spine.stages.count)
         let chain = ["nether/find_fortress", "nether/obtain_blaze_rod", "eyes", "follow_ender_eye", "enter_the_end", "end/kill_dragon",
-                     "nether/summon_wither", "enter_the_nether", "form_obsidian"]
+                     "enter_the_nether", "form_obsidian"]
         let onPath = path.filter { chain.contains($0.id) }.map { $0.id }
         let lastStage = path.last.map { Spine.stages[$0.stage] } ?? "-"
         check(ordered && onPath.isEmpty && lastStage == "The Capital",

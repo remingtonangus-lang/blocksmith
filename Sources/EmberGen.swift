@@ -180,7 +180,7 @@ final class EmberGen: TerrainGenerator {
         let blackstone = Blocks.id("blackstone"), magma = Blocks.id("magma_block"), gravel = GRAVEL
         let crimsonNy = Blocks.id("crimson_nylium"), warpedNy = Blocks.id("warped_nylium")
         let quartz = Blocks.id("nether_quartz_ore"), gold = Blocks.id("nether_gold_ore"), debris = Blocks.id("ancient_debris")
-        let glow = LAMP
+        let crust = Blocks.has("sulfur_crust") ? Blocks.id("sulfur_crust") : basalt
         let H = height
         func at(_ x: Int, _ y: Int, _ z: Int) -> BlockID { y < 0 || y >= H ? BEDROCK : b[Chunk.index(x, base + y, z)] }
         func set(_ x: Int, _ y: Int, _ z: Int, _ v: BlockID) { if y >= 0 && y < H { b[Chunk.index(x, base + y, z)] = v } }
@@ -200,10 +200,12 @@ final class EmberGen: TerrainGenerator {
                         case .soulSandValley: set(x, y, z, h % 3 == 0 ? soulSoil : soulSand)
                         case .crimsonForest: set(x, y, z, crimsonNy)
                         case .warpedForest: set(x, y, z, warpedNy)
-                        case .basaltDeltas: set(x, y, z, h % 4 == 0 ? magma : (h % 4 == 1 ? blackstone : basalt))
+                        // P292: the Sulfur Flats' crust (onyxstone and glowing magma breaking through), the Cinder Plains'
+                        // ash shores (HellLands.swift).
+                        case .basaltDeltas: set(x, y, z, h % 9 == 0 ? magma : (h % 9 == 1 ? blackstone : crust))
                         default:
                             if y >= EmberGen.lavaLevel - 1 && y <= EmberGen.lavaLevel + 3 && deco.noise2(Float(wx) / 12, Float(wz) / 12) > 0.25 {
-                                set(x, y, z, h % 2 == 0 ? gravel : soulSand)
+                                set(x, y, z, h % 2 == 0 ? gravel : soulSoil)
                             }
                         }
                         continue
@@ -219,70 +221,38 @@ final class EmberGen: TerrainGenerator {
                 }
             }
         }
-        // Lumenstone clusters hanging from ceilings: grown by attaching to the ceiling or existing lumenstone.
-        // A taller band hangs more of them, high overhead (the Deep's hell: lights in a far-off roof, like a night sky).
-        for k in 0..<(H > 128 ? 4 : 2) {
-            let h = hash3(cx, k, cz, s32 ^ 0x6C0)
-            if h % 3 == 0 { continue }
-            let x0 = 3 + Int(h % 10), z0 = 3 + Int((h >> 4) % 10)
-            var y0 = H - 8
-            while y0 > 40 && !(at(x0, y0, z0) == AIR && at(x0, y0 + 1, z0) == netherrack) { y0 -= 1 }
-            if y0 <= 40 { continue }
-            set(x0, y0, z0, glow)
-            for i in 0..<120 {
-                let hh = hash3(x0 * 31 + i, y0, z0 * 17 - i, s32 ^ 0x6C1)
-                let x = x0 + Int(hh % 7) - 3, z = z0 + Int((hh >> 4) % 7) - 3, y = y0 - Int((hh >> 8) % 8)
-                if x < 0 || x >= 16 || z < 0 || z >= 16 || at(x, y, z) != AIR { continue }
-                var touching = 0
-                for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {
-                    let nx = x + dx, nz = z + dz
-                    if nx < 0 || nx >= 16 || nz < 0 || nz >= 16 { continue }
-                    if at(nx, y + dy, nz) == glow { touching += 1 }
-                }
-                if touching == 1 { set(x, y, z, glow) }
-            }
-        }
-        // Fungus trees, roots and vines in the forests (kept inside the chunk).
+        // P292: hell's own trees and plants (HellLands.swift): charwood in the thicket, gloamwood spires, ember fern and
+        // charwood sprouts on the moss, gloam spines, sprouts and tendrils climbing from the lichen. The trees keep to
+        // the chunk (their reach is 5 for charwood, 3 for gloamwood); `inAt`/`inSet` clip anything past its edge.
+        func inAt(_ x: Int, _ y: Int, _ z: Int) -> BlockID { x < 0 || x >= CS || z < 0 || z >= CS ? BEDROCK : at(x, y, z) }
+        func inSet(_ x: Int, _ y: Int, _ z: Int, _ v: BlockID) { if x >= 0 && x < CS && z >= 0 && z < CS { set(x, y, z, v) } }
         for z in 1..<15 {
             for x in 1..<15 {
                 let wx = bx + x, wz = bz + z
                 let bio = biome(wx, wz)
                 guard bio == .crimsonForest || bio == .warpedForest else { continue }
-                let crimson = bio == .crimsonForest
-                let ny = crimson ? crimsonNy : warpedNy
-                for y in 32..<(H - 8) where at(x, y, z) == ny && at(x, y + 1, z) == AIR {
+                let charwood = bio == .crimsonForest
+                let ny = charwood ? crimsonNy : warpedNy
+                for y in 32..<(H - 18) where at(x, y, z) == ny && at(x, y + 1, z) == AIR {
                     let h = hash3(wx, y, wz, s32 ^ 0xF6)
-                    if h % 100 < 3 && x > 2 && x < 13 && z > 2 && z < 13 {
-                        let height = 4 + Int(h >> 8) % 8
+                    let room = charwood ? (x >= 5 && x <= 10 && z >= 5 && z <= 10) : (x >= 3 && x <= 12 && z >= 3 && z <= 12)
+                    if h % 100 < (charwood ? 8 : 5) && room {
                         var free = true
-                        for dy in 1...(height + 2) where at(x, y + dy, z) != AIR { free = false; break }
+                        for dy in 1...16 where at(x, y + dy, z) != AIR { free = false; break }
                         if !free { continue }
-                        let stem = Blocks.id(crimson ? "crimson_stem" : "warped_stem")
-                        let wart = Blocks.id(crimson ? "nether_wart_block" : "warped_wart_block")
-                        for dy in 1...height { set(x, y + dy, z, stem) }
-                        let top = y + height
-                        for dy in -2...1 {
-                            let r = dy == 1 ? 1 : 2
-                            for dz in -r...r { for dx in -r...r {
-                                if abs(dx) == 2 && abs(dz) == 2 { continue }
-                                if dy < 0 && abs(dx) < 2 && abs(dz) < 2 { continue }
-                                let hh = hash3(wx + dx, top + dy, wz + dz, s32 ^ 0xF7)
-                                if at(x + dx, top + dy, z + dz) == AIR { set(x + dx, top + dy, z + dz, hh % 12 == 0 ? Blocks.id("shroomlight") : wart) }
-                            } }
-                        }
-                    } else if h % 100 < 30 {
-                        let pl = h % 7 == 0 ? (crimson ? "crimson_fungus" : "warped_fungus") : (crimson ? "crimson_roots" : "warped_roots")
+                        if charwood { charwoodTree(x, y, z, h, at: inAt, set: inSet) } else { gloamwoodTree(x, y, z, h, at: inAt, set: inSet) }
+                    } else if h % 100 < 30 && at(x, y + 1, z) == AIR {
+                        let pl = h % 7 == 0 ? (charwood ? "crimson_fungus" : "warped_fungus") : (charwood ? "crimson_roots" : "warped_roots")
                         set(x, y + 1, z, Blocks.id(pl))
-                    }
-                }
-                if crimson {
-                    for y in 40..<(H - 4) where at(x, y, z) == netherrack && at(x, y - 1, z) == AIR && hash3(wx, y, wz, s32 ^ 0xF8) % 12 == 0 {
-                        let len = 1 + Int(hash3(wx, y, wz, s32 ^ 0xF9) % 6)
-                        for i in 1...len where at(x, y - i, z) == AIR { set(x, y - i, z, Blocks.id("weeping_vines")) }
+                    } else if !charwood && h % 100 < 34 {
+                        // Gloam tendrils climbing a short way from the lichen.
+                        let len = 1 + Int(h >> 9) % 4
+                        for i in 1...len where at(x, y + i, z) == AIR { set(x, y + i, z, Blocks.id("twisting_vines")) }
                     }
                 }
             }
         }
+        hellLand(cx, cz, at: inAt, set: inSet)
     }
 }
 

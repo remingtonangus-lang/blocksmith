@@ -76,20 +76,20 @@ extension Game {
     }
 }
 
-// Emberdeep atmosphere: per-biome fog colour (blended over nearby biomes) and drifting motes —
-// embers rising in the wastes, red spores in crimson woods, teal spores in warped woods, pale ash in
-// soul valleys and grey ash falling in the basalt deltas.
+// Hell's atmosphere (the Emberdeep and the Deep's hell band): per-land haze (blended over nearby lands) and drifting
+// motes (P292, hell's own lands: HellLands.swift): embers rising off the Cinder Plains, sparks off the charwood, violet
+// motes in the Gloamwood, ash falling over the Ash Dunes and sulfur steam over the flats.
 final class EmberAtmosphere {
     private var key = (Int.min, Int.min)
     private var fog = V3(0.2, 0.03, 0.03)
 
     static func color(_ b: Biome) -> V3 {
         switch b {
-        case .crimsonForest: return V3(0.22, 0.025, 0.02)
-        case .warpedForest: return V3(0.1, 0.03, 0.11)
-        case .soulSandValley: return V3(0.09, 0.2, 0.19)
-        case .basaltDeltas: return V3(0.38, 0.35, 0.42)
-        default: return V3(0.2, 0.035, 0.03)
+        case .crimsonForest: return V3(0.2, 0.075, 0.022)        // the Charwood Thicket: ember smoke
+        case .warpedForest: return V3(0.085, 0.06, 0.16)         // the Gloamwood: violet dusk
+        case .soulSandValley: return V3(0.21, 0.2, 0.18)         // the Ash Dunes: pale ash haze
+        case .basaltDeltas: return V3(0.25, 0.22, 0.08)          // the Sulfur Flats: sulfur haze
+        default: return V3(0.16, 0.085, 0.05)                    // the Cinder Plains: umber smoke
         }
     }
 
@@ -109,10 +109,10 @@ final class EmberAtmosphere {
 
 extension Game {
     func emberMotes(_ dt: Float) {
-        guard dim.dim == .nether, particles.list.count < ParticleManager.cap - 200 else { return }
+        guard inHell, particles.list.count < ParticleManager.cap - 200 else { return }
         let p = player.pos
         let biome = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome
-        let rate: Float = biome == .basaltDeltas ? 60 : (biome == .netherWastes ? 12 : 35)
+        let rate: Float = biome == .soulSandValley ? 70 : (biome == .netherWastes ? 14 : 35)
         var n = Int(rate * dt)
         if Rand.float(in: 0..<1) < rate * dt - Float(n) { n += 1 }
         let smokeL = Int(Tex.id("smoke"))
@@ -122,10 +122,10 @@ extension Game {
             var vel = V3(Rand.float(in: -0.15...0.15), 0, Rand.float(in: -0.15...0.15))
             var col = V3(1, 1, 1), glow = false, grav: Float = 0
             switch biome {
-            case .crimsonForest: col = V3(0.75, 0.18, 0.15); vel.y = -0.12; glow = true
-            case .warpedForest: col = V3(0.25, 0.8, 0.75); vel.y = 0.15; glow = true
-            case .soulSandValley: col = V3(0.75, 0.82, 0.85); vel.y = -0.08
-            case .basaltDeltas: col = V3(0.62, 0.6, 0.62); vel.y = -0.35; grav = 0.05
+            case .crimsonForest: col = V3(1.0, 0.45, 0.12); vel.y = 0.3; glow = true
+            case .warpedForest: col = V3(0.62, 0.48, 1.0); vel.y = 0.08; glow = true
+            case .soulSandValley: col = V3(0.82, 0.8, 0.76); vel.y = -0.45; vel.x += 0.35; grav = 0.02
+            case .basaltDeltas: col = V3(0.92, 0.88, 0.6); vel.y = 0.5
             default: col = V3(1.0, 0.55, 0.2); vel.y = 0.4; glow = true
             }
             particles.add(Particle(pos: o, vel: vel, life: Rand.float(in: 3...6), maxLife: 6, layer: smokeL, uv0: .zero, uvSize: 1,

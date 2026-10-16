@@ -797,10 +797,12 @@ struct Synth {
         case .rainRoof: out = rainLoop(6.0, roof: true)
         case .respawnAnchorLoop: out = droneLoop(4.0, f: 110, partials: 3, detune: 0.01, noiseLP: 600, noiseGain: 0.2, gain: 0.35)
         case .spawnerLoop: out = Synth.loopify(Synth.mix(fireLoop(3.0, size: 0.5, pitch: p * 1.3), tone(3.0, f0: 330, f1: 330, wave: .sine, attack: 0.3, release: 0.3, vib: 0.05, vibRate: 3, gain: 0.08)), fade: 0.05)
-        case .netherWastesLoop: out = Synth.loopify(Synth.mix(windLoop(5.0, lp: 500, gain: 1.0), droneLoop(5.0, f: 55, partials: 2, detune: 0.02, noiseLP: 0, noiseGain: 0, gain: 0.25)), fade: 0.05)
-        case .soulValleyLoop: out = Synth.loopify(Synth.mix(windLoop(5.0, lp: 900, gain: 0.7), droneLoop(5.0, f: 82, partials: 3, detune: 0.03, noiseLP: 0, noiseGain: 0, gain: 0.2)), fade: 0.05)
-        case .crimsonLoop: out = Synth.loopify(Synth.mix(droneLoop(5.0, f: 65, partials: 3, detune: 0.01, noiseLP: 400, noiseGain: 0.4, gain: 0.25), bubbles(5.0, count: 6, fLo: 100, fHi: 250, len: 0.15, gain: 0.25)), fade: 0.05)
-        case .warpedLoop: out = Synth.loopify(Synth.mix(droneLoop(5.0, f: 98, partials: 4, detune: 0.02, noiseLP: 1200, noiseGain: 0.15, gain: 0.2), bubbles(5.0, count: 8, fLo: 500, fHi: 1400, len: 0.12, gain: 0.15)), fade: 0.05)
+        // Hell's own lands (P292, SoundHell.swift): the Cinder Plains, the Ash Dunes, the Charwood Thicket, the Gloamwood.
+        case .netherWastesLoop: out = hellBed(0)
+        case .soulValleyLoop: out = hellBed(1)
+        case .crimsonLoop: out = hellBed(2)
+        case .warpedLoop: out = hellBed(3)
+        case .sulfurLoop: out = hellBed(4)
         case .basaltLoop: out = Synth.loopify(Synth.mix(windLoop(5.0, lp: 2500, gain: 0.5), crackle(5.0, density: 6, f: 1200, q: 4, gain: 1.0)), fade: 0.05)
         // The Ash Vault (the gap pass, DE2): a hot wind under a huge roof, a low engine drone, a far-off gun now and then.
         case .ashVaultLoop:

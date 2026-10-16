@@ -252,7 +252,7 @@ extension Game {
             case .soulSandValley: s = .soulValleyLoop
             case .crimsonForest: s = .crimsonLoop
             case .warpedForest: s = .warpedLoop
-            case .basaltDeltas: s = .basaltLoop
+            case .basaltDeltas: s = .sulfurLoop
             default: s = .netherWastesLoop
             }
             ask("bed", s, 0.5)

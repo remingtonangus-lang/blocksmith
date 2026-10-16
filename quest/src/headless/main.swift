@@ -511,6 +511,8 @@ if CommandLine.arguments.contains("--fieldsave") {
 // --playthrough [--only overworld,emberdeep,stronghold,end,blight] [--seed N]: the Mac's scripted full-game run
 // (Sources/Playthrough.swift), so cloud threads can run it too.
 if CommandLine.arguments.contains("--playthrough") { exit(Playthrough.run()) }
+// --hellcheck: P292, hell made our own (Sources/HellCheck.swift): its fortress, roost, lands, spawns and old saves.
+if CommandLine.arguments.contains("--hellcheck") { exit(HellCheck.run()) }
 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("questcheck-\(getpid())")
 try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
 QuestPaths.setDataRoot(tmp.path)

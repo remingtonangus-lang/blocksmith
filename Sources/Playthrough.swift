@@ -452,7 +452,7 @@ final class Playthrough {
     func advancementsCheck(_ full: Bool) {
         section("advancements")
         tick(1.1)
-        let must = ["nether/obtain_blaze_rod", "end/root", "end/kill_dragon", "end/dragon_egg", "end/enter_end_gateway", "nether/summon_wither"]
+        let must = ["nether/obtain_blaze_rod", "end/root", "end/kill_dragon", "end/dragon_egg", "end/enter_end_gateway"]
         for id in must where Advancements.index[id] != nil {
             if full { check(game.advancements.contains(id), "advancement \(id)") } else { info("advancement \(id): \(game.advancements.contains(id))") }
         }
@@ -764,7 +764,7 @@ final class Playthrough {
         _ = tick(2)
         check(game.alive && !Blocks.isLiquid(world.block(ap.x, ap.y, ap.z)), "emberdeep: arrival portal is safe")
         guard let fort = world.gen.structures?.nearest("fortress", x: ap.x, z: ap.z, maxRegions: 8) else {
-            check(false, "emberdeep: a cinder fortress exists"); return
+            check(false, "emberdeep: a Brand Chapterhouse exists"); return
         }
         let fd = Int(simd_length(V2(Float(fort.anchor.x - ap.x), Float(fort.anchor.z - ap.z))))
         check(fd < 1500, "emberdeep: nearest fortress \(fd) blocks from the portal")
@@ -772,11 +772,22 @@ final class Playthrough {
         _ = world.loadSync(center: fc, radius: 5)
         game.player.flying = true
         game.player.pos = fc
-        let spawners = world.blockEntities.filter { $0.value.kind == .spawner && $0.value.mob == "blaze" && fort.contains($0.key.x, $0.key.y, $0.key.z) }
-        check(!spawners.isEmpty, "fortress: \(spawners.count) cinderwisp spawner(s)")
+        // P292: the Slagthrower's cage in the chapterhouse forge ("blaze" on ground an older save generated: the
+        // spawner hatches Slagthrowers there too).
+        let spawners = world.blockEntities.filter { ($0.value.mob == "slagthrower" || $0.value.mob == "blaze") && $0.value.kind == .spawner
+            && fort.contains($0.key.x, $0.key.y, $0.key.z) }
+        check(!spawners.isEmpty, "fortress: \(spawners.count) slagthrower spawner(s)")
         guard let spos = spawners.first?.key else { return }
-        // Stand on the spawner platform and let it spawn; fight what comes (full-charge sword hits).
-        let feet = V3(Float(spos.x) + 3.5, Float(spos.y) - 1, Float(spos.z) + 0.5)
+        // Stand by the spawner and let it spawn; fight what comes (full-charge sword hits).
+        var feet = V3(Float(spos.x) + 3.5, Float(spos.y) - 1, Float(spos.z) + 0.5)
+        stand: for r in 2...5 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r { for dy in -2...1 {
+            let x = spos.x + dx, y = spos.y + dy, z = spos.z + dz
+            let b = world.block(x, y, z)
+            if Blocks.collide[Int(world.block(x, y - 1, z))] && !Blocks.isLiquid(world.block(x, y - 1, z)) && !Blocks.collide[Int(b)]
+                && !Blocks.isLiquid(b) && !Blocks.collide[Int(world.block(x, y + 1, z))] {
+                feet = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5); break stand
+            }
+        } } } }
         game.player.pos = feet
         game.applyEffect(.fireResistance, amp: 0, seconds: 600)
         _ = hold("diamond_sword")
@@ -787,7 +798,7 @@ final class Playthrough {
         // kills 40% of the time (run 350 failed on that, not on a bug).
         while rods < 7 && simSeconds - startT < 1200 {
             _ = tick(1, pin: feet)
-            let blazes = game.mobs.mobs.filter { $0.kind == .blaze && $0.health > 0 && simd_length($0.pos - feet) < 20 }
+            let blazes = game.mobs.mobs.filter { $0.kind == .slagthrower && $0.health > 0 && simd_length($0.pos - feet) < 20 }
             if !blazes.isEmpty { spawned = true }
             for b in blazes {
                 // Close in and swing until it drops (the test player chases it).
@@ -813,8 +824,8 @@ final class Playthrough {
             game.player.pos = feet
             rods = count("blaze_rod")
         }
-        check(spawned, "fortress: the spawner makes cinderwisps")
-        check(rods >= 7, "fortress: \(rods) cinder rods from \(kills) cinderwisps in \(Int(simSeconds - startT)) s")
+        check(spawned, "fortress: the spawner makes slagthrowers")
+        check(rods >= 7, "fortress: \(rods) cinder rods from \(kills) slagthrowers in \(Int(simSeconds - startT)) s")
         if kills > 0 { info(String(format: "cinder rod rate %.2f per kill (reference 0.5 without looting)", Float(rods) / Float(kills))) }
         if kills >= 10 {
             let rate: Float = Float(rods) / Float(kills)
@@ -1331,176 +1342,19 @@ final class Playthrough {
         game.inventory.armor[1] = .empty
     }
 
-    // MARK: The Blight
+    // MARK: The Blight (P292: retired with the rest of the reference nether's creatures; the Brand Commander, hell's
+    // own boss, carries the star now: HellMobsTests fights him)
 
     func blight() {
         section("blight")
         if game.dim.dim != .overworld { game.changeDimension(to: .overworld, at: game.spawnPoint) }
-        let sp = game.spawnPoint
-        // An arena a little away from spawn: flat stone, open sky.
-        let ax = Int(floor(sp.x)) + 24, az = Int(floor(sp.z)) + 24
-        _ = world.loadSync(center: V3(Float(ax), sp.y, Float(az)), radius: 3)
-        let gy = world.topY(ax, az) + 1
-        for dx in -12...12 { for dz in -12...12 {
-            world.setBlock(ax + dx, gy - 1, az + dz, STONE)
-            for y in 0..<14 { world.setBlock(ax + dx, gy + y, az + dz, AIR) }
-        } }
-        if count("soul_sand") < 4 { give("soul_sand", 4 - count("soul_sand"), bulk: "emberdeep soul sand valley") }
-        if count("wither_skeleton_skull") < 3 { give("wither_skeleton_skull", 3 - count("wither_skeleton_skull"), bulk: "blight skeletons (2.5% each)") }
-        // Build the T with real placements: stem, arms, then skulls (the last skull summons).
-        let stem = IVec3(ax, gy, az)
-        let soul = Blocks.id("soul_sand")
-        world.setBlock(stem.x, stem.y, stem.z, soul)
-        for dx in -1...1 { world.setBlock(stem.x + dx, stem.y + 1, stem.z, soul) }
-        inv.remove(id("soul_sand"), 4)
-        clearMobs(near: center(stem), 6)                // a cow standing on the T would block the skulls
-        game.survival = true
-        for dx in [-1, 1, 0] {
-            let top = IVec3(stem.x + dx, stem.y + 1, stem.z)
-            let feet = V3(Float(top.x) + 0.5, Float(top.y) + 1.2, Float(top.z) + 2.5)
-            // A click can be swallowed (place cooldown after the previous action): retry until the skull is down.
-            for _ in 0..<4 where baseKey(world.block(top.x, top.y + 1, top.z)) != "wither_skeleton_skull"
-                && !game.mobs.mobs.contains(where: { $0.kind == .wither }) {
-                game.player.flying = true
-                game.player.pos = feet
-                _ = tick(0.3, pin: feet)
-                aim(at: V3(Float(top.x) + 0.5, Float(top.y) + 1, Float(top.z) + 0.5))
-                _ = hold("wither_skeleton_skull")
-                game.input.rightClicked = true
-                _ = tick(0.1, pin: feet)
-            }
-        }
-        let w = game.mobs.mobs.first { $0.kind == .wither }
-        check(w != nil, "blight: soul sand T + three skulls summons the Blight")
-        if w == nil {
-            let tops = [-1, 0, 1].map { baseKey(world.block(stem.x + $0, stem.y + 2, stem.z)) }
-            let near = game.mobs.mobs.filter { simd_length($0.pos - center(stem)) < 6 }.map { $0.kind.key }
-            info("blight T: skulls row \(tops), arms \(baseKey(world.block(stem.x, stem.y + 1, stem.z))), held \(Items.key(game.held.item)), " +
-                 "skulls left \(count("wither_skeleton_skull")), mobs near \(near), menu \(game.menu.map { "\(type(of: $0))" } ?? "none")")
-        }
-        guard let b = w else { return }
-        check(b.phase == 1, "blight: charging after the summon")
-        // Inside the cleared arena (it stood at +14.5, past the cleared 12 blocks, under whatever grew there).
-        let feet = V3(Float(ax) + 0.5, Float(gy), Float(az) + 10.5)
-        game.player.flying = false
-        game.player.pos = feet
-        _ = tick(12)
-        check(b.phase == 0 && b.health >= 290, "blight: 11 s charge ends at full health (\(b.health)/300) with a blast")
-        section("blight fight")
-        // Gear a Blight fighter brings (enchanting table / anvil): Smite V sword (it is undead), Power V bow.
-        for i in 0..<36 where Items.key(inv[i].item) == "diamond_sword" { var st = inv[i]; st.ench = Enchant.pack([(.smite, 5)]); inv[i] = st }
-        for i in 0..<36 where Items.key(inv[i].item) == "bow" { var st = inv[i]; st.ench = Enchant.pack([(.power, 5)]); inv[i] = st }
-        info("bulk: Smite V on the sword, Power V on the bow")
-        let fightStart = simSeconds
-        let dmgStart = damageTaken
-        var arrows = 0, swings = 0, arrowDmg = 0, armoredArrowDmg = 0, armoredArrows = 0, landed = 0, swordDmg = 0, regear = 0
-        while b.health > 0 && simSeconds - fightStart < 600 {
-            // After a death (skull blasts can destroy the dropped gear) the fighter comes back equipped.
-            if game.inventory.armorPoints < 17 && regear < 6 { regear += 1; wearArmor() }
-            if b.health > 150 {
-                // Bow while it's unarmoured.
-                let h0 = b.health
-                // It hovers over its target: an arrow loosed from right under it starts inside its reach and never
-                // lands (T3: 388 arrows for 35 damage). Step back to a clear shot 8 blocks off, inside the arena.
-                var here = game.player.pos
-                let off = V2(here.x - b.pos.x, here.z - b.pos.z)
-                if simd_length(off) < 5 {
-                    let dir = simd_length(off) > 0.1 ? simd_normalize(off) : V2(0, 1)
-                    var spot = V2(b.pos.x, b.pos.z) + dir * 8
-                    if abs(spot.x - Float(ax) - 0.5) > 10 || abs(spot.y - Float(az) - 0.5) > 10 { spot = V2(b.pos.x, b.pos.z) - dir * 8 }
-                    spot.x = min(max(spot.x, Float(ax - 10) + 0.5), Float(ax + 10) + 0.5)
-                    spot.y = min(max(spot.y, Float(az - 10) + 0.5), Float(az + 10) + 0.5)
-                    here = V3(spot.x, Float(gy), spot.y)
-                    game.player.pos = here
-                    game.player.vel = .zero
-                }
-                shoot(at: b, from: here)
-                _ = tick(0.4, pin: here)
-                arrows += 1
-                arrowDmg += max(0, h0 - b.health)
-            } else if armoredArrows < 3 {
-                // Arrows bounce off the armour below half health (only arrow damage counts: thorns, fire and the
-                // like can still hurt it in the same moment).
-                if armoredArrows == 0 { _ = tick(1.5) }                 // let arrows already in flight land first
-                // It regenerates 1 HP/s: back above half health it is unarmoured again (run 350 counted arrows that
-                // hit it at 151-152 HP as bouncing failures). Shoot only while it really wears the armour.
-                // A margin of three: an arrow loosed at 150 HP landed at 151 after a second of regeneration and hit it
-                // unarmoured (run 366: 14 damage from 3 arrows).
-                if b.health > 147 { _ = tick(0.5); continue }                 // (it regenerates past 150, the bow brings it down)
-                let a0 = b.arrowDamage
-                let here = game.player.pos
-                shoot(at: b, from: here)
-                _ = tick(0.4, pin: here)
-                armoredArrows += 1
-                armoredArrowDmg += b.arrowDamage - a0
-            } else {
-                // Sword: it hovers low when armoured; step up to it.
-                let to = V3(b.pos.x, 0, b.pos.z) - V3(game.player.pos.x, 0, game.player.pos.z)
-                let l = simd_length(to)
-                var at = game.player.pos
-                if l > 2.2 { at = V3(b.pos.x, max(Float(gy), b.pos.y - 1), b.pos.z) - simd_normalize(to + V3(0.001, 0, 0)) * 2 }
-                game.player.flying = true
-                if !hold("diamond_sword") {
-                    give("diamond_sword", 1, bulk: "a new sword")
-                    for i in 0..<36 where Items.key(inv[i].item) == "diamond_sword" { var st = inv[i]; st.ench = Enchant.pack([(.smite, 5)]); inv[i] = st }
-                    _ = hold("diamond_sword")
-                }
-                let h0 = b.health
-                swing(at: b, from: at)
-                swings += 1
-                if b.health < h0 { landed += 1; swordDmg += h0 - b.health }
-            }
-            // Keep the player near the arena floor.
-            if game.player.pos.y < Float(gy) - 3 || simd_length(game.player.pos - feet) > 40 { game.player.pos = feet; game.player.vel = .zero }
-        }
-        let t = simSeconds - fightStart
-        check(b.health <= 0, String(format: "blight: defeated in %.0f s (%ld arrows for %ld damage, %ld sword hits)", t, arrows, arrowDmg, swings))
-        if b.health > 0 {
-            let sees = world.canSee(game.player.eye, b.pos + V3(0, 1.75, 0))
-            info("blight sight: player sees it \(sees), player \(game.player.pos), blight \(b.pos), phase \(b.phase), arena floor y \(gy)")
-        }
-        check(armoredArrows == 0 || armoredArrowDmg == 0, "blight: arrows bounce off its armour below half health (\(armoredArrowDmg) damage from \(armoredArrows))")
-        info("blight fight: player took \(damageTaken - dmgStart) damage (healed by the test); \(landed) of \(swings) sword hits landed for \(swordDmg)")
-        collect(near: b.pos, 24)
-        _ = tick(1)
-        collect(near: game.player.pos, 24)
-        // The star falls from where the Blight died (often 10+ blocks up; run 346 found it on the ground 9 below):
-        // a player walks over to it once it has landed.
-        for _ in 0..<60 where count("nether_star") == 0 {
-            guard let e = game.drops.items.first(where: { !$0.stack.isEmpty && Items.key($0.stack.item) == "nether_star" }) else { break }
-            makeRoom()                  // the fight's drops filled the bag (run 358: the player stood on the star for 6 s)
-            let at = standNear(e.pos)
-            game.player.pos = at
-            game.player.vel = .zero
-            _ = tick(0.1, pin: at)
-        }
-        check(count("nether_star") == 1, "blight: the Blight Star drops and is picked up (\(count("nether_star")))")
-        if count("nether_star") == 0 {
-            let stars = game.drops.items.filter { Items.key($0.stack.item) == "nether_star" }.map { String(format: "%.0f %.0f %.0f", $0.pos.x, $0.pos.y, $0.pos.z) }
-            info(String(format: "star lost: Blight health %ld at %.0f %.0f %.0f, still listed %@, stars on the ground %@", b.health, b.pos.x, b.pos.y, b.pos.z,
-                        game.mobs.mobs.contains { $0 === b } ? "yes" : "no", "\(stars)"))
-            let free = (0..<36).filter { inv[$0].isEmpty }.count
-            if let e = game.drops.items.first(where: { !$0.stack.isEmpty && Items.key($0.stack.item) == "nether_star" }) {
-                let d: V3 = e.pos - game.player.pos
-                let menuName: String = game.menu.map { "\(type(of: $0))" } ?? "none"
-                let state: String = "ground \(e.onGround), menu \(menuName), paused \(game.paused), credits \(game.credits != nil)"
-                let nums: String = String(format: "delay %.2f age %.1f offset %.2f %.2f %.2f", e.pickupDelay, e.age, d.x, d.y, d.z)
-                info("star lost: star " + nums + "; " + state)
-                // Where one unpinned tick leaves the player (pushed out of a block before pickup?) and what is there.
-                let c = IVec3(Int(floor(e.pos.x)), Int(floor(e.pos.y)), Int(floor(e.pos.z)))
-                let at = Blocks.key(world.block(c.x, c.y, c.z)), below = Blocks.key(world.block(c.x, c.y - 1, c.z))
-                game.player.pos = e.pos; game.player.vel = .zero
-                game.tick(0.05)
-                let q: V3 = game.player.pos - e.pos
-                info(String(format: "star lost: after one free tick the player is %.2f %.2f %.2f from it; star cell %@ over %@, loaded %@, star moved to %.2f %.2f %.2f",
-                            q.x, q.y, q.z, at, below, world.isLoaded(c.x, c.z) ? "yes" : "no", e.pos.x, e.pos.y, e.pos.z))
-            }
-            info(String(format: "star lost: player at %.1f %.1f %.1f, alive %@, %ld free slots", game.player.pos.x, game.player.pos.y, game.player.pos.z,
-                        game.alive ? "yes" : "no", free))
-        }
-        if count("nether_star") == 0 { give("nether_star", 1, bulk: "star lost") }
+        let before = game.mobs.mobs.count
+        game.trySummonBlight(IVec3(Int(floor(game.player.pos.x)), Int(floor(game.player.pos.y)), Int(floor(game.player.pos.z))))
+        game.tick(0.05)
+        check(!game.mobs.mobs.contains { $0.kind == .wither } && game.mobs.mobs.count <= before + 1, "blight: retired, nothing summons it (P292)")
+        if count("nether_star") == 0 { give("nether_star", 1, bulk: "a Brand Commander's star") }
         give("glass", 5, bulk: "sand + furnace"); give("obsidian", 3, bulk: "obsidian")
         craft(["GGG", "GSG", "OOO"], ["G": "glass", "S": "nether_star", "O": "obsidian"], "beacon")
-        check(count("beacon") == 1, "craft: beacon from the Blight Star")
+        check(count("beacon") == 1, "craft: beacon from the Brand Star")
     }
 }

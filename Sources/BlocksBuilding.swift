@@ -15,8 +15,8 @@ extension BlockRegistry {
     // Player-facing wood names (Blocksmith names where the reference game's are its own).
     static func woodName(_ w: String) -> String {
         switch w {
-        case "crimson": return "Rustcap"
-        case "warped": return "Tealcap"
+        case "crimson": return "Charwood"
+        case "warped": return "Gloamwood"
         case "pale_oak": return "Ashbark"
         default: return w.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
         }
