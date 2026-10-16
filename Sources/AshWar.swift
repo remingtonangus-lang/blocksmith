@@ -22,6 +22,7 @@ enum AshWar {
 extension Game {
     // Once a second while in the Deep: entering the vault, the Marshal, the lift home.
     func ashTick() {
+        AshFallen.refresh(self)                                    // P326: the fallen near the player (cleared elsewhere)
         guard dim.dim == .deep else { return }
         if DeepGen.inVault(player.pos.y) && !advancements.contains("adventure/ash_vault") {
             achieve("ash_vault")

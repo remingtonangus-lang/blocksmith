@@ -3,9 +3,11 @@ import Foundation
 // The Deep (task 22): a whole 384-tall world under the surface's old floor, reached by digging through it (DeepSeam.swift).
 // Internal y, bottom to top:
 //   0...3      the molten core (lava)
-//   4...floor  the Ash Vault's floor rock, an ash plain at ~y 30 with lava rivers
-//   ...ceiling the Ash Vault: a ~135-block-high open cavern under its own ember-haze sky (AshSky.swift), rock pillars,
-//              lumenstone hanging from the roof; the Ashguard army holds it (AshWar.swift), its headquarters at x 0, z 0
+//   4...floor  the Ash Vault's floor rock under its ground (P326, AshFront.swift: grass, mud, dark forests, shell holes,
+//              no man's land, mud creeks where lava rivers ran) at ~y 30
+//   ...ceiling the Ash Vault: a ~135-block-high open cavern under its own grey, foggy sky (AshSky.swift), grey stone
+//              pillars, lumenstone hanging from the roof; the Ashguard army holds it (AshWar.swift), its headquarters at
+//              x 0, z 0
 //   ...191     the lower crust: hot rock, sealed lava pockets, deep ores
 //   192...199  the Sealrock (DeepSeal.swift): only Sunderite breaks it
 //   200...375  the hell band: the Emberdeep's terrain stretched to 176 tall (EmberGen at base 200, height 176; its lower
@@ -27,75 +29,49 @@ final class DeepGen: TerrainGenerator {
     let ember: EmberGen
     let floorN: Noise, ceilN: Noise, riverN: Noise, pocketN: Noise, matN: Noise
     let structures: StructureCache?
+    let ground: VaultGround                 // P326: the vault floor's shape, materials, woods and scenes (AshFront.swift)
     let keepGuard = DeepGuard()
     let vaultGuard = DeepGuard()           // vault chunks saved before its towns, rail and airfield (AshVault.swift)
 
     init(seed: UInt64) {
         self.seed = seed
-        s32 = UInt32(truncatingIfNeeded: seed ^ (seed >> 32)) ^ 0xDEE9
+        let s = UInt32(truncatingIfNeeded: seed ^ (seed >> 32)) ^ 0xDEE9
+        s32 = s
         ember = EmberGen(seed: seed, base: DeepGen.hellBase, height: DeepGen.hellHeight, cap: EMBERSLATE, structures: false)
         floorN = Noise(seed: seed &+ 201)
         ceilN = Noise(seed: seed &+ 202)
         riverN = Noise(seed: seed &+ 203)
         pocketN = Noise(seed: seed &+ 204)
         matN = Noise(seed: seed &+ 205)
-        structures = StructureCache(seed: seed, types: [Fortress.deepType, BrimstoneKeep.type(worldSeed: seed, guardSet: keepGuard), Bastion.deepType(worldSeed: seed, guardSet: keepGuard)] + AshWar.types,
+        let vg = VaultGround(seed: seed, s32: s)
+        ground = vg
+        structures = StructureCache(seed: seed, types: [Fortress.deepType, BrimstoneKeep.type(worldSeed: seed, guardSet: keepGuard), Bastion.deepType(worldSeed: seed, guardSet: keepGuard)] + AshWar.types + [AshFront.sceneType(vg)],
                                     fixed: AshWar.starts(seed: seed, guardSet: vaultGuard))
     }
 
     // MARK: The Ash Vault's shape
 
-    // Floor top (internal y). Flat around the army's sites, rolling further out.
+    // Floor top (internal y). Flat around the army's sites, rolling further out, shell holes in it (P326); a creek's bed
+    // is a block lower still (VaultGround.top).
     func floorY(_ x: Int, _ z: Int) -> Int {
-        let rough = max(0.15, min(1, (AshWar.clearance(x, z) - 12) / 90))
-        let n = floorN.fbm2(Float(x) / 140, Float(z) / 140, 3) * 9 + floorN.noise2(Float(x) / 37, Float(z) / 37) * 2.5
-        return DeepGen.floorBase + Int((n * rough).rounded())
+        DeepGen.floorBase + Int((ground.base(x, z) - ground.crater(x, z)).rounded())
     }
 
     func ceilingY(_ x: Int, _ z: Int) -> Int {
         DeepGen.ceilingBase + Int((ceilN.fbm2(Float(x) / 90, Float(z) / 90, 3) * 14).rounded())
     }
 
-    // Rock pillars from floor to roof: one per 96-block cell (most cells), never on an army site or road.
-    // PG1 rewrite: how far inside a pillar (x, z) is (blocks, > 0 inside), the same circles `pillar` tests.
-    func pillarDistance(_ x: Int, _ z: Int) -> Float {
-        let gx = floorDiv(x, 96), gz = floorDiv(z, 96)
-        var best: Float = -99
-        for oz in -1...1 { for ox in -1...1 {
-            let h = hash3(gx + ox, 77, gz + oz, s32 ^ 0x9111)
-            if h % 5 == 0 { continue }
-            let px = (gx + ox) * 96 + 20 + Int(h >> 3 & 55), pz = (gz + oz) * 96 + 20 + Int(h >> 9 & 55)
-            let r = 4 + Float(h >> 15 & 7)
-            let dx = Float(x - px), dz = Float(z - pz)
-            let rr: Float = dx * dx + dz * dz
-            if rr > (r * 1.5 + 4) * (r * 1.5 + 4) { continue }
-            let wob = 1 + 0.25 * matN.noise2(Float(x) / 6, Float(z) / 6)
-            guard AshWar.clearance(px, pz) > r + 24 else { continue }
-            best = max(best, r * wob - rr.squareRoot())
-        } }
-        return best
-    }
-
-    func pillar(_ x: Int, _ z: Int) -> Bool {
-        let gx = floorDiv(x, 96), gz = floorDiv(z, 96)
-        for oz in -1...1 { for ox in -1...1 {
-            let h = hash3(gx + ox, 77, gz + oz, s32 ^ 0x9111)
-            if h % 5 == 0 { continue }
-            let px = (gx + ox) * 96 + 20 + Int(h >> 3 & 55), pz = (gz + oz) * 96 + 20 + Int(h >> 9 & 55)
-            let r = 4 + Float(h >> 15 & 7)
-            let dx = Float(x - px), dz = Float(z - pz)
-            let wob = 1 + 0.25 * matN.noise2(Float(x) / 6, Float(z) / 6)
-            if dx * dx + dz * dz < r * r * wob * wob, AshWar.clearance(px, pz) > r + 24 { return true }
-        } }
-        return false
-    }
-
-    func lavaRiver(_ x: Int, _ z: Int) -> Bool {
-        abs(riverN.fbm2(Float(x) / 170, Float(z) / 170, 2)) < 0.022 && AshWar.clearance(x, z) > 14
-    }
+    // Rock pillars from floor to roof (VaultGround: one per 96-block cell, never on an army site or road).
+    func pillarDistance(_ x: Int, _ z: Int) -> Float { ground.pillarDistance(x, z) }
+    func pillar(_ x: Int, _ z: Int) -> Bool { ground.pillar(x, z) }
+    // P326: the old lava rivers' beds, now mud creeks.
+    func creek(_ x: Int, _ z: Int) -> Bool { ground.creek(x, z) }
 
     func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome) { (floorY(x, z), ember.biome(x, z)) }
-    func tints(cx: Int, cz: Int) -> [UInt32] { [UInt32](repeating: 0xFF3A7ABF, count: 768) }
+    // P326: the vault's grass and leaves a dark, tired green (grass, foliage, then the water the creeks once had).
+    func tints(cx: Int, cz: Int) -> [UInt32] {
+        [UInt32](repeating: 0xFF3E6A5A, count: 256) + [UInt32](repeating: 0xFF2E5040, count: 256) + [UInt32](repeating: 0xFF3A7ABF, count: 256)
+    }
 
     // MARK: Generation
 
@@ -110,10 +86,8 @@ final class DeepGen: TerrainGenerator {
         for lz in 0..<CS { for lx in 0..<CS {
             let wx = bx + lx, wz = bz + lz
             let pd = pillarDistance(wx, wz)
-            let rough = max(0.15, min(1, (AshWar.clearance(wx, wz) - 12) / 90))
-            let n = floorN.fbm2(Float(wx) / 140, Float(wz) / 140, 3) * 9 + floorN.noise2(Float(wx) / 37, Float(wz) / 37) * 2.5
-            var f = Float(DeepGen.floorBase) + n * rough
-            if lavaRiver(wx, wz) { f -= 2 }
+            var f = Float(DeepGen.floorBase) + ground.base(wx, wz) - ground.crater(wx, wz)
+            if creek(wx, wz) { f -= 1 }
             let c = Float(DeepGen.ceilingBase) + ceilN.fbm2(Float(wx) / 90, Float(wz) / 90, 3) * 14
             for y in 0..<DeepGen.hellBase {
                 let yc = Float(y), i = Chunk.index(lx, y, lz)
@@ -157,39 +131,40 @@ final class DeepGen: TerrainGenerator {
         let bx = cx * CS, bz = cz * CS
         let rock = EMBERSLATE, lava = LAVA, glow = LAMP
         let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt"), magma = Blocks.id("magma_block")
-        let soulSoil = Blocks.id("soul_soil"), road = Blocks.id("polished_blackstone")
-        let seal = SEALROCK
+        let seal = SEALROCK, vg = ground
         let gold = Blocks.id("deepslate_gold_ore"), diamond = Blocks.id("deepslate_diamond_ore"), debris = Blocks.id("ancient_debris")
         var floors = [Int](repeating: 0, count: CSQ), ceils = [Int](repeating: 0, count: CSQ)
         for lz in 0..<CS { for lx in 0..<CS {
             let wx = bx + lx, wz = bz + lz
-            var f = floorY(wx, wz)
+            // P326: the floor as a battlefield: shell holes, mud creeks where the lava rivers ran, living ground on dirt.
+            let cr = vg.crater(wx, wz)
+            var f = DeepGen.floorBase + Int((vg.base(wx, wz) - cr).rounded())
             let c = ceilingY(wx, wz)
-            let river = lavaRiver(wx, wz)
+            let river = vg.creek(wx, wz)
             let solidColumn = pillar(wx, wz)
-            if river { f -= 2 }
+            if river { f -= 1 }
+            let top = vg.surface(wx, wz, crater: cr, creek: river, wood: vg.wood(wx, wz), nml: vg.noMansLand(wx, wz))
+            let sub = top == vg.mud ? vg.mud : (top == vg.road ? rock : DIRT)
             floors[lx + lz * CS] = f; ceils[lx + lz * CS] = c
             for y in 0..<CH {
                 let i = Chunk.index(lx, y, lz)
                 if y <= DeepGen.coreTop { b[i] = lava; continue }
                 if y >= DeepGen.hellBase && y < DeepGen.crustTop { continue }          // the hell band (filled below)
                 if DeepSeal.inBand(y) { b[i] = seal; continue }                         // the barrier, unbroken
-                if y > f && y < c && !solidColumn {
-                    if river && y == f + 1 { b[i] = lava }
-                    continue
-                }
-                // Rock: emberslate with magma, deep ores and (crusts only) sealed lava pockets.
+                if y > f && y < c && !solidColumn { continue }
+                // Rock: emberslate with magma deep down, deep ores and (crusts only) sealed lava pockets.
                 let h = hash3(wx, y, wz, s32)
                 var v = rock
                 if y == f && !solidColumn {
-                    let m = matN.noise2(Float(wx) / 19, Float(wz) / 19)
-                    v = river ? magma : (AshWar.isRoad(wx, wz) ? road : (m > 0.35 ? basalt : (m < -0.45 ? soulSoil : blackstone)))
+                    v = top
+                } else if y < f && y >= f - 3 && !solidColumn {
+                    v = sub
                 } else if y == c && !solidColumn {
                     v = matN.noise2(Float(wx) / 23 + 50, Float(wz) / 23) > 0.2 ? basalt : blackstone
                 } else if solidColumn && y > f && y < c {
-                    // Pillars: banded hot rock, no ore studding their faces.
-                    v = (y + Int(h % 3)) % 9 < 2 ? basalt : (h % 61 == 0 ? magma : rock)
-                } else if h % 47 == 0 {
+                    // Pillars: weathered grey stone, mossy at the foot, no ore studding their faces.
+                    v = vg.pillarBlock(wx, y, wz, floor: f)
+                } else if h % 47 == 0 && (y > c || y < f - 8) {
                     v = magma
                 } else {
                     let cell = hash3(wx >> 1, y >> 1, wz >> 1, s32 ^ 0xA5) % 1000
@@ -209,6 +184,7 @@ final class DeepGen: TerrainGenerator {
             guard AshLines.distance(wx, wz) == 0, !pillar(wx, wz) else { continue }
             AshLines.carve(&b, lx, lz, wx, wz, f: floors[lx + lz * CS])
         } }
+        vegetation(&b, cx: cx, cz: cz, floors)
         // The vault's roof: basalt stalactites and lumenstone clusters (its only light besides lava and the army's lamps).
         for lz in 0..<CS { for lx in 0..<CS {
             let wx = bx + lx, wz = bz + lz
@@ -229,6 +205,67 @@ final class DeepGen: TerrainGenerator {
             }
         } }
         return b
+    }
+
+    // P326 (a): the vault's living ground: grass and ferns, dead bushes and scraps of wire in no man's land; dark forests
+    // of dark oak and spruce with dead trees and stumps among them; stumps and snags out in no man's land; now and then a
+    // lone tree. Tree sites sit on a jittered 4-block grid and depend only on their position (the trees across a chunk
+    // border are the same from both sides); none on a site, road, creek, shell hole, pillar or scene, nor reaching
+    // ground a save had already generated.
+    private func vegetation(_ b: inout [BlockID], cx: Int, cz: Int, _ floors: [Int]) {
+        let vg = ground, bx = cx * CS, bz = cz * CS
+        let shortGrass = Blocks.has("short_grass") ? Blocks.id("short_grass") : AIR, fern = Blocks.has("fern") ? Blocks.id("fern") : AIR
+        let deadBush = Blocks.has("dead_bush") ? Blocks.id("dead_bush") : AIR, wire = Blocks.has("ash_wire") ? Blocks.id("ash_wire") : AIR
+        for lz in 0..<CS { for lx in 0..<CS {
+            let f = floors[lx + lz * CS]
+            guard f + 1 < CH, b[Chunk.index(lx, f + 1, lz)] == AIR else { continue }
+            let t = b[Chunk.index(lx, f, lz)]
+            let wx = bx + lx, wz = bz + lz
+            let h = hash3(wx, 9, wz, s32 ^ 0x6A55) % 1000
+            var plant = AIR
+            if t == vg.grass || t == vg.podzol || t == vg.moss {
+                let w = vg.wood(wx, wz)
+                if h < UInt32(110 + 200 * w) { plant = h % 5 == 0 && w > 0.2 ? fern : shortGrass }
+            } else if t == vg.coarse || t == vg.rooted || t == vg.mud {
+                if h < 22 && t != vg.mud { plant = deadBush }
+                else if h >= 990 && vg.noMansLand(wx, wz) > 0.3 { plant = wire }
+            }
+            if plant != AIR { b[Chunk.index(lx, f + 1, lz)] = plant }
+        } }
+        let cell = 4, margin = 7
+        let keepOut = AshFront.scenes(bx - margin, bz - margin, bx + CS - 1 + margin, bz + CS - 1 + margin, pad: 6, ground: vg)
+        b.withUnsafeMutableBufferPointer { buf in
+            let w = TreeWriter(b: buf.baseAddress!, bx: bx, bz: bz)
+            var sites: [(TreeKind, Int, Int, Int)] = []
+            for gz in floorDiv(bz - margin, cell)...floorDiv(bz + CS - 1 + margin, cell) {
+                for gx in floorDiv(bx - margin, cell)...floorDiv(bx + CS - 1 + margin, cell) {
+                    let hv = hash3(gx, 0, gz, s32 ^ 0x7EE5)
+                    let tx = gx * cell + Int(hv % 4), tz = gz * cell + Int((hv >> 2) % 4)
+                    if tx < bx - margin || tx >= bx + CS + margin || tz < bz - margin || tz >= bz + CS + margin { continue }
+                    let roll = Float((hv >> 4) & 0xFFFF) / 65536, pick = hashf(tx, 1, tz, s32 ^ 0x7EE6)
+                    let wd = vg.wood(tx, tz)
+                    var kind: TreeKind? = nil
+                    if wd > 0.2 && roll < 0.5 * wd {
+                        kind = pick < 0.5 ? .darkOak : (pick < 0.82 ? .spruce : (pick < 0.9 ? .deadOak : (pick < 0.95 ? .stumpOak : .fallenOak)))
+                    } else if roll < 0.03 && vg.noMansLand(tx, tz) > 0.3 {
+                        kind = pick < 0.45 ? .deadOak : (pick < 0.8 ? .stumpOak : .deadSpruce)
+                    } else if roll < 0.004 {
+                        kind = pick < 0.5 ? .darkOak : .deadOak
+                    }
+                    guard let k = kind, AshWar.clearance(tx, tz) > 9, !vg.creek(tx, tz), vg.crater(tx, tz) <= 0,
+                          vg.pillarDistance(tx, tz) < -5, vg.guardClear(tx, tz, 1) else { continue }
+                    if keepOut.contains(where: { abs(tx - $0.x) <= $0.r + 6 && abs(tz - $0.z) <= $0.r + 6 }) { continue }
+                    let gy = vg.top(tx, tz)
+                    let soil = vg.surface(tx, tz, crater: 0, creek: false, wood: wd, nml: vg.noMansLand(tx, tz))
+                    guard soil != vg.mud && soil != vg.road else { continue }
+                    sites.append((k, tx, gy, tz))
+                }
+            }
+            for (k, tx, gy, tz) in sites {
+                var rng = SRng(UInt64(hash3(tx, gy, tz, s32 ^ 0x7EE7)) | 1)
+                TreePlacer.build(w, k, tx, gy + 1, tz, &rng)
+            }
+        }
     }
 
     // P323 (c, Oct 15 18:49: "I dug down looking for that special rock", and never found the way in): one chunk in five

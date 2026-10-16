@@ -150,7 +150,9 @@ final class World {
         if dim == .deep, let save, let dg = gen as? DeepGen {
             dg.keepGuard.chunks = save.structureGuard(file: "structure-guard-deep-keeps.txt")      // BrimstoneKeep.swift
             dg.vaultGuard.chunks = save.structureGuard(file: "structure-guard-vault.txt")          // AshVault.swift
+            dg.ground.guardSet.chunks = save.structureGuard(file: "structure-guard-p326.txt")      // AshFront.swift
         }
+        if dim == .deep { AshWar.setFront((gen as? DeepGen)?.ground.guardSet ?? DeepGuard()) }   // (P326's sites: off old ground)
         World.registry.add(self)
     }
 
@@ -1175,6 +1177,10 @@ final class World {
             // PG1: the saved built layer and the saved ground. A lost ground file comes back from the seed under the saved
             // built layer (what was dug stays dug only where something was built there since).
             if fieldTerrain { ground = save?.loadField(k) ?? gen.generateField(cx: k.x, cz: k.z).ground }
+            // P326 (e): a vault chunk saved before the Ash Vault's redesign takes the new ground's materials.
+            if let dg = gen as? DeepGen, !dg.ground.guardSet.chunks.isEmpty, dg.ground.guardSet.chunks.contains(StructureCache.key(k.x, k.z)) {
+                dg.ground.migrate(&blocks, &ground, cx: k.x, cz: k.z)
+            }
         } else if fieldTerrain {
             // PG1: the generator makes the chunk as a field: the ground's density field, and what is built on and in it.
             let fc = gen.generateField(cx: k.x, cz: k.z)

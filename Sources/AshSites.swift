@@ -69,6 +69,11 @@ extension BlockRegistry {
             d.hardness = 1.5; d.tool = .sword; d.sound = .metal
             add(d)
         }
+        // P326 (b): the wrecks of the last war's set pieces (AshFront.swift): burnt steel, scorched olive-drab plate, an
+        // aircraft's riveted skin.
+        block("wreck_hull", "Burnt Hull Plate", h: 5, snd: .metal)
+        block("wreck_olive", "Scorched Armour Plate", h: 5, snd: .metal)
+        block("wreck_alu", "Torn Aircraft Skin", h: 3, snd: .metal)
         if !has("ash_drum") {
             var d = BlockDef("ash_drum", "Fuel Drum")
             d.tex = ["ash_drum_side", "ash_drum_side", "ash_drum_top", "ash_drum_top", "ash_drum_side", "ash_drum_side"]
@@ -203,6 +208,27 @@ extension TextureGen {
             if strand || barb { return hex(0x5E5A56, 0.85 + 0.25 * r(x, y, 3325)) }
             return TextureGen.clear
         }
+        // P326: wreck plating: burnt steel (soot, rust blooms, a rivet line), olive drab blistered and blackened, an
+        // aircraft's grey skin in riveted panels streaked with soot.
+        p["wreck_hull"] = { x, y in
+            if (x == 1 || x == 14) && y % 4 == 2 { return hex(0x4A3E36) }
+            if r(x / 2, y / 2, 3330) > 0.74 { return hex(0x6A3A20, 0.8 + 0.25 * r(x, y, 3331)) }
+            return hex(0x2A2624, 0.75 + 0.35 * r(x / 3, y / 3, 3332) + 0.06 * r(x, y, 3333))
+        }
+        p["wreck_olive"] = { x, y in
+            let soot = r(x / 4, y / 3, 3334)
+            if soot > 0.7 { return hex(0x1E1C18, 0.8 + 0.3 * r(x, y, 3335)) }
+            if r(x, y, 3336) > 0.93 { return hex(0x6A4A2A) }                       // chipped to rust
+            if y == 0 || x == 0 { return hex(0x3A3C24) }
+            return hex(0x4E5232, 0.88 + 0.16 * r(x / 2, y / 2, 3337) - 0.25 * max(0, soot - 0.5))
+        }
+        p["wreck_alu"] = { x, y in
+            if y % 8 == 0 || x == 0 { return hex(0x5E6264) }                       // panel seams
+            if (y % 8 == 2 || y % 8 == 6) && x % 3 == 1 { return hex(0x6E7274) }    // rivets
+            let streak = r(x, y / 6, 3338)
+            if streak > 0.78 { return hex(0x2A2A2A, 0.8 + 0.3 * r(x, y, 3339)) }
+            return hex(0x8A8E90, 0.9 + 0.12 * r(x / 4, y / 4, 3340))
+        }
         p["ash_drum_top"] = { x, y in
             if (x - 10) * (x - 10) + (y - 5) * (y - 5) < 4 { return hex(0xB8903C, 0.9 + 0.15 * r(x, y, 3311)) }   // P318: the brass bung
             return hex(0x1C1C1E, 0.95 + 0.05 * r(x, y, 3310))
@@ -244,6 +270,31 @@ extension AshWar {
         return s
     }()
 
+    // P326 (c): bases modelled on the period's real kinds: two heavy flak batteries guarding the citadel's approaches and
+    // a heavy-water plant (its hall of electrolysis cells under a dam's penstocks), inside the Ember Line. A world whose
+    // vault a save had already explored there goes without (frontOff, set as the vault loads: World.init).
+    static let frontSites: [AshSite] = [AshSite(kind: "flak", x: -220, z: 290, r: 24, face: 180),
+                                        AshSite(kind: "flak", x: 270, z: -230, r: 24, face: 90),
+                                        AshSite(kind: "heavywater", x: -240, z: -230, r: 30, face: 0)]
+    static var frontOff = [Bool](repeating: false, count: 3)
+    static func setFront(_ g: DeepGuard) {
+        frontOff = frontSites.map { !g.clear(floorDiv($0.x, CS), floorDiv($0.z, CS), $0.r / CS + 2) }
+    }
+
+    // The black pads the army's sites stood on are trampled earth now (P326): coarse dirt with packed mud.
+    static let padDirt = Blocks.id("coarse_dirt"), padMud = Blocks.has("packed_mud") ? Blocks.id("packed_mud") : Blocks.id("coarse_dirt")
+    @inline(__always) static func padBlock(_ x: Int, _ z: Int) -> BlockID { hash3(x, 3, z, 0xA5) % 4 == 0 ? padMud : padDirt }
+    // The site (before P326) whose pad covers (x, z): fixed sites, the lines' bunkers and checkpoints, patrol camps.
+    static func padSite(_ x: Int, _ z: Int) -> AshSite? {
+        for s in sites + AshLines.sites where abs(x - s.x) <= s.r && abs(z - s.z) <= s.r { return s }
+        let span = campSpacing * CS
+        let rx = floorDiv(x, span), rz = floorDiv(z, span)
+        for oz in -1...1 { for ox in -1...1 {
+            if let c = camp(regionX: rx + ox, regionZ: rz + oz), abs(x - c.x) <= c.r && abs(z - c.z) <= c.r { return c }
+        } }
+        return nil
+    }
+
     // A patrol camp in this 20-chunk region, if any (beyond the outposts, off the roads).
     static func camp(regionX rx: Int, regionZ rz: Int) -> AshSite? {
         let h = hash3(rx, 13, rz, 0xA5C4)
@@ -267,13 +318,21 @@ extension AshWar {
     }
     static func isRoad(_ x: Int, _ z: Int) -> Bool { roadDistance(x, z) < 2.6 }
 
-    // Distance to the nearest site footprint or road: the vault floor flattens and keeps pillars and lava away.
-    static func clearance(_ x: Int, _ z: Int) -> Float {
+    // Distance to the nearest site footprint or road: the vault floor flattens and keeps pillars, creeks, shell holes and
+    // woods away. `front: false`: without P326's sites (the ground old saves were made with).
+    static func clearance(_ x: Int, _ z: Int, front: Bool = true) -> Float {
         var best = min(roadDistance(x, z) - 3, railDistance(x, z) - 4, AshLines.distance(x, z))
         for s in sites {
             let dx = max(0, abs(x - s.x) - s.r), dz = max(0, abs(z - s.z) - s.r)
             best = min(best, sqrtf(Float(dx * dx + dz * dz)))
             if best <= 0 { return 0 }
+        }
+        if front {
+            for (i, s) in frontSites.enumerated() where !frontOff[i] {
+                let dx = max(0, abs(x - s.x) - s.r), dz = max(0, abs(z - s.z) - s.r)
+                best = min(best, sqrtf(Float(dx * dx + dz * dz)))
+                if best <= 0 { return 0 }
+            }
         }
         let span = campSpacing * CS
         let rx = floorDiv(x, span), rz = floorDiv(z, span)
@@ -287,7 +346,7 @@ extension AshWar {
 
     // `guardSet`: vault chunks a save generated before the towns, rail and airfield arrived (AshVault.swift).
     static func starts(seed: UInt64, guardSet: DeepGuard = DeepGuard()) -> [StructureStart] {
-        (sites + AshLines.sites).map { start($0, seed: seed, guardSet: guardSet) } + railStarts(guardSet: guardSet) + [AshFinal.start()]
+        (sites + AshLines.sites + frontSites).map { start($0, seed: seed, guardSet: guardSet) } + railStarts(guardSet: guardSet) + [AshFinal.start()]
     }
 
     static let campType = StructureType(name: "ash_camp", spacing: campSpacing, separation: 0, salt: 0, reach: 1) { seed, cx, cz in
@@ -301,9 +360,12 @@ extension AshWar {
         let pseed = seed ^ UInt64(UInt32(bitPattern: Int32(truncatingIfNeeded: s.x &* 7919 &+ s.z &* 104729)))
         let lo = IVec3(s.x - s.r - 2, ground - 6, s.z - s.r - 2), hi = IVec3(s.x + s.r + 2, ground + 30, s.z + s.r + 2)
         let late = s.kind == "town" || s.kind == "airfield"
+        let front = frontSites.firstIndex { $0.x == s.x && $0.z == s.z }
         return StructureStart(kind: "ash_" + s.kind, pieces: [Piece(min: lo, max: hi) { w in
-            // A town or the airfield whose ground a save had already generated in part is left out whole.
+            // A town or the airfield whose ground a save had already generated in part is left out whole (P326's sites
+            // too: frontOff).
             if late && !guardSet.clear(floorDiv(s.x, CS), floorDiv(s.z, CS), s.r / CS + 2) { return }
+            if let i = front, frontOff[i] { return }
             AshWar.build(&w, s, pseed)
         }],
                               anchor: IVec3(s.x, ground + 1, s.z))
@@ -458,14 +520,15 @@ extension AshWar {
         }
         func lampPost(_ u: Int, _ v: Int) { box(u, y0 + 1, v, u, y0 + 3, v, k.plating); put(u, y0 + 4, v, k.lamp) }
 
-        // Pad: levelled ground with a gravel and onyxstone apron, open air above.
+        // Pad: levelled, trampled earth (P326: it was black stone) over dirt, open air above.
         let r = s.r
         w.fill(s.x - r, y0 + 1, s.z - r, s.x + r, y0 + 28, s.z + r, AIR)
-        w.fill(s.x - r, y0 - 4, s.z - r, s.x + r, y0 - 1, s.z + r, EMBERSLATE)
+        w.fill(s.x - r, y0 - 4, s.z - r, s.x + r, y0 - 4, s.z + r, EMBERSLATE)
+        w.fill(s.x - r, y0 - 3, s.z - r, s.x + r, y0 - 1, s.z + r, DIRT)
         for dz in -r...r { for dx in -r...r {
             let x = s.x + dx, z = s.z + dz
             guard w.inside(x, y0, z) else { continue }
-            w.set(x, y0, z, AshWar.isRoad(x, z) ? k.floor : (hash3(x, 3, z, 0xA5) % 5 == 0 ? k.basalt : k.black))
+            w.set(x, y0, z, AshWar.isRoad(x, z) ? k.floor : AshWar.padBlock(x, z))
         } }
 
         switch s.kind {
@@ -654,6 +717,95 @@ extension AshWar {
                 if rng.chance(0.6) { unit("ash_halftrack", -5, -6, heading: 0) }
             }
             lampPost(-6, 6); lampPost(6, 6)
+        case "flak":
+            // P326 (c): a heavy flak battery: six guns in sandbagged pits on a ring round the command post and its range
+            // finder, two searchlights, ammunition bunkers, the crews' hut, the battery's flag.
+            for i in 0..<6 {
+                let a = Float(i) * Float.pi / 3 + 0.3
+                let u = Int((sinf(a) * 14).rounded()), v = Int((-cosf(a) * 14).rounded())
+                sandbagRing(u, v, 3)
+                unit("ash_artillery", Float(u), Float(v), heading: Int(a * 180 / .pi))
+                soldier(i % 2 == 0 ? "trooper" : "recruit", Float(u) + 1.5, Float(v) + 1.5)
+            }
+            sandbagRing(0, 0, 4)
+            box(0, y0 + 1, 0, 0, y0 + 2, 0, k.plating)
+            box(-3, y0 + 3, 0, 3, y0 + 3, 0, k.plating)
+            put(-3, y0 + 4, 0, k.bars); put(3, y0 + 4, 0, k.bars)
+            soldier("officer", 1, -2); soldier("marksman", -2, 1)
+            for (u, v) in [(-20, -20), (20, 20)] {
+                box(u - 1, y0 + 1, v - 1, u + 1, y0 + 1, v + 1, k.plating)
+                put(u, y0 + 2, v, k.plating); put(u, y0 + 3, v, k.lamp)
+                put(u + 1, y0 + 3, v, k.bars); put(u - 1, y0 + 3, v, k.bars)
+            }
+            building(-24, 8, -18, 16, h: 4, wall: k.concrete, roof: k.bags)
+            building(18, -16, 24, -8, h: 4, wall: k.concrete, roof: k.bags)
+            chest(-22, 10, "ash_armory"); chest(22, -12, "ash_supply")
+            building(-8, -24, 8, -18, h: 5, wall: k.plating, roof: k.concrete)
+            chest(-6, -22, "ash_supply")
+            drums(10, 16, 3, 2); crates(-14, 18, 2, 2)
+            flag(-18, -16, h: 10)
+            lampPost(-22, 22); lampPost(22, -22)
+        case "heavywater":
+            // P326 (c): a heavy-water plant, modelled on the period's hydro-electric ones: a dam at the back, three
+            // penstocks stepping down to the hall, the hall's two long rows of electrolysis cells wired to a bus bar,
+            // a transformer yard, a drum store, a wire fence with guard towers and a gate.
+            let glass = Blocks.id("glass"), iron = Blocks.id("iron_block"), copper = Blocks.id("copper_block")
+            let wire = Blocks.has("ash_wire") ? Blocks.id("ash_wire") : k.bars
+            box(-26, y0 + 1, -28, 26, y0 + 22, -24, k.concrete)
+            box(-26, y0 + 23, -28, 26, y0 + 23, -28, k.concrete); box(-26, y0 + 23, -24, 26, y0 + 23, -24, k.concrete)
+            for u in stride(from: -24, through: 24, by: 8) { put(u, y0 + 24, -24, k.lamp) }
+            for pu in [-13, -1, 11] {
+                for t in 0...16 {
+                    let v = -23 + t, y = y0 + 20 - t
+                    box(pu, y, v, pu + 1, y + 1, v, iron)
+                    if t % 5 == 2 { box(pu, y0 + 1, v, pu + 1, y - 1, v, k.concrete) }
+                }
+            }
+            building(-24, -6, 24, 14, h: 11, wall: k.concrete, roof: k.plating)
+            for u in stride(from: -21, through: 21, by: 4) where abs(u) > 2 {
+                box(u, y0 + 5, 14, u, y0 + 9, 14, glass); box(u, y0 + 5, -6, u, y0 + 9, -6, glass)
+            }
+            for v in stride(from: -3, through: 11, by: 4) { box(-24, y0 + 5, v, -24, y0 + 9, v, glass); box(24, y0 + 5, v, 24, y0 + 9, v, glass) }
+            for v in [0, 7] {
+                for u in stride(from: -20, through: 20, by: 2) {
+                    put(u, y0 + 1, v, iron); put(u, y0 + 2, v, copper)
+                    put(u, y0 + 3, v, k.chain == AIR ? k.bars : k.chain)
+                }
+                box(-20, y0 + 4, v, 20, y0 + 4, v, copper)
+            }
+            box(-23, y0 + 1, -5, -18, y0 + 4, -5, k.plating)                   // the office at the hall's end
+            box(-18, y0 + 1, -5, -18, y0 + 4, 2, k.plating)
+            put(-18, y0 + 1, -2, AIR); put(-18, y0 + 2, -2, AIR)
+            chest(-22, -4, "ash_command")
+            for (u, v) in [(-24, 20), (-20, 20), (-16, 20)] {
+                box(u, y0 + 1, v, u + 1, y0 + 2, v + 1, iron)
+                put(u - 1, y0 + 1, v, k.bars); put(u + 2, y0 + 1, v + 1, k.bars)
+                put(u, y0 + 3, v, copper)
+            }
+            for u in -27...(-13) { put(u, y0 + 1, 17, k.bars); put(u, y0 + 1, 24, k.bars) }
+            drums(12, 18, 6, 3); crates(18, 22, 3, 2)
+            chest(20, 18, "ash_supply")
+            unit("ash_truck", 8, 23, heading: 0)
+            // The fence (wire on posts) with a gate on the road in, and a tower at each corner.
+            for i in -29...29 {
+                for (u, v) in [(i, -29), (i, 29), (-29, i), (29, i)] where !(v == 29 && abs(i) <= 3) {
+                    put(u, y0 + 1, v, i % 4 == 0 ? k.plating : wire)
+                    if i % 4 == 0 { put(u, y0 + 2, v, k.plating) }
+                }
+            }
+            box(-4, y0 + 1, 29, -4, y0 + 5, 29, k.plating); box(4, y0 + 1, 29, 4, y0 + 5, 29, k.plating)
+            for u in -3...3 { put(u, y0 + 5, 29, u % 2 == 0 ? k.redWool : k.whiteWool) }
+            for (u, v) in [(-27, -21), (27, -21), (-27, 27), (27, 27)] {
+                for (du, dv) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] { box(u + du, y0 + 1, v + dv, u + du, y0 + 7, v + dv, k.plating) }
+                box(u - 1, y0 + 8, v - 1, u + 1, y0 + 8, v + 1, k.plating)
+                for du in -1...1 { for dv in -1...1 where du != 0 || dv != 0 { put(u + du, y0 + 9, v + dv, k.bars) } }
+                put(u, y0 + 10, v, k.lamp)
+                soldier("marksman", Float(u), Float(v), y: y0 + 9)
+            }
+            soldier("officer", -20, -2); soldier("trooper", -6, 18); soldier("trooper", 6, 18); soldier("recruit", 0, 4)
+            soldier("trooper", -6, 27); soldier("trooper", 6, 27)
+            unit("ash_tank", -8, 25, heading: 0)
+            lampPost(-10, 18); lampPost(10, 18)
         default:
             // Patrol camp: a black canvas tent, a fire, crates, three men; now and then a tank or half-track.
             for i in 0...3 {
@@ -678,7 +830,9 @@ extension AshWar {
                                           "supply": ["SUPPLY DEPOT", "Shells out,", "nothing back", ""],
                                           "battery": ["GUN BATTERY", "Ranged on every", "road in", ""],
                                           "outpost": ["OUTPOST", "Report anything", "that moves", ""],
-                                          "camp": ["PATROL CAMP", "Lamps out at", "the second bell", ""]]
+                                          "camp": ["PATROL CAMP", "Lamps out at", "the second bell", ""],
+                                          "flak": ["FLAK BATTERY", "", "", ""],
+                                          "heavywater": ["HEAVY WATER", "PLANT", "", ""]]
         if let lines = boards[s.kind] {
             AshWar.sign(&w, f.x(s.r - 1, s.r - 1), y0 + 1, f.z(s.r - 1, s.r - 1), facing: (f.fx, f.fz), lines)
         }

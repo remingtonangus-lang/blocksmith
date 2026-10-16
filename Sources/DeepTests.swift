@@ -203,9 +203,10 @@ enum DeepTests {
                 for y in 0...DeepGen.coreTop where b[Chunk.index(lx, y, lz)] != LAVA { coreOK = false }
                 let wx = cx * CS + lx, wz = cz * CS + lz
                 let f = g.floorY(wx, wz)
-                if !g.pillar(wx, wz) && !g.lavaRiver(wx, wz) {
+                if !g.pillar(wx, wz) && !g.creek(wx, wz) {
                     vaultCols += 1
-                    if (f + 2..<(DeepGen.ceilingBase - 16)).allSatisfy({ b[Chunk.index(lx, $0, lz)] == AIR }) { vaultAir += 1 }
+                    // (P326: over the treetops of the vault's woods)
+                    if (f + 20..<(DeepGen.ceilingBase - 16)).allSatisfy({ b[Chunk.index(lx, $0, lz)] == AIR }) { vaultAir += 1 }
                     if !(DeepGen.coreTop + 1...f).allSatisfy({ Blocks.opaque[Int(b[Chunk.index(lx, $0, lz)])] || b[Chunk.index(lx, $0, lz)] == LAVA }) { floorSolid = false }
                 }
                 for y in DeepGen.hellBase..<DeepGen.crustTop where b[Chunk.index(lx, y, lz)] == NETHERRACK { hellRack += 1 }

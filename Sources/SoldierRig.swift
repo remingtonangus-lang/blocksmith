@@ -101,6 +101,15 @@ struct Livery {
             l.glove = V3(0.33, 0.23, 0.14); l.boots = V3(0.2, 0.13, 0.08); l.glow = V3(1.6, 1.1, 0.5)
             if r == 4 { l.cloth = V3(0.16, 0.14, 0.12); l.trim = V3(0.6, 0.5, 0.3) }      // the leader in black
         }
+        // P326 (b): the Ash Vault's fallen Allied soldiers: olive-drab wool, khaki trousers, a dull olive helmet and webbing,
+        // brown boots, the lenses dark.
+        if m.fallen {
+            l.cloth = V3(0.31, 0.3, 0.19); l.legs = V3(0.42, 0.37, 0.25); l.plate = V3(0.27, 0.29, 0.19)
+            l.trim = V3(0.22, 0.2, 0.13); l.accent = V3(0.36, 0.33, 0.22); l.metal = V3(0.3, 0.31, 0.27)
+            l.glove = l.skin * 0.85; l.boots = V3(0.2, 0.13, 0.08); l.glass = V3(0.06, 0.06, 0.06); l.glow = V3(0.05, 0.05, 0.05)
+            l.skin *= 0.82
+            return l
+        }
         // Troop classes (TroopClasses.swift): Spec Ops blacked out with red lenses, Hannibal gunmetal plate with brass
         // trim; a cracked vest goes dull.
         if let c = m.troopClass {

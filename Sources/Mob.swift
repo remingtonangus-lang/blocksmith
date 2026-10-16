@@ -418,6 +418,7 @@ final class Mob {
     var coatSeed: UInt32 = 0        // P295: a steady cosmetic seed (coat, face colours) from where it was made; saved
     var sitting = false
     var lying = false               // a villager asleep in its bed: drawn on its back along the bed (VillageLife)
+    var fallen = false              // P326: one of the Ash Vault's fallen Allied soldiers (AshFallen): olive drab, drawn only
     var collar = 0
     var saddled = false
     var armorTier = 0               // horse / wolf armour
@@ -2184,6 +2185,11 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
     }
     // Bodies waiting to be skinned (Hunting.swift) are drawn with the mobs, nearest-ring order aside.
     for m in Hunting.bodyMobs {
+        let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
+        if dx * dx + dz * dz <= min(maxD2, 64 * 64) { list.append(m) }
+    }
+    // The Ash Vault's fallen (AshFallen, P326), last: the living go first if the buffer fills.
+    for m in AshFallen.mobs {
         let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
         if dx * dx + dz * dz <= min(maxD2, 64 * 64) { list.append(m) }
     }

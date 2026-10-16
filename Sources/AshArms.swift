@@ -1,12 +1,15 @@
 import Foundation
 import simd
 
-// The Ashguard's arms (backlog B7, docs/status/the-last-war.md): four period-style guns in walnut and blued steel,
-// under invented names. Gun pixels like CapitalArms (barrel toward -Z, y up); no part uses the enamel pattern, so a
-// soldier's livery never repaints them.
-//   Kessel Bolt Rifle      long walnut stock, turned-down bolt, barrel bands, hooded front sight; five rounds
-//   Sturmwind Carbine      stamped receiver, curved magazine, walnut butt, pistol grip
-// (P217, Oct 14: the machine pistol and the machine gun are gone; their keys load as the carbine.)
+// The Ashguard's arms (backlog B7, docs/status/the-last-war.md): period guns in walnut, bakelite and blued steel, under
+// their own names since P326 (Oct 15 19:04, "their real WWII weapons by name"). Gun pixels like CapitalArms (barrel
+// toward -Z, y up); no part uses the enamel pattern, so a soldier's livery never repaints them.
+//   Kar98k        (gun_kessel) long walnut stock, turned-down bolt, barrel bands, hooded front sight; five rounds
+//   MP40          (gun_hagel) round receiver tube, long straight magazine, bakelite grip and housing, folding wire
+//                 stock, the barrel rest under the muzzle (P326: back, with its own look)
+//   StG 44        (gun_sturmwind) stamped receiver, curved magazine, walnut butt, pistol grip
+//   Panzerfaust   (gun_faust) the single-shot anti-tank tube
+// (P217, Oct 14: the machine gun is gone; its key loads as the StG 44.)
 enum AshArms {
     static let walnut = V3(0.36, 0.2, 0.1), blued = V3(0.11, 0.115, 0.13), steel = V3(0.2, 0.21, 0.23)
     static let bakelite = V3(0.16, 0.09, 0.06), brass = V3(0.72, 0.55, 0.24), bore = V3(0.02, 0.02, 0.02)
@@ -41,6 +44,29 @@ enum AshArms {
                   b(-0.5, -0.5, -12.6, 1.0, 1.0, 1.0, steel, pMetal)]              // tail boom into the tube
             return GunModel(parts: p, mag: [m, m + 1, m + 2, m + 3], grip: V3(0, -1.2, -2.6), fore: V3(0, -1.2, -9.5), butt: V3(0, 0, 10),
                             muzzle: V3(0, 0, -24.4), magAt: V3(0, 0, -16), bolt: V3(0, 1.4, -2.6), scale: 0.56)
+        case Guns.hagel:
+            var p: [Part] = [
+                b(-0.7, -0.2, -8, 1.4, 1.4, 11, blued, pMetal),                    // receiver tube
+                b(-0.35, 0.15, -13, 0.7, 0.7, 5, blued, pMetal),                   // barrel
+                b(-0.3, -0.65, -12.6, 0.6, 0.5, 2.2, steel, pMetal),               // barrel rest bar
+                b(-0.45, 0.05, -13.6, 0.9, 0.9, 0.6, steel, pMetal),               // muzzle nut
+                b(-0.15, 0.35, -13.7, 0.3, 0.3, 0.12, bore, 0),
+                b(-0.3, 1.2, -12.8, 0.6, 0.7, 0.6, blued, pMetal),                 // hooded front sight
+                b(-0.3, 1.2, -2.6, 0.6, 0.6, 1.0, steel, pMetal),                  // rear sight
+                b(-0.75, -1.4, -6, 1.5, 1.2, 8, bakelite, pWood),                  // lower housing
+                b(-0.6, -2.1, -5.6, 1.2, 0.8, 1.6, blued, pMetal),                 // magazine well
+                b(-0.6, -4.4, 0.4, 1.2, 3.0, 1.6, bakelite, pWood),                // pistol grip
+                b(-0.25, -1.9, -1.4, 0.5, 0.3, 1.8, steel, pMetal),                // trigger guard
+                b(-1.5, 0.4, -5.2, 0.8, 0.5, 0.6, steel, pMetal),                  // cocking handle (left)
+                b(-0.7, -0.8, 3, 0.15, 0.5, 8, steel, pMetal),                     // folding stock arms, unfolded
+                b(0.55, -0.8, 3, 0.15, 0.5, 8, steel, pMetal),
+                b(-0.7, -2.6, 9.6, 1.4, 0.4, 1.0, steel, pMetal),                  // stock strut
+                b(-0.75, -2.8, 10.6, 1.5, 2.8, 0.5, steel, pMetal),                // butt plate
+            ]
+            let m = p.count
+            p.append(b(-0.5, -7.8, -5.45, 1.0, 5.8, 1.4, blued, pMetal))           // the long straight magazine
+            return GunModel(parts: p, mag: [m], grip: V3(0, -2.4, 1.2), fore: V3(0, -2.6, -4.7), butt: V3(0, -1.4, 11),
+                            muzzle: V3(0, 0.5, -13.7), magAt: V3(0, -4.9, -4.75), bolt: V3(-1.1, 0.65, -4.9), scale: 0.6)
         case Guns.kessel:
             let p: [Part] = [
                 b(-0.9, -1.2, -20, 1.8, 2.2, 20, walnut, pWood),                  // fore-end
@@ -91,6 +117,9 @@ enum AshArms {
         switch i {
         case Guns.faust:
             break                                                                // (all in the model)
+        case Guns.hagel:
+            for k in 0..<3 { p.append(b(-0.72, 0.1 + Float(k) * 0.35, -7.5, 0.04, 0.15, 7, steel * 0.75, pMetal)) }   // receiver grooves
+            p.append(b(-0.2, -0.95, -7.6, 0.4, 0.3, 0.5, steel, pMetal))        // sling loop
         case Guns.kessel:
             p.append(b(-0.2, -1.6, -19.8, 0.4, 0.4, 0.6, steel, pMetal))
             p.append(b(-0.2, -3.7, 9.0, 0.4, 0.4, 0.8, steel, pMetal))
