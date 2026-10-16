@@ -471,7 +471,13 @@ enum Capital {
         for x in [-4, 4] { hb.set(x, 22, 26, console) }
         hb.set(0, 27, 40, light); hb.set(0, 27, 56, light)
         hb.fill(-10, 10, 9, 9, 10, 72, deck)
-        for z in stride(from: 16, through: 64, by: 12) { hb.set(0, 19, z, light) }
+        // Bay lights against its ceiling (at 19 they hung a block under the command deck, touching nothing:
+        // interiorcheck "one piece", run of 96e48ec).
+        for z in stride(from: 16, through: 64, by: 12) {
+            var y = 19
+            while y < 26 && hb.get(0, y + 1, z) == AIR { y += 1 }
+            if hb.get(0, y + 1, z) != AIR { hb.set(0, y, z, light) }
+        }
         hb.fill(-6, 6, 10, 14, 62, 70, engine)
         for z in 73...73 { for y in 10...15 { for x in -4...4 { hb.set(x, y, z, AIR) } } }
         hb.set(-9, 10, 30, Blocks.id("chest") + 3); hb.chests.append((hb.grid(-9, 10, 30), "steelhold_armory"))

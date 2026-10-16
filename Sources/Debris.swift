@@ -465,11 +465,25 @@ extension ShipManager {
         // its bridge tower off: capitaltest.) A vessel left without its helm goes down below.
         // Never a part under a tenth of the largest's size, though: a block of machinery standing loose in the hull
         // (the Stormwarden's drive cores before their pylons) would keep 225 blocks and drop the rest.
-        guard sizes.count > 1, let largest = sizes.max() else { return }
+        guard sizes.count > 1, let largest = sizes.max() else { s.cuts.removeAll(); return }
         guard let keep = sizes.indices.filter({ sizes[$0] * 10 >= largest })
-            .max(by: { (drives[$0], sizes[$0]) < (drives[$1], sizes[$1]) }) else { return }
+            .max(by: { (drives[$0], sizes[$0]) < (drives[$1], sizes[$1]) }) else { s.cuts.removeAll(); return }
+        // Only what the damage cut comes away: parts beside a cell a blast emptied. A fitting that stood loose as built
+        // (a light under an open deck, the Meridian frigate's drive cores) isn't cut by anything and stays with the
+        // vessel; separated at the first split check it took the Meridian's four drive cores with it (1900 engine
+        // blocks: the frigate would come down untouched; interiorcheck, run of 96e48ec).
+        var cutParts = Set<Int32>()
+        for c in s.cuts {
+            for d in Ships.joins26 {
+                let x = c.x + d.x, y = c.y + d.y, z = c.z + d.z
+                guard x >= 0 && x < sx && y >= 0 && y < sy && z >= 0 && z < sz else { continue }
+                let k = comp[x + z * sx + y * sx * sz]
+                if k >= 0 { cutParts.insert(k) }
+            }
+        }
+        s.cuts.removeAll()
         var parts = [[Int]](repeating: [], count: sizes.count)
-        for i in 0..<n where comp[i] >= 0 && Int(comp[i]) != keep { parts[Int(comp[i])].append(i) }
+        for i in 0..<n where comp[i] >= 0 && Int(comp[i]) != keep && cutParts.contains(comp[i]) { parts[Int(comp[i])].append(i) }
         let kinds = ShipParts.kinds
         var changed: [IVec3] = []
         let mounted = turrets(of: s)

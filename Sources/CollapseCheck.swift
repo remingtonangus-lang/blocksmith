@@ -147,6 +147,12 @@ enum CollapseCheck {
             // (Bricks resist 6 now: at 6 / 5.5 a run's random ray strengths sometimes left enough of the base that the
             // cut tower settled upright where it stood, run of 68b79bd.)
             st.blasts = [(V3(bx, by, bz), 7), (V3(bx, by, bz - 2), 6.5), (V3(bx, by, bz + 2), 6.5)]
+            // And the base's +x half cut through, as a blast that big would: the random ray strengths alone left the
+            // cut short of a tip often enough (13 of 16 top blocks stood, run of 96e48ec), and an oracle needs the
+            // same cut every run.
+            for y in o.y...(o.y + 1) { for dz in -2...2 { for dx in 0...2 where abs(dx) == 2 || abs(dz) == 2 {
+                st.mine.append(IVec3(o.x + dx, y, o.z + dz))
+            } } }
             st.view = (V3(Float(o.x + 4), Float(o.y + 14), Float(o.z + 46)), 0, -0.2)
         case "stands":
             let h = 60

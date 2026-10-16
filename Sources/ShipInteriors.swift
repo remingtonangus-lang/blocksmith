@@ -33,6 +33,9 @@ extension HullBuilder {
         func free(_ x: Int, _ yy: Int, _ z: Int) -> Bool { inside(x, yy, z) && get(x, yy, z) == AIR }
         // Floor wherever there is headroom above it in the hull.
         for z in z0...z1 { for x in -hw...hw where free(x, y, z) && inside(x, y + 2, z) { set(x, y, z, st.floor) } }
+        // A ceiling over the deck where the hull leaves room for one (decks stacked on each other share it): the top
+        // deck's lights hung in the air under the hull roof without it (interiorcheck "one piece", run of 96e48ec).
+        for z in z0...z1 { for x in -hw...hw where get(x, y, z) != AIR && free(x, y + h + 1, z) { set(x, y + h + 1, z, st.floor) } }
         // A trim stripe down the corridor floor.
         for z in z0...z1 where get(0, y, z) == st.floor { set(0, y, z, st.trim) }
         // Corridor walls.

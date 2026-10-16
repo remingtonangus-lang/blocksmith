@@ -289,6 +289,7 @@ extension ShipManager {
                 s.blockCount -= destroyed.count
                 s.mesh.rebuildAround(s, Array(destroyed) + chipped, device: world.device, queue: meshQueue)
                 detachLoose(s, around: Array(destroyed))
+                if s.cuts.count < 20_000 { s.cuts += destroyed }
                 // A cut through the whole hull (the spine shot away) is found by a full check a moment after the last
                 // blast on it (Debris.splitHull): the parts come away as free-moving bodies.
                 if s.splitCheck < 0 { s.splitCheck = 0.5 }
