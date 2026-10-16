@@ -287,7 +287,8 @@ Work order from this round:
   commits (horse coat read late; foot-IK deferred attach on freed actors; horsework town unload; roam leaked
   c1_drover into completed). Ecology fixed (predators range to scented prey). Terrain stripes fixed in worldgen
   (CI world cache key is worldgen.py's hash, so CI regenerates). Nerve: 'is' on a freed mark target fixed.
-  Critic round 2 NOT run yet. Local evidence in progress: scratchpad feat/ has 9 feature shots at 960x540
+  CI run 28 (8d5c83e): only camp ("camp activities wrong", new since the wildlife/settlements merges — investigate
+  first) and missions (c1_drover, fixed in 8e34ca6) failed. Critic round 2 NOT run yet. Local evidence in progress: scratchpad feat/ has 9 feature shots at 960x540
   (town_hud..journal); a second process was rendering the other 11 (shop..horse_closeup) — rerun with
   `xvfb-run -a godot --path frontier --resolution 960x540 -- --features DIR --only <list> --looks 6
   --settle_scale 0.2 --fixed_exposure 1.0` (2-7 min/shot; a process OOMs after ~9 shots on the 15 GB box, so batch
