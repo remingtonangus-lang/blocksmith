@@ -327,6 +327,14 @@ final class Mob {
     var feint = false                    // ... this wind-up breaks off (another comes straight after)
     var strikeLow = false                // ... this strike comes low, at the hips (block it there)
     var hitStop: Float = 0               // a landed blade froze it for this long (VRMelee.hitStop)
+    // P283 (Oct 15: "far terrain should draw normally; skip far animals instead"): a calm mob far from the player
+    // thinks and moves every 2nd tick past 48 blocks and every 4th past 96 (MobManager.update), with the time it missed.
+    var lodAcc: Float = 0
+    let lodSlot = Int.random(in: 0..<4)
+    // P283: a mob standing still on the ground, where nothing changed round it since (its spot, its section's version,
+    // the ground's field), lands where it stands: the collision sweep is skipped (mob moves were a sixth of the frame
+    // thread on the Quest replay of his homestead, most of them herds standing about).
+    var restPos = V3(.nan, 0, 0), restVer = -1, restStamp = -1
     var hitFlash: Float = 0              // seconds of the blade-contact flash left (Game.bladeFlash; drawn brighter than hurt)
     var hell: HellState?                 // hell's own mobs: guard, wind-up, charge, dive (HellMobs.swift)
     var invulnerable: Float = 0          // seconds of hurt invulnerability left (hit(iframes:))
@@ -1292,6 +1300,9 @@ final class Mob {
             pos = s.toWorld(l)
             if hit.x || hit.z { let wv = s.dirToWorld(lv); vel.x = wv.x; vel.z = wv.z; deckBumped = true }
             hit.x = false; hit.z = false                  // handled in the ship's axes above
+        } else if resting(w, onLadder: onLadder, inWater: inWater) {
+            pressedPlayer = false
+            hit = (false, true, false)
         } else {
             w.touchedPlayer = false
             hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0.6, onGround: onGround)
@@ -1318,6 +1329,9 @@ final class Mob {
             w.frame = nil
         } else {
             onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
+            if onGround && vel.x == 0 && vel.z == 0 && TickProf.lighter, let c = w.chunkAt(Int(floor(pos.x)), Int(floor(pos.z))) {
+                restPos = pos; restVer = c.sections[max(0, min(NSEC - 1, Int(floor(pos.y)) >> 4))].version; restStamp = w.fieldStamp
+            } else { restPos.x = .nan }
         }
         // P311 (a): stopped by the player's body, not a wall: no hop up at him.
         if bumped && speed != 0 && !(pressedPlayer && !onLadder && !inWater) {
@@ -2342,6 +2356,19 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
 
 final class MobManager {
     var mobs: [Mob] = []
+    private var lodFrame = 0                      // P283: the far mobs' beat (update)
+    // P283: how often m runs (every tick, 2nd or 4th): calm and far, nothing riding, ridden, leashed or on a deck, and no
+    // boss, vehicle crew or mob of a scripted fight; anything hurt, angry or in sight of an aggro check runs every tick.
+    static func lodEvery(_ m: Mob, distSq d: Float, game g: Game) -> Int {
+        guard d > 48 * 48, TickProf.lighter else { return 1 }
+        if m.aggro || m.hurt > 0 || m.deck != nil || m.mount != nil || m.leashed || g.riding === m { return 1 }
+        switch m.kind {
+        case .enderDragon, .wither, .warden, .elderGuardian, .boat, .minecart, .deckGun, .endCrystal: return 1
+        default: break
+        }
+        if m.kind.ashVehicle || m.kind.hellOwn || Soldier.rank(m.kind) != nil { return 1 }      // (their own far-AI beats)
+        return d > 96 * 96 ? 4 : 2
+    }
     var corpses: [Mob] = []                       // dead mobs playing their fall (MobAnim.swift); drawn, never updated
     var stored: [ChunkKey: [MobRecord]] = [:]     // mobs outside the loaded area (see MobSave.swift)
     private var restoreTimer: Float = 0
@@ -2465,18 +2492,27 @@ final class MobManager {
         let bodyOn = game.alive && game.riding == nil
         let pBox = (V3(p.x - pl.halfW, p.y, p.z - pl.halfW), V3(p.x + pl.halfW, p.y + pl.height, p.z + pl.halfW))
         Mob.keepClearOf = bodyOn ? p : nil
+        lodFrame &+= 1
         for m in mobs where game.seatOwns(m.pos) {
             if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
             let before = m.pos, wasGround = m.onGround
             if m.hitStop > 0 { m.hitStop -= dt; continue }      // frozen by a landed blade (VRCombatFeel.swift)
+            // P283: far calm mobs on a slower beat (the time they missed is handed over when their turn comes).
+            let every = MobManager.lodEvery(m, distSq: simd_length_squared(m.pos - p), game: game)
+            if every > 1 {
+                m.lodAcc += dt
+                if (lodFrame + m.lodSlot) % every != 0 { continue }
+            }
+            let mdt = every > 1 ? min(m.lodAcc, 0.2) : dt
+            m.lodAcc = 0
             w.playerBox = bodyOn && game.riding !== m && m.deck == nil && m.mount == nil && MobManager.bodySolid(m.kind) ? pBox : nil
-            m.update(dt, game: game)
+            m.update(mdt, game: game)
             w.playerBox = nil
             // Smooth worlds (P142): mobs near the player stand on the drawn ground, not the block steps under it (U1: out
             // to 96 blocks, where a herd on a hillside still read as hovering; the 4 column heights are cached per cell).
             let gnd: Float = (SmoothTerrain.enabled || w.fieldTerrain) && m.onGround && simd_length_squared(m.pos - p) < 96 * 96
                 ? w.smoothGroundOffset(m.pos, key: &m.groundKey, heights: &m.groundH) : 0
-            m.easeStep(fromY: before.y, wasGround: wasGround, dt, ground: gnd)
+            m.easeStep(fromY: before.y, wasGround: wasGround, mdt, ground: gnd)
             // NaN quarantine: a non-finite position, velocity or facing reaches Int(floor(...)) in the chunk and unload
             // checks (undefined in the -Ounchecked build) and makes the mob save fail as a whole. Put it back where it was.
             let sane: Bool = m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite && m.vel.x.isFinite && m.vel.y.isFinite && m.vel.z.isFinite
@@ -2801,4 +2837,17 @@ final class MobManager {
 enum HumanGait {
     static let maxRun: Float = 4.0
     static func radPerBlock(_ hs: Float) -> Float { hs <= 1.6 ? 5.5 : 5.5 * sqrtf(1.6 / hs) }
+}
+
+extension Mob {
+    // P283 (restPos): still, on the ground, on land, and nothing round it changed since it last landed here. (Every
+    // block edit bumps the versions of the sections within two blocks of it at least; a ship near could carry it.)
+    func resting(_ w: World, onLadder: Bool, inWater: Bool) -> Bool {
+        guard TickProf.lighter, onGround, vel.x == 0, vel.z == 0, vel.y <= 0, pos == restPos, w.fieldStamp == restStamp, jet <= 0, !inWater,
+              !onLadder, !spec.flying, halfW <= 1.2,
+              let c = w.chunkAt(Int(floor(pos.x)), Int(floor(pos.z))),
+              c.sections[max(0, min(NSEC - 1, Int(floor(pos.y)) >> 4))].version == restVer else { return false }
+        for s in w.ships.list where simd_length_squared(s.pos - pos) < 96 * 96 { return false }
+        return true
+    }
 }

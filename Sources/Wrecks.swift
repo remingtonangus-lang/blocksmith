@@ -344,14 +344,8 @@ extension Wrecks {
                 g.openMenu(BookMenu(game: g, stack: book, source: .hand(-1)))
             }
         }
-        guard !st.wreckHint, g.dim.dim == .overworld, rottenID != AIR else { return }
-        let p = g.player.pos, px = Int(floor(p.x)), py = Int(floor(p.y)), pz = Int(floor(p.z))
-        let r = rottenID
-        for y in (py - 6)...(py + 4) { for z in (pz - 6)...(pz + 6) { for x in (px - 6)...(px + 6) where g.world.rawBlock(x, y, z) == r {
-            st.wreckHint = true
-            g.onToast?("A wreck you can raise: replace its Rotten Planks with any planks, then place a Ship Helm on deck. " + mastHow)
-            return
-        } } }
+        // P283 / NO TEXT (P328): the "a wreck you can raise" hint is gone, and with it its search of the 1900 blocks round
+        // the player every frame (most of the HUD stage's time on the Quest replay); the wreck's rotten planks show it.
     }
 }
 

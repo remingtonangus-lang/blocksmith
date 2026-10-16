@@ -9,6 +9,9 @@ enum TickProf {
     private(set) static var times = [Double](repeating: 0, count: cap)
     private(set) static var count = 0
     private static var last = 0.0
+    // P283: the frame savings that change how often something runs (far calm mobs on a slower beat, the far horizon
+    // rebuilt every few frames). BS_P283=0 turns them off, so questcheck --perfscenes can measure what they save.
+    static let lighter = ProcessInfo.processInfo.environment["BS_P283"] != "0"
 
     @inline(__always) static func begin() { count = 0; last = CFAbsoluteTimeGetCurrent() }
 

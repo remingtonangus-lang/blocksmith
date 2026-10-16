@@ -47,12 +47,7 @@ final class World {
     // Workers: maxJobs run at once; up to maxQueued jobs are handed over per frame so workers never sit
     // idle between frames (handing over only maxJobs capped streaming at ~maxJobs x 60 jobs per second;
     // 8 per worker covers a 16 ms frame of ~2 ms jobs).
-    private let workQueue: OperationQueue = {
-        let q = OperationQueue()
-        q.name = "blocksmith.world"
-        q.qualityOfService = .userInitiated
-        return q
-    }()
+    private let workQueue = JobPool.shared      // P283 (JobPool.swift): was an OperationQueue per world
     private var maxQueued: Int { maxJobs * 8 }
     private let lock = NSLock()
     private var genResults: [(ChunkKey, Produced)] = []
@@ -93,7 +88,7 @@ final class World {
     deinit { World.aliveLock.lock(); World.alive -= 1; World.aliveLock.unlock() }
     var debugState: String {
         lock.lock(); let gr = genResults.count, mr = meshResults.count; lock.unlock()     // workers append under the lock
-        return "jobs \(jobs), queue ops \(workQueue.operationCount), gen in flight \(genInFlight.count), results \(gr)/\(mr), chunks \(chunks.count)"
+        return "jobs \(jobs), queue ops \(workQueue.pending), gen in flight \(genInFlight.count), results \(gr)/\(mr), chunks \(chunks.count)"
     }
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
@@ -118,8 +113,7 @@ final class World {
             wg.terrain.fewerLakes = save?.newTerrain("terrain-p44-water.txt") ?? World.fewerLakesUnsaved
             wg.terrain.lessWater = save?.newTerrain("terrain-h8-water.txt") ?? World.lessWaterUnsaved   // H8
         }
-        maxJobs = max(2, ProcessInfo.processInfo.activeProcessorCount - 2)
-        workQueue.maxConcurrentOperationCount = maxJobs
+        maxJobs = workQueue.workers
         rebuildOffsets()
         blockEntities = save?.loadBlockEntities() ?? [:]
         portals = Set(save?.loadPortals() ?? [])
@@ -207,8 +201,30 @@ final class World {
     // mid (2) only sections with faces between leaves mesh differently, so only those are redone.
     private func setLod(_ c: Chunk, _ want: Int) {
         let leavesOnly = c.lod != 1 && want != 1
+        let farChange = (c.lod == 1) != (want == 1)
         c.lod = want
         for s in c.sections where s.meshedVersion != -1 && (!leavesOnly || s.leafy) { s.version += 1 }
+        // P283: a far neighbour's ground now meets this chunk the other way (Mesher.coarseGround's seams).
+        if farChange && fieldTerrain && Mesher.farGround {
+            for (dx, dz) in World.sides {
+                guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)], n.lod == 1 else { continue }
+                var bumped = false
+                for s in n.sections where s.meshedVersion != -1 && s.groundQuads > 0 { s.version += 1; bumped = true }
+                if bumped { dirtyChunks.append(n) }
+            }
+        }
+    }
+    static let sides = [(-1, 0), (1, 0), (0, -1), (0, 1)]          // (bit order of nearSides)
+
+    // P283: which side neighbours of a far chunk (lod 1) of a field world are meshed nearer, as Mesher.coarseGround's
+    // nearSides bits (0 -x, 1 +x, 2 -z, 3 +z).
+    func nearSides(_ c: Chunk, lod: Int) -> Int {
+        guard lod == 1, fieldTerrain, Mesher.farGround else { return 0 }
+        var m = 0
+        for (i, (dx, dz)) in World.sides.enumerated() {
+            if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)], n.lod != 1 { m |= 1 << i }
+        }
+        return m
     }
 
     @inline(__always) func inMeshRadius(_ dx: Int, _ dz: Int) -> Bool {
@@ -300,14 +316,19 @@ final class World {
 
     // Changes a block and remeshes: the sections around the block synchronously (no holes, correct
     // AO), everything its light could reach in the background.
+    static var syncEdits = 0, asyncEdits = 0        // P283: block changes since start (questcheck --perfscenes)
+    static var editTally: [UInt64: Int]? = nil      // P283: (async << 32 | old << 16 | new) -> count, when the harness asks
+    static var editCells: [IVec3: Int] = [:]        // (and how often each cell changed in the background)
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return }
+        World.syncEdits &+= 1
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         if !bites.isEmpty { bites.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let oldH = Int(c.height[lx + lz * CS])
         let old = c.blocks[Chunk.index(lx, y, lz)]
         let id = World.storedState(id0, replacing: old)
+        if World.editTally != nil { World.editTally![UInt64(old) << 16 | UInt64(id), default: 0] += 1 }
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
         c.blocks[Chunk.index(lx, y, lz)] = id
         if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
@@ -374,11 +395,16 @@ final class World {
     @discardableResult
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) -> Bool {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
+        World.asyncEdits &+= 1
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         if !bites.isEmpty { bites.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let old = c.blocks[Chunk.index(lx, y, lz)]
         let id = World.storedState(id0, replacing: old)
+        if World.editTally != nil {
+            World.editTally![1 << 32 | UInt64(old) << 16 | UInt64(id), default: 0] += 1
+            World.editCells[IVec3(x, y, z), default: 0] += 1
+        }
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
         c.blocks[Chunk.index(lx, y, lz)] = id
         if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
@@ -388,6 +414,23 @@ final class World {
         let oldH = Int(c.height[lx + lz * CS])
         c.recomputeHeight(lx, lz)
         let newH = Int(c.height[lx + lz * CS])
+        // P283: a change that leaves the light as it was (the same light-blocking and glow, the column's top where it
+        // was) only redraws the sections within two blocks of it. Grass creeping onto dirt and dying back under cover,
+        // about 26 changes a second round his homestead with nobody touching anything, each remeshed the 27 sections
+        // round it, which kept two mesh workers busy all the time.
+        // (Not when the cell joined or left the ground of a Polygons world: that reshaped the field round it.)
+        if oldH == newH && TickProf.lighter && Blocks.lightOpaque[Int(old)] == Blocks.lightOpaque[Int(id)]
+            && Blocks.emit[Int(old)] == Blocks.emit[Int(id)] && Blocks.sky[Int(old)] == Blocks.sky[Int(id)]
+            && (!fieldTerrain || wasGround == c.blocks.ground(Chunk.index(lx, y, lz))) {
+            let s0 = max(0, (y - 2) >> 4), s1 = min(NSEC - 1, (y + 2) >> 4)
+            for cz in floorDiv(z - 2, CS)...floorDiv(z + 2, CS) {
+                for cx in floorDiv(x - 2, CS)...floorDiv(x + 2, CS) {
+                    guard let n = chunkAt(cx * CS, cz * CS) else { continue }
+                    for sy in s0...s1 { n.sections[sy].version += 1 }
+                }
+            }
+            return true
+        }
         // P172 (Oct 13: "dark patches where he digs"): the sky light below a column whose top moved changes all the way
         // between the old and the new top, as setBlock already remeshed; this only covered 16 blocks round the edit, so
         // a flow or fall that opened or closed a column left the sections further down lit as before (dark or bright
@@ -696,7 +739,7 @@ final class World {
     func lodQuads(_ c: Chunk, _ sy: Int) -> [(Int, Int)] {
         guard let nb = neighbourhood(c) else { return [] }
         return [0, 1].map { lod in
-            let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: lod, site: smoothSite(c), chunk: (c.cx, c.cz))
+            let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: lod, site: smoothSite(c), chunk: (c.cx, c.cz), nearSides: nearSides(c, lod: lod))
             let q = m.opaque.count / 8
             return (m.solidQuads, q - m.solidQuads)
         }
@@ -709,7 +752,8 @@ final class World {
 
     func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
-        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), site: smoothSite(c), chunk: (c.cx, c.cz)), to: c, sy: sy, version: c.sections[sy].version)
+        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), site: smoothSite(c), chunk: (c.cx, c.cz),
+                                  nearSides: nearSides(c, lod: c.lod)), to: c, sy: sy, version: c.sections[sy].version)
     }
 
     // P142: smooth sections of a world whose generator has continuous fields (the overworld) mesh those fields.
@@ -836,6 +880,7 @@ final class World {
         s.detailBuf = makeBuffer(m.detail)
         s.detailQuads = m.detail.count / DetailMesh.wordsPerQuad
         s.detailSolid = m.detailSolid
+        s.groundQuads = m.groundQuads; s.blobQuads = m.blobQuads
         if sy >= c.topSec { c.updateTopSec() }            // a mesh below the top section cannot move it
         if c.tintBuf == nil {
             c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
@@ -864,7 +909,7 @@ final class World {
         defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
         let center = ChunkKey(x: floorDiv(Int(floor(pos.x)), CS), z: floorDiv(Int(floor(pos.z)), CS))
 
-        if World.deterministic { workQueue.waitUntilAllOperationsAreFinished() }
+        if World.deterministic { workQueue.waitIdle() }
         lock.lock()
         // Taken by swap: copying then removeAll(keepingCapacity:) on the shared buffer allocated a fresh one of the full
         // capacity twice a frame, results or not, while the workers waited on this lock.
@@ -993,7 +1038,7 @@ final class World {
             } else if jobs < maxQueued && !genInFlight.contains(k) {
                 genInFlight.insert(k)
                 jobs += 1
-                workQueue.addOperation { [weak self] in
+                workQueue.add { [weak self] in
                     guard let self else { return }
                     let t0 = CFAbsoluteTimeGetCurrent()
                     let r = self.produce(k)
@@ -1022,14 +1067,15 @@ final class World {
         let lod = c.lod
         let dl = damageList(c), bl = biteList(c)
         let site = smoothSite(c)
+        let near = nearSides(c, lod: lod)
         c.meshInFlight = true
         jobs += 1
         // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
-        workQueue.addOperation { [weak self] in
+        workQueue.add { [weak self] in
             guard let self else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var out: [(Int, Int, SectionMesh)] = []
-            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, site: site, chunk: (k.x, k.z)))) }
+            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, site: site, chunk: (k.x, k.z), nearSides: near))) }
             let el = CFAbsoluteTimeGetCurrent() - t0
             self.lock.lock()
             self.meshResults.append((k, out))
@@ -1246,11 +1292,13 @@ final class World {
         } }
         let dls = toMesh.map { damageList($0.0) }, bls = toMesh.map { biteList($0.0) }
         let sites = toMesh.map { smoothSite($0.0) }
+        let nears = toMesh.map { nearSides($0.0, lod: $0.0.lod) }          // (every chunk's level is set by now)
         let meshes = UnsafeMutablePointer<SectionMesh>.allocate(capacity: max(1, toMesh.count))
         defer { meshes.deallocate() }
         DispatchQueue.concurrentPerform(iterations: toMesh.count) { i in
             let t = toMesh[i]
-            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], bites: bls[i], site: sites[i], chunk: (t.0.cx, t.0.cz)))
+            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], bites: bls[i], site: sites[i],
+                                                            chunk: (t.0.cx, t.0.cz), nearSides: nears[i]))
         }
         for (i, t) in toMesh.enumerated() {
             apply((meshes + i).move(), to: t.0, sy: t.1, version: t.2)

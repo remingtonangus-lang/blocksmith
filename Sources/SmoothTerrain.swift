@@ -151,6 +151,145 @@ extension Mesher {
         return false
     }
 
+    // P283: far field ground (lod 1, past World.lodNear): the field's surface dual-contoured on a lattice two blocks
+    // apart, a quarter of the quads (the far ground was a quarter of a Polygons world's quads on his homestead replay).
+    // Every far section samples the same world-aligned lattice, so far chunks meet exactly. Toward a nearer chunk
+    // (`nearSides`: bit 0 -x, 1 +x, 2 -z, 3 +z) the border cells' vertices go onto the border plane (-x, -z) or a block
+    // past it (+x, +z), so the near chunk's finer surface and this one overlap instead of leaving a slit between them.
+    // Flat ao, one material a quad (the ground half a block under its middle), no dents or craters that far out.
+    static func coarseGround(_ R: UnsafeMutablePointer<BlockID>, _ E: UnsafeMutablePointer<Int8>, _ sc: MeshScratch, nearSides: Int,
+                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
+        let nat = SmoothTerrain.natural, texT = Blocks.tex, tintT = Blocks.tint, loT = Blocks.lightOpaque
+        let skyL = sc.sky, blkL = sc.blk
+        func ri(_ x: Int, _ y: Int, _ z: Int) -> Int { (x + C0) + (z + C0) * RW + (y + C0) * RL }
+        // Lattice points at section-local -2, 0, ..., 18 (index i at 2i - 2): density in blocks, > 0 inside.
+        let L = 11, LL = L * L
+        let D = sc.smD
+        var any = false
+        for iy in 0..<L { for iz in 0..<L { for ix in 0..<L {
+            let e = E[ri(ix * 2 - 2, iy * 2 - 2, iz * 2 - 2)]
+            if e > 0 { any = true }
+            D[ix + iz * L + iy * LL] = max(-1.5, min(1.5, Float(e) / FieldTerrain.scale))
+        } } }
+        if !any { return }
+        // Cells (index = the lattice index of their low corner, 0...9): vertex, light, normal.
+        let CN = 10, CNN = CN * CN
+        let VP = sc.smV, VL = sc.smL, VN = sc.smN
+        for cy in 0..<CN { for cz in 0..<CN { for cx in 0..<CN {
+            let vi = cx + cz * CN + cy * CNN
+            var d8 = SIMD8<Float>(repeating: 0)
+            var mask = 0
+            for c in 0..<8 {
+                let v = D[(cx + (c & 1)) + (cz + (c >> 2)) * L + (cy + ((c >> 1) & 1)) * LL]
+                d8[c] = v
+                if v > 0 { mask |= 1 << c }
+            }
+            if mask == 0 || mask == 255 { VL[vi] = -1; continue }
+            var sum = SIMD3<Float>(0, 0, 0)
+            var n: Float = 0
+            for c in 0..<8 {
+                for sh in 0..<3 where (c >> sh) & 1 == 0 {
+                    let c2 = c | (1 << sh)
+                    if (mask >> c & 1) == (mask >> c2 & 1) { continue }
+                    let ins = (mask >> c) & 1 == 1
+                    let a: Float = ins ? max(0.02, d8[c]) : min(-0.02, d8[c])
+                    let b: Float = ins ? min(-0.02, d8[c2]) : max(0.02, d8[c2])
+                    let t: Float = a / (a - b)
+                    let p1 = SIMD3<Float>(Float(c & 1), Float((c >> 1) & 1), Float(c >> 2))
+                    let p2 = SIMD3<Float>(Float(c2 & 1), Float((c2 >> 1) & 1), Float(c2 >> 2))
+                    sum += p1 + (p2 - p1) * t
+                    n += 1
+                }
+            }
+            let base = SIMD3<Float>(Float(cx * 2 - 2), Float(cy * 2 - 2), Float(cz * 2 - 2))
+            var p = base + sum / n * 2
+            if nearSides & 1 != 0 && cx == 0 { p.x = 0 }
+            if nearSides & 2 != 0 && cx == CN - 1 { p.x = max(p.x, 17) }
+            if nearSides & 4 != 0 && cz == 0 { p.z = 0 }
+            if nearSides & 8 != 0 && cz == CN - 1 { p.z = max(p.z, 17) }
+            VP[vi * 3] = p.x; VP[vi * 3 + 1] = p.y; VP[vi * 3 + 2] = p.z
+            // Normal: minus the gradient of the 8 densities (corner bits: 1 x, 2 y, 4 z).
+            let gx: Float = (d8[1] + d8[3] + d8[5] + d8[7]) - (d8[0] + d8[2] + d8[4] + d8[6])
+            let gy: Float = (d8[2] + d8[3] + d8[6] + d8[7]) - (d8[0] + d8[1] + d8[4] + d8[5])
+            let gz: Float = (d8[4] + d8[5] + d8[6] + d8[7]) - (d8[0] + d8[1] + d8[2] + d8[3])
+            VN[vi * 3] = -gx; VN[vi * 3 + 1] = -gy; VN[vi * 3 + 2] = -gz
+            // Light: the mean over the cell's open corners.
+            var sky = 0, blk = 0, open = 0
+            for c in 0..<8 {
+                let i = ri((cx + (c & 1)) * 2 - 2, (cy + ((c >> 1) & 1)) * 2 - 2, (cz + (c >> 2)) * 2 - 2)
+                if loT[Int(R[i])] { continue }
+                sky += Int(skyL[i]); blk += Int(blkL[i]); open += 1
+            }
+            VL[vi] = Int32(open == 0 ? 0 : ((sky + open / 2) / open) | (((blk + open / 2) / open) << 4))
+        } } }
+        // Quads: lattice edge p -> p + 1 along a (a 1...8) between ground and open, its 4 cells round it. Across a the
+        // section owns 0...16 (lattice 1...9 on x and z, both borders: the far neighbour skips its own 0), up 2...16;
+        // a -x / -z border toward a nearer chunk is also drawn here (its cells pushed onto the border plane).
+        let loX = nearSides & 1 != 0 ? 1 : 2, loZ = nearSides & 4 != 0 ? 1 : 2
+        var corner = [Int](repeating: 0, count: 4)
+        var pts = [SIMD3<Float>](repeating: .zero, count: 4)
+        for py in 1...9 { for pz in 1...9 { for px in 1...9 {
+            let p = SIMD3<Int>(px, py, pz)
+            for a in 0..<3 {
+                let b = (a + 1) % 3, c = (a + 2) % 3
+                if p[a] > 8 { continue }
+                func lo(_ ax: Int) -> Int { ax == 0 ? loX : (ax == 2 ? loZ : 2) }
+                if p[b] < lo(b) || p[c] < lo(c) { continue }
+                var q = p
+                q[a] += 1
+                let sp = D[p[0] + p[2] * L + p[1] * LL] > 0
+                let sq = D[q[0] + q[2] * L + q[1] * LL] > 0
+                if sp == sq { continue }
+                let s = sp ? p : q
+                let sb = SIMD3<Int>(s[0] * 2 - 2, s[1] * 2 - 2, s[2] * 2 - 2)
+                if !nat[Int(R[ri(sb[0], sb[1], sb[2])])] { continue }
+                var ok = true
+                for k in 0..<4 {
+                    var d = p
+                    let kk = sp ? k : 3 - k
+                    d[b] -= (kk == 0 || kk == 3) ? 1 : 0
+                    d[c] -= (kk == 0 || kk == 1) ? 1 : 0
+                    let vi = d[0] + d[2] * CN + d[1] * CNN
+                    if VL[vi] < 0 { ok = false; break }
+                    corner[k] = vi
+                    pts[k] = SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])
+                }
+                if !ok { continue }
+                let nrm = simd_cross(pts[2] - pts[0], pts[3] - pts[1])
+                let ax = abs(nrm.x), ay = abs(nrm.y), az = abs(nrm.z)
+                let len = simd_length(nrm)
+                guard len > 1e-6 else { continue }
+                let f: Int
+                if nrm.y > 0.5 * len { f = 2 }
+                else if ay >= ax && ay >= az { f = nrm.y > 0 ? 2 : 3 }
+                else if ax >= az { f = nrm.x > 0 ? 0 : 1 }
+                else { f = nrm.z > 0 ? 4 : 5 }
+                // The ground half a block under the quad's middle (the lattice sample may be the dirt under the turf).
+                let mid = (pts[0] + pts[1] + pts[2] + pts[3]) * 0.25 - nrm / len * 0.5
+                let mi = ri(Int(floor(mid.x)), Int(floor(mid.y)), Int(floor(mid.z)))
+                var id = E[mi] > 0 && nat[Int(R[mi])] ? Int(R[mi]) : Int(R[ri(sb[0], sb[1], sb[2])])
+                if id == Int(DIRT) && nrm.y > 0.35 * len {
+                    turf: for (dx, dy, dz) in SmoothTerrain.turfProbe {
+                        let t = Int(R[ri(sb[0] + dx, sb[1] + dy, sb[2] + dz)])
+                        if nat[t] && tintT[t] == 3 { id = t; break turf }
+                    }
+                }
+                let tintB = Int(tintT[id])
+                let texF = tintB == 3 ? (nrm.y > 0.2 * len ? 2 : 3) : f
+                let layer = Int(texT[id * 6 + texF])
+                let tint = tintB == 3 ? (texF == 2 ? 1 : 0) : tintB
+                for k in 0..<4 {
+                    let vi = corner[k]
+                    var vn = SIMD3<Float>(VN[vi * 3], VN[vi * 3 + 1], VN[vi * 3 + 2])
+                    vn = simd_length_squared(vn) > 1e-6 ? simd_normalize(vn) : nrm / len
+                    let pt = pts[k] * 16
+                    emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tint, layer, 3, Int(VL[vi]) & 255,
+                         SmoothTerrain.normalCode(vn, face: f))
+                }
+            }
+        } } }
+    }
+
     // Smooth quads for the section whose local 0 is region (C0, C0, C0). `emit` takes position (1/16 block,
     // section-local), face, tint, layer, ao, packed light, overlay.
     // `site` (P142): the section's chunk in a world whose generator has fields; nil meshes round the blocks (round 2).
@@ -162,7 +301,7 @@ extension Mesher {
     // contouring of the field; a built block meeting the ground counts as 0.35 block inside).
     static func smoothQuads(_ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, dmg: [Int: UInt8], site: SmoothSite? = nil,
                             stored: UnsafeMutablePointer<Int8>? = nil, sy: Int = 0,
-                            leaves: Bool = false, leafHoles: Bool = false, detailHoles: Bool = false, world: SIMD3<Int>? = nil,
+                            leaves: Bool = false, shells: Int = 2, leafHoles: Bool = false, detailHoles: Bool = false, world: SIMD3<Int>? = nil,
                             crater: CraterSet? = nil, carveOut: GrowBuf<UInt32>? = nil,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let leafT = Mesher.leafT
@@ -604,7 +743,7 @@ extension Mesher {
                     emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tnt, lay, v >> 8, v & 255,
                          SmoothTerrain.normalCode(vn, face: f))
                 }
-                if leaves {
+                if leaves && shells > 1 {
                     for k in 0..<4 {
                         let cc = flip ? (k + 1) & 3 : k
                         let v = Int(VL[corner[cc]])

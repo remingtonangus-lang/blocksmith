@@ -463,6 +463,7 @@ final class Game {
 
     init(world: World, save: SaveManager?, persistent: Bool) {
         Game.alive += 1
+        if Rand.mainThread == nil && Thread.isMainThread { Rand.mainThread = pthread_self() }
         dim = DimensionState(dim: world.dim, world: world)
         dims[world.dim] = dim
         self.save = save

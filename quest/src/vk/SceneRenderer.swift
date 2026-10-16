@@ -754,7 +754,7 @@ final class SceneRenderer {
         QuestGraveyard.frameSubmitted(s.submitted)
         var si = VkSubmitInfo()
         si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO
-        si.commandBufferCount = 1
+        si.commandBufferCount = SceneRenderer.skipGPU ? 0 : 1      // (an empty batch still signals the slot's fence)
         var cb: VkCommandBuffer? = s.cmd
         try withUnsafePointer(to: &cb) { p in
             si.pCommandBuffers = p
@@ -762,6 +762,10 @@ final class SceneRenderer {
         }
         s.inUse = true
     }
+
+    // questcheck --perfscenes (QuestPerf): frames are recorded in full and their commands dropped, since lavapipe would
+    // spend about a second a frame shading half a million quads on the CPU and the Quest's GPU is not measured here.
+    static var skipGPU = false
 
     func waitIdle() {
         vkDeviceWaitIdle(ctx.device)
@@ -806,6 +810,16 @@ final class SceneRenderer {
         vkCmdDraw(s.cmd, UInt32(count), 1, 0, 0)
     }
 
+    // The same from a vertex buffer of the caller's (P283: WorldRenderer's landmark shell).
+    func drawBuffer(_ s: Slot, _ pipeName: String, _ buffer: VkBuffer?, offset: Int, count: Int) {
+        guard count > 0, buffer != nil else { return }
+        vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(pipeName))
+        var b: VkBuffer? = buffer
+        var o = VkDeviceSize(offset)
+        vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
+        vkCmdDraw(s.cmd, UInt32(count), 1, 0, 0)
+    }
+
     func drawStars(_ s: Slot) {
         vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("star"))
         var b: VkBuffer? = starBuf.buffer
@@ -829,7 +843,13 @@ final class SceneRenderer {
     private var visible: [(Chunk, Int, Float)] = []
     private var visitGen: [UInt32] = []
     private var gen: UInt32 = 0
-    private var bfs: [(Chunk, Int, Int, Int, Int, Int)] = []
+    // P283: the walk's queue holds plain numbers (the column in chunkGrid, the offsets, the section, the face it came in
+    // by and the faces it went out by) and the sections found are sorted as packed keys: a chunk reference in every queue
+    // entry and in every swap of the sort cost a retain and a release each, a large part of the frame's cull.
+    private struct CullNode { var col: Int32; var dx: Int16; var dz: Int16; var sy: Int16; var entry: Int8; var mask: UInt8 }
+    private var bfs: [CullNode] = []
+    private var found: [UInt64] = []             // distance bits << 32 | column << 8 | section
+    private(set) var cullVisits = 0              // sections the last walk went through
     private var chunkGrid: [Chunk?] = []
 
     // Sections to draw, near to far (the Mac renderer's cave-culling walk, Renderer.encode).
@@ -855,31 +875,56 @@ final class SceneRenderer {
             } }
             let yLimit = max(pSec, topSec + 1)
             bfs.removeAll(keepingCapacity: true)
-            bfs.append((startC, 0, 0, pSec, -1, 0))
+            found.removeAll(keepingCapacity: true)
+            bfs.append(CullNode(col: Int32(R + R * span), dx: 0, dz: 0, sy: Int16(pSec), entry: -1, mask: 0))
             visitGen[vidx(0, 0, pSec)] = gen
             var head = 0
-            let dirs = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
+            let r2 = world.renderDistance * world.renderDistance + world.renderDistance      // (World.inMeshRadius)
+            let bx = Float(pcx * CS), bz = Float(pcz * CS), topCut = maxSection
+            let half = V3(8, 8, 8), side = V3(16, 16, 16)
             while head < bfs.count {
-                let (c, dx, dz, sy, entry, dirMask) = bfs[head]; head += 1
+                let n = bfs[head]; head += 1
+                guard let c = chunkGrid[Int(n.col)] else { continue }
+                let sy = Int(n.sy), dx = Int(n.dx), dz = Int(n.dz), entry = Int(n.entry), mask = Int(n.mask)
                 let sec = c.sections[sy]
-                let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
-                if !sec.empty && sy < maxSection { visible.append((c, sy, simd_length_squared(mn + V3(8, 8, 8) - eye))) }
+                if sy < topCut && !sec.empty {
+                    let mn = V3(bx + Float(dx * CS), Float(sy * 16), bz + Float(dz * CS))
+                    let d = simd_length_squared(mn + half - eye)
+                    found.append(UInt64(d.bitPattern) << 32 | UInt64(n.col) << 8 | UInt64(sy))
+                }
                 let vis = sec.meshedVersion == -1 ? ~UInt64(0) : sec.vis
                 for f in 0..<6 {
-                    if dirMask & (1 << (f ^ 1)) != 0 { continue }
+                    if mask & (1 << (f ^ 1)) != 0 { continue }
                     if entry >= 0 && vis & (1 << UInt64(entry * 6 + f)) == 0 { continue }
-                    let (ox, oy, oz) = dirs[f]
-                    let ndx = dx + ox, ndz = dz + oz, nsy = sy + oy
-                    if nsy < 0 || nsy >= NSEC || nsy > yLimit || !world.inMeshRadius(ndx, ndz) || abs(ndx) > R || abs(ndz) > R { continue }
+                    var ndx = dx, ndz = dz, nsy = sy
+                    switch f {
+                    case 0: ndx += 1
+                    case 1: ndx -= 1
+                    case 2: nsy += 1
+                    case 3: nsy -= 1
+                    case 4: ndz += 1
+                    default: ndz -= 1
+                    }
+                    if nsy < 0 || nsy >= NSEC || nsy > yLimit || abs(ndx) > R || abs(ndz) > R || ndx * ndx + ndz * ndz > r2 { continue }
                     let vi = vidx(ndx, ndz, nsy)
                     if visitGen[vi] == gen { continue }
-                    let nmn = V3(Float((pcx + ndx) * CS), Float(nsy * 16), Float((pcz + ndz) * CS))
-                    if !frustum.visible(min: nmn, max: nmn + V3(16, 16, 16)) || pastFog(nmn, eye) { continue }
-                    guard let nc = ox == 0 && oz == 0 ? c : chunkGrid[(ndx + R) + (ndz + R) * span], nc.meshedOnce else { continue }
-                    if underDeepWater(nc, nsy) { continue }
+                    let nmn = V3(bx + Float(ndx * CS), Float(nsy * 16), bz + Float(ndz * CS))
+                    if !frustum.visible(min: nmn, max: nmn + side) || pastFog(nmn, eye) { continue }
+                    let ncol = (ndx + R) + (ndz + R) * span
+                    if f != 2 && f != 3 {
+                        guard let nc = chunkGrid[ncol], nc.meshedOnce else { continue }
+                        if underDeepWater(nc, nsy) { continue }
+                    } else if underDeepWater(c, nsy) { continue }
                     visitGen[vi] = gen
-                    bfs.append((nc, ndx, ndz, nsy, f ^ 1, dirMask | (1 << f)))
+                    bfs.append(CullNode(col: Int32(ncol), dx: Int16(ndx), dz: Int16(ndz), sy: Int16(nsy), entry: Int8(f ^ 1),
+                                        mask: UInt8(mask | (1 << f))))
                 }
+            }
+            cullVisits = bfs.count
+            found.sort()
+            for k in found {
+                guard let c = chunkGrid[Int((k >> 8) & 0xFF_FFFF)] else { continue }
+                visible.append((c, Int(k & 0xFF), Float(bitPattern: UInt32(k >> 32))))
             }
         } else {
             for (_, c) in world.chunks where c.meshedOnce {
@@ -893,10 +938,24 @@ final class SceneRenderer {
                     visible.append((c, sy, simd_length_squared(mn + V3(8, 8, 8) - eye)))
                 }
             }
+            visible.sort { $0.2 < $1.2 }
         }
-        visible.sort { $0.2 < $1.2 }
         visibleCount = visible.count
         cullMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+    }
+
+    // P283 (questcheck --perfscenes): the culled sections' quads by kind, near (lod 0 and 2) and far (lod 1).
+    func quadBreakdown() -> String {
+        var q = [[Int]](repeating: [0, 0, 0, 0, 0, 0], count: 2)
+        for i in 0..<min(visible.count, SceneRenderer.recordCap) {
+            let (c, sy, _) = visible[i]
+            let s = c.sections[sy], f = c.lod == 1 ? 1 : 0
+            q[f][0] += 1; q[f][1] += s.groundQuads; q[f][2] += s.blobQuads; q[f][3] += s.opaqueQuads - s.groundQuads - s.blobQuads
+            q[f][4] += s.detailQuads; q[f][5] += s.transQuads
+        }
+        return "walk \(cullVisits) sections; " + ["near", "far"].enumerated().map { i, n in
+            "\(n) \(q[i][0]) sections: ground \(q[i][1]), leaf blobs \(q[i][2]), other opaque \(q[i][3]), detail \(q[i][4]), translucent \(q[i][5])"
+        }.joined(separator: "; ")
     }
 
     // F5 (Oct 13 evening: over open ocean the view must be the cheapest case): a far (LOD 1) section with a whole
@@ -971,6 +1030,11 @@ final class SceneRenderer {
     private var batchStart: [Int] = []
     private var pendingDraws: [(Int, VkDrawIndexedIndirectCommand)] = []
 
+    // P283: one walk of the visible list for the terrain's two passes (solid, cutout) and one for the round shapes'
+    // two, not one a pass: each step cast two buffers and retained the section, the chunk and both buffers, 4 times
+    // over 500+ sections (an eighth of the frame thread's samples on the homestead replay).
+    private var pendingCut: [(Int, VkDrawIndexedIndirectCommand)] = []
+    private var batchCut: [Int] = []
     private func drawOpaqueBatched(_ s: Slot) {
         let stride = MemoryLayout<VkDrawIndexedIndirectCommand>.stride
         let cap = s.indirect.size / stride
@@ -978,12 +1042,12 @@ final class SceneRenderer {
         let cmds = s.indirect.mapped!.bindMemory(to: VkDrawIndexedIndirectCommand.self, capacity: cap)
         var used = 0
         defer { indirectUsed = used }             // the far water batch (drawTranslucent) writes after these
-        for pass in 0..<4 {
-            // Passes: terrain solid, terrain cutout, then the realistic world's round shapes (16-byte vertices) solid and cutout.
-            let detail = pass >= 2
+        for half in 0..<2 {
+            // Terrain solid and cutout, then the realistic world's round shapes (16-byte vertices) solid and cutout.
+            let detail = half == 1
             if detail && !anyDetail { break }
-            batchKeys.removeAll(keepingCapacity: true); batchCount.removeAll(keepingCapacity: true)
-            pendingDraws.removeAll(keepingCapacity: true)
+            batchKeys.removeAll(keepingCapacity: true); batchCount.removeAll(keepingCapacity: true); batchCut.removeAll(keepingCapacity: true)
+            pendingDraws.removeAll(keepingCapacity: true); pendingCut.removeAll(keepingCapacity: true)
             for i in 0..<nRec {
                 let (c, sy, _) = visible[i]
                 let sec = c.sections[sy]
@@ -991,50 +1055,59 @@ final class SceneRenderer {
                 guard quads > 0, let buf = detail ? sec.detailBuf : sec.opaqueBuf, let tb = c.tintBuf,
                       let vb = buf.buffer as? QuestBuffer, let tbuf = tb.buffer as? QuestBuffer else { continue }
                 let total = min(quads, SceneRenderer.maxQuads), solid = min(detail ? sec.detailSolid : sec.solidQuads, total)
-                let first = pass & 1 == 0 ? 0 : solid, count = pass & 1 == 0 ? solid : total - solid
-                if count <= 0 { continue }
                 var k = 0
                 while k < batchKeys.count && !(batchKeys[k].0 === vb && batchKeys[k].1 === tbuf) { k += 1 }
-                if k == batchKeys.count { batchKeys.append((vb, tbuf)); batchCount.append(0) }
-                batchCount[k] += 1
-                pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(count * 6), instanceCount: 1, firstIndex: UInt32(first * 6),
-                                                                     vertexOffset: Int32(buf.offset / (detail ? 16 : 8)), firstInstance: UInt32(i))))
-                drawnQuads += count
+                if k == batchKeys.count { batchKeys.append((vb, tbuf)); batchCount.append(0); batchCut.append(0) }
+                let vo = Int32(buf.offset / (detail ? 16 : 8))
+                if solid > 0 {
+                    batchCount[k] += 1
+                    pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(solid * 6), instanceCount: 1, firstIndex: 0,
+                                                                         vertexOffset: vo, firstInstance: UInt32(i))))
+                }
+                if total > solid {
+                    batchCut[k] += 1
+                    pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((total - solid) * 6), instanceCount: 1,
+                                                                       firstIndex: UInt32(solid * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                }
+                drawnQuads += total
             }
-            if pendingDraws.isEmpty { continue }
-            guard used + pendingDraws.count <= cap else { break }
-            vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(["solid", "cut", "detail", "detailCut"][pass]))
+            for pass in 0..<2 {
+                let pending = pass == 0 ? pendingDraws : pendingCut, counts = pass == 0 ? batchCount : batchCut
+                if pending.isEmpty { continue }
+                guard used + pending.count <= cap else { break }
+                vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(["solid", "cut", "detail", "detailCut"][half * 2 + pass]))
 
-            // Each group's commands side by side (stable: near to far within a group).
-            batchStart.removeAll(keepingCapacity: true)
-            var at = used
-            for n in batchCount { batchStart.append(at); at += n }
-            for (k, cmd) in pendingDraws { cmds[batchStart[k]] = cmd; batchStart[k] += 1 }
-            var start = used
-            for k in 0..<batchKeys.count {
-                let (vb, tbuf) = batchKeys[k]
-                if tbuf !== boundTints, let set = tintSet(tbuf) {
-                    var ss: VkDescriptorSet? = set
-                    vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeLayout, 1, 1, &ss, 0, nil)
-                    boundTints = tbuf
+                // Each group's commands side by side (stable: near to far within a group).
+                batchStart.removeAll(keepingCapacity: true)
+                var at = used
+                for n in counts { batchStart.append(at); at += n }
+                for (k, cmd) in pending { cmds[batchStart[k]] = cmd; batchStart[k] += 1 }
+                var start = used
+                for k in 0..<batchKeys.count where counts[k] > 0 {
+                    let (vb, tbuf) = batchKeys[k]
+                    if tbuf !== boundTints, let set = tintSet(tbuf) {
+                        var ss: VkDescriptorSet? = set
+                        vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeLayout, 1, 1, &ss, 0, nil)
+                        boundTints = tbuf
+                    }
+                    if vb !== boundVerts {
+                        var b: VkBuffer? = vb.vkBuffer
+                        var o: VkDeviceSize = 0
+                        vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
+                        boundVerts = vb
+                    }
+                    var left = counts[k], off = start
+                    while left > 0 {
+                        let n = min(left, maxPer)
+                        vkCmdDrawIndexedIndirect(s.cmd, s.indirect.buffer, VkDeviceSize(off * stride), UInt32(n), UInt32(stride))
+                        drawCalls += 1
+                        left -= n; off += n
+                    }
+                    start += counts[k]
                 }
-                if vb !== boundVerts {
-                    var b: VkBuffer? = vb.vkBuffer
-                    var o: VkDeviceSize = 0
-                    vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
-                    boundVerts = vb
-                }
-                var left = batchCount[k], off = start
-                while left > 0 {
-                    let n = min(left, maxPer)
-                    vkCmdDrawIndexedIndirect(s.cmd, s.indirect.buffer, VkDeviceSize(off * stride), UInt32(n), UInt32(stride))
-                    drawCalls += 1
-                    left -= n; off += n
-                }
-                start += batchCount[k]
+                batchedSections += pending.count
+                used = at
             }
-            batchedSections += pendingDraws.count
-            used = at
         }
     }
 
