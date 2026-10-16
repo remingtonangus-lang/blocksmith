@@ -129,6 +129,7 @@ enum QuestOptions {
                 ("Seated Mode: \(on(S.seated))", "q_seated"),
                 ("Lying Down View: \(on(S.reclined))", "q_reclined"),
                 ("Melee: \(S.swingMode ? "Swing" : "Reclined")", "q_swing"),
+                ("Reload: \(S.buttonReload ? "Button" : "Hip Pouch")", "q_reload"),                                   // P286 (b)
                 ("Recenter View", "q_recenter"),
                 ("Held Item Size: \(String(format: "%gx", S.heldScale))", "q_held"),
                 ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
@@ -239,6 +240,7 @@ enum QuestOptions {
         case "q_seated": S.seated.toggle(); hooks.recenter()
         case "q_reclined": reclinedPosture(!S.reclined); hooks.recenter()
         case "q_swing": S.swingMode.toggle()
+        case "q_reload": S.buttonReload.toggle()
         case "q_recenter": hooks.recenter()
         case "q_held": S.heldScale = step(heldScales, heldScales.min { abs($0 - S.heldScale) < abs($1 - S.heldScale) } ?? 1, back)
         case "q_hand": S.leftHanded.toggle()
