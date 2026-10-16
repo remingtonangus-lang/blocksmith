@@ -23,7 +23,7 @@ extension MobKind {
             return Spec(name: "Ashguard Field Gun", halfW: 1.1, height: 1.8, health: 70, speed: 0, behavior: .monster,
                         drops: [("iron_ingot", 1, 3), ("gunpowder", 2, 6)], xp: 25, call: .gun(12), fireImmune: true)
         case .ashTruck:
-            return Spec(name: "Ashguard Truck", halfW: 1.2, height: 2.4, health: 40, speed: 0, behavior: .monster,
+            return Spec(name: "Ashguard Truck", halfW: 1.2, height: 2.4, health: 40, speed: 3.6, behavior: .monster,
                         drops: [("iron_ingot", 0, 2), ("bread", 1, 4), ("rifle_rounds", 2, 8)], xp: 8, call: .gun(12))
         case .ashBehemoth:
             return Spec(name: "Ashguard Behemoth", halfW: 2.4, height: 3.5, health: 700, speed: 1.4, behavior: .monster,
@@ -254,7 +254,16 @@ extension Mob {
         b.kick = max(0, b.kick - dt * 2.5)
         // Burning wrecks-to-be: smoke under 40% health.
         if health * 5 < spec.health * 2 && Rand.float(in: 0..<1) < dt * 5 { g.particles.smoke(at: pos + V3(0, height * 0.8, 0)) }
-        if kind == .ashTruck { return 0 }
+        if g.ashVehicleLife(self, dist: dist) { return 0 }                          // knocked out: empty, his to take (P324)
+        // P324: half of them patrol a loop round where they stood while calm (a leg given up after 40 s).
+        b.patrolT += dt
+        if !aggro && (b.order == nil || b.patrolT > 40), dist < 90, let p = g.ashPatrolPoint(self) { b.order = p; b.patrolT = 0 }
+        if kind == .ashTruck {
+            guard let o = b.order, !aggro else { return 0 }
+            let flat = simd_length(V2(o.x - pos.x, o.z - pos.z))
+            if flat < 8 { b.order = nil; return 0 }
+            return ashDrive(dt, g, wantYaw: atan2f(-(o.x - pos.x), -(o.z - pos.z)), flat: flat, near: 0, far: 6, circle: false)
+        }
         if !canTarget {
             // Stood down (victory) or no target: guns home, engines idle.
             aggro = aggro && g.alive && !g.ashVictory
@@ -397,7 +406,35 @@ extension Mob {
         let pitch = atan2f(toT.y, max(1, flat))
         ashSlew(dt, toYaw: wantYaw, pitch: max(-0.4, min(0.6, pitch)))
         ashMG(dt, g, t, dist: flat, off: ashTurretOff(wantYaw), len: 1.2, range: 50)
+        ashSalvo(dt, g, t, flat: flat)
         return ashDrive(dt, g, wantYaw: wantYaw, flat: flat, near: 12, far: 24, circle: true)
+    }
+
+    // P324: the half-track's rocket rack: four rockets a salvo, from 14 blocks out, about every 9 s.
+    private func ashSalvo(_ dt: Float, _ g: Game, _ t: V3, flat: Float) {
+        let b = soldierBrain
+        b.salvoCD -= dt
+        if b.salvoLeft == 0 {
+            guard b.sees, flat > 14, flat < 60, b.salvoCD <= 0 else { return }
+            b.salvoLeft = AshCommandeer.salvo
+            b.salvoCD = 0
+        }
+        guard b.salvoCD <= 0 else { return }
+        let back = V3(sinf(yaw), 0, cosf(yaw))
+        let side = V3(cosf(yaw), 0, -sinf(yaw)) * (b.salvoLeft % 2 == 0 ? 0.5 : -0.5)
+        let from = pos + V3(0, height + 0.3, 0) + back * (halfW * 0.6) + side
+        let aim = t + V3(0, flat * 0.012, 0)
+        let dir = Guns.scatter(simd_normalize(aim - from), 0.045)
+        let speed: Float = 42
+        var s = Slug(pos: from + dir * 0.6, vel: dir * speed, kind: .rocket, damage: 0, fromPlayer: false,
+                     shooter: ObjectIdentifier(self), by: spec.name, life: 70 / speed, gravity: 0.6)
+        s.power = 1.5
+        g.arms.spawn(s)
+        g.particles.smoke(at: from, dark: false)
+        g.sfx(.gun(4), 0.9, at: from)
+        b.salvoLeft -= 1
+        b.salvoCD = b.salvoLeft > 0 ? 0.28 : Rand.float(in: AshCommandeer.salvoEvery)
+        if b.salvoLeft == 0 { AshCommandeer.salvos += 1 }
     }
 
     private func ashMG(_ dt: Float, _ g: Game, _ t: V3, dist: Float, off: Float, len: Float, range: Float) {
