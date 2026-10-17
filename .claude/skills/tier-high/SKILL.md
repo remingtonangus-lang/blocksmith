@@ -1,7 +1,7 @@
 ---
 name: tier-high
 description: Work the Blocksmith backlog's [T:high] items at high effort. Load this when docs/roadmap/TIER says "current: high" or the stop hook tells you the tier moved to high.
-effort: high
+effort: medium
 ---
 
 # Tier high

@@ -1,7 +1,7 @@
 ---
 name: tier-xhigh
 description: Work the Blocksmith backlog's [T:xhigh] items at xhigh effort. Load this when docs/roadmap/TIER says "current: xhigh" or the stop hook tells you the tier moved to xhigh.
-effort: xhigh
+effort: medium
 ---
 
 # Tier xhigh

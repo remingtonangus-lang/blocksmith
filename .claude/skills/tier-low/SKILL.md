@@ -1,7 +1,7 @@
 ---
 name: tier-low
 description: Work the Blocksmith backlog's [T:low] items at low effort. Load this when docs/roadmap/TIER says "current: low" or the stop hook tells you the tier moved to low.
-effort: low
+effort: medium
 ---
 
 # Tier low
