@@ -153,7 +153,7 @@ final class PauseMenu: Menu {
         "rd": "How many chunks around you are drawn. Lower is smoother.",
         "fullscreen": "Switch between a window and the full screen.",
         "display": "Which screen to play on when the Mac is connected to a TV. Remembered for next time.",
-        "launchfs": "Open Blocksmith straight into full screen, ready for the TV.",
+        "launchfs": "Open Sunderfall straight into full screen, ready for the TV.",
         "vsync": "Sync frames to the display. Off can lower input lag but may tear.",
         "fps": "Frame rate cap. 30 or 60 keeps a laptop cooler.",
         "smooth": "This world was made with block terrain. On: its natural ground becomes the smooth polygon world, as every new world is.",
@@ -176,7 +176,7 @@ final class PauseMenu: Menu {
         "resethints": "Starts the goals again from the first one.",
         "controls": "Every control for keyboard, mouse and controller.",
         "keys": "Choose which keys walk, jump, open the inventory and more.",
-        "about": "Who made Blocksmith, and the open source parts it is built on with their licences.",
+        "about": "Who made Sunderfall, and the open source parts it is built on with their licences.",
         "padmap": "Move actions to other controller buttons. Prompts follow your layout.",
         "pbindreset": "Put every controller button back to the standard layout.",
         "playout": "Shooter: Y switches to your last hotbar slot, hold Y for the inventory. Classic: Y opens the inventory.",
@@ -221,8 +221,8 @@ final class PauseMenu: Menu {
         "debug": "Shows your position, the biome, the frame rate and chunk details in the corner (F3 on the keyboard).",
         "devtools": "Shows Commands (time, weather, items, mode) and Shortcuts (teleport) in the pause menu in survival. Creative always has them.",
         "perf": "Frame rate, frame times (average and worst of the last second), render distance and chunk jobs in the corner of the view.",
-        "quit": "Save the world and close Blocksmith (asks first).",
-        "quit_yes": "Saves your world, then closes Blocksmith.",
+        "quit": "Save the world and close Sunderfall (asks first).",
+        "quit_yes": "Saves your world, then closes Sunderfall.",
         "totitle": "Save the world and return to the title screen.",
         "create": "Choose a name, seed, game mode and difficulty (the difficulty is locked once the world is made).",
         "newworld": "Start a new world with a random seed straight away.",
@@ -422,7 +422,7 @@ final class PauseMenu: Menu {
             rows = [("Cancel", "back"), (g.survival ? "Switch to Creative" : "Switch to Survival", "mode_yes")]
         case .confirm where confirmQuit:
             // Q2c-console-54: one stray pull no longer closes the app.
-            title = "Quit Blocksmith?"
+            title = "Quit Sunderfall?"
             subtitle = "Your world is saved first and waits on the title screen next time."
             rows = [("Cancel", "back"), ("Save and Quit", "quit_yes")]
         case .confirm where confirmReset:
@@ -931,7 +931,7 @@ final class PauseMenu: Menu {
         case "textbg": st.textBackground = step([0, 0.25, 0.5, 0.75], st.textBackground)
         case "bugnotes":
             if BugNotes.denied {
-                g.onToast?("Allow Microphone and Speech Recognition for Blocksmith in System Settings > Privacy & Security")
+                g.onToast?("Allow Microphone and Speech Recognition for Sunderfall in System Settings > Privacy & Security")
             } else if BugNotes.authorized || st.bugNotes != 0 {
                 st.bugNotes = step([0, 1, 2], st.bugNotes)
                 if st.bugNotes == 2 { g.onToast?("Hold F7 or click both sticks (L3 + R3) and speak") }

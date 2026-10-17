@@ -170,7 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         worldsPanel = nil
         overlay.removeFromSuperview()
         buildOverlay()
-        window.title = "Blocksmith — \(join == nil ? name : (guest?.worldName ?? name))"
+        window.title = "Sunderfall — \(join == nil ? name : (guest?.worldName ?? name))"
         // Straight into the world (console style) rather than back to a pause menu.
         game.paused = false
         pauseChanged(false)
@@ -180,7 +180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
-        window.title = "Blocksmith"
+        window.title = "Sunderfall"
         window.collectionBehavior = [.fullScreenPrimary]
         window.acceptsMouseMovedEvents = true
         window.delegate = self
@@ -346,7 +346,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         overlay.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.55).cgColor
 
         let title = label(size: 40, mono: false)
-        title.stringValue = "Blocksmith"
+        title.stringValue = "Sunderfall"
         func button(_ t: String, _ sel: Selector) -> NSButton {
             let b = NSButton(title: t, target: self, action: sel)
             b.bezelStyle = .rounded
@@ -550,7 +550,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let appItem = NSMenuItem()
         main.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Quit Blocksmith", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit Sunderfall", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         let viewItem = NSMenuItem()
         main.addItem(viewItem)

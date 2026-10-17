@@ -138,7 +138,7 @@ final class XRSession {
         let a = PtrArena()
         var ci = XrInstanceCreateInfo()
         ci.type = XR_TYPE_INSTANCE_CREATE_INFO
-        setCString(&ci.applicationInfo.applicationName, "Blocksmith")
+        setCString(&ci.applicationInfo.applicationName, "Sunderfall")
         ci.applicationInfo.applicationVersion = 1
         setCString(&ci.applicationInfo.engineName, "Blocksmith")
         ci.applicationInfo.engineVersion = 1
@@ -190,7 +190,7 @@ final class XRSession {
         let a = PtrArena()
         var app = VkApplicationInfo()
         app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO
-        app.pApplicationName = a.cstr("Blocksmith")
+        app.pApplicationName = a.cstr("Sunderfall")
         app.pEngineName = a.cstr("Blocksmith")
         app.apiVersion = VK_API_1_1
         var vici = VkInstanceCreateInfo()

@@ -351,7 +351,7 @@ final class QuestApp {
         }
         QuestEntitlement.poll()                                   // S5 (off until the store app ID is set)
         if QuestEntitlement.denied && !exitWhenSaved {
-            game?.onToast?("This copy of Blocksmith isn't linked to your account. Buy it from the store to play.")
+            game?.onToast?("This copy of Sunderfall isn't linked to your account. Buy it from the store to play.")
             exitWhenSaved = true
             switchWorld(WorldRequest())
         }
@@ -676,7 +676,7 @@ final class QuestApp {
             }
         }
         // P293 (a): the game's name, then the world's.
-        label("BLOCKSMITH", headY + 0.34, 0.011, V4(1, 0.93, 0.74, 1))
+        label("SUNDERFALL", headY + 0.34, 0.011, V4(1, 0.93, 0.74, 1))      // (P340: the game's name)
         if !title.isEmpty { label(title, headY + 0.2, 0.0065, V4(1, 1, 1, 1)) }
         // The bar and the stage with its percent under it.
         let by = headY - 0.62

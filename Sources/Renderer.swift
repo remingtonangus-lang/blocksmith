@@ -349,7 +349,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Pictures/Blocksmith")
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd_HH.mm.ss"
-            let name = "Blocksmith-\(f.string(from: Date())).png"
+            let name = "Sunderfall-\(f.string(from: Date())).png"
             let sz = view.drawableSize
             _ = renderToPNG(path: dir.appendingPathComponent(name).path, width: Int(sz.width), height: Int(sz.height))
             inflight.signal(); inflight.signal()
@@ -1556,7 +1556,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Loading screen: dirt-dark backdrop, big title, the world name.
             rect(0, 0, W, H, V4(0.09, 0.07, 0.06, 1))
             let big = s * 2
-            text("BLOCKSMITH", floor((W - textWidth("BLOCKSMITH", big * 2)) / 2), H * 0.3, big * 2, V4(0.86, 0.78, 0.55, 1))
+            text("SUNDERFALL", floor((W - textWidth("SUNDERFALL", big * 2)) / 2), H * 0.3, big * 2, V4(0.86, 0.78, 0.55, 1))
             text(t, floor((W - textWidth(t, big)) / 2), H * 0.55, big)
             return v
         }
@@ -2261,13 +2261,22 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
             }
             if let pm = m as? PauseMenu, pm.page == .title {
-                // Title screen logo: big blocky letters with a drop shadow, plus a tagline.
-                let logo = "BLOCKSMITH", ls = s * 4
-                let lx = floor((W - textWidth(logo, ls)) / 2), ly = max(4 * s, o.y - 44 * s)
-                text(logo, lx + ls * 0.5, ly + ls * 0.5, ls, V4(0.1, 0.1, 0.12, 1), shadow: false)
-                text(logo, lx, ly, ls, V4(0.86, 0.78, 0.55, 1), shadow: false)
-                let tag = "Build. Explore. Survive."
-                text(tag, floor((W - textWidth(tag, s)) / 2), ly + 9 * ls, s, V4(1, 1, 0.4, 1))
+                // Title screen logo (P340: the game is Sunderfall): the name in wide-spaced capitals with a soft shadow,
+                // over an ember rule broken in the middle by a falling chevron, and a tagline.
+                let logo = "S U N D E R F A L L", ls = textWidth("S U N D E R F A L L", s * 3) < W * 0.9 ? s * 3 : s * 2
+                let lw = textWidth(logo, ls)
+                let lx = floor((W - lw) / 2), ly = max(4 * s, o.y - 44 * s)
+                text(logo, lx + ls * 0.5, ly + ls * 0.5, ls, V4(0.06, 0.05, 0.05, 0.85), shadow: false)
+                text(logo, lx, ly, ls, V4(0.93, 0.88, 0.8, 1), shadow: false)
+                let ember = V4(0.86, 0.36, 0.14, 1), ry = ly + 10 * ls, mid = floor(W / 2), gap = 7 * s
+                rect(lx, ry, mid - gap - lx, s, ember)
+                rect(mid + gap, ry, lx + lw - mid - gap, s, ember)
+                for k in 0..<4 {                                         // the chevron: four rows narrowing downward
+                    let hw = Float(4 - k) * s
+                    rect(mid - hw, ry - 2 * s + Float(k) * s, hw * 2, s, ember)
+                }
+                let tag = "Fight. Fall. Endure."
+                text(tag, floor((W - textWidth(tag, s)) / 2), ry + 5 * s, s, V4(0.85, 0.8, 0.72, 1))
                 // Controller status along the bottom edge (inside the safe area).
                 let pads = PadManager.shared
                 let status = pads.connected ? Glyph.a.s + " " + pads.name + " ready" + (pads.battery.map { "  (battery \(Int($0 * 100))%)" } ?? "")
@@ -2998,7 +3007,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let hour = Int(game.dayFraction * 24 + 6) % 24
         let l = w.lightAt(bx, by, bz)
         return [
-            "Blocksmith  \(Int(fps.rounded())) fps  seed \(w.seed)",
+            "Sunderfall  \(Int(fps.rounded())) fps  seed \(w.seed)",
             String(format: "XYZ %.2f / %.2f / %.2f", p.pos.x, p.pos.y - Float(YOFF + game.dim.dim.yShift), p.pos.z),
             "Block \(bx) \(by - YOFF - game.dim.dim.yShift) \(bz)  Chunk \(floorDiv(bx, CS)) \(floorDiv(bz, CS))  Facing \(facing)",
             "Biome \(biome.displayName)  Light sky \(l.sky) block \(l.block)",

@@ -323,7 +323,7 @@ final class NetHost {
             let v = r.u16(), reg = r.u32()
             let name = r.str()
             guard v == NetMsg.version, reg == NetCoop.registry else {
-                var o = NetOut(); o.str("That headset runs a different Blocksmith version: update both to play together")
+                var o = NetOut(); o.str("That headset runs a different Sunderfall version: update both to play together")
                 link?.send(NetMsg.refuse, o.b)
                 link?.close()
                 return

@@ -762,7 +762,7 @@ enum Snapshot {
             func front(_ k: Int, _ dy: Int) -> IVec3 { IVec3(bx + along.x * k + toward.x, gy + dy, bz + along.z * k + toward.z) }
             let sp = front(-3, 1)
             world.setBlock(sp.x, sp.y, sp.z, Blocks.id("oak_sign") + BlockID(4 + facing))
-            let sb = BlockEntity(.sign); sb.lines = ["Welcome to", "Blocksmith", "", "-- 2026 --"]; world.blockEntities[sp] = sb
+            let sb = BlockEntity(.sign); sb.lines = ["Welcome to", "Sunderfall", "", "-- 2026 --"]; world.blockEntities[sp] = sb
             // A rifle too: the armory's gun racks drew empty frames (run 395); sword and apple draw.
             for (i, it) in ["diamond_sword", "apple", "gun_rifle"].enumerated() where Items.has(it) {
                 let fp = i == 2 ? front(-2, 2) : front(-1 + i, 2)
