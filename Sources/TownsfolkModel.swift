@@ -13,6 +13,7 @@ struct TownLook {
     var hat: Hat = .none, hatColor = V3(0.3, 0.22, 0.15)
     var beard = false, longHair = false, bald = false, rolledSleeves = false, badge = false, bowTie: V3? = nil
     var glasses = false, tape = false, gunBelt = false, star = false
+    var woman = false              // P343: the figure and face
 
     enum Hat { case none, wideBrim, flatCap, bowler, bonnet, cap, straw }
 
@@ -29,6 +30,7 @@ struct TownLook {
         let role = v?.role ?? (m.baby ? "child" : "worker")
         var l = TownLook(skin: Livery.skins[k % Livery.skins.count], hair: Livery.hairs[(k / 5) % Livery.hairs.count],
                          shirt: shirts[(k / 3) % shirts.count], legs: trousers[(k / 7) % trousers.count], boots: V3(0.2, 0.14, 0.1))
+        l.woman = woman
         if woman { l.skirt = dresses[(k / 11) % dresses.count]; l.longHair = true }
         else { l.beard = !m.baby && k % 3 == 0 }
         switch role {
@@ -128,6 +130,11 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
         b(-2.4, 21, -2.55, 2.4, 23.4, -2.35, a, Pat.leather)
         if m.villager?.shopKind == .butcher { b(-1.5, 14, -2.6, 0.2, 15.5, -2.5, V3(0.62, 0.16, 0.14)); b(1, 10, -2.6, 2, 11, -2.5, V3(0.6, 0.18, 0.15)) }
     }
+    if l.woman && !m.baby, let s = l.skirt, l.coat == nil, l.apron == nil, l.overalls == nil {
+        // P343: a fitted bodice in the dress's colour with a cinched sash at the waist (a modest, tailored line).
+        b(-3.85, 13.6, -2.32, 3.85, 15.0, 2.32, s * 0.82)
+        if lv < 2 { b(-3.3, 15.0, -2.36, 3.3, 21.2, -2.22, s); b(-2.6, 21.2, -2.36, 2.6, 22.3, -2.22, s * 0.95) }
+    }
     if l.badge { b(-3.4, 19.5, -2.5, -1.8, 21.1, -2.36, V3(0.95, 0.8, 0.35), Pat.metal) }
     if l.star {                                                                                    // a six-point star, read as a cross with a hub
         let gold = V3(1, 0.82, 0.3)
@@ -210,6 +217,27 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
         let cheek = skin * V3(1.03, 0.93, 0.92)
         b(-2.8, 25.3, -3.25, -1.6, 26.4, -3.2, cheek, Pat.skin); b(1.6, 25.3, -3.25, 2.8, 26.4, -3.2, cheek, Pat.skin)
     }
+    // P343 (Oct 16, 19:46): adult faces with more character. Women: lashes over the eyes, fuller rosy lips, a softer
+    // jaw, styled hair (a fringe, a bun or a side sweep by look). Men: a squarer jaw, sideburns, stubble on some.
+    let look = m.villager?.look ?? 0
+    if l.woman && !m.baby {
+        let lash = V3(0.06, 0.05, 0.05)
+        if !shut { b(-2.35, 27.95, -3.4, -0.8, 28.2, -3.3, lash); b(0.8, 27.95, -3.4, 2.35, 28.2, -3.3, lash) }
+        if lv < 2 { b(-2.45, 27.5, -3.38, -2.2, 28.1, -3.3, lash); b(2.2, 27.5, -3.38, 2.45, 28.1, -3.3, lash) }   // outer flick
+        let rose = mixV(skin * V3(0.82, 0.58, 0.55), V3(0.7, 0.32, 0.34), 0.6)
+        b(-0.9, 24.7, -3.34, 0.9, 25.0, -3.22, rose, Pat.enamel); b(-1.05, 25.0, -3.32, 1.05, 25.25, -3.22, rose * 0.88, Pat.enamel)
+        if !l.bald {
+            switch look % 3 {
+            case 0: b(-3.45, 28.9, -3.5, 3.45, 30.4, -3.15, l.hair)                                     // fringe
+            case 1: b(-1.7, 27.6, 3.3, 1.7, 30.6, 5.1, l.hair * 0.94); b(-1.1, 28.2, 5.1, 1.1, 30.0, 5.6, l.hair * 0.9)   // bun
+            default: b(-3.45, 29.0, -3.5, 0.4, 30.5, -3.15, l.hair); b(-3.6, 26.2, -3.2, -3.3, 30.2, 1.2, l.hair)   // side sweep
+            }
+        }
+    } else if !m.baby {
+        b(-3.25, 23.5, -3.3, 3.25, 24.5, -2.4, skin * 0.95, Pat.skin)                                    // the jaw's line
+        if !l.bald { b(-3.42, 25.2, -1.3, -3.2, 28.4, 0.6, l.hair * 0.9); b(3.2, 25.2, -1.3, 3.42, 28.4, 0.6, l.hair * 0.9) }   // sideburns
+        if !l.beard && look % 3 == 1 { b(-3.0, 23.45, -3.36, 3.0, 25.1, -3.26, mixV(skin, l.hair, 0.3), Pat.skin) }   // stubble
+    }
     if !l.bald { b(-3.4, 29.6, -3.4, 3.4, 31, 3.4, l.hair); b(-3.4, 25.5, 2.4, 3.4, 31, 3.45, l.hair) }
     else { b(-3.35, 26, 0, -3.15, 29, 3.3, l.hair); b(3.15, 26, 0, 3.35, 29, 3.3, l.hair) }
     if l.longHair { b(-3.5, 21.5, 2.2, 3.5, 30, 3.6, l.hair); b(-3.5, 25.5, -1.5, -3.2, 30, 3, l.hair); b(3.2, 25.5, -1.5, 3.5, 30, 3, l.hair) }
@@ -253,8 +281,29 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
             p[i].mn.x *= k; p[i].mx.x *= k; p[i].mn.z *= k; p[i].mx.z *= k; p[i].pivot.x *= k; p[i].pivot.z *= k
         }
     }
+    // P343: the figure. A woman's shoulders and chest narrower than her hips (the skirt keeps its width); a man's
+    // shoulders broader. The unjointed parts from the waist up (torso, belt, vest) narrow or widen; the arms (and what
+    // they hold) move in or out with the shoulders without changing their own width.
+    if !m.baby {
+        let f: Float = l.woman ? 0.88 : 1.07
+        for i in 0..<headStart {
+            if p[i].pivot == .zero {
+                guard p[i].mn.y >= 12.9 && p[i].mn.y < 23.4 else { continue }
+                p[i].mn.x *= f; p[i].mx.x *= f
+            } else if p[i].pivot.y == 23 && p[i].pivot.x != 0 {
+                let dx = p[i].pivot.x * (f - 1)
+                if l.woman && p[i].mx.x - p[i].mn.x > 1.5 {                               // slimmer arms (not what she holds)
+                    let c = (p[i].mn.x + p[i].mx.x) / 2, hw = (p[i].mx.x - p[i].mn.x) * 0.43
+                    p[i].mn.x = c - hw; p[i].mx.x = c + hw
+                }
+                p[i].mn.x += dx; p[i].mx.x += dx; p[i].pivot.x += dx
+            }
+        }
+    }
     return p
 }
+
+@inline(__always) private func mixV(_ a: V3, _ b: V3, _ t: Float) -> V3 { a + (b - a) * t }
 
 // The weapon in the right hand: carried along the arm (hanging / a staff), or pointing forward from the hand while
 // fighting (raised by the arm's rotation). Built in the right arm's frame (same pivot and rotation).
