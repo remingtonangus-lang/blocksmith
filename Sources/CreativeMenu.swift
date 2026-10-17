@@ -140,7 +140,7 @@ final class CreativeMenu: Menu {
             return .building
         }
         if d.tool != .none || d.durability > 0 || d.armorSlot != nil || k.contains("arrow") || k.contains("firework") || k.contains("wind_charge")
-            || k.contains("snowball") || k.contains("pearl") { return .tools }
+            || k.contains("snowball") || k.contains("pearl") || k.hasSuffix("_armour_set") { return .tools }   // (P350: sets sat in Ingredients)
         if d.food != nil || d.drink || has(foodWords) { return .food }
         if has(sparkWords) { return .sparkstone }
         return .misc
