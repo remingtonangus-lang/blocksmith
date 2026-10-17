@@ -2205,13 +2205,15 @@ final class Renderer: NSObject, MTKViewDelegate {
                 // The log, newest at the bottom; long lines (coordinates) wrap instead of being cut off.
                 let logY: Float = sug.isEmpty ? 32 : 45, logH: Float = sug.isEmpty ? 100 : 87
                 rect(o.x + 8 * s, o.y + logY * s, 264 * s, logH * s, V4(0.12, 0.12, 0.14, 0.85))
+                // P355: the whole log (60 lines) wraps and scrolls (wheel / right stick, a bar at the right edge when it is
+                // longer than the box), so a long /rare list can be read to its top instead of being cut off.
                 var wrapped: [(String, V4)] = []
-                for l in game.commandLog.suffix(12) {
+                for l in game.commandLog {
                     let c = l.hasPrefix("  ") ? V4(0.75, 0.75, 0.75, 1) : (l.hasPrefix("/") ? V4(1, 1, 0.55, 1) : V4(1, 1, 1, 1))
                     var rest = Substring(l)
                     while !rest.isEmpty {
                         var n = rest.count
-                        while n > 1 && textWidth(String(rest.prefix(n)), s) > 258 * s { n -= 1 }
+                        while n > 1 && textWidth(String(rest.prefix(n)), s) > 252 * s { n -= 1 }
                         if n < rest.count, let sp = rest.prefix(n).lastIndex(of: " "), rest.distance(from: rest.startIndex, to: sp) > 8 {
                             n = rest.distance(from: rest.startIndex, to: sp) + 1
                         }
@@ -2221,8 +2223,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                     }
                 }
                 let fit = Int((logH - 4) / 11)
-                for (i, (t, c)) in wrapped.suffix(fit).enumerated() {
+                cm.logScroll = min(cm.logScroll, max(0, wrapped.count - fit))
+                let end = wrapped.count - cm.logScroll
+                for (i, (t, c)) in wrapped[max(0, end - fit)..<end].enumerated() {
                     text(t, o.x + 11 * s, o.y + Float(Int(logY) + 3 + i * 11) * s, s, c)
+                }
+                if wrapped.count > fit {
+                    let trackH = logH - 4, barH = max(8, trackH * Float(fit) / Float(wrapped.count))
+                    let top = (trackH - barH) * Float(end - fit) / Float(wrapped.count - fit)
+                    rect(o.x + 267 * s, o.y + (logY + 2) * s, 3 * s, trackH * s, V4(0.25, 0.25, 0.28, 1))
+                    rect(o.x + 267 * s, o.y + (logY + 2 + top) * s, 3 * s, barH * s, V4(0.7, 0.7, 0.75, 1))
                 }
                 if game.commandLog.isEmpty { text("Type /help, Tab completes names", o.x + 11 * s, o.y + (logY + 3) * s, s, V4(0.6, 0.6, 0.6, 1)) }
                 for sl in cm.slots where sl.isButton {
