@@ -22,7 +22,7 @@ final class PauseMenu: Menu {
     // (label, action id); settings show their current value in the label.
     var rows: [(String, String)] = []
     var scroll = 0
-    static let visible = 10          // the main page has ten rows (at 9 "Save and Quit Game" hid below a scrollbar: blind UI critic)
+    static let visible = 10          // the main page has ten rows (at 9 the last leave row hid below a scrollbar: blind UI critic)
     var subtitle = ""                // small line under the title (page hint, confirmation text)
     var cameFromTitle: Bool { stack.first == .title || page == .title }
     // Create World page (controller-friendly: the text fields use the on-screen keyboard).
@@ -276,7 +276,7 @@ final class PauseMenu: Menu {
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),        // (Q2c-console-16: the locked difficulty is in the subtitle)
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
                     ("Play Together...", "netmenu"),
-                    ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
+                    ("Save and Quit", "totitle")]   // P330: one leave row (the title screen has Quit Game)
             if g.coop.current > 0 {
                 // Player 2's pause menu: their own screens, and leaving (the world itself belongs to player 1).
                 subtitle = "Player 2"
@@ -495,7 +495,7 @@ final class PauseMenu: Menu {
                 (["options", vr, "rd", "mode"], 0),                              // settings
                 (["worldmap", "track", "advancements", "stats"], 0),             // map and progress
                 (["worlds", "netmenu", "coop", "photo", "commands", "shortcuts"], 0),
-                (["totitle", "quit"], 0)])                                        // leaving, apart from the rest
+                (["totitle"], 0)])                                                // leaving, apart from the rest
         case .title:
             return Style(width: 440, btnH: 30, gapX: 12, gapY: 6, groupGap: 12, cols: 4, lines: 6, groups: [
                 (["resume"], 0), ([vr, "worlds", "options"], 0), (["quit"], 0)])
