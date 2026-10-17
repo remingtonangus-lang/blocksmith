@@ -130,7 +130,11 @@ void main() {
     if (top) {
         // Light crossing `path` metres of water reaches the eye with `absorb` left (red goes first).
         float path = oWDepth / max(0.12, abs(v.y));
-        vec3 absorb = exp(-path * vec3(0.42, 0.15, 0.09));
+        // P352: swamp water (a tint greener than it is blue) is murky: it swallows light fast, so the shallow bed
+        // fades into a dark green-brown body instead of showing through, and it carries no shoreline foam (shallow
+        // all over, the foam read as white bubbles across the whole swamp).
+        float murk = 1.0 - smoothstep(0.8, 1.0, oTint.b / max(oTint.g, 0.01));
+        vec3 absorb = exp(-path * mix(vec3(0.42, 0.15, 0.09), vec3(1.1, 0.9, 1.2), murk));
         float T = dot(absorb, vec3(0.3, 0.5, 0.2));
         // F5 (open ocean the cheapest view): deep water (the mesher's 5+ band) past the near ring shows none of its bed,
         // so the far sections under 16+ blocks of water are not drawn at all (SceneRenderer.cull); from high up the
@@ -142,9 +146,9 @@ void main() {
         // Shoreline foam: where the water thins out over the bed, a broken white band drifting with the waves.
         float shore = 1.0 - smoothstep(0.0, 0.8, oWDepth);
         float foam = 0.0;
-        if (shore > 0.0 && oDist < 96.0) {             // (P184: open water, the most of the view, skips the noise)
+        if (shore > 0.0 && oDist < 96.0 && murk < 0.99) {             // (P184: open water, the most of the view, skips the noise)
             float fn = vnoise(wp.xz * 2.6 + vec2(t * 0.4, -t * 0.3)) * 0.6 + vnoise(wp.xz * 6.0 - t * 0.5) * 0.4;
-            foam = shore * shore * smoothstep(0.5, 0.85, fn + shore * 0.15) * 0.5;
+            foam = shore * shore * smoothstep(0.5, 0.85, fn + shore * 0.15) * 0.5 * (1.0 - murk);
         }
         vec3 foamC = vec3(0.92, 0.95, 0.97) * (lit * 0.85 + 0.05);
         pm = mix(pm, foamC, foam);
