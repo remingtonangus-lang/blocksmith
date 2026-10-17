@@ -98,6 +98,7 @@ extension Game {
             if scroll != 0 { am.scroll = max(0, min(max(0, am.list.count - AdvancementMenu.rows), am.scroll + scroll)) }
             if tab != 0 { am.tab = (am.tab + tab + Advancements.tabs.count) % Advancements.tabs.count; am.scroll = 0; sfx(.click, 0.4) }
         }
+        if let cm = m as? CommandMenu, scroll != 0 { cm.logScroll = max(0, cm.logScroll - scroll) }   // P355 (the renderer clamps the top)
         if let pm = m as? PauseMenu {
             if tab != 0 { pm.switchTab(tab) }
             if scroll != 0 { pm.scrollList(scroll) }

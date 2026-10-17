@@ -7,6 +7,7 @@ import simd
 final class CommandMenu: Menu {
     var line = ""
     var historyPos = -1
+    var logScroll = 0                      // P355: wrapped log lines scrolled back from the newest (wheel / right stick)
     static let buttons = ["Run", "Day", "Night", "Clear Sky", "Rain", "Survival", "Creative", "Keyboard"]
     static let suggestBase = 100           // suggestion buttons under the input line
 
@@ -65,7 +66,7 @@ final class CommandMenu: Menu {
         let t = line.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return }
         game.command(t)
-        line = ""; historyPos = -1
+        line = ""; historyPos = -1; logScroll = 0
     }
 
     // Suggestions for what is being typed (shown as buttons under the input line; Tab or a click takes one). Names
@@ -320,12 +321,13 @@ extension Game {
             guard let v = Int(a[1]), v > 0 else { return ["Usage: /xp <amount>[L]"] }
             addXP(min(v, 100_000_000))                   // n * 2 in the Mending split overflowed near Int.max
             return ["Gave \(v) experience points to Player"]
-        case "bases": return locateAll(["military_base", "boreal_station"])
+        // P355: every kind under one shortcut only (the Capital Citadel was listed by both /bases and /citadels).
+        case "bases": return locateAll(["boreal_station"])
         case "cities": return locateAll(["capital_city"])
-        case "citadels": return locateAll(["military_base", "ancient_city"])
+        case "citadels": return locateAll(["military_base"])
         case "frigates": return locateAll(["frigate", "warfrigate"])
         case "villages": return locateAll(["village"])
-        case "rare": return locateAll(["mansion", "great_ruin", "temple", "pillager_outpost", "trail_ruins", "monument", "trial_chambers"])
+        case "rare": return locateAll(["mansion", "great_ruin", "temple", "pillager_outpost", "trail_ruins", "monument", "trial_chambers", "ancient_city"])
         case "locate":
             guard a.count >= 2 else { return ["Usage: /locate <structure>   Shortcuts: /bases /citadels /frigates /villages /rare"] }
             let n = Game.norm(a[1])
