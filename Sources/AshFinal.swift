@@ -34,7 +34,9 @@ enum AshFinal {
         let floor = Blocks.id("polished_blackstone"), lamp = Blocks.id("ash_lamp"), plating = Blocks.id("ash_plating")
         let console = Blocks.has("command_console") ? Blocks.id("command_console") : plating
         let red = Blocks.has("red_wool") ? Blocks.id("red_wool") : Blocks.id("ash_mark")
-        let drum = Blocks.id("ash_drum"), crate = Blocks.id("ash_crate"), table = Blocks.id("crafting_table")
+        let drum = Blocks.id("ash_drum"), crate = Blocks.id("ash_crate")
+        // P348 (b): the map table and the desk carry a field-grey cloth, not crafting tables ("workbenches everywhere").
+        let cloth = Blocks.has("gray_carpet") ? Blocks.id("gray_carpet") : plating
         let top = y0 + 4                                  // the rooms' highest air layer
         func room(_ x0: Int, _ z0: Int, _ x1: Int, _ z1: Int) {
             w.fill(x0, y0 + 1, z0, x1, top, z1, AIR)
@@ -82,20 +84,32 @@ enum AshFinal {
         w.set(-12, top + 1, 24, lamp)
         // Map room: the big map table, consoles round the walls, the standard on the end wall.
         w.fill(-11, y0 + 1, 34, -6, y0 + 1, 38, console)
-        w.fill(-10, y0 + 2, 35, -7, y0 + 2, 37, table)
+        w.fill(-10, y0 + 2, 35, -7, y0 + 2, 37, cloth)
         w.fill(-15, y0 + 1, 31, -15, y0 + 2, 41, console)
         AshWar.standard(&w, x: -6, z: 41, top: top, normalX: false)
         for (x, z) in [(-12, 33), (-5, 33), (-12, 39), (-5, 39)] { w.set(x, top + 1, z, lamp) }
         // The study: a red runner to his desk, banners down the walls, the standard behind the desk.
         w.fill(7, y0, 32, 9, y0, 44, red)
         w.fill(5, y0 + 1, 41, 11, y0 + 1, 41, plating)            // the desk
-        w.fill(6, y0 + 2, 41, 10, y0 + 2, 41, table)
+        w.fill(6, y0 + 2, 41, 10, y0 + 2, 41, cloth)
         AshWar.standard(&w, x: 8, z: 45, top: top, normalX: false)
         for z in stride(from: 34, through: 43, by: 3) { hang(1, z, alongX: true); hang(15, z, alongX: true) }
         hang(4, 45, alongX: false); hang(12, 45, alongX: false)
         for (x, z) in [(4, 34), (12, 34), (4, 40), (12, 40), (8, 37)] { w.set(x, top + 1, z, lamp) }
         w.fill(2, y0 + 1, 44, 3, y0 + 2, 45, crate)
         w.fill(13, y0 + 1, 44, 14, y0 + 1, 45, drum)
+
+        // P348 (a): the complex is held, not empty: a guard at the stairs' foot and in the hall, a patrol in the
+        // corridor, signallers at the radio, a mechanic at the generator, staff officers over the map, and two
+        // ironclads at the study door (heading: degrees, 0 = facing -z).
+        func post(_ rank: String, _ x: Float, _ z: Float, _ hd: Int) { w.mob("soldier_\(rank)@ash^\(hd)", V3(x + 0.5, Float(y0 + 1), z + 0.5)) }
+        post("trooper", 6, 19, 180); post("trooper", 10, 19, 180)
+        post("ironclad", 5, 24, 90); post("marksman", 11, 24, 270)
+        post("trooper", -10, 28, 90); post("trooper", 10, 28, 270); post("recruit", 0, 28, 0)
+        post("crew", -4, 21, 0); post("crew", -1, 21, 0)
+        post("recruit", -11, 23, 270)
+        post("officer", -12, 36, 90); post("officer", -5, 36, 270); post("marksman", -9, 40, 0)
+        post("ironclad", 6, 33, 0); post("ironclad", 10, 33, 0)
     }
 
     // A saved vault chunk from before the bunker: build it in, unless it already holds bunker concrete (it was
