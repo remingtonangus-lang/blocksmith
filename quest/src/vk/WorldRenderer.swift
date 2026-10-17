@@ -305,7 +305,7 @@ final class WorldRenderer {
         // Behind the middle ring (F4) the nearest of it shows past the ring's rim, 1024 blocks out: 3 blocks of travel
         // there is a sixth of a degree, so a flight at full speed rebuilds it every third frame, not every frame.
         lmFrameNo += 1
-        let every = !TickProf.lighter ? 1 : (landmarkVerts.count > lmSmokeStart && lmSmokeStart > 0 ? 2 : 6)
+        let every = !TickProf.lighter ? 1 : (Renderer.plumeRising ? 2 : 6)
         let move: Float = TickProf.lighter && FarRing.enabled ? 9 : 1
         if lmFrameNo - lmBuilt >= every || simd_length_squared(eye - lmEye) > move || far != lmFar || landmarkVerts.isEmpty {
             landmarkVerts.removeAll(keepingCapacity: true)
