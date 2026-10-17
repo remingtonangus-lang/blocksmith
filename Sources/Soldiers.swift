@@ -1199,6 +1199,10 @@ func deckGunParts(_ m: Mob) -> [Part] {
             // Shell racks and a loader's seat on the open deck.
             box(-90, 18, 80, 40, 24, 30, V3(0.3, 0.27, 0.2)), box(50, 18, 80, 40, 24, 30, V3(0.3, 0.27, 0.2)),
             box(-10, 18, 60, 20, 14, 20, dark),
+            // P332: the top shield, a roof over the guns from the face back past the breeches, and the flanks raised
+            // to meet it, so the barrels come out of a closed casemate instead of an open box.
+            box(-120, 64, -80, 20, 18, 100, grey * 0.95), box(100, 64, -80, 20, 18, 100, grey * 0.95),
+            box(-120, 82, -96, 240, 8, 120, grey * 0.9), box(-110, 90, -88, 220, 4, 100, mid),
         ]
     case .greywall, .aaTwin, .pompom, .dpMount, .flak:        // (the small guns return earlier: smallGunParts)
         p += [
@@ -1271,7 +1275,7 @@ func smallGunParts(_ look: DeckGunLook, grey: V3, mid: V3, dark: V3, deck: V3, p
     case .aaTwin:
         // An open mount: a round deck plate, a pedestal, the cradle between the barrels, two layers' seats with their
         // hand wheels, and thin shields either side.
-        p += [box(-90, -4, -90, 180, 8, 180, deck), box(-34, 4, -30, 68, 30, 64, dark), box(-60, 34, -50, 120, 10, 110, grey),
+        p += [box(-90, -4, -90, 180, 8, 180, deck), box(-34, 4, -30, 68, 30, 64, dark), box(-60, 34, -110, 120, 10, 170, grey),
               box(-118, 34, -40, 16, 60, 100, white), box(102, 34, -40, 16, 60, 100, white),
               box(-100, 44, 20, 26, 18, 26, dark), box(74, 44, 20, 26, 18, 26, dark),
               box(-104, 62, 22, 34, 4, 4, mid), box(70, 62, 22, 34, 4, 4, mid)]
@@ -1293,14 +1297,18 @@ func smallGunParts(_ look: DeckGunLook, grey: V3, mid: V3, dark: V3, deck: V3, p
         // narrow shield, a fuze-setter box on the left and a rack of ready rounds behind.
         let hz = V3(0.8, 0.62, 0.14)
         func fixed(_ q: Part) -> Part { var q = q; q.rotY = base; return q }
-        p += [box(-170, -4, -14, 340, 10, 28, dark), box(-14, -4, -170, 28, 10, 340, dark),
-              box(-120, 6, -10, 14, 2, 20, hz), box(106, 6, -10, 14, 2, 20, hz),
-              box(-10, 6, -120, 20, 2, 14, hz), box(-10, 6, 106, 20, 2, 14, hz),
-              box(-46, 6, -46, 92, 20, 92, grey)].map(fixed)
-        for (x, z) in [(-176, -12), (152, -12), (-12, -176), (-12, 152)] as [(Float, Float)] {
-            p.append(fixed(box(x, -6, z, 24, 6, 24, mid))); p.append(fixed(box(x + 8, 0, z + 8, 8, 16, 8, grey)))
+        // P332 (Oct 16 "a broken-looking flak gun"): sturdier outrigger beams with a centre cross plate, a wide pedestal
+        // drum and a turntable ring, so the carriage sits on a solid mount instead of a pin over thin rails.
+        p += [box(-170, -4, -20, 340, 14, 40, dark), box(-20, -4, -170, 40, 14, 340, dark),
+              box(-80, -4, -80, 160, 10, 160, dark * 1.3),
+              box(-120, 10, -10, 14, 2, 20, hz), box(106, 10, -10, 14, 2, 20, hz),
+              box(-10, 10, -120, 20, 2, 14, hz), box(-10, 10, 106, 20, 2, 14, hz),
+              box(-58, 6, -58, 116, 16, 116, grey)].map(fixed)
+        for (x, z) in [(-180, -16), (148, -16), (-16, -180), (-16, 148)] as [(Float, Float)] {
+            p.append(fixed(box(x, -6, z, 32, 6, 32, mid))); p.append(fixed(box(x + 10, 0, z + 10, 12, 18, 12, grey)))
         }
-        p += [box(-66, 26, -140, 132, 6, 190, mid),
+        p += [box(-64, 22, -64, 128, 4, 128, dark),
+              box(-66, 26, -140, 132, 6, 190, mid),
               box(-40, 32, -128, 14, 40, 64, grey), box(26, 32, -128, 14, 40, 64, grey),
               box(-74, 32, -110, 20, 24, 22, dark), box(-78, 56, -106, 28, 4, 14, white),
               box(-30, 32, 20, 60, 30, 10, dark)]
