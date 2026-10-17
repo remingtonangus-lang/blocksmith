@@ -8,6 +8,7 @@ import simd
 // wherever the real landmark has been generated, and the impostor fills in where it hasn't.
 extension Renderer {
     static let landmarkRange: Float = 2600
+    static var plumeRising = false                 // the last build had volcano smoke (camp smoke alone rebuilds slower)
     static let spireRange: Float = 1800               // a 170-block shaft is a sliver beyond this
     static var spireList: [V4] = []                // x, base y, z, height (refreshed every 2 s)
     static var spireAt: Double = -10
@@ -32,7 +33,7 @@ extension Renderer {
 
     // Appends the impostor triangles: opaque ones first, then `smokeStart` marks the blended smoke.
     func buildLandmarks(_ out: inout [SimpleVert], smokeStart: inout Int, game: Game, eye: V3, far: Float, fog: V3, rd: Float) {
-        smokeStart = 0
+        smokeStart = 0; Renderer.plumeRising = false
         guard game.dim.dim == .overworld, let wg = game.world.gen as? WorldGen else { return }
         let vols = wg.terrain.volcanoes(near: eye.x, eye.z, reach: Renderer.landmarkRange)
         let loaded = rd * 16
@@ -213,6 +214,8 @@ extension Renderer {
                 tri(p(d0), p(d1), p(b1), f4, &out); tri(p(d0), p(b1), p(b0), f4, &out)
             }
         }
+        Renderer.plumeRising = !smoke.isEmpty                    // (volcano smoke: the Quest rebuilds it every 2nd frame)
+        campSmoke(&smoke, game: game, eye: eye, loaded: loaded, fog: fog, day: day, hdrK: hdrK, shell: p)   // P331
         smokeStart = out.count
         out.append(contentsOf: smoke)
         landmarkSmoke = smoke
