@@ -653,11 +653,12 @@ enum Loot {
         "ash_command": (5...9, [("ashguard_journal", 1, 1, 5), ("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 6), ("gun_launcher", 1, 1, 6),
                                 ("gun_sturmwind", 1, 1, 8),
                                 ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 10, 10), ("arc_cell", 6, 14, 6), ("netherite_scrap", 1, 3, 4),
-                                ("diamond_chestplate@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("experience_bottle", 4, 10, 6)]),
+                                ("diamond_chestplate@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("experience_bottle", 4, 10, 6),
+                                ("hannibal_armour_set", 1, 1, 2)]),   // P350: the flight suit, findable
         "steelhold_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_launcher", 1, 1, 6),
                                     ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 8, 8), ("arc_cell", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
                                     ("diamond_sword@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("targeting_optic", 1, 2, 6),
-                                    ("radar_module", 1, 1, 5), ("intercepted_orders", 1, 2, 6)]),
+                                    ("radar_module", 1, 1, 5), ("intercepted_orders", 1, 2, 6), ("hannibal_armour_set", 1, 1, 3)]),   // P350
     ]
 
     // "name@a-b": enchant with a-b levels (treasure allowed); "name@0": enchant randomly (50%);

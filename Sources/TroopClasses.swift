@@ -155,7 +155,7 @@ extension ItemRegistry {
                 add(d)
             }
             if !has(c.setItem) {
-                var d = ItemDef(c.setItem, "\(c.name) Armour Set")
+                var d = ItemDef(c.setItem, c == .hannibal ? "Hannibal Flight Suit" : "\(c.name) Armour Set")   // P350: the name he looks for
                 d.sprite = Sprite(mask: "chestplate", base: colour, extras: [:])
                 d.maxStack = 1
                 add(d)
