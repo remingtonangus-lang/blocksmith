@@ -5,8 +5,8 @@ import Foundation
 final class AboutMenu: ListMenu {
     struct Part { let name: String; let licence: String; let notice: String }
     static var parts: [Part] {
-        var out = [Part(name: "Blocksmith", licence: "Code, textures, sound and music made for the game",
-                        notice: "Every name, text, texture and sound in Blocksmith is its own"),
+        var out = [Part(name: "Sunderfall", licence: "Code, textures, sound and music made for the game",
+                        notice: "Every name, text, texture and sound in Sunderfall is its own"),
                    Part(name: "Swift runtime, Foundation, Dispatch", licence: "Apache License 2.0 with Runtime Library Exception",
                         notice: "Copyright Apple Inc. and the Swift project authors")]
         #if os(Android)
@@ -29,7 +29,7 @@ final class AboutMenu: ListMenu {
 
     init(game g: Game) {
         super.init("About and Licences", game: g)
-        subtitle = "Blocksmith, and the open source parts it is built on"
+        subtitle = "Sunderfall, and the open source parts it is built on"
         corner = ""
     }
     override var rows: [Row] {

@@ -31,7 +31,7 @@
     </queries>
 
     <application
-        android:label="Blocksmith"
+        android:label="Sunderfall"
         android:hasCode="false"
         android:extractNativeLibs="true"
         android:allowBackup="false">
@@ -41,7 +41,7 @@
 
         <activity
             android:name="android.app.NativeActivity"
-            android:label="Blocksmith"
+            android:label="Sunderfall"
             android:exported="true"
             android:launchMode="singleTask"
             android:screenOrientation="landscape"

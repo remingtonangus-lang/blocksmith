@@ -340,8 +340,8 @@ enum QuestOptions {
         ]
         if let g = newWorld() {
             rows.insert(("First World: \(Difficulty.name(g.diffLevel))", "q_firstdiff"), at: rows.count - 1)
-            return ("Welcome to Blocksmith", "Pull the trigger on a row to change it. All but the difficulty can change later in VR Comfort & Controls.", rows)
+            return ("Welcome to Sunderfall", "Pull the trigger on a row to change it. All but the difficulty can change later in VR Comfort & Controls.", rows)
         }
-        return ("Welcome to Blocksmith", "Pull the trigger on a row to change it. All of it can change later in VR Comfort & Controls.", rows)
+        return ("Welcome to Sunderfall", "Pull the trigger on a row to change it. All of it can change later in VR Comfort & Controls.", rows)
     }
 }

@@ -310,7 +310,7 @@ extension Game {
 extension Game {
     // Original credits text (not the reference game's poem).
     static let creditsLines: [String] = [
-        "BLOCKSMITH", "", "", "The wyrm is gone. The island is quiet.", "",
+        "SUNDERFALL", "", "", "The wyrm is gone. The island is quiet.", "",
         "You came from a world of grass and water,", "dug down through stone and deeprock,",
         "walked through fire in the Emberdeep,", "followed the eyes across the land,",
         "and crossed the dark to the Hollow.", "", "Every block you placed was a choice.",
