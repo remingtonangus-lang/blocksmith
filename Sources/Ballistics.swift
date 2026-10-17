@@ -298,7 +298,8 @@ final class Armory {
     private func impactMob(_ s: Slug, _ m: Mob, at: V3, dir: V3, _ g: Game) {
         // P219 (Oct 13 19:08, "a direct rocket hit should kill a soldier outright"): the body a rocket strikes takes the
         // whole warhead, whatever its plate (a deck gun or a tank's armour still only takes the blast).
-        if s.kind == .rocket, Soldier.rank(m.kind) != nil, m.kind != .deckGun, m.health > 0 {
+        // P345: a tank or artillery shell to the body kills the same way.
+        if (s.kind == .rocket && Soldier.rank(m.kind) != nil && m.kind != .deckGun || s.kind == .shell && !m.kind.shellProof), m.health > 0 {
             if s.fromPlayer { m.killedByPlayer = true; m.playerHurtAt = g.clock; hitMarker = 0.3; hits += 1 }
             m.hit(from: at - dir * 2, damage: m.health + 1000, knockback: 1.2)
         }
@@ -524,6 +525,13 @@ final class Armory {
 }
 
 extension MobKind {
+    // P345: what a shell to the body doesn't kill outright: guns, vehicles, bosses and things that aren't bodies.
+    var shellProof: Bool {
+        switch self {
+        case .deckGun, .enderDragon, .wither, .warden, .elderGuardian, .boat, .minecart, .endCrystal, .ironGolem: return true
+        default: return ashVehicle
+        }
+    }
     // The Steelhold garrison (their rounds pass through each other).
     var steelhold: Bool {
         self == .soldierRecruit || self == .soldierTrooper || self == .soldierMarksman || self == .soldierIronclad || self == .deckGun
