@@ -91,6 +91,7 @@ extension Game {
         if submarineUse() { return true }              // C8 (Submarines.swift)
         if depthChargeUse() { return true }            // P278 (DepthCharges.swift)
         if sundryUse() { return true }                 // P133 (BaseSundries.swift)
+        if aeroSparesUse() { return true }             // P346 (AshWrecks.swift)
         if blueprintUse() { return true }              // P138 (Blueprints.swift)
         if vehicleBlueprintUse() { return true }       // D43 (VehiclePresets.swift)
         if VehicleDepot.useCan(self) { return true }   // D44 (VehicleDepot.swift)

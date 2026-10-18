@@ -46,12 +46,15 @@ final class VaultGround {
         abs(riverN.fbm2(Float(x) / 170, Float(z) / 170, 2)) < 0.022 && AshWar.clearance(x, z, front: front) > 14
     }
 
-    // No man's land: the belt outside the Ember Line's wire (432 out) to about 560, faded at both edges.
+    // No man's land: the belt outside the Ember Line's wire (432 out), faded at both edges. P346 (e): its own place, its
+    // outer edge ragged (out to 535-615 by its own noise) instead of a ring.
+    static let nmlOuter: Float = 575, nmlRagged: Float = 40
     func noMansLand(_ x: Int, _ z: Int) -> Float {
         let d = sqrtf(Float(x * x + z * z))
         let inner = AshLines.emberR + AshLines.emberHalf
-        guard d > inner - 4 && d < 560 else { return 0 }
-        let a: Float = min(1, (d - inner + 4) / 10), b: Float = min(1, (560 - d) / 40)
+        guard d > inner - 4 && d < VaultGround.nmlOuter + VaultGround.nmlRagged else { return 0 }
+        let outer = VaultGround.nmlOuter + VaultGround.nmlRagged * riverN.noise2(Float(x) / 95 + 31, Float(z) / 95 - 17)
+        let a: Float = min(1, (d - inner + 4) / 10), b: Float = min(1, (outer - d) / 30)
         return max(0, min(a, b))
     }
 
@@ -341,27 +344,6 @@ enum AshFront {
                 put(u, g.top(X(u, v), Z(u, v)) + 1, v, k)
             }
         }
-        // A tank hull facing along v (or u with `side`), centred on (cu, cv); its turret on top or blown off beside it.
-        func tank(_ cu: Int, _ cv: Int, side: Bool, turretOff: Bool) {
-            func P(_ a: Int, _ c: Int, _ y: Int, _ b: BlockID) { side ? put(cu + c, y, cv + a, b) : put(cu + a, y, cv + c, b) }
-            let y0 = side ? base(cu - 3, cv - 2, cu + 3, cv + 2) : base(cu - 2, cv - 3, cu + 2, cv + 3)
-            for a in -2...2 { for c in -3...3 {
-                P(a, c, y0, abs(a) == 2 ? hull : burnt(olive, a, y0, c))                         // running gear and tracks
-                if abs(a) < 2 || abs(c) < 3 { P(a, c, y0 + 1, abs(a) == 2 ? hull : burnt(olive, a, y0 + 1, c)) }
-                P(a, c, y0 + 2, AIR)
-            } }
-            if turretOff {
-                // The turret lies upside down beside the hull, its gun across the ground.
-                let tu = cu + (side ? 0 : 5), tv = cv + (side ? 5 : 0)
-                let ty = base(tu - 1, tv - 1, tu + 1, tv + 1) + 1
-                for a in -1...1 { for c in -1...1 { put(tu + a, ty, tv + c, burnt(olive, a, ty, c)) } }
-                for k in 2...5 { put(tu + (side ? k : 0), ty, tv + (side ? 0 : k), hull) }
-            } else {
-                for a in -1...1 { for c in -1...1 { P(a, c, y0 + 2, burnt(olive, a, y0 + 2, c)) } }
-                for k in 2...5 { P(0, -k, y0 + 2, hull) }
-                P(0, 1, y0 + 3, hull)                                                           // the open hatch
-            }
-        }
         // A burnt-out lorry facing along v: chassis, wheels, the cab's shell, the cargo bed's charred ribs.
         func lorry(_ cu: Int, _ cv: Int) {
             let y0 = base(cu - 1, cv - 3, cu + 1, cv + 3)
@@ -372,65 +354,40 @@ enum AshFront {
             for v in -1...3 { put(cu - 1, y0 + 1, cv + v, burnt(olive, -1, y0 + 1, v)); put(cu + 1, y0 + 1, cv + v, burnt(olive, 1, y0 + 1, v)) }
             for v in [0, 2] { put(cu - 1, y0 + 2, cv + v, fence); put(cu + 1, y0 + 2, cv + v, fence) }
         }
+        // P346: the bomber, the fighter and the tanks are models (AshWrecks); here only the ground they scarred, a solid
+        // core hidden inside each hull and, in the bomber, the chest with its spares.
+        let spots = AshWrecks.spots(s, g)
+        func core(_ sp: AshWrecks.Spot, along: [Int], heights: Int) {
+            let bx = Int(floorf(sp.pos.x)), by = Int(floorf(sp.pos.y)), bz = Int(floorf(sp.pos.z))
+            let fx2 = Int(roundf(-sinf(sp.yaw))), fz2 = Int(roundf(-cosf(sp.yaw)))
+            for a in along { for dy in 0..<heights { w.set(bx - a * fx2, by + dy, bz - a * fz2, hull) } }
+        }
         switch s.kind {
         case 0:
-            // A bomber came down out of the fog: the furrow it ploughed, the fuselage broken behind the wings, the tail
-            // thrown on, one wing torn off, the engines' bent propellers.
-            for v in -18...(-3) { for u in -1...1 where rng.chance(0.8) { scar(u, v) } }
-            let y0 = base(-2, -2, 2, 8)
-            for v in -2...7 {
-                let sink = v < 1 ? 1 : 0
-                for u in -1...1 { for dy in 0...2 {
-                    let y = y0 + dy - sink
-                    let shell = abs(u) == 1 || dy == 0 || dy == 2
-                    put(u, y, v, shell ? burnt(dy == 2 ? olive : alu, u, y, v) : AIR)
-                } }
+            // A bomber came down out of the fog and slid on its belly: the furrow behind it, its fuselage solid.
+            for v in 4...17 { for u in -1...1 where rng.chance(0.75) { scar(u, v) } }
+            if let sp = spots.first {
+                core(sp, along: Array(-9...3), heights: 1)
+                // The crew's stores, spilled at the break behind the wings (the spares are there).
+                let bx = Int(floorf(sp.pos.x)), by = Int(floorf(sp.pos.y)), bz = Int(floorf(sp.pos.z))
+                let fx2 = Int(roundf(-sinf(sp.yaw))), fz2 = Int(roundf(-cosf(sp.yaw)))
+                w.chest(bx - 4 * fx2, by, bz - 4 * fz2, loot: "ash_bomber", seed: rng.next(), facing: 0)
             }
-            put(0, y0, -2, glass); put(-1, y0, -2, glass); put(1, y0 + 1, -2, AIR)                // the shattered nose glazing
-            let yt = base(0, 9, 2, 14)
-            for v in 9...14 { for u in 0...2 { for dy in 0...1 {
-                let shell = u != 1 || dy == 1
-                put(u, yt + dy, v, shell ? burnt(dy == 1 ? olive : alu, u, yt + dy, v) : AIR)
-            } } }
-            for dy in 2...4 { put(1, yt + dy, 14, burnt(olive, 1, yt + dy, 14)) }
-            for u in -2...4 { put(u, yt + 1, 13, burnt(alu, u, yt + 1, 13)) }
-            for v in 2...4 {
-                for u in -10...(-2) where !(u <= -9 && v == 4) { put(u, y0 + 1, v, burnt(alu, u, y0 + 1, v)) }
-                for u in 2...6 where !(u == 6 && v == 2) { put(u, y0 + 1, v, burnt(alu, u, y0 + 1, v)) }
-            }
-            let yw = base(9, 7, 14, 9) + 1                                                  // the torn-off outer wing
-            for u in 9...14 { for v in 7...9 where !(u == 14 && v == 9) { put(u, yw, v, burnt(alu, u, yw, v)) } }
-            for u in [-5, 4] {
-                for v in 1...4 { put(u, y0, v, hull); put(u + 1, y0, v, burnt(olive, u, y0, v)) }
-                put(u, y0 + 1, 0, bars); put(u, y0 - 1, 0, bars); put(u - 1, y0, 0, bars)
-            }
-            debris(16, 15, [alu, alu, hull, olive, bars])
         case 1:
-            // A fighter nosed into the ground: the fuselage rising to its tail, a wingtip off, the propeller buried.
-            let y0 = base(-1, -1, 1, 8)
-            for v in -1...7 {
-                let dy = (v + 1) / 3 - 1
-                put(0, y0 + dy, v, burnt(olive, 0, y0 + dy, v)); put(0, y0 + dy + 1, v, burnt(olive, 0, y0 + dy + 1, v))
-            }
-            put(0, y0 + 2, 2, glass)
-            for u in -5...4 where u != 0 { put(u, y0, 1, burnt(alu, u, y0, 1)); if abs(u) < 4 { put(u, y0, 2, burnt(olive, u, y0, 2)) } }
-            let yb = base(6, 5, 7, 6) + 1
-            put(6, yb, 5, alu); put(7, yb, 5, olive); put(7, yb, 6, alu)
-            put(0, y0 + 3, 7, olive); put(0, y0 + 4, 7, olive)
-            for u in -2...2 where u != 0 { put(u, y0 + 2, 7, alu) }
-            put(0, y0 - 1, -2, bars); put(-1, y0 - 1, -2, bars)
+            // A fighter nosed into the ground: the gouge it made.
             for v in -6...(-2) { scar(0, v); if rng.chance(0.5) { scar(rng.chance(0.5) ? 1 : -1, v) } }
-            debris(8, 9, [alu, hull, olive])
         case 2:
-            // A tank troop caught on open ground: three knocked-out hulks, one with its turret blown off.
-            tank(0, -8, side: false, turretOff: false)
-            tank(4, 3, side: true, turretOff: true)
-            tank(-3, 11, side: false, turretOff: rng.chance(0.3))
+            // A tank troop caught on open ground: three knocked-out hulls, solid.
+            for sp in spots { core(sp, along: Array(-1...1), heights: 1) }      // (inside the hull, under its deck)
             for _ in 0..<10 { scar(rng.range(-8, 8), rng.range(-14, 14)) }
-            debris(10, 14, [hull, olive, bars])
         case 3:
-            // An ambushed convoy on a dirt track: three burnt-out lorries, the middle one shoved off the track.
-            for v in -15...15 { for u in -1...1 where rng.chance(0.85) { scar(u, v) } }
+            // An ambushed convoy on a dirt track: three burnt-out lorries, the middle one shoved off the track. P346 (f):
+            // the track is two wheel ruts that thin out into the field at both ends (a 3-wide strip stopped dead).
+            for v in -15...15 {
+                let fade = Float(max(0, abs(v) - 9)) / 7
+                for u in [-1, 1] where rng.chance(0.9 - 0.85 * fade) { scar(u, v) }
+                if abs(v) < 8 && rng.chance(0.3) { scar(0, v) }
+            }
             lorry(0, -9); lorry(3, 0); lorry(-1, 9)
             debris(10, 13, [hull, olive, fence, coal])
         default:
@@ -494,6 +451,7 @@ enum AshFallen {
     static func refresh(_ g: Game) {
         guard g.dim.dim == .deep, DeepGen.inVault(g.player.pos.y), let dg = g.world.gen as? DeepGen else {
             if !mobs.isEmpty || !built.isEmpty { mobs = []; built = [:] }
+            AshWrecks.clear()
             return
         }
         let p = g.player.pos
@@ -518,6 +476,7 @@ enum AshFallen {
         for (_, b) in built { all += b.bodies }
         all.sort { simd_length_squared($0.pos - p) < simd_length_squared($1.pos - p) }
         mobs = Array(all.prefix(cap))
+        AshWrecks.refresh(g, dg)
     }
 
     // A body on the ground at (x, z) (the world's own ground there: an old save's floor too), nil while unloaded.
@@ -530,6 +489,7 @@ enum AshFallen {
         guard y > 0 else { return nil }
         let m = Mob(.soldierTrooper, at: V3(x, Float(y), z))
         m.fallen = true
+        m.lying = true                                          // P346: flat on his back (AshWrecks.fallenAlliedParts)
         m.yaw = yaw
         m.variant = Guns.rifle
         m.brain = SoldierBrain(gun: Guns.rifle)

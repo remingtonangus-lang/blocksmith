@@ -126,7 +126,7 @@ final class WorldRenderer {
         let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
         let hellSky = game.inHellSky && !underwater && !p.headInLava         // P342 (b): hell's own (HellSky.swift)
         // P323 (b): the vault's haze up to its roof (above y 128 the roof is drawn, but the air is the vault's).
-        if game.inVaultHaze && !underwater && !p.headInLava { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd); fogColor = sky }
+        if game.inVaultHaze && !underwater && !p.headInLava { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, game.vaultFogEnd); fogColor = sky }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         if !underwater, hasSky, let cap = World.caveSight(caveK: underground ? 0 : caveK), cap < fogEnd { fogEnd = cap; fogStart = min(fogStart, cap * 0.55) }
         // F4: the middle ring (Sources/FarRing.swift) shows past the loaded chunks whenever the view reaches them (the

@@ -419,6 +419,7 @@ final class Mob {
     var sitting = false
     var lying = false               // a villager asleep in its bed: drawn on its back along the bed (VillageLife)
     var fallen = false              // P326: one of the Ash Vault's fallen Allied soldiers (AshFallen): olive drab, drawn only
+    var wreck: Int8 = -1            // P346: one of the Ash Vault's wrecks (AshWrecks): drawn only, its model by kind
     var collar = 0
     var saddled = false
     var armorTier = 0               // horse / wolf armour
@@ -1749,6 +1750,8 @@ func box(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float,
 func mobModelParts(_ m: Mob) -> [Part] { parts(m) + equipmentParts(m) }
 
 private func parts(_ m: Mob) -> [Part] {
+    if m.fallen { return fallenAlliedParts(m) }                  // P346 (AshWrecks.swift)
+    if m.wreck >= 0 { return ashWreckParts(m) }
     let swing = sinf(m.walkPhase) * 0.7 * m.walkAmount
     func leg(_ x: Float, _ z: Float, _ w: Float, _ h: Float, _ ph: Float, _ c: V3, _ pat: Float = 0) -> Part {
         Part(mn: V3(x - w / 2, 0, z - w / 2), mx: V3(x + w / 2, h, z + w / 2), pivot: V3(x, h, z), rotX: swing * ph, color: c, pattern: pat)
@@ -2193,6 +2196,10 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
     for m in AshFallen.mobs {
         let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
         if dx * dx + dz * dz <= min(maxD2, 64 * 64) { list.append(m) }
+    }
+    for m in AshWrecks.mobs {                                    // P346: the scenes' wrecks, out to the fog
+        let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
+        if dx * dx + dz * dz <= min(maxD2, 140 * 140) { list.append(m) }
     }
     defer { MobOrder.list = list }
     for (idx, m) in list.enumerated() {
