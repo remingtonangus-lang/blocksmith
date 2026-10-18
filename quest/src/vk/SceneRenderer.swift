@@ -842,6 +842,7 @@ final class SceneRenderer {
 
     private var visible: [(Chunk, Int, Float)] = []
     private var visitGen: [UInt32] = []
+    private var foundGen: [UInt32] = []          // P335: a section listed to draw (walked through, or only peeked at)
     private var gen: UInt32 = 0
     // P283: the walk's queue holds plain numbers (the column in chunkGrid, the offsets, the section, the face it came in
     // by and the faces it went out by) and the sections found are sorted as packed keys: a chunk reference in every queue
@@ -862,9 +863,9 @@ final class SceneRenderer {
         if caveCulling, let startC = world.chunks[ChunkKey(x: pcx, z: pcz)], pSec >= 0 && pSec < NSEC, startC.meshedOnce {
             let R = world.renderDistance + 1, span = 2 * R + 1
             let need = span * span * NSEC
-            if visitGen.count < need { visitGen = [UInt32](repeating: 0, count: need) }
+            if visitGen.count < need { visitGen = [UInt32](repeating: 0, count: need); foundGen = [UInt32](repeating: 0, count: need) }
             gen &+= 1
-            if gen == 0 { gen = 1; for i in visitGen.indices { visitGen[i] = 0 } }
+            if gen == 0 { gen = 1; for i in visitGen.indices { visitGen[i] = 0; foundGen[i] = 0 } }
             func vidx(_ dx: Int, _ dz: Int, _ sy: Int) -> Int { ((dx + R) + (dz + R) * span) * NSEC + sy }
             if chunkGrid.count != span * span { chunkGrid = [Chunk?](repeating: nil, count: span * span) }
             var topSec = 0
@@ -881,21 +882,48 @@ final class SceneRenderer {
             var head = 0
             let r2 = world.renderDistance * world.renderDistance + world.renderDistance      // (World.inMeshRadius)
             let bx = Float(pcx * CS), bz = Float(pcz * CS), topCut = maxSection
+            let smoothWalls = world.fieldTerrain || SmoothTerrain.enabled
+            let allVis: UInt64 = (1 << 36) - 1
             let half = V3(8, 8, 8), side = V3(16, 16, 16)
             while head < bfs.count {
                 let n = bfs[head]; head += 1
                 guard let c = chunkGrid[Int(n.col)] else { continue }
                 let sy = Int(n.sy), dx = Int(n.dx), dz = Int(n.dz), entry = Int(n.entry), mask = Int(n.mask)
                 let sec = c.sections[sy]
-                if sy < topCut && !sec.empty {
+                if sy < topCut && !sec.empty && foundGen[vidx(dx, dz, sy)] != gen {
+                    foundGen[vidx(dx, dz, sy)] = gen
                     let mn = V3(bx + Float(dx * CS), Float(sy * 16), bz + Float(dz * CS))
                     let d = simd_length_squared(mn + half - eye)
                     found.append(UInt64(d.bitPattern) << 32 | UInt64(n.col) << 8 | UInt64(sy))
                 }
                 let vis = sec.meshedVersion == -1 ? ~UInt64(0) : sec.vis
+                // P335: a section with ground in it and open cells beside it lists all 26 sections round it to draw: the
+                // smooth ground of a section the walk never reaches (behind a corner, past an edge) reaches up to a block
+                // into the open cells here, and showed the void through the floor or wall where it should have been.
+                if smoothWalls && !sec.empty && vis != 0 && vis != allVis {
+                    for oy in -1...1 { for oz in -1...1 { for ox in -1...1 where ox != 0 || oy != 0 || oz != 0 {
+                        let ndx = dx + ox, ndz = dz + oz, nsy = sy + oy
+                        if nsy < 0 || nsy >= NSEC || nsy >= topCut || abs(ndx) > R || abs(ndz) > R || ndx * ndx + ndz * ndz > r2 { continue }
+                        let vi = vidx(ndx, ndz, nsy)
+                        if foundGen[vi] == gen || visitGen[vi] == gen { continue }
+                        let ncol = (ndx + R) + (ndz + R) * span
+                        guard let pc = chunkGrid[ncol], pc.meshedOnce, !pc.sections[nsy].empty else { continue }
+                        let nmn = V3(bx + Float(ndx * CS), Float(nsy * 16), bz + Float(ndz * CS))
+                        if !frustum.visible(min: nmn, max: nmn + side) || pastFog(nmn, eye) { continue }
+                        foundGen[vi] = gen
+                        found.append(UInt64(simd_length_squared(nmn + half - eye).bitPattern) << 32 | UInt64(ncol) << 8 | UInt64(nsy))
+                    } } }
+                }
                 for f in 0..<6 {
                     if mask & (1 << (f ^ 1)) != 0 { continue }
-                    if entry >= 0 && vis & (1 << UInt64(entry * 6 + f)) == 0 { continue }
+                    // P335 ("a piece of cave wall is not drawn, I can see through it into the void"): a smooth (field)
+                    // surface is not on the block grid: a section's ground can rise into the open cells of the section
+                    // beside it, and be seen from there, while the walk could not pass that way (no open path from where
+                    // it came in to that face). A face the section's open cells touch at all now lists the section past
+                    // it to draw (a peek), without walking on through it.
+                    let through = entry < 0 || vis & (1 << UInt64(entry * 6 + f)) != 0
+                    let peek = !through && smoothWalls && vis & (1 << UInt64(f * 6 + f)) != 0
+                    if !through && !peek { continue }
                     var ndx = dx, ndz = dz, nsy = sy
                     switch f {
                     case 0: ndx += 1
@@ -915,6 +943,13 @@ final class SceneRenderer {
                         guard let nc = chunkGrid[ncol], nc.meshedOnce else { continue }
                         if underDeepWater(nc, nsy) { continue }
                     } else if underDeepWater(c, nsy) { continue }
+                    if peek {
+                        if let pc = chunkGrid[ncol], nsy < topCut, !pc.sections[nsy].empty, foundGen[vi] != gen {
+                            foundGen[vi] = gen
+                            found.append(UInt64(simd_length_squared(nmn + half - eye).bitPattern) << 32 | UInt64(ncol) << 8 | UInt64(nsy))
+                        }
+                        continue
+                    }
                     visitGen[vi] = gen
                     bfs.append(CullNode(col: Int32(ncol), dx: Int16(ndx), dz: Int16(ndz), sy: Int16(nsy), entry: Int8(f ^ 1),
                                         mask: UInt8(mask | (1 << f))))
