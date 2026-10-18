@@ -61,7 +61,7 @@ enum Snd: Hashable {
     // Loops (seamless, 2-6 s): fire, furnaces, lava, water, portals, beacons, minecarts, gliding, breathing under water, weather, biome ambience.
     case fireLoop, furnaceLoop, campfireLoop, lavaLoop, waterLoop, portalLoop, beaconLoop, minecartLoop, elytraLoop, underwaterLoop, rain, rainRoof
     case respawnAnchorLoop, spawnerLoop, netherWastesLoop, soulValleyLoop, crimsonLoop, warpedLoop, basaltLoop, ashVaultLoop, endLoop, deepDarkLoop, lushLoop, dripstoneLoop
-    case sulfurLoop                                  // P292: the Sulfur Flats' vents (the other hell beds are re-voiced, SoundHell.swift)
+    case sulfurLoop                                  // P292: the vents (P336: the Ghostglass Spires' ghost-fire vents) (the other hell beds are re-voiced, SoundHell.swift)
     case cricketsLoop, oceanLoop, swampLoop, windLoop, jungleLoop, fireflyLoop, hiveLoop, stationHumLoop
     // One-shot ambience stings
     case birdCall, owlHoot, dryGrassRustle, heartCreak, caveAmbience, caveDrip, caveWind, netherMood, underwaterMood, thunder, lightning, windGust

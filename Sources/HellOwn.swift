@@ -126,7 +126,7 @@ extension MobManager {
         case .soulSandValley: return [10, 20, 15, 55]          // the Ash Dunes: open sky for the Searwings
         case .crimsonForest: return [50, 25, 15, 10]           // the Charwood Thicket: the order's hunting ground
         case .warpedForest: return [25, 50, 10, 15]            // the Gloamwood: scorchling packs in the spines
-        case .basaltDeltas: return [15, 25, 45, 15]            // the Sulfur Flats: slagthrowers by the vents
+        case .basaltDeltas: return [15, 25, 45, 15]            // the Ghostglass Spires: slagthrowers by the vents
         default: return [35, 30, 15, 20]                       // the Cinder Plains
         }
     }
