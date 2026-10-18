@@ -68,6 +68,8 @@ enum QuestSettings {
     static var vignette: Float { get { float("quest.vignette", 0.6) } set { store(newValue, "quest.vignette") } }
     // Steady Saddle: while riding, the view eases over the horse's jumps and bucks (Game.steadySaddle).
     static var steadySaddle: Bool { get { bool("quest.steadySaddle", true) } set { store(newValue, "quest.steadySaddle") } }
+    // Craft Bank (P334 d): how far a dropship you ride banks and pitches (gentle by default; the view stays level).
+    static var craftBankFull: Bool { get { bool("quest.craftBankFull", false) } set { store(newValue, "quest.craftBankFull") } }
     // Blast Shake: the Tidebreaker's and explosions' eye jolt in the headset (Game.vrShake); haptics stay.
     static var blastShake: Bool { get { bool("quest.blastShake", true) } set { store(newValue, "quest.blastShake") } }
     // Vehicle View (P100): taking the controls of a ship, frigate, Sky Skiff, crawler, drop craft or boat moves the view
@@ -141,7 +143,7 @@ extension QuestSettings {
     static func snapshot() -> [(String, Any)] {
         [("quest.refreshRate", refreshRate), ("renderDistance", renderDistance), ("quest.resolutionScale", resolutionScale),
          ("quest.smoothTurn2", smoothTurn), ("quest.brightness", brightness), ("quest.pitchStep", pitchStep), ("quest.snapAngle", snapAngle),
-         ("quest.smoothTurnSpeed", smoothTurnSpeed), ("quest.vignette", vignette), ("quest.steadySaddle", steadySaddle),
+         ("quest.smoothTurnSpeed", smoothTurnSpeed), ("quest.vignette", vignette), ("quest.steadySaddle", steadySaddle), ("quest.craftBankFull", craftBankFull),
          ("quest.blastShake", blastShake), ("quest.chaseView", chaseView), ("quest.teleport", teleport), ("quest.headLocomotion", headLocomotion), ("quest.seated", seated),
          ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.buttonReload", buttonReload), ("quest.swingBeforeReclined", swingBeforeReclined),
          ("quest.leftHanded", leftHanded), ("quest.controlPreset", controlPreset), ("quest.standHeight", standHeight), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),

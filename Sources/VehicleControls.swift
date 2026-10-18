@@ -6,19 +6,21 @@ import simd
 // Controller, by vehicle:
 //   boat / land vehicle   RT throttle, LT reverse, LS steer
 //   airship              RT forward, LT reverse, LS left/right turn, LS up/down climb
+//   vtol                 a dropship (P334): LS forward/back and strafe, RS left/right turn, RS up/down climb (RB / LB
+//                        too), RT the gun; keyboard W/S, A/D turn, Space/Ctrl climb
 //   aircraft             RT throttle, LT brake, LS left/right bank and turn, LS up/down pitch (pull back to climb,
 //                        Options > Controller > Flight Stick)
 //   warship              a commandeered frigate (P325): LS throttle and turn, RB / LB pitch the bow up and down (on
 //                        Quest the right stick's up/down, so the grips stay free), RT the guns
 //   any                  A climb, B leave the helm
 enum VehicleControls {
-    enum Kind { case boat, land, airship, aircraft, helicopter, warship }
+    enum Kind { case boat, land, airship, aircraft, helicopter, warship, vtol }
     // Quest: the right stick's up/down while at a warship's helm (QuestControls sets it each frame; nil elsewhere).
     static var vrPitch: Float?
 
     static func kind(_ s: Ship) -> Kind {
         if !s.rotors.isEmpty { return .helicopter }
-        if s.kinematic && s.role == "dropship" { return .airship }                       // a commandeered drop craft
+        if s.kinematic && s.role == "dropship" { return .vtol }                          // a commandeered drop craft (P334)
         if s.kinematic && s.isFlyingCapital { return .warship }                          // ...and a frigate (P325)
         if !s.wings.isEmpty && s.balloons == 0 { return .aircraft }
         if s.balloons > 0 { return .airship }
@@ -33,6 +35,7 @@ enum VehicleControls {
         case .aircraft: return "Aircraft"
         case .helicopter: return "Helicopter"
         case .warship: return "Warship"
+        case .vtol: return "VTOL"
         }
     }
 
@@ -41,11 +44,25 @@ enum VehicleControls {
         !s.cannons.isEmpty || g.world.ships.turrets(of: s).contains { !$0.cannons.isEmpty }
     }
 
-    // Throttle, steer and climb (each -1...1) for this frame.
-    static func read(_ g: Game, _ s: Ship, _ mi: MoveInput) -> (throttle: Float, steer: Float, climb: Float) {
+    // Throttle, steer and climb (each -1...1) for this frame, and a VTOL's strafe.
+    static func read(_ g: Game, _ s: Ship, _ mi: MoveInput) -> (throttle: Float, steer: Float, climb: Float, strafe: Float) {
         var throttle = mi.forward, steer = mi.strafe, climb: Float = 0
         if mi.jump { climb += 1 }
         if g.input.control { climb -= 1 }
+        func c(_ v: Float) -> Float { max(-1, min(1, v)) }
+        if kind(s) == .vtol {
+            // P334 (c): the left stick flies (forward/back, strafe), the right stick turns and climbs.
+            var strafe: Float = 0
+            if let p = g.seatPad {
+                let ls = stick(p.lx, p.ly, dead: g.deadZone), rs = stick(p.rx, p.ry, dead: g.deadZone)
+                steer = mi.strafe - ls.x + rs.x                  // (the keys' A/D still turn)
+                strafe = ls.x
+                climb += rs.y
+                if p.rb { climb += 1 }
+                if p.lb { climb -= 1 }
+            }
+            return (c(throttle), c(steer), c(climb), c(strafe))
+        }
         if let p = g.seatPad {
             if kind(s) == .warship, let v = vrPitch {
                 climb += abs(v) > 0.2 ? v : 0            // Quest: the right stick pitches the bow
@@ -56,7 +73,7 @@ enum VehicleControls {
             let ls = stick(p.lx, p.ly, dead: g.deadZone)
             let keysForward = mi.forward - ls.y          // what the keys alone asked for
             let trig = p.rt - p.lt
-            if armed(g, s) { return (max(-1, min(1, throttle)), max(-1, min(1, steer)), max(-1, min(1, climb))) }
+            if armed(g, s) { return (max(-1, min(1, throttle)), max(-1, min(1, steer)), max(-1, min(1, climb)), 0) }
             switch kind(s) {
             case .boat, .land:
                 throttle = keysForward + trig + ls.y * 0.5
@@ -66,12 +83,11 @@ enum VehicleControls {
             case .aircraft:
                 throttle = keysForward + trig
                 climb += Settings.shared.flightInverted ? -ls.y : ls.y
-            case .helicopter:
+            case .helicopter, .vtol:
                 break                                    // collective / cyclic / pedals: FlightModel.playerInput
             }
         }
-        func c(_ v: Float) -> Float { max(-1, min(1, v)) }
-        return (c(throttle), c(steer), c(climb))
+        return (c(throttle), c(steer), c(climb), 0)
     }
 
     // Prompt line while piloting.
@@ -90,6 +106,7 @@ enum VehicleControls {
         }
         let rt = PadMap.glyph(.rt).s, lt = PadMap.glyph(.lt).s, ls = Glyph.ls.s, b = PadMap.glyph(.b).s
         let climb = PadMap.glyph(.rb).s + PadMap.glyph(.lb).s
+        if kind(s) == .vtol { return [ls + " Fly / Strafe", Glyph.rs.s + " Turn / Climb", rt + " Fire", b + " Leave"] }
         if armed(g, s) { return [ls + " Throttle / Steer", rt + " Fire", climb + (kind(s) == .warship ? " Pitch" : " Climb"), b + " Leave"] }
         switch kind(s) {
         case .boat, .land: return [rt + " Throttle", lt + " Reverse", ls + " Steer", b + " Leave"]
@@ -97,6 +114,7 @@ enum VehicleControls {
         case .warship: return [rt + " Forward", ls + " Turn / Pitch", lt + " Reverse", b + " Leave"]
         case .aircraft: return [rt + " Throttle", ls + " Bank / Pitch", lt + " Brake", b + " Leave"]
         case .helicopter: return [rt + lt + " Collective", ls + " Cyclic", Glyph.rs.s + " Turn", b + " Leave"]
+        case .vtol: return [ls + " Fly / Strafe", Glyph.rs.s + " Turn / Climb", b + " Leave"]
         }
     }
 }
