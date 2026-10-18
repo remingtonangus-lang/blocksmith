@@ -35,7 +35,7 @@ enum QuestScreenshot {
 
     // MARK: Frame thread
 
-    private final class Staging {
+    final class Staging {                            // (also QuestVideo, P368)
         let srcW: Int, srcH: Int, format: VkFormat
         let w: Int, h: Int                         // output size
         let blit: Bool
@@ -109,7 +109,7 @@ enum QuestScreenshot {
         inFlight = InFlight(path: path, slot: s, ctx: ctx, staging: st, t0: t0)
     }
 
-    private static func record(_ cb: VkCommandBuffer, _ st: Staging, image: VkImage) {
+    static func record(_ cb: VkCommandBuffer, _ st: Staging, image: VkImage) {
         let transfer = VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue
         let colorOut = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue
         let tRead = VK_ACCESS_TRANSFER_READ_BIT.rawValue, tWrite = VK_ACCESS_TRANSFER_WRITE_BIT.rawValue

@@ -198,7 +198,12 @@ enum VoiceNoteContext {
             files.append((n, size)); total += size
         }
         var deleted = 0
-        for (n, size) in files where total > maxBytes {
+        // P368: video clips go first (oldest first); the notes' audio and sidecars stay as long as they can.
+        for (n, size) in files where total > maxBytes && n.hasSuffix(".mp4") {
+            try? fm.removeItem(atPath: dir + "/" + n)
+            total -= size; deleted += 1
+        }
+        for (n, size) in files where total > maxBytes && !n.hasSuffix(".mp4") {
             try? fm.removeItem(atPath: dir + "/" + n)
             total -= size; deleted += 1
         }
