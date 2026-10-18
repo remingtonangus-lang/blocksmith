@@ -18,18 +18,20 @@ enum BigStructures {
     // MARK: Ocean monument
 
     static func monument(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "monument", spacing: 48, separation: 8, salt: 10387313, reach: 3) { [unowned gen] seed, cx, cz in
+        StructureType(name: "monument", spacing: 48, separation: 8, salt: 10387313, reach: 5) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             let b = gen.column(x, z).biome
             guard b.isDeepOcean else { return nil }
-            // The 58x58 footprint must be ocean all round.
-            for (dx, dz) in [(-29, -29), (29, -29), (-29, 29), (29, 29)] where !gen.column(x + dx, z + dz).biome.isOcean { return nil }
+            // The footprint (the temple's 58x58; P349: the dreadnought's 135x37) must be ocean all round.
+            for (dx, dz) in [(-29, -29), (29, -29), (-29, 29), (29, 29), (-67, -18), (67, -18), (-67, 18), (67, 18)]
+                where !gen.column(x + dx, z + dz).biome.isOcean { return nil }
             let y0 = SEA - 26
-            // G20: the Sunken Dreadnought (OriginalSites.swift) in place of the reference's ocean monument, except on
-            // ground a save had already generated with the temple.
+            // G20: the Sunken Dreadnought (Dreadnought.swift) in place of the reference's ocean monument, except on
+            // ground a save had already generated with the temple. P349: the locate point is her bridge.
             if !G20Guard.legacy(G20Guard.overworld, cx, cz, reach: 3) {
-                return StructureStart(kind: "monument", pieces: [piece(x - 31, y0 - 14, z - 8, x + 31, SEA, z + 8) { w in SunkenDreadnought.build(&w, x, y0, z, seed) }],
-                                      anchor: IVec3(x - 16, y0 + 2, z))
+                let h = SunkenDreadnought.half + 2
+                return StructureStart(kind: "monument", pieces: [piece(x - h, y0 - 14, z - 18, x + h, SEA + 1, z + 18) { w in SunkenDreadnought.build(&w, x, y0, z, seed) }],
+                                      anchor: SunkenDreadnought.anchor(x, y0, z))
             }
             return StructureStart(kind: "monument", pieces: [piece(x - 29, y0 - 4, z - 29, x + 29, SEA, z + 29) { w in buildMonument(&w, x, y0, z, seed) }],
                                   anchor: IVec3(x, y0 + 12, z - 8))
