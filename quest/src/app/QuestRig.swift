@@ -134,8 +134,14 @@ final class QuestRig {
         } else {
             heaveY = aboard ? y : nil
         }
+        // P367: crouched on foot the view eases 0.3 blocks lower (about a quarter second each way), so sneaking shows.
+        let pl = game.player
+        let want: Float = pl.sneaking && !pl.flying && !pl.inWater && game.riding == nil && game.world.frame == nil ? -0.3 : 0
+        crouchDip += (want - crouchDip) * min(1, dt * 10)
+        stepOffset += crouchDip
     }
     private var heaveY: Float?
+    private var crouchDip: Float = 0
 
     // Loading scene: raw tracking space (no player yet).
     func updateLoading(xr: XRInput) {

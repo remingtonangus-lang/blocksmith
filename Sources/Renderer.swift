@@ -2832,6 +2832,14 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
+        // P367: crouched, a small posture glyph left of the hotbar (no text): a figure bent forward on folded legs.
+        if game.player.sneaking && !game.player.flying && game.riding == nil {
+            let gx = x0 - 13 * s, gy = y0 + 5 * s
+            let parts: [(Float, Float, Float, Float)] = [(4, 0, 3, 3), (2, 3, 4, 2), (1, 5, 3, 2), (3, 6, 3, 2), (5, 8, 1, 2), (5, 10, 2, 1)]
+            for (dx, dy, w, h) in parts { rect(gx + (dx + 1) * s, gy + (dy + 1) * s, w * s, h * s, V4(0, 0, 0, 0.5)) }
+            for (dx, dy, w, h) in parts { rect(gx + dx * s, gy + dy * s, w * s, h * s, V4(1, 1, 1, 0.9)) }
+        }
+
         // Active effects: icons in the top-right corner (beneficial row, then harmful), blinking near the hollow.
         if game.effects.any {
             var good = 0, bad = 0
