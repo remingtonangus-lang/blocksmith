@@ -124,6 +124,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     private(set) var cullSeconds = 0.0       // culling walk + sort, last frame
     private var visibleScratch: [(Chunk, Int, Float)] = []
     private var visitGen: [UInt32] = []
+    private var foundGen: [UInt32] = []          // P335: sections listed to draw (walked, or peeked at)
     private var gen: UInt32 = 0
     private var bfs: [(Chunk, Int, Int, Int, Int, Int)] = []
     private var chunkGrid: [Chunk?] = []
@@ -998,9 +999,10 @@ final class Renderer: NSObject, MTKViewDelegate {
             // open cells and never back toward the camera; frustum-test every step.
             let R = game.world.renderDistance + 1, span = 2 * R + 1
             let need = span * span * NSEC
-            if visitGen.count < need { visitGen = [UInt32](repeating: 0, count: need) }
+            if visitGen.count < need { visitGen = [UInt32](repeating: 0, count: need); foundGen = [UInt32](repeating: 0, count: need) }
             gen &+= 1
-            if gen == 0 { gen = 1; for i in visitGen.indices { visitGen[i] = 0 } }
+            if gen == 0 { gen = 1; for i in visitGen.indices { visitGen[i] = 0; foundGen[i] = 0 } }
+            let smoothWalls = game.world.fieldTerrain || SmoothTerrain.enabled
             func vidx(_ dx: Int, _ dz: Int, _ sy: Int) -> Int { ((dx + R) + (dz + R) * span) * NSEC + sy }
             // Chunks around the camera in a flat grid: one dictionary lookup per column instead of one per step.
             if chunkGrid.count != span * span { chunkGrid = [Chunk?](repeating: nil, count: span * span) }
@@ -1023,14 +1025,35 @@ final class Renderer: NSObject, MTKViewDelegate {
                 bfsVisited += 1
                 let sec = c.sections[sy]
                 let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
-                if !sec.empty && sy < maxSection {
+                if !sec.empty && sy < maxSection && foundGen[vidx(dx, dz, sy)] != gen {
+                    foundGen[vidx(dx, dz, sy)] = gen
                     visibleScratch.append((c, sy, simd_length_squared(mn + V3(8, 8, 8) - eye)))
                     if c.drawnMark != gen { c.drawnMark = gen; drawnSet += 1 }
                 }
                 let vis = sec.meshedVersion == -1 ? ~UInt64(0) : sec.vis
+                // P335: smooth ground reaches a block past its section: a section with ground and open cells lists the 26
+                // round it to draw (SceneRenderer.cull says why).
+                if smoothWalls && !sec.empty && vis != 0 && vis != (1 << 36) - 1 {
+                    for oy in -1...1 { for oz in -1...1 { for ox in -1...1 where ox != 0 || oy != 0 || oz != 0 {
+                        let ndx = dx + ox, ndz = dz + oz, nsy = sy + oy
+                        if nsy < 0 || nsy >= NSEC || nsy >= maxSection || abs(ndx) > R || abs(ndz) > R || !game.world.inMeshRadius(ndx, ndz) { continue }
+                        let vi = vidx(ndx, ndz, nsy)
+                        if foundGen[vi] == gen || visitGen[vi] == gen { continue }
+                        guard let nc = chunkGrid[(ndx + R) + (ndz + R) * span], nc.meshedOnce, !nc.sections[nsy].empty else { continue }
+                        let nmn = V3(Float((pcx + ndx) * CS), Float(nsy * 16), Float((pcz + ndz) * CS))
+                        if !frustum.visible(min: nmn, max: nmn + V3(16, 16, 16)) { continue }
+                        foundGen[vi] = gen
+                        visibleScratch.append((nc, nsy, simd_length_squared(nmn + V3(8, 8, 8) - eye)))
+                        if nc.drawnMark != gen { nc.drawnMark = gen; drawnSet += 1 }
+                    } } }
+                }
                 for f in 0..<6 {
                     if dirMask & (1 << (f ^ 1)) != 0 { continue }
-                    if entry >= 0 && vis & (1 << UInt64(entry * 6 + f)) == 0 { continue }
+                    // P335: a peek at the section past a face its open cells touch (smooth ground leaves the block grid;
+                    // SceneRenderer.cull says why).
+                    let through = entry < 0 || vis & (1 << UInt64(entry * 6 + f)) != 0
+                    let peek = !through && smoothWalls && vis & (1 << UInt64(f * 6 + f)) != 0
+                    if !through && !peek { continue }
                     let (ox, oy, oz) = dirs[f]
                     let ndx = dx + ox, ndz = dz + oz, nsy = sy + oy
                     if nsy < 0 || nsy >= NSEC || nsy > yLimit || !game.world.inMeshRadius(ndx, ndz) || abs(ndx) > R || abs(ndz) > R { continue }
@@ -1039,6 +1062,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let nmn = V3(Float((pcx + ndx) * CS), Float(nsy * 16), Float((pcz + ndz) * CS))
                     if !frustum.visible(min: nmn, max: nmn + V3(16, 16, 16)) { continue }
                     guard let nc = ox == 0 && oz == 0 ? c : chunkGrid[(ndx + R) + (ndz + R) * span], nc.meshedOnce else { continue }
+                    if peek {
+                        if !nc.sections[nsy].empty && nsy < maxSection && foundGen[vi] != gen {
+                            foundGen[vi] = gen
+                            visibleScratch.append((nc, nsy, simd_length_squared(nmn + V3(8, 8, 8) - eye)))
+                            if nc.drawnMark != gen { nc.drawnMark = gen; drawnSet += 1 }
+                        }
+                        continue
+                    }
                     visitGen[vi] = gen
                     bfs.append((nc, ndx, ndz, nsy, f ^ 1, dirMask | (1 << f)))
                 }
