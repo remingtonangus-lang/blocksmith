@@ -120,6 +120,7 @@ final class SmoothField {
     private let sT = UnsafeMutablePointer<Float>.allocate(capacity: SmoothField.NNN)
     private let sK = UnsafeMutablePointer<Float>.allocate(capacity: SmoothField.NNN * 3)
     private let spagT = UnsafeMutablePointer<Float>.allocate(capacity: SmoothField.NN)       // per column
+    private let roofY = UnsafeMutablePointer<Int>.allocate(capacity: SmoothField.NN)         // P373 (b): caves stop below, per column
 
     // Terrain lattice nodes round the box, the whole height (kept while the next section is in the same chunk: a mesh
     // job meshes a chunk's sections one after another, and their boxes overlap): x/z every 4 blocks, y every 8.
@@ -138,7 +139,7 @@ final class SmoothField {
 
     deinit {
         sE.deallocate()
-        sT.deallocate(); sK.deallocate(); spagT.deallocate()
+        sT.deallocate(); sK.deallocate(); spagT.deallocate(); roofY.deallocate()
         tNode.deallocate(); tCol.deallocate(); tColSet.deallocate(); kNode.deallocate()
     }
 
@@ -147,6 +148,7 @@ final class SmoothField {
         let nan = Float.nan
         if g !== gen || x0 != ox || z0 != oz {
             spagT.initialize(repeating: nan, count: SmoothField.NN)
+            roofY.initialize(repeating: Int.min, count: SmoothField.NN)
             tgx0 = floorDiv(x0, 4); tgz0 = floorDiv(z0, 4)
             tNode.initialize(repeating: nan, count: SmoothField.TX * SmoothField.TX * SmoothField.TY)
             tColSet.initialize(repeating: false, count: SmoothField.TX * SmoothField.TX)
@@ -295,6 +297,13 @@ final class SmoothField {
         let ix = i % SmoothField.N, iz = (i / SmoothField.N) % SmoothField.N, iy = i / SmoothField.NN
         let x = ox + ix, y = max(0, min(CH - 1, oy + iy)), z = oz + iz
         let yd = y - YOFF
+        // P373 (b): outside the patches where caves may open to the sky, a 4-block roof under the ground (as carveCaves).
+        let ci0 = ix + iz * SmoothField.N
+        if roofY[ci0] == Int.min {
+            let g = gen!
+            roofY[ci0] = g.caveMouths(x, z, g.column(x, z).biome) ? Int.max : g.groundY(x, z) - 4
+        }
+        if y > roofY[ci0] { sK[i * 3 + k] = -1; return -1 }
         let r: Float
         switch k {
         case 0:

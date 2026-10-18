@@ -2506,8 +2506,11 @@ enum HDTex {
                 let up: Float = (fn - Float(y)) / fn                     // 0 at the bottom, 1 at the top
                 // Tongue heights: a few smooth peaks across the tile (periodic in x), bent by the wobble field.
                 let fx: Float = Float(x) / fn * 2 * Float.pi
-                let peaks: Float = 0.55 + 0.25 * sinf(fx * 3 + 1.3) + 0.15 * sinf(fx * 5 + 0.4)
-                let h: Float = peaks + (wob[i] - 0.5) * 0.45 + (lick[i] - 0.5) * 0.2
+                // P373 (a, Oct 18 07:55: "fire's still wrong"): tall separate tongues (most of the block, a few licking
+                // past 0.9) with clear gaps between them, instead of a low even wall of flame.
+                let tongue: Float = abs(sinf(fx * 2.5 + 0.7 + (wob[i] - 0.5) * 1.6))
+                let peaks: Float = 0.5 + 0.3 * sinf(fx * 3 + 1.3) * 0.5 + 0.12 * sinf(fx * 7 + 0.4)
+                let h: Float = (peaks + 0.35 * tongue) * (0.35 + 0.65 * tongue) + (wob[i] - 0.5) * 0.3 + (lick[i] - 0.5) * 0.15
                 guard up < h else { continue }
                 let t: Float = up / max(0.05, h)                         // 0 base, 1 tip
                 let c0 = col(core), c1 = col(mid), c2 = col(tip)

@@ -281,6 +281,21 @@ if let out = arg("--view"), let ctx = vkctx {
         vg.player.pos = V3(Float(bx) + 0.5 + (Float(arg("--dx") ?? "") ?? 0), Float(by + 1), Float(bz - 7) + dist); vg.player.vel = .zero
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     }
+    // --scene fire (P373 a): fire on netherrack and grass, a campfire and a soul fire on a lawn, seen from --dist (6).
+    if arg("--scene") == "fire" {
+        let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
+        for x in (bx - 5)...(bx + 5) { for z in (bz - 8)...(bz + 2) {
+            vw.setBlock(x, by, z, Blocks.id("grass_block"))
+            for y in (by + 1)...(by + 5) { vw.setBlock(x, y, z, AIR) }
+        } }
+        vw.setBlock(bx - 2, by, bz - 4, Blocks.id("netherrack")); vw.setBlock(bx - 2, by + 1, bz - 4, Blocks.id("fire"))
+        vw.setBlock(bx - 1, by, bz - 4, Blocks.id("netherrack")); vw.setBlock(bx - 1, by + 1, bz - 4, Blocks.id("fire"))
+        vw.setBlock(bx + 1, by + 1, bz - 4, Blocks.id("campfire"))
+        if Blocks.has("soul_fire") { vw.setBlock(bx + 3, by, bz - 4, Blocks.id("soul_sand")); vw.setBlock(bx + 3, by + 1, bz - 4, Blocks.id("soul_fire")) }
+        let dist = Float(arg("--dist") ?? "") ?? 6
+        vg.player.pos = V3(Float(bx) + 0.5, Float(by + 1), Float(bz - 4) + dist); vg.player.vel = .zero
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+    }
     // --mob KEY[,KEY...]: those mobs side by side --mobdist blocks ahead (default 3), facing the camera (model checks,
     // P185); --aggro shows them hostile.
     if let ks = arg("--mob") {
