@@ -15,13 +15,13 @@ enum PerfOverlayTests {
         check(w.frames == 72 && abs(w.avg - (13.9 * 71 + 30) / 72) < 0.01 && w.worst == 30,
               "perf overlay: the last second's frames (\(w.frames), " + String(format: "avg %.2f ms, worst %.1f ms", w.avg, w.worst) + "), the hitch 3 s ago dropped")
         // 2. The lines: frame rate and times, GPU, the render distance (marked when Auto Render Distance holds it lower).
-        let rd0 = g.world.renderDistance, gov = g.rdGovernor
+        let rd0 = g.world.activeDistance, gov = g.rdGovernor
         g.rdGovernor = RenderDistanceGovernor(chosen: rd0 + 4)
         let lines = PerfOverlay.lines(fps: 71.6, gpuMs: 9.24, game: g, now: now)
         g.rdGovernor = gov
         let plain = PerfOverlay.lines(fps: 72, gpuMs: 0, game: g, now: now)
         check(lines.count == 2 && lines[0].hasPrefix("72 fps") && lines[0].contains("worst 30.0") && lines[0].contains("GPU 9.2")
-              && lines[1].contains("Render distance \(rd0) of \(rd0 + 4) (auto)") && lines[1].contains("jobs")
+              && lines[1].contains("active \(rd0) of \(rd0 + 4) (auto)") && lines[1].contains("jobs")
               && plain[1].hasPrefix("Render distance \(rd0)  ") && !plain[0].contains("GPU"),
               "perf overlay: \"\(lines[0])\" / \"\(lines[1])\"")
         // 3. The option (Options > Interface) toggles it and the HUD draws it only when on (Reset Options turns it off).

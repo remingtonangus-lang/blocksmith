@@ -9,7 +9,7 @@ extension Game {
     func randomTicks() {
         let w = world
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
-        let r = min(8, w.renderDistance)
+        let r = min(w.activeDistance, w.renderDistance)           // (P339: the active distance)
         let rt = Blocks.randomTicks
         // P283: the draws first, the ticks after. The chunk's blocks are read through one local copy and the generator
         // through a local (each draw paid an exclusivity check on the global and on the chunk's storage, some 9000 a

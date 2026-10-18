@@ -166,7 +166,7 @@ extension Game {
         let s = Seasons.season
         guard s != .winter else { return }
         let p: Float = s == .spring ? min(1, Float(Seasons.dayInSeason + 1) / 3) : 1
-        let r = min(8, world.renderDistance), side = 2 * r + 1
+        let r = min(world.activeDistance, world.renderDistance), side = 2 * r + 1
         let k = Seasons.sweepIndex % (side * side)
         Seasons.sweepIndex += 1
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)

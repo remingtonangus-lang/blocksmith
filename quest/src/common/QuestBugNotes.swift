@@ -19,6 +19,7 @@ final class BugNotes {
     static var denied: Bool { true }
     static var authorized: Bool { false }
     static func requestPermission(_ done: @escaping (Bool) -> Void) { done(false) }
+    func savePerfCapture(_ text: String) -> Bool { false }
     func setup(activity: UnsafeMutableRawPointer, files: String) {}
     func setPaused(_ p: Bool) {}
     func shutdown() {}

@@ -253,22 +253,23 @@ enum RenderDistanceGovernorTest {
     static func gameChecks(_ g: Game, log: (String) -> Void = { print($0) }) -> Int {
         var fails = 0
         func check(_ ok: Bool, _ what: String) { log("  \(ok ? "ok  " : "FAIL") \(what)"); if !ok { fails += 1 } }
-        let keep = (g.rdGovernor, g.world.renderDistance, g.onRenderDistanceChanged)
-        g.onRenderDistanceChanged = nil
+        // P339: the governor steps the active distance; the view distance stays where the player put it.
+        let keep = (g.rdGovernor, g.world.renderDistance, g.world.activeDistance)
+        let ud = UserDefaults.standard.object(forKey: "activeDistance")
         var gov = RenderDistanceGovernor(chosen: 16)
-        g.world.renderDistance = 16
-        for _ in 0..<12 { if case .lower(let rd) = gov.observe(window(cost: 16)) { g.world.renderDistance = rd } }
+        g.world.renderDistance = 24; g.world.activeDistance = 16
+        for _ in 0..<12 { if case .lower(let rd) = gov.observe(window(cost: 16)) { g.world.activeDistance = rd } }
         g.rdGovernor = gov
-        check(g.world.renderDistance < 16, "the game's world steps down (\(g.world.renderDistance))")
-        check(g.meta.renderDistance == 16, "the save keeps the chosen 16, not the stepped-down \(g.world.renderDistance)")
-        check(g.chosenRenderDistance == 16 && PauseMenu.rdLabel(g).hasPrefix("Render Distance: 16 (auto"),
-              "the menu shows the choice and the current distance (\(PauseMenu.rdLabel(g)))")
-        g.setRenderDistance(12)
-        check(g.world.renderDistance == 12 && g.chosenRenderDistance == 12 && g.meta.renderDistance == 12,
-              "a menu choice sets the world, the ceiling and the save")
+        check(g.world.activeDistance < 16, "the active distance steps down (\(g.world.activeDistance))")
+        check(g.world.renderDistance == 24, "the view distance stays 24")
+        check(g.chosenActiveDistance == 16 && PauseMenu.adLabel(g).hasPrefix("Active Distance: 16 (auto"),
+              "the menu shows the choice and the current distance (\(PauseMenu.adLabel(g)))")
+        g.setActiveDistance(12)
+        check(g.world.activeDistance == 12 && g.chosenActiveDistance == 12, "a menu choice sets the world and the ceiling")
         g.rdGovernor = keep.0
         g.world.renderDistance = keep.1
-        g.onRenderDistanceChanged = keep.2
+        g.world.activeDistance = keep.2
+        UserDefaults.standard.set(ud, forKey: "activeDistance")
         log("rdgovernor game: \(fails == 0 ? "PASS" : "FAIL (\(fails))")")
         return fails
     }

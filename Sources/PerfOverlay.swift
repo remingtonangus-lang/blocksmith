@@ -35,8 +35,8 @@ final class PerfOverlay {
         var a = "\(Int(fps.rounded())) fps  " + String(format: "%.1f ms (worst %.1f)", w.avg, w.worst)
         if gpuMs > 0 { a += String(format: "  GPU %.1f ms", gpuMs) }
         let world = game.world
-        let chosen = game.chosenRenderDistance, rd = world.renderDistance
-        let dist = rd < chosen ? "Render distance \(rd) of \(chosen) (auto)" : "Render distance \(rd)"
+        let chosen = game.chosenActiveDistance, ad = world.activeDistance
+        let dist = "Render distance \(world.renderDistance)  " + (ad < chosen ? "active \(ad) of \(chosen) (auto)" : "active \(ad)")
         return [a, "\(dist)  Chunks \(world.chunks.count), \(world.pendingJobs) jobs"]
     }
 }
