@@ -125,6 +125,7 @@ enum QuestOptions {
                 ("Controller Vibration: \(Settings.shared.rumble == 0 ? "Off" : "\(Int((Settings.shared.rumble * 100).rounded()))%")", "q_vib"),
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
                 ("Steady Ride: \(on(S.steadySaddle))", "q_saddle"),          // (Q2c-console-56: was Steady Saddle)
+                ("Craft Bank: \(S.craftBankFull ? "Full" : "Gentle")", "q_bank"),                                     // P334 (d)
                 ("Blast Shake: \(on(S.blastShake))", "q_shake"),
                 ("Vehicle View: \(S.chaseView ? "Chase" : "First Person")", "q_chase"),
                 ("Seated Mode: \(on(S.seated))", "q_seated"),
@@ -236,6 +237,7 @@ enum QuestOptions {
             PadManager.shared.rumble(0.8, 0.15)
         case "q_ring": S.deckRing = S.deckRing > 0 ? 0 : 1
         case "q_saddle": S.steadySaddle.toggle()
+        case "q_bank": S.craftBankFull.toggle()
         case "q_shake": S.blastShake.toggle()
         case "q_chase": S.chaseView.toggle()
         case "q_seated": S.seated.toggle(); hooks.recenter()

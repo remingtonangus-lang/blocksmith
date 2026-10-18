@@ -215,7 +215,10 @@ extension Game {
         s.piloted = true
         // Per-vehicle keyboard / controller layout (VehicleControls.swift).
         let c = VehicleControls.read(self, s, mi)
-        if s.wheels.isEmpty {
+        s.strafe = c.strafe
+        if VehicleControls.kind(s) == .vtol {
+            s.throttle = c.throttle                                       // P334: a VTOL flies off the stick, no telegraph
+        } else if s.wheels.isEmpty {
             // Ships and aircraft keep their throttle (an engine telegraph): W/S, the stick or the triggers move it,
             // letting go holds it, and passing through stop pauses there for a moment so stopping is easy.
             let f = c.throttle
@@ -320,7 +323,7 @@ extension Game {
         guard let s = ships.pilot else { return }
         ships.pilot = nil
         s.piloted = false
-        s.throttle = 0; s.steer = 0; s.climb = 0
+        s.throttle = 0; s.steer = 0; s.climb = 0; s.strafe = 0
         ships.aboard = s
         player.vel = s.velocity(at: player.pos)
         player.airPeak = player.pos.y

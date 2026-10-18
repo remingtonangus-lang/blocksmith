@@ -311,8 +311,10 @@ final class QuestControls {
         // The weapon wheel (a right stick click opens it) takes the right stick to pick a gun: no turning meanwhile.
         WeaponWheel.clickToOpen = true                     // P208: click to open, flick to pick (CombatHUD.swift)
         let wheel = !inMenu && WeaponWheel.shared.open
+        // P334: at a dropship's helm the right stick flies the craft (turn and climb), so it doesn't turn the view.
+        let vtolHelm = game.world.ships.pilot.map { VehicleControls.kind($0) == .vtol } ?? false
         // Turning (never inside a menu: the panel stays put).
-        if !inMenu && !wheel {
+        if !inMenu && !wheel && !vtolHelm {
             let tx = R.stick.x
             if QuestSettings.smoothTurn && !QuestSettings.reclined {      // (lying down always snap-turns: S6)
                 if abs(tx) > 0.15 {
@@ -336,7 +338,7 @@ final class QuestControls {
         let warHelm = game.world.ships.pilot.map { VehicleControls.kind($0) == .warship } ?? false
         VehicleControls.vrPitch = warHelm && !inMenu ? ty : nil
         if wheel || inMenu { flickArmed = false; snapArmed = false }
-        else if warHelm { flickArmed = false }
+        else if warHelm || vtolHelm { flickArmed = false }
         else if flickArmed && abs(ty) > 0.75 && abs(R.stick.x) < 0.5 {
             flickArmed = false
             if QuestSettings.reclined {
@@ -399,6 +401,7 @@ final class QuestControls {
         let held = game.held
         game.swingMelee = QuestSettings.swingMode
         game.steadySaddle = QuestSettings.steadySaddle
+        Capital.fullBank = QuestSettings.craftBankFull                     // P334 (d)
         game.knockbackScale = QuestSettings.knockback               // Q2c-console-60
         game.vrShake = QuestSettings.blastShake
         game.vrHead = rig.headWorld
@@ -694,6 +697,7 @@ final class QuestControls {
             if game.world.ships.pilot != nil {
                 // At the helm the stick is throttle and steering: raw, whatever way the hand or head points.
                 p.lx = L.stick.x; p.ly = L.stick.y
+                if vtolHelm { p.rx = R.stick.x; p.ry = R.stick.y }          // P334: a VTOL's turn and climb
                 teleAiming = false; teleArc.removeAll(); teleTarget = nil
             } else if QuestSettings.teleport && game.riding == nil {
                 teleport(L)
