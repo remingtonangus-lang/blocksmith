@@ -144,8 +144,22 @@ enum RealSounds {
             takes.append(x)
         }
         if takes.isEmpty { return nil }
+        // P362 (a, f): sounds heard over and over (swimming strokes, footsteps, brushing through plants) get each take
+        // again a little lower and higher (resampled 0.91x and 1.09x, a slightly different body and length), so the
+        // turn-taking runs through three times as many before it repeats; the per-play jitter varies them further.
+        if spreads(s) {
+            let base = takes
+            for r in [0.91, 1.09] { for t in base { takes.append(WAVReader.resample(t, from: SoundBank.rate * r, to: SoundBank.rate)) } }
+        }
         normalise(&takes, target: targetLUFS(s))
         return takes
+    }
+
+    static func spreads(_ s: Snd) -> Bool {
+        switch s {
+        case .swim, .step, .plantBrush: return true
+        default: return false
+        }
     }
 
     private static func warn(_ name: String, _ why: String) {
@@ -210,7 +224,7 @@ extension SoundBank {
     // Footsteps, gunshots and hits: the events a player hears many times a minute.
     static func variesPerPlay(_ s: Snd) -> Bool {
         switch s {
-        case .step, .soldierStep, .hoof, .hit, .bulletImpact, .bulletFlesh, .gunDistant, .arrowHit, .tridentHit, .plantBrush,
+        case .step, .soldierStep, .hoof, .hit, .bulletImpact, .bulletFlesh, .gunDistant, .arrowHit, .tridentHit, .plantBrush, .swim,
              .attack, .attackWeak, .attackCrit, .attackSweep, .attackKnockback, .mob(_, .hurt), .babyMob(_, .hurt):
             return true
         case .gun(let k): return k <= 5 || k == 8 || k == 9 || k == WeaponAudio.sidearmSlot || WeaponAudio.ashSlots.contains(k)

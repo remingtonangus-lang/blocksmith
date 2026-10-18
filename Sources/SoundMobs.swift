@@ -395,7 +395,7 @@ enum MobVoice {
             return Synth.mix(g.formant(0.2, f0: 230 * p, f1: 200 * p, formants: [(280, 5, 1), (900, 7, 0.35)], breath: 0.05, attack: 0.02, release: 0.05, gain: 1.1),
                              g.formant(0.3, f0: 200 * p, f1: 150 * p, formants: [(270, 5, 1), (850, 7, 0.35)], breath: 0.05, vib: 0.03, attack: 0.02, release: 0.12, gain: 1.2), at: g.frames(0.22))
         case .villagerTrade:
-            return Synth.mix(g.formant(0.3, f0: 200 * p, f1: 260 * p, formants: [(280, 5, 1), (900, 7, 0.35)], breath: 0.05, vib: 0.03, attack: 0.02, release: 0.1, gain: 1.1), g.modes(0.25, [(1500, 0.3, 0.06), (2100, 0.2, 0.05)]), at: g.frames(0.25))
+            return g.tradeCoins(p: p)               // P362 (e): coins and cloth, no voice
         case .villagerCelebrate:
             var out: [Float] = []
             for k in 0..<4 { out = Synth.mix(out, g.formant(0.25, f0: (200 + 40 * Float(k)) * p, f1: (240 + 40 * Float(k)) * p, formants: [(300, 5, 1), (950, 7, 0.35)], breath: 0.05, vib: 0.05, attack: 0.02, release: 0.08, gain: 1.1), at: g.frames(0.28 * Float(k))) }
