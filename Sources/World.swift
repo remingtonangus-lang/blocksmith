@@ -442,9 +442,12 @@ final class World {
         if oldH == newH && TickProf.lighter && Blocks.lightOpaque[Int(old)] == Blocks.lightOpaque[Int(id)]
             && Blocks.emit[Int(old)] == Blocks.emit[Int(id)] && Blocks.sky[Int(old)] == Blocks.sky[Int(id)]
             && (!fieldTerrain || wasGround == c.blocks.ground(Chunk.index(lx, y, lz))) {
-            let s0 = max(0, (y - 2) >> 4), s1 = min(NSEC - 1, (y + 2) >> 4)
-            for cz in floorDiv(z - 2, CS)...floorDiv(z + 2, CS) {
-                for cx in floorDiv(x - 2, CS)...floorDiv(x + 2, CS) {
+            // P363 (b): a fluid change reaches 3 (a field world's water surface reads its fluid 2 past a sample that is
+            // itself 1 past the section), so a drained flow isn't left drawn in the next section.
+            let r = Blocks.fluidKind[Int(old)] != 0 || Blocks.fluidKind[Int(id)] != 0 ? 3 : 2
+            let s0 = max(0, (y - r) >> 4), s1 = min(NSEC - 1, (y + r) >> 4)
+            for cz in floorDiv(z - r, CS)...floorDiv(z + r, CS) {
+                for cx in floorDiv(x - r, CS)...floorDiv(x + r, CS) {
                     guard let n = chunkAt(cx * CS, cz * CS) else { continue }
                     for sy in s0...s1 { n.sections[sy].version += 1 }
                 }
@@ -1567,6 +1570,16 @@ final class World {
     }
 
     // Fluids may replace air, plants, torches, fire and thinner flowing fluid of the same kind.
+    // P363 (d) "water not settling onto the beach": in a field world a fluid runs into a cell whose ground fills less
+    // than its lower three quarters (the cell's centre at most a quarter block inside: a beach, a gentle bank), so it
+    // lies on the drawn ground there instead of stopping a whole cell short of it. The ground stays (setFluid writes the
+    // fluid over it, and takes it off again, without opening the cell: BlockStore.keepGround).
+    func shallowGround(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard fieldTerrain, y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
+        let i = Chunk.index(mod(x, CS), y, mod(z, CS))
+        return c.blocks.raw(i) == AIR && c.blocks.ground(i) && c.blocks.density(i) <= 8
+    }
+
     private func fluidCanEnter(_ id: BlockID, level: Int, kind: UInt8) -> Bool {
         let l = Int(Blocks.fluidLevel[Int(id)])
         if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 && l < 8 && l > level }
@@ -1580,7 +1593,7 @@ final class World {
             let id = block(c.x, c.y, c.z)
             let l = Int(Blocks.fluidLevel[Int(id)])
             if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 }
-            return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH
+            return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH || shallowGround(c.x, c.y, c.z)
         }
         func hole(_ c: IVec3) -> Bool { c.y > 0 && passable(IVec3(c.x, c.y - 1, c.z)) }
         if hole(q) { return 0 }
@@ -1605,6 +1618,8 @@ final class World {
     }
 
     private func setFluid(_ p: IVec3, _ id: BlockID) {
+        BlockStore.keepGround = fieldTerrain
+        defer { BlockStore.keepGround = false }
         if setBlockAsync(p.x, p.y, p.z, id) { scheduleFluid(around: p) }
     }
 
@@ -1712,7 +1727,7 @@ final class World {
                 continue
             }
             if p.y > 0 && !World.wetFloor[Int(cur)]
-                && (fluidCanEnter(below, level: 0, kind: kind) || (fkT[Int(below)] == kind && lvT[Int(below)] > 0 && lvT[Int(below)] < 8)) {
+                && (fluidCanEnter(below, level: 0, kind: kind) || shallowGround(p.x, p.y - 1, p.z) || (fkT[Int(below)] == kind && lvT[Int(below)] > 0 && lvT[Int(below)] < 8)) {
                 setFluid(IVec3(p.x, p.y - 1, p.z), fall)
                 continue
             }
@@ -1728,7 +1743,7 @@ final class World {
             var openMask = 0, wayMask = 0
             for (i, d) in World.sideDirs.enumerated() {
                 let nb = block(p.x + d.x, p.y, p.z + d.z)
-                if fluidCanEnter(nb, level: next, kind: kind) { openMask |= 1 << i; wayMask |= 1 << i }
+                if fluidCanEnter(nb, level: next, kind: kind) || shallowGround(p.x + d.x, p.y, p.z + d.z) { openMask |= 1 << i; wayMask |= 1 << i }
                 else if fkT[Int(nb)] == kind && Int(lvT[Int(nb)]) >= next && lvT[Int(nb)] < 8 { wayMask |= 1 << i }   // (downstream: not the cell it came from)
             }
             if openMask == 0 { continue }
