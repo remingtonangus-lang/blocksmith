@@ -1417,6 +1417,10 @@ extension ShipManager {
             Capital.crashes += 1
             let k = min(1, (impact - Capital.crashSpeed) / 12)
             for h in hits.prefix(4) { Explosion.explode(at: h, power: 3 + 3 * k, game: g, fire: true) }
+            // P357 (c), (d) (Oct 16 20:14): a crash breaks the ship apart where it struck (wider the faster it hit, and
+            // what is torn loose falls away: removeCells), and every light aboard goes out.
+            for h in hits.prefix(6) { tearHull(s, at: h, radius: 3.5 + 6 * k, game: g) }
+            lightsOut(s)
             if !st.exhausts.isEmpty {                                    // the drive goes up
                 let e = st.exhausts.reduce(V3(0, 0, 0), +) / Float(st.exhausts.count)
                 blast(at: s.toWorld(e + V3(0, 0, -8)), power: 6, game: g)
@@ -1435,20 +1439,59 @@ extension ShipManager {
             return
         }
         s.vel -= inward * min(2, impact * 0.25)                          // a recoil off the ground
-        guard impact >= 4, st.bumpCD <= 0 else {
+        // P357 (c): a careful landing (under 6 blocks/s where it touches) only scrapes: smoke, no damage.
+        guard impact >= 6, st.bumpCD <= 0 else {
             if Rand.float(in: 0..<1) < dt * 20 { g.particles.smoke(at: c, dark: true) }
             return
         }
         // A hard knock: hull and ground torn where they met, the deck jolts.
         st.bumpCD = 0.8
-        let k = min(1, (impact - 4) / 10)
+        let k = min(1, (impact - 6) / 8)
         for h in hits.prefix(2) { Explosion.explode(at: h, power: 1.5 + 2 * k, game: g) }
+        tearHull(s, at: hits[0], radius: 1.5 + 2 * k, game: g)
         g.sfx(.shipCollideHard, 1 + k, at: c)
         for _ in 0..<Int(6 + 10 * k) { g.particles.smoke(at: c + V3(Rand.float(in: -2...2), Rand.float(in: 0...2), Rand.float(in: -2...2)), dark: true) }
         if aboard {
             g.addShake(0.35 + 0.4 * k)
             if g.survival { g.hurtPlayer(Int(((impact - 4) * 0.8).rounded()), from: c, cause: "crashed", knockback: 0, type: .generic) }
         }
+    }
+
+    // P357 (c): the hull broken open round a world point: every breakable cell within a ragged ball of the radius goes
+    // (dropping now and then; loose pieces fall away: removeCells -> detachLoose). Returns the cells taken.
+    @discardableResult
+    func tearHull(_ s: Ship, at p: V3, radius r: Float, game g: Game) -> Int {
+        let l = s.toLocal(p)
+        let ri = Int(ceilf(r))
+        let cx = Int(floor(l.x)), cy = Int(floor(l.y)), cz = Int(floor(l.z))
+        var gone = Set<IVec3>()
+        for dy in -ri...ri { for dz in -ri...ri { for dx in -ri...ri {
+            let d2 = Float(dx * dx + dy * dy + dz * dz)
+            let edge = r * (0.7 + 0.3 * hashf(cx + dx, cy + dy, cz + dz, 3572))
+            guard d2 <= edge * edge else { continue }
+            let b = s.grid.get(cx + dx, cy + dy, cz + dz)
+            if b != AIR && Blocks.hardness[Int(b)] >= 0 { gone.insert(IVec3(cx + dx, cy + dy, cz + dz)) }
+        } } }
+        if !gone.isEmpty { removeCells(s, gone, chipped: [], center: p, power: max(2, r), game: g) }
+        return gone.count
+    }
+
+    // P357 (d): every light aboard dark: panels dead, portholes unlit, thruster cores and coils cold.
+    func lightsOut(_ s: Ship) {
+        let panelOff = Capital.id("light_panel_off", AIR), port = Capital.id("frigate_porthole_dark", AIR)
+        let trim = Capital.id("frigate_trim", AIR)
+        var swap: [BlockID: BlockID] = [:]
+        for (n, to) in [("light_panel", panelOff), ("frigate_porthole", port), ("frigate_thruster", trim)] where Blocks.has(n) && to != AIR {
+            swap[Blocks.id(n)] = to
+        }
+        guard !swap.isEmpty else { return }
+        let gr = s.grid
+        var changed: [IVec3] = []
+        for y in 0..<gr.sy { for z in 0..<gr.sz { for x in 0..<gr.sx {
+            if let to = swap[gr.blocks[gr.index(x, y, z)]] { gr.set(x, y, z, to); changed.append(IVec3(x, y, z)) }
+        } } }
+        if !changed.isEmpty { s.mesh.rebuildAround(s, changed, device: world.device, queue: meshQueue) }
+        Capital.darkened.insert(s.id)
     }
 
     // P325: sets a commandeered capital flier's attitude at once (its heading kept): the bow pitched, the wings level.
@@ -2338,6 +2381,7 @@ extension Capital {
     static var vtolBank: Float { fullBank ? 0.38 : 0.14 }       // 22 or 8 degrees
     static let crashSpeed: Float = 14          // closing speed (blocks/s) at the touching part that wrecks the hull
     static var crashes = 0                     // (FrigateCheck)
+    static var darkened = Set<Int>()           // hulls whose lights a crash put out (P357 d; FrigateCheck)
 
     // The hull's attitude from its heading, bow pitch (up +) and bank (right wing up +): yaw about the world's up, then
     // pitch about the hull's beam, then bank about its keel.

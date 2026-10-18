@@ -278,7 +278,8 @@ extension Game {
             guard let stand = helmStand(s) else { continue }
             let d = simd_length(s.toWorld(stand) - p)
             let zone: Float = s.role == "dropship" ? 9 : (s.role == "kestrel" || s.role == "capplane" ? 8 : 6)
-            let aboard = s.kinematic && (ships.aboard?.root === s || ships.boundsDistance(s, p) < (s.role == "dropship" ? 3 : 0.5))
+            // (P357 b, Oct 16 20:13: "I could fly it from anywhere aboard": a frigate's helm is taken at the helm only.)
+            let aboard = s.kinematic && s.role != "capfrigate" && (ships.aboard?.root === s || ships.boundsDistance(s, p) < (s.role == "dropship" ? 3 : 0.5))
             if (d < zone || aboard) && d < bd { best = s; bd = d }
         }
         return best
