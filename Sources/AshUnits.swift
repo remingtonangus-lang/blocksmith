@@ -254,6 +254,9 @@ extension Mob {
         b.kick = max(0, b.kick - dt * 2.5)
         // Burning wrecks-to-be: smoke under 40% health.
         if health * 5 < spec.health * 2 && Rand.float(in: 0..<1) < dt * 5 { g.particles.smoke(at: pos + V3(0, height * 0.8, 0)) }
+        // P344: his (taken, or left empty by its crew): driven from his seat, else parked with no crew to move it.
+        if AshSeat.shared.vehicle === self { return ashSeatDrive(dt, g, AshSeat.shared) }
+        if tamed { aggro = false; return 0 }
         if g.ashVehicleLife(self, dist: dist) { return 0 }                          // knocked out: empty, his to take (P324)
         // P324: half of them patrol a loop round where they stood while calm (a leg given up after 40 s).
         b.patrolT += dt
@@ -307,6 +310,58 @@ extension Mob {
         }
     }
 
+    // P344: his at the controls. The stick drives (forward) and turns (sideways) the hull; the turret, the pintle gun or
+    // the field gun lays on his view at its own traverse rate; the trigger fires the seat's gun.
+    private func ashSeatDrive(_ dt: Float, _ g: Game, _ seat: AshSeat) -> Float {
+        let b = soldierBrain
+        aggro = false
+        b.order = nil
+        let view = g.player.yaw, up = g.player.pitch
+        switch kind {
+        case .ashTank:
+            ashSlew(dt, toYaw: view, pitch: max(-0.14, min(0.35, up)))
+            if seat.fireTap && b.reload <= 0 {
+                b.reload = 4
+                ashCannon(g, power: 1.3, speed: 70, gravity: 9, len: 6.1, spread: 0.004, mine: true)
+                AshSeat.shots += 1
+            } else if seat.fireHeld && b.reload > 0.4 && b.shotTimer <= 0 {
+                let (m, d) = ashMuzzle(3.4)
+                ashSeatBullet(g, from: m + V3(cosf(b.turret), 0, -sinf(b.turret)) * 0.35, dir: d)
+                b.shotTimer = 0.11
+            }
+        case .ashHalftrack where seat.gunner:
+            ashSlew(dt, toYaw: view, pitch: max(-0.4, min(0.6, up)))
+            if seat.fireHeld && b.shotTimer <= 0 {
+                let (m, d) = ashMuzzle(1.2)
+                ashSeatBullet(g, from: m, dir: d)
+                b.shotTimer = 0.1
+            }
+        case .ashArtillery:
+            ashSlew(dt, toYaw: view, pitch: max(0, min(1.2, up)))
+            if seat.fireTap && b.reload <= 0 {
+                b.reload = 5
+                ashCannon(g, power: 1.5, speed: 46, gravity: 12, len: 3.9, spread: 0.006, mine: true)
+                AshSeat.shots += 1
+            }
+            return 0                                               // a field gun is laid, not driven
+        default:
+            ashSlew(dt, toYaw: yaw, pitch: 0)                      // the pintle gun rides fore and aft
+        }
+        let turn: Float = kind == .ashHalftrack ? 1.4 : (kind == .ashTruck ? 1.2 : 0.7)
+        let speed = seat.drive >= 0 ? spec.speed * seat.drive : spec.speed * 0.6 * seat.drive
+        // Turning: a tank pivots on its tracks; wheels need the hull rolling (and steer the other way in reverse).
+        let roll: Float = kind == .ashTank ? 1 : min(1, abs(seat.drive) * 2) * (seat.drive < 0 ? -1 : 1)
+        yaw -= seat.steer * turn * roll * dt
+        walkPhase += speed * dt
+        return speed
+    }
+
+    private func ashSeatBullet(_ g: Game, from: V3, dir: V3) {
+        g.arms.spawn(Slug(pos: from, vel: Guns.scatter(dir, 0.012) * 150, kind: .bullet, damage: 5, fromPlayer: true,
+                          shooter: ObjectIdentifier(self), by: "Player", life: 0.6, gravity: 1.5))
+        g.sfx(.gun(Guns.rifle), 0.9, at: from)
+    }
+
     // Turret / gun laying toward a world yaw and pitch at the unit's traverse rates.
     private func ashSlew(_ dt: Float, toYaw want: Float, pitch: Float) {
         let b = soldierBrain
@@ -351,10 +406,10 @@ extension Mob {
         g.sfx(.gun(Guns.rifle), 0.9, at: from)
     }
 
-    private func ashCannon(_ g: Game, power: Float, speed v: Float, gravity gr: Float, len: Float, spread: Float) {
+    private func ashCannon(_ g: Game, power: Float, speed v: Float, gravity gr: Float, len: Float, spread: Float, mine: Bool = false) {
         let (muzzle, fwd) = ashMuzzle(len)
-        var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, spread) * v, kind: .shell, damage: 0, fromPlayer: false,
-                     shooter: ObjectIdentifier(self), by: spec.name, life: 6, gravity: gr)
+        var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, spread) * v, kind: .shell, damage: 0, fromPlayer: mine,
+                     shooter: ObjectIdentifier(self), by: mine ? "Player" : spec.name, life: 6, gravity: gr)
         s.power = power
         g.arms.spawn(s)
         for _ in 0..<4 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
@@ -549,6 +604,8 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         turned(x - (side < 0 ? 0.4 : 0), y, z, 0.4, size, size, white, pivot: pivot, pat: 0)
         turned(x - (side < 0 ? 0.8 : -0.4), y + size * 0.15, z + size * 0.38, 0.4, size * 0.7, size * 0.24, dark, pivot: pivot, pat: 0)
     }
+    // P344 (e): a crewed vehicle shows its crew (none once it is his).
+    let coat = V3(0.17, 0.165, 0.15), skin = V3(0.72, 0.56, 0.46), helm = V3(0.1, 0.1, 0.105)
     switch m.kind {
     case .ashTank:
         // A heavy tank in the period's style: a slab hull with a near-vertical front plate, big interleaved road wheels,
@@ -588,6 +645,11 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         turned(-15, 30, 14, 30, 9, 8, plate, pivot: pv)                                        // stowage bin
         turned(-19.4, 37, -14, 38.8, 2, 20, red, pivot: pv, pat: 0)                            // turret band
         turned(-14, 42.8, 2, 9, 4, 9, plate, pivot: pv)                                        // commander's cupola
+        if !m.tamed {                                                                          // the commander, head out
+            turned(-12, 46.8, 4.5, 5, 4, 4, coat, pivot: pv, pat: 0)
+            turned(-11.5, 50.8, 4.5, 4, 4, 4, skin, pivot: pv, pat: 0)
+            turned(-12, 53.6, 4, 5, 1.6, 5, helm, pivot: pv, pat: 0)
+        }
         if fine {
             turnedMark(-19.4, 30, -6, side: -1, size: 6, pivot: pv); turnedMark(19.4, 30, -6, side: 1, size: 6, pivot: pv)
             turned(-13, 46.8, 3, 7, 0.8, 7, dark, pivot: pv)
@@ -660,6 +722,12 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         p.append(box(-12, 16, 37, 3, 2, 0.6, glow, 9)); p.append(box(9, 16, 37, 3, 2, 0.6, glow, 9))
         let pv = V3(0, 30, -12)
         turned(-1, 25, -13, 2, 6, 2, steel, pivot: pv, pat: 8)                                 // pintle
+        if !m.tamed {                                                                          // driver and gunner
+            p.append(box(-12, 17, -24, 6, 7, 4, coat)); p.append(box(-11.5, 24, -23.5, 5, 4.5, 4.5, skin))
+            p.append(box(-12, 28, -24, 6, 1.6, 5.5, helm))
+            turned(-3, 19, -8, 6, 8, 4, coat, pivot: pv, pat: 0); turned(-2.5, 27, -7.5, 5, 4.5, 4.5, skin, pivot: pv, pat: 0)
+            turned(-3, 31, -8, 6, 1.6, 5.5, helm, pivot: pv, pat: 0)
+        }
         turned(-7, 26, -15, 14, 9, 1, plate, pivot: pv)                                        // gun shield
         turned(-1.1, 28.6, -30, 2.2, 2.4, 16, dark, pivot: pv, gun: true, pat: 8)              // perforated jacket
         for z: Float in [-28.0, -24.5, -21.0] where fine { turned(-1.15, 29.2, z, 2.3, 0.6, 1.6, V3(0.02, 0.02, 0.02), pivot: pv, gun: true) }

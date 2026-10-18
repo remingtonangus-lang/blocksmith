@@ -1310,7 +1310,7 @@ final class Mob {
             hit = (false, true, false)
         } else {
             w.touchedPlayer = false
-            hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0.6, onGround: onGround)
+            hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: kind.ashVehicle ? 1.05 : 0.6, onGround: onGround)
             pressedPlayer = w.touchedPlayer
         }
         if self === Mob.trace {
@@ -1348,7 +1348,8 @@ final class Mob {
             // Hop up one block: gravity acts before the first move, so 7.4 left the ground at 6.0 and peaked 0.8 up,
             // short of a full block (behaviour-sim trace, run 355: villagers bounced at every 1-block step for
             // minutes). The player's 8.6 peaks at 1.1.
-            else if onGround && spec.behavior != .slime { vel.y = 8.6 }
+            // P344 (d): a vehicle never hops (a truck bounced over every bump); it climbs a step on its own (below).
+            else if onGround && spec.behavior != .slime && !kind.ashVehicle { vel.y = 8.6 }
         }
         if pos.y < -10 { health = 0 }
 
