@@ -1,6 +1,6 @@
 # Voice bug notes 2026-10-16 (Quest)
 
-Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 330 notes.
+Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 400 notes.
 
 ## 11:50:29 - All right, here we go. What do we got here? All right, good. Yeah, oka
 
@@ -7742,3 +7742,1642 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 - **Position at the end:** 7523.5 85.1 -6470.3
 - **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7562.0 --z -6476.4 --yaw 147 --pitch -42 --time 0.941`
 - **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-201538-665.aac
+
+## 23:02:38 - All right, back to game
+
+- **Transcript:** All right, back to game
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Lukewarm Ocean
+- **Position:** 7548.7 85.1 -6593.6
+- **Facing:** north-east (yaw 59, pitch -49)
+- **Held:** Capital Rounds x28
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen PauseMenu
+- **Time:** day 3 04:42, clear
+- **Fps:** 4
+- **Levels:** mic -32 dBFS, game sound -43 dBFS
+- **Length:** 2.8 s (voice 1.3 s)
+- **Just before:** -20s walked into Beach; -14s message: Flying; -12s walked into Warm Ocean; -7s message: Render distance 11 for now, to keep the frame rate; -4s walked into Lukewarm Ocean; -4s opened PauseMenu; -2s message: View recentred
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7548.7 --z -6593.6 --yaw -59 --pitch -49 --time 0.946`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230238-481.aac
+
+![23:02:38](voice-shots/vn-20261016-230238-481.jpg)
+
+## 23:02:46 - Let's turn our distance to twenty-four, do ten instead
+
+- **Transcript:** Let's turn our distance to twenty-four, do ten instead
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Beach
+- **Position:** 7541.6 85.4 -6631.2
+- **Facing:** north (yaw 357, pitch -16)
+- **Held:** Capital Rounds x28
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen PauseMenu
+- **Time:** day 3 04:44, clear
+- **Fps:** 30
+- **Levels:** mic -36 dBFS, game sound -38 dBFS
+- **Length:** 4.4 s (voice 1.9 s)
+- **Just before:** -22s walked into Beach; -16s message: Flying; -14s walked into Warm Ocean; -9s message: Render distance 11 for now, to keep the frame rate; -6s walked into Lukewarm Ocean; -6s opened PauseMenu; -4s message: View recentred; -2s closed PauseMenu; -1s message: Walking; -0s opened PauseMenu; -0s walked into Beach
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7541.6 --z -6631.2 --yaw 3 --pitch -16 --time 0.948`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230246-541.aac
+
+## 23:03:26 - Here's another such instance where I can see through the side of the w
+
+- **Transcript:** Here's another such instance where I can see through the side of the wall for some reason
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Dark Forest
+- **Position:** 7114.9 76.5 -7450.2
+- **Facing:** north-west (yaw 325, pitch -62)
+- **Held:** Capital Rounds x28
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 3 05:19, clear
+- **Fps:** 64
+- **Levels:** mic -27 dBFS, game sound -33 dBFS
+- **Length:** 6.5 s (voice 4.0 s)
+- **Just before:** -30s message: Flying; -29s closed PauseMenu; -26s walked into Forest; -26s message: Sky isle marked on the map; -3s message: Walking; -1s message: Flying
+- **While talking:** -4s message: 72 Hz to keep the frame rate (VR Comfort & Controls); -3s walked into Dark Forest; -1s message: The sky is clouding over: fog is coming
+- **Position at the end:** 7113.2 76.5 -7451.5
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7114.9 --z -7450.2 --yaw 35 --pitch -62 --time 0.972`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230326-281.aac
+
+![23:03:26](voice-shots/vn-20261016-230326-281.jpg)
+
+## 23:03:33 - Another instance right here
+
+- **Transcript:** Another instance right here
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7108.5 55.3 -7446.1
+- **Facing:** south-west (yaw 226, pitch -68)
+- **Held:** Capital Rounds x28
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 3 05:27, clear
+- **Fps:** 64
+- **Levels:** mic -32 dBFS, game sound -33 dBFS
+- **Length:** 2.6 s (voice 1.1 s)
+- **Just before:** -9s message: Walking; -7s message: Flying; -6s message: 72 Hz to keep the frame rate (VR Comfort & Controls); -5s walked into Dark Forest; -3s message: The sky is clouding over: fog is coming; -1s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7108.5 --z -7446.1 --yaw 134 --pitch -68 --time 0.977`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230333-701.aac
+
+## 23:03:37 - Oh, it turned into normal rock when I got close to it
+
+- **Transcript:** Oh, it turned into normal rock when I got close to it
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (10) (seed 1997562484558922131)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 7104.2 31.0 -7438.5
+- **Facing:** west (yaw 284, pitch -38)
+- **Held:** Capital Rounds x28
+- **Mount:** on foot
+- **Looking at:** Stone at 7102 31 -7440
+- **Mode:** Creative, health 20/20
+- **Time:** day 3 05:32, clear
+- **Fps:** 71
+- **Levels:** mic -30 dBFS, game sound -97 dBFS
+- **Length:** 3.6 s (voice 2.0 s)
+- **Just before:** -13s message: Walking; -11s message: Flying; -10s message: 72 Hz to keep the frame rate (VR Comfort & Controls); -9s walked into Dark Forest; -7s message: The sky is clouding over: fog is coming; -5s message: Walking; -3s walked into Forest
+- **Repro (Mac):** `./snap.sh note --seed 1997562484558922131 --x 7104.2 --z -7438.5 --yaw 76 --pitch -38 --time 0.981`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230337-561.aac
+
+![23:03:37](voice-shots/vn-20261016-230337-561.jpg)
+
+## 23:05:05 - Okay, so I spawned in survival, and yet it gave me sixty-four of a bun
+
+- **Transcript:** Okay, so I spawned in survival, and yet it gave me sixty-four of a bunch of different blocks in my inventory. So that's not right
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3824.2 139.0 3386.0
+- **Facing:** south-west (yaw 210, pitch -24)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Grass Block at 3822 138 3389
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 07:35, clear
+- **Fps:** 71
+- **Levels:** mic -44 dBFS, game sound -37 dBFS
+- **Length:** 9.4 s (voice 6.0 s)
+- **Just before:** --1828s walked into Beach; --1835s message: Flying; --1836s walked into Warm Ocean; --1841s message: Render distance 11 for now, to keep the frame rate; --1844s walked into Lukewarm Ocean; --1844s opened PauseMenu; --1847s message: View recentred; --1849s closed PauseMenu; --1849s message: Walking; --1850s opened PauseMenu; --1850s walked into Beach; --1851s message: Flying; --1851s closed PauseMenu; --1854s walked into Forest; --1854s message: Sky isle marked on the map; --1878s message: Walking; --1880s message: Flying; --1881s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1882s walked into Dark Forest; --1884s message: The sky is clouding over: fog is coming; --1886s message: Walking; --1888s walked into Forest; --1895s message: Flying; --1896s message: Walking; --1914s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1918s message: Flying; --1919s walked into Sparse Jungle; --1925s walked into Dark Forest; --1927s walked into Forest; --1929s walked into Dark Forest; --1935s walked into Forest; --1937s opened PauseMenu; --1952s opened KeyboardMenu; --1955s opened PauseMenu; -12s closed PauseMenu; -12s holding Grass Block; -12s message: Spring: the snow melts and the young are born; -6s opened PauseMenu; -1s message: Creative mode; -1s closed PauseMenu
+- **While talking:** --1823s walked into Beach; --1829s message: Flying; --1831s walked into Warm Ocean; --1836s message: Render distance 11 for now, to keep the frame rate; --1839s walked into Lukewarm Ocean; --1839s opened PauseMenu; --1842s message: View recentred; --1844s closed PauseMenu; --1844s message: Walking; --1845s opened PauseMenu; --1845s walked into Beach; --1846s message: Flying; --1846s closed PauseMenu; --1849s walked into Forest; --1849s message: Sky isle marked on the map; --1873s message: Walking; --1875s message: Flying; --1876s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1877s walked into Dark Forest; --1879s message: The sky is clouding over: fog is coming; --1881s message: Walking; --1883s walked into Forest; --1890s message: Flying; --1891s message: Walking; --1909s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1913s message: Flying; --1914s walked into Sparse Jungle; --1920s walked into Dark Forest; --1922s walked into Forest; --1924s walked into Dark Forest; --1930s walked into Forest; --1932s opened PauseMenu; --1947s opened KeyboardMenu; --1950s opened PauseMenu
+- **Position at the end:** 3817.0 138.0 3391.8
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3824.2 --z 3386.0 --yaw 150 --pitch -24 --time 0.066`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230505-321.aac
+
+![23:05:05](voice-shots/vn-20261016-230505-321.jpg)
+
+## 23:05:14 - Shouldn't have this shit. Now I gotta throw it all up
+
+- **Transcript:** Shouldn't have this shit. Now I gotta throw it all up
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3817.0 138.0 3391.9
+- **Facing:** west (yaw 262, pitch -15)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 1 07:46, clear
+- **Fps:** 72
+- **Levels:** mic -30 dBFS, game sound -50 dBFS
+- **Length:** 3.4 s (voice 1.9 s)
+- **Just before:** --1827s walked into Warm Ocean; --1831s message: Render distance 11 for now, to keep the frame rate; --1835s walked into Lukewarm Ocean; --1835s opened PauseMenu; --1837s message: View recentred; --1839s closed PauseMenu; --1840s message: Walking; --1841s opened PauseMenu; --1841s walked into Beach; --1841s message: Flying; --1842s closed PauseMenu; --1845s walked into Forest; --1845s message: Sky isle marked on the map; --1868s message: Walking; --1870s message: Flying; --1872s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1873s walked into Dark Forest; --1874s message: The sky is clouding over: fog is coming; --1877s message: Walking; --1879s walked into Forest; --1885s message: Flying; --1886s message: Walking; --1905s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1908s message: Flying; --1909s walked into Sparse Jungle; --1915s walked into Dark Forest; --1917s walked into Forest; --1919s walked into Dark Forest; --1925s walked into Forest; --1928s opened PauseMenu; --1943s opened KeyboardMenu; --1946s opened PauseMenu; -22s closed PauseMenu; -22s holding Grass Block; -22s message: Spring: the snow melts and the young are born; -16s opened PauseMenu; -11s message: Creative mode; -10s closed PauseMenu; -2s opened CreativeMenu; -1s holding empty hand
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3817.0 --z 3391.9 --yaw 98 --pitch -15 --time 0.074`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230514-941.aac
+
+## 23:05:25 - What the hell?
+
+- **Transcript:** What the hell?
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3820.4 138.8 3389.3
+- **Facing:** north (yaw 348, pitch -3)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Grass Block at 3819 138 3384
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 07:59, clear
+- **Fps:** 72
+- **Levels:** mic -40 dBFS, game sound -59 dBFS
+- **Length:** 1.9 s (voice 0.5 s)
+- **Just before:** --1821s message: Render distance 11 for now, to keep the frame rate; --1824s walked into Lukewarm Ocean; --1824s opened PauseMenu; --1827s message: View recentred; --1829s closed PauseMenu; --1829s message: Walking; --1830s opened PauseMenu; --1830s walked into Beach; --1831s message: Flying; --1831s closed PauseMenu; --1834s walked into Forest; --1834s message: Sky isle marked on the map; --1858s message: Walking; --1860s message: Flying; --1861s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1862s walked into Dark Forest; --1864s message: The sky is clouding over: fog is coming; --1866s message: Walking; --1868s walked into Forest; --1875s message: Flying; --1876s message: Walking; --1894s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1897s message: Flying; --1898s walked into Sparse Jungle; --1904s walked into Dark Forest; --1907s walked into Forest; --1909s walked into Dark Forest; --1915s walked into Forest; --1917s opened PauseMenu; --1932s opened KeyboardMenu; --1935s opened PauseMenu; -26s opened PauseMenu; -21s message: Creative mode; -21s closed PauseMenu; -12s opened CreativeMenu; -11s holding empty hand; -3s closed CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3820.4 --z 3389.3 --yaw 12 --pitch -3 --time 0.083`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230525-481.aac
+
+![23:05:25](voice-shots/vn-20261016-230525-481.jpg)
+
+## 23:05:30 - Okay, trees are working well, I guess. Um, hold on
+
+- **Transcript:** Okay, trees are working well, I guess. Um, hold on
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3827.7 139.0 3384.9
+- **Facing:** north-west (yaw 302, pitch -14)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:05, clear
+- **Fps:** 71
+- **Levels:** mic -56 dBFS, game sound -54 dBFS
+- **Length:** 5.0 s (voice 3.0 s)
+- **Just before:** --1816s message: Render distance 11 for now, to keep the frame rate; --1819s walked into Lukewarm Ocean; --1819s opened PauseMenu; --1822s message: View recentred; --1823s closed PauseMenu; --1824s message: Walking; --1825s opened PauseMenu; --1825s walked into Beach; --1825s message: Flying; --1826s closed PauseMenu; --1829s walked into Forest; --1829s message: Sky isle marked on the map; --1853s message: Walking; --1855s message: Flying; --1856s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1857s walked into Dark Forest; --1859s message: The sky is clouding over: fog is coming; --1861s message: Walking; --1863s walked into Forest; --1870s message: Flying; --1871s message: Walking; --1889s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1892s message: Flying; --1893s walked into Sparse Jungle; --1899s walked into Dark Forest; --1901s walked into Forest; --1903s walked into Dark Forest; --1909s walked into Forest; --1912s opened PauseMenu; --1927s opened KeyboardMenu; --1930s opened PauseMenu; -27s message: Creative mode; -26s closed PauseMenu; -17s opened CreativeMenu; -16s holding empty hand; -9s closed CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3827.7 --z 3384.9 --yaw 58 --pitch -14 --time 0.087`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230530-641.aac
+
+## 23:05:35 - Why? Okay, no
+
+- **Transcript:** Why? Okay, no
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3825.5 139.0 3383.6
+- **Facing:** north-west (yaw 300, pitch -12)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen PauseMenu
+- **Time:** day 1 08:08, clear
+- **Fps:** 71
+- **Levels:** mic -31 dBFS, game sound -47 dBFS
+- **Length:** 2.6 s (voice 1.1 s)
+- **Just before:** --1814s opened PauseMenu; --1817s message: View recentred; --1819s closed PauseMenu; --1819s message: Walking; --1820s opened PauseMenu; --1820s walked into Beach; --1821s message: Flying; --1821s closed PauseMenu; --1824s walked into Forest; --1824s message: Sky isle marked on the map; --1848s message: Walking; --1850s message: Flying; --1851s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1852s walked into Dark Forest; --1854s message: The sky is clouding over: fog is coming; --1856s message: Walking; --1858s walked into Forest; --1865s message: Flying; --1866s message: Walking; --1884s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1888s message: Flying; --1889s walked into Sparse Jungle; --1895s walked into Dark Forest; --1897s walked into Forest; --1899s walked into Dark Forest; --1905s walked into Forest; --1907s opened PauseMenu; --1922s opened KeyboardMenu; --1925s opened PauseMenu; -22s opened CreativeMenu; -21s holding empty hand; -13s closed CreativeMenu; -2s opened PauseMenu; -0s message: Survival mode
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3825.5 --z 3383.6 --yaw 60 --pitch -12 --time 0.089`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230535-541.aac
+
+![23:05:35](voice-shots/vn-20261016-230535-541.jpg)
+
+## 23:05:51 - Okay, so instead of breaking logs to collect them, I think I should ju
+
+- **Transcript:** Okay, so instead of breaking logs to collect them, I think I should just be able to pick them up
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3818.2 138.0 3389.9
+- **Facing:** west (yaw 286, pitch -34)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Grass Block at 3816 137 3389
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 08:26, clear
+- **Fps:** 70
+- **Levels:** mic -36 dBFS, game sound -56 dBFS
+- **Length:** 6.7 s (voice 3.5 s)
+- **Just before:** --1801s message: View recentred; --1803s closed PauseMenu; --1804s message: Walking; --1805s opened PauseMenu; --1805s walked into Beach; --1805s message: Flying; --1806s closed PauseMenu; --1809s walked into Forest; --1809s message: Sky isle marked on the map; --1832s message: Walking; --1834s message: Flying; --1836s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1837s walked into Dark Forest; --1838s message: The sky is clouding over: fog is coming; --1841s message: Walking; --1843s walked into Forest; --1849s message: Flying; --1851s message: Walking; --1869s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1872s message: Flying; --1873s walked into Sparse Jungle; --1879s walked into Dark Forest; --1881s walked into Forest; --1883s walked into Dark Forest; --1889s walked into Forest; --1892s opened PauseMenu; --1907s opened KeyboardMenu; --1910s opened PauseMenu; -29s closed CreativeMenu; -17s opened PauseMenu; -16s message: Survival mode; -15s closed PauseMenu
+- **While talking:** --1796s message: View recentred; --1798s closed PauseMenu; --1799s message: Walking; --1800s opened PauseMenu; --1800s walked into Beach; --1800s message: Flying; --1801s closed PauseMenu; --1804s walked into Forest; --1804s message: Sky isle marked on the map; --1828s message: Walking; --1829s message: Flying; --1831s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1832s walked into Dark Forest; --1834s message: The sky is clouding over: fog is coming; --1836s message: Walking; --1838s walked into Forest; --1844s message: Flying; --1846s message: Walking; --1864s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1867s message: Flying; --1868s walked into Sparse Jungle; --1874s walked into Dark Forest; --1876s walked into Forest; --1878s walked into Dark Forest; --1884s walked into Forest; --1887s opened PauseMenu; --1902s opened KeyboardMenu; --1905s opened PauseMenu
+- **Position at the end:** 3815.5 138.0 3390.2
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3818.2 --z 3389.9 --yaw 74 --pitch -34 --time 0.102`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230551-201.aac
+
+![23:05:51](voice-shots/vn-20261016-230551-201.jpg)
+
+## 23:06:13 - This is weird. Yeah, I'm breaking trees to get wood's not
+
+- **Transcript:** This is weird. Yeah, I'm breaking trees to get wood's not
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3821.8 139.0 3388.3
+- **Facing:** south-west (yaw 230, pitch -29)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Grass Block at 3819 138 3389
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 08:53, clear
+- **Fps:** 71
+- **Levels:** mic -33 dBFS, game sound -15 dBFS
+- **Length:** 4.9 s (voice 2.4 s)
+- **Just before:** --1787s walked into Forest; --1787s message: Sky isle marked on the map; --1810s message: Walking; --1812s message: Flying; --1814s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1815s walked into Dark Forest; --1816s message: The sky is clouding over: fog is coming; --1819s message: Walking; --1821s walked into Forest; --1827s message: Flying; --1828s message: Walking; --1847s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1850s message: Flying; --1851s walked into Sparse Jungle; --1857s walked into Dark Forest; --1859s walked into Forest; --1861s walked into Dark Forest; --1867s walked into Forest; --1870s opened PauseMenu; --1885s opened KeyboardMenu; --1888s opened PauseMenu; -2s holding Oak Log; -2s message: Oak Log; -2s holding empty hand; -1s holding Oak Log; -1s holding empty hand; -1s holding Oak Log; -1s holding empty hand
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3821.8 --z 3388.3 --yaw 130 --pitch -29 --time 0.120`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230613-721.aac
+
+![23:06:13](voice-shots/vn-20261016-230613-721.jpg)
+
+## 23:06:25 - Pick up chunks of wood. You know, that would make sense. You know, pic
+
+- **Transcript:** Pick up chunks of wood. You know, that would make sense. You know, pick up, pick up chunks. Oh
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3818.1 139.1 3396.4
+- **Facing:** north-east (yaw 32, pitch -61)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 09:07, clear
+- **Fps:** 71
+- **Levels:** mic -42 dBFS, game sound -14 dBFS
+- **Length:** 5.0 s (voice 2.4 s)
+- **Just before:** --1774s walked into Forest; --1775s message: Sky isle marked on the map; --1798s message: Walking; --1800s message: Flying; --1801s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1803s walked into Dark Forest; --1804s message: The sky is clouding over: fog is coming; --1807s message: Walking; --1809s walked into Forest; --1815s message: Flying; --1816s message: Walking; --1835s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1838s message: Flying; --1839s walked into Sparse Jungle; --1845s walked into Dark Forest; --1847s walked into Forest; --1849s walked into Dark Forest; --1855s walked into Forest; --1857s opened PauseMenu; --1873s opened KeyboardMenu; --1876s opened PauseMenu; -15s holding Oak Log; -15s message: Oak Log; -14s holding empty hand; -14s holding Oak Log; -13s holding empty hand; -13s holding Oak Log; -13s holding empty hand
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3818.1 --z 3396.4 --yaw -32 --pitch -61 --time 0.130`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230625-922.aac
+
+![23:06:25](voice-shots/vn-20261016-230625-922.jpg)
+
+## 23:06:37 - What the hell?
+
+- **Transcript:** What the hell?
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3818.7 138.7 3390.1
+- **Facing:** north (yaw 2, pitch -39)
+- **Held:** Oak Log x3
+- **Mount:** on foot
+- **Looking at:** Grass Block at 3818 137 3387
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 09:21, clear
+- **Fps:** 72
+- **Levels:** mic -31 dBFS, game sound -19 dBFS
+- **Length:** 2.5 s (voice 0.8 s)
+- **Just before:** --1788s message: Flying; --1790s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1791s walked into Dark Forest; --1793s message: The sky is clouding over: fog is coming; --1795s message: Walking; --1797s walked into Forest; --1803s message: Flying; --1805s message: Walking; --1823s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1826s message: Flying; --1827s walked into Sparse Jungle; --1833s walked into Dark Forest; --1835s walked into Forest; --1837s walked into Dark Forest; --1843s walked into Forest; --1846s opened PauseMenu; --1861s opened KeyboardMenu; --1864s opened PauseMenu; -26s holding Oak Log; -26s message: Oak Log; -25s holding empty hand; -25s holding Oak Log; -25s holding empty hand; -25s holding Oak Log; -24s holding empty hand; -9s holding Oak Log; -8s holding empty hand; -6s holding Oak Log
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3818.7 --z 3390.1 --yaw -2 --pitch -39 --time 0.140`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230637-442.aac
+
+![23:06:37](voice-shots/vn-20261016-230637-442.jpg)
+
+## 23:06:42 - Looks like I can skate off the logs. Physics on top of this weird
+
+- **Transcript:** Looks like I can skate off the logs. Physics on top of this weird
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3816.6 138.0 3387.7
+- **Facing:** north (yaw 350, pitch -18)
+- **Held:** Oak Log x3
+- **Mount:** on foot
+- **Looking at:** Oak Log at 3815 138 3384
+- **Mode:** Survival, health 19/20
+- **Time:** day 1 09:28, clear
+- **Fps:** 71
+- **Levels:** mic -27 dBFS, game sound -16 dBFS
+- **Length:** 6.4 s (voice 3.5 s)
+- **Just before:** --1783s message: Flying; --1784s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1786s walked into Dark Forest; --1787s message: The sky is clouding over: fog is coming; --1790s message: Walking; --1792s walked into Forest; --1798s message: Flying; --1799s message: Walking; --1818s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1821s message: Flying; --1822s walked into Sparse Jungle; --1828s walked into Dark Forest; --1830s walked into Forest; --1832s walked into Dark Forest; --1838s walked into Forest; --1841s opened PauseMenu; --1856s opened KeyboardMenu; --1859s opened PauseMenu; -30s holding empty hand; -15s holding Oak Log; -14s holding empty hand; -11s holding Oak Log
+- **While talking:** --1779s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1781s walked into Dark Forest; --1782s message: The sky is clouding over: fog is coming; --1785s message: Walking; --1787s walked into Forest; --1793s message: Flying; --1794s message: Walking; --1813s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1816s message: Flying; --1817s walked into Sparse Jungle; --1823s walked into Dark Forest; --1825s walked into Forest; --1827s walked into Dark Forest; --1833s walked into Forest; --1836s opened PauseMenu; --1851s opened KeyboardMenu; --1854s opened PauseMenu; -5s took 1 damage (health 20/20)
+- **Position at the end:** 3819.7 139.0 3391.4
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3816.6 --z 3387.7 --yaw 10 --pitch -18 --time 0.145`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230642-942.aac
+
+## 23:06:55 - Yeah. So the polygons that break off, some of that break sometimes are
+
+- **Transcript:** Yeah. So the polygons that break off, some of that break sometimes are of even more volume than the thing itself. Meaning, I don't know what algorithm you're using to break, turn into polygons and shit, but it's not right
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3817.7 139.8 3395.5
+- **Facing:** south-west (yaw 210, pitch -40)
+- **Held:** Oak Log x4
+- **Mount:** on foot
+- **Looking at:** Grass Block at 3816 138 3397
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 09:43, clear
+- **Fps:** 71
+- **Levels:** mic -26 dBFS, game sound -16 dBFS
+- **Length:** 14.9 s (voice 8.5 s)
+- **Just before:** --1772s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1773s walked into Dark Forest; --1775s message: The sky is clouding over: fog is coming; --1777s message: Walking; --1779s walked into Forest; --1786s message: Flying; --1787s message: Walking; --1805s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1808s message: Flying; --1809s walked into Sparse Jungle; --1815s walked into Dark Forest; --1817s walked into Forest; --1819s walked into Dark Forest; --1826s walked into Forest; --1828s opened PauseMenu; --1843s opened KeyboardMenu; --1846s opened PauseMenu; -27s holding Oak Log; -26s holding empty hand; -23s holding Oak Log; -12s took 1 damage (health 20/20)
+- **While talking:** --1767s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1768s walked into Dark Forest; --1770s message: The sky is clouding over: fog is coming; --1772s message: Walking; --1774s walked into Forest; --1781s message: Flying; --1782s message: Walking; --1800s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1803s message: Flying; --1804s walked into Sparse Jungle; --1810s walked into Dark Forest; --1812s walked into Forest; --1815s walked into Dark Forest; --1821s walked into Forest; --1823s opened PauseMenu; --1838s opened KeyboardMenu; --1841s opened PauseMenu; --1762s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1763s walked into Dark Forest; --1765s message: The sky is clouding over: fog is coming; --1767s message: Walking; --1769s walked into Forest; --1776s message: Flying; --1777s message: Walking; --1795s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1799s message: Flying; --1800s walked into Sparse Jungle; --1806s walked into Dark Forest; --1808s walked into Forest; --1810s walked into Dark Forest; --1816s walked into Forest; --1818s opened PauseMenu; --1833s opened KeyboardMenu; --1836s opened PauseMenu
+- **Position at the end:** 3833.9 143.7 3435.0
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3817.7 --z 3395.5 --yaw 150 --pitch -40 --time 0.155`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230655-522.aac
+
+![23:06:55](voice-shots/vn-20261016-230655-522.jpg)
+
+## 23:07:24 - For some reason it's making a weird sound when I cut down the tree
+
+- **Transcript:** For some reason it's making a weird sound when I cut down the tree
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Cherry Grove
+- **Position:** 3855.5 140.0 3446.5
+- **Facing:** east (yaw 101, pitch -34)
+- **Held:** Oak Log x5
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 10:16, clear
+- **Fps:** 66
+- **Levels:** mic -26 dBFS, game sound -20 dBFS
+- **Length:** 4.0 s (voice 2.1 s)
+- **Just before:** --1744s message: 72 Hz to keep the frame rate (VR Comfort & Controls); --1745s walked into Dark Forest; --1747s message: The sky is clouding over: fog is coming; --1749s message: Walking; --1751s walked into Forest; --1758s message: Flying; --1759s message: Walking; --1778s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1781s message: Flying; --1782s walked into Sparse Jungle; --1788s walked into Dark Forest; --1790s walked into Forest; --1792s walked into Dark Forest; --1798s walked into Forest; --1800s opened PauseMenu; --1815s opened KeyboardMenu; --1819s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3855.5 --z 3446.5 --yaw -101 --pitch -34 --time 0.178`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230724-322.aac
+
+![23:07:24](voice-shots/vn-20261016-230724-322.jpg)
+
+## 23:07:32 - Reminds me of what the creeper sounded like
+
+- **Transcript:** Reminds me of what the creeper sounded like
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3859.7 139.0 3443.4
+- **Facing:** south-east (yaw 136, pitch -39)
+- **Held:** Oak Log x5
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 10:25, clear
+- **Fps:** 68
+- **Levels:** mic -27 dBFS, game sound -16 dBFS
+- **Length:** 3.4 s (voice 1.4 s)
+- **Just before:** --1738s walked into Dark Forest; --1740s message: The sky is clouding over: fog is coming; --1742s message: Walking; --1744s walked into Forest; --1751s message: Flying; --1752s message: Walking; --1770s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1773s message: Flying; --1774s walked into Sparse Jungle; --1780s walked into Dark Forest; --1782s walked into Forest; --1784s walked into Dark Forest; --1790s walked into Forest; --1793s opened PauseMenu; --1808s opened KeyboardMenu; --1811s opened PauseMenu; -0s took 1 damage (health 20/20)
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3859.7 --z 3443.4 --yaw -136 --pitch -39 --time 0.184`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230732-081.aac
+
+## 23:07:36 - I gotta get the sound effects updated in this game. [sighs] Someday
+
+- **Transcript:** I gotta get the sound effects updated in this game. [sighs] Someday
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 3864.7 137.2 3441.2
+- **Facing:** east (yaw 99, pitch -44)
+- **Held:** Oak Log x5
+- **Mount:** on foot
+- **Looking at:** Grass Block at 3868 134 3441
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 10:30, clear
+- **Fps:** 68
+- **Levels:** mic -24 dBFS, game sound -12 dBFS
+- **Length:** 5.2 s (voice 2.6 s)
+- **Just before:** --1734s walked into Dark Forest; --1735s message: The sky is clouding over: fog is coming; --1738s message: Walking; --1740s walked into Forest; --1746s message: Flying; --1747s message: Walking; --1766s message: Battle on the Kesstad-Valiwick front: Kesstad advances 64 blocks; --1769s message: Flying; --1770s walked into Sparse Jungle; --1776s walked into Dark Forest; --1778s walked into Forest; --1780s walked into Dark Forest; --1786s walked into Forest; --1788s opened PauseMenu; --1804s opened KeyboardMenu; --1807s opened PauseMenu; -5s took 1 damage (health 20/20)
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 3864.7 --z 3441.2 --yaw -99 --pitch -44 --time 0.188`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230736-882.aac
+
+![23:07:36](voice-shots/vn-20261016-230736-882.jpg)
+
+## 23:08:27 - The parrots are flying backwards
+
+- **Transcript:** The parrots are flying backwards
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** 4049.4 97.0 3358.7
+- **Facing:** east (yaw 69, pitch -72)
+- **Held:** Melon Slice x5
+- **Mount:** on foot
+- **Looking at:** Short Grass at 4049 97 3358
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 11:30, clear
+- **Fps:** 72
+- **Levels:** mic -27 dBFS, game sound -16 dBFS
+- **Length:** 2.8 s (voice 1.0 s)
+- **Just before:** -25s opened ChestMenu; -23s message: Nothing in your pack matches this chest; -22s closed ChestMenu; -21s message: Honour lowered (theft); -19s message: Isaiah Whitlock: I'm watching you.; -18s holding Melon Slice; -17s message: Calvin Fenwick: I saw that. Put it back, slow.; -14s message: Calvin Fenwick: You're on thin ice, stranger.; -12s message: Calvin Fenwick: Drop what you took and raise your hands.; -9s message: Isaiah Whitlock: You're not welcome here anymore.; -6s message: Lone Hollow has turned on you!; -4s message: Calvin Fenwick: Hands where I can see 'em!
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4049.4 --z 3358.7 --yaw -69 --pitch -72 --time 0.229`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230827-162.aac
+
+![23:08:27](voice-shots/vn-20261016-230827-162.jpg)
+
+## 23:08:34 - I like the, uh, roosters or ducks, I guess. They look great
+
+- **Transcript:** I like the, uh, roosters or ducks, I guess. They look great
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** 4066.4 88.5 3356.9
+- **Facing:** north-east (yaw 45, pitch -33)
+- **Held:** Melon Slice x12
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4069 86 3353
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 11:38, clear
+- **Fps:** 71
+- **Levels:** mic -54 dBFS, game sound -15 dBFS
+- **Length:** 4.8 s (voice 2.1 s)
+- **Just before:** -29s closed ChestMenu; -28s message: Honour lowered (theft); -26s message: Isaiah Whitlock: I'm watching you.; -25s holding Melon Slice; -24s message: Calvin Fenwick: I saw that. Put it back, slow.; -21s message: Calvin Fenwick: You're on thin ice, stranger.; -19s message: Calvin Fenwick: Drop what you took and raise your hands.; -16s message: Isaiah Whitlock: You're not welcome here anymore.; -13s message: Lone Hollow has turned on you!; -11s message: Calvin Fenwick: Hands where I can see 'em!
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4066.4 --z 3356.9 --yaw -45 --pitch -33 --time 0.235`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230834-082.aac
+
+## 23:08:39 - Uh, but they look black sometimes. They completely black. Doesn't look
+
+- **Transcript:** Uh, but they look black sometimes. They completely black. Doesn't look right when they're completely black
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4099.3 76.0 3348.8
+- **Facing:** south-east (yaw 132, pitch -27)
+- **Held:** Melon Slice x12
+- **Mount:** on foot
+- **Looking at:** Short Grass at 4099 76 3349
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 11:45, clear
+- **Fps:** 72
+- **Levels:** mic -37 dBFS, game sound -52 dBFS
+- **Length:** 7.0 s (voice 3.3 s)
+- **Just before:** -30s message: Calvin Fenwick: I saw that. Put it back, slow.; -27s message: Calvin Fenwick: You're on thin ice, stranger.; -24s message: Calvin Fenwick: Drop what you took and raise your hands.; -21s message: Isaiah Whitlock: You're not welcome here anymore.; -19s message: Lone Hollow has turned on you!; -17s message: Calvin Fenwick: Hands where I can see 'em!
+- **Position at the end:** 4121.0 73.7 3330.2
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4099.3 --z 3348.8 --yaw -132 --pitch -27 --time 0.240`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230839-701.aac
+
+![23:08:39](voice-shots/vn-20261016-230839-701.jpg)
+
+## 23:08:46 - Yeah, pumpkin. Okay, this tree right here is fucked. It's like tiered 
+
+- **Transcript:** Yeah, pumpkin. Okay, this tree right here is fucked. It's like tiered logs that aren't connected to each other
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4126.4 73.8 3320.4
+- **Facing:** north-east (yaw 40, pitch -23)
+- **Held:** Melon Slice x12
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 11:53, clear
+- **Fps:** 72
+- **Levels:** mic -34 dBFS, game sound -100 dBFS
+- **Length:** 8.4 s (voice 4.5 s)
+- **Just before:** -28s message: Isaiah Whitlock: You're not welcome here anymore.; -25s message: Lone Hollow has turned on you!; -23s message: Calvin Fenwick: Hands where I can see 'em!
+- **While talking:** -1s message: The sky is clouding over: fog is coming
+- **Position at the end:** 4133.8 72.0 3313.4
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4126.4 --z 3320.4 --yaw -40 --pitch -23 --time 0.245`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230846-341.aac
+
+## 23:08:57 - And mysterious fog is hit randomly
+
+- **Transcript:** And mysterious fog is hit randomly
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4160.7 69.0 3286.7
+- **Facing:** north-east (yaw 34, pitch -18)
+- **Held:** Melon Slice x12
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4161 69 3284
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 12:06, clear
+- **Fps:** 71
+- **Levels:** mic -29 dBFS, game sound -31 dBFS
+- **Length:** 4.2 s (voice 1.9 s)
+- **Just before:** -7s message: The sky is clouding over: fog is coming
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4160.7 --z 3286.7 --yaw -34 --pitch -18 --time 0.255`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230857-862.aac
+
+![23:08:57](voice-shots/vn-20261016-230857-862.jpg)
+
+## 23:09:05 - Okay, so I'm gonna go on to
+
+- **Transcript:** Okay, so I'm gonna go on to
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4183.3 67.0 3259.1
+- **Facing:** north (yaw 15, pitch -23)
+- **Held:** Melon Slice x12
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4184 66 3255
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 12:15, clear
+- **Fps:** 70
+- **Levels:** mic -31 dBFS, game sound -67 dBFS
+- **Length:** 3.3 s (voice 1.1 s)
+- **Just before:** -15s message: The sky is clouding over: fog is coming
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4183.3 --z 3259.1 --yaw -15 --pitch -23 --time 0.261`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230905-521.aac
+
+## 23:09:37 - Yeah, so the polygon shit's getting in my way
+
+- **Transcript:** Yeah, so the polygon shit's getting in my way
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4184.1 66.0 3253.8
+- **Facing:** north (yaw 11, pitch -50)
+- **Held:** Wooden Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Stone at 4184 65 3251
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 12:51, clear
+- **Fps:** 67
+- **Levels:** mic -31 dBFS, game sound -34 dBFS
+- **Length:** 4.9 s (voice 3.1 s)
+- **Just before:** -29s opened InventoryMenu; -28s opened CraftingBookMenu; -26s closed CraftingBookMenu; -25s opened InventoryMenu; -24s closed InventoryMenu; -24s holding Pumpkin; -24s message: Pumpkin; -24s holding Paper; -24s message: Paper; -24s holding Gold Ingot; -24s message: Gold Ingot; -23s holding Emerald; -23s message: Emerald; -23s holding Crafting Table; -23s message: Crafting Table; -23s holding empty hand; -22s opened CraftingBookMenu; -9s holding Wooden Pickaxe; -8s closed CraftingBookMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4184.1 --z 3253.8 --yaw -11 --pitch -50 --time 0.286`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230937-201.aac
+
+![23:09:37](voice-shots/vn-20261016-230937-201.jpg)
+
+## 23:09:42 - Because it's just like I break a block and it explodes into way bigger
+
+- **Transcript:** Because it's just like I break a block and it explodes into way bigger polygons when I'm supposed to be taking the stuff
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4184.7 63.7 3252.7
+- **Facing:** north (yaw 11, pitch 32)
+- **Held:** Wooden Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Stone at 4185 67 3249
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 12:57, clear
+- **Fps:** 65
+- **Levels:** mic -40 dBFS, game sound -36 dBFS
+- **Length:** 7.5 s (voice 4.7 s)
+- **Just before:** -30s opened InventoryMenu; -29s closed InventoryMenu; -29s holding Pumpkin; -29s message: Pumpkin; -29s holding Paper; -29s message: Paper; -28s holding Gold Ingot; -28s message: Gold Ingot; -28s holding Emerald; -28s message: Emerald; -28s holding Crafting Table; -28s message: Crafting Table; -27s holding empty hand; -26s opened CraftingBookMenu; -13s holding Wooden Pickaxe; -13s closed CraftingBookMenu; -5s message: Render distance 9 for now, to keep the frame rate
+- **Position at the end:** 4184.5 65.8 3253.7
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4184.7 --z 3252.7 --yaw -11 --pitch 32 --time 0.290`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230942-421.aac
+
+## 23:09:50 - The pieces of shit, which
+
+- **Transcript:** The pieces of shit, which
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4184.1 65.8 3253.1
+- **Facing:** north-west (yaw 300, pitch -64)
+- **Held:** Wooden Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Stone at 4183 65 3252
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 13:05, clear
+- **Fps:** 65
+- **Levels:** mic -29 dBFS, game sound -19 dBFS
+- **Length:** 3.0 s (voice 1.1 s)
+- **Just before:** -21s holding Wooden Pickaxe; -20s closed CraftingBookMenu; -12s message: Render distance 9 for now, to keep the frame rate
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4184.1 --z 3253.1 --yaw 60 --pitch -64 --time 0.296`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230950-482.aac
+
+![23:09:50](voice-shots/vn-20261016-230950-482.jpg)
+
+## 23:09:54 - So it doesn't really make sense if a bunch of polygons break off and y
+
+- **Transcript:** So it doesn't really make sense if a bunch of polygons break off and yet I still get the block
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4183.4 65.0 3253.2
+- **Facing:** north-west (yaw 307, pitch -57)
+- **Held:** Wooden Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Stone at 4182 65 3252
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 13:09, clear
+- **Fps:** 62
+- **Levels:** mic -36 dBFS, game sound -41 dBFS
+- **Length:** 5.7 s (voice 3.2 s)
+- **Just before:** -24s holding Wooden Pickaxe; -23s closed CraftingBookMenu; -15s message: Render distance 9 for now, to keep the frame rate; -2s message: Render distance 8 for now, to keep the frame rate
+- **Position at the end:** 4183.6 65.5 3253.2
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4183.4 --z 3253.2 --yaw 53 --pitch -57 --time 0.298`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-230954-142.aac
+
+## 23:10:37 - All the animals look excellent
+
+- **Transcript:** All the animals look excellent
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** 4232.9 72.7 3283.4
+- **Facing:** south-east (yaw 137, pitch -73)
+- **Held:** Stone Sword x1
+- **Mount:** on foot
+- **Looking at:** Sand at 4233 72 3283
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 14:00, clear
+- **Fps:** 72
+- **Levels:** mic -25 dBFS, game sound -38 dBFS
+- **Length:** 2.9 s (voice 1.1 s)
+- **Just before:** -18s closed CraftingBookMenu; -17s opened InventoryMenu; -14s closed InventoryMenu; -11s holding Stone Axe; -11s message: Stone Axe; -11s holding Stone Sword; -11s message: Stone Sword
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4232.9 --z 3283.4 --yaw -137 --pitch -73 --time 0.334`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231037-562.aac
+
+## 23:10:45 - Yeah, so the render distance still looks like shit, but I already ment
+
+- **Transcript:** Yeah, so the render distance still looks like shit, but I already mentioned that
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4272.6 72.5 3252.5
+- **Facing:** east (yaw 93, pitch -67)
+- **Held:** Stone Sword x1
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4272 72 3252
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 14:10, clear
+- **Fps:** 71
+- **Levels:** mic -31 dBFS, game sound -91 dBFS
+- **Length:** 5.4 s (voice 2.4 s)
+- **Just before:** -26s closed CraftingBookMenu; -25s opened InventoryMenu; -22s closed InventoryMenu; -19s holding Stone Axe; -19s message: Stone Axe; -19s holding Stone Sword; -19s message: Stone Sword; -0s message: Lone Hollow has calmed down.
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4272.6 --z 3252.5 --yaw -93 --pitch -67 --time 0.340`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231045-421.aac
+
+![23:10:45](voice-shots/vn-20261016-231045-421.jpg)
+
+## 23:10:51 - A lot of these trees, like I don't know if you can see this, but holy 
+
+- **Transcript:** A lot of these trees, like I don't know if you can see this, but holy fuck, this is
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4281.7 75.0 3216.9
+- **Facing:** north-east (yaw 43, pitch -55)
+- **Held:** Stone Sword x1
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4282 74 3216
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 14:16, clear
+- **Fps:** 72
+- **Levels:** mic -31 dBFS, game sound -34 dBFS
+- **Length:** 5.4 s (voice 2.8 s)
+- **Just before:** -28s closed InventoryMenu; -25s holding Stone Axe; -25s message: Stone Axe; -25s holding Stone Sword; -25s message: Stone Sword; -6s message: Lone Hollow has calmed down.
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4281.7 --z 3216.9 --yaw -43 --pitch -55 --time 0.345`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231051-121.aac
+
+## 23:10:56 - This wouldn't pass scor-- store quality. You see this? Uh, I'm pretty 
+
+- **Transcript:** This wouldn't pass scor-- store quality. You see this? Uh, I'm pretty sure this would get rejected, right?
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4285.5 75.0 3212.1
+- **Facing:** north (yaw 14, pitch -54)
+- **Held:** Stone Sword x1
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4285 75 3210
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 14:23, clear
+- **Fps:** 72
+- **Levels:** mic -44 dBFS, game sound -23 dBFS
+- **Length:** 6.8 s (voice 3.8 s)
+- **Just before:** -30s holding Stone Axe; -30s message: Stone Axe; -30s holding Stone Sword; -30s message: Stone Sword; -11s message: Lone Hollow has calmed down.
+- **Position at the end:** 4285.8 75.7 3192.6
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4285.5 --z 3212.1 --yaw -14 --pitch -54 --time 0.349`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231056-321.aac
+
+![23:10:56](voice-shots/vn-20261016-231056-321.jpg)
+
+## 23:11:21 - The sound for the roosters is weird
+
+- **Transcript:** The sound for the roosters is weird
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4368.7 76.5 3256.7
+- **Facing:** south-west (yaw 218, pitch -82)
+- **Held:** Stone Sword x1
+- **Mount:** on foot
+- **Looking at:** Short Grass at 4368 76 3256
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 14:53, clear
+- **Fps:** 72
+- **Levels:** mic -28 dBFS, game sound -22 dBFS
+- **Length:** 2.8 s (voice 1.4 s)
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4368.7 --z 3256.7 --yaw 142 --pitch -82 --time 0.370`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231121-222.aac
+
+![23:11:21](voice-shots/vn-20261016-231121-222.jpg)
+
+## 23:11:24 - When it gets killed
+
+- **Transcript:** When it gets killed
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4379.1 76.8 3276.8
+- **Facing:** south-west (yaw 205, pitch -73)
+- **Held:** Stone Sword x1
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4379 76 3277
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 14:57, clear
+- **Fps:** 72
+- **Levels:** mic -38 dBFS, game sound -53 dBFS
+- **Length:** 2.3 s (voice 0.5 s)
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4379.1 --z 3276.8 --yaw 155 --pitch -73 --time 0.373`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231124-862.aac
+
+## 23:11:28 - And sometimes they still look black, which is weird
+
+- **Transcript:** And sometimes they still look black, which is weird
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4366.1 76.0 3254.8
+- **Facing:** north (yaw 352, pitch -59)
+- **Held:** Stone Sword x1
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4365 75 3254
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 15:01, clear
+- **Fps:** 72
+- **Levels:** mic -35 dBFS, game sound -23 dBFS
+- **Length:** 4.3 s (voice 1.9 s)
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4366.1 --z 3254.8 --yaw 8 --pitch -59 --time 0.376`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231128-702.aac
+
+## 23:12:32 - Yeah, real difficult to collect ores this way
+
+- **Transcript:** Yeah, real difficult to collect ores this way
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** 4152.2 55.0 3262.4
+- **Facing:** west (yaw 286, pitch -41)
+- **Held:** Stone Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Iron Ore at 4149 53 3261
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 16:17, clear
+- **Fps:** 72
+- **Levels:** mic -34 dBFS, game sound -28 dBFS
+- **Length:** 4.1 s (voice 1.6 s)
+- **Just before:** -28s holding Stone Sword; -28s message: Stone Sword; -28s holding Stone Axe; -28s message: Stone Axe; -20s took 2 damage (health 18/20); -19s holding Stone Sword; -19s message: Stone Sword; -19s holding Stone Pickaxe; -19s message: Stone Pickaxe; -0s message: Render distance back to 10
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4152.2 --z 3262.4 --yaw 74 --pitch -41 --time 0.429`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231232-761.aac
+
+![23:12:32](voice-shots/vn-20261016-231232-761.jpg)
+
+## 23:12:38 - 'Cause I can't see what I'm supposed to pick up. Like, it's just
+
+- **Transcript:** 'Cause I can't see what I'm supposed to pick up. Like, it's just
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4151.1 54.0 3268.1
+- **Facing:** south-west (yaw 222, pitch -70)
+- **Held:** Stone Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Iron Ore at 4150 52 3268
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 16:24, clear
+- **Fps:** 72
+- **Levels:** mic -41 dBFS, game sound -37 dBFS
+- **Length:** 4.2 s (voice 2.0 s)
+- **Just before:** -27s took 2 damage (health 18/20); -26s holding Stone Sword; -26s message: Stone Sword; -25s holding Stone Pickaxe; -25s message: Stone Pickaxe; -6s message: Render distance back to 10
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4151.1 --z 3268.1 --yaw 138 --pitch -70 --time 0.434`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231238-822.aac
+
+## 23:12:44 - All these freaking blocks come out from the shit. It's just like
+
+- **Transcript:** All these freaking blocks come out from the shit. It's just like
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4151.1 54.0 3268.2
+- **Facing:** south (yaw 186, pitch -68)
+- **Held:** Stone Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Stone at 4151 51 3269
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 16:31, clear
+- **Fps:** 72
+- **Levels:** mic -30 dBFS, game sound -22 dBFS
+- **Length:** 4.7 s (voice 2.1 s)
+- **Just before:** -12s message: Render distance back to 10
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4151.1 --z 3268.2 --yaw 174 --pitch -68 --time 0.438`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231244-362.aac
+
+![23:12:44](voice-shots/vn-20261016-231244-362.jpg)
+
+## 23:14:17 - Yeah. So once again, if I crouch down physically, like I should be abl
+
+- **Transcript:** Yeah. So once again, if I crouch down physically, like I should be able to get through
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4149.4 18.0 3271.7
+- **Facing:** south-west (yaw 204, pitch -60)
+- **Held:** Stone Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Stone at 4148 17 3272
+- **Mode:** Survival, health 18/20
+- **Time:** day 1 18:23, clear
+- **Fps:** 72
+- **Levels:** mic -34 dBFS, game sound -34 dBFS
+- **Length:** 5.5 s (voice 3.1 s)
+- **Position at the end:** 4149.1 17.0 3274.8
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4149.4 --z 3271.7 --yaw 156 --pitch -60 --time 0.516`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231417-882.aac
+
+![23:14:17](voice-shots/vn-20261016-231417-882.jpg)
+
+## 23:14:23 - Caves that don't have a very big ceiling
+
+- **Transcript:** Caves that don't have a very big ceiling
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4149.0 17.0 3275.1
+- **Facing:** south-west (yaw 215, pitch -54)
+- **Held:** Stone Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Stone at 4148 16 3275
+- **Mode:** Survival, health 18/20
+- **Time:** day 1 18:29, clear
+- **Fps:** 72
+- **Levels:** mic -28 dBFS, game sound -29 dBFS
+- **Length:** 3.2 s (voice 1.8 s)
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4149.0 --z 3275.1 --yaw 145 --pitch -54 --time 0.521`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231423-042.aac
+
+## 23:14:26 - Instead of having to mine the actual
+
+- **Transcript:** Instead of having to mine the actual
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4151.5 14.0 3280.6
+- **Facing:** south-west (yaw 218, pitch -51)
+- **Held:** Stone Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Iron Ore at 4150 13 3282
+- **Mode:** Survival, health 18/20
+- **Time:** day 1 18:34, clear
+- **Fps:** 72
+- **Levels:** mic -42 dBFS, game sound -31 dBFS
+- **Length:** 2.8 s (voice 1.3 s)
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4151.5 --z 3280.6 --yaw 142 --pitch -51 --time 0.524`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231426-942.aac
+
+## 23:14:29 - Ceiling of the cave
+
+- **Transcript:** Ceiling of the cave
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4151.2 15.0 3281.1
+- **Facing:** south (yaw 186, pitch -57)
+- **Held:** Stone Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Stone at 4150 13 3283
+- **Mode:** Survival, health 18/20
+- **Time:** day 1 18:37, clear
+- **Fps:** 72
+- **Levels:** mic -40 dBFS, game sound -25 dBFS
+- **Length:** 2.1 s (voice 0.5 s)
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4151.2 --z 3281.1 --yaw 174 --pitch -57 --time 0.526`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231429-922.aac
+
+![23:14:29](voice-shots/vn-20261016-231429-922.jpg)
+
+## 23:14:47 - Iron ore is also too common
+
+- **Transcript:** Iron ore is also too common
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4155.8 9.0 3288.4
+- **Facing:** east (yaw 68, pitch -38)
+- **Held:** Stone Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Iron Ore at 4157 9 3287
+- **Mode:** Survival, health 18/20
+- **Time:** day 1 18:58, clear
+- **Fps:** 72
+- **Levels:** mic -29 dBFS, game sound -31 dBFS
+- **Length:** 3.0 s (voice 1.4 s)
+- **Just before:** -5s opened InventoryMenu; -4s closed InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4155.8 --z 3288.4 --yaw -68 --pitch -38 --time 0.541`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231447-362.aac
+
+![23:14:47](voice-shots/vn-20261016-231447-362.jpg)
+
+## 23:14:51 - Maybe get about, um, a third is common
+
+- **Transcript:** Maybe get about, um, a third is common
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4156.3 8.0 3288.4
+- **Facing:** north-east (yaw 43, pitch -4)
+- **Held:** Stone Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Stone at 4157 9 3286
+- **Mode:** Survival, health 18/20
+- **Time:** day 1 19:03, clear
+- **Fps:** 72
+- **Levels:** mic -32 dBFS, game sound -75 dBFS
+- **Length:** 4.1 s (voice 2.1 s)
+- **Just before:** -9s opened InventoryMenu; -8s closed InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4156.3 --z 3288.4 --yaw -43 --pitch -4 --time 0.544`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231451-662.aac
+
+## 23:17:13 - Get all this shit out of the way
+
+- **Transcript:** Get all this shit out of the way
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4174.8 -16.3 3341.3
+- **Facing:** north (yaw 6, pitch -68)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Deeprock at 4174 -18 3340
+- **Mode:** Survival, health 18/20
+- **Time:** day 1 21:54, clear
+- **Fps:** 72
+- **Levels:** mic -41 dBFS, game sound -39 dBFS
+- **Length:** 2.8 s (voice 0.9 s)
+- **Just before:** -25s opened FurnaceMenu; -23s closed FurnaceMenu; -22s opened FurnaceMenu; -21s closed FurnaceMenu; -20s opened FurnaceMenu; -19s closed FurnaceMenu; -19s opened CraftingBookMenu; -15s closed CraftingBookMenu; -15s opened InventoryMenu; -13s closed InventoryMenu; -13s holding Melon Slice; -13s message: Melon Slice; -12s holding Stone Pickaxe; -12s message: Stone Pickaxe; -12s holding Stone Sword; -12s message: Stone Sword; -12s holding Stone Axe; -12s message: Stone Axe; -12s holding Iron Pickaxe; -12s message: Iron Pickaxe
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4174.8 --z 3341.3 --yaw -6 --pitch -68 --time 0.663`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231713-802.aac
+
+![23:17:13](voice-shots/vn-20261016-231713-802.jpg)
+
+## 23:18:16 - Okay, so I can see the armor on me. I got a very modest upgrade
+
+- **Transcript:** Okay, so I can see the armor on me. I got a very modest upgrade
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** 4176.8 -16.0 3344.4
+- **Facing:** south-east (yaw 144, pitch -3)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 18/20, screen InventoryMenu
+- **Time:** day 1 23:09, clear
+- **Fps:** 72
+- **Levels:** mic -35 dBFS, game sound -34 dBFS
+- **Length:** 6.2 s (voice 4.0 s)
+- **Just before:** -18s closed CraftingBookMenu; -18s opened FurnaceMenu; -16s closed FurnaceMenu; -16s opened FurnaceMenu; -15s closed FurnaceMenu; -14s opened CraftingBookMenu; -8s closed CraftingBookMenu; -7s opened InventoryMenu; -5s closed InventoryMenu; -5s opened FurnaceMenu; -3s closed FurnaceMenu; -3s opened FurnaceMenu; -2s closed FurnaceMenu; -2s opened InventoryMenu
+- **While talking:** -3s closed InventoryMenu; -3s opened FurnaceMenu
+- **Position at the end:** 4176.8 -16.0 3344.4
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4176.8 --z 3344.4 --yaw -144 --pitch -3 --time 0.715`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231816-601.aac
+
+![23:18:16](voice-shots/vn-20261016-231816-601.jpg)
+
+## 23:18:23 - Very modest. Like
+
+- **Transcript:** Very modest. Like
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** 4176.7 -16.0 3344.4
+- **Facing:** south (yaw 189, pitch -32)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 18/20, screen FurnaceMenu
+- **Time:** day 1 23:17, clear
+- **Fps:** 72
+- **Levels:** mic -27 dBFS, game sound -56 dBFS
+- **Length:** 2.4 s (voice 0.8 s)
+- **Just before:** -25s closed CraftingBookMenu; -24s opened FurnaceMenu; -23s closed FurnaceMenu; -23s opened FurnaceMenu; -21s closed FurnaceMenu; -21s opened CraftingBookMenu; -15s closed CraftingBookMenu; -14s opened InventoryMenu; -12s closed InventoryMenu; -11s opened FurnaceMenu; -10s closed FurnaceMenu; -10s opened FurnaceMenu; -9s closed FurnaceMenu; -8s opened InventoryMenu; -5s closed InventoryMenu; -4s opened FurnaceMenu; -1s closed FurnaceMenu; -1s opened FurnaceMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4176.7 --z 3344.4 --yaw 171 --pitch -32 --time 0.721`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231823-302.aac
+
+## 23:18:25 - Disgustingly modest
+
+- **Transcript:** Disgustingly modest
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** 4176.9 -16.0 3344.4
+- **Facing:** south (yaw 168, pitch -34)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Furnace at 4177 -16 3347
+- **Mode:** Survival, health 18/20
+- **Time:** day 1 23:20, clear
+- **Fps:** 72
+- **Levels:** mic -35 dBFS, game sound -100 dBFS
+- **Length:** 2.5 s (voice 1.2 s)
+- **Just before:** -27s closed CraftingBookMenu; -27s opened FurnaceMenu; -25s closed FurnaceMenu; -25s opened FurnaceMenu; -24s closed FurnaceMenu; -23s opened CraftingBookMenu; -17s closed CraftingBookMenu; -16s opened InventoryMenu; -14s closed InventoryMenu; -14s opened FurnaceMenu; -12s closed FurnaceMenu; -12s opened FurnaceMenu; -11s closed FurnaceMenu; -11s opened InventoryMenu; -7s closed InventoryMenu; -6s opened FurnaceMenu; -3s closed FurnaceMenu; -3s opened FurnaceMenu; -1s closed FurnaceMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4176.9 --z 3344.4 --yaw -168 --pitch -34 --time 0.722`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231825-561.aac
+
+## 23:18:27 - It should look like it does in inventory when it's on. So if I got the
+
+- **Transcript:** It should look like it does in inventory when it's on. So if I got the old armor on or the not so good armor, it should look like I've-- I should look like a fucking knight with the same amount of detail as it is in inventory
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** 4176.4 -16.0 3345.0
+- **Facing:** south (yaw 174, pitch -38)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Furnace at 4176 -16 3346
+- **Mode:** Survival, health 18/20
+- **Time:** day 1 23:23, clear
+- **Fps:** 72
+- **Levels:** mic -28 dBFS, game sound -33 dBFS
+- **Length:** 14.8 s (voice 8.6 s)
+- **Just before:** -30s closed CraftingBookMenu; -29s opened FurnaceMenu; -28s closed FurnaceMenu; -27s opened FurnaceMenu; -26s closed FurnaceMenu; -26s opened CraftingBookMenu; -19s closed CraftingBookMenu; -19s opened InventoryMenu; -16s closed InventoryMenu; -16s opened FurnaceMenu; -15s closed FurnaceMenu; -14s opened FurnaceMenu; -14s closed FurnaceMenu; -13s opened InventoryMenu; -10s closed InventoryMenu; -9s opened FurnaceMenu; -6s closed FurnaceMenu; -5s opened FurnaceMenu; -3s closed FurnaceMenu; -2s holding Stone Axe; -2s message: Stone Axe; -2s holding Stone Sword; -2s message: Stone Sword; -1s holding Stone Axe; -1s message: Stone Axe; -1s holding Iron Pickaxe; -1s message: Iron Pickaxe
+- **While talking:** -1s holding Stone Axe; -1s message: Stone Axe; -1s holding Stone Sword; -1s message: Stone Sword; -0s holding Stone Axe; -0s message: Stone Axe
+- **Position at the end:** 4184.4 -18.8 3343.7
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4176.4 --z 3345.0 --yaw -174 --pitch -38 --time 0.724`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231827-901.aac
+
+![23:18:27](voice-shots/vn-20261016-231827-901.jpg)
+
+## 23:18:44 - Shouldn't be a discrepancy between them.
+
+- **Transcript:** Shouldn't be a discrepancy between them.
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** 4180.2 -35.0 3357.6
+- **Facing:** south-west (yaw 220, pitch -12)
+- **Held:** Stone Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 16/20, screen InventoryMenu
+- **Time:** day 1 23:42, clear
+- **Fps:** 72
+- **Levels:** mic -29 dBFS, game sound -44 dBFS
+- **Length:** 3.0 s (voice 1.3 s)
+- **Just before:** -30s closed FurnaceMenu; -29s opened InventoryMenu; -26s closed InventoryMenu; -25s opened FurnaceMenu; -22s closed FurnaceMenu; -22s opened FurnaceMenu; -19s closed FurnaceMenu; -18s holding Stone Axe; -18s message: Stone Axe; -18s holding Stone Sword; -18s message: Stone Sword; -18s holding Stone Axe; -18s message: Stone Axe; -18s holding Iron Pickaxe; -18s message: Iron Pickaxe; -12s holding Stone Axe; -12s message: Stone Axe; -12s holding Stone Sword; -12s message: Stone Sword; -12s holding Stone Axe; -12s message: Stone Axe; -3s took 2 damage (health 16/20); -2s holding Stone Sword; -2s message: Stone Sword; -1s opened InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4180.2 --z 3357.6 --yaw 140 --pitch -12 --time 0.738`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231844-222.aac
+
+![23:18:44](voice-shots/vn-20261016-231844-222.jpg)
+
+## 23:19:17 - There's one thing that I can't seem to do
+
+- **Transcript:** There's one thing that I can't seem to do
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** 4174.0 -31.0 3362.5
+- **Facing:** south (yaw 172, pitch -47)
+- **Held:** Bucket x1
+- **Mount:** on foot
+- **Looking at:** Deeprock at 4174 -31 3364
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 00:22, clear
+- **Fps:** 72
+- **Levels:** mic -53 dBFS, game sound -14 dBFS
+- **Length:** 3.2 s (voice 1.5 s)
+- **Just before:** -30s holding Pumpkin; -30s message: Pumpkin; -30s holding Cobbled Deeprock; -30s message: Cobbled Deeprock; -25s holding empty hand; -22s opened InventoryMenu; -20s holding Crafting Table; -19s closed InventoryMenu; -18s holding empty hand; -18s opened CraftingBookMenu; -12s holding Bucket; -12s closed CraftingBookMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4174.0 --z 3362.5 --yaw -172 --pitch -47 --time 0.766`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231917-502.aac
+
+![23:19:17](voice-shots/vn-20261016-231917-502.jpg)
+
+## 23:19:20 - Am I able to collect lava?
+
+- **Transcript:** Am I able to collect lava?
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** 4174.8 -31.0 3362.1
+- **Facing:** south (yaw 191, pitch -33)
+- **Held:** Bucket x1
+- **Mount:** on foot
+- **Looking at:** Deeprock at 4174 -31 3364
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 00:26, clear
+- **Fps:** 72
+- **Levels:** mic -31 dBFS, game sound -21 dBFS
+- **Length:** 2.6 s (voice 1.0 s)
+- **Just before:** -28s holding empty hand; -25s opened InventoryMenu; -23s holding Crafting Table; -23s closed InventoryMenu; -22s holding empty hand; -22s opened CraftingBookMenu; -16s holding Bucket; -15s closed CraftingBookMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4174.8 --z 3362.1 --yaw 169 --pitch -33 --time 0.768`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231920-862.aac
+
+## 23:19:39 - I stand corrected. I can collect lava
+
+- **Transcript:** I stand corrected. I can collect lava
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** 4175.0 -31.0 3362.1
+- **Facing:** west (yaw 269, pitch -40)
+- **Held:** Lava Bucket x1
+- **Mount:** on foot
+- **Looking at:** Cobbled Deeprock at 4173 -32 3362
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 00:48, clear
+- **Fps:** 72
+- **Levels:** mic -29 dBFS, game sound -29 dBFS
+- **Length:** 3.3 s (voice 1.3 s)
+- **Just before:** -12s holding Iron Ingot; -12s message: Iron Ingot; -11s holding Emerald; -11s message: Emerald; -11s holding Iron Pickaxe; -11s message: Iron Pickaxe; -3s holding Stone Axe; -3s message: Stone Axe; -2s holding Stone Sword; -2s message: Stone Sword; -2s holding Stone Pickaxe; -2s message: Stone Pickaxe; -2s holding Melon Slice; -2s message: Melon Slice; -2s holding Pumpkin; -2s message: Pumpkin; -1s holding Bucket; -1s message: Bucket; -1s holding Lava Bucket
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4175.0 --z 3362.1 --yaw 91 --pitch -40 --time 0.784`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231939-602.aac
+
+![23:19:39](voice-shots/vn-20261016-231939-602.jpg)
+
+## 23:19:45 - Never mind
+
+- **Transcript:** Never mind
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** 4175.1 -31.0 3362.1
+- **Facing:** south-west (yaw 244, pitch -31)
+- **Held:** Stone Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 16/20, screen InventoryMenu
+- **Time:** day 1 00:55, clear
+- **Fps:** 72
+- **Levels:** mic -34 dBFS, game sound -33 dBFS
+- **Length:** 2.0 s (voice 0.6 s)
+- **Just before:** -18s holding Iron Ingot; -18s message: Iron Ingot; -17s holding Emerald; -17s message: Emerald; -17s holding Iron Pickaxe; -17s message: Iron Pickaxe; -8s holding Stone Axe; -8s message: Stone Axe; -8s holding Stone Sword; -8s message: Stone Sword; -8s holding Stone Pickaxe; -8s message: Stone Pickaxe; -7s holding Melon Slice; -7s message: Melon Slice; -7s holding Pumpkin; -7s message: Pumpkin; -7s holding Bucket; -7s message: Bucket; -7s holding Lava Bucket; -5s holding Pumpkin; -5s message: Pumpkin; -5s holding Melon Slice; -5s message: Melon Slice; -4s holding Stone Pickaxe; -4s message: Stone Pickaxe; -1s opened InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4175.1 --z 3362.1 --yaw 116 --pitch -31 --time 0.789`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-231945-142.aac
+
+## 23:20:59 - Titanium, I'd say is the right now rarity
+
+- **Transcript:** Titanium, I'd say is the right now rarity
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4153.5 -47.0 3406.1
+- **Facing:** south (yaw 182, pitch -84)
+- **Held:** Stone Axe x1
+- **Mount:** on foot
+- **Looking at:** Deeprock at 4153 -48 3406
+- **Mode:** Survival, health 15/20
+- **Time:** day 1 02:24, clear
+- **Fps:** 72
+- **Levels:** mic -36 dBFS, game sound -48 dBFS
+- **Length:** 4.0 s (voice 2.3 s)
+- **Just before:** -8s took 1 damage (health 15/20)
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4153.5 --z 3406.1 --yaw 178 --pitch -84 --time 0.850`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232059-381.aac
+
+![23:20:59](voice-shots/vn-20261016-232059-381.jpg)
+
+## 23:24:20 - So I notice there's no mobs in the caves. I don't know if that's becau
+
+- **Transcript:** So I notice there's no mobs in the caves. I don't know if that's because I'm on easy mode
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4131.9 -27.0 3527.8
+- **Facing:** south (yaw 161, pitch -36)
+- **Held:** Melon Slice x8
+- **Mount:** on foot
+- **Looking at:** Deeprock at 4132 -27 3530
+- **Mode:** Survival, health 10/20
+- **Time:** day 2 06:21, clear
+- **Fps:** 72
+- **Levels:** mic -31 dBFS, game sound -16 dBFS
+- **Length:** 5.4 s (voice 3.3 s)
+- **Just before:** -29s holding Emerald; -29s message: Emerald; -29s holding Iron Pickaxe; -29s message: Iron Pickaxe; -23s holding Stone Axe; -23s message: Stone Axe; -23s holding Stone Sword; -23s message: Stone Sword; -22s holding Stone Pickaxe; -22s message: Stone Pickaxe; -22s holding Melon Slice; -22s message: Melon Slice; -10s took 16 damage (health 7/20); -8s opened InventoryMenu; -6s closed InventoryMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4131.9 --z 3527.8 --yaw -161 --pitch -36 --time 0.015`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232420-922.aac
+
+![23:24:20](voice-shots/vn-20261016-232420-922.jpg)
+
+## 23:24:31 - Peace ball. Oh, fuck
+
+- **Transcript:** Peace ball. Oh, fuck
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4132.3 -27.0 3528.7
+- **Facing:** south-east (yaw 137, pitch -9)
+- **Held:** Melon Slice x8
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 10/20, screen PauseMenu
+- **Time:** day 2 06:24, clear
+- **Fps:** 72
+- **Levels:** mic -26 dBFS, game sound -26 dBFS
+- **Length:** 3.5 s (voice 0.8 s)
+- **Just before:** -20s took 16 damage (health 7/20); -19s opened InventoryMenu; -16s closed InventoryMenu; -7s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4132.3 --z 3528.7 --yaw -137 --pitch -9 --time 0.017`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232431-401.aac
+
+![23:24:31](voice-shots/vn-20261016-232431-401.jpg)
+
+## 23:24:35 - I mean to make it peaceful
+
+- **Transcript:** I mean to make it peaceful
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4132.3 -27.0 3528.7
+- **Facing:** south-east (yaw 137, pitch -9)
+- **Held:** Melon Slice x8
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 10/20, screen PauseMenu
+- **Time:** day 2 06:24, clear
+- **Fps:** 72
+- **Levels:** mic -30 dBFS, game sound -29 dBFS
+- **Length:** 2.8 s (voice 1.2 s)
+- **Just before:** -24s took 16 damage (health 7/20); -22s opened InventoryMenu; -20s closed InventoryMenu; -11s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4132.3 --z 3528.7 --yaw -137 --pitch -9 --time 0.017`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232435-042.aac
+
+## 23:24:38 - Okay, uh, make it so I can change difficulties
+
+- **Transcript:** Okay, uh, make it so I can change difficulties
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4132.3 -27.0 3529.2
+- **Facing:** south (yaw 171, pitch -39)
+- **Held:** Melon Slice x8
+- **Mount:** on foot
+- **Looking at:** Deeprock at 4132 -27 3530
+- **Mode:** Survival, health 10/20
+- **Time:** day 2 06:26, clear
+- **Fps:** 72
+- **Levels:** mic -27 dBFS, game sound -14 dBFS
+- **Length:** 5.2 s (voice 2.8 s)
+- **Just before:** -27s took 16 damage (health 7/20); -25s opened InventoryMenu; -23s closed InventoryMenu; -14s opened PauseMenu; -1s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4132.3 --z 3529.2 --yaw -171 --pitch -39 --time 0.018`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232438-081.aac
+
+## 23:24:43 - Midworld again
+
+- **Transcript:** Midworld again
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4131.8 -26.0 3530.1
+- **Facing:** south (yaw 186, pitch -65)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Deeprock at 4131 -27 3531
+- **Mode:** Survival, health 10/20
+- **Time:** day 2 06:32, clear
+- **Fps:** 72
+- **Levels:** mic -40 dBFS, game sound -13 dBFS
+- **Length:** 2.3 s (voice 0.9 s)
+- **Just before:** -28s closed InventoryMenu; -19s opened PauseMenu; -7s closed PauseMenu; -4s holding Stone Pickaxe; -4s message: Stone Pickaxe; -4s holding Stone Sword; -4s message: Stone Sword; -4s holding Stone Axe; -4s message: Stone Axe; -4s holding Iron Pickaxe; -4s message: Iron Pickaxe
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4131.8 --z 3530.1 --yaw 174 --pitch -65 --time 0.023`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232443-322.aac
+
+![23:24:43](voice-shots/vn-20261016-232443-322.jpg)
+
+## 23:24:48 - All right. Looks like, uh, the way the polygons mesh with the lava is 
+
+- **Transcript:** All right. Looks like, uh, the way the polygons mesh with the lava is pretty shitty
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4131.8 -26.0 3530.1
+- **Facing:** north-east (yaw 58, pitch -26)
+- **Held:** Melon Slice x7
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 10/20
+- **Time:** day 2 06:38, clear
+- **Fps:** 72
+- **Levels:** mic -33 dBFS, game sound -14 dBFS
+- **Length:** 6.7 s (voice 3.7 s)
+- **Just before:** -25s opened PauseMenu; -12s closed PauseMenu; -9s holding Stone Pickaxe; -9s message: Stone Pickaxe; -9s holding Stone Sword; -9s message: Stone Sword; -9s holding Stone Axe; -9s message: Stone Axe; -9s holding Iron Pickaxe; -9s message: Iron Pickaxe; -4s holding Stone Axe; -4s message: Stone Axe; -4s holding Stone Sword; -4s message: Stone Sword; -3s holding Stone Pickaxe; -3s message: Stone Pickaxe; -3s holding Melon Slice; -3s message: Melon Slice
+- **Position at the end:** 4131.8 -26.0 3530.1
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4131.8 --z 3530.1 --yaw -58 --pitch -26 --time 0.027`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232448-522.aac
+
+## 23:24:55 - I don't know if you can see that down there
+
+- **Transcript:** I don't know if you can see that down there
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4131.8 -26.0 3530.1
+- **Facing:** north-east (yaw 34, pitch -44)
+- **Held:** Melon Slice x6
+- **Mount:** on foot
+- **Looking at:** Deeprock at 4133 -28 3527
+- **Mode:** Survival, health 13/20
+- **Time:** day 2 06:46, clear
+- **Fps:** 72
+- **Levels:** mic -31 dBFS, game sound -17 dBFS
+- **Length:** 2.9 s (voice 1.3 s)
+- **Just before:** -18s closed PauseMenu; -16s holding Stone Pickaxe; -16s message: Stone Pickaxe; -16s holding Stone Sword; -16s message: Stone Sword; -16s holding Stone Axe; -16s message: Stone Axe; -15s holding Iron Pickaxe; -15s message: Iron Pickaxe; -11s holding Stone Axe; -11s message: Stone Axe; -10s holding Stone Sword; -10s message: Stone Sword; -10s holding Stone Pickaxe; -10s message: Stone Pickaxe; -10s holding Melon Slice; -10s message: Melon Slice
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4131.8 --z 3530.1 --yaw -34 --pitch -44 --time 0.033`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232455-282.aac
+
+![23:24:55](voice-shots/vn-20261016-232455-282.jpg)
+
+## 23:24:58 - Right around the pool of lava in particular
+
+- **Transcript:** Right around the pool of lava in particular
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4132.9 -27.0 3531.7
+- **Facing:** east (yaw 109, pitch -50)
+- **Held:** Melon Slice x6
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 14/20
+- **Time:** day 2 06:50, clear
+- **Fps:** 72
+- **Levels:** mic -29 dBFS, game sound -15 dBFS
+- **Length:** 3.2 s (voice 1.4 s)
+- **Just before:** -22s closed PauseMenu; -19s holding Stone Pickaxe; -19s message: Stone Pickaxe; -19s holding Stone Sword; -19s message: Stone Sword; -19s holding Stone Axe; -19s message: Stone Axe; -19s holding Iron Pickaxe; -19s message: Iron Pickaxe; -14s holding Stone Axe; -14s message: Stone Axe; -14s holding Stone Sword; -14s message: Stone Sword; -13s holding Stone Pickaxe; -13s message: Stone Pickaxe; -13s holding Melon Slice; -13s message: Melon Slice
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4132.9 --z 3531.7 --yaw -109 --pitch -50 --time 0.035`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232458-362.aac
+
+## 23:25:17 - Oh, I see. You're blasphemous, right?
+
+- **Transcript:** Oh, I see. You're blasphemous, right?
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4139.6 -31.0 3570.3
+- **Facing:** south-east (yaw 148, pitch -30)
+- **Held:** Furnace x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 13/20, screen FurnaceMenu
+- **Time:** day 2 07:13, clear
+- **Fps:** 72
+- **Levels:** mic -30 dBFS, game sound -15 dBFS
+- **Length:** 3.5 s (voice 1.3 s)
+- **Just before:** -18s took 3 damage (health 11/20); -12s opened InventoryMenu; -10s holding Furnace; -9s closed InventoryMenu; -8s opened FurnaceMenu
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4139.6 --z 3570.3 --yaw -148 --pitch -30 --time 0.051`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232517-842.aac
+
+![23:25:17](voice-shots/vn-20261016-232517-842.jpg)
+
+## 23:27:59 - So this slope, realistically, I would be falling or have slipped
+
+- **Transcript:** So this slope, realistically, I would be falling or have slipped
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4084.4 -50.0 3617.8
+- **Facing:** north (yaw 347, pitch -64)
+- **Held:** Cobbled Deeprock x20
+- **Mount:** on foot
+- **Looking at:** Emberslate at 4084 -52 3616
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 10:28, thunderstorm
+- **Fps:** 72
+- **Levels:** mic -32 dBFS, game sound -34 dBFS
+- **Length:** 5.2 s (voice 2.5 s)
+- **Just before:** -7s holding Stone Axe; -7s message: Stone Axe; -7s holding Stone Sword; -7s message: Stone Sword; -7s holding Stone Pickaxe; -7s message: Stone Pickaxe; -7s holding Furnace; -7s message: Furnace; -6s holding Crafting Table; -6s message: Crafting Table; -6s holding Cooked Chicken; -6s message: Cooked Chicken; -6s holding Cobbled Deeprock; -6s message: Cobbled Deeprock
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4084.4 --z 3617.8 --yaw 13 --pitch -64 --time 0.186`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232759-741.aac
+
+![23:27:59](voice-shots/vn-20261016-232759-741.jpg)
+
+## 23:28:05 - So we need to have that mechanic in the game
+
+- **Transcript:** So we need to have that mechanic in the game
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4083.2 -52.0 3615.5
+- **Facing:** north (yaw 7, pitch -61)
+- **Held:** Cobbled Deeprock x13
+- **Mount:** on foot
+- **Looking at:** Cobbled Deeprock at 4083 -54 3614
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 10:34, thunderstorm
+- **Fps:** 72
+- **Levels:** mic -32 dBFS, game sound -21 dBFS
+- **Length:** 3.2 s (voice 1.6 s)
+- **Just before:** -12s holding Stone Axe; -12s message: Stone Axe; -12s holding Stone Sword; -12s message: Stone Sword; -12s holding Stone Pickaxe; -12s message: Stone Pickaxe; -12s holding Furnace; -12s message: Furnace; -12s holding Crafting Table; -12s message: Crafting Table; -11s holding Cooked Chicken; -11s message: Cooked Chicken; -11s holding Cobbled Deeprock; -11s message: Cobbled Deeprock
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4083.2 --z 3615.5 --yaw -7 --pitch -61 --time 0.191`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232805-002.aac
+
+## 23:28:09 - So that can't just decline down a 50 per-- 50-degree incline
+
+- **Transcript:** So that can't just decline down a 50 per-- 50-degree incline
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4083.4 -53.0 3613.3
+- **Facing:** east (yaw 95, pitch -16)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Emberslate at 4085 -52 3613
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 10:39, thunderstorm
+- **Fps:** 72
+- **Levels:** mic -49 dBFS, game sound -27 dBFS
+- **Length:** 5.7 s (voice 2.5 s)
+- **Just before:** -17s holding Stone Axe; -17s message: Stone Axe; -17s holding Stone Sword; -17s message: Stone Sword; -17s holding Stone Pickaxe; -17s message: Stone Pickaxe; -16s holding Furnace; -16s message: Furnace; -16s holding Crafting Table; -16s message: Crafting Table; -16s holding Cooked Chicken; -16s message: Cooked Chicken; -15s holding Cobbled Deeprock; -15s message: Cobbled Deeprock; -3s holding Emerald; -3s message: Emerald; -3s holding Iron Pickaxe; -3s message: Iron Pickaxe
+- **Position at the end:** 4083.9 -53.0 3613.3
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4083.4 --z 3613.3 --yaw -95 --pitch -16 --time 0.194`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232809-482.aac
+
+## 23:28:15 - Without, without just dropping and falling
+
+- **Transcript:** Without, without just dropping and falling
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4085.0 -51.7 3613.7
+- **Facing:** south-east (yaw 118, pitch -54)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Emberslate at 4085 -52 3614
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 10:47, thunderstorm
+- **Fps:** 72
+- **Levels:** mic -52 dBFS, game sound -25 dBFS
+- **Length:** 4.1 s (voice 1.3 s)
+- **Just before:** -23s holding Stone Axe; -23s message: Stone Axe; -23s holding Stone Sword; -23s message: Stone Sword; -23s holding Stone Pickaxe; -23s message: Stone Pickaxe; -22s holding Furnace; -22s message: Furnace; -22s holding Crafting Table; -22s message: Crafting Table; -22s holding Cooked Chicken; -22s message: Cooked Chicken; -21s holding Cobbled Deeprock; -21s message: Cobbled Deeprock; -10s holding Emerald; -10s message: Emerald; -9s holding Iron Pickaxe; -9s message: Iron Pickaxe
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4085.0 --z 3613.7 --yaw -118 --pitch -54 --time 0.199`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-232815-622.aac
+
+![23:28:15](voice-shots/vn-20261016-232815-622.jpg)
+
+## 23:31:45 - Make it so the blast furnace can take, um, deep rock too, not just sto
+
+- **Transcript:** Make it so the blast furnace can take, um, deep rock too, not just stone
+- **Status:** open
+- **Build:** 0.129 (46151e50, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 13480747113613945685)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** 4012.5 -53.0 3732.0
+- **Facing:** south-east (yaw 134, pitch -8)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 14/20
+- **Time:** day 2 14:58, clear
+- **Fps:** 72
+- **Levels:** mic -35 dBFS, game sound -34 dBFS
+- **Length:** 6.4 s (voice 3.1 s)
+- **Just before:** -29s closed FurnaceMenu; -28s opened FurnaceMenu; -21s closed FurnaceMenu; -20s holding Crafting Table; -20s message: Crafting Table; -20s holding empty hand; -19s opened CraftingBookMenu; -1s closed CraftingBookMenu
+- **Position at the end:** 4013.3 -53.0 3732.2
+- **Repro (Mac):** `./snap.sh note --seed 13480747113613945685 --x 4012.5 --z 3732.0 --yaw -134 --pitch -8 --time 0.374`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261016-233145-542.aac
+
+![23:31:45](voice-shots/vn-20261016-233145-542.jpg)
