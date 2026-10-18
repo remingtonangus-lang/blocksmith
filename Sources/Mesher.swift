@@ -13,6 +13,7 @@ struct SectionMesh {
     var detailSolid = 0
     var groundQuads = 0     // P283: of the opaque quads, the smooth ground's and the leaf blobs' (questcheck --perfscenes)
     var blobQuads = 0
+    var naturalCubes = 0    // P338 step 2: natural ground drawn as cubes in a field world (must be 0)
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -431,6 +432,7 @@ enum Mesher {
         var curCut = false
         var groundV = 0, blobV = 0                       // (P283 stats: vertices from the two smooth passes)
         var leafy = false                                // faces between leaf blocks met (lod 0 and 2 differ)
+        var naturalCubes = 0
         let solidLayer = RenderLayer.opaque.rawValue
         let leafT = Mesher.leafT, farLeaf = Mesher.farLeaves
         let offs = [1, -1, RL, -RL, RW, -RW]
@@ -716,6 +718,133 @@ enum Mesher {
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
             }
         }
+
+        // P338 step 5 / P363 (Remington, Oct 16-17: "lava still conforms to blocks", "water still shows blocks", water not
+        // settling onto the beach): in a field world water and lava near the eye are drawn as surfaces of their own field,
+        // not as cell boxes. Each sample (a cell's centre) gets the fluid's signed height over it: a fluid cell its own
+        // top (from its level; a full cell under more of it), ground, built solids and the bank (an open cell the ground
+        // reaches into) the level of the fluid round it (5 x 5 cells, a layer up and down), so the surface runs on as
+        // the flat level through the bank and under the ground's surface and meets the ground wherever the ground
+        // crosses the level (a beach takes the water up to the waterline, a pool's edge is the ground's own curve);
+        // open air beside it with no ground holds it back (a wall at the edge of a drop, rounded). The surface is
+        // the field's zero crossing (surface nets: a vertex per cell at the mean of its edge crossings, normals from
+        // the field), quads wholly inside the ground left out. Far sections keep the merged cell water.
+        let fluidNets = fieldOn && !far && Mesher.fluidNets
+        if fluidNets {
+            for kind in [UInt8(1), UInt8(2)] {
+                var any = false
+                outer: for y in (C0 - 2)..<(C0 + 20) { for z in (C0 - 2)..<(C0 + 20) { for x in (C0 - 2)..<(C0 + 20) where fkT[Int(R[x + z * RW + y * RL])] == kind { any = true; break outer } } }
+                if !any { continue }
+                let N = 18, NN = N * N, M = 17, MM = M * M
+                func top(_ j: Int) -> Float {
+                    if fkT[Int(R[j + RL])] == kind { return 1 }
+                    let lv = Int(levelT[Int(R[j])])
+                    let d = (lv == 0 || lv == 8) ? 1 : 1 + (lv * 6 + 3) / 7
+                    return Float(16 - 2 * d) / 16
+                }
+                withUnsafeTemporaryAllocation(of: Float.self, capacity: N * NN) { F in
+                withUnsafeTemporaryAllocation(of: SIMD3<Float>.self, capacity: M * MM) { V in
+                withUnsafeTemporaryAllocation(of: Bool.self, capacity: M * MM) { has in
+                    for sy in 0..<N { for sz in 0..<N { for sx in 0..<N {
+                        let i = (sx + C0) + (sz + C0) * RW + (sy + C0) * RL
+                        let b = Int(R[i]), fk = fkT[b]
+                        var f: Float = -1
+                        if fk == kind {
+                            f = fkT[Int(R[i + RL])] == kind ? 1 : top(i) - 0.5
+                        } else if fk == 0 {
+                            var L: Float = -9
+                            for dy in -1...1 { for dz in -2...2 { for dx in -2...2 {
+                                let j = i + dx + dz * RW + dy * RL
+                                if fkT[Int(R[j])] == kind { L = max(L, Float(dy) + top(j)) }
+                            } } }
+                            if L > -9 {
+                                f = L - 0.5
+                                if !(collideT[b] || dens[i] > -32) { f = min(f, -0.5) }      // open air, no ground: held back
+                            }
+                        }
+                        F[sx + sz * N + sy * NN] = max(-1, min(1, f))
+                    } } }
+                    // A vertex per cell with a crossing: the mean of its edges' crossings (sample s sits at s + 0.5).
+                    for cy in 0..<M { for cz in 0..<M { for cx in 0..<M {
+                        let ci = cx + cz * M + cy * MM
+                        has[ci] = false
+                        var c8 = SIMD8<Float>(repeating: 0)
+                        var inside = 0
+                        for k in 0..<8 {
+                            let v = F[(cx + (k & 1)) + (cz + ((k >> 2) & 1)) * N + (cy + ((k >> 1) & 1)) * NN]
+                            c8[k] = v; if v > 0 { inside += 1 }
+                        }
+                        if inside == 0 || inside == 8 { continue }
+                        var sum = SIMD3<Float>(repeating: 0), n: Float = 0
+                        for (a, b) in Mesher.cubeEdges {
+                            let va = c8[a], vb = c8[b]
+                            guard (va > 0) != (vb > 0) else { continue }
+                            let t = va / (va - vb)
+                            let pa = SIMD3<Float>(Float(a & 1), Float((a >> 1) & 1), Float((a >> 2) & 1))
+                            let pb = SIMD3<Float>(Float(b & 1), Float((b >> 1) & 1), Float((b >> 2) & 1))
+                            sum += pa + (pb - pa) * t; n += 1
+                        }
+                        V[ci] = SIMD3<Float>(Float(cx), Float(cy), Float(cz)) + 0.5 + sum / n
+                        has[ci] = true
+                    } } }
+                    let layer = Int(texT[(kind == 1 ? Int(WATER) : Int(LAVA)) * 6 + 2])
+                    let trans = kind == 1 || layerT[Int(LAVA)] == translucent
+                    // Quads: one per sample edge with a crossing, round it the four cells' vertices. A section owns the
+                    // edges starting at 0...15 along the edge and 1...16 across it, so every edge is drawn once.
+                    for a in 0..<3 {
+                        let b = (a + 1) % 3, c = (a + 2) % 3
+                        var p = SIMD3<Int>(0, 0, 0)
+                        for pc in 1...16 { for pb in 1...16 { for pa in 0..<16 {
+                            p[a] = pa; p[b] = pb; p[c] = pc
+                            var q = p; q[a] += 1
+                            let f0 = F[p.x + p.z * N + p.y * NN], f1 = F[q.x + q.z * N + q.y * NN]
+                            guard (f0 > 0) != (f1 > 0) else { continue }
+                            var cells = [SIMD3<Int>](repeating: p, count: 4)
+                            cells[0][b] -= 1; cells[0][c] -= 1
+                            cells[1][c] -= 1
+                            cells[3][b] -= 1
+                            var vs = [SIMD3<Float>](repeating: .zero, count: 4)
+                            var ok = true, buried = 0
+                            for k in 0..<4 {
+                                let ci = cells[k].x + cells[k].z * M + cells[k].y * MM
+                                if !has[ci] { ok = false; break }
+                                vs[k] = V[ci]
+                                let g = SIMD3<Int>(Int(floor(vs[k].x)), Int(floor(vs[k].y)), Int(floor(vs[k].z))) &+ C0
+                                if dens[g.x + g.z * RW + g.y * RL] > 8 { buried += 1 }
+                            }
+                            if !ok || buried == 4 { continue }
+                            // Facing out of the fluid: +a where the inside is the lower sample.
+                            var dir = SIMD3<Float>(0, 0, 0); dir[a] = f0 > 0 ? 1 : -1
+                            if simd_dot(simd_cross(vs[1] - vs[0], vs[2] - vs[0]), dir) < 0 { vs.swapAt(1, 3); cells.swapAt(1, 3) }
+                            // The face (shade and texture projection) from the quad's facing; lava tops animate (7).
+                            let nq = simd_cross(vs[2] - vs[0], vs[3] - vs[1])
+                            let ax = abs(nq.x) >= abs(nq.y) && abs(nq.x) >= abs(nq.z) ? 0 : (abs(nq.y) >= abs(nq.z) ? 1 : 2)
+                            let face = ax * 2 + (nq[ax] >= 0 ? 0 : 1)
+                            let (ua, va) = ax == 1 ? (0, 2) : (ax == 0 ? (2, 1) : (0, 1))
+                            let ou = floor(min(min(vs[0][ua], vs[1][ua]), min(vs[2][ua], vs[3][ua])))
+                            let ov = floor(min(min(vs[0][va], vs[1][va]), min(vs[2][va], vs[3][va])))
+                            for k in 0..<4 {
+                                let v = vs[k], cl = cells[k]
+                                var sky = 0, blk = 0
+                                for m in 0..<8 {
+                                    let l = light(cl.x + (m & 1) + C0, cl.y + ((m >> 1) & 1) + C0, cl.z + ((m >> 2) & 1) + C0)
+                                    if l >= 0 { sky = max(sky, l & 15); blk = max(blk, l >> 4) }
+                                }
+                                let u16 = min(31, max(0, Int(((v[ua] - ou) * 16).rounded()))), v16 = min(31, max(0, Int(((v[va] - ov) * 16).rounded())))
+                                let x16 = Int((v.x * 16).rounded()), y16 = Int((v.y * 16).rounded()), z16 = Int((v.z * 16).rounded())
+                                if kind == 1 {
+                                    let ao = Mesher.waterDepthAO && face == 2 ? depthAO(cl.x + 1 + C0, cl.y + C0, cl.z + 1 + C0) : 3
+                                    vert(true, x16, y16, z16, face, 3, u16, v16, layer, ao, sky | blk << 4, false)
+                                } else {
+                                    curCut = false
+                                    vert(trans, x16, y16, z16, face == 2 ? 7 : face, 0, u16, v16, layer, 3, sky | blk << 4, false)
+                                }
+                            }
+                        } } }
+                    }
+                } } }
+            }
+        }
         for ly in 0..<16 {
             let y = ly + C0
             for z in C0..<(C0 + 16) {
@@ -725,16 +854,17 @@ enum Mesher {
                     if b == AIR {
                         // P297 (b): air over low ground on the bank carries the water plane on too (the bank's smooth
                         // surface dips under the waterline inside it; the water used to end at the cell's square there).
-                        if smoothWater && natAt(i - RL) { shoreWater(i, ly) }
+                        if smoothWater && !fluidNets && natAt(i - RL) { shoreWater(i, ly) }
                         continue
                     }
                     let bi = Int(b)
                     let rt = renderT[bi]
                     if rt == rNone { continue }
                     if smooth && natT[bi] && (!fieldOn || dens[i] > 0) {    // (chipped too: it shrinks in the smooth surface, P106)
-                        if smoothWater { shoreWater(i, ly) }
+                        if smoothWater && !fluidNets { shoreWater(i, ly) }
                         continue
                     }
+                    if fieldOn && natT[bi] { naturalCubes += 1 }        // (P338 step 2: the debug counter)
                     if leafBlob && leafT[bi] { continue }               // (T17: the leaf blobs below)
                     if detailDraw && detT[bi] { continue }              // (round shapes: the detail generators below)
                     // A struck cube (realistic world): its open faces subdivided and carved where the blows landed.
@@ -1010,6 +1140,7 @@ enum Mesher {
                     }
 
                     let isLiquid = rt == rLiquid
+                    if isLiquid && fluidNets { continue }                // (P338 step 5: drawn by the fluid's own surface above)
                     let fk = fkT[bi]
                     let liquidTop = isLiquid && fkT[Int(at(x, y + 1, z))] != fk
                     for f in 0..<6 {
@@ -1328,7 +1459,7 @@ enum Mesher {
             detailOut.append(contentsOf: UnsafeBufferPointer(start: detCut.ptr, count: detCut.count))
         }
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
-                           detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4)
+                           detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -1348,6 +1479,10 @@ enum Mesher {
     static var farLeaves = ProcessInfo.processInfo.environment["BS_FARLEAF"] != "0"
     // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround); BS_FARGROUND=0 meshes it in full.
     static var farGround = ProcessInfo.processInfo.environment["BS_FARGROUND"] != "0"
+    // P338 step 5: field worlds draw water and lava near the eye as their own field's surface (BS_FLUIDNETS=0: the cells).
+    static var fluidNets = ProcessInfo.processInfo.environment["BS_FLUIDNETS"] != "0"
+    // The twelve edges of a cell's corner cube (corner k: x = k & 1, y = (k >> 1) & 1, z = (k >> 2) & 1).
+    static let cubeEdges: [(Int, Int)] = [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7)]
     static var farDarkCull = true
     static let pointedDrip: BlockID = Blocks.has("pointed_dripstone") ? Blocks.id("pointed_dripstone") : 0
     static let iceT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)) == "ice" }

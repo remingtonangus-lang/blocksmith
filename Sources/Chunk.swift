@@ -28,6 +28,7 @@ final class Section {
     var detailBuf: MeshSlice?   // realistic world: round shapes (DetailMesh, 16-byte vertices), solid quads first
     var detailQuads = 0
     var detailSolid = 0
+    var naturalCubes = 0                        // P338 step 2: natural ground meshed as cubes (field worlds; must be 0)
     var groundQuads = 0, blobQuads = 0          // P283: of the opaque quads, the smooth ground's and the leaf blobs'
     var version = 0 {           // bumped when the section (or light around it) changes
         didSet {
@@ -59,6 +60,10 @@ struct BlockStore {
     private(set) var fm: [UInt8] = []
     var isField: Bool { !fd.isEmpty }
     static let section = CSQ * 16
+    // P338 step 2: reads of a field world's ground as a cell of its material (the block grid), counted while the debug
+    // overlay shows them (PerfOverlay). Must read 0 where only the field's surface should be met.
+    static var countReads = false
+    static var groundReads = 0
     // Bit per 16-high section that may hold a light-emitting block (all set = unknown). The mesher skips the
     // block-light pass when no section around the one it meshes has one (most of the surface).
     var emitMask: UInt32 = ~0
@@ -118,7 +123,9 @@ struct BlockStore {
         get {
             let b = UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR      // a negative index reads as air too
             if b != AIR || fd.isEmpty { return b }
-            return UInt(bitPattern: i) < UInt(fd.count) && fd[i] > 0 ? FieldMat.blocks[Int(fm[i])] : AIR
+            guard UInt(bitPattern: i) < UInt(fd.count) && fd[i] > 0 else { return AIR }
+            if BlockStore.countReads { BlockStore.groundReads &+= 1 }
+            return FieldMat.blocks[Int(fm[i])]
         }
         set {
             guard i >= 0 && i < CSQ * CH else { return }

@@ -6,6 +6,7 @@ import Foundation
 // renderer and the Quest HUD panel both draw it (Renderer.buildHUD); each host feeds frame times with add(frameMs:).
 final class PerfOverlay {
     static let shared = PerfOverlay()
+    var readsAt = 0.0, readsPerFrame = 0                 // (P338 step 2)
     // A ring of the last 128 frame times (no allocation per frame).
     private var ring = [Double](repeating: 0, count: 128)
     private var head = 0, filled = 0
@@ -37,6 +38,19 @@ final class PerfOverlay {
         let world = game.world
         let chosen = game.chosenActiveDistance, ad = world.activeDistance
         let dist = "Render distance \(world.renderDistance)  " + (ad < chosen ? "active \(ad) of \(chosen) (auto)" : "active \(ad)")
-        return [a, "\(dist)  Chunks \(world.chunks.count), \(world.pendingJobs) jobs"]
+        var out = [a, "\(dist)  Chunks \(world.chunks.count), \(world.pendingJobs) jobs"]
+        // P338 step 2: a field world's two block-grid counters (both must read 0): natural ground meshed as cubes in the
+        // loaded sections, and the ground read as cells per frame over the last second.
+        BlockStore.countReads = world.fieldTerrain
+        if world.fieldTerrain {
+            var cubes = 0
+            for c in world.chunks.values { for s in c.sections where s.naturalCubes > 0 { cubes += s.naturalCubes } }
+            if now - shared.readsAt >= 1 {
+                shared.readsPerFrame = BlockStore.groundReads / max(1, shared.window(now: now).frames)
+                BlockStore.groundReads = 0; shared.readsAt = now
+            }
+            out.append("Ground as cubes \(cubes), ground cell reads \(shared.readsPerFrame)/frame")
+        }
+        return out
     }
 }

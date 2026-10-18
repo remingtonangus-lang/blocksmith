@@ -896,7 +896,7 @@ final class World {
         s.detailBuf = makeBuffer(m.detail)
         s.detailQuads = m.detail.count / DetailMesh.wordsPerQuad
         s.detailSolid = m.detailSolid
-        s.groundQuads = m.groundQuads; s.blobQuads = m.blobQuads
+        s.groundQuads = m.groundQuads; s.blobQuads = m.blobQuads; s.naturalCubes = m.naturalCubes
         if sy >= c.topSec { c.updateTopSec() }            // a mesh below the top section cannot move it
         if c.tintBuf == nil {
             c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
