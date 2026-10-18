@@ -206,7 +206,37 @@ final class Chunk {
     let cx: Int
     let cz: Int
     var blocks: BlockStore {       // index = x + z*16 + y*256
-        didSet { unsaved = true }
+        didSet { unsaved = true; blocksVersion &+= 1 }
+    }
+    private(set) var blocksVersion = 0
+    // P339 (horizon culling, SceneRenderer.horizonCull): the y under which every column of the chunk is solid for 16
+    // cells (ground or opaque blocks; leaves and water don't count), so a sight line crossing the chunk between that y
+    // and 16 below is stopped. -1: some column has no such band. Cached until the blocks change.
+    private var occTop = -1, occKey = -1
+    var occluderTop: Int {
+        if occKey == blocksVersion { return occTop }
+        occKey = blocksVersion
+        let opq = Blocks.opaque
+        var h = Int.max
+        for col in 0..<CSQ {
+            var y = min(CH - 1, Int(height[col])), run = 0, top = -1
+            while y >= 0 {
+                let i = col + y * CSQ
+                if blocks.ground(i) || opq[Int(blocks.raw(i))] { run += 1; if run == 16 { top = y + 16; break } } else { run = 0 }
+                y -= 1
+            }
+            if top < 0 { occTop = -1; return -1 }
+            h = min(h, top)
+        }
+        // Every column must be solid across the shared band [h-16, h), not just across its own run.
+        for col in 0..<CSQ {
+            for y in (h - 16)..<h {
+                let i = col + y * CSQ
+                if !(blocks.ground(i) || opq[Int(blocks.raw(i))]) { occTop = -1; return -1 }
+            }
+        }
+        occTop = h
+        return h
     }
     // Per-section light (sky << 4 | block, index x + z*16 + (y&15)*256) from the mesher; nil until meshed
     // (then World.lightAt falls back to the heightmap). Uniform sections share Mesher.dark / Mesher.fullSky.
