@@ -37,14 +37,15 @@ enum Difficulty {
         let sight: Float      // how far enemies notice the player
         let spawns: Float     // how many monsters the spawner keeps about
         let flier: Float      // what a hit on a hostile flier counts for
+        var rate: Int = 0     // P358: most half-hearts the player can lose in any one second (0: no limit)
     }
     static let rows: [Row] = [
         // peaceful
         Row(taken: 0, cap: 0, armour: 1, regen: 1.5, hunger: 0.6, speed: 1, aim: 1, pace: 1, sight: 1, spawns: 0, flier: 1),
         // very easy
-        Row(taken: 0.25, cap: 3, armour: 1.3, regen: 2, hunger: 0.5, speed: 0.75, aim: 2.4, pace: 0.5, sight: 0.6, spawns: 0.4, flier: 2.5),
+        Row(taken: 0.2, cap: 3, armour: 1.3, regen: 2, hunger: 0.5, speed: 0.75, aim: 2.4, pace: 0.5, sight: 0.6, spawns: 0.4, flier: 2.5, rate: 3),
         // easy
-        Row(taken: 0.45, cap: 5, armour: 1.15, regen: 1.5, hunger: 0.7, speed: 0.88, aim: 1.7, pace: 0.7, sight: 0.8, spawns: 0.65, flier: 1.8),
+        Row(taken: 0.35, cap: 5, armour: 1.15, regen: 1.5, hunger: 0.7, speed: 0.88, aim: 1.7, pace: 0.7, sight: 0.8, spawns: 0.65, flier: 1.8, rate: 5),
         // normal
         Row(taken: 1, cap: 0, armour: 1, regen: 1, hunger: 1, speed: 1, aim: 1, pace: 1, sight: 1, spawns: 1, flier: 1),
         // hard
@@ -52,6 +53,14 @@ enum Difficulty {
         // very hard
         Row(taken: 2, cap: 0, armour: 0.7, regen: 0.7, hunger: 1.5, speed: 1.25, aim: 0.55, pace: 1.45, sight: 1.3, spawns: 1.7, flier: 1),
     ]
+    // P358 (Oct 16 21:42, "easy is too hard", asked many times): the numbers now reach the player on every path.
+    //   Every way damage reaches him goes through the level's row (Game.levelShare): attacks (mobs, rounds, blasts,
+    //   artillery, vehicle guns: hurtPlayer) and everything else (falls, fire, lava, drowning, freezing, cactus, berry
+    //   bushes, lightning, crashes, magic, wither, hell's heat: Game.damage), the void and starving aside. On the easy
+    //   levels a single blow is capped and, new, so is the total in any one second (a machine gun's stream was a dozen
+    //   capped hits a second): Very Easy 1.5 hearts a second, Easy 2.5; Very Easy takes a fifth of a blow, Easy a third.
+    //   Soldiers die like people (Ballistics.impactMob): one round to the head, one heavy rifle round (9 or more) to
+    //   the body, two rifle or pistol rounds, a short burst (four) of light rounds, any direct rocket or shell.
     // The level the mobs read each update (MobManager.update sets it from the game, like Mob.hardMode).
     static var level = 3
     static var row: Row { rows[clamp(level)] }

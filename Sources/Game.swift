@@ -23,6 +23,8 @@ final class Game {
     var lastHurtAt: Double = -10      // hurt cooldown (reference: 10 ticks of invulnerability after a hit)
     var lastHurtAmount = 0
     var bulletHit = false             // gun rounds ignore the hurt cooldown (each round lands)
+    var levelScaled = false           // P358: hurtPlayer already took the level's share (Game.damage doesn't again)
+    var levelSecond: Double = -10, levelTaken = 0    // P358: the easy levels' per-second limit (Difficulty.Row.rate)
     private(set) var inventory = PlayerInventory()
     let save: SaveManager?
     let persistent: Bool
@@ -2622,10 +2624,13 @@ final class Game {
             // P302 (Oct 15 18:53, "easy all but instakilled me"): on the easy levels no single attack takes more
             // than a heart and a half (Very Easy) or two and a half (Easy), however big the gun or the blast.
             if row.cap > 0 { amount = min(amount, row.cap) }
+            amount = levelRate(amount)                                         // P358: and no more in any one second
             guard amount > 0 else { return }
         }
         amount = Legendaries.taken(self, amount, type, attacker: attacker)   // C10: legendary armour
+        levelScaled = true
         damage(amount, cause, type: type, attacker: attacker)
+        levelScaled = false
         if knockback > 0 {
             var d = player.pos - src
             d.y = 0
@@ -2633,6 +2638,24 @@ final class Game {
             let k = knockback * knockbackScale                         // Q2c-console-60: the headset's Knockback comfort option
             if l > 0.01 && k > 0 { player.vel += d / l * 6 * k + V3(0, 4 * k, 0) }
         }
+    }
+
+    // P358: the level's share of a blow that isn't an attack (random rounding keeps the average), its cap and its
+    // per-second limit.
+    func levelShare(_ amount: Int) -> Int {
+        let row = Difficulty.rows[Difficulty.clamp(diffLevel)]
+        let scaled = Float(amount) * row.taken, whole = floorf(scaled)
+        var n = Int(whole) + (Rand.float(in: 0..<1) < scaled - whole ? 1 : 0)
+        if row.cap > 0 { n = min(n, row.cap) }
+        return levelRate(n)
+    }
+    func levelRate(_ amount: Int) -> Int {
+        let rate = Difficulty.rows[Difficulty.clamp(diffLevel)].rate
+        guard rate > 0, amount > 0 else { return amount }
+        if clock - levelSecond >= 1 { levelSecond = clock; levelTaken = 0 }
+        let n = min(amount, rate - levelTaken)
+        levelTaken += max(0, n)
+        return max(0, n)
     }
 
     // Q2c-console-15: the command console and the shortcuts only in creative, or with Cheats & Shortcuts on.
@@ -2686,6 +2709,13 @@ final class Game {
         if let ns = coop.netSeat, coop.current == ns, let h = netHost { h.hurt(amount0, from: player.pos, cause: cause, knockback: 0, type: type); return }
         Game.onDamage?(amount0, cause)
         if type == .fire && effects.has(.fireResistance) { return }
+        // P358 (b): everything that isn't an attack (falls, fire, lava, drowning, freezing, cactus, lightning, crashes,
+        // magic, hell's heat...) takes the level's share too; the void and starving (its own hunger row) aside.
+        var amount0 = amount0
+        if !levelScaled && type != .void && cause != "starved to death" && diffLevel > 0 {
+            amount0 = levelShare(amount0)
+            guard amount0 > 0 else { return }
+        }
         // Hurt cooldown: within half a second of a hit, only the part of a bigger hit that exceeds it lands
         // (a blight skull and its blast, a creeper after an arrow...). The void and gun rounds skip it.
         var amount = amount0
