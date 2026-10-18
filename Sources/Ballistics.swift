@@ -332,6 +332,14 @@ final class Armory {
         if infantry {
             if m.troop == 0 { dmg *= 1 - min(0.35, Float(m.armorPoints.0) * 0.015) }
             dmg /= max(0.5, m.vary.tough)
+            // P358 (a) (Oct 16 21:42, "the Nazis are still too tough"): a soldier dies like a man, whatever his plate,
+            // rank or toughness roll: one round to the head or a heavy rifle round (9 or more) to the body, two rifle or
+            // pistol rounds (4 or more), a short burst of four lighter rounds. The marshal and the chancellor are bosses.
+            if m.kind != .ashMarshal && m.kind != .ashChancellor {
+                let full = Float(max(m.spec.health, m.health))
+                let share: Float = head || s.damage >= 9 ? 1 : (s.damage >= 4 ? 0.5 : 0.25)
+                dmg = max(dmg, ceilf(full * share + 0.5))
+            }
         }
         let whole = floorf(dmg)
         let n = Int(whole) + (Rand.float(in: 0..<1) < dmg - whole ? 1 : 0)
