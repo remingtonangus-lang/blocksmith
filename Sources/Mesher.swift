@@ -462,7 +462,11 @@ enum Mesher {
             guard dy16 != 0 else { return (0, 0) }
             var n = below + 1, j = i + RL
             while n <= SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { n += 1; j += RL }
-            if n <= SmoothTerrain.maxRelax { return (dy16, dy16) }
+            // P365 (d): a short stack moving as one still opened a gap between cane's 2nd and 3rd pieces where the stack
+            // crossed into the next section up (each section reads the drawn ground from its own smoothing, which can
+            // differ by a 1/16 or two). Any stack of two or more now keeps every joint on its block line and only the
+            // foot stretches to the ground; a single plant still moves whole.
+            if n == 1 { return (dy16, dy16) }
             return below == 0 ? (dy16, 0) : (0, 0)
         }
         // P281 (b): a drifting water plant's corner moves unless it is the stalk's foot (no drifting plant under it).

@@ -215,6 +215,8 @@ extension Renderer {
             }
         }
         Renderer.plumeRising = !smoke.isEmpty                    // (volcano smoke: the Quest rebuilds it every 2nd frame)
+        fireSmoke(&smoke, game: game, eye: eye, day: day, hdrK: hdrK)                     // P365 (a)
+        townGlow(&smoke, game: game, eye: eye, loaded: loaded, fog: fog, day: day, hdrK: hdrK, shell: p)   // P365 (i)
         campSmoke(&smoke, game: game, eye: eye, loaded: loaded, fog: fog, day: day, hdrK: hdrK, shell: p)   // P331
         smokeStart = out.count
         out.append(contentsOf: smoke)

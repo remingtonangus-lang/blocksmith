@@ -177,7 +177,7 @@ extension ItemRegistry {
     func registerFuelCan() {
         guard !has(VehicleDepot.canKey) else { return }
         var d = ItemDef(VehicleDepot.canKey, "Fuel Can")
-        d.sprite = Sprite(mask: "bucket", base: 0xB0322A, extras: [:])
+        d.sprite = Sprite(mask: "jerry_can", base: 0xB0322A, extras: ["k": 0x2A2A2C])     // P365 (b)
         d.maxStack = 4
         add(d)
     }

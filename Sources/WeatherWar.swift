@@ -48,7 +48,17 @@ extension Game {
         let up = simd_clamp((player.pos.y - Float(YOFF) - 90) / 60, 0, 1)
         let f = WeatherWar.fogThick * (1 - up)
         guard f > 0.02 else { return nil }
-        return WeatherWar.fogSee + (1 - f) * (1 - f) * 220
+        // P365 (g, "fog rolled in and vanished at once"): the reach starts far past any view distance and closes in
+        // smoothly as the bank thickens (it opened at 250 blocks the moment the bank began, and snapped back to the
+        // full view when it ended).
+        return WeatherWar.fogSee + (1 - f) * (1 - f) * (1 - f) * 1400
+    }
+    // Where the fog starts, as a share of its reach: near the reach while the bank is thin, closing to a fifth when it
+    // is thick (it jumped from the clear edge band to a fifth at once).
+    var weatherFogStartK: Float {
+        if Storms.sight() != nil { return 0.2 }                            // (blizzards and sandstorms: thick at once)
+        let f = WeatherWar.fogThick
+        return 0.2 + 0.74 * (1 - f) * (1 - f)
     }
 
     // Once a second (the HUD tick).
@@ -60,15 +70,24 @@ extension Game {
                 WeatherWar.fogOn = false
                 WeatherWar.fogTimer = Double(Rand.float(in: 900...4000))
             } else {
+                // P365 (g): fog only where and when air is foggy: the early morning, light rain, and swamps, coasts,
+                // rivers and the sea; never in dry country (deserts, badlands, savanna) or the high peaks.
                 let dawn = dayFraction > 0.95 || dayFraction < 0.1
-                WeatherWar.fogOn = over && weather.rain < 0.5 && Rand.float(in: 0..<1) < (dawn ? 0.2 : 0.05)   // (P211: was 0.8 / 0.35)
+                let b = audio.biomeHere
+                let damp = b.isOcean || b.isBeach || b.isRiver || b == .swamp || b == .mangroveSwamp
+                let dry = [.desert, .badlands, .erodedBadlands, .woodedBadlands, .savanna, .savannaPlateau, .windsweptSavanna,
+                           .jaggedPeaks, .frozenPeaks, .stonyPeaks].contains(b)
+                let wet = weather.rain > 0.2 && weather.rain < 0.7 && !weather.thundering
+                let chance: Float = dry ? 0 : (dawn ? 0.2 : 0) + (damp ? 0.12 : 0) + (wet ? 0.1 : 0)
+                WeatherWar.fogOn = over && Rand.float(in: 0..<1) < chance   // (P211: was 0.8 / 0.35)
                 if WeatherWar.fogOn { onToast?("The sky is clouding over: fog is coming") }
                 WeatherWar.fogTimer = WeatherWar.fogOn ? Double(Rand.float(in: 240...600)) : Double(Rand.float(in: 600...2400))
             }
         }
         let want: Float = WeatherWar.fogOn && over ? 1 : 0
-        WeatherWar.fog += (want - WeatherWar.fog) * min(1, Float(dt) * 0.05)
-        if abs(want - WeatherWar.fog) < 0.01 { WeatherWar.fog = want }
+        // P365 (g): it rolls in and lifts over two to three minutes (a steady drift, not a quick exponential snap).
+        let step = Float(dt) / 150
+        WeatherWar.fog = want > WeatherWar.fog ? min(want, WeatherWar.fog + step) : max(want, WeatherWar.fog - step)
         // Spotting range.
         var s: Float = 1 - 0.6 * WeatherWar.fog
         if stormGrounds { s = min(s, 0.7) } else if over && weather.rain > 0.5 { s = min(s, 0.85) }

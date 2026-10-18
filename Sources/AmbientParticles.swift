@@ -52,13 +52,21 @@ extension Game {
                                        layer: smokeL, uv0: .zero, uvSize: 1, size: Rand.float(in: 0.035...0.06), gravity: 0,
                                        color: soul ? V3(0.45, 0.9, 1.0) : V3(1.0, 0.72, 0.3), collide: false, glow: true))
             case .campfire:
-                // Lazy smoke column: big soft puffs that rise for several seconds.
-                for _ in 0..<2 {
+                // P365 (a): the smoke itself is soft blended puffs drawn by the renderer (Renderer.fireSmoke); here the
+                // fire is only noted, and now and then throws a tiny ember.
+                if dim.dim == .overworld { Renderer.fires[IVec3(x, y, z)] = clock } else {
+                    // (the landmark pass draws only in the overworld: elsewhere the old soft particle column)
                     let g = Rand.float(in: 0.55...0.72)
                     particles.add(Particle(pos: o + V3(Rand.float(in: 0.3...0.7), 0.6, Rand.float(in: 0.3...0.7)),
                                            vel: V3(Rand.float(in: -0.08...0.08), Rand.float(in: 1.0...1.6), Rand.float(in: -0.08...0.08)),
                                            life: Rand.float(in: 3...5), maxLife: 5, layer: smokeL, uv0: .zero, uvSize: 1,
                                            size: Rand.float(in: 0.22...0.38), gravity: 0, color: V3(g, g, g), collide: false))
+                }
+                if Rand.float(in: 0..<1) < 0.35 {
+                    particles.add(Particle(pos: o + V3(Rand.float(in: 0.35...0.65), 0.5, Rand.float(in: 0.35...0.65)),
+                                           vel: V3(Rand.float(in: -0.15...0.15), Rand.float(in: 0.8...1.5), Rand.float(in: -0.15...0.15)),
+                                           life: Rand.float(in: 0.5...1.1), maxLife: 1.1, layer: smokeL, uv0: .zero, uvSize: 1,
+                                           size: Rand.float(in: 0.015...0.03), gravity: -0.2, color: V3(1.0, 0.5, 0.15), collide: false, glow: true))
                 }
             case .lava:
                 // Occasional sparks from open lava surfaces.

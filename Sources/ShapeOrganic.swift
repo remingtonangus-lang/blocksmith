@@ -78,8 +78,19 @@ enum ShapeOrganic {
         var base = SIMD3<Float>(Float(x), Float(y), Float(z))
         // P297 (a) ("a log and a pumpkin floating"): a lone form on natural ground (a pumpkin in the grass, a melon) sits
         // on the drawn surface, which dips below the block's foot between the cells it was rounded from.
-        if covered[3] && !cont[2] && SmoothTerrain.natural[Int(ctx.block(x, y - 1, z))], let g = ctx.groundTop(x, y - 1, z, reach: 2) {
-            base.y = max(Float(y) - 0.8, min(Float(y), g - 0.04))
+        // P365 (e, "pumpkins still don't sit in the ground well"): one ground height at the block's corner left the
+        // downhill side floating on a slope. The ground is read at all four corners of the footprint and the form settles
+        // into it: a little under the average, and never with its foot over the lowest corner.
+        if covered[3] && !cont[2] && SmoothTerrain.natural[Int(ctx.block(x, y - 1, z))] {
+            var sum: Float = 0, n: Float = 0, lo: Float = .greatestFiniteMagnitude
+            for (ox, oz) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                guard let g = ctx.groundTop(x + ox, y - 1, z + oz, reach: 2) else { continue }
+                sum += g; n += 1; lo = min(lo, g)
+            }
+            if n > 0 {
+                let settle = min(sum / n - 0.1, lo + 0.03)
+                base.y = max(Float(y) - 0.8, min(Float(y), settle))
+            }
         }
         let tint = Int(Blocks.tint[i] == 3 ? 1 : Blocks.tint[i])
         for f in 0..<6 where !cont[f] && !covered[f] {

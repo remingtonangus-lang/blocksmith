@@ -370,7 +370,10 @@ final class BlockRegistry {
         column("oak_log", "Oak Log", side: "oak_log", top: "oak_log_top")
         leaves("oak_leaves", "Oak Leaves", "oak_leaves", tint: 2)
         var glass = BlockDef("glass", "Glass")
-        glass.tex = ["glass"]; glass.opaque = false; glass.layer = .cutout; glass.cullSame = true
+        // P365 (j, "glass only as panes"): no full glass blocks. The key stays (saves, structures, recipes), but the
+        // block is a pane: every glass block already built, or placed from a glass item, stands as a thin pane joining
+        // its neighbours.
+        glass.tex = ["glass"]; glass.render = .connect; glass.connect = 2; glass.opaque = false; glass.layer = .cutout
         glass.skyStop = false; glass.hardness = 0.3; glass.sound = .glass; glass.aoOcc = false
         add(glass)
         // Water: 9 states (source, flowing 1-7, falling). Only the source is placeable.
