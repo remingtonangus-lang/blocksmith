@@ -570,6 +570,10 @@ if CommandLine.arguments.contains("--difficulty-only") {          // P358: hits 
     DifficultyCheck.run(game, check)
     print(failures == 0 ? "difficulty: all checks passed" : "difficulty: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--throw-only") {             // P371: thrown held things
+    ThrownHeldCheck.run(game, check)
+    print(failures == 0 ? "throw: all checks passed" : "throw: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--frigatecheck") {
     FrigateCheck.run(game, check)
     print(failures == 0 ? "frigate: all checks passed" : "frigate: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

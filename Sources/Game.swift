@@ -3073,6 +3073,7 @@ final class Game {
         mobs.update(Float(dt), game: self)
         TickProf.mark("mobs")
         drops.update(Float(dt), game: self)
+        ThrownHeld.tick(self, Float(dt))                         // P371
         TickProf.mark("drops")
         projectiles.update(Float(dt), game: self)
         TickProf.mark("projectiles")
