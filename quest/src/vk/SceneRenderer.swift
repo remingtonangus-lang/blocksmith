@@ -110,6 +110,12 @@ final class SceneRenderer {
     private(set) var visibleCount = 0
     private(set) var cullMs = 0.0
     var caveCulling = true
+    // P339: sections hidden behind nearer hills are left out (horizonCull). BS_HORIZON=0 turns it off.
+    var horizonCulling = ProcessInfo.processInfo.environment["BS_HORIZON"] != "0"
+    private(set) var horizonSkipped = 0
+    private static let hBins = 1024
+    private var hTop = [Float](repeating: 0, count: SceneRenderer.hBins), hBot = [Float](repeating: 0, count: SceneRenderer.hBins)
+    private var occluders: [(dmax: Float, b0: Int, b1: Int, top: Float, bot: Float)] = []
     var maxSection = NSEC          // sections from here up are left out (the Ash Vault's sky, AshSky.swift)
     // The fog budget (the Ash Vault, gap pass D5/DE14): sections wholly past this distance are neither walked nor drawn
     // (they would come out the fog colour). 0: off. `fogCullOff` lets questcheck measure the battle without it.
@@ -854,6 +860,82 @@ final class SceneRenderer {
     private var chunkGrid: [Chunk?] = []
 
     // Sections to draw, near to far (the Mac renderer's cave-culling walk, Renderer.encode).
+    // P339 (full detail out to 24 chunks, Remington Oct 18: cost down by culling, never by lowering far detail): horizon
+    // culling over the walk's found sections, nearest first. Each chunk whose columns are all solid for 16 cells under
+    // `Chunk.occluderTop` (H) is an occluder over the azimuth bins wholly inside its footprint: a sight line in those bins
+    // crossing it between the elevations of H and H - 16 (taken at the worse of its near and far distance) is stopped
+    // inside that solid band. A section farther than the occluder's far corner whose whole box lies between those two
+    // elevations in every bin it spans is hidden. Occluders apply only to sections past their far corner, so nothing
+    // beside or above one is ever taken out; sections round the eye's column are never tested.
+    private func horizonCull(eye: V3, R: Int, span: Int) {
+        let B = SceneRenderer.hBins
+        let toBin = Float(B) / (2 * Float.pi)
+        for b in 0..<B { hTop[b] = -.infinity; hBot[b] = .infinity }
+        occluders.removeAll(keepingCapacity: true)
+        horizonSkipped = 0
+        var applied = 0
+        var seen = Set<Int>()
+        // The footprint's azimuth range (bins, unwrapped round its centre) and its near and far horizontal distances.
+        func footprint(_ x0: Float, _ z0: Float, _ w: Float) -> (a0: Float, a1: Float, dmin: Float, dmax: Float)? {
+            let cx = x0 + w / 2, cz = z0 + w / 2
+            let nx = max(x0, min(eye.x, x0 + w)), nz = max(z0, min(eye.z, z0 + w))
+            let dmin = ((nx - eye.x) * (nx - eye.x) + (nz - eye.z) * (nz - eye.z)).squareRoot()
+            if dmin < 1 { return nil }
+            let ac = atan2(cz - eye.z, cx - eye.x)
+            var a0 = Float.infinity, a1 = -Float.infinity, dmax: Float = 0
+            for (x, z) in [(x0, z0), (x0 + w, z0), (x0, z0 + w), (x0 + w, z0 + w)] {
+                var a = atan2(z - eye.z, x - eye.x) - ac
+                if a > .pi { a -= 2 * .pi } else if a < -.pi { a += 2 * .pi }
+                a0 = min(a0, a); a1 = max(a1, a)
+                dmax = max(dmax, ((x - eye.x) * (x - eye.x) + (z - eye.z) * (z - eye.z)).squareRoot())
+            }
+            return ((ac + a0) * toBin, (ac + a1) * toBin, dmin, dmax)
+        }
+        var out = 0
+        for k in 0..<found.count {
+            let key = found[k]
+            let col = Int((key >> 8) & 0xFF_FFFF), sy = Int(key & 0xFF)
+            guard let c = chunkGrid[col] else { continue }
+            let x0 = Float(c.cx * CS), z0 = Float(c.cz * CS)
+            var hidden = false
+            if let fp = footprint(x0, z0, 16) {
+                // Occluders whose far corner is nearer than this section's nearest point.
+                for o in occluders where o.dmax <= fp.dmin && o.dmax >= 0 {
+                    for b in o.b0...o.b1 {
+                        let m = ((b % B) + B) % B
+                        if o.top > hTop[m] { hTop[m] = o.top; hBot[m] = o.bot }
+                    }
+                    applied += 1
+                }
+                if applied > 0 { occluders.removeAll { $0.dmax <= fp.dmin }; applied = 0 }
+                let y0 = Float(sy * 16) - eye.y, y1 = y0 + 16
+                let eMax = y1 > 0 ? y1 / fp.dmin : y1 / fp.dmax, eMin = y0 < 0 ? y0 / fp.dmin : y0 / fp.dmax
+                let b0 = Int(floor(fp.a0)), b1 = Int(floor(fp.a1))
+                if b1 - b0 < B / 4 {
+                    hidden = true
+                    for b in b0...b1 {
+                        let m = ((b % B) + B) % B
+                        if !(eMax < hTop[m] && eMin > hBot[m]) { hidden = false; break }
+                    }
+                }
+                // This chunk as an occluder, once.
+                if !seen.contains(col) {
+                    seen.insert(col)
+                    let H = c.occluderTop
+                    if H > 0 {
+                        let ht = Float(H) - eye.y, hb = ht - 16
+                        let top = min(ht / fp.dmin, ht / fp.dmax), bot = max(hb / fp.dmin, hb / fp.dmax)
+                        let ib0 = Int(ceil(fp.a0)), ib1 = Int(floor(fp.a1)) - 1
+                        if ib1 >= ib0 && top > bot { occluders.append((fp.dmax, ib0, ib1, top, bot)) }
+                    }
+                }
+            }
+            if hidden { horizonSkipped += 1; continue }
+            found[out] = key; out += 1
+        }
+        found.removeLast(found.count - out)
+    }
+
     func cull(_ world: World, eye: V3, frustum: Frustum) {
         let t0 = CFAbsoluteTimeGetCurrent()
         visible.removeAll(keepingCapacity: true)
@@ -957,6 +1039,7 @@ final class SceneRenderer {
             }
             cullVisits = bfs.count
             found.sort()
+            if horizonCulling { horizonCull(eye: eye, R: R, span: span) }
             for k in found {
                 guard let c = chunkGrid[Int((k >> 8) & 0xFF_FFFF)] else { continue }
                 visible.append((c, Int(k & 0xFF), Float(bitPattern: UInt32(k >> 32))))
@@ -988,7 +1071,7 @@ final class SceneRenderer {
             q[f][0] += 1; q[f][1] += s.groundQuads; q[f][2] += s.blobQuads; q[f][3] += s.opaqueQuads - s.groundQuads - s.blobQuads
             q[f][4] += s.detailQuads; q[f][5] += s.transQuads
         }
-        return "walk \(cullVisits) sections; " + ["near", "far"].enumerated().map { i, n in
+        return "walk \(cullVisits) sections, \(horizonSkipped) behind hills; " + ["near", "far"].enumerated().map { i, n in
             "\(n) \(q[i][0]) sections: ground \(q[i][1]), leaf blobs \(q[i][2]), other opaque \(q[i][3]), detail \(q[i][4]), translucent \(q[i][5])"
         }.joined(separator: "; ")
     }
