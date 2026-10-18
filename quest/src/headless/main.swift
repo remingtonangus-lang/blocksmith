@@ -93,8 +93,8 @@ if let out = arg("--view"), let ctx = vkctx {
     // --dim nether|end|deep: that dimension's world instead (looks work; PG6 field checks).
     let vw = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: device, save: nil, dim: Dim(rawValue: arg("--dim") ?? "") ?? .overworld)
     vw.renderDistance = Int(arg("--rd") ?? "") ?? 6
-    // --questlod: the headset's far-detail and leaf rings (QuestApp: lodNear 5, leafNear 2) instead of the Mac's.
-    if CommandLine.arguments.contains("--questlod") { World.lodNear = 5; World.leafNear = 2 }
+    // --questlod: the headset's far-detail and leaf rings (QuestApp: lodNear 99, leafNear 99: full detail everywhere, P339) instead of the Mac's.
+    if CommandLine.arguments.contains("--questlod") { World.lodNear = 99; World.leafNear = 99 }
     let vg = Game(world: vw, save: nil, persistent: false)
     vg.time = (Double(arg("--time") ?? "") ?? 0.25) * DAY_LENGTH
     vg.player.pos = V3(at[0], at[1], at[2]); vg.player.flying = true

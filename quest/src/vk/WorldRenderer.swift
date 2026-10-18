@@ -410,9 +410,8 @@ final class WorldRenderer {
     // loaded mob was rebuilt each frame, ~200 at render distance 14.
     // Past the vault's fog (scene.fogCull) a unit is the fog colour: not drawn.
     var mobMaxDist: Float {
-        // P339: with the view fixed at 24 chunks, mobs (moving or standing past the active distance) are drawn to 16
-        // chunks, ~270 m, where a horse is still a few pixels; past it they are a pixel or less.
-        let rd = Float(min(game.world.renderDistance, 16) * CS + 24)
+        // P339: mobs are drawn out to the whole view (past the active distance in their last pose).
+        let rd = Float(game.world.renderDistance * CS + 24)
         return scene.fogCull > 0 && !SceneRenderer.fogCullOff ? min(rd, scene.fogCull) : rd
     }
     private func drawMobs(_ s: SceneRenderer.Slot, _ eye: V3, _ frustum: Frustum) {
