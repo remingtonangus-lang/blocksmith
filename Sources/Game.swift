@@ -1512,15 +1512,10 @@ final class Game {
                     mineSoundTimer -= fdt
                     if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
                     if mineProgress >= 1 && breakCooldown <= 0 {
-                        // Realistic world: what was left of the block splits on the spot and falls as pieces.
-                        // (PG4: a round gourd comes off whole, as its item: ShapeOrganic draws it as one form.)
-                        if World.realistic && Blocks.render[Int(b)] == RenderType.cube.rawValue && Blocks.fullCollide[Int(b)]
-                            && ShapeClass.family[Int(b)] != .gourd {
-                            let seed = hash3(t.hit.x, t.hit.y, t.hit.z, UInt32(truncatingIfNeeded: Int(clock * 60)) ^ 0xB4EA)
-                            debris.shatter(b, cell: t.hit, impact: hitPoint(t), direction: player.look, count: 5, speed: 1.2, seed: seed)
-                        }
+                        // P364 (g): a block he mines through no longer bursts into pieces that scatter and lie over what
+                        // was under it (blasts still shatter blocks); what it gives goes straight into his pack.
                         let natural = SmoothTerrain.natural[Int(b)], dug = hitPoint(t)
-                        breakBlock(t.hit, b, drop: true)
+                        breakBlock(t.hit, b, drop: true, toPack: true)
                         // PG1: the hole follows the tool: the field round it is shaped by a ball where the blow landed.
                         if natural { world.carve(at: dug + player.look * 0.25, radius: 0.62, mode: .shape) }
                         if t.hit == digDownCell { centreOverHole(t.hit) }
@@ -1688,7 +1683,11 @@ final class Game {
         guard useNow || (useHeld && placeCooldown <= 0 && useRepeatItem == Int(held.item)) else { return }
         placeCooldown = 0.2       // 4 ticks, like the reference's held right-click
         if useNow && useBottleOrCauldron(target) { swing = 1; return }
-        if useBucket() { return }
+        // P364 (b): a bucket used on a furnace, crafting table, chest... opens it (sneak to pour against it).
+        let atBlockThatOpens = useNow && !(input.shift || p.b) && (target.map { isInteractive($0.hit) } ?? false)
+        if !atBlockThatOpens && useBucket() { return }
+        // P364 (c): raw food used on a lit campfire goes on it first (before any other use of the item on a block).
+        if useNow && onFire, let t = target, useNewBlock(t) { swing = 1; return }
         if useNow && placeBoat() { return }
         guard let t = target else { if useNow { placeIntoLava() }; return }
         if useNow && !isInteractive(t.hit) && placeIntoLava(before: t.hit) { return }
@@ -1855,7 +1854,8 @@ final class Game {
         // point of the jump, not only at its very top.
         if supported && solid && !player.onGround && !player.flying && player.intersectsBlock(at), at.y == Int(floor(player.pos.y)),
            player.pos.y > Float(at.y) + 0.25, liftOnto(at) {}
-        if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.intersects(at) }) {
+        // (P364 i: only a living creature in the cell blocks it: a dead one still fading out refused the block.)
+        if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.health > 0 && $0.intersects(at) }) {
             world.setBlock(at.x, at.y, at.z, id)
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
             if key == "chest" || key.hasSuffix("copper_chest") { world.blockEntities[at] = BlockEntity(.chest) }
@@ -2034,6 +2034,7 @@ final class Game {
         case "crafting_table": openMenu(CraftingBookMenu(game: self))      // the recipe book first; the grid is a button away
         case "furnace", "lit_furnace":
             let be = world.entity(p, .furnace)
+            be.mob = ""                     // P364 (d): a plain furnace (a stale "blast_furnace" mark refused food and sent it back)
             world.blockEntities[p] = be
             openMenu(FurnaceMenu(game: self, entity: be))
         case "smoker", "blast_furnace":
@@ -2192,7 +2193,7 @@ final class Game {
         return (name, note, min(1, (age - 0.5) / 0.15, (3 - age) / 0.4))
     }
 
-    func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
+    func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool, toPack: Bool = false) {
         boarlingsGuard(p, block: b)
         if Blocks.key(b) == DeepGates.liftKey { noteDeepLift(p, placed: false) }
         TownLaw.broke(self, p, b)
@@ -2290,7 +2291,15 @@ final class Game {
             be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
         }
         if drop {
-            for s in Mining.enchantedDrops(b, held) { drops.spawn(s, at: center, vel: V3(Rand.float(in: -1...1), 2, Rand.float(in: -1...1)), delay: 0.5, deliberate: true) }
+            for s in Mining.enchantedDrops(b, held) {
+                // P364 (g): mined by hand, the drop goes into the pack (only what doesn't fit falls at the block).
+                var rest = s
+                if toPack {
+                    rest = inventory.add(s)
+                    if rest.count != s.count || rest.isEmpty { notePickup(s, s.count - (rest.isEmpty ? 0 : rest.count)); sfx(.pickup, 0.3) }
+                }
+                if !rest.isEmpty { drops.spawn(rest, at: center, vel: V3(Rand.float(in: -1...1), 2, Rand.float(in: -1...1)), delay: 0.5, deliberate: true) }
+            }
             exhaustion += 0.005
         }
         // A standing torch on the broken block falls off. Plants that lose their support (whole cane stacks, vines
