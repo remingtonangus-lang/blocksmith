@@ -22,7 +22,9 @@ import simd
 enum Railways {
     static let span = 34 * CS              // a village region, blocks
     static let stretch = 6                 // village regions a line may run across
-    static var share: Float = 0.3         // the stretches that carry a line
+    // P337 step 1: every stretch with towns enough carries a line (was 0.3: a line every 4,000 blocks was a rare find,
+    // and the towns between went unlinked). Ground a save generated before keeps none (Y5, FreshGround).
+    static var share: Float = 1
     static let minStations = 3
     static let stationRun = 10             // the straight past each side of a town's box
     static let southGap = 5                // the track, blocks south of the town's box

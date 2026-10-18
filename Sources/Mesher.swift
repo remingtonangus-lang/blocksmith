@@ -57,6 +57,7 @@ enum Mesher {
     // Blocks drawn by the detail generators: the ground and the cube faces round them treat them as open.
     static let detailT: [Bool] = (0..<Blocks.count).map { i in
         ShapeClass.kind[i] == .trunk || ShapeClass.kind[i] == .organic || i != 0 && i == Int(pointedDrip)    // (P338: ShapeSpikes)
+            || ShapeRails.isRail[i]                                                                           // (P337: ShapeRails)
     }
     // Built cubes (planks, bricks, metal, concrete...): crisp, but no knife edges (realistic world 1.6).
     static let bevelT: [Bool] = (0..<Blocks.count).map { ShapeClass.kind[$0] == .built && Blocks.tint[$0] != 3 }
@@ -1364,6 +1365,7 @@ enum Mesher {
             ShapeTrunks.emit(ctx)
             ShapeOrganic.emit(ctx)
             ShapeSpikes.emit(ctx)
+            ShapeRails.emit(ctx)
         }
         // P338 step 8: free building pieces standing in this section (FreeBuild), in any world that has them.
         if !pieces.isEmpty {

@@ -92,6 +92,7 @@ enum Trains {
         let track: Track
         var delay: Double = 0                   // seconds the train has stood still off its timetable
         var brake: Float = 0                    // 0 running ... 1 stopped (a hold-up or a blocked track)
+        var throttle: Float = 1                 // P337: the cab's regulator, -1 (backing) ... 2 (twice the timetable)
         var stoppedFor: Float = 0
         var holdUp: Float = 0
         var heldBy = false                      // the player stopped it (a hold-up or a block on the line)
@@ -249,7 +250,17 @@ enum Trains {
             holdUpTick(g, tr, dt)
         }
         tr.brake += ((tr.heldBy ? 1 : 0) - tr.brake) * min(1, dt * 1.2)
-        tr.delay += Double(dt * tr.brake)
+        // P337 step 3: riding the locomotive is driving it. Forward opens the regulator, back closes it, through stop
+        // into reverse; the train runs its timetable's track at that rate (late or early: the timetable's time is the
+        // train's own). Left alone it eases back to the timetable's pace.
+        if dt > 0, let lead = tr.cars.first, g.riding === lead {
+            let f = g.rideInput.forward
+            if abs(f) > 0.1 { tr.throttle = max(-1, min(2, tr.throttle + f * 0.7 * dt)) }
+        } else if dt > 0 {
+            tr.throttle += (1 - tr.throttle) * min(1, dt * 0.3)
+        }
+        let rate = tr.throttle * (1 - tr.brake)
+        tr.delay += Double(dt * (1 - rate))
         tr.time = g.time - tr.delay
         let (s, dir, stop) = t.at(tr.time)
         let moving = abs(s - tr.lastS)
