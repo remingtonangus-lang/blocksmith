@@ -2,10 +2,10 @@
 
 ## Credits
 - **Created by:** Remington [surname]
-- **Engine, game code, procedural textures, synthesized sound and music:** written for Blocksmith. All game code is
+- **Engine, game code, procedural textures, synthesized sound and music:** written for Sunderfall. All game code is
   original, with no third-party gameplay code.
 - **Design reference:** genre conventions of block-building survival games. Every name, text, texture and sound in
-  Blocksmith is Blocksmith's own (see docs/status/ip-renames.md).
+  Sunderfall is Sunderfall's own (see docs/status/ip-renames.md).
 
 ## Third-party software in the Quest build
 | Component | Use | Licence |
@@ -25,5 +25,5 @@ this table, add any NOTICE file text a component requires, and keep AboutMenu.pa
 ## Assets
 No third-party textures, models, sounds or music. Every texture is painted procedurally in code (Textures.swift and
 related files), and every sound and piece of music is synthesized in code. Image requests in docs/art/image-requests.md
-and recordings in docs/audio/sound-list.md will be commissioned or generated for Blocksmith. Record their source and
+and recordings in docs/audio/sound-list.md will be commissioned or generated for Sunderfall. Record their source and
 licence here as they arrive.

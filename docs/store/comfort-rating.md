@@ -3,7 +3,7 @@
 **Proposed rating: Moderate.** Comfort options make it suitable for most players, but riding, sailing and flight add
 artificial motion that some players will find intense.
 
-| Factor | In Blocksmith | Mitigation in the options |
+| Factor | In Sunderfall | Mitigation in the options |
 |---|---|---|
 | Artificial locomotion | Stick movement, sprinting | Comfort preset (Comfort / Moderate / Free), speed caps, vignette while moving |
 | Turning | Smooth or snap turn | Snap turn by default in the Comfort preset, adjustable angle |

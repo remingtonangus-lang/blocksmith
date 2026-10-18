@@ -2,15 +2,15 @@ import Foundation
 import simd
 
 // Music discs and the jukebox. Each disc is an original procedurally composed piece (seeded by the
-// disc's name, played on the note-block instruments), with the reference disc lengths.
+// disc's name, played on the note-block instruments), with our own titles and lengths.
 enum MusicDiscs {
-    // name, label colour, length in seconds (reference lengths)
+    // name (the save key), label colour, length in seconds (P360 (a): our own lengths, not the reference ones)
     static let all: [(String, UInt32, Int)] = [
-        ("13", 0xE8E0B0, 178), ("cat", 0x6AD85A, 185), ("blocks", 0xE8762A, 345), ("chirp", 0xD02A2A, 185), ("far", 0x9AE85A, 174),
-        ("mall", 0x8A5AE8, 197), ("mellohi", 0xC87AC8, 96), ("stal", 0x2A2A2A, 150), ("strad", 0xF0F0F0, 188), ("ward", 0x3A8A3A, 251),
-        ("11", 0x3A3A3A, 71), ("wait", 0x3A8AE8, 238), ("pigstep", 0xB03A3A, 149), ("otherside", 0x3AB8D8, 195), ("5", 0x3A5A6A, 178),
-        ("relic", 0x3A8A8A, 218), ("creator", 0xE8C040, 176), ("creator_music_box", 0xE8C040, 73), ("precipice", 0x8A6A4A, 299),
-        ("tears", 0xE8E8F0, 175), ("lava_chicken", 0xE8601A, 134),
+        ("13", 0xE8E0B0, 162), ("cat", 0x6AD85A, 201), ("blocks", 0xE8762A, 288), ("chirp", 0xD02A2A, 166), ("far", 0x9AE85A, 192),
+        ("mall", 0x8A5AE8, 214), ("mellohi", 0xC87AC8, 118), ("stal", 0x2A2A2A, 171), ("strad", 0xF0F0F0, 205), ("ward", 0x3A8A3A, 226),
+        ("11", 0x3A3A3A, 88), ("wait", 0x3A8AE8, 219), ("pigstep", 0xB03A3A, 163), ("otherside", 0x3AB8D8, 211), ("5", 0x3A5A6A, 157),
+        ("relic", 0x3A8A8A, 197), ("creator", 0xE8C040, 189), ("creator_music_box", 0xE8C040, 86), ("precipice", 0x8A6A4A, 264),
+        ("tears", 0xE8E8F0, 158), ("lava_chicken", 0xE8601A, 147),
     ]
     // Discs a hisser drops when a skeleton kills it.
     static let creeperDrops = ["13", "cat", "blocks", "chirp", "far", "mall", "mellohi", "stal", "strad", "ward", "11", "wait"]
@@ -106,12 +106,13 @@ extension Game {
 
 // Blocksmith's own titles for the discs (the keys stay the save IDs).
 extension MusicDiscs {
+    // P360 (a): frontier titles with no tie to the reference discs' names (the old ones echoed them).
     static let titles: [String: String] = [
-        "13": "Hollow Echo", "cat": "Paw Prints", "blocks": "Building Blocks", "chirp": "Morning Chirp", "far": "Far Hills",
-        "mall": "Market Day", "mellohi": "Slow Glow", "stal": "Stalwart", "strad": "Strings", "ward": "Warding",
-        "11": "Broken Record", "wait": "Patience", "pigstep": "Ember March", "otherside": "Other Shore", "5": "Deep Signal",
-        "relic": "Relic", "creator": "Maker", "creator_music_box": "Maker (Music Box)", "precipice": "Cliffside",
-        "tears": "Wailer's Lament", "lava_chicken": "Hot Coop",
+        "13": "Dry Creek", "cat": "Saddle Song", "blocks": "Raising the Barn", "chirp": "Tin Star", "far": "Coyote Ridge",
+        "mall": "Boardwalk", "mellohi": "Mesa Dusk", "stal": "Iron Horse", "strad": "Fiddler's Rest", "ward": "Long Watch",
+        "11": "Cracked Shellac", "wait": "Stagecoach", "pigstep": "Foundry Stomp", "otherside": "Across the River", "5": "Telegraph",
+        "relic": "Prospector's Find", "creator": "Smith's Hymn", "creator_music_box": "Smith's Hymn (Music Box)",
+        "precipice": "Switchback", "tears": "Grey Rain", "lava_chicken": "Prairie Fire",
     ]
     static func title(_ key: String) -> String { titles[key] ?? key }
 

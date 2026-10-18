@@ -150,3 +150,21 @@ old-save rule: docs/status/ip-content-audit-oct11.md.
 The spider and cave spider (keys "spider", "cave_spider") are now the Gravesworn Duellist and Gravesworn Squire: dead
 men-at-arms in tarnished plate who fight as sword duellists. The village guardian (key "iron_golem") is the Iron
 Sentinel, with a riveted ironclad model.
+
+## Oct 18 (P360): store readiness
+- Music disc titles (keys unchanged; the old titles echoed the reference names): 13 Hollow Echo -> Dry Creek, cat Paw
+  Prints -> Saddle Song, blocks Building Blocks -> Raising the Barn, chirp Morning Chirp -> Tin Star, far Far Hills ->
+  Coyote Ridge, mall Market Day -> Boardwalk, mellohi Slow Glow -> Mesa Dusk, stal Stalwart -> Iron Horse, strad
+  Strings -> Fiddler's Rest, ward Warding -> Long Watch, 11 Broken Record -> Cracked Shellac, wait Patience ->
+  Stagecoach, pigstep Ember March -> Foundry Stomp, otherside Other Shore -> Across the River, 5 Deep Signal ->
+  Telegraph, relic Relic -> Prospector's Find, creator Maker -> Smith's Hymn, precipice Cliffside -> Switchback, tears
+  Wailer's Lament -> Grey Rain, lava_chicken Hot Coop -> Prairie Fire. Disc lengths are our own, not the reference's.
+- The Ashguard's ember mark: was a black diamond split by a bar on a white disc, on red banners and a red armband (the
+  layout of a real party flag). Now an ember-orange chevron over a bar on field-grey cloth; the armband is field grey
+  with an orange patch; vehicles carry an orange plate with the bar.
+- The desert temple (key desert_pyramid): the twin-towered pyramid with the blue-and-orange floor and the shaft over a
+  trapped chest room is replaced, in new ground, by the Dust Mission (DustMission.swift).
+- The hunger row of drumsticks and the green experience bar with its number are replaced by a slim segmented hunger bar
+  and a thin pale-gold experience line with level marks.
+- tools/coined-terms.txt also bans Pigstep, Mellohi, Lava Chicken, Pelican Dropship, Warthog Jeep, Mjolnir, Cortana and
+  Master Chief; the runtime name dump checks the disc titles.

@@ -119,6 +119,7 @@ enum PM9DTests {
         for e in Ench.allCases { shown.append(Enchant.def(e).name) }
         for e in Effect.allCases { shown.append(e.name) }
         for m in MusicMood.allCases { shown.append(m.label) }
+        shown += MusicDiscs.titles.values   // P360 (a)
         shown += Game.creditsLines
         return Array(Set(shown)).sorted()
     }

@@ -31,7 +31,9 @@ enum OverworldStructures {
             case .desert:
                 // The whole footprint in the desert (one stood half on grassland at a biome edge: blind critic, run 417).
                 for (dx, dz) in [(-11, -15), (11, -15), (-11, 11), (11, 11)] where gen.column(x + dx, z + dz).biome != .desert { return nil }
-                return StructureStart(kind: "desert_pyramid", pieces: [piece(x - 11, y - 16, z - 15, x + 11, y + 16, z + 11) { w in desertPyramid(&w, x, y, z, s) }],
+                let mission = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyP360) } ?? true   // P360
+                return StructureStart(kind: "desert_pyramid", pieces: [piece(x - 11, y - 16, z - 15, x + 11, y + 16, z + 11) { w in
+                    if mission { dustMission(&w, x, y, z, s) } else { desertPyramid(&w, x, y, z, s) } }],
                                       anchor: IVec3(x, y + 1, z - 17))
             case .jungle, .bambooJungle, .sparseJungle:
                 return StructureStart(kind: "jungle_temple", pieces: [piece(x - 8, y - 6, z - 12, x + 8, y + 15, z + 9) { w in jungleTemple(&w, x, y, z, s) }],

@@ -2812,15 +2812,18 @@ final class Renderer: NSObject, MTKViewDelegate {
         if game.survival {
             let isz = 9 * s, step = 8 * s
             let xpY = y0 - 7 * s
-            rect(x0, xpY, total, 5 * s, V4(0, 0, 0, 0.8))
-            let xpFrac = Float(game.xpPoints) / Float(Game.xpToNext(game.xpLevel))
-            // The fill is the painted xp_bar layer (a glossy green tube), cropped, not squeezed, as it grows.
-            let xpW = (total - 2 * s) * xpFrac
-            quad([V2(x0 + s, xpY + s), V2(x0 + s + xpW, xpY + s), V2(x0 + s + xpW, xpY + 4 * s), V2(x0 + s, xpY + 4 * s)],
-                 [V2(0, 0), V2(xpFrac, 0), V2(xpFrac, 1), V2(0, 1)], V4(1, 1, 1, 1), Float(Tex.id("xp_bar")))
+            // P360 (Oct 17 20:29-20:30: "the hunger bar and experience bar look just like Minecraft's"): the experience bar
+            // is a thin pale-gold line on a dark track, and the level shows as marks above its left end (a tall mark per
+            // ten levels, a short one per level), no number.
+            rect(x0, xpY + s, total, 3 * s, V4(0, 0, 0, 0.45))
+            let xpFrac = simd_clamp(Float(game.xpPoints) / Float(Game.xpToNext(game.xpLevel)), 0, 1)
+            if xpFrac > 0 { rect(x0 + s, xpY + 2 * s, (total - 2 * s) * xpFrac, s, V4(0.96, 0.86, 0.56, 0.95)) }
             if game.xpLevel > 0 {
-                let t = "\(game.xpLevel)"
-                text(t, floor((W - textWidth(t, s)) / 2), xpY - 7 * s, s, V4(0.5, 1, 0.13, 1))
+                let tens = min(game.xpLevel / 10, 9), ones = game.xpLevel % 10
+                var mx = x0
+                for _ in 0..<tens { rect(mx, xpY - 4 * s, 2 * s, 4 * s, V4(0.96, 0.86, 0.56, 0.95)); mx += 3 * s }
+                if tens > 0 { mx += s }
+                for _ in 0..<ones { rect(mx, xpY - 2 * s, s, 2 * s, V4(0.96, 0.86, 0.56, 0.85)); mx += 2 * s }
             }
             let yh = xpY - 2 * s - isz
             let uv4 = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
@@ -2853,7 +2856,6 @@ final class Renderer: NSObject, MTKViewDelegate {
                     heartSprite(Int(Tex.id(a >= 2 ? "heart_gold" : "heart_gold_half")), x, y, V4(1, 1, 1, 1))
                 }
             }
-            let hungerTint: V4 = game.effects.has(.hunger) ? V4(0.6, 0.8, 0.4, 1) : V4(1, 1, 1, 1)
             if let mount = game.riding, mount.health > 0, mount.kind.spec.behavior != .vehicle, mount.kind != .boat {
                 // Riding an animal: its hearts replace the hunger row (rows of 10 upward), as in the reference.
                 let slots = (max(mount.kind.spec.health, mount.health) + 1) / 2
@@ -2863,9 +2865,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 if mount.gaited && mount.tamed { horseBar(mount, yh - Float((slots - 1) / 10) * rowStep - 6 * s) }
             } else {
+                // P360: hunger is a slim bar of ten segments (filled from the right, as the row was), wheat-coloured,
+                // sickly green under the hunger effect, pulsing when low; no food icons.
+                let segW = step - s, bh = floor(isz * 0.45), by = yh + floor((isz - bh) / 2)
+                let pulse: Float = game.hunger <= 6 && game.alive ? 0.7 + 0.3 * sinf(Float(game.clock) * 6) : 1
+                let fill = (game.effects.has(.hunger) ? V4(0.55, 0.72, 0.36, 1) : V4(0.87, 0.66, 0.3, 1)) * V4(pulse, pulse, pulse, 1)
                 for i in 0..<10 {
+                    let x = x0 + total - Float(i + 1) * step + s
+                    rect(x, by, segW, bh, V4(0, 0, 0, 0.5))
                     let f = game.hunger - i * 2
-                    heartSprite(f >= 2 ? HudTex.food : (f == 1 ? HudTex.foodHalf : HudTex.foodEmpty), x0 + total - isz - Float(i) * step, yh, hungerTint)
+                    if f > 0 { let fw = f >= 2 ? segW - 2 * s : (segW - 2 * s) / 2; rect(x + segW - s - fw, by + s, fw, bh - 2 * s, fill) }
                 }
             }
             let armorY = yh - Float(rows - 1) * rowStep - step - s

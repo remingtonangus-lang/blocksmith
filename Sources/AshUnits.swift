@@ -595,14 +595,14 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         if gun { q.rotX = pitch }
         p.append(q)
     }
-    let white = V3(0.82, 0.81, 0.78)
-    // The ember mark on a flank: a white disc (a square at this size) with the black bar.
+    let ember = V3(0.85, 0.41, 0.12)   // P360 (b): the ember mark's orange (was a white disc)
+    // The ember mark on a flank: an orange plate with the black bar.
     func mark(_ x: Float, _ y: Float, _ z: Float, side: Float, size: Float) {
-        p.append(box(x - (side < 0 ? 0.4 : 0), y, z, 0.4, size, size, white))
+        p.append(box(x - (side < 0 ? 0.4 : 0), y, z, 0.4, size, size, ember))
         p.append(box(x - (side < 0 ? 0.8 : -0.4), y + size * 0.15, z + size * 0.38, 0.4, size * 0.7, size * 0.24, dark))
     }
     func turnedMark(_ x: Float, _ y: Float, _ z: Float, side: Float, size: Float, pivot: V3) {
-        turned(x - (side < 0 ? 0.4 : 0), y, z, 0.4, size, size, white, pivot: pivot, pat: 0)
+        turned(x - (side < 0 ? 0.4 : 0), y, z, 0.4, size, size, ember, pivot: pivot, pat: 0)
         turned(x - (side < 0 ? 0.8 : -0.4), y + size * 0.15, z + size * 0.38, 0.4, size * 0.7, size * 0.24, dark, pivot: pivot, pat: 0)
     }
     // P344 (e): a crewed vehicle shows its crew (none once it is his).
@@ -744,7 +744,7 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         p.append(box(-9, 9, -7, 2, 10, 14, black, 7)); p.append(box(7, 9, -7, 2, 10, 14, black, 7))   // trunnion cheeks
         p.append(box(-17, 10, -13, 13, 15, 1.5, black, 7)); p.append(box(4, 10, -13, 13, 15, 1.5, black, 7))   // split shield
         p.append(box(-17, 22, -13.6, 34, 2, 0.6, red))
-        p.append(box(-17.4, 13, -12, 0.4, 6, 6, white)); p.append(box(-17.8, 14, -9.7, 0.4, 4, 1.4, dark))
+        p.append(box(-17.4, 13, -12, 0.4, 6, 6, ember)); p.append(box(-17.8, 14, -9.7, 0.4, 4, 1.4, dark))
         p.append(box(9, 3, 8, 8, 5, 6, plate, 7))                                              // ready rounds
         p.append(box(-14, 6, 6, 4, 1, 4, dark)); p.append(box(10, 6, -10, 4, 1, 4, dark))     // layers' seats
         let pv = V3(0, 14, -2)

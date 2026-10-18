@@ -86,6 +86,16 @@ extension BlockRegistry {
 }
 
 extension TextureGen {
+    // The ember mark, centred (cx, cy in pixels, y down) within radius rad: an orange chevron pointing up over a bar.
+    static func emberMark(_ cx: Float, _ cy: Float, _ rad: Float) -> V4? {
+        let ax = abs(cx)
+        let top = -0.72 * rad + ax * 0.95
+        let chevron = ax < 0.78 * rad && cy >= top && cy < top + 0.4 * rad
+        let bar = ax < 0.6 * rad && cy >= 0.36 * rad && cy < 0.72 * rad
+        guard chevron || bar else { return nil }
+        return hex(0xD8691E, 0.95 + 0.05 * r(Int(cx * 3), Int(cy * 3), 3321))
+    }
+
     static func ashPainters(_ p: inout [String: Painter]) {
         // Ashcrete: black cast concrete, faint form-board lines.
         p["ash_concrete"] = { x, y in
@@ -99,15 +109,12 @@ extension TextureGen {
             if (x == 2 || x == 13) && (y == 2 || y == 13) { return hex(0x4A4A50) }
             return hex(0x222226, 0.95 + 0.08 * r(x / 4, y / 2, 3303))
         }
-        // The ember mark: a red plate with a black-edged diamond split by a black bar (the Ashguard's own sign).
+        // The ember mark (P360 (b), the Ashguard's own sign, nothing like a real party emblem): on a charcoal plate, an
+        // ember-orange chevron pointing up over a short bar, mirror-symmetric, no disc and no cross.
         p["ash_mark"] = { x, y in
-            let cx = Float(x) - 7.5, cy = Float(y) - 7.5
-            let d = abs(cx) + abs(cy)
             if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x1A1A1C) }
-            if d < 6.6 && abs(cx) < 1 { return hex(0x101012) }
-            if d < 6.6 { return hex(0xC81E1E, 0.95 + 0.05 * r(x, y, 3304)) }
-            if d < 7.6 { return hex(0x101012) }
-            return hex(0x9E1616, 0.95 + 0.05 * r(x, y, 3305))
+            if let e = emberMark(Float(x) - 7.5, Float(y) - 7.5, 6.6) { return e }
+            return hex(0x2E302C, 0.95 + 0.05 * r(x, y, 3305))
         }
         p["ash_lamp"] = { x, y in
             if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x18181A) }
@@ -153,14 +160,10 @@ extension TextureGen {
             if y == 2 || y == 12 { return hex(0x101012) }
             return hex(0x242428, 0.9 + 0.12 * Float(abs(x - 8)) / 8)
         }
-        // Banners (the last war): red cloth, black edging, the ember mark (a black diamond split by a bar) on a white disc.
-        func cloth(_ x: Int, _ y: Int) -> V4 { hex(0xA81616, 0.9 + 0.08 * r(x, y / 3, 3320) + 0.05 * Float((x + y) % 2)) }
-        func emblem(_ cx: Float, _ cy: Float, _ rad: Float) -> V4? {
-            let d = abs(cx) + abs(cy)
-            if cx * cx + cy * cy > rad * rad { return nil }
-            if d < rad * 0.82 && (abs(cx) < rad * 0.13 || d > rad * 0.52) { return hex(0x0E0E10) }
-            return hex(0xE8E4DA, 0.97 + 0.03 * r(Int(cx * 3), Int(cy * 3), 3321))
-        }
+        // Banners (the last war): field-grey cloth, black edging, the ember mark in orange (P360 (b): no red field and
+        // no white disc).
+        func cloth(_ x: Int, _ y: Int) -> V4 { hex(0x4A4E44, 0.9 + 0.08 * r(x, y / 3, 3320) + 0.05 * Float((x + y) % 2)) }
+        func emblem(_ cx: Float, _ cy: Float, _ rad: Float) -> V4? { emberMark(cx, cy, rad) }
         p["ash_banner_edge"] = { x, y in cloth(x, y) }
         p["ash_banner"] = { x, y in x == 1 || x == 14 ? hex(0x101012) : cloth(x, y) }
         p["ash_banner_top"] = { x, y in
@@ -173,7 +176,7 @@ extension TextureGen {
             return x == 1 || x == 14 ? hex(0x101012) : cloth(x, y)
         }
         p["ash_banner_end"] = { x, y in
-            if y >= 14 { return x % 2 == 0 ? hex(0x101012) : hex(0x6A0E0E) }
+            if y >= 14 { return x % 2 == 0 ? hex(0x101012) : hex(0x8A4A18) }
             if y == 12 || x == 1 || x == 14 { return hex(0x101012) }
             return cloth(x, y)
         }

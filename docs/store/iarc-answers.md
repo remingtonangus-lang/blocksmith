@@ -5,6 +5,7 @@ _Draft answers from the game as it is today. Check them against the build you su
 | Topic | Answer | Notes |
 |---|---|---|
 | Violence | Yes: realistic weapons and fighting with human characters | Firearms (revolvers, rifles, shotguns, machine guns, rockets), swords and melee against soldiers, outlaws, lawmen and animals. Ragdoll bodies fall when hit. No dismemberment and no gore detail: a blood-free red hit flash and smoke. Fantasy creatures (undead, the Blight boss) too. |
+| War setting (P360) | Yes: a period war with realistic arms | The Ashguard is a fictional army styled on a 1940s German force and fights with real period weapons by name (MP40, Kar98k, StG 44, Panzerfaust, Tiger tank, 88 mm gun). No real parties, units, people, flags or insignia: its only emblem is the Sunderfall ember mark (an orange chevron over a bar). A prison camp is liberated, with no cruelty shown. |
 | Blood | Mild, stylised | Red particles and a screen-edge flash. A wounded animal leaves a trail of small red prints for hunters to follow; townsfolk remark on a player who has been fighting. No pools, no gore. |
 | Violence against animals | Yes | Hunting and farming animals for food and hides. |
 | Fear / horror | Mild | Dark caves, undead at night, a large boss. No jump-scare scripting. |
@@ -20,5 +21,5 @@ _Draft answers from the game as it is today. Check them against the build you su
 | Digital purchases | No | |
 | Unrestricted internet | No | |
 
-Expected outcome: roughly ESRB Teen / PEGI 16, driven by realistic weapon violence against humans. Simulated gambling
-can add a PEGI gambling descriptor (and a minimum of PEGI 12 on its own).
+Expected outcome: Mature (ESRB M / PEGI 18 / IARC 18+), driven by realistic war violence against human soldiers with
+real period weapons. Simulated gambling adds a gambling descriptor.
