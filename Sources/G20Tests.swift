@@ -30,9 +30,14 @@ enum G20Tests {
         let gang = r.mobs.filter { ["vindicator", "pillager"].contains($0) }.count
         check(gang >= 6 && r.mobs.filter { $0 == "horse" }.count == 2 && r.count["chest", default: 0] >= 2 && r.count["ladder", default: 0] >= 10,
               "G20 \(BrigandRoost.name): a gang of \(gang), \(r.mobs.filter { $0 == "horse" }.count) horses, \(r.count["chest", default: 0]) chests, \(r.count["ladder", default: 0]) ladder blocks")
-        let d = build(-31, -8, 31, 8) { SunkenDreadnought.build(&$0, 0, SEA - 26, 0, 7) }
-        check(d.count["gold_block", default: 0] >= 4 && d.mobs.filter { $0 == "drowned" }.count >= 6 && !d.mobs.contains("elder_guardian") && d.count["chest", default: 0] >= 2,
-              "G20 \(SunkenDreadnought.name): \(d.count["gold_block", default: 0]) gold blocks, \(d.mobs.filter { $0 == "drowned" }.count) drowned, no elder spikefish, \(d.count["chest", default: 0]) chests")
+        // P349: a battleship of real size, decks, rooms, machinery, turrets and bridge.
+        let d = build(-SunkenDreadnought.half - 2, -18, SunkenDreadnought.half + 2, 18) { SunkenDreadnought.build(&$0, 0, SEA - 26, 0, 7) }
+        let boilers = d.count["blast_furnace", default: 0], panes = d.count["glass_pane", default: 0], ladders = d.count["ladder", default: 0]
+        let turbines = d.count["iron_block", default: 0], hull = d.count["ship_metal", default: 0] + d.count["steel_plating", default: 0]
+        check(d.count["gold_block", default: 0] >= 4 && d.mobs.filter { $0 == "drowned" }.count >= 10 && !d.mobs.contains("elder_guardian")
+              && d.count["chest", default: 0] >= 6 && boilers >= 100 && panes >= 20 && ladders >= 40 && d.count["ship_helm", default: 0] >= 1
+              && turbines > 400 && hull + turbines > 12000,
+              "G20 \(SunkenDreadnought.name): \(2 * SunkenDreadnought.half + 1) long, \(hull) hull and deck plates, \(boilers) boiler blocks, \(turbines) iron (turbines, turrets, shell racks), \(panes) bridge panes, the helm, \(ladders) ladder blocks, \(d.count["gold_block", default: 0]) gold blocks, \(d.mobs.filter { $0 == "drowned" }.count) drowned, \(d.count["chest", default: 0]) chests")
         var rng = SRng(99)
         let fs = Fortress.layout(&rng, originX: 8, originZ: 8, base: 0, foundry: true)
         var f = Built()
