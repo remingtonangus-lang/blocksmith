@@ -1,5 +1,6 @@
 #if !VOICE_NOTES
 import Foundation
+import CVulkan
 
 // Store builds (STORE=1 quest/tools/build-apk.sh) and the Linux host build: no voice bug notes, no microphone code,
 // and the Options row is hidden. Playtest APKs compile quest/src/android/QuestVoiceNotes.swift instead.
@@ -9,6 +10,7 @@ final class BugNotes {
     static let names = ["Off", "Always Listening", "Push-to-Talk"]
     static let pttKey: UInt16 = 98
     static let available = false
+    static let hasVideo = false
     static let hint = ""
     var listening: Bool { false }
     var recording: Bool { false }
@@ -21,5 +23,11 @@ final class BugNotes {
     func setPaused(_ p: Bool) {}
     func shutdown() {}
     func tick(_ g: Game) {}
+}
+
+// P368: voice-note video is in quest/src/android/QuestVideoNotes.swift (playtest APKs only).
+enum QuestVideo {
+    static func service(_ s: SceneRenderer.Slot, ctx: VkContext, image: VkImage, format: VkFormat, width: Int, height: Int) {}
+    static func collect(began: SceneRenderer.Slot?) {}
 }
 #endif

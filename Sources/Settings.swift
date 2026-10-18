@@ -96,6 +96,7 @@ final class Settings {
     @Pref("wreckHint") var wreckHint = false        // P144: first wreck seen
     @Pref("mastHint") var mastHint = false          // P144: first hull steered with no drive
     @Pref("tutorialStep") var tutorialStep = 0       // how far the first-steps hints have got
+    @Pref("bugNoteVideo") var bugNoteVideo = true    // P368: Quest playtest builds keep a 10 s video clip with each note
     @Pref("bugNotes") var bugNotes = 0               // voice bug notes: 0 off, 1 always listening, 2 push-to-talk (BugNotes.swift)
     @Pref("narrator") var narrator = false           // speak highlighted menu items and toasts
     @Pref("screenEffects") var screenEffects = true
@@ -126,7 +127,7 @@ final class Settings {
         safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
         targetBar = true; lookNames = true
-        display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0
+        display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0; bugNoteVideo = true
         directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false; devTools = Settings.devToolsDefault   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1

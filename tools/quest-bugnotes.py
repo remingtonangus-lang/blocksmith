@@ -3,14 +3,17 @@
 
 Pulls the headset's recordings (playtest builds record speech while you play: quest/src/android/QuestVoiceNotes.swift),
 transcribes new ones with ElevenLabs Scribe through OpenRouter, drops the ones with no words, and writes one dated list
-per day: time, transcript, where you were and what you were doing, a screenshot.
+per day: time, transcript, where you were and what you were doing, four frames from the note's video clip (P368: the
+10 s before he spoke, then until 2 s after; the single screenshot when there is no clip).
 
-  tools/quest-bugnotes.py                  pull over adb, transcribe, write the notes
-  tools/quest-bugnotes.py --clean          ...then delete the pulled recordings from the headset
+  tools/quest-bugnotes.py                  pull over adb, transcribe, write the notes, delete the pulled files from
+                                           the headset
+  tools/quest-bugnotes.py --keep           ...but leave them on the headset
   tools/quest-bugnotes.py --source DIR     use a local folder of vn-* files instead of adb (tests)
 
-Audio and the transcript cache stay on this Mac (~/Documents/Blocksmith/QuestVoiceNotes, not in the public repo);
-the notes and downscaled screenshots go to docs/playtests/<date>/. Key: ~/.config/openrouter/api-key.
+Audio, video clips and the transcript cache stay on this Mac (~/Documents/Blocksmith/QuestVoiceNotes, not in the
+public repo); the notes and small JPG frames go to docs/playtests/<date>/. Key: ~/.config/openrouter/api-key.
+Frames need ffmpeg and ffprobe (brew install ffmpeg).
 """
 import argparse, datetime, json, os, re, shutil, subprocess, sys, urllib.request, uuid
 from pathlib import Path
@@ -87,10 +90,39 @@ def repro(ctx: dict) -> str:
     return f"`./snap.sh note --seed {seed.group(1)} --x {pos[0]} --z {pos[2]}{' --yaw ' + yaw.group(1) if yaw else ''}`"
 
 
+def clip_frames(clip: Path, folder: Path, start: dict, end: dict, clock: str) -> list:
+    """Four small JPGs from a note's clip: the start of the buffer, when he started talking, the middle of the note and
+    its end. Returns the markdown image links (empty without ffmpeg or a readable clip)."""
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        return []
+    try:
+        dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(clip)],
+                                   capture_output=True, text=True).stdout.strip() or 0)
+    except ValueError:
+        return []
+    if dur <= 0:
+        return []
+    # The clip is the buffered seconds, the note, then 2 s of tail.
+    note = float(end.get("length", 0) or 0)
+    talk = max(0.0, min(dur, dur - note - 2.0)) if note > 0 else min(dur, 10.0)
+    times = [("buffer", 0.0), ("talk", talk), ("middle", talk + (dur - talk) / 2), ("end", max(0.0, dur - 0.2))]
+    (folder / "voice-shots").mkdir(parents=True, exist_ok=True)
+    links = []
+    for name, t in times:
+        jpg = folder / "voice-shots" / f"{clip.stem}-{name}.jpg"
+        if not jpg.exists():
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{t:.2f}", "-i", str(clip), "-frames:v", "1",
+                            "-vf", "scale=480:-2", "-q:v", "6", str(jpg)], capture_output=True)
+        if jpg.exists():
+            links.append(f"![{clock} {name}](voice-shots/{jpg.name})")
+    return links
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--source", help="local folder of vn-* files instead of adb")
-    ap.add_argument("--clean", action="store_true", help="delete pulled recordings from the headset afterwards")
+    ap.add_argument("--keep", action="store_true", help="leave the pulled recordings on the headset")
+    ap.add_argument("--clean", action="store_true", help=argparse.SUPPRESS)      # (the default now)
     ap.add_argument("--out", default=str(REPO / "docs/playtests"), help="where the dated folders go")
     ap.add_argument("--local", default=str(LOCAL), help="audio + transcript cache folder on this Mac")
     args = ap.parse_args()
@@ -162,7 +194,12 @@ def main():
         if r:
             lines.append(f"- **Repro (Mac):** {r}")
         lines.append(f"- **Audio (this Mac):** {audio}")
-        shot = raw / start.get("screenshot", "") if start.get("screenshot") else None
+        clip = raw / start["video"] if start.get("video") else None
+        frames = clip_frames(clip, folder, start, end, clock) if clip and clip.exists() else []
+        if frames:
+            lines.append(f"- **Video (this Mac):** {clip}")
+            lines += ["", " ".join(frames)]
+        shot = raw / start.get("screenshot", "") if start.get("screenshot") and not frames else None
         if shot and shot.exists():
             (folder / "voice-shots").mkdir(parents=True, exist_ok=True)
             jpg = folder / "voice-shots" / (shot.stem + ".jpg")
@@ -184,9 +221,10 @@ def main():
     if not written:
         print("No spoken notes found.")
 
-    if args.clean and remote:
+    if not args.keep and remote:
         a = adb()
-        done = [n for n in remote if (raw / n).exists()]
+        # Only finished notes (an end line in the pulled sidecar): one still being recorded stays for next time.
+        done = [n for n in remote if (raw / n).exists() and sidecar(raw / (n.rsplit(".", 1)[0] + ".jsonl"))[2]]
         for i in range(0, len(done), 50):
             subprocess.run([a, "shell", "rm", "-f"] + [f"{REMOTE}/{n}" for n in done[i:i + 50]])
         print(f"deleted {len(done)} pulled files from the headset")

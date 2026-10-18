@@ -13,7 +13,9 @@ import CAndroidGlue
 //   files/voicenotes/vn-...jsonl                    start line (build, game state, recent events, levels), a state
 //                                                    line every 5 s, an end line
 //   files/voicenotes/vn-...png                      what the player saw when the note started (QuestScreenshot)
-// The folder is capped at 2 GB (oldest deleted first). tools/quest-bugnotes.py pulls and transcribes them.
+//   files/voicenotes/vn-...mp4                      P368: H.264 of the left eye, the 10 s before the note to 2 s after
+//                                                    (QuestVideoNotes.swift; Options > Interface > Bug Note Video)
+// The folder is capped at 2 GB (the oldest video clips go first, then the oldest notes). tools/quest-bugnotes.py pulls and transcribes them.
 // The mic uses the VOICE_COMMUNICATION preset (echo cancellation removes the game's own sound from the speakers),
 // and the segmenter's threshold also follows the mixer's output level (QuestAudioOutput.level).
 final class BugNotes {
@@ -22,6 +24,7 @@ final class BugNotes {
     static let names = ["Off", "Always Listening", "Push-to-Talk"]
     static let pttKey: UInt16 = 98
     static let available = true
+    static let hasVideo = true                   // P368: QuestVideoNotes.swift
     static let hint = "Playtest build: records only your speech (silence is skipped) on the headset with the game state and a screenshot, for bug reports. Off records nothing."
     static let rate: Int32 = 16000
     static let bitrate: Int32 = 24000
@@ -148,6 +151,7 @@ final class BugNotes {
             t.start()
         }
         listening = go
+        QuestVideo.tick(listening: go)
         for st in s { noteStarted(st, g, wall) }
         for x in e { noteEnded(x) }
         recording = open != nil
@@ -176,8 +180,9 @@ final class BugNotes {
             shot = "vn-\(st).png"
             QuestScreenshot.request(path: dir + "/" + shot!)
         }
+        let video = QuestVideo.begin(path: dir + "/vn-\(st).mp4") ? "vn-\(st).mp4" : ""
         let line = VoiceNoteContext.json([("event", "start"), ("time", BugNotes.iso()), ("stamp", st),
-                                          ("audio", "vn-\(st).aac"), ("screenshot", shot ?? ""), ("context", context(g)),
+                                          ("audio", "vn-\(st).aac"), ("screenshot", shot ?? ""), ("video", video), ("context", context(g)),
                                           ("events", events.recent(g))])
         append(st, line)
     }
@@ -185,6 +190,7 @@ final class BugNotes {
     private func noteEnded(_ x: (stamp: String, keep: Bool, length: Double, voiced: Double)) {
         if open == x.stamp { open = nil }
         let d = dir, st = x.stamp
+        QuestVideo.end(path: "\(d)/vn-\(st).mp4", keep: x.keep)
         if !x.keep {
             io.async { for ext in ["aac", "jsonl", "png"] { try? FileManager.default.removeItem(atPath: "\(d)/vn-\(st).\(ext)") } }
             return

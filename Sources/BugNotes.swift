@@ -17,6 +17,7 @@ final class BugNotes {
     static let names = ["Off", "Always Listening", "Push-to-Talk"]
     static let pttKey: UInt16 = 98                  // F7
     static let available = true
+    static let hasVideo = false                  // P368: the Quest playtest build records video clips
     static let hint = "Speak bugs while playing; they are saved to Documents/Blocksmith/BugNotes with a screenshot."
 
     static var dir: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

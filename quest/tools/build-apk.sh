@@ -91,6 +91,9 @@ if [ "$STORE" != 1 ]; then
   cp quest/c/voice/voicemic.c "$PKG/Sources/CAndroidGlue/"
   cp quest/c/voice/include/voicemic.h "$PKG/Sources/CAndroidGlue/include/"
   echo '#include "voicemic.h"' >> "$PKG/Sources/CAndroidGlue/include/blocksmith_android.h"
+  cp quest/c/voice/voicevideo.c "$PKG/Sources/CAndroidGlue/"                    # P368: voice-note video clips
+  cp quest/c/voice/include/voicevideo.h "$PKG/Sources/CAndroidGlue/include/"
+  echo '#include "voicevideo.h"' >> "$PKG/Sources/CAndroidGlue/include/blocksmith_android.h"
 fi
 
 cat > "$PKG/Package.swift" <<'EOF'

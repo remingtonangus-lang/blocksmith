@@ -353,6 +353,7 @@ final class PauseMenu: Menu {
                         ("About and Licences...", "about"), ("Reset Options...", "resetask")]
                 if BugNotes.available {
                     rows.insert(("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"), at: rows.count - 1)
+                    if BugNotes.hasVideo { rows.insert(("Bug Note Video: \(on(st.bugNoteVideo))", "bugvideo"), at: rows.count - 1) }   // P368
                 }
             case .accessibility:
                 rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Narrator: \(on(st.narrator))", "narrator"),
@@ -948,6 +949,7 @@ final class PauseMenu: Menu {
                     self?.build()
                 }
             }
+        case "bugvideo": st.bugNoteVideo.toggle()
         case "flashes": st.screenEffects.toggle()
         case "narrator": st.narrator.toggle(); if st.narrator { Narrator.shared.say("Narrator on", clock: g.clock) }
         case "dir_on": st.directorOn.toggle(); if !st.directorOn { DirectorLLM.release() }      // P266 (h)
