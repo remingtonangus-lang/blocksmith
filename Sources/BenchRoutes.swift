@@ -20,7 +20,7 @@ extension Bench {
     static func route(_ device: MTLDevice, _ benchSeed: UInt64, _ name: String) {
         let seed = (name == "flyover" || name == "taiga") && arg("--seed") == nil ? playtestSeed : benchSeed
         let quest = CommandLine.arguments.contains("--quest")
-        if quest { World.fluidSeconds = 0.002; World.lodNear = 5; World.leafNear = 2; World.handoverSeconds = 0.0015 }   // as QuestApp
+        if quest { World.fluidSeconds = 0.002; World.lodNear = 99; World.leafNear = 99; World.handoverSeconds = 0.0015 }   // as QuestApp
         if let v = arg("--handover").flatMap({ Double($0) }) { World.handoverSeconds = v / 1000 }   // ms (before/after runs)
         if let v = arg("--lodnear").flatMap({ Int($0) }) { World.lodNear = v }
         if let v = arg("--leafnear").flatMap({ Int($0) }) { World.leafNear = v }

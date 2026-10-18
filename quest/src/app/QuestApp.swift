@@ -58,12 +58,12 @@ final class QuestApp {
         }
         World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
         World.handoverSeconds = 0.0015             // streamed chunks/meshes installed within 1.5 ms a frame
-        // Far detail (merged faces, no grass/flowers, fast leaves) from 5 chunks out instead of 8: rd 16 Quest-proxy
-        // bench 17-23% fewer terrain quads, screenshots at 80+ blocks differ in 0.01% of pixels.
-        World.lodNear = 5
-        // "Fast" leaves (no faces between leaf blocks) from 3 chunks out: the Oct 10 taiga village drew ~500k quads at
-        // rd 16, about half of them leaves (docs/status/performance.md).
-        World.leafNear = 2
+        // P339 (Remington, Oct 18 20:10: "everything out to the 24-chunk view looks exactly like the land near him... no
+        // coarse 2-block-lattice LOD, no blur or compression"): every chunk in view is meshed at full detail (no far
+        // level, no "fast" leaves). The cost is met by not simulating past the active distance, culling and merged
+        // draws, not by lowering far detail; his headset captures decide if it holds 72 fps.
+        World.lodNear = 99
+        World.leafNear = 99
         PauseMenu.viewFixed = true                 // P339: the view distance is fixed (QuestSettings.viewDistance)
         stats.lowerRate = { [weak xr] in
             guard let x = xr, x.refreshRate > 72.5, x.setRefreshRate(72) else { return false }

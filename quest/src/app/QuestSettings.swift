@@ -38,8 +38,8 @@ enum QuestSettings {
     // 90 Hz by default (comfort: smoother motion; device v13 used ~2.9 ms CPU and ~2.9 ms GPU of the 11.1 ms budget).
     static var refreshRate: Float { get { float("quest.refreshRate", 90) } set { store(newValue, "quest.refreshRate") } }
     // P339 (Remington, Oct 17: "24 render distance... you can see 24, but it would be the loading distance that
-    // matters"): the view distance is fixed at 24 chunks on the headset (far chunks are the real ground, simplified:
-    // World.lodNear); what Auto and the pause menu change is the active distance (Game.setActiveDistance).
+    // matters"): the view distance is fixed at 24 chunks on the headset, every chunk at full detail
+    // (World.lodNear 99); what Auto and the pause menu change is the active distance (Game.setActiveDistance).
     static let viewDistance = 24
     static var renderDistance: Int {
         get { viewDistance }
