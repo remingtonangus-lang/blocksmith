@@ -269,9 +269,13 @@ final class StructureCache {
     var legacyC13: Set<Int64> = [] {              // ground saved before town sizes (C13, TownSizes.swift)
         // R20 (wide main streets and lanes, door walks, the stone jail: Village.layout) keeps its own guard, taken from
         // the same save as the C13 one (World.init reads that guard and assigns it here; SaveManager.guarding is it).
-        didSet { legacyR20 = SaveManager.guarding?.structureGuard(file: "structure-guard-r20.txt") ?? [] }
+        didSet {
+            legacyR20 = SaveManager.guarding?.structureGuard(file: "structure-guard-r20.txt") ?? []
+            legacyP354 = SaveManager.guarding?.structureGuard(file: "structure-guard-p354.txt") ?? []
+        }
     }
     var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
+    var legacyP354: Set<Int64> = []              // ground saved before P354's homes, workshops and jail (TownHomes.swift)
     var legacyR22: Set<Int64> = []                // ground saved before the R22 rarity pass (StructureCache.keepR22)
 
     // R22 (Oct 13 evening: "structure rarity everywhere; ships 8x rarer was P190, check all"): the share of regions that

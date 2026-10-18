@@ -33,6 +33,7 @@ enum Jail {
         let wallH: Int
         let cellV: Int                 // the bar row
         let split: Int                 // the partition column, or -1 (one cell)
+        var splits: [Int] = []         // every partition column (P354: three cells)
         let doors: [Int]               // each cell's door column (in the bar row)
         let cells: [(Int, Int)]        // each cell's u range (its v range: cellV + 1 ... d - 2)
         let box: (Int, Int)?           // the strongbox
@@ -45,13 +46,21 @@ enum Jail {
         let doors = split > 0 ? [split - 1, split + 1] : [l.w - 2]
         let cells = split > 0 ? [(1, split - 1), (split + 1, l.w - 2)] : [(1, l.w - 2)]
         let box: (Int, Int)? = l.r20 ? (l.w >= 7 ? (l.w - 2, 1) : nil) : (split > 0 && du > 2 ? (l.w - 2, 2) : nil)
-        return Geo(wallH: 5, cellV: cellV, split: split, doors: doors, cells: cells, box: box)
+        // P354 (Oct 16 20:06: "the jail is too small"): on the big house's lot, a front office four deep and three cells
+        // three wide and three deep behind it, each with its own door.
+        if l.p354 && l.w >= 13 && l.d >= 9 {
+            let a = 1 + (l.w - 2 - 2) / 3, b2 = l.w - 1 - (l.w - 2 - 2) / 3 - 1
+            let cs = [(1, a - 1), (a + 1, b2 - 1), (b2 + 1, l.w - 2)]
+            return Geo(wallH: 5, cellV: l.d - 5, split: a, splits: [a, b2], doors: cs.map { ($0.0 + $0.1) / 2 }, cells: cs, box: (l.w - 2, 1))
+        }
+        return Geo(wallH: 5, cellV: cellV, split: split, splits: split > 0 ? [split] : [], doors: doors, cells: cells, box: box)
     }
 
     // Village.layout: the office lot, kept on the town's start.
     static func record(_ l: Village.Lot, into info: inout [String: Int]) {
         info["jailAX"] = l.ax; info["jailAZ"] = l.az; info["jailY"] = l.y; info["jailF"] = l.face
         info["jailW"] = l.w; info["jailD"] = l.d; info["jailR20"] = l.r20 ? 1 : 0
+        info["jailP354"] = l.p354 ? 1 : 0
     }
 
     struct Site {
@@ -87,6 +96,7 @@ enum Jail {
         var lot = Village.Lot(kind: .office, ax: ax, az: az, face: f, w: w, d: d, y: y, seed: 0, job: "sheriff")
         lot.frontier = true
         lot.r20 = s.info["jailR20"] == 1
+        lot.p354 = s.info["jailP354"] == 1
         let site = Site(town: Townsfolk.townName(s.anchor.x, s.anchor.z, seed: g.world.seed), lot: lot, geo: geometry(lot))
         let door = site.door(0)
         guard g.world.isLoaded(door.x, door.z), Blocks.key(Blocks.groupBase[Int(g.world.block(door.x, door.y, door.z))]) == "iron_door" else { return nil }
@@ -519,16 +529,16 @@ extension Village {
         for u in 1...(l.w - 2) {
             for dy in 0..<wallH {
                 var k = bars
-                if u == geo.split || dy >= 3 { k = stone }
+                if geo.splits.contains(u) || dy >= 3 { k = stone }
                 else if geo.doors.contains(u) && dy < 2 { k = ironDoor + BlockID(f + (dy == 1 ? 8 : 0)) }
                 b.set(&w, u, dy, geo.cellV, k)
             }
             for v in (geo.cellV + 1)...(l.d - 2) {
                 b.set(&w, u, -1, v, floor)
-                for dy in 0..<wallH where u != geo.split { b.set(&w, u, dy, v, AIR) }
+                for dy in 0..<wallH where !geo.splits.contains(u) { b.set(&w, u, dy, v, AIR) }
             }
         }
-        if geo.split > 0 { for v in (geo.cellV + 1)...(l.d - 2) { for dy in 0..<wallH { b.set(&w, geo.split, dy, v, stone) } } }
+        for s in geo.splits { for v in (geo.cellV + 1)...(l.d - 2) { for dy in 0..<wallH { b.set(&w, s, dy, v, stone) } } }
         // In each cell: a bunk under the window with a chain over it, a bucket where the cell is deep enough, a light
         // by the door (a dark cell would breed monsters).
         for (i, c) in geo.cells.enumerated() {

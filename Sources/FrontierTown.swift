@@ -18,13 +18,14 @@ extension Village {
         }
         // A medium house if the town has one, else a big one, else a small one (never a shop, farm or job hut).
         // (R20: the stone jail wants room for two proper cells, so a big house first.)
-        let rank: [Kind: Int] = r20 ? [.bigHouse: 0, .mediumHouse: 1, .smallHouse: 2] : [.mediumHouse: 0, .bigHouse: 1, .smallHouse: 2]
+        let rank: [Kind: Int] = r20 || lots.contains(where: { $0.p354 }) ? [.bigHouse: 0, .mediumHouse: 1, .smallHouse: 2] : [.mediumHouse: 0, .bigHouse: 1, .smallHouse: 2]
         guard let i = lots.indices.filter({ rank[lots[$0].kind] != nil })
                 .min(by: { (rank[lots[$0].kind]!, d2(lots[$0])) < (rank[lots[$1].kind]!, d2(lots[$1])) }) else { return }
         let l = lots[i]
         var office = Lot(kind: .office, ax: l.ax, az: l.az, face: l.face, w: l.w, d: l.d, y: l.y, seed: l.seed, job: "sheriff")
         office.frontier = true
         office.r20 = r20
+        office.p354 = l.p354
         lots[i] = office
         // The bank: the next house nearest the square, at least 5 wide (TownServices.swift: emerald exchange, savings).
         guard bank else { return }
@@ -35,6 +36,7 @@ extension Village {
         let h = lots[j]
         var bankLot = Lot(kind: .bank, ax: h.ax, az: h.az, face: h.face, w: h.w, d: h.d, y: h.y, seed: h.seed, job: "banker")
         bankLot.frontier = true
+        bankLot.p354 = h.p354
         lots[j] = bankLot
     }
 
@@ -96,7 +98,7 @@ extension Village {
     }
 
     static func officeLot(_ w: inout StructWriter, _ b: LB, _ m0: Mats) {
-        if b.l.r20 { jailLot(&w, b, m0); return }                  // R20's stone jail (TownJail.swift)
+        if b.l.r20 || b.l.p354 { jailLot(&w, b, m0); return }      // R20's stone jail (TownJail.swift; P354: three cells)
         let l = b.l
         let m = varied(m0, l)
         let wallH = 5
