@@ -136,6 +136,8 @@ enum PoseCheck {
         for st in StationPose.allCases where st != StationPose.none {
             stances.append(("station \(st)", st != .seated && st != .passenger, { _, b in b.station = st; b.seat = 0.45 }))
         }
+        var clipped = (0, 0), worst: Float = 0
+        defer { print(String(format: "posecheck: weapon clearance: %d of %d poses had the weapon through an arm or the body before clearing; worst after %.2f px", clipped.0, clipped.1, worst)) }
         for k in kinds {
             let r = Soldier.rank(k) ?? 0
             for gi in 0..<Guns.all.count {
@@ -151,6 +153,9 @@ enum PoseCheck {
                     let (lo, hi, finite) = extent(rig.parts)
                     check(finite, "\(tag) finite")
                     check(rig.reachErr < 1.3, "\(tag) hands reach", String(format: "%.1f px short", rig.reachErr))
+                    // P353: the weapon never passes through the arms or the body.
+                    clipped.0 += rig.clipBefore > 0.5 ? 1 : 0; clipped.1 += 1; worst = max(worst, rig.clip)
+                    check(rig.clip < 0.5, "\(tag) weapon clear of the arms and body", String(format: "%.2f px deep (%.2f before clearing; left arm %.2f, right arm %.2f, body %.2f)", rig.clip, rig.clipBefore, rig.clipWhere.x, rig.clipWhere.y, rig.clipWhere.z))
                     if s.standing { check(lo > -0.8 && lo < 0.9, "\(tag) boots on the ground", String(format: "lowest point %.2f px", lo)) }
                     // A seat drops the hips about 3.5 px, so a seated head (bare, capped or helmeted) tops out near 29;
                     // a collapsed head would sit below the shoulders (~24).
