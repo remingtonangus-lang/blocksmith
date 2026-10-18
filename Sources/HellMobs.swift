@@ -3,7 +3,12 @@ import simd
 
 // Hell's own mobs (backlog B6, docs/status/hell-mobs.md). Every rule here is meant to be read from the model and the
 // sound in a headset and answered with the player's own blade.
-//   The Brand Order  knights in dark burgundy plate: Squire, Knight, Champion and the Brand Commander (mini-boss).
+//   The Brand Order  knights in deep burgundy plate: Squire, Knight, Champion (the captain, caped) and the Brand
+//                    Commander (mini-boss). P341: squires and knights fight in one of three styles (Mob.variant):
+//                    sword and shield, the two-handed greatsword (no shield: slower, heavier cuts that throw you back)
+//                    and the spear (a long thrust from further off, keeping its distance). In VR every cut comes high
+//                    or low and from one side or the other (the wind-up shows which), and a blade held across it takes
+//                    it (SwordPlay): the knight is thrown back off balance, the opening to answer.
 //                    The shield takes any frontal hit (blades and arrows clang off, bullets lose most of theirs) and
 //                    wears down the guard until it breaks; each swing is wound up high first, and a hit in that moment
 //                    parries (stagger, shield down, extra damage); after a swing the shield stays down a moment; from
@@ -46,6 +51,7 @@ struct HellWorld {
 // Harness counters (HellMobsTests).
 enum HellStats {
     static var blocked = 0, guardBreaks = 0, parries = 0, dodged = 0, wallStuns = 0, chargeHits = 0, ripostes = 0, feints = 0
+    static var bladeBlocks = 0                    // P341: knights' cuts taken on the player's held blade (VR)
     static var dives = 0, diveHits = 0, lobs = 0, slagHits = 0, musters = 0, calls = 0
 }
 
@@ -65,6 +71,15 @@ extension MobKind {
         case .brandChampion: return 2
         case .brandCommander: return 3
         default: return -1
+        }
+    }
+    // P341: rolls a fighting style for a squire or knight joining the world (spawns and the Commander's rally; garrisons
+    // and old saves keep sword and shield): 0 sword and shield, 1 greatsword (knights), 2 spear.
+    func orderStyleRoll() -> Int {
+        switch self {
+        case .brandKnight: return [0, 0, 1, 2][Rand.int(in: 0..<4)]
+        case .brandSquire: return Rand.float(in: 0..<1) < 0.35 ? 2 : 0
+        default: return 0
         }
     }
     // Index 0...6 among hell's own (caps and counts as plain arrays).
@@ -123,6 +138,10 @@ extension Mob {
         return h
     }
 
+    // P341: this knight's fighting style (MobKind.orderStyleRoll).
+    var orderStyle: Int { kind == .brandSquire || kind == .brandKnight ? variant : 0 }
+    var orderShield: Bool { orderStyle == 0 }
+
     var orderGuardMax: Int {
         if kind == .brandCommander { return hell?.raged == true ? 16 : 12 }
         return HellMobs.guardMax[max(0, min(3, kind.orderRank))]
@@ -173,7 +192,9 @@ extension Mob {
             }
             return true
         }
-        // Arrows and thrown things clang off; bullets and blasts lose most of theirs.
+        // Arrows and thrown things clang off; bullets and blasts lose most of theirs. (P341: only a shield takes them;
+        // a greatsword or a spear guards against blades alone.)
+        guard orderShield else { return false }
         let cut = Int(Float(damage) * 0.3)
         h.fx = .clang
         if cut <= 1 { HellStats.blocked += 1; return true }
@@ -226,8 +247,9 @@ extension Mob {
         }
         let player = g.player.pos
         let gap = g.meleeGap(self)
-        let reach: Float = halfW + 1.2 + (rank >= 2 ? 0.3 : 0)
-        let windup: Float = h.raged ? 0.42 : HellMobs.windups[min(3, rank)]
+        let style = orderStyle
+        let reach: Float = halfW + 1.2 + (rank >= 2 ? 0.3 : 0) + (style == 2 ? 1.1 : (style == 1 ? 0.3 : 0))
+        let windup: Float = (h.raged ? 0.42 : HellMobs.windups[min(3, rank)]) * (style == 1 ? 1.3 : (style == 2 ? 0.85 : 1))
         switch h.s {
         case .windup:
             guardTurn(player, dt)
@@ -238,15 +260,28 @@ extension Mob {
                 return 0
             }
             if h.t <= 0 {
-                g.sfx(.attackSweep, 1, at: pos)
+                g.sfx(.attackSweep, style == 1 ? 1.2 : 1, at: pos)
+                // P341 (c): in VR a blade held across the cut's line takes it (SwordPlay.bladeBlocks: the clang, sparks, the
+                // knight thrown back): the combo breaks off and its recovery is the opening.
+                if gap < reach + 0.4 && g.meleeWindUps && g.bladeBlocks(self) {
+                    h.s = .recover; h.t = style == 1 ? 1.2 : 0.9; h.swings = 0
+                    HellStats.bladeBlocks += 1
+                    return 0
+                }
                 if gap < reach + 0.4 {
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was cut down by a \(spec.name)", knockback: 1.2, attacker: self)
+                    let dmg = style == 1 ? spec.attack * 3 / 2 : (style == 2 ? spec.attack * 9 / 10 : spec.attack)
+                    let cause = style == 2 ? "was run through by a \(spec.name)'s spear" : "was cut down by a \(spec.name)"
+                    g.hurtPlayer(dmg, from: pos, cause: cause, knockback: style == 1 ? 2.0 : 1.2, attacker: self)
                 }
                 h.swings += 1
                 // P185 (Oct 13: "sword-duel knights, and much harder"): a combo of up to rank + 1 cuts, each wound up for
-                // a different time, so the rhythm can't be learnt; the recovery after it is the opening.
-                if h.swings <= rank && gap < reach + 1 { h.s = .windup; h.t = windup * Rand.float(in: 0.5...0.9); h.feint = false }
-                else { h.s = .recover; h.t = rank >= 2 ? 0.6 : 0.85; h.swings = 0 }
+                // a different time, so the rhythm can't be learnt; the recovery after it is the opening. (P341: a
+                // greatsword's combo is a cut shorter; each cut comes from the other side, high or low anew.)
+                if h.swings <= rank - (style == 1 ? 1 : 0) && gap < reach + 1 {
+                    h.s = .windup; h.t = windup * Rand.float(in: 0.5...0.9); h.feint = false
+                    h.side = -h.side; strikeLow = Rand.float(in: 0..<1) < (style == 2 ? 0.45 : 0.3)
+                }
+                else { h.s = .recover; h.t = (rank >= 2 ? 0.6 : 0.85) * (style == 1 ? 1.3 : 1); h.swings = 0 }
             }
             return 0
         case .recover:
@@ -304,9 +339,14 @@ extension Mob {
                 g.sfx(.mob(kind, .ambient), 1.3, at: pos)
                 return 0
             }
+            // P341: a spear keeps its point between you: it backs off when you crowd it.
+            if style == 2 && gap < reach - 1.4 { strafe = h.side * spec.speed * 0.3; return -spec.speed * 0.6 }
             if gap < reach && attackCooldown <= 0 {
                 h.s = .windup; h.t = windup * Rand.float(in: 0.85...1.2)
                 h.feint = Rand.float(in: 0..<1) < HellMobs.feint[min(3, rank)]
+                // P341 (c): the cut comes high or low, from the side the wind-up shows.
+                strikeLow = Rand.float(in: 0..<1) < (style == 2 ? 0.45 : 0.3)
+                if Rand.float(in: 0..<1) < 0.5 { h.side = -h.side }
                 attackCooldown = 1.4
                 g.sfx(.spyglass, 0.7, at: pos + V3(0, height, 0))      // the rising whine of the wind-up
                 return 0
@@ -337,6 +377,7 @@ extension Mob {
             let a = Float(i) * 2.1 + yaw
             let p = MobManager.groundSpot(g.world, near: pos + V3(cosf(a) * 3.5, 0, sinf(a) * 3.5)) ?? pos
             let m = Mob(k, at: p)
+            m.variant = k.orderStyleRoll()                  // P341
             m.aggro = true; m.lockTime = 20; m.power = power
             g.mobs.mobs.append(m)
         }
@@ -525,6 +566,7 @@ extension MobManager {
             guard let s = MobManager.groundSpot(w, near: q) else { return }
             let m = Mob(k, at: s)
             if k == .scorchling { m.variant = gloam }
+            if k == .brandKnight || k == .brandSquire { m.variant = k.orderStyleRoll() }       // P341
             mobs.append(m)
             bump(k)
         }
@@ -693,30 +735,33 @@ private func orderParts(_ m: Mob, swing: Float) -> [Part] {
     // P246: the Gravesworn (surface night duellists) wear the same cut of plate, tarnished grey-green with old brass,
     // a moss-dark tabard, a torn grave cloak and a cold blue light in the visor.
     let grave = m.kind == .spider || m.kind == .caveSpider
-    let plate = grave ? V3(0.33, 0.36, 0.33) : V3(0.36, 0.05, 0.09)
-    let dark = grave ? V3(0.1, 0.14, 0.11) : V3(0.2, 0.03, 0.06)
+    // P341 (a): the order's plate is a true deep burgundy (wine red, glossy enamel over steel; it read brown before).
+    let plate = grave ? V3(0.33, 0.36, 0.33) : V3(0.5, 0.02, 0.11)
+    let dark = grave ? V3(0.1, 0.14, 0.11) : V3(0.26, 0.01, 0.06)
+    let pp: Float = grave ? 8 : 7
+    let style = m.orderStyle, side = m.hell?.side ?? 1, low = m.strikeLow
     let mail = grave ? V3(0.16, 0.16, 0.15) : V3(0.12, 0.1, 0.11)
     let trim = grave ? V3(0.5, 0.44, 0.3) : (rank >= 2 ? V3(0.85, 0.66, 0.22) : V3(0.45, 0.42, 0.44))
     let visor = grave ? V3(0.5, 1.3, 2.3) : V3(2.2, 0.7, 0.2)
     let steel = V3(0.72, 0.72, 0.76)
     let legSwing = s == .charge ? swing * 1.6 : swing
     var p: [Part] = [
-        Part(mn: V3(-4, 0, -2), mx: V3(0, 12, 2), pivot: V3(-2, 12, 0), rotX: legSwing, color: plate, pattern: 8),
-        Part(mn: V3(0, 0, -2), mx: V3(4, 12, 2), pivot: V3(2, 12, 0), rotX: -legSwing, color: plate, pattern: 8),
+        Part(mn: V3(-4, 0, -2), mx: V3(0, 12, 2), pivot: V3(-2, 12, 0), rotX: legSwing, color: plate, pattern: pp),
+        Part(mn: V3(0, 0, -2), mx: V3(4, 12, 2), pivot: V3(2, 12, 0), rotX: -legSwing, color: plate, pattern: pp),
         Part(mn: V3(-4.3, 5, -2.3), mx: V3(-0.2, 7, 2.3), pivot: V3(-2, 12, 0), rotX: legSwing, color: trim, pattern: 8),
         Part(mn: V3(0.2, 5, -2.3), mx: V3(4.3, 7, 2.3), pivot: V3(2, 12, 0), rotX: -legSwing, color: trim, pattern: 8),
     ]
     // Body: leaning in on a charge, rocked back when staggered.
     let lean: Float = s == .charge || s == .aim ? 0.35 : (s == .stagger || s == .dazed ? -0.25 : 0)
     let body = V3(0, 12, 0)
-    p.append(Part(mn: V3(-4, 12, -2), mx: V3(4, 24, 2), pivot: body, rotX: lean, color: plate, pattern: 8))
+    p.append(Part(mn: V3(-4, 12, -2), mx: V3(4, 24, 2), pivot: body, rotX: lean, color: plate, pattern: pp))
     p.append(Part(mn: V3(-3, 12.5, -2.4), mx: V3(3, 22, -2), pivot: body, rotX: lean, color: dark, pattern: 6))      // tabard
     p.append(Part(mn: V3(-0.6, 13, -2.6), mx: V3(0.6, 21.5, -2.3), pivot: body, rotX: lean, color: trim))            // its stripe
     p.append(Part(mn: V3(-4.2, 12, -2.2), mx: V3(4.2, 13.2, 2.2), pivot: body, rotX: lean, color: mail))              // belt
-    p.append(Part(mn: V3(-5, 21.5, -2.5), mx: V3(-3, 24.5, 2.5), pivot: body, rotX: lean, color: plate * 1.15, pattern: 8))   // pauldrons
-    p.append(Part(mn: V3(3, 21.5, -2.5), mx: V3(5, 24.5, 2.5), pivot: body, rotX: lean, color: plate * 1.15, pattern: 8))
+    p.append(Part(mn: V3(-5, 21.5, -2.5), mx: V3(-3, 24.5, 2.5), pivot: body, rotX: lean, color: plate * 1.15, pattern: pp))   // pauldrons
+    p.append(Part(mn: V3(3, 21.5, -2.5), mx: V3(5, 24.5, 2.5), pivot: body, rotX: lean, color: plate * 1.15, pattern: pp))
     // Helm with the glowing slit, a plume for knights and up, a crown of spikes for the Commander.
-    p.append(Part(mn: V3(-4, 24, -4), mx: V3(4, 32, 4), pivot: body, rotX: lean, color: dark, pattern: 8))
+    p.append(Part(mn: V3(-4, 24, -4), mx: V3(4, 32, 4), pivot: body, rotX: lean, color: dark, pattern: pp))
     p.append(Part(mn: V3(-3, 27.6, -4.3), mx: V3(3, 28.6, -3.9), pivot: body, rotX: lean, color: visor, pattern: 9))
     p.append(Part(mn: V3(-0.5, 24.5, -4.4), mx: V3(0.5, 27.4, -3.9), pivot: body, rotX: lean, color: trim))
     if grave {
@@ -729,27 +774,60 @@ private func orderParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(Part(mn: V3(1.5, 29, -4.15), mx: V3(3.6, 31.2, -3.95), pivot: body, rotX: lean, color: V3(0.42, 0.22, 0.1), pattern: 4))
         if rank >= 1 { p.append(Part(mn: V3(-0.6, 32, -3), mx: V3(0.6, 33.5, 3.5), pivot: body, rotX: lean, color: trim * 0.8, pattern: 8)) }   // crest ridge
     } else if rank >= 1 && rank < 3 { p.append(Part(mn: V3(-0.8, 32, -2), mx: V3(0.8, 35, 4), pivot: body, rotX: lean, color: V3(0.6, 0.06, 0.08), pattern: 2)) }
+    if rank == 2 && !grave {
+        // P341 (b): the Champion is the captain: a long burgundy cape and a gold chain of office.
+        p.append(Part(mn: V3(-4.6, 4, 2.1), mx: V3(4.6, 24.5, 2.9), pivot: body, rotX: lean - 0.08, color: dark * 1.3, pattern: 6))
+        p.append(Part(mn: V3(-3.5, 21, -2.5), mx: V3(3.5, 21.8, -2.1), pivot: body, rotX: lean, color: trim, pattern: 8))
+    }
     if rank == 3 {
         for x: Float in [-3.5, -1, 1.5] { p.append(Part(mn: V3(x, 32, -3.5), mx: V3(x + 2, 35, -1.5), pivot: body, rotX: lean, color: trim, pattern: 8)) }
         p.append(Part(mn: V3(-3, 14, 2), mx: V3(3, 30, 2.6), pivot: body, rotX: lean, color: V3(0.45, 0.04, 0.08), pattern: 6))   // banner on the back
         p.append(Part(mn: V3(-0.4, 14, 2.6), mx: V3(0.4, 36, 3.4), pivot: body, rotX: lean, color: V3(0.15, 0.12, 0.1)))
     }
     // Sword arm (right, +x) and blade along arm-local -z from the fist.
+    // P341 (c): the wind-up shows the cut to come: a high cut raised over the shoulder on its side, a low one drawn back
+    // at the hip.
     var armR: Float
+    var armZ: Float = 0
     switch s {
-    case .windup: armR = 2.6
+    case .windup: armR = low ? -0.7 : 2.6; armZ = low ? side * 0.5 : -side * 0.55
     case .recover: armR = 0.3
     case .aim, .charge: armR = 0.25                // the blade levelled like a lance
     case .stagger, .dazed: armR = 0.2
     default: armR = 1.0 + swing * 0.2
     }
     let sp = V3(6, 22, 0)
-    p.append(Part(mn: V3(4, 11, -2), mx: V3(8, 23, 2), pivot: sp, rotX: armR, color: plate, pattern: 8))
-    p.append(Part(mn: V3(4.2, 11, -2.2), mx: V3(7.8, 13.5, 2.2), pivot: sp, rotX: armR, color: mail))               // gauntlet
-    let bladeLen: Float = [11, 16, 20, 22][min(3, rank)], bladeW: Float = rank >= 2 ? 1.4 : 1
     let glint = s == .windup ? V3(2.4, 2.1, 1.6) : steel
-    p.append(Part(mn: V3(5.4, 11.5, -2.5), mx: V3(6.6, 12.5, 2.5), pivot: sp, rotX: armR, color: trim))            // cross guard
-    p.append(Part(mn: V3(6 - bladeW / 2, 11.6, -2.5 - bladeLen), mx: V3(6 + bladeW / 2, 12.4, -2.5), pivot: sp, rotX: armR,
+    if style == 1 {
+        // P341 (b): the greatsword, held in both hands: both arms meet at the hilt; a long broad blade.
+        let lp2 = V3(-6, 22, 0)
+        p.append(Part(mn: V3(4, 11, -2), mx: V3(8, 23, 2), pivot: sp, rotX: armR, rotZ: armZ, color: plate, pattern: pp))
+        p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp2, rotX: armR, rotZ: armZ, color: plate, pattern: pp, rotY: -0.45))
+        p.append(Part(mn: V3(4.2, 11, -2.2), mx: V3(7.8, 13.5, 2.2), pivot: sp, rotX: armR, rotZ: armZ, color: mail))
+        p.append(Part(mn: V3(3.5, 11.4, -2.6), mx: V3(8.5, 12.6, -1.6), pivot: sp, rotX: armR, rotZ: armZ, color: trim))      // cross guard
+        p.append(Part(mn: V3(5.1, 11.5, -2.4 - 26), mx: V3(6.9, 12.5, -2.6), pivot: sp, rotX: armR, rotZ: armZ,
+                      color: glint, pattern: s == .windup ? 9 : 8))
+        p.append(Part(mn: V3(5.6, 11.6, -1.6), mx: V3(6.4, 12.4, 3.5), pivot: sp, rotX: armR, rotZ: armZ, color: dark))       // long grip
+        return p
+    }
+    if style == 2 {
+        // P341 (b): the spear: a long shaft held low and forward in both hands, a steel leaf head; a thrust draws it back.
+        let thrust: Float = s == .windup ? 3 : (s == .recover ? -4 : 0)
+        // (arm-local -z is the shaft: an arm hanging near straight holds it level at the hip)
+        let arm: Float = s == .charge || s == .aim ? 0.2 : (s == .windup ? (low ? 0.05 : 0.5) : 0.3)
+        let lp2 = V3(-6, 22, 0)
+        p.append(Part(mn: V3(4, 11, -2), mx: V3(8, 23, 2), pivot: sp, rotX: arm, color: plate, pattern: pp))
+        p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp2, rotX: arm, color: plate, pattern: pp, rotY: -0.3))
+        p.append(Part(mn: V3(5.4, 11.4, -30 + thrust), mx: V3(6.6, 12.6, 10 + thrust), pivot: sp, rotX: arm, color: V3(0.18, 0.1, 0.07), pattern: 4))
+        p.append(Part(mn: V3(5, 11.2, -36 + thrust), mx: V3(7, 12.8, -30 + thrust), pivot: sp, rotX: arm, color: glint, pattern: s == .windup ? 9 : 8))
+        p.append(Part(mn: V3(4.8, 11, -30.5 + thrust), mx: V3(7.2, 13, -29.5 + thrust), pivot: sp, rotX: arm, color: trim))     // the collar
+        return p
+    }
+    p.append(Part(mn: V3(4, 11, -2), mx: V3(8, 23, 2), pivot: sp, rotX: armR, rotZ: armZ, color: plate, pattern: pp))
+    p.append(Part(mn: V3(4.2, 11, -2.2), mx: V3(7.8, 13.5, 2.2), pivot: sp, rotX: armR, rotZ: armZ, color: mail))               // gauntlet
+    let bladeLen: Float = [11, 16, 20, 22][min(3, rank)], bladeW: Float = rank >= 2 ? 1.4 : 1
+    p.append(Part(mn: V3(5.4, 11.5, -2.5), mx: V3(6.6, 12.5, 2.5), pivot: sp, rotX: armR, rotZ: armZ, color: trim))            // cross guard
+    p.append(Part(mn: V3(6 - bladeW / 2, 11.6, -2.5 - bladeLen), mx: V3(6 + bladeW / 2, 12.4, -2.5), pivot: sp, rotX: armR, rotZ: armZ,
                   color: glint, pattern: s == .windup ? 9 : 8))
     // Shield arm (left): raised in front in guard, aim and charge; swung aside in the wind-up; hanging otherwise.
     let up = s == .idle || s == .aim || s == .charge
@@ -760,13 +838,13 @@ private func orderParts(_ m: Mob, swing: Float) -> [Part] {
     let lp = V3(-6, 22, 0)
     if up {
         let armL: Float = 1.3
-        p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp, rotX: armL, color: plate, pattern: 8))
+        p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp, rotX: armL, color: plate, pattern: pp))
         p.append(Part(mn: V3(-6 - shieldW, 9.6, -shieldW * 1.2), mx: V3(-6 + shieldW, 10.8, shieldW * 1.2), pivot: lp, rotX: armL, color: face, pattern: 7))
         p.append(Part(mn: V3(-6.8, 9.3, -shieldW * 1.1), mx: V3(-5.2, 9.7, shieldW * 1.1), pivot: lp, rotX: armL, color: trim))      // boss stripe
         p.append(Part(mn: V3(-6 - shieldW * 0.9, 9.3, -0.8), mx: V3(-6 + shieldW * 0.9, 9.7, 0.8), pivot: lp, rotX: armL, color: trim))
     } else {
         let armL: Float = s == .windup ? 0.6 : 0.1
-        p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp, rotX: armL, rotZ: s == .windup ? -0.5 : 0, color: plate, pattern: 8))
+        p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp, rotX: armL, rotZ: s == .windup ? -0.5 : 0, color: plate, pattern: pp))
         p.append(Part(mn: V3(-9.6, 22 - shieldW * 2.2, -shieldW), mx: V3(-8.4, 22, shieldW), pivot: lp, rotX: armL, rotZ: s == .windup ? -0.5 : 0,
                       color: face, pattern: 7))
     }
