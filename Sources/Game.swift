@@ -776,7 +776,7 @@ final class Game {
     // P282 (a) (Oct 14 19:36, "I can still hold the gun while I'm driving a vehicle"): every seat with controls counts,
     // the helm of any ship or vehicle and a manned deck gun alike (its trigger is the gun's, not the rifle's). A saddle,
     // a rowboat, a cart or a coach seat keeps a weapon in the free hand (mountedOneHand).
-    var handsOnControls: Bool { world.ships.pilot != nil || Turrets.shared.manned != nil }
+    var handsOnControls: Bool { world.ships.pilot != nil || Turrets.shared.manned != nil || AshSeat.shared.vehicle != nil }
     // P282 (b): mounted (horse, rowboat, pig, minecart, a coach seat) one hand holds the reins, paddle or rail: the
     // weapon in the other hand still fires, but there is no second hand for a rifle brace or a second revolver.
     var mountedOneHand: Bool { riding != nil && !handsOnControls }
@@ -1150,6 +1150,7 @@ final class Game {
 
         Partner.tick(self, fdt)                                          // D52: downed, revives, riding pillion
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
+        if AshSeat.shared.tick(self, p, q, mi, dt: fdt) { updateFov(Float(dt)); advance(dt); return }      // P344
         let before = player.pos
         if !mi.sneak { sneakHeldFromMenu = false }
         if let r = riding, r.health <= 0 { dismount() }
