@@ -51,6 +51,8 @@ enum MobRound {
         return simd_normalize(f + d * 0.45)
     }
     static let vertsPerPart = 132
+    // P374: one part's placed points (24 bevelled, or a box's 8 corners), reused by every part (main thread only).
+    static let scratch: UnsafeMutablePointer<MobVert> = { let p = UnsafeMutablePointer<MobVert>.allocate(capacity: 24); p.initialize(repeating: MobVert(pos: .zero, color: .zero, local: .zero), count: 24); return p }()
 
     // The local point i of a part's box with bevel `c` (pixels).
     @inline(__always) static func point(_ i: Int, _ mn: V3, _ mx: V3, _ c: Float) -> V3 {
