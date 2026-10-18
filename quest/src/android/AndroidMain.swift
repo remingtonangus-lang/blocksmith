@@ -160,6 +160,7 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     // Recorded sounds that replace synthesized ones (RealSounds.swift): assets/sounds/real/*.wav (Resources/Sounds/real),
     // then side-loaded files, which win: adb push step_grass.wav /sdcard/Android/data/com.blocksmith.quest/files/Sounds/
     registerRealSounds(activity.pointee.assetManager)
+    registerSoundtrack(activity.pointee.assetManager)          // P359: assets/music (MediaTrackDecoder.swift)
     RealSounds.addFolder(dataPath + "/Sounds")
     if let ext = extPath { RealSounds.addFolder(ext + "/Sounds") }
     // Voice bug notes (playtest builds; a no-op stub in store builds): recordings under files/voicenotes.

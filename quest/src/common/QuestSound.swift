@@ -46,6 +46,8 @@ final class SoundEngine {
 
     private(set) var music: MusicStream?
     private(set) var disc: MusicStream?
+    let questTracks = QuestTrackDeck()              // P359: the Sunderfall soundtrack (QuestTracks.swift)
+    var tracks: TrackDeck? { questTracks }
     private var discPos: V3?
     private var discOcclusion: Float = 0
 
@@ -337,6 +339,7 @@ final class SoundEngine {
         music?.volume = AudioSettings.volume(.master) * AudioSettings.volume(.music) * musicDuck
         music?.update(dt)
         disc?.update(dt)
+        questTracks.volume = AudioSettings.volume(.master) * AudioSettings.volume(.music) * musicDuck
     }
 
     var loopCount: Int { loops.count }
@@ -350,6 +353,7 @@ final class SoundEngine {
         mixLock.unlock()
         for l in loops.values { l.voice = -1; l.level = 0; l.target = 0 }
         music?.stop(fade: 0.5)
+        questTracks.stop(fade: 0.5)
     }
 
     // MARK: Mixer (audio thread)
@@ -391,6 +395,7 @@ final class SoundEngine {
             scratchR[i] = lpR
         }
         music?.mix(into: &scratchL, &scratchR, n)
+        questTracks.mix(into: &scratchL, &scratchR, n)
         disc?.mix(into: &scratchL, &scratchR, n)
         for i in 0..<n {
             // Q2c-console-37: out in ~0.35 s when away, back in ~0.5 s; the pause duck glides in ~0.4 s.

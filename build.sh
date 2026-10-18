@@ -37,6 +37,9 @@ if [ -f Resources/voices.bin ]; then cp Resources/voices.bin "$APP/Contents/Reso
 # Recorded sounds that replace synthesized ones by name (Resources/Sounds/real/README.md, RealSounds.swift).
 rm -rf "$APP/Contents/Resources/Sounds"
 if ls Resources/Sounds/real/*.wav >/dev/null 2>&1; then mkdir -p "$APP/Contents/Resources/Sounds/real"; cp Resources/Sounds/real/*.wav "$APP/Contents/Resources/Sounds/real/"; fi
+# P359: the Sunderfall soundtrack (Soundtrack.swift streams the tracks from the bundle).
+rm -rf "$APP/Contents/Resources/Music"
+if ls Resources/Music/sunderfall/*.m4a >/dev/null 2>&1; then mkdir -p "$APP/Contents/Resources/Music/sunderfall"; cp Resources/Music/sunderfall/*.m4a "$APP/Contents/Resources/Music/sunderfall/"; fi
 # Commit id for Bug Notes entries (BugNotes.build).
 /usr/libexec/PlistBuddy -c "Add :BlocksmithCommit string $(git rev-parse --short HEAD 2>/dev/null || echo unknown)" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
 codesign --force --sign - "$APP" >/dev/null 2>&1 || true

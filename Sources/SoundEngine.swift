@@ -48,6 +48,8 @@ final class SoundEngine {
     private(set) var music: MusicStream?
     private(set) var disc: MusicStream?          // jukebox discs: mono, positional, through the environment node
     private(set) var custom: CustomMusic?        // the player's own music folder (CustomMusic.swift)
+    private(set) var tracks: TrackDeck?          // P359: the Sunderfall soundtrack (SoundtrackMac.swift)
+    private var macTracks: MacTrackDeck?
     private var discPos: V3? = nil
 
     // Listener state (world space) and environment.
@@ -127,6 +129,8 @@ final class SoundEngine {
         music = ms
         custom = CustomMusic(engine: engine, format: stereo)
         custom?.scan(force: true)                     // makes the Music folder if missing, so it is there to find
+        macTracks = MacTrackDeck(engine: engine, format: stereo)
+        tracks = macTracks
         let ds = MusicStream(format: mono)
         engine.attach(ds.node)
         engine.connect(ds.node, to: env, format: mono)
@@ -351,6 +355,8 @@ final class SoundEngine {
         music?.volume = AudioSettings.volume(.master) * AudioSettings.volume(.music) * musicDuck
         custom?.volume = AudioSettings.volume(.master) * AudioSettings.volume(.music) * Settings.shared.customMusicVolume * musicDuck
         music?.update(dt)
+        tracks?.volume = AudioSettings.volume(.master) * AudioSettings.volume(.music) * musicDuck
+        tracks?.update(dt)
     }
 
     var loopCount: Int { loops.count }
@@ -363,6 +369,7 @@ final class SoundEngine {
         music?.restart()
         disc?.restart()
         custom?.restart()
+        macTracks?.restart()
     }
 
     func stopAll() {
@@ -370,6 +377,7 @@ final class SoundEngine {
         for l in loops.values { l.node.stop(); l.started = false; l.level = 0; l.target = 0 }
         music?.stop(fade: 0.5)
         custom?.stop()
+        tracks?.stop(fade: 0.5)
     }
 }
 #endif

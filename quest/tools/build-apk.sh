@@ -53,6 +53,8 @@ mkdir -p "$STAGE/assets"
 [ -f Resources/voices.bin ] && cp Resources/voices.bin "$STAGE/assets/"
 # Recorded sounds that replace synthesized ones by name (Resources/Sounds/real/README.md; AndroidMain lists assets/sounds/real).
 if ls Resources/Sounds/real/*.wav >/dev/null 2>&1; then mkdir -p "$STAGE/assets/sounds/real"; cp Resources/Sounds/real/*.wav "$STAGE/assets/sounds/real/"; fi
+# P359: the Sunderfall soundtrack, streamed from the APK by MediaTrackDecoder (stored uncompressed: -0 m4a below).
+if ls Resources/Music/sunderfall/*.m4a >/dev/null 2>&1; then mkdir -p "$STAGE/assets/music"; cp Resources/Music/sunderfall/*.m4a "$STAGE/assets/music/"; fi
 
 echo "== package"
 for m in simd os Metal; do mkdir -p "$PKG/Sources/$m"; cp quest/shims/$m/*.swift "$PKG/Sources/$m/"; done
@@ -104,7 +106,7 @@ let package = Package(
         .systemLibrary(name: "CVulkan", path: "Sources/CVulkan"),
         .systemLibrary(name: "COpenXR", path: "Sources/COpenXR"),
         .target(name: "CAndroidGlue", path: "Sources/CAndroidGlue",
-                linkerSettings: [.linkedLibrary("android"), .linkedLibrary("log"), .linkedLibrary("aaudio")@VOICE_LIBS@]),
+                linkerSettings: [.linkedLibrary("android"), .linkedLibrary("log"), .linkedLibrary("aaudio"), .linkedLibrary("mediandk")@VOICE_LIBS@]),
         .target(name: "Blocksmith",
                 dependencies: ["simd", "os", "Metal", "CZlib", "CVulkan", "COpenXR", "CAndroidGlue"],
                 path: "Sources/Blocksmith",
@@ -119,7 +121,7 @@ sedi "s|@PKGLIBS@|$ROOT/$BPKG/libs|" "$PKG/Package.swift"
 # compile (an edit rebuilds in seconds, not minutes); less cross-file inlining, so judge frame times on a default build.
 if [ "${QUEST_FAST:-0}" = 1 ]; then sedi 's|@WMO@||' "$PKG/Package.swift"; else sedi 's|@WMO@|, "-wmo"|' "$PKG/Package.swift"; fi
 if [ "$STORE" = 1 ]; then sedi 's|@VOICE_LIBS@||; s|@VOICE_DEFINE@||' "$PKG/Package.swift"
-else sedi 's|@VOICE_LIBS@|, .linkedLibrary("mediandk")|; s|@VOICE_DEFINE@|, .define("VOICE_NOTES")|' "$PKG/Package.swift"; fi
+else sedi 's|@VOICE_LIBS@||; s|@VOICE_DEFINE@|, .define("VOICE_NOTES")|' "$PKG/Package.swift"; fi
 mkdir -p "$BPKG"; rsync -rc --delete --exclude .build "$PKG"/ "$BPKG"/
 
 echo "== swift build ($SDK, $TRIPLE)"
@@ -176,7 +178,7 @@ JAR=$(ls -d "$AHOME"/platforms/android-*/android.jar | sort -V | tail -1)
 sed "s/@VERSION_CODE@/$VERSION_CODE/; s/@VERSION_NAME@/0.$VERSION_CODE ($COMMIT)/" quest/android/AndroidManifest.xml > "$STAGE/AndroidManifest.xml"
 [ "$STORE" = 1 ] && sedi '/RECORD_AUDIO/d' "$STAGE/AndroidManifest.xml"
 "$BT/aapt2" link -o "$STAGE/base.apk" -I "$JAR" --manifest "$STAGE/AndroidManifest.xml" --min-sdk-version 29 --target-sdk-version 32 \
-  -A "$STAGE/assets" -0 bin
+  -A "$STAGE/assets" -0 bin -0 m4a
 (cd "$STAGE" && zip -q -r base.apk lib)
 "$BT/zipalign" -f -P 16 4 "$STAGE/base.apk" "$STAGE/aligned.apk"
 "$BT/apksigner" sign --ks quest/android/debug.keystore --ks-pass pass:android --key-pass pass:android --ks-key-alias androiddebugkey \
