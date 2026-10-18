@@ -119,6 +119,7 @@ struct BlockStore {
     // Cell i is inside the ground (field worlds).
     @inline(__always) func ground(_ i: Int) -> Bool { UInt(bitPattern: i) < UInt(fd.count) && fd[i] > 0 }
 
+    static var keepGround = false            // P363: World.setFluid (main thread)
     @inline(__always) subscript(i: Int) -> BlockID {
         get {
             let b = UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR      // a negative index reads as air too
@@ -141,7 +142,10 @@ struct BlockStore {
                     if i < data.count && data[i] != AIR { data[i] = AIR }
                     return
                 }
-                if ground(i) { setDensity(i, FieldTerrain.cellOut, material: nil) }
+                // (A fluid running onto shallow ground, or draining off it, leaves the ground as it is: World.setFluid.)
+                if ground(i) && !(BlockStore.keepGround && (newValue == AIR || Blocks.fluidKind[Int(newValue)] != 0)) {
+                    setDensity(i, FieldTerrain.cellOut, material: nil)
+                }
             }
             if i >= data.count {
                 if newValue == AIR { return }
