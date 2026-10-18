@@ -233,7 +233,7 @@ final class EmberGen: TerrainGenerator {
         let blackstone = Blocks.id("blackstone"), magma = Blocks.id("magma_block"), gravel = GRAVEL
         let crimsonNy = Blocks.id("crimson_nylium"), warpedNy = Blocks.id("warped_nylium")
         let quartz = Blocks.id("nether_quartz_ore"), gold = Blocks.id("nether_gold_ore"), debris = Blocks.id("ancient_debris")
-        let crust = Blocks.has("sulfur_crust") ? Blocks.id("sulfur_crust") : basalt
+        let crystalRock = Blocks.id("amethyst_block")
         let H = height
         func at(_ x: Int, _ y: Int, _ z: Int) -> BlockID { y < 0 || y >= H ? BEDROCK : b[Chunk.index(x, base + y, z)] }
         func set(_ x: Int, _ y: Int, _ z: Int, _ v: BlockID) { if y >= 0 && y < H { b[Chunk.index(x, base + y, z)] = v } }
@@ -253,9 +253,10 @@ final class EmberGen: TerrainGenerator {
                         case .soulSandValley: set(x, y, z, h % 3 == 0 ? soulSoil : soulSand)
                         case .crimsonForest: set(x, y, z, crimsonNy)
                         case .warpedForest: set(x, y, z, warpedNy)
-                        // P292: the Sulfur Flats' crust (onyxstone and glowing magma breaking through), the Cinder Plains'
-                        // ash shores (HellLands.swift).
-                        case .basaltDeltas: set(x, y, z, h % 9 == 0 ? magma : (h % 9 == 1 ? blackstone : crust))
+                        // P336: the Ghostglass Spires' floor of black onyxstone, grey basalt breaking through, seams of violet
+                        // crystal (the Sulfur Flats' crust is gone; ground the polygon world smooths); the Cinder Plains' ash
+                        // shores (HellLands.swift).
+                        case .basaltDeltas: set(x, y, z, h % 11 == 0 ? crystalRock : (h % 5 == 0 ? basalt : blackstone))
                         default:
                             if y >= EmberGen.lavaLevel - 1 && y <= EmberGen.lavaLevel + 3 && deco.noise2(Float(wx) / 12, Float(wz) / 12) > 0.25 {
                                 set(x, y, z, h % 2 == 0 ? gravel : soulSoil)
@@ -293,7 +294,9 @@ final class EmberGen: TerrainGenerator {
                         var free = true
                         for dy in 1...16 where at(x, y + dy, z) != AIR { free = false; break }
                         if !free { continue }
-                        if charwood { charwoodTree(x, y, z, h, at: inAt, set: inSet) } else { gloamwoodTree(x, y, z, h, at: inAt, set: inSet) }
+                        if charwood { charwoodTree(x, y, z, h, at: inAt, set: inSet) }
+                        else if (h >> 20) % 3 == 0 { gloamcapTree(x, y, z, h, at: inAt, set: inSet) }       // P336: a second gloamwood
+                        else { gloamwoodTree(x, y, z, h, at: inAt, set: inSet) }
                     } else if h % 100 < 30 && at(x, y + 1, z) == AIR {
                         let pl = h % 7 == 0 ? (charwood ? "crimson_fungus" : "warped_fungus") : (charwood ? "crimson_roots" : "warped_roots")
                         set(x, y + 1, z, Blocks.id(pl))
@@ -301,6 +304,8 @@ final class EmberGen: TerrainGenerator {
                         // Gloam tendrils climbing a short way from the lichen.
                         let len = 1 + Int(h >> 9) % 4
                         for i in 1...len where at(x, y + i, z) == AIR { set(x, y + i, z, Blocks.id("twisting_vines")) }
+                    } else if !charwood && h % 100 < 37 {
+                        set(x, y + 1, z, Blocks.id("amethyst_cluster"))         // P336: violet crystals in the lichen
                     }
                 }
             }

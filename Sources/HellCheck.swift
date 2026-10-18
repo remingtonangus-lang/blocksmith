@@ -155,8 +155,8 @@ enum HellCheck {
             return out()
         }
         let lands: [(Biome, String, [String])] = [(.netherWastes, "Cinder Plains", ["netherrack", "magma_block"]),
-            (.soulSandValley, "Ash Dunes", ["soul_sand", "soul_soil", "nether_wart"]), (.crimsonForest, "Charwood Thicket", ["crimson_stem", "nether_wart_block", "crimson_nylium"]),
-            (.warpedForest, "Gloamwood", ["warped_stem", "warped_wart_block", "warped_nylium"]), (.basaltDeltas, "Sulfur Flats", ["sulfur_crust", "blackstone", "magma_block"])]
+            (.soulSandValley, "Ash Dunes", ["soul_sand", "soul_soil", "crimson_stem"]), (.crimsonForest, "Charwood Thicket", ["crimson_stem", "nether_wart_block", "crimson_nylium"]),
+            (.warpedForest, "Gloamwood", ["warped_stem", "warped_wart_block", "warped_nylium"]), (.basaltDeltas, "Ghostglass Spires", ["blackstone", "amethyst_block", "obsidian", "soul_fire"])]
         for (b, name, keys) in lands {
             let n = land(b)
             check(keys.allSatisfy { n[$0, default: 0] > 0 }, "\(name): " + keys.map { "\($0) \(n[$0, default: 0])" }.joined(separator: ", "))

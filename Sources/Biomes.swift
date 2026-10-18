@@ -97,7 +97,7 @@ enum Biome: Int, CaseIterable {
     // Player-facing biome name (Blocksmith names for the other dimensions).
     var displayName: String {
         let own: [String: String] = ["nether_wastes": "Cinder Plains", "soul_sand_valley": "Ash Dunes", "crimson_forest": "Charwood Thicket",
-                                     "warped_forest": "Gloamwood", "basalt_deltas": "Sulfur Flats", "the_end": "The Hollow", "deep_dark": "Murk Depths", "pale_garden": "Ashen Grove",
+                                     "warped_forest": "Gloamwood", "basalt_deltas": "Ghostglass Spires", "the_end": "The Hollow", "deep_dark": "Murk Depths", "pale_garden": "Ashen Grove",
                                      "mushroom_fields": "Saltpalm Isles"]
         return own[info.id] ?? info.id.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
     }

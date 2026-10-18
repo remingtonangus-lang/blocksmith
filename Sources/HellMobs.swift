@@ -519,9 +519,13 @@ extension MobManager {
         }
         for m in mobs where m.kind.hellOwn && simd_length_squared(m.pos - p) < 128 * 128 { bump(m.kind) }    // (P292: near, not a keep's garrison far off)
         func room(_ k: MobKind) -> Bool { get(k.hellIndex) < HellMobs.caps[k.hellIndex] }
+        // P336: the Gloamwood's own: Scorchlings there are violet Gloamlings, Searwings moth-winged (variant 1).
+        let gloam = w.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome == .warpedForest ? 1 : 0
         func put(_ k: MobKind, _ q: V3) {
             guard let s = MobManager.groundSpot(w, near: q) else { return }
-            mobs.append(Mob(k, at: s))
+            let m = Mob(k, at: s)
+            if k == .scorchling { m.variant = gloam }
+            mobs.append(m)
             bump(k)
         }
         func around(_ i: Int) -> V3 { p + V3(Float(i % 3) - 1, 0, Float(i / 3) - 1) * 1.6 }
@@ -544,7 +548,9 @@ extension MobManager {
             let x = Int(floor(p.x)), z = Int(floor(p.z)), y = Int(floor(p.y))
             for dy in 1...6 where Blocks.collide[Int(w.block(x, y + dy, z))] { return false }      // needs open air
             for _ in 0..<Rand.int(in: 1...2) where room(.searwing) {
-                mobs.append(Mob(.searwing, at: p + V3(Rand.float(in: -1...1), 4, Rand.float(in: -1...1))))
+                let m = Mob(.searwing, at: p + V3(Rand.float(in: -1...1), 4, Rand.float(in: -1...1)))
+                m.variant = gloam
+                mobs.append(m)
                 bump(.searwing)
             }
         }
@@ -671,8 +677,8 @@ extension Game {
 
 func hellParts(_ m: Mob, swing: Float) -> [Part] {
     switch m.kind {
-    case .searwing: return searwingParts(m)
-    case .scorchling: return scorchlingParts(m, swing: swing)
+    case .searwing: return m.variant == 1 ? gloamwingParts(m) : searwingParts(m)
+    case .scorchling: return m.variant == 1 ? gloamlingParts(m, swing: swing) : scorchlingParts(m, swing: swing)
     case .slagthrower: return slagthrowerParts(m, swing: swing)
     default: return orderParts(m, swing: swing)
     }
@@ -803,6 +809,59 @@ private func scorchlingParts(_ m: Mob, swing: Float) -> [Part] {
         box(-2.4, 11, -1, 1, 2, 1, V3(0.3, 0.12, 0.08)), box(1.4, 11, -1, 1, 2, 1, V3(0.3, 0.12, 0.08)),
         Part(mn: V3(-4, 4, -0.8), mx: V3(-2.5, 7, 0.8), pivot: V3(-3, 7, 0), rotX: -swing, color: soot),
         Part(mn: V3(2.5, 4, -0.8), mx: V3(4, 7, 0.8), pivot: V3(3, 7, 0), rotX: swing, color: soot),
+    ]
+}
+
+// P336: the Gloamwood's Searwing: a moth of the violet dusk. Furred dusky body, two broad rounded wing pairs with a
+// glowing eye-spot on each forewing, feathered antennae; wings beat slower, folding up in a dive.
+private func gloamwingParts(_ m: Mob) -> [Part] {
+    let s = m.hell?.s ?? .idle
+    let fur = V3(0.16, 0.11, 0.22), wing = V3(0.3, 0.2, 0.42), vein = V3(0.12, 0.08, 0.18)
+    let eye = s == .windup || s == .dive ? V3(1.9, 1.1, 3.0) : V3(1.1, 0.7, 2.0)
+    let rate: Float = s == .dive ? 2.2 : 0.9
+    let beat = sinf(m.walkPhase * rate) * (s == .dive ? 0.25 : 0.8) + (s == .dive ? 0.9 : 0)
+    let pv = V3(-2, 7, -1), pv2 = V3(2, 7, -1)
+    var p: [Part] = [
+        box(-2, 4.5, -5, 4, 3.5, 9, fur, 4),                                                                   // thorax and abdomen
+        box(-1.5, 4, 4, 3, 2.5, 4, fur * 0.8, 4),
+        Part(mn: V3(-1.8, 4.8, -8), mx: V3(1.8, 8, -5), pivot: V3(0, 6, -5), rotX: s == .dive ? 0.4 : 0, color: fur * 1.2, pattern: 4),
+        Part(mn: V3(-1.6, 6.4, -8.3), mx: V3(-0.6, 7.4, -7.9), pivot: V3(0, 6, -5), color: eye, pattern: 9),
+        Part(mn: V3(0.6, 6.4, -8.3), mx: V3(1.6, 7.4, -7.9), pivot: V3(0, 6, -5), color: eye, pattern: 9),
+        Part(mn: V3(-2.4, 8, -12), mx: V3(-1.6, 8.5, -6), pivot: V3(-1, 8, -6), rotX: -0.5, rotZ: 0.3, color: vein),   // antennae
+        Part(mn: V3(1.6, 8, -12), mx: V3(2.4, 8.5, -6), pivot: V3(1, 8, -6), rotX: -0.5, rotZ: -0.3, color: vein),
+    ]
+    // Forewings (broad, rounded by a short outer panel) and smaller hindwings, each with its spot.
+    for side: Float in [-1, 1] {
+        let rz = side < 0 ? beat : -beat
+        let piv = side < 0 ? pv : pv2
+        func span(_ a: Float, _ b: Float) -> (Float, Float) { side < 0 ? (-b, -a) : (a, b) }
+        let (f0, f1) = span(2, 15), (o0, o1) = span(14, 18), (h0, h1) = span(2, 11), (e0, e1) = span(9, 12)
+        p.append(Part(mn: V3(f0, 6.6, -7), mx: V3(f1, 7.2, 1), pivot: piv, rotZ: rz, color: wing, pattern: 4))
+        p.append(Part(mn: V3(o0, 6.6, -5.5), mx: V3(o1, 7.2, -0.5), pivot: piv, rotZ: rz, color: wing * 0.85, pattern: 4))
+        p.append(Part(mn: V3(e0, 7.2, -4.5), mx: V3(e1, 7.4, -1.5), pivot: piv, rotZ: rz, color: eye, pattern: 9))
+        p.append(Part(mn: V3(h0, 6.4, 1), mx: V3(h1, 6.9, 7), pivot: piv, rotZ: rz * 0.8, color: wing * 0.75, pattern: 4))
+    }
+    return p
+}
+
+// P336: the Gloamwood's Scorchling, the Gloamling: lilac-grey hide, a violet glow in the belly and eyes, two little
+// crystal antlers and a wisp of a tail.
+private func gloamlingParts(_ m: Mob, swing: Float) -> [Part] {
+    let hide = V3(0.2, 0.16, 0.27), glow = V3(1.3, 0.75, 2.4), crystal = V3(0.9, 0.6, 1.7)
+    return [
+        Part(mn: V3(-2, 0, -1), mx: V3(-0.2, 3, 1), pivot: V3(-1, 3, 0), rotX: swing * 1.4, color: hide),
+        Part(mn: V3(0.2, 0, -1), mx: V3(2, 3, 1), pivot: V3(1, 3, 0), rotX: -swing * 1.4, color: hide),
+        box(-2.5, 3, -1.5, 5, 4, 3, hide, 4),
+        box(-1.8, 3.6, -1.8, 3.6, 2.4, 0.4, glow).withPattern(9),
+        box(-2.5, 7, -2.5, 5, 4, 4, hide, 4),
+        box(-1.8, 9, -2.8, 1.2, 0.8, 0.4, glow).withPattern(9), box(0.6, 9, -2.8, 1.2, 0.8, 0.4, glow).withPattern(9),
+        Part(mn: V3(-2.2, 11, -0.6), mx: V3(-1.2, 14, 0.4), pivot: V3(-1.7, 11, 0), rotZ: 0.35, color: crystal, pattern: 9),
+        Part(mn: V3(1.2, 11, -0.6), mx: V3(2.2, 14, 0.4), pivot: V3(1.7, 11, 0), rotZ: -0.35, color: crystal, pattern: 9),
+        Part(mn: V3(-3.2, 13, -0.4), mx: V3(-2.2, 14, 0.4), pivot: V3(-1.7, 11, 0), rotZ: 0.35, color: crystal, pattern: 9),
+        Part(mn: V3(2.2, 13, -0.4), mx: V3(3.2, 14, 0.4), pivot: V3(1.7, 11, 0), rotZ: -0.35, color: crystal, pattern: 9),
+        Part(mn: V3(-0.5, 3.5, 1.5), mx: V3(0.5, 4.5, 5.5), pivot: V3(0, 4, 1.5), rotX: -0.4 + swing * 0.3, color: glow * 0.7, pattern: 9),  // the wisp
+        Part(mn: V3(-4, 4, -0.8), mx: V3(-2.5, 7, 0.8), pivot: V3(-3, 7, 0), rotX: -swing, color: hide),
+        Part(mn: V3(2.5, 4, -0.8), mx: V3(4, 7, 0.8), pivot: V3(3, 7, 0), rotX: swing, color: hide),
     ]
 }
 
