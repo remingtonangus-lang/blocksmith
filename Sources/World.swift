@@ -48,6 +48,10 @@ final class World {
     // crops grow, weather and seasons touch blocks and creatures spawn. Past it nothing ticks: mobs stand in their last
     // pose. The Auto governor lowers this one, never the view.
     var activeDistance: Int = 8
+    // P338 step 8: free building pieces (FreeBuild.swift) and their collision boxes by cell.
+    var pieces: [FreePiece] = []
+    var pieceCells: [IVec3: [(V3, V3)]] = [:]
+    var piecesDirty = false
     static let activeOptions = [4, 6, 8, 10, 12, 16]
     // Whether a point is inside the active distance of `p` (square, like the chunk rings).
     @inline(__always) func isActive(_ q: V3, from p: V3) -> Bool {
@@ -473,6 +477,7 @@ final class World {
             if fieldNear(c, x, y, z, i) { if fieldSplit { fieldBoxes(x, y, z, &fieldSink) } else { fieldBoxes(x, y, z, &out) } }
             b = Int(c.blocks.raw(i))
         }
+        if !pieceCells.isEmpty, let pb = pieceCells[IVec3(x, y, z)] { out.append(contentsOf: pb) }
         if !Blocks.collide[b] { return }
         let o = V3(Float(x), Float(y), Float(z))
         if Blocks.fullCollide[b] {
@@ -768,7 +773,7 @@ final class World {
 
     func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
-        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), site: smoothSite(c), chunk: (c.cx, c.cz),
+        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), pieces: pieceList(c), site: smoothSite(c), chunk: (c.cx, c.cz),
                                   nearSides: nearSides(c, lod: c.lod)), to: c, sy: sy, version: c.sections[sy].version)
     }
 
@@ -1081,7 +1086,7 @@ final class World {
         let (n9, h9) = nb
         let todo = dirtySections(c)
         let lod = c.lod
-        let dl = damageList(c), bl = biteList(c)
+        let dl = damageList(c), bl = biteList(c), pl = pieceList(c)
         let site = smoothSite(c)
         let near = nearSides(c, lod: lod)
         c.meshInFlight = true
@@ -1091,7 +1096,7 @@ final class World {
             guard let self else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var out: [(Int, Int, SectionMesh)] = []
-            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, site: site, chunk: (k.x, k.z), nearSides: near))) }
+            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, site: site, chunk: (k.x, k.z), nearSides: near))) }
             let el = CFAbsoluteTimeGetCurrent() - t0
             self.lock.lock()
             self.meshResults.append((k, out))
@@ -1310,14 +1315,14 @@ final class World {
                 for (sy, v) in dirtySections(c) { toMesh.append((c, sy, v, nb.0, nb.1)) }
             }
         } }
-        let dls = toMesh.map { damageList($0.0) }, bls = toMesh.map { biteList($0.0) }
+        let dls = toMesh.map { damageList($0.0) }, bls = toMesh.map { biteList($0.0) }, pls = toMesh.map { pieceList($0.0) }
         let sites = toMesh.map { smoothSite($0.0) }
         let nears = toMesh.map { nearSides($0.0, lod: $0.0.lod) }          // (every chunk's level is set by now)
         let meshes = UnsafeMutablePointer<SectionMesh>.allocate(capacity: max(1, toMesh.count))
         defer { meshes.deallocate() }
         DispatchQueue.concurrentPerform(iterations: toMesh.count) { i in
             let t = toMesh[i]
-            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], bites: bls[i], site: sites[i],
+            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], bites: bls[i], pieces: pls[i], site: sites[i],
                                                             chunk: (t.0.cx, t.0.cz), nearSides: nears[i]))
         }
         for (i, t) in toMesh.enumerated() {
@@ -1396,6 +1401,7 @@ final class World {
             c.markSaved()
         }
         for (k, c) in chunks where c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }   // PG1
+        savePieces()
         save?.saveBlockEntities(blockEntities, background: background)
         redstone.save(background: background)            // W1: pending circuit ticks and edges (circuit.json)
         save?.savePortals(Array(portals))

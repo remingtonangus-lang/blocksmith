@@ -264,7 +264,7 @@ enum Mesher {
     // smoothOK false keeps the section cubic in smooth-terrain worlds (ships: built hulls must not melt into lumps).
     // `bites` (realistic world): where blows struck blocks round this section (World.biteList), carved as craters.
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
-                             bites: [(Int, Int, Int, Bite)] = [],
+                             bites: [(Int, Int, Int, Bite)] = [], pieces: [FreePiece] = [],
                              smoothOK: Bool = true, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil, nearSides: Int = 0) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
@@ -296,6 +296,7 @@ enum Mesher {
         var anyBlock = false
         if base < centre.count { for i in base..<(base + 16 * CSQ) where centre[i] != AIR { anyBlock = true; break } }
         if !anyBlock && fieldOn { for i in base..<(base + 16 * CSQ) where n9[4].ground(i) { anyBlock = true; break } }
+        if !anyBlock && pieces.contains(where: { Int(floor($0.p[1])) >> 4 == sy }) { anyBlock = true }     // (FreeBuild)
         // Smooth terrain: an empty section still owns the quads against its +x/+y/+z neighbours' first row.
         let smooth = (SmoothTerrain.enabled || n9[4].isField) && smoothOK, natT = SmoothTerrain.natural, snowLayerID = SmoothTerrain.snowLayer
         // T17: leaf canopies as rounded blobs in field worlds (smoothQuads leaves pass).
@@ -1363,6 +1364,12 @@ enum Mesher {
             ShapeTrunks.emit(ctx)
             ShapeOrganic.emit(ctx)
             ShapeSpikes.emit(ctx)
+        }
+        // P338 step 8: free building pieces standing in this section (FreeBuild), in any world that has them.
+        if !pieces.isEmpty {
+            let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: wox, wy0: sy * 16, wz0: woz,
+                                    lod: lod, sc: sc, srcs: srcs, sy: sy, field: fieldOn ? n9 : nil)
+            FreeBuild.emit(ctx, pieces)
         }
         if smooth {
             if leafBlob {

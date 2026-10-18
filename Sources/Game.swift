@@ -690,6 +690,7 @@ final class Game {
     }
 
     func hookWorld(_ w: World) {
+        w.loadPieces()                                      // P338 step 8 (FreeBuild)
         w.redstone.game = self
         w.onFluidEvent = { [weak self] p in self?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
         w.onIgnite = { [weak self] p, b in
@@ -1462,6 +1463,7 @@ final class Game {
         }
 
         // Mining
+        if breakNow && breakFreePiece() { swing = 1; mining = nil; return }               // P338 step 8 (FreeBuild)
         if survival, breakNow, let t = target, teleportEgg(t.hit) { swing = 1; mining = nil; return }
         // A melee weapon in VR never mines while a creature is near (swinging at a mob dug the ground around it: Oct 10).
         let weaponGuard = breakHeld && target != nil && vrWeaponHeld && creatureNearForWeapon()
@@ -1708,6 +1710,7 @@ final class Game {
         // P364 (c): raw food used on a lit campfire goes on it first (before any other use of the item on a block).
         if useNow && onFire, let t = target, useNewBlock(t) { swing = 1; return }
         if useNow && placeBoat() { return }
+        if useNow && useFreePiece(sneak: input.shift || p.b) { swing = 1; return }      // P338 step 8 (FreeBuild)
         guard let t = target else { if useNow { placeIntoLava() }; return }
         if useNow && !isInteractive(t.hit) && placeIntoLava(before: t.hit) { return }
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
