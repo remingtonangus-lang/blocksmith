@@ -565,6 +565,26 @@ final class QuestControls {
                 wellCued = close
             } else { wellCued = false }
         } else if game.heldGun == nil { game.arms.magInHand = false; offTracked = false; hipReady = false }
+        // P372: a hand gripping an emplacement gun's handles takes the gun; the right hand aims it while held, and
+        // letting go of both grips steps off.
+        if !inMenu && !bagGrip && !handGrab && !magGrip && game.alive && Turrets.shared.manned == nil && game.world.ships.pilot == nil {
+            for (hd, now, was, i) in [(L, lGrip, prevGripL, moveHand), (R, rGrip, prevGripR, aimHand)] where now && !was && hd.gripValid {
+                let hand = rig.toWorld(hd.gripPos)
+                guard let gun = game.mobs.mobs.first(where: { Turrets.canMan($0) && simd_length_squared($0.pos - hand) < 30 * 30
+                                                           && simd_length(GunParts.handlePoint($0) - hand) < 0.75 }) else { continue }
+                if game.survival && gun.deckGunCrewed(game) { app.input.haptic(i, amplitude: 0.2, seconds: 0.03, frequency: 80); bagGrip = true; break }
+                Turrets.shared.mount(game, gun)
+                Turrets.shared.byGrip = true
+                app.input.haptic(i, amplitude: 0.6, seconds: 0.06, frequency: 120)
+                bagGrip = true
+                break
+            }
+        }
+        if Turrets.shared.byGrip && Turrets.shared.manned != nil {
+            Turrets.shared.handAim = R.gripValid ? aimDir : nil
+            if !lGrip && !rGrip { Turrets.shared.leave(game) }
+            bagGrip = true
+        }
         // (A grip squeezed round the braced rifle's foregrip holds the gun, R6: it doesn't step the hotbar.)
         if !inMenu && !bagGrip && !magGrip && !handGrab && game.world.ships.pilot == nil {
             if lGrip && !prevGripL && braceRot == nil { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }

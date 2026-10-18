@@ -574,6 +574,10 @@ if CommandLine.arguments.contains("--throw-only") {             // P371: thrown 
     ThrownHeldCheck.run(game, check)
     print(failures == 0 ? "throw: all checks passed" : "throw: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--gunparts-only") {          // P372: emplacement gun parts and handles
+    GunPartsCheck.run(game, check)
+    print(failures == 0 ? "gunparts: all checks passed" : "gunparts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--frigatecheck") {
     FrigateCheck.run(game, check)
     print(failures == 0 ? "frigate: all checks passed" : "frigate: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

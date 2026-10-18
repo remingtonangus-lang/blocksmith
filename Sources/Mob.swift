@@ -443,6 +443,8 @@ final class Mob {
     var spellTimer: Float = 2       // conjurer: next spell
     var vexCooldown: Float = 0
     var stun: Float = 0             // siegebeast: stunned by a shield block, then roars
+    var gunParts: [Float]?          // P372: an emplacement gun's damage per part (GunParts.swift)
+    var gunPartsShown = 0           // ... the broken parts already shed
     var stagger: Float = 0          // P371 (5): a hard hit rocks it back this long (MobAnim.pose)
     var bond: Float = 0             // the player's bonded horse (Game.horseBond; Riding.swift), saved
     var playerBuilt = false         // iron golem built by the player (never attacks them)
@@ -1578,6 +1580,7 @@ final class Mob {
         if posse == Prisoners.posse { return }                              // P347: the camp's prisoners can't be hurt
         Mob.onHit?(self, src, damage)
         if kind == .warden && emergeTime > 0 { return }
+        if kind == .deckGun { GunParts.hit(self, from: src, damage: damage) }        // P372
         if Mob.playerMelee && damage >= 6 { stagger = max(stagger, 0.45) }   // P371 (5)
         // A downed horse takes no more (HorseLife.swift), except the player's own blow, which puts it down for good (he
         // struck his spare horse and it lay there for five minutes, "stuck in place": Oct 11 playtest P26).
