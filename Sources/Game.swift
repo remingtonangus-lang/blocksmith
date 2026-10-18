@@ -2903,8 +2903,8 @@ final class Game {
         if stepDist > (p.sprinting ? 2.1 : 1.7) {
             stepDist = 0
             let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
-            if under != AIR { sfx(.step(soundMat(under)), p.sneaking ? 0.35 : 0.9) }
-            else if clock - Trains.roofAt < 0.3 { sfx(.step(.wood), p.sneaking ? 0.35 : 0.9) }   // Q2: a car's roof boards
+            if under != AIR { sfx(.step(soundMat(under)), p.sneaking ? 0.22 : 0.9) }      // P367: crouched steps are hushed
+            else if clock - Trains.roofAt < 0.3 { sfx(.step(.wood), p.sneaking ? 0.22 : 0.9) }   // Q2: a car's roof boards
         }
     }
 
