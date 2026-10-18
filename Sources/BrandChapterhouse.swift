@@ -174,7 +174,9 @@ enum BrandChapterhouse {
         box(18, f, 1, 19, f, 5, LAVA)
         for dz in 0...6 { at(17, f + 1, dz, trim); at(20, f + 1, dz, trim) }
         for dx in [18, 19] { at(dx, f + 1, 0, trim); at(dx, f + 1, 6, trim) }
-        at(18, f + 1, -3, g("blast_furnace", g("furnace"))); at(17, f + 1, -3, g("blast_furnace", g("furnace")))
+        // P342 (c): the forge's two blast furnaces are at work (the order's iron and gold, ingots waiting in them).
+        w.furnace(ox + 18, f + 1, oz - 3, kind: "blast_furnace", input: ItemStack(Items.id("raw_iron"), 2), output: ItemStack(Items.id("iron_ingot"), 3))
+        w.furnace(ox + 17, f + 1, oz - 3, kind: "blast_furnace", input: ItemStack(Items.id("raw_gold"), 1), output: ItemStack(Items.id("gold_ingot"), 2))
         at(15, f + 1, 1, g("anvil", trim)); at(15, f + 1, -1, g("smithing_table", trim))
         w.chest(ox + 20, f + 1, oz + 8, loot: "fortress", seed: rng.next(), facing: 2)
         for (dx, dz) in [(15, 6), (17, 6), (15, 7), (17, 7), (15, 8), (16, 8), (17, 8)] { box(dx, f + 1, dz, dx, f + 3, dz, bars) }

@@ -15,7 +15,7 @@ import Foundation
 //                                          crystal, tall spires of black glass crowned with crystal, vents burning with
 //                                          cold ghost fire, crystal shards
 // (Sulfur Crust stays registered for old saves; nothing generates it now.)
-// Overhead: lumenstone hangs as amber crystal spikes (the nether's glowstone blobs are gone).
+// Overhead: hell's own sky (P342, HellSky.swift); no lumenstone hangs from the roof.
 extension BlockRegistry {
     func registerHellLandBlocks() {
         if !has("sulfur_crust") {
@@ -118,23 +118,7 @@ extension EmberGen {
             && biome(bx + 12, bz + 12) == .soulSandValley {
             beastBones(ch, at: at, set: set)
         }
-        // Lumenstone: amber crystal spikes hanging from the roof (a taller band hangs more, far overhead).
-        let glow = LAMP
-        for k in 0..<(H > 128 ? 5 : 3) {
-            let h = hash3(cx, k, cz, s32 ^ 0x6C2)
-            if h % 3 == 0 { continue }
-            let x0 = 2 + Int(h % 12), z0 = 2 + Int((h >> 4) % 12)
-            var y0 = H - 8
-            while y0 > 40 && !(at(x0, y0, z0) == AIR && at(x0, y0 + 1, z0) != AIR && !Blocks.isLiquid(at(x0, y0 + 1, z0))) { y0 -= 1 }
-            if y0 <= 40 { continue }
-            let len = 3 + Int((h >> 8) % 7)
-            for i in 0..<len where at(x0, y0 - i, z0) == AIR { set(x0, y0 - i, z0, glow) }
-            // A root of shorter crystals round the main spike.
-            for (j, (dx, dz)) in [(1, 0), (-1, 0), (0, 1), (0, -1)].enumerated() where (h >> UInt32(12 + j)) & 1 == 1 {
-                let l2 = 1 + Int((h >> UInt32(16 + j * 2)) % 3)
-                for i in 0..<l2 where at(x0 + dx, y0 - i, z0 + dz) == AIR { set(x0 + dx, y0 - i, z0 + dz, glow) }
-            }
-        }
+        // P342 (b): no lumenstone spikes hang from the roof any more (the glowstone look); hell has a sky (HellSky.swift).
     }
 
     // P336: a glass spire on (x, y, z) (the floor under it): a skirt of black glass round its foot, a shaft narrowing to

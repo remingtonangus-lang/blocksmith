@@ -761,6 +761,7 @@ final class Game {
     // Colour straight up for the Fancy sky gradient: a deeper blue than the horizon by day, near black at night.
     var skyZenith: V3 {
         if inVaultHaze { return AshSky.zenith }
+        if inHellSky { return HellSky.zenith(skyColor) }           // P342 (b)
         let c = skyColor
         // A hazy biome (desert) washes the zenith toward the horizon; a cold one keeps it deep.
         let deep = simd_mix(V3(0.48, 0.64, 0.9), V3(0.6, 0.68, 0.84), V3(repeating: sky.haze))   // P174: a less inky zenith

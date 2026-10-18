@@ -26,9 +26,10 @@ final class EmberGen: TerrainGenerator {
         self.structures = structures ? StructureCache(seed: seed, types: [Fortress.type, Bastion.type]) : nil
     }
 
+    // P342 (a) ("biomes are too small, make each one last much longer"): the lands' noise runs 2.6 times wider (was 220).
     func biome(_ x: Int, _ z: Int) -> Biome {
-        let t = bT.fbm2(Float(x) / 220, Float(z) / 220, 2)
-        let h = bH.fbm2(Float(x) / 220, Float(z) / 220, 2)
+        let t = bT.fbm2(Float(x) / 570, Float(z) / 570, 2)
+        let h = bH.fbm2(Float(x) / 570, Float(z) / 570, 2)
         // Nearest of five biome "points" in (t, h) space, like the multi-noise biome source.
         let pts: [(Float, Float, Biome)] = [(0, 0, .netherWastes), (0, -0.35, .soulSandValley), (0.3, 0, .crimsonForest),
                                             (0, 0.35, .warpedForest), (-0.35, 0.1, .basaltDeltas)]
