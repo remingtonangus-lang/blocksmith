@@ -33,6 +33,24 @@ enum DifficultyCheck {
         }
         w.ships.encounters = false
         g.time = DAY_LENGTH * 0.25
+        // P369 (c, Oct 18 08:15: bandit shotgun fire did nothing on Peaceful and he couldn't switch): on Peaceful a round
+        // takes nothing; two steps of the pause menu's Difficulty row (Very Easy, Easy) and the same round hurts.
+        do {
+            g.survival = true; g.alive = true; g.diffLevel = 0; Difficulty.level = 0; g.health = 20; g.lastHurtAt = -100
+            let src = g.player.pos + V3(6, 1, 0)
+            g.hurtPlayer(6, from: src, cause: "was shot by a bandit", knockback: 0, type: .projectile)
+            let peaceful = g.health
+            let menu = PauseMenu(game: g)
+            g.menu = menu
+            menu.act("difficulty", back: false); menu.act("difficulty", back: false)
+            g.menu = nil
+            let level = g.diffLevel
+            g.lastHurtAt = -100
+            g.hurtPlayer(6, from: src, cause: "was shot by a bandit", knockback: 0, type: .projectile)
+            check(peaceful == 20 && level == 2 && g.health < 20,
+                  "P369 difficulty any time: a round on Peaceful \(20 - peaceful) damage; the Difficulty row stepped to \(Difficulty.name(level)); the same round now takes \(20 - g.health)")
+            g.health = 20
+        }
         _ = w.loadSync(center: V3(Float(fx), Float(py), Float(fz)), radius: 4)
         // A 61 x 61 stone floor, a low wall round it, a few two-high blocks of cover out on it.
         func arena() {

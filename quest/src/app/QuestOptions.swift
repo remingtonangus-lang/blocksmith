@@ -16,11 +16,9 @@ enum QuestOptions {
         var toast: (String) -> Void = { _ in }
         var game: () -> Game? = { nil }                 // Q2c-console-31: the world being played (its first difficulty)
     }
-    // Q2c-console-31: the first world is still new (its first day, his first ten minutes in it): its difficulty may change.
-    static func newWorld() -> Game? {
-        guard let g = hooks.game(), Int(g.time / DAY_LENGTH) == 0, g.clock < 600 else { return nil }
-        return g
-    }
+    // Q2c-console-31: the world being played, whose difficulty the setup page sets (P369: at any time, not only in its
+    // first ten minutes).
+    static func newWorld() -> Game? { hooks.game() }
     static var hooks = Hooks()
 
     static let snapAngles: [Float] = [15, 22.5, 30, 45, 60, 90]
@@ -66,7 +64,7 @@ enum QuestOptions {
             "q_preset": "Default: the standard layout. Classic: the stick walks and snap-turns (no teleport). One Hand: the dominant stick also walks forward and back, and turns sideways.",
             "q_height": "Stand up straight, look ahead and select this: standing play then always recentres to this height.",
             "q_setup_done": "Start playing. All of this is in VR Comfort & Controls later.",
-            "q_firstdiff": "Very Easy to Very Hard, or Peaceful (no monsters). Fixed once you play on.",   // (P302: PauseMenu.describe shows the chosen level's line)
+            "q_firstdiff": "Very Easy to Very Hard, or Peaceful (no monsters).",   // (P302: PauseMenu.describe shows the chosen level's line)
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
             "q_snap": "How far one snap turn goes.",
             "q_tspeed": "How fast smooth turning goes.",
@@ -200,6 +198,7 @@ enum QuestOptions {
         case "q_firstdiff":
             guard let g = newWorld() else { break }
             g.diffLevel = step([0, 1, 2, 3, 4, 5], g.diffLevel, back)          // P302: six levels
+            Difficulty.level = g.diffLevel
         case "q_turn":
             S.smoothTurn.toggle()
             if S.smoothTurn && S.controlPreset == 1 { S.controlPreset = 0 }       // (Classic means snap turns)
@@ -343,7 +342,7 @@ enum QuestOptions {
         ]
         if let g = newWorld() {
             rows.insert(("First World: \(Difficulty.name(g.diffLevel))", "q_firstdiff"), at: rows.count - 1)
-            return ("Welcome to Sunderfall", "Pull the trigger on a row to change it. All but the difficulty can change later in VR Comfort & Controls.", rows)
+            return ("Welcome to Sunderfall", "Pull the trigger on a row to change it. All of it can change later in VR Comfort & Controls.", rows)
         }
         return ("Welcome to Sunderfall", "Pull the trigger on a row to change it. All of it can change later in VR Comfort & Controls.", rows)
     }

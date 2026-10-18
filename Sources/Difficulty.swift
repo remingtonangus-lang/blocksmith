@@ -1,7 +1,7 @@
 import Foundation
 
-// Difficulty levels (backlog G19; docs/status/difficulty.md), chosen when the world is made and locked afterwards (a
-// Peaceful world stays Peaceful).
+// Difficulty levels (backlog G19; docs/status/difficulty.md), chosen when the world is made and changeable at any time
+// afterwards (P369: the pause menu's Difficulty row).
 // P302 (Oct 15, "easy is too hard"; "easy all but instakilled him"): five fighting levels with big steps between them,
 // Very Easy, Easy, Normal, Hard, Very Hard, plus Peaceful. Easy is a cakewalk even for a new player (a few deaths at
 // most), Normal is the reference game a seasoned player still dies in while learning, Hard and Very Hard are for a
@@ -18,7 +18,7 @@ enum Difficulty {
     static let names = ["Peaceful", "Very Easy", "Easy", "Normal", "Hard", "Very Hard"]
     // One line per level for the Create World page and the settings (what the level means for you).
     static let help = [
-        "Peaceful: no monsters or raiders, and hunger never harms you. Fixed once the world is made.",
+        "Peaceful: no monsters or raiders, and hunger never harms you.",
         "Very Easy: blows barely scratch you and none takes more than a heart and a half; enemies are slow, miss a lot and are few. Fliers fall to a hit or two.",
         "Easy: enemies hit softly (never more than two and a half hearts at once), aim poorly, strike slowly and come in small numbers; armour helps more. Fliers are easy kills.",
         "Normal: the game as intended. Enemies hit, aim and move as they should; expect to die a few times while learning.",
