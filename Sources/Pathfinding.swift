@@ -88,6 +88,18 @@ enum PathFinder {
 
     // Height of the collision inside a cell: 0 empty ... 1 full block, up to 1.5 for fences and walls.
     static func solidTop(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Float {
+        // P338 step 3 (handoff step 9): in a field world the ground in and round a cell is met as the field's own
+        // surface (World.collisionBoxes: the quarter-block columns bodies stand on), not as a full cell of its material,
+        // so a search stands mobs where they will really stand and climbs what they can really climb.
+        if w.fieldTerrain, y >= 0, y < CH, let c = w.chunkAt(x, z), c.blocks.isField,
+           w.fieldNear(c, x, y, z, Chunk.index(mod(x, CS), y, mod(z, CS))) {
+            if doors && isWoodDoor(blk(w, x, y, z)) { return 0 }
+            boxes.removeAll(keepingCapacity: true)
+            w.collisionBoxes(x, y, z, &boxes)
+            var top: Float = 0
+            for (_, hi) in boxes { top = max(top, hi.y - Float(y)) }
+            return top
+        }
         let b = Int(blk(w, x, y, z))
         if !Blocks.collide[b] { return 0 }
         if Blocks.fullCollide[b] { return 1 }
@@ -147,10 +159,15 @@ enum PathFinder {
         var cost: Float = 1
         for i in 0..<pr.span { for j in 0..<pr.span {
             let cx = x + i, cz = z + j
+            // (P338: on the field the ground can rise into the feet cell by up to half a block, a step bodies take
+            // without a jump; it holds them up there.)
+            let footRoom: Float = w.fieldTerrain ? 0.55 : 0.2
             for k in 0..<pr.tall {
                 let id = blk(w, cx, y + k, cz)
                 if danger(id) { return nil }
-                if solidTop(w, cx, y + k, cz) > (k == 0 ? 0.2 : 0.01) { return nil }   // carpets / snow layers are fine underfoot
+                let top = solidTop(w, cx, y + k, cz)
+                if top > (k == 0 ? footRoom : 0.01) { return nil }   // carpets / snow layers are fine underfoot
+                if k == 0 && top > 0.05 { supported = true }
             }
             let feet = blk(w, cx, y, cz)
             if Blocks.fluidKind[Int(feet)] == 1 { wet = true; supported = true; continue }

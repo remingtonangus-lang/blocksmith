@@ -13,6 +13,7 @@ struct SectionMesh {
     var detailSolid = 0
     var groundQuads = 0     // P283: of the opaque quads, the smooth ground's and the leaf blobs' (questcheck --perfscenes)
     var blobQuads = 0
+    var naturalCubes = 0    // P338 step 2: natural ground drawn as cubes in a field world (must be 0)
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -431,6 +432,7 @@ enum Mesher {
         var curCut = false
         var groundV = 0, blobV = 0                       // (P283 stats: vertices from the two smooth passes)
         var leafy = false                                // faces between leaf blocks met (lod 0 and 2 differ)
+        var naturalCubes = 0
         let solidLayer = RenderLayer.opaque.rawValue
         let leafT = Mesher.leafT, farLeaf = Mesher.farLeaves
         let offs = [1, -1, RL, -RL, RW, -RW]
@@ -735,6 +737,7 @@ enum Mesher {
                         if smoothWater { shoreWater(i, ly) }
                         continue
                     }
+                    if fieldOn && natT[bi] { naturalCubes += 1 }        // (P338 step 2: the debug counter)
                     if leafBlob && leafT[bi] { continue }               // (T17: the leaf blobs below)
                     if detailDraw && detT[bi] { continue }              // (round shapes: the detail generators below)
                     // A struck cube (realistic world): its open faces subdivided and carved where the blows landed.
@@ -1328,7 +1331,7 @@ enum Mesher {
             detailOut.append(contentsOf: UnsafeBufferPointer(start: detCut.ptr, count: detCut.count))
         }
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
-                           detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4)
+                           detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.

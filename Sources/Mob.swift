@@ -330,6 +330,7 @@ final class Mob {
     // P283 (Oct 15: "far terrain should draw normally; skip far animals instead"): a calm mob far from the player
     // thinks and moves every 2nd tick past 48 blocks and every 4th past 96 (MobManager.update), with the time it missed.
     var lodAcc: Float = 0
+    var fieldSettled = false          // P338: set onto the field's surface once after it appears (field worlds)
     let lodSlot = Int.random(in: 0..<4)
     // P283: a mob standing still on the ground, where nothing changed round it since (its spot, its section's version,
     // the ground's field), lands where it stands: the collision sweep is skipped (mob moves were a sixth of the frame
@@ -2534,6 +2535,13 @@ final class MobManager {
             }
             let mdt = every > 1 ? min(m.lodAcc, 0.2) : dt
             m.lodAcc = 0
+            // P338 (the block grid in spawning): spawners and structures place a body on a cell's floor; in a field world
+            // the ground's surface runs through cells, so a new body is set onto the surface it will stand on (up to a
+            // block either way), not left in a slope or over a dip.
+            if !m.fieldSettled {
+                m.fieldSettled = true
+                if w.fieldTerrain, m.deck == nil, m.mount == nil, m.kind != .minecart, m.kind != .boat, let h = w.restHeight(m.pos, halfW: min(0.3, m.halfW), up: 1, depth: 1) { m.pos.y = h }
+            }
             w.playerBox = bodyOn && game.riding !== m && m.deck == nil && m.mount == nil && MobManager.bodySolid(m.kind) ? pBox : nil
             m.update(mdt, game: game)
             w.playerBox = nil

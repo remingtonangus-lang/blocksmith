@@ -64,3 +64,32 @@ Share of surface cells whose distance comes from the generator's own continuous 
   generator's cells): structure cuts into the ground, stalactites and magma in the Deep, banks a structure lays.
 - Water and lava are still cell fluids in the built layer; their surfaces meet the ground's smooth surface.
 - AI pathing reads cells (a cell inside the ground reads as its material); collision does not.
+
+## Where a field world still reads the block grid (P338 step 1, Oct 18)
+Two kinds of reads. A **material read** asks what the ground is made of at a point (farming soil, bone meal, plant
+support, ore drops, footstep sounds): it reads the cell's material through `BlockStore` (Chunk.swift `subscript`) and is
+not a shape the player can see or feel. A **shape read** treats a ground cell as a full cube: those are the bugs. The
+debug overlay's third line (PerfOverlay, field worlds) counts both kinds as "ground cell reads" per frame and the natural
+ground meshed as cubes ("Ground as cubes"); the cube count must be 0 everywhere.
+
+Shape reads, and what happens to each:
+- Drawing: natural ground is never a cube in a field world (Mesher.swift: natural cells inside the field go to the dual
+  contouring; one left in the built layer would be counted, `SectionMesh.naturalCubes`). Far chunks: the field on a
+  2-block lattice (SmoothTerrain.coarseGround). Fixed.
+- Collision of bodies, items, debris: World.collisionBoxes -> World.fieldBoxes (FieldTerrain.swift). Fixed.
+- Pathing: PathFinder.solidTop read a ground cell as a full block (Pathfinding.swift solidTop, standCost, open). Now it
+  reads the field's collision columns, and on the field a node may have the ground rising up to half a block into its
+  feet cell. Fixed in this step (handoff step 9).
+- Spawning and placing bodies: Spawning.swift (the stand checks at 332 and 395-398), Mob.swift 2703 and 2789 (dropping a
+  body to the floor), MobAI.swift 248 pick a cell's floor. A new body is now set onto the field's surface once when it
+  first updates (MobManager.update, `Mob.fieldSettled`), so the cell floor never shows. The searches themselves still
+  step by cells: left as is (they only pick a column, the surface decides the height).
+- Raycasts for mining and placing: World.raycast (World.swift 1473) steps cells and meets ground where the field crosses
+  zero (Game.swift 1928-1969 finds the surface point). The hit is still a cell for what happens next (dig a ball there):
+  step 8 (free building) moves placing off the grid.
+- Digging, blasts and rounds: World.fieldCarve subtracts round shapes from the field. Ground placed by the player is a
+  cell-sized lump (World.fieldShape): step 8.
+- Fluids: water and lava are still cells of the built layer (World.fluidTick): step 5 / P363.
+- Density samples: one per block (FieldData.fd): step 4.
+- Riding: Riding.swift 482 asks whether a horse's head is in a solid cell (ground as a cube under an overhang): it reads
+  the material, then World.collides decides; low-impact, left.
