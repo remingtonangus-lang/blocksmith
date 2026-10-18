@@ -37,7 +37,6 @@ extension Game {
                 if let i = (0..<4).first(where: { be.container[$0].isEmpty }) {
                     be.container[i] = ItemStack(held.item, 1)
                     be.cooks[i] = 600
-                    onToast?("\(held.def.display) is cooking on the fire: ready in 30 s")
                     sfx(.fireExtinguish, 0.25, at: c)          // (the sizzle)
                     consumeHeld()
                     return true
@@ -117,7 +116,13 @@ extension Game {
             for i in 0..<4 where !be.container[i].isEmpty {
                 be.cooks[i] -= 1
                 if be.cooks[i] <= 0 {
-                    if let out = Recipes.smelt(be.container[i].item) { drops.spawn(ItemStack(out, 1), at: V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5)) }
+                    // P364 (c): the cooked food hops off the fire toward the player (dropped on top it sat in the flames).
+                    if let out = Recipes.smelt(be.container[i].item) {
+                        let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.6, Float(p.z) + 0.5)
+                        var d = V2(player.pos.x - c.x, player.pos.z - c.z)
+                        d = simd_length(d) > 0.01 ? simd_normalize(d) : V2(1, 0)
+                        drops.spawn(ItemStack(out, 1), at: c + V3(d.x * 0.95, 0, d.y * 0.95))
+                    }
                     be.container[i] = .empty
                 }
             }

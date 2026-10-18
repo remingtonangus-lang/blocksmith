@@ -72,6 +72,7 @@ final class ItemEntity {
     // stays over it (a throw freed a slot and the stack he stood on, or the one just thrown, came straight back). Cleared
     // once he is out of its reach; crouching over it, or taking it in the hand, still picks it up.
     var leftLying = false
+    var lyingFor: Float = 0         // P364 (h): seconds it has lain under him unpicked (it tries again every 3 s)
     // P142: drawn this far up or down onto the smooth ground it rests on (World.smoothGroundOffset), eased.
     var viewDY: Float = 0, groundKey = Int.min, groundH = SIMD4<Float>(repeating: 0)
     let spin = Rand.float(in: 0..<(2 * .pi))
@@ -215,10 +216,16 @@ final class ItemEntityManager {
             if e.pickupDelay <= 0 && game.alive {
                 let d = e.pos - pp
                 if abs(d.x) < reachXZ && abs(d.z) < reachXZ && d.y > -reachDown && d.y < 2.3 {
-                    if e.leftLying && !game.player.sneaking { continue }          // P309 (b)
+                    // P309 (b); P364 (h): a stack that didn't fit tries again every 3 s while he stands on it (room may
+                    // have come free), instead of waiting for him to step off and back.
+                    if e.leftLying && !game.player.sneaking {
+                        e.lyingFor += dt
+                        if e.lyingFor < 3 { continue }
+                        e.lyingFor = 0
+                    }
                     if !e.deliberate && ItemEntityManager.isJunk(e.stack) {
                         e.hover += dt
-                        if e.hover < 1 && !game.player.sneaking { continue }      // (P328: no hint, standing over it is the cue)
+                        if e.hover < 0.4 && !game.player.sneaking { continue }    // (P328: no hint, standing over it is the cue; P364 h: 0.4 s, not 1)
                     }
                     let before = e.stack.count
                     let got = e.stack
@@ -260,7 +267,9 @@ final class ItemEntityManager {
             for _ in 0..<4 { game.particles.smoke(at: e.pos + V3(0, 0.2, 0)) }
             game.sfx(.fizz, 0.5, at: e.pos)
         }
-        items.removeAll { $0.stack.isEmpty || $0.age > 300 || $0.pos.y < -64 }
+        // P364 (f): one-of-a-kind things (books, tools, armour: anything that doesn't stack) lie for 30 minutes, not 5,
+        // so a book dropped by mistake is still there when he comes back for it.
+        items.removeAll { $0.stack.isEmpty || $0.age > ($0.stack.maxStack == 1 ? 1800 : 300) || $0.pos.y < -64 }
         // Merge nearby identical stacks now and then.
         mergeTimer -= dt
         if mergeTimer <= 0 && items.count > 1 {

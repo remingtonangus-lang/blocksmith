@@ -29,7 +29,9 @@ enum Recipes {
         "planks": ["oak_planks", "birch_planks", "spruce_planks", "crimson_planks", "warped_planks", "acacia_planks", "dark_oak_planks",
                    "jungle_planks", "mangrove_planks", "cherry_planks", "bamboo_planks", "pale_oak_planks"],
         "logs": ["oak_log", "birch_log", "spruce_log", "oak_wood", "acacia_log", "dark_oak_log", "jungle_log", "mangrove_log", "cherry_log", "pale_oak_log"],
-        "stone_tool": ["cobblestone", "cobbled_deepslate"],
+        // P364 (a): any stone crafts a furnace (and stone tools): the deep's dark stone, hell's blackstone and the rest.
+        "stone_tool": ["cobblestone", "cobbled_deepslate", "stone", "deepslate", "blackstone", "mossy_cobblestone", "andesite", "diorite",
+                       "granite", "tuff", "basalt", "smooth_basalt", "calcite", "cobbled_blackstone"],
         "coals": ["coal", "charcoal"],
         "eggs": ["egg", "brown_egg", "blue_egg"],
         "wooden_slabs": ["oak_slab", "spruce_slab", "birch_slab", "jungle_slab", "acacia_slab", "dark_oak_slab", "mangrove_slab",
@@ -569,11 +571,13 @@ enum Recipes {
                                    "acacia_log": "charcoal", "dark_oak_log": "charcoal", "jungle_log": "charcoal", "mangrove_log": "charcoal",
                                    "cherry_log": "charcoal", "pale_oak_log": "charcoal", "sunderite_flux": "sunderite_ingot", "iron_sword": "iron_nugget", "golden_sword": "gold_nugget", "resin_clump": "resin_brick"]
         for (c, _) in BlockRegistry.colors { m["\(c)_terracotta"] = "\(c)_glazed_terracotta" }
-        // Iron, gold and copper tools and armour melt down to nuggets.
-        for (mat, nug) in [("iron", "iron_nugget"), ("golden", "gold_nugget"), ("copper", "copper_nugget")] {
-            for t in ["sword", "pickaxe", "axe", "shovel", "hoe", "spear", "helmet", "chestplate", "leggings", "boots"] where m["\(mat)_\(t)"] == nil {
+        // Iron, gold and copper tools melt down to nuggets; armour (P364 e) melts down to an ingot.
+        for (mat, nug, ingot) in [("iron", "iron_nugget", "iron_ingot"), ("golden", "gold_nugget", "gold_ingot"), ("copper", "copper_nugget", "copper_ingot"),
+                                  ("steel", "", "steel_ingot")] {
+            for t in ["sword", "pickaxe", "axe", "shovel", "hoe", "spear"] where m["\(mat)_\(t)"] == nil && !nug.isEmpty {
                 m["\(mat)_\(t)"] = nug
             }
+            for t in ["helmet", "chestplate", "leggings", "boots"] where m["\(mat)_\(t)"] == nil { m["\(mat)_\(t)"] = ingot }
         }
         return m
     }()
