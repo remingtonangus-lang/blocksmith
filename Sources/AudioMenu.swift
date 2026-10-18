@@ -14,7 +14,7 @@ extension PauseMenu {
         r.append(("Subtitles: \(AudioSettings.subtitles ? "On" : "Off")", "audio_subs"))
         // Your own music folder (CustomMusic.swift).
         let st = Settings.shared
-        r.append(("Soundtrack: \(["Built-in", "My Music", "Mixed"][max(0, min(2, st.musicSource))])", "audio_music_src"))
+        r.append(("Soundtrack: \(["Sunderfall", "My Music", "Mixed", "Classic"][max(0, min(3, st.musicSource))])", "audio_music_src"))
         r.append(("My Music: \(game.sound?.custom?.summary ?? "no audio")", "audio_music_folder"))
         r.append(("Shuffle: \(st.musicShuffle ? "On" : "Off")", "audio_music_shuffle"))
         r.append(("My Music Volume: \(Int((st.customMusicVolume * 100).rounded()))%", "audio_music_vol"))
@@ -30,8 +30,11 @@ extension PauseMenu {
         let st = Settings.shared
         switch id {
         case "audio_music_src":
-            st.musicSource = (st.musicSource + (back ? 2 : 1)) % 3
-            if st.musicSource != 0, g.sound?.custom?.available == false {
+            // P359: Sunderfall, My Music, Mixed (own music and Classic), Classic (the composer); no own-music folder on
+            // the Quest, so there it is Sunderfall or Classic.
+            if g.sound?.custom == nil { st.musicSource = st.musicSource == 0 ? 3 : 0; return }
+            st.musicSource = (st.musicSource + (back ? 3 : 1)) % 4
+            if st.musicSource == 1 || st.musicSource == 2, g.sound?.custom?.available == false {
                 g.onToast?("Put mp3, m4a, wav or aiff files in Application Support/Blocksmith/Music")
             }
             return

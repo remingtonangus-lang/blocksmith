@@ -51,8 +51,9 @@ enum QuestOptions {
                                 // Q2c-console-26: the laser replaces the crosshair; TV framing and split screen don't apply;
                                 // the headset's brightness is its own (q_bright, below on the Video page too).
                                 "crosshair", "couch", "safe", "splitlayout", "brightness",
-                                // Q2c-console-27: no own-music folder and no system voice on the headset.
-                                "audio_music_src", "audio_music_folder", "audio_music_shuffle", "audio_music_vol", "narrator"]
+                                // Q2c-console-27: no own-music folder and no system voice on the headset (the
+                                // Soundtrack row stays: Sunderfall or Classic, P359).
+                                "audio_music_folder", "audio_music_shuffle", "audio_music_vol", "narrator"]
         PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]

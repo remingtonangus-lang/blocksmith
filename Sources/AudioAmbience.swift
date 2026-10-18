@@ -47,6 +47,7 @@ final class MusicDirector {
     var silence: Float = 0                  // seconds of forced silence after a fade-out
     var lastWant: MusicMood? = nil
     var customOn = false                    // one of the player's own tracks is playing (CustomMusic.swift)
+    let soundtrack = SoundtrackDirector()   // P359: the Sunderfall soundtrack (Soundtrack.swift)
 }
 
 extension Game {
@@ -527,6 +528,14 @@ extension Game {
             m.customOn = false
             m.wait = src == 1 ? Rand.float(in: 2...6) : Rand.float(in: 240...600)
         }
+        // P359: Sunderfall (the default) plays the recorded soundtrack; the composer is Classic (and Mixed's other half).
+        if src == 0, let deck = snd.tracks, deck.available {
+            if stream.isPlaying { stream.stop(fade: 1.5) }
+            m.mood = nil
+            soundtrackTick(dt, deck)
+            return
+        }
+        if let deck = snd.tracks, deck.current != nil { deck.stop(fade: 2) }
         // Some moods take over at once (dimension change, boss, the title screen); the rest wait their turn.
         let hard = MusicDirector.hardMoods
         if let cur = m.mood, stream.isPlaying {

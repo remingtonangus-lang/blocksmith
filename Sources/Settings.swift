@@ -62,7 +62,7 @@ final class Settings {
     @Pref("fpsCap") var fpsCap = 0                   // 0 = display refresh rate
     @Pref("display") var display = ""                // screen name to play on ("" = main screen)
     @Pref("renderScale") var renderScale: Float = 1  // whole-frame resolution scale (TVs at 4K: 0.75 saves a lot); Fancy world scale is Game.renderScale
-    @Pref("musicSource") var musicSource = 0         // 0 built-in soundtrack, 1 My Music (CustomMusic folder), 2 mixed
+    @Pref("musicSource") var musicSource = 0         // 0 Sunderfall (P359), 1 My Music (CustomMusic folder), 2 mixed (own + Classic), 3 Classic (the composer)
     @Pref("musicShuffle") var musicShuffle = true
     @Pref("songTitles") var songTitles = true         // Q2c-console-14: a new piece's title in the HUD corner
     @Pref("customMusicVolume") var customMusicVolume: Float = 1    // on top of Music

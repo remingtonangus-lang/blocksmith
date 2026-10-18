@@ -5,6 +5,9 @@
 #include <android/looper.h>
 #include <android/asset_manager.h>
 #include <aaudio/AAudio.h>
+#include <media/NdkMediaExtractor.h>
+#include <media/NdkMediaCodec.h>
+#include <media/NdkMediaFormat.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 
