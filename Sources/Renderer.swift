@@ -807,7 +807,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Inside lava: a few blocks of glowing orange (a little more with fire resistance).
             fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog
         }
-        if game.inVaultHaze && !underwater && !p.headInLava { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd) }   // (P323: up to the roof)
+        if game.inVaultHaze && !underwater && !p.headInLava { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, game.vaultFogEnd) }   // (P323: up to the roof)
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         if !underwater, hasSky, let wf = game.weatherFogEnd, wf < fogEnd {      // O7: fog banks (WeatherWar.swift)
             fogEnd = wf; fogStart = min(fogStart, wf * game.weatherFogStartK)     // P365 (g)

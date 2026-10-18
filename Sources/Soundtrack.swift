@@ -76,8 +76,8 @@ extension Game {
         let deep = dim.dim == .deep
         if deep && DeepGen.inVault(p.y) {
             if audio.combat >= 2 { return "ash_vault_battle" }
-            let d = sqrtf(p.x * p.x + p.z * p.z), inner = Float(AshLines.emberR + AshLines.emberHalf)
-            return d > inner + 2 && d < 556 ? "no_mans_land" : "ash_vault_front"
+            let nml = (world.gen as? DeepGen)?.ground.noMansLand(Int(floor(p.x)), Int(floor(p.z))) ?? 0
+            return nml > 0.3 ? "no_mans_land" : "ash_vault_front"
         }
         if raid != nil || FactionRaids.active != nil { return "raid_incoming" }
         if audio.combat >= 2 || (danger && clock - lastHurtAt < 6) { return "combat" }

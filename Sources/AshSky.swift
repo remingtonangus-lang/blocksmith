@@ -19,6 +19,9 @@ enum AshSky {
     static let ambient: Float = 0.6                             // the Deep's own is 0.42
     static let fogStart: Float = 14
     static let fogEnd: Float = 104
+    // P346 (e): no man's land's own air: browner, and the fog closes in to 68.
+    static let nmlHaze = V3(0.43, 0.41, 0.37)
+    static let nmlFogEnd: Float = 68
 }
 
 extension Game {
@@ -33,6 +36,12 @@ extension Game {
         guard let dg = world.gen as? DeepGen else { return false }
         return Int(floor(player.eye.y)) < dg.ceilingY(Int(floor(player.pos.x)), Int(floor(player.pos.z)))
     }
+    // How deep in no man's land the camera is (0 elsewhere), for its haze and fog.
+    var vaultNML: Float {
+        guard inVaultHaze, let dg = world.gen as? DeepGen else { return 0 }
+        return dg.ground.noMansLand(Int(floor(player.pos.x)), Int(floor(player.pos.z)))
+    }
+    var vaultFogEnd: Float { AshSky.fogEnd + (AshSky.nmlFogEnd - AshSky.fogEnd) * vaultNML }
     // Ambient light the renderers use (the dimension's own, brighter under the vault's sky).
     var dimAmbient: Float { inVaultHaze ? AshSky.ambient : dim.dim.ambient }
 }

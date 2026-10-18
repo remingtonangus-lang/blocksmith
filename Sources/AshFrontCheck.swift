@@ -73,8 +73,19 @@ enum AshFrontCheck {
                 _ = sc.place(into: &b, cx: cx, cz: cz)
                 for v in b { if wreck.contains(v) { n += 1 } else if v == Blocks.id("cobblestone") || v == Blocks.id("mossy_cobblestone") { wall += 1 } }
             } }
-            built.append("\(AshScene.names[k]) at \(s.x) \(s.z): \(n) wreck blocks\(k == 4 ? ", \(wall) wall" : ""), \(AshFront.fallen(s).count) fallen")
-            check(k == 4 ? wall > 20 && AshFront.fallen(s).count >= 8 : n > (k == 1 ? 15 : 60), "ashfront: " + built.last!)
+            // P346: the bomber, fighter and tanks are models over a hidden solid core (AshWrecks).
+            let models = AshWrecks.spots(s, vg)
+            let parts = models.map { sp -> Int in let m = Mob(.ashBehemoth, at: sp.pos); m.wreck = Int8(sp.kind); m.variant = sp.seed; return ashWreckParts(m).count }
+            built.append("\(AshScene.names[k]) at \(s.x) \(s.z): \(n) wreck blocks, \(models.count) wreck models (\(parts.map(String.init).joined(separator: "/")) parts)\(k == 4 ? ", \(wall) wall" : ""), \(AshFront.fallen(s).count) fallen")
+            let ok: Bool
+            switch k {
+            case 0: ok = n >= 13 && models.count == 1 && parts[0] > 60
+            case 1: ok = models.count == 1 && parts[0] > 20
+            case 2: ok = n >= 6 && models.count == 3 && parts.allSatisfy { $0 > 50 }
+            case 3: ok = n > 60
+            default: ok = wall > 20 && AshFront.fallen(s).count >= 8
+            }
+            check(ok, "ashfront: " + built.last!)
         }
         // The fallen as the player sees them: at the nearest broken wall, lying in olive drab.
         if let s = scenes.filter({ $0.kind == 4 }).min(by: { abs($0.x) + abs($0.z) < abs($1.x) + abs($1.z) }) {
@@ -85,7 +96,7 @@ enum AshFrontCheck {
             let ms = AshFallen.mobs
             let l = ms.first.map { Livery.of($0, rank: 1, seed: 3) }
             let olive = l.map { $0.cloth.y > $0.cloth.z + 0.06 && $0.cloth.x < 0.45 } ?? false
-            let lyingOK = ms.allSatisfy { $0.fallen && $0.deathT >= MobAnim.deathTime && abs($0.pos.y - Float(vg.top(Int(floor($0.pos.x)), Int(floor($0.pos.z))) + 1)) < 2.5 }
+            let lyingOK = ms.allSatisfy { $0.fallen && $0.lying && fallenAlliedParts($0).count > 25 && $0.deathT >= MobAnim.deathTime && abs($0.pos.y - Float(vg.top(Int(floor($0.pos.x)), Int(floor($0.pos.z))) + 1)) < 2.5 }
             check(ms.count >= 8 && olive && lyingOK, "ashfront: \(ms.count) fallen Allied soldiers at the wall by \(s.x) \(s.z), olive drab \(olive), lying on the ground \(lyingOK)")
             game.changeDimension(to: homeDim, at: home)
             game.player.pos = home

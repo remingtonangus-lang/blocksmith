@@ -742,7 +742,7 @@ final class Game {
 
     var skyColor: V3 {
         if dim.dim == .nether || (dim.dim == .deep && DeepGen.inHell(player.pos.y)) { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }   // (P292: both hells)
-        if inVaultHaze { return AshSky.haze }                      // (P323: the whole cavern, not only under the sky)
+        if inVaultHaze { return simd_mix(AshSky.haze, AshSky.nmlHaze, V3(repeating: vaultNML)) }   // (P323: the whole cavern; P346: no man's land)
         if !dim.dim.hasSky { return dim.dim.fogColor }
         let day = V3(0.64, 0.77, 0.92), night = V3(0.015, 0.02, 0.06)   // AV polish: a paler hazy horizon
         var c = simd_mix(night, day, V3(repeating: (daylight - 0.12) / 0.88))

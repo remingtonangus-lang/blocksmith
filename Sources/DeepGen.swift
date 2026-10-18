@@ -216,6 +216,7 @@ final class DeepGen: TerrainGenerator {
         let vg = ground, bx = cx * CS, bz = cz * CS
         let shortGrass = Blocks.has("short_grass") ? Blocks.id("short_grass") : AIR, fern = Blocks.has("fern") ? Blocks.id("fern") : AIR
         let deadBush = Blocks.has("dead_bush") ? Blocks.id("dead_bush") : AIR, wire = Blocks.has("ash_wire") ? Blocks.id("ash_wire") : AIR
+        let post = AshLines.post
         for lz in 0..<CS { for lx in 0..<CS {
             let f = floors[lx + lz * CS]
             guard f + 1 < CH, b[Chunk.index(lx, f + 1, lz)] == AIR else { continue }
@@ -229,6 +230,19 @@ final class DeepGen: TerrainGenerator {
             } else if t == vg.coarse || t == vg.rooted || t == vg.mud {
                 if h < 22 && t != vg.mud { plant = deadBush }
                 else if h >= 990 && vg.noMansLand(wx, wz) > 0.3 { plant = wire }
+            }
+            // P346 (e): no man's land's own dressing: belts of wire on stakes, steel tank traps.
+            if t != vg.road, vg.noMansLand(wx, wz) > 0.35, AshWar.clearance(wx, wz) > 4, vg.crater(wx, wz) <= 0.4 {
+                if let k = nmlBelt(wx, wz) {
+                    plant = k % 4 == 0 ? post : wire
+                    if k % 4 == 0 && f + 2 < CH { b[Chunk.index(lx, f + 2, lz)] = post }
+                } else if hash3(wx, 0x7E7, wz, s32 ^ 0x4ED6) % 520 == 0, f + 2 < CH {
+                    plant = post
+                    b[Chunk.index(lx, f + 2, lz)] = post                      // a hedgehog's crossed rails
+                    for (dx, dz) in [(1, 0), (-1, 0)] where lx + dx >= 0 && lx + dx < CS && b[Chunk.index(lx + dx, f + 1, lz + dz)] == AIR {
+                        b[Chunk.index(lx + dx, f + 1, lz + dz)] = post
+                    }
+                }
             }
             if plant != AIR { b[Chunk.index(lx, f + 1, lz)] = plant }
         } }
@@ -247,7 +261,7 @@ final class DeepGen: TerrainGenerator {
                     var kind: TreeKind? = nil
                     if wd > 0.2 && roll < 0.5 * wd {
                         kind = pick < 0.5 ? .darkOak : (pick < 0.82 ? .spruce : (pick < 0.9 ? .deadOak : (pick < 0.95 ? .stumpOak : .fallenOak)))
-                    } else if roll < 0.03 && vg.noMansLand(tx, tz) > 0.3 {
+                    } else if roll < 0.07 && vg.noMansLand(tx, tz) > 0.3 {
                         kind = pick < 0.45 ? .deadOak : (pick < 0.8 ? .stumpOak : .deadSpruce)
                     } else if roll < 0.004 {
                         kind = pick < 0.5 ? .darkOak : .deadOak
@@ -266,6 +280,26 @@ final class DeepGen: TerrainGenerator {
                 TreePlacer.build(w, k, tx, gy + 1, tz, &rng)
             }
         }
+    }
+
+    // P346 (e): no man's land's belts of wire: in each 22-block cell (two in three), a straight belt 8-17 blocks long
+    // across the way an attack would come (round the citadel). The position along the belt (k) on it, nil off it.
+    func nmlBelt(_ x: Int, _ z: Int) -> Int? {
+        let cell = 22
+        let gx = floorDiv(x, cell), gz = floorDiv(z, cell)
+        for oz in -1...1 { for ox in -1...1 {
+            let h = hash3(gx + ox, 0xB17, gz + oz, s32 ^ 0x3B1)
+            guard h % 3 != 0 else { continue }
+            let cx = Float((gx + ox) * cell + Int(h % UInt32(cell))), cz = Float((gz + oz) * cell + Int((h >> 8) % UInt32(cell)))
+            let r = max(1, sqrtf(cx * cx + cz * cz))
+            let wob = (Float(h >> 16 & 63) / 63 - 0.5) * 0.8
+            let tx = -cz / r * cosf(wob) - cx / r * sinf(wob), tz = cx / r * cosf(wob) - cz / r * sinf(wob)
+            let half = 4 + Float(h >> 22 & 7) / 1.6
+            let dx = Float(x) + 0.5 - cx, dz = Float(z) + 0.5 - cz
+            let along = dx * tx + dz * tz, across = -dx * tz + dz * tx
+            if abs(along) <= half && abs(across) < 0.55 { return Int((along + half).rounded()) }
+        } }
+        return nil
     }
 
     // P323 (c, Oct 15 18:49: "I dug down looking for that special rock", and never found the way in): one chunk in five
@@ -298,7 +332,10 @@ final class DeepGen: TerrainGenerator {
     // band's biome at every height, so a note from the vault said "Basalt Deltas"); nil in the hell band itself.
     func layerName(_ x: Int, _ y: Int, _ z: Int) -> String? {
         if y <= DeepGen.coreTop { return "Molten Core" }
-        if y < DeepSeal.bottom { return y < ceilingY(x, z) ? "Ash Vault" : "Lower Crust" }
+        if y < DeepSeal.bottom {
+            guard y < ceilingY(x, z) else { return "Lower Crust" }
+            return ground.noMansLand(x, z) > 0.5 ? "No Man's Land" : "Ash Vault"          // P346 (e)
+        }
         if DeepSeal.inBand(y) { return "Sealrock" }
         if y >= DeepGen.crustTop { return "Upper Crust" }
         return nil
