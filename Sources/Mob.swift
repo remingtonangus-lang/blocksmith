@@ -1571,6 +1571,7 @@ final class Mob {
     static var roundHit = false
     func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         if let f = Mob.netHit, f(self, src, damage, knockback) { return }     // a co-op guest's view of a host's mob (NetCoop)
+        if posse == Prisoners.posse { return }                              // P347: the camp's prisoners can't be hurt
         Mob.onHit?(self, src, damage)
         if kind == .warden && emergeTime > 0 { return }
         // A downed horse takes no more (HorseLife.swift), except the player's own blow, which puts it down for good (he
@@ -1753,6 +1754,7 @@ private func parts(_ m: Mob) -> [Part] {
     if m.fallen { return fallenAlliedParts(m) }                  // P346 (AshWrecks.swift)
     if m.wreck >= 0 { return ashWreckParts(m) }
     let swing = sinf(m.walkPhase) * 0.7 * m.walkAmount
+    if m.posse == Prisoners.posse { return prisonerParts(m, swing: swing) }     // P347
     func leg(_ x: Float, _ z: Float, _ w: Float, _ h: Float, _ ph: Float, _ c: V3, _ pat: Float = 0) -> Part {
         Part(mn: V3(x - w / 2, 0, z - w / 2), mx: V3(x + w / 2, h, z + w / 2), pivot: V3(x, h, z), rotX: swing * ph, color: c, pattern: pat)
     }

@@ -113,6 +113,7 @@ extension Mob {
         if tag == "heavy" && !grey && !ash { m.setTroop(.hannibal, rearm: false) }     // T7: a Capital fortress heavy     // T6: a light coastal gun
         if k0 == .minecart { CapitalRail.setupCar(m, tag: tag) }                // P92 trains
         if tag == "warden" { m.makeKeepWarden() }
+        if tag == "prisoner" || tag == "prisoner_sit" { Prisoners.setup(m, sitting: tag == "prisoner_sit") }   // P347
         if ash, let r = AshArmy.role(tag) { m.ashTakeRole(r) }
         if k0 == .villager && !tag.isEmpty { Townsfolk.setup(m, tag: tag, game: nil) }
         return m

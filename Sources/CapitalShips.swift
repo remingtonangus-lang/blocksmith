@@ -717,7 +717,7 @@ extension Ship {
 extension Mob {
     var factionValue: Faction {
         if kind.ash { return .ashguard }
-        if posse == 3 { return .none }        // R21: a bounty hunter on the soldier AI belongs to no faction (BountyHunters)
+        if posse == 3 || posse == Prisoners.posse { return .none }        // R21 (+ P347's prisoners): a bounty hunter on the soldier AI belongs to no faction (BountyHunters)
         guard Soldier.rank(kind) != nil || kind == .deckGun else { return .none }
         return faction != 0 ? (Faction(rawValue: faction) ?? .steelhold) : .steelhold
     }
