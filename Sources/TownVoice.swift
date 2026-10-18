@@ -232,8 +232,7 @@ enum TownVoice {
             return true
         }
         if TownLines.spoken(text) { written += 1 } else { murmured += 1 }
-        g.sfx(m.baby ? .babyMob(.villager, .ambient) : .mob(.villager, .ambient), 0.5, at: m.eye)
-        return false
+        return false                                // P362 (e): no hum in place of a line with no take
     }
     static let takeID: [UInt64: Int] = {
         var d: [UInt64: Int] = [:]

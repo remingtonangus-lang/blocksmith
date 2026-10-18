@@ -254,10 +254,20 @@ extension Synth {
 
     // MARK: Pickups and the interface (soft, rounded, a little glassy; never shrill)
 
+    // P362 (c): picking something up is a soft natural sound: a muffled pat into the hand and a little cloth rustle
+    // (it was a rising synth pop, and then a recorded take that sounded odd).
     mutating func pickupPop(p: Float) -> [Float] {
-        let body = tone(0.07, f0: 480 * p, f1: 900 * p, wave: .sine, attack: 0.004, release: 0.05, gain: 0.5)
-        let shine = modes(0.12, [(1800 * p, 0.12, 0.03), (2700 * p, 0.06, 0.02)])
-        return Synth.mix(Synth.mix(body, shine, at: frames(0.02)), burst(0.02, lp: 6000, hp: 2000, attack: 0.001, decay: 0.003, gain: 0.15))
+        let pat = burst(0.07, lp: 1300 * p, hp: 120, attack: 0.003, decay: 0.018, gain: 0.55)
+        let rustle = burst(0.1, lp: 4200, hp: 1300, attack: 0.012, decay: 0.03, gain: 0.1)
+        return Synth.mix(pat, rustle, at: frames(0.015))
+    }
+
+    // P362 (e): a trade is a quiet coin and cloth sound: two coins clink into a purse.
+    mutating func tradeCoins(p: Float) -> [Float] {
+        let coin1 = modes(0.3, [(3150 * p, 0.2, 0.07), (4720 * p, 0.12, 0.05), (6980 * p, 0.06, 0.03)])
+        let coin2 = modes(0.25, [(3420 * p, 0.16, 0.06), (5130 * p, 0.09, 0.04)])
+        let cloth = burst(0.16, lp: 3200, hp: 450, attack: 0.02, decay: 0.05, gain: 0.14)
+        return Synth.mix(Synth.mix(coin1, coin2, at: frames(0.07)), cloth, at: frames(0.1))
     }
 
     mutating func uiTick(f: Float, gain: Float) -> [Float] {

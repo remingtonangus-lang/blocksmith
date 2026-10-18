@@ -409,7 +409,13 @@ final class Game {
             default: break
             }
         }
+        // P362 (e): villagers and traders no longer hum or grunt (yes / no / idle "hmm"); they speak (TownVoice) or stay quiet.
+        switch s {
+        case .mob(.villager, .ambient), .babyMob(.villager, .ambient), .mob(.wanderingTrader, .ambient), .villagerYes, .villagerNo: return
+        default: break
+        }
         if audio.record != nil { audio.record![s.name, default: 0] += 1 }
+        SoundLog.note(s, clock: clock, dist: pos.map { simd_length($0 - player.eye) } ?? 0)       // P362 (g)
         Feedback.sound(self, s, v, at: pos)        // rumble + the one subtitle system (HudExtras, AudioSettings.subtitles)
         guard let snd = sound else { return }
         let occ = pos.map { audioOcclusion(player.eye, $0) } ?? 0
@@ -1493,12 +1499,14 @@ final class Game {
                             debris.chips(b, cell: t.hit, at: hp, normal: nv, blow: player.look, radius: 0.26, seed: seed)
                             particles.dust(b, at: hp + nv * 0.05, count: 3, spread: 0.2)
                             sfx(.hit(soundMat(b)), 0.7, at: hp)
+                            mineSoundTimer = 0.25           // P362 (b): the chip's knock is this strike's one sound
                         } else {
                             world.chip(t.hit, level: level, face: face)
                             let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + nv * 0.45
                             particles.chipBits(b, at: c, normal: nv, face: face, count: 6)
                             particles.dust(b, at: c, count: 3, spread: 0.3)
                             sfx(.hit(soundMat(b)), 0.7, at: c)
+                            mineSoundTimer = 0.25
                         }
                     }
                     mineSoundTimer -= fdt
@@ -2629,7 +2637,7 @@ final class Game {
     }
 
     func eat(_ f: FoodInfo, _ name: String) {
-        sfx(.burp, 0.6)
+        // P362 (d): no "full" burp after eating (the chewing is the sound).
         achieve("eat")
         // Omnivore: the reference list of 40 foods.
         if eatenFoods.insert(name).inserted && eatenFoods.count >= 40 { achieve("ate_all") }
