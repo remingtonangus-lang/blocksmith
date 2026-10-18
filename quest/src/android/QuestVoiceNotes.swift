@@ -218,6 +218,17 @@ final class BugNotes {
     }()
     static func iso() -> String { isoFormat.string(from: Date()) }
 
+    // P339 (a): a performance capture (FrameStats.capture) as vn-perf-<stamp>.txt beside the notes, so the pull brings it
+    // in with them. Playtest builds only (this file); false when there is nowhere to write.
+    func savePerfCapture(_ text: String) -> Bool {
+        let d = dir
+        guard !d.isEmpty else { return false }
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyyMMdd-HHmmss"
+        let path = d + "/vn-perf-" + f.string(from: Date()) + ".txt"
+        io.async { try? text.write(toFile: path, atomically: true, encoding: .utf8) }
+        return true
+    }
+
     // MARK: Audio thread
 
     private func audioLoop() {

@@ -169,7 +169,7 @@ extension Game {
         guard wetWorld else { return }
         seasonalMeltSweep()                                  // P277 (Seasons.swift)
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
-        let r = min(6, world.renderDistance)
+        let r = min(6, world.activeDistance, world.renderDistance)
         let snowId: BlockID? = Blocks.has("snow") ? Blocks.id("snow") : nil
         let iceId: BlockID? = Blocks.has("ice") ? Blocks.id("ice") : nil
         for dz in -r...r { for dx in -r...r where Rand.int(in: 0..<16) == 0 {

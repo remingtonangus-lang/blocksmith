@@ -91,16 +91,19 @@ final class PauseMenu: Menu {
 
     var currentWorld: String { game.save?.dir.lastPathComponent ?? "" }
 
-    // The player's choice; while Auto Render Distance holds the world below it, the current distance too.
-    static func rdLabel(_ g: Game) -> String {
-        let c = g.chosenRenderDistance, w = g.world.renderDistance
-        return w < c ? "Render Distance: \(c) (auto \(w) now)" : "Render Distance: \(c)"
+    // P339: the view distance (everything drawn) and the active distance (where things move and think); while Auto
+    // holds the active distance below the player's choice, the current one too.
+    static var viewFixed = false                    // the headset: the view distance is fixed (QuestSettings.viewDistance)
+    static func rdLabel(_ g: Game) -> String { "Render Distance: \(g.chosenRenderDistance)" }
+    static func adLabel(_ g: Game) -> String {
+        let c = g.chosenActiveDistance, w = g.world.activeDistance
+        return w < c ? "Active Distance: \(c) (auto \(w) now)" : "Active Distance: \(c)"
     }
     static func brightnessName(_ b: Float) -> String {
         b <= 0.01 ? "Moody" : (abs(b - 0.5) < 0.01 ? "Default" : (b >= 0.99 ? "Bright" : "\(Int((b * 100).rounded()))%"))
     }
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
-                                        "sneaktoggle", "autosprint", "glyphs", "rd", "chipping", "smooth", "new_terrain", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
+                                        "sneaktoggle", "autosprint", "glyphs", "rd", "ad", "chipping", "smooth", "new_terrain", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
                                         "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness",
                                         "dir_on", "dir_backend", "dir_freq", "dir_early", "devtools"]
@@ -151,6 +154,7 @@ final class PauseMenu: Menu {
         "glyphs": "Which buttons prompts show. Auto follows the last device you touched.",
         "padinfo": "Press A to test vibration.",
         "rd": "How many chunks around you are drawn. Lower is smoother.",
+        "ad": "How many chunks around you are alive: creatures, crops and machines. Lower is smoother.",
         "fullscreen": "Switch between a window and the full screen.",
         "display": "Which screen to play on when the Mac is connected to a TV. Remembered for next time.",
         "launchfs": "Open Sunderfall straight into full screen, ready for the TV.",
@@ -272,7 +276,7 @@ final class PauseMenu: Menu {
                     + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2, -16
                     + (StorageCheck.low ? " - storage low" : "")         // Q2c-console-51
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.viewFixed ? PauseMenu.adLabel(g) : PauseMenu.rdLabel(g), PauseMenu.viewFixed ? "ad" : "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Difficulty.name(g.diffLevel))", "difficulty"),   // P369: changeable for the life of the world
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
@@ -323,7 +327,7 @@ final class PauseMenu: Menu {
             case .video:
                 // (P84: the polygon terrain option second from the top, named the way players ask for it; it sat last
                 // as "Smooth Terrain (Test, This World)" and Remington never found it.)
-                rows = [(PauseMenu.rdLabel(g), "rd"), ("Polygon Terrain (This World): \(on(g.smoothTerrain))", "smooth"),   // (old block worlds only, below)
+                rows = (PauseMenu.viewFixed ? [] : [(PauseMenu.rdLabel(g), "rd")]) + [(PauseMenu.adLabel(g), "ad"), ("Polygon Terrain (This World): \(on(g.smoothTerrain))", "smooth"),   // (old block worlds only, below)
                         ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"),
                         ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
                         ("Display: \(VideoState.current.isEmpty ? "Main" : VideoState.current)", "display"),
@@ -494,7 +498,7 @@ final class PauseMenu: Menu {
         case .main:
             return Style(width: 440, btnH: 30, gapX: 12, gapY: 6, groupGap: 12, cols: 4, lines: 8, groups: [
                 (["resume", "restorebackup"], 0),
-                (["options", vr, "rd", "mode"], 0),                              // settings
+                (["options", vr, PauseMenu.viewFixed ? "ad" : "rd", "mode"], 0),                              // settings
                 (["worldmap", "track", "advancements", "stats"], 0),             // map and progress
                 (["worlds", "netmenu", "coop", "photo", "commands", "shortcuts"], 0),
                 (["totitle"], 0)])                                                // leaving, apart from the rest
@@ -904,6 +908,8 @@ final class PauseMenu: Menu {
             let rd = opts.contains(cur) ? step(opts, cur) : (back ? (opts.last { $0 < cur } ?? opts[opts.count - 1]) : (opts.first { $0 > cur } ?? opts[0]))
             g.setRenderDistance(rd)
             UserDefaults.standard.set(rd, forKey: "renderDistance")
+        case "ad":
+            g.setActiveDistance(step(World.activeOptions, World.activeOptions.contains(g.chosenActiveDistance) ? g.chosenActiveDistance : 8))
         case "fullscreen": g.appAction?("fullscreen")
         case "launchfs": st.launchFullscreen.toggle()
         case "graphics": g.fancyGraphics.toggle()

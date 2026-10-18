@@ -174,7 +174,7 @@ extension MobManager {
     // Reference mob caps scale with the spawnable area: (2 x render distance + 1)^2 chunks out of the 17 x 17 at 8 (a flat
     // 70 monsters crowded into a small area at low render distances).
     func cap(_ c: SpawnCategory, _ w: World) -> Int {
-        let rd = max(1, min(8, w.renderDistance))
+        let rd = max(1, min(8, w.activeDistance, w.renderDistance))
         let base = max(1, c.cap * (2 * rd + 1) * (2 * rd + 1) / 289)
         // G19: Easy keeps fewer monsters about, Hard more (Difficulty.rows).
         return c == .monster ? max(1, Int((Float(base) * Difficulty.row.spawns).rounded())) : base
@@ -309,7 +309,7 @@ extension MobManager {
 
     func trySpawnPassive(_ game: Game) {
         let w = game.world
-        let rd = min(w.renderDistance, 8)
+        let rd = min(w.renderDistance, w.activeDistance, 8)
         guard rd >= 3 else { return }
         let pcx = floorDiv(Int(floor(game.player.pos.x)), CS), pcz = floorDiv(Int(floor(game.player.pos.z)), CS)
         let dx = Rand.int(in: -rd...rd), dz = Rand.int(in: -rd...rd)
@@ -366,7 +366,7 @@ extension MobManager {
         if w.dim == .end { trySpawnEnd(game); return }
         let pp = game.player.pos
         guard caveOnly || count(.monster, near: pp) < cap(.monster, w) else { return }
-        let rd = min(w.renderDistance, 8)
+        let rd = min(w.renderDistance, w.activeDistance, 8)
         let pcx = floorDiv(Int(floor(pp.x)), CS), pcz = floorDiv(Int(floor(pp.z)), CS)
         let x0 = (pcx + Rand.int(in: -rd...rd)) * CS + Rand.int(in: 0..<CS)
         let z0 = (pcz + Rand.int(in: -rd...rd)) * CS + Rand.int(in: 0..<CS)

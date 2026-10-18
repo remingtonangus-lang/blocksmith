@@ -43,6 +43,17 @@ final class World {
     lazy var ships = ShipManager(world: self)       // free-moving block structures (Ships.swift)
     var frame: Ship?                                // while set, block and collision queries are in this ship's space
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
+    // P339 (Remington, Oct 17: "you can see 24, but it would be the loading distance that matters"): the VIEW distance
+    // above is what is generated, meshed and drawn; the ACTIVE distance (chunks, 4-16) is where mobs think and move,
+    // crops grow, weather and seasons touch blocks and creatures spawn. Past it nothing ticks: mobs stand in their last
+    // pose. The Auto governor lowers this one, never the view.
+    var activeDistance: Int = 8
+    static let activeOptions = [4, 6, 8, 10, 12, 16]
+    // Whether a point is inside the active distance of `p` (square, like the chunk rings).
+    @inline(__always) func isActive(_ q: V3, from p: V3) -> Bool {
+        let r = Float(min(activeDistance, renderDistance) * CS + CS / 2)
+        return abs(q.x - p.x) <= r && abs(q.z - p.z) <= r
+    }
 
     // Workers: maxJobs run at once; up to maxQueued jobs are handed over per frame so workers never sit
     // idle between frames (handing over only maxJobs capped streaming at ~maxJobs x 60 jobs per second;

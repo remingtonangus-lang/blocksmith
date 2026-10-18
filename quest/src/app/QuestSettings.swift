@@ -37,21 +37,13 @@ enum QuestSettings {
 
     // 90 Hz by default (comfort: smoother motion; device v13 used ~2.9 ms CPU and ~2.9 ms GPU of the 11.1 ms budget).
     static var refreshRate: Float { get { float("quest.refreshRate", 90) } set { store(newValue, "quest.refreshRate") } }
-    // The pause menu's Render Distance row saves under the game's own key, so a change made in the headset sticks.
-    // 16 by default (Oct 10 performance pass: water-tick, mob path and mob drawing costs cut, far detail from 5 chunks;
-    // the rd 16 Quest-proxy bench holds frame p99 <= 13.9 ms on all six routes; docs/status/performance.md). Saved
-    // distances under 16 are raised once (12 was the default; the comfort guard's step-downs also leaked into saves);
-    // the comfort guard still steps down for the session if the headset misses frames.
+    // P339 (Remington, Oct 17: "24 render distance... you can see 24, but it would be the loading distance that
+    // matters"): the view distance is fixed at 24 chunks on the headset (far chunks are the real ground, simplified:
+    // World.lodNear); what Auto and the pause menu change is the active distance (Game.setActiveDistance).
+    static let viewDistance = 24
     static var renderDistance: Int {
-        get {
-            if !d.bool(forKey: "quest.rd16") {
-                d.set(true, forKey: "quest.rd16")
-                d.set(true, forKey: "quest.rd12")
-                if d.object(forKey: "renderDistance") != nil && d.integer(forKey: "renderDistance") < 16 { d.set(16, forKey: "renderDistance") }
-            }
-            return d.object(forKey: "renderDistance") == nil ? 16 : d.integer(forKey: "renderDistance")
-        }
-        set { d.set(newValue, forKey: "renderDistance") }
+        get { viewDistance }
+        set { }
     }
     static var resolutionScale: Float { get { float("quest.resolutionScale", 1.0) } set { store(newValue, "quest.resolutionScale") } }
     // Turning: snap by default (smooth turning is an option, and makes some people sick).
@@ -167,6 +159,8 @@ extension QuestSettings {
         d.removeObject(forKey: "textBackground")           // (Q2c-console-11: back to the headset's 50%, not the Mac's Off)
         platformDefaults()
         g.setRenderDistance(renderDistance)
+        d.removeObject(forKey: "activeDistance")
+        g.setActiveDistance(Game.savedActiveDistance)
     }
 
     // Overrides from a text file (one `key = value` per line, keys as above without "quest.", e.g. `refreshRate = 90`),

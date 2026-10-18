@@ -429,16 +429,26 @@ final class Game {
     var onPauseChanged: ((Bool) -> Void)?
     var onToast: ((String) -> Void)?
     var onRenderDistanceChanged: ((Int) -> Void)?
-    // Auto Render Distance (Quest, RenderDistanceGovernor.swift): when set, world.renderDistance may sit below the
-    // player's choice for the session. Only the choice is ever saved (the meta below, the options): a stepped-down
-    // distance written to a save came back on the next launch and ratcheted the distance down session after session.
+    // Auto (Quest, RenderDistanceGovernor.swift): when set, world.activeDistance may sit below the player's choice for
+    // the session. P339: it governs the ACTIVE distance only; the view distance is never lowered. Only the choice is
+    // ever saved (the options): a stepped-down distance written to a save ratcheted it down session after session.
     var rdGovernor: RenderDistanceGovernor?
-    var chosenRenderDistance: Int { rdGovernor?.chosen ?? world.renderDistance }
-    // The player picked a distance (menus, keys): the world and the governor's ceiling both take it.
+    var chosenRenderDistance: Int { world.renderDistance }
+    // The player picked a view distance (menus, keys).
     func setRenderDistance(_ rd: Int) {
         world.renderDistance = rd
-        rdGovernor?.setChosen(rd)
         onRenderDistanceChanged?(rd)
+    }
+    // P339: the active distance (World.activeDistance): the player's choice is the governor's ceiling.
+    var chosenActiveDistance: Int { rdGovernor?.chosen ?? world.activeDistance }
+    static var savedActiveDistance: Int {
+        let d = UserDefaults.standard.integer(forKey: "activeDistance")
+        return d == 0 ? 8 : max(4, min(16, d))
+    }
+    func setActiveDistance(_ d: Int) {
+        world.activeDistance = d
+        rdGovernor?.setChosen(d)
+        UserDefaults.standard.set(d, forKey: "activeDistance")
     }
     private(set) var saveCount = 0                   // saves so far (the governor ignores frame windows with a save)
 
@@ -477,6 +487,7 @@ final class Game {
         if Rand.mainThread == nil && Thread.isMainThread { Rand.mainThread = pthread_self() }
         dim = DimensionState(dim: world.dim, world: world)
         dims[world.dim] = dim
+        if persistent { world.activeDistance = Game.savedActiveDistance }
         self.save = save
         self.persistent = persistent
         if persistent { Blueprints.known = []; Blueprints.seedPending = false }      // a new world knows none (P138; a load sets them)
@@ -670,6 +681,7 @@ final class Game {
         let sv = d.folder.flatMap { f in save.map { $0.sub(f) } }
         let w = World(seed: base.seed, device: base.device, save: sv, dim: d)
         w.renderDistance = base.renderDistance
+        w.activeDistance = base.activeDistance
         w.fieldTerrain = base.fieldTerrain                  // PG1: a field world's dimensions are field worlds too
         let s = DimensionState(dim: d, world: w)
         dims[d] = s
@@ -696,9 +708,10 @@ final class Game {
         for m in oldMobs.mobs where m.keepOnUnload { oldMobs.stash(m) }
         oldMobs.mobs.removeAll()
         if persistent { oldMobs.save(to: old.save); dim.drops.save(to: old.save) }
-        let rd = old.renderDistance
+        let rd = old.renderDistance, ad = old.activeDistance
         dim = dimensionState(d)
         world.renderDistance = rd
+        world.activeDistance = ad
         old.unloadAll()
         particles.list.removeAll()
         player.pos = p

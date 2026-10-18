@@ -2523,6 +2523,9 @@ final class MobManager {
             if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
             let before = m.pos, wasGround = m.onGround
             if m.hitStop > 0 { m.hitStop -= dt; continue }      // frozen by a landed blade (VRCombatFeel.swift)
+            // P339: past the active distance a mob stands in its last pose (drawn, never ticked); a ship's crew keeps
+            // up with its deck.
+            if m.deck == nil && !w.isActive(m.pos, from: game.coop.active ? game.coop.nearestPlayerPos(m.pos, game) : p) { continue }
             // P283: far calm mobs on a slower beat (the time they missed is handed over when their turn comes).
             let every = MobManager.lodEvery(m, distSq: simd_length_squared(m.pos - p), game: game)
             if every > 1 {

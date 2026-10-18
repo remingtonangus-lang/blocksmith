@@ -64,6 +64,7 @@ final class QuestApp {
         // "Fast" leaves (no faces between leaf blocks) from 3 chunks out: the Oct 10 taiga village drew ~500k quads at
         // rd 16, about half of them leaves (docs/status/performance.md).
         World.leafNear = 2
+        PauseMenu.viewFixed = true                 // P339: the view distance is fixed (QuestSettings.viewDistance)
         stats.lowerRate = { [weak xr] in
             guard let x = xr, x.refreshRate > 72.5, x.setRefreshRate(72) else { return false }
             return true
@@ -138,7 +139,7 @@ final class QuestApp {
             if let gu = NetGuest(ip: ip, name: "Quest player"), gu.waitWelcome(seconds: 6) {
                 let game = WorldRequest.guestGame(gu, device: device, renderDistance: min(QuestSettings.renderDistance, 8))
                 Game.oceanSwellDrawn = true
-                game.rdGovernor = RenderDistanceGovernor(chosen: game.world.renderDistance)
+                game.rdGovernor = RenderDistanceGovernor(chosen: game.world.activeDistance)
                 loadLock.lock(); loadTitle = gu.worldName; loadLock.unlock()
                 status("Receiving \(gu.worldName)", 0.55)
                 _ = game.world.loadSync(center: game.player.pos, radius: min(2, game.world.renderDistance))
@@ -166,8 +167,9 @@ final class QuestApp {
         // comfort guard's session-only step-downs: the Oct 9 playtest reopened its world at render distance 5). On
         // game.world: a save made in another dimension reopens there, and `world` is the overworld. Auto Render
         // Distance steps the world below this choice for the session; the save and the options keep the choice.
-        game.rdGovernor = RenderDistanceGovernor(chosen: QuestSettings.renderDistance)
         game.world.renderDistance = QuestSettings.renderDistance
+        game.world.activeDistance = Game.savedActiveDistance
+        game.rdGovernor = RenderDistanceGovernor(chosen: game.world.activeDistance)       // P339: Auto governs the active distance
         status("Generating terrain", 0.55)
         _ = game.world.loadSync(center: game.player.pos, radius: min(3, game.world.renderDistance))
         // The horizon ring's first sampling (4225 terrain columns, ~0.1 s on a desktop core) here, not on the first
@@ -723,6 +725,31 @@ final class FrameStats {
     private(set) var fps = 0.0
     private(set) var gpuAvg = 0.0, cpuAvg = 0.0
 
+    // P339 (a) (Remington, Oct 16: "the game records its own performance... hey, we've got an issue"): two windows in a
+    // row (10 s) missing more than 15% of frames outside menus save a capture beside the voice notes (vn-perf-*.txt:
+    // where, distances, CPU/GPU split, the slowest tick stage, record stages, draws and quads, memory; both windows'
+    // lines) and give one short sharp buzz on both hands. At most one a 2 minutes.
+    private var badWindows = 0, lastCaptureAt = -1e9, prevLine = ""
+    static let captureMissFrac = 0.15, captureGap = 120.0
+    private func capture(game: Game?, target: Double, now: Double) {
+        defer { prevLine = lastLine }
+        guard let g = game, target > 0, frames > 0 else { badWindows = 0; return }
+        let bad = Double(missed) > Double(frames) * FrameStats.captureMissFrac && busyFrames * 2 < frames
+        badWindows = bad ? badWindows + 1 : 0
+        guard badWindows >= 2, now - lastCaptureAt > FrameStats.captureGap else { return }
+        let p = g.player.pos, w = g.world
+        let biome = g.dim.dim == .overworld ? (w.gen as? WorldGen).map { "\($0.column(Int(p.x), Int(p.z)).biome)" } ?? "-" : "-"
+        var t = "perf capture \(Date())\n"
+        t += String(format: "where: %@ %.1f %.1f %.1f biome %@, view %d chunks, active %d (chosen %d), %@, riding %@\n",
+                    "\(g.dim.dim)", p.x, p.y, p.z, biome, w.renderDistance, w.activeDistance, g.chosenActiveDistance,
+                    g.survival ? "survival" : "creative", g.riding.map { "\($0.kind)" } ?? "no")
+        t += "window: " + lastLine + "\nbefore: " + prevLine + "\n"
+        guard BugNotes.shared.savePerfCapture(t) else { return }
+        lastCaptureAt = now; badWindows = 0
+        print("perf: capture saved (two slow windows)")
+        PadManager.shared.haptic?(0.6, 0.25, 1)
+    }
+
     func add(frame: Double, cpu: Double, tick: Double, record: Double, gpu: Double, target: Double, scene: SceneRenderer, game: Game?, rate: Float) {
         frames += 1
         PerfOverlay.shared.add(frameMs: frame * 1000)
@@ -753,6 +780,7 @@ final class FrameStats {
         lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
         if let st = recordStages?(), !st.isEmpty { lastLine += " | record ms: " + st }
         print(lastLine)
+        capture(game: game, target: target, now: now)
         // Auto Render Distance (VR page option; RenderDistanceGovernor.swift): a window missing frames (P240)
         // with the CPU or GPU near the budget first drop a refresh rate above 72 Hz to 72 (the Oct 9 playtest at 90 Hz
         // ran ~10 ms CPU frames against 11.1 ms), then the render distance one step (not below 4); sustained headroom
@@ -778,19 +806,19 @@ final class FrameStats {
                     } else { act = gov.rateUnavailable() }
                 }
                 switch act {
+                // P339: Auto steps the ACTIVE distance (what moves and thinks); the view distance is never touched, and
+                // nothing is said in play (NO TEXT).
                 case .lower(let rd):
-                    g.world.renderDistance = rd
-                    print("perf: missed frames at the frame budget: render distance \(rd) for now (chosen \(gov.chosen))")
-                    g.onToast?("Render distance \(rd) for now, to keep the frame rate")
+                    g.world.activeDistance = rd
+                    print("perf: missed frames at the frame budget: active distance \(rd) for now (chosen \(gov.chosen))")
                 case .raise(let rd):
-                    g.world.renderDistance = rd
-                    print("perf: frame headroom: render distance back up to \(rd) (chosen \(gov.chosen))")
-                    g.onToast?(rd == gov.chosen ? "Render distance back to \(rd)" : "Render distance back up to \(rd)")
+                    g.world.activeDistance = rd
+                    print("perf: frame headroom: active distance back up to \(rd) (chosen \(gov.chosen))")
                 default: break
                 }
                 g.rdGovernor = gov
             } else if let gov = g.rdGovernor, gov.lowered {
-                g.setRenderDistance(gov.chosen)          // the option was turned off: back to the player's choice
+                g.setActiveDistance(gov.chosen)          // the option was turned off: back to the player's choice
             }
         }
         // Render distance changes (pause menu, the guard) are logged so a device log can be split by distance.
