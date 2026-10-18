@@ -155,6 +155,7 @@ struct SoldierRigOut {
     var gripR = V3(0, 0, 0), foreL = V3(0, 0, 0)       // where the weapon wants the hands (pose check)
     var chestFront: Float = -2
     var reachErr: Float = 0                            // how far a posed hand fell short of its target
+    var clip: Float = 0, clipBefore: Float = 0, clipWhere = V3(0, 0, 0)   // P353: how deep the weapon sinks into the arms or body (pose check)
     var stance = ""
 }
 
@@ -242,12 +243,16 @@ enum SoldierRig {
         }
         var p = pose(m, b, rank: r, gm: gm, gi: gi)
         fit(&p, gm)
+        let before = eye == nil ? clip(p, gm).depth : 0
+        clear(&p, gm)                                   // P353: the weapon clear of the arms and body (RigClearance.swift)
+        fit(&p, gm)
         let lv = Livery.of(m, rank: r, seed: seed(m))
         var out = SoldierRigOut()
         out.parts.reserveCapacity(lod == 0 ? 190 : (lod == 1 ? 90 : 34))
         body(&out, m, p, lv, rank: r, lod: lod)
         weapon(&out, m, p, gm, gi: gi, lv: lv, rank: r, lod: lod)
         out.chestFront = p.t(V3(0, 18, -2)).z
+        if eye == nil { let c = clip(p, gm); out.clipBefore = before; out.clip = c.depth; out.clipWhere = V3(c.armL, c.armR, c.torso) }
         // Plant the boots: the lowest point of a standing soldier on the ground (swinging legs dipped below it).
         let seated = b.station == .seated || b.station == .passenger
         let low = lowest(out.parts)
