@@ -525,7 +525,8 @@ extension Mob {
     // it so a good horse is genuinely fast). Unridden horses wander and bolt in proportion (Mob.update).
     // 8 to 17 b/s (was 4.8 to 16: the slow rolls were slower than sprinting on foot, "his horse felt very slow",
     // Oct 11 playtest P26).
-    var horseSpeed: Float { 8 + Float((variant >> 4) & 15) / 15 * 9 }
+    // P366 (h, Oct 17: "horses are too slow"): 11 to 20 b/s, a real horse's gallop (the slowest roll is twice a sprint).
+    var horseSpeed: Float { 11 + Float((variant >> 4) & 15) / 15 * 9 }
     var horseJump: Float { 0.4 + Float((variant >> 8) & 15) / 15 * 0.6 }
 }
 

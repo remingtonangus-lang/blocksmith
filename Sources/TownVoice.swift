@@ -197,6 +197,7 @@ enum TownVoice {
     // Says a line for the context: a toast (or subtitle) and the recorded take at the speaker.
     @discardableResult
     static func speak(_ g: Game, _ m: Mob, _ ctx: Ctx) -> String? {
+        guard m.health > 0 else { return nil }          // P366 (g): a dead trader can't answer
         // R20: a line for the hour, the weather and the moment when one fits (TownLines.swift), else a recorded take.
         if let text = TownLines.line(g, m, ctx) {
             Townsfolk.say(g, m, text)

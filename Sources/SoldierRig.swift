@@ -101,6 +101,13 @@ struct Livery {
             l.glove = V3(0.33, 0.23, 0.14); l.boots = V3(0.2, 0.13, 0.08); l.glow = V3(1.6, 1.1, 0.5)
             if r == 4 { l.cloth = V3(0.16, 0.14, 0.12); l.trim = V3(0.6, 0.5, 0.3) }      // the leader in black
         }
+        // P366 (b): marauders: a dusty canvas coat, dark trousers, a brown leather hat, a red bandana.
+        if m.posse == Marauders.posse {
+            l.cloth = V3(0.36, 0.31, 0.24); l.legs = V3(0.19, 0.17, 0.15); l.plate = V3(0.27, 0.2, 0.13)
+            l.trim = V3(0.58, 0.1, 0.08); l.metal = V3(0.44, 0.42, 0.38); l.accent = V3(0.66, 0.52, 0.28)
+            l.glove = V3(0.3, 0.22, 0.14); l.boots = V3(0.17, 0.12, 0.08); l.glow = V3(1.5, 1.0, 0.5)
+            if r == 4 { l.cloth = V3(0.13, 0.12, 0.11); l.plate = V3(0.1, 0.09, 0.08) }      // the leader in black
+        }
         // P326 (b): the Ash Vault's fallen Allied soldiers: olive-drab wool, khaki trousers, a dull olive helmet and webbing,
         // brown boots, the lenses dark.
         if m.fallen {
@@ -934,6 +941,17 @@ enum SoldierRig {
             return
         }
         if m.troop > 0 && m.troopSeg.x <= 0 { return }               // the helmet was shot off (TroopClasses.swift)
+        if m.posse == Marauders.posse {
+            // P366 (b): a wide-brimmed leather hat and a red bandana over the nose and mouth.
+            hb(-5.6, 28.4, -5.6, 11.2, 0.5, 11.2, lv.plate, Pat.leather)
+            hb(-3.9, 28.9, -3.9, 7.8, 3.3, 7.8, lv.plate, Pat.leather)
+            hb(-4.0, 28.9, -4.0, 8.0, 0.7, 8.0, lv.dark, Pat.leather)
+            if mid {
+                hb(-4.2, 23.7, -4.36, 8.4, 2.6, 1.0, lv.trim, Pat.cloth)
+                hb(-1.0, 22.5, -4.5, 2.0, 1.3, 0.4, lv.trim * 0.85, Pat.cloth)
+            }
+            return
+        }
         if m.faction == Faction.corsairs.rawValue {
             // P230: a corsair wears a knotted head scarf in the sash's red, its tails hanging at the back, no helmet.
             hb(-4.4, 28.4, -4.4, 8.8, 2.6, 8.8, lv.trim, Pat.cloth)

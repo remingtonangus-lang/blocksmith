@@ -35,7 +35,9 @@ final class HorseState {
     func coolDown(_ dt: Float) {
         spookCool = max(0, spookCool - dt)
         patCool = max(0, patCool - dt); brushCool = max(0, brushCool - dt); feedCool = max(0, feedCool - dt)
+        nuzzle = max(0, nuzzle - dt)
     }
+    var nuzzle: Float = 0            // P366 (h): s left of leaning its head into the hand (a pat while settling; tamed)
     var thrown = 0
     var calm: Float = -1             // taming: the calm meter (-1 = not taming), HorseLife.tameStep
     var bucking = false
@@ -67,7 +69,7 @@ enum HorseFeel {
     static let ease: Float = 6                                     // b/s^2 slowing to a lower gait
     // R14 (Oct 13: "let horses drop down two or more blocks"): only a fall that would really hurt it is refused.
     static let refuseDrop = 7                                      // blocks: a drop this deep or more is refused
-    static let crashSpeed: Float = 11                              // b/s into a wall: a stumble
+    static let crashSpeed: Float = 13                              // b/s into a wall: a stumble
     static var controlWas = false                                  // the keyboard sprint key last tick (spur = a fresh press)
     // Treats: stamina they give (also bond, at most every 10 s).
     static let treatStamina: [String: Float] = ["sugar": 15, "wheat": 10, "apple": 25, "carrot": 15, "golden_carrot": 50,
@@ -81,7 +83,7 @@ extension Mob {
         if let h = horse { return h }
         let h = HorseState(); horse = h; return h
     }
-    var topSpeed: Float { kind == .donkey || kind == .mule ? 7.5 : horseSpeed }
+    var topSpeed: Float { kind == .donkey || kind == .mule ? 9.5 : horseSpeed }
     var bondLevel: Int { HorseFeel.level(horse?.bondXP ?? 0) }
     var staminaMax: Float { HorseFeel.staminaMax[bondLevel - 1] * (kind == .horse ? horseBreed.stamina : 1) }
     var stamina: Float {

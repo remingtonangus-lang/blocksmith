@@ -186,7 +186,8 @@ extension Mob {
             if abs(inp.strafe) > 0.2 { spin -= inp.strafe * 12 * dt }
             spin = max(-2.2, min(2.2, spin))
             var push: Float = 0
-            if inp.forward > 0.2 { push += 0.04 }
+            // P366 (i, "boats are too slow"): 0.065 a tick, 13 b/s on open water (was the reference 0.04, 8 b/s).
+            if inp.forward > 0.2 { push += 0.065 }
             if inp.forward < -0.2 { push -= 0.005 }
             if abs(inp.strafe) > 0.2 && inp.forward <= 0.2 { push += 0.005 }
             vel += forward * push * 20 * 20 * dt

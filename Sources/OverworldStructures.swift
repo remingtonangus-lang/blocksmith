@@ -403,7 +403,7 @@ enum OverworldStructures {
                 else { w.set(x, yy, z, wall) }
             } } }
             for yy in by...(by + 4) { w.set(cx + 2, yy, cz + 2, Blocks.id("ladder") + 2) }
-            w.mob("pillager", V3(Float(cx) + 0.5, Float(by + 1), Float(cz) + 0.5))
+            w.mob("soldier_marksman@marauder", V3(Float(cx) + 0.5, Float(by + 1), Float(cz) + 0.5))
         }
         // Furnishing: a fletching table and a barrel of arrows below, bedrolls of hay above.
         if Blocks.has("fletching_table") { w.set(cx - 2, y + 1, cz + 2, Blocks.id("fletching_table")) }
@@ -443,8 +443,8 @@ enum OverworldStructures {
         w.set(cx, y, cz - 4, slab)
         w.set(cx + 2, top, cz + 2, Blocks.id("ladder") + 2)
         w.chest(cx - 2, top + 1, cz - 2, loot: "pillager_outpost", seed: rng.next(), facing: 1)
-        w.mob("pillager", V3(Float(cx) + 0.5, Float(top + 1), Float(cz) + 0.5))
-        w.mob("pillager", V3(Float(cx) + 2.5, Float(top + 1), Float(cz) - 1.5))
+        w.mob("soldier_officer@marauder", V3(Float(cx) + 0.5, Float(top + 1), Float(cz) + 0.5))
+        w.mob("soldier_trooper@marauder", V3(Float(cx) + 2.5, Float(top + 1), Float(cz) - 1.5))
     }
 
     // Camp pieces round an outpost: 0 cage (a captive villager), 1 tent, 2 log pile, 3 archery targets.

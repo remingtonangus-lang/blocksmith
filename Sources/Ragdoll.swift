@@ -182,9 +182,11 @@ final class RagdollWorld {
     // Tuning, in blocks and seconds.
     var gravity: Float = 28
     var substeps = 8                            // per step() call; 8 at 72 fps is 576 Hz
-    var staticFriction: Float = 0.7
-    var dynamicFriction: Float = 0.7
-    var linearDamping: Float = 0.3              // 1/s: air and flesh
+    // P366 (f, Oct 17: "killed animals slide too far on the ground"): fur and hide on earth grip; a body skids a
+    // short way and stops.
+    var staticFriction: Float = 1.1
+    var dynamicFriction: Float = 1.0
+    var linearDamping: Float = 0.6              // 1/s: air and flesh
     var angularDamping: Float = 1.5             // 1/s
     var jointDamping: Float = 8                 // 1/s: relative spin across a joint dies at this rate (limp muscle)
     var jointFriction: Float = 3                // rad/s per s: and loses this much outright, so slow flops stop
@@ -451,7 +453,13 @@ final class RagdollWorld {
         for h in 0..<2 where grabSlot[h] == s {
             let k = base + grabBone[h]
             let p = x[k] + RagdollMath.rot(q[k], grabLocal[h])
-            x[k] += (grabTarget[h] - p) * 0.5
+            // P366 (f, "dragging a body looks off"): the held point follows the hand like a heavy weight on an arm, a
+            // fifth of the way per sub-step and never more than 6 cm, so the body trails behind instead of snapping to
+            // the hand (and isn't flung when let go).
+            var d = (grabTarget[h] - p) * 0.2
+            let l = RagdollMath.length(d)
+            if l > 0.06 { d *= 0.06 / l }
+            x[k] += d
         }
     }
 

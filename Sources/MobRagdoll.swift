@@ -181,10 +181,16 @@ enum MobRagdolls {
         var v = m.vel
         if !(v.x.isFinite && v.y.isFinite && v.z.isFinite) { v = .zero }
         var flat = V3(v.x, 0, v.z)
+        // P366 (f, "they should fall away in the direction I hit them"): the killing blow's direction leads, whatever
+        // knockback was left (a round or a blocked shove leaves little); it tips the body over away from him.
+        if simd_length(m.hitAway) > 0.5 {
+            let along = simd_dot(flat, m.hitAway)
+            flat = m.hitAway * max(along, 3.5) + (flat - m.hitAway * along) * 0.3
+        }
         let l = simd_length(flat)
         if l > 12 { flat *= 12 / l }
         let hit = r.base + V3(0, m.height * 0.7, 0)
-        let id = w.start(bones, velocity: V3(flat.x * 0.2, max(-20, min(v.y, 2)), flat.z * 0.2), hitPoint: hit, impulse: flat * 0.8)
+        let id = w.start(bones, velocity: V3(flat.x * 0.1, max(-20, min(v.y, 2)), flat.z * 0.1), hitPoint: hit, impulse: flat * 0.8)
         guard id >= 0 else { return }
         var rig = r
         rig.id = id

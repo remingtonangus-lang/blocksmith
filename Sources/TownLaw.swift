@@ -110,6 +110,7 @@ enum TownLaw {
     static var openStart: Double = 0
     static var pending: [(Mob, Double)] = []        // sheriffs about to draw (after their challenge)
     static var offences = 0                         // counted (TownTests)
+    static var robberies = 0                        // P366 (g): tills handed over at gunpoint or knifepoint
 
     static func reset() {
         state = Saved(); placedSet = []; placedOrder = []; inTown = nil; pending = []; openPos = nil; openItems = nil
@@ -386,7 +387,11 @@ enum TownLaw {
         let now = containerItems(g, m)
         let n = settle(openKey, from: before, to: now)
         openItems = now
-        if n > 0 && g.survival { offence(g, heat: takingHeat(n), at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
+        guard n > 0 && g.survival else { return }
+        let at = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
+        // P366 (g): robbing a trader's own stock or till in front of him is a robbery, not pilfering: the town turns.
+        let keeper = witnesses(g, at: at).first { $0.villager?.shop != nil && simd_length($0.pos - at) < 10 }
+        offence(g, heat: keeper != nil ? hostileHeat : takingHeat(n), at: at, victim: keeper)
     }
     static func closed(_ g: Game, _ m: Menu) {
         if openPos != nil { checkTaking(g, m) }

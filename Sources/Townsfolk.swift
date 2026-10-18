@@ -35,6 +35,8 @@ struct TownState {
     var mealSearch: Float = 0
     var eating = false
     var aimMemory: Float = 0        // > 0: already offended by a pointed gun (no further reputation loss)
+    var holdUp: Float = 0           // P366 (g): seconds a trader has been held at gunpoint or knifepoint
+    var robbedDay = -1              // the day his till was last handed over
     // The sheriff's six-iron (SixIron.duel): the aim telegraph, where he aimed, rounds fired, reloading, warned yet.
     var aim: Float = 0
     var aimAt = V3(0, 0, 0)
@@ -341,7 +343,13 @@ extension Mob {
                 town.handsUp = 2.5
             }
         }
-        if town.handsUp > 0 { face(g.player.pos); return true }
+        // P366 (g, "I want to be able to threaten a trader with a weapon"): a blade held on a trader up close, facing him,
+        // raises his hands as a gun does.
+        if v.shop != nil && Takedowns.blade(g.held) && d < 2.4 && simd_dot(simd_normalize(-to), g.player.look) > 0.9 {
+            town.handsUp = max(town.handsUp, 2.5)
+        }
+        if town.handsUp > 0 { townHoldUp(dt, g, v); face(g.player.pos); return true }
+        town.holdUp = 0
         // A greeting when you come close (each person every few minutes, within the town's unprompted-line budget).
         if d < 4 && town.greetCooldown <= 0 && !lying && TownLaw.ambientOK(g) {
             town.greetCooldown = TownLaw.greetGap
@@ -350,6 +358,24 @@ extension Mob {
             return false
         }
         return false
+    }
+
+    // P366 (g, "robbing a trader turns the town hostile"): a trader kept at gunpoint or knifepoint for 2 s empties his
+    // till into the player's purse (once a day) with the trade chime; it is a robbery, the whole town turns on him
+    // (TownLaw.offence at the hostile heat, the trader the witness).
+    func townHoldUp(_ dt: Float, _ g: Game, _ v: VillagerData) {
+        guard v.shop != nil, g.survival, !lying, !baby else { return }
+        guard town.handsUp >= 2.49 else { return }        // only while the weapon is still on him
+        town.holdUp += dt
+        let day = Int(g.time / DAY_LENGTH)
+        guard town.holdUp >= 2, town.robbedDay != day else { return }
+        town.robbedDay = day
+        let cash = Rand.int(in: 4...15) * 100
+        g.money += cash
+        g.sfx(.villagerTrade, 0.9, at: eye)
+        if Items.has("gold_nugget") { g.drops.spawn(ItemStack(Items.id("gold_nugget"), Rand.int(in: 1...3)), at: eye - V3(0, 0.6, 0)) }
+        TownLaw.offence(g, heat: TownLaw.hostileHeat, at: eye, victim: self, speak: false)
+        TownLaw.robberies += 1
     }
 
     // Where diners stand: on the customers' side of the bar, two blocks out from the barkeep across the counter (the

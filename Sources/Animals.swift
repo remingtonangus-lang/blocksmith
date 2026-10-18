@@ -616,7 +616,16 @@ func horseParts(_ m: Mob) -> [Part] {
 
     // Neck: rises forward ~40 deg from the top of the chest, nodding with the stride; lowered to graze.
     let nodS: Float = sinf(ph * 2) * (0.06 + 0.1 * gal) * amt
-    let nA: Float = -0.7 - nodS - graze * 1.25 + gal * 0.12
+    // P366 (h): taming reads on the horse. Bucking, the head flings up and the ears pin back; as the calm meter fills,
+    // the head carriage drops and the ears come forward; a pat or the moment it is tamed, it lowers its head and leans
+    // it into the hand, turned to the rider's side.
+    let hst = m.horse
+    let taming = (hst?.calm ?? -1) >= 0
+    let settle: Float = taming ? (hst?.calm ?? 0) / 100 : 1
+    let fling: Float = taming && hst?.bucking == true ? 0.35 + sinf(clock * 9) * 0.15 : 0
+    let lean: Float = min(1, (hst?.nuzzle ?? 0) / 0.6)
+    let tameNeck: Float = fling - (taming ? (settle - 0.5) * 0.3 : 0) - lean * 0.45
+    let nA: Float = -0.7 - nodS - graze * 1.25 + gal * 0.12 + tameNeck
     let nL: Float = small ? 10 : 12
     let nP = V3(0, top - 4, -8.5)
     p.append(Part(mn: V3(-2.1, nP.y - 1, nP.z - 3.2), mx: V3(2.1, nP.y + nL, nP.z + 2.6), pivot: nP, rotX: nA, color: c, pattern: pat))
@@ -629,9 +638,10 @@ func horseParts(_ m: Mob) -> [Part] {
     }
     // Head: hangs from the poll at the neck's top, angled down; long skull, narrower muzzle, eyes, ears, forelock.
     let poll: V3 = nP + V3(0, nL * cosf(nA), nL * sinf(nA))
-    let hA: Float = -0.95 + nodS * 0.5 - graze * 0.3
+    let hA: Float = -0.95 + nodS * 0.5 - graze * 0.3 + fling * 0.6 - lean * 0.2
+    let hZ: Float = lean * 0.3
     func hb(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ col: V3, _ pt: Float = 0) -> Part {
-        Part(mn: poll + V3(x0, y0, z0), mx: poll + V3(x1, y1, z1), pivot: poll, rotX: hA, color: col, pattern: pt)
+        Part(mn: poll + V3(x0, y0, z0), mx: poll + V3(x1, y1, z1), pivot: poll, rotX: hA, rotZ: hZ, color: col, pattern: pt)
     }
     p.append(hb(-2.3, -2.6, -5.5, 2.3, 2.2, 1.2, c, pat))                 // skull and cheeks
     p.append(hb(-1.8, -2.4, -11.5, 1.8, 0.8, -5.5, muzzle, pat))          // long face to the muzzle
@@ -640,7 +650,11 @@ func horseParts(_ m: Mob) -> [Part] {
     p.append(hb(-2.45, 0, -4.2, -2.25, 1.1, -2.9, dark)); p.append(hb(2.25, 0, -4.2, 2.45, 1.1, -2.9, dark))             // eyes
     let earL: Float = small ? 5.5 : 3
     let earC: V3 = small ? c * 0.85 : c
-    p.append(hb(-2.1, 2.0, -0.6, -0.9, 2 + earL, 0.6, earC)); p.append(hb(0.9, 2.0, -0.6, 2.1, 2 + earL, 0.6, earC))
+    if taming && hst?.bucking == true || settle < 0.3 {            // pinned back, flat to the neck
+        p.append(hb(-2.1, 1.6, -0.2, -0.9, 2.6, 0.2 + earL, earC)); p.append(hb(0.9, 1.6, -0.2, 2.1, 2.6, 0.2 + earL, earC))
+    } else {
+        p.append(hb(-2.1, 2.0, -0.6, -0.9, 2 + earL, 0.6, earC)); p.append(hb(0.9, 2.0, -0.6, 2.1, 2 + earL, 0.6, earC))
+    }
     if !small { p.append(hb(-0.7, 1.4, -2.2, 0.7, 2.5, 0.8, mane, hairPat)) }   // forelock between the ears
     // Face markings: a blaze down the face, or a star on the forehead.
     if mk.blaze { p.append(hb(-0.7, 0.8, -11.2, 0.7, 0.95, -4.8, white, 12)); p.append(hb(-0.9, 2.2, -5.2, 0.9, 2.32, -2.6, white, 12)) }
@@ -809,10 +823,38 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
     case .tadpole:
         return [box(-1.5, 0, -1.5, 3, 2, 3, V3(0.35, 0.28, 0.2)), Part(mn: V3(-0.2, 0.5, 1.5), mx: V3(0.2, 1.5, 5), pivot: V3(0, 1, 1.5), rotX: 0, rotZ: 0, color: V3(0.35, 0.28, 0.2))]
     case .armadillo:
-        let c = V3(0.65, 0.42, 0.38)
-        if m.sitting { return [box(-4, 0, -4, 8, 8, 8, c, 4)] }
-        return [box(-4, 3, -5, 8, 6, 10, c, 4), box(-2, 3, -8, 4, 4, 3, V3(0.8, 0.55, 0.5)), box(-2.5, 7, -7, 1, 3, 1, c), box(1.5, 7, -7, 1, 3, 1, c),
-                leg(-3, -3, 2, 3, 1, V3(0.5, 0.35, 0.3)), leg(3, -3, 2, 3, -1, V3(0.5, 0.35, 0.3)), leg(-3, 3, 2, 3, -1, V3(0.5, 0.35, 0.3)), leg(3, 3, 2, 3, 1, V3(0.5, 0.35, 0.3))] + eyes(5, -8, 1, 0.8)
+        // P366 (d): a real armadillo. A domed shell of hinged bands between a front and a rear shield, a long tapered
+        // snout, upright ears, a scaled tail tapering to a point, short clawed legs; rolled up, a banded ball with the
+        // head shield and tail tip closing the gap.
+        let shell = V3(0.66, 0.52, 0.42), band = V3(0.52, 0.4, 0.33), skin = V3(0.82, 0.62, 0.55), claw = V3(0.2, 0.17, 0.15)
+        if m.sitting {
+            var p: [Part] = [box(-4, 0.5, -4, 8, 7, 8, shell, 4), box(-3, 0, -3, 6, 8, 6, shell, 4), box(-4.5, 1.5, -3, 9, 5, 6, shell, 4),
+                             box(-3, 1.5, -4.5, 6, 5, 9, shell, 4)]
+            for i in 0..<3 { p.append(box(-4.6, 1 + Float(i) * 2.2, -4.1, 9.2, 0.6, 8.2, band)) }
+            p.append(box(-1.5, 2.5, -4.8, 3, 3, 0.6, shell * 1.1)); p.append(box(-0.8, 0.8, -4.7, 1.6, 1.6, 0.5, band))
+            return p
+        }
+        var p: [Part] = [
+            box(-3.5, 3, -5, 7, 2, 10, skin, 4),                        // belly
+            box(-4, 4.5, -6, 8, 3.5, 4, shell, 4),                      // front shield
+            box(-4, 4.5, 2, 8, 3.5, 4, shell, 4),                       // rear shield
+            box(-3.5, 8, -5.5, 7, 1.5, 3, shell * 1.05, 4), box(-3.5, 8, 2.5, 7, 1.5, 3, shell * 1.05, 4),
+        ]
+        for i in 0..<4 {                                                // the hinged bands, a little higher in the middle
+            let z = -2 + Float(i), lift: Float = (i == 1 || i == 2) ? 0.6 : 0.3
+            p.append(box(-4.2, 4.3, z, 8.4, 4.5 + lift, 0.95, i % 2 == 0 ? band : shell, 4))
+        }
+        p += [box(-1.6, 4, -9, 3.2, 3, 3.2, skin, 4),                   // head
+              box(-1.5, 6.6, -9.2, 3, 0.8, 3, shell * 1.1),             // head shield
+              box(-0.7, 4.2, -12, 1.4, 1.6, 3, skin),                   // snout
+              box(-0.4, 4.4, -12.6, 0.8, 0.9, 0.7, V3(0.35, 0.22, 0.2)),
+              box(-1.6, 7.2, -7.4, 0.8, 2.2, 0.4, skin), box(0.8, 7.2, -7.4, 0.8, 2.2, 0.4, skin),   // ears
+              Part(mn: V3(-1, 4.6, 5.8), mx: V3(1, 6.2, 9), pivot: V3(0, 5.4, 6), rotX: 0.25, rotZ: 0, color: shell, pattern: 4),
+              Part(mn: V3(-0.6, 3.6, 8.6), mx: V3(0.6, 4.8, 12.5), pivot: V3(0, 4.2, 8.6), rotX: 0.15, rotZ: 0, color: band),
+              Part(mn: V3(-0.3, 3.2, 12.2), mx: V3(0.3, 3.8, 14.5), pivot: V3(0, 3.5, 12.2), rotX: 0.1, rotZ: 0, color: band)]
+        p += [leg(-2.5, -3.5, 1.6, 3, 1, skin), leg(2.5, -3.5, 1.6, 3, -1, skin), leg(-2.5, 3.5, 1.8, 3, -1, skin), leg(2.5, 3.5, 1.8, 3, 1, skin)]
+        for (x, z) in [(-2.5, -4.6), (2.5, -4.6), (-2.5, 2.4), (2.5, 2.4)] as [(Float, Float)] { p.append(box(x - 0.8, 0, z, 1.6, 0.4, 0.5, claw)) }
+        return p + eyes(6, -9.1, 0.7, 0.6)
     case .sniffer:
         let c = V3(0.55, 0.25, 0.2), moss = V3(0.35, 0.55, 0.25)
         var p = quadruped(.zero, V3(24, 16, 32), legH: 10, head: V3(0, 14, -16), headSize: V3(12, 10, 10), c, legW: 6)
