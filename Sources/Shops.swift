@@ -184,7 +184,7 @@ enum Economy {
         "chainmail_helmet": 420, "chainmail_chestplate": 720, "chainmail_leggings": 620, "chainmail_boots": 360,
         "shield": 230, "iron_bars": 22, "anvil": 3600,
         // Gunsmith
-        "gun_sidearm": 4500, "gun_revolver": 9000, "gun_shotgun": 8500, "gun_rifle": 14000, "gun_sniper": 22000,
+        "gun_sidearm": 4500, "gun_revolver": 9000, "gun_shotgun": 8500, "gun_rifle": 14000, "gun_sniper": 22000, "gun_kessel": 12000,
         "rifle_rounds": 30, "capital_rounds": 60, "greywall_rounds": 35, "shotgun_shells": 40, "heavy_rounds": 25, "bow": 120, "arrow": 4, "crossbow": 220,
         // Stable
         "saddle": 600, "leather_horse_armor": 320, "iron_horse_armor": 900, "golden_horse_armor": 1500,
@@ -220,7 +220,7 @@ enum Economy {
                    ("beetroot_seeds", 16), ("carrot", 16), ("potato", 16), ("treasure_map", 1), ("emerald", 12), ("fuel_can", 4)],
         // R8 (Oct 13: "everything takes slate rounds"): every gun on the shelf has its rounds on the shelf: the six-iron
         // (rifle rounds) is stocked, and a Capital city's gunsmith sells Capital rounds for the Capital guns it sells.
-        .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("gun_revolver", 1), ("rifle_rounds", 64),
+        .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("gun_revolver", 1), ("gun_kessel", 1), ("rifle_rounds", 64),
                     ("capital_rounds", 48), ("shotgun_shells", 32), ("heavy_rounds", 32), ("greywall_rounds", 24), ("bow", 2), ("arrow", 64),
                     ("crossbow", 1), ("spyglass", 1)],
         .butcher: [("beef", 12), ("porkchop", 12), ("chicken", 12), ("mutton", 12), ("cooked_beef", 16), ("cooked_porkchop", 16),
@@ -248,7 +248,7 @@ enum Economy {
                    "feather", "flint", "paper", "ink_sac", "bone", "string", "diamond", "lapis_lazuli", "quartz",
                    "amethyst_shard", "cocoa_beans", "emerald"],
         .gunsmith: ["gunpowder", "flint", "feather", "string", "iron_ingot", "steel_ingot", "coal", "gun_sidearm", "gun_revolver", "gun_shotgun",
-                    "gun_rifle", "gun_sniper", "rifle_rounds", "capital_rounds", "greywall_rounds", "shotgun_shells", "heavy_rounds"],
+                    "gun_rifle", "gun_sniper", "gun_kessel", "rifle_rounds", "capital_rounds", "greywall_rounds", "shotgun_shells", "heavy_rounds"],
         .butcher: ["beef", "porkchop", "chicken", "mutton", "rabbit", "cod", "salmon", "leather", "rabbit_hide", "feather",
                    "bone", "rotten_flesh", "egg", "pufferfish", "tropical_fish"] + Hunting.buys,
         .doctor: ["spider_eye", "ghast_tear", "rabbit_foot", "glowstone_dust", "nether_wart", "sugar", "blaze_powder",
@@ -268,7 +268,11 @@ enum Economy {
 
     static func value(of item: ItemID) -> Int? { value[Items.key(item)] }
     // P40: sold only by gunsmiths in a Capital city, their rounds too (R8: Capital guns bought there had nothing to fire).
-    static let capitalOnly: Set<String> = ["gun_sidearm", "gun_rifle", "capital_rounds"]
+    // P370 (a, Oct 18 08:01: "the gunsmith should only sell period guns"): every Capital-made modern gun (the pistol,
+    // service rifle, machine gun, pump shotgun, scoped rifle, launcher and arc gun) and its rounds; a frontier town's
+    // gunsmith keeps the six-iron, the Kessel hunting rifle, bows and crossbows.
+    static let capitalOnly: Set<String> = ["gun_sidearm", "gun_rifle", "gun_smg", "gun_shotgun", "gun_sniper", "gun_launcher", "gun_arc",
+                                           "capital_rounds", "greywall_rounds"]
     // P42: the doctor doesn't carry every tonic. These turn up only in some shops (the chance a given keeper stocks it,
     // fixed per keeper), so finding one is worth the ride.
     static let rare: [String: Float] = ["potion_regeneration": 0.35, "potion_fire_resistance": 0.3, "potion_night_vision": 0.4,

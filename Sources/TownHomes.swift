@@ -25,7 +25,7 @@ extension Village {
         let top = blk("oak_pressure_plate", AIR)
         for u in u0...u1 {
             b.set(&w, u, 0, v, m.fence); b.set(&w, u, 1, v, top)
-            if chairs { b.set(&w, u, 0, v + 1, b.stair(m.stairs, high: 0)) }
+            if chairs { b.set(&w, u, 0, v + 1, b.seat(m, "chair", back: 0)) }
         }
     }
 
@@ -75,7 +75,7 @@ extension Village {
             // Ground floor: the parlour to the left (shelves, armchairs by the fire), the kitchen and dining room right.
             wall(du + 2, 1, du + 2, l.d - 2, h: 3, door: [(du + 2, 2), (du + 2, l.d - 3)])
             b.fill(&w, 1, 0, l.d - 2, 3, 2, l.d - 2, shelf)
-            b.set(&w, 1, 0, 2, b.stair(m.stairs, high: 2)); b.set(&w, 1, 0, 4, b.stair(m.stairs, high: 2))
+            b.set(&w, 1, 0, 2, b.seat(m, "chair", back: 2)); b.set(&w, 1, 0, 4, b.seat(m, "chair", back: 2))
             b.set(&w, 2, 0, 3, blk("campfire", stove))
             b.set(&w, l.w - 2, 0, l.d - 2, stove); b.set(&w, l.w - 3, 0, l.d - 2, smoker); b.set(&w, l.w - 4, 0, l.d - 2, barrel)
             table(&w, b, m, du + 4, l.w - 3, v: 3)

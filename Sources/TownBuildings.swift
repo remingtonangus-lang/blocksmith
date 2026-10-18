@@ -125,7 +125,7 @@ extension Village {
         case .saloon:
             // A long bar is the counter; tables (a fence post and a plate) with stools in the front room; a piano.
             let table = blk(Blocks.key(m.fence), m.planks), top = blk("oak_pressure_plate", AIR)
-            let stool = blk("\(Blocks.key(m.slab))", m.planks)
+            let stool = b.seat(m, "stool")                     // P370 (b): a real stool (was a slab)
             for (u, v) in [(3, 2), (l.w - 4, 2), (3, 5), (l.w - 4, 5), (l.w / 2, 3)] where v < cv - 1 {
                 b.set(&w, u, 0, v, table); b.set(&w, u, 1, v, top)
                 b.set(&w, u - 1, 0, v, stool); b.set(&w, u + 1, 0, v, stool)

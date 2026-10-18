@@ -1153,6 +1153,7 @@ final class Game {
         Partner.tick(self, fdt)                                          // D52: downed, revives, riding pillion
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
         if AshSeat.shared.tick(self, p, q, mi, dt: fdt) { updateFov(Float(dt)); advance(dt); return }      // P344
+        if ChairSeat.shared.tick(self, mi) { updateFov(Float(dt)); advance(dt); return }                     // P370 (b)
         let before = player.pos
         if !mi.sneak { sneakHeldFromMenu = false }
         if let r = riding, r.health <= 0 { dismount() }
@@ -1232,6 +1233,7 @@ final class Game {
         // crafting table set it down). A menu opening ends the hold too (openMenu).
         if useNow { useRepeatItem = Int(held.item) } else if !useHeld { useRepeatItem = -1 }
         if useNow, let r = riding, stickBoost(r) { return }
+        if useNow, mobs.mobs.contains(where: { $0.town.handsUp > 0 && $0.townMug(self) }) { return }   // P370 (d)
         // Boreal Station objectives (before held gear and guns): a control-room console or the generator (BorealOps.swift).
         if useNow && !(input.shift || p.b), let t = target, stationUse(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b), let t = target, greywallMapTableUse(t.hit) { swing = 1; return }
@@ -1672,7 +1674,7 @@ final class Game {
                     if hk == "honey_bottle" { consumeHeld(); giveOrReplaceHeldAfterConsume(ItemStack(Items.id("glass_bottle"), 1)) }
                 } else {
                     consumeHeld()
-                    if Saloon.isDrink(hk) { giveOrReplaceHeldAfterConsume(ItemStack(Items.id("glass_bottle"), 1)) }
+                    // (P370 (c): the saloon's cup, glass or mug stays at the bar: nothing comes back.)
                     if hk == "mushroom_stew" || hk == "beetroot_soup" || hk == "rabbit_stew" || hk.hasPrefix("suspicious_stew") {
                         giveOrReplaceHeldAfterConsume(ItemStack(Items.id("bowl"), 1))
                     }
@@ -1992,7 +1994,7 @@ final class Game {
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || (k == "cave_vines" && b != Blocks.groupBase[Int(b)])          // a podded lanternvine is picked (P125)
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
-            || k == BaseSafes.block || k == BaseMaterials.crate
+            || k == BaseSafes.block || k == BaseMaterials.crate || ChairSeat.seatTop(k) != nil
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -2059,6 +2061,7 @@ final class Game {
             ringBell(p)
         case "composter": useComposter(p)
         case "lectern": useLectern(p)
+        case _ where ChairSeat.seatTop(k) != nil: ChairSeat.shared.sit(self, p)      // P370 (b)
         case "chiseled_bookshelf": useShelf(p)
         case _ where k.hasSuffix("_shelf"): useDisplayShelf(p)
         case "crafter":

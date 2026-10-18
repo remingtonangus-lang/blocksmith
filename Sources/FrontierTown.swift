@@ -118,7 +118,7 @@ extension Village {
         if du > 2 { b.set(&w, 2, 0, 1, desk) }                // (in a small office the doorway is at u 2)
         b.set(&w, 1, 1, 1, blk("lantern", AIR))
         let cellV = l.d - 3
-        if cellV > 2 { b.set(&w, 1, 0, 2, b.stair(m.stairs, high: 0)) }
+        if cellV > 2 { b.set(&w, 1, 0, 2, b.seat(m, "chair", back: 0)) }
         if du > 2 { b.set(&w, l.w - 2, 0, 1, blk("bookshelf", m.planks)) }   // (a small office keeps the way to its cell clear)
         // The cell block across the back (Oct 11 playtest P37/G14: one long barred row with glass windows, a hay bale
         // and a gap for a door read as a stall, not a jail). Now: stone walls, a stone floor and barred windows round

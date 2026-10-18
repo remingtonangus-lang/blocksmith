@@ -37,6 +37,7 @@ struct TownState {
     var aimMemory: Float = 0        // > 0: already offended by a pointed gun (no further reputation loss)
     var holdUp: Float = 0           // P366 (g): seconds a trader has been held at gunpoint or knifepoint
     var robbedDay = -1              // the day his till was last handed over
+    var muggedDay = -1              // P370 (d): the day he last handed something over at weapon point
     // The sheriff's six-iron (SixIron.duel): the aim telegraph, where he aimed, rounds fired, reloading, warned yet.
     var aim: Float = 0
     var aimAt = V3(0, 0, 0)
@@ -345,7 +346,8 @@ extension Mob {
         }
         // P366 (g, "I want to be able to threaten a trader with a weapon"): a blade held on a trader up close, facing him,
         // raises his hands as a gun does.
-        if v.shop != nil && Takedowns.blade(g.held) && d < 2.4 && simd_dot(simd_normalize(-to), g.player.look) > 0.9 {
+        // P370 (d): any townsperson, not only traders.
+        if Takedowns.blade(g.held) && d < 2.4 && simd_dot(simd_normalize(-to), g.player.look) > 0.9 {
             town.handsUp = max(town.handsUp, 2.5)
         }
         if town.handsUp > 0 { townHoldUp(dt, g, v); face(g.player.pos); return true }
@@ -376,6 +378,35 @@ extension Mob {
         if Items.has("gold_nugget") { g.drops.spawn(ItemStack(Items.id("gold_nugget"), Rand.int(in: 1...3)), at: eye - V3(0, 0.6, 0)) }
         TownLaw.offence(g, heat: TownLaw.hostileHeat, at: eye, victim: self, speak: false)
         TownLaw.robberies += 1
+    }
+
+    // P370 (d, Oct 18 08:02: "aim at a villager and press the trigger, they hand you something"): someone with his hands
+    // up for the player's gun or blade, within 6 blocks and in front of him, hands over one thing on the use trigger (once
+    // a day each): mostly pocket clutter, now and then something worth real money. It is theft with a victim, so honour
+    // and the law answer it the way they answer any (TownLaw.offence, heat 2: a warning first, the town turns on a repeat).
+    static let mugPool: [(String, ClosedRange<Int>, Int)] = [
+        ("stick", 1...3, 14), ("string", 1...2, 12), ("bread", 1...2, 12), ("apple", 1...2, 10), ("coal", 1...4, 10),
+        ("iron_nugget", 2...6, 9), ("paper", 1...3, 8), ("gold_nugget", 1...4, 7), ("cookie", 1...3, 6), ("iron_ingot", 1...2, 4),
+        ("gold_ingot", 1...2, 3), ("emerald", 1...2, 2), ("golden_apple", 1...1, 1), ("diamond", 1...1, 1),
+    ]
+    func townMug(_ g: Game) -> Bool {
+        guard g.survival, health > 0, !lying, !baby, town.handsUp > 0, villager?.person != nil else { return false }
+        let to = eye - g.player.eye
+        let d = simd_length(to)
+        guard d < 6, d > 0.3, simd_dot(to / d, g.player.look) > 0.95 else { return false }
+        let day = Int(g.time / DAY_LENGTH)
+        guard town.muggedDay != day else { return false }
+        town.muggedDay = day
+        let pool = Mob.mugPool.filter { Items.has($0.0) }
+        var r = Rand.int(in: 0...max(0, pool.reduce(0) { $0 + $1.2 } - 1))
+        let pick = pool.first { r -= $0.2; return r < 0 } ?? pool.first
+        if let (key, n, _) = pick { g.drops.spawn(ItemStack(Items.id(key), Rand.int(in: n)), at: eye - V3(0, 0.6, 0)) }
+        // Loose coins on top, now and then a fat roll.
+        g.money += Rand.int(in: 0...9) == 0 ? Rand.int(in: 3...12) * 100 : Rand.int(in: 0...4) * 5
+        g.sfx(.villagerTrade, 0.7, at: eye)
+        TownLaw.offence(g, heat: 2, at: eye, victim: self, speak: false)
+        TownLaw.robberies += 1
+        return true
     }
 
     // Where diners stand: on the customers' side of the bar, two blocks out from the barkeep across the counter (the
