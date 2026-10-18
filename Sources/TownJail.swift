@@ -497,7 +497,7 @@ extension Village {
         b.set(&w, 1, 0, 1, desk)
         if du > 2 { b.set(&w, 2, 0, 1, desk) }
         b.set(&w, 1, 1, 1, blk("lantern", AIR))
-        if geo.cellV > 2 && !geo.doors.contains(1) { b.set(&w, 1, 0, 2, b.stair(m.stairs, high: 0)) }
+        if geo.cellV > 2 && !geo.doors.contains(1) { b.set(&w, 1, 0, 2, b.seat(m, "chair", back: 0)) }
         b.set(&w, 1, 3, 1, b.wallTorch(facing: 2))
         b.set(&w, l.w - 2, 3, geo.cellV - 1, b.wallTorch(facing: 3))
         func board(_ w: inout StructWriter, _ u: Int, _ dy: Int, _ lines: [String]) {

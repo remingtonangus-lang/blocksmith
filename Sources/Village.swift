@@ -501,6 +501,15 @@ enum Village {
         func stair(_ base: BlockID, high local: Int, top: Bool = false) -> BlockID {
             base + BlockID(Village.dir(l, local) + (top ? 4 : 0))
         }
+        // P370 (b): a real seat (Seats.swift) in the town's wood: a chair whose back is toward a local direction (as a
+        // stair's high side was), a bench along it, or a stool.
+        func seat(_ m: Mats, _ kind: String, back local: Int = 0) -> BlockID {
+            let fk = Blocks.key(Blocks.groupBase[Int(m.fence)])              // the town's fence wood (a desert town's jungle)
+            let w = fk.hasSuffix("_fence") ? String(fk.dropLast(6)) : "spruce"
+            let n = Blocks.has("\(w)_\(kind)") ? "\(w)_\(kind)" : "spruce_\(kind)"
+            guard Blocks.has(n) else { return stair(m.stairs, high: local) }
+            return kind == "stool" ? Blocks.id(n) : Blocks.id(n) + BlockID(Village.dir(l, local) ^ 1)
+        }
     }
 
     static func foundation(_ w: inout StructWriter, _ b: LB, _ m: Mats) {

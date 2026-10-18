@@ -3,8 +3,8 @@ import simd
 
 // D17 the saloon's drinks and its piano player.
 //   drinks   the barkeep pours three soft drinks (comfort-safe: no liquor, nobody gets drunk): sarsaparilla (a fizz
-//            of speed, 20 s), black coffee (haste, 30 s) and cold lemonade (a moment of regeneration). Each fills a
-//            little and hands the bottle back.
+//            of speed, 20 s), black coffee (haste, 30 s) and cold lemonade (a moment of regeneration). Each takes the
+//            edge off hunger (P370: a mug, a coffee cup and a glass, which stay at the bar).
 //   piano    while the saloon is open, a piano player sits at its piano (the jukebox in the corner) and plays ragtime:
 //            stride bass, a syncopated tune, a new piece each time one ends. Nearby you hear it through the jukebox
 //            stream (the nearest playing one wins). Their piano can't be emptied; the player can be hired... by a tip
@@ -137,8 +137,11 @@ extension ItemRegistry {
     func registerSaloonDrinks() {
         for d in Saloon.drinks where !has(d.key) {
             var def = ItemDef(d.key, d.name)
-            def.sprite = Sprite(mask: "bottle", base: 0xD0DCF0, extras: ["c": d.color])
-            def.food = FoodInfo(hunger: 2, saturation: 0.6)
+            // P370 (c, Oct 18 07:59: "black coffee should be an actual coffee cup... cold lemonade"; "that filled me up"):
+            // each drink in its own vessel, and a drink only takes the edge off hunger.
+            let vessel = ["coffee_bottle": "cup", "lemonade_bottle": "glass", "sarsaparilla_bottle": "mug"][d.key] ?? "bottle"
+            def.sprite = Sprite(mask: vessel, base: 0xE8E4DA, extras: ["c": d.color])
+            def.food = FoodInfo(hunger: 1, saturation: 0.1)
             def.maxStack = 16
             add(def)
         }

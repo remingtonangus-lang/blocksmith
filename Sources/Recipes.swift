@@ -362,6 +362,12 @@ enum Recipes {
         r.append(shaped(["W#W", "WWW", " W "], ["W": "#planks", "#": "iron_ingot"], "shield"))
         r.append(shaped(["#T#", "S$S", " # "], ["#": "stick", "T": "tripwire_hook", "S": "string", "$": "iron_ingot"], "crossbow"))
         r.append(shaped(["SS ", "SB ", "  S"], ["S": "string", "B": "slime_ball"], "lead", 2))
+        // P370 (b): seats in every wood (a chair: back, seat, legs; a bench: a long seat on two trestles; a stool).
+        for w in BlockRegistry.doorWoods where Items.has("\(w)_chair") {
+            r.append(shaped(["P  ", "PPP", "S S"], ["P": "\(w)_planks", "S": "stick"], "\(w)_chair", 2))
+            r.append(shaped(["PPP", "S S"], ["P": "\(w)_slab", "S": "stick"], "\(w)_bench", 2))
+            r.append(shaped(["PP", "SS"], ["P": "\(w)_planks", "S": "stick"], "\(w)_stool", 2))
+        }
         // P366 (e): slime without slimes. Kelp boiled down with bone meal sets into a sticky ball; honey and kelp too.
         r.append(shapeless(["kelp", "kelp", "kelp", "bone_meal"], "slime_ball"))
         r.append(shapeless(["honey_bottle", "kelp"], "slime_ball", 2))
