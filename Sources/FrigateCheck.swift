@@ -10,6 +10,9 @@ import simd
 //       after the throttle comes off, a turn carves round with little sideways drift;
 //   (a) the main gun's slug leaves along the barrel, wherever the hull points, flat (no drop);
 //   (d) flown into the ground the frigate is wrecked, the pilot thrown from the helm and, in survival, killed.
+// P357: many small rooms off narrow corridors that turn (no long straight hall), stairs and ladders between the decks;
+// the helm taken only at the helm; a careful landing does no harm, a crash tears the hull open and puts every light out;
+// a shell's crater leans along the shot.
 enum FrigateCheck {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
         guard g.dim.dim == .overworld else { check(false, "frigate: needs the overworld"); return }
@@ -61,6 +64,23 @@ enum FrigateCheck {
         check(doors >= 40 && walls >= 1500 && floors.values.allSatisfy { $0 >= 400 } && rooms.count >= 10,
               "frigate (b): \(doors) bulkhead doors, \(walls) bulkhead panels, deck floors \(floors[8]!)/\(floors[14]!)/\(floors[20]!) blocks (gun, main, upper), \(rooms.count) kinds of fittings (\(rooms.sorted().joined(separator: ", ")))")
         check(lines >= 1000 && through == 0, "frigate (b): not a shell: of \(lines) lines straight across the hull, \(through) see through from side to side")
+        // P357 (a): the longest straight open run along the main and upper decks (no big central hallway), and the ways up.
+        var longest = 0
+        for y in [16, 22] { for x in (ox - 7)...(ox + 7) {
+            var run = 0
+            for z in 58...119 {
+                let open = gr.get(x, y, z) == AIR && gr.get(x, y - 1, z) == AIR
+                run = open ? run + 1 : 0
+                longest = max(longest, run)
+            }
+        } }
+        var stairs = 0, ladders = 0
+        for y in 15...20 { for z in 58...119 { for x in 0..<gr.sx {
+            let k = key(gr.get(x, y, z))
+            if k.hasSuffix("_stairs") { stairs += 1 } else if k == "ladder" { ladders += 1 }
+        } } }
+        check(doors >= 70 && rooms.count >= 12 && longest <= 26 && stairs >= 5 && ladders >= 10,
+              "frigate P357 (a): \(doors) doors, \(rooms.count) kinds of fittings, longest straight run of corridor \(longest) blocks, a stair of \(stairs) steps and \(ladders) ladder rungs between the decks")
 
         // Hold it still while the checks stand in it.
         s.captured = true
@@ -69,11 +89,22 @@ enum FrigateCheck {
         _ = w.loadSync(center: s.pos, radius: 6)
         for _ in 0..<4 { w.ships.update(1.0 / 60, game: g) }
 
-        // (b) A corridor door on the main deck opens and closes (the port side of the corridor at z 66).
-        let door = IVec3(ox - 3, 15, 66)
+        // (b) A door on the main deck opens and closes from its corridor side (P357: the first one aft of z 64).
+        var door = IVec3(ox - 3, 15, 66), side = IVec3(1, 0, 0)
+        find: for z in 64...119 { for x in 0..<gr.sx {
+            let b = gr.get(x, 15, z)
+            guard key(b) == "bulkhead_door" else { continue }
+            let f = Int(b - Blocks.groupBase[Int(b)]) & 3
+            let o = [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)][f]
+            if gr.get(x + o.x, 15, z + o.z) == AIR && gr.get(x + o.x, 16, z + o.z) == AIR { door = IVec3(x, 15, z); side = o; break find }
+        } }
         let d0 = gr.get(door.x, door.y, door.z), u0 = gr.get(door.x, door.y + 1, door.z)
-        g.player.pos = s.toWorld(V3(Float(ox) + 0.5, 15.02, 66.5))
+        let mid = V3(Float(door.x) + 0.5, 16.3, Float(door.z) + 0.5), sd = V3(Float(side.x), 0, Float(side.z))
+        g.player.pos = s.toWorld(V3(Float(door.x + side.x) + 0.5, 15.02, Float(door.z + side.z) + 0.5) + sd * 0.3)
         g.player.vel = .zero
+        // P357 (b): standing aboard away from the helm, use takes no command.
+        w.ships.aboard = s
+        check(g.commandeerable() !== s, "frigate P357 (b): aboard, away from the helm, use doesn't take command (only at the helm)")
         // Use, aimed at a point of the door's cell (ship space) from the corridor.
         func use(at l: V3) {
             let look = simd_normalize(s.toWorld(l) - g.player.eye)
@@ -81,9 +112,10 @@ enum FrigateCheck {
             g.target = nil
             _ = g.shipInteract(breakHeld: false, breakNow: false, useNow: true, sneak: false, dt: 1.0 / 60)
         }
-        use(at: V3(Float(door.x) + 0.9, 16.3, 66.5))                     // the closed panel on the corridor side
+        use(at: mid + sd * 0.4)                                            // the closed panel on the corridor side
         let d1 = gr.get(door.x, door.y, door.z), u1 = gr.get(door.x, door.y + 1, door.z)
-        for dz in [Float(0.1), 0.9] where gr.get(door.x, door.y, door.z) == d1 { use(at: V3(Float(door.x) + 0.5, 16.3, 66 + dz)) }   // the open leaf
+        let across = V3(abs(sd.z), 0, abs(sd.x))
+        for k in [Float(-0.4), 0.4] where gr.get(door.x, door.y, door.z) == d1 { use(at: mid + across * k) }   // the open leaf
         let d2 = gr.get(door.x, door.y, door.z)
         let db = Blocks.groupBase[Int(d0)]
         func ds(_ b: BlockID) -> Int { Blocks.groupBase[Int(b)] == db ? Int(b - db) : -1 }
@@ -196,10 +228,31 @@ enum FrigateCheck {
         } else { check(false, "frigate (a): the helm fires the main gun (started \(started))") }
         w.ships.shells.removeAll { $0.owner == s.id }
 
+        // P357 (c): set down gently (3-4 blocks/s onto the ground under it): no harm to hull or crew.
+        g.survival = true; g.player.flying = false; g.health = 20; g.alive = true
+        if w.ships.pilot !== s { g.player.pos = s.toWorld(stand); g.takeCommand(s) }
+        s.vel = .zero; s.angVel = .zero; s.throttle = 0
+        w.ships.pointHull(s, pitch: 0)
+        _ = w.loadSync(center: s.pos, radius: 6)
+        var ground = -Float.greatestFiniteMagnitude
+        for i in 0...4 { for j in 0...4 {
+            let x = Int(floor(s.worldMin.x + (s.worldMax.x - s.worldMin.x) * Float(i) / 4)), z = Int(floor(s.worldMin.z + (s.worldMax.z - s.worldMin.z) * Float(j) / 4))
+            ground = max(ground, Float(w.topY(x, z)) + 1)
+        } }
+        s.pos.y += ground + 0.4 - s.worldMin.y; s.prevPos = s.pos; s.updateBounds()
+        let blocks0 = s.blockCount, wreck0 = s.wrecked
+        s.vel = V3(0, -4, 0)
+        fly(MoveInput(), 3)
+        check(!s.wrecked && !wreck0 && blocks0 - s.blockCount < 10 && g.health == 20,
+              "frigate P357 (c): a careful landing does no harm (\(s.wrecked ? "wrecked" : "whole"), \(blocks0 - s.blockCount) hull blocks lost, \(20 - g.health) half-hearts)")
+        s.pos = start; s.prevPos = start; s.vel = .zero
+        w.ships.pointHull(s, pitch: 0)
+        if w.ships.pilot !== s { g.player.pos = s.toWorld(stand); g.takeCommand(s) }
+
         // (d) Bow down at full throttle into the ground, in survival.
         g.survival = true; g.player.flying = false; g.health = 20; g.alive = true
         if w.ships.pilot !== s { g.player.pos = s.toWorld(stand); g.takeCommand(s) }
-        let crashes0 = Capital.crashes
+        let crashes0 = Capital.crashes, blocks1 = s.blockCount
         var dive = MoveInput(); dive.forward = 1
         g.input.control = true
         fly(dive, 2)
@@ -208,5 +261,25 @@ enum FrigateCheck {
         let hurt = 20 - g.health
         check(s.wrecked && st.disabledWhy == "crashed" && Capital.crashes == crashes0 + 1 && w.ships.pilot == nil && (!g.alive || hurt >= 10),
               "frigate (d): flown bow-first into the ground it is wrecked (\(s.wrecked ? st.disabledWhy : "flying"), \(frames) frames), the pilot thrown from the helm and \(g.alive ? "hurt \(hurt) half-hearts" : "killed")")
+        // P357 (c), (d): the crash tore the hull open and every light aboard is out.
+        var lit = 0
+        let emitters = Set(["light_panel", "frigate_porthole", "frigate_thruster"].filter { Blocks.has($0) }.map { Blocks.id($0) })
+        for y in 0..<gr.sy { for z in 0..<gr.sz { for x in 0..<gr.sx where emitters.contains(gr.get(x, y, z)) { lit += 1 } } }
+        check(blocks1 - s.blockCount >= 300 && lit == 0 && Capital.darkened.contains(s.id),
+              "frigate P357 (c, d): the crash broke \(blocks1 - s.blockCount) hull blocks away and \(lit) lights are left burning")
+
+        // P357 (e): a crater from a shot coming down at 30 degrees heading +x leans along it.
+        let gx = Int(floor(home.x)) + 40, gz = Int(floor(home.z))
+        _ = w.loadSync(center: V3(Float(gx), 100, Float(gz)), radius: 3)
+        let gy = w.topY(gx, gz)
+        var before: [Int: BlockID] = [:]
+        for y in (gy - 12)...gy { for z in (gz - 16)...(gz + 16) { for x in (gx - 16)...(gx + 16) { before[(x - gx + 16) + (z - gz + 16) * 33 + (y - gy + 12) * 1089] = w.block(x, y, z) } } }
+        Explosion.crater(at: V3(Float(gx) + 0.5, Float(gy) + 1, Float(gz) + 0.5), radius: 6, game: g, depth: 6, along: V3(0.87, -0.5, 0))
+        var sumX: Float = 0, cnt: Float = 0
+        for y in (gy - 12)..<(gy - 2) { for z in (gz - 16)...(gz + 16) { for x in (gx - 16)...(gx + 16) {
+            if let b = before[(x - gx + 16) + (z - gz + 16) * 33 + (y - gy + 12) * 1089], b != AIR, w.block(x, y, z) == AIR { sumX += Float(x - gx); cnt += 1 }
+        } } }
+        let lean = cnt > 0 ? sumX / cnt : 0
+        check(cnt > 20 && lean > 1.5, String(format: "frigate P357 (e): the crater's lower part sits %.1f blocks on along the shot (%.0f blocks dug below 3 deep)", lean, cnt))
     }
 }

@@ -20,8 +20,12 @@ enum Explosion {
     // `decay`: blocks drop with chance 1/power (creepers, fireballs, beds...); primed blocks of TNT drop everything
     // (reference: the TNT drop-decay rule is off by default).
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
-                        decay: Bool = true, resistCap: Float = .infinity) {
+                        decay: Bool = true, resistCap: Float = .infinity, along: V3? = nil) {
         let w = g.world
+        // P357 (e) (Oct 16 20:14: "a shell crater follows the angle of the shot"): a shell's blast carries on the way it
+        // was flying: rays along the shot reach further, those back toward the gun less, so a plunging shot leaves a
+        // slanted bowl and a flat one a gouge running on from where it struck.
+        let shot: V3? = along.flatMap { simd_length($0) > 1e-3 ? simd_normalize($0) : nil }
         // No friendly fire: the Capital's own shells (bases.quiet) leave its citadels' blocks and its troops alone.
         let own = g.bases.quiet
         let breakBlocks = breakBlocks && !(own && g.bases.inAnyBase(c))
@@ -35,6 +39,7 @@ enum Explosion {
             var d = V3(Float(i) / 15 * 2 - 1, Float(j) / 15 * 2 - 1, Float(k) / 15 * 2 - 1)
             d = simd_normalize(d)
             var intensity = power * (0.7 + Rand.float(in: 0..<0.6))
+            if let shot { intensity *= 1 + 0.6 * simd_dot(d, shot) }
             var p = c
             while intensity > 0 {
                 let b = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
@@ -103,7 +108,13 @@ enum Explosion {
         // the size of most of what broke (TerrainField.swift).
         if (w.keepsField || w.fieldTerrain) && !destroyed.isEmpty {
             let ds = destroyed.map { simd_length(V3(Float($0.x), Float($0.y), Float($0.z)) + 0.5 - c) }.sorted()
-            w.carve(at: c, radius: ds[min(ds.count - 1, ds.count * 3 / 4)] + 0.3, mode: .shape)
+            let r = ds[min(ds.count - 1, ds.count * 3 / 4)] + 0.3
+            if let shot {                                       // (the bowl leans and runs on along the shot)
+                w.carve(at: c + shot * (r * 0.3), radius: r * 0.9, mode: .shape)
+                w.carve(at: c + shot * (r * 0.95), radius: r * 0.6, mode: .shape)
+            } else {
+                w.carve(at: c, radius: r, mode: .shape)
+            }
         }
         // Progressive block damage: blocks the blast couldn't break lose pieces on the side facing it.
         if Settings.shared.chipping {
@@ -205,8 +216,8 @@ extension Explosion {
     // nearest first, so a capped crater is still a round bowl, only shallower. All at once here (harness); the game
     // carves it over a few frames with CraterJob (blocksPerFrame). Returns the number of blocks removed.
     @discardableResult
-    static func crater(at c: V3, radius r: Float, cap: Int = .max, game g: Game, depth: Int? = nil) -> Int {
-        let job = CraterJob(at: c, radius: r, cap: cap, game: g, depth: depth)
+    static func crater(at c: V3, radius r: Float, cap: Int = .max, game g: Game, depth: Int? = nil, along: V3? = nil) -> Int {
+        let job = CraterJob(at: c, radius: r, cap: cap, game: g, depth: depth, along: along)
         while !job.step(g, blocks: .max) {}
         return job.removed
     }
@@ -243,6 +254,7 @@ final class CraterJob {
     let r: Float
     let cap: Int
     let depth: Int                           // how far down the bowl reaches (P99: the Tidebreaker's goes 22 deep)
+    private var shear = V2(0, 0)             // P357 (e): blocks each layer down shifts along the shot
     private let down: Float
     private let offsets: [SIMD3<Int16>]
     private var next = 0
@@ -256,8 +268,16 @@ final class CraterJob {
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
 
     // `quiet`: only the carving (a crater dug when its ground loads, long after the blast: MainGun pending craters).
-    init(at c: V3, radius r: Float, cap: Int, game g: Game, quiet: Bool = false, depth: Int? = nil) {
+    init(at c: V3, radius r: Float, cap: Int, game g: Game, quiet: Bool = false, depth: Int? = nil, along: V3? = nil) {
         center = c; self.r = r; self.cap = cap
+        // P357 (e): the bowl's depth leans along the shot (each layer down shifted on along its level heading, up to
+        // 1.2 blocks a layer for a flat shot); a shot straight down digs straight down as before.
+        if let a = along, simd_length(a) > 1e-3 {
+            let n = simd_normalize(a)
+            let hz = V2(n.x, n.z), hl = simd_length(hz)
+            let lean = hl > 1e-3 ? min(1.2, hl / max(0.2, abs(n.y))) : 0
+            shear = hl > 1e-3 ? hz / hl * lean : V2(0, 0)
+        }
         let ri = Int(ceilf(r))
         self.depth = depth ?? Int(ceilf(Float(ri) / 1.5))
         down = r / Float(max(1, self.depth))
@@ -318,7 +338,8 @@ final class CraterJob {
             if d2 > r * r { next = offsets.count; break }     // nearest first: nothing further can be inside
             let edge: Float = r * (0.8 + 0.2 * hashf(cx + dx, y, cz + dz, 911))
             guard d2 <= edge * edge else { continue }
-            let x = cx + dx, z = cz + dz
+            let sx = dy < 0 ? Int((shear.x * Float(-dy)).rounded()) : 0, sz = dy < 0 ? Int((shear.y * Float(-dy)).rounded()) : 0
+            let x = cx + dx + sx, z = cz + dz + sz
             let id = w.block(x, y, z)
             if id == AIR || Blocks.isLiquid(id) || Blocks.hardness[Int(id)] < 0 { continue }
             let b = IVec3(x, y, z)

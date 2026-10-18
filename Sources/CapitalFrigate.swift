@@ -22,7 +22,8 @@ extension BlockRegistry {
             d.hardness = 8; d.resistance = 9; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 2; d.sound = .metal
             add(d)
         }
-        for (n, disp, e) in [("frigate_porthole", "Meridian Porthole", UInt8(11)), ("frigate_thruster", "Meridian Thruster Core", UInt8(15))] where !has(n) {
+        for (n, disp, e) in [("frigate_porthole", "Meridian Porthole", UInt8(11)), ("frigate_thruster", "Meridian Thruster Core", UInt8(15)),
+                             ("frigate_porthole_dark", "Unlit Meridian Porthole", UInt8(0))] where !has(n) {
             var d = BlockDef(n, disp)
             d.tex = [n]; d.emit = e
             d.hardness = 6; d.resistance = 9; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 2; d.sound = .metal
@@ -74,6 +75,15 @@ extension TextureGen {
             if x >= 4 && x <= 11 && y >= 5 && y <= 10 {
                 if x == 4 || x == 11 || y == 5 || y == 10 { return hex(0x1C1E21) }
                 return hex(0xFFE7B0, 0.92 + 0.08 * Float(10 - y) / 5)
+            }
+            if y == 15 || x == 15 { return hex(0x2A2D31) }
+            return hex(0x41464C, 0.95 + 0.03 * r(x / 5, y / 4, 2606))
+        }
+        // P357 (d): a porthole gone dark after a crash: the same frame round black glass with a faint grey sheen.
+        p["frigate_porthole_dark"] = { x, y in
+            if x >= 4 && x <= 11 && y >= 5 && y <= 10 {
+                if x == 4 || x == 11 || y == 5 || y == 10 { return hex(0x1C1E21) }
+                return hex(x - y == 0 ? 0x3A4048 : 0x15181C)
             }
             if y == 15 || x == 15 { return hex(0x2A2D31) }
             return hex(0x41464C, 0.95 + 0.03 * r(x / 5, y / 4, 2606))
@@ -340,46 +350,43 @@ extension Capital {
         for z in 100...112 { for y in 9...13 { hb.set(-9, y, z, AIR); hb.set(-8, y, z, AIR) } }
         for z in 99...113 { hb.set(-9, 14, z, light); hb.set(-9, 8, z, trim) }
 
-        // The main deck (y 15-19): a corridor |x| <= 2 from the fire control room forward (z <= 59) to the engine
-        // room's bulkhead (z 120), rooms either side behind walls at |x| 3 with a door each.
-        for z in 60...119 { for y in 15...19 { put(-3, y, z, wall); put(3, y, z, wall) } }
-        for z in stride(from: 60, through: 108, by: 12) { for y in 15...19 { for ax in 4...8 { put(ax, y, z, wall); put(-ax, y, z, wall) } } }
-        for z in stride(from: 66, through: 114, by: 12) { doorway(-3, 15, z, 3); doorway(3, 15, z, 2) }
-        for z in stride(from: 62, through: 118, by: 6) { put(0, 20, z, light) }
-        for z in stride(from: 66, through: 114, by: 12) { put(-6, 20, z, light); put(6, 20, z, light) }
-        // Fire control, forward: consoles facing the bow and the plot between them.
+        // P357 (Oct 16 20:12 and 21:42: "far more complex inside: many more, smaller rooms, narrower corridors that branch
+        // and turn, stairs and ladders between decks; no single big central hallway"): the main and upper decks are laid out
+        // by deckPlan below. Each deck's corridor is two wide and zigzags from side to side; every other cell inside the
+        // hull is cut into small rooms (bulkheads every 3 to 5 blocks, a second row where the side is wide), each with a
+        // door onto the corridor or onto a room that has one; a pocket too small to stand in is a locker. Rooms take their
+        // trades in turn (bunks, mess, galley, armoury, medbay, workshops, storerooms, crew quarters, comms, engineering).
+        // Fire control, forward (z 48-57): consoles facing the bow and the plot between them.
         for x in -4...4 where x != 0 { put(x, 15, 51, console) }
         put(0, 15, 54, cabinet)
         put(-5, 20, 54, light); put(5, 20, 54, light)
-        // Port: mess (tables down the middle), bunks, infirmary, chart room, stores. Starboard: galley, bunks, armoury,
-        // signals, workshop.
-        for z in [63, 64, 68, 69] { put(-6, 15, z, slab) }
-        for z in [62, 70] { put(4, 15, z, id("furnace")); put(5, 15, z, id("smoker", id("furnace"))) }
-        put(8, 15, 62, barrel); put(8, 15, 63, barrel); put(8, 15, 70, barrel)
-        for sg in [-1, 1] { for z in stride(from: 74, through: 82, by: 2) { put(sg * 8, 15, z, wool); put(sg * 8, 17, z, wool); put(sg * 8, 16, z, slab) } }
-        for z in [86, 88, 92] { put(-8, 15, z, wool) }
-        put(-6, 15, 94, id("brewing_stand"))
-        for z in 86...94 where z % 2 == 0 { put(8, 15, z, bars); put(8, 16, z, bars) }
-        put(6, 15, 94, Blocks.id("chest"))
-        hb.chests.append((hb.grid(6, 15, 94), "meridian_hold"))
-        put(-6, 15, 101, id("cartography_table")); put(-6, 15, 103, id("lectern"))
-        for z in 98...106 where z % 2 == 0 { put(8, 15, z, cabinet); put(8, 16, z, console) }
-        for z in 110...118 { put(-8, 15, z, barrel); if z % 2 == 0 { put(-8, 16, z, barrel) } }
-        put(8, 15, 110, id("crafting_table")); put(8, 15, 112, id("anvil")); put(8, 15, 114, id("smithing_table"))
-        put(6, 15, 118, Blocks.id("chest"))
-        hb.chests.append((hb.grid(6, 15, 118), "meridian_hold"))
+        let stairs = id("polished_andesite_stairs", id("stone_brick_stairs", trim))
+        let mainRooms = ["mess", "galley", "bunks", "armoury", "medbay", "workshop", "stores", "quarters", "comms", "engineering",
+                         "bunks", "stores", "workshop", "bunks", "medbay", "galley", "armoury", "quarters", "engineering", "stores"]
+        let upperRooms = ["officer", "comms", "chart", "officer", "stores", "medbay", "officer", "armoury", "quarters", "comms",
+                          "officer", "stores", "chart", "quarters"]
+        deckPlan(hb, inner: inner, y: 15, h: 5, z0: 58, z1: 119, xr: 8, salt: 3570,
+                 corridors: [(-1, 0, 58, 71), (-1, 5, 70, 71), (4, 5, 70, 87), (-3, 5, 86, 87), (-3, -2, 86, 103), (-3, 3, 102, 103),
+                             (2, 3, 102, 119), (0, 3, 118, 119)],
+                 kinds: mainRooms, wall: wall, door: door, light: light, ceilingLight: true, furnish: { x, z, k, i in
+                     furnish(hb, x, 15, z, k, i, put: put, console: console, cabinet: cabinet, barrel: barrel, wool: wool, slab: slab, bars: bars)
+                 })
+        deckPlan(hb, inner: inner, y: 21, h: 3, z0: 58, z1: 119, xr: 8, salt: 3571,
+                 corridors: [(-1, 0, 58, 75), (-3, 0, 74, 75), (-3, -2, 74, 99), (-3, 4, 98, 99), (3, 4, 98, 119), (-2, 4, 116, 117)],
+                 kinds: upperRooms, wall: wall, door: door, light: light, ceilingLight: false, furnish: { x, z, k, i in
+                     furnish(hb, x, 21, z, k, i, put: put, console: console, cabinet: cabinet, barrel: barrel, wool: wool, slab: slab, bars: bars)
+                 })
+        // Between the decks: a stair up the main deck's corridor (x -2, z 92-96, the upper deck's floor open over it) and a
+        // ladder at the forward end (x -1, z 60), besides the trunk below.
+        for k in 0...4 {
+            hb.set(-2, 15 + k, 92 + k, stairs + 1)
+            for y in (16 + k)...20 where y > 15 + k { hb.set(-2, y, 92 + k, AIR) }
+        }
+        hb.set(-2, 14, 92, deck)
+        ladderUp(-1, 15, 20, 60, 3, backing: wall)
 
-        // The upper deck (y 21-23): officers' cabins either side of its corridor.
-        for z in 56...119 { for y in 21...23 { put(-3, y, z, wall); put(3, y, z, wall) } }
-        for z in stride(from: 64, through: 114, by: 10) { for y in 21...23 { for ax in 4...8 { put(ax, y, z, wall); put(-ax, y, z, wall) } } }
-        for z in Array(stride(from: 60, through: 110, by: 10)) + [117] { doorway(-3, 21, z, 3); doorway(3, 21, z, 2) }
-        for z in stride(from: 62, through: 118, by: 8) { put(-3, 23, z, light); put(3, 23, z, light) }
-        for z in stride(from: 61, through: 111, by: 10) { put(-7, 21, z, wool); put(-7, 21, z + 1, wool); put(7, 21, z, wool); put(7, 21, z + 1, wool) }
-
-        // The ladder trunk (x -3, z 89): gun deck, main deck, upper deck and the bridge, one shaft; and the main deck's
-        // second ladder up to the upper deck (x 2, z 64).
+        // The ladder trunk (x -3, z 89): gun deck, main deck, upper deck and the bridge, one shaft.
         for y in 9...24 { hb.set(-3, y, 89, ladder + 3); hb.set(-4, y, 89, trim) }
-        ladderUp(2, 15, 20, 64, 2)
 
         // The engine room (z 121-154): bulkheads fore and aft, the lower level beside the lower engines (floor y 8), a catwalk
         // deck at y 14 (the main deck's level) down the middle, along both flanks and across at both ends and the middle,
@@ -444,7 +451,157 @@ extension Capital {
         // Crew: the helmsman, a gunner per mount, marines in the hangar.
         hb.post(0, 25, 75, .driver)
         for (x, y, z) in [(2, 25, 96), (2, 29, 126), (-7, 14, 33), (7, 14, 33)] { hb.post(x, y, z, .gunner) }
-        for (x, y, z) in [(-5, 9, 104), (5, 9, 106), (-6, 9, 80), (6, 9, 90), (0, 15, 100), (0, 25, 82)] { hb.post(x, y, z, .troop) }
+        for (x, y, z) in [(-5, 9, 104), (5, 9, 106), (-6, 9, 80), (6, 9, 90), (-2, 15, 100), (0, 25, 82)] { hb.post(x, y, z, .troop) }
         return hb
     }
 }
+
+extension Capital {
+    // P357: one deck's plan. Cells (x in -xr...xr, z in z0...z1) inside the hull at walk level y: the corridors (rects
+    // x0, x1, z0, z1), a bulkhead round them, a bulkhead across the deck's forward row, more every 3 to 5 blocks along
+    // (hashed per deck) and through the middle of any run wider than 6; what is left is rooms. A room gets a door onto
+    // the corridor if it touches it, else onto a room that already has a way out; a room with none, or under 4 cells, is
+    // a locker (solid). Bulkheads are h high; each room is lit (a ceiling panel, or a lamp high in its wall) and
+    // furnished along its walls, away from its door, by `kinds` in turn.
+    static func deckPlan(_ hb: HullBuilder, inner: (Int, Int, Int) -> Bool, y: Int, h: Int, z0: Int, z1: Int, xr: Int, salt: Int,
+                         corridors: [(Int, Int, Int, Int)], kinds: [String], wall: BlockID, door: BlockID, light: BlockID, ceilingLight: Bool,
+                         furnish: (Int, Int, String, Int) -> Void) {
+        let W = 2 * xr + 1, D = z1 - z0 + 1
+        // 0 outside, 1 free, 2 corridor, 3 bulkhead, 4 door
+        var t = [UInt8](repeating: 0, count: W * D)
+        func ix(_ x: Int, _ z: Int) -> Int { (x + xr) + (z - z0) * W }
+        func at(_ x: Int, _ z: Int) -> UInt8 { x < -xr || x > xr || z < z0 || z > z1 ? 0 : t[ix(x, z)] }
+        for z in z0...z1 { for x in -xr...xr where inner(x, y, z) && inner(x, y + 1, z) { t[ix(x, z)] = 1 } }
+        for (xa, xb, za, zb) in corridors { for z in max(z0, za)...min(z1, zb) { for x in xa...xb where at(x, z) == 1 { t[ix(x, z)] = 2 } } }
+        let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        for z in z0...z1 { for x in -xr...xr where at(x, z) == 1 {
+            if z == z0 || dirs.contains(where: { at(x + $0.0, z + $0.1) == 2 }) { t[ix(x, z)] = 3 }
+        } }
+        // Bulkheads across, every 3 to 5 rooms' depth.
+        var zc = z0
+        var n = 0
+        while true {
+            zc += 4 + Int(hash3(salt, n, 0, 77) % 3)
+            n += 1
+            if zc >= z1 - 2 { break }
+            for x in -xr...xr where at(x, zc) == 1 { t[ix(x, zc)] = 3 }
+        }
+        // A wall down the middle of a wide run.
+        for z in z0...z1 {
+            var x = -xr
+            while x <= xr {
+                guard at(x, z) == 1 else { x += 1; continue }
+                var e = x
+                while e + 1 <= xr && at(e + 1, z) == 1 { e += 1 }
+                if e - x + 1 >= 7 { t[ix((x + e) / 2, z)] = 3 }
+                x = e + 1
+            }
+        }
+        // Rooms: the free cells' 4-connected pieces.
+        var room = [Int](repeating: -1, count: W * D)
+        var rooms: [[(Int, Int)]] = []
+        for z in z0...z1 { for x in -xr...xr where at(x, z) == 1 && room[ix(x, z)] < 0 {
+            var cells: [(Int, Int)] = [(x, z)]
+            room[ix(x, z)] = rooms.count
+            var i = 0
+            while i < cells.count {
+                let (cx, cz) = cells[i]; i += 1
+                for (dx, dz) in dirs where at(cx + dx, cz + dz) == 1 && room[ix(cx + dx, cz + dz)] < 0 {
+                    room[ix(cx + dx, cz + dz)] = rooms.count
+                    cells.append((cx + dx, cz + dz))
+                }
+            }
+            rooms.append(cells)
+        } }
+        // Doors: onto the corridor first, then onto rooms with a way out, until nothing changes.
+        var out = [Bool](repeating: false, count: rooms.count)
+        var doors: [(Int, Int, Int)] = []                       // x, z, panel side
+        var changed = true
+        while changed {
+            changed = false
+            for r in rooms.indices where !out[r] && rooms[r].count >= 4 {
+                var cands: [(Int, Int, Int)] = []
+                for (cx, cz) in rooms[r] { for (k, (dx, dz)) in dirs.enumerated() {
+                    let wx = cx + dx, wz = cz + dz
+                    guard at(wx, wz) == 3 else { continue }
+                    let o = at(wx + dx, wz + dz)
+                    let other = o == 2 || (o == 1 && room[ix(wx + dx, wz + dz)] != r && out[room[ix(wx + dx, wz + dz)]])
+                    guard other else { continue }
+                    // In a straight wall: the cells beside the doorway are bulkhead or hull.
+                    let px = dz, pz = dx
+                    guard [at(wx + px, wz + pz), at(wx - px, wz - pz)].allSatisfy({ $0 == 3 || $0 == 0 }) else { continue }
+                    cands.append((wx, wz, [3, 2, 1, 0][k]))     // the panel on the far side (toward the way out)
+                } }
+                guard !cands.isEmpty else { continue }
+                let d = cands[cands.count / 2]
+                t[ix(d.0, d.1)] = 4
+                doors.append(d)
+                out[r] = true
+                changed = true
+            }
+        }
+        // Build: bulkheads, doors, lockers.
+        for z in z0...z1 { for x in -xr...xr {
+            switch at(x, z) {
+            case 3: for dy in 0..<h { hb.set(x, y + dy, z, wall) }
+            case 1 where !out[room[ix(x, z)]]: for dy in 0..<h { hb.set(x, y + dy, z, wall) }
+            default: break
+            }
+        } }
+        for (x, z, f) in doors {
+            hb.set(x, y, z, door + BlockID(f)); hb.set(x, y + 1, z, door + BlockID(f | 8))
+            for dy in 2..<h { hb.set(x, y + dy, z, wall) }
+        }
+        // Light: rooms and every fifth corridor cell.
+        func lamp(_ cells: [(Int, Int)]) {
+            let (cx, cz) = cells[cells.count / 2]
+            if ceilingLight { if inner(cx, y + h, cz) { hb.set(cx, y + h, cz, light) }; return }
+            for (dx, dz) in dirs where at(cx + dx, cz + dz) == 3 { hb.set(cx + dx, y + h - 1, cz + dz, light); return }
+            for (x, z) in cells { for (dx, dz) in dirs where at(x + dx, z + dz) == 3 { hb.set(x + dx, y + h - 1, z + dz, light); return } }
+        }
+        var corr: [(Int, Int)] = []
+        for z in z0...z1 { for x in -xr...xr where at(x, z) == 2 { corr.append((x, z)) } }
+        for i in stride(from: 2, to: corr.count, by: 10) { lamp([corr[i]]) }
+        var k = 0
+        for r in rooms.indices where out[r] {
+            lamp(rooms[r])
+            let kind = kinds[k % kinds.count]
+            k += 1
+            // Along the walls, clear of the doorway.
+            let nearDoor = { (x: Int, z: Int) in dirs.contains { at(x + $0.0, z + $0.1) == 4 } }
+            let spots = rooms[r].filter { c in !nearDoor(c.0, c.1) && dirs.contains { [0, 3].contains(at(c.0 + $0.0, c.1 + $0.1)) } }
+            let most = max(1, rooms[r].count / 3)
+            for (i, c) in spots.prefix(most).enumerated() { furnish(c.0, c.1, kind, i) }
+        }
+    }
+
+    // P357: a room's fitting at (x, y, z) by its trade; i counts the room's fittings.
+    static func furnish(_ hb: HullBuilder, _ x: Int, _ y: Int, _ z: Int, _ kind: String, _ i: Int, put: (Int, Int, Int, BlockID) -> Void,
+                        console: BlockID, cabinet: BlockID, barrel: BlockID, wool: BlockID, slab: BlockID, bars: BlockID) {
+        let g = { (n: String, f: BlockID) in id(n, f) }
+        func chest() {
+            put(x, y, z, Blocks.id("chest"))
+            if hb.get(x, y, z) == Blocks.id("chest") { hb.chests.append((hb.grid(x, y, z), "meridian_hold")) }
+        }
+        switch kind {
+        case "bunks":
+            put(x, y, z, wool); put(x, y + 1, z, slab); put(x, y + 2, z, wool)
+        case "mess": put(x, y, z, slab)
+        case "galley": put(x, y, z, [g("furnace", barrel), g("smoker", barrel), barrel, barrel][i % 4])
+        case "armoury":
+            if i % 3 == 1 { chest() } else { put(x, y, z, bars); put(x, y + 1, z, bars) }
+        case "medbay": put(x, y, z, [wool, g("brewing_stand", cabinet), wool, cabinet][i % 4])
+        case "workshop": put(x, y, z, [g("crafting_table", barrel), g("anvil", barrel), g("smithing_table", barrel), barrel][i % 4])
+        case "stores":
+            if i % 3 == 1 { chest() } else { put(x, y, z, barrel); put(x, y + 1, z, barrel) }
+        case "quarters": put(x, y, z, [wool, barrel, wool, g("lectern", cabinet)][i % 4])
+        case "officer":
+            if i % 4 == 2 { chest() } else { put(x, y, z, [wool, g("lectern", cabinet), wool, wool][i % 4]) }
+        case "comms": put(x, y, z, i % 2 == 0 ? console : cabinet)
+        case "engineering": put(x, y, z, [cabinet, console, g("cauldron", barrel), barrel][i % 4])
+        case "chart": put(x, y, z, [g("cartography_table", cabinet), g("lectern", cabinet), cabinet][i % 3])
+        default: put(x, y, z, barrel)
+        }
+    }
+}
+

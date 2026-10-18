@@ -389,7 +389,7 @@ final class Armory {
         g.blastSpares = s.fromPlayer ? .none : (shooter?.factionValue ?? (s.side != nil && s.side != Faction.none ? s.side! : (own ? .steelhold : .none)))
         defer { g.ashQuiet = false; g.blastSpares = .none }
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks,
-                          resistCap: s.breach)
+                          resistCap: s.breach, along: simd_length(s.vel) > 25 ? s.vel : nil)        // (P357 e: shells, not grenades)
         NavalGuns.heavyBurst(s, at: at, shooter: shooter, spares: g.blastSpares, g)       // P102 / P103
         if s.tracer { AirDefence.burst(at: at, g) }                                         // P252: flak by a craft
         g.bases.quiet = false

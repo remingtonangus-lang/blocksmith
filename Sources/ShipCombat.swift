@@ -128,7 +128,7 @@ extension ShipManager {
         if shells.isEmpty { return }
         var reader = ShipBlockReader(world)
         var keep: [Shell] = []
-        var blasts: [(V3, Float, Int, Bool, Int, Bool)] = []
+        var blasts: [(V3, Float, Int, Bool, Int, Bool, V3)] = []
         for sh in shells {
             sh.age += dt
             let start = sh.pos
@@ -205,15 +205,15 @@ extension ShipManager {
                 }
             }
             if near && hit == nil { hit = start }
-            if let p = hit { blasts.append((p, sh.power, sh.owner, onHull, sh.kind, sh.gentle)); continue }
+            if let p = hit { blasts.append((p, sh.power, sh.owner, onHull, sh.kind, sh.gentle, sh.vel)); continue }
             sh.pos = end
             if sh.age < sh.life && sh.pos.y > -64 { keep.append(sh) }
         }
         shells = keep
-        for (p, power, owner, onHull, kind, gentle) in blasts {
+        for (p, power, owner, onHull, kind, gentle, vel) in blasts {
             if kind == 3, let g = game {
                 let hit = onHull ? list.first(where: { $0.root.id != owner && shipBlock(in: $0, at: p) }) : nil
-                mainGunImpact(at: p, owner: owner, game: g)
+                mainGunImpact(at: p, owner: owner, game: g, along: vel)
                 mainGunHullDamage(at: p, owner: owner, direct: hit, game: g)
                 continue
             }
@@ -226,7 +226,7 @@ extension ShipManager {
                 let steered = from != nil && g.world.ships.pilot?.root.id == from?.root.id
                 g.blastSpares = steered ? .none : (from?.factionValue ?? .none)
                 if kind == 5 { g.depthChargeBurst(at: p, power: power, owner: owner) }     // P278: boom, plume, pressure wave
-                Explosion.explode(at: p, power: power, game: g, breakBlocks: !gentle)
+                Explosion.explode(at: p, power: power, game: g, breakBlocks: !gentle, along: onHull ? nil : vel)   // (P357 e)
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
                 // scratched paint, Quest round 4).

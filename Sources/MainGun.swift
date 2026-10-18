@@ -251,7 +251,7 @@ extension ShipManager {
     }
 
     // A slug's impact: crater, light column, shockwave, rumble.
-    func mainGunImpact(at p: V3, owner: Int, game g: Game) {
+    func mainGunImpact(at p: V3, owner: Int, game g: Game, along: V3? = nil) {
         MainGunPerf.blast(clock: g.clock)
         MainGun.noteImpact(at: p)
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -264,7 +264,7 @@ extension ShipManager {
         g.baseNoise(at: p, kind: .explosion, power: 16)      // citadels and Boreal Station hear the blast (lockdown, alarms)
         lap("noise")
         if craterGroundLoaded(p) {
-            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, depth: MainGun.craterDepth)
+            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, depth: MainGun.craterDepth, along: along)
         } else if pendingCraters.count < MainGun.pendingCap {
             pendingCraters.append(p)                         // dug when the player comes near enough to load it
         }
