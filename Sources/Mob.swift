@@ -2184,6 +2184,8 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                       maxDist: Float = .greatestFiniteMagnitude, corpses: [Mob] = [], ragdolls: RagdollWorld? = nil) -> Int {
     let CT = Mesher.cornerTable
     let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
+    let rTris = MobRound.tris, rNormal = MobRound.normal, rCorner = MobRound.corner      // (P374: read once, not per vertex)
+    let pts = MobRound.scratch
     var n = 0
     SoldierRig.eye = eye                    // soldier level of detail by distance
     SoldierRig.drawing = true
@@ -2296,12 +2298,13 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             let bev = roundable ? MobRound.bevel(p) : 0
             if bev > 0 {
                 if n + MobRound.vertsPerPart > capacity { MobDrawStats.dropped += list.count - idx; return n }
-                let tris = MobRound.tris
-                for t in 0..<tris.count {
-                    let i = tris[t]
+                // P374: the bevelled box's 24 distinct points are placed and lit once, then its 132 triangle corners are
+                // copied from them (each corner was placed on its own: 5.5 times the work, the dearest part of a town's
+                // frame).
+                for i in 0..<24 {
                     let lp = MobRound.point(i, p.mn, p.mx, bev)
                     var q = p.place(lp, rot)
-                    var nm = rot * MobRound.normal[i]
+                    var nm = rot * rNormal[i]
                     if !still {
                         if isHead { q = pose.ha * q + pose.hb }
                         q = pose.a * q + pose.b
@@ -2313,14 +2316,35 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                     let fs: Float = wn.x * wn.x * 0.8 + wn.z * wn.z * 0.68 + wn.y * wn.y * (wn.y > 0 ? 1 : 0.55)
                     let tt = min(1, max(0, q.y * 0.1))
                     let ground: Float = glow ? 1 : 0.72 + 0.28 * tt * tt * (3 - 2 * tt)
-                    let sh: Float = fs * lit * ground * (MobRound.corner[i].y < 0.5 ? 0.92 : 1)
+                    let sh: Float = fs * lit * ground * (rCorner[i].y < 0.5 ? 0.92 : 1)
                     q *= scale / 16
                     var r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
                     r = rag != nil ? MobRagdoll.turn[bi] * r + MobRagdoll.shift[bi] : r + base
-                    out[n + t] = MobVert(pos: V4(r, p.pattern), color: V4(pc, sh + (1.15 - sh) * flash), local: V4(lp, 0))
+                    pts[i] = MobVert(pos: V4(r, p.pattern), color: V4(pc, sh + (1.15 - sh) * flash), local: V4(lp, 0))
                 }
-                n += tris.count
+                for t in 0..<rTris.count { out[n + t] = pts[rTris[t]] }
+                n += rTris.count
                 continue
+            }
+            // P374: the box's 8 corners placed once (each face placed its own 4: three times the work); the faces then
+            // take their corners and their own shade.
+            for c in 0..<8 {
+                let lp = p.mn + size * V3(Float(c & 1), Float((c >> 1) & 1), Float((c >> 2) & 1))
+                var q = p.place(lp, rot)
+                if !still {
+                    if isHead { q = pose.ha * q + pose.hb }
+                    q = pose.a * q + pose.b
+                }
+                if lie { q = V3(q.x, 4 - q.z, q.y) }          // on its back: model up runs toward the pillow
+                else if side > 0 { q = V3(sideX - q.y, q.x + side, q.z) }   // a body on its side (Hunting.swift)
+                // Cheap ambient occlusion: darker toward the feet (x0.72 at model y 0, full by y 10) and at each
+                // box's lower end, so legs and bellies read as shaded rather than flat-lit.
+                let t = min(1, max(0, q.y * 0.1))
+                let ground: Float = glow ? 1 : 0.72 + 0.28 * t * t * (3 - 2 * t)
+                q *= scale / 16
+                var r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
+                r = rag != nil ? MobRagdoll.turn[bi] * r + MobRagdoll.shift[bi] : r + base
+                pts[c] = MobVert(pos: V4(r, p.pattern), color: V4(pc, ground * ((c >> 1) & 1 == 0 ? 0.9 : 1)), local: V4(lp, 0))
             }
             for f in 0..<6 {
                 // A ragdoll's faces turn with it: shaded by where they face now (the same weights as faceShade).
@@ -2333,24 +2357,10 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                 // The face's four corners, then its two triangles (0 1 2, 0 2 3) in place.
                 for k in 0..<4 {
                     let ci = (f * 4 + k) * 3
-                    let lp = p.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
-                    var q = p.place(lp, rot)
-                    if !still {
-                        if isHead { q = pose.ha * q + pose.hb }
-                        q = pose.a * q + pose.b
-                    }
-                    if lie { q = V3(q.x, 4 - q.z, q.y) }          // on its back: model up runs toward the pillow
-                    else if side > 0 { q = V3(sideX - q.y, q.x + side, q.z) }   // a body on its side (Hunting.swift)
-                    // Cheap ambient occlusion: darker toward the feet (x0.72 at model y 0, full by y 10) and at each
-                    // box's lower end, so legs and bellies read as shaded rather than flat-lit.
-                    let t = min(1, max(0, q.y * 0.1))
-                    let ground: Float = glow ? 1 : 0.72 + 0.28 * t * t * (3 - 2 * t)
-                    let ao = ground * (CT[ci + 1] == 0 ? 0.9 : 1)
-                    let sh: Float = fs * lit * ao
-                    q *= scale / 16
-                    var r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
-                    r = rag != nil ? MobRagdoll.turn[bi] * r + MobRagdoll.shift[bi] : r + base
-                    out[n + k] = MobVert(pos: V4(r, p.pattern), color: V4(pc, sh + (1.15 - sh) * flash), local: V4(lp, 0))
+                    var v = pts[Int(CT[ci]) | Int(CT[ci + 1]) << 1 | Int(CT[ci + 2]) << 2]
+                    let sh: Float = fs * lit * v.color.w                  // (w: the corner's ground shade and foot darkening)
+                    v.color = V4(pc, sh + (1.15 - sh) * flash)
+                    out[n + k] = v
                 }
                 if cullBack {
                     // Facing away from the eye (positions are eye-relative): hidden behind the box's front faces.

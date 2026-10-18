@@ -23,8 +23,7 @@ extension Game {
             for dx in -r...r {
                 guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
                 let blocks = c.blocks, x0 = c.cx * CS, z0 = c.cz * CS
-                var hmax = 0
-                for h in c.height where Int(h) > hmax { hmax = Int(h) }
+                let hmax = max(0, c.heightMax)
                 for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) {
                     for _ in 0..<3 {
                         // One fast PRNG draw per tick position (the system generator was the main-thread hot spot).

@@ -20,6 +20,9 @@ enum QuestPerf {
         Spot(name: "taiga", seed: 6665340019718134347, x: 4323.3, y: 67.5, z: -594.3, yaw: 80, pitch: -20),
         Spot(name: "ocean", seed: 3931512493184456980, x: 11576.9, y: 62.8, z: -12552.1, yaw: 165, pitch: -23),
         Spot(name: "darkforest", seed: 1997562484558922131, x: 7668.3, y: 209.7, z: -5667.8, yaw: 103, pitch: -36),
+        // P374 (Oct 18 07:54-08:00: 45-54 fps by the forest bandit camp, the savanna town Stone Gulch busy around him)
+        Spot(name: "camp", seed: 13480747113613945685, x: 5127.0, y: 153.8, z: 1050.3, yaw: 355, pitch: -26),
+        Spot(name: "gulch", seed: 13480747113613945685, x: 6094.4, y: 88.0, z: 688.6, yaw: 123, pitch: -12),
     ]
 
     final class Phase {
@@ -49,6 +52,41 @@ enum QuestPerf {
         }
     }
 
+    // P374: what the process holds (resident, from /proc) and the largest parts of it the game can count.
+    static func rssMB() -> Double {
+        guard let t = try? String(contentsOfFile: "/proc/self/status", encoding: .utf8),
+              let l = t.split(separator: "\n").first(where: { $0.hasPrefix("VmRSS:") }) else { return 0 }
+        return (Double(l.split(separator: " ").dropFirst().first ?? "0") ?? 0) / 1024
+    }
+    static func memory(_ w: World, _ g: Game) -> String {
+        var held = 0
+        for c in w.chunks.values { held += c.heldCopyBytes }
+        var blocks = 0, field = 0, light = 0, tint = 0, secs = 0, airSecs = 0, leadSecs = 0, fieldSecs = 0, solidSecs = 0
+        for c in w.chunks.values {
+            let st = c.blocks
+            var leading = true
+            for sec in 0..<(st.storedBytes.blocks / 2 / BlockStore.section) {
+                secs += 1
+                var air = true
+                for i in (sec * BlockStore.section)..<((sec + 1) * BlockStore.section) where st.raw(i) != AIR { air = false; break }
+                if air { airSecs += 1; if leading { leadSecs += 1 } } else { leading = false }
+            }
+            for sec in 0..<(st.storedBytes.field / 2 / BlockStore.section) {
+                fieldSecs += 1
+                var solid = true
+                for i in (sec * BlockStore.section)..<((sec + 1) * BlockStore.section) where !st.ground(i) { solid = false; break }
+                if solid { solidSecs += 1 }
+            }
+            blocks += c.blocks.storedBytes.blocks; field += c.blocks.storedBytes.field
+            for l in c.light { light += l?.count ?? 0 }
+            tint += c.tint.count * 4 + c.height.count * 2
+        }
+        let mb = { (n: Int) in String(format: "%.0f", Double(n) / 1_048_576) }
+        return "memory: resident \(String(format: "%.0f", rssMB())) MB; copies kept since the last save \(mb(held)) MB; \(w.chunks.count) chunks: blocks \(mb(blocks)) MB, field \(mb(field)) MB, light \(mb(light)) MB, "
+            + "heights+tints \(mb(tint)) MB; built-layer sections \(secs) (\(airSecs) all air, \(leadSecs) of them below the lowest block), field sections \(fieldSecs) (\(solidSecs) all ground); mesh slabs \(mb(MeshArena.shared.slabBytes)) MB (free \(mb(MeshArena.shared.freeBytes)) MB), tint slabs \(mb(MeshArena.tints.slabBytes)) MB; "
+            + "\(g.mobs.mobs.count) mobs, \(g.drops.items.count) items"
+    }
+
     static func arg(_ k: String) -> String? {
         guard let i = CommandLine.arguments.firstIndex(of: k), i + 1 < CommandLine.arguments.count else { return nil }
         return CommandLine.arguments[i + 1]
@@ -74,6 +112,7 @@ enum QuestPerf {
 
     static func scene(_ sp: Spot, rd: Int, field: Bool, ctx: VkContext, standFrames: Int, flyFrames: Int) throws {
         let device = sharedSystemDevice
+        let rss0 = rssMB()
         let w = World(seed: sp.seed, device: device, save: nil)
         if field { FieldTerrain.newWorlds = true; w.makeFieldWorld() }
         w.renderDistance = rd
@@ -89,9 +128,11 @@ enum QuestPerf {
         let a0 = CFAbsoluteTimeGetCurrent()
         _ = w.loadSync(center: g.player.pos, radius: rd)
         let loadS = CFAbsoluteTimeGetCurrent() - a0
+        let rss1 = rssMB()
 
         let scene = try SceneRenderer(ctx: ctx, device: device as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
         try scene.uploadTextures()
+        print(String(format: "    resident: %.0f MB before the world, %.0f MB loaded, %.0f MB with the renderer and textures", rss0, rss1, rssMB()))
         let wr = WorldRenderer(scene: scene, game: g)
         wr.landmarkHost = Renderer(game: g)
         let size = 48
@@ -154,11 +195,13 @@ enum QuestPerf {
             return line + (top.isEmpty ? "" : "\n    edits: " + top.joined(separator: ", ") + "; \(cells) cells, \(again) changed twice or more")
         }
         for _ in 0..<90 { try frame(nil, fly: false) }                  // settle (first meshes in, the far ring built)
+        for c in w.chunks.values { c.markSaved() }                         // (an autosave just ran: P374's save copies)
         _ = wr.takeStages()
         _ = behind()
         let stand = Phase()
         for _ in 0..<standFrames { try frame(stand, fly: false) }
         let standStages = wr.takeStages(), standBehind = behind()
+        let memStand = memory(w, g)
         let quadsStand = scene.quadBreakdown()
         let flight = Phase()
         // (he flies over the land, not into the hill in front of him: the flight starts 30 blocks over the highest
@@ -180,7 +223,9 @@ enum QuestPerf {
         print("perfscene \(sp.name) rd \(rd) (seed \(sp.seed) at \(Int(sp.x)), \(Int(sp.z)); loaded in \(String(format: "%.1f", loadS)) s, \(g.mobs.mobs.count) mobs, \(w.ships.list.count) ships)")
         print(stand.report("standing", stagesLine: standStages, behind: standBehind))
         print("    quads: \(quadsStand)")
+        print("    standing " + memStand)
         print(flight.report(String(format: "flying %.0f b/s", speed), stagesLine: flyStages, behind: flyBehind))
+        print("    " + memory(w, g))
         PadManager.shared.touch = nil
         World.editTally = nil; World.editCells = [:]
         withExtendedLifetime((img, targets, wr)) {}

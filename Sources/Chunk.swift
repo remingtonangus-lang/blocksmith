@@ -104,6 +104,7 @@ struct BlockStore {
 
     var count: Int { CSQ * CH }             // logical size
     var storedCount: Int { max(data.count, fd.count) }     // everything at or above this index is AIR
+    var storedBytes: (blocks: Int, field: Int) { (data.capacity * 2, fd.capacity + fm.capacity) }   // (P374 perfscenes)
 
     // The built layer only (no ground): saves, the mesher's cube pass.
     @inline(__always) func raw(_ i: Int) -> BlockID { UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR }
@@ -197,11 +198,17 @@ struct BlockStore {
 final class Chunk {
     let cx: Int
     let cz: Int
-    var blocks: BlockStore         // index = x + z*16 + y*256
+    var blocks: BlockStore {       // index = x + z*16 + y*256
+        didSet { unsaved = true }
+    }
     // Per-section light (sky << 4 | block, index x + z*16 + (y&15)*256) from the mesher; nil until meshed
     // (then World.lightAt falls back to the heightmap). Uniform sections share Mesher.dark / Mesher.fullSky.
     var light = [[UInt8]?](repeating: nil, count: NSEC)
-    var height: [Int16]            // highest sky-stopping block per column (-1 = none)
+    var height: [Int16] {          // highest sky-stopping block per column (-1 = none)
+        didSet { heightMax = Int(height.max() ?? -1) }
+    }
+    // P374: the highest of them (the random ticks' top; they scanned all 256 columns of every chunk in reach each tick).
+    private(set) var heightMax = -1
     var tint: [UInt32]             // 256 grass, 256 foliage, 256 water colours (RGBA8)
     var tintBuf: MeshSlice?          // tint table on the GPU (carved from the mesh slabs)
     var sections: [Section]
@@ -216,14 +223,13 @@ final class Chunk {
     var modified = false
     var fieldEdits: [Int32: UInt16] = [:]     // PG1: bounds on the terrain field per cell (TerrainField.swift)
     var fieldDirty = false                    // ...changed since last saved
-    // The block array as last saved or loaded. Any write to `blocks` copies it (copy-on-write), so
-    // "same storage" means nothing changed since then and the save can be skipped.
-    var savedBlocks: BlockStore?
-    var needsSave: Bool {
-        guard modified else { return false }
-        guard let s = savedBlocks else { return true }
-        return !s.sameStorage(blocks)
-    }
+    // P374: written since it was last saved or loaded. (It kept the arrays as last saved and compared storage: the
+    // first write after each save copied the chunk's blocks and field, so every chunk a random tick, a flow or an edit
+    // touched between autosaves held two copies of them, up to the whole loaded area's block memory again.)
+    private(set) var unsaved = true
+    func markSaved() { unsaved = false }
+    var needsSave: Bool { modified && unsaved }
+    var heldCopyBytes: Int { 0 }                 // (perfscenes: what kept save copies cost; none now)
     var meshInFlight = false
     var meshedOnce = false
     var drawnMark: UInt32 = 0
@@ -245,6 +251,7 @@ final class Chunk {
         self.cz = cz
         self.blocks = field.map { BlockStore(blocks, field: $0) } ?? BlockStore(blocks)
         self.height = height
+        heightMax = Int(height.max() ?? -1)
         self.tint = tint
         sections = (0..<NSEC).map { _ in Section() }
         for s in sections { s.owner = self }
@@ -274,6 +281,6 @@ final class Chunk {
         let c = x + z * CS
         var y = min(CH, blocks.storedCount / CSQ) - 1
         while y >= 0 && !skyT[Int(blocks[c + y * CSQ])] { y -= 1 }
-        height[c] = Int16(y)
+        height[c] = Int16(y)          // (didSet keeps heightMax)
     }
 }

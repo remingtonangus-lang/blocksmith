@@ -1256,7 +1256,7 @@ final class World {
         c.world = self
         c.blocks.emitMask = p.emitMask
         c.modified = p.fromDisk
-        if p.fromDisk { c.savedBlocks = c.blocks }
+        if p.fromDisk { c.markSaved() }
         c.fieldEdits = p.field
         chunks[k] = c
         for t in p.tracked { redstone.tracked.insert(t) }
@@ -1382,7 +1382,7 @@ final class World {
         // Only chunks changed since their last save, written on the background save queue.
         for (k, c) in chunks where c.needsSave {
             save?.saveChunkAsync(k, c.blocks)
-            c.savedBlocks = c.blocks
+            c.markSaved()
         }
         for (k, c) in chunks where c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }   // PG1
         save?.saveBlockEntities(blockEntities, background: background)

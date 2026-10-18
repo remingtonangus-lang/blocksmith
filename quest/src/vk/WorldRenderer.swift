@@ -309,9 +309,13 @@ final class WorldRenderer {
         // Behind the middle ring (F4) the nearest of it shows past the ring's rim, 1024 blocks out: 3 blocks of travel
         // there is a sixth of a degree, so a flight at full speed rebuilds it every third frame, not every frame.
         lmFrameNo += 1
-        let every = !TickProf.lighter ? 1 : (Renderer.plumeRising ? 2 : 6)
+        // P374: standing still, the shell only follows the sun and the weather: every half second (each build cost
+        // 3 ms of a frame at Stone Gulch, 0.55 ms a frame on average at a 6-frame beat).
+        let every = !TickProf.lighter ? 1 : (Renderer.plumeRising ? 2 : 36)
         let move: Float = TickProf.lighter && FarRing.enabled ? 9 : 1
-        if lmFrameNo - lmBuilt >= every || simd_length_squared(eye - lmEye) > move || far != lmFar || landmarkVerts.isEmpty {
+        // (P374: an empty build, no horizon or landmark in range, waits its turn like any other: it was redone every
+        // frame, 0.5 ms of each frame's record at the camp and Stone Gulch.)
+        if lmFrameNo - lmBuilt >= every || simd_length_squared(eye - lmEye) > move || far != lmFar {
             landmarkVerts.removeAll(keepingCapacity: true)
             var smokeStart = 0
             host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
