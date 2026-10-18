@@ -509,6 +509,7 @@ extension Mob {
         case .cougar, .rattlesnake, .alligator:
             return predatorAI(dt, g, dist: dist, canTarget: canTarget)
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew:
+            if posse == Prisoners.posse { return prisonerAI(dt, g) }       // P347
             if faction == Faction.ashguard.rawValue { return ashSoldierAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory && !Disguise.covers(g, self)) }   // (+ D37)
             let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget && !GarrisonTown.shelters(g, self) && !Disguise.covers(g, self))   // P48, D37 disguise
             // Vessel crews hold their stations: they turn, aim and fire, but cover runs and flanks would take them overboard.

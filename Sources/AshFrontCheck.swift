@@ -114,6 +114,14 @@ enum AshFrontCheck {
                 for v in b { cnt[v, default: 0] += 1 }
             } }
             let guns = units.filter { $0.hasPrefix("ash_artillery") }.count, men = units.filter { $0.hasPrefix("soldier_") }.count
+            if s.kind == "prisoncamp" {
+                let held = units.filter { $0.contains(":prisoner") }.count, sitting = units.filter { $0.contains(":prisoner_sit") }.count
+                let guards = units.filter { $0.hasPrefix("soldier_") && $0.hasSuffix("@ash") || $0.contains("@ash^") }.count
+                let wire = cnt[Blocks.has("ash_wire") ? Blocks.id("ash_wire") : Blocks.id("iron_bars")] ?? 0
+                check(held >= 20 && sitting >= 8 && guards >= 10 && wire > 300 && chests >= 2,
+                      "ashfront: the prison camp at \(s.x) \(s.z): \(held) prisoners (\(sitting) sitting), \(guards) guards, \(wire) wire, \(chests) chests")
+                continue
+            }
             if s.kind == "flak" {
                 check(guns == 6 && men >= 8 && chests >= 3, "ashfront: the flak battery at \(s.x) \(s.z): \(guns) guns, \(men) men, \(chests) chests")
             } else {
@@ -122,6 +130,7 @@ enum AshFrontCheck {
                       "ashfront: the heavy-water plant at \(s.x) \(s.z): \(iron) iron (penstocks, cells), \(copper) copper, \(glass) glass, \(men) men, \(chests) chests")
             }
         }
+        prisonCamp(game, check)
         // The period's weapon names; the MP40 back with its own model; who carries it.
         let names = [Guns.kessel, Guns.hagel, Guns.sturmwind, Guns.faust].map { Guns.all[$0].name }
         let mp = AshArms.model(Guns.hagel), stg = AshArms.model(Guns.sturmwind)
@@ -146,8 +155,44 @@ enum AshFrontCheck {
         var holesNear = 0
         for dz in -8...8 { for dx in -8...8 where gg.ground.crater(s0.x + dx * 2, s0.z + dz * 2) > 0 { holesNear += 1 } }
         AshWar.setFront(DeepGuard())
-        check(off == [true, false, false] && sceneGone && holesNear == 0,
+        check(off == [true, false, false, false] && sceneGone && holesNear == 0,
               "ashfront: ground a save already had keeps clear of the new: front sites off \(off), scene gone \(sceneGone), \(holesNear) shell holes there")
+    }
+
+    // P347: the prison camp's prisoners (unharmed, in no faction, their own figure) and its liberation: with no guard
+    // left inside the wire and the player there, the camp is free; they rise and walk out through the gate.
+    static func prisonCamp(_ game: Game, _ check: (Bool, String) -> Void) {
+        let s = Prisoners.site
+        guard let pr = Mob.structureMob("soldier_crew:prisoner_sit^90", at: V3(Float(s.x) - 22.2, Float(AshWar.ground + 1), Float(s.z) - 12.5)),
+              let guardM = Mob.structureMob("soldier_trooper@ash", at: V3(Float(s.x) + 10.5, Float(AshWar.ground + 1), Float(s.z) + 2.5)) else {
+            check(false, "ashfront: the prison camp's mobs"); return
+        }
+        let hp = pr.health
+        pr.hit(from: pr.pos + V3(1, 0, 0), damage: 40)
+        let model = prisonerParts(pr, swing: 0).count
+        check(pr.posse == Prisoners.posse && pr.sitting && pr.factionValue == .none && pr.health == hp && pr.health > 0 && model >= 18,
+              "ashfront: a prisoner: unharmed by a blow (\(pr.health)/\(hp)), no side (\(pr.factionValue)), sitting \(pr.sitting), his own \(model)-part figure")
+        let home = game.player.pos, homeDim = game.dim.dim, saved = TownLaw.state.vaultObj
+        game.changeDimension(to: .deep, at: V3(Float(s.x) + 0.5, Float(AshWar.ground + 1), Float(s.z) + 0.5))
+        _ = game.world.loadSync(center: game.player.pos, radius: 3)
+        game.mobs.mobs.removeAll { $0.posse == Prisoners.posse || $0.faction == Faction.ashguard.rawValue }
+        game.mobs.mobs += [pr, guardM]
+        for _ in 0..<5 { Prisoners.tick(game) }
+        let heldWhileGuarded = !Prisoners.liberated
+        guardM.health = 0
+        game.mobs.mobs.removeAll { $0 === guardM }
+        for _ in 0..<4 { Prisoners.tick(game) }
+        let freed = Prisoners.liberated
+        let start = pr.pos
+        for _ in 0..<(20 * 20) { pr.update(0.05, game: game) }
+        let walked = simd_length(V2(pr.pos.x - start.x, pr.pos.z - start.z))
+        let (gate, _) = Prisoners.exits()
+        check(heldWhileGuarded && freed && !pr.sitting && walked > 8,
+              "ashfront: the camp stays held while a guard lives (\(heldWhileGuarded)); with none it is free (\(freed)); the prisoner rose and walked \(walked) blocks toward the gate (\(Int(simd_length(V2(pr.pos.x - gate.x, pr.pos.z - gate.z)))) left)")
+        game.mobs.mobs.removeAll { $0 === pr }
+        TownLaw.state.vaultObj = saved
+        game.changeDimension(to: homeDim, at: home)
+        game.player.pos = home
     }
 
     static func migration(_ g: DeepGen, _ check: (Bool, String) -> Void) {

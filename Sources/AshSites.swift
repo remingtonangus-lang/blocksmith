@@ -275,8 +275,9 @@ extension AshWar {
     // vault a save had already explored there goes without (frontOff, set as the vault loads: World.init).
     static let frontSites: [AshSite] = [AshSite(kind: "flak", x: -220, z: 290, r: 24, face: 180),
                                         AshSite(kind: "flak", x: 270, z: -230, r: 24, face: 90),
-                                        AshSite(kind: "heavywater", x: -240, z: -230, r: 30, face: 0)]
-    static var frontOff = [Bool](repeating: false, count: 3)
+                                        AshSite(kind: "heavywater", x: -240, z: -230, r: 30, face: 0),
+                                        AshSite(kind: "prisoncamp", x: 160, z: 300, r: 34, face: 180)]    // P347 (PrisonCamp.swift)
+    static var frontOff = [Bool](repeating: false, count: frontSites.count)
     static func setFront(_ g: DeepGuard) {
         frontOff = frontSites.map { !g.clear(floorDiv($0.x, CS), floorDiv($0.z, CS), $0.r / CS + 2) }
     }
@@ -806,6 +807,80 @@ extension AshWar {
             soldier("trooper", -6, 27); soldier("trooper", 6, 27)
             unit("ash_tank", -8, 25, heading: 0)
             lampPost(-10, 18); lampPost(10, 18)
+        case "prisoncamp":
+            // P347 (PrisonCamp.swift): the Ashguard's prison camp. A double wire fence on stakes with one gate, four
+            // watchtowers, the gatehouse and the guards' block, a bare roll-call ground, four long huts of raw planks
+            // with two tiers of bare bunks, the prisoners in them.
+            let wire = Blocks.has("ash_wire") ? Blocks.id("ash_wire") : k.bars
+            func wood(_ n: String) -> BlockID { Blocks.has(n) ? Blocks.id(n) : k.crate }
+            let stake = wood("spruce_fence"), log = wood("spruce_log"), plank = wood("spruce_planks"), raw = wood("oak_planks")
+            let dark = wood("dark_oak_planks"), slab = Blocks.has("spruce_slab") ? Blocks.id("spruce_slab") : plank
+            // The fences: outer at 33, inner at 30, three blocks apart; the gate in the front (v = +) of both.
+            for (e, gap) in [(33, 3), (30, 3)] {
+                for i in -e...e {
+                    for (u, v) in [(i, -e), (i, e), (-e, i), (e, i)] where !(v == e && abs(i) <= gap) {
+                        let post = i % 3 == 0 || abs(i) == e
+                        box(u, y0 + 1, v, u, y0 + 3, v, post ? stake : wire)
+                        if post { put(u, y0 + 4, v, stake) } else { put(u, y0 + 4, v, AIR) }
+                    }
+                }
+            }
+            // The gate: posts and a beam over the gap, the two leaves of wire standing open.
+            for e in [33, 30] {
+                box(-4, y0 + 1, e, -4, y0 + 5, e, log); box(4, y0 + 1, e, 4, y0 + 5, e, log)
+                box(-4, y0 + 6, e, 4, y0 + 6, e, log)
+                put(-4, y0 + 5, e - 1, k.lamp); put(4, y0 + 5, e - 1, k.lamp)
+            }
+            box(-5, y0 + 1, 31, -5, y0 + 3, 32, wire); box(5, y0 + 1, 31, 5, y0 + 3, 32, wire)
+            // Watchtowers at the inner corners: four legs, a railed platform, a roof, a lamp and a sentry.
+            for (u, v) in [(-27, -27), (27, -27), (-27, 27), (27, 27)] {
+                for (du, dv) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] { box(u + du, y0 + 1, v + dv, u + du, y0 + 11, v + dv, log) }
+                box(u - 2, y0 + 8, v - 2, u + 2, y0 + 8, v + 2, plank)
+                for du in -2...2 { for dv in -2...2 where max(abs(du), abs(dv)) == 2 { put(u + du, y0 + 9, v + dv, stake) } }
+                box(u - 2, y0 + 12, v - 2, u + 2, y0 + 12, v + 2, dark)
+                put(u, y0 + 11, v, k.lamp)
+                for y in (y0 + 1)...(y0 + 7) { put(u + 1, y, v, Blocks.has("ladder") ? Blocks.id("ladder") : AIR) }
+                put(u + 1, y0 + 8, v, AIR)
+                soldier("marksman", Float(u), Float(v), y: y0 + 9)
+            }
+            // The prisoners' huts at the back: long, low, raw planks, a dark roof, a door to the ground and slits for
+            // light; inside, two tiers of bare bunks down both walls.
+            var n = 0
+            for (u0, u1) in [(-26, -19), (-14, -7), (7, 14), (19, 26)] {
+                let v0 = -24, v1 = -6
+                box(u0, y0 + 1, v0, u1, y0 + 4, v1, raw)
+                box(u0 + 1, y0 + 1, v0 + 1, u1 - 1, y0 + 4, v1 - 1, AIR)
+                box(u0, y0 + 5, v0, u1, y0 + 5, v1, dark)
+                box(u0 + 1, y0 + 6, v0, u1 - 1, y0 + 6, v1, dark)
+                for u in [u0, u1] { for v in stride(from: v0 + 1, through: v1, by: 4) { box(u, y0 + 1, v, u, y0 + 4, v, log) } }
+                for v in stride(from: v0 + 3, to: v1 - 1, by: 4) { put(u0, y0 + 3, v, AIR); put(u1, y0 + 3, v, AIR) }
+                let mid = (u0 + u1) / 2
+                box(mid, y0 + 1, v1, mid, y0 + 2, v1, AIR)
+                put(mid + 1, y0 + 4, v1 + 1, k.lamp)
+                for v in (v0 + 1)...(v1 - 2) {
+                    for u in [u0 + 1, u1 - 1] { put(u, y0 + 1, v, slab); put(u, y0 + 3, v, plank) }
+                    if (v - v0) % 3 == 0 { put(u0 + 1, y0 + 2, v, stake); put(u1 - 1, y0 + 2, v, stake) }
+                }
+                // The prisoners: some sitting on the bunks' edge, some standing in the aisle.
+                for (j, v) in stride(from: v0 + 3, to: v1 - 2, by: 3).enumerated() {
+                    let left = (j + n) % 2 == 0
+                    let su = Float(left ? u0 + 2 : u1 - 2) + (left ? -0.3 : 0.3)
+                    unit("soldier_crew:prisoner_sit", su, Float(v), heading: left ? 90 : 270)
+                    if j % 2 == 1 { unit("soldier_crew:prisoner", Float(mid), Float(v) + 1, heading: (j * 70) % 360) }
+                }
+                n += 1
+            }
+            // A few standing out on the roll-call ground.
+            for (u, v) in [(-4, -2), (-2, -2), (0, -2), (2, -2), (4, -2)] { unit("soldier_crew:prisoner", Float(u), Float(v), heading: 180) }
+            // The gatehouse, the guards' block (the commandant's office and papers) and the yard's guards.
+            building(8, 18, 14, 26, h: 4, wall: k.concrete, roof: k.plating)
+            building(-26, 8, -12, 22, h: 5, wall: k.concrete, roof: k.plating)
+            chest(-24, 10, "ash_command"); chest(-14, 10, "ash_armory")
+            soldier("officer", -20, 14); soldier("trooper", -16, 18)
+            soldier("trooper", 10, 22); soldier("recruit", -6, 27); soldier("recruit", 6, 27)
+            soldier("trooper", -10, 2); soldier("trooper", 10, 2); soldier("marksman", 0, 10)
+            for (u, v) in [(-16, 0), (16, 0), (-8, 14), (8, 10), (-7, 24)] { lampPost(u, v) }
+            unit("ash_truck", 20, 26, heading: 0)
         default:
             // Patrol camp: a black canvas tent, a fire, crates, three men; now and then a tank or half-track.
             for i in 0...3 {

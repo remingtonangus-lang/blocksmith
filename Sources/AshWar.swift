@@ -24,6 +24,7 @@ extension Game {
     func ashTick() {
         AshFallen.refresh(self)                                    // P326: the fallen near the player (cleared elsewhere)
         guard dim.dim == .deep else { return }
+        Prisoners.tick(self)                                        // P347: the prison camp's liberation
         if DeepGen.inVault(player.pos.y) && !advancements.contains("adventure/ash_vault") {
             achieve("ash_vault")
             let d = Int(simd_length(V2(player.pos.x, player.pos.z)))
