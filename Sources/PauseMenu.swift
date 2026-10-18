@@ -224,7 +224,7 @@ final class PauseMenu: Menu {
         "quit": "Save the world and close Sunderfall (asks first).",
         "quit_yes": "Saves your world, then closes Sunderfall.",
         "totitle": "Save the world and return to the title screen.",
-        "create": "Choose a name, seed, game mode and difficulty (the difficulty is locked once the world is made).",
+        "create": "Choose a name, seed, game mode and difficulty.",
         "newworld": "Start a new world with a random seed straight away.",
         "workshop": "A creative test world with the standard circuits built and signed: clocks, a toggle, a piston door, a sorter.",
         "w_play": "Load this world.",
@@ -273,7 +273,8 @@ final class PauseMenu: Menu {
                     + (StorageCheck.low ? " - storage low" : "")         // Q2c-console-51
             }
             rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
-                    ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),        // (Q2c-console-16: the locked difficulty is in the subtitle)
+                    ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
+                    ("Difficulty: \(Difficulty.name(g.diffLevel))", "difficulty"),   // P369: changeable for the life of the world
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
                     ("Play Together...", "netmenu"),
                     ("Save and Quit", "totitle")]   // P330: one leave row (the title screen has Quit Game)
@@ -467,7 +468,7 @@ final class PauseMenu: Menu {
             rows = [("Name: \(newName)\(editing == 0 ? caret : "")", "edit_name"),
                     ("Seed: \(newSeed.isEmpty && editing != 1 ? "(random)" : newSeed)\(editing == 1 ? caret : "")", "edit_seed"),
                     ("Game Mode: \(newSurvival ? "Survival" : "Creative")", "new_mode"),
-                    ("Difficulty: \(Difficulty.name(newDifficulty)) (fixed once made)", "new_diff"),
+                    ("Difficulty: \(Difficulty.name(newDifficulty))", "new_diff"),
                     ("Create World", "new_create"), ("Back", "back")]
         }
         if !PauseMenu.hostHidden.isEmpty { rows.removeAll { PauseMenu.hostHidden.contains($0.1) } }
@@ -869,8 +870,11 @@ final class PauseMenu: Menu {
             confirmMode = false
             page = stack.popLast() ?? .main
             resetCursor = true
-        // G19: a world's difficulty is chosen when it is made (Create New World) and locked afterwards.
-        case "difficulty": g.onToast?("Difficulty is chosen when a world is made and stays \(Difficulty.name(g.diffLevel)) for this one")
+        // P369 (Oct 18 08:15, "I should be able to change the world settings"): the difficulty changes at any time and
+        // applies at once (every damage path reads Game.diffLevel live; Difficulty.level follows it here and each tick).
+        case "difficulty":
+            g.diffLevel = step([0, 1, 2, 3, 4, 5], g.diffLevel)
+            Difficulty.level = g.diffLevel
         case "fov": g.fovSetting = step([50, 60, 70, 80, 90, 100, 110], g.fovSetting)
         case "sens": g.sensitivity = step([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3], g.sensitivity)
         case "invert": g.invertY.toggle()

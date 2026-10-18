@@ -532,11 +532,11 @@ enum PlaytestOct11Tests {
         let menu = PauseMenu(game: game)
         game.menu = menu
         menu.act("difficulty", back: false)
-        let locked = game.difficulty == 2
+        let locked = game.diffLevel == 4          // P369: the row now steps the level (Normal -> Hard), no lock
         game.menu = was.2
         check(blows[0] < blows[1] && blows[1] < blows[2] && caps[0] < caps[1] && caps[1] < caps[2]
                 && hunger[0] < hunger[1] && hunger[1] < hunger[2] && speed[0] < speed[2] && locked,
-              "G19 difficulty: a zombie takes \(blows) blows of 6 on easy/normal/hard, monster cap \(caps), hunger x\(hunger), speed x\(speed); the pause menu keeps it locked (\(locked))")
+              "G19 difficulty: a zombie takes \(blows) blows of 6 on easy/normal/hard, monster cap \(caps), hunger x\(hunger), speed x\(speed); the pause menu changes it (\(locked))")
     }
 
     // P40: the Capital's guns fire capital rounds, which no shop sells; frontier rifle rounds cost real money; a gunsmith
