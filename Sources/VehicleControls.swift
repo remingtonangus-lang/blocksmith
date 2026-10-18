@@ -134,6 +134,9 @@ final class Turrets {
     var loaded = 2                                   // barrels loaded (2 after a reload)
     static let beat: Float = 0.45                    // between the two barrels
     weak var lastManned: Mob?
+    // P372: taken by its handles on the headset: the hand aims it (`handAim`, a world direction), letting go leaves.
+    var byGrip = false
+    var handAim: V3?
 
     static let roofY: Float = 5.5                    // the heavy turret's gunhouse roof above its origin (HeavyTurret model)
     static func canMan(_ m: Mob) -> Bool { m.kind == .deckGun && m.health > 0 }
@@ -158,6 +161,7 @@ final class Turrets {
     func leave(_ g: Game) {
         guard let m = manned else { return }
         manned = nil
+        byGrip = false; handAim = nil
         let fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
         g.player.pos = Turrets.exitSpot(g.world, m, fwd: fwd)
         g.player.vel = .zero
@@ -194,12 +198,17 @@ final class Turrets {
         if m.health <= 0 || !g.alive || g.mobs.mobs.first(where: { $0 === m }) == nil { manned = nil; return false }
         if sneak { leave(g); return false }
         let b = m.soldierBrain
+        // P372: held by its handles, the barrels follow the hand.
+        if let a = handAim, simd_length(a) > 0.1 {
+            let n = simd_normalize(a)
+            g.player.yaw = atan2f(-n.x, -n.z); g.player.pitch = asinf(max(-1, min(1, n.y)))
+        }
         // The barrels follow the view, at the gun's traverse speed.
         var dyaw = g.player.yaw - m.yaw
         while dyaw > .pi { dyaw -= 2 * .pi }
         while dyaw < -.pi { dyaw += 2 * .pi }
         let turn: Float = 1.8 * dt
-        m.yaw += max(-turn, min(turn, dyaw))
+        if GunParts.canTurn(m) { m.yaw += max(-turn, min(turn, dyaw)) }              // P372: a broken mount holds it
         g.player.pitch = max(-0.17, min(0.9, g.player.pitch))
         b.pitch += max(-1.2 * dt, min(1.2 * dt, g.player.pitch - b.pitch))
         // Stand on the gunhouse roof ahead of the cupola, over the breeches: the eye is above the barrels with a clear
@@ -211,7 +220,7 @@ final class Turrets {
         reload -= dt
         if reload <= 0 && loaded == 0 { loaded = 2 }
         let fire = g.input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
-        if fire && reload <= 0 { shoot(g, m) }
+        if fire && reload <= 0 && GunParts.canFireAny(m) { shoot(g, m) }
         else if fire { g.sfx(.click, 0.4) }
         g.target = nil
         g.mining = nil
@@ -221,7 +230,8 @@ final class Turrets {
     func shoot(_ g: Game, _ m: Mob) {
         let b = m.soldierBrain
         if loaded <= 0 { loaded = 2 }
-        let sx: Float = loaded == 2 ? -1 : 1           // left barrel first
+        var sx: Float = loaded == 2 ? -1 : 1           // left barrel first
+        if !GunParts.canFire(m, sx) { sx = -sx }       // P372: a broken barrel is skipped
         loaded -= 1
         reload = loaded > 0 ? Turrets.beat : HeavyTurret.reload * 0.6
         lastFired = g.clock

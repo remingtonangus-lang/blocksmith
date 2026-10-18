@@ -781,6 +781,7 @@ extension Mob {
 
     func updateDeckGun(_ dt: Float, _ g: Game) {
         NavalGuns.hurtEffects(self, dt, g)
+        GunParts.update(self, g)                                                  // P372
         if Turrets.shared.manned === self { vel = .zero; soldierBrain.kick = max(0, soldierBrain.kick - dt * 1.5); return }   // the player has it (VehicleControls.swift)
         let b = soldierBrain
         vel = .zero
@@ -868,13 +869,13 @@ extension Mob {
         // A 1,000-tonne gunhouse traverses slowly; a flak gun lays fast enough to follow a helicopter.
         let turn: Float = (flak ? 1.6 : HeavyTurret.traverse * (light ? 4 : 1)) * dt
         let elevate: Float = (flak ? 1.2 : (light && airShot ? 0.6 : 0.15)) * dt
-        yaw += max(-turn, min(turn, dyaw))
+        if GunParts.canTurn(self) { yaw += max(-turn, min(turn, dyaw)) }         // P372: a broken mount holds it
         b.pitch += max(-elevate, min(elevate, wantPitch - b.pitch))
         walkPhase += abs(max(-turn, min(turn, dyaw)))
         let tol: Float = airShot ? 0.05 : 0.04
         let aligned = abs(dyaw) * cosf(b.pitch) < tol && abs(wantPitch - b.pitch) < (airShot ? 0.04 : 0.03) && dx > (airShot ? 12 : 24)
             && (!airShot || b.airWarn >= AirDefence.warnDelay)
-        if aligned && b.reload <= 0 {
+        if aligned && b.reload <= 0 && GunParts.canFireAny(self) {
             if b.charge == 0 { g.sfx(.gun(12), 1.2, at: pivot) }
             b.charge += dt
             if b.charge >= (flak ? 0.25 : (light ? 0.4 : 1.2)) {
@@ -882,7 +883,7 @@ extension Mob {
                 b.reload = (g.difficulty >= 3 ? HeavyTurret.reload * 0.8 : HeavyTurret.reload) * (flak ? 0.14 : (light ? 0.25 : 1))
                 let fwd = V3(-sinf(yaw) * cosf(b.pitch), sinf(b.pitch), -cosf(yaw) * cosf(b.pitch))
                 let ranging = airShot && b.rangeShots < AirDefence.rangingShots
-                for sx: Float in flak ? [0] : [-1, 1] {
+                for sx: Float in flak ? [0] : [-1, 1] where GunParts.canFire(self, sx) {
                     let muzzle = HeavyTurret.muzzle(self, sx)
                     if airShot {
                         var s = AirDefence.shell(self, at: muzzle, dir: fwd, speed: v, fuse: fuse - simd_length(muzzle - pivot) / v, ranging: ranging)
@@ -1149,7 +1150,9 @@ func deckGunParts(_ m: Mob) -> [Part] {
         var q = smallGunParts(look, grey: grey, mid: mid, dark: dark, deck: deck, pitch: pitch0, hurt: hurt, kick: kick0, tz: tz, ty: ty, base: -m.yaw)
         let k = HeavyTurret.scale(m)
         for i in q.indices { q[i].mn *= k; q[i].mx *= k; q[i].pivot *= k }
-        return q
+        let gm = GunParts.brokenMask(m)
+        if gm != 0 { q = q.filter { GunParts.keep($0, m, mask: gm, tz: tz, ty: ty, k: k) } }
+        return q + GunParts.handles(q)                                           // P372
     }
     var p: [Part] = [
         // Barbette ring skirt and the turret's rotating base.
@@ -1254,10 +1257,13 @@ func deckGunParts(_ m: Mob) -> [Part] {
             p.append(Part(mn: V3(x - 5, ty - 5, tz - 341), mx: V3(x + 5, ty + 5, tz - 340.6), pivot: pv, rotX: pitch, color: V3(1.5 + charge, 0.8, 0.2)))
         }
     }
+    // P372: broken parts are gone (GunParts).
+    let gm = GunParts.brokenMask(m)
+    if gm != 0 { p = p.filter { GunParts.keep($0, m, mask: gm, tz: tz, ty: ty, k: 1) } }
     // A light coastal gun (T6) is the same gun built at 0.4 scale.
     let k = HeavyTurret.scale(m)
     if k != 1 { for i in p.indices { p[i].mn *= k; p[i].mx *= k; p[i].pivot *= k } }
-    return p
+    return p + GunParts.handles(p)
 }
 
 // P222: the Capital's small guns, drawn in the big gun's units (1/16 block before HeavyTurret.scale) round the same
