@@ -160,6 +160,8 @@ extension MobManager {
         }
         populateTimer -= dt
         if populateTimer <= 0 { populateTimer = 1; populateChunks(game) }
+        MobManager.herdTimer -= dt
+        if MobManager.herdTimer <= 0 { MobManager.herdTimer = 45; if w.dim == .overworld { trySpawnHerd(game) } }
         hostileTimer -= dt
         if hostileTimer <= 0 {
             hostileTimer = 0.25
@@ -273,6 +275,36 @@ extension MobManager {
             placed += 1
         }
         if kind == .horse && placed > 0 { HorseHerds.spawned(Array(mobs.suffix(placed))) }     // D2 (HorseHerds.swift)
+    }
+
+    // P373 (e, Oct 18 08:03-08:13: no horses until a stable, then a herd right after): a steady wild herd. Every 45 s,
+    // with no untamed horse or donkey within 96 blocks and the player in open country (plains, meadows, savanna), one
+    // sample 40-72 blocks away in an open biome, out of his view, gets a herd (one try in two, so about one a minute and
+    // a half while he rides open country with none about).
+    static var herdTimer: Float = 30
+    static var herdsSpawned = 0                          // (checks)
+    static let herdBiomes: Set<Biome> = [.plains, .sunflowerPlains, .meadow, .savanna, .savannaPlateau, .windsweptSavanna]
+    func trySpawnHerd(_ game: Game) {
+        let w = game.world, p = game.player.pos
+        guard Rand.int(in: 0..<2) == 0 else { return }
+        let px = Int(floor(p.x)), pz = Int(floor(p.z))
+        var open = 0
+        for (dx, dz) in [(0, 0), (48, 0), (-48, 0), (0, 48), (0, -48)] where MobManager.herdBiomes.contains(w.gen.column(px + dx, pz + dz).biome) { open += 1 }
+        guard open >= 2 else { return }
+        guard !mobs.contains(where: { ($0.kind == .horse || $0.kind == .donkey) && $0.health > 0 && !$0.tamed
+                                      && simd_length_squared($0.pos - p) < 96 * 96 }) else { return }
+        for _ in 0..<8 {
+            let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 40...72)
+            let dir = V3(cosf(a), 0, sinf(a))
+            guard simd_dot(dir, simd_normalize(V3(game.player.look.x, 0, game.player.look.z) + V3(0.0001, 0, 0))) < 0.3 else { continue }
+            let x = px + Int(dir.x * r), z = pz + Int(dir.z * r)
+            guard w.isLoaded(x, z), MobManager.herdBiomes.contains(w.gen.column(x, z).biome) else { continue }
+            let before = mobs.count
+            let donkeys = Rand.int(in: 0..<6) == 0
+            spawnAnimalPack(w, donkeys ? .donkey : .horse, x, z, donkeys ? Rand.int(in: 1...3) : Rand.int(in: 3...6),
+                            chunk: ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS)))
+            if mobs.count > before { MobManager.herdsSpawned += 1; return }
+        }
     }
 
     func trySpawnPassive(_ game: Game) {

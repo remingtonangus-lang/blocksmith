@@ -568,7 +568,7 @@ final class WorldGen: TerrainGenerator {
         // 3. Caves, aquifers, lava.
         let caves = caveLattice(bx, bz, maxY: maxTop)
         var aquifer: [Int32] = []
-        carveCaves(&b, caves, bx, bz, tops, wls, cols, &aquifer)
+        carveCaves(&b, caves, bx, bz, tops, wls, cols, biomes, &aquifer)
         carveRavines(&b, bx, bz, tops, wls, &aquifer, cd)
         if terrain.lessWater { carveSinkholes(&b, bx, bz, tops, wls, cd) }
         drainAquifers(&b, aquifer)
@@ -844,14 +844,24 @@ final class WorldGen: TerrainGenerator {
 
     // MARK: Caves
 
+    static let forested: Set<Biome> = [.forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest, .taiga,
+                                       .oldGrowthPineTaiga, .oldGrowthSpruceTaiga, .snowyTaiga, .windsweptForest, .jungle, .bambooJungle]
+    // P373 (b): whether caves may break the surface in this column (SmoothField asks the same).
+    func caveMouths(_ x: Int, _ z: Int, _ biome: Biome) -> Bool {
+        spagMod.noise2(Float(x) / 90 + 31.7, Float(z) / 90 - 17.3) > (WorldGen.forested.contains(biome) ? 0.4 : 0.25)
+    }
+
     private func carveCaves(_ b: inout [BlockID], _ cl: CaveLattice, _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ cols: [Terrain.Column],
-                            _ aquifer: inout [Int32]) {
+                            _ biomes: [Biome], _ aquifer: inout [Int32]) {
         let lavaLevel = YOFF - 55
         for lz in 0..<CS { for lx in 0..<CS {
             let top = tops[lx + lz * CS]
             let wetColumn = top < wls[lx + lz * CS] + 2 || cols[lx + lz * CS].rv < 2.5
             let wx = bx + lx, wz = bz + lz
-            let maxY = min(CH - 2, wetColumn ? top - 5 : top + 1)
+            // P373 (b, Oct 18 08:11: "too many caves all out in the open"): tunnels break the surface only in patches
+            // (a slow noise: about a quarter of the land, a seventh in forests); elsewhere they keep a 4-block roof.
+            let mouths = caveMouths(wx, wz, biomes[lx + lz * CS])
+            let maxY = min(CH - 2, wetColumn ? top - 5 : (mouths ? top + 1 : top - 4))
             guard maxY > 6 else { continue }
             // Spaghetti tunnel width: a column constant (it was evaluated for every block of the column, ~38k noise
             // calls per chunk: the biggest share of generate's time in the CI profile).

@@ -64,6 +64,7 @@ final class VoiceEvents {
     private(set) var log: [(t: Double, text: String)] = []
     private var health = -1, alive = true, dim = "", mount = "", pilot = "", screen = "", held = "", toast = "", biome = ""
     private var biomeCheck = 0.0, damage = 0, damageAt = 0.0
+    private var kept: [ItemID: Int]? = nil, keptCheck = 0.0
 
     func observe(_ g: Game) {
         let t = g.clock
@@ -85,6 +86,19 @@ final class VoiceEvents {
         let h = g.held.count > 0 ? Items.name(g.held.item) : "empty hand"
         if h != held { if !held.isEmpty { add("holding \(h)") }; held = h }
         if g.toastText != toast { if !g.toastText.isEmpty { add("message: \(g.toastText)") }; toast = g.toastText }
+        // P373 (d, Oct 18 08:11: his bed left the pack and nothing said where): things that don't stack past 16 (beds,
+        // tools, weapons, buckets, gear) leaving or joining the pack, with the open screen or the block he looked at.
+        if t - keptCheck > 0.5 {
+            keptCheck = t
+            var now: [ItemID: Int] = [:]
+            for st in g.inventory.main.slots where st.count > 0 && st.def.maxStack <= 16 { now[st.item, default: 0] += st.count }
+            if let was = kept {
+                let at = g.menu.map { " (\(type(of: $0)) open)" } ?? (g.target.map { " (at \($0.hit.x) \($0.hit.y - YOFF) \($0.hit.z))" } ?? "")
+                for (k, n) in was where (now[k] ?? 0) < n { add("left the pack: \(Items.name(k))\(n - (now[k] ?? 0) > 1 ? " x\(n - (now[k] ?? 0))" : "")\(at)") }
+                for (k, n) in now where (was[k] ?? 0) < n { add("into the pack: \(Items.name(k))") }
+            }
+            kept = now
+        }
         if t - biomeCheck > 2 {
             biomeCheck = t
             let b = VoiceNoteContext.biome(g)
