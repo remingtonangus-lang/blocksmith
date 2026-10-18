@@ -258,6 +258,19 @@ enum FieldTerrain {
                     d = (0.5 * (s ? 1 : 0) + 0.5 * m - 0.5) * 2
                 }
                 d = s ? max(d, 0.04) : min(d, -0.04)
+                // P338 step 7: what a structure built keeps the ground to its faces. A cell it laid as ground (rail
+                // ballast, a levelled yard) is filled to its faces, a cell it built or cleared (a floor, a rail, a room)
+                // keeps the ground out to its faces, and ground beside one stops at the shared face: rails sit on their
+                // bed and plank floors on flat ground instead of the generator's slope bulging through them.
+                if let built {
+                    if built[i] != 0 { d = s ? max(d, 0.5) : min(d, -0.5) }
+                    else if s {
+                        func owned(_ j: Int) -> Bool { built[j] != 0 && fd[j] <= 0 }
+                        if y < CH - 1 && owned(i + CSQ) || y > 0 && owned(i - CSQ)
+                            || lx > 0 && owned(i - 1) || lx < CS - 1 && owned(i + 1)
+                            || lz > 0 && owned(i - CS) || lz < CS - 1 && owned(i + CS) { d = min(d, 0.5) }
+                    }
+                }
                 fd[i] = q(d)
             } } }
         }
