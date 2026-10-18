@@ -55,7 +55,9 @@ enum Mesher {
     static var detailMeshes = ProcessInfo.processInfo.environment["BLOCKSMITH_DETAIL"] != "0"
     #endif
     // Blocks drawn by the detail generators: the ground and the cube faces round them treat them as open.
-    static let detailT: [Bool] = ShapeClass.kind.map { $0 == .trunk || $0 == .organic }
+    static let detailT: [Bool] = (0..<Blocks.count).map { i in
+        ShapeClass.kind[i] == .trunk || ShapeClass.kind[i] == .organic || i != 0 && i == Int(pointedDrip)    // (P338: ShapeSpikes)
+    }
     // Built cubes (planks, bricks, metal, concrete...): crisp, but no knife edges (realistic world 1.6).
     static let bevelT: [Bool] = (0..<Blocks.count).map { ShapeClass.kind[$0] == .built && Blocks.tint[$0] != 3 }
 
@@ -1311,7 +1313,7 @@ enum Mesher {
                 let b = R[i]
                 guard b != AIR else { continue }
                 let bi = Int(b)
-                guard renderT[bi] == rCross, plantOnNatural(i) else { continue }
+                guard renderT[bi] == rCross, plantOnNatural(i), !(detailDraw && detT[bi]) else { continue }
                 let lx = x - C0, lz = z - C0
                 var dy16 = 0, dyTop = 0
                 if sc.smValid {
@@ -1360,6 +1362,7 @@ enum Mesher {
                                     lod: lod, sc: sc, srcs: srcs, sy: sy, field: fieldOn ? n9 : nil)
             ShapeTrunks.emit(ctx)
             ShapeOrganic.emit(ctx)
+            ShapeSpikes.emit(ctx)
         }
         if smooth {
             if leafBlob {
