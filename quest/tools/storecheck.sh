@@ -24,5 +24,25 @@ check "RECORD_AUDIO permission" "$("$AAPT2" dump xmltree --file AndroidManifest.
 check "libmediandk dependency" "$("$READELF" -d "$SO" | grep -c 'libmediandk')"
 check "mic/encoder symbols" "$("$READELF" --dyn-syms "$SO" | grep -cE 'bs_mic_|bs_aac_|AMediaCodec_|AAudioStreamBuilder_setInputPreset')"
 check "recorder strings" "$(strings -a "$SO" | grep -cE 'voicenotes|RECORD_AUDIO')"
+# P360 (c): Meta store packaging (hz-store-submit's VRC packaging rows), on store builds only.
+if [ "$EXPECT" = 0 ]; then
+  pk() { if [ "$2" = 1 ]; then echo "storecheck: ok   $1"; else echo "storecheck: FAIL $1"; fails=$((fails + 1)); fi; }
+  MAN=$("$AAPT2" dump badging "$APK" 2>/dev/null)
+  sdk=$(echo "$MAN" | sed -n "s/^sdkVersion:'\([0-9]*\)'.*/\1/p"); tsdk=$(echo "$MAN" | sed -n "s/^targetSdkVersion:'\([0-9]*\)'.*/\1/p")
+  pk "minSdk >= 29 ($sdk)" "$([ "${sdk:-0}" -ge 29 ] && echo 1)"
+  pk "targetSdk >= 32 ($tsdk)" "$([ "${tsdk:-0}" -ge 32 ] && echo 1)"
+  other=$(unzip -Z1 "$APK" | grep '^lib/' | grep -vc '^lib/arm64-v8a/')
+  pk "arm64-v8a libraries only ($other others)" "$([ "$other" -eq 0 ] && echo 1)"
+  pk "VR intent category" "$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null | grep -q 'com.oculus.intent.category.VR' && echo 1)"
+  bad=$(echo "$MAN" | grep -cE "uses-permission: name='android.permission.(CALL_PHONE|SEND_SMS|READ_SMS|READ_CONTACTS|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|READ_EXTERNAL_STORAGE|CAMERA|READ_PHONE_STATE)'")
+  pk "no prohibited permissions ($bad)" "$([ "$bad" -eq 0 ] && echo 1)"
+  if [ -n "${APKSIGNER:-}" ]; then
+    SIG=$("$APKSIGNER" verify --verbose --print-certs "$APK" 2>/dev/null)
+    pk "APK Signature Scheme v2" "$(echo "$SIG" | grep -q 'v2 scheme (APK Signature Scheme v2): true' && echo 1)"
+    if echo "$SIG" | grep -q 'CN=Android Debug'; then
+      if [ -n "${STORE_KEYSTORE:-}" ]; then pk "release key (debug-signed)" 0; else echo "storecheck: note debug-signed (set STORE_KEYSTORE for the upload)"; fi
+    else pk "release key" 1; fi
+  fi
+fi
 echo "storecheck: $([ "$EXPECT" = 1 ] && echo playtest || echo store) APK $(basename "$APK"): $fails failures"
 exit $((fails > 0))

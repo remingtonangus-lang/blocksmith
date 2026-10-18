@@ -2,8 +2,8 @@ import Foundation
 import simd
 
 // The Ashguard's field dress (backlog B7, docs/status/the-last-war.md), drawn by SoldierRig for every soldier of
-// the Ashguard faction: the period's silhouette in black, marked only with the Ashguard's own ember mark (a red armband
-// with a white disc and a black bar; red collar tabs). No real insignia, runes, crosses or eagles.
+// the Ashguard faction: the period's silhouette in black, marked only with the Ashguard's own ember mark (P360 (b): a
+// field-grey armband with an ember-orange patch and a black bar; red collar tabs). No real insignia, runes, crosses or eagles.
 //   Riflemen, stormers and heavies   flared steel helmet, pocketed tunic, Y-straps, belt pouches, gas-mask canister, jackboots
 //   Heavies                          a gas mask with red lenses, ammunition belts across the chest, a spare-barrel case
 //   Sharpshooters                    a soft field cap with a short bill, a binocular case
@@ -12,6 +12,7 @@ import simd
 //   The Ash Chancellor               an officer's cut in black leather, silver cords on the cap
 enum AshLook {
     static let leather = V3(0.05, 0.045, 0.04), white = V3(0.86, 0.85, 0.82), mark = V3(0.03, 0.03, 0.035)
+    static let band = V3(0.29, 0.3, 0.27), ember = V3(0.85, 0.41, 0.12)
     static let brass = V3(0.72, 0.55, 0.24)
 
     typealias Box = (Float, Float, Float, Float, Float, Float, V3, Float) -> Void
@@ -78,16 +79,16 @@ enum AshLook {
         }
     }
 
-    // Shoulder straps on both arms; the armband (red, a white disc, the black bar of the ember mark) on the left.
+    // Shoulder straps on both arms; the armband (field grey, the ember mark's orange patch and black bar) on the left.
     static func arm(_ s: V3, _ ua: (Float, Float), side: Float, _ lv: Livery, rank r: Int, full: Bool, mid: Bool) -> [Part] {
         var o: [Part] = []
         o.append(SoldierRig.on(s, ua, V3(-1.95, 1.3, -1.95), V3(1.95, 2.05, 1.95), r == 4 ? lv.metal * 0.85 : lv.cloth * 1.3, Pat.cloth))
         if mid { o.append(SoldierRig.on(s, ua, V3(-2.0, 1.2, -2.0), V3(2.0, 1.36, 2.0), lv.trim, Pat.cloth)) }
         if side < 0 {
-            o.append(SoldierRig.on(s, ua, V3(-1.84, -3.6, -1.84), V3(1.84, -1.9, 1.84), lv.trim, Pat.cloth))
+            o.append(SoldierRig.on(s, ua, V3(-1.84, -3.6, -1.84), V3(1.84, -1.9, 1.84), band, Pat.cloth))
             if mid {
                 let x = side * 1.86
-                o.append(SoldierRig.on(s, ua, V3(x - 0.06, -3.35, -0.75), V3(x + 0.06, -2.15, 0.75), white, Pat.cloth))
+                o.append(SoldierRig.on(s, ua, V3(x - 0.06, -3.35, -0.75), V3(x + 0.06, -2.15, 0.75), ember, Pat.cloth))
                 if full { o.append(SoldierRig.on(s, ua, V3(x - 0.1, -3.15, -0.16), V3(x + 0.1, -2.35, 0.16), mark, 0)) }
             }
         }

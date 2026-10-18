@@ -1,12 +1,12 @@
-# Blocksmith privacy policy (draft)
+# Sunderfall privacy policy (draft)
 
 _Draft for review before store submission. Fill in the publisher name, contact address and date._
 
 **Publisher:** [publisher name] · **Contact:** [email] · **Last updated:** [date]
 
-## What Blocksmith collects
+## What Sunderfall collects
 
-Nothing leaves your headset unless you start Play Together (or choose the Director's Cloud planner, below). Blocksmith has no account, no analytics, no advertising and no
+Nothing leaves your headset unless you start Play Together (or choose the Director's Cloud planner, below). Sunderfall has no account, no analytics, no advertising and no
 telemetry, and it never contacts a server run by the publisher.
 
 ## What stays on your headset
@@ -36,11 +36,11 @@ it, which uses no network at all.
 ## Platform services
 
 If the store build checks that you own the app, it uses the headset platform's own entitlement service. That service
-is covered by the platform holder's privacy policy, and Blocksmith receives only a yes or no answer.
+is covered by the platform holder's privacy policy, and Sunderfall receives only a yes or no answer.
 
 ## Children
 
-Blocksmith does not knowingly collect personal information from anyone, including children under 13.
+Sunderfall does not knowingly collect personal information from anyone, including children under 13.
 
 ## Changes
 

@@ -99,7 +99,7 @@ enum LastWarTests {
         var missing: [String] = []
         for n in ["ash_banner_top", "ash_banner_mark", "ash_banner", "ash_banner_end", "ash_bunkercrete", "ash_blastdoor", "ash_wire"]
             + (0..<9).map({ "ash_standard_\($0)" }) where p[n] == nil || !Blocks.has(n) { missing.append(n) }
-        func cls(_ c: V4) -> Int { c.x + c.y + c.z < 0.3 ? 0 : (c.x + c.y + c.z > 2.2 ? 2 : 1) }
+        func cls(_ c: V4) -> Int { c.x + c.y + c.z < 0.3 ? 0 : (c.x > 0.6 && c.z < 0.3 ? 2 : 1) }   // black, the orange mark, cloth
         var asym = 0, white = 0, black = 0
         for Y in 0..<48 { for X in 0..<48 {
             func px(_ x: Int, _ y: Int) -> V4 { p["ash_standard_\((y / 16) * 3 + x / 16)"]!(x % 16, y % 16) }
@@ -109,7 +109,7 @@ enum LastWarTests {
             if a == 2 { white += 1 } else if a == 0 { black += 1 }
         } }
         check(missing.isEmpty && asym == 0 && white > 200 && black > 200,
-              "lastwar: banners, standard, bunker blocks painted; the emblem is mirror-symmetric (\(asym) odd pixels, \(white) white, \(black) black) \(missing)")
+              "lastwar: banners, standard, bunker blocks painted; the emblem is mirror-symmetric (\(asym) odd pixels, \(white) orange, \(black) black) \(missing)")
         check(Blocks.def(Blocks.id("ash_bunkercrete")).hardness < 0 && Blocks.def(Blocks.id("ash_blastdoor")).hardness < 0 && !Blocks.collide[Int(Blocks.id("ash_wire"))],
               "lastwar: bunker concrete and the blast door break for nothing; wire can be walked into")
     }

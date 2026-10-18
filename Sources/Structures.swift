@@ -272,10 +272,12 @@ final class StructureCache {
         didSet {
             legacyR20 = SaveManager.guarding?.structureGuard(file: "structure-guard-r20.txt") ?? []
             legacyP354 = SaveManager.guarding?.structureGuard(file: "structure-guard-p354.txt") ?? []
+            legacyP360 = SaveManager.guarding?.structureGuard(file: "structure-guard-p360.txt") ?? []
         }
     }
     var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
     var legacyP354: Set<Int64> = []              // ground saved before P354's homes, workshops and jail (TownHomes.swift)
+    var legacyP360: Set<Int64> = []              // ground saved before the Dust Mission replaced the desert temple (DustMission.swift)
     var legacyR22: Set<Int64> = []                // ground saved before the R22 rarity pass (StructureCache.keepR22)
 
     // R22 (Oct 13 evening: "structure rarity everywhere; ships 8x rarer was P190, check all"): the share of regions that

@@ -1,13 +1,13 @@
 # Store listing (draft)
 
 ## Name
-Blocksmith
+Sunderfall
 
 ## Short description (≤ 140 characters)
 Build, ride and fight across a living frontier: dig your own world, run a town's law, ride horses and sail warships in VR.
 
 ## Long description
-Blocksmith is a frontier sandbox made for VR. The land is real ground, not cubes: smooth hills, round trees, fallen
+Sunderfall is a frontier sandbox made for VR. The land is real ground, not cubes: smooth hills, round trees, fallen
 logs and deep caves, and every bit of it can be dug, blasted and built on. The world around you is alive: towns with
 shopkeepers and lawmen, homesteads and ghost towns, outlaw gangs, rival military forces, a navy on the coast and a war
 you can join or end.

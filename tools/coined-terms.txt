@@ -54,6 +54,10 @@
 *Sweeping Edge
 *Luck of the Sea
 *Totem of Undying
+# Reference disc titles (P360 (a))
+*Pigstep
+*Mellohi
+Lava Chicken
 *Dolphin's Grace
 *Conduit Power
 *Hero of the Village
@@ -103,6 +107,11 @@ MAC
 UNSC
 Halo
 Spartan
+Pelican Dropship
+Warthog Jeep
+*Mjolnir
+*Cortana
+Master Chief
 # Western-game terms (Remington, 2026-10-09: borrow the feel, never the names)
 Horse Reviver
 Horse Stimulant
