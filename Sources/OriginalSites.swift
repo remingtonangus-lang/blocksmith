@@ -254,7 +254,7 @@ enum AshFoundry {
         func g(_ k: String, _ alt: BlockID = STONE) -> BlockID { Blocks.has(k) ? Blocks.id(k) : alt }
         let plate = g("steel_plating", g("iron_block")), girder = g("polished_blackstone", g("blackstone")), rail = g("iron_bars")
         let brick = g("bricks"), trim = g("polished_blackstone_bricks", brick), chain = g("chain", rail), lamp = g("lantern[hanging]", g("lantern"))
-        let magma = g("magma_block"), furnace = g("blast_furnace", g("furnace")), soul = g("soul_sand"), wart = g("nether_wart")
+        let magma = g("magma_block"), soul = g("soul_sand"), wart = g("nether_wart")
         let half = Fortress.cell / 2
         func plan(_ hw: Int, room: Int) -> [(Int, Int, Int, Int)] {
             var out = [(cx - room, cz - room, cx + room, cz + room)]
@@ -332,7 +332,13 @@ enum AshFoundry {
                 w.set(cx, y + h - 1, cz, lamp)
             } else {
                 // The smelter: a blast furnace on a brick plinth in the hall's middle, a chest in a corner now and then.
-                if n.links.filter({ $0 }).count <= 2 { w.set(cx, y + 1, cz, furnace) }
+                // P342 (c) ("structures full of blast furnaces with no purpose"): each is the works' own smelter, still
+                // working the ember country's ore: raw gold or iron in it, the ingots it has run off waiting to be taken.
+                if n.links.filter({ $0 }).count <= 2 {
+                    let gold = rng.chance(0.5)
+                    w.furnace(cx, y + 1, cz, kind: "blast_furnace", input: ItemStack(Items.id(gold ? "raw_gold" : "raw_iron"), 1 + rng.int(4)),
+                              output: ItemStack(Items.id(gold ? "gold_ingot" : "iron_ingot"), 1 + rng.int(3)))
+                }
                 w.set(cx + 1, y + h, cz, lamp)
                 if rng.chance(0.2) { w.chest(cx - room, y + 1, cz - room, loot: "fortress", seed: rng.next(), facing: rng.int(4)) }
             }

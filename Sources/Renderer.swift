@@ -807,7 +807,6 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Inside lava: a few blocks of glowing orange (a little more with fire resistance).
             fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog
         }
-        let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
         if game.inVaultHaze && !underwater && !p.headInLava { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd) }   // (P323: up to the roof)
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         if !underwater, hasSky, let wf = game.weatherFogEnd, wf < fogEnd {      // O7: fog banks (WeatherWar.swift)
@@ -939,15 +938,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                 enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                 enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: verts.count)
             }
-            if vaultSky {
-                // The Cinder Sun over the Ash Vault (its roof sections are left out below, so the sky shows).
+            if !underwater && !p.headInLava, let body = game.ownSkyBody {
+                // The Cinder Sun over the Ash Vault, hell's Ember Moon (P342) (their roof sections are left out below,
+                // so the sky shows).
                 let bodyOff = (scratchOff + 255) & ~255
                 let ptr = (scratch.contents() + bodyOff).bindMemory(to: EntityVert.self, capacity: 6)
                 var bw = EntityWriter(out: ptr, capacity: 6)
-                let d = AshSky.sunDir, c = d * 90
-                let r = simd_normalize(simd_cross(d, V3(0, 0, 1))) * 12
-                let up = simd_normalize(simd_cross(r, d)) * 12
-                bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], Int(Tex.id("moon_0")), AshSky.sunTint)
+                let d = body.dir, c = d * 90
+                let r = simd_normalize(simd_cross(d, V3(0, 0, 1))) * body.size
+                let up = simd_normalize(simd_cross(r, d)) * body.size
+                bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], Int(Tex.id("moon_0")), body.tint)
                 scratchOff = bodyOff + bw.n * MemoryLayout<EntityVert>.stride
                 enc.setRenderPipelineState(crackPipe)
                 enc.setDepthStencilState(depthNone)
@@ -987,7 +987,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
 
         // Visible sections, near to far (under the Ash Vault's sky its roof is left out)
-        let maxSection = game.inVaultSky ? AshSky.cutSection : NSEC
+        let maxSection = game.skyCutSection
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
         let cullStart = CFAbsoluteTimeGetCurrent()
         bfsVisited = 0

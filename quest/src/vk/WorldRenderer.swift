@@ -124,6 +124,7 @@ final class WorldRenderer {
         var fogColor = underwater ? game.underwaterFog : (underground ? sky * min(1, 0.25 / max(caveScale, 0.25)) : sky)
         if p.headInLava { fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog }
         let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
+        let hellSky = game.inHellSky && !underwater && !p.headInLava         // P342 (b): hell's own (HellSky.swift)
         // P323 (b): the vault's haze up to its roof (above y 128 the roof is drawn, but the air is the vault's).
         if game.inVaultHaze && !underwater && !p.headInLava { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd); fogColor = sky }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
@@ -148,9 +149,9 @@ final class WorldRenderer {
         let daylight = game.renderDaylight
         let nv = game.nightVision
         let ambient = 1 - (1 - game.dimAmbient) * (1 - 0.85 * nv)
-        let sd = vaultSky ? AshSky.sunDir : game.sunDir
-        let dusk = vaultSky ? 0 : max(0, 1 - abs(sd.y - 0.02) / 0.22)
-        let skyGlow = vaultSky ? AshSky.glow : (dusk * 0.9 + 0.12 * daylight) * (1 - min(1, game.weather.rain))
+        let sd = vaultSky ? AshSky.sunDir : (hellSky ? HellSky.sunDir : game.sunDir)
+        let dusk = vaultSky || hellSky ? 0 : max(0, 1 - abs(sd.y - 0.02) / 0.22)
+        let skyGlow = vaultSky ? AshSky.glow : (hellSky ? HellSky.glow : (dusk * 0.9 + 0.12 * daylight) * (1 - min(1, game.weather.rain)))
         let fogGlow: Float = (!underwater && !underground && hasSky && game.blindFog == nil) ? min(0.99, skyGlow) : 0
         var u = FrameUniforms()
         u.viewProj = (cam.viewProj[0], cam.viewProj.count > 1 ? cam.viewProj[1] : cam.viewProj[0])
@@ -186,7 +187,7 @@ final class WorldRenderer {
             let p = raw.bindMemory(to: UInt32.self)
             for i in 0..<min(p.count, sheenBits.count) { p[i] = sheenBits[i] }
         }
-        let skyKind: Float = underwater || underground || game.blindFog != nil ? 0 : (hasSky || vaultSky ? 1 : (game.dim.dim == .end ? 2 : 0))
+        let skyKind: Float = underwater || underground || game.blindFog != nil ? 0 : (hasSky || vaultSky || hellSky ? 1 : (game.dim.dim == .end ? 2 : 0))
         // Eye darkness: skylight 13.5+ around the eye (daylight, near the surface) 0 ... 4.5 or less (caves, deep dives) 1;
         // a wide ramp so the fill grows in step with the walls darkening.
         let ek = simd_clamp((caveK - 0.3) / 0.6, 0, 1)
@@ -210,7 +211,7 @@ final class WorldRenderer {
         updateCave(cam.center)
         updateUnderground(cam.center)
         let (u, clear) = uniforms(cam)
-        scene.maxSection = game.inVaultSky ? AshSky.cutSection : NSEC         // the vault's roof is left to the sky
+        scene.maxSection = game.skyCutSection         // the vault's roof, and hell's (P342), are left to the sky
         scene.fogCull = game.inVaultSky && !game.player.headInWater && !game.player.headInLava ? AshSky.fogEnd + 8 : 0
         if game.dim.dim.hasSky, !game.player.headInWater, let cap = World.caveSight(caveK: underground ? 0 : caveK) {
             scene.fogCull = scene.fogCull > 0 ? min(scene.fogCull, cap + 4) : cap + 4      // far sections past the cave fog
@@ -387,15 +388,15 @@ final class WorldRenderer {
             if QuestSettings.clouds && !WorldRenderer.debugSkip.contains("clouds") && game.dim.dim == .overworld && game.blindFog == nil {
                 scene.drawClouds(s)
             }
-        } else if !underwater && game.inVaultSky {
-            // The Cinder Sun over the Ash Vault: big, dull and red through the haze.
+        } else if !underwater && !game.player.headInLava, let body = game.ownSkyBody {
+            // The Cinder Sun over the Ash Vault (big, dull and red through the haze), hell's Ember Moon (P342).
             let (ptr, off, cap) = scene.reserve(s, EntityVert.self, max: 6)
             guard cap >= 6 else { return }
             var bw = EntityWriter(out: ptr, capacity: 6)
-            let d = AshSky.sunDir, c = d * 90
-            let r = simd_normalize(simd_cross(d, V3(0, 0, 1))) * 12
-            let up = simd_normalize(simd_cross(r, d)) * 12
-            bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], Int(Tex.id("moon_0")), AshSky.sunTint)
+            let d = body.dir, c = d * 90
+            let r = simd_normalize(simd_cross(d, V3(0, 0, 1))) * body.size
+            let up = simd_normalize(simd_cross(r, d)) * body.size
+            bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], Int(Tex.id("moon_0")), body.tint)
             scene.commit(off, bw.n, EntityVert.self)
             scene.drawScratch(s, "body", offset: off, count: bw.n)
         }
