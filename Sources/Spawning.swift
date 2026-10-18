@@ -419,10 +419,9 @@ extension MobManager {
         if sc.structure(at: x, top, z, kind: "pillager_outpost") != nil {
             guard let y = floorBelow(w, x, top + 1, z, minY: top - 24), !Blocks.isLiquid(w.block(x, y, z)) else { return true }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
-            if !game.spawnHidden(at, min: 32) || mobs.filter({ $0.kind == .pillager && simd_length($0.pos - at) < 48 }).count >= 6 { return true }
-            let m = Mob(.pillager, at: at)
+            if !game.spawnHidden(at, min: 32) || mobs.filter({ Marauders.isMarauder($0) && simd_length($0.pos - at) < 48 }).count >= 6 { return true }
+            let m = Marauders.make(Marauders.kind(Rand.int(in: 0..<4)), at: at)     // P366 (b): gunmen on the soldier rig
             if m.collides(at, w) { return true }
-            m.applyRaidBuffs(wave: 0, level: 0)
             mobs.append(m)
             return true
         }

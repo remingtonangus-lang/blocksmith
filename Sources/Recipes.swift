@@ -362,6 +362,9 @@ enum Recipes {
         r.append(shaped(["W#W", "WWW", " W "], ["W": "#planks", "#": "iron_ingot"], "shield"))
         r.append(shaped(["#T#", "S$S", " # "], ["#": "stick", "T": "tripwire_hook", "S": "string", "$": "iron_ingot"], "crossbow"))
         r.append(shaped(["SS ", "SB ", "  S"], ["S": "string", "B": "slime_ball"], "lead", 2))
+        // P366 (e): slime without slimes. Kelp boiled down with bone meal sets into a sticky ball; honey and kelp too.
+        r.append(shapeless(["kelp", "kelp", "kelp", "bone_meal"], "slime_ball"))
+        r.append(shapeless(["honey_bottle", "kelp"], "slime_ball", 2))
         r.append(shaped(["SSS", "SLS", "SSS"], ["S": "string", "L": "lead"], "lasso"))                      // D1 (Lasso.swift)
         r.append(shaped(["I", "S"], ["I": "iron_ingot", "S": "stick"], ThrownBlades.knife, 4))                    // D11 (ThrownBlades.swift)
         r.append(shaped(["II", " S"], ["I": "iron_ingot", "S": "stick"], ThrownBlades.tomahawk))

@@ -335,6 +335,7 @@ final class Mob {
     // the ground's field), lands where it stands: the collision sweep is skipped (mob moves were a sixth of the frame
     // thread on the Quest replay of his homestead, most of them herds standing about).
     var restPos = V3(.nan, 0, 0), restVer = -1, restStamp = -1
+    var hitAway = V3(0, 0, 0)            // P366 (f): the last blow's direction, away from who struck it (ragdoll fall)
     var hitFlash: Float = 0              // seconds of the blade-contact flash left (Game.bladeFlash; drawn brighter than hurt)
     var hell: HellState?                 // hell's own mobs: guard, wind-up, charge, dive (HellMobs.swift)
     var invulnerable: Float = 0          // seconds of hurt invulnerability left (hit(iframes:))
@@ -1350,7 +1351,9 @@ final class Mob {
             // short of a full block (behaviour-sim trace, run 355: villagers bounced at every 1-block step for
             // minutes). The player's 8.6 peaks at 1.1.
             // P344 (d): a vehicle never hops (a truck bounced over every bump); it climbs a step on its own (below).
-            else if onGround && spec.behavior != .slime && !kind.ashVehicle { vel.y = 8.6 }
+            // P366 (g, "villagers jumping for no reason"): townsfolk bumping a wall, a fence or each other hop only when a
+            // one-block step is really there to climb.
+            else if onGround && spec.behavior != .slime && !kind.ashVehicle && (kind != .villager || stepAhead(w)) { vel.y = 8.6 }
         }
         if pos.y < -10 { health = 0 }
 
@@ -1677,13 +1680,23 @@ final class Mob {
         // A hit hisser flinches: its swell drops back 0.6 s and pauses 0.4 s, so steady melee (one swing per sword
         // cooldown) can finish it before it blows (playtest v78: it went off before enough hits landed).
         if kind == .creeper && damage > 0 { fuse = max(0, fuse - 0.8); flinch = 0.4 }
-        if kind == .enderman && Rand.float(in: 0..<1) < 0.5 { return }
         var away = pos - src
         away.y = 0
         let l = simd_length(away)
         away = l > 0.01 ? away / l : forward
+        hitAway = away
+        if kind == .enderman && Rand.float(in: 0..<1) < 0.5 { return }
         let kb = knockback * knockbackTaken
         vel += away * 5.5 * kb + V3(0, 5, 0) * min(1, kb)
+    }
+
+    // A one-block step in front: solid at the feet a little ahead, clear a block higher.
+    func stepAhead(_ w: World) -> Bool {
+        var f = V3(forward.x, 0, forward.z)
+        let l = simd_length(f)
+        guard l > 1e-3 else { return false }
+        f *= 0.35 / l
+        return collides(pos + f, w) && !collides(pos + f + V3(0, 1.05, 0), w)
     }
 
     // Ray vs AABB; returns the entry distance.
@@ -2244,7 +2257,9 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         // P222 (Oct 13 21:30, "these guns are spawning without a top, half generated"): a mob that no longer fits the
         // buffer whole is skipped, not cut off part way (a far turret drew its barbette skirt and base, then the buffer
         // ran out before its gunhouse). Its parts are counted at full detail, an upper bound.
-        if n + (body.count + worn.count) * 36 > capacity && n > 0 { MobDrawStats.dropped += 1; continue }
+        // P366 (a): near living mobs draw rounded parts (MobRound.swift).
+        let roundable = MobDetail.level == 0 && !m.kind.steelhold && !m.kind.ashVehicle && m.spec.behavior != .vehicle
+        if n + (body.count + worn.count) * (roundable ? MobRound.vertsPerPart : 36) > capacity && n > 0 { MobDrawStats.dropped += 1; continue }
         let lie = m.lying
         let side: Float = m.carcass ? m.spec.halfW * 16 : 0, sideX: Float = m.spec.height * 8
         let pose = MobAnim.pose(m)
@@ -2272,6 +2287,35 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                 if lie { q = V3(q.x, 4 - q.z, q.y) }
                 q *= scale / 16
                 ctr = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
+            }
+            let bev = roundable ? MobRound.bevel(p) : 0
+            if bev > 0 {
+                if n + MobRound.vertsPerPart > capacity { MobDrawStats.dropped += list.count - idx; return n }
+                let tris = MobRound.tris
+                for t in 0..<tris.count {
+                    let i = tris[t]
+                    let lp = MobRound.point(i, p.mn, p.mx, bev)
+                    var q = p.place(lp, rot)
+                    var nm = rot * MobRound.normal[i]
+                    if !still {
+                        if isHead { q = pose.ha * q + pose.hb }
+                        q = pose.a * q + pose.b
+                    }
+                    if lie { q = V3(q.x, 4 - q.z, q.y); nm = V3(nm.x, -nm.z, nm.y) }
+                    else if side > 0 { q = V3(sideX - q.y, q.x + side, q.z); nm = V3(-nm.y, nm.x, nm.z) }
+                    var wn = V3(cy * nm.x + sy * nm.z, nm.y, -sy * nm.x + cy * nm.z)
+                    if rag != nil { wn = MobRagdoll.turn[bi] * wn }
+                    let fs: Float = wn.x * wn.x * 0.8 + wn.z * wn.z * 0.68 + wn.y * wn.y * (wn.y > 0 ? 1 : 0.55)
+                    let tt = min(1, max(0, q.y * 0.1))
+                    let ground: Float = glow ? 1 : 0.72 + 0.28 * tt * tt * (3 - 2 * tt)
+                    let sh: Float = fs * lit * ground * (MobRound.corner[i].y < 0.5 ? 0.92 : 1)
+                    q *= scale / 16
+                    var r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
+                    r = rag != nil ? MobRagdoll.turn[bi] * r + MobRagdoll.shift[bi] : r + base
+                    out[n + t] = MobVert(pos: V4(r, p.pattern), color: V4(pc, sh + (1.15 - sh) * flash), local: V4(lp, 0))
+                }
+                n += tris.count
+                continue
             }
             for f in 0..<6 {
                 // A ragdoll's faces turn with it: shaded by where they face now (the same weights as faceShade).

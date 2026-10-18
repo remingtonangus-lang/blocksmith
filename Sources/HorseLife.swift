@@ -143,6 +143,10 @@ extension Mob {
         if h.calm >= 100 {
             owner = true; persistent = true; h.calm = -1
             g.particles.hearts(at: pos + V3(0, height, 0))
+            // P366 (h, "taming must read clearly without text"): it stops dead, drops its head into the rider's hand and
+            // gives a long low whicker.
+            h.nuzzle = 3; vel.x = 0; vel.z = 0
+            g.sfx(.mob(kind, .ambient), 1, at: pos); g.sfx(.mob(kind, .ambient), 0.7, at: pos + V3(0, 0.3, 0))
             g.onToast?("Tamed!")
             HorseLife.tamedCount += 1
         }
@@ -156,7 +160,7 @@ extension Mob {
         guard h.calm >= 0, h.patCool <= 0 else { return }
         h.patCool = 0.8
         if h.bucking { h.calm = max(0, h.calm - 10); g.sfx(.mob(kind, .hurt), 0.4, at: pos) }
-        else { h.calm += 15; g.particles.hearts(at: pos + V3(0, height, 0)); g.sfx(.mob(kind, .ambient), 0.5, at: pos) }
+        else { h.calm += 15; h.nuzzle = 1.4; g.particles.hearts(at: pos + V3(0, height, 0)); g.sfx(.mob(kind, .ambient), 0.5, at: pos) }
     }
 
     // MARK: Fear of predators (gaitStep's scan): until bonded to level 3.
