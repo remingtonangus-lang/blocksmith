@@ -73,6 +73,7 @@ final class ItemEntity {
     // once he is out of its reach; crouching over it, or taking it in the hand, still picks it up.
     var leftLying = false
     var lyingFor: Float = 0         // P364 (h): seconds it has lain under him unpicked (it tries again every 3 s)
+    var thrown = false              // P371: thrown from the hand: bounces off what it meets (ThrownHeld)
     // P142: drawn this far up or down onto the smooth ground it rests on (World.smoothGroundOffset), eased.
     var viewDY: Float = 0, groundKey = Int.min, groundH = SIMD4<Float>(repeating: 0)
     let spin = Rand.float(in: 0..<(2 * .pi))
@@ -110,12 +111,18 @@ final class ItemEntity {
         }
         let before = pos
         let hit = w.moveBody(&pos, halfW: 0.125, height: 0.25, vel * dt, step: 0, onGround: onGround)
+        let was = vel
         if hit.y { onGround = vel.y < 0; vel.y = 0 } else { onGround = false }
+        if thrown {                                          // P371: a hop off the ground, a knock off a wall
+            if hit.y && was.y < -3 { vel.y = -was.y * 0.3; onGround = false; vel.x *= 0.7; vel.z *= 0.7 }
+            if hit.x { vel.x = -was.x * 0.3 }
+            if hit.z { vel.z = -was.z * 0.3 }
+        }
         // On a ship's deck (P70, playtest 09:20: "the pieces are falling through the ship"): the world's collision has
         // no ship blocks, so a drop into a ship's cell stops where it was.
         if !hit.y && w.ships.solid(at: pos) { pos = V3(pos.x, before.y, pos.z); if w.ships.solid(at: pos) { pos = before }; onGround = vel.y < 0; vel = .zero }
-        if hit.x { vel.x = 0 }
-        if hit.z { vel.z = 0 }
+        if hit.x && !thrown { vel.x = 0 }
+        if hit.z && !thrown { vel.z = 0 }
         // Resting on smooth ground it lies on the drawn surface, not the block top under it (up to 0.6 off); in the air
         // it drifts back to its box.
         let target = onGround ? w.smoothGroundOffset(pos, key: &groundKey, heights: &groundH) : 0

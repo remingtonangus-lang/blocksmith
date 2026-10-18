@@ -93,6 +93,11 @@ final class QuestControls {
     // P303: grips and triggers with press / release thresholds (VRButton), per logical hand (0 move, 1 aim).
     private var gripBtn = [VRButton(), VRButton()], trigBtn = [VRButton(), VRButton()]
     private var prevLRel: V3?                      // D10: the left hand against the head last frame (shoves)
+    // P371: the right grip held on the thing in the hand (a tap still steps the hotbar, on release), and the hand's
+    // speed in the world, smoothed over a few frames.
+    private var rHoldAt: Double = -1
+    private var prevRWorld: V3?
+    private var velR = V3(0, 0, 0)
     // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
     // few seconds after a grip steps the hotbar, or while hurt; it eases between the two.
     private var hudSolid: Float = 0
@@ -563,8 +568,29 @@ final class QuestControls {
         // (A grip squeezed round the braced rifle's foregrip holds the gun, R6: it doesn't step the hotbar.)
         if !inMenu && !bagGrip && !magGrip && !handGrab && game.world.ships.pilot == nil {
             if lGrip && !prevGripL && braceRot == nil { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
-            if rGrip && !prevGripR { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
+            // P371: with something other than a gun in the hand, the right grip's step waits for its release (a tap);
+            // held and swung, it throws the thing instead.
+            if rGrip && !prevGripR {
+                if !game.held.isEmpty && game.heldGun == nil && R.gripValid { rHoldAt = game.clock }
+                else { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
+            }
             if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
+        }
+        if R.gripValid {
+            let p = rig.toWorld(R.gripPos)
+            if let q = prevRWorld, dt > 0 { velR += ((p - q) / dt - velR) * 0.5 }
+            prevRWorld = p
+        } else { prevRWorld = nil; velR = .zero }
+        if rHoldAt >= 0 && !rGrip {
+            let held = game.clock - rHoldAt
+            rHoldAt = -1
+            if !inMenu && game.menu == nil && R.gripValid && held > 0.15 && simd_length(velR) > 2.5 {
+                if ThrownHeld.throwHeld(game, from: rig.toWorld(R.gripPos), vel: velR * 1.6) {
+                    app.input.haptic(aimHand, amplitude: 0.7, seconds: 0.05, frequency: 120)
+                }
+            } else if held < 0.4 && game.menu == nil {
+                game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300)
+            }
         }
         // D10: the left hand thrust hard into a creature shoves it (and breaks a raised guard).
         if L.gripValid {

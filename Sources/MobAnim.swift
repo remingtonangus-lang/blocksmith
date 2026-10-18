@@ -100,7 +100,10 @@ enum MobAnim {
         // A VR wind-up (VRCombatFeel.swift): it rears back before the strike, so you can see it coming.
         let rear: Float = m.windUp > 0 ? sinf(min(1, (VRMelee.windUpTime - m.windUp) / VRMelee.windUpTime) * .pi * 0.5) : 0
         let breathe = 1 + 0.018 * sinf(m.animT * 2.3) * (1 - min(1, m.walkAmount * 2)) * (m.deathT < 0 ? 1 : 0)
-        var a = rx(-0.16 * strike + (0.12 * rock + 0.24 * rear) * (m.deathT < 0 ? 1 : 0)) * simd_float3x3(diagonal: V3(1, breathe, 1))
+        // P371 (5): staggered by a hard hit: rocked well back and twisted, easing out.
+        let st: Float = m.stagger > 0 ? sinf(min(1, m.stagger / 0.5) * .pi) : 0
+        let alive: Float = m.deathT < 0 ? 1 : 0
+        var a = rx(-0.16 * strike + (0.12 * rock + 0.24 * rear + 0.42 * st) * alive) * rz(0.18 * st * alive) * simd_float3x3(diagonal: V3(1, breathe, 1))
         var b = V3.zero
         if m.deathT >= 0 && m.ragdoll == nil {             // (a ragdoll falls by itself: MobRagdoll.swift)
             // Not the genre's sideways flip: an upright body buckles and falls back onto its back (about the back edge
@@ -146,6 +149,7 @@ extension Mob {
         if attackCooldown > lastCooldown + 0.3 { strikeT = 0.3 }        // an attack just reset the cooldown
         lastCooldown = attackCooldown
         strikeT = max(0, strikeT - dt)
+        stagger = max(0, stagger - dt)
         guard MobAnim.headJoint(self) != nil else { return }
         lookTimer -= dt
         if lookTimer <= 0 {
