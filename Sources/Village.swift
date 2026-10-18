@@ -58,6 +58,7 @@ enum Village {
         let job: String
         var frontier = false      // frontier town fittings (FrontierTown.swift): boardwalks, the sheriff's office
         var r20 = false           // the office is R20's stone jail (TownJail.swift)
+        var p354 = false          // P354's homes, workshops and three-cell jail (TownHomes.swift)
     }
 
     static func size(_ k: Kind) -> (Int, Int) {
@@ -103,8 +104,10 @@ enum Village {
             // R20 (Oct 13 evening, said again after P71): streets as wide as the lots are spread, a walk to every door
             // and the stone jail, only where no save had generated any of the town before R20.
             let r20 = streets && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyR20) } ?? true)
+            // P354 (Oct 16 20:06): homes as big as the stores, a workshop for every trade, the bigger jail (TownHomes.swift).
+            let p354 = gap && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP354) } ?? true)
             return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets,
-                          townSize: size, r20: r20)
+                          townSize: size, r20: r20, p354: p354)
         }
     }
 
@@ -122,7 +125,7 @@ enum Village {
     static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
 
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
-                       wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil, r20: Bool = false) -> StructureStart? {
+                       wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil, r20: Bool = false, p354: Bool = false) -> StructureStart? {
         let sz = townSize.map { TownSizes.spec[$0.rawValue] }
         func scaled(_ n: Int) -> Int { sz.map { max(8, Int(Float(n) * $0.length)) } ?? n }
         let gap = townsGap ?? frontier
@@ -264,7 +267,9 @@ enum Village {
                     if [.smithy, .library, .temple, .pen].contains(kind) && haveSpecial.contains("\(kind)") { kind = .smallHouse }
                     let shopHere = s < 30 && !shopQueue.isEmpty
                     if shopHere { kind = shopQueue[0] == .saloon ? .saloon : .shop }
-                    let (w, d) = size(kind)
+                    // P354: a frontier town's first house is a big one (the sheriff's office takes it: the three-cell jail).
+                    if p354 && frontier && !shopHere && !haveSpecial.contains("jail") && [.smallHouse, .mediumHouse, .jobHut].contains(kind) { kind = .bigHouse }
+                    let (w, d) = (p354 ? sizeP354(kind) : nil) ?? size(kind)
                     // Lot faces the road: its local v axis points away from the street.
                     let px = r.x + r.dx * s, pz = r.z + r.dz * s
                     let nx = r.dz * side, nz = r.dx * side             // outward normal from road
@@ -290,13 +295,16 @@ enum Village {
                     let back = wide ? 3 : 1
                     claim(ax - nx - spare * ux, az - nz - spare * uz, fx + nx * back + spare * ux, fz + nz * back + spare * uz)
                     if [.smithy, .library, .temple, .pen].contains(kind) { haveSpecial.insert("\(kind)") }
+                    if kind == .bigHouse { haveSpecial.insert("jail") }
                     let job = shopHere ? shopQueue.removeFirst().rawValue : jobs[rng.int(jobs.count)]
                     // Walking level = street + 1: houses, farms and pens have their floor/ground block at y - 1; the
                     // smithy's stone floor is its own bottom layer, so it sits one lower.
                     let floorY = kind == .smithy ? street : street + 1
-                    lots.append(Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: floorY, seed: rng.next(), job: job))
+                    var lot = Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: floorY, seed: rng.next(), job: job)
+                    lot.p354 = p354
+                    lots.append(lot)
                 }
-                s += wide ? rng.range(9, 13) : rng.range(7, 10)
+                s += p354 ? rng.range(12, 16) : (wide ? rng.range(9, 13) : rng.range(7, 10))
             }
         }
         guard lots.count >= (sz?.minLots ?? 6) else { return nil }
@@ -614,6 +622,8 @@ enum Village {
         let b = LB(l: l)
         var rng = SRng(l.seed)
         let g = Blocks.id
+        if l.p354 && [.smallHouse, .mediumHouse, .bigHouse].contains(l.kind) { homeLot(&w, b, m); return }
+        if l.p354 && l.kind == .jobHut { workshopLot(&w, b, m); return }
         switch l.kind {
         case .smallHouse, .jobHut:
             house(&w, b, m, wallH: 4)
