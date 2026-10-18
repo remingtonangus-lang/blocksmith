@@ -810,7 +810,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         if game.inVaultHaze && !underwater && !p.headInLava { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd) }   // (P323: up to the roof)
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         if !underwater, hasSky, let wf = game.weatherFogEnd, wf < fogEnd {      // O7: fog banks (WeatherWar.swift)
-            fogEnd = wf; fogStart = wf * 0.2
+            fogEnd = wf; fogStart = min(fogStart, wf * game.weatherFogStartK)     // P365 (g)
             fogColor = fogColor * (1 - 0.5 * WeatherWar.fog) + V3(0.6, 0.62, 0.64) * (0.5 * WeatherWar.fog * game.daylight)
         }
         if !underwater, game.dim.dim.hasSky, let cap = World.caveSight(caveK: caveK), cap < fogEnd { fogEnd = cap; fogStart = min(fogStart, cap * 0.55) }
@@ -1636,11 +1636,29 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(bx, by, bw * max(0, min(1, b.1)), 5 * s, b.2)
             }
             // D51: the tracked target's marker along the top, at its bearing (Waymarks.swift).
-            if let (rel, label, col) = Waymarks.hud(game) {
+            if let (raw, label, col) = Waymarks.hud(game) {
+                // P365 (h, "the bar at the top glitches as he walks"): the marker eases toward its bearing (the walking
+                // sway and the step-by-step heading no longer shake it), the row eases when a bar above it comes or goes,
+                // and the distance reads in steps (10 m past 100 m) so the label stops changing width every metre.
+                let dtHUD = min(0.1, max(0, game.clock - WaymarkEase.clock))
+                WaymarkEase.clock = game.clock
+                var d = raw - (WaymarkEase.rel ?? raw)
+                if d > .pi { d -= 2 * .pi } else if d < -.pi { d += 2 * .pi }
+                let k = min(1, Float(dtHUD) * 8)
+                var rel = (WaymarkEase.rel ?? raw) + d * k
+                if rel > .pi { rel -= 2 * .pi } else if rel < -.pi { rel += 2 * .pi }
+                WaymarkEase.rel = rel
                 let span: Float = 1.1, half = 150 * s
                 let f = max(-1, min(1, rel / span))
                 let mx = W / 2 + f * half
-                let my = L.insetY + 12 * s + Float(bars.count) * 19 * s + (game.deepWayUpHUD() != nil ? 12 * s : 0)
+                let myWant = L.insetY + 12 * s + Float(bars.count) * 19 * s + (game.deepWayUpHUD() != nil ? 12 * s : 0)
+                let my = (WaymarkEase.y ?? myWant) + (myWant - (WaymarkEase.y ?? myWant)) * min(1, Float(dtHUD) * 6)
+                WaymarkEase.y = my
+                var label = label
+                if let r = label.range(of: #" \d+ m$"#, options: .regularExpression),
+                   let m = Int(label[r].dropFirst().dropLast(2)), m >= 100 {
+                    label.replaceSubrange(r, with: " \((m + 5) / 10 * 10) m")
+                }
                 rect(W / 2 - half, my + 2.5 * s, half * 2, 1 * s, V4(1, 1, 1, 0.25))
                 rect(mx - 3 * s, my, 6 * s, 6 * s, V4(0, 0, 0, 0.6))
                 rect(mx - 2 * s, my + 1 * s, 4 * s, 4 * s, col)
@@ -1649,6 +1667,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let tw = textWidth(tag, s)
                 text(tag, max(4 * s, min(W - tw - 4 * s, mx - tw / 2)), my + 8 * s, s, col)
             }
+            else { WaymarkEase.rel = nil; WaymarkEase.y = nil }
             // Piloting gauges (speed, altitude, throttle, hull, guns) are drawn by CombatHUD.swift; shipHUDLine stays for the harness.
         }
 
@@ -2895,9 +2914,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let tx = (Float(mk[0]) - Float(md.cx)) / per + 64, tz = (Float(mk[1]) - Float(md.cz)) / per + 64
                 if tx >= 0 && tx < 128 && tz >= 0 && tz < 128 {
                     let c = UInt32(truncatingIfNeeded: mk[2])
-                    rect(mx + tx * px - 4 * px, my + tz * px - 4 * px, 8 * px, 8 * px, V4(0.15, 0.1, 0.05, 1))
-                    rect(mx + tx * px - 3 * px, my + tz * px - 3 * px, 6 * px, 6 * px,
-                         V4(Float((c >> 16) & 255) / 255, Float((c >> 8) & 255) / 255, Float(c & 255) / 255, 1))
+                    // P365 (c): a bold X, dark-rimmed, where the treasure (or the site) lies.
+                    let col = V4(Float((c >> 16) & 255) / 255, Float((c >> 8) & 255) / 255, Float(c & 255) / 255, 1)
+                    for pass in 0..<2 {
+                        let w: Float = pass == 0 ? 3 : 2, cc = pass == 0 ? V4(0.15, 0.1, 0.05, 1) : col
+                        for k in -5...5 {
+                            let o = Float(k) * px
+                            rect(mx + tx * px + o - w / 2 * px, my + tz * px + o - w / 2 * px, w * px, w * px, cc)
+                            rect(mx + tx * px + o - w / 2 * px, my + tz * px - o - w / 2 * px, w * px, w * px, cc)
+                        }
+                    }
                 }
             }
             // The player marker.

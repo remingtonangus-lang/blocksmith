@@ -26,7 +26,9 @@ extension BlockRegistry {
             pw.tex = ["\(c)_concrete_powder"]; pw.hardness = 0.5; pw.tool = .shovel; pw.sound = .sand
             add(pw)
             var g = BlockDef("\(c)_stained_glass", "\(d) Stained Glass")
-            g.tex = ["\(c)_stained_glass"]; g.hardness = 0.3; g.sound = .glass; g.opaque = false; g.layer = .translucent; g.cullSame = true
+            // P365 (j): stained glass is a pane too (the key stays).
+            g.tex = ["\(c)_stained_glass"]; g.hardness = 0.3; g.sound = .glass; g.opaque = false; g.layer = .translucent
+            g.render = .connect; g.connect = 2
             g.skyStop = false
             add(g)
             var pane = BlockDef("\(c)_stained_glass_pane", "\(d) Stained Glass Pane")

@@ -223,3 +223,8 @@ final class TrackMenu: ListMenu {
         }
     }
 }
+
+// P365 (h): the HUD's eased waymark row (bearing, row height, last frame's clock).
+enum WaymarkEase {
+    static var rel: Float?, y: Float?, clock: Double = 0
+}

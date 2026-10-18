@@ -127,11 +127,6 @@ final class WorldRenderer {
         // P323 (b): the vault's haze up to its roof (above y 128 the roof is drawn, but the air is the vault's).
         if game.inVaultHaze && !underwater && !p.headInLava { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd); fogColor = sky }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
-        if !underwater, hasSky, let wf = game.weatherFogEnd, wf < fogEnd {      // O7: fog banks (WeatherWar.swift)
-            fogEnd = wf; fogStart = wf * 0.2
-            if let tint = game.stormFogTint { fogColor = fogColor * 0.35 + tint * 0.65 * max(0.25, game.daylight) }   // D49
-            fogColor = fogColor * (1 - 0.5 * WeatherWar.fog) + V3(0.6, 0.62, 0.64) * (0.5 * WeatherWar.fog * game.daylight)
-        }
         if !underwater, hasSky, let cap = World.caveSight(caveK: underground ? 0 : caveK), cap < fogEnd { fogEnd = cap; fogStart = min(fogStart, cap * 0.55) }
         // F4: the middle ring (Sources/FarRing.swift) shows past the loaded chunks whenever the view reaches them (the
         // overworld's open sky: no cave, weather, blindness, vault or underwater fog cut it short). The fog then runs
@@ -142,6 +137,14 @@ final class WorldRenderer {
             && game.blindFog == nil && fogEnd >= baseEnd - 0.01 && game.world.gen is WorldGen
         // (Only once a ring is up: until its first build lands the loaded edge keeps the usual fog.)
         if farRingOn && farLive >= 0 && farSeed == game.world.seed { fogEnd = max(fogEnd, FarRing.outer - 16); fogStart = fogEnd * clearStart }
+        // O7: fog banks (WeatherWar.swift). P365 (g): applied after the middle ring (the ring stays up under a bank),
+        // so the reach closes in smoothly from the ring's rim instead of snapping from the ring to the loaded edge when
+        // the bank begins and back when it lifts.
+        if !underwater, hasSky, let wf = game.weatherFogEnd, wf < fogEnd {
+            fogEnd = wf; fogStart = min(fogStart, wf * game.weatherFogStartK)
+            if let tint = game.stormFogTint { fogColor = fogColor * 0.35 + tint * 0.65 * max(0.25, game.daylight) }   // D49
+            fogColor = fogColor * (1 - 0.5 * WeatherWar.fog) + V3(0.6, 0.62, 0.64) * (0.5 * WeatherWar.fog * game.daylight)
+        }
         let daylight = game.renderDaylight
         let nv = game.nightVision
         let ambient = 1 - (1 - game.dimAmbient) * (1 - 0.85 * nv)
