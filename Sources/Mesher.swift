@@ -731,6 +731,13 @@ enum Mesher {
                 groundV += 1
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
             }
+        } else if smooth && fieldOn && Mesher.fineSection(n9, sy: sy) {
+            // P377 step 1: ground edited here or next door draws from its two samples per block (FineField.swift).
+            fineGround(n9, sy: sy, R, sc, leafHoles: leafBlob, detailHoles: detail) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                curCut = false
+                groundV += 1
+                vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
+            }
         } else if smooth {
             let gm: GroundMerge? = fieldOn && GroundMerge.enabled && opq.count == 0 ? sc.groundMerge : nil     // (replaced quads lead the buffer)
             gm?.reset()
@@ -1724,6 +1731,7 @@ final class MeshScratch {
     let smM = UnsafeMutablePointer<Int32>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0)   // vertex material
     let dens = UnsafeMutablePointer<Int8>.allocate(capacity: Mesher.RL * Mesher.RH)    // PG1: the region's field densities
     lazy var field = SmoothField()
+    lazy var fineScratch = MeshScratch()        // P377 step 1: the half-block region Mesher.fineGround meshes
     var smValid = false             // P175: smV/smL hold the section's ground surface (Mesher.smoothGroundTop)
 
     deinit {

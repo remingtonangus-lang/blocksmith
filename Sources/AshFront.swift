@@ -46,6 +46,19 @@ final class VaultGround {
         abs(riverN.fbm2(Float(x) / 170, Float(z) / 170, 2)) < 0.022 && AshWar.clearance(x, z, front: front) > 14
     }
 
+    // P377 step 4 (Oct 16 19:51, "walking around he can see where a raised block level used to be"): a field world's
+    // creek as a smooth channel under the floor, 1 block at its middle and 0 at its banks, fading out near the army's
+    // sites. The block creek's one-block cut, column by column, drew every creek in the field as a stepped groove with
+    // a jagged rim winding over the grass. (Block worlds keep the cut: creek().)
+    func creekDepth(_ x: Int, _ z: Int) -> Float {
+        let n = abs(riverN.fbm2(Float(x) / 170, Float(z) / 170, 2))
+        guard n < 0.045 else { return 0 }
+        let c = AshWar.clearance(x, z)
+        guard c > 14 else { return 0 }
+        let t: Float = max(0, min(1, (0.045 - n) / 0.03)) * min(1, (c - 14) / 6)
+        return t * t * (3 - 2 * t)
+    }
+
     // No man's land: the belt outside the Ember Line's wire (432 out), faded at both edges. P346 (e): its own place, its
     // outer edge ragged (out to 535-615 by its own noise) instead of a ring.
     static let nmlOuter: Float = 575, nmlRagged: Float = 40

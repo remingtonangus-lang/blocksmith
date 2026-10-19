@@ -1472,7 +1472,10 @@ final class Game {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
             if !survival {
                 if breakNow || breakCooldown <= 0 {
+                    let dug = hitPoint(t)
                     breakBlock(t.hit, b, drop: false)
+                    // P377 step 3: in creative too the hole follows the tool (survival's PG1 ball where the blow landed).
+                    if SmoothTerrain.natural[Int(b)] { world.carve(at: dug + player.look * 0.25, radius: 0.62, mode: .shape) }
                     if t.hit == digDownCell { centreOverHole(t.hit) }
                     breakCooldown = 0.3
                 }
@@ -1880,6 +1883,12 @@ final class Game {
         // (P364 i: only a living creature in the cell blocks it: a dead one still fading out refused the block.)
         if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.health > 0 && $0.intersects(at) }) {
             world.setBlock(at.x, at.y, at.z, id)
+            // P377 step 3: ground placed in a field world swells toward where it was aimed, not only round the cell's
+            // middle (the cell lump World.fieldShape lays; only the surface moves, no other cell fills).
+            if world.fieldTerrain && SmoothTerrain.natural[Int(id)] && FieldMat.index[Int(id)] != 0 && at == t.hit + t.normal {
+                let n = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
+                world.fieldSphere(hitPoint(t) + n * 0.45, radius: 0.62, carve: false, material: FieldMat.index[Int(id)], keepSolid: true, remesh: true)
+            }
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
             if key == "chest" || key.hasSuffix("copper_chest") { world.blockEntities[at] = BlockEntity(.chest) }
             if key == "chest" || key == "trapped_chest" { ChestJoin.placed(self, at: at) }                // P264

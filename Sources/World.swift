@@ -358,6 +358,7 @@ final class World {
         let id = World.storedState(id0, replacing: old)
         if World.editTally != nil { World.editTally![UInt64(old) << 16 | UInt64(id), default: 0] += 1 }
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
+        if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
         c.blocks[Chunk.index(lx, y, lz)] = id
         if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
         if old != id, let e = netEdit, !World.netQuiet { e(x, y, z, id) }
@@ -435,6 +436,7 @@ final class World {
             World.editCells[IVec3(x, y, z), default: 0] += 1
         }
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
+        if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
         c.blocks[Chunk.index(lx, y, lz)] = id
         if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }

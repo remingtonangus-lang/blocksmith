@@ -62,11 +62,26 @@ struct BlockStore {
     private(set) var fd: [Int8] = []
     private(set) var fm: [UInt8] = []
     var isField: Bool { !fd.isEmpty }
+    // P377 step 1: two samples per block where the ground has been edited (digging, blasts, building), per 16-high
+    // section (key: section index): 32^3 samples at the half-block cells' centres (section-local (i + 0.5) / 2, index
+    // FineField.index), in fd's units. A section without one is fd alone (untouched land is unchanged). FineField.swift.
+    var fine: [Int: [Int8]] = [:]
     static let section = CSQ * 16
     // P338 step 2: reads of a field world's ground as a cell of its material (the block grid), counted while the debug
     // overlay shows them (PerfOverlay). Must read 0 where only the field's surface should be met.
     static var countReads = false
     static var groundReads = 0
+    // Harness (questcheck --notespots --trace): who reads them (every 64th read's callers, tallied).
+    static var traceReads = false
+    static var readers: [String: Int] = [:]
+    static func noteReader() {
+        let st = Thread.callStackSymbols
+        let key = st.dropFirst(2).prefix(3).map { l -> String in
+            let parts = l.split(separator: " ").map(String.init)
+            return parts.first(where: { $0.hasPrefix("$s") || $0.hasPrefix("_$s") }) ?? (parts.count > 3 ? parts[3] : l)
+        }.joined(separator: " < ")
+        readers[key, default: 0] += 1
+    }
     // Bit per 16-high section that may hold a light-emitting block (all set = unknown). The mesher skips the
     // block-light pass when no section around the one it meshes has one (most of the surface).
     var emitMask: UInt32 = ~0
@@ -103,7 +118,7 @@ struct BlockStore {
         var top = min(field.fd.count, CSQ * CH)
         while top > 0 && field.fd[top - 1] <= 0 { top -= 1 }
         let keep = max(BlockStore.section, (top + BlockStore.section - 1) / BlockStore.section * BlockStore.section)
-        fd = Array(field.fd.prefix(keep)); fm = Array(field.fm.prefix(keep))
+        fd = Array(field.fd.prefix(keep)); fm = Array(field.fm.prefix(keep)); fine = field.fine
         if fd.count < keep {
             fd.append(contentsOf: repeatElement(FieldTerrain.outside, count: keep - fd.count))
             fm.append(contentsOf: repeatElement(0, count: keep - fm.count))
@@ -128,7 +143,7 @@ struct BlockStore {
             let b = UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR      // a negative index reads as air too
             if b != AIR || fd.isEmpty { return b }
             guard UInt(bitPattern: i) < UInt(fd.count) && fd[i] > 0 else { return AIR }
-            if BlockStore.countReads { BlockStore.groundReads &+= 1 }
+            if BlockStore.countReads { BlockStore.groundReads &+= 1; if BlockStore.traceReads && BlockStore.groundReads & 63 == 0 { BlockStore.noteReader() } }
             return FieldMat.blocks[Int(fm[i])]
         }
         set {
@@ -162,7 +177,9 @@ struct BlockStore {
 
     // Writes the field at cell i (field worlds), growing the stored part when the ground rises past it. A nil material
     // keeps the cell's own.
-    mutating func setDensity(_ i: Int, _ d: Int8, material m: UInt8?) {
+    // `follow` (P377 step 1): the cell's eight fine samples, where its section has them, move with it (World.fieldSphere
+    // writes them itself).
+    mutating func setDensity(_ i: Int, _ d: Int8, material m: UInt8?, follow: Bool = true) {
         guard !fd.isEmpty, i >= 0 && i < CSQ * CH else { return }
         if i >= fd.count {
             if d <= 0 { return }
@@ -170,6 +187,7 @@ struct BlockStore {
             fd.append(contentsOf: repeatElement(FieldTerrain.outside, count: need - fd.count))
             fm.append(contentsOf: repeatElement(0, count: need - fm.count))
         }
+        if follow && !fine.isEmpty && fd[i] != d { FineField.follow(&fine, i, from: fd[i], to: d) }
         fd[i] = d
         if let m { fm[i] = m }
     }
@@ -197,7 +215,7 @@ struct BlockStore {
     }
 
     // The field as stored (saving).
-    var field: FieldData { FieldData(fd: fd, fm: fm) }
+    var field: FieldData { FieldData(fd: fd, fm: fm, fine: fine) }
 
     // Same underlying storage: nothing was written since the copy was taken.
     func sameStorage(_ o: BlockStore) -> Bool {

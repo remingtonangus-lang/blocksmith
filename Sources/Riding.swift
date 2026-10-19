@@ -479,8 +479,22 @@ extension Mob {
         if gaited {
             let headY = pos.y + height * 0.75 + 1.62 + 0.15
             var want: Float = 0
-            for dy: Float in [0, -0.5, -1.0] where Blocks.collide[Int(w.block(Int(floor(pos.x)), Int(floor(headY + dy)), Int(floor(pos.z))))] {
-                want = min(1.2, headY - floor(headY + dy) + 0.05); break
+            let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
+            let groundCells = w.fieldTerrain ? w.chunkAt(bx, bz) : nil
+            for dy: Float in [0, -0.5, -1.0] {
+                let by = Int(floor(headY + dy))
+                // (P377 step 3: in a field world the ground's cells are left to the field below: a cell's floor is not
+                // the overhang's drawn underside.)
+                if let c = groundCells, by >= 0 && by < CH, c.blocks.ground(Chunk.index(mod(bx, CS), by, mod(bz, CS))) { continue }
+                if Blocks.collide[Int(w.block(bx, by, bz))] { want = min(1.2, headY - floor(headY + dy) + 0.05); break }
+            }
+            if w.fieldTerrain {
+                // P377 step 3: under ground the field drew, the rider ducks below its drawn underside.
+                var y = headY
+                while y > headY - 1.2 {
+                    if w.fieldDensity(at: V3(pos.x, y, pos.z)) > 0 { want = max(want, min(1.2, headY - y + 0.1)) }
+                    y -= 0.125
+                }
             }
             self.hs.duck += (want - self.hs.duck) * min(1, dt * (want > self.hs.duck ? 14 : 4))
         }

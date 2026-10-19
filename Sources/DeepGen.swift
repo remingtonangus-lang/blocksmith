@@ -87,7 +87,7 @@ final class DeepGen: TerrainGenerator {
             let wx = bx + lx, wz = bz + lz
             let pd = pillarDistance(wx, wz)
             var f = Float(DeepGen.floorBase) + ground.base(wx, wz) - ground.crater(wx, wz)
-            if creek(wx, wz) { f -= 1 }
+            f -= ground.creekDepth(wx, wz)
             let c = Float(DeepGen.ceilingBase) + ceilN.fbm2(Float(wx) / 90, Float(wz) / 90, 3) * 14
             for y in 0..<DeepGen.hellBase {
                 let yc = Float(y), i = Chunk.index(lx, y, lz)
