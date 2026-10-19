@@ -70,10 +70,15 @@ Share of surface cells whose distance comes from the generator's own continuous 
 
 ## Where a field world still reads the block grid (P338 step 1, Oct 18)
 Two kinds of reads. A **material read** asks what the ground is made of at a point (farming soil, bone meal, plant
-support, ore drops, footstep sounds): it reads the cell's material through `BlockStore` (Chunk.swift `subscript`) and is
-not a shape the player can see or feel. A **shape read** treats a ground cell as a full cube: those are the bugs. The
-debug overlay's third line (PerfOverlay, field worlds) counts both kinds as "ground cell reads" per frame and the natural
-ground meshed as cubes ("Ground as cubes"); the cube count must be 0 everywhere.
+support, ore drops, footstep sounds): since P377 step 2 it goes through `World.materialAt` (BlockStore.materialCell) and
+is not a shape the player can see or feel. A **shape read** treats a ground cell as a full cube: those are the bugs. Every
+system now asks the question it means: `builtBlock` (the built layer only: fluids, rails, doors, plants), `groundAt` (the
+field), `solidAt` / `opaqueAt` / `isAir` (both), `fluidCell` (what a fluid meets: the drawn ground). The debug overlay's
+third line (PerfOverlay, field worlds) counts the reads still going through `World.block` that land on ground ("ground
+cell reads" per frame) and the natural ground meshed as cubes ("Ground as cubes"); both must be 0 everywhere. At the 412
+Oct 16-18 voice-note spots (`questcheck --notespots`, each in a field world of its seed for 36 frames): cubes 0 at every
+spot; reads 668,428 a frame in total before step 2, 10,277 after the first pass, 1,140 after the second, and the last
+readers (mob feet and ladders, the heightmap, sculk, frost walker, burning items, aim assist) fixed in the third.
 
 Shape reads, and what happens to each:
 - Drawing: natural ground is never a cube in a field world (Mesher.swift: natural cells inside the field go to the dual
@@ -97,7 +102,8 @@ Shape reads, and what happens to each:
 - Digging, blasts and rounds: World.fieldCarve subtracts round shapes from the field. Ground placed by the player was
   a lump round the cell's middle (World.fieldShape); since P377 step 3 it also swells toward the aimed point
   (Game: fieldSphere at the hit point, surface only). Fixed. Shapes finer than a block need finer samples: P377 step 1.
-- Fluids: water and lava are still cells of the built layer (World.fluidTick): step 5 / P363.
+- Fluids: water and lava are cells of the built layer, but what they meet is the drawn ground (World.fluidCell, P377
+  step 2): flow and settling follow the field; their surfaces are drawn as field nets at every distance (P378).
 - Density samples: one per block (FieldData.fd) on untouched land, two per block in every section the ground was
   edited in (FineField, P377 step 1). Fixed where the player has changed the ground.
 - Riding: the rider ducking under a low overhang (Riding.swift, P164) took the depth from a ground cell's floor. Since

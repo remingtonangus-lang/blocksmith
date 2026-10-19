@@ -109,7 +109,7 @@ extension AimAssist {
     static func sticky(_ g: Game, _ t: (hit: IVec3, normal: IVec3)?, reach: Float) -> (hit: IVec3, normal: IVec3)? {
         guard Settings.shared.aimAssist, PadManager.shared.usingPad || Coop.secondSeat, let prev = last else { last = t; return t }
         if let t = t, t.hit == prev.hit { last = t; return t }
-        let b = g.world.block(prev.hit.x, prev.hit.y, prev.hit.z)
+        let b = g.world.materialAt(prev.hit.x, prev.hit.y, prev.hit.z)
         guard Blocks.targetable(b) else { last = t; return t }
         let m: Float = 0.12
         let lo = V3(Float(prev.hit.x) - m, Float(prev.hit.y) - m, Float(prev.hit.z) - m)

@@ -670,7 +670,7 @@ final class Mob {
         if cureTick(dt, g) { return }
         if kind == .vex { updateVex(dt, g); return }
 
-        let feetBlock = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
+        let feetBlock = w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
         let inWater = Blocks.isLiquid(feetBlock) && !w.ships.dry(at: pos + V3(0, 0.2, 0))     // not inside a hull
 
         // Undead burn in daylight under open sky.
@@ -1265,7 +1265,7 @@ final class Mob {
 
         // Ladders and vines: climb when the path leads up (centred on the rung), slow slide otherwise.
         let lx = Int(floor(pos.x)), lz = Int(floor(pos.z))
-        let onLadder = !spec.flying && (PathFinder.climbable(w.block(lx, Int(floor(pos.y)), lz)) || PathFinder.climbable(w.block(lx, Int(floor(pos.y + 1)), lz)))
+        let onLadder = !spec.flying && (PathFinder.climbable(w.builtBlock(lx, Int(floor(pos.y)), lz)) || PathFinder.climbable(w.builtBlock(lx, Int(floor(pos.y + 1)), lz)))
         if onLadder {
             if path.climbUp {
                 vel.y = 2.35
@@ -1486,7 +1486,7 @@ final class Mob {
     // Under natural ground: the first solid block over the head (up to 7 above the feet) is stone, soil and the like.
     static func underground(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         for yy in (y + 2)...(y + 8) {
-            let b = Int(w.block(x, yy, z))
+            let b = Int(w.materialAt(x, yy, z))
             if Blocks.collide[b] || Blocks.opaque[b] { return earth[b] }
         }
         return false
@@ -2726,8 +2726,8 @@ final class MobManager {
 
     func grassSurface(_ w: World, _ x: Int, _ z: Int) -> Int? {
         let y = MobManager.surfaceScan(w, x, z)
-        guard w.block(x, y, z) == GRASS else { return nil }
-        let a = w.block(x, y + 1, z), b = w.block(x, y + 2, z)
+        guard w.materialAt(x, y, z) == GRASS else { return nil }
+        let a = w.materialAt(x, y + 1, z), b = w.materialAt(x, y + 2, z)
         guard !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && !Blocks.isLiquid(a) else { return nil }
         return y + 1
     }
@@ -2780,7 +2780,7 @@ final class MobManager {
         default: ok = g == "grass_block" || g == "snowy_grass_block"
         }
         guard ok else { return nil }
-        let a = w.block(x, y + 1, z), b = w.block(x, y + 2, z)
+        let a = w.materialAt(x, y + 1, z), b = w.materialAt(x, y + 2, z)
         guard !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && !Blocks.isLiquid(a) else { return nil }
         return y + 1
     }

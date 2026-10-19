@@ -575,13 +575,18 @@ final class Game {
     func settleSpawn(_ p: V3) -> V3 {
         _ = world.loadSync(center: p, radius: 1)
         func ok(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-            let below = world.block(x, y - 1, z)
-            let bk = Blocks.key(Blocks.groupBase[Int(below)])
-            guard Blocks.fullCollide[Int(below)], Blocks.fluidKind[Int(below)] == 0, !bk.hasSuffix("leaves"),
-                  !bk.hasSuffix("_log"), !bk.hasSuffix("_wood") else { return false }
+            // (P377 step 2: the ground read by its field, built blocks from the built layer; the body then stands on
+            // the drawn surface)
+            let below = world.builtBlock(x, y - 1, z)
+            if below == AIR {
+                guard world.groundAt(x, y - 1, z) else { return false }
+            } else {
+                let bk = Blocks.key(Blocks.groupBase[Int(below)])
+                guard Blocks.fullCollide[Int(below)], Blocks.fluidKind[Int(below)] == 0, !bk.hasSuffix("leaves"),
+                      !bk.hasSuffix("_log"), !bk.hasSuffix("_wood") else { return false }
+            }
             for k in 0...1 {
-                let b = world.block(x, y + k, z)
-                if Blocks.collide[Int(b)] || Blocks.fluidKind[Int(b)] != 0 { return false }
+                if world.solidAt(x, y + k, z) || Blocks.fluidKind[Int(world.builtBlock(x, y + k, z))] != 0 { return false }
             }
             return true
         }
@@ -1678,7 +1683,7 @@ final class Game {
         // P186 (Oct 13: "shouldn't I be able to cook stuff on the fire?"): raw food aimed at a lit campfire goes on
         // the fire (GameBlocks.useNewBlock) instead of being eaten.
         let onFire = target.map { t -> Bool in
-            let b = world.block(t.hit.x, t.hit.y, t.hit.z)
+            let b = world.builtBlock(t.hit.x, t.hit.y, t.hit.z)          // (a campfire is built: P377 step 2)
             return Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("campfire") && b - Blocks.groupBase[Int(b)] == 1 && Recipes.smelt(h.item) != nil
         } ?? false
         if (canEat || canDrink) && useHeld && !onFire && target.map({ !isInteractive($0.hit) }) ?? true {
@@ -2010,7 +2015,7 @@ final class Game {
     }
 
     func isInteractive(_ p: IVec3) -> Bool {
-        let b = world.block(p.x, p.y, p.z)
+        let b = world.builtBlock(p.x, p.y, p.z)                     // (the ground is never one)
         let k = Blocks.key(Blocks.groupBase[Int(b)])
         let shape = Blocks.shape[Int(b)]
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }

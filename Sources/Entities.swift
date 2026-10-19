@@ -268,7 +268,7 @@ final class ItemEntityManager {
             // R17: any touch burns it. Items bob in a liquid, so on a lava surface the one cell at its middle was
             // often the air above (it floated on the lava for a while, then got picked up again).
             let ix = Int(floor(e.pos.x)), iz = Int(floor(e.pos.z))
-            let b = w.block(ix, Int(floor(e.pos.y + 0.1)), iz), b0 = w.block(ix, Int(floor(e.pos.y - 0.05)), iz)
+            let b = w.builtBlock(ix, Int(floor(e.pos.y + 0.1)), iz), b0 = w.builtBlock(ix, Int(floor(e.pos.y - 0.05)), iz)
             guard Blocks.fluidKind[Int(b)] == 2 || b == FIRE || Blocks.fluidKind[Int(b0)] == 2 || b0 == FIRE else { continue }
             e.stack = ItemStack()
             burned += 1

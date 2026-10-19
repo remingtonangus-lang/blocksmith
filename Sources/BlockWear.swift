@@ -59,7 +59,10 @@ enum BlockWear {
             let c = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
             if c == last { continue }
             last = c
-            let id = w.block(c.x, c.y, c.z)
+            // P377 step 2: in a field world the drawn ground is never thin cover (a shot doesn't go through a hill);
+            // what can be is what was built.
+            if w.fieldTerrain && w.fieldDensity(at: p) > 0 { return false }
+            let id = w.builtBlock(c.x, c.y, c.z)
             guard Blocks.collide[Int(id)] && Blocks.fluidKind[Int(id)] == 0 else { continue }
             guard hp(id).isFinite && w.blockEntities[c] == nil else { return false }
             count += 1
@@ -83,7 +86,7 @@ extension Game {
     @discardableResult
     func wearBlock(_ b: IVec3, damage: Float, at: V3, fromPlayer: Bool, arc: Bool = false) -> Float {
         let w = world
-        let id = w.block(b.x, b.y, b.z)
+        let id = w.materialAt(b.x, b.y, b.z)                // (what it's made of: ground wears as its rock)
         let hp = BlockWear.hp(id)
         guard hp.isFinite, w.blockEntities[b] == nil else { return 0 }
         let scale = (fromPlayer ? 1 : BlockWear.enemyShare) * (arc ? BlockWear.arcShare : 1)

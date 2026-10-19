@@ -238,7 +238,7 @@ extension Mob {
         if carriedBlock == 0 {
             guard Rand.float(in: 0..<1) < ticks / 20 else { return }
             let q = IVec3(c.x + Rand.int(in: -2...2), c.y + Rand.int(in: 0...2), c.z + Rand.int(in: -2...2))
-            let b = w.block(q.x, q.y, q.z)
+            let b = w.materialAt(q.x, q.y, q.z)                     // (what it's made of, ground too: P377 step 2)
             guard b != AIR, Mob.voidwalkerHoldable.contains(Blocks.key(Blocks.groupBase[Int(b)])) else { return }
             carriedBlock = Blocks.groupBase[Int(b)]
             w.setBlock(q.x, q.y, q.z, AIR)
@@ -257,9 +257,9 @@ extension Mob {
         guard onGround, panic <= 0, Rand.float(in: 0..<1) < dt * 20 / (baby ? 50 : 1000) else { return }
         let w = g.world
         let x = Int(floor(pos.x)), y = Int(floor(pos.y)), z = Int(floor(pos.z))
-        if w.block(x, y, z) == TALL_GRASS {
+        if w.builtBlock(x, y, z) == TALL_GRASS {
             w.setBlock(x, y, z, AIR)
-        } else if w.block(x, y - 1, z) == GRASS {
+        } else if w.materialAt(x, y - 1, z) == GRASS {                   // (the ground's material: P377 step 2)
             w.setBlock(x, y - 1, z, Blocks.id("dirt"))
         } else { return }
         sheared = false

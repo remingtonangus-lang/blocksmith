@@ -75,7 +75,8 @@ extension Game {
         let bx = Int(floor(p.x)), by = max(-60, min(CH - YOFF - 3, Int(floor(p.y)))), bz = Int(floor(p.z))
         func open(_ x: Int, _ y: Int, _ z: Int) -> Bool {
             guard world.isLoaded(x, z) else { return false }
-            let b = world.block(x, y, z)
+            guard !world.groundAt(x, y, z) else { return false }        // (the ground by its field: P377 step 2)
+            let b = world.builtBlock(x, y, z)
             return (b == AIR || (Blocks.replaceable[Int(b)] && !Blocks.isLiquid(b))) && !Blocks.isLiquid(world.builtBlock(x, y - 1, z))
         }
         var spot: IVec3?

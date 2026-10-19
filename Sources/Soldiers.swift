@@ -928,8 +928,10 @@ extension Mob {
             let x = Int(floor(p.x)), z = Int(floor(p.z)), y0 = Int(floor(pos.y))
             for dy in [0, -1, 1] {
                 let y = y0 + dy
-                let under = g.world.block(x, y - 1, z), a = g.world.block(x, y, z), c = g.world.block(x, y + 1, z)
-                if Blocks.collide[Int(under)] && !Blocks.isLiquid(under) && !Blocks.collide[Int(a)] && !Blocks.collide[Int(c)] && !Blocks.isLiquid(a) {
+                // (P377 step 2: ground or a solid block under, room for the gunner: the field's cells, not cubes)
+                let w = g.world
+                if w.solidAt(x, y - 1, z) && !Blocks.isLiquid(w.builtBlock(x, y - 1, z)) && !w.solidAt(x, y, z) && !w.solidAt(x, y + 1, z)
+                    && !Blocks.isLiquid(w.builtBlock(x, y, z)) {
                     spot = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5); break search
                 }
             }

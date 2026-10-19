@@ -559,8 +559,9 @@ final class World {
     func shapeBoxes(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, collision: Bool) -> [Box] {
         let ck = Blocks.connectKind[Int(b)]
         if ck == 0 { return collision ? Blocks.collBoxes[Int(b)] : Blocks.boxes[Int(b)] }
-        return BlockRegistry.connectBoxes(ck, n: Blocks.connects(ck, block(x, y, z - 1)), s: Blocks.connects(ck, block(x, y, z + 1)),
-                                          w: Blocks.connects(ck, block(x - 1, y, z)), e: Blocks.connects(ck, block(x + 1, y, z)), collision: collision)
+        // (P377 step 2: the neighbours as the mesher joins them: the ground beside as its material, the way it's drawn)
+        return BlockRegistry.connectBoxes(ck, n: Blocks.connects(ck, materialAt(x, y, z - 1)), s: Blocks.connects(ck, materialAt(x, y, z + 1)),
+                                          w: Blocks.connects(ck, materialAt(x - 1, y, z)), e: Blocks.connects(ck, materialAt(x + 1, y, z)), collision: collision)
     }
 
     // Scratch for collides (frame thread only): taken and handed back, so a call never allocates its box list
@@ -1430,7 +1431,8 @@ final class World {
     func freeSpawn(_ p: V3, wide: Bool = false) -> V3 {
         func clear(_ x: Int, _ y: Int, _ z: Int) -> Bool {
             for k in 0...1 {
-                let b = Int(block(x, y + k, z))
+                if groundAt(x, y + k, z) { return false }                // (P377 step 2: the ground by its field)
+                let b = Int(builtBlock(x, y + k, z))
                 if Blocks.collide[b] && (Blocks.fullCollide[b] || !Blocks.boxes[b].isEmpty) {
                     var top: Float = 0
                     for bx in Blocks.boxes[b] { top = max(top, bx.maxV.y) }
@@ -1443,7 +1445,7 @@ final class World {
         if wide {
             func clear4(_ cx: Int, _ cy: Int, _ cz: Int) -> Bool {
                 clear(cx - 1, cy, cz - 1) && clear(cx, cy, cz - 1) && clear(cx - 1, cy, cz) && clear(cx, cy, cz)
-                    && Blocks.collide[Int(block(cx - 1, cy - 1, cz - 1))] && Blocks.collide[Int(block(cx, cy - 1, cz))]
+                    && solidAt(cx - 1, cy - 1, cz - 1) && solidAt(cx, cy - 1, cz)
             }
             let rx = Int((p.x).rounded()), rz = Int((p.z).rounded())
             for r in 0...3 { for dy in [0, 1, -1, 2] { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
@@ -1455,7 +1457,7 @@ final class World {
         for dy in 1...4 where clear(x, y + dy, z) { return V3(p.x, Float(y + dy), p.z) }
         for r in 1...2 { for dy in -1...2 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
             let fx = x + dx, fy = y + dy, fz = z + dz
-            if clear(fx, fy, fz) && Blocks.collide[Int(block(fx, fy - 1, fz))] { return V3(Float(fx) + 0.5, Float(fy), Float(fz) + 0.5) }
+            if clear(fx, fy, fz) && solidAt(fx, fy - 1, fz) { return V3(Float(fx) + 0.5, Float(fy), Float(fz) + 0.5) }
         } } } }
         return p
     }
@@ -1547,7 +1549,7 @@ final class World {
         let steps = Int(len / 0.25) + 1
         for i in 1..<steps {
             let p = a + d * (Float(i) / Float(steps))
-            if Blocks.opaque[Int(block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] { return false }
+            if opaqueAt(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) { return false }     // (P377 step 2: the ground by its field)
         }
         return true
     }

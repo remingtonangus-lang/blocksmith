@@ -76,7 +76,7 @@ struct BlockStore {
     static var readers: [String: Int] = [:]
     static func noteReader() {
         let st = Thread.callStackSymbols
-        let key = st.dropFirst(2).prefix(3).map { l -> String in
+        let key = st.dropFirst(2).prefix(5).map { l -> String in
             let parts = l.split(separator: " ").map(String.init)
             return parts.first(where: { $0.hasPrefix("$s") || $0.hasPrefix("_$s") }) ?? (parts.count > 3 ? parts[3] : l)
         }.joined(separator: " < ")
@@ -152,7 +152,7 @@ struct BlockStore {
             let b = UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR      // a negative index reads as air too
             if b != AIR || fd.isEmpty { return b }
             guard UInt(bitPattern: i) < UInt(fd.count) && fd[i] > 0 else { return AIR }
-            if BlockStore.countReads { BlockStore.groundReads &+= 1; if BlockStore.traceReads && BlockStore.groundReads & 63 == 0 { BlockStore.noteReader() } }
+            if BlockStore.countReads { BlockStore.groundReads &+= 1; if BlockStore.traceReads && BlockStore.groundReads & 63 == 1 { BlockStore.noteReader() } }
             return FieldMat.blocks[Int(fm[i])]
         }
         set {
@@ -359,7 +359,7 @@ final class Chunk {
         let skyT = Blocks.sky
         let c = x + z * CS
         var y = min(CH, blocks.storedCount / CSQ) - 1
-        while y >= 0 && !skyT[Int(blocks[c + y * CSQ])] { y -= 1 }
+        while y >= 0 && !skyT[Int(blocks.materialCell(c + y * CSQ))] { y -= 1 }      // (the material: not a ground cell read)
         height[c] = Int16(y)          // (didSet keeps heightMax)
     }
 }

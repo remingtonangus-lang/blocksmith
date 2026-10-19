@@ -201,13 +201,13 @@ extension Game {
         let cat = Blocks.id("sculk_catalyst")
         let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
         var near = false
-        for dy in -8...8 { for dz in -8...8 { for dx in -8...8 where world.block(c.x + dx, c.y + dy, c.z + dz) == cat { near = true } } }
+        for dy in -8...8 { for dz in -8...8 { for dx in -8...8 where world.builtBlock(c.x + dx, c.y + dy, c.z + dz) == cat { near = true } } }
         guard near else { return }
         let sculk = Blocks.id("sculk")
         var n = min(20, xp)
         for _ in 0..<60 where n > 0 {
             let q = IVec3(c.x + Rand.int(in: -3...3), c.y - 1 + Rand.int(in: -1...0), c.z + Rand.int(in: -3...3))
-            let b = world.block(q.x, q.y, q.z)
+            let b = world.materialAt(q.x, q.y, q.z)
             if Blocks.opaque[Int(b)] && b != sculk && Blocks.hardness[Int(b)] >= 0 && world.isAir(q.x, q.y + 1, q.z) {
                 world.setBlockAsync(q.x, q.y, q.z, sculk); n -= 1
             }
@@ -226,7 +226,7 @@ extension Game {
         let r = min(16, 2 + fw)
         for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
             let q = IVec3(feet.x + dx, feet.y, feet.z + dz)
-            if world.block(q.x, q.y, q.z) == WATER && world.isAir(q.x, q.y + 1, q.z) {
+            if world.builtBlock(q.x, q.y, q.z) == WATER && world.isAir(q.x, q.y + 1, q.z) {
                 world.setBlockAsync(q.x, q.y, q.z, Game.frostedIceID)
                 frostTimers[q] = Rand.float(in: 3...6)            // first melt try 60-120 ticks on
             }
