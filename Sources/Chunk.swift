@@ -31,6 +31,7 @@ final class Section {
     var detailQuads = 0
     var detailSolid = 0
     var naturalCubes = 0                        // P338 step 2: natural ground meshed as cubes (field worlds; must be 0)
+    var solidFull = false                       // P376 step 5: every cell opaque (an occluder)
     var groundQuads = 0, blobQuads = 0          // P283: of the opaque quads, the smooth ground's and the leaf blobs'
     var version = 0 {           // bumped when the section (or light around it) changes
         didSet {

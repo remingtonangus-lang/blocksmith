@@ -58,6 +58,23 @@ enum QuestPerf {
               let l = t.split(separator: "\n").first(where: { $0.hasPrefix("VmRSS:") }) else { return 0 }
         return (Double(l.split(separator: " ").dropFirst().first ?? "0") ?? 0) / 1024
     }
+    // P376 step 3: how many of the opaque vertices are exact duplicates within their section (shared corners a
+    // per-section index buffer could draw once), over every meshed section.
+    static func vertexShare(_ w: World) -> String {
+        var total = 0, unique = 0, ground = 0, plants = 0
+        var seen = Set<UInt64>()
+        for c in w.chunks.values { for s in c.sections {
+            guard let b = s.opaqueBuf else { continue }
+            let n = s.opaqueQuads * 4
+            let p = (b.buffer.contents() + b.offset).bindMemory(to: UInt64.self, capacity: n)
+            seen.removeAll(keepingCapacity: true)
+            for i in 0..<n { seen.insert(p[i]); if (UInt32(truncatingIfNeeded: p[i]) >> 27) & 7 == 6 { plants += 1 } }
+            total += n; unique += seen.count; ground += s.groundQuads * 4
+        } }
+        return String(format: "vertex sharing (P376 step 3): %d opaque vertices, %d distinct in their section (%.0f%%); ground vertices %d; plant (cross) quads %d; strip-merged faces saved %d",
+                      total, unique, Double(unique) * 100 / Double(max(1, total)), ground, plants / 4, Mesher.stripTally)
+    }
+
     static func memory(_ w: World, _ g: Game) -> String {
         var held = 0
         for c in w.chunks.values { held += c.heldCopyBytes }
@@ -230,6 +247,7 @@ enum QuestPerf {
         print("    quads: \(quadsStand)")
         print("    far ticking (P376, must be 0): \(farStand) standing, \(farFly) flying; active \(w.activeDistance) chunks, \(w.parked.values.reduce(0) { $0 + $1.count }) cells parked")
         print("    standing " + memStand)
+        print("    " + vertexShare(w))
         print(flight.report(String(format: "flying %.0f b/s", speed), stagesLine: flyStages, behind: flyBehind))
         print("    " + memory(w, g))
         PadManager.shared.touch = nil

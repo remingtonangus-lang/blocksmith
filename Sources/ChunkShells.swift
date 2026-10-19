@@ -113,7 +113,7 @@ extension World {
             s.opaqueQuads = m.counts[0]; s.solidQuads = m.counts[1]; s.farSkip = m.counts[2]; s.farExtra = m.counts[3]
             s.transBuf = cacheBuffer(m.trans); s.transQuads = m.counts[4]
             s.detailBuf = cacheBuffer(m.detail); s.detailQuads = m.counts[5]; s.detailSolid = m.counts[6]
-            s.naturalCubes = m.counts[7]; s.groundQuads = m.counts[8]; s.blobQuads = m.counts[9]
+            s.naturalCubes = m.counts[7]; s.groundQuads = m.counts[8]; s.blobQuads = m.counts[9]; s.solidFull = m.counts[10] != 0
             s.vis = m.vis; s.leafy = m.leafy
             s.meshedVersion = s.version
         }
@@ -152,7 +152,7 @@ final class MeshCache {
 
     struct SectionData {
         var opaque: [UInt32] = [], trans: [UInt32] = [], detail: [UInt32] = []
-        var counts = [Int](repeating: 0, count: 10)
+        var counts = [Int](repeating: 0, count: 11)
         var vis: UInt64 = ~0, leafy = true
     }
     struct Entry {
@@ -194,7 +194,7 @@ final class MeshCache {
         // The buffers stay alive in this closure until written (their slab space is reused only after).
         let secs = c.sections.map { s in (s.opaqueBuf, s.transBuf, s.detailBuf,
                                           [s.opaqueQuads, s.solidQuads, s.farSkip, s.farExtra, s.transQuads, s.detailQuads, s.detailSolid,
-                                           s.naturalCubes, s.groundQuads, s.blobQuads], s.vis, s.leafy) }
+                                           s.naturalCubes, s.groundQuads, s.blobQuads, s.solidFull ? 1 : 0], s.vis, s.leafy) }
         let height = c.height, tint = c.tint, modified = c.modified
         let u = url(k), stamp = self.stamp
         lock.lock(); have.insert(k); lock.unlock()
@@ -271,7 +271,7 @@ final class MeshCache {
         var secs: [SectionData] = []
         for _ in 0..<NSEC {
             var s = SectionData()
-            for i in 0..<10 { guard let v = u32() else { return fail() }; s.counts[i] = Int(v) }
+            for i in 0..<11 { guard let v = u32() else { return fail() }; s.counts[i] = Int(v) }
             guard let vis = u64(), let lf = u32() else { return fail() }
             s.vis = vis; s.leafy = lf != 0
             guard let a = u32(), let o = words(Int(a)), let bn = u32(), let t = words(Int(bn)), let cn = u32(), let de = words(Int(cn)) else { return fail() }
@@ -284,5 +284,5 @@ final class MeshCache {
 
 extension SectionMesh {
     // Bumped whenever the vertex layout or a Section field the cache stores changes (MeshCache stamp).
-    static let layoutStamp = 0x376_0001
+    static let layoutStamp = 0x376_0002
 }

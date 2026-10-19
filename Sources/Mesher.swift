@@ -17,6 +17,7 @@ struct SectionMesh {
     // P375 (GroundMerge): far from the eye the first `farSkip` opaque quads are left out and `farGround` drawn instead.
     var farSkip = 0
     var farGround: [UInt32] = []
+    var solidFull = false   // P376 step 5: every cell of the section is opaque (an occluder for SceneRenderer.occlusionCull)
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -383,7 +384,11 @@ enum Mesher {
                 }
             }
         }
-        if buried { return SectionMesh(opaque: [], trans: [], light: Mesher.dark, vis: 0) }
+        if buried { var m = SectionMesh(opaque: [], trans: [], light: Mesher.dark, vis: 0); m.solidFull = true; return m }
+        var solidFull = true
+        full: for ry in C0..<(C0 + 16) { for z in C0..<(C0 + 16) { for x in C0..<(C0 + 16) where !opaqueT[Int(R[x + z * RW + ry * RL])] {
+            solidFull = false; break full
+        } } }
 
         let heights = sc.heights
         heights.initialize(repeating: -1, count: RL)
@@ -688,6 +693,15 @@ enum Mesher {
         // key = 1 + (layer | tint<<11 | overlay<<13 | ao<<14 | light<<16 | trans<<24)
         let mask = sc.mask
         mask.initialize(repeating: 0, count: 6 * 16 * 256)
+        // P376 step 3 (lossless): a cube face whose corners differ only across one of its axes (light or occlusion
+        // changing up a wall but not along it) draws the same as a run of such faces merged along the other axis: each
+        // value is interpolated linearly across that axis either way. Collected here by pattern, merged below.
+        let strip = sc.strip
+        let stripOn = Mesher.stripMerge
+        if stripOn {
+            strip.initialize(repeating: 0, count: 2 * 6 * 16 * 256)
+            sc.stripKeys.removeAll(keepingCapacity: true); sc.stripIndex.removeAll(keepingCapacity: true)
+        }
         // Chipped blocks in the region (progressive block damage): region index -> packed damage.
         var dmg: [Int: UInt8] = [:]
         // (Realistic world: blows are drawn as craters, below; the chipped sub-cubes and dents are the block worlds'.)
@@ -1200,6 +1214,9 @@ enum Mesher {
                             if Mesher.iceT[Int(nb)] { continue }
                         } else if cullSameT[bi] && nb == b {
                             continue
+                        } else if Mesher.stripMerge && fkT[Int(nb)] == 2 && rt == rCube
+                                    && (NT[f * 3 + 1] != 0 || fkT[Int(R[i + offs[f] + RL])] == 2 || opaqueT[Int(R[i + offs[f] + RL])]) {
+                            continue                           // P376 step 3: under lava (drawn opaque) to its full height
                         } else if leafT[bi] && leafT[Int(nb)] {
                             leafy = true                       // meshes differently at lod 0 and 2
                             if lod != 0 { continue }           // far and mid: "fast" leaves, no faces inside the canopy
@@ -1308,6 +1325,23 @@ enum Mesher {
                             }
                             let key = layer | (tintF << 11) | ((overlay ? 1 : 0) << 13) | (aos[0] << 14) | ((lit[0] & 255) << 16) | ((isTrans ? 1 : 0) << 24) | ((curCut ? 1 : 0) << 25)
                             mask[(f * 16 + sl) * 256 + a + bb * 16] = Int32(key + 1)
+                            continue
+                        }
+                        if stripOn && !isLiquid && rt == rCube, let dir = Mesher.stripDir(f, aos, lit) {
+                            let sl: Int, a: Int, bb: Int
+                            switch f >> 1 {
+                            case 0: sl = lx; a = ly; bb = lz
+                            case 1: sl = ly; a = lz; bb = lx
+                            default: sl = lz; a = lx; bb = ly
+                            }
+                            var key = UInt64(layer) | UInt64(tintF) << 11 | UInt64(overlay ? 1 : 0) << 13 | UInt64(isTrans ? 1 : 0) << 14
+                                | UInt64(curCut ? 1 : 0) << 15
+                            for c in 0..<4 { key |= UInt64(aos[c]) << UInt64(16 + 2 * c) | UInt64(lit[c] & 255) << UInt64(24 + 8 * c) }
+                            let idx: Int32
+                            if let k = sc.stripIndex[key] { idx = k } else {
+                                idx = Int32(sc.stripKeys.count); sc.stripKeys.append(key); sc.stripIndex[key] = idx
+                            }
+                            strip[((dir * 6 + f) * 16 + sl) * 256 + a + bb * 16] = idx + 1
                             continue
                         }
                         // Realistic world: a liquid sheet thins out to the ground at its edge (no block-high wall round
@@ -1460,6 +1494,44 @@ enum Mesher {
                 }
             }
         }
+        // P376 step 3: the strips, run along the axis their corners don't change across (dir 0: a, dir 1: bb).
+        if stripOn && !sc.stripKeys.isEmpty {
+            for dir in 0..<2 { for f in 0..<6 {
+                let axis = f / 2
+                let a1 = (axis + 1) % 3, a2 = (axis + 2) % 3
+                for sl in 0..<16 {
+                    let base = ((dir * 6 + f) * 16 + sl) * 256
+                    for bb in 0..<16 {
+                        var a = 0
+                        while a < 16 {
+                            let k = strip[base + a + bb * 16]
+                            if k == 0 { a += 1; continue }
+                            var w = 1, h = 1
+                            if dir == 0 { while a + w < 16 && strip[base + a + w + bb * 16] == k { w += 1 } }
+                            else { while bb + h < 16 && strip[base + a + (bb + h) * 16] == k { strip[base + a + (bb + h) * 16] = 0; h += 1 } }
+                            let key = sc.stripKeys[Int(k) - 1]
+                            let layer = Int(key & 2047), tint = Int(key >> 11 & 3), overlay = key >> 13 & 1 == 1
+                            let trans = key >> 14 & 1 == 1
+                            curCut = key >> 15 & 1 == 1
+                            for c in 0..<4 {
+                                let ci = (f * 4 + c) * 3
+                                let ao = Int(key >> UInt64(16 + 2 * c) & 3), l = Int(key >> UInt64(24 + 8 * c) & 255)
+                                let ps = (sl + CT[ci + axis]) * 16
+                                let pa = (CT[ci + a1] == 1 ? a + w : a) * 16
+                                let pb = (CT[ci + a2] == 1 ? bb + h : bb) * 16
+                                switch axis {
+                                case 0: vert(trans, ps, pa, pb, f, tint, 31, 31, layer, ao, l, overlay)
+                                case 1: vert(trans, pb, ps, pa, f, tint, 31, 31, layer, ao, l, overlay)
+                                default: vert(trans, pa, pb, ps, f, tint, 31, 31, layer, ao, l, overlay)
+                                }
+                            }
+                            Mesher.stripTally &+= w * h - 1
+                            a += w
+                        }
+                    }
+                }
+            } }
+        }
         // P184: the far still-water tops, merged per layer into rectangles 14/16 up their cells (the swell in chunk.vert
         // still moves their corners; projected UVs, u = v = 31).
         if !waterMask.isEmpty {
@@ -1505,7 +1577,7 @@ enum Mesher {
         }
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
                            detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes,
-                           farSkip: farSkip, farGround: farGround)
+                           farSkip: farSkip, farGround: farGround, solidFull: solidFull)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -1518,6 +1590,24 @@ enum Mesher {
 
     // P184: merge far still-water tops (environment BS_WATERMERGE=0 turns it off, for before/after measurements).
     static var mergeFarWater = ProcessInfo.processInfo.environment["BS_WATERMERGE"] != "0"
+    // P376 step 3: lossless strips of cube faces, and faces under lava dropped (BS_STRIPS=0: off, for before/after).
+    static var stripMerge = ProcessInfo.processInfo.environment["BS_STRIPS"] != "0"
+    static var stripTally = 0                  // faces saved (harness; racy count across workers)
+    // Which axis a face's corner values are constant along: 0 = its `a` axis (Mesher's slice order), 1 = `bb`, nil = neither
+    // (both: it is flat, merged as such before this is asked).
+    @inline(__always) static func stripDir(_ f: Int, _ aos: UnsafeMutablePointer<Int>, _ lit: UnsafeMutablePointer<Int>) -> Int? {
+        let axis = f >> 1, a1 = (axis + 1) % 3, a2 = (axis + 2) % 3
+        let CT = cornerTable
+        var alongA = true, alongB = true
+        for c in 0..<4 { for d in (c + 1)..<4 {
+            let ci = (f * 4 + c) * 3, di = (f * 4 + d) * 3
+            let same = aos[c] == aos[d] && (lit[c] & 255) == (lit[d] & 255)
+            if same { continue }
+            if CT[ci + a2] == CT[di + a2] { alongA = false }      // same bb row, different along a
+            if CT[ci + a1] == CT[di + a1] { alongB = false }
+        } }
+        return alongA ? 0 : (alongB ? 1 : nil)
+    }
     static var mergedWater = 0                     // cells drawn inside merged water quads (counter; racy, a measure only)
     static let lilyPad: BlockID = Blocks.has("lily_pad") ? Blocks.id("lily_pad") : BlockID.max
     // Far (LOD 1) canopies: solid faces against leaves dropped, leaf light in steps of 4 so faces merge
@@ -1607,6 +1697,10 @@ final class MeshScratch {
     let blk = UnsafeMutablePointer<UInt8>.allocate(capacity: Mesher.RL * Mesher.RH)
     let heights = UnsafeMutablePointer<Int>.allocate(capacity: Mesher.RL)
     let mask = UnsafeMutablePointer<Int32>.allocate(capacity: 6 * 16 * 256)
+    // P376 step 3: cube faces whose corner light and occlusion are constant along one of the face's axes (strips).
+    let strip = UnsafeMutablePointer<Int32>.allocate(capacity: 2 * 6 * 16 * 256)
+    var stripKeys: [UInt64] = []
+    var stripIndex: [UInt64: Int32] = [:]
     let groundMerge = GroundMerge()
     let lit = UnsafeMutablePointer<Int>.allocate(capacity: 4)
     let aos = UnsafeMutablePointer<Int>.allocate(capacity: 4)
@@ -1633,7 +1727,7 @@ final class MeshScratch {
     var smValid = false             // P175: smV/smL hold the section's ground surface (Mesher.smoothGroundTop)
 
     deinit {
-        region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate()
+        region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate(); strip.deallocate()
         lit.deallocate(); aos.deallocate(); seen.deallocate(); stack.deallocate()
         smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate(); smQ.deallocate(); smR.deallocate(); smF.deallocate(); smM.deallocate(); dens.deallocate()
     }
