@@ -82,7 +82,7 @@ enum QuestPerf {
             tint += c.tint.count * 4 + c.height.count * 2
         }
         let mb = { (n: Int) in String(format: "%.0f", Double(n) / 1_048_576) }
-        return "memory: resident \(String(format: "%.0f", rssMB())) MB; copies kept since the last save \(mb(held)) MB; \(w.chunks.count) chunks: blocks \(mb(blocks)) MB, field \(mb(field)) MB, light \(mb(light)) MB, "
+        return "memory: resident \(String(format: "%.0f", rssMB())) MB; copies kept since the last save \(mb(held)) MB; \(w.chunks.count) chunks (\(w.chunks.values.filter { $0.hollow }.count) shells: P376): blocks \(mb(blocks)) MB, field \(mb(field)) MB, light \(mb(light)) MB, "
             + "heights+tints \(mb(tint)) MB; built-layer sections \(secs) (\(airSecs) all air, \(leadSecs) of them below the lowest block), field sections \(fieldSecs) (\(solidSecs) all ground); mesh slabs \(mb(MeshArena.shared.slabBytes)) MB (free \(mb(MeshArena.shared.freeBytes)) MB), tint slabs \(mb(MeshArena.tints.slabBytes)) MB; "
             + "\(g.mobs.mobs.count) mobs, \(g.drops.items.count) items"
     }
