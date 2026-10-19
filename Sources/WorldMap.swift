@@ -93,6 +93,8 @@ final class MapCache {
             for k in batch {
                 let cx = Int(Int32(truncatingIfNeeded: k >> 32)), cz = Int(Int32(truncatingIfNeeded: k & 0xFFFF_FFFF))
                 let c = g.column(cx * MapCache.cellBlocks + 2, cz * MapCache.cellBlocks + 2)
+                // P337 step 5: railway lines show on the map as a dark track line.
+                if let wg = g as? WorldGen, MapCache.onRail(wg, k, cx * MapCache.cellBlocks, cz * MapCache.cellBlocks) { out.append((k, 0x4A3B2E)); continue }
                 out.append((k, MapCache.shade(c.biome, height: c.height)))
             }
             lock.lock()
@@ -103,6 +105,27 @@ final class MapCache {
             version &+= 1
             lock.unlock()
         }
+    }
+
+    // P337 step 5: the map cells each railway line crosses (by line id), built once per line.
+    private static var railCells: [Int64: Set<Int64>] = [:]
+    private static let railLock = NSLock()
+    private static var railGen: ObjectIdentifier?
+    static func onRail(_ gen: WorldGen, _ k: Int64, _ x: Int, _ z: Int) -> Bool {
+        let n = cellBlocks
+        for l in Railways.near(gen, x0: x, z0: z, x1: x + n - 1, z1: z + n - 1, pad: 0) {
+            railLock.lock()
+            if railCells.count > 512 || railGen != ObjectIdentifier(gen) { railCells.removeAll(); railGen = ObjectIdentifier(gen) }
+            var set = railCells[l.id]
+            if set == nil {
+                var s = Set<Int64>()
+                for c in l.cells { s.insert(key(floorDiv(c.x, n), floorDiv(c.z, n))) }
+                railCells[l.id] = s; set = s
+            }
+            railLock.unlock()
+            if set!.contains(k) { return true }
+        }
+        return false
     }
 
     // Biome base colour, lighter on high ground and darker in deep water.

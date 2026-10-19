@@ -691,6 +691,7 @@ final class Game {
 
     func hookWorld(_ w: World) {
         w.loadPieces()                                      // P338 step 8 (FreeBuild)
+        Trains.load(w)                                      // P337 step 6
         w.redstone.game = self
         w.onFluidEvent = { [weak self] p in self?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
         w.onIgnite = { [weak self] p, b in

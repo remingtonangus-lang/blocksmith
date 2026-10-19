@@ -1406,6 +1406,7 @@ final class World {
         }
         for (k, c) in chunks where c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }   // PG1
         savePieces()
+        Trains.save(self)                                // P337 step 6
         save?.saveBlockEntities(blockEntities, background: background)
         redstone.save(background: background)            // W1: pending circuit ticks and edges (circuit.json)
         save?.savePortals(Array(portals))

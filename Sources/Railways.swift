@@ -360,11 +360,23 @@ enum Railways {
                 if !(Blocks.opaque[Int(w.get(c.x, y - 1, c.z))]) || w.get(c.x, y - 1, c.z) == deck { w.groundDown(c.x, y - 2, c.z, leg, minY: y - 48) }
             }
         }
-        // Buffer stops past both ends.
+        // Buffer stops past both ends (P337 (a): the line ended at a single block): the bed runs on two cells past
+        // the last rail, a timber beam across it on a stone sill, posts at its ends and the red board in the middle.
+        let beam = g("stripped_spruce_log", leg)
         for (i, j) in [(0, 1), (n - 1, n - 2)] where n > 1 {
             let c = l.cells[i], d = IVec3(c.x - l.cells[j].x, 0, c.z - l.cells[j].z)
-            let x = c.x + d.x, z = c.z + d.z
-            if w.inside(x, c.y, z) { w.set(x, c.y - 1, z, stop); w.set(x, c.y, z, stop); w.set(x, c.y + 1, z, g("red_wool", stop)) }
+            let px = d.z != 0 ? 1 : 0, pz = d.x != 0 ? 1 : 0                 // across the track
+            for k in 1...2 { for a in -1...1 {
+                let x = c.x + d.x * k + px * a, z = c.z + d.z * k + pz * a
+                guard w.inside(x, c.y, z) else { continue }
+                for yy in c.y...(c.y + 3) { w.set(x, yy, z, AIR) }
+                if Blocks.opaque[Int(w.get(x, c.y - 1, z))] { w.set(x, c.y - 1, z, ballast) } else { w.set(x, c.y - 1, z, stop); w.groundDown(x, c.y - 2, z, stop, minY: c.y - 24) }
+                if k == 1 {
+                    w.set(x, c.y, z, a == 0 ? stop : beam)
+                    w.set(x, c.y + 1, z, a == 0 ? g("red_wool", stop) : post)
+                    if a != 0 { w.set(x, c.y + 2, z, lamp) }
+                }
+            } }
         }
         // Stations: the platform on the town (north) side, the station house across the track.
         for st in l.stations {
