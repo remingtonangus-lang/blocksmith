@@ -48,6 +48,8 @@ final class World {
     // crops grow, weather and seasons touch blocks and creatures spawn. Past it nothing ticks: mobs stand in their last
     // pose. The Auto governor lowers this one, never the view.
     var activeDistance: Int = 8
+    var activeCenter = V3(0, 0, 0)                  // the player, as of the last update (FarTicks.swift)
+    var parked: [ChunkKey: [(IVec3, UInt8)]] = [:]  // P376: fluid (1 water, 2 lava) and falling (0) cells past the active distance
     var collapseQueue: [(IVec3, Int)] = [] // P351: carves to check for loose ground (GroundCollapse)
     var collapsing = false
     // P338 step 8: free building pieces (FreeBuild.swift) and their collision boxes by cell.
@@ -935,6 +937,7 @@ final class World {
         let tUpdate = CFAbsoluteTimeGetCurrent()
         defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
         let center = ChunkKey(x: floorDiv(Int(floor(pos.x)), CS), z: floorDiv(Int(floor(pos.z)), CS))
+        activeCenter = pos
 
         if World.deterministic { workQueue.waitIdle() }
         lock.lock()
@@ -1549,8 +1552,8 @@ final class World {
 
     // The player's block (Game.tick sets it): fluid cells within 24 blocks of it tick first (FluidQueue).
     static var focus: IVec3?
-    private(set) var fluidPending = FluidQueue()
-    private(set) var lavaPending = FluidQueue()
+    var fluidPending = FluidQueue()
+    var lavaPending = FluidQueue()
     private var fluidDone = 512, lavaDone = 512        // cells the last fluid tick got through (timed batch size)
     static let fluidBudget = 1024
     // Frame-thread time a fluid tick may take before the rest of its batch waits for the next one (infinite: the
@@ -1655,6 +1658,8 @@ final class World {
                 break
             }
             guard p.y >= 0 && p.y < CH && isLoaded(p.x, p.z) else { continue }
+            if !activeHere(p) { park(fluid: p, lava: lava); continue }     // P376: waits for the player to come near
+            FarTicks.note(self, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             let cur = block(p.x, p.y, p.z)
             guard fkT[Int(cur)] == kind else { continue }
             var lv = Int(lvT[Int(cur)])
@@ -1806,7 +1811,8 @@ final class World {
         for (p, age) in fires {
             let b = block(p.x, p.y, p.z)
             if b != FIRE { fires.removeValue(forKey: p); continue }
-            if !isLoaded(p.x, p.z) { continue }
+            if !isLoaded(p.x, p.z) || !activeHere(p) { continue }          // (P376: fire past the active distance waits)
+            FarTicks.note(self, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             let below = block(p.x, p.y - 1, p.z)
             let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
             if rainLevel > 0.5 && !eternal, let c = chunks[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))],

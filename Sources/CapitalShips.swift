@@ -971,14 +971,14 @@ extension ShipManager {
                 capState.removeValue(forKey: s.id)
                 continue
             }
-            if s.captured && !s.wrecked && (s.role == "dropship" || s.isFlyingCapital) { commandeeredTick(s, st, dt, g); continue }
-            if s.captured && s.role == "crawler" { capturedCrawlerTick(s, st, dt, g); continue }
-            if s.role == "dropship" { dropshipTick(s, st, dt, g); continue }
-            if !st.announced && pd < 420 {
+            if !st.announced && pd < 420 && s.role != "dropship" && !s.captured {
                 st.announced = true
                 g.onToast?(s.role == "crawler" ? "The ground shakes: an Ironback Crawler is near" : "A \(s.name) looms on the horizon")
             }
-            if s.asleep { continue }
+            if s.asleep { continue }                 // P376: past the active distance a capital ship waits where it is
+            if s.captured && !s.wrecked && (s.role == "dropship" || s.isFlyingCapital) { commandeeredTick(s, st, dt, g); continue }
+            if s.captured && s.role == "crawler" { capturedCrawlerTick(s, st, dt, g); continue }
+            if s.role == "dropship" { dropshipTick(s, st, dt, g); continue }
             // Drive exhaust: a blue-white glow streaming aft from the nozzles while the engines hold (blind critic: the
             // frigate showed no sign of what keeps it up).
             if !st.exhausts.isEmpty && pd < 260 && st.engines0 > 0 && !s.wrecked {

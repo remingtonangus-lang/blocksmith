@@ -111,6 +111,8 @@ extension Game {
     // 20 Hz: campfires cook and hurt, frost walker freezes, conduits power players in water.
     func blockEntityTicks() {
         for (p, be) in world.blockEntities where be.kind == .campfire {
+            guard world.activeHere(p) else { continue }          // P376: catches up from the clock when near again
+            FarTicks.note(world, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             let missed = be.missedTicks(time)                  // P127
             if missed > 0 { be.catchUpCampfire(missed) }
             for i in 0..<4 where !be.container[i].isEmpty {

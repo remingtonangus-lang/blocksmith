@@ -199,7 +199,10 @@ extension ShipManager {
             }
             let steered = pilots.contains { $0 === s }
             // Kinematic (AI-moved) ships don't need the ground under them loaded: they never touch it physically.
-            s.asleep = !steered && (d > 384 || (!r.kinematic && !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z)))))
+            // P376: past the active distance every ship sleeps, capital ships too (they wait in place, drawn).
+            let activeR = Float(min(world.activeDistance, world.renderDistance) * CS + CS / 2)
+            s.asleep = !steered && (d > activeR || (!r.kinematic && !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z)))))
+            if !s.asleep { FarTicks.shipAwakeFar += d > activeR ? 1 : 0 }
             if !s.asleep && dt > 0 {
                 // Sky light the world has around the ship (top and middle of its bounds): ships darken under cover.
                 let cx = Int(floor((s.worldMin.x + s.worldMax.x) * 0.5)), cz = Int(floor((s.worldMin.z + s.worldMax.z) * 0.5))

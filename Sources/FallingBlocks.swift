@@ -30,6 +30,8 @@ extension Game {
         }
         defer { world.gravityScratch = q }
         for p in q {
+            if !world.activeHere(p) { world.park(falling: p); continue }   // P376
+            FarTicks.note(world, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             if plantSupportCheck(p) { continue }          // plants that lost their support pop (PlantSupport.swift)
             let b = world.block(p.x, p.y, p.z)
             guard World.fallingIDs[Int(b)], p.y > 0 else {

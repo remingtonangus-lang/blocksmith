@@ -219,7 +219,8 @@ final class ItemEntityManager {
         let reachXZ: Float = ridden != nil ? 1.9 : 1.3
         let reachDown: Float = ridden.map { max(0.8, pp.y - $0.pos.y + 0.8) } ?? 0.8
         for e in items {
-            if !pickOnly { e.update(dt, w) }
+            if !w.activeHere(e.pos) { continue }                  // P376: past the active distance an item lies still
+            if !pickOnly { e.update(dt, w); FarTicks.note(w, e.pos) }
             if e.pickupDelay <= 0 && game.alive {
                 let d = e.pos - pp
                 if abs(d.x) < reachXZ && abs(d.z) < reachXZ && d.y > -reachDown && d.y < 2.3 {

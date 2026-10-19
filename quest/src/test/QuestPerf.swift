@@ -199,7 +199,10 @@ enum QuestPerf {
         _ = wr.takeStages()
         _ = behind()
         let stand = Phase()
+        let far0 = FarTicks.total
         for _ in 0..<standFrames { try frame(stand, fly: false) }
+        FarTicks.noteShips()
+        let farStand = FarTicks.total - far0
         let standStages = wr.takeStages(), standBehind = behind()
         let memStand = memory(w, g)
         let quadsStand = scene.quadBreakdown()
@@ -218,11 +221,14 @@ enum QuestPerf {
             if i == 60 { print("    flying: at \(Int(g.player.pos.y) - YOFF), \(String(format: "%.1f", simd_length(g.player.vel))) b/s, on the ground \(g.player.onGround)") }
         }
         let speed = simd_length(V2(g.player.pos.x - from.x, g.player.pos.z - from.z)) / (Float(flyFrames) * dt)
+        FarTicks.noteShips()
+        let farFly = FarTicks.total - far0 - farStand
         let flyStages = wr.takeStages(), flyBehind = behind()
         scene.waitIdle()
         print("perfscene \(sp.name) rd \(rd) (seed \(sp.seed) at \(Int(sp.x)), \(Int(sp.z)); loaded in \(String(format: "%.1f", loadS)) s, \(g.mobs.mobs.count) mobs, \(w.ships.list.count) ships)")
         print(stand.report("standing", stagesLine: standStages, behind: standBehind))
         print("    quads: \(quadsStand)")
+        print("    far ticking (P376, must be 0): \(farStand) standing, \(farFly) flying; active \(w.activeDistance) chunks, \(w.parked.values.reduce(0) { $0 + $1.count }) cells parked")
         print("    standing " + memStand)
         print(flight.report(String(format: "flying %.0f b/s", speed), stagesLine: flyStages, behind: flyBehind))
         print("    " + memory(w, g))
