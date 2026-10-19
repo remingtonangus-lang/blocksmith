@@ -120,9 +120,11 @@ final class SceneRenderer {
     // horizon culling. BS_OCCLUSION=0 turns it off. occlusionVP: world to clip of the frustum enclosing both eyes.
     var occlusionCulling = ProcessInfo.processInfo.environment["BS_OCCLUSION"] != "0"
     var occlusionVP: float4x4? = nil
-    private(set) var occlusionSkipped = 0, occluderBoxes = 0
-    static let oW = 192, oH = 112
+    private(set) var occlusionSkipped = 0, occluderBoxes = 0, occlusionMs = 0.0
+    static let oW = 192, oH = 112, oT = 8                    // the buffer, and its 8 x 8 tiles' nearest and farthest depth
     private var oDepth = [Float](repeating: .infinity, count: SceneRenderer.oW * SceneRenderer.oH)
+    private var oTileMin = [Float](repeating: .infinity, count: (SceneRenderer.oW / 8) * (SceneRenderer.oH / 8))
+    private var oTileMax = [Float](repeating: .infinity, count: (SceneRenderer.oW / 8) * (SceneRenderer.oH / 8))
     var maxSection = NSEC          // sections from here up are left out (the Ash Vault's sky, AshSky.swift)
     // The fog budget (the Ash Vault, gap pass D5/DE14): sections wholly past this distance are neither walked nor drawn
     // (they would come out the fog colour). 0: off. `fogCullOff` lets questcheck measure the battle without it.
@@ -952,6 +954,8 @@ final class SceneRenderer {
     static let occluderChunks = 10
     private func occlusionCull(eye: V3, R: Int, span: Int) {
         occlusionSkipped = 0; occluderBoxes = 0
+        let t0 = CFAbsoluteTimeGetCurrent()
+        defer { occlusionMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
         guard let vp = occlusionVP else { return }
         let W = SceneRenderer.oW, H = SceneRenderer.oH
         for i in 0..<(W * H) { oDepth[i] = .infinity }
@@ -985,8 +989,13 @@ final class SceneRenderer {
                     if q.z < 0 { behind = true } else { pts[k] = SIMD2(q.x, q.y); dMax = max(dMax, q.z) }
                 }
                 if behind { continue }
-                // Convex hull of the 8 points (monotone chain), counter-clockwise in pixel space.
-                let sorted = pts.sorted { $0.x != $1.x ? $0.x < $1.x : $0.y < $1.y }
+                // Convex hull of the 8 points (monotone chain), counter-clockwise in pixel space. (Sorted in place.)
+                for i in 1..<8 {
+                    let v = pts[i]; var j = i - 1
+                    while j >= 0 && (pts[j].x > v.x || (pts[j].x == v.x && pts[j].y > v.y)) { pts[j + 1] = pts[j]; j -= 1 }
+                    pts[j + 1] = v
+                }
+                let sorted = pts
                 hull.removeAll(keepingCapacity: true)
                 func cross(_ o: SIMD2<Float>, _ a: SIMD2<Float>, _ b: SIMD2<Float>) -> Float { (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x) }
                 for p in sorted { while hull.count >= 2 && cross(hull[hull.count - 2], hull[hull.count - 1], p) <= 0 { hull.removeLast() }; hull.append(p) }
@@ -1021,12 +1030,19 @@ final class SceneRenderer {
             }
         } }
         guard occluderBoxes > 0 else { return }
+        let T = SceneRenderer.oT, TW = W / T, TH = H / T
+        for ty in 0..<TH { for tx in 0..<TW {
+            var lo = Float.infinity, hi = -Float.infinity
+            for y in (ty * T)..<(ty * T + T) { let row = y * W; for x in (tx * T)..<(tx * T + T) { let d = oDepth[row + x]; lo = min(lo, d); hi = max(hi, d) } }
+            oTileMin[ty * TW + tx] = lo; oTileMax[ty * TW + tx] = hi
+        } }
+        let nearKeep: Float = 32 * 32                       // (sections within two chunks are never tested)
         // The sections.
         var out = 0
         for k in 0..<found.count {
             let key = found[k]
             let col = Int((key >> 8) & 0xFF_FFFF), sy = Int(key & 0xFF)
-            guard let c = chunkGrid[col] else { found[out] = key; out += 1; continue }
+            guard let c = chunkGrid[col], Float(bitPattern: UInt32(key >> 32)) > nearKeep else { found[out] = key; out += 1; continue }
             let mn = V3(Float(c.cx * CS) - 2, Float(sy * 16) - 2, Float(c.cz * CS) - 2), mx = mn + V3(20, 20, 20)
             var dMin = Float.infinity, behind = false
             var xMin = Float.infinity, xMax = -Float.infinity, yMin = Float.infinity, yMax = -Float.infinity
@@ -1041,7 +1057,15 @@ final class SceneRenderer {
                 let ya = max(0, Int(floor(yMin))), yb = min(H - 1, Int(ceil(yMax)) - 1)
                 if xa > xb || ya > yb { hidden = false }
                 else {
-                    check: for r in ya...yb { let row = r * W; for x in xa...xb where !(oDepth[row + x] < dMin) { hidden = false; break check } }
+                    // Tile by tile: a tile wholly in the rectangle decides at once when all its pixels are nearer (hidden
+                    // there) or none is (visible); the rest pixel by pixel.
+                    check: for ty in (ya / T)...(yb / T) { for tx in (xa / T)...(xb / T) {
+                        let ti = ty * TW + tx
+                        if oTileMax[ti] < dMin { continue }
+                        let px0 = max(xa, tx * T), px1 = min(xb, tx * T + T - 1), py0 = max(ya, ty * T), py1 = min(yb, ty * T + T - 1)
+                        if oTileMin[ti] >= dMin && px0 == tx * T && px1 == tx * T + T - 1 && py0 == ty * T && py1 == ty * T + T - 1 { hidden = false; break check }
+                        for r in py0...py1 { let row = r * W; for x in px0...px1 where !(oDepth[row + x] < dMin) { hidden = false; break check } }
+                    } }
                 }
             }
             if hidden { occlusionSkipped += 1; continue }
@@ -1186,7 +1210,7 @@ final class SceneRenderer {
             q[f][0] += 1; q[f][1] += s.groundQuads; q[f][2] += s.blobQuads; q[f][3] += s.opaqueQuads - s.groundQuads - s.blobQuads
             q[f][4] += s.detailQuads; q[f][5] += s.transQuads
         }
-        return "walk \(cullVisits) sections, \(horizonSkipped) behind hills, \(occlusionSkipped) occluded by \(occluderBoxes) solid boxes, \(mergedSections) drawing merged ground; " + ["near", "far"].enumerated().map { i, n in
+        return "walk \(cullVisits) sections, \(horizonSkipped) behind hills, \(occlusionSkipped) occluded by \(occluderBoxes) solid boxes (\(String(format: "%.2f", occlusionMs)) ms), \(mergedSections) drawing merged ground; " + ["near", "far"].enumerated().map { i, n in
             "\(n) \(q[i][0]) sections: ground \(q[i][1]), leaf blobs \(q[i][2]), other opaque \(q[i][3]), detail \(q[i][4]), translucent \(q[i][5])"
         }.joined(separator: "; ")
     }

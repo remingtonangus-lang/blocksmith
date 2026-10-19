@@ -541,6 +541,61 @@ if let out = arg("--view"), let ctx = vkctx {
         print("view: wrote \(out)"); exit(0)
     } catch { print("FAIL view: \(error)"); exit(1) }
 }
+// --notespots FILE.json (P377 step 2): the two field debug counters (PerfOverlay's third line: natural ground meshed as
+// cubes, and ground cell reads a frame) at every spot of a list of voice-note positions ([{seed, dim, x, y, z, day,
+// time}], tools: the notes' Position lines), each read in a field world of the note's seed with the player standing
+// there for 36 frames (survival, on foot). Prints one line a spot and the totals; non-zero values are listed.
+if let path = arg("--notespots") {
+    struct Spot: Decodable { let seed: String; let dim: String; let x: Float; let y: Float; let z: Float; let day: String; let time: String }
+    guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)), let spots = try? JSONDecoder().decode([Spot].self, from: data) else {
+        print("notespots: can't read \(path)"); exit(1)
+    }
+    World.lodNear = 99; World.leafNear = 99; World.deterministic = true
+    FieldTerrain.newWorlds = true
+    var cubesTotal = 0, readsTotal = 0, bad: [String] = []
+    var cur: (key: String, w: World, g: Game)? = nil
+    let limit = Int(arg("--limit") ?? "") ?? Int.max
+    for (n, sp) in spots.prefix(limit).enumerated() {
+        let key = sp.seed + "/" + sp.dim
+        if cur?.key != key {
+            let dim: Dim = sp.dim == "Hell" ? .deep : (sp.dim == "The Emberdeep" ? .nether : (sp.dim == "The Hollow" ? .end : .overworld))
+            let w = World(seed: UInt64(sp.seed) ?? 0, device: device, save: nil, dim: dim)
+            w.makeFieldWorld()
+            w.renderDistance = 3; w.activeDistance = 3
+            let g = Game(world: w, save: nil, persistent: false)
+            g.smoothTerrain = true
+            SmoothTerrain.use(world: true, world: w)
+            g.survival = true; g.paused = false; g.input.captured = true
+            cur = (key, w, g)
+        }
+        let (_, w, g) = cur!
+        g.player.flying = false
+        g.player.pos = V3(sp.x, sp.y + Float(YOFF), sp.z)
+        g.player.vel = .zero
+        _ = w.loadSync(center: g.player.pos, radius: 3)
+        for _ in 0..<4 { g.tick(1.0 / 72) }                          // (meshes in)
+        g.player.pos = V3(sp.x, sp.y + Float(YOFF), sp.z); g.player.vel = .zero
+        BlockStore.countReads = true; BlockStore.groundReads = 0
+        let frames = 36
+        for _ in 0..<frames { g.tick(1.0 / 72) }
+        BlockStore.countReads = false
+        let reads = BlockStore.groundReads / frames
+        var cubes = 0
+        let pcx = floorDiv(Int(floor(sp.x)), CS), pcz = floorDiv(Int(floor(sp.z)), CS)
+        for dz in -2...2 { for dx in -2...2 {
+            guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
+            for s in c.sections { cubes += s.naturalCubes }
+        } }
+        cubesTotal += cubes; readsTotal += reads
+        let line = String(format: "notespots %3d %@ %@ %@ %@ at %.1f %.1f %.1f: ground as cubes %d, ground cell reads %d/frame",
+                          n, sp.day, sp.time, sp.dim, sp.seed, sp.x, sp.y, sp.z, cubes, reads)
+        print(line)
+        if cubes > 0 || reads > 0 { bad.append(line) }
+    }
+    print("notespots: \(min(limit, spots.count)) spots, ground as cubes total \(cubesTotal), ground cell reads total \(readsTotal)/frame; \(bad.count) spots non-zero")
+    for b in bad { print("  NONZERO " + b) }
+    exit(bad.isEmpty ? 0 : 2)
+}
 // --structcheck [--seeds A,B --per N --kinds K,... --dims D --strict --out FILE]: the structure walkability check
 // (Sources/StructCheck.swift) on the Linux host, as the Mac's `--structcheck` runs it.
 if CommandLine.arguments.contains("--structcheck") { exit(StructCheck.run(device: device)) }
