@@ -454,7 +454,31 @@ if let out = arg("--view"), let ctx = vkctx {
         vg.drops.items.append(e)
     }
     do {
-        try RenderTest.render(game: vg, ctx: ctx, path: out, yaw: yaw, pitch: pitch)
+        // --w/--h/--fov: P375's headset-resolution shots (Quest 3: 2064 x 2208 an eye, about 104 degrees across).
+        let vwid = Int(arg("--w") ?? "") ?? 640, vhei = Int(arg("--h") ?? "") ?? 640, vfov = Float(arg("--fov") ?? "") ?? 90
+        // --pixelpair (P375): the same frame with the full ground grid everywhere (OUT-full.png) and with far sections
+        // drawing their merged ground (OUT), and how many pixels differ.
+        var fullRGBA: [UInt8] = []
+        if CommandLine.arguments.contains("--pixelpair") {
+            SceneRenderer.drawMerged = false
+            try RenderTest.render(game: vg, ctx: ctx, path: out.replacingOccurrences(of: ".png", with: "-full.png"), width: vwid, height: vhei,
+                                  yaw: yaw, pitch: pitch, fovDeg: vfov)
+            fullRGBA = RenderTest.lastRGBA
+            SceneRenderer.drawMerged = true
+        }
+        try RenderTest.render(game: vg, ctx: ctx, path: out, width: vwid, height: vhei, yaw: yaw, pitch: pitch, fovDeg: vfov)
+        if !fullRGBA.isEmpty && fullRGBA.count == RenderTest.lastRGBA.count {
+            let b = RenderTest.lastRGBA
+            var over8 = 0, over32 = 0, sum = 0
+            for i in stride(from: 0, to: b.count, by: 4) {
+                let d = max(abs(Int(b[i]) - Int(fullRGBA[i])), abs(Int(b[i + 1]) - Int(fullRGBA[i + 1])), abs(Int(b[i + 2]) - Int(fullRGBA[i + 2])))
+                sum += d; if d > 8 { over8 += 1 }; if d > 32 { over32 += 1 }
+            }
+            let n = b.count / 4
+            print(String(format: "view: pixelpair %d pixels, %d differ by more than 8 of 255 (%.3f%%), %d by more than 32 (%.3f%%), mean difference %.3f",
+                         n, over8, Double(over8) * 100 / Double(n), over32, Double(over32) * 100 / Double(n), Double(sum) / Double(n)))
+        }
+        if GroundMerge.merged > 0 { print("view: \(GroundMerge.replaced) ground quads merged into \(GroundMerge.merged) for far sections (P375)") }
         if Mesher.mergedWater > 0 { print("view: \(Mesher.mergedWater) far water cells drawn in merged quads (P184)") }
         print("view: wrote \(out)"); exit(0)
     } catch { print("FAIL view: \(error)"); exit(1) }

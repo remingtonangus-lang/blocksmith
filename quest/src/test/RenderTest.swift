@@ -30,7 +30,8 @@ enum RenderTest {
         // (As QuestApp.farPlane: the F4 middle ring reaches FarRing.outer in the overworld.)
         let ringFar: Float = FarRing.enabled && game.dim.dim == .overworld ? FarRing.outer + 96 : 0
         let far = max(Float(game.world.renderDistance * 16 + 96), ringFar)
-        let proj = XRMath.projection(tanLeft: -t, tanRight: t, tanUp: t, tanDown: -t, near: 0.05, far: far)
+        let tv = t * Float(height) / Float(width)           // (square pixels for a non-square shot)
+        let proj = XRMath.projection(tanLeft: -t, tanRight: t, tanUp: tv, tanDown: -tv, near: 0.05, far: far)
         let head = simd_quatf(angle: yaw, axis: V3(0, 1, 0)) * simd_quatf(angle: pitch, axis: V3(1, 0, 0))
         var vps: [float4x4] = []
         for e in [-0.032, 0.032] as [Float] {

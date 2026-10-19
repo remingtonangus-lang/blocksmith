@@ -1071,7 +1071,7 @@ final class SceneRenderer {
             q[f][0] += 1; q[f][1] += s.groundQuads; q[f][2] += s.blobQuads; q[f][3] += s.opaqueQuads - s.groundQuads - s.blobQuads
             q[f][4] += s.detailQuads; q[f][5] += s.transQuads
         }
-        return "walk \(cullVisits) sections, \(horizonSkipped) behind hills; " + ["near", "far"].enumerated().map { i, n in
+        return "walk \(cullVisits) sections, \(horizonSkipped) behind hills, \(mergedSections) drawing merged ground; " + ["near", "far"].enumerated().map { i, n in
             "\(n) \(q[i][0]) sections: ground \(q[i][1]), leaf blobs \(q[i][2]), other opaque \(q[i][3]), detail \(q[i][4]), translucent \(q[i][5])"
         }.joined(separator: "; ")
     }
@@ -1098,7 +1098,20 @@ final class SceneRenderer {
 
     // Writes the section records for the culled list (camera-relative origins) into the slot.
     private var nRec = 0
+    private var recEye = V3(0, 0, 0)
+    // P375 (GroundMerge): whether a section is far enough that its merged ground differs from the full grid by under
+    // a pixel: its box's nearest point at least GroundMerge.farDistance from the eye.
+    @inline(__always) private func mergedFar(_ c: Chunk, _ sy: Int) -> Bool {
+        let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
+        let q = simd_clamp(recEye, mn, mn + V3(16, 16, 16))
+        let f = GroundMerge.farDistance
+        guard SceneRenderer.drawMerged else { return false }
+        return simd_length_squared(q - recEye) >= f * f
+    }
+    private(set) var mergedSections = 0
+    static var drawMerged = true                  // (questcheck --view --pixelpair: the full grid everywhere for the left shot)
     func writeRecords(_ s: Slot, eye: V3) {
+        recEye = eye
         nRec = min(visible.count, SceneRenderer.recordCap)
         let recs = s.records.mapped!.bindMemory(to: SectionRec.self, capacity: max(1, nRec))
         for i in 0..<nRec {
@@ -1177,7 +1190,19 @@ final class SceneRenderer {
                 while k < batchKeys.count && !(batchKeys[k].0 === vb && batchKeys[k].1 === tbuf) { k += 1 }
                 if k == batchKeys.count { batchKeys.append((vb, tbuf)); batchCount.append(0); batchCut.append(0) }
                 let vo = Int32(buf.offset / (detail ? 16 : 8))
-                if solid > 0 {
+                if !detail && sec.farExtra > 0 && solid >= sec.farSkip && sec.opaqueQuads + sec.farExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
+                    // P375: the merged ground in place of the grid it stands for.
+                    mergedSections += 1
+                    if solid > sec.farSkip {
+                        batchCount[k] += 1
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((solid - sec.farSkip) * 6), instanceCount: 1,
+                                                                             firstIndex: UInt32(sec.farSkip * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                    }
+                    batchCount[k] += 1
+                    pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(sec.farExtra * 6), instanceCount: 1, firstIndex: 0,
+                                                                         vertexOffset: vo + Int32(sec.opaqueQuads * 4), firstInstance: UInt32(i))))
+                    drawnQuads += sec.farExtra - sec.farSkip
+                } else if solid > 0 {
                     batchCount[k] += 1
                     pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(solid * 6), instanceCount: 1, firstIndex: 0,
                                                                          vertexOffset: vo, firstInstance: UInt32(i))))
@@ -1231,7 +1256,7 @@ final class SceneRenderer {
 
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0; batchedSections = 0; indirectUsed = 0
+        drawCalls = 0; drawnQuads = 0; batchedSections = 0; indirectUsed = 0; mergedSections = 0
         bindTerrainBuffers(s)
         anyDetail = false
         for i in 0..<nRec { let (c, sy, _) = visible[i]; if c.sections[sy].detailQuads > 0 { anyDetail = true; break } }
@@ -1246,7 +1271,12 @@ final class SceneRenderer {
                 let quads = detail ? sec.detailQuads : sec.opaqueQuads
                 guard quads > 0, let buf = detail ? sec.detailBuf : sec.opaqueBuf, let tb = c.tintBuf else { continue }
                 let total = min(quads, SceneRenderer.maxQuads), solid = min(detail ? sec.detailSolid : sec.solidQuads, total)
-                let first = pass & 1 == 0 ? 0 : solid, count = pass & 1 == 0 ? solid : total - solid
+                var first = pass & 1 == 0 ? 0 : solid, count = pass & 1 == 0 ? solid : total - solid
+                if pass == 0 && sec.farExtra > 0 && solid >= sec.farSkip && sec.opaqueQuads + sec.farExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
+                    mergedSections += 1                    // P375: the merged ground in place of the grid it stands for
+                    drawSection(s, i, buf, tb, first: sec.opaqueQuads, count: sec.farExtra)
+                    first = sec.farSkip; count = solid - sec.farSkip
+                }
                 if count <= 0 { continue }
                 drawSection(s, i, buf, tb, first: first, count: count, stride: detail ? 16 : 8)
             }

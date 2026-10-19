@@ -14,6 +14,9 @@ struct SectionMesh {
     var groundQuads = 0     // P283: of the opaque quads, the smooth ground's and the leaf blobs' (questcheck --perfscenes)
     var blobQuads = 0
     var naturalCubes = 0    // P338 step 2: natural ground drawn as cubes in a field world (must be 0)
+    // P375 (GroundMerge): far from the eye the first `farSkip` opaque quads are left out and `farGround` drawn instead.
+    var farSkip = 0
+    var farGround: [UInt32] = []
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -435,6 +438,7 @@ enum Mesher {
         opq.count = 0; cut.count = 0; trn.count = 0
         var curCut = false
         var groundV = 0, blobV = 0                       // (P283 stats: vertices from the two smooth passes)
+        var farSkip = 0, farGround: [UInt32] = []        // P375 (GroundMerge)
         var leafy = false                                // faces between leaf blocks met (lod 0 and 2 differ)
         var naturalCubes = 0
         let solidLayer = RenderLayer.opaque.rawValue
@@ -714,12 +718,41 @@ enum Mesher {
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
             }
         } else if smooth {
+            let gm: GroundMerge? = fieldOn && GroundMerge.enabled && opq.count == 0 ? sc.groundMerge : nil     // (replaced quads lead the buffer)
+            gm?.reset()
+            let g0 = opq.count
             smoothQuads(R, sc, dmg: dmg, site: fieldOn ? nil : site, stored: fieldOn ? dens : nil, sy: sy, leafHoles: leafBlob, detailHoles: detail,
-                        world: fieldOn ? SIMD3<Int>(wox, sy * 16, woz) : nil, crater: craters, carveOut: det) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                        world: fieldOn ? SIMD3<Int>(wox, sy * 16, woz) : nil, crater: craters, carveOut: det, merge: gm) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 groundV += 1
                 // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
+            }
+            // P375 (GroundMerge): the merged ground's replaced quads first, the rest of the ground after them, and the
+            // merged copy kept aside (appended past the cutout quads, drawn far only).
+            if let gm, !gm.quads.isEmpty {
+                var rep: [Int] = [], kept: [Int] = [], mergedQ: [[SIMD8<Int32>]] = []
+                gm.solve(replaced: &rep, kept: &kept, mergedOut: &mergedQ)
+                let rest = Array(UnsafeBufferPointer(start: opq.ptr + g0, count: opq.count - g0))
+                opq.count = g0
+                curCut = false
+                func put(_ q: [SIMD8<Int32>], flip: Bool) {
+                    for k in 0..<4 {
+                        let v = q[flip ? (k + 1) & 3 : k]
+                        let nc = Int(v[7])
+                        vert(false, Int(v[0]), Int(v[1]), Int(v[2]), 2, Int(v[3]), 31, nc % 31, Int(v[4]), Int(v[5]), Int(v[6]), nc >= 31)
+                        groundV += 1
+                    }
+                }
+                for i in rep { put(gm.quads[i].v, flip: gm.quads[i].flip) }
+                for w in rest { opq.append(w) }
+                for i in kept { put(gm.quads[i].v, flip: gm.quads[i].flip) }
+                farSkip = rep.count
+                let before = opq.count
+                for q in mergedQ { put(q, flip: false) }
+                groundV -= mergedQ.count * 4
+                farGround = Array(UnsafeBufferPointer(start: opq.ptr + before, count: opq.count - before))
+                opq.count = before
             }
         }
 
@@ -1471,7 +1504,8 @@ enum Mesher {
             detailOut.append(contentsOf: UnsafeBufferPointer(start: detCut.ptr, count: detCut.count))
         }
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
-                           detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes)
+                           detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes,
+                           farSkip: farSkip, farGround: farGround)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -1573,6 +1607,7 @@ final class MeshScratch {
     let blk = UnsafeMutablePointer<UInt8>.allocate(capacity: Mesher.RL * Mesher.RH)
     let heights = UnsafeMutablePointer<Int>.allocate(capacity: Mesher.RL)
     let mask = UnsafeMutablePointer<Int32>.allocate(capacity: 6 * 16 * 256)
+    let groundMerge = GroundMerge()
     let lit = UnsafeMutablePointer<Int>.allocate(capacity: 4)
     let aos = UnsafeMutablePointer<Int>.allocate(capacity: 4)
     let seen = UnsafeMutablePointer<Bool>.allocate(capacity: 4096)
