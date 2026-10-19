@@ -253,10 +253,16 @@ extension Mesher {
                 let cellGround = dens[src] > 0 && natT[Int(rb)]
                 var b = rb
                 if d > 0 && !cellGround && (rb == AIR || !opaqueT[Int(rb)]) {
-                    let bx = gx >> 1, by = sy * 16 + (gy >> 1), bz = gz >> 1
-                    let st = n9[(bx >> 4) + 1 + ((bz >> 4) + 1) * 3]
-                    let m = by >= 0 && by < CH ? Int(st.material(Chunk.index(bx & 15, by, bz & 15))) : 0
-                    b = m != 0 ? FieldMat.blocks[m] : DIRT
+                    // (the ground beside it, under it first: grass reaching up into the open cell over it stays grass)
+                    b = DIRT
+                    var found = false
+                    for o in [-RL, 1, -1, RW, -RW, RL] where dens[src + o] > 0 && natT[Int(R[src + o])] { b = R[src + o]; found = true; break }
+                    if !found {
+                        let bx = gx >> 1, by = sy * 16 + (gy >> 1), bz = gz >> 1
+                        let st = n9[(bx >> 4) + 1 + ((bz >> 4) + 1) * 3]
+                        let m = by >= 0 && by < CH ? Int(st.material(Chunk.index(bx & 15, by, bz & 15))) : 0
+                        if m != 0 { b = FieldMat.blocks[m] }
+                    }
                 } else if d <= 0 && cellGround {
                     b = AIR
                 }

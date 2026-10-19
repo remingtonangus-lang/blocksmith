@@ -131,12 +131,12 @@ extension Game {
         }
     }
 
-    // Once a second.
+    // Once a second. (Everything here looks for built blocks: P377 step 2.)
     func blockSecondTick() {
         let pp = player.pos
         // Campfire smoke and contact damage.
         let feet = IVec3(Int(floor(pp.x)), Int(floor(pp.y - 0.1)), Int(floor(pp.z)))
-        let fb = world.block(feet.x, feet.y, feet.z)
+        let fb = world.builtBlock(feet.x, feet.y, feet.z)
         let fk = Blocks.key(fb)
         if (fk == "campfire" || fk == "soul_campfire") && survival && !player.sneaking {
             damage(fk == "soul_campfire" ? 2 : 1, "went up in flames", type: .fire)
@@ -146,11 +146,11 @@ extension Game {
         if conduit != AIR, player.inWater {
             let c = IVec3(Int(floor(pp.x)), Int(floor(pp.y)), Int(floor(pp.z)))
             outer: for dy in -24...24 where dy % 2 == 0 { for dz in stride(from: -24, through: 24, by: 1) { for dx in stride(from: -24, through: 24, by: 1) {
-                guard abs(dx) + abs(dy) + abs(dz) < 48, world.block(c.x + dx, c.y + dy, c.z + dz) == conduit else { continue }
+                guard abs(dx) + abs(dy) + abs(dz) < 48, world.builtBlock(c.x + dx, c.y + dy, c.z + dz) == conduit else { continue }
                 let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
                 var frame = 0
                 for fz in -2...2 { for fy in -2...2 { for fx in -2...2 {
-                    let k = Blocks.key(world.block(q.x + fx, q.y + fy, q.z + fz))
+                    let k = Blocks.key(world.builtBlock(q.x + fx, q.y + fy, q.z + fz))
                     if k == "prismarine" || k == "prismarine_bricks" || k == "dark_prismarine" || k == "sea_lantern" { frame += 1 }
                 } } }
                 if frame >= 16 && simd_length(V3(Float(dx), Float(dy), Float(dz))) < Float(frame / 7 * 16) {
@@ -166,7 +166,7 @@ extension Game {
                 let c = IVec3(Int(floor(pp.x)), Int(floor(pp.y)), Int(floor(pp.z)))
                 var found = false
                 for dy in -4...4 { for dz in -8...8 { for dx in -8...8 {
-                    let k = Blocks.key(world.block(c.x + dx, c.y + dy, c.z + dz))
+                    let k = Blocks.key(world.builtBlock(c.x + dx, c.y + dy, c.z + dz))
                     if k == "sculk_shrieker" || k == "sculk_sensor" || k == "calibrated_sculk_sensor" { found = true }
                 } } }
                 if found {
@@ -181,7 +181,7 @@ extension Game {
                             let a = Rand.float(in: 0..<(2 * .pi))
                             let x = Int(floor(pp.x + cosf(a) * 6)), z = Int(floor(pp.z + sinf(a) * 6))
                             var y = c.y + 3
-                            while y > c.y - 6 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
+                            while y > c.y - 6 && !Blocks.collide[Int(world.builtBlock(x, y - 1, z))] && !world.groundAt(x, y - 1, z) { y -= 1 }
                             let w = Mob(.warden, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                             w.anger = 80
                             w.emergeTime = 6.7

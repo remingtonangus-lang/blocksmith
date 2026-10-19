@@ -201,7 +201,11 @@ struct BlockStore {
             return out
         }
         return [BlockID](unsafeUninitializedCapacity: CSQ * CH) { out, n in
-            for i in 0..<(CSQ * CH) { out[i] = self[i] }
+            let mats = FieldMat.blocks
+            for i in 0..<(CSQ * CH) {
+                let b = i < data.count ? data[i] : AIR
+                out[i] = b != AIR || i >= fd.count || fd[i] <= 0 ? b : mats[Int(fm[i])]
+            }
             n = CSQ * CH
         }
     }

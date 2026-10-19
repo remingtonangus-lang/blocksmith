@@ -596,6 +596,7 @@ if let path = arg("--notespots") {
     }
     World.lodNear = 99; World.leafNear = 99; World.deterministic = true
     FieldTerrain.newWorlds = true
+    StructureCache.traceKinds = CommandLine.arguments.contains("--trace")
     var cubesTotal = 0, readsTotal = 0, bad: [String] = []
     var cur: (key: String, w: World, g: Game)? = nil
     let limit = Int(arg("--limit") ?? "") ?? Int.max
@@ -634,12 +635,21 @@ if let path = arg("--notespots") {
         } }
         // (--trace: which natural blocks the built layer draws as cubes here)
         if CommandLine.arguments.contains("--trace") && cubes > 0 {
-            var keys: [String: Int] = [:]
+            var keys: [String: Int] = [:], ground = 0, kept = 0
+            var kinds = Set<String>()
             for dz in -2...2 { for dx in -2...2 {
-                guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
-                for i in 0..<(CSQ * CH) { let b = c.blocks.raw(i); if b != AIR && SmoothTerrain.natural[Int(b)] { keys[Blocks.key(b), default: 0] += 1 } }
-            } }
+                let k = ChunkKey(x: pcx + dx, z: pcz + dz)
+                guard let c = w.chunks[k] else { continue }
+                for i in 0..<(CSQ * CH) {
+                    let b = c.blocks.raw(i)
+                    if b != AIR && SmoothTerrain.natural[Int(b)] { keys[Blocks.key(b), default: 0] += 1 }
+                    if FieldMat.index[Int(b)] != 0 { ground += 1 }
+                }
+                kept += FieldTerrain.keptBuilt[k] ?? 0
+                kinds.formUnion(StructureCache.kinds[k] ?? [])
+            }
             print("notespots   built-layer natural blocks: " + keys.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+            print("notespots   ground materials in the built layer \(ground), kept there by a structure's mark \(kept) (structures: \(kinds.sorted().joined(separator: " ")))")
         }
         cubesTotal += cubes; readsTotal += reads
         let line = String(format: "notespots %3d %@ %@ %@ %@ at %.1f %.1f %.1f: ground as cubes %d, ground cell reads %d/frame",
@@ -649,7 +659,7 @@ if let path = arg("--notespots") {
     }
     print("notespots: \(min(limit, spots.count)) spots, ground as cubes total \(cubesTotal), ground cell reads total \(readsTotal)/frame; \(bad.count) spots non-zero")
     for b in bad { print("  NONZERO " + b) }
-    for (k, v) in BlockStore.readers.sorted(by: { $0.value > $1.value }).prefix(25) { print("notespots reader \(v * 64): \(k)") }
+    for (k, v) in BlockStore.readers.sorted(by: { $0.value > $1.value }).prefix(80) { print("notespots reader \(v * 64): \(k)") }
     exit(bad.isEmpty ? 0 : 2)
 }
 // --structcheck [--seeds A,B --per N --kinds K,... --dims D --strict --out FILE]: the structure walkability check

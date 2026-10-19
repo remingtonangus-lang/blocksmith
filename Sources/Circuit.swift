@@ -113,7 +113,9 @@ final class Circuit {
     // facing (0 N, 1 S, 2 W, 3 E) -> dir6
     @inline(__always) static func d6(_ f: Int) -> Int { f + 2 }
 
-    func block(_ p: IVec3) -> BlockID { w.block(p.x, p.y, p.z) }
+    // The circuit's cells: built blocks, and a field world's ground as its material (P377 step 2: the field's material,
+    // not the block grid; ground conducts like the rock it is).
+    func block(_ p: IVec3) -> BlockID { w.materialAt(p.x, p.y, p.z) }
     // Full opaque cubes conduct power.
     func conductor(_ b: BlockID) -> Bool {
         guard Blocks.opaque[Int(b)] && b != AIR else { return false }
@@ -1218,7 +1220,7 @@ extension Circuit {
             var open = true
             var yy = r.y + 1
             while yy < CH && yy <= r.y + 48 {
-                let ab = w.block(r.x, yy, r.z)
+                let ab = w.materialAt(r.x, yy, r.z)
                 if ab != AIR && Blocks.collide[Int(ab)] { open = false; break }
                 yy += 1
             }

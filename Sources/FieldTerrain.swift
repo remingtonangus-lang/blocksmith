@@ -72,6 +72,8 @@ enum FieldTerrain {
                       pc(0), pc(1), pc(2), pc(3), pc(4)) + "\nfieldstats: rounded cells by cause: " + top.joined(separator: ", ")
     }
 
+    static var keptBuilt: [ChunkKey: Int] = [:]       // (harness, StructureCache.traceKinds)
+
     // Loose ground (soil, sand, gravel, mud): what a structure lays of it shapes the ground (a garden, a levelled yard, a
     // track) and joins the field; the rock, sandstone, terracotta and snow it builds with stay its blocks.
     static let loose: [Bool] = (0..<Blocks.count).map { i in
@@ -148,12 +150,15 @@ enum FieldTerrain {
         var fd = [Int8](repeating: outside, count: n)
         var fm = [UInt8](repeating: 0, count: n)
         let idx = FieldMat.index, looseT = loose
-        var top = 0
+        var top = 0, kept = 0
         for i in 0..<n {
             let m = idx[Int(b[i])]
             guard m != 0 else { continue }
-            if let built, built[i] != 0 && !looseT[Int(b[i])] { continue }
+            if let built, built[i] != 0 && !looseT[Int(b[i])] { kept += 1; continue }
             fm[i] = m; fd[i] = inside; b[i] = AIR; top = i
+        }
+        if StructureCache.traceKinds && kept > 0 {           // (harness: natural rock a structure built, kept as blocks)
+            StructureCache.kindsLock.lock(); keptBuilt[ChunkKey(x: cx, z: cz), default: 0] += kept; StructureCache.kindsLock.unlock()
         }
         let topY = min(CH - 1, top / CSQ + 1)
         let wg = gen as? WorldGen

@@ -451,6 +451,14 @@ final class StructureCache {
     // Not villages: filling under each column's lowest block also filled under the roof eaves overhanging the
     // doorways, building cobblestone pillars in front of doors (structcheck door_needs_jump, run 349).
 
+    // Harness (questcheck --notespots --trace, P377 step 2): the structure kinds built into each chunk.
+    static var traceKinds = false
+    static var kinds: [ChunkKey: Set<String>] = [:]
+    static let kindsLock = NSLock()
+    static func noteKind(_ cx: Int, _ cz: Int, _ k: String) {
+        kindsLock.lock(); kinds[ChunkKey(x: cx, z: cz), default: []].insert(k); kindsLock.unlock()
+    }
+
     // Builds every structure piece overlapping this chunk into `blocks`; returns block entities.
     // `mark` (field worlds): set for each cell a structure built (StructWriter.mark).
     func place(into blocks: inout [BlockID], cx: Int, cz: Int, mark: UnsafeMutablePointer<UInt8>? = nil)
@@ -462,6 +470,7 @@ final class StructureCache {
             w.mark = mark
             for t in types {
                 for s in startsNear(cx: cx, cz: cz, t) {
+                    if StructureCache.traceKinds, s.pieces.contains(where: { $0.overlaps(cx * CS, cz * CS) }) { StructureCache.noteKind(cx, cz, s.kind) }
                     for p in s.pieces where p.overlaps(cx * CS, cz * CS) { p.build(&w) }
                     // Village houses on slopes get foundations; their paths and bridges never dam rivers.
                     if let d = StructureCache.fillDepth[s.kind] { w.fillUnder(depth: d, surface: COBBLE, intoWater: s.kind != "village") }
@@ -470,6 +479,7 @@ final class StructureCache {
             }
             let bx = cx * CS, bz = cz * CS
             for s in fixed where s.max.x >= bx && s.min.x < bx + CS && s.max.z >= bz && s.min.z < bz + CS {
+                if StructureCache.traceKinds { StructureCache.noteKind(cx, cz, s.kind) }
                 for p in s.pieces where p.overlaps(bx, bz) { p.build(&w) }
             }
             after?(&w, cx, cz)

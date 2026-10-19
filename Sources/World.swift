@@ -292,9 +292,39 @@ final class World {
 
     func isLoaded(_ x: Int, _ z: Int) -> Bool { frame != nil || chunkAt(x, z) != nil }
 
+    // P377 step 2: the block grid's view of a field world's ground (block()) is for nothing that asks where the ground
+    // is; these read the two layers apart. The built layer alone (no ground; the same as block() in block worlds and
+    // through a ship frame): searches for built things, emitters, what stands in a cell.
+    @inline(__always) func builtBlock(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        if frame != nil || !fieldTerrain { return block(x, y, z) }
+        if y < 0 || y >= CH { return y < 0 ? BEDROCK : AIR }
+        guard let c = chunkAt(x, z), !c.hollow else { return AIR }
+        return c.blocks.raw(Chunk.index(mod(x, CS), y, mod(z, CS)))
+    }
+    // The cell is inside the field's ground (its density > 0); never in block worlds.
+    @inline(__always) func groundAt(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard fieldTerrain, frame == nil, y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
+        if c.hollow { return y <= Int(c.height[mod(x, CS) + mod(z, CS) * CS]) }
+        return c.blocks.ground(Chunk.index(mod(x, CS), y, mod(z, CS)))
+    }
+    // What the cell is made of, for the material rules (grass creeping onto dirt, snow melting, what grows where): the
+    // built block, else the ground's material where the cell is inside the ground (read from the field's material, not
+    // the block grid). Never for where the ground's surface is or what is solid: that is the field (fieldDensity,
+    // fieldBoxes).
+    @inline(__always) func materialAt(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        if frame != nil || !fieldTerrain { return block(x, y, z) }
+        if y < 0 || y >= CH { return y < 0 ? BEDROCK : AIR }
+        guard let c = chunkAt(x, z) else { return AIR }
+        if c.hollow { return y <= Int(c.height[mod(x, CS) + mod(z, CS) * CS]) ? STONE : AIR }
+        let i = Chunk.index(mod(x, CS), y, mod(z, CS))
+        let b = c.blocks.raw(i)
+        return b != AIR || !c.blocks.ground(i) ? b : FieldMat.blocks[Int(c.blocks.material(i))]
+    }
+
     // Every block in the box c +- (r, ry, r) as body(id, x, y, z), chunk by chunk: one dictionary lookup per chunk
     // instead of per cell (a villager's 65x17x65 bell search through block() cost 7-14 ms: Quest bench, village).
-    // Unloaded chunks and cells outside 0..<CH are skipped; through a ship frame every cell goes through block().
+    // Unloaded chunks and cells outside 0..<CH are skipped; through a ship frame every cell goes through block(). Built blocks
+    // only (P377 step 2): a field world's ground reads as air (every caller looks for beds, bells, workstations, lamps).
     func forEachBlock(around c: IVec3, r: Int, ry: Int, _ body: (BlockID, Int, Int, Int) -> Void) {
         let y0 = max(0, c.y - ry), y1 = min(CH - 1, c.y + ry)
         guard y0 <= y1 else { return }
@@ -310,7 +340,7 @@ final class World {
                 let za = max(c.z - r, bz), zb = min(c.z + r, bz + CS - 1)
                 let blocks = ch.blocks
                 for y in y0...y1 { for z in za...zb { for x in xa...xb {
-                    body(blocks[Chunk.index(x - bx, y, z - bz)], x, y, z)
+                    body(blocks.raw(Chunk.index(x - bx, y, z - bz)), x, y, z)
                 } } }
             }
         }
@@ -483,14 +513,15 @@ final class World {
 
     // World-space collision boxes of the block at a cell.
     @inline(__always) func collisionBoxes(_ x: Int, _ y: Int, _ z: Int, _ out: inout [(V3, V3)]) {
-        var b = Int(block(x, y, z))
+        var b: Int
         // PG2 rewrite: in a field world the ground is met as the field's own surface (fieldBoxes: quarter-block columns
         // cut where the density crosses zero), never as cells; built blocks in the cell keep their own shapes.
+        // (P377 step 2: the cell is read through the built layer only, never first as a block.)
         if fieldTerrain && y >= 0 && y < CH, let c = chunkAt(x, z) {
             let i = Chunk.index(mod(x, CS), y, mod(z, CS))
             if fieldNear(c, x, y, z, i) { if fieldSplit { fieldBoxes(x, y, z, &fieldSink) } else { fieldBoxes(x, y, z, &out) } }
             b = Int(c.blocks.raw(i))
-        }
+        } else { b = Int(block(x, y, z)) }
         if !pieceCells.isEmpty, let pb = pieceCells[IVec3(x, y, z)] { out.append(contentsOf: pb) }
         if !Blocks.collide[b] { return }
         let o = V3(Float(x), Float(y), Float(z))
@@ -1192,13 +1223,16 @@ final class World {
                 let top = min(CH - 1, max(Int(c.height[lx + lz * CS]), Int(n.height[nx + nz * CS])) + 2)
                 guard top > 1 else { continue }
                 for y in 1...top {
-                    let a = c.blocks[Chunk.index(lx, y, lz)], b = n.blocks[Chunk.index(nx, y, nz)]
+                    // (The built layer, and the field's ground as a filled cell: P377 step 2.)
+                    let ia = Chunk.index(lx, y, lz), ib = Chunk.index(nx, y, nz)
+                    let a = c.blocks.raw(ia), b = n.blocks.raw(ib)
                     let fa = fk[Int(a)], fb = fk[Int(b)]
                     guard fa != fb else { continue }
-                    if fa != 0 && b == AIR {
+                    let openA = a == AIR && !c.blocks.ground(ia), openB = b == AIR && !n.blocks.ground(ib)
+                    if fa != 0 && openB {
                         let q = IVec3(c.cx * CS + lx, y, c.cz * CS + lz)
                         if fa == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) }
-                    } else if fb != 0 && a == AIR {
+                    } else if fb != 0 && openA {
                         let q = IVec3(n.cx * CS + nx, y, n.cz * CS + nz)
                         if fb == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) }
                     }

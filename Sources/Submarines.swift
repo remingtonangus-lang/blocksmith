@@ -111,7 +111,7 @@ extension Game {
             let z0 = Int(floor(lo.z - r)), z1 = Int(floor(hi.z + r))
             let ya = max(0, y0), yb = min(CH - 1, y1)       // a body below the world or above it has nothing to set off
             guard ya <= yb, (x1 - x0 + 1) * (yb - ya + 1) * (z1 - z0 + 1) <= 8000 else { return }
-            for y in ya...yb { for z in z0...z1 { for x in x0...x1 where world.rawBlock(x, y, z) == mine || (wetMine != AIR && world.rawBlock(x, y, z) == wetMine) { hot.append(IVec3(x, y, z)) } } }
+            for y in ya...yb { for z in z0...z1 { for x in x0...x1 where world.builtBlock(x, y, z) == mine || (wetMine != AIR && world.builtBlock(x, y, z) == wetMine) { hot.append(IVec3(x, y, z)) } } }
         }
         if survival || !Submarine.creativeSafe {
             for i in 0..<max(1, coop.seatCount) { let p = coop.seatPlayer(i, self).pos; scan(p, p + V3(0, 1.8, 0)) }

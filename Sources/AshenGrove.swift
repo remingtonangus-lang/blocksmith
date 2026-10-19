@@ -153,7 +153,7 @@ extension Game {
             for lz in 0..<CS { for lx in 0..<CS {
                 let top = Int(height[lx + lz * CS])
                 guard top > 20 else { continue }
-                for y in max(1, top - 24)...top where groupBase[Int(blocks[Chunk.index(lx, y, lz)])] == base {
+                for y in max(1, top - 24)...top where groupBase[Int(blocks.raw(Chunk.index(lx, y, lz)))] == base {
                     out.append(IVec3(cx * CS + lx, y, cz * CS + lz))
                 }
             } }

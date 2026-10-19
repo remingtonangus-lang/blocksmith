@@ -10,7 +10,7 @@ extension Game {
         let w = world
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
         let r = min(w.activeDistance, w.renderDistance)           // (P339: the active distance)
-        let rt = Blocks.randomTicks
+        let rt = Blocks.randomTicks, mats = FieldMat.blocks
         // P283: the draws first, the ticks after. The chunk's blocks are read through one local copy and the generator
         // through a local (each draw paid an exclusivity check on the global and on the chunk's storage, some 9000 a
         // game tick at render distance 8+, and it was one of the Quest frame's dearest stages); the hits run once the
@@ -30,20 +30,22 @@ extension Game {
                         let r = Int(truncatingIfNeeded: rng.next() >> 20)
                         let lx = r & 15, ly = (r >> 4) & 15, lz = (r >> 8) & 15
                         let y = sy * 16 + ly
-                        let b = blocks[Chunk.index(lx, y, lz)]
+                        let i = Chunk.index(lx, y, lz)
+                        var b = blocks.raw(i)
+                        if b == AIR && blocks.ground(i) { b = mats[Int(blocks.material(i))] }   // (the field's ground: its material)
                         if rt[Int(b)] { hits.append((IVec3(x0 + lx, y, z0 + lz), b)) }
                     }
                 }
             }
         }
         RandomTickRng.state = rng
-        for (p, b) in hits where world.block(p.x, p.y, p.z) == b { randomTick(p, b) }     // (an earlier tick may have changed it)
+        for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b { randomTick(p, b) }     // (an earlier tick may have changed it)
         RandomTickRng.hits = hits
         // Leaves whose tree was cut decay a few at a time.
         var n = 0
         while n < 4, let p = leafQueue.popLast() {
             n += 1
-            let b = world.block(p.x, p.y, p.z)
+            let b = world.materialAt(p.x, p.y, p.z)
             guard Blocks.key(b).hasSuffix("leaves"), !placedLeaves.contains(p) else { continue }
             if !logNearby(p, radius: 6) {          // reference: leaves live up to 6 steps from a log (4 stripped big canopies)
                 world.setBlock(p.x, p.y, p.z, AIR)
@@ -63,7 +65,7 @@ extension Game {
                     let n = q + d
                     if seen.contains(n) { continue }
                     seen.insert(n)
-                    let k = Blocks.key(world.block(n.x, n.y, n.z))
+                    let k = Blocks.key(world.materialAt(n.x, n.y, n.z))
                     if k.hasSuffix("_log") || k.hasSuffix("_wood") { return true }
                     if k.hasSuffix("leaves") { next.append(n) }
                 }
@@ -76,7 +78,7 @@ extension Game {
     func queueLeafDecay(around p: IVec3) {
         for dy in -6...6 { for dz in -6...6 { for dx in -6...6 {
             let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
-            if Blocks.key(world.block(q.x, q.y, q.z)).hasSuffix("leaves") { leafQueue.insert(q, at: Rand.int(in: 0...leafQueue.count)) }
+            if Blocks.key(world.materialAt(q.x, q.y, q.z)).hasSuffix("leaves") { leafQueue.insert(q, at: Rand.int(in: 0...leafQueue.count)) }
         } } }
     }
 
@@ -105,31 +107,31 @@ extension Game {
             if stage < 3 && Rand.int(in: 0..<10) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
         case "sugar_cane":
             // Grows to 3 tall, one block per ~16 random ticks.
-            guard world.block(p.x, p.y + 1, p.z) == AIR, Rand.int(in: 0..<16) == 0 else { return }
+            guard world.materialAt(p.x, p.y + 1, p.z) == AIR, Rand.int(in: 0..<16) == 0 else { return }
             var h = 1
-            while h < 3 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
+            while h < 3 && world.materialAt(p.x, p.y - h, p.z) == b { h += 1 }
             if h < 3 { world.setBlock(p.x, p.y + 1, p.z, b) }
         case _ where key.hasSuffix("_sapling") || key == "mangrove_propagule":
             let l = world.lightAt(p.x, p.y + 1, p.z)
             if max(l.sky, l.block) >= 9 && Rand.int(in: 0..<7) == 0 { saplingAdvance(p, key) }
         case "cactus":
             // One block per 16 random ticks, up to 3 tall (it had no random ticks: cacti never grew).
-            guard world.block(p.x, p.y + 1, p.z) == AIR, Rand.int(in: 0..<16) == 0 else { return }
+            guard world.materialAt(p.x, p.y + 1, p.z) == AIR, Rand.int(in: 0..<16) == 0 else { return }
             var h = 1
-            while h < 3 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
+            while h < 3 && world.materialAt(p.x, p.y - h, p.z) == b { h += 1 }
             if h < 3 { world.setBlock(p.x, p.y + 1, p.z, b) }
         case "bamboo":
             // The top shoot grows on a 1/3 roll in light 9+, to 12-16 blocks per stalk (reference).
-            guard world.block(p.x, p.y + 1, p.z) == AIR, Rand.int(in: 0..<3) == 0 else { return }
+            guard world.materialAt(p.x, p.y + 1, p.z) == AIR, Rand.int(in: 0..<3) == 0 else { return }
             let l = world.lightAt(p.x, p.y + 1, p.z)
             guard max(l.sky, l.block) >= 9 else { return }
             var h = 1
-            while h < 16 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
+            while h < 16 && world.materialAt(p.x, p.y - h, p.z) == b { h += 1 }
             let cap = 12 + Int(hash3(p.x, 0, p.z, 0xBA3B) % 5)
             if h < cap { world.setBlock(p.x, p.y + 1, p.z, b) }
         case "vine":
             // Vines hang lower over time: 1 in 4 random ticks into the air below (reference downward growth).
-            if Rand.int(in: 0..<4) == 0 && world.block(p.x, p.y - 1, p.z) == AIR { world.setBlockAsync(p.x, p.y - 1, p.z, b) }
+            if Rand.int(in: 0..<4) == 0 && world.materialAt(p.x, p.y - 1, p.z) == AIR { world.setBlockAsync(p.x, p.y - 1, p.z, b) }
         case "ice":
             // Melts in block light above 11 less its opacity (reference): water, or nothing in the Emberdeep.
             if world.lightAt(p.x, p.y, p.z).block > 10 { world.setBlock(p.x, p.y, p.z, world.dim.ultrawarm ? AIR : WATER); world.scheduleFluid(around: p) }
@@ -148,7 +150,7 @@ extension Game {
             let isWet = Blocks.key(b) == "farmland_moist"
             if wet && !isWet { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland_moist")) }
             else if !wet && isWet { if Rand.int(in: 0..<7) == 0 { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland")) } }
-            else if !wet && !Blocks.isPlant(world.block(p.x, p.y + 1, p.z)) && Blocks.render[Int(world.block(p.x, p.y + 1, p.z))] != RenderType.model.rawValue {
+            else if !wet && !Blocks.isPlant(world.materialAt(p.x, p.y + 1, p.z)) && Blocks.render[Int(world.materialAt(p.x, p.y + 1, p.z))] != RenderType.model.rawValue {
                 if Rand.int(in: 0..<4) == 0 { world.setBlock(p.x, p.y, p.z, DIRT) }
             }
         default: break
@@ -162,12 +164,12 @@ extension Game {
     // grass (or snowy grass) within a block across and one up or three down turns to grass by itself too, not only
     // when the grass block happens to be ticked, so patched ground greens over in a few minutes.
     func dirtTick(_ p: IVec3) {
-        let up = world.block(p.x, p.y + 1, p.z)
+        let up = world.materialAt(p.x, p.y + 1, p.z)
         guard !Blocks.opaque[Int(up)], !Blocks.isLiquid(up) else { return }
         let l = world.lightAt(p.x, p.y + 1, p.z)
         guard max(l.sky, l.block) >= 4 else { return }
         for dy in -1...3 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 || dy != 0 {
-            let n = world.block(p.x + dx, p.y + dy, p.z + dz)
+            let n = world.materialAt(p.x + dx, p.y + dy, p.z + dz)
             if n == GRASS || n == SNOWY_GRASS {
                 world.setBlockAsync(p.x, p.y, p.z, Blocks.key(up) == "snow" ? SNOWY_GRASS : GRASS)
                 return
@@ -176,14 +178,14 @@ extension Game {
     }
 
     func grassTick(_ p: IVec3, _ b: BlockID) {
-        let above = world.block(p.x, p.y + 1, p.z)
+        let above = world.materialAt(p.x, p.y + 1, p.z)
         if Blocks.opaque[Int(above)] || Blocks.fluidKind[Int(above)] == 1 { world.setBlockAsync(p.x, p.y, p.z, DIRT); return }
         let l0 = world.lightAt(p.x, p.y + 1, p.z)
         guard max(l0.sky, l0.block) >= 9 else { return }
         for _ in 0..<4 {
             let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -3...1), p.z + Rand.int(in: -1...1))
-            guard world.block(q.x, q.y, q.z) == DIRT else { continue }
-            let up = world.block(q.x, q.y + 1, q.z)
+            guard world.materialAt(q.x, q.y, q.z) == DIRT else { continue }
+            let up = world.materialAt(q.x, q.y + 1, q.z)
             if Blocks.opaque[Int(up)] || Blocks.isLiquid(up) { continue }
             let l = world.lightAt(q.x, q.y + 1, q.z)
             if max(l.sky, l.block) >= 4 { world.setBlockAsync(q.x, q.y, q.z, b) }
@@ -196,12 +198,12 @@ extension Game {
     func cropGrowth(_ p: IVec3, _ crop: BlockID) -> Float {
         var f: Float = 1
         for dz in -1...1 { for dx in -1...1 {
-            let k = Blocks.key(world.block(p.x + dx, p.y - 1, p.z + dz))
+            let k = Blocks.key(world.materialAt(p.x + dx, p.y - 1, p.z + dz))
             var g: Float = k == "farmland_moist" ? 3 : (k == "farmland" ? 1 : 0)
             if dx != 0 || dz != 0 { g /= 4 }
             f += g
         } }
-        func same(_ dx: Int, _ dz: Int) -> Bool { Blocks.groupBase[Int(world.block(p.x + dx, p.y, p.z + dz))] == crop }
+        func same(_ dx: Int, _ dz: Int) -> Bool { Blocks.groupBase[Int(world.materialAt(p.x + dx, p.y, p.z + dz))] == crop }
         let ns = same(0, -1) || same(0, 1), we = same(-1, 0) || same(1, 0)
         let diag = same(-1, -1) || same(1, -1) || same(1, 1) || same(-1, 1)
         if diag || (ns && we) { f /= 2 }
@@ -215,19 +217,19 @@ extension Game {
     }
 
     private func waterNear(_ p: IVec3) -> Bool {
-        for dy in 0...1 { for dz in -4...4 { for dx in -4...4 where Blocks.isLiquid(world.block(p.x + dx, p.y + dy, p.z + dz)) { return true } } }
+        for dy in 0...1 { for dz in -4...4 { for dx in -4...4 where Blocks.isLiquid(world.materialAt(p.x + dx, p.y + dy, p.z + dz)) { return true } } }
         return false
     }
 
     // Saplings grow into the same trees world generation builds (2x2 saplings make the mega kinds).
     func growTree(_ p0: IVec3, _ sapling: String) {
         var p = p0
-        let sap = world.block(p.x, p.y, p.z)
+        let sap = world.materialAt(p.x, p.y, p.z)
         // Find a 2x2 square of this sapling containing p (north-west corner).
         var square: IVec3?
         for (ox, oz) in [(0, 0), (-1, 0), (0, -1), (-1, -1)] {
             let c = IVec3(p.x + ox, p.y, p.z + oz)
-            if [c, c + IVec3(1, 0, 0), c + IVec3(0, 0, 1), c + IVec3(1, 0, 1)].allSatisfy({ world.block($0.x, $0.y, $0.z) == sap }) { square = c; break }
+            if [c, c + IVec3(1, 0, 0), c + IVec3(0, 0, 1), c + IVec3(1, 0, 1)].allSatisfy({ world.materialAt($0.x, $0.y, $0.z) == sap }) { square = c; break }
         }
         let kind: TreeKind?
         switch sapling {
@@ -247,7 +249,7 @@ extension Game {
         }
         guard let k = kind else { return }
         // Room check: a clear trunk column.
-        for y in 1...4 where !Blocks.replaceable[Int(world.block(p.x, p.y + y, p.z))] && world.block(p.x, p.y + y, p.z) != AIR { return }
+        for y in 1...4 where !Blocks.replaceable[Int(world.materialAt(p.x, p.y + y, p.z))] && world.materialAt(p.x, p.y + y, p.z) != AIR { return }
         if let sq = square, k == .megaSpruce || k == .megaJungle || k == .darkOak || k == .paleOak {
             for q in [sq, sq + IVec3(1, 0, 0), sq + IVec3(0, 0, 1), sq + IVec3(1, 0, 1)] { world.setBlockAsync(q.x, q.y, q.z, AIR) }
             p = sq
@@ -261,13 +263,14 @@ extension Game {
         var changes: [(IVec3, BlockID)] = []
         for dz in -1...1 { for dx in -1...1 {
             guard let c = world.chunks[ChunkKey(x: ccx + dx, z: ccz + dz)] else { continue }
-            var buf = c.blocks.full()
+            let before = c.blocks.full()
+            var buf = before
             buf.withUnsafeMutableBufferPointer { bp in
                 let w = TreeWriter(b: bp.baseAddress!, bx: c.cx * CS, bz: c.cz * CS)
                 var rng = SRng(seed)
                 TreePlacer.build(w, k, p.x, p.y, p.z, &rng)
             }
-            for i in 0..<buf.count where buf[i] != c.blocks[i] {
+            for i in 0..<buf.count where buf[i] != before[i] {
                 let lx = i % CS, lz = (i / CS) % CS, y = i / (CS * CS)
                 changes.append((IVec3(c.cx * CS + lx, y, c.cz * CS + lz), buf[i]))
             }
@@ -278,7 +281,7 @@ extension Game {
             return
         }
         for (q, b) in changes { world.setBlockAsync(q.x, q.y, q.z, b) }
-        world.setBlock(p.x, p.y, p.z, world.block(p.x, p.y, p.z))
+        world.setBlock(p.x, p.y, p.z, world.materialAt(p.x, p.y, p.z))
     }
 
     // MARK: Using items on blocks
@@ -287,7 +290,7 @@ extension Game {
     func useItemOnBlock(_ t: (hit: IVec3, normal: IVec3)) -> Bool {
         let h = held
         let key = Items.key(h.item)
-        let b = world.block(t.hit.x, t.hit.y, t.hit.z)
+        let b = world.materialAt(t.hit.x, t.hit.y, t.hit.z)
         let bkey = Blocks.key(Blocks.groupBase[Int(b)])
         if useNewBlock(t) { swing = 1; return true }
         // Bone meal on any plant it grows (BoneMeal.swift).
@@ -299,7 +302,7 @@ extension Game {
         // Cocoa beans go on the side of jungle logs.
         if key == "cocoa_beans" && bkey.hasPrefix("jungle_") && bkey.hasSuffix("_log") && t.normal.y == 0 && Blocks.has("cocoa") {
             let at = t.hit + t.normal
-            if world.block(at.x, at.y, at.z) == AIR { world.setBlock(at.x, at.y, at.z, Blocks.id("cocoa")); consumeHeld(); swing = 1; return true }
+            if world.materialAt(at.x, at.y, at.z) == AIR { world.setBlock(at.x, at.y, at.z, Blocks.id("cocoa")); consumeHeld(); swing = 1; return true }
         }
         // Minecart onto a rail.
         if let cv = Carts.variant(of: key), Rails.isRail(b) {
@@ -325,7 +328,7 @@ extension Game {
         }
         if key == "powder_snow_bucket" {
             let at = t.hit + t.normal
-            if Blocks.replaceable[Int(world.block(at.x, at.y, at.z))] {
+            if Blocks.replaceable[Int(world.materialAt(at.x, at.y, at.z))] {
                 world.setBlock(at.x, at.y, at.z, Blocks.id("powder_snow"))
                 if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
                 sfx(.bucketEmpty, 0.8); swing = 1; return true
@@ -335,7 +338,7 @@ extension Game {
         // String on a block top becomes tripwire.
         if key == "string" && t.normal.y == 1 {
             let at = t.hit + t.normal
-            if world.block(at.x, at.y, at.z) == AIR { world.setBlock(at.x, at.y, at.z, Blocks.id("tripwire")); consumeHeld(); swing = 1; return true }
+            if world.materialAt(at.x, at.y, at.z) == AIR { world.setBlock(at.x, at.y, at.z, Blocks.id("tripwire")); consumeHeld(); swing = 1; return true }
         }
         if launchRocket(t) { return true }
         if bkey.hasSuffix("_fence") && hitchAt(t.hit) { swing = 1; return true }           // D3 (Hitching.swift)
@@ -363,7 +366,7 @@ extension Game {
         }
         // Shovel: grass into a dirt path.
         if h.def.tool == .shovel && (b == GRASS || Blocks.key(b) == "podzol" || Blocks.key(b) == "coarse_dirt" || Blocks.key(b) == "mycelium")
-            && t.normal.y == 1 && world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
+            && t.normal.y == 1 && world.materialAt(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("dirt_path"))
             sfx(.step(.dirt), 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             damageHeld(1)
@@ -371,7 +374,7 @@ extension Game {
             return true
         }
         // Hoe: till grass/dirt with air above.
-        if h.def.tool == .hoe && (b == GRASS || b == DIRT) && world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
+        if h.def.tool == .hoe && (b == GRASS || b == DIRT) && world.materialAt(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("farmland"))
             sfx(.step(.dirt), 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             damageHeld(1)
@@ -379,7 +382,7 @@ extension Game {
             return true
         }
         // Seeds / crops onto farmland.
-        if let crop = h.def.plants, bkey == (crop == "nether_wart" ? "soul_sand" : "farmland"), t.normal.y == 1, world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
+        if let crop = h.def.plants, bkey == (crop == "nether_wart" ? "soul_sand" : "farmland"), t.normal.y == 1, world.materialAt(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
             world.setBlock(t.hit.x, t.hit.y + 1, t.hit.z, Blocks.id(crop))
             achieve(crop.hasPrefix("torchflower") || crop.hasPrefix("pitcher") ? "plant_sniffer" : "plant")
             sfx(.place(.plant), 1, at: V3(Float(t.hit.x), Float(t.hit.y + 1), Float(t.hit.z)) + 0.5)
@@ -534,7 +537,7 @@ extension Game {
         // Head goes away from the player (the look direction), i.e. opposite of the "front toward player" facing.
         let dirs = [IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(1, 0, 0), IVec3(-1, 0, 0)]
         let head = foot + dirs[facing]
-        guard Blocks.replaceable[Int(world.block(head.x, head.y, head.z))],
+        guard Blocks.replaceable[Int(world.materialAt(head.x, head.y, head.z))],
               Blocks.opaque[Int(world.block(foot.x, foot.y - 1, foot.z))],
               let base = item.block else { return false }
         let headBase = Blocks.id(Blocks.key(base) + "_head")

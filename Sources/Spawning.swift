@@ -228,7 +228,7 @@ extension MobManager {
                 for lz in 0..<CS { for lx in 0..<CS {
                     let x = c.cx * CS + lx, z = c.cz * CS + lz
                     let top = min(CH - 1, Int(c.height[lx + lz * CS]))
-                    for y in max(1, top - 12)...max(1, top) where base[Int(c.blocks[Chunk.index(lx, y, lz)])] == nest {
+                    for y in max(1, top - 12)...max(1, top) where base[Int(c.blocks.raw(Chunk.index(lx, y, lz)))] == nest {
                         let h = IVec3(x, y, z)
                         if hives[h] == nil { hives[h] = (0..<Rand.int(in: 2...3)).map { _ in (nectar: false, time: 0) } }
                     }
