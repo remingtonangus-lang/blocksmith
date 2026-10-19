@@ -59,7 +59,10 @@ Share of surface cells whose distance comes from the generator's own continuous 
   lift home: 124 checks passed, 0 failed.
 
 ## What is still rounded or still cells
-- One density sample per block: shapes smaller than a block (a one-block hole, a thin ledge) round off.
+- One density sample per block on untouched land. Where the ground has been edited (digging, blasts, building)
+  each 16-high section touched gets two samples per block (P377 step 1, FineField.swift: 32^3 samples, 32 KB a
+  section, saved as FLD2), so a dug hole or a placed block keeps its shape at half-block detail; untouched land
+  still rounds shapes smaller than a block.
 - A few surface cells take their distance from the cells round them, smoothed (no block faces, but the shape is the
   generator's cells): structure cuts into the ground, stalactites and magma in the Deep, banks a structure lays.
 - Water and lava are still cell fluids in the built layer; their surfaces meet the ground's smooth surface.
@@ -95,6 +98,7 @@ Shape reads, and what happens to each:
   a lump round the cell's middle (World.fieldShape); since P377 step 3 it also swells toward the aimed point
   (Game: fieldSphere at the hit point, surface only). Fixed. Shapes finer than a block need finer samples: P377 step 1.
 - Fluids: water and lava are still cells of the built layer (World.fluidTick): step 5 / P363.
-- Density samples: one per block (FieldData.fd): step 4.
+- Density samples: one per block (FieldData.fd) on untouched land, two per block in every section the ground was
+  edited in (FineField, P377 step 1). Fixed where the player has changed the ground.
 - Riding: the rider ducking under a low overhang (Riding.swift, P164) took the depth from a ground cell's floor. Since
   P377 step 3 ground cells are skipped there and the duck follows the field's drawn underside. Fixed.

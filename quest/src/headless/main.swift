@@ -647,7 +647,7 @@ if let path = arg("--notespots") {
                 }
                 kept += FieldTerrain.keptBuilt[k] ?? 0
                 kinds.formUnion(StructureCache.kinds[k] ?? [])
-            }
+            } }
             print("notespots   built-layer natural blocks: " + keys.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \($0.value)" }.joined(separator: ", "))
             print("notespots   ground materials in the built layer \(ground), kept there by a structure's mark \(kept) (structures: \(kinds.sorted().joined(separator: " ")))")
         }
