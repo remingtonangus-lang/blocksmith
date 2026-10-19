@@ -318,7 +318,7 @@ extension Mesher {
     static func smoothQuads(_ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, dmg: [Int: UInt8], site: SmoothSite? = nil,
                             stored: UnsafeMutablePointer<Int8>? = nil, sy: Int = 0,
                             leaves: Bool = false, shells: Int = 2, leafHoles: Bool = false, detailHoles: Bool = false, world: SIMD3<Int>? = nil,
-                            crater: CraterSet? = nil, carveOut: GrowBuf<UInt32>? = nil,
+                            crater: CraterSet? = nil, carveOut: GrowBuf<UInt32>? = nil, merge: GroundMerge? = nil,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let leafT = Mesher.leafT
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
@@ -744,6 +744,9 @@ extension Mesher {
                              inner: (layer: Int(texT[blockID * 6 + 3]), tint: tb == 3 ? 0 : tb), face: f, grid: cr.ticks(cp, base: 4))
                     continue
                 }
+                // P375: up-facing ground goes to the pixel-error merge (GroundMerge), which emits it afterwards.
+                let toMerge = !leaves && a == 1 && sp && f == 2 && merge != nil
+                var mq = toMerge ? GroundMerge.Quad(v: [SIMD8<Int32>](repeating: .zero, count: 4), flip: flip) : nil
                 for k in 0..<4 {
                     let cc = flip ? (k + 1) & 3 : k
                     let v = Int(VL[corner[cc]])
@@ -756,9 +759,15 @@ extension Mesher {
                         let tb = Int(tintT[m]), tf = tb == 3 ? (vn.y > 0.2 ? 2 : 3) : f
                         lay = Int(texT[m * 6 + tf]); tnt = tb == 3 ? (tf == 2 ? 1 : 0) : tb
                     }
+                    if mq != nil {
+                        mq!.v[cc] = SIMD8<Int32>(Int32(pt.x.rounded()), Int32(pt.y.rounded()), Int32(pt.z.rounded()), Int32(tnt), Int32(lay),
+                                                 Int32(v >> 8), Int32(v & 255), Int32(SmoothTerrain.normalCode(vn, face: f)))
+                        continue
+                    }
                     emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tnt, lay, v >> 8, v & 255,
                          SmoothTerrain.normalCode(vn, face: f))
                 }
+                if let mq { merge!.add(x: p[0], z: p[2], mq); continue }
                 if leaves && shells > 1 {
                     for k in 0..<4 {
                         let cc = flip ? (k + 1) & 3 : k

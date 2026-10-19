@@ -23,6 +23,8 @@ final class Section {
     var opaqueBuf: MeshSlice?
     var opaqueQuads = 0
     var solidQuads = 0          // leading opaque quads drawn without alpha test
+    var farSkip = 0             // P375 (GroundMerge): far, the first farSkip opaque quads give way to the farExtra
+    var farExtra = 0            //   merged quads stored after the opaque ones in the same buffer
     var transBuf: MeshSlice?
     var transQuads = 0
     var detailBuf: MeshSlice?   // realistic world: round shapes (DetailMesh, 16-byte vertices), solid quads first

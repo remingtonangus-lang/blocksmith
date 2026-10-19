@@ -18,7 +18,13 @@ final class MeshSlice {
 }
 
 final class MeshArena {
+    // P375 (view 24 on the Quest: 1,000-1,600 draws, each indirect batch is one vertex slab): 32 MB slabs there, so the
+    // ~600 MB of meshes at view 24 sit in ~20 slabs and the batched terrain passes take ~20 draws each, not ~150.
+    #if os(macOS)
     static let shared = MeshArena(slabSize: 4 << 20)
+    #else
+    static let shared = MeshArena(slabSize: 32 << 20)
+    #endif
     // Chunk tint tables (3 KB each) live in their own big slab so the renderer binds one tint buffer
     // for all sections and passes each chunk's offset in its draw record.
     static let tints = MeshArena(slabSize: 16 << 20)

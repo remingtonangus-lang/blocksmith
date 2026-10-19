@@ -893,9 +893,10 @@ final class World {
         let s = c.sections[sy]
         if let l = m.light { c.light[sy] = l }
         guard version == s.version else { return }
-        s.opaqueBuf = makeBuffer(m.opaque)
+        s.opaqueBuf = makeBuffer(m.farGround.isEmpty ? m.opaque : m.opaque + m.farGround)
         s.opaqueQuads = m.opaque.count / 8
         s.solidQuads = m.solidQuads
+        s.farSkip = m.farGround.isEmpty ? 0 : m.farSkip; s.farExtra = m.farGround.count / 8
         s.transBuf = makeBuffer(m.trans)
         s.transQuads = m.trans.count / 8
         s.meshedVersion = version
