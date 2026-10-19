@@ -284,7 +284,7 @@ enum Contracts {
             case "camp":
                 guard !c.spawned, let t = c.target, simd_length(V2(Float(t[0]) - pos.x, Float(t[1]) - pos.z)) < 60, g.world.isLoaded(t[0], t[1]) else { continue }
                 let y = g.world.topY(t[0], t[1]) + 1
-                if Blocks.has("campfire") && !Blocks.isLiquid(g.world.block(t[0], y - 1, t[1])) { g.world.setBlock(t[0], y, t[1], Blocks.id("campfire")) }
+                if Blocks.has("campfire") && !Blocks.isLiquid(g.world.builtBlock(t[0], y - 1, t[1])) { g.world.setBlock(t[0], y, t[1], Blocks.id("campfire")) }
                 bandits(g, near: V3(Float(t[0]) + 0.5, Float(y), Float(t[1]) + 0.5), c.count, "Bandit")
                 c.spawned = true
                 save(board, slot, c)

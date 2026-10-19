@@ -130,7 +130,7 @@ extension Game {
         let hp = V3(Float(hit.x) + 0.5, Float(hit.y) + 0.5, Float(hit.z) + 0.5)
         guard var op = stationOp(near: hp) else { return false }
         let dx = hit.x - op.cx, dz = hit.z - op.cz, ly = hit.y - op.F
-        let k = Blocks.key(Blocks.groupBase[Int(world.block(hit.x, hit.y, hit.z))])
+        let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(hit.x, hit.y, hit.z))])
         let isConsole = k == "command_console" && BorealStation.inControlRoom(dx, dz) && ly >= 1 && ly <= 4
         let isGen = BorealStation.isGenerator(dx, ly, dz)
         guard isConsole || isGen else { return false }
@@ -261,7 +261,7 @@ extension Game {
         let fire = Blocks.has("fire") ? Blocks.id("fire") : AIR
         for dz in 13...19 { for dx in 18...21 { for ly in 1...4 {
             let x = op.cx + dx, y = op.F + ly, z = op.cz + dz
-            guard world.block(x, y, z) != AIR, hashf(dx, ly, dz, 0xB0E5) < 0.6 else { continue }
+            guard !world.isAir(x, y, z), hashf(dx, ly, dz, 0xB0E5) < 0.6 else { continue }
             world.setBlock(x, y, z, ly == 1 && hashf(dx, 0, dz, 0xF1E) < 0.3 ? fire : AIR)
         } } }
     }
@@ -333,7 +333,7 @@ extension Game {
     // Machine blocks still standing (112 when whole).
     func stationGeneratorLeft(_ op: StationOp) -> Int {
         var n = 0
-        for dz in 13...19 { for dx in 18...21 { for ly in 1...4 where world.block(op.cx + dx, op.F + ly, op.cz + dz) != AIR { n += 1 } } }
+        for dz in 13...19 { for dx in 18...21 { for ly in 1...4 where !world.isAir(op.cx + dx, op.F + ly, op.cz + dz) { n += 1 } } }
         return n
     }
 

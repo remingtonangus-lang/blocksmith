@@ -137,6 +137,15 @@ struct BlockStore {
     // Cell i is inside the ground (field worlds).
     @inline(__always) func ground(_ i: Int) -> Bool { UInt(bitPattern: i) < UInt(fd.count) && fd[i] > 0 }
 
+    // What cell i is made of (the built block, else the ground's material where the cell is inside the ground): the same
+    // answer as the subscript, read from the two layers for the material rules (World.materialAt) and an edit's
+    // before-and-after (World.setBlock), so it is not a ground cell read (P377 step 2).
+    @inline(__always) func materialCell(_ i: Int) -> BlockID {
+        let b = UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR
+        guard b == AIR, UInt(bitPattern: i) < UInt(fd.count), fd[i] > 0 else { return b }
+        return FieldMat.blocks[Int(fm[i])]
+    }
+
     static var keepGround = false            // P363: World.setFluid (main thread)
     @inline(__always) subscript(i: Int) -> BlockID {
         get {

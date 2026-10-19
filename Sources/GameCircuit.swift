@@ -292,7 +292,7 @@ extension Game {
         case "armor_stand":
             // W8: stands up in front, facing away from the dispenser.
             let below = world.block(front.x, front.y - 1, front.z)
-            if !Blocks.collide[Int(fb)] && !Blocks.collide[Int(world.block(front.x, front.y + 1, front.z))] {
+            if !Blocks.collide[Int(fb)] && !world.solidAt(front.x, front.y + 1, front.z) {
                 let y = Blocks.collide[Int(below)] ? Float(front.y) : Float(front.y) - 0.5
                 let m = Mob(.armorStand, at: V3(Float(front.x) + 0.5, y, Float(front.z) + 0.5))
                 m.yaw = [0, 0, Float.pi, 0, Float.pi / 2, -Float.pi / 2][dir]
@@ -488,7 +488,7 @@ extension Game {
         let above = p + IVec3(0, 1, 0)
         if world.blockEntities[above] != nil || cartContainer(at: above) != nil {
             if containerExtract(above, into: c) { moved = true }
-        } else if !Blocks.opaque[Int(world.block(above.x, above.y, above.z))] {
+        } else if !world.opaqueAt(above.x, above.y, above.z) {
             for e in drops.items where !e.stack.isEmpty && Int(floor(e.pos.x)) == p.x && Int(floor(e.pos.z)) == p.z && e.pos.y >= Float(p.y) + 0.6 && e.pos.y < Float(p.y) + 2 {
                 let rest = c.add(e.stack)
                 if rest.count != e.stack.count { e.stack = rest; moved = true; break }

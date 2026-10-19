@@ -310,7 +310,7 @@ enum Enchant {
             for dy in 0...1 {
                 let mid = w.block(p.x + dx / 2, p.y + dy, p.z + dz / 2)  // truncating halves, at the shelf's own height (reference)
                 guard mid == AIR || Blocks.replaceable[Int(mid)] else { continue }
-                if Blocks.key(w.block(p.x + dx, p.y + dy, p.z + dz)) == "bookshelf" { n += 1 }
+                if Blocks.key(w.materialAt(p.x + dx, p.y + dy, p.z + dz)) == "bookshelf" { n += 1 }
             }
         } }
         return n

@@ -38,7 +38,7 @@ enum RulesCheck {
             w.setBlock(x, floorY, cz, WATER)
             w.scheduleFluid(around: IVec3(x, floorY, cz))
             for _ in 0..<30 { w.fluidTick() }
-            let east = Blocks.isLiquid(w.block(x + 1, floorY, cz)), west = Blocks.isLiquid(w.block(x - 1, floorY, cz))
+            let east = Blocks.isLiquid(w.builtBlock(x + 1, floorY, cz)), west = Blocks.isLiquid(w.builtBlock(x - 1, floorY, cz))
             check(east && !west, "water heads for the drop 3 east and not west (east \(east), west \(west))")
         }
 
@@ -49,7 +49,7 @@ enum RulesCheck {
                 let ice = Blocks.id("ice")
                 w.setBlock(x, floorY, cz, ice)
                 g.breakBlock(IVec3(x, floorY, cz), ice, drop: true)
-                check(Blocks.isLiquid(w.block(x, floorY, cz)), "broken ice leaves water")
+                check(Blocks.isLiquid(w.builtBlock(x, floorY, cz)), "broken ice leaves water")
             }
         }
 
@@ -124,7 +124,7 @@ enum RulesCheck {
             w.setBlock(q.x, q.y, q.z, Game.frostedIceID)
             g.frostTimers[q] = 0.01
             var t: Float = 0
-            while t < 60 && Blocks.groupBase[Int(w.block(q.x, q.y, q.z))] == Game.frostedIceID { g.frostedIceTick(0.1); t += 0.1 }
+            while t < 60 && Blocks.groupBase[Int(w.materialAt(q.x, q.y, q.z))] == Game.frostedIceID { g.frostedIceTick(0.1); t += 0.1 }
             let l = w.lightAt(q.x, q.y, q.z)
             check(t < 40, "frosted ice melts by day in seconds (\(Int(t)) s, sky light \(l.sky))")
             g.frostTimers[q] = nil
@@ -154,7 +154,7 @@ enum RulesCheck {
                     w.setBlock(x2, floorY + 1, cz, b)
                     w.scheduleFluid(around: IVec3(x2, floorY + 1, cz))
                     for _ in 0..<30 { w.fluidTick() }
-                    let below = Blocks.isLiquid(w.block(x2, floorY, cz))
+                    let below = Blocks.isLiquid(w.builtBlock(x2, floorY, cz))
                     check(below == pours, "water in a waterlogged \(name) \(pours ? "pours" : "stays") (below wet: \(below))")
                 }
             }

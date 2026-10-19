@@ -118,7 +118,7 @@ extension Greywall {
         let flag = Blocks.id("greywall_flag"), mine = Blocks.id("taken_flag")
         for z in (site.cz - e)...(site.cz + e) { for x in (site.cx - e)...(site.cx + e) {
             for y in (site.S - 8)...(site.S + site.tier.wallH + 12) {
-                let g = Blocks.groupBase[Int(world.block(x, y, z))]
+                let g = Blocks.groupBase[Int(world.materialAt(x, y, z))]
                 if g == lampOff || g == lampOn { site.lamps.append(IVec3(x, y, z)) } else if g == panel { site.panels.append(IVec3(x, y, z)) }
                 else if g == console || g == terminal { site.consoles.append(IVec3(x, y, z)) }
                 else if g == gun || g == gunHurt { site.turrets.append(IVec3(x, y, z)) }
@@ -143,7 +143,7 @@ extension Game {
 
     func greywallPanelsStanding(_ site: GreywallAlarmState.Site) -> Int {
         let panel = Blocks.groupBase[Int(Blocks.id("alarm_panel"))]
-        return site.panels.filter { !world.isLoaded($0.x, $0.z) || Blocks.groupBase[Int(world.block($0.x, $0.y, $0.z))] == panel }.count
+        return site.panels.filter { !world.isLoaded($0.x, $0.z) || Blocks.groupBase[Int(world.materialAt($0.x, $0.y, $0.z))] == panel }.count
     }
 
     // Once a second from basesTick, with that second's noises.

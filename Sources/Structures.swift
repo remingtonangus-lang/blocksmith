@@ -50,6 +50,14 @@ struct StructWriter {
             if let m = mark, b == b0 { m[i] = 1 }
         }
     }
+    // Ground a structure lays as terrain (a sky isle's rock and turf: P377 step 2): written unmarked, so in a field world
+    // it joins the field and is drawn as the ground's smooth surface, never as cubes.
+    func setGround(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+        guard inside(x, y, z) else { return }
+        let i = Chunk.index(x - bx, y, z - bz)
+        blocks[i] = b; note(x, y, z, b); unplant(x, y, z, b)
+        if let m = mark { m[i] = 0 }
+    }
     static let pathID: BlockID = Blocks.has("dirt_path") ? Blocks.id("dirt_path") : AIR
     static let roadID: BlockID = Blocks.has("coarse_dirt") && SmoothTerrain.natural[Int(Blocks.id("coarse_dirt"))]
         ? Blocks.id("coarse_dirt") : pathID

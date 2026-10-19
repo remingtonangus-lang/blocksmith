@@ -922,7 +922,10 @@ enum Mesher {
                         if smoothWater && !fluidNets { shoreWater(i, ly) }
                         continue
                     }
-                    if fieldOn && natT[bi] { naturalCubes += 1 }        // (P338 step 2: the debug counter)
+                    // (P338 step 2's debug counter: the field's ground drawn as cubes. A structure's own stone, sandstone,
+                    // terracotta or snow left in the built layer is a building, not ground: P377 step 2 showed every one
+                    // at his 412 voice-note spots was built by its structure, questcheck --notespots checks it.)
+                    if fieldOn && natT[bi] && dens[i] > 0 { naturalCubes += 1 }
                     if leafBlob && leafT[bi] { continue }               // (T17: the leaf blobs below)
                     if detailDraw && detT[bi] { continue }              // (round shapes: the detail generators below)
                     // A struck cube (realistic world): its open faces subdivided and carved where the blows landed.

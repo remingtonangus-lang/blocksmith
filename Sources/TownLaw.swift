@@ -336,7 +336,7 @@ enum TownLaw {
         if Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("chest") {
             for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
                 let q = p + d
-                if Blocks.groupBase[Int(g.world.block(q.x, q.y, q.z))] == Blocks.groupBase[Int(b)], (q.x, q.z) < (k.x, k.z) { k = q }
+                if Blocks.groupBase[Int(g.world.materialAt(q.x, q.y, q.z))] == Blocks.groupBase[Int(b)], (q.x, q.z) < (k.x, k.z) { k = q }
             }
         }
         return "\(k.x),\(k.y),\(k.z)"
@@ -620,8 +620,8 @@ enum TownLaw {
                 let r: Float = 2 + Float(k % 7)
                 let x = Int(floor(c.x + cosf(a) * r)), z = Int(floor(c.z + sinf(a) * r))
                 var y = Int(floor(c.y)) + 3
-                while y > Int(floor(c.y)) - 4 && !(Blocks.collide[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]) { y -= 1 }
-                guard y > Int(floor(c.y)) - 4, !Blocks.isLiquid(w.block(x, y, z)) else { continue }
+                while y > Int(floor(c.y)) - 4 && !(w.solidAt(x, y - 1, z) && !w.solidAt(x, y, z)) { y -= 1 }
+                guard y > Int(floor(c.y)) - 4, !Blocks.isLiquid(w.builtBlock(x, y, z)) else { continue }
                 m = Mob(.villager, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                 if m.collides(m.pos, w) { continue }
             } else {

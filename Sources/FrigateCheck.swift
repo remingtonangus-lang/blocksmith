@@ -277,7 +277,7 @@ enum FrigateCheck {
         Explosion.crater(at: V3(Float(gx) + 0.5, Float(gy) + 1, Float(gz) + 0.5), radius: 6, game: g, depth: 6, along: V3(0.87, -0.5, 0))
         var sumX: Float = 0, cnt: Float = 0
         for y in (gy - 12)..<(gy - 2) { for z in (gz - 16)...(gz + 16) { for x in (gx - 16)...(gx + 16) {
-            if let b = before[(x - gx + 16) + (z - gz + 16) * 33 + (y - gy + 12) * 1089], b != AIR, w.block(x, y, z) == AIR { sumX += Float(x - gx); cnt += 1 }
+            if let b = before[(x - gx + 16) + (z - gz + 16) * 33 + (y - gy + 12) * 1089], b != AIR, w.isAir(x, y, z) { sumX += Float(x - gx); cnt += 1 }
         } } }
         let lean = cnt > 0 ? sumX / cnt : 0
         check(cnt > 20 && lean > 1.5, String(format: "frigate P357 (e): the crater's lower part sits %.1f blocks on along the shot (%.0f blocks dug below 3 deep)", lean, cnt))

@@ -382,7 +382,7 @@ extension Mob {
             }
             // Hold jump to charge, release to leap (horses); camels dash. P49: a swimming horse can jump too (out of
             // the water onto a bank).
-            let swimming = Blocks.isLiquid(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z))))
+            let swimming = Blocks.isLiquid(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z))))
             if inp.jump { jumpCharge = min(1, jumpCharge + dt) }
             else if jumpCharge > 0.05 && (onGround || swimming) && tamed {
                 if kind == .camel {
@@ -486,7 +486,7 @@ extension Mob {
                 // (P377 step 3: in a field world the ground's cells are left to the field below: a cell's floor is not
                 // the overhang's drawn underside.)
                 if let c = groundCells, by >= 0 && by < CH, c.blocks.ground(Chunk.index(mod(bx, CS), by, mod(bz, CS))) { continue }
-                if Blocks.collide[Int(w.block(bx, by, bz))] { want = min(1.2, headY - floor(headY + dy) + 0.05); break }
+                if w.solidAt(bx, by, bz) { want = min(1.2, headY - floor(headY + dy) + 0.05); break }
             }
             if w.fieldTerrain {
                 // P377 step 3: under ground the field drew, the rider ducks below its drawn underside.

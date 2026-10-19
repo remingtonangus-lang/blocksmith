@@ -154,7 +154,7 @@ extension Game {
     // sparking fuse; anywhere else it fizzles in a puff of sparks and stays in the hand.
     func useSunderCharge(on hit: (hit: IVec3, normal: IVec3)?) -> Bool {
         guard Items.key(held.item) == "sunder_charge" else { return false }
-        guard dim.dim == .deep, let t = hit, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)) == "sealrock",
+        guard dim.dim == .deep, let t = hit, Blocks.key(world.materialAt(t.hit.x, t.hit.y, t.hit.z)) == "sealrock",
               DeepSeal.inBand(t.hit.y) else {
             chargeFizzle(hit)
             return true
@@ -188,7 +188,7 @@ extension Game {
     func showSetCharge(_ t: (hit: IVec3, normal: IVec3)) {
         guard t.normal == IVec3(0, 1, 0), Blocks.has(DeepSeal.setCharge) else { return }
         let p = t.hit + t.normal
-        if world.block(p.x, p.y, p.z) == AIR { world.setBlock(p.x, p.y, p.z, Blocks.id(DeepSeal.setCharge)) }
+        if world.isAir(p.x, p.y, p.z) { world.setBlock(p.x, p.y, p.z, Blocks.id(DeepSeal.setCharge)) }
     }
     func clearSetCharge(over at: IVec3) {
         guard Blocks.has(DeepSeal.setCharge) else { return }

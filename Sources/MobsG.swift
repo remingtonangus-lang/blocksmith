@@ -17,7 +17,7 @@ extension Game {
     // Iron golem: T of four iron blocks + carved pumpkin; snow golem: two snow blocks + pumpkin.
     func trySummonGolem(_ p: IVec3) {
         let below = IVec3(p.x, p.y - 1, p.z), below2 = IVec3(p.x, p.y - 2, p.z)
-        func key(_ q: IVec3) -> String { Blocks.key(world.block(q.x, q.y, q.z)) }
+        func key(_ q: IVec3) -> String { Blocks.key(world.materialAt(q.x, q.y, q.z)) }
         if key(below) == "snow_block" && key(below2) == "snow_block" {
             for q in [p, below, below2] { world.setBlock(q.x, q.y, q.z, AIR) }
             let g = Mob(.snowGolem, at: V3(Float(p.x) + 0.5, Float(below2.y), Float(p.z) + 0.5))
@@ -80,7 +80,7 @@ extension Game {
             }
         case .pearl:
             // Teleport to the landing point; 5 damage (fall), 5% voidmite.
-            if f.byPlayer, let b = block, Blocks.key(world.block(b.hit.x, b.hit.y, b.hit.z)) == "end_gateway" {
+            if f.byPlayer, let b = block, Blocks.key(world.materialAt(b.hit.x, b.hit.y, b.hit.z)) == "end_gateway" {
                 // A pearl thrown into a hollow rift carries the player through it.
                 player.pos = V3(Float(b.hit.x) + 0.5, Float(b.hit.y), Float(b.hit.z) + 0.5)
                 portalCooldown = 3
@@ -408,7 +408,7 @@ extension Mob {
             if fireTick >= 1 { fireTick = 0; health -= 1; hurt = 0.2 }
         } else if onGround {
             let q = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
-            if w.block(q.x, q.y, q.z) == AIR && Blocks.opaque[Int(w.block(q.x, q.y - 1, q.z))] && Blocks.has("snow") { w.setBlockAsync(q.x, q.y, q.z, Blocks.id("snow")) }
+            if w.isAir(q.x, q.y, q.z) && w.opaqueAt(q.x, q.y - 1, q.z) && Blocks.has("snow") { w.setBlockAsync(q.x, q.y, q.z, Blocks.id("snow")) }
         }
         if let t = g.mobs.mobs.first(where: { $0.kind.hostile && $0.kind != .creeper && $0.health > 0 && simd_length($0.pos - pos) < 10 }) {
             face(t.pos)

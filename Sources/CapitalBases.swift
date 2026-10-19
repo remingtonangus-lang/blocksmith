@@ -473,9 +473,9 @@ extension Game {
                     let ix = Int(floor(x)), iz = Int(floor(z))
                     guard world.isLoaded(ix, iz) else { continue }
                     let top = world.topY(ix, iz)
-                    guard abs(Float(top + 1) - level) < 3, !Blocks.isLiquid(world.block(ix, top, iz)), Blocks.collide[Int(world.block(ix, top, iz))] else { continue }
+                    guard abs(Float(top + 1) - level) < 3, !Blocks.isLiquid(world.builtBlock(ix, top, iz)), world.solidAt(ix, top, iz) else { continue }
                     var open = true
-                    for dy in 1...4 where Blocks.collide[Int(world.block(ix, top + dy, iz))] || Blocks.isLiquid(world.block(ix, top + dy, iz)) { open = false }
+                    for dy in 1...4 where world.solidAt(ix, top + dy, iz) || Blocks.isLiquid(world.builtBlock(ix, top + dy, iz)) { open = false }
                     if open { return V3(x, Float(top + 1), z) }
                 }
             }

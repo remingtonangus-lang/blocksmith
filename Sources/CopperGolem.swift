@@ -77,7 +77,7 @@ extension Game {
     // An oxidized golem stops for good: it becomes a statue where it stands (its load drops).
     func petrifyCopperGolem(_ m: Mob) {
         let x = Int(floor(m.pos.x)), y = Int(floor(m.pos.y + 0.1)), z = Int(floor(m.pos.z))
-        guard world.block(x, y, z) == AIR else { return }
+        guard world.isAir(x, y, z) else { return }
         let n = Copper.name("copper_golem_statue", stage: 3, waxed: false)
         guard Blocks.has(n) else { return }
         if let c = m.cargo { for s in c.slots where !s.isEmpty { drops.spawn(s, at: m.pos + V3(0, 0.5, 0)) }; c.slots[0] = .empty }
@@ -106,7 +106,7 @@ extension Mob {
         golemTimer -= dt
         // Walk to the current goal chest; act on it when close.
         if let goal = golemGoal {
-            let key = Blocks.key(Blocks.groupBase[Int(w.block(goal.x, goal.y, goal.z))])
+            let key = Blocks.key(Blocks.groupBase[Int(w.materialAt(goal.x, goal.y, goal.z))])
             guard let be = w.blockEntities[goal], CopperGolem.isCopperChest(key) || CopperGolem.isPlainChest(key) else {
                 golemGoal = nil
                 return 0
@@ -147,7 +147,7 @@ extension Mob {
         var best: IVec3?, bestScore = Float.greatestFiniteMagnitude
         for (p, be) in w.blockEntities where be.kind == .chest && abs(p.x - px) <= CopperGolem.range && abs(p.z - pz) <= CopperGolem.range
             && abs(p.y - py) <= CopperGolem.rangeY {
-            let key = Blocks.key(Blocks.groupBase[Int(w.block(p.x, p.y, p.z))])
+            let key = Blocks.key(Blocks.groupBase[Int(w.materialAt(p.x, p.y, p.z))])
             let dx = p.x - px, dy = p.y - py, dz = p.z - pz
             var score = Float(dx * dx + dy * dy + dz * dz)
             if load.isEmpty {

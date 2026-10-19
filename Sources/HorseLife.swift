@@ -203,13 +203,13 @@ extension Mob {
         // PG2 rewrite: in a field world it falls onto the ground's own surface (the cells' tops left it up to half a block
         // over or under the drawn ground).
         if w.fieldTerrain {
-            vel.y = max(vel.y - 25 * dt, Blocks.isLiquid(w.block(x, Int(floor(pos.y)), z)) ? -2 : -40)
+            vel.y = max(vel.y - 25 * dt, Blocks.isLiquid(w.builtBlock(x, Int(floor(pos.y)), z)) ? -2 : -40)
             let hit = w.moveBody(&pos, halfW: halfW, height: height, V3(0, vel.y * dt, 0), step: 0, onGround: false)
             if hit.y { vel.y = 0 }
-        } else if !Blocks.collide[Int(w.block(x, Int(floor(pos.y - 0.05)), z))] && pos.y > 1 {
-            vel.y = max(vel.y - 25 * dt, Blocks.isLiquid(w.block(x, Int(floor(pos.y)), z)) ? -2 : -40)
+        } else if !w.solidAt(x, Int(floor(pos.y - 0.05)), z) && pos.y > 1 {
+            vel.y = max(vel.y - 25 * dt, Blocks.isLiquid(w.builtBlock(x, Int(floor(pos.y)), z)) ? -2 : -40)
             pos.y += vel.y * dt
-            if Blocks.collide[Int(w.block(x, Int(floor(pos.y)), z))] { pos.y = floor(pos.y) + 1; vel.y = 0 }
+            if w.solidAt(x, Int(floor(pos.y)), z) { pos.y = floor(pos.y) + 1; vel.y = 0 }
         } else { vel.y = 0 }
         if downed <= 0 {
             downed = 0

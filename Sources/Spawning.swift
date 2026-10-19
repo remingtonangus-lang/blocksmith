@@ -328,8 +328,7 @@ extension MobManager {
     private func floorBelow(_ w: World, _ x: Int, _ y0: Int, _ z: Int, minY: Int) -> Int? {
         var y = y0
         while y > minY {
-            let below = w.block(x, y - 1, z)
-            if Blocks.opaque[Int(below)] && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.collide[Int(w.block(x, y + 1, z))] { return y }
+            if w.opaqueAt(x, y - 1, z) && !w.solidAt(x, y, z) && !w.solidAt(x, y + 1, z) { return y }
             y -= 1
         }
         return nil
@@ -392,13 +391,13 @@ extension MobManager {
             let py = Int(floor(pp.y))
             let playerUnder = py < w.topY(Int(floor(pp.x)), Int(floor(pp.z))) - 8
             var yr = playerUnder && Rand.int(in: 0..<2) == 0 ? py + Rand.int(in: -16...16) : Rand.int(in: 2...(top + 1))
-            guard yr >= 3, yr <= top + 1, !Blocks.collide[Int(w.block(x0, yr, z0))] else { return }
+            guard yr >= 3, yr <= top + 1, !w.solidAt(x0, yr, z0) else { return }
             var fall = 0
-            while fall < 16 && yr > 3 && !Blocks.collide[Int(w.block(x0, yr - 1, z0))] { yr -= 1; fall += 1 }
-            guard Blocks.opaque[Int(w.block(x0, yr - 1, z0))] && !Blocks.collide[Int(w.block(x0, yr + 1, z0))] else { return }
+            while fall < 16 && yr > 3 && !w.solidAt(x0, yr - 1, z0) { yr -= 1; fall += 1 }
+            guard w.opaqueAt(x0, yr - 1, z0) && !w.solidAt(x0, yr + 1, z0) else { return }
             y = yr
         }
-        if w.block(x0, y - 1, z0) == BEDROCK { return }
+        if w.materialAt(x0, y - 1, z0) == BEDROCK { return }
         // Underground spots: at most 2 a pack, and none while 6 monsters are already within 32 blocks (4 past the cap)
         // (a cave let ~50 converge on the player, Quest round 4).
         let underground = y < top - 8
@@ -449,7 +448,7 @@ extension MobManager {
         let w = game.world
         let pp = game.player.pos
         if sc.structure(at: x, top, z, kind: "pillager_outpost") != nil {
-            guard let y = floorBelow(w, x, top + 1, z, minY: top - 24), !Blocks.isLiquid(w.block(x, y, z)) else { return true }
+            guard let y = floorBelow(w, x, top + 1, z, minY: top - 24), !Blocks.isLiquid(w.builtBlock(x, y, z)) else { return true }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             if !game.spawnHidden(at, min: 32) || mobs.filter({ Marauders.isMarauder($0) && simd_length($0.pos - at) < 48 }).count >= 6 { return true }
             let m = Marauders.make(Marauders.kind(Rand.int(in: 0..<4)), at: at)     // P366 (b): gunmen on the soldier rig
@@ -458,13 +457,13 @@ extension MobManager {
             return true
         }
         let y = Rand.int(in: max(1, SEA - 50)...SEA)
-        if Blocks.fluidKind[Int(w.block(x, y, z))] == 1, sc.structure(at: x, y, z, kind: "monument") != nil {
+        if Blocks.fluidKind[Int(w.builtBlock(x, y, z))] == 1, sc.structure(at: x, y, z, kind: "monument") != nil {
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             guard simd_length(at - pp) >= 24, Rand.int(in: 0..<20) == 0 || w.lightAt(x, y, z).sky == 0,
                   mobs.filter({ $0.kind == .guardian && simd_length($0.pos - at) < 64 }).count < 12 else { return true }
             for _ in 0..<Rand.int(in: 2...4) {
                 let q = at + V3(Rand.float(in: -2...2), Rand.float(in: -1...1), Rand.float(in: -2...2))
-                if Blocks.fluidKind[Int(w.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] == 1 { mobs.append(Mob(.guardian, at: q)) }
+                if Blocks.fluidKind[Int(w.builtBlock(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] == 1 { mobs.append(Mob(.guardian, at: q)) }
             }
             return true
         }
@@ -479,17 +478,16 @@ extension MobManager {
 
     // Per-kind placement rules on top of the category's floor check.
     func canSpawnMonster(_ k: MobKind, _ w: World, _ x: Int, _ y: Int, _ z: Int, _ b: Biome, _ game: Game) -> Bool {
-        let feet = w.block(x, y, z)
+        let feet = w.builtBlock(x, y, z)
         let wet = Blocks.fluidKind[Int(feet)] == 1
         // Every pack member needs its own valid spot: a solid top below and room for the body (water for drowned).
         if !wet {
-            let below = w.block(x, y - 1, z)
-            if !Blocks.opaque[Int(below)] || below == BEDROCK || Blocks.collide[Int(feet)] || Blocks.collide[Int(w.block(x, y + 1, z))] { return false }
+            if !w.opaqueAt(x, y - 1, z) || w.materialAt(x, y - 1, z) == BEDROCK || w.solidAt(x, y, z) || w.solidAt(x, y + 1, z) { return false }
         }
         switch k {
         case .drowned:
             // In water only: rivers 1/15, elsewhere 1/40, at least 5 below sea level; dark enough.
-            guard wet, Blocks.fluidKind[Int(w.block(x, y - 1, z))] == 1 || Blocks.opaque[Int(w.block(x, y - 1, z))] else { return false }
+            guard wet, Blocks.fluidKind[Int(w.builtBlock(x, y - 1, z))] == 1 || w.opaqueAt(x, y - 1, z) else { return false }
             // Rivers 1/15 at any depth; elsewhere 1/40 and at least 5 below sea level (reference).
             guard b.isRiver ? Rand.int(in: 0..<15) == 0 : (Rand.int(in: 0..<40) == 0 && y < SEA - 5) else { return false }
             return darkEnough(w, x, y, z, game)
@@ -567,12 +565,12 @@ extension MobManager {
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
         guard w.isLoaded(x, z) else { return }
         let top = w.topY(x, z)
-        guard top > 0, Blocks.key(w.block(x, top, z)) == "end_stone" else { return }
+        guard top > 0, Blocks.key(w.materialAt(x, top, z)) == "end_stone" else { return }
         guard game.spawnHidden(V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5), min: 32) else { return }   // and unseen
         for _ in 0..<Rand.int(in: 1...4) {
             let sx = x + Rand.int(in: -2...2), sz = z + Rand.int(in: -2...2)
             let ty = w.topY(sx, sz)
-            guard ty > 0, Blocks.key(w.block(sx, ty, sz)) == "end_stone" else { continue }
+            guard ty > 0, Blocks.key(w.materialAt(sx, ty, sz)) == "end_stone" else { continue }
             let m = Mob(.enderman, at: V3(Float(sx) + 0.5, Float(ty + 1), Float(sz) + 0.5))
             if m.collides(m.pos, w) { continue }
             mobs.append(m)
@@ -591,8 +589,8 @@ extension MobManager {
         let top = w.topY(x, z)
         guard top > 2 else { return }
         let y = Rand.int(in: 1...(top + 1))
-        let id = w.block(x, y, z)
-        let water = Blocks.fluidKind[Int(id)] == 1 && Blocks.fluidKind[Int(w.block(x, y + 1, z))] == 1
+        let id = w.builtBlock(x, y, z)
+        let water = Blocks.fluidKind[Int(id)] == 1 && Blocks.fluidKind[Int(w.builtBlock(x, y + 1, z))] == 1
         if water {
             let b = Spawns.biome(w, x, y, z)
             if y >= SEA - 13 && y <= SEA {
@@ -602,7 +600,7 @@ extension MobManager {
                 guard count(cat, near: pp) < cap(cat, w) else { return }
                 spawnSwimmers(w, e.kind, x, y, z, Rand.int(in: e.min...e.max))
             } else if y <= SEA - 33 && w.lightAt(x, y, z).sky == 0 && w.lightAt(x, y, z).block == 0 {
-                if b == .lushCaves && Blocks.key(w.block(x, y - 1, z)) == "clay" && count(.axolotls, near: pp) < cap(.axolotls, w) {
+                if b == .lushCaves && Blocks.key(w.materialAt(x, y - 1, z)) == "clay" && count(.axolotls, near: pp) < cap(.axolotls, w) {
                     spawnSwimmers(w, .axolotl, x, y, z, Rand.int(in: 4...6))
                 } else if count(.undergroundWater, near: pp) < cap(.undergroundWater, w) {
                     spawnSwimmers(w, .glowSquid, x, y, z, Rand.int(in: 2...4))
@@ -615,7 +613,7 @@ extension MobManager {
         // Bats: below sea level, a coin flip, then light <= random 0...3 (reference Halloween rule not modelled).
         if id == AIR && y < SEA && Rand.bool() && count(.ambient, near: pp) < cap(.ambient, w) {
             let l = w.lightAt(x, y, z)
-            if max(l.block, l.sky) <= Rand.int(in: 0..<4) && !Blocks.collide[Int(w.block(x, y + 1, z))] {
+            if max(l.block, l.sky) <= Rand.int(in: 0..<4) && !w.solidAt(x, y + 1, z) {
                 let bat = Mob(.bat, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                 if !bat.collides(bat.pos, w) { mobs.append(bat) }
             }
@@ -639,7 +637,7 @@ extension MobManager {
     private func spawnSwimmers(_ w: World, _ kind: MobKind, _ x: Int, _ y: Int, _ z: Int, _ n: Int) {
         for _ in 0..<n {
             let sx = x + Rand.int(in: -2...2), sy = y + Rand.int(in: -1...1), sz = z + Rand.int(in: -2...2)
-            guard Blocks.fluidKind[Int(w.block(sx, sy, sz))] == 1 else { continue }
+            guard Blocks.fluidKind[Int(w.builtBlock(sx, sy, sz))] == 1 else { continue }
             let m = Mob(kind, at: V3(Float(sx) + 0.5, Float(sy) + 0.1, Float(sz) + 0.5))
             if kind == .tropicalFish || kind == .axolotl { m.variant = Rand.int(in: 0..<(kind == .axolotl ? 4 : 8)) }
             if kind == .axolotl && Rand.int(in: 0..<1200) == 0 { m.variant = 4 }       // the rare blue one

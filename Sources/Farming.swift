@@ -538,7 +538,7 @@ extension Game {
         let dirs = [IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(1, 0, 0), IVec3(-1, 0, 0)]
         let head = foot + dirs[facing]
         guard Blocks.replaceable[Int(world.materialAt(head.x, head.y, head.z))],
-              Blocks.opaque[Int(world.block(foot.x, foot.y - 1, foot.z))],
+              world.opaqueAt(foot.x, foot.y - 1, foot.z),
               let base = item.block else { return false }
         let headBase = Blocks.id(Blocks.key(base) + "_head")
         world.setBlock(foot.x, foot.y, foot.z, base + BlockID(facing))
@@ -556,7 +556,7 @@ extension Game {
         let facing = Int(b - Blocks.groupBase[Int(b)])
         let dirs = [IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(1, 0, 0), IVec3(-1, 0, 0)]
         let other = key.hasSuffix("_head") ? p - dirs[facing] : p + dirs[facing]
-        let ok = Blocks.key(Blocks.groupBase[Int(world.block(other.x, other.y, other.z))])
+        let ok = Blocks.key(Blocks.groupBase[Int(world.materialAt(other.x, other.y, other.z))])
         if ok.hasSuffix("_bed") || ok.hasSuffix("_bed_head") { world.setBlock(other.x, other.y, other.z, AIR) }
     }
 }
@@ -569,9 +569,9 @@ extension Game {
         // flames stay on the screen after a dip in lava.
         guard survival else { onFire = 0; return }
         let p = player.pos
-        let feet = world.block(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
-        let body = world.block(Int(floor(p.x)), Int(floor(p.y + 1)), Int(floor(p.z)))
-        let under = world.block(Int(floor(p.x)), Int(floor(p.y - 0.1)), Int(floor(p.z)))
+        let feet = world.builtBlock(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
+        let body = world.builtBlock(Int(floor(p.x)), Int(floor(p.y + 1)), Int(floor(p.z)))
+        let under = world.materialAt(Int(floor(p.x)), Int(floor(p.y - 0.1)), Int(floor(p.z)))
         let inLava = Blocks.fluidKind[Int(feet)] == 2 || Blocks.fluidKind[Int(body)] == 2
         if player.inWater && !inLava { onFire = 0 }
         contactTimer -= dt
@@ -595,7 +595,7 @@ extension Game {
                 // Cactus: touching any side.
                 let mn = V3(p.x - 0.31, p.y, p.z - 0.31), mx = V3(p.x + 0.31, p.y + 1.8, p.z + 0.31)
                 outer: for y in Int(floor(mn.y))...Int(floor(mx.y)) { for z in Int(floor(mn.z))...Int(floor(mx.z)) { for x in Int(floor(mn.x))...Int(floor(mx.x)) {
-                    if world.block(x, y, z) == CACTUS {
+                    if world.builtBlock(x, y, z) == CACTUS {
                         let c = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
                         if abs(c.x - p.x) < 0.31 + 0.4375 && abs(c.z - p.z) < 0.31 + 0.4375 { dmg = 1; cause = "was pricked to death"; break outer }
                     }

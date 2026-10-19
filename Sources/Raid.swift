@@ -238,7 +238,7 @@ extension Game {
             let x = Int(floor(r.center.x + cosf(a) * d)), z = Int(floor(r.center.z + sinf(a) * d))
             guard world.isLoaded(x, z) else { continue }
             let y = world.topY(x, z)
-            if Blocks.isLiquid(world.block(x, y, z)) { continue }
+            if Blocks.isLiquid(world.builtBlock(x, y, z)) { continue }
             at = V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5)
             break
         }

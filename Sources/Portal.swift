@@ -71,7 +71,7 @@ extension Game {
     func isInPortal() -> Bool {
         let p = player.pos
         for y in [p.y + 0.2, p.y + 1.2] {
-            let b = world.block(Int(floor(p.x)), Int(floor(y)), Int(floor(p.z)))
+            let b = world.builtBlock(Int(floor(p.x)), Int(floor(y)), Int(floor(p.z)))
             if b == PORTAL_X || b == PORTAL_Z { return true }
         }
         return false
@@ -134,7 +134,7 @@ extension Game {
                     let x = c.x + dx, z = c.z + dz
                     var y = nether ? maxY : min(maxY, w.topY(x, z) + 1)
                     while y > minY {
-                        if Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.isLiquid(w.block(x, y - 1, z)) {
+                        if w.opaqueAt(x, y - 1, z) && !Blocks.isLiquid(w.builtBlock(x, y - 1, z)) {
                             var ok = true
                             for ix in -1...2 where ok { for iy in 0..<4 where ok { for iz in -1...1 where ok {
                                 let b = w.block(x + ix, y + iy, z + iz)
@@ -157,7 +157,7 @@ extension Game {
                     if iz == 0 {
                         w.setBlockAsync(p.x, p.y, p.z, edge ? OBSIDIAN : PORTAL_X)
                     } else if iy == -1 {
-                        if !Blocks.opaque[Int(w.block(p.x, p.y, p.z))] { w.setBlockAsync(p.x, p.y, p.z, OBSIDIAN) }  // ledge
+                        if !w.opaqueAt(p.x, p.y, p.z) { w.setBlockAsync(p.x, p.y, p.z, OBSIDIAN) }  // ledge
                     } else if iy >= 0 && iy < 3 {
                         w.setBlockAsync(p.x, p.y, p.z, AIR)
                     }

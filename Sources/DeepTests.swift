@@ -233,11 +233,11 @@ enum DeepTests {
         game.deepTick(0.05)
         let x = 40, z = -21
         let w = game.world
-        check(game.dim.dim == .deep && game.player.pos.y == Float(CH - 3) && w.block(x, CH - 3, z) == AIR && w.block(x, CH - 2, z) == AIR
-              && Blocks.opaque[Int(w.block(x, CH - 4, z))], "deep: falling through the surface floor lands in a pocket at the top of the Deep")
+        check(game.dim.dim == .deep && game.player.pos.y == Float(CH - 3) && w.isAir(x, CH - 3, z) && w.isAir(x, CH - 2, z)
+              && w.opaqueAt(x, CH - 4, z), "deep: falling through the surface floor lands in a pocket at the top of the Deep")
         game.player.pos.y = Float(CH - 1)
         game.deepTick(0.05)
-        check(game.dim.dim == .overworld && game.player.pos.y == 1 && game.world.block(x, 1, z) == AIR && Blocks.opaque[Int(game.world.block(x, 0, z))],
+        check(game.dim.dim == .overworld && game.player.pos.y == 1 && game.world.isAir(x, 1, z) && game.world.opaqueAt(x, 0, z),
               "deep: climbing out of the Deep's top comes back up at the surface's floor")
         game.changeDimension(to: .deep, at: V3(300.5, 100, 40.5))
         game.player.onGround = false

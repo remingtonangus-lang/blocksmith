@@ -42,7 +42,7 @@ extension Mob {
         // Beds: claim the nearest unclaimed bed head within 20 blocks (H14: a frontier town's houses can be a street
         // away from where its folk were placed); the house it stands in becomes the townsperson's home.
         if let b = v.bed {
-            let k = Blocks.key(Blocks.groupBase[Int(w.block(b[0], b[1], b[2]))])
+            let k = Blocks.key(Blocks.groupBase[Int(w.materialAt(b[0], b[1], b[2]))])
             if !k.hasSuffix("_bed_head") && !k.hasSuffix("_bed") { v.bed = nil }
         }
         if v.bed == nil && !baby && v.role != "deputy" && v.role != "sheriff" {
@@ -188,7 +188,7 @@ extension Mob {
                     let bed = VillageLife.isBed(w.block(x, b[1], z))
                     let p = V3(Float(x) + 0.5, Float(b[1]) + (bed ? 0.5625 : 0), Float(z) + 0.5)
                     // (In sight of where it lay: never through the wall into the next room.)
-                    guard bed || Blocks.collide[Int(w.block(x, b[1] - 1, z))], free(p),
+                    guard bed || w.solidAt(x, b[1] - 1, z), free(p),
                           w.clearShot(pos + V3(0, 1.2, 0), p + V3(0, 1.2, 0)) else { continue }
                     if best.map({ simd_length(p - pos) < simd_length($0 - pos) }) ?? true { best = p }
                 } }
@@ -341,8 +341,8 @@ extension Mob {
         for _ in 0..<10 {
             let x = c.x + Rand.int(in: -8...8), z = c.z + Rand.int(in: -8...8)
             var y = c.y + 6
-            while y > c.y - 6 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]) { y -= 1 }
-            guard y > c.y - 6, !Blocks.isLiquid(w.block(x, y, z)) else { continue }
+            while y > c.y - 6 && !(w.opaqueAt(x, y - 1, z) && !w.solidAt(x, y, z)) { y -= 1 }
+            guard y > c.y - 6, !Blocks.isLiquid(w.builtBlock(x, y, z)) else { continue }
             let golem = Mob(.ironGolem, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
             if golem.collides(golem.pos, w) { continue }
             golem.persistent = true

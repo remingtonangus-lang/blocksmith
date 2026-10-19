@@ -23,7 +23,7 @@ enum PlaytestOct13Tests {
         func clear() {
             w.deferRemesh = true
             for z in z1...z0 { for x in sx - 3...sx + 3 {
-                for y in Y - 8...Y + 6 where w.block(x, y, z) != AIR { w.setBlock(x, y, z, AIR) }
+                for y in Y - 8...Y + 6 where !w.isAir(x, y, z) { w.setBlock(x, y, z, AIR) }
                 w.setBlock(x, Y, z, stone)
             } }
             w.deferRemesh = false
@@ -54,7 +54,7 @@ enum PlaytestOct13Tests {
             g.mobs.mobs = [gun, man]; g.mobs.rebuildIndex()
             for _ in 0..<72 { gun.update(1.0 / 72, game: g) }
             let posted = man.brain?.gunPost, crewed = gun.deckGunCrewed(g)
-            if posted == nil { print("P194 debug: gun at \(gun.pos) fac \(gun.faction)/\(man.faction) cd \(gun.soldierBrain.gunnerCD) crewed \(gun.soldierBrain.crewed) under \(Blocks.key(w.block(Int(floor(gun.pos.x)), Int(floor(gun.pos.y)) - 1, Int(floor(gun.pos.z) + 4))))") }
+            if posted == nil { print("P194 debug: gun at \(gun.pos) fac \(gun.faction)/\(man.faction) cd \(gun.soldierBrain.gunnerCD) crewed \(gun.soldierBrain.crewed) under \(Blocks.key(w.materialAt(Int(floor(gun.pos.x)), Int(floor(gun.pos.y)) - 1, Int(floor(gun.pos.z) + 4))))") }
             man.health = 0
             let free = !gun.deckGunCrewed(g)
             let back = posted.map { simd_length($0 - gun.pos) } ?? -1

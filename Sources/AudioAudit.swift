@@ -85,7 +85,7 @@ enum AudioAudit {
         var cave: V3?
         let x0 = Int(forest.x), z0 = Int(forest.z)
         search: for y in stride(from: Int(top) - 30, to: YOFF - 40, by: -1) { for dx in stride(from: -24, through: 24, by: 3) { for dz in stride(from: -24, through: 24, by: 3) {
-            if w.block(x0 + dx, y, z0 + dz) == AIR && w.block(x0 + dx, y + 1, z0 + dz) == AIR && Blocks.opaque[Int(w.block(x0 + dx, y - 1, z0 + dz))] {
+            if w.isAir(x0 + dx, y, z0 + dz) && w.isAir(x0 + dx, y + 1, z0 + dz) && w.opaqueAt(x0 + dx, y - 1, z0 + dz) {
                 cave = V3(Float(x0 + dx) + 0.5, Float(y), Float(z0 + dz) + 0.5); break search
             }
         } } }
@@ -100,7 +100,7 @@ enum AudioAudit {
         var shallow: V3?
         search2: for dy in 6...20 { for dx in stride(from: -40, through: 40, by: 2) { for dz in stride(from: -40, through: 40, by: 2) {
             let x = x0 + dx, z = z0 + dz, y = w.gen.column(x, z).height - dy
-            if w.block(x, y, z) == AIR && w.block(x, y + 1, z) == AIR && Blocks.opaque[Int(w.block(x, y - 1, z))] && w.lightAt(x, y + 1, z).sky <= 4 {
+            if w.isAir(x, y, z) && w.isAir(x, y + 1, z) && w.opaqueAt(x, y - 1, z) && w.lightAt(x, y + 1, z).sky <= 4 {
                 shallow = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5); break search2
             }
         } } }

@@ -256,10 +256,10 @@ enum MobTests {
         a.fill(-8, -3, -1, 5, -1, 1, WATER)
         a.fill(-8, -4, -1, 5, -4, 1, STONE)
         r = a.route(a.p(0, 0, -5), a.p(0, 0, 5), walker)
-        let wet = r.contains { Blocks.fluidKind[Int(world.block($0.x, $0.y, $0.z))] == 1 }
+        let wet = r.contains { Blocks.fluidKind[Int(world.builtBlock($0.x, $0.y, $0.z))] == 1 }
         check(a.reaches(r, a.p(0, 0, 5)) && !wet, "path land mob avoids water", a.show(r))
         r = a.route(a.p(0, 0, -5), a.p(0, 0, 5), profile(water: 0))
-        let swam = r.contains { Blocks.fluidKind[Int(world.block($0.x, $0.y, $0.z))] == 1 }
+        let swam = r.contains { Blocks.fluidKind[Int(world.builtBlock($0.x, $0.y, $0.z))] == 1 }
         check(a.reaches(r, a.p(0, 0, 5)) && swam, "path swimmer crosses water", a.show(r))
         // 8. Wide mob: a 1-wide gap in the middle, a 2-wide gap at the side.
         a = arena(2, 1)
@@ -343,8 +343,8 @@ enum MobTests {
         for m in night where m.mount == nil {
             let x = Int(floor(m.pos.x)), y = Int(floor(m.pos.y)), z = Int(floor(m.pos.z))
             let l = world.lightAt(x, y, z)
-            let wet = Blocks.fluidKind[Int(world.block(x, y, z))] == 1
-            let floorOK = wet || Blocks.opaque[Int(world.block(x, y - 1, z))]
+            let wet = Blocks.fluidKind[Int(world.builtBlock(x, y, z))] == 1
+            let floorOK = wet || world.opaqueAt(x, y - 1, z)
             let far = simd_length(m.pos - pos) >= 23.9
             if !(floorOK && far && (m.kind == .slime || l.block == 0) && allowed.contains(m.kind)) {
                 bad.append("\(m.kind.key)@\(x - Int(floor(pos.x))),\(y - YOFF),\(z - Int(floor(pos.z))) l\(l.block)/\(l.sky)")
@@ -384,7 +384,7 @@ enum MobTests {
         let animals = mm.mobs.filter { $0.kind.category == .creature }
         let chunks = world.chunks.count
         let onGrass = animals.allSatisfy { m in
-            let k = Blocks.key(world.block(Int(floor(m.pos.x)), Int(floor(m.pos.y)) - 1, Int(floor(m.pos.z))))
+            let k = Blocks.key(world.materialAt(Int(floor(m.pos.x)), Int(floor(m.pos.y)) - 1, Int(floor(m.pos.z))))
             return k.contains("grass") || k.contains("sand") || k.contains("snow") || k.contains("podzol") || k.contains("dirt") || k.contains("mycelium")
                 || k.contains("mud") || k.contains("stone") || k.contains("terracotta") || k.contains("ice") || k.contains("leaves") || k.contains("root")
         }
@@ -539,7 +539,7 @@ enum MobTests {
         bee.hive = hp; bee.nectar = true; bee.jobTimer = 5
         mm.mobs.append(bee)
         _ = bee.beeAI(0.05, game)
-        let honey = Int(world.block(hp.x, hp.y, hp.z) - Blocks.groupBase[Int(world.block(hp.x, hp.y, hp.z))])
+        let honey = Int(world.block(hp.x, hp.y, hp.z) - Blocks.groupBase[Int(world.materialAt(hp.x, hp.y, hp.z))])
         check(bee.health < -1000 && mm.hives[hp]?.count == 1 && honey == 1, "bee enters hive with nectar (+1 honey)",
               "inside \(mm.hives[hp]?.count ?? 0), honey \(honey)")
         mm.mobs.removeAll()
@@ -632,7 +632,7 @@ enum MobTests {
         a.set(0, 1, 0, Blocks.id("carved_pumpkin"))
         let built = g.trySummonCopperGolem(IVec3(a.cx, a.gy + 1, a.cz))
         guard let golem = mm.mobs.first(where: { $0.kind == .copperGolem }) else { check(false, "carved pumpkin on copper builds a copper golem"); return }
-        check(built && golem.variant == 1 && world.block(a.cx, a.gy, a.cz) == AIR, "carved pumpkin on exposed copper builds an exposed copper golem")
+        check(built && golem.variant == 1 && world.isAir(a.cx, a.gy, a.cz), "carved pumpkin on exposed copper builds an exposed copper golem")
         golem.variant = 4                                                   // waxed, unaffected: no ageing during the test
         golem.pos = a.p(0, 0, 0)
         // A copper chest of 20 cobblestone, a chest already holding cobblestone and an empty chest.
@@ -657,12 +657,12 @@ enum MobTests {
         golem.variant = 3
         g.petrifyCopperGolem(golem)
         let sp = IVec3(Int(floor(golem.pos.x)), Int(floor(golem.pos.y + 0.1)), Int(floor(golem.pos.z)))
-        check(golem.health < -1000 && Blocks.key(world.block(sp.x, sp.y, sp.z)) == "oxidized_copper_golem_statue", "an oxidized golem becomes a statue")
+        check(golem.health < -1000 && Blocks.key(world.materialAt(sp.x, sp.y, sp.z)) == "oxidized_copper_golem_statue", "an oxidized golem becomes a statue")
         mm.update(0.05, game: g)
         let keep = g.inventory.held
         g.inventory.held = ItemStack(Items.id("iron_axe"), 1)
         let revived = g.reviveCopperStatue(sp)
-        check(revived && world.block(sp.x, sp.y, sp.z) == AIR && mm.mobs.contains { $0.kind == .copperGolem && $0.variant == 2 },
+        check(revived && world.isAir(sp.x, sp.y, sp.z) && mm.mobs.contains { $0.kind == .copperGolem && $0.variant == 2 },
               "an axe scrapes a statue back into a weathered golem")
         g.inventory.held = keep
         for d in [IVec3(-4, 0, 0), IVec3(5, 0, 4), IVec3(5, 0, -4)] { world.blockEntities[IVec3(a.cx + d.x, a.gy, a.cz + d.z)] = nil }

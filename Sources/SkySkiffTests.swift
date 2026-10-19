@@ -33,7 +33,7 @@ enum SkySkiffTests {
         // Under a roof: no skiff, the kit kept.
         let fx = Int(floor(pos0.x)), fz = Int(floor(pos0.z)), fy = w.topY(fx, fz) + 1
         g.player.pos = V3(Float(fx) + 0.5, Float(fy), Float(fz) + 0.5); g.player.yaw = 0
-        for z in (fz - 18)...(fz + 2) { for x in (fx - 9)...(fx + 9) where w.block(x, fy + 4, z) == AIR {
+        for z in (fz - 18)...(fz + 2) { for x in (fx - 9)...(fx + 9) where w.isAir(x, fy + 4, z) {
             w.setBlock(x, fy + 4, z, STONE); placed.append(IVec3(x, fy + 4, z))
         } }
         let roofed = g.skySkiffUse() && w.ships.list.count == ships0 && g.inventory.main[g.inventory.selected].count == 1 && said.contains("open sky")
@@ -41,7 +41,7 @@ enum SkySkiffTests {
         placed = []
         // A spot in the air (a platform over the ground: open sky whatever the terrain).
         let py = min(CH - 40, fy + 30)
-        for z in (fz - 18)...(fz + 2) { for x in (fx - 9)...(fx + 9) where w.block(x, py - 1, z) == AIR {
+        for z in (fz - 18)...(fz + 2) { for x in (fx - 9)...(fx + 9) where w.isAir(x, py - 1, z) {
             w.setBlock(x, py - 1, z, STONE); placed.append(IVec3(x, py - 1, z))
         } }
         g.player.pos = V3(Float(fx) + 0.5, Float(py), Float(fz) + 0.5); g.player.vel = .zero

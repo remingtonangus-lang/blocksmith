@@ -61,11 +61,11 @@ enum WorldAudit {
             _ = world.loadSync(center: spawn, radius: 4)
             let sx = Int(floor(spawn.x)), sy = Int(floor(spawn.y)), sz = Int(floor(spawn.z))
             var why: [String] = []
-            if Blocks.collide[Int(world.block(sx, sy, sz))] { why.append("feet in a block") }
-            if Blocks.collide[Int(world.block(sx, sy + 1, sz))] { why.append("head in a block") }
-            if !Blocks.fullCollide[Int(world.block(sx, sy - 1, sz))] { why.append("no ground (\(Blocks.key(world.block(sx, sy - 1, sz))))") }
+            if world.solidAt(sx, sy, sz) { why.append("feet in a block") }
+            if world.solidAt(sx, sy + 1, sz) { why.append("head in a block") }
+            if !Blocks.fullCollide[Int(world.block(sx, sy - 1, sz))] { why.append("no ground (\(Blocks.key(world.materialAt(sx, sy - 1, sz))))") }
             hazard: for dy in -1...1 { for dz in -2...2 { for dx in -2...2 {
-                let k = Blocks.key(world.block(sx + dx, sy + dy, sz + dz))
+                let k = Blocks.key(world.materialAt(sx + dx, sy + dy, sz + dz))
                 if k.hasPrefix("lava") || (dy >= 0 && abs(dx) <= 1 && abs(dz) <= 1 && k.hasPrefix("water")) { why.append("\(k) at spawn"); break hazard }
             } } }
             if !why.isEmpty { unsafe.append("seed \(seed): " + why.joined(separator: ", ")) }

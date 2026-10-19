@@ -126,7 +126,7 @@ enum PlaytestV78Tests {
         search: for r in stride(from: 0, through: 40, by: 4) { for dx in stride(from: -r, through: r, by: 4) { for dz in [-r, r] {
             let x = sx + dx, z = sz + dz, top = w.topY(x, z)
             guard top > 20 else { continue }
-            for y in stride(from: top - 12, to: 8, by: -1) where Blocks.opaque[Int(w.block(x, y - 1, z))] && w.block(x, y, z) == AIR && w.block(x, y + 1, z) == AIR && w.lightAt(x, y, z).sky == 0 {
+            for y in stride(from: top - 12, to: 8, by: -1) where w.opaqueAt(x, y - 1, z) && w.isAir(x, y, z) && w.isAir(x, y + 1, z) && w.lightAt(x, y, z).sky == 0 {
                 cave = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5); break search
             }
         } } }

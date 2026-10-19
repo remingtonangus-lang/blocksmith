@@ -79,7 +79,7 @@ extension Game {
               world.isLoaded(AshFinal.hatchX.upperBound, AshFinal.hatchZ.upperBound),
               simd_length_squared(player.pos - V3(Float(c.x), Float(c.y), Float(c.z))) < 96 * 96 else { return }
         let console = Blocks.id("command_console")
-        if world.block(c.x, c.y, c.z) == AIR { world.setBlock(c.x, c.y, c.z, console) }
+        if world.isAir(c.x, c.y, c.z) { world.setBlock(c.x, c.y, c.z, console) }
         let lit = ashStage >= 2
         let lamp = Blocks.id(lit ? "redstone_lamp[lit]" : "redstone_lamp")
         let now = world.block(l.x, l.y, l.z)

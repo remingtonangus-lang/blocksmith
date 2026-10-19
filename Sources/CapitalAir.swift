@@ -46,11 +46,11 @@ extension Game {
         let p = r.pad
         let x = Int(floor(p.x)), y = Int(floor(p.y)), z = Int(floor(p.z))
         guard world.isLoaded(x, z) else { return "not loaded" }
-        for dz in -3...3 { for dx in -2...2 where !Blocks.collide[Int(world.block(x + dx, y - 1, z + dz))] {
-            return "a hole at \(x + dx),\(y - 1),\(z + dz): \(Blocks.key(world.block(x + dx, y - 1, z + dz)))"
+        for dz in -3...3 { for dx in -2...2 where !world.solidAt(x + dx, y - 1, z + dz) {
+            return "a hole at \(x + dx),\(y - 1),\(z + dz): \(Blocks.key(world.materialAt(x + dx, y - 1, z + dz)))"
         } }
-        for dy in 0...5 { for dz in -3...3 where Blocks.collide[Int(world.block(x, y + dy, z + dz))] {
-            return "\(Blocks.key(world.block(x, y + dy, z + dz))) at \(x),\(y + dy),\(z + dz)"
+        for dy in 0...5 { for dz in -3...3 where world.solidAt(x, y + dy, z + dz) {
+            return "\(Blocks.key(world.materialAt(x, y + dy, z + dz))) at \(x),\(y + dy),\(z + dz)"
         } }
         return nil
     }

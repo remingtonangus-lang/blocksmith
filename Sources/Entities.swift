@@ -94,7 +94,7 @@ final class ItemEntity {
         if !w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) { return }
         age += dt
         pickupDelay -= dt
-        let inWater = Blocks.isLiquid(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z))))
+        let inWater = Blocks.isLiquid(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z))))
         if inWater {
             vel.y += (1.2 - vel.y) * min(1, dt * 4)
             vel.x *= expf(-2 * dt); vel.z *= expf(-2 * dt)

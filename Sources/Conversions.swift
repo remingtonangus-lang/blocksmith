@@ -78,7 +78,7 @@ extension Mob {
             let x = Int(floor(pos.x + d)), z = Int(floor(pos.z + e))
             guard w.isLoaded(x, z) else { continue }
             var y = Int(floor(pos.y)) + 6
-            while y > Int(floor(pos.y)) - 6 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }
+            while y > Int(floor(pos.y)) - 6 && !(w.opaqueAt(x, y - 1, z) && !w.solidAt(x, y, z) && !w.solidAt(x, y + 1, z)) { y -= 1 }
             guard y > Int(floor(pos.y)) - 6, w.lightAt(x, y, z).block < 10 else { continue }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             if !g.spawnHidden(at, min: 16, near: 40, clear: 48) { continue }    // P307 (a): out of the player's sight
@@ -158,8 +158,8 @@ extension Game {
     func groundSpot(_ x: Int, _ z: Int) -> V3? {
         guard world.isLoaded(x, z) else { return nil }
         let y = world.topY(x, z)
-        guard y > 0, !Blocks.isLiquid(world.block(x, y, z)), Blocks.collide[Int(world.block(x, y, z))],
-              !Blocks.collide[Int(world.block(x, y + 1, z))], !Blocks.collide[Int(world.block(x, y + 2, z))] else { return nil }
+        guard y > 0, !Blocks.isLiquid(world.builtBlock(x, y, z)), world.solidAt(x, y, z),
+              !world.solidAt(x, y + 1, z), !world.solidAt(x, y + 2, z) else { return nil }
         return V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5)
     }
 

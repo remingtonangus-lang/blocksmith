@@ -431,7 +431,7 @@ extension Mob {
                 h.sideT = 1
                 let x = Int(floor(g.player.pos.x)), z = Int(floor(g.player.pos.z)), y0 = Int(floor(g.player.pos.y))
                 var open = 2
-                while open < 11 && !Blocks.collide[Int(g.world.block(x, y0 + open, z))] { open += 1 }
+                while open < 11 && !g.world.solidAt(x, y0 + open, z) { open += 1 }
                 h.hover = max(2.5, Float(open) - 2.5)
             }
             let r: Float = 9
@@ -535,8 +535,8 @@ extension MobManager {
         let x = Int(floor(p.x)), z = Int(floor(p.z))
         for dy in [0, 1, -1, 2, -2, 3, -3, 4, -4] {
             let y = Int(floor(p.y)) + dy
-            if Blocks.collide[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.collide[Int(w.block(x, y + 1, z))]
-                && !Blocks.isLiquid(w.block(x, y, z)) {
+            if w.solidAt(x, y - 1, z) && !w.solidAt(x, y, z) && !w.solidAt(x, y + 1, z)
+                && !Blocks.isLiquid(w.builtBlock(x, y, z)) {
                 return V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             }
         }
@@ -588,7 +588,7 @@ extension MobManager {
         } else {
             guard room(.searwing) else { return false }
             let x = Int(floor(p.x)), z = Int(floor(p.z)), y = Int(floor(p.y))
-            for dy in 1...6 where Blocks.collide[Int(w.block(x, y + dy, z))] { return false }      // needs open air
+            for dy in 1...6 where w.solidAt(x, y + dy, z) { return false }      // needs open air
             for _ in 0..<Rand.int(in: 1...2) where room(.searwing) {
                 let m = Mob(.searwing, at: p + V3(Rand.float(in: -1...1), 4, Rand.float(in: -1...1)))
                 m.variant = gloam
@@ -709,7 +709,7 @@ extension Game {
         // The ground where it lands catches.
         let x = Int(floor(c.x)), z = Int(floor(c.z))
         for y in stride(from: Int(floor(c.y)) + 1, through: Int(floor(c.y)) - 2, by: -1)
-            where world.block(x, y, z) == AIR && Blocks.opaque[Int(world.block(x, y - 1, z))] {
+            where world.isAir(x, y, z) && world.opaqueAt(x, y - 1, z) {
             world.placeFire(IVec3(x, y, z)); break
         }
     }

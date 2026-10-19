@@ -208,7 +208,7 @@ extension Game {
         for _ in 0..<60 where n > 0 {
             let q = IVec3(c.x + Rand.int(in: -3...3), c.y - 1 + Rand.int(in: -1...0), c.z + Rand.int(in: -3...3))
             let b = world.block(q.x, q.y, q.z)
-            if Blocks.opaque[Int(b)] && b != sculk && Blocks.hardness[Int(b)] >= 0 && world.block(q.x, q.y + 1, q.z) == AIR {
+            if Blocks.opaque[Int(b)] && b != sculk && Blocks.hardness[Int(b)] >= 0 && world.isAir(q.x, q.y + 1, q.z) {
                 world.setBlockAsync(q.x, q.y, q.z, sculk); n -= 1
             }
         }
@@ -226,7 +226,7 @@ extension Game {
         let r = min(16, 2 + fw)
         for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
             let q = IVec3(feet.x + dx, feet.y, feet.z + dz)
-            if world.block(q.x, q.y, q.z) == WATER && world.block(q.x, q.y + 1, q.z) == AIR {
+            if world.block(q.x, q.y, q.z) == WATER && world.isAir(q.x, q.y + 1, q.z) {
                 world.setBlockAsync(q.x, q.y, q.z, Game.frostedIceID)
                 frostTimers[q] = Rand.float(in: 3...6)            // first melt try 60-120 ticks on
             }
@@ -261,7 +261,7 @@ extension Game {
         let age = Int(b) - Int(fi)
         let dirs = World.allDirs
         var n = 0
-        for d in dirs where Blocks.groupBase[Int(world.block(q.x + d.x, q.y + d.y, q.z + d.z))] == fi { n += 1 }
+        for d in dirs where Blocks.groupBase[Int(world.materialAt(q.x + d.x, q.y + d.y, q.z + d.z))] == fi { n += 1 }
         let l = world.lightAt(q.x, q.y, q.z)
         let dayPart: Float = (daylight - 0.12) / 0.88
         let darken = max(0, min(11, Int(((1 - dayPart) * 11).rounded())))
@@ -274,7 +274,7 @@ extension Game {
                 world.setBlockAsync(q.x, q.y, q.z, WATER)
                 for d in dirs {
                     let o = IVec3(q.x + d.x, q.y + d.y, q.z + d.z)
-                    if Blocks.groupBase[Int(world.block(o.x, o.y, o.z))] == fi { frostTimers[o] = min(frostTimers[o] ?? 0.05, 0.05) }
+                    if Blocks.groupBase[Int(world.materialAt(o.x, o.y, o.z))] == fi { frostTimers[o] = min(frostTimers[o] ?? 0.05, 0.05) }
                 }
             }
         } else {
@@ -309,7 +309,7 @@ extension Game {
             // Next to water it soaks up a stage every few random ticks (about 20 minutes to hatch); dry, it shrivels back.
             var wet = false
             for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] where !wet {
-                wet = Blocks.fluidKind[Int(world.block(p.x + d.x, p.y + d.y, p.z + d.z))] == 1
+                wet = Blocks.fluidKind[Int(world.builtBlock(p.x + d.x, p.y + d.y, p.z + d.z))] == 1
             }
             if wet && Rand.int(in: 0..<4) == 0 {
                 if st < 3 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }

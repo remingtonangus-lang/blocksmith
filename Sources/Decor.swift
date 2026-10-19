@@ -180,7 +180,7 @@ extension Game {
             for dy in 0..<m.2 { for dx in 0..<m.1 {
                 let q = p + IVec3(right.x * dx, dy, right.z * dx)
                 let wall = q + back
-                if !(world.block(q.x, q.y, q.z) == AIR || q == p) || !Blocks.opaque[Int(world.block(wall.x, wall.y, wall.z))] { ok = false }
+                if !(world.isAir(q.x, q.y, q.z) || q == p) || !world.opaqueAt(wall.x, wall.y, wall.z) { ok = false }
             } }
             if ok { fits.append(i) }
         }

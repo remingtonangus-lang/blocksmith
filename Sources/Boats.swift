@@ -132,14 +132,14 @@ extension Mob {
             let b = w.block(bx, y, bz)
             if Blocks.fluidKind[Int(b)] == 1 {
                 var top = y
-                while Blocks.fluidKind[Int(w.block(bx, top + 1, bz))] == 1 && top < y + 8 { top += 1 }
+                while Blocks.fluidKind[Int(w.builtBlock(bx, top + 1, bz))] == 1 && top < y + 8 { top += 1 }
                 surface = Float(top) + 0.9
                 break
             }
             y -= 1
         }
         let below = w.block(bx, Int(floor(pos.y - 0.05)), bz)
-        let inLava = Blocks.fluidKind[Int(w.block(bx, Int(floor(pos.y + 0.2)), bz))] == 2
+        let inLava = Blocks.fluidKind[Int(w.builtBlock(bx, Int(floor(pos.y + 0.2)), bz))] == 2
         if inLava { health = 0; return }
         // Friction per tick from what is under the boat (reference: water 0.9, land = block slipperiness).
         var friction: Float = 0.05

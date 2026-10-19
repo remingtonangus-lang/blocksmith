@@ -70,7 +70,7 @@ extension Mob {
         let dist = simd_length(player - pos)
         // Heals 1 health every 20 s, every 5 s when wet.
         fireTick += dt
-        let wet = g.isRainingAt(pos) || Blocks.fluidKind[Int(g.world.block(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))] == 1
+        let wet = g.isRainingAt(pos) || Blocks.fluidKind[Int(g.world.builtBlock(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))] == 1
         if fireTick >= (wet ? 5 : 20) { fireTick = 0; health = min(spec.health, health + 1) }
         var goal: V3
         if Items.key(g.held.item) == "snowball" && dist < 16 && g.alive {
@@ -127,7 +127,7 @@ extension Mob {
         let w = g.world
         let inp = g.rideInput
         yaw = g.player.yaw
-        let wet = Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.4)), Int(floor(pos.z))))] == 1
+        let wet = Blocks.fluidKind[Int(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.4)), Int(floor(pos.z))))] == 1
         attackCooldown -= dt
         if wet {
             let target = g.player.look * (5.5 * max(0, inp.forward))

@@ -28,7 +28,7 @@ enum EnemySub {
     static func deep(_ w: World, _ x: Int, _ z: Int) -> (Int, Int)? {
         guard w.isLoaded(x, z), let top = Submarine.surface(w, x, z) else { return nil }
         var y = top
-        while y > 1 && Blocks.fluidKind[Int(w.block(x, y - 1, z))] == 1 { y -= 1 }
+        while y > 1 && Blocks.fluidKind[Int(w.builtBlock(x, y - 1, z))] == 1 { y -= 1 }
         return top - y >= 10 ? (top, y) : nil
     }
 }

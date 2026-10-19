@@ -36,8 +36,8 @@ enum DirectorEvents {
                 let y = w.topY(px, pz)
                 let b = w.block(px, y, pz)
                 guard y > 0, Blocks.collide[Int(b)], !Blocks.isLiquid(b), !Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("_leaves"),
-                      !Blocks.collide[Int(w.block(px, y + 1, pz))], !Blocks.collide[Int(w.block(px, y + 2, pz))],
-                      !Blocks.isLiquid(w.block(px, y + 1, pz)) else { continue }
+                      !w.solidAt(px, y + 1, pz), !w.solidAt(px, y + 2, pz),
+                      !Blocks.isLiquid(w.builtBlock(px, y + 1, pz)) else { continue }
                 return V3(Float(px) + 0.5, Float(y + 1), Float(pz) + 0.5)
             }
         }

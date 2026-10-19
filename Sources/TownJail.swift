@@ -99,7 +99,7 @@ enum Jail {
         lot.p354 = s.info["jailP354"] == 1
         let site = Site(town: Townsfolk.townName(s.anchor.x, s.anchor.z, seed: g.world.seed), lot: lot, geo: geometry(lot))
         let door = site.door(0)
-        guard g.world.isLoaded(door.x, door.z), Blocks.key(Blocks.groupBase[Int(g.world.block(door.x, door.y, door.z))]) == "iron_door" else { return nil }
+        guard g.world.isLoaded(door.x, door.z), Blocks.key(Blocks.groupBase[Int(g.world.materialAt(door.x, door.y, door.z))]) == "iron_door" else { return nil }
         return site
     }
 

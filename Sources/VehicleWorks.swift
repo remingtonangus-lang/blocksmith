@@ -101,7 +101,7 @@ enum VehicleWorks {
         let x0 = Int(floor(c.x)), z0 = Int(floor(c.z)), y0 = Int(floor(c.y))
         for z in (z0 - hz)...(z0 + hz) { for x in (x0 - hx)...(x0 + hx) {
             guard w.isLoaded(x, z) else { return false }
-            for y in y0..<(y0 + footprint.y) where Blocks.collide[Int(w.block(x, y, z))] { return false }
+            for y in y0..<(y0 + footprint.y) where w.solidAt(x, y, z) { return false }
         } }
         return true
     }

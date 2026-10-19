@@ -126,7 +126,7 @@ extension Game {
         let smokeL = Int(Tex.id("smoke"))
         for _ in 0..<n {
             let o = p + V3(Rand.float(in: -12...12), Rand.float(in: -4...10), Rand.float(in: -12...12))
-            if world.block(Int(floor(o.x)), Int(floor(o.y)), Int(floor(o.z))) != AIR { continue }
+            if !world.isAir(Int(floor(o.x)), Int(floor(o.y)), Int(floor(o.z))) { continue }
             var vel = V3(Rand.float(in: -0.15...0.15), 0, Rand.float(in: -0.15...0.15))
             var col = V3(1, 1, 1), glow = false, grav: Float = 0
             switch biome {

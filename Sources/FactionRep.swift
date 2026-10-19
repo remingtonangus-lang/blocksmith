@@ -83,7 +83,7 @@ extension Game {
             let ix = Int(floor(x)), iz = Int(floor(z))
             guard world.isLoaded(ix, iz) else { continue }
             let y = world.topY(ix, iz)
-            guard y > 0, !Blocks.isLiquid(world.block(ix, y, iz)) else { continue }
+            guard y > 0, !Blocks.isLiquid(world.builtBlock(ix, y, iz)) else { continue }
             spot = V3(x, Float(y + 1), z); break
         }
         guard let land = spot else { return }

@@ -89,7 +89,7 @@ enum FactionTests {
         var tops: [Int] = []
         for dz in stride(from: -8, through: 8, by: 4) { for dx in stride(from: -8, through: 8, by: 4) {
             var y = CH - 1
-            while y > 0 && (w.block(cx + dx, y, cz + dz) == 0 || Blocks.isLiquid(w.block(cx + dx, y, cz + dz))) { y -= 1 }
+            while y > 0 && (w.block(cx + dx, y, cz + dz) == 0 || Blocks.isLiquid(w.builtBlock(cx + dx, y, cz + dz))) { y -= 1 }
             tops.append(y)
         } }
         let top = tops.sorted()[tops.count / 2]

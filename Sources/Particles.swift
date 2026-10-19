@@ -169,6 +169,7 @@ final class ParticleManager {
 
     func update(_ dt: Float, _ w: World) {
         let ships = w.ships.any                    // (debris settles on ship decks too: P70)
+        let field = w.fieldTerrain                 // (P377 step 2: on the drawn ground, not its cells)
         for i in list.indices {
             list[i].life -= dt
             list[i].vel.y -= list[i].gravity * dt
@@ -176,7 +177,7 @@ final class ParticleManager {
             if let m = list[i].follow {
                 if m.health <= 0 && m.deathT > 1 { list[i].follow = nil } else { np += m.pos - list[i].followAt; list[i].followAt = m.pos }
             }
-            if list[i].collide && (Blocks.collide[Int(w.block(Int(floor(np.x)), Int(floor(np.y)), Int(floor(np.z))))] || (ships && w.ships.solid(at: np))) {
+            if list[i].collide && (Blocks.collide[Int(w.builtBlock(Int(floor(np.x)), Int(floor(np.y)), Int(floor(np.z))))] || (field && w.fieldDensity(at: np) > 0) || (ships && w.ships.solid(at: np))) {
                 list[i].vel = V3(list[i].vel.x * 0.3, 0, list[i].vel.z * 0.3)
                 np = list[i].pos
             }

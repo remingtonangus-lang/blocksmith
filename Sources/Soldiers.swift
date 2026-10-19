@@ -295,7 +295,7 @@ extension Mob {
     func hannibalJets(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool, speed: Float) -> Float {
         jetCD -= dt
         let b = soldierBrain
-        if jet <= 0 && jetCD <= 0 && aggro && canTarget && onGround && !Blocks.isLiquid(g.world.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))) && dist < 48 && b.reload <= 0 {
+        if jet <= 0 && jetCD <= 0 && aggro && canTarget && onGround && !Blocks.isLiquid(g.world.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))) && dist < 48 && b.reload <= 0 {
             let above = g.player.pos.y - pos.y > 2.5
             if above || dist > 16 || (!b.sees && dist < 32) {
                 jet = Rand.float(in: 3...5)
@@ -743,7 +743,7 @@ extension Mob {
             let x = bx + dx, z = bz + dz
             for dy in [0, 1, -1] {
                 let fy = y + dy
-                guard Blocks.collide[Int(w.block(x, fy - 1, z))], !Blocks.collide[Int(w.block(x, fy, z))], !Blocks.collide[Int(w.block(x, fy + 1, z))] else { continue }
+                guard w.solidAt(x, fy - 1, z), !w.solidAt(x, fy, z), !w.solidAt(x, fy + 1, z) else { continue }
                 let spot = V3(Float(x) + 0.5, Float(fy), Float(z) + 0.5)
                 spots.append((simd_length(spot - pos), spot))
                 break
@@ -976,7 +976,7 @@ extension Game {
         repSoldierKilled(m)                                            // O3: the faction remembers (FactionRep.swift)
         // P236: corsairs killed at sea (you or they aboard or by a sloop, or in the water) may come for your home once.
         if m.killedByPlayer && m.factionValue == .corsairs
-            && (world.ships.aboard != nil || Blocks.isLiquid(world.block(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z)))) || world.ships.list.contains { $0.role == "sloop" && simd_length($0.pos - m.pos) < 40 }) {
+            && (world.ships.aboard != nil || Blocks.isLiquid(world.builtBlock(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z)))) || world.ships.list.contains { $0.role == "sloop" && simd_length($0.pos - m.pos) < 40 }) {
             FactionRaids.owe("corsairs", .corsairs, chance: 0.5, clock: clock)
         }
         let at = m.pos + V3(0, 0.6, 0)

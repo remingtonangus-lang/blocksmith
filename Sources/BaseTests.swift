@@ -81,7 +81,7 @@ enum BaseTests {
             // (G12 moved the test citadel to one with no way on 40 blocks south of its gate).
             func walkable(_ dx: Float, _ dz: Float) -> Bool {
                 let to = V3(gate.x + dx, g.standY(gate.x + dx, gate.z + dz, from: gate.y + 10), gate.z + dz)
-                if Blocks.isLiquid(g.world.block(Int(floor(to.x)), Int(to.y), Int(floor(to.z)))) { return false }
+                if Blocks.isLiquid(g.world.builtBlock(Int(floor(to.x)), Int(to.y), Int(floor(to.z)))) { return false }
                 return PathFinder.find(g.world, from: gate, to: to, tall: 2, maxNodes: 8000) != nil
             }
             var shotDX: Float = 6, shotDZ: Float = 40
@@ -114,7 +114,7 @@ enum BaseTests {
                     for i in 0...n {
                         let q = from + d * (Float(i) / Float(max(1, n)))
                         if simd_length(q - target) < 1.5 { break }
-                        if Blocks.collide[Int(g.world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { return false }
+                        if g.world.solidAt(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { return false }
                     }
                     return true
                 }
@@ -240,14 +240,14 @@ enum BaseTests {
             let P1 = y0 + 4
             let stone = Blocks.has("capital_stone") ? Blocks.id("capital_stone") : STONE
             var wall = IVec3(cx + 6, P1 + 3, cz + 22)
-            for dz in 10...40 where w.block(cx, P1 + 2, cz + dz) == stone && w.block(cx, P1 + 2, cz + dz + 1) == AIR {
+            for dz in 10...40 where w.block(cx, P1 + 2, cz + dz) == stone && w.isAir(cx, P1 + 2, cz + dz + 1) {
                 wall = IVec3(cx, P1 + 3, cz + dz); break
             }
             var before: [IVec3: BlockID] = [:]
             for dz in -4...4 { for dy in -4...4 { for dx in -4...4 { let p = IVec3(wall.x + dx, wall.y + dy, wall.z + dz); before[p] = w.block(p.x, p.y, p.z) } } }
             // Power 5: Capital stone (resistance 9) takes 2.8 of a ray's strength per block.
             Explosion.explode(at: V3(Float(wall.x) + 0.5, Float(wall.y) + 0.5, Float(wall.z) + 1.2), power: 5, game: g)
-            let holes = before.filter { $0.value != AIR && w.block($0.key.x, $0.key.y, $0.key.z) == AIR }.map { $0.key }
+            let holes = before.filter { $0.value != AIR && w.isAir($0.key.x, $0.key.y, $0.key.z) }.map { $0.key }
             check(holes.count >= 8, "the blast opened the wall", "\(holes.count) blocks gone")
             // A wreck block left in the crater (another stream's wrecks): the rebuild must not overwrite it.
             let wreck = holes.max { $0.y < $1.y } ?? wall

@@ -110,7 +110,7 @@ enum GreywallTests {
 
         // The keep where the plan puts it.
         let kx = t.keepX, kz = t.keepZ, kc = t.keepC
-        let floorKey = Blocks.key(world.block(cx, S, cz + kc))
+        let floorKey = Blocks.key(world.materialAt(cx, S, cz + kc))
         check(floorKey == "bunker_floor", "\(tag): the keep's floor where the plan puts it (\(floorKey))")
 
         // Walk in from outside the gate.
@@ -354,11 +354,11 @@ enum GreywallTests {
         // Shot up: damaged (slower wind-up), then a wreck.
         let at = V3(Float(tp.x) + 0.5, Float(tp.y) + 0.5, Float(tp.z) + 0.9)
         for _ in 0..<GreywallAlarmState.turretHits { _ = g.greywallBlockShot(tp, g.world.block(tp.x, tp.y, tp.z), at: at) }
-        let dmgKey = Blocks.key(Blocks.groupBase[Int(g.world.block(tp.x, tp.y, tp.z))])
+        let dmgKey = Blocks.key(Blocks.groupBase[Int(g.world.materialAt(tp.x, tp.y, tp.z))])
         g.greywallAlarm.guns[tp] = nil
         let d = run(3)
         for _ in 0..<GreywallAlarmState.turretHits { _ = g.greywallBlockShot(tp, g.world.block(tp.x, tp.y, tp.z), at: at) }
-        let wreckKey = Blocks.key(Blocks.groupBase[Int(g.world.block(tp.x, tp.y, tp.z))])
+        let wreckKey = Blocks.key(Blocks.groupBase[Int(g.world.materialAt(tp.x, tp.y, tp.z))])
         let w = run(3)
         check(dmgKey == "wall_turret_damaged" && d.first > a.first + 0.3 && wreckKey == "wall_turret_wreck" && w.shots == 0,
               String(format: "greywall turret: six hits leave it %@ (wind-up %.2f s), six more a %@ that fires %d rounds", dmgKey, d.first, wreckKey, w.shots))

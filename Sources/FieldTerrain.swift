@@ -158,7 +158,7 @@ enum FieldTerrain {
             fm[i] = m; fd[i] = inside; b[i] = AIR; top = i
         }
         if StructureCache.traceKinds && kept > 0 {           // (harness: natural rock a structure built, kept as blocks)
-            StructureCache.kindsLock.lock(); keptBuilt[ChunkKey(x: cx, z: cz), default: 0] += kept; StructureCache.kindsLock.unlock()
+            StructureCache.kindsLock.lock(); keptBuilt[ChunkKey(x: cx, z: cz)] = kept; StructureCache.kindsLock.unlock()
         }
         let topY = min(CH - 1, top / CSQ + 1)
         let wg = gen as? WorldGen
@@ -657,7 +657,7 @@ extension World {
             let p0 = g.player.pos
             for f in 0..<120 {
                 g.player.update(dt: 1.0 / 30, input: MoveInput(forward: 1), world: w)
-                if f % 3 == 0, g.player.onGround, !Blocks.collide[Int(w.block(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.y - 0.3)), Int(floor(g.player.pos.z))))] || w.fieldNear(g.player.pos),
+                if f % 3 == 0, g.player.onGround, !w.solidAt(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.y - 0.3)), Int(floor(g.player.pos.z))) || w.fieldNear(g.player.pos),
                    let s = surface(g.player.pos) {
                     let gap = g.player.pos.y - s
                     worst = max(worst, abs(gap)); sum += abs(gap); signed += gap; n += 1

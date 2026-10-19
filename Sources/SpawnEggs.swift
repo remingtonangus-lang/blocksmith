@@ -146,7 +146,7 @@ extension Game {
         }
         guard let t = t else { return false }
         let p = t.hit + t.normal
-        let solid = Blocks.collide[Int(world.block(t.hit.x, t.hit.y, t.hit.z))]
+        let solid = world.solidAt(t.hit.x, t.hit.y, t.hit.z)
         let y = Float(solid ? p.y : t.hit.y)
         let m = Mob(kind, at: V3(Float(p.x) + 0.5, y, Float(p.z) + 0.5))
         m.persistent = kind.category != .creature

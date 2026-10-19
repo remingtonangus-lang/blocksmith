@@ -223,8 +223,8 @@ enum HandGrab {
         let step = d / l * (l - lead)
         let nx = m.pos.x + step.x, nz = m.pos.z + step.y
         // A boat on the water is towed across it at its own height (H12).
-        if m.kind == .boat && Blocks.isLiquid(g.world.block(Int(floor(nx)), Int(floor(m.pos.y + 0.2)), Int(floor(nz)))) {
-            if !Blocks.collide[Int(g.world.block(Int(floor(nx)), Int(floor(m.pos.y + 0.5)), Int(floor(nz))))] {
+        if m.kind == .boat && Blocks.isLiquid(g.world.builtBlock(Int(floor(nx)), Int(floor(m.pos.y + 0.2)), Int(floor(nz)))) {
+            if !g.world.solidAt(Int(floor(nx)), Int(floor(m.pos.y + 0.5)), Int(floor(nz))) {
                 m.pos = V3(nx, m.pos.y, nz); m.yaw = atan2f(-step.x, -step.y)
             }
             return
@@ -240,7 +240,7 @@ enum HandGrab {
         var y = Int(floor(m.pos.y + 1.2))
         while y > Int(floor(m.pos.y)) - 3 {
             let b = g.world.block(x, y - 1, z)
-            if Blocks.collide[Int(b)] && !Blocks.collide[Int(g.world.block(x, y, z))] { break }
+            if Blocks.collide[Int(b)] && !g.world.solidAt(x, y, z) { break }
             y -= 1
         }
         guard y > Int(floor(m.pos.y)) - 3 else { return }                 // over a drop: it stays at the edge

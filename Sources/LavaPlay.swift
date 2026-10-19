@@ -43,7 +43,7 @@ extension Game {
         for y in (c.y + 1)...top {
             for (dx, dz) in [(-1, -1), (-1, 1), (1, -1), (1, 1)] {
                 let x = Int(floor(p.x + Float(dx) * (player.halfW - 0.01))), z = Int(floor(p.z + Float(dz) * (player.halfW - 0.01)))
-                if Blocks.collide[Int(world.block(x, y, z))] { return false }
+                if world.solidAt(x, y, z) { return false }
             }
         }
         player.pos = p

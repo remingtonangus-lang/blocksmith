@@ -77,7 +77,7 @@ enum NavyTests {
         // (a stone floor under them: it bursts where it lands)
         let fy = Int(floor(g.player.pos.y)) - 1, fx = Int(floor(g.player.pos.x)), fz = Int(floor(g.player.pos.z))
         var floor: [IVec3] = []
-        for z in (fz - 12)...(fz + 1) { for x in (fx - 3)...(fx + 3) where g.world.block(x, fy, z) == AIR { g.world.setBlock(x, fy, z, STONE); floor.append(IVec3(x, fy, z)) } }
+        for z in (fz - 12)...(fz + 1) { for x in (fx - 3)...(fx + 3) where g.world.isAir(x, fy, z) { g.world.setBlock(x, fy, z, STONE); floor.append(IVec3(x, fy, z)) } }
         defer { for q in floor { g.world.setBlock(q.x, q.y, q.z, AIR) } }
         let tgt = aegis(g, g.player.pos + V3(0, 0, -5))
         g.mobs.mobs = [tgt]
@@ -131,7 +131,7 @@ enum NavyTests {
         w.ships.boardingParty(s, st, 0.05, g)
         let wet = st.parties
         let px = Int(floor(g.player.pos.x)), pz = Int(floor(g.player.pos.z)), ty = w.topY(px, pz)
-        let overWater = Blocks.isLiquid(w.block(px, ty, pz))
+        let overWater = Blocks.isLiquid(w.builtBlock(px, ty, pz))
         for dz in -8...8 { for dx in -8...8 { w.setBlock(px + dx, ty, pz + dz, STONE) } }
         g.player.pos.y = Float(ty + 1)
         st.parties = 0

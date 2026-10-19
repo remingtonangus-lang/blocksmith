@@ -164,7 +164,7 @@ extension MobTests {
         let rocketOut = game.arms.slugs.contains { $0.kind == .rocket }
         trigger(1.5, fire: false)
         var holes = 0
-        for x in (x0 - 2)...(x0 + 2) { for y in gy..<(gy + 4) where world.block(x, y, z0 - 20) == AIR { holes += 1 } }
+        for x in (x0 - 2)...(x0 + 2) { for y in gy..<(gy + 4) where world.isAir(x, y, z0 - 20) { holes += 1 } }
         check(rocketOut && !game.arms.slugs.contains { $0.kind == .rocket } && holes > 0, "rocket explodes on a wall", "\(holes) blocks blown out")
         for x in (x0 - 2)...(x0 + 2) { for y in gy..<(gy + 4) { world.setBlockAsync(x, y, z0 - 20, AIR) } }
         game.drops.items.removeAll()
@@ -387,12 +387,12 @@ extension MobTests {
         let zb = Mob(.zombie, at: V3(Float(ex) + 0.5, Float(gy), Float(ez) + 1.2))
         zb.jobTimer = 0
         var tt: Float = 0
-        while tt < 6 && Blocks.groupBase[Int(world.block(ex, gy, ez))] == Blocks.id("turtle_egg") {
+        while tt < 6 && Blocks.groupBase[Int(world.materialAt(ex, gy, ez))] == Blocks.id("turtle_egg") {
             zb.attackCooldown -= 0.05
             _ = zb.trampleEggs(0.05, game)
             tt += 0.05
         }
-        check(world.block(ex, gy, ez) == AIR, "zombies trample turtle eggs", String(format: "%.1f s", tt))
+        check(world.isAir(ex, gy, ez), "zombies trample turtle eggs", String(format: "%.1f s", tt))
         // Steel stairs: soldiers can path up a fortress stair run to the next floor.
         let sx = x0 - 7
         let stairs = Blocks.has("steel_plating_stairs") ? Blocks.id("steel_plating_stairs") : STONE

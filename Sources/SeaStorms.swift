@@ -62,7 +62,7 @@ enum SeaStorms {
             crestAcc -= 1; tries += 1
             let a = Rand.float(in: 0..<(2 * .pi)), d = Rand.float(in: 3...14)
             let x = Int(floor(pp.x + cosf(a) * d)), z = Int(floor(pp.z + sinf(a) * d))
-            guard g.world.block(x, SEA, z) == WATER, g.world.block(x, SEA + 1, z) == AIR else { continue }
+            guard g.world.block(x, SEA, z) == WATER, g.world.isAir(x, SEA + 1, z) else { continue }
             let fx = Float(x) + Rand.float(in: 0..<1), fz = Float(z) + Rand.float(in: 0..<1)
             let lift: Float = Game.oceanSwellDrawn ? OceanSwell.height(fx, fz, t) * g.weather.swell : 0
             spray(g, at: V3(fx, Float(SEA) + 0.9 + lift, fz), push: V3(0, 0, 0), count: 4)

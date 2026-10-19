@@ -212,7 +212,7 @@ enum BountyHunters {
             let ground = w.block(x, top, z)
             // Open ground on the surface, on his level: not water, not a tree's crown, not a cave or under a roof, not a
             // cliff top over a ravine he's in.
-            guard Blocks.collide[Int(ground)], !Blocks.isLiquid(ground), !Blocks.isLiquid(w.block(x, y, z)),
+            guard Blocks.collide[Int(ground)], !Blocks.isLiquid(ground), !Blocks.isLiquid(w.builtBlock(x, y, z)),
                   !Blocks.key(Blocks.groupBase[Int(ground)]).hasSuffix("_leaves"),
                   w.lightAt(x, y, z).sky >= 12, abs(Float(y) - pp.y) < 12 else { continue }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)

@@ -157,7 +157,7 @@ enum Tracking {
     static func snaredStep(_ m: Mob, _ g: Game) -> Bool {
         guard Blocks.has(snareKey) else { return false }
         let x = Int(floor(m.pos.x)), y = Int(floor(m.pos.y + 0.1)), z = Int(floor(m.pos.z))
-        guard g.world.block(x, y, z) == Blocks.id(snareKey) else { return false }
+        guard g.world.builtBlock(x, y, z) == Blocks.id(snareKey) else { return false }
         if m.kind == .elk || m.kind == .bison {
             g.world.setBlock(x, y, z, AIR)
             g.sfx(.itemBreak, 0.6, at: m.pos)

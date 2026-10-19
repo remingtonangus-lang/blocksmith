@@ -210,7 +210,7 @@ extension Mob {
             scuteTimer -= dt
             if scuteTimer <= 0 && onGround {
                 scuteTimer = Rand.float(in: 120...240)
-                let under = Blocks.key(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.5)), Int(floor(pos.z))))
+                let under = Blocks.key(w.materialAt(Int(floor(pos.x)), Int(floor(pos.y - 0.5)), Int(floor(pos.z))))
                 if ["grass_block", "dirt", "podzol", "coarse_dirt", "rooted_dirt", "moss_block", "mud", "muddy_mangrove_roots"].contains(under) {
                     let seed = Rand.bool() ? "torchflower_seeds" : "pitcher_pod"
                     if Items.has(seed) { g.drops.spawn(ItemStack(Items.id(seed), 1), at: pos + forward * 1.2) }
@@ -333,7 +333,7 @@ extension Mob {
                    let leader = g.mobs.mobs.first(where: { $0 !== self && $0.kind == kind && simd_length($0.pos - pos) < 8 }) {
                     t = leader.pos + V3(Rand.float(in: -1.5...1.5), Rand.float(in: -1...1), Rand.float(in: -1.5...1.5))
                 }
-                if Blocks.fluidKind[Int(w.block(Int(floor(t.x)), Int(floor(t.y)), Int(floor(t.z))))] == 1 { flyTarget = t }
+                if Blocks.fluidKind[Int(w.builtBlock(Int(floor(t.x)), Int(floor(t.y)), Int(floor(t.z))))] == 1 { flyTarget = t }
             }
             let player = g.player.pos
             let dist = simd_length(player - pos)
@@ -406,7 +406,7 @@ extension Mob {
         if hit.z { vel.z = 0; flyTarget = nil }
         if hit.y { if vel.y < 0 { onGround = true }; vel.y = 0 } else { onGround = false }
         // Keep swimmers under the surface.
-        if inWater && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + height + 0.2)), Int(floor(pos.z))))] != 1 { vel.y = min(vel.y, -0.5) }
+        if inWater && Blocks.fluidKind[Int(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + height + 0.2)), Int(floor(pos.z))))] != 1 { vel.y = min(vel.y, -0.5) }
         walkPhase += (simd_length(vel) + 0.5) * dt * 4
         walkAmount = 1
     }

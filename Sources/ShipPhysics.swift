@@ -103,12 +103,12 @@ struct ShipBlockReader {
         let x = Int(floor(p.x)), z = Int(floor(p.z))
         var y = Int(floor(p.y))
         let fk = Blocks.fluidKind
-        if fk[Int(get(x, y, z))] == 1 {
+        if fk[Int(raw(x, y, z))] == 1 {
             var k = 0
-            while k < 6 && fk[Int(get(x, y + 1, z))] == 1 { y += 1; k += 1 }
+            while k < 6 && fk[Int(raw(x, y + 1, z))] == 1 { y += 1; k += 1 }
             return Float(y) + 0.875 + (k == 6 ? 4 : 0)
         }
-        for d in 1...2 where fk[Int(get(x, y - d, z))] == 1 { return Float(y - d) + 0.875 }
+        for d in 1...2 where fk[Int(raw(x, y - d, z))] == 1 { return Float(y - d) + 0.875 }
         return nil
     }
 }

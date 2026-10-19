@@ -147,7 +147,7 @@ extension Game {
         var t: Float = 1
         while t < len {
             let q = eye + dir * t
-            if Blocks.opaque[Int(world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { return dir * max(0, t - 1) }
+            if world.opaqueAt(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { return dir * max(0, t - 1) }
             t += 0.5
         }
         return want

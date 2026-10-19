@@ -141,9 +141,9 @@ extension Game {
         world.redstone.vibrate(at: at, freq: 14)                      // W9: lightning
         if Circuit.kind(world.block(b.x, b.y - 1, b.z)) == .lightningRod {
             world.redstone.rodStruck(IVec3(b.x, b.y - 1, b.z))
-        } else if world.block(b.x, b.y, b.z) == AIR && Blocks.opaque[Int(world.block(b.x, b.y - 1, b.z))] && Blocks.flammable[Int(world.block(b.x, b.y - 1, b.z))] == false {
+        } else if world.isAir(b.x, b.y, b.z) && world.opaqueAt(b.x, b.y - 1, b.z) && Blocks.flammable[Int(world.block(b.x, b.y - 1, b.z))] == false {
             world.placeFire(b)
-        } else if world.block(b.x, b.y, b.z) == AIR { world.placeFire(b) }
+        } else if world.isAir(b.x, b.y, b.z) { world.placeFire(b) }
         // Whichever player stands under it (split screen: player 2 too).
         coop.eachSeat(self) {
             guard self.survival && simd_length(at - self.player.pos) < 3 else { return }
@@ -178,7 +178,7 @@ extension Game {
             let x = c.cx * CS + lx, z = c.cz * CS + lz
             let y = Int(c.height[lx + lz * CS])
             guard y > 0 && y < CH - 1 else { continue }
-            let top = world.block(x, y, z)
+            let top = world.materialAt(x, y, z)
             let biome = world.gen.column(x, z).biome
             guard Seasons.snows(biome, at: y) else {
                 seasonalMelt(x, y, z, top, biome)            // C9: seasonal snow and ice melt
@@ -190,13 +190,13 @@ extension Game {
             }
             // Water surfaces freeze (not next to light); snow settles while it snows.
             // Water freezes from the shore inwards: a source with some side that isn't water (reference).
-            let shore = world.block(x + 1, y, z) != WATER || world.block(x - 1, y, z) != WATER || world.block(x, y, z + 1) != WATER || world.block(x, y, z - 1) != WATER
+            let shore = world.materialAt(x + 1, y, z) != WATER || world.materialAt(x - 1, y, z) != WATER || world.materialAt(x, y, z + 1) != WATER || world.materialAt(x, y, z - 1) != WATER
             // P277: the sea doesn't freeze with the seasons (only where it is cold all year): winter's floes were left
             // lying out on the open water in spring.
             let sea = biome.isOcean && Seasons.seasonal(biome, at: y)
             if top == WATER, shore, !sea, let ice = iceId, world.lightAt(x, y + 1, z).block < 10 {
                 world.setBlockAsync(x, y, z, ice)
-            } else if weather.rain > 0.5, let sn = snowId, world.block(x, y + 1, z) == AIR,
+            } else if weather.rain > 0.5, let sn = snowId, world.materialAt(x, y + 1, z) == AIR,
                       Blocks.opaque[Int(top)] || Blocks.key(top).hasSuffix("_leaves"), world.lightAt(x, y + 1, z).block < 10 {
                 world.setBlockAsync(x, y + 1, z, sn)
             }

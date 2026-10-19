@@ -58,8 +58,8 @@ enum Submarine {
     // The water surface in a column (array y of the top water block), or nil when the top isn't water 4+ deep.
     static func surface(_ w: World, _ x: Int, _ z: Int) -> Int? {
         let top = w.topY(x, z)
-        for y in stride(from: min(CH - 1, top + 2), through: max(1, top - 2), by: -1) where Blocks.fluidKind[Int(w.block(x, y, z))] == 1 {
-            for d in 1...4 where Blocks.fluidKind[Int(w.block(x, y - d, z))] != 1 { return nil }
+        for y in stride(from: min(CH - 1, top + 2), through: max(1, top - 2), by: -1) where Blocks.fluidKind[Int(w.builtBlock(x, y, z))] == 1 {
+            for d in 1...4 where Blocks.fluidKind[Int(w.builtBlock(x, y - d, z))] != 1 { return nil }
             return y
         }
         return nil

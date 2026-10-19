@@ -201,7 +201,7 @@ extension Game {
 
     func fillGate(_ k: StructureStart) {
         let v = Blocks.id(DeepGates.veilKey)
-        for c in DeepGates.veil(k) where world.isLoaded(c.x, c.z) && world.block(c.x, c.y, c.z) == AIR { world.setBlock(c.x, c.y, c.z, v) }
+        for c in DeepGates.veil(k) where world.isLoaded(c.x, c.z) && world.isAir(c.x, c.y, c.z) { world.setBlock(c.x, c.y, c.z, v) }
     }
 
     // Once a tick in the Deep (deepTick): woken gates refill as they load, and the player stepping into a veil or onto a
@@ -217,7 +217,7 @@ extension Game {
         let f = player.pos
         let x = Int(floor(f.x)), y = Int(floor(f.y + 0.1)), z = Int(floor(f.z))
         let veil = Blocks.id(DeepGates.veilKey), lift = Blocks.id(DeepGates.liftKey)
-        if world.block(x, y, z) == veil || world.block(x, y + 1, z) == veil {
+        if world.builtBlock(x, y, z) == veil || world.builtBlock(x, y + 1, z) == veil {
             // Stand in it a moment to ride (the gate stands on the north path: walking through doesn't send you home).
             // P328 (NO TEXT): the gate answers as you step in (its trigger whoosh, flames rising round you), no toast.
             if gateHold == 0 { sfx(.portalTrigger, 0.6, at: f) }
@@ -230,8 +230,8 @@ extension Game {
             return
         }
         gateHold = 0
-        if world.block(x, y, z) == lift || (world.block(x, y - 1, z) == lift && f.y - Float(y) < 0.3) {
-            rideUp(from: V3(Float(x) + 0.5, Float(world.block(x, y, z) == lift ? y : y - 1) + 0.25, Float(z) + 1.5), how: "The Hell Lift carries you up to the surface")
+        if world.builtBlock(x, y, z) == lift || (world.builtBlock(x, y - 1, z) == lift && f.y - Float(y) < 0.3) {
+            rideUp(from: V3(Float(x) + 0.5, Float(world.builtBlock(x, y, z) == lift ? y : y - 1) + 0.25, Float(z) + 1.5), how: "The Hell Lift carries you up to the surface")
         }
     }
 
@@ -267,13 +267,13 @@ extension Game {
         var land = to
         let bx = Int(floor(to.x)), by = Int(floor(to.y)), bz = Int(floor(to.z))
         func open(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-            !Blocks.collide[Int(world.block(x, y, z))] && !Blocks.collide[Int(world.block(x, y + 1, z))] && Blocks.collide[Int(world.block(x, y - 1, z))]
+            !world.solidAt(x, y, z) && !world.solidAt(x, y + 1, z) && world.solidAt(x, y - 1, z)
         }
         search: for r in 0...3 { for dy in [0, 1, -1, 2] { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
             if open(bx + dx, by + dy, bz + dz) { land = V3(Float(bx + dx) + 0.5, Float(by + dy), Float(bz + dz) + 0.5); break search }
         } } } }
         if land == to && !open(bx, by, bz) {
-            for y in by...(by + 1) where Blocks.collide[Int(world.block(bx, y, bz))] { world.setBlock(bx, y, bz, AIR) }
+            for y in by...(by + 1) where world.solidAt(bx, y, bz) { world.setBlock(bx, y, bz, AIR) }
         }
         player.pos = land
         player.vel = .zero

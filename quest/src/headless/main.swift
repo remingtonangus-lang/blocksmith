@@ -596,7 +596,7 @@ if let path = arg("--notespots") {
     }
     World.lodNear = 99; World.leafNear = 99; World.deterministic = true
     FieldTerrain.newWorlds = true
-    StructureCache.traceKinds = CommandLine.arguments.contains("--trace")
+    StructureCache.traceKinds = true                     // (natural rock a structure built, to tell buildings from ground)
     var cubesTotal = 0, readsTotal = 0, bad: [String] = []
     var cur: (key: String, w: World, g: Game)? = nil
     let limit = Int(arg("--limit") ?? "") ?? Int.max
@@ -604,6 +604,7 @@ if let path = arg("--notespots") {
         let key = sp.seed + "/" + sp.dim
         if cur?.key != key {
             let dim: Dim = sp.dim == "Hell" ? .deep : (sp.dim == "The Emberdeep" ? .nether : (sp.dim == "The Hollow" ? .end : .overworld))
+            FieldTerrain.keptBuilt = [:]; StructureCache.kinds = [:]
             let w = World(seed: UInt64(sp.seed) ?? 0, device: device, save: nil, dim: dim)
             w.makeFieldWorld()
             w.renderDistance = 3; w.activeDistance = 3
@@ -633,8 +634,19 @@ if let path = arg("--notespots") {
             guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
             for s in c.sections { cubes += s.naturalCubes }
         } }
-        // (--trace: which natural blocks the built layer draws as cubes here)
-        if CommandLine.arguments.contains("--trace") && cubes > 0 {
+        // Ground left in the built layer that no structure built (any is a generation path that kept ground as cells):
+        // counted as ground drawn as cubes too.
+        var unbuilt = 0
+        for dz in -2...2 { for dx in -2...2 {
+            let k = ChunkKey(x: pcx + dx, z: pcz + dz)
+            guard let c = w.chunks[k] else { continue }
+            var g = 0
+            for i in 0..<(CSQ * CH) where FieldMat.index[Int(c.blocks.raw(i))] != 0 { g += 1 }
+            unbuilt += max(0, g - (FieldTerrain.keptBuilt[k] ?? 0))
+        } }
+        cubes += unbuilt
+        // (--trace: which natural blocks the built layer holds here)
+        if CommandLine.arguments.contains("--trace") {
             var keys: [String: Int] = [:], ground = 0, kept = 0
             var kinds = Set<String>()
             for dz in -2...2 { for dx in -2...2 {

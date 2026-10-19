@@ -181,8 +181,8 @@ enum MainGunTests {
             for dz in stride(from: -14, through: 14, by: 2) { for dx in stride(from: -14, through: 14, by: 2) where dx * dx + dz * dz <= 196 {
                 let x = Int(floor(c.x)) + dx, z = Int(floor(c.z)) + dz
                 var y = CH - 1
-                while y > 0 && w.block(x, y, z) == AIR { y -= 1 }
-                if Blocks.isLiquid(w.block(x, y, z)) { wet += 1 }
+                while y > 0 && w.isAir(x, y, z) { y -= 1 }
+                if Blocks.isLiquid(w.builtBlock(x, y, z)) { wet += 1 }
             } }
             return wet
         }

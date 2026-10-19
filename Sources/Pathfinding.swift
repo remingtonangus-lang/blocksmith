@@ -491,7 +491,7 @@ extension Mob {
         }
         let moved = simd_length(target - path.goal) > 1.5
         let done = path.index >= path.nodes.count
-        let climbing = PathFinder.climbable(w.block(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))
+        let climbing = PathFinder.climbable(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))
         if path.search == nil && (repath || climbing) && path.timer <= 0 && (moved || done || path.timer < -3) && PathFinder.budget > 0 && (Rand.deterministic || PathFinder.spent < PathFinder.slice) {
             PathFinder.budget -= 1
             let t0 = CFAbsoluteTimeGetCurrent()

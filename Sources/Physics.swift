@@ -36,7 +36,7 @@ extension Game {
         for dz in -1...1 { for dy in -1...1 { for dx in -1...1 {
             let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
             let s = Blocks.shape[Int(world.block(q.x, q.y, q.z))]
-            if (s == "door" || s == "trapdoor" || s == "gate") && !Blocks.key(world.block(q.x, q.y, q.z)).hasPrefix("iron_") { toggleOpenable(q) }
+            if (s == "door" || s == "trapdoor" || s == "gate") && !Blocks.key(world.materialAt(q.x, q.y, q.z)).hasPrefix("iron_") { toggleOpenable(q) }
         } } }
     }
 
@@ -101,7 +101,7 @@ extension Game {
 
     // After placing a block: sponge / concrete powder reactions.
     func placedReactions(_ p: IVec3) {
-        let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
+        let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
         if k == "sponge" { spongeAbsorb(p) }
         if k.hasSuffix("_concrete_powder") { hardenConcrete(p) }
         if k == "wet_sponge" && dim.dim.ultrawarm {
@@ -116,14 +116,14 @@ extension Game {
         let below = IVec3(feet.x, Int(floor(player.pos.y - 0.05)), feet.z)
         let snow = Blocks.id("powder_snow")
         let boots = ["leather_boots", "fur_boots"].contains(Items.key(inventory.armor[3].item))
-        if boots && world.block(below.x, below.y, below.z) == snow && player.vel.y <= 0 && world.block(feet.x, feet.y, feet.z) != snow {
+        if boots && world.builtBlock(below.x, below.y, below.z) == snow && player.vel.y <= 0 && world.builtBlock(feet.x, feet.y, feet.z) != snow {
             player.pos.y = Float(below.y + 1)
             player.vel.y = 0
             player.onGround = true
             player.airPeak = player.pos.y
             achieve("powder_walk")
         }
-        let inside = world.block(feet.x, feet.y, feet.z) == snow || world.block(feet.x, feet.y + 1, feet.z) == snow
+        let inside = world.builtBlock(feet.x, feet.y, feet.z) == snow || world.builtBlock(feet.x, feet.y + 1, feet.z) == snow
         if inside {
             player.vel.y = max(player.vel.y, -1.5)
             if !boots { player.airPeak = player.pos.y }

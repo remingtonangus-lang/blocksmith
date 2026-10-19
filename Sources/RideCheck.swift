@@ -628,7 +628,7 @@ enum RideCheck {
                                     var bs: [(V3, V3)] = []
                                     w.collisionBoxes(x, y, z, &bs)
                                     for (a, b) in bs where a.x < mh.x && b.x > ml.x && a.y < mh.y && b.y > ml.y && a.z < mh.z && b.z > ml.z {
-                                        near.append("\(Blocks.key(w.block(x, y, z))) at \(x),\(y),\(z) box \(a)-\(b)")
+                                        near.append("\(Blocks.key(w.materialAt(x, y, z))) at \(x),\(y),\(z) box \(a)-\(b)")
                                     }
                                 } } }
                                 w.frame = nil

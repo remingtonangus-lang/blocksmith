@@ -30,7 +30,7 @@ enum BaseSecurity {
 
     // Game.openBlock: true when the door stays shut.
     static func refuse(_ g: Game, _ p: IVec3) -> Bool {
-        guard Blocks.key(Blocks.groupBase[Int(g.world.block(p.x, p.y, p.z))]) == "bulkhead_door", g.survival,
+        guard Blocks.key(Blocks.groupBase[Int(g.world.materialAt(p.x, p.y, p.z))]) == "bulkhead_door", g.survival,
               let key = lockedDoor(g, p), !g.bases.greywall.taken.contains(key) else { return false }
         if Items.has(card) && g.inventory.main.countOf(Items.id(card)) > 0 {
             if !cardTold { cardTold = true; g.onToast?("Keycard accepted") }

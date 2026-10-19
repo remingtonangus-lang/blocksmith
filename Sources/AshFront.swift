@@ -498,7 +498,7 @@ enum AshFallen {
         guard g.world.isLoaded(ix, iz) else { return nil }
         let t = dg.ground.top(ix, iz)
         var y = -1
-        for yy in stride(from: t + 6, through: max(1, t - 6), by: -1) where Blocks.collide[Int(g.world.block(ix, yy, iz))] { y = yy + 1; break }
+        for yy in stride(from: t + 6, through: max(1, t - 6), by: -1) where g.world.solidAt(ix, yy, iz) { y = yy + 1; break }
         guard y > 0 else { return nil }
         let m = Mob(.soldierTrooper, at: V3(x, Float(y), z))
         m.fallen = true

@@ -65,7 +65,7 @@ extension Game {
         guard Blocks.collide[Int(b)], Blocks.fluidKind[Int(b)] == 0, b != Game.hellMagma else { return false }
         let up = world.block(x, y + 1, z)
         guard up != FIRE && up != Game.hellSoulFire else { return false }
-        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.fluidKind[Int(world.block(x + dx, y + 1, z + dz))] != 0 { return false }
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.fluidKind[Int(world.builtBlock(x + dx, y + 1, z + dz))] != 0 { return false }
         return true
     }
     static let hellMagma = Blocks.id("magma_block")

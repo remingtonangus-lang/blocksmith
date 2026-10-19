@@ -59,7 +59,7 @@ final class ChairSeat {
         if key.hasSuffix("_stool") { return 10 / 16 }
         return nil
     }
-    static func key(_ w: World, _ p: IVec3) -> String { Blocks.key(Blocks.groupBase[Int(w.block(p.x, p.y, p.z))]) }
+    static func key(_ w: World, _ p: IVec3) -> String { Blocks.key(Blocks.groupBase[Int(w.materialAt(p.x, p.y, p.z))]) }
 
     // The way a seat's sitter faces (yaw), from its facing state (0 north ... 3 east; a stool: as he came).
     static func facingYaw(_ w: World, _ p: IVec3, else yaw: Float) -> Float {
@@ -73,7 +73,7 @@ final class ChairSeat {
     func sit(_ g: Game, _ p: IVec3) {
         guard g.riding == nil, ChairSeat.seatTop(ChairSeat.key(g.world, p)) != nil else { return }
         // Nothing solid over the seat (a chair under a slab is still a chair; a block on it is not).
-        guard !Blocks.collide[Int(g.world.block(p.x, p.y + 1, p.z))] else { return }
+        guard !g.world.solidAt(p.x, p.y + 1, p.z) else { return }
         at = p
         ready = false
         g.player.yaw = ChairSeat.facingYaw(g.world, p, else: g.player.yaw)
@@ -105,7 +105,7 @@ final class ChairSeat {
         let w = g.world
         let yaw = ChairSeat.facingYaw(w, p, else: g.player.yaw)
         let f = IVec3(p.x + Int((-sinf(yaw)).rounded()), p.y, p.z + Int((-cosf(yaw)).rounded()))
-        let open = !Blocks.collide[Int(w.block(f.x, f.y, f.z))] && !Blocks.collide[Int(w.block(f.x, f.y + 1, f.z))]
+        let open = !w.solidAt(f.x, f.y, f.z) && !w.solidAt(f.x, f.y + 1, f.z)
         g.player.pos = open ? V3(Float(f.x) + 0.5, Float(f.y), Float(f.z) + 0.5) : V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5)
         g.player.vel = .zero
         g.player.airPeak = g.player.pos.y

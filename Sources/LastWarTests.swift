@@ -140,7 +140,7 @@ enum LastWarTests {
                 case .tooth: ok = w.block(x, f + 1, z) == concrete && w.block(x, f + 2, z) == concrete
                 case .wire: ok = w.block(x, f + 1, z) == wire
                 case .post: ok = w.block(x, f + 1, z) == AshLines.post
-                case .trench: ok = w.block(x, f, z) == AIR && w.block(x, f - 2, z) == AshLines.duckboard
+                case .trench: ok = w.isAir(x, f, z) && w.block(x, f - 2, z) == AshLines.duckboard
                 case .parapet: ok = w.block(x, f + 1, z) == bags
                 case .none: ok = true
                 }
@@ -163,7 +163,7 @@ enum LastWarTests {
                 for d in from...to {
                     let x = dx * d + (dz != 0 ? lane : 0), z = dz * d + (dx != 0 ? lane : 0)
                     func stand(_ y: Int) -> Bool {
-                        Blocks.collide[Int(w.block(x, y, z))] && !Blocks.collide[Int(w.block(x, y + 1, z))] && !Blocks.collide[Int(w.block(x, y + 2, z))]
+                        w.solidAt(x, y, z) && !w.solidAt(x, y + 1, z) && !w.solidAt(x, y + 2, z)
                     }
                     if last == nil {
                         var y = DeepGen.floorBase + 3
@@ -196,12 +196,12 @@ enum LastWarTests {
         for z in 3...17 {
             let fy = AshFinal.hatchY - 1 - (z - 2)
             for x in 7...9 {
-                let ok = Blocks.collide[Int(w.block(x, fy, z))] && w.block(x, fy + 1, z) == AIR
-                    && (w.block(x, fy + 2, z) == AIR || (fy + 2 == AshFinal.hatchY && w.block(x, fy + 2, z) == door))
+                let ok = w.solidAt(x, fy, z) && w.isAir(x, fy + 1, z)
+                    && (w.isAir(x, fy + 2, z) || (fy + 2 == AshFinal.hatchY && w.block(x, fy + 2, z) == door))
                 if !ok { steps.append("(\(x), \(fy), \(z))") }
             }
         }
-        let study = (32...43).allSatisfy { z in w.block(12, AshFinal.y0 + 1, z) == AIR && w.block(12, AshFinal.y0 + 2, z) == AIR }
+        let study = (32...43).allSatisfy { z in w.isAir(12, AshFinal.y0 + 1, z) && w.isAir(12, AshFinal.y0 + 2, z) }
         // Sealed: the shell's outer faces are bunker concrete all round (the stairs come in through the north face).
         var leaks = 0
         let y0 = AshFinal.y0
@@ -333,7 +333,7 @@ enum LastWarTests {
         kill(g.lastWar.wave)
         sim(2) { g.ashStage == 2 }
         var open = 0
-        for z in AshFinal.hatchZ { for x in AshFinal.hatchX where w.block(x, AshFinal.hatchY, z) == AIR { open += 1 } }
+        for z in AshFinal.hatchZ { for x in AshFinal.hatchX where w.isAir(x, AshFinal.hatchY, z) { open += 1 } }
         check(g.ashStage == 2 && open == 9 && g.advancements.contains("adventure/ash_last_battle"),
               "lastwar: the last army beaten (stage \(g.ashStage), \(g.lastWar.wave.count) left), the blast door opens (\(open)/9) and the advancement")
         // Down in the bunker: the Chancellor and two heavies wait in the study.

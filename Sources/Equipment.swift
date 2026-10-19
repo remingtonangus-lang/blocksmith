@@ -182,7 +182,7 @@ extension Game {
     func placeArmorStand(_ t: (hit: IVec3, normal: IVec3)) -> Bool {
         guard Items.key(held.item) == "armor_stand", t.normal.y == 1 else { return false }
         let at = t.hit + t.normal
-        guard !Blocks.collide[Int(world.block(at.x, at.y, at.z))], !Blocks.collide[Int(world.block(at.x, at.y + 1, at.z))] else { return false }
+        guard !world.solidAt(at.x, at.y, at.z), !world.solidAt(at.x, at.y + 1, at.z) else { return false }
         let m = Mob(.armorStand, at: V3(Float(at.x) + 0.5, Float(at.y), Float(at.z) + 0.5))
         // Faces the player, snapped to 45 degrees.
         let step = Float.pi / 4

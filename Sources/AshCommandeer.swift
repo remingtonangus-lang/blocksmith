@@ -92,7 +92,7 @@ extension Game {
             let a = m.yaw + Float(i) * 2.1
             var p = m.pos + V3(cosf(a), 0, -sinf(a)) * AshCommandeer.crewOut
             let x = Int(floor(p.x)), z = Int(floor(p.z)), y = Int(floor(m.pos.y))
-            if Blocks.collide[Int(w.block(x, y, z))] || Blocks.collide[Int(w.block(x, y + 1, z))] { p = m.pos + V3(0, m.height + 0.2, 0) }
+            if w.solidAt(x, y, z) || w.solidAt(x, y + 1, z) { p = m.pos + V3(0, m.height + 0.2, 0) }
             let c = Mob(.soldierCrew, at: p)
             c.ashSetup()
             c.persistent = true
@@ -138,12 +138,12 @@ extension Game {
             // from just above it, so a cavern's roof never counts; else the drawn ground) with room above.
             var floorY: Float?
             for yy in stride(from: Int(floor(h.y)) + 2, through: Int(floor(h.y)) - 2, by: -1)
-                where Blocks.collide[Int(w.block(x, yy - 1, z))] && !Blocks.collide[Int(w.block(x, yy, z))] { floorY = Float(yy); break }
+                where w.solidAt(x, yy - 1, z) && !w.solidAt(x, yy, z) { floorY = Float(yy); break }
             if floorY == nil, abs(w.ships.groundTop(x, z) + 1 - h.y) <= 1.5 { floorY = w.ships.groundTop(x, z) + 1 }
             guard let floorY else { continue }
             let y = Int(floorY)
             var clear = true
-            for dz in -3...3 { for dy in 0...2 where Blocks.collide[Int(w.block(x, y + dy, z + dz))] { clear = false } }
+            for dz in -3...3 { for dy in 0...2 where w.solidAt(x, y + dy, z + dz) { clear = false } }
             guard clear else { continue }
             let s = w.ships.spawn(AshCommandeer.sidecar(), at: V3(at.x, floorY + 3, at.z), yaw: m.yaw, name: AshCommandeer.sidecarName, role: "")
             s.role = nil
@@ -263,7 +263,7 @@ enum AshDriveCheck {
         let y0 = Int(world.ships.groundTop(x, z))
         for dz in -40...12 { for dx in -8...8 {
             for y in (y0 - 3)...y0 { world.setBlock(x + dx, y, z + dz, STONE) }
-            for y in (y0 + 1)...(y0 + 10) where world.block(x + dx, y, z + dz) != AIR { world.setBlock(x + dx, y, z + dz, AIR) }
+            for y in (y0 + 1)...(y0 + 10) where !world.isAir(x + dx, y, z + dz) { world.setBlock(x + dx, y, z + dz, AIR) }
         } }
         game.mobs.mobs.removeAll { $0.kind.hostile }
         game.player.flying = false
