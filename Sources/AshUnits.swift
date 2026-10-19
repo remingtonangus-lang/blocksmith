@@ -228,7 +228,7 @@ extension Mob {
             for r in [3, 4, 5, 2] {
                 let a = Float(i) * .pi / 2 + Float(r)
                 let x = Int(floor(pos.x + cosf(a) * Float(r))), z = Int(floor(pos.z + sinf(a) * Float(r))), y = Int(floor(pos.y))
-                if w.block(x, y, z) == AIR && w.block(x, y + 1, z) == AIR && Blocks.collide[Int(w.block(x, y - 1, z))] {
+                if !w.solidAt(x, y, z) && w.builtBlock(x, y, z) == AIR && !w.solidAt(x, y + 1, z) && w.builtBlock(x, y + 1, z) == AIR && w.solidAt(x, y - 1, z) {
                     p = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
                     break
                 }
@@ -529,9 +529,9 @@ extension Mob {
             let w = g.world
             let ahead = pos + forward * ((halfW + 1) * (speed > 0 ? 1 : -1))
             let x = Int(floor(ahead.x)), z = Int(floor(ahead.z)), y = Int(floor(pos.y))
-            let floorBlk = w.block(x, y - 1, z), lower = w.block(x, y - 2, z)
-            let drop = !Blocks.collide[Int(floorBlk)] && !Blocks.collide[Int(lower)]
-            if drop || Blocks.isLiquid(floorBlk) || Blocks.isLiquid(w.block(x, y, z)) {
+            let floorBlk = w.builtBlock(x, y - 1, z)
+            let drop = !w.solidAt(x, y - 1, z) && !w.solidAt(x, y - 2, z)
+            if drop || Blocks.isLiquid(floorBlk) || Blocks.isLiquid(w.builtBlock(x, y, z)) {
                 speed = 0
                 if circle { soldierBrain.strafeDir = -soldierBrain.strafeDir }
             }

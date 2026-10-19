@@ -575,13 +575,18 @@ final class Game {
     func settleSpawn(_ p: V3) -> V3 {
         _ = world.loadSync(center: p, radius: 1)
         func ok(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-            let below = world.block(x, y - 1, z)
-            let bk = Blocks.key(Blocks.groupBase[Int(below)])
-            guard Blocks.fullCollide[Int(below)], Blocks.fluidKind[Int(below)] == 0, !bk.hasSuffix("leaves"),
-                  !bk.hasSuffix("_log"), !bk.hasSuffix("_wood") else { return false }
+            // (P377 step 2: the ground read by its field, built blocks from the built layer; the body then stands on
+            // the drawn surface)
+            let below = world.builtBlock(x, y - 1, z)
+            if below == AIR {
+                guard world.groundAt(x, y - 1, z) else { return false }
+            } else {
+                let bk = Blocks.key(Blocks.groupBase[Int(below)])
+                guard Blocks.fullCollide[Int(below)], Blocks.fluidKind[Int(below)] == 0, !bk.hasSuffix("leaves"),
+                      !bk.hasSuffix("_log"), !bk.hasSuffix("_wood") else { return false }
+            }
             for k in 0...1 {
-                let b = world.block(x, y + k, z)
-                if Blocks.collide[Int(b)] || Blocks.fluidKind[Int(b)] != 0 { return false }
+                if world.solidAt(x, y + k, z) || Blocks.fluidKind[Int(world.builtBlock(x, y + k, z))] != 0 { return false }
             }
             return true
         }
@@ -1290,7 +1295,7 @@ final class Game {
             if isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; mining = nil; return }
             if ashBaseUse(t.hit) { swing = 1; mining = nil; return }                                           // P318
             if isInteractive(t.hit) { openBlock(t.hit); mining = nil; return }
-            let bk = Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z))
+            let bk = Blocks.key(world.materialAt(t.hit.x, t.hit.y, t.hit.z))
             if bk.hasPrefix("campfire") && !bk.contains("[off]") { openMenu(GunCampMenu(game: self)); mining = nil; return }   // D9: gun care at camp
             if bk.contains("campfire") && useNewBlock(t) { mining = nil; return }   // (P97)
         }
@@ -1472,7 +1477,10 @@ final class Game {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
             if !survival {
                 if breakNow || breakCooldown <= 0 {
+                    let dug = hitPoint(t)
                     breakBlock(t.hit, b, drop: false)
+                    // P377 step 3: in creative too the hole follows the tool (survival's PG1 ball where the blow landed).
+                    if SmoothTerrain.natural[Int(b)] { world.carve(at: dug + player.look * 0.25, radius: 0.62, mode: .shape) }
                     if t.hit == digDownCell { centreOverHole(t.hit) }
                     breakCooldown = 0.3
                 }
@@ -1596,12 +1604,12 @@ final class Game {
         if fishingUse(useNow, useHeld) { return }
         // Bow: hold to draw, release to shoot.
         // Brushing suspicious sand / gravel (archaeology).
-        if Items.key(h.item) == "brush", useHeld, let t = target, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)).hasPrefix("suspicious_") {
+        if Items.key(h.item) == "brush", useHeld, let t = target, Blocks.key(world.materialAt(t.hit.x, t.hit.y, t.hit.z)).hasPrefix("suspicious_") {
             brushProgress += fdt
             if Int(brushProgress * 4) != Int((brushProgress - fdt) * 4) { sfx(.step(.sand), 0.4, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
             if brushProgress >= 2.5 {
                 brushProgress = 0
-                let k = Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z))
+                let k = Blocks.key(world.materialAt(t.hit.x, t.hit.y, t.hit.z))
                 let biome = world.gen.column(t.hit.x, t.hit.z).biome
                 let table = biome == .desert ? "archaeology_desert" : (biome.isOcean ? "archaeology_ocean" : "archaeology_trail")
                 let tmp = ItemContainer(3)
@@ -1675,7 +1683,7 @@ final class Game {
         // P186 (Oct 13: "shouldn't I be able to cook stuff on the fire?"): raw food aimed at a lit campfire goes on
         // the fire (GameBlocks.useNewBlock) instead of being eaten.
         let onFire = target.map { t -> Bool in
-            let b = world.block(t.hit.x, t.hit.y, t.hit.z)
+            let b = world.builtBlock(t.hit.x, t.hit.y, t.hit.z)          // (a campfire is built: P377 step 2)
             return Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("campfire") && b - Blocks.groupBase[Int(b)] == 1 && Recipes.smelt(h.item) != nil
         } ?? false
         if (canEat || canDrink) && useHeld && !onFire && target.map({ !isInteractive($0.hit) }) ?? true {
@@ -1728,7 +1736,7 @@ final class Game {
             // Sparkstone dust goes on top of solid blocks.
             let c0 = world.block(t.hit.x, t.hit.y, t.hit.z)
             let at = Blocks.replaceable[Int(c0)] && !Blocks.isLiquid(c0) ? t.hit : t.hit + t.normal
-            if Blocks.replaceable[Int(world.block(at.x, at.y, at.z))] && Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))] {
+            if Blocks.replaceable[Int(world.materialAt(at.x, at.y, at.z))] && world.opaqueAt(at.x, at.y - 1, at.z) {
                 world.setBlock(at.x, at.y, at.z, Blocks.id("redstone_wire"))
                 sfx(.place(.stone), 0.6, at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
                 consumeHeld(); swing = 1
@@ -1785,8 +1793,8 @@ final class Game {
         case "slab": id = blockItem + (upperHalf ? 1 : 0)
         case "door":
             // Two blocks tall; needs room above and ground below.
-            guard useNow, at.y + 1 < CH, Blocks.replaceable[Int(world.block(at.x, at.y + 1, at.z))],
-                  Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))] || Blocks.collide[Int(world.block(at.x, at.y - 1, at.z))],
+            guard useNow, at.y + 1 < CH, Blocks.replaceable[Int(world.materialAt(at.x, at.y + 1, at.z))],
+                  world.opaqueAt(at.x, at.y - 1, at.z) || world.solidAt(at.x, at.y - 1, at.z),
                   !player.intersectsBlock(at), !player.intersectsBlock(IVec3(at.x, at.y + 1, at.z)) else {
                 if useNow {                                                                     // Q2c-console-39
                     let inside = player.intersectsBlock(at) || player.intersectsBlock(IVec3(at.x, at.y + 1, at.z))
@@ -1841,7 +1849,7 @@ final class Game {
             guard t.normal.y == 0, useNow else { return }
             let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
             placePainting(at: at, facing: f)
-            if Blocks.groupBase[Int(world.block(at.x, at.y, at.z))] == blockItem { consumeHeld(); swing = 1; blockSound(.paintingPlace, at: at, 0.8) }
+            if Blocks.groupBase[Int(world.materialAt(at.x, at.y, at.z))] == blockItem { consumeHeld(); swing = 1; blockSound(.paintingPlace, at: at, 0.8) }
             return
         case "skull":
             if t.normal.y == 0 {
@@ -1859,10 +1867,10 @@ final class Game {
         }
         let supported: Bool
         if Blocks.shape[Int(id)] == "torch" && id == Blocks.groupBase[Int(id)] {
-            supported = Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
-                || [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { d in Blocks.opaque[Int(world.block(at.x + d.x, at.y, at.z + d.z))] }
+            supported = world.opaqueAt(at.x, at.y - 1, at.z)
+                || [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { d in world.opaqueAt(at.x + d.x, at.y, at.z + d.z) }
         } else if Blocks.shape[Int(id)] == "rail" {
-            supported = Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
+            supported = world.opaqueAt(at.x, at.y - 1, at.z)
         } else if Blocks.isPlant(id) {
             let below = world.block(at.x, at.y - 1, at.z)
             supported = below == GRASS || below == DIRT || Blocks.key(below) == "farmland" || Blocks.key(below) == "snowy_grass_block"
@@ -1880,6 +1888,12 @@ final class Game {
         // (P364 i: only a living creature in the cell blocks it: a dead one still fading out refused the block.)
         if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.health > 0 && $0.intersects(at) }) {
             world.setBlock(at.x, at.y, at.z, id)
+            // P377 step 3: ground placed in a field world swells toward where it was aimed, not only round the cell's
+            // middle (the cell lump World.fieldShape lays; only the surface moves, no other cell fills).
+            if world.fieldTerrain && SmoothTerrain.natural[Int(id)] && FieldMat.index[Int(id)] != 0 && at == t.hit + t.normal {
+                let n = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
+                world.fieldSphere(hitPoint(t) + n * 0.45, radius: 0.62, carve: false, material: FieldMat.index[Int(id)], keepSolid: true, remesh: true)
+            }
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
             if key == "chest" || key.hasSuffix("copper_chest") { world.blockEntities[at] = BlockEntity(.chest) }
             if key == "chest" || key == "trapped_chest" { ChestJoin.placed(self, at: at) }                // P264
@@ -2001,7 +2015,7 @@ final class Game {
     }
 
     func isInteractive(_ p: IVec3) -> Bool {
-        let b = world.block(p.x, p.y, p.z)
+        let b = world.builtBlock(p.x, p.y, p.z)                     // (the ground is never one)
         let k = Blocks.key(Blocks.groupBase[Int(b)])
         let shape = Blocks.shape[Int(b)]
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
@@ -2047,7 +2061,7 @@ final class Game {
 
     func openBlock(_ p: IVec3) {
         TownLaw.opening(self, p)
-        let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
+        let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
         if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) {
             if BaseSecurity.refuse(self, p) { return }                  // D35: a locked bulkhead
             toggleOpenable(p); return
@@ -2281,12 +2295,12 @@ final class Game {
             // Take the other half with it (only one door drops).
             let upper = Int(b - Blocks.groupBase[Int(b)]) & 8 != 0
             let o = IVec3(p.x, p.y + (upper ? -1 : 1), p.z)
-            if Blocks.groupBase[Int(world.block(o.x, o.y, o.z))] == Blocks.groupBase[Int(b)] { world.setBlock(o.x, o.y, o.z, AIR) }
+            if Blocks.groupBase[Int(world.materialAt(o.x, o.y, o.z))] == Blocks.groupBase[Int(b)] { world.setBlock(o.x, o.y, o.z, AIR) }
         }
         if bk == "chorus_plant" || bk == "chorus_flower" {
             // Spiral plants collapse above a broken stem.
             var y = p.y + 1
-            while y < CH, ["chorus_plant", "chorus_flower"].contains(Blocks.key(world.block(p.x, y, p.z))) {
+            while y < CH, ["chorus_plant", "chorus_flower"].contains(Blocks.key(world.materialAt(p.x, y, p.z))) {
                 let above = world.block(p.x, y, p.z)
                 world.setBlockAsync(p.x, y, p.z, AIR)
                 if drop { for s in Mining.drops(above, .empty) { drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(y) + 0.3, Float(p.z) + 0.5)) } }
@@ -2385,7 +2399,7 @@ final class Game {
         if k == "water_bucket" || k == "lava_bucket" {
             var at: IVec3?
             if let tg = target { at = tg.hit + tg.normal } else if fluidHit == nil { at = lastAir }
-            if let a = at, Blocks.replaceable[Int(world.block(a.x, a.y, a.z))] {
+            if let a = at, Blocks.replaceable[Int(world.materialAt(a.x, a.y, a.z))] {
                 if k == "water_bucket" && dim.dim.ultrawarm {
                     sfx(.fireExtinguish, 0.8)          // water evaporates in the Emberdeep
                 } else {
@@ -2570,7 +2584,7 @@ final class Game {
             for _ in 0..<4 where near < 6 {
                 let sp = V3(c.x + Rand.float(in: -4...4), Float(p.y + Rand.int(in: -1...1)), c.z + Rand.float(in: -4...4))
                 let bx = Int(floor(sp.x)), by = Int(floor(sp.y)), bz = Int(floor(sp.z))
-                guard Blocks.collide[Int(world.block(bx, by - 1, bz))] else { continue }
+                guard world.solidAt(bx, by - 1, bz) else { continue }
                 // Hostile mobs from spawners need block light ≤ 11 (cinderwisps and silverfish ignore it in practice).
                 if !kind.hellOwn && world.lightAt(bx, by, bz).block > 11 { continue }
                 let m = Mob(kind, at: V3(Float(bx) + 0.5, sp.y, Float(bz) + 0.5))
@@ -2707,10 +2721,10 @@ final class Game {
         for _ in 0..<16 {
             let x = Int(floor(p.x)) + Rand.int(in: -8...8), z = Int(floor(p.z)) + Rand.int(in: -8...8)
             var y = min(CH - 3, Int(floor(p.y)) + 8)
-            while y > max(1, Int(floor(p.y)) - 8) && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
+            while y > max(1, Int(floor(p.y)) - 8) && !world.solidAt(x, y - 1, z) { y -= 1 }
             let t = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             if dim.dim == .deep && DeepSeal.crosses(p.y, t.y) { continue }     // never through the Sealrock
-            if Blocks.collide[Int(world.block(x, y - 1, z))] && !player.collides(at: t, world) && !Blocks.isLiquid(world.block(x, y, z)) {
+            if world.solidAt(x, y - 1, z) && !player.collides(at: t, world) && !Blocks.isLiquid(world.builtBlock(x, y, z)) {
                 player.pos = t
                 player.vel = .zero
                 player.airPeak = t.y
@@ -2948,13 +2962,13 @@ final class Game {
             if audio.stepTimer > 1.6 { audio.stepTimer = 0; sfx(.swim, p.headInWater ? 0.35 : 0.6) }
         }
         if p.pendingFall > 1.2 && !p.inWater {
-            let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
+            let under = world.materialAt(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
             sfx(p.pendingFall > 3 && under != AIR ? .fall(soundMat(under)) : .land, min(1, p.pendingFall / 8))
             // Landing kicks up bits of the block underneath (more for bigger falls).
             if under != AIR { particles.dust(under, at: p.pos, count: min(24, Int(p.pendingFall * 3)), spread: 0.5) }
         }
         if p.sprinting && p.onGround && !p.inWater && Rand.float(in: 0..<1) < 0.5 {
-            let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
+            let under = world.materialAt(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
             if under != AIR { particles.dust(under, at: p.pos, count: 1, spread: 0.25) }
         }
         // Walking through plants (L3): a rustle every ~1.2 blocks moved inside grass, flowers or bushes (feet or head).
@@ -2962,7 +2976,7 @@ final class Game {
         let moved = simd_length(V2(p.pos.x - before.x, p.pos.z - before.z) - Trains.roofShift)
         Trains.roofShift = V2(0, 0)
         let px = Int(floor(p.pos.x)), pz = Int(floor(p.pos.z)), py = Int(floor(p.pos.y + 0.1))
-        let plant = Blocks.sway[Int(world.block(px, py, pz))] || Blocks.sway[Int(world.block(px, py + 1, pz))]
+        let plant = Blocks.sway[Int(world.builtBlock(px, py, pz))] || Blocks.sway[Int(world.builtBlock(px, py + 1, pz))]
         if plant && moved > 0.01 && !p.flying && !p.inWater && riding == nil {     // on foot, not swimming or riding
             plantBrushDist += moved
             if plantBrushDist > (p.sneaking ? 2.4 : 1.2) { plantBrushDist = 0; plantBrushes += 1; sfx(.plantBrush, p.sneaking ? 0.25 : (p.sprinting ? 0.75 : 0.55), at: p.pos + V3(0, 0.4, 0)) }
@@ -2971,7 +2985,7 @@ final class Game {
         stepDist += moved
         if stepDist > (p.sprinting ? 2.1 : 1.7) {
             stepDist = 0
-            let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
+            let under = world.materialAt(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
             if under != AIR { sfx(.step(soundMat(under)), p.sneaking ? 0.22 : 0.9) }      // P367: crouched steps are hushed
             else if clock - Trains.roofAt < 0.3 { sfx(.step(.wood), p.sneaking ? 0.22 : 0.9) }   // Q2: a car's roof boards
         }
@@ -2989,7 +3003,7 @@ final class Game {
             if player.pos.y < -60 {
                 let x = Int(floor(player.pos.x)), z = Int(floor(player.pos.z))
                 var y = CH - 2
-                while y > 1 && !Blocks.collide[Int(world.block(x, y, z))] { y -= 1 }
+                while y > 1 && !world.solidAt(x, y, z) { y -= 1 }
                 player.pos.y = Float(max(y + 1, YOFF + 64)); player.vel = .zero
             }
             return
@@ -3001,7 +3015,7 @@ final class Game {
         let safeFall = 4.05 + Float(effects.level(.jumpBoost))
         if fall > safeFall && !player.inWater {
             let p = player.pos
-            let land = Blocks.key(Blocks.groupBase[Int(world.block(Int(floor(p.x)), Int(floor(p.y - 0.05)), Int(floor(p.z))))])
+            let land = Blocks.key(Blocks.groupBase[Int(world.materialAt(Int(floor(p.x)), Int(floor(p.y - 0.05)), Int(floor(p.z))))])
             var k: Float = 0.6
             if land == "hay_block" || land == "honey_block" { k = 0.12 }
             else if land.hasSuffix("_bed") || land.hasSuffix("_bed_head") { k = 0.3 }

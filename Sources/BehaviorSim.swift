@@ -175,18 +175,18 @@ enum BehaviorSim {
         Mob.trace = m
         let p = m.pos
         let ahead = m.path.nodes.dropFirst(m.path.index).prefix(4).map { n -> String in
-            let at = Blocks.key(w.block(n.x, n.y, n.z)), under = Blocks.key(w.block(n.x, n.y - 1, n.z))
+            let at = Blocks.key(w.materialAt(n.x, n.y, n.z)), under = Blocks.key(w.materialAt(n.x, n.y - 1, n.z))
             return "\(n.x),\(n.y - YOFF),\(n.z) (\(at) on \(under))"
         }
         let feet = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
         var around: [String] = []
         for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-            let a = Blocks.key(w.block(feet.x + dx, feet.y, feet.z + dz)), b = Blocks.key(w.block(feet.x + dx, feet.y + 1, feet.z + dz))
+            let a = Blocks.key(w.materialAt(feet.x + dx, feet.y, feet.z + dz)), b = Blocks.key(w.materialAt(feet.x + dx, feet.y + 1, feet.z + dz))
             around.append("\(dx),\(dz): \(a)/\(b)")
         }
         let py: Float = p.y - Float(YOFF)
         print(String(format: "behaviorsim trace: %@ at %.2f %.2f %.2f (%@), feet in %@ on %@, yaw %.0f", m.kind.key, p.x, py, p.z, why,
-                     Blocks.key(w.block(feet.x, feet.y, feet.z)), Blocks.key(w.block(feet.x, feet.y - 1, feet.z)), m.yaw * 180 / .pi))
+                     Blocks.key(w.materialAt(feet.x, feet.y, feet.z)), Blocks.key(w.materialAt(feet.x, feet.y - 1, feet.z)), m.yaw * 180 / .pi))
         print("  path ahead: \(ahead.joined(separator: "; "))")
         // What it was after (a calf following a moving parent re-plans toward it: a seed 777 cow turned back and forth
         // on 'heading' with no stroll goal, run 634).
@@ -290,7 +290,7 @@ enum BehaviorSim {
             t.window.removeAll(keepingCapacity: true)
         }
         // A fall: landing more than 4.5 blocks below where it last stood (swimmers and fliers don't fall).
-        let wet = Blocks.isLiquid(w.block(Int(floor(p.x)), Int(floor(p.y + 0.2)), Int(floor(p.z))))
+        let wet = Blocks.isLiquid(w.builtBlock(Int(floor(p.x)), Int(floor(p.y + 0.2)), Int(floor(p.z))))
         // Cats and ocelots take no fall damage and hop down ledges by design (run 354: the only fallers were cats).
         let fearless = m.kind == .cat || m.kind == .ocelot
         // Climbing down a ladder or vine is not a fall (citadel soldiers use the tower's ladder shaft).
@@ -311,7 +311,7 @@ enum BehaviorSim {
             t.gaveUp += 1
             if t.gaveUpAt.count < 3 {
                 let c = IVec3(Int(floor(u.x)), Int(floor(u.y)), Int(floor(u.z)))
-                t.gaveUpAt.append("\(c.x) \(c.y - YOFF) \(c.z) \(Blocks.key(Blocks.groupBase[Int(w.block(c.x, c.y, c.z))]))")
+                t.gaveUpAt.append("\(c.x) \(c.y - YOFF) \(c.z) \(Blocks.key(Blocks.groupBase[Int(w.materialAt(c.x, c.y, c.z))]))")
             }
         }
         t.last = p
@@ -323,23 +323,23 @@ enum BehaviorSim {
         let c = IVec3(Int(floor(goal.x)), Int(floor(goal.y)), Int(floor(goal.z)))
         var ring: [String] = []
         for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-            let a = Blocks.key(w.block(c.x + dx, c.y, c.z + dz)), b = Blocks.key(w.block(c.x + dx, c.y + 1, c.z + dz))
-            let fl = Blocks.key(w.block(c.x + dx, c.y - 1, c.z + dz))
+            let a = Blocks.key(w.materialAt(c.x + dx, c.y, c.z + dz)), b = Blocks.key(w.materialAt(c.x + dx, c.y + 1, c.z + dz))
+            let fl = Blocks.key(w.materialAt(c.x + dx, c.y - 1, c.z + dz))
             ring.append("\(dx),\(dz): \(fl)/\(a)/\(b)")
         }
         // And round the mob itself (a trapped villager: pit, hole or closed room?), feet and head level, 3x3.
         let me = IVec3(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z)))
         var mine: [String] = []
         for dz in -1...1 { for dx in -1...1 where !(dx == 0 && dz == 0) {
-            let a = Blocks.key(w.block(me.x + dx, me.y, me.z + dz)), b = Blocks.key(w.block(me.x + dx, me.y + 1, me.z + dz))
-            let up = Blocks.key(w.block(me.x + dx, me.y + 2, me.z + dz))
+            let a = Blocks.key(w.materialAt(me.x + dx, me.y, me.z + dz)), b = Blocks.key(w.materialAt(me.x + dx, me.y + 1, me.z + dz))
+            let up = Blocks.key(w.materialAt(me.x + dx, me.y + 2, me.z + dz))
             mine.append("\(dx),\(dz): \(a)/\(b)/\(up)")
         } }
         let meY: Int = me.y - YOFF
-        let mineLine = "; round the mob at \(me.x) \(meY) \(me.z) on \(Blocks.key(w.block(me.x, me.y - 1, me.z))) (feet/head/above): " + mine.joined(separator: "; ")
+        let mineLine = "; round the mob at \(me.x) \(meY) \(me.z) on \(Blocks.key(w.materialAt(me.x, me.y - 1, me.z))) (feet/head/above): " + mine.joined(separator: "; ")
         let last = nodes.last.map { "\($0.x) \($0.y - YOFF) \($0.z)" } ?? "none"
         let gy: Int = c.y - YOFF
-        return "behaviorsim missed \(ph): \(m.kind.key) goal \(c.x) \(gy) \(c.z) (\(Blocks.key(w.block(c.x, c.y, c.z)))), path of 4000 nodes: " +
+        return "behaviorsim missed \(ph): \(m.kind.key) goal \(c.x) \(gy) \(c.z) (\(Blocks.key(w.materialAt(c.x, c.y, c.z)))), path of 4000 nodes: " +
             "\(nodes.count) nodes ending \(last); around the goal (floor/feet/head): \(ring.joined(separator: "; "))" + mineLine
     }
 

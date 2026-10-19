@@ -64,7 +64,7 @@ enum Saloon {
         let cx = Int(floor(c.x)), cy = Int(floor(c.y)), cz = Int(floor(c.z))
         var best: (Int, IVec3)?
         for dy in -2...2 { for dz in -14...14 { for dx in -14...14 {
-            guard w.block(cx + dx, cy + dy, cz + dz) == jb else { continue }
+            guard w.builtBlock(cx + dx, cy + dy, cz + dz) == jb else { continue }
             let d = dx * dx + dz * dz + dy * dy
             if d < (best?.0 ?? .max) { best = (d, IVec3(cx + dx, cy + dy, cz + dz)) }
         } } }

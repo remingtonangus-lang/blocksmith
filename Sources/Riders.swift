@@ -79,7 +79,7 @@ enum Riders {
         let x = Int(floor(at2.x)), z = Int(floor(at2.y))
         guard g.world.isLoaded(x, z) else { return nil }
         let y = g.world.topY(x, z) + 1
-        guard !Blocks.isLiquid(g.world.block(x, y - 1, z)) else { return nil }
+        guard !Blocks.isLiquid(g.world.builtBlock(x, y - 1, z)) else { return nil }
         let at = g.world.freeSpawn(V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
         let horse = Mob(.horse, at: at)
         if horse.collides(horse.pos, g.world) { return nil }
@@ -179,7 +179,7 @@ enum Riders {
             let x = Int(floor(g.player.pos.x + sinf(a) * r)), z = Int(floor(g.player.pos.z + cosf(a) * r))
             guard w.isLoaded(x, z) else { continue }
             let y = w.topY(x, z) + 1
-            guard !Blocks.isLiquid(w.block(x, y - 1, z)), w.lightAt(x, y, z).sky >= 12, abs(Float(y) - g.player.pos.y) < 12 else { continue }
+            guard !Blocks.isLiquid(w.builtBlock(x, y - 1, z)), w.lightAt(x, y, z).sky >= 12, abs(Float(y) - g.player.pos.y) < 12 else { continue }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             if k < 20 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { continue }
             let m = gunman(g, at: w.freeSpawn(at), role: "posse", name: "\(town) Posse")

@@ -196,8 +196,8 @@ enum Hunting {
         // Down to the ground (a body shot off a ledge lies where it lands).
         var y = m.pos.y
         let bx = Int(floor(m.pos.x)), bz = Int(floor(m.pos.z))
-        for _ in 0..<24 where !Blocks.collide[Int(g.world.block(bx, Int(floor(y - 0.05)), bz))] && y > 1 { y -= 1 }
-        b.pos.y = Blocks.collide[Int(g.world.block(bx, Int(floor(y - 0.05)), bz))] ? floor(y - 0.05) + 1 : y
+        for _ in 0..<24 where !g.world.solidAt(bx, Int(floor(y - 0.05)), bz) && y > 1 { y -= 1 }
+        b.pos.y = g.world.solidAt(bx, Int(floor(y - 0.05)), bz) ? floor(y - 0.05) + 1 : y
         if m.legend >= 0 {
             Legendaries.animalDied(g, Int(m.legend), at: b.pos)      // C10
             legendsKilled += 1                               // gone for good once skinned (or its body's loot dropped)

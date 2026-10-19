@@ -34,7 +34,7 @@ extension Game {
         let smokeL = Int(Tex.id("smoke"))
         for _ in 0..<n {
             let x = bx + Rand.int(in: -16...15), y = by + Rand.int(in: -16...15), z = bz + Rand.int(in: -16...15)
-            let b = world.block(x, y, z)
+            let b = world.builtBlock(x, y, z)            // (emitters are built blocks and fluids: P377 step 2)
             let kind = em[Int(b)]
             if kind == 0 { continue }
             let o = V3(Float(x), Float(y), Float(z))
@@ -70,7 +70,7 @@ extension Game {
                 }
             case .lava:
                 // Occasional sparks from open lava surfaces.
-                if world.block(x, y + 1, z) != AIR || Rand.float(in: 0..<1) > 0.08 { continue }
+                if world.builtBlock(x, y + 1, z) != AIR || world.groundAt(x, y + 1, z) || Rand.float(in: 0..<1) > 0.08 { continue }
                 let s = o + V3(Rand.float(in: 0.2...0.8), 0.95, Rand.float(in: 0.2...0.8))
                 particles.add(Particle(pos: s, vel: V3(Rand.float(in: -0.8...0.8), Rand.float(in: 2.5...4), Rand.float(in: -0.8...0.8)),
                                        life: Rand.float(in: 0.8...1.4), maxLife: 1.4, layer: smokeL, uv0: .zero, uvSize: 1,
@@ -126,7 +126,7 @@ extension Game {
         let smokeL = Int(Tex.id("smoke"))
         for _ in 0..<n {
             let o = p + V3(Rand.float(in: -12...12), Rand.float(in: -4...10), Rand.float(in: -12...12))
-            if world.block(Int(floor(o.x)), Int(floor(o.y)), Int(floor(o.z))) != AIR { continue }
+            if !world.isAir(Int(floor(o.x)), Int(floor(o.y)), Int(floor(o.z))) { continue }
             var vel = V3(Rand.float(in: -0.15...0.15), 0, Rand.float(in: -0.15...0.15))
             var col = V3(1, 1, 1), glow = false, grav: Float = 0
             switch biome {

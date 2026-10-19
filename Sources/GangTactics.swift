@@ -79,7 +79,7 @@ enum GangTactics {
             let x = bx + Int((cosf(a) * r).rounded()), z = bz + Int((sinf(a) * r).rounded())
             for dy in [0, 1, -1] {
                 let fy = y + dy
-                guard Blocks.collide[Int(w.block(x, fy - 1, z))], !Blocks.collide[Int(w.block(x, fy, z))], !Blocks.collide[Int(w.block(x, fy + 1, z))] else { continue }
+                guard w.solidAt(x, fy - 1, z), !w.solidAt(x, fy, z), !w.solidAt(x, fy + 1, z) else { continue }
                 let spot = V3(Float(x) + 0.5, Float(fy), Float(z) + 0.5)
                 if !w.canSee(spot + V3(0, 1.5, 0), from) {
                     let d = simd_length(spot - m.pos)

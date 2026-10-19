@@ -98,7 +98,7 @@ extension Game {
         var solid = 0
         for i in 1..<steps {
             let p = from + d * (Float(i) / Float(steps))
-            if Blocks.opaque[Int(world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] { solid += 1 }
+            if world.opaqueAt(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) { solid += 1 }
         }
         return min(1, Float(solid) / 5)
     }
@@ -406,7 +406,7 @@ extension Game {
             var hit = false
             while t < 24 {
                 let q = eye + d * t
-                if Blocks.opaque[Int(world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { hit = true; break }
+                if world.opaqueAt(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { hit = true; break }
                 t += 1
             }
             if hit { hits += 1 }

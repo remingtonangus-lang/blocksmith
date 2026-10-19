@@ -388,7 +388,7 @@ enum MiningTowns {
     static func flameIn(_ g: Game, _ c: IVec3) -> Bool {
         let r = Int(gasRadius)
         for y in (c.y - 1)...(c.y + 2) { for z in (c.z - r)...(c.z + r) { for x in (c.x - r)...(c.x + r) {
-            let k = Blocks.key(Blocks.groupBase[Int(g.world.block(x, y, z))])
+            let k = Blocks.key(Blocks.groupBase[Int(g.world.materialAt(x, y, z))])
             if k == "torch" || k == "wall_torch" || k == "fire" || k == "campfire" || k == "soul_torch" { return true }
         } } }
         return false

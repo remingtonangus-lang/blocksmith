@@ -28,7 +28,7 @@ enum FriendlyFireTests {
         // A stone field 41 x 21 with nothing above it.
         for z in (fz - 10)...(fz + 10) { for x in (fx - 12)...(fx + 28) {
             put(x, py, z, STONE)
-            for y in (py + 1)...(py + 8) where w.block(x, y, z) != AIR { put(x, y, z, AIR) }
+            for y in (py + 1)...(py + 8) where !w.isAir(x, y, z) { put(x, y, z, AIR) }
         } }
         g.mobs.mobs.removeAll(); w.pendingMobs.removeAll()
         if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }

@@ -238,14 +238,14 @@ extension Mob {
         if carriedBlock == 0 {
             guard Rand.float(in: 0..<1) < ticks / 20 else { return }
             let q = IVec3(c.x + Rand.int(in: -2...2), c.y + Rand.int(in: 0...2), c.z + Rand.int(in: -2...2))
-            let b = w.block(q.x, q.y, q.z)
+            let b = w.materialAt(q.x, q.y, q.z)                     // (what it's made of, ground too: P377 step 2)
             guard b != AIR, Mob.voidwalkerHoldable.contains(Blocks.key(Blocks.groupBase[Int(b)])) else { return }
             carriedBlock = Blocks.groupBase[Int(b)]
             w.setBlock(q.x, q.y, q.z, AIR)
         } else {
             guard Rand.float(in: 0..<1) < ticks / 2000 else { return }
             let q = IVec3(c.x + Rand.int(in: -1...1), c.y + Rand.int(in: 0...2), c.z + Rand.int(in: -1...1))
-            guard w.block(q.x, q.y, q.z) == AIR, Blocks.opaque[Int(w.block(q.x, q.y - 1, q.z))] else { return }
+            guard w.isAir(q.x, q.y, q.z), w.opaqueAt(q.x, q.y - 1, q.z) else { return }
             w.setBlock(q.x, q.y, q.z, carriedBlock)
             carriedBlock = 0
         }
@@ -257,9 +257,9 @@ extension Mob {
         guard onGround, panic <= 0, Rand.float(in: 0..<1) < dt * 20 / (baby ? 50 : 1000) else { return }
         let w = g.world
         let x = Int(floor(pos.x)), y = Int(floor(pos.y)), z = Int(floor(pos.z))
-        if w.block(x, y, z) == TALL_GRASS {
+        if w.builtBlock(x, y, z) == TALL_GRASS {
             w.setBlock(x, y, z, AIR)
-        } else if w.block(x, y - 1, z) == GRASS {
+        } else if w.materialAt(x, y - 1, z) == GRASS {                   // (the ground's material: P377 step 2)
             w.setBlock(x, y - 1, z, Blocks.id("dirt"))
         } else { return }
         sheared = false
@@ -314,14 +314,14 @@ extension Mob {
         case .turtle:
             let h = home ?? pos
             if simd_length(V2(h.x - pos.x, h.z - pos.z)) > 2 { face(h); moving = true; return true }
-            let below = Blocks.key(w.block(c.x, c.y - 1, c.z))
-            if (below == "sand" || below == "red_sand") && w.block(c.x, c.y, c.z) == AIR && Blocks.has("turtle_egg") {
+            let below = Blocks.key(w.materialAt(c.x, c.y - 1, c.z))
+            if (below == "sand" || below == "red_sand") && w.isAir(c.x, c.y, c.z) && Blocks.has("turtle_egg") {
                 w.setBlock(c.x, c.y, c.z, Blocks.id("turtle_egg"))
                 hasEgg = false
             } else if Rand.float(in: 0..<1) < 0.02 { hasEgg = false }
             return true
         case .frog:
-            func surface(_ q: IVec3) -> Bool { Blocks.fluidKind[Int(w.block(q.x, q.y - 1, q.z))] == 1 && w.block(q.x, q.y, q.z) == AIR }
+            func surface(_ q: IVec3) -> Bool { Blocks.fluidKind[Int(w.builtBlock(q.x, q.y - 1, q.z))] == 1 && w.isAir(q.x, q.y, q.z) }
             if let f = flower, !surface(f) { flower = nil }
             if flower == nil { flower = findNearby(w, radius: 8, where: surface) }
             guard let spot = flower else { return false }
@@ -399,7 +399,7 @@ extension Mob {
         jobTimer -= 0.05
         if jobTimer <= 0 {
             jobTimer = 2
-            flower = findNearby(w, radius: 7) { keys.contains(Blocks.key(Blocks.groupBase[Int(w.block($0.x, $0.y, $0.z))])) }
+            flower = findNearby(w, radius: 7) { keys.contains(Blocks.key(Blocks.groupBase[Int(w.materialAt($0.x, $0.y, $0.z))])) }
         }
         guard let f = flower else { return nil }
         return V3(Float(f.x) + 0.5, Float(f.y), Float(f.z) + 0.5)
@@ -456,7 +456,7 @@ extension Mob {
         guard !baby, Blocks.has("turtle_egg") else { return nil }
         let w = g.world
         let egg = Blocks.id("turtle_egg")
-        if let f = flower, Blocks.groupBase[Int(w.block(f.x, f.y, f.z))] != egg { flower = nil }
+        if let f = flower, Blocks.groupBase[Int(w.materialAt(f.x, f.y, f.z))] != egg { flower = nil }
         if flower == nil {
             jobTimer -= dt
             guard jobTimer <= 0 else { return nil }
@@ -464,7 +464,7 @@ extension Mob {
             // Full scan of an 17x5x17 box (random sampling would almost never find a single egg).
             let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
             var best = Int.max
-            for dy in -2...2 { for dz in -8...8 { for dx in -8...8 where Blocks.groupBase[Int(w.block(c.x + dx, c.y + dy, c.z + dz))] == egg {
+            for dy in -2...2 { for dz in -8...8 { for dx in -8...8 where Blocks.groupBase[Int(w.materialAt(c.x + dx, c.y + dy, c.z + dz))] == egg {
                 let d = dx * dx + dy * dy + dz * dz
                 if d < best { best = d; flower = IVec3(c.x + dx, c.y + dy, c.z + dz) }
             } } }

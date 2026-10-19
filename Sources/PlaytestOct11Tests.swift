@@ -284,7 +284,7 @@ enum PlaytestOct11Tests {
         w.borderSprings(n)
         let queued = w.lavaPending.count > before
         for _ in 0..<6 { w.fluidTick(lava: true) }
-        let spilled = Blocks.fluidKind[Int(w.block(cx * 16 + 16, y, cz * 16 + lz))] == 2
+        let spilled = Blocks.fluidKind[Int(w.builtBlock(cx * 16 + 16, y, cz * 16 + lz))] == 2
         check(queued && spilled, "P18 lava at a chunk border: queued when the chunks meet (\(queued)), spilled into the next chunk (\(spilled))")
     }
 
@@ -365,7 +365,7 @@ enum PlaytestOct11Tests {
         func frames(_ n: Int, lt: Float) {
             for _ in 0..<n {
                 var p = PadSnapshot(); p.lt = lt; PadManager.shared.simulated = p; game.tick(1.0 / 60)
-                for dy in 1...3 { for dz in -2...0 { for dx in -1...1 where w.block(x0 + dx, y0 + dy, z0 + dz) != AIR { w.setBlock(x0 + dx, y0 + dy, z0 + dz, AIR) } } }
+                for dy in 1...3 { for dz in -2...0 { for dx in -1...1 where !w.isAir(x0 + dx, y0 + dy, z0 + dz) { w.setBlock(x0 + dx, y0 + dy, z0 + dz, AIR) } } }
             }
         }
         frames(20, lt: 1)                                 // held with an empty hand
@@ -960,7 +960,7 @@ enum PlaytestOct11Tests {
         let base = IVec3(Int(floor(pos0.x)) + 4, min(CH - 20, Int(floor(pos0.y)) + 30), Int(floor(pos0.z)))
         for z in (base.z - 10)...(base.z + 10) { for x in (base.x - 12)...(base.x + 12) {
             w.setBlockAsync(x, base.y - 1, z, STONE)
-            for y in base.y...(base.y + 8) where w.block(x, y, z) != AIR { w.setBlockAsync(x, y, z, AIR) }
+            for y in base.y...(base.y + 8) where !w.isAir(x, y, z) { w.setBlockAsync(x, y, z, AIR) }
         } }
         w.setBlock(base.x, base.y, base.z, Blocks.id(VehicleWorks.key))
         g.player.pos = V3(Float(base.x) - 2.5, Float(base.y), Float(base.z) + 0.5)
@@ -977,7 +977,7 @@ enum PlaytestOct11Tests {
             w.ships.remove(t)
         }
         for z in (base.z - 10)...(base.z + 10) { for x in (base.x - 12)...(base.x + 12) {
-            for y in (base.y - 1)...(base.y + 8) where w.block(x, y, z) != AIR { w.setBlockAsync(x, y, z, AIR) }
+            for y in (base.y - 1)...(base.y + 8) where !w.isAir(x, y, z) { w.setBlockAsync(x, y, z, AIR) }
         } }
         check(asked && made.count == 1 && rolled && wheelsDown,
               "P54 vehicle works: short of parts it says so (\(asked)); with them a Field Tank rolls out beside it (\(made.count), on the far side: \(rolled)), wheels on the ground (\(wheelsDown))")

@@ -228,6 +228,50 @@ if let out = arg("--view"), let ctx = vkctx {
             }
         } else { print("fielddump: the centre ray meets no ground") }
     }
+    // --probe R: every built block (not air, water or ground in the field) within R blocks of the eye that has water
+    // or air under it, with what is under it (P377 step 4: things floating over water).
+    if let r = Int(arg("--probe") ?? "") {
+        let e = vg.player.pos
+        let ex = Int(floor(e.x)), ey = Int(floor(e.y)), ez = Int(floor(e.z))
+        for y in max(1, ey - r)...min(CH - 2, ey + r) { for z in (ez - r)...(ez + r) { for x in (ex - r)...(ex + r) {
+            let b = vw.rawBlock(x, y, z), u = vw.rawBlock(x, y - 1, z)
+            guard b != AIR && !Blocks.isLiquid(b) && (u == AIR || Blocks.isLiquid(u)) && Blocks.opaque[Int(b)] else { continue }
+            print("probe: \(x) \(y) \(z) \(Blocks.key(b)) over \(Blocks.key(u))")
+        } } }
+        if let sc = vw.gen.structures, let st = sc.nearest("shipwreck", x: ex, z: ez, maxRegions: 2) {
+            print("probe: nearest shipwreck anchor \(st.anchor)")
+        }
+    }
+    // --finedig N (P377 step 1): N cells dug in a row ahead the way the game digs (the cell, then a ball where the blow
+    // landed, off the cell's middle), then the frame; ground quads in the 3 x 3 chunks round the player, fine sections
+    // and their memory, and a save round trip of a fine chunk's field file. BS_FINE=0: the cells-only before.
+    if let n = Int(arg("--finedig") ?? "") {
+        let fx = -sinf(yaw), fz = -cosf(yaw)
+        var dug = 0
+        for k in 0..<n {
+            let side: Float = k % 3 == 0 ? 0.3 : (k % 3 == 1 ? -0.35 : 0.1)
+            let px = vg.player.pos.x + fx * (3 + Float(k) * 0.7) - fz * side, pz = vg.player.pos.z + fz * (3 + Float(k) * 0.7) + fx * side
+            var y = Int(vg.player.pos.y) + 4
+            while y > 1 && vw.fieldDensity(at: V3(px, Float(y) + 0.5, pz)) <= 0 { y -= 1 }
+            guard y > 1 else { continue }
+            var top = Float(y) + 1
+            while top > Float(y) && vw.fieldDensity(at: V3(px, top, pz)) <= 0 { top -= 0.05 }
+            vw.setBlock(Int(floor(px)), y, Int(floor(pz)), AIR)
+            vw.carve(at: V3(px, top - 0.25, pz), radius: 0.62, mode: .shape)
+            dug += 1
+        }
+        let pcx = floorDiv(Int(floor(vg.player.pos.x)), CS), pcz = floorDiv(Int(floor(vg.player.pos.z)), CS)
+        vw.remeshArea(x0: (pcx - 1) * CS, z0: (pcz - 1) * CS, x1: (pcx + 2) * CS - 1, z1: (pcz + 2) * CS - 1, y0: 0, y1: CH - 1)
+        var gq = 0
+        for dz in -1...1 { for dx in -1...1 { if let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] { for s in c.sections { gq += s.groundQuads } } } }
+        let t = FineField.tally(vw)
+        var rt = "no fine chunk", bytes = 0
+        if let c = vw.chunks.values.first(where: { !$0.blocks.fine.isEmpty }), let e = FieldTerrain.encode(c.blocks.field), let d = FieldTerrain.decode(e) {
+            rt = d.fine == c.blocks.fine && d.fd == c.blocks.field.fd ? "same" : "DIFFERENT"
+            bytes = e.count
+        }
+        print("finedig: \(dug) cells dug; ground quads in the 3x3 chunks \(gq); fine sections \(t.sections) (\(t.bytes / 1024) KB); field file round trip \(rt) (\(bytes) bytes packed)")
+    }
     // --fieldblast: a power-4 blast on the ground 8 blocks ahead, then the frame (PG1 rewrite: the crater in the field).
     if CommandLine.arguments.contains("--fieldblast") {
         let fx = vg.player.pos.x - sinf(yaw) * 8, fz = vg.player.pos.z - cosf(yaw) * 8
@@ -552,6 +596,7 @@ if let path = arg("--notespots") {
     }
     World.lodNear = 99; World.leafNear = 99; World.deterministic = true
     FieldTerrain.newWorlds = true
+    StructureCache.traceKinds = true                     // (natural rock a structure built, to tell buildings from ground)
     var cubesTotal = 0, readsTotal = 0, bad: [String] = []
     var cur: (key: String, w: World, g: Game)? = nil
     let limit = Int(arg("--limit") ?? "") ?? Int.max
@@ -559,6 +604,7 @@ if let path = arg("--notespots") {
         let key = sp.seed + "/" + sp.dim
         if cur?.key != key {
             let dim: Dim = sp.dim == "Hell" ? .deep : (sp.dim == "The Emberdeep" ? .nether : (sp.dim == "The Hollow" ? .end : .overworld))
+            FieldTerrain.keptBuilt = [:]; StructureCache.kinds = [:]
             let w = World(seed: UInt64(sp.seed) ?? 0, device: device, save: nil, dim: dim)
             w.makeFieldWorld()
             w.renderDistance = 3; w.activeDistance = 3
@@ -576,9 +622,11 @@ if let path = arg("--notespots") {
         for _ in 0..<4 { g.tick(1.0 / 72) }                          // (meshes in)
         g.player.pos = V3(sp.x, sp.y + Float(YOFF), sp.z); g.player.vel = .zero
         BlockStore.countReads = true; BlockStore.groundReads = 0
+        BlockStore.traceReads = CommandLine.arguments.contains("--trace")
         let frames = 36
         for _ in 0..<frames { g.tick(1.0 / 72) }
         BlockStore.countReads = false
+        BlockStore.traceReads = false
         let reads = BlockStore.groundReads / frames
         var cubes = 0
         let pcx = floorDiv(Int(floor(sp.x)), CS), pcz = floorDiv(Int(floor(sp.z)), CS)
@@ -586,6 +634,35 @@ if let path = arg("--notespots") {
             guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
             for s in c.sections { cubes += s.naturalCubes }
         } }
+        // Ground left in the built layer that no structure built (any is a generation path that kept ground as cells):
+        // counted as ground drawn as cubes too.
+        var unbuilt = 0
+        for dz in -2...2 { for dx in -2...2 {
+            let k = ChunkKey(x: pcx + dx, z: pcz + dz)
+            guard let c = w.chunks[k] else { continue }
+            var g = 0
+            for i in 0..<(CSQ * CH) where FieldMat.index[Int(c.blocks.raw(i))] != 0 { g += 1 }
+            unbuilt += max(0, g - (FieldTerrain.keptBuilt[k] ?? 0))
+        } }
+        cubes += unbuilt
+        // (--trace: which natural blocks the built layer holds here)
+        if CommandLine.arguments.contains("--trace") {
+            var keys: [String: Int] = [:], ground = 0, kept = 0
+            var kinds = Set<String>()
+            for dz in -2...2 { for dx in -2...2 {
+                let k = ChunkKey(x: pcx + dx, z: pcz + dz)
+                guard let c = w.chunks[k] else { continue }
+                for i in 0..<(CSQ * CH) {
+                    let b = c.blocks.raw(i)
+                    if b != AIR && SmoothTerrain.natural[Int(b)] { keys[Blocks.key(b), default: 0] += 1 }
+                    if FieldMat.index[Int(b)] != 0 { ground += 1 }
+                }
+                kept += FieldTerrain.keptBuilt[k] ?? 0
+                kinds.formUnion(StructureCache.kinds[k] ?? [])
+            } }
+            print("notespots   built-layer natural blocks: " + keys.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+            print("notespots   ground materials in the built layer \(ground), kept there by a structure's mark \(kept) (structures: \(kinds.sorted().joined(separator: " ")))")
+        }
         cubesTotal += cubes; readsTotal += reads
         let line = String(format: "notespots %3d %@ %@ %@ %@ at %.1f %.1f %.1f: ground as cubes %d, ground cell reads %d/frame",
                           n, sp.day, sp.time, sp.dim, sp.seed, sp.x, sp.y, sp.z, cubes, reads)
@@ -594,6 +671,7 @@ if let path = arg("--notespots") {
     }
     print("notespots: \(min(limit, spots.count)) spots, ground as cubes total \(cubesTotal), ground cell reads total \(readsTotal)/frame; \(bad.count) spots non-zero")
     for b in bad { print("  NONZERO " + b) }
+    for (k, v) in BlockStore.readers.sorted(by: { $0.value > $1.value }).prefix(80) { print("notespots reader \(v * 64): \(k)") }
     exit(bad.isEmpty ? 0 : 2)
 }
 // --structcheck [--seeds A,B --per N --kinds K,... --dims D --strict --out FILE]: the structure walkability check

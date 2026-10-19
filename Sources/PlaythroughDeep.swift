@@ -238,7 +238,7 @@ extension Playthrough {
             _ = tick(3) { self.game.ashWave == n + 1 || self.game.ashStage == 2 }
         }
         var open = 0
-        for z in AshFinal.hatchZ { for x in AshFinal.hatchX where world.block(x, AshFinal.hatchY, z) == AIR { open += 1 } }
+        for z in AshFinal.hatchZ { for x in AshFinal.hatchX where world.isAir(x, AshFinal.hatchY, z) { open += 1 } }
         check(game.ashStage == 2 && open == 9 && game.advancements.contains("adventure/ash_last_battle"),
               "deep: the last army beaten, the blast door in the command bunker opens (\(open)/9)")
 
@@ -302,13 +302,13 @@ extension Playthrough {
     func place(_ n: String, at: IVec3) -> IVec3? {
         guard hold(n) else { return nil }
         for dx in -1...1 { for dz in -1...3 { for dy in 0...3 { world.setBlock(at.x + dx, at.y + dy, at.z + dz, AIR) } } }
-        if !Blocks.collide[Int(world.block(at.x, at.y - 1, at.z))] { world.setBlock(at.x, at.y - 1, at.z, Blocks.id("nether_bricks")) }
+        if !world.solidAt(at.x, at.y - 1, at.z) { world.setBlock(at.x, at.y - 1, at.z, Blocks.id("nether_bricks")) }
         game.player.flying = true
         game.player.pos = V3(Float(at.x) + 0.5, Float(at.y) + 1.5, Float(at.z) + 2.5); game.player.vel = .zero
         aim(at: V3(Float(at.x) + 0.5, Float(at.y), Float(at.z) + 0.5))
         AimAssist.last = nil            // (the block assist would keep the last block mined highlighted)
         game.input.rightClicked = true
         frame(pin: game.player.pos)
-        return Blocks.key(world.block(at.x, at.y, at.z)).hasSuffix(n) || baseKey(world.block(at.x, at.y, at.z)) == n ? at : nil
+        return Blocks.key(world.materialAt(at.x, at.y, at.z)).hasSuffix(n) || baseKey(world.block(at.x, at.y, at.z)) == n ? at : nil
     }
 }

@@ -40,7 +40,7 @@ enum BorealTests {
 
             // Where the station's parts are: the surface level S is the blockhouse floor row.
             let S = BorealStation.levels(world, s)?.S ?? -1
-            let tileKey = Blocks.key(world.block(cx - 6, S, cz + 22))
+            let tileKey = Blocks.key(world.materialAt(cx - 6, S, cz + 22))
             check(S > 0 && tileKey == "bunker_floor", "boreal \(seed): blockhouse floor where the plan puts it (S = \(S - YOFF), \(tileKey))")
             guard S > 0 else { continue }
             let F = S - BorealStation.depth
@@ -91,7 +91,7 @@ enum BorealTests {
             var minLight = 15
             for dz in -23...23 { for dx in -23...23 {
                 let x = cx + dx, z = cz + dz
-                guard BorealStation.open(dx, 1, dz) != 0, !Blocks.collide[Int(world.block(x, F + 1, z))] else { continue }
+                guard BorealStation.open(dx, 1, dz) != 0, !world.solidAt(x, F + 1, z) else { continue }
                 standCells += 1
                 let l = Int(light[li(x, F + 1, z)])
                 minLight = min(minLight, l)
@@ -101,8 +101,8 @@ enum BorealTests {
             var stairCells = 0, stairDim = 0, stairMin = 15
             for dz in 15...22 { for dx in -7...6 { for y in (F + 1)...(S + 1) {
                 let x = cx + dx, z = cz + dz
-                guard !Blocks.collide[Int(world.block(x, y, z))], !Blocks.collide[Int(world.block(x, y + 1, z))],
-                      Blocks.collide[Int(world.block(x, y - 1, z))] else { continue }
+                guard !world.solidAt(x, y, z), !world.solidAt(x, y + 1, z),
+                      world.solidAt(x, y - 1, z) else { continue }
                 stairCells += 1
                 let l = Int(light[li(x, y, z)])
                 stairMin = min(stairMin, l)
@@ -113,7 +113,7 @@ enum BorealTests {
             var blocked = 0
             for dz in 16...21 {
                 for (dx, y) in [(-6, F + 1), (-5, F + 1), (4, F + 9), (5, F + 9), (-6, S + 1), (-5, S + 1)] {
-                    for yy in y...(y + 1) where Blocks.collide[Int(world.block(cx + dx, yy, cz + dz))] { blocked += 1 }
+                    for yy in y...(y + 1) where world.solidAt(cx + dx, yy, cz + dz) { blocked += 1 }
                 }
             }
             check(blocked == 0, "boreal \(seed): stair landings clear to head height (\(blocked) blocked cells)")
@@ -153,8 +153,8 @@ enum BorealTests {
                     if Blocks.key(Blocks.groupBase[Int(b)]) == "bulkhead_door" && (Int(b - Blocks.groupBase[Int(b)]) & 8) == 0 { surfDoors += 1 }
                 }
                 var y = S + 30
-                while y > S - 2 && world.block(x, y, z) == AIR { y -= 1 }
-                let top = Blocks.key(world.block(x, y, z))
+                while y > S - 2 && world.isAir(x, y, z) { y -= 1 }
+                let top = Blocks.key(world.materialAt(x, y, z))
                 if y > S + 1 { roofs += 1; if top == "snow" { roofSnow += 1 } }
                 else { yardTops += 1; if top == "snow" { yardSnow += 1 } }       // a layer on top, not just snow ground
             } }
@@ -165,8 +165,8 @@ enum BorealTests {
                 let wn = BorealStation.surfaceWall(dx, dz - 1), ww = BorealStation.surfaceWall(dx - 1, dz)
                 guard wn || ww, world.block(cx + dx, S, cz + dz) == SNOW, hashf(dx, dz, 43, 0xB0E) < 0.6 else { continue }
                 var top = S + 30                                              // open to the sky (not under a platform)
-                while top > S + 1 && world.block(cx + dx, top, cz + dz) == AIR { top -= 1 }
-                if top > S + 2 || (top == S + 2 && Blocks.key(world.block(cx + dx, top, cz + dz)) != "snow") { continue }
+                while top > S + 1 && world.isAir(cx + dx, top, cz + dz) { top -= 1 }
+                if top > S + 2 || (top == S + 2 && Blocks.key(world.materialAt(cx + dx, top, cz + dz)) != "snow") { continue }
                 let across = (wn && mod(cz + dz, CS) == 0) || (ww && mod(cx + dx, CS) == 0)
                 let d = world.block(cx + dx, S + 1, cz + dz) == SNOW
                 driftWant += 1; if d { drifts += 1 }
@@ -179,7 +179,7 @@ enum BorealTests {
                   "boreal \(seed): snow on \(roofSnow)/\(roofs) roof and mast tops, \(yardSnow)/\(yardTops) yard cells")
             // Nothing between the bunker and the blockhouse floor is snow (indoors stays clean).
             var indoorSnow = 0
-            for dz in 15...22 { for dx in -7...6 { for y in (F + 1)...(S + 5) where Blocks.key(world.block(cx + dx, y, cz + dz)).hasPrefix("snow") { indoorSnow += 1 } } }
+            for dz in 15...22 { for dx in -7...6 { for y in (F + 1)...(S + 5) where Blocks.key(world.materialAt(cx + dx, y, cz + dz)).hasPrefix("snow") { indoorSnow += 1 } } }
             check(indoorSnow == 0, "boreal \(seed): no snow in the stairwell or blockhouse (\(indoorSnow))")
 
             // Garrison.
@@ -275,8 +275,8 @@ enum BorealTests {
         let key = "boreal:\(cx),\(cz)"
         func at(_ dx: Float, _ y: Int, _ dz: Float) -> V3 { V3(Float(cx) + dx + 0.5, Float(y), Float(cz) + dz + 0.5) }
         let console = IVec3(cx, F + 2, cz - 24), gen = IVec3(cx + 19, F + 2, cz + 13)
-        let ck = Blocks.key(Blocks.groupBase[Int(world.block(console.x, console.y, console.z))])
-        let gk = Blocks.key(Blocks.groupBase[Int(world.block(gen.x, gen.y, gen.z))])
+        let ck = Blocks.key(Blocks.groupBase[Int(world.materialAt(console.x, console.y, console.z))])
+        let gk = Blocks.key(Blocks.groupBase[Int(world.materialAt(gen.x, gen.y, gen.z))])
         check(ck == "command_console" && gk == "steel_plating", "boreal ops: control-room console (\(ck)) and generator (\(gk)) where the plan puts them")
 
         // Silent run: nobody in the station to see or hear.
@@ -340,7 +340,7 @@ enum BorealTests {
             let d = BorealStation.yard + 6
             let x = cx + sx * d, z = cz + sz * d
             var y = S + 24
-            while y > S - 60 && !Blocks.collide[Int(world.block(x, y, z))] { y -= 1 }
+            while y > S - 60 && !world.solidAt(x, y, z) { y -= 1 }
             if y < low.1 { low = (V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5), y) }
         }
         g.player.pos = low.0
@@ -353,7 +353,7 @@ enum BorealTests {
         var steel0 = 0, steel1 = 0
         func countGen() -> Int {
             var n = 0
-            for dz in 13...19 { for dx in 18...21 { for ly in 1...4 where world.block(cx + dx, F + ly, cz + dz) != AIR { n += 1 } } }
+            for dz in 13...19 { for dx in 18...21 { for ly in 1...4 where !world.isAir(cx + dx, F + ly, cz + dz) { n += 1 } } }
             return n
         }
         steel0 = countGen()
@@ -428,7 +428,7 @@ enum BorealTests {
         g2.mobs.rebuildIndex()
         let archive = g2.mobs.mobs.filter { $0.kind.steelhold && $0.kind != .deckGun && $0.pos.x < Float(cx - 16) && abs($0.pos.z - Float(cz)) < 7 }
         let door = IVec3(cx - 15, F + 1, cz)
-        let shut = Int(world.block(door.x, door.y, door.z) - Blocks.groupBase[Int(world.block(door.x, door.y, door.z))]) & 4 == 0
+        let shut = Int(world.block(door.x, door.y, door.z) - Blocks.groupBase[Int(world.materialAt(door.x, door.y, door.z))]) & 4 == 0
         var out = false, t: Float = 0
         g2.player.pos = hall
         g2.baseNoise(at: hall, kind: .gunshot)

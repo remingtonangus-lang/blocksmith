@@ -320,7 +320,7 @@ extension Game {
                     let x = Int(floor(c.x + sinf(a) * r)), z = Int(floor(c.z - cosf(a) * r))
                     guard world.isLoaded(x, z), AshLines.cut(x, z) == .none, AshLines.distance(x, z) > 2 else { continue }
                     let f = dg?.floorY(x, z) ?? DeepGen.floorBase
-                    for y in [f + 1, f + 2, f, f + 3] where Blocks.collide[Int(world.block(x, y - 1, z))] && open(x, y, z, wide) {
+                    for y in [f + 1, f + 2, f, f + 3] where world.solidAt(x, y - 1, z) && open(x, y, z, wide) {
                         let p = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
                         if hidden && world.canSee(player.eye, p + V3(0, 1.5, 0)) { break }
                         return p
@@ -334,7 +334,7 @@ extension Game {
     private func open(_ x: Int, _ y: Int, _ z: Int, _ wide: Bool) -> Bool {
         let r = wide ? 2 : 0
         for dz in -r...r { for dx in -r...r {
-            for dy in 0..<(wide ? 4 : 2) where world.block(x + dx, y + dy, z + dz) != AIR { return false }
+            for dy in 0..<(wide ? 4 : 2) where !world.isAir(x + dx, y + dy, z + dz) { return false }
         } }
         return true
     }

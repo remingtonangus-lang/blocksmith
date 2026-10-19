@@ -43,7 +43,7 @@ extension Game {
 
     // Right-click with an eye: fill a portal frame, or throw it toward the nearest stronghold.
     func useSeekerEye(on hit: (hit: IVec3, normal: IVec3)?) -> Bool {
-        if let t = hit, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)) == "end_portal_frame" {
+        if let t = hit, Blocks.key(world.materialAt(t.hit.x, t.hit.y, t.hit.z)) == "end_portal_frame" {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("end_portal_frame") + 1)
             consumeHeld()
             sfx(.endPortalFrame, 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
@@ -105,14 +105,14 @@ extension Game {
 
     func endPortalTick() {
         let p = player.pos
-        let feet = world.block(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
+        let feet = world.builtBlock(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
         let key = Blocks.key(feet)
         // Rifts sit between bedrock caps, so any part of the body touching one counts (walking up to a far-island
         // return rift, or standing on a pillar next to a floating one); void pearls work too (MobsG.swift).
         if portalCooldown <= 0 && dim.dim == .end {
             for y in [p.y + 0.1, p.y + 0.9, p.y + 1.7] {
                 for (dx, dz) in [(Float(0), Float(0)), (0.4, 0), (-0.4, 0), (0, 0.4), (0, -0.4)]
-                where Blocks.key(world.block(Int(floor(p.x + dx)), Int(floor(y)), Int(floor(p.z + dz)))) == "end_gateway" {
+                where Blocks.key(world.builtBlock(Int(floor(p.x + dx)), Int(floor(y)), Int(floor(p.z + dz)))) == "end_gateway" {
                     portalCooldown = 3; gatewayTeleport(); return
                 }
             }
@@ -191,9 +191,9 @@ extension Game {
         }
         // Return rift two blocks toward the centre, standing on the island (step up onto its bedrock base).
         let rx = bx - Int((dir.x * 2).rounded()), rz = bz - Int((dir.y * 2).rounded())
-        if !(max(0, Int(dest.y) - 3)...min(CH - 1, Int(dest.y) + 6)).contains(where: { Blocks.key(world.block(rx, $0, rz)) == "end_gateway" }) {
+        if !(max(0, Int(dest.y) - 3)...min(CH - 1, Int(dest.y) + 6)).contains(where: { Blocks.key(world.materialAt(rx, $0, rz)) == "end_gateway" }) {
             let base = max(Int(dest.y), world.topY(rx, rz) + 1)
-            if world.block(rx, base - 1, rz) == AIR { world.setBlock(rx, base - 1, rz, Blocks.id("end_stone")) }
+            if world.isAir(rx, base - 1, rz) { world.setBlock(rx, base - 1, rz, Blocks.id("end_stone")) }
             world.setBlock(rx, base, rz, BEDROCK)
             world.setBlock(rx, base + 1, rz, Blocks.id("end_gateway"))
             world.setBlock(rx, base + 2, rz, BEDROCK)
@@ -214,7 +214,7 @@ extension Game {
         guard Blocks.key(egg) == "dragon_egg" else { return false }
         for _ in 0..<1000 {
             let q = IVec3(p.x + Rand.int(in: -15...15), p.y + Rand.int(in: -7...7), p.z + Rand.int(in: -15...15))
-            guard q.y > 0, q.y < CH - 1, world.isLoaded(q.x, q.z), world.block(q.x, q.y, q.z) == AIR else { continue }
+            guard q.y > 0, q.y < CH - 1, world.isLoaded(q.x, q.z), world.isAir(q.x, q.y, q.z) else { continue }
             world.setBlock(p.x, p.y, p.z, AIR)
             world.setBlock(q.x, q.y, q.z, egg)
             particles.explosion(at: blockCenter(p), power: 0.3)
@@ -262,7 +262,7 @@ extension Game {
                     self.hurtPlayer(4, from: b.pos, cause: "was shot by Shellsentry", knockback: 0.3)
                     self.applyEffect(.levitation, amp: 0, seconds: 10)
                 }
-            } else if b.age > 12 || Blocks.collide[Int(world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y)), Int(floor(b.pos.z))))] {
+            } else if b.age > 12 || world.solidAt(Int(floor(b.pos.x)), Int(floor(b.pos.y)), Int(floor(b.pos.z))) {
                 b.dead = true
                 particles.explosion(at: b.pos, power: 0.2)
             }

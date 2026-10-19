@@ -464,7 +464,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             var t: Float = 0.1
             while t < reach {
                 let q = p.viewEye + dir * t
-                if Blocks.opaque[Int(game.world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { dist = max(0.2, t - 0.3); break }
+                if game.world.opaqueAt(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { dist = max(0.2, t - 0.3); break }
                 t += 0.1
             }
             eye = p.viewEye + dir * dist
@@ -1388,7 +1388,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let f = game.underwaterFog
                 uh.fogColor = V4(f.x, f.y, f.z, -1); uh.params.x = 6
             }
-            let ey = Int(floor(eye.y)) + (Blocks.opaque[Int(game.world.block(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z))))] ? 1 : 0)
+            let ey = Int(floor(eye.y)) + (game.world.opaqueAt(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z))) ? 1 : 0)
             let l = game.world.lightAt(Int(floor(eye.x)), ey, Int(floor(eye.z)))
             // Skylight keeps a moonlit floor like the terrain's night ambient (the held block was a black cube on a
             // moonlit meadow: blind critic, run 395 torches).

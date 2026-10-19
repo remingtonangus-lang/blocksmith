@@ -67,11 +67,13 @@ enum PathFinder {
     static let dirs4 = [(1, 0), (-1, 0), (0, 1), (0, -1)]
     static let diags4 = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     @inline(__always) static func blk(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> BlockID {
-        guard cursorOn, w.frame == nil, y >= 0, y < CH else { return w.block(x, y, z) }
+        guard cursorOn, w.frame == nil, y >= 0, y < CH else { return w.builtBlock(x, y, z) }
         let k = ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))
         if k != cKey { cKey = k; cChunk = w.chunkAt(x, z) }
         guard let c = cChunk else { return AIR }
-        return c.blocks[Chunk.index(mod(x, CS), y, mod(z, CS))]
+        // P377 step 2: a field world's ground is never read here as cells (solidTop meets it as the field's surface:
+        // every ground cell is fieldNear); this is the built layer.
+        return c.blocks.isField ? c.blocks.raw(Chunk.index(mod(x, CS), y, mod(z, CS))) : c.blocks[Chunk.index(mod(x, CS), y, mod(z, CS))]
     }
 
     static let climbIds: Set<BlockID> = {
@@ -489,7 +491,7 @@ extension Mob {
         }
         let moved = simd_length(target - path.goal) > 1.5
         let done = path.index >= path.nodes.count
-        let climbing = PathFinder.climbable(w.block(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))
+        let climbing = PathFinder.climbable(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))
         if path.search == nil && (repath || climbing) && path.timer <= 0 && (moved || done || path.timer < -3) && PathFinder.budget > 0 && (Rand.deterministic || PathFinder.spent < PathFinder.slice) {
             PathFinder.budget -= 1
             let t0 = CFAbsoluteTimeGetCurrent()

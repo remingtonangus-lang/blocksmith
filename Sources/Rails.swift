@@ -144,7 +144,7 @@ extension Mob {
                     if abs(s) < 0.2 {
                         // Start moving away from a solid block at one end.
                         let back = cell - IVec3(e[0].0, 0, e[0].2)
-                        s = Blocks.opaque[Int(w.block(back.x, back.y, back.z))] ? -2 : 2
+                        s = w.opaqueAt(back.x, back.y, back.z) ? -2 : 2
                     } else { s += (s > 0 ? 1 : -1) * 24 * dt }
                 } else {
                     s *= expf(-12 * dt)

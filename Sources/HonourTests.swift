@@ -284,7 +284,7 @@ extension TownTests {
                 if be.lines.first == "WANTED" { wanted += 1 }
                 if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) {
                     fronts += 1
-                    let k = Blocks.key(Blocks.groupBase[Int(w.block(p.x, p.y - 3, p.z))])
+                    let k = Blocks.key(Blocks.groupBase[Int(w.materialAt(p.x, p.y - 3, p.z))])
                     if k.contains("planks") || k.contains("sandstone") { walks += 1 }
                 }
             }

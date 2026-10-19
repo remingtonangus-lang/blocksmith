@@ -103,12 +103,12 @@ enum GenCheck {
                             } else if World.fallingIDs[bi] && (below == AIR || (Blocks.fluidKind[Int(below)] == 0 && !Blocks.collide[Int(below)] && Blocks.replaceable[Int(below)])) {
                                 add("unsupported", p, "\(k) over \(bk)")
                             } else if Blocks.fluidKind[bi] != 0 && Blocks.fluidLevel[bi] == 0 {
-                                for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where world.block(wx + dx, y, wz + dz) == AIR {
+                                for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where world.isAir(wx + dx, y, wz + dz) {
                                     // Which side, and what the open column is (a cave mouth, a lower bank, a chunk border).
                                     let nx = wx + dx, nz = wz + dz
                                     var fy = y - 1
-                                    while fy > 1 && world.block(nx, fy, nz) == AIR { fy -= 1 }
-                                    let floorK = Blocks.key(Blocks.groupBase[Int(world.block(nx, fy, nz))])
+                                    while fy > 1 && world.isAir(nx, fy, nz) { fy -= 1 }
+                                    let floorK = Blocks.key(Blocks.groupBase[Int(world.materialAt(nx, fy, nz))])
                                     let border: Bool = floorDiv(nx, CS) != floorDiv(wx, CS) || floorDiv(nz, CS) != floorDiv(wz, CS)
                                     let side = dx == 1 ? "+x" : (dx == -1 ? "-x" : (dz == 1 ? "+z" : "-z"))
                                     let drop: Int = y - fy
@@ -129,7 +129,7 @@ enum GenCheck {
                                 for dz in -1...1 { for dx in -1...1 where !(dx == 0 && dz == 0) {
                                     if logIDs.contains(world.block(wx + dx, y - 1, wz + dz)) || logIDs.contains(world.block(wx + dx, y, wz + dz)) { held = true }
                                 } }
-                                if !held && world.block(wx, y - 2, wz) == AIR { add("trunk_floating", p, "\(k) over open air, no log beside or below") }
+                                if !held && world.isAir(wx, y - 2, wz) { add("trunk_floating", p, "\(k) over open air, no log beside or below") }
                             } else if Blocks.fullCollide[bi] && !isLeaves(b) {
                                 var solidN = 0, airN = 0
                                 for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {

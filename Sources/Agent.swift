@@ -179,7 +179,7 @@ final class Agent {
         }
         mobs.sort { (a: AgentMob, b: AgentMob) -> Bool in a.dist < b.dist }
         let t = game.target?.hit
-        let tb = t.map { Blocks.key(world.block($0.x, $0.y, $0.z)) } ?? ""
+        let tb = t.map { Blocks.key(world.materialAt($0.x, $0.y, $0.z)) } ?? ""
         let menuName: String? = game.menu.map { String(describing: type(of: $0)) }
         let tod: Double = (game.time / DAY_LENGTH).truncatingRemainder(dividingBy: 1)
         return AgentState(tick: tick, pos: p.pos, vel: p.vel, yaw: p.yaw, pitch: p.pitch, onGround: p.onGround, inWater: p.inWater,
@@ -289,7 +289,7 @@ final class Agent {
                         boxes.removeAll(keepingCapacity: true)
                         world.collisionBoxes(cx, cy, cz, &boxes)
                         for (l, h) in boxes where l.x < bhi.x && h.x > blo.x && l.y < bhi.y && h.y > blo.y && l.z < bhi.z && h.z > blo.z {
-                            why = "\(Blocks.key(world.block(cx, cy, cz))) at \(dx),\(dy),\(dz)"
+                            why = "\(Blocks.key(world.materialAt(cx, cy, cz))) at \(dx),\(dy),\(dz)"
                             break search
                         }
                     } } }

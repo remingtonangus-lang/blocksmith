@@ -194,7 +194,7 @@ enum ContextPrompts {
         if let t = g.target {
             out.append((.attack, g.survival ? "Mine" : "Break"))
             if g.isInteractive(t.hit) || g.isCircuitInteractive(t.hit) {
-                let k = Blocks.key(Blocks.groupBase[Int(g.world.block(t.hit.x, t.hit.y, t.hit.z))])
+                let k = Blocks.key(Blocks.groupBase[Int(g.world.materialAt(t.hit.x, t.hit.y, t.hit.z))])
                 out.append((.use, k.contains("chest") || k.contains("barrel") || k.contains("box") ? "Open" : "Use"))
             } else if held.def.block != nil {
                 out.append((.use, "Place"))

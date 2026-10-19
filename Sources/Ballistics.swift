@@ -104,7 +104,7 @@ final class Armory {
         for _ in 0..<8 {
             let from = o + d * start
             guard let b = w.raycast(from, d, maxDist: len - start) else { return nil }
-            let id = w.block(b.hit.x, b.hit.y, b.hit.z)
+            let id = w.materialAt(b.hit.x, b.hit.y, b.hit.z)       // (the material: the shape is the field's, below)
             let c = V3(Float(b.hit.x), Float(b.hit.y), Float(b.hit.z))
             var t = Float.greatestFiniteMagnitude
             for (mn, mx) in w.selectionBoxes(id) {
@@ -261,7 +261,7 @@ final class Armory {
     private func impactBlock(_ s: Slug, at: V3, block b: IVec3, normal n: IVec3, _ g: Game) -> Float {
         if s.kind == .rocket || s.kind == .shell { detonate(s, at: at, g); return 0 }
         let w = g.world
-        let id = w.block(b.x, b.y, b.z)
+        let id = w.materialAt(b.x, b.y, b.z)
         // Player rounds shatter glass; everything kicks up a little dust and a spark.
         let key = Blocks.key(Blocks.groupBase[Int(id)])
         if s.fromPlayer && key == BaseSecurity.camera {   // (D35 cameras)
@@ -274,7 +274,7 @@ final class Armory {
         // P305 (a): rounds wear what they strike by calibre and shoot it out once worn through (BlockWear.swift).
         if s.kind == .bullet {
             let left = g.wearBlock(b, damage: s.damage, at: at, fromPlayer: s.fromPlayer)
-            if w.block(b.x, b.y, b.z) != id { return left }
+            if w.materialAt(b.x, b.y, b.z) != id { return left }
         }
         // Realistic world: a round leaves its hole (a small bite, kept until the block changes) and knocks chips off.
         if World.realistic && Blocks.render[Int(id)] == RenderType.cube.rawValue && Blocks.collide[Int(id)] {
@@ -417,9 +417,9 @@ final class Armory {
         beams.append(Beam(a: o, b: hit, life: 0.18, color: V4(0.9, 2.2, 2.6, 1), width: 0.09))
         // P305 (a): a bolt that strikes a wall burns it three times as hard as a round and bores on into the block behind.
         if mob == nil && !player, let b = struck, b.0 <= end + 0.01 {
-            let before = g.world.block(b.1.x, b.1.y, b.1.z)
+            let before = g.world.materialAt(b.1.x, b.1.y, b.1.z)
             g.wearBlock(b.1, damage: damage, at: hit, fromPlayer: fromPlayer, arc: true)
-            if g.world.block(b.1.x, b.1.y, b.1.z) != before, let n = Armory.blockHit(g.world, hit, dir, 1.6) {
+            if g.world.materialAt(b.1.x, b.1.y, b.1.z) != before, let n = Armory.blockHit(g.world, hit, dir, 1.6) {
                 g.wearBlock(n.1, damage: damage * 0.6, at: hit + dir * n.0, fromPlayer: fromPlayer, arc: true)
             }
         }

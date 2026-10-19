@@ -9,7 +9,7 @@ extension Game {
         let b = world.block(t.hit.x, t.hit.y, t.hit.z)
         guard b == OBSIDIAN || b == BEDROCK else { return false }
         let at = V3(Float(t.hit.x) + 0.5, Float(t.hit.y + 1), Float(t.hit.z) + 0.5)
-        guard world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR, world.block(t.hit.x, t.hit.y + 2, t.hit.z) == AIR,
+        guard world.isAir(t.hit.x, t.hit.y + 1, t.hit.z), world.isAir(t.hit.x, t.hit.y + 2, t.hit.z),
               !mobs.mobs.contains(where: { $0.kind == .endCrystal && simd_length($0.pos - at) < 1 }) else { return false }
         let c = Mob(.endCrystal, at: at)
         c.persistent = true

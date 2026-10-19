@@ -629,10 +629,10 @@ enum Countries {
         let gy = w.gen.column(s.0, s.1).height
         for dz in 0..<5 { for dx in 0..<7 {
             let x = x0 + dx, z = z0 + dz
-            for y in (gy + 1)...(gy + 6) where w.block(x, y, z) != AIR { w.setBlock(x, y, z, AIR) }
+            for y in (gy + 1)...(gy + 6) where !w.isAir(x, y, z) { w.setBlock(x, y, z, AIR) }
             w.setBlock(x, gy, z, floorB)
             var y = gy - 1
-            while y > gy - 5 && !Blocks.opaque[Int(w.block(x, y, z))] { w.setBlock(x, y, z, fill); y -= 1 }
+            while y > gy - 5 && !w.opaqueAt(x, y, z) { w.setBlock(x, y, z, fill); y -= 1 }
         } }
         // Booth: four posts and a slab roof over the 3x3 middle.
         for (dx, dz) in [(0, 0), (2, 0), (0, 2), (2, 2)] {

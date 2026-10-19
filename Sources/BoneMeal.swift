@@ -123,13 +123,13 @@ extension Game {
             // Bedrock: bone meal grows the stalk to its full height of 3.
             let (lo, hi) = column { Blocks.groupBase[Int($0)] == base }
             var y = hi + 1, grew = false
-            while y - lo < 3 && w.block(p.x, y, p.z) == AIR { w.setBlock(p.x, y, p.z, b); y += 1; grew = true }
+            while y - lo < 3 && w.isAir(p.x, y, p.z) { w.setBlock(p.x, y, p.z, b); y += 1; grew = true }
             return grew
         case "bamboo":
             let (lo, hi) = column { $0 == b }
             var y = hi + 1, n = 0
             let cap = 12 + Int(hash3(p.x, 0, p.z, 0xBA3B) % 5), len = Rand.int(in: 1...2)
-            while n < len && y - lo < cap && w.block(p.x, y, p.z) == AIR { w.setBlock(p.x, y, p.z, b); y += 1; n += 1 }
+            while n < len && y - lo < cap && w.isAir(p.x, y, p.z) { w.setBlock(p.x, y, p.z, b); y += 1; n += 1 }
             return n > 0
         case "sweet_berry_bush":
             guard st < 3 else { return false }
@@ -168,13 +168,13 @@ extension Game {
             let (lo, hi) = column { $0 == b }
             var y = up ? hi + 1 : lo - 1, n = 0
             let len = key == "cave_vines" ? 1 : Rand.int(in: 1...3)
-            while n < len && y > 1 && y < CH - 1 && w.block(p.x, y, p.z) == AIR { w.setBlock(p.x, y, p.z, b); y += up ? 1 : -1; n += 1 }
+            while n < len && y > 1 && y < CH - 1 && w.isAir(p.x, y, p.z) { w.setBlock(p.x, y, p.z, b); y += up ? 1 : -1; n += 1 }
             return n > 0
         case "small_dripleaf":
             // A small dripleaf becomes a big one 2-5 tall where there is room.
             let want = Rand.int(in: 2...5)
             var h = 1
-            while h < want && w.block(p.x, p.y + h, p.z) == AIR { h += 1 }
+            while h < want && w.isAir(p.x, p.y + h, p.z) { h += 1 }
             guard h >= 2, Blocks.has("big_dripleaf") else { return false }
             for k in 0..<(h - 1) { w.setBlock(p.x, p.y + k, p.z, id("big_dripleaf_stem")) }
             w.setBlock(p.x, p.y + h - 1, p.z, id("big_dripleaf"))
@@ -182,7 +182,7 @@ extension Game {
         case "big_dripleaf", "big_dripleaf_stem":
             let leaf = id("big_dripleaf"), stem = id("big_dripleaf_stem")
             let (_, hi) = column { $0 == leaf || $0 == stem }
-            guard w.block(p.x, hi, p.z) == leaf, hi + 1 < CH - 1, w.block(p.x, hi + 1, p.z) == AIR else { return false }
+            guard w.block(p.x, hi, p.z) == leaf, hi + 1 < CH - 1, w.isAir(p.x, hi + 1, p.z) else { return false }
             w.setBlock(p.x, hi + 1, p.z, leaf)
             w.setBlock(p.x, hi, p.z, stem)
             return true
@@ -191,7 +191,7 @@ extension Game {
             guard Blocks.has(tall) else { return false }
             let t = id(tall)
             if key == "short_dry_grass" { w.setBlock(p.x, p.y, p.z, t); return true }      // (one block tall)
-            guard w.block(p.x, p.y + 1, p.z) == AIR else { return false }
+            guard w.isAir(p.x, p.y + 1, p.z) else { return false }
             w.setBlock(p.x, p.y, p.z, t)
             w.setBlock(p.x, p.y + 1, p.z, t + 1)
             return true
@@ -243,7 +243,7 @@ extension Game {
     func growHugeFungus(_ p: IVec3, crimson: Bool) {
         let w = world
         let height = Rand.int(in: 4...11)
-        for dy in 1...(height + 1) where w.block(p.x, p.y + dy, p.z) != AIR { return }
+        for dy in 1...(height + 1) where !w.isAir(p.x, p.y + dy, p.z) { return }
         let stem = Blocks.id(crimson ? "crimson_stem" : "warped_stem")
         let wart = Blocks.id(crimson ? "nether_wart_block" : "warped_wart_block")
         let lamp = Blocks.id("shroomlight")
@@ -254,7 +254,7 @@ extension Game {
             for dz in -r...r { for dx in -r...r {
                 if abs(dx) == 2 && abs(dz) == 2 { continue }
                 if dy < 0 && abs(dx) < 2 && abs(dz) < 2 { continue }
-                if w.block(p.x + dx, top + dy, p.z + dz) == AIR { w.setBlockAsync(p.x + dx, top + dy, p.z + dz, Rand.int(in: 0..<12) == 0 ? lamp : wart) }
+                if w.isAir(p.x + dx, top + dy, p.z + dz) { w.setBlockAsync(p.x + dx, top + dy, p.z + dz, Rand.int(in: 0..<12) == 0 ? lamp : wart) }
             } }
         }
         w.setBlock(p.x, p.y, p.z, stem)

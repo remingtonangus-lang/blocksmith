@@ -251,7 +251,7 @@ extension Game {
                   let t = Copper.convert(b, stage: stage(st), waxed: waxed) else { return }
             copperSet(q, b, t)
         }
-        guard Copper.index[Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])] != nil else { return }
+        guard Copper.index[Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])] != nil else { return }
         clean(p) { _ in 0 }
         for _ in 0..<5 {
             let q = IVec3(p.x + Rand.int(in: -3...3), p.y + Rand.int(in: -3...1), p.z + Rand.int(in: -3...3))

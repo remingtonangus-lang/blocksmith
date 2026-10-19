@@ -601,7 +601,7 @@ final class Mob {
     }
 
     private func solid(_ x: Float, _ y: Float, _ z: Float, _ w: World) -> Bool {
-        Blocks.collide[Int(w.block(Int(floor(x)), Int(floor(y)), Int(floor(z))))]
+        w.solidAt(Int(floor(x)), Int(floor(y)), Int(floor(z)))
     }
 
     func face(_ p: V3) {
@@ -670,7 +670,7 @@ final class Mob {
         if cureTick(dt, g) { return }
         if kind == .vex { updateVex(dt, g); return }
 
-        let feetBlock = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
+        let feetBlock = w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
         let inWater = Blocks.isLiquid(feetBlock) && !w.ships.dry(at: pos + V3(0, 0.2, 0))     // not inside a hull
 
         // Undead burn in daylight under open sky.
@@ -1107,7 +1107,7 @@ final class Mob {
                     let to = player + back * Rand.float(in: 3...8)
                     let x = Int(floor(to.x)), z = Int(floor(to.z))
                     let top = w.topY(x, z)
-                    if top > 0 && abs(Float(top + 1) - player.y) < 8 && !Blocks.isLiquid(w.block(x, top, z))
+                    if top > 0 && abs(Float(top + 1) - player.y) < 8 && !Blocks.isLiquid(w.builtBlock(x, top, z))
                         && Mob.clearOfPlayer(V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)) {
                         pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
                         vel = .zero
@@ -1174,7 +1174,7 @@ final class Mob {
         // (behaviour sim: pigs, wolves, rabbits, chickens spinning 800-1100 degrees in 10 s on strolls).
         if spec.behavior == .passive && speed > 0 && onGround && panic <= 0 && !onPath {
             let a = pos + forward * (halfW + 0.45)
-            let wet = Blocks.isLiquid(w.block(Int(floor(a.x)), Int(floor(pos.y - 0.5)), Int(floor(a.z))))
+            let wet = Blocks.isLiquid(w.builtBlock(Int(floor(a.x)), Int(floor(pos.y - 0.5)), Int(floor(a.z))))
             let drop = !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w)
             if wet || drop { yaw += .pi * Rand.float(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Rand.float(in: 1...3) }
         }
@@ -1209,8 +1209,8 @@ final class Mob {
         }
         if spec.behavior != .slime || onGround {
             // Magmastriders out of lava are cold: half speed (reference).
-            let cold: Float = kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))] != 2
-                && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] != 2 ? 0.5 : 1
+            let cold: Float = kind == .strider && Blocks.fluidKind[Int(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))] != 2
+                && Blocks.fluidKind[Int(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] != 2 ? 0.5 : 1
             let side = V3(cosf(yaw), 0, -sinf(yaw)) * strafe
             let target = (forward * speed + side) * effectSpeed * cold
             let k = 1 - expf(-(onGround ? 12 : 3) * dt)
@@ -1220,7 +1220,7 @@ final class Mob {
             if abs(vel.z) < 1e-5 { vel.z = 0 }
         }
         if swimClimb > 0 { swimClimb -= dt }
-        if kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 2 {
+        if kind == .strider && Blocks.fluidKind[Int(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 2 {
             vel.y = 2          // magmastriders stand on lava
         } else if inWater {
             // P279 (Oct 14 19:34, "the Drowned is walking on top of the water"): buoyancy pushed every mob up until its
@@ -1265,7 +1265,7 @@ final class Mob {
 
         // Ladders and vines: climb when the path leads up (centred on the rung), slow slide otherwise.
         let lx = Int(floor(pos.x)), lz = Int(floor(pos.z))
-        let onLadder = !spec.flying && (PathFinder.climbable(w.block(lx, Int(floor(pos.y)), lz)) || PathFinder.climbable(w.block(lx, Int(floor(pos.y + 1)), lz)))
+        let onLadder = !spec.flying && (PathFinder.climbable(w.builtBlock(lx, Int(floor(pos.y)), lz)) || PathFinder.climbable(w.builtBlock(lx, Int(floor(pos.y + 1)), lz)))
         if onLadder {
             if path.climbUp {
                 vel.y = 2.35
@@ -1378,7 +1378,7 @@ final class Mob {
         let x = Int(floor(pos.x)), z = Int(floor(pos.z))
         var y = Int(floor(pos.y + 0.2))
         let cap = y + 48
-        while y < cap && Blocks.isLiquid(w.block(x, y, z)) { y += 1 }
+        while y < cap && Blocks.isLiquid(w.builtBlock(x, y, z)) { y += 1 }
         return Float(y)
     }
 
@@ -1486,7 +1486,7 @@ final class Mob {
     // Under natural ground: the first solid block over the head (up to 7 above the feet) is stone, soil and the like.
     static func underground(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         for yy in (y + 2)...(y + 8) {
-            let b = Int(w.block(x, yy, z))
+            let b = Int(w.materialAt(x, yy, z))
             if Blocks.collide[b] || Blocks.opaque[b] { return earth[b] }
         }
         return false
@@ -1557,7 +1557,7 @@ final class Mob {
             let x = Int(floor(pos.x)) + Rand.int(in: -16...16), z = Int(floor(pos.z)) + Rand.int(in: -16...16)
             let top = w.topY(x, z)
             if top < 1 { continue }
-            if Blocks.isLiquid(w.block(x, top, z)) { continue }
+            if Blocks.isLiquid(w.builtBlock(x, top, z)) { continue }
             if !Mob.clearOfPlayer(V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)) { continue }
             teleportSound = true
             pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
@@ -2591,12 +2591,12 @@ final class MobManager {
                 if (m.gaited && beat) || (!m.gaited && m.stepAcc > stride) {
                     m.stepAcc = 0
                     do {
-                        let under = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.2)), Int(floor(m.pos.z)))
+                        let under = w.materialAt(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.2)), Int(floor(m.pos.z)))
                         if under != AIR {
                             let vol: Float = sp.volume * (m.baby ? 0.5 : 1)
                             if let r = Soldier.rank(m.kind) { game.sfx(.soldierStep(Soldier.voice(r)), vol + 0.15, at: m.pos) }
                             else if m.gaited {
-                                let feet = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y + 0.1)), Int(floor(m.pos.z)))
+                                let feet = w.builtBlock(Int(floor(m.pos.x)), Int(floor(m.pos.y + 0.1)), Int(floor(m.pos.z)))
                                 let srf = Blocks.isLiquid(feet) ? 5 : HorseLife.surface(under)
                                 HorseLife.lastHoof = srf
                                 game.sfx(.hoof(srf), vol * (hsp > 9 ? 1.2 : 1), at: m.pos)
@@ -2709,15 +2709,16 @@ final class MobManager {
     static func surfaceScan(_ w: World, _ x: Int, _ z: Int) -> Int {
         guard w.frame == nil, let c = w.chunkAt(x, z) else {
             var y = CH - 2
-            while y > 1 && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.isLiquid(w.block(x, y, z)) { y -= 1 }
+            while y > 1 && !w.solidAt(x, y, z) && !Blocks.isLiquid(w.builtBlock(x, y, z)) { y -= 1 }
             return y
         }
         let lx = mod(x, CS), lz = mod(z, CS)
         let collide = Blocks.collide
         var y = CH - 2
         while y > 1 {
-            let b = c.blocks[Chunk.index(lx, y, lz)]
-            if collide[Int(b)] || Blocks.isLiquid(b) { break }
+            let i = Chunk.index(lx, y, lz)
+            let b = c.blocks.raw(i)
+            if collide[Int(b)] || Blocks.isLiquid(b) || c.blocks.ground(i) { break }     // (the field's ground: P377 step 2)
             y -= 1
         }
         return y
@@ -2725,8 +2726,8 @@ final class MobManager {
 
     func grassSurface(_ w: World, _ x: Int, _ z: Int) -> Int? {
         let y = MobManager.surfaceScan(w, x, z)
-        guard w.block(x, y, z) == GRASS else { return nil }
-        let a = w.block(x, y + 1, z), b = w.block(x, y + 2, z)
+        guard w.materialAt(x, y, z) == GRASS else { return nil }
+        let a = w.materialAt(x, y + 1, z), b = w.materialAt(x, y + 2, z)
         guard !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && !Blocks.isLiquid(a) else { return nil }
         return y + 1
     }
@@ -2768,7 +2769,7 @@ final class MobManager {
     // Grass-like ground with room above (sand for turtles/rabbits, snow for bears, island ground for Shellbacks).
     func animalSurface(_ w: World, _ x: Int, _ z: Int, _ k: MobKind) -> Int? {
         let y = MobManager.surfaceScan(w, x, z)
-        let g = Blocks.key(w.block(x, y, z))
+        let g = Blocks.key(w.materialAt(x, y, z))
         let ok: Bool
         switch k {
         case .turtle: ok = g == "sand"
@@ -2779,7 +2780,7 @@ final class MobManager {
         default: ok = g == "grass_block" || g == "snowy_grass_block"
         }
         guard ok else { return nil }
-        let a = w.block(x, y + 1, z), b = w.block(x, y + 2, z)
+        let a = w.materialAt(x, y + 1, z), b = w.materialAt(x, y + 2, z)
         guard !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && !Blocks.isLiquid(a) else { return nil }
         return y + 1
     }
@@ -2795,12 +2796,12 @@ final class MobManager {
         guard w.isLoaded(x, z) else { return }
         var y = base + Rand.int(in: 1...(height - 2))
         // Walk down to a floor with two free blocks above it.
-        while y > base + 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]
-                                 && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }
-        if y <= base + 1 || Blocks.isLiquid(w.block(x, y, z)) || w.block(x, y - 1, z) == BEDROCK { return }
+        while y > base + 1 && !(w.opaqueAt(x, y - 1, z) && !w.solidAt(x, y, z)
+                                 && !w.solidAt(x, y + 1, z)) { y -= 1 }
+        if y <= base + 1 || Blocks.isLiquid(w.builtBlock(x, y, z)) || w.materialAt(x, y - 1, z) == BEDROCK { return }
         let spawnPos = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
         if !game.spawnHidden(spawnPos, min: 32) { return }                      // P307 (a): never in sight
-        let inFortress = w.gen.structures?.structure(at: x, y, z, kind: "fortress") != nil && BrandChapterhouse.isFloor(w.block(x, y - 1, z))
+        let inFortress = w.gen.structures?.structure(at: x, y, z, kind: "fortress") != nil && BrandChapterhouse.isFloor(w.materialAt(x, y - 1, z))
         _ = hellOwnSpawn(game, at: spawnPos, lean: inFortress ? [45, 20, 35, 0] : MobManager.hellLean(w.gen.column(x, z).biome), always: true)
     }
 

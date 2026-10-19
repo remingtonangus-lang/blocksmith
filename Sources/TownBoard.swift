@@ -226,7 +226,7 @@ enum TownBoard {
                 let x = t0[0] + dx, z = t0[1] + dz
                 guard g.world.isLoaded(x, z) else { continue }
                 let y = g.world.topY(x, z) + 1
-                if !Blocks.isLiquid(g.world.block(x, y - 1, z)) && !Blocks.isLiquid(g.world.block(x, y, z)) { spot = (x, z); break search }
+                if !Blocks.isLiquid(g.world.builtBlock(x, y - 1, z)) && !Blocks.isLiquid(g.world.builtBlock(x, y, z)) { spot = (x, z); break search }
             } } }
             guard let (sx, sz) = spot else { continue }
             let c = V3(Float(sx) + 0.5, 0, Float(sz) + 0.5)

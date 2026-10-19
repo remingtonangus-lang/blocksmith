@@ -253,11 +253,11 @@ enum Nation {
             var y = w.topY(x, z)
             guard y > SEA - 2 else { return nil }
             // Down through plants, snow layers and leaves to the ground.
-            while y > 1, !Blocks.collide[Int(w.block(x, y, z))] || Blocks.key(w.block(x, y, z)).hasSuffix("leaves") { y -= 1 }
+            while y > 1, !w.solidAt(x, y, z) || Blocks.key(w.materialAt(x, y, z)).hasSuffix("leaves") { y -= 1 }
             let b = w.block(x, y, z)
             guard natural.contains(Blocks.key(b)) else { return nil }
-            if Blocks.isLiquid(w.block(x, y + 1, z)) { return nil }
-            for up in 1...5 where Blocks.collide[Int(w.block(x, y + up, z))] && !Blocks.key(w.block(x, y + up, z)).hasSuffix("leaves") { return nil }
+            if Blocks.isLiquid(w.builtBlock(x, y + 1, z)) { return nil }
+            for up in 1...5 where w.solidAt(x, y + up, z) && !Blocks.key(w.materialAt(x, y + up, z)).hasSuffix("leaves") { return nil }
             lo = min(lo, y); hi = max(hi, y)
             if hi - lo > 1 { return nil }
         } }
@@ -276,7 +276,7 @@ enum Nation {
         for dx in -half...half { for dz in -half...half {
             let x = cx + dx, z = cz + dz
             var yy = y
-            while yy > y - 4 && !Blocks.collide[Int(w.block(x, yy, z))] { w.setBlock(x, yy, z, dirt); yy -= 1 }
+            while yy > y - 4 && !w.solidAt(x, yy, z) { w.setBlock(x, yy, z, dirt); yy -= 1 }
             for up in 1...(kind == 2 ? 9 : 6) { w.setBlock(x, y + up, z, AIR) }
         } }
         switch kind {

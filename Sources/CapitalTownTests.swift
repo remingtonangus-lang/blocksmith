@@ -67,8 +67,8 @@ extension TownTests {
         let r = CapitalCity.N * CapitalCity.lot + 8
         for (q, be) in w.blockEntities where be.kind == .sign && abs(q.x - Int(centre.x)) < r && abs(q.z - Int(centre.z)) < r {
             // A sign counts when its block is still a sign (a later fill could have replaced it, leaving the text).
-            if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) && Blocks.key(Blocks.groupBase[Int(w.block(q.x, q.y, q.z))]).hasSuffix("_sign") { signs += 1 }
-            else if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) { print("  sign entity without a sign block at \(q.x) \(q.y) \(q.z): \(Blocks.key(w.block(q.x, q.y, q.z)))") }
+            if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) && Blocks.key(Blocks.groupBase[Int(w.materialAt(q.x, q.y, q.z))]).hasSuffix("_sign") { signs += 1 }
+            else if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) { print("  sign entity without a sign block at \(q.x) \(q.y) \(q.z): \(Blocks.key(w.materialAt(q.x, q.y, q.z)))") }
             if be.lines.first == "Welcome to" { welcome = be.lines[1] }
         }
         if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil, let (_, kp) = w.pendingMobs.first(where: { $0.0 == "villager:shop_general" }) {
@@ -76,7 +76,7 @@ extension TownTests {
             let sx = Int(floor(kp.x)) - CapitalTown.storeW / 2, sz = Int(floor(kp.z)) - (CapitalTown.storeD - 3), y0 = Int(floor(kp.y))
             for v in [-1, 0] { for dy in stride(from: 6, through: 0, by: -1) {
                 print("  front v\(v) dy\(dy): " + (-1...CapitalTown.storeW).map { u in
-                    let k = Blocks.key(w.block(sx + u, y0 + dy, sz + v)); return String((k == "air" ? "." : k).prefix(6)).padding(toLength: 7, withPad: " ", startingAt: 0)
+                    let k = Blocks.key(w.materialAt(sx + u, y0 + dy, sz + v)); return String((k == "air" ? "." : k).prefix(6)).padding(toLength: 7, withPad: " ", startingAt: 0)
                 }.joined())
             } }
         }
@@ -140,9 +140,9 @@ extension TownTests {
                 if m.pos.y > Float(j[1]) + 0.7 {
                     onCounter += 1
                     if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil && onCounter % 7 == 1 {
-                        print("  up: \(m.villager?.shop ?? "") at \(m.pos) spot \(j) on \(Blocks.key(w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.6)), Int(floor(m.pos.z))))) ground \(m.onGround) t \(Int(g.dayFraction * 24000)) goal \(m.path.goal) nodes \(m.path.nodes.dropFirst(m.path.index).prefix(4).map { "\($0.x),\($0.y),\($0.z)" }) partial \(m.path.partial) near \(g.mobs.mobs.filter { $0 !== m && simd_length($0.pos - m.pos) < 1.5 }.map { "\($0.villager?.role ?? "?")@\($0.pos)" })")
+                        print("  up: \(m.villager?.shop ?? "") at \(m.pos) spot \(j) on \(Blocks.key(w.materialAt(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.6)), Int(floor(m.pos.z))))) ground \(m.onGround) t \(Int(g.dayFraction * 24000)) goal \(m.path.goal) nodes \(m.path.nodes.dropFirst(m.path.index).prefix(4).map { "\($0.x),\($0.y),\($0.z)" }) partial \(m.path.partial) near \(g.mobs.mobs.filter { $0 !== m && simd_length($0.pos - m.pos) < 1.5 }.map { "\($0.villager?.role ?? "?")@\($0.pos)" })")
                         for y in j[1] - 1...j[1] + 1 { for z in j[2] - 3...j[2] + 3 {
-                            print("   y\(y) z\(z): " + (j[0] - 3...j[0] + 3).map { String(Blocks.key(w.block($0, y, z)).prefix(6)).padding(toLength: 7, withPad: " ", startingAt: 0) }.joined()) } }
+                            print("   y\(y) z\(z): " + (j[0] - 3...j[0] + 3).map { String(Blocks.key(w.materialAt($0, y, z)).prefix(6)).padding(toLength: 7, withPad: " ", startingAt: 0) }.joined()) } }
                     }
                 }
             }
@@ -189,7 +189,7 @@ extension TownTests {
                 let cx = Int(floor(m.pos.x)), cy = Int(floor(m.pos.y)), cz = Int(floor(m.pos.z))
                 for dy in -1...2 {
                     print("    y\(cy + dy) (rows z \(cz - 2)...\(cz + 2), x \(cx - 3)...\(cx + 3)): " + (-2...2).map { dz in (-3...3).map { dx -> String in
-                        let k = Blocks.key(w.block(cx + dx, cy + dy, cz + dz))
+                        let k = Blocks.key(w.materialAt(cx + dx, cy + dy, cz + dz))
                         return k == "air" ? "." : (k.contains("slab") ? "s" : (k.contains("stairs") ? "t" : (k.contains("fence") ? "f" : String(k.prefix(1)))))
                     }.joined() }.joined(separator: " | "))
                 }

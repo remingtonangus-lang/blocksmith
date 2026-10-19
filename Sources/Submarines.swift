@@ -58,8 +58,8 @@ enum Submarine {
     // The water surface in a column (array y of the top water block), or nil when the top isn't water 4+ deep.
     static func surface(_ w: World, _ x: Int, _ z: Int) -> Int? {
         let top = w.topY(x, z)
-        for y in stride(from: min(CH - 1, top + 2), through: max(1, top - 2), by: -1) where Blocks.fluidKind[Int(w.block(x, y, z))] == 1 {
-            for d in 1...4 where Blocks.fluidKind[Int(w.block(x, y - d, z))] != 1 { return nil }
+        for y in stride(from: min(CH - 1, top + 2), through: max(1, top - 2), by: -1) where Blocks.fluidKind[Int(w.builtBlock(x, y, z))] == 1 {
+            for d in 1...4 where Blocks.fluidKind[Int(w.builtBlock(x, y - d, z))] != 1 { return nil }
             return y
         }
         return nil
@@ -111,7 +111,7 @@ extension Game {
             let z0 = Int(floor(lo.z - r)), z1 = Int(floor(hi.z + r))
             let ya = max(0, y0), yb = min(CH - 1, y1)       // a body below the world or above it has nothing to set off
             guard ya <= yb, (x1 - x0 + 1) * (yb - ya + 1) * (z1 - z0 + 1) <= 8000 else { return }
-            for y in ya...yb { for z in z0...z1 { for x in x0...x1 where world.rawBlock(x, y, z) == mine || (wetMine != AIR && world.rawBlock(x, y, z) == wetMine) { hot.append(IVec3(x, y, z)) } } }
+            for y in ya...yb { for z in z0...z1 { for x in x0...x1 where world.builtBlock(x, y, z) == mine || (wetMine != AIR && world.builtBlock(x, y, z) == wetMine) { hot.append(IVec3(x, y, z)) } } }
         }
         if survival || !Submarine.creativeSafe {
             for i in 0..<max(1, coop.seatCount) { let p = coop.seatPlayer(i, self).pos; scan(p, p + V3(0, 1.8, 0)) }

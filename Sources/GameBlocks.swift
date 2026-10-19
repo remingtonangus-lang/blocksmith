@@ -131,12 +131,12 @@ extension Game {
         }
     }
 
-    // Once a second.
+    // Once a second. (Everything here looks for built blocks: P377 step 2.)
     func blockSecondTick() {
         let pp = player.pos
         // Campfire smoke and contact damage.
         let feet = IVec3(Int(floor(pp.x)), Int(floor(pp.y - 0.1)), Int(floor(pp.z)))
-        let fb = world.block(feet.x, feet.y, feet.z)
+        let fb = world.builtBlock(feet.x, feet.y, feet.z)
         let fk = Blocks.key(fb)
         if (fk == "campfire" || fk == "soul_campfire") && survival && !player.sneaking {
             damage(fk == "soul_campfire" ? 2 : 1, "went up in flames", type: .fire)
@@ -146,11 +146,11 @@ extension Game {
         if conduit != AIR, player.inWater {
             let c = IVec3(Int(floor(pp.x)), Int(floor(pp.y)), Int(floor(pp.z)))
             outer: for dy in -24...24 where dy % 2 == 0 { for dz in stride(from: -24, through: 24, by: 1) { for dx in stride(from: -24, through: 24, by: 1) {
-                guard abs(dx) + abs(dy) + abs(dz) < 48, world.block(c.x + dx, c.y + dy, c.z + dz) == conduit else { continue }
+                guard abs(dx) + abs(dy) + abs(dz) < 48, world.builtBlock(c.x + dx, c.y + dy, c.z + dz) == conduit else { continue }
                 let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
                 var frame = 0
                 for fz in -2...2 { for fy in -2...2 { for fx in -2...2 {
-                    let k = Blocks.key(world.block(q.x + fx, q.y + fy, q.z + fz))
+                    let k = Blocks.key(world.builtBlock(q.x + fx, q.y + fy, q.z + fz))
                     if k == "prismarine" || k == "prismarine_bricks" || k == "dark_prismarine" || k == "sea_lantern" { frame += 1 }
                 } } }
                 if frame >= 16 && simd_length(V3(Float(dx), Float(dy), Float(dz))) < Float(frame / 7 * 16) {
@@ -166,7 +166,7 @@ extension Game {
                 let c = IVec3(Int(floor(pp.x)), Int(floor(pp.y)), Int(floor(pp.z)))
                 var found = false
                 for dy in -4...4 { for dz in -8...8 { for dx in -8...8 {
-                    let k = Blocks.key(world.block(c.x + dx, c.y + dy, c.z + dz))
+                    let k = Blocks.key(world.builtBlock(c.x + dx, c.y + dy, c.z + dz))
                     if k == "sculk_shrieker" || k == "sculk_sensor" || k == "calibrated_sculk_sensor" { found = true }
                 } } }
                 if found {
@@ -181,7 +181,7 @@ extension Game {
                             let a = Rand.float(in: 0..<(2 * .pi))
                             let x = Int(floor(pp.x + cosf(a) * 6)), z = Int(floor(pp.z + sinf(a) * 6))
                             var y = c.y + 3
-                            while y > c.y - 6 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
+                            while y > c.y - 6 && !Blocks.collide[Int(world.builtBlock(x, y - 1, z))] && !world.groundAt(x, y - 1, z) { y -= 1 }
                             let w = Mob(.warden, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                             w.anger = 80
                             w.emergeTime = 6.7
@@ -201,14 +201,14 @@ extension Game {
         let cat = Blocks.id("sculk_catalyst")
         let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
         var near = false
-        for dy in -8...8 { for dz in -8...8 { for dx in -8...8 where world.block(c.x + dx, c.y + dy, c.z + dz) == cat { near = true } } }
+        for dy in -8...8 { for dz in -8...8 { for dx in -8...8 where world.builtBlock(c.x + dx, c.y + dy, c.z + dz) == cat { near = true } } }
         guard near else { return }
         let sculk = Blocks.id("sculk")
         var n = min(20, xp)
         for _ in 0..<60 where n > 0 {
             let q = IVec3(c.x + Rand.int(in: -3...3), c.y - 1 + Rand.int(in: -1...0), c.z + Rand.int(in: -3...3))
-            let b = world.block(q.x, q.y, q.z)
-            if Blocks.opaque[Int(b)] && b != sculk && Blocks.hardness[Int(b)] >= 0 && world.block(q.x, q.y + 1, q.z) == AIR {
+            let b = world.materialAt(q.x, q.y, q.z)
+            if Blocks.opaque[Int(b)] && b != sculk && Blocks.hardness[Int(b)] >= 0 && world.isAir(q.x, q.y + 1, q.z) {
                 world.setBlockAsync(q.x, q.y, q.z, sculk); n -= 1
             }
         }
@@ -226,7 +226,7 @@ extension Game {
         let r = min(16, 2 + fw)
         for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
             let q = IVec3(feet.x + dx, feet.y, feet.z + dz)
-            if world.block(q.x, q.y, q.z) == WATER && world.block(q.x, q.y + 1, q.z) == AIR {
+            if world.builtBlock(q.x, q.y, q.z) == WATER && world.isAir(q.x, q.y + 1, q.z) {
                 world.setBlockAsync(q.x, q.y, q.z, Game.frostedIceID)
                 frostTimers[q] = Rand.float(in: 3...6)            // first melt try 60-120 ticks on
             }
@@ -261,7 +261,7 @@ extension Game {
         let age = Int(b) - Int(fi)
         let dirs = World.allDirs
         var n = 0
-        for d in dirs where Blocks.groupBase[Int(world.block(q.x + d.x, q.y + d.y, q.z + d.z))] == fi { n += 1 }
+        for d in dirs where Blocks.groupBase[Int(world.materialAt(q.x + d.x, q.y + d.y, q.z + d.z))] == fi { n += 1 }
         let l = world.lightAt(q.x, q.y, q.z)
         let dayPart: Float = (daylight - 0.12) / 0.88
         let darken = max(0, min(11, Int(((1 - dayPart) * 11).rounded())))
@@ -274,7 +274,7 @@ extension Game {
                 world.setBlockAsync(q.x, q.y, q.z, WATER)
                 for d in dirs {
                     let o = IVec3(q.x + d.x, q.y + d.y, q.z + d.z)
-                    if Blocks.groupBase[Int(world.block(o.x, o.y, o.z))] == fi { frostTimers[o] = min(frostTimers[o] ?? 0.05, 0.05) }
+                    if Blocks.groupBase[Int(world.materialAt(o.x, o.y, o.z))] == fi { frostTimers[o] = min(frostTimers[o] ?? 0.05, 0.05) }
                 }
             }
         } else {
@@ -309,7 +309,7 @@ extension Game {
             // Next to water it soaks up a stage every few random ticks (about 20 minutes to hatch); dry, it shrivels back.
             var wet = false
             for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] where !wet {
-                wet = Blocks.fluidKind[Int(world.block(p.x + d.x, p.y + d.y, p.z + d.z))] == 1
+                wet = Blocks.fluidKind[Int(world.builtBlock(p.x + d.x, p.y + d.y, p.z + d.z))] == 1
             }
             if wet && Rand.int(in: 0..<4) == 0 {
                 if st < 3 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }

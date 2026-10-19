@@ -72,7 +72,7 @@ extension Mob {
             }
             return 0
         default:
-            let wet = Blocks.isLiquid(g.world.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z))))
+            let wet = Blocks.isLiquid(g.world.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z))))
             let nearWater = wet || waterNear(g.world)
             if phase == 1 {
                 aiTimer -= dt
@@ -96,7 +96,7 @@ extension Mob {
     func waterNear(_ w: World) -> Bool {
         let x = Int(floor(pos.x)), y = Int(floor(pos.y)), z = Int(floor(pos.z))
         for dz in stride(from: -3, through: 3, by: 3) { for dx in stride(from: -3, through: 3, by: 3) {
-            if Blocks.isLiquid(w.block(x + dx, y - 1, z + dz)) || Blocks.isLiquid(w.block(x + dx, y, z + dz)) { return true }
+            if Blocks.isLiquid(w.builtBlock(x + dx, y - 1, z + dz)) || Blocks.isLiquid(w.builtBlock(x + dx, y, z + dz)) { return true }
         } }
         return false
     }

@@ -116,7 +116,7 @@ extension Game {
         for h in hearts {
             let b = world.block(h.x, h.y, h.z)
             guard Blocks.groupBase[Int(b)] == base else { continue }
-            let natural = Blocks.key(world.block(h.x, h.y + 1, h.z)).hasPrefix("pale_oak_log") && Blocks.key(world.block(h.x, h.y - 1, h.z)).hasPrefix("pale_oak_log")
+            let natural = Blocks.key(world.materialAt(h.x, h.y + 1, h.z)).hasPrefix("pale_oak_log") && Blocks.key(world.materialAt(h.x, h.y - 1, h.z)).hasPrefix("pale_oak_log")
             let want = ashenNight && natural && difficulty > 0
             if want != (b == active) { world.setBlock(h.x, h.y, h.z, want ? active : base) }
             guard want else { continue }
@@ -129,7 +129,7 @@ extension Game {
                 let top = world.topY(x, z)
                 guard top > 0, abs(top - h.y) < 12 else { continue }
                 var y = top + 1
-                while y > h.y - 12 && !(world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR && world.block(x, y + 2, z) == AIR && Blocks.collide[Int(world.block(x, y - 1, z))]) { y -= 1 }
+                while y > h.y - 12 && !(world.isAir(x, y, z) && world.isAir(x, y + 1, z) && world.isAir(x, y + 2, z) && world.solidAt(x, y - 1, z)) { y -= 1 }
                 guard y > h.y - 12 else { continue }
                 let m = Mob(.creaking, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                 m.home = hv
@@ -153,7 +153,7 @@ extension Game {
             for lz in 0..<CS { for lx in 0..<CS {
                 let top = Int(height[lx + lz * CS])
                 guard top > 20 else { continue }
-                for y in max(1, top - 24)...top where groupBase[Int(blocks[Chunk.index(lx, y, lz)])] == base {
+                for y in max(1, top - 24)...top where groupBase[Int(blocks.raw(Chunk.index(lx, y, lz)))] == base {
                     out.append(IVec3(cx * CS + lx, y, cz * CS + lz))
                 }
             } }

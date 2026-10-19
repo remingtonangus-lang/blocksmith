@@ -92,7 +92,7 @@ extension TownTests {
                 if b >= 1 && bankSignHere >= 1 && signsHere >= 1 { townsOK += 1 }
                 for dz in -60...60 { for dx in -60...60 {
                     let x = s.anchor.x + dx, z = s.anchor.z + dz
-                    for y in (s.anchor.y - 4)...(s.anchor.y + 12) where w.block(x, y, z) == lantern && Blocks.key(w.block(x, y - 1, z)).contains("fence") { lamps += 1 }
+                    for y in (s.anchor.y - 4)...(s.anchor.y + 12) where w.block(x, y, z) == lantern && Blocks.key(w.materialAt(x, y - 1, z)).contains("fence") { lamps += 1 }
                 } }
             }
             check(towns >= 3 && bankSigns >= bankers && townsOK == towns,

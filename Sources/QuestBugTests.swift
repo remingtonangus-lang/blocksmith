@@ -385,8 +385,8 @@ enum QuestBugTests {
             for x in 1...3 { w.setBlock(bx + x, gy + 1, bz, Blocks.id("redstone_wire")) }
             w.setBlock(bx + 4, gy + 1, bz, Blocks.id("redstone_lamp"))
             var lit = false
-            for _ in 0..<40 where !lit { w.redstone.tick(); lit = Blocks.key(w.block(bx + 4, gy + 1, bz)).hasPrefix("redstone_lamp[lit") }
-            check(lit, "r3 copper: copper battery -> copper wire lights a copper lamp (\(Blocks.key(w.block(bx + 4, gy + 1, bz))))")
+            for _ in 0..<40 where !lit { w.redstone.tick(); lit = Blocks.key(w.materialAt(bx + 4, gy + 1, bz)).hasPrefix("redstone_lamp[lit") }
+            check(lit, "r3 copper: copper battery -> copper wire lights a copper lamp (\(Blocks.key(w.materialAt(bx + 4, gy + 1, bz))))")
             for x in -1...5 { for k in 0...2 { w.setBlock(bx + x, gy + k, bz, AIR) } }
         }
         // Round 3 jetpack: real Game.tick with the jump key held, in open air high above the terrain.

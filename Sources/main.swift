@@ -403,8 +403,8 @@ enum Snapshot {
             // A dry pocket: two air blocks on a solid floor and no water or lava within 2 blocks of the floor or the
             // eye (lava next to the pocket flows in and the camera ended up inside it).
             func dryPocket(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-                guard world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR && Blocks.collide[Int(world.block(x, y - 1, z))] else { return false }
-                for dy in -1...3 { for dz in -2...2 { for dx in -2...2 where Blocks.fluidKind[Int(world.block(x + dx, y + dy, z + dz))] != 0 { return false } } }
+                guard world.isAir(x, y, z) && world.isAir(x, y + 1, z) && world.solidAt(x, y - 1, z) else { return false }
+                for dy in -1...3 { for dz in -2...2 { for dx in -2...2 where Blocks.fluidKind[Int(world.builtBlock(x + dx, y + dy, z + dz))] != 0 { return false } } }
                 return true
             }
             var found: IVec3?
@@ -425,10 +425,10 @@ enum Snapshot {
             let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
             func openGround(_ x: Int, _ z: Int) -> Bool {
                 let t = world.topY(x, z)
-                let k = Blocks.key(world.block(x, t, z))
-                if k.hasSuffix("_leaves") || k.hasSuffix("_log") || Blocks.isLiquid(world.block(x, t, z)) { return false }
+                let k = Blocks.key(world.materialAt(x, t, z))
+                if k.hasSuffix("_leaves") || k.hasSuffix("_log") || Blocks.isLiquid(world.builtBlock(x, t, z)) { return false }
                 // Room to look around: nothing solid within 2 blocks of the eye (walls, portal frames).
-                for dy in 1...3 { for dz in -2...2 { for dx in -2...2 where Blocks.collide[Int(world.block(x + dx, t + dy, z + dz))] { return false } } }
+                for dy in 1...3 { for dz in -2...2 { for dx in -2...2 where world.solidAt(x + dx, t + dy, z + dz) { return false } } }
                 return true
             }
             if !openGround(bx, bz) {
@@ -450,7 +450,7 @@ enum Snapshot {
             // Under the sea: the camera N blocks above the floor (the floor is often 25-35 blocks down).
             let x = Int(floor(pos.x)), z = Int(floor(pos.z))
             var y = SEA
-            while y > 1 && !Blocks.collide[Int(world.block(x, y, z))] { y -= 1 }
+            while y > 1 && !world.solidAt(x, y, z) { y -= 1 }
             pos.y = Float(y + 1) + n
             game.player.pos = pos
             print("seabed at y \(y - YOFF), camera \(n) above")
@@ -472,7 +472,7 @@ enum Snapshot {
         if let a = insideFrame {
             // Feet on the start piece's floor, facing the heading with the longest clear line at eye level.
             var fy = a.y + 3
-            func free(_ x: Int, _ y: Int, _ z: Int) -> Bool { !Blocks.collide[Int(world.block(x, y, z))] }
+            func free(_ x: Int, _ y: Int, _ z: Int) -> Bool { !world.solidAt(x, y, z) }
             while fy > a.y - 6 && !(free(a.x, fy, a.z) && free(a.x, fy + 1, a.z) && !free(a.x, fy - 1, a.z)) { fy -= 1 }
             var bestYaw: Float = 0, bestRun = -1
             for h in 0..<16 {
@@ -493,20 +493,20 @@ enum Snapshot {
             print("structure buried: camera at its start \(a.x) \(fy - YOFF) \(a.z), facing \(Int(bestYaw * 180 / Float.pi)) deg down a \(bestRun / 2)-block corridor")
         }
         // Never render from inside solid blocks: move to the nearest two-high air pocket.
-        func solidAt(_ p: V3) -> Bool { Blocks.collide[Int(world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] }
+        func solidAt(_ p: V3) -> Bool { world.solidAt(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) }
         if solidAt(game.player.eye) || solidAt(game.player.pos + V3(0, 0.1, 0)) {
             let b = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
             var best: IVec3?
             // Prefer a spot with a clear 3x3x3 around the eye (not pressed against a wall), else any 2-high pocket.
             func clear(_ q: IVec3) -> Bool {
-                for dy in 0...2 { for dz in -1...1 { for dx in -1...1 where Blocks.collide[Int(world.block(q.x + dx, q.y + dy, q.z + dz))] { return false } } }
+                for dy in 0...2 { for dz in -1...1 { for dx in -1...1 where world.solidAt(q.x + dx, q.y + dy, q.z + dz) { return false } } }
                 return true
             }
             var pocket: IVec3?
             search: for r in 1...24 {
                 for dy in [0] + (1...r).flatMap({ [$0, -$0] }) { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz), abs(dy)) == r {
                     let q = IVec3(b.x + dx, b.y + dy, b.z + dz)
-                    if !Blocks.collide[Int(world.block(q.x, q.y, q.z))] && !Blocks.collide[Int(world.block(q.x, q.y + 1, q.z))] {
+                    if !world.solidAt(q.x, q.y, q.z) && !world.solidAt(q.x, q.y + 1, q.z) {
                         if pocket == nil { pocket = q }
                         if clear(q) { best = q; break search }
                     }
@@ -524,7 +524,7 @@ enum Snapshot {
             // step back and up until the line of sight runs at least 12 blocks, keeping the best spot found.
             func clearAhead(_ p: V3) -> Float {
                 let e = p + V3(0, 1.62, 0)
-                if Blocks.collide[Int(world.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))] { return 0 }
+                if world.solidAt(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))) { return 0 }
                 if let h = world.raycast(e, game.player.look, maxDist: 32) {
                     return simd_length(V3(Float(h.hit.x) + 0.5, Float(h.hit.y) + 0.5, Float(h.hit.z) + 0.5) - e)
                 }
@@ -548,7 +548,7 @@ enum Snapshot {
             // Stand in the first open space above the lava sea.
             let x = Int(floor(pos.x)), z = Int(floor(pos.z))
             var y = YOFF + 33
-            while y < YOFF + 120 && !(world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR) { y += 1 }
+            while y < YOFF + 120 && !(world.isAir(x, y, z) && world.isAir(x, y + 1, z)) { y += 1 }
             pos.y = Float(y) + (Float(arg("--up") ?? "") ?? 0)
             game.player.pos = pos
         } else if snapDim == .deep {
@@ -557,7 +557,7 @@ enum Snapshot {
             var y = (world.gen as? DeepGen)?.floorY(x, z) ?? 30
             if CommandLine.arguments.contains("--hell") {
                 y = DeepGen.hellBase + 33
-                while y < DeepGen.crustTop - 8 && !(world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR) { y += 1 }
+                while y < DeepGen.crustTop - 8 && !(world.isAir(x, y, z) && world.isAir(x, y + 1, z)) { y += 1 }
             } else { y += 1 }
             pos.y = Float(y) + (Float(arg("--up") ?? "") ?? 0)
             game.player.pos = pos
@@ -569,7 +569,7 @@ enum Snapshot {
         if let cy = arg("--cavey").flatMap({ Int($0) }) {
             let x0 = Int(floor(pos.x)), z0 = Int(floor(pos.z)), y0 = cy + YOFF
             func open(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-                world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR && Blocks.opaque[Int(world.block(x, y - 1, z))]
+                world.isAir(x, y, z) && world.isAir(x, y + 1, z) && world.opaqueAt(x, y - 1, z)
             }
             search: for r in stride(from: 0, through: 64, by: 2) { for dz in stride(from: -r, through: r, by: 2) { for dx in stride(from: -r, through: r, by: 2) where max(abs(dx), abs(dz)) == r {
                 for dy in [0, -2, 2, -4, 4, -6, 6, -8, 8] where open(x0 + dx, y0 + dy, z0 + dz) {
@@ -655,7 +655,7 @@ enum Snapshot {
                 // cave they stood on the ground above its ceiling: cave_dark_mobs drew the same image as lush_caves).
                 if nether || y > Int(floor(pos.y)) + 4 {
                     y = Int(floor(pos.y)) + 1
-                    while y > Int(pos.y) - 12 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
+                    while y > Int(pos.y) - 12 && !world.solidAt(x, y - 1, z) { y -= 1 }
                     if spot.0 == .searwing { y += 5 }
                 }
                 let m = Mob(spot.0, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
@@ -711,7 +711,7 @@ enum Snapshot {
             for l in 1...4 {
                 for dz in -l...l { for dx in -l...l { world.setBlock(bx + dx, gy + 4 - l, bz + dz, Blocks.id(mats[l - 1])) } }
             }
-            for y in (gy + 5)..<CH { for dz in -1...1 { for dx in -1...1 where world.block(bx + dx, y, bz + dz) != AIR { world.setBlock(bx + dx, y, bz + dz, AIR) } } }
+            for y in (gy + 5)..<CH { for dz in -1...1 { for dx in -1...1 where !world.isAir(bx + dx, y, bz + dz) { world.setBlock(bx + dx, y, bz + dz, AIR) } } }
             let bp = IVec3(bx, gy + 4, bz)
             world.setBlock(bp.x, bp.y, bp.z, Blocks.id("beacon"))
             let be = BlockEntity(.beacon)
@@ -801,7 +801,7 @@ enum Snapshot {
                 let x = Int(floor(q.x)), z = Int(floor(q.z))
                 for y in (gb + 1)...(gb + 16) { _ = world.setBlockAsync(x, y, z, AIR) }
                 _ = world.setBlockAsync(x, gb, z, GRASS)
-                for y in (gb - 3)..<gb where !Blocks.collide[Int(world.block(x, y, z))] { _ = world.setBlockAsync(x, y, z, Blocks.id("dirt")) }
+                for y in (gb - 3)..<gb where !world.solidAt(x, y, z) { _ = world.setBlockAsync(x, y, z, Blocks.id("dirt")) }
             } }
             _ = world.loadSync(center: pos, radius: rd)
         }
@@ -825,7 +825,7 @@ enum Snapshot {
                 var groundY = world.topY(x, z) + 1
                 if CommandLine.arguments.contains("--spawnlevel") {
                     // On the floor at the camera's level, not on the roof above it (courtyards, halls, decks).
-                    func solid(_ y: Int) -> Bool { Blocks.collide[Int(world.block(x, y, z))] }
+                    func solid(_ y: Int) -> Bool { world.solidAt(x, y, z) }
                     if let y = stride(from: Int(floor(pos.y)) + 1, through: Int(floor(pos.y)) - 16, by: -1).first(where: { solid($0 - 1) && !solid($0) && !solid($0 + 1) }) { groundY = y }
                 }
                 let m = Mob(k, at: V3(exact ? p.x : Float(x) + 0.5, Float(groundY), exact ? p.z : Float(z) + 0.5))
@@ -942,8 +942,8 @@ enum Snapshot {
             let t2 = world.loadSync(center: pos, radius: rd)
             t.mesh += t2.mesh
             let pp = IVec3(bx + 1, gy + 1, bz + 3)
-            print("piston debug: power \(world.redstone.received(pp)) block west \(Blocks.key(world.block(pp.x - 1, pp.y, pp.z))) front \(Blocks.key(world.block(pp.x + 1, pp.y, pp.z))) kind \(Circuit.kind(world.block(pp.x, pp.y, pp.z)))")
-            print("redstone bench: lamp A \(Blocks.key(world.block(bx + 9, gy + 1, bz))), piston \(Blocks.key(world.block(bx + 1, gy + 1, bz + 3))), lamp C \(Blocks.key(world.block(bx + 5, gy + 1, bz + 6))) / \(Blocks.key(world.block(bx + 11, gy + 1, bz + 6))), wire E \(Blocks.key(world.block(bx + 11, gy + 1, bz + 10)))")
+            print("piston debug: power \(world.redstone.received(pp)) block west \(Blocks.key(world.materialAt(pp.x - 1, pp.y, pp.z))) front \(Blocks.key(world.materialAt(pp.x + 1, pp.y, pp.z))) kind \(Circuit.kind(world.block(pp.x, pp.y, pp.z)))")
+            print("redstone bench: lamp A \(Blocks.key(world.materialAt(bx + 9, gy + 1, bz))), piston \(Blocks.key(world.materialAt(bx + 1, gy + 1, bz + 3))), lamp C \(Blocks.key(world.materialAt(bx + 5, gy + 1, bz + 6))) / \(Blocks.key(world.materialAt(bx + 11, gy + 1, bz + 6))), wire E \(Blocks.key(world.materialAt(bx + 11, gy + 1, bz + 10)))")
         }
         if CommandLine.arguments.contains("--openview") {
             // Turn to the most open direction at this pitch (the cave light shot stood against a pillar: blind critic,
@@ -1312,9 +1312,9 @@ enum Snapshot {
             let e = game.player.eye
             let ex = Int(floor(e.x)), ey = Int(floor(e.y)), ez = Int(floor(e.z))
             var fy = ey
-            while fy > ey - 40 && !Blocks.collide[Int(world.block(ex, fy - 1, ez))] { fy -= 1 }
+            while fy > ey - 40 && !world.solidAt(ex, fy - 1, ez) { fy -= 1 }
             let le = world.lightAt(ex, ey, ez), lf = world.lightAt(ex, fy, ez)
-            print("light probe: eye sky \(le.sky) block \(le.block) in \(Blocks.key(world.block(ex, ey, ez))); floor+1 (y \(fy - YOFF)) sky \(lf.sky) block \(lf.block) in \(Blocks.key(world.block(ex, fy, ez))), daylight \(game.daylight)")
+            print("light probe: eye sky \(le.sky) block \(le.block) in \(Blocks.key(world.materialAt(ex, ey, ez))); floor+1 (y \(fy - YOFF)) sky \(lf.sky) block \(lf.block) in \(Blocks.key(world.materialAt(ex, fy, ez))), daylight \(game.daylight)")
         }
         if CommandLine.arguments.contains("--lodcheck") {
             // Cacti seen far away vanished and popped in close (Remington, playtest 2): the cactus sections' quads at
@@ -1393,7 +1393,7 @@ enum Snapshot {
                 if CommandLine.arguments.contains("--framesword") { be.container[0] = ItemStack(Items.id("diamond_sword"), 1) }
                 let st = Int(b - Blocks.groupBase[Int(b)])
                 let fn = [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0)][min(st, 5)]
-                print("  frame delay \(be.delay), light \(world.lightAt(p.x, p.y, p.z)); in front: \(Blocks.key(world.block(p.x + fn.x, p.y + fn.y, p.z + fn.z))), behind: \(Blocks.key(world.block(p.x - fn.x, p.y - fn.y, p.z - fn.z)))")
+                print("  frame delay \(be.delay), light \(world.lightAt(p.x, p.y, p.z)); in front: \(Blocks.key(world.materialAt(p.x + fn.x, p.y + fn.y, p.z + fn.z))), behind: \(Blocks.key(world.materialAt(p.x - fn.x, p.y - fn.y, p.z - fn.z)))")
                 // Pixel probes: the item's centre and the frame board's rim beside it (does the item reach the image?).
                 let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), nv = V3(Float(fn.x), Float(fn.y), Float(fn.z))
                 let side = st < 4 ? V3(-nv.z, 0, nv.x) : V3(1, 0, 0)
@@ -1443,8 +1443,8 @@ enum Snapshot {
         do {
             // The harness doesn't step the player: derive the in-water flags the renderer uses.
             let e = game.player.eye, f = game.player.pos
-            let headKind = Blocks.fluidKind[Int(world.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))]
-            let feetKind = Blocks.fluidKind[Int(world.block(Int(floor(f.x)), Int(floor(f.y + 0.1)), Int(floor(f.z))))]
+            let headKind = Blocks.fluidKind[Int(world.builtBlock(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))]
+            let feetKind = Blocks.fluidKind[Int(world.builtBlock(Int(floor(f.x)), Int(floor(f.y + 0.1)), Int(floor(f.z))))]
             game.player.headInWater = headKind == 1          // 1 water, 2 lava (lava gets its own view)
             game.player.headInLava = headKind == 2
             game.player.inWater = feetKind == 1
@@ -1465,7 +1465,7 @@ enum Snapshot {
                 guard top > 0 else { continue }
                 var y = top, log = ""
                 while y > top - 20 {
-                    let k = Blocks.key(Blocks.groupBase[Int(world.block(x, y, z))])
+                    let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(x, y, z))])
                     if k.hasSuffix("_log") { log = k; break }
                     y -= 1
                 }
@@ -1574,7 +1574,7 @@ enum Snapshot {
             let e = game.player.eye
             var moss = 0, drip = 0, sculk = 0
             for dy in -4...4 { for dz in -6...6 { for dx in -6...6 {
-                let k = Blocks.key(Blocks.groupBase[Int(world.block(Int(floor(e.x)) + dx, Int(floor(e.y)) + dy, Int(floor(e.z)) + dz))])
+                let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(Int(floor(e.x)) + dx, Int(floor(e.y)) + dy, Int(floor(e.z)) + dz))])
                 if k.hasPrefix("moss") || k.contains("azalea") || k.contains("cave_vines") || k == "clay" { moss += 1 }
                 else if k.contains("dripstone") { drip += 1 }
                 else if k.hasPrefix("sculk") { sculk += 1 }

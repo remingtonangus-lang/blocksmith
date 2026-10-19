@@ -55,7 +55,7 @@ extension Bench {
             // The first open cave space around displayed y -20 near spawn, then a slow walk-speed flight at that level.
             let x0 = Int(p.x), z0 = Int(p.z), y0 = YOFF - 20
             search: for r in stride(from: 0, through: 96, by: 2) { for dz in stride(from: -r, through: r, by: 2) { for dx in stride(from: -r, through: r, by: 2) where max(abs(dx), abs(dz)) == r {
-                for dy in stride(from: -16, through: 16, by: 2) where world.block(x0 + dx, y0 + dy, z0 + dz) == AIR && world.block(x0 + dx, y0 + dy + 1, z0 + dz) == AIR {
+                for dy in stride(from: -16, through: 16, by: 2) where world.isAir(x0 + dx, y0 + dy, z0 + dz) && world.isAir(x0 + dx, y0 + dy + 1, z0 + dz) {
                     p = V3(Float(x0 + dx) + 0.5, Float(y0 + dy) + 1, Float(z0 + dz) + 0.5); break search
                 }
             } } }

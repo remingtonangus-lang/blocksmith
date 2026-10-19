@@ -147,7 +147,7 @@ extension Game {
             let ix = Int(floor(x)), iz = Int(floor(z))
             guard world.isLoaded(ix, iz) else { continue }
             let y = world.topY(ix, iz)
-            guard y > 0, !Blocks.isLiquid(world.block(ix, y, iz)) else { continue }
+            guard y > 0, !Blocks.isLiquid(world.builtBlock(ix, y, iz)) else { continue }
             let land = V3(x, Float(y + 1), z)
             let from = land + V3(cosf(a) * 240, 70, sinf(a) * 240)
             if world.ships.callDropship(faction: f, from: from, to: land, game: self, sync: sync, troops: 5, rocketeer: true) { landed += 1 }

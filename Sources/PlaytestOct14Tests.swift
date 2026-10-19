@@ -47,7 +47,7 @@ enum PlaytestOct14Tests {
         let stone = Blocks.id("smooth_stone")
         w.deferRemesh = true
         for dz in -12...12 { for dx in -12...12 {
-            for y in Y...(Y + 20) where w.block(sx + dx, y, sz + dz) != AIR { w.setBlock(sx + dx, y, sz + dz, AIR) }
+            for y in Y...(Y + 20) where !w.isAir(sx + dx, y, sz + dz) { w.setBlock(sx + dx, y, sz + dz, AIR) }
             w.setBlock(sx + dx, Y, sz + dz, stone)
         } }
         w.deferRemesh = false

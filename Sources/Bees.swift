@@ -28,7 +28,7 @@ extension MobManager {
         for (h, var bees) in hives {
             guard w.isLoaded(h.x, h.z) else { continue }
             for i in bees.indices { bees[i].time += step }
-            let base = Blocks.groupBase[Int(w.block(h.x, h.y, h.z))]
+            let base = Blocks.groupBase[Int(w.materialAt(h.x, h.y, h.z))]
             let broken = base != nest && base != hive
             let day = g.daylight > 0.5 && !g.isRainingAt(V3(Float(h.x), Float(h.y + 1), Float(h.z)))
             var keep: [(nectar: Bool, time: Float)] = []
@@ -42,7 +42,7 @@ extension MobManager {
 
     func releaseBee(_ w: World, from h: IVec3, angry: Bool) {
         var at = V3(Float(h.x) + 0.5, Float(h.y) + 1.1, Float(h.z) + 0.5)
-        for (dx, dz) in [(0, -1), (0, 1), (-1, 0), (1, 0)] where w.block(h.x + dx, h.y, h.z + dz) == AIR {
+        for (dx, dz) in [(0, -1), (0, 1), (-1, 0), (1, 0)] where w.isAir(h.x + dx, h.y, h.z + dz) {
             at = V3(Float(h.x + dx) + 0.5, Float(h.y) + 0.2, Float(h.z + dz) + 0.5)
             break
         }
@@ -74,7 +74,7 @@ extension Mob {
                                           "flowering_azalea_leaves", "cherry_leaves", "pink_petals", "wither_rose", "spore_blossom"]
 
     func isHive(_ w: World, _ p: IVec3) -> Bool {
-        let k = Blocks.key(Blocks.groupBase[Int(w.block(p.x, p.y, p.z))])
+        let k = Blocks.key(Blocks.groupBase[Int(w.materialAt(p.x, p.y, p.z))])
         return k == "bee_nest" || k == "beehive"
     }
 
@@ -120,10 +120,10 @@ extension Mob {
                 }
             }
         } else if !nectar {
-            if let f = flower, !Mob.beeFlowers.contains(Blocks.key(Blocks.groupBase[Int(w.block(f.x, f.y, f.z))])) { flower = nil }
+            if let f = flower, !Mob.beeFlowers.contains(Blocks.key(Blocks.groupBase[Int(w.materialAt(f.x, f.y, f.z))])) { flower = nil }
             if flower == nil && aiTimer <= 0 {
                 aiTimer = 3
-                flower = findNearby(w, radius: 10) { Mob.beeFlowers.contains(Blocks.key(Blocks.groupBase[Int(w.block($0.x, $0.y, $0.z))])) }
+                flower = findNearby(w, radius: 10) { Mob.beeFlowers.contains(Blocks.key(Blocks.groupBase[Int(w.materialAt($0.x, $0.y, $0.z))])) }
             }
             if let f = flower {
                 let c = V3(Float(f.x) + 0.5, Float(f.y) + 0.6, Float(f.z) + 0.5)
@@ -164,7 +164,7 @@ extension Game {
     // Honey or combs taken: every bee around (and in the hive) is angered, unless a campfire smokes it.
     func beeHiveDisturbed(_ c: V3) {
         let x = Int(floor(c.x)), y = Int(floor(c.y)), z = Int(floor(c.z))
-        for dy in 1...5 where Blocks.key(world.block(x, y - dy, z)).hasSuffix("campfire") { return }
+        for dy in 1...5 where Blocks.key(world.materialAt(x, y - dy, z)).hasSuffix("campfire") { return }
         for m in mobs.of(.bee) where simd_length(m.pos - c) < 16 { m.aggro = true; m.lockTime = 20 }
         let h = IVec3(x, y, z)
         if let inside = mobs.hives[h] {

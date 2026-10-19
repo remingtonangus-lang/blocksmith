@@ -15,6 +15,7 @@ import simd
 struct FieldData {
     var fd: [Int8]
     var fm: [UInt8]
+    var fine: [Int: [Int8]] = [:]          // P377 step 1: edited sections' two samples per block (BlockStore.fine)
 }
 
 // The materials the ground can be made of: every natural ground and rock state (ShapeClass .terrain), index 0 = none.
@@ -70,6 +71,8 @@ enum FieldTerrain {
                       t, Double(stats[0]) * 100 / Double(t), Double(stats[1]) * 100 / Double(t), Double(stats[2]) * 100 / Double(t),
                       pc(0), pc(1), pc(2), pc(3), pc(4)) + "\nfieldstats: rounded cells by cause: " + top.joined(separator: ", ")
     }
+
+    static var keptBuilt: [ChunkKey: Int] = [:]       // (harness, StructureCache.traceKinds)
 
     // Loose ground (soil, sand, gravel, mud): what a structure lays of it shapes the ground (a garden, a levelled yard, a
     // track) and joins the field; the rock, sandstone, terracotta and snow it builds with stay its blocks.
@@ -147,12 +150,15 @@ enum FieldTerrain {
         var fd = [Int8](repeating: outside, count: n)
         var fm = [UInt8](repeating: 0, count: n)
         let idx = FieldMat.index, looseT = loose
-        var top = 0
+        var top = 0, kept = 0
         for i in 0..<n {
             let m = idx[Int(b[i])]
             guard m != 0 else { continue }
-            if let built, built[i] != 0 && !looseT[Int(b[i])] { continue }
+            if let built, built[i] != 0 && !looseT[Int(b[i])] { kept += 1; continue }
             fm[i] = m; fd[i] = inside; b[i] = AIR; top = i
+        }
+        if StructureCache.traceKinds && kept > 0 {           // (harness: natural rock a structure built, kept as blocks)
+            StructureCache.kindsLock.lock(); keptBuilt[ChunkKey(x: cx, z: cz)] = kept; StructureCache.kindsLock.unlock()
         }
         let topY = min(CH - 1, top / CSQ + 1)
         let wg = gen as? WorldGen
@@ -284,6 +290,8 @@ enum FieldTerrain {
 
     // Field file: lzfse("FLD1", u32 cell count, u16 material count, material names (u16 length + utf8), densities (one
     // byte per cell), materials (one byte per cell, an index into the names)). Names keep it valid as the registry grows.
+    // P377 step 1: "FLD2" when the chunk has fine sections (edited ground): the same, then u8 section count and per
+    // section u8 index + 32^3 samples. A chunk without any is still written as FLD1 (older builds keep reading it).
     static func encode(_ f: FieldData) -> [UInt8]? {
         var map = [UInt8](repeating: 0, count: 256)
         var names: [String] = [""]
@@ -294,7 +302,7 @@ enum FieldTerrain {
             if map[m] == 0 { map[m] = UInt8(names.count); names.append(Blocks.saveKey(FieldMat.blocks[m])) }
             mats[i] = map[m]
         }
-        var d = Data("FLD1".utf8)
+        var d = Data((f.fine.isEmpty ? "FLD1" : "FLD2").utf8)
         let n = UInt32(f.fd.count)
         d.append(contentsOf: [UInt8(n & 255), UInt8((n >> 8) & 255), UInt8((n >> 16) & 255), UInt8(n >> 24)])
         d.append(contentsOf: [UInt8(names.count & 255), UInt8(names.count >> 8)])
@@ -305,6 +313,11 @@ enum FieldTerrain {
         }
         f.fd.withUnsafeBytes { d.append(contentsOf: $0) }
         d.append(contentsOf: mats)
+        if !f.fine.isEmpty {
+            let keys = f.fine.keys.sorted().filter { $0 >= 0 && $0 < 256 && f.fine[$0]!.count == FineField.count }
+            d.append(UInt8(keys.count))
+            for k in keys { d.append(UInt8(k)); f.fine[k]!.withUnsafeBytes { d.append(contentsOf: $0) } }
+        }
         guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return nil }
         return [UInt8](c)
     }
@@ -312,7 +325,8 @@ enum FieldTerrain {
     static func decode(_ bytes0: [UInt8]) -> FieldData? {
         guard let raw = try? (Data(bytes0) as NSData).decompressed(using: .lzfse) as Data else { return nil }
         let b = [UInt8](raw)
-        guard b.count >= 10, b[0] == 0x46, b[1] == 0x4C, b[2] == 0x44, b[3] == 0x31 else { return nil }
+        guard b.count >= 10, b[0] == 0x46, b[1] == 0x4C, b[2] == 0x44, b[3] == 0x31 || b[3] == 0x32 else { return nil }
+        let v2 = b[3] == 0x32
         var p = 4
         func u16() -> Int { defer { p += 2 }; return p + 1 < b.count ? Int(b[p]) | Int(b[p + 1]) << 8 : 0 }
         let n = Int(b[4]) | Int(b[5]) << 8 | Int(b[6]) << 16 | Int(b[7]) << 24
@@ -327,7 +341,18 @@ enum FieldTerrain {
             p += len
             if k > 0, let id = SaveMigration.blockID(name) { pal[k] = FieldMat.index[Int(id)] }
         }
-        guard b.count - p == n * 2 else { return nil }
+        guard v2 ? b.count - p > n * 2 : b.count - p == n * 2 else { return nil }
+        var fine: [Int: [Int8]] = [:]
+        if v2 {
+            var q = p + n * 2
+            let k = Int(b[q]); q += 1
+            guard b.count - q == k * (1 + FineField.count) else { return nil }
+            for _ in 0..<k {
+                let sy = Int(b[q]); q += 1
+                fine[sy] = b[q..<(q + FineField.count)].map { Int8(bitPattern: $0) }
+                q += FineField.count
+            }
+        }
         var fd = [Int8](repeating: 0, count: n), fm = [UInt8](repeating: 0, count: n)
         for i in 0..<n { fd[i] = Int8(bitPattern: b[p + i]) }
         for i in 0..<n {
@@ -335,7 +360,7 @@ enum FieldTerrain {
             fm[i] = k < pal.count ? pal[k] : 0
             if fm[i] == 0 && fd[i] > 0 { fd[i] = cellOut }         // a material this build doesn't know: open
         }
-        return FieldData(fd: fd, fm: fm)
+        return FieldData(fd: fd, fm: fm, fine: fine)
     }
 }
 
@@ -411,8 +436,12 @@ extension World {
         return FieldTerrain.f(c.blocks.density(Chunk.index(mod(x, CS), y, mod(z, CS))))
     }
 
-    // The ground's density at a point (blocks, + inside): trilinear between the eight cell centres round it.
-    func fieldDensity(at p: V3) -> Float {
+    // The ground's density at a point (blocks, + inside): trilinear between the eight cell centres round it, or between
+    // the fine samples where the ground was edited (P377 step 1, FineField.swift).
+    func fieldDensity(at p: V3) -> Float { fineNear(p) ? fineDensity(at: p) : coarseDensity(at: p) }
+
+    // ...from the cells alone.
+    func coarseDensity(at p: V3) -> Float {
         let qx = p.x - 0.5, qy = p.y - 0.5, qz = p.z - 0.5
         let x0 = Int(floor(qx)), y0 = Int(floor(qy)), z0 = Int(floor(qz))
         let tx = qx - Float(x0), ty = qy - Float(y0), tz = qz - Float(z0)
@@ -445,6 +474,7 @@ extension World {
     func fieldSphere(_ ctr: V3, radius r: Float, carve: Bool, material: UInt8?, keepCell: IVec3? = nil, keepSolid: Bool = false,
                      remesh: Bool = false) -> [IVec3] {
         var flipped: [IVec3] = []
+        let prepared = prepareFine(ctr, radius: r)                  // P377 step 1 (FineField.swift)
         let reach = Int(ceil(r + 1.5))
         let cxI = Int(floor(ctr.x)), cyI = Int(floor(ctr.y)), czI = Int(floor(ctr.z))
         var touched: [(Chunk, Int)] = []
@@ -473,17 +503,23 @@ extension World {
                     if was != now {
                         if now && c.blocks.raw(i) != AIR { continue }      // a fill never swallows a built block
                         let m = material ?? fieldNeighbourMaterial(x, y, z)
-                        c.blocks.setDensity(i, now ? max(q, 1) : min(q, -1), material: now ? m : nil)
+                        c.blocks.setDensity(i, now ? max(q, 1) : min(q, -1), material: now ? m : nil, follow: false)
                         flipped.append(IVec3(x, y, z))
                         c.modified = true
                         c.recomputeHeight(mod(x, CS), mod(z, CS))
                     } else {
-                        c.blocks.setDensity(i, q, material: nil)
+                        c.blocks.setDensity(i, q, material: nil, follow: false)
                         c.modified = true
                     }
                     let sy = y >> 4
                     if !touched.contains(where: { $0.0 === c && $0.1 == sy }) { touched.append((c, sy)) }
                 }
+            }
+        }
+        if !prepared.isEmpty {
+            for (c, sy) in fineSphere(ctr, radius: r, carve: carve, prepared: prepared) {
+                c.modified = true
+                if !touched.contains(where: { $0.0 === c && $0.1 == sy }) { touched.append((c, sy)) }
             }
         }
         // A changed sample moves the surface in the dual cells round it: the sections on either side of a border remesh.
@@ -540,6 +576,11 @@ extension World {
         let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40) | ((fieldStamp & 0x1FFF) << 50)
         let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> 53)
         let base = slot * 32
+        if fieldColKey[slot] != key, FineField.enabled, let fc = chunkAt(x, z), !fc.blocks.fine.isEmpty,
+           fineNear(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) {
+            fieldColKey[slot] = key
+            fieldColVal.withUnsafeMutableBufferPointer { fineColumns(x, y, z, $0.baseAddress! + base) }      // P377 step 1
+        }
         if fieldColKey[slot] != key {
             fieldColKey[slot] = key
             withUnsafeTemporaryAllocation(of: Float.self, capacity: 27) { D in
@@ -616,7 +657,7 @@ extension World {
             let p0 = g.player.pos
             for f in 0..<120 {
                 g.player.update(dt: 1.0 / 30, input: MoveInput(forward: 1), world: w)
-                if f % 3 == 0, g.player.onGround, !Blocks.collide[Int(w.block(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.y - 0.3)), Int(floor(g.player.pos.z))))] || w.fieldNear(g.player.pos),
+                if f % 3 == 0, g.player.onGround, !w.solidAt(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.y - 0.3)), Int(floor(g.player.pos.z))) || w.fieldNear(g.player.pos),
                    let s = surface(g.player.pos) {
                     let gap = g.player.pos.y - s
                     worst = max(worst, abs(gap)); sum += abs(gap); signed += gap; n += 1

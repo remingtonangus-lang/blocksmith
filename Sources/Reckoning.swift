@@ -253,7 +253,7 @@ enum Reckoning {
         let x = Int(floor(p.x + sinf(a) * r)), z = Int(floor(p.y + cosf(a) * r))
         guard w.isLoaded(x, z) else { return nil }
         let y = w.topY(x, z) + 1
-        guard !Blocks.isLiquid(w.block(x, y - 1, z)), !Blocks.isLiquid(w.block(x, y, z)) else { return nil }
+        guard !Blocks.isLiquid(w.builtBlock(x, y - 1, z)), !Blocks.isLiquid(w.builtBlock(x, y, z)) else { return nil }
         let at = w.freeSpawn(V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
         // Not in plain sight: a unit appearing from nowhere 40 blocks off reads as a pop-in (they come over a rise,
         // round a wall or out of the trees). After a few tries a band takes what ground it gets.

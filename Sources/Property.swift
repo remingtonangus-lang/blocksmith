@@ -69,7 +69,7 @@ enum Property {
     }
 
     static func roofed(_ g: Game, _ p: IVec3) -> Bool {
-        for dy in 2...8 where Blocks.opaque[Int(g.world.block(p.x, p.y + dy, p.z))] { return true }
+        for dy in 2...8 where g.world.opaqueAt(p.x, p.y + dy, p.z) { return true }
         return false
     }
 
@@ -82,7 +82,7 @@ enum Property {
         let y0 = g.world.topY(p.x, p.z) + 1
         for dx in -3...3 { for dz in -3...3 {
             let t = g.world.topY(p.x + dx, p.z + dz) + 1
-            if abs(t - y0) > 2 || Blocks.isLiquid(g.world.block(p.x + dx, t - 1, p.z + dz)) {
+            if abs(t - y0) > 2 || Blocks.isLiquid(g.world.builtBlock(p.x + dx, t - 1, p.z + dz)) {
                 g.onToast?("Too rough for a cabin"); return true
             }
         } }
@@ -108,7 +108,7 @@ enum Property {
             let x = cx + dx, z = cz + dz
             // Ground under it filled, the space above cleared.
             var fy = y - 1
-            while fy > y - 5 && !Blocks.opaque[Int(w.block(x, fy, z))] { w.setBlock(x, fy, z, stone); fy -= 1 }
+            while fy > y - 5 && !w.opaqueAt(x, fy, z) { w.setBlock(x, fy, z, stone); fy -= 1 }
             w.setBlock(x, y - 1, z, abs(dx) == 3 || abs(dz) == 3 ? stone : floor)
             for dy in 0...5 { w.setBlock(x, y + dy, z, AIR) }
             let edge = abs(dx) == 3 || abs(dz) == 3, corner = abs(dx) == 3 && abs(dz) == 3

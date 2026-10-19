@@ -253,7 +253,7 @@ final class AnvilMenu: Menu {
         game.sfx(.anvil, 0.6, at: V3(Float(pos.x), Float(pos.y), Float(pos.z)) + 0.5)
         // 12% chance to wear the anvil a stage (chipped -> damaged -> gone).
         if game.survival && Rand.float(in: 0..<1) < 0.12 {
-            let k = Blocks.key(game.world.block(pos.x, pos.y, pos.z))
+            let k = Blocks.key(game.world.materialAt(pos.x, pos.y, pos.z))
             let next = k == "anvil" ? "chipped_anvil" : (k == "chipped_anvil" ? "damaged_anvil" : "")
             if next.isEmpty { game.world.setBlock(pos.x, pos.y, pos.z, AIR) }
             else { game.world.setBlock(pos.x, pos.y, pos.z, Blocks.id(next)) }

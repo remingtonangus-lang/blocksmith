@@ -228,7 +228,7 @@ extension Mob {
         }
     }
 
-    func inWaterNow(_ w: World) -> Bool { Blocks.isLiquid(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))) }
+    func inWaterNow(_ w: World) -> Bool { Blocks.isLiquid(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))) }
 
     // After the move: crashes and riding bond.
     func gaitAfterMove(_ g: Game, moved: V3, hitWall: Bool, dt: Float) {

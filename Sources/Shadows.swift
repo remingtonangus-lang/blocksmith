@@ -14,7 +14,7 @@ extension Game {
             var by = Int(floor(p.y + 0.01))
             var found = false
             for _ in 0..<5 {
-                if Blocks.collide[Int(world.block(bx, by - 1, bz))] { found = true; break }
+                if world.solidAt(bx, by - 1, bz) { found = true; break }
                 by -= 1
             }
             guard found else { return }

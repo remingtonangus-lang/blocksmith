@@ -256,7 +256,7 @@ final class VillageBot: AgentBot {
                 for depth in 1...3 {
                     let cx = x + ax * sgn * depth, cz = z + az * sgn * depth
                     var roofed = false
-                    for dy in 2...10 where w.block(cx, y + dy, cz) != AIR { roofed = true; break }
+                    for dy in 2...10 where !w.isAir(cx, y + dy, cz) { roofed = true; break }
                     if roofed { cover += 1 }
                 }
                 if cover > best { best = cover; bestSide = sgn }

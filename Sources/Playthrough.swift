@@ -22,7 +22,7 @@ final class Playthrough {
     var lastToast = ""
     var worstHit = 0
     func why() -> String {
-        let t = game.target.map { "\(Blocks.key(world.block($0.hit.x, $0.hit.y, $0.hit.z))) at \($0.hit.x),\($0.hit.y),\($0.hit.z)" } ?? "none"
+        let t = game.target.map { "\(Blocks.key(world.materialAt($0.hit.x, $0.hit.y, $0.hit.z))) at \($0.hit.x),\($0.hit.y),\($0.hit.z)" } ?? "none"
         return "aim \(t), menu \(game.menu.map { "\(type(of: $0))" } ?? "none"), held \(Items.key(game.held.item)), toast '\(lastToast)'"
     }
     var world: World { game.world }
@@ -199,7 +199,7 @@ final class Playthrough {
 
     // MARK: World helpers
 
-    func key(_ p: IVec3) -> String { Blocks.key(world.block(p.x, p.y, p.z)) }
+    func key(_ p: IVec3) -> String { Blocks.key(world.materialAt(p.x, p.y, p.z)) }
     func baseKey(_ b: BlockID) -> String { Blocks.key(Blocks.groupBase[Int(b)]) }
     func clear(_ p: IVec3) -> Bool { let b = world.block(p.x, p.y, p.z); return !Blocks.collide[Int(b)] && !Blocks.isLiquid(b) }
     func carvable(_ p: IVec3) -> Bool {
@@ -476,7 +476,7 @@ final class Playthrough {
         let p = game.player.pos
         let under = world.block(Int(floor(p.x)), Int(floor(p.y - 0.05)), Int(floor(p.z)))
         check(game.player.onGround && Blocks.collide[Int(under)], "spawn: standing on solid ground (\(baseKey(under)) at y \(Int(floor(p.y)) - YOFF))")
-        check(!Blocks.isLiquid(world.block(Int(floor(p.x)), Int(floor(p.y + 0.2)), Int(floor(p.z)))), "spawn: not in water or lava")
+        check(!Blocks.isLiquid(world.builtBlock(Int(floor(p.x)), Int(floor(p.y + 0.2)), Int(floor(p.z)))), "spawn: not in water or lava")
         check(game.alive && game.health == 20, "spawn: alive and healthy")
     }
 
@@ -593,7 +593,7 @@ final class Playthrough {
         // Place the furnace with a right click on the ground next to spawn, then smelt.
         // (The first solid block: shrubs, grass and leaf litter on top don't count; the furnace replaces them.)
         var fy = world.topY(home.x + 2, home.z)
-        while fy > 1 && !Blocks.collide[Int(world.block(home.x + 2, fy, home.z))] { fy -= 1 }
+        while fy > 1 && !world.solidAt(home.x + 2, fy, home.z) { fy -= 1 }
         let fp = IVec3(home.x + 2, fy + 1, home.z)
         // A clear pad: open air around the spot and the player's line of sight, solid ground under it (spawn can be a
         // tree canopy, whose leaves would catch the click).
@@ -762,7 +762,7 @@ final class Playthrough {
         let ap = IVec3(Int(floor(arrival.x)), Int(floor(arrival.y)), Int(floor(arrival.z)))
         check(world.block(ap.x, ap.y, ap.z) == PORTAL_X || world.block(ap.x, ap.y, ap.z) == PORTAL_Z, "emberdeep: arrived inside a portal")
         _ = tick(2)
-        check(game.alive && !Blocks.isLiquid(world.block(ap.x, ap.y, ap.z)), "emberdeep: arrival portal is safe")
+        check(game.alive && !Blocks.isLiquid(world.builtBlock(ap.x, ap.y, ap.z)), "emberdeep: arrival portal is safe")
         guard let fort = world.gen.structures?.nearest("fortress", x: ap.x, z: ap.z, maxRegions: 8) else {
             check(false, "emberdeep: a Brand Chapterhouse exists"); return
         }
@@ -783,8 +783,8 @@ final class Playthrough {
         stand: for r in 2...5 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r { for dy in -2...1 {
             let x = spos.x + dx, y = spos.y + dy, z = spos.z + dz
             let b = world.block(x, y, z)
-            if Blocks.collide[Int(world.block(x, y - 1, z))] && !Blocks.isLiquid(world.block(x, y - 1, z)) && !Blocks.collide[Int(b)]
-                && !Blocks.isLiquid(b) && !Blocks.collide[Int(world.block(x, y + 1, z))] {
+            if world.solidAt(x, y - 1, z) && !Blocks.isLiquid(world.builtBlock(x, y - 1, z)) && !Blocks.collide[Int(b)]
+                && !Blocks.isLiquid(b) && !world.solidAt(x, y + 1, z) {
                 feet = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5); break stand
             }
         } } } }
@@ -861,7 +861,7 @@ final class Playthrough {
         _ = world.loadSync(center: arrival, radius: 2)
         game.player.pos = arrival
         game.player.vel = .zero
-        let before = (0..<3).map { Blocks.key(world.block(ap.x, ap.y + $0, ap.z)) }
+        let before = (0..<3).map { Blocks.key(world.materialAt(ap.x, ap.y + $0, ap.z)) }
         // Stand still in the portal until it takes us (leftover momentum from the voidwalker fight or a shove
         // from a mob walked the player 1.2 blocks out of it: run 456).
         let home = tick(10) {
@@ -874,8 +874,8 @@ final class Playthrough {
         if !home {
             // What stopped it: the portal blocks (before/after), where the player ended up, the cooldown.
             let p = game.player.pos
-            let after = (0..<3).map { Blocks.key(world.block(ap.x, ap.y + $0, ap.z)) }
-            info("portal diag: cell \(ap.x) \(ap.y) \(ap.z) before \(before) after \(after); below \(Blocks.key(world.block(ap.x, ap.y - 1, ap.z)))")
+            let after = (0..<3).map { Blocks.key(world.materialAt(ap.x, ap.y + $0, ap.z)) }
+            info("portal diag: cell \(ap.x) \(ap.y) \(ap.z) before \(before) after \(after); below \(Blocks.key(world.materialAt(ap.x, ap.y - 1, ap.z)))")
             info(String(format: "portal diag: player %.2f %.2f %.2f (arrival %.2f %.2f %.2f), inPortal %@, cooldown %.1f, portalTime %.1f, flying %@, loaded %@",
                         p.x, p.y, p.z, arrival.x, arrival.y, arrival.z, game.isInPortal() ? "yes" : "no", game.portalCooldown, game.portalTime,
                         game.player.flying ? "yes" : "no", world.isLoaded(ap.x, ap.z) ? "yes" : "no"))
@@ -989,7 +989,7 @@ final class Playthrough {
             game.gateCooldown = 0; game.portalCooldown = 0         // the trip back is not a reason to refuse the next
         }
         let filled = frames.filter { world.block($0.x, $0.y, $0.z) == base + 1 }.count
-        check(filled == 12, "hollow gate: \(filled)/12 frames filled with right clicks" + (filled == 12 ? "" : "; last try: \(why()), frame \(frames.last.map { "\($0.x),\($0.y),\($0.z) under \(Blocks.key(world.block($0.x, $0.y + 1, $0.z)))" } ?? "none")"))
+        check(filled == 12, "hollow gate: \(filled)/12 frames filled with right clicks" + (filled == 12 ? "" : "; last try: \(why()), frame \(frames.last.map { "\($0.x),\($0.y),\($0.z) under \(Blocks.key(world.materialAt($0.x, $0.y + 1, $0.z)))" } ?? "none")"))
         let c = frames.reduce(V3(0, 0, 0)) { $0 + center($1) } / Float(max(1, frames.count))
         let pc = IVec3(Int(floor(c.x)), frames.first?.y ?? 0, Int(floor(c.z)))
         var portalBlocks = 0
@@ -1153,11 +1153,11 @@ final class Playthrough {
                 e = ne
                 // Torch trick: the egg must rest on something breakable with room for a torch under it.
                 let under = e + IVec3(0, -1, 0), below2 = e + IVec3(0, -2, 0)
-                guard carvable(under), Blocks.collide[Int(world.block(under.x, under.y, under.z))], carvable(below2) else {
+                guard carvable(under), world.solidAt(under.x, under.y, under.z), carvable(below2) else {
                     why = "egg at \(e.x) \(e.y - YOFF) \(e.z) on \(key(under)) over \(key(below2)): no torch spot"; continue
                 }
                 // A player digs out the cell two below and gives the torch a floor if it has none (placing a block).
-                if !Blocks.collide[Int(world.block(below2.x, below2.y - 1, below2.z))] {
+                if !world.solidAt(below2.x, below2.y - 1, below2.z) {
                     world.setBlock(below2.x, below2.y - 1, below2.z, Blocks.id("end_stone"))
                 }
                 world.setBlock(below2.x, below2.y, below2.z, Blocks.id("torch"))

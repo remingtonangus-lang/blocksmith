@@ -1106,7 +1106,7 @@ extension ShipManager {
         guard s.isFlyingCapital, !s.captured, s.factionValue != .steelhold else { return nil }
         let ix = Int(floor(s.pos.x)), iz = Int(floor(s.pos.z))
         let top = world.topY(ix, iz)
-        guard top > 0, Blocks.isLiquid(world.block(ix, top, iz)) || Blocks.isLiquid(world.block(ix, top - 1, iz)) else { return nil }
+        guard top > 0, Blocks.isLiquid(world.builtBlock(ix, top, iz)) || Blocks.isLiquid(world.builtBlock(ix, top - 1, iz)) else { return nil }
         var best: V3?, bd = st.sight + 60
         if s.factionValue != .greywall {
             for site in g.bases.greywall.sites.values {

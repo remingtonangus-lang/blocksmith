@@ -159,7 +159,7 @@ extension Game {
         guard Rails.isRail(world.block(cell.x, cell.y, cell.z)) else { return }
         let n = cell + step
         guard !Rails.isRail(world.block(n.x, n.y, n.z)), !Rails.isRail(world.block(n.x, n.y - 1, n.z)),
-              Blocks.replaceable[Int(world.block(n.x, n.y, n.z))], Blocks.collide[Int(world.block(n.x, n.y - 1, n.z))] else { return }
+              Blocks.replaceable[Int(world.materialAt(n.x, n.y, n.z))], world.solidAt(n.x, n.y - 1, n.z) else { return }
         world.setBlock(n.x, n.y, n.z, Blocks.id("rail"))
         Rails.autoShape(world, n)
         if survival { consumeHeld() }

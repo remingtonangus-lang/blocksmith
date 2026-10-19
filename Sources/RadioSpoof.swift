@@ -90,7 +90,7 @@ extension Game {
 
     // Use on a console: inside a faction's base, the radio net opens (and the console's radar picture as before).
     func radioUse(_ p: IVec3) -> Bool {
-        guard Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))]) == "command_console", let n = RadioNet.net(self, at: p) else { return false }
+        guard Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))]) == "command_console", let n = RadioNet.net(self, at: p) else { return false }
         openMenu(RadioMenu(game: self, console: p, net: n))
         return true
     }
@@ -290,7 +290,7 @@ extension Game {
         var p = IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z)))
         guard world.isLoaded(p.x, p.z) else { return }
         var n = 0
-        while world.block(p.x, p.y, p.z) != AIR && n < 8 { p.y += 1; n += 1 }
+        while !world.isAir(p.x, p.y, p.z) && n < 8 { p.y += 1; n += 1 }
         world.setBlock(p.x, p.y, p.z, Blocks.id("chest"))
         let be = world.entity(p, .chest)
         var rng = SRng(UInt64(bitPattern: Int64(p.x &* 73856093 ^ p.z &* 19349663 ^ Int(clock))) | 1)

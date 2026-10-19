@@ -174,7 +174,7 @@ final class Player {
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
 
         // Pose: sprint-swim in water; crawl when there is no room to stand or sneak.
-        let wet = Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 1
+        let wet = Blocks.fluidKind[Int(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 1
         if swimming {
             if !(wet && input.sprint && input.forward > 0) || flying { swimming = false }
         } else if !flying && input.sprint && input.forward > 0 && headInWater { swimming = true }
@@ -219,17 +219,17 @@ final class Player {
         if collides(at: pos, w), let free = Player.nearestFree(pos, { !self.collides(at: $0, w) }) { pos = free }
         while collides(at: pos, w) && tries < 64 { pos.y += 1; tries += 1 }
 
-        let feet = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
-        let body = w.block(Int(floor(pos.x)), Int(floor(pos.y + (prone ? 0.3 : 0.9))), Int(floor(pos.z)))
+        let feet = w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
+        let body = w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + (prone ? 0.3 : 0.9))), Int(floor(pos.z)))
         inWater = Blocks.fluidKind[Int(feet)] == 1 || Blocks.fluidKind[Int(body)] == 1
         inLava = Blocks.fluidKind[Int(feet)] == 2 || Blocks.fluidKind[Int(body)] == 2
         // P188 (Oct 13: "the underwater look only goes away once I'm completely out of the water"): on the headset the
         // real head (headAt, Game.vrHead) is tested, against the water's surface rather than its whole block: the top
         // cell of a pool counts only below its surface (0.85 up the cell).
         let e = headAt.map { simd_length($0 - eye) < 2.5 ? $0 : eye } ?? eye
-        let hb = w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z)))
+        let hb = w.builtBlock(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z)))
         var headKind = Blocks.fluidKind[Int(hb)]
-        if headKind == 1 && Blocks.fluidKind[Int(w.block(Int(floor(e.x)), Int(floor(e.y)) + 1, Int(floor(e.z))))] != 1
+        if headKind == 1 && Blocks.fluidKind[Int(w.builtBlock(Int(floor(e.x)), Int(floor(e.y)) + 1, Int(floor(e.z))))] != 1
             && e.y - floor(e.y) > 0.85 { headKind = 0 }
         headInWater = headKind == 1
         headInLava = headKind == 2
@@ -275,12 +275,12 @@ final class Player {
         else { speed = sprinting ? (moveYaw != nil ? Player.vrSprintSpeed : Player.sprintSpeed) : 4.317 }
         if !flying { speed *= speedMul * HandGrab.slow }          // P258: a body dragged or carried
         if soulSpeed > 0 && onGround {
-            let under = Blocks.key(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))
+            let under = Blocks.key(w.materialAt(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))
             if under == "soul_sand" || under == "soul_soil" { speed *= 1.3 + 0.105 * Float(soulSpeed) }
         }
         // Soul sand and honey slow walking to ~58 % (reference speed factor 0.4 against ground friction; Soul Speed
         // cancels the sand's), honey halves the jump (below).
-        let underID = w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z)))
+        let underID = w.materialAt(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z)))
         if !flying && onGround && ((underID == Player.soulSandID && soulSpeed == 0) || underID == Player.honeyID) { speed *= 0.58 }
         let held = flying ? nil : (Player.stuck(feet) ?? Player.stuck(body))
         if let s = held { speed *= s.h }
@@ -375,7 +375,7 @@ final class Player {
             if vel.y < 0 {
                 landed = true
                 // Slime blocks bounce you back up unless you sneak (reference; the fall does no damage: Game).
-                let under = w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.05)), Int(floor(pos.z)))
+                let under = w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y - 0.05)), Int(floor(pos.z)))
                 if under == Player.slimeID && !sneaking && vel.y < -2 { bounce = -vel.y * 0.85 }
             }
             vel.y = 0

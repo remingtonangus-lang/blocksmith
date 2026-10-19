@@ -298,7 +298,7 @@ enum StructCheck {
             for z in stride(from: r0.z, through: r1.z, by: 3) { ring.append((r0.x, z)); ring.append((r1.x, z)) }
             for (x, z) in ring {
                 let ty = w.topY(x, z)
-                if let (y, _) = standNear(w, x, ty + 1, z, up: 0, down: 1), Blocks.fluidKind[Int(w.block(x, y - 1, z))] == 0 { seedCells.append(IVec3(x, y, z)) }
+                if let (y, _) = standNear(w, x, ty + 1, z, up: 0, down: 1), Blocks.fluidKind[Int(w.builtBlock(x, y - 1, z))] == 0 { seedCells.append(IVec3(x, y, z)) }
             }
         }
         let (rw, ra) = walk && !seedCells.isEmpty ? reach(w, seeds: seedCells, lo: lo, hi: hi) : (Set<Int>(), Set<Int>())
@@ -306,7 +306,7 @@ enum StructCheck {
         if walk && !surface, let c = seedCells.first {
             // Entered from inside: where the walk starts and how far it gets (stronghold POIs were all unreachable).
             let ay = s.anchor.y - YOFF, cy = c.y - YOFF, y0 = s.min.y - YOFF, y1 = s.max.y - YOFF
-            let under = Blocks.key(w.block(c.x, c.y - 1, c.z))
+            let under = Blocks.key(w.materialAt(c.x, c.y - 1, c.z))
             // How much of the structure itself the walk got into, and how high.
             var inside = 0, topY = Int.min
             for k in ra {
@@ -341,7 +341,7 @@ enum StructCheck {
                 for sgn in [-1, 1] {
                     let sx = x + ax * sgn, sz = z + az * sgn
                     guard let (sy, sf) = standNear(w, sx, y, sz, up: 1, down: 1) else {
-                        add("door_blocked", p, "no room to stand on the \(sgn < 0 ? "-" : "+")\(ax == 1 ? "x" : "z") side (\(Blocks.key(w.block(sx, y, sz))) / \(Blocks.key(w.block(sx, y + 1, sz))))")
+                        add("door_blocked", p, "no room to stand on the \(sgn < 0 ? "-" : "+")\(ax == 1 ? "x" : "z") side (\(Blocks.key(w.materialAt(sx, y, sz))) / \(Blocks.key(w.materialAt(sx, y + 1, sz))))")
                         continue
                     }
                     let rise = abs(sf - fd)
@@ -389,7 +389,7 @@ enum StructCheck {
                     // The other half must sit next to this one.
                     let want = base.hasSuffix("_head") ? String(base.dropLast(5)) : base + "_head"
                     var pair = false
-                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.key(Blocks.groupBase[Int(w.block(x + dx, y, z + dz))]) == want { pair = true }
+                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.key(Blocks.groupBase[Int(w.materialAt(x + dx, y, z + dz))]) == want { pair = true }
                     if !pair { add("bed_broken", IVec3(x, y, z), "\(base) without its other half") }
                     if base.hasSuffix("_head") { continue }
                 }
@@ -407,11 +407,11 @@ enum StructCheck {
                 // 424242: store audit) is that structure's business.
                 // Its mark: TNT two below the room's centre, four blocks from the chest.
                 if base == "chest" && [(4, 0), (-4, 0), (0, 4), (0, -4)].contains(where: { (dx: Int, dz: Int) -> Bool in
-                    Blocks.key(w.block(x + dx, y - 2, z + dz)) == "tnt" }) { continue }
+                    Blocks.key(w.materialAt(x + dx, y - 2, z + dz)) == "tnt" }) { continue }
                 if base == "chest" {
                     var mossy = false, spawner = false
-                    for dz in -1...1 { for dx in -1...1 where Blocks.key(w.block(x + dx, y - 1, z + dz)) == "mossy_cobblestone" { mossy = true } }
-                    for dz in -4...4 { for dx in -4...4 where Blocks.key(w.block(x + dx, y, z + dz)) == "spawner" { spawner = true } }
+                    for dz in -1...1 { for dx in -1...1 where Blocks.key(w.materialAt(x + dx, y - 1, z + dz)) == "mossy_cobblestone" { mossy = true } }
+                    for dz in -4...4 { for dx in -4...4 where Blocks.key(w.materialAt(x + dx, y, z + dz)) == "spawner" { spawner = true } }
                     if mossy && spawner { continue }
                     // ...or a cobblestone room the structure didn't build (walls on three sides it never wrote: run 375,
                     // a dungeon whose spawner is gone, inside a Steelhold's box).
@@ -451,7 +451,7 @@ enum StructCheck {
                             if d < bd { bd = d; best = IVec3(cx, cy, cz) }
                         }
                         let sx = best.x + (x > best.x ? 1 : (x < best.x ? -1 : 0)), sz = best.z + (z > best.z ? 1 : (z < best.z ? -1 : 0))
-                        let col = (-1...2).map { Blocks.key(w.block(sx, best.y + $0, sz)) }.joined(separator: "/")
+                        let col = (-1...2).map { Blocks.key(w.materialAt(sx, best.y + $0, sz)) }.joined(separator: "/")
                         let by: Int = best.y - YOFF
                         detail += "; closest reached \(best.x) \(by) \(best.z), next toward it \(sx) \(sz) from y-1 up: \(col)"
                         // Top-down map around the POI at its height (rows -z to +z): P the POI, R a reached cell (y-1..y+1),
@@ -467,7 +467,7 @@ enum StructCheck {
                                 if fk.hasSuffix("_fence") || fk.hasSuffix("_wall") { row += "f" }
                                 else if Blocks.fluidKind[Int(fb)] != 0 { row += "~" }
                                 else if Blocks.collide[Int(fb)] || Blocks.collide[Int(hb)] { row += "#" }
-                                else { row += Blocks.collide[Int(w.block(mx, y - 1, mz))] ? "_" : " " }
+                                else { row += w.solidAt(mx, y - 1, mz) ? "_" : " " }
                             }
                             rows.append(row)
                         }
@@ -485,10 +485,10 @@ enum StructCheck {
                             }
                         }
                         let ax = s.anchor.x, az = s.anchor.z
-                        let floorKey = Blocks.key(w.block(x, y - 1, z)), ceilKey = Blocks.key(w.block(x, y + 2, z))
+                        let floorKey = Blocks.key(w.materialAt(x, y - 1, z)), ceilKey = Blocks.key(w.materialAt(x, y + 2, z))
                         var near: [String] = []
                         for dy in -2...3 { for dz in -5...5 { for dx in -5...5 {
-                            let k = Blocks.key(Blocks.groupBase[Int(w.block(x + dx, y + dy, z + dz))])
+                            let k = Blocks.key(Blocks.groupBase[Int(w.materialAt(x + dx, y + dy, z + dz))])
                             if k == "spawner" || k == "mossy_cobblestone" || k.hasSuffix("chest") { near.append("\(k)@\(dx),\(dy),\(dz)") }
                         } } }
                         print("  closed by: \(walls.joined(separator: "; ")) (structure anchor \(ax) \(az)); floor \(floorKey), ceiling \(ceilKey); near: \(near.prefix(10).joined(separator: " "))")
@@ -522,11 +522,11 @@ enum StructCheck {
                 // Facing f (0 north -Z, 1 south +Z, 2 west -X, 3 east +X): the wall is on the opposite side.
                 let back: [(Int, Int)] = [(0, 1), (0, -1), (1, 0), (-1, 0)]
                 let (bx, bz) = back[min(3, st - 1)]
-                ok = Blocks.collide[Int(w.block(x + bx, y, z + bz))]
+                ok = w.solidAt(x + bx, y, z + bz)
             }
             if !ok && torchIssues < 3 {
                 torchIssues += 1
-                add("torch_unsupported", IVec3(x, y, z), st == 0 ? "standing torch over \(Blocks.key(w.block(x, y - 1, z)))" : "wall torch with nothing behind it")
+                add("torch_unsupported", IVec3(x, y, z), st == 0 ? "standing torch over \(Blocks.key(w.materialAt(x, y - 1, z)))" : "wall torch with nothing behind it")
             }
         } } }
         // Structure mobs.
@@ -537,14 +537,14 @@ enum StructCheck {
             let inside = w.block(c.x, c.y, c.z)
             if Blocks.fluidKind[Int(inside)] == 1 { continue }                 // aquatic / spawned in water
             if top(w, c.x, c.y, c.z) > 0.6 || top(w, c.x, c.y + 1, c.z) > 0.01 && !flying.contains(name) {
-                add("mob_in_block", c, "\(name) spawns inside \(Blocks.key(inside)) / \(Blocks.key(w.block(c.x, c.y + 1, c.z)))")
+                add("mob_in_block", c, "\(name) spawns inside \(Blocks.key(inside)) / \(Blocks.key(w.materialAt(c.x, c.y + 1, c.z)))")
                 continue
             }
             if flying.contains(name) { continue }
             if standNear(w, c.x, c.y, c.z, up: 0, down: 2) == nil { add("mob_no_floor", c, "\(name) has nothing to stand on"); continue }
             // A villager behind iron bars is a deliberate cell (igloo basement), not a trapped spawn.
             var caged = false
-            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.key(w.block(c.x + dx, c.y, c.z + dz)) == "iron_bars" { caged = true }
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.key(w.materialAt(c.x + dx, c.y, c.z + dz)) == "iron_bars" { caged = true }
             if walk && name == "villager" && !caged && !ra.isEmpty, let (sy, _) = standNear(w, c.x, c.y, c.z, up: 0, down: 2), !ra.contains(key(c.x, sy, c.z)) {
                 add("mob_trapped", c, "villager spawn not connected to the village")
             }
@@ -554,14 +554,14 @@ enum StructCheck {
         for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
             guard let ys = writtenSolid[colKey(x, z)], ys.count >= 3, let y0 = ys.min() else { continue }
             // A tree canopy the structure planted (capital city parks) hangs over air by nature (store audit: 13 false hits).
-            if Blocks.key(Blocks.groupBase[Int(w.block(x, y0, z))]).hasSuffix("_leaves") { continue }
+            if Blocks.key(Blocks.groupBase[Int(w.materialAt(x, y0, z))]).hasSuffix("_leaves") { continue }
             if lowestOnGround[colKey(x, z)] == true { continue }
             let below = w.block(x, y0 - 1, z)
             if top(w, x, y0 - 1, z) < 0.4 && Blocks.fluidKind[Int(below)] == 0 && !(y0 - 1 <= 0) {
                 // Air under it: count the gap (ignore one-block overhangs over open terrain under 2 blocks).
                 var gap = 0
                 var yy = y0 - 1
-                while yy > 0 && top(w, x, yy, z) < 0.4 && Blocks.fluidKind[Int(w.block(x, yy, z))] == 0 && gap < 8 { gap += 1; yy -= 1 }
+                while yy > 0 && top(w, x, yy, z) < 0.4 && Blocks.fluidKind[Int(w.builtBlock(x, yy, z))] == 0 && gap < 8 { gap += 1; yy -= 1 }
                 if gap >= 2 { floating.append(IVec3(x, y0, z)) }
             }
         } }
@@ -573,7 +573,7 @@ enum StructCheck {
             let lx = fc.x - floorDiv(fc.x, CS) * CS, lz = fc.z - floorDiv(fc.z, CS) * CS
             var stack: [String] = []
             for y in stride(from: fc.y + 2, through: max(1, fc.y - 5), by: -1) {
-                let now = Blocks.key(w.block(fc.x, y, fc.z)), was = Blocks.key(raw[Chunk.index(lx, y, lz)])
+                let now = Blocks.key(w.materialAt(fc.x, y, fc.z)), was = Blocks.key(raw[Chunk.index(lx, y, lz)])
                 stack.append("\(y - YOFF) \(now)" + (now == was ? "" : " (was \(was))"))
             }
             add("floating", floating[0], "\(floating.count) wall/foundation columns over air (first shown; column: \(stack.joined(separator: ", ")))")

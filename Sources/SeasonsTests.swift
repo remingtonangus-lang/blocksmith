@@ -45,7 +45,7 @@ enum SeasonsTests {
         at(day: 1)
         let biome = Biome.plains
         for _ in 0..<40 { g.seasonalMelt(bx, gy, bz, w.block(bx, gy, bz), biome); g.seasonalMelt(bx + 1, gy, bz, w.block(bx + 1, gy, bz), biome) }
-        let melted = w.block(bx, gy, bz) == WATER && w.block(bx + 1, gy + 1, bz) == AIR
+        let melted = w.block(bx, gy, bz) == WATER && w.isAir(bx + 1, gy + 1, bz)
         at(day: 22)
         let keepIce = { () -> Bool in w.setBlock(bx, gy, bz, ice); for _ in 0..<40 { g.seasonalMelt(bx, gy, bz, ice, biome) }; return w.block(bx, gy, bz) == ice }()
         check(melted && keepIce, "C9 melt: in spring a plains pond's ice and a snow layer melt (\(melted)); in winter the ice stays (\(keepIce))")

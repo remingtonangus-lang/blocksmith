@@ -434,7 +434,7 @@ final class CraterJob {
                 to = blackstone
             }
             if to != AIR && to != top { w.setBlockAsync(x, y, z, to); scorched += 1 }
-            if h > r * 0.7 && hashf(x, y, z, 917) < 0.05 * fade && w.block(x, y + 1, z) == AIR && to != magma {
+            if h > r * 0.7 && hashf(x, y, z, 917) < 0.05 * fade && w.isAir(x, y + 1, z) && to != magma {
                 w.setBlockAsync(x, y + 1, z, fire)
             }
         }

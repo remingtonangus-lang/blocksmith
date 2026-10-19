@@ -69,7 +69,7 @@ enum SkyIsle {
 
     static func build(_ w: inout StructWriter, _ s: Shape, _ seed: UInt64) {
         var rng = SRng(seed &+ 0x51C1)
-        let stone = b("stone"), dirt = b("dirt"), grass = b("grass_block"), cobble = b("cobblestone"), andesite = b("andesite")
+        let stone = b("stone"), dirt = b("dirt"), grass = b("grass_block"), cobble = b("tuff"), andesite = b("andesite")   // (tuff: natural rock, P377)
         let m = s.r + 3
         for dz in -m...m { for dx in -m...m {
             guard let c = s.column(dx, dz) else { continue }
@@ -78,7 +78,7 @@ enum SkyIsle {
                 let fromTop = c.top - y
                 let blk: BlockID = fromTop == 0 ? grass : fromTop <= 2 ? dirt
                     : (hashf(x, y, z, s.seed) < 0.12 ? andesite : (hashf(x, y, z, s.seed &+ 1) < 0.06 ? cobble : stone))
-                w.set(x, y, z, blk)
+                w.setGround(x, y, z, blk)                   // (the isle is land: the field's ground in a field world)
             }
         } }
         // Trees on the turf away from the shrine.

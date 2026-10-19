@@ -257,7 +257,7 @@ extension Game {
         let w = world
         for (dx, dz) in [(2, 0), (-2, 0), (0, 2)] {
             let x = c.x + dx, z = c.z + dz, y = c.y - 1
-            if w.block(x, y, z) == AIR && Blocks.collide[Int(w.block(x, y - 1, z))] { w.setBlock(x, y, z, FIRE) }
+            if w.isAir(x, y, z) && w.solidAt(x, y - 1, z) { w.setBlock(x, y, z, FIRE) }
         }
         guard m.kind == .ashTank || m.kind == .ashHalftrack else { return }
         let n = m.kind == .ashTank ? 2 : 1
@@ -439,7 +439,7 @@ extension Game {
                 let x = Int(floor(target.x + dir.x * r - dir.y * side)), z = Int(floor(target.z + dir.y * r + dir.x * side))
                 guard world.isLoaded(x, z) else { continue }
                 for y in stride(from: Int(target.y) + 12, through: Int(target.y) - 12, by: -1)
-                    where Blocks.collide[Int(world.block(x, y - 1, z))] && world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR {
+                    where world.solidAt(x, y - 1, z) && world.isAir(x, y, z) && world.isAir(x, y + 1, z) {
                     let p = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
                     if spawnHidden(p, min: nearest, near: 56, clear: 128) { spawn = p; break search }
                     break

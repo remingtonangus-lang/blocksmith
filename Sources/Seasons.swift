@@ -151,7 +151,7 @@ extension Game {
         else if Blocks.has("ice"), top == Blocks.id("ice"), world.block(x, y - 1, z) == WATER || isShallowIce(x, y, z) { world.setBlockAsync(x, y, z, WATER) }
     }
     private func isShallowIce(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-        [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { world.block(x + $0.0, y, z + $0.1) == WATER }
+        [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { world.builtBlock(x + $0.0, y, z + $0.1) == WATER }
     }
 
     // P277 (Oct 14 19:33, out at sea in the first days of spring: "a ground somehow floating on the water"): winter's
@@ -176,14 +176,14 @@ extension Game {
             let x = c.cx * CS + lx, z = c.cz * CS + lz
             let y = Int(c.height[lx + lz * CS])
             guard y > 0 && y < CH - 1 else { continue }
-            let top = world.block(x, y, z)
-            let capped = top != ice && world.block(x, y + 1, z) == snow
+            let top = world.builtBlock(x, y, z)
+            let capped = top != ice && world.builtBlock(x, y + 1, z) == snow
             guard top == ice || top == snow || capped else { continue }
             let biome = world.gen.column(x, z).biome
             guard Seasons.seasonal(biome, at: y), !Seasons.snows(biome, at: y), Rand.float(in: 0..<1) < p else { continue }
             if capped { world.setBlockAsync(x, y + 1, z, AIR) }
             else if top == snow { world.setBlockAsync(x, y, z, AIR) }
-            else if world.block(x, y - 1, z) == WATER || isShallowIce(x, y, z) { world.setBlockAsync(x, y, z, WATER); Seasons.swept += 1 }
+            else if world.builtBlock(x, y - 1, z) == WATER || isShallowIce(x, y, z) { world.setBlockAsync(x, y, z, WATER); Seasons.swept += 1 }
         } }
     }
 }

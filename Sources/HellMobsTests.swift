@@ -16,7 +16,7 @@ enum HellMobsTests {
         guard let a = arenaBox else { return }
         let w = g.world
         w.deferRemesh = true
-        for z in (a.z - 16)...(a.z + 16) { for x in (a.x - 16)...(a.x + 16) { for y in a.y...(a.y + 14) where w.block(x, y, z) != AIR { w.setBlock(x, y, z, AIR) } } }
+        for z in (a.z - 16)...(a.z + 16) { for x in (a.x - 16)...(a.x + 16) { for y in a.y...(a.y + 14) where !w.isAir(x, y, z) { w.setBlock(x, y, z, AIR) } } }
         w.deferRemesh = false
         remesh(w, a.x, a.z, a.y)
         arenaBox = nil; arena = nil
@@ -87,7 +87,7 @@ enum HellMobsTests {
         w.deferRemesh = true
         for z in (sz - 16)...(sz + 16) { for x in (sx - 16)...(sx + 16) {
             w.setBlock(x, Y, z, stone)
-            for y in (Y + 1)...(Y + 14) where w.block(x, y, z) != AIR { w.setBlock(x, y, z, AIR) }
+            for y in (Y + 1)...(Y + 14) where !w.isAir(x, y, z) { w.setBlock(x, y, z, AIR) }
         } }
         w.deferRemesh = false
         remesh(w, sx, sz, Y)
@@ -316,7 +316,7 @@ enum HellMobsTests {
             let used = g.useEmberCharge(on: (hit: IVec3(bx, 2, bz), normal: IVec3(0, 1, 0)))
             for _ in 0..<Int(3.4 / dt) { g.hellTick(dt) }
             var open = 0
-            for dz in -1...1 { for dx in -1...1 { for y in 0..<HellGate.floorTop where w.block(bx + dx, y, bz + dz) == AIR { open += 1 } } }
+            for dz in -1...1 { for dx in -1...1 { for y in 0..<HellGate.floorTop where w.isAir(bx + dx, y, bz + dz) { open += 1 } } }
             let home = g.player.pos
             g.player.pos = V3(Float(bx) + 0.5, 0.3, Float(bz) + 0.5)
             g.deepTick(0.05)

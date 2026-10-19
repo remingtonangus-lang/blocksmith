@@ -134,7 +134,7 @@ extension Mob {
     // Pulled toward the anchor beyond 6 blocks; the lead snaps beyond 10 (reference distances).
     func leashTick(_ dt: Float, _ g: Game) {
         if hitched {
-            if let k = knot, !Blocks.key(Blocks.groupBase[Int(g.world.block(k.x, k.y, k.z))]).hasSuffix("_fence") { g.unhitch(self); return }
+            if let k = knot, !Blocks.key(Blocks.groupBase[Int(g.world.materialAt(k.x, k.y, k.z))]).hasSuffix("_fence") { g.unhitch(self); return }
             hitchedTick(dt, g); return
         }
         let anchor: V3

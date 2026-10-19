@@ -182,7 +182,7 @@ extension Game {
             }
             if b.bite > 0 { catchFish(b, fish: false) }
             else if let m = b.hooked { m.vel += simd_normalize(player.pos - m.pos + V3(0, 1e-3, 0)) * 8 + V3(0, 3, 0); damageHeld(3) }
-            else if !b.inWater && Blocks.collide[Int(world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y - 0.1)), Int(floor(b.pos.z))))] { damageHeld(2) }
+            else if !b.inWater && world.solidAt(Int(floor(b.pos.x)), Int(floor(b.pos.y - 0.1)), Int(floor(b.pos.z))) { damageHeld(2) }
             bobber = nil
             sfx(.fishReel, 0.5)
             swing = 1

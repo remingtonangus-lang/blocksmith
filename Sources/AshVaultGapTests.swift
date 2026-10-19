@@ -141,7 +141,7 @@ enum AshVaultGapTests {
 
     static func ground(_ w: World, _ x: Int, _ z: Int) -> Float {
         for y in stride(from: AshWar.ground + 12, through: AshWar.ground - 8, by: -1)
-            where Blocks.collide[Int(w.block(x, y - 1, z))] && w.block(x, y, z) == AIR && w.block(x, y + 1, z) == AIR { return Float(y) }
+            where w.solidAt(x, y - 1, z) && w.isAir(x, y, z) && w.isAir(x, y + 1, z) { return Float(y) }
         return Float(AshWar.ground + 1)
     }
 

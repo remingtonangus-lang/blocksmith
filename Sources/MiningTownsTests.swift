@@ -46,7 +46,7 @@ enum MiningTownsTests {
         let sh = m.shaft
         g.player.pos = V3(Float(sh.x) + 0.5, Float(sh.y + 1), Float(sh.z) + 0.5)
         _ = w.loadSync(center: g.player.pos, radius: 4)
-        func key(_ p: IVec3) -> String { Blocks.key(Blocks.groupBase[Int(w.block(p.x, p.y, p.z))]) }
+        func key(_ p: IVec3) -> String { Blocks.key(Blocks.groupBase[Int(w.materialAt(p.x, p.y, p.z))]) }
         let lx = sh.x + m.out.0, lz = sh.z + m.out.1
         let ladders = (m.levels[1]...sh.y).filter { key(IVec3(lx, $0, lz)) == "ladder" }.count
         let posts = [(-2, -2), (2, -2), (-2, 2), (2, 2)].filter { c in (1...7).allSatisfy { key(IVec3(sh.x + c.0, sh.y + $0, sh.z + c.1)) == "oak_log" } }.count

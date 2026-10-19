@@ -32,7 +32,7 @@ enum HorseTests {
         w.deferRemesh = true
         for z in z1...z0 { for x in sx - 3...sx + 3 {
             w.setBlock(x, Y, z, stone)
-            for y in Y + 1...Y + 6 where w.block(x, y, z) != AIR { w.setBlock(x, y, z, AIR) }
+            for y in Y + 1...Y + 6 where !w.isAir(x, y, z) { w.setBlock(x, y, z, AIR) }
         } }
         w.deferRemesh = false
         let lane0 = V3(Float(sx) + 0.5, Float(Y + 1), Float(z0) - 1.5)

@@ -430,7 +430,7 @@ enum PlaytestOct12Tests {
         func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) { placed.append((IVec3(x, y, z), w.block(x, y, z))); w.setBlock(x, y, z, b) }
         for z in (fz - 4)...(fz + 4) { for x in (fx - 2)...(fx + 20) {
             put(x, py, z, STONE)
-            for y in (py + 1)...(py + 5) where w.block(x, y, z) != AIR { put(x, y, z, AIR) }
+            for y in (py + 1)...(py + 5) where !w.isAir(x, y, z) { put(x, y, z, AIR) }
         } }
         put(fx, py + 1, fz, Blocks.id("ship_cannon"))
         put(fx - 1, py + 1, fz, Blocks.id("command_console"))

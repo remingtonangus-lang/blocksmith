@@ -111,7 +111,7 @@ enum ThrownHeldCheck {
         _ = w.loadSync(center: V3(Float(fx), Float(py), Float(fz)), radius: 3)
         for z in (fz - 12)...(fz + 12) { for x in (fx - 12)...(fx + 12) {
             w.setBlock(x, py - 1, z, STONE); placed.append(IVec3(x, py - 1, z))
-            for y in py...(py + 3) where w.block(x, y, z) != AIR { w.setBlock(x, y, z, AIR) }
+            for y in py...(py + 3) where !w.isAir(x, y, z) { w.setBlock(x, y, z, AIR) }
         } }
         g.time = DAY_LENGTH * 0.25
         g.survival = true; g.alive = true; g.player.flying = false; g.menu = nil

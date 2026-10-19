@@ -216,7 +216,7 @@ extension Game {
             guard let s = world.gen.structures?.nearest(kind, x: px, z: pz, maxRegions: 2) else { return false }
             return px >= s.min.x && px <= s.max.x && pz >= s.min.z && pz <= s.max.z && py >= s.min.y - 2 && py <= s.max.y + 2
         }
-        let under = Blocks.key(Blocks.groupBase[Int(world.block(px, py - 1, pz))])
+        let under = Blocks.key(Blocks.groupBase[Int(world.materialAt(px, py - 1, pz))])
         if (dim.dim == .nether || dim.dim == .deep) && !advancements.contains("nether/find_fortress") && BrandChapterhouse.floorKeys.contains(under)
             && inside("fortress") { achieve("fortress") }
         if dim.dim == .end && (under == "purpur_block" || under == "purpur_pillar") { achieve("end_city") }

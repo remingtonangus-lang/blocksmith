@@ -43,7 +43,7 @@ extension Game {
     // A floor to stand on near (x, z): the first open two-high gap over solid ground, scanning down from `fromY`.
     func standY(_ x: Float, _ z: Float, from fromY: Float) -> Float {
         let ix = Int(floor(x)), iz = Int(floor(z))
-        func solid(_ y: Int) -> Bool { Blocks.collide[Int(world.block(ix, y, iz))] }
+        func solid(_ y: Int) -> Bool { world.solidAt(ix, y, iz) }
         let top = Int(floor(fromY)) + 6
         for y in stride(from: top, through: top - 24, by: -1) where solid(y - 1) && !solid(y) && !solid(y + 1) { return Float(y) }
         return Float(world.gen.column(ix, iz).height + 1)

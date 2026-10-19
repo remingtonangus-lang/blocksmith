@@ -212,7 +212,7 @@ enum DeepExpansionTests {
         let used = g.useSunderCharge(on: (hit: IVec3(x, DeepSeal.top - 1, z), normal: IVec3(0, 1, 0)))
         var e: Float = 0
         while e < DeepSeal.chargeFuse + 0.5 { g.health = 20; g.sunderTick(0.05); e += 0.05 }
-        let shaft = (DeepSeal.bottom..<DeepSeal.top).allSatisfy { y in (-1...1).allSatisfy { dz in (-1...1).allSatisfy { dx in w.block(x + dx, y, z + dz) == AIR } } }
+        let shaft = (DeepSeal.bottom..<DeepSeal.top).allSatisfy { y in (-1...1).allSatisfy { dz in (-1...1).allSatisfy { dx in w.isAir(x + dx, y, z + dz) } } }
         let ringLeft = (DeepSeal.bottom..<DeepSeal.top).allSatisfy { w.block(x + 2, $0, z) == SEALROCK && w.block(x, $0, z - 2) == SEALROCK }
         check(used && shaft && ringLeft && g.inventory.held.count == 1 && sealCount(4) == full - 72,
               "deep seal: a Sunder Charge blows a 3x3 shaft through all 8 layers and nothing past it (\(full - sealCount(4)) blocks)")

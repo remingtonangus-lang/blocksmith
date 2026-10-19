@@ -115,7 +115,7 @@ extension Game {
         if WeatherWar.snowNear && simd_length(m.pos - player.pos) < 128 { return 0.7 }
         let x = Int(floor(m.pos.x)), y = Int(floor(m.pos.y)), z = Int(floor(m.pos.z))
         guard world.isLoaded(x, z) else { return 1 }
-        let at = Blocks.key(world.block(x, y, z)), under = Blocks.key(world.block(x, y - 1, z))
+        let at = Blocks.key(world.materialAt(x, y, z)), under = Blocks.key(world.materialAt(x, y - 1, z))
         if at.hasPrefix("snow") || under.hasPrefix("snow_block") || under.hasPrefix("powder_snow") { return 0.7 }
         return 1
     }

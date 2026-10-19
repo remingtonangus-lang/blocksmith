@@ -59,7 +59,7 @@ enum PlantSupport {
     static func supported(_ w: World, _ p: IVec3, _ b: BlockID) -> Bool {
         let g = Blocks.groupBase[Int(b)]
         func holds(_ q: IVec3) -> Bool {
-            let o = w.block(q.x, q.y, q.z)
+            let o = w.materialAt(q.x, q.y, q.z)
             return Blocks.collide[Int(o)] || Blocks.groupBase[Int(o)] == g
         }
         switch ruleOf(b) {
@@ -67,29 +67,29 @@ enum PlantSupport {
             // Standing: something solid under it, or more of the same plant (a cane stack, a tall flower's lower half).
             // A thin non-solid floor that isn't a plant or a liquid (a snow layer, a carpet) still holds it.
             let q = IVec3(p.x, p.y - 1, p.z)
-            let below = w.block(q.x, q.y, q.z)
+            let below = w.materialAt(q.x, q.y, q.z)
             if below == AIR { return false }
             if holds(q) { return true }
             return !Blocks.isLiquid(below) && !Blocks.isPlant(below)
         case 2:
             // Hanging: a ceiling, or more hanging plant above (cave vines with and without berries, weeping vines).
             let q = IVec3(p.x, p.y + 1, p.z)
-            return holds(q) || ruleOf(w.block(q.x, q.y, q.z)) == 2
+            return holds(q) || ruleOf(w.materialAt(q.x, q.y, q.z)) == 2
         case 3:
             // Water plants: the seabed or more of a water plant under them (kelp stacks, tall seagrass).
             let q = IVec3(p.x, p.y - 1, p.z)
-            return holds(q) || ruleOf(w.block(q.x, q.y, q.z)) == 3
+            return holds(q) || ruleOf(w.materialAt(q.x, q.y, q.z)) == 3
         case 4:
             // Vines: a vine above, or a solid side block or ceiling to cling to.
             if holds(IVec3(p.x, p.y + 1, p.z)) { return true }
             for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
-                let o = w.block(p.x + d.x, p.y, p.z + d.z)
+                let o = w.materialAt(p.x + d.x, p.y, p.z + d.z)
                 if Blocks.collide[Int(o)] && Blocks.opaque[Int(o)] { return true }
             }
             return false
         case 5:
             for d in World.allDirs {
-                let o = w.block(p.x + d.x, p.y + d.y, p.z + d.z)
+                let o = w.materialAt(p.x + d.x, p.y + d.y, p.z + d.z)
                 if Blocks.collide[Int(o)] && Blocks.opaque[Int(o)] { return true }
             }
             return false
@@ -138,7 +138,7 @@ enum PlantSupport {
 extension Game {
     // Pops the plant at p if nothing holds it (called for every changed cell and its neighbours).
     func plantSupportCheck(_ p: IVec3) -> Bool {
-        let b = world.block(p.x, p.y, p.z)
+        let b = world.materialAt(p.x, p.y, p.z)
         guard b != AIR, PlantSupport.ruleOf(b) != 0, !PlantSupport.supported(world, p, b) else { return false }
         let leave: BlockID = PlantSupport.ruleOf(b) == 3 ? WATER : AIR
         world.setBlock(p.x, p.y, p.z, leave)
@@ -175,7 +175,7 @@ enum PlantCheck {
         }
         func settle() { for _ in 0..<40 { g.gravityTick() } }
         func count(_ x: Int, _ y0: Int, _ y1: Int, _ id: BlockID) -> Int {
-            (y0...y1).filter { Blocks.groupBase[Int(w.block(x, $0, cz))] == Blocks.groupBase[Int(id)] }.count
+            (y0...y1).filter { Blocks.groupBase[Int(w.materialAt(x, $0, cz))] == Blocks.groupBase[Int(id)] }.count
         }
         func dropsNear(_ x: Int, _ item: String) -> Int {
             guard Items.has(item) else { return 0 }
@@ -219,7 +219,7 @@ enum PlantCheck {
             w.setBlock(x, floorY + 1, cz, lower); w.setBlock(x, floorY + 2, cz, upper)
             g.breakBlock(IVec3(x, floorY, cz), GRASS, drop: true)
             settle()
-            check(w.block(x, floorY + 1, cz) == AIR && w.block(x, floorY + 2, cz) == AIR, "\(key): both halves go with the ground")
+            check(w.isAir(x, floorY + 1, cz) && w.isAir(x, floorY + 2, cz), "\(key): both halves go with the ground")
             break
         }
         // Hanging vines: break the ceiling.
@@ -250,7 +250,7 @@ enum PlantCheck {
             settle()
             let left = count(x, floorY + 2, floorY + 5, id)
             check(left == 0, "kelp: breaking the bottom pops the 4 above (\(left) left)")
-            check(Blocks.isLiquid(w.block(x, floorY + 3, cz)), "kelp: the column is water after")
+            check(Blocks.isLiquid(w.builtBlock(x, floorY + 3, cz)), "kelp: the column is water after")
         }
         // A vine on a log: break the log and the vine (and the one hanging under it) go.
         if Blocks.has("vine") && Blocks.has("oak_log") {
@@ -262,7 +262,7 @@ enum PlantCheck {
             check(w.block(x + 1, floorY + 3, cz) == vine && w.block(x + 1, floorY + 2, cz) == vine, "vine: hangs on the log before")
             g.breakBlock(IVec3(x, floorY + 3, cz), log, drop: true)
             settle()
-            check(w.block(x + 1, floorY + 3, cz) == AIR && w.block(x + 1, floorY + 2, cz) == AIR, "vine: both go with the log")
+            check(w.isAir(x + 1, floorY + 3, cz) && w.isAir(x + 1, floorY + 2, cz), "vine: both go with the log")
         }
         // A lantern hanging from a ceiling that is broken.
         if Blocks.has("lantern[hanging]") {
@@ -270,10 +270,10 @@ enum PlantCheck {
             let top = floorY + 4
             w.setBlock(x, top, cz, STONE); w.setBlock(x, top - 1, cz, Blocks.id("lantern[hanging]"))
             settle()
-            check(w.block(x, top - 1, cz) != AIR, "lantern: hangs from its ceiling before")
+            check(!w.isAir(x, top - 1, cz), "lantern: hangs from its ceiling before")
             g.breakBlock(IVec3(x, top, cz), STONE, drop: true)
             settle()
-            check(w.block(x, top - 1, cz) == AIR, "lantern: falls with the ceiling it hung from")
+            check(w.isAir(x, top - 1, cz), "lantern: falls with the ceiling it hung from")
         }
         // A carpet and a rail on blocks that go.
         for key in ["white_carpet", "rail"] where Blocks.has(key) {
@@ -283,7 +283,7 @@ enum PlantCheck {
             settle()
             g.breakBlock(IVec3(x, floorY, cz), STONE, drop: true)
             settle()
-            check(w.block(x, floorY + 1, cz) == AIR, "\(key): pops when the block under it is broken")
+            check(w.isAir(x, floorY + 1, cz), "\(key): pops when the block under it is broken")
         }
         // A flower on a block blown away by something other than the player (World.setBlock alone).
         if Blocks.has("poppy") {
@@ -293,7 +293,7 @@ enum PlantCheck {
             settle()
             w.setBlock(x, floorY, cz, AIR)
             settle()
-            check(w.block(x, floorY + 1, cz) == AIR, "a flower whose ground is removed by the world (an explosion, a piston) pops too")
+            check(w.isAir(x, floorY + 1, cz), "a flower whose ground is removed by the world (an explosion, a piston) pops too")
         }
         // A piston pushing a block into a sign breaks the sign, and its block entity goes too (it stayed in the empty
         // cell: floating text, an immovable cell, a frame hung there later reading the stale entity's slots).
@@ -310,7 +310,7 @@ enum PlantCheck {
             if w.block(sign.x, sign.y, sign.z) == STONE {
                 check(w.blockEntities[sign] == nil, "a sign a piston breaks leaves no block entity behind")
             } else {
-                print("plantcheck: note: the piston scene did not extend (sign cell \(Blocks.key(w.block(sign.x, sign.y, sign.z)))): sign entity check skipped")
+                print("plantcheck: note: the piston scene did not extend (sign cell \(Blocks.key(w.materialAt(sign.x, sign.y, sign.z)))): sign entity check skipped")
             }
         }
         g.survival = keepSurvival

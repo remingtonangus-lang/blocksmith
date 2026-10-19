@@ -554,7 +554,15 @@ final class Ship {
             if tb != AIR { return tb }
         }
         if hullCol { return AIR }
-        let wb = w.rawBlock(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+        let wx = Int(floor(p.x)), wy = Int(floor(p.y)), wz = Int(floor(p.z))
+        var wb: BlockID
+        if w.fieldTerrain, wy >= 0, wy < CH, let c = w.chunkAt(wx, wz), c.blocks.isField, !c.hollow {
+            // (P377 step 2: a field world's ground seen from the frame is the field at the cell's own point, never the
+            // world's cell of it.)
+            let i = Chunk.index(mod(wx, CS), wy, mod(wz, CS))
+            wb = c.blocks.raw(i)
+            if wb == AIR && w.fieldDensity(at: p) > 0 { let m = c.blocks.material(i); wb = m != 0 ? FieldMat.blocks[Int(m)] : STONE }
+        } else { wb = w.rawBlock(wx, wy, wz) }
         // Inside the hull's columns the world's water never reaches above the ship's floor.
         if Blocks.isLiquid(wb) && grid.inside(x, y, z) && Int(colMin[x + z * grid.sx]) < y && Blocks.fluidKind[Int(wb)] == 1 { return AIR }
         return wb

@@ -48,7 +48,7 @@ extension TownTests {
         let w = g.world
         func floorY(_ x: Int, _ z: Int) -> Int {
             var t = w.topY(x, z)
-            while t > 0 && !Blocks.collide[Int(w.block(x, t, z))] && !Blocks.isLiquid(w.block(x, t, z)) { t -= 1 }   // (grass tufts, flowers)
+            while t > 0 && !w.solidAt(x, t, z) && !Blocks.isLiquid(w.builtBlock(x, t, z)) { t -= 1 }   // (grass tufts, flowers)
             return t
         }
         func open(_ x: Int, _ z: Int) -> Int? {

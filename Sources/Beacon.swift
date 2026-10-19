@@ -16,7 +16,7 @@ enum Beacons {
             let y = p.y - l
             guard y >= 0 else { break }
             for dz in -l...l { for dx in -l...l {
-                if !bases.contains(Blocks.key(w.block(p.x + dx, y, p.z + dz))) { return lvl }
+                if !bases.contains(Blocks.key(w.materialAt(p.x + dx, y, p.z + dz))) { return lvl }
             } }
             lvl = l
         }

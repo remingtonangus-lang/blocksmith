@@ -33,12 +33,12 @@ extension Game {
             if !world.activeHere(p) { world.park(falling: p); continue }   // P376
             FarTicks.note(world, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             if plantSupportCheck(p) { continue }          // plants that lost their support pop (PlantSupport.swift)
-            let b = world.block(p.x, p.y, p.z)
+            let b = world.materialAt(p.x, p.y, p.z)
             guard World.fallingIDs[Int(b)], p.y > 0 else {
                 hardenConcrete(p)
                 continue
             }
-            let below = world.block(p.x, p.y - 1, p.z)
+            let below = world.materialAt(p.x, p.y - 1, p.z)
             guard below == AIR || Blocks.isLiquid(below) || (Blocks.replaceable[Int(below)] && !Blocks.collide[Int(below)]) || below == FIRE else {
                 hardenConcrete(p)
                 continue
@@ -61,11 +61,11 @@ extension Game {
 
     // Concrete powder touching water becomes concrete.
     func hardenConcrete(_ p: IVec3) {
-        let b = world.block(p.x, p.y, p.z)
+        let b = world.builtBlock(p.x, p.y, p.z)
         let c = Game.hardened[Int(b)]
         guard c != 0 else { return }
         for d in World.allDirs where d.y >= 0 {
-            if Blocks.fluidKind[Int(world.block(p.x + d.x, p.y + d.y, p.z + d.z))] == 1 {
+            if Blocks.fluidKind[Int(world.builtBlock(p.x + d.x, p.y + d.y, p.z + d.z))] == 1 {
                 world.setBlock(p.x, p.y, p.z, c)
                 return
             }
@@ -78,15 +78,17 @@ extension Game {
             f.vel.y = max(-40, f.vel.y - 16 * dt)                     // 0.04 a tick squared (reference; 28)
             let next = f.pos + f.vel * dt
             let cell = IVec3(Int(floor(next.x)), Int(floor(next.y)), Int(floor(next.z)))
-            let b = world.block(cell.x, cell.y, cell.z)
+            let b = world.builtBlock(cell.x, cell.y, cell.z)
             if next.y < 0 { f.dead = true; continue }
+            // (P377 step 2: a field world's ground is met where the field draws it, not as its cell.)
+            let ground = world.fieldTerrain && world.fieldDensity(at: next) > 0
             // Concrete powder sets where it first meets water (reference; it sank to the bottom first).
             if Blocks.fluidKind[Int(b)] == 1 && Int(f.block) < Game.hardened.count && Game.hardened[Int(f.block)] != 0 {
                 world.setBlock(cell.x, cell.y, cell.z, Game.hardened[Int(f.block)])
                 f.dead = true
                 continue
             }
-            if Blocks.collide[Int(b)] && !Blocks.isLiquid(b) {
+            if ground || Blocks.collide[Int(b)] && !Blocks.isLiquid(b) {
                 // Land in the cell above.
                 let at = IVec3(cell.x, cell.y + 1, cell.z)
                 f.dead = true
@@ -107,7 +109,7 @@ extension Game {
                     }
                     sfx(.anvil, 0.8, at: c)
                 }
-                let there = world.block(at.x, at.y, at.z)
+                let there = world.materialAt(at.x, at.y, at.z)
                 if there == AIR || Blocks.replaceable[Int(there)] || Blocks.isLiquid(there) {
                     var place = f.block
                     if key.hasSuffix("anvil") && Rand.float(in: 0..<1) < 0.05 * fell {

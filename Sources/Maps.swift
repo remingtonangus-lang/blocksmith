@@ -120,7 +120,7 @@ extension Game {
             var k: Float = yy > north ? 1.0 : (yy < north ? 0.71 : 0.86)
             if Blocks.fluidKind[Int(b)] == 1 {
                 var depth = 0
-                while depth < 10 && Blocks.isLiquid(world.block(wx, yy - depth - 1, wz)) { depth += 1 }
+                while depth < 10 && Blocks.isLiquid(world.builtBlock(wx, yy - depth - 1, wz)) { depth += 1 }
                 k = depth > 6 ? 0.71 : (depth > 2 ? 0.86 : 1)
             }
             let r = UInt32(Float((col >> 16) & 255) * k), g = UInt32(Float((col >> 8) & 255) * k), bl = UInt32(Float(col & 255) * k)

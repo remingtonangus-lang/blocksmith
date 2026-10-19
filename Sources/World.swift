@@ -292,9 +292,48 @@ final class World {
 
     func isLoaded(_ x: Int, _ z: Int) -> Bool { frame != nil || chunkAt(x, z) != nil }
 
+    // P377 step 2: the block grid's view of a field world's ground (block()) is for nothing that asks where the ground
+    // is; these read the two layers apart. The built layer alone (no ground; the same as block() in block worlds and
+    // through a ship frame): searches for built things, emitters, what stands in a cell.
+    @inline(__always) func builtBlock(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        if frame != nil || !fieldTerrain { return block(x, y, z) }
+        if y < 0 || y >= CH { return y < 0 ? BEDROCK : AIR }
+        guard let c = chunkAt(x, z), !c.hollow else { return AIR }
+        return c.blocks.raw(Chunk.index(mod(x, CS), y, mod(z, CS)))
+    }
+    // The cell is inside the field's ground (its density > 0); never in block worlds.
+    @inline(__always) func groundAt(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard fieldTerrain, frame == nil, y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
+        if c.hollow { return y <= Int(c.height[mod(x, CS) + mod(z, CS) * CS]) }
+        return c.blocks.ground(Chunk.index(mod(x, CS), y, mod(z, CS)))
+    }
+    // The cell holds something solid: a built block that collides, or the field's ground at the cell's sample (its
+    // centre). For the searches that step by cells (where a mob may appear, which column a thing lands in); the body is
+    // then set on the drawn surface.
+    @inline(__always) func solidAt(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        Blocks.collide[Int(builtBlock(x, y, z))] || groundAt(x, y, z)
+    }
+    // Nothing in the cell: no built block and no ground (block(x, y, z) == AIR, read from the two layers).
+    @inline(__always) func isAir(_ x: Int, _ y: Int, _ z: Int) -> Bool { builtBlock(x, y, z) == AIR && !groundAt(x, y, z) }
+    @inline(__always) func opaqueAt(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        Blocks.opaque[Int(builtBlock(x, y, z))] || groundAt(x, y, z)
+    }
+    // What the cell is made of, for the material rules (grass creeping onto dirt, snow melting, what grows where): the
+    // built block, else the ground's material where the cell is inside the ground (read from the field's material, not
+    // the block grid). Never for where the ground's surface is or what is solid: that is the field (fieldDensity,
+    // fieldBoxes).
+    @inline(__always) func materialAt(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        if frame != nil || !fieldTerrain { return block(x, y, z) }
+        if y < 0 || y >= CH { return y < 0 ? BEDROCK : AIR }
+        guard let c = chunkAt(x, z) else { return AIR }
+        if c.hollow { return y <= Int(c.height[mod(x, CS) + mod(z, CS) * CS]) ? STONE : AIR }
+        return c.blocks.materialCell(Chunk.index(mod(x, CS), y, mod(z, CS)))
+    }
+
     // Every block in the box c +- (r, ry, r) as body(id, x, y, z), chunk by chunk: one dictionary lookup per chunk
     // instead of per cell (a villager's 65x17x65 bell search through block() cost 7-14 ms: Quest bench, village).
-    // Unloaded chunks and cells outside 0..<CH are skipped; through a ship frame every cell goes through block().
+    // Unloaded chunks and cells outside 0..<CH are skipped; through a ship frame every cell goes through block(). Built blocks
+    // only (P377 step 2): a field world's ground reads as air (every caller looks for beds, bells, workstations, lamps).
     func forEachBlock(around c: IVec3, r: Int, ry: Int, _ body: (BlockID, Int, Int, Int) -> Void) {
         let y0 = max(0, c.y - ry), y1 = min(CH - 1, c.y + ry)
         guard y0 <= y1 else { return }
@@ -310,7 +349,7 @@ final class World {
                 let za = max(c.z - r, bz), zb = min(c.z + r, bz + CS - 1)
                 let blocks = ch.blocks
                 for y in y0...y1 { for z in za...zb { for x in xa...xb {
-                    body(blocks[Chunk.index(x - bx, y, z - bz)], x, y, z)
+                    body(blocks.raw(Chunk.index(x - bx, y, z - bz)), x, y, z)
                 } } }
             }
         }
@@ -354,10 +393,11 @@ final class World {
         if !bites.isEmpty { bites.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let oldH = Int(c.height[lx + lz * CS])
-        let old = c.blocks[Chunk.index(lx, y, lz)]
+        let old = c.blocks.materialCell(Chunk.index(lx, y, lz))
         let id = World.storedState(id0, replacing: old)
         if World.editTally != nil { World.editTally![UInt64(old) << 16 | UInt64(id), default: 0] += 1 }
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
+        if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
         c.blocks[Chunk.index(lx, y, lz)] = id
         if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
         if old != id, let e = netEdit, !World.netQuiet { e(x, y, z, id) }
@@ -428,13 +468,14 @@ final class World {
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         if !bites.isEmpty { bites.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
-        let old = c.blocks[Chunk.index(lx, y, lz)]
+        let old = c.blocks.materialCell(Chunk.index(lx, y, lz))
         let id = World.storedState(id0, replacing: old)
         if World.editTally != nil {
             World.editTally![1 << 32 | UInt64(old) << 16 | UInt64(id), default: 0] += 1
             World.editCells[IVec3(x, y, z), default: 0] += 1
         }
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
+        if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
         c.blocks[Chunk.index(lx, y, lz)] = id
         if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
@@ -481,14 +522,15 @@ final class World {
 
     // World-space collision boxes of the block at a cell.
     @inline(__always) func collisionBoxes(_ x: Int, _ y: Int, _ z: Int, _ out: inout [(V3, V3)]) {
-        var b = Int(block(x, y, z))
+        var b: Int
         // PG2 rewrite: in a field world the ground is met as the field's own surface (fieldBoxes: quarter-block columns
         // cut where the density crosses zero), never as cells; built blocks in the cell keep their own shapes.
+        // (P377 step 2: the cell is read through the built layer only, never first as a block.)
         if fieldTerrain && y >= 0 && y < CH, let c = chunkAt(x, z) {
             let i = Chunk.index(mod(x, CS), y, mod(z, CS))
             if fieldNear(c, x, y, z, i) { if fieldSplit { fieldBoxes(x, y, z, &fieldSink) } else { fieldBoxes(x, y, z, &out) } }
             b = Int(c.blocks.raw(i))
-        }
+        } else { b = Int(block(x, y, z)) }
         if !pieceCells.isEmpty, let pb = pieceCells[IVec3(x, y, z)] { out.append(contentsOf: pb) }
         if !Blocks.collide[b] { return }
         let o = V3(Float(x), Float(y), Float(z))
@@ -517,8 +559,9 @@ final class World {
     func shapeBoxes(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, collision: Bool) -> [Box] {
         let ck = Blocks.connectKind[Int(b)]
         if ck == 0 { return collision ? Blocks.collBoxes[Int(b)] : Blocks.boxes[Int(b)] }
-        return BlockRegistry.connectBoxes(ck, n: Blocks.connects(ck, block(x, y, z - 1)), s: Blocks.connects(ck, block(x, y, z + 1)),
-                                          w: Blocks.connects(ck, block(x - 1, y, z)), e: Blocks.connects(ck, block(x + 1, y, z)), collision: collision)
+        // (P377 step 2: the neighbours as the mesher joins them: the ground beside as its material, the way it's drawn)
+        return BlockRegistry.connectBoxes(ck, n: Blocks.connects(ck, materialAt(x, y, z - 1)), s: Blocks.connects(ck, materialAt(x, y, z + 1)),
+                                          w: Blocks.connects(ck, materialAt(x - 1, y, z)), e: Blocks.connects(ck, materialAt(x + 1, y, z)), collision: collision)
     }
 
     // Scratch for collides (frame thread only): taken and handed back, so a call never allocates its box list
@@ -685,9 +728,9 @@ final class World {
         var hit = false
         for x in Int(floor(b.0.x))...Int(floor(b.1.x - 1e-4)) {
             for z in Int(floor(b.0.z))...Int(floor(b.1.z - 1e-4)) {
-                let id = block(x, y, z)
-                if !Blocks.collide[Int(id)] { continue }
-                if !SmoothTerrain.natural[Int(id)] { return false }
+                let id = builtBlock(x, y, z), g = groundAt(x, y, z)       // (P377 step 2: the two layers apart)
+                if !Blocks.collide[Int(id)] && !g { continue }
+                if !g && !SmoothTerrain.natural[Int(id)] { return false }
                 hit = true
             }
         }
@@ -1190,13 +1233,16 @@ final class World {
                 let top = min(CH - 1, max(Int(c.height[lx + lz * CS]), Int(n.height[nx + nz * CS])) + 2)
                 guard top > 1 else { continue }
                 for y in 1...top {
-                    let a = c.blocks[Chunk.index(lx, y, lz)], b = n.blocks[Chunk.index(nx, y, nz)]
+                    // (The built layer, and the field's ground as a filled cell: P377 step 2.)
+                    let ia = Chunk.index(lx, y, lz), ib = Chunk.index(nx, y, nz)
+                    let a = c.blocks.raw(ia), b = n.blocks.raw(ib)
                     let fa = fk[Int(a)], fb = fk[Int(b)]
                     guard fa != fb else { continue }
-                    if fa != 0 && b == AIR {
+                    let openA = a == AIR && !c.blocks.ground(ia), openB = b == AIR && !n.blocks.ground(ib)
+                    if fa != 0 && openB {
                         let q = IVec3(c.cx * CS + lx, y, c.cz * CS + lz)
                         if fa == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) }
-                    } else if fb != 0 && a == AIR {
+                    } else if fb != 0 && openA {
                         let q = IVec3(n.cx * CS + nx, y, n.cz * CS + nz)
                         if fb == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) }
                     }
@@ -1385,7 +1431,8 @@ final class World {
     func freeSpawn(_ p: V3, wide: Bool = false) -> V3 {
         func clear(_ x: Int, _ y: Int, _ z: Int) -> Bool {
             for k in 0...1 {
-                let b = Int(block(x, y + k, z))
+                if groundAt(x, y + k, z) { return false }                // (P377 step 2: the ground by its field)
+                let b = Int(builtBlock(x, y + k, z))
                 if Blocks.collide[b] && (Blocks.fullCollide[b] || !Blocks.boxes[b].isEmpty) {
                     var top: Float = 0
                     for bx in Blocks.boxes[b] { top = max(top, bx.maxV.y) }
@@ -1398,7 +1445,7 @@ final class World {
         if wide {
             func clear4(_ cx: Int, _ cy: Int, _ cz: Int) -> Bool {
                 clear(cx - 1, cy, cz - 1) && clear(cx, cy, cz - 1) && clear(cx - 1, cy, cz) && clear(cx, cy, cz)
-                    && Blocks.collide[Int(block(cx - 1, cy - 1, cz - 1))] && Blocks.collide[Int(block(cx, cy - 1, cz))]
+                    && solidAt(cx - 1, cy - 1, cz - 1) && solidAt(cx, cy - 1, cz)
             }
             let rx = Int((p.x).rounded()), rz = Int((p.z).rounded())
             for r in 0...3 { for dy in [0, 1, -1, 2] { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
@@ -1410,7 +1457,7 @@ final class World {
         for dy in 1...4 where clear(x, y + dy, z) { return V3(p.x, Float(y + dy), p.z) }
         for r in 1...2 { for dy in -1...2 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
             let fx = x + dx, fy = y + dy, fz = z + dz
-            if clear(fx, fy, fz) && Blocks.collide[Int(block(fx, fy - 1, fz))] { return V3(Float(fx) + 0.5, Float(fy), Float(fz) + 0.5) }
+            if clear(fx, fy, fz) && solidAt(fx, fy - 1, fz) { return V3(Float(fx) + 0.5, Float(fy), Float(fz) + 0.5) }
         } } } }
         return p
     }
@@ -1502,7 +1549,7 @@ final class World {
         let steps = Int(len / 0.25) + 1
         for i in 1..<steps {
             let p = a + d * (Float(i) / Float(steps))
-            if Blocks.opaque[Int(block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] { return false }
+            if opaqueAt(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) { return false }     // (P377 step 2: the ground by its field)
         }
         return true
     }
@@ -1544,10 +1591,12 @@ final class World {
             while fieldFrom < maxDist && fieldDensity(at: origin + dir * fieldFrom) > 0 { fieldFrom += 0.05 }
         }
         while t <= maxDist {
-            var b = block(x, y, z)
+            var b: BlockID = AIR
             // PG2 rewrite: in a field world the ray meets the ground where the field crosses zero (the drawn surface), and
-            // the cell it names is the ground cell there; built blocks are targeted as blocks.
-            if fieldTerrain && y >= 0 && y < CH, let c = chunkAt(x, z) {
+            // the cell it names is the ground cell there; built blocks are targeted as blocks. (P377 step 2: the cell
+            // is read through the built layer only.)
+            if !fieldTerrain || y < 0 || y >= CH { b = block(x, y, z) }
+            else if let c = chunkAt(x, z) {
                 let i = Chunk.index(mod(x, CS), y, mod(z, CS))
                 let end = min(tmx, tmy, tmz, maxDist)
                 if fieldNear(c, x, y, z, i), max(t, fieldFrom) <= end, let h = fieldRaySegment(origin, dir, from: max(t, fieldFrom), to: end) {
@@ -1559,7 +1608,7 @@ final class World {
                     return (h.cell, nrm)
                 }
                 b = c.blocks.raw(i)
-            }
+            } else { b = block(x, y, z) }
             if Blocks.targetable(b) {
                 if Blocks.render[Int(b)] == RenderType.cube.rawValue { return (IVec3(x, y, z), n) }
                 let o = V3(Float(x), Float(y), Float(z))
@@ -1605,7 +1654,7 @@ final class World {
         let fk = Blocks.fluidKind
         var water = false, lava = false
         for q in [p] + World.allDirs.map({ p + $0 }) {
-            let k = fk[Int(block(q.x, q.y, q.z))]
+            let k = fk[Int(builtBlock(q.x, q.y, q.z))]
             if k == 1 { water = true } else if k == 2 { lava = true }
         }
         if water { fluidPending.insert(p); for d in World.allDirs { fluidPending.insert(p + d) } }
@@ -1631,9 +1680,18 @@ final class World {
 
     // Steps from q to the nearest spot fluid could fall from (a passable cell over a passable or flowing one), searching
     // passable cells up to `reach` away and never back through the source; 1000 when there is none.
+    // P377 step 2: what a fluid meets in a cell. The built layer, and in a field world the ground as the field draws it:
+    // a cell the ground fills past its lower quarter is solid rock to the fluid, a shallower one (a beach, a gentle
+    // bank: shallowGround) is open, so it runs onto the drawn ground. Read from the field, never as cells of the ground.
+    @inline(__always) func fluidCell(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        let b = builtBlock(x, y, z)
+        guard b == AIR, groundAt(x, y, z) else { return b }
+        return shallowGround(x, y, z) ? AIR : STONE
+    }
+
     private func dropDistance(from q: IVec3, origin: IVec3, reach: Int, kind: UInt8) -> Int {
         func passable(_ c: IVec3) -> Bool {
-            let id = block(c.x, c.y, c.z)
+            let id = fluidCell(c.x, c.y, c.z)
             let l = Int(Blocks.fluidLevel[Int(id)])
             if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 }
             return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH || shallowGround(c.x, c.y, c.z)
@@ -1696,7 +1754,7 @@ final class World {
             guard p.y >= 0 && p.y < CH && isLoaded(p.x, p.z) else { continue }
             if !activeHere(p) { park(fluid: p, lava: lava); continue }     // P376: waits for the player to come near
             FarTicks.note(self, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
-            let cur = block(p.x, p.y, p.z)
+            let cur = fluidCell(p.x, p.y, p.z)
             guard fkT[Int(cur)] == kind else { continue }
             var lv = Int(lvT[Int(cur)])
             if !lava {
@@ -1704,7 +1762,7 @@ final class World {
                 // after a wait in its queue: a source to obsidian, a flow to cobblestone.
                 for d in World.lavaMeet {
                     let q = IVec3(p.x + d.x, p.y + d.y, p.z + d.z)
-                    let nb = block(q.x, q.y, q.z)
+                    let nb = fluidCell(q.x, q.y, q.z)
                     guard fkT[Int(nb)] == 2 else { continue }
                     setBlockAsync(q.x, q.y, q.z, lvT[Int(nb)] == 0 ? OBSIDIAN : COBBLE)
                     scheduleFluid(around: q)
@@ -1714,7 +1772,7 @@ final class World {
             if lava {
                 // Lava touching water hardens: source -> obsidian, flowing -> cobblestone.
                 var touching = false
-                for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, 1, 0)] where fkT[Int(block(p.x + d.x, p.y + d.y, p.z + d.z))] == 1 {
+                for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, 1, 0)] where fkT[Int(fluidCell(p.x + d.x, p.y + d.y, p.z + d.z))] == 1 {
                     touching = true
                     break
                 }
@@ -1725,9 +1783,9 @@ final class World {
                     continue
                 }
                 // Basalt generator (reference): lava over soul soil beside blue ice turns to basalt.
-                if World.basaltID != AIR && block(p.x, p.y - 1, p.z) == World.soulSoilID {
+                if World.basaltID != AIR && materialAt(p.x, p.y - 1, p.z) == World.soulSoilID {
                     var ice = false
-                    for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, 1, 0)] where block(p.x + d.x, p.y + d.y, p.z + d.z) == World.blueIceID {
+                    for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, 1, 0)] where fluidCell(p.x + d.x, p.y + d.y, p.z + d.z) == World.blueIceID {
                         ice = true
                         break
                     }
@@ -1741,18 +1799,18 @@ final class World {
             }
             if lv > 0 {
                 var want: Int
-                if lvT[Int(block(p.x, p.y + 1, p.z))] >= 0 && fkT[Int(block(p.x, p.y + 1, p.z))] == kind {
+                if lvT[Int(fluidCell(p.x, p.y + 1, p.z))] >= 0 && fkT[Int(fluidCell(p.x, p.y + 1, p.z))] == kind {
                     want = 8
                 } else {
                     var best = 99, sources = 0
                     for d in World.sideDirs {
-                        let nb = block(p.x + d.x, p.y, p.z + d.z)
+                        let nb = fluidCell(p.x + d.x, p.y, p.z + d.z)
                         guard fkT[Int(nb)] == kind else { continue }
                         let n = Int(lvT[Int(nb)])
                         if n == 0 { sources += 1 }
                         best = min(best, n == 8 ? 0 : n)
                     }
-                    let below = block(p.x, p.y - 1, p.z)
+                    let below = fluidCell(p.x, p.y - 1, p.z)
                     if !lava && sources >= 2 && (Blocks.opaque[Int(below)] || (lvT[Int(below)] == 0 && fkT[Int(below)] == kind)) { want = 0 }
                     else if best + stepLevel > 7 { want = -1 }
                     else { want = best + stepLevel }
@@ -1763,7 +1821,7 @@ final class World {
                     lv = want
                 }
             }
-            let below = block(p.x, p.y - 1, p.z)
+            let below = fluidCell(p.x, p.y - 1, p.z)
             if lava && fkT[Int(below)] == 1 {
                 // Lava pouring onto water makes stone.
                 setBlockAsync(p.x, p.y - 1, p.z, STONE)
@@ -1787,7 +1845,7 @@ final class World {
             // ran over the others and the spring spread every way: rulescheck "water heads for the drop").
             var openMask = 0, wayMask = 0
             for (i, d) in World.sideDirs.enumerated() {
-                let nb = block(p.x + d.x, p.y, p.z + d.z)
+                let nb = fluidCell(p.x + d.x, p.y, p.z + d.z)
                 if fluidCanEnter(nb, level: next, kind: kind) || shallowGround(p.x + d.x, p.y, p.z + d.z) { openMask |= 1 << i; wayMask |= 1 << i }
                 else if fkT[Int(nb)] == kind && Int(lvT[Int(nb)]) >= next && lvT[Int(nb)] < 8 { wayMask |= 1 << i }   // (downstream: not the cell it came from)
             }

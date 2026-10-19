@@ -94,13 +94,13 @@ enum InputLatencyTests {
         let wall = IVec3(fx, py + 2, fz - 2)
         row("mine", frames("mine", { $0.rt = 1 }) { g.mining == wall || g.swing > 0 || w.block(wall.x, wall.y, wall.z) != DIRT })
         let front = IVec3(fx, py + 2, fz - 1)
-        row("place", frames("place", { $0.lt = 1 }) { w.block(front.x, front.y, front.z) != AIR })
+        row("place", frames("place", { $0.lt = 1 }) { !w.isAir(front.x, front.y, front.z) })
         row("attack", frames("attack", setup: {
             // A pig in the gap, at arm's length (the wall behind it).
             let m = Mob(.pig, at: spot + V3(0, 0, -1.2))
             g.mobs.mobs = [m]; mob = m; h0 = m.health
             g.player.pitch = -0.7
-            for z in (fz - 2)...(fz - 1) { for y in (py + 1)...(py + 2) { if w.block(fx, y, z) != AIR { put(fx, y, z, AIR) } } }
+            for z in (fz - 2)...(fz - 1) { for y in (py + 1)...(py + 2) { if !w.isAir(fx, y, z) { put(fx, y, z, AIR) } } }
         }, { $0.rt = 1 }) { mob.map { $0.health < h0 } ?? false })
         // Melee reach (scorecard "Reach": melee ~3): a pig further off each try, aimed at its middle; the furthest level gap
         // from the eye to its near side that a blow still lands across (0.25-block steps; the eye is above the pig, so the
@@ -109,7 +109,7 @@ enum InputLatencyTests {
         for i in 0..<16 {
             let d = 1.5 + Float(i) * 0.25
             let n = frames("reach", setup: {
-                for z in (fz - 2)...(fz - 1) { for y in (py + 1)...(py + 2) { if w.block(fx, y, z) != AIR { put(fx, y, z, AIR) } } }
+                for z in (fz - 2)...(fz - 1) { for y in (py + 1)...(py + 2) { if !w.isAir(fx, y, z) { put(fx, y, z, AIR) } } }
                 let m = Mob(.pig, at: spot + V3(0, 0, -d))
                 g.mobs.mobs = [m]; mob = m; h0 = m.health
                 mobAt = V3(0, 0, -d)

@@ -36,7 +36,7 @@ extension Game {
         for dz in -1...1 { for dy in -1...1 { for dx in -1...1 {
             let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
             let s = Blocks.shape[Int(world.block(q.x, q.y, q.z))]
-            if (s == "door" || s == "trapdoor" || s == "gate") && !Blocks.key(world.block(q.x, q.y, q.z)).hasPrefix("iron_") { toggleOpenable(q) }
+            if (s == "door" || s == "trapdoor" || s == "gate") && !Blocks.key(world.materialAt(q.x, q.y, q.z)).hasPrefix("iron_") { toggleOpenable(q) }
         } } }
     }
 
@@ -73,7 +73,7 @@ extension Game {
         if stepVibe <= 0 && player.onGround && !player.sneaking && simd_length(V2(player.vel.x, player.vel.z)) > 0.5 {
             stepVibe = 0.5
             // W9: a step is frequency 1; steps on wool make none.
-            let under = world.block(Int(floor(player.pos.x)), Int(floor(player.pos.y - 0.05)), Int(floor(player.pos.z)))
+            let under = world.builtBlock(Int(floor(player.pos.x)), Int(floor(player.pos.y - 0.05)), Int(floor(player.pos.z)))   // (wool is built)
             let wool = Blocks.key(Blocks.groupBase[Int(under)]).hasSuffix("_wool") || Blocks.key(Blocks.groupBase[Int(under)]).hasSuffix("_carpet")
             world.redstone.vibrate(at: player.pos, freq: 1, onWool: wool)
         }
@@ -91,7 +91,7 @@ extension Game {
             let dx: Float = i == 0 ? r : (i == 1 ? -r : 0)
             let dz: Float = i == 2 ? r : (i == 3 ? -r : 0)
             let x = Int(floor(pl.pos.x + dx)), z = Int(floor(pl.pos.z + dz))
-            if world.block(x, y, z) == Player.honeyID {
+            if world.builtBlock(x, y, z) == Player.honeyID {
                 pl.vel.y = -1
                 pl.airPeak = pl.pos.y
                 return
@@ -101,7 +101,7 @@ extension Game {
 
     // After placing a block: sponge / concrete powder reactions.
     func placedReactions(_ p: IVec3) {
-        let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
+        let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
         if k == "sponge" { spongeAbsorb(p) }
         if k.hasSuffix("_concrete_powder") { hardenConcrete(p) }
         if k == "wet_sponge" && dim.dim.ultrawarm {
@@ -116,14 +116,14 @@ extension Game {
         let below = IVec3(feet.x, Int(floor(player.pos.y - 0.05)), feet.z)
         let snow = Blocks.id("powder_snow")
         let boots = ["leather_boots", "fur_boots"].contains(Items.key(inventory.armor[3].item))
-        if boots && world.block(below.x, below.y, below.z) == snow && player.vel.y <= 0 && world.block(feet.x, feet.y, feet.z) != snow {
+        if boots && world.builtBlock(below.x, below.y, below.z) == snow && player.vel.y <= 0 && world.builtBlock(feet.x, feet.y, feet.z) != snow {
             player.pos.y = Float(below.y + 1)
             player.vel.y = 0
             player.onGround = true
             player.airPeak = player.pos.y
             achieve("powder_walk")
         }
-        let inside = world.block(feet.x, feet.y, feet.z) == snow || world.block(feet.x, feet.y + 1, feet.z) == snow
+        let inside = world.builtBlock(feet.x, feet.y, feet.z) == snow || world.builtBlock(feet.x, feet.y + 1, feet.z) == snow
         if inside {
             player.vel.y = max(player.vel.y, -1.5)
             if !boots { player.airPeak = player.pos.y }
