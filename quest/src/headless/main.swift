@@ -180,6 +180,34 @@ if let out = arg("--view"), let ctx = vkctx {
     if CommandLine.arguments.contains("--fieldbodies") { print(World.fieldBodiesCheck(vg)) } // (PG2 rewrite)
     if FieldTerrain.statsOn { print(FieldTerrain.statsLine()) }
     // --fielddump: the ground the view's centre ray meets, and the field's densities (1/32 block) round it, slice by slice.
+    // --collapse (P351): a cave carved under the ground in front of the eye with a loose ball of ground left inside it;
+    // one more dig beside the ball and a second of play: the ball must leave the field and fall as debris.
+    if CommandLine.arguments.contains("--collapse"), vw.fieldTerrain {
+        let fx = Int(vg.player.pos.x), fz = Int(vg.player.pos.z) - 12
+        let top = Int(vw.chunkAt(fx, fz)?.height[mod(fx, CS) + mod(fz, CS) * CS] ?? 100)
+        let ctr = V3(Float(fx) + 0.5, Float(top - 9) + 0.5, Float(fz) + 0.5)
+        vw.collapsing = true
+        _ = vw.fieldSphere(ctr, radius: 6, carve: true, material: nil, remesh: true)
+        _ = vw.fieldSphere(ctr, radius: 1.6, carve: false, material: FieldMat.index[Int(STONE)], remesh: true)
+        // (a neck from the ball up to the cave's roof holds it)
+        for k in 0..<7 { _ = vw.fieldSphere(ctr + V3(0, 1.5 + Float(k) * 0.75, 0), radius: 0.9, carve: false, material: FieldMat.index[Int(STONE)], remesh: true) }
+        vw.collapsing = false
+        func ballCells() -> Int {
+            var n = 0
+            for y in -2...2 { for z in -2...2 { for x in -2...2 where vw.isGround(IVec3(Int(ctr.x) + x, Int(ctr.y) + y, Int(ctr.z) + z)) { n += 1 } } }
+            return n
+        }
+        let before = ballCells(), floaters = FieldTerrain.floatersDropped
+        let held = ballCells()                                   // (still held by the neck)
+        vg.paused = false
+        for _ in 0..<10 { vg.tick(1.0 / 72) }
+        let stillHeld = ballCells()
+        _ = vw.fieldSphere(ctr + V3(0, 3.2, 0), radius: 1.3, carve: true, material: nil, remesh: true)     // the neck cut
+        vg.paused = false
+        for _ in 0..<72 { vg.tick(1.0 / 72) }
+        let after = ballCells()
+        print("view: collapse \(after == 0 && before > 0 && stillHeld == held ? "OK" : "FAIL"): ball \(before) cells, \(stillHeld) while the neck held, \(after) after the cut, \(GroundCollapse.dropped) cells dropped as debris, \(vg.debris.count) debris pieces; generation took out \(floaters) floating cells")
+    }
     if CommandLine.arguments.contains("--fielddump") {
         let dir = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
         let eye = vg.player.pos + V3(0, 1.62, 0)

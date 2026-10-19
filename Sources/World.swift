@@ -48,6 +48,8 @@ final class World {
     // crops grow, weather and seasons touch blocks and creatures spawn. Past it nothing ticks: mobs stand in their last
     // pose. The Auto governor lowers this one, never the view.
     var activeDistance: Int = 8
+    var collapseQueue: [(IVec3, Int)] = [] // P351: carves to check for loose ground (GroundCollapse)
+    var collapsing = false
     // P338 step 8: free building pieces (FreeBuild.swift) and their collision boxes by cell.
     var pieces: [FreePiece] = []
     var pieceCells: [IVec3: [(V3, V3)]] = [:]

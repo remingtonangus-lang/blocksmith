@@ -275,7 +275,9 @@ enum FieldTerrain {
             } } }
         }
         if statsOn { statsLock.lock(); for k in 0..<3 { stats[k] += st[k] }; statsLock.unlock() }
-        return FieldData(fd: fd, fm: fm)
+        var out = FieldData(fd: fd, fm: fm)
+        FieldTerrain.dropFloaters(&out)                     // P351 step 3: no small floating ground
+        return out
     }
 
     // MARK: Saving
@@ -493,6 +495,7 @@ extension World {
         for (n, s) in all { n.sections[s].version += 1 }
         if remesh { for (n, s) in all where !deferRemesh { remeshSync(n, s) } }
         fieldStamp &+= 1
+        if carve && !flipped.isEmpty && !collapsing { collapseQueue.append((IVec3(cxI, cyI, czI), min(6, Int(ceil(r)) + 1))) }   // P351 (GroundCollapse)
         return flipped
     }
 
