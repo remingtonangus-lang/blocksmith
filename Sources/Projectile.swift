@@ -80,6 +80,8 @@ final class ProjectileManager {
         // A player's throw flies in its thrower's turn (a pearl teleports them, a hit is theirs); the rest in the turn of
         // the nearest seat.
         for f in fireballs where (f.seat >= 0 && g.coop.active) ? (f.seat == g.coop.current) : g.seatOwns(f.pos) {
+            if !w.activeHere(f.pos) { continue }                  // P376
+            FarTicks.note(w, f.pos)
             f.age += dt
             if f.age > 10 { f.dead = true; continue }
             if f.potion > 0 || f.kind == .snowball || f.kind == .egg || f.kind == .pearl { f.vel.y -= 20 * dt; f.vel *= expf(-0.2 * dt) }
@@ -169,6 +171,8 @@ final class ProjectileManager {
         // In flight a player's arrow or trident is its shooter's (a returning trident flies back to them); stuck in the
         // ground anyone may pick it up, so it goes to the nearest seat.
         for a in arrows where (!a.stuck && a.seat >= 0 && g.coop.active) ? (a.seat == g.coop.current) : g.seatOwns(a.pos) {
+            if !w.activeHere(a.pos) { continue }                  // P376: past the active distance it hangs still
+            FarTicks.note(w, a.pos)
             a.age += dt
             if a.returning, let t = a.trident {
                 // Loyalty: fly back and drop into the inventory.

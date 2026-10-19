@@ -3187,6 +3187,8 @@ final class Game {
             Reckoning.tick(self, rt)
             GarrisonTown.tick(self, rt)
             TickProf.mark("reckoning+garrison")
+            FarTicks.roll(clock: clock)             // P376: the stats line's "far ticking" count
+            world.unparkActive()
             Trains.tick(self)                       // C1: trains near the player built and taken away
             TickProf.mark("trains")
             Trains.discover(self)

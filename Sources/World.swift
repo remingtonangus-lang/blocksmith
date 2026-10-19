@@ -48,6 +48,10 @@ final class World {
     // crops grow, weather and seasons touch blocks and creatures spawn. Past it nothing ticks: mobs stand in their last
     // pose. The Auto governor lowers this one, never the view.
     var activeDistance: Int = 8
+    var activeCenter = V3(0, 0, 0)                  // the player, as of the last update (FarTicks.swift)
+    var shellClock = 0
+    var parked: [ChunkKey: [(IVec3, UInt8)]] = [:]  // P376: fluid (1 water, 2 lava) and falling (0) cells past the active distance
+    lazy var meshCache: MeshCache? = World.shells ? save.flatMap { MeshCache(saveDir: $0.chunkDir) } : nil      // P376 (ChunkShells)
     var collapseQueue: [(IVec3, Int)] = [] // P351: carves to check for loose ground (GroundCollapse)
     var collapsing = false
     // P338 step 8: free building pieces (FreeBuild.swift) and their collision boxes by cell.
@@ -282,6 +286,7 @@ final class World {
         if y < 0 { return BEDROCK }
         if y >= CH { return AIR }
         guard let c = chunkAt(x, z) else { return AIR }
+        if c.hollow { return y <= Int(c.height[mod(x, CS) + mod(z, CS) * CS]) ? STONE : AIR }   // P376: a shell's long sight lines
         return c.blocks[Chunk.index(mod(x, CS), y, mod(z, CS))]
     }
 
@@ -342,7 +347,8 @@ final class World {
     static var editTally: [UInt64: Int]? = nil      // P283: (async << 32 | old << 16 | new) -> count, when the harness asks
     static var editCells: [IVec3: Int] = [:]        // (and how often each cell changed in the background)
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
-        guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return }
+        guard y >= 0 && y < CH, let c0 = chunkAt(x, z) else { return }
+        let c = editing(c0)
         World.syncEdits &+= 1
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         if !bites.isEmpty { bites.removeValue(forKey: IVec3(x, y, z)) }
@@ -416,7 +422,8 @@ final class World {
     // Bulk edits (fluids): no synchronous remesh; the surrounding sections re-mesh in the background.
     @discardableResult
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) -> Bool {
-        guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
+        guard y >= 0 && y < CH, let c0 = chunkAt(x, z) else { return false }
+        let c = editing(c0)
         World.asyncEdits &+= 1
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         if !bites.isEmpty { bites.removeValue(forKey: IVec3(x, y, z)) }
@@ -734,7 +741,20 @@ final class World {
 
     // MARK: Meshing
 
+    // P376: a chunk about to change: a shell gets its blocks back at once, and its disk-cached meshes are stale.
+    @inline(__always) func editing(_ c: Chunk) -> Chunk {
+        if c.hollow { refillNow(c) }
+        if !c.cacheDropped { c.cacheDropped = true; meshCache?.drop(ChunkKey(x: c.cx, z: c.cz)) }
+        return c
+    }
+
     func neighbourhood(_ c: Chunk) -> ([BlockStore], [[Int16]])? {
+        // P376: a shell's blocks come back on a worker first (ChunkShells).
+        var shells = false
+        for dz in -1...1 { for dx in -1...1 {
+            if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)], n.hollow { requestRefill(ChunkKey(x: n.cx, z: n.cz)); shells = true }
+        } }
+        if shells { return nil }
         var n9: [BlockStore] = []
         var h9: [[Int16]] = []
         n9.reserveCapacity(9)
@@ -907,7 +927,7 @@ final class World {
         s.detailBuf = makeBuffer(m.detail)
         s.detailQuads = m.detail.count / DetailMesh.wordsPerQuad
         s.detailSolid = m.detailSolid
-        s.groundQuads = m.groundQuads; s.blobQuads = m.blobQuads; s.naturalCubes = m.naturalCubes
+        s.groundQuads = m.groundQuads; s.blobQuads = m.blobQuads; s.naturalCubes = m.naturalCubes; s.solidFull = m.solidFull
         if sy >= c.topSec { c.updateTopSec() }            // a mesh below the top section cannot move it
         if c.tintBuf == nil {
             c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
@@ -935,6 +955,7 @@ final class World {
         let tUpdate = CFAbsoluteTimeGetCurrent()
         defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
         let center = ChunkKey(x: floorDiv(Int(floor(pos.x)), CS), z: floorDiv(Int(floor(pos.z)), CS))
+        activeCenter = pos
 
         if World.deterministic { workQueue.waitIdle() }
         lock.lock()
@@ -959,7 +980,8 @@ final class World {
             let (k, p) = gr[gi]; gi += 1
             genInFlight.remove(k)
             jobs -= 1
-            if chunks[k] != nil { continue }
+            if let c = chunks[k] { if c.hollow { refill(c, p) }; continue }
+            if let e = p.cached { installShell(k, e); continue }
             install(k, p)
         }
         while mi < mr.count && (mi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
@@ -977,6 +999,8 @@ final class World {
             lock.unlock()
         }
         TickProf.mark("world.results")              // the rest of update() is charged to "world.update" (Game.tick)
+        shellClock &+= 1
+        if shellClock % 120 == 0 { reshell() }        // P376: chunks meshed since the last move become shells
 
         let extra: ChunkKey? = extraCenter.map { ChunkKey(x: floorDiv(Int(floor($0.x)), CS), z: floorDiv(Int(floor($0.z)), CS)) }
         // Offset of a chunk from the nearer centre (Chebyshev), for LOD.
@@ -993,11 +1017,13 @@ final class World {
             var gone: [ChunkKey] = []
             for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2)
                 && !(extra.map { World.inDisc(k.x - $0.x, k.z - $0.z, renderDistance, grow: 2) } ?? false) {
-                if c.needsSave { save?.saveChunkAsync(k, c.blocks) }
+                if c.needsSave && !c.hollow { save?.saveChunkAsync(k, c.blocks) }
                 if c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }
+                cacheMeshes(k, c)                                   // P376 (ChunkShells)
                 gone.append(k)
             }
             for k in gone { chunks.removeValue(forKey: k) }
+            reshell()                                               // P376: drop the data of finished far chunks
             // Chunks crossing the LOD boundary get remeshed at their new detail level.
             for (k, c) in chunks {
                 let (ox, oz) = nearOff(k)
@@ -1063,18 +1089,9 @@ final class World {
                     scheduleMesh(k, c, nb)
                 }
             } else if jobs < maxQueued && !genInFlight.contains(k) {
-                genInFlight.insert(k)
-                jobs += 1
-                workQueue.add { [weak self] in
-                    guard let self else { return }
-                    let t0 = CFAbsoluteTimeGetCurrent()
-                    let r = self.produce(k)
-                    let el = CFAbsoluteTimeGetCurrent() - t0
-                    lock.lock()
-                    genResults.append((k, r))
-                    perfShared.genChunks += 1; perfShared.genSeconds += el
-                    lock.unlock()
-                }
+                // P376: inside the view past the active distance, a chunk with cached meshes comes back as a shell.
+                let (ox, oz) = ci == 0 && extra == nil ? (dx, dz) : nearOff(k)
+                startGen(k, shell: World.shells && inShellBand(ox, oz) && (meshCache?.has(k) ?? false))
             }
         }
         }
@@ -1125,6 +1142,7 @@ final class World {
         var field: [Int32: UInt16] = [:]     // PG1: saved terrain field edits (TerrainField.swift)
         var ground: FieldData? = nil         // PG1 rewrite: the chunk's density field (field worlds, FieldTerrain.swift)
         var netBlocks: [BlockID] = []        // (co-op host: the merged cells sent to a guest)
+        var cached: MeshCache.Entry? = nil   // P376: a shell's meshes read from the disk cache (ChunkShells)
     }
 
     // Fluid cells beside or over air: scheduled for a fluid update on install so underground sources spill into caves
@@ -1186,6 +1204,27 @@ final class World {
             }
         }
     }
+
+    // A worker generates (or loads) chunk k; with `shell`, reads its cached meshes instead (ChunkShells).
+    func startGen(_ k: ChunkKey, shell: Bool = false) {
+        guard !genInFlight.contains(k) else { return }
+        genInFlight.insert(k)
+        jobs += 1
+        let mc = shell ? meshCache : nil
+        workQueue.add { [weak self] in
+            guard let self else { return }
+            let t0 = CFAbsoluteTimeGetCurrent()
+            var r: Produced
+            if let e = mc?.read(k) { r = Produced(blocks: [], height: [], tint: [], fromDisk: false, entities: [], mobs: []); r.cached = e }
+            else { r = self.produce(k) }
+            let el = CFAbsoluteTimeGetCurrent() - t0
+            lock.lock()
+            genResults.append((k, r))
+            perfShared.genChunks += 1; perfShared.genSeconds += el
+            lock.unlock()
+        }
+    }
+    func produceNow(_ k: ChunkKey) -> Produced { produce(k) }
 
     private func produce(_ k: ChunkKey) -> Produced {
         var fromDisk = false
@@ -1549,8 +1588,8 @@ final class World {
 
     // The player's block (Game.tick sets it): fluid cells within 24 blocks of it tick first (FluidQueue).
     static var focus: IVec3?
-    private(set) var fluidPending = FluidQueue()
-    private(set) var lavaPending = FluidQueue()
+    var fluidPending = FluidQueue()
+    var lavaPending = FluidQueue()
     private var fluidDone = 512, lavaDone = 512        // cells the last fluid tick got through (timed batch size)
     static let fluidBudget = 1024
     // Frame-thread time a fluid tick may take before the rest of its batch waits for the next one (infinite: the
@@ -1655,6 +1694,8 @@ final class World {
                 break
             }
             guard p.y >= 0 && p.y < CH && isLoaded(p.x, p.z) else { continue }
+            if !activeHere(p) { park(fluid: p, lava: lava); continue }     // P376: waits for the player to come near
+            FarTicks.note(self, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             let cur = block(p.x, p.y, p.z)
             guard fkT[Int(cur)] == kind else { continue }
             var lv = Int(lvT[Int(cur)])
@@ -1806,7 +1847,8 @@ final class World {
         for (p, age) in fires {
             let b = block(p.x, p.y, p.z)
             if b != FIRE { fires.removeValue(forKey: p); continue }
-            if !isLoaded(p.x, p.z) { continue }
+            if !isLoaded(p.x, p.z) || !activeHere(p) { continue }          // (P376: fire past the active distance waits)
+            FarTicks.note(self, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             let below = block(p.x, p.y - 1, p.z)
             let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
             if rainLevel > 0.5 && !eternal, let c = chunks[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))],

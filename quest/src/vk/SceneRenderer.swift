@@ -116,6 +116,15 @@ final class SceneRenderer {
     private static let hBins = 1024
     private var hTop = [Float](repeating: 0, count: SceneRenderer.hBins), hBot = [Float](repeating: 0, count: SceneRenderer.hBins)
     private var occluders: [(dmax: Float, b0: Int, b1: Int, top: Float, bot: Float)] = []
+    // P376 step 5: occlusion culling (occlusionCull) of section boxes against nearer solid sections, on top of the
+    // horizon culling. BS_OCCLUSION=0 turns it off. occlusionVP: world to clip of the frustum enclosing both eyes.
+    var occlusionCulling = ProcessInfo.processInfo.environment["BS_OCCLUSION"] != "0"
+    var occlusionVP: float4x4? = nil
+    private(set) var occlusionSkipped = 0, occluderBoxes = 0, occlusionMs = 0.0
+    static let oW = 192, oH = 112, oT = 8                    // the buffer, and its 8 x 8 tiles' nearest and farthest depth
+    private var oDepth = [Float](repeating: .infinity, count: SceneRenderer.oW * SceneRenderer.oH)
+    private var oTileMin = [Float](repeating: .infinity, count: (SceneRenderer.oW / 8) * (SceneRenderer.oH / 8))
+    private var oTileMax = [Float](repeating: .infinity, count: (SceneRenderer.oW / 8) * (SceneRenderer.oH / 8))
     var maxSection = NSEC          // sections from here up are left out (the Ash Vault's sky, AshSky.swift)
     // The fog budget (the Ash Vault, gap pass D5/DE14): sections wholly past this distance are neither walked nor drawn
     // (they would come out the fog colour). 0: off. `fogCullOff` lets questcheck measure the battle without it.
@@ -936,6 +945,135 @@ final class SceneRenderer {
         found.removeLast(found.count - out)
     }
 
+    // P376 step 5: a small software depth buffer over the frustum enclosing both eyes. Occluders are the sections whose
+    // every cell is opaque (Section.solidFull), runs of them up a column merged into one box, each shrunk by two blocks
+    // a side (a smooth surface can sink into its outer cells), within `occluderChunks` of the eye; each is drawn into the
+    // buffer conservatively: only pixels wholly inside its outline, at the depth of its farthest corner. A section is
+    // hidden when its box, grown by two blocks a side (a smooth surface can rise out of it), covers only pixels already
+    // nearer than its nearest corner. Sections round the eye, and any box reaching behind the near plane, stay.
+    static let occluderChunks = 10
+    private func occlusionCull(eye: V3, R: Int, span: Int) {
+        occlusionSkipped = 0; occluderBoxes = 0
+        let t0 = CFAbsoluteTimeGetCurrent()
+        defer { occlusionMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
+        guard let vp = occlusionVP else { return }
+        let W = SceneRenderer.oW, H = SceneRenderer.oH
+        for i in 0..<(W * H) { oDepth[i] = .infinity }
+        let near: Float = 0.5
+        // Clip -> pixel space (x right, y down) and the view depth w.
+        func project(_ p: V3) -> SIMD3<Float> {
+            let c = vp * SIMD4<Float>(p.x, p.y, p.z, 1)
+            if c.w <= near { return SIMD3(0, 0, -1) }
+            return SIMD3((c.x / c.w * 0.5 + 0.5) * Float(W), (0.5 - c.y / c.w * 0.5) * Float(H), c.w)
+        }
+        var pts = [SIMD2<Float>](repeating: .zero, count: 8)
+        var hull: [SIMD2<Float>] = []
+        func corners(_ mn: V3, _ mx: V3, _ body: (Int, V3) -> Void) {
+            for k in 0..<8 { body(k, V3(k & 1 == 0 ? mn.x : mx.x, k & 2 == 0 ? mn.y : mx.y, k & 4 == 0 ? mn.z : mx.z)) }
+        }
+        // Occluders.
+        let oc = min(SceneRenderer.occluderChunks, R)
+        for dz in -oc...oc { for dx in -oc...oc {
+            guard let c = chunkGrid[(dx + R) + (dz + R) * span] else { continue }
+            var sy = 0
+            while sy <= c.topSec {
+                guard c.sections[sy].solidFull else { sy += 1; continue }
+                var top = sy
+                while top + 1 <= c.topSec && c.sections[top + 1].solidFull { top += 1 }
+                let mn = V3(Float(c.cx * CS) + 2, Float(sy * 16) + 2, Float(c.cz * CS) + 2)
+                let mx = V3(Float(c.cx * CS) + 14, Float(top * 16) + 14, Float(c.cz * CS) + 14)
+                sy = top + 1
+                var dMax: Float = 0, behind = false
+                corners(mn, mx) { k, p in
+                    let q = project(p)
+                    if q.z < 0 { behind = true } else { pts[k] = SIMD2(q.x, q.y); dMax = max(dMax, q.z) }
+                }
+                if behind { continue }
+                // Convex hull of the 8 points (monotone chain), counter-clockwise in pixel space. (Sorted in place.)
+                for i in 1..<8 {
+                    let v = pts[i]; var j = i - 1
+                    while j >= 0 && (pts[j].x > v.x || (pts[j].x == v.x && pts[j].y > v.y)) { pts[j + 1] = pts[j]; j -= 1 }
+                    pts[j + 1] = v
+                }
+                let sorted = pts
+                hull.removeAll(keepingCapacity: true)
+                func cross(_ o: SIMD2<Float>, _ a: SIMD2<Float>, _ b: SIMD2<Float>) -> Float { (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x) }
+                for p in sorted { while hull.count >= 2 && cross(hull[hull.count - 2], hull[hull.count - 1], p) <= 0 { hull.removeLast() }; hull.append(p) }
+                let lower = hull.count + 1
+                for p in sorted.reversed() { while hull.count >= lower && cross(hull[hull.count - 2], hull[hull.count - 1], p) <= 0 { hull.removeLast() }; hull.append(p) }
+                hull.removeLast()
+                guard hull.count >= 3 else { continue }
+                occluderBoxes += 1
+                // Each pixel row: the span inside the hull along both of its edges (y and y + 1), whole pixels only.
+                var y0 = Float.infinity, y1 = -Float.infinity
+                for p in hull { y0 = min(y0, p.y); y1 = max(y1, p.y) }
+                let r0 = max(0, Int(ceil(y0))), r1 = min(H - 1, Int(floor(y1)) - 1)
+                if r0 > r1 { continue }
+                func spanAt(_ y: Float) -> (Float, Float) {
+                    var lo = Float.infinity, hi = -Float.infinity
+                    for e in 0..<hull.count {
+                        let a = hull[e], b = hull[(e + 1) % hull.count]
+                        if (a.y <= y && b.y >= y) || (b.y <= y && a.y >= y) {
+                            if a.y == b.y { lo = min(lo, min(a.x, b.x)); hi = max(hi, max(a.x, b.x)) }
+                            else { let x = a.x + (y - a.y) / (b.y - a.y) * (b.x - a.x); lo = min(lo, x); hi = max(hi, x) }
+                        }
+                    }
+                    return (lo, hi)
+                }
+                for r in r0...r1 {
+                    let (l0, h0) = spanAt(Float(r)), (l1, h1) = spanAt(Float(r + 1))
+                    let xa = max(0, Int(ceil(max(l0, l1)))), xb = min(W - 1, Int(floor(min(h0, h1))) - 1)
+                    if xa > xb { continue }
+                    let row = r * W
+                    for x in xa...xb where oDepth[row + x] > dMax { oDepth[row + x] = dMax }
+                }
+            }
+        } }
+        guard occluderBoxes > 0 else { return }
+        let T = SceneRenderer.oT, TW = W / T, TH = H / T
+        for ty in 0..<TH { for tx in 0..<TW {
+            var lo = Float.infinity, hi = -Float.infinity
+            for y in (ty * T)..<(ty * T + T) { let row = y * W; for x in (tx * T)..<(tx * T + T) { let d = oDepth[row + x]; lo = min(lo, d); hi = max(hi, d) } }
+            oTileMin[ty * TW + tx] = lo; oTileMax[ty * TW + tx] = hi
+        } }
+        let nearKeep: Float = 32 * 32                       // (sections within two chunks are never tested)
+        // The sections.
+        var out = 0
+        for k in 0..<found.count {
+            let key = found[k]
+            let col = Int((key >> 8) & 0xFF_FFFF), sy = Int(key & 0xFF)
+            guard let c = chunkGrid[col], Float(bitPattern: UInt32(key >> 32)) > nearKeep else { found[out] = key; out += 1; continue }
+            let mn = V3(Float(c.cx * CS) - 2, Float(sy * 16) - 2, Float(c.cz * CS) - 2), mx = mn + V3(20, 20, 20)
+            var dMin = Float.infinity, behind = false
+            var xMin = Float.infinity, xMax = -Float.infinity, yMin = Float.infinity, yMax = -Float.infinity
+            corners(mn, mx) { _, p in
+                let q = project(p)
+                if q.z < 0 { behind = true; return }
+                dMin = min(dMin, q.z); xMin = min(xMin, q.x); xMax = max(xMax, q.x); yMin = min(yMin, q.y); yMax = max(yMax, q.y)
+            }
+            var hidden = !behind
+            if hidden {
+                let xa = max(0, Int(floor(xMin))), xb = min(W - 1, Int(ceil(xMax)) - 1)
+                let ya = max(0, Int(floor(yMin))), yb = min(H - 1, Int(ceil(yMax)) - 1)
+                if xa > xb || ya > yb { hidden = false }
+                else {
+                    // Tile by tile: a tile wholly in the rectangle decides at once when all its pixels are nearer (hidden
+                    // there) or none is (visible); the rest pixel by pixel.
+                    check: for ty in (ya / T)...(yb / T) { for tx in (xa / T)...(xb / T) {
+                        let ti = ty * TW + tx
+                        if oTileMax[ti] < dMin { continue }
+                        let px0 = max(xa, tx * T), px1 = min(xb, tx * T + T - 1), py0 = max(ya, ty * T), py1 = min(yb, ty * T + T - 1)
+                        if oTileMin[ti] >= dMin && px0 == tx * T && px1 == tx * T + T - 1 && py0 == ty * T && py1 == ty * T + T - 1 { hidden = false; break check }
+                        for r in py0...py1 { let row = r * W; for x in px0...px1 where !(oDepth[row + x] < dMin) { hidden = false; break check } }
+                    } }
+                }
+            }
+            if hidden { occlusionSkipped += 1; continue }
+            found[out] = key; out += 1
+        }
+        found.removeLast(found.count - out)
+    }
+
     func cull(_ world: World, eye: V3, frustum: Frustum) {
         let t0 = CFAbsoluteTimeGetCurrent()
         visible.removeAll(keepingCapacity: true)
@@ -1040,6 +1178,7 @@ final class SceneRenderer {
             cullVisits = bfs.count
             found.sort()
             if horizonCulling { horizonCull(eye: eye, R: R, span: span) }
+            if occlusionCulling { occlusionCull(eye: eye, R: R, span: span) }
             for k in found {
                 guard let c = chunkGrid[Int((k >> 8) & 0xFF_FFFF)] else { continue }
                 visible.append((c, Int(k & 0xFF), Float(bitPattern: UInt32(k >> 32))))
@@ -1071,7 +1210,7 @@ final class SceneRenderer {
             q[f][0] += 1; q[f][1] += s.groundQuads; q[f][2] += s.blobQuads; q[f][3] += s.opaqueQuads - s.groundQuads - s.blobQuads
             q[f][4] += s.detailQuads; q[f][5] += s.transQuads
         }
-        return "walk \(cullVisits) sections, \(horizonSkipped) behind hills, \(mergedSections) drawing merged ground; " + ["near", "far"].enumerated().map { i, n in
+        return "walk \(cullVisits) sections, \(horizonSkipped) behind hills, \(occlusionSkipped) occluded by \(occluderBoxes) solid boxes (\(String(format: "%.2f", occlusionMs)) ms), \(mergedSections) drawing merged ground; " + ["near", "far"].enumerated().map { i, n in
             "\(n) \(q[i][0]) sections: ground \(q[i][1]), leaf blobs \(q[i][2]), other opaque \(q[i][3]), detail \(q[i][4]), translucent \(q[i][5])"
         }.joined(separator: "; ")
     }

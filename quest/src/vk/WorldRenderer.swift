@@ -220,6 +220,7 @@ final class WorldRenderer {
         scene.resetScratch()
         let eye = cam.center
         let frustum = Frustum(cam.cullViewProj * translationMatrix(-eye))
+        scene.occlusionVP = cam.cullViewProj * translationMatrix(-eye)          // (P376 step 5)
         scene.cull(game.world, eye: eye, frustum: frustum)
         scene.writeRecords(s, eye: eye)
         stage(0)

@@ -31,6 +31,7 @@ final class Section {
     var detailQuads = 0
     var detailSolid = 0
     var naturalCubes = 0                        // P338 step 2: natural ground meshed as cubes (field worlds; must be 0)
+    var solidFull = false                       // P376 step 5: every cell opaque (an occluder)
     var groundQuads = 0, blobQuads = 0          // P283: of the opaque quads, the smooth ground's and the leaf blobs'
     var version = 0 {           // bumped when the section (or light around it) changes
         didSet {
@@ -220,6 +221,7 @@ final class Chunk {
     // and 16 below is stopped. -1: some column has no such band. Cached until the blocks change.
     private var occTop = -1, occKey = -1
     var occluderTop: Int {
+        if hollow { return hollowOcc }
         if occKey == blocksVersion { return occTop }
         occKey = blocksVersion
         let opq = Blocks.opaque
@@ -264,6 +266,9 @@ final class Chunk {
         topSec = t
     }
     var modified = false
+    var hollow = false             // P376: a shell, its blocks, field and light dropped past the active distance (ChunkShells)
+    var hollowOcc = -1             //   its horizon-culling band, kept from before
+    var cacheDropped = false       //   its disk mesh cache file dropped since it loaded (edited)
     var fieldEdits: [Int32: UInt16] = [:]     // PG1: bounds on the terrain field per cell (TerrainField.swift)
     var fieldDirty = false                    // ...changed since last saved
     // P374: written since it was last saved or loaded. (It kept the arrays as last saved and compared storage: the

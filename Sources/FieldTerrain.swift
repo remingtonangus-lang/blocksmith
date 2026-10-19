@@ -451,7 +451,9 @@ extension World {
         for y in max(0, cyI - reach)...min(CH - 1, cyI + reach) {
             for z in (czI - reach)...(czI + reach) {
                 for x in (cxI - reach)...(cxI + reach) {
-                    guard let c = chunkAt(x, z), c.blocks.isField else { continue }
+                    guard let c0 = chunkAt(x, z) else { continue }
+                    let c = c0.hollow || !c0.cacheDropped ? editing(c0) : c0          // P376 (a shell refilled; its cached meshes stale)
+                    guard c.blocks.isField else { continue }
                     let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
                     let dist = simd_length(p - ctr)
                     let i = Chunk.index(mod(x, CS), y, mod(z, CS))

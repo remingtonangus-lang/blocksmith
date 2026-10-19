@@ -778,6 +778,7 @@ final class FrameStats {
                           FrameStats.residentMB())
         // The window's slowest game tick and its slowest stage (TickProf): what a tick hitch was.
         lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
+        lastLine += " | far ticking \(FarTicks.lastSecond)"                  // P376: things ticking past the active distance (0)
         if let st = recordStages?(), !st.isEmpty { lastLine += " | record ms: " + st }
         print(lastLine)
         capture(game: game, target: target, now: now)

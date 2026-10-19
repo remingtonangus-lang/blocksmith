@@ -58,6 +58,23 @@ enum QuestPerf {
               let l = t.split(separator: "\n").first(where: { $0.hasPrefix("VmRSS:") }) else { return 0 }
         return (Double(l.split(separator: " ").dropFirst().first ?? "0") ?? 0) / 1024
     }
+    // P376 step 3: how many of the opaque vertices are exact duplicates within their section (shared corners a
+    // per-section index buffer could draw once), over every meshed section.
+    static func vertexShare(_ w: World) -> String {
+        var total = 0, unique = 0, ground = 0, plants = 0
+        var seen = Set<UInt64>()
+        for c in w.chunks.values { for s in c.sections {
+            guard let b = s.opaqueBuf else { continue }
+            let n = s.opaqueQuads * 4
+            let p = (b.buffer.contents() + b.offset).bindMemory(to: UInt64.self, capacity: n)
+            seen.removeAll(keepingCapacity: true)
+            for i in 0..<n { seen.insert(p[i]); if (UInt32(truncatingIfNeeded: p[i]) >> 27) & 7 == 6 { plants += 1 } }
+            total += n; unique += seen.count; ground += s.groundQuads * 4
+        } }
+        return String(format: "vertex sharing (P376 step 3): %d opaque vertices, %d distinct in their section (%.0f%%); ground vertices %d; plant (cross) quads %d; strip-merged faces saved %d",
+                      total, unique, Double(unique) * 100 / Double(max(1, total)), ground, plants / 4, Mesher.stripTally)
+    }
+
     static func memory(_ w: World, _ g: Game) -> String {
         var held = 0
         for c in w.chunks.values { held += c.heldCopyBytes }
@@ -82,7 +99,7 @@ enum QuestPerf {
             tint += c.tint.count * 4 + c.height.count * 2
         }
         let mb = { (n: Int) in String(format: "%.0f", Double(n) / 1_048_576) }
-        return "memory: resident \(String(format: "%.0f", rssMB())) MB; copies kept since the last save \(mb(held)) MB; \(w.chunks.count) chunks: blocks \(mb(blocks)) MB, field \(mb(field)) MB, light \(mb(light)) MB, "
+        return "memory: resident \(String(format: "%.0f", rssMB())) MB; copies kept since the last save \(mb(held)) MB; \(w.chunks.count) chunks (\(w.chunks.values.filter { $0.hollow }.count) shells: P376): blocks \(mb(blocks)) MB, field \(mb(field)) MB, light \(mb(light)) MB, "
             + "heights+tints \(mb(tint)) MB; built-layer sections \(secs) (\(airSecs) all air, \(leadSecs) of them below the lowest block), field sections \(fieldSecs) (\(solidSecs) all ground); mesh slabs \(mb(MeshArena.shared.slabBytes)) MB (free \(mb(MeshArena.shared.freeBytes)) MB), tint slabs \(mb(MeshArena.tints.slabBytes)) MB; "
             + "\(g.mobs.mobs.count) mobs, \(g.drops.items.count) items"
     }
@@ -199,7 +216,10 @@ enum QuestPerf {
         _ = wr.takeStages()
         _ = behind()
         let stand = Phase()
+        let far0 = FarTicks.total
         for _ in 0..<standFrames { try frame(stand, fly: false) }
+        FarTicks.noteShips()
+        let farStand = FarTicks.total - far0
         let standStages = wr.takeStages(), standBehind = behind()
         let memStand = memory(w, g)
         let quadsStand = scene.quadBreakdown()
@@ -218,12 +238,16 @@ enum QuestPerf {
             if i == 60 { print("    flying: at \(Int(g.player.pos.y) - YOFF), \(String(format: "%.1f", simd_length(g.player.vel))) b/s, on the ground \(g.player.onGround)") }
         }
         let speed = simd_length(V2(g.player.pos.x - from.x, g.player.pos.z - from.z)) / (Float(flyFrames) * dt)
+        FarTicks.noteShips()
+        let farFly = FarTicks.total - far0 - farStand
         let flyStages = wr.takeStages(), flyBehind = behind()
         scene.waitIdle()
         print("perfscene \(sp.name) rd \(rd) (seed \(sp.seed) at \(Int(sp.x)), \(Int(sp.z)); loaded in \(String(format: "%.1f", loadS)) s, \(g.mobs.mobs.count) mobs, \(w.ships.list.count) ships)")
         print(stand.report("standing", stagesLine: standStages, behind: standBehind))
         print("    quads: \(quadsStand)")
+        print("    far ticking (P376, must be 0): \(farStand) standing, \(farFly) flying; active \(w.activeDistance) chunks, \(w.parked.values.reduce(0) { $0 + $1.count }) cells parked")
         print("    standing " + memStand)
+        print("    " + vertexShare(w))
         print(flight.report(String(format: "flying %.0f b/s", speed), stagesLine: flyStages, behind: flyBehind))
         print("    " + memory(w, g))
         PadManager.shared.touch = nil

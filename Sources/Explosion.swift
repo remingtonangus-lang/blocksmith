@@ -463,6 +463,8 @@ final class TNTManager {
     func update(_ dt: Float, game g: Game) {
         var boom: [V3] = []
         for t in list {
+            if !g.world.activeHere(t.pos) { continue }            // P376: a lit block past the active distance waits
+            FarTicks.note(g.world, t.pos)
             if !t.hissed { t.hissed = true; g.sfx(.tntFuse, 1, at: t.pos + V3(0, 0.5, 0)) }
             t.fuse -= dt
             t.vel.y -= 16 * dt
