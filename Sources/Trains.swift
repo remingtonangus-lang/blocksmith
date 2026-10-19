@@ -109,7 +109,10 @@ enum Trains {
         var roofAt: Double = -1e9               // when the player last stood on one of its roofs
         var chuff: Float = 0
         var lastS: Float = 0
-        init(_ t: Track) { track = t }
+        init(_ t: Track) {
+            track = t
+            if let st = Trains.saved[t.id] { delay = st.delay; robbedDay = st.robbedDay; wrecked = st.wrecked }
+        }
         var time: Double = 0                    // timetable time (Game.time less the delay), set each frame
     }
     static var trains: [Int64: Train] = [:]
@@ -155,6 +158,31 @@ enum Trains {
             }
         default: return []
         }
+    }
+
+    // P337 step 6: what a world's save keeps of its trains (trains.json): how far each runs behind its timetable (a
+    // driven or held train), the day it was last robbed and whether it was wrecked. The rest follows the world's clock.
+    struct SavedTrain: Codable { var id: Int64; var delay: Double; var robbedDay: Int; var wrecked: Bool }
+    static var saved: [Int64: SavedTrain] = [:]
+    static func load(_ w: World) {
+        // (Opening the overworld, a new world or back from another dimension: the trains start over from its save.)
+        if w.dim == .overworld { saved.removeAll(); trains.removeAll(); carOf.removeAll() }
+        guard let s = w.save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("trains.json")),
+              let list = try? JSONDecoder().decode([SavedTrain].self, from: d) else { return }
+        for t in list {
+            saved[t.id] = t
+            if let tr = trains[t.id] { tr.delay = t.delay; tr.robbedDay = t.robbedDay; tr.wrecked = t.wrecked }
+        }
+    }
+    static func save(_ w: World) {
+        guard let s = w.save else { return }
+        for tr in trains.values where tr.track.dim == w.dim {
+            saved[tr.track.id] = SavedTrain(id: tr.track.id, delay: tr.delay, robbedDay: tr.robbedDay, wrecked: tr.wrecked)
+        }
+        let mine = saved.values.filter { v in trains[v.id].map { $0.track.dim == w.dim } ?? true }
+            .filter { $0.delay != 0 || $0.robbedDay >= 0 || $0.wrecked }
+        if mine.isEmpty && !FileManager.default.fileExists(atPath: s.dir.appendingPathComponent("trains.json").path) { return }
+        SaveIO.storeJSON(mine.sorted { $0.id < $1.id }, to: s.dir.appendingPathComponent("trains.json"))
     }
 
     // MARK: Ticking

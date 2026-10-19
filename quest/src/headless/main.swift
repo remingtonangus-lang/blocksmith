@@ -118,6 +118,19 @@ if let out = arg("--view"), let ctx = vkctx {
         if CommandLine.arguments.contains("--inside") { vg.player.pos.y = Float(st.anchor.y) + 2 }
         print("view: \(kind) at \(st.anchor.x) \(st.anchor.y) \(st.anchor.z)")
     }
+    // --rail [N]: the eye beside the nearest town railway's middle (P337 looks work), 8 blocks south and 5 up, facing
+    // north; N picks the cell at N/100 along the line instead of the middle.
+    if CommandLine.arguments.contains("--rail"), let gen = vw.gen as? WorldGen {
+        let ax = Int(at[0]), az = Int(at[2])
+        if let l = Railways.near(gen, x0: ax - 3000, z0: az - 3000, x1: ax + 3000, z1: az + 3000, pad: 0)
+            .min(by: { abs($0.minX - ax) + abs($0.minZ - az) < abs($1.minX - ax) + abs($1.minZ - az) }), !l.cells.isEmpty {
+            let f = Float(arg("--rail").flatMap { Int($0) } ?? 50) / 100
+            let c = l.cells[min(l.cells.count - 1, max(0, Int(Float(l.cells.count - 1) * f)))]
+            vg.player.pos = V3(Float(c.x) + 0.5, Float(c.y) + 5, Float(c.z) + 8.5)
+            nearYaw = 0
+            print("view: railway \(l.name), \(l.cells.count) cells, \(l.stations.count) stations; eye by \(c.x) \(c.y) \(c.z)")
+        }
+    }
     // --up N: the eye N blocks over the ground (or the sea) under it.
     if let up = Float(arg("--up") ?? "") {
         let h = vw.gen.column(Int(floor(vg.player.pos.x)), Int(floor(vg.player.pos.z))).height
@@ -125,6 +138,23 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
+    // P337 step 7: --rail plays 4 s through Game.tick beside the line and reports what the trains cost a frame.
+    if CommandLine.arguments.contains("--rail") {
+        vg.paused = false; vg.survival = false
+        var trainMs = 0.0, worst = 0.0, mobMs = 0.0, frames = 0
+        for _ in 0..<288 {
+            vg.tick(1.0 / 72)
+            var t = 0.0
+            for i in 0..<TickProf.count {
+                let n = TickProf.names[i].description
+                if n == "trains" { t += TickProf.times[i] * 1000 } else if n == "mobs" { mobMs += TickProf.times[i] * 1000 }
+            }
+            trainMs += t; worst = max(worst, t); frames += 1
+        }
+        let cars = vg.mobs.mobs.filter { Trains.isCar($0) }.count
+        print(String(format: "view: train upkeep %.3f ms a frame (worst %.2f), mobs incl. moving cars %.2f ms, over %d frames; %d cars built, %d trains known",
+                     trainMs / Double(frames), worst, mobMs / Double(frames), frames, cars, Trains.trains.count))
+    }
     if CommandLine.arguments.contains("--fallen") { AshFallen.refresh(vg); print("view: \(AshFallen.mobs.count) fallen") }   // P326: the Ash Vault's dead
     // The note's "facing" yaw is the player's yaw negated (VoiceNoteCore).
     var yaw = (nearYaw ?? 0) - look[0] * .pi / 180, pitch = look[1] * .pi / 180
