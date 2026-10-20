@@ -306,7 +306,8 @@ enum Mesher {
     // `bites` (realistic world): where blows struck blocks round this section (World.biteList), carved as craters.
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
                              bites: [(Int, Int, Int, Bite)] = [], pieces: [FreePiece] = [],
-                             smoothOK: Bool = true, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil, nearSides: Int = 0) -> SectionMesh {
+                             smoothOK: Bool = true, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil, nearSides: Int = 0,
+                             adaptive adaptiveOK: Bool = true) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
         // but "fast" leaves: no faces between leaves; World.leafNear, Quest).
@@ -769,13 +770,17 @@ enum Mesher {
             }
         } else if smooth && fieldOn && Mesher.fineSection(n9, sy: sy) {
             // P377 step 1: ground edited here or next door draws from its two samples per block (FineField.swift).
+            let g0 = opq.count
             fineGround(n9, sy: sy, R, sc, leafHoles: leafBlob, detailHoles: detail) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 groundV += 1
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
             }
+            if AdaptiveGround.enabled && adaptiveOK { groundV -= AdaptiveGround.mesh(opq, from: g0, farSkip: &farSkip, farGround: &farGround) * 4 }    // P381
         } else if smooth {
-            let gm: GroundMerge? = fieldOn && GroundMerge.enabled && opq.count == 0 ? sc.groundMerge : nil     // (replaced quads lead the buffer)
+            // (P381: the adaptive ground replaces the pixel-error merge in field worlds.)
+            let adaptive = fieldOn && AdaptiveGround.enabled && adaptiveOK
+            let gm: GroundMerge? = fieldOn && !(AdaptiveGround.enabled) && GroundMerge.enabled && opq.count == 0 ? sc.groundMerge : nil     // (replaced quads lead the buffer)
             gm?.reset()
             let g0 = opq.count
             smoothQuads(R, sc, dmg: dmg, site: fieldOn ? nil : site, stored: fieldOn ? dens : nil, sy: sy, leafHoles: leafBlob, detailHoles: detail,
@@ -785,6 +790,7 @@ enum Mesher {
                 // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
             }
+            if adaptive { groundV -= AdaptiveGround.mesh(opq, from: g0, farSkip: &farSkip, farGround: &farGround) * 4 }     // P381 (AdaptiveGround.swift)
             // P375 (GroundMerge): the merged ground's replaced quads first, the rest of the ground after them, and the
             // merged copy kept aside (appended past the cutout quads, drawn far only).
             if let gm, !gm.quads.isEmpty {
