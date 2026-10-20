@@ -4,12 +4,16 @@ import simd
 // P351 ("things fall, including trees, including maybe even unsupported blocks"): in a field world ground that is no
 // longer joined to the rest falls. After a carve (digging, a blast: World.fieldSphere) the carve's centre is queued;
 // once a frame one queued spot is checked: each piece of ground round the hole is flood-filled (6-connected ground
-// cells) inside a box 12 cells each way. A fill that reaches the box's side, the world's floor, unloaded ground or 1,500 cells
-// is held up by the world and stops there. A fill that closes inside the box is a loose piece: it leaves the field and
-// falls as broken rigid pieces of its rock (DebrisField: they tumble, land on the drawn ground, settle and fade).
-// Cost: only near carves, one check a frame, each at most 1,500 cells.
+// cells) inside a box 12 cells each way. A fill that reaches the world's floor or unloaded ground is held up by the
+// world and stops there; one that reaches the box's side or 1,500 cells carries on further (P380 (4), below). A fill
+// that closes inside the box is a loose piece: it leaves the field and falls as broken rigid pieces of its rock
+// (DebrisField: they tumble, land on the drawn ground, settle and fade).
+// Cost: only near carves, one check a frame, each at most 1,500 cells (24,000 for the further fill, which in natural
+// ground runs straight to its 40-cell reach).
 // Trees cut at the base fall already (Felling, P298). World generation leaves no small floating ground (FieldTerrain
-// .dropFloaters, run as each chunk's field is made).
+// .dropFloaters, run as each chunk's field is made). P380 (GroundSettle.swift): thin overhangs break off, objects that
+// lost their support settle or fall, small floating pieces across chunk borders go, and a fill past 1,500 cells
+// carries on to tell a truly loose big piece (it falls in large lots) from one the world holds.
 enum GroundCollapse {
     static let reach = 12
     static let maxCells = 1500
@@ -25,24 +29,40 @@ enum GroundCollapse {
             let s = p + IVec3(dx, dy, dz)
             if w.isGround(s) { seeds.append(s) }
         } } }
+        var dropped = false
         for s in seeds {
             guard !done.contains(s) else { continue }
             var seen: Set<IVec3> = [s]
             var stack = [s], cells: [IVec3] = []
-            var held = false
+            var held = false, big = false
             while let c = stack.popLast() {
                 cells.append(c)
-                if abs(c.x - p.x) >= reach || abs(c.y - p.y) >= reach || abs(c.z - p.z) >= reach || c.y <= 1
-                    || cells.count > maxCells || !w.isLoaded(c.x, c.z) { held = true; break }
+                // (a piece past 1,500 cells, or one reaching past the box, may still be loose: P380 (4))
+                if cells.count > maxCells || abs(c.x - p.x) >= reach || abs(c.y - p.y) >= reach || abs(c.z - p.z) >= reach { big = true; break }
+                if c.y <= 1 || !w.isLoaded(c.x, c.z) { held = true; break }
                 for e in World.allDirs {
                     let n = c + e
                     if !seen.contains(n) && w.isGround(n) { seen.insert(n); stack.append(n) }
                 }
             }
             done.formUnion(seen)
+            if big {
+                // P380 (4): past 1,500 cells (or the box) the fill carries on; a piece that closes is truly loose and
+                // falls in lots, a small one whole.
+                if let all = GroundSettle.bigPiece(w, from: s, around: p) {
+                    done.formUnion(all); dropped = true
+                    if all.count > maxCells { GroundSettle.dropBig(g, all) } else { drop(g, all) }
+                }
+                continue
+            }
             if held { continue }
             drop(g, cells)
+            dropped = true
         }
+        // P380 (1): ground near the carve hanging too far for its thickness breaks off; the rest is checked again.
+        if GroundSettle.thinOverhangs(g, p, r) { w.collapseQueue.append((p, r + 2)); dropped = true }
+        // P380 (3): what stood on the ground round the hole settles or falls.
+        GroundSettle.objects(g, p, r + (dropped ? 3 : 0))
     }
 
     // A loose piece leaves the field and falls apart into its rock.
@@ -89,11 +109,12 @@ extension FieldTerrain {
             mark[s] = 1
             stack.removeAll(keepingCapacity: true); comp.removeAll(keepingCapacity: true)
             stack.append(s)
-            var anchored = false
+            var anchored = false, side = false, held = false
             while let i = stack.popLast() {
                 if !anchored { comp.append(i) }
                 let x = i & 15, z = (i >> 4) & 15, y = i / CSQ
-                if x == 0 || x == 15 || z == 0 || z == 15 || y <= 1 || comp.count >= 400 { anchored = true }
+                if x == 0 || x == 15 || z == 0 || z == 15 { anchored = true; side = true }
+                if y <= 1 || comp.count >= 400 { anchored = true; held = true }
                 for k in 0..<6 {
                     let j: Int
                     switch k {
@@ -109,6 +130,7 @@ extension FieldTerrain {
                 }
             }
             if !anchored { for i in comp { f.fd[i] = FieldTerrain.outside; floatersDropped += 1 } }
+            else if side && !held { f.borderSeeds.append(s) }      // P380 (2): checked once its neighbours exist
         }
     }
 }

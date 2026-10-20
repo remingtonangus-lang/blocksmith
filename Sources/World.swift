@@ -1370,7 +1370,9 @@ final class World {
         c.modified = p.fromDisk
         if p.fromDisk { c.markSaved() }
         c.fieldEdits = p.field
+        if !p.fromDisk, let gd = p.ground { c.borderSeeds = gd.borderSeeds }     // P380 (2)
         chunks[k] = c
+        GroundSettle.borderCheck(self, around: k)
         for t in p.tracked { redstone.tracked.insert(t) }
         // Lava springs go to the lava queue: the water tick skips lava, so generated lavafalls never started.
         for q in p.springs { if Blocks.fluidKind[Int(rawBlock(q.x, q.y, q.z))] == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) } }
