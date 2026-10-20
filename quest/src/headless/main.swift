@@ -371,6 +371,9 @@ if let out = arg("--view"), let ctx = vkctx {
         }
         print("groundline: " + out.joined(separator: " "))
     }
+    // --adaptivecheck (P381): the adaptive ground against the full ground round the eye (AdaptiveGroundTests.swift).
+    if CommandLine.arguments.contains("--adaptivecheck") { print(AdaptiveGround.check(vw, eye: vg.player.pos)) }
+    if CommandLine.arguments.contains("--adaptivewalk") { print(AdaptiveGround.walkCheck(vg)) }
     if CommandLine.arguments.contains("--meshbench") {
         let pcx = floorDiv(Int(floor(vg.player.pos.x)), CS), pcz = floorDiv(Int(floor(vg.player.pos.z)), CS)
         let was = (SmoothTerrain.enabled, SmoothTerrain.fromField)
@@ -661,6 +664,7 @@ if let out = arg("--view"), let ctx = vkctx {
                          n, over8, Double(over8) * 100 / Double(n), over32, Double(over32) * 100 / Double(n), Double(sum) / Double(n)))
         }
         if GroundMerge.merged > 0 { print("view: \(GroundMerge.replaced) ground quads merged into \(GroundMerge.merged) for far sections (P375)") }
+        if AdaptiveGround.trisIn > 0 { print("view: adaptive ground (P381) \(AdaptiveGround.trisIn) triangles -> \(AdaptiveGround.trisOut) near (tol \(AdaptiveGround.tolerance)); far copy \(AdaptiveGround.farIn) quads -> \(AdaptiveGround.farOut)") }
         if Mesher.mergedWater > 0 { print("view: \(Mesher.mergedWater) far water cells drawn in merged quads (P184)") }
         print("view: wrote \(out)"); exit(0)
     } catch { print("FAIL view: \(error)"); exit(1) }

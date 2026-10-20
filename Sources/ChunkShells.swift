@@ -141,7 +141,7 @@ extension World {
 // writes it fresh. Writes run on a background queue from the section buffers (kept alive until written). The folder
 // is held under `capBytes` (oldest files go first).
 final class MeshCache {
-    static let format: UInt32 = 1
+    static let format: UInt32 = 2                       // 2: P381 adaptive ground
     static let capBytes = 768 << 20
     let dir: URL
     private let queue = DispatchQueue(label: "meshcache", qos: .utility)
@@ -165,7 +165,7 @@ final class MeshCache {
         do { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) } catch { return nil }
         var h: UInt64 = 0xcbf29ce484222325
         func mix(_ v: UInt64) { h = (h ^ v) &* 0x100000001b3 }
-        mix(UInt64(MeshCache.format)); mix(UInt64(Blocks.count)); mix(UInt64(Tex.count))
+        mix(UInt64(MeshCache.format)); mix(AdaptiveGround.enabled ? 1 : 0); mix(UInt64(Blocks.count)); mix(UInt64(Tex.count))
         for n in Tex.names { for b in n.utf8 { mix(UInt64(b)) } }
         let exe = URL(fileURLWithPath: CommandLine.arguments.first ?? "")
         if let d = (try? FileManager.default.attributesOfItem(atPath: exe.path))?[.modificationDate] as? Date { mix(UInt64(d.timeIntervalSince1970)) }

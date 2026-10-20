@@ -847,7 +847,10 @@ final class World {
     func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
         apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), pieces: pieceList(c), site: smoothSite(c), chunk: (c.cx, c.cz),
-                                  nearSides: nearSides(c, lod: c.lod)), to: c, sy: sy, version: c.sections[sy].version)
+                                  nearSides: nearSides(c, lod: c.lod), adaptive: !fieldTerrain), to: c, sy: sy, version: c.sections[sy].version)
+        // P381 step 5: on the frame the edit draws the section's ground in full (no wait, exact), and a mesh worker then
+        // redraws just the touched sections with the adaptive ground (AdaptiveGround.swift).
+        if fieldTerrain && AdaptiveGround.enabled { c.sections[sy].version += 1 }
     }
 
     // P142: smooth sections of a world whose generator has continuous fields (the overworld) mesh those fields.
