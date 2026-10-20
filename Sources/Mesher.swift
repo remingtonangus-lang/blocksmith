@@ -761,6 +761,7 @@ enum Mesher {
         let craters = crater.flatMap { $0.isEmpty ? nil : $0 }
         // The smooth ground first: the plants below stand on its drawn surface (P175), read back from its vertices.
         sc.smValid = false
+        let groundStart = opq.count
         if smooth && fieldOn && far && Mesher.farGround {
             // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround).
             coarseGround(R, dens, sc, nearSides: nearSides) { x16, y16, z16, f, tint, layer, ao, l, ncode in
@@ -817,6 +818,54 @@ enum Mesher {
                 farGround = Array(UnsafeBufferPointer(start: opq.ptr + before, count: opq.count - before))
                 opq.count = before
             }
+        }
+        // P382: the ground as drawn (adaptive included), for the things that lie on it (GroundDrape.swift).
+        let drape = sc.drape
+        let drapeOn = fieldOn && GroundDrape.enabled && opq.count > groundStart
+        if drapeOn { drape.build(opq.ptr, from: groundStart, to: opq.count) } else { drape.clear() }
+        // A flat rectangle (x0...x1, z0...z1 in 1/16 of section cell (lx, ly, lz)) laid on the drawn ground `lift16` over it,
+        // split every GroundDrape.step so it bends with the ground and never dips into it; nothing (false) unless the
+        // ground is under every corner.
+        func drapeRect(_ lx: Int, _ ly: Int, _ lz: Int, _ x0: Int, _ x1: Int, _ z0: Int, _ z1: Int, lift16: Int, trans: Bool,
+                       tint: Int, layer: Int, l: Int, uv: (Int, Int) -> (Int, Int)) -> Bool {
+            let top = Float(ly) + 1.25, st = GroundDrape.step
+            @inline(__always) func y16(_ px: Int, _ pz: Int) -> Int? {
+                guard let h = drape.heightNear(Float(lx) + Float(px) / 16, Float(lz) + Float(pz) / 16, top: top) else { return nil }
+                return max(0, min(511, Int((h * 16 - 0.01).rounded(.up)) + lift16))
+            }
+            if y16(x0, z0) == nil || y16(x1, z0) == nil || y16(x0, z1) == nil || y16(x1, z1) == nil {
+                if GroundDrape.debug { print("drape: no ground under \(lx) \(ly) \(lz) [\(x0)-\(x1), \(z0)-\(z1)] sy \(sy) chunk \(chunk.map { "\($0.x) \($0.z)" } ?? "-")") }
+                return false
+            }
+            var xa = x0
+            while xa < x1 {
+                let xb = min(x1, (xa / st + 1) * st)
+                var za = z0
+                while za < z1 {
+                    let zb = min(z1, (za / st + 1) * st)
+                    for k in 0..<4 {
+                        let ci = (2 * 4 + k) * 3
+                        let px = CT[ci] == 1 ? xb : xa, pz = CT[ci + 2] == 1 ? zb : za
+                        let (u, v) = uv(px, pz)
+                        vert(trans, lx * 16 + px, y16(px, pz) ?? ly * 16 + lift16, lz * 16 + pz, 2, tint, u, v, layer, 3, l, false)
+                    }
+                    za = zb
+                }
+                xa = xb
+            }
+            return true
+        }
+        // A plant's foot: the drawn ground's height (section y16) at each corner (a or b, a or b: index x + 2 z) of its
+        // cross (cell (lx, ly, lz), ground under it at about `top`), a sixteenth or so into it, so no corner floats over a
+        // slope or sinks into a rise; nil unless the ground is under all four.
+        func plantFeet(_ lx: Int, _ lz: Int, _ a: Int, _ b: Int, top: Float) -> SIMD4<Int32>? {
+            var o = SIMD4<Int32>(0, 0, 0, 0)
+            for k in 0..<4 {
+                let px = (k & 1) == 0 ? a : b, pz = k < 2 ? a : b
+                guard let h = drape.heightNear(Float(lx) + Float(px) / 16, Float(lz) + Float(pz) / 16, top: top) else { return nil }
+                o[k] = Int32(max(0, min(511, Int((h * 16).rounded(.down)) - 1)))
+            }
+            return o
         }
 
         // P338 step 5 / P363 (Remington, Oct 16-17: "lava still conforms to blocks", "water still shows blocks", water not
@@ -1085,12 +1134,19 @@ enum Mesher {
                         // P175: a plant (or a stack of them, cane) on smooth ground stands on the drawn surface, not on the
                         // block top it was rounded from (grass floated over every dip).
                         var dy16 = 0, dyTop = 0
-                        if sc.smValid {
+                        var feet: SIMD4<Int32>? = nil         // (P382: the foot's corners on the ground)
+                        if sc.smValid || drapeOn {
                             var g = ly - 1, j = i - RL
                             while g > -SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { g -= 1; j -= RL }
-                            if natAt(j), let top = Mesher.smoothGroundTop(sc, lx, g, lz) {
+                            // (P382: the drawn ground itself where there is one, edited ground's included)
+                            if natAt(j), let top = (drapeOn ? drape.heightNear(Float(lx) + 0.5, Float(lz) + 0.5, top: Float(g + 1) + 0.75) : nil)
+                                ?? (sc.smValid ? Mesher.smoothGroundTop(sc, lx, g, lz) : nil) {
                                 let want = max(-by16, max(-12, min(12, Int(((top - Float(g + 1)) * 16).rounded()))))
                                 (dy16, dyTop) = stackOffsets(i, below: ly - 1 - g, want)
+                                if drapeOn && g == ly - 1 {
+                                    let cs = Int(crossT[bi]), c0 = (16 - cs) / 2
+                                    feet = plantFeet(lx, lz, c0, c0 + cs, top: Float(g + 1) + 0.75)
+                                }
                             }
                         }
                         let layer = Int(texT[bi * 6 + 2])
@@ -1115,7 +1171,9 @@ enum Mesher {
                             for k in 0..<4 {
                                 let ci = (q * 4 + k) * 3
                                 let up = PTab[ci + 1]
-                                vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + (up == 1 ? dyTop : dy16) + up * cs, bz16 + ci0 + PTab[ci + 2] * cs,
+                                let topY = by16 + dyTop + cs
+                                let py = up == 1 ? topY : (feet.map { min(topY - 2, Int($0[PTab[ci] + 2 * PTab[ci + 2]])) } ?? by16 + dy16)
+                                vert(isTrans, bx16 + ci0 + PTab[ci] * cs, py, bz16 + ci0 + PTab[ci + 2] * cs,
                                      6, tintV, cornerU[k], flipV ? 16 - cornerV[k] : cornerV[k], layer, aoC, l, sway && !(foot && up == 0))
                             }
                         }
@@ -1128,6 +1186,18 @@ enum Mesher {
                         let shape = rsK[bi] == .rail ? st : st % 6
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         let layer = Int(texT[bi * 6 + 2])
+                        // P382: on field ground the rail lies on the drawn surface (bent with it, 1/16 over it), a slope's
+                        // rise being the ground's own.
+                        if drapeOn && natAt(i - RL),
+                           drapeRect(lx, ly, lz, 0, 16, 0, 16, lift16: 1, trans: false, tint: 0, layer: layer, l: l, uv: { px, pz in
+                               switch shape {
+                               case 1, 2, 3: return (pz, px)
+                               case 7: return (16 - px, pz)
+                               case 8: return (16 - px, 16 - pz)
+                               case 9: return (px, 16 - pz)
+                               default: return (px, pz)
+                               }
+                           }) { continue }
                         for k in 0..<4 {
                             let ci = (2 * 4 + k) * 3
                             let px = CT[ci] * 16, pz = CT[ci + 2] * 16
@@ -1175,6 +1245,32 @@ enum Mesher {
                         for k in 0..<4 where climb[k] { quads.append(walls[k]) }
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         let layer = Int(texT[bi * 6 + 2])
+                        // P382: on field ground the wire is a strip laid on the drawn surface (bent with it, 1/16 over it),
+                        // its arms running on over the ground to the next wire's; up a slope of ground there is no wall
+                        // strip (the arm follows the ground up), against a built block the strip climbs from the ground.
+                        if drapeOn && natAt(i - RL),
+                           drapeRect(lx, ly, lz, 5, 11, 5, 11, lift16: 1, trans: false, tint: 0, layer: layer, l: l, uv: { ($0, $1) }) {
+                            let armR = [(6, 10, 0, 5), (6, 10, 11, 16), (0, 5, 6, 10), (11, 16, 6, 10)]
+                            for k in 0..<4 where conn[k] {
+                                let r = armR[k]
+                                _ = drapeRect(lx, ly, lz, r.0, r.1, r.2, r.3, lift16: 1, trans: false, tint: 0, layer: layer, l: l, uv: { ($0, $1) })
+                            }
+                            for k in 0..<4 where climb[k] && !natAt(i + nOff[k]) {
+                                let (box, f) = walls[k]
+                                let fx = (Int(box.x0) + Int(box.x1)) / 2, fz = (Int(box.z0) + Int(box.z1)) / 2
+                                let g = drape.heightNear(Float(lx) + Float(fx) / 16, Float(lz) + Float(fz) / 16, top: Float(ly) + 1.25)
+                                let lo = g.map { max(-by16, min(15, Int(($0 - Float(ly)) * 16 - 0.01) + 1)) } ?? 0
+                                for c in 0..<4 {
+                                    let ci = (f * 4 + c) * 3
+                                    let px = CT[ci] == 1 ? Int(box.x1) : Int(box.x0)
+                                    let py = CT[ci + 1] == 1 ? Int(box.y1) : lo
+                                    let pz = CT[ci + 2] == 1 ? Int(box.z1) : Int(box.z0)
+                                    let (u, v) = faceUV(f, px, max(0, py), pz)
+                                    vert(false, bx16 + px, by16 + py, bz16 + pz, f, 0, u, v, layer, 3, l, false)
+                                }
+                            }
+                            continue
+                        }
                         for (box, f) in quads {
                             let mn = [Int(box.x0), Int(box.y0), Int(box.z0)], mx = [Int(box.x1), Int(box.y1), Int(box.z1)]
                             for k in 0..<4 {
@@ -1221,6 +1317,24 @@ enum Mesher {
                             if let jb = ChestJoin.boxes(R[i], lo: R[i - (wide ? 1 : RW)], hi: R[i + (wide ? 1 : RW)], base: boxes,
                                                         tex: { texT[bi * 6 + $0] }) { boxes = jb }
                         }
+                        // P382: a thing standing on field ground rests on the drawn ground (GroundDrape.seat): a thin one
+                        // lies on it bent to its shape, the others move whole onto the ground under their middle.
+                        var seatDy = 0
+                        if drapeOn && rt == rModel && natAt(i - RL) {
+                            let sk = GroundDrape.seat[bi]
+                            if sk == 2 {
+                                let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                                var laid = false
+                                for box in boxes {
+                                    let layer = box.tex.isEmpty ? Int(texT[bi * 6 + 2]) : Int(box.tex[2])
+                                    if drapeRect(lx, ly, lz, Int(box.x0), Int(box.x1), Int(box.z0), Int(box.z1), lift16: Int(box.y1),
+                                                 trans: isTrans, tint: tintV, layer: layer, l: l, uv: { faceUV(2, $0, 0, $1) }) { laid = true }
+                                }
+                                if laid { continue }
+                            } else if sk == 1, let d = drape.seatOffset(lx, ly, lz) {
+                                seatDy = d
+                            }
+                        }
                         for box in boxes {
                             let mn = [Int(box.x0), Int(box.y0), Int(box.z0)], mx = [Int(box.x1), Int(box.y1), Int(box.z1)]
                             for f in 0..<6 {
@@ -1249,7 +1363,7 @@ enum Mesher {
                                     let (u, v) = slant ? faceUV(f, px + 7 - mn[0], py, pz + 7 - mn[2]) : faceUV(f, px, py, pz)
                                     let top = py == mx[1]
                                     let lx = top ? Int(box.leanX) : 0, lz = top ? Int(box.leanZ) : 0
-                                    vert(isTrans, bx16 + px + lx, by16 + py, bz16 + pz + lz, f, tintV, u, v, layer, 3, l, false)
+                                    vert(isTrans, bx16 + px + lx, by16 + py + seatDy, bz16 + pz + lz, f, tintV, u, v, layer, 3, l, false)
                                 }
                             }
                         }
@@ -1451,12 +1565,18 @@ enum Mesher {
                 guard renderT[bi] == rCross, plantOnNatural(i), !(detailDraw && detT[bi]) else { continue }
                 let lx = x - C0, lz = z - C0
                 var dy16 = 0, dyTop = 0
-                if sc.smValid {
+                var feet: SIMD4<Int32>? = nil
+                if sc.smValid || drapeOn {
                     var g = 15, j = i - RL
                     while g > 16 - SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { g -= 1; j -= RL }
-                    if let top = Mesher.smoothGroundTop(sc, lx, g, lz) {
+                    if let top = (drapeOn ? drape.heightNear(Float(lx) + 0.5, Float(lz) + 0.5, top: Float(g + 1) + 0.75) : nil)
+                        ?? (sc.smValid ? Mesher.smoothGroundTop(sc, lx, g, lz) : nil) {
                         let want: Float = (top - Float(g + 1)) * 16
                         (dy16, dyTop) = stackOffsets(i, below: 15 - g, max(-12, min(12, Int(want.rounded()))))
+                        if drapeOn && g == 15 {
+                            let cs = Int(crossT[bi]), c0 = (16 - cs) / 2
+                            feet = plantFeet(lx, lz, c0, c0 + cs, top: Float(g + 1) + 0.75)
+                        }
                     }
                 }
                 let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
@@ -1484,7 +1604,9 @@ enum Mesher {
                     for k in 0..<4 {
                         let ci = (q * 4 + k) * 3
                         let up = PTab[ci + 1]
-                        vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + (up == 1 ? dyTop - dy16 : 0) + up * cs, bz16 + ci0 + PTab[ci + 2] * cs,
+                        let topY = by16 + dyTop - dy16 + cs
+                        let py = up == 1 ? topY : (feet.map { min(topY - 2, Int($0[PTab[ci] + 2 * PTab[ci + 2]])) } ?? by16)
+                        vert(isTrans, bx16 + ci0 + PTab[ci] * cs, py, bz16 + ci0 + PTab[ci + 2] * cs,
                              6, tintV, cornerU[k], flipV ? 16 - cornerV[k] : cornerV[k], layer, aoC, l, sway && !(foot && up == 0))
                     }
                 }
@@ -1795,6 +1917,7 @@ final class MeshScratch {
     let dens = UnsafeMutablePointer<Int8>.allocate(capacity: Mesher.RL * Mesher.RH)    // PG1: the region's field densities
     lazy var field = SmoothField()
     lazy var fineScratch = MeshScratch()        // P377 step 1: the half-block region Mesher.fineGround meshes
+    lazy var drape = GroundDrape()              // P382: the section's drawn ground, for things lying on it
     var smValid = false             // P175: smV/smL hold the section's ground surface (Mesher.smoothGroundTop)
 
     deinit {

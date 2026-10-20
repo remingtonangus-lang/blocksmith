@@ -217,7 +217,7 @@ extension Game {
                     faces.append((low + nOff, side * -1, Float(1.0 / 115)))
                     faces.append((low - nOff, side, Float(1.0 / 115)))
                 } else {
-                    let ctr: V3 = st < 4 ? c + V3(0, 0.22, 0) + nOff : c - n * 0.37
+                    let ctr: V3 = st < 4 ? c + V3(0, 0.22 + world.groundSeat(p.x, p.y, p.z), 0) + nOff : c - n * 0.37     // (P382: a post on field ground rests on it)
                     faces.append((ctr, side * -1, Float(1.0 / 90)))
                 }
                 let textColor = Game.signTextColor(be, light: light)
