@@ -147,6 +147,23 @@ final class CombatHUD {
                                    color: loading ? V4(0.95, 0.75, 0.2, 1) : Settings.shared.goodColor))
             }
         }
+        // P379 step 2: the locomotive's cab: speed, the regulator (forward right, reverse left) and the brake.
+        if let tr = Trains.cab(g), g.menu == nil {
+            let x = L.insetX + 6 * s, y0 = L.H - L.insetY - 52 * s, w = 104 * s
+            out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, 46 * s)))
+            out.append(HudLine(text: tr.track.name, x: x, y: y0, scale: s, color: V4(1, 0.9, 0.6, 1)))
+            out.append(HudLine(text: String(format: "%3.0f km/h", tr.blocksPerSec * 3.6), x: x, y: y0 + 11 * s, scale: s))
+            let reg = tr.throttle < 0 ? "Reverse" : "Regulator"
+            out.append(HudLine(text: reg, x: x, y: y0 + 22 * s, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
+            let bx = x + 44 * s, bw = w - 44 * s, mid = bx + bw / 3
+            out.append(HudLine(text: "", x: bx, y: y0 + 23 * s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(bw, 5 * s)))
+            let t = max(-1, min(2, tr.throttle))
+            out.append(HudLine(text: "", x: t >= 0 ? mid : mid + bw / 3 * t, y: y0 + 23 * s, scale: s, bg: V4(0.95, 0.75, 0.2, 1), box: V2(abs(t) * bw / 3, 5 * s)))
+            out.append(HudLine(text: "", x: mid - s / 2, y: y0 + 22 * s, scale: s, bg: V4(1, 1, 1, 0.9), box: V2(s, 7 * s)))
+            out.append(HudLine(text: "Brake", x: x, y: y0 + 33 * s, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
+            out.append(HudLine(text: "", x: bx, y: y0 + 34 * s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(bw, 5 * s)))
+            out.append(HudLine(text: "", x: bx, y: y0 + 34 * s, scale: s, bg: Settings.shared.badColor, box: V2(bw * tr.cabBrake, 5 * s)))
+        }
         // Q2: the tank sight (D42) under the crosshair while a wheeled vehicle's gun is laid on it.
         if let ship = g.world.ships.pilot, !ship.wheels.isEmpty, let p = TankSight.aim, g.menu == nil, VehicleControls.armed(g, ship) {
             let t = String(format: "%.0f m  %@", simd_length(p - g.player.eye), TankSight.laid ? "LAID" : "traversing")

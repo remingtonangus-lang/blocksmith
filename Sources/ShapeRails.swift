@@ -45,6 +45,24 @@ enum ShapeRails {
                 }
             default: pts = [SIMD3(0.5, 0, 0), SIMD3(0.5, 0, 1)]
             }
+            // P379 step 3: in a field world the track lies on the drawn bed (Railways.shapeBed shapes it to the line's
+            // gentle grade): the centre's height is the bed's top under it, each edge's the mean of the two cells'.
+            if let hc = bedTop(ctx, x, y, z) {
+                if shape >= 6 { pts = pts.map { SIMD3($0.x, hc, $0.z) } }
+                else {
+                    let ax = shape == 1 || shape == 2 || shape == 3
+                    func edge(_ d: Int) -> Float {
+                        for dy in [0, 1, -1] {
+                            let nx = x + (ax ? d : 0), nz = z + (ax ? 0 : d)
+                            guard isRail[Int(ctx.block(nx, y + dy, nz))], let h = bedTop(ctx, nx, y + dy, nz) else { continue }
+                            return (hc + h + Float(dy)) * 0.5
+                        }
+                        return hc
+                    }
+                    pts = ax ? [SIMD3(0, edge(-1), 0.5), SIMD3(0.5, hc, 0.5), SIMD3(1, edge(1), 0.5)]
+                             : [SIMD3(0.5, edge(-1), 0), SIMD3(0.5, hc, 0.5), SIMD3(0.5, edge(1), 1)]
+                }
+            }
             for k in 0..<(pts.count - 1) {
                 let p0 = o + pts[k], p1 = o + pts[k + 1]
                 let a = simd_normalize(p1 - p0)
@@ -64,6 +82,19 @@ enum ShapeRails {
                 }
             }
         } } }
+    }
+
+    // The drawn bed's top under a rail at section-local (x, y, z), relative to the rail's cell (-0.5 ... 0.5): where the
+    // field's density crosses zero between the cell under the rail and the rail's own. Nil off a field (or over a deck).
+    static func bedTop(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int) -> Float? {
+        guard let field = ctx.field else { return nil }
+        let cx = (x + 16) >> 4, cz = (z + 16) >> 4, wy = ctx.sy * 16 + y
+        guard cx >= 0 && cz >= 0 && cx < 3 && cz < 3, wy >= 1 && wy < CH else { return nil }
+        let st = field[cx + cz * 3]
+        let i = ((x + 16) & 15) + ((z + 16) & 15) * CS + wy * CSQ
+        let a = FieldTerrain.f(st.density(i - CSQ)), b = FieldTerrain.f(st.density(i))
+        guard a > 0, b <= 0, a - b > 1e-3 else { return nil }
+        return max(-0.5, min(0.5, a / (a - b) - 0.5))
     }
 
     // A box round c with half-sizes along a, s and h (a x s = h), counter-clockwise faces seen from outside.

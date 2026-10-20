@@ -282,6 +282,7 @@ enum FieldTerrain {
         }
         FieldTerrain.holdPools(&b, &fd, &fm, cx: cx, cz: cz)   // P378 step 2: the drawn ground holds each pool
         if statsOn { statsLock.lock(); for k in 0..<3 { stats[k] += st[k] }; statsLock.unlock() }
+        if let wg, wg.fieldWorld, built != nil { Railways.shapeBed(wg, &fd, cx: cx, cz: cz) }        // P379 step 3
         var out = FieldData(fd: fd, fm: fm)
         FieldTerrain.dropFloaters(&out)                     // P351 step 3: no small floating ground
         return out
@@ -860,11 +861,12 @@ extension World {
     // choice is kept in the save as terrain-field.txt and never changes for that world.
     func makeFieldWorld() {
         guard chunks.isEmpty, FieldTerrain.newWorlds else { return }
-        fieldTerrain = true
         if let save {
             try? FileManager.default.createDirectory(at: save.dir, withIntermediateDirectories: true)
             try? "natural terrain is a density field (PG1 rewrite, Oct 14)\n".write(to: save.dir.appendingPathComponent("terrain-field.txt"),
                                                                                      atomically: true, encoding: .utf8)
+            try? "railways on a gentle grade (P379)\n".write(to: save.dir.appendingPathComponent("railway-grade.txt"), atomically: true, encoding: .utf8)
         }
+        fieldTerrain = true
     }
 }

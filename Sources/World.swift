@@ -15,7 +15,10 @@ final class World {
     let save: SaveManager?
     // PG1 rewrite: natural terrain is a density field, not blocks (FieldTerrain.swift). Decided once per world: a root
     // save made as a field world keeps a marker (terrain-field.txt); its dimensions follow it (Game.dimensionState).
-    var fieldTerrain = false { didSet { save?.fieldWorld = fieldTerrain; (gen as? HollowGen)?.fieldTops = fieldTerrain } }
+    var fieldTerrain = false { didSet { save?.fieldWorld = fieldTerrain; (gen as? HollowGen)?.fieldTops = fieldTerrain; gradeRails() } }
+    // P379 step 3: a field world's railways run on a gentle grade, in field worlds made since (railway-grade.txt; a
+    // field world saved before keeps its stepped lines, so no line changes under explored ground).
+    func gradeRails() { (gen as? WorldGen)?.fieldWorld = fieldTerrain && (save?.hasMarker("railway-grade.txt") ?? true) }
     var chunks: [ChunkKey: Chunk] = [:]
     var blockEntities: [IVec3: BlockEntity] = [:]
     // Co-op over the network (NetCoop.swift): every block change is reported (unless it came from the other player,
@@ -130,9 +133,11 @@ final class World {
         } else if save == nil { fieldTerrain = FieldTerrain.unsaved }
         save?.fieldWorld = fieldTerrain
         (gen as? HollowGen)?.fieldTops = fieldTerrain
+        (gen as? WorldGen)?.fieldWorld = fieldTerrain && (save?.hasMarker("railway-grade.txt") ?? true)     // (gradeRails, in init)
         if let wg = gen as? WorldGen {
             wg.terrain.fewerLakes = save?.newTerrain("terrain-p44-water.txt") ?? World.fewerLakesUnsaved
             wg.terrain.lessWater = save?.newTerrain("terrain-h8-water.txt") ?? World.lessWaterUnsaved   // H8
+            wg.railSites = save?.newTerrain("railway-sites.txt") ?? true     // P379 step 1 (a saved world's lines stay as laid)
         }
         maxJobs = workQueue.workers
         rebuildOffsets()

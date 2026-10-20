@@ -9,9 +9,12 @@ import simd
 //             straight run along the south edge of its town; between towns the track runs east, turns north or south
 //             on a dog-leg (two flat curves) and runs east again. A leg that would cut through any surface structure
 //             is moved (five tries) or the line ends at the town before it; a line keeps at least three stations.
+//   Sites     P379: a citadel, a capital city, a Greywall base or a Boreal station in the row's band gets a station
+//             too when the line can reach it without losing the town after it.
 //   Profile   the track follows the land at most one block up or down a step: cuttings and tunnels through rises,
 //             trestles on timber legs over dips, rivers and lakes; never over the open sea, never below sea + 2.
-//             Curves and platforms are level.
+//             Curves and platforms are level. In a field world (P379) the grade is 1 in 8 and the drawn bed and track
+//             follow the planned height itself (Railways.shapeBed, ShapeRails), not one-block steps.
 //   Stations  a platform between the track and the town with lamps, a station house across the track with the
 //             town's name and a TICKETS sign (Trains.swift sells the fares), buffer stops at both ends of the line.
 //   Old saves ground any save had generated before railways (structure-guard-c1.txt) keeps no line, so nothing
@@ -30,15 +33,18 @@ enum Railways {
     static let southGap = 5                // the track, blocks south of the town's box
     static var on = true                   // (the host checks turn lines off to compare)
 
-    struct Station { let name: String; let index: Int; let x: Int; let z: Int; var halt = false }   // halt: a hamlet's (C13)
+    struct Station { let name: String; let index: Int; let x: Int; let z: Int; var halt = false; var site = false }   // halt: a hamlet's (C13); site: P379
     final class Line {
         let id: Int64                      // row and stretch
         let name: String
         let cells: [IVec3]                 // every rail, in order west to east (y: the rail's own y)
         let stations: [Station]
         let minX: Int, maxX: Int, minZ: Int, maxZ: Int
-        init(id: Int64, name: String, cells: [IVec3], stations: [Station]) {
-            self.id = id; self.name = name; self.cells = cells; self.stations = stations
+        // P379 step 3: in a field world, the track's height at each cell (the rail's y plus at most half a block either
+        // way): the drawn bed and the track follow it at a gentle grade, not in one-block steps. Nil in block worlds.
+        var heights: [Float]? = nil
+        init(id: Int64, name: String, cells: [IVec3], stations: [Station], heights: [Float]? = nil) {
+            self.id = id; self.name = name; self.cells = cells; self.stations = stations; self.heights = heights
             minX = cells.map { $0.x }.min() ?? 0; maxX = cells.map { $0.x }.max() ?? 0
             minZ = cells.map { $0.z }.min() ?? 0; maxZ = cells.map { $0.z }.max() ?? 0
         }
@@ -75,6 +81,7 @@ enum Railways {
 
     private static var cache: [Int64: Line?] = [:]
     private static var cacheGen: ObjectIdentifier?
+    private static var cacheField = 0                 // (fieldWorld 1, railSites 2)
     private static let lock = NSLock()
 
     static func key(_ row: Int, _ s: Int) -> Int64 { Int64(row) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: s))) }
@@ -84,11 +91,12 @@ enum Railways {
         guard on else { return nil }
         let k = key(row, s), gid = ObjectIdentifier(gen)
         lock.lock()
-        if cacheGen != gid { cache.removeAll(); cacheGen = gid }
+        let mode = (gen.fieldWorld ? 1 : 0) | (gen.railSites ? 2 : 0)
+        if cacheGen != gid || cacheField != mode { cache.removeAll(); cacheGen = gid; cacheField = mode }
         if let c = cache[k] { lock.unlock(); return c }
         lock.unlock()
         let l = plan(gen, row: row, stretch: s)
-        lock.lock(); if cacheGen == gid { cache[k] = l }; if cache.count > 2048 { cache.removeAll() }; lock.unlock()
+        lock.lock(); if cacheGen == gid && cacheField == mode { cache[k] = l }; if cache.count > 2048 { cache.removeAll() }; lock.unlock()
         return l
     }
 
@@ -122,7 +130,7 @@ enum Railways {
             let s = t.spacing * CS, r = t.reach * CS
             for rz in floorDiv(az - r, s)...floorDiv(bz + r, s) { for rx in floorDiv(ax - r, s)...floorDiv(bx + r, s) {
                 guard let o = sc.start(t, regionX: rx, regionZ: rz) else { continue }
-                if t.name == "village" && except.contains(StructureCache.key(o.anchor.x, o.anchor.z)) { continue }
+                if (t.name == "village" || siteKinds.contains(t.name)) && except.contains(StructureCache.key(o.anchor.x, o.anchor.z)) { continue }
                 if o.max.x >= ax && o.min.x <= bx && o.max.z >= az && o.min.z <= bz {
                     // A box's corner can be empty: look at the pieces.
                     if o.pieces.contains(where: { $0.max.x >= ax && $0.min.x <= bx && $0.max.z >= az && $0.min.z <= bz }) { return true }
@@ -132,7 +140,43 @@ enum Railways {
         return false
     }
 
-    struct Town { let name: String; let box: (IVec3, IVec3); let sq: IVec3; var halt = false }
+    struct Town { let name: String; let box: (IVec3, IVec3); let sq: IVec3; var halt = false; var site = false }
+
+    // P379 step 1 (P337 (b)): the major sites a line also calls at when one stands in its row's band: the Capital's
+    // citadels, its cities, Greywall bases and Boreal stations. A site the line can't reach (no room for the dog-leg,
+    // something in the way, or it would cut the line off from the town after it) is passed by; it never ends a line.
+    static let siteKinds: Set<String> = ["military_base", "capital_city", Greywall.kind, BorealStation.kind]
+
+    static func siteName(_ kind: String, _ o: StructureStart, _ seed: UInt64) -> String {
+        let n = Townsfolk.townName(o.anchor.x, o.anchor.z, seed: seed)
+        let a = String(n.split(separator: " ").first ?? Substring(n))
+        switch kind {
+        case "military_base": return "Fort " + a
+        case "capital_city":
+            if let plan = o.plan as? CapitalCity.Plan {
+                let h = CapitalCity.N * CapitalCity.lot
+                return CapitalTown.cityName(plan.ox + h, plan.oz + h, seed: plan.seed) + " Central"
+            }
+            return a + " Central"
+        case Greywall.kind: return "Greywall " + a
+        default: return a + " Outpost"
+        }
+    }
+
+    // The major sites whose anchors lie in this row and stretch.
+    static func sites(_ gen: WorldGen, _ sc: StructureCache, row: Int, stretch s: Int) -> [Town] {
+        let x0 = s * stretch * span, x1 = (s + 1) * stretch * span, z0 = row * span, z1 = (row + 1) * span
+        var out: [Town] = []
+        for t in sc.types where siteKinds.contains(t.name) {
+            let sp = t.spacing * CS
+            for rz in (floorDiv(z0, sp) - 1)...floorDiv(z1, sp) { for rx in (floorDiv(x0, sp) - 1)...floorDiv(x1, sp) {
+                guard let o = sc.start(t, regionX: rx, regionZ: rz) else { continue }
+                guard o.anchor.x >= x0 && o.anchor.x < x1 && o.anchor.z >= z0 && o.anchor.z < z1, o.max.y >= SEA else { continue }
+                out.append(Town(name: siteName(t.name, o, gen.seed), box: (o.min, o.max), sq: o.anchor, site: true))
+            } }
+        }
+        return out
+    }
 
     static func plan(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
         if let l = plan(gen, row: row, stretch: s, avoid: nil) { return l }
@@ -160,6 +204,8 @@ enum Railways {
                               halt: v.info["size"] == TownSize.hamlet.rawValue))
         }
         guard towns.count >= minStations else { return nil }
+        if gen.railSites { towns += sites(gen, sc, row: row, stretch: s) }
+        towns.sort { $0.sq.x < $1.sq.x }
         // Ground saved before railways: no line (checked along the whole run below).
         let legacy = sc.legacyC1
         var best: [IVec3] = [], bestStations: [Station] = []
@@ -168,46 +214,68 @@ enum Railways {
             if curSt.count >= minStations && curSt.count > bestStations.count { best = cur; bestStations = curSt }
             cur = []; curSt = []
         }
-        let except = Set(towns.map { StructureCache.key($0.sq.x, $0.sq.z) })
+        // (a site is passed over only by its own straight: a leg never runs through a citadel or a base)
+        let except = Set(towns.filter { !$0.site }.map { StructureCache.key($0.sq.x, $0.sq.z) })
         var prevEnd: (x: Int, z: Int)?
-        for (ti, t) in towns.enumerated() {
+        // The straight past a town's box (nil: something beside the town is in its way).
+        func straight(_ t: Town) -> (z: Int, xa: Int, xb: Int)? {
             let z = t.box.1.z + southGap
             let xa = t.box.0.x - stationRun, xb = t.box.1.x + stationRun
             // The town's own straight must be clear (other structures beside the town).
-            let townClear = !blocked(gen, sc, x0: xa, z0: z, x1: xb, z1: z + 8, except: except)
+            let own = t.site ? except.union([StructureCache.key(t.sq.x, t.sq.z)]) : except
+            let townClear = !blocked(gen, sc, x0: xa, z0: z, x1: xb, z1: z + 8, except: own)
                 && (avoid == nil || fresh(stride(from: xa, through: xb, by: 4).map { ($0, z) }))
-            if !townClear { flush(); prevEnd = nil; continue }
-            if let pe = prevEnd {
-                // A dog-leg from the last town's straight to this one.
-                var leg: [(Int, Int)]?
-                let gap = xa - pe.x
-                if gap >= 24 {
-                    for k in 0..<5 {
-                        let xm = pe.x + gap / 2 + [0, -gap / 5, gap / 5, -gap / 3, gap / 3][k]
-                        if xm - pe.x < 8 || xa - xm < 8 { continue }
-                        if blocked(gen, sc, x0: pe.x + 1, z0: pe.z, x1: xm, z1: pe.z, except: except) { continue }
-                        if pe.z != z && blocked(gen, sc, x0: xm, z0: pe.z, x1: xm, z1: z, except: except) { continue }
-                        if blocked(gen, sc, x0: xm, z0: z, x1: xa - 1, z1: z, except: except) { continue }
-                        var l: [(Int, Int)] = []
-                        for x in (pe.x + 1)...xm { l.append((x, pe.z)) }
-                        if pe.z != z {
-                            let dz = z > pe.z ? 1 : -1
-                            var zz = pe.z + dz
-                            while zz != z { l.append((xm, zz)); zz += dz }
-                            l.append((xm, z))
-                        }
-                        if xm + 1 <= xa - 1 { for x in (xm + 1)...(xa - 1) { l.append((x, z)) } }
-                        leg = l
-                        break
+            return townClear ? (z, xa, xb) : nil
+        }
+        // A dog-leg from the last town's straight to this one.
+        func dogLeg(_ pe: (x: Int, z: Int), _ xa: Int, _ z: Int) -> [(Int, Int)]? {
+            var leg: [(Int, Int)]?
+            let gap = xa - pe.x
+            if gap >= 24 {
+                for k in 0..<5 {
+                    let xm = pe.x + gap / 2 + [0, -gap / 5, gap / 5, -gap / 3, gap / 3][k]
+                    if xm - pe.x < 8 || xa - xm < 8 { continue }
+                    if blocked(gen, sc, x0: pe.x + 1, z0: pe.z, x1: xm, z1: pe.z, except: except) { continue }
+                    if pe.z != z && blocked(gen, sc, x0: xm, z0: pe.z, x1: xm, z1: z, except: except) { continue }
+                    if blocked(gen, sc, x0: xm, z0: z, x1: xa - 1, z1: z, except: except) { continue }
+                    var l: [(Int, Int)] = []
+                    for x in (pe.x + 1)...xm { l.append((x, pe.z)) }
+                    if pe.z != z {
+                        let dz = z > pe.z ? 1 : -1
+                        var zz = pe.z + dz
+                        while zz != z { l.append((xm, zz)); zz += dz }
+                        l.append((xm, z))
                     }
+                    if xm + 1 <= xa - 1 { for x in (xm + 1)...(xa - 1) { l.append((x, z)) } }
+                    leg = l
+                    break
                 }
-                if let l = leg, !fresh(l) { leg = nil }                          // (Y5: a leg over saved ground ends the run)
-                if let leg { for (x, zz) in leg { cur.append(IVec3(x, 0, zz)) } }
+            }
+            if let l = leg, !fresh(l) { leg = nil }                              // (Y5: a leg over saved ground ends the run)
+            return leg
+        }
+        for (ti, t) in towns.enumerated() {
+            guard let (z, xa, xb) = straight(t) else {
+                if !t.site { flush(); prevEnd = nil }
+                if ti == towns.count - 1 { flush() }
+                continue
+            }
+            if t.site {
+                // A site joins only if the next town is still reachable from it, and from the line before it (or, at
+                // the west end, only with a town after it).
+                let next = towns[(ti + 1)...].first(where: { !$0.site }).flatMap { straight($0) }
+                var leg: [(Int, Int)]? = []
+                if let ns = next, dogLeg((xb, z), ns.xa, ns.z) == nil { leg = nil }
+                if let pe = prevEnd { leg = leg == nil ? nil : dogLeg(pe, xa, z) } else if next == nil { leg = nil }
+                guard let leg else { if ti == towns.count - 1 { flush() }; continue }
+                for (x, zz) in leg { cur.append(IVec3(x, 0, zz)) }
+            } else if let pe = prevEnd {
+                if let leg = dogLeg(pe, xa, z) { for (x, zz) in leg { cur.append(IVec3(x, 0, zz)) } }
                 else { flush() }
             }
             let i0 = cur.count
             for x in xa...xb { cur.append(IVec3(x, 0, z)) }
-            curSt.append(Station(name: t.name, index: i0 + (t.sq.x - xa), x: t.sq.x, z: z, halt: t.halt))
+            curSt.append(Station(name: t.name, index: i0 + (t.sq.x - xa), x: t.sq.x, z: z, halt: t.halt, site: t.site))
             prevEnd = (xb, z)
             if ti == towns.count - 1 { flush() }
         }
@@ -218,10 +286,15 @@ enum Railways {
             if !legacy.isEmpty && !sc.clear(cx: floorDiv(c.x, CS), cz: floorDiv(c.z, CS), reach: 3, guardSet: legacy) { return nil }
         }
         for i in stride(from: 0, to: best.count, by: 4) where gen.column(best[i].x, best[i].z).biome.isOcean { return nil }
-        guard let levels = profile(gen, best, bestStations) else { return nil }
-        let cells = best.indices.map { IVec3(best[$0].x, levels[$0], best[$0].z) }
         let first = bestStations.first!.name, last = bestStations.last!.name
         let name = lineName(first, last, gen.seed, row, s)
+        if gen.fieldWorld {
+            guard let h = gentleProfile(gen, best, bestStations) else { return nil }
+            let cells = best.indices.map { IVec3(best[$0].x, Int(h[$0].rounded()), best[$0].z) }
+            return Line(id: key(row, s), name: name, cells: cells, stations: bestStations, heights: h)
+        }
+        guard let levels = profile(gen, best, bestStations) else { return nil }
+        let cells = best.indices.map { IVec3(best[$0].x, levels[$0], best[$0].z) }
         return Line(id: key(row, s), name: name, cells: cells, stations: bestStations)
     }
 
@@ -253,9 +326,9 @@ enum Railways {
             return (a.x - p.x) != (q.x - a.x) || (a.z - p.z) != (q.z - a.z)
         }
         for i in 0..<n where isCurve(i) {
-            // (A dog-leg one block across has two curves side by side: the second takes the first's level.)
+            // (A dog-leg one or two blocks across has two curves close together: the second takes the first's level.)
             let window = target[max(0, i - 2)...min(n - 1, i + 2)].sorted()
-            let lv = fixed[i] ?? window[window.count / 2]
+            let lv = fixed[i] ?? fixed[i - 1] ?? window[window.count / 2]
             for j in max(0, i - 1)...min(n - 1, i + 1) { fixed[j] = fixed[j] ?? lv }
         }
         for st in stations {
@@ -299,6 +372,107 @@ enum Railways {
         return r
     }
 
+    // P379 step 3 (P337 (d)): a field world's track height along the run: the land plus one, rising or falling at most
+    // `grade` a step (1 in 8), curves and platforms level at whole blocks, smoothed so the grade eases in and out. The
+    // rail block stands at the rounded height (so a rail cell changes level by one at most per step and minecarts keep
+    // their slopes); the drawn bed is shaped to the height itself (FieldTerrain.split: Railways.shapeBed).
+    static let grade: Float = 1.0 / 8
+    static func gentleProfile(_ gen: WorldGen, _ cells: [IVec3], _ stations: [Station]) -> [Float]? {
+        let n = cells.count
+        guard n > 2 else { return nil }
+        var target = [Float](repeating: Float(SEA + 2), count: n)
+        for i in 0..<n {
+            let c = cells[i]
+            let col = gen.column(c.x, c.z)
+            let g = col.biome == .river || col.biome.isOcean ? SEA : gen.groundY(c.x, c.z)
+            target[i] = Float(max(SEA + 2, min(CH - 12, g + 1)))
+        }
+        var fixed = [Float?](repeating: nil, count: n)
+        func isCurve(_ i: Int) -> Bool {
+            guard i > 0 && i + 1 < n else { return false }
+            let a = cells[i], p = cells[i - 1], q = cells[i + 1]
+            return (a.x - p.x) != (q.x - a.x) || (a.z - p.z) != (q.z - a.z)
+        }
+        for i in 0..<n where isCurve(i) {
+            let window = target[max(0, i - 2)...min(n - 1, i + 2)].sorted()
+            let lv = fixed[i] ?? window[window.count / 2]
+            for j in max(0, i - 1)...min(n - 1, i + 1) { fixed[j] = fixed[j] ?? lv }
+        }
+        for st in stations {
+            let a = max(0, st.index - 8), b = min(n - 1, st.index + 8)
+            let lv = target[a...b].sorted()[(b - a) / 2]
+            for j in a...b where fixed[j] == nil { fixed[j] = lv }
+        }
+        // The band each cell can reach from the fixed cells before and after it at the grade.
+        var lo = [Float](repeating: -1e9, count: n), hi = [Float](repeating: 1e9, count: n)
+        var last: (Int, Float)? = nil
+        for i in 0..<n {
+            if let f = fixed[i] { last = (i, f) }
+            if let (j, f) = last { let r = Float(i - j) * grade; lo[i] = max(lo[i], f - r); hi[i] = min(hi[i], f + r) }
+        }
+        last = nil
+        for i in stride(from: n - 1, through: 0, by: -1) {
+            if let f = fixed[i] { last = (i, f) }
+            if let (j, f) = last { let r = Float(j - i) * grade; lo[i] = max(lo[i], f - r); hi[i] = min(hi[i], f + r) }
+        }
+        var h = target
+        for i in 0..<n {
+            if lo[i] > hi[i] + 1e-3 { return nil }
+            h[i] = fixed[i] ?? max(lo[i], min(hi[i], h[i]))
+        }
+        // Hold the grade (forward and back), then ease it: a running mean over 9 steps, kept in the bands.
+        for _ in 0..<4 {
+            for i in 1..<n where fixed[i] == nil { h[i] = max(h[i - 1] - grade, min(h[i - 1] + grade, h[i])) }
+            for i in stride(from: n - 2, through: 0, by: -1) where fixed[i] == nil { h[i] = max(h[i + 1] - grade, min(h[i + 1] + grade, h[i])) }
+            var m = h
+            for i in 0..<n where fixed[i] == nil {
+                let a = max(0, i - 4), b = min(n - 1, i + 4)
+                var sum: Float = 0
+                for j in a...b { sum += h[j] }
+                m[i] = max(lo[i], min(hi[i], sum / Float(b - a + 1)))
+            }
+            h = m
+        }
+        for i in 1..<n where abs(h[i] - h[i - 1]) > grade + 0.01 { return nil }
+        for i in 0..<n where abs(h[i] - target[i]) > 28 { return nil }
+        return h
+    }
+
+    // The bed's cells across the track at step i (along x the bed spans z-1...z+1; along z, x-1...x+1; both at a curve).
+    static func bed(_ l: Line, _ i: Int) -> (alongX: Bool, cells: [(Int, Int)]) {
+        let n = l.cells.count, c = l.cells[i]
+        let alongX = (i + 1 < n ? l.cells[i + 1].x != c.x : (i > 0 && l.cells[i - 1].x != c.x))
+        let curve = i > 0 && i + 1 < n && (l.cells[i + 1].x - c.x != c.x - l.cells[i - 1].x || l.cells[i + 1].z - c.z != c.z - l.cells[i - 1].z)
+        var bed: [(Int, Int)] = []
+        for d in -1...1 {
+            if alongX || curve { bed.append((c.x, c.z + d)) }
+            if !alongX || curve { bed.append((c.x + d, c.z)) }
+        }
+        if curve { bed += [(c.x - 1, c.z - 1), (c.x + 1, c.z - 1), (c.x - 1, c.z + 1), (c.x + 1, c.z + 1)] }
+        return (alongX, bed)
+    }
+
+    // P379 step 3: a field world's ballast drawn at the track's own height. Each bed cell's ground (the cell under the
+    // rail) and the rail's cell get densities whose zero crossing lies at the planned height, so the bed rises and falls
+    // with the track on a slope instead of in block steps. Only ground the field holds (a trestle's deck is a block).
+    static func shapeBed(_ gen: WorldGen, _ fd: inout [Int8], cx: Int, cz: Int) {
+        let bx = cx * CS, bz = cz * CS
+        for l in near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) {
+            guard let hs = l.heights else { continue }
+            for i in l.cells.indices {
+                let c = l.cells[i]
+                guard c.x >= bx - 2 && c.x < bx + CS + 2 && c.z >= bz - 2 && c.z < bz + CS + 2, c.y >= 1 && c.y < CH else { continue }
+                let f = max(-0.45, min(0.45, hs[i] - Float(c.y)))
+                for (x, z) in bed(l, i).cells where x >= bx && x < bx + CS && z >= bz && z < bz + CS {
+                    let j = (x - bx) + (z - bz) * CS + c.y * CSQ
+                    guard fd[j - CSQ] > 0, fd[j] <= 0 else { continue }
+                    fd[j - CSQ] = FieldTerrain.q(0.5 + f)
+                    fd[j] = FieldTerrain.q(-(0.5 - f))
+                }
+            }
+        }
+    }
+
     // MARK: Drawing
 
     static let clearable: [Bool] = {
@@ -332,14 +506,7 @@ enum Railways {
             let c = l.cells[i], y = c.y
             guard inChunk(c.x, c.z, pad: 2) else { continue }
             // Across the track: along x the bed spans z-1...z+1; along z it spans x-1...x+1 (both at a curve).
-            let alongX = (i + 1 < n ? l.cells[i + 1].x != c.x : (i > 0 && l.cells[i - 1].x != c.x))
-            let curve = i > 0 && i + 1 < n && (l.cells[i + 1].x - c.x != c.x - l.cells[i - 1].x || l.cells[i + 1].z - c.z != c.z - l.cells[i - 1].z)
-            var bed: [(Int, Int)] = []
-            for d in -1...1 {
-                if alongX || curve { bed.append((c.x, c.z + d)) }
-                if !alongX || curve { bed.append((c.x + d, c.z)) }
-            }
-            if curve { bed += [(c.x - 1, c.z - 1), (c.x + 1, c.z - 1), (c.x - 1, c.z + 1), (c.x + 1, c.z + 1)] }
+            let (alongX, bed) = Railways.bed(l, i)
             for (x, z) in bed where w.inside(x, y, z) {
                 // Cutting / tunnel: four clear blocks over the track; trees overhead go (no floating trunks).
                 for yy in y...(y + 3) { w.set(x, yy, z, AIR) }

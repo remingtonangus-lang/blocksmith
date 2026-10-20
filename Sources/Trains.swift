@@ -44,10 +44,12 @@ enum Trains {
         let legs: [(Double, Double, Float, Float)]
         let period: Double
         let phase: Double
-        init(id: Int64, name: String, cells: [IVec3], slopes: [Bool], stops: [Int], stopNames: [String], armoured: Bool, dim: Dim) {
+        init(id: Int64, name: String, cells: [IVec3], slopes: [Bool], stops: [Int], stopNames: [String], armoured: Bool, dim: Dim,
+             heights: [Float]? = nil) {
             self.id = id; self.name = name; self.cells = cells; self.stops = stops; self.stopNames = stopNames
             self.armoured = armoured; self.dim = dim
-            ys = cells.indices.map { Float(cells[$0].y) + (slopes[$0] ? 0.5 : 0) + 0.0625 }
+            // (P379 step 3: a field world's line runs at its planned heights, the drawn track's.)
+            ys = heights?.map { $0 + 0.0625 } ?? cells.indices.map { Float(cells[$0].y) + (slopes[$0] ? 0.5 : 0) + 0.0625 }
             var legs: [(Double, Double, Float, Float)] = [], t: Double = 0
             let order = stops + stops.reversed().dropFirst().dropLast()
             for k in 0..<order.count {
@@ -93,6 +95,10 @@ enum Trains {
         var delay: Double = 0                   // seconds the train has stood still off its timetable
         var brake: Float = 0                    // 0 running ... 1 stopped (a hold-up or a blocked track)
         var throttle: Float = 1                 // P337: the cab's regulator, -1 (backing) ... 2 (twice the timetable)
+        var cabBrake: Float = 0                 // P379 step 2: the driver's brake, 0 off ... 1 full on
+        var rate: Float = 1                     // P379: the pace the train runs its timetable at (the regulator and the
+                                                // brake change it gradually: a train has weight)
+        var blocksPerSec: Float = 0             // (the cab's speed gauge)
         var stoppedFor: Float = 0
         var holdUp: Float = 0
         var heldBy = false                      // the player stopped it (a hold-up or a block on the line)
@@ -123,7 +129,7 @@ enum Trains {
     static func track(_ l: Railways.Line) -> Track {
         let slopes = l.cells.indices.map { (2...5).contains(l.shape($0)) }
         return Track(id: l.id, name: l.name, cells: l.cells, slopes: slopes, stops: l.stations.map { $0.index },
-                     stopNames: l.stations.map { $0.name + " Station" }, armoured: false, dim: .overworld)
+                     stopNames: l.stations.map { $0.name + " Station" }, armoured: false, dim: .overworld, heights: l.heights)
     }
     private static var tracks: [Int64: Track] = [:]
     static func cachedTrack(_ l: Railways.Line) -> Track {
@@ -268,9 +274,11 @@ enum Trains {
     static func place(_ g: Game, _ tr: Train, dt: Float) {
         let t = tr.track
         // Blocked line: a solid block on the rail just ahead of the locomotive stops the train (the player's doing).
-        if dt > 0, let lead = tr.cars.first {
-            let ahead = lead.pos + lead.forward * (gap * 0.75 + 1.2)
-            let c = IVec3(Int(floor(ahead.x)), Int(floor(ahead.y + 0.3)), Int(floor(ahead.z)))
+        // P379: the cell ahead is the track's own (a point straight ahead of the locomotive dipped into the bed where the
+        // line climbs a grade, and into a cutting's side on a curve, and read as a blocked line).
+        if dt > 0, tr.cars.first != nil {
+            let (s0, dir0, _) = t.at(tr.time)
+            let c = t.cells[max(0, min(t.cells.count - 1, Int((s0 + dir0 * (gap * 0.75 + 1.2)).rounded())))]
             let b = g.world.block(c.x, c.y, c.z)
             if Blocks.collide[Int(b)] && !Rails.isRail(b) && t.at(tr.time).stop == nil && !t.armoured {
                 if !tr.heldBy { tr.heldBy = true; tr.stoppedFor = 0; whistle(g, tr) }
@@ -281,18 +289,30 @@ enum Trains {
         // P337 step 3: riding the locomotive is driving it. Forward opens the regulator, back closes it, through stop
         // into reverse; the train runs its timetable's track at that rate (late or early: the timetable's time is the
         // train's own). Left alone it eases back to the timetable's pace.
+        // P379 step 2: the brake is its own control (jump: the pad's A, the space bar), held to apply it, let go to
+        // release; the regulator stays where it was left. The regulator pulls the train's pace toward its setting at
+        // steam's pace; the brake pulls it to a stand whatever the regulator says.
         if dt > 0, let lead = tr.cars.first, g.riding === lead {
             let f = g.rideInput.forward
             if abs(f) > 0.1 { tr.throttle = max(-1, min(2, tr.throttle + f * 0.7 * dt)) }
+            let on: Float = g.rideInput.jump ? 1 : 0
+            tr.cabBrake += (on - tr.cabBrake) * min(1, dt * (on > 0 ? 1.5 : 2.5))
         } else if dt > 0 {
             tr.throttle += (1 - tr.throttle) * min(1, dt * 0.3)
+            tr.cabBrake = max(0, tr.cabBrake - dt * 2)
         }
-        let rate = tr.throttle * (1 - tr.brake)
+        if dt > 0 {
+            tr.rate += (tr.throttle - tr.rate) * min(1, dt * 0.6)
+            let bite: Float = tr.cabBrake * 1.4 * dt
+            tr.rate = tr.rate > 0 ? max(0, tr.rate - bite) : min(0, tr.rate + bite)
+        }
+        let rate = tr.rate * (1 - tr.brake)
         tr.delay += Double(dt * (1 - rate))
         tr.time = g.time - tr.delay
         let (s, dir, stop) = t.at(tr.time)
         let moving = abs(s - tr.lastS)
         tr.lastS = s
+        if dt > 0 { tr.blocksPerSec += (moving / dt - tr.blocksPerSec) * min(1, dt * 4) }
         let before = tr.cars.map { ($0.pos, $0.yaw) }
         for (k, m) in tr.cars.enumerated() {
             let sk = s - dir * gap * Float(k)
@@ -317,6 +337,12 @@ enum Trains {
         }
         if let st = stop, t.at(tr.time + 2).stop == nil, t.at(tr.time - Double(dt)).stop == st, tr.brake < 0.1 { whistle(g, tr) }
         if t.armoured || tr.bullion { gunCar(g, tr, dt) }
+    }
+
+    // The train whose locomotive the player rides (drives), if any.
+    static func cab(_ g: Game) -> Train? {
+        guard let r = g.riding, isCar(r), let (tr, k) = carOf[ObjectIdentifier(r)], k == 0 else { return nil }
+        return tr
     }
 
     static func whistle(_ g: Game, _ tr: Train) {
