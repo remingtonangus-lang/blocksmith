@@ -50,7 +50,10 @@ final class RenderTarget {
         self.width = width; self.height = height
     }
     var fdmView: VkImageView?
+    var swSet: VkDescriptorSet?                 // P381 step 9: the depth, sampled by the space warp pass
+    var depthSampleView: VkImageView?
     deinit {
+        if let d = depthSampleView { vkDestroyImageView(ctx.device, d, nil) }
         vkDestroyFramebuffer(ctx.device, framebuffer, nil)
         vkDestroyImageView(ctx.device, view, nil)
         if let f = fdmView { vkDestroyImageView(ctx.device, f, nil) }
@@ -141,13 +144,16 @@ final class SceneRenderer {
 
     // Fixed foveated rendering: the render pass takes the runtime's fragment density map as a third attachment.
     let foveated: Bool
+    // P381 step 9 (Application SpaceWarp): the depth is kept after the pass and copied down for the runtime.
+    let spaceWarp: Bool
 
-    init(ctx: VkContext, device: QuestDevice, views: Int, colorFormat: VkFormat, foveated: Bool = false) throws {
+    init(ctx: VkContext, device: QuestDevice, views: Int, colorFormat: VkFormat, foveated: Bool = false, spaceWarp: Bool = false) throws {
         self.ctx = ctx
         self.device = device
         self.views = views
         self.colorFormat = colorFormat
         self.foveated = foveated
+        self.spaceWarp = spaceWarp
         depthFormat = SceneRenderer.pickDepth(ctx)
         try makeLayouts()
         try makeRenderPass()
@@ -265,11 +271,11 @@ final class SceneRenderer {
         depth.format = depthFormat
         depth.samples = VK_SAMPLE_COUNT_1_BIT
         depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR
-        depth.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE
+        depth.storeOp = spaceWarp ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE
         depth.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE
         depth.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE
         depth.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-        depth.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        depth.finalLayout = spaceWarp ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
         var sub = VkSubpassDescription()
         sub.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
         sub.colorAttachmentCount = 1
@@ -279,7 +285,8 @@ final class SceneRenderer {
         let fragTests = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT.rawValue | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT.rawValue
         let colorOut = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue
         let deps = [
-            VkSubpassDependency(srcSubpass: VK_SUBPASS_EXTERNAL, dstSubpass: 0, srcStageMask: colorOut | fragTests, dstStageMask: colorOut | fragTests,
+            VkSubpassDependency(srcSubpass: VK_SUBPASS_EXTERNAL, dstSubpass: 0,
+                                srcStageMask: colorOut | fragTests | (spaceWarp ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT.rawValue : 0), dstStageMask: colorOut | fragTests,
                                 srcAccessMask: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT.rawValue,
                                 dstAccessMask: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT.rawValue
                                     | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT.rawValue | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT.rawValue,
@@ -680,8 +687,9 @@ final class SceneRenderer {
             fdmView = try VkImg.makeView(ctx, dm, format: VK_FORMAT_R8G8_UNORM, aspect: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, layers: views, levels: 1, array: true)
         }
         let depth = try VkImg(ctx, width: width, height: height, layers: views, format: depthFormat,
-                              usage: VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT.rawValue,
-                              aspect: VK_IMAGE_ASPECT_DEPTH_BIT.rawValue, transient: ProcessInfo.processInfo.environment["QUEST_NO_TRANSIENT"] == nil)
+                              usage: VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT.rawValue | (spaceWarp ? VK_IMAGE_USAGE_SAMPLED_BIT.rawValue : 0),
+                              aspect: VK_IMAGE_ASPECT_DEPTH_BIT.rawValue,
+                              transient: !spaceWarp && ProcessInfo.processInfo.environment["QUEST_NO_TRANSIENT"] == nil)
         let a = PtrArena()
         var ci = VkFramebufferCreateInfo()
         ci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO
@@ -697,6 +705,21 @@ final class SceneRenderer {
         try vkCheck(vkCreateFramebuffer(ctx.device, &ci, nil, &fb), "vkCreateFramebuffer")
         let t = RenderTarget(ctx: ctx, image: image, view: view, depth: depth, framebuffer: fb!, width: width, height: height)
         t.fdmView = fdmView
+        if spaceWarp {
+            let dv = try VkImg.makeView(ctx, depth.image, format: depthFormat, aspect: VK_IMAGE_ASPECT_DEPTH_BIT.rawValue, layers: views, levels: 1, array: true)
+            t.depthSampleView = dv
+            let set = try allocSet(set2Layout)
+            let a2 = PtrArena()
+            var w = VkWriteDescriptorSet()
+            w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+            w.dstSet = set
+            w.dstBinding = 0
+            w.descriptorCount = 1
+            w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+            w.pImageInfo = a2.ptr(VkDescriptorImageInfo(sampler: try nearestSampler(), imageView: dv, imageLayout: VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL))
+            vkUpdateDescriptorSets(ctx.device, 1, &w, 0, nil)
+            t.swSet = set
+        }
         return t
     }
 
@@ -732,6 +755,24 @@ final class SceneRenderer {
             s.timed = true
         }
         return s
+    }
+
+    // P381 step 9: a nearest-filtering, clamped sampler (the space warp pass reads the depth with it).
+    private var nearest: VkSampler?
+    func nearestSampler() throws -> VkSampler {
+        if let n = nearest { return n }
+        var si = VkSamplerCreateInfo()
+        si.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO
+        si.magFilter = VK_FILTER_NEAREST
+        si.minFilter = VK_FILTER_NEAREST
+        si.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST
+        si.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+        si.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+        si.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+        var smp: VkSampler?
+        try vkCheck(vkCreateSampler(ctx.device, &si, nil, &smp), "vkCreateSampler(nearest)")
+        nearest = smp
+        return smp!
     }
 
     func beginPass(_ s: Slot, _ t: RenderTarget, clear: V3) {

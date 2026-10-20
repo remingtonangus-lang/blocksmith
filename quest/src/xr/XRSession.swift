@@ -65,6 +65,16 @@ final class XRSession {
     private(set) var foveated = false
     private var foveationProfile: XrFoveationProfileFB?
     private(set) var width = 0, height = 0
+    // P381 step 9 (XR_FB_space_warp): per frame a motion-vector image and a depth image at the runtime's recommended
+    // size go with each eye's projection view; the runtime then shows every other frame synthesised from the last one.
+    private(set) var spaceWarp = false
+    private(set) var mvWidth = 0, mvHeight = 0
+    private(set) var mvSwapchain: XrSwapchain?, swDepthSwapchain: XrSwapchain?
+    private(set) var mvImages: [VkImage] = [], swDepthImages: [VkImage] = []
+    private(set) var swDepthFormat = VK_FORMAT_D24_UNORM_S8_UINT
+    private(set) var mvIndex = -1, swDepthIndex = -1
+    var swNear: Float = 0.05, swFar: Float = 1000           // the projection's planes (depth 0 near, 1 far)
+    var appSpaceDelta = XrPosef(orientation: XrQuaternionf(x: 0, y: 0, z: 0, w: 1), position: XrVector3f(x: 0, y: 0, z: 0))
     private(set) var colorFormat = VK_FORMAT_R8G8B8A8_SRGB
     private(set) var exts = Set<String>()
     private(set) var state = XR_SESSION_STATE_UNKNOWN
@@ -134,6 +144,8 @@ final class XRSession {
                   "XR_FB_foveation_configuration", "XR_FB_swapchain_update_state", "XR_FB_foveation_vulkan", "XR_FB_color_space",
                   "XR_KHR_android_thread_settings"]
             where avail.contains(e) { want.append(e) }
+        // P381 step 9: Application SpaceWarp (an option, off by default; it applies at the next launch).
+        if QuestSettings.spaceWarp && avail.contains("XR_FB_space_warp") { want.append("XR_FB_space_warp") }
         exts = Set(want)
         let a = PtrArena()
         var ci = XrInstanceCreateInfo()
@@ -338,6 +350,69 @@ final class XRSession {
             applyFoveation(level: QuestSettings.foveation)
         }
         print("xr: swapchain \(width)x\(height) x2 layers, format \(f.rawValue), \(swapImages.count) images (recommended \(cv[0].recommendedImageRectWidth)x\(cv[0].recommendedImageRectHeight))")
+        if exts.contains("XR_FB_space_warp") {
+            do { try createSpaceWarp(formats: fmts) } catch { print("xr: space warp off: \(error)"); spaceWarp = false }
+        }
+        QuestSettings.spaceWarpActive = spaceWarp
+    }
+
+    // P381 step 9: the motion-vector (RGBA16F) and depth swapchains at the runtime's recommended size, two layers each.
+    private func createSpaceWarp(formats fmts: [Int64]) throws {
+        var swp = XrSystemSpaceWarpPropertiesFB()
+        swp.type = XR_TYPE_SYSTEM_SPACE_WARP_PROPERTIES_FB
+        var sp = XrSystemProperties()
+        sp.type = XR_TYPE_SYSTEM_PROPERTIES
+        try withUnsafeMutablePointer(to: &swp) { wp in
+            sp.next = UnsafeMutableRawPointer(wp)
+            try xrCheck(xrGetSystemProperties(instance, systemId, &sp), "xrGetSystemProperties(space warp)")
+        }
+        mvWidth = Int(swp.recommendedMotionVectorImageRectWidth); mvHeight = Int(swp.recommendedMotionVectorImageRectHeight)
+        guard mvWidth > 0 && mvHeight > 0 else { throw XrError(what: "no recommended motion vector size", code: -1) }
+        guard fmts.contains(Int64(VK_FORMAT_R16G16B16A16_SFLOAT.rawValue)) else { throw XrError(what: "no RGBA16F swapchain format", code: -1) }
+        guard let df = [VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D16_UNORM].first(where: { fmts.contains(Int64($0.rawValue)) }) else {
+            throw XrError(what: "no depth swapchain format", code: -1)
+        }
+        swDepthFormat = df
+        func make(_ format: VkFormat, _ usage: Int32) throws -> (XrSwapchain, [VkImage]) {
+            var ci = XrSwapchainCreateInfo()
+            ci.type = XR_TYPE_SWAPCHAIN_CREATE_INFO
+            ci.usageFlags = XrSwapchainUsageFlags(usage)
+            ci.format = Int64(format.rawValue)
+            ci.sampleCount = 1
+            ci.width = UInt32(mvWidth); ci.height = UInt32(mvHeight)
+            ci.faceCount = 1; ci.arraySize = 2; ci.mipCount = 1
+            var sc: XrSwapchain?
+            try xrCheck(xrCreateSwapchain(session, &ci, &sc), "xrCreateSwapchain(space warp \(format.rawValue))")
+            var n: UInt32 = 0
+            try xrCheck(xrEnumerateSwapchainImages(sc, 0, &n, nil), "xrEnumerateSwapchainImages")
+            var imgs = [XrSwapchainImageVulkanKHR](repeating: XrSwapchainImageVulkanKHR(type: XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR, next: nil, image: nil), count: Int(n))
+            try imgs.withUnsafeMutableBufferPointer { p in
+                try xrCheck(xrEnumerateSwapchainImages(sc, n, &n, UnsafeMutableRawPointer(p.baseAddress!).assumingMemoryBound(to: XrSwapchainImageBaseHeader.self)),
+                            "xrEnumerateSwapchainImages")
+            }
+            return (sc!, imgs.compactMap { $0.image })
+        }
+        (mvSwapchain, mvImages) = try make(VK_FORMAT_R16G16B16A16_SFLOAT, Int32(XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT))
+        (swDepthSwapchain, swDepthImages) = try make(df, Int32(XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))
+        spaceWarp = true
+        print("xr: space warp on, motion vectors and depth \(mvWidth)x\(mvHeight) x2, depth format \(df.rawValue)")
+    }
+
+    private func acquire(_ sc: XrSwapchain?) throws -> Int {
+        var ai = XrSwapchainImageAcquireInfo()
+        ai.type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO
+        var idx: UInt32 = 0
+        try xrCheck(xrAcquireSwapchainImage(sc, &ai, &idx), "xrAcquireSwapchainImage")
+        var wi = XrSwapchainImageWaitInfo()
+        wi.type = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO
+        wi.timeout = XrDuration(Int64.max)
+        try xrCheck(xrWaitSwapchainImage(sc, &wi), "xrWaitSwapchainImage")
+        return Int(idx)
+    }
+    private func release(_ sc: XrSwapchain?) throws {
+        var ri = XrSwapchainImageReleaseInfo()
+        ri.type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO
+        try xrCheck(xrReleaseSwapchainImage(sc, &ri), "xrReleaseSwapchainImage")
     }
 
     // Sets the fixed foveation level (1 low ... 3 high) on the swapchain.
@@ -688,6 +763,7 @@ final class XRSession {
             wi2.timeout = XrDuration(Int64.max)
             try xrCheck(xrWaitSwapchainImage(swapchain, &wi2), "xrWaitSwapchainImage")
             f.imageIndex = Int(idx)
+            if spaceWarp { mvIndex = try acquire(mvSwapchain); swDepthIndex = try acquire(swDepthSwapchain) }
         }
         return f
     }
@@ -700,6 +776,7 @@ final class XRSession {
             var ri = XrSwapchainImageReleaseInfo()
             ri.type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO
             try xrCheck(xrReleaseSwapchainImage(swapchain, &ri), "xrReleaseSwapchainImage")
+            if spaceWarp && mvIndex >= 0 { try release(mvSwapchain); try release(swDepthSwapchain); mvIndex = -1; swDepthIndex = -1 }
             var pv = [XrCompositionLayerProjectionView](repeating: XrCompositionLayerProjectionView(), count: 2)
             for i in 0..<2 {
                 pv[i].type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW
@@ -708,6 +785,23 @@ final class XRSession {
                 pv[i].subImage.swapchain = swapchain
                 pv[i].subImage.imageRect = XrRect2Di(offset: XrOffset2Di(x: 0, y: 0), extent: XrExtent2Di(width: Int32(width), height: Int32(height)))
                 pv[i].subImage.imageArrayIndex = UInt32(i)
+                if spaceWarp {
+                    // P381 step 9: this eye's motion vectors and depth (QuestApp records them after the frame).
+                    var sw = XrCompositionLayerSpaceWarpInfoFB()
+                    sw.type = XR_TYPE_COMPOSITION_LAYER_SPACE_WARP_INFO_FB
+                    sw.layerFlags = 0
+                    let rect = XrRect2Di(offset: XrOffset2Di(x: 0, y: 0), extent: XrExtent2Di(width: Int32(mvWidth), height: Int32(mvHeight)))
+                    sw.motionVectorSubImage.swapchain = mvSwapchain
+                    sw.motionVectorSubImage.imageRect = rect
+                    sw.motionVectorSubImage.imageArrayIndex = UInt32(i)
+                    sw.depthSubImage.swapchain = swDepthSwapchain
+                    sw.depthSubImage.imageRect = rect
+                    sw.depthSubImage.imageArrayIndex = UInt32(i)
+                    sw.appSpaceDeltaPose = appSpaceDelta
+                    sw.minDepth = 0; sw.maxDepth = 1
+                    sw.nearZ = swNear; sw.farZ = swFar
+                    pv[i].next = UnsafeRawPointer(a.ptr(sw))
+                }
             }
             var layer = XrCompositionLayerProjection()
             layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION
