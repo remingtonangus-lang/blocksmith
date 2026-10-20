@@ -466,6 +466,16 @@ if let out = arg("--view"), let ctx = vkctx {
         vg.player.pos = V3(Float(bx) + 0.5 + (Float(arg("--dx") ?? "") ?? 0), Float(by + 1), Float(bz - 7) + dist); vg.player.vel = .zero
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     }
+    // --scene groundthings (P382): copper wire and the other things that lie on the ground laid on the field's ground in
+    // front of the eye (GroundDrapeTests.swift); --groundcheck prints how far each is off the drawn ground.
+    if arg("--scene") == "groundthings" {
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        let things = GroundDrape.placeScene(vg, yaw: yaw)
+        print("view: \(things.count) things laid on the ground")
+        let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z)), py = Int(floor(vg.player.pos.y))
+        vw.remeshArea(x0: px - 16, z0: pz - 16, x1: px + 16, z1: pz + 16, y0: py - 48, y1: py + 8)
+        if CommandLine.arguments.contains("--groundcheck") { print(GroundDrape.check(vw, things)) }
+    }
     // --scene fire (P373 a): fire on netherrack and grass, a campfire and a soul fire on a lawn, seen from --dist (6).
     if arg("--scene") == "fire" {
         let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
