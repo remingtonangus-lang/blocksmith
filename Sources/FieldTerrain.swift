@@ -280,6 +280,7 @@ enum FieldTerrain {
                 fd[i] = q(d)
             } } }
         }
+        FieldTerrain.holdPools(&b, &fd, &fm, cx: cx, cz: cz)   // P378 step 2: the drawn ground holds each pool
         if statsOn { statsLock.lock(); for k in 0..<3 { stats[k] += st[k] }; statsLock.unlock() }
         var out = FieldData(fd: fd, fm: fm)
         FieldTerrain.dropFloaters(&out)                     // P351 step 3: no small floating ground

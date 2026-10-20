@@ -1689,6 +1689,20 @@ final class World {
         return shallowGround(x, y, z) ? AIR : STONE
     }
 
+    // The drawn ground's top under cell (x, y, z): where the field crosses zero in the cell's middle column, searched
+    // from a block over it to a block under it in eighths; y - 1 when there is none that near. (`--cellflow`: the
+    // harness's before for P378 step 4, the flow without the drawn slope.)
+    static let drawnFlow = !CommandLine.arguments.contains("--cellflow")
+    func drawnFloor(_ x: Int, _ y: Int, _ z: Int) -> Float {
+        let px = Float(x) + 0.5, pz = Float(z) + 0.5
+        var t = Float(y) + 1
+        while t > Float(y) - 1 {
+            if fieldDensity(at: V3(px, t, pz)) > 0 { return t }
+            t -= 0.125
+        }
+        return Float(y) - 1
+    }
+
     private func dropDistance(from q: IVec3, origin: IVec3, reach: Int, kind: UInt8) -> Int {
         func passable(_ c: IVec3) -> Bool {
             let id = fluidCell(c.x, c.y, c.z)
@@ -1858,6 +1872,16 @@ final class World {
                 }
                 let best = dist.min() ?? Int.max
                 for i in 0..<4 where dist[i] != best { openMask &= ~(1 << i) }
+            }
+            // P378 step 4: in a field world the flow also follows the drawn ground's slope: of the sides left, only those
+            // whose drawn floor lies lowest (within a tenth of a block) take it, so it runs down a bank or a gentle
+            // slope the cells can't see (each cell's floor is where the field crosses zero under it).
+            if fieldTerrain && World.drawnFlow && openMask.nonzeroBitCount > 1 {
+                var fl = [Float](repeating: .infinity, count: 4), lo = Float.infinity
+                for (i, d) in World.sideDirs.enumerated() where openMask & (1 << i) != 0 {
+                    fl[i] = drawnFloor(p.x + d.x, p.y, p.z + d.z); lo = min(lo, fl[i])
+                }
+                for i in 0..<4 where fl[i] > lo + 0.1 { openMask &= ~(1 << i) }
             }
             for (i, d) in World.sideDirs.enumerated() where openMask & (1 << i) != 0 {
                 setFluid(IVec3(p.x + d.x, p.y, p.z + d.z), flow[next])
