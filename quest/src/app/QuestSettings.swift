@@ -113,6 +113,10 @@ enum QuestSettings {
     static var menuScale: Float { get { float("quest.menuScale", 1) } set { store(newValue, "quest.menuScale") } }
     static var hudScale: Float { get { float("quest.hudScale", 1) } set { store(newValue, "quest.hudScale") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { store(newValue, "quest.foveation") } }
+    // P381 step 9: Application SpaceWarp (the game draws 36 frames a second, the headset makes every other one; off by
+    // default, applies at the next launch). spaceWarpActive: whether this launch has it (XRSession).
+    static var spaceWarp: Bool { get { bool("quest.spaceWarp", false) } set { store(newValue, "quest.spaceWarp") } }
+    static var spaceWarpActive = false
     // Texture pixels per face: 128 by default, the imported art's own resolution (tools/texpack.py packs it at 128).
     // 64 was the default for a day and halved the art's detail: "everything's blurry, too compressed" (playtest
     // Oct 10, docs/status/texture-sharpness.md). The 64 that default left in saved settings moves to 128 once
@@ -140,7 +144,7 @@ extension QuestSettings {
          ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.buttonReload", buttonReload), ("quest.swingBeforeReclined", swingBeforeReclined),
          ("quest.leftHanded", leftHanded), ("quest.controlPreset", controlPreset), ("quest.standHeight", standHeight), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
          ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.hudDrop", hudDrop), ("quest.menuScale", menuScale), ("quest.hudScale", hudScale), ("quest.knockback", knockback), ("quest.mineToggle", mineToggle), ("quest.ctrlHints", ctrlHints),
-         ("quest.foveation", foveation), ("quest.textureRes", textureRes)]
+         ("quest.foveation", foveation), ("quest.spaceWarp", spaceWarp), ("quest.textureRes", textureRes)]
     }
     // The headset's own defaults for shared options: the TV-style HUD scale (bigger text), since the panel is read at
     // arm's length, unless the player picked one.

@@ -13,6 +13,9 @@ final class QuestApp {
     let device: QuestDevice
     let scene: SceneRenderer
     private var targets: [RenderTarget] = []
+    private var spaceWarpPass: SpaceWarpPass?         // P381 step 9
+    private var lastAppToWorld: (rotation: simd_quatf, translation: V3)?
+    private var lastDisplayTime: XrTime = 0
     private(set) var game: Game?
     private var worldRenderer: WorldRenderer?
     private var save: SaveManager?
@@ -44,7 +47,11 @@ final class QuestApp {
         sharedSystemDevice = device
         xr.resolutionScale = QuestSettings.resolutionScale
         try xr.createSwapchain()
-        scene = try SceneRenderer(ctx: xr.vk, device: device, views: 2, colorFormat: xr.colorFormat, foveated: xr.foveated)
+        scene = try SceneRenderer(ctx: xr.vk, device: device, views: 2, colorFormat: xr.colorFormat, foveated: xr.foveated, spaceWarp: xr.spaceWarp)
+        if xr.spaceWarp {
+            spaceWarpPass = try SpaceWarpPass(scene: scene, mvImages: xr.mvImages, depthImages: xr.swDepthImages,
+                                              width: xr.mvWidth, height: xr.mvHeight, depthFormat: xr.swDepthFormat)
+        }
         scene.linearOutput = SceneRenderer.isSRGB(xr.colorFormat)
         for (i, img) in xr.swapImages.enumerated() {
             let dm = xr.foveated && i < xr.densityMaps.count ? xr.densityMaps[i] : nil
@@ -368,7 +375,11 @@ final class QuestApp {
         var tickMs = 0.0, recordMs = 0.0
         if game == nil, f.shouldRender { rig.updateLoading(xr: xr) }
         if let g = game {
-            let dt = min(0.1, max(1.0 / 120, f.period > 0 ? f.period : 1.0 / 72))
+            // (P381 step 9: with space warp the game draws every other displayed frame, so its step is the time
+            // between the frames it draws, not the display's period.)
+            let step = xr.spaceWarp && lastDisplayTime > 0 && f.displayTime > lastDisplayTime
+                ? Double(f.displayTime - lastDisplayTime) * 1e-9 : (f.period > 0 ? f.period : 1.0 / 72)
+            let dt = min(0.1, max(1.0 / 120, step))
             // Ship physics steps once per displayed frame (60 Hz substeps at 72 Hz left one frame in six without a
             // step: the deck and the player riding it juddered against the world).
             let rate = Float(1 / dt)
@@ -425,6 +436,19 @@ final class QuestApp {
                 recordLoading(s, target, cam)
             }
             vkCmdEndRenderPass(s.cmd)
+            if let sw = spaceWarpPass {
+                // P381 step 9: this frame's depth and motion vectors for the runtime, and how far the tracking space
+                // moved through the world since the last drawn frame (walking, turning, riding), in its own terms.
+                sw.record(s, target, mvIndex: xr.mvIndex, depthIndex: xr.swDepthIndex)
+                xr.swFar = cam.far > 0 ? cam.far : farPlane
+                let now = rig.appToWorld
+                if let was = lastAppToWorld {
+                    let q = was.rotation.inverse * now.rotation, p = was.rotation.inverse.act(now.translation - was.translation)
+                    xr.appSpaceDelta = XrPosef(orientation: XrQuaternionf(x: q.imag.x, y: q.imag.y, z: q.imag.z, w: q.real),
+                                               position: XrVector3f(x: p.x, y: p.y, z: p.z))
+                }
+                lastAppToWorld = now
+            }
             // Bug-note screenshot (if one is pending): left eye, HUD panel included, blitted small before release.
             QuestScreenshot.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: xr.width, height: xr.height)
             QuestVideo.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: xr.width, height: xr.height)
@@ -432,6 +456,7 @@ final class QuestApp {
             recordMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
         }
         do { try xr.endFrame(f) } catch { print("xr end frame: \(error)") }
+        if f.shouldRender { lastDisplayTime = f.displayTime }
         let now = CFAbsoluteTimeGetCurrent()
         if firstWorldFrames > 0 && game != nil {
             firstWorldFrames -= 1

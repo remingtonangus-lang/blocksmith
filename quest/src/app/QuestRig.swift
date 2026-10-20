@@ -51,6 +51,10 @@ final class QuestRig {
     private var fullRot: simd_quatf { yawRot * tilt }
     func toWorld(_ p: V3) -> V3 { feet + V3(0, QuestRig.eyeHeight, 0) + fullRot.act(V3(p.x - anchor.x, p.y - pivotY, p.z - anchor.z)) }
     func toWorldDir(_ d: V3) -> V3 { fullRot.act(d) }
+    // P381 step 9: the tracking space's place in the world (toWorld(p) = rotation.act(p) + translation).
+    var appToWorld: (rotation: simd_quatf, translation: V3) {
+        (fullRot, feet + V3(0, QuestRig.eyeHeight, 0) - fullRot.act(V3(anchor.x, pivotY, anchor.z)))
+    }
     func toWorldRot(_ q: simd_quatf) -> simd_quatf { fullRot * q }
     // Level space: tracking space turned by the reclined tilt (identity upright), about the recentre's pivot height.
     // Panels (HUD, menus) are placed here, so lying down they sit in front of the levelled gaze, not in the room's
