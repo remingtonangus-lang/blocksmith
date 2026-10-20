@@ -842,6 +842,11 @@ game.time = 0.25 * DAY_LENGTH
 let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
+// --settletest: P380 ground and object physics in field worlds (Sources/GroundSettleTests.swift).
+if CommandLine.arguments.contains("--settletest") {
+    GroundSettleTests.run(game, check: check)
+    print(failures == 0 ? "settle: all checks passed" : "settle: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
     if !CommandLine.arguments.contains("--railride") { RailwayTests.run(game, check: check) }

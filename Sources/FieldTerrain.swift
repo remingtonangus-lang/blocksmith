@@ -16,6 +16,7 @@ struct FieldData {
     var fd: [Int8]
     var fm: [UInt8]
     var fine: [Int: [Int8]] = [:]          // P377 step 1: edited sections' two samples per block (BlockStore.fine)
+    var borderSeeds: [Int] = []            // P380 (2): a cell of each small piece that reached the chunk's side
 }
 
 // The materials the ground can be made of: every natural ground and rock state (ShapeClass .terrain), index 0 = none.

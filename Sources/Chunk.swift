@@ -324,6 +324,7 @@ final class Chunk {
     private(set) static var alive = 0
     deinit { Chunk.aliveLock.lock(); Chunk.alive -= 1; Chunk.aliveLock.unlock() }
 
+    var borderSeeds: [Int] = []                      // P380 (2): small pieces at the side, checked once the neighbours exist
     init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32], field: FieldData? = nil) {
         Chunk.aliveLock.lock(); Chunk.alive += 1; Chunk.aliveLock.unlock()
         self.cx = cx
