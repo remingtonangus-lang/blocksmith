@@ -242,6 +242,86 @@ if let out = arg("--view"), let ctx = vkctx {
             print("probe: nearest shipwreck anchor \(st.anchor)")
         }
     }
+    // --fluidprobe R (P378 step 2): every water and lava cell within R blocks of the eye: its state, the ground's density
+    // in it, under it and beside it (1/32 block, > 0 inside), what is built under and beside it, the block light over it
+    // and the brightest in the open cells round it; then the pools taken out and rims raised as the chunks were made.
+    // --fluidticks N (P378): N water ticks (and a lava tick every sixth) before the frame, the way the game runs them
+    // round the player, so a view shows fluids as they settle in play rather than as generated.
+    if let n = Int(arg("--fluidticks") ?? "") {
+        vw.activeCenter = vg.player.pos                                     // (the fluids round the player run: FarTicks)
+        for k in 0..<n { vw.fluidTick(); if k % 6 == 5 { vw.fluidTick(lava: true) } }
+        let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z)), rr = vw.renderDistance * CS
+        vw.remeshArea(x0: px - rr, z0: pz - rr, x1: px + rr, z1: pz + rr, y0: 0, y1: CH - 1)
+        print("fluidticks: \(n) water ticks, \(n / 6) lava ticks")
+    }
+    // --fluidslope N (P378 step 4): N water sources set on open sloping ground round the eye (a cell whose four sides'
+    // drawn floors differ by 0.2 to 1 block), 40 water ticks each; where the spread went against the drawn ground (the
+    // mean height of the floors it reached against the source's, and the share on higher floors).
+    if let want = Int(arg("--fluidslope") ?? "") {
+        vw.activeCenter = vg.player.pos
+        let ex = Int(floor(vg.player.pos.x)), ez = Int(floor(vg.player.pos.z))
+        var srcs = 0, cells = 0, up = 0, sum: Float = 0, level = 0, levelUp = 0, levelSum: Float = 0
+        func open(_ x: Int, _ y: Int, _ z: Int) -> Bool { vw.fluidCell(x, y, z) == AIR && vw.builtBlock(x, y, z) == AIR }
+        search: for r in stride(from: 4, through: 64, by: 4) { for dz in stride(from: -r, through: r, by: 4) { for dx in stride(from: -r, through: r, by: 4) where max(abs(dx), abs(dz)) == r {
+            let x = ex + dx, z = ez + dz
+            guard vw.isLoaded(x - 8, z - 8) && vw.isLoaded(x + 8, z + 8) else { continue }
+            var y = CH - 2
+            while y > 2 && open(x, y, z) { y -= 1 }
+            y += 1
+            guard y > SEA - 4, open(x, y, z) else { continue }
+            var dry = true
+            for qz in (z - 8)...(z + 8) { for qx in (x - 8)...(x + 8) { for qy in (y - 4)...(y + 2) where Blocks.fluidKind[Int(vw.builtBlock(qx, qy, qz))] != 0 { dry = false } } }
+            guard dry else { continue }
+            let f0 = vw.drawnFloor(x, y, z)
+            guard f0 > Float(y) - 1 else { continue }
+            var lo = Float.infinity, hi = -Float.infinity
+            for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] { guard open(x + d.x, y, z + d.z) else { continue search }; let f = vw.drawnFloor(x + d.x, y, z + d.z); lo = min(lo, f); hi = max(hi, f) }
+            guard hi - lo >= 0.2 && hi - lo <= 1 else { continue }
+            vw.setBlock(x, y, z, WATER)
+            for _ in 0..<40 { vw.fluidTick() }
+            var wet: [IVec3] = []
+            for qz in (z - 8)...(z + 8) { for qx in (x - 8)...(x + 8) { for qy in (y - 6)...(y + 1) where Blocks.fluidKind[Int(vw.builtBlock(qx, qy, qz))] == 1 {
+                wet.append(IVec3(qx, qy, qz))
+                guard qx != x || qy != y || qz != z else { continue }
+                let f = vw.drawnFloor(qx, qy, qz)
+                cells += 1; sum += f - f0; if f > f0 + 0.1 { up += 1 }
+                if qy == y { level += 1; levelSum += f - f0; if f > f0 + 0.1 { levelUp += 1 } }   // (spread at its own height)
+            } } }
+            for c in wet { vw.setBlock(c.x, c.y, c.z, AIR) }
+            for _ in 0..<12 { vw.fluidTick() }
+            srcs += 1
+            if srcs >= want { break search }
+        } } }
+        let mean = cells > 0 ? sum / Float(cells) : 0, share = cells > 0 ? Float(up) / Float(cells) : 0
+        let levelMean = level > 0 ? levelSum / Float(level) : 0, levelShare = level > 0 ? Float(levelUp) / Float(level) : 0
+        print("fluidslope: " + (srcs > 0 && mean < -0.1 && share < 0.25 && levelShare < 0.1 ? "ok" : "FAIL") + String(format: " %d sources on sloping ground, %d cells reached, their floors %.2f blocks against the source's on average, %.0f%% on higher ground",
+                     srcs, cells, mean, share * 100))
+        print(String(format: "fluidslope: at the source's own height %d cells, their floors %.2f blocks against the source's, %.0f%% on higher ground", level, levelMean, levelShare * 100))
+    }
+    if let r = Int(arg("--fluidprobe") ?? "") {
+        let e = vg.player.pos
+        let ex = Int(floor(e.x)), ey = Int(floor(e.y)), ez = Int(floor(e.z))
+        var n = 0
+        func side(_ x: Int, _ y: Int, _ z: Int) -> String { let b = vw.builtBlock(x, y, z); return b == AIR ? "." : Blocks.key(b) }
+        func dens(_ x: Int, _ y: Int, _ z: Int) -> Int { vw.chunkAt(x, z).map { Int($0.blocks.density(Chunk.index(mod(x, CS), y, mod(z, CS)))) } ?? -99 }
+        // (the brightest block light in the open cells round it, two out: what lights the ground beside it)
+        func near(_ x: Int, _ y: Int, _ z: Int) -> Int {
+            var m = 0
+            for dy in -2...2 { for dz in -2...2 { for dx in -2...2 where vw.builtBlock(x + dx, y + dy, z + dz) == AIR && dens(x + dx, y + dy, z + dz) <= 0 {
+                m = max(m, Int(vw.lightAt(x + dx, y + dy, z + dz).block)) } } }
+            return m
+        }
+        for y in max(1, ey - r)...min(CH - 2, ey + r) { for z in (ez - r)...(ez + r) { for x in (ex - r)...(ex + r) {
+            let b = vw.builtBlock(x, y, z)
+            guard Blocks.fluidKind[Int(b)] != 0 else { continue }
+            n += 1
+            if n <= 300 {
+                print("fluidprobe: \(x) \(y) \(z) \(Blocks.key(b)) level \(Blocks.fluidLevel[Int(b)]) density \(dens(x, y, z)) under \(dens(x, y - 1, z)) \(Blocks.key(vw.builtBlock(x, y - 1, z))) sides \(dens(x + 1, y, z)) \(dens(x - 1, y, z)) \(dens(x, y, z + 1)) \(dens(x, y, z - 1)) [\(side(x + 1, y, z)) \(side(x - 1, y, z)) \(side(x, y, z + 1)) \(side(x, y, z - 1))] light own \(vw.lightAt(x, y, z).block) above \(vw.lightAt(x, y + 1, z).block) beside \(near(x, y, z)) (emit bits \(vw.chunkAt(x, z).map { String($0.blocks.emitMask >> UInt32(max(0, (y >> 4) - 1)) & 7, radix: 2) } ?? "-"))")
+            }
+        } } }
+        for l in (FieldTerrain.poolLog ?? []) { print("poollog: " + l) }
+        print("fluidprobe: \(n) fluid cells; \(FieldTerrain.perchedDropped) perched cells taken out and \(FieldTerrain.rimsRaised) rim cells raised as the chunks were made")
+    }
     // --finedig N (P377 step 1): N cells dug in a row ahead the way the game digs (the cell, then a ball where the blow
     // landed, off the cell's middle), then the frame; ground quads in the 3 x 3 chunks round the player, fine sections
     // and their memory, and a save round trip of a fine chunk's field file. BS_FINE=0: the cells-only before.

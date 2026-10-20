@@ -202,12 +202,20 @@ static float vnoise(float2 p) {
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
-// Lava: slow drifting hot spots over the flowing texture (both graphics modes; a few ALU ops).
+// P378 (a): lava's own look (the Quest's common.glsl lavaGlow): a dark cooling crust in slow drifting plates over
+// glowing molten rock, the cracks hottest at their middles; world-space, so it runs on across quads.
 static float3 lavaGlow(float3 c, float3 rel, constant Uniforms& u) {
-    float2 w = (rel + u.eye.xyz).xz;
+    float3 p = rel + u.eye.xyz;
+    float2 w = p.xz + p.y * float2(0.6, 0.8);
     float t = u.params.z;
-    float n = vnoise(w * 0.45 + float2(t * 0.11, t * 0.07)) * 0.65 + vnoise(w * 1.3 - float2(t * 0.05, t * 0.13)) * 0.35;
-    return c * (0.78 + 0.5 * n) + float3(0.12, 0.05, 0.0) * smoothstep(0.62, 0.9, n);
+    float2 q = w * 0.32 + float2(t * 0.018, t * 0.011);
+    float n = vnoise(q) * 0.62 + vnoise(q * 2.6 + float2(-t * 0.027, t * 0.016)) * 0.28 + vnoise(w * 5.0 + t * 0.04) * 0.10;
+    float crust = smoothstep(0.50, 0.60, n);
+    float3 molten = mix(float3(1.0, 0.40, 0.05), float3(1.0, 0.86, 0.38), smoothstep(0.42, 0.20, n));
+    float grain = 0.7 + 0.6 * vnoise(w * 3.3);
+    float3 rock = float3(0.17, 0.075, 0.05) * grain;
+    float3 col = mix(molten, rock, crust) + float3(0.32, 0.08, 0.0) * crust * smoothstep(0.66, 0.56, n);
+    return col * (0.85 + 0.3 * dot(c, float3(0.333)));
 }
 
 fragment float4 chunkSolidFS(ChunkOut in [[stage_in]],

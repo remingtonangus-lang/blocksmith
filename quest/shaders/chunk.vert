@@ -114,6 +114,7 @@ void main() {
     float fs = faceShade[face];
     if (smoothV) { nrm = smoothNormal(face, vv + 31u * ((w1 >> 30) & 1u)); fs = smoothShade(nrm); }
     oShade = lit * sunShadeN(nrm, fs, sw, u.sunDir.xyz) * ((water || sway) ? 1.0 : aoCurve[ao]);
+    if (face == 7u) { oShade = vec3(1.0); }       // P378 (a): lava is its own light (molten glow, crust by the pattern)
     oLW = vec4(0.0);
     if (smoothV) { oLW[uint(gl_VertexIndex) & 3u] = 1.0; }
     oLayers = oLW * float(layer);

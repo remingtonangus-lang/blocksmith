@@ -215,8 +215,44 @@ enum Mesher {
         }
     }
 
+    // P378 (a): block light in a field world also crosses ground cells whose drawn surface lies inside them (the cell's
+    // middle less than half a block into the ground): lava in a pool the field rounds lights the ground round it and
+    // the air over it, not only its own cells. Skylight keeps to whole cells.
+    static func floodThin(_ L: UnsafeMutablePointer<UInt8>, _ q: GrowBuf<Int32>, _ R: UnsafeMutablePointer<BlockID>, _ lo: [Bool],
+                          _ dens: UnsafeMutablePointer<Int8>) {
+        let natT = SmoothTerrain.natural
+        var head = 0
+        while head < q.count {
+            let i = Int(q.ptr[head])
+            head += 1
+            let l = L[i]
+            if l <= 1 { continue }
+            let nl = l - 1
+            let y = i / RL
+            let rem = i - y * RL
+            let z = rem / RW
+            let x = rem - z * RW
+            for d in 0..<6 {
+                let j: Int
+                switch d {
+                case 0: if x == RW - 1 { continue }; j = i + 1
+                case 1: if x == 0 { continue }; j = i - 1
+                case 2: if y == RH - 1 { continue }; j = i + RL
+                case 3: if y == 0 { continue }; j = i - RL
+                case 4: if z == RW - 1 { continue }; j = i + RW
+                default: if z == 0 { continue }; j = i - RW
+                }
+                if L[j] >= nl { continue }
+                if lo[Int(R[j])] && !(natT[Int(R[j])] && dens[j] > 0 && dens[j] <= 16) { continue }
+                L[j] = nl
+                q.append(Int32(j))
+            }
+        }
+    }
+
     // Fills sc.sky / sc.blk for the region.
-    static func computeLight(_ R: UnsafeMutablePointer<BlockID>, _ heights: UnsafeMutablePointer<Int>, y0: Int, _ sc: MeshScratch, emitters: Bool = true) {
+    static func computeLight(_ R: UnsafeMutablePointer<BlockID>, _ heights: UnsafeMutablePointer<Int>, y0: Int, _ sc: MeshScratch, emitters: Bool = true,
+                             field: Bool = false) {
         let lo = Blocks.lightOpaque, emitT = Blocks.emit
         let sky = sc.sky, blk = sc.blk
         sky.initialize(repeating: 0, count: RL * RH)
@@ -259,7 +295,7 @@ enum Mesher {
             let e = emitT[Int(R[i])]
             if e > 0 { blk[i] = e; q.append(Int32(i)) }
         }
-        if q.count > 0 { flood(blk, q, R, lo) }
+        if q.count > 0 { if field { floodThin(blk, q, R, lo, sc.dens) } else { flood(blk, q, R, lo) } }
     }
 
     // MARK: Build
@@ -424,7 +460,7 @@ enum Mesher {
         // The region spans sections sy-1...sy+1 of the nine chunks.
         let near: UInt32 = sy == 0 ? 0b11 : (0b111 << UInt32(sy - 1))
         let emitters = n9.contains { $0.emitMask & near != 0 }
-        computeLight(R, heights, y0: y0, sc, emitters: emitters)
+        computeLight(R, heights, y0: y0, sc, emitters: emitters, field: fieldOn)
         let skyL = sc.sky, blkL = sc.blk
 
         let lightOut = [UInt8](unsafeUninitializedCapacity: 4096) { out, n in
@@ -784,16 +820,17 @@ enum Mesher {
         // reaches into) the level of the fluid round it (5 x 5 cells, a layer up and down), so the surface runs on as
         // the flat level through the bank and under the ground's surface and meets the ground wherever the ground
         // crosses the level (a beach takes the water up to the waterline, a pool's edge is the ground's own curve);
-        // open air beside it with no ground holds it back (a wall at the edge of a drop, rounded). The surface is
+        // open air beside it with no ground ends it in a front sloping down off its top (P378: no cell-high walls). The surface is
         // the field's zero crossing (surface nets: a vertex per cell at the mean of its edge crossings, normals from
-        // the field), quads wholly inside the ground left out. Far sections keep the merged cell water.
-        let fluidNets = fieldOn && !far && Mesher.fluidNets
+        // the field), quads wholly inside the ground left out. Far sections too (P378 step 3: identical far).
+        let fluidNets = fieldOn && Mesher.fluidNets            // (every distance: P378 step 3)
         if fluidNets {
             for kind in [UInt8(1), UInt8(2)] {
                 var any = false
                 outer: for y in (C0 - 2)..<(C0 + 20) { for z in (C0 - 2)..<(C0 + 20) { for x in (C0 - 2)..<(C0 + 20) where fkT[Int(R[x + z * RW + y * RL])] == kind { any = true; break outer } } }
                 if !any { continue }
                 let N = 18, NN = N * N, M = 17, MM = M * M
+                let taper: Float = kind == 2 ? 0.45 : 0.8           // (height lost a block out from the fluid's edge)
                 func top(_ j: Int) -> Float {
                     if fkT[Int(R[j + RL])] == kind { return 1 }
                     let lv = Int(levelT[Int(R[j])])
@@ -810,14 +847,27 @@ enum Mesher {
                         if fk == kind {
                             f = fkT[Int(R[i + RL])] == kind ? 1 : top(i) - 0.5
                         } else if fk == 0 {
-                            var L: Float = -9
+                            var L: Float = -9, Lt: Float = -9
                             for dy in -1...1 { for dz in -2...2 { for dx in -2...2 {
                                 let j = i + dx + dz * RW + dy * RL
-                                if fkT[Int(R[j])] == kind { L = max(L, Float(dy) + top(j)) }
+                                if fkT[Int(R[j])] == kind {
+                                    L = max(L, Float(dy) + top(j))
+                                    if dy <= 0 { Lt = max(Lt, Float(dy) + top(j) - taper * Mesher.planeDist[(dx + 2) + (dz + 2) * 5]) }
+                                }
                             } } }
                             if L > -9 {
-                                f = L - 0.5
-                                if !(collideT[b] || dens[i] > -32) { f = min(f, -0.5) }      // open air, no ground: held back
+                                // The level runs on flat only where the ground here reaches it (the drawn top in this
+                                // cell: half a cell plus its density, or all of it with ground over it), so the
+                                // surface goes under the bank. Ground lower than the level, or open air: P378 (a) the
+                                // edge is a rounded front sloping off the fluid's top (lava's thick and slow, water's
+                                // thin), never a cell-high wall, and never a sheet standing out over a drop (15:38).
+                                // Inside ground the level is kept a quarter block inside the ground's own surface
+                                // (density - 8): where the ground is thin (a wall a cell thick) the level running
+                                // on through it came out on the far side as a sheet of water on the wall (15:38).
+                                let gTop: Float = dens[i + RL] > 0 ? 1.5 : 0.5 + Float(dens[i]) / 32
+                                if collideT[b] { f = L - 0.5 }
+                                else if gTop >= L - 0.05 { f = min(L - 0.5, (Float(dens[i]) - 8) / 32) }
+                                else { f = max(-1, Lt - 0.5) }
                             }
                         }
                         F[sx + sz * N + sy * NN] = max(-1, min(1, f))
@@ -895,7 +945,7 @@ enum Mesher {
                                     vert(true, x16, y16, z16, face, 3, u16, v16, layer, ao, sky | blk << 4, false)
                                 } else {
                                     curCut = false
-                                    vert(trans, x16, y16, z16, face == 2 ? 7 : face, 0, u16, v16, layer, 3, sky | blk << 4, false)
+                                    vert(trans, x16, y16, z16, 7, 0, u16, v16, layer, 3, sky | blk << 4, false)     // (P378: every face glows)
                                 }
                             }
                         } } }
@@ -1626,6 +1676,10 @@ enum Mesher {
     // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround); BS_FARGROUND=0 meshes it in full.
     static var farGround = ProcessInfo.processInfo.environment["BS_FARGROUND"] != "0"
     // P338 step 5: field worlds draw water and lava near the eye as their own field's surface (BS_FLUIDNETS=0: the cells).
+    static let planeDist: [Float] = (0..<25).map { (k: Int) -> Float in
+        let dx: Int = k % 5 - 2, dz: Int = k / 5 - 2
+        return Float(dx * dx + dz * dz).squareRoot()
+    }
     static var fluidNets = ProcessInfo.processInfo.environment["BS_FLUIDNETS"] != "0"
     // The twelve edges of a cell's corner cube (corner k: x = k & 1, y = (k >> 1) & 1, z = (k >> 2) & 1).
     static let cubeEdges: [(Int, Int)] = [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7)]

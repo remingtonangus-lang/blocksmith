@@ -160,11 +160,21 @@ vec3 waterAmbient(vec3 lit, vec3 albedo) {
     return u.params.w > 0.5 ? max(lit, albedo * u.fogColor.rgb * 2.2) : lit;
 }
 
+// P378 (a): lava's own look. A dark cooling crust in drifting plates over glowing molten rock: the plates move a
+// few centimetres a second (viscous), the cracks between them glow hottest at their middles and rim the crust
+// orange, and the texture only shades the grain. World-space, so the pattern runs on across quads with no cell steps.
 vec3 lavaGlow(vec3 c, vec3 rel) {
-    vec2 w = (rel + u.eye.xyz).xz;
+    vec3 p = rel + u.eye.xyz;
+    vec2 w = p.xz + p.y * vec2(0.6, 0.8);
     float t = u.params.z;
-    float n = vnoise(w * 0.45 + vec2(t * 0.11, t * 0.07)) * 0.65 + vnoise(w * 1.3 - vec2(t * 0.05, t * 0.13)) * 0.35;
-    return c * (0.78 + 0.5 * n) + vec3(0.12, 0.05, 0.0) * smoothstep(0.62, 0.9, n);
+    vec2 q = w * 0.32 + vec2(t * 0.018, t * 0.011);
+    float n = vnoise(q) * 0.62 + vnoise(q * 2.6 + vec2(-t * 0.027, t * 0.016)) * 0.28 + vnoise(w * 5.0 + t * 0.04) * 0.10;
+    float crust = smoothstep(0.50, 0.60, n);
+    vec3 molten = mix(vec3(1.0, 0.40, 0.05), vec3(1.0, 0.86, 0.38), smoothstep(0.42, 0.20, n));
+    float grain = 0.7 + 0.6 * vnoise(w * 3.3);
+    vec3 rock = vec3(0.17, 0.075, 0.05) * grain;
+    vec3 col = mix(molten, rock, crust) + vec3(0.32, 0.08, 0.0) * crust * smoothstep(0.66, 0.56, n);
+    return col * (0.85 + 0.3 * dot(c, vec3(0.333)));
 }
 
 // Every world shader computes display (gamma-space) colours like the Mac; an sRGB swapchain stores linear values.
