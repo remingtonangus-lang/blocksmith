@@ -235,9 +235,12 @@ enum ShapeTrunks {
     static func column(_ ctx: DetailContext, _ s: Scratch, _ x: Int, _ y: Int, _ z: Int, bark: Int, rings: Int, sides: Int) {
         let i = wi(x, y, z)
         let living = s.col[i] == 1, stump = s.col[i] == 4
-        // 2x2 trunks: one fat trunk round the cluster's centre, drawn by its lowest corner.
+        // 2x2 trunks: one fat trunk round the cluster's centre, drawn by its lowest corner. Only living columns make the
+        // cluster: a root flare beside a 2x2 foot is a column too (kind 3), and counting it made a block-wide square of
+        // trunk + roots look like a second and third 2x2, each drawn as a fat trunk stub a block off the real one.
+        // (Remington, Oct 20: "why's that stump fucked up": two fat cut-off stubs at a dark oak's foot.)
         var cx = Float(x) + 0.5, cz = Float(z) + 0.5, scale: Float = 1
-        func colAt(_ a: Int, _ b: Int) -> Bool { a >= -M && b >= -M && a < 16 + M && b < 16 + M && s.col[wi(a, y, b)] != 0 }
+        func colAt(_ a: Int, _ b: Int) -> Bool { a >= -M && b >= -M && a < 16 + M && b < 16 + M && s.col[wi(a, y, b)] == 1 }
         if living {
             for (ox, oz) in [(0, 0), (-1, 0), (0, -1), (-1, -1)] {
                 let ax = x + ox, az = z + oz
