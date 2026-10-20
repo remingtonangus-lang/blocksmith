@@ -11,6 +11,8 @@ import Foundation
 final class WorldGen: TerrainGenerator {
     let seed: UInt64
     let s32: UInt32
+    var fieldWorld = false          // P379 step 3: a field world's railways run on a gentle grade (World.fieldTerrain)
+    var railSites = true            // P379 step 1: lines call at major sites (worlds made since: railway-sites.txt)
     var countryOres = true          // CountriesTests compares a chunk with and without its country's veins
     let tempN: Noise, humN: Noise, contN: Noise, eroN: Noise, weirdN: Noise
     let ridgeN: Noise, detailN: Noise, dens1: Noise, dens2: Noise

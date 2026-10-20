@@ -844,7 +844,8 @@ print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, 
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
-    RailwayTests.run(game, check: check)
+    if !CommandLine.arguments.contains("--railride") { RailwayTests.run(game, check: check) }
+    RailwayTests.ride(game, check: check)
     print(failures == 0 ? "rail: all checks passed" : "rail: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --horsecoats-only: G9 horse coats (quest/src/test/HorseCoatShots.swift); with --render X it renders the lineup and the
