@@ -323,7 +323,7 @@ enum Mesher {
     // smoothOK false keeps the section cubic in smooth-terrain worlds (ships: built hulls must not melt into lumps).
     // `bites` (realistic world): where blows struck blocks round this section (World.biteList), carved as craters.
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
-                             bites: [(Int, Int, Int, Bite)] = [], pieces: [FreePiece] = [],
+                             bites: [(Int, Int, Int, Bite)] = [], pieces: [FreePiece] = [], objects: [WorldObjects.Draw] = [],
                              smoothOK: Bool = true, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil, nearSides: Int = 0,
                              adaptive adaptiveOK: Bool = true) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
@@ -345,6 +345,21 @@ enum Mesher {
         let translucent = RenderLayer.translucent.rawValue
         let iceT = Mesher.iceTable
         let y0 = sy * 16 - 16
+        // P389: a struck object's cells are drawn by the object (WorldObjects.emit, below), not as blocks (rows 0...15 of
+        // this section and the first row of the one above, which the low-row and plant passes draw from here).
+        var objSkip: [Bool]? = nil
+        if !objects.isEmpty, let ch = chunk {
+            var sk = [Bool](repeating: false, count: 16 * 16 * 17)
+            var any = false
+            for d in objects { for (k, c) in d.cells.enumerated() where d.mine[k] {
+                guard floorDiv(c.x, CS) == ch.x && floorDiv(c.z, CS) == ch.z else { continue }
+                let ly = c.y - sy * 16
+                guard ly >= 0 && ly <= 16 else { continue }
+                sk[mod(c.x, CS) + mod(c.z, CS) * 16 + ly * 256] = true
+                any = true
+            } }
+            if any { objSkip = sk }
+        }
 
         // Quick exit: an all-air section has no geometry of its own.
         let base = sy * 16 * CSQ
@@ -1170,6 +1185,7 @@ enum Mesher {
                     let bi = Int(b)
                     let rt = renderT[bi]
                     if rt == rNone { continue }
+                    if let sk = objSkip, sk[(x - C0) + (z - C0) * 16 + ly * 256] { continue }      // (P389: the object draws it)
                     if tallyBlocks { tallyFlush(Int(gbT[bi])) }
                     if smooth && natT[bi] && (!fieldOn || dens[i] > 0) {    // (chipped too: it shrinks in the smooth surface, P106)
                         if smoothWater && !fluidNets { shoreWater(i, ly) }
@@ -1743,6 +1759,7 @@ enum Mesher {
                 guard b != AIR else { continue }
                 let bi = Int(b)
                 guard renderT[bi] == rCross, plantOnNatural(i), !(detailDraw && detT[bi]) else { continue }
+                if let sk = objSkip, sk[(x - C0) + (z - C0) * 16 + 16 * 256] { continue }       // (P389)
                 let lx = x - C0, lz = z - C0
                 var dy16 = 0, dyTop = 0
                 var feet: SIMD4<Int32>? = nil
@@ -1796,8 +1813,15 @@ enum Mesher {
         // Realistic world: trunks and limbs grown from the log graph (ShapeTrunks) and rounded organic objects
         // (ShapeOrganic), into the detail stream.
         if detailDraw {
-            let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: wox, wy0: sy * 16, wz0: woz,
+            var ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: wox, wy0: sy * 16, wz0: woz,
                                     lod: lod, sc: sc, srcs: srcs, sy: sy, field: fieldOn ? n9 : nil)
+            // P389: the cells struck objects draw are air to the trunks and round shapes (all objects of the chunk:
+            // a trunk reads 10 blocks round the section).
+            if !objects.isEmpty {
+                var s = Set<IVec3>()
+                for d in objects { for (k, c) in d.cells.enumerated() where d.mine[k] { s.insert(c) } }
+                if !s.isEmpty { ctx.skipCells = s }
+            }
             var d0 = det.count + detCut.count
             func tally(_ k: Int) { let d = det.count + detCut.count; kv[k] &+= Int32((d - d0) / DetailMesh.wordsPerVertex); d0 = d }
             kv[MeshKind.struck] &+= Int32(d0 / DetailMesh.wordsPerVertex)
@@ -1814,6 +1838,18 @@ enum Mesher {
                                     lod: lod, sc: sc, srcs: srcs, sy: sy, field: fieldOn ? n9 : nil)
             let d0 = det.count + detCut.count
             FreeBuild.emit(ctx, pieces)
+            kv[MeshKind.piece] &+= Int32((det.count + detCut.count - d0) / DetailMesh.wordsPerVertex)
+        }
+        // P389: struck objects whose cells are in this section, as what is left of them (WorldObjects.emit).
+        if objSkip != nil, let ch = chunk {
+            let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: wox, wy0: sy * 16, wz0: woz,
+                                    lod: lod, sc: sc, srcs: srcs, sy: sy, field: fieldOn ? n9 : nil)
+            let d0 = det.count + detCut.count
+            WorldObjects.emit(ctx, objects, cx: ch.x, cz: ch.z) { lx, ly, lz in
+                // (a model on natural ground sits on the drawn ground, as the block loop seats it)
+                guard drapeOn else { return 0 }
+                return natAt((lx + C0) + (lz + C0) * RW + (ly - 1 + C0) * RL) ? (drape.seatOffset(lx, ly, lz) ?? 0) : 0
+            }
             kv[MeshKind.piece] &+= Int32((det.count + detCut.count - d0) / DetailMesh.wordsPerVertex)
         }
         if smooth {

@@ -13,6 +13,7 @@ final class DebrisField {
     // Per slot: the piece's quads round its centroid and its block (set when the slot gets a piece).
     private var meshes: [[Fracture.MeshVertex]]
     private var blockOf: [BlockID]
+    private var layersOf: [[UInt16]]          // P389: per slot, a model box's own face textures (empty: the block's)
     private var ground: WorldGround?
     // Dead creatures falling as ragdolls (MobRagdoll.swift), on the same ground: one slot per corpse (MobAnim.maxCorpses).
     let ragdolls = RagdollWorld(capacity: MobAnim.maxCorpses)
@@ -26,6 +27,7 @@ final class DebrisField {
         bodies = DebrisWorld(config: cfg)
         meshes = Array(repeating: [], count: bodies.slotCount)
         blockOf = Array(repeating: AIR, count: bodies.slotCount)
+        layersOf = Array(repeating: [], count: bodies.slotCount)
     }
 
     var count: Int { bodies.count }
@@ -102,7 +104,16 @@ final class DebrisField {
         }
     }
 
-    private func add(_ p: Fracture.Poly, _ b: BlockID, origin o: V3, velocity: V3, spin: V3) {
+    // P389: a piece cut from an object (WorldObjects), in the object's frame from `o`; `layers`: its box's own face
+    // textures (+X -X +Y -Y +Z -Z), when the box has them. Returns whether it was added (the pool can be full).
+    @discardableResult
+    func piece(_ p: Fracture.Poly, _ b: BlockID, origin o: V3, velocity: V3, spin: V3, layers: [UInt16]? = nil) -> Bool {
+        let before = bodies.count
+        add(p, b, origin: o, velocity: velocity, spin: spin, layers: layers ?? [])
+        return bodies.count > before
+    }
+
+    private func add(_ p: Fracture.Poly, _ b: BlockID, origin o: V3, velocity: V3, spin: V3, layers: [UInt16] = []) {
         guard p.mass.volume > 0, p.verts.count >= 4 else { return }
         let c = p.mass.centroid
         var hull = [SIMD3<Float>]()
@@ -123,6 +134,7 @@ final class DebrisField {
         // so its UVs are the block's own (the part of the face it was).
         meshes[s] = quads
         blockOf[s] = b
+        layersOf[s] = layers
     }
 
     // A blast nearby: pieces already lying round fly again.
@@ -161,7 +173,10 @@ final class DebrisField {
             let c = pos - eye
             if simd_length_squared(c) > 64 * 64 { return }
             let b = blockOf[s]
-            let l = world.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
+            let own = layersOf[s]
+            var l = world.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
+            // (a piece lying in a field world's ground cell reads no light there: the open cell above lights it)
+            if l.sky == 0 && l.block == 0 { l = world.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 1.1)), Int(floor(pos.z))) }
             let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(c))
             let fill: Float = max(0.08, MobLight.fill * near)
             let light = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
@@ -175,7 +190,7 @@ final class DebrisField {
                 let n = q.act(quads[k].normal)
                 // The inside of a break shows the block's bottom texture (dirt under turf, a log's grain), darker.
                 let face = tag < 6 ? Int(tag) : 3
-                let layer = Int(Blocks.tex[Int(b) * 6 + face])
+                let layer = own.count == 6 && tag < 6 ? Int(own[face]) : Int(Blocks.tex[Int(b) * 6 + face])
                 // Turf sides draw like a dropped block's: the side texture with its grass fringe overlaid (tinted there).
                 let overlay = t == 3 && tag < 6 && tag != 2 && tag != 3
                 let tn = (t == 3 && tag != 2) ? V3(1, 1, 1) : tint

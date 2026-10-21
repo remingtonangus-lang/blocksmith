@@ -62,6 +62,8 @@ final class World {
     var pieces: [FreePiece] = []
     var pieceCells: [IVec3: [(V3, V3)]] = [:]
     var piecesDirty = false
+    // P389: struck objects, one piece each, cut where hit (WorldObjectsWorld.swift).
+    let objectReg = WorldObjects.Registry()
     static let activeOptions = [4, 6, 8, 10, 12, 16]
     // Whether a point is inside the active distance of `p` (square, like the chunk rings).
     @inline(__always) func isActive(_ q: V3, from p: V3) -> Bool {
@@ -393,6 +395,9 @@ final class World {
     static var editCells: [IVec3: Int] = [:]        // (and how often each cell changed in the background)
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
         guard y >= 0 && y < CH, let c0 = chunkAt(x, z) else { return }
+        // P389: a struck object's cell changed by anything but the object itself (a blast, a bucket): the object is
+        // forgotten and what is left of its cells draws as blocks again.
+        if !objectReg.owner.isEmpty && !objectReg.editing, let o = objectReg.object(at: IVec3(x, y, z)) { objectReg.forget(self, o) }
         let c = editing(c0)
         World.syncEdits &+= 1
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
@@ -469,6 +474,7 @@ final class World {
     @discardableResult
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) -> Bool {
         guard y >= 0 && y < CH, let c0 = chunkAt(x, z) else { return false }
+        if !objectReg.owner.isEmpty && !objectReg.editing, let o = objectReg.object(at: IVec3(x, y, z)) { objectReg.forget(self, o) }   // (P389)
         let c = editing(c0)
         World.asyncEdits &+= 1
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
@@ -538,6 +544,8 @@ final class World {
             b = Int(c.blocks.raw(i))
         } else { b = Int(block(x, y, z)) }
         if !pieceCells.isEmpty, let pb = pieceCells[IVec3(x, y, z)] { out.append(contentsOf: pb) }
+        // P389: a struck object's cell is met as what is left of it there.
+        if !objectReg.cellBoxes.isEmpty, let ob = objectReg.cellBoxes[IVec3(x, y, z)] { out.append(contentsOf: ob); return }
         if !Blocks.collide[b] { return }
         let o = V3(Float(x), Float(y), Float(z))
         if Blocks.fullCollide[b] {
@@ -877,7 +885,7 @@ final class World {
 
     func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
-        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), pieces: pieceList(c), site: smoothSite(c), chunk: (c.cx, c.cz),
+        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), pieces: pieceList(c), objects: objectReg.draws(c), site: smoothSite(c), chunk: (c.cx, c.cz),
                                   nearSides: nearSides(c, lod: c.lod), adaptive: !fieldTerrain), to: c, sy: sy, version: c.sections[sy].version)
         // P381 step 5: on the frame the edit draws the section's ground in full (no wait, exact), and a mesh worker then
         // redraws just the touched sections with the adaptive ground (AdaptiveGround.swift).
@@ -1195,7 +1203,7 @@ final class World {
         let (n9, h9) = nb
         let todo = dirtySections(c)
         let lod = c.lod
-        let dl = damageList(c), bl = biteList(c), pl = pieceList(c)
+        let dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c)
         let site = smoothSite(c)
         let near = nearSides(c, lod: lod)
         c.meshInFlight = true
@@ -1205,7 +1213,7 @@ final class World {
             guard let self else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var out: [(Int, Int, SectionMesh)] = []
-            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, site: site, chunk: (k.x, k.z), nearSides: near))) }
+            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near))) }
             let el = CFAbsoluteTimeGetCurrent() - t0
             self.lock.lock()
             self.meshResults.append((k, out))
@@ -1452,13 +1460,14 @@ final class World {
             }
         } }
         let dls = toMesh.map { damageList($0.0) }, bls = toMesh.map { biteList($0.0) }, pls = toMesh.map { pieceList($0.0) }
+        let ols = toMesh.map { objectReg.draws($0.0) }
         let sites = toMesh.map { smoothSite($0.0) }
         let nears = toMesh.map { nearSides($0.0, lod: $0.0.lod) }          // (every chunk's level is set by now)
         let meshes = UnsafeMutablePointer<SectionMesh>.allocate(capacity: max(1, toMesh.count))
         defer { meshes.deallocate() }
         DispatchQueue.concurrentPerform(iterations: toMesh.count) { i in
             let t = toMesh[i]
-            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], bites: bls[i], pieces: pls[i], site: sites[i],
+            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], bites: bls[i], pieces: pls[i], objects: ols[i], site: sites[i],
                                                             chunk: (t.0.cx, t.0.cz), nearSides: nears[i]))
         }
         for (i, t) in toMesh.enumerated() {
@@ -1539,6 +1548,7 @@ final class World {
         }
         for (k, c) in chunks where c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }   // PG1
         savePieces()
+        saveObjects()                                    // P389
         Trains.save(self)                                // P337 step 6
         save?.saveBlockEntities(blockEntities, background: background)
         redstone.save(background: background)            // W1: pending circuit ticks and edges (circuit.json)
@@ -1659,7 +1669,10 @@ final class World {
                 }
                 b = c.blocks.raw(i)
             } else { b = block(x, y, z) }
-            if Blocks.targetable(b) {
+            // P389: a struck object's cell is met at its pieces there (passed where the blows took it away).
+            if !objectReg.cellObj.isEmpty, let r = objectReg.rayCell(self, IVec3(x, y, z), origin, dir, maxDist: maxDist) {
+                if let h = r { return (IVec3(x, y, z), h) }
+            } else if Blocks.targetable(b) {
                 if Blocks.render[Int(b)] == RenderType.cube.rawValue { return (IVec3(x, y, z), n) }
                 let o = V3(Float(x), Float(y), Float(z))
                 var best: (Float, IVec3)?
