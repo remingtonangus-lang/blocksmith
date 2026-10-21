@@ -8,6 +8,31 @@ let CSQ = CS * CS
 let NSEC = CH / 16   // vertical 16^3 sections per chunk
 let SEA = 62 + YOFF
 
+// P385: chunks whose cull facts changed (a section's mesh applied, blocks, detail level, shell state, tint table), as
+// chunk coordinates, for the Quest's cull table: it re-reads only these (it read every chunk in reach each frame, 0.2 ms
+// of cache misses at view 24). Only chunks the table holds note (Chunk.cullWatched); drained once a frame; past 8192
+// notes it overflows and the table re-reads every column.
+enum CullNotes {
+    private static let lock = NSLock()
+    private static var keys: [Int64] = []
+    private static var overflow = false
+    static func note(_ cx: Int, _ cz: Int) {
+        lock.lock()
+        if keys.count < 8192 { keys.append(Int64(cx) << 32 | Int64(UInt32(truncatingIfNeeded: cz))) } else { overflow = true }
+        lock.unlock()
+    }
+    // The notes since the last take into `out` (its old contents dropped); true when some were lost (re-read all).
+    static func take(_ out: inout [Int64]) -> Bool {
+        out.removeAll(keepingCapacity: true)
+        lock.lock()
+        swap(&out, &keys)
+        let o = overflow
+        overflow = false
+        lock.unlock()
+        return o
+    }
+}
+
 struct ChunkKey: Hashable {
     let x: Int
     let z: Int
@@ -47,8 +72,18 @@ final class Section {
             o.noteStale(was: oldValue != meshedVersion, now: version != meshedVersion)
         }
     }
-    weak var owner: Chunk?      // marked dirty with each bump (World.update re-checks only dirty chunks)
-    var meshedVersion = -1 { didSet { owner?.noteStale(was: oldValue != version, now: meshedVersion != version) } }
+    // Marked dirty with each bump (World.update re-checks only dirty chunks). P385: unowned(unsafe), cleared by the
+    // chunk's deinit: a weak reference gave every Chunk a side table, so each retain and release of a chunk (the
+    // renderer's cull walk, the tick's chunk lookups) took the runtime's slow path.
+    unowned(unsafe) var owner: Chunk?
+    var meshedVersion = -1 {
+        didSet {
+            guard let o = owner else { return }
+            o.noteStale(was: oldValue != version, now: meshedVersion != version)
+            o.cullStamp &+= 1                       // (P385: SceneRenderer's cull table re-reads this chunk)
+            if o.cullWatched { CullNotes.note(o.cx, o.cz) }
+        }
+    }
     var vis: UInt64 = ~0         // face connectivity (cave culling)
     var leafy = true             // its mesh has faces between leaf blocks (SectionMesh.leafy)
     var needsMesh: Bool { meshedVersion != version }
@@ -250,7 +285,7 @@ final class Chunk {
     let cx: Int
     let cz: Int
     var blocks: BlockStore {       // index = x + z*16 + y*256
-        didSet { unsaved = true; blocksVersion &+= 1 }
+        didSet { unsaved = true; blocksVersion &+= 1; if cullWatched { CullNotes.note(cx, cz) } }
     }
     private(set) var blocksVersion = 0
     // P339 (horizon culling, SceneRenderer.horizonCull): the y under which every column of the chunk is solid for 16
@@ -292,7 +327,9 @@ final class Chunk {
     // P374: the highest of them (the random ticks' top; they scanned all 256 columns of every chunk in reach each tick).
     private(set) var heightMax = -1
     var tint: [UInt32]             // 256 grass, 256 foliage, 256 water colours (RGBA8)
-    var tintBuf: MeshSlice?          // tint table on the GPU (carved from the mesh slabs)
+    var tintBuf: MeshSlice? {        // tint table on the GPU (carved from the mesh slabs)
+        didSet { if cullWatched { CullNotes.note(cx, cz) } }
+    }
     var sections: [Section]
     // Highest section that has geometry or isn't meshed yet (everything above is meshed open air). Kept by
     // World.apply so the renderer's culling walk can stop above the terrain without scanning the sky.
@@ -303,7 +340,9 @@ final class Chunk {
         topSec = t
     }
     var modified = false
-    var hollow = false             // P376: a shell, its blocks, field and light dropped past the active distance (ChunkShells)
+    var hollow = false {           // P376: a shell, its blocks, field and light dropped past the active distance (ChunkShells)
+        didSet { if cullWatched { CullNotes.note(cx, cz) } }
+    }
     var hollowOcc = -1             //   its horizon-culling band, kept from before
     var cacheDropped = false       //   its disk mesh cache file dropped since it loaded (edited)
     var fieldEdits: [Int32: UInt16] = [:]     // PG1: bounds on the terrain field per cell (TerrainField.swift)
@@ -316,19 +355,28 @@ final class Chunk {
     var needsSave: Bool { modified && unsaved }
     var heldCopyBytes: Int { 0 }                 // (perfscenes: what kept save copies cost; none now)
     var meshInFlight = false
-    var meshedOnce = false
+    var meshedOnce = false { didSet { if cullWatched { CullNotes.note(cx, cz) } } }
     var drawnMark: UInt32 = 0
     var dirty = false {            // a section's version changed since World.update last looked at this chunk
         didSet { if dirty && !oldValue { world?.dirtyChunks.append(self) } }
     }
-    var lod = 0                    // 0 full detail, 1 far (flat light, merged faces, no small decorations), 2 mid ("fast" leaves)
+    var lod = 0 {                  // 0 full detail, 1 far (flat light, merged faces, no small decorations), 2 mid ("fast" leaves)
+        didSet { if cullWatched { CullNotes.note(cx, cz) } }
+    }
     weak var world: World?         // the world it is installed in (its dirty list; set by World.install)
 
     // Live Chunk objects, for the smoke test's memory line (an unloaded chunk should be freed: memory grew ~20 MB/s
     // while the smoke test flew, runs 605-634). Chunks die on worker threads too, hence the lock.
     static let aliveLock = NSLock()
     private(set) static var alive = 0
-    deinit { Chunk.aliveLock.lock(); Chunk.alive -= 1; Chunk.aliveLock.unlock() }
+    deinit {
+        for s in sections { s.owner = nil }         // (P385: owner is unowned(unsafe))
+        Chunk.aliveLock.lock(); Chunk.alive -= 1; Chunk.aliveLock.unlock()
+    }
+    // P385: bumped whenever a section's mesh (its faces, connectivity, occluder flag) is applied; SceneRenderer's cull
+    // table re-reads a chunk only when this, its blocks, its detail level or its shell state changed.
+    var cullStamp = 0
+    var cullWatched = false          // held by the Quest's cull table: changes are noted (CullNotes)
 
     var borderSeeds: [Int] = []                      // P380 (2): small pieces at the side, checked once the neighbours exist
     init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32], field: FieldData? = nil) {

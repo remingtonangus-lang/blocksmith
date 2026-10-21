@@ -669,6 +669,11 @@ if let out = arg("--view"), let ctx = vkctx {
         let vwid = Int(arg("--w") ?? "") ?? 640, vhei = Int(arg("--h") ?? "") ?? 640, vfov = Float(arg("--fov") ?? "") ?? 90
         // --pixelpair (P375): the same frame with the full ground grid everywhere (OUT-full.png) and with far sections
         // drawing their merged ground (OUT), and how many pixels differ.
+        // --turnshots N (P385 step 5): a 360 degree head turn in N frames, one shot a frame (OUT-000.png ...).
+        if let n = Int(arg("--turnshots") ?? ""), n > 0 {
+            try RenderTest.renderTurn(game: vg, ctx: ctx, path: out, width: vwid, height: vhei, yaw: yaw, pitch: pitch, fovDeg: vfov, frames: n)
+            exit(0)
+        }
         var fullRGBA: [UInt8] = []
         if CommandLine.arguments.contains("--pixelpair") {
             SceneRenderer.drawMerged = false

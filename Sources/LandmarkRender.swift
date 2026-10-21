@@ -9,6 +9,7 @@ import simd
 extension Renderer {
     static let landmarkRange: Float = 2600
     static var plumeRising = false                 // the last build had volcano smoke (camp smoke alone rebuilds slower)
+    static var horizonEnd = 0                      // P385: where the last build's horizon ground ended in `out`
     static let spireRange: Float = 1800               // a 170-block shaft is a sliver beyond this
     static var spireList: [V4] = []                // x, base y, z, height (refreshed every 2 s)
     static var spireAt: Double = -10
@@ -32,8 +33,11 @@ extension Renderer {
     }
 
     // Appends the impostor triangles: opaque ones first, then `smokeStart` marks the blended smoke.
-    func buildLandmarks(_ out: inout [SimpleVert], smokeStart: inout Int, game: Game, eye: V3, far: Float, fog: V3, rd: Float) {
-        smokeStart = 0; Renderer.plumeRising = false
+    // P385: `horizon` false leaves the horizon ground out (the Quest keeps the last one and rebuilds only the landmarks
+    // and the smoke while smoke rises: the ground was most of a build, redone every second frame by a chimney's smoke).
+    func buildLandmarks(_ out: inout [SimpleVert], smokeStart: inout Int, game: Game, eye: V3, far: Float, fog: V3, rd: Float,
+                        horizon: Bool = true) {
+        smokeStart = 0; Renderer.plumeRising = false; Renderer.horizonEnd = out.count
         guard game.dim.dim == .overworld, let wg = game.world.gen as? WorldGen else { return }
         let vols = wg.terrain.volcanoes(near: eye.x, eye.z, reach: Renderer.landmarkRange)
         let loaded = rd * 16
@@ -61,7 +65,8 @@ extension Renderer {
             into.append(SimpleVert(pos: a, color: col)); into.append(SimpleVert(pos: b, color: col)); into.append(SimpleVert(pos: c, color: col))
         }
         // The ground past the loaded terrain first (HorizonRing.swift): the landmarks below stand on it.
-        buildHorizon(&out, game: game, eye: eye, loaded: loaded, fog: fog, sun: sun, day: day, hdrK: hdrK, project: p)
+        if horizon { buildHorizon(&out, game: game, eye: eye, loaded: loaded, fog: fog, sun: sun, day: day, hdrK: hdrK, project: p) }
+        Renderer.horizonEnd = out.count
         for v in vols {
             let c = V3(v.x, Float(YOFF) + v.base, v.z)
             let dist = simd_length(V2(c.x - eye.x, c.z - eye.z))
