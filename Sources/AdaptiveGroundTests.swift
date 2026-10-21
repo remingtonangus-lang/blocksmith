@@ -303,8 +303,9 @@ extension AdaptiveGround {
         func drawn(_ x: Float, _ y: Float, _ z: Float, _ adaptive: Bool) -> Float? {
             let cx = floorDiv(Int(floor(x)), CS), cz = floorDiv(Int(floor(z)), CS), sy = Int(floor(y)) >> 4
             var best: Float? = nil
-            for s in (sy - 1)...(sy + 1) {
-                for t in tris(cx, cz, s, adaptive) {
+            // (P386: the chunks round it too: a chunk's west and north block row is drawn by its neighbours)
+            for s in (sy - 1)...(sy + 1) { for oz in -1...1 { for ox in -1...1 {
+                for t in tris(cx + ox, cz + oz, s, adaptive) {
                     // barycentric in xz
                     let a = SIMD2<Float>(t.0.x, t.0.z), b = SIMD2<Float>(t.1.x, t.1.z), c = SIMD2<Float>(t.2.x, t.2.z), p = SIMD2<Float>(x, z)
                     let v0 = b - a, v1 = c - a, v2 = p - a
@@ -315,20 +316,66 @@ extension AdaptiveGround {
                     let h = t.0.y + (t.1.y - t.0.y) * l1 + (t.2.y - t.0.y) * l2
                     if best == nil || abs(h - y) < abs(best! - y) { best = h }
                 }
-            }
+            } } }
             return best
         }
         let start = g.player.pos
         var gaps: [[Float]] = [[], []]
+        // BS_FEET_DEBUG: each sample over 0.05: where, what is under it, what the bodies' lookup says there.
+        let debug = ProcessInfo.processInfo.environment["BS_FEET_DEBUG"] != nil
+        // (a body standing on something built (a log, a crate, a step) is on that, not on the ground: not counted)
+        var onBuilt = 0
+        func builtUnder(_ p: V3, _ hw: Float) -> Bool {
+            for z in Int(floor(p.z - hw))...Int(floor(p.z + hw)) { for x in Int(floor(p.x - hw))...Int(floor(p.x + hw)) {
+                for y in Int(floor(p.y - 0.6))...Int(floor(p.y + 0.3)) where Blocks.collide[Int(w.builtBlock(x, y, z))] { return true }
+            } }
+            return false
+        }
+        func note(_ what: String, _ p: V3, _ h: Float, _ hw: Float, _ ht: Float) {
+            let bx = Int(floor(p.x)), bz = Int(floor(p.z)), by = Int(floor(p.y - 0.05))
+            let look = w.drawnGround(p.x, p.z, lo: p.y - 0.6, hi: p.y + 0.6)
+            let raw = w.drawnGround(p.x, p.z, lo: p.y - 0.6, hi: p.y + 0.6, check: false)
+            let fall = w.sweep(V3(p.x - hw, p.y, p.z - hw), V3(p.x + hw, p.y + ht, p.z + hw), axis: 1, -0.5)
+            func f(_ v: Float?) -> String { v.map { String(format: "%.3f", $0) } ?? "nil" }
+            print(String(format: "  %@ %.2f %.2f %.2f: drawn %.3f (gap %.3f), lookup %@ (raw %@, density %.3f %.3f), fall %.3f (built boxes %.3f, floor %@), under %@ ground %d, fine %d",
+                         what, p.x, p.y, p.z, h, p.y - h, f(look), f(raw), w.fieldDensity(at: V3(p.x, h - 0.25, p.z)), w.fieldDensity(at: V3(p.x, h - 0.5, p.z)),
+                         fall, w.sweepBoxesDD, f(w.sweepFloorY), Blocks.key(w.builtBlock(bx, by, bz)), w.groundAt(bx, by, bz) ? 1 : 0, w.fineNear(p) ? 1 : 0))
+        }
+        // P386 (3): the drawn eye's climb rate tick to tick (its jolts: the largest change, and how often it turns over).
+        var jolt: Float = 0, turns = 0, eyeTicks = 0
         for k in 0..<8 {
             g.player.pos = start; g.player.vel = .zero; g.player.flying = false
             g.player.yaw = Float(k) * .pi / 4
-            for _ in 0..<60 { g.player.update(dt: 1.0 / 30, input: MoveInput(), world: w) }
+            for _ in 0..<60 { g.player.update(dt: 1.0 / 30, input: MoveInput(), world: w); g.updateViewStep(1.0 / 30) }
+            var lastEye = g.player.viewEye.y, lastV: Float? = nil
             for f in 0..<120 {
                 g.player.update(dt: 1.0 / 30, input: MoveInput(forward: 1), world: w)
+                g.updateViewStep(1.0 / 30)
+                let e = g.player.viewEye.y, v = (e - lastEye) * 30
+                if let lv = lastV, g.player.onGround, abs(v - lv) < 20 {      // (not a fall or a landing)
+                    jolt = max(jolt, abs(v - lv)); eyeTicks += 1
+                    if (v > 0.3 && lv < -0.3) || (v < -0.3 && lv > 0.3) { turns += 1 }
+                }
+                lastEye = e; lastV = v
                 guard f % 3 == 0, g.player.onGround, w.fieldNear(g.player.pos) else { continue }
                 let p = g.player.pos
+                if builtUnder(p, 0.3) { onBuilt += 1; continue }
                 for (i, ad) in [false, true].enumerated() { if let h = drawn(p.x, p.y, p.z, ad), abs(h - p.y) < 1 { gaps[i].append(p.y - h) } }
+                if debug, let h = drawn(p.x, p.y, p.z, true), abs(h - p.y) > 0.05 && abs(h - p.y) < 1 { note("feet", p, h, 0.3, 1.8) }
+            }
+        }
+        // P386 (5): a cow-sized body walked the same way through World.moveBody (as mobs, townsfolk and animals move).
+        var mobGaps: [Float] = []
+        for k in 0..<8 {
+            var p = start, onG = false, vy: Float = 0
+            let a = Float(k) * .pi / 4 + 0.2, dir = V3(-sinf(a), 0, -cosf(a)) * 2.5
+            for f in 0..<150 {
+                vy = onG ? -1 : max(-20, vy - 32 / 30)
+                let hit = w.moveBody(&p, halfW: 0.45, height: 1.4, (f < 30 ? V3(0, vy, 0) : dir + V3(0, vy, 0)) / 30, step: 0.6, onGround: onG)
+                onG = hit.y && vy < 0
+                guard f % 3 == 0, onG, w.fieldNear(p) else { continue }
+                if builtUnder(p, 0.45) { onBuilt += 1; continue }
+                if let h = drawn(p.x, p.y, p.z, true), abs(h - p.y) < 1 { mobGaps.append(p.y - h); if debug && abs(h - p.y) > 0.05 { note("mob", p, h, 0.45, 1.4) } }
             }
         }
         g.player.pos = start
@@ -342,8 +389,16 @@ extension AdaptiveGround {
             for (i, ad) in [false, true].enumerated() {
                 let cx = floorDiv(Int(floor(h.at.x)), CS), cz = floorDiv(Int(floor(h.at.z)), CS), sy = Int(floor(h.at.y)) >> 4
                 var best: Float = 9
-                for s in (sy - 1)...(sy + 1) { for t in tris(cx, cz, s, ad) { best = min(best, AdaptiveGround.dist(h.at, t)) } }
+                for s in (sy - 1)...(sy + 1) { for oz in -1...1 { for ox in -1...1 {
+                    for t in tris(cx + ox, cz + oz, s, ad) { best = min(best, AdaptiveGround.dist(h.at, t)) }
+                } } }
                 if best < 9 { hits[i].append(best) }
+                if debug && ad && best > 0.05 && best < 9 {
+                    let c = h.cell
+                    let all = w.drawnRay(eye, dir, from: 0, to: 12)
+                    print(String(format: "  ray %.2f %.2f %.2f off %.3f: cell %d %d %d %@ ground %d; hit t %.3f, drawn along the whole ray t %@", h.at.x, h.at.y, h.at.z, best, c.x, c.y, c.z,
+                                 Blocks.key(w.builtBlock(c.x, c.y, c.z)), w.groundAt(c.x, c.y, c.z) ? 1 : 0, h.t, all.map { String(format: "%.3f", $0.t) } ?? "nil"))
+                }
             }
         }
         func stat(_ a: [Float], signed: Bool) -> String {
@@ -354,5 +409,10 @@ extension AdaptiveGround {
         }
         return "adaptivewalk: feet to drawn ground: full " + stat(gaps[0], signed: true) + "; adaptive " + stat(gaps[1], signed: true)
             + ". Field hits (dig/place) to drawn ground: full " + stat(hits[0], signed: false) + "; adaptive " + stat(hits[1], signed: false)
+            + ". Mob-sized body (adaptive): " + stat(mobGaps, signed: true) + " (\(onBuilt) samples on built things left out)"
+            + String(format: ". Eye: %d ticks, largest change in climb rate %.2f blocks/s, %d turn-overs", eyeTicks, jolt, turns)
+            + ". Kept ground triangles: \(w.chunks.values.reduce(0) { $0 + $1.sections.reduce(0) { $0 + ($1.ground?.quads ?? 0) } }) quads, "
+            + String(format: "%.1f MB", Double(w.chunks.values.reduce(0) { $0 + $1.sections.reduce(0) { $0 + ($1.ground?.bytes ?? 0) } }) / 1048576)
+            + " in \(w.chunks.count) chunks"
     }
 }

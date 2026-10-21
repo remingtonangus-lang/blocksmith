@@ -75,6 +75,8 @@ struct ShipBlockReader {
         var y = p.y + 0.55
         var prev = density(at: V3(p.x, y, p.z))
         if prev > 0 { return nil }                      // (buried: the hull contacts push it out)
+        // P386: wheels and tracks ride the drawn ground triangles where the section has them (GroundFeet).
+        if let h = w.drawnGround(p.x, p.z, lo: p.y - depth, hi: p.y + 0.55) { return h }
         let stop = p.y - depth
         while y > stop {
             let y2 = y - 0.25

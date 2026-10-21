@@ -579,6 +579,8 @@ final class World {
     // sink into a slope's uphill side up to half a block (collides ignores the field's ground in the body's lowest part).
     var fieldSplit = false
     var fieldSink: [(V3, V3)] = []
+    // (P386 checks: the last sweep's move as the built boxes left it, and the drawn floor it found)
+    var sweepBoxesDD: Float = 0, sweepFloorY: Float? = nil
     // PG2 rewrite: the last raycast's hit on the field's ground (its cell, the point on the drawn surface, the distance).
     var fieldHit: (cell: IVec3, at: V3, t: Float)?
 
@@ -710,7 +712,22 @@ final class World {
             if dd < 0 && bmx[a] <= mn[a] + eps { dd = max(dd, bmx[a] - mn[a]) }
             if dd != was { touchedPlayer = true }
         }
-        if !fieldSink.isEmpty {
+        // P386: a body coming down on field ground stands on the drawn ground triangles under its middle (GroundFeet),
+        // lifted out of them up to the part of its body the field's ground may sink into (collides), not on the field's
+        // quarter-block columns. Where the section has no current drawn ground, the columns as before.
+        var floorY: Float? = nil
+        sweepBoxesDD = dd
+        if a == 1 && d < 0 && plain && !fieldSink.isEmpty {
+            let cx = (mn.x + mx.x) * 0.5, cz = (mn.z + mx.z) * 0.5
+            let lift = min(0.5, (mx.y - mn.y) * 0.4)
+            // (looked for a block further down than the move: drawn ground lower than the move reaches lets the body
+            // fall on to it, instead of the columns catching it over the ground)
+            floorY = drawnGround(cx, cz, lo: mn.y + min(d, -1) - 0.01, hi: mn.y + lift)
+        }
+        sweepFloorY = floorY
+        if let g = floorY {
+            dd = max(dd, g - mn.y)
+        } else if !fieldSink.isEmpty {
             var fmn = mn, fmx = mx
             if a == 1 && d < 0 {
                 let cx = (mn.x + mx.x) * 0.5, cz = (mn.z + mx.z) * 0.5
@@ -755,7 +772,17 @@ final class World {
             p.x += dx; (mn, mx) = box(p)
             let dz = sweep(mn, mx, axis: 2, d.z)
             p.z += dz
-            return (p, abs(dx - d.x) > 1e-5, abs(dy - d.y) > 1e-5, abs(dz - d.z) > 1e-5)
+            var hy = abs(dy - d.y) > 1e-5
+            // P386: a body on field ground keeps its feet on the drawn ground as it walks: over a rise it is lifted at
+            // once (not on the next fall), down a slope up to about 60 degrees it follows the ground (walking off a ledge
+            // still falls).
+            if fieldTerrain && frame == nil && onGround && d.y <= 0 && (dx != 0 || dz != 0) {
+                let stick = (dx * dx + dz * dz).squareRoot() * 2 + 0.02
+                (mn, mx) = box(p)
+                let s = sweep(mn, mx, axis: 1, -stick)
+                if s > -stick + 1e-4 { p.y += s; hy = true }
+            }
+            return (p, abs(dx - d.x) > 1e-5, hy, abs(dz - d.z) > 1e-5)
         }
         // Sub-step so the swept region stays small.
         let steps = max(1, Int(ceil(max(abs(delta.x), abs(delta.y), abs(delta.z)) / 0.9)))
@@ -771,7 +798,10 @@ final class World {
                     lifted.y += up
                     let (p2, hx2, _, hz2) = attempt(lifted, V3(sd.x, 0, sd.z))
                     let (mn2, mx2) = box(p2)
-                    let down = sweep(mn2, mx2, axis: 1, -up - max(0, -sd.y))
+                    // (P386: on field ground, down to the drawn ground ahead as attempt's stick does: stepping over a
+                    // knee-high bump on the way down a slope left the body hanging a tenth over the ground for a tick)
+                    let stick: Float = fieldTerrain && frame == nil && onGround ? (sd.x * sd.x + sd.z * sd.z).squareRoot() * 2 + 0.02 : 0
+                    let down = sweep(mn2, mx2, axis: 1, -up - max(0, -sd.y) - stick)
                     var p3 = p2
                     p3.y += down
                     let gain = simd_length(V2(p3.x - pos.x, p3.z - pos.z)) - simd_length(V2(p.x - pos.x, p.z - pos.z))
@@ -982,6 +1012,7 @@ final class World {
         s.detailSolid = m.detailSolid
         s.groundQuads = m.groundQuads; s.blobQuads = m.blobQuads; s.naturalCubes = m.naturalCubes; s.solidFull = m.solidFull
         s.kinds = m.kinds
+        s.ground = m.ground
         if sy >= c.topSec { c.updateTopSec() }            // a mesh below the top section cannot move it
         if c.tintBuf == nil {
             c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
@@ -1612,7 +1643,12 @@ final class World {
             else if let c = chunkAt(x, z) {
                 let i = Chunk.index(mod(x, CS), y, mod(z, CS))
                 let end = min(tmx, tmy, tmz, maxDist)
-                if fieldNear(c, x, y, z, i), max(t, fieldFrom) <= end, let h = fieldRaySegment(origin, dir, from: max(t, fieldFrom), to: end) {
+                if fieldNear(c, x, y, z, i), max(t, fieldFrom) <= end, var h = fieldRaySegment(origin, dir, from: max(t, fieldFrom), to: end) {
+                    // P386: the hit point on the drawn ground triangles near where the field crosses zero (they can sit
+                    // a few tenths off it, more along a grazing ray), so digging and placing aim at the surface the eye sees.
+                    if let r = drawnRay(origin, dir, from: max(fieldFrom, h.t - 1.5), to: min(maxDist, h.t + 1.5)) {
+                        h = (fieldCell(r.at, along: dir), r.at, r.t)
+                    }
                     fieldHit = h
                     let g = fieldGradient(h.at)
                     let a = simd_abs(g)

@@ -38,6 +38,7 @@ final class Section {
     var solidFull = false                       // P376 step 5: every cell opaque (an occluder)
     var groundQuads = 0, blobQuads = 0          // P283: of the opaque quads, the smooth ground's and the leaf blobs'
     var kinds = SIMD16<Int32>()                 // P384 step 1: quads by kind (MeshKind; not kept in the disk cache)
+    var ground: GroundTris?                     // P386: the drawn ground triangles (field worlds, near and mid sections)
     var version = 0 {           // bumped when the section (or light around it) changes
         didSet {
             MeshEpoch.value &+= 1
