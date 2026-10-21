@@ -952,7 +952,7 @@ struct Synth {
         case .mainGunCharge, .mainGunFire, .mainGunRumble: out = WeaponAudio.mainGun(&self, s, p: p)
         case .gunReload(let k): out = WeaponAudio.reload(&self, k, p: p)
         case .gunDistant(let k):
-            let size: Float = k == 9 ? 2.6 : (k == 2 ? 1.5 : (k == 3 || k == 16 ? 1.3 : (k == 1 || k == 17 || k == 19 ? 0.7 : 1)))
+            let size: Float = k == 9 ? 2.6 : (k == 2 ? 1.5 : (k == 3 || k == 16 ? 1.3 : (k == 1 || k == 17 || k == 19 || k == 20 ? 0.7 : 1)))
             out = WeaponAudio.distant(&self, p: p * (k == 5 ? 1.4 : 1), size: size, roll: k == 9 ? 3.5 : 1.8)
         case .bulletImpact(let m): out = WeaponAudio.impact(&self, m, p: p)
         case .bulletWhizz: out = WeaponAudio.whizz(&self, p: p)

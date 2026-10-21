@@ -10,7 +10,7 @@ import simd
 //             takes full damage. A fallen soldier's surviving pieces may drop with the durability they had left: loot
 //             them and repair them at an anvil with steel.
 //   guns      Regulars rifles and SMGs; Spec Ops scoped rifles or suppressed SMGs (quiet: no alarm noise) and grenades;
-//             Hannibal heavy weapons (launchers, arc guns, the Ashsaw-class machine gun).
+//             Hannibal heavy weapons (launchers, arc guns, the Mahlwerk rotary gun).
 //   behaviour Regulars hold and patrol; Spec Ops flank wide and stay quiet until they fire; Hannibal troopers push in
 //             while firing and suppress with long bursts (Soldiers.swift reads Mob.troopClass).
 //   rarity    rises with the class: Regulars everywhere; Spec Ops the marksmen and officers, from the garrison tier
@@ -133,7 +133,8 @@ extension TroopClass {
             if k == .soldierMarksman { return Guns.sniper }
             return r < 0.6 ? Guns.rifle : Guns.shotgun
         case .hannibal:
-            return r < 0.5 ? Guns.arc : Guns.launcher             // (P217: the Kettensturm is retired)
+            // (P217: the Kettensturm is retired.) P391: a third carry the Mahlwerk rotary gun.
+            return r < 0.34 ? Guns.arc : (r < 0.67 ? Guns.launcher : Guns.rotary)
         }
     }
     // Spec Ops SMGs and rifles are suppressed: quiet, and their shots don't carry to a base as noise.

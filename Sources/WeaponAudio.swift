@@ -16,7 +16,9 @@ enum WeaponAudio {
     static let heavySlot = 9
     static let sidearmSlot = 13      // the Capital Sidearm (Guns.pistol)
     static let ashSlots = 16...19     // the Ashguard's arms: Kessel bolt rifle, Hagel machine pistol, Sturmwind carbine, Ashsaw
-    static func hasDistant(_ k: Int) -> Bool { fireSlots.contains(k) || k == heavySlot || k == sidearmSlot || ashSlots.contains(k) }
+    static let rotarySlot = 20       // P391: the Mahlwerk rotary gun's shot; 21 its spin-up whine, 22 its run-down
+    static let rotarySlots = 20...22
+    static func hasDistant(_ k: Int) -> Bool { fireSlots.contains(k) || k == heavySlot || k == sidearmSlot || ashSlots.contains(k) || k == rotarySlot }
 
     // MARK: Building blocks
 
@@ -200,6 +202,23 @@ enum WeaponAudio {
             var o = shot(&g, p: p * 1.08, size: 0.55, bright: 1.25, tail: 0.18, mech: 0.2)
             o = Synth.mix(o, g.burst(0.03, lp: 7000, hp: 1800, attack: 0.0004, decay: 0.006, gain: 0.9))
             return o
+        case 20:  // Mahlwerk rotary gun: a very short, hard crack over the drive's growl; at 28 a second they fuse into a roar
+            var o = shot(&g, p: p * 1.12, size: 0.5, bright: 1.2, tail: 0.12, mech: 0)
+            o = Synth.mix(o, Synth.lowpass(g.tone(0.06, f0: 140 * p, f1: 120 * p, wave: .saw, attack: 0.002, release: 0.03, gain: 0.25), 900))
+            return o
+        case 21:  // Mahlwerk spin-up: the drive whine climbing as the barrels come to speed, the cluster rattling in its clamps
+            let whine = g.tone(0.55, f0: 160 * p, f1: 940 * p, wave: .saw, attack: 0.03, release: 0.06, vib: 0.01, vibRate: 24, gain: 0.3)
+            let gears = g.crackle(0.55, density: 260, f: 2600, q: 2.5, gain: 0.5)
+            return Synth.mix(Synth.lowpass(whine, 3400), Synth.rampIn(gears, 0.4))
+        case 22:  // Mahlwerk run-down: the whine falling away and the barrels ticking slower to a stop
+            let whine = g.tone(1.4, f0: 940 * p, f1: 110 * p, wave: .saw, attack: 0.005, release: 0.5, vib: 0.01, vibRate: 18, gain: 0.28)
+            var o = Synth.decayEnv(Synth.lowpass(whine, 3000), 0.6)
+            var t: Float = 0, gap: Float = 0.03
+            while t < 1.3 {                                                        // the ratchet, slowing
+                o = Synth.mix(o, g.modes(0.03, [(2100 * p, 0.12 * (1 - t / 1.4), 0.006)]), at: g.frames(t))
+                t += gap; gap *= 1.12
+            }
+            return o
         case 15:  // last round gone: a hollow metallic ping (the bolt locks open)
             return Synth.mix(g.modes(0.5, [(3150 * p, 0.6, 0.18), (4720 * p, 0.3, 0.12), (6300 * p, 0.12, 0.06)]),
                              g.burst(0.03, lp: 7000, hp: 2000, attack: 0.0005, decay: 0.006, gain: 0.7))
@@ -235,7 +254,7 @@ enum WeaponAudio {
             o = Synth.mix(o, click(&g, 2600, 0.5), at: g.frames(1.3))
             o = Synth.mix(o, slide(&g, 0.14), at: g.frames(1.6))
             o = Synth.mix(o, click(&g, 1600, 1), at: g.frames(1.8))
-        case 19:  // Ashsaw: feed cover up, belt laid in, cover slammed, bolt charged
+        case 19, 20:  // Ashsaw / Mahlwerk: feed cover up, belt laid in, cover slammed, bolt charged
             o = Synth.mix(click(&g, 700, 1.2), slide(&g, 0.1), at: g.frames(0.03))
             o = Synth.mix(o, g.texture(0.5, rate: 40, lo: 2000, hi: 6000, grain: 0.004, gain: 0.5) { x in 1 - x * 0.5 }, at: g.frames(0.6))
             o = Synth.mix(o, Synth.mix(click(&g, 600, 1.4), g.burst(0.1, lp: 900, hp: 60, decay: 0.03, gain: 1.2)), at: g.frames(1.6))

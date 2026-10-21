@@ -1628,7 +1628,7 @@ final class QuestControls {
             let gk: Float = 3.2 * QuestSettings.heldScale
             let n = Guns.writeFirstPerson(gi, aim: 1, kick: game.arms.kick, lower: 0, bob: .zero, light: light,
                                           rounds: game.arms.reload > 0 ? 0 : game.held.tag, scale: gk, upgrades: game.held.ench,
-                                          slide: GunActions.slideDrawn(gi), into: ptr)
+                                          slide: GunActions.slideDrawn(gi), spin: game.arms.barrel, into: ptr)
             let shift = QuestControls.heldGunShift(gi)
             for i in 0..<n {
                 let v = ptr[i].pos

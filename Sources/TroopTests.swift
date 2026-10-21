@@ -43,7 +43,7 @@ enum TroopTests {
                     switch c {
                     case .regular: fits = [Guns.rifle, Guns.smg, Guns.shotgun, Guns.pistol].contains(gun)
                     case .specOps: fits = [Guns.sniper, Guns.smg, Guns.rifle].contains(gun)
-                    case .hannibal: fits = [Guns.ashsaw, Guns.launcher, Guns.arc].contains(gun)
+                    case .hannibal: fits = [Guns.ashsaw, Guns.launcher, Guns.arc, Guns.rotary].contains(gun)
                     }
                     if !fits || m.variant != gun { ok = false; rows.append("\(t) \(k) \(c.name) carries \(Guns.all[gun].name)") }
                 }

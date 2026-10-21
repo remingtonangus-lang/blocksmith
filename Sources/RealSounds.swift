@@ -257,7 +257,7 @@ extension SoundBank {
         case .step, .soldierStep, .hoof, .hit, .bulletImpact, .bulletFlesh, .gunDistant, .arrowHit, .tridentHit, .plantBrush, .swim,
              .attack, .attackWeak, .attackCrit, .attackSweep, .attackKnockback, .mob(_, .hurt), .babyMob(_, .hurt):
             return true
-        case .gun(let k): return k <= 5 || k == 8 || k == 9 || k == WeaponAudio.sidearmSlot || WeaponAudio.ashSlots.contains(k)
+        case .gun(let k): return k <= 5 || k == 8 || k == 9 || k == WeaponAudio.sidearmSlot || WeaponAudio.ashSlots.contains(k) || k == WeaponAudio.rotarySlot
         default: return false
         }
     }

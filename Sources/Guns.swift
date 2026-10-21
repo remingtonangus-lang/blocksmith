@@ -84,10 +84,19 @@ enum Guns {
         GunSpec(key: "gun_faust", name: "Panzerfaust", ammo: "faust_warhead", mag: 1, interval: 1.0, auto: false, damage: 0, pellets: 1,
                 spread: 0.03, aimSpread: 0.012, speed: 28, recoil: 0.1, reload: 3.4, range: 90, durability: 40, zoom: 0.9,
                 shot: .rocket, sound: 4, accent: V3(0.34, 0.36, 0.22)),
+        // P391 (Remington, Oct 21 15:18: "let one of the top classes have a GTA V style mini gun"): the Hannibal trooper's
+        // Mahlwerk, a six-barrel rotary gun on a belt. The barrels spin up before the first round (Guns.rotarySpinUp) and
+        // run down after the trigger lets go; at speed it puts out about 1700 rounds a minute.
+        GunSpec(key: "gun_rotary", name: "Mahlwerk Rotary Gun", ammo: "capital_rounds", mag: 200, interval: 0.035, auto: true, damage: 3, pellets: 1,
+                spread: 0.06, aimSpread: 0.04, speed: 150, recoil: 0.0035, reload: 5.0, range: 90, durability: 3000, zoom: 0.92,
+                shot: .bullet, sound: 20, accent: V3(0.9, 0.9, 0.88)),
     ]
     static let rifle = 0, smg = 1, shotgun = 2, sniper = 3, launcher = 4, arc = 5, pistol = 6, revolver = 7
     static let kessel = 8, hagel = 9, sturmwind = 10, ashsaw = 11
-    static let faust = all.count - 1                                                         // P320
+    static let faust = all.count - 2                                                         // P320
+    static let rotary = all.count - 1                                                        // P391
+    // P391: seconds the Mahlwerk's barrels take to come up to speed and to run down; the player walks slower holding it.
+    static let rotarySpinUp: Float = 0.5, rotarySpinDown: Float = 1.4, rotaryWalk: Float = 0.72
     static func isAshArm(_ gi: Int) -> Bool { (gi >= kessel && gi <= ashsaw) || gi == faust }
     static func isLauncher(_ gi: Int) -> Bool { gi == launcher || gi == faust }
     static let faustPower: Float = 3.4, faustAntiTank: Float = 90
@@ -163,6 +172,7 @@ enum Guns {
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "firing_mechanism", "targeting_optic"], "gun_sniper"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "tnt", "firing_mechanism", "targeting_optic"], "gun_launcher"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "redstone", "redstone", "gold_ingot", "firing_mechanism", "targeting_optic"], "gun_arc"),
+         Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "redstone", "firing_mechanism", "firing_mechanism"], "gun_rotary"),
          Recipes.shapeless(["radar_module", "compass", "steel_ingot", "steel_ingot", "redstone"], "radar_set"),
          Recipes.shapeless(["radar_module", "copper_ingot", "copper_ingot", "redstone", "redstone"], Navy.pulseKey, 2)]
     }
@@ -213,6 +223,7 @@ enum Guns {
     static let models: [[Part]] = CapitalArms.models.map { $0.parts }
     static let magParts: [Set<Int>] = CapitalArms.models.map { Set($0.mag) }
     static let slideParts: [Set<Int>] = CapitalArms.models.map { Set($0.slide) }      // P301
+    static let spinParts: [Set<Int>] = CapitalArms.models.map { Set($0.spin) }        // P391
     // Ammo light on the left of the receiver (the shooter's side): warm white with rounds in, red when empty.
     static let indicator: [Part] = CapitalArms.models.map { m in
         let r = m.parts[0]
@@ -226,7 +237,7 @@ enum Guns {
     /// `rounds` 0 hides the magazine and turns the ammo light red; `scale` enlarges the model (Quest: held in the hand).
     /// P301: `slide` (0 home ... 1 back) draws a pistol's slide pulled back; an empty pistol shows it locked back.
     static func writeFirstPerson(_ gi: Int, aim: Float, kick: Float, lower: Float, bob: V3, light: Float, rounds: Int = 1,
-                                 scale: Float = 1, upgrades: UInt64 = 0, slide: Float = 0, into out: UnsafeMutablePointer<MobVert>) -> Int {
+                                 scale: Float = 1, upgrades: UInt64 = 0, slide: Float = 0, spin: Float = 0, into out: UnsafeMutablePointer<MobVert>) -> Int {
         let CT = Mesher.cornerTable
         let hip = V3(0.2, -0.2, -0.5), ads = V3(0, -0.085, -0.44)   // a little below the line of sight: the top and barrel show (at -0.05 only the stock's back face did: critic, run 385 gun_aim)
         let sway: V3 = bob * (1 - aim * 0.8)
@@ -253,6 +264,7 @@ enum Guns {
             if slid > 0 && (slideParts[gi].contains(pi) || pi == indAt) {        // P301: the slide drawn back
                 p.mn.z += slid; p.mx.z += slid; p.pivot.z += slid
             }
+            if spin != 0 && spinParts[gi].contains(pi) { p = CapitalArms.spun(p, spin, gi) }   // P391: the barrels turn
             let size = p.mx - p.mn
             let ca = cosf(p.rotX), sa = sinf(p.rotX)
             for f in 0..<6 {
@@ -447,7 +459,7 @@ enum Guns {
         }
     }
 
-    static let soundCount = 20      // 14 loaded (bolt home), 15 last round (bolt locks open), 16-19 the Ashguard's arms
+    static let soundCount = 23      // 14 loaded (bolt home), 15 last round (bolt locks open), 16-19 the Ashguard's arms, 20-22 the Mahlwerk (P391)
     static var sounds: [Snd] { (0..<soundCount).map { Snd.gun($0) } }
 }
 
