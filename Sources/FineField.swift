@@ -213,7 +213,7 @@ extension Mesher {
     // smoothQuads on a region built at half scale (cells, light and materials of the block each half block is in; the
     // density from the fine samples, or upsampled from the cells, in half-block units), positions scaled back.
     static func fineGround(_ n9: [BlockStore], sy: Int, _ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, leafHoles: Bool, detailHoles: Bool,
-                           _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
+                           exact: GrowBuf<Float>? = nil, _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let vs = sc.fineScratch
         let vR = vs.region, vSky = vs.sky, vBlk = vs.blk, vD = vs.dens
         let dens = sc.dens, sky = sc.sky, blk = sc.blk
@@ -274,8 +274,17 @@ extension Mesher {
                 }
                 vSky[j] = sl; vBlk[j] = bl
             } } }
-            smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+            let e0 = exact?.count ?? 0
+            smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles, exact: exact) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 emit((x16 + vx * 256) >> 1, (y16 + vy * 256) >> 1, (z16 + vz * 256) >> 1, f, tint, layer, ao, l, ncode)
+            }
+            // (P383: the unsnapped positions, scaled back from half blocks like the snapped ones)
+            if let ex = exact {
+                for i in stride(from: e0, to: ex.count, by: 3) {
+                    ex.ptr[i] = (ex.ptr[i] + Float(vx * 16)) * 0.5
+                    ex.ptr[i + 1] = (ex.ptr[i + 1] + Float(vy * 16)) * 0.5
+                    ex.ptr[i + 2] = (ex.ptr[i + 2] + Float(vz * 16)) * 0.5
+                }
             }
         }
         sc.smValid = false

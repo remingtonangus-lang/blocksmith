@@ -141,7 +141,7 @@ extension World {
 // writes it fresh. Writes run on a background queue from the section buffers (kept alive until written). The folder
 // is held under `capBytes` (oldest files go first).
 final class MeshCache {
-    static let format: UInt32 = 2                       // 2: P381 adaptive ground
+    static let format: UInt32 = 3                       // 2: P381 adaptive ground; 3: P383 per-position ground vertices
     static let capBytes = 768 << 20
     let dir: URL
     private let queue = DispatchQueue(label: "meshcache", qos: .utility)

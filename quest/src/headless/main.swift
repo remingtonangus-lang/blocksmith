@@ -674,7 +674,7 @@ if let out = arg("--view"), let ctx = vkctx {
                          n, over8, Double(over8) * 100 / Double(n), over32, Double(over32) * 100 / Double(n), Double(sum) / Double(n)))
         }
         if GroundMerge.merged > 0 { print("view: \(GroundMerge.replaced) ground quads merged into \(GroundMerge.merged) for far sections (P375)") }
-        if AdaptiveGround.trisIn > 0 { print("view: adaptive ground (P381) \(AdaptiveGround.trisIn) triangles -> \(AdaptiveGround.trisOut) near (tol \(AdaptiveGround.tolerance)); far copy \(AdaptiveGround.farIn) quads -> \(AdaptiveGround.farOut)") }
+        if AdaptiveGround.trisIn > 0 { print("view: adaptive ground (P381) \(AdaptiveGround.trisIn) triangles -> \(AdaptiveGround.trisOut) near (tol \(AdaptiveGround.tolerance)); far copy \(AdaptiveGround.farIn) quads -> \(AdaptiveGround.farOut); ground positions \(AdaptiveGround.positions), \(AdaptiveGround.splitPositions) drawn with 2+ vertices (P383)") }
         if Mesher.mergedWater > 0 { print("view: \(Mesher.mergedWater) far water cells drawn in merged quads (P184)") }
         print("view: wrote \(out)"); exit(0)
     } catch { print("FAIL view: \(error)"); exit(1) }

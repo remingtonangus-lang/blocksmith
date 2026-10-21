@@ -77,38 +77,101 @@ extension AdaptiveGround {
         }
     }
 
+    // Triangles of a run of quads (words), at the positions `exact` gives a vertex (by its index in the run) when given.
+    // allArea: slivers too (every triangle of three different points: the crack check).
+    private static func quadTris(_ w: ArraySlice<UInt32>, exact: UnsafePointer<Float>? = nil, allArea: Bool = false) -> [Tri] {
+        var out: [Tri] = []
+        let base = w.startIndex
+        func p(_ q: Int, _ k: Int) -> SIMD3<Float> {
+            if let e = exact { let i = (q * 4 + k) * 3; return SIMD3<Float>(e[i], e[i + 1], e[i + 2]) }
+            let x = w[base + q * 8 + k * 2]
+            return SIMD3<Float>(Float(x & 511), Float((x >> 9) & 511), Float((x >> 18) & 511)) / 16
+        }
+        let minA: Float = allArea ? -1 : 1e-6
+        for q in 0..<(w.count / 8) {
+            let a = p(q, 0), b = p(q, 1), c = p(q, 2), d = p(q, 3)
+            if a != b && b != c && a != c && simd_length(simd_cross(b - a, c - a)) > minA { out.append((a, b, c)) }
+            if d != c && a != d && a != c && simd_length(simd_cross(c - a, d - a)) > minA { out.append((a, c, d)) }
+        }
+        return out
+    }
+    private static func flat(_ t: [SIMD3<Float>]) -> [Tri] { stride(from: 0, to: t.count - 2, by: 3).map { (t[$0], t[$0 + 1], t[$0 + 2]) } }
+
+    // Both ways between two triangle sets: worst distance and points over `tol`, from every vertex of `ref` to `test`,
+    // and from every point of `test` (corners, edge middles, centre) to `ref`.
+    private struct TwoWay {
+        var worstA: Float = 0, worstB: Float = 0, overA = 0, overB = 0, pointsA = 0, pointsB = 0
+        mutating func add(ref: [Tri], test: [Tri], tol: Float) {
+            let gt = Grid(test), gr = Grid(ref)
+            for t in ref { for p in [t.0, t.1, t.2] {
+                let d = gt.near(p); pointsA += 1
+                worstA = max(worstA, d); if d > tol { overA += 1 }
+            } }
+            for t in test {
+                let ps = [t.0, t.1, t.2, (t.0 + t.1) / 2, (t.1 + t.2) / 2, (t.0 + t.2) / 2, (t.0 + t.1 + t.2) / 3]
+                for p in ps { let d = gr.near(p); pointsB += 1; worstB = max(worstB, d); if d > tol { overB += 1 } }
+            }
+        }
+        func line(_ tol: Float) -> String {
+            String(format: "worst %.4f block (%d of %d points over %.3f) / %.4f (%d of %d over)", worstA, overA, pointsA, tol, worstB, overB, pointsB)
+        }
+    }
+
+    // P381 step 2 / P383 step 5 (questcheck --adaptivecheck): the 5 x 5 chunks round the eye meshed with the full ground
+    // and with the adaptive ground, section by section, both measured against the field's exact surface (the full
+    // ground at its unsnapped positions, MeshScratch.groundExact): the near copy (bound `tolerance`) and the far copy
+    // (farTolerance), both ways; the drawn (1/16-snapped) grounds against it too; crack-free borders; and how many
+    // ground positions are drawn with two or more different vertices (P383 step 2).
     static func check(_ vw: World, eye: V3) -> String {
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
-        var msFull = 0.0, msAd = 0.0, trisFull = 0, trisAd = 0, quadsFull = 0, quadsAd = 0, sections = 0
-        var worstA: Float = 0, worstB: Float = 0, overA = 0, overB = 0, pointsA = 0, pointsB = 0
-        var crackEdges = 0
-        let tol = AdaptiveGround.tolerance + 1.0 / 512          // (positions are on the 1/16 grid: float slack)
+        var msFull = 0.0, msAd = 0.0, trisFull = 0, trisAd = 0, quadsFull = 0, quadsAd = 0, sections = 0, farIn = 0, farOut = 0
+        var near = TwoWay(), far = TwoWay(), drawnFull = TwoWay(), drawnAd = TwoWay()
+        var crackEdges = 0, noExact = 0, posAll = 0, posSplit = 0
+        let slack: Float = 1.0 / 4096
+        let tol = AdaptiveGround.tolerance + slack, ftol = AdaptiveGround.farTolerance + slack
         for dz in -2...2 { for dx in -2...2 {
             guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], let nb = vw.neighbourhood(c) else { continue }
             for sy in 0..<NSEC {
                 var t0 = CFAbsoluteTimeGetCurrent()
                 let full = Mesher.buildSection(nb.0, nb.1, sy: sy, chunk: (c.cx, c.cz), adaptive: false)
                 msFull += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                let ex = MeshScratch.current.groundExact
+                let fullW = full.opaque.prefix(full.groundQuads * 8)
+                var exactCopy: [Float] = []
+                if ex.count == full.groundQuads * 4 * 3 {
+                    exactCopy = ex.toArray()
+                    var per: [UInt32: Set<UInt64>] = [:]
+                    for i in 0..<(full.groundQuads * 4) {
+                        let w0 = full.opaque[i * 2]
+                        per[w0 & 0x07FF_FFFF, default: []].insert(UInt64(w0) << 32 | UInt64(full.opaque[i * 2 + 1]))
+                    }
+                    posAll += per.count; posSplit += per.values.filter { $0.count > 1 }.count
+                } else if full.groundQuads > 0 { noExact += 1 }
+                AdaptiveGround.capture = true; AdaptiveGround.captured = ([], [])
                 t0 = CFAbsoluteTimeGetCurrent()
                 let ad = Mesher.buildSection(nb.0, nb.1, sy: sy, chunk: (c.cx, c.cz), adaptive: true)
                 msAd += (CFAbsoluteTimeGetCurrent() - t0) * 1000
-                let tf = groundTris(full), ta = groundTris(ad)
+                AdaptiveGround.capture = false
+                let adW = ad.opaque.prefix(ad.groundQuads * 8)
+                let tf = quadTris(fullW), ta = quadTris(adW)
                 guard !tf.isEmpty else { continue }
                 if let dir = ProcessInfo.processInfo.environment["BS_ADAPTIVE_DUMP"] {      // (the full ground, for tuning offline)
-                    let words = Array(full.opaque.prefix(full.groundQuads * 8))
+                    let words = Array(fullW)
                     let data = words.withUnsafeBufferPointer { Data(buffer: $0) }
                     try? data.write(to: URL(fileURLWithPath: "\(dir)/s\(sections).bin"))
                 }
                 sections += 1
                 trisFull += tf.count; trisAd += ta.count; quadsFull += full.groundQuads; quadsAd += ad.groundQuads
-                let ga = Grid(ta), gf = Grid(tf)
-                for t in tf { for p in [t.0, t.1, t.2] {
-                    let d = ga.near(p); pointsA += 1
-                    worstA = max(worstA, d); if d > tol { overA += 1 }
-                } }
-                for t in ta {
-                    let ps = [t.0, t.1, t.2, (t.0 + t.1) / 2, (t.1 + t.2) / 2, (t.0 + t.2) / 2, (t.0 + t.1 + t.2) / 3]
-                    for p in ps { let d = gf.near(p); pointsB += 1; worstB = max(worstB, d); if d > tol { overB += 1 } }
+                // The exact surface (the full ground at its unsnapped positions), and the adaptive copies at theirs (the
+                // near copy unchanged when the simplifier gave nothing back).
+                let tx = exactCopy.isEmpty ? tf : exactCopy.withUnsafeBufferPointer { quadTris(fullW, exact: $0.baseAddress!) }
+                let nearX = AdaptiveGround.captured.0.isEmpty || ad.groundQuads == full.groundQuads ? tx : flat(AdaptiveGround.captured.0)
+                near.add(ref: tx, test: nearX, tol: tol)
+                drawnFull.add(ref: tx, test: tf, tol: tol)
+                drawnAd.add(ref: tx, test: ta, tol: tol)
+                if !ad.farGround.isEmpty {
+                    farIn += ad.farSkip; farOut += ad.farGround.count / 8
+                    far.add(ref: tx, test: AdaptiveGround.captured.1.isEmpty ? quadTris(ad.farGround[...]) : flat(AdaptiveGround.captured.1), tol: ftol)
                 }
                 // Cracks: an edge of the adaptive ground used by one triangle only must be an edge of the full ground
                 // used by one triangle only too (the section's sides, holes): the border is the same, vertex for vertex.
@@ -120,12 +183,20 @@ extension AdaptiveGround {
                     } }
                     return Set(n.filter { $0.value == 1 }.keys)
                 }
-                crackEdges += borders(ta).symmetricDifference(borders(tf)).count
+                crackEdges += borders(quadTris(adW, allArea: true)).symmetricDifference(borders(quadTris(fullW, allArea: true))).count
             }
         } }
-        return String(format: "adaptivecheck: %d sections; ground %d -> %d triangles (%d -> %d quads, %.1f%%); full ground to adaptive: worst %.4f block, %d of %d points over %.3f; adaptive to full ground: worst %.4f, %d of %d over; border edges differing %d; mesh %.1f ms full, %.1f ms adaptive",
-                      sections, trisFull, trisAd, quadsFull, quadsAd, Double(quadsAd) * 100 / Double(max(1, quadsFull)),
-                      worstA, overA, pointsA, AdaptiveGround.tolerance, worstB, overB, pointsB, crackEdges, msFull, msAd)
+        return String(format: "adaptivecheck: %d sections; ground %d -> %d triangles (%d -> %d quads, %.1f%%); far copy %d -> %d quads; ground positions %d, drawn with 2+ vertices %d (%.1f%%)",
+                      sections, trisFull, trisAd, quadsFull, quadsAd, Double(quadsAd) * 100 / Double(max(1, quadsFull)), farIn, farOut,
+                      posAll, posSplit, Double(posSplit) * 100 / Double(max(1, posAll)))
+            + (noExact > 0 ? " (\(noExact) sections without exact positions)" : "")
+            + "\n  near copy to the exact surface (full to adaptive / adaptive to full): " + near.line(AdaptiveGround.tolerance)
+            + "\n  far copy to the exact surface: " + far.line(AdaptiveGround.farTolerance)
+            + "\n  drawn (1/16-snapped) full ground to the exact surface: " + drawnFull.line(AdaptiveGround.tolerance)
+            + "\n  drawn adaptive ground to the exact surface: " + drawnAd.line(AdaptiveGround.tolerance)
+            + String(format: "\n  border edges differing %d; mesh %.1f ms full, %.1f ms adaptive", crackEdges, msFull, msAd)
+            + " (seams " + (AdaptiveGround.joinSeams ? "joined" : "kept") + ", triGround \(SmoothTerrain.triGround)"
+            + String(format: ", light %.2f, ao %.2f, material %.2f)", AdaptiveGround.lightTol, AdaptiveGround.aoTol, AdaptiveGround.matTol)
     }
 
     // P381 step 6 (questcheck --adaptivewalk): the player walks 4 s in 8 directions from the eye's spot (Player.update,

@@ -68,7 +68,7 @@ enum QuestPerf {
             let n = s.opaqueQuads * 4
             let p = (b.buffer.contents() + b.offset).bindMemory(to: UInt64.self, capacity: n)
             seen.removeAll(keepingCapacity: true)
-            for i in 0..<n { seen.insert(p[i]); if (UInt32(truncatingIfNeeded: p[i]) >> 27) & 7 == 6 { plants += 1 } }
+            for i in 0..<n { seen.insert(p[i]); if (UInt32(truncatingIfNeeded: p[i]) >> 27) & 7 == 6 && (p[i] >> 32) & 31 != 30 { plants += 1 } }
             total += n; unique += seen.count; ground += s.groundQuads * 4
         } }
         return String(format: "vertex sharing (P376 step 3): %d opaque vertices, %d distinct in their section (%.0f%%); ground vertices %d; plant (cross) quads %d; strip-merged faces saved %d",
