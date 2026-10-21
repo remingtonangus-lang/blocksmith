@@ -27,6 +27,7 @@ struct SectionMesh {
     var detailFar: [UInt32] = []
     var solidFull = false   // P376 step 5: every cell of the section is opaque (an occluder for SceneRenderer.occlusionCull)
     var kinds = SIMD16<Int32>()   // P384 step 1: quads by kind (MeshKind), for questcheck --perfscenes
+    var ground: GroundTris? = nil   // P386: the drawn ground for bodies and rays (GroundFeet.swift)
 }
 
 // P384 step 1: what the section's quads are (SectionMesh.kinds; opaque stream 0...7, detail stream 8...13).
@@ -874,6 +875,8 @@ enum Mesher {
         let drape = sc.drape
         let drapeOn = fieldOn && GroundDrape.enabled && opq.count > groundStart
         if drapeOn { drape.build(opq.ptr, from: groundStart, to: opq.count) } else { drape.clear() }
+        // P386: and kept with the mesh, for bodies to stand on and rays to stop on (not far: nothing walks there).
+        let groundTris = GroundTris.feetOn && fieldOn && !far && opq.count > groundStart ? GroundTris(opq.ptr, from: groundStart, to: opq.count) : nil
         // A flat rectangle (x0...x1, z0...z1 in 1/16 of section cell (lx, ly, lz)) laid on the drawn ground `lift16` over it,
         // split every GroundDrape.step so it bends with the ground and never dips into it; nothing (false) unless the
         // ground is under every corner.
@@ -2015,7 +2018,7 @@ enum Mesher {
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
                            detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes,
                            farSkip: farSkipOut, farGround: farCopy, farCut: farCut, farTail: farTail, farParts: parts,
-                           detailFarSkip: detailFarSkip, detailFar: detailFar, solidFull: solidFull, kinds: kv)
+                           detailFarSkip: detailFarSkip, detailFar: detailFar, solidFull: solidFull, kinds: kv, ground: groundTris)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.

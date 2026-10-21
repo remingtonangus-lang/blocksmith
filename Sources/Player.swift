@@ -108,7 +108,11 @@ final class Player {
     }
 
     private func groundBelow(_ p: V3, _ w: World) -> Bool {
-        collides(at: p - V3(0, 0.06, 0), w)
+        guard collides(at: p - V3(0, 0.06, 0), w) else { return false }
+        // P386: on field ground a bank touching the body's side over the knee is not ground under it: standing needs the
+        // drawn ground, or something built, within 0.06 under the feet.
+        guard w.fieldTerrain && w.frame == nil, let g = w.drawnGround(p.x, p.z, lo: p.y - 2, hi: p.y + 0.5), p.y - g > 0.06 else { return true }
+        return w.sweep(V3(p.x - halfW, p.y, p.z - halfW), V3(p.x + halfW, p.y + height, p.z + halfW), axis: 1, -0.06) > -0.06 + 1e-4
     }
 
     // P126 (Oct 12 PM, "it's possible to fall even when you're crouching"): a sneaking move is backed off 0.05 at a time
@@ -395,6 +399,13 @@ final class Player {
         }
         if hit.x { vel.x = 0 }
         if hit.z { vel.z = 0 }
+        // P386: drawn ground steeper than 50 degrees doesn't hold the feet: the body slides down it and can't walk up it
+        // (walkable slopes hold it still).
+        if landed && !flying && !wetish, let down = w.steepDrawnGround(pos) {
+            let up = -(vel.x * down.x + vel.z * down.y)
+            if up > 0 { vel.x += down.x * up; vel.z += down.y * up }
+            vel.x += down.x * 14 * dt; vel.z += down.y * 14 * dt
+        }
         onGround = landed || (vel.y <= 0 && groundBelow(pos, w))
         if flying && landed { flying = false }
         if onGround {

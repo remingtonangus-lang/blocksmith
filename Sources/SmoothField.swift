@@ -48,7 +48,8 @@ extension World {
         if fieldTerrain {
             let q = (Int((pos.x * 8).rounded()) & 0xFFFFF) | ((Int((pos.z * 8).rounded()) & 0xFFFFF) << 20)
                 | ((Int((pos.y * 8).rounded()) & 0x3FFF) << 40) | ((fieldStamp & 0x3FF) << 54)
-            if q != key { key = q; h.x = fieldSurfaceOffset(pos) }
+            // (P386: the drawn ground triangles where the section has them: the body stands on those)
+            if q != key { key = q; h.x = drawnGround(pos.x, pos.z, lo: pos.y - 0.6, hi: pos.y + 0.6).map { $0 - pos.y } ?? fieldSurfaceOffset(pos) }
             return h.x
         }
         guard SmoothTerrain.enabled && SmoothTerrain.fromField, let g = gen as? WorldGen else { return 0 }
