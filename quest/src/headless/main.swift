@@ -85,6 +85,15 @@ if let out = arg("--texdump"), let i = CommandLine.arguments.firstIndex(of: "--t
     print("texdump: \(names.count) layers -> \(out)")
     exit(0)
 }
+// --objectcensus [--field] [--seed S] (P389 step 1): the multi-cell objects at Stone Gulch, the nearest capital city and
+// the nearest base, counted by kind (Sources/ObjectCensus.swift).
+if CommandLine.arguments.contains("--objectcensus") {
+    let w = World(seed: UInt64(arg("--seed") ?? "") ?? 13480747113613945685, device: device, save: nil, dim: .overworld)
+    w.renderDistance = 4
+    let g = Game(world: w, save: nil, persistent: false)
+    print(World.objectCensus(g))
+    exit(0)
+}
 // --view OUT.png --seed S --at X,Y,Z [--look YAW,PITCH] [--time FRAC] [--rd N]: one frame of the Quest renderer at a
 // spot (a voice note's repro line: yaw in degrees as the note gives it, pitch in degrees), for looks work in a thread.
 if let out = arg("--view"), let ctx = vkctx {
@@ -670,6 +679,15 @@ if let out = arg("--view"), let ctx = vkctx {
         // --pixelpair (P375): the same frame with the full ground grid everywhere (OUT-full.png) and with far sections
         // drawing their merged ground (OUT), and how many pixels differ.
         // --turnshots N (P385 step 5): a 360 degree head turn in N frames, one shot a frame (OUT-000.png ...).
+        // --scene objects (P389): the ten object kinds struck where they stand, shots OUT-<kind>-1..4.png (ObjectBreakTests).
+        if arg("--scene") == "objects" {
+            let rig = try RenderTest.ShotRig(game: vg, ctx: ctx, width: vwid, height: vhei, fovDeg: vfov)
+            let base = out.hasSuffix(".png") ? String(out.dropLast(4)) : out
+            print(ObjectBreakTests.run(vg, base: base) { path, eye, y, p in
+                do { try rig.shoot(path, eye: eye, yaw: y, pitch: p) } catch { print("objects: shot \(path) failed: \(error)") }
+            })
+            exit(0)
+        }
         if let n = Int(arg("--turnshots") ?? ""), n > 0 {
             try RenderTest.renderTurn(game: vg, ctx: ctx, path: out, width: vwid, height: vhei, yaw: yaw, pitch: pitch, fovDeg: vfov, frames: n)
             exit(0)

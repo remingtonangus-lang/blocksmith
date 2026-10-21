@@ -27,7 +27,7 @@ enum ShapeOrganic {
         guard any else { return }
         let grid = ctx.lod == 1 ? 3 : (ctx.lod == 2 ? 4 : 5)
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
-            let b = ctx.R[ctx.ri(x, y, z)]
+            let b = ctx.block(x, y, z)                  // (P389: a struck object's cell reads as air)
             guard isOrganic[Int(b)] else { continue }
             block(ctx, b, x, y, z, grid: grid)
         } } }
@@ -36,7 +36,10 @@ enum ShapeOrganic {
     // Sides (+X -X +Y -Y +Z -Z) as offsets.
     static let dirs: [SIMD3<Int>] = [SIMD3(1, 0, 0), SIMD3(-1, 0, 0), SIMD3(0, 1, 0), SIMD3(0, -1, 0), SIMD3(0, 0, 1), SIMD3(0, 0, -1)]
 
-    static func block(_ ctx: DetailContext, _ b: BlockID, _ x: Int, _ y: Int, _ z: Int, grid: Int) {
+    // The soft box a block is drawn as, from its neighbours (`block` reads a cell): the form, the sides that continue
+    // into the next block, the sides covered by an opaque one. (P389: WorldObjects builds a struck pumpkin's or bale's
+    // pieces from the same form.)
+    static func formAt(_ b: BlockID, _ x: Int, _ y: Int, _ z: Int, block: (Int, Int, Int) -> BlockID) -> (Form, [Bool], [Bool]) {
         let i = Int(b)
         let fam = ShapeClass.family[i]
         let g = Blocks.groupBase[i]
@@ -46,7 +49,7 @@ enum ShapeOrganic {
         var cont = [Bool](repeating: false, count: 6), covered = [Bool](repeating: false, count: 6)
         for f in 0..<6 {
             let d = dirs[f]
-            let nb = ctx.block(x + d.x, y + d.y, z + d.z)
+            let nb = block(x + d.x, y + d.y, z + d.z)
             cont[f] = Blocks.groupBase[Int(nb)] == g || (fam == .blob && isOrganic[Int(nb)] && ShapeClass.family[Int(nb)] == .blob)
             // A bale continues only end to end along its own axis (a stack of hay drums, not a fused corner).
             if fam == .bale && cont[f] {
@@ -74,6 +77,12 @@ enum ShapeOrganic {
         for f in 0..<6 where cont[f] { form.r[f] = 0 }
         // Sides resting on the ground below stay flat so the object sits.
         if covered[3] && fam != .bale { form.r[3] = min(form.r[3], 0.1) }
+        return (form, cont, covered)
+    }
+
+    static func block(_ ctx: DetailContext, _ b: BlockID, _ x: Int, _ y: Int, _ z: Int, grid: Int) {
+        let i = Int(b)
+        let (form, cont, covered) = formAt(b, x, y, z) { ctx.block($0, $1, $2) }
 
         var base = SIMD3<Float>(Float(x), Float(y), Float(z))
         // P297 (a) ("a log and a pumpkin floating"): a lone form on natural ground (a pumpkin in the grass, a melon) sits

@@ -334,6 +334,8 @@ final class Game {
     var vrBlade: (a: V3, b: V3)?       // P308: the held melee blade this frame, world space (QuestControls.swingContact; SwordPlay blocks)
     var swingPower: Float = 0          // Quest Swing melee: the blade hit swingMob this frame (VRMelee.power 0.6 ... 1.3); consumed by interact
     var mineProgress: Float = 0       // 0...1
+    var objectStrikeWait: Float = 0    // P389: seconds to the next blow at a struck object while break is held
+    var objectStats = WorldObjects.Stats()      // P389: what the blows cost the frame thread (harness)
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
     var fullToldAt: Double = -100      // Q2c-console-33: the last "You're full"
@@ -696,6 +698,7 @@ final class Game {
 
     func hookWorld(_ w: World) {
         w.loadPieces()                                      // P338 step 8 (FreeBuild)
+        w.loadObjects()                                     // P389 (WorldObjects)
         Trains.load(w)                                      // P337 step 6
         w.redstone.game = self
         w.onFluidEvent = { [weak self] p in self?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
@@ -1473,6 +1476,8 @@ final class Game {
         if survival, breakNow, let t = target, teleportEgg(t.hit) { swing = 1; mining = nil; return }
         // A melee weapon in VR never mines while a creature is near (swinging at a mob dug the ground around it: Oct 10).
         let weaponGuard = breakHeld && target != nil && vrWeaponHeld && creatureNearForWeapon()
+        // P389: an object (a lamp post, a sign, a barrel...) is struck as one piece and cut where the blow lands.
+        if !weaponGuard && strikeObject(breakNow: breakNow, breakHeld: breakHeld, dt: fdt) { return }
         if let t = target, breakHeld, !weaponGuard {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
             if !survival {
@@ -2233,15 +2238,22 @@ final class Game {
         return (name, note, min(1, (age - 0.5) / 0.15, (3 - age) / 0.4))
     }
 
-    func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool, toPack: Bool = false) {
+    // quiet (P389: a struck object's cell going): no sound or break particles (the object throws its own pieces), and
+    // the sections round it are left to the mesh workers (a synchronous remesh is 6-230 ms on the frame thread).
+    func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool, toPack: Bool = false, quiet: Bool = false) {
         boarlingsGuard(p, block: b)
         if Blocks.key(b) == DeepGates.liftKey { noteDeepLift(p, placed: false) }
         TownLaw.broke(self, p, b)
         MiningTowns.broke(self, p, b)                // C12: a mine support knocked out
         VaultObjectives.broke(self, p, b)            // D47: Vault side objectives
-        blockSound(audioBreakSound(b), at: p)
-        particles.blockBreak(b, at: p)
+        if !quiet {
+            blockSound(audioBreakSound(b), at: p)
+            particles.blockBreak(b, at: p)
+        }
+        let deferred = world.deferRemesh
+        if quiet { world.deferRemesh = true }
         world.setBlock(p.x, p.y, p.z, AIR)
+        world.deferRemesh = deferred
         debris.blockChanged(p)                  // (R15: ragdolls in every world)
         // Ice broken without Silk Touch over something solid or liquid leaves water (reference; not in the Emberdeep).
         if drop && b == Game.iceID && !world.dim.ultrawarm && Enchant.level(.silkTouch, held) == 0 {
@@ -3116,6 +3128,7 @@ final class Game {
         tnts.update(Float(dt), game: self)
         TickProf.mark("tnt")
         particles.update(Float(dt), world)
+        objectsTick()                           // P389: finished cuts swapped in, their pieces thrown
         debris.tick(Float(dt), world: world)    // (R15: ragdolls fall in block worlds too)
         ambientParticles(Float(dt))
         emberMotes(Float(dt))

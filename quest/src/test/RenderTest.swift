@@ -98,6 +98,54 @@ enum RenderTest {
 // warm-up at its yaw, so a section the cull lists a frame late shows as missing in that frame's shot), frame k to
 // OUT-kkk.png. Prints each frame's sections, quads and CPU record time.
 extension RenderTest {
+    // P389: one renderer kept for a series of shots from different eyes (questcheck --scene objects): each shot is two
+    // frames (the second saved, the left eye), so what the first frame starts building is in it.
+    final class ShotRig {
+        let game: Game, scene: SceneRenderer, wr: WorldRenderer, img: VkImg, targets: [RenderTarget], readback: VkBuf
+        let width: Int, height: Int, proj: float4x4, far: Float
+        init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float) throws {
+            self.game = game; self.width = width; self.height = height
+            scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
+            try scene.uploadTextures()
+            wr = WorldRenderer(scene: scene, game: game)
+            wr.landmarkHost = Renderer(game: game)
+            img = try VkImg(ctx, width: width, height: height, layers: 2, format: VK_FORMAT_R8G8B8A8_UNORM,
+                            usage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_SRC_BIT.rawValue)
+            targets = [try scene.makeTarget(image: img.image, width: width, height: height),
+                       try scene.makeTarget(image: img.image, width: width, height: height)]
+            let t = tanf(fovDeg * .pi / 360)
+            far = Float(game.world.renderDistance * 16 + 96)
+            let tv = t * Float(height) / Float(width)
+            proj = XRMath.projection(tanLeft: -t, tanRight: t, tanUp: tv, tanDown: -tv, near: 0.05, far: far)
+            readback = try VkBuf(ctx, size: width * height * 4 * 2, usage: VK_BUFFER_USAGE_TRANSFER_DST_BIT.rawValue, host: true)
+        }
+        func shoot(_ path: String, eye: V3, yaw: Float, pitch: Float) throws {
+            let head = simd_quatf(angle: yaw, axis: V3(0, 1, 0)) * simd_quatf(angle: pitch, axis: V3(1, 0, 0))
+            let vp = proj * XRMath.inversePose(head, .zero)
+            game.player.yaw = yaw; game.player.pitch = pitch
+            game.player.pos = eye - V3(0, game.player.eyeHeight, 0)
+            let cam = EyeCamera(center: eye, viewProj: [vp, vp], cullViewProj: vp, yaw: yaw, pitch: pitch, far: far)
+            for fi in 0..<2 {
+                let s = scene.beginFrame()
+                wr.record(s, targets[fi], cam)
+                vkCmdEndRenderPass(s.cmd)
+                vkBarrier(s.cmd, img.image, from: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, to: VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, layers: 2,
+                          srcAccess: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue, dstAccess: VK_ACCESS_TRANSFER_READ_BIT.rawValue,
+                          srcStage: VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue)
+                var r = VkBufferImageCopy()
+                r.imageSubresource = VkImageSubresourceLayers(aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, mipLevel: 0, baseArrayLayer: 0, layerCount: 2)
+                r.imageExtent = VkExtent3D(width: UInt32(width), height: UInt32(height), depth: 1)
+                vkCmdCopyImageToBuffer(s.cmd, img.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, readback.buffer, 1, &r)
+                try scene.submit(s)
+                scene.waitIdle()
+            }
+            let src = readback.mapped!.bindMemory(to: UInt8.self, capacity: width * height * 8)
+            var out = [UInt8](repeating: 0, count: width * height * 4)
+            for i in 0..<(width * height) { out[i * 4] = src[i * 4]; out[i * 4 + 1] = src[i * 4 + 1]; out[i * 4 + 2] = src[i * 4 + 2]; out[i * 4 + 3] = 255 }
+            try PNG.encode(rgba: out, width: width, height: height).write(to: URL(fileURLWithPath: path))
+        }
+    }
+
     static func renderTurn(game: Game, ctx: VkContext, path: String, width: Int, height: Int, yaw: Float, pitch: Float,
                            fovDeg: Float, frames: Int) throws {
         let scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)

@@ -77,10 +77,17 @@ struct DetailContext {
     // P297 (a): field worlds: the 3x3 chunks' stores, so a full-height read sees the ground the field holds (the built
     // layer alone is air there: no trunk ever stood on anything, so no tree was read as a tree).
     var field: [BlockStore]? = nil
+    // P389: cells a struck object draws (world coordinates): air to the round-shape generators.
+    var skipCells: Set<IVec3>? = nil
+    @inline(__always) func skipped(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard let s = skipCells else { return false }
+        return s.contains(IVec3(wx0 + x, wy0 + y, wz0 + z))
+    }
 
     // A block anywhere in the 3x3 chunks (section-local x, z in -16..<32), any height: for shapes taller than the region
     // (a 25-block trunk measured from its foot). Below the world: bedrock; above the stored part: air.
     @inline(__always) func column(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        if skipCells != nil && skipped(x, y, z) { return AIR }
         let cx = (x + 16) >> 4, cz = (z + 16) >> 4
         guard cx >= 0 && cz >= 0 && cx < 3 && cz < 3 else { return AIR }
         let wy = sy * 16 + y
@@ -121,6 +128,7 @@ struct DetailContext {
     @inline(__always) func block(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
         let rx = x + Mesher.C0, ry = y + Mesher.C0, rz = z + Mesher.C0
         guard rx >= 0 && ry >= 0 && rz >= 0 && rx < Mesher.RW && ry < Mesher.RH && rz < Mesher.RW else { return AIR }
+        if skipCells != nil && skipped(x, y, z) { return AIR }
         return R[ri(x, y, z)]
     }
     // Packed sky | block << 4 at a section-local point: the brightest open cell among the 8 round it (so a shape lit
