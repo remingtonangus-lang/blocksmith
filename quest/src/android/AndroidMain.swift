@@ -157,7 +157,7 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     if TextureImport.pack == nil { TextureImport.load(readAsset(activity.pointee.assetManager, "texpack.bin")) }
     // Townsfolk voice takes (assets/voices.bin, tools/townvoice_gen.py).
     if TownVoice.loaded == 0 { TownVoice.load(readAsset(activity.pointee.assetManager, "voices.bin")) }
-    // Recorded sounds that replace synthesized ones (RealSounds.swift): assets/sounds/real/*.wav (Resources/Sounds/real),
+    // Recorded sounds that replace synthesized ones (RealSounds.swift): assets/sounds/real/*.ogg (Resources/Sounds/real),
     // then side-loaded files, which win: adb push step_grass.wav /sdcard/Android/data/com.blocksmith.quest/files/Sounds/
     registerRealSounds(activity.pointee.assetManager)
     registerSoundtrack(activity.pointee.assetManager)          // P359: assets/music (MediaTrackDecoder.swift)
@@ -226,7 +226,9 @@ private func registerRealSounds(_ mgr: OpaquePointer?) {
     while let n = AAssetDir_getNextFileName(dir) { names.append(String(cString: n)) }
     AAssetDir_close(dir)
     if names.isEmpty { return }
-    RealSounds.setAssets(names) { name in readAsset(mgr, "sounds/real/" + name) }
+    // (P390: the APK carries them as Ogg Vorbis, tools/sfxpack.py, each decoded once when its sound first loads)
+    RealSounds.setAssets(names, reader: { name in readAsset(mgr, "sounds/real/" + name) },
+                         decoder: { name in MediaTrackDecoder.decodeAll(mgr, "sounds/real/" + name) })
 }
 
 private func readAsset(_ mgr: OpaquePointer?, _ name: String) -> Data? {
