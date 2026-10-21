@@ -57,6 +57,8 @@ final class World {
     var parked: [ChunkKey: [(IVec3, UInt8)]] = [:]  // P376: fluid (1 water, 2 lava) and falling (0) cells past the active distance
     lazy var meshCache: MeshCache? = World.shells ? save.flatMap { MeshCache(saveDir: $0.chunkDir) } : nil      // P376 (ChunkShells)
     var collapseQueue: [(IVec3, Int)] = [] // P351: carves to check for loose ground (GroundCollapse)
+    var loadQueue: [IVec3] = []            // P388: structural changes whose piece carries its load next (Structure.tick)
+    var loadQueued = Set<IVec3>()          // (4-cubes already queued)
     var collapsing = false
     // P338 step 8: free building pieces (FreeBuild.swift) and their collision boxes by cell.
     var pieces: [FreePiece] = []
@@ -413,7 +415,7 @@ final class World {
         if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
         if old != id, let e = netEdit, !World.netQuiet { e(x, y, z, id) }
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
-        if old != id { queueSupportChecks(x, y, z, old, id) }
+        if old != id { queueSupportChecks(x, y, z, old, id); queueLoadCheck(x, y, z, old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
         let newH = Int(c.height[lx + lz * CS])
@@ -491,7 +493,7 @@ final class World {
         c.blocks[Chunk.index(lx, y, lz)] = id
         if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
-        if old != id { queueSupportChecks(x, y, z, old, id) }
+        if old != id { queueSupportChecks(x, y, z, old, id); queueLoadCheck(x, y, z, old, id) }
         c.modified = true
         let oldH = Int(c.height[lx + lz * CS])
         c.recomputeHeight(lx, lz)

@@ -81,6 +81,11 @@ enum FieldTerrain {
         [.dirt, .grass, .sand, .gravel, .mud, .soul].contains(Blocks.def(BlockID(i)).sound)
     }
 
+    // ...of it, what things grow in (soil and turf, not sand or gravel; and moss): P388's gardens on a structure's floor.
+    static let gardenSoil: [Bool] = (0..<Blocks.count).map { i in
+        [.dirt, .grass].contains(Blocks.def(BlockID(i)).sound) || Blocks.key(Blocks.groupBase[i]) == "moss_block"
+    }
+
     // What the cells read as: the built layer with the ground under it.
     static func merge(_ b: inout [BlockID], _ f: FieldData) {
         let mats = FieldMat.blocks
@@ -150,12 +155,15 @@ enum FieldTerrain {
         let n = CSQ * CH
         var fd = [Int8](repeating: outside, count: n)
         var fm = [UInt8](repeating: 0, count: n)
-        let idx = FieldMat.index, looseT = loose
+        let idx = FieldMat.index, looseT = loose, garden = gardenSoil
         var top = 0, kept = 0
         for i in 0..<n {
             let m = idx[Int(b[i])]
             guard m != 0 else { continue }
             if let built, built[i] != 0 && !looseT[Int(b[i])] { kept += 1; continue }
+            // P388: soil a structure laid on its own floor (a roof garden, a planter: on a block that stays a block) stays
+            // its blocks, as in a block world; as ground it was a small floating piece, taken out from under what grew in it.
+            if let built, built[i] != 0, garden[Int(b[i])], i >= CSQ, b[i - CSQ] != AIR, Blocks.collide[Int(b[i - CSQ])] { kept += 1; continue }
             fm[i] = m; fd[i] = inside; b[i] = AIR; top = i
         }
         if StructureCache.traceKinds && kept > 0 {           // (harness: natural rock a structure built, kept as blocks)

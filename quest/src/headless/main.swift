@@ -895,6 +895,33 @@ game.time = 0.25 * DAY_LENGTH
 let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
+// --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
+// titanium pile that brought the test roof down, built through World.setBlock and left to the game's ticks (the queue checks it, it falls, what lands crushes).
+if CommandLine.arguments.contains("--loadtest") {
+    let b = IVec3(Int(spawn.x) + 6, 300, Int(spawn.z) + 6)
+    print(Structure.loadTest(world, at: b))
+    let h = IVec3(b.x, 330, b.z + 12)
+    var built: [(IVec3, BlockID)] = []
+    func put(_ x: Int, _ y: Int, _ z: Int, _ key: String) {
+        let id = Blocks.id(key); world.setBlock(h.x + x, h.y + y, h.z + z, id)
+        if y > 0 { built.append((IVec3(h.x + x, h.y + y, h.z + z), id)) }
+    }
+    for z in 0..<7 { for x in 0..<7 {
+        put(x, 0, z, "bedrock")
+        if x == 0 || x == 6 || z == 0 || z == 6 { for y in 1...3 { put(x, y, z, "oak_planks") } }
+        put(x, 4, z, "oak_planks")
+    } }
+    for y in 5..<(5 + max(3, Structure.tiDownAt)) { for z in 2...4 { for x in 2...4 { put(x, y, z, "diamond_block") } } }
+    game.player.pos = V3(Float(h.x) + 3, Float(h.y) + 1, Float(h.z) - 4); game.player.flying = true
+    let t1 = CFAbsoluteTimeGetCurrent()
+    for _ in 0..<720 { game.tick(1.0 / 72) }
+    let left = built.filter { world.builtBlock($0.0.x, $0.0.y, $0.0.z) == $0.1 }.count
+    print(String(format: "loadtest in play: %d checks (worst %.2f ms), %d blocks fell, %d crushed on landing, %d of %d built blocks still where they were built (10 s of ticks in %.1f s)",
+                 Structure.checks, Structure.worstMs, Structure.fallen, Structure.crushed, left, built.count, CFAbsoluteTimeGetCurrent() - t1))
+    exit(0)
+}
+// --loadcheck: P388 (5), every generated structure type's pieces checked whole (Sources/StructureTests.swift).
+if CommandLine.arguments.contains("--loadcheck") { exit(Structure.loadCheck(device: device)) }
 // --settletest: P380 ground and object physics in field worlds (Sources/GroundSettleTests.swift).
 if CommandLine.arguments.contains("--settletest") {
     GroundSettleTests.run(game, check: check)
