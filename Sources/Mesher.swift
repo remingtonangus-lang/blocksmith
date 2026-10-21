@@ -1147,12 +1147,20 @@ enum Mesher {
             if lastBlock >= 0 { let d = kv &- lastKV; for k in 0..<5 where d[k] > 0 { blockQ[lastBlock << 4 | k, default: 0] += Int(d[k]) } }
             lastBlock = next; lastKV = kv
         }
-        for ly in 0..<16 {
+        // P387 (4): on field ground, a wire, a rail or a thing GroundDrape seats in a section's first row whose ground is
+        // in the section below is drawn by the section below (an extra row, 16, after its own 16), which can lay it on
+        // that ground: vertex heights can't go under a section's floor, so it stayed at the floor over a dip (R22 does the
+        // same for plants).
+        @inline(__always) func lowRow(_ rt: UInt8, _ bi: Int) -> Bool { rt == rWire || rt == rRail || (rt == rModel && GroundDrape.seat[bi] != 0) }
+        let lowRows = drapeOn && !far && GroundDrape.lowRowOn
+        for ly in 0..<(lowRows ? 17 : 16) {
             let y = ly + C0
             for z in C0..<(C0 + 16) {
                 for x in C0..<(C0 + 16) {
                     let i = x + z * RW + y * RL
                     let b = R[i]
+                    if ly == 16 { guard b != AIR, lowRow(renderT[Int(b)], Int(b)), natAt(i - RL) else { continue } }
+                    else if ly == 0 && lowRows && b != AIR && lowRow(renderT[Int(b)], Int(b)) && natAt(i - RL) { continue }
                     if b == AIR {
                         // P297 (b): air over low ground on the bank carries the water plane on too (the bank's smooth
                         // surface dips under the waterline inside it; the water used to end at the cell's square there).
