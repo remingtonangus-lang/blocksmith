@@ -15,16 +15,54 @@ final class WorldRenderer {
     var prePass: ((SceneRenderer.Slot) -> Void)?              // offscreen passes before the world pass (the HUD panel)
     private(set) var frameCPUMs = 0.0
     private(set) var lastMobVerts = 0     // mob vertices written in the last frame
-    // Where the record time goes, summed until the next perf line (QuestApp FrameStats): cull + records, HUD panel,
-    // opaque terrain, ships + landmarks, mobs, entities, the rest (hands, sky, water, overlay).
-    static let stageNames = ["cull", "hud", "terrain", "ships", "mobs", "entities", "rest"]
-    private var stageSums = [Double](repeating: 0, count: 7), stageFrames = 0
+    // Where the record time goes, summed until the next perf line (QuestApp FrameStats). P385 step 1: the frame's
+    // uniforms (cave light, fog, sky), the cull's parts (the cull table, the walk with its sort, horizon culling,
+    // occlusion culling, the list), the section records, the HUD panel, the terrain draw lists, the middle ring, ships,
+    // landmarks, mobs (with the wait on their worker), entities, particles, the sky, water and glass, and the rest of the
+    // UI (outline, hands, panels).
+    static let stageNames = ["uniforms", "table", "walk", "horizon", "occlusion", "list", "records", "hud", "terrain", "ring",
+                             "ships", "landmarks", "mobs", "entities", "particles", "sky", "translucent", "ui"]
+    private var stageSums = [Double](repeating: 0, count: 18), stageFrames = 0
+    private(set) var stageWorst = 0.0                       // the slowest frame's record since the last take (ms)
+    private var tableReads = 0, rasterSum = 0.0              // columns the cull table re-read; occluder raster (worker) ms
     func takeStages() -> String {
         let n = Double(max(1, stageFrames))
         let parts = zip(WorldRenderer.stageNames, stageSums).map { "\($0) " + String(format: "%.2f", $1 * 1000 / n) }
+        let extra = String(format: " | table re-read %.1f columns a frame, occluder raster %.2f ms a frame; taken back from the workers: mobs %d, raster %d of %d frames",
+                           Double(tableReads) / n, rasterSum / n, mobWork.takeTookBack(), scene.occWork.takeTookBack(), stageFrames)
         for i in stageSums.indices { stageSums[i] = 0 }
-        stageFrames = 0
-        return parts.joined(separator: ", ")
+        stageFrames = 0; stageWorst = 0; tableReads = 0; rasterSum = 0
+        return parts.joined(separator: ", ") + extra
+    }
+    // P385 step 3: the mobs' vertices are written on a worker while the frame thread culls and draws the terrain (they read the
+    // mobs, the light and the model tables, none of which the cull touches), into a vertex buffer of the slot's own,
+    // and drawn when the frame reaches them (FrameWork: taken back by the frame thread if the worker hasn't begun).
+    // BS_MOBTHREAD=0: written in place, as before.
+    static var mobThread = ProcessInfo.processInfo.environment["BS_MOBTHREAD"] != "0"
+    static let mobBufBytes = 10 << 20
+    private let mobWork = FrameWork(label: "mobverts")
+    private var mobBufs: [ObjectIdentifier: VkBuf] = [:]
+    private var mobPending: VkBuf?
+    private var mobCount = 0
+    private func startMobs(_ s: SceneRenderer.Slot, _ eye: V3, _ frustum: Frustum) {
+        mobPending = nil
+        guard WorldRenderer.mobThread, !WorldRenderer.debugSkip.contains("mobs") else { return }
+        guard !game.mobs.mobs.isEmpty || !game.mobs.corpses.isEmpty || !Hunting.bodyMobs.isEmpty || !AshFallen.mobs.isEmpty else { return }
+        let id = ObjectIdentifier(s)
+        if mobBufs[id] == nil { mobBufs[id] = try? VkBuf(scene.ctx, size: WorldRenderer.mobBufBytes, usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true) }
+        guard let b = mobBufs[id], let p = b.mapped else { return }
+        let cap = WorldRenderer.mobBufBytes / MemoryLayout<MobVert>.stride
+        let ptr = p.bindMemory(to: MobVert.self, capacity: cap)
+        let mobs = game.mobs.mobs, corpses = game.mobs.corpses, rag = game.debris.ragdolls
+        let daylight = game.renderDaylight, world = game.world, maxD = mobMaxDist
+        mobPending = b
+        mobWork.start { [self] in
+            mobCount = writeMobVertices(mobs, eye: eye, daylight: daylight, world: world, into: ptr, capacity: cap,
+                                        cull: frustum, maxDist: maxD, corpses: corpses, ragdolls: rag)
+        }
+    }
+    private func joinMobs() {
+        if mobPending != nil { mobWork.finish() }
     }
     private var camYaw: Float = 0, camPitch: Float = 0
     // Debugging aid: QUEST_SKIP=mobs,entities,... leaves passes out.
@@ -208,6 +246,12 @@ final class WorldRenderer {
         let t0 = CFAbsoluteTimeGetCurrent()
         var tm = t0
         func stage(_ i: Int) { let n = CFAbsoluteTimeGetCurrent(); stageSums[i] += n - tm; tm = n }
+        defer {
+            joinMobs()                                           // (never left running into the next frame)
+            stageFrames += 1
+            frameCPUMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            stageWorst = max(stageWorst, frameCPUMs)
+        }
         updateCave(cam.center)
         updateUnderground(cam.center)
         let (u, clear) = uniforms(cam)
@@ -221,36 +265,58 @@ final class WorldRenderer {
         let eye = cam.center
         let frustum = Frustum(cam.cullViewProj * translationMatrix(-eye))
         scene.occlusionVP = cam.cullViewProj * translationMatrix(-eye)          // (P376 step 5)
-        scene.cull(game.world, eye: eye, frustum: frustum)
-        scene.writeRecords(s, eye: eye)
         stage(0)
+        startMobs(s, eye, frustum)
+        stage(12)
+        scene.cull(game.world, eye: eye, frustum: frustum)
+        // (the cull's own split, the rest of the cull call under "list"; all of it under "walk" when the table is off)
+        let cs = scene.cullStageMs, cullSec = CFAbsoluteTimeGetCurrent() - tm, csSum = cs.reduce(0, +)
+        if csSum > 0 {
+            for i in 0..<5 { stageSums[1 + i] += cs[i] / 1000 }
+            stageSums[5] += max(0, cullSec - csSum / 1000)
+            tableReads += scene.tableRefreshed; rasterSum += scene.occRasterMs
+        } else { stageSums[2] += cullSec }
+        tm = CFAbsoluteTimeGetCurrent()
+        scene.writeRecords(s, eye: eye)
+        stage(6)
+        // (the mob worker is joined in drawMobs: the panel, the terrain, the ring, ships and landmarks don't touch the
+        // mob models' shared state, so the worker has until then)
         if !WorldRenderer.debugSkip.contains("prepass") { prePass?(s) }
-        stage(1)
+        stage(7)
         scene.beginPass(s, t, clear: clear)
         let skip = WorldRenderer.debugSkip
         if !skip.contains("opaque") { scene.drawOpaque(s) }
+        stage(8)
         if !skip.contains("far") { drawFarRing(s, eye) }
-        stage(2)
+        stage(9)
         if !skip.contains("ships") { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
+        stage(10)
         if !skip.contains("landmarks") { drawLandmarks(s, eye, far: cam.far, fogColor: V3(u.fogColor.x, u.fogColor.y, u.fogColor.z)) }
-        stage(3)
+        stage(11)
         if !skip.contains("mobs") { drawMobs(s, eye, frustum) }
-        stage(4)
+        stage(12)
         camYaw = cam.yaw; camPitch = cam.pitch
+        particleSec = 0
         if !skip.contains("entities") { drawEntities(s, eye) }
-        stage(5)
+        stageSums[13] -= particleSec; stageSums[14] += particleSec
+        stage(13)
         if !skip.contains("outline") { drawOutline(s, eye) }
         if !skip.contains("extra") { extraOpaque?(s, eye) }
+        stage(17)
         if !skip.contains("ships") { ships.drawBeforeWater(s, ships: game.world.ships, world: game.world, eye: eye, frustum: frustum) }
+        stage(10)
         if !skip.contains("sky") { drawSkyLayer(s, eye) }
+        stage(15)
         if !skip.contains("landmarks") && !skip.contains("smoke") { drawLandmarkSmoke(s) }
+        stage(11)
         if !skip.contains("trans") { scene.drawTranslucent(s, underwater: game.player.headInWater) }
+        stage(16)
         if !skip.contains("ships") { ships.drawTranslucent(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
+        stage(10)
         if !skip.contains("overlay") { extraOverlay?(s, eye) }
-        stage(6)
-        stageFrames += 1
-        frameCPUMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+        stage(17)
     }
+    private var particleSec = 0.0
 
     // F4: the middle ring after the opaque terrain (the loaded chunks win the depth test; far.vert sinks the ring under
     // them) and before the landmarks and the sky (its depth hides the horizon shell and the sky dome behind it).
@@ -316,12 +382,23 @@ final class WorldRenderer {
         let move: Float = TickProf.lighter && FarRing.enabled ? 9 : 1
         // (P374: an empty build, no horizon or landmark in range, waits its turn like any other: it was redone every
         // frame, 0.5 ms of each frame's record at the camp and Stone Gulch.)
-        if lmFrameNo - lmBuilt >= every || simd_length_squared(eye - lmEye) > move || far != lmFar {
+        // P385: while smoke rises (every 2nd frame) only the landmarks and the smoke are rebuilt, over the horizon ground
+        // of the last full build; the ground itself at the standing beat (36 frames), or once the eye moved or the far
+        // plane changed. BS_LMSPLIT=0: whole builds, as before.
+        let moved = simd_length_squared(eye - lmEye) > move || far != lmFar
+        if moved || lmFrameNo - lmBuilt >= every {
+            let full = moved || !WorldRenderer.lmSplit || lmFrameNo - lmFull >= (TickProf.lighter ? 36 : 1)
             landmarkVerts.removeAll(keepingCapacity: true)
+            if !full { landmarkVerts.append(contentsOf: lmHorizon) }
             var smokeStart = 0
             host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
-                                rd: Float(game.world.renderDistance))
-            lmSmokeStart = smokeStart; lmEye = eye; lmFar = far; lmBuilt = lmFrameNo
+                                rd: Float(game.world.renderDistance), horizon: full)
+            if full {
+                lmHorizon.removeAll(keepingCapacity: true)
+                lmHorizon.append(contentsOf: landmarkVerts[0..<Renderer.horizonEnd])
+                lmEye = eye; lmFar = far; lmFull = lmFrameNo
+            }
+            lmSmokeStart = smokeStart; lmBuilt = lmFrameNo
         }
         let smokeStart = lmSmokeStart
         let stride = MemoryLayout<SimpleVert>.stride
@@ -340,6 +417,8 @@ final class WorldRenderer {
         landmarkCount = landmarkVerts.count
     }
     private var lmFrameNo = 0, lmBuilt = -100, lmSmokeStart = 0, lmEye = V3(1e9, 0, 0), lmFar: Float = 0
+    private var lmFull = -100, lmHorizon: [SimpleVert] = []
+    static var lmSplit = ProcessInfo.processInfo.environment["BS_LMSPLIT"] != "0"
     private var lmBufs: [VkBuf?] = [nil, nil, nil], lmUsed = [-10, -10, -10], lmLive = -1
     // The build into a buffer none of the frames in flight reads (index), or -1 (drawn from the scratch ring this time).
     private func lmStore(_ verts: [SimpleVert]) -> Int {
@@ -418,6 +497,22 @@ final class WorldRenderer {
     private func drawMobs(_ s: SceneRenderer.Slot, _ eye: V3, _ frustum: Frustum) {
         let tp = game.cameraMode != 0
         let others = game.coop.active || game.netGuest != nil          // C14: the other player's body
+        // P385: the worker's mobs (startMobs), then the player's body and the other players' after them in its buffer.
+        if let b = mobPending, let p = b.mapped {
+            joinMobs()
+            mobPending = nil
+            let cap = WorldRenderer.mobBufBytes / MemoryLayout<MobVert>.stride
+            let ptr = p.bindMemory(to: MobVert.self, capacity: cap)
+            var n = mobCount
+            if tp { n += writePlayerModel(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n) }
+            if others {
+                n += game.coop.writeOthers(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n)
+                n += NetCoop.writeRemote(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n)
+            }
+            lastMobVerts = n
+            scene.drawBuffer(s, "mob", b.buffer, offset: 0, count: n)
+            return
+        }
         guard !game.mobs.mobs.isEmpty || !game.mobs.corpses.isEmpty || !Hunting.bodyMobs.isEmpty || !AshFallen.mobs.isEmpty || tp || others else { return }   // (P326: the vault's fallen with no mob about)
         let (ptr, off, cap) = scene.reserve(s, MobVert.self)
         guard cap > 36 else { return }
@@ -461,7 +556,9 @@ final class WorldRenderer {
         game.writeShelves(&wr, eye: eye)
         game.writeFelled(&wr, eye: eye)                                       // (P297 d: round felled trunks)
         game.debris.write(&wr, eye: eye, world: w, daylight: daylight)      // (R15: ragdolls and debris in every world)
+        let tp0 = CFAbsoluteTimeGetCurrent()
         game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight)
+        particleSec = CFAbsoluteTimeGetCurrent() - tp0
         let nItems = wr.n
         game.writeShadows(&wr, eye: eye)
         game.writeHalos(&wr, eye: eye, right: right, up: -up)          // SH1 light halos

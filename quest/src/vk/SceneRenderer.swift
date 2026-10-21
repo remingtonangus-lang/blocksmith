@@ -60,6 +60,26 @@ final class RenderTarget {
     }
 }
 
+// P385: the cull walk's per-section marks (generation numbers) in memory of their own: as arrays held by the renderer
+// every mark read or written in the walk was an exclusivity check and a uniqueness check on the host build.
+final class RawMarks {
+    let count: Int
+    let visit, found, frustum: UnsafeMutablePointer<UInt32>
+    let viewOK: UnsafeMutablePointer<UInt8>
+    init(_ n: Int) {
+        count = n
+        let m = max(1, n)
+        visit = .allocate(capacity: m); found = .allocate(capacity: m); frustum = .allocate(capacity: m); viewOK = .allocate(capacity: m)
+        clear()
+    }
+    func clear() {
+        let m = max(1, count)
+        visit.initialize(repeating: 0, count: m); found.initialize(repeating: 0, count: m)
+        frustum.initialize(repeating: 0, count: m); viewOK.initialize(repeating: 0, count: m)
+    }
+    deinit { visit.deallocate(); found.deallocate(); frustum.deallocate(); viewOK.deallocate() }
+}
+
 final class SceneRenderer {
     let ctx: VkContext
     let views: Int
@@ -909,6 +929,72 @@ final class SceneRenderer {
     private(set) var cullVisits = 0              // sections the last walk went through
     private var chunkGrid: [Chunk?] = []
 
+    // P385: the cull table (the extension at the end of this file). Per loaded column in reach (toroidal: a column's
+    // slot is its chunk coordinates modulo the span, so moving the eye a chunk re-reads only the columns that came into
+    // reach) the facts the walk, the horizon and occlusion culls, the section records and the draw lists need, in plain
+    // arrays: the walk took a retain and a release of a chunk, its section array and a section at every step, most of
+    // the frame's cull. A column is re-read only when its chunk changed (Chunk.cullStamp, its blocks, detail level or
+    // shell state), so each section's draw entries (its slab pair, vertex offset and counts) persist between frames.
+    // BS_FASTCULL=0: the walk and draws as before.
+    static var fastCull = ProcessInfo.processInfo.environment["BS_FASTCULL"] != "0"
+    struct ColKey: Equatable { var stamp = -1, bv = -1, lod = -1, flags = -1 }
+    struct ColInfo {
+        var cx: Int32 = 0, cz: Int32 = 0, occTop: Int32 = -1, tintOff: UInt32 = 0
+        var topSec: Int16 = 0, present = false, meshedOnce = false, lod1 = false
+    }
+    struct SecInfo {
+        var vis: UInt64 = 0
+        var flags: UInt32 = 0                  // SecInfo.nonEmpty, .meshed, .deep, .solidFull
+        var oPair: Int32 = -1, oVo: Int32 = 0, quads: Int32 = 0, solid: Int32 = 0, fSkip: Int32 = 0, fExtra: Int32 = 0
+        var farCut: Int32 = 0, farTail: Int32 = 0
+        var dPair: Int32 = -1, dVo: Int32 = 0, dQuads: Int32 = 0, dSolid: Int32 = 0, dSkip: Int32 = 0, dExtra: Int32 = 0
+        var tPair: Int32 = -1, tVo: Int32 = 0, tQuads: Int32 = 0
+        static let nonEmpty: UInt32 = 1, meshed: UInt32 = 2, deep: UInt32 = 4, solidFull: UInt32 = 8
+    }
+    private var tabSpan = 0
+    private var tabChunk: [Chunk?] = []
+    private var tabKey: [ColKey] = []
+    private var tabCol: [ColInfo] = []
+    private var tabSec: [SecInfo] = []
+    private var tabSeen: [UInt32] = []          // (horizon cull: a column taken as an occluder this frame)
+    private var slotX: [Int] = [], slotZ: [Int] = []
+    private(set) var tableRefreshed = 0          // columns re-read last frame
+    private var tableFrame = false               // this frame's list is `vl` (table slots), not `visible`
+    private var vl: [Int32] = []                 // visible sections, near to far: slot * NSEC + sy
+    private var slabIdx: [ObjectIdentifier: Int32] = [:]
+    private var slabBufs: [QuestBuffer] = []
+    private var pairIdx: [Int64: Int32] = [:]
+    private var pairBufs: [(QuestBuffer, QuestBuffer)] = []
+    private var pairK: [Int32] = []
+    private var keysT: [Int32] = []
+    // Where the cull's time went last frame (ms): the table, the walk (and its sort), horizon, occlusion, the list.
+    private(set) var cullStageMs = [Double](repeating: 0, count: 5)
+    // The walk's own facts per section, packed (vis bits; flags as SecInfo's): the full SecInfo table is several MB at
+    // view 24 and the walk touched one entry per step, nearly every one a cache miss.
+    private var tabVis: [UInt64] = []
+    private var tabFl: [UInt8] = []
+    // Columns held, for the frames where nothing was loaded or dropped and the eye stayed in its chunk: then only
+    // their keys are compared (no lookups). BS_TABLEEPOCH=0: every column looked up every frame.
+    static var epochTable = ProcessInfo.processInfo.environment["BS_TABLEEPOCH"] != "0"
+    private struct LiveCol { var slot: Int; unowned(unsafe) var c: Chunk }
+    private var tabLive: [LiveCol] = []
+    private var tabEpoch = -1, tabPCX = Int.min, tabPCZ = Int.min, tabWorld: ObjectIdentifier?
+    // The walk's marks (visited, listed, frustum tested and its answer), in plain memory.
+    private var tMarks = RawMarks(0)
+    private var noteBuf: [Int64] = []
+    // The horizon cull's occluders not applied yet, kept by far distance (seq: the order they were taken).
+    private struct HOcc { var dmax: Float; var b0: Int; var b1: Int; var top: Float; var bot: Float; var seq: Int32 }
+    private var hOcc: [HOcc] = []
+    private var hBatch: [HOcc] = []
+    // The horizon cull's footprint of a column (angles and distances), once a frame per column.
+    private var fpGen: [UInt32] = []
+    private var fpV: [SIMD4<Float>] = []
+    // The occluder boxes are drawn into the depth buffer on a worker while the walk runs (they need only the table).
+    // BS_OCCPAR=0: drawn on the main thread after the horizon cull, as before.
+    static var occParallel = ProcessInfo.processInfo.environment["BS_OCCPAR"] != "0"
+    let occWork = FrameWork(label: "occlusion-raster")
+    private(set) var occRasterMs = 0.0
+
     // Sections to draw, near to far (the Mac renderer's cave-culling walk, Renderer.encode).
     // P339 (full detail out to 24 chunks, Remington Oct 18: cost down by culling, never by lowering far detail): horizon
     // culling over the walk's found sections, nearest first. Each chunk whose columns are all solid for 16 cells under
@@ -1116,6 +1202,9 @@ final class SceneRenderer {
     }
 
     func cull(_ world: World, eye: V3, frustum: Frustum) {
+        tableFrame = false
+        for i in cullStageMs.indices { cullStageMs[i] = 0 }
+        if SceneRenderer.fastCull && caveCulling && cullT(world, eye: eye, frustum: frustum) { return }
         let t0 = CFAbsoluteTimeGetCurrent()
         visible.removeAll(keepingCapacity: true)
         deepSeaSkipped = 0
@@ -1218,8 +1307,14 @@ final class SceneRenderer {
             }
             cullVisits = bfs.count
             found.sort()
+            // (P385 step 1: the same split as cullT's, the walk with its chunk lookups under "walk")
+            let tw = CFAbsoluteTimeGetCurrent()
+            cullStageMs[1] = (tw - t0) * 1000
             if horizonCulling { horizonCull(eye: eye, R: R, span: span) }
+            let th = CFAbsoluteTimeGetCurrent()
+            cullStageMs[2] = (th - tw) * 1000
             if occlusionCulling { occlusionCull(eye: eye, R: R, span: span) }
+            cullStageMs[3] = (CFAbsoluteTimeGetCurrent() - th) * 1000
             for k in found {
                 guard let c = chunkGrid[Int((k >> 8) & 0xFF_FFFF)] else { continue }
                 visible.append((c, Int(k & 0xFF), Float(bitPattern: UInt32(k >> 32))))
@@ -1244,6 +1339,7 @@ final class SceneRenderer {
 
     // P283 (questcheck --perfscenes): the culled sections' quads by kind, near (lod 0 and 2) and far (lod 1).
     func quadBreakdown() -> String {
+        let visible = visibleList()
         var q = [[Int]](repeating: [0, 0, 0, 0, 0, 0], count: 2)
         for i in 0..<min(visible.count, SceneRenderer.recordCap) {
             let (c, sy, _) = visible[i]
@@ -1259,6 +1355,7 @@ final class SceneRenderer {
     // P384 step 1: the culled sections' quads by kind (MeshKind), within and past GroundMerge.farDistance (~180 blocks),
     // as meshed (full copies; the far switch's ground is in "ground far copy").
     func kindBreakdown() -> String {
+        let visible = visibleList()
         var q = [SIMD16<Int32>](repeating: SIMD16<Int32>(), count: 2)
         var trans = [0, 0], secs = [0, 0], farExtra = [0, 0], farSkip = [0, 0], farCut = [0, 0], farTail = [0, 0], detExtra = [0, 0], detSkip = [0, 0]
         var buried = [SIMD16<Int32>(), SIMD16<Int32>()], buriedSecs = [0, 0]
@@ -1317,6 +1414,7 @@ final class SceneRenderer {
     static var drawMerged = true                  // (questcheck --view --pixelpair: the full grid everywhere for the left shot)
     func writeRecords(_ s: Slot, eye: V3) {
         recEye = eye
+        if tableFrame { writeRecordsT(s, eye: eye); return }
         nRec = min(visible.count, SceneRenderer.recordCap)
         let recs = s.records.mapped!.bindMemory(to: SectionRec.self, capacity: max(1, nRec))
         for i in 0..<nRec {
@@ -1474,6 +1572,11 @@ final class SceneRenderer {
         drawCalls = 0; drawnQuads = 0; batchedSections = 0; indirectUsed = 0; mergedSections = 0
         bindTerrainBuffers(s)
         anyDetail = false
+        if tableFrame {
+            if SceneRenderer.batchDraws && batchable && s.indirect != nil { drawOpaqueBatchedT(s); return }
+            visible = visibleList()               // (no indirect draws: the list as tuples, drawn as before)
+            tableFrame = false
+        }
         for i in 0..<nRec { let (c, sy, _) = visible[i]; if c.sections[sy].detailQuads > 0 { anyDetail = true; break } }
         if SceneRenderer.batchDraws && batchable && s.indirect != nil { drawOpaqueBatched(s); return }
         for pass in 0..<4 {
@@ -1517,6 +1620,7 @@ final class SceneRenderer {
     private var indirectUsed = 0
     private(set) var batchedWater = 0
     func drawTranslucent(_ s: Slot, underwater: Bool = false) {
+        if tableFrame { drawTranslucentT(s, underwater: underwater); return }
         bindTerrainBuffers(s)
         vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(underwater ? "waterUnder" : "water"))
         let farBatched = !underwater && SceneRenderer.batchFarWater && SceneRenderer.batchDraws && batchable && s.indirect != nil
@@ -1630,5 +1734,753 @@ final class SceneRenderer {
         withUnsafeBytes(of: &pc) { raw in
             vkCmdPushConstants(s.cmd, pipeLayout, VK_SHADER_STAGE_VERTEX_BIT.rawValue | VK_SHADER_STAGE_FRAGMENT_BIT.rawValue, 0, 80, raw.baseAddress)
         }
+    }
+}
+
+// MARK: P385: the cull from the cull table
+
+extension SceneRenderer {
+    private func slabOf(_ m: MeshSlice?) -> Int32 {
+        guard let m, let b = m.buffer as? QuestBuffer else { return -1 }
+        let id = ObjectIdentifier(b)
+        if let k = slabIdx[id] { return k }
+        let k = Int32(slabBufs.count)
+        slabBufs.append(b); slabIdx[id] = k
+        return k
+    }
+    private func pairOf(_ vs: Int32, _ ts: Int32) -> Int32 {
+        guard vs >= 0, ts >= 0 else { return -1 }
+        let key = Int64(vs) << 32 | Int64(ts)
+        if let k = pairIdx[key] { return k }
+        let k = Int32(pairBufs.count)
+        pairBufs.append((slabBufs[Int(vs)], slabBufs[Int(ts)])); pairIdx[key] = k; pairK.append(-1)
+        return k
+    }
+
+    // A column's facts, read from its chunk.
+    private func fillColumn(_ slot: Int, _ c: Chunk) {
+        c.cullWatched = true
+        var ci = ColInfo()
+        ci.cx = Int32(c.cx); ci.cz = Int32(c.cz); ci.topSec = Int16(c.topSec)
+        ci.present = true; ci.meshedOnce = c.meshedOnce; ci.lod1 = c.lod == 1
+        ci.occTop = Int32(c.occluderTop)
+        ci.tintOff = UInt32((c.tintBuf?.offset ?? 0) / 4)
+        tabCol[slot] = ci
+        let ts = slabOf(c.tintBuf)
+        let base = slot * NSEC
+        let secs = c.sections
+        for sy in 0..<NSEC {
+            let s = secs[sy]
+            var e = SecInfo()
+            e.vis = s.meshedVersion == -1 ? ~UInt64(0) : s.vis
+            if !s.empty { e.flags |= SecInfo.nonEmpty }
+            if s.meshedVersion != -1 { e.flags |= SecInfo.meshed }
+            if s.solidFull { e.flags |= SecInfo.solidFull }
+            if deepWaterAbove(c, sy) { e.flags |= SecInfo.deep }
+            if s.opaqueQuads > 0, let b = s.opaqueBuf {
+                e.oPair = pairOf(slabOf(b), ts); e.oVo = Int32(b.offset / 8)
+                e.quads = Int32(s.opaqueQuads); e.solid = Int32(s.solidQuads); e.fSkip = Int32(s.farSkip); e.fExtra = Int32(s.farExtra)
+                e.farCut = Int32(s.farCut); e.farTail = Int32(s.farTail)
+            }
+            if s.detailQuads > 0, let b = s.detailBuf {
+                e.dPair = pairOf(slabOf(b), ts); e.dVo = Int32(b.offset / 16)
+                e.dQuads = Int32(s.detailQuads); e.dSolid = Int32(s.detailSolid); e.dSkip = Int32(s.detailFarSkip); e.dExtra = Int32(s.detailFarExtra)
+            }
+            if s.transQuads > 0, let b = s.transBuf {
+                e.tPair = pairOf(slabOf(b), ts); e.tVo = Int32(b.offset / 8); e.tQuads = Int32(s.transQuads)
+            }
+            tabSec[base + sy] = e
+            tabVis[base + sy] = e.vis; tabFl[base + sy] = UInt8(e.flags)
+        }
+    }
+
+    // underDeepWater's test without its tally (the flag is kept in the table; the tally counts at use).
+    private func deepWaterAbove(_ c: Chunk, _ sy: Int) -> Bool {
+        guard c.lod == 1, sy + 1 < NSEC else { return false }
+        let above = c.sections[sy + 1]
+        guard above.empty, above.meshedVersion != -1 else { return false }
+        let y = (sy + 1) * 16
+        let fk = fluidKindT
+        return fk[Int(c.blocks[Chunk.index(8, y + 8, 8)])] == 1 && fk[Int(c.blocks[Chunk.index(0, y, 0)])] == 1
+            && fk[Int(c.blocks[Chunk.index(15, y + 15, 15)])] == 1
+    }
+
+    // Every column in reach checked against what its slot was filled from; changed ones re-read.
+    private func refreshTable(_ world: World, pcx: Int, pcz: Int, R: Int, span: Int) {
+        if tabSpan != span {
+            tabSpan = span
+            tabChunk = [Chunk?](repeating: nil, count: span * span)
+            tabKey = [ColKey](repeating: ColKey(), count: span * span)
+            tabCol = [ColInfo](repeating: ColInfo(), count: span * span)
+            tabSec = [SecInfo](repeating: SecInfo(), count: span * span * NSEC)
+            tabSeen = [UInt32](repeating: 0, count: span * span)
+            tabVis = [UInt64](repeating: 0, count: span * span * NSEC)
+            tabFl = [UInt8](repeating: 0, count: span * span * NSEC)
+            fpGen = [UInt32](repeating: 0, count: span * span)
+            fpV = [SIMD4<Float>](repeating: .zero, count: span * span)
+            tabEpoch = -1; tabLive.removeAll()
+        }
+        if slotX.count != span { slotX = [Int](repeating: 0, count: span); slotZ = [Int](repeating: 0, count: span) }
+        let wid = ObjectIdentifier(world)
+        let lost = CullNotes.take(&noteBuf)                // (taken before any key is read: later changes note again)
+        if SceneRenderer.epochTable && !lost && tabEpoch == world.chunksEpoch && tabPCX == pcx && tabPCZ == pcz && tabWorld == wid {
+            var n = 0
+            for key in noteBuf {
+                let cx = Int(Int32(truncatingIfNeeded: key >> 32)), cz = Int(Int32(truncatingIfNeeded: key))
+                let dx = cx - pcx, dz = cz - pcz
+                guard abs(dx) <= R, abs(dz) <= R else { continue }
+                let slot = slotX[dx + R] + slotZ[dz + R]
+                guard let c = tabChunk[slot], c.cx == cx, c.cz == cz else { continue }
+                let fl = (c.meshedOnce ? 1 : 0) | (c.hollow ? 2 : 0) | (c.tintBuf == nil ? 0 : 4)
+                let k = ColKey(stamp: c.cullStamp, bv: c.blocksVersion, lod: c.lod, flags: fl)
+                if tabKey[slot] == k { continue }
+                tabKey[slot] = k
+                fillColumn(slot, c)
+                n += 1
+            }
+            tableRefreshed = n
+            return
+        }
+        tabEpoch = world.chunksEpoch; tabPCX = pcx; tabPCZ = pcz; tabWorld = wid
+        tabLive.removeAll(keepingCapacity: true)
+        for i in 0..<span { slotX[i] = mod(pcx + i - R, span); slotZ[i] = mod(pcz + i - R, span) * span }
+        var n = 0
+        for dz in -R...R { for dx in -R...R {
+            let slot = slotX[dx + R] + slotZ[dz + R]
+            guard world.inMeshRadius(dx, dz), let c = world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else {
+                if tabCol[slot].present || tabChunk[slot] != nil { tabChunk[slot] = nil; tabKey[slot] = ColKey(); tabCol[slot].present = false }
+                continue
+            }
+            tabLive.append(LiveCol(slot: slot, c: c))
+            let fl = (c.meshedOnce ? 1 : 0) | (c.hollow ? 2 : 0) | (c.tintBuf == nil ? 0 : 4)
+            let k = ColKey(stamp: c.cullStamp, bv: c.blocksVersion, lod: c.lod, flags: fl)
+            if tabChunk[slot] === c && tabKey[slot] == k { continue }
+            tabChunk[slot] = c; tabKey[slot] = k
+            fillColumn(slot, c)
+            n += 1
+        } }
+        tableRefreshed = n
+    }
+
+    // The list as (chunk, section, distance) tuples (diagnostics, and the per-section draws without indirect draws).
+    func visibleList() -> [(Chunk, Int, Float)] {
+        guard tableFrame else { return visible }
+        var out: [(Chunk, Int, Float)] = []
+        out.reserveCapacity(vl.count)
+        for v in vl {
+            let slot = Int(v) / NSEC, sy = Int(v) % NSEC
+            if let c = tabChunk[slot] { out.append((c, sy, 0)) }
+        }
+        return out
+    }
+
+    // The walk, horizon and occlusion culls of `cull` over the table; false when the walk can't start (the eye outside
+    // the loaded sections: the caller falls back to the full scan).
+    func cullT(_ world: World, eye: V3, frustum: Frustum) -> Bool {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var tm = t0
+        func stage(_ i: Int) { let t = CFAbsoluteTimeGetCurrent(); cullStageMs[i] += (t - tm) * 1000; tm = t }
+        let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
+        let pSec = Int(floor(eye.y / 16))
+        let R = world.renderDistance + 1, span = 2 * R + 1
+        refreshTable(world, pcx: pcx, pcz: pcz, R: R, span: span)
+        stage(0)
+        let startSlot = slotX[R] + slotZ[R]
+        guard pSec >= 0 && pSec < NSEC, tabCol[startSlot].present, tabCol[startSlot].meshedOnce else { return false }
+        deepSeaSkipped = 0
+        let rasterLate = occlusionCulling && occlusionVP != nil && !SceneRenderer.occParallel
+        if occlusionCulling && occlusionVP != nil && SceneRenderer.occParallel {
+            occWork.start { [self] in rasterOccluders(R: R) }
+        }
+        defer { occWork.finish() }                       // (never left running past the cull)
+        let need = span * span * NSEC
+        // (the walk's marks in plain memory, the table read through locals: as class properties every access in the loop
+        // was an exclusivity check and a uniqueness check on the host build)
+        if tMarks.count < need { tMarks = RawMarks(need) }
+        gen &+= 1
+        if gen == 0 {
+            gen = 1
+            for i in visitGen.indices { visitGen[i] = 0; foundGen[i] = 0 }
+            tMarks.clear()
+            for i in fpGen.indices { fpGen[i] = 0 }
+        }
+        let g = gen
+        let vG = tMarks.visit, fG = tMarks.found, frG = tMarks.frustum, frO = tMarks.viewOK
+        @inline(__always) func vidx(_ dx: Int, _ dz: Int, _ sy: Int) -> Int { ((dx + R) + (dz + R) * span) * NSEC + sy }
+        let tc = tabCol, tv = tabVis, tf = tabFl, sX = slotX, sZ = slotZ, live = tabLive
+        var topSec = 0
+        for i in 0..<live.count where Int(tc[live[i].slot].topSec) > topSec { topSec = Int(tc[live[i].slot].topSec) }
+        let yLimit = max(pSec, topSec + 1)
+        var q = bfs, fd = found
+        bfs = []; found = []
+        q.removeAll(keepingCapacity: true)
+        fd.removeAll(keepingCapacity: true)
+        q.append(CullNode(col: Int32(startSlot), dx: 0, dz: 0, sy: Int16(pSec), entry: -1, mask: 0))
+        vG[vidx(0, 0, pSec)] = g
+        var head = 0
+        let r2 = world.renderDistance * world.renderDistance + world.renderDistance      // (World.inMeshRadius)
+        let bx = Float(pcx * CS), bz = Float(pcz * CS), topCut = maxSection
+        let smoothWalls = world.fieldTerrain || SmoothTerrain.enabled
+        let allVis: UInt64 = (1 << 36) - 1
+        let half = V3(8, 8, 8), side = V3(16, 16, 16)
+        let deepOn = SceneRenderer.deepSeaCull
+        let flDeep = UInt8(SecInfo.deep), flNonEmpty = UInt8(SecInfo.nonEmpty)
+        var deepSkips = 0
+        @inline(__always) func deep(_ slot: Int, _ sy: Int) -> Bool {
+            guard deepOn, tf[slot * NSEC + sy] & flDeep != 0 else { return false }
+            deepSkips &+= 1
+            return true
+        }
+        let fogOn = fogCull > 0 && !SceneRenderer.fogCullOff
+        let fog2 = fogCull * fogCull
+        // (a section's frustum and fog test once a frame: up to 26 neighbours ask for the same one)
+        @inline(__always) func inView(_ vi: Int, _ nmn: V3) -> Bool {
+            if frG[vi] == g { return frO[vi] != 0 }
+            var ok = frustum.visible(min: nmn, max: nmn + side)
+            if ok && fogOn { let c = simd_clamp(eye, nmn, nmn + side); ok = simd_length_squared(c - eye) <= fog2 }
+            frG[vi] = g; frO[vi] = ok ? 1 : 0
+            return ok
+        }
+        while head < q.count {
+            let n = q[head]; head += 1
+            let slot = Int(n.col)
+            guard tc[slot].present else { continue }
+            let sy = Int(n.sy), dx = Int(n.dx), dz = Int(n.dz), entry = Int(n.entry), mask = Int(n.mask)
+            let si = slot * NSEC + sy
+            let nonEmpty = tf[si] & flNonEmpty != 0
+            let vme = vidx(dx, dz, sy)
+            if sy < topCut && nonEmpty && fG[vme] != g {
+                fG[vme] = g
+                let mn = V3(bx + Float(dx * CS), Float(sy * 16), bz + Float(dz * CS))
+                let d = simd_length_squared(mn + half - eye)
+                fd.append(UInt64(d.bitPattern) << 32 | UInt64(slot) << 8 | UInt64(sy))
+            }
+            let vis = tv[si]
+            // P335: the 26 sections round a section with ground and open cells (as `cull`).
+            if smoothWalls && nonEmpty && vis != 0 && vis != allVis {
+                for oy in -1...1 { for oz in -1...1 { for ox in -1...1 where ox != 0 || oy != 0 || oz != 0 {
+                    let ndx = dx + ox, ndz = dz + oz, nsy = sy + oy
+                    if nsy < 0 || nsy >= NSEC || nsy >= topCut || abs(ndx) > R || abs(ndz) > R || ndx * ndx + ndz * ndz > r2 { continue }
+                    let vi = vidx(ndx, ndz, nsy)
+                    if fG[vi] == g || vG[vi] == g { continue }
+                    let ns = sX[ndx + R] + sZ[ndz + R]
+                    guard tc[ns].present, tc[ns].meshedOnce, tf[ns * NSEC + nsy] & flNonEmpty != 0 else { continue }
+                    let nmn = V3(bx + Float(ndx * CS), Float(nsy * 16), bz + Float(ndz * CS))
+                    if !inView(vi, nmn) { continue }
+                    fG[vi] = g
+                    fd.append(UInt64(simd_length_squared(nmn + half - eye).bitPattern) << 32 | UInt64(ns) << 8 | UInt64(nsy))
+                } } }
+            }
+            for f in 0..<6 {
+                if mask & (1 << (f ^ 1)) != 0 { continue }
+                let through = entry < 0 || vis & (1 << UInt64(entry * 6 + f)) != 0
+                let peek = !through && smoothWalls && vis & (1 << UInt64(f * 6 + f)) != 0
+                if !through && !peek { continue }
+                var ndx = dx, ndz = dz, nsy = sy
+                switch f {
+                case 0: ndx += 1
+                case 1: ndx -= 1
+                case 2: nsy += 1
+                case 3: nsy -= 1
+                case 4: ndz += 1
+                default: ndz -= 1
+                }
+                if nsy < 0 || nsy >= NSEC || nsy > yLimit || abs(ndx) > R || abs(ndz) > R || ndx * ndx + ndz * ndz > r2 { continue }
+                let vi = vidx(ndx, ndz, nsy)
+                if vG[vi] == g { continue }
+                let nmn = V3(bx + Float(ndx * CS), Float(nsy * 16), bz + Float(ndz * CS))
+                if !inView(vi, nmn) { continue }
+                let ns = sX[ndx + R] + sZ[ndz + R]
+                if f != 2 && f != 3 {
+                    guard tc[ns].present, tc[ns].meshedOnce else { continue }
+                    if deep(ns, nsy) { continue }
+                } else if deep(slot, nsy) { continue }
+                if peek {
+                    if tc[ns].present, nsy < topCut, tf[ns * NSEC + nsy] & flNonEmpty != 0, fG[vi] != g {
+                        fG[vi] = g
+                        fd.append(UInt64(simd_length_squared(nmn + half - eye).bitPattern) << 32 | UInt64(ns) << 8 | UInt64(nsy))
+                    }
+                    continue
+                }
+                vG[vi] = g
+                q.append(CullNode(col: Int32(ns), dx: Int16(ndx), dz: Int16(ndz), sy: Int16(nsy), entry: Int8(f ^ 1),
+                                  mask: UInt8(mask | (1 << f))))
+            }
+        }
+        deepSeaSkipped = deepSkips
+        cullVisits = q.count
+        fd.sort()
+        bfs = q; found = fd
+        stage(1)
+        if horizonCulling { horizonCullT(eye: eye) }
+        stage(2)
+        if occlusionCulling {
+            let o0 = CFAbsoluteTimeGetCurrent()
+            if rasterLate { rasterOccluders(R: R) }
+            occWork.finish()
+            testOccluded()
+            occlusionMs = (CFAbsoluteTimeGetCurrent() - o0) * 1000      // (frame thread: the wait, or the raster, and the test)
+        }
+        stage(3)
+        vl.removeAll(keepingCapacity: true)
+        for k in found { vl.append(Int32(Int((k >> 8) & 0xFF_FFFF) * NSEC + Int(k & 0xFF))) }
+        visible.removeAll(keepingCapacity: true)
+        tableFrame = true
+        visibleCount = vl.count
+        stage(4)
+        cullMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+        return true
+    }
+
+    // horizonCull over the table (the same occluders and test).
+    private func horizonCullT(eye: V3) {
+        let B = SceneRenderer.hBins
+        let toBin = Float(B) / (2 * Float.pi)
+        // (the arrays as locals for the loop: no exclusivity or uniqueness check at each access on the host build)
+        var top = hTop, bot = hBot, fd = found, fpg = fpGen, fpv = fpV, seen = tabSeen
+        hTop = []; hBot = []; found = []; fpGen = []; fpV = []; tabSeen = []
+        defer { hTop = top; hBot = bot; found = fd; fpGen = fpg; fpV = fpv; tabSeen = seen }
+        for b in 0..<B { top[b] = -.infinity; bot[b] = .infinity }
+        // Occluders not applied yet, by their far distance (equal ones in the order taken): a section applies those
+        // nearer than itself, a prefix, in the order they were taken (as the unsorted list did).
+        var occ = hOcc
+        hOcc = []
+        defer { hOcc = occ }
+        occ.removeAll(keepingCapacity: true)
+        var oHead = 0, seq: Int32 = 0
+        var batch = hBatch
+        hBatch = []
+        defer { hBatch = batch }
+        var skipped = 0
+        let g = gen
+        let tc = tabCol
+        func footprint(_ x0: Float, _ z0: Float, _ w: Float) -> (a0: Float, a1: Float, dmin: Float, dmax: Float)? {
+            let cx = x0 + w / 2, cz = z0 + w / 2
+            let nx = max(x0, min(eye.x, x0 + w)), nz = max(z0, min(eye.z, z0 + w))
+            let dmin = ((nx - eye.x) * (nx - eye.x) + (nz - eye.z) * (nz - eye.z)).squareRoot()
+            if dmin < 1 { return nil }
+            let ac = atan2(cz - eye.z, cx - eye.x)
+            var a0 = Float.infinity, a1 = -Float.infinity, dmax: Float = 0
+            func corner(_ x: Float, _ z: Float) {
+                var a = atan2(z - eye.z, x - eye.x) - ac
+                if a > .pi { a -= 2 * .pi } else if a < -.pi { a += 2 * .pi }
+                a0 = min(a0, a); a1 = max(a1, a)
+                dmax = max(dmax, ((x - eye.x) * (x - eye.x) + (z - eye.z) * (z - eye.z)).squareRoot())
+            }
+            corner(x0, z0); corner(x0 + w, z0); corner(x0, z0 + w); corner(x0 + w, z0 + w)
+            return ((ac + a0) * toBin, (ac + a1) * toBin, dmin, dmax)
+        }
+        var out = 0
+        for k in 0..<fd.count {
+            let key = fd[k]
+            let slot = Int((key >> 8) & 0xFF_FFFF), sy = Int(key & 0xFF)
+            let ci = tc[slot]
+            guard ci.present else { continue }
+            var hidden = false
+            // (the column's footprint once a frame: x = a0, y = a1, z = dmin, w = dmax; dmin < 0 for none)
+            if fpg[slot] != g {
+                fpg[slot] = g
+                if let f = footprint(Float(Int(ci.cx) * CS), Float(Int(ci.cz) * CS), 16) { fpv[slot] = SIMD4(f.a0, f.a1, f.dmin, f.dmax) }
+                else { fpv[slot] = SIMD4(0, 0, -1, 0) }
+            }
+            let fp = fpv[slot]
+            if fp.z >= 0 {
+                let fa0 = fp.x, fa1 = fp.y, dmin = fp.z, dmax = fp.w
+                var p = oHead
+                while p < occ.count && occ[p].dmax <= dmin { p += 1 }
+                if p > oHead {
+                    batch.removeAll(keepingCapacity: true)
+                    for i in oHead..<p { batch.append(occ[i]) }
+                    if batch.count > 1 { batch.sort { $0.seq < $1.seq } }
+                    for o in batch where o.dmax >= 0 {
+                        for b in o.b0...o.b1 {
+                            let m = ((b % B) + B) % B
+                            if o.top > top[m] { top[m] = o.top; bot[m] = o.bot }
+                        }
+                    }
+                    oHead = p
+                    if oHead > 256 && oHead * 2 > occ.count { occ.removeFirst(oHead); oHead = 0 }
+                }
+                let y0 = Float(sy * 16) - eye.y, y1 = y0 + 16
+                let eMax = y1 > 0 ? y1 / dmin : y1 / dmax, eMin = y0 < 0 ? y0 / dmin : y0 / dmax
+                let b0 = Int(floor(fa0)), b1 = Int(floor(fa1))
+                if b1 - b0 < B / 4 {
+                    hidden = true
+                    for b in b0...b1 {
+                        let m = ((b % B) + B) % B
+                        if !(eMax < top[m] && eMin > bot[m]) { hidden = false; break }
+                    }
+                }
+                if seen[slot] != g {
+                    seen[slot] = g
+                    let H = Int(ci.occTop)
+                    if H > 0 {
+                        let ht = Float(H) - eye.y, hb = ht - 16
+                        let ot = min(ht / dmin, ht / dmax), ob = max(hb / dmin, hb / dmax)
+                        let ib0 = Int(ceil(fa0)), ib1 = Int(floor(fa1)) - 1
+                        if ib1 >= ib0 && ot > ob {
+                            // (after every pending one with a far distance not over this one's)
+                            var lo = oHead, hi = occ.count
+                            while lo < hi { let mid = (lo + hi) / 2; if occ[mid].dmax <= dmax { lo = mid + 1 } else { hi = mid } }
+                            occ.insert(HOcc(dmax: dmax, b0: ib0, b1: ib1, top: ot, bot: ob, seq: seq), at: lo)
+                            seq += 1
+                        }
+                    }
+                }
+            }
+            if hidden { skipped += 1; continue }
+            fd[out] = key; out += 1
+        }
+        fd.removeLast(fd.count - out)
+        horizonSkipped = skipped
+    }
+
+    // occlusionCull over the table (the same occluder boxes, buffer and test), in two halves: the occluder boxes drawn
+    // into the depth buffer (from the table alone: on a worker while the walk runs), then the walk's sections tested.
+    private func rasterOccluders(R: Int) {
+        occluderBoxes = 0
+        let t0 = CFAbsoluteTimeGetCurrent()
+        defer { occRasterMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
+        guard let vp = occlusionVP else { return }
+        let W = SceneRenderer.oW, H = SceneRenderer.oH
+        // (locals for the loops: no exclusivity or uniqueness checks at each access on the host build)
+        var od = oDepth, tmin = oTileMin, tmax = oTileMax
+        oDepth = []; oTileMin = []; oTileMax = []
+        defer { oDepth = od; oTileMin = tmin; oTileMax = tmax }
+        let tc = tabCol, tf = tabFl, sX = slotX, sZ = slotZ
+        var boxes = 0
+        defer { occluderBoxes = boxes }
+        for i in 0..<(W * H) { od[i] = .infinity }
+        let near: Float = 0.5
+        func project(_ p: V3) -> SIMD3<Float> {
+            let c = vp * SIMD4<Float>(p.x, p.y, p.z, 1)
+            if c.w <= near { return SIMD3(0, 0, -1) }
+            return SIMD3((c.x / c.w * 0.5 + 0.5) * Float(W), (0.5 - c.y / c.w * 0.5) * Float(H), c.w)
+        }
+        var pts = [SIMD2<Float>](repeating: .zero, count: 8)
+        var hull: [SIMD2<Float>] = []
+        func corners(_ mn: V3, _ mx: V3, _ body: (Int, V3) -> Void) {
+            for k in 0..<8 { body(k, V3(k & 1 == 0 ? mn.x : mx.x, k & 2 == 0 ? mn.y : mx.y, k & 4 == 0 ? mn.z : mx.z)) }
+        }
+        let oc = min(SceneRenderer.occluderChunks, R)
+        for dz in -oc...oc { for dx in -oc...oc {
+            let slot = sX[dx + R] + sZ[dz + R]
+            let ci = tc[slot]
+            guard ci.present else { continue }
+            let base = slot * NSEC, topS = Int(ci.topSec)
+            var sy = 0
+            while sy <= topS {
+                guard tf[base + sy] & UInt8(SecInfo.solidFull) != 0 else { sy += 1; continue }
+                var top = sy
+                while top + 1 <= topS && tf[base + top + 1] & UInt8(SecInfo.solidFull) != 0 { top += 1 }
+                let ox = Float(Int(ci.cx) * CS), oz = Float(Int(ci.cz) * CS)
+                let mn = V3(ox + 2, Float(sy * 16) + 2, oz + 2)
+                let mx = V3(ox + 14, Float(top * 16) + 14, oz + 14)
+                sy = top + 1
+                var dMax: Float = 0, behind = false
+                corners(mn, mx) { k, p in
+                    let q = project(p)
+                    if q.z < 0 { behind = true } else { pts[k] = SIMD2(q.x, q.y); dMax = max(dMax, q.z) }
+                }
+                if behind { continue }
+                for i in 1..<8 {
+                    let v = pts[i]; var j = i - 1
+                    while j >= 0 && (pts[j].x > v.x || (pts[j].x == v.x && pts[j].y > v.y)) { pts[j + 1] = pts[j]; j -= 1 }
+                    pts[j + 1] = v
+                }
+                let sorted = pts
+                hull.removeAll(keepingCapacity: true)
+                func cross(_ o: SIMD2<Float>, _ a: SIMD2<Float>, _ b: SIMD2<Float>) -> Float { (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x) }
+                for p in sorted { while hull.count >= 2 && cross(hull[hull.count - 2], hull[hull.count - 1], p) <= 0 { hull.removeLast() }; hull.append(p) }
+                let lower = hull.count + 1
+                for p in sorted.reversed() { while hull.count >= lower && cross(hull[hull.count - 2], hull[hull.count - 1], p) <= 0 { hull.removeLast() }; hull.append(p) }
+                hull.removeLast()
+                guard hull.count >= 3 else { continue }
+                boxes += 1
+                var y0 = Float.infinity, y1 = -Float.infinity
+                for p in hull { y0 = min(y0, p.y); y1 = max(y1, p.y) }
+                let r0 = max(0, Int(ceil(y0))), r1 = min(H - 1, Int(floor(y1)) - 1)
+                if r0 > r1 { continue }
+                func spanAt(_ y: Float) -> (Float, Float) {
+                    var lo = Float.infinity, hi = -Float.infinity
+                    for e in 0..<hull.count {
+                        let a = hull[e], b = hull[(e + 1) % hull.count]
+                        if (a.y <= y && b.y >= y) || (b.y <= y && a.y >= y) {
+                            if a.y == b.y { lo = min(lo, min(a.x, b.x)); hi = max(hi, max(a.x, b.x)) }
+                            else { let x = a.x + (y - a.y) / (b.y - a.y) * (b.x - a.x); lo = min(lo, x); hi = max(hi, x) }
+                        }
+                    }
+                    return (lo, hi)
+                }
+                for r in r0...r1 {
+                    let (l0, h0) = spanAt(Float(r)), (l1, h1) = spanAt(Float(r + 1))
+                    let xa = max(0, Int(ceil(max(l0, l1)))), xb = min(W - 1, Int(floor(min(h0, h1))) - 1)
+                    if xa > xb { continue }
+                    let row = r * W
+                    for x in xa...xb where od[row + x] > dMax { od[row + x] = dMax }
+                }
+            }
+        } }
+        guard boxes > 0 else { return }
+        let T = SceneRenderer.oT, TW = W / T, TH = H / T
+        for ty in 0..<TH { for tx in 0..<TW {
+            var lo = Float.infinity, hi = -Float.infinity
+            for y in (ty * T)..<(ty * T + T) { let row = y * W; for x in (tx * T)..<(tx * T + T) { let d = od[row + x]; lo = min(lo, d); hi = max(hi, d) } }
+            tmin[ty * TW + tx] = lo; tmax[ty * TW + tx] = hi
+        } }
+    }
+
+    private func testOccluded() {
+        occlusionSkipped = 0
+        guard occluderBoxes > 0, let vp = occlusionVP else { return }
+        let W = SceneRenderer.oW, H = SceneRenderer.oH
+        let near: Float = 0.5
+        func project(_ p: V3) -> SIMD3<Float> {
+            let c = vp * SIMD4<Float>(p.x, p.y, p.z, 1)
+            if c.w <= near { return SIMD3(0, 0, -1) }
+            return SIMD3((c.x / c.w * 0.5 + 0.5) * Float(W), (0.5 - c.y / c.w * 0.5) * Float(H), c.w)
+        }
+        func corners(_ mn: V3, _ mx: V3, _ body: (Int, V3) -> Void) {
+            for k in 0..<8 { body(k, V3(k & 1 == 0 ? mn.x : mx.x, k & 2 == 0 ? mn.y : mx.y, k & 4 == 0 ? mn.z : mx.z)) }
+        }
+        let T = SceneRenderer.oT, TW = W / T
+        let nearKeep: Float = 32 * 32
+        let od = oDepth, tmin = oTileMin, tmax = oTileMax, tc = tabCol
+        var fd = found
+        found = []
+        var skipped = 0
+        defer { found = fd; occlusionSkipped = skipped }
+        var out = 0
+        for k in 0..<fd.count {
+            let key = fd[k]
+            let slot = Int((key >> 8) & 0xFF_FFFF), sy = Int(key & 0xFF)
+            let ci = tc[slot]
+            guard ci.present, Float(bitPattern: UInt32(key >> 32)) > nearKeep else { fd[out] = key; out += 1; continue }
+            let mn = V3(Float(Int(ci.cx) * CS) - 2, Float(sy * 16) - 2, Float(Int(ci.cz) * CS) - 2), mx = mn + V3(20, 20, 20)
+            var dMin = Float.infinity, behind = false
+            var xMin = Float.infinity, xMax = -Float.infinity, yMin = Float.infinity, yMax = -Float.infinity
+            corners(mn, mx) { _, p in
+                let q = project(p)
+                if q.z < 0 { behind = true; return }
+                dMin = min(dMin, q.z); xMin = min(xMin, q.x); xMax = max(xMax, q.x); yMin = min(yMin, q.y); yMax = max(yMax, q.y)
+            }
+            var hidden = !behind
+            if hidden {
+                let xa = max(0, Int(floor(xMin))), xb = min(W - 1, Int(ceil(xMax)) - 1)
+                let ya = max(0, Int(floor(yMin))), yb = min(H - 1, Int(ceil(yMax)) - 1)
+                if xa > xb || ya > yb { hidden = false }
+                else {
+                    check: for ty in (ya / T)...(yb / T) { for tx in (xa / T)...(xb / T) {
+                        let ti = ty * TW + tx
+                        if tmax[ti] < dMin { continue }
+                        let px0 = max(xa, tx * T), px1 = min(xb, tx * T + T - 1), py0 = max(ya, ty * T), py1 = min(yb, ty * T + T - 1)
+                        if tmin[ti] >= dMin && px0 == tx * T && px1 == tx * T + T - 1 && py0 == ty * T && py1 == ty * T + T - 1 { hidden = false; break check }
+                        for r in py0...py1 { let row = r * W; for x in px0...px1 where !(od[row + x] < dMin) { hidden = false; break check } }
+                    } }
+                }
+            }
+            if hidden { skipped += 1; continue }
+            fd[out] = key; out += 1
+        }
+        fd.removeLast(fd.count - out)
+    }
+
+    fileprivate func writeRecordsT(_ s: Slot, eye: V3) {
+        nRec = min(vl.count, SceneRenderer.recordCap)
+        let recs = s.records.mapped!.bindMemory(to: SectionRec.self, capacity: max(1, nRec))
+        for i in 0..<nRec {
+            let v = Int(vl[i]), slot = v / NSEC, sy = v % NSEC
+            let ci = tabCol[slot]
+            recs[i] = SectionRec(x: Float(Int(ci.cx) * CS) - eye.x, y: Float(sy * 16) - eye.y, z: Float(Int(ci.cz) * CS) - eye.z, tint: ci.tintOff)
+        }
+    }
+
+    private func bindPair(_ s: Slot, _ pr: Int32) {
+        let (vb, tbuf) = pairBufs[Int(pr)]
+        if tbuf !== boundTints, let set = tintSet(tbuf) {
+            var ss: VkDescriptorSet? = set
+            vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeLayout, 1, 1, &ss, 0, nil)
+            boundTints = tbuf
+        }
+        if vb !== boundVerts {
+            var b: VkBuffer? = vb.vkBuffer
+            var o: VkDeviceSize = 0
+            vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
+            boundVerts = vb
+        }
+    }
+
+    // drawOpaqueBatched over the table (P385 step 2): each section's draw entries were made when its mesh came in
+    // (fillColumn) and persist; a frame only sorts the visible ones into their slab pairs' lists.
+    fileprivate func drawOpaqueBatchedT(_ s: Slot) {
+        let stride = MemoryLayout<VkDrawIndexedIndirectCommand>.stride
+        let cap = s.indirect.size / stride
+        let maxPer = max(1, Int(ctx.props.limits.maxDrawIndirectCount))
+        let cmds = s.indirect.mapped!.bindMemory(to: VkDrawIndexedIndirectCommand.self, capacity: cap)
+        var used = 0
+        defer { indirectUsed = used }
+        // (the table and the lists as locals for the per-section loop: no exclusivity or uniqueness check at each access
+        // on the host build)
+        let ts = tabSec, tc = tabCol, vv = vl
+        var anyDet = false
+        for i in 0..<nRec where ts[Int(vv[i])].dQuads > 0 { anyDet = true; break }
+        anyDetail = anyDet
+        let mq = Int32(SceneRenderer.maxQuads)
+        let mergeOn = SceneRenderer.drawMerged, re = recEye, mf = GroundMerge.farDistance
+        for half in 0..<2 {
+            let detail = half == 1
+            if detail && !anyDet { break }
+            var keysT = self.keysT, batchCount = self.batchCount, batchCut = self.batchCut
+            var pendingDraws = self.pendingDraws, pendingCut = self.pendingCut, pairK = self.pairK
+            self.keysT = []; self.batchCount = []; self.batchCut = []; self.pendingDraws = []; self.pendingCut = []; self.pairK = []
+            keysT.removeAll(keepingCapacity: true); batchCount.removeAll(keepingCapacity: true); batchCut.removeAll(keepingCapacity: true)
+            pendingDraws.removeAll(keepingCapacity: true); pendingCut.removeAll(keepingCapacity: true)
+            var quadsDrawn = 0, merged = 0
+            for i in 0..<nRec {
+                let v = Int(vv[i])
+                let e = ts[v]
+                let pr = detail ? e.dPair : e.oPair
+                let quads = detail ? e.dQuads : e.quads
+                guard pr >= 0, quads > 0 else { continue }
+                let tail = detail ? 0 : e.farTail
+                var total = min(quads - tail, mq)
+                let solid = min(detail ? e.dSolid : e.solid, total)
+                var k = Int(pairK[Int(pr)])
+                if k < 0 { k = keysT.count; pairK[Int(pr)] = Int32(k); keysT.append(pr); batchCount.append(0); batchCut.append(0) }
+                let vo = detail ? e.dVo : e.oVo
+                let fSkip = detail ? e.dSkip : e.fSkip, fExtra = detail ? e.dExtra : e.fExtra
+                var cutFrom = solid
+                let cutSwitch = !detail && (e.farCut > 0 || tail > 0)
+                var far = false
+                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= mq && mergeOn {
+                    // (mergedFar: past the merged ground distance)
+                    let ci = tc[v / NSEC]
+                    let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
+                    let qn = simd_clamp(re, mn, mn + V3(16, 16, 16))
+                    far = simd_length_squared(qn - re) >= mf * mf
+                }
+                if far {
+                    merged += 1
+                    if solid > fSkip {
+                        batchCount[k] += 1
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((solid - fSkip) * 6), instanceCount: 1,
+                                                                             firstIndex: UInt32(fSkip * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                    }
+                    if fExtra > 0 {
+                        batchCount[k] += 1
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(fExtra * 6), instanceCount: 1, firstIndex: 0,
+                                                                             vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
+                    }
+                    if !detail { cutFrom = min(total, solid + e.farCut); total = min(quads, mq) }
+                    quadsDrawn += Int(fExtra - fSkip - (cutFrom - solid))
+                } else if solid > 0 {
+                    batchCount[k] += 1
+                    pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(solid * 6), instanceCount: 1, firstIndex: 0,
+                                                                         vertexOffset: vo, firstInstance: UInt32(i))))
+                }
+                if total > cutFrom {
+                    batchCut[k] += 1
+                    pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((total - cutFrom) * 6), instanceCount: 1,
+                                                                       firstIndex: UInt32(cutFrom * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                }
+                quadsDrawn += Int(total)
+            }
+            for pr in keysT { pairK[Int(pr)] = -1 }
+            drawnQuads += quadsDrawn; mergedSections += merged
+            self.keysT = keysT; self.batchCount = batchCount; self.batchCut = batchCut
+            self.pendingDraws = pendingDraws; self.pendingCut = pendingCut; self.pairK = pairK
+            for pass in 0..<2 {
+                let pending = pass == 0 ? pendingDraws : pendingCut, counts = pass == 0 ? batchCount : batchCut
+                if pending.isEmpty { continue }
+                guard used + pending.count <= cap else { break }
+                vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(["solid", "cut", "detail", "detailCut"][half * 2 + pass]))
+                batchStart.removeAll(keepingCapacity: true)
+                var at = used
+                for n in counts { batchStart.append(at); at += n }
+                for (k, cmd) in pending { cmds[batchStart[k]] = cmd; batchStart[k] += 1 }
+                var start = used
+                for k in 0..<keysT.count where counts[k] > 0 {
+                    bindPair(s, keysT[k])
+                    var left = counts[k], off = start
+                    while left > 0 {
+                        let n = min(left, maxPer)
+                        vkCmdDrawIndexedIndirect(s.cmd, s.indirect.buffer, VkDeviceSize(off * stride), UInt32(n), UInt32(stride))
+                        drawCalls += 1
+                        left -= n; off += n
+                    }
+                    start += counts[k]
+                }
+                batchedSections += pending.count
+                used = at
+            }
+        }
+    }
+
+    // drawTranslucent over the table: far (LOD 1) sections batched, then the near ones far to near, one draw each.
+    fileprivate func drawTranslucentT(_ s: Slot, underwater: Bool) {
+        bindTerrainBuffers(s)
+        vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(underwater ? "waterUnder" : "water"))
+        let farBatched = !underwater && SceneRenderer.batchFarWater && SceneRenderer.batchDraws && batchable && s.indirect != nil
+            && drawFarTranslucentBatchedT(s)
+        let mq = Int32(SceneRenderer.maxQuads)
+        for i in stride(from: nRec - 1, through: 0, by: -1) {
+            let v = Int(vl[i])
+            if farBatched && tabCol[v / NSEC].lod1 { continue }
+            let e = tabSec[v]
+            guard e.tPair >= 0, e.tQuads > 0 else { continue }
+            bindPair(s, e.tPair)
+            let count = Int(min(e.tQuads, mq))
+            drawCalls += 1; drawnQuads += count
+            vkCmdDrawIndexed(s.cmd, UInt32(count * 6), 1, 0, e.tVo, UInt32(i))
+        }
+    }
+
+    private func drawFarTranslucentBatchedT(_ s: Slot) -> Bool {
+        batchedWater = 0
+        let cmdStride = MemoryLayout<VkDrawIndexedIndirectCommand>.stride
+        let cap = s.indirect.size / cmdStride
+        let maxPer = max(1, Int(ctx.props.limits.maxDrawIndirectCount))
+        let cmds = s.indirect.mapped!.bindMemory(to: VkDrawIndexedIndirectCommand.self, capacity: cap)
+        keysT.removeAll(keepingCapacity: true); batchCount.removeAll(keepingCapacity: true)
+        pendingDraws.removeAll(keepingCapacity: true)
+        var quads = 0
+        let mq = Int32(SceneRenderer.maxQuads)
+        for i in stride(from: nRec - 1, through: 0, by: -1) {
+            let v = Int(vl[i])
+            guard tabCol[v / NSEC].lod1 else { continue }
+            let e = tabSec[v]
+            guard e.tPair >= 0, e.tQuads > 0 else { continue }
+            let count = Int(min(e.tQuads, mq))
+            var k = Int(pairK[Int(e.tPair)])
+            if k < 0 { k = keysT.count; pairK[Int(e.tPair)] = Int32(k); keysT.append(e.tPair); batchCount.append(0) }
+            batchCount[k] += 1
+            pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(count * 6), instanceCount: 1, firstIndex: 0,
+                                                                 vertexOffset: e.tVo, firstInstance: UInt32(i))))
+            quads += count
+        }
+        for pr in keysT { pairK[Int(pr)] = -1 }
+        if pendingDraws.isEmpty { return true }
+        let used = indirectUsed
+        guard used + pendingDraws.count <= cap else { return false }
+        batchStart.removeAll(keepingCapacity: true)
+        var at = used
+        for n in batchCount { batchStart.append(at); at += n }
+        for (k, cmd) in pendingDraws { cmds[batchStart[k]] = cmd; batchStart[k] += 1 }
+        var start = used
+        for k in 0..<keysT.count {
+            bindPair(s, keysT[k])
+            var left = batchCount[k], off = start
+            while left > 0 {
+                let n = min(left, maxPer)
+                vkCmdDrawIndexedIndirect(s.cmd, s.indirect.buffer, VkDeviceSize(off * cmdStride), UInt32(n), UInt32(cmdStride))
+                drawCalls += 1
+                left -= n; off += n
+            }
+            start += batchCount[k]
+        }
+        indirectUsed = at
+        drawnQuads += quads
+        batchedWater = pendingDraws.count
+        return true
     }
 }

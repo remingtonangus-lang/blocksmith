@@ -19,7 +19,8 @@ final class World {
     // P379 step 3: a field world's railways run on a gentle grade, in field worlds made since (railway-grade.txt; a
     // field world saved before keeps its stepped lines, so no line changes under explored ground).
     func gradeRails() { (gen as? WorldGen)?.fieldWorld = fieldTerrain && (save?.hasMarker("railway-grade.txt") ?? true) }
-    var chunks: [ChunkKey: Chunk] = [:]
+    var chunks: [ChunkKey: Chunk] = [:] { didSet { chunksEpoch &+= 1 } }
+    private(set) var chunksEpoch = 0           // P385: bumped at every change of `chunks` (the Quest's cull table)
     var blockEntities: [IVec3: BlockEntity] = [:]
     // Co-op over the network (NetCoop.swift): every block change is reported (unless it came from the other player,
     // World.netQuiet), and a guest's chunks come from the host instead of the generator.

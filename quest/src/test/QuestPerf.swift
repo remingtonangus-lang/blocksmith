@@ -117,6 +117,7 @@ enum QuestPerf {
         let only = arg("--only").map { Set($0.split(separator: ",").map(String.init)) }
         let field = !CommandLine.arguments.contains("--blockworld")
         let standFrames = Int(arg("--stand") ?? "") ?? 360, flyFrames = Int(arg("--flyframes") ?? "") ?? 720
+        turnFrames = Int(arg("--turnframes") ?? "") ?? 0
         print("perfscenes: \(field ? "Polygons (field)" : "block") worlds, rd \(rds), \(standFrames) + \(flyFrames) frames at 72 Hz, \(ProcessInfo.processInfo.activeProcessorCount) cores, P283 savings \(TickProf.lighter ? "on" : "off (BS_P283=0)")\(SceneRenderer.skipGPU ? ", GPU commands dropped" : "")")
         for sp in spots where only == nil || only!.contains(sp.name) {
             for rd in rds {
@@ -127,6 +128,8 @@ enum QuestPerf {
         return 0
     }
 
+    // P385 step 1: a steady 360 degree head turn after the standing phase (--turnframes N: the turn over N frames).
+    static var turnFrames = 0
     static func scene(_ sp: Spot, rd: Int, field: Bool, ctx: VkContext, standFrames: Int, flyFrames: Int) throws {
         let device = sharedSystemDevice
         let rss0 = rssMB()
@@ -156,7 +159,8 @@ enum QuestPerf {
         let img = try VkImg(ctx, width: size, height: size, layers: 2, format: VK_FORMAT_R8G8B8A8_UNORM,
                             usage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_SRC_BIT.rawValue)
         let targets = [try scene.makeTarget(image: img.image, width: size, height: size), try scene.makeTarget(image: img.image, width: size, height: size)]
-        let yaw = -sp.yaw * .pi / 180, pitch = sp.pitch * .pi / 180
+        let yaw0 = -sp.yaw * .pi / 180, pitch = sp.pitch * .pi / 180
+        var yaw = yaw0
         let t = tanf(52 * .pi / 180)                                       // the Quest 3's field of view, about 104 degrees
         let ringFar: Float = FarRing.enabled && g.world.dim == Dim.overworld ? FarRing.outer + 96 : 0
         let far = max(Float(rd * 16 + 96), ringFar)
@@ -224,6 +228,16 @@ enum QuestPerf {
         let memStand = memory(w, g)
         let quadsStand = scene.quadBreakdown()
         let kindsStand = scene.kindBreakdown()
+        var turnLine = ""
+        if turnFrames > 0 {
+            let turn = Phase()
+            for i in 0..<turnFrames {
+                yaw = yaw0 + 2 * .pi * Float(i + 1) / Float(turnFrames)
+                try frame(turn, fly: false)
+            }
+            yaw = yaw0
+            turnLine = turn.report("turning 360 in \(turnFrames) frames", stagesLine: wr.takeStages(), behind: behind())
+        }
         // (BS_BLOCKTALLY=1: the 20 blocks with the most quads the mesher's main loop drew, all sections meshed so far)
         var blockTop = ""
         if let t = Mesher.blockTally {
@@ -259,6 +273,7 @@ enum QuestPerf {
         if !blockTop.isEmpty { print("    blocks (meshed): " + blockTop) }
         print("    far ticking (P376, must be 0): \(farStand) standing, \(farFly) flying; active \(w.activeDistance) chunks, \(w.parked.values.reduce(0) { $0 + $1.count }) cells parked")
         print("    standing " + memStand)
+        if !turnLine.isEmpty { print(turnLine) }
         print("    " + vertexShare(w))
         print(flight.report(String(format: "flying %.0f b/s", speed), stagesLine: flyStages, behind: flyBehind))
         print("    " + memory(w, g))
