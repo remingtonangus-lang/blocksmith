@@ -223,6 +223,16 @@ enum QuestPerf {
         let standStages = wr.takeStages(), standBehind = behind()
         let memStand = memory(w, g)
         let quadsStand = scene.quadBreakdown()
+        let kindsStand = scene.kindBreakdown()
+        // (BS_BLOCKTALLY=1: the 20 blocks with the most quads the mesher's main loop drew, all sections meshed so far)
+        var blockTop = ""
+        if let t = Mesher.blockTally {
+            Mesher.tallyLock.lock()
+            blockTop = t.sorted { $0.value > $1.value }.prefix(20).map { k, n in
+                "\(Blocks.def(BlockID(k >> 4)).name) \(MeshKind.names[k & 15]) \(n / 4)" }.joined(separator: ", ")
+            Mesher.blockTally = [:]
+            Mesher.tallyLock.unlock()
+        }
         let flight = Phase()
         // (he flies over the land, not into the hill in front of him: the flight starts 30 blocks over the highest
         // ground within 64 blocks ahead)
@@ -245,6 +255,8 @@ enum QuestPerf {
         print("perfscene \(sp.name) rd \(rd) (seed \(sp.seed) at \(Int(sp.x)), \(Int(sp.z)); loaded in \(String(format: "%.1f", loadS)) s, \(g.mobs.mobs.count) mobs, \(w.ships.list.count) ships)")
         print(stand.report("standing", stagesLine: standStages, behind: standBehind))
         print("    quads: \(quadsStand)")
+        print("    kinds \(kindsStand)")
+        if !blockTop.isEmpty { print("    blocks (meshed): " + blockTop) }
         print("    far ticking (P376, must be 0): \(farStand) standing, \(farFly) flying; active \(w.activeDistance) chunks, \(w.parked.values.reduce(0) { $0 + $1.count }) cells parked")
         print("    standing " + memStand)
         print("    " + vertexShare(w))

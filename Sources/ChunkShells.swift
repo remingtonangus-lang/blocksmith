@@ -114,6 +114,7 @@ extension World {
             s.transBuf = cacheBuffer(m.trans); s.transQuads = m.counts[4]
             s.detailBuf = cacheBuffer(m.detail); s.detailQuads = m.counts[5]; s.detailSolid = m.counts[6]
             s.naturalCubes = m.counts[7]; s.groundQuads = m.counts[8]; s.blobQuads = m.counts[9]; s.solidFull = m.counts[10] != 0
+            s.farCut = m.counts[11]; s.detailFarSkip = m.counts[12]; s.detailFarExtra = m.counts[13]; s.farTail = m.counts[14]
             s.vis = m.vis; s.leafy = m.leafy
             s.meshedVersion = s.version
         }
@@ -141,7 +142,9 @@ extension World {
 // writes it fresh. Writes run on a background queue from the section buffers (kept alive until written). The folder
 // is held under `capBytes` (oldest files go first).
 final class MeshCache {
-    static let format: UInt32 = 3                       // 2: P381 adaptive ground; 3: P383 per-position ground vertices
+    static let format: UInt32 = 4                       // 2: P381 adaptive ground; 3: P383 per-position ground vertices;
+                                                        // 4: P384 far copies (far cutout skip, detail far copy)
+    static let countsPerSection = 15
     static let capBytes = 768 << 20
     let dir: URL
     private let queue = DispatchQueue(label: "meshcache", qos: .utility)
@@ -152,7 +155,7 @@ final class MeshCache {
 
     struct SectionData {
         var opaque: [UInt32] = [], trans: [UInt32] = [], detail: [UInt32] = []
-        var counts = [Int](repeating: 0, count: 11)
+        var counts = [Int](repeating: 0, count: MeshCache.countsPerSection)
         var vis: UInt64 = ~0, leafy = true
     }
     struct Entry {
@@ -194,7 +197,8 @@ final class MeshCache {
         // The buffers stay alive in this closure until written (their slab space is reused only after).
         let secs = c.sections.map { s in (s.opaqueBuf, s.transBuf, s.detailBuf,
                                           [s.opaqueQuads, s.solidQuads, s.farSkip, s.farExtra, s.transQuads, s.detailQuads, s.detailSolid,
-                                           s.naturalCubes, s.groundQuads, s.blobQuads, s.solidFull ? 1 : 0], s.vis, s.leafy) }
+                                           s.naturalCubes, s.groundQuads, s.blobQuads, s.solidFull ? 1 : 0,
+                                           s.farCut, s.detailFarSkip, s.detailFarExtra, s.farTail], s.vis, s.leafy) }
         let height = c.height, tint = c.tint, modified = c.modified
         let u = url(k), stamp = self.stamp
         lock.lock(); have.insert(k); lock.unlock()
@@ -271,7 +275,7 @@ final class MeshCache {
         var secs: [SectionData] = []
         for _ in 0..<NSEC {
             var s = SectionData()
-            for i in 0..<11 { guard let v = u32() else { return fail() }; s.counts[i] = Int(v) }
+            for i in 0..<MeshCache.countsPerSection { guard let v = u32() else { return fail() }; s.counts[i] = Int(v) }
             guard let vis = u64(), let lf = u32() else { return fail() }
             s.vis = vis; s.leafy = lf != 0
             guard let a = u32(), let o = words(Int(a)), let bn = u32(), let t = words(Int(bn)), let cn = u32(), let de = words(Int(cn)) else { return fail() }

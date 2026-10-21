@@ -360,7 +360,7 @@ extension Mesher {
                             stored: UnsafeMutablePointer<Int8>? = nil, sy: Int = 0,
                             leaves: Bool = false, shells: Int = 2, leafHoles: Bool = false, detailHoles: Bool = false, world: SIMD3<Int>? = nil,
                             crater: CraterSet? = nil, carveOut: GrowBuf<UInt32>? = nil, merge: GroundMerge? = nil,
-                            exact: GrowBuf<Float>? = nil,
+                            exact: GrowBuf<Float>? = nil, tri: Bool = false,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let leafT = Mesher.leafT
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
@@ -406,7 +406,7 @@ extension Mesher {
         }
         var anyLoose = field == nil && stored == nil
         let fieldLike = field != nil || stored != nil
-        let triOn = SmoothTerrain.triGround && !leaves && stored != nil
+        let triOn = SmoothTerrain.triGround && (tri || !leaves && stored != nil)     // (P384: a far leaf shell asks for it)
         // PG1: the effective density at region index r (blocks): the field's, or 0.35 for a built solid block.
         @inline(__always) func eff(_ r: Int) -> Float {
             guard let E = stored else { return 0 }

@@ -25,6 +25,10 @@ final class Section {
     var solidQuads = 0          // leading opaque quads drawn without alpha test
     var farSkip = 0             // P375 (GroundMerge): far, the first farSkip opaque quads give way to the farExtra
     var farExtra = 0            //   merged quads stored after the opaque ones in the same buffer
+    var farCut = 0              // P384: far, the first farCut cutout quads (the leaf blobs' two shells) are left out too
+    var farTail = 0             // P384: the last farTail cutout quads are drawn far only (things laid on the ground)
+    var detailFarSkip = 0       // P384: far, the first detailFarSkip detail quads give way to the detailFarExtra stored
+    var detailFarExtra = 0      //   after the detail ones in the same buffer
     var transBuf: MeshSlice?
     var transQuads = 0
     var detailBuf: MeshSlice?   // realistic world: round shapes (DetailMesh, 16-byte vertices), solid quads first
@@ -33,6 +37,7 @@ final class Section {
     var naturalCubes = 0                        // P338 step 2: natural ground meshed as cubes (field worlds; must be 0)
     var solidFull = false                       // P376 step 5: every cell opaque (an occluder)
     var groundQuads = 0, blobQuads = 0          // P283: of the opaque quads, the smooth ground's and the leaf blobs'
+    var kinds = SIMD16<Int32>()                 // P384 step 1: quads by kind (MeshKind; not kept in the disk cache)
     var version = 0 {           // bumped when the section (or light around it) changes
         didSet {
             MeshEpoch.value &+= 1

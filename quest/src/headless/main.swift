@@ -374,6 +374,8 @@ if let out = arg("--view"), let ctx = vkctx {
     // --adaptivecheck (P381): the adaptive ground against the full ground round the eye (AdaptiveGroundTests.swift).
     if CommandLine.arguments.contains("--adaptivecheck") { print(AdaptiveGround.check(vw, eye: vg.player.pos)) }
     if CommandLine.arguments.contains("--adaptivewalk") { print(AdaptiveGround.walkCheck(vg)) }
+    // --farcheck (P384): every far copy against what it stands for round the eye (AdaptiveGroundTests.swift).
+    if CommandLine.arguments.contains("--farcheck") { print(AdaptiveGround.farCheck(vw, eye: vg.player.pos)) }
     if CommandLine.arguments.contains("--meshbench") {
         let pcx = floorDiv(Int(floor(vg.player.pos.x)), CS), pcz = floorDiv(Int(floor(vg.player.pos.z)), CS)
         let was = (SmoothTerrain.enabled, SmoothTerrain.fromField)
