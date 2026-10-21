@@ -94,6 +94,47 @@ enum SmoothTerrain {
         return level(n[(a + 1) % 3] / na) * 7 + level(n[(a + 2) % 3] / na)
     }
 
+    // P383 step 2 (one vertex per ground position): field ground vertices carry everything they shade by per position,
+    // never per quad: an absolute normal (octahedral, 22 x 22 cells in 9 bits: the shade bits, the overlay bit and v),
+    // the texture picked by the vertex's own normal (not the quad's facing), and the shader projects the texture
+    // triplanar from the world position (chunk.vert / chunk_solid.frag: u = 30 marks these). So the surface nets' quads
+    // round a vertex all draw it with the same words, and the adaptive ground can join across the old facing seams.
+    // Quest only (the Mac's shaders keep the per-face code); BS_TRIGROUND=0 keeps the old facing (before/after shots).
+    #if os(macOS)
+    static var triGround = false
+    #else
+    static var triGround = ProcessInfo.processInfo.environment["BS_TRIGROUND"] != "0"
+    #endif
+    static let triN = 22
+    // The 9-bit code of a unit normal (0..<484): its octahedral map's cell.
+    static func triCode(_ n: SIMD3<Float>) -> Int {
+        let l1 = abs(n.x) + abs(n.y) + abs(n.z)
+        guard l1 > 1e-6 else { return triCode(SIMD3<Float>(0, 1, 0)) }
+        var e = SIMD2<Float>(n.x, n.z) / l1
+        if n.y < 0 {
+            let ex = (1 - abs(e.y)) * (e.x >= 0 ? 1 : -1), ez = (1 - abs(e.x)) * (e.y >= 0 ? 1 : -1)
+            e = SIMD2<Float>(ex, ez)
+        }
+        let i = max(0, min(triN - 1, Int(floor((e.x * 0.5 + 0.5) * Float(triN)))))
+        let j = max(0, min(triN - 1, Int(floor((e.y * 0.5 + 0.5) * Float(triN)))))
+        return i + j * triN
+    }
+    // The normal a code stands for (the shader's octDecode; tests and the harness).
+    static func triNormal(_ code: Int) -> SIMD3<Float> {
+        let e = (SIMD2<Float>(Float(code % triN), Float(code / triN)) + 0.5) / Float(triN) * 2 - 1
+        var n = SIMD3<Float>(e.x, 1 - abs(e.x) - abs(e.y), e.y)
+        if n.y < 0 { n.x = (1 - abs(e.y)) * (e.x >= 0 ? 1 : -1); n.z = (1 - abs(e.x)) * (e.y >= 0 ? 1 : -1) }
+        return simd_normalize(n)
+    }
+    // The texture face a vertex normal picks (the quads' own rule, on the vertex's normal).
+    static func triFace(_ n: SIMD3<Float>) -> Int {
+        let ax = abs(n.x), ay = abs(n.y), az = abs(n.z)
+        if n.y > 0.5 { return 2 }
+        if ay >= ax && ay >= az { return n.y > 0 ? 2 : 3 }
+        if ax >= az { return n.x > 0 ? 0 : 1 }
+        return n.z > 0 ? 4 : 5
+    }
+
     // Turns the mode on/off and remeshes everything loaded.
     static func set(_ on: Bool, world: World?) {
         guard on != enabled else { return }
@@ -319,6 +360,7 @@ extension Mesher {
                             stored: UnsafeMutablePointer<Int8>? = nil, sy: Int = 0,
                             leaves: Bool = false, shells: Int = 2, leafHoles: Bool = false, detailHoles: Bool = false, world: SIMD3<Int>? = nil,
                             crater: CraterSet? = nil, carveOut: GrowBuf<UInt32>? = nil, merge: GroundMerge? = nil,
+                            exact: GrowBuf<Float>? = nil,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let leafT = Mesher.leafT
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
@@ -364,6 +406,7 @@ extension Mesher {
         }
         var anyLoose = field == nil && stored == nil
         let fieldLike = field != nil || stored != nil
+        let triOn = SmoothTerrain.triGround && !leaves && stored != nil
         // PG1: the effective density at region index r (blocks): the field's, or 0.35 for a built solid block.
         @inline(__always) func eff(_ r: Int) -> Float {
             guard let E = stored else { return 0 }
@@ -747,6 +790,8 @@ extension Mesher {
                 // P375: up-facing ground goes to the pixel-error merge (GroundMerge), which emits it afterwards.
                 let toMerge = !leaves && a == 1 && sp && f == 2 && merge != nil
                 var mq = toMerge ? GroundMerge.Quad(v: [SIMD8<Int32>](repeating: .zero, count: 4), flip: flip) : nil
+                // P383: field ground drawn per position (SmoothTerrain.triGround).
+                let tri = triOn && !toMerge
                 for k in 0..<4 {
                     let cc = flip ? (k + 1) & 3 : k
                     let v = Int(VL[corner[cc]])
@@ -756,14 +801,22 @@ extension Mesher {
                     vn = simd_length_squared(vn) > 1e-6 ? simd_normalize(vn) : nrm / max(len, 1e-6)
                     var lay = layer, tnt = tint
                     if blendQuad, case let m = Int(VM[vi]), m >= 0 {
-                        let tb = Int(tintT[m]), tf = tb == 3 ? (vn.y > 0.2 ? 2 : 3) : f
+                        let tb = Int(tintT[m]), tf = tb == 3 ? (vn.y > 0.2 ? 2 : 3) : (tri ? SmoothTerrain.triFace(vn) : f)
                         lay = Int(texT[m * 6 + tf]); tnt = tb == 3 ? (tf == 2 ? 1 : 0) : tb
+                    }
+                    if tri {
+                        // (f 8...15 tells the emitter: a per-position vertex, code = (f - 8) << 6 | ncode)
+                        let code = SmoothTerrain.triCode(vn)
+                        if let ex = exact { ex.append(pts[cc].x); ex.append(pts[cc].y); ex.append(pts[cc].z) }
+                        emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), 8 + (code >> 6), tnt, lay, v >> 8, v & 255, code & 63)
+                        continue
                     }
                     if mq != nil {
                         mq!.v[cc] = SIMD8<Int32>(Int32(pt.x.rounded()), Int32(pt.y.rounded()), Int32(pt.z.rounded()), Int32(tnt), Int32(lay),
                                                  Int32(v >> 8), Int32(v & 255), Int32(SmoothTerrain.normalCode(vn, face: f)))
                         continue
                     }
+                    if let ex = exact { ex.append(pts[cc].x); ex.append(pts[cc].y); ex.append(pts[cc].z) }
                     emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tnt, lay, v >> 8, v & 255,
                          SmoothTerrain.normalCode(vn, face: f))
                 }

@@ -538,6 +538,13 @@ enum Mesher {
                 | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0) | (UInt32((layer >> 10) & 1) << 31)
             if trans { trn.append(w0); trn.append(w1) } else if curCut { cut.append(w0); cut.append(w1) } else { opq.append(w0); opq.append(w1) }
         }
+        // A smooth ground vertex from the ground passes: u = 31 projects the texture by the quad's face, and v (+ 31 when
+        // the overlay bit is set) is the vertex normal code (< 49); P383: f 8...15 is a per-position vertex (u = 30, the
+        // normal's octahedral code in the shade bits, the overlay bit and v: SmoothTerrain.triGround).
+        func groundVert(_ x16: Int, _ y16: Int, _ z16: Int, _ f: Int, _ tint: Int, _ layer: Int, _ ao: Int, _ l: Int, _ ncode: Int) {
+            if f >= 8 { vert(false, x16, y16, z16, f - 8, tint, 30, ncode & 31, layer, ao, l, ncode >= 32) }
+            else { vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31) }
+        }
         // Realistic world (built blocks): face f drawn 1/16 short of each edge it shares with another exposed side `ex`,
         // the 45-degree strip across each such edge (drawn by the lower-numbered face) and a corner triangle where three
         // exposed sides meet (drawn by the lowest). Strips carry a tilted normal (u = 31, projected texture).
@@ -772,26 +779,37 @@ enum Mesher {
         } else if smooth && fieldOn && Mesher.fineSection(n9, sy: sy) {
             // P377 step 1: ground edited here or next door draws from its two samples per block (FineField.swift).
             let g0 = opq.count
-            fineGround(n9, sy: sy, R, sc, leafHoles: leafBlob, detailHoles: detail) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+            let ex = sc.groundExact
+            ex.count = 0
+            fineGround(n9, sy: sy, R, sc, leafHoles: leafBlob, detailHoles: detail, exact: ex) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 groundV += 1
-                vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
+                groundVert(x16, y16, z16, f, tint, layer, ao, l, ncode)
             }
-            if AdaptiveGround.enabled && adaptiveOK { groundV -= AdaptiveGround.mesh(opq, from: g0, farSkip: &farSkip, farGround: &farGround) * 4 }    // P381
+            if AdaptiveGround.enabled && adaptiveOK {
+                groundV -= AdaptiveGround.mesh(opq, from: g0, exact: ex.count == (opq.count - g0) / 2 * 3 ? ex.ptr : nil,
+                                               farSkip: &farSkip, farGround: &farGround) * 4    // P381, P383
+            }
         } else if smooth {
             // (P381: the adaptive ground replaces the pixel-error merge in field worlds.)
             let adaptive = fieldOn && AdaptiveGround.enabled && adaptiveOK
             let gm: GroundMerge? = fieldOn && !(AdaptiveGround.enabled) && GroundMerge.enabled && opq.count == 0 ? sc.groundMerge : nil     // (replaced quads lead the buffer)
             gm?.reset()
             let g0 = opq.count
+            let ex = sc.groundExact
+            ex.count = 0
             smoothQuads(R, sc, dmg: dmg, site: fieldOn ? nil : site, stored: fieldOn ? dens : nil, sy: sy, leafHoles: leafBlob, detailHoles: detail,
-                        world: fieldOn ? SIMD3<Int>(wox, sy * 16, woz) : nil, crater: craters, carveOut: det, merge: gm) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                        world: fieldOn ? SIMD3<Int>(wox, sy * 16, woz) : nil, crater: craters, carveOut: det, merge: gm,
+                        exact: fieldOn ? ex : nil) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 groundV += 1
-                // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
-                vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
+                groundVert(x16, y16, z16, f, tint, layer, ao, l, ncode)
             }
-            if adaptive { groundV -= AdaptiveGround.mesh(opq, from: g0, farSkip: &farSkip, farGround: &farGround) * 4 }     // P381 (AdaptiveGround.swift)
+            // P381 (AdaptiveGround.swift); P383: measured against the field's exact surface (the unsnapped positions).
+            if adaptive {
+                groundV -= AdaptiveGround.mesh(opq, from: g0, exact: ex.count == (opq.count - g0) / 2 * 3 ? ex.ptr : nil,
+                                               farSkip: &farSkip, farGround: &farGround) * 4
+            }
             // P375 (GroundMerge): the merged ground's replaced quads first, the rest of the ground after them, and the
             // merged copy kept aside (appended past the cutout quads, drawn far only).
             if let gm, !gm.quads.isEmpty {
@@ -1918,6 +1936,7 @@ final class MeshScratch {
     lazy var field = SmoothField()
     lazy var fineScratch = MeshScratch()        // P377 step 1: the half-block region Mesher.fineGround meshes
     lazy var drape = GroundDrape()              // P382: the section's drawn ground, for things lying on it
+    let groundExact = GrowBuf<Float>(1 << 14)   // P383: the ground vertices' unsnapped positions (x, y, z a vertex)
     var smValid = false             // P175: smV/smL hold the section's ground surface (Mesher.smoothGroundTop)
 
     deinit {

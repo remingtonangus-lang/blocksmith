@@ -37,7 +37,7 @@ enum PlantTests {
             var poppy = (0, 0), lower = (0, 0), upper = (0, 0), badPhase = 0     // (swaying, still) corners
             for i in stride(from: 0, to: m.opaque.count, by: 2) {
                 let w0 = m.opaque[i], w1 = m.opaque[i + 1]
-                guard (w0 >> 27) & 7 == 6 else { continue }
+                guard (w0 >> 27) & 7 == 6, w1 & 31 != 30 else { continue }     // (u = 30: P383 per-position ground, normal bits)
                 let x16 = Int(w0 & 511), y16 = Int((w0 >> 9) & 511), v = Int((w1 >> 5) & 31)
                 let on = (w1 >> 30) & 1 == 1
                 if on && (w1 >> 20) & 3 > 3 { badPhase += 1 }

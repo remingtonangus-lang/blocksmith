@@ -22,6 +22,7 @@ layout(location = 8) flat out float oFace;
 layout(location = 9) out float oWDepth;
 layout(location = 10) out vec4 oLayers;
 layout(location = 11) out vec4 oLW;
+layout(location = 12) out vec3 oNrm;        // (chunk.vert's per-position ground only)
 
 const float aoCurve[4] = float[](0.42, 0.62, 0.81, 1.0);
 
@@ -64,6 +65,7 @@ void main() {
     oShade = lit * sunShadeN(nrm, smoothShade(nrm), sw, u.sunDir.xyz) * aoCurve[ao];
     oLW = vec4(0.0);
     oLayers = vec4(0.0);
+    oNrm = vec3(0.0);
     oDist = length(rel);
     oRel = rel;
     oFace = 2.0;

@@ -22,12 +22,23 @@ layout(location = 9) out float oWDepth;     // water.frag: metres of water under
 // holds layer x barycentric weight, and oLW the weight, so the fragment recovers every corner's layer and how near it is.
 layout(location = 10) out vec4 oLayers;
 layout(location = 11) out vec4 oLW;
+// P383: per-position ground (u = 30, SmoothTerrain.triGround): its normal, for chunk_solid.frag's triplanar texture.
+// Zero for everything else.
+layout(location = 12) out vec3 oNrm;
 
 const float faceShade[8] = float[](0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 1.00);
 const float aoCurve[4] = float[](0.42, 0.62, 0.81, 1.0);
 // Water top faces carry the water depth in their AO bits (Mesher.waterDepthAO): mean column depth 5+, 2-5, 0.75-2, shore.
 const float waterDepthM[4] = float[](12.0, 3.5, 1.4, 0.25);
 const float waveK[4] = float[](1.0, 1.0, 0.7, 0.2);                 // the swell dies out on the shore (no water over beaches)
+
+// P383: the octahedral normal of a per-position ground vertex (SmoothTerrain.triCode: 22 x 22 cells).
+vec3 triNormal(uint code) {
+    vec2 e = (vec2(float(code % 22u), float(code / 22u)) + 0.5) / 22.0 * 2.0 - 1.0;
+    vec3 n = vec3(e.x, 1.0 - abs(e.x) - abs(e.y), e.y);
+    if (n.y < 0.0) { n.x = (1.0 - abs(e.y)) * (e.x >= 0.0 ? 1.0 : -1.0); n.z = (1.0 - abs(e.x)) * (e.y >= 0.0 ? 1.0 : -1.0); }
+    return normalize(n);
+}
 
 void main() {
     uint w0 = v.x, w1 = v.y;
@@ -37,7 +48,17 @@ void main() {
     uint tintMode = w0 >> 30;
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
     vec2 uv = vec2(float(uu), float(vv)) / 16.0;
-    bool smoothV = uu == 31u && vv != 31u;           // smooth terrain vertex: v holds its normal code
+    // P383: a per-position ground vertex: the shade bits, the overlay bit and v hold its normal; it acts as the face
+    // its normal points most along (a top for anything facing up within 60 degrees, as the quads picked).
+    bool tri = uu == 30u;
+    vec3 triN = vec3(0.0);
+    if (tri) {
+        triN = triNormal((face << 6u) | (((w1 >> 30) & 1u) << 5u) | vv);
+        vec3 an = abs(triN);
+        face = triN.y > 0.5 ? 2u : (an.y >= an.x && an.y >= an.z ? (triN.y > 0.0 ? 2u : 3u) : (an.x >= an.z ? (triN.x > 0.0 ? 0u : 1u) : (triN.z > 0.0 ? 4u : 5u)));
+        uv = p.xz;
+    }
+    bool smoothV = (uu == 31u && vv != 31u) || tri;  // smooth terrain vertex: v holds its normal code
     if (uu == 31u) {
         if (face == 0u) uv = vec2(-p.z, -p.y);
         else if (face == 1u) uv = vec2(p.z, -p.y);
@@ -72,7 +93,7 @@ void main() {
     }
     // Plants bend in the wind (L3): Mesher marks the crosses that sway with the overlay bit and their phase in the AO
     // bits. Only top corners move (v = 0), so the stem stays planted; a slow gust wave rolls downwind across a meadow.
-    bool sway = face == 6u && ((w1 >> 30) & 1u) == 1u;
+    bool sway = face == 6u && ((w1 >> 30) & 1u) == 1u && !tri;
     // P281 (b): water plants (AO bits 3) drift with the current instead: every corner but the stalk's foot moves by a
     // function of its world point only, so a kelp strand's stacked blocks bend as one and no joint opens.
     if (sway && ao == 3u) rel.xz += waterDrift(rel + u.eye.xyz);
@@ -112,7 +133,9 @@ void main() {
     float sw = (face < 6u && !water) ? 0.85 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * clamp((sky - blk) * 4.0 + 0.5, 0.0, 1.0) * (1.0 - u.sunDir.w) : 0.0;
     vec3 nrm = faceNormal(face);
     float fs = faceShade[face];
-    if (smoothV) { nrm = smoothNormal(face, vv + 31u * ((w1 >> 30) & 1u)); fs = smoothShade(nrm); }
+    if (tri) { nrm = triN; fs = smoothShade(nrm); }
+    else if (smoothV) { nrm = smoothNormal(face, vv + 31u * ((w1 >> 30) & 1u)); fs = smoothShade(nrm); }
+    oNrm = triN;
     oShade = lit * sunShadeN(nrm, fs, sw, u.sunDir.xyz) * ((water || sway) ? 1.0 : aoCurve[ao]);
     if (face == 7u) { oShade = vec3(1.0); }       // P378 (a): lava is its own light (molten glow, crust by the pattern)
     oLW = vec4(0.0);

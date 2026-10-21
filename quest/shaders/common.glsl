@@ -103,10 +103,10 @@ float hash21(vec2 p) {
 // tiling never lines up across a lawn. uv is the face's (x, z) texture coordinate (whole units = blocks, as both the
 // per-vertex and the projected top uv are), cell the block's world xz. The derivatives are taken before the turn and
 // turned with it, so the mip level and sharpUV see no jump at block edges (no seam lines between turned blocks).
-vec4 texSharpTurned(vec2 uv, float layer, vec2 cell) {
+// (P383: with the derivatives given, for reads in non-uniform control flow)
+vec4 texSharpTurnedG(vec2 uv, float layer, vec2 cell, vec2 gx, vec2 gy) {
     int r = int(hash21(cell * 1.618 + vec2(17.0, 5.0)) * 8.0) & 7;
     vec2 c = floor(uv), f = uv - c;
-    vec2 gx = dFdx(uv), gy = dFdy(uv);
     if ((r & 4) != 0) { f.x = 1.0 - f.x; gx.x = -gx.x; gy.x = -gy.x; }
     r &= 3;
     if (r == 1) { f = vec2(f.y, 1.0 - f.x); gx = vec2(gx.y, -gx.x); gy = vec2(gy.y, -gy.x); }
@@ -116,6 +116,7 @@ vec4 texSharpTurned(vec2 uv, float layer, vec2 cell) {
     vec2 o = sharpUVd(c + f, (abs(gx) + abs(gy)) * sz);
     return textureGrad(tex, vec3(o, layer), gx, gy);
 }
+vec4 texSharpTurned(vec2 uv, float layer, vec2 cell) { return texSharpTurnedG(uv, layer, cell, dFdx(uv), dFdy(uv)); }
 #endif
 
 float vnoise(vec2 p) {
