@@ -141,6 +141,22 @@ final class MediaTrackDecoder: TrackDecoder {
     }
 }
 
+extension MediaTrackDecoder {
+    // P390: a whole packed sound effect (assets/sounds/real/<name>.ogg, stored uncompressed in the APK), decoded at once
+    // and mixed to mono, at the codec's rate (RealSounds trims and resamples it).
+    static func decodeAll(_ mgr: OpaquePointer, _ path: String) -> WAVReader.Clip? {
+        guard let d = MediaTrackDecoder(mgr, path) else { return nil }
+        var out: [Float] = []
+        var buf = [Float](repeating: 0, count: 8192)
+        while true {
+            let n = d.read(&buf, frames: 4096)
+            if n == 0 { break }
+            for i in 0..<n { out.append((buf[i * 2] + buf[i * 2 + 1]) * 0.5) }
+        }
+        return out.isEmpty ? nil : WAVReader.Clip(rate: d.sampleRate, mono: out)
+    }
+}
+
 // Lists assets/music and hands QuestTrackDeck its decoder factory.
 func registerSoundtrack(_ mgr: OpaquePointer?) {
     guard let mgr, let dir = AAssetManager_openDir(mgr, "music") else { return }

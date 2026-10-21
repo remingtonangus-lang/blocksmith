@@ -52,7 +52,14 @@ mkdir -p "$STAGE/assets"
 # Townsfolk voice takes (tools/townvoice_gen.py; TownVoice.load reads them at launch).
 [ -f Resources/voices.bin ] && cp Resources/voices.bin "$STAGE/assets/"
 # Recorded sounds that replace synthesized ones by name (Resources/Sounds/real/README.md; AndroidMain lists assets/sounds/real).
-if ls Resources/Sounds/real/*.wav >/dev/null 2>&1; then mkdir -p "$STAGE/assets/sounds/real"; cp Resources/Sounds/real/*.wav "$STAGE/assets/sounds/real/"; fi
+# P390: packed as Ogg Vorbis (tools/sfxpack.py, cached in build/sfx-pack: 118 MB of WAV to about 16 MB), stored
+# uncompressed (-0 ogg below) so the Quest's AMediaExtractor reads each by file descriptor; WAVs where no encoder is found.
+if ls Resources/Sounds/real/*.wav >/dev/null 2>&1; then
+  mkdir -p "$STAGE/assets/sounds/real"
+  if python3 tools/sfxpack.py build/sfx-pack; then
+    for f in build/sfx-pack/*.ogg build/sfx-pack/*.m4a build/sfx-pack/sfx-index.txt; do if [ -f "$f" ]; then cp "$f" "$STAGE/assets/sounds/real/"; fi; done
+  else cp Resources/Sounds/real/*.wav "$STAGE/assets/sounds/real/"; fi
+fi
 # P359: the Sunderfall soundtrack, streamed from the APK by MediaTrackDecoder (stored uncompressed: -0 m4a below).
 if ls Resources/Music/sunderfall/*.m4a >/dev/null 2>&1; then mkdir -p "$STAGE/assets/music"; cp Resources/Music/sunderfall/*.m4a "$STAGE/assets/music/"; fi
 
@@ -183,7 +190,7 @@ JAR=$(ls -d "$AHOME"/platforms/android-*/android.jar | sort -V | tail -1)
 sed "s/@VERSION_CODE@/$VERSION_CODE/; s/@VERSION_NAME@/0.$VERSION_CODE ($COMMIT)/" quest/android/AndroidManifest.xml > "$STAGE/AndroidManifest.xml"
 [ "$STORE" = 1 ] && sedi '/RECORD_AUDIO/d' "$STAGE/AndroidManifest.xml"
 "$BT/aapt2" link -o "$STAGE/base.apk" -I "$JAR" --manifest "$STAGE/AndroidManifest.xml" --min-sdk-version 29 --target-sdk-version 32 \
-  -A "$STAGE/assets" -0 bin -0 m4a
+  -A "$STAGE/assets" -0 bin -0 m4a -0 ogg
 (cd "$STAGE" && zip -q -r base.apk lib)
 "$BT/zipalign" -f -P 16 4 "$STAGE/base.apk" "$STAGE/aligned.apk"
 # P360 (c): a store build signs with the release key when STORE_KEYSTORE is set (STORE_KEY_ALIAS, STORE_KS_PASS), with

@@ -6,7 +6,8 @@ import Foundation
 // Where files are looked for (a later place wins for the same file name):
 //   Resources/Sounds/real/ next to the working directory (harness runs, the Quest headless check)
 //   the Mac app bundle's Contents/Resources/Sounds/real/ (build.sh copies Resources/Sounds/real there)
-//   the Quest APK's assets/sounds/real/ (quest/tools/build-apk.sh copies them; AndroidMain registers them)
+//   the Quest APK's assets/sounds/real/ (quest/tools/build-apk.sh packs them as Ogg Vorbis, tools/sfxpack.py, P390;
+//   AndroidMain registers them and decodes each through AMediaCodec, back to the WAV's samples and length)
 //   side-loaded: ~/Library/Application Support/Blocksmith/Sounds/ on the Mac; on the Quest the app's external files
 //   folder Sounds/ (adb push x.wav /sdcard/Android/data/com.blocksmith.quest/files/Sounds/) and its internal data folder Sounds/
 // Files are decoded by SoundBank.clip (the prewarm thread, never the audio thread): WAV PCM 8/16/24/32-bit or float
@@ -24,6 +25,9 @@ enum RealSounds {
     private static var extraFolders: [String] = []           // side-load folders, in the order added (later wins)
     private static var assetNames: [String] = []
     private static var assetReader: ((String) -> Data?)?
+    private static var assetDecoder: ((String) -> WAVReader.Clip?)?
+    // P390: the packed files' WAV lengths, end pads and encoder delays (assets/sounds/real/sfx-index.txt)
+    private static var packed: [String: (frames: Int, pad: Int, priming: Int)] = [:]
     private static var index: [String: Source]?             // "step_grass_2" -> where its bytes are
     private static var warned = Set<String>()
 
@@ -34,12 +38,31 @@ enum RealSounds {
         index = nil
     }
 
-    // The Quest APK's assets/sounds/real/ files (names only; bytes read on demand through `reader`).
-    static func setAssets(_ names: [String], reader: @escaping (String) -> Data?) {
+    // The Quest APK's assets/sounds/real/ files (names only; bytes read on demand through `reader`; packed ones (.ogg,
+    // .m4a) decoded by `decoder`).
+    static func setAssets(_ names: [String], reader: @escaping (String) -> Data?, decoder: ((String) -> WAVReader.Clip?)? = nil) {
+        var pk: [String: (frames: Int, pad: Int, priming: Int)] = [:]
+        if names.contains("sfx-index.txt"), let d = reader("sfx-index.txt"), let text = String(data: d, encoding: .utf8) {
+            for line in text.split(separator: "\n") {
+                let p = line.split(separator: " ")
+                if p.count == 4, let f = Int(p[1]), let pad = Int(p[2]), let pr = Int(p[3]) { pk[String(p[0])] = (f, pad, pr) }
+            }
+        }
         lock.lock(); defer { lock.unlock() }
         assetNames = names
         assetReader = reader
+        assetDecoder = decoder
+        packed = pk
         index = nil
+    }
+
+    // P390: a packed file as decoded, cut back to the WAV it was made from: the encoder's leading delay where the
+    // decoder handed it back (then there are at least that many samples more than the file needs), the pads added at
+    // each end of a loop, and the codec's last block's padding.
+    static func trimDecoded(_ x: [Float], frames: Int, pad: Int, priming: Int) -> [Float] {
+        let start = (x.count >= frames + 2 * pad + priming ? priming : 0) + pad
+        guard start < x.count else { return [] }
+        return Array(x[start..<min(x.count, start + frames)])
     }
 
     // Forgets the folder scan (a newly side-loaded file is found by the next sound that loads).
@@ -62,15 +85,16 @@ enum RealSounds {
 
     private static func buildIndex() -> [String: Source] {
         var ix: [String: Source] = [:]
-        func base(_ file: String) -> String? {
-            guard file.lowercased().hasSuffix(".wav"), !file.hasPrefix(".") else { return nil }
+        func base(_ file: String, packed: Bool = false) -> String? {
+            let l = file.lowercased()
+            guard l.hasSuffix(".wav") || packed && (l.hasSuffix(".ogg") || l.hasSuffix(".m4a")), !file.hasPrefix(".") else { return nil }
             return String(file.dropLast(4))
         }
         func scan(_ d: String) {
             for f in (try? FileManager.default.contentsOfDirectory(atPath: d)) ?? [] { if let b = base(f) { ix[b] = .file(d + "/" + f) } }
         }
         for d in bundledFolders { scan(d) }
-        for f in assetNames { if let b = base(f) { ix[b] = .asset(f) } }
+        for f in assetNames { if let b = base(f, packed: assetDecoder != nil) { ix[b] = .asset(f) } }
         for d in sideFolders { scan(d) }
         if !ix.isEmpty { print("sounds: \(ix.count) recorded files override synthesized sounds") }
         return ix
@@ -128,16 +152,22 @@ enum RealSounds {
         let src = sources(s)
         if src.isEmpty { return nil }
         lock.lock()
-        let reader = assetReader
+        let reader = assetReader, decoder = assetDecoder, pk = packed
         lock.unlock()
         var takes: [[Float]] = []
         for (name, where_) in src {
-            let data: Data?
+            var clip: WAVReader.Clip?
             switch where_ {
-            case .file(let p): data = FileManager.default.contents(atPath: p)
-            case .asset(let a): data = reader?(a)
+            case .file(let p): clip = FileManager.default.contents(atPath: p).flatMap { WAVReader.decode($0) }
+            case .asset(let a) where !a.lowercased().hasSuffix(".wav"):
+                // P390: a packed file (Ogg Vorbis), decoded to the same samples as its WAV
+                if var c = decoder?(a) {
+                    if let p = pk[a] { c.mono = trimDecoded(c.mono, frames: p.frames, pad: p.pad, priming: p.priming) }
+                    clip = c
+                }
+            case .asset(let a): clip = reader?(a).flatMap { WAVReader.decode($0) }
             }
-            guard let d = data, let w = WAVReader.decode(d) else { warn(name, "is not a readable WAV (PCM 8/16/24/32-bit or float)"); continue }
+            guard let w = clip else { warn(name, "is not a readable WAV (PCM 8/16/24/32-bit or float) or packed sound"); continue }
             var x = w.rate == Int(SoundBank.rate) ? w.mono : WAVReader.resample(w.mono, from: Double(w.rate), to: SoundBank.rate)
             if x.count < 16 { warn(name, "is empty"); continue }
             prepare(&x, loop: s.isLoop)
