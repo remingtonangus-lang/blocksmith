@@ -77,13 +77,16 @@ extension GroundDrape {
                 if let h = drape.height(lx + ax, lz + az, top: ly + 1.25, reach: 3) { gl = min(gl, h); gh = max(gh, h) }
             }
             if gh >= gl { t.rise = max(t.rise, gh - gl) }
-            for (buf, from) in [(m.opaque, m.groundQuads), (m.trans, 0)] {
+            // (P387 (4): a thing in the first row over ground in the section below is drawn by that section, 16 up)
+            var bufs: [([UInt32], Int, Float)] = [(m.opaque, m.groundQuads, 0), (m.trans, 0, 0)]
+            if let mb = meshes[IVec3(cx, sy - 1, cz)] { bufs += [(mb.opaque, mb.groundQuads, -16), (mb.trans, 0, -16)] }
+            for (buf, from, dy) in bufs {
                 var q = from * 8
                 while q + 8 <= buf.count {
                     var ps: [SIMD3<Float>] = []
                     for k in 0..<4 {
                         let v = buf[q + k * 2]
-                        ps.append(SIMD3<Float>(Float(v & 511), Float((v >> 9) & 511), Float((v >> 18) & 511)) / 16)
+                        ps.append(SIMD3<Float>(Float(v & 511), Float((v >> 9) & 511) + dy * 16, Float((v >> 18) & 511)) / 16)
                     }
                     q += 8
                     let inside = ps.allSatisfy { $0.x >= lx - 0.01 && $0.x <= lx + 1.01 && $0.z >= lz - 0.01 && $0.z <= lz + 1.01

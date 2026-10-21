@@ -127,6 +127,9 @@ final class GroundDrape {
     // comparators, daylight sensors, skulls, pickles, eggs, banners), 2 lies on it bent to the ground's shape (anything
     // two sixteenths thick or less: carpets, pressure plates). Built pieces (slabs, stairs, doors, fences, chests...)
     // stay on the grid the player builds on.
+    // P387 (4): BS_LOWROW=0 leaves a section's first-row things to that section (as before, for before/after checks).
+    static let lowRowOn = ProcessInfo.processInfo.environment["BS_LOWROW"] != "0"
+
     static let seat: [UInt8] = {
         let floorThings: Set<String> = ["torch", "sign", "lantern", "candle", "repeater", "comparator", "daylight", "skull",
                                         "pickle", "egg", "banner", "plate"]

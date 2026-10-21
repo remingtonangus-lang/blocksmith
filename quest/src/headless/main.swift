@@ -478,6 +478,20 @@ if let out = arg("--view"), let ctx = vkctx {
         vw.remeshArea(x0: px - 16, z0: pz - 16, x1: px + 16, z1: pz + 16, y0: py - 48, y1: py + 8)
         if CommandLine.arguments.contains("--groundcheck") { print(GroundDrape.check(vw, things)) }
     }
+    // --scene meetground (P387): stone, planks, lamps and chests placed on the ground ahead (the ground rises to meet
+    // them, World.meetGround), then things in a section's first row over ground in the section below (GroundMeetTests.swift);
+    // --meetcheck prints the gap under each.
+    if arg("--scene") == "meetground" {
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        let blocks = World.meetScene(vg, yaw: yaw), low = World.lowRowScene(vg)
+        print("view: \(blocks.count) blocks placed, \(low.count) things in a first row")
+        let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z)), py = Int(floor(vg.player.pos.y))
+        vw.remeshArea(x0: px - 20, z0: pz - 20, x1: px + 20, z1: pz + 20, y0: py - 48, y1: py + 8)
+        if CommandLine.arguments.contains("--meetcheck") {
+            print(World.meetCheck(vw, blocks))
+            print(GroundDrape.check(vw, low))
+        }
+    }
     // --scene fire (P373 a): fire on netherrack and grass, a campfire and a soul fire on a lawn, seen from --dist (6).
     if arg("--scene") == "fire" {
         let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))

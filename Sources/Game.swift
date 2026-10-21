@@ -1893,6 +1893,8 @@ final class Game {
             if world.fieldTerrain && SmoothTerrain.natural[Int(id)] && FieldMat.index[Int(id)] != 0 && at == t.hit + t.normal {
                 let n = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
                 world.fieldSphere(hitPoint(t) + n * 0.45, radius: 0.62, carve: false, material: FieldMat.index[Int(id)], keepSolid: true, remesh: true)
+            } else if world.fieldTerrain {
+                world.meetGround(at.x, at.y, at.z, id)                  // P387: the ground rises to a placed block's floor
             }
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
             if key == "chest" || key.hasSuffix("copper_chest") { world.blockEntities[at] = BlockEntity(.chest) }
