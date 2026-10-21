@@ -88,6 +88,16 @@ extension Game {
                 f.dead = true
                 continue
             }
+            // P388 (3): a heavy block falling hard on a weaker built one breaks through it and falls on.
+            if !ground, Blocks.collide[Int(b)], Structure.crushes(f.block, fell: f.start - next.y, onto: b) {
+                world.setBlock(cell.x, cell.y, cell.z, AIR)
+                for s in Mining.drops(b, ItemStack(Items.id("netherite_pickaxe"), 1)) { drops.spawn(s, at: next) }
+                sfx(.place(soundMat(b)), 1, at: next)
+                Structure.crushed += 1
+                f.vel.y *= 0.6
+                f.pos = next
+                continue
+            }
             if ground || Blocks.collide[Int(b)] && !Blocks.isLiquid(b) {
                 // Land in the cell above.
                 let at = IVec3(cell.x, cell.y + 1, cell.z)

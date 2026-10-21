@@ -145,10 +145,14 @@ enum FrontierSites {
                 put(dx, -1, dz, floor)
                 let edge = dx == x0 || dx == x1 || dz == z0 || dz == z1
                 let cornerP = (dx == x0 || dx == x1) && (dz == z0 || dz == z1)
-                for dy in 0..<h {
+                // (the wind takes a wall's boards from the top down: a hole only under a hole or the eaves, so what's left
+                // of a wall stands on the boards under it, never hangs over a gap; P388)
+                var open = true
+                for dy in stride(from: h - 1, through: 0, by: -1) {
                     if !edge { put(dx, dy, dz, AIR); continue }
                     if dx == door.0 && dz == door.1 && dy < 2 { put(dx, dy, dz, AIR); continue }
-                    if !cornerP && holed(dx, dy * 7 + 1, dz, ruin * Float(dy + 1) / Float(h)) { put(dx, dy, dz, AIR); continue }
+                    open = open && !cornerP && holed(dx, dy * 7 + 1, dz, ruin * Float(dy + 1) / Float(h))
+                    if open { put(dx, dy, dz, AIR); continue }
                     put(dx, dy, dz, cornerP ? corner : (dy == 1 && (dx + dz) % 3 == 0 && ruin < 0.05 ? b("glass_pane", "glass") : wall))
                 }
                 if !holed(dx, 91, dz, roofRuin) { put(dx, h, dz, roof) }
@@ -171,7 +175,8 @@ enum FrontierSites {
                 shell(x0, x1, z0, z1, tall, wall: plank, corner: log, floor: plank, roof: slab, door: (doorX, oz),
                       ruin: what == "bank" ? 0.12 : 0.3, roofRuin: 0.35)
                 // A false front over the street for the saloon and store.
-                if what == "saloon" || what == "store" { for dz in z0...z1 { for dy in tall...(tall + 1) where !holed(doorX, dy, dz, 0.2) { put(doorX, dy, dz, plank) } } }
+                // (each board on one under it: none left hanging over a hole in the wall; P388)
+                if what == "saloon" || what == "store" { for dz in z0...z1 { for dy in tall...(tall + 1) where !holed(doorX, dy, dz, 0.2) && get(doorX, dy - 1, dz) != AIR { put(doorX, dy, dz, plank) } } }
                 // Porch posts and boards.
                 let px = ox < 0 ? x1 + 1 : x0 - 1
                 for dz in z0...z1 { put(px, -1, dz, plank) }
@@ -210,7 +215,8 @@ enum FrontierSites {
             let stairs = b("\(wd)_stairs", "oak_stairs")
             // The cabin: logs, a plank floor and a pitched slab roof, the door to the yard.
             shell(-10, -3, -12, -6, 3, wall: log, corner: log, floor: plank, roof: plank, door: (-3, -9), ruin: 0, roofRuin: 0)
-            for dx in -10...(-3) { for (dz, dy) in [(-12, 3), (-11, 4), (-10, 4), (-9, 5), (-8, 4), (-7, 4), (-6, 3)] { put(dx, dy, dz, dy == 5 ? slab : plank) } }
+            for dx in -10...(-3) { for (dz, dy) in [(-12, 3), (-11, 4), (-10, 4), (-9, 5), (-9, 4), (-8, 4), (-7, 4), (-6, 3)] { put(dx, dy, dz, dy == 5 ? slab : plank) } }
+            for dx in -10...(-3) { put(dx, 3, -9, f.log(wd == "dark_oak" ? "oak" : wd, alongX: true)) }   // a ridge beam from gable to gable carries the roof (P388)
             for dz in -11...(-7) { put(-11, 3, dz, stairs) }
             put(-9, 0, -11, b("furnace")); put(-8, 0, -11, b("crafting_table")); chest(-4, 0, -11, "homestead")
             put(-9, 0, -7, b("red_wool", "white_wool")); put(-8, 0, -7, b("red_wool", "white_wool"))      // the cot

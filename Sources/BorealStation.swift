@@ -486,7 +486,14 @@ enum BorealStation {
             // from its roof to its floor, a grove of them in the lush cave at (11222, 8, -12043) on seed
             // 3931512493184456980. Now a roof slab 4-6 thick (ragged underneath) over any cave, which stays open below.
             let roof = 3 + Int(hashf(x, 0, z, 0x289) * 2.99)
-            w.pillarDown(x, F - 3, z, STONE, minY: F - 3 - roof)
+            // P388: laid as ground (setGround), so in a field world the slab is the cave roof's rock, not a plug of
+            // stone blocks hanging off the roof's edges under the bunker's weight.
+            var py = F - 3
+            while py >= F - 3 - roof {
+                let cur = w.get(x, py, z)
+                if Blocks.opaque[Int(cur)] && Blocks.collide[Int(cur)] && cur != STONE { break }
+                w.setGround(x, py, z, STONE); py -= 1
+            }
             for ly in -2...12 {
                 let y = F + ly
                 let u = open(dx, ly, dz)
@@ -765,7 +772,7 @@ enum BorealStation {
                 u += 0.25
             }
             put(mx, S + 20, mz, steel); put(mx, S + 21, mz, steel)
-            for t in 2...4 { let q = c + Float(t) * n; put(Int(floorf(q.x)), Int(floorf(q.y)), Int(floorf(q.z)), steel) }
+            for t in 1...4 { let q = c + Float(t) * n; put(Int(floorf(q.x)), Int(floorf(q.y)), Int(floorf(q.z)), steel) }   // (from 1: joined to the bowl; P388)
             let h = c + 5 * n
             put(Int(floorf(h.x)), Int(floorf(h.y)), Int(floorf(h.z)), panel)
         }

@@ -243,6 +243,7 @@ extension Game {
         if survival, let it = Items.item(forBlock: pc.mat) { drops.spawn(ItemStack(it, 1), at: at) }
         sfx(.place(soundMat(pc.mat)), 0.8, at: at)
         world.piecesChanged(at: pc.origin)
+        Structure.pieces(self, near: pc.origin)                 // P388: what that piece held up
         return true
     }
 
@@ -330,6 +331,7 @@ extension Game {
         }
         world.pieces.append(pc)
         world.piecesChanged(at: at)
+        Structure.pieces(self, near: at)                        // P388: the new piece's weight
         sfx(.place(soundMat(b)), at: at)
         consumeHeld()
         return true

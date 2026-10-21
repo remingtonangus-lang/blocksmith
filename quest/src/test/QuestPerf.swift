@@ -272,6 +272,7 @@ enum QuestPerf {
         print("    kinds \(kindsStand)")
         if !blockTop.isEmpty { print("    blocks (meshed): " + blockTop) }
         print("    far ticking (P376, must be 0): \(farStand) standing, \(farFly) flying; active \(w.activeDistance) chunks, \(w.parked.values.reduce(0) { $0 + $1.count }) cells parked")
+        print(String(format: "    load checks (P388): %d, %.2f ms mean, %.2f ms worst; %d blocks fell", Structure.checks, Structure.checks > 0 ? Structure.totalMs / Double(Structure.checks) : 0, Structure.worstMs, Structure.fallen))
         print("    standing " + memStand)
         if !turnLine.isEmpty { print(turnLine) }
         print("    " + vertexShare(w))

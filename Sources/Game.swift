@@ -3115,6 +3115,7 @@ final class Game {
         aircraftCrashTick(Float(dt))                           // P294: crashes and rotor strikes (AircraftCrash.swift)
         fellingTick(Float(dt))                                 // P298: felled trees and a carried trunk (Felling.swift)
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
+        Structure.tick(self)                                   // P388: built pieces near a change carry their load
         TickProf.mark("flight crews")
         mobs.update(Float(dt), game: self)
         TickProf.mark("mobs")
