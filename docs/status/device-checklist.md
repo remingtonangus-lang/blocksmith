@@ -1,45 +1,63 @@
-# Device checklist (run first when the Quest 3 is on adb)
+# Headset checklist (Oct 21 2026, for Remington's next Quest 3 session)
 
-Things only the headset can prove. Run them in order the next time `adb devices` lists the Quest.
+Everything here has only been seen in host renders. Say what you see into the voice notes as you go; the lane fixes from them.
+Install a default (optimized) build with `tools/quest-local.sh --log 1500 > /tmp/quest-perf.log`, then read it with
+`python3 tools/quest_perf_log.py /tmp/quest-perf.log --windows`. If P392 has merged by then, use that build.
 
-## 1. Frame-rate proof at render distance 16 (from task 25b4zxxx item 1; still open)
+## 1. Frame rate (do first, 15 min)
+- View 24, about 5 min each: Stone Gulch, a capital city, an Ash Vault battle. Note stutter, hitches, any heat warning.
+- Same spots at views 8 and 16 for a minute each.
+- Optional: SpaceWarp on at view 24 (off by default, P381). Does moving stuff (mobs, ships, water) smear? Keep it or leave it off.
 
-1. Build and install a default (optimized) build, not `--fast`. Frame times only count on a default build:
-   `tools/quest-local.sh --log 1500 > /tmp/quest-perf.log` (follows `adb logcat -s Blocksmith` for 25 min).
-2. In the headset: render distance 16, Auto Render Distance on. Play about 10 minutes in the busiest town (a capital city
-   with the most townsfolk), then about 10 minutes in a taiga (`--find taiga` biome; walk and fly, look around).
-3. Read the log: `python3 tools/quest_perf_log.py /tmp/quest-perf.log --windows`.
-4. Write down in docs/status/performance.md (new "Device proof" section), once for the town and once for the taiga:
-   - share of time holding 72 Hz, and missed (dropped) frames per minute
-   - CPU ms and GPU ms (median and worst window), plus the `record ms` split on the `perf:` line
-   - whether Auto Render Distance stepped down, and whether it climbed back to 16 after the busy part
-5. If either place misses 72 Hz for long stretches: the biggest `record ms` part is the next perf item (mobs, terrain,
-   HUD, ships). Note it in the STATUS.md Work queue.
+## 2. Polygon ground (P338, P377, P381, P383; replaces P142/P175)
+- Walk meadows, hills, a beach, a cave: any visible grid, stair-steps, seams, gaps at chunk edges.
+- See-through spots (P335): cave walls, digging into the Emberdeep's walls.
+- Dig and place: does the ground chip off naturally, no cube-shaped holes?
 
-The Mac `--quest` proxy numbers (gate in `snap.sh` checks shard, budgets in performance.md) are the stand-in until then.
-Aniso 8 vs 4 was A/B'd only on the Mac proxy (no difference); recheck GPU ms on device with aniso 4 if GPU is the
-limit in step 4.
+## 3. Feet, aim and placed things (P386, P387, P382)
+- Stand on slopes: feet floating or sinking?
+- Dig/place aim lands where the ground is drawn.
+- Place a block on a slope: gap under the downhill side? Copper wire lies on the ground (not buried or floating)?
 
-## 2. Polygon terrain walk (task 25b5a, docs/status/polygon-test.md)
+## 4. Far land (P339, P375, P376, P384)
+- Far land looks like near land (no coarse blocky look), no popping as you move.
+- Mobs past the active distance standing frozen: does it look odd?
 
-1. Default build (`tools/quest-local.sh`), then Create New World > Terrain: Smooth (Test), seed 12345.
-2. Walk the spawn hills and a beach for 5 minutes; then Options > Video > Smooth Terrain off and walk the same spot.
-3. Note: comfort of the eased step-ups and step-downs on slopes, feet floating or sinking on rounded slopes (collision
-   is still boxes), any see-through gaps at chunk edges, how steep stone/snow looks up close.
-4. Frame rate: `tools/quest-local.sh --log 600 > /tmp/quest-smooth.log`, read with
-   `python3 tools/quest_perf_log.py /tmp/quest-smooth.log --windows`, once per mode at rd 16 with Auto Render Distance OFF (so it cannot skew the A/B). Add both rows to polygon-test.md.
+## 5. Physics (P351, P380, P388, P389, P298)
+- Cut a tree at the base: it falls; carry a log.
+- Dig under a thin overhang: it breaks off and falls. Ravines: no floating chunks.
+- Weight: wool breaks easily, logs hold, a pile of titanium on a wooden house collapses it.
+- Hit a lamp post: a chunk flies off where you hit it; keep hitting until it breaks.
 
-## 3. Device feel for merged lane features (backlog M3)
+## 6. Fluids (P363, P378, P356)
+- Lava look. Remove a source: the flow drains away.
+- Water clinging to walls? Water settling onto beaches?
+- Kelp near and far.
 
-- Six-iron (B1, docs/status/six-iron.md): shoot and reload it in VR: does the aim line up with the barrel, is recoil readable.
-- Hunting (B3, docs/status/hunting.md): a clean kill, skinning, and the fishing fight: do they feel physical in VR, not menu-like.
-- Townsfolk variety (B2, docs/status/townsfolk-variety.md): melee against varied townsfolk: do their swing rate and
-  toughness read in VR (a slow heavy hitter vs a quick one).
-- Not merged yet (check when they land): flying vehicles and the crawler (A4), frigate radar (A5), VR melee vs knights (B6).
+## 7. Railways (P337, P379)
+- Rails look right (no gravel over them); lines connect towns, villages and bases with cuttings, bridges, tunnels.
+- Ride a train and drive the cab: throttle and brake.
 
-## 4. Oct 11 playtest follow-ups that need the headset or the Mac worker (Lane A thread, 2026-10-11)
+## 8. Content reworked since your Oct 16 notes (never seen)
+- Ash Vault redesign (P326): no longer hell-like; the crashed plane (P346); prison camp to raid and liberate (P347);
+  German base full of soldiers, workbench crafting tab (P348).
+- Frigate: fixed main gun along the keel, narrower real-ship layout (P325, P357).
+- Sunken Dreadnought: findable at the locate coordinates, big enough (P349).
+- Hell made our own: ghasts/withers/blazes gone, yellow biome replaced (P292, P336); the Emberdeep's own sky (P342).
+- Mahlwerk rotary gun on the top troop class (P391).
+- Sword fighting: wind-ups, blocks, parries, staggers (P308).
+- Difficulty: does Easy still kill you fast? (P358)
+- Helicopter at the base (P333).
+- 40 music tracks (P359) and ~925 recorded sound effects (P361): anything wrong, missing or annoying.
+- No text in play (P300, P328): any leftover toasts or hints? Start a new world: can you work out what to do without text?
 
-- P21b: the 13:03 "eye" object he could not identify: open its voice shot, name the block, and give it a clearer look or label (mob/tree looks are the Mac worker's).
-- P26: the horse running animation looks wrong (mob looks, Mac worker). Also feel the new horse pace (8-17 m/s by breed), the call (hold B to whistle), and the taming bar ("Bucking: sit still" then "Pat it now").
-- P32: rounds now leave the VR controller's aim ray and the muzzle; check the sights line up and the reload toast reads.
-- P18 part 2: water falling one block looks wrong from the side (needs a look on device after the fluid seam fix).
+## 9. Stability (counts toward Meta's checks)
+- One 30-minute session without quitting: any crash?
+- Quit and reload a world saved before this build: loads with your edits intact?
+- Time a cold launch to playable (store wants under 15 s), into a new world and a saved one.
+- Headset temperature after 30 min.
+
+## 10. Older items, only if there's time
+- Six-iron aim and recoil; hunting, skinning, the fishing fight; townsfolk melee variety.
+- Horse running animation and pace, the whistle call.
+- Gun sights line up with the muzzle (P32); falling water seen from the side (P18).
