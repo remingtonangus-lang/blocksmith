@@ -23,6 +23,15 @@ import simd
 //   - Full 3D: works on the triangles whatever their facing (caves, overhangs, vertical faces); not a heightmap.
 // The triangles are paired back into quads for the renderer's quad index pattern (0 1 2, 0 2 3); a lone triangle is a
 // quad with its last corner repeated.
+// The attribute guard of a collapse (P384: shared by the ground and the detail stream). `seams` false: only vertices
+// with equal attributes join (`same`), and nothing else is checked; true: `holds` says whether vertex q is still drawn
+// true by triangle t's corners weighted w at its place.
+protocol CollapseGuard {
+    var seams: Bool { get }
+    func same(_ a: Int, _ b: Int) -> Bool
+    func holds(_ q: Int, _ t: SIMD3<Int32>, _ w: SIMD3<Double>) -> Bool
+}
+
 enum AdaptiveGround {
     static var enabled = ProcessInfo.processInfo.environment["BS_ADAPTIVE"] != "0"
     // Error bound in blocks (P381 step 2: at most 0.05 block inside the active distance).
@@ -113,6 +122,7 @@ enum AdaptiveGround {
     // questcheck --adaptivecheck: the main thread's last near and far results at their exact positions (3 points a triangle).
     static var capture = false
     static var captured: ([SIMD3<Float>], [SIMD3<Float>]) = ([], [])
+    static var capturedBlob: ([SIMD3<Float>], [SIMD3<Float>]) = ([], [])
 
     // Closest point of triangle abc to p (Ericson 5.1.5) as its distance and barycentric weights.
     static func closestBary(_ p: SIMD3<Double>, _ a: SIMD3<Double>, _ b: SIMD3<Double>, _ c: SIMD3<Double>) -> (Double, SIMD3<Double>) {
@@ -139,60 +149,38 @@ enum AdaptiveGround {
         return (simd_length(ap - ab * v - ac * w), SIMD3(1 - v - w, v, w))
     }
 
-    // Simplifies the ground quads in buf[from..<buf.count] (2 words a vertex, 4 vertices a quad) in place. Returns
-    // the number of quads removed.
-    @discardableResult
-    static func simplify(_ buf: GrowBuf<UInt32>, from: Int, tol: Float, exact: UnsafePointer<Float>? = nil) -> Int {
-        let nq = (buf.count - from) / 8
-        guard nq >= 4 else { return 0 }
-        let p = buf.ptr + from
-        // Vertices by their full words (position, tint, layer, light, occlusion, normal; facing too when not triGround).
-        // (with exact positions, by those too: two vertices the 1/16 grid draws at one place are still two)
-        struct VKey: Hashable { let w: UInt64; let x: UInt32, y: UInt32, z: UInt32 }
-        var index: [VKey: Int32] = [:]
-        index.reserveCapacity(nq * 2)
-        var words: [UInt64] = [], pos: [SIMD3<Double>] = [], grid: [SIMD3<Double>] = []
-        words.reserveCapacity(nq * 2); pos.reserveCapacity(nq * 2); grid.reserveCapacity(nq * 2)
-        // (step 2's tally: positions by their snapped place, and whether one is drawn with different words)
-        let tallyPos = tol == tolerance
-        var perPos: [UInt32: UInt64] = [:]
-        var splitPos = Set<UInt32>()
-        func vid(_ w0: UInt32, _ w1: UInt32, _ e: Int) -> Int32 {
-            let key = UInt64(w0) << 32 | UInt64(w1)
-            let ex = exact
-            let k = VKey(w: key, x: ex?[e * 3].bitPattern ?? 0, y: ex?[e * 3 + 1].bitPattern ?? 0, z: ex?[e * 3 + 2].bitPattern ?? 0)
-            if let i = index[k] { return i }
-            let i = Int32(words.count)
-            index[k] = i; words.append(key)
-            if tallyPos {
-                let pk = w0 & 0x07FF_FFFF
-                if let o = perPos[pk] { if o != key { splitPos.insert(pk) } } else { perPos[pk] = key }
-            }
-            let g = SIMD3<Double>(Double(w0 & 511), Double((w0 >> 9) & 511), Double((w0 >> 18) & 511)) / 16
-            grid.append(g)
-            if let ex { pos.append(SIMD3<Double>(Double(ex[e * 3]), Double(ex[e * 3 + 1]), Double(ex[e * 3 + 2]))) } else { pos.append(g) }
-            return i
-        }
-        var tris: [SIMD3<Int32>] = []
-        tris.reserveCapacity(nq * 2)
-        for q in 0..<nq {
-            var v = SIMD4<Int32>(repeating: 0)
-            for k in 0..<4 { v[k] = vid(p[q * 8 + k * 2], p[q * 8 + k * 2 + 1], q * 4 + k) }
-            if v[0] != v[1] && v[1] != v[2] && v[0] != v[2] { tris.append(SIMD3(v[0], v[1], v[2])) }
-            if v[0] != v[2] && v[2] != v[3] && v[0] != v[3] { tris.append(SIMD3(v[0], v[2], v[3])) }
-        }
-        let nv = words.count, nt0 = tris.count
-        if tallyPos { tally.lock(); positions += perPos.count; splitPositions += splitPos.count; tally.unlock() }
-        // What a vertex shades by, without its place and normal (P381: a collapse kept it; P383: see joinSeams).
-        let attrMask: UInt64 = (UInt64(0xF8000000) << 32) | UInt64(0xFFFF_FFFF & ~(UInt32(0x3E0) | (1 << 30)))
-        let seams = joinSeams
-        @inline(__always) func sameAttr(_ a: Int, _ b: Int) -> Bool { seams || words[a] & attrMask == words[b] & attrMask }
-        // The attributes a vertex shades by: sky, block light, occlusion, and its material (layer and tint).
+    // The ground's guard (P383 step 3): light within lightTol, occlusion within aoTol, own material at least matTol.
+    struct GroundGuard: CollapseGuard {
+        let words: [UInt64]
+        let seams: Bool
+        let lTol = AdaptiveGround.lightTol + 1e-9, oTol = AdaptiveGround.aoTol + 1e-9, mTol = AdaptiveGround.matTol - 1e-9
+        static let attrMask: UInt64 = (UInt64(0xF8000000) << 32) | UInt64(0xFFFF_FFFF & ~(UInt32(0x3E0) | (1 << 30)))
+        @inline(__always) func same(_ a: Int, _ b: Int) -> Bool { seams || words[a] & GroundGuard.attrMask == words[b] & GroundGuard.attrMask }
         @inline(__always) func sky(_ i: Int) -> Double { Double((words[i] >> 22) & 15) }
         @inline(__always) func blk(_ i: Int) -> Double { Double((words[i] >> 26) & 15) }
         @inline(__always) func occ(_ i: Int) -> Double { Double((words[i] >> 20) & 3) }
         @inline(__always) func mat(_ i: Int) -> UInt64 { (words[i] & 0x800F_FC00) | (words[i] >> 62) << 40 }
-        let lTol = lightTol + 1e-9, oTol = aoTol + 1e-9, mTol = matTol - 1e-9
+        func holds(_ qi: Int, _ t: SIMD3<Int32>, _ w: SIMD3<Double>) -> Bool {
+            let a = Int(t[0]), b = Int(t[1]), c = Int(t[2])
+            let ls: Double = w[0] * sky(a) + w[1] * sky(b) + w[2] * sky(c)
+            if abs(ls - sky(qi)) > lTol { return false }
+            let lb: Double = w[0] * blk(a) + w[1] * blk(b) + w[2] * blk(c)
+            if abs(lb - blk(qi)) > lTol { return false }
+            let lo: Double = w[0] * occ(a) + w[1] * occ(b) + w[2] * occ(c)
+            if abs(lo - occ(qi)) > oTol { return false }
+            let m = mat(qi)
+            let w0: Double = mat(a) == m ? w[0] : 0
+            let w1: Double = mat(b) == m ? w[1] : 0
+            let w2: Double = mat(c) == m ? w[2] : 0
+            return w0 + w1 + w2 >= mTol
+        }
+    }
+
+    // The collapse (P381; see the header) on any triangle mesh: exact positions, positions as drawn (`grid`), triangles.
+    // Returns the triangles left.
+    static func collapse<G: CollapseGuard>(pos: [SIMD3<Double>], grid: [SIMD3<Double>], tris: [SIMD3<Int32>], tol: Float, guard g: G) -> [SIMD3<Int32>] {
+        let nv = pos.count, nt0 = tris.count
+        var tris = tris
         // Edges: count the triangles on each; an edge on one (the mesh's edge) or more than two locks its vertices.
         var edgeCount: [UInt64: Int32] = [:]
         edgeCount.reserveCapacity(nt0 * 3)
@@ -234,7 +222,7 @@ enum AdaptiveGround {
         }
         // Collapse v into u when it keeps every bound; true when done.
         func collapse(_ v: Int, into u: Int) -> Bool {
-            guard !gone[v] && !gone[u] && !locked[v], sameAttr(v, u) else { return false }
+            guard !gone[v] && !gone[u] && !locked[v], g.same(v, u) else { return false }
             guard Q[v].error(pos[u]) <= tol2 * planes[v], absorbed[v].count + absorbed[u].count < maxAbsorbed else { return false }
             ring(v, &rv); ring(u, &ru)
             guard rv.contains(Int32(u)) else { return false }
@@ -292,22 +280,10 @@ enum AdaptiveGround {
                     let (d, b) = closestBary(q, pos[Int(f[0])], pos[Int(f[1])], pos[Int(f[2])])
                     if d < bestD { bestD = d; bestT = f; bestB = b }
                     // (q over a triangle's inside within the bound: that triangle draws it; no need to look further)
-                    if d <= tolD && (!seams || b[0] > 0 && b[1] > 0 && b[2] > 0) { break }
+                    if d <= tolD && (!g.seams || b[0] > 0 && b[1] > 0 && b[2] > 0) { break }
                 }
                 guard bestD <= tolD else { return false }
-                guard seams else { return true }
-                let a = Int(bestT[0]), b = Int(bestT[1]), c = Int(bestT[2])
-                let ls: Double = bestB[0] * sky(a) + bestB[1] * sky(b) + bestB[2] * sky(c)
-                if abs(ls - sky(qi)) > lTol { return false }
-                let lb: Double = bestB[0] * blk(a) + bestB[1] * blk(b) + bestB[2] * blk(c)
-                if abs(lb - blk(qi)) > lTol { return false }
-                let lo: Double = bestB[0] * occ(a) + bestB[1] * occ(b) + bestB[2] * occ(c)
-                if abs(lo - occ(qi)) > oTol { return false }
-                let m = mat(qi)
-                let w0: Double = mat(a) == m ? bestB[0] : 0
-                let w1: Double = mat(b) == m ? bestB[1] : 0
-                let w2: Double = mat(c) == m ? bestB[2] : 0
-                return w0 + w1 + w2 >= mTol
+                return !g.seams || g.holds(qi, bestT, bestB)
             }
             guard near(v) else { return false }
             for q in absorbed[v] where !near(Int(q)) { return false }
@@ -362,8 +338,8 @@ enum AdaptiveGround {
             for (ti, t) in tris.enumerated() where alive[ti] {
                 for k in 0..<3 {
                     let a = Int(t[k]), b = Int(t[(k + 1) % 3])
-                    if !locked[a] && sameAttr(a, b) { cand.append((Q[a].error(pos[b]) / planes[a], Int32(a), Int32(b))) }
-                    if !locked[b] && sameAttr(a, b) { cand.append((Q[b].error(pos[a]) / planes[b], Int32(b), Int32(a))) }
+                    if !locked[a] && g.same(a, b) { cand.append((Q[a].error(pos[b]) / planes[a], Int32(a), Int32(b))) }
+                    if !locked[b] && g.same(a, b) { cand.append((Q[b].error(pos[a]) / planes[b], Int32(b), Int32(a))) }
                 }
             }
             cand.sort { $0.0 < $1.0 }
@@ -371,9 +347,13 @@ enum AdaptiveGround {
             for (c, v, u) in cand where c <= tol2 { if collapse(Int(v), into: Int(u)) { done += 1 } }
             if done == 0 { break }
         }
-        // Triangles left, paired into quads across a shared edge.
         var live: [SIMD3<Int32>] = []
         for (ti, t) in tris.enumerated() where alive[ti] { live.append(t) }
+        return live
+    }
+
+    // Triangles paired into quads across a shared edge (a lone triangle: a quad with its last corner repeated).
+    static func pairQuads(_ live: [SIMD3<Int32>]) -> [SIMD4<Int32>] {
         var directed: [UInt64: Int32] = [:]
         directed.reserveCapacity(live.count * 3)
         for (i, t) in live.enumerated() { for k in 0..<3 { directed[UInt64(t[k]) << 32 | UInt64(t[(k + 1) % 3])] = Int32(i) } }
@@ -397,6 +377,61 @@ enum AdaptiveGround {
             }
             out.append(quad)
         }
+        return out
+    }
+
+    // Simplifies the ground quads in buf[from..<buf.count] (2 words a vertex, 4 vertices a quad) in place. Returns
+    // the number of quads removed.
+    @discardableResult
+    static func simplify(_ buf: GrowBuf<UInt32>, from: Int, tol: Float, exact: UnsafePointer<Float>? = nil, capture capt: Bool = true,
+                         blob: Bool = false) -> Int {
+        let nq = (buf.count - from) / 8
+        guard nq >= 4 else { return 0 }
+        let p = buf.ptr + from
+        // Vertices by their full words (position, tint, layer, light, occlusion, normal; facing too when not triGround).
+        // (with exact positions, by those too: two vertices the 1/16 grid draws at one place are still two)
+        struct VKey: Hashable { let w: UInt64; let x: UInt32, y: UInt32, z: UInt32 }
+        var index: [VKey: Int32] = [:]
+        index.reserveCapacity(nq * 2)
+        var words: [UInt64] = [], pos: [SIMD3<Double>] = [], grid: [SIMD3<Double>] = []
+        words.reserveCapacity(nq * 2); pos.reserveCapacity(nq * 2); grid.reserveCapacity(nq * 2)
+        // (step 2's tally: positions by their snapped place, and whether one is drawn with different words)
+        let tallyPos = tol == tolerance
+        var perPos: [UInt32: UInt64] = [:]
+        var splitPos = Set<UInt32>()
+        func vid(_ w0: UInt32, _ w1: UInt32, _ e: Int) -> Int32 {
+            let key = UInt64(w0) << 32 | UInt64(w1)
+            let ex = exact
+            let k = VKey(w: key, x: ex?[e * 3].bitPattern ?? 0, y: ex?[e * 3 + 1].bitPattern ?? 0, z: ex?[e * 3 + 2].bitPattern ?? 0)
+            if let i = index[k] { return i }
+            let i = Int32(words.count)
+            index[k] = i; words.append(key)
+            if tallyPos {
+                let pk = w0 & 0x07FF_FFFF
+                if let o = perPos[pk] { if o != key { splitPos.insert(pk) } } else { perPos[pk] = key }
+            }
+            let g = SIMD3<Double>(Double(w0 & 511), Double((w0 >> 9) & 511), Double((w0 >> 18) & 511)) / 16
+            grid.append(g)
+            if let ex { pos.append(SIMD3<Double>(Double(ex[e * 3]), Double(ex[e * 3 + 1]), Double(ex[e * 3 + 2]))) } else { pos.append(g) }
+            return i
+        }
+        var tris: [SIMD3<Int32>] = []
+        tris.reserveCapacity(nq * 2)
+        for q in 0..<nq {
+            var v = SIMD4<Int32>(repeating: 0)
+            for k in 0..<4 { v[k] = vid(p[q * 8 + k * 2], p[q * 8 + k * 2 + 1], q * 4 + k) }
+            if v[0] != v[1] && v[1] != v[2] && v[0] != v[2] { tris.append(SIMD3(v[0], v[1], v[2])) }
+            if v[0] != v[2] && v[2] != v[3] && v[0] != v[3] { tris.append(SIMD3(v[0], v[2], v[3])) }
+        }
+        if tallyPos { tally.lock(); positions += perPos.count; splitPositions += splitPos.count; tally.unlock() }
+        let live = collapse(pos: pos, grid: grid, tris: tris, tol: tol, guard: GroundGuard(words: words, seams: joinSeams))
+        let out = pairQuads(live)
+        let nt0 = tris.count
+        // (questcheck --farcheck, P384: a leaf blob's far shell and the shell it stands for, at their exact positions)
+        if capture && blob && Thread.isMainThread {
+            for t in tris { for k in 0..<3 { capturedBlob.0.append(SIMD3<Float>(pos[Int(t[k])])) } }
+            for t in (out.count < nq ? live : tris) { for k in 0..<3 { capturedBlob.1.append(SIMD3<Float>(pos[Int(t[k])])) } }
+        }
         // Written back over the old quads (never more of them).
         guard out.count < nq else { return 0 }
         var w = 0
@@ -404,7 +439,7 @@ enum AdaptiveGround {
         buf.count = from + w
         if tol == tolerance { tally.lock(); trisIn += nt0; trisOut += live.count; tally.unlock() }
         // (questcheck --adaptivecheck, on the main thread: the triangles left, at their exact positions)
-        if capture && Thread.isMainThread {
+        if capture && capt && Thread.isMainThread {
             var t: [SIMD3<Float>] = []
             for q in live { for k in 0..<3 { t.append(SIMD3<Float>(pos[Int(q[k])])) } }
             if tol == tolerance { captured.0 = t } else { captured.1 = t }

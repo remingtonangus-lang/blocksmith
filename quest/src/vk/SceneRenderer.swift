@@ -1256,6 +1256,31 @@ final class SceneRenderer {
         }.joined(separator: "; ")
     }
 
+    // P384 step 1: the culled sections' quads by kind (MeshKind), within and past GroundMerge.farDistance (~180 blocks),
+    // as meshed (full copies; the far switch's ground is in "ground far copy").
+    func kindBreakdown() -> String {
+        var q = [SIMD16<Int32>](repeating: SIMD16<Int32>(), count: 2)
+        var trans = [0, 0], secs = [0, 0], farExtra = [0, 0], farSkip = [0, 0], farCut = [0, 0], farTail = [0, 0], detExtra = [0, 0], detSkip = [0, 0]
+        var buried = [SIMD16<Int32>(), SIMD16<Int32>()], buriedSecs = [0, 0]
+        for i in 0..<min(visible.count, SceneRenderer.recordCap) {
+            let (c, sy, _) = visible[i]
+            let s = c.sections[sy], f = mergedFar(c, sy) ? 1 : 0
+            q[f] &+= s.kinds; trans[f] += s.transQuads; secs[f] += 1
+            if s.farExtra > 0 || s.farCut > 0 || s.farTail > 0 { farExtra[f] += s.farExtra; farSkip[f] += s.farSkip; farCut[f] += s.farCut; farTail[f] += s.farTail }
+            if s.detailFarExtra > 0 { detExtra[f] += s.detailFarExtra; detSkip[f] += s.detailFarSkip }
+            // (sections wholly under the chunk's lowest surface column: caves, drawn unless something culls them)
+            let low = Int(c.height.min() ?? 0)
+            if (sy + 1) * 16 <= low { buried[f] &+= s.kinds; buriedSecs[f] += 1 }
+        }
+        return ["within", "past"].enumerated().map { f, n in
+            let parts = (0..<16).compactMap { k -> String? in MeshKind.names[k].isEmpty ? nil : "\(MeshKind.names[k]) \(q[f][k])" }
+            let bur = (0..<16).compactMap { k -> String? in MeshKind.names[k].isEmpty || buried[f][k] == 0 ? nil : "\(MeshKind.names[k]) \(buried[f][k])" }
+            return "\(n) \(Int(GroundMerge.farDistance)) blocks (\(secs[f]) sections): " + parts.joined(separator: ", ")
+                + ", translucent \(trans[f]); far copies \(farExtra[f]) for \(farSkip[f]) solid + \(farCut[f]) cutout (+\(farTail[f]) far-only cutout), detail \(detExtra[f]) for \(detSkip[f])"
+                + "; under the lowest surface: \(buriedSecs[f]) sections, " + bur.joined(separator: ", ")
+        }.joined(separator: "\n    kinds ")
+    }
+
     // F5 (Oct 13 evening: over open ocean the view must be the cheapest case): a far (LOD 1) section with a whole
     // section of water over it is under 16+ blocks of deep water, which water.frag draws with no transmittance past the
     // near ring, so its seabed (the bumpy, unmergeable part of far ocean) is neither drawn nor walked through, and the
@@ -1365,32 +1390,42 @@ final class SceneRenderer {
                 let quads = detail ? sec.detailQuads : sec.opaqueQuads
                 guard quads > 0, let buf = detail ? sec.detailBuf : sec.opaqueBuf, let tb = c.tintBuf,
                       let vb = buf.buffer as? QuestBuffer, let tbuf = tb.buffer as? QuestBuffer else { continue }
-                let total = min(quads, SceneRenderer.maxQuads), solid = min(detail ? sec.detailSolid : sec.solidQuads, total)
+                // (P384: the last farTail cutout quads are the far copies of things laid on the ground: far only)
+                let tail = detail ? 0 : sec.farTail
+                var total = min(quads - tail, SceneRenderer.maxQuads)
+                let solid = min(detail ? sec.detailSolid : sec.solidQuads, total)
                 var k = 0
                 while k < batchKeys.count && !(batchKeys[k].0 === vb && batchKeys[k].1 === tbuf) { k += 1 }
                 if k == batchKeys.count { batchKeys.append((vb, tbuf)); batchCount.append(0); batchCut.append(0) }
                 let vo = Int32(buf.offset / (detail ? 16 : 8))
-                if !detail && sec.farExtra > 0 && solid >= sec.farSkip && sec.opaqueQuads + sec.farExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
-                    // P375: the merged ground in place of the grid it stands for.
+                // P375, P384: far, the far copies in place of what they stand for (the leading farSkip solid quads, and
+                // the leading farCut cutout ones), for the opaque and the detail stream alike.
+                let fSkip = detail ? sec.detailFarSkip : sec.farSkip, fExtra = detail ? sec.detailFarExtra : sec.farExtra
+                var cutFrom = solid
+                let cutSwitch = !detail && (sec.farCut > 0 || tail > 0)
+                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
                     mergedSections += 1
-                    if solid > sec.farSkip {
+                    if solid > fSkip {
                         batchCount[k] += 1
-                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((solid - sec.farSkip) * 6), instanceCount: 1,
-                                                                             firstIndex: UInt32(sec.farSkip * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((solid - fSkip) * 6), instanceCount: 1,
+                                                                             firstIndex: UInt32(fSkip * 6), vertexOffset: vo, firstInstance: UInt32(i))))
                     }
-                    batchCount[k] += 1
-                    pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(sec.farExtra * 6), instanceCount: 1, firstIndex: 0,
-                                                                         vertexOffset: vo + Int32(sec.opaqueQuads * 4), firstInstance: UInt32(i))))
-                    drawnQuads += sec.farExtra - sec.farSkip
+                    if fExtra > 0 {
+                        batchCount[k] += 1
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(fExtra * 6), instanceCount: 1, firstIndex: 0,
+                                                                             vertexOffset: vo + Int32(quads * 4), firstInstance: UInt32(i))))
+                    }
+                    if !detail { cutFrom = min(total, solid + sec.farCut); total = min(quads, SceneRenderer.maxQuads) }
+                    drawnQuads += fExtra - fSkip - (cutFrom - solid)
                 } else if solid > 0 {
                     batchCount[k] += 1
                     pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(solid * 6), instanceCount: 1, firstIndex: 0,
                                                                          vertexOffset: vo, firstInstance: UInt32(i))))
                 }
-                if total > solid {
+                if total > cutFrom {
                     batchCut[k] += 1
-                    pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((total - solid) * 6), instanceCount: 1,
-                                                                       firstIndex: UInt32(solid * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                    pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((total - cutFrom) * 6), instanceCount: 1,
+                                                                       firstIndex: UInt32(cutFrom * 6), vertexOffset: vo, firstInstance: UInt32(i))))
                 }
                 drawnQuads += total
             }
@@ -1450,12 +1485,19 @@ final class SceneRenderer {
                 let sec = c.sections[sy]
                 let quads = detail ? sec.detailQuads : sec.opaqueQuads
                 guard quads > 0, let buf = detail ? sec.detailBuf : sec.opaqueBuf, let tb = c.tintBuf else { continue }
-                let total = min(quads, SceneRenderer.maxQuads), solid = min(detail ? sec.detailSolid : sec.solidQuads, total)
+                let tail = detail ? 0 : sec.farTail
+                let total = min(quads - tail, SceneRenderer.maxQuads), solid = min(detail ? sec.detailSolid : sec.solidQuads, total)
                 var first = pass & 1 == 0 ? 0 : solid, count = pass & 1 == 0 ? solid : total - solid
-                if pass == 0 && sec.farExtra > 0 && solid >= sec.farSkip && sec.opaqueQuads + sec.farExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
-                    mergedSections += 1                    // P375: the merged ground in place of the grid it stands for
-                    drawSection(s, i, buf, tb, first: sec.opaqueQuads, count: sec.farExtra)
-                    first = sec.farSkip; count = solid - sec.farSkip
+                let fSkip = detail ? sec.detailFarSkip : sec.farSkip, fExtra = detail ? sec.detailFarExtra : sec.farExtra
+                let cutSwitch = !detail && (sec.farCut > 0 || tail > 0)
+                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
+                    if pass & 1 == 0 {
+                        mergedSections += 1                // P375, P384: the far copies in place of what they stand for
+                        if fExtra > 0 { drawSection(s, i, buf, tb, first: quads, count: fExtra, stride: detail ? 16 : 8) }
+                        first = fSkip; count = solid - fSkip
+                    } else if !detail {
+                        first = min(total, solid + sec.farCut); count = min(quads, SceneRenderer.maxQuads) - first
+                    }
                 }
                 if count <= 0 { continue }
                 drawSection(s, i, buf, tb, first: first, count: count, stride: detail ? 16 : 8)

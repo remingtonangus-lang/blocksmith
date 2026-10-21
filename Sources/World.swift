@@ -970,15 +970,18 @@ final class World {
         s.opaqueQuads = m.opaque.count / 8
         s.solidQuads = m.solidQuads
         s.farSkip = m.farGround.isEmpty ? 0 : m.farSkip; s.farExtra = m.farGround.count / 8
+        s.farCut = m.farCut; s.farTail = m.farTail
         s.transBuf = makeBuffer(m.trans)
         s.transQuads = m.trans.count / 8
         s.meshedVersion = version
         s.vis = m.vis
         s.leafy = m.leafy
-        s.detailBuf = makeBuffer(m.detail)
+        s.detailBuf = makeBuffer(m.detailFar.isEmpty ? m.detail : m.detail + m.detailFar)
         s.detailQuads = m.detail.count / DetailMesh.wordsPerQuad
+        s.detailFarSkip = m.detailFar.isEmpty ? 0 : m.detailFarSkip; s.detailFarExtra = m.detailFar.count / DetailMesh.wordsPerQuad
         s.detailSolid = m.detailSolid
         s.groundQuads = m.groundQuads; s.blobQuads = m.blobQuads; s.naturalCubes = m.naturalCubes; s.solidFull = m.solidFull
+        s.kinds = m.kinds
         if sy >= c.topSec { c.updateTopSec() }            // a mesh below the top section cannot move it
         if c.tintBuf == nil {
             c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }

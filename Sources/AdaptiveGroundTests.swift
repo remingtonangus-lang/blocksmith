@@ -199,6 +199,87 @@ extension AdaptiveGround {
             + String(format: ", light %.2f, ao %.2f, material %.2f)", AdaptiveGround.lightTol, AdaptiveGround.aoTol, AdaptiveGround.matTol)
     }
 
+    // P384 step 3 (questcheck --farcheck): the 5 x 5 chunks round the eye meshed as the game does, section by section,
+    // and each far copy measured both ways against what it stands for: every near point (corners) within the bound of
+    // the far copy and every far point (corners, edge middles, centre) within it of the near quads. Bevelled faces, things
+    // laid on the ground and the detail stream as drawn; the leaf blobs' far shell against the exact surface of the outer
+    // shell it stands for (as the ground's far copy is, --adaptivecheck: the 1/16 grid adds up to 0.054 at a vertex
+    // either way). Also the quads each way and the workers' mesh time with and without the far copies.
+    static func farCheck(_ vw: World, eye: V3) -> String {
+        let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
+        let ftol = AdaptiveGround.farTolerance + 1.0 / 4096
+        var bevel = TwoWay(), blob = TwoWay(), drape = TwoWay(), det = TwoWay()
+        var msOn = 0.0, msOff = 0.0, sections = 0
+        var bevN = 0, bevF = 0, blobN = 0, blobF = 0, drapeN = 0, drapeF = 0, detN = 0, detF = 0
+        func detTris(_ w: ArraySlice<UInt32>) -> [Tri] {
+            var out: [Tri] = []
+            let base = w.startIndex
+            func p(_ q: Int, _ k: Int) -> SIMD3<Float> {
+                let o = base + q * 16 + k * 4
+                let w0 = w[o], w1 = w[o + 1]
+                return SIMD3<Float>(Float(Int16(bitPattern: UInt16(w0 & 0xFFFF))), Float(Int16(bitPattern: UInt16(w0 >> 16))),
+                                    Float(Int16(bitPattern: UInt16(w1 & 0xFFFF)))) / 256
+            }
+            for q in 0..<(w.count / 16) {
+                let a = p(q, 0), b = p(q, 1), c = p(q, 2), d = p(q, 3)
+                if a != b && b != c && a != c && simd_length(simd_cross(b - a, c - a)) > 1e-6 { out.append((a, b, c)) }
+                if d != c && a != d && a != c && simd_length(simd_cross(c - a, d - a)) > 1e-6 { out.append((a, c, d)) }
+            }
+            return out
+        }
+        let was = Mesher.farCopies
+        defer { Mesher.farCopies = was; AdaptiveGround.capture = false }
+        for dz in -2...2 { for dx in -2...2 {
+            guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], let nb = vw.neighbourhood(c) else { continue }
+            for sy in 0..<NSEC {
+                Mesher.farCopies = false
+                var t0 = CFAbsoluteTimeGetCurrent()
+                _ = Mesher.buildSection(nb.0, nb.1, sy: sy, chunk: (c.cx, c.cz))
+                msOff += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                Mesher.farCopies = true
+                AdaptiveGround.capture = true; AdaptiveGround.capturedBlob = ([], [])
+                t0 = CFAbsoluteTimeGetCurrent()
+                let m = Mesher.buildSection(nb.0, nb.1, sy: sy, chunk: (c.cx, c.cz))
+                msOn += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                AdaptiveGround.capture = false
+                if m.farGround.isEmpty && m.detailFar.isEmpty && m.farTail == 0 { continue }
+                sections += 1
+                let p = m.farParts
+                let g = min(m.groundQuads, m.farSkip)
+                // Bevelled faces: the near ones (after the ground) against the far plain ones.
+                if p[1] > 0 {
+                    let a = Int(p[0]), b = a + Int(p[1])
+                    bevel.add(ref: quadTris(m.opaque[(g * 8)..<(m.farSkip * 8)]), test: quadTris(m.farGround[(a * 8)..<(b * 8)]), tol: ftol)
+                    bevN += m.farSkip - g; bevF += Int(p[1])
+                }
+                // Leaf blobs: the far shell against the outer shell's exact surface.
+                if p[2] > 0 {
+                    let cb = AdaptiveGround.capturedBlob
+                    if !cb.0.isEmpty { blob.add(ref: flat(cb.0), test: flat(cb.1), tol: ftol) }
+                    blobN += m.farCut - Int(p[3]); blobF += Int(p[2])
+                }
+                // Things laid on the ground: the pieces against the far quads (the last farTail cutout quads).
+                if m.farTail > 0 {
+                    let n0 = m.solidQuads + m.farCut - Int(p[3]), n1 = m.solidQuads + m.farCut
+                    let all = m.opaque.count / 8
+                    drape.add(ref: quadTris(m.opaque[(n0 * 8)..<(n1 * 8)]), test: quadTris(m.opaque[((all - m.farTail) * 8)..<(all * 8)]), tol: ftol)
+                    drapeN += Int(p[3]); drapeF += m.farTail
+                }
+                if !m.detailFar.isEmpty {
+                    det.add(ref: detTris(m.detail[0..<(m.detailFarSkip * 16)]), test: detTris(m.detailFar[...]), tol: ftol)
+                    detN += m.detailFarSkip; detF += m.detailFar.count / 16
+                }
+            }
+        } }
+        let t = AdaptiveGround.farTolerance
+        return "farcheck: \(sections) sections with far copies (near -> far quads): bevelled faces \(bevN) -> \(bevF), leaf blobs \(blobN) -> \(blobF), things laid on the ground \(drapeN) -> \(drapeF), detail \(detN) -> \(detF)"
+            + "\n  bevelled faces, near to far / far to near: " + bevel.line(t)
+            + "\n  leaf blobs (exact outer shell to far shell / far shell to it): " + blob.line(t)
+            + "\n  things laid on the ground: " + drape.line(t)
+            + "\n  detail: " + det.line(t)
+            + String(format: "\n  mesh %.1f ms without far copies, %.1f ms with", msOff, msOn)
+    }
+
     // P381 step 6 (questcheck --adaptivewalk): the player walks 4 s in 8 directions from the eye's spot (Player.update,
     // the field's collision), and at every step the drawn ground straight under the feet is found in the section meshes,
     // full and adaptive: how far the feet are from each. Then 64 rays from the eye at the ground ahead (World.raycast:

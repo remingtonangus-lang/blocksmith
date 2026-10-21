@@ -15,9 +15,26 @@ struct SectionMesh {
     var blobQuads = 0
     var naturalCubes = 0    // P338 step 2: natural ground drawn as cubes in a field world (must be 0)
     // P375 (GroundMerge): far from the eye the first `farSkip` opaque quads are left out and `farGround` drawn instead.
+    // P384: the far copy covers more than the ground: the first farSkip solid quads (ground, bevelled cube faces, ...)
+    // give way to farGround (all their far copies), the first farCut cutout quads (leaf blobs) are left out, and the
+    // first detailFarSkip detail quads give way to detailFar.
     var farSkip = 0
     var farGround: [UInt32] = []
+    var farCut = 0
+    var farTail = 0         // P384: the last farTail cutout quads are drawn far only (things laid on the ground)
+    var farParts = SIMD4<Int32>()   // (questcheck --farcheck: the far copy's ground, bevelled and leaf parts; near laid things)
+    var detailFarSkip = 0
+    var detailFar: [UInt32] = []
     var solidFull = false   // P376 step 5: every cell of the section is opaque (an occluder for SceneRenderer.occlusionCull)
+    var kinds = SIMD16<Int32>()   // P384 step 1: quads by kind (MeshKind), for questcheck --perfscenes
+}
+
+// P384 step 1: what the section's quads are (SectionMesh.kinds; opaque stream 0...7, detail stream 8...13).
+enum MeshKind {
+    static let cube = 0, bevel = 1, model = 2, plant = 3, fluid = 4, ground = 5, blob = 6
+    static let trunk = 8, organic = 9, spike = 10, rail = 11, piece = 12, struck = 13
+    static let names = ["cubes", "bevels", "props", "plants", "fluids", "ground", "leaf blobs", "",
+                        "trunks", "round shapes", "spikes", "rails", "pieces", "struck cubes", "", ""]
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -477,8 +494,16 @@ enum Mesher {
         }
 
         let opq = sc.opq, cut = sc.cut, trn = sc.trn     // cut: alpha-tested faces (leaves, plants, models), after the solid ones
+        // P384: the near-only quads lead their ranges (bevelled faces after the ground, the leaf blobs' cutout shells
+        // first of the cutout ones) and their far copies are collected aside (bevFar, blobFar).
+        let bev = sc.bev, bevFar = sc.bevFar, blobCut = sc.blobCut, blobFar = sc.blobFar, drapeNear = sc.drapeNear, drapeFar = sc.drapeFar
+        bev.count = 0; bevFar.count = 0; blobCut.count = 0; blobFar.count = 0; drapeNear.count = 0; drapeFar.count = 0
+        let farCopies = Mesher.farCopies && lod != 1
+        var solidOut = opq, cutOut = cut, counting = true
+        var farMaskUsed = false
         opq.count = 0; cut.count = 0; trn.count = 0
         var curCut = false
+        var kindNow = MeshKind.cube, kv = SIMD16<Int32>()  // (P384 step 1: vertices by kind)
         var groundV = 0, blobV = 0                       // (P283 stats: vertices from the two smooth passes)
         var farSkip = 0, farGround: [UInt32] = []        // P375 (GroundMerge)
         var leafy = false                                // faces between leaf blocks met (lod 0 and 2 differ)
@@ -536,7 +561,9 @@ enum Mesher {
             let uv: UInt32 = UInt32(u) | (UInt32(v) << 5)
             let w1: UInt32 = uv | (UInt32(layer) << 10) | (UInt32(ao) << 20)
                 | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0) | (UInt32((layer >> 10) & 1) << 31)
-            if trans { trn.append(w0); trn.append(w1) } else if curCut { cut.append(w0); cut.append(w1) } else { opq.append(w0); opq.append(w1) }
+            if trans { trn.append(w0); trn.append(w1); return }
+            if counting { kv[kindNow] &+= 1 }
+            if curCut { cutOut.append(w0); cutOut.append(w1) } else { solidOut.append(w0); solidOut.append(w1) }
         }
         // A smooth ground vertex from the ground passes: u = 31 projects the texture by the quad's face, and v (+ 31 when
         // the overlay bit is set) is the vertex normal code (< 49); P383: f 8...15 is a per-position vertex (u = 30, the
@@ -551,6 +578,9 @@ enum Mesher {
         func bevelFace(f: Int, ex: Int, bx16: Int, by16: Int, bz16: Int, layer: Int, tint: Int, flat: Int, flip: Bool, isTrans: Bool) {
             let a = f >> 1, sa = f & 1 == 0 ? 1 : -1, pa = sa > 0 ? 16 : 0
             let base = SIMD3<Int>(bx16, by16, bz16)
+            kindNow = MeshKind.bevel
+            if farCopies && !curCut && !isTrans { solidOut = bev }      // (P384: near only)
+            defer { kindNow = MeshKind.cube; solidOut = opq }
             func put(_ q: SIMD3<Int>, _ n: SIMD3<Float>, _ l: Int, _ ao: Int) {
                 let code = SmoothTerrain.normalCode(simd_normalize(n), face: f)
                 vert(isTrans, base.x + q.x, base.y + q.y, base.z + q.z, f, tint, 31, code % 31, layer, ao, l, code >= 31)
@@ -769,6 +799,7 @@ enum Mesher {
         // The smooth ground first: the plants below stand on its drawn surface (P175), read back from its vertices.
         sc.smValid = false
         let groundStart = opq.count
+        kindNow = MeshKind.ground
         if smooth && fieldOn && far && Mesher.farGround {
             // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround).
             coarseGround(R, dens, sc, nearSides: nearSides) { x16, y16, z16, f, tint, layer, ao, l, ncode in
@@ -837,6 +868,8 @@ enum Mesher {
                 opq.count = before
             }
         }
+        let groundEnd = opq.count                        // (P384: the ground leads the solid quads)
+        kindNow = MeshKind.cube
         // P382: the ground as drawn (adaptive included), for the things that lie on it (GroundDrape.swift).
         let drape = sc.drape
         let drapeOn = fieldOn && GroundDrape.enabled && opq.count > groundStart
@@ -855,22 +888,99 @@ enum Mesher {
                 if GroundDrape.debug { print("drape: no ground under \(lx) \(ly) \(lz) [\(x0)-\(x1), \(z0)-\(z1)] sy \(sy) chunk \(chunk.map { "\($0.x) \($0.z)" } ?? "-")") }
                 return false
             }
-            var xa = x0
-            while xa < x1 {
-                let xb = min(x1, (xa / st + 1) * st)
-                var za = z0
-                while za < z1 {
-                    let zb = min(z1, (za / st + 1) * st)
+            // P384: near only (they lead the cutout quads after the leaf blobs'); the far copy below goes last.
+            let farDrape = farCopies && !trans && curCut
+            if farDrape { cutOut = drapeNear }
+            func pieces() {
+                var xa = x0
+                while xa < x1 {
+                    let xb = min(x1, (xa / st + 1) * st)
+                    var za = z0
+                    while za < z1 {
+                        let zb = min(z1, (za / st + 1) * st)
+                        for k in 0..<4 {
+                            let ci = (2 * 4 + k) * 3
+                            let px = CT[ci] == 1 ? xb : xa, pz = CT[ci + 2] == 1 ? zb : za
+                            let (u, v) = uv(px, pz)
+                            vert(trans, lx * 16 + px, y16(px, pz) ?? ly * 16 + lift16, lz * 16 + pz, 2, tint, u, v, layer, 3, l, false)
+                        }
+                        za = zb
+                    }
+                    xa = xb
+                }
+            }
+            pieces()
+            guard farDrape else { return true }
+            // P384 step 3: far, the rectangle as few quads as keep within 1/8 block of the pieces: one quad on its corners,
+            // raised just enough to stay on or over the ground's exact height (plus the lift) at every point the pieces
+            // are drawn at, when the ground there is within 1/16 of that plane (the pieces themselves are rounded up to
+            // the 1/16 grid, so drawn far and near then differ by 1/8 at most); else halved, down to the pieces.
+            cutOut = drapeFar; counting = false
+            defer { cutOut = cut; counting = true }
+            @inline(__always) func ey(_ px: Int, _ pz: Int) -> Float? {
+                drape.heightNear(Float(lx) + Float(px) / 16, Float(lz) + Float(pz) / 16, top: top).map { $0 * 16 + Float(lift16) }
+            }
+            func farRect(_ xa: Int, _ xb: Int, _ za: Int, _ zb: Int) {
+                var cy = SIMD4<Float>(0, 0, 0, 0), cxz = [SIMD2<Float>](repeating: .zero, count: 4)
+                var ok = true
+                for k in 0..<4 {
+                    let ci = (2 * 4 + k) * 3
+                    let px = CT[ci] == 1 ? xb : xa, pz = CT[ci + 2] == 1 ? zb : za
+                    if let h = ey(px, pz) { cy[k] = h } else { ok = false }
+                    cxz[k] = SIMD2(Float(px), Float(pz))
+                }
+                func planeY(_ p: SIMD2<Float>) -> Float {
+                    for (a, b, c) in [(0, 1, 2), (0, 2, 3)] {
+                        let v0 = cxz[b] - cxz[a], v1 = cxz[c] - cxz[a], v2 = p - cxz[a]
+                        let den = v0.x * v1.y - v1.x * v0.y
+                        guard abs(den) > 1e-6 else { continue }
+                        let l1 = (v2.x * v1.y - v1.x * v2.y) / den, l2 = (v0.x * v2.y - v2.x * v0.y) / den
+                        if l1 >= -1e-4 && l2 >= -1e-4 && l1 + l2 <= 1 + 1e-4 { return cy[a] + (cy[b] - cy[a]) * l1 + (cy[c] - cy[a]) * l2 }
+                    }
+                    return cy[0]
+                }
+                var raise: Float = 0, low: Float = 0
+                var px = xa
+                while ok {
+                    var pz = za
+                    while true {
+                        guard let h = ey(px, pz) else { ok = false; break }
+                        let d = h - planeY(SIMD2(Float(px), Float(pz)))
+                        raise = max(raise, d); low = min(low, d)
+                        if pz == zb { break }
+                        pz = min(zb, (pz / st + 1) * st)
+                    }
+                    if px == xb { break }
+                    px = min(xb, (px / st + 1) * st)
+                }
+                if ok && raise - low <= 1 {
+                    for k in 0..<4 {
+                        let (u, v) = uv(Int(cxz[k].x), Int(cxz[k].y))
+                        let y = max(0, min(511, Int((cy[k] + raise - 0.01).rounded(.up))))
+                        vert(trans, lx * 16 + Int(cxz[k].x), y, lz * 16 + Int(cxz[k].y), 2, tint, u, v, layer, 3, l, false)
+                    }
+                    return
+                }
+                let wx = xb - xa, wz = zb - za
+                if wx <= st && wz <= st {
                     for k in 0..<4 {
                         let ci = (2 * 4 + k) * 3
                         let px = CT[ci] == 1 ? xb : xa, pz = CT[ci + 2] == 1 ? zb : za
                         let (u, v) = uv(px, pz)
                         vert(trans, lx * 16 + px, y16(px, pz) ?? ly * 16 + lift16, lz * 16 + pz, 2, tint, u, v, layer, 3, l, false)
                     }
-                    za = zb
+                    return
                 }
-                xa = xb
+                // (halved along its longer side, on the pieces' lines)
+                if wx >= wz {
+                    let xm = max(xa + st, min(xb - 1, ((xa + xb) / 2 + st / 2) / st * st))
+                    farRect(xa, xm, za, zb); farRect(xm, xb, za, zb)
+                } else {
+                    let zm = max(za + st, min(zb - 1, ((za + zb) / 2 + st / 2) / st * st))
+                    farRect(xa, xb, za, zm); farRect(xa, xb, zm, zb)
+                }
             }
+            farRect(x0, x1, z0, z1)
             return true
         }
         // A plant's foot: the drawn ground's height (section y16) at each corner (a or b, a or b: index x + 2 z) of its
@@ -898,6 +1008,7 @@ enum Mesher {
         // the field), quads wholly inside the ground left out. Far sections too (P378 step 3: identical far).
         let fluidNets = fieldOn && Mesher.fluidNets            // (every distance: P378 step 3)
         if fluidNets {
+            kindNow = MeshKind.fluid
             for kind in [UInt8(1), UInt8(2)] {
                 var any = false
                 outer: for y in (C0 - 2)..<(C0 + 20) { for z in (C0 - 2)..<(C0 + 20) { for x in (C0 - 2)..<(C0 + 20) where fkT[Int(R[x + z * RW + y * RL])] == kind { any = true; break outer } } }
@@ -1026,6 +1137,13 @@ enum Mesher {
                 } } }
             }
         }
+        // (P384 step 1, questcheck --perfscenes with BS_BLOCKTALLY: the main loop's quads by block and kind)
+        let tallyBlocks = Mesher.blockTally != nil
+        var lastBlock = -1, lastKV = kv, blockQ: [Int: Int] = [:]
+        func tallyFlush(_ next: Int) {
+            if lastBlock >= 0 { let d = kv &- lastKV; for k in 0..<5 where d[k] > 0 { blockQ[lastBlock << 4 | k, default: 0] += Int(d[k]) } }
+            lastBlock = next; lastKV = kv
+        }
         for ly in 0..<16 {
             let y = ly + C0
             for z in C0..<(C0 + 16) {
@@ -1041,6 +1159,7 @@ enum Mesher {
                     let bi = Int(b)
                     let rt = renderT[bi]
                     if rt == rNone { continue }
+                    if tallyBlocks { tallyFlush(Int(gbT[bi])) }
                     if smooth && natT[bi] && (!fieldOn || dens[i] > 0) {    // (chipped too: it shrinks in the smooth surface, P106)
                         if smoothWater && !fluidNets { shoreWater(i, ly) }
                         continue
@@ -1087,6 +1206,7 @@ enum Mesher {
                     let tintV = tintB == 3 ? 1 : tintB
                     let isTrans = layerT[bi] == translucent
                     curCut = !(rt == rCube && layerT[bi] == solidLayer)
+                    kindNow = rt == rCube ? MeshKind.cube : (rt == rCross ? MeshKind.plant : (rt == rLiquid ? MeshKind.fluid : MeshKind.model))
 
                     if anyDmg, let dv = dmg[i], rt == rCube {
                         // A chipped block: its remaining 4x4x4 sub-cubes, faces between them and against undamaged
@@ -1509,6 +1629,31 @@ enum Mesher {
                             let sideMask = (3 << (t1 * 2)) | (3 << (t2 * 2))
                             if ex & sideMask != 0 {
                                 bevelFace(f: f, ex: ex, bx16: bx16, by16: by16, bz16: bz16, layer: layer, tint: tintF, flat: flat, flip: flip, isTrans: isTrans)
+                                // P384 step 5: far, the face plain (a 1/16 chamfer is under half a pixel past
+                                // GroundMerge.farDistance), merged with the other plain ones where its corners match.
+                                if farCopies && !curCut && !isTrans {
+                                    if aos[0] == aos[1] && aos[1] == aos[2] && aos[2] == aos[3] && lit[0] == lit[1] && lit[1] == lit[2] && lit[2] == lit[3] {
+                                        if !farMaskUsed { sc.farMask.initialize(repeating: 0, count: 6 * 16 * 256); farMaskUsed = true }
+                                        let sl: Int, a: Int, bb: Int
+                                        switch f >> 1 {
+                                        case 0: sl = lx; a = ly; bb = lz
+                                        case 1: sl = ly; a = lz; bb = lx
+                                        default: sl = lz; a = lx; bb = ly
+                                        }
+                                        let key = layer | (tintF << 11) | ((overlay ? 1 : 0) << 13) | (aos[0] << 14) | ((lit[0] & 255) << 16)
+                                        sc.farMask[(f * 16 + sl) * 256 + a + bb * 16] = Int32(key + 1)
+                                    } else {
+                                        solidOut = bevFar; counting = false
+                                        for k in 0..<4 {
+                                            let c = flip ? (k + 1) & 3 : k
+                                            let ci = (f * 4 + c) * 3
+                                            let px = CT[ci] * 16, py = CT[ci + 1] * 16, pz = CT[ci + 2] * 16
+                                            let (u, v) = faceUV(f, px, py, pz)
+                                            vert(false, bx16 + px, by16 + py, bz16 + pz, f, tintF, u, v, layer, aos[c], lit[c], overlay)
+                                        }
+                                        solidOut = opq; counting = true
+                                    }
+                                }
                                 continue
                             }
                         }
@@ -1571,6 +1716,12 @@ enum Mesher {
                 }
             }
         }
+        if tallyBlocks {
+            tallyFlush(-1)
+            Mesher.tallyLock.lock()
+            for (k, n) in blockQ { Mesher.blockTally![k, default: 0] += n }
+            Mesher.tallyLock.unlock()
+        }
         // R22: the plants of the section above's first row that stand on natural ground (see plantOnNatural), drawn here
         // 16 blocks up and lowered onto this section's drawn ground, as the main loop does for its own.
         if smooth && !far {
@@ -1602,6 +1753,7 @@ enum Mesher {
                 let tintV = tintB == 3 ? 1 : tintB
                 let isTrans = layerT[bi] == translucent
                 curCut = true
+                kindNow = MeshKind.plant
                 let layer = Int(texT[bi * 6 + 2])
                 let cs = Int(crossT[bi]), ci0 = (16 - cs) / 2
                 let drift = swayOn && driftT[bi], foot = drift && driftFoot(i)
@@ -1635,16 +1787,23 @@ enum Mesher {
         if detailDraw {
             let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: wox, wy0: sy * 16, wz0: woz,
                                     lod: lod, sc: sc, srcs: srcs, sy: sy, field: fieldOn ? n9 : nil)
-            ShapeTrunks.emit(ctx)
-            ShapeOrganic.emit(ctx)
-            ShapeSpikes.emit(ctx)
-            ShapeRails.emit(ctx)
+            var d0 = det.count + detCut.count
+            func tally(_ k: Int) { let d = det.count + detCut.count; kv[k] &+= Int32((d - d0) / DetailMesh.wordsPerVertex); d0 = d }
+            kv[MeshKind.struck] &+= Int32(d0 / DetailMesh.wordsPerVertex)
+            ShapeTrunks.emit(ctx); tally(MeshKind.trunk)
+            ShapeOrganic.emit(ctx); tally(MeshKind.organic)
+            ShapeSpikes.emit(ctx); tally(MeshKind.spike)
+            ShapeRails.emit(ctx); tally(MeshKind.rail)
+        } else {
+            kv[MeshKind.struck] &+= Int32((det.count + detCut.count) / DetailMesh.wordsPerVertex)
         }
         // P338 step 8: free building pieces standing in this section (FreeBuild), in any world that has them.
         if !pieces.isEmpty {
             let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: wox, wy0: sy * 16, wz0: woz,
                                     lod: lod, sc: sc, srcs: srcs, sy: sy, field: fieldOn ? n9 : nil)
+            let d0 = det.count + detCut.count
             FreeBuild.emit(ctx, pieces)
+            kv[MeshKind.piece] &+= Int32((det.count + detCut.count - d0) / DetailMesh.wordsPerVertex)
         }
         if smooth {
             if leafBlob {
@@ -1654,51 +1813,80 @@ enum Mesher {
                 // the alpha test cost the tiled GPU its early depth test; drawn solid, the leaf texture's clear texels show
                 // their mid grey under the leaf tint, a darker green where the inner shell showed through.
                 let farBlob = lod == 1 && Mesher.farLeaves
+                let farShell = farCopies && !farBlob && SmoothTerrain.triGround
+                if farShell { cutOut = blobCut }                 // (P384: near only, first of the cutout quads)
+                kindNow = MeshKind.blob
                 smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, shells: farBlob ? 1 : 2, world: wo) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                     curCut = !farBlob
                     blobV += 1
                     vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
                 }
-            }
-        }
-        // Merge the collected faces: grow each run along a, then along b while the whole row matches.
-        for f in 0..<6 {
-            let axis = f / 2
-            let a1 = (axis + 1) % 3, a2 = (axis + 2) % 3
-            for sl in 0..<16 {
-                let base = (f * 16 + sl) * 256
-                for bb in 0..<16 {
-                    var a = 0
-                    while a < 16 {
-                        let k = mask[base + a + bb * 16]
-                        if k == 0 { a += 1; continue }
-                        var w = 1
-                        while a + w < 16 && mask[base + a + w + bb * 16] == k { w += 1 }
-                        var h = 1
-                        grow: while bb + h < 16 {
-                            for t in 0..<w where mask[base + a + t + (bb + h) * 16] != k { break grow }
-                            h += 1
-                        }
-                        for hh in 0..<h { for t in 0..<w { mask[base + a + t + (bb + hh) * 16] = 0 } }
-                        let key = Int(k) - 1
-                        let layer = key & 2047, tint = (key >> 11) & 3, overlay = (key >> 13) & 1 == 1
-                        let ao = (key >> 14) & 3, l = (key >> 16) & 255, trans = (key >> 24) & 1 == 1
-                        curCut = (key >> 25) & 1 == 1
-                        for c in 0..<4 {
-                            let ci = (f * 4 + c) * 3
-                            let ps = (sl + CT[ci + axis]) * 16
-                            let pa = (CT[ci + a1] == 1 ? a + w : a) * 16
-                            let pb = (CT[ci + a2] == 1 ? bb + h : bb) * 16
-                            switch axis {
-                            case 0: vert(trans, ps, pa, pb, f, tint, 31, 31, layer, ao, l, overlay)
-                            case 1: vert(trans, pb, ps, pa, f, tint, 31, 31, layer, ao, l, overlay)
-                            default: vert(trans, pa, pb, ps, f, tint, 31, 31, layer, ao, l, overlay)
-                            }
-                        }
-                        a += w
+                cutOut = cut
+                // P384 step 4: far, one solid shell (the outer one: the canopy's outline), drawn per position (triplanar,
+                // like the ground) and simplified to the far bound against its exact surface.
+                if farShell && blobCut.count > 0 {
+                    let ex = sc.blobExact
+                    ex.count = 0
+                    solidOut = blobFar; counting = false
+                    smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, shells: 1, world: wo, exact: ex, tri: true) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                        curCut = false
+                        groundVert(x16, y16, z16, f, tint, layer, ao, l, ncode)
+                    }
+                    solidOut = opq; counting = true
+                    if AdaptiveGround.enabled {
+                        AdaptiveGround.simplify(blobFar, from: 0, tol: AdaptiveGround.farTolerance,
+                                                exact: ex.count == blobFar.count / 2 * 3 ? ex.ptr : nil, capture: false, blob: true)
                     }
                 }
             }
+        }
+        // Merge the collected faces: grow each run along a, then along b while the whole row matches.
+        kindNow = MeshKind.cube
+        func mergeFaces(_ mk: UnsafeMutablePointer<Int32>) {
+            for f in 0..<6 {
+                let axis = f / 2
+                let a1 = (axis + 1) % 3, a2 = (axis + 2) % 3
+                for sl in 0..<16 {
+                    let base = (f * 16 + sl) * 256
+                    for bb in 0..<16 {
+                        var a = 0
+                        while a < 16 {
+                            let k = mk[base + a + bb * 16]
+                            if k == 0 { a += 1; continue }
+                            var w = 1
+                            while a + w < 16 && mk[base + a + w + bb * 16] == k { w += 1 }
+                            var h = 1
+                            grow: while bb + h < 16 {
+                                for t in 0..<w where mk[base + a + t + (bb + h) * 16] != k { break grow }
+                                h += 1
+                            }
+                            for hh in 0..<h { for t in 0..<w { mk[base + a + t + (bb + hh) * 16] = 0 } }
+                            let key = Int(k) - 1
+                            let layer = key & 2047, tint = (key >> 11) & 3, overlay = (key >> 13) & 1 == 1
+                            let ao = (key >> 14) & 3, l = (key >> 16) & 255, trans = (key >> 24) & 1 == 1
+                            curCut = (key >> 25) & 1 == 1
+                            for c in 0..<4 {
+                                let ci = (f * 4 + c) * 3
+                                let ps = (sl + CT[ci + axis]) * 16
+                                let pa = (CT[ci + a1] == 1 ? a + w : a) * 16
+                                let pb = (CT[ci + a2] == 1 ? bb + h : bb) * 16
+                                switch axis {
+                                case 0: vert(trans, ps, pa, pb, f, tint, 31, 31, layer, ao, l, overlay)
+                                case 1: vert(trans, pb, ps, pa, f, tint, 31, 31, layer, ao, l, overlay)
+                                default: vert(trans, pa, pb, ps, f, tint, 31, 31, layer, ao, l, overlay)
+                                }
+                            }
+                            a += w
+                        }
+                    }
+                }
+            }
+        }
+        mergeFaces(mask)
+        if farMaskUsed {                                   // (P384: the bevelled faces drawn plain, far)
+            solidOut = bevFar; counting = false
+            mergeFaces(sc.farMask)
+            solidOut = opq; counting = true
         }
         // P376 step 3: the strips, run along the axis their corners don't change across (dir 0: a, dir 1: bb).
         if stripOn && !sc.stripKeys.isEmpty {
@@ -1770,20 +1958,64 @@ enum Mesher {
                 }
             }
         }
-        let solid = opq.count / 8
+        let solid = (opq.count + bev.count) / 8
+        kv[MeshKind.ground] = Int32(groundV); kv[MeshKind.blob] = Int32(blobV)
+        kv /= 4
         var opaqueOut = [UInt32]()
-        opaqueOut.reserveCapacity(opq.count + cut.count)
-        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: opq.ptr, count: opq.count))
+        // P384: one far copy for everything the near quads lead with (the ground's far copy, or its near quads where it
+        // has none, the bevelled faces drawn plain, the leaf blobs' far shell), and the far copies of things laid on the
+        // ground (after the other cutout quads, drawn far only), kept when they are smaller.
+        var farSkipOut = farSkip, farCopy = farGround, farCut = 0, farTail = 0
+        var parts = SIMD4<Int32>(Int32(farGround.count / 8), 0, 0, 0)
+        if farCopies && (bev.count > 0 || blobFar.count > 0 || drapeNear.count > 0) {
+            var fc = farGround
+            let g0 = farGround.isEmpty ? 0 : farSkip * 8
+            fc.reserveCapacity(farGround.count + groundEnd - g0 + bevFar.count + blobFar.count)
+            fc.append(contentsOf: UnsafeBufferPointer(start: opq.ptr + g0, count: groundEnd - g0))
+            parts[0] = Int32(fc.count / 8)
+            fc.append(contentsOf: UnsafeBufferPointer(start: bevFar.ptr, count: bevFar.count))
+            parts[1] = Int32(bevFar.count / 8)
+            fc.append(contentsOf: UnsafeBufferPointer(start: blobFar.ptr, count: blobFar.count))
+            parts[2] = Int32(blobFar.count / 8); parts[3] = Int32(drapeNear.count / 8)
+            let blobs = blobFar.count > 0 ? blobCut.count : 0
+            if fc.count + drapeFar.count < groundEnd + bev.count + blobs + drapeNear.count {
+                farCopy = fc; farSkipOut = (groundEnd + bev.count) / 8; farCut = (blobs + drapeNear.count) / 8; farTail = drapeFar.count / 8
+            } else {
+                parts = SIMD4<Int32>(Int32(farGround.count / 8), 0, 0, 0)
+            }
+        }
+        opaqueOut.reserveCapacity(opq.count + bev.count + blobCut.count + drapeNear.count + cut.count + farTail * 8)
+        // (P384: the ground, the bevelled faces, the rest of the solid quads; the blobs' cutout shells, the things laid
+        // on the ground, the other cutout quads, the far copies of the things laid on the ground)
+        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: opq.ptr, count: groundEnd))
+        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: bev.ptr, count: bev.count))
+        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: opq.ptr + groundEnd, count: opq.count - groundEnd))
+        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: blobCut.ptr, count: blobCut.count))
+        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: drapeNear.ptr, count: drapeNear.count))
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: cut.ptr, count: cut.count))
+        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: drapeFar.ptr, count: farTail * 8))
         var detailOut = [UInt32]()
         if det.count + detCut.count > 0 {
             detailOut.reserveCapacity(det.count + detCut.count)
             detailOut.append(contentsOf: UnsafeBufferPointer(start: det.ptr, count: det.count))
             detailOut.append(contentsOf: UnsafeBufferPointer(start: detCut.ptr, count: detCut.count))
         }
+        // P384 step 3: the detail stream's solid quads simplified to the far bound (FarCopy.swift), kept when it saves a
+        // tenth or more.
+        var detailFar: [UInt32] = [], detailFarSkip = 0
+        if farCopies && AdaptiveGround.enabled && det.count >= 8 * DetailMesh.wordsPerQuad {
+            let df = sc.detFar
+            df.count = 0
+            for k in 0..<det.count { df.append(det.ptr[k]) }
+            AdaptiveGround.simplifyDetail(df, from: 0, tol: AdaptiveGround.farTolerance)
+            if df.count * 10 <= det.count * 9 {
+                detailFar = Array(UnsafeBufferPointer(start: df.ptr, count: df.count)); detailFarSkip = det.count / DetailMesh.wordsPerQuad
+            }
+        }
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
                            detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes,
-                           farSkip: farSkip, farGround: farGround, solidFull: solidFull)
+                           farSkip: farSkipOut, farGround: farCopy, farCut: farCut, farTail: farTail, farParts: parts,
+                           detailFarSkip: detailFarSkip, detailFar: detailFar, solidFull: solidFull, kinds: kv)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -1799,6 +2031,9 @@ enum Mesher {
     // P376 step 3: lossless strips of cube faces, and faces under lava dropped (BS_STRIPS=0: off, for before/after).
     static var stripMerge = ProcessInfo.processInfo.environment["BS_STRIPS"] != "0"
     static var stripTally = 0                  // faces saved (harness; racy count across workers)
+    // P384 step 1 (BS_BLOCKTALLY=1): vertices the main loop emits by block group << 4 | kind (MeshKind 0...4), every section.
+    static var blockTally: [Int: Int]? = ProcessInfo.processInfo.environment["BS_BLOCKTALLY"] == "1" ? [:] : nil
+    static let tallyLock = NSLock()
     // Which axis a face's corner values are constant along: 0 = its `a` axis (Mesher's slice order), 1 = `bb`, nil = neither
     // (both: it is flat, merged as such before this is asked).
     @inline(__always) static func stripDir(_ f: Int, _ aos: UnsafeMutablePointer<Int>, _ lit: UnsafeMutablePointer<Int>) -> Int? {
@@ -1821,6 +2056,14 @@ enum Mesher {
     static var farLeaves = ProcessInfo.processInfo.environment["BS_FARLEAF"] != "0"
     // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround); BS_FARGROUND=0 meshes it in full.
     static var farGround = ProcessInfo.processInfo.environment["BS_FARGROUND"] != "0"
+    // P384: far copies of more than the ground (bevelled built blocks drawn plain, one simplified shell per leaf blob,
+    // the detail stream), drawn by the renderer's far switch past GroundMerge.farDistance. BS_FARCOPY=0: ground only.
+    // (Quest only: the Mac's renderer has no far switch.)
+    #if os(macOS)
+    static var farCopies = false
+    #else
+    static var farCopies = ProcessInfo.processInfo.environment["BS_FARCOPY"] != "0"
+    #endif
     // P338 step 5: field worlds draw water and lava near the eye as their own field's surface (BS_FLUIDNETS=0: the cells).
     static let planeDist: [Float] = (0..<25).map { (k: Int) -> Float in
         let dx: Int = k % 5 - 2, dz: Int = k / 5 - 2
@@ -1937,10 +2180,17 @@ final class MeshScratch {
     lazy var fineScratch = MeshScratch()        // P377 step 1: the half-block region Mesher.fineGround meshes
     lazy var drape = GroundDrape()              // P382: the section's drawn ground, for things lying on it
     let groundExact = GrowBuf<Float>(1 << 14)   // P383: the ground vertices' unsnapped positions (x, y, z a vertex)
+    // P384: near-only bevelled faces and their far plain faces, the leaf blobs' cutout shells and far shell (and its
+    // exact positions), and the far mask of the plain faces.
+    let bev = GrowBuf<UInt32>(1 << 10), bevFar = GrowBuf<UInt32>(1 << 10)
+    let blobCut = GrowBuf<UInt32>(1 << 10), blobFar = GrowBuf<UInt32>(1 << 10), blobExact = GrowBuf<Float>(1 << 10)
+    let farMask = UnsafeMutablePointer<Int32>.allocate(capacity: 6 * 16 * 256)
+    let detFar = GrowBuf<UInt32>(1 << 12)       // P384: the detail stream's far copy
+    let drapeNear = GrowBuf<UInt32>(1 << 10), drapeFar = GrowBuf<UInt32>(1 << 10)   // P384: things laid on the ground, near and far
     var smValid = false             // P175: smV/smL hold the section's ground surface (Mesher.smoothGroundTop)
 
     deinit {
-        region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate(); strip.deallocate()
+        region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate(); strip.deallocate(); farMask.deallocate()
         lit.deallocate(); aos.deallocate(); seen.deallocate(); stack.deallocate()
         smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate(); smQ.deallocate(); smR.deallocate(); smF.deallocate(); smM.deallocate(); dens.deallocate()
     }
