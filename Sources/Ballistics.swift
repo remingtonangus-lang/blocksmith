@@ -63,6 +63,9 @@ final class Armory {
     var placeCheck: Float = 0
     var lastNoise: Double = -10
     var magInHand = false          // VR: a magazine taken from the hip, held in the off hand (VRReload)
+    var spin: Float = 0            // P391: the rotary gun's barrels, 0 still ... 1 at speed
+    var barrel: Float = 0          // ...and their angle (radians), drawn by Guns.writeFirstPerson
+    var spinHeld = false           // ...the trigger was down last frame (the whine plays on each change)
     var shotsFired = 0             // harness counters
     var hits = 0
 
@@ -608,7 +611,7 @@ extension Game {
     func gunInteract(_ p: PadSnapshot, _ q: PadSnapshot, fire: Bool, firePressed: Bool, aim: Bool, dt: Float) -> Bool {
         let a = arms
         guard let gi = heldGun else {
-            a.reload = 0; a.aim = 0; a.heldGun = -1
+            a.reload = 0; a.aim = 0; a.heldGun = -1; a.spin = 0; a.spinHeld = false; player.gunSlow = 1
             return false
         }
         let gs = Guns.all[gi]
@@ -619,6 +622,19 @@ extension Game {
             GunActions.drawn(gi, rounds: held.tag)          // P301: an empty pistol comes up locked back
         }
         a.cooldown -= dt
+        // P391: the Mahlwerk's barrels spin up while the trigger is held (a rising whine, rounds once at speed) and run
+        // down after (a falling one); it's heavy, so the player walks slower holding it.
+        if gi == Guns.rotary {
+            let want = fire && a.reload <= 0 && held.tag > 0
+            let was = a.spin
+            a.spin = want ? min(1, a.spin + dt / Guns.rotarySpinUp) : max(0, a.spin - dt / Guns.rotarySpinDown)
+            if want != a.spinHeld {
+                a.spinHeld = want
+                if want { sfx(.gun(21), 0.9) } else if was > 0.3 { sfx(.gun(22), 0.8 * was) }
+            }
+            a.barrel = (a.barrel + dt * a.spin * 42).truncatingRemainder(dividingBy: 2 * .pi)
+            player.gunSlow = Guns.rotaryWalk
+        } else { a.spin = 0; a.spinHeld = false; player.gunSlow = 1 }
         let dual = DualWield.tick(self, down: aim, dt: dt)                         // D8: the off trigger fires the other gun
         let aiming = aim && !dual && a.reload <= 0 && !player.sprinting
         a.aim += ((aiming ? 1 : 0) - a.aim) * min(1, dt * 12)
@@ -666,7 +682,7 @@ extension Game {
             }
             return true
         }
-        guard a.cooldown <= 0 else { return true }
+        guard a.cooldown <= 0, gi != Guns.rotary || a.spin >= 1 else { return true }
         if !GunActions.ready(self, gi, pressed: firePressed) { return true }     // D7: the action wants working
         if gunJams(gi) { return true }                     // O4: a worn gun can jam
         fireHeldGun(gi)

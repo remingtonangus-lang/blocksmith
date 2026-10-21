@@ -48,6 +48,7 @@ final class Player {
     var levitate: Float = 0        // sentry bolt levitation left (s)
     var levitateAmp = 0
     var speedMul: Float = 1        // speed / slowness effects
+    var gunSlow: Float = 1         // P391: a heavy gun in hand (the rotary gun)
     var jumpBoost = 0              // jump boost level
     var slowFalling = false
     var dolphinsGrace = false
@@ -277,7 +278,7 @@ final class Player {
         else if sneaking || crawling { speed = 4.317 * min(1, 0.3 + 0.15 * Float(swiftSneak)) }
         // VR sprints at 2x a walk (P274; 1.6x before; the reference's 1.3x is near invisible in a headset: playtest v78, fourth report).
         else { speed = sprinting ? (moveYaw != nil ? Player.vrSprintSpeed : Player.sprintSpeed) : 4.317 }
-        if !flying { speed *= speedMul * HandGrab.slow }          // P258: a body dragged or carried
+        if !flying { speed *= speedMul * HandGrab.slow * gunSlow }          // P258: a body dragged or carried; P391: a heavy gun
         if soulSpeed > 0 && onGround {
             let under = Blocks.key(w.materialAt(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))
             if under == "soul_sand" || under == "soul_soil" { speed *= 1.3 + 0.105 * Float(soulSpeed) }

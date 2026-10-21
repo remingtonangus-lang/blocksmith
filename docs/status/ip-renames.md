@@ -168,3 +168,6 @@ Sentinel, with a riveted ironclad model.
   and a thin pale-gold experience line with level marks.
 - tools/coined-terms.txt also bans Pigstep, Mellohi, Lava Chicken, Pelican Dropship, Warthog Jeep, Mjolnir, Cortana and
   Master Chief; the runtime name dump checks the disc titles.
+- P391: the Hannibal trooper's six-barrel rotary gun borrows the feel of the minigun in the open-world crime games (spin-up
+  whine, a roar of fire, a slow walk while it's held); it is the Mahlwerk Rotary Gun, an original Capital design with
+  its own name, look and synthesized sounds.

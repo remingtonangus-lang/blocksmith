@@ -18,6 +18,8 @@ struct GunModel {
     var shouldered = true        // fired from the shoulder (pistols are held out in both hands)
     var slide: [Int] = []        // P301: parts that ride the pistol's slide (drawn back when it is racked or locked open)
     var slideTravel: Float = 0   // pixels the slide runs back
+    var spin: [Int] = []         // P391: parts that turn round `spinAxis` (x, y), the rotary gun's barrels
+    var spinAxis = V2(0, 0)
 }
 
 enum CapitalArms {
@@ -33,6 +35,18 @@ enum CapitalArms {
         Part(mn: V3(x, y, z), mx: V3(x + w, y + h, z + d), color: c, pattern: pat)
     }
 
+    // P391: a spinning part at `angle` round its gun's axis. The box keeps its sides square (a barrel is thin), only its
+    // centre goes round, so the cluster reads as turning without a rotation of its own (parts carry none).
+    static func spun(_ p: Part, _ angle: Float, _ gi: Int) -> Part {
+        let c = models[gi].spinAxis
+        let mid = (p.mn + p.mx) * 0.5, half = (p.mx - p.mn) * 0.5
+        let dx = mid.x - c.x, dy = mid.y - c.y, ca = cosf(angle), sa = sinf(angle)
+        let m = V3(c.x + dx * ca - dy * sa, c.y + dx * sa + dy * ca, mid.z)
+        var q = p
+        q.mn = m - half; q.mx = m + half; q.pivot = q.pivot + (m - mid)
+        return q
+    }
+
     // (A retired gun's index draws its replacement: P217.)
     static let models: [GunModel] = (0..<Guns.all.count).map { i0 in
         let i = Guns.current(i0)
@@ -45,7 +59,7 @@ enum CapitalArms {
     // barrel vents, slide serrations, muzzle devices.
     static func details(_ i: Int) -> [Part] {
         var p: [Part] = []
-        if !Guns.isLauncher(i) && i != Guns.revolver && i != Guns.slatefall { p.append(b(-0.12, -1.15, -1.9, 0.24, 0.95, 0.3, silver, pMetal)) }       // trigger blade (the six-iron has its own)
+        if !Guns.isLauncher(i) && i != Guns.revolver && i != Guns.slatefall && i != Guns.rotary { p.append(b(-0.12, -1.15, -1.9, 0.24, 0.95, 0.3, silver, pMetal)) }       // trigger blade (the six-iron has its own)
         switch i {
         case Guns.rifle:
             for z: Float in [-6.1, -5.1, 0.1, 1.1, 2.1] { p.append(b(-0.72, 3.25, z, 1.44, 0.22, 0.45, grey, pMetal)) }
@@ -85,6 +99,45 @@ enum CapitalArms {
             return AshArms.model(i)
         case Guns.slatefall, Guns.repeater:
             return GreywallArms.model(i)
+        case Guns.rotary:
+            // P391 Mahlwerk Rotary Gun (original design): an enamel receiver with the Capital's grey band, a graphite
+            // drive pack behind it with a warm charge strip, six graphite barrels round a spindle held by two silver
+            // clamps, a carry handle on top, a rear pistol grip and a fore grip under the receiver, and the belt box on
+            // the left feeding through a chute (the box and belt leave on a reload).
+            let c = V2(0, 1.2)
+            var p: [Part] = [
+                b(-2.0, -1.2, -7, 4.0, 4.8, 11, enamel, pEnamel),                  // receiver
+                b(-2.05, 1.0, -6.6, 4.1, 0.5, 10.2, grey, pEnamel),                // grey band
+                b(-1.7, -0.8, 4, 3.4, 4.0, 3.2, graphite, pMetal),                 // drive pack
+                b(1.72, 0.6, 4.4, 0.1, 1.2, 2.4, glow * 0.7, pGlow),               // charge strip
+                b(-1.7, -0.5, -8.6, 3.4, 3.4, 1.6, graphite, pMetal),              // rotor hub
+                b(-1.9, -0.7, -16, 3.8, 3.8, 0.9, silver, pMetal),                 // mid clamp
+                b(-1.9, -0.7, -22.6, 3.8, 3.8, 0.9, silver, pMetal),               // front clamp
+                b(-0.35, 0.85, -23.2, 0.7, 0.7, 14.6, graphite, pMetal),           // spindle
+                b(-0.4, 3.6, -5, 0.8, 1.4, 0.8, graphite, pMetal),                 // carry handle posts
+                b(-0.4, 3.6, 1.5, 0.8, 1.4, 0.8, graphite, pMetal),
+                b(-0.5, 5.0, -5, 1.0, 0.8, 7.3, graphite, pMetal),                 // carry handle
+                b(-0.7, -4.4, 1.4, 1.4, 3.2, 1.8, graphite, pMetal),               // pistol grip, raked back
+                b(-0.7, -5.9, 2.0, 1.4, 1.6, 1.8, graphite, pMetal),
+                b(-0.12, -2.2, 0.6, 0.24, 0.9, 0.3, silver, pMetal),               // trigger
+                b(-0.3, -2.6, 0.2, 0.6, 0.25, 1.5, graphite, pMetal),              // trigger guard
+                b(-0.6, -4.2, -5.8, 1.2, 3.0, 1.4, graphite, pMetal),              // fore grip
+                b(-2.6, -0.6, -4.5, 0.6, 1.8, 3.0, grey, pMetal),                  // feed chute
+                b(2.02, 0.4, -4, 0.1, 1.0, 2.5, graphite, pMetal),                 // ejection port
+            ]
+            let s0 = p.count
+            for k in 0..<6 {                                                       // the barrels
+                let a = Float(k) * .pi / 3
+                let x = c.x + 1.25 * cosf(a), y = c.y + 1.25 * sinf(a)
+                p.append(b(x - 0.38, y - 0.38, -24.2, 0.76, 0.76, 15.6, graphite, pMetal))
+            }
+            let m = p.count
+            p += [b(-6.0, -3.6, -6.5, 3.4, 4.6, 5.5, graphite, pMetal),              // belt box
+                  b(-6.05, 0.6, -6.6, 3.5, 0.4, 5.7, enamel, pEnamel),               // its lid band
+                  b(-2.9, -0.2, -4.2, 0.3, 1.2, 2.4, brass, pMetal)]                 // the belt's rounds
+            return GunModel(parts: p, mag: [m, m + 1, m + 2], grip: V3(0, -2.8, 2.3), fore: V3(0, -2.7, -5.1), butt: V3(0, 1.2, 7.2),
+                            muzzle: V3(0, 1.2, -24.3), magAt: V3(-4.3, -1.3, -3.7), bolt: V3(0, 5.4, -1.5), scale: 0.6,
+                            spin: Array(s0..<m), spinAxis: c)
         case Guns.revolver:
             // The six-iron (P180, Oct 13: "doesn't look at all like a six iron"): a frontier single-action revolver.
             // A long round barrel with a blade front sight and the ejector rod under it, a fat fluted cylinder, a

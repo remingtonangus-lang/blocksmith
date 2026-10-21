@@ -82,7 +82,10 @@ final class SoldierBrain {
     var salvoLeft = 0
     var salvoCD: Float = Rand.float(in: 2...6)
     var sidecarDone = false
-    var spun = false                 // Ashsaw gunner: the bolt is racked for the next burst (a readable click first)
+    var spun = false                 // Ashsaw gunner: the bolt is racked for the next burst (a readable click first); a
+                                     // Mahlwerk gunner's barrels are spinning up for it (P391)
+    var spin: Float = 0              // P391: the rotary gun's barrels, 0 still ... 1 at speed, and their angle (SoldierRig)
+    var barrel: Float = 0
     // R23 (Oct 13 evening: "factions kept apart and fighting each other; base troops hunting him instead of spinning in
     // place"): a rival faction's soldier or vessel in range (looked for a few times a second, not every frame) and
     // whether it is in sight; the search for a player out of sight (the spot being searched, how many so far, seconds
@@ -103,6 +106,7 @@ final class SoldierBrain {
 }
 
 enum Soldier {
+    static let rotaryWarn: Float = 0.8      // P391: seconds a Mahlwerk gunner's barrels whine up before a burst
     struct Rank {
         let near: Float, far: Float     // preferred distance band (overridden per gun below)
         let sight: Float
@@ -328,6 +332,10 @@ extension Mob {
         b.clock += dt
         b.aimHold -= dt
         b.recoil = max(0, b.recoil - dt * 7)
+        if b.gun == Guns.rotary {                                   // P391: up while a burst is coming, down after it
+            b.spin = b.spun ? min(1, b.spin + dt / Soldier.rotaryWarn) : max(0, b.spin - dt / Guns.rotarySpinDown)
+            b.barrel = (b.barrel + dt * b.spin * 42).truncatingRemainder(dividingBy: 2 * .pi)
+        }
         b.throwT = max(0, b.throwT - dt)
         b.pointT = max(0, b.pointT - dt)
         b.shotTimer -= dt
@@ -635,6 +643,14 @@ extension Mob {
             g.sfx(.gun(14), 1.1, at: eye)
             return
         }
+        // P391: a Mahlwerk gunner spins its barrels up before each burst; the rising whine is the warning to get down.
+        if b.gun == Guns.rotary && b.burst <= 0 && !b.spun {
+            b.spun = true
+            b.shotTimer = Soldier.rotaryWarn
+            b.aimHold = max(b.aimHold, 2)
+            g.sfx(.gun(21), 1.1, at: eye)
+            return
+        }
         // Marksmen hold a laser on the target before every shot. An Ashguard sharpshooter's scope glints for as long
         // before its first shot at a target (G5: an unarmoured arrival in the vault died 92 blocks out in 4 s with no
         // sign of where the shots came from).
@@ -672,7 +688,7 @@ extension Mob {
                 let kick = aimKick(gs)
                 let hunter: Float = posse == 3 ? 0.7 : 1                 // R21: bounty hunters shoot straighter than the ranks
                 let levelAim: Float = Difficulty.row.aim                 // P302: wide on the easy levels, tight on the hard
-                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : 1) * hunter * levelAim)
+                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : (b.gun == Guns.rotary ? 2.2 : 1)) * hunter * levelAim)
                 g.arms.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * scale, fromPlayer: false,
                                   shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
             }
@@ -695,13 +711,18 @@ extension Mob {
         b.mag -= 1
         b.recoil = 1
         // The Ashsaw fires in long ripping bursts (with a long pause between them: the moment to move).
-        if b.burst <= 0 { b.burst = b.gun == Guns.ashsaw ? Rand.int(in: 7...11) : (troop == 3 ? Rand.int(in: 6...10) : Rand.int(in: rank.burst)) }
+        if b.burst <= 0 {
+            b.burst = b.gun == Guns.rotary ? Rand.int(in: 24...40) : (b.gun == Guns.ashsaw ? Rand.int(in: 7...11) : (troop == 3 ? Rand.int(in: 6...10) : Rand.int(in: rank.burst)))
+        }
         b.burst -= 1
-        if b.burst <= 0 { b.spun = false }
+        if b.burst <= 0 {
+            if b.gun == Guns.rotary { g.sfx(.gun(22), 1, at: eye) }
+            b.spun = false
+        }
         let rate: Float = enraged ? 0.6 : 1
         let pace: Float = Difficulty.row.pace                    // P302: slower fire on the easy levels
         b.shotTimer = b.burst > 0 ? gs.interval * (b.gun == Guns.ashsaw ? 1 : 1.4) * rate / pace
-                                  : Rand.float(in: rank.gap) * rate * (b.gun == Guns.ashsaw ? 1.3 : 1) / pace
+                                  : Rand.float(in: rank.gap) * rate * (b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : 1)) / pace
     }
 
     // A short burst into the player's last position (wider spread; it pins them behind cover).

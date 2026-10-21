@@ -1430,7 +1430,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let reloadDip: Float = game.arms.reload > 0 ? min(1, game.arms.reload * 3, (Guns.reloadTime(game.held, gi) - game.arms.reload) * 3) : 0
                 an += Guns.writeFirstPerson(gi, aim: game.arms.aim, kick: game.arms.kick, lower: reloadDip * 0.35 + game.equipAnim,
                                             bob: V3(0, bob, 0), light: light, rounds: game.arms.reload > 0 ? 0 : game.held.tag,
-                                            upgrades: game.held.ench, into: armPtr + an)
+                                            upgrades: game.held.ench, spin: game.arms.barrel, into: armPtr + an)
             }
             scratchOff = armOff + an * MemoryLayout<MobVert>.stride
             enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(VW), height: Double(VH), znear: 0, zfar: 0.001))

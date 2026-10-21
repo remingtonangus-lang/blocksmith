@@ -152,7 +152,7 @@ enum Snd: Hashable {
     var range: Float {
         switch self {
         case .explode, .fireworkBlastLarge, .lightning, .wardenSonicBoom, .crystalBreak, .endPortalOpen: return 64
-        case .gun(let k): return k == 9 ? 128 : (k == 10 ? 96 : (k <= 5 || k == WeaponAudio.sidearmSlot || WeaponAudio.ashSlots.contains(k) ? 48 : 16))
+        case .gun(let k): return k == 9 ? 128 : (k == 10 ? 96 : (k <= 5 || k == WeaponAudio.sidearmSlot || WeaponAudio.ashSlots.contains(k) || k == WeaponAudio.rotarySlot ? 48 : 16))
         case .gunDistant: return 220
         case .explodeLarge: return 128
         case .depthBoom: return 160
@@ -307,8 +307,8 @@ final class SoundBank {
             for m in MobSound.allCases { s.append(.mob(k, m)) }
         }
         for k in [MobKind.cow, .pig, .sheep, .chicken, .villager, .wolf, .cat, .horse, .fox, .goat] { s.append(.babyMob(k, .ambient)) }
-        for k in Array(0...13) + Array(WeaponAudio.ashSlots) { s.append(.gun(k)) }
-        for k in [0, 1, 2, 3, 4, 5, WeaponAudio.sidearmSlot] + Array(WeaponAudio.ashSlots) { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
+        for k in Array(0...13) + Array(WeaponAudio.ashSlots) + Array(WeaponAudio.rotarySlots) { s.append(.gun(k)) }
+        for k in [0, 1, 2, 3, 4, 5, WeaponAudio.sidearmSlot, WeaponAudio.rotarySlot] + Array(WeaponAudio.ashSlots) { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
         s.append(.gunDistant(WeaponAudio.heavySlot))
         for m in SoundMat.allCases { s.append(.bulletImpact(m)) }
         s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
@@ -328,8 +328,8 @@ final class SoundBank {
     // Rendered in the background when a fight or a vehicle is near, so the first shot or engine doesn't hitch.
     static var combatSounds: [Snd] {
         var s: [Snd] = []
-        for k in Array(0...13) + Array(WeaponAudio.ashSlots) { s.append(.gun(k)) }
-        for k in [0, 1, 2, 3, 4, 5, WeaponAudio.sidearmSlot] + Array(WeaponAudio.ashSlots) { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
+        for k in Array(0...13) + Array(WeaponAudio.ashSlots) + Array(WeaponAudio.rotarySlots) { s.append(.gun(k)) }
+        for k in [0, 1, 2, 3, 4, 5, WeaponAudio.sidearmSlot, WeaponAudio.rotarySlot] + Array(WeaponAudio.ashSlots) { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
         s.append(.gunDistant(WeaponAudio.heavySlot))
         for m in [SoundMat.stone, .dirt, .sand, .wood, .plant, .glass, .gravel, .metal, .deepslate] { s.append(.bulletImpact(m)) }
         s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
@@ -363,7 +363,7 @@ final class SoundBank {
         case .hit, .breakBlock, .place: return 4
         case .fall, .attack, .attackSweep, .eat, .lavaPop, .caveDrip, .villagerWork: return 3
         case .birdCall: return 6
-        case .gun(let k): return k <= 5 || k == 8 || k == WeaponAudio.sidearmSlot || WeaponAudio.ashSlots.contains(k) ? 3 : 2
+        case .gun(let k): return k <= 5 || k == 8 || k == WeaponAudio.sidearmSlot || WeaponAudio.ashSlots.contains(k) || k == WeaponAudio.rotarySlot ? 3 : 2
         case .bulletImpact, .bulletWhizz, .bulletFlesh, .soldierStep: return 3
         case .hoof, .plantBrush: return 4
         case .meleeWindUp, .bowCreak: return 3

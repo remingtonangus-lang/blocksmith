@@ -1038,10 +1038,12 @@ enum SoldierRig {
                         rotX: p.gunPitch, rotZ: p.gunRoll, color: c, pattern: q.pattern, rotY: p.gunYaw)
         }
         let magSet = Set(gm.mag)
+        let spinLo = gm.spin.first ?? 1, spinHi = gm.spin.last ?? 0           // (P391: the barrels, in a run)
+        let turn = m.soldierBrain.barrel
         for (i, q) in gm.parts.enumerated() {
             if magSet.contains(i) && !p.gunMag { continue }
             if lod == 2 && q.mx.x - q.mn.x < 1.2 && q.mx.y - q.mn.y < 1.2 { continue }
-            o.parts.append(place(q, at: g))
+            o.parts.append(place(i >= spinLo && i <= spinHi && turn != 0 ? CapitalArms.spun(q, turn, gi) : q, at: g))
         }
         if p.magInHandL {
             // The fresh magazine follows the left hand, seated the way the well takes it.
