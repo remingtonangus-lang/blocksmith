@@ -2497,6 +2497,8 @@ final class MobManager {
     static func warmTables() {
         _ = PathFinder.doorTable.count; _ = PathFinder.woodDoorTable.count; _ = PathFinder.climbIds.count
         _ = Mob.earth.count; _ = VillageLife.bedHead.count; _ = Villagers.jobSiteOf.count
+        _ = TownLaw.property.count          // (P394: built on the first block break, 84 ms on the host, at load instead)
+        _ = PlantSupport.ruleOf(AIR)        // (P394: likewise on the first break under a plant or a carried thing)
     }
 
     func update(_ dt: Float, game: Game) {
