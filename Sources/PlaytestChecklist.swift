@@ -258,7 +258,7 @@ enum PlaytestChecklist {
 // questcheck --checklist-only: the page from the repo's .md, two ticks, a relaunch, the ticks and log still there.
 enum PlaytestChecklistCheck {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
-        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("checklist-\(getpid())")
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("checklist-\(ProcessInfo.processInfo.processIdentifier)")
         try? FileManager.default.removeItem(at: tmp)
         PlaytestChecklist.dir = tmp
         PlaytestChecklist.reload()

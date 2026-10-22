@@ -239,7 +239,8 @@ enum Director {
         let dev = Settings.shared.devTools
         var out = [0]
         if dev || DirectorLLM.modelPath != nil { out.append(1) }
-        if dev || DirectorPlanner.shared.cloud.endpoint != "mock" { out.append(2) }
+        // P396: the store build has no cloud planner (nothing leaves the headset); playtest builds keep it.
+        if Playtest.enabled && (dev || DirectorPlanner.shared.cloud.endpoint != "mock") { out.append(2) }
         return out
     }
     static var effectiveBackend: Int {
