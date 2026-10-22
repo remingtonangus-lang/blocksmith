@@ -77,8 +77,8 @@ enum DifficultyCheck {
         let kinds: [(String, String)] = [("Recruit", "soldier_recruit@ash"), ("Trooper", "soldier_trooper@ash"), ("Marksman", "soldier_marksman@ash"),
                                          ("MG gunner", "soldier_trooper:mg@ash"), ("Officer", "soldier_officer@ash"), ("Heavy", "soldier_ironclad@ash"),
                                          ("Capital heavy (Hannibal plate)", "soldier_ironclad:heavy")]
-        let guns: [(String, String)] = [("Falke pistol", "gun_sidearm"), ("Sechser revolver", "gun_revolver"), ("MP40", "gun_hagel"),
-                                        ("StG 44", "gun_sturmwind"), ("Kar98k", "gun_kessel"), ("Kettensturm MG", "gun_ashsaw")]
+        let guns: [(String, String)] = [("Falke pistol", "gun_sidearm"), ("Sechser revolver", "gun_revolver"), ("Hagel", "gun_hagel"),
+                                        ("Sturmwind", "gun_sturmwind"), ("Kessel", "gun_kessel"), ("Kettensturm MG", "gun_ashsaw")]
         func hits(_ name: String, _ make: (V3, V3) -> Slug, head: Bool) -> Int? {
             guard let m = soldier(name, spot + V3(0, 0, -6)) else { return nil }
             g.mobs.mobs = [m]; w.pendingMobs.removeAll(); g.arms.slugs.removeAll()

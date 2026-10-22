@@ -116,8 +116,8 @@ Master Chief
 Horse Reviver
 Horse Stimulant
 # Real WW2 names (the Ashguard's last war, backlog B7). P326 (Oct 15 19:04, Remington: "their real WWII weapons by
-# name"): the arms and vehicles may carry their period names (MP40, Kar98k, StG 44, Panzerfaust, Tiger); parties,
-# units, people, makers and emblems stay out.
+# name") had the arms and vehicles carry their period names; P397 (Oct 21, store release) takes them back out:
+# every gun and vehicle has an original Sunderfall name again. Parties, units, people, makers and emblems stay out.
 *Nazi
 *Reich
 *Führer
@@ -135,3 +135,15 @@ Panzer
 *Schmeisser
 *Stuka
 *Messerschmitt
+MP40
+MP 40
+Kar98k
+Kar 98
+StG 44
+StG44
+*Panzerfaust
+Tiger Tank
+Tiger tank
+88 mm Gun
+MG42
+MG 42

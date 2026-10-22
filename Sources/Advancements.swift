@@ -132,7 +132,7 @@ enum Advancements {
         Advancement(id: "adventure/brand_commander", tab: 3, title: "The Order Broken", desc: "Defeat a Brand Commander",
                     crit: .event("brand_commander"), challenge: true),
         Advancement(id: "adventure/ash_vault", tab: 3, title: "The Vault Below", desc: "Drop into the Ash Vault", crit: .event("ash_vault")),
-        Advancement(id: "adventure/ash_tank", tab: 3, title: "Tank Buster", desc: "Destroy a Tiger Tank", crit: .event("ash_tank")),
+        Advancement(id: "adventure/ash_tank", tab: 3, title: "Tank Buster", desc: "Destroy a Cinder Tank", crit: .event("ash_tank")),
         Advancement(id: "adventure/ash_victory", tab: 3, title: "Ashes to Ashes", desc: "Defeat the Ash Chancellor in his bunker and end the war below the world",
                     crit: .event("ash_victory"), challenge: true),
         Advancement(id: "adventure/ash_last_battle", tab: 3, title: "The Last Battle", desc: "Hold out against the Ashguard's last army",

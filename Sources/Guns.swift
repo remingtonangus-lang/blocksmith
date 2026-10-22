@@ -66,22 +66,22 @@ enum Guns {
         // The Ashguard's arms (backlog B7, AshArms.swift): walnut and blued steel, carried by the army in the Ash Vault and
         // dropped by its soldiers; never crafted. Each has its own sound slot (WeaponAudio 16-19). P326 (c, Oct 15 19:04:
         // "their real WWII weapons by name"): the period's own names (docs/status/ip-renames.md).
-        GunSpec(key: "gun_kessel", name: "Kar98k", ammo: "heavy_rounds", mag: 5, interval: 1.15, auto: false, damage: 16, pellets: 1,
+        GunSpec(key: "gun_kessel", name: "Kessel Bolt Rifle", ammo: "heavy_rounds", mag: 5, interval: 1.15, auto: false, damage: 16, pellets: 1,
                 spread: 0.03, aimSpread: 0.0012, speed: 280, recoil: 0.08, reload: 2.6, range: 220, durability: 900, zoom: 0.55,
                 shot: .bullet, sound: 16, accent: V3(0.4, 0.22, 0.11)),
-        GunSpec(key: "gun_hagel", name: "MP40", ammo: "rifle_rounds", mag: 32, interval: 0.11, auto: true, damage: 3, pellets: 1,
+        GunSpec(key: "gun_hagel", name: "Hagel Machine Pistol", ammo: "rifle_rounds", mag: 32, interval: 0.11, auto: true, damage: 3, pellets: 1,
                 spread: 0.05, aimSpread: 0.028, speed: 120, recoil: 0.008, reload: 1.9, range: 60, durability: 1100, zoom: 0.9,
                 shot: .bullet, sound: 17, accent: V3(0.2, 0.2, 0.22)),
-        GunSpec(key: "gun_sturmwind", name: "StG 44", ammo: "rifle_rounds", mag: 30, interval: 0.13, auto: true, damage: 4.5, pellets: 1,
+        GunSpec(key: "gun_sturmwind", name: "Sturmwind Carbine", ammo: "rifle_rounds", mag: 30, interval: 0.13, auto: true, damage: 4.5, pellets: 1,
                 spread: 0.032, aimSpread: 0.008, speed: 150, recoil: 0.014, reload: 2.2, range: 100, durability: 1100, zoom: 0.8,
                 shot: .bullet, sound: 18, accent: V3(0.4, 0.22, 0.11)),
         GunSpec(key: "gun_ashsaw", name: "Kettensturm Machine Gun", ammo: "rifle_rounds", mag: 75, interval: 0.055, auto: true, damage: 3.5, pellets: 1,
                 spread: 0.075, aimSpread: 0.016, speed: 150, recoil: 0.011, reload: 4.2, range: 110, durability: 1600, zoom: 0.85,
                 shot: .bullet, sound: 19, accent: V3(0.2, 0.2, 0.22)),
     ] + GreywallArms.specs + [               // (appended: soldiers keep their gun as an index)
-        // P320 (Oct 15 18:54): the Panzerfaust, the Ashguard's single-shot anti-tank launcher (AshArms.swift): one
+        // P320 (Oct 15 18:54): the Faustrohr (P397: no real model names), the Ashguard's single-shot anti-tank launcher (AshArms.swift): one
         // warhead on the tube, a hard-hitting shaped charge (Slug.antiTank) and a crater, then a slow reload of the next.
-        GunSpec(key: "gun_faust", name: "Panzerfaust", ammo: "faust_warhead", mag: 1, interval: 1.0, auto: false, damage: 0, pellets: 1,
+        GunSpec(key: "gun_faust", name: "Faustrohr", ammo: "faust_warhead", mag: 1, interval: 1.0, auto: false, damage: 0, pellets: 1,
                 spread: 0.03, aimSpread: 0.012, speed: 28, recoil: 0.1, reload: 3.4, range: 90, durability: 40, zoom: 0.9,
                 shot: .rocket, sound: 4, accent: V3(0.34, 0.36, 0.22)),
         // P391 (Remington, Oct 21 15:18: "let one of the top classes have a GTA V style mini gun"): the Hannibal trooper's
@@ -110,7 +110,7 @@ enum Guns {
     //                           (assault carbine with a curved magazine)
     //   Greywall                Slatefall (bullpup carbine), Slate Repeater (light machine gun)
     // The Hummel, Wren, Kettensturm, Longwatch and Breaker are gone: they are no longer items at all (not in creative,
-    // chests, shops, drops or recipes). (P326: the machine pistol is back as the Ashguard's MP40, its own look.) Their keys stay save IDs: a stack saved with one loads as its
+    // chests, shops, drops or recipes). (P326: the machine pistol is back as the Ashguard's Hagel, its own look.) Their keys stay save IDs: a stack saved with one loads as its
     // replacement (SaveMigration.itemAliases), and a soldier saved carrying one is issued the replacement.
     //   capital rounds: Service Rifle, Falke Pistol          slate rounds: Slatefall Carbine, Slate Repeater
     //   heavy rounds: Fernblick, Kessel                      rifle rounds: Six-Iron, Sturmwind Carbine
@@ -127,7 +127,7 @@ enum Guns {
     // from Capital soldiers and citadels); rifle rounds are the frontier's (the six-iron, the Ashguard's arms).
     static let ammo: [(String, String)] = [("rifle_rounds", "Rifle Rounds"), ("shotgun_shells", "Shotgun Shells"), ("heavy_rounds", "Heavy Rounds"),
                                            ("rocket_ammo", "Rocket"), ("arc_cell", "Arc Cell"), ("capital_rounds", "Capital Rounds"),
-                                           (GreywallArms.ammo, "Slate Rounds"), ("faust_warhead", "Panzerfaust Warhead")]
+                                           (GreywallArms.ammo, "Slate Rounds"), ("faust_warhead", "Faustrohr Warhead")]
     static let rocketPower: Float = 2.5
 
     private(set) static var byItem: [ItemID: Int] = [:]

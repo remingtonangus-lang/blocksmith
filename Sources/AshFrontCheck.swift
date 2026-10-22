@@ -136,9 +136,9 @@ enum AshFrontCheck {
         let mp = AshArms.model(Guns.hagel), stg = AshArms.model(Guns.sturmwind)
         var officers = 0
         for _ in 0..<4 { if let m = Mob.structureMob("soldier_officer@ash", at: V3(0, 100, 0)), m.variant == Guns.hagel { officers += 1 } }
-        check(names == ["Kar98k", "MP40", "StG 44", "Panzerfaust"] && Items.has("gun_hagel") && !Guns.isRetired(Guns.hagel)
-              && mp.parts.count >= 14 && mp.parts.count != stg.parts.count && officers == 4 && MobKind.ashTank.spec.name == "Tiger Tank",
-              "ashfront: the arms by name \(names), the MP40 an item with its own \(mp.parts.count)-part model, carried by \(officers)/4 officers; the \(MobKind.ashTank.spec.name)")
+        check(names == ["Kessel Bolt Rifle", "Hagel Machine Pistol", "Sturmwind Carbine", "Faustrohr"] && Items.has("gun_hagel") && !Guns.isRetired(Guns.hagel)
+              && mp.parts.count >= 14 && mp.parts.count != stg.parts.count && officers == 4 && MobKind.ashTank.spec.name == "Cinder Tank",
+              "ashfront: the arms by name \(names), the Hagel an item with its own \(mp.parts.count)-part model, carried by \(officers)/4 officers; the \(MobKind.ashTank.spec.name)")
         // (e) An old save's vault chunk: the old ground (ash plain, lava river, black pad) takes the new materials.
         migration(g, check)
         // ...and the new things keep off ground a save had: the flak site, scenes and shell holes near guarded chunks.
