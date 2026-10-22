@@ -1076,17 +1076,21 @@ final class World {
             let (k, p) = gr[gi]; gi += 1
             genInFlight.remove(k)
             jobs -= 1
-            if let c = chunks[k] { if c.hollow { refill(c, p) }; continue }
-            if let e = p.cached { installShell(k, e); continue }
+            let ti = World.resultsProfile ? CFAbsoluteTimeGetCurrent() : 0
+            if let c = chunks[k] { if c.hollow { refill(c, p) }; World.noteResult(ti, "refill"); continue }
+            if let e = p.cached { installShell(k, e); World.noteResult(ti, "shell from the cache"); continue }
             install(k, p)
+            World.noteResult(ti, p.fromDisk ? "install (saved)" : "install (generated)")
         }
         while mi < mr.count && (mi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
             let (k, list) = mr[mi]; mi += 1
             jobs -= 1
             guard let c = chunks[k] else { continue }
+            let ti = World.resultsProfile ? CFAbsoluteTimeGetCurrent() : 0
             c.meshInFlight = false
             c.meshedOnce = true
             for (sy, version, mesh) in list { apply(mesh, to: c, sy: sy, version: version) }
+            World.noteResult(ti, "meshes applied")
         }
         if gi < gr.count || mi < mr.count {
             lock.lock()
@@ -1305,6 +1309,14 @@ final class World {
     }
 
     // A worker generates (or loads) chunk k; with `shell`, reads its cached meshes instead (ChunkShells).
+    // (P400 harness: the slowest single result handed over, and what it was)
+    static var resultsProfile = false, resultsWorstMs = 0.0, resultsWorst = ""
+    @inline(__always) static func noteResult(_ t0: Double, _ what: String) {
+        guard resultsProfile else { return }
+        let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+        if ms > resultsWorstMs { resultsWorstMs = ms; resultsWorst = what + String(format: " (slabs %d MB)", MeshArena.shared.slabBytes >> 20) }
+    }
+
     func startGen(_ k: ChunkKey, shell: Bool = false) {
         guard !genInFlight.contains(k) else { return }
         genInFlight.insert(k)

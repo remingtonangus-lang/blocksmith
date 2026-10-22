@@ -46,6 +46,7 @@ enum QuestLaunch {
         World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = 99   // (QuestApp)
         SceneRenderer.skipGPU = true
         RandomTickRng.profile = true
+        World.resultsProfile = true
         let rd = Int(arg("--rd") ?? "") ?? 24
         let prepare = arg("--launch-prepare")
         guard let dirPath = prepare ?? arg("--launch") else { return 1 }
@@ -149,6 +150,7 @@ enum QuestLaunch {
         var worst = 0.0, slow = 0, frames = 0
         var worstTick = 0.0, worstRecord = 0.0, slowTick = 0, slowRecord = 0, worstTickWhy = "", worstRecordWhy = ""
         var worstTickAt = 0.0, worstRecordAt = 0.0
+        var slowWhy: [String: Int] = [:]                               // (the slowest stage of each slow tick)
         _ = wr.takeStages()
         var halfAt = 0.0
         let fill0 = CFAbsoluteTimeGetCurrent()
@@ -160,7 +162,7 @@ enum QuestLaunch {
             if lastTick > worstTick { worstTick = lastTick; worstTickWhy = TickProf.summary(); worstTickAt = CFAbsoluteTimeGetCurrent() - fill0 }
             let st = wr.takeStages()                                  // (this frame's record stages)
             if lastRecord > worstRecord { worstRecord = lastRecord; worstRecordWhy = st; worstRecordAt = CFAbsoluteTimeGetCurrent() - fill0 }
-            if lastTick > 13.9 { slowTick += 1 }; if lastRecord > 13.9 { slowRecord += 1 }
+            if lastTick > 13.9 { slowTick += 1; slowWhy[TickProf.top().0.description, default: 0] += 1 }; if lastRecord > 13.9 { slowRecord += 1 }
             if frames % 36 == 0 {
                 done = meshed()
                 if halfAt == 0 && done * 2 >= want { halfAt = CFAbsoluteTimeGetCurrent() - fill0 }
@@ -175,6 +177,9 @@ enum QuestLaunch {
         print(String(format: "launch: worst tick's stages (%.1f s in): ", worstTickAt) + worstTickWhy)
         print(String(format: "launch: worst record's stages (%.1f s in): ", worstRecordAt) + worstRecordWhy)
         print(String(format: "launch: slowest random tick %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat))
+        print("launch: slow ticks by their slowest stage: " + slowWhy.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+        print(String(format: "launch: slowest result handed over %.1f ms (%@); mesh slabs: %d new, worst %.1f ms, %.0f ms in all",
+                     World.resultsWorstMs, World.resultsWorst, MeshArena.shared.slabCount, MeshArena.shared.slabMsWorst, MeshArena.shared.slabMsTotal))
         print("launch: stages " + clock.marks.map { String(format: "%@ %.2f", $0.0, $0.1) }.joined(separator: "; "))
         print(String(format: "launch: resident %.0f MB", QuestPerf.rssMB()))
 

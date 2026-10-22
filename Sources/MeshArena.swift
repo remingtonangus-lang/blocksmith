@@ -67,6 +67,7 @@ final class MeshArena {
     private var slab: MTLBuffer?
     private var bump = 0
     private(set) var slabBytes = 0
+    private(set) var slabCount = 0, slabMsWorst = 0.0, slabMsTotal = 0.0     // (P400 harness: new slabs and their cost)
 
     // Bytes sitting in free lists (fragmentation), for --bench.
     var freeBytes: Int {
@@ -110,7 +111,10 @@ final class MeshArena {
         }
         if spot == nil {
             if slab == nil || bump + size > slabSize {
+                let t0 = CFAbsoluteTimeGetCurrent()
                 slab = device.makeBuffer(length: slabSize, options: .storageModeShared)
+                let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                slabCount += 1; slabMsWorst = max(slabMsWorst, ms); slabMsTotal += ms
                 bump = 0
                 slabBytes += slabSize
             }
