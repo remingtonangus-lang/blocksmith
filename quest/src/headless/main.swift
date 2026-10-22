@@ -520,6 +520,25 @@ if let out = arg("--view"), let ctx = vkctx {
         vw.remeshArea(x0: px - 16, z0: pz - 16, x1: px + 16, z1: pz + 16, y0: py - 48, y1: py + 8)
         if CommandLine.arguments.contains("--groundcheck") { print(GroundDrape.check(vw, things)) }
     }
+    // --scene genthings (P398 (b)): what the generator itself laid on the field's ground within --reach N blocks (24) of the eye (moss
+    // carpets in a lush cave, plants, snow, ...): --groundcheck prints how far each is off the drawn ground.
+    if arg("--scene") == "genthings" {
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        let ex = Int(floor(vg.player.pos.x)), ey = Int(floor(vg.player.pos.y)), ez = Int(floor(vg.player.pos.z))
+        var things: [(IVec3, String)] = []
+        var seen: [String: Int] = [:]
+        let reach = Int(arg("--reach") ?? "") ?? 24
+        for y in max(2, ey - reach)...min(CH - 2, ey + reach) { for z in (ez - reach)...(ez + reach) { for x in (ex - reach)...(ex + reach) {
+            let b = vw.rawBlock(x, y, z)
+            guard b != AIR, GroundDrape.seat[Int(b)] != 0 else { continue }
+            seen[Blocks.key(b), default: 0] += 1
+            guard vw.fieldDensity(at: V3(Float(x) + 0.5, Float(y) - 0.5, Float(z) + 0.5)) > 0
+                    || vw.fieldDensity(at: V3(Float(x) + 0.5, Float(y) - 1.5, Float(z) + 0.5)) > 0 else { continue }
+            things.append((IVec3(x, y, z), Blocks.key(b)))
+        } } }
+        print("view: \(things.count) generated things on the ground (seated things in reach: " + seen.keys.sorted().map { "\($0) \(seen[$0]!)" }.joined(separator: ", ") + ")")
+        if CommandLine.arguments.contains("--groundcheck") { print(GroundDrape.check(vw, things)) }
+    }
     // --scene meetground (P387): stone, planks, lamps and chests placed on the ground ahead (the ground rises to meet
     // them, World.meetGround), then things in a section's first row over ground in the section below (GroundMeetTests.swift);
     // --meetcheck prints the gap under each.

@@ -111,7 +111,7 @@ extension GroundDrape {
             byKind[key] = t
         }
         var lines = ["groundthings (P382, drape \(GroundDrape.enabled ? "on" : "off")): gap = drawing minus drawn ground under it, blocks"]
-        for key in ["redstone_wire"] + sceneThings where byKind[key] != nil {
+        for key in ["redstone_wire"] + sceneThings + byKind.keys.sorted() where byKind[key] != nil {
             let t = byKind[key]!
             byKind[key] = nil
             lines.append(String(format: "  %@: %d placed, %d lowest point under the ground, %d floating over 0.13, %d not found; foot gaps %.3f...%.3f (mean %.3f, %d points); steepest cell rise %.2f",
