@@ -182,6 +182,39 @@ if let out = arg("--view"), let ctx = vkctx {
         } } }
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     }
+    // --cavemouth (P392 step 7): the eye just inside the nearest cave mouth round the spot (open cells with natural rock over
+    // them, open sky 4-6 blocks one way, the cave going on 4 blocks the other), facing out; --look's yaw turns from there.
+    if CommandLine.arguments.contains("--cavemouth") {
+        let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z))
+        func top(_ x: Int, _ z: Int) -> Int { Int(vw.chunkAt(x, z)?.height[mod(x, CS) + mod(z, CS) * CS] ?? -1) }
+        func open2(_ x: Int, _ y: Int, _ z: Int) -> Bool { vw.isAir(x, y, z) && vw.isAir(x, y + 1, z) }
+        var best: (Int, Int, Int, Int, Int)? = nil, bestD = Int.max
+        for z in (pz - 160)...(pz + 160) { for x in (px - 160)...(px + 160) {
+            let d2 = (x - px) * (x - px) + (z - pz) * (z - pz)
+            if d2 >= bestD { continue }
+            let h = top(x, z)
+            guard h > 0 else { continue }
+            var y = h - 3
+            while y > max(8, h - 40) {
+                defer { y -= 1 }
+                guard open2(x, y, z), vw.groundAt(x, y + 3, z) || vw.groundAt(x, y + 4, z) else { continue }      // (natural rock over it, not a roof)
+                for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                    var sky = false
+                    for k in 4...6 where open2(x + dx * k, y, z + dz * k) && top(x + dx * k, z + dz * k) < y { sky = true }
+                    guard sky, open2(x - dx * 4, y, z - dz * 4), open2(x - dx * 2, y, z - dz * 2), open2(x + dx * 2, y, z + dz * 2) else { continue }
+                    best = (x, y, z, dx, dz); bestD = d2
+                    break
+                }
+                if bestD == d2 { break }
+            }
+        } }
+        if let (x, y, z, dx, dz) = best {
+            vg.player.pos = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+            yaw = atan2f(-Float(dx), -Float(dz)) - look[0] * .pi / 180
+            print("view: cave mouth at \(x) \(y) \(z), facing out (\(dx), \(dz))")
+            _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        } else { print("view: no cave mouth within 160 blocks") }
+    }
     // --meshbench: mesh the 5x5 chunks round the eye three ways (blocks, round-2 smooth, field smooth) and print the time
     // and quads of each (P142 cost on the mesh workers; single thread, this build's optimization level).
     // --groundline: the smooth ground offset (World.smoothGroundOffset, the view follows it) at 12 standing spots ahead.

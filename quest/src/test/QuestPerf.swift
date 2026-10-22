@@ -13,7 +13,7 @@ import CVulkan
 // record stages, sections, draws and quads, and how far the meshing fell behind. The lavapipe GPU is not an Adreno:
 // its times are left out; the quads and draws are what the headset's GPU pays for.
 enum QuestPerf {
-    struct Spot { let name: String; let seed: UInt64; let x: Float; let y: Float; let z: Float; let yaw: Float; let pitch: Float }
+    struct Spot { let name: String; let seed: UInt64; let x: Float; let y: Float; let z: Float; let yaw: Float; let pitch: Float; var find = "" }
     // (y as the notes show it: internal - 64; yaw as the notes', degrees, 0 north, clockwise)
     static let spots: [Spot] = [
         Spot(name: "homestead", seed: 6665340019718134347, x: 2932.8, y: 69.0, z: -240.6, yaw: 333, pitch: -4),
@@ -23,6 +23,11 @@ enum QuestPerf {
         // P374 (Oct 18 07:54-08:00: 45-54 fps by the forest bandit camp, the savanna town Stone Gulch busy around him)
         Spot(name: "camp", seed: 13480747113613945685, x: 5127.0, y: 153.8, z: 1050.3, yaw: 355, pitch: -26),
         Spot(name: "gulch", seed: 13480747113613945685, x: 6094.4, y: 88.0, z: 688.6, yaw: 123, pitch: -12),
+        // P392 step 1: the other two scenes it measures. "capital": the capital city nearest Stone Gulch, the eye 24
+        // blocks over its middle; "vault": the Ash Vault's biggest battle (AshVaultGapTests.battleScene: the citadel's
+        // north gate at Total War, the garrisons awake), looking in.
+        Spot(name: "capital", seed: 13480747113613945685, x: 6094.4, y: 0, z: 688.6, yaw: 45, pitch: -12, find: "capital"),
+        Spot(name: "vault", seed: 13480747113613945685, x: 0, y: 0, z: 0, yaw: 180, pitch: 3, find: "vault"),
     ]
 
     final class Phase {
@@ -133,7 +138,7 @@ enum QuestPerf {
     static func scene(_ sp: Spot, rd: Int, field: Bool, ctx: VkContext, standFrames: Int, flyFrames: Int) throws {
         let device = sharedSystemDevice
         let rss0 = rssMB()
-        let w = World(seed: sp.seed, device: device, save: nil)
+        var w = World(seed: sp.seed, device: device, save: nil)
         if field { FieldTerrain.newWorlds = true; w.makeFieldWorld() }
         w.renderDistance = rd
         let g = Game(world: w, save: nil, persistent: false)
@@ -145,8 +150,28 @@ enum QuestPerf {
         g.time = 0.2 * DAY_LENGTH
         g.player.flying = true
         g.player.pos = V3(sp.x, sp.y + Float(YOFF), sp.z)
+        var capitalTop: (Int, Int)? = nil
+        if sp.find == "capital" {
+            guard let st = w.gen.structures?.nearest("capital_city", x: Int(sp.x), z: Int(sp.z), maxRegions: 16) else {
+                print("perfscene capital: no capital city near \(Int(sp.x)), \(Int(sp.z))"); return
+            }
+            capitalTop = ((st.min.x + st.max.x) / 2, (st.min.z + st.max.z) / 2)
+            g.player.pos = V3(Float(capitalTop!.0) + 0.5, Float(YOFF + 120), Float(capitalTop!.1) + 0.5)
+            print("    capital city at \(capitalTop!.0), \(capitalTop!.1)")
+        }
+        if sp.find == "vault" {
+            g.player.pos = AshVaultGapTests.battleScene(g)
+            w = g.world
+            w.renderDistance = rd
+            g.player.flying = true
+        }
         let a0 = CFAbsoluteTimeGetCurrent()
         _ = w.loadSync(center: g.player.pos, radius: rd)
+        if let (x, z) = capitalTop, let c = w.chunkAt(x, z) { g.player.pos.y = Float(c.height[mod(x, CS) + mod(z, CS) * CS]) + 24 }
+        if sp.find == "vault" {
+            for (name, p) in w.pendingMobs { if let m = Mob.structureMob(name, at: p) { g.mobs.mobs.append(m) } }
+            w.pendingMobs.removeAll()
+        }
         let loadS = CFAbsoluteTimeGetCurrent() - a0
         let rss1 = rssMB()
 
@@ -174,6 +199,7 @@ enum QuestPerf {
         var fi = 0
         func frame(_ ph: Phase?, fly: Bool) throws {
             if g.menu != nil { g.closeMenu() }                             // (nothing in the way of the controls)
+            if sp.find == "vault" { g.health = 20; g.alive = true }        // (the battle is on him: he stands)
             g.cine.active = false
             g.player.yaw = yaw; g.player.pitch = fly ? 0 : pitch
             // Flying on as he did: the stick forward, sprinting (the creative flight's own speed).
