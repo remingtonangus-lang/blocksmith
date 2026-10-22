@@ -121,6 +121,7 @@ extension World {
         c.meshedOnce = true
         c.updateTopSec()
         c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
+        c.cachedStamp = c.cullStamp                      // (P400: what is on disk is what it draws)
         chunks[k] = c
         World.fromCache += 1
     }
@@ -133,6 +134,30 @@ extension World {
     func cacheMeshes(_ k: ChunkKey, _ c: Chunk) {
         guard World.shells, let mc = meshCache, c.meshedOnce, !c.needsMesh, !c.meshInFlight else { return }
         mc.write(k, c, occ: c.hollow ? c.hollowOcc : c.occluderTop)
+        c.cachedStamp = c.cullStamp
+        c.cacheDropped = false                           // (the next edit drops this file again)
+    }
+
+    // P400 step 2 (cold launch): every save also writes the meshes of the finished chunks in the view that changed
+    // since they were last written or read (cullStamp: a section remeshed, an edit beside it, a detail level), not
+    // only the chunks leaving the view. The next launch then installs the far land (the shell band, past the keep
+    // distance) straight from the disk, with no generation or meshing; the near chunks still come from the save or
+    // the seed, since play needs their blocks. An edit drops its chunk's file at once (World.editing), so a launch
+    // never draws a stale edit. BS_SAVEMESHES=0: as before (only unloading chunks write theirs).
+    static var cacheOnSave = ProcessInfo.processInfo.environment["BS_SAVEMESHES"] != "0"
+    @discardableResult
+    func saveMeshCache() -> Int {
+        guard World.cacheOnSave, World.shells, meshCache != nil else { return 0 }
+        var n = 0
+        for (k, c) in chunks where c.cachedStamp != c.cullStamp && c.meshedOnce && !c.needsMesh && !c.meshInFlight {
+            // Only the chunks a launch can install from the disk: the shell band (the near ones are generated or loaded
+            // for play anyway, and are rewritten when they leave the view).
+            let (dx, dz) = shellOffset(k)
+            guard max(abs(dx), abs(dz)) > keepDataDistance else { continue }
+            cacheMeshes(k, c)
+            n += 1
+        }
+        return n
     }
 }
 
@@ -146,6 +171,10 @@ final class MeshCache {
                                                         // 4: P384 far copies (far cutout skip, detail far copy)
     static let countsPerSection = 15
     static let capBytes = 768 << 20
+    // P400 step 2: what a cached mesh depends on besides the format and registries. The headset sets it to a hash of
+    // the sources that shape meshes and terrain (quest/tools/build-apk.sh: QuestBuild.meshHash), so an update that
+    // leaves them alone keeps every cached chunk; nil (the Mac, questcheck): the executable's date, as before.
+    static var buildKey: String? = nil
     let dir: URL
     private let queue = DispatchQueue(label: "meshcache", qos: .utility)
     private let lock = NSLock()
@@ -168,23 +197,51 @@ final class MeshCache {
         do { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) } catch { return nil }
         var h: UInt64 = 0xcbf29ce484222325
         func mix(_ v: UInt64) { h = (h ^ v) &* 0x100000001b3 }
-        mix(UInt64(MeshCache.format)); mix(AdaptiveGround.enabled ? 1 : 0); mix(UInt64(Blocks.count)); mix(UInt64(Tex.count))
-        for n in Tex.names { for b in n.utf8 { mix(UInt64(b)) } }
-        let exe = URL(fileURLWithPath: CommandLine.arguments.first ?? "")
-        if let d = (try? FileManager.default.attributesOfItem(atPath: exe.path))?[.modificationDate] as? Date { mix(UInt64(d.timeIntervalSince1970)) }
+        // P400: the registries as registered at start-up (TextureGen.registered), not as they stand when this opens:
+        // names looked up later grew Tex between runs, and a world's cache never matched its next launch.
+        let reg = TextureGen.registered ?? (Blocks.count, Tex.count)
+        mix(UInt64(MeshCache.format)); mix(AdaptiveGround.enabled ? 1 : 0); mix(UInt64(reg.blocks)); mix(UInt64(reg.tex))
+        for n in Tex.names.prefix(reg.tex) { for b in n.utf8 { mix(UInt64(b)) } }
+        var exeDate = 0.0
+        if let key = MeshCache.buildKey {
+            for b in key.utf8 { mix(UInt64(b)) }
+        } else {
+            let exe = URL(fileURLWithPath: CommandLine.arguments.first ?? "")
+            if let d = (try? FileManager.default.attributesOfItem(atPath: exe.path))?[.modificationDate] as? Date {
+                exeDate = d.timeIntervalSince1970
+                mix(UInt64(exeDate))
+            }
+        }
         mix(UInt64(bitPattern: Int64(SectionMesh.layoutStamp)))
         stamp = h
-        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey])) ?? []
-        for f in files {
-            let parts = f.lastPathComponent.split(separator: ".")
+        // The names only (one directory read); the sizes (a stat a file: 230-320 ms on the host for a view-24 world's
+        // ~1,700 files) are summed on the cache's queue, behind the load (P400).
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        for n in names {
+            let parts = n.split(separator: ".")
             guard parts.count == 4, parts[0] == "m", let x = Int(parts[1]), let z = Int(parts[2]) else { continue }
             have.insert(ChunkKey(x: x, z: z))
-            bytes += (try? f.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        }
+        print(String(format: "meshcache: %d files, stamp %016llx (blocks %d, textures %d of %d, build %@)", have.count,
+                     stamp, reg.blocks, reg.tex, Tex.count, MeshCache.buildKey ?? String(format: "%.0f", exeDate)))
+        let folder = dir.path
+        queue.async { [weak self] in
+            var sum = 0
+            for n in names { sum += ((try? FileManager.default.attributesOfItem(atPath: folder + "/" + n))?[.size] as? NSNumber)?.intValue ?? 0 }
+            guard let self else { return }
+            self.lock.lock(); self.bytes += sum; self.lock.unlock()
         }
     }
 
     func url(_ k: ChunkKey) -> URL { dir.appendingPathComponent("m.\(k.x).\(k.z).bin") }
+    // P400: waits for the queued writes (the app's quit, after the save's own flush).
+    func flush() { queue.sync {} }
     func has(_ k: ChunkKey) -> Bool { lock.lock(); defer { lock.unlock() }; return have.contains(k) }
+    var count: Int { lock.lock(); defer { lock.unlock() }; return have.count }
+    // (harness tallies: files read, and why a read was refused)
+    private(set) var reads = 0
+    private(set) var refused: [String: Int] = [:]
+    private func refuse(_ why: String) { lock.lock(); refused[why, default: 0] += 1; lock.unlock() }
 
     func drop(_ k: ChunkKey) {
         lock.lock()
@@ -249,7 +306,8 @@ final class MeshCache {
 
     // Worker side: the file decoded, or nil (missing, another build, damaged: dropped).
     func read(_ k: ChunkKey) -> Entry? {
-        guard let data = try? Data(contentsOf: url(k)) else { drop(k); return nil }
+        lock.lock(); reads += 1; lock.unlock()
+        guard let data = try? Data(contentsOf: url(k)) else { refuse("missing"); drop(k); return nil }
         let b = [UInt8](data)
         var p = 0
         func u32() -> UInt32? {
@@ -265,8 +323,10 @@ final class MeshCache {
             p += n * 4
             return w
         }
-        func fail() -> Entry? { drop(k); return nil }
-        guard u32() == 0x4D43_5342, u64() == stamp, let occ = u32(), let mod = u32() else { return fail() }
+        func fail(_ why: String = "damaged") -> Entry? { refuse(why); drop(k); return nil }
+        guard u32() == 0x4D43_5342 else { return fail("magic") }
+        guard u64() == stamp else { return fail("stamp") }
+        guard let occ = u32(), let mod = u32() else { return fail() }
         guard p + CSQ * 2 + CSQ * 3 * 4 <= b.count else { return fail() }
         var height = [Int16](repeating: 0, count: CSQ)
         height.withUnsafeMutableBytes { dst in b.withUnsafeBytes { src in dst.copyMemory(from: UnsafeRawBufferPointer(rebasing: src[p..<(p + CSQ * 2)])) } }

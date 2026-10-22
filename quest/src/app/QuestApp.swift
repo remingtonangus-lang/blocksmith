@@ -42,6 +42,7 @@ final class QuestApp {
     init(xr: XRSession) throws {
         self.xr = xr
         handed = HandedInput(raw: xr)
+        if QuestBuild.meshHash != "dev" { MeshCache.buildKey = QuestBuild.meshHash }     // (P400 step 2)
         setenv("BLOCKSMITH_TEXRES", "\(QuestSettings.textureRes)", 1)
         device = QuestDevice(xr.vk)
         sharedSystemDevice = device
@@ -111,6 +112,7 @@ final class QuestApp {
                 if quitting {
                     g.saveNow()
                     SaveIO.flush()
+                    g.world.meshCache?.flush()           // (P400: the view's meshes on disk for the next launch)
                 } else {
                     g.saveNow(background: true)
                     MapFog.shared.save(g, background: true)
@@ -187,6 +189,7 @@ final class QuestApp {
         // F4: the middle ring's first build (~17k terrain columns) here too, not on the first world frame.
         FarRing.shared.request(game, eye: game.player.eye)
         QuestWarmup.run()
+        QuestWarmup.world(game)                      // (P400: the first ticks' rail and base plans)
         handOver()
         status("Ready", 1)
         loadLock.lock(); loaded = (game, save, tex); loadLock.unlock()
