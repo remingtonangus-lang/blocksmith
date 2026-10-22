@@ -71,6 +71,8 @@ final class QuestApp {
         // draws, not by lowering far detail; his headset captures decide if it holds 72 fps.
         World.lodNear = 99
         World.leafNear = 99
+        PlaytestChecklist.spaceWarp = (get: { QuestSettings.spaceWarp ? (QuestSettings.spaceWarpActive ? "On" : "On (next launch)") : (QuestSettings.spaceWarpActive ? "Off (next launch)" : "Off") },
+                                       toggle: { QuestSettings.spaceWarp.toggle() })        // P399 (7)
         PauseMenu.viewFixed = true                 // P339: the view distance is fixed (QuestSettings.viewDistance)
         stats.lowerRate = { [weak xr] in
             guard let x = xr, x.refreshRate > 72.5, x.setRefreshRate(72) else { return false }
