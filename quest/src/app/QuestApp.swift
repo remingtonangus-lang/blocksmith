@@ -189,6 +189,7 @@ final class QuestApp {
         // F4: the middle ring's first build (~17k terrain columns) here too, not on the first world frame.
         FarRing.shared.request(game, eye: game.player.eye)
         QuestWarmup.run()
+        QuestWarmup.world(game)                      // (P400: the first ticks' rail and base plans)
         handOver()
         status("Ready", 1)
         loadLock.lock(); loaded = (game, save, tex); loadLock.unlock()

@@ -35,7 +35,12 @@ enum TextureGen {
         for n in hudNames { _ = Tex.id(n) }
         for n in Font.names { _ = Tex.id(n) }
         for e in Effect.allCases { _ = Tex.id("effect_" + e.key) }
+        if registered == nil { registered = (Blocks.count, Tex.count) }
     }
+    // P400: the block and texture registries as the first registerAll leaves them. A texture name looked up later
+    // (Tex.id registers unknown names) is appended past these, so the counts at that point are the same every run;
+    // the disk mesh cache's stamp hashes these, not whatever the registries hold when the cache is first opened.
+    static var registered: (blocks: Int, tex: Int)? = nil
 
     static func r(_ x: Int, _ y: Int, _ salt: Int) -> Float { hashf(x, y, salt, 777) }
     static func rgb(_ r: Float, _ g: Float, _ b: Float, _ k: Float, _ a: Float = 1) -> V4 { V4(r * k, g * k, b * k, a) }

@@ -39,7 +39,17 @@ extension Game {
             }
         }
         RandomTickRng.state = rng
-        for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b { randomTick(p, b) }     // (an earlier tick may have changed it)
+        if RandomTickRng.profile {
+            // (P400 harness: the slowest single random tick and what it was)
+            for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b {
+                let t0 = CFAbsoluteTimeGetCurrent()
+                randomTick(p, b)
+                let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                if ms > RandomTickRng.worstMs { RandomTickRng.worstMs = ms; RandomTickRng.worstWhat = "\(Blocks.key(b)) at \(p.x) \(p.y) \(p.z)" }
+            }
+        } else {
+            for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b { randomTick(p, b) }     // (an earlier tick may have changed it)
+        }
         RandomTickRng.hits = hits
         // Leaves whose tree was cut decay a few at a time.
         var n = 0
@@ -666,4 +676,5 @@ extension IVec3 {
 enum RandomTickRng {
     static var state = SRng(0x5EED_71C4)
     static var hits: [(IVec3, BlockID)] = []          // (Game.randomTicks' reused list)
+    static var profile = false, worstMs = 0.0, worstWhat = ""   // (P400 harness)
 }

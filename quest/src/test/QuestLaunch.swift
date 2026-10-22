@@ -45,6 +45,7 @@ enum QuestLaunch {
         setvbuf(stdout, nil, _IOLBF, 0)
         World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = 99   // (QuestApp)
         SceneRenderer.skipGPU = true
+        RandomTickRng.profile = true
         let rd = Int(arg("--rd") ?? "") ?? 24
         let prepare = arg("--launch-prepare")
         guard let dirPath = prepare ?? arg("--launch") else { return 1 }
@@ -78,7 +79,8 @@ enum QuestLaunch {
         FarRing.shared.request(game, eye: game.player.eye)
         clock.mark("horizon and middle rings")
         QuestWarmup.run()
-        clock.mark("warm-up tables")
+        QuestWarmup.world(game)
+        clock.mark("warm-up tables, rails and bases")
 
         // QuestApp.adoptLoaded (the frame thread)
         let scene: SceneRenderer, wr: WorldRenderer
@@ -137,8 +139,16 @@ enum QuestLaunch {
             } }
             return n
         }
+        if let mc = game.world.meshCache {
+            var band = 0, have = 0
+            for dz in -rd...rd { for dx in -rd...rd where game.world.inMeshRadius(dx, dz) && game.world.inShellBand(dx, dz) {
+                band += 1; if mc.has(ChunkKey(x: pcx + dx, z: pcz + dz)) { have += 1 }
+            } }
+            print("launch: mesh cache: \(mc.count) files; shell band (past \(game.world.keepDataDistance) chunks, active \(game.world.activeDistance)): \(band) chunks, \(have) of them cached")
+        }
         var worst = 0.0, slow = 0, frames = 0
         var worstTick = 0.0, worstRecord = 0.0, slowTick = 0, slowRecord = 0, worstTickWhy = "", worstRecordWhy = ""
+        var worstTickAt = 0.0, worstRecordAt = 0.0
         _ = wr.takeStages()
         var halfAt = 0.0
         let fill0 = CFAbsoluteTimeGetCurrent()
@@ -147,9 +157,9 @@ enum QuestLaunch {
             yaw += 2 * .pi / 720                                       // (a slow look round: 10 s a turn)
             let ms = frame()
             frames += 1; worst = max(worst, ms); if ms > 13.9 { slow += 1 }
-            if lastTick > worstTick { worstTick = lastTick; worstTickWhy = TickProf.summary() }
+            if lastTick > worstTick { worstTick = lastTick; worstTickWhy = TickProf.summary(); worstTickAt = CFAbsoluteTimeGetCurrent() - fill0 }
             let st = wr.takeStages()                                  // (this frame's record stages)
-            if lastRecord > worstRecord { worstRecord = lastRecord; worstRecordWhy = st }
+            if lastRecord > worstRecord { worstRecord = lastRecord; worstRecordWhy = st; worstRecordAt = CFAbsoluteTimeGetCurrent() - fill0 }
             if lastTick > 13.9 { slowTick += 1 }; if lastRecord > 13.9 { slowRecord += 1 }
             if frames % 36 == 0 {
                 done = meshed()
@@ -160,9 +170,11 @@ enum QuestLaunch {
         let fill = CFAbsoluteTimeGetCurrent() - fill0
         print(String(format: "launch: view %d filled (%d of %d chunks meshed) %.1f s after the first frame (half in %.1f s); %d frames, worst %.1f ms (tick + record), %d over 13.9 ms; %d chunks from the mesh cache",
                      rd, done, want, fill, halfAt, frames, worst, slow, World.fromCache))
+        if let mc = game.world.meshCache { print("launch: mesh cache reads \(mc.reads), refused \(mc.refused)") }
         print(String(format: "launch: while filling: worst tick %.1f ms (%d over 13.9), worst record %.1f ms (%d over 13.9)", worstTick, slowTick, worstRecord, slowRecord))
-        print("launch: worst tick's stages: " + worstTickWhy)
-        print("launch: worst record's stages: " + worstRecordWhy)
+        print(String(format: "launch: worst tick's stages (%.1f s in): ", worstTickAt) + worstTickWhy)
+        print(String(format: "launch: worst record's stages (%.1f s in): ", worstRecordAt) + worstRecordWhy)
+        print(String(format: "launch: slowest random tick %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat))
         print("launch: stages " + clock.marks.map { String(format: "%@ %.2f", $0.0, $0.1) }.joined(separator: "; "))
         print(String(format: "launch: resident %.0f MB", QuestPerf.rssMB()))
 
