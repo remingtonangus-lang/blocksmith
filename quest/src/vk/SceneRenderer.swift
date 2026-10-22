@@ -1395,7 +1395,9 @@ final class SceneRenderer {
     // surface with no mouth beside it. A cave mouth seen from the surface keeps its own section and the ones round it
     // (an open face keeps its section and its neighbour). While the eye is above ground (`sealCull`, set by
     // WorldRenderer: a sky world, not underground, the eye's own section sky-open or beside one) sealed far sections are
-    // neither drawn nor walked through; underground, or within the near ring, everything is as before.
+    // not drawn; underground, or within the near ring, everything is as before. The walk still goes through them (it
+    // only leaves them off its list): which sections it reaches, and by which faces, is exactly as before, so nothing
+    // past a sealed section drops out with it (skipping the walk there left a patch of a far riverbed out).
     // BS_SEALCULL=0: off.
     static var sealedCulling = ProcessInfo.processInfo.environment["BS_SEALCULL"] != "0"
     var sealCull = false
@@ -2003,6 +2005,7 @@ extension SceneRenderer {
             let si = slot * NSEC + sy
             let nonEmpty = tf[si] & flNonEmpty != 0
             let vme = vidx(dx, dz, sy)
+            if sy < topCut && nonEmpty && fG[vme] != g && sy < Int(sl[slot]) { fG[vme] = g; sealSkips &+= 1 }
             if sy < topCut && nonEmpty && fG[vme] != g {
                 fG[vme] = g
                 let mn = V3(bx + Float(dx * CS), Float(sy * 16), bz + Float(dz * CS))
@@ -2046,13 +2049,12 @@ extension SceneRenderer {
                 let nmn = V3(bx + Float(ndx * CS), Float(nsy * 16), bz + Float(ndz * CS))
                 if !inView(vi, nmn) { continue }
                 let ns = sX[ndx + R] + sZ[ndz + R]
-                if nsy < Int(sl[ns]) { vG[vi] = g; sealSkips &+= 1; continue }
                 if f != 2 && f != 3 {
                     guard tc[ns].present, tc[ns].meshedOnce else { continue }
                     if deep(ns, nsy) { continue }
                 } else if deep(slot, nsy) { continue }
                 if peek {
-                    if tc[ns].present, nsy < topCut, tf[ns * NSEC + nsy] & flNonEmpty != 0, fG[vi] != g {
+                    if tc[ns].present, nsy < topCut, nsy >= Int(sl[ns]), tf[ns * NSEC + nsy] & flNonEmpty != 0, fG[vi] != g {
                         fG[vi] = g
                         fd.append(UInt64(simd_length_squared(nmn + half - eye).bitPattern) << 32 | UInt64(ns) << 8 | UInt64(nsy))
                     }
