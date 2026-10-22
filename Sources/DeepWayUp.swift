@@ -107,7 +107,8 @@ enum DeepJournals {
 
 extension ItemRegistry {
     func registerDeepJournalItems() {
-        for (k, j) in DeepJournals.all where !has(k) {
+        // (sorted: a dictionary's order changes from run to run, and the item and texture layer order with it: P400)
+        for (k, j) in DeepJournals.all.sorted(by: { $0.key < $1.key }) where !has(k) {
             var d = ItemDef(k, j.title)
             d.sprite = Sprite(mask: "book", base: j.tint != 0 ? UInt32(j.tint) : (k == "keepers_journal" ? 0x6A2A1A : 0x26262A), extras: [:])
             d.maxStack = 1
