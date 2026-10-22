@@ -21,6 +21,7 @@ extension WorldObjects {
         var strikeMs: [Double] = []        // the blow itself: finding the object, registering it, queueing the cut
         var installMs: [Double] = []       // a finished cut swapped in: pieces, collision, debris, drops
         var workMs: [Double] = []          // the cut on the object worker
+        var laterMs: [Double] = []         // P394: a cell that went or a drop, on a frame after its swap-in
         var debris = 0, falls = 0, breaks = 0
         var phase: [String: Double] = [:]  // the worst ms per part of a swap-in (install, debris, cells, break)
         mutating func note(_ k: String, _ t0: UInt64) -> UInt64 {
@@ -90,6 +91,12 @@ extension Game {
     // Each tick: finished cuts swapped in; what they took out and what lost its hold flies as debris; drops; breaks.
     func objectsTick() {
         let reg = world.objectReg
+        // P394: one item a swap-in left for later (before this frame's swap-ins: a frame does one or the other's share).
+        if !reg.later.isEmpty {
+            let t0 = DispatchTime.now().uptimeNanoseconds
+            reg.later.removeFirst()()
+            objectStats.laterMs.append(Double(DispatchTime.now().uptimeNanoseconds - t0) / 1e6)
+        }
         guard !reg.isEmpty else { return }
         reg.startLoaded(world)
         for r in reg.poll() {
@@ -144,30 +151,34 @@ extension Game {
             // Drops by what is gone: a cell's drop once it has lost half its volume; a cell with nothing left is air.
             let left = o.volumes(o.frags)
             let at = o.cuts.last.map { ov + V3($0.c[0], $0.c[1], $0.c[2]) } ?? ov
-            var changed = false
+            // P394: the drop and the cell's going are left to the next frames, one a frame (the object already draws and
+            // meets nothing there: its pieces are gone); the hit's own frames keep under 1 ms.
             for k in o.cells.indices where !o.gone[k] {
                 let b = o.blocks[k]
                 if !o.dropped[k] && left[k] <= o.cellVolume[k] * 0.5 {
                     o.dropped[k] = true
                     reg.dirty = true
-                    if survival { objectDrop(b, at: at) }
                     let tl = held.isEmpty ? ToolType.none : held.def.tool
                     if tl != .none && Blocks.hardness[Int(b)] > 0 { damageHeld(tl == .sword ? 2 : 1) }
+                    if survival { reg.later.append { [weak self] in self?.objectDrop(b, at: at) } }
                 }
-                if left[k] <= 1e-5 {
-                    let c = o.cells[k]
-                    reg.editing = true
-                    breakBlock(c, b, drop: false, quiet: true)
-                    reg.editing = false
-                    reg.dropCell(o, k)
-                    changed = true
+                if left[k] <= 1e-5 && !o.leaving[k] {
+                    o.leaving[k] = true
+                    reg.later.append { [weak self, weak o] in
+                        guard let self, let o, !o.broken, !o.gone[k], self.world.objectReg.objects[o.id] === o else { return }
+                        let reg = self.world.objectReg
+                        reg.editing = true
+                        self.breakBlock(o.cells[k], o.blocks[k], drop: false, quiet: true)
+                        reg.editing = false
+                        reg.dropCell(o, k)
+                        reg.refresh(self.world, o)
+                    }
                 }
             }
-            if changed { reg.refresh(world, o) }
             tp = objectStats.note("cells", tp)
             // Enough gone: the rest comes down, and every cell left gives what it hasn't yet.
             let total = left.reduce(0, +)
-            if total < o.totalVolume * WorldObjects.breakShare || o.frags.count > WorldObjects.maxPieces || o.gone.allSatisfy({ $0 }) {
+            if total < o.totalVolume * WorldObjects.breakShare || o.frags.count > WorldObjects.maxPieces || o.gone.indices.allSatisfy({ o.gone[$0] || o.leaving[$0] }) {
                 breakObject(o, at: at)
                 _ = objectStats.note("break", tp)
             }

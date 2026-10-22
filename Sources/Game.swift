@@ -2372,7 +2372,12 @@ final class Game {
             world.setBlock(p.x, p.y + 1, p.z, AIR)
             if drop { for s in Mining.drops(above, .empty) { drops.spawn(s, at: center + V3(0, 1, 0)) } }
         }
+        // (P394: a quiet break, an object's cells, re-meshes what it carried in the background too; a parasol's pole
+        // on a café table took 22 ms here, with the plant rules' first build, now warmed at load)
+        let deferredAbove = world.deferRemesh
+        if quiet { world.deferRemesh = true }
         _ = plantSupportCheck(IVec3(p.x, p.y + 1, p.z))        // the plant on it goes at once, as before
+        world.deferRemesh = deferredAbove
         fellCheck(p, b)                                         // P298: a tree cut at its foot falls (Felling.swift)
     }
 

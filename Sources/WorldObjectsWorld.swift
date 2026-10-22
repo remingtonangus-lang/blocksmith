@@ -38,6 +38,7 @@ extension WorldObjects {
         var cuts: [Cut] = []
         var dropped: [Bool]               // per cell: its drop given (it lost half its volume)
         var gone: [Bool]                  // per cell: set to air (nothing of it left)
+        var leaving: [Bool]               // per cell: nothing left, set to air a frame or two later (P394: Registry.later)
         var frags: [Frag] = []            // frame thread: what is drawn and met
         var applied = 0                   // cuts in `frags`
         var installed = false             // the mesher draws it (its cells are skipped)
@@ -55,6 +56,7 @@ extension WorldObjects {
             self.support = support
             dropped = [Bool](repeating: false, count: cells.count)
             gone = [Bool](repeating: false, count: cells.count)
+            leaving = gone
         }
         // The untouched pieces and volumes (the object worker before its first cut; the harness on the frame thread).
         func buildWhole(_ ws: Fracture.Workspace) {
@@ -115,6 +117,9 @@ extension WorldObjects {
         private var nextId = 1
         var dirty = false
         var editing = false                                  // the registry itself is setting cells (setBlock hook)
+        // P394: the work a swap-in leaves to the frames after it, one item a frame (a cell that went, a drop): the lamp
+        // post's cut-through gave two cells and their drops in one swap-in, about 0.3 ms each.
+        var later: [() -> Void] = []
         private let queue = DispatchQueue(label: "object-cuts", qos: .userInitiated)
         private let ws = Fracture.Workspace()                // (object worker only)
         private var planes: [SIMD4<Float>] = []              // (object worker only)
@@ -366,7 +371,7 @@ extension WorldObjects {
                 loadSupport[id] = nil
                 let fresh = Obj(id: o.id, kind: o.kind, origin: o.origin, cells: o.cells, blocks: o.blocks, parts: o.parts,
                                 support: Registry.supports(w, o.cells, origin: o.origin))
-                fresh.cuts = o.cuts; fresh.dropped = o.dropped; fresh.gone = o.gone
+                fresh.cuts = o.cuts; fresh.dropped = o.dropped; fresh.gone = o.gone; fresh.leaving = o.leaving
                 objects[id] = fresh
                 schedule(fresh, replay: true)
             }
@@ -393,6 +398,8 @@ extension World {
     }
 
     func saveObjects() {
+        // (P394: cells and drops a swap-in left for the next frames go first, so the save holds them)
+        while !objectReg.later.isEmpty { objectReg.later.removeFirst()() }
         guard objectReg.dirty, let s = save else { return }
         objectReg.dirty = false
         SaveIO.storeJSON(objectReg.saved(), to: s.dir.appendingPathComponent("objects.json"))

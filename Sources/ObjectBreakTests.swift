@@ -74,6 +74,7 @@ enum ObjectBreakTests {
     static func settle(_ g: Game, _ grp: WorldObjects.Group, fly: Float) {
         g.world.objectReg.waitIdle()
         g.objectsTick()
+        while !g.world.objectReg.later.isEmpty { g.objectsTick() }     // (P394: the frames after the swap-in)
         g.world.remeshArea(x0: grp.lo.x - 1, z0: grp.lo.z - 1, x1: grp.hi.x + 1, z1: grp.hi.z + 1, y0: grp.lo.y - 1, y1: grp.hi.y + 1)
         var t: Float = 0
         while t < fly { g.debris.tick(1.0 / 72, world: g.world); t += 1.0 / 72 }
@@ -132,7 +133,7 @@ enum ObjectBreakTests {
                 lines.append(String(format: "  the session's first block break (a plank, no object; caches every break reads): %.3f ms", Double(DispatchTime.now().uptimeNanoseconds - t0) / 1e6))
             }
         }
-        var allStrike: [Double] = [], allInstall: [Double] = [], allWork: [Double] = []
+        var allStrike: [Double] = [], allInstall: [Double] = [], allWork: [Double] = [], allLater: [Double] = []
         var savedOnce = false
         for f in found {
             let grp = f.group
@@ -227,7 +228,7 @@ enum ObjectBreakTests {
             shoot("\(base)-\(name)-4-broken.png", eye, yaw, pitch)
             let cellsLeft = grp.cells.filter { w.builtBlock($0.x, $0.y, $0.z) != AIR }.count
             let st = g.objectStats
-            allStrike += st.strikeMs; allInstall += st.installMs; allWork += st.workMs
+            allStrike += st.strikeMs; allInstall += st.installMs; allWork += st.workMs; allLater += st.laterMs
             lines.append(String(format: "  %@ at %d %d %d (%@): %d cells, %d parts; 3 blows took %d (%.0f%% left), broke after %d more (%@): %d cells left; drops %d items; debris %d chunks, %d falls; collision after 3: %@%@",
                                 f.kind.name, grp.lo.x, grp.lo.y, grp.lo.z, f.site, grp.cells.count, o.parts.count, hits,
                                 100 * left3 / max(o.totalVolume, 1e-6), more, o.broken ? "broken" : "NOT BROKEN", cellsLeft,
@@ -239,6 +240,7 @@ enum ObjectBreakTests {
             }
         }
         lines.append("  all: frame thread per blow " + stat(allStrike) + "; cut swapped in " + stat(allInstall) + "; worker " + stat(allWork))
+        lines.append("  later frames (one cell or drop each, P394): " + stat(allLater))
         let worst = (allStrike.max() ?? 0) + (allInstall.max() ?? 0)
         lines.append(String(format: "  per hit on the frame thread (worst blow + worst swap-in): %.3f ms: %@", worst, worst < 1 ? "OK (under 1 ms)" : "OVER 1 ms"))
         return lines.joined(separator: "\n")
