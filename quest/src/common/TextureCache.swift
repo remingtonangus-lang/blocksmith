@@ -46,6 +46,7 @@ enum TextureCache {
         do { try d.write(to: url, options: .atomic) } catch { print("textures: cache not written: \(error)") }
     }
 
+    static var backgroundStore = ProcessInfo.processInfo.environment["BS_TEXCACHEBG"] != "0"
     // Cached levels, or freshly painted ones (then cached). The imported pack's pixels are released afterwards.
     static func mipChain(dir: String) -> [[UInt8]] {
         defer { TextureImport.release() }
@@ -57,6 +58,16 @@ enum TextureCache {
         }
         let l = TextureGen.mipChain()
         let t1 = CFAbsoluteTimeGetCurrent()
+        // P400 step 4: the cache is written behind the load (2.4-2.9 s on the host, all of it on the launch's path before).
+        if backgroundStore {
+            DispatchQueue.global(qos: .utility).async {
+                let t2 = CFAbsoluteTimeGetCurrent()
+                store(l, u)
+                print(String(format: "textures: cached in %.0f ms (behind the load)", (CFAbsoluteTimeGetCurrent() - t2) * 1000))
+            }
+            print(String(format: "textures: painted in %.0f ms", (t1 - t0) * 1000))
+            return l
+        }
         store(l, u)
         print(String(format: "textures: painted in %.0f ms, cached in %.0f ms", (t1 - t0) * 1000, (CFAbsoluteTimeGetCurrent() - t1) * 1000))
         return l

@@ -121,6 +121,7 @@ extension World {
         c.meshedOnce = true
         c.updateTopSec()
         c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
+        c.cachedStamp = c.cullStamp                      // (P400: what is on disk is what it draws)
         chunks[k] = c
         World.fromCache += 1
     }
@@ -133,6 +134,26 @@ extension World {
     func cacheMeshes(_ k: ChunkKey, _ c: Chunk) {
         guard World.shells, let mc = meshCache, c.meshedOnce, !c.needsMesh, !c.meshInFlight else { return }
         mc.write(k, c, occ: c.hollow ? c.hollowOcc : c.occluderTop)
+        c.cachedStamp = c.cullStamp
+        c.cacheDropped = false                           // (the next edit drops this file again)
+    }
+
+    // P400 step 2 (cold launch): every save also writes the meshes of the finished chunks in the view that changed
+    // since they were last written or read (cullStamp: a section remeshed, an edit beside it, a detail level), not
+    // only the chunks leaving the view. The next launch then installs the far land (the shell band, past the keep
+    // distance) straight from the disk, with no generation or meshing; the near chunks still come from the save or
+    // the seed, since play needs their blocks. An edit drops its chunk's file at once (World.editing), so a launch
+    // never draws a stale edit. BS_SAVEMESHES=0: as before (only unloading chunks write theirs).
+    static var cacheOnSave = ProcessInfo.processInfo.environment["BS_SAVEMESHES"] != "0"
+    @discardableResult
+    func saveMeshCache() -> Int {
+        guard World.cacheOnSave, World.shells, meshCache != nil else { return 0 }
+        var n = 0
+        for (k, c) in chunks where c.cachedStamp != c.cullStamp && c.meshedOnce && !c.needsMesh && !c.meshInFlight {
+            cacheMeshes(k, c)
+            n += 1
+        }
+        return n
     }
 }
 
@@ -146,6 +167,10 @@ final class MeshCache {
                                                         // 4: P384 far copies (far cutout skip, detail far copy)
     static let countsPerSection = 15
     static let capBytes = 768 << 20
+    // P400 step 2: what a cached mesh depends on besides the format and registries. The headset sets it to a hash of
+    // the sources that shape meshes and terrain (quest/tools/build-apk.sh: QuestBuild.meshHash), so an update that
+    // leaves them alone keeps every cached chunk; nil (the Mac, questcheck): the executable's date, as before.
+    static var buildKey: String? = nil
     let dir: URL
     private let queue = DispatchQueue(label: "meshcache", qos: .utility)
     private let lock = NSLock()
@@ -170,8 +195,12 @@ final class MeshCache {
         func mix(_ v: UInt64) { h = (h ^ v) &* 0x100000001b3 }
         mix(UInt64(MeshCache.format)); mix(AdaptiveGround.enabled ? 1 : 0); mix(UInt64(Blocks.count)); mix(UInt64(Tex.count))
         for n in Tex.names { for b in n.utf8 { mix(UInt64(b)) } }
-        let exe = URL(fileURLWithPath: CommandLine.arguments.first ?? "")
-        if let d = (try? FileManager.default.attributesOfItem(atPath: exe.path))?[.modificationDate] as? Date { mix(UInt64(d.timeIntervalSince1970)) }
+        if let key = MeshCache.buildKey {
+            for b in key.utf8 { mix(UInt64(b)) }
+        } else {
+            let exe = URL(fileURLWithPath: CommandLine.arguments.first ?? "")
+            if let d = (try? FileManager.default.attributesOfItem(atPath: exe.path))?[.modificationDate] as? Date { mix(UInt64(d.timeIntervalSince1970)) }
+        }
         mix(UInt64(bitPattern: Int64(SectionMesh.layoutStamp)))
         stamp = h
         let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey])) ?? []
@@ -184,6 +213,8 @@ final class MeshCache {
     }
 
     func url(_ k: ChunkKey) -> URL { dir.appendingPathComponent("m.\(k.x).\(k.z).bin") }
+    // P400: waits for the queued writes (the app's quit, after the save's own flush).
+    func flush() { queue.sync {} }
     func has(_ k: ChunkKey) -> Bool { lock.lock(); defer { lock.unlock() }; return have.contains(k) }
 
     func drop(_ k: ChunkKey) {

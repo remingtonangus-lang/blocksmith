@@ -1570,6 +1570,7 @@ final class World {
         redstone.save(background: background)            // W1: pending circuit ticks and edges (circuit.json)
         save?.savePortals(Array(portals))
         ships.save(background: background)
+        saveMeshCache()                                  // P400 step 2 (ChunkShells)
     }
 
     // MARK: Raycast (voxel DDA + per-box tests for partial blocks)

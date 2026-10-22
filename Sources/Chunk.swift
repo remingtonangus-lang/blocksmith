@@ -345,6 +345,7 @@ final class Chunk {
     }
     var hollowOcc = -1             //   its horizon-culling band, kept from before
     var cacheDropped = false       //   its disk mesh cache file dropped since it loaded (edited)
+    var cachedStamp = -1           //   P400: cullStamp when its meshes were last written to (or read from) the disk cache
     var fieldEdits: [Int32: UInt16] = [:]     // PG1: bounds on the terrain field per cell (TerrainField.swift)
     var fieldDirty = false                    // ...changed since last saved
     // P374: written since it was last saved or loaded. (It kept the arrays as last saved and compared storage: the
