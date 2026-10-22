@@ -260,6 +260,7 @@ final class WorldRenderer {
         if game.dim.dim.hasSky, !game.player.headInWater, let cap = World.caveSight(caveK: underground ? 0 : caveK) {
             scene.fogCull = scene.fogCull > 0 ? min(scene.fogCull, cap + 4) : cap + 4      // far sections past the cave fog
         }
+        scene.sealCull = game.dim.dim.hasSky && !underground          // (P392: the buried far caves left out above ground)
         scene.setUniforms(s, u)
         scene.resetScratch()
         let eye = cam.center

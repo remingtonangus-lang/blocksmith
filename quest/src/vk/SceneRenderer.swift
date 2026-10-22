@@ -941,6 +941,7 @@ final class SceneRenderer {
     struct ColInfo {
         var cx: Int32 = 0, cz: Int32 = 0, occTop: Int32 = -1, tintOff: UInt32 = 0
         var topSec: Int16 = 0, present = false, meshedOnce = false, lod1 = false
+        var openLow: Int16 = 0                 // P392: the lowest sky-open section (NSEC: none)
     }
     struct SecInfo {
         var vis: UInt64 = 0
@@ -972,6 +973,9 @@ final class SceneRenderer {
     // The walk's own facts per section, packed (vis bits; flags as SecInfo's): the full SecInfo table is several MB at
     // view 24 and the walk touched one entry per step, nearly every one a cache miss.
     private var tabVis: [UInt64] = []
+    private var sealLow: [Int16] = []          // P392: per slot, sections under this are sealed this frame
+    private var sealRow: [Int16] = []
+    private var sealValid = false, sealEye = V3(0, 0, 0), sealPC = SIMD2<Int32>(0, 0), sealEyeLow = 0
     private var tabFl: [UInt8] = []
     // Columns held, for the frames where nothing was loaded or dropped and the eye stayed in its chunk: then only
     // their keys are compared (no lookups). BS_TABLEEPOCH=0: every column looked up every frame.
@@ -1347,7 +1351,7 @@ final class SceneRenderer {
             q[f][0] += 1; q[f][1] += s.groundQuads; q[f][2] += s.blobQuads; q[f][3] += s.opaqueQuads - s.groundQuads - s.blobQuads
             q[f][4] += s.detailQuads; q[f][5] += s.transQuads
         }
-        return "walk \(cullVisits) sections, \(horizonSkipped) behind hills, \(occlusionSkipped) occluded by \(occluderBoxes) solid boxes (\(String(format: "%.2f", occlusionMs)) ms), \(mergedSections) drawing merged ground; " + ["near", "far"].enumerated().map { i, n in
+        return "walk \(cullVisits) sections, \(sealedSkipped) sealed far caves (P392), \(horizonSkipped) behind hills, \(occlusionSkipped) occluded by \(occluderBoxes) solid boxes (\(String(format: "%.2f", occlusionMs)) ms), \(mergedSections) drawing merged ground; " + ["near", "far"].enumerated().map { i, n in
             "\(n) \(q[i][0]) sections: ground \(q[i][1]), leaf blobs \(q[i][2]), other opaque \(q[i][3]), detail \(q[i][4]), translucent \(q[i][5])"
         }.joined(separator: "; ")
     }
@@ -1385,6 +1389,21 @@ final class SceneRenderer {
     // with no faces and water in it is all water (any other block next to water has a face). BS_DEEPSEA=0 turns it off.
     static var deepSeaCull = ProcessInfo.processInfo.environment["BS_DEEPSEA"] != "0"
     private(set) var deepSeaSkipped = 0
+    // P392 (view 24: cull the buried far caves): a section is sky-open when open air comes down to it from the sky
+    // through the sections above it (each one's top face open and, for the ones it passes through, its top face joined
+    // to its bottom face: Mesher.connectivity's bits), so a column's sky-open sections run from the top down to
+    // ColInfo.openLow. A far section (its column's nearest point at least GroundMerge.farDistance from the eye, where
+    // P384's far copies start) is sealed when neither it nor any of the 26 round it is sky-open: a cave under the
+    // surface with no mouth beside it. A cave mouth seen from the surface keeps its own section and the ones round it
+    // (an open face keeps its section and its neighbour). While the eye is above ground (`sealCull`, set by
+    // WorldRenderer: a sky world, not underground, the eye's own section sky-open or beside one) sealed far sections are
+    // not drawn; underground, or within the near ring, everything is as before. The walk still goes through them (it
+    // only leaves them off its list): which sections it reaches, and by which faces, is exactly as before, so nothing
+    // past a sealed section drops out with it (skipping the walk there left a patch of a far riverbed out).
+    // BS_SEALCULL=0: off.
+    static var sealedCulling = ProcessInfo.processInfo.environment["BS_SEALCULL"] != "0"
+    var sealCull = false
+    private(set) var sealedSkipped = 0
     private lazy var fluidKindT: [UInt8] = Blocks.fluidKind     // (the block registry is complete by the first cull)
     @inline(__always) private func underDeepWater(_ c: Chunk, _ sy: Int) -> Bool {
         guard SceneRenderer.deepSeaCull, c.lod == 1, sy + 1 < NSEC else { return false }
@@ -1765,10 +1784,19 @@ extension SceneRenderer {
         ci.present = true; ci.meshedOnce = c.meshedOnce; ci.lod1 = c.lod == 1
         ci.occTop = Int32(c.occluderTop)
         ci.tintOff = UInt32((c.tintBuf?.offset ?? 0) / 4)
+        let secs = c.sections
+        // P392: sky-open sections, from the top down (an unmeshed section counts as open all through).
+        var low = NSEC
+        for sy in stride(from: NSEC - 1, through: 0, by: -1) {
+            let v = secs[sy].meshedVersion == -1 ? ~UInt64(0) : secs[sy].vis
+            if v & (1 << 14) == 0 { break }            // (top face shut: no sky air comes in)
+            low = sy
+            if v & (1 << 15) == 0 { break }            // (top face not joined to the bottom: the sky stops here)
+        }
+        ci.openLow = Int16(low)
         tabCol[slot] = ci
         let ts = slabOf(c.tintBuf)
         let base = slot * NSEC
-        let secs = c.sections
         for sy in 0..<NSEC {
             let s = secs[sy]
             var e = SecInfo()
@@ -1908,6 +1936,52 @@ extension SceneRenderer {
         let vG = tMarks.visit, fG = tMarks.found, frG = tMarks.frustum, frO = tMarks.viewOK
         @inline(__always) func vidx(_ dx: Int, _ dz: Int, _ sy: Int) -> Int { ((dx + R) + (dz + R) * span) * NSEC + sy }
         let tc = tabCol, tv = tabVis, tf = tabFl, sX = slotX, sZ = slotZ, live = tabLive
+        // P392: per column, the sections under which a far section is sealed (0: none are; see `sealedCulling`).
+        // Worked out again only when a column was re-read, the eye changed chunk, or it moved half a block (the far
+        // test then takes half a block more, so a stale eye never culls a section nearer than GroundMerge.farDistance).
+        if sealLow.count != span * span {
+            sealLow = [Int16](repeating: 0, count: span * span); sealRow = [Int16](repeating: 0, count: span * span)
+            sealValid = false
+        }
+        var sealOn = false
+        if sealCull && SceneRenderer.sealedCulling {
+            // (the lowest sky-open section over a column and the eight round it, less one: the sections below it are
+            // neither sky-open nor beside a sky-open one; a min over rows, then over columns, in offset order)
+            let stale = !sealValid || tableRefreshed > 0 || sealPC != SIMD2(Int32(pcx), Int32(pcz))
+                || simd_length_squared(eye - sealEye) > 0.25
+            if stale {
+                for dz in -R...R {
+                    for dx in -R...R {
+                        var m = Int16(NSEC)
+                        for ox in max(-R, dx - 1)...min(R, dx + 1) {
+                            let ns = sX[ox + R] + sZ[dz + R]
+                            if tc[ns].present && tc[ns].openLow < m { m = tc[ns].openLow }
+                        }
+                        sealRow[(dx + R) + (dz + R) * span] = m
+                    }
+                }
+                let fd2 = (GroundMerge.farDistance + 0.5) * (GroundMerge.farDistance + 0.5)
+                for dz in -R...R {
+                    for dx in -R...R {
+                        var m = Int16(NSEC)
+                        for oz in max(-R, dz - 1)...min(R, dz + 1) { m = min(m, sealRow[(dx + R) + (oz + R) * span]) }
+                        let x0 = Float((pcx + dx) * CS), z0 = Float((pcz + dz) * CS)
+                        let nx = max(x0, min(eye.x, x0 + 16)) - eye.x, nz = max(z0, min(eye.z, z0 + 16)) - eye.z
+                        let slot = sX[dx + R] + sZ[dz + R]
+                        if dx == 0 && dz == 0 { sealEyeLow = Int(m) - 1 }
+                        sealLow[slot] = nx * nx + nz * nz >= fd2 ? max(0, m - 1) : 0
+                    }
+                }
+                sealValid = true; sealEye = eye; sealPC = SIMD2(Int32(pcx), Int32(pcz))
+            }
+            sealOn = pSec >= sealEyeLow                     // (the eye in open air, or beside it)
+        }
+        if !sealOn && sealValid {
+            for i in sealLow.indices { sealLow[i] = 0 }
+            sealValid = false
+        }
+        let sl = sealLow
+        var sealSkips = 0
         var topSec = 0
         for i in 0..<live.count where Int(tc[live[i].slot].topSec) > topSec { topSec = Int(tc[live[i].slot].topSec) }
         let yLimit = max(pSec, topSec + 1)
@@ -1949,6 +2023,7 @@ extension SceneRenderer {
             let si = slot * NSEC + sy
             let nonEmpty = tf[si] & flNonEmpty != 0
             let vme = vidx(dx, dz, sy)
+            if sy < topCut && nonEmpty && fG[vme] != g && sy < Int(sl[slot]) { fG[vme] = g; sealSkips &+= 1 }
             if sy < topCut && nonEmpty && fG[vme] != g {
                 fG[vme] = g
                 let mn = V3(bx + Float(dx * CS), Float(sy * 16), bz + Float(dz * CS))
@@ -1965,6 +2040,7 @@ extension SceneRenderer {
                     if fG[vi] == g || vG[vi] == g { continue }
                     let ns = sX[ndx + R] + sZ[ndz + R]
                     guard tc[ns].present, tc[ns].meshedOnce, tf[ns * NSEC + nsy] & flNonEmpty != 0 else { continue }
+                    if nsy < Int(sl[ns]) { continue }
                     let nmn = V3(bx + Float(ndx * CS), Float(nsy * 16), bz + Float(ndz * CS))
                     if !inView(vi, nmn) { continue }
                     fG[vi] = g
@@ -1996,7 +2072,7 @@ extension SceneRenderer {
                     if deep(ns, nsy) { continue }
                 } else if deep(slot, nsy) { continue }
                 if peek {
-                    if tc[ns].present, nsy < topCut, tf[ns * NSEC + nsy] & flNonEmpty != 0, fG[vi] != g {
+                    if tc[ns].present, nsy < topCut, nsy >= Int(sl[ns]), tf[ns * NSEC + nsy] & flNonEmpty != 0, fG[vi] != g {
                         fG[vi] = g
                         fd.append(UInt64(simd_length_squared(nmn + half - eye).bitPattern) << 32 | UInt64(ns) << 8 | UInt64(nsy))
                     }
@@ -2008,6 +2084,7 @@ extension SceneRenderer {
             }
         }
         deepSeaSkipped = deepSkips
+        sealedSkipped = sealSkips
         cullVisits = q.count
         fd.sort()
         bfs = q; found = fd
