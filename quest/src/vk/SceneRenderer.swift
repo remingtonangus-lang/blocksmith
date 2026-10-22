@@ -974,6 +974,8 @@ final class SceneRenderer {
     // view 24 and the walk touched one entry per step, nearly every one a cache miss.
     private var tabVis: [UInt64] = []
     private var sealLow: [Int16] = []          // P392: per slot, sections under this are sealed this frame
+    private var sealRow: [Int16] = []
+    private var sealValid = false, sealEye = V3(0, 0, 0), sealPC = SIMD2<Int32>(0, 0), sealEyeLow = 0
     private var tabFl: [UInt8] = []
     // Columns held, for the frames where nothing was loaded or dropped and the eye stayed in its chunk: then only
     // their keys are compared (no lookups). BS_TABLEEPOCH=0: every column looked up every frame.
@@ -1935,33 +1937,49 @@ extension SceneRenderer {
         @inline(__always) func vidx(_ dx: Int, _ dz: Int, _ sy: Int) -> Int { ((dx + R) + (dz + R) * span) * NSEC + sy }
         let tc = tabCol, tv = tabVis, tf = tabFl, sX = slotX, sZ = slotZ, live = tabLive
         // P392: per column, the sections under which a far section is sealed (0: none are; see `sealedCulling`).
-        if sealLow.count != span * span { sealLow = [Int16](repeating: 0, count: span * span) }
+        // Worked out again only when a column was re-read, the eye changed chunk, or it moved half a block (the far
+        // test then takes half a block more, so a stale eye never culls a section nearer than GroundMerge.farDistance).
+        if sealLow.count != span * span {
+            sealLow = [Int16](repeating: 0, count: span * span); sealRow = [Int16](repeating: 0, count: span * span)
+            sealValid = false
+        }
         var sealOn = false
         if sealCull && SceneRenderer.sealedCulling {
             // (the lowest sky-open section over a column and the eight round it, less one: the sections below it are
-            // neither sky-open nor beside a sky-open one)
-            func keepLow(_ dx: Int, _ dz: Int) -> Int {
-                var m = NSEC
-                for oz in -1...1 { for ox in -1...1 {
-                    let nx = dx + ox, nz = dz + oz
-                    guard abs(nx) <= R, abs(nz) <= R else { continue }
-                    let ns = sX[nx + R] + sZ[nz + R]
-                    if tc[ns].present { m = min(m, Int(tc[ns].openLow)) }
-                } }
-                return m - 1
-            }
-            sealOn = pSec >= keepLow(0, 0)                  // (the eye in open air, or beside it)
-            if sealOn {
-                let fd2 = GroundMerge.farDistance * GroundMerge.farDistance
-                for i in 0..<live.count {
-                    let c = live[i].c, slot = live[i].slot
-                    let x0 = Float(c.cx * CS), z0 = Float(c.cz * CS)
-                    let nx = max(x0, min(eye.x, x0 + 16)) - eye.x, nz = max(z0, min(eye.z, z0 + 16)) - eye.z
-                    sealLow[slot] = nx * nx + nz * nz >= fd2 ? Int16(max(0, keepLow(c.cx - pcx, c.cz - pcz))) : 0
+            // neither sky-open nor beside a sky-open one; a min over rows, then over columns, in offset order)
+            let stale = !sealValid || tableRefreshed > 0 || sealPC != SIMD2(Int32(pcx), Int32(pcz))
+                || simd_length_squared(eye - sealEye) > 0.25
+            if stale {
+                for dz in -R...R {
+                    for dx in -R...R {
+                        var m = Int16(NSEC)
+                        for ox in max(-R, dx - 1)...min(R, dx + 1) {
+                            let ns = sX[ox + R] + sZ[dz + R]
+                            if tc[ns].present && tc[ns].openLow < m { m = tc[ns].openLow }
+                        }
+                        sealRow[(dx + R) + (dz + R) * span] = m
+                    }
                 }
+                let fd2 = (GroundMerge.farDistance + 0.5) * (GroundMerge.farDistance + 0.5)
+                for dz in -R...R {
+                    for dx in -R...R {
+                        var m = Int16(NSEC)
+                        for oz in max(-R, dz - 1)...min(R, dz + 1) { m = min(m, sealRow[(dx + R) + (oz + R) * span]) }
+                        let x0 = Float((pcx + dx) * CS), z0 = Float((pcz + dz) * CS)
+                        let nx = max(x0, min(eye.x, x0 + 16)) - eye.x, nz = max(z0, min(eye.z, z0 + 16)) - eye.z
+                        let slot = sX[dx + R] + sZ[dz + R]
+                        if dx == 0 && dz == 0 { sealEyeLow = Int(m) - 1 }
+                        sealLow[slot] = nx * nx + nz * nz >= fd2 ? max(0, m - 1) : 0
+                    }
+                }
+                sealValid = true; sealEye = eye; sealPC = SIMD2(Int32(pcx), Int32(pcz))
             }
+            sealOn = pSec >= sealEyeLow                     // (the eye in open air, or beside it)
         }
-        if !sealOn { for i in 0..<live.count { sealLow[live[i].slot] = 0 } }
+        if !sealOn && sealValid {
+            for i in sealLow.indices { sealLow[i] = 0 }
+            sealValid = false
+        }
         let sl = sealLow
         var sealSkips = 0
         var topSec = 0
