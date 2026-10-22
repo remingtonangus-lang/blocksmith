@@ -130,6 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if game.smoothTerrain { game.world.makeFieldWorld() }             // (PG1 rewrite: its ground is a density field)
         }
         SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
+        if meta == nil { game.placeSpawnCamp() }              // P402: a new survival world starts by an abandoned camp
         if meta == nil { game.saveNow() }                     // P107: a new world's meta on disk from the start
         game.sound = soundEngine
         game.sound?.volume = game.volumeSetting

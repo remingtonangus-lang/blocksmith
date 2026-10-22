@@ -706,6 +706,14 @@ final class QuestApp {
                 x += Float(g[0] + 1) * px
             }
         }
+        // P402 (3): the two controllers either side of the pedestal with pictures of what each control does (no words).
+        for poly in ControllerPicture.build(centreY: headY - 0.12, leftHanded: QuestSettings.leftHanded) {
+            let c = poly.pts[0]
+            for k in 1..<(poly.pts.count - 1) {
+                tri(V3(c.x, c.y, tz + poly.dz), V3(poly.pts[k].x, poly.pts[k].y, tz + poly.dz),
+                    V3(poly.pts[k + 1].x, poly.pts[k + 1].y, tz + poly.dz), poly.col, poly.col, poly.col)
+            }
+        }
         // P293 (a): the game's name, then the world's.
         label("SUNDERFALL", headY + 0.34, 0.011, V4(1, 0.93, 0.74, 1))      // (P340: the game's name)
         if !title.isEmpty { label(title, headY + 0.2, 0.0065, V4(1, 1, 1, 1)) }

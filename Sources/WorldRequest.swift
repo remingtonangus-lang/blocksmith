@@ -59,6 +59,7 @@ struct WorldRequest {
             if game.smoothTerrain { game.world.makeFieldWorld() }             // (PG1 rewrite: its ground is a density field)
         }
         SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
+        if meta == nil { game.placeSpawnCamp() }              // P402: a new survival world starts by an abandoned camp
         // P107: a new world's meta (seed, options, the terrain mode) is on disk from the start, so a world closed before
         // its first autosave still reopens as itself.
         if meta == nil && game.persistent { game.saveNow() }
