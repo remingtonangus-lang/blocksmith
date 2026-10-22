@@ -52,11 +52,13 @@ struct WorldRequest {
     // A saved world's state, or a new world's options, then the terrain mode, before the first meshes (loadSync).
     func setUp(_ game: Game, meta: WorldMeta?) {
         if let m = meta { game.apply(m) } else {
-            game.player.pos = game.spawnPoint
             if let sv = survival { game.survival = sv }
             if let d = difficulty { game.diffLevel = Difficulty.clamp(d) }     // P302: a level (0...5)
             game.smoothTerrain = smooth ?? Settings.shared.smoothTerrain     // (PG6: a new world is Polygons unless chosen)
-            if game.smoothTerrain { game.world.makeFieldWorld() }             // (PG1 rewrite: its ground is a density field)
+            // (PG1 rewrite: its ground is a density field.) Before spawnPoint: settling the spawn loads chunks, and
+            // makeFieldWorld only marks a world with none loaded, so a new world came out with block ground.
+            if game.smoothTerrain { game.world.makeFieldWorld() }
+            game.player.pos = game.spawnPoint
         }
         SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
         if meta == nil { game.placeSpawnCamp() }              // P402: a new survival world starts by an abandoned camp
