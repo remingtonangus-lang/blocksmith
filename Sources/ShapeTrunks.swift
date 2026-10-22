@@ -94,7 +94,9 @@ enum ShapeTrunks {
                 if grounded || joined {
                     // A living tree has leaves round the top of its column (or where its lean carries the crown).
                     var crown = false
-                    if H >= 3 && vertical {
+                    // P398 (a): an acacia's 2-log foot leans on diagonally (its crown sits on the lean): a living
+                    // trunk too, so the leaning logs become its limbs instead of a stack of cut stumps.
+                    if H >= 3 && vertical || H == 2 && vertical && leansOn(ctx, x, top, z) {
                         scan: for dy in -2...6 { for dz in -4...4 { for dx in -4...4 where leafT[Int(ctx.column(x + dx, top + dy, z + dz))] { crown = true; break scan } } }
                     }
                     if crown { kind = 1 }
@@ -138,7 +140,15 @@ enum ShapeTrunks {
                 s.par[j] = Int32(i)
                 s.kids[i] &+= 1
                 let pr = s.rad[i] > 0 ? s.rad[i] : 0.2
-                s.rad[j] = max(0.07, s.col[j] == 3 ? pr * 0.7 : (d == 0 ? min(0.3, pr * 0.62) : pr * 0.8))
+                // (P398 a: the trunk leaning on up from its column's top keeps the trunk's thickness)
+                var lean = dy == 1 && (dx != 0 || dz != 0)
+                if lean && d == 0 { lean = !log(x, y + 1, z) }
+                else if lean, s.par[i] >= 0 {
+                    let gp = Int(s.par[i])
+                    let px = gp % W - M, pz = (gp / W) % W - M, py = gp / (W * W) - M
+                    lean = y - py == 1 && (x != px || z != pz)
+                }
+                s.rad[j] = max(0.07, s.col[j] == 3 ? pr * 0.7 : (lean ? pr * 0.92 : (d == 0 ? min(0.3, pr * 0.62) : pr * 0.8)))
                 q.append(Int32(j))
             }
         }
@@ -163,6 +173,13 @@ enum ShapeTrunks {
                 timber(ctx, x, y, z, axis: timberAxis(ctx, b, x, y, z), bark: bark, rings: rings, sides: sides)
             }
         } } }
+    }
+
+    // P398 (a): a log leans on from a column's top: a log one up and to the side (an acacia's lean), none straight up.
+    static func leansOn(_ ctx: DetailContext, _ x: Int, _ top: Int, _ z: Int) -> Bool {
+        guard !isTrunk[Int(ctx.column(x, top + 1, z))] else { return false }
+        for dz in -1...1 { for dx in -1...1 where (dx != 0 || dz != 0) && isTrunk[Int(ctx.column(x + dx, top + 1, z + dz))] { return true } }
+        return false
     }
 
     // P297 (d): a living trunk's radius at its foot by its height (5 tall: 0.24, 10: 0.31, 14+: 0.37), the taper takes
