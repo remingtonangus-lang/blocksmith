@@ -6,8 +6,9 @@ _Draft for review before store submission. Fill in the publisher name, contact a
 
 ## What Sunderfall collects
 
-Nothing leaves your headset unless you start Play Together (or choose the Director's Cloud planner, below). Sunderfall has no account, no analytics, no advertising and no
-telemetry, and it never contacts a server run by the publisher.
+No data leaves your headset. The only connection Sunderfall makes is Play Together, directly to a friend's headset on
+your local Wi-Fi (below), and only when you start it. Sunderfall has no account, no analytics, no advertising and no
+telemetry, and it never contacts a server on the internet.
 
 ## What stays on your headset
 
@@ -15,8 +16,8 @@ telemetry, and it never contacts a server run by the publisher.
   app's private storage on the headset. Uninstalling the app deletes them.
 - **Crash marker and logs:** a small marker that tells the game whether the last session ended normally, plus a short
   crash and stutter log (time, frame timings, which game system was slow). These files stay on the headset.
-- **Microphone:** the store version does not use the microphone. Development and playtest builds can record spoken bug
-  notes, and the store build has none of that code or the permission.
+- **Microphone:** Sunderfall does not use the microphone. The store build has no recording code and does not ask for
+  the microphone permission.
 
 ## Play Together (local network)
 
@@ -28,10 +29,7 @@ This data is not stored after the session ends, except that edits to the host's 
 ## The Director (after the story)
 
 Once the story is finished, the Director plans new events for your world. Its built-in rules and the optional
-on-device model run entirely on your headset. A Cloud planner exists for future versions: it is off unless you choose
-it in Options > Director, and it would send only a short summary of your game world (your gear, standing and nearby
-places, no names or account details) to the address you set. The headset build ships only a built-in test server for
-it, which uses no network at all.
+on-device model run entirely on your headset and send nothing anywhere. The store build has no online planner.
 
 ## Platform services
 

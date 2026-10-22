@@ -177,7 +177,7 @@ enum ObjectBreakTests {
             var saveLine = ""
             if !o.broken && !savedOnce {
                 savedOnce = true
-                let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("objects-\(getpid()).json")
+                let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("objects-\(ProcessInfo.processInfo.processIdentifier).json")
                 SaveIO.storeJSON(reg.saved(), to: url)
                 SaveIO.flush()
                 if let d = try? Data(contentsOf: url), let list = try? JSONDecoder().decode([WorldObjects.Saved].self, from: d) {

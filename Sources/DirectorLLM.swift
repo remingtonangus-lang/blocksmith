@@ -484,11 +484,18 @@ final class DirectorCloudBackend: DirectorBackend {
     }
     // The request: the summary and the catalogue only, never account or device data.
     func body(_ s: DirectorSummary, wanted: Int) -> Data? {
+        #if QUEST && !PLAYTEST
+        return nil                      // P396: nothing to send in the store build
+        #else
         let o: [String: Any] = ["format": "blocksmith-director-1", "wanted": wanted, "system": DirectorPrompt.system,
                                 "prompt": DirectorPrompt.user(s, wanted: wanted)]
         return try? JSONSerialization.data(withJSONObject: o)
+        #endif
     }
     func plan(_ s: DirectorSummary, wanted: Int) -> [DirectorRequest]? {
+        #if QUEST && !PLAYTEST
+        return nil                      // P396: the store build sends nothing off the headset (no cloud planner)
+        #else
         if endpoint == "mock" { return DirectorPrompt.parse(DirectorCloudBackend.mockReply(s, wanted: wanted), source: "cloud (mock)") }
         guard let url = URL(string: endpoint), url.scheme == "https", let data = body(s, wanted: wanted) else { lastError = "the endpoint must be https"; return nil }
         #if os(macOS) || (canImport(FoundationNetworking) && !os(Android))
@@ -511,6 +518,7 @@ final class DirectorCloudBackend: DirectorBackend {
         #else
         lastError = "HTTPS is not in this build"
         return nil
+        #endif
         #endif
     }
     // What a server answers (the mock): the rule director's plan written out as the reply JSON.

@@ -19,7 +19,7 @@ _Draft answers from the game as it is today. Check them against the build you su
 | User interaction | Yes, local network only | Play Together with one friend on the same Wi-Fi (shared pay and revives pass between the two headsets). No chat, no voice, no user-made content shared online. |
 | Shares location | No | |
 | Digital purchases | No | |
-| Unrestricted internet | No | |
+| Unrestricted internet | No | The store build sends no data off the headset: no online planner, no voice recording, no telemetry (P396). |
 
 Expected outcome: Mature (ESRB M / PEGI 18 / IARC 18+), driven by realistic war violence against human soldiers with
 real period weapons. Simulated gambling adds a gambling descriptor.

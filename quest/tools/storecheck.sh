@@ -2,8 +2,10 @@
 # Proves a Quest APK does (playtest) or does not (store) contain the voice bug notes recorder:
 #   quest/tools/storecheck.sh STORE.apk                  every check must find nothing
 #   quest/tools/storecheck.sh --expect-voice DEV.apk     every check must find it (shows the checks can see it)
-# Checks: the RECORD_AUDIO permission in the manifest, libmediandk among the library's dependencies, the mic/encoder
-# symbols (bs_mic_*, bs_aac_*, AMediaCodec_*, AAudioStreamBuilder_setInputPreset) and the recorder's strings.
+# Checks: the RECORD_AUDIO permission in the manifest, the mic/encoder symbols (bs_mic_*, bs_aac_*, bs_venc_*, an
+# encoder made with AMediaCodec_createEncoderByType, AMediaMuxer_*, AAudioStreamBuilder_setInputPreset) and the
+# recorder's strings. (libmediandk and AMediaCodec's decoder calls stay in every build since P359: the soundtrack's
+# decoder, MediaTrackDecoder.swift.)
 # Needs AAPT2 and READELF (build-apk.sh exports them) or finds them on PATH.
 set -uo pipefail
 EXPECT=0
@@ -21,15 +23,15 @@ check() {   # name, count found
   else echo "storecheck: FAIL $1 should be $want ($found found)"; fails=$((fails + 1)); fi
 }
 check "RECORD_AUDIO permission" "$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null | grep -c RECORD_AUDIO)"
-check "libmediandk dependency" "$("$READELF" -d "$SO" | grep -c 'libmediandk')"
-check "mic/encoder symbols" "$("$READELF" --dyn-syms "$SO" | grep -cE 'bs_mic_|bs_aac_|bs_venc_|AMediaCodec_|AMediaMuxer_|AAudioStreamBuilder_setInputPreset')"
+check "mic/encoder symbols" "$("$READELF" --dyn-syms "$SO" | grep -cE 'bs_mic_|bs_aac_|bs_venc_|AMediaCodec_createEncoderByType|AMediaMuxer_|AAudioStreamBuilder_setInputPreset')"
 check "recorder strings" "$(strings -a "$SO" | grep -cE 'voicenotes|voicevideo|RECORD_AUDIO')"
+check "cloud planner request (P396)" "$(strings -a "$SO" | grep -c 'blocksmith-director-1')"
 check "playtest checklist asset (P399)" "$(unzip -l "$APK" 2>/dev/null | grep -c 'assets/device-checklist.md')"
 # P360 (c): Meta store packaging (hz-store-submit's VRC packaging rows), on store builds only.
 if [ "$EXPECT" = 0 ]; then
   pk() { if [ "$2" = 1 ]; then echo "storecheck: ok   $1"; else echo "storecheck: FAIL $1"; fails=$((fails + 1)); fi; }
   MAN=$("$AAPT2" dump badging "$APK" 2>/dev/null)
-  sdk=$(echo "$MAN" | sed -n "s/^sdkVersion:'\([0-9]*\)'.*/\1/p"); tsdk=$(echo "$MAN" | sed -n "s/^targetSdkVersion:'\([0-9]*\)'.*/\1/p")
+  sdk=$(echo "$MAN" | sed -n "s/^\(min\)\{0,1\}[sS]dkVersion:'\([0-9]*\)'.*/\2/p" | head -1); tsdk=$(echo "$MAN" | sed -n "s/^targetSdkVersion:'\([0-9]*\)'.*/\1/p")
   pk "minSdk >= 29 ($sdk)" "$([ "${sdk:-0}" -ge 29 ] && echo 1)"
   pk "targetSdk >= 32 ($tsdk)" "$([ "${tsdk:-0}" -ge 32 ] && echo 1)"
   other=$(unzip -Z1 "$APK" | grep '^lib/' | grep -vc '^lib/arm64-v8a/')
@@ -39,8 +41,9 @@ if [ "$EXPECT" = 0 ]; then
   pk "no prohibited permissions ($bad)" "$([ "$bad" -eq 0 ] && echo 1)"
   if [ -n "${APKSIGNER:-}" ]; then
     SIG=$("$APKSIGNER" verify --verbose --print-certs "$APK" 2>/dev/null)
-    pk "APK Signature Scheme v2" "$(echo "$SIG" | grep -q 'v2 scheme (APK Signature Scheme v2): true' && echo 1)"
-    if echo "$SIG" | grep -q 'CN=Android Debug'; then
+    # (v2 or later: with minSdk 29 apksigner signs v3 only, which Quest OS verifies and which supersedes v2)
+    pk "APK Signature Scheme v2 or later" "$(echo "$SIG" | grep -qE 'v[23] scheme \(APK Signature Scheme v[23]\): true' && echo 1)"
+    if echo "$SIG" | grep -qiE 'DN: CN=[^,]*Debug'; then
       if [ -n "${STORE_KEYSTORE:-}" ]; then pk "release key (debug-signed)" 0; else echo "storecheck: note debug-signed (set STORE_KEYSTORE for the upload)"; fi
     else pk "release key" 1; fi
   fi
