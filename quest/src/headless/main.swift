@@ -60,6 +60,10 @@ if renderPath != nil {
     if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
 }
 let device = sharedSystemDevice
+// --saveacross write|read DIR: P395 (3), a save carried from an older build to this one (Sources/SaveAcross.swift).
+if let i = CommandLine.arguments.firstIndex(of: "--saveacross"), i + 2 < CommandLine.arguments.count {
+    exit(SaveAcross.run(device: device, mode: CommandLine.arguments[i + 1], dir: CommandLine.arguments[i + 2]))
+}
 // --perfscenes [--rd 12,16] [--only NAME,...] [--blockworld]: the Quest frame's CPU side in the playtest scenes (P283,
 // quest/src/test/QuestPerf.swift).
 if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }

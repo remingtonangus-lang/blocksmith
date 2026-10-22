@@ -626,6 +626,10 @@ final class Game {
         dragonKilled = m.dragonKilled ?? false
         gateways = m.gateways ?? 0
         seenCredits = m.seenCredits ?? false
+        // P395: blocks a save caught mid-fall (saved where they were) fall on once their chunks are in.
+        if let s = save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("falling.json")), let cells = try? JSONDecoder().decode([[Int]].self, from: d) {
+            world.gravityQueue += cells.filter { $0.count == 3 }.map { IVec3($0[0], $0[1], $0[2]) }
+        }
         if let s = save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("xporbs.json")), let o = try? JSONDecoder().decode([XPOrb].self, from: d) {
             xpOrbs = o.filter { $0.amount > 0 && $0.age < 300 }
         }
@@ -663,7 +667,14 @@ final class Game {
         if coop.current != 0 { coop.withSeat(0, self) { self.saveNow(background: background) }; return }
         // A synchronous save must land after any autosave still queued, or the older queued meta/mobs overwrite it.
         if !background { SaveIO.flush() }
+        world.savingFalling = falling.filter { !$0.dead }.map { (IVec3(Int(floor($0.pos.x)), Int(floor($0.pos.y)), Int(floor($0.pos.z))), $0.block) }
         world.saveAll(background: background)
+        // (P395: the cells they were saved in, so a load lets them fall on)
+        let fallURL = s.dir.appendingPathComponent("falling.json")
+        if !world.savingFalling.isEmpty || FileManager.default.fileExists(atPath: fallURL.path) {
+            SaveIO.storeJSON(world.savingFalling.map { [$0.0.x, $0.0.y, $0.0.z] }, to: fallURL)
+        }
+        world.savingFalling.removeAll()
         mobs.save(to: world.save, background: background)
         drops.save(to: world.save, background: background)
         // F1: map pixels go as raw bytes (MapData's own coding), from copies, encoded on the save queue by the autosave.

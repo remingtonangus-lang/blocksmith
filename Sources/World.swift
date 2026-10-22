@@ -1542,9 +1542,23 @@ final class World {
         fluidPending.removeAll(); lavaPending.removeAll()
     }
 
+    var savingFalling: [(IVec3, BlockID)] = []       // (P395: Game.saveNow's falling blocks, for saveAll)
     func saveAll(background: Bool = false) {
         // Only chunks changed since their last save, written on the background save queue.
-        for (k, c) in chunks where c.needsSave {
+        // P395: blocks falling as entities (Game.falling) are saved in the cell each has reached; a save taken mid-fall
+        // lost them (the cell they left was saved empty, and the entity isn't kept). The live chunk keeps them falling,
+        // and stays unsaved so the next save writes where they land.
+        var ghosts: [ChunkKey: [(Int, BlockID)]] = [:]
+        for (p, b) in savingFalling where p.y >= 0 && p.y < CH && block(p.x, p.y, p.z) == AIR {
+            ghosts[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS)), default: []].append((Chunk.index(mod(p.x, CS), p.y, mod(p.z, CS)), b))
+        }
+        for (k, c) in chunks where c.needsSave || ghosts[k] != nil && !c.hollow {
+            if let gs = ghosts[k], !c.hollow {
+                var b = c.blocks
+                for (i, id) in gs { b[i] = id }
+                save?.saveChunkAsync(k, b)
+                continue
+            }
             save?.saveChunkAsync(k, c.blocks)
             c.markSaved()
         }
