@@ -39,11 +39,12 @@ enum TroopTests {
                     guard let m = grey(k, t, p + V3(Float(i * 3), 0, Float(j * 3))), let c = m.troopClass else { ok = false; continue }
                     seen[c, default: 0] += 1
                     let gun = m.soldierBrain.gun
+                    // P393: Greywall carries Greywall and frontier arms only (P256), Hannibals the Slate Repeater; the
+                    // Capital's class guns (Brecher, Blitzlanze, rotary) stay with the Capital's own troops.
                     let fits: Bool
                     switch c {
-                    case .regular: fits = [Guns.rifle, Guns.smg, Guns.shotgun, Guns.pistol].contains(gun)
-                    case .specOps: fits = [Guns.sniper, Guns.smg, Guns.rifle].contains(gun)
-                    case .hannibal: fits = [Guns.ashsaw, Guns.launcher, Guns.arc, Guns.rotary].contains(gun)
+                    case .regular, .specOps: fits = Guns.isGreyArm(gun) || [Guns.revolver, Guns.kessel].contains(gun)
+                    case .hannibal: fits = gun == Guns.repeater
                     }
                     if !fits || m.variant != gun { ok = false; rows.append("\(t) \(k) \(c.name) carries \(Guns.all[gun].name)") }
                 }
@@ -82,9 +83,9 @@ enum TroopTests {
         let dropped = g.drops.items.count - drops0
         let piece = g.drops.items.last.map { Items.key($0.stack.item) } ?? "none"
         g.drops.items.removeSubrange(drops0..<g.drops.items.count)
-        check(abs(through[0] - 8 * 0.35) < 0.01 && through[crackedAt] > through[0] && through.last == 8 && offAt > 0 && dropped == 1 && piece == "hannibal_helmet",
-              String(format: "troop armour: a Hannibal helmet lets %.1f of 8 through, cracked after %d hits (then %.1f), shot off after %d (then 8: %.1f), dropping %@",
-                     through[0], crackedAt, crackedAt >= 0 ? through[crackedAt] : -1, offAt, through.last ?? -1, piece))
+        check(abs(through[0] - 8 * 0.35) < 0.01 && through[crackedAt] > through[0] && through.last == 8 && offAt > 0 && dropped == 0,
+              String(format: "troop armour: a Hannibal helmet lets %.1f of 8 through, cracked after %d hits (then %.1f), shot off after %d (then 8: %.1f), wrecked with nothing dropped (P204): %@",
+                     through[0], crackedAt, crackedAt >= 0 ? through[crackedAt] : -1, offAt, through.last ?? -1, dropped == 0 ? "none" : piece))
         // Melee wears the vest.
         let v0 = m.troopSeg.y
         Mob.playerMelee = true
@@ -108,21 +109,27 @@ enum TroopTests {
         back.loadExtra(d)
         check(back.troopClass == .hannibal && back.troopSeg == m.troopSeg && back.soldierBrain.gun == m.soldierBrain.gun,
               "troop save: class, worn vest (\(Int(back.troopSeg.y))) and \(Guns.all[back.soldierBrain.gun].name) kept through a save")
-        // Loot: of 60 fallen Hannibal troopers about a third of each surviving piece drops, with its life left.
-        let drops0 = g.drops.items.count
-        for i in 0..<60 {
-            let x = Mob(.soldierIronclad, at: p + V3(Float(i % 6), 0, Float(i / 6)))
-            x.setTroop(.hannibal, rearm: false)
-            x.killedByPlayer = true
-            x.troopSeg.y = TroopClass.hannibal.segMax.y * 0.5
-            x.troopLoot(g)
+        // Loot (P204, P322 d): a fallen soldier drops its armour as one set, about a third of the time (a Hannibal's
+        // flight suit about 1 in 100), remembering the life each piece had left (7 bits a piece in the tag).
+        func fall(_ c: TroopClass, _ n: Int) -> [ItemStack] {
+            let drops0 = g.drops.items.count
+            for i in 0..<n {
+                let x = Mob(.soldierIronclad, at: p + V3(Float(i % 6), 0, Float(i / 6)))
+                x.setTroop(c, rearm: false)
+                x.killedByPlayer = true
+                x.troopSeg.y = c.segMax.y * 0.5
+                x.troopLoot(g)
+            }
+            let got = g.drops.items[drops0...].map { $0.stack }
+            g.drops.items.removeSubrange(drops0..<g.drops.items.count)
+            return got
         }
-        let got = g.drops.items[drops0...].map { $0.stack }
-        g.drops.items.removeSubrange(drops0..<g.drops.items.count)
-        let vests = got.filter { Items.key($0.item) == "hannibal_vest" }
-        let half = vests.allSatisfy { s in let dur = Items.def(s.item).durability; return abs(Float(dur - s.damage) / Float(dur) - 0.5) < 0.05 }
-        check(got.count > 30 && got.count < 95 && !vests.isEmpty && half,
-              "troop loot: 60 fallen Hannibal troopers drop \(got.count) pieces (\(vests.count) vests, each with the half life it had left: \(half))")
+        let spec = fall(.specOps, 60), hann = fall(.hannibal, 600)
+        let sets = spec.filter { Items.key($0.item) == TroopClass.specOps.setItem }
+        let half = sets.allSatisfy { abs((($0.tag >> 7) & 127) - 50) <= 1 && ($0.tag & 127) == 100 }
+        let suits = hann.filter { Items.key($0.item) == TroopClass.hannibal.setItem }
+        check(sets.count >= 10 && sets.count <= 35 && sets.count == spec.count && half && suits.count == hann.count && hann.count <= 20,
+              "troop loot: 60 fallen Spec Ops drop \(sets.count) armour sets (vest at half life, helmet whole: \(half)); 600 Hannibals drop \(suits.count) flight suits")
         let vest = Items.id("hannibal_vest")
         check(Enchant.repairMaterial(vest) == "steel_ingot" && Items.def(vest).armorSlot == .chest && Items.def(vest).armor > Items.def(Items.id("iron_chestplate")).armor,
               "troop loot: a Hannibal Vest is worn on the chest (\(Items.def(vest).armor) armour) and repaired with steel")
