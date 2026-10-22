@@ -60,6 +60,11 @@ if renderPath != nil {
     if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
 }
 let device = sharedSystemDevice
+// --controllerpic OUT.svg [--left]: P402 (3), the loading scene's controller picture (quest/src/app/ControllerPicture.swift).
+if let out = arg("--controllerpic") {
+    try? ControllerPicture.svg(leftHanded: CommandLine.arguments.contains("--left")).write(toFile: out, atomically: true, encoding: .utf8)
+    print("controllerpic: wrote \(out)"); exit(0)
+}
 // --saveacross write|read DIR: P395 (3), a save carried from an older build to this one (Sources/SaveAcross.swift).
 if let i = CommandLine.arguments.firstIndex(of: "--saveacross"), i + 2 < CommandLine.arguments.count {
     exit(SaveAcross.run(device: device, mode: CommandLine.arguments[i + 1], dir: CommandLine.arguments[i + 2]))
@@ -542,6 +547,17 @@ if let out = arg("--view"), let ctx = vkctx {
         } } }
         print("view: \(things.count) generated things on the ground (seated things in reach: " + seen.keys.sorted().map { "\($0) \(seen[$0]!)" }.joined(separator: ", ") + ")")
         if CommandLine.arguments.contains("--groundcheck") { print(GroundDrape.check(vw, things)) }
+    }
+    // --scene spawncamp (P402): a new survival world's spawn with its abandoned camp (Sources/SpawnCamp.swift), the eye at
+    // the spawn (--look picks the view; 0,-15 is the way a new player first faces).
+    if arg("--scene") == "spawncamp" {
+        vg.survival = true
+        vg.player.pos = vg.spawnPoint
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        if let c = vg.placeSpawnCamp() {
+            print("view: spawn \(vg.player.pos), camp fire \(c.fire), bench \(c.bench), chest \(c.chest), frame \(c.frame.count) blocks, tree \(c.tree.map { "\($0)" } ?? "none"), \(c.path.count) torches on the way")
+        } else { print("view: no camp at the spawn \(vg.player.pos)") }
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     }
     // --scene meetground (P387): stone, planks, lamps and chests placed on the ground ahead (the ground rises to meet
     // them, World.meetGround), then things in a section's first row over ground in the section below (GroundMeetTests.swift);

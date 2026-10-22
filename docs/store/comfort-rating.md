@@ -6,7 +6,7 @@ artificial motion that some players will find intense.
 | Factor | In Sunderfall | Mitigation in the options |
 |---|---|---|
 | Artificial locomotion | Stick movement, sprinting | Comfort preset (Comfort / Moderate / Free), speed caps, vignette while moving |
-| Turning | Smooth or snap turn | Snap turn by default in the Comfort preset, adjustable angle |
+| Turning | Smooth or snap turn | Snap turn by default: a new profile starts on the Moderate preset (45 degree snap turns, a medium vignette); the Comfort preset adds teleport and a strong vignette; adjustable angle |
 | Vehicles | Horses (galloping gait bob), trains (seats and roofs, which sway round curves), boats on waves, frigates, airships, tanks and carriages | Vignette in vehicles; the horse's bob follows its stride and is mild |
 | Falling and flight | Falling from heights, creative flight, gliding | Vignette; fall camera has no roll |
 | Camera control | No forced camera moves, no head-locked cutscenes. The credits roll on a panel. Being downed in co-op slows you to a crawl but never moves the camera for you | |
