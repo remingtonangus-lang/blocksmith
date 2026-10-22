@@ -176,7 +176,7 @@ def main():
                  f"- **Transcript:** {text if text else '(not transcribed yet: run again with the OpenRouter key)'}",
                  "- **Status:** open"]
         for k in ["build", "world", "dimension", "biome", "position", "facing", "held", "mount", "looking at", "mode",
-                  "time", "fps", "levels"]:
+                  "time", "fps", "levels", "checklist"]:
             if k in ctx:
                 lines.append(f"- **{k.capitalize()}:** {ctx[k]}")
         if end:
@@ -220,6 +220,14 @@ def main():
         print(f"wrote {md} ({len(entries)} notes)")
     if not written:
         print("No spoken notes found.")
+    # P399: the in-game checklist's tick log (vn-checklist-log.md, kept on the headset and pulled whole each run).
+    log = raw / "vn-checklist-log.md"
+    if log.exists():
+        day = datetime.date.today().isoformat()
+        folder = Path(args.out) / day
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "checklist-log.md").write_text("# Checklist ticks (Quest, in-game page)\n\n" + log.read_text(errors="replace"))
+        print(f"wrote {folder / 'checklist-log.md'}")
 
     if not args.keep and remote:
         a = adb()

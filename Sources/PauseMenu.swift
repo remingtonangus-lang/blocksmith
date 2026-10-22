@@ -9,7 +9,7 @@ final class PauseMenu: Menu {
     static let sens: [Float] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10]
     static let zones: [Float] = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25]
     static let outers: [Float] = [0, 0.02, 0.05, 0.08, 0.1, 0.15, 0.2]
-    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, net, stats }
+    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, net, stats, checklist }
     enum Cat: Int, CaseIterable {
         // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
         // distance setting" - it sat on page 3 behind the input pages).
@@ -110,7 +110,7 @@ final class PauseMenu: Menu {
 
     static func isValue(_ id: String) -> Bool {
         valueIDs.contains(id) || id.hasPrefix("vol:") || id.hasPrefix("fx") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol", "audio_music_titles"].contains(id)
-            || hostValues.contains(id)
+            || hostValues.contains(id) || id.hasPrefix("cl:") || id == "cl_view" || id == "cl_sw"     // P399
     }
 
     static let help: [String: String] = [
@@ -291,6 +291,10 @@ final class PauseMenu: Menu {
             }
             if let e = PauseMenu.hostEntry, g.coop.current == 0 { rows.insert(e, at: 2) }
             if !g.cheatsAllowed { rows.removeAll { $0.1 == "commands" || $0.1 == "shortcuts" } }    // Q2c-console-15
+            // P399: the device checklist, playtest builds only (above Shortcuts; the store build has no row).
+            if Playtest.enabled && g.coop.current == 0, let at = rows.firstIndex(where: { $0.1 == "shortcuts" || $0.1 == "mode" }) {
+                rows.insert(("Playtest Checklist...", "checklist"), at: at)
+            }
             // S4: after a crash, the newest rolling backup of this world can be put back.
             if CrashGuard.crashed && g.coop.current == 0 { rows.insert(("Restore Last Backup (after a crash)", "restorebackup"), at: 1) }
         case .options:
@@ -402,6 +406,11 @@ final class PauseMenu: Menu {
             title = "Statistics"
             subtitle = currentWorld.isEmpty ? "This world" : currentWorld
             rows = Stats.rows(g).map { ($0, "noop") } + [("Back", "back")]
+        case .checklist:                                                // P399 (PlaytestChecklist.swift)
+            title = "Playtest Checklist"
+            let c = PlaytestChecklist.rows(g, width: style.width)
+            subtitle = c.subtitle
+            rows = c.rows
         case .shortcuts:
             title = "Shortcuts"
             subtitle = "Teleport to the nearest one"
@@ -500,7 +509,7 @@ final class PauseMenu: Menu {
                 (["resume", "restorebackup"], 0),
                 (["options", vr, PauseMenu.viewFixed ? "ad" : "rd", "mode"], 0),                              // settings
                 (["worldmap", "track", "advancements", "stats"], 0),             // map and progress
-                (["worlds", "netmenu", "coop", "photo", "commands", "shortcuts"], 0),
+                (["worlds", "netmenu", "coop", "photo", "commands", "checklist", "shortcuts"], 0),
                 (["totitle"], 0)])                                                // leaving, apart from the rest
         case .title:
             return Style(width: 440, btnH: 30, gapX: 12, gapY: 6, groupGap: 12, cols: 4, lines: 6, groups: [
@@ -520,6 +529,8 @@ final class PauseMenu: Menu {
             // Cancel and the action side by side, well apart.
             return Style(width: 300, btnH: 30, gapX: 24, gapY: 6, groupGap: 12, cols: 2, lines: 2, groups: [
                 (rows.map { $0.1 }, 2)])
+        case .checklist:
+            return Style(width: 440, btnH: 20, lines: 12)                 // P399: long item lines
         default:
             return .list
         }
@@ -662,6 +673,7 @@ final class PauseMenu: Menu {
         }
         if id == "dir_status" || id == "dir_model" { return Director.statusLines(game).prefix(2).joined(separator: ". ") }   // P266 (n)
         if id == "w_delete" && !WorldStore.useTrash { return "Delete this world for good (there is no Trash on this device): Copy it first to keep a backup." }   // Q2c-console-5
+        if let h = PlaytestChecklist.help(id) { return h }               // P399
         if id == "mode" { return "Survival: health, hunger, mining. Creative: fly and build freely. Asks before switching." }
         if id == "new_diff" { return Difficulty.help[Difficulty.clamp(newDifficulty)] }     // Q2c-console-17 (P302: per level)
         if id == "difficulty" || id == "q_firstdiff" { return Difficulty.help[Difficulty.clamp(game.diffLevel)] }   // P302 (c): the level in play
@@ -669,6 +681,9 @@ final class PauseMenu: Menu {
     }
 
     var legend: String {
+        if let id = hoveredID, id.hasPrefix("cl:") {                  // P399: tick, or a voice note about the item
+            return Prompt.line([(.select, "Tick"), (.alt, "Voice Note"), (.back, "Back")])
+        }
         var items: [(Prompt.Act, String)] = [(.select, "Select")]
         let value = hoveredID.map { PauseMenu.isValue($0) } ?? false
         if value && !Prompt.pad { items.append((.alt, "Previous")) }
@@ -747,6 +762,20 @@ final class PauseMenu: Menu {
             go(.options); resetCursor = true
         case "controls": go(.controls); resetCursor = true
         case "shortcuts": go(.shortcuts); resetCursor = true
+        case "checklist": PlaytestChecklist.loadIfNeeded(); go(.checklist); resetCursor = true      // P399
+        case _ where id.hasPrefix("cl:"):
+            if let i = Int(id.dropFirst(3)) {
+                if back { g.closeMenu(); PlaytestChecklist.note(i, clock: g.clock); return }     // X: a voice note about it
+                PlaytestChecklist.toggle(i)
+            }
+        case "cl_view":
+            let v = PlaytestChecklist.viewSteps
+            g.setRenderDistance(step(v, v.contains(g.world.renderDistance) ? g.world.renderDistance : 24))
+        case "cl_sw": PlaytestChecklist.spaceWarp?.toggle()
+        case _ where id.hasPrefix("clgo:"):
+            g.closeMenu()
+            PlaytestChecklist.go(String(id.dropFirst(5)), g)
+            return
         case _ where id.hasPrefix("sc:"):
             g.closeMenu()
             g.shortcutTeleport(String(id.dropFirst(3)))

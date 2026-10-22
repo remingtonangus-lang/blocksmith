@@ -46,6 +46,7 @@ final class BugNotes {
     private weak var game: Game?
     private let events = VoiceEvents()
     private var open: String?
+    private var talkUntil = 0.0                 // P399: a checklist row's voice note holds push-to-talk until then
     private var lastState = 0.0, lastShot = -100.0
     private let io = DispatchQueue(label: "blocksmith.voicenotes", qos: .utility)
 
@@ -72,6 +73,7 @@ final class BugNotes {
         permission = activity.map { bs_mic_permission($0) == 1 } ?? false
         firstLaunch = !QuestSettings.voiceNotesAsked
         setupAt = CFAbsoluteTimeGetCurrent()
+        PlaytestChecklist.startNote = { [weak self] in self?.talkUntil = CFAbsoluteTimeGetCurrent() + 20 }
         print("voicenotes: dir \(d), mic permission \(permission), mode \(mode)")
         io.async { VoiceNoteContext.enforceCap(dir: d, maxBytes: BugNotes.maxBytes) }
     }
@@ -131,11 +133,12 @@ final class BugNotes {
             }
         }
         let m = mode
-        let want = m != .off && permission && !paused && HudExtras.enabled
+        let talking = wall < talkUntil
+        let want = (m != .off || wall < talkUntil + 1) && permission && !paused && HudExtras.enabled
         let raw = PadManager.shared.lastRaw
         lock.lock()
-        sharedMode = m
-        ptt = raw.l3 && raw.r3
+        sharedMode = talking ? .pushToTalk : m
+        ptt = (raw.l3 && raw.r3) || talking
         let s = started, e = ended, f = failed
         started.removeAll(); ended.removeAll(); failed = nil
         let go = want && f == nil

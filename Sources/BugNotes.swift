@@ -234,7 +234,7 @@ final class BugNotes {
         let weather = g.weather.thundering ? "thunderstorm" : (g.weather.raining ? "rain" : "clear")
         let ms = frameTime * 1000
         let pads = PadManager.shared
-        return [
+        var r: [(String, String)] = [
             ("Build", build),
             ("World", "\(world) (seed \(g.world.seed))"),
             ("Dimension", "\(g.dim.dim)"),
@@ -253,6 +253,8 @@ final class BugNotes {
                 + String(format: ", world scale %.0f%%, brightness %.2f", g.renderScale * 100, Settings.shared.lightBrightness)),
             ("Input", pads.connected ? "\(pads.name), last used \(pads.usingPad ? "controller" : "keyboard/mouse")" : "keyboard/mouse"),
         ]
+        if let t = PlaytestChecklist.noteTag(clock: g.clock) { r.append(("Checklist item", t)) }   // P399
+        return r
     }
 
     static func append(stamp: String, transcript: String?, context: [(String, String)], screenshot: String?, audio: String?) {

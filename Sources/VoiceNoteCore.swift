@@ -136,7 +136,7 @@ enum VoiceNoteContext {
         if let s = g.world.ships.pilot { mount = "piloting \(s.name)" }
         if p.flying { mount += ", flying" }
         let held = g.held.count > 0 ? "\(Items.name(g.held.item)) x\(g.held.count)" : "empty hand"
-        return [
+        var r: [(String, String)] = [
             ("build", build),
             ("world", "\(g.save?.dir.lastPathComponent ?? "(test world)") (seed \(g.world.seed))"),
             ("dimension", g.dim.dim.displayName),
@@ -154,6 +154,8 @@ enum VoiceNoteContext {
                              g.world.seed, p.pos.x, p.pos.z, Double(p.yaw * 180 / .pi), Double(p.pitch * 180 / .pi), g.dayFraction,
                              g.dim.dim == .overworld ? "" : " --dim \(g.dim.dim.rawValue)")),
         ]
+        if let t = PlaytestChecklist.noteTag(clock: g.clock) { r.append(("checklist", t)) }   // P399
+        return r
     }
 
     // One JSON object per line; keys in the given order.

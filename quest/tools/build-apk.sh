@@ -60,6 +60,8 @@ if ls Resources/Sounds/real/*.wav >/dev/null 2>&1; then
     for f in build/sfx-pack/*.ogg build/sfx-pack/*.m4a build/sfx-pack/sfx-index.txt; do if [ -f "$f" ]; then cp "$f" "$STAGE/assets/sounds/real/"; fi; done
   else cp Resources/Sounds/real/*.wav "$STAGE/assets/sounds/real/"; fi
 fi
+# P399: the device checklist page reads its list from the .md (playtest builds only).
+if [ "$STORE" != 1 ]; then cp docs/status/device-checklist.md "$STAGE/assets/device-checklist.md"; fi
 # P359: the Sunderfall soundtrack, streamed from the APK by MediaTrackDecoder (stored uncompressed: -0 m4a below).
 if ls Resources/Music/sunderfall/*.m4a >/dev/null 2>&1; then mkdir -p "$STAGE/assets/music"; cp Resources/Music/sunderfall/*.m4a "$STAGE/assets/music/"; fi
 
@@ -133,7 +135,7 @@ sedi "s|@PKGLIBS@|$ROOT/$BPKG/libs|" "$PKG/Package.swift"
 # compile (an edit rebuilds in seconds, not minutes); less cross-file inlining, so judge frame times on a default build.
 if [ "${QUEST_FAST:-0}" = 1 ]; then sedi 's|@WMO@||' "$PKG/Package.swift"; else sedi 's|@WMO@|, "-wmo"|' "$PKG/Package.swift"; fi
 if [ "$STORE" = 1 ]; then sedi 's|@VOICE_LIBS@||; s|@VOICE_DEFINE@||' "$PKG/Package.swift"
-else sedi 's|@VOICE_LIBS@||; s|@VOICE_DEFINE@|, .define("VOICE_NOTES")|' "$PKG/Package.swift"; fi
+else sedi 's|@VOICE_LIBS@||; s|@VOICE_DEFINE@|, .define("VOICE_NOTES"), .define("PLAYTEST")|' "$PKG/Package.swift"; fi
 mkdir -p "$BPKG"; rsync -rc --delete --exclude .build "$PKG"/ "$BPKG"/
 
 echo "== swift build ($SDK, $TRIPLE)"

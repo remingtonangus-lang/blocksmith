@@ -165,6 +165,11 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     if let ext = extPath { RealSounds.addFolder(ext + "/Sounds") }
     // Voice bug notes (playtest builds; a no-op stub in store builds): recordings under files/voicenotes.
     if let ext = extPath { BugNotes.shared.setup(activity: UnsafeMutableRawPointer(activity), files: ext) }
+    // P399: the device checklist page (playtest builds: assets/device-checklist.md, ticks beside the voice notes).
+    #if PLAYTEST
+    PlaytestChecklist.dir = URL(fileURLWithPath: (extPath ?? dataPath) + "/voicenotes")
+    if let d = readAsset(activity.pointee.assetManager, "device-checklist.md") { PlaytestChecklist.load(text: String(decoding: d, as: UTF8.self)) }
+    #endif
     app.pointee.onAppCmd = { a, cmd in handleCmd(a, cmd) }
     app.pointee.onInputEvent = { a, e in handleInput(a, e) }
     keyboardShown = false

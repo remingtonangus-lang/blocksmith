@@ -947,6 +947,10 @@ if CommandLine.arguments.contains("--maingun-quick") {
     print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --frigatecheck: P325, the Meridian frigate's interior, flight, main gun and crash from its helm (Sources/FrigateCheck.swift).
+if CommandLine.arguments.contains("--checklist-only") {          // P399: the in-game playtest checklist page
+    PlaytestChecklistCheck.run(game, check)
+    print(failures == 0 ? "checklist: all checks passed" : "checklist: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--difficulty-only") {          // P358: hits to kill and a fight per level
     DifficultyCheck.run(game, check)
     print(failures == 0 ? "difficulty: all checks passed" : "difficulty: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

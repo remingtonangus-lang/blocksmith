@@ -24,6 +24,7 @@ check "RECORD_AUDIO permission" "$("$AAPT2" dump xmltree --file AndroidManifest.
 check "libmediandk dependency" "$("$READELF" -d "$SO" | grep -c 'libmediandk')"
 check "mic/encoder symbols" "$("$READELF" --dyn-syms "$SO" | grep -cE 'bs_mic_|bs_aac_|bs_venc_|AMediaCodec_|AMediaMuxer_|AAudioStreamBuilder_setInputPreset')"
 check "recorder strings" "$(strings -a "$SO" | grep -cE 'voicenotes|voicevideo|RECORD_AUDIO')"
+check "playtest checklist asset (P399)" "$(unzip -l "$APK" 2>/dev/null | grep -c 'assets/device-checklist.md')"
 # P360 (c): Meta store packaging (hz-store-submit's VRC packaging rows), on store builds only.
 if [ "$EXPECT" = 0 ]; then
   pk() { if [ "$2" = 1 ]; then echo "storecheck: ok   $1"; else echo "storecheck: FAIL $1"; fails=$((fails + 1)); fi; }

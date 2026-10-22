@@ -33,6 +33,7 @@ cp Info.plist "$APP/Contents/Info.plist"
 rm -rf "$APP/Contents/Resources/Textures"
 if [ -d Resources/Textures ]; then cp -R Resources/Textures "$APP/Contents/Resources/Textures"; fi
 # Townsfolk voice takes (tools/townvoice_gen.py, TownVoice.swift).
+cp docs/status/device-checklist.md "$APP/Contents/Resources/device-checklist.md"   # P399: the pause menu's checklist page
 if [ -f Resources/voices.bin ]; then cp Resources/voices.bin "$APP/Contents/Resources/voices.bin"; fi
 # Recorded sounds that replace synthesized ones by name (Resources/Sounds/real/README.md, RealSounds.swift).
 rm -rf "$APP/Contents/Resources/Sounds"
