@@ -4,12 +4,12 @@ import simd
 // The Ashguard's arms (backlog B7, docs/status/the-last-war.md): period guns in walnut, bakelite and blued steel, under
 // their own names since P326 (Oct 15 19:04, "their real WWII weapons by name"). Gun pixels like CapitalArms (barrel
 // toward -Z, y up); no part uses the enamel pattern, so a soldier's livery never repaints them.
-//   Kar98k        (gun_kessel) long walnut stock, turned-down bolt, barrel bands, hooded front sight; five rounds
-//   MP40          (gun_hagel) round receiver tube, long straight magazine, bakelite grip and housing, folding wire
+//   Kessel Bolt Rifle (gun_kessel) long walnut stock, turned-down bolt, barrel bands, hooded front sight; five rounds
+//   Hagel Machine Pistol (gun_hagel) round receiver tube, long straight magazine, bakelite grip and housing, folding wire
 //                 stock, the barrel rest under the muzzle (P326: back, with its own look)
-//   StG 44        (gun_sturmwind) stamped receiver, curved magazine, walnut butt, pistol grip
-//   Panzerfaust   (gun_faust) the single-shot anti-tank tube
-// (P217, Oct 14: the machine gun is gone; its key loads as the StG 44.)
+//   Sturmwind Carbine (gun_sturmwind) stamped receiver, curved magazine, walnut butt, pistol grip
+//   Faustrohr     (gun_faust) the single-shot anti-tank tube
+// (P217, Oct 14: the machine gun is gone; its key loads as the Sturmwind.)
 enum AshArms {
     static let walnut = V3(0.36, 0.2, 0.1), blued = V3(0.11, 0.115, 0.13), steel = V3(0.2, 0.21, 0.23)
     static let bakelite = V3(0.16, 0.09, 0.06), brass = V3(0.72, 0.55, 0.24), bore = V3(0.02, 0.02, 0.02)

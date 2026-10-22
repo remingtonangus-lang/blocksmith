@@ -130,6 +130,12 @@ Panzerfaust Warhead), gun_hagel (retired by P217) back as the MP40, ash_tank Cin
 ban; parties, units, people, makers (Mauser, Luger, Messerschmitt) and emblems stay banned, and the Ashguard keeps its
 own ember mark.
 
+## Original names again for the last war's arms (2026-10-21, P397)
+For the store release the period designations come back out of everything the player reads (keys unchanged):
+gun_kessel Kar98k -> Kessel Bolt Rifle, gun_hagel MP40 -> Hagel Machine Pistol, gun_sturmwind StG 44 -> Sturmwind
+Carbine, gun_faust Panzerfaust -> Faustrohr (faust_warhead -> Faustrohr Warhead), ash_tank Tiger Tank -> Cinder Tank,
+ash_artillery 88 mm Gun -> Ember Field Gun. The real designations are back in tools/coined-terms.txt.
+
 ## Oct 11 evening (P42): potions are frontier tonics
 Every "Potion of X" is now "X Tonic" with an original name (keys and effects unchanged): Night Vision -> Owl-Eye,
 Invisibility -> Ghostwalk, Leaping -> Jackrabbit, Fire Resistance -> Emberward, Swiftness -> Quickstep, Slowness ->

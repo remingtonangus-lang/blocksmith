@@ -19,7 +19,7 @@ in a frame (check the namecheck and the ember-mark insignia before capturing).
 4. Riding: galloping beside a train at sunset.
 5. Sailing: at the helm of the frigate in a sea battle, cannon smoke.
 6. Hunting: following a blood trail through a pine forest at dawn with the bow.
-7. The last war: the Ashguard's Tiger tank breaking through a fence at an Ash Vault base (ember-mark flags only).
+7. The last war: the Ashguard's Cinder Tank breaking through a fence at an Ash Vault base (ember-mark flags only).
 8. Co-op: two players at a campfire outside their homestead at night.
 
 Capture each with the in-game photo mode off (no HUD), the comfort vignette off, and the default render settings.
