@@ -55,7 +55,7 @@ enum QuestOptions {
         PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]
-        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_tex", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_tex", "q_view", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
@@ -85,6 +85,7 @@ enum QuestOptions {
             "q_held": "How big swords, tools, blocks and guns look in your hand (0.8x to 1.5x).",
             "q_hand": "Which hand aims, breaks and uses (the other hand moves). Left swaps every button, stick, trigger and grip between the hands; the Menu button stays on the left controller.",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
+            "q_view": "How far the land is drawn, 8 to 24 chunks. Lower it when the game isn't keeping up; it applies at once.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
             "host:touch": "Every Touch controller button and what it does.",
             "q_bright": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
@@ -141,6 +142,7 @@ enum QuestOptions {
                 ("HUD Size: \(S.hudScale < 0.95 ? "Small" : (S.hudScale < 1.05 ? "Normal" : "Large"))", "q_hudsize"),
                 ("Menu Size: \(S.menuScale < 0.95 ? "Small" : (S.menuScale < 1.05 ? "Normal" : (S.menuScale < 1.2 ? "Large" : "Extra Large")))", "q_menusize"),
                 ("Brightness: \(PauseMenu.brightnessName(S.brightness))", "q_bright"),
+                ("View Distance: \(S.renderDistance) chunks", "q_view"),                                              // P415
                 ("Auto Render Distance: \(on(S.autoRenderDistance))", "q_autord"),
                 ("Clouds: \(on(S.clouds))", "q_clouds"),
                 ("HUD Fade: \(on(S.hudFade))", "q_hudfade"),
@@ -262,6 +264,10 @@ enum QuestOptions {
             S.hudScale = step(o, o.min { abs($0 - S.hudScale) < abs($1 - S.hudScale) } ?? 1, back)
         case "q_hud": S.hudDrop = step([Float(0.25), 0.42, 0.6], [Float(0.25), 0.42, 0.6].min { abs($0 - S.hudDrop) < abs($1 - S.hudDrop) } ?? 0.42, back)
         case "q_bright": S.brightness = step([0, 0.25, 0.5, 0.75, 1], S.brightness, back)
+        case "q_view":
+            // P415: live; the active distance never goes past it (Game.setActiveDistance)
+            S.renderDistance = step(S.viewSteps, S.renderDistance, back)
+            if let g = hooks.game() { g.setRenderDistance(S.renderDistance); g.setActiveDistance(Game.savedActiveDistance) }
         case "q_autord": S.autoRenderDistance.toggle()
         case "q_clouds": S.clouds.toggle()
         case "q_hudfade": S.hudFade.toggle()

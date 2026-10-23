@@ -28,6 +28,10 @@ enum QuestPerf {
         // north gate at Total War, the garrisons awake), looking in.
         Spot(name: "capital", seed: 13480747113613945685, x: 6094.4, y: 0, z: 688.6, yaw: 45, pitch: -12, find: "capital"),
         Spot(name: "vault", seed: 13480747113613945685, x: 0, y: 0, z: 0, yaw: 180, pitch: 3, find: "vault"),
+        // P403/P415: the Oct 22 playtest's two slow surface spots (voice notes 22:06:53, old-growth birch forest, 20 fps;
+        // 22:10:24, jungle, 14 fps)
+        Spot(name: "birch22", seed: 5663059916303033239, x: -4931.0, y: 106.0, z: 2253.3, yaw: 335, pitch: -7),
+        Spot(name: "jungle22", seed: 5663059916303033239, x: -6012.5, y: 92.3, z: 2927.8, yaw: 263, pitch: -31),
     ]
 
     final class Phase {

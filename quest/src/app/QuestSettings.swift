@@ -40,10 +40,12 @@ enum QuestSettings {
     // P339 (Remington, Oct 17: "24 render distance... you can see 24, but it would be the loading distance that
     // matters"): the view distance is fixed at 24 chunks on the headset, every chunk at full detail
     // (World.lodNear 99); what Auto and the pause menu change is the active distance (Game.setActiveDistance).
+    // P415 (Remington, Oct 23): Options > View Distance, 8 to 24 chunks in steps of 2, saved, applied live; 24 by default.
     static let viewDistance = 24
+    static let viewSteps = Array(stride(from: 24, through: 8, by: -2))
     static var renderDistance: Int {
-        get { viewDistance }
-        set { }
+        get { let v = int("renderDistance", viewDistance); return max(8, min(24, v / 2 * 2)) }
+        set { store(max(8, min(24, newValue / 2 * 2)), "renderDistance") }
     }
     static var resolutionScale: Float { get { float("quest.resolutionScale", 1.0) } set { store(newValue, "quest.resolutionScale") } }
     // Turning: snap by default (smooth turning is an option, and makes some people sick).

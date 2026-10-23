@@ -66,6 +66,8 @@ final class MeshArena {
     private var free = [FreeList](repeating: FreeList(), count: MeshArena.sizes.count)
     private var slab: MTLBuffer?
     private var bump = 0
+    // P415: each slab's bytes in live slices, so a slab nothing uses any more can be given back (trim).
+    private var slabs: [ObjectIdentifier: (buf: MTLBuffer, live: Int)] = [:]
     private(set) var slabBytes = 0
     private(set) var slabCount = 0, slabMsWorst = 0.0, slabMsTotal = 0.0     // (P400 harness: new slabs and their cost)
 
@@ -113,6 +115,7 @@ final class MeshArena {
             if slab == nil || bump + size > slabSize {
                 let t0 = CFAbsoluteTimeGetCurrent()
                 slab = device.makeBuffer(length: slabSize, options: .storageModeShared)
+                if let b = slab { slabs[ObjectIdentifier(b)] = (b, 0) }
                 let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
                 slabCount += 1; slabMsWorst = max(slabMsWorst, ms); slabMsTotal += ms
                 bump = 0
@@ -120,6 +123,7 @@ final class MeshArena {
             }
             if let s = slab { spot = (s, bump); bump += size }
         }
+        if let sp = spot { slabs[ObjectIdentifier(sp.0)]?.live += MeshArena.sizes[cls] }
         lock.unlock()
         guard let (buf, off) = spot else { return nil }
         memcpy(buf.contents() + off, bytes.baseAddress!, n)
@@ -132,6 +136,31 @@ final class MeshArena {
         let after = f.completed >= f.submitted ? 0 : f.submitted
         lock.lock()
         free[cls].items.append((b, off, after))
+        slabs[ObjectIdentifier(b)]?.live -= MeshArena.sizes[cls]
         lock.unlock()
+    }
+
+    // P415: gives back every slab no live slice uses (and no frame in flight may still read): after the view distance
+    // is lowered, the far meshes' memory goes back to the system instead of waiting in the free lists. Returns bytes.
+    @discardableResult func trim() -> Int {
+        let completed = MeshArena.fences.completed
+        lock.lock(); defer { lock.unlock() }
+        var empty = Set<ObjectIdentifier>()
+        for (id, e) in slabs where e.live <= 0 && e.buf !== slab { empty.insert(id) }
+        if empty.isEmpty { return 0 }
+        for c in 0..<free.count {
+            for i in free[c].head..<free[c].items.count where free[c].items[i].2 > completed {
+                empty.remove(ObjectIdentifier(free[c].items[i].0))
+            }
+        }
+        if empty.isEmpty { return 0 }
+        for c in 0..<free.count where free[c].items.count > free[c].head {
+            let kept = free[c].items[free[c].head...].filter { !empty.contains(ObjectIdentifier($0.0)) }
+            free[c].items = Array(kept); free[c].head = 0
+        }
+        for id in empty { slabs.removeValue(forKey: id) }
+        let bytes = empty.count * slabSize
+        slabBytes -= bytes
+        return bytes
     }
 }

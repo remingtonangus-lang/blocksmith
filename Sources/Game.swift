@@ -447,10 +447,11 @@ final class Game {
         let d = UserDefaults.standard.integer(forKey: "activeDistance")
         return d == 0 ? 8 : max(4, min(16, d))
     }
-    func setActiveDistance(_ d: Int) {
+    func setActiveDistance(_ d0: Int) {
+        let d = min(d0, max(4, world.renderDistance))          // P415: never past the view distance
         world.activeDistance = d
         rdGovernor?.setChosen(d)
-        UserDefaults.standard.set(d, forKey: "activeDistance")
+        UserDefaults.standard.set(d0, forKey: "activeDistance")   // (the choice kept: a view raised again gives it back)
     }
     private(set) var saveCount = 0                   // saves so far (the governor ignores frame windows with a save)
 
