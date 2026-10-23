@@ -332,6 +332,7 @@ final class Mob {
     // thinks and moves every 2nd tick past 48 blocks and every 4th past 96 (MobManager.update), with the time it missed.
     var lodAcc: Float = 0
     var fieldSettled = false          // P338: set onto the field's surface once after it appears (field worlds)
+    var overUnloaded = false          // P414: ridden over ground not made yet
     let lodSlot = Int.random(in: 0..<4)
     // P283: a mob standing still on the ground, where nothing changed round it since (its spot, its section's version,
     // the ground's field), lands where it stands: the collision sweep is skipped (mob moves were a sixth of the frame
@@ -616,7 +617,15 @@ final class Mob {
     func update(_ dt: Float, game g: Game) {
         let w = g.world
         // (A rider of a ship moves in the ship's frame and needs no ground loaded: crew at a long hull's far end.)
-        guard deck != nil || w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
+        // (P414: what the player rides goes on over ground not made yet, as he does, and is set on it when it comes in)
+        let ridden = g.riding === self
+        let loaded = w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z)))
+        guard deck != nil || ridden || loaded else { return }
+        if ridden && !loaded { overUnloaded = true }
+        else if overUnloaded && loaded {
+            overUnloaded = false
+            if let y = Player.clearY(pos, w, collides: { self.collides($0, w) }) { pos.y = y; vel.y = max(0, vel.y) }
+        }
         // A mob killed earlier this tick (player hit, projectile) is removed by the death sweep after this loop: it
         // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
         hitFlash = max(0, hitFlash - dt)     // before the dead-mob return: the death fall doesn't stay white

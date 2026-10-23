@@ -78,6 +78,9 @@ if CommandLine.arguments.contains("--spacewarp"), let ctx = vkctx { exit(SpaceWa
 // --launch DIR / --launch-prepare DIR [--rd 24]: the headset's launch path timed stage by stage (P400,
 // quest/src/test/QuestLaunch.swift).
 if CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare"), let ctx = vkctx { exit(QuestLaunch.run(ctx: ctx)) }
+// --flytest DIR [--rd 24] [--seconds 60] [--walk]: flying flat out over a new world; the speed never drops while the
+// world loads (P414, quest/src/test/QuestFlyTest.swift).
+if CommandLine.arguments.contains("--flytest") { exit(QuestFlyTest.run()) }
 // --settings-phase P ROOT: one launch of the settings check (quest/src/headless/SettingsCheck.swift), before anything
 // else touches UserDefaults.
 if let i = CommandLine.arguments.firstIndex(of: "--settings-phase"), i + 2 < CommandLine.arguments.count {
