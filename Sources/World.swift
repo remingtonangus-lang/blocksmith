@@ -46,7 +46,13 @@ final class World {
     var portals = Set<IVec3>()
     lazy var ships = ShipManager(world: self)       // free-moving block structures (Ships.swift)
     var frame: Ship?                                // while set, block and collision queries are in this ship's space
-    var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
+    var renderDistance: Int = 8 {
+        didSet {
+            lastCenter = nil; rebuildOffsets()
+            if renderDistance < oldValue { trimIn = 150 }         // P415: the far meshes' slabs go back a little later
+        }
+    }
+    private var trimIn = 0
     // P339 (Remington, Oct 17: "you can see 24, but it would be the loading distance that matters"): the VIEW distance
     // above is what is generated, meshed and drawn; the ACTIVE distance (chunks, 4-16) is where mobs think and move,
     // crops grow, weather and seasons touch blocks and creatures spawn. Past it nothing ticks: mobs stand in their last
@@ -1100,6 +1106,7 @@ final class World {
         }
         TickProf.mark("world.results")              // the rest of update() is charged to "world.update" (Game.tick)
         shellClock &+= 1
+        if trimIn > 0 { trimIn -= 1; if trimIn == 0 { let b = MeshArena.shared.trim(); if b > 0 { print("world: view lowered, \(b >> 20) MB of mesh slabs given back") } } }
         if shellClock % 120 == 0 { reshell() }        // P376: chunks meshed since the last move become shells
 
         let extra: ChunkKey? = extraCenter.map { ChunkKey(x: floorDiv(Int(floor($0.x)), CS), z: floorDiv(Int(floor($0.z)), CS)) }
