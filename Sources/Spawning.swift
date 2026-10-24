@@ -65,7 +65,7 @@ enum Spawns {
         if snowy.contains(b) { skeleton = [(.skeleton, 20, 4, 4), (.stray, 80, 4, 4)] }
         if b == .swamp || b == .mangroveSwamp { skeleton = [(.skeleton, 70, 4, 4), (.bogged, 50, 4, 4)] }
         var list: [SpawnEntry] = [(.spider, 70, 1, 2)]      // P246: Gravesworn duellists walk alone or in pairs + zombie + skeleton
-            + [(.creeper, 100, 4, 4), (.slime, 100, 4, 4), (.enderman, 10, 1, 4), (.witch, 5, 1, 1)]
+            + [(.creeper, 100, 4, 4), (.slime, 100, 4, 4), (.witch, 5, 1, 1)]     // (P418: no voidwalkers)
         if b.isRiver { list.append((.drowned, 100, 1, 1)) }
         else if b.isOcean { list.append((.drowned, 5, 1, 1)) }
         return list
@@ -362,7 +362,7 @@ extension MobManager {
         let w = game.world
         if w.dim == .nether { trySpawnEmberdeep(game); return }
         if w.dim == .deep { trySpawnDeep(game); return }
-        if w.dim == .end { trySpawnEnd(game); return }
+        if w.dim == .end { return }                        // (P418: the Hollow's voidwalkers are gone)
         let pp = game.player.pos
         guard caveOnly || count(.monster, near: pp) < cap(.monster, w) else { return }
         let rd = min(w.renderDistance, w.activeDistance, 8)
@@ -555,26 +555,6 @@ extension MobManager {
         }
         // (No spider jockeys: the spider is the Gravesworn now, P246.)
         _ = w
-    }
-
-    // The Hollow: voidwalkers (groups of up to 4) on hollow stone 32+ blocks out, out of sight.
-    func trySpawnEnd(_ game: Game) {
-        let w = game.world
-        let pp = game.player.pos
-        let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 32...96)            // P307 (a): 32+ out (was 24)
-        let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
-        guard w.isLoaded(x, z) else { return }
-        let top = w.topY(x, z)
-        guard top > 0, Blocks.key(w.materialAt(x, top, z)) == "end_stone" else { return }
-        guard game.spawnHidden(V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5), min: 32) else { return }   // and unseen
-        for _ in 0..<Rand.int(in: 1...4) {
-            let sx = x + Rand.int(in: -2...2), sz = z + Rand.int(in: -2...2)
-            let ty = w.topY(sx, sz)
-            guard ty > 0, Blocks.key(w.materialAt(sx, ty, sz)) == "end_stone" else { continue }
-            let m = Mob(.enderman, at: V3(Float(sx) + 0.5, Float(ty + 1), Float(sz) + 0.5))
-            if m.collides(m.pos, w) { continue }
-            mobs.append(m)
-        }
     }
 
     // MARK: Water and ambient

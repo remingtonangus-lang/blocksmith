@@ -339,7 +339,7 @@ enum MobTests {
         for _ in 0..<600 { mm.trySpawnHostile(game) }
         let night = mm.mobs.filter { $0.kind.category == .monster }
         var bad: [String] = []
-        let allowed: Set<MobKind> = [.spider, .zombie, .zombieVillager, .husk, .skeleton, .stray, .bogged, .creeper, .slime, .enderman, .witch, .drowned]
+        let allowed: Set<MobKind> = [.spider, .zombie, .zombieVillager, .husk, .skeleton, .stray, .bogged, .creeper, .slime, .witch, .drowned]
         for m in night where m.mount == nil {
             let x = Int(floor(m.pos.x)), y = Int(floor(m.pos.y)), z = Int(floor(m.pos.z))
             let l = world.lightAt(x, y, z)
