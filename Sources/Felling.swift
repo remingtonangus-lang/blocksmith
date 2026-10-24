@@ -26,6 +26,7 @@ enum Felling {
     static var falls: [Fall] = []
     static weak var carried: Ship?
     static var felled = 0                        // (counter)
+    static var toppled = 0                       // (counter: P407's whole pieces)
 
     static func isFelled(_ s: Ship) -> Bool { s.root.name == name }
 
@@ -110,6 +111,61 @@ extension Game {
         let mid = s.pos
         sfx(.hullCreak, 1.3, at: mid)
         sfx(.breakBlock(.wood), 1.2, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+    }
+
+    // P407: a piece the load check found held by nothing (Structure.drop, Structure.loose) comes down whole: one body,
+    // drawn with its own mesh the whole way (a tree keeps its leaf blobs and round trunk, a tower its walls), tipping
+    // away from him. A tree takes its crown along and lies as a felled trunk once still; anything else lies where it lands.
+    static let toppledName = "Toppled"
+    func topple(_ cells: [IVec3]) {
+        guard let start = cells.min(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) else { return }
+        let logs = cells.filter { CapitalBase.isLog(world.block($0.x, $0.y, $0.z)) }
+        var leaves: Set<IVec3> = []
+        if !logs.isEmpty {
+            let body = Set(cells)
+            var lq: [IVec3] = []
+            for c in logs { for d in World.allDirs {
+                let q = c + d
+                if !body.contains(q) && !leaves.contains(q) && CapitalBase.isLeaf(world.block(q.x, q.y, q.z)) { leaves.insert(q); lq.append(q) }
+            } }
+            var head = 0
+            while head < lq.count && leaves.count < Felling.maxLeaves {
+                let c = lq[head]; head += 1
+                for d in World.allDirs {
+                    let q = c + d
+                    guard !leaves.contains(q), !body.contains(q), CapitalBase.isLeaf(world.block(q.x, q.y, q.z)) else { continue }
+                    guard logs.contains(where: { abs($0.x - q.x) + abs($0.y - q.y) + abs($0.z - q.z) <= 5 }) else { continue }
+                    leaves.insert(q); lq.append(q)
+                }
+            }
+        }
+        let bp = Blueprint()
+        var lo = IVec3(Int.max, Int.max, Int.max)
+        for c in leaves.union(cells) {
+            bp.cells[ivSub(c, start)] = world.block(c.x, c.y, c.z)
+            lo = IVec3(min(lo.x, c.x - start.x), min(lo.y, c.y - start.y), min(lo.z, c.z - start.z))
+        }
+        // (taken out quietly: what it leaves behind was checked already)
+        world.restoring = true
+        for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
+        for c in cells { world.setBlockAsync(c.x, c.y, c.z, AIR) }
+        world.restoring = false
+        let tree = logs.count == cells.count
+        let s = world.ships.spawn(bp, at: V3(Float(start.x), Float(start.y), Float(start.z)), yaw: 0,
+                                  name: tree ? Felling.name : Game.toppledName, role: "")
+        s.role = nil
+        s.pos = V3(Float(start.x + lo.x), Float(start.y + lo.y), Float(start.z + lo.z)) + s.com
+        s.prevPos = s.pos
+        s.updateBounds()
+        s.initialBlocks = s.blockCount
+        var away = V3(s.pos.x - player.pos.x, 0, s.pos.z - player.pos.z)
+        if simd_length(away) < 0.1 { away = V3(-sinf(player.yaw), 0, -cosf(player.yaw)) }
+        away = simd_normalize(away)
+        s.angVel = simd_cross(V3(0, 1, 0), away) * (tree ? 0.35 : 0.15)
+        s.vel = away * 0.2
+        Felling.falls.append(Felling.Fall(s))
+        Felling.toppled += 1
+        sfx(.hullCreak, tree ? 1.3 : 0.8, at: s.pos)
     }
 
     // Every frame (Game.advance): falling trees land and shed their leaves; a carried trunk follows the hands.
