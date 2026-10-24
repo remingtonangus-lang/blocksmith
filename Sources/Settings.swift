@@ -77,10 +77,9 @@ final class Settings {
     @Pref("glyphStyle") var glyphStyle = 0           // 0 auto (last used device), 1 controller, 2 keyboard
     @Pref("textBackground") var textBackground: Float = 0   // dark box behind HUD text (0...0.8)
     @Pref("minimap") var minimap = true             // biome minimap in the top-right corner
-    // Create New World > Terrain default (the world option lives in the save). P431 (Remington, Oct 24: "it's going to
-    // be a block world"): Blocks, with the generator's slopes; a new key, so a "Polygons" remembered from PG6 starts
-    // over on Blocks. (A saved Polygons world still opens as it was.)
-    @Pref("smoothTerrainP431") var smoothTerrain = false
+    // Create New World > Terrain default (the world option lives in the save). PG6: Polygons is the main direction and
+    // the default for new worlds; a new key, so a "Blocks" remembered from before starts over on Polygons.
+    @Pref("smoothTerrainPG6") var smoothTerrain = true
     // SH1: the Quest shader pass's pieces, one bit each (ShaderFX), all on by default (Video options).
     @Pref("shaderFX") var shaderFX = ShaderFX.all
     @Pref("mapZoom") var mapZoom = 3                 // P273: the world map's zoom level (index into MapMenu.zooms; 3 = 8 blocks a cell)
@@ -128,7 +127,7 @@ final class Settings {
         safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
         targetBar = true; lookNames = true
-        display = ""; smoothTerrain = false; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0; bugNoteVideo = true   // (P431: Blocks for new worlds)
+        display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0; bugNoteVideo = true   // (P432: Polygons for new worlds again)
         mapZoom = 3; wreckHint = false; mastHint = false; chestJoinTold = false       // (questcheck --settings-only: every @Pref resets)
         directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false; devTools = Settings.devToolsDefault   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08

@@ -595,7 +595,6 @@ final class WorldGen: TerrainGenerator {
         // they were counted as tree time.
         if WorldGen.timing, let sc = structures { for t in sc.types { _ = sc.startsNear(cx: cx, cz: cz, t) }; mark(7) }
         // 5. Trees and vegetation.
-        placeSlopes(&b, bx, bz, tops, wls, lat, maxTop)        // P431 (before the trees: nothing roots on a slope)
         placeTrees(&b, cx, cz, lat)
         mark(5)
         placeVegetation(&b, bx, bz, biomes, &rng, cols: cols, added: ad)
@@ -1567,45 +1566,6 @@ final class WorldGen: TerrainGenerator {
     }
 
     // MARK: Trees and vegetation (see WorldGenTrees.swift)
-
-    // P431 (Remington, Oct 24: "terrain's going to automatically have 45 degree slopes in places where there would be a
-    // block to block lift"): on every column whose ground is one block under a neighbour's, the cell over the ground
-    // becomes a slope of the ground's own material rising to that neighbour (BlockRegistry.slopeMaterials): straight
-    // where one side is up, an inner corner where two adjacent sides are, an outer corner where only the diagonal is and
-    // both sides beside it are level. Lifts of two or more stay as they are (a cliff), nothing slopes under water, and
-    // a pit (every side up) stays a pit. Generation only: a broken block never turns into a slope. The ring of columns
-    // round the chunk is read from the density (the same lattice), so a slope at the chunk's edge meets its neighbour.
-    private func placeSlopes(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ lat: Lattice, _ maxTop: Int) {
-        guard !Blocks.slopeOf.isEmpty else { return }
-        var ring = [Int: Int]()
-        func topAt(_ lx: Int, _ lz: Int) -> Int {
-            if lx >= 0 && lx < CS && lz >= 0 && lz < CS { return tops[lx + lz * CS] }
-            let key = lx + 1 + (lz + 1) * (CS + 2)
-            if let t = ring[key] { return t }
-            var y = maxTop
-            while y > 3 && lat.sample(bx + lx, y, bz + lz) <= 0 { y -= 1 }
-            ring[key] = y
-            return y
-        }
-        for lz in 0..<CS { for lx in 0..<CS {
-            let k = lx + lz * CS, t = tops[k]
-            guard t > 3, t + 2 < CH, t + 1 > wls[k] else { continue }
-            guard let first = Blocks.slopeOf[b[Chunk.index(lx, t, lz)]], b[Chunk.index(lx, t + 1, lz)] == AIR else { continue }
-            func side(_ dx: Int, _ dz: Int) -> Int { topAt(lx + dx, lz + dz) - t }
-            let e = side(1, 0), w = side(-1, 0), s = side(0, 1), n = side(0, -1)
-            var mask = 0
-            for cz in 0..<2 { for cx in 0..<2 {
-                let sx = cx == 1 ? e : w, sz = cz == 1 ? s : n
-                var up = sx == 1 || sz == 1
-                if !up && sx == 0 && sz == 0 && side(cx == 1 ? 1 : -1, cz == 1 ? 1 : -1) == 1 { up = true }
-                if up { mask |= 1 << (cx + cz * 2) }
-            } }
-            // (the saddles are the two diagonal pairs, bits 0+3 and 1+2; 5 and 10 are the straight slopes along x, and
-            // skipping those left every lift to the east or west bare: Remington's "a bunch of blocks are not sloped")
-            guard mask != 0, mask != 15, mask != 6, mask != 9 else { continue }
-            b[Chunk.index(lx, t + 1, lz)] = first + BlockID(mask)
-        } }
-    }
 
     private func placeTrees(_ b: inout [BlockID], _ cx: Int, _ cz: Int, _ lat: Lattice) {
         TreePlacer.place(&b, cx, cz, gen: self, top: { x, z, hint in lat.top(x, z, from: hint) })
