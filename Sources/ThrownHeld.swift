@@ -74,7 +74,7 @@ enum ThrownHeld {
                 guard abs(e.pos.x - m.pos.x) < hw, abs(e.pos.z - m.pos.z) < hw, dy > -0.1, dy < m.height * m.scale + 0.1 else { continue }
                 let dmg = damage(e.stack, speed: sp)
                 lastDamage = dmg
-                let kb: Float = min(1.6, mass(e.stack) * sp / 10)
+                let kb: Float = min(3, mass(e.stack) * sp / 7)          // P423 (b): a hard throw of something heavy launches them
                 Mob.playerMelee = true
                 m.hit(from: e.pos - simd_normalize(e.vel), damage: dmg, knockback: kb)
                 Mob.playerMelee = false
