@@ -85,6 +85,7 @@ final class XRSession {
     private(set) var runtimeName = ""
     var focused: Bool { state == XR_SESSION_STATE_FOCUSED }
     var resolutionScale: Float = 1
+    var viewExtent: (Int, Int)?          // P403 7b: the drawn rectangle of each eye's image this frame (dynamic resolution)
 
     // Actions
     private var actionSet: XrActionSet?
@@ -783,7 +784,8 @@ final class XRSession {
                 pv[i].pose = views[i].pose
                 pv[i].fov = views[i].fov
                 pv[i].subImage.swapchain = swapchain
-                pv[i].subImage.imageRect = XrRect2Di(offset: XrOffset2Di(x: 0, y: 0), extent: XrExtent2Di(width: Int32(width), height: Int32(height)))
+                let (rw, rh) = viewExtent ?? (width, height)
+                pv[i].subImage.imageRect = XrRect2Di(offset: XrOffset2Di(x: 0, y: 0), extent: XrExtent2Di(width: Int32(rw), height: Int32(rh)))
                 pv[i].subImage.imageArrayIndex = UInt32(i)
                 if spaceWarp {
                     // P381 step 9: this eye's motion vectors and depth (QuestApp records them after the frame).
