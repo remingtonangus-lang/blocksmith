@@ -23,8 +23,8 @@ enum WeaponAudio {
     // shots a player fires spread over 10 dB (the arc lance 9 dB over the rifle, the rocket and the shotgun 5, the
     // Falke 1.2). Each is brought to one loudness, 0.5 dB under the rifle, by its measured gain (dB); a quiet one is
     // raised only as far as the -1.1 dBFS peak allows.
-    static let levelDB: [Int: Float] = [0: -0.5, 1: -1.9, 2: -5.3, 3: -1.8, 4: -5.8, 5: -9.5, sidearmSlot: -1.7,
-                                        16: -2.1, 17: -0.1, 18: -0.3, 19: 0.5, rotarySlot: -1.3]
+    static let levelDB: [Int: Float] = [0: -0.5, 1: -1.9, 2: -5.3, 3: -1.8, 4: -7.6, 5: -9.5, sidearmSlot: -3.3,
+                                        16: -3.2, 17: -2.3, 18: -0.3, 19: 0.5, rotarySlot: -1.3]
     static func level(_ k: Int, _ x: inout [Float]) {
         guard let db = levelDB[k] else { return }
         var peak: Float = 0
@@ -207,7 +207,14 @@ enum WeaponAudio {
             o = Synth.mix(o, home, at: g.frames(0.74))
             return Synth.mix(o, casing(&g, p: p * 0.85, gain: 0.3), at: g.frames(0.7))
         case 17:  // Hagel machine pistol: a low, round, slow-cycling pop (pistol rounds through an open bolt)
-            return shot(&g, p: p * 0.92, size: 0.62, bright: 0.85, tail: 0.25, mech: 0.75)
+            // P435 (Oct 24 16:01, "the sound for this gun sucks": a thin, papery pop): a full 9 mm bark with chest, the
+            // heavy open bolt slamming home on the next round (a steel clack just after the blast) and a short room slap.
+            var o = shot(&g, p: p * 0.9, size: 0.82, bright: 1.0, tail: 0.38, mech: 0)
+            o = Synth.mix(o, g.rumble(0.22, f: 85 * p, attack: 0.002, decay: 0.06, gain: 1.3))
+            let bolt = Synth.mix(g.modes(0.06, [(1450 * p, 0.4, 0.012), (2700 * p, 0.18, 0.007)]),
+                                 g.burst(0.03, lp: 4800, hp: 700, attack: 0.0005, decay: 0.006, gain: 1.0))
+            o = Synth.mix(o, bolt, at: g.frames(0.05))
+            return Synth.mix(o, casing(&g, p: p * 1.1, gain: 0.22), at: g.frames(0.3))
         case 18:  // Sturmwind carbine: between a rifle and a machine pistol, a hard mid crack
             var o = shot(&g, p: p * 1.02, size: 0.85, bright: 1.05, tail: 0.4, mech: 0.6)
             o = Synth.mix(o, casing(&g, p: p * 1.05, gain: 0.25), at: g.frames(0.32))

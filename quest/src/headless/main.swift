@@ -29,6 +29,23 @@ if arg("--agent") != nil { exit(AgentRun.run()) }
 // --ridecheck [--scenes A,B --seed N --scale F --out DIR]: bots riding the capital vehicles (Sources/RideCheck.swift).
 if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }
 if CommandLine.arguments.contains("--ashdrive") { exit(AshDriveCheck.run()) }     // P324 (Sources/AshCommandeer.swift)
+// --gunloudness: each player gun's shot (4 takes) as heard (P424's measure: the loudest 50 ms, roughly A-weighted),
+// in dB against the rifle, after its levelling gain (P435: a gun's new sound is levelled against the others).
+if CommandLine.arguments.contains("--gunloudness") {
+    func loud(_ x: [Float]) -> Float {
+        let y = Synth.lowpass(Synth.highpass(Synth.highpass(x, 400), 400), 7000)
+        let w = Int(Synth.sr * 0.05)
+        var acc: Float = 0, best: Float = 0
+        for i in y.indices { acc += y[i] * y[i]; if i >= w { acc -= y[i - w] * y[i - w] }; best = max(best, acc) }
+        return 10 * log10f(max(best / Float(w), 1e-12))
+    }
+    func avg(_ k: Int) -> Float { (0..<4).map { loud(SoundBank.render(.gun(k), variant: $0)) }.reduce(0, +) / 4 }
+    let ref = avg(0)
+    for k in [0, 1, 2, 3, 4, 5, WeaponAudio.sidearmSlot, 16, 17, 18, 19, WeaponAudio.rotarySlot] {
+        print(String(format: "gunloudness: slot %2d  %+5.1f dB against the rifle", k, avg(k) - ref))
+    }
+    exit(0)
+}
 if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }
 // --xr SECONDS: the real Quest app loop (QuestApp) against the desktop OpenXR runtime (Monado), then exit.
 if let secs = Double(arg("--xr") ?? "") {

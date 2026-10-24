@@ -30,6 +30,7 @@ enum AshWrecks {
     private static var built: [Int64: [Mob]] = [:]
     static let reach: Float = 150
     static let needSpares = 3
+    static let fighterName = "Salvaged Fighter"
     static var repaired = 0                     // (counter)
 
     // A wreck model's place: world position (block centre, on the ground), heading, kind (0 bomber, 1 fighter, 2 tank,
@@ -70,6 +71,14 @@ enum AshWrecks {
     static let tankPlaces: [(Int, Int, Bool)] = [(0, -8, false), (4, 3, true), (-3, 11, false)]
 
     static func key(_ s: AshScene) -> String { "plane:\(s.x),\(s.z)" }
+    // P435 (Oct 24 15:49, at a knocked-out tank: "I should be able to drive it though, or at least repair it"): a tank
+    // whose turret is still on takes Track Spares (Ashguard stores and command posts carry them); with two fitted it
+    // stands repaired, his to drive (AshSeat, as a Cinder Tank he has taken: the same gun, speed and sprint), drawn as
+    // itself, clean.
+    static let needTrack = 2
+    static func tankKey(_ s: AshScene, _ i: Int) -> String { "tank:\(s.x),\(s.z):\(i)" }
+    static func tankFixed(_ s: AshScene, _ i: Int) -> Bool { (TownLaw.state.vaultObj?[tankKey(s, i)] ?? 0) >= needTrack }
+    static var tanksRepaired = 0                    // (counter)
     static func spares(_ s: AshScene) -> Int { TownLaw.state.vaultObj?[key(s)] ?? 0 }
 
     // Once a second (AshFallen.refresh): the wrecks near the player as drawn models.
@@ -81,7 +90,7 @@ enum AshWrecks {
             if s.kind == 1 && spares(s) >= needSpares { continue }           // flown away
             want.insert(k)
             if built[k] != nil { continue }
-            built[k] = spots(s, dg.ground).map { sp in
+            built[k] = spots(s, dg.ground).enumerated().filter { !(s.kind == 2 && tankFixed(s, $0.offset)) }.map { $0.element }.map { sp in
                 let m = Mob(.ashBehemoth, at: sp.pos)
                 m.wreck = Int8(sp.kind)
                 m.yaw = sp.yaw
@@ -120,13 +129,58 @@ extension Game {
         sfx(.place(.metal), 1, at: sp.pos)
         if have >= AshWrecks.needSpares {
             // Patched up: the wreck is gone and the fighter stands on its wheels where it lay.
-            let ship = world.ships.spawn(AshWrecks.salvagedFighter(), at: sp.pos + V3(0, 1.2, 0), yaw: sp.yaw, name: "Salvaged Fighter", role: "capplane")
+            let ship = world.ships.spawn(AshWrecks.salvagedFighter(), at: sp.pos + V3(0, 1.2, 0), yaw: sp.yaw, name: AshWrecks.fighterName, role: "capplane")
             ship.initialBlocks = ship.blockCount
             FlightModel.attach(ship)
             sfx(.engineStart, 1, at: sp.pos)
             AshWrecks.repaired += 1
             AshWrecks.refresh(self, dg)
         }
+        return true
+    }
+}
+
+extension Game {
+    // Using Track Spares by a knocked-out tank (turret still on): fit them; the second puts it back on its tracks.
+    func trackSparesUse() -> Bool {
+        guard Items.key(held.item) == "track_spares" else { return false }
+        guard dim.dim == .deep, DeepGen.inVault(player.pos.y), let dg = world.gen as? DeepGen else { sfx(.click, 0.4); return true }
+        let p = player.pos
+        var best: (AshScene, Int, AshWrecks.Spot)?
+        var bd: Float = 6
+        for s in AshFront.scenes(Int(p.x) - 30, Int(p.z) - 30, Int(p.x) + 30, Int(p.z) + 30, pad: 0, ground: dg.ground) where s.kind == 2 {
+            for (i, sp) in AshWrecks.spots(s, dg.ground).enumerated() where sp.kind == 2 && !AshWrecks.tankFixed(s, i) {
+                let d = simd_length(V2(sp.pos.x - p.x, sp.pos.z - p.z))
+                if d < bd { bd = d; best = (s, i, sp) }
+            }
+        }
+        guard let (s, i, sp) = best else { sfx(.click, 0.4); return true }
+        let key = AshWrecks.tankKey(s, i)
+        var m = TownLaw.state.vaultObj ?? [:]
+        var have = m[key] ?? 0
+        let fit = min(AshWrecks.needTrack - have, held.count)
+        if survival { inventory.main[inventory.selected].count -= fit; if inventory.main[inventory.selected].count <= 0 { inventory.main[inventory.selected] = .empty } }
+        have += fit
+        m[key] = have
+        TownLaw.state.vaultObj = m
+        sfx(.place(.metal), 1, at: sp.pos)
+        swing = 1
+        guard have >= AshWrecks.needTrack else { return true }
+        let t = Mob(.ashTank, at: sp.pos)
+        t.wreck = 4
+        t.variant = sp.seed
+        t.yaw = sp.yaw
+        t.ashSetup()
+        t.soldierBrain.turret = sp.yaw
+        t.owner = true
+        t.aggro = false
+        t.persistent = true
+        t.health = t.spec.health
+        mobs.mobs.append(t)
+        sfx(.engineStart, 1, at: sp.pos)
+        particles.smoke(at: sp.pos + V3(0, 2.2, 0))
+        AshWrecks.tanksRepaired += 1
+        AshWrecks.refresh(self, dg)
         return true
     }
 }
@@ -183,6 +237,10 @@ func ashWreckParts(_ m: Mob) -> [Part] {
     switch m.wreck {
     case 0: bomberParts(add, soot, sd)
     case 1: fighterParts(add, soot, sd)
+    case 4:
+        // P435: a repaired one, driven: clean paint, the turret and gun on his aim.
+        let b = m.soldierBrain
+        shermanParts(add, soot, sd, turretOff: false, live: (b.turret - m.yaw, b.pitch))
     default: shermanParts(add, soot, sd, turretOff: m.wreck == 3)
     }
     return p
@@ -301,13 +359,17 @@ private func fighterParts(_ add: WreckAdd, _ soot: V3, _ sd: Int) {
 // A Sherman-like medium tank, knocked out: a cast turret with a short 75 and its mantlet, the hull's sloped glacis,
 // three vertical-volute bogies a side with their return rollers, front drive sprockets and rear idlers, a hull gun, the
 // engine deck, hatches thrown open. `turretOff`: the turret blown off and lying upside down beside it.
-private func shermanParts(_ add: WreckAdd, _ soot: V3, _ sd: Int, turretOff: Bool) {
+private func shermanParts(_ add: WreckAdd, _ soot: V3, _ sd: Int, turretOff: Bool, live: (Float, Float)? = nil) {
     let od = V3(0.29, 0.3, 0.19), dark = V3(0.06, 0.06, 0.06), steel = V3(0.2, 0.2, 0.19), rubber = V3(0.07, 0.07, 0.07)
+    let fixed = live != nil                                              // P435: repaired (no soot, rust or thrown track)
     func b(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = 4,
-           pv: V3 = .zero, rx: Float = 0, rz: Float = 0, ry: Float = 0, burn: Bool = true) { add(x0, y0, z0, x1, y1, z1, c, pat, pv, rx, rz, ry, burn) }
+           pv: V3 = .zero, rx: Float = 0, rz: Float = 0, ry: Float = 0, burn: Bool = true) {
+        if fixed && c == soot { return }
+        add(x0, y0, z0, x1, y1, z1, c, pat, pv, rx, rz, ry, burn && !fixed)
+    }
     let h = UInt32(truncatingIfNeeded: sd) &* 2654435761
     // Tracks, bogies, sprockets and idlers, both sides (one track broken and run off behind on some).
-    let broken = h % 3 == 0
+    let broken = h % 3 == 0 && !fixed
     for s: Float in [-1, 1] {
         let xo: Float = s < 0 ? -21 : 14.5, xi = xo + 6.5
         let slack = broken && s > 0
@@ -345,7 +407,7 @@ private func shermanParts(_ add: WreckAdd, _ soot: V3, _ sd: Int, turretOff: Boo
     let turn = Float(Int(h >> 8 % 120) - 60) / 100
     let droop: Float = -0.06 - Float(h >> 4 % 10) / 100
     let pv = V3(0, 32, 2)
-    var ry = turn, rz: Float = 0, lift = V3.zero
+    var ry = live?.0 ?? turn, rz: Float = 0, lift = V3.zero
     if turretOff {
         // Blown off: thrown down on its side beside the hull, half dug in, its ring a black hole in the deck.
         b(-11, 32, -10, 11, 32.6, 14, soot, 0, burn: false)
@@ -354,7 +416,7 @@ private func shermanParts(_ add: WreckAdd, _ soot: V3, _ sd: Int, turretOff: Boo
         ry = 0.8
     }
     func tb(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = 4, gun: Bool = false) {
-        add(x0 + lift.x, y0 + lift.y, z0 + lift.z, x1 + lift.x, y1 + lift.y, z1 + lift.z, c, pat, pv + lift, gun ? droop : 0, rz, ry, true)
+        add(x0 + lift.x, y0 + lift.y, z0 + lift.z, x1 + lift.x, y1 + lift.y, z1 + lift.z, c, pat, pv + lift, gun ? (live?.1 ?? droop) : 0, rz, ry, !fixed)
     }
     tb(-15, 32, -14, 15, 37, 18, od)
     tb(-13.5, 37, -12, 13.5, 42, 20, od)

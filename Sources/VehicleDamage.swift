@@ -11,7 +11,7 @@ enum VehicleDamage {
     static let safe: Float = 9                  // closing speed (b/s) a hull takes without harm
     static let wreck: Float = 30                // ... at which the impact tears the widest hole
     static let maxRadius: Float = 3.2
-    static var crashes = 0                      // (tests)
+    static var crashes = 0, wingsLost = 0       // (tests)
 }
 
 extension ShipManager {
@@ -23,7 +23,8 @@ extension ShipManager {
             // P262: a heavy, fast hull breaks through what it hits in the world (any physics hull, AI or yours).
             var gave = false
             if v > Momentum.minSpeed && s.crashWorld && !s.kinematic && s.crashCD <= 0 { gave = Momentum.ram(s, v, g) }
-            guard v > VehicleDamage.safe, s.crashCD <= 0, !s.kinematic, s.role == nil, s.blockCount > 1 else { continue }
+            // (P435: the salvaged fighter is flown as a Capital plane, role "capplane", yet it is his own and breaks up.)
+            guard v > VehicleDamage.safe, s.crashCD <= 0, !s.kinematic, s.role == nil || s.name == AshWrecks.fighterName, s.blockCount > 1 else { continue }
             s.crashCD = 0.6
             VehicleDamage.crashes += 1
             var k: Float = min(1, (v - VehicleDamage.safe) / (VehicleDamage.wreck - VehicleDamage.safe))
@@ -42,6 +43,21 @@ extension ShipManager {
                 // The helm survives a crash you walk away from (a hull you can still steer home).
                 if b != AIR && Blocks.hardness[Int(b)] >= 0 && s.helm != c { cells.insert(c) }
             } } }
+            // P435 (Oct 24 15:53, "that should have torn its wing off when I hit the pillar"): a wing struck hard
+            // enough comes off whole from where it was hit out to its tip (the split hull drifts away as wreckage).
+            if v > VehicleDamage.safe + 4, !s.wings.isEmpty {
+                let right = simd_normalize(simd_cross(s.fwd, V3(0, 1, 0)))
+                let near = s.wings.min { simd_length_squared($0 - lc) < simd_length_squared($1 - lc) }
+                if let wc = near, simd_length(wc - lc) < 1.6 {
+                    let side = simd_dot(wc - s.com, right)
+                    if abs(side) > 1.4 {
+                        for w in s.wings where simd_dot(w - s.com, right) * (side > 0 ? 1 : -1) >= abs(side) - 0.5 {
+                            cells.insert(IVec3(Int(floor(w.x)), Int(floor(w.y)), Int(floor(w.z))))
+                        }
+                        VehicleDamage.wingsLost += 1
+                    }
+                }
+            }
             g.sfx(.explode, min(1, 0.3 + k), at: at)
             g.particles.explosion(at: at, power: 0.4 + k)
             if !cells.isEmpty { removeCells(s, cells, chipped: [], center: at, power: 4 + 8 * k, game: g) }

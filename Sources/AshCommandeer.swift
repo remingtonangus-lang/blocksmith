@@ -48,8 +48,11 @@ enum AshCommandeer {
         }
         wheel(0, 0); wheel(0, 5); wheel(3, 3)
         for z in 1...4 { b.set(0, 2, z, "polished_blackstone") }
-        b.set(0, 3, 2, "ship_engine")
-        b.set(0, 3, 4, "ship_helm[south]")
+        // P435 (Oct 24 15:50, "moves like I'm walking with it on top of me... inverted controls"): the helm sat at the
+        // back, so the rider stood over the rear wheel behind the engine. The controls are now just behind the
+        // handlebars and the rider sits in the saddle facing the way it goes; the engine is under the pillion.
+        b.set(0, 3, 4, "ship_engine")
+        b.set(0, 3, 1, "ship_helm[south]")
         b.set(0, 3, 0, "iron_bars")                                  // the handlebars
         b.box(1, 2, 1, 2, 1, 4, "polished_blackstone")
         b.set(1, 3, 1, "red_nether_bricks")
@@ -174,7 +177,22 @@ final class AshSeat {
     weak var vehicle: Mob?
     var gunner = false                  // the half-track's rear machine gun (else the driver's seat)
     var drive: Float = 0, steer: Float = 0
+    var sprint = false                  // P435: the sprint button opens the throttle right up
     var fireTap = false, fireHeld = false
+    // P435 (Oct 24 15:49-15:56): his guns hit like the real thing. The tank's 75 mm round (a crew's is power 1.3 and
+    // breaks nothing) and the field gun's shell burst against walls and hole a vehicle's plate (Slug.antiTank).
+    static let tankPower: Float = 3.6, tankAntiTank: Float = 110
+    static let gunPower: Float = 4.2, gunAntiTank: Float = 90
+    // P435 (15:49, "when you sprint with the tank, it goes up to like 30, 40 kilometers per hour"): driven by him, a
+    // vehicle cruises at the first speed and sprints at the second (blocks a second; 10 b/s is 36 km/h). The crews
+    // still drive at the spec's pace.
+    static func seatSpeed(_ k: MobKind) -> (cruise: Float, sprint: Float) {
+        switch k {
+        case .ashTank: return (4.5, 10.5)
+        case .ashHalftrack: return (6, 13)
+        default: return (6.5, 14)                   // the truck
+        }
+    }
     private var jumpWas = false
     static var entered = 0, shots = 0   // (counters)
 
@@ -203,7 +221,7 @@ final class AshSeat {
     func leave(_ g: Game) {
         guard let m = vehicle else { return }
         vehicle = nil
-        drive = 0; steer = 0
+        drive = 0; steer = 0; sprint = false
         g.player.pos = Turrets.exitSpot(g.world, m, fwd: m.forward)
         g.player.vel = .zero
         g.player.airPeak = g.player.pos.y
@@ -221,6 +239,7 @@ final class AshSeat {
         jumpWas = mi.jump
         drive = gunner ? 0 : mi.forward
         steer = gunner ? 0 : mi.strafe
+        sprint = mi.sprint
         fireTap = g.input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
         fireHeld = g.input.leftDown || p.rt > 0.5
         let o = seatOffset(m)
@@ -313,6 +332,71 @@ enum AshDriveCheck {
             run(180, act())
             check(AshSeat.shared.vehicle == nil && v.tamed && simd_length(V2(v.pos.x - p1.x, v.pos.z - p1.z)) < 0.5, "\(name): sneak climbs out; it stands parked")
             game.mobs.mobs.removeAll { $0 === v }
+        }
+        // P435: the sidecar motorcycle, driven from its saddle: how fast it goes and which way it turns.
+        do {
+            let sc = world.ships.spawn(AshCommandeer.sidecar(), at: ground(x, z + 6) + V3(0, 3, 0), yaw: 0, name: AshCommandeer.sidecarName, role: "")
+            sc.role = nil
+            VehicleWorks.settle(sc, on: ground(x, z + 6))
+            run(30, act())
+            game.player.pos = sc.toWorld(game.helmStand(sc) ?? sc.com)
+            game.takeCommand(sc)
+            let p0 = sc.pos, yaw0 = sc.yaw
+            run(300, act(forward: 1))
+            let d = sc.pos - p0, v = simd_length(V2(sc.vel.x, sc.vel.z))
+            let ahead = simd_dot(V2(d.x, d.z), V2(-sinf(yaw0), -cosf(yaw0)))
+            print(String(format: "ashdrive:   sidecar: %.1f blocks in 5 s (%.1f ahead along its nose), %.1f b/s at the end, grounded %@, on the helm %@",
+                         simd_length(V2(d.x, d.z)), ahead, v, sc.grounded ? "yes" : "no", game.world.ships.pilot === sc ? "yes" : "no"))
+            check(ahead > 20, String(format: "sidecar: drives nose first, %.1f blocks in 5 s", ahead))
+            let y1 = sc.yaw
+            run(90, act(forward: 1, strafe: 1))
+            var dy = sc.yaw - y1
+            while dy > .pi { dy -= 2 * .pi }
+            while dy < -.pi { dy += 2 * .pi }
+            print(String(format: "ashdrive:   sidecar: right stick turned it %.0f degrees (a tank turning right: negative)", dy * 180 / .pi))
+            check(dy < -0.1, "sidecar: steering right turns it right")
+            run(2, act(sneak: true))
+            world.ships.remove(sc)
+        }
+        // P435: the repaired fighter on a long strip: its take-off run and its speed (Oct 24 15:53: "this thing can't
+        // really take off", "the planes should be extremely quick").
+        if CommandLine.arguments.contains("--fighter") {
+            let fx = x + 90
+            let ships0 = Set(world.ships.list.map { ObjectIdentifier($0) })
+            let home = game.player.pos
+            _ = world.loadSync(center: V3(Float(fx), 100, Float(z - 145)), radius: 11)        // (the whole strip loaded)
+            for dz in -300...10 { for dx in -12...12 {
+                for y in (y0 - 2)...y0 { world.setBlock(fx + dx, y, z + dz, STONE) }
+                for y in (y0 + 1)...(y0 + 14) where !world.isAir(fx + dx, y, z + dz) { world.setBlock(fx + dx, y, z + dz, AIR) }
+            } }
+            let fp = world.ships.spawn(AshWrecks.salvagedFighter(), at: ground(fx, z) + V3(0, 1.2, 0), yaw: 0, name: AshWrecks.fighterName, role: "capplane")
+            fp.initialBlocks = fp.blockCount
+            FlightModel.attach(fp)
+            run(30, act())
+            game.player.pos = fp.toWorld(game.helmStand(fp) ?? fp.com)
+            game.takeCommand(fp)
+            let g0 = fp.pos.y
+            var liftAt = -1, top: Float = 0
+            for t in 0..<(60 * 20) {
+                let pull: Float = simd_length(fp.vel) > 20 && fp.pos.y - g0 < 12 && fp.dirToWorld(fp.fwd).y < 0.25 ? 0.6 : 0
+                run(1, act(forward: 1, jump: pull > 0))
+                let sp = simd_length(fp.vel)
+                top = max(top, sp)
+                if liftAt < 0 && fp.pos.y - g0 > 3 { liftAt = t }
+                if t % 120 == 0 { print(String(format: "ashdrive:   fighter t=%4.1f s  run %5.0f  speed %5.1f b/s  height %5.1f  pitch %4.1f deg", Float(t) / 60, Float(z) - fp.pos.z, sp, fp.pos.y - g0, asinf(max(-1, min(1, fp.dirToWorld(fp.fwd).y))) * 180 / .pi)) }
+            }
+            print(String(format: "ashdrive:   fighter: off the ground at %@, top speed %.1f b/s (%.0f km/h), mass %.0f", liftAt < 0 ? "never" : String(format: "%.1f s", Float(liftAt) / 60), top, top * 3.6, fp.mass))
+            check(liftAt > 0 && liftAt < 60 * 9, "fighter: takes off within 9 s")
+            check(top > 45, String(format: "fighter: quick, %.0f b/s", top))
+            let endPitch = asinf(max(-1, min(1, fp.dirToWorld(fp.fwd).y))) * 180 / .pi
+            check(abs(endPitch) < 35, String(format: "fighter: stick centred, she settles toward level (%.0f degrees at the end)", endPitch))
+            run(2, act(sneak: true))
+            if world.ships.pilot != nil { game.leaveHelm() }
+            world.ships.aboard = nil; world.frame = nil
+            for sh in world.ships.list where !ships0.contains(ObjectIdentifier(sh)) { world.ships.remove(sh) }   // (and any wreckage)
+            game.player.pos = home; game.player.vel = .zero; game.player.airPeak = home.y   // (back where the scenes after this one start, unhurt)
+            _ = world.loadSync(center: home, radius: 4)
+            run(30, act())
         }
         let ht = Mob(.ashHalftrack, at: ground(x + 30, z + 20))
         ht.ashSetup()

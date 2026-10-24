@@ -75,6 +75,22 @@ final class FlightModel {
         for p in s.wings { span = max(span, abs(simd_dot(p - com, rightL))); aft = max(aft, -simd_dot(p - com, fwdL)) }
         let climb = s.piloted ? s.climb : 0, steer = s.piloted ? s.steer : 0
         var totalLift: Float = 0, aSum: Float = 0, stallN = 0
+        // P435 (Oct 24 15:53, the salvaged fighter: "this thing can't really take off"): a plane built of blocks weighs a
+        // tonne a block (the fighter 214 t on 46 wing cells) and needed 40 blocks/s and more to lift off. Its wings now
+        // carry it at a fighter's take-off speed: the main wing's lift is scaled so the wings hold its weight at 22
+        // blocks/s with the nose a little up (drag stays as it was, so it is still quick; the tailplane as it was, so
+        // she doesn't pitch herself up and loop).
+        let liftScale = max(1, s.mass * ShipTuning.g / (Float(max(1, s.wings.count)) * 22 * 22 * 0.75 * FlightModel.rho))
+        // ...and trimmed: the wing's incidence is set for level flight at the speed she is making (more at take-off
+        // speed, less flat out), so with the stick centred she flies level instead of climbing into a loop.
+        var incidence: Float = 0.05
+        if liftScale > 1 {
+            let v2 = max(100, simd_length_squared(s.vel))
+            let level = s.mass * ShipTuning.g / (FlightModel.rho * liftScale * v2 * Float(max(1, s.wings.count)))
+            // (in a climb or a dive the wing asks for less or more, easing her back toward level unless the stick holds her)
+            let sinPitch = s.dirToWorld(fwdL).y
+            incidence = max(-0.08, min(0.17, level / 4.6 - (abs(climb) < 0.1 ? 0.12 * sinPitch : 0)))
+        }
         func apply(_ f: V3, at w: V3) { F += f; T += simd_cross(w - s.pos, f) }
         for p in s.wings {
             let rel = p - com
@@ -90,7 +106,7 @@ final class FlightModel {
             // pushes the tail down to raise the nose.
             if along < -aft * 0.6 && aft > 2 { a += -0.03 - climb * 0.24 }
             else {
-                a += 0.05                                        // wing incidence
+                a += incidence                                   // wing incidence
                 if abs(side) > span * 0.55 { a += (side > 0 ? -1 : 1) * steer * 0.16 }
             }
             let aa = abs(a)
@@ -100,10 +116,13 @@ final class FlightModel {
             let sq = sqrtf(q)
             let vdir: V3 = (fwdL * u + upL * w) / sq
             let ldir: V3 = (upL * u - fwdL * w) / sq
-            let liftF: Float = FlightModel.rho * q * cl, dragF: Float = FlightModel.rho * q * cd
-            let fl = s.dirToWorld(ldir * liftF - vdir * dragF)
-            apply(fl, at: wp)
-            totalLift += FlightModel.rho * q * cl
+            let tailCell = along < -aft * 0.6 && aft > 2
+            let liftF: Float = FlightModel.rho * q * cl * (tailCell ? 1 : liftScale), dragF: Float = FlightModel.rho * q * cd
+            // (the lift the scale adds acts at the centre of mass: the wing's pitching moment stays what it was)
+            let extra: Float = tailCell ? 0 : liftF * (1 - 1 / liftScale)
+            apply(s.dirToWorld(ldir * (liftF - extra) - vdir * dragF), at: wp)
+            if extra != 0 { F += s.dirToWorld(ldir * extra) }
+            totalLift += liftF
             aSum += a
         }
         lift = totalLift

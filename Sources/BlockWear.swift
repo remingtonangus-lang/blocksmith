@@ -17,7 +17,9 @@ enum BlockWear {
     static var marks: [IVec3: Mark] = [:]
     static let perFrame = 4, maxMarks = 768
     static let heal: Double = 120
-    static let enemyShare: Float = 0.6, arcShare: Float = 3
+    // P435 (Oct 24 15:43, "guns barely damage buildings... I wanna do way more damage to buildings"): his rounds wear
+    // twice as fast as they did (planks in three rifle rounds, stone and brick in about six).
+    static let playerShare: Float = 2, enemyShare: Float = 0.6, arcShare: Float = 3
     static var frameAt: Double = -1, brokeThisFrame = 0
     static var shotOut = 0, throughShots = 0     // (counters)
 
@@ -91,7 +93,7 @@ extension Game {
         let id = w.materialAt(b.x, b.y, b.z)                // (what it's made of: ground wears as its rock)
         let hp = BlockWear.hp(id)
         guard hp.isFinite, w.blockEntities[b] == nil else { return 0 }
-        let scale = (fromPlayer ? 1 : BlockWear.enemyShare) * (arc ? BlockWear.arcShare : 1)
+        let scale = (fromPlayer ? BlockWear.playerShare : BlockWear.enemyShare) * (arc ? BlockWear.arcShare : 1)
         let dmg = damage * scale
         guard dmg > 0 else { return 0 }
         if clock != BlockWear.frameAt { BlockWear.frameAt = clock; BlockWear.brokeThisFrame = 0 }

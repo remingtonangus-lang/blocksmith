@@ -554,8 +554,11 @@ extension AshWar {
                 box(u - 1, y0 + 2, v - 1, u + 1, y0 + 12, v + 1, AIR)
                 box(u - 2, y0 + 12, v - 2, u + 2, y0 + 12, v + 2, k.plating)
                 for du in -2...2 { for dv in -2...2 where max(abs(du), abs(dv)) == 2 { put(u + du, y0 + 13, v + dv, k.bars) } }
-                put(u, y0 + 13, v, k.lamp)
-                soldier("marksman", Float(u), Float(v), y: y0 + 13)
+                // P435 (Oct 24 15:57, "should have some sort of naval guns on the towers too"): a light naval gun on each
+                // corner tower's platform, its sharpshooter beside it, the lamp on a bar at the rail.
+                put(u + (u > 0 ? 2 : -2), y0 + 14, v + (v > 0 ? 2 : -2), k.lamp)
+                unit("deck_gun:light@ash", Float(u), Float(v), heading: Int(atan2f(Float(-u), Float(v)) * 180 / .pi + 540) % 360, y: y0 + 13)
+                soldier("marksman", Float(u + (u > 0 ? -1 : 1)), Float(v + (v > 0 ? -1 : 1)), y: y0 + 13)
             }
             for (u, v) in [(-6, -a), (6, -a), (-6, a), (6, a), (-a, -6), (-a, 6), (a, -6), (a, 6)] {
                 box(u, y0 + 1, v, u, y0 + 8, v, k.plating); put(u, y0 + 9, v, k.lamp); put(u, y0 + 6, v, k.mark)
@@ -749,6 +752,20 @@ extension AshWar {
             drums(10, 16, 3, 2); crates(-14, 18, 2, 2)
             flag(-18, -16, h: 10)
             lampPost(-22, 22); lampPost(22, -22)
+            // P435 (Oct 24 15:57, "why doesn't the gate go all around the artillery site?"): the battery's wire fence on
+            // posts runs right round it now, with the gate on the road in (front).
+            let fw = Blocks.has("ash_wire") ? Blocks.id("ash_wire") : k.bars
+            let fr = s.r                                                               // (the pad's edge)
+            for i in -fr...fr {
+                for (u, v) in [(i, -fr), (i, fr), (-fr, i), (fr, i)] {
+                    if v == fr && abs(u) <= 3 { continue }                              // the gate
+                    let post = i % 4 == 0 || abs(i) == fr
+                    guard w.get(f.x(u, v), y0 + 1, f.z(u, v)) == AIR else { continue }      // (a hut's wall stands in its line)
+                    put(u, y0 + 1, v, post ? k.plating : fw)
+                    if post { put(u, y0 + 2, v, k.bars) }
+                }
+            }
+            put(-4, y0 + 3, fr, k.lamp); put(4, y0 + 3, fr, k.lamp)
         case "heavywater":
             // P326 (c): a heavy-water plant, modelled on the period's hydro-electric ones: a dam at the back, three
             // penstocks stepping down to the hall, the hall's two long rows of electrolysis cells wired to a bus bar,

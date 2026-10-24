@@ -286,6 +286,8 @@ enum Capital {
     static let navalHung = GunSpec2(speed: 120, power: 3.5, reload: 3.5, pitchMin: -1.35, pitchMax: 0.2)
     static let heavy = GunSpec2(speed: 110, power: 4, reload: 4.5, pitchMin: -0.3, pitchMax: 0.7)
     static let auto = GunSpec2(speed: 140, power: 1.8, reload: 1.2, pitchMin: -0.4, pitchMax: 1.0, scatter: 0.025)
+    // P435: the same gun flown by him (ShipPlay.startPiloting): a quicker, heavier high-explosive round.
+    static let autoHeld = GunSpec2(speed: 170, power: 3.4, reload: 0.4, pitchMin: -0.4, pitchMax: 1.0, scatter: 0.012)
 
     // MARK: Stormwarden Frigate (bow toward -Z at z 0, keel at y 0, centreline x 0)
 

@@ -317,8 +317,9 @@ final class Armory {
             if s.fromPlayer { m.killedByPlayer = true; m.playerHurtAt = g.clock; hitMarker = 0.3; hits += 1 }
             m.hit(from: at - dir * 2, damage: m.health + 1000, knockback: 1.2)
         }
-        // P320: a Faustrohr's shaped charge burns through a vehicle's plate (its rear still takes more: Mob.hit).
-        if s.kind == .rocket && s.antiTank > 0 && (m.kind.ashVehicle || m.kind == .deckGun) && m.health > 0 {
+        // P320: a Faustrohr's shaped charge burns through a vehicle's plate (its rear still takes more: Mob.hit); P435:
+        // so does the round from a tank or field gun he works.
+        if (s.kind == .rocket || s.kind == .shell) && s.antiTank > 0 && (m.kind.ashVehicle || m.kind == .deckGun) && m.health > 0 {
             if s.fromPlayer { m.killedByPlayer = true; m.playerHurtAt = g.clock; hitMarker = 0.3; hits += 1 }
             Mob.roundHit = true
             m.hit(from: at - dir * 2, damage: Int(s.antiTank), knockback: 0)
@@ -345,7 +346,7 @@ final class Armory {
         let infantry = Soldier.rank(m.kind) != nil && !m.kind.ashVehicle && m.kind != .deckGun && s.kind == .bullet
         if infantry {
             if m.troop == 0 { dmg *= 1 - min(0.35, Float(m.armorPoints.0) * 0.015) }
-            dmg /= max(0.5, m.vary.tough)
+            dmg /= max(0.25, Difficulty.tough(m))
             // P358 (a) (Oct 16 21:42, "the Nazis are still too tough"): a soldier dies like a man, whatever his plate,
             // rank or toughness roll: one round to the head or a heavy rifle round (9 or more) to the body, two rifle or
             // pistol rounds (4 or more), a short burst of four lighter rounds. The marshal and the chancellor are bosses.
@@ -448,7 +449,7 @@ final class Armory {
             let infantry = Soldier.rank(m.kind) != nil && !m.kind.ashVehicle && m.kind != .deckGun
             if infantry {
                 if m.troop == 0 { dmg *= 1 - min(0.35, Float(m.armorPoints.0) * 0.015) }
-                dmg /= max(0.5, m.vary.tough)
+                dmg /= max(0.25, Difficulty.tough(m))
             }
             Mob.roundHit = infantry
             m.hit(from: o, damage: max(1, Int(dmg)), knockback: 0.9)

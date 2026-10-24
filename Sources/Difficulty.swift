@@ -77,10 +77,22 @@ enum Difficulty {
     // The share of a hit a mob takes. Enemy health is fixed across levels (P302); only the mob's own build roll
     // (MobVary) and, on the easy levels, a hostile flier's frailty change it. Fractions round at random so the average
     // holds; every landed hit does at least 1.
+    // P435 (Oct 24 16:01, "that guy's damn tough... what the hell is he made of? I'm on easy difficulty"): on Very Easy
+    // and Easy no enemy rolls tougher than plain (MobVary's brutes and elites still run faster and hit harder), the
+    // Deep's veterans lose the doubled health they carry on Normal and up (a hit on one counts twice), and the Marshal
+    // and the Chancellor take twice (Very Easy) or half again (Easy) what a hit does on Normal.
+    static func tough(_ m: Mob) -> Float {
+        let t = m.vary.tough
+        guard level == 1 || level == 2 else { return t }
+        if m.kind == .ashMarshal || m.kind == .ashChancellor { return min(t, 1) * (level == 1 ? 0.5 : 0.67) }
+        if m.faction == Faction.ashguard.rawValue && Soldier.rank(m.kind) != nil && !m.kind.ash { return min(t, 1) * 0.5 }
+        return min(t, 1)
+    }
+
     static func scaleHit(_ damage: Int, _ m: Mob) -> Int {
         guard damage > 0 else { return damage }
         let flier: Float = m.kind.hostile && m.spec.flying ? row.flier : 1
-        let t = m.vary.tough / flier
+        let t = tough(m) / flier
         guard t != 1 else { return damage }
         let d = Float(damage) / t, whole = floorf(d)
         return max(1, Int(whole) + (Rand.float(in: 0..<1) < d - whole ? 1 : 0))
