@@ -302,12 +302,16 @@ extension Mob {
     func hannibalJets(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool, speed: Float) -> Float {
         jetCD -= dt
         let b = soldierBrain
-        if jet <= 0 && jetCD <= 0 && aggro && canTarget && onGround && !Blocks.isLiquid(g.world.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))) && dist < 48 && b.reload <= 0 {
+        // P437 (Oct 24 15:38, "the guy can fly, but he's not utilizing it to his advantage at all"): it waited for a
+        // reload and for the player to be above it, 16+ blocks off or out of sight, so in a stand-up fight it never
+        // left the ground. Now any fight within 48 blocks lifts it once the 5-9 s wait is up, a burst under way or not,
+        // and it climbs higher (4-8 over the higher of the two), firing down from the air.
+        if jet <= 0 && jetCD <= 0 && aggro && canTarget && onGround && !Blocks.isLiquid(g.world.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))) && dist < 48 {
             let above = g.player.pos.y - pos.y > 2.5
-            if above || dist > 16 || (!b.sees && dist < 32) {
-                jet = Rand.float(in: 3...5)
-                jetY = max(pos.y, g.player.pos.y) + Rand.float(in: 3...6)
-                jetCD = Rand.float(in: 8...14)
+            if above || dist > 6 || !b.sees {
+                jet = Rand.float(in: 3.5...6)
+                jetY = max(pos.y, g.player.pos.y) + Rand.float(in: 4...8)
+                jetCD = Rand.float(in: 5...9)
                 vel.y = 4
                 onGround = false
                 g.sfx(.fireworkLaunch, 0.9, at: eye)

@@ -52,6 +52,7 @@ final class SoundtrackDirector {
     var ended = ""                   // the state whose track last ended by itself (its quiet is running)
     var lastCur: String? = nil       // the track playing last frame
     var log: [String]? = nil         // harness: every track started
+    var playedFor: Float = 0         // seconds the track playing now has played (P437: calm tracks keep the floor 45 s)
 }
 
 extension Game {
@@ -149,6 +150,7 @@ extension Game {
             deck.play(name, gain: Soundtrack.gain(name), fade: fade)
             d.ended = ""
             d.lastCur = name
+            d.playedFor = 0
             d.log?.append(name)
         }
         d.placeTimer -= dt
@@ -169,7 +171,13 @@ extension Game {
             if w != d.want { d.want = w; d.heldFor = 0 }
         }
         d.heldFor += dt
-        if d.want != d.settled && (Soundtrack.urgent.contains(d.want) || d.heldFor >= 2) { d.settled = d.want }
+        d.playedFor += dt
+        // P437 (Oct 24 15:21, "the way the music changes from one thing to the other is a little too..."): walking along
+        // a forest's edge swapped the forest and plains tracks every few seconds with a 3.5 s fade. A calm state now has
+        // to hold 12 s, a calm track keeps playing at least 45 s before another calm one takes over, and calm changes
+        // crossfade over 8 s (6 s back from a fight). Fights, bosses and death still cut in at once.
+        let calmHold: Float = Soundtrack.urgent.contains(d.settled) ? 4 : 12
+        if d.want != d.settled && (Soundtrack.urgent.contains(d.want) || d.heldFor >= calmHold) { d.settled = d.want }
         let want = d.settled
         guard !want.isEmpty, AudioSettings.volume(.music) > 0 else {
             if deck.current != nil { deck.stop(fade: 2) }
@@ -178,7 +186,8 @@ extension Game {
         if let cur = deck.current {
             if cur == want { return }                                   // never restart a track while its state goes on
             // A new state: crossfade (fights cut in quicker, and hand back over 4 s).
-            let fade: Float = Soundtrack.urgent.contains(want) ? 1.5 : (Soundtrack.urgent.contains(cur) ? 4 : 3.5)
+            if !Soundtrack.urgent.contains(want) && !Soundtrack.urgent.contains(cur) && !Soundtrack.looping.contains(cur) && d.playedFor < 45 { return }
+            let fade: Float = Soundtrack.urgent.contains(want) ? 1.5 : (Soundtrack.urgent.contains(cur) ? 6 : 8)
             start(want, fade: fade)
             return
         }
@@ -186,7 +195,7 @@ extension Game {
         if d.ended == want && !Soundtrack.looping.contains(want) {
             if d.quiet > 0 { d.quiet -= dt; return }
         }
-        start(want, fade: Soundtrack.urgent.contains(want) ? 1 : 3)
+        start(want, fade: Soundtrack.urgent.contains(want) ? 1 : 5)
 
     }
 }

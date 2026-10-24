@@ -178,6 +178,30 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
+    // P437 (h): --edittime: place a block in the first air cell beside a solid one near the eye, then break it, and
+    // time each step (the write with its remesh, the structure check, falling-block checks) as the game runs them.
+    if CommandLine.arguments.contains("--edittime") {
+        let ex = Int(floor(vg.player.pos.x)), ez = Int(floor(vg.player.pos.z))
+        var cells: [IVec3] = []
+        for dy in -6...6 { for dz in -3...3 { for dx in -3...3 {
+            let x = ex + dx, y = Int(floor(vg.player.pos.y)) + dy, z = ez + dz
+            if vw.block(x, y, z) == AIR && Blocks.opaque[Int(vw.block(x, y - 1, z))] { cells.append(IVec3(x, y, z)) }
+        } } }
+        print("edittime: \(cells.count) candidate cells; on \(cells.first.map { Blocks.key(vw.block($0.x, $0.y - 1, $0.z)) } ?? "-")")
+        func t(_ f: () -> Void) -> Double { let t0 = CFAbsoluteTimeGetCurrent(); f(); return (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
+        for c in cells.prefix(4) {
+            print("edittime: \(vw.loadQueue.count) checks waiting before; cleared")
+            vw.loadQueue.removeAll(); vw.loadQueued.removeAll()
+            let place = t { vw.setBlock(c.x, c.y, c.z, Blocks.id("stone_bricks")) }
+            print("edittime: place queued \(vw.loadQueue.count), grounded \(vw.loadQueue.first.map { Structure.grounded(vw, $0) } ?? false)")
+            let sp = t { Structure.tick(vg) }
+            let brk = t { vw.setBlock(c.x, c.y - 1, c.z, AIR) }
+            let sb = t { Structure.tick(vg) }
+            let tick = t { vg.gravityTick() }
+            print(String(format: "edittime: at %d %d %d (under: %@) place %.1f ms + structure %.1f ms; break below %.1f ms + structure %.1f ms; gravity %.1f ms; worst check %.1f ms",
+                         c.x, c.y, c.z, Blocks.key(vw.block(c.x, c.y - 2, c.z)), place, sp, brk, sb, tick, Structure.worstMs))
+        }
+    }
     // P337 step 7: --rail plays 4 s through Game.tick beside the line and reports what the trains cost a frame.
     if CommandLine.arguments.contains("--rail") {
         vg.paused = false; vg.survival = false

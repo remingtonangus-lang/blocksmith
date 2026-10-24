@@ -151,6 +151,8 @@ final class LastWar {
     var vanished = 0                    // wave units gone without dying (unloaded: the player left, died or ran off)
     var stragglers: Float = 0           // seconds the wave has been down to its last few
     var spawnedWaves = 0                // harness counter
+    var chancellorCall: Float = 3       // P438: seconds to his next loudspeaker line while the blast door stays shut
+    var chancellorLine = -1
 }
 
 extension Game {
@@ -165,7 +167,7 @@ extension Game {
         ashHatchTick()                                    // P318: the hatch console (AshSabotage.swift)
         switch ashStage {
         case 1: lastBattleSecond(s)
-        case 2: bunkerSecond(s)
+        case 2: bunkerSecond(s); chancellorCallSecond(s)
         default: break
         }
     }

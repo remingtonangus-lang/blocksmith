@@ -27,7 +27,7 @@ class ListMenu: Menu, CustomDrawnMenu {
     override init(_ title: String, game: Game) {
         super.init(title, game: game)
         showInventoryLabel = false
-        width = 284; height = 180
+        width = 284; height = 200          // (P437: two lines under the rows for a cut-off row's full text)
         for i in 0..<ListMenu.visible {
             let b = MenuSlot(ListMenu.rowX, ListMenu.rowY + ListMenu.rowH * i, nil, 0, .button(i))
             b.w = ListMenu.rowW; b.h = ListMenu.rowH - 2
@@ -98,6 +98,19 @@ class ListMenu: Menu, CustomDrawnMenu {
             label(ShopMenu.fit(r.detail, ListMenu.rowW - (textX - x) - valueW - 4), textX, y + 11, mid)
             if !r.value.isEmpty { right(r.value, x + ListMenu.rowW - 5, y + 6, r.good ? V4(0.08, 0.34, 0.1, 1) : V4(0.55, 0.16, 0.12, 1)) }
             if hot && Prompt.pad { box(x - 1, y - 1, ListMenu.rowW + 2, 1, V4(1, 0.85, 0.2, 1)); box(x - 1, y + ListMenu.rowH - 2, ListMenu.rowW + 2, 1, V4(1, 0.85, 0.2, 1)) }
+        }
+        // P437 (Oct 24 15:17, "I can't read what the sheriff said about Smiling Bill"): a row whose name or detail is cut
+        // off with "..." is spelled out in full, word-wrapped, under the list while it is pointed at.
+        if let i = slots.prefix(ListMenu.visible).firstIndex(where: { $0 === hover }), scroll + i < rs.count {
+            let r = rs[scroll + i]
+            let textX = r.icon.isEmpty ? 5 : 24
+            let room = ListMenu.rowW - textX - (r.value.isEmpty ? 0 : Font.width(r.value) + 8) - 4
+            if Font.width(r.name) > room || Font.width(r.detail) > room {
+                let full = r.detail.isEmpty ? r.name : r.name + ": " + r.detail
+                for (k, line) in Journal.wrap(full, width: width - 16).prefix(2).enumerated() {
+                    label(line, 8, ListMenu.rowY + ListMenu.rowH * ListMenu.visible + 2 + 9 * k, dark)
+                }
+            }
         }
         for (id, t) in [(ListMenu.scrollUp, "^"), (ListMenu.scrollDown, "v")] {
             guard let sl = slots.first(where: { if case .button(let b) = $0.kind { return b == id }; return false }) else { continue }

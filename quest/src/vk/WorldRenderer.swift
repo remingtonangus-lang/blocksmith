@@ -101,6 +101,8 @@ final class WorldRenderer {
     // over ~0.7 s by real time. It was the eye block alone at 4 % a frame (~0.3 s), against a narrow skylight 12-6 ramp:
     // walking in, the walls went dark before the fill came on, then the fill snapped in bright (Quest v63 report).
     private var caveClock = 0.0
+    private var fogClock = 0.0, fogEase: Float = -1, fogStartEase: Float = 0      // P437: the eased fog reach (uniforms)
+    private var fogDim = Dim.overworld
     private func updateCave(_ eye: V3) {
         guard game.dim.dim.hasSky else { caveK = 1; return }
         let w = game.world
@@ -191,6 +193,21 @@ final class WorldRenderer {
             fogEnd = wf; fogStart = min(fogStart, wf * game.weatherFogStartK)
             if let tint = game.stormFogTint { fogColor = fogColor * 0.35 + tint * 0.65 * max(0.25, game.daylight) }   // D49
             fogColor = fogColor * (1 - 0.5 * WeatherWar.fog) + V3(0.6, 0.62, 0.64) * (0.5 * WeatherWar.fog * game.daylight)
+        }
+        // P437 (Oct 24 16:05, "the fog should slowly drift in, not just appear like that... also just disappeared in
+        // like a second"): the reach jumped whenever its inputs did (Auto View Distance stepping the drawn edge in or out,
+        // a cave mouth's cap, the bank's height cut-off while climbing or dropping). It now eases to where it is going
+        // over a few seconds; underwater, lava, blindness and the vault haze still change at once.
+        let fogNow = CFAbsoluteTimeGetCurrent()
+        let fogDt = Float(min(0.1, max(0, fogNow - fogClock)))
+        fogClock = fogNow
+        if fogEase < 0 || underwater || p.headInLava || game.blindFog != nil || game.inVaultHaze || game.dim.dim != fogDim {
+            fogEase = fogEnd; fogStartEase = fogStart; fogDim = game.dim.dim
+        } else {
+            let k = 1 - expf(-fogDt / 3)
+            fogEase += (fogEnd - fogEase) * k
+            fogStartEase += (fogStart - fogStartEase) * k
+            fogEnd = fogEase; fogStart = min(fogStartEase, fogEnd)
         }
         let daylight = game.renderDaylight
         let nv = game.nightVision
