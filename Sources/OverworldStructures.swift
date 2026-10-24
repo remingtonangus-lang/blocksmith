@@ -36,6 +36,8 @@ enum OverworldStructures {
                     if mission { dustMission(&w, x, y, z, s) } else { desertPyramid(&w, x, y, z, s) } }],
                                       anchor: IVec3(x, y + 1, z - 17))
             case .jungle, .bambooJungle, .sparseJungle:
+                // P429 (Oct 24: "jungle temples are too common"): two grid cells in five keep one.
+                guard hashf(cx, 0, cz, 0x7E4) < 0.4 else { return nil }
                 return StructureStart(kind: "jungle_temple", pieces: [piece(x - 8, y - 6, z - 12, x + 8, y + 15, z + 9) { w in jungleTemple(&w, x, y, z, s) }],
                                       anchor: IVec3(x, y + 2, z - 13))
             case .swamp, .mangroveSwamp:
@@ -246,6 +248,25 @@ enum OverworldStructures {
         }
         w.chest(cx - 4, y - 3, cz + 4, loot: "jungle_temple", seed: rng.next(), facing: 3)
         w.chest(cx + 1, y + 5, cz + 5, loot: "jungle_temple", seed: rng.next(), facing: 0)
+        // P429 (Oct 24: "they should have traps with copper"): two string traps wired to arrow dispensers. A tripwire
+        // across the second step down to the chamber, its hooks in the stair walls, a dispenser in the hall floor over each
+        // hook firing across the stair at head height; and one across the gallery before the upper chest, hooks on
+        // the side walls powering the wall block they hang on, a dispenser in the wall above each firing across.
+        if Blocks.has("tripwire_hook") && Blocks.has("dispenser") {
+            let hook = Blocks.id("tripwire_hook"), wire = Blocks.id("tripwire")
+            func arrows() -> [ItemStack] { [ItemStack(Items.id("arrow"), rng.range(3, 8))] }
+            // Hook facing: 2 points -x, 3 points +x (the string runs that way); dispenser dir6: 4 is -x, 5 is +x.
+            let sz = cz, sy = y - 1
+            w.set(cx + 2, sy, sz, hook + 3); w.set(cx + 3, sy, sz, wire); w.set(cx + 4, sy, sz, hook + 2)
+            w.dispenser(cx + 2, y, sz, dir: 5, items: arrows())
+            w.dispenser(cx + 4, y, sz, dir: 4, items: arrows())
+            let gz = cz + 3, gy = y + 5
+            w.set(cx - 4, gy, gz, hook + 3)
+            for x in (cx - 3)...(cx + 3) { w.set(x, gy, gz, wire) }
+            w.set(cx + 4, gy, gz, hook + 2)
+            w.dispenser(cx - 5, gy + 1, gz, dir: 5, items: arrows())
+            w.dispenser(cx + 5, gy + 1, gz, dir: 4, items: arrows())
+        }
         // Vines: down the outside of every tier and in the hall.
         for (tier, (rx, rz)) in [(6, 7), (5, 6), (3, 4)].enumerated() {
             let top = y + tier * 4 + 3

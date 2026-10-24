@@ -168,6 +168,15 @@ struct StructWriter {
         Loot.fill(be.container, table: loot, rng: &rng)
         entities.append((IVec3(x, y, z), be))
     }
+    // A dispenser (or dropper) facing dir (dir6 index) loaded with the given items, one stack a slot.
+    mutating func dispenser(_ x: Int, _ y: Int, _ z: Int, dir: Int, items: [ItemStack], key: String = "dispenser") {
+        guard inside(x, y, z) else { return }
+        set(x, y, z, Blocks.id(key) + BlockID(dir))
+        let be = BlockEntity(.dispenser)
+        let c = be.container
+        for (i, it) in items.prefix(c.count).enumerated() { c[i] = it }
+        entities.append((IVec3(x, y, z), be))
+    }
     // Mob placed when this chunk generates (only if its position lies in this chunk).
     mutating func mob(_ kind: String, _ p: V3) {
         if inside(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) { mobs.append((kind, p)) }
