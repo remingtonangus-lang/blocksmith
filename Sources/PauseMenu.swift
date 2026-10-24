@@ -505,7 +505,10 @@ final class PauseMenu: Menu {
         let vr = PauseMenu.hostEntry?.1 ?? "host:vr"
         switch page {
         case .main:
-            return Style(width: 440, btnH: 30, gapX: 12, gapY: 6, groupGap: 12, cols: 4, lines: 8, groups: [
+            // P410 (Oct 22 22:06, "I can't hardly read what's in the main menu"): seven lines of 30 (since P369's
+            // Difficulty row, Oct 18) made the page taller than half the headset's panel, so it was fitted at scale 1:
+            // letters half a degree high (questcheck --vrtext-only). Lines of 24 with tighter gaps keep it at scale 2.
+            return Style(width: 440, btnH: 24, gapX: 12, gapY: 4, groupGap: 10, cols: 4, lines: 8, groups: [
                 (["resume", "restorebackup"], 0),
                 (["options", vr, PauseMenu.viewFixed ? "ad" : "rd", "mode"], 0),                              // settings
                 (["worldmap", "track", "advancements", "stats"], 0),             // map and progress

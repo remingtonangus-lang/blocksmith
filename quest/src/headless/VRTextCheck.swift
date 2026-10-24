@@ -26,6 +26,7 @@ enum VRTextCheck {
             ("inventory", { g.survival = true; g.openInventory() }),
             ("creative", { g.survival = false; g.openInventory() }),
             ("pause", { g.openMenu(PauseMenu(game: g)) }),
+            ("title", { let pm = PauseMenu(game: g); pm.page = .title; pm.build(); g.openMenu(pm) }),     // (P410)
         ]
         for (name, open) in menus {
             open()
