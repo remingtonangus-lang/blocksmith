@@ -2690,6 +2690,7 @@ final class Game {
             // P302 (Oct 15 18:53, "easy all but instakilled me"): on the easy levels no single attack takes more
             // than a heart and a half (Very Easy) or two and a half (Easy), however big the gun or the blast.
             if row.cap > 0 { amount = min(amount, row.cap) }
+            if row.blow > 0 { amount = min(amount, row.blow) }                // P413: Normal and Hard
             amount = levelRate(amount)                                         // P358: and no more in any one second
             guard amount > 0 else { return }
         }
