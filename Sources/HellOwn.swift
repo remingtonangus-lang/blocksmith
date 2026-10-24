@@ -15,12 +15,16 @@ import simd
 // And nothing in hell carries a gun: the Ashguard live below the Sealrock, so an Ashguard soldier set in the hell band
 // (an old keep's strongroom detail, the seal dig's sentry) takes the matching Brand Order rank, and an Ashguard vehicle
 // there is gone.
+// P418 (Remington, Oct 23 21:06: "We gotta get rid of Enderman. They can't be in the game"): the voidwalker is retired
+// the same way, everywhere, with no heir: it never spawns, and one an old save, a spawner or an egg still holds is gone
+// (void pearls still come from boarling barter and the cleric's trades).
 extension MobKind {
     static let retiredHellKinds: [MobKind] = [.ghast, .blaze, .wither, .witherSkeleton, .piglin, .piglinBrute, .zombifiedPiglin,
-                                              .hoglin, .zoglin, .strider, .magmaCube]
+                                              .hoglin, .zoglin, .strider, .magmaCube, .enderman]
     var retiredHell: Bool {
         switch self {
-        case .ghast, .blaze, .wither, .witherSkeleton, .piglin, .piglinBrute, .zombifiedPiglin, .hoglin, .zoglin, .strider, .magmaCube: return true
+        case .ghast, .blaze, .wither, .witherSkeleton, .piglin, .piglinBrute, .zombifiedPiglin, .hoglin, .zoglin, .strider, .magmaCube,
+             .enderman: return true
         default: return false
         }
     }
@@ -34,7 +38,7 @@ extension MobKind {
         case .piglinBrute: return .brandChampion
         case .piglin, .zombifiedPiglin: return inHell ? .brandSquire : .zombie
         case .hoglin, .zoglin, .magmaCube: return inHell ? .scorchling : nil
-        case .wither, .strider: return nil
+        case .wither, .strider, .enderman: return nil
         default: return self
         }
     }
