@@ -79,6 +79,14 @@ final class QuestControls {
     private var bHold: Float = 0, bPulse = 0
     private var l3Hold: Float = 0               // s the left stick click has been held (sneak)
     private var lastAimHand: XRHand?               // drawHeld: the last tracked aim pose
+    // P403 7b (space warp motion vectors): each hand's grip pose and the held item's pose (world) at the last drawn
+    // frame, and this frame's hand vertex ranges in drawOpaque's buffer.
+    private var drawnGrip: [(V3, simd_quatf)?] = [nil, nil], drawnAim: (V3, simd_quatf)?
+    private var handRanges: [(start: Int, count: Int, prev: float4x4)] = []
+    private func motionPrev(_ pos: V3, _ rot: simd_quatf, was: (V3, simd_quatf)?, eye: V3) -> float4x4? {
+        guard app.scene.spaceWarp, let w = was, simd_length_squared(w.0 - eye - pos) < 4 else { return nil }
+        return SceneRenderer.motion(pos: pos, rot: rot, wasPos: w.0 - eye, wasRot: w.1)
+    }
     private var sneakLatch = false              // tapped: sneak until the next tap
     private var l3Rode = false                  // the left stick click began while riding
     private var prevStickClickL = false
@@ -1519,11 +1527,17 @@ final class QuestControls {
         let ck = chestPiece.isEmpty ? "" : Items.key(chestPiece.item)
         let gauntlet: ArmorLook.Style? = ck.isEmpty || ck == "elytra" || ck == "jetpack" ? nil : ArmorLook.style(chestPiece)
         // Controllers: a grip block and a pointer nose, in each hand's grip pose.
+        handRanges.removeAll(keepingCapacity: true)
         for h in 0..<2 {
             let hd = xr.hands[h]
-            guard hd.gripValid else { continue }
+            guard hd.gripValid else { drawnGrip[h] = nil; continue }
             let pos = rig.toWorld(hd.gripPos) - eye
             let rot = rig.toWorldRot(hd.gripRot)
+            let h0 = v.count
+            defer {
+                if let m = motionPrev(pos, rot, was: drawnGrip[h], eye: eye) { handRanges.append((h0, v.count - h0, m)) }
+                drawnGrip[h] = (pos + eye, rot)
+            }
             let base = h == aimHand ? V3(0.25, 0.27, 0.32) : V3(0.3, 0.3, 0.34)
             // A magazine in the off hand (VRReload): a dark steel box under the grip.
             // P260 (c): at the controls each hand holds one: a throttle lever (moving hand) or a helm grip (aiming hand),
@@ -1570,7 +1584,11 @@ final class QuestControls {
                 }
             }
         }
-        if let off = app.scene.push(s, v, priority: true) { app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count) }
+        if let off = app.scene.push(s, v, priority: true) {
+            app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count)
+            let st = MemoryLayout<SimpleVert>.stride
+            for r in handRanges { app.scene.addMotion(s, .simple, offset: off + r.start * st, count: r.count, prev: r.prev) }
+        }
         giveVerts(v)
         drawHeld(s, eye: eye)
         drawTeleport(s, eye: eye)
@@ -1611,12 +1629,14 @@ final class QuestControls {
     private func drawHeld(_ s: SceneRenderer.Slot, eye: V3) {
         // A frame without a valid aim pose (tracking blip) keeps the last one instead of hiding the tool.
         if app.input.hands[aimHand].aimValid { lastAimHand = app.input.hands[aimHand] }
-        guard let hd = lastAimHand, game.menu == nil, !game.paused, game.sleeping == 0 else { return }
+        guard let hd = lastAimHand, game.menu == nil, !game.paused, game.sleeping == 0 else { drawnAim = nil; return }
         let held = game.held
-        if held.isEmpty || scopeT > 0.5 { return }            // (G21: looking through the scope, the rifle is out of view)
+        if held.isEmpty || scopeT > 0.5 { drawnAim = nil; return }            // (G21: looking through the scope, the rifle is out of view)
         let rig = app.rig
         let pos = rig.toWorld(hd.aimPos) - eye
         let rot = braceRot ?? rig.toWorldRot(hd.aimRot)
+        let prev = motionPrev(pos, rot, was: drawnAim, eye: eye)       // P403 7b
+        drawnAim = (pos + eye, rot)
         let pe = game.player.eye
         let l = game.world.lightAt(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
         let skyK: Float = 0.12 + 0.88 * game.renderDaylight
@@ -1638,9 +1658,10 @@ final class QuestControls {
             }
             app.scene.commit(off, n, MobVert.self)
             app.scene.drawScratch(s, "mob", offset: off, count: n)
+            if let m = prev { app.scene.addMotion(s, .mob, offset: off, count: n, prev: m) }
             return
         }
-        if let bp = bowPose { drawBow(s, eye: eye, bp, light: light); return }
+        if let bp = bowPose { drawBow(s, eye: eye, bp, light: light, prev: prev); return }
         let (ptr, off, cap) = app.scene.reserve(s, EntityVert.self, max: 2400, priority: true)
         guard cap >= 96 else { return }
         var wr = EntityWriter(out: ptr, capacity: cap)
@@ -1675,11 +1696,12 @@ final class QuestControls {
         }
         app.scene.commit(off, wr.n, EntityVert.self)
         app.scene.drawScratch(s, "entity", offset: off, count: wr.n)
+        if let m = prev { app.scene.addMotion(s, .entity, offset: off, count: wr.n, prev: m) }
     }
 
     // The bow as solid geometry (VRBow.Pose, tracking space): limbs standing across the arrow and bending back to the
     // string, the string from both tips to the nock, and the nocked arrow from the nock through the grip.
-    private func drawBow(_ s: SceneRenderer.Slot, eye: V3, _ bp: VRBow.Pose, light: Float) {
+    private func drawBow(_ s: SceneRenderer.Slot, eye: V3, _ bp: VRBow.Pose, light: Float, prev: float4x4? = nil) {
         let rig = app.rig
         var v = takeVerts()
         defer { giveVerts(v) }
@@ -1720,7 +1742,10 @@ final class QuestControls {
             beam(tip - bp.dir * 0.07, tip, 0.015, 0.006, V3(0.55, 0.57, 0.6))
             beam(nk + bp.dir * 0.02, nk + bp.dir * 0.13, 0.004, 0.02, V3(0.9, 0.9, 0.88))
         }
-        if let off = app.scene.push(s, v, priority: true) { app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count) }
+        if let off = app.scene.push(s, v, priority: true) {
+            app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count)
+            if let m = prev { app.scene.addMotion(s, .simple, offset: off, count: v.count, prev: m) }    // P403 7b
+        }
     }
 
     // The blade trail (BladeTrail): a pale ribbon from base to tip over the last few fast frames, fading with age.

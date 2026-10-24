@@ -127,6 +127,30 @@ final class SceneRenderer {
     private var tsPeriod: Double = 0           // ns per timestamp tick
     private(set) var gpuMs = 0.0               // last completed frame's GPU time
 
+    // P403 7b (Application SpaceWarp on by default): this frame's draws of things that move on their own (the hands and
+    // what they hold, mobs, ships), drawn again by SpaceWarpPass into the motion vectors. prev maps a drawn
+    // (camera-relative) vertex to where that point was at the last drawn frame. Collected only with space warp on.
+    struct MotionDraw { var input: Input; var buffer: VkBuffer?; var offset: Int; var count: Int; var prev: float4x4 }
+    private(set) var motionDraws: [MotionDraw] = []
+    func addMotion(_ s: Slot, _ input: Input, buffer: VkBuffer? = nil, offset: Int, count: Int, prev: float4x4) {
+        guard spaceWarp, count > 0 else { return }
+        motionDraws.append(MotionDraw(input: input, buffer: buffer ?? s.scratch.buffer, offset: offset, count: count, prev: prev))
+    }
+    // The prev matrix of a rigid thing at pose (pos camera-relative, rot) now and (wasPos camera-relative, wasRot) at
+    // the last drawn frame.
+    static func motion(pos: V3, rot: simd_quatf, wasPos: V3, wasRot: simd_quatf) -> float4x4 {
+        let d = wasRot * rot.inverse
+        var m = float4x4(d)
+        let t = wasPos - d.act(pos)
+        m.columns.3 = SIMD4<Float>(t.x, t.y, t.z, 1)
+        return m
+    }
+    static func motion(moved d: V3) -> float4x4 {
+        var m = matrix_identity_float4x4
+        m.columns.3 = SIMD4<Float>(-d.x, -d.y, -d.z, 1)
+        return m
+    }
+
     // Stats (last frame).
     private(set) var drawCalls = 0
     private(set) var drawnQuads = 0
@@ -762,6 +786,7 @@ final class SceneRenderer {
                 }
             }
         }
+        motionDraws.removeAll(keepingCapacity: true)
         var f: VkFence? = s.fence
         vkResetFences(ctx.device, 1, &f)
         vkResetCommandBuffer(s.cmd, 0)

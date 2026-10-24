@@ -51,7 +51,7 @@ if let secs = Double(arg("--xr") ?? "") {
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
 let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes")
-    || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare") ? "" : nil)
+    || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare") ? "" : nil)
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -73,6 +73,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--saveacross"), i + 2 < Command
 // --perfscenes [--rd 12,16] [--only NAME,...] [--blockworld]: the Quest frame's CPU side in the playtest scenes (P283,
 // quest/src/test/QuestPerf.swift).
 if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }
+// --spacewarp: P403 7b, the space warp's motion vectors of a moving mob (quest/src/test/SpaceWarpCheck.swift).
+if CommandLine.arguments.contains("--spacewarp"), let ctx = vkctx { exit(SpaceWarpCheck.run(ctx: ctx)) }
 // --launch DIR / --launch-prepare DIR [--rd 24]: the headset's launch path timed stage by stage (P400,
 // quest/src/test/QuestLaunch.swift).
 if CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare"), let ctx = vkctx { exit(QuestLaunch.run(ctx: ctx)) }
