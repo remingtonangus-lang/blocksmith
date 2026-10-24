@@ -1,4 +1,11 @@
 import Foundation
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Android)
+import Android
+#elseif canImport(Darwin)
+import Darwin
+#endif
 
 // The painted block textures (TextureGen.mipChain: every layer, every mip level) cached on the headset's storage, so
 // only the first launch of a build pays for painting them. Keyed by build commit, texture size, layer count and texpack hash; a
