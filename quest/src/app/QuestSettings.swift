@@ -121,6 +121,8 @@ enum QuestSettings {
     // so a headset that saved the old default (off) starts with it on once.
     static var spaceWarp: Bool { get { bool("quest.spaceWarp2", true) } set { store(newValue, "quest.spaceWarp2") } }
     static var spaceWarpActive = false
+    // P403 7b: dynamic eye-buffer resolution (DynamicResolution), on by default.
+    static var dynamicResolution: Bool { get { bool("quest.dynRes", true) } set { store(newValue, "quest.dynRes") } }
     // Texture pixels per face: 128 by default, the imported art's own resolution (tools/texpack.py packs it at 128).
     // 64 was the default for a day and halved the art's detail: "everything's blurry, too compressed" (playtest
     // Oct 10, docs/status/texture-sharpness.md). The 64 that default left in saved settings moves to 128 once
@@ -148,7 +150,7 @@ extension QuestSettings {
          ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.buttonReload", buttonReload), ("quest.swingBeforeReclined", swingBeforeReclined),
          ("quest.leftHanded", leftHanded), ("quest.controlPreset", controlPreset), ("quest.standHeight", standHeight), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
          ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.hudDrop", hudDrop), ("quest.menuScale", menuScale), ("quest.hudScale", hudScale), ("quest.knockback", knockback), ("quest.mineToggle", mineToggle), ("quest.ctrlHints", ctrlHints),
-         ("quest.foveation", foveation), ("quest.spaceWarp2", spaceWarp), ("quest.textureRes", textureRes)]
+         ("quest.foveation", foveation), ("quest.spaceWarp2", spaceWarp), ("quest.dynRes", dynamicResolution), ("quest.textureRes", textureRes)]
     }
     // The headset's own defaults for shared options: the TV-style HUD scale (bigger text), since the panel is read at
     // arm's length, unless the player picked one.

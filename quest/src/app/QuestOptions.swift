@@ -55,7 +55,7 @@ enum QuestOptions {
         PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]
-        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_tex", "q_view", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
@@ -96,6 +96,7 @@ enum QuestOptions {
             "q_tex": "High: 128-pixel block textures (sharpest up close). Medium: 64 pixels, less memory. Applies at the next launch.",
             "q_fov": "Renders the edges of the view at lower resolution (fixed foveated rendering): faster, slightly softer edges.",
             "q_spacewarp": "The game draws every other frame and the headset makes the ones between (Application SpaceWarp): twice the time for each drawn frame, for the long views. Applies at the next launch.",
+            "q_dynres": "When a frame would take too long, the world is drawn at slightly lower resolution (down to 70 %) until there is time again. Off: always full resolution.",
             "q_clouds": "The cloud layer in the sky. Off saves a little time on the headset each frame.",       // Q2c-console-6
             "q_hudfade": "The HUD rests translucent and comes up solid for a few seconds when you step the hotbar. Off keeps it solid.",
         ]
@@ -138,6 +139,7 @@ enum QuestOptions {
                 ("Refresh Rate: \(Int(hooks.currentRate())) Hz", "q_hz"),
                 ("Foveated Rendering: \(fovNames[max(0, min(3, S.foveation))])\(fovNote)", "q_fov"),
                 ("Space Warp: \(on(S.spaceWarp))\(S.spaceWarp != S.spaceWarpActive ? " (next launch)" : "")", "q_spacewarp"),     // P381 step 9
+                ("Dynamic Resolution: \(on(S.dynamicResolution))", "q_dynres"),                                     // P403 7b
                 ("HUD Position: \(S.hudDrop < 0.33 ? "Middle" : (S.hudDrop < 0.5 ? "Low" : "Lower"))", "q_hud"),
                 ("HUD Size: \(S.hudScale < 0.95 ? "Small" : (S.hudScale < 1.05 ? "Normal" : "Large"))", "q_hudsize"),
                 ("Menu Size: \(S.menuScale < 0.95 ? "Small" : (S.menuScale < 1.05 ? "Normal" : (S.menuScale < 1.2 ? "Large" : "Extra Large")))", "q_menusize"),
@@ -273,6 +275,7 @@ enum QuestOptions {
         case "q_hudfade": S.hudFade.toggle()
         case "q_tex": S.textureRes = S.textureRes >= 128 ? 64 : 128
         case "q_spacewarp": S.spaceWarp.toggle()
+        case "q_dynres": S.dynamicResolution.toggle()
         case "q_fov":
             S.foveation = step([0, 1, 2, 3], S.foveation, back)
             if hooks.foveated() { hooks.setFoveation(S.foveation) }

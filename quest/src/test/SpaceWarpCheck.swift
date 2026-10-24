@@ -8,9 +8,26 @@ import CVulkan
 // must move where the cow is (eastward on screen) and stay zero on the still ground around it.
 enum SpaceWarpCheck {
     static func run(ctx: VkContext) -> Int32 {
-        do { return try check(ctx) } catch { print("FAIL spacewarp: \(error)"); return 1 }
+        do { return try check(ctx, scale: 1) | check(ctx, scale: 0.8) | dynres() } catch { print("FAIL spacewarp: \(error)"); return 1 }
     }
-    private static func check(_ ctx: VkContext) throws -> Int32 {
+    // P403 7b: DynamicResolution against a GPU that pays for pixels (40 ms at full size) and one that pays for
+    // triangles (40 ms at any size), both over a 27.8 ms budget: the first settles at the largest scale that fits,
+    // the second drops once, finds nothing gained, and goes back to full resolution.
+    private static func dynres() -> Int32 {
+        var a = DynamicResolution(), b = DynamicResolution()
+        var sa: Float = 1, sb: Float = 1, minB: Float = 1
+        for _ in 0..<600 {
+            sa = a.observe(gpuMs: 40 * Double(sa * sa), budgetMs: 27.8, enabled: true, fps: 36)
+            sb = b.observe(gpuMs: 40, budgetMs: 27.8, enabled: true, fps: 36)
+            minB = min(minB, sb)
+        }
+        print(String(format: "dynres: pixel-bound settles at %.2f (%d drops), triangle-bound at %.2f (lowest %.2f, %d taken back)",
+                     sa, a.drops, sb, minB, b.takenBack))
+        let ok = sa >= 0.74 && sa <= 0.81 && sb == 1 && b.takenBack >= 1
+        print(ok ? "dynres: ok" : "FAIL dynres")
+        return ok ? 0 : 1
+    }
+    private static func check(_ ctx: VkContext, scale: Float) throws -> Int32 {
         let w = World(seed: 12345, device: sharedSystemDevice, save: nil, dim: .overworld)
         w.renderDistance = 2
         let g = Game(world: w, save: nil, persistent: false)
@@ -19,6 +36,7 @@ enum SpaceWarpCheck {
         let scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM, spaceWarp: true)
         try scene.uploadTextures()
         let wr = WorldRenderer(scene: scene, game: g)
+        scene.viewScale = scale
         let size = 256, mvSize = 128
         let img = try VkImg(ctx, width: size, height: size, layers: 2, format: VK_FORMAT_R8G8B8A8_UNORM,
                             usage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue)
@@ -68,7 +86,7 @@ enum SpaceWarpCheck {
         }
         let moving = motion.filter { $0 > 0.01 }.count, backward = motion.filter { $0 < -0.01 }.count
         let drawn = scene.motionDraws.count
-        print("spacewarp: \(drawn) motion draws, \(moving) of \(mvSize * mvSize) motion-vector pixels move east, \(backward) west")
+        print("spacewarp (eyes at \(Int(scale * 100))%): \(drawn) motion draws, \(moving) of \(mvSize * mvSize) motion-vector pixels move east, \(backward) west")
         // The cow covers a few hundred of the 16k pixels; the ground and sky around it stay still.
         let ok = drawn >= 1 && moving > 30 && moving < mvSize * mvSize / 3 && backward == 0
         print(ok ? "spacewarp: ok" : "FAIL spacewarp: the moved cow's motion vectors are missing or spill")

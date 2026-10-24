@@ -820,7 +820,14 @@ final class SceneRenderer {
         return smp!
     }
 
+    // P403 7b: the share of the target the eyes are drawn into this frame (DynamicResolution), and that rectangle.
+    var viewScale: Float = 1
+    func viewExtent(_ t: RenderTarget) -> (Int, Int) {
+        viewScale >= 0.999 ? (t.width, t.height)
+            : (max(16, Int(Float(t.width) * viewScale) & ~1), max(16, Int(Float(t.height) * viewScale) & ~1))
+    }
     func beginPass(_ s: Slot, _ t: RenderTarget, clear: V3) {
+        let (w, h) = viewExtent(t)
         var clears = [VkClearValue(), VkClearValue()]
         clears[0].color.float32 = (clear.x, clear.y, clear.z, 1)
         clears[1].depthStencil = VkClearDepthStencilValue(depth: 1, stencil: 0)
@@ -828,16 +835,16 @@ final class SceneRenderer {
         rb.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO
         rb.renderPass = renderPass
         rb.framebuffer = t.framebuffer
-        rb.renderArea = VkRect2D(offset: VkOffset2D(x: 0, y: 0), extent: VkExtent2D(width: UInt32(t.width), height: UInt32(t.height)))
+        rb.renderArea = VkRect2D(offset: VkOffset2D(x: 0, y: 0), extent: VkExtent2D(width: UInt32(w), height: UInt32(h)))
         rb.clearValueCount = 2
         clears.withUnsafeBufferPointer { cp in
             rb.pClearValues = cp.baseAddress
             vkCmdBeginRenderPass(s.cmd, &rb, VK_SUBPASS_CONTENTS_INLINE)
         }
         // Flipped viewport (negative height): clip space keeps the Mac's y-up convention and winding.
-        var vp = VkViewport(x: 0, y: Float(t.height), width: Float(t.width), height: -Float(t.height), minDepth: 0, maxDepth: 1)
+        var vp = VkViewport(x: 0, y: Float(h), width: Float(w), height: -Float(h), minDepth: 0, maxDepth: 1)
         vkCmdSetViewport(s.cmd, 0, 1, &vp)
-        var sc = VkRect2D(offset: VkOffset2D(x: 0, y: 0), extent: VkExtent2D(width: UInt32(t.width), height: UInt32(t.height)))
+        var sc = VkRect2D(offset: VkOffset2D(x: 0, y: 0), extent: VkExtent2D(width: UInt32(w), height: UInt32(h)))
         vkCmdSetScissor(s.cmd, 0, 1, &sc)
         var set: VkDescriptorSet? = s.set0
         vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeLayout, 0, 1, &set, 0, nil)

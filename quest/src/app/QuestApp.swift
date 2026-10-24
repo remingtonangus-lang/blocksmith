@@ -16,6 +16,7 @@ final class QuestApp {
     private var spaceWarpPass: SpaceWarpPass?         // P381 step 9
     private var lastAppToWorld: (rotation: simd_quatf, translation: V3)?
     private var lastDisplayTime: XrTime = 0
+    private(set) var dynRes = DynamicResolution()       // P403 7b
     private(set) var game: Game?
     private var worldRenderer: WorldRenderer?
     private var save: SaveManager?
@@ -432,6 +433,14 @@ final class QuestApp {
             QuestScreenshot.collect(began: s)          // a capture whose frame has completed -> PNG on a utility queue
             QuestVideo.collect(began: s)               // P368: voice-note video pictures -> the encoder's queue
             let target = targets[f.imageIndex]
+            // P403 7b: dynamic resolution against the drawn frame's budget (twice the display's with space warp); not
+            // with foveation (its density map is laid over the whole image) or while the world loads.
+            let budget = 1000.0 / Double(max(60, xr.refreshRate)) * (xr.spaceWarp ? 2 : 1)
+            scene.viewScale = dynRes.observe(gpuMs: scene.gpuMs, budgetMs: budget,
+                                             enabled: QuestSettings.dynamicResolution && !xr.foveated && game != nil && worldRenderer != nil,
+                                             fps: Double(xr.refreshRate) / (xr.spaceWarp ? 2 : 1))
+            let (viewW, viewH) = scene.viewExtent(target)
+            xr.viewExtent = (viewW, viewH)
             let cam = rig.camera(xr: xr, far: farPlane)
             if QuestApp.debugClearOnly {
                 scene.beginPass(s, target, clear: V3(0.2, 0.4, 0.8))
@@ -455,7 +464,7 @@ final class QuestApp {
                 lastAppToWorld = now
             }
             // Bug-note screenshot (if one is pending): left eye, HUD panel included, blitted small before release.
-            QuestScreenshot.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: xr.width, height: xr.height)
+            QuestScreenshot.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: viewW, height: viewH)
             QuestVideo.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: xr.width, height: xr.height)
             do { try scene.submit(s) } catch { print("submit: \(error)") }
             recordMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
@@ -817,6 +826,7 @@ final class FrameStats {
         // The window's slowest game tick and its slowest stage (TickProf): what a tick hitch was.
         lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
         lastLine += " | far ticking \(FarTicks.lastSecond)"                  // P376: things ticking past the active distance (0)
+        lastLine += " | eye resolution \(Int((scene.viewScale * 100).rounded()))%"                        // P403 7b (dynamic resolution)
         if let st = recordStages?(), !st.isEmpty { lastLine += " | record ms: " + st }
         print(lastLine)
         capture(game: game, target: target, now: now)

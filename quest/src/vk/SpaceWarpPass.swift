@@ -1,4 +1,5 @@
 import Foundation
+import simd
 import CVulkan
 
 // P381 step 9 (Remington, Oct 19: "only if view 24 is still over the 72 fps budget: add Application SpaceWarp as an
@@ -130,6 +131,9 @@ final class SpaceWarpPass {
         vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scene.pipeLayout, 0, 1, &s0, 0, nil)
         var set: VkDescriptorSet? = swSet
         vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scene.pipeLayout, 2, 1, &set, 0, nil)
+        // P403 7b: the scene drew into the top-left part of its depth this frame (dynamic resolution).
+        let (vw, vh) = scene.viewExtent(t)
+        scene.pushConstants(s, model: matrix_identity_float4x4, extra: V4(Float(vw) / Float(t.width), Float(vh) / Float(t.height), 0, 0))
         vkCmdDraw(s.cmd, 3, 1, 0, 0)
         // P403 7b: the hands, what they hold, mobs: their own motion since the last drawn frame (the world holds still).
         var bound: SceneRenderer.Input? = nil
