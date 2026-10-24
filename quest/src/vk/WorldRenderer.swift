@@ -158,7 +158,10 @@ final class WorldRenderer {
         var fogEnd: Float = underwater ? uwSee : (game.dim.dim == .nether ? min(rd * 16 - 12, 96) : rd * 16 - 12)
         // P211 redo (Oct 14, "no fog at all unless it's foggy weather"): in clear air the fog is only a thin band at the
         // very edge of the drawn world (the last 6 %), so the cut-off never shows and nothing nearer is greyed.
-        let clearStart: Float = 0.94
+        // P425 (Remington, Oct 24: "instead of the far background, just make it fog"): with Auto View Distance the
+        // drawn edge fades into haze over its last 30 % (the view may sit at 8-16 chunks) and the far ring stays off.
+        let autoView = QuestSettings.autoViewDistance && game.dim.dim == .overworld
+        let clearStart: Float = autoView ? 0.7 : 0.94
         var fogStart: Float = underwater ? 1 : fogEnd * (game.dim.dim == .overworld ? clearStart : 0.8)
         var fogColor = underwater ? game.underwaterFog : (underground ? sky * min(1, 0.25 / max(caveScale, 0.25)) : sky)
         if p.headInLava { fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog }
@@ -173,7 +176,7 @@ final class WorldRenderer {
         // out to the ring's rim, so chunks and ring share one fog (no fog wall at the loaded edge with clearer land
         // beyond) and the rim melts into the horizon shell.
         let baseEnd: Float = rd * 16 - 12
-        farRingOn = FarRing.enabled && game.dim.dim == .overworld && !underwater && !p.headInLava && !vaultSky && !underground
+        farRingOn = FarRing.enabled && !autoView && game.dim.dim == .overworld && !underwater && !p.headInLava && !vaultSky && !underground
             && game.blindFog == nil && fogEnd >= baseEnd - 0.01 && game.world.gen is WorldGen
         // (Only once a ring is up: until its first build lands the loaded edge keeps the usual fog.)
         if farRingOn && farLive >= 0 && farSeed == game.world.seed { fogEnd = max(fogEnd, FarRing.outer - 16); fogStart = fogEnd * clearStart }

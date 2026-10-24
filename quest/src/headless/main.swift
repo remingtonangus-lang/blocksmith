@@ -122,10 +122,14 @@ if let out = arg("--view"), let ctx = vkctx {
     // --dim nether|end|deep: that dimension's world instead (looks work; PG6 field checks).
     let vw = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: device, save: nil, dim: Dim(rawValue: arg("--dim") ?? "") ?? .overworld)
     vw.renderDistance = Int(arg("--rd") ?? "") ?? 6
+    // --field (P412/P404): a Polygons field world, as the headset makes new worlds (QuestApp: makeFieldWorld, smoothTerrain).
+    let viewField = CommandLine.arguments.contains("--field")
+    if viewField { vw.makeFieldWorld() }
     // --questlod: the headset's far-detail and leaf rings (QuestApp: lodNear 99, leafNear 99: full detail everywhere, P339) instead of the Mac's.
     if CommandLine.arguments.contains("--questlod") { World.lodNear = 99; World.leafNear = QuestApp.leafNear }
     if let ln = Int(arg("--leafnear") ?? "") { World.leafNear = ln }     // P403: the fast-leaves ring under test
     let vg = Game(world: vw, save: nil, persistent: false)
+    if viewField { vg.smoothTerrain = true; SmoothTerrain.use(world: true, world: vw) }
     vg.time = (Double(arg("--time") ?? "") ?? 0.25) * DAY_LENGTH
     vg.player.pos = V3(at[0], at[1], at[2]); vg.player.flying = true
     // --find BIOME: spiral out from --at in 48-block steps to a column of that biome (looks work: hills, peaks, beaches).

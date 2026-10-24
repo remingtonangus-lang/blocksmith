@@ -103,6 +103,11 @@ enum QuestSettings {
     // P53: the HUD panel sits translucent and comes up solid for a few seconds when a grip steps the hotbar.
     static var hudFade: Bool { get { bool("quest.hudFade", true) } set { store(newValue, "quest.hudFade") } }
     static var autoRenderDistance: Bool { get { bool("quest.autoRenderDistance", true) } set { store(newValue, "quest.autoRenderDistance") } }
+    // P425: Auto View Distance (ViewGovernor): the view distance follows the GPU's frame time, 8 to 24, under the slider;
+    // the far ring gives way to fog at the drawn edge. `autoViewLast` is where it settled, so a launch starts there.
+    static var autoViewDistance: Bool { get { bool("quest.autoView", true) } set { store(newValue, "quest.autoView") } }
+    static var autoViewLast: Int { get { int("quest.autoViewLast", viewDistance) } set { store(newValue, "quest.autoViewLast") } }
+    static var startView: Int { autoViewDistance ? max(8, min(renderDistance, autoViewLast / 2 * 2)) : renderDistance }
     // How far below eye level the HUD panel sits, metres at 1.25 m (0.25 middle, 0.42 low, 0.6 lower).
     static var hudDrop: Float { get { float("quest.hudDrop", 0.42) } set { store(newValue, "quest.hudDrop") } }
     // Q2c-console-70: a card of a controller's buttons when it is held up and looked at.
@@ -149,7 +154,7 @@ extension QuestSettings {
          ("quest.blastShake", blastShake), ("quest.chaseView", chaseView), ("quest.teleport", teleport), ("quest.headLocomotion", headLocomotion), ("quest.seated", seated),
          ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.buttonReload", buttonReload), ("quest.swingBeforeReclined", swingBeforeReclined),
          ("quest.leftHanded", leftHanded), ("quest.controlPreset", controlPreset), ("quest.standHeight", standHeight), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
-         ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.hudDrop", hudDrop), ("quest.menuScale", menuScale), ("quest.hudScale", hudScale), ("quest.knockback", knockback), ("quest.mineToggle", mineToggle), ("quest.ctrlHints", ctrlHints),
+         ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.autoView", autoViewDistance), ("quest.hudDrop", hudDrop), ("quest.menuScale", menuScale), ("quest.hudScale", hudScale), ("quest.knockback", knockback), ("quest.mineToggle", mineToggle), ("quest.ctrlHints", ctrlHints),
          ("quest.foveation", foveation), ("quest.spaceWarp2", spaceWarp), ("quest.dynRes", dynamicResolution), ("quest.textureRes", textureRes)]
     }
     // The headset's own defaults for shared options: the TV-style HUD scale (bigger text), since the panel is read at
