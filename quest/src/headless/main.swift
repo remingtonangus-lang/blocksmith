@@ -178,6 +178,67 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
+    // P431: --slopecensus: every one-block lift within 24 blocks of the eye, covered by a slope with that side up or not
+    // (and what sits over the ground where not), then a map of the slope masks (hex), air (.) and other blocks (#).
+    if CommandLine.arguments.contains("--slopecensus") {
+        let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z))
+        func groundTop(_ x: Int, _ z: Int) -> Int? {
+            guard let c = vw.chunkAt(x, z) else { return nil }
+            var y = Int(c.height[mod(x, CS) + mod(z, CS) * CS]) + 1
+            while y > 0 {
+                if Blocks.slopeOf[vw.block(x, y, z)] != nil { return y }
+                y -= 1
+            }
+            return nil
+        }
+        var lifts = 0, covered = 0, cliffs = 0
+        var why: [String: Int] = [:]
+        var rows: [String] = []
+        var shown = 0
+        var bad = Set<Int>()
+        for z in (pz - 24)...(pz + 24) {
+            var row = ""
+            for x in (px - 24)...(px + 24) {
+                guard let t = groundTop(x, z) else { row += "?"; continue }
+                let above = vw.block(x, t + 1, z)
+                let m = Int(Blocks.slopeMask[Int(above)])
+                let isSlope = Blocks.render[Int(above)] == RenderType.slope.rawValue
+                row += isSlope ? String(m, radix: 16) : (above == AIR ? "." : "#")
+                for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                    guard let nt = groundTop(x + dx, z + dz) else { continue }
+                    if nt >= t + 2 { cliffs += 1; continue }
+                    guard nt == t + 1 else { continue }
+                    lifts += 1
+                    let cxs = dx != 0 ? [dx > 0 ? 1 : 0] : [0, 1], czs = dz != 0 ? [dz > 0 ? 1 : 0] : [0, 1]
+                    var ok = isSlope
+                    if ok { for cx in cxs { for cz in czs where m & (1 << (cx + cz * 2)) == 0 { ok = false } } }
+                    if ok { covered += 1 } else {
+                        why[Blocks.key(above), default: 0] += 1
+                        if shown < 40 {
+                            shown += 1
+                            // What placeSlopes would have made of it from the ground as it is now.
+                            let e = (groundTop(x + 1, z) ?? -99) - t, w = (groundTop(x - 1, z) ?? -99) - t
+                            let so = (groundTop(x, z + 1) ?? -99) - t, no = (groundTop(x, z - 1) ?? -99) - t
+                            let wl = (vw.gen as? WorldGen).map { YOFF + Int(floorf($0.terrain.column(x, z).wl)) } ?? -1
+                            let gh = (vw.gen as? WorldGen).map { Int(floorf($0.terrain.column(x, z).h)) + YOFF } ?? -1
+                            print("slopecensus: uncovered at \(x),\(t),\(z) side \(dx),\(dz): above \(Blocks.key(above)), ground \(Blocks.key(vw.block(x, t, z))), sides e \(e) w \(w) s \(so) n \(no), water level \(wl), terrain h \(gh), chunk-local \(mod(x, CS)),\(mod(z, CS))")
+                        }
+                        bad.insert(x &+ z &* 65536)
+                    }
+                }
+            }
+            rows.append(row)
+        }
+        // (uncovered lifts marked ! in the map)
+        for (ri, z) in ((pz - 24)...(pz + 24)).enumerated() {
+            var r = Array(rows[ri])
+            for (ci, x) in ((px - 24)...(px + 24)).enumerated() where bad.contains(x &+ z &* 65536) { r[ci] = "!" }
+            rows[ri] = String(r)
+        }
+        let whyS = why.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        print("slopecensus: \(lifts) one-block lifts, \(covered) covered by a slope with that side up, \(cliffs) sides of two or more; uncovered, by what sits over the ground: \(whyS)")
+        for r in rows { print("slopecensus: " + r) }
+    }
     // P337 step 7: --rail plays 4 s through Game.tick beside the line and reports what the trains cost a frame.
     if CommandLine.arguments.contains("--rail") {
         vg.paused = false; vg.survival = false
