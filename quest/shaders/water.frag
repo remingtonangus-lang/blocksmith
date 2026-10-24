@@ -148,7 +148,8 @@ void main() {
         if (sunVis > 0.0) {
             vec3 hv = normalize(u.sunDir.xyz - v);
             float nh = clamp(dot(n, hv), 0.0, 1.0);
-            vec3 sp = sunC * (pow(nh, 500.0) * 7.0) * sunVis;
+            // P412 (c) again (the jungle shore at noon: the glint blew out to a white patch a block wide): tighter and dimmer.
+            vec3 sp = sunC * (pow(nh, 1400.0) * 2.5) * sunVis;
             pm += sp;
             A = max(A, min(1.0, max(sp.r, max(sp.g, sp.b))));
         }

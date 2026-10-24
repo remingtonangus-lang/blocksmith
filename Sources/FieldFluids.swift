@@ -38,7 +38,7 @@ extension FieldTerrain {
             if j + CSQ < n { f(j + CSQ) }; if j - CSQ >= 0 { f(j - CSQ) }
         }
         var seen = [Bool](repeating: false, count: n)
-        var comp: [Int] = [], stack: [Int] = [], fix: [Int] = []
+        var comp: [Int] = [], stack: [Int] = [], fix: [(j: Int, side: Bool)] = []
         for s in 0..<n where !seen[s] && Blocks.isLiquid(b[s]) {
             seen[s] = true
             comp.removeAll(keepingCapacity: true); stack.removeAll(keepingCapacity: true); fix.removeAll(keepingCapacity: true)
@@ -69,11 +69,11 @@ extension FieldTerrain {
                     if k < 4 && open(j - CSQ) { overDrop = true }
                     if k == 5 {
                         if fd[j] <= 0 && !solid(j - CSQ) { floats = true }      // over open air
-                        else if fd[j] <= 0 || open(j - CSQ) { fix.append(j) }   // a gap, or a thin floor over air
+                        else if fd[j] <= 0 || open(j - CSQ) { fix.append((j, false)) }   // a gap, or a thin floor over air
                     } else if fd[j] <= 0 {
-                        fix.append(j); openSides += 1                          // open beside it
+                        fix.append((j, true)); openSides += 1                  // open beside it
                     } else if open(j + CSQ) {
-                        fix.append(j)                                          // a lip lower than the water's top
+                        fix.append((j, true))                                  // a lip lower than the water's top
                     }
                 }
             }
@@ -91,7 +91,7 @@ extension FieldTerrain {
             // the dark slot along the cave wall held a row of springs, drawn as a strip of water on the wall). A pool
             // under a low cave roof opens to the cave on a side and stays.
             var held = !floats && !overDrop && !(roofed * 2 >= tops && openSides == 0)
-            if !big && held { for j in fix where !joins(j) { held = false; break } }
+            if !big && held { for (j, _) in fix where !joins(j) { held = false; break } }
             if !big && !held, poolLog != nil {
                 let i = comp[0], why = floats ? "floats" : overDrop ? "over a drop" : roofed * 2 >= tops && openSides == 0 ? "crack" : "no join"
                 poolLock.lock()
@@ -111,7 +111,13 @@ extension FieldTerrain {
                 }
                 continue
             }
-            for j in fix where fd[j] < rim && (!big || joins(j)) {
+            for (j, side) in fix where fd[j] < rim && (!big || joins(j)) {
+                // P412 (a): beside a big body (the sea, a lake) a lip or a low bank with ground under it stays as it is:
+                // the drawn level runs on over ground lying under it (Mesher's fluid nets), so the shore is the
+                // ground's own curve. Raised to the top, every such cell was a step of sand along the sea's edge and
+                // a patch of sand flush with the water on a shelf (22:10, 22:24). A side open under it (a drop) is
+                // still raised: a wall, not a bank.
+                if big && side && solid(j - CSQ) { continue }
                 if fd[j] <= 0 || fm[j] == 0 {
                     // The rock beside it (the commonest material among its neighbours).
                     var count: [UInt8: Int] = [:]

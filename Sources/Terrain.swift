@@ -631,14 +631,28 @@ final class Terrain {
                     let q = dn / lk.r
                     h = min(h, lk.ll - (2 + 8 * (1 - q * q)))
                 }
-                if dn > lk.r2 - 6 && h < lk.ll + 1 { h = lk.ll + 1 }          // close gaps in the rim
+                // Close gaps in the rim; its outer edge slopes down to the ground round it over the last 3 blocks
+                // (P412 (a): a hard edge was a cell step in the drawn ground).
+                if dn > lk.r2 - 6 { h = max(h, Terrain.lerp(h, lk.ll + 1, Terrain.smooth(lk.r2 + 4, lk.r2 + 1, dn))) }
                 if dn < lk.r2 && h < lk.ll {
                     if lk.dry { dry = 1; h = max(h, lk.ll - 1) } else { lakeL = max(lakeL, lk.ll) }
                 }
             }
         }
-        // Banks and levees for the nearest channel (never built out into the sea).
-        if rv >= 1 && rv < 1.8 && raw >= SEA_D - 1 { h = max(h, bestL + 1) }
+        // Banks and levees for the nearest channel (never built out into the sea). P412 (a): the levee's outer side
+        // (1.3...1.8 half-widths out) and its end at the sea slope down to the ground round it; a hard edge was a
+        // half-block cell step of sand along the shore wherever a channel ran out through a beach (22:10, 22:24).
+        if rv >= 1 && rv < 2.6 && raw >= SEA_D - 2 {
+            // The bank rises from the channel's edge (the bed is at L there) to L + 1 over 0.4 half-widths, and higher
+            // ground beside the channel comes down to it the same way (it stood as a wall at the edge); past 1.6
+            // half-widths the levee slopes down to the ground round it over a full half-width (a narrower taper was
+            // still a step of sand at a brook's mouth on the beach).
+            let inner = Terrain.smooth(1, 1.4, rv)
+            let bank = bestL + inner
+            if h > bank { h = Terrain.lerp(bank, h, inner) }
+            let lv = Terrain.smooth(2.6, 1.6, rv) * Terrain.smooth(SEA_D - 2, SEA_D - 1, raw)
+            h = max(h, Terrain.lerp(h, bank, lv))
+        }
         n.h = h
         n.dry = dry
         n.delta = delta
