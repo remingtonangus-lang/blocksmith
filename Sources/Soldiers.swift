@@ -26,6 +26,7 @@ final class SoldierBrain {
     var lastSeen: V3?
     var seenAgo: Float = 99
     var sees = false
+    var watchT: Float = 0          // P419 (b): seconds the player has stood in its sight, unnoticed
     var losTimer: Float = 0
     var grenadeCD: Float = Rand.float(in: 4...10)
     var retreat: Float = 0
@@ -265,7 +266,9 @@ extension Mob {
     }
 
     // Wakes every soldier within `r` and tells them where the player was.
-    func alertGarrison(_ g: Game, _ at: V3, radius r: Float = 24) {
+    // P419 (b) (Oct 23 21:17, "way too peaceful": soldiers standing oblivious while he fought their comrades): the call
+    // reached 24 blocks, short of a fortress's towers and far wing (marksmen 28-38 blocks off stayed calm): now 48.
+    func alertGarrison(_ g: Game, _ at: V3, radius r: Float = 48) {
         // Only its own side wakes (T6: a Greywall alert roused every faction's soldiers near the base, the Capital's
         // crawler crew and the navy's marines alike).
         for m in g.mobs.mobs where m.kind.steelhold && m !== self && m.health > 0 && m.faction == faction && m.posse == posse && simd_length(m.pos - pos) < r {
@@ -390,7 +393,9 @@ extension Mob {
         if sees {
             // Noticed up close, in front, or once alerted.
             let toP = simd_normalize(V3(g.player.pos.x - pos.x, 0, g.player.pos.z - pos.z) + V3(1e-4, 0, 0))
-            if !aggro && (dist < 10 || simd_dot(toP, forward) > 0.2 || hurt > 0) {
+            // P419 (b): one he stays in sight of notices him in a moment even behind its back (it stood unaware forever)
+            b.watchT += dt
+            if !aggro && (dist < 16 || simd_dot(toP, forward) > 0.2 || hurt > 0 || b.watchT > 1.5) {
                 aggro = true
                 b.react = rank.react
                 shout(g, .soldier(Soldier.voice(r), .alert), 1.1, at: eye)
@@ -405,6 +410,7 @@ extension Mob {
                 b.seenAgo = 0
             }
         }
+        if !sees { b.watchT = 0 }
         if hurt > 0.35 && !aggro { aggro = true; if b.foe == nil { alertGarrison(g, g.player.pos) } }   // (R23: a rival's round isn't the player's)
         // Pilots and passengers stay in their seats (aircraft, vehicles: FlightCrew in Aircraft.swift). Passengers
         // with a long arm are door gunners: turned in the seat (FlightCrew), they fire at the player in sight.

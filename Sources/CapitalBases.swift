@@ -120,6 +120,7 @@ final class BaseWatch {
     var patrols: [String: [Mob]] = [:]              // leader first
     var posts: [ObjectIdentifier: V3] = [:]          // where each patrol member / crewman goes back to
     var crews: [String: [Mob]] = [:]
+    var emptySince: [String: Double] = [:]          // P419 (a): when the walls were last seen with nobody inside
     var workers: [String: [Mob]] = [:]
     var aircraft: [String: Ship] = [:]
     var noWay: [ObjectIdentifier: Float] = [:]          // patrol members with no way home: seconds so
@@ -352,16 +353,23 @@ extension Game {
 
     // A citadel whose soldiers are all dead stays empty (P23): no patrols, dropships, Kestrel crews or rebuild crews.
     // Judged only with the player close and the whole site loaded (soldiers in unloaded chunks aren't in the list).
+    // P419 (a) (Oct 23 21:11, "I've already been in here... why were there Capital soldiers spawning?"): judged at any
+    // alert level, and by the soldiers inside the walls only: a citadel emptied without raising the alarm, or with a
+    // patrol or a rebuild crew still out on the road, was never marked, and its next lockdown flew in fresh troops.
+    // Empty for 10 s running first (a site's garrison comes in from the structure or the save a little after its land).
     func baseCleared(_ r: inout BaseRecord, _ b: BaseWatch) {
-        guard r.cleared != true, r.alert != .calm else { return }
+        guard r.cleared != true else { return }
         let near = (0..<max(1, coop.seatCount)).contains { simd_length(coop.seatPlayer($0, self).pos - r.centre) < 90 }
         guard near else { return }
         let a = CapitalBase.A
         for dz in stride(from: -a, through: a, by: CS) { for dx in stride(from: -a, through: a, by: CS) where !world.isLoaded(r.cx + dx, r.cz + dz) { return } }
         let alive = mobs.mobs.contains { m in
             m.kind.steelhold && m.kind != .deckGun && m.health > 0 && r.inside(m.pos) && m.deck == nil
-        } || (b.patrols[r.key] ?? []).contains { $0.health > 0 } || (b.crews[r.key] ?? []).contains { $0.health > 0 }
-        guard !alive else { return }
+        } || (b.patrols[r.key] ?? []).contains { $0.health > 0 && r.inside($0.pos) } || (b.crews[r.key] ?? []).contains { $0.health > 0 && r.inside($0.pos) }
+        guard !alive else { b.emptySince[r.key] = nil; return }
+        let since = b.emptySince[r.key] ?? clock
+        b.emptySince[r.key] = since
+        guard clock - since >= 10 else { return }
         r.cleared = true
         FactionRaids.owe("base:" + r.key, .steelhold, chance: 1.0 / 8, clock: clock)        // P236
         r.patrol = nil; b.patrols[r.key] = nil; b.dropRoute(r.key)
