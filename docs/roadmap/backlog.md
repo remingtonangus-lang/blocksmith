@@ -41,7 +41,7 @@ P421. [DONE #452: pause menu > Messages, the last 50 on-screen messages] [Reming
 
 P422. [DONE #453: base consoles: locator, map, alarm off, doors, cameras] [Remington, Oct 23 21:13] BASE CONSOLES. The many consoles in a base all do the same thing; give them different jobs (map of the base, alarm off, doors, cameras, the base locator he used).
 
-P423. [Remington, Oct 23 21:29-21:30] FIRE AND FORCE. (a) an enemy walking into a lit campfire catches fire; (b) a thrown object or blast launches enemies; (c) 'should be able to hold them up just like this' at 21:30:22: check the note's screenshot and context to see what he meant, and build it if it is clear.
+P423. [DONE #454: campfires set enemies alight; blasts and hard throws launch them; (c) unclear, not built] [Remington, Oct 23 21:29-21:30] FIRE AND FORCE. (a) an enemy walking into a lit campfire catches fire; (b) a thrown object or blast launches enemies; (c) 'should be able to hold them up just like this' at 21:30:22: check the note's screenshot and context to see what he meant, and build it if it is clear.
 
 P424. [Remington, Oct 23 21:18] A gun he picked up is far too loud ('cutting loud'): level every gun's volume against the others. He liked the pistol jamming (21:31): keep it.
 
