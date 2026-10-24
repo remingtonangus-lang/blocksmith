@@ -135,6 +135,7 @@ enum Structure {
         var cells = 0            // blocks in the piece (0: held by the world, not checked)
         var all: [IVec3] = []    // (collect: the piece's blocks)
         var falls: [IVec3] = []  // what breaks off or hangs from nothing, lowest first
+        var capped = false       // the fill stopped at its bound (the far blocks were taken as held)
         var reachBreaks = 0, jointBreaks = 0
         var why: [(IVec3, Int, Bool)] = []   // (collect: each block that broke, its reach, hanging from nothing)
         var dists: [Int] = []                // (collect: each block's reach in the first round, in the order of `all`)
@@ -208,6 +209,7 @@ enum Structure {
         }
         guard !cells.isEmpty else { return res }
         res.cells = cells.count
+        res.capped = head < cells.count
         if collect { res.all = cells }
         let n = cells.count, K = nbrs.count
         var alive = [Bool](repeating: true, count: n)
@@ -358,14 +360,24 @@ enum Structure {
             checks += 1
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             worstMs = max(worstMs, ms); totalMs += ms
-            if !r.falls.isEmpty { drop(g, r.falls) }
+            if r.capped, let piece = loose(w, near: p) { g.topple(piece) }     // P407: a tower cut from its footing
+            else if !r.falls.isEmpty { drop(g, r.falls) }
             if !w.pieces.isEmpty { pieces(g, near: V3(Float(p.x), Float(p.y), Float(p.z))) }
         }
     }
 
     // (3) What broke off falls, block by block, lowest first (P380's falling blocks); a few chips fly where it broke.
-    static func drop(_ g: Game, _ cells: [IVec3]) {
+    // P407 (Oct 22 22:06, "it turned into square blocks there when I broke it, and it fell"): a tree, or a piece of
+    // `wholeMin` blocks or more, comes down whole, as one body drawn with its own mesh (Game.topple); crumbs fall block by block.
+    static let wholeMin = 12
+    static func drop(_ g: Game, _ all: [IVec3]) {
         let w = g.world
+        var crumbs = Set<IVec3>()
+        for comp in components(all) {
+            let tree = comp.contains { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
+            if comp.count >= wholeMin || tree && comp.count >= 2 { g.topple(comp) } else { crumbs.formUnion(comp) }
+        }
+        let cells = all.filter { crumbs.contains($0) }
         for c in cells {
             let b = w.builtBlock(c.x, c.y, c.z)
             guard member[Int(b)] else { continue }
@@ -376,7 +388,51 @@ enum Structure {
             let b = g.falling.last?.block ?? STONE
             g.sfx(.place(soundMat(b)), 1, at: V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5))
         }
-        fallen += cells.count
+        fallen += all.count
+    }
+
+    // The joined groups (faces and edges, as the check joins them) of a set of cells.
+    static func components(_ cells: [IVec3]) -> [[IVec3]] {
+        var left = Set(cells), out: [[IVec3]] = []
+        for c in cells where left.contains(c) {
+            left.remove(c)
+            var comp = [c], h = 0
+            while h < comp.count {
+                let q = comp[h]; h += 1
+                for d in nbrs where left.contains(q + d) { left.remove(q + d); comp.append(q + d) }
+            }
+            out.append(comp)
+        }
+        return out
+    }
+
+    // P407 (Oct 22 22:13, the Boreal Station tower: "that should fall 'cause I just destroyed the structure for it. It
+    // didn't fall"): the check's fill stops at 1,536 blocks and takes the rest as held, so a big piece never came down.
+    // When it stopped, each piece beside the change is followed whole (up to `limit` blocks, faces and edges): one that
+    // nothing holds (no block of it on the ground, bedrock or water) is returned to fall as one body. The fill ends at the
+    // first block on the ground, so a standing building costs only the way to its nearest footing.
+    static func loose(_ w: World, near p: IVec3, limit: Int = 24_000) -> [IVec3]? {
+        var held = Set<IVec3>()
+        for d in [IVec3(0, 0, 0)] + nbrs {
+            let s0 = p + d
+            guard !held.contains(s0), part(w, s0.x, s0.y, s0.z) != nil else { continue }
+            var seen: Set<IVec3> = [s0]
+            var comp = [s0], h = 0, anchored = false
+            fill: while h < comp.count {
+                let c = comp[h]; h += 1
+                if helm[Int(w.builtBlock(c.x, c.y, c.z))] { anchored = true; break }
+                for e in World.allDirs where anchor(w, c.x + e.x, c.y + e.y, c.z + e.z) { anchored = true; break fill }
+                for e in nbrs {
+                    let q = c + e
+                    if seen.contains(q) { continue }
+                    guard w.isLoaded(q.x, q.z), comp.count < limit else { anchored = true; break fill }
+                    if part(w, q.x, q.y, q.z) != nil { seen.insert(q); comp.append(q) }
+                }
+            }
+            if anchored { held.formUnion(seen); continue }
+            return comp
+        }
+        return nil
     }
 
     // (3) A falling block meeting built block `onto` after falling `fell` blocks: does it break through?

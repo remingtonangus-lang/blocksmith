@@ -324,7 +324,7 @@ enum Mesher {
     // `bites` (realistic world): where blows struck blocks round this section (World.biteList), carved as craters.
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
                              bites: [(Int, Int, Int, Bite)] = [], pieces: [FreePiece] = [], objects: [WorldObjects.Draw] = [],
-                             smoothOK: Bool = true, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil, nearSides: Int = 0,
+                             smoothOK: Bool = true, blobLeaves: Bool = false, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil, nearSides: Int = 0,
                              adaptive adaptiveOK: Bool = true) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
@@ -375,7 +375,8 @@ enum Mesher {
         // Smooth terrain: an empty section still owns the quads against its +x/+y/+z neighbours' first row.
         let smooth = (SmoothTerrain.enabled || n9[4].isField) && smoothOK, natT = SmoothTerrain.natural, snowLayerID = SmoothTerrain.snowLayer
         // T17: leaf canopies as rounded blobs in field worlds (smoothQuads leaves pass).
-        let leafBlob = smooth && (site != nil || fieldOn) && SmoothTerrain.leafBlobs
+        // P407: a felled tree (a ship, smoothOK false) keeps its blobs: it must not turn to cubes while it falls.
+        let leafBlob = (smooth && (site != nil || fieldOn) || blobLeaves) && SmoothTerrain.leafBlobs
         let detail = smooth && Mesher.detailMeshes, detT = Mesher.detailT
         // PG3: far sections (lod 1) draw them round too, with the fewest sides (ShapeTrunks, ShapeOrganic): a polygon
         // world shows no square trunk at any distance.
@@ -1858,7 +1859,7 @@ enum Mesher {
             }
             kv[MeshKind.piece] &+= Int32((det.count + detCut.count - d0) / DetailMesh.wordsPerVertex)
         }
-        if smooth {
+        if smooth || leafBlob {
             if leafBlob {
                 let wo = detail ? SIMD3<Int>((chunk?.x ?? site?.cx ?? 0) * CS, sy * 16, (chunk?.z ?? site?.cz ?? 0) * CS) : nil
                 // P283: far canopies (lod 1, past World.lodNear) are one solid shell, the blob's "fast leaves": the inner
