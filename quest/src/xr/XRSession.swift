@@ -150,6 +150,7 @@ final class XRSession {
             where avail.contains(e) { want.append(e) }
         // P381 step 9: Application SpaceWarp (an option, off by default; it applies at the next launch).
         if QuestSettings.spaceWarp && avail.contains("XR_FB_space_warp") { want.append("XR_FB_space_warp") }
+        else { print("xr: space warp off (P426): extension not requested") }
         exts = Set(want)
         let a = PtrArena()
         var ci = XrInstanceCreateInfo()
