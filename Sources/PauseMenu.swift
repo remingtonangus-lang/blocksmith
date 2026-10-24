@@ -9,7 +9,7 @@ final class PauseMenu: Menu {
     static let sens: [Float] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10]
     static let zones: [Float] = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25]
     static let outers: [Float] = [0, 0.02, 0.05, 0.08, 0.1, 0.15, 0.2]
-    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, net, stats, checklist }
+    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, net, stats, checklist, compute }
     enum Cat: Int, CaseIterable {
         // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
         // distance setting" - it sat on page 3 behind the input pages).
@@ -140,6 +140,7 @@ final class PauseMenu: Menu {
         "autojump": "Walk into a one-block step to climb it without jumping.",
         "advancements": "Goals you have reached and the ones still ahead.",
         "stats": "What you have done in this world: time, distance, mining, building, fighting, crafting.",
+        "compute": "What each part of the game costs a frame where you stand (playtest builds): drawing by system, the game tick, the GPU.",
         "commands": "Type a command (time, weather, teleport, give...).",
         "new_mode": "Survival: health, hunger, mining. Creative: fly and build freely. You can switch later from the pause menu.",
         "new_diff": "How much damage mobs do and whether hunger can kill.",
@@ -294,6 +295,7 @@ final class PauseMenu: Menu {
             // P399: the device checklist, playtest builds only (above Shortcuts; the store build has no row).
             if Playtest.enabled && g.coop.current == 0, let at = rows.firstIndex(where: { $0.1 == "shortcuts" || $0.1 == "mode" }) {
                 rows.insert(("Playtest Checklist...", "checklist"), at: at)
+                rows.insert(("What Is Using the Compute", "compute"), at: at + 1)   // P420
             }
             // S4: after a crash, the newest rolling backup of this world can be put back.
             if CrashGuard.crashed && g.coop.current == 0 { rows.insert(("Restore Last Backup (after a crash)", "restorebackup"), at: 1) }
@@ -406,6 +408,11 @@ final class PauseMenu: Menu {
             title = "Statistics"
             subtitle = currentWorld.isEmpty ? "This world" : currentWorld
             rows = Stats.rows(g).map { ($0, "noop") } + [("Back", "back")]
+        case .compute:                                                  // P420 (ComputeCost.swift)
+            title = "What Is Using the Compute"
+            let c = ComputeCost.rows(g)
+            subtitle = c.0
+            rows = c.1.map { ($0, "noop") } + [("Back", "back")]
         case .checklist:                                                // P399 (PlaytestChecklist.swift)
             title = "Playtest Checklist"
             let c = PlaytestChecklist.rows(g, width: style.width)
@@ -512,7 +519,7 @@ final class PauseMenu: Menu {
                 (["resume", "restorebackup"], 0),
                 (["options", vr, PauseMenu.viewFixed ? "ad" : "rd", "mode"], 0),                              // settings
                 (["worldmap", "track", "advancements", "stats"], 0),             // map and progress
-                (["worlds", "netmenu", "coop", "photo", "commands", "checklist", "shortcuts"], 0),
+                (["worlds", "netmenu", "coop", "photo", "commands", "checklist", "compute", "shortcuts"], 0),
                 (["totitle"], 0)])                                                // leaving, apart from the rest
         case .title:
             return Style(width: 440, btnH: 30, gapX: 12, gapY: 6, groupGap: 12, cols: 4, lines: 6, groups: [
@@ -766,6 +773,7 @@ final class PauseMenu: Menu {
         case "controls": go(.controls); resetCursor = true
         case "shortcuts": go(.shortcuts); resetCursor = true
         case "checklist": PlaytestChecklist.loadIfNeeded(); go(.checklist); resetCursor = true      // P399
+        case "compute": go(.compute); resetCursor = true                                          // P420
         case _ where id.hasPrefix("cl:"):
             if let i = Int(id.dropFirst(3)) {
                 if back { g.closeMenu(); PlaytestChecklist.note(i, clock: g.clock); return }     // X: a voice note about it

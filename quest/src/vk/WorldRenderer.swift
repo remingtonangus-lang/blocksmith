@@ -23,6 +23,9 @@ final class WorldRenderer {
     static let stageNames = ["uniforms", "table", "walk", "horizon", "occlusion", "list", "records", "hud", "terrain", "ring",
                              "ships", "landmarks", "mobs", "entities", "particles", "sky", "translucent", "ui"]
     private var stageSums = [Double](repeating: 0, count: 18), stageFrames = 0
+    // P420: this frame's record stages (ms), for the pause menu's Compute page (ComputeCost).
+    private var stagePrev = [Double](repeating: 0, count: 18)
+    private(set) var stageFrame = [Double](repeating: 0, count: 18)
     private(set) var stageWorst = 0.0                       // the slowest frame's record since the last take (ms)
     private var tableReads = 0, rasterSum = 0.0              // columns the cull table re-read; occluder raster (worker) ms
     func takeStages() -> String {
@@ -30,7 +33,7 @@ final class WorldRenderer {
         let parts = zip(WorldRenderer.stageNames, stageSums).map { "\($0) " + String(format: "%.2f", $1 * 1000 / n) }
         let extra = String(format: " | table re-read %.1f columns a frame, occluder raster %.2f ms a frame; taken back from the workers: mobs %d, raster %d of %d frames",
                            Double(tableReads) / n, rasterSum / n, mobWork.takeTookBack(), scene.occWork.takeTookBack(), stageFrames)
-        for i in stageSums.indices { stageSums[i] = 0 }
+        for i in stageSums.indices { stageSums[i] = 0; stagePrev[i] = 0 }
         stageFrames = 0; stageWorst = 0; tableReads = 0; rasterSum = 0
         return parts.joined(separator: ", ") + extra
     }
@@ -254,6 +257,7 @@ final class WorldRenderer {
         defer {
             joinMobs()                                           // (never left running into the next frame)
             stageFrames += 1
+            for i in stageSums.indices { stageFrame[i] = (stageSums[i] - stagePrev[i]) * 1000; stagePrev[i] = stageSums[i] }
             frameCPUMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             stageWorst = max(stageWorst, frameCPUMs)
         }
