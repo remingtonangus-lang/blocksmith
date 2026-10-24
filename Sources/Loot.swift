@@ -155,6 +155,7 @@ enum Mining {
         case "podzol", "mycelium", "dirt_path", "farmland": return one("dirt")
         case "cocoa": return one("cocoa_beans", stage >= 2 ? 3 : 1)
         case _ where gkey.hasSuffix("_stained_glass") || gkey.hasSuffix("_stained_glass_pane"): return []
+        case _ where gkey.hasSuffix("_slope"): return drops(Blocks.id(String(gkey.dropLast(6))), tool)       // P431: its ground's drop
         default: break
         }
         switch key {

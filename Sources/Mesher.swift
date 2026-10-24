@@ -341,6 +341,7 @@ enum Mesher {
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
         let rWire = RenderType.wire.rawValue, rsK = Circuit.kinds, gbT = Blocks.groupBase, joinT = ChestJoin.joinable
         let rRail = RenderType.rail.rawValue
+        let rSlope = RenderType.slope.rawValue, slopeT = Blocks.slopeMask      // P431
         let waterTex = Int(WATER) * 6
         let translucent = RenderLayer.translucent.rawValue
         let iceT = Mesher.iceTable
@@ -1522,6 +1523,59 @@ enum Mesher {
                                 var padAO = 3
                                 if Mesher.waterDepthAO { padAO = depthAO(x + CT[ci], y - 1, z + CT[ci + 2]) }
                                 vert(isTrans, bx16 + px, by16 - 1, bz16 + pz, f, tintV, u, v, layer, padAO, l, false)
+                            }
+                        }
+                        continue
+                    }
+                    if rt == rSlope {
+                        // P431: a 45-degree slope over natural ground. Its top is the quad through its four corners at the
+                        // heights the corner mask gives (0 or 1 block); the one odd corner of an inner or outer corner
+                        // sits at the quad's first vertex, so the index pattern's 0-2 diagonal splits it as the drawn
+                        // shape (and as BlockRegistry.slopeHeight meets it). The sides keep what that top leaves of
+                        // them (a triangle where the slope comes down to the ground), back and bottom are whole faces.
+                        let m = Int(slopeT[bi])
+                        func h16(_ cx: Int, _ cz: Int) -> Int { m & (1 << (cx + cz * 2)) != 0 ? 16 : 0 }
+                        var start = 0
+                        let raised = m.nonzeroBitCount
+                        if raised == 1 || raised == 3 {
+                            for k in 0..<4 {
+                                let ci = (2 * 4 + k) * 3
+                                if (h16(CT[ci], CT[ci + 2]) == 16) == (raised == 1) { start = k; break }
+                            }
+                        }
+                        for f in 0..<6 {
+                            let nb = R[i + offs[f]]
+                            if opaqueT[Int(nb)] && !smoothOpen(i + offs[f]) && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
+                            var partial = false
+                            if f / 2 != 1 {
+                                // (a side's corners 0 and 2 are its two x,z positions: nothing to draw where both are down)
+                                let ci0 = (f * 4) * 3, ci2 = (f * 4 + 2) * 3
+                                let c0 = (CT[ci0], CT[ci0 + 2]), c2 = (CT[ci2], CT[ci2 + 2])
+                                let m0 = h16(c0.0, c0.1), m2 = h16(c2.0, c2.1)
+                                if m0 == 0 && m2 == 0 { continue }
+                                if renderT[Int(nb)] == rSlope {
+                                    // A slope beside covers this side wherever its own corners on the shared edge are as
+                                    // high (two slopes of one hillside share no drawn wall; nothing fights for the plane).
+                                    let nm = Int(slopeT[Int(nb)])
+                                    func nh(_ cx: Int, _ cz: Int) -> Int { nm & (1 << (cx + cz * 2)) != 0 ? 16 : 0 }
+                                    let x0 = f / 2 == 0 ? 1 - c0.0 : c0.0, z0 = f / 2 == 0 ? c0.1 : 1 - c0.1
+                                    let x2 = f / 2 == 0 ? 1 - c2.0 : c2.0, z2 = f / 2 == 0 ? c2.1 : 1 - c2.1
+                                    if nh(x0, z0) >= m0 && nh(x2, z2) >= m2 { continue }
+                                }
+                                partial = m0 != 16 || m2 != 16
+                            }
+                            let l = max(0, light(x + NT[f * 3], y + NT[f * 3 + 1], z + NT[f * 3 + 2]))
+                            // (a side the slope cuts to a triangle is the ground's top, grass on a grass slope, not a wall of
+                            // its side texture: the first render showed dark dirt triangles all over a grass hillside)
+                            let layer = Int(texT[bi * 6 + (partial ? 2 : f)])
+                            for kk in 0..<4 {
+                                let k = f == 2 ? (kk + start) & 3 : kk
+                                let ci = (f * 4 + k) * 3
+                                let px = CT[ci] * 16, pz = CT[ci + 2] * 16
+                                var py = CT[ci + 1] * 16
+                                if py == 16 { py = h16(CT[ci], CT[ci + 2]) }
+                                let (u, v) = faceUV(f, px, py, pz)
+                                vert(isTrans, bx16 + px, by16 + py, bz16 + pz, f, tintV, u, v, layer, 3, l, false)
                             }
                         }
                         continue
