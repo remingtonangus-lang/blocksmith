@@ -3009,6 +3009,7 @@ final class Game {
         Trains.roofShift = V2(0, 0)
         let px = Int(floor(p.pos.x)), pz = Int(floor(p.pos.z)), py = Int(floor(p.pos.y + 0.1))
         let plant = Blocks.sway[Int(world.builtBlock(px, py, pz))] || Blocks.sway[Int(world.builtBlock(px, py + 1, pz))]
+            || ShapeClass.kind[Int(world.builtBlock(px, py + 1, pz))] == .foliage      // P417 (a): crushing through leaves
         if plant && moved > 0.01 && !p.flying && !p.inWater && riding == nil {     // on foot, not swimming or riding
             plantBrushDist += moved
             if plantBrushDist > (p.sneaking ? 2.4 : 1.2) { plantBrushDist = 0; plantBrushes += 1; sfx(.plantBrush, p.sneaking ? 0.25 : (p.sprinting ? 0.75 : 0.55), at: p.pos + V3(0, 0.4, 0)) }

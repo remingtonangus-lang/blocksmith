@@ -555,6 +555,7 @@ final class World {
         // P389: a struck object's cell is met as what is left of it there.
         if !objectReg.cellBoxes.isEmpty, let ob = objectReg.cellBoxes[IVec3(x, y, z)] { out.append(contentsOf: ob); return }
         if !Blocks.collide[b] { return }
+        if foliageSoft && softFoliage(b, x, y, z) { return }
         let o = V3(Float(x), Float(y), Float(z))
         if Blocks.fullCollide[b] {
             // A chipped block gives up the whole layers it has lost (you sink into a block chipped from the top).
@@ -614,6 +615,19 @@ final class World {
     // touchedPlayer (a mob pressed against him neither hops nor counts as stuck).
     var solidMobs: [Mob] = []
     var mobsSolid = false
+    // P417 (a) (Oct 23 21:06-21:12, "getting through a forest is a pain"; "you can crush through"): the player's own
+    // moves (around Player's moveBody) pass through leaves and a tree's limbs (a log cell with no log or ground under
+    // it); trunks still stop him. Mobs, items and every other query still meet them.
+    var foliageSoft = false
+    @inline(__always) func softFoliage(_ b: Int, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        switch ShapeClass.kind[b] {
+        case .foliage: return true
+        case .trunk:
+            let u = Int(block(x, y - 1, z))
+            return ShapeClass.kind[u] != .trunk && !Blocks.collide[u]
+        default: return false
+        }
+    }
     var playerBox: (V3, V3)?
     var touchedPlayer = false
 
