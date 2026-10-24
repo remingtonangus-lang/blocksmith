@@ -141,6 +141,7 @@ enum Structure {
         var joints: [(IVec3, Float, Float)] = []   // (collect: each joint that failed: the block, the load it handed on, what the joint holds)
     }
     static var checks = 0, fallen = 0, worstMs: Double = 0, totalMs: Double = 0, crushed = 0      // (harness tallies)
+    static var tally: [String: Int]? = nil      // (harness: what queued the checks, old -> new)
 
     // Is the cell ground or something a structure stands on (not part of one)?
     @inline(__always) static func anchor(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -165,7 +166,11 @@ enum Structure {
     static var grid = [Int32](repeating: -1, count: gridW * gridW * gridW)
 
     // The piece of built blocks at or beside p, and what of it falls. limit/out bound the fill (past them: held).
-    static func analyse(_ w: World, at p: IVec3, limit: Int = 4096, out: Int = 24, collect: Bool = false) -> Result {
+    // P416 (Oct 23, "mining in the base 22 fps", "the doors drop it to 6-12"): the bound was 4,096 blocks 24 out; in a
+    // Greywall fortress every check filled to it and ran its reach passes over all of it (85-125 ms a check in a debug
+    // build, one a frame while anything in the base changed). 1,536 blocks 16 out still reaches past every material's
+    // reach (log 6) and its load path to the ground nearby; the far walls are held, as before.
+    static func analyse(_ w: World, at p: IVec3, limit: Int = 1536, out: Int = 16, collect: Bool = false) -> Result {
         var res = Result()
         let useGrid = out < gridR
         var dict: [IVec3: Int] = [:]
@@ -460,10 +465,16 @@ enum Structure {
 extension World {
     // P388 (2): a structural block placed or taken away: the piece round it is checked (Structure.tick), once per 4-cube.
     @inline(__always) func queueLoadCheck(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
-        guard Structure.enabled, frame == nil, Structure.member[Int(old)] || Structure.member[Int(new)] else { return }
+        guard Structure.enabled, frame == nil, !restoring, Structure.member[Int(old)] || Structure.member[Int(new)] else { return }
         // (one state of a block for another of the same material carries the same load: a door opening, a lamp lit)
         if let a = Structure.table[Int(old)], let b = Structure.table[Int(new)], a.weight == b.weight && a.bond == b.bond && a.reach == b.reach { return }
+        // P416 (Oct 23, the Greywall base: 20 checks a second with nobody building): grass dying back to dirt under
+        // snow, lava eating the rock. Ground turning into other ground (or a liquid) is no structure's business: in a
+        // block world both are ground under a building, in a Polygons world neither is part of one.
+        // (a garden's soil for soil carries the same)
+        if SmoothTerrain.natural[Int(old)] && (SmoothTerrain.natural[Int(new)] || Blocks.isLiquid(new)) { return }
         let key = IVec3(floorDiv(x, 4), floorDiv(y, 4), floorDiv(z, 4))
+        if Structure.tally != nil { Structure.tally![Blocks.key(old) + " -> " + Blocks.key(new), default: 0] += 1 }
         if loadQueued.insert(key).inserted { loadQueue.append(IVec3(x, y, z)) }
     }
 }

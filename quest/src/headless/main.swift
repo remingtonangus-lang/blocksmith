@@ -73,6 +73,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--saveacross"), i + 2 < Command
 // --perfscenes [--rd 12,16] [--only NAME,...] [--blockworld]: the Quest frame's CPU side in the playtest scenes (P283,
 // quest/src/test/QuestPerf.swift).
 if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }
+// --freezetest [--rd 8]: the Oct 23 base freezes (a bulkhead door opened, a wall block broken), frame by frame (P416).
+if CommandLine.arguments.contains("--freezetest") { exit(QuestFreezeTest.run()) }
 // --spacewarp: P403 7b, the space warp's motion vectors of a moving mob (quest/src/test/SpaceWarpCheck.swift).
 if CommandLine.arguments.contains("--spacewarp"), let ctx = vkctx { exit(SpaceWarpCheck.run(ctx: ctx)) }
 // --launch DIR / --launch-prepare DIR [--rd 24]: the headset's launch path timed stage by stage (P400,
