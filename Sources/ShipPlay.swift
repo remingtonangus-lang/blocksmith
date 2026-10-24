@@ -332,6 +332,21 @@ extension Game {
 
     // Breaking, placing and using blocks on ships, and assembling helms. Returns true when handled
     // (the rest of Game.interact is skipped).
+    // P434 (b) (Oct 24 15:27, "I can't open a door if I'm holding a gun"): a ship's door, trapdoor or gate within arm's
+    // reach of the aim, so a gun in hand can still open it (the gun's aim took the use press first).
+    func shipDoorAimed() -> Bool {
+        guard world.ships.pilot == nil else { return false }
+        let eye = vrAim?.origin ?? player.eye, look = vrAim?.dir ?? player.look
+        var best: (Ship, IVec3, Float)?
+        for s in world.ships.list where eye.x > s.worldMin.x - 5 && eye.x < s.worldMax.x + 5 && eye.y > s.worldMin.y - 5
+            && eye.y < s.worldMax.y + 5 && eye.z > s.worldMin.z - 5 && eye.z < s.worldMax.z + 5 {
+            if let h = s.raycast(eye, look, maxDist: 4.5, world: world), best == nil || h.t < best!.2 { best = (s, h.cell, h.t) }
+        }
+        guard let (s, c, _) = best else { return false }
+        let shape = Blocks.shape[Int(s.grid.get(c.x, c.y, c.z))]
+        return shape == "door" || shape == "trapdoor" || shape == "gate"
+    }
+
     func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float) -> Bool {
         let ships = world.ships
         ships.breakCooldown -= dt
