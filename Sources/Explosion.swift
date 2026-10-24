@@ -185,6 +185,9 @@ enum Explosion {
                 }
                 m.hit(from: c, damage: Int(dmg), knockback: 0)
                 m.vel += dir * k * 12
+                // P423 (b) (Oct 23 21:30: "that should launch the guy"): a blast lifts a body off its feet as well, so it
+                // flies instead of being pulled back to a walk on the ground at once (heavy things barely, per Mob.knockbackTaken).
+                m.vel.y = max(m.vel.y, k * 10 * min(1, m.knockbackTaken))
             }
         }
         let star: ItemID = Items.has("nether_star") ? Items.id("nether_star") : ItemID.max

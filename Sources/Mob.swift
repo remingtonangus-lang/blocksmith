@@ -708,6 +708,9 @@ final class Mob {
             if Blocks.fluidKind[Int(feetBlock)] == 2 || feetBlock == FIRE { fire = max(fire, 8) }
             if attackCooldown < -0.5 { health -= Int(contact); hurt = 0.3; attackCooldown = 0 }
         }
+        // P423 (a) (Oct 23 21:29: "that guy should be catching on fire right about now"): a body that walks into a lit
+        // campfire catches fire, as one in fire or lava does.
+        if !spec.fireImmune && Mob.litCampfires.contains(feetBlock) && !inWater { fire = max(fire, 6) }
         if fire > 0 {
             fire -= dt
             fireTick += dt
@@ -1586,6 +1589,7 @@ final class Mob {
     static var plateHit = false
     // P321: a gun round on a soldier, its armour and toughness already worked out (Armory.impactMob): taken as dealt.
     static var roundHit = false
+    static let litCampfires: Set<BlockID> = Set(["campfire", "soul_campfire"].filter { Blocks.has($0) }.map { Blocks.id($0) })
     func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         if let f = Mob.netHit, f(self, src, damage, knockback) { return }     // a co-op guest's view of a host's mob (NetCoop)
         if posse == Prisoners.posse { return }                              // P347: the camp's prisoners can't be hurt
