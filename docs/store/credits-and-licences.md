@@ -23,7 +23,15 @@ licences and copyright lines, and where to read the full texts. Before submissio
 this table, add any NOTICE file text a component requires, and keep AboutMenu.parts in step with it.
 
 ## Assets
-No third-party textures, models, sounds or music. Every texture is painted procedurally in code (Textures.swift and
-related files), and every sound and piece of music is synthesized in code. Image requests in docs/art/image-requests.md
-and recordings in docs/audio/sound-list.md will be commissioned or generated for Sunderfall. Record their source and
-licence here as they arrive.
+Corrected for P439 (Oct 24): the old text said every asset was made in code, which is no longer true.
+
+| Asset | Source | Licence to confirm before submission |
+|---|---|---|
+| Block and item textures (Resources/Textures, packed into Resources/texpack.bin) | Generated with Google Gemini image models from prompts written for Sunderfall (tools/gemini_textures.py, tools/texture_prompts.json), then cleaned up in code; the rest painted procedurally (Textures.swift) | Google's generative AI terms for the account used: commercial use of outputs |
+| Sound effects (Resources/Sounds/real, 914 files) | ElevenLabs sound generation, commercial licence (commit e47e0aad) | The ElevenLabs plan in force when they were made |
+| Townsfolk voices (Resources/voices.bin) | ElevenLabs voices through OpenRouter's speech endpoint (tools/townvoice_gen.py) | ElevenLabs terms for speech made through OpenRouter: commercial use |
+| Music (Resources/Music/sunderfall, 40 tracks) | Made by Remington in Google Flow Music, Oct 16-17 | Google Flow Music terms: commercial use and distribution in a paid app |
+| Everything else (models, mobs, sky, particles, synthesized sounds) | Original, in code | |
+
+No asset comes from another game. Generated assets are listed here so the store's AI-content questions can be answered
+from one place.
