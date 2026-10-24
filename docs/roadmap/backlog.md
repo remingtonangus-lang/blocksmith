@@ -39,7 +39,7 @@ P420. [DONE #451: pause menu > What Is Using the Compute (playtest builds)] [Rem
 
 P421. [DONE #452: pause menu > Messages, the last 50 on-screen messages] [Remington, Oct 23 21:21] MESSAGE LOG. On-screen messages vanish before he can read them: keep the last 50 in a page he can open from the pause menu.
 
-P422. [Remington, Oct 23 21:13] BASE CONSOLES. The many consoles in a base all do the same thing; give them different jobs (map of the base, alarm off, doors, cameras, the base locator he used).
+P422. [DONE #453: base consoles: locator, map, alarm off, doors, cameras] [Remington, Oct 23 21:13] BASE CONSOLES. The many consoles in a base all do the same thing; give them different jobs (map of the base, alarm off, doors, cameras, the base locator he used).
 
 P423. [Remington, Oct 23 21:29-21:30] FIRE AND FORCE. (a) an enemy walking into a lit campfire catches fire; (b) a thrown object or blast launches enemies; (c) 'should be able to hold them up just like this' at 21:30:22: check the note's screenshot and context to see what he meant, and build it if it is clear.
 
