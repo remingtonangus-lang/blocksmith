@@ -559,14 +559,29 @@ if let out = arg("--view"), let ctx = vkctx {
         var things: [(IVec3, String)] = []
         var seen: [String: Int] = [:]
         let reach = Int(arg("--reach") ?? "") ?? 24
+        // P409: plants (crosses) too, and those standing over nothing: no ground in their cell's lower half or the cell
+        // below, and no solid block under them (each must stand on the drawn ground).
+        var overAir: [String: Int] = [:], plants = 0
+        let crossR = RenderType.cross.rawValue
         for y in max(2, ey - reach)...min(CH - 2, ey + reach) { for z in (ez - reach)...(ez + reach) { for x in (ex - reach)...(ex + reach) {
             let b = vw.rawBlock(x, y, z)
-            guard b != AIR, GroundDrape.seat[Int(b)] != 0 else { continue }
+            guard b != AIR else { continue }
+            if Blocks.render[Int(b)] == crossR && !Blocks.isLiquid(b) && !Blocks.key(b).hasSuffix("vine") && !Blocks.key(b).contains("vines") {   // (vines hang)
+                let under = vw.rawBlock(x, y - 1, z)
+                if Blocks.render[Int(under)] != crossR {           // (the foot of a stack)
+                    plants += 1
+                    if vw.fieldDensity(at: V3(Float(x) + 0.5, Float(y) - 0.5, Float(z) + 0.5)) <= 0
+                        && vw.fieldDensity(at: V3(Float(x) + 0.5, Float(y) - 0.25, Float(z) + 0.5)) <= 0
+                        && !Blocks.collide[Int(under)] { overAir[Blocks.key(b), default: 0] += 1 }
+                }
+            }
+            guard GroundDrape.seat[Int(b)] != 0 || Blocks.render[Int(b)] == crossR && !Blocks.isLiquid(b) else { continue }
             seen[Blocks.key(b), default: 0] += 1
             guard vw.fieldDensity(at: V3(Float(x) + 0.5, Float(y) - 0.5, Float(z) + 0.5)) > 0
                     || vw.fieldDensity(at: V3(Float(x) + 0.5, Float(y) - 1.5, Float(z) + 0.5)) > 0 else { continue }
             things.append((IVec3(x, y, z), Blocks.key(b)))
         } } }
+        print("view: \(plants) plants in reach, \(overAir.values.reduce(0, +)) over air (" + overAir.keys.sorted().map { "\($0) \(overAir[$0]!)" }.joined(separator: ", ") + ")")
         print("view: \(things.count) generated things on the ground (seated things in reach: " + seen.keys.sorted().map { "\($0) \(seen[$0]!)" }.joined(separator: ", ") + ")")
         if CommandLine.arguments.contains("--groundcheck") { print(GroundDrape.check(vw, things)) }
     }

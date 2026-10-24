@@ -1014,12 +1014,17 @@ enum Mesher {
         // cross (cell (lx, ly, lz), ground under it at about `top`), a sixteenth or so into it, so no corner floats over a
         // slope or sinks into a rise; nil unless the ground is under all four.
         func plantFeet(_ lx: Int, _ lz: Int, _ a: Int, _ b: Int, top: Float) -> SIMD4<Int32>? {
-            var o = SIMD4<Int32>(0, 0, 0, 0)
+            // (P409: on a steep cell a corner's ground can rise past `top`: it is looked for up to a quarter block higher,
+            // and a corner still without it takes the highest of the others, so no corner hangs over the slope)
+            var o = SIMD4<Int32>(-1, -1, -1, -1)
             for k in 0..<4 {
                 let px = (k & 1) == 0 ? a : b, pz = k < 2 ? a : b
-                guard let h = drape.heightNear(Float(lx) + Float(px) / 16, Float(lz) + Float(pz) / 16, top: top) else { return nil }
+                guard let h = drape.heightNear(Float(lx) + Float(px) / 16, Float(lz) + Float(pz) / 16, top: top + 0.25, reach: 2.75) else { continue }
                 o[k] = Int32(max(0, min(511, Int((h * 16).rounded(.down)) - 1)))
             }
+            let hi = o.max()
+            if hi < 0 { return nil }
+            for k in 0..<4 where o[k] < 0 { o[k] = hi }
             return o
         }
 
