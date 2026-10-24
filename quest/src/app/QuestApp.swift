@@ -19,7 +19,7 @@ final class QuestApp {
     // P403 (the sub-pixel exception of P375): canopies past this many chunks are meshed "fast" (no faces between
     // leaf blocks). At 6 chunks (96 blocks) a leaf block is ~8 px tall on the Quest 3 and a leaf texture's holes are
     // under a pixel, so the inner faces could only show through holes the mip chain has already closed.
-    static var leafNear = 6
+    static var leafNear = 4
     private(set) var dynRes = DynamicResolution()       // P403 7b
     private(set) var game: Game?
     private var worldRenderer: WorldRenderer?
