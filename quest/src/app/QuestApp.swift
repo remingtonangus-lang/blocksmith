@@ -16,6 +16,10 @@ final class QuestApp {
     private var spaceWarpPass: SpaceWarpPass?         // P381 step 9
     private var lastAppToWorld: (rotation: simd_quatf, translation: V3)?
     private var lastDisplayTime: XrTime = 0
+    // P403 (the sub-pixel exception of P375): canopies past this many chunks are meshed "fast" (no faces between
+    // leaf blocks). At 6 chunks (96 blocks) a leaf block is ~8 px tall on the Quest 3 and a leaf texture's holes are
+    // under a pixel, so the inner faces could only show through holes the mip chain has already closed.
+    static var leafNear = 6
     private(set) var dynRes = DynamicResolution()       // P403 7b
     private(set) var game: Game?
     private var worldRenderer: WorldRenderer?
@@ -72,7 +76,7 @@ final class QuestApp {
         // level, no "fast" leaves). The cost is met by not simulating past the active distance, culling and merged
         // draws, not by lowering far detail; his headset captures decide if it holds 72 fps.
         World.lodNear = 99
-        World.leafNear = 99
+        World.leafNear = QuestApp.leafNear
         PlaytestChecklist.spaceWarp = (get: { QuestSettings.spaceWarp ? (QuestSettings.spaceWarpActive ? "On" : "On (next launch)") : (QuestSettings.spaceWarpActive ? "Off (next launch)" : "Off") },
                                        toggle: { QuestSettings.spaceWarp.toggle() })        // P399 (7)
         PauseMenu.viewFixed = true                 // P339: the view distance is fixed (QuestSettings.viewDistance)
