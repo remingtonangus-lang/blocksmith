@@ -128,7 +128,8 @@ final class Settings {
         safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
         targetBar = true; lookNames = true
-        display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0; bugNoteVideo = true
+        display = ""; smoothTerrain = false; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0; bugNoteVideo = true   // (P431: Blocks for new worlds)
+        mapZoom = 3; wreckHint = false; mastHint = false; chestJoinTold = false       // (questcheck --settings-only: every @Pref resets)
         directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false; devTools = Settings.devToolsDefault   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1
