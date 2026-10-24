@@ -74,7 +74,22 @@ extension ShipManager {
     // Whether a body at world position w, not yet aboard s, boards it now.
     func canBoard(_ s: Ship, _ w: V3, halfW: Float) -> Bool {
         let l = s.toLocal(w)
+        // P434 (f) (Oct 24 15:25, "trying to drop into a hole I made for the frigate and it's not letting me in because
+        // of us flying at the same time"): out of the hull's frame its cells collide as world boxes, fattened to cover
+        // the turned blocks, and over a heading off the axes those close a one-block hole. A body standing or falling
+        // right over the hull (ship blocks within two cells under the footprint or just round it: the rim of a hole) now
+        // joins its frame, where the hull's cells are exact and the hole is a hole.
         return holdsRider(s, l, halfW: halfW) || atShipLadder(s, l, halfW: halfW) || insideHull(s, l)
+            || (l.y <= s.localMax.y + 1.5 && (overHull(s, l, halfW: halfW, depth: 2)
+                || (shipBelow(s, l) && overHull(s, l, halfW: halfW + 0.4, depth: 2))))      // (over the hull, not beside it)
+    }
+
+    // Any ship block in the column under the body's middle (over the hull's footprint: a deck below a hole).
+    func shipBelow(_ s: Ship, _ l: V3) -> Bool {
+        let x = Int(floor(l.x)), z = Int(floor(l.z))
+        guard s.grid.inside(x, 0, z) else { return false }
+        for y in stride(from: min(s.grid.sy - 1, Int(floor(l.y))), through: 0, by: -1) where Blocks.collide[Int(s.grid.get(x, y, z))] { return true }
+        return false
     }
 
     // Capital hulls: many blocks set at once (a ramp lowering), counts and column floors kept current, one remesh.

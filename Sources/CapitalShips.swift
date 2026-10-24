@@ -67,6 +67,7 @@ final class CapitalState {
     var aimTimer: Float = 0            // seconds to the next aim prediction (10 a second)
     var missileCD: Float = 5
     var pods: [(V3, V3)] = []          // missile pod mouths and launch directions (ship space)
+    var enginesShaken = false            // P434 (g): the drive engines knocked off their mounts by a hard knock, till an ingot restarts them
     var exhausts: [V3] = []            // drive nozzle mouths (ship space)
     var retarget: Float = 0
     var target: CapTarget?
@@ -155,6 +156,7 @@ final class HullBuilder {
     var turrets: [(ring: IVec3, bp: Blueprint, spec: GunSpec2)] = []
     var chests: [(IVec3, String)] = []
     var pods: [(V3, V3)] = []
+    var enginesShaken = false            // P434 (g): the drive engines knocked off their mounts by a hard knock, till an ingot restarts them
     var exhausts: [V3] = []              // drive nozzle mouths (grid coordinates): glowing exhaust while the engines run
     var mainGun: (V3, V3) = (V3(0, 0, 0), V3(0, 0, -1))
     var mainGunLength: Float = 0         // visible barrel length behind the muzzle (blocks)
@@ -845,7 +847,7 @@ extension ShipManager {
     // damaged wheel nearest the struck cell, and once fewer than half its wheels are lost it can drive again.
     // Returns a toast, nil when there is nothing to repair.
     func repairVehicle(_ s: Ship, near cell: IVec3) -> String? {
-        guard s.captured, let st = capState[s.id], !st.wheels.isEmpty else { return nil }
+        guard s.captured, let st = capState[s.id], !st.wheels.isEmpty || st.engines0 > 0 else { return nil }
         let at = V3(Float(cell.x), Float(cell.y), Float(cell.z))
         var best = -1, bd = Float.greatestFiniteMagnitude
         for (k, w) in st.wheels.enumerated() where w.n < w.n0 && !w.orig.isEmpty {
@@ -874,6 +876,7 @@ extension ShipManager {
             let present = st.engineCells.filter { kinds[Int(s.grid.get($0.0.x, $0.0.y, $0.0.z))] == .engine }.count
             if s.engines < present {
                 s.engines = present
+                st.enginesShaken = false
                 what = "Engines restarted (\(s.engines)/\(st.engines0) engine blocks)"
             }
             let missing = st.engineCells.filter { s.grid.get($0.0.x, $0.0.y, $0.0.z) == AIR }
@@ -1370,7 +1373,7 @@ extension ShipManager {
         if !st.engineCells.isEmpty && simd_length(g.player.pos - s.pos) < 160 {
             for _ in 0..<4 {
                 let c = st.engineCells[Int.random(in: 0..<st.engineCells.count)].0
-                if s.grid.get(c.x, c.y, c.z) == AIR && Rand.float(in: 0..<1) < dt * 30 {
+                if (s.grid.get(c.x, c.y, c.z) == AIR || st.enginesShaken) && Rand.float(in: 0..<1) < dt * 30 {
                     g.particles.smoke(at: s.toWorld(V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5)), dark: true)
                 }
             }
@@ -1449,12 +1452,35 @@ extension ShipManager {
         let k = min(1, (impact - 6) / 8)
         for h in hits.prefix(2) { Explosion.explode(at: h, power: 1.5 + 2 * k, game: g) }
         tearHull(s, at: hits[0], radius: 1.5 + 2 * k, game: g)
+        engineShock(s, st, impact, g)
         g.sfx(.shipCollideHard, 1 + k, at: c)
         for _ in 0..<Int(6 + 10 * k) { g.particles.smoke(at: c + V3(Rand.float(in: -2...2), Rand.float(in: 0...2), Rand.float(in: -2...2)), dark: true) }
         if aboard {
             g.addShake(0.35 + 0.4 * k)
             if g.survival { g.hurtPlayer(Int(((impact - 4) * 0.8).rounded()), from: c, cause: "crashed", knockback: 0, type: .generic) }
         }
+    }
+
+    // P434 (g) (Remington, Oct 24 15:33, his idea: "when the ship hits something hard, its momentum breaks parts loose in
+    // the engine room and it stops working, with a simple repair if the hit wasn't too hard"). A hard knock short of the
+    // crash that wrecks her (9 blocks/s or more where she struck) throws the drive engines off their mounts: they stop,
+    // their blocks still in place, and she coasts to a stop where she is; at 11 or more a few engine blocks are torn
+    // loose too. An ingot of steel or iron used on the hull gets them going (repairVehicle: the stopped engines restart,
+    // and up to eight torn-out engine blocks are refitted an ingot). The stopped engines smoke and spark (flyCommandeered).
+    func engineShock(_ s: Ship, _ st: CapitalState, _ impact: Float, _ g: Game) {
+        guard impact >= 9, st.engines0 > 0, s.engines > 0 else { return }
+        let kinds = ShipParts.kinds
+        let mounted = st.engineCells.map { $0.0 }.filter { kinds[Int(s.grid.get($0.x, $0.y, $0.z))] == .engine }
+        if impact >= 11 && !mounted.isEmpty {
+            let n = min(mounted.count, 2 + Int((impact - 11) * 0.7))
+            let torn = Set(mounted.shuffled().prefix(n))
+            let mid = torn.reduce(V3(0, 0, 0)) { $0 + V3(Float($1.x) + 0.5, Float($1.y) + 0.5, Float($1.z) + 0.5) } / Float(torn.count)
+            removeCells(s, torn, chipped: [], center: s.toWorld(mid), power: 2, game: g)
+        }
+        s.engines = 0
+        st.enginesShaken = true
+        if let e = mounted.first { g.sfx(.explode, 0.5, at: s.toWorld(V3(Float(e.x) + 0.5, Float(e.y) + 0.5, Float(e.z) + 0.5))) }
+        if aboard?.root === s || pilot === s { g.onToast?("The \(s.name)'s engines shook loose and stopped") }
     }
 
     // P357 (c): the hull broken open round a world point: every breakable cell within a ragged ball of the radius goes
