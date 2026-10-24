@@ -79,6 +79,7 @@ enum Mesher {
     // Blocks drawn by the detail generators: the ground and the cube faces round them treat them as open.
     static let detailT: [Bool] = (0..<Blocks.count).map { i in
         ShapeClass.kind[i] == .trunk || ShapeClass.kind[i] == .organic || i != 0 && i == Int(pointedDrip)    // (P338: ShapeSpikes)
+            || Blocks.has("amethyst_cluster") && i == Int(Blocks.id("amethyst_cluster"))                      // (P436: crystals)
             || ShapeRails.isRail[i]                                                                           // (P337: ShapeRails)
     }
     // Built cubes (planks, bricks, metal, concrete...): crisp, but no knife edges (realistic world 1.6).
@@ -1889,7 +1890,7 @@ enum Mesher {
             kv[MeshKind.struck] &+= Int32(d0 / DetailMesh.wordsPerVertex)
             ShapeTrunks.emit(ctx); tally(MeshKind.trunk)
             ShapeOrganic.emit(ctx); tally(MeshKind.organic)
-            ShapeSpikes.emit(ctx); tally(MeshKind.spike)
+            ShapeSpikes.emit(ctx); ShapeSpikes.emitCrystals(ctx); tally(MeshKind.spike)
             ShapeRails.emit(ctx); tally(MeshKind.rail)
         } else {
             kv[MeshKind.struck] &+= Int32((det.count + detCut.count) / DetailMesh.wordsPerVertex)

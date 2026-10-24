@@ -204,6 +204,7 @@ extension Mob {
     }
 
     func hellAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
+        let canTarget = canTarget && (aggro || !HellBiomeMobs.peaceable(self))      // P436: the Gloamwood's own fight back only
         switch kind {
         case .searwing: return searwingAI(dt, g, dist: dist, canTarget: canTarget)
         case .scorchling: return scorchlingAI(dt, g, dist: dist, canTarget: canTarget)
@@ -409,12 +410,13 @@ extension Mob {
         case .dive:
             let d = head - pos
             let l = max(0.01, simd_length(d))
-            vel += (d * (15 * lvlSpeed / l) - vel) * min(1, dt * 4)
+            vel += (d * ((variant == 3 ? 19 : 15) * lvlSpeed / l) - vel) * min(1, dt * 4)
             face(pos + vel)
             if l < 1.1 {
                 HellStats.diveHits += 1
-                g.hurtPlayer(spec.attack, from: pos, cause: "was struck down by a Searwing", attacker: self)
-                if !g.effects.has(.fireResistance) { g.onFire = max(g.onFire, 3) }
+                g.hurtPlayer(variant == 3 ? 3 : spec.attack, from: pos, cause: "was struck down by " + HellBiomeMobs.aName(self), attacker: self)
+                if variant != 2 && !g.effects.has(.fireResistance) { g.onFire = max(g.onFire, 3) }
+                if variant == 2 { _ = g.effects.add(.blindness, amp: 0, seconds: 2) }      // the Wraith's ash in the eyes
                 h.s = .climb; h.t = 2.4 / pace
             } else if h.t <= 0 || g.world.collides(pos + vel * 0.15 - V3(halfW, 0, halfW), pos + vel * 0.15 + V3(halfW, height, halfW)) {
                 h.s = .climb; h.t = 2.4 / pace
@@ -433,16 +435,17 @@ extension Mob {
                 var open = 2
                 while open < 11 && !g.world.solidAt(x, y0 + open, z) { open += 1 }
                 h.hover = max(2.5, Float(open) - 2.5)
+                if variant == 2 { h.hover = min(h.hover, 3.5) }       // P436: the Ash Wraith glides low over the dunes
             }
-            let r: Float = 9
+            let r: Float = variant == 3 ? 6 : 9
             let c = g.player.pos + V3(cosf(circleAngle) * r, h.hover + sinf(circleAngle * 2) * 1.2, sinf(circleAngle) * r)
             let d = c - pos
             let l = max(0.01, simd_length(d))
             vel += (d * (spec.speed * lvlSpeed / l) - vel) * min(1, dt * 2)
             face(pos + vel)
             if h.cool <= 0 && dist < 28 && g.world.canSee(eye, head) {
-                h.s = .windup; h.t = 0.7 / pace
-                g.sfx(.mob(kind, .ambient), 1.3, at: pos)
+                h.s = .windup; h.t = (variant == 3 ? 0.45 : 0.7) / pace
+                if variant != 2 { g.sfx(.mob(kind, .ambient), 1.3, at: pos) }      // (the Wraith comes silent until it screams)
             }
         }
         return 0
@@ -452,22 +455,43 @@ extension Mob {
         if Rand.float(in: 0..<1) < dt * 3 { g.particles.flame(at: pos + V3(0, height, 0)) }
         guard canTarget else { wander(); return moving ? spec.speed * 0.4 : 0 }
         face(g.player.pos)
-        if onGround && dist > 1.4 && dist < 3.5 && Rand.float(in: 0..<1) < dt * 3 {
-            vel += forward * 5 + V3(0, 5.5, 0)
+        // P436: the lands' own: the Cinder Hound lunges long and low, the Dune Crawler never leaps (slow, a heavy bite),
+        // the Shard Skitter scuttles sidelong round you.
+        let v = variant
+        let reach: Float = v == 2 ? 5.5 : 3.5
+        if v != 3 && onGround && dist > 1.4 && dist < reach && Rand.float(in: 0..<1) < dt * (v == 2 ? 2 : 3) {
+            vel += v == 2 ? forward * 8 + V3(0, 4, 0) : forward * 5 + V3(0, 5.5, 0)
+        }
+        if v == 4 {
+            if hellState.sideT <= 0 { hellState.sideT = Rand.float(in: 0.6...1.4); hellState.side = Rand.float(in: 0..<1) < 0.5 ? -1 : 1 }
+            hellState.sideT -= dt
+            strafe = dist < 5 ? hellState.side * spec.speed * 0.7 : 0
         }
         if g.meleeGap(self) < halfW + 0.7 && attackCooldown <= 0 {
-            attackCooldown = 0.9
-            g.hurtPlayer(spec.attack, from: pos, cause: "was nibbled to cinders by Scorchlings", knockback: 0.3, attacker: self)
+            attackCooldown = v == 3 ? 1.4 : 0.9
+            let bite = [spec.attack, spec.attack, 4, 5, 3][min(4, max(0, v))]
+            let cause = v == 2 ? "was mauled by a Cinder Hound" : (v == 3 ? "was dragged down by a Dune Crawler"
+                : (v == 4 ? "was cut to ribbons by Shard Skitters" : "was nibbled to cinders by Scorchlings"))
+            g.hurtPlayer(bite, from: pos, cause: cause, knockback: 0.3, attacker: self)
+            if v == 2 && !g.effects.has(.fireResistance) { g.onFire = max(g.onFire, 2) }
         }
-        return spec.speed
+        return v == 3 ? spec.speed * 0.5 : (v == 2 ? spec.speed * 1.15 : spec.speed)
     }
 
     private func slagthrowerAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         let h = hellState
         h.t -= dt; h.cool -= dt
+        // P436: the Charwood Lurker stands as a stump among the trees until the player comes within 9 blocks.
+        if variant == 1 && !aggro && (!canTarget || dist > 9) { h.s = .idle; moving = false; return 0 }
+        if variant == 1 && !aggro { aggro = true; g.sfx(.mob(kind, .ambient), 1.4, at: pos) }
         guard canTarget else { h.s = .idle; wander(); return moving ? spec.speed * 0.5 : 0 }
         let player = g.player.pos
         face(player)
+        if variant == 2 && Rand.float(in: 0..<1) < dt * 4 {             // the Glass Wight's cold ghost fire
+            g.particles.add(Particle(pos: pos + V3(Rand.float(in: -0.3...0.3), height * 0.7, Rand.float(in: -0.3...0.3)), vel: V3(0, 0.8, 0),
+                                     life: 0.6, maxLife: 0.6, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.12,
+                                     gravity: 0, color: V3(0.6, 1.9, 2.1), collide: false, glow: true))
+        }
         switch h.s {
         case .windup:
             if Rand.float(in: 0..<1) < dt * 20 { g.particles.flame(at: slagHand) }
@@ -561,11 +585,12 @@ extension MobManager {
         for m in mobs where m.kind.hellOwn && simd_length_squared(m.pos - p) < 128 * 128 { bump(m.kind) }    // (P292: near, not a keep's garrison far off)
         func room(_ k: MobKind) -> Bool { get(k.hellIndex) < HellMobs.caps[k.hellIndex] }
         // P336: the Gloamwood's own: Scorchlings there are violet Gloamlings, Searwings moth-winged (variant 1).
-        let gloam = w.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome == .warpedForest ? 1 : 0
+        // P436: and every land its own two (HellBiomeMobs.variant).
+        let land = w.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome
         func put(_ k: MobKind, _ q: V3) {
             guard let s = MobManager.groundSpot(w, near: q) else { return }
             let m = Mob(k, at: s)
-            if k == .scorchling { m.variant = gloam }
+            if k == .scorchling || k == .slagthrower { m.variant = HellBiomeMobs.variant(k, land); HellBiomeMobs.setup(m) }
             if k == .brandKnight || k == .brandSquire { m.variant = k.orderStyleRoll() }       // P341
             mobs.append(m)
             bump(k)
@@ -581,7 +606,7 @@ extension MobManager {
             for i in 0..<Rand.int(in: 1...2) where room(.brandSquire) { put(.brandSquire, around(i + 1)) }
         } else if pick == 1 {
             guard room(.scorchling) else { return false }
-            for i in 0..<Rand.int(in: 5...8) where room(.scorchling) { put(.scorchling, around(i)) }
+            for i in 0..<Rand.int(in: HellBiomeMobs.pack(HellBiomeMobs.variant(.scorchling, land))) where room(.scorchling) { put(.scorchling, around(i)) }
         } else if pick == 2 {
             guard room(.slagthrower) else { return false }
             put(.slagthrower, p)
@@ -591,7 +616,8 @@ extension MobManager {
             for dy in 1...6 where w.solidAt(x, y + dy, z) { return false }      // needs open air
             for _ in 0..<Rand.int(in: 1...2) where room(.searwing) {
                 let m = Mob(.searwing, at: p + V3(Rand.float(in: -1...1), 4, Rand.float(in: -1...1)))
-                m.variant = gloam
+                m.variant = HellBiomeMobs.variant(.searwing, land)
+                HellBiomeMobs.setup(m)
                 mobs.append(m)
                 bump(.searwing)
             }
@@ -718,6 +744,7 @@ extension Game {
 // MARK: Models (1/16 block units, facing -Z)
 
 func hellParts(_ m: Mob, swing: Float) -> [Part] {
+    if let p = HellBiomeMobs.parts(m, swing: swing) { return p }       // P436: each land's own (HellBiomeMobs.swift)
     switch m.kind {
     case .searwing: return m.variant == 1 ? gloamwingParts(m) : searwingParts(m)
     case .scorchling: return m.variant == 1 ? gloamlingParts(m, swing: swing) : scorchlingParts(m, swing: swing)

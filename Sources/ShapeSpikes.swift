@@ -52,4 +52,39 @@ enum ShapeSpikes {
             }
         } } }
     }
+
+    // P436 (Oct 24 15:46, in the Ghostglass Spires: "the amethyst needs some work"): an amethyst cluster was a crossed
+    // card. In a field world it is a cluster of real crystals: four to six six-sided prisms with pointed ends, fanned
+    // out from the face it grows on (the floor, or the ceiling for one that hangs), each its own length and lean,
+    // their bases sunk into the rock. The block stays for gameplay; only the drawing changes.
+    static let cluster: BlockID = Blocks.has("amethyst_cluster") ? Blocks.id("amethyst_cluster") : 0
+    static let crystalLayer: Int = Blocks.has("amethyst_block") ? Int(Blocks.tex[Int(Blocks.id("amethyst_block")) * 6]) : 0
+
+    static func emitCrystals(_ ctx: DetailContext) {
+        guard cluster != 0 else { return }
+        let opq = Blocks.opaque
+        for y in 0..<16 { for z in 0..<16 { for x in 0..<16 where ctx.R[ctx.ri(x, y, z)] == cluster {
+            let hangs = !opq[Int(ctx.block(x, y - 1, z))] && opq[Int(ctx.block(x, y + 1, z))]
+            let up: Float = hangs ? -1 : 1
+            let baseY = hangs ? Float(y + 1) + 0.12 : Float(y) - 0.12
+            let h = hash3(ctx.wx0 + x, ctx.wy0 + y, ctx.wz0 + z, 0xA3E7)
+            let n = 4 + Int(h % 3)
+            for k in 0..<n {
+                let hk = hash3(ctx.wx0 + x, ctx.wy0 + y, ctx.wz0 + z, 0xC0 &+ UInt32(k))
+                func f(_ sh: Int) -> Float { Float((hk >> sh) & 255) / 255 }
+                // The first crystal stands near the middle and tallest; the rest lean out round it.
+                let ang = Float(k) / Float(n) * 2 * .pi + f(0) * 0.9
+                let lean: Float = k == 0 ? 0.08 + 0.12 * f(8) : 0.35 + 0.4 * f(8)
+                let off: Float = k == 0 ? 0 : 0.12 + 0.12 * f(16)
+                let len: Float = (k == 0 ? 0.8 : 0.4 + 0.35 * f(24)) * (ctx.lod == 0 ? 1 : 0.9)
+                let r: Float = k == 0 ? 0.11 : 0.06 + 0.04 * f(4)
+                let dir = simd_normalize(SIMD3<Float>(cosf(ang) * lean, up, sinf(ang) * lean))
+                let a = SIMD3<Float>(Float(x) + 0.5 + cosf(ang) * off, baseY, Float(z) + 0.5 + sinf(ang) * off)
+                let body = a + dir * (len * 0.72), tip = a + dir * len
+                let salt = UInt32(truncatingIfNeeded: x &* 7 &+ y &* 13 &+ z &* 5 &+ k)
+                ShapeTrunks.tube(ctx, a, body, r, r * 0.92, bark: crystalLayer, sides: 6, salt: salt)
+                ShapeTrunks.tube(ctx, body, tip, r * 0.92, 0.004, bark: crystalLayer, sides: 6, salt: salt &+ 1)
+            }
+        } } }
+    }
 }

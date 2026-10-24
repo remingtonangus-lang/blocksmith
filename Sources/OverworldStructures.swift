@@ -20,7 +20,7 @@ enum OverworldStructures {
     // MARK: Temples
 
     static func temple(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "temple", spacing: 48, separation: 12, salt: 14357617, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: "temple", spacing: 34, separation: 12, salt: 14357617, reach: 2) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             let biome = gen.column(x, z).biome
             let y = gen.groundY(x, z)
@@ -374,7 +374,7 @@ enum OverworldStructures {
     // MARK: Marauder outpost
 
     static func outpost(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "pillager_outpost", spacing: 48, separation: 12, salt: 165745296, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: "pillager_outpost", spacing: 34, separation: 12, salt: 165745296, reach: 2) { [unowned gen] seed, cx, cz in
             var rng = SRng(seed)
             guard rng.int(5) == 0 else { return nil }
             let x = cx * CS + 8, z = cz * CS + 8

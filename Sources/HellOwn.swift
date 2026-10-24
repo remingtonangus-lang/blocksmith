@@ -127,11 +127,12 @@ extension MobManager {
     // leans to. 0 order patrol, 1 scorchling pack, 2 slagthrower, 3 searwings.
     static func hellLean(_ b: Biome) -> [Int] {
         switch b {
-        case .soulSandValley: return [10, 20, 15, 55]          // the Ash Dunes: open sky for the Searwings
-        case .crimsonForest: return [50, 25, 15, 10]           // the Charwood Thicket: the order's hunting ground
-        case .warpedForest: return [25, 50, 10, 15]            // the Gloamwood: scorchling packs in the spines
-        case .basaltDeltas: return [15, 25, 45, 15]            // the Ghostglass Spires: slagthrowers by the vents
-        default: return [35, 30, 15, 20]                       // the Cinder Plains
+        // (P436: weighted toward each land's own two, HellBiomeMobs.swift)
+        case .soulSandValley: return [10, 30, 5, 55]           // the Ash Dunes: Dune Crawlers, Ash Wraiths in the open sky
+        case .crimsonForest: return [35, 15, 25, 25]           // the Charwood Thicket: the order, Lurkers and Emberkites
+        case .warpedForest: return [20, 55, 5, 20]             // the Gloamwood: Gloamlings and Gloamwings (peaceable)
+        case .basaltDeltas: return [10, 35, 45, 10]            // the Ghostglass Spires: Shard Skitters, Glass Wights
+        default: return [30, 35, 20, 15]                       // the Cinder Plains: Cinder Hounds and Slagthrowers
         }
     }
 }

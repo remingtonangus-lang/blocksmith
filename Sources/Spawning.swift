@@ -166,7 +166,9 @@ extension MobManager {
         if hostileTimer <= 0 {
             hostileTimer = 0.25
             if game.difficulty == 0 { mobs.removeAll { $0.kind.hostile && !$0.persistent && $0.kind.category == .monster } }
-            if game.survival && game.difficulty > 0 { hostileAttempts(game) }
+            // P436 (Oct 24 15:44, in creative in hell: "what I'm not seeing is enough mobs... I'm not seeing any"): hell's
+            // own creatures live there in creative too (they leave a creative player be); elsewhere survival only.
+            if game.difficulty > 0 && (game.survival || game.inHell) { hostileAttempts(game) }
             trySpawnWaterAndAmbient(game)
         }
     }

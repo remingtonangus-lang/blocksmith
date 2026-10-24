@@ -24,6 +24,8 @@ extension Game {
         return t
     }()
 
+    static let soulFireBase = Blocks.groupBase[Int(Blocks.id("soul_fire"))]
+
     func ambientParticles(_ dt: Float) {
         if dt <= 0 || particles.list.count > ParticleManager.cap - 200 { return }
         let em = Game.emitters
@@ -78,6 +80,19 @@ extension Game {
                 particles.smoke(at: s + V3(0, 0.1, 0), dark: true)
             case .fire:
                 if Rand.float(in: 0..<1) < 0.6 { particles.smoke(at: o + V3(Rand.float(in: 0...1), 0.9, Rand.float(in: 0...1)), dark: true) }
+                // P436 (Oct 24 15:46, fire "is that cheap paper fold type look"): the crossed flame sheets get a body of
+                // glowing tongues licking up through them, wide at the foot and thinning as they rise and cool from
+                // yellow to deep orange (ghost fire: white-blue to violet), so a fire reads as a volume from any side.
+                let ghost = Blocks.groupBase[Int(b)] == Game.soulFireBase
+                for _ in 0..<Rand.int(in: 4...7) {
+                    let life = Rand.float(in: 0.45...0.95)
+                    let hot = Rand.float(in: 0..<1)
+                    let col = ghost ? V3(0.9 + hot, 1.6 + hot * 0.6, 2.4) : V3(2.4, 0.9 + hot * 0.9, 0.15 + hot * 0.3)
+                    particles.add(Particle(pos: o + V3(Rand.float(in: 0.15...0.85), Rand.float(in: 0...0.35), Rand.float(in: 0.15...0.85)),
+                                           vel: V3(Rand.float(in: -0.15...0.15), Rand.float(in: 0.9...1.8), Rand.float(in: -0.15...0.15)),
+                                           life: life, maxLife: life, layer: smokeL, uv0: V2(0, 0), uvSize: 1,
+                                           size: Rand.float(in: 0.14...0.26), gravity: -0.6, color: col, collide: false, glow: true))
+                }
             case .none: break
             }
         }

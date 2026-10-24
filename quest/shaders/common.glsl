@@ -170,11 +170,17 @@ vec3 lavaGlow(vec3 c, vec3 rel) {
     float t = u.params.z;
     vec2 q = w * 0.32 + vec2(t * 0.018, t * 0.011);
     float n = vnoise(q) * 0.62 + vnoise(q * 2.6 + vec2(-t * 0.027, t * 0.016)) * 0.28 + vnoise(w * 5.0 + t * 0.04) * 0.10;
-    float crust = smoothstep(0.50, 0.60, n);
-    vec3 molten = mix(vec3(1.0, 0.40, 0.05), vec3(1.0, 0.86, 0.38), smoothstep(0.42, 0.20, n));
+    // P436 (Oct 24 15:47, "the lava looks like a picture copy and pasted over and over again"): one plate size and one
+    // crust share everywhere read as a repeated tile across a lava sea. Two broad fields (about 30 and 9 blocks across)
+    // now vary it: wide crusted-over shelves and open molten lakes, hotter and cooler streaks drifting through them.
+    float big = vnoise(w * 0.033 + vec2(t * 0.0015, -t * 0.001));
+    float mid = vnoise(w * 0.11 + vec2(-t * 0.004, t * 0.006));
+    float th = 0.41 + 0.2 * big + 0.08 * (mid - 0.5);
+    float crust = smoothstep(th, th + 0.1, n);
+    vec3 molten = mix(vec3(1.0, 0.40, 0.05), vec3(1.0, 0.86, 0.38), smoothstep(th - 0.08, th - 0.3, n)) * (0.82 + 0.36 * mid);
     float grain = 0.7 + 0.6 * vnoise(w * 3.3);
     vec3 rock = vec3(0.17, 0.075, 0.05) * grain;
-    vec3 col = mix(molten, rock, crust) + vec3(0.32, 0.08, 0.0) * crust * smoothstep(0.66, 0.56, n);
+    vec3 col = mix(molten, rock, crust) + vec3(0.32, 0.08, 0.0) * crust * smoothstep(th + 0.16, th + 0.06, n);
     return col * (0.85 + 0.3 * dot(c, vec3(0.333)));
 }
 

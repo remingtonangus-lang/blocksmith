@@ -8,7 +8,7 @@ import simd
 // Garrison (P292): the Brand Order (knights, squires, champions, the Keep Castellan), Slagthrowers on the walls and
 // Searwings over the towers, at Deep strength ("@deep"). Nothing in hell carries a gun.
 enum BrimstoneKeep {
-    static let spacing = 90                        // chunks (P310: 8x rarer by area, was 32)
+    static let spacing = 64                        // chunks (P310: 8x rarer by area, was 32; P436: twice as common again, was 90)
     static let floorUp = 36                        // courtyard floor over the hell band's base (lava sea at +31)
     static let half = 21                           // outer wall's outer face
     static let causeway = 36                       // the built causeway (trim deck, basalt piers) out from the centre
@@ -378,7 +378,7 @@ final class DeepGuard {
 extension Bastion {
     // The Deep's hell band gets the Emberdeep's bastions too (their own grid, kept clear of fortresses and keeps).
     static func deepType(worldSeed: UInt64, guardSet: DeepGuard) -> StructureType {
-        let spacing = 85                  // P310: 8x rarer by area (was 30)
+        let spacing = 60                  // P310: 8x rarer by area (was 30); P436: twice as common (was 85)
         return StructureType(name: "bastion", spacing: spacing, separation: 8, salt: 0xBA5_7DEE, reach: 4) { seed, cx, cz in
             let rx = floorDiv(cx, spacing), rz = floorDiv(cz, spacing)
             var rng = SRng(worldSeed ^ 0xBA57_DEE9 &+ UInt64(bitPattern: Int64(rx)) &* 0x2545_F491 &+ UInt64(bitPattern: Int64(rz)) &* 0x9E37_79B9)
