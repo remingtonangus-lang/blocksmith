@@ -486,6 +486,11 @@ final class QuestApp {
         // F1: a frame over 250 ms goes to hitches.log on the headset (time, split, the tick's slowest stages), so a
         // freeze can be matched to a voice note's timestamp.
         if now - lastFrameTime > 0.25 && game != nil && firstWorldFrames == 0 { logHitch(ms: (now - lastFrameTime) * 1000, tick: tickMs, record: recordMs) }
+        // P420: the pause menu's Compute page shows the last moments of play (frozen while a menu is open).
+        if let g = game, g.menu == nil, !g.paused, let wr = worldRenderer {
+            ComputeCost.frame(frameMs: (now - lastFrameTime) * 1000, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs,
+                              gpu: scene.gpuMs, rate: Double(xr.refreshRate), stageNames: WorldRenderer.stageNames, stageMs: wr.stageFrame)
+        }
         stats.add(frame: now - lastFrameTime, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs, gpu: scene.gpuMs,
                   target: f.period * (xr.spaceWarp ? 2 : 1), scene: scene, game: game, rate: xr.refreshRate)   // (the drawn frame's budget: P403 7b)
         lastFrameTime = now
