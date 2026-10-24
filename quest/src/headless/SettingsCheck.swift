@@ -29,7 +29,7 @@ enum SettingsCheck {
     static func other(_ v: Any) -> Any {
         switch v {
         case let b as Bool: return !b
-        case let i as Int: return i + 2                      // (Safe Area steps by 2)
+        case let i as Int: return i >= 24 ? i - 2 : i + 2    // (Safe Area steps by 2; View Distance tops out at 24)
         case let k as UInt16: return Int(k) + 1              // a key code
         case let f as Float: return f + 0.25
         case let s as String: return s + "check"
