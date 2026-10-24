@@ -145,7 +145,7 @@ extension Game {
         s.lowercased().trimmingCharacters(in: .whitespaces).replacingOccurrences(of: " ", with: "_").replacingOccurrences(of: "-", with: "_")
     }
     // Shortcuts that locate the interesting places (Commands: /bases, /citadels, /frigates, /villages, /rare).
-    static let shortcutNames = ["bases", "citadels", "frigates", "villages", "rare"]
+    static let shortcutNames = ["bases", "citadels", "frigates", "villages", "rare", "ending"]
 
     func say(_ s: String) {
         commandLog.append(s)
@@ -322,6 +322,7 @@ extension Game {
             addXP(min(v, 100_000_000))                   // n * 2 in the Mending split overflowed near Int.max
             return ["Gave \(v) experience points to Player"]
         // P355: every kind under one shortcut only (the Capital Citadel was listed by both /bases and /citadels).
+        case "ending": return endingCommand(a)                 // P438 (AshEnding.swift)
         case "bases": return locateAll(["boreal_station"])
         case "cities": return locateAll(["capital_city"])
         case "citadels": return locateAll(["military_base"])

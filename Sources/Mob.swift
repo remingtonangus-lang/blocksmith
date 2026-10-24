@@ -1464,7 +1464,8 @@ final class Mob {
             moving = true
             wanderGoal = nil
             if aiTimer <= 0 { yaw += Rand.float(in: -0.35...0.35); aiTimer = Rand.float(in: 0.9...1.6) }
-        } else if aiTimer <= 0 {
+        } else if aiTimer <= 0 || (!moving && kind == .villager && aiTimer > 0.5 && Rand.float(in: 0..<1) < 0.05
+                                    && Mob.world.map { Mob.inDoorway($0, Int(floor(pos.x)), Int(floor(pos.y + 0.01)), Int(floor(pos.z))) } == true) {
             moving.toggle()
             wanderGoal = nil
             if moving {
@@ -1551,10 +1552,18 @@ final class Mob {
             }
             for dy in tight ? [0] : [0, 1, -1, 2, -2] {
                 let g = V3(Float(x) + off, Float(base + dy), Float(z) + off)
-                if let c = PathFinder.standCost(w, x, base + dy, z, pr), c < 5, !gaveUp(g), !(caveShy && Mob.underground(w, x, base + dy, z)) { return g }
+                if let c = PathFinder.standCost(w, x, base + dy, z, pr), c < 5, !gaveUp(g), !(caveShy && Mob.underground(w, x, base + dy, z)),
+                   !(kind == .villager && Mob.inDoorway(w, x, base + dy, z)) { return g }
             }
         }
         return nil
+    }
+
+    // P437 (Oct 24, "NPCs stand in doorways"): a door cell or the cell either side of it. Townsfolk don't end a stroll
+    // there, and one found standing there walks on (wander) instead of resting in the way.
+    static func inDoorway(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        PathFinder.hasDoor(w, x, y, z) || PathFinder.hasDoor(w, x + 1, y, z) || PathFinder.hasDoor(w, x - 1, y, z)
+            || PathFinder.hasDoor(w, x, y, z + 1) || PathFinder.hasDoor(w, x, y, z - 1)
     }
 
     // P311 (b): where the player stands (set by MobManager.update while he is on foot): a teleport never lands on him.
@@ -2285,7 +2294,9 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         // P427 (Oct 24 10:16: "the horse is still... balloon animal"): no animal is rounded; horses, donkeys, chickens,
         // wolves and the rest keep their sharp-edged parts too. People and monsters stay rounded (P366).
         let b = m.spec.behavior
-        let farmLook = m.kind == .cow || m.kind == .pig || m.kind == .sheep || b == .passive || b == .animal || b == .neutral
+        // P437 (Oct 24 16:05, the townsfolk: "looks like a fucking doll... revert the townspersons back"): townspeople
+        // are drawn as they were before P366's rounding too, sharp-edged.
+        let farmLook = m.kind == .cow || m.kind == .pig || m.kind == .sheep || b == .passive || b == .animal || b == .neutral || b == .villager
         let roundable = MobDetail.level == 0 && !m.kind.steelhold && !m.kind.ashVehicle && m.spec.behavior != .vehicle && !farmLook
         if n + (body.count + worn.count) * (roundable ? MobRound.vertsPerPart : 36) > capacity && n > 0 { MobDrawStats.dropped += 1; continue }
         let lie = m.lying

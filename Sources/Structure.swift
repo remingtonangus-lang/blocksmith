@@ -359,6 +359,17 @@ enum Structure {
             guard w.activeHere(p) else { w.park(load: p); continue }
             budget -= 1
             let t0 = CFAbsoluteTimeGetCurrent()
+            // P437 (Oct 24 16:01-16:03, the Ash Vault: "putting a block there really made it struggle", "really big lag
+            // when I break a block here", 32 fps): the vault is one built piece, so every change there filled the check
+            // to its 1,536 blocks (40-150 ms a check in a debug build). Where the changed block and each built block
+            // beside it rest on the ground, nothing can fall or lose its reach (every way through the cell starts at a
+            // block that is itself held, and what sits on such a block hands its weight straight down to it), so the
+            // fill is skipped.
+            if grounded(w, p) {
+                checks += 1
+                if !w.pieces.isEmpty { pieces(g, near: V3(Float(p.x), Float(p.y), Float(p.z))) }
+                continue
+            }
             let r = analyse(w, at: p)
             checks += 1
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
@@ -367,6 +378,30 @@ enum Structure {
             else if !r.falls.isEmpty { drop(g, r.falls) }
             if !w.pieces.isEmpty { pieces(g, near: V3(Float(p.x), Float(p.y), Float(p.z))) }
         }
+    }
+
+    // The changed cell and every built block beside it stand on a straight column of built blocks down to the ground (or
+    // nothing is built there).
+    static func grounded(_ w: World, _ p: IVec3) -> Bool {
+        for d in [IVec3(0, 0, 0)] + nbrs {
+            let q = p + d
+            guard part(w, q.x, q.y, q.z) != nil else { continue }
+            if helm[Int(w.builtBlock(q.x, q.y, q.z))] { return false }
+            // Held: it, or a block of the straight column of built blocks it stands on, touches the ground (a block
+            // laid on a floor, the floor on the vault's packed soil, the soil on the rock).
+            var u = q, held = false
+            for _ in 0..<24 {
+                if touchesGround(w, u) { held = true; break }
+                u.y -= 1
+                guard part(w, u.x, u.y, u.z) != nil, !helm[Int(w.builtBlock(u.x, u.y, u.z))] else { break }
+            }
+            if !held { return false }
+        }
+        return true
+    }
+    @inline(__always) static func touchesGround(_ w: World, _ q: IVec3) -> Bool {
+        for e in World.allDirs where anchor(w, q.x + e.x, q.y + e.y, q.z + e.z) { return true }
+        return false
     }
 
     // (3) What broke off falls, block by block, lowest first (P380's falling blocks); a few chips fly where it broke.
