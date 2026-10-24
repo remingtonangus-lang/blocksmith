@@ -193,7 +193,8 @@ enum Townsfolk {
     static func say(_ g: Game, _ m: Mob, _ line: String) {
         guard let v = m.villager else { return }
         // Spoken (TownVoice): with subtitles on, the caption at the speaker replaces the toast.
-        if !(TownVoice.play(g, m, line) && AudioSettings.subtitles) { g.onToast?("\(v.person ?? "Townsperson"): \(line)") }
+        let said = "\(v.person ?? "Townsperson"): \(line)"
+        if !(TownVoice.play(g, m, line) && AudioSettings.subtitles) { g.onToast?(said) } else { g.logMessage(said) }   // P421: the caption too
         townLastLine = g.clock
     }
     static var townLastLine: Double = -100
