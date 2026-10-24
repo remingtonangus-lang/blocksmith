@@ -20,6 +20,20 @@ enum TreeTest {
         return b
     }
 
+    // P406: one design pasted as drawn (no turn, mirror or added height) at (8, groundY + 1, 8) of a blank chunk.
+    static func grow(_ shape: TreeShape, _ kind: TreeKind) -> [BlockID] {
+        var b = [BlockID](repeating: AIR, count: CSQ * CH)
+        let grass = Blocks.id("grass_block")
+        for z in 0..<CS { for x in 0..<CS { b[Chunk.index(x, groundY, z)] = grass; b[Chunk.index(x, groundY - 1, z)] = DIRT } }
+        let (log, leaf) = TreeShapes.materials(kind)
+        b.withUnsafeMutableBufferPointer { buf in
+            let w = TreeWriter(b: buf.baseAddress!, bx: 0, bz: 0)
+            TreeShapes.paste(w, shape, 8, groundY + 1, 8, turn: 0, mirror: false, grow: 0, log: log, leaf: leaf,
+                             root: Blocks.has("mangrove_roots") ? Blocks.id("mangrove_roots") : log)
+        }
+        return b
+    }
+
     static func isLog(_ id: BlockID) -> Bool { let k = Blocks.key(id); return k.hasSuffix("_log") || k.hasSuffix("_wood") }
 
     static func run(check: (Bool, String) -> Void) {
@@ -117,7 +131,7 @@ enum TreeTest {
 // The screenshot sheet: each tree grown alone on a floating grass pad high over the spawn and seen three-quarter at
 // noon from a distance that fits it; one sheet per group (left eye, tiles side by side): trees_<group>.png.
 enum TreeShots {
-    static func run(game: Game, ctx: VkContext, dir: String) throws {
+    static func run(game: Game, ctx: VkContext, dir: String, designs: Bool = false) throws {
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         let p = game.player
         let saved = (p.pos, p.flying, game.time, game.mobs.mobs, game.weather)
@@ -128,20 +142,26 @@ enum TreeShots {
         game.time = 0.22 * DAY_LENGTH
         let w = game.world
         let sp = game.findSpawn()
-        let groups: [(String, [(TreeKind, UInt64)])] = [
+        let seeded: [(String, [(TreeKind, UInt64)])] = [
             ("oaks", (0..<6).map { (.oak, UInt64($0 * 13 + 5)) }),
             ("birches", (0..<6).map { (.birch, UInt64($0 * 13 + 5)) }),
             ("spruces", (0..<3).map { (.spruce, UInt64($0 * 13 + 5)) } + (0..<3).map { (.pine, UInt64($0 * 13 + 5)) }),
             ("woodland", [(.deadOak, 3), (.deadSpruce, 4), (.stumpOak, 5), (.fallenOak, 6), (.stumpBirch, 7), (.fallenOak, 9)]),
             ("ancient", [(.oak, 5), (.ancientOak, 3), (.ancientOak, 8), (.fancyOak, 4)]),
         ]
+        // (designs: P406's contact sheet, every design of every species as drawn)
+        var groups: [(String, [[BlockID]])] = []
+        if designs {
+            for (name, kind, shapes) in TreeShapes.all { groups.append((name, shapes.map { TreeTest.grow($0, kind) })) }
+        } else {
+            for (name, trees) in seeded { groups.append((name, trees.map { TreeTest.grow($0.0, seed: $0.1) })) }
+        }
         let ts = 240
         let ox = Int(floor(sp.x)) + 64, oz = Int(floor(sp.z)), oy = Int(floor(sp.y)) + 48
         _ = w.loadSync(center: V3(Float(ox), Float(oy), Float(oz)), radius: 3)
         for (name, trees) in groups {
             var sheet = [UInt8](repeating: 0, count: ts * trees.count * ts * 4)
-            for (i, (kind, seed)) in trees.enumerated() {
-                let b = TreeTest.grow(kind, seed: seed)
+            for (i, b) in trees.enumerated() {
                 var edits: [IVec3] = [], top = 0
                 for y in (TreeTest.groundY - 1)..<CH { for z in 0..<CS { for x in 0..<CS {
                     let id = b[Chunk.index(x, y, z)]
@@ -164,7 +184,7 @@ enum TreeShots {
                 } } }
                 for q in edits { w.setBlockAsync(q.x, q.y, q.z, AIR) }
             }
-            try PNG.encode(rgba: sheet, width: ts * trees.count, height: ts).write(to: URL(fileURLWithPath: "\(dir)/trees_\(name).png"))
+            try PNG.encode(rgba: sheet, width: ts * trees.count, height: ts).write(to: URL(fileURLWithPath: "\(dir)/trees_\(name.replacingOccurrences(of: " ", with: "_")).png"))
             print("treeshots: wrote \(dir)/trees_\(name).png")
         }
         w.remeshArea(x0: ox - 9, z0: oz - 9, x1: ox + 9, z1: oz + 9, y0: oy - 2, y1: oy + 32)
