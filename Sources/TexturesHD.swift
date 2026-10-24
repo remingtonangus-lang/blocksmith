@@ -6307,22 +6307,25 @@ enum HDTex {
 
     // Sparkstone dust: a scatter of fine red grains (brighter and denser along the clumps) with glints on the lit
     // levels; the 16 px dust was a flat speckled sheet (hdatlas: still upscaled).
+    // P408 (Oct 22 22:05, "I can't see the wire"): the wire was a speckle of dark dust (a third of it holes), which on
+    // the grass read as a patch of soil under the grass blades. Now a solid copper cable: twisted strands (diagonal
+    // bands with a bright crest each), a bright unpowered copper (0xB8683A) rising to glowing copper-orange (0xFFA860).
     static func sparkDust(_ level: Int) -> Gen {
         { n, s in
             let k: Float = Float(level) / 15
             var img = Img(n, V4(0, 0, 0, 0))
-            let clump = fbm(n, n / 4, 3, s &+ 7)
             let grain = vnoise(n, 2, s &+ 9)
+            let base = col(0xB8683A) * (1 - k) + col(0xFFA860) * k
+            let period = Float(max(4, n / 6))
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
-                let dens: Float = 0.35 + 0.5 * clump[i]
-                guard h2(x, y, s &+ 11) < dens else { continue }
-                let v: Float = (0.28 + 0.62 * k) * (0.75 + 0.45 * grain[i])
-                // Copper wire: dull dark copper (0x5E3420) at 0 -> glowing copper-orange (0xFFA860) at 15.
-                let base = col(0x5E3420) * (1 - k) + col(0xFFA860) * k
-                var c: V3 = base * (v / (0.28 + 0.62 * k))
-                if level > 0 && h2(x, y, s &+ 13) < 0.02 * k { c = col(0xFFE0B0) }    // glints
-                img.px[i] = V4(min(1, c.x), c.y, c.z, 1)
+                let t = (Float(x + y) / period).truncatingRemainder(dividingBy: 1)       // (0...1 across a strand)
+                let crest = 1 - abs(t - 0.4) * 2.2                                          // (lit side of the strand)
+                let v: Float = 0.62 + 0.5 * max(0, crest) + 0.12 * (grain[i] - 0.5)
+                var c: V3 = base * v
+                if t > 0.9 { c = base * 0.45 }                                              // (the groove between strands)
+                if crest > 0.85 { c = c * 0.6 + col(0xFFE6C0) * 0.4 }                       // (the strand's sheen)
+                img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
             }}
             return img
         }
