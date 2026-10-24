@@ -88,7 +88,10 @@ extension World {
         guard c.hollow, p.cached == nil else { return }
         c.blocks = p.ground.map { BlockStore(p.blocks, field: $0) } ?? BlockStore(p.blocks)
         c.blocks.emitMask = p.emitMask
-        if p.ground != nil { fieldStamp &+= 1 }
+        // (P401: only a refill the cached collision columns can have read clears them: refills stream in the shell band
+        // all the time at view 24, and clearing the whole cache with each one made every mob's moves and path searches
+        // rebuild their ground columns, 20-28 ms ticks by Stone Gulch)
+        if p.ground != nil && shellNearActive(c) { fieldStamp &+= 1 }
         c.fieldEdits = p.field
         c.modified = c.modified || p.fromDisk
         c.markSaved()
@@ -349,4 +352,19 @@ final class MeshCache {
 extension SectionMesh {
     // Bumped whenever the vertex layout or a Section field the cache stores changes (MeshCache stamp).
     static let layoutStamp = 0x376_0002
+}
+
+extension World {
+    // A chunk within 48 blocks of the active area (where bodies move and paths are searched, plus their reach).
+    func shellNearActive(_ c: Chunk) -> Bool {
+        let r = Float(min(activeDistance, renderDistance) * CS + CS / 2) + 48
+        func near(_ p: V3) -> Bool {
+            let x0 = Float(c.cx * CS), z0 = Float(c.cz * CS)
+            let dx = max(0, max(x0 - p.x, p.x - (x0 + Float(CS)))), dz = max(0, max(z0 - p.z, p.z - (z0 + Float(CS))))
+            return dx <= r && dz <= r
+        }
+        if near(activeCenter) { return true }
+        if let e = extraCenter { return near(e) }
+        return false
+    }
 }

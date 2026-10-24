@@ -344,7 +344,9 @@ enum PathFinder {
         var iter = 0
         while true {
             iter += 1
-            if iter & 15 == 0 && deadline < .infinity && CFAbsoluteTimeGetCurrent() > deadline { return false }
+            // (P401: every node: on field ground a big body's node reads hundreds of cells' ground columns, and sixteen
+            // nodes between looks at the clock ran a 1.5 ms share to 20-28 ms)
+            if deadline < .infinity && iter > 1 && CFAbsoluteTimeGetCurrent() > deadline { return false }
             guard let e = pop() else { break }
             let i = e.1
             if closed[i] { continue }
