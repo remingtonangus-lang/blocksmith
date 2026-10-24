@@ -2282,7 +2282,10 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         // P366 (a): near living mobs draw rounded parts (MobRound.swift).
         // P405 (Oct 22, "the old ones were perfect"): cows, pigs and sheep keep the P295 models he liked on Oct 16, drawn
         // with their sharp parts (rounded, the pig's back read as a tabletop).
-        let farmLook = m.kind == .cow || m.kind == .pig || m.kind == .sheep
+        // P427 (Oct 24 10:16: "the horse is still... balloon animal"): no animal is rounded; horses, donkeys, chickens,
+        // wolves and the rest keep their sharp-edged parts too. People and monsters stay rounded (P366).
+        let b = m.spec.behavior
+        let farmLook = m.kind == .cow || m.kind == .pig || m.kind == .sheep || b == .passive || b == .animal || b == .neutral
         let roundable = MobDetail.level == 0 && !m.kind.steelhold && !m.kind.ashVehicle && m.spec.behavior != .vehicle && !farmLook
         if n + (body.count + worn.count) * (roundable ? MobRound.vertsPerPart : 36) > capacity && n > 0 { MobDrawStats.dropped += 1; continue }
         let lie = m.lying

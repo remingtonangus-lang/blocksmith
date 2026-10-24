@@ -163,7 +163,9 @@ func cowParts(_ m: Mob) -> [Part] {
         p.append(neck.box(-0.9, 0.3, -3.0 - dw, 0.9, nL - 0.6, -2.8, coat, pat))
     }
     // Head: hangs from the poll, face angled down; it drops further to the grass while grazing.
-    let hA: Float = -0.6 + nod * 0.5 - graze * 0.85
+    // P427 (Oct 24 10:17, "why is the nose down so far?"): at rest the face is carried near level (it hung at 34 degrees,
+    // the nose pointing at the ground); grazing still takes it right down.
+    let hA: Float = -0.22 + nod * 0.5 - graze * 1.23
     let head = neck.at(V3(0, nL, 0), hA - nA)
     p.append(head.box(-2.5, -2.6, -4.8, 2.5, 2.0, 1.0, coat, pat))               // skull and cheeks
     p.append(head.box(-2.0, -2.4, -8.6, 2.0, 1.2, -4.6, coat, pat))              // face
