@@ -68,6 +68,9 @@ final class XRSession {
     // P381 step 9 (XR_FB_space_warp): per frame a motion-vector image and a depth image at the runtime's recommended
     // size go with each eye's projection view; the runtime then shows every other frame synthesised from the last one.
     private(set) var spaceWarp = false
+    // P426: whether this frame goes to the runtime with motion vectors and depth: set up at launch and still on in
+    // Options (turning it off applies at once; the plain projection layer is what the runtime gets).
+    var spaceWarpOn: Bool { spaceWarp && QuestSettings.spaceWarp }
     private(set) var mvWidth = 0, mvHeight = 0
     private(set) var mvSwapchain: XrSwapchain?, swDepthSwapchain: XrSwapchain?
     private(set) var mvImages: [VkImage] = [], swDepthImages: [VkImage] = []
@@ -785,7 +788,7 @@ final class XRSession {
             wi2.timeout = XrDuration(Int64.max)
             try xrCheck(xrWaitSwapchainImage(swapchain, &wi2), "xrWaitSwapchainImage")
             f.imageIndex = Int(idx)
-            if spaceWarp { mvIndex = try acquire(mvSwapchain); swDepthIndex = try acquire(swDepthSwapchain) }
+            if spaceWarpOn { mvIndex = try acquire(mvSwapchain); swDepthIndex = try acquire(swDepthSwapchain) }
         }
         return f
     }
@@ -798,6 +801,7 @@ final class XRSession {
             var ri = XrSwapchainImageReleaseInfo()
             ri.type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO
             try xrCheck(xrReleaseSwapchainImage(swapchain, &ri), "xrReleaseSwapchainImage")
+            let warped = spaceWarpOn && mvIndex >= 0          // (P426: acquired this frame and still on)
             if spaceWarp && mvIndex >= 0 { try release(mvSwapchain); try release(swDepthSwapchain); mvIndex = -1; swDepthIndex = -1 }
             var pv = [XrCompositionLayerProjectionView](repeating: XrCompositionLayerProjectionView(), count: 2)
             for i in 0..<2 {
@@ -808,7 +812,7 @@ final class XRSession {
                 let (rw, rh) = viewExtent ?? (width, height)
                 pv[i].subImage.imageRect = XrRect2Di(offset: XrOffset2Di(x: 0, y: 0), extent: XrExtent2Di(width: Int32(rw), height: Int32(rh)))
                 pv[i].subImage.imageArrayIndex = UInt32(i)
-                if spaceWarp {
+                if warped {
                     // P381 step 9: this eye's motion vectors and depth (QuestApp records them after the frame).
                     var sw = XrCompositionLayerSpaceWarpInfoFB()
                     sw.type = XR_TYPE_COMPOSITION_LAYER_SPACE_WARP_INFO_FB

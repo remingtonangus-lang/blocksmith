@@ -84,7 +84,7 @@ final class QuestControls {
     private var drawnGrip: [(V3, simd_quatf)?] = [nil, nil], drawnAim: (V3, simd_quatf)?
     private var handRanges: [(start: Int, count: Int, prev: float4x4)] = []
     private func motionPrev(_ pos: V3, _ rot: simd_quatf, was: (V3, simd_quatf)?, eye: V3) -> float4x4? {
-        guard app.scene.spaceWarp, let w = was, simd_length_squared(w.0 - eye - pos) < 4 else { return nil }
+        guard app.scene.spaceWarpOn, let w = was, simd_length_squared(w.0 - eye - pos) < 4 else { return nil }
         return SceneRenderer.motion(pos: pos, rot: rot, wasPos: w.0 - eye, wasRot: w.1)
     }
     private var sneakLatch = false              // tapped: sneak until the next tap

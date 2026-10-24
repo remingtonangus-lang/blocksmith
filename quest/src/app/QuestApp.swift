@@ -77,7 +77,7 @@ final class QuestApp {
         // draws, not by lowering far detail; his headset captures decide if it holds 72 fps.
         World.lodNear = 99
         World.leafNear = QuestApp.leafNear
-        PlaytestChecklist.spaceWarp = (get: { QuestSettings.spaceWarp ? (QuestSettings.spaceWarpActive ? "On" : "On (next launch)") : (QuestSettings.spaceWarpActive ? "Off (next launch)" : "Off") },
+        PlaytestChecklist.spaceWarp = (get: { QuestSettings.spaceWarp ? (QuestSettings.spaceWarpActive ? "On" : "On (next launch)") : "Off" },
                                        toggle: { QuestSettings.spaceWarp.toggle() })        // P399 (7)
         PauseMenu.viewFixed = true                 // P339: the view distance is fixed (QuestSettings.viewDistance)
         stats.lowerRate = { [weak xr] in
@@ -390,7 +390,7 @@ final class QuestApp {
         if let g = game {
             // (P381 step 9: with space warp the game draws every other displayed frame, so its step is the time
             // between the frames it draws, not the display's period.)
-            let step = xr.spaceWarp && lastDisplayTime > 0 && f.displayTime > lastDisplayTime
+            let step = xr.spaceWarpOn && lastDisplayTime > 0 && f.displayTime > lastDisplayTime
                 ? Double(f.displayTime - lastDisplayTime) * 1e-9 : (f.period > 0 ? f.period : 1.0 / 72)
             let dt = min(0.1, max(1.0 / 120, step))
             // Ship physics steps once per displayed frame (60 Hz substeps at 72 Hz left one frame in six without a
@@ -442,10 +442,11 @@ final class QuestApp {
             let target = targets[f.imageIndex]
             // P403 7b: dynamic resolution against the drawn frame's budget (twice the display's with space warp); not
             // with foveation (its density map is laid over the whole image) or while the world loads.
-            let budget = 1000.0 / Double(max(60, xr.refreshRate)) * (xr.spaceWarp ? 2 : 1)
+            scene.spaceWarpOn = xr.spaceWarpOn            // P426: the Options switch applies to this frame
+            let budget = 1000.0 / Double(max(60, xr.refreshRate)) * (xr.spaceWarpOn ? 2 : 1)
             scene.viewScale = dynRes.observe(gpuMs: scene.gpuMs, budgetMs: budget,
                                              enabled: QuestSettings.dynamicResolution && !xr.foveated && game != nil && worldRenderer != nil,
-                                             fps: Double(xr.refreshRate) / (xr.spaceWarp ? 2 : 1))
+                                             fps: Double(xr.refreshRate) / (xr.spaceWarpOn ? 2 : 1))
             let (viewW, viewH) = scene.viewExtent(target)
             xr.viewExtent = (viewW, viewH)
             let cam = rig.camera(xr: xr, far: farPlane)
@@ -457,7 +458,7 @@ final class QuestApp {
                 recordLoading(s, target, cam)
             }
             vkCmdEndRenderPass(s.cmd)
-            if let sw = spaceWarpPass {
+            if let sw = spaceWarpPass, xr.spaceWarpOn {
                 // P381 step 9: this frame's depth and motion vectors for the runtime, and how far the tracking space
                 // moved through the world since the last drawn frame (walking, turning, riding), in its own terms.
                 sw.record(s, target, mvIndex: xr.mvIndex, depthIndex: xr.swDepthIndex)
@@ -469,6 +470,8 @@ final class QuestApp {
                                                position: XrVector3f(x: p.x, y: p.y, z: p.z))
                 }
                 lastAppToWorld = now
+            } else {
+                lastAppToWorld = nil                      // (P426: switched off; no stale delta when it comes back)
             }
             // Bug-note screenshot (if one is pending): left eye, HUD panel included, blitted small before release.
             QuestScreenshot.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: viewW, height: viewH)
@@ -492,7 +495,7 @@ final class QuestApp {
                               gpu: scene.gpuMs, rate: Double(xr.refreshRate), stageNames: WorldRenderer.stageNames, stageMs: wr.stageFrame)
         }
         stats.add(frame: now - lastFrameTime, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs, gpu: scene.gpuMs,
-                  target: f.period * (xr.spaceWarp ? 2 : 1), scene: scene, game: game, rate: xr.refreshRate)   // (the drawn frame's budget: P403 7b)
+                  target: f.period * (xr.spaceWarpOn ? 2 : 1), scene: scene, game: game, rate: xr.refreshRate)   // (the drawn frame's budget: P403 7b)
         lastFrameTime = now
         return !xr.exitRequested
     }

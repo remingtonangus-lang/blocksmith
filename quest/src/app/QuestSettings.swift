@@ -120,14 +120,15 @@ enum QuestSettings {
     static var menuScale: Float { get { float("quest.menuScale", 1) } set { store(newValue, "quest.menuScale") } }
     static var hudScale: Float { get { float("quest.hudScale", 1) } set { store(newValue, "quest.hudScale") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { store(newValue, "quest.foveation") } }
-    // P381 step 9: Application SpaceWarp (the game draws 36 frames a second, the headset makes every other one; applies
-    // at the next launch). spaceWarpActive: whether this launch has it (XRSession).
-    // P403 7b (Remington, Oct 23 08:55): on by default, with motion vectors for the hands, held items and mobs. A new key,
-    // so a headset that saved the old default (off) starts with it on once.
-    static var spaceWarp: Bool { get { bool("quest.spaceWarp2", true) } set { store(newValue, "quest.spaceWarp2") } }
+    // P381 step 9: Application SpaceWarp (the game draws 36 frames a second, the headset makes every other one).
+    // spaceWarpActive: whether this launch set it up (XRSession; turning it on takes the next launch, turning it off
+    // applies at once: XRSession.spaceWarpOn).
+    // P403 7b had it on by default; P426 (Remington, Oct 24: the view vibrated and doubled on build 600eac74, the first
+    // with it on) puts it back off by default, with dynamic resolution, until each is cleared on the headset.
+    static var spaceWarp: Bool { get { bool("quest.spaceWarp2", false) } set { store(newValue, "quest.spaceWarp2") } }
     static var spaceWarpActive = false
-    // P403 7b: dynamic eye-buffer resolution (DynamicResolution), on by default.
-    static var dynamicResolution: Bool { get { bool("quest.dynRes", true) } set { store(newValue, "quest.dynRes") } }
+    // P403 7b: dynamic eye-buffer resolution (DynamicResolution); off by default since P426.
+    static var dynamicResolution: Bool { get { bool("quest.dynRes", false) } set { store(newValue, "quest.dynRes") } }
     // Texture pixels per face: 128 by default, the imported art's own resolution (tools/texpack.py packs it at 128).
     // 64 was the default for a day and halved the art's detail: "everything's blurry, too compressed" (playtest
     // Oct 10, docs/status/texture-sharpness.md). The 64 that default left in saved settings moves to 128 once

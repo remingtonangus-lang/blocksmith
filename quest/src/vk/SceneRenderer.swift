@@ -132,8 +132,9 @@ final class SceneRenderer {
     // (camera-relative) vertex to where that point was at the last drawn frame. Collected only with space warp on.
     struct MotionDraw { var input: Input; var buffer: VkBuffer?; var offset: Int; var count: Int; var prev: float4x4 }
     private(set) var motionDraws: [MotionDraw] = []
+    var spaceWarpOn = false                 // P426: this frame goes to the runtime with motion vectors (QuestApp, per frame)
     func addMotion(_ s: Slot, _ input: Input, buffer: VkBuffer? = nil, offset: Int, count: Int, prev: float4x4) {
-        guard spaceWarp, count > 0 else { return }
+        guard spaceWarp, spaceWarpOn, count > 0 else { return }
         motionDraws.append(MotionDraw(input: input, buffer: buffer ?? s.scratch.buffer, offset: offset, count: count, prev: prev))
     }
     // The prev matrix of a rigid thing at pose (pos camera-relative, rot) now and (wasPos camera-relative, wasRot) at
