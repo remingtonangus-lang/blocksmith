@@ -565,6 +565,7 @@ struct Synth {
         default: loud = 1
         }
         if loud != 1 { for i in 0..<out.count { out[i] *= loud } }
+        if case .gun(let k) = s { WeaponAudio.level(k, &out) }                                  // P424: one loudness
         for i in 0..<out.count where !out[i].isFinite { out[i] = 0 }
         if !s.isLoop {
             fadeIn(&out, 0.002)

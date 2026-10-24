@@ -18,6 +18,20 @@ enum WeaponAudio {
     static let ashSlots = 16...19     // the Ashguard's arms: Kessel bolt rifle, Hagel machine pistol, Sturmwind carbine, Ashsaw
     static let rotarySlot = 20       // P391: the Mahlwerk rotary gun's shot; 21 its spin-up whine, 22 its run-down
     static let rotarySlots = 20...22
+    // P424 (Oct 23 21:18, the Falke pistol: "it's cutting loud, isn't it? Holy frig"): every clip leaves Synth.finish
+    // at the same peak, so how loud a shot sounds depended on its shape: measured A-weighted over its loudest 50 ms, the
+    // shots a player fires spread over 10 dB (the arc lance 9 dB over the rifle, the rocket and the shotgun 5, the
+    // Falke 1.2). Each is brought to one loudness, 0.5 dB under the rifle, by its measured gain (dB); a quiet one is
+    // raised only as far as the -1.1 dBFS peak allows.
+    static let levelDB: [Int: Float] = [0: -0.5, 1: -1.9, 2: -5.3, 3: -1.8, 4: -5.8, 5: -9.5, sidearmSlot: -1.7,
+                                        16: -2.1, 17: -0.1, 18: -0.3, 19: 0.5, rotarySlot: -1.3]
+    static func level(_ k: Int, _ x: inout [Float]) {
+        guard let db = levelDB[k] else { return }
+        var peak: Float = 0
+        for v in x { peak = max(peak, abs(v)) }
+        let g = min(powf(10, db / 20), 0.88 / max(peak, 1e-6))
+        for i in x.indices { x[i] *= g }
+    }
     static func hasDistant(_ k: Int) -> Bool { fireSlots.contains(k) || k == heavySlot || k == sidearmSlot || ashSlots.contains(k) || k == rotarySlot }
 
     // MARK: Building blocks
