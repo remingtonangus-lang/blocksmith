@@ -325,7 +325,7 @@ enum Mesher {
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
                              bites: [(Int, Int, Int, Bite)] = [], pieces: [FreePiece] = [], objects: [WorldObjects.Draw] = [],
                              smoothOK: Bool = true, blobLeaves: Bool = false, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil, nearSides: Int = 0,
-                             adaptive adaptiveOK: Bool = true) -> SectionMesh {
+                             adaptive adaptiveOK: Bool = true, fineBeyond: [UInt32] = []) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
         // but "fast" leaves: no faces between leaves; World.leafNear, Quest).
@@ -829,7 +829,7 @@ enum Mesher {
             let g0 = opq.count
             let ex = sc.groundExact
             ex.count = 0
-            fineGround(n9, sy: sy, R, sc, leafHoles: leafBlob, detailHoles: detail, exact: ex) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+            fineGround(n9, sy: sy, R, sc, leafHoles: leafBlob, detailHoles: detail, exact: ex, fineBeyond: fineBeyond) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 groundV += 1
                 groundVert(x16, y16, z16, f, tint, layer, ao, l, ncode)
