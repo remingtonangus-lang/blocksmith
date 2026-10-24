@@ -372,8 +372,9 @@ final class BlockRegistry {
         var glass = BlockDef("glass", "Glass")
         // P365 (j, "glass only as panes"): no full glass blocks. The key stays (saves, structures, recipes), but the
         // block is a pane: every glass block already built, or placed from a glass item, stands as a thin pane joining
-        // its neighbours.
-        glass.tex = ["glass"]; glass.render = .connect; glass.connect = 2; glass.opaque = false; glass.layer = .cutout
+        // its neighbours. P436 (Oct 24 15:53, "we need to fix the glass everywhere"): clear glass is see-through glass,
+        // a faint tint with a sheen across it in a thin frame (drawn blended, as stained glass is), not a frame round a hole.
+        glass.tex = ["glass"]; glass.render = .connect; glass.connect = 2; glass.opaque = false; glass.layer = .translucent
         glass.skyStop = false; glass.hardness = 0.3; glass.sound = .glass; glass.aoOcc = false
         add(glass)
         // Water: 9 states (source, flowing 1-7, falling). Only the source is placeable.
@@ -757,7 +758,7 @@ final class BlockRegistry {
             family(tex, n, d, h: 2, tool: .pickaxe, req: true, snd: .stone, stairs: n != "smooth_stone", slab: true, fence: n == "nether_brick", wall: wall)
         }
         var pane = BlockDef("glass_pane", "Glass Pane")
-        pane.tex = ["glass"]; pane.render = .connect; pane.connect = 2; pane.layer = .cutout; pane.opaque = false
+        pane.tex = ["glass"]; pane.render = .connect; pane.connect = 2; pane.layer = .translucent; pane.opaque = false
         pane.hardness = 0.3; pane.sound = .glass; pane.skyStop = false
         add(pane)
         var bars = BlockDef("iron_bars", "Iron Bars")

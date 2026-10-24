@@ -96,6 +96,21 @@ extension BlockRegistry {
         cube("budding_amethyst", "Budding Amethyst", h: 1.5, snd: .glass)
         var cluster = BlockDef("amethyst_cluster", "Amethyst Cluster")
         cluster.tex = ["amethyst_cluster"]; cluster.render = .cross; cluster.layer = .cutout; cluster.opaque = false
+        // P436 (Oct 24 15:46, the Ghostglass Spires: "the amethyst needs some work"): a crossed card was the paper-fold
+        // look. Now a cluster of crystal columns of different heights, cut from the crystal block itself (in a field
+        // world the detail mesher draws them as pointed prisms instead: ShapeSpikes.emitCrystals).
+        do {
+            let t = Tex.id("amethyst_block"), six = [t, t, t, t, t, t]
+            cluster.render = .model
+            // (x0, z0, x1, z1, height, lean x, lean z: the outer ones lean out from the middle one)
+            let cols: [(Int, Int, Int, Int, Int, Int8, Int8)] = [(6, 6, 10, 10, 13, 0, 0), (2, 8, 5, 11, 8, -2, 1),
+                (10, 3, 13, 6, 9, 2, -2), (9, 10, 12, 13, 6, 2, 2), (3, 2, 5, 4, 5, -1, -2)]
+            cluster.boxes = cols.map { c in
+                var b = Box(c.0, 0, c.1, c.2, c.4, c.3, tex: six)
+                b.leanX = c.5; b.leanZ = c.6
+                return b
+            }
+        }
         cluster.hardness = 1.5; cluster.emit = 5; cluster.collide = false; cluster.sound = .glass; cluster.skyStop = false
         add(cluster)
         cube("sculk", "Murk", h: 0.2, tool: .hoe, snd: .plant)

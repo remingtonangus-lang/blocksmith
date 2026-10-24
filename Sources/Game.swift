@@ -1501,7 +1501,7 @@ final class Game {
                     let dug = hitPoint(t)
                     breakBlock(t.hit, b, drop: false)
                     // P377 step 3: in creative too the hole follows the tool (survival's PG1 ball where the blow landed).
-                    if SmoothTerrain.natural[Int(b)] { world.carve(at: dug + player.look * 0.25, radius: 0.62, mode: .shape) }
+                    if SmoothTerrain.natural[Int(b)] { world.carve(at: dug + player.look * 0.25, radius: Game.digRadius(b), mode: .shape) }
                     if t.hit == digDownCell { centreOverHole(t.hit) }
                     breakCooldown = 0.3
                 }
@@ -1568,7 +1568,7 @@ final class Game {
                         let natural = SmoothTerrain.natural[Int(b)], dug = hitPoint(t)
                         breakBlock(t.hit, b, drop: true, toPack: true)
                         // PG1: the hole follows the tool: the field round it is shaped by a ball where the blow landed.
-                        if natural { world.carve(at: dug + player.look * 0.25, radius: 0.62, mode: .shape) }
+                        if natural { world.carve(at: dug + player.look * 0.25, radius: Game.digRadius(b), mode: .shape) }
                         if t.hit == digDownCell { centreOverHole(t.hit) }
                         if b == SEALROCK {
                             achieve("break_seal")
@@ -3388,4 +3388,11 @@ enum HungerRates {
     static let jump: Float = 0.03
     static let sprintJump: Float = 0.1
     static let heal: Float = 4
+}
+
+// P436 (Oct 24 15:48, "the amount of dirt that's broken when I break a block is insufficient. Should make a bigger
+// hole"): the ball that shapes the ground where a dug block was is wider in soft ground (dirt, sand, gravel, snow: a
+// spadeful) than in rock (0.62 before for both).
+extension Game {
+    static func digRadius(_ b: BlockID) -> Float { Blocks.hardness[Int(b)] <= 0.8 ? 0.95 : 0.72 }
 }

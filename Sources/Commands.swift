@@ -167,6 +167,31 @@ extension Game {
     }
 
     // The nearest of each kind, one line each (the shortcut commands), nearest first.
+    // P436: the other dimensions' generators for /locate (made once a seed; structure placement only, no chunks).
+    private static var otherGens: [Dim: TerrainGenerator] = [:]
+    private static var otherSeed: UInt64 = 0
+    static func otherGen(_ d: Dim, seed: UInt64) -> TerrainGenerator {
+        if otherSeed != seed { otherGens.removeAll(); otherSeed = seed }
+        if let g = otherGens[d] { return g }
+        let g: TerrainGenerator
+        switch d {
+        case .overworld: g = WorldGen(seed: seed)
+        case .nether: g = EmberGen(seed: seed)
+        case .end: g = HollowGen(seed: seed)
+        case .deep: g = DeepGen(seed: seed)
+        }
+        otherGens[d] = g
+        return g
+    }
+    static func dimName(_ d: Dim) -> String {
+        switch d {
+        case .overworld: return "the surface"
+        case .nether: return "the Emberdeep"
+        case .end: return "the Hollow"
+        case .deep: return "the Deep"
+        }
+    }
+
     private func locateAll(_ keys: [String]) -> [String] {
         var out: [(Int, String)] = []
         for k in keys {
@@ -349,12 +374,21 @@ extension Game {
                 guard let b = best else { return ["Could not find a \(entry.1) nearby"] }
                 return ["\(entry.1): \(b.0.x) ~ \(b.0.z) (\(Int(b.1)) blocks, patrols)"]
             }
-            guard let sc = world.gen.structures,
-                  let s = sc.nearest(entry.0, x: Int(player.pos.x), z: Int(player.pos.z)) else {
-                return ["Could not find a \(entry.1) nearby"]
+            // P436 (Oct 24 15:46, "I need a command so I can find shit in another [dimension]"): what this dimension
+            // doesn't hold is looked up in the others (the surface, the Deep and its hell band, the Emberdeep, the Hollow),
+            // with the dimension named; x and z are the same in every dimension.
+            var found: (StructureStart, String)?
+            if let sc = world.gen.structures, let s = sc.nearest(entry.0, x: Int(player.pos.x), z: Int(player.pos.z)) { found = (s, "") }
+            if found == nil {
+                for d in Dim.allCases where d != dim.dim {
+                    guard let sc = Game.otherGen(d, seed: world.seed).structures,
+                          let s = sc.nearest(entry.0, x: Int(player.pos.x), z: Int(player.pos.z)) else { continue }
+                    found = (s, " in " + Game.dimName(d)); break
+                }
             }
+            guard let (s, whereIn) = found else { return ["Could not find a \(entry.1) nearby"] }
             let dx = Float(s.anchor.x) - player.pos.x, dz = Float(s.anchor.z) - player.pos.z
-            return ["\(entry.1): \(s.anchor.x) ~ \(s.anchor.z) (\(Int(sqrtf(dx * dx + dz * dz))) blocks)"]
+            return ["\(entry.1)\(whereIn): \(s.anchor.x) ~ \(s.anchor.z) (\(Int(sqrtf(dx * dx + dz * dz))) blocks)"]
         case "spawnpoint":
             spawnPoint = player.pos
             return [String(format: "Set spawn point to %.0f, %.0f, %.0f", player.pos.x, player.pos.y - Float(YOFF), player.pos.z)]
