@@ -1510,6 +1510,12 @@ enum Mesher {
                                 let onBoundary = positive ? mx[axis] == 16 : mn[axis] == 0
                                 let nb = R[i + offs[f]]
                                 if onBoundary && opaqueT[Int(nb)] && !smoothOpen(i + offs[f]) && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
+                                // P403 (Oct 23 snowy plains, 24 fps at view 24: a snow field drew 180k quads within 11
+                                // chunks): a box face on the cell's boundary against the same block state, where the box
+                                // spans the cell on that axis, meets that neighbour's mirrored face exactly (snow layers
+                                // of one depth side by side, carpets, slabs as models): both are hidden, neither is drawn.
+                                if onBoundary && nb == b && rt == rModel && (positive ? mn[axis] == 0 : mx[axis] == 16)
+                                    && !(anyDmg && (dmg[i] != nil || dmg[i + offs[f]] != nil)) { continue }
                                 let l: Int
                                 if onBoundary {
                                     l = max(0, light(x + NT[f * 3], y + NT[f * 3 + 1], z + NT[f * 3 + 2]))
