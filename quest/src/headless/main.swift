@@ -51,7 +51,8 @@ if let secs = Double(arg("--xr") ?? "") {
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
 let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes")
-    || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare") ? "" : nil)
+    || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare")
+    || CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim") ? "" : nil)
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -83,6 +84,9 @@ if CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains(
 // --flytest DIR [--rd 24] [--seconds 60] [--walk]: flying flat out over a new world; the speed never drops while the
 // world loads (P414, quest/src/test/QuestFlyTest.swift).
 if CommandLine.arguments.contains("--flytest") { exit(QuestFlyTest.run()) }
+// --memscene NAME DIR / --memsim DIR [--minutes 20]: resident memory at view 24 in his scenes and over a long play
+// (P401, quest/src/test/QuestMemory.swift).
+if CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim"), let ctx = vkctx { exit(QuestMemory.run(ctx: ctx)) }
 // --settings-phase P ROOT: one launch of the settings check (quest/src/headless/SettingsCheck.swift), before anything
 // else touches UserDefaults.
 if let i = CommandLine.arguments.firstIndex(of: "--settings-phase"), i + 2 < CommandLine.arguments.count {

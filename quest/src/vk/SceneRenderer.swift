@@ -615,28 +615,45 @@ final class SceneRenderer {
                       srcStage: VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue)
         }
         var bytes = 0
-        let batch = 256
+        // (BS_P401=0: a pregenerated chain staged whole, as before, for the before/after numbers)
+        let batch = pregenerated != nil && !TextureCache.lean ? layers : 256
         var first = 0
-        while first < layers {
-            let range = pregenerated != nil ? 0..<layers : first..<min(layers, first + batch)
-            let data = pregenerated ?? TextureGen.mipChain(layers: range)
+        // P401: the pregenerated chain is staged a batch of layers at a time too (it was staged whole: a second 166 MB
+        // copy beside the chain and the image at the launch's peak); each level's bytes for the batch are copied
+        // straight from the chain into a staging buffer of about 22 MB.
+        // (a chain made before a late texture name was registered covers fewer layers than the image: those stay blank)
+        let filled = pregenerated.map { min(layers, ($0.first?.count ?? 0) / (size * size * 4)) } ?? layers
+        while first < filled {
+            let range = first..<min(filled, first + batch)
+            let painted = pregenerated == nil ? TextureGen.mipChain(layers: range) : []
+            // Level lvl's bytes for the batch, from the chain (pregenerated: every layer; painted: this batch's).
+            func levelBytes(_ lvl: Int, _ body: (UnsafeRawBufferPointer) -> Void) {
+                let sz = max(1, size >> lvl), per = sz * sz * 4
+                if let pre = pregenerated {
+                    pre[lvl].withUnsafeBytes { all in body(UnsafeRawBufferPointer(rebasing: all[(range.lowerBound * per)..<(range.upperBound * per)])) }
+                } else {
+                    painted[lvl].withUnsafeBytes { body($0) }
+                }
+            }
+            let chainLevels = min(levels, pregenerated?.count ?? painted.count)
             // Held items' extrusion masks (ItemExtrude.swift) from the full-size level.
-            if let d0 = data.first { d0.withUnsafeBufferPointer { ItemMasks.record($0, size: size, layers: range) } }
+            levelBytes(0) { b in ItemMasks.record(b.bindMemory(to: UInt8.self), size: size, layers: range) }
             var total = 0
-            for (lvl, d) in data.enumerated() where lvl < levels { total += d.count }
+            for lvl in 0..<chainLevels { let sz = max(1, size >> lvl); total += sz * sz * 4 * range.count }
             let staging = try VkBuf(ctx, size: total, usage: VK_BUFFER_USAGE_TRANSFER_SRC_BIT.rawValue, host: true)
             var regions: [VkBufferImageCopy] = []
-            var off = 0, sz = size
-            for (lvl, d) in data.enumerated() where lvl < levels {
-                _ = d.withUnsafeBytes { memcpy(staging.mapped! + off, $0.baseAddress!, $0.count) }
+            var off = 0
+            for lvl in 0..<chainLevels {
+                let sz = max(1, size >> lvl)
+                var n = 0
+                levelBytes(lvl) { b in memcpy(staging.mapped! + off, b.baseAddress!, b.count); n = b.count }
                 var r = VkBufferImageCopy()
                 r.bufferOffset = VkDeviceSize(off)
                 r.imageSubresource = VkImageSubresourceLayers(aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, mipLevel: UInt32(lvl),
                                                               baseArrayLayer: UInt32(range.lowerBound), layerCount: UInt32(range.count))
                 r.imageExtent = VkExtent3D(width: UInt32(sz), height: UInt32(sz), depth: 1)
                 regions.append(r)
-                off += d.count
-                sz = max(1, sz / 2)
+                off += n
             }
             bytes += total
             try ctx.oneShot { cb in

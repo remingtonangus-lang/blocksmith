@@ -111,6 +111,23 @@ final class MeshArena {
                 if let s = take(c, completed: completed) { spot = s; cls = c; break }
             }
         }
+        // P401: then a free slice of any larger class, cut to size; the rest goes back as smaller free slices (the
+        // size classes drift as the land streams, and freed big slices sat unused while new slabs were made: 409 of
+        // 1,344 MB of meshes free at the Ash Vault battle).
+        if spot == nil && cls + 3 < MeshArena.sizes.count {
+            for c in (cls + 3)..<MeshArena.sizes.count {
+                guard let (b, off) = take(c, completed: completed) else { continue }
+                spot = (b, off)
+                var rest = MeshArena.sizes[c] - size, at = off + size
+                while rest >= MeshArena.sizes[0] {
+                    var k = MeshArena.sizeClass(rest)
+                    if MeshArena.sizes[k] > rest { k -= 1 }
+                    free[k].items.append((b, at, 0))
+                    at += MeshArena.sizes[k]; rest -= MeshArena.sizes[k]
+                }
+                break
+            }
+        }
         if spot == nil {
             if slab == nil || bump + size > slabSize {
                 let t0 = CFAbsoluteTimeGetCurrent()
