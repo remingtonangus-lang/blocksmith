@@ -77,10 +77,9 @@ final class Settings {
     @Pref("glyphStyle") var glyphStyle = 0           // 0 auto (last used device), 1 controller, 2 keyboard
     @Pref("textBackground") var textBackground: Float = 0   // dark box behind HUD text (0...0.8)
     @Pref("minimap") var minimap = true             // biome minimap in the top-right corner
-    // Create New World > Terrain default (the world option lives in the save). P431 (Remington, Oct 24: "it's going to
-    // be a block world"): Blocks, with the generator's slopes; a new key, so a "Polygons" remembered from PG6 starts
-    // over on Blocks. (A saved Polygons world still opens as it was.)
-    @Pref("smoothTerrainP431") var smoothTerrain = false
+    // Create New World > Terrain default (the world option lives in the save). PG6: Polygons is the main direction and
+    // the default for new worlds; a new key, so a "Blocks" remembered from before starts over on Polygons.
+    @Pref("smoothTerrainPG6") var smoothTerrain = true
     // SH1: the Quest shader pass's pieces, one bit each (ShaderFX), all on by default (Video options).
     @Pref("shaderFX") var shaderFX = ShaderFX.all
     @Pref("mapZoom") var mapZoom = 3                 // P273: the world map's zoom level (index into MapMenu.zooms; 3 = 8 blocks a cell)

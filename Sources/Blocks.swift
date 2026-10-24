@@ -9,7 +9,7 @@ import Foundation
 
 typealias BlockID = UInt16
 
-enum RenderType: UInt8 { case none, cube, cross, liquid, model, connect, wire, rail, slope }   // connect: fences/panes/walls; wire: sparkstone dust; slope: P431 ground slopes
+enum RenderType: UInt8 { case none, cube, cross, liquid, model, connect, wire, rail }   // connect: fences/panes/walls; wire: sparkstone dust
 enum RenderLayer: UInt8 { case opaque, cutout, translucent }
 enum ToolType: UInt8 { case none, pickaxe, axe, shovel, hoe, sword, shears }
 
@@ -59,7 +59,6 @@ struct BlockDef {
     var hidden = false               // not offered in the creative inventory
     var group: String? = nil         // state group (defaults to name)
     var sway: Bool? = nil            // cross plants: the top bends in the wind (nil: BlockRegistry.swayDefault)
-    var slopeMask: UInt8 = 0         // P431 slopes: which top corners sit a block up (bit cx + 2 cz)
 
     init(_ name: String, _ display: String) { self.name = name; self.display = display }
 }
@@ -152,8 +151,6 @@ final class BlockRegistry {
     var tex: [UInt16] = []          // state*6 + face
     var boxes: [[Box]] = []
     var collBoxes: [[Box]] = []      // collision shape per state (render boxes unless collisionShape overrides)
-    var slopeMask: [UInt8] = []      // P431: a slope state's corner mask (0 for every other block)
-    var slopeOf: [BlockID: BlockID] = [:]     // P431: ground material -> its slopes' first state (mask 0; + mask)
 
     var count: Int { defs.count }
 
@@ -246,57 +243,7 @@ final class BlockRegistry {
         for i in 0..<bx.count where bx[i].tex.isEmpty { bx[i].tex = (0..<6).map { tex[Int(id) * 6 + $0] } }
         boxes.append(bx)
         collBoxes.append(BlockRegistry.collisionShape(d) ?? d.boxes)
-        slopeMask.append(d.slopeMask)
         return id
-    }
-
-    // P431 (Remington, Oct 24: a block world again, "terrain's going to automatically have 45 degree slopes in places
-    // where there would be a block to block lift"): 16 slope states per ground material, one per corner mask (bit
-    // cx + 2 cz set: that top corner sits a block up). WorldGen.placeSlopes puts them over the ground on every one-block
-    // lift: two adjacent corners up is a straight slope, three an inner corner, one an outer corner (the two saddles and
-    // the flat and full masks are never placed). The Mesher draws the top as the quad through the four corner heights
-    // (split on the diagonal through the odd corner), the sides as what that top leaves of them; bodies meet a 4x4 grid
-    // of columns under the drawn top (slopeColumns). Never an item: a broken slope drops its material (Loot), and a
-    // placed block never becomes a slope.
-    static let slopeMaterials = ["grass_block", "snowy_grass_block", "dirt", "coarse_dirt", "podzol", "mycelium", "sand", "red_sand",
-                                 "gravel", "stone", "andesite", "snow_block", "mud", "clay", "calcite", "moss_block", "sandstone", "terracotta"]
-    private func registerSlopes() {
-        for mat in BlockRegistry.slopeMaterials where has(mat) {
-            let base = def(id(mat))
-            for m in 0..<16 {
-                var d = base
-                d.name = m == 0 ? "\(mat)_slope" : "\(mat)_slope[\(m)]"
-                d.display = "\(base.display) Slope"
-                d.group = "\(mat)_slope"
-                d.render = .slope; d.opaque = false; d.skyStop = true; d.hidden = true; d.shape = "slope"
-                d.randomTicks = false; d.aoOcc = false; d.cullSame = false
-                d.slopeMask = UInt8(m)
-                d.boxes = BlockRegistry.slopeColumns(m)
-                let sid = add(d)
-                if m == 0 { slopeOf[id(mat)] = sid }
-            }
-        }
-    }
-    // The drawn top's height (0...1) over a slope's cell at (u, v) in 0...1: planar for a straight slope, the two
-    // triangles either side of the diagonal through the odd corner for an inner or outer corner.
-    static func slopeHeight(_ mask: Int, _ u: Float, _ v: Float) -> Float {
-        func c(_ cx: Int, _ cz: Int) -> Float { mask & (1 << (cx + cz * 2)) != 0 ? 1 : 0 }
-        let n = mask.nonzeroBitCount
-        if n != 1 && n != 3 { return (1 - u) * (1 - v) * c(0, 0) + u * (1 - v) * c(1, 0) + u * v * c(1, 1) + (1 - u) * v * c(0, 1) }
-        var ox = 0, oz = 0
-        for cz in 0..<2 { for cx in 0..<2 where (c(cx, cz) == 1) == (n == 1) { ox = cx; oz = cz } }
-        let a = abs(u - Float(ox)), b = abs(v - Float(oz))
-        let hO = c(ox, oz), hA = c(1 - ox, oz), hB = c(ox, 1 - oz), hP = c(1 - ox, 1 - oz)
-        return a >= b ? hO + (hA - hO) * (a - b) + (hP - hO) * b : hO + (hB - hO) * (b - a) + (hP - hO) * a
-    }
-    // Collision: 4x4 columns, each as high as the drawn top over its middle (to the 1/16).
-    static func slopeColumns(_ mask: Int) -> [Box] {
-        var out: [Box] = []
-        for iz in 0..<4 { for ix in 0..<4 {
-            let h16 = Int((slopeHeight(mask, (Float(ix) + 0.5) / 4, (Float(iz) + 0.5) / 4) * 16).rounded())
-            if h16 > 0 { out.append(Box(ix * 4, 0, iz * 4, ix * 4 + 4, h16, iz * 4 + 4)) }
-        } }
-        return out
     }
 
     static let colors: [(String, String)] = [
@@ -821,7 +768,6 @@ final class BlockRegistry {
         spawner.tex = ["spawner"]; spawner.opaque = false; spawner.layer = .cutout; spawner.hardness = 5; spawner.tool = .pickaxe
         spawner.requiresTool = true; spawner.aoOcc = false; spawner.skyStop = true
         add(spawner)
-        registerSlopes()            // P431 (before the waterlogged twins, which come last)
         registerWaterlogged()
     }
 
