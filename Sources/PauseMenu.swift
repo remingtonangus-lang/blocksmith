@@ -9,7 +9,7 @@ final class PauseMenu: Menu {
     static let sens: [Float] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10]
     static let zones: [Float] = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25]
     static let outers: [Float] = [0, 0.02, 0.05, 0.08, 0.1, 0.15, 0.2]
-    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, net, stats, checklist, compute }
+    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, net, stats, checklist, compute, messages }
     enum Cat: Int, CaseIterable {
         // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
         // distance setting" - it sat on page 3 behind the input pages).
@@ -140,6 +140,7 @@ final class PauseMenu: Menu {
         "autojump": "Walk into a one-block step to climb it without jumping.",
         "advancements": "Goals you have reached and the ones still ahead.",
         "stats": "What you have done in this world: time, distance, mining, building, fighting, crafting.",
+        "messages": "The last 50 messages shown on screen, newest first, with the day and time.",
         "compute": "What each part of the game costs a frame where you stand (playtest builds): drawing by system, the game tick, the GPU.",
         "commands": "Type a command (time, weather, teleport, give...).",
         "new_mode": "Survival: health, hunger, mining. Creative: fly and build freely. You can switch later from the pause menu.",
@@ -277,7 +278,7 @@ final class PauseMenu: Menu {
                     + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2, -16
                     + (StorageCheck.low ? " - storage low" : "")         // Q2c-console-51
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.viewFixed ? PauseMenu.adLabel(g) : PauseMenu.rdLabel(g), PauseMenu.viewFixed ? "ad" : "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.viewFixed ? PauseMenu.adLabel(g) : PauseMenu.rdLabel(g), PauseMenu.viewFixed ? "ad" : "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Messages", "messages"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Difficulty.name(g.diffLevel))", "difficulty"),   // P369: changeable for the life of the world
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
@@ -408,6 +409,16 @@ final class PauseMenu: Menu {
             title = "Statistics"
             subtitle = currentWorld.isEmpty ? "This world" : currentWorld
             rows = Stats.rows(g).map { ($0, "noop") } + [("Back", "back")]
+        case .messages:                                                 // P421: the last 50 on-screen messages
+            title = "Messages"
+            let msgs = g.journal.filter { $0.pages == nil }.suffix(50).reversed()
+            subtitle = msgs.isEmpty ? "No messages yet" : "The last \(msgs.count), newest first"
+            rows = []
+            for e in msgs {
+                let stamp = String(format: "Day %d %02d:%02d  ", e.day, e.hour, e.minute)
+                for (i, l) in Journal.wrap(stamp + e.text, width: style.width - 24).enumerated() { rows.append(((i > 0 ? "    " : "") + l, "noop")) }
+            }
+            rows += [("Open Journal...", "journal"), ("Back", "back")]
         case .compute:                                                  // P420 (ComputeCost.swift)
             title = "What Is Using the Compute"
             let c = ComputeCost.rows(g)
@@ -514,11 +525,12 @@ final class PauseMenu: Menu {
         case .main:
             // P410 (Oct 22 22:06, "I can't hardly read what's in the main menu"): seven lines of 30 (since P369's
             // Difficulty row, Oct 18) made the page taller than half the headset's panel, so it was fitted at scale 1:
-            // letters half a degree high (questcheck --vrtext-only). Lines of 24 with tighter gaps keep it at scale 2.
-            return Style(width: 440, btnH: 24, gapX: 12, gapY: 4, groupGap: 10, cols: 4, lines: 8, groups: [
+            // letters half a degree high (questcheck --vrtext-only). Lines of 24 with tighter gaps keep it at scale 2
+            // (P421: 22 with gaps of 3 and 8, room for an eighth line with Messages).
+            return Style(width: 440, btnH: 22, gapX: 12, gapY: 3, groupGap: 8, cols: 4, lines: 8, groups: [
                 (["resume", "restorebackup"], 0),
                 (["options", vr, PauseMenu.viewFixed ? "ad" : "rd", "mode"], 0),                              // settings
-                (["worldmap", "track", "advancements", "stats"], 0),             // map and progress
+                (["worldmap", "track", "advancements", "stats", "messages"], 0),             // map and progress
                 (["worlds", "netmenu", "coop", "photo", "commands", "checklist", "compute", "shortcuts"], 0),
                 (["totitle"], 0)])                                                // leaving, apart from the rest
         case .title:
@@ -539,7 +551,7 @@ final class PauseMenu: Menu {
             // Cancel and the action side by side, well apart.
             return Style(width: 300, btnH: 30, gapX: 24, gapY: 6, groupGap: 12, cols: 2, lines: 2, groups: [
                 (rows.map { $0.1 }, 2)])
-        case .checklist:
+        case .checklist, .messages:
             return Style(width: 440, btnH: 20, lines: 12)                 // P399: long item lines
         default:
             return .list
@@ -773,6 +785,7 @@ final class PauseMenu: Menu {
         case "controls": go(.controls); resetCursor = true
         case "shortcuts": go(.shortcuts); resetCursor = true
         case "checklist": PlaytestChecklist.loadIfNeeded(); go(.checklist); resetCursor = true      // P399
+        case "messages": go(.messages); resetCursor = true                                        // P421
         case "compute": go(.compute); resetCursor = true                                          // P420
         case _ where id.hasPrefix("cl:"):
             if let i = Int(id.dropFirst(3)) {
