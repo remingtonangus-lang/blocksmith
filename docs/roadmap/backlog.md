@@ -35,7 +35,7 @@ P427. [DONE #456: every animal keeps sharp-edged parts (no rounding: horse, chic
 
 P428. [SKIPPED: polygon world only (the log drawn as a field blob when struck); superseded by P431's block world] [Remington, Oct 24 10:16-10:17] TREES WHEN HIT. Hitting a tree, "this giant log, which isn't the same log I hit, it morphed into something else... the log just got wider."
 
-P429. [Remington, Oct 24 10:19] JUNGLE TEMPLES are too common, and should have traps with copper (the redstone equivalent), which they don't seem to.
+P429. [DONE #458: two in five jungle temple sites keep their temple; two tripwire traps each (the stair down to the chamber, the gallery before the upper chest) firing dispensers of arrows from both sides; checked: an item on the string fired 4 arrows] [Remington, Oct 24 10:19] JUNGLE TEMPLES are too common, and should have traps with copper (the redstone equivalent), which they don't seem to.
 
 P430. [Remington, Oct 24 10:24-10:25] RAIDING A STATION. (a) a lag between a hit and its explosion, the damage "takes a while to form"; (b) he destroyed the tower and the radar dish on it didn't fall; (c) the big gun should be controllable from a computer inside the building; (d) the gates around it are just annoying; (e) men were there again in an area he had already cleared (P419 was meant to fix this).
 
