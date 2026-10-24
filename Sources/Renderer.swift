@@ -663,6 +663,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let cap = buf.length / MemoryLayout<MobVert>.stride
         let ptr = buf.contents().bindMemory(to: MobVert.self, capacity: cap)
         let droppedBefore = MobDrawStats.dropped
+        Mob.settleLooks(game.mobs.mobs, game.world)          // P411
         var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap,
                                  cull: cull, maxDist: mobMaxDist, corpses: game.mobs.corpses,
                                  ragdolls: game.debris.ragdolls)

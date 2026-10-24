@@ -419,6 +419,7 @@ final class Mob {
     var posseSince: Double = -1     // the game clock when a hunter rode in (not saved: reloaded hunters leave when far)
     var owner: Bool?                // tamed by the player (wolves, cats, horses, parrots)
     var variant = 0                 // colour / breed variant
+    var lookSettled = false         // (P411: settleLook ran)
     var coatSeed: UInt32 = 0        // P295: a steady cosmetic seed (coat, face colours) from where it was made; saved
     var sitting = false
     var lying = false               // a villager asleep in its bed: drawn on its back along the bed (VillageLife)
@@ -633,7 +634,7 @@ final class Mob {
         if netRiddenUntil > g.clock { vel = .zero; animTick(dt, g); return }   // C14: the guest's mount, moved by the link
         animTick(dt, g)
         if downed > 0 { downedTick(dt, g); return }                 // an injured horse lies still (HorseLife.swift)
-        if kind == .rabbit && variant < 16 { variant = 16 | FarmVariant.rabbitCoat(w, pos) }
+        settleLook(w)
         faceGoal = nil
         strafe = 0
         path.climbUp = false
@@ -764,7 +765,6 @@ final class Mob {
             if kind == .sheep { sheepGraze(dt, g) }
             // P280 (c): a shorn Shellback's moss grows back over a few minutes of grazing in the open.
             if kind == .mooshroom && sheared && onGround && Rand.float(in: 0..<1) < dt / 240 { sheared = false }
-            if variant == 0 && (kind == .cow || kind == .pig || kind == .chicken) { variant = FarmVariant.forBiome(g.world, pos) }
             if kind == .chicken && !baby {
                 eggTimer -= dt
                 if eggTimer <= 0 { eggTimer = Rand.float(in: 300...600); g.drops.spawn(ItemStack(Items.id(FarmVariant.eggKey(variant)), 1), at: pos + V3(0, 0.3, 0)) }
@@ -2864,5 +2864,21 @@ extension Mob {
               c.sections[max(0, min(NSEC - 1, Int(floor(pos.y)) >> 4))].version == restVer else { return false }
         for s in w.ships.list where simd_length_squared(s.pos - pos) < 96 * 96 { return false }
         return true
+    }
+}
+
+extension Mob {
+    // P411 (Oct 22 22:12, the station's naval gun "looks like a really big one from far away. When you get close, it
+    // turns into the little one"): a mob's look-defining state (which gun a placed deck gun is, a farm animal's climate
+    // coat, a rabbit's coat) was settled on its first tick, so past the active distance (ticked never) it was drawn as the
+    // default. It is settled here, by the tick and by the drawing alike, before it is first drawn.
+    // (on the main thread: the headset writes mob vertices on a worker)
+    static func settleLooks(_ mobs: [Mob], _ w: World) { for m in mobs where !m.lookSettled || m.kind == .deckGun { m.settleLook(w) } }
+    func settleLook(_ w: World) {
+        if kind == .deckGun { settleDeckGun(); return }
+        guard !lookSettled else { return }
+        lookSettled = true
+        if kind == .rabbit && variant < 16 { variant = 16 | FarmVariant.rabbitCoat(w, pos) }
+        if variant == 0 && (kind == .cow || kind == .pig || kind == .chicken) { variant = FarmVariant.forBiome(w, pos) }
     }
 }

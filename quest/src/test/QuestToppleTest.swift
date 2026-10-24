@@ -6,7 +6,7 @@ import Metal
 // -4921 107 2260) in a Polygons world: a 6x6x50 stone tower (1,800 blocks: past the load check's 1,536-block fill, as
 // the Boreal Station tower was) stood on one stone, and a birch on a one-block plinth; each footing broken. Both must
 // come down as one body (a ship), and the falling birch's hull mesh must draw its leaves as blobs, not cubes.
-//   questcheck --toppletest
+//   questcheck --toppletest   (also P411: a placed deck gun is drawn as the gun it becomes before its first tick)
 enum QuestToppleTest {
     static func run() -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
@@ -79,6 +79,14 @@ enum QuestToppleTest {
             if blob == 0 { print("FAIL toppletest: the falling tree's leaves are drawn as cubes"); fails += 1 }
         }
         settle(tree, "birch on a broken plinth")
+        // P411: a placed deck gun is the gun it will be from its first drawing, not from its first tick.
+        for (name, want) in [("deck_gun@grey", HeavyTurret.lightVariant)] {
+            guard let m = Mob.structureMob(name, at: g.player.pos + V3(40, 0, 0)) else { print("FAIL toppletest: no \(name)"); fails += 1; continue }
+            let v0 = m.variant
+            Mob.settleLooks([m], w)
+            print("toppletest: \(name) placed as variant \(v0), drawn as \(m.variant) (small tower gun \(want))")
+            if m.variant != want { print("FAIL toppletest: \(name) is drawn as the big gun until it ticks"); fails += 1 }
+        }
         print(fails == 0 ? "PASS toppletest" : "FAIL toppletest: \(fails)")
         return fails == 0 ? 0 : 1
     }

@@ -56,6 +56,7 @@ final class WorldRenderer {
         let mobs = game.mobs.mobs, corpses = game.mobs.corpses, rag = game.debris.ragdolls
         let daylight = game.renderDaylight, world = game.world, maxD = mobMaxDist
         mobPending = b
+        Mob.settleLooks(mobs, world)                                                       // P411
         MobMotion.on = scene.spaceWarp; MobMotion.ranges.removeAll(keepingCapacity: true)      // P403 7b
         mobWork.start { [self] in
             mobCount = writeMobVertices(mobs, eye: eye, daylight: daylight, world: world, into: ptr, capacity: cap,
@@ -522,6 +523,7 @@ final class WorldRenderer {
         guard !game.mobs.mobs.isEmpty || !game.mobs.corpses.isEmpty || !Hunting.bodyMobs.isEmpty || !AshFallen.mobs.isEmpty || tp || others else { return }   // (P326: the vault's fallen with no mob about)
         let (ptr, off, cap) = scene.reserve(s, MobVert.self)
         guard cap > 36 else { return }
+        Mob.settleLooks(game.mobs.mobs, game.world)                                         // P411
         MobMotion.on = scene.spaceWarp; MobMotion.ranges.removeAll(keepingCapacity: true)      // P403 7b
         var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.renderDaylight, world: game.world, into: ptr, capacity: cap,
                                  cull: frustum, maxDist: mobMaxDist, corpses: game.mobs.corpses,

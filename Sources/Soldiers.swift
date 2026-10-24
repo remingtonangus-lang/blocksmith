@@ -806,6 +806,18 @@ extension Mob {
 
     // MARK: Deck gun
 
+    // P210 / P222: which gun a placed deck gun is. P411 (Oct 22 22:12, "the big naval gun looks like a really big one from
+    // far away. When you get close, it turns into the little one"): this ran on the gun's first tick, so until he came
+    // within the active distance it was drawn as the battleship turret it was placed as. Mob.settleLook runs it before
+    // the gun is first drawn.
+    func settleDeckGun() {
+        // P210: a Greywall base's guns placed before the small tower gun are swapped for it.
+        if factionValue == .greywall && variant != HeavyTurret.lightVariant && variant != HeavyTurret.flak { variant = HeavyTurret.lightVariant }
+        // P222 (Oct 13 21:29, "the tower base guns are too big for the base"): a Capital citadel's battleship turrets
+        // (placed before the small guns) become one of the small guns, by the look they had.
+        if factionValue == .steelhold && deck == nil && (1...3).contains(variant) { variant = HeavyTurret.small[(variant - 1) % 3] }
+    }
+
     func updateDeckGun(_ dt: Float, _ g: Game) {
         NavalGuns.hurtEffects(self, dt, g)
         GunParts.update(self, g)                                                  // P372
@@ -821,11 +833,7 @@ extension Mob {
         if fire > 0 { fire -= dt }
         b.reload -= dt
         b.kick = max(0, b.kick - dt * 1.5)
-        // P210: a Greywall base's guns placed before the small tower gun are swapped for it.
-        if factionValue == .greywall && variant != HeavyTurret.lightVariant && variant != HeavyTurret.flak { variant = HeavyTurret.lightVariant }
-        // P222 (Oct 13 21:29, "the tower base guns are too big for the base"): a Capital citadel's battleship turrets
-        // (placed before the small guns) become one of the small guns, by the look they had.
-        if factionValue == .steelhold && deck == nil && (1...3).contains(variant) { variant = HeavyTurret.small[(variant - 1) % 3] }
+        settleLook(g.world)
         let light = HeavyTurret.scale(self) != 1
         let flak = HeavyTurret.isFlak(self)
         let pivot = pos + V3(0, HeavyTurret.trunnionY * HeavyTurret.scale(self), 0)
