@@ -1600,9 +1600,7 @@ final class WorldGen: TerrainGenerator {
                 if !up && sx == 0 && sz == 0 && side(cx == 1 ? 1 : -1, cz == 1 ? 1 : -1) == 1 { up = true }
                 if up { mask |= 1 << (cx + cz * 2) }
             } }
-            // (the saddles are the two diagonal pairs, bits 0+3 and 1+2; 5 and 10 are the straight slopes along x, and
-            // skipping those left every lift to the east or west bare: Remington's "a bunch of blocks are not sloped")
-            guard mask != 0, mask != 15, mask != 6, mask != 9 else { continue }
+            guard mask != 0, mask != 15, mask != 5, mask != 10 else { continue }
             b[Chunk.index(lx, t + 1, lz)] = first + BlockID(mask)
         } }
     }

@@ -252,10 +252,9 @@ final class BlockRegistry {
 
     // P431 (Remington, Oct 24: a block world again, "terrain's going to automatically have 45 degree slopes in places
     // where there would be a block to block lift"): 16 slope states per ground material, one per corner mask (bit
-    // cx + 2 cz set: that top corner sits a block up; bit 0 is corner (0,0), 1 is (1,0), 2 is (0,1), 3 is (1,1)).
-    // WorldGen.placeSlopes puts them over the ground on every one-block lift: two adjacent corners up is a straight
-    // slope (3, 5, 10, 12), three an inner corner, one an outer corner (the two saddles 6 and 9 and the flat and full
-    // masks are never placed). The Mesher draws the top as the quad through the four corner heights
+    // cx + 2 cz set: that top corner sits a block up). WorldGen.placeSlopes puts them over the ground on every one-block
+    // lift: two adjacent corners up is a straight slope, three an inner corner, one an outer corner (the two saddles and
+    // the flat and full masks are never placed). The Mesher draws the top as the quad through the four corner heights
     // (split on the diagonal through the odd corner), the sides as what that top leaves of them; bodies meet a 4x4 grid
     // of columns under the drawn top (slopeColumns). Never an item: a broken slope drops its material (Loot), and a
     // placed block never becomes a slope.
