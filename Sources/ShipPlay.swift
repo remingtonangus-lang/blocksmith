@@ -311,6 +311,15 @@ extension Game {
         if s.isVessel && !s.captured { achieve("capture_vessel") }
         s.captured = true
         s.wrecked = false                // a new crew (the player) takes over
+        // P435 (Oct 24 15:41-15:43, "gun on the drop ship doesn't do enough damage", "doesn't do damage to buildings so
+        // much... I wanna do way more damage to buildings"): flown by him, a dropship's autocannon fires as long as the
+        // trigger is held, quicker, with heavier high-explosive rounds that blow holes in walls.
+        if s.role == "dropship" {
+            for t in ships.turrets(of: s) where !t.cannons.isEmpty {
+                t.gunPower = Capital.autoHeld.power; t.reloadTime = Capital.autoHeld.reload
+                t.gunSpeed = Capital.autoHeld.speed; t.gunScatter = Capital.autoHeld.scatter
+            }
+        }
         if s.balloons > 0 && s.hoverY == nil { s.hoverY = s.pos.y }
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false
@@ -357,7 +366,7 @@ extension Game {
             // fires the cannons, raised to the view pitch.
             if breakNow && ships.playerMainGun(s, game: self) { swing = 1; return true }
             // P93: in survival the guns use cannonballs from the pack, one a gun.
-            if breakNow {
+            if breakNow || (breakHeld && s.role == "dropship") {         // (P435: the autocannon fires while held)
                 let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }
                 let balls = survival && s.role == nil ? Wrecks.cannonballs(self) : Int.max
                 if guns > 0 && balls < guns {         // a broadside takes one ball a gun ready

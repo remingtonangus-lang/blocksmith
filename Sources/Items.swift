@@ -441,6 +441,7 @@ final class ItemRegistry {
         item("vehicle_blueprint", "Vehicle Blueprint", "paper", 0x8A6A2E, [:], stack: 16)         // D43 (VehiclePresets.swift)
         for s in BaseSundries.all { item(s.key, s.name, s.mask, s.color, s.extras, stack: s.key == "spent_casings" ? 64 : 16) }   // P133
         item("aero_spares", "Aero Engine Spares", "mechanism", 0x6E7468, ["c": 0x4E5A30], stack: 16)   // P346: a crashed fighter, repaired
+        item("track_spares", "Track Spares", "mechanism", 0x4A4A44, ["c": 0x5A5A30], stack: 16)       // P435: a knocked-out tank, repaired
         item("greywall_codebook", "Greywall Code Book", "book", 0x4A5560, [:], stack: 1)              // P206
         // The gap pass (HorseLife.swift): brings a downed horse of yours back to its feet. Sold by stables and doctors.
         item("saddle_salve", "Saddle Salve", "bottle", 0xD0DCF0, ["c": 0xD8542A], stack: 16)

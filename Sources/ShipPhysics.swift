@@ -11,6 +11,7 @@ enum ShipTuning {
     static func liftPerBalloon(_ mass: Float) -> Float { max(balloonLift, mass / 6) }
     static let ballastTrim: Float = 4.0         // tonnes one ballast tank can add or take off (flooded or blown)
     static let propThrust: Float = 120          // per powered propeller at full throttle
+    static let planeAccel: Float = 11            // P435: a flight-model plane's propellers give it at least this acceleration (b/s^2; g is 12)
     static let paddleThrust: Float = 18         // the helm alone moves a small boat slowly
     static let wheelAccel: Float = 7            // drive per wheel: its share of the weight times this (b/s^2)
     static let perEngine = 4                    // propellers / wheels one engine drives
@@ -499,10 +500,15 @@ extension ShipManager {
         // Propellers (applied at the propeller, level with the centre of mass so they don't pitch the hull; a
         // helicopter's tail rotor is part of its flight model).
         if piloted && s.throttleEase != 0 && power > 0 && !heli {
+            // P435 (Oct 24 15:53-15:54, the salvaged fighter: "can't really take off", "planes should be extremely quick"):
+            // a fixed-wing aircraft built of blocks weighs a tonne a block (the fighter 214 t), and 120 per propeller
+            // gave it half a block a second per second: 10 b/s at the end of a strip. A flight-model plane's propellers
+            // now give it at least 11 b/s^2 between them (off the ground in about 6 s, near 60 b/s flat out).
+            let each = s.flight?.kind == .plane ? max(ShipTuning.propThrust, s.mass * ShipTuning.planeAccel / Float(max(1, props))) : ShipTuning.propThrust
             for (p, d) in s.props {
                 var at = p
                 at.y = s.com.y
-                apply(s.dirToWorld(d) * (s.throttleEase * ShipTuning.propThrust * power), at: s.toWorld(at))
+                apply(s.dirToWorld(d) * (s.throttleEase * each * power), at: s.toWorld(at))
             }
         }
         // Sails (wool): pushed by the wind relative to the ship while someone steers (furled otherwise).

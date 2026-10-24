@@ -1128,7 +1128,7 @@ final class Game {
         HorseFeel.controlWas = input.control
         if push <= 0.3 { player.sprinting = false }
         // (Not on a horse: the horse keeps its gait while the rider draws a bow or eats; HorseFeel.swift.)
-        if (eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0) && !(riding.map { $0.gaited && $0.tamed } ?? false) { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
+        if (eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0) && !(riding.map { $0.gaited && $0.tamed } ?? false) && !handsOnControls { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
 
         if input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a) {
             // P156 (Oct 13: "remove the glider wings: the jetpack replaces them"): a pair of wings worn from an old world
@@ -1187,6 +1187,7 @@ final class Game {
         if bumpersFree && padHotbarScroll && p.lb && !q.lb { select(selected - 1) }
 
         Partner.tick(self, fdt)                                          // D52: downed, revives, riding pillion
+        seatedEatTick(p, fdt)                                            // P435: eating at the controls of a vehicle
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
         if AshSeat.shared.tick(self, p, q, mi, dt: fdt) { updateFov(Float(dt)); advance(dt); return }      // P344
         if ChairSeat.shared.tick(self, mi) { updateFov(Float(dt)); advance(dt); return }                     // P370 (b)
@@ -1304,6 +1305,10 @@ final class Game {
         if useNow && heldGun != nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 3.5), hit.0.hired, companionUse(hit.0) { mining = nil; return }   // O2: a gun for a companion
         if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 3.5),
            hit.0.horseLike && hit.0.kind != .traderLlama && !hit.0.baby, animalInteract(hit.0) { mining = nil; return }
+        // P435 (Oct 24 15:56, at a flak battery's gun with the Mahlwerk out: "I should be able to use this artillery"):
+        // a gun in hand doesn't stop him taking an Ashguard tank, half-track, truck or field gun either.
+        if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(vrAim?.origin ?? player.eye, vrAim?.dir ?? player.look, maxDist: 4.5),
+           AshCommandeer.takeable(hit.0.kind), ashCommandeer(hit.0) { mining = nil; return }
         // P74 (Oct 12 playtest, 09:22): a gun in hand still opens a door, a chest or a lever within arm's reach; the
         // gun's aim took the use press first, so nothing could be opened with a gun out.
         if useNow && heldGun != nil && !(input.shift || p.b), let t = target,

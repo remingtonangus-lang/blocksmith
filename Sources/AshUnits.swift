@@ -325,7 +325,11 @@ extension Mob {
             ashSlew(dt, toYaw: view, pitch: max(-0.14, min(0.35, up)))
             if seat.fireTap && b.reload <= 0 {
                 b.reload = 4
-                ashCannon(g, power: 1.3, speed: 70, gravity: 9, len: 6.1, spread: 0.004, mine: true)
+                // P435 (Oct 24 15:49, the tank's cannon "does not do enough damage... nowhere near enough"): his main
+                // gun's round was the crew's (power 1.3, the burst breaking nothing). Now a 75 mm round: a burst that
+                // blows out walls (stone and brick a block or two deep), and against a vehicle it strikes, a hit
+                // that holes its plate (Slug.antiTank: a Cinder Tank in two).
+                ashCannon(g, power: AshSeat.tankPower, speed: 70, gravity: 9, len: 6.1, spread: 0.004, mine: true, antiTank: AshSeat.tankAntiTank)
                 AshSeat.shots += 1
             } else if seat.fireHeld && b.reload > 0.4 && b.shotTimer <= 0 {
                 let (m, d) = ashMuzzle(3.4)
@@ -343,7 +347,7 @@ extension Mob {
             ashSlew(dt, toYaw: view, pitch: max(0, min(1.2, up)))
             if seat.fireTap && b.reload <= 0 {
                 b.reload = 5
-                ashCannon(g, power: 1.5, speed: 46, gravity: 12, len: 3.9, spread: 0.006, mine: true)
+                ashCannon(g, power: AshSeat.gunPower, speed: 46, gravity: 12, len: 3.9, spread: 0.006, mine: true, antiTank: AshSeat.gunAntiTank)
                 AshSeat.shots += 1
             }
             return 0                                               // a field gun is laid, not driven
@@ -351,9 +355,14 @@ extension Mob {
             ashSlew(dt, toYaw: yaw, pitch: 0)                      // the pintle gun rides fore and aft
         }
         let turn: Float = kind == .ashHalftrack ? 1.4 : (kind == .ashTruck ? 1.2 : 0.7)
-        let speed = seat.drive >= 0 ? spec.speed * seat.drive : spec.speed * 0.6 * seat.drive
+        let sp = AshSeat.seatSpeed(kind)
+        let top = seat.sprint && seat.drive > 0.3 ? sp.sprint : sp.cruise
+        // (The throttle eases toward what the stick asks: a 40 tonne tank doesn't reach 36 km/h in a frame.)
+        let want = seat.drive >= 0 ? top * seat.drive : sp.cruise * 0.5 * seat.drive
+        soldierBrain.seatSpeed += max(-9 * dt, min((kind == .ashTank ? 3.2 : 5) * dt, want - soldierBrain.seatSpeed))
+        let speed = soldierBrain.seatSpeed
         // Turning: a tank pivots on its tracks; wheels need the hull rolling (and steer the other way in reverse).
-        let roll: Float = kind == .ashTank ? 1 : min(1, abs(seat.drive) * 2) * (seat.drive < 0 ? -1 : 1)
+        let roll: Float = kind == .ashTank ? 1 : min(1, abs(speed) / 2) * (speed < 0 ? -1 : 1)
         yaw -= seat.steer * turn * roll * dt
         walkPhase += speed * dt
         return speed
@@ -409,11 +418,14 @@ extension Mob {
         g.sfx(.gun(Guns.rifle), 0.9, at: from)
     }
 
-    private func ashCannon(_ g: Game, power: Float, speed v: Float, gravity gr: Float, len: Float, spread: Float, mine: Bool = false) {
+    private func ashCannon(_ g: Game, power: Float, speed v: Float, gravity gr: Float, len: Float, spread: Float, mine: Bool = false,
+                           antiTank: Float = 0) {
         let (muzzle, fwd) = ashMuzzle(len)
         var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, spread) * v, kind: .shell, damage: 0, fromPlayer: mine,
                      shooter: ObjectIdentifier(self), by: mine ? "Player" : spec.name, life: 6, gravity: gr)
         s.power = power
+        s.breaks = mine                      // P435: his shells break what they burst against (the crews' still don't)
+        s.antiTank = antiTank
         g.arms.spawn(s)
         for _ in 0..<4 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
         g.addFlash(at: muzzle + fwd * 0.4, color: V3(6, 3.5, 1.6), radius: 7, life: 0.08)

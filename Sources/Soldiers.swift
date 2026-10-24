@@ -83,6 +83,7 @@ final class SoldierBrain {
     var salvoLeft = 0
     var salvoCD: Float = Rand.float(in: 2...6)
     var sidecarDone = false
+    var seatSpeed: Float = 0        // P435: the speed he is driving it at (eases toward the stick)
     var spun = false                 // Ashsaw gunner: the bolt is racked for the next burst (a readable click first); a
                                      // Mahlwerk gunner's barrels are spinning up for it (P391)
     var spin: Float = 0              // P391: the rotary gun's barrels, 0 still ... 1 at speed, and their angle (SoldierRig)
