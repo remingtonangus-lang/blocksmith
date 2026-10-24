@@ -92,7 +92,11 @@ enum TreeShapes {
     // MARK: The designs
 
     // Oaks: an English oak (three big limbs off a short bole), a broad field oak, a tall woodland oak drawn up by its
-    // neighbours, one leaning off true, a forked twin leader, and a young one.
+    // neighbours, and a young one.
+    // P433 (Remington, Oct 24 21:01: "those trees with the weird second tree coming off close to its base? Get rid of
+    // that and just anything like it"): no design has a second stem springing from a trunk's side or a fork low on the
+    // bole (the leaning oak, forked oak, twin birches, kinked birch, leaning swamp oak and the palm's kink are gone):
+    // every tree is one trunk from the ground, its limbs well up it.
     static let oaks: [TreeShape] = [
         make("English oak", 1, bole: 3) { d in
             d.trunk(6)
@@ -115,25 +119,12 @@ enum TreeShapes {
             do { let t = d.limb(0, 6, 0, -1, 0.3, 1, rise: 1); d.crown(t + IVec3(-1, 0, 0), 1.5, 1.3) }
             d.crown(0, 8.5, 0, 2.3, 2.8)
         },
-        make("leaning oak", 4, bole: 3) { d in
-            d.trunk(4)
-            d.trunk(4, x: 1, from: 3)
-            do { let t = d.limb(1, 4, 0, -1, 0.6, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 1.7, 1.3) }
-            d.crown(1.5, 7, 0, 2.5, 2.0)
-        },
-        make("forked oak", 5, bole: 2) { d in
-            d.trunk(3)
-            let a = d.limb(0, 2, 0, 1, 0.3, 2, rise: 3), b = d.limb(0, 2, 0, -1, -0.3, 2, rise: 3)
-            d.log(a.x, a.y + 1, a.z); d.log(b.x, b.y + 1, b.z)
-            d.crown(Float(a.x), Float(a.y + 2), Float(a.z), 2.2, 1.8)
-            d.crown(Float(b.x), Float(b.y + 2), Float(b.z), 2.2, 1.8)
-        },
         make("young oak", 6, bole: 2) { d in
             d.trunk(5)
             d.crown(0, 4.5, 0, 2.0, 2.0)
         },
     ]
-    // Birches: slender, the crown high and narrow; one with a side limb, a pair from one root, one kinked.
+    // Birches: slender, the crown high and narrow; one with a side limb.
     static let birches: [TreeShape] = [
         make("silver birch", 11, bole: 4) { d in
             d.trunk(8)
@@ -143,17 +134,6 @@ enum TreeShapes {
             d.trunk(9)
             do { let t = d.limb(0, 5, 0, 1, 0, 1, rise: 1); d.crown(t + IVec3(1, 1, 0), 1.4, 1.4) }
             d.crown(0, 8, 0, 1.7, 2.8)
-        },
-        make("twin birch", 13, bole: 3) { d in
-            d.trunk(8)
-            d.trunk(5, x: 1, from: 1)
-            d.crown(0, 7, 0, 1.7, 2.4)
-            d.crown(1.5, 6, 0, 1.5, 1.8)
-        },
-        make("kinked birch", 14, bole: 3) { d in
-            d.trunk(4)
-            d.trunk(5, x: 1, from: 3)
-            d.crown(1, 8, 0, 1.9, 2.4)
         },
     ]
     static let tallBirches: [TreeShape] = [
@@ -166,12 +146,6 @@ enum TreeShapes {
             do { let t = d.limb(0, 9, 0, 1, 0, 1, rise: 1); d.crown(t + IVec3(1, 1, 0), 1.4, 1.5) }
             do { let t = d.limb(0, 10, 0, -1, 0, 1, rise: 1); d.crown(t + IVec3(-1, 1, 0), 1.4, 1.5) }
             d.crown(0, 13, 0, 1.7, 3.0)
-        },
-        make("tall twin birch", 17, bole: 6) { d in
-            d.trunk(12)
-            d.trunk(9, z: 1, from: 1)
-            d.crown(0, 11, 0, 1.7, 3.0)
-            d.crown(0, 9, 1.5, 1.5, 2.2)
         },
     ]
     // Spruces: tiered cones (radii from the tip down), a narrow alpine one, a broad one and an old one bare below.
@@ -296,11 +270,6 @@ enum TreeShapes {
             d.trunk(5)
             for (k, r) in [3, 3, 2, 2].enumerated() { d.disk(2 + k, 0, 0, r) }
         },
-        make("swamp oak, leaning", 82, bole: 2) { d in
-            d.trunk(4)
-            d.trunk(3, x: 1, from: 3)
-            for (k, r) in [3, 3, 2, 1].enumerated() { d.disk(3 + k, 1, 0, r) }
-        },
     ]
     // Mangroves: a trunk lifted on prop roots that arch down into the mud.
     static let mangroves: [TreeShape] = [
@@ -333,11 +302,10 @@ enum TreeShapes {
             d.crown(0, 5.5, 0, 2.6, 1.6)
         },
     ]
-    // Palms: a slim trunk with one lean in it and a star of fronds drooping at their tips.
+    // Palms: a slim straight trunk and a star of fronds drooping at their tips. (P433: the one-block kink is gone.)
     static func palm(_ d: inout TreeDraft, _ h: Int, bend: Int) {
-        d.trunk(bend + 1)
-        d.trunk(h - bend, x: 1, from: bend)
-        let tx = 1, top = h
+        d.trunk(h)
+        let tx = 0, top = h
         d.leaf(tx, top, 0)
         for (fx, fz) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)] {
             let reach = fx != 0 && fz != 0 ? 3 : 4
@@ -403,7 +371,7 @@ enum TreeShapes {
         switch kind {
         case .oak: return oaks
         case .fancyOak: return [oaks[0], oaks[1]]
-        case .smallOak: return [oaks[5], oaks[3]]
+        case .smallOak: return [oaks[3]]
         case .birch: return birches
         case .tallBirch: return tallBirches
         case .spruce: return spruces
@@ -462,8 +430,20 @@ enum TreeShapes {
                 let q = at(p)
                 for k in 1...grow { w.log(q.x, q.y + k, q.z, log) }
             }
+            // P433: a trunk whose foot is at the bole itself (a mangrove's, lifted on its roots) keeps its foot where the
+            // design put it: the added blocks go in under it. (It moved up with the bole and left a gap over the roots:
+            // half the mangroves hung a block above their roots, and the polygon world drew the loose trunk as cut timber.)
+            for p in s.logs where p.y == s.bole && (0...c).contains(p.x) && (0...c).contains(p.z) && !s.logs.contains(IVec3(p.x, s.bole - 1, p.z)) {
+                let q = at(p)
+                for k in 1...grow { w.log(q.x, q.y - k, q.z, log) }
+            }
         }
-        for p in s.roots { let q = at(p); w.log(q.x, q.y, q.z, root) }
+        // P433: a prop root runs on through water (w.log leaves liquid alone, so every root cell over the swamp's water
+        // was missing and its forced tip column stood in the water on its own).
+        for p in s.roots {
+            let q = at(p)
+            if Blocks.isLiquid(w.get(q.x, q.y, q.z)) { w.force(q.x, q.y, q.z, root) } else { w.log(q.x, q.y, q.z, root) }
+        }
         for p in s.rootTips {
             let q = at(p)
             var ry = q.y

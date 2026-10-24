@@ -28,6 +28,10 @@ enum ShapeTrunks {
         return k.hasSuffix("[x]") ? 0 : (k.hasSuffix("[z]") ? 2 : 1)
     }
     static let isTrunk: [Bool] = ShapeClass.kind.map { $0 == .trunk }
+    // P433: a tree's root block (ShapeClass: a see-through wood block named *_roots, mangrove roots): trunk-class, but
+    // never a column of its own: a root grows out of the trunk through the limb walk (col 3) and runs into the ground.
+    static let isRoot: [Bool] = (0..<Blocks.count).map { ShapeClass.kind[$0] == .trunk && !Blocks.opaque[$0] && Blocks.key(BlockID($0)).hasSuffix("_roots") }
+    static let isLog: [Bool] = (0..<Blocks.count).map { ShapeClass.kind[$0] == .trunk && !isRoot[$0] }
 
     // Window: section-local -M ... 15 + M on each axis (inside the mesher's 48^3 region).
     static let M = 10
@@ -71,17 +75,20 @@ enum ShapeTrunks {
         s.dist.initialize(repeating: -1, count: n); s.col.initialize(repeating: 0, count: n); s.kids.initialize(repeating: 0, count: n)
         let leafT = Mesher.leafT, opaqueT = Blocks.opaque, collideT = Blocks.collide
         @inline(__always) func log(_ x: Int, _ y: Int, _ z: Int) -> Bool { isTrunk[Int(ctx.block(x, y, z))] }
+        @inline(__always) func logC(_ x: Int, _ y: Int, _ z: Int) -> Bool { isLog[Int(ctx.block(x, y, z))] }
+        // P433: root cells are limb cells of the tree (col 3): the walk below grows them out of the trunk's foot.
+        for y in -M..<(16 + M) { for z in -M..<(16 + M) { for x in -M..<(16 + M) where isRoot[Int(ctx.block(x, y, z))] { s.col[wi(x, y, z)] = 3 } } }
 
         // 1. Columns: vertical runs of logs standing on the ground, each measured over its whole height (full-height
         // reads, so every section that sees a run gives it the same foot, top, radius and taper).
         for z in -M..<(16 + M) { for x in -M..<(16 + M) {
             var y = -M
             while y < 16 + M {
-                guard log(x, y, z), y == -M || !log(x, y - 1, z) else { y += 1; continue }
+                guard logC(x, y, z), y == -M || !logC(x, y - 1, z) else { y += 1; continue }
                 var bot = y
-                while bot > y - 64 && isTrunk[Int(ctx.column(x, bot - 1, z))] { bot -= 1 }
+                while bot > y - 64 && isLog[Int(ctx.column(x, bot - 1, z))] { bot -= 1 }
                 var top = y
-                while top < y + 64 && isTrunk[Int(ctx.column(x, top + 1, z))] { top += 1 }
+                while top < y + 64 && isLog[Int(ctx.column(x, top + 1, z))] { top += 1 }
                 // P433 (Remington, Oct 24: "this giant log, which isn't the same log I hit, it morphed into something
                 // else... the log just got wider"; "clearly algorithmically generated when they break"): a log struck
                 // out of a trunk left two runs, and each was measured and classed on its own: the stump below lost
@@ -93,17 +100,19 @@ enum ShapeTrunks {
                     let c = cutBelow(ctx, x, bot, z)
                     if c < 0 { break }
                     bot = c
-                    while bot > y - 64 && isTrunk[Int(ctx.column(x, bot - 1, z))] { bot -= 1 }
+                    while bot > y - 64 && isLog[Int(ctx.column(x, bot - 1, z))] { bot -= 1 }
                 }
                 while top < y + 60 {
                     let c = cutAbove(ctx, x, top, z)
                     if c < 0 { break }
                     top = c
-                    while top < y + 64 && isTrunk[Int(ctx.column(x, top + 1, z))] { top += 1 }
+                    while top < y + 64 && isLog[Int(ctx.column(x, top + 1, z))] { top += 1 }
                 }
                 let H = top - bot + 1
                 let under = Int(ctx.column(x, bot - 1, z))
-                let grounded = !isTrunk[under] && !leafT[under] && (opaqueT[under] || collideT[under])
+                // P433: a trunk lifted on its roots (a mangrove) stands on them.
+                let onRoots = rootFoot(ctx, x, bot, z)
+                let grounded = onRoots || !isTrunk[under] && !leafT[under] && (opaqueT[under] || collideT[under])
                 let vertical = axisOf[Int(ctx.column(x, bot, z))] == 1
                 // PG4 ("birch trees get real birch shapes, not random procedural sticks"): an upright run of 3+ that
                 // springs from the side of another trunk (a birch's twin stem, the upper half of a kinked birch) is a
@@ -122,6 +131,7 @@ enum ShapeTrunks {
                     else if joined { kind = 0 }
                     else if H <= 2 && rootBeside(ctx, x, bot, z) { kind = 3 }     // a root beside a trunk's foot (upright or lying)
                     else if !vertical || H == 1 && lyingBeside(ctx, x, bot, z) { kind = 0 }   // a log lying on the ground
+                    else if vertical && onRoots { kind = 4 }                           // P433: a mangrove's stump on its roots
                     else if H <= 2 && SmoothTerrain.natural[under] { kind = 4 }    // P297: a tree's stump on the ground
                     // P433: a taller crownless trunk on natural ground with nothing built against it is a felled
                     // tree's stump too (its top fell away as one body), as thick as the tree it was; a post of a
@@ -130,7 +140,7 @@ enum ShapeTrunks {
                     else { kind = 2 }                                               // a post (built timber)
                     if kind != 0 {
                         let rb: Float = kind == 1 ? treeRadius(H) : (kind == 4 ? treeRadius(max(5, H + 4)) : 0.45)
-                        for yy in max(y, -M)...min(top, 15 + M) where log(x, yy, z) {       // (P433: not the cut's cells)
+                        for yy in max(y, -M)...min(top, 15 + M) where logC(x, yy, z) {      // (P433: not the cut's cells)
                             let i = wi(x, yy, z)
                             s.col[i] = kind
                             let t = (Float(yy - bot) + 0.5) / Float(H)
@@ -171,7 +181,10 @@ enum ShapeTrunks {
                     let px = gp % W - M, pz = (gp / W) % W - M, py = gp / (W * W) - M
                     lean = y - py == 1 && (x != px || z != pz)
                 }
-                s.rad[j] = max(0.07, s.col[j] == 3 ? pr * 0.7 : (lean ? pr * 0.92 : (d == 0 ? min(0.3, pr * 0.62) : pr * 0.8)))
+                // (P433: a root block's run keeps more of its width each step: prop roots are near the trunk's thickness)
+                let rootCell = isRoot[Int(ctx.block(nx, ny, nz))]
+                s.rad[j] = rootCell ? max(0.1, min(0.24, pr * (d == 0 ? 0.72 : 0.84)))
+                    : max(0.07, s.col[j] == 3 ? pr * 0.7 : (lean ? pr * 0.92 : (d == 0 ? min(0.3, pr * 0.62) : pr * 0.8)))
                 q.append(Int32(j))
             }
         }
@@ -183,10 +196,13 @@ enum ShapeTrunks {
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
             guard isTrunk[Int(b)] else { continue }
-            let base = Int(Blocks.groupBase[Int(b)])
-            let bark = Int(Blocks.tex[base * 6]), rings = Int(Blocks.tex[base * 6 + 2])
             let i = wi(x, y, z)
-            if s.col[i] == 1 || s.col[i] == 2 || s.col[i] == 4 {
+            // (P433: a root block wears its tree's bark, not its own see-through root texture)
+            let base = Int(Blocks.groupBase[Int(isRoot[Int(b)] ? treeOf(ctx, s, i) : b)])
+            let bark = Int(Blocks.tex[base * 6]), rings = Int(Blocks.tex[base * 6 + 2])
+            if isRoot[Int(b)] && !(s.dist[i] > 0 && s.par[i] >= 0) {
+                rootStub(ctx, x, y, z, bark: bark, sides: limbSides)                 // (a root left when its tree is gone)
+            } else if s.col[i] == 1 || s.col[i] == 2 || s.col[i] == 4 {
                 column(ctx, s, x, y, z, bark: bark, rings: rings, sides: sides)
             } else if s.dist[i] > 0 && s.par[i] >= 0 {
                 limb(ctx, s, i, x, y, z, bark: bark, rings: rings, sides: limbSides)
@@ -206,7 +222,7 @@ enum ShapeTrunks {
         while gap < 2 && ctx.column(x, c, z) == AIR { gap += 1; c -= 1 }
         guard gap > 0 else { return -1 }
         let b = ctx.column(x, c, z)
-        return isTrunk[Int(b)] && axisOf[Int(b)] == 1 ? c : -1
+        return isLog[Int(b)] && axisOf[Int(b)] == 1 ? c : -1
     }
     static func cutAbove(_ ctx: DetailContext, _ x: Int, _ top: Int, _ z: Int) -> Int {
         guard axisOf[Int(ctx.column(x, top, z))] == 1 else { return -1 }
@@ -214,7 +230,7 @@ enum ShapeTrunks {
         while gap < 2 && ctx.column(x, c, z) == AIR { gap += 1; c += 1 }
         guard gap > 0 else { return -1 }
         let b = ctx.column(x, c, z)
-        return isTrunk[Int(b)] && axisOf[Int(b)] == 1 ? c : -1
+        return isLog[Int(b)] && axisOf[Int(b)] == 1 ? c : -1
     }
     // P433: something built (not ground, log, leaf or plant) against a run's side at any of its heights.
     static func builtBeside(_ ctx: DetailContext, _ x: Int, _ bot: Int, _ top: Int, _ z: Int) -> Bool {
@@ -226,6 +242,50 @@ enum ShapeTrunks {
             if Blocks.collide[b] || Blocks.opaque[b] { return true }
         } }
         return false
+    }
+
+    // P433: a trunk's foot held up by root blocks: one straight under it, or under a face side (a mangrove's prop roots
+    // leave the foot log diagonally down).
+    static func rootFoot(_ ctx: DetailContext, _ x: Int, _ bot: Int, _ z: Int) -> Bool {
+        if isRoot[Int(ctx.column(x, bot - 1, z))] { return true }
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where isRoot[Int(ctx.column(x + dx, bot - 1, z + dz))] { return true }
+        return false
+    }
+    // P433: the log a root cell grows from (up its parents to the first non-root cell), or the cell's own block.
+    static func treeOf(_ ctx: DetailContext, _ s: Scratch, _ i: Int) -> BlockID {
+        var j = i, n = 0
+        while n < 16 {
+            let p = Int(s.par[j])
+            guard p >= 0 else { break }
+            let b = ctx.block(p % W - M, p / (W * W) - M, (p / W) % W - M)
+            if !isRoot[Int(b)] { return b }
+            j = p; n += 1
+        }
+        // (no tree reached: the wood the root block is named for, mangrove roots -> mangrove log)
+        let own = ctx.block(i % W - M, i / (W * W) - M, (i / W) % W - M)
+        let k = Blocks.key(own)
+        if let r = k.range(of: "_roots"), Blocks.has(String(k[..<r.lowerBound]) + "_log") { return Blocks.id(String(k[..<r.lowerBound]) + "_log") }
+        return own
+    }
+    // P433: a root block no tree reaches (its trunk chopped away): a short root arching from the cell down into the ground.
+    // (A stack of them is one root standing down into the ground: the hook only on the top cell, the tip only on the bottom one.)
+    static func rootStub(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, bark: Int, sides: Int) {
+        let c = SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+        let up = isRoot[Int(ctx.block(x, y + 1, z))], down = isRoot[Int(ctx.block(x, y - 1, z))]
+        let th = ctx.hash(x, y, z, 0x2033) * 6.28
+        let out = SIMD3<Float>(cosf(th), 0, sinf(th))
+        let r: Float = 0.13
+        if up {
+            tube(ctx, c + SIMD3(0, 0.5, 0), c, r, r, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: x &* 7 &+ y &* 13 &+ z))
+        } else {
+            tube(ctx, c + SIMD3(0, 0.2, 0) - out * 0.3, c, 0.04, r, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: x &* 7 &+ y &* 13 &+ z))
+        }
+        if down {
+            tube(ctx, c, c - SIMD3(0, 0.5, 0), r, r, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: x &* 5 &+ z))
+        } else {
+            let ground = ctx.groundTop(x, y - 1, z, reach: 2) ?? Float(y)
+            tube(ctx, c, SIMD3(c.x, min(c.y - 0.6, ground - 0.3), c.z) + out * 0.35, r, 0.08, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: x &* 5 &+ z))
+        }
     }
 
     // P398 (a): a log leans on from a column's top: a log one up and to the side (an acacia's lean), none straight up.
@@ -334,7 +394,13 @@ enum ShapeTrunks {
         let footCell = Int(ctx.block(x, y - 1, z))
         let onGround = !isTrunk[footCell] && (Blocks.opaque[footCell] || Blocks.collide[footCell])
         var flatFoot = !below
-        if !below && living && !onGround, let o = sideLog(ctx, x, y, z) {
+        // P433: a trunk lifted on its roots (a mangrove): its foot closes in a rounded bark underside between the roots,
+        // not a flat cut end or a bough from a neighbouring trunk.
+        let lifted = !below && !onGround && (living || stump) && rootFoot(ctx, x, y, z)
+        if lifted {
+            prof.append((y0 - 0.3, r * 0.45)); prof.append((y0 - 0.08, r * 0.9)); prof.append((y0 + 0.25, r))
+            flatFoot = false
+        } else if !below && living && !onGround, let o = sideLog(ctx, x, y, z) {
             let from = SIMD3<Float>(Float(x + o.x) + 0.5, Float(y + o.y) + 0.5, Float(z + o.z) + 0.5)
             let to = SIMD3<Float>(cx, y0 + 0.35, cz)
             tube(ctx, from, to, r * 0.95, r, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: x &* 31 &+ z))
@@ -366,7 +432,7 @@ enum ShapeTrunks {
         }
         let roots = !below && (living || stump) && onGround
         let wrap = max(1, (2 * .pi * r).rounded())          // bark repeats round the trunk (one count for every ring)
-        var prev: [SIMD3<Float>] = [], prevN: [SIMD3<Float>] = []
+        var prev: [SIMD3<Float>] = [], prevN: [SIMD3<Float>] = [], bottom: [SIMD3<Float>] = []
         for (k, (h, rr)) in prof.enumerated() {
             let c = lean(ctx, cx, cz, h, living: living)
             var ps: [SIMD3<Float>] = [], ns: [SIMD3<Float>] = []
@@ -399,7 +465,12 @@ enum ShapeTrunks {
                     ctx.vertex(ps[a + 1], n11, SIMD2(u1, -h), layer: lay)
                 }
             }
+            if k == 0 { bottom = ps }
             prev = ps; prevN = ns
+        }
+        if lifted {
+            let c = lean(ctx, cx, cz, prof[0].0, living: living)
+            cap(ctx, center: SIMD3(c.x, prof[0].0, c.y), pts: bottom.reversed(), normal: SIMD3(0, -1, 0), layer: bark)
         }
         // A cut top (timber, a stump, a living trunk at a struck cell): a flat end showing the rings.
         if !above && (!living || cutTop) {
@@ -491,7 +562,9 @@ enum ShapeTrunks {
         let ground = ctx.groundTop(x, y - 1, z, reach: 2) ?? Float(y)
         let rb = s.rad[i]
         // From low on the trunk (a quarter block up its foot cell) out to the root's cell, where it meets the ground.
-        let a = SIMD3<Float>(pj.x, Float(Int(floor(pj.y))) + 0.3, pj.z)
+        // (P433: a root block's run leaves its parent root where that one's limb ends.)
+        let fromRoot = s.col[p] == 3
+        let a = fromRoot ? pj : SIMD3<Float>(pj.x, Float(Int(floor(pj.y))) + 0.3, pj.z)
         var b = SIMD3<Float>(Float(x) + 0.5, min(Float(y) + 0.45, ground + rb * 0.35), Float(z) + 0.5)
         b.y = max(b.y, a.y - 1.2)
         let ra = min(s.rad[p], rb * 1.4)

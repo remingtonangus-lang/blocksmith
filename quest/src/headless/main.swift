@@ -494,11 +494,11 @@ if let out = arg("--view"), let ctx = vkctx {
             var y = ey + 24
             while y > ey - 12 {
                 let b = Int(vw.block(x, y, z))
-                guard ShapeClass.kind[b] == .trunk, Int(ShapeTrunks.axisOf[b]) == 1 else { y -= 1; continue }
+                guard ShapeTrunks.isLog[b], Int(ShapeTrunks.axisOf[b]) == 1 else { y -= 1; continue }
                 var foot = y
-                while ShapeClass.kind[Int(vw.block(x, foot - 1, z))] == .trunk { foot -= 1 }
+                while ShapeTrunks.isLog[Int(vw.block(x, foot - 1, z))] { foot -= 1 }
                 var top = y
-                while ShapeClass.kind[Int(vw.block(x, top + 1, z))] == .trunk { top += 1 }
+                while ShapeTrunks.isLog[Int(vw.block(x, top + 1, z))] { top += 1 }
                 let under = Int(vw.block(x, foot - 1, z))
                 var crown = false
                 for dy in -2...6 { for dz in -3...3 { for dx in -3...3 where Mesher.leafT[Int(vw.block(x + dx, top + dy, z + dz))] { crown = true } } }
