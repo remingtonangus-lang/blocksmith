@@ -1041,6 +1041,7 @@ enum Mesher {
                 outer: for y in (C0 - 2)..<(C0 + 20) { for z in (C0 - 2)..<(C0 + 20) { for x in (C0 - 2)..<(C0 + 20) where fkT[Int(R[x + z * RW + y * RL])] == kind { any = true; break outer } } }
                 if !any { continue }
                 let N = 18, NN = N * N, M = 17, MM = M * M
+                let WM = 7, W = N + 2 * WM                          // (P412 (a): the flood's window, 6 cells past the section's sides)
                 let taper: Float = kind == 2 ? 0.45 : 0.8           // (height lost a block out from the fluid's edge)
                 func top(_ j: Int) -> Float {
                     if fkT[Int(R[j + RL])] == kind { return 1 }
@@ -1051,6 +1052,45 @@ enum Mesher {
                 withUnsafeTemporaryAllocation(of: Float.self, capacity: N * NN) { F in
                 withUnsafeTemporaryAllocation(of: SIMD3<Float>.self, capacity: M * MM) { V in
                 withUnsafeTemporaryAllocation(of: Bool.self, capacity: M * MM) { has in
+                withUnsafeTemporaryAllocation(of: Float.self, capacity: W * W * N) { FLW in
+                    // P412 (a) (Oct 22 22:10, "block thing underneath": the sea's edge a staircase of cells against the
+                    // smooth shore): the flood. A bank cell whose drawn ground lies under the level of the fluid beside
+                    // it on the same layer (within a block of it, ground or fluid under the cell) is flooded, and the
+                    // flood runs on from cell to cell as the water would, until it meets ground above the level or a
+                    // drop. The level then runs on flat over the bank and meets the ground where the ground's own
+                    // surface crosses it, so the shoreline is the ground's curve, not the cells the generator filled.
+                    // Worked over a window 6 cells wider than the section on every side (from the region), so a
+                    // section and its neighbour agree on a flood that crosses their border (a flood ending at a
+                    // section's side stood as a front of water along a straight line).
+                    @inline(__always) func gTopAt(_ i: Int) -> Float { dens[i + RL] > 0 ? 1.5 : 0.5 + Float(dens[i]) / 32 }
+                    @inline(__always) func bank(_ i: Int) -> Bool {
+                        let b = Int(R[i])
+                        return fkT[b] == 0 && !collideT[b] && dens[i + RL] <= 0 && (dens[i - RL] > 0 || fkT[Int(R[i - RL])] == kind)
+                    }
+                    for sy in 0..<N { for wz in 0..<W { for wx in 0..<W {
+                        let i = (wx + C0 - WM) + (wz + C0 - WM) * RW + (sy + C0) * RL
+                        var Ls: Float = 0
+                        if bank(i) {
+                            for d in [1, -1, RW, -RW] where fkT[Int(R[i + d])] == kind { Ls = max(Ls, top(i + d)) }
+                            if Ls > 0 { let g = gTopAt(i); if !(g > Ls - 1 && g < Ls - 0.05) { Ls = 0 } }
+                        }
+                        FLW[wx + wz * W + sy * W * W] = Ls
+                    } } }
+                    var spread = true, passes = 0
+                    while spread && passes < 24 {
+                        spread = false; passes += 1
+                        for sy in 0..<N { for wz in 1..<(W - 1) { for wx in 1..<(W - 1) {
+                            let wi = wx + wz * W + sy * W * W
+                            guard FLW[wi] == 0 else { continue }
+                            let Ls = max(max(FLW[wi - 1], FLW[wi + 1]), max(FLW[wi - W], FLW[wi + W]))
+                            guard Ls > 0 else { continue }
+                            let i = (wx + C0 - WM) + (wz + C0 - WM) * RW + (sy + C0) * RL
+                            guard bank(i) else { continue }
+                            let g = gTopAt(i)
+                            guard g > Ls - 1, g < Ls - 0.05 else { continue }
+                            FLW[wi] = Ls; spread = true
+                        } } }
+                    }
                     for sy in 0..<N { for sz in 0..<N { for sx in 0..<N {
                         let i = (sx + C0) + (sz + C0) * RW + (sy + C0) * RL
                         let b = Int(R[i]), fk = fkT[b]
@@ -1066,7 +1106,9 @@ enum Mesher {
                                     if dy <= 0 { Lt = max(Lt, Float(dy) + top(j) - taper * Mesher.planeDist[(dx + 2) + (dz + 2) * 5]) }
                                 }
                             } } }
-                            if L > -9 {
+                            let Lf = FLW[(sx + WM) + (sz + WM) * W + sy * W * W]
+                            if Lf > 0 { f = Lf - 0.5 }
+                            else if L > -9 {
                                 // The level runs on flat only where the ground here reaches it (the drawn top in this
                                 // cell: half a cell plus its density, or all of it with ground over it), so the
                                 // surface goes under the bank. Ground lower than the level, or open air: P378 (a) the
@@ -1161,7 +1203,7 @@ enum Mesher {
                             }
                         } } }
                     }
-                } } }
+                } } } }
             }
         }
         // (P384 step 1, questcheck --perfscenes with BS_BLOCKTALLY: the main loop's quads by block and kind)

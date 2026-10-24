@@ -1333,6 +1333,16 @@ final class World {
                     let fa = fk[Int(a)], fb = fk[Int(b)]
                     guard fa != fb else { continue }
                     let openA = a == AIR && !c.blocks.ground(ia), openB = b == AIR && !n.blocks.ground(ib)
+                    // P412 (d) (Oct 22 22:22, "lava and water crossing over... should turn into obsidian"): the generator
+                    // hardens lava beside water inside a chunk (WorldGen.hardenLava); across a chunk border nothing did,
+                    // so a lava lake and an aquifer meeting at the border stayed as they were. The same rule here.
+                    if fa + fb == 3 {
+                        let lavaInC = fa == 2
+                        let q = lavaInC ? IVec3(c.cx * CS + lx, y, c.cz * CS + lz) : IVec3(n.cx * CS + nx, y, n.cz * CS + nz)
+                        let lv = Blocks.fluidLevel[Int(lavaInC ? a : b)]
+                        if setBlockAsync(q.x, q.y, q.z, lv == 0 ? OBSIDIAN : COBBLE) { scheduleFluid(around: q) }
+                        continue
+                    }
                     if fa != 0 && openB {
                         let q = IVec3(c.cx * CS + lx, y, c.cz * CS + lz)
                         if fa == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) }
@@ -1776,7 +1786,7 @@ final class World {
     // 1024-cell batch took ~20 ms on the M1 (the --quest bench's top tick spike on the plains and cave routes).
     static var fluidSeconds = Double.infinity
     private static let sideDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
-    static let lavaMeet = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0)]
+    static let lavaMeet = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0), IVec3(0, 1, 0)]   // (P412 (d): and lava over it)
     static let allDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
     var onFluidEvent: ((IVec3) -> Void)?     // lava/water reactions (sound)
 
@@ -1916,7 +1926,7 @@ final class World {
             if lava {
                 // Lava touching water hardens: source -> obsidian, flowing -> cobblestone.
                 var touching = false
-                for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, 1, 0)] where fkT[Int(fluidCell(p.x + d.x, p.y + d.y, p.z + d.z))] == 1 {
+                for d in World.lavaMeet where fkT[Int(fluidCell(p.x + d.x, p.y + d.y, p.z + d.z))] == 1 {   // (P412 (d): water under it too)
                     touching = true
                     break
                 }
