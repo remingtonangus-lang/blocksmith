@@ -160,7 +160,7 @@ if let out = arg("--view"), let ctx = vkctx {
         var x = 0, z = 0, dx = 0, dz = -1
         for _ in 0..<20000 {
             let wx = Int(at[0]) + x * 48, wz = Int(at[2]) + z * 48
-            if vw.gen.column(wx, wz).biome.name == want { vg.player.pos = V3(Float(wx) + 0.5, at[1], Float(wz) + 0.5); print("view: \(want) at \(wx) \(wz)"); break }
+            if vw.gen.column(wx, wz).biome.name == want || (vw.gen as? DeepGen)?.layerName(wx, Int(at[1]), wz) == want { vg.player.pos = V3(Float(wx) + 0.5, at[1], Float(wz) + 0.5); print("view: \(want) at \(wx) \(wz)"); break }
             if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
             x += dx; z += dz
         }

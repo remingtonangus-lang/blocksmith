@@ -23,6 +23,7 @@ final class VaultGround {
     let moss = Blocks.has("moss_block") ? Blocks.id("moss_block") : Blocks.id("grass_block")
     let road = Blocks.id("polished_blackstone"), andesite = Blocks.id("andesite"), tuff = Blocks.id("tuff")
     let mossyCobble = Blocks.id("mossy_cobblestone")
+    let ashSilt = Blocks.has("soul_soil") ? Blocks.id("soul_soil") : Blocks.id("coarse_dirt")
 
     init(seed: UInt64, s32: UInt32) {
         // (the same seeds as DeepGen's floor, river and material noise: the shapes old saves were made with)
@@ -65,10 +66,42 @@ final class VaultGround {
     func noMansLand(_ x: Int, _ z: Int) -> Float {
         let d = sqrtf(Float(x * x + z * z))
         let inner = AshLines.emberR + AshLines.emberHalf
-        guard d > inner - 4 && d < VaultGround.nmlOuter + VaultGround.nmlRagged else { return 0 }
+        guard d > inner - 4 else { return 0 }
+        guard d < VaultGround.nmlOuter + VaultGround.nmlRagged else { return farFront(x, z, d) }
         let outer = VaultGround.nmlOuter + VaultGround.nmlRagged * riverN.noise2(Float(x) / 95 + 31, Float(z) / 95 - 17)
         let a: Float = min(1, (d - inner + 4) / 10), b: Float = min(1, (outer - d) / 30)
-        return max(0, min(a, b))
+        return max(0, min(a, b), farFront(x, z, d))
+    }
+
+    // P436 (Oct 24 15:54, far out in the vault: "we need to have like a freaking no man's land. It needs to last for a
+    // long time, and then make two more biomes that are somehow representative of this time"). Past the ring round the
+    // Ember Line the vault was one green land. Now:
+    //   the old front   long winding belts of no man's land (a contour of a slow noise: 120-200 blocks across and
+    //                   thousands long), with the ring's wire, stakes, shell holes and dead trees
+    //   Drowned Fields  shelled farmland gone to marsh: mud and standing water in the shell holes, reeds, broken fences
+    //   Burnt Woods     a forest after the barrage: ash silt and charred ground, a crowd of dead and broken trunks
+    static let farFrom: Float = nmlOuter + 220
+    @inline(__always) func farFront(_ x: Int, _ z: Int, _ d: Float) -> Float {
+        guard d > VaultGround.farFrom - 60 else { return 0 }
+        let n = riverN.noise2(Float(x) / 1100 + 71.1, Float(z) / 1100 - 53.9)
+        let band = max(0, min(1, (0.075 - abs(n)) / 0.03))
+        guard band > 0 else { return 0 }
+        return band * max(0, min(1, (d - VaultGround.farFrom + 60) / 60)) * max(0, min(1, (AshWar.clearance(x, z) - 16) / 24))
+    }
+    // The two era lands (0 neither, 1 Drowned Fields, 2 Burnt Woods) and how far in (0...1); never in no man's land.
+    func era(_ x: Int, _ z: Int) -> (kind: Int, k: Float) {
+        let d = sqrtf(Float(x * x + z * z))
+        guard d > VaultGround.farFrom - 40 else { return (0, 0) }
+        let n = riverN.noise2(Float(x) / 650 - 13.3, Float(z) / 650 + 41.7)
+        guard abs(n) > 0.22 else { return (0, 0) }
+        let k = min(1, (abs(n) - 0.22) / 0.08) * max(0, min(1, (d - VaultGround.farFrom + 40) / 40))
+            * (1 - min(1, farFront(x, z, d) * 2)) * max(0, min(1, (AshWar.clearance(x, z) - 12) / 20))
+        return k > 0 ? (n > 0 ? 1 : 2, k) : (0, 0)
+    }
+    // Standing water in the Drowned Fields: the low patches and the shell holes.
+    func drowned(_ x: Int, _ z: Int) -> Bool {
+        let e = era(x, z)
+        return e.kind == 1 && e.k > 0.6 && !AshWar.isRoad(x, z) && matN.noise2(Float(x) / 13 + 7, Float(z) / 13 - 3) < -0.32
     }
 
     // How deep in a dark forest (0 open ground, 1 deep in): woods by their own noise, kept off the army's sites and roads
@@ -126,6 +159,9 @@ final class VaultGround {
         let m = matN.noise2(Float(x) / 19, Float(z) / 19)
         if c > 0.15 { return m > 0.2 ? coarse : mud }
         if nml > 0.4 { return m < -0.15 ? mud : (m < 0.35 ? coarse : rooted) }
+        let e = era(x, z)
+        if e.kind == 1 && e.k > 0.4 { return m < 0.05 ? mud : (m < 0.4 ? grass : moss) }
+        if e.kind == 2 && e.k > 0.4 { return m < -0.1 ? ashSilt : (m < 0.45 ? coarse : podzol) }
         if wood > 0.3 { return m < 0.1 ? podzol : (m > 0.55 ? moss : grass) }
         return m > 0.45 ? coarse : (m < -0.5 ? podzol : grass)
     }

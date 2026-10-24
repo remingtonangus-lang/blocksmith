@@ -143,8 +143,9 @@ final class DeepGen: TerrainGenerator {
             let river = vg.creek(wx, wz)
             let solidColumn = pillar(wx, wz)
             if river { f -= 1 }
-            let top = vg.surface(wx, wz, crater: cr, creek: river, wood: vg.wood(wx, wz), nml: vg.noMansLand(wx, wz))
-            let sub = top == vg.mud ? vg.mud : (top == vg.road ? rock : DIRT)
+            var top = vg.surface(wx, wz, crater: cr, creek: river, wood: vg.wood(wx, wz), nml: vg.noMansLand(wx, wz))
+            if !solidColumn && vg.drowned(wx, wz) { top = WATER }                 // P436: the Drowned Fields' pools
+            let sub = top == vg.mud || top == WATER ? vg.mud : (top == vg.road ? rock : DIRT)
             floors[lx + lz * CS] = f; ceils[lx + lz * CS] = c
             for y in 0..<CH {
                 let i = Chunk.index(lx, y, lz)
@@ -217,6 +218,7 @@ final class DeepGen: TerrainGenerator {
         let shortGrass = Blocks.has("short_grass") ? Blocks.id("short_grass") : AIR, fern = Blocks.has("fern") ? Blocks.id("fern") : AIR
         let deadBush = Blocks.has("dead_bush") ? Blocks.id("dead_bush") : AIR, wire = Blocks.has("ash_wire") ? Blocks.id("ash_wire") : AIR
         let post = AshLines.post
+        let sugarCane = Blocks.has("sugar_cane") ? Blocks.id("sugar_cane") : AIR
         for lz in 0..<CS { for lx in 0..<CS {
             let f = floors[lx + lz * CS]
             guard f + 1 < CH, b[Chunk.index(lx, f + 1, lz)] == AIR else { continue }
@@ -224,7 +226,14 @@ final class DeepGen: TerrainGenerator {
             let wx = bx + lx, wz = bz + lz
             let h = hash3(wx, 9, wz, s32 ^ 0x6A55) % 1000
             var plant = AIR
-            if t == vg.grass || t == vg.podzol || t == vg.moss {
+            let era = vg.era(wx, wz)
+            if era.kind == 1 && era.k > 0.4 && (t == vg.grass || t == vg.moss || t == vg.mud) {
+                // The Drowned Fields: rank grass and reeds, now and then a stake of a broken fence.
+                if h < 260 { plant = h % 3 == 0 && sugarCane != AIR && vg.drowned(wx + 1, wz) ? sugarCane : shortGrass }
+                else if h >= 994 { plant = post }
+            } else if era.kind == 2 && era.k > 0.4 {
+                if h < 60 && t != vg.ashSilt { plant = deadBush }                 // the Burnt Woods: scorched scrub
+            } else if t == vg.grass || t == vg.podzol || t == vg.moss {
                 let w = vg.wood(wx, wz)
                 if h < UInt32(110 + 200 * w) { plant = h % 5 == 0 && w > 0.2 ? fern : shortGrass }
             } else if t == vg.coarse || t == vg.rooted || t == vg.mud {
@@ -263,6 +272,10 @@ final class DeepGen: TerrainGenerator {
                         kind = pick < 0.5 ? .darkOak : (pick < 0.82 ? .spruce : (pick < 0.9 ? .deadOak : (pick < 0.95 ? .stumpOak : .fallenOak)))
                     } else if roll < 0.07 && vg.noMansLand(tx, tz) > 0.3 {
                         kind = pick < 0.45 ? .deadOak : (pick < 0.8 ? .stumpOak : .deadSpruce)
+                    } else if case let e = vg.era(tx, tz), e.kind == 2, roll < 0.3 * e.k {
+                        kind = pick < 0.4 ? .deadSpruce : (pick < 0.7 ? .deadOak : (pick < 0.9 ? .stumpOak : .fallenOak))   // P436: Burnt Woods
+                    } else if case let e = vg.era(tx, tz), e.kind == 1, roll < 0.012 * e.k {
+                        kind = pick < 0.6 ? .deadOak : .stumpOak                                                              // (a lone dead tree in the marsh)
                     } else if roll < 0.004 {
                         kind = pick < 0.5 ? .darkOak : .deadOak
                     }
@@ -271,7 +284,7 @@ final class DeepGen: TerrainGenerator {
                     if keepOut.contains(where: { abs(tx - $0.x) <= $0.r + 6 && abs(tz - $0.z) <= $0.r + 6 }) { continue }
                     let gy = vg.top(tx, tz)
                     let soil = vg.surface(tx, tz, crater: 0, creek: false, wood: wd, nml: vg.noMansLand(tx, tz))
-                    guard soil != vg.mud && soil != vg.road else { continue }
+                    guard soil != vg.mud && soil != vg.road && !vg.drowned(tx, tz) else { continue }
                     sites.append((k, tx, gy, tz))
                 }
             }
@@ -334,7 +347,10 @@ final class DeepGen: TerrainGenerator {
         if y <= DeepGen.coreTop { return "Molten Core" }
         if y < DeepSeal.bottom {
             guard y < ceilingY(x, z) else { return "Lower Crust" }
-            return ground.noMansLand(x, z) > 0.5 ? "No Man's Land" : "Ash Vault"          // P346 (e)
+            if ground.noMansLand(x, z) > 0.5 { return "No Man's Land" }                     // P346 (e)
+            let e = ground.era(x, z)                                                          // P436
+            if e.k > 0.5 { return e.kind == 1 ? "Drowned Fields" : "Burnt Woods" }
+            return "Ash Vault"
         }
         if DeepSeal.inBand(y) { return "Sealrock" }
         if y >= DeepGen.crustTop { return "Upper Crust" }
