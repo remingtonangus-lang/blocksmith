@@ -55,7 +55,7 @@ enum QuestOptions {
         PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]
-        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autord", "q_hud", "q_bright", "q_diff"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
@@ -85,6 +85,7 @@ enum QuestOptions {
             "q_held": "How big swords, tools, blocks and guns look in your hand (0.8x to 1.5x).",
             "q_hand": "Which hand aims, breaks and uses (the other hand moves). Left swaps every button, stick, trigger and grip between the hands; the Menu button stays on the left controller.",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
+            "q_diff": "How hard the enemies hit, aim and come at you in this world. It changes at once.",
             "q_view": "How far the land is drawn, 8 to 24 chunks. Lower it when the game isn't keeping up; it applies at once.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
             "host:touch": "Every Touch controller button and what it does.",
@@ -151,6 +152,8 @@ enum QuestOptions {
                 ("Texture Detail: \(S.textureRes >= 128 ? "High" : "Medium")\(S.textureRes != TextureGen.size ? " (next launch)" : "")", "q_tex"),
             ]
             if hooks.rates().count <= 1 { rows.removeAll { $0.1 == "q_hz" } }
+            // P419 (d) (Oct 23 21:21: "I don't know what mode this is"): the world's difficulty at the top, changeable.
+            if let g = hooks.game() { rows.insert(("Difficulty: \(Difficulty.name(g.diffLevel))", "q_diff"), at: 0) }
             return ("VR Comfort & Controls", "Snap turning, teleport and a strong vignette are the gentlest", rows)
         }
         PauseMenu.hostAct = { id, back in act(id, back: back) }
@@ -270,6 +273,10 @@ enum QuestOptions {
             // P415: live; the active distance never goes past it (Game.setActiveDistance)
             S.renderDistance = step(S.viewSteps, S.renderDistance, back)
             if let g = hooks.game() { g.setRenderDistance(S.renderDistance); g.setActiveDistance(Game.savedActiveDistance) }
+        case "q_diff":
+            guard let g = hooks.game() else { break }
+            g.diffLevel = step([0, 1, 2, 3, 4, 5], g.diffLevel, back)
+            Difficulty.level = g.diffLevel
         case "q_autord": S.autoRenderDistance.toggle()
         case "q_clouds": S.clouds.toggle()
         case "q_hudfade": S.hudFade.toggle()

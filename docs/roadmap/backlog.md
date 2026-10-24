@@ -31,7 +31,7 @@ P417. [DONE #434 (a, b); (c) is in P403] [Remington, Oct 23 21:06-21:12] GETTING
 
 P418. [DONE #433] [Remington, Oct 23 21:06] REMOVE THE ENDERMAN-LIKE MOB. 'We gotta get rid of Enderman. They can't be in the game.' Remove it from spawning everywhere (IP rule); existing ones despawn on load.
 
-P419. [Remington, Oct 23 21:11-21:25] ENEMIES. (a) Capital soldiers spawned in an area he had already cleared (21:11); (b) some enemies stand there oblivious and never attack ('way too peaceful', 21:17-21:18); (c) one shot him through a wall (21:20-21:21): no hits through solid walls; (d) one gun nearly killed him in one or two hits on what he thinks is easy (21:19, 21:25; he found a 'Rare slate repeater' after): check damage against the difficulty table (with P413 (c)) and show the current difficulty in Options.
+P419. [DONE #438] [Remington, Oct 23 21:11-21:25] ENEMIES. (a) Capital soldiers spawned in an area he had already cleared (21:11); (b) some enemies stand there oblivious and never attack ('way too peaceful', 21:17-21:18); (c) one shot him through a wall (21:20-21:21): no hits through solid walls; (d) one gun nearly killed him in one or two hits on what he thinks is easy (21:19, 21:25; he found a 'Rare slate repeater' after): check damage against the difficulty table (with P413 (c)) and show the current difficulty in Options.
 
 P420. [Remington, Oct 23 21:16, 21:32] WHAT IS USING THE COMPUTE. 'I need a list of what is causing all the compute.' On playtest builds, a page in the pause menu shows the live per-system frame cost the stats line already measures (terrain, far land, mobs, entities, particles, water, sky, ui, GPU ms) plus fps, view and active distance, so he can see what is heavy where he stands.
 

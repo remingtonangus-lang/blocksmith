@@ -45,8 +45,10 @@ enum BlockWear {
     // A round passes on through what it broke (glass, leaves, panes, wool).
     static func passable(_ id: BlockID) -> Bool { hp(id) <= 8 }
 
-    // Between a and b only blocks rounds can wear away, at most n of them, and at least one (P305 b: a soldier shoots
-    // through it). Quarter-block steps; a soldier only asks with a shot ready.
+    // Between a and b only blocks a round passes on through (glass, panes, leaves, wool: `passable`), at most n of them,
+    // and at least one (P305 b: a soldier shoots through it). Quarter-block steps; a soldier only asks with a shot ready.
+    // P419 (c) (Oct 23 21:20-21:21, "he's hitting me through the wall somehow"): a wall a round only wears (concrete,
+    // planks, stone) holds the shot; it was counted as thin cover too, so soldiers fired through base walls.
     static func thinCover(_ w: World, _ a: V3, _ b: V3, max n: Int) -> Bool {
         let d = b - a
         let len = simd_length(d)
@@ -64,7 +66,7 @@ enum BlockWear {
             if w.fieldTerrain && w.fieldDensity(at: p) > 0 { return false }
             let id = w.builtBlock(c.x, c.y, c.z)
             guard Blocks.collide[Int(id)] && Blocks.fluidKind[Int(id)] == 0 else { continue }
-            guard hp(id).isFinite && w.blockEntities[c] == nil else { return false }
+            guard passable(id) && w.blockEntities[c] == nil else { return false }
             count += 1
             if count > n { return false }
         }
