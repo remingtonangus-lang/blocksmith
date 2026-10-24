@@ -38,6 +38,7 @@ enum Difficulty {
         let spawns: Float     // how many monsters the spawner keeps about
         let flier: Float      // what a hit on a hostile flier counts for
         var rate: Int = 0     // P358: most half-hearts the player can lose in any one second (0: no limit)
+        var blow: Int = 0     // P413: most half-hearts one attack can take on the levels without `cap` (0: no limit)
     }
     static let rows: [Row] = [
         // peaceful
@@ -46,10 +47,12 @@ enum Difficulty {
         Row(taken: 0.2, cap: 3, armour: 1.3, regen: 2, hunger: 0.5, speed: 0.75, aim: 2.4, pace: 0.5, sight: 0.6, spawns: 0.4, flier: 2.5, rate: 3),
         // easy
         Row(taken: 0.35, cap: 5, armour: 1.15, regen: 1.5, hunger: 0.7, speed: 0.88, aim: 1.7, pace: 0.7, sight: 0.8, spawns: 0.65, flier: 1.8, rate: 5),
-        // normal
-        Row(taken: 1, cap: 0, armour: 1, regen: 1, hunger: 1, speed: 1, aim: 1, pace: 1, sight: 1, spawns: 1, flier: 1),
+        // normal (P413, Oct 22 22:16: "whatever hit me near well killed me... it has to be like on very hard mode or it was
+        // too much": a Greywall gun's shell took 21 half-hearts at once; one blow takes at most half his health here, 7
+        // hearts on Hard, and only Very Hard has no limit; attacks only: a fall or lava still kills)
+        Row(taken: 1, cap: 0, armour: 1, regen: 1, hunger: 1, speed: 1, aim: 1, pace: 1, sight: 1, spawns: 1, flier: 1, blow: 10),
         // hard
-        Row(taken: 1.5, cap: 0, armour: 0.85, regen: 0.85, hunger: 1.25, speed: 1.12, aim: 0.75, pace: 1.2, sight: 1.15, spawns: 1.35, flier: 1),
+        Row(taken: 1.5, cap: 0, armour: 0.85, regen: 0.85, hunger: 1.25, speed: 1.12, aim: 0.75, pace: 1.2, sight: 1.15, spawns: 1.35, flier: 1, blow: 14),
         // very hard
         Row(taken: 2, cap: 0, armour: 0.7, regen: 0.7, hunger: 1.5, speed: 1.25, aim: 0.55, pace: 1.45, sight: 1.3, spawns: 1.7, flier: 1),
     ]

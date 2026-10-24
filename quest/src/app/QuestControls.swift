@@ -1650,10 +1650,15 @@ final class QuestControls {
                                           rounds: game.arms.reload > 0 ? 0 : game.held.tag, scale: gk, upgrades: game.held.ench,
                                           slide: GunActions.slideDrawn(gi), spin: game.arms.barrel, into: ptr)
             let shift = QuestControls.heldGunShift(gi)
+            // P413: the kick in the hand follows the gun ("it has to have recoil"): the muzzle climbs and the gun
+            // shoves back, a sidearm a little, a shotgun or launcher hard. The model's own kick was the same for all.
+            let rk: Float = game.arms.kick * min(2.5, max(0.6, 0.5 + Guns.all[gi].recoil * 25))
+            let krot = rot * Quat(angle: rk * 0.12, axis: V3(1, 0, 0))
+            let kpos = pos + krot.act(V3(0, 0.01 * rk, 0.05 * rk))
             for i in 0..<n {
                 let v = ptr[i].pos
                 let local = V3(v.x, v.y, v.z) + shift      // the grip sits in the hand
-                let w = rot.act(local) + pos
+                let w = krot.act(local) + kpos
                 ptr[i].pos = V4(w.x, w.y, w.z, v.w)
             }
             app.scene.commit(off, n, MobVert.self)
