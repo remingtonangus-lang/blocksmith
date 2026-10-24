@@ -37,7 +37,7 @@ P419. [DONE #438] [Remington, Oct 23 21:11-21:25] ENEMIES. (a) Capital soldiers 
 
 P420. [DONE #451: pause menu > What Is Using the Compute (playtest builds)] [Remington, Oct 23 21:16, 21:32] WHAT IS USING THE COMPUTE. 'I need a list of what is causing all the compute.' On playtest builds, a page in the pause menu shows the live per-system frame cost the stats line already measures (terrain, far land, mobs, entities, particles, water, sky, ui, GPU ms) plus fps, view and active distance, so he can see what is heavy where he stands.
 
-P421. [Remington, Oct 23 21:21] MESSAGE LOG. On-screen messages vanish before he can read them: keep the last 50 in a page he can open from the pause menu.
+P421. [DONE #452: pause menu > Messages, the last 50 on-screen messages] [Remington, Oct 23 21:21] MESSAGE LOG. On-screen messages vanish before he can read them: keep the last 50 in a page he can open from the pause menu.
 
 P422. [Remington, Oct 23 21:13] BASE CONSOLES. The many consoles in a base all do the same thing; give them different jobs (map of the base, alarm off, doors, cameras, the base locator he used).
 
