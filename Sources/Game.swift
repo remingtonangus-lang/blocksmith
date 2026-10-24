@@ -1315,6 +1315,9 @@ final class Game {
             if bk.hasPrefix("campfire") && !bk.contains("[off]") { openMenu(GunCampMenu(game: self)); mining = nil; return }   // D9: gun care at camp
             if bk.contains("campfire") && useNewBlock(t) { mining = nil; return }   // (P97)
         }
+        // P434 (b): ...and a ship's door (the frigate's bulkheads) the same way.
+        if useNow && heldGun != nil && !(input.shift || p.b) && !swung && shipDoorAimed(),
+           shipInteract(breakHeld: false, breakNow: false, useNow: true, sneak: false, dt: fdt) { mining = nil; return }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if !swung && !handsOnControls && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
         if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }

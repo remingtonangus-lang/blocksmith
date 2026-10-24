@@ -48,6 +48,8 @@ extension Game {
         guard clock >= EnemySub.nextSpawn, survival, difficulty > 0, alive, !Reckoning.won else { return }
         let p = player.pos
         guard EnemySub.deep(world, Int(floor(p.x)), Int(floor(p.z))) != nil else { return }
+        // P434 (e): no hunt while the player rides a ship that isn't a submarine (the frigate, an airship).
+        if let on = ships.aboardOrPilot, on.root.ballast == 0 { return }
         guard Rand.float(in: 0..<1) < 0.35 else { return }
         let a0 = Rand.float(in: 0..<(2 * .pi))
         for k in 0..<8 {
@@ -81,7 +83,8 @@ extension Game {
         let to = V2(p.x - s.pos.x, p.z - s.pos.z)
         let d = simd_length(to)
         // Left far behind: she dives off and is gone.
-        if d > 400 || !alive {
+        let onShip = world.ships.aboardOrPilot.map { $0.root.ballast == 0 } ?? false
+        if d > 400 || !alive || (onShip && d > EnemySub.torpedoRange) {
             world.ships.remove(s)
             EnemySub.nextSpawn = clock + EnemySub.cooldown
             return

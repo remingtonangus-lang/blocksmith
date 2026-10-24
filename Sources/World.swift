@@ -1716,6 +1716,8 @@ final class World {
             let p = a + d * (Float(i) / Float(steps))
             if opaqueAt(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) { return false }     // (P377 step 2: the ground by its field)
         }
+        // P434 (a): a ship's hull (a frigate's deck and doors) hides what is behind it too.
+        if !ships.list.isEmpty, ships.segmentHit(a, d / len, len, except: -1) != nil { return false }
         return true
     }
 
@@ -1731,6 +1733,7 @@ final class World {
             let id = Int(block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))
             if Blocks.collide[id] && Blocks.fluidKind[id] == 0 { return false }
         }
+        if !ships.list.isEmpty, ships.segmentHit(a, d / len, len, except: -1) != nil { return false }      // (P434 a)
         return true
     }
 

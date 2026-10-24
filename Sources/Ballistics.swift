@@ -171,8 +171,19 @@ final class Armory {
                 if let h = Armory.mobHit(g, s.pos, dir, len, shooter: s.shooter, friendly: !s.fromPlayer, skip: s.pierced, spareStock: !Armory.playersOwn(s), side: s.side), h.1 < hitT { hitT = h.1; mob = h.0; player = false }
             }
             // Shells and rockets burst on ship hulls (they flew through them); the shooter's own deck aside.
+            // P434 (a) (Oct 24 15:24-15:29, "men are shooting through the ceiling of the frigate... through the doors"):
+            // bullets stop on hulls too. (d) ("trying to fire rockets in the frigate, they're not working"): his own
+            // ship's hull is spared only for the first 3 blocks (clear of the muzzle); rockets fired inside it went
+            // straight out through its walls.
+            if s.kind == .bullet, !w.ships.list.isEmpty, let h = w.ships.segmentHit(s.pos, dir, len, except: -1), h.0 < hitT,
+               Armory.blockHit(w, s.pos, dir, h.0).map({ $0.0 >= h.0 }) ?? true {
+                s.dead = true
+                slugs[i] = s
+                g.sfx(.bulletImpact(.metal), 0.5, at: s.pos + dir * h.0)
+                continue
+            }
             if s.kind == .shell || s.kind == .rocket {
-                let own = s.fromPlayer ? (w.ships.aboard?.root.id ?? -1) : -1
+                let own = s.fromPlayer && s.traveled < 3 ? (w.ships.aboard?.root.id ?? -1) : -1
                 if let h = w.ships.segmentHit(s.pos, dir, len, except: own), h.0 < hitT,
                    Armory.blockHit(w, s.pos, dir, h.0).map({ $0.0 >= h.0 }) ?? true {
                     let at = s.pos + dir * max(0, h.0 - 0.3)

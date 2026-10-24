@@ -385,8 +385,19 @@ extension Capital {
         hb.set(-2, 14, 92, deck)
         ladderUp(-1, 15, 20, 60, 3, backing: wall)
 
-        // The ladder trunk (x -3, z 89): gun deck, main deck, upper deck and the bridge, one shaft.
-        for y in 9...24 { hb.set(-3, y, 89, ladder + 3); hb.set(-4, y, 89, trim) }
+        // The ladder trunk (x -3, z 89): gun deck, main deck and upper deck, one shaft.
+        for y in 9...20 { hb.set(-3, y, 89, ladder + 3); hb.set(-4, y, 89, trim) }
+        // P434 (c) (Oct 24 15:30-15:31, "how do I even get to the helm?... there's a ladder... such an unintuitive way to
+        // get there"): the bridge is reached by a stair, two wide, up from the upper deck's corridor (x -3...-2, rising
+        // forward over z 90-87) through a well in the bridge floor, lit at its head, instead of the trunk's last ladder.
+        for k in 0...3 {
+            for x in [-3, -2] {
+                hb.set(x, 21 + k, 90 - k, stairs)
+                for y in stride(from: 22 + k, through: 24, by: 1) { hb.set(x, y, 90 - k, AIR) }
+            }
+        }
+        for x in [-3, -2] { hb.set(x, 24, 91, AIR) }
+        hb.set(-4, 26, 88, light)
 
         // The engine room (z 121-154): bulkheads fore and aft, the lower level beside the lower engines (floor y 8), a catwalk
         // deck at y 14 (the main deck's level) down the middle, along both flanks and across at both ends and the middle,
@@ -448,6 +459,16 @@ extension Capital {
         hb.set(7, 9, 110, Blocks.id("chest"))
         hb.chests.append((hb.grid(4, 25, 86), "meridian_hold"))
         hb.set(4, 25, 86, Blocks.id("chest"))
+        // P434 (c) ("why is there a door right above a ladder?"): a door the deck plans set where a ladder comes up is
+        // left an open doorway (the ladder's head opens onto it).
+        do {
+            let ladderBase = Blocks.groupBase[Int(ladder)], doorBase = Blocks.groupBase[Int(door)]
+            for y in 1..<(hb.sy - 2) { for z in 0..<hb.sz { for gx in 0..<hb.sx {
+                let x = gx - hb.ox
+                guard Blocks.groupBase[Int(hb.get(x, y, z))] == ladderBase else { continue }
+                if Blocks.groupBase[Int(hb.get(x, y + 1, z))] == doorBase { hb.set(x, y + 1, z, AIR); hb.set(x, y + 2, z, AIR) }
+            } } }
+        }
         // Crew: the helmsman, a gunner per mount, marines in the hangar.
         hb.post(0, 25, 75, .driver)
         for (x, y, z) in [(2, 25, 96), (2, 29, 126), (-7, 14, 33), (7, 14, 33)] { hb.post(x, y, z, .gunner) }
