@@ -361,6 +361,7 @@ extension Mesher {
                             leaves: Bool = false, shells: Int = 2, leafHoles: Bool = false, detailHoles: Bool = false, world: SIMD3<Int>? = nil,
                             crater: CraterSet? = nil, carveOut: GrowBuf<UInt32>? = nil, merge: GroundMerge? = nil,
                             exact: GrowBuf<Float>? = nil, tri: Bool = false,
+                            pin: ((Int, Int, Int, SIMD3<Float>) -> SIMD3<Float>?)? = nil,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let leafT = Mesher.leafT
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
@@ -695,6 +696,15 @@ extension Mesher {
                 if VL[vi] >= 0 { hook(kx - KO, ky - KO, kz - KO, SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])) }
             } } }
         }
+        // P404: `pin` moves an owned dual vertex (section-local cell, its position) onto another mesh's vertex where the
+        // two must meet (Mesher.fineGround: the half-block ground's outer edge onto the cells-drawn neighbour's vertices).
+        if let pin {
+            for ky in KO...(KO + 16) { for kz in KO...(KO + 16) { for kx in KO...(KO + 16) {
+                let vi = kx + kz * K + ky * KK
+                guard VL[vi] >= 0, let q = pin(kx - KO, ky - KO, kz - KO, SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])) else { continue }
+                VP[vi * 3] = q.x; VP[vi * 3 + 1] = q.y; VP[vi * 3 + 2] = q.z
+            } } }
+        }
         if !leaves { sc.smValid = true }
         // Quads: block p and its +axis neighbour q, one solid (natural) and one open.
         var corner = [Int](repeating: 0, count: 4)
@@ -727,6 +737,7 @@ extension Mesher {
                 let nrm = simd_cross(pts[2] - pts[0], pts[3] - pts[1])
                 let ax = abs(nrm.x), ay = abs(nrm.y), az = abs(nrm.z)
                 let len = simd_length(nrm)
+                if pin != nil && len < 1e-8 { continue }        // (P404: a quad whose corners were pinned together)
                 let f: Int
                 if nrm.y > 0.5 * len { f = 2 }                 // up to 60 degrees: the top texture (grass on slopes)
                 else if ay >= ax && ay >= az { f = nrm.y > 0 ? 2 : 3 }

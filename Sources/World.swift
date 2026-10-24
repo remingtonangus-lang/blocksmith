@@ -270,6 +270,21 @@ final class World {
         return m
     }
 
+    // P404: for a chunk whose 3x3 has fine samples (its sections may draw half-block ground, Mesher.fineGround), per side
+    // (World.sides order) the sections (bit = section) with fine samples in the three chunks two steps out on that side:
+    // with the 3x3 that says which side neighbours draw from their cells. Empty when no section of the chunk can be fine.
+    func fineBeyond(_ c: Chunk, _ n9: [BlockStore]) -> [UInt32] {
+        guard fieldTerrain, FineField.enabled, n9.contains(where: { !$0.fine.isEmpty }) else { return [] }
+        return World.sides.map { (dx, dz) in
+            var bits: UInt32 = 0
+            for k in -1...1 {
+                guard let n = chunks[ChunkKey(x: c.cx + 2 * dx + (dz != 0 ? k : 0), z: c.cz + 2 * dz + (dx != 0 ? k : 0))] else { continue }
+                for s in n.blocks.fine.keys where s >= 0 && s < 32 { bits |= 1 << UInt32(s) }
+            }
+            return bits
+        }
+    }
+
     @inline(__always) func inMeshRadius(_ dx: Int, _ dz: Int) -> Bool {
         dx * dx + dz * dz <= renderDistance * renderDistance + renderDistance
     }
@@ -895,7 +910,7 @@ final class World {
     func lodQuads(_ c: Chunk, _ sy: Int) -> [(Int, Int)] {
         guard let nb = neighbourhood(c) else { return [] }
         return [0, 1].map { lod in
-            let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: lod, site: smoothSite(c), chunk: (c.cx, c.cz), nearSides: nearSides(c, lod: lod))
+            let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: lod, site: smoothSite(c), chunk: (c.cx, c.cz), nearSides: nearSides(c, lod: lod), fineBeyond: fineBeyond(c, nb.0))
             let q = m.opaque.count / 8
             return (m.solidQuads, q - m.solidQuads)
         }
@@ -909,7 +924,7 @@ final class World {
     func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
         apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), pieces: pieceList(c), objects: objectReg.draws(c), site: smoothSite(c), chunk: (c.cx, c.cz),
-                                  nearSides: nearSides(c, lod: c.lod), adaptive: !fieldTerrain), to: c, sy: sy, version: c.sections[sy].version)
+                                  nearSides: nearSides(c, lod: c.lod), adaptive: !fieldTerrain, fineBeyond: fineBeyond(c, nb.0)), to: c, sy: sy, version: c.sections[sy].version)
         // P381 step 5: on the frame the edit draws the section's ground in full (no wait, exact), and a mesh worker then
         // redraws just the touched sections with the adaptive ground (AdaptiveGround.swift).
         if fieldTerrain && AdaptiveGround.enabled { c.sections[sy].version += 1 }
@@ -1248,7 +1263,7 @@ final class World {
         let lod = c.lod
         let dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c)
         let site = smoothSite(c)
-        let near = nearSides(c, lod: lod)
+        let near = nearSides(c, lod: lod), beyond = fineBeyond(c, n9)
         c.meshInFlight = true
         jobs += 1
         // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
@@ -1256,7 +1271,7 @@ final class World {
             guard let self else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var out: [(Int, Int, SectionMesh)] = []
-            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near))) }
+            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond))) }
             let el = CFAbsoluteTimeGetCurrent() - t0
             self.lock.lock()
             self.meshResults.append((k, out))
@@ -1525,12 +1540,13 @@ final class World {
         let ols = toMesh.map { objectReg.draws($0.0) }
         let sites = toMesh.map { smoothSite($0.0) }
         let nears = toMesh.map { nearSides($0.0, lod: $0.0.lod) }          // (every chunk's level is set by now)
+        let beyonds = toMesh.map { fineBeyond($0.0, $0.3) }
         let meshes = UnsafeMutablePointer<SectionMesh>.allocate(capacity: max(1, toMesh.count))
         defer { meshes.deallocate() }
         DispatchQueue.concurrentPerform(iterations: toMesh.count) { i in
             let t = toMesh[i]
             (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], bites: bls[i], pieces: pls[i], objects: ols[i], site: sites[i],
-                                                            chunk: (t.0.cx, t.0.cz), nearSides: nears[i]))
+                                                            chunk: (t.0.cx, t.0.cz), nearSides: nears[i], fineBeyond: beyonds[i]))
         }
         for (i, t) in toMesh.enumerated() {
             apply((meshes + i).move(), to: t.0, sy: t.1, version: t.2)

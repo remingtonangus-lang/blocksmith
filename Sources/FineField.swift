@@ -212,13 +212,46 @@ extension Mesher {
     // The section's ground at half-block cells: its 16^3 blocks as eight 16^3 sections of half blocks, each meshed by
     // smoothQuads on a region built at half scale (cells, light and materials of the block each half block is in; the
     // density from the fine samples, or upsampled from the cells, in half-block units), positions scaled back.
+    // P404 (Remington, Oct 22, 23:08, 23:10, 23:12: "cracks in the ground"): a section drawn from its cells meets the
+    // half-block ground beside it along the half-block ground's outer edge, and the two surfaces (the same field, drawn
+    // at two sizes of cell) differed by up to a twentieth of a block there: from a low angle the eye slipped under the
+    // higher edge and saw the sky through the ground, a pale hairline along the border of the edited chunks' ring. Now
+    // the half-block ground's outer edge takes the cells-drawn neighbour's own vertices: on a side meeting a section
+    // drawn from its cells (`fineBeyond` from World.fineBeyond says what lies past the 3x3 chunks), the ground's two
+    // outer half-block cells pin onto the vertex the cells draw there (the nearest of the cells' vertices the half-block
+    // cell lies in), so the border is the very polyline the neighbour draws: no slit, no overlap.
     static func fineGround(_ n9: [BlockStore], sy: Int, _ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, leafHoles: Bool, detailHoles: Bool,
-                           exact: GrowBuf<Float>? = nil, _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
+                           exact: GrowBuf<Float>? = nil, fineBeyond: [UInt32] = [], _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let vs = sc.fineScratch
         let vR = vs.region, vSky = vs.sky, vBlk = vs.blk, vD = vs.dens
         let dens = sc.dens, sky = sc.sky, blk = sc.blk
         let natT = SmoothTerrain.natural, opaqueT = Blocks.opaque, loT = Blocks.lightOpaque
         @inline(__always) func ri(_ x: Int, _ y: Int, _ z: Int) -> Int { (x + C0) + (z + C0) * RW + (y + C0) * RL }
+        // P404: the sides (bits as World.sides: 0 -x, 1 +x, 2 -z, 3 +z; 4 below, 5 above) whose neighbour draws from its
+        // cells: no chunk of its 3x3 has fine samples at its height or next to it.
+        var coarse = 0
+        if fineBeyond.count == 4 {
+            let lo = max(0, sy - 1), hi = min(NSEC - 1, sy + 1)
+            for s in 0..<4 {
+                let (dx, dz) = World.sides[s]
+                var fine = false
+                for oz in -1...1 where abs(oz - dz) <= 1 { for ox in -1...1 where abs(ox - dx) <= 1 {
+                    let st = n9[(ox + 1) + (oz + 1) * 3]
+                    if st.fine.isEmpty { continue }
+                    for t in lo...hi where st.fine[t] != nil { fine = true }
+                } }
+                for t in lo...hi where fineBeyond[s] & (1 << UInt32(t)) != 0 { fine = true }
+                if !fine { coarse |= 1 << s }
+            }
+            if sy > 0 && !fineSection(n9, sy: sy - 1) { coarse |= 16 }
+            if sy < NSEC - 1 && !fineSection(n9, sy: sy + 1) { coarse |= 32 }
+        }
+        // The cells' own vertices (the ones the neighbour draws there: the same in every section that meshes them).
+        if coarse != 0 {
+            smoothQuads(R, sc, dmg: [:], stored: dens, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles) { _, _, _, _, _, _, _, _, _ in }
+        }
+        let KOc = SmoothTerrain.maxRelax, Kc = 17 + 2 * KOc, KKc = Kc * Kc
+        let VPc = sc.smV, VLc = sc.smL
         // (smoothQuads reads its section's 0...16 and a ring of maxRelax + 3 round it)
         let lo = max(0, C0 - SmoothTerrain.maxRelax - 4), hi = min(RW - 1, C0 + 21 + SmoothTerrain.maxRelax)
         vR.initialize(repeating: AIR, count: RL * RH)
@@ -275,7 +308,37 @@ extension Mesher {
                 vSky[j] = sl; vBlk[j] = bl
             } } }
             let e0 = exact?.count ?? 0
-            smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles, exact: exact) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+            let off = SIMD3<Float>(Float(vx * 16), Float(vy * 16), Float(vz * 16))
+            let pin: ((Int, Int, Int, SIMD3<Float>) -> SIMD3<Float>?)? = coarse == 0 ? nil : { hx, hy, hz, p in
+                let gx = hx + vx * 16, gy = hy + vy * 16, gz = hz + vz * 16          // half-block dual cell, 0...32
+                var fx = -1, fy = -1, fz = -1                                        // the cells' cell a side fixes
+                if coarse & 1 != 0 && gx <= 1 { fx = 0 }
+                if coarse & 2 != 0 && gx >= 31 { fx = 16 }
+                if coarse & 4 != 0 && gz <= 1 { fz = 0 }
+                if coarse & 8 != 0 && gz >= 31 { fz = 16 }
+                if coarse & 16 != 0 && gy <= 1 { fy = 0 }
+                if coarse & 32 != 0 && gy >= 31 { fy = 16 }
+                guard fx >= 0 || fy >= 0 || fz >= 0 else { return nil }
+                // On the other axes the cells' cell holding the half-block cell (odd), or the two it straddles (even).
+                // (Only the cells' own owned cells 0...16: a ring cell's vertex can lie outside the section, below 0.)
+                func cand(_ g: Int, _ fixed: Int) -> [Int] {
+                    fixed >= 0 ? [fixed] : (g & 1 == 1 ? [(g - 1) / 2] : [g / 2 - 1, g / 2]).filter { $0 >= 0 && $0 <= 16 }
+                }
+                let pw = (p + off) * 0.5
+                var best = SIMD3<Float>(repeating: 0), bestD = Float.infinity
+                for cx in cand(gx, fx) { for cy in cand(gy, fy) { for cz in cand(gz, fz) {
+                    let vi = (cx + KOc) + (cz + KOc) * Kc + (cy + KOc) * KKc
+                    guard VLc[vi] >= 0 else { continue }
+                    let q = SIMD3<Float>(VPc[vi * 3], VPc[vi * 3 + 1], VPc[vi * 3 + 2])
+                    let d = simd_length_squared(q - pw)
+                    if d < bestD { bestD = d; best = q }
+                } } }
+                // (On the 1/16 grid the cells' vertex is drawn on, so the half-block vertex, drawn at half its own 1/16
+                // grid, lands on the very same point: a vertex a thirty-second off was still a slit from a low angle.)
+                guard bestD < .infinity else { return nil }
+                return (best * 16).rounded(.toNearestOrAwayFromZero) / 16 * 2 - off
+            }
+            smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles, exact: exact, pin: pin) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 emit((x16 + vx * 256) >> 1, (y16 + vy * 256) >> 1, (z16 + vz * 256) >> 1, f, tint, layer, ao, l, ncode)
             }
             // (P383: the unsnapped positions, scaled back from half blocks like the snapped ones)
