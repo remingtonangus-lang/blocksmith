@@ -55,7 +55,7 @@ enum QuestOptions {
         PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]
-        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autord", "q_hud", "q_bright", "q_diff"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autoview", "q_autord", "q_hud", "q_bright", "q_diff"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
@@ -87,6 +87,7 @@ enum QuestOptions {
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
             "q_diff": "How hard the enemies hit, aim and come at you in this world. It changes at once.",
             "q_view": "How far the land is drawn, 8 to 24 chunks. Lower it when the game isn't keeping up; it applies at once.",
+            "q_autoview": "The land is drawn as far as the headset keeps up with, 8 to 24 chunks under your View Distance, and the edge fades into haze. Off: always your View Distance.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
             "host:touch": "Every Touch controller button and what it does.",
             "q_bright": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
@@ -146,6 +147,7 @@ enum QuestOptions {
                 ("Menu Size: \(S.menuScale < 0.95 ? "Small" : (S.menuScale < 1.05 ? "Normal" : (S.menuScale < 1.2 ? "Large" : "Extra Large")))", "q_menusize"),
                 ("Brightness: \(PauseMenu.brightnessName(S.brightness))", "q_bright"),
                 ("View Distance: \(S.renderDistance) chunks", "q_view"),                                              // P415
+                ("Auto View Distance: \(S.autoViewDistance ? "On (now \(hooks.game()?.world.renderDistance ?? S.startView))" : "Off")", "q_autoview"),   // P425
                 ("Auto Render Distance: \(on(S.autoRenderDistance))", "q_autord"),
                 ("Clouds: \(on(S.clouds))", "q_clouds"),
                 ("HUD Fade: \(on(S.hudFade))", "q_hudfade"),
@@ -277,6 +279,10 @@ enum QuestOptions {
             guard let g = hooks.game() else { break }
             g.diffLevel = step([0, 1, 2, 3, 4, 5], g.diffLevel, back)
             Difficulty.level = g.diffLevel
+        case "q_autoview":
+            // P425: off puts the view back at the slider; on lets the governor take it from there.
+            S.autoViewDistance.toggle()
+            if !S.autoViewDistance, let g = hooks.game() { g.setRenderDistance(S.renderDistance); g.setActiveDistance(Game.savedActiveDistance) }
         case "q_autord": S.autoRenderDistance.toggle()
         case "q_clouds": S.clouds.toggle()
         case "q_hudfade": S.hudFade.toggle()

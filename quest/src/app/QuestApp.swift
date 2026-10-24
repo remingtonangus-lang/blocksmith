@@ -176,7 +176,7 @@ final class QuestApp {
         let meta = save.loadMeta()
         let seed = meta?.seed ?? req.seed ?? Rand.u64(in: 1...UInt64(Int64.max))
         let world = World(seed: seed, device: device, save: save)
-        world.renderDistance = QuestSettings.renderDistance
+        world.renderDistance = QuestSettings.startView
         let game = Game(world: world, save: save, persistent: true)
         Game.oceanSwellDrawn = true                  // boats ride the drawn swell (Weather.swift OceanSwell)
         // The save's state or the new world's options, then the terrain option, before the first meshes (questcheck tests this).
@@ -185,9 +185,10 @@ final class QuestApp {
         // comfort guard's session-only step-downs: the Oct 9 playtest reopened its world at render distance 5). On
         // game.world: a save made in another dimension reopens there, and `world` is the overworld. Auto Render
         // Distance steps the world below this choice for the session; the save and the options keep the choice.
-        game.world.renderDistance = QuestSettings.renderDistance
+        game.world.renderDistance = QuestSettings.startView          // P425: Auto View Distance starts where it settled last
         game.world.activeDistance = Game.savedActiveDistance
         game.rdGovernor = RenderDistanceGovernor(chosen: game.world.activeDistance)       // P339: Auto governs the active distance
+        stats.viewGov = ViewGovernor(chosen: QuestSettings.renderDistance, current: game.world.renderDistance)
         status("Generating terrain", 0.55)
         _ = game.world.loadSync(center: game.player.pos, radius: min(3, game.world.renderDistance))
         // The horizon ring's first sampling (4225 terrain columns, ~0.1 s on a desktop core) here, not on the first
@@ -486,7 +487,7 @@ final class QuestApp {
         // freeze can be matched to a voice note's timestamp.
         if now - lastFrameTime > 0.25 && game != nil && firstWorldFrames == 0 { logHitch(ms: (now - lastFrameTime) * 1000, tick: tickMs, record: recordMs) }
         stats.add(frame: now - lastFrameTime, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs, gpu: scene.gpuMs,
-                  target: f.period, scene: scene, game: game, rate: xr.refreshRate)
+                  target: f.period * (xr.spaceWarp ? 2 : 1), scene: scene, game: game, rate: xr.refreshRate)   // (the drawn frame's budget: P403 7b)
         lastFrameTime = now
         return !xr.exitRequested
     }
@@ -784,6 +785,7 @@ final class FrameStats {
     // lines) and give one short sharp buzz on both hands. At most one a 2 minutes.
     private var badWindows = 0, lastCaptureAt = -1e9, prevLine = ""
     static let captureMissFrac = 0.15, captureGap = 120.0
+    var viewGov: ViewGovernor?              // P425: Auto View Distance
     var dynResProbe: (() -> Double)?        // P403 step 2: DynamicResolution.lastProbe
     var perfNotice: (() -> String)?         // P403 step 1: XRSession.perfNoticeLine
     private func capture(game: Game?, target: Double, now: Double) {
@@ -883,6 +885,22 @@ final class FrameStats {
                 g.rdGovernor = gov
             } else if let gov = g.rdGovernor, gov.lowered {
                 g.setActiveDistance(gov.chosen)          // the option was turned off: back to the player's choice
+            }
+            // P425: Auto View Distance: the view follows the GPU's frame time under the slider (ViewGovernor.swift).
+            if QuestSettings.autoViewDistance, var vg = viewGov, target > 0 {
+                if vg.chosen != QuestSettings.renderDistance { vg.setChosen(QuestSettings.renderDistance) }
+                let w = ViewGovernor.Window(seconds: now - since, frames: frames, missed: missed, gpuMs: sumGPU / n, budgetMs: target * 1000,
+                                            loading: genRate > FrameStats.loadingChunksPerSecond, excused: excused)
+                switch vg.observe(w) {
+                case .lower(let rd):
+                    g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance); QuestSettings.autoViewLast = rd
+                    print(String(format: "perf: gpu %.1f ms at the budget: view distance %d for now (slider %d)", sumGPU / n, rd, vg.chosen))
+                case .raise(let rd):
+                    g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance); QuestSettings.autoViewLast = rd
+                    print(String(format: "perf: gpu %.1f ms, headroom: view distance up to %d (slider %d)", sumGPU / n, rd, vg.chosen))
+                default: break
+                }
+                viewGov = vg
             }
         }
         // Render distance changes (pause menu, the guard) are logged so a device log can be split by distance.
