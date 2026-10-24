@@ -137,6 +137,9 @@ final class Turrets {
     // P372: taken by its handles on the headset: the hand aims it (`handAim`, a world direction), letting go leaves.
     var byGrip = false
     var handAim: V3?
+    // P430 (c): worked from a station's console (BaseConsoles.stationGunUse): where he stands at it; leaving the gun
+    // brings him back there.
+    var remote: V3?
 
     static let roofY: Float = 5.5                    // the heavy turret's gunhouse roof above its origin (HeavyTurret model)
     static func canMan(_ m: Mob) -> Bool { m.kind == .deckGun && m.health > 0 }
@@ -148,6 +151,7 @@ final class Turrets {
         let same = m === lastManned                  // back on the same gun: its reload and loaded barrel carry on
         manned = m
         lastManned = m
+        remote = nil
         m.aggro = false
         m.persistent = true
         if !same { reload = 0.5; loaded = 2 }
@@ -163,7 +167,8 @@ final class Turrets {
         manned = nil
         byGrip = false; handAim = nil
         let fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
-        g.player.pos = Turrets.exitSpot(g.world, m, fwd: fwd)
+        g.player.pos = remote ?? Turrets.exitSpot(g.world, m, fwd: fwd)
+        remote = nil
         g.player.vel = .zero
         g.player.airPeak = g.player.pos.y
     }
@@ -195,7 +200,11 @@ final class Turrets {
     // Per frame while manning (from Game.tick before movement): true = the gun has the controls this frame.
     func tick(_ g: Game, _ p: PadSnapshot, _ q: PadSnapshot, sneak: Bool, dt: Float) -> Bool {
         guard let m = manned else { return false }
-        if m.health <= 0 || !g.alive || g.mobs.mobs.first(where: { $0 === m }) == nil { manned = nil; return false }
+        if m.health <= 0 || !g.alive || g.mobs.mobs.first(where: { $0 === m }) == nil {
+            manned = nil
+            if let r = remote { g.player.pos = r; g.player.vel = .zero; remote = nil }      // (back at the console)
+            return false
+        }
         if sneak { leave(g); return false }
         let b = m.soldierBrain
         // P372: held by its handles, the barrels follow the hand.

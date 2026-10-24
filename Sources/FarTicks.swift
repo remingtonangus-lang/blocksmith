@@ -40,6 +40,10 @@ extension World {
     func park(falling p: IVec3) {
         parked[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS)), default: []].append((p, 0))
     }
+    // P430 (b): a load check for a piece past the active distance (a mast shelled from a gun a long way off) waits too.
+    func park(load p: IVec3) {
+        parked[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS)), default: []].append((p, 3))
+    }
     // Once a second: parked cells whose chunk is active again go back to their queues; unloaded chunks drop theirs
     // (a loaded chunk re-queues its own springs and loose cells).
     func unparkActive() {
@@ -50,7 +54,9 @@ extension World {
             guard activeHere(c) else { continue }
             parked.removeValue(forKey: k)
             for (p, kind) in cells {
-                if kind == 0 { gravityQueue.append(p) } else if kind == 2 { lavaPending.insert(p) } else { fluidPending.insert(p) }
+                if kind == 0 { gravityQueue.append(p) } else if kind == 2 { lavaPending.insert(p) }
+                else if kind == 3 { if loadQueued.insert(IVec3(floorDiv(p.x, 4), floorDiv(p.y, 4), floorDiv(p.z, 4))).inserted { loadQueue.append(p) } }
+                else { fluidPending.insert(p) }
             }
         }
     }

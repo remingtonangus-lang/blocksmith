@@ -1106,8 +1106,11 @@ final class World {
             }
         }
 
-        // Results are applied within a per-frame budget; the rest wait for the next frame.
+        // Results are applied within a per-frame budget; the rest wait for the next frame. P430 (a): meshes of chunks
+        // round the player (a blast's crater, a dug block) go in whatever the budget; behind the streaming's installs
+        // they waited for a frame with budget to spare.
         let budget = World.handoverSeconds
+        let nearMeshes = World.deterministic ? 0 : mr.partition { abs($0.0.x - center.x) > 6 || abs($0.0.z - center.z) > 6 }
         var gi = 0, mi = 0
         while gi < gr.count && (gi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
             let (k, p) = gr[gi]; gi += 1
@@ -1119,7 +1122,7 @@ final class World {
             install(k, p)
             World.noteResult(ti, p.fromDisk ? "install (saved)" : "install (generated)")
         }
-        while mi < mr.count && (mi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
+        while mi < mr.count && (mi <= nearMeshes || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
             let (k, list) = mr[mi]; mi += 1
             jobs -= 1
             guard let c = chunks[k] else { continue }
@@ -1182,6 +1185,19 @@ final class World {
             }
             for k in ahead where chunks[k] == nil && !genInFlight.contains(k) && World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 0) {
                 startGen(k, urgent: true)
+            }
+        }
+
+        // P430 (a) (Oct 24: a hit's crater "takes a while to form"): a chunk edited round the player (a blast, a dug block,
+        // a door) is re-meshed ahead of every waiting job and past the queue limit. While the far land streamed in, its
+        // job waited behind the full queue of far chunks (8 a worker) and the crater showed well after the flash.
+        if !dirtyChunks.isEmpty {
+            for c in dirtyChunks where c.dirty && c.meshedOnce && !c.meshInFlight && c.needsMesh
+                && abs(c.cx - center.x) <= 6 && abs(c.cz - center.z) <= 6 {
+                let k = ChunkKey(x: c.cx, z: c.cz)
+                guard chunks[k] === c, let nb = neighbourhood(c) else { continue }
+                c.dirty = false
+                scheduleMesh(k, c, nb, front: true)
             }
         }
 
@@ -1257,7 +1273,7 @@ final class World {
     }
 
     // Hands a chunk's out-of-date sections to a mesh worker.
-    private func scheduleMesh(_ k: ChunkKey, _ c: Chunk, _ nb: ([BlockStore], [[Int16]])) {
+    private func scheduleMesh(_ k: ChunkKey, _ c: Chunk, _ nb: ([BlockStore], [[Int16]]), front: Bool = false) {
         let (n9, h9) = nb
         let todo = dirtySections(c)
         let lod = c.lod
@@ -1267,7 +1283,7 @@ final class World {
         c.meshInFlight = true
         jobs += 1
         // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
-        workQueue.add { [weak self] in
+        let job: () -> Void = { [weak self] in
             guard let self else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var out: [(Int, Int, SectionMesh)] = []
@@ -1278,6 +1294,7 @@ final class World {
             self.perfShared.meshJobs += 1; self.perfShared.meshSections += todo.count; self.perfShared.meshSeconds += el
             self.lock.unlock()
         }
+        if front { workQueue.addFront(job) } else { workQueue.add(job) }
     }
 
     // Loads a chunk from disk or generates it (thread-safe).

@@ -720,7 +720,9 @@ enum BorealStation {
             guard max(abs(dx), abs(dz)) == Y else { return }
             if dz == Y && dx >= -8 && dx <= -3 { return }                     // the gate
             let post = (dx + dz) % 5 == 0 || abs(dx) == Y && abs(dz) == Y
-            for y in (S + 1)...(S + 3) { put(dx, y, dz, post ? con : bars) }
+            // P430 (d) (Oct 24 10:25, "what are all these gates here? These are just annoying"): the railing panels
+            // between the fence posts are gone; the posts and the corner lamps mark the yard, and nothing stops a walk in.
+            if post { for y in (S + 1)...(S + 3) { put(dx, y, dz, con) } }
             if abs(dx) == Y && abs(dz) == Y {
                 for y in (S + 4)...(S + 5) { put(dx, y, dz, steel) }
                 put(dx, S + 6, dz, panel)

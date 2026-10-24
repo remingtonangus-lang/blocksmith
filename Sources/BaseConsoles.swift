@@ -81,6 +81,29 @@ extension Game {
         return true
     }
 
+    // P430 (c) (Oct 24 10:25: "the gun should be controllable from a computer inside the building"): a command console
+    // in a Boreal Station works the station's deck gun from where he stands. The view goes up to the gun as when he
+    // climbs on (aim, fire, B / Shift to leave) and leaving brings him back to the console.
+    func stationGunUse(_ p: IVec3) -> Bool {
+        let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
+        guard k == "command_console", world.ships.pilot == nil, Turrets.shared.manned == nil,
+              let s = world.gen.structures?.structure(at: p.x, p.y, p.z, kind: BorealStation.kind) else { return false }
+        let cx = Float(s.min.x + s.max.x) / 2, cz = Float(s.min.z + s.max.z) / 2, R = Float(BorealStation.yard + 4)
+        let at = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
+        let guns = mobs.mobs.filter { Turrets.canMan($0) && abs($0.pos.x - cx) < R && abs($0.pos.z - cz) < R }
+        guard let gun = guns.min(by: { simd_length($0.pos - at) < simd_length($1.pos - at) }) else {
+            sfx(.click, 0.8, at: at)
+            onToast?("Gun Control: the station's gun is out of action")
+            return true
+        }
+        if survival, gun.deckGunCrewed(self) { onToast?("Gun Control: the gunner holds the gun"); return true }
+        let stand = player.pos
+        Turrets.shared.mount(self, gun)
+        Turrets.shared.remote = stand
+        onToast?("Gun Control: the station's deck gun, worked from here")
+        return true
+    }
+
     // Opens every door within reach of the console (both halves, as a hand would), or shuts them when most stand open.
     func consoleDoors(_ p: IVec3) -> (count: Int, opened: Bool) {
         var doors: [IVec3] = [], open = 0

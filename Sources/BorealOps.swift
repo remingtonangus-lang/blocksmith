@@ -30,6 +30,8 @@ struct StationOp: Codable {
     var silent: Bool? = nil           // the rating, once done
     var doneClock: Double? = nil
     var dark = 0                      // P288: bands of the station blacked out since the generator died (blackoutBands: all)
+    var cleared = false               // P430 (e): every soldier inside the fence dead: no more reinforcements, ever
+    var emptyT: Float = 0             // seconds the loaded station has had nobody of its garrison inside
 
     var F: Int { S - BorealStation.depth }
     var console: V3 { V3(Float(cx) + 0.5, Float(F + 1), Float(cz - 21) + 0.5) }
@@ -54,6 +56,7 @@ struct StationOp: Codable {
         waveT = (try? c.decodeIfPresent(Float.self, forKey: .waveT)) ?? 0
         silent = try? c.decodeIfPresent(Bool.self, forKey: .silent)
         dark = (try? c.decodeIfPresent(Int.self, forKey: .dark)) ?? 0     // P288: a station blown in an older save goes dark too
+        cleared = (try? c.decodeIfPresent(Bool.self, forKey: .cleared)) ?? false
         doneClock = nil
     }
 }
@@ -169,6 +172,7 @@ extension Game {
             let alarm = st.sites[key]?.on == true
             let inside = players.filter { BorealStation.insideSite(BorealAlarmState.Site(cx: op.cx, cz: op.cz, S: op.S), $0) }
             if op.stage == 0 && !inside.isEmpty { startOp(&op) }
+            if !op.cleared { stationCleared(&op, players, dt) }
 
             // The charge runs whatever the stage (a player may be long gone when it blows).
             if var f = op.fuse {
@@ -208,10 +212,10 @@ extension Game {
                 op.loud = true
                 if !op.alarmWas {
                     st.log.append("\(key) alarm during the operation")
-                    if !inside.isEmpty { onToast?("Alarm! The garrison is coming through the bulkheads") }
+                    if !inside.isEmpty && !op.cleared { onToast?("Alarm! The garrison is coming through the bulkheads") }
                     op.waveT = 0
                 }
-                if !inside.isEmpty && op.waves < BorealStation.maxWaves {
+                if !inside.isEmpty && !op.cleared && op.waves < BorealStation.maxWaves {
                     op.waveT += dt
                     if op.waveT >= BorealStation.waveEvery {
                         op.waveT = 0
@@ -338,6 +342,25 @@ extension Game {
     }
 
     // A squad of three down the stairwell: they spawn at its foot and make for the player.
+    // P430 (e) (Oct 24 10:25, "I already cleared this area... there should be zero men inside"): a station whose
+    // garrison is all dead stays empty. Judged as a citadel's is (P419 a): a player close, the whole yard loaded, nobody
+    // of the garrison alive inside the fence or the bunker for 10 s running. A cleared station's alarm brings no one
+    // down the stairwell any more (its three waves of reinforcements were what he met on his second visit).
+    func stationCleared(_ op: inout StationOp, _ players: [V3], _ dt: Float) {
+        let c = V3(Float(op.cx), Float(op.S), Float(op.cz))
+        guard players.contains(where: { simd_length($0 - c) < 90 }) else { op.emptyT = 0; return }
+        let R = BorealStation.yard + 2
+        for dz in stride(from: -R, through: R, by: CS) { for dx in stride(from: -R, through: R, by: CS) where !world.isLoaded(op.cx + dx, op.cz + dz) { return } }
+        let site = BorealAlarmState.Site(cx: op.cx, cz: op.cz, S: op.S)
+        let alive = mobs.mobs.contains { $0.kind.steelhold && $0.kind != .deckGun && $0.health > 0 && BorealStation.insideSite(site, $0.pos) }
+        guard !alive else { op.emptyT = 0; return }
+        op.emptyT += dt
+        guard op.emptyT >= 10 else { return }
+        op.cleared = true
+        bases.boreal.log.append("\(op.key) cleared")
+        onToast?("The station is cleared")
+    }
+
     func stationReinforce(_ op: StationOp, toward target: V3) {
         let kinds: [MobKind] = [.soldierTrooper, .soldierRecruit, .soldierRecruit]
         for (i, k) in kinds.enumerated() {
