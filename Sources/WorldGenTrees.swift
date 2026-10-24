@@ -6,7 +6,7 @@ import Foundation
 // are identical from both sides. Each chunk writes only its own blocks.
 enum TreeKind {
     case oak, fancyOak, birch, tallBirch, spruce, pine, megaSpruce, megaPine, jungle, megaJungle, jungleBush
-    case acacia, darkOak, swampOak, mangrove, cherry, hugeRed, hugeBrown, iceSpike, smallOak, paleOak
+    case acacia, darkOak, swampOak, mangrove, cherry, iceSpike, smallOak, paleOak     // (P406: no giant mushrooms)
     case saltpalm                                   // P280 (a): the Saltpalm Isles' leaning palm
     case shrubOak, shrubSpruce, shrubAcacia
     // L1 trees (docs/status/look-upgrade.md part 3): woodland litter and the rare old giants.
@@ -75,7 +75,7 @@ enum TreePlacer {
         case .oldGrowthBirchForest: return p(0.35) ? .tallBirch : nil
         case .darkForest:
             guard p(0.62) else { return nil }
-            return pick < 0.07 ? (pick < 0.035 ? .hugeRed : .hugeBrown) : (pick < 0.75 ? .darkOak : (pick < 0.88 ? .oak : .birch))
+            return pick < 0.75 ? .darkOak : (pick < 0.88 ? .oak : .birch)        // (P406: the giant mushrooms are gone)
         case .taiga, .snowyTaiga, .grove: return p(biome == .grove ? 0.3 : 0.35) ? (pick < 0.66 ? .spruce : .pine) : nil
         case .windsweptForest: return p(0.15) ? (pick < 0.5 ? .spruce : .oak) : nil
         case .oldGrowthPineTaiga: return p(0.35) ? (pick < 0.3 ? .megaPine : (pick < 0.7 ? .pine : .spruce)) : nil
@@ -239,305 +239,15 @@ enum TreePlacer {
                 }
             }
         }
+        // P406: living trees are designs pasted whole (TreeShapes.swift); what's left here is woodland litter and ice.
+        if let set = TreeShapes.designs(kind) { TreeShapes.build(w, kind, set, x, y, z, &rng); return }
         switch kind {
-        case .oak, .smallOak:
-            // Four oaks (L1): a round dome with a low limb, a tall narrow one, a wide spreading one with three limbs,
-            // and a forked twin leader. Small oaks (badlands) only the first two.
-            let shape = kind == .smallOak ? rng.int(2) : rng.int(4)
-            switch shape {
-            case 0:
-                let h = kind == .smallOak ? rng.range(3, 4) : rng.range(4, 6)
-                trunk(h, LOG)
-                blob(w, x, y + h, z, rx: 2.4 + rng.float() * 0.5, ry: 2.3, LEAVES, &rng)
-                if h >= 5 {
-                    let a = rng.float() * 2 * .pi
-                    let tip = limb(x, y + h - 3, z, cosf(a), sinf(a), 2, rise: 1, LOG)
-                    blob(w, tip.0, tip.1 + 1, tip.2, rx: 1.6, ry: 1.2, LEAVES, &rng)
-                    roots(LOG, chance: 0.35)
-                }
-            case 1:
-                let h = kind == .smallOak ? rng.range(4, 5) : rng.range(6, 8)
-                trunk(h, LOG)
-                blob(w, x, y + h - 1, z, rx: 1.9, ry: 2.8, LEAVES, &rng)
-                w.leaf(x, y + h + 2, z, LEAVES)
-            case 2:
-                let h = rng.range(4, 5)
-                trunk(h, LOG)
-                let a0 = rng.float() * 2 * .pi
-                for i in 0..<3 {
-                    let a = a0 + Float(i) * 2.1 + rng.float() * 0.5
-                    let tip = limb(x, y + h - 1, z, cosf(a), sinf(a), rng.range(2, 3), rise: 2, LOG)
-                    blob(w, tip.0, tip.1 + 1, tip.2, rx: 2.3, ry: 1.5, LEAVES, &rng)
-                }
-                blob(w, x, y + h + 1, z, rx: 2.0, ry: 1.4, LEAVES, &rng)
-                roots(LOG)
-            default:
-                let h = rng.range(3, 4)
-                trunk(h, LOG)
-                let a = rng.float() * 2 * .pi
-                for s in [Float(1), -1] {
-                    let tip = limb(x, y + h - 1, z, cosf(a) * s, sinf(a) * s, 2, rise: 3, LOG)
-                    w.log(tip.0, tip.1 + 1, tip.2, LOG)
-                    blob(w, tip.0, tip.1 + 2, tip.2, rx: 2.2, ry: 1.7, LEAVES, &rng)
-                }
-                roots(LOG, chance: 0.4)
-            }
-        case .birch, .tallBirch:
-            // Four birches: the classic, a slender tall one with a narrow crown, a twin pair from one root, and one with a
-            // kink partway up. Tall (old-growth) birches keep their height.
-            let tall = kind == .tallBirch
-            switch rng.int(4) {
-            case 0:
-                let h = tall ? rng.range(10, 14) : rng.range(6, 8)
-                trunk(h, BIRCH_LOG); crown(y + h, BIRCH_LEAVES)
-            case 1:
-                let h = tall ? rng.range(12, 15) : rng.range(7, 9)
-                trunk(h, BIRCH_LOG)
-                blob(w, x, y + h - 1, z, rx: 1.6, ry: 3.2, BIRCH_LEAVES, &rng)
-                w.leaf(x, y + h + 2, z, BIRCH_LEAVES)
-            case 2:
-                let h = tall ? rng.range(10, 13) : rng.range(5, 7)
-                trunk(h, BIRCH_LOG); crown(y + h, BIRCH_LEAVES)
-                let (dx, dz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
-                // The twin forks off the foot of the trunk one block up (joined to it, never standing over a drop; the
-                // same in every chunk, since it doesn't look at the ground).
-                let h2 = h - rng.range(1, 2)
-                for k in 1..<h2 { w.log(x + dx, y + k, z + dz, BIRCH_LOG) }
-                blob(w, x + dx * 2, y + h2, z + dz * 2, rx: 1.7, ry: 1.8, BIRCH_LEAVES, &rng)
-            default:
-                let h = tall ? rng.range(10, 13) : rng.range(6, 8)
-                let kinkAt = h / 2
-                let (dx, dz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
-                for k in 0..<kinkAt { w.log(x, y + k, z, BIRCH_LOG) }
-                for k in (kinkAt - 1)..<h { w.log(x + dx, y + k, z + dz, BIRCH_LOG) }
-                blob(w, x + dx, y + h, z + dz, rx: 2.0, ry: 2.2, BIRCH_LEAVES, &rng)
-            }
-        case .fancyOak:
-            let h = rng.range(6, 10)
-            trunk(h, LOG)
-            blob(w, x, y + h - 1, z, rx: 3.2, ry: 2.4, LEAVES, &rng)
-            for _ in 0..<rng.range(2, 4) {
-                let a = rng.float() * 2 * .pi, len = Float(rng.range(2, 3))
-                let bxo = Int((cosf(a) * len).rounded()), bzo = Int((sinf(a) * len).rounded())
-                let by = y + h - rng.range(2, 4)
-                // A connected limb out to the tip (one log per step, rising one at the tip); a log at len / 2 and
-                // one at len left a gap for len 3 (gencheck trunk_floating: floating branch tips).
-                let steps = max(1, max(abs(bxo), abs(bzo)))
-                for i in 1...steps {
-                    let t = Float(i) / Float(steps)
-                    w.log(x + Int((Float(bxo) * t).rounded()), by + (i == steps ? 1 : 0), z + Int((Float(bzo) * t).rounded()), LOG)
-                }
-                blob(w, x + bxo, by + 2, z + bzo, rx: 2.2, ry: 1.6, LEAVES, &rng)
-            }
-        case .spruce, .pine:
-            let variant = rng.int(4)              // spruce: classic, narrow, wide and ragged, high-crowned; pine: two
-            let h = kind == .pine ? rng.range(7, 11) + (variant >= 2 ? 2 : 0) : rng.range(6, 9) + (variant == 3 ? 3 : 0)
-            trunk(h, SPRUCE_LOG)
-            if h >= 9 { roots(SPRUCE_LOG, chance: 0.3) }
-            w.leaf(x, y + h, z, SPRUCE_LEAVES)
-            if kind == .pine {
-                let tiers = variant >= 2 ? [(0, 1), (-1, 1), (-2, 2), (-3, 1), (-4, 2), (-5, 1)] : [(0, 1), (-1, 2), (-2, 1), (-3, 2), (-4, 1)]
-                for (dy, r) in tiers {
-                    for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r + (r > 1 ? 0 : 1) {
-                        w.leaf(x + dx, y + h + dy, z + dz, SPRUCE_LEAVES)
-                    } }
-                }
-            } else {
-                // The tier under the tip is a leafy cross (a bare trunk block between the tip and the first tier read as a
-                // stump poking out of every snowy crown: blind critic, run 395 snowy).
-                let pattern = [[1, 2, 1, 2, 3, 2, 3], [1, 1, 1, 2, 1, 2, 2], [1, 2, 2, 3, 2, 3, 3], [1, 2, 1, 2, 3, 2, 3]][variant]
-                var yy = y + h - 1, k = 0
-                let bare = variant == 3 ? y + h / 2 : y + 2         // high-crowned: a bare lower trunk
-                while yy >= bare {
-                    // Wide and ragged: some tiers a step narrower, so the cone has gaps and shoulders.
-                    let r = max(1, pattern[min(k, pattern.count - 1)] - (variant == 2 && k > 1 && hashf(x, yy, z, 0x5B) < 0.3 ? 1 : 0))
-                    let round: Int = k == 0 ? 1 : r * r + 1
-                    if r > 0 {
-                        for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= round { w.leaf(x + dx, yy, z + dz, SPRUCE_LEAVES) } }
-                    } else { w.leaf(x, yy, z, SPRUCE_LEAVES) }
-                    yy -= 1; k += 1
-                }
-            }
-        case .megaSpruce, .megaPine:
-            let h = rng.range(13, 25)
-            trunk(h, SPRUCE_LOG, wide: true)
-            let crownStart = kind == .megaPine ? h - rng.range(4, 6) : h / 3
-            for k in crownStart...h + 1 {
-                let fromTop = h + 1 - k
-                let r = min(5, fromTop / 2 + (fromTop % 2 == 0 ? 0 : 1))
-                for dz in -r...r + 1 { for dx in -r...r + 1 {
-                    let ddx = Float(dx) - 0.5, ddz = Float(dz) - 0.5
-                    if ddx * ddx + ddz * ddz <= Float(r * r) + 0.5 { w.leaf(x + dx, y + k, z + dz, SPRUCE_LEAVES) }
-                } }
-            }
-            // Podzol around the base.
-            for dz in -3...4 { for dx in -3...4 where hashf(x + dx, y, z + dz, 0x9D) < 0.6 {
-                let key = Blocks.key(w.get(x + dx, y - 1, z + dz))
-                if key == "grass_block" || key == "dirt" { w.force(x + dx, y - 1, z + dz, g("podzol")) }
-            } }
-        case .jungle:
-            let h = rng.range(4, 10)
-            trunk(h, g("jungle_log"))
-            crown(y + h, g("jungle_leaves"))
-            vines(w, x, y + h - 2, z, 2, &rng)
-        case .megaJungle:
-            let h = rng.range(10, 25)
-            let log = g("jungle_log"), leaf = g("jungle_leaves")
-            trunk(h, log, wide: true)
-            blob(w, x, y + h, z, rx: 4.5, ry: 2, leaf, &rng)
-            var by = y + h - 4
-            while by > y + 4 {
-                let a = rng.float() * 2 * .pi
-                let ex = x + Int((cosf(a) * 4).rounded()), ez = z + Int((sinf(a) * 4).rounded())
-                // A connected limb from the (2x2) trunk out to the tip, rising one at the tip (the half-way log and
-                // the tip log left gaps: gencheck trunk_floating).
-                let steps = max(1, max(abs(ex - x), abs(ez - z)))
-                for i in 1...steps {
-                    let t = Float(i) / Float(steps)
-                    let lx = x + Int((Float(ex - x) * t).rounded()), lz = z + Int((Float(ez - z) * t).rounded())
-                    w.log(lx, by + (i == steps ? 1 : 0), lz, log)
-                }
-                blob(w, ex, by + 2, ez, rx: 2.5, ry: 1.2, leaf, &rng)
-                by -= rng.range(3, 5)
-            }
-            vines(w, x, y + h - 1, z, 4, &rng)
-        case .jungleBush:
-            w.log(x, y, z, g("jungle_log"))
-            blob(w, x, y + 1, z, rx: 2.4, ry: 1.3, LEAVES, &rng)
-        case .acacia:
-            let log = g("acacia_log"), leaf = g("acacia_leaves")
-            let straight = rng.range(2, 4), lean = rng.range(1, 3)
-            let (dx, dz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
-            trunk(straight, log)
-            var cx = x, cy = y + straight, cz = z
-            for _ in 0..<lean { cx += dx; cz += dz; w.log(cx, cy, cz, log); cy += 1 }
-            w.log(cx, cy, cz, log)
-            for dz2 in -3...3 { for dx2 in -3...3 where !(abs(dx2) == 3 && abs(dz2) == 3) { w.leaf(cx + dx2, cy + 1, cz + dz2, leaf) } }
-            for dz2 in -1...1 { for dx2 in -1...1 { w.leaf(cx + dx2, cy + 2, cz + dz2, leaf) } }
-            if rng.chance(0.6) {
-                // A second, shorter branch the other way.
-                var ox = x, oy = y + straight - 1, oz = z
-                for _ in 0..<rng.range(1, 2) { ox -= dx; oz -= dz; oy += 1; w.log(ox, oy, oz, log) }
-                for dz2 in -2...2 { for dx2 in -2...2 where !(abs(dx2) == 2 && abs(dz2) == 2) { w.leaf(ox + dx2, oy + 1, oz + dz2, leaf) } }
-            }
-        case .darkOak:
-            let h = rng.range(6, 8)
-            let log = g("dark_oak_log"), leaf = g("dark_oak_leaves")
-            trunk(h, log, wide: true)
-            for dy in -1...1 {
-                let r = dy == 1 ? 2 : (dy == 0 ? 4 : 3)
-                for dz in -r...r + 1 { for dx in -r...r + 1 {
-                    let ddx = Float(dx) - 0.5, ddz = Float(dz) - 0.5
-                    if ddx * ddx + ddz * ddz <= Float(r * r) + 1 { w.leaf(x + dx, y + h + dy, z + dz, leaf) }
-                } }
-            }
-        case .paleOak:
-            // Ashbark: a 2x2 dark-oak-like trunk, flat pale crown, hanging moss curtains; sometimes a heart in the trunk.
-            let h = rng.range(6, 9)
-            let log = g("pale_oak_log"), leaf = g("pale_oak_leaves"), moss = g("pale_hanging_moss")
-            trunk(h, log, wide: true)
-            if rng.chance(0.12) { w.force(x + rng.int(2), y + rng.range(2, max(2, h - 3)), z + rng.int(2), g("creaking_heart")) }
-            for dy in -1...1 {
-                let r = dy == 1 ? 2 : 3
-                for dz in -r...r + 1 { for dx in -r...r + 1 {
-                    let ddx = Float(dx) - 0.5, ddz = Float(dz) - 0.5
-                    if ddx * ddx + ddz * ddz <= Float(r * r) + 1 { w.leaf(x + dx, y + h + dy, z + dz, leaf) }
-                } }
-            }
-            for _ in 0..<10 {
-                let dx = rng.range(-3, 4), dz = rng.range(-3, 4)
-                let len = rng.range(1, 4)
-                for k in 0..<len where w.get(x + dx, y + h - 2 - k, z + dz) == AIR { w.leaf(x + dx, y + h - 2 - k, z + dz, moss) }
-            }
-        case .swampOak:
-            let h = rng.range(5, 6)
-            trunk(h, LOG)
-            for dy in -3...0 {
-                let r = dy <= -2 ? 3 : 2
-                for dz in -r...r { for dx in -r...r where !(abs(dx) == r && abs(dz) == r) { w.leaf(x + dx, y + h + dy, z + dz, LEAVES) } }
-            }
-            vines(w, x, y + h - 3, z, 3, &rng)
-        case .mangrove:
-            let lift = rng.range(1, 3), h = rng.range(5, 8)
-            let log = g("mangrove_log"), leaf = g("mangrove_leaves"), root = g("mangrove_roots")
-            for k in lift..<(lift + h) { w.log(x, y + k, z, log) }
-            // Prop roots arching down to the mud.
-            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1)] where rng.chance(0.75) {
-                let reach = rng.range(1, 3)
-                for k in 0...reach {
-                    let rx = x + dx * k, rz = z + dz * k
-                    var ry = y + lift - k
-                    w.log(rx, ry, rz, root)
-                    if k == reach { while ry > y - 3 && (w.get(rx, ry - 1, rz) == AIR || Blocks.isLiquid(w.get(rx, ry - 1, rz))) { ry -= 1; w.force(rx, ry, rz, root) } }
-                }
-            }
-            blob(w, x, y + lift + h - 1, z, rx: 3, ry: 2, leaf, &rng)
-        case .cherry:
-            let h = rng.range(4, 6)
-            let log = g("cherry_log"), leaf = g("cherry_leaves")
-            trunk(h, log)
-            for side in [-1, 1] {
-                let alongX = rng.chance(0.5)
-                var bxp = x, byp = y + h - 1, bzp = z
-                for _ in 0..<rng.range(2, 3) {
-                    if alongX { bxp += side } else { bzp += side }
-                    byp += 1
-                    w.log(bxp, byp, bzp, log)
-                }
-                blob(w, bxp, byp + 1, bzp, rx: 3.3, ry: 1.8, leaf, &rng)
-            }
-        case .saltpalm:
-            // P280 (a): a slim trunk that leans one block partway up (both blocks at the step, so it never reads as a
-            // gap), then a star of drooping fronds: eight arms, level for two blocks, then curling down at the tips.
-            let log = g("jungle_log"), leaf = g("jungle_leaves")
-            let h = rng.range(6, 9), bend = rng.range(2, h - 2)
-            let (ldx, ldz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
-            var tx = x, tz = z
-            for k in 0..<h {
-                if k == bend { w.log(tx, y + k, tz, log); tx += ldx; tz += ldz }
-                w.log(tx, y + k, tz, log)
-            }
-            if w.inside(x, y - 1, z) && Blocks.key(w.get(x, y - 1, z)).contains("grass") { w.force(x, y - 1, z, DIRT) }
-            let top = y + h
-            w.leaf(tx, top, tz, leaf)
-            for (fx, fz) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)] {
-                let reach = (fx != 0 && fz != 0) ? rng.range(2, 3) : rng.range(3, 4)
-                for s in 1...reach {
-                    let droop = s <= 2 ? 0 : s - 2
-                    w.leaf(tx + fx * s, top - droop, tz + fz * s, leaf)
-                    if s == reach && droop > 0 { w.leaf(tx + fx * s, top - droop - 1, tz + fz * s, leaf) }
-                }
-            }
-        case .hugeRed, .hugeBrown:
-            let h = rng.range(5, 7)
-            let stem = g("mushroom_stem")
-            for k in 0..<h { w.log(x, y + k, z, stem) }
-            if kind == .hugeBrown {
-                let cap = g("brown_mushroom_block")
-                for dz in -3...3 { for dx in -3...3 where !(abs(dx) == 3 && abs(dz) == 3) { w.leaf(x + dx, y + h, z + dz, cap) } }
-            } else {
-                let cap = g("red_mushroom_block")
-                for dz in -1...1 { for dx in -1...1 { w.leaf(x + dx, y + h, z + dz, cap) } }
-                for dy in 1...3 { for dz in -2...2 { for dx in -2...2 where (abs(dx) == 2 || abs(dz) == 2) && !(abs(dx) == 2 && abs(dz) == 2) {
-                    w.leaf(x + dx, y + h - dy, z + dz, cap)
-                } } }
-            }
         case .shrubOak, .shrubSpruce, .shrubAcacia:
             // A knee-high woody shrub: one log and a low, lopsided leaf mound.
             let log = kind == .shrubSpruce ? SPRUCE_LOG : (kind == .shrubAcacia ? g("acacia_log") : LOG)
             let leaf = kind == .shrubSpruce ? SPRUCE_LEAVES : (kind == .shrubAcacia ? g("acacia_leaves") : LEAVES)
             w.log(x, y, z, log)
             blob(w, x + rng.range(-1, 1) / 2, y + 1, z + rng.range(-1, 1) / 2, rx: 1.4 + rng.float() * 0.8, ry: 0.9, leaf, &rng)
-        case .deadOak, .deadSpruce:
-            // A dead snag: bare trunk, a broken top and one or two bare stub limbs.
-            let log = kind == .deadOak ? LOG : SPRUCE_LOG
-            let h = rng.range(3, 6)
-            trunk(h, log)
-            for _ in 0..<rng.range(1, 2) where h >= 4 {
-                let a = rng.float() * 2 * .pi
-                _ = limb(x, y + rng.range(2, h - 1), z, cosf(a), sinf(a), rng.range(1, 2), rise: 1, log)
-            }
-            roots(log, chance: 0.3)
         case .stumpOak, .stumpSpruce, .stumpBirch:
             let log = kind == .stumpOak ? LOG : (kind == .stumpSpruce ? SPRUCE_LOG : BIRCH_LOG)
             // P187: a stump is one log high (a 2-high lone log read as a stray pillar) with a root or two beside it.
@@ -562,22 +272,6 @@ enum TreePlacer {
                     if hashf(fx, y, fz, 0xFA11) < 0.3, w.get(fx, y + 1, fz) == AIR { w.leaf(fx, y + 1, fz, g("moss_carpet")) }
                 }
             }
-        case .ancientOak:
-            // A rare old giant: a 2x2 trunk 9-12 tall with a flared foot, four or five heavy limbs and a broad crown.
-            // Kept inside the 7-block placement margin (limb 3-4 + crown 3), so no chunk ever cuts one.
-            let h = rng.range(9, 12)
-            trunk(h, LOG, wide: true)
-            roots(LOG, wide: true, chance: 0.8)
-            let a0 = rng.float() * 2 * .pi
-            let n = rng.range(4, 5)
-            for i in 0..<n {
-                let a = a0 + Float(i) * 2 * .pi / Float(n) + rng.float() * 0.4
-                let sy = y + h - rng.range(2, 5)
-                let tip = limb(x + (cosf(a) > 0 ? 1 : 0), sy, z + (sinf(a) > 0 ? 1 : 0), cosf(a), sinf(a), rng.range(3, 4), rise: 2, LOG)
-                blob(w, tip.0, tip.1 + 1, tip.2, rx: 2.6, ry: 1.9, LEAVES, &rng)      // 2.8 reached 8 out now and then
-            }
-            blob(w, x, y + h + 1, z, rx: 3.0, ry: 2.2, LEAVES, &rng)
-            blob(w, x + 1, y + h + 1, z + 1, rx: 3.0, ry: 2.2, LEAVES, &rng)
         case .iceSpike:
             let ice = g("packed_ice")
             let giant = rng.int(60) == 0
@@ -587,6 +281,7 @@ enum TreePlacer {
                 let r = max(0, Int(Float(base) * (1 - Float(k) / Float(h)) + 0.5))
                 for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r { w.log(x + dx, y + k - 1, z + dz, ice) } }
             }
+        default: break          // (designed above)
         }
     }
 }

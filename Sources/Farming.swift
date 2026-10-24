@@ -253,8 +253,7 @@ extension Game {
         case "pale_oak_sapling": kind = square != nil ? .paleOak : nil
         case "mangrove_propagule": kind = .mangrove
         case "azalea", "flowering_azalea": kind = .oak
-        case "red_mushroom": kind = .hugeRed
-        case "brown_mushroom": kind = .hugeBrown
+        case "red_mushroom", "brown_mushroom": kind = nil          // (P406: no giant mushrooms)
         default: kind = .oak
         }
         guard let k = kind else { return }

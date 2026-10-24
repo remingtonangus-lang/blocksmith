@@ -1020,6 +1020,12 @@ if CommandLine.arguments.contains("--settletest") {
     GroundSettleTests.run(game, check: check)
     print(failures == 0 ? "settle: all checks passed" : "settle: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --treesheet DIR (with --render X): P406's designed trees: the shape checks, then one contact sheet per species.
+if let dir = arg("--treesheet"), let ctx = vkctx {
+    TreeTest.run(check: check)
+    do { try TreeShots.run(game: game, ctx: ctx, dir: dir, designs: true) } catch { print("FAIL treesheet: \(error)"); failures += 1 }
+    print(failures == 0 ? "trees: all checks passed" : "trees: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
     if !CommandLine.arguments.contains("--railride") { RailwayTests.run(game, check: check) }
