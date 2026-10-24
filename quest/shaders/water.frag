@@ -15,7 +15,7 @@ layout(location = 0) out vec4 outColor;
 // Port of the Mac's Fancy water (Sources/VibrantShaders.swift waterVibFS) without its scene and depth copies: Schlick
 // Fresnel between the mirrored sky and the water body, ripple + ocean swell normals, an HDR-ish sun glint, depth
 // absorption from the mesher's per-corner water depth (the bed shows through the shallows, deep water goes dark navy),
-// broken shoreline foam, rain rings, tumbling side faces, and the surface seen from below (refracted sky, total
+// rain rings, tumbling side faces, and the surface seen from below (refracted sky, total
 // internal reflection). Alpha blending carries it: out = premultiplied colour / A, A = 1 - (1 - fresnel) x transmittance.
 
 // The sky along a direction, as the Mac's Fancy water mirrors it (VibrantShaders skyAlong): the hazy fog colour at the
@@ -143,21 +143,12 @@ void main() {
         fres = min(1.0, fres * 1.1);
         A = 1.0 - (1.0 - fres) * T;
         pm = refl * fres + deep * (1.0 - fres) * (1.0 - T);
-        // Shoreline foam: where the water thins out over the bed, a broken white band drifting with the waves.
-        float shore = 1.0 - smoothstep(0.0, 0.8, oWDepth);
-        float foam = 0.0;
-        if (shore > 0.0 && oDist < 96.0 && murk < 0.99) {             // (P184: open water, the most of the view, skips the noise)
-            float fn = vnoise(wp.xz * 2.6 + vec2(t * 0.4, -t * 0.3)) * 0.6 + vnoise(wp.xz * 6.0 - t * 0.5) * 0.4;
-            foam = shore * shore * smoothstep(0.5, 0.85, fn + shore * 0.15) * 0.5 * (1.0 - murk);
-        }
-        vec3 foamC = vec3(0.92, 0.95, 0.97) * (lit * 0.85 + 0.05);
-        pm = mix(pm, foamC, foam);
-        A = mix(A, 1.0, foam);
-        // Sun glint: a tight HDR core and a soft sheen.
+        // P403 step 3 / P412 (c) (Remington, Oct 22: the white sheen and foam 'add little and don't look good'): the
+        // shoreline foam band and the soft sun sheen are gone; the sun keeps its tight glint.
         if (sunVis > 0.0) {
             vec3 hv = normalize(u.sunDir.xyz - v);
             float nh = clamp(dot(n, hv), 0.0, 1.0);
-            vec3 sp = sunC * (pow(nh, 500.0) * 7.0 + pow(nh, 70.0) * 0.18) * sunVis * (1.0 - foam);
+            vec3 sp = sunC * (pow(nh, 500.0) * 7.0) * sunVis;
             pm += sp;
             A = max(A, min(1.0, max(sp.r, max(sp.g, sp.b))));
         }

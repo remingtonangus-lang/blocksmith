@@ -782,6 +782,7 @@ if let out = arg("--view"), let ctx = vkctx {
             SceneRenderer.drawMerged = true
         }
         try RenderTest.render(game: vg, ctx: ctx, path: out, width: vwid, height: vhei, yaw: yaw, pitch: pitch, fovDeg: vfov)
+        print("view: " + RenderTest.lastBreakdown.replacingOccurrences(of: "\n", with: "\nview: "))      // P403 step 2
         if !fullRGBA.isEmpty && fullRGBA.count == RenderTest.lastRGBA.count {
             let b = RenderTest.lastRGBA
             var over8 = 0, over32 = 0, sum = 0

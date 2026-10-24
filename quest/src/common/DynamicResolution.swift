@@ -13,6 +13,9 @@ struct DynamicResolution {
     static let minScale: Float = 0.7, step: Float = 0.05
     private(set) var scale: Float = 1
     private(set) var drops = 0, takenBack = 0           // for the perf line
+    // The last probe's answer (P403 step 2, 'triangles or pixels'): the GPU time after a 10 % pixel cut over the time
+    // before it; ~0.9 says the frame pays for pixels, ~1.0 says it pays for triangles. 0 until a probe has run.
+    private(set) var lastProbe = 0.0
     private var ema = 0.0, settle = 0, hold = 0
     private var before = 0.0, judging = false
 
@@ -23,6 +26,7 @@ struct DynamicResolution {
         if settle > 0 { settle -= 1; return scale }           // the GPU time lags the change by a few frames
         if judging {
             judging = false
+            lastProbe = before > 0 ? ema / before : 0
             if ema > before * 0.975 {                         // under 2.5 % faster for ~10 % fewer pixels: not pixels
                 scale = min(1, scale + DynamicResolution.step)
                 takenBack += 1

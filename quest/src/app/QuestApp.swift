@@ -81,6 +81,8 @@ final class QuestApp {
             return true
         }
         stats.recordStages = { [weak self] in self?.worldRenderer?.takeStages() ?? "" }
+        stats.dynResProbe = { [weak self] in self?.dynRes.lastProbe ?? 0 }
+        stats.perfNotice = { [weak self] in self?.xr.perfNoticeLine ?? "" }
         startLoading()
     }
 
@@ -778,6 +780,8 @@ final class FrameStats {
     // lines) and give one short sharp buzz on both hands. At most one a 2 minutes.
     private var badWindows = 0, lastCaptureAt = -1e9, prevLine = ""
     static let captureMissFrac = 0.15, captureGap = 120.0
+    var dynResProbe: (() -> Double)?        // P403 step 2: DynamicResolution.lastProbe
+    var perfNotice: (() -> String)?         // P403 step 1: XRSession.perfNoticeLine
     private func capture(game: Game?, target: Double, now: Double) {
         defer { prevLine = lastLine }
         guard let g = game, target > 0, frames > 0 else { badWindows = 0; return }
@@ -827,6 +831,13 @@ final class FrameStats {
         lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
         lastLine += " | far ticking \(FarTicks.lastSecond)"                  // P376: things ticking past the active distance (0)
         lastLine += " | eye resolution \(Int((scene.viewScale * 100).rounded()))%"                        // P403 7b (dynamic resolution)
+        if let p = dynResProbe?(), p > 0 {                                                                 // P403 step 2: triangles or pixels
+            lastLine += String(format: " (10%% fewer pixels gave %.0f%% less gpu: %@)", (1 - p) * 100, p < 0.95 ? "pixel-bound" : "triangle-bound")
+        }
+        // P403 step 1: clocks and the hottest zone, and the runtime's own performance notices (a throttled headset).
+        let clocks = DeviceClocks.line()
+        if !clocks.isEmpty { lastLine += " | clocks: " + clocks }
+        if let n = perfNotice?(), !n.isEmpty { lastLine += " | runtime performance notice: " + n }
         if let st = recordStages?(), !st.isEmpty { lastLine += " | record ms: " + st }
         print(lastLine)
         capture(game: game, target: target, now: now)

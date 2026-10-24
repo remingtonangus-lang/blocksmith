@@ -652,6 +652,8 @@ final class XRSession {
                     exitRequested = true
                 default: break
                 }
+            case XR_TYPE_EVENT_DATA_PERF_SETTINGS_EXT:
+                perfSettingsEvent(withUnsafeBytes(of: &buf) { $0.load(as: XrEventDataPerfSettingsEXT.self) })
             case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
                 let ev = withUnsafeBytes(of: &buf) { $0.load(as: XrEventDataReferenceSpaceChangePending.self) }
                 print("xr: reference space \(ev.referenceSpaceType.rawValue) changes at \(ev.changeTime)")
@@ -663,6 +665,25 @@ final class XRSession {
         return !exitRequested
     }
     var onRecenter: (() -> Void)?
+    // P403 step 1: the runtime's performance notifications (XR_EXT_performance_settings): per domain, the latest level
+    // and what raised it ("gpu: warning (thermal)"); empty while everything is normal. Shown in the perf line.
+    private(set) var perfNotice: [String: String] = [:]
+    var perfNoticeLine: String { perfNotice.isEmpty ? "" : perfNotice.sorted { $0.key < $1.key }.map { "\($0.key): \($0.value)" }.joined(separator: ", ") }
+    private func perfSettingsEvent(_ ev: XrEventDataPerfSettingsEXT) {
+        let dom = ev.domain == XR_PERF_SETTINGS_DOMAIN_CPU_EXT ? "cpu" : "gpu"
+        let sub: String
+        switch ev.subDomain {
+        case XR_PERF_SETTINGS_SUB_DOMAIN_COMPOSITING_EXT: sub = "compositing"
+        case XR_PERF_SETTINGS_SUB_DOMAIN_RENDERING_EXT: sub = "rendering"
+        case XR_PERF_SETTINGS_SUB_DOMAIN_THERMAL_EXT: sub = "thermal"
+        default: sub = "sub \(ev.subDomain.rawValue)"
+        }
+        func name(_ l: XrPerfSettingsNotificationLevelEXT) -> String {
+            l == XR_PERF_SETTINGS_NOTIF_LEVEL_NORMAL_EXT ? "normal" : (l == XR_PERF_SETTINGS_NOTIF_LEVEL_WARNING_EXT ? "warning" : "impaired")
+        }
+        if ev.toLevel == XR_PERF_SETTINGS_NOTIF_LEVEL_NORMAL_EXT { perfNotice[dom] = nil } else { perfNotice[dom] = "\(name(ev.toLevel)) (\(sub))" }
+        print("xr: performance \(dom) \(sub): \(name(ev.fromLevel)) -> \(name(ev.toLevel))")
+    }
     private(set) var availableRates: [Float] = []
 
     // Asks the runtime for a display refresh rate (the nearest offered one not above `want`); true when granted.

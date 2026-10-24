@@ -14,6 +14,7 @@ enum RenderTest {
     // The last frame's draw load: sections, draw calls, terrain quads, CPU record ms, and mobs within the mob distance.
     static var lastStats: (sections: Int, draws: Int, quads: Int, recordMs: Double, mobsDrawn: Int, mobVerts: Int) = (0, 0, 0, 0, 0, 0)
     static var lastStages = ""            // where the record time went (WorldRenderer stages, ms per frame over the 3)
+    static var lastBreakdown = ""         // P403 step 2: quads by distance and kind (SceneRenderer.quadBreakdown / kindBreakdown)
     static func render(game: Game, ctx: VkContext, path: String, width: Int = 640, height: Int = 640,
                        yaw: Float = 0, pitch: Float = -0.15, fovDeg: Float = 90) throws {
         let scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
@@ -67,6 +68,7 @@ enum RenderTest {
         print(String(format: "rendertest: %d sections visible, %d draws, %d quads; cull %.2f ms, CPU record %.2f ms, frame (lavapipe) %.0f ms",
                      scene.visibleCount, scene.drawCalls, scene.drawnQuads, scene.cullMs, wr.frameCPUMs, ms.last!))
         let md = wr.mobMaxDist
+        lastBreakdown = scene.quadBreakdown() + "\n" + scene.kindBreakdown()
         lastStages = wr.takeStages() + ", mob vertices \(wr.lastMobVerts)"
         lastStats = (scene.visibleCount, scene.drawCalls, scene.drawnQuads, wr.frameCPUMs,
                      game.mobs.mobs.filter { $0.health > 0 && simd_length($0.pos - center) < md }.count, wr.lastMobVerts)
