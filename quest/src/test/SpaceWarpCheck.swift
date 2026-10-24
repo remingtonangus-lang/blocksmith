@@ -34,6 +34,7 @@ enum SpaceWarpCheck {
         _ = w.loadSync(center: g.player.pos, radius: 2)
         g.mobs.mobs.removeAll()
         let scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM, spaceWarp: true)
+        scene.spaceWarpOn = true                  // (P426: the Options switch, on for the check)
         try scene.uploadTextures()
         let wr = WorldRenderer(scene: scene, game: g)
         scene.viewScale = scale
