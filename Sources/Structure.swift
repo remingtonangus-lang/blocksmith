@@ -353,7 +353,10 @@ enum Structure {
         while budget > 0, !w.loadQueue.isEmpty {
             let p = w.loadQueue.removeFirst()
             w.loadQueued.remove(IVec3(floorDiv(p.x, 4), floorDiv(p.y, 4), floorDiv(p.z, 4)))
-            guard w.activeHere(p) else { continue }
+            // P430 (b) (Oct 24 10:25, "the radar dish, I destroyed the tower. It should be falling"): a check past the
+            // active distance waits for it (FarTicks.park) instead of being dropped: the mast shelled from the roof gun
+            // lost the checks that would have brought its dish down.
+            guard w.activeHere(p) else { w.park(load: p); continue }
             budget -= 1
             let t0 = CFAbsoluteTimeGetCurrent()
             let r = analyse(w, at: p)

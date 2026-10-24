@@ -1743,7 +1743,7 @@ final class Game {
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && ashBaseUse(t.hit) { swing = 1; return }                    // P318
-        if useNow && !(input.shift || p.b) && (baseConsoleUse(t.hit) || radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net (P422: or does its own job)
+        if useNow && !(input.shift || p.b) && (stationGunUse(t.hit) || baseConsoleUse(t.hit) || radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net (P422: or does its own job)
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
             return
@@ -2670,6 +2670,8 @@ final class Game {
 
     func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
+        // P430 (c): working a station's gun from its console, what strikes the gun's roof isn't him.
+        if let r = Turrets.shared.remote, Turrets.shared.manned != nil, simd_length(src - r) > 8 { return }
         if let ns = coop.netSeat, coop.current == ns, let h = netHost { h.hurt(amount, from: src, cause: cause, knockback: knockback, type: type); return }
         CombatHUD.shared.hurt(self, from: src, amount: amount)
         if let a = attacker { petsAttack(a) }
