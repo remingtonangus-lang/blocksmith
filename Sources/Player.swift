@@ -50,6 +50,13 @@ final class Player {
     var speedMul: Float = 1        // speed / slowness effects
     var gunSlow: Float = 1         // P391: a heavy gun in hand (the rotary gun)
     var jumpBoost = 0              // jump boost level
+    // P417 (b) (Oct 23 21:06-21:12: up "about a block and a half", "the jump animation's too slow"): the jump rises
+    // about 1.55 blocks under a stronger pull while it lasts, so the whole hop takes about 0.47 s (it was 1.3 blocks
+    // in 0.61 s at 8.6 b/s under 28). Falls that aren't a jump keep the old pull.
+    static let jumpG: Float = 56
+    static let jumpV: Float = (2 * jumpG * 1.55).squareRoot()      // 13.2 b/s
+    var jumpArc = false
+    var jumpSpeed: Float { Player.jumpV + 2 * Float(jumpBoost) * Player.jumpV / 8.6 }
     var slowFalling = false
     var dolphinsGrace = false
     var depthStrider = 0           // boots enchantments
@@ -98,7 +105,10 @@ final class Player {
     }
 
     func collides(at p: V3, _ w: World) -> Bool {
-        w.collides(V3(p.x - halfW, p.y, p.z - halfW), V3(p.x + halfW, p.y + height, p.z + halfW))
+        let was = w.foliageSoft
+        w.foliageSoft = !flying                // P417 (a): standing in leaves or a limb is not being stuck in a block
+        defer { w.foliageSoft = was }
+        return w.collides(V3(p.x - halfW, p.y, p.z - halfW), V3(p.x + halfW, p.y + height, p.z + halfW))
     }
 
     func intersectsBlock(_ b: IVec3) -> Bool {
@@ -152,6 +162,9 @@ final class Player {
         if berryBase != AIR && Blocks.groupBase[Int(b)] == berryBase { return (0.37, 1.2, 6.3) }
         if b == powderSnowID { return (0.415, 60, 60) }
         if b == wireID { return (0.3, 1.2, 3.0) }
+        // P417 (a): crushing through leaves and limbs (passed through: World.foliageSoft) slows him a little and lets
+        // him sink through a canopy rather than drop.
+        if ShapeClass.kind[Int(b)] == .foliage || ShapeClass.kind[Int(b)] == .trunk { return (0.75, 6, 20) }
         return nil
     }
     private var lastGoodPos: V3?
@@ -363,12 +376,14 @@ final class Player {
             vel.y += (6 - vel.y) * (1 - expf(-4 * dt))
             airPeak = pos.y
         } else {
-            vel.y -= (slowFalling && vel.y < 0 ? 2.8 : 28) * dt
+            if onGround || vel.y < -Player.jumpV { jumpArc = false }
+            vel.y -= (slowFalling && vel.y < 0 ? 2.8 : (jumpArc ? Player.jumpG : 28)) * dt
             vel.y = max(vel.y, slowFalling ? -1.2 : -60)
             if slowFalling { airPeak = pos.y }
             if input.jump && onGround {
-                vel.y = (8.6 + 2 * Float(jumpBoost)) * (underID == Player.honeyID ? 0.5 : 1)
+                vel.y = jumpSpeed * (underID == Player.honeyID ? 0.5 : 1)
                 jumped = true
+                jumpArc = true
             }
         }
         if let s = held {
@@ -395,9 +410,11 @@ final class Player {
         let wetish = inFluid || wetGrace > 0
         w.bodiesSolid = !flying                // P306: step onto the bodies lying about, not through them
         w.mobsSolid = true                     // P311 (a): and never walk through a living mob
+        w.foliageSoft = !flying                // P417 (a): through leaves and limbs, not trunks
         let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround || wetish)
         w.bodiesSolid = false
         w.mobsSolid = false
+        w.foliageSoft = false
         var landed = false
         var bounce: Float = 0
         if hit.y {
@@ -413,8 +430,11 @@ final class Player {
         if autoJump && onGround && !flying && !sneaking && !prone && (hit.x || hit.z) && simd_length(wish) > 0.3 {
             // Auto-jump: a one-block step ahead with room above it.
             let d = simd_normalize(wish) * 0.35
-            if collides(at: pos + d, w) && !collides(at: pos + d + V3(0, 1.05, 0), w) && !collides(at: pos + V3(0, 1.05, 0), w) {
-                vel.y = 8.6 + 2 * Float(jumpBoost)
+            // P417 (b): and a block and a half (the jump clears it now).
+            let rise: Float? = [1.05, 1.55].first { !collides(at: pos + d + V3(0, $0, 0), w) }
+            if collides(at: pos + d, w), let r = rise, !collides(at: pos + V3(0, r, 0), w) {
+                vel.y = jumpSpeed
+                jumpArc = true
             }
         }
         // Climbing out of water: pushing into a wall while in water lifts you along it (reference: 0.3 blocks/tick
