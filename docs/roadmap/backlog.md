@@ -29,7 +29,7 @@ P416. [Remington, Oct 23 21:19-21:27] FREEZES. Opening a bulkhead door at a base
 
 P417. [Remington, Oct 23 21:06-21:12] GETTING THROUGH A FOREST. 'Getting through a forest is a pain in the ass.' (a) leaves and thin branches do not stop him: walking through them slows him a little and they bend or break ('you can crush through'); trunks still block; (b) he can step or jump up about a block and a half, and the jump animation is faster ('the jump animation's too slow'); (c) the jungle ran 29-32 fps at active distance 4 while the desert held 72 (21:08-21:10): builder 2 covers this inside P403.
 
-P418. [Remington, Oct 23 21:06] REMOVE THE ENDERMAN-LIKE MOB. 'We gotta get rid of Enderman. They can't be in the game.' Remove it from spawning everywhere (IP rule); existing ones despawn on load.
+P418. [DONE #433] [Remington, Oct 23 21:06] REMOVE THE ENDERMAN-LIKE MOB. 'We gotta get rid of Enderman. They can't be in the game.' Remove it from spawning everywhere (IP rule); existing ones despawn on load.
 
 P419. [Remington, Oct 23 21:11-21:25] ENEMIES. (a) Capital soldiers spawned in an area he had already cleared (21:11); (b) some enemies stand there oblivious and never attack ('way too peaceful', 21:17-21:18); (c) one shot him through a wall (21:20-21:21): no hits through solid walls; (d) one gun nearly killed him in one or two hits on what he thinks is easy (21:19, 21:25; he found a 'Rare slate repeater' after): check damage against the difficulty table (with P413 (c)) and show the current difficulty in Options.
 
