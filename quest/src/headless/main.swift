@@ -485,6 +485,35 @@ if let out = arg("--view"), let ctx = vkctx {
             vg.player.pos = V3(Float(gx) + 0.5 + p[0], Float(gy) + p[1], Float(gz) + 0.5 + p[2])
         }
     }
+    // --cutlog N (P433): the Nth log from the foot of the nearest living trunk within 16 blocks of the eye is struck out
+    // (as a creative blow does), the sections round it remeshed: the tree must draw as before with that cell missing.
+    if let n = Int(arg("--cutlog") ?? "") {
+        let ex = Int(floor(vg.player.pos.x)), ey = Int(floor(vg.player.pos.y)), ez = Int(floor(vg.player.pos.z))
+        var best: (Int, Int, Int, Int)? = nil           // x, foot y, z, distance squared
+        for z in (ez - 16)...(ez + 16) { for x in (ex - 16)...(ex + 16) {
+            var y = ey + 24
+            while y > ey - 12 {
+                let b = Int(vw.block(x, y, z))
+                guard ShapeClass.kind[b] == .trunk, Int(ShapeTrunks.axisOf[b]) == 1 else { y -= 1; continue }
+                var foot = y
+                while ShapeClass.kind[Int(vw.block(x, foot - 1, z))] == .trunk { foot -= 1 }
+                var top = y
+                while ShapeClass.kind[Int(vw.block(x, top + 1, z))] == .trunk { top += 1 }
+                let under = Int(vw.block(x, foot - 1, z))
+                var crown = false
+                for dy in -2...6 { for dz in -3...3 { for dx in -3...3 where Mesher.leafT[Int(vw.block(x + dx, top + dy, z + dz))] { crown = true } } }
+                let d2 = (x - ex) * (x - ex) + (z - ez) * (z - ez)
+                if top - foot + 1 >= 4 && crown && (Blocks.opaque[under] || Blocks.collide[under]) && (best == nil || d2 < best!.3) { best = (x, foot, z, d2) }
+                y = foot - 1
+            }
+        } }
+        if let (x, foot, z, _) = best {
+            let cy = foot + max(0, n - 1)
+            print("view: cutlog: trunk at \(x) \(foot) \(z), log \(n) (y \(cy)) struck out")
+            vw.setBlock(x, cy, z, AIR)
+            vw.remeshArea(x0: x - 10, z0: z - 10, x1: x + 10, z1: z + 10, y0: cy - 12, y1: cy + 24)
+        } else { print("view: cutlog: no living trunk within 16 blocks") }
+    }
     // --sign TEXT: stand just inside the door under the nearest street sign with that line (the town nearest --at),
     // looking in (the generator moves towns between builds, so a note's position may no longer hold the building).
     if let want = arg("--sign"), let sc = vw.gen.structures,

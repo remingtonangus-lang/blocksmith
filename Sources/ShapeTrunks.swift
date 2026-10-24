@@ -82,6 +82,25 @@ enum ShapeTrunks {
                 while bot > y - 64 && isTrunk[Int(ctx.column(x, bot - 1, z))] { bot -= 1 }
                 var top = y
                 while top < y + 64 && isTrunk[Int(ctx.column(x, top + 1, z))] { top += 1 }
+                // P433 (Remington, Oct 24: "this giant log, which isn't the same log I hit, it morphed into something
+                // else... the log just got wider"; "clearly algorithmically generated when they break"): a log struck
+                // out of a trunk left two runs, and each was measured and classed on its own: the stump below lost
+                // sight of the crown and became a post nearly a block wide, the part above hung in the air as cut
+                // timber. A cut of one or two cells with the same upright trunk going on past it is one column still
+                // (the same foot, top, height, taper and crown as before the blow); only the missing cells aren't drawn,
+                // and the trunk shows a cut end at each side of the gap (ShapeTrunks.column).
+                while bot > y - 60 {
+                    let c = cutBelow(ctx, x, bot, z)
+                    if c < 0 { break }
+                    bot = c
+                    while bot > y - 64 && isTrunk[Int(ctx.column(x, bot - 1, z))] { bot -= 1 }
+                }
+                while top < y + 60 {
+                    let c = cutAbove(ctx, x, top, z)
+                    if c < 0 { break }
+                    top = c
+                    while top < y + 64 && isTrunk[Int(ctx.column(x, top + 1, z))] { top += 1 }
+                }
                 let H = top - bot + 1
                 let under = Int(ctx.column(x, bot - 1, z))
                 let grounded = !isTrunk[under] && !leafT[under] && (opaqueT[under] || collideT[under])
@@ -104,10 +123,14 @@ enum ShapeTrunks {
                     else if H <= 2 && rootBeside(ctx, x, bot, z) { kind = 3 }     // a root beside a trunk's foot (upright or lying)
                     else if !vertical || H == 1 && lyingBeside(ctx, x, bot, z) { kind = 0 }   // a log lying on the ground
                     else if H <= 2 && SmoothTerrain.natural[under] { kind = 4 }    // P297: a tree's stump on the ground
+                    // P433: a taller crownless trunk on natural ground with nothing built against it is a felled
+                    // tree's stump too (its top fell away as one body), as thick as the tree it was; a post of a
+                    // building (a log with a wall or floor beside it) keeps its full timber.
+                    else if vertical && SmoothTerrain.natural[under] && !builtBeside(ctx, x, bot, top, z) { kind = 4 }
                     else { kind = 2 }                                               // a post (built timber)
                     if kind != 0 {
-                        let rb: Float = kind == 1 ? treeRadius(H) : (kind == 4 ? treeRadius(5) : 0.45)
-                        for yy in max(y, -M)...min(top, 15 + M) {
+                        let rb: Float = kind == 1 ? treeRadius(H) : (kind == 4 ? treeRadius(max(5, H + 4)) : 0.45)
+                        for yy in max(y, -M)...min(top, 15 + M) where log(x, yy, z) {       // (P433: not the cut's cells)
                             let i = wi(x, yy, z)
                             s.col[i] = kind
                             let t = (Float(yy - bot) + 0.5) / Float(H)
@@ -173,6 +196,36 @@ enum ShapeTrunks {
                 timber(ctx, x, y, z, axis: timberAxis(ctx, b, x, y, z), bark: bark, rings: rings, sides: sides)
             }
         } } }
+    }
+
+    // P433: a cut in an upright trunk: 1-2 air cells under `bot` (over `top`) with an upright log past them. The log
+    // cell past the cut, or -1.
+    static func cutBelow(_ ctx: DetailContext, _ x: Int, _ bot: Int, _ z: Int) -> Int {
+        guard axisOf[Int(ctx.column(x, bot, z))] == 1 else { return -1 }
+        var c = bot - 1, gap = 0
+        while gap < 2 && ctx.column(x, c, z) == AIR { gap += 1; c -= 1 }
+        guard gap > 0 else { return -1 }
+        let b = ctx.column(x, c, z)
+        return isTrunk[Int(b)] && axisOf[Int(b)] == 1 ? c : -1
+    }
+    static func cutAbove(_ ctx: DetailContext, _ x: Int, _ top: Int, _ z: Int) -> Int {
+        guard axisOf[Int(ctx.column(x, top, z))] == 1 else { return -1 }
+        var c = top + 1, gap = 0
+        while gap < 2 && ctx.column(x, c, z) == AIR { gap += 1; c += 1 }
+        guard gap > 0 else { return -1 }
+        let b = ctx.column(x, c, z)
+        return isTrunk[Int(b)] && axisOf[Int(b)] == 1 ? c : -1
+    }
+    // P433: something built (not ground, log, leaf or plant) against a run's side at any of its heights.
+    static func builtBeside(_ ctx: DetailContext, _ x: Int, _ bot: Int, _ top: Int, _ z: Int) -> Bool {
+        for yy in bot...top { for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            let b = Int(ctx.column(x + dx, yy, z + dz))
+            if b == 0 || isTrunk[b] || Mesher.leafT[b] || SmoothTerrain.natural[b] { continue }
+            let k = ShapeClass.kind[b]
+            if k == .foliage || k == .terrain { continue }
+            if Blocks.collide[b] || Blocks.opaque[b] { return true }
+        } }
+        return false
     }
 
     // P398 (a): a log leans on from a column's top: a log one up and to the side (an acacia's lean), none straight up.
@@ -301,9 +354,12 @@ enum ShapeTrunks {
         } else {
             prof.append((y0, r0))
         }
+        // P433: a living trunk's top at a cut (the struck cell's air over it, the trunk going on past it) is a flat
+        // cut end showing the rings, not the rounded tip under a crown.
+        let cutTop = !above && living && !isTrunk[Int(ctx.column(x, y + 1, z))] && cutAbove(ctx, x, y, z) >= 0
         if above {
             prof.append((y1, r1))
-        } else if living {
+        } else if living && !cutTop {
             prof.append((y1 - 0.15, r * 0.8)); prof.append((y1 + 0.05, r * 0.45)); prof.append((y1 + 0.15, 0.02))
         } else {
             prof.append((y1, r0))
@@ -345,8 +401,8 @@ enum ShapeTrunks {
             }
             prev = ps; prevN = ns
         }
-        // A cut top (timber, a stump): a flat end showing the rings.
-        if !above && !living {
+        // A cut top (timber, a stump, a living trunk at a struck cell): a flat end showing the rings.
+        if !above && (!living || cutTop) {
             let c = SIMD2<Float>(cx, cz)
             cap(ctx, center: SIMD3(c.x, y1, c.y), pts: prev, normal: SIMD3(0, 1, 0), layer: rings)
         }
