@@ -4,6 +4,7 @@ import simd
 // P382 check (questcheck --view OUT --field --scene groundthings [--groundcheck]): things laid on the field's ground in
 // front of the eye, and how far each one's drawing is off the drawn ground under it (BS_DRAPE=0: as before P382).
 extension GroundDrape {
+    static let gridPlace = ProcessInfo.processInfo.environment["BS_GRIDPLACE"] == "1"
     static let sceneThings: [String] = ["powered_rail", "powered_rail", "detector_rail", "white_carpet", "stone_pressure_plate", "torch",
                                         "oak_sign", "repeater", "lantern", "candle", "short_grass", "poppy"]
 
@@ -17,7 +18,10 @@ extension GroundDrape {
         func put(_ p: V3, _ key: String) {
             let o = V3(p.x, g.player.eye.y + 8, p.z)
             guard let h = w.fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 64) else { return }
-            let c = IVec3(Int(floor(h.at.x)), Int(floor(h.at.y + 0.5)), Int(floor(h.at.z)))
+            var c = IVec3(Int(floor(h.at.x)), Int(floor(h.at.y + 0.5)), Int(floor(h.at.z)))
+            // (P408: BS_GRIDPLACE=1 puts each on the block grid's top, as the game's hand does: aimed at the top of the
+            // highest solid cell in the column)
+            if gridPlace { c.y = Int(floor(h.at.y)) + 2; while c.y > 1 && !w.opaqueAt(c.x, c.y - 1, c.z) { c.y -= 1 } }
             guard !seen.contains(c), w.opaqueAt(c.x, c.y - 1, c.z), Blocks.replaceable[Int(w.materialAt(c.x, c.y, c.z))] else { return }
             seen.insert(c)
             w.setBlock(c.x, c.y, c.z, Blocks.id(key))

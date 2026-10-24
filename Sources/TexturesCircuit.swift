@@ -4,13 +4,13 @@ import Foundation
 extension TextureGen {
     static func redstonePainters(_ p: inout [String: Painter]) {
         for pw in 0..<16 {
-            // Copper wire brightens from dull dark copper (0x5E3420) to glowing copper-orange (0xFFA860) at 15.
+            // Copper wire brightens from bright copper (0xB8683A) to glowing copper-orange (0xFFA860) at 15.
             let k = Float(pw) / 15
             p["redstone_dust_\(pw)"] = { x, y in
-                if r(x, y, 700) < 0.12 { return clear }
-                let n: Float = 0.85 + 0.2 * r(x, y, 701)
-                let cr: Float = (0x5E + (0xFF - 0x5E) * k) / 255, cg: Float = (0x34 + (0xA8 - 0x34) * k) / 255
-                let cb: Float = (0x20 + (0x60 - 0x20) * k) / 255
+                // (P408: solid twisted copper, bright even unpowered: dust holes read as soil on the grass)
+                let n: Float = ((x + y) % 4 == 3 ? 0.55 : (x + y) % 4 == 1 ? 1.15 : 0.9) + 0.1 * r(x, y, 701)
+                let cr: Float = (0xB8 + (0xFF - 0xB8) * k) / 255, cg: Float = (0x68 + (0xA8 - 0x68) * k) / 255
+                let cb: Float = (0x3A + (0x60 - 0x3A) * k) / 255
                 return V4(min(1, cr * n), min(1, cg * n), min(1, cb * n), 1)
             }
         }

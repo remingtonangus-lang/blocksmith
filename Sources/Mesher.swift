@@ -898,15 +898,23 @@ enum Mesher {
         // ground is under every corner.
         func drapeRect(_ lx: Int, _ ly: Int, _ lz: Int, _ x0: Int, _ x1: Int, _ z0: Int, _ z1: Int, lift16: Int, trans: Bool,
                        tint: Int, layer: Int, l: Int, uv: (Int, Int) -> (Int, Int)) -> Bool {
-            let top = Float(ly) + 1.25, st = GroundDrape.step
-            @inline(__always) func y16(_ px: Int, _ pz: Int) -> Int? {
-                guard let h = drape.heightNear(Float(lx) + Float(px) / 16, Float(lz) + Float(pz) / 16, top: top) else { return nil }
+            // P408 (Oct 22 22:05, "I can't see the wire... it seems like it's going underneath the texture of the grass"):
+            // the game places a thing on the block grid's top, and on a slope the drawn ground can rise more than a block and
+            // a quarter over that cell's floor at its uphill corners. The rectangle then found no ground there and was drawn
+            // flat on the cell floor, under the grass. The ground is looked for up to 2 blocks over the floor, and a corner
+            // still without it takes the highest of the others (it rises with the slope; it never drops under the grass).
+            let top = Float(ly) + 2, st = GroundDrape.step
+            @inline(__always) func raw(_ px: Int, _ pz: Int) -> Int? {
+                guard let h = drape.heightNear(Float(lx) + Float(px) / 16, Float(lz) + Float(pz) / 16, top: top, reach: 3.25) else { return nil }
                 return max(0, min(511, Int((h * 16 - 0.01).rounded(.up)) + lift16))
             }
-            if y16(x0, z0) == nil || y16(x1, z0) == nil || y16(x0, z1) == nil || y16(x1, z1) == nil {
+            let c00 = raw(x0, z0), c10 = raw(x1, z0), c01 = raw(x0, z1), c11 = raw(x1, z1)
+            let fill = max(c00 ?? -1, c10 ?? -1, c01 ?? -1, c11 ?? -1)
+            if fill < 0 {
                 if GroundDrape.debug { print("drape: no ground under \(lx) \(ly) \(lz) [\(x0)-\(x1), \(z0)-\(z1)] sy \(sy) chunk \(chunk.map { "\($0.x) \($0.z)" } ?? "-")") }
                 return false
             }
+            @inline(__always) func y16(_ px: Int, _ pz: Int) -> Int? { raw(px, pz) ?? fill }
             // P384: near only (they lead the cutout quads after the leaf blobs'); the far copy below goes last.
             let farDrape = farCopies && !trans && curCut
             if farDrape { cutOut = drapeNear }
@@ -937,7 +945,7 @@ enum Mesher {
             cutOut = drapeFar; counting = false
             defer { cutOut = cut; counting = true }
             @inline(__always) func ey(_ px: Int, _ pz: Int) -> Float? {
-                drape.heightNear(Float(lx) + Float(px) / 16, Float(lz) + Float(pz) / 16, top: top).map { $0 * 16 + Float(lift16) }
+                drape.heightNear(Float(lx) + Float(px) / 16, Float(lz) + Float(pz) / 16, top: top, reach: 3.25).map { $0 * 16 + Float(lift16) }
             }
             func farRect(_ xa: Int, _ xb: Int, _ za: Int, _ zb: Int) {
                 var cy = SIMD4<Float>(0, 0, 0, 0), cxz = [SIMD2<Float>](repeating: .zero, count: 4)
