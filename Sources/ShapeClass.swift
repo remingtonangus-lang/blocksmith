@@ -88,8 +88,12 @@ enum ShapeClass {
         if rt == .liquid { return .liquid }
         if rt == .cross { return .plant }
         if Mesher.leafT[i] { return .foliage }
-        guard rt == .cube && Blocks.opaque[i] else { return .model }
         let n = Blocks.key(b)
+        // P433 (Remington, Oct 24 15:22, a mangrove swamp: "these are horrible"): a tree's root block (mangrove roots: a
+        // see-through wood block the generator lays from the trunk's foot down into the mud) is part of the tree, drawn
+        // by ShapeTrunks as round roots growing out of the trunk, not as a cube of flat root-textured sheets.
+        if rt == .cube && !Blocks.opaque[i] && d.sound == .wood && d.tool == .axe && n.hasSuffix("_roots") { return .trunk }
+        guard rt == .cube && Blocks.opaque[i] else { return .model }
         if isPillar(b) && d.sound == .wood && d.tool == .axe { return .trunk }   // logs, wood, stems (cut ones too)
         if n.hasSuffix("_stem") && d.sound == .wood && d.tool == .axe { return .trunk }   // a huge mushroom's stalk
         if legacyGround[i] { return .terrain }                                   // (the ground the caves were tuned on)
