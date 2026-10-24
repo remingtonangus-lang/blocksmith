@@ -188,6 +188,7 @@ extension Game {
         let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
         guard k == "command_console" || k == "greywall_terminal" else { return false }   // (P68 terminals too)
         consoleRadarUntil = clock + 30
+        BaseConsoles.camerasAt = nil                                 // (P422: the locator's picture, not the cameras')
         Game.radarCache.time = -1
         sfx(.click, 0.8, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
         onToast?("Console: patrols and Capital sites on your radar for 30 s")
@@ -214,12 +215,12 @@ extension Game {
         let ship = frigateRadar
         guard holdingRadar || console || ship, menu == nil else { return [] }
         if clock - Game.radarCache.time > 0.5 || Game.radarCache.world !== world {
-            Game.radarCache = (clock, world, ship ? frigateContacts() : radarContacts() + (console ? consoleContacts() : []))
+            Game.radarCache = (clock, world, ship ? frigateContacts() : (console && BaseConsoles.camerasAt != nil ? consoleCameraContacts() : radarContacts() + (console ? consoleContacts() : [])))
             if ship { markRadarSites(Game.radarCache.list) }
         }
         let s = L.s
         let rows = Game.radarCache.list.map { "\($0.name)  \(radarBearing($0))" }
-        let head = ship ? "Frigate radar (1,500 m)" : console ? "Citadel console" : (fleetSails ? "Radar" : "Radar (the fleet sails once a Greywall Fortress falls)")
+        let head = ship ? "Frigate radar (1,500 m)" : console ? (BaseConsoles.camerasAt != nil ? "Security cameras" : "Citadel console") : (fleetSails ? "Radar" : "Radar (the fleet sails once a Greywall Fortress falls)")
         let w = Float(([head] + rows).map { Font.width($0) }.max() ?? 40) * s + 8 * s
         let x = floor(L.W / 2 - w / 2), y = L.hotbarY0 - Float(rows.count + 1) * 10 * s - 30 * s
         var out = [HudLine(text: "", x: x, y: y - 3 * s, scale: s, bg: V4(0.02, 0.08, 0.04, 0.6), box: V2(w, Float(rows.count + 1) * 10 * s + 5 * s))]
