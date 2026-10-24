@@ -31,19 +31,33 @@ enum TextureCache {
         }
     }
 
+    // P401: written straight from the levels to a temporary file, then renamed (the levels were first copied into one
+    // 166 MB Data, which sat beside them while the launch went on: the first launch of a build's memory peak).
+    static let lean = ProcessInfo.processInfo.environment["BS_P401"] != "0"     // (BS_P401=0: as before, for the numbers)
     static func store(_ levels: [[UInt8]], _ url: URL) {
-        var d = Data()
-        func put(_ v: Int) { var x = UInt32(v); withUnsafeBytes(of: &x) { d.append(contentsOf: $0) } }
-        put(Int(magic)); put(levels.count)
-        for l in levels { put(l.count) }
-        for l in levels { d.append(contentsOf: l) }
+        if !lean {
+            var d = Data()
+            func put(_ v: Int) { var x = UInt32(v); withUnsafeBytes(of: &x) { d.append(contentsOf: $0) } }
+            put(Int(magic)); put(levels.count)
+            for l in levels { put(l.count) }
+            for l in levels { d.append(contentsOf: l) }
+            try? d.write(to: url, options: .atomic)
+            return
+        }
+        var head: [UInt32] = [magic, UInt32(levels.count)]
+        for l in levels { head.append(UInt32(l.count)) }
         let dir = url.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for f in (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
         where f.hasPrefix("textures-") && f.hasSuffix(".bin") && f != url.lastPathComponent {
             try? FileManager.default.removeItem(at: dir.appendingPathComponent(f))
         }
-        do { try d.write(to: url, options: .atomic) } catch { print("textures: cache not written: \(error)") }
+        let tmp = url.path + ".part"
+        guard let fp = fopen(tmp, "wb") else { print("textures: cache not written (\(tmp))"); return }
+        var ok = head.withUnsafeBytes { fwrite($0.baseAddress!, 1, $0.count, fp) == $0.count }
+        for l in levels where ok { ok = l.withUnsafeBytes { $0.count == 0 || fwrite($0.baseAddress!, 1, $0.count, fp) == $0.count } }
+        ok = fclose(fp) == 0 && ok
+        if !ok || rename(tmp, url.path) != 0 { unlink(tmp); print("textures: cache not written (\(url.lastPathComponent))") }
     }
 
     static var backgroundStore = ProcessInfo.processInfo.environment["BS_TEXCACHEBG"] != "0"

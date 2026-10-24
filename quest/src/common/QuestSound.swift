@@ -43,6 +43,9 @@ final class SoundEngine {
     private var nextSpatial = 0, nextFlat = 0, nextUI = 0, variant = 0
     private var mixLock = NSLock()
     private var clips: [Snd: [QuestClip]] = [:]
+    // (P401 harness: the one-shot clips held as PCM)
+    var clipCount: Int { clips.count }
+    var clipBytes: Int { clips.values.reduce(0) { $0 + $1.reduce(0) { $0 + $1.data.count * 4 } } }
 
     private(set) var music: MusicStream?
     private(set) var disc: MusicStream?
