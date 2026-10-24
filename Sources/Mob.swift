@@ -2266,7 +2266,10 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         // buffer whole is skipped, not cut off part way (a far turret drew its barbette skirt and base, then the buffer
         // ran out before its gunhouse). Its parts are counted at full detail, an upper bound.
         // P366 (a): near living mobs draw rounded parts (MobRound.swift).
-        let roundable = MobDetail.level == 0 && !m.kind.steelhold && !m.kind.ashVehicle && m.spec.behavior != .vehicle
+        // P405 (Oct 22, "the old ones were perfect"): cows, pigs and sheep keep the P295 models he liked on Oct 16, drawn
+        // with their sharp parts (rounded, the pig's back read as a tabletop).
+        let farmLook = m.kind == .cow || m.kind == .pig || m.kind == .sheep
+        let roundable = MobDetail.level == 0 && !m.kind.steelhold && !m.kind.ashVehicle && m.spec.behavior != .vehicle && !farmLook
         if n + (body.count + worn.count) * (roundable ? MobRound.vertsPerPart : 36) > capacity && n > 0 { MobDrawStats.dropped += 1; continue }
         let lie = m.lying
         let side: Float = m.carcass ? m.spec.halfW * 16 : 0, sideX: Float = m.spec.height * 8
