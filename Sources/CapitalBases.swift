@@ -204,6 +204,8 @@ extension Game {
         submarinesTick(dt)                             // C8 (Submarines.swift)
         corsairsTick(dt)                               // T15 (Pirates.swift)
         TickProf.mark("bases: turrets radio grapple subs")
+        greywallScanStep()                             // P416 (GreywallAlarm.swift)
+        TickProf.mark("bases: greywall scan")
         b.timer += dt
         guard b.timer >= 1 else { return }
         let step = b.timer
@@ -219,11 +221,14 @@ extension Game {
         borealAlarmTick(b, step)
         TickProf.mark("bases: boreal alarm")
         BaseSecurity.tick(self, b)                        // D35: cameras (before the alarm reads the noises)
+        TickProf.mark("bases: cameras")
         bodiesTick(b)                                     // D36: bodies found
         baseCounterTick(b)                                // D38: counter-attacks, the alarm kept for a reload
+        TickProf.mark("bases: bodies counter")
         greywallAlarmTick(b, step)
-        baseObjectivesTick(b, step)                       // D34 (BaseObjectives.swift)
         TickProf.mark("bases: greywall alarm")
+        baseObjectivesTick(b, step)                       // D34 (BaseObjectives.swift)
+        TickProf.mark("bases: objectives")
         stationOpsTick(b, step)
         TickProf.mark("bases: station ops")
         // Citadels near a player (their centre chunk loaded; split screen: either player) plus any with work in hand.

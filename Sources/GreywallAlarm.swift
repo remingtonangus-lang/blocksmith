@@ -36,6 +36,10 @@ final class GreywallAlarmState {
     var squadsSent: [String: Int] = [:]
     static let holdFor: Float = 10
     var sites: [String: Site] = [:]
+    // P416 (Oct 23 21:25, "massive freeze" walking up to the base): the scan of a base's whole box ran in one frame
+    // (316 ms in a debug build) on each approach. Now one chunk column a frame, and kept when the base is forgotten.
+    var scanning: [String: (Site, Int)] = [:]
+    var scanned: [String: Site] = [:]
     struct Gun { var windup: Float = 0, shots = 0, gap: Float = 0, cool: Float = 0, look: Float = 0, sees = false, hits = 0, seat = 0 }
     var guns: [IVec3: Gun] = [:]                    // wall turrets near a player (in memory: a reload repairs no damage, the block keeps it)
     var panelHits: [IVec3: Int] = [:]
@@ -108,6 +112,39 @@ extension Greywall {
         mark(BaseSecurity.camera, 6)                                                  // D35
         return t
     }()
+    // P416: the same scan, one chunk column of the footprint at a time (true: that was the last; nil: not loaded yet).
+    static func scanColumn(_ world: World, _ site: inout GreywallAlarmState.Site, _ i: Int) -> Bool? {
+        let e = site.tier.half + 2
+        let x0 = floorDiv(site.cx - e, CS), x1 = floorDiv(site.cx + e, CS), z0 = floorDiv(site.cz - e, CS), z1 = floorDiv(site.cz + e, CS)
+        let w = x1 - x0 + 1, n = w * (z1 - z0 + 1)
+        guard i < n else { return true }
+        let ccx = x0 + i % w, ccz = z0 + i / w
+        guard world.isLoaded(ccx * CS, ccz * CS) else { return nil }
+        // the column's part of the box (the box's own x/z bounds clipped to this chunk)
+        let ax = max(site.cx - e, ccx * CS), bx = min(site.cx + e, ccx * CS + CS - 1)
+        let az = max(site.cz - e, ccz * CS), bz = min(site.cz + e, ccz * CS + CS - 1)
+        let kind = scanKinds
+        let y0 = site.S - 8, y1 = site.S + site.tier.wallH + 12
+        let rx = (bx - ax) / 2, rz = (bz - az) / 2
+        var hits: [(UInt8, IVec3)] = []
+        // (forEachBlock takes a square: the larger half-size round the middle, then this column's cells kept)
+        world.forEachBlock(around: IVec3(ax + rx, (y0 + y1) / 2, az + rz), r: max(rx, rz) + 1, ry: (y1 - y0 + 1) / 2) { b, x, y, z in
+            let k = kind[Int(b)]
+            guard k != 0, x >= ax, x <= bx, z >= az, z <= bz else { return }
+            hits.append((k, IVec3(x, y, z)))
+        }
+        for (k, q) in hits {
+            switch k {
+            case 1: site.lamps.append(q)
+            case 2: site.panels.append(q)
+            case 3: site.consoles.append(q)
+            case 4: site.turrets.append(q)
+            case 6: site.cameras.append(q)
+            default: site.flags.append(q)
+            }
+        }
+        return i == n - 1
+    }
     static func scanOld(_ world: World, _ site: inout GreywallAlarmState.Site) -> Bool {
         let e = site.tier.half + 2
         let lampOff = Blocks.groupBase[Int(Blocks.id("alarm_lamp"))], lampOn = Blocks.groupBase[Int(Blocks.id("alarm_lamp_lit"))]
@@ -130,13 +167,26 @@ extension Greywall {
 }
 
 extension Game {
+    // P416: every frame, one more chunk column of each base being scanned (the alarm itself ticks once a second).
+    func greywallScanStep() {
+        let st = bases.greywall
+        guard !st.scanning.isEmpty else { return }
+        for key in Array(st.scanning.keys) {
+            guard var (part, next) = st.scanning[key] else { continue }
+            guard let done = Greywall.scanColumn(world, &part, next) else { continue }       // (that column not in yet)
+            if done { st.scanning[key] = nil; st.scanned[key] = part } else { st.scanning[key] = (part, next + 1) }
+        }
+    }
+
     // Lights or darkens every lamp still standing (same facing: the lit lamps are the dark ones' twins).
     func greywallLamps(_ site: inout GreywallAlarmState.Site, lit: Bool) {
         let off = Blocks.id("alarm_lamp"), on = Blocks.id("alarm_lamp_lit")
         for p in site.lamps where world.isLoaded(p.x, p.z) {
             let b = world.block(p.x, p.y, p.z)
-            if !lit && b >= on && b < on + 4 { world.setBlock(p.x, p.y, p.z, off + (b - on)) }
-            if lit && b >= off && b < off + 4 { world.setBlock(p.x, p.y, p.z, on + (b - off)) }
+            // P416: re-meshed in the background (a synchronous remesh round each of a fortress's dozens of lamps froze
+            // the frame the alarm went up or the base was first found)
+            if !lit && b >= on && b < on + 4 { world.setBlockAsync(p.x, p.y, p.z, off + (b - on)) }
+            if lit && b >= off && b < off + 4 { world.setBlockAsync(p.x, p.y, p.z, on + (b - off)) }
         }
         site.lampsLit = lit
     }
@@ -157,7 +207,14 @@ extension Game {
             let key = "greywall:\(cx),\(cz)"
             guard st.sites[key] == nil, simd_length(V2(pp.x - Float(cx), pp.z - Float(cz))) < 160 else { continue }
             var site = GreywallAlarmState.Site(cx: cx, cz: cz, S: Greywall.yardY(s), tier: Greywall.Tier.of(s))
-            if greywallScan(&site) {
+            if let k = st.scanned[key] {
+                site.lamps = k.lamps; site.panels = k.panels; site.consoles = k.consoles
+                site.turrets = k.turrets; site.flags = k.flags; site.cameras = k.cameras
+            } else {
+                if st.scanning[key] == nil { st.scanning[key] = (site, 0) }     // (scanned a column a frame: greywallScanStep)
+                continue
+            }
+            do {
                 if (TownLaw.state.alarms ?? []).contains(key) && !st.taken.contains(key) {          // D38: still up after a reload
                     site.on = true; site.quiet = 0; site.src = V3(Float(cx) + 0.5, Float(site.S + 1), Float(cz) + 0.5)
                     greywallLamps(&site, lit: true)
@@ -167,6 +224,7 @@ extension Game {
                 st.sites[key] = site
             }
         }
+        TickProf.mark("greywall: bases found")
         for key in Array(st.sites.keys) {
             guard var site = st.sites[key] else { continue }
             // Forget a base nobody is near (its lamps stay as they are: dark unless the alarm was up).
@@ -180,6 +238,7 @@ extension Game {
             // A base the player has taken: quiet for good. One not yet taken: cleared and its console held, it is theirs.
             if st.taken.contains(key) { st.sites[key] = site; continue }
             if greywallCaptureTick(&site, key, players, dt) { st.sites[key] = site; continue }
+            TickProf.mark("greywall: capture")
             var trigger: V3? = nil
             for n in b.noises where n.hostile && Greywall.inside(site, n.pos) { trigger = n.pos }
             // (a net that found out a spoofer: every base of it sounds as soon as a player is inside, C6 RadioSpoof.swift)

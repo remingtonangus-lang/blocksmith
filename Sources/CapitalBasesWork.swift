@@ -298,7 +298,7 @@ extension Game {
             if inBody { skipped.append((p, id)); continue }
             // Re-meshed in the background (a synchronous remesh of the sections round each block cost ~0.8 ms, two a
             // second: the citadel update averaged 2.6 ms, --basetest run 634); water beside it settles as usual.
-            world.setBlockAsync(p.x, p.y, p.z, id)
+            world.restoring = true; world.setBlockAsync(p.x, p.y, p.z, id); world.restoring = false
             world.scheduleFluid(around: p)
             if away <= 5 {
                 particles.blockBreak(id, at: p)

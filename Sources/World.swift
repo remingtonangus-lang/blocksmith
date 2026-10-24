@@ -65,6 +65,7 @@ final class World {
     var collapseQueue: [(IVec3, Int)] = [] // P351: carves to check for loose ground (GroundCollapse)
     var loadQueue: [IVec3] = []            // P388: structural changes whose piece carries its load next (Structure.tick)
     var loadQueued = Set<IVec3>()          // (4-cubes already queued)
+    var restoring = false                  // P416: a base's crew putting its own plan back (sound as built: no load check)
     var collapsing = false
     // P338 step 8: free building pieces (FreeBuild.swift) and their collision boxes by cell.
     var pieces: [FreePiece] = []
@@ -1890,7 +1891,7 @@ final class World {
         if lava { lavaDone = batch.count } else { fluidDone = batch.count }
         for (bi, p) in batch.enumerated() {
             // Out of time (Quest): the rest wait for the next fluid tick.
-            if timed && bi & 15 == 15 && CFAbsoluteTimeGetCurrent() - t0 > World.fluidSeconds {
+            if timed && CFAbsoluteTimeGetCurrent() - t0 > World.fluidSeconds {     // (P416: every cell: 16 lava cells ran 30-50 ms past the 2 ms)
                 if lava { lavaPending.giveBack(batch.count - bi); lavaDone = bi } else { fluidPending.giveBack(batch.count - bi); fluidDone = bi }
                 break
             }
