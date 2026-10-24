@@ -282,6 +282,7 @@ final class Mob {
     var yaw: Float
     var onGround = false
     var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn model (ViewStep.swift)
+    var drawnAt = V3(repeating: .infinity)          // P403 7b: where it was last drawn (MobMotion)
     // P142: the drawn smooth ground under the feet (World.smoothGroundOffset), and its 4 column heights cached by cell.
     var viewGround: Float = 0, groundKey = Int.min, groundH = SIMD4<Float>(repeating: 0)
     var ragdoll: MobRagdoll?        // realistic world: a dead body falling as a ragdoll (MobRagdoll.swift)
@@ -2275,6 +2276,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let side: Float = m.carcass ? m.spec.halfW * 16 : 0, sideX: Float = m.spec.height * 8
         let pose = MobAnim.pose(m)
         let still = pose.still
+        let m0 = n
         // Far detail: past 64 blocks a part under 1.2/16 of a block across (eyes, noses, buttons) is about a pixel on a
         // 1080p screen but costs 36 vertices; soldiers have their own levels of detail (SoldierRig).
         // The Ash Vault's vehicles (hundreds of parts each) drop their small fittings from 48 blocks, up to 3 px.
@@ -2377,8 +2379,25 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                 n += 6
             }
         }
+        // P403 7b (Quest space warp): how far this mob's model moved since it was last drawn, for its motion vectors.
+        if MobMotion.on {
+            let at = m.pos + V3(0, m.viewDY, 0)
+            let d = at - m.drawnAt
+            let d2 = simd_length_squared(d)
+            if rag == nil && d2 > 1e-8 && d2 < 4 && simd_length_squared(base) < 64 * 64 && n > m0 {
+                MobMotion.ranges.append((Int32(m0), Int32(n - m0), d))
+            }
+            m.drawnAt = at
+        }
     }
     return n
+}
+
+// P403 7b: the Quest's space warp draws each moving mob again into its motion vectors (WorldRenderer.drawMobs):
+// the vertex range writeMobVertices wrote for it and how far it moved since its last drawn frame.
+enum MobMotion {
+    static var on = false
+    static var ranges: [(start: Int32, count: Int32, moved: V3)] = []
 }
 
 // MARK: Manager

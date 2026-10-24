@@ -56,6 +56,7 @@ final class WorldRenderer {
         let mobs = game.mobs.mobs, corpses = game.mobs.corpses, rag = game.debris.ragdolls
         let daylight = game.renderDaylight, world = game.world, maxD = mobMaxDist
         mobPending = b
+        MobMotion.on = scene.spaceWarp; MobMotion.ranges.removeAll(keepingCapacity: true)      // P403 7b
         mobWork.start { [self] in
             mobCount = writeMobVertices(mobs, eye: eye, daylight: daylight, world: world, into: ptr, capacity: cap,
                                         cull: frustum, maxDist: maxD, corpses: corpses, ragdolls: rag)
@@ -512,11 +513,13 @@ final class WorldRenderer {
             }
             lastMobVerts = n
             scene.drawBuffer(s, "mob", b.buffer, offset: 0, count: n)
+            addMobMotion(s, b.buffer, offset: 0)
             return
         }
         guard !game.mobs.mobs.isEmpty || !game.mobs.corpses.isEmpty || !Hunting.bodyMobs.isEmpty || !AshFallen.mobs.isEmpty || tp || others else { return }   // (P326: the vault's fallen with no mob about)
         let (ptr, off, cap) = scene.reserve(s, MobVert.self)
         guard cap > 36 else { return }
+        MobMotion.on = scene.spaceWarp; MobMotion.ranges.removeAll(keepingCapacity: true)      // P403 7b
         var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.renderDaylight, world: game.world, into: ptr, capacity: cap,
                                  cull: frustum, maxDist: mobMaxDist, corpses: game.mobs.corpses,
                                  ragdolls: game.debris.ragdolls)
@@ -528,6 +531,16 @@ final class WorldRenderer {
         lastMobVerts = n
         scene.commit(off, n, MobVert.self)
         scene.drawScratch(s, "mob", offset: off, count: n)
+        addMobMotion(s, nil, offset: off)
+    }
+    // P403 7b: each moving mob's vertices again, into the space warp's motion vectors (MobMotion).
+    private func addMobMotion(_ s: SceneRenderer.Slot, _ buffer: VkBuffer?, offset: Int) {
+        guard MobMotion.on else { return }
+        let st = MemoryLayout<MobVert>.stride
+        for r in MobMotion.ranges {
+            scene.addMotion(s, .mob, buffer: buffer, offset: offset + Int(r.start) * st, count: Int(r.count), prev: SceneRenderer.motion(moved: r.moved))
+        }
+        MobMotion.ranges.removeAll(keepingCapacity: true)
     }
 
     private func drawEntities(_ s: SceneRenderer.Slot, _ eye: V3) {

@@ -95,7 +95,7 @@ enum QuestOptions {
             "q_hud": "Where the HUD (hotbar, health, messages) floats: lower keeps more of the view clear.",
             "q_tex": "High: 128-pixel block textures (sharpest up close). Medium: 64 pixels, less memory. Applies at the next launch.",
             "q_fov": "Renders the edges of the view at lower resolution (fixed foveated rendering): faster, slightly softer edges.",
-            "q_spacewarp": "The game draws every other frame and the headset makes the ones between (Application SpaceWarp): more room for long views, some smearing on fast moving things. Applies at the next launch.",
+            "q_spacewarp": "The game draws every other frame and the headset makes the ones between (Application SpaceWarp): twice the time for each drawn frame, for the long views. Applies at the next launch.",
             "q_clouds": "The cloud layer in the sky. Off saves a little time on the headset each frame.",       // Q2c-console-6
             "q_hudfade": "The HUD rests translucent and comes up solid for a few seconds when you step the hotbar. Off keeps it solid.",
         ]

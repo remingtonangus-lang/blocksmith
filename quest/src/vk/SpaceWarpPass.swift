@@ -7,12 +7,14 @@ import CVulkan
 // pass this pass draws one triangle over each eye at the runtime's motion-vector size: the scene's depth copied down
 // into the depth swapchain, and motion vectors of zero into the motion-vector swapchain (the world stands still; the
 // player's own movement through it goes to the runtime as the app space's delta pose, XRSession.appSpaceDelta).
-// Moving things (mobs, water, smoke) carry no motion of their own here, so between real frames they hold still.
+// P403 7b: the hands, what they hold and mobs are drawn again over that with their own motion (SceneRenderer
+// .motionDraws, swmotion.vert); water and smoke carry none and hold still between real frames.
 final class SpaceWarpPass {
     let scene: SceneRenderer
     let width: Int, height: Int
     private let renderPass: VkRenderPass
     private let pipeline: VkPipeline
+    private var motionPipes: [SceneRenderer.Input: VkPipeline] = [:]      // P403 7b: per vertex layout
     private let depthFormat: VkFormat
     private var mvViews: [VkImageView] = [], depthViews: [VkImageView] = []
     private var framebuffers: [Int: VkFramebuffer] = [:]          // mv index << 16 | depth index
@@ -73,6 +75,12 @@ final class SpaceWarpPass {
         renderPass = rp!
         pipeline = try scene.makePipeline(SceneRenderer.PipeDesc(vert: "swdepth.vert", frag: "swdepth.frag", depthTest: true, depthWrite: true,
                                                                  compare: VK_COMPARE_OP_ALWAYS, cull: VK_CULL_MODE_NONE), renderPass: renderPass)
+        // P403 7b: the moving things' own motion over the copied depth (swmotion.vert: drawn 2 % nearer, no depth write).
+        for input in [SceneRenderer.Input.simple, .mob, .entity] {
+            motionPipes[input] = try scene.makePipeline(SceneRenderer.PipeDesc(vert: "swmotion.vert", frag: "swmotion.frag", input: input,
+                                                                               depthWrite: false, compare: VK_COMPARE_OP_LESS_OR_EQUAL,
+                                                                               cull: VK_CULL_MODE_NONE), renderPass: renderPass)
+        }
         let hasStencil = depthFormat == VK_FORMAT_D24_UNORM_S8_UINT
         let dAspect = VK_IMAGE_ASPECT_DEPTH_BIT.rawValue | (hasStencil ? VK_IMAGE_ASPECT_STENCIL_BIT.rawValue : 0)
         mvViews = try mvImages.map { try VkImg.makeView(ctx, $0, format: VK_FORMAT_R16G16B16A16_SFLOAT, aspect: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, layers: 2, levels: 1, array: true) }
@@ -123,6 +131,17 @@ final class SpaceWarpPass {
         var set: VkDescriptorSet? = swSet
         vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scene.pipeLayout, 2, 1, &set, 0, nil)
         vkCmdDraw(s.cmd, 3, 1, 0, 0)
+        // P403 7b: the hands, what they hold, mobs: their own motion since the last drawn frame (the world holds still).
+        var bound: SceneRenderer.Input? = nil
+        for d in scene.motionDraws {
+            guard let p = motionPipes[d.input], d.buffer != nil else { continue }
+            if bound != d.input { vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p); bound = d.input }
+            scene.pushConstants(s, model: d.prev, extra: .zero)
+            var b: VkBuffer? = d.buffer
+            var o = VkDeviceSize(d.offset)
+            vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
+            vkCmdDraw(s.cmd, UInt32(d.count), 1, 0, 0)
+        }
         vkCmdEndRenderPass(s.cmd)
     }
 }
