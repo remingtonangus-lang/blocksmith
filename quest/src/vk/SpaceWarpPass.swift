@@ -10,6 +10,15 @@ import CVulkan
 // player's own movement through it goes to the runtime as the app space's delta pose, XRSession.appSpaceDelta).
 // P403 7b: the hands, what they hold and mobs are drawn again over that with their own motion (SceneRenderer
 // .motionDraws, swmotion.vert); water and smoke carry none and hold still between real frames.
+// P426 (Remington, Oct 24, build 600eac74, the first with this on by default): "jittering when I'm walking", "as I'm
+// walking, everything's vibrating", "double vision", "my eyes... not in sync"; the frame rate sat at 45, half of the
+// 90 Hz display, so every other displayed frame was the runtime's. The defect, as far as the host can tell: the
+// world's motion vectors are zero and only the app space's delta pose carries his walking, so a synthesised frame
+// shows the world where the last drawn frame had it, then the next drawn frame moves it on: the world advances on
+// every second displayed frame only, a 36/45 Hz vibration, worst with the head moving. The fix is motion vectors from
+// the previous frame's view-projection (the camera's own motion in them, as the runtime expects, the delta pose for
+// snap turns and teleports only); until that is built and seen on the headset Space Warp stays off by default
+// (QuestSettings.spaceWarp, a new key) and the extension is not requested at launch.
 final class SpaceWarpPass {
     let scene: SceneRenderer
     let width: Int, height: Int

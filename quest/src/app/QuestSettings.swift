@@ -35,8 +35,11 @@ enum QuestSettings {
     private static func store(_ v: Bool, _ k: String) { d.set(v, forKey: k); lock.lock(); bools[k] = v; lock.unlock() }
     static func clearCache() { lock.lock(); floats.removeAll(); ints.removeAll(); bools.removeAll(); lock.unlock() }
 
-    // 90 Hz by default (comfort: smoother motion; device v13 used ~2.9 ms CPU and ~2.9 ms GPU of the 11.1 ms budget).
-    static var refreshRate: Float { get { float("quest.refreshRate", 90) } set { store(newValue, "quest.refreshRate") } }
+    // 72 Hz by default (P426, Oct 24: at 90 Hz the game never held 90 fps in a playtest; the Oct 22 and 23 sessions
+    // all ran at 72 after Auto Render Distance dropped the rate, and on Oct 24 the frame rate sat at 45, half of 90,
+    // with every other displayed frame a repeat: "jittering when I'm walking", "double vision". The game holds 72 fps
+    // at 72 Hz; 80/90/120 stay on the Options row for anyone who wants them).
+    static var refreshRate: Float { get { float("quest.refreshRate", 72) } set { store(newValue, "quest.refreshRate") } }
     // P339 (Remington, Oct 17: "24 render distance... you can see 24, but it would be the loading distance that
     // matters"): the view distance is fixed at 24 chunks on the headset, every chunk at full detail
     // (World.lodNear 99); what Auto and the pause menu change is the active distance (Game.setActiveDistance).
@@ -107,7 +110,9 @@ enum QuestSettings {
     // the far ring gives way to fog at the drawn edge. `autoViewLast` is where it settled, so a launch starts there.
     static var autoViewDistance: Bool { get { bool("quest.autoView", true) } set { store(newValue, "quest.autoView") } }
     static var autoViewLast: Int { get { int("quest.autoViewLast", viewDistance) } set { store(newValue, "quest.autoViewLast") } }
-    static var startView: Int { autoViewDistance ? max(8, min(renderDistance, autoViewLast / 2 * 2)) : renderDistance }
+    // P426: a launch starts no higher than 16 (where it settled under Space Warp's doubled budget, 24, was a minute
+    // of missed frames at every launch until the governor had stepped down); with headroom it climbs from there.
+    static var startView: Int { autoViewDistance ? max(8, min(renderDistance, 16, autoViewLast / 2 * 2)) : renderDistance }
     // How far below eye level the HUD panel sits, metres at 1.25 m (0.25 middle, 0.42 low, 0.6 lower).
     static var hudDrop: Float { get { float("quest.hudDrop", 0.42) } set { store(newValue, "quest.hudDrop") } }
     // Q2c-console-70: a card of a controller's buttons when it is held up and looked at.
@@ -124,11 +129,15 @@ enum QuestSettings {
     // spaceWarpActive: whether this launch set it up (XRSession; turning it on takes the next launch, turning it off
     // applies at once: XRSession.spaceWarpOn).
     // P403 7b had it on by default; P426 (Remington, Oct 24: the view vibrated and doubled on build 600eac74, the first
-    // with it on) puts it back off by default, with dynamic resolution, until each is cleared on the headset.
-    static var spaceWarp: Bool { get { bool("quest.spaceWarp2", false) } set { store(newValue, "quest.spaceWarp2") } }
+    // with it on) puts it back off by default, with dynamic resolution, until each is cleared on the headset. The keys
+    // are new (spaceWarp3, dynRes2) so a value saved by build 600eac74 cannot switch either on again: whatever his
+    // headset holds, this build launches with both off unless he turns one on himself. (Space Warp as built hands the
+    // runtime motion vectors of zero for the world and the player's own movement as the app space's delta: on the
+    // headset the synthesised frames stood still while he walked, a 36/45 Hz vibration; SpaceWarpPass.swift.)
+    static var spaceWarp: Bool { get { bool("quest.spaceWarp3", false) } set { store(newValue, "quest.spaceWarp3") } }
     static var spaceWarpActive = false
     // P403 7b: dynamic eye-buffer resolution (DynamicResolution); off by default since P426.
-    static var dynamicResolution: Bool { get { bool("quest.dynRes", false) } set { store(newValue, "quest.dynRes") } }
+    static var dynamicResolution: Bool { get { bool("quest.dynRes2", false) } set { store(newValue, "quest.dynRes2") } }
     // Texture pixels per face: 128 by default, the imported art's own resolution (tools/texpack.py packs it at 128).
     // 64 was the default for a day and halved the art's detail: "everything's blurry, too compressed" (playtest
     // Oct 10, docs/status/texture-sharpness.md). The 64 that default left in saved settings moves to 128 once
@@ -156,7 +165,7 @@ extension QuestSettings {
          ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.buttonReload", buttonReload), ("quest.swingBeforeReclined", swingBeforeReclined),
          ("quest.leftHanded", leftHanded), ("quest.controlPreset", controlPreset), ("quest.standHeight", standHeight), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
          ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.autoView", autoViewDistance), ("quest.hudDrop", hudDrop), ("quest.menuScale", menuScale), ("quest.hudScale", hudScale), ("quest.knockback", knockback), ("quest.mineToggle", mineToggle), ("quest.ctrlHints", ctrlHints),
-         ("quest.foveation", foveation), ("quest.spaceWarp2", spaceWarp), ("quest.dynRes", dynamicResolution), ("quest.textureRes", textureRes)]
+         ("quest.foveation", foveation), ("quest.spaceWarp3", spaceWarp), ("quest.dynRes2", dynamicResolution), ("quest.textureRes", textureRes)]
     }
     // The headset's own defaults for shared options: the TV-style HUD scale (bigger text), since the panel is read at
     // arm's length, unless the player picked one.

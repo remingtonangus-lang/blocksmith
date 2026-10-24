@@ -140,7 +140,7 @@ enum QuestOptions {
                 ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
                 ("Refresh Rate: \(Int(hooks.currentRate())) Hz", "q_hz"),
                 ("Foveated Rendering: \(fovNames[max(0, min(3, S.foveation))])\(fovNote)", "q_fov"),
-                ("Space Warp: \(on(S.spaceWarp))\(S.spaceWarp && !S.spaceWarpActive ? " (next launch)" : "")", "q_spacewarp"),     // P381 step 9, P426: off applies at once
+                ("Space Warp: \(on(S.spaceWarp))\(S.spaceWarp != S.spaceWarpActive ? (S.spaceWarp ? " (next launch)" : " (fully at the next launch)") : "")", "q_spacewarp"),     // P381 step 9, P426: off stops the warped frames at once; the next launch leaves the extension out
                 ("Dynamic Resolution: \(on(S.dynamicResolution))", "q_dynres"),                                     // P403 7b
                 ("HUD Position: \(S.hudDrop < 0.33 ? "Middle" : (S.hudDrop < 0.5 ? "Low" : "Lower"))", "q_hud"),
                 ("HUD Size: \(S.hudScale < 0.95 ? "Small" : (S.hudScale < 1.05 ? "Normal" : "Large"))", "q_hudsize"),
