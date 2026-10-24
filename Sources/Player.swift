@@ -155,6 +155,20 @@ final class Player {
         return nil
     }
     private var lastGoodPos: V3?
+    static let moveOverUnmade = ProcessInfo.processInfo.environment["BS_P414"] != "0"
+    private(set) var overUnloaded = false          // P414: over ground not made yet (moving on through it)
+    // P414: the lowest height at or above p where a body is clear (ground that came in round it), up to 64 blocks up,
+    // else the column's top; nil if already clear.
+    static func clearY(_ p: V3, _ w: World, collides: (V3) -> Bool) -> Float? {
+        guard collides(p) else { return nil }
+        var q = p
+        for _ in 0..<128 {
+            q.y = floor(q.y * 2 + 1) / 2
+            if !collides(q) { return q.y }
+        }
+        let top = w.topY(Int(floor(p.x)), Int(floor(p.z)))
+        return top >= 0 ? Float(top + 1) : nil
+    }
     func update(dt: Float, input: MoveInput, world w: World) {
         walkWant = V2(0, 0)
         // NaN quarantine: a body left non-finite (a degenerate push or knockback, here or before this step) goes back to
@@ -175,8 +189,18 @@ final class Player {
                 lastGoodPos = pos
             }
         }
-        // Freeze until the chunk under us exists, so we never fall through ungenerated terrain.
-        guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
+        // P414 (Remington, Oct 23: "just don't slow me down"): ground not made yet never holds the player back (he was
+        // frozen until the chunk under him existed). He moves on through it and may fall; no fall counts there, and when
+        // it comes in he is set on it if it came in around him.
+        if !w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) {
+            if !Player.moveOverUnmade { return }          // (BS_P414=0: frozen there, as before, for the numbers)
+            overUnloaded = true
+        } else if overUnloaded {
+            overUnloaded = false
+            if let y = Player.clearY(pos, w, collides: { self.collides(at: $0, w) }) { pos.y = y; vel.y = max(0, vel.y) }
+            airPeak = pos.y
+        }
+        if overUnloaded { airPeak = pos.y }
 
         // Pose: sprint-swim in water; crawl when there is no room to stand or sneak.
         let wet = Blocks.fluidKind[Int(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 1

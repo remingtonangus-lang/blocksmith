@@ -185,9 +185,14 @@ extension ShipManager {
         // Split screen: every seat's helm and body count (only player 1's did: player 2's vehicle had its controls
         // zeroed every frame, and a ship near player 2 alone went to sleep and lost its mesh).
         var pilots: [Ship] = pilot.map { [$0] } ?? []
+        // P414: a ship with a player aboard stays awake over unloaded ground (it never stops under him).
+        var carried: [Ship] = aboard.map { [$0.root] } ?? []
         var bodies: [V3] = []
         if let g = game {
-            for st in g.coop.slots { if let p = st?.ship.pilot { pilots.append(p) } }
+            for st in g.coop.slots {
+                if let p = st?.ship.pilot { pilots.append(p) }
+                if let a = st?.ship.aboard { carried.append(a.root) }
+            }
             for i in 0..<max(1, g.coop.seatCount) { bodies.append(g.coop.seatPlayer(i, g).pos) }
         }
         for s in list {
@@ -199,7 +204,7 @@ extension ShipManager {
                 let dx = max(r.worldMin.x - b.x, 0, b.x - r.worldMax.x), dz = max(r.worldMin.z - b.z, 0, b.z - r.worldMax.z)
                 d = min(d, simd_length(V2(dx, dz)))
             }
-            let steered = pilots.contains { $0 === s }
+            let steered = pilots.contains { $0 === s } || (Player.moveOverUnmade && carried.contains { $0 === r })
             // Kinematic (AI-moved) ships don't need the ground under them loaded: they never touch it physically.
             // P376: past the active distance every ship sleeps, capital ships too (they wait in place, drawn).
             let activeR = Float(min(world.activeDistance, world.renderDistance) * CS + CS / 2)

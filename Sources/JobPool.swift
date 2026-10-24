@@ -39,6 +39,14 @@ final class JobPool {
         cond.signal()
     }
 
+    // P414: ahead of every waiting job (the ground under and ahead of the player).
+    func addFront(_ job: @escaping () -> Void) {
+        cond.lock()
+        if head > 0 { head -= 1; jobs[head] = job } else { jobs.insert(job, at: 0) }
+        cond.unlock()
+        cond.signal()
+    }
+
     // Blocks until every job added so far has finished (World.deterministic harness runs; never from a worker).
     func waitIdle() {
         idle.lock()

@@ -1053,6 +1053,7 @@ final class World {
     // frame at 72 Hz is still ~108 ms a second, several times what the fastest flight produces.
     static var handoverSeconds = 0.004
 
+    var lead = V3.zero          // P414: the player's horizontal velocity (Game.tickSeat), for the ground made first
     func update(center pos: V3) {
         let tUpdate = CFAbsoluteTimeGetCurrent()
         defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
@@ -1138,6 +1139,20 @@ final class World {
                 if want != c.lod { setLod(c, want) }
             }
             TickProf.mark("world.unload+lod")
+        }
+
+        // P414: the ground under the player and where he will be in the next two seconds is made first, ahead of every
+        // waiting job (flying fast at view 24 outran the nearest-first walk), so he rarely moves over ground not made yet.
+        if Player.moveOverUnmade && (lead != .zero || chunks[center] == nil) {
+            var ahead: [ChunkKey] = [center]
+            for t in [0.5, 1.0, 2.0] as [Float] {
+                let q = pos + lead * t
+                let k = ChunkKey(x: floorDiv(Int(floor(q.x)), CS), z: floorDiv(Int(floor(q.z)), CS))
+                if !ahead.contains(k) { ahead.append(k) }
+            }
+            for k in ahead where chunks[k] == nil && !genInFlight.contains(k) && World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 0) {
+                startGen(k, urgent: true)
+            }
         }
 
         // Nothing new since the last scan (same centre, no results, no invalidated sections): the scan
@@ -1324,23 +1339,24 @@ final class World {
         if ms > resultsWorstMs { resultsWorstMs = ms; resultsWorst = what + String(format: " (slabs %d MB)", MeshArena.shared.slabBytes >> 20) }
     }
 
-    func startGen(_ k: ChunkKey, shell: Bool = false) {
+    func startGen(_ k: ChunkKey, shell: Bool = false, urgent: Bool = false) {
         guard !genInFlight.contains(k) else { return }
         genInFlight.insert(k)
         jobs += 1
         let mc = shell ? meshCache : nil
-        workQueue.add { [weak self] in
+        let job: () -> Void = { [weak self] in
             guard let self else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var r: Produced
             if let e = mc?.read(k) { r = Produced(blocks: [], height: [], tint: [], fromDisk: false, entities: [], mobs: []); r.cached = e }
             else { r = self.produce(k) }
             let el = CFAbsoluteTimeGetCurrent() - t0
-            lock.lock()
-            genResults.append((k, r))
-            perfShared.genChunks += 1; perfShared.genSeconds += el
-            lock.unlock()
+            self.lock.lock()
+            self.genResults.append((k, r))
+            self.perfShared.genChunks += 1; self.perfShared.genSeconds += el
+            self.lock.unlock()
         }
+        if urgent { workQueue.addFront(job) } else { workQueue.add(job) }
     }
     func produceNow(_ k: ChunkKey) -> Produced { produce(k) }
 
