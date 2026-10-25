@@ -69,7 +69,7 @@ if let secs = Double(arg("--xr") ?? "") {
 // Quest renderer; otherwise meshes go to host memory.
 let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes")
     || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare")
-    || CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim") ? "" : nil)
+    || CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim") || CommandLine.arguments.contains("--streamtest") ? "" : nil)
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -103,6 +103,9 @@ if CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains(
 // --flytest DIR [--rd 24] [--seconds 60] [--walk]: flying flat out over a new world; the speed never drops while the
 // world loads (P414, quest/src/test/QuestFlyTest.swift).
 if CommandLine.arguments.contains("--flytest") { exit(QuestFlyTest.run()) }
+// --streamtest --seed S --at X,Y,Z [--rd 10] [--seconds 30] [--speed B/S] [--shots 2,5 --out DIR]: new land coming in
+// round a player, second by second (P446, quest/src/test/QuestStreamTest.swift).
+if CommandLine.arguments.contains("--streamtest") { exit(QuestStreamTest.run(ctx: vkctx)) }
 // --memscene NAME DIR / --memsim DIR [--minutes 20]: resident memory at view 24 in his scenes and over a long play
 // (P401, quest/src/test/QuestMemory.swift).
 if CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim"), let ctx = vkctx { exit(QuestMemory.run(ctx: ctx)) }
@@ -259,6 +262,91 @@ if let out = arg("--view"), let ctx = vkctx {
             print(String(format: "edittime: stone on the ground at %d %d %d: %.1f ms on the frame (%d sections meshed); before, the ring of %d sections alone took %.1f ms",
                          c.x, c.y, c.z, ms, meshed, ring.count, old))
         }
+    }
+    // P446 (Oct 25 09:13, "it's freezing every time I break a block", fps 4 mining dirt with a full pack): --digtime N
+    // mines N ground cells by the eye as the game mines them (survival, the pack full: a chip and its bite at each crack
+    // level, then the break with its drop into the pack, the dig's carve), each step timed on the frame. --bites N first
+    // scatters N blast bites round the eye (a fought-over field: World.biteList walks them all for every section).
+    // --drops N: N dropped items lying round the eye, then 3 s of the item update and drawing, timed.
+    if let nb = Int(arg("--bites") ?? "") {
+        let e = vg.player.pos
+        var made = 0, tries = 0
+        while made < nb && tries < nb * 20 {
+            tries += 1
+            let x = Int(floor(e.x)) + Int.random(in: -24...24), z = Int(floor(e.z)) + Int.random(in: -24...24)
+            var y = Int(floor(e.y)) + 8
+            while y > 1 && !vw.solidAt(x, y, z) { y -= 1 }
+            guard y > 1 else { continue }
+            vw.addBite(IVec3(x, y, z), at: V3(Float(x) + 0.5, Float(y) + 1, Float(z) + 0.5), axis: V3(0, 1, 0), radius: 0.4, depth: 0.2, seed: UInt32(made), sync: false)
+            made += 1
+        }
+        print("view: bites: \(made) scattered round the eye (\(vw.bites.count) bitten blocks)")
+    }
+    if let n = Int(arg("--digtime") ?? "") {
+        if CommandLine.arguments.contains("--editlane") { World.editLane = true }       // (as on the headset)
+        vg.survival = true; vg.paused = false
+        var fill = 0
+        while fill < 60 && vg.inventory.add(ItemStack(Items.id("cobblestone"), 64)).isEmpty { fill += 1 }
+        print("view: digtime: pack filled with \(fill) stacks; edit lane \(World.editLane ? "on" : "off")")
+        let ex = Int(floor(vg.player.pos.x)), ez = Int(floor(vg.player.pos.z))
+        var cells: [IVec3] = []
+        for dz in -3...3 { for dx in -3...3 where cells.count < n {
+            var y = Int(floor(vg.player.pos.y)) + 2
+            while y > 1 && !vw.groundAt(ex + dx, y, ez + dz) { y -= 1 }
+            if y > 1 { cells.append(IVec3(ex + dx, y, ez + dz)) }
+        } }
+        func t(_ f: () -> Void) -> Double { let t0 = CFAbsoluteTimeGetCurrent(); f(); return (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
+        for _ in 0..<36 { vg.tick(1.0 / 72) }
+        for p in cells {
+            let b = vw.block(p.x, p.y, p.z)
+            let hp = V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5)
+            var strikes: [Double] = []
+            for level in 1...7 {
+                let m0 = World.syncMeshes
+                strikes.append(t {
+                    vw.chip(p, level: level, face: 2, remesh: false)
+                    vw.addBite(p, at: hp, axis: V3(0, -1, 0), radius: 0.22 + 0.025 * Float(level), depth: 0.1, seed: UInt32(level), sync: true)
+                })
+                if level == 1 { print("view: digtime: a strike meshed \(World.syncMeshes - m0) sections on the frame") }
+            }
+            let m1 = World.syncMeshes
+            let brk = t {
+                vg.breakBlock(p, b, drop: true, toPack: true)
+                if SmoothTerrain.natural[Int(b)] { _ = vw.carve(at: hp - V3(0, 0.25, 0), radius: Game.digRadius(b), mode: .shape) }
+            }
+            let brkMeshed = World.syncMeshes - m1
+            var worst = 0.0
+            for _ in 0..<36 { worst = max(worst, t { vg.tick(1.0 / 72) }) }
+            let lane = t { World.editQueue.sync {} }
+            print(String(format: "view: digtime: %@ at %d %d %d: strikes %@ ms; break %.1f ms (%d sections meshed on the frame); worst of the next 36 ticks %.1f ms; edit lane done %.1f ms later; %d drops lying",
+                         Blocks.key(b), p.x, p.y, p.z, strikes.map { String(format: "%.1f", $0) }.joined(separator: " "), brk, brkMeshed, worst, lane, vg.drops.items.count))
+        }
+    }
+    if let n = Int(arg("--drops") ?? "") {
+        let e = vg.player.pos
+        let kinds = ["dirt", "cobblestone", "oak_log", "sand", "gravel", "stone", "iron_ingot", "arrow"].map { Items.id($0) }
+        for i in 0..<n {
+            let x = e.x + Float.random(in: -24...24), z = e.z + Float.random(in: -24...24)
+            var y = Int(floor(e.y)) + 8
+            while y > 1 && !vw.solidAt(Int(floor(x)), y, Int(floor(z))) { y -= 1 }
+            vg.drops.spawn(ItemStack(kinds[i % kinds.count], 1 + i % 5), at: V3(x, Float(y) + 1.2, z), vel: .zero)
+        }
+        vg.paused = false
+        let buf = UnsafeMutablePointer<EntityVert>.allocate(capacity: 600_000)
+        defer { buf.deallocate() }
+        var upd: [Double] = [], drw: [Double] = [], quads = 0
+        for f in 0..<216 {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            vg.drops.update(1.0 / 72, game: vg)
+            let t1 = CFAbsoluteTimeGetCurrent()
+            var wr = EntityWriter(out: buf, capacity: 600_000)
+            vg.drops.write(&wr, eye: vg.player.eye, right: V3(1, 0, 0), up: V3(0, -1, 0), world: vw, daylight: 1, time: 0)
+            let t2 = CFAbsoluteTimeGetCurrent()
+            if f >= 144 { upd.append((t1 - t0) * 1000); drw.append((t2 - t1) * 1000); quads = wr.n / 6 }
+        }
+        let asleep = vg.drops.items.filter { $0.asleep }.count
+        print(String(format: "view: drops: %d lying (%d asleep): update %.2f ms mean, %.2f worst; drawing %.2f ms mean (%d quads) over the last second",
+                     vg.drops.items.count, asleep, upd.reduce(0, +) / Double(upd.count), upd.max() ?? 0, drw.reduce(0, +) / Double(drw.count), quads))
     }
     // P337 step 7: --rail plays 4 s through Game.tick beside the line and reports what the trains cost a frame.
     if CommandLine.arguments.contains("--rail") {

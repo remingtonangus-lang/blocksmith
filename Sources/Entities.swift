@@ -77,6 +77,13 @@ final class ItemEntity {
     // P142: drawn this far up or down onto the smooth ground it rests on (World.smoothGroundOffset), eased.
     var viewDY: Float = 0, groundKey = Int.min, groundH = SIMD4<Float>(repeating: 0)
     let spin = Rand.float(in: 0..<(2 * .pi))
+    // P446 (Oct 25, after a fight: "I think it's all the blocks that are on the ground that are causing the game to have
+    // trouble"): an item lying still on the ground sleeps, with no physics until the sections it lies in and on change
+    // (a block broken under it, a blast, water coming). Every drop round a fight ran its collision against the field
+    // every frame.
+    private(set) var asleep = false
+    private var still: Float = 0
+    private var sleepKey = 0, sleepPos = V3.zero
 
     init(_ s: ItemStack, at p: V3, vel v: V3, delay: Float = 0.5) {
         stack = s
@@ -94,6 +101,11 @@ final class ItemEntity {
         if !w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) { return }
         age += dt
         pickupDelay -= dt
+        if asleep {
+            // (moved by anything else, a hand, a blast's push: awake too)
+            if wakeKey(w) == sleepKey && pos == sleepPos && vel == .zero { return }
+            asleep = false; still = 0
+        }
         let inWater = Blocks.isLiquid(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z))))
         if inWater {
             vel.y += (1.2 - vel.y) * min(1, dt * 4)
@@ -110,6 +122,7 @@ final class ItemEntity {
             if !(w.fieldTerrain && pushOutOfField(w)) { pos.y += 0.3; vel.y = 0 }
         }
         let before = pos
+        var onShip = false
         let hit = w.moveBody(&pos, halfW: 0.125, height: 0.25, vel * dt, step: 0, onGround: onGround)
         let was = vel
         if hit.y { onGround = vel.y < 0; vel.y = 0 } else { onGround = false }
@@ -120,13 +133,25 @@ final class ItemEntity {
         }
         // On a ship's deck (P70, playtest 09:20: "the pieces are falling through the ship"): the world's collision has
         // no ship blocks, so a drop into a ship's cell stops where it was.
-        if !hit.y && w.ships.solid(at: pos) { pos = V3(pos.x, before.y, pos.z); if w.ships.solid(at: pos) { pos = before }; onGround = vel.y < 0; vel = .zero }
+        if !hit.y && w.ships.solid(at: pos) { pos = V3(pos.x, before.y, pos.z); if w.ships.solid(at: pos) { pos = before }; onGround = vel.y < 0; vel = .zero; onShip = true }
         if hit.x && !thrown { vel.x = 0 }
         if hit.z && !thrown { vel.z = 0 }
         // Resting on smooth ground it lies on the drawn surface, not the block top under it (up to 0.6 off); in the air
         // it drifts back to its box.
         let target = onGround ? w.smoothGroundOffset(pos, key: &groundKey, heights: &groundH) : 0
         viewDY += (target - viewDY) * min(1, dt * (onGround ? 10 : 3))
+        // (P446) Still for half a second on the ground, out of water and off a ship's deck (which moves): asleep.
+        if onGround && !inWater && !onShip && simd_length_squared(pos - before) < 1e-8 && abs(target - viewDY) < 0.01 {
+            still += dt
+            if still > 0.5 && ItemEntityManager.p446 { asleep = true; sleepKey = wakeKey(w); sleepPos = pos; vel = .zero }
+        } else { still = 0 }
+    }
+
+    // The versions of the sections it lies in and on (a change there wakes it).
+    private func wakeKey(_ w: World) -> Int {
+        guard let c = w.chunkAt(Int(floor(pos.x)), Int(floor(pos.z))) else { return -1 }
+        let lo = max(0, min(NSEC - 1, Int(floor(pos.y - 0.6)) >> 4)), hi = max(0, min(NSEC - 1, Int(floor(pos.y + 0.3)) >> 4))
+        return c.sections[lo].version &* 1_000_003 &+ c.sections[hi].version &+ lo << 48
     }
 
     // Out of the field's ground the shortest way: along its outward normal, a little past the surface. false: not the
@@ -153,6 +178,8 @@ final class ItemEntityManager {
     static func copies(_ count: Int) -> Int { count <= 1 ? 1 : (count <= 16 ? 2 : (count <= 32 ? 3 : (count <= 48 ? 4 : 5))) }
     var items: [ItemEntity] = []
     private var mergeTimer: Float = 0
+    static var drawFar: Float = 64
+    static var p446 = ProcessInfo.processInfo.environment["BS_ITEMS"] != "old"     // (BS_ITEMS=old: no sleep, every pair, all drawn)
 
     // Dropped items are saved with their dimension (drops.json): they lived only in memory, so quitting before going
     // back for the things dropped at a death lost them all.
@@ -280,7 +307,7 @@ final class ItemEntityManager {
         items.removeAll { $0.stack.isEmpty || $0.age > ($0.stack.maxStack == 1 ? 1800 : 300) || $0.pos.y < -64 }
         // Merge nearby identical stacks now and then.
         mergeTimer -= dt
-        if mergeTimer <= 0 && items.count > 1 {
+        if mergeTimer <= 0 && items.count > 1 && !ItemEntityManager.p446 {
             mergeTimer = 0.5
             for i in 0..<items.count {
                 let a = items[i]
@@ -292,8 +319,40 @@ final class ItemEntityManager {
                     let n = min(b.stack.count, a.stack.maxStack - a.stack.count)
                     a.stack.count += n
                     b.stack.count -= n
-                    if n > 0 && b.leftLying { a.leftLying = true }          // P309 (b): a thrown stack stays thrown
+                    if n > 0 && b.leftLying { a.leftLying = true }
                 }
+            }
+            items.removeAll { $0.stack.isEmpty }
+        }
+        if mergeTimer <= 0 && items.count > 1 {
+            mergeTimer = 0.5
+            // (P446: stacks met cell by cell: every pair was compared, about 250,000 pairs each half second with the
+            // 700 drops round a fight)
+            @inline(__always) func cell(_ p: V3) -> (Int, Int, Int)? {
+                guard abs(p.x) < 1e7 && abs(p.y) < 1e7 && abs(p.z) < 1e7 else { return nil }      // (NaN fails too)
+                return (Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+            }
+            @inline(__always) func key(_ x: Int, _ y: Int, _ z: Int) -> Int { (x & 0x1FFFFF) | (z & 0x1FFFFF) << 21 | (y & 0x3FF) << 42 }
+            var cells: [Int: [Int]] = [:]
+            cells.reserveCapacity(items.count)
+            for (i, e) in items.enumerated() where !e.stack.isEmpty {
+                if let (x, y, z) = cell(e.pos) { cells[key(x, y, z), default: []].append(i) }
+            }
+            for i in 0..<items.count {
+                let a = items[i]
+                guard !a.stack.isEmpty, let (ax, ay, az) = cell(a.pos) else { continue }
+                for dy in -1...1 { for dz in -1...1 { for dx in -1...1 {
+                    guard let list = cells[key(ax + dx, ay + dy, az + dz)] else { continue }
+                    for j in list where j > i {
+                        let b = items[j]
+                        if b.stack.isEmpty || !a.stack.stacks(with: b.stack) { continue }
+                        if simd_length_squared(a.pos - b.pos) > 0.5 * 0.5 { continue }
+                        let n = min(b.stack.count, a.stack.maxStack - a.stack.count)
+                        a.stack.count += n
+                        b.stack.count -= n
+                        if n > 0 && b.leftLying { a.leftLying = true }          // P309 (b): a thrown stack stays thrown
+                    }
+                } } }
             }
             items.removeAll { $0.stack.isEmpty }
         }
@@ -302,7 +361,11 @@ final class ItemEntityManager {
     }
 
     func write(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3, world: World, daylight: Float, time: Float) {
+        let far2 = ItemEntityManager.p446 ? ItemEntityManager.drawFar * ItemEntityManager.drawFar : .infinity
         for e in items {
+            // (P446: past 64 blocks a dropped item is a few pixels: not drawn; past 16 a pile draws as one)
+            let d2 = simd_length_squared(e.pos - eye)
+            if d2 > far2 { continue }
             let bob = sinf(e.age * 2.5 + e.spin) * 0.06 + 0.12
             let c = e.pos + V3(0, bob + e.viewDY, 0) - eye
             let l = world.lightAt(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.2)), Int(floor(e.pos.z)))
@@ -310,7 +373,7 @@ final class ItemEntityManager {
             let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(c))
             let fill: Float = max(0.08, MobLight.fill * near)
             let light = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
-            let copies = ItemEntityManager.copies(e.stack.count)
+            let copies = d2 > 256 && ItemEntityManager.p446 ? 1 : ItemEntityManager.copies(e.stack.count)
             for k in 0..<copies {
                 if let b = e.stack.def.block, !Blocks.flatIcon(b) {
                     // A small pile turning with the stack: the copies sit round its centre, the later ones higher.

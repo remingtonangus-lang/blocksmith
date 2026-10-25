@@ -69,6 +69,7 @@ final class Section {
             MeshEpoch.value &+= 1
             guard let o = owner else { return }
             o.dirty = true
+            if !World.backgroundEdits { o.urgent = true }
             o.noteStale(was: oldValue != meshedVersion, now: version != meshedVersion)
         }
     }
@@ -363,6 +364,7 @@ final class Chunk {
     var dirty = false {            // a section's version changed since World.update last looked at this chunk
         didSet { if dirty && !oldValue { world?.dirtyChunks.append(self) } }
     }
+    var urgent = false             // P446: changed by an edit (not water settling or a random tick): meshes ahead of the queue
     var lod = 0 {                  // 0 full detail, 1 far (flat light, merged faces, no small decorations), 2 mid ("fast" leaves)
         didSet { if cullWatched { CullNotes.note(cx, cz) } }
     }

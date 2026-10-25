@@ -195,7 +195,7 @@ extension World {
         guard let c = chunkAt(x, z), y >= 0 && y < CH else { return }
         let sy = y >> 4
         c.sections[sy].version += 1
-        remeshSync(c, sy)
+        editBatch { remeshSync(c, sy) }                // (P446: on the edit lane on the headset)
     }
 
     func loadPieces() {

@@ -7,6 +7,8 @@ extension Game {
     // MARK: Random ticks (3 random blocks per 16^3 section per game tick, like the reference game)
 
     func randomTicks() {
+        World.backgroundEdits = true                    // (P446: what they change meshes in the queue's order)
+        defer { World.backgroundEdits = false }
         let w = world
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
         let r = min(w.activeDistance, w.renderDistance)           // (P339: the active distance)
