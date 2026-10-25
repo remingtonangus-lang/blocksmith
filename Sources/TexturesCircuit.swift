@@ -100,6 +100,21 @@ extension TextureGen {
             return cob?(x, y) ?? hex(0x7A7A7A)
         }
         p["piston_bottom"] = { x, y in cob?(x, y) ?? hex(0x7A7A7A) }
+        // P442: the machines' casing (dark stone in a riveted copper frame; a hatch on top) and the piston's steel rod.
+        func casing(_ hatch: Bool) -> Painter {
+            { x, y in
+                let e = min(min(x, y), min(15 - x, 15 - y))
+                if e == 0 { return hex(0xB87333, y == 0 ? 1.15 : (y == 15 ? 0.75 : 0.95)) }
+                if (x == 2 || x == 13) && (y == 2 || y == 13) { return hex(0xC8884A) }
+                let m: Float = max(abs(Float(x) - 7.5), abs(Float(y) - 7.5))
+                if hatch && m > 3 && m < 4 { return hex(0x2A2A2C) }
+                if hatch && (y == 7 || y == 8) && x >= 6 && x <= 9 { return hex(0xB87333, y == 7 ? 1.15 : 0.85) }
+                return hex(0x5C5C60, 0.85 + 0.2 * r(x, y, 719))
+            }
+        }
+        p["machine_casing"] = casing(false)
+        p["machine_casing_top"] = casing(true)
+        p["piston_rod"] = { x, y in hex(0xA8AAAE, 0.85 + 0.15 * Float(x % 4) / 3) }
         p["piston_inner"] = { x, y in
             if abs(x - 7) <= 2 && abs(y - 7) <= 2 { return hex(0xB8B8B8) }
             return cob?(x, y) ?? hex(0x7A7A7A)

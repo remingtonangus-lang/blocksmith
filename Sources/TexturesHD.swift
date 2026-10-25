@@ -2014,7 +2014,66 @@ enum HDTex {
                     put(&img, x, y, V3(k, k, k * 1.05) * (0.85 + 0.3 * fine[y * n + x]))
                 } }
             }
+            // P442 (Oct 24 20:53-20:54: "the dispenser... it's literally just a fucking stone wall"; "the dropper's fucked
+            // also"; "Piston's fucked too"): the copper-circuit machines share one casing, dark machine stone in a riveted
+            // copper frame lit from above (the dispenser and dropper wore the furnace's stone bricks; the imported art
+            // drew the piston's face as a crate). A hatch on top; the mouths set in the casing with copper rims.
+            func casing(frame: Bool = true, hatch: Bool = false) -> Img {
+                var img = polished(machineStone, calm: 0.45, rim: 0)(n, s)
+                let fu = Float(u)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    let fk: Float = 0.9 + 0.2 * fine[i]
+                    let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                    if frame && edge < u {
+                        let k: Float = y < u && edge == y ? 1.18 : (y >= n - u && edge == n - 1 - y ? 0.74 : (x < u ? 1.02 : 0.86))
+                        put(&img, x, y, col(0xB87333) * (k * fk))
+                        continue
+                    }
+                    if frame && edge == u { let c = img[x, y]; img[x, y] = V4(c.x * 0.55, c.y * 0.55, c.z * 0.55, 1); continue }
+                    // Rivets inside the frame's corners.
+                    let rx = min(abs(Float(x) + 0.5 - 2.5 * fu), abs(Float(x) + 0.5 - (Float(n) - 2.5 * fu)))
+                    let ry = min(abs(Float(y) + 0.5 - 2.5 * fu), abs(Float(y) + 0.5 - (Float(n) - 2.5 * fu)))
+                    if frame && rx * rx + ry * ry < 0.55 * fu * fu {
+                        let cy: Float = Float(y) < fn / 2 ? 2.5 * fu : fn - 2.5 * fu
+                        let hi: Float = Float(y) + 0.5 < cy ? 1.25 : 0.85
+                        put(&img, x, y, col(0xC8884A) * (hi * fk))
+                        continue
+                    }
+                    if hatch {
+                        let hx = abs(Float(x) + 0.5 - fn / 2), hy = abs(Float(y) + 0.5 - fn / 2)
+                        let he = 3.2 * fu - max(hx, hy)
+                        if he >= 0 && he < 0.45 * fu { let c = img[x, y]; img[x, y] = V4(c.x * 0.45, c.y * 0.45, c.z * 0.45, 1) }   // the seam
+                        else if hy < 0.5 * fu && hx < 1.6 * fu { put(&img, x, y, col(0xB87333) * ((Float(y) + 0.5 < fn / 2 ? 1.2 : 0.8) * fk)) }
+                    }
+                } }
+                return img
+            }
+            // A mouth: dark inside, a copper rim lit on its lower edge (the light falls into it from above).
+            func mouth(_ img: inout Img, square: Bool, r: Float) {
+                let fu = Float(u)
+                for y in 0..<n { for x in 0..<n {
+                    let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                    let d: Float = square ? max(abs(dx), abs(dy)) : (dx * dx + dy * dy).squareRoot()
+                    let fk: Float = 0.9 + 0.2 * fine[y * n + x]
+                    if d < r * fu {
+                        let depth: Float = cl(1 - d / (r * fu))
+                        let lift: Float = dy > 0 ? 0.04 * cl(dy / (r * fu)) : 0
+                        let k: Float = 0.16 - 0.09 * depth + lift
+                        put(&img, x, y, V3(k, k * 0.97, k * 0.95) * fk)
+                    } else if d < (r + 0.9) * fu {
+                        let k: Float = dy < 0 ? 0.82 : 1.18
+                        put(&img, x, y, col(0xB87333) * (k * fk))
+                    } else if d < (r + 1.2) * fu {
+                        put(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
+                    }
+                } }
+            }
             switch kind {
+            case "machine_casing":
+                return casing()
+            case "machine_casing_top":
+                return casing(hatch: true)
             case "piston_top", "piston_top_sticky":
                 var img = planks(oakPlank)(n, s)
                 let rimImg = polished(machineStone, calm: 0.5, rim: 0)(n, s &+ 1)
@@ -2036,21 +2095,33 @@ enum HDTex {
                 } }
                 return img
             case "piston_side":
-                var img = cobbleGen(n, s)
+                // The casing under a wooden head, a copper band where the head meets the body.
+                var img = casing()
                 let head = planks(oakPlank)(n, s &+ 3)
-                for y in 0..<(4 * u) { for x in 0..<n {
-                    var c = head[x, y]
-                    if y >= 4 * u - u / 2 { c = V4(c.x * 0.6, c.y * 0.6, c.z * 0.6, 1) }
-                    img[x, y] = c
+                for y in 0..<(5 * u) { for x in 0..<n {
+                    if y < 4 * u {
+                        var c = head[x, y]
+                        if y >= 4 * u - u / 2 { c = V4(c.x * 0.6, c.y * 0.6, c.z * 0.6, 1) }
+                        img[x, y] = c
+                    } else {
+                        let k: Float = y == 4 * u ? 1.2 : (y == 5 * u - 1 ? 0.75 : 1.0)
+                        put(&img, x, y, col(0xB87333) * (k * (0.9 + 0.2 * fine[y * n + x])))
+                    }
                 } }
-                rod(&img, 7 * u, 9 * u, 4 * u, 12 * u)
                 return img
             case "piston_inner":
-                var img = cobbleGen(n, s)
+                var img = casing(frame: false)
                 rod(&img, 5 * u, 11 * u, 5 * u, 11 * u)
                 return img
             case "piston_bottom":
-                return cobbleGen(n, s)
+                var img = casing()
+                mouth(&img, square: false, r: 2.2)
+                rod(&img, 7 * u, 9 * u, 7 * u, 9 * u)
+                return img
+            case "piston_rod":
+                var img = Img(n, V4(0.5, 0.5, 0.52, 1))
+                rod(&img, 0, n, 0, n)
+                return img
             case "observer_front", "observer_back", "observer_back_on", "observer_side", "observer_top":
                 var img = polished(machineStone, calm: 0.45, rim: 1 / 20)(n, s)
                 for y in 0..<n { for x in 0..<n {
@@ -2108,19 +2179,9 @@ enum HDTex {
                 } }
                 return img
             case "dispenser_front", "dispenser_front_vertical", "dropper_front", "dropper_front_vertical":
-                var img = cobbleGen(n, s)
-                let fu = Float(u)
-                if kind.hasPrefix("dropper") {
-                    hole(&img) { dx, dy in abs(dx) < 2.6 * fu && abs(dy) < 2.6 * fu }
-                } else {
-                    // One shape (round mouth plus the side slot): drawn as two holes, the slot's lit rim crossed the mouth.
-                    let slot = !kind.hasSuffix("vertical")
-                    hole(&img) { dx, dy in
-                        let round: Bool = dx * dx + dy * dy < 12.5 * fu * fu
-                        let bar: Bool = slot && abs(dy) < 0.6 * fu && abs(dx) < 5.2 * fu
-                        return round || bar
-                    }
-                }
+                // The dispenser's round mouth, the dropper's square one, in the casing.
+                var img = casing()
+                mouth(&img, square: kind.hasPrefix("dropper"), r: kind.hasPrefix("dropper") ? 2.6 : 3.3)
                 return img
             case "hopper_outside":
                 return metal(0x3A3A3E, tiles: 1, shine: 0.1)(n, s)
@@ -5974,6 +6035,9 @@ enum HDTex {
         "piston_side": sparkFace("piston_side"),
         "piston_inner": sparkFace("piston_inner"),
         "piston_bottom": sparkFace("piston_bottom"),
+        "piston_rod": sparkFace("piston_rod"),
+        "machine_casing": sparkFace("machine_casing"),
+        "machine_casing_top": sparkFace("machine_casing_top"),
         "observer_front": sparkFace("observer_front"),
         "observer_back": sparkFace("observer_back"),
         "observer_back_on": sparkFace("observer_back_on"),
