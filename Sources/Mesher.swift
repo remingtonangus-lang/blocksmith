@@ -1302,6 +1302,7 @@ enum Mesher {
                     // A snow layer on smooth ground: the ground under it shows snow instead (smoothQuads); its slab drew a
                     // white sawtooth of block steps over every snowy slope (P142).
                     if smooth && (site != nil || fieldOn) && bi == snowLayerID && natAt(i - RL) { continue }
+                    if leafBlob && bi == snowLayerID && leafT[Int(R[i - RL])] { continue }     // (P451: the blob's top is the snow)
                     let lx = x - C0, lz = z - C0
                     let bx16 = lx * 16, by16 = ly * 16, bz16 = lz * 16
                     let tintB = Int(tintT[bi])

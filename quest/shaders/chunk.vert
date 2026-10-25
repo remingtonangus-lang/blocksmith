@@ -30,7 +30,9 @@ const float faceShade[8] = float[](0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 1.0
 const float aoCurve[4] = float[](0.42, 0.62, 0.81, 1.0);
 // Water top faces carry the water depth in their AO bits (Mesher.waterDepthAO): mean column depth 5+, 2-5, 0.75-2, shore.
 const float waterDepthM[4] = float[](12.0, 3.5, 1.4, 0.25);
-const float waveK[4] = float[](1.0, 1.0, 0.7, 0.2);                 // the swell dies out on the shore (no water over beaches)
+// The swell dies out on the shore (no water over beaches). P451: none at all on the shore band (mean depth under 0.75 m):
+// at 0.2 the water's edge rose off the sand and sank into it with every wave, a lip of water standing on the beach.
+const float waveK[4] = float[](1.0, 1.0, 0.7, 0.0);
 
 // P383: the octahedral normal of a per-position ground vertex (SmoothTerrain.triCode: 22 x 22 cells).
 vec3 triNormal(uint code) {

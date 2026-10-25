@@ -1819,7 +1819,7 @@ private func parts(_ m: Mob) -> [Part] {
         return extraParts(m, swing: swing)
     case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
          .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
-         .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse, .happyGhast, .camelHusk, .nautilus, .zombieNautilus:
+         .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse, .happyGhast, .camelHusk, .nautilus, .zombieNautilus:
         return animalParts(m, swing: swing)
     case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew:
         return soldierParts(m, swing: swing)
@@ -1841,7 +1841,7 @@ private func parts(_ m: Mob) -> [Part] {
         return walkerParts(m, swing: swing)                  // P185: gaunt, hunched dead men (WalkerModel.swift)
     case .skeleton, .stray, .parched:
         return skeletonParts(m, swing: swing)                // P246: real bones (MonsterLooks.swift)
-    case .pillager, .vindicator:
+    case .pillager, .vindicator, .wanderingTrader:          // P451: the wandering trader as a pedlar
         return townsfolkParts(m, swing: swing)               // P444: masked outlaws on the townsfolk body (TownsfolkModel.swift)
     case .enderman, .drowned, .witch, .illusioner:
         let sk = m.kind == .skeleton || m.kind == .stray || m.kind == .parched, en = m.kind == .enderman
