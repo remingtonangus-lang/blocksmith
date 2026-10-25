@@ -4,4 +4,4 @@ set -euo pipefail
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then exit 0; fi
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}"
 python3 -c "import PIL, numpy" 2>/dev/null || pip install -q pillow numpy >/dev/null 2>&1 || true
-echo "Work queue: the Open section of docs/roadmap/backlog.md (rules at its top). The lane works untagged items at medium, one at a time; spawn the tough-builder agent once for [HIGH AGENT] items."
+echo "Work queue: the Open section of docs/roadmap/backlog.md (rules at its top)."
