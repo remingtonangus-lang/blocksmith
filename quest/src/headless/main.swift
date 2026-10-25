@@ -108,6 +108,8 @@ if CommandLine.arguments.contains("--detailcheck") { exit(QuestDetailCheck.run()
 // --streamtest --seed S --at X,Y,Z [--rd 10] [--seconds 30] [--speed B/S] [--shots 2,5 --out DIR]: new land coming in
 // round a player, second by second (P446, quest/src/test/QuestStreamTest.swift).
 if CommandLine.arguments.contains("--streamtest") { exit(QuestStreamTest.run(ctx: vkctx)) }
+// --placecheck: P448, blocks placed in a field world (quest/src/test/QuestPlaceCheck.swift).
+if CommandLine.arguments.contains("--placecheck") { exit(QuestPlaceCheck.run()) }
 // --memscene NAME DIR / --memsim DIR [--minutes 20]: resident memory at view 24 in his scenes and over a long play
 // (P401, quest/src/test/QuestMemory.swift).
 if CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim"), let ctx = vkctx { exit(QuestMemory.run(ctx: ctx)) }

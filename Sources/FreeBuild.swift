@@ -62,6 +62,23 @@ enum FreeBuild {
         return V3(q.x, q.y * c + q.z * s, -q.y * s + q.z * c)
     }
     static func height(_ k: Kind) -> Float { k == .floor ? 0.2 : (k == .roof ? 1 : 2) }
+
+    // P448 (Remington, Oct 25 08:52-08:53: "the crafting tables, amongst other things, are still not fixed... a bunch of
+    // blocks that do not spawn correctly when placed"; a dispenser set down "a two-by-two... a tenth of how thick it
+    // should be"): only plain building material sets down a wall piece: a man-made full block the same on all six faces,
+    // with no states (no front to turn, no axis, no lit or powered form), giving no light, not a circuit part, a ship
+    // part or anything that opens. Planks, bricks, cobble, polished and cut stone, concrete, wool, metal blocks build
+    // walls; a crafting table, furnace, dispenser, observer, lamp, note block, bookshelf or balloon places as itself.
+    static let wallMaterial: [Bool] = (0..<Blocks.count).map { i in
+        let b = BlockID(i)
+        guard ShapeClass.kind[i] == .built, Blocks.render[i] == RenderType.cube.rawValue, Int(Blocks.groupBase[i]) == i else { return false }
+        if i + 1 < Blocks.count && Int(Blocks.groupBase[i + 1]) == i { return false }
+        let t = Blocks.tex[i * 6]
+        guard (1..<6).allSatisfy({ Blocks.tex[i * 6 + $0] == t }), Blocks.emit[i] == 0, Circuit.kind(b) == .none else { return false }
+        return !Blocks.key(b).hasPrefix("ship_") && !Game.opens(b)
+    }
+    // A wall piece of a block that is no wall material (set down before P448).
+    static func stray(_ pc: FreePiece) -> Bool { pc.kind == .wall && !wallMaterial[Int(pc.mat)] }
     static func halfWidth(_ k: Kind) -> Float { k == .door || k == .stairs ? 0.5 : (k == .post ? 0.13 : 1) }
 
     // World collision boxes: each part cut into slices no wider than about a third of a block, each slice's box taken
@@ -202,6 +219,7 @@ extension World {
         guard let s = save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("pieces.json")),
               let list = try? JSONDecoder().decode([FreePiece].self, from: d) else { return }
         pieces = list.filter { $0.p.count == 3 }
+        strayPieces = pieces.contains { FreeBuild.stray($0) }
         reindexPieces()
     }
 
@@ -222,8 +240,32 @@ extension Game {
         if shape == "stairs" { return .stairs }
         if key.hasSuffix("_fence") || key.hasSuffix("_wall") && !key.hasSuffix("_sign") { return .post }
         if key.hasSuffix("pane") { return .window }
-        if ShapeClass.kind[Int(b)] == .built && Blocks.render[Int(b)] == RenderType.cube.rawValue { return .wall }
+        if FreeBuild.wallMaterial[Int(b)] { return .wall }
         return nil
+    }
+
+    // (P448) The thin walls a crafting table, dispenser or observer set down before P448 turn back into that block where
+    // they stood, as each one's chunk is loaded (in a saved world): checked once a second while any is left.
+    func settleStrayPieces() {
+        guard world.strayPieces else { return }
+        world.strayTick &+= 1
+        guard world.strayTick % 72 == 0 else { return }
+        var left = false
+        var i = 0
+        while i < world.pieces.count {
+            let pc = world.pieces[i]
+            guard FreeBuild.stray(pc) else { i += 1; continue }
+            let o = pc.origin
+            guard world.isLoaded(Int(floor(o.x)), Int(floor(o.z))) else { left = true; i += 1; continue }
+            world.pieces.remove(at: i)
+            let x = Int(floor(o.x)), z = Int(floor(o.z))
+            var y = Int(floor(o.y + 0.5))
+            if !Blocks.replaceable[Int(world.materialAt(x, y, z))] { y += 1 }
+            if y >= 0 && y < CH && Blocks.replaceable[Int(world.materialAt(x, y, z))] { world.setBlock(x, y, z, pc.mat) }
+            else if let it = Items.item(forBlock: pc.mat) { drops.spawn(ItemStack(it, 1), at: o + V3(0, 0.5, 0)) }
+            world.piecesChanged(at: o)
+        }
+        world.strayPieces = left
     }
 
     private func pieceHit() -> (Int, Float, V3)? {
@@ -257,6 +299,8 @@ extension Game {
             return true
         }
         guard !sneak, let b = held.def.block, var k = freePieceKind(b) else { return false }
+        // (P448) Aimed at a table, chest or door with building blocks in hand: it opens, as in a block world.
+        if hit == nil, let t = target, isInteractive(t.hit) { return false }
         let look = player.look
         var yaw = atan2f(look.x, look.z)
         let step: Float = .pi / 24                                   // headings to 7.5 degrees

@@ -71,6 +71,7 @@ final class World {
     var pieces: [FreePiece] = []
     var pieceCells: [IVec3: [(V3, V3)]] = [:]
     var piecesDirty = false
+    var strayPieces = false, strayTick = 0      // (P448: wall pieces of non-wall blocks left to turn back into blocks)
     // P389: struck objects, one piece each, cut where hit (WorldObjectsWorld.swift).
     let objectReg = WorldObjects.Registry()
     static let activeOptions = [4, 6, 8, 10, 12, 16]
@@ -1970,7 +1971,9 @@ final class World {
     func selectionBoxes(_ b: BlockID) -> [(V3, V3)] {
         let r = Blocks.render[Int(b)]
         if r == RenderType.cross.rawValue { return [(V3(0.125, 0, 0.125), V3(0.875, 0.8125, 0.875))] }
-        if r == RenderType.model.rawValue && !Blocks.boxes[Int(b)].isEmpty {
+        // (P448, Oct 25 08:53: copper wire "is treating other copper blocks already placed as a block": wire and rails
+        // were aimed at as full cubes, so a wire on the ground caught the look a block above it)
+        if (r == RenderType.model.rawValue || r == RenderType.wire.rawValue || r == RenderType.rail.rawValue) && !Blocks.boxes[Int(b)].isEmpty {
             return Blocks.boxes[Int(b)].map { ($0.minV, $0.maxV) }
         }
         if r == RenderType.connect.rawValue {
