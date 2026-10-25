@@ -447,7 +447,8 @@ final class World {
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
         if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
         c.blocks[Chunk.index(lx, y, lz)] = id
-        if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
+        var fbox: (lo: IVec3, hi: IVec3)? = nil
+        if old != id { fbox = measureChanges { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) } }      // PG1 (TerrainField.swift)
         if old != id, let e = netEdit, !World.netQuiet { e(x, y, z, id) }
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id); queueLoadCheck(x, y, z, old, id) }
@@ -463,10 +464,10 @@ final class World {
         // Smooth vertices move with blocks up to 2 away (relaxing carries it 1 more a pass: those sections remesh in the
         // background with the rest below, so a Quest edit doesn't mesh the whole ring on the frame).
         // P440 (Oct 24 20:55, "a five hundred millisecond freeze every time I place a block"): in a field world the frame
-        // meshes the sections within 1 of the cell (its own, and a neighbour only when the cell is on their border); the
-        // second ring's slight surface change follows on a worker ahead of the queue.
+        // meshes the sections within a cell of the block or of a field sample it changed (usually its own section; a
+        // neighbour only on their border); the rest follows on a worker ahead of the queue.
         let r = SmoothTerrain.enabled || fieldTerrain ? 2 : 1
-        let rNow = fieldTerrain ? 1 : r
+        let cell = (lo: IVec3(x, y, z), hi: IVec3(x, y, z))
         for dz in -r...r {
             for dx in -r...r {
                 for dy in -r...r {
@@ -477,15 +478,13 @@ final class World {
                 }
             }
         }
-        for (n, sy) in sync {
-            n.sections[sy].version += 1
-            guard !deferRemesh else { continue }
-            if rNow < r {
-                // (the section's box against the cell's: within rNow on every axis)
-                let x0 = n.cx * CS, z0 = n.cz * CS, y0 = sy * 16
-                guard x + rNow >= x0 && x - rNow < x0 + CS && z + rNow >= z0 && z - rNow < z0 + CS && y + rNow >= y0 && y - rNow < y0 + 16 else { continue }
+        editBatch {
+            for (n, sy) in sync {
+                n.sections[sy].version += 1
+                guard !deferRemesh else { continue }
+                if fieldTerrain && !World.near(n, sy, cell, grow: 1) && !(fbox.map { World.near(n, sy, $0, grow: 1) } ?? false) { continue }
+                remeshSync(n, sy)
             }
-            remeshSync(n, sy)
         }
         let lo = max(0, (min(y, oldH, newH) - 16) >> 4), hi = min(NSEC - 1, (max(y, oldH, newH) + 16) >> 4)
         let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
@@ -949,17 +948,79 @@ final class World {
         for c in chunks.values { for s in c.sections where s.meshedVersion != -1 { s.version += 1 } }
     }
 
+    // P440: while an edit is measured, the cells whose field samples it changed (FieldTerrain, FineField, GroundMeet):
+    // the frame meshes only the sections within a cell of them (a changed sample moves the dual cells round it).
+    var changeBox: (lo: IVec3, hi: IVec3)?
+    @inline(__always) func noteChange(_ x: Int, _ y: Int, _ z: Int) {
+        guard let b = changeBox else { return }
+        changeBox = (IVec3(min(b.lo.x, x), min(b.lo.y, y), min(b.lo.z, z)), IVec3(max(b.hi.x, x), max(b.hi.y, y), max(b.hi.z, z)))
+    }
+    // Runs f measuring its changes (merged into an outer measure too); nil when it changed no sample.
+    func measureChanges(_ f: () -> Void) -> (lo: IVec3, hi: IVec3)? {
+        let outer = changeBox
+        changeBox = (IVec3(Int.max, Int.max, Int.max), IVec3(Int.min, Int.min, Int.min))
+        f()
+        let b = changeBox!
+        changeBox = outer
+        guard b.lo.x <= b.hi.x else { return nil }
+        noteChange(b.lo.x, b.lo.y, b.lo.z); noteChange(b.hi.x, b.hi.y, b.hi.z)
+        return b
+    }
+    // Does section sy of c lie within `grow` cells of the box?
+    @inline(__always) static func near(_ c: Chunk, _ sy: Int, _ b: (lo: IVec3, hi: IVec3), grow g: Int) -> Bool {
+        let x0 = c.cx * CS, z0 = c.cz * CS, y0 = sy * 16
+        return b.hi.x + g >= x0 && b.lo.x - g < x0 + CS && b.hi.z + g >= z0 && b.lo.z - g < z0 + CS && b.hi.y + g >= y0 && b.lo.y - g < y0 + 16
+    }
+
     // P440 (Oct 24 20:55, "a five hundred millisecond freeze every time I place a block"): edits made together (a placed
     // block, then the ground swelling to it) mesh each section once on the frame, at the end, not once an edit.
+    // On the headset (World.editLane, QuestApp) they mesh off the frame on their own lane, every section of the edit in one
+    // job and installed together a frame or two later (the old meshes stay up until then, so nothing opens or doubles):
+    // a placed block costs the frame its data writes only, where meshing even one section took about a frame's budget.
     private var syncBatch: [(Chunk, Int)]?
     static var syncMeshes = 0                       // sections meshed on the frame since start (questcheck --edittime)
+    static var editLane = false
+    static let editQueue = DispatchQueue(label: "blocksmith.editmesh", qos: .userInteractive)
     func editBatch(_ f: () -> Void) {
         if syncBatch != nil { f(); return }
         syncBatch = []
         f()
         let list = syncBatch ?? []
         syncBatch = nil
-        for (c, sy) in list { remeshSync(c, sy) }
+        if World.editLane && !World.deterministic { remeshSoon(list) } else { for (c, sy) in list { remeshSync(c, sy) } }
+    }
+
+    // P440: the sections of one edit meshed together on the edit lane; their results go in with the next frame's.
+    func remeshSoon(_ list: [(Chunk, Int)]) {
+        var byChunk: [(Chunk, [Int])] = []
+        for (c, sy) in list {
+            if let i = byChunk.firstIndex(where: { $0.0 === c }) { if !byChunk[i].1.contains(sy) { byChunk[i].1.append(sy) } }
+            else { byChunk.append((c, [sy])) }
+        }
+        var builds: [() -> (ChunkKey, [(Int, Int, SectionMesh)])] = []
+        for (c, sys) in byChunk {
+            guard let nb = neighbourhood(c) else { continue }           // (its regular job meshes it once the ring is in)
+            let k = ChunkKey(x: c.cx, z: c.cz)
+            let todo = sys.map { ($0, c.sections[$0].version) }
+            let lod = c.lod, dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c), site = smoothSite(c)
+            let near = nearSides(c, lod: lod), beyond = fineBeyond(c, nb.0)
+            let (n9, h9) = nb
+            builds.append {
+                (k, todo.map { (sy, v) in
+                    (sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site,
+                                                chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond)) })
+            }
+            c.meshInFlight = true
+        }
+        guard !builds.isEmpty else { return }
+        jobs += builds.count
+        World.editQueue.async { [weak self] in
+            let out = builds.map { $0() }
+            guard let self else { return }
+            self.lock.lock()
+            self.meshResults.append(contentsOf: out)
+            self.lock.unlock()
+        }
     }
 
     func remeshSync(_ c: Chunk, _ sy: Int) {

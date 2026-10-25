@@ -485,6 +485,8 @@ extension World {
     func fieldSphere(_ ctr: V3, radius r: Float, carve: Bool, material: UInt8?, keepCell: IVec3? = nil, keepSolid: Bool = false,
                      remesh: Bool = false) -> [IVec3] {
         var flipped: [IVec3] = []
+        let outerBox = changeBox                                    // (P440: this sphere's changes measured)
+        changeBox = (IVec3(Int.max, Int.max, Int.max), IVec3(Int.min, Int.min, Int.min))
         let prepared = prepareFine(ctr, radius: r)                  // P377 step 1 (FineField.swift)
         let reach = Int(ceil(r + 1.5))
         let cxI = Int(floor(ctr.x)), cyI = Int(floor(ctr.y)), czI = Int(floor(ctr.z))
@@ -522,6 +524,7 @@ extension World {
                         c.blocks.setDensity(i, q, material: nil, follow: false)
                         c.modified = true
                     }
+                    noteChange(x, y, z)
                     let sy = y >> 4
                     if !touched.contains(where: { $0.0 === c && $0.1 == sy }) { touched.append((c, sy)) }
                 }
@@ -542,18 +545,15 @@ extension World {
             } }
         }
         for (n, s) in all { n.sections[s].version += 1 }
+        let box = changeBox!
+        changeBox = outerBox
+        if box.lo.x <= box.hi.x { noteChange(box.lo.x, box.lo.y, box.lo.z); noteChange(box.hi.x, box.hi.y, box.hi.z) }
         // P440 (Oct 24 20:55, "a five hundred millisecond freeze every time I place a block"): the frame remeshes only the
-        // sections the sphere's surface can reach (its box grown by two cells: the dual cells round a changed sample),
-        // usually one, not the up to 27 round every touched section; the others follow on a worker ahead of the queue
-        // (World.update's edited-chunk pass), as the light round an edit always has.
-        if remesh && !deferRemesh {
-            let g = r + 2
-            let lo = V3(ctr.x - g, ctr.y - g, ctr.z - g), hi = V3(ctr.x + g, ctr.y + g, ctr.z + g)
-            for (n, s) in all {
-                let x0 = Float(n.cx * CS), z0 = Float(n.cz * CS), y0 = Float(s * 16)
-                guard hi.x >= x0 && lo.x < x0 + 16 && hi.z >= z0 && lo.z < z0 + 16 && hi.y >= y0 && lo.y < y0 + 16 else { continue }
-                remeshSync(n, s)
-            }
+        // sections within a cell of a sample the sphere changed (the dual cells round it), usually one, not the up to 27
+        // round every touched section; the others follow on a worker ahead of the queue (World.update's edited-chunk
+        // pass), as the light round an edit always has.
+        if remesh && !deferRemesh && box.lo.x <= box.hi.x {
+            for (n, s) in all where World.near(n, s, box, grow: 1) { remeshSync(n, s) }
         }
         fieldStamp &+= 1
         if carve && !flipped.isEmpty && !collapsing { collapseQueue.append((IVec3(cxI, cyI, czI), min(6, Int(ceil(r)) + 1))) }   // P351 (GroundCollapse)

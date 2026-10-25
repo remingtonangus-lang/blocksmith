@@ -21,6 +21,11 @@ enum Felling {
         var still: Float = 0
         var landed = false
         var lastVel = V3(0, 0, 0)
+        // P441 (Oct 24 20:51: "the old version of it kind of hovers there for a second"): the body stays hidden and still
+        // until the world has redrawn the sections it left (and its own mesh is in), then is let go as it was thrown.
+        var wait: [(Chunk, Int, Int)] = []
+        var launch = (V3(0, 0, 0), V3(0, 0, 0))
+        var held: Float = -1
         init(_ s: Ship) { ship = s }
     }
     static var falls: [Fall] = []
@@ -56,7 +61,9 @@ extension Game {
                 if logs.count > Felling.maxLogs { return }
             } } }
         }
-        guard logs.count >= 3 else { return }
+        // (P441, Oct 24 20:50: "this log is floating... it should be able to sit on whatever's under it": a spruce's top of
+        // one or two logs in its crown stayed in the air; with its leaves any part of a tree comes down)
+        guard logs.count >= 1 else { return }
         Felling.roundTrunks = Felling.roundFor(world)
         // Resting on anything else (another trunk of a 2x2 tree, a wall, the ground beside the cut): it stands.
         for c in logs {
@@ -73,7 +80,7 @@ extension Game {
             let q = c + d
             if !leaves.contains(q) && CapitalBase.isLeaf(world.block(q.x, q.y, q.z)) { leaves.insert(q); lq.append(q) }
         } }
-        guard leaves.count >= 4 else { return }
+        guard leaves.count >= 4 || logs.count >= 3 && leaves.count >= 1 else { return }
         var head = 0
         while head < lq.count && leaves.count < Felling.maxLeaves {
             let c = lq[head]; head += 1
@@ -106,7 +113,7 @@ extension Game {
         away = simd_normalize(away)
         s.angVel = simd_cross(V3(0, 1, 0), away) * 0.35
         s.vel = away * 0.4
-        Felling.falls.append(Felling.Fall(s))
+        Felling.falls.append(hold(s, cells: logs.union(leaves)))
         Felling.felled += 1
         let mid = s.pos
         sfx(.hullCreak, 1.3, at: mid)
@@ -163,9 +170,27 @@ extension Game {
         away = simd_normalize(away)
         s.angVel = simd_cross(V3(0, 1, 0), away) * (tree ? 0.35 : 0.15)
         s.vel = away * 0.2
-        Felling.falls.append(Felling.Fall(s))
+        Felling.falls.append(hold(s, cells: leaves.union(cells)))
         Felling.toppled += 1
         sfx(.hullCreak, tree ? 1.3 : 0.8, at: s.pos)
+    }
+
+    // P441: the fall of a body just taken out of the world, held hidden and still until the world has redrawn the cells
+    // it left (the sections and versions after the removal) and its own mesh is built.
+    func hold(_ s: Ship, cells: Set<IVec3>) -> Felling.Fall {
+        let f = Felling.Fall(s)
+        var seen = Set<Int64>()
+        for c in cells {
+            guard let ch = world.chunkAt(c.x, c.z), c.y >= 0 && c.y < CH else { continue }
+            let sy = c.y >> 4
+            let key = Int64(ch.cx) << 40 ^ Int64(ch.cz) << 16 ^ Int64(sy)
+            if seen.insert(key).inserted { f.wait.append((ch, sy, ch.sections[sy].version)) }
+        }
+        f.launch = (s.vel, s.angVel)
+        s.vel = .zero; s.angVel = .zero
+        s.hidden = true; s.kinematic = true
+        f.held = 0
+        return f
     }
 
     // Every frame (Game.advance): falling trees land and shed their leaves; a carried trunk follows the hands.
@@ -176,6 +201,16 @@ extension Game {
         Felling.falls.removeAll { f in f.ship.map { s in !live.contains { $0 === s } } ?? true }
         for f in Felling.falls {
             guard let s = f.ship else { continue }
+            if f.held >= 0 {
+                // (let go at most 1.5 s on, whatever is still waiting: a section unloaded or a worker behind)
+                f.held += dt
+                let drawn = f.wait.allSatisfy { $0.0.sections[$0.1].meshedVersion >= $0.2 || self.world.chunks[ChunkKey(x: $0.0.cx, z: $0.0.cz)] !== $0.0 }
+                let built = !s.mesh.busy && !s.mesh.sections.isEmpty
+                if !(drawn && built) && f.held < 1.5 { s.vel = .zero; s.angVel = .zero; continue }
+                s.hidden = false; s.kinematic = false
+                (s.vel, s.angVel) = f.launch
+                f.held = -1
+            }
             f.age += dt
             let dv = simd_length(s.vel - f.lastVel)
             f.lastVel = s.vel
@@ -261,7 +296,7 @@ extension Game {
     // axis, ring caps where the log ends, lit by the light where it lies.
     func writeFelled(_ wr: inout EntityWriter, eye: V3) {
         guard Felling.roundTrunks else { return }
-        let ships = world.ships.list.filter { Felling.isFelled($0) }
+        let ships = world.ships.list.filter { Felling.isFelled($0) && !$0.hidden }
         if ships.isEmpty { if !Felling.trunkCells.isEmpty { Felling.trunkCells.removeAll() }; return }
         let n = 8
         let texT = Blocks.tex

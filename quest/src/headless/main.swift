@@ -198,6 +198,7 @@ if let out = arg("--view"), let ctx = vkctx {
     // P437 (h): --edittime: place a block in the first air cell beside a solid one near the eye, then break it, and
     // time each step (the write with its remesh, the structure check, falling-block checks) as the game runs them.
     if CommandLine.arguments.contains("--edittime") {
+        if CommandLine.arguments.contains("--editlane") { World.editLane = true }       // (P440: as on the headset)
         let ex = Int(floor(vg.player.pos.x)), ez = Int(floor(vg.player.pos.z))
         var cells: [IVec3] = []
         for dy in -6...6 { for dz in -3...3 { for dx in -3...3 {
@@ -246,6 +247,8 @@ if let out = arg("--view"), let ctx = vkctx {
                 }
             }
             let meshed = World.syncMeshes - m0
+            let lane = t { World.editQueue.sync {} }
+            if World.editLane { print(String(format: "edittime: the edit lane had its meshes ready %.1f ms later", lane)) }
             var ring: [(Chunk, Int)] = []
             let sy = c.y >> 4
             for dz in -1...1 { for dx in -1...1 {
@@ -566,7 +569,7 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     // --cutlog N (P433): the Nth log from the foot of the nearest living trunk within 16 blocks of the eye is struck out
     // (as a creative blow does), the sections round it remeshed: the tree must draw as before with that cell missing.
-    if let n = Int(arg("--cutlog") ?? "") {
+    func nearestTrunk() -> (Int, Int, Int)? {
         let ex = Int(floor(vg.player.pos.x)), ey = Int(floor(vg.player.pos.y)), ez = Int(floor(vg.player.pos.z))
         var best: (Int, Int, Int, Int)? = nil           // x, foot y, z, distance squared
         for z in (ez - 16)...(ez + 16) { for x in (ex - 16)...(ex + 16) {
@@ -586,12 +589,38 @@ if let out = arg("--view"), let ctx = vkctx {
                 y = foot - 1
             }
         } }
-        if let (x, foot, z, _) = best {
+        return best.map { ($0.0, $0.1, $0.2) }
+    }
+    if let n = Int(arg("--cutlog") ?? "") {
+        if let (x, foot, z) = nearestTrunk() {
             let cy = foot + max(0, n - 1)
             print("view: cutlog: trunk at \(x) \(foot) \(z), log \(n) (y \(cy)) struck out")
             vw.setBlock(x, cy, z, AIR)
             vw.remeshArea(x0: x - 10, z0: z - 10, x1: x + 10, z1: z + 10, y0: cy - 12, y1: cy + 24)
         } else { print("view: cutlog: no living trunk within 16 blocks") }
+    }
+    // --fell S (P441): the foot log of the nearest living trunk is cut as the game cuts it (Game.breakBlock: what stood
+    // on it comes loose and topples away from the eye), then the game runs S seconds before the render.
+    if let secs = Double(arg("--fell") ?? "") {
+        if let (x, foot, z) = nearestTrunk() {
+            let p = IVec3(x, foot, z), b = vw.block(x, foot, z)
+            vg.paused = false
+            let ships0 = vw.ships.list.count
+            vg.breakBlock(p, b, drop: false)
+            print("view: fell: trunk at \(x) \(foot) \(z) cut at its foot; \(vw.ships.list.count - ships0) body loose")
+            let frames = Int(secs * 72)
+            var worst = 0.0
+            for _ in 0..<frames {
+                let t0 = CFAbsoluteTimeGetCurrent()
+                vg.tick(1.0 / 72)
+                worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
+            }
+            vw.remeshArea(x0: x - 12, z0: z - 12, x1: x + 12, z1: z + 12, y0: foot - 8, y1: foot + 30)
+            if let s = vw.ships.list.last(where: { Felling.isFelled($0) }) {
+                print(String(format: "view: fell: after %.1f s the body is at %.1f %.1f %.1f, tipped %.0f deg, %d blocks; worst tick %.1f ms",
+                             secs, s.pos.x, s.pos.y, s.pos.z, acosf(max(-1, min(1, s.rot.act(V3(0, 1, 0)).y))) * 180 / .pi, s.blockCount, worst))
+            }
+        } else { print("view: fell: no living trunk within 16 blocks") }
     }
     // --sign TEXT: stand just inside the door under the nearest street sign with that line (the town nearest --at),
     // looking in (the generator moves towns between builds, so a note's position may no longer hold the building).
@@ -648,6 +677,27 @@ if let out = arg("--view"), let ctx = vkctx {
         let dist = Float(arg("--dist") ?? "") ?? 10                // the camera's distance from the back wall
         vg.player.pos = V3(Float(bx) + 0.5 + (Float(arg("--dx") ?? "") ?? 0), Float(by + 1), Float(bz - 7) + dist); vg.player.vel = .zero
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+    }
+    // --scene machines (P442): the copper-circuit machines put on the ground in a row 4 blocks in front of the eye (-z)
+    // as the game places them, fronts toward the eye: dispenser, dropper, piston, sticky piston, observer, a pushed
+    // piston with its head, a dispenser facing up and an observer facing away.
+    if arg("--scene") == "machines" {
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        let ex = Int(floor(vg.player.pos.x)), ez = Int(floor(vg.player.pos.z))
+        let keys = ["dispenser[3]", "dropper[3]", "piston[3]", "sticky_piston[3]", "observer[3]", "piston[9]", "dispenser[1]", "observer[2]"]
+        let z = ez - 4
+        var top = 0
+        for (k, key) in keys.enumerated() {
+            let x = ex - keys.count + 1 + 2 * k
+            var y = CH - 2
+            while y > 1 && !vw.solidAt(x, y - 1, z) { y -= 1 }
+            vw.editBatch { vw.setBlock(x, y, z, Blocks.id(key)); vw.meetGround(x, y, z, Blocks.id(key)) }
+            if key == "piston[9]" { vw.setBlock(x, y, z + 1, Blocks.id("piston_head[3]")) }
+            top = max(top, y)
+        }
+        vg.player.pos.y = Float(top) + 2.2
+        vw.remeshArea(x0: ex - 12, z0: ez - 10, x1: ex + 12, z1: ez + 4, y0: top - 12, y1: top + 6)
+        print("view: machines: \(keys.count) placed in a row at z \(z), top \(top)")
     }
     // --scene groundthings (P382): copper wire and the other things that lie on the ground laid on the field's ground in
     // front of the eye (GroundDrapeTests.swift); --groundcheck prints how far each is off the drawn ground.

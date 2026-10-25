@@ -488,7 +488,9 @@ extension ShipManager {
                 g.set(x, y, z, AIR)
             }
             let off = V3(Float(lo.x), Float(lo.y), Float(lo.z))
-            part.name = s.name + " wreck"
+            // (P441, Oct 24 20:50: "this log turned into a square": a felled trunk chopped in two left a "wreck" that drew
+            // as cube logs; a felled tree's pieces are felled trees, round, and fall on their own)
+            part.name = Felling.isFelled(s) ? Felling.name : s.name + " wreck"
             part.rebuild()
             part.rot = s.rot
             part.pos = s.toWorld(off + part.com)

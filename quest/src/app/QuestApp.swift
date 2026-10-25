@@ -76,6 +76,7 @@ final class QuestApp {
         // level, no "fast" leaves). The cost is met by not simulating past the active distance, culling and merged
         // draws, not by lowering far detail; his headset captures decide if it holds 72 fps.
         World.lodNear = 99
+        World.editLane = true                      // P440: a placed or broken block meshes off the frame
         World.leafNear = QuestApp.leafNear
         PlaytestChecklist.spaceWarp = (get: { QuestSettings.spaceWarp ? (QuestSettings.spaceWarpActive ? "On" : "On (next launch)") : "Off" },
                                        toggle: { QuestSettings.spaceWarp.toggle() })        // P399 (7)

@@ -75,6 +75,7 @@ extension World {
         var clo = IVec3(Int.max, Int.max, Int.max), chi = IVec3(Int.min, Int.min, Int.min)
         func grow(_ p: IVec3) {
             clo = IVec3(min(clo.x, p.x), min(clo.y, p.y), min(clo.z, p.z)); chi = IVec3(max(chi.x, p.x), max(chi.y, p.y), max(chi.z, p.z))
+            noteChange(p.x, p.y, p.z)
         }
         // The fine samples first (given from the cells as they are before the fill), then the cells.
         let ctr = V3(Float(lo.x + hi.x + 1) * 0.5, Float(lo.y + hi.y + 1) * 0.5, Float(lo.z + hi.z + 1) * 0.5)

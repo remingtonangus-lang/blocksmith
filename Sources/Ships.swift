@@ -278,6 +278,7 @@ final class Ship {
     var soundTimer: Float = 0
 
     // Capital ships and factions (CapitalShips.swift).
+    var hidden = false               // P441: not drawn yet (a felled tree waiting for the world to drop the standing one)
     var kinematic = false            // moved by its AI (velocity and turn rate set directly): no rigid-body forces or contacts
     var faction = 0                  // Faction raw value (0 none)
     // Guns of this ship (or turret): shell muzzle speed, gravity, blast power, reload, barrel elevation limits, scatter.
