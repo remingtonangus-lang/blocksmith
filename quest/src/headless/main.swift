@@ -103,6 +103,8 @@ if CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains(
 // --flytest DIR [--rd 24] [--seconds 60] [--walk]: flying flat out over a new world; the speed never drops while the
 // world loads (P414, quest/src/test/QuestFlyTest.swift).
 if CommandLine.arguments.contains("--flytest") { exit(QuestFlyTest.run()) }
+// --vehiclecheck: P449, the Ash Vault's vehicles and the frigate's helm (quest/src/test/QuestVehicleCheck.swift).
+if CommandLine.arguments.contains("--vehiclecheck") { exit(QuestVehicleCheck.run()) }
 // --detailcheck (P451): a cold sea keeps its ice through the spring melt; pumpkins grow in patches.
 if CommandLine.arguments.contains("--detailcheck") { exit(QuestDetailCheck.run()) }
 // --treerepair: P447, old second stems and kinks tidied out of saved land (quest/src/test/QuestTreeRepair.swift).

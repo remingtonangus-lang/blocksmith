@@ -386,11 +386,12 @@ enum Capital {
         // Two parked dropships in the hangar, the same craft it launches (its hull blocks copied in; the turret ring
         // stays empty: the parked ones carry no gun).
         let ds = dropship()
-        let ring = Blocks.id("ship_turret_ring")
+        let ring = Blocks.id("ship_turret_ring"), dsHelm = Blocks.groupBase[Int(Blocks.id("ship_helm[south]"))]
         for (cx, cz) in [(-12, 230), (12, 270)] {
             for y in 0..<ds.sy { for z in 0..<ds.sz { for gx in 0..<ds.sx {
-                let b = ds.blocks[gx + z * ds.sx + y * ds.sx * ds.sz]
+                var b = ds.blocks[gx + z * ds.sx + y * ds.sx * ds.sz]
                 if b == AIR || b == ring { continue }
+                if Blocks.groupBase[Int(b)] == dsHelm { b = console }      // (P449: a parked craft's wheel steered the frigate)
                 hb.set(cx + gx - ds.ox, 26 + y, cz - 10 + z, b)
             } } }
         }

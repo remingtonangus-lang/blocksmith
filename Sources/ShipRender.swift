@@ -381,7 +381,8 @@ final class ShipRenderer {
     private func wheelMeshes(_ s: Ship) -> [[ShipMesh.Sec]] {
         if s.mesh.wheelGen != s.wheelGen {
             s.mesh.wheelSecs = s.wheelParts.map { p in
-                secs(ShipMesh.build(sx: p.size.x, sy: p.size.y, sz: p.size.z, blocks: p.blocks, only: nil, spinning: false))
+                p.round.map { secs(ShipMesh.build(sx: 1, sy: 1, sz: 1, blocks: [$0], only: nil, spinning: false)) }   // (one tyre)
+                    ?? secs(ShipMesh.build(sx: p.size.x, sy: p.size.y, sz: p.size.z, blocks: p.blocks, only: nil, spinning: false))
             }
             s.mesh.wheelGen = s.wheelGen
         }
@@ -527,7 +528,8 @@ final class ShipRenderer {
                 for (i, p) in s.wheelParts.enumerated() where i < meshes.count {
                     let roll = float4x4(simd_quatf(angle: -s.rollDist / max(0.5, p.radius), axis: axle))
                     let lo = V3(Float(p.lo.x), Float(p.lo.y), Float(p.lo.z))
-                    let wmodel: float4x4 = m * translationMatrix(p.center) * roll * translationMatrix(lo - p.center)
+                    let wmodel: float4x4 = p.round == nil ? m * translationMatrix(p.center) * roll * translationMatrix(lo - p.center)
+                        : m * translationMatrix(p.center) * roll * scaleMatrix(V3(Float(p.size.x), Float(p.size.y), Float(p.size.z))) * translationMatrix(V3(-0.5, -0.5, -0.5))
                     for sec in meshes[i] {
                         guard let buf = sec.opaque else { continue }
                         let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)

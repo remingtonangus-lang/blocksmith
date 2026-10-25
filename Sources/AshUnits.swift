@@ -252,6 +252,7 @@ extension Mob {
         let b = soldierBrain
         faceGoal = nil
         strafe = 0
+        AshArmour.shedEffects(g)                                   // (P449: plates that came off, any hull's)
         b.reload -= dt
         b.shotTimer -= dt
         b.kick = max(0, b.kick - dt * 2.5)
@@ -525,6 +526,75 @@ extension Mob {
 
     // Hull driving: turn toward the goal, drive to the band, back off when close; half-tracks circle inside it. Stops
     // short of drops and lava.
+    // P449 (Oct 25 09:03, a Cinder Tank: "make it so it can drive through shit"): a moving hull breaks what stands in
+    // front of it, from a hand over the ground to its roof: a tank (and the Behemoth) shoves through trees (the trunk
+    // snapped at the hull, the tree above falling: Felling), fences, timber walls, glass, leaves and brush; a half-track
+    // or a truck through leaves, brush, glass and panes. The ground, stone and brick stop it as before. What it breaks
+    // is gone (nothing to pick up: P452), a few cells a frame. Returns the speed it was given.
+    // Both, for a hull on the move (Animals.swift, every vehicle, his or the army's).
+    func ashRolls(_ g: Game, _ speed: Float) -> Float { ashTracks(g, speed); return ashPlough(g, speed) }
+
+    // P449 (Oct 25 09:02, the Ash Vault: the tank should leave "tracks behind it where it drove"): a tracked hull (the
+    // Cinder Tank, the Behemoth, a half-track's rear tracks) churns the ground under its two tracks: grass, snowy grass,
+    // podzol, mycelium and dirt turn to coarse dirt, and the snow, grass and flowers on them are crushed flat, two dark
+    // lines behind it wherever it went.
+    private static let churn: [Bool] = (0..<Blocks.count).map {
+        ["grass_block", "snowy_grass_block", "podzol", "mycelium", "dirt", "rooted_dirt"].contains(Blocks.key(BlockID($0)))
+    }
+    func ashTracks(_ g: Game, _ speed: Float) {
+        guard abs(speed) > 0.3, kind == .ashTank || kind == .ashHalftrack || kind == .ashBehemoth, onGround,
+              Blocks.has("coarse_dirt") else { return }
+        let w = g.world
+        let coarse = Blocks.id("coarse_dirt")
+        let side = V3(-forward.z, 0, forward.x)
+        let gauge: Float = kind == .ashBehemoth ? 1.8 : (kind == .ashTank ? 1.15 : 0.85)
+        let back: Float = kind == .ashHalftrack ? 1.4 : 0                         // (a half-track's tracks are aft)
+        for s: Float in [-1, 1] { for along: Float in [-1, 0, 1] {
+            let q = pos + side * (s * gauge) - forward * (back + along * 0.9)
+            let x = Int(floor(q.x)), z = Int(floor(q.z))
+            var y = Int(floor(pos.y + 0.2))
+            if !w.solidAt(x, y - 1, z) && w.solidAt(x, y - 2, z) { y -= 1 }
+            let under = w.materialAt(x, y - 1, z)                                  // (a field world's ground too)
+            if Mob.churn[Int(under)] { _ = w.setBlockAsync(x, y - 1, z, coarse); AshSeat.tracked += 1 }
+            let on = w.builtBlock(x, y, z)
+            if on != AIR && !Blocks.collide[Int(on)] && !Blocks.isLiquid(on) && w.blockEntities[IVec3(x, y, z)] == nil { _ = w.setBlockAsync(x, y, z, AIR) }
+        } }
+    }
+
+    func ashPlough(_ g: Game, _ speed: Float) -> Float {
+        guard abs(speed) > 0.8, kind != .ashArtillery else { return speed }
+        let w = g.world
+        let tank = kind == .ashTank || kind == .ashBehemoth
+        let dir = forward * (speed > 0 ? 1 : -1), side = V3(-dir.z, 0, dir.x)
+        // The hull's half length (the models run longer than the hit box is wide).
+        let reach: Float = (kind == .ashBehemoth ? 4.4 : (tank ? 3.4 : 3.0)) + 0.4
+        let y0 = Int(floor(pos.y + 0.4)), y1 = Int(floor(pos.y + spec.height))
+        var gone = 0
+        var o: Float = -halfW
+        while o <= halfW + 0.01 && gone < 6 {
+            let q = pos + dir * reach + side * o
+            let x = Int(floor(q.x)), z = Int(floor(q.z))
+            for y in y0...max(y0, y1) where gone < 6 {
+                let b = w.block(x, y, z)
+                guard b != AIR, !Blocks.isLiquid(b), w.blockEntities[IVec3(x, y, z)] == nil else { continue }
+                let hard = Blocks.hardness[Int(b)]
+                guard hard >= 0, !SmoothTerrain.natural[Int(b)] || CapitalBase.isLog(b) || CapitalBase.isLeaf(b) else { continue }
+                let wood = Blocks.tool[Int(b)] == ToolType.axe.rawValue && hard <= 3
+                guard hard <= 0.6 || CapitalBase.isLeaf(b) || (tank && wood) else { continue }
+                let p = IVec3(x, y, z)
+                g.particles.blockBreak(b, at: p)
+                if gone == 0 { g.blockSound(g.audioBreakSound(b), at: p) }
+                _ = w.setBlockAsync(x, y, z, AIR)
+                g.debris.blockChanged(p)
+                if CapitalBase.isLog(b) { g.fellCheck(p, b) }
+                gone += 1
+                AshSeat.ploughed += 1
+            }
+            o += 0.5
+        }
+        return speed
+    }
+
     private func ashDrive(_ dt: Float, _ g: Game, wantYaw: Float, flat: Float, near: Float, far: Float, circle: Bool) -> Float {
         var goal = wantYaw
         var speed: Float = 0
@@ -793,5 +863,6 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         }
         p.append(box(-14, 10, 38, 3, 2, 0.6, glow, 9)); p.append(box(11, 10, 38, 3, 2, 0.6, glow, 9))
     }
+    AshArmour.strip(m, &p)                                                                     // P449: plates shot off
     return p
 }

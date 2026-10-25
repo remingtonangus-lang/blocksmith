@@ -26,6 +26,8 @@ func translationMatrix(_ t: V3) -> float4x4 {
     return m
 }
 
+func scaleMatrix(_ s: V3) -> float4x4 { float4x4(diagonal: V4(s.x, s.y, s.z, 1)) }
+
 func rotationX(_ a: Float) -> float4x4 {
     let c = cosf(a), s = sinf(a)
     return float4x4(columns: (V4(1, 0, 0, 0), V4(0, c, s, 0), V4(0, -s, c, 0), V4(0, 0, 0, 1)))

@@ -211,7 +211,28 @@ final class Ship {
     var props: [(V3, V3)] = []       // propeller centre, thrust direction (ship space)
     var wheels: [V3] = []
     // Wheel parts (connected wheel cells, e.g. a 5x5 disc) drawn rolling about their own centres.
-    struct WheelPart { var lo: IVec3; var size: IVec3; var center: V3; var radius: Float; var blocks: [BlockID] }
+    struct WheelPart {
+        var lo: IVec3; var size: IVec3; var center: V3; var radius: Float; var blocks: [BlockID]
+        // P449 (Oct 25 09:04, the sidecar bike: "why are there five wheels clumped together?"): a wheel built of several
+        // wheel blocks (a plus of five, a disc) is drawn as one tyre the size of its cells, not a disc per block: this
+        // state's model stretched over the part's box (`round` nil: one block, drawn as it is).
+        var round: BlockID? = nil
+    }
+    // The wheel state whose disc stands across `thin` (0 x, 2 z: the axle's axis), from any state of the group.
+    static func wheelState(_ b: BlockID, thin: Int) -> BlockID? {
+        let base = Blocks.groupBase[Int(b)]
+        var s = Int(base)
+        while s < Blocks.count && Blocks.groupBase[s] == base {
+            let bx = Blocks.boxes[s]
+            if !bx.isEmpty {
+                let ex = Int(bx.map { $0.x1 }.max()!) - Int(bx.map { $0.x0 }.min()!)
+                let ez = Int(bx.map { $0.z1 }.max()!) - Int(bx.map { $0.z0 }.min()!)
+                if (thin == 0 && ex < ez) || (thin == 2 && ez < ex) { return BlockID(s) }
+            }
+            s += 1
+        }
+        return nil
+    }
     var wheelParts: [WheelPart] = []
     var wheelGen = 0                 // bumped when the parts change (the renderer remeshes them)
     var rollDist: Float = 0          // distance rolled along the heading (wheel angle = -rollDist / radius)
@@ -366,7 +387,9 @@ final class Ship {
                 let center = V3(Float(lo.x + hi.x + 1), Float(lo.y + hi.y + 1), Float(lo.z + hi.z + 1)) * 0.5
                 // Radius in the rolling plane (heading and up).
                 let along = abs(fwd.x) > abs(fwd.z) ? size.x : size.z
-                parts.append(WheelPart(lo: lo, size: size, center: center, radius: Float(max(along, size.y)) * 0.5, blocks: blocks))
+                var part = WheelPart(lo: lo, size: size, center: center, radius: Float(max(along, size.y)) * 0.5, blocks: blocks)
+                if cells.count > 1 { part.round = Ship.wheelState(g.get(start.x, start.y, start.z), thin: size.x <= size.z ? 0 : 2) }
+                parts.append(part)
             }
         }
         let changed = parts.count != wheelParts.count || zip(parts, wheelParts).contains { $0.lo != $1.lo || $0.blocks != $1.blocks }
@@ -400,7 +423,10 @@ final class Ship {
             if breechID != AIR && Blocks.groupBase[Int(b)] == breechID && breech == nil { breech = (p, -ShipParts.facingDir[ShipParts.facing(b)]) }
             switch kinds[Int(b)] {
             case .helm:
-                if helm == nil { helm = IVec3(x, y, z); fwd = -ShipParts.facingDir[ShipParts.facing(b)] }
+                // P449 (Oct 25 09:19, the Stormwarden Frigate: "the entire whole ship is turning because I'm inside of a
+                // drop ship... that has a wheel on it"): with several helms the highest is the ship's (a bridge stands
+                // over the decks); the first found, low in the hull, was a parked dropship's in the frigate's hangar.
+                if helm == nil || y > helm!.y { helm = IVec3(x, y, z); fwd = -ShipParts.facingDir[ShipParts.facing(b)] }
             case .propeller: props.append((p, -ShipParts.facingDir[ShipParts.facing(b)]))
             case .engine: engines += 1
             case .balloon: balloons += 1

@@ -139,6 +139,19 @@ extension Game {
             fwd = s.dirToWorld(V3(0, 0, -1)); back = thirdPersonDistance
         } else if let m = riding, m.kind == .boat {
             fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw)); back = 6
+        } else if let m = AshSeat.shared.vehicle {
+            // P449 (Oct 25 09:04-09:05: the half-track "as if I'm walking with a half track on top of me... it should be
+            // a third-person view"; the truck "I spawn inside of it and can't see where I'm going. Easy solution, make it
+            // third person"; "the Ember field gun needs to be way more third person. I can't see what I'm firing"): the
+            // Ashguard's vehicles he takes get the chase view too, out behind the hull (the field gun: behind its
+            // breech, along the barrel's line, where the shell goes).
+            fwd = m.forward
+            switch m.kind {
+            case .ashTank: back = 10
+            case .ashTruck: back = 10
+            case .ashArtillery: back = 8
+            default: back = 9
+            }
         } else { return nil }
         fwd.y = 0
         fwd = simd_length(fwd) > 1e-3 ? simd_normalize(fwd) : V3(0, 0, -1)

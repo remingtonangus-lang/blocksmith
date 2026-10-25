@@ -83,6 +83,7 @@ extension Mob {
         if collar != 0 { d["collar"] = Float(collar) }
         if saddled { d["saddle"] = 1 }
         if armorTier != 0 { d["armor"] = Float(armorTier) }
+        if armourLost != 0 { d["plates"] = Float(armourLost) }   // P449: an Ashguard hull's plates shot off
         if armorHP != 0 { d["armorHP"] = Float(armorHP) }
         if chested { d["chest"] = 1 }
         if coach != 0 { d["coach"] = Float(coach) }
@@ -134,6 +135,7 @@ extension Mob {
         sitting = (d["sit"] ?? 0) > 0
         collar = Int(d["collar"] ?? 0)
         saddled = (d["saddle"] ?? 0) > 0
+        armourLost = UInt8(min(255, max(0, d["plates"] ?? 0)))
         armorTier = Int(d["armor"] ?? 0)
         armorHP = Int(d["armorHP"] ?? 0)
         chested = (d["chest"] ?? 0) > 0
