@@ -71,6 +71,12 @@ extension World {
         var flipped = 0
         var touched: [(Chunk, Int)] = []
         func touch(_ c: Chunk, _ sy: Int) { if !touched.contains(where: { $0.0 === c && $0.1 == sy }) { touched.append((c, sy)) } }
+        // (P440: the cells whose samples changed, for the sections the frame meshes)
+        var clo = IVec3(Int.max, Int.max, Int.max), chi = IVec3(Int.min, Int.min, Int.min)
+        func grow(_ p: IVec3) {
+            clo = IVec3(min(clo.x, p.x), min(clo.y, p.y), min(clo.z, p.z)); chi = IVec3(max(chi.x, p.x), max(chi.y, p.y), max(chi.z, p.z))
+            noteChange(p.x, p.y, p.z)
+        }
         // The fine samples first (given from the cells as they are before the fill), then the cells.
         let ctr = V3(Float(lo.x + hi.x + 1) * 0.5, Float(lo.y + hi.y + 1) * 0.5, Float(lo.z + hi.z + 1) * 0.5)
         let r = Float(max(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z) + 1) * 0.5
@@ -90,7 +96,7 @@ extension World {
                     let p = V3(Float(ox) + (Float(fx) + 0.5) * 0.5, Float(oy) + (Float(fy) + 0.5) * 0.5, Float(oz) + (Float(fz) + 0.5) * 0.5)
                     let k = FineField.index(fx, fy, fz)
                     let q = FieldTerrain.q(max(FieldTerrain.f(f[k]), inside(p)))
-                    if q != f[k] { f[k] = q; any = true }
+                    if q != f[k] { f[k] = q; any = true; grow(IVec3(ox + (fx >> 1), oy + (fy >> 1), oz + (fz >> 1))) }
                 } } }
             }
             if any || !fresh { c.blocks.fine[sy] = f }
@@ -117,6 +123,7 @@ extension World {
                 }
                 c.modified = true
                 touch(c, y >> 4)
+                grow(IVec3(x, y, z))
             } }
         }
         // (as fieldSphere: the sections round each changed one remesh, now)
@@ -128,7 +135,13 @@ extension World {
             } }
         }
         for (n, s) in all { n.sections[s].version += 1 }
-        for (n, s) in all where !deferRemesh { remeshSync(n, s) }
+        // (P440: only the sections within a cell of a changed sample mesh on the frame; the rest of the ring follows on a
+        // worker ahead of the queue)
+        for (n, s) in all where !deferRemesh && clo.x <= chi.x {
+            let x0 = n.cx * CS, z0 = n.cz * CS, y0 = s * 16
+            guard chi.x + 1 >= x0 && clo.x - 1 < x0 + 16 && chi.z + 1 >= z0 && clo.z - 1 < z0 + 16 && chi.y + 1 >= y0 && clo.y - 1 < y0 + 16 else { continue }
+            remeshSync(n, s)
+        }
         if !touched.isEmpty { fieldStamp &+= 1 }
         return flipped
     }

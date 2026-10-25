@@ -55,6 +55,11 @@ enum QuestOptions {
         PauseMenu.hostVideoRows = { [("Brightness: \(PauseMenu.brightnessName(QuestSettings.brightness))", "q_bright")] }
         PauseMenu.hostHiddenCats = [.controls]                  // no keyboard or mouse in the headset
         PauseMenu.hostCatNames = [.controller: "Touch Controls"]
+        // P440: the pause menu's distance row is the view distance (Auto shows where it is now).
+        PauseMenu.hostViewRow = { g in
+            let S = QuestSettings.self, now = g.world.renderDistance
+            return ("View Distance: \(S.renderDistance)" + (S.autoViewDistance && now != S.renderDistance ? " (now \(now))" : ""), "q_view")
+        }
         PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autoview", "q_autord", "q_hud", "q_bright", "q_diff"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",

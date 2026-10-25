@@ -83,17 +83,37 @@ enum Railways {
     private static var cacheGen: ObjectIdentifier?
     private static var cacheField = 0                 // (fieldWorld 1, railSites 2)
     private static let lock = NSLock()
+    private static var planning: Set<Int64> = []          // lines being planned on a worker (line(wait: false))
 
     static func key(_ row: Int, _ s: Int) -> Int64 { Int64(row) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: s))) }
 
     // The line of village row `row`, stretch `s` (regions s*stretch ..< (s+1)*stretch), if one runs there.
-    static func line(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+    // `wait: false` (the frame thread: Trains, P440): a line not planned yet is planned on a worker and left out until
+    // then. Planning one took 1.1 s of a frame in the debug harness (perfscenes forest24: "trains" 1164 ms flying into new
+    // land), a long stall on the headset too.
+    static func line(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
         guard on else { return nil }
         let k = key(row, s), gid = ObjectIdentifier(gen)
         lock.lock()
         let mode = (gen.fieldWorld ? 1 : 0) | (gen.railSites ? 2 : 0)
-        if cacheGen != gid || cacheField != mode { cache.removeAll(); cacheGen = gid; cacheField = mode }
+        if cacheGen != gid || cacheField != mode { cache.removeAll(); planning.removeAll(); cacheGen = gid; cacheField = mode }
         if let c = cache[k] { lock.unlock(); return c }
+        if !wait {
+            let start = !planning.contains(k)
+            if start { planning.insert(k) }
+            lock.unlock()
+            if start {
+                DispatchQueue.global(qos: .utility).async {
+                    let l = plan(gen, row: row, stretch: s)
+                    lock.lock()
+                    if cacheGen == gid && cacheField == mode { cache[k] = l }
+                    planning.remove(k)
+                    if cache.count > 2048 { cache.removeAll() }
+                    lock.unlock()
+                }
+            }
+            return nil
+        }
         lock.unlock()
         let l = plan(gen, row: row, stretch: s)
         lock.lock(); if cacheGen == gid && cacheField == mode { cache[k] = l }; if cache.count > 2048 { cache.removeAll() }; lock.unlock()
@@ -101,7 +121,7 @@ enum Railways {
     }
 
     // Lines whose track may pass within `pad` blocks of the box.
-    static func near(_ gen: WorldGen, x0: Int, z0: Int, x1: Int, z1: Int, pad: Int = 2) -> [Line] {
+    static func near(_ gen: WorldGen, x0: Int, z0: Int, x1: Int, z1: Int, pad: Int = 2, wait: Bool = true) -> [Line] {
         guard on else { return [] }
         // A line stays inside its row's band give or take a town's box and the south gap (half a region is plenty).
         let r0 = floorDiv(z0 - pad - span / 2, span), r1 = floorDiv(z1 + pad + span / 2, span)
@@ -110,7 +130,7 @@ enum Railways {
         var out: [Line] = []
         for row in r0...r1 { for s in s0...s1 {
             guard hashf(s, row, 0xC1, UInt32(truncatingIfNeeded: gen.seed) ^ 0xC1A1) < share else { continue }
-            guard let l = line(gen, row: row, stretch: s) else { continue }
+            guard let l = line(gen, row: row, stretch: s, wait: wait) else { continue }
             if l.maxX + pad < x0 || l.minX - pad > x1 || l.maxZ + pad < z0 || l.minZ - pad > z1 { continue }
             out.append(l)
         } }
@@ -600,9 +620,9 @@ enum Railways {
     // MARK: Queries
 
     // The station (and its line) whose platform is within `r` blocks of p.
-    static func station(_ gen: WorldGen, near p: V3, within r: Int = 24) -> (Line, Station)? {
+    static func station(_ gen: WorldGen, near p: V3, within r: Int = 24, wait: Bool = true) -> (Line, Station)? {
         let x = Int(floor(p.x)), z = Int(floor(p.z))
-        for l in near(gen, x0: x - r, z0: z - r, x1: x + r, z1: z + r, pad: r) {
+        for l in near(gen, x0: x - r, z0: z - r, x1: x + r, z1: z + r, pad: r, wait: wait) {
             if let s = l.station(near: x, z, within: r) { return (l, s) }
         }
         return nil

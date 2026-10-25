@@ -485,6 +485,8 @@ extension World {
     func fieldSphere(_ ctr: V3, radius r: Float, carve: Bool, material: UInt8?, keepCell: IVec3? = nil, keepSolid: Bool = false,
                      remesh: Bool = false) -> [IVec3] {
         var flipped: [IVec3] = []
+        let outerBox = changeBox                                    // (P440: this sphere's changes measured)
+        changeBox = (IVec3(Int.max, Int.max, Int.max), IVec3(Int.min, Int.min, Int.min))
         let prepared = prepareFine(ctr, radius: r)                  // P377 step 1 (FineField.swift)
         let reach = Int(ceil(r + 1.5))
         let cxI = Int(floor(ctr.x)), cyI = Int(floor(ctr.y)), czI = Int(floor(ctr.z))
@@ -522,6 +524,7 @@ extension World {
                         c.blocks.setDensity(i, q, material: nil, follow: false)
                         c.modified = true
                     }
+                    noteChange(x, y, z)
                     let sy = y >> 4
                     if !touched.contains(where: { $0.0 === c && $0.1 == sy }) { touched.append((c, sy)) }
                 }
@@ -542,7 +545,16 @@ extension World {
             } }
         }
         for (n, s) in all { n.sections[s].version += 1 }
-        if remesh { for (n, s) in all where !deferRemesh { remeshSync(n, s) } }
+        let box = changeBox!
+        changeBox = outerBox
+        if box.lo.x <= box.hi.x { noteChange(box.lo.x, box.lo.y, box.lo.z); noteChange(box.hi.x, box.hi.y, box.hi.z) }
+        // P440 (Oct 24 20:55, "a five hundred millisecond freeze every time I place a block"): the frame remeshes only the
+        // sections within a cell of a sample the sphere changed (the dual cells round it), usually one, not the up to 27
+        // round every touched section; the others follow on a worker ahead of the queue (World.update's edited-chunk
+        // pass), as the light round an edit always has.
+        if remesh && !deferRemesh && box.lo.x <= box.hi.x {
+            for (n, s) in all where World.near(n, s, box, grow: 1) { remeshSync(n, s) }
+        }
         fieldStamp &+= 1
         if carve && !flipped.isEmpty && !collapsing { collapseQueue.append((IVec3(cxI, cyI, czI), min(6, Int(ceil(r)) + 1))) }   // P351 (GroundCollapse)
         return flipped

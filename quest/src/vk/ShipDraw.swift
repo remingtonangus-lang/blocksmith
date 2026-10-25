@@ -144,7 +144,7 @@ final class ShipDraw {
         }
         for pass in 0..<2 {
             vkCmdBindPipeline(sl.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scene.pipe(pass == 0 ? "shipSolid" : "shipCut"))
-            for s in ships.list { draw(s, pass) }
+            for s in ships.list where !s.hidden { draw(s, pass) }
             for g in ships.ghosts { draw(g.0, pass) }
         }
     }
@@ -169,7 +169,7 @@ final class ShipDraw {
         }
         maskScratch.removeAll(keepingCapacity: true)
         var rd = ShipBlockReader(world)
-        for s in ships.list where !s.mesh.released && frustum.visible(min: s.worldMin, max: s.worldMax) {
+        for s in ships.list where !s.hidden && !s.mesh.released && frustum.visible(min: s.worldMin, max: s.worldMax) {
             guard let top = rd.waterTop(s.pos) ?? rd.waterTop(s.pos - V3(0, 2, 0)) else { continue }
             let plane = top + (eye.y > top ? 0.01 : -0.01)
             let r = simd_float3x3(s.rot)
@@ -199,7 +199,7 @@ final class ShipDraw {
     func drawTranslucent(_ sl: SceneRenderer.Slot, ships: ShipManager, eye: V3, u: FrameUniforms, frustum: Frustum) {
         if ships.isEmpty { return }
         var bound = false
-        for s in ships.list where frustum.visible(min: s.worldMin, max: s.worldMax) {
+        for s in ships.list where !s.hidden && frustum.visible(min: s.worldMin, max: s.worldMax) {
             let m = model(s, eye: eye)
             let f = fog(s, u)
             let perSection = s.mesh.sections.count > 48

@@ -32,6 +32,11 @@ enum QuestPerf {
         // 22:10:24, jungle, 14 fps)
         Spot(name: "birch22", seed: 5663059916303033239, x: -4931.0, y: 106.0, z: 2253.3, yaw: 335, pitch: -7),
         Spot(name: "jungle22", seed: 5663059916303033239, x: -6012.5, y: 92.3, z: 2927.8, yaw: 263, pitch: -31),
+        // Oct 24 evening (build 47f4c4d4): "it is worst it's ever been for rendering" flying the new taiga at 41-49 fps,
+        // 39 then 20 fps flying on from the forest by the ocean, 23 fps at view 16 by the snowy homestead.
+        Spot(name: "taiga24", seed: 5933896066598527833, x: 4740.5, y: 143.5, z: -3278.6, yaw: 320, pitch: -20),
+        Spot(name: "forest24", seed: 5663059916303033239, x: 692.3, y: 119.8, z: 638.9, yaw: 340, pitch: -30),
+        Spot(name: "snowy24", seed: 5663059916303033239, x: -251.1, y: 96.1, z: -3169.9, yaw: 305, pitch: -15),
     ]
 
     final class Phase {
@@ -235,7 +240,7 @@ enum QuestPerf {
             let line = "\(w.pendingJobs) jobs pending, \(w.chunks.count) chunks loaded; meshed \(ms) sections in \(mj) jobs "
                 + String(format: "(%.1f ms each, worker time %.0f%% of the phase)", (p.meshSeconds - mark.0.meshSeconds) * 1000 / Double(max(1, ms)),
                          (p.meshSeconds - mark.0.meshSeconds) * 100 / secs)
-                + ", \(p.genChunks - mark.0.genChunks) chunks made; block edits \(World.syncEdits - mark.1) remeshed at once, \(World.asyncEdits - mark.2) in the background"
+                + ", \(p.genChunks - mark.0.genChunks) chunks made (\(w.deferredTotal) buried sections left unmeshed so far, P440); block edits \(World.syncEdits - mark.1) remeshed at once, \(World.asyncEdits - mark.2) in the background"
             mark = (p, World.syncEdits, World.asyncEdits, CFAbsoluteTimeGetCurrent())
             // Which block changes those were (the five most common old -> new pairs; "bg" = remeshed in the background).
             let top = (World.editTally ?? [:]).sorted { $0.value > $1.value }.prefix(5).map { k, n in

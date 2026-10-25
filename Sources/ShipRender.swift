@@ -607,7 +607,7 @@ final class ShipRenderer {
         }
         for pass in 0..<2 {
             enc.setRenderPipelineState(pass == 0 ? solidPipe : cutPipe)
-            for s in ships.list { draw(s, pass) }
+            for s in ships.list where !s.hidden { draw(s, pass) }
             for g in ships.ghosts { draw(g.0, pass) }
         }
     }
@@ -640,7 +640,7 @@ final class ShipRenderer {
         }
         maskScratch.removeAll(keepingCapacity: true)
         var rd = ShipBlockReader(world)
-        for s in ships.list where !s.mesh.released && frustum.visible(min: s.worldMin, max: s.worldMax) {
+        for s in ships.list where !s.hidden && !s.mesh.released && frustum.visible(min: s.worldMin, max: s.worldMax) {
             guard let top = rd.waterTop(s.pos) ?? rd.waterTop(s.pos - V3(0, 2, 0)) else { continue }
             let plane = top + (eye.y > top ? 0.01 : -0.01)
             let r = simd_float3x3(s.rot)
@@ -688,7 +688,7 @@ final class ShipRenderer {
     func drawTranslucent(_ enc: MTLRenderCommandEncoder, ships: ShipManager, eye: V3, u: inout Uniforms, frustum: Frustum, quads: MTLBuffer) {
         if !enabled || ships.isEmpty { return }
         var any = false
-        for s in ships.list where frustum.visible(min: s.worldMin, max: s.worldMax) {
+        for s in ships.list where !s.hidden && frustum.visible(min: s.worldMin, max: s.worldMax) {
             let m = model(s, eye: eye)
             let perSection = s.mesh.sections.count > 48
             for sec in s.mesh.sections.values {

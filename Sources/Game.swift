@@ -1913,14 +1913,17 @@ final class Game {
            player.pos.y > Float(at.y) + 0.25, liftOnto(at) {}
         // (P364 i: only a living creature in the cell blocks it: a dead one still fading out refused the block.)
         if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.health > 0 && $0.intersects(at) }) {
-            world.setBlock(at.x, at.y, at.z, id)
-            // P377 step 3: ground placed in a field world swells toward where it was aimed, not only round the cell's
-            // middle (the cell lump World.fieldShape lays; only the surface moves, no other cell fills).
-            if world.fieldTerrain && SmoothTerrain.natural[Int(id)] && FieldMat.index[Int(id)] != 0 && at == t.hit + t.normal {
-                let n = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
-                world.fieldSphere(hitPoint(t) + n * 0.45, radius: 0.62, carve: false, material: FieldMat.index[Int(id)], keepSolid: true, remesh: true)
-            } else if world.fieldTerrain {
-                world.meetGround(at.x, at.y, at.z, id)                  // P387: the ground rises to a placed block's floor
+            // (P440: the write and the ground's swell mesh each section once, together)
+            world.editBatch {
+                world.setBlock(at.x, at.y, at.z, id)
+                // P377 step 3: ground placed in a field world swells toward where it was aimed, not only round the cell's
+                // middle (the cell lump World.fieldShape lays; only the surface moves, no other cell fills).
+                if world.fieldTerrain && SmoothTerrain.natural[Int(id)] && FieldMat.index[Int(id)] != 0 && at == t.hit + t.normal {
+                    let n = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
+                    world.fieldSphere(hitPoint(t) + n * 0.45, radius: 0.62, carve: false, material: FieldMat.index[Int(id)], keepSolid: true, remesh: true)
+                } else if world.fieldTerrain {
+                    world.meetGround(at.x, at.y, at.z, id)              // P387: the ground rises to a placed block's floor
+                }
             }
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
             if key == "chest" || key.hasSuffix("copper_chest") { world.blockEntities[at] = BlockEntity(.chest) }

@@ -148,6 +148,7 @@ extension World {
                     if !carve && c.blocks.raw(ci) != AIR { continue }                     // (a fill never swallows a built block)
                     if q == f[k] { continue }
                     f[k] = q; any = true
+                    noteChange(c.cx * CS + (fx >> 1), sy * 16 + (fy >> 1), c.cz * CS + (fz >> 1))
                 } } }
             }
             if any || !fresh { c.blocks.fine[sy] = f }

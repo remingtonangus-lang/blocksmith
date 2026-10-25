@@ -2258,6 +2258,13 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                 if !fr.visible(min: m.pos - V3(r, r, r), max: m.pos + V3(r, r + m.height, r)) { MobDrawStats.culled += 1; continue }
             }
         }
+        // P440 (Oct 24 21:00, "I can see like zombies and shit under, like underground"): a mob in land not drawn yet (its
+        // chunk not meshed, or a buried section left unmeshed) is not drawn: flying over new land, cave mobs hung in the
+        // open before the ground round them came in.
+        if let c = world.chunkAt(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
+            let sy = Int(floor(m.pos.y)) >> 4
+            if !c.meshedOnce || (sy >= 0 && sy < NSEC && c.sections[sy].deferred) { MobDrawStats.culled += 1; continue }
+        }
         // A ragdoll (MobRagdoll.swift): every part rides on its bone, lit where the body lies now.
         var rag: MobRagdoll? = nil
         if let r = m.ragdoll, let rw = ragdolls, r.prepare(rw, eye: eye) { rag = r }

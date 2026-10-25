@@ -95,9 +95,22 @@ final class PauseMenu: Menu {
     // holds the active distance below the player's choice, the current one too.
     static var viewFixed = false                    // the headset: the view distance is fixed (QuestSettings.viewDistance)
     static func rdLabel(_ g: Game) -> String { "Render Distance: \(g.chosenRenderDistance)" }
+    // P440 (Oct 24 20:49, "Active distance slider is doing nothing"): the active distance never passes the view distance,
+    // so at view 8 its row stepped to 10 and was put straight back to 8. It now steps the player's choice (kept), and
+    // says when the view distance holds it lower.
+    static func activeChoice(_ g: Game) -> Int { max(g.chosenActiveDistance, Game.savedActiveDistance) }
     static func adLabel(_ g: Game) -> String {
-        let c = g.chosenActiveDistance, w = g.world.activeDistance
+        let c = activeChoice(g), w = g.world.activeDistance
+        if w < c && w >= g.world.renderDistance { return "Active Distance: \(c) (\(w) now: view distance)" }
         return w < c ? "Active Distance: \(c) (auto \(w) now)" : "Active Distance: \(c)"
+    }
+    // P440: on the headset the pause menu's distance row is the view distance (what loads and is drawn) when the host
+    // gives one; the active distance stays on the Video page.
+    static var hostViewRow: ((Game) -> (String, String))?
+    static var distanceID: String { viewFixed ? (hostViewRow != nil ? "q_view" : "ad") : "rd" }
+    static func distanceRow(_ g: Game) -> (String, String) {
+        if viewFixed, let r = hostViewRow?(g) { return r }
+        return viewFixed ? (adLabel(g), "ad") : (rdLabel(g), "rd")
     }
     static func brightnessName(_ b: Float) -> String {
         b <= 0.01 ? "Moody" : (abs(b - 0.5) < 0.01 ? "Default" : (b >= 0.99 ? "Bright" : "\(Int((b * 100).rounded()))%"))
@@ -278,7 +291,7 @@ final class PauseMenu: Menu {
                     + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2, -16
                     + (StorageCheck.low ? " - storage low" : "")         // Q2c-console-51
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.viewFixed ? PauseMenu.adLabel(g) : PauseMenu.rdLabel(g), PauseMenu.viewFixed ? "ad" : "rd"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Messages", "messages"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), PauseMenu.distanceRow(g), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Messages", "messages"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Difficulty.name(g.diffLevel))", "difficulty"),   // P369: changeable for the life of the world
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
@@ -529,7 +542,7 @@ final class PauseMenu: Menu {
             // (P421: 22 with gaps of 3 and 8, room for an eighth line with Messages).
             return Style(width: 440, btnH: 22, gapX: 12, gapY: 3, groupGap: 8, cols: 4, lines: 8, groups: [
                 (["resume", "restorebackup"], 0),
-                (["options", vr, PauseMenu.viewFixed ? "ad" : "rd", "mode"], 0),                              // settings
+                (["options", vr, PauseMenu.distanceID, "mode"], 0),                              // settings
                 (["worldmap", "track", "advancements", "stats", "messages"], 0),             // map and progress
                 (["worlds", "netmenu", "coop", "photo", "commands", "checklist", "compute", "shortcuts"], 0),
                 (["totitle"], 0)])                                                // leaving, apart from the rest
@@ -962,7 +975,7 @@ final class PauseMenu: Menu {
             g.setRenderDistance(rd)
             UserDefaults.standard.set(rd, forKey: "renderDistance")
         case "ad":
-            g.setActiveDistance(step(World.activeOptions, World.activeOptions.contains(g.chosenActiveDistance) ? g.chosenActiveDistance : 8))
+            g.setActiveDistance(step(World.activeOptions, World.activeOptions.contains(PauseMenu.activeChoice(g)) ? PauseMenu.activeChoice(g) : 8))
         case "fullscreen": g.appAction?("fullscreen")
         case "launchfs": st.launchFullscreen.toggle()
         case "graphics": g.fancyGraphics.toggle()
