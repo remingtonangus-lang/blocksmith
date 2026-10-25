@@ -133,9 +133,7 @@ enum Momentum {
                 g.debris.shatter(b, cell: p, impact: c, direction: dir, count: 3, speed: min(14, v * 0.6) + 1,
                                  seed: hash3(p.x, p.y, p.z, 0xA11E), crowding: 0.3)
             }
-            if hashf(p.x, p.y, p.z, 0xA11F) < 0.34 {
-                for st in Mining.drops(b, ItemStack(Items.id("netherite_pickaxe"), 1)) { g.drops.spawn(st, at: mid) }
-            }
+            for st in Explosion.blastDrops(b) { g.drops.spawn(st, at: mid) }                      // (P452: smashed is gone)
             if let be = w.blockEntities.removeValue(forKey: p) {
                 for st in be.container.slots where !st.isEmpty { g.drops.spawn(st, at: mid) }
                 be.container.slots = Array(repeating: .empty, count: be.container.slots.count)

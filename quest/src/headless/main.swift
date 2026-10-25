@@ -112,6 +112,8 @@ if CommandLine.arguments.contains("--treerepair") { exit(QuestTreeRepair.run()) 
 if CommandLine.arguments.contains("--streamtest") { exit(QuestStreamTest.run(ctx: vkctx)) }
 // --placecheck: P448, blocks placed in a field world (quest/src/test/QuestPlaceCheck.swift).
 if CommandLine.arguments.contains("--placecheck") { exit(QuestPlaceCheck.run()) }
+// --blastcheck: P452, a blast leaves nothing to pick up but valuable blocks (quest/src/test/QuestBlastCheck.swift).
+if CommandLine.arguments.contains("--blastcheck") { exit(QuestBlastCheck.run()) }
 // --memscene NAME DIR / --memsim DIR [--minutes 20]: resident memory at view 24 in his scenes and over a long play
 // (P401, quest/src/test/QuestMemory.swift).
 if CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim"), let ctx = vkctx { exit(QuestMemory.run(ctx: ctx)) }
