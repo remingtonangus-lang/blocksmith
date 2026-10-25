@@ -105,6 +105,8 @@ if CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains(
 if CommandLine.arguments.contains("--flytest") { exit(QuestFlyTest.run()) }
 // --detailcheck (P451): a cold sea keeps its ice through the spring melt; pumpkins grow in patches.
 if CommandLine.arguments.contains("--detailcheck") { exit(QuestDetailCheck.run()) }
+// --treerepair: P447, old second stems and kinks tidied out of saved land (quest/src/test/QuestTreeRepair.swift).
+if CommandLine.arguments.contains("--treerepair") { exit(QuestTreeRepair.run()) }
 // --streamtest --seed S --at X,Y,Z [--rd 10] [--seconds 30] [--speed B/S] [--shots 2,5 --out DIR]: new land coming in
 // round a player, second by second (P446, quest/src/test/QuestStreamTest.swift).
 if CommandLine.arguments.contains("--streamtest") { exit(QuestStreamTest.run(ctx: vkctx)) }
