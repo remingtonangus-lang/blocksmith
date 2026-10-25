@@ -1762,7 +1762,8 @@ final class Game {
         if Items.key(h.item) == "redstone" {
             // Sparkstone dust goes on top of solid blocks.
             let c0 = world.block(t.hit.x, t.hit.y, t.hit.z)
-            let at = groundCell(t, for: Blocks.id("redstone_wire")) ?? (Blocks.replaceable[Int(c0)] && !Blocks.isLiquid(c0) ? t.hit : t.hit + t.normal)
+            let wire = Blocks.id("redstone_wire")
+            let at = floorAhead(t, for: wire) ?? groundCell(t, for: wire) ?? (Blocks.replaceable[Int(c0)] && !Blocks.isLiquid(c0) ? t.hit : t.hit + t.normal)
             if Blocks.replaceable[Int(world.materialAt(at.x, at.y, at.z))] && world.opaqueAt(at.x, at.y - 1, at.z) {
                 world.setBlock(at.x, at.y, at.z, Blocks.id("redstone_wire"))
                 sfx(.place(.stone), 0.6, at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
@@ -1790,7 +1791,7 @@ final class Game {
                 return
             }
         }
-        let at = groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
+        let at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
         let existing = world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
@@ -2047,7 +2048,11 @@ final class Game {
     }
 
     func isInteractive(_ p: IVec3) -> Bool {
-        let b = world.builtBlock(p.x, p.y, p.z)                     // (the ground is never one)
+        Game.opens(world.builtBlock(p.x, p.y, p.z))                 // (the ground is never one)
+    }
+
+    // A block that use opens or works (a table, a chest, a door, a seat).
+    static func opens(_ b: BlockID) -> Bool {
         let k = Blocks.key(Blocks.groupBase[Int(b)])
         let shape = Blocks.shape[Int(b)]
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
@@ -3188,6 +3193,7 @@ final class Game {
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load
+        settleStrayPieces()                                    // P448
         TickProf.mark("structure load")
         mobs.update(Float(dt), game: self)
         TickProf.mark("mobs")

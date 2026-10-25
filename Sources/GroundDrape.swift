@@ -169,6 +169,33 @@ extension World {
 }
 
 extension Game {
+    // P448 (Oct 25 08:53-08:58, "I'm standing on top of copper wire, I wanna place one in front of it"; it went on the
+    // side instead): wire or rail aimed at the top of a wire or rail goes on in front of it along the look, the way a
+    // line is laid (down or up a step where the ground does), not on top of it (where nothing stands) or to its side.
+    func floorAhead(_ t: (hit: IVec3, normal: IVec3), for b: BlockID) -> IVec3? {
+        guard t.normal.y == 1 else { return nil }
+        @inline(__always) func flat(_ id: BlockID) -> Bool {
+            let rt = Blocks.render[Int(id)]
+            return rt == RenderType.wire.rawValue || rt == RenderType.rail.rawValue
+        }
+        guard flat(b), flat(world.block(t.hit.x, t.hit.y, t.hit.z)) else { return nil }
+        let l = player.look
+        let a = abs(l.x) >= abs(l.z) ? IVec3(t.hit.x + (l.x > 0 ? 1 : -1), t.hit.y, t.hit.z) : IVec3(t.hit.x, t.hit.y, t.hit.z + (l.z > 0 ? 1 : -1))
+        @inline(__always) func open(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            guard y > 0 && y < CH else { return false }
+            let m = world.materialAt(x, y, z)
+            return Blocks.replaceable[Int(m)] && !Blocks.isLiquid(m)
+        }
+        for dy in [0, -1, 1] {
+            let y = a.y + dy
+            guard open(a.x, y, a.z), world.opaqueAt(a.x, y - 1, a.z) else { continue }
+            if dy == -1 && !open(a.x, a.y, a.z) { continue }                       // (down a step: the way is open)
+            if dy == 1 && !open(t.hit.x, t.hit.y + 1, t.hit.z) { continue }        // (up a step: room over this one)
+            return IVec3(a.x, y, a.z)
+        }
+        return nil
+    }
+
     // P382: in a field world a thing laid on the ground goes into the cell over the point aimed at on the drawn surface
     // (the circuit's cell there), not the one past the face the ray's dominant axis named (on a slope, beside the hill).
     // Nil when the aim isn't at ground facing up, or that cell can't take it.
