@@ -3,8 +3,8 @@ import simd
 
 // The sheriff's six-iron and the iron rule (backlog B1; docs/status/six-iron.md).
 //
-// Every sheriff carries a six-iron. Against the player it is the iron rule made physical: below iron armour one round
-// kills, in iron it takes several, in titanium (the diamond tier) and above it barely scratches. So the game's spine
+// Every sheriff carries a six-iron. Against the player it is the iron rule made physical: below iron armour two rounds
+// kill on normal (one on hard), in iron it takes several, in titanium (the diamond tier) and above it barely scratches. So the game's spine
 // holds: play by the rules until you're in iron, ideally titanium, and only then can a town be taken.
 //
 // The duel is readable and fair in VR:
@@ -48,14 +48,15 @@ enum SixIron {
 
     // Half-hearts one round takes off (before a shield or the Resistance effect), by armour and difficulty
     // (0 peaceful ... 3 hard). Normal difficulty, 20 half-hearts of health:
-    //   below iron:        dead in one shot
+    //   below iron:        10 -> 2 shots (P454, Oct 25 13:58: "if you don't have at least iron, it goes right
+    //                      through you... Two shots to kill you on normal"); easy 7 (3 shots), hard one shot
     //   iron (1.0):        8   -> 3 shots
     //   steel (~1.5):      6   -> 4 shots
     //   titanium (~2.3):   1   -> 20 shots (chip damage)
     static func damage(score: Float, difficulty: Int) -> Int {
         guard difficulty > 0 else { return 0 }
         switch tier(score) {
-        case .soft: return lethal
+        case .soft: return difficulty == 1 ? 7 : difficulty == 3 ? lethal : 10
         case .iron:
             let k = (score - ironFrom) / (hardFrom - ironFrom)          // 0 at the bottom of iron, 1 at the top
             let base = 8.5 - 5.5 * k                                     // 8.5 -> 3
@@ -176,8 +177,10 @@ extension Game {
         if shieldBlocks(min(amount, 20), from: m.pos, type: .projectile, attacker: m) { return }
         bulletHit = true
         sfx(.bulletFlesh, 0.9)
-        let title = m.villager?.role == "deputy" ? "Deputy" : "Sheriff"
-        let who = m.villager?.person.map { "\(title) \($0)" } ?? "the \(title.lowercased())"
+        // (a homesteader's or camp's six-iron, P454: shot by the person, no lawman's title)
+        let role = m.villager?.role
+        let title = role == "deputy" ? "Deputy" : role == "sheriff" ? "Sheriff" : ""
+        let who = m.villager?.person.map { title.isEmpty ? $0 : "\(title) \($0)" } ?? (title.isEmpty ? "a homesteader" : "the \(title.lowercased())")
         if amount == SixIron.lethal {
             // Below iron: no enchantment, Resistance or golden hearts soften it; only a totem pulls you through.
             Game.onDamage?(health, "was shot by \(who)")

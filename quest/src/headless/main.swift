@@ -103,6 +103,7 @@ if CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains(
 // --flytest DIR [--rd 24] [--seconds 60] [--walk]: flying flat out over a new world; the speed never drops while the
 // world loads (P414, quest/src/test/QuestFlyTest.swift).
 if CommandLine.arguments.contains("--flytest") { exit(QuestFlyTest.run()) }
+if CommandLine.arguments.contains("--stationcheck") { exit(QuestStationCheck.run()) }  // P454 (Sources/BorealOps.swift)
 // --vehiclecheck: P449, the Ash Vault's vehicles and the frigate's helm (quest/src/test/QuestVehicleCheck.swift).
 if CommandLine.arguments.contains("--vehiclecheck") { exit(QuestVehicleCheck.run()) }
 // --orderscheck: P456, intercepted orders point at places really built, in several kinds (quest/src/test/QuestOrdersCheck.swift).

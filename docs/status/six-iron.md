@@ -4,6 +4,10 @@ Remington's intent: the sheriff carries a six-shooter that one-shots you in anyt
 ground in iron, and hardly hurts diamond (titanium) and above. You play by the rules until you have titanium or at
 least iron, then you can take a village.
 
+P454 (Oct 25 13:58, a homestead): "if you don't have at least iron, it goes right through you... Two shots to kill you on
+normal". Below iron a round now takes 10 on normal (two shots), 7 on easy, and is still one shot on hard; a quarter of
+the frontier's folk (homesteaders, hamlet and camp folk) carry a six-iron too.
+
 ## Expanded objectives (written before building; the backlog's listed ones plus mine)
 1. **Every sheriff carries the six-iron** (replaces the 5% gun chance). The old saved per-sheriff roll is read but
    ignored. Player-visible name "Six-Iron" (was "Sheriff's Revolver").

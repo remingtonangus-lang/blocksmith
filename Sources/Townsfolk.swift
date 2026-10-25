@@ -164,6 +164,9 @@ enum Townsfolk {
         case "sheriff": return .revolver                                // every sheriff carries the six-iron (SixIron)
         case "farmer": return .pitchfork
         case "miner": return .shovel
+        // P454 (Oct 25 13:58, a homestead: "There could be a 25% chance that they have a gun"): one in four of the
+        // frontier's folk (homesteaders, hamlet and camp folk) keeps a six-iron; the rest an axe, shovel, hoe or fork.
+        case "camper": return (look >> 3) % 4 == 0 ? .revolver : [TownWeapon.axe, .shovel, .hoe, .pitchfork][look % 4]
         case "posse": return .revolver                                  // P51: posses and bounty hunters
         case "elder", "child", "citizen", "banker", "rider", "prisoner": return .none     // citizens: the Capital's soldiers keep the streets
         case "shopkeeper":
@@ -278,6 +281,7 @@ extension Mob {
         town.think -= dt
         if town.think <= 0 {
             town.think = 0.5
+            if town.anger > 0 && TownConquest.owns(TownLaw.town(of: self, g)) { town.anger = 0 }    // P454: his own town
             var best: Mob?
             var bd: Float = 14
             for o in g.mobs.mobs where isTownThreat(o) {
@@ -286,7 +290,8 @@ extension Mob {
             }
             if best != nil && town.foe == nil { g.sfx(.soldier(1, .alert), 0.8, at: eye) }
             town.foe = best
-            if villager.map({ $0.reputation < -100 }) ?? false, g.alive, simd_length(g.player.pos - pos) < 10, g.survival {
+            if villager.map({ $0.reputation < -100 }) ?? false, g.alive, simd_length(g.player.pos - pos) < 10, g.survival,
+               !TownConquest.owns(TownLaw.town(of: self, g)) {
                 town.anger = max(town.anger, 2)
             }
         }
@@ -328,6 +333,9 @@ extension Mob {
         let to = g.player.eye - eye
         let d = simd_length(to)
         guard d < 14 else { return town.handsUp > 0 }
+        // P454 (Oct 25 14:17, "the villager's attacking him. He probably shouldn't have his arms up"): someone in a fight
+        // (a raider, a monster, or him) fights on with his weapon; a gun on him doesn't raise his hands.
+        if town.foe != nil || town.anger > 0 || town.swing > 0 { town.handsUp = 0; town.holdUp = 0; return false }
         // A gun pointed at them (within ~4 degrees): hands up, a word, and the town remembers.
         if Guns.index(g.held.item) != nil && d > 0.5 {
             let aim = simd_dot(simd_normalize(-to), g.player.look)

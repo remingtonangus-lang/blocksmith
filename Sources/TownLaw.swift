@@ -452,6 +452,12 @@ enum TownLaw {
     static func isLawWithin(_ m: Mob, _ g: Game, _ r: Float) -> Bool { simd_length(m.pos - g.player.pos) < r }
 
     static func turnHostile(_ g: Game, _ town: String, at p: V3, witness: Mob) {
+        // P454 (Oct 25 14:11, just after Juniper Bend gave up: "if I own the village now, why are they coming at me with
+        // pitchforks?"): a town that is his backs away instead (as townAlarm's folk do): nobody draws on him there.
+        if TownConquest.owns(town) {
+            for o in g.mobs.mobs where isTownsperson(o) && simd_length(o.pos - p) < 64 { o.town.anger = 0; o.panic = max(o.panic, 6) }
+            return
+        }
         let fresh = !isHostile(town)
         state.hostile[town] = hostileSeconds
         state.heat[town] = hostileHeat
