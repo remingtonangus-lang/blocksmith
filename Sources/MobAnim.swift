@@ -43,10 +43,10 @@ enum MobAnim {
 
     static func headJoint(_ m: Mob) -> HeadJoint? {
         switch m.kind {
-        case .zombie, .skeleton, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:
+        case .zombie, .skeleton, .husk, .stray, .drowned, .witch, .illusioner, .parched:
             return HeadJoint(minY: 24, pivot: V3(0, 24, 0))
         case .enderman: return HeadJoint(minY: 42, pivot: V3(0, 42, 0))
-        case .villager: return HeadJoint(minY: 23.4, pivot: V3(0, 23.5, 0), fixedOnly: true)
+        case .villager, .pillager, .vindicator: return HeadJoint(minY: 23.4, pivot: V3(0, 23.5, 0), fixedOnly: true)   // (P444: raiders too)
         // P295 (FarmLooks.swift): the neck's root; the low parts (legs, brisket, a grazing muzzle) never turn with it.
         case .cow: return HeadJoint(minY: 8, maxZ: -9.6, pivot: V3(0, 16.5, -10))
         case .sheep: return HeadJoint(minY: 8, maxZ: -8.6, pivot: V3(0, 15.8, -8.4))

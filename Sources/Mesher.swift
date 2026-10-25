@@ -1055,6 +1055,22 @@ enum Mesher {
                     let d = (lv == 0 || lv == 8) ? 1 : 1 + (lv * 6 + 3) / 7
                     return Float(16 - 2 * d) / 16
                 }
+                // P443 (Oct 24 20:53, lava "hovering in midair on top of the snow and top of the terrain... It's supposed
+                // to flow onto the terrain"): a flow (not a source, nothing of it over or under it) lies on the drawn
+                // ground: its top is the ground under it (in its own cell, a shallow one it ran into, or in the cell
+                // under it) plus the flow's depth, not a height over the cell's floor (a flow over ground half a cell
+                // down was drawn half a cell over it). The ground under it and beside it takes its level with the taper,
+                // so its edge runs down into the ground there; at the cell's height it stood out two cells past the flow
+                // as a sheet over ground lower than that.
+                @inline(__always) func draped(_ j: Int) -> Bool {
+                    let lv = levelT[Int(R[j])]
+                    return lv > 0 && lv < 8 && fkT[Int(R[j + RL])] != kind && fkT[Int(R[j - RL])] != kind && (dens[j] > -16 || dens[j - RL] > 0)
+                }
+                @inline(__always) func surf(_ j: Int) -> Float {
+                    guard draped(j) else { return top(j) }
+                    let base: Float = dens[j] > -16 ? 0.5 + Float(dens[j]) / 32 : min(0, -0.5 + Float(dens[j - RL]) / 32)
+                    return base + 0.8 * top(j)
+                }
                 withUnsafeTemporaryAllocation(of: Float.self, capacity: N * NN) { F in
                 withUnsafeTemporaryAllocation(of: SIMD3<Float>.self, capacity: M * MM) { V in
                 withUnsafeTemporaryAllocation(of: Bool.self, capacity: M * MM) { has in
@@ -1077,7 +1093,7 @@ enum Mesher {
                         let i = (wx + C0 - WM) + (wz + C0 - WM) * RW + (sy + C0) * RL
                         var Ls: Float = 0
                         if bank(i) {
-                            for d in [1, -1, RW, -RW] where fkT[Int(R[i + d])] == kind { Ls = max(Ls, top(i + d)) }
+                            for d in [1, -1, RW, -RW] where fkT[Int(R[i + d])] == kind && !draped(i + d) { Ls = max(Ls, top(i + d)) }   // (a flow floods nothing: P443)
                             if Ls > 0 { let g = gTopAt(i); if !(g > Ls - 1 && g < Ls - 0.05) { Ls = 0 } }
                         }
                         FLW[wx + wz * W + sy * W * W] = Ls
@@ -1102,14 +1118,16 @@ enum Mesher {
                         let b = Int(R[i]), fk = fkT[b]
                         var f: Float = -1
                         if fk == kind {
-                            f = fkT[Int(R[i + RL])] == kind ? 1 : top(i) - 0.5
+                            f = fkT[Int(R[i + RL])] == kind ? 1 : surf(i) - 0.5
                         } else if fk == 0 {
-                            var L: Float = -9, Lt: Float = -9
+                            var L: Float = -9, Lt: Float = -9, Lc: Float = -9           // (Lc: what a solid cell takes)
                             for dy in -1...1 { for dz in -2...2 { for dx in -2...2 {
                                 let j = i + dx + dz * RW + dy * RL
                                 if fkT[Int(R[j])] == kind {
-                                    L = max(L, Float(dy) + top(j))
-                                    if dy <= 0 { Lt = max(Lt, Float(dy) + top(j) - taper * Mesher.planeDist[(dx + 2) + (dz + 2) * 5]) }
+                                    let s = surf(j), td = taper * Mesher.planeDist[(dx + 2) + (dz + 2) * 5]
+                                    L = max(L, Float(dy) + s)
+                                    if dy <= 0 { Lt = max(Lt, Float(dy) + s - td) }
+                                    Lc = max(Lc, Float(dy) + s - (draped(j) ? td : 0))
                                 }
                             } } }
                             let Lf = FLW[(sx + WM) + (sz + WM) * W + sy * W * W]
@@ -1124,7 +1142,7 @@ enum Mesher {
                                 // (density - 8): where the ground is thin (a wall a cell thick) the level running
                                 // on through it came out on the far side as a sheet of water on the wall (15:38).
                                 let gTop: Float = dens[i + RL] > 0 ? 1.5 : 0.5 + Float(dens[i]) / 32
-                                if collideT[b] { f = L - 0.5 }
+                                if collideT[b] { f = Lc - 0.5 }
                                 else if gTop >= L - 0.05 { f = min(L - 0.5, (Float(dens[i]) - 8) / 32) }
                                 else { f = max(-1, Lt - 0.5) }
                             }

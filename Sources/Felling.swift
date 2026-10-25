@@ -35,6 +35,17 @@ enum Felling {
 
     static func isFelled(_ s: Ship) -> Bool { s.root.name == name }
 
+    // The standing tree's girth from its tallest upright run of logs (ShapeTrunks.treeRadius, as the world drew it).
+    static func girthOf(_ logs: Set<IVec3>) -> Float {
+        var best = 0
+        for c in logs where !logs.contains(IVec3(c.x, c.y - 1, c.z)) {
+            var n = 1
+            while logs.contains(IVec3(c.x, c.y + n, c.z)) { n += 1 }
+            best = max(best, n)
+        }
+        return best >= 3 ? ShapeTrunks.treeRadius(best + 1) : ShapeTrunks.fallenRadius
+    }
+
     // P297 (d): where the world draws trunks round and thin (ShapeTrunks: polygon and smooth worlds), a felled tree's
     // logs are too: its hull mesh leaves them out (ShipMesh.build) and Game.writeFelled draws them as bark cylinders of
     // the standing tree's girth. As cubes, a broken tree turned into a log far thicker than the tree it was.
@@ -42,6 +53,35 @@ enum Felling {
     static func roundFor(_ w: World) -> Bool { Mesher.detailMeshes && (SmoothTerrain.enabled || w.fieldTerrain) }
     // Per felled ship: its log cells with the radius each is drawn at (rebuilt when its block count changes).
     static var trunkCells: [Int: (count: Int, cells: [(IVec3, BlockID, Float)])] = [:]
+    // P441 (Oct 24 20:51: "see how that turned into branches? We don't want that"): the girth of the tree each felled
+    // body came from (by ship id; its pieces and its bare trunk inherit it). A piece too short to read as a trunk
+    // (under 3 logs upright) was drawn at a limb's 0.13.
+    static var girth: [Int: Float] = [:]
+    static func inherit(_ from: Ship, _ to: Ship) { if let r = girth[from.id] ?? girth[from.root.id] { girth[to.id] = r } }
+
+    // The world's lighting of a round shape (quest/shaders/chunk_detail.vert: sky curve and tint, warm block light, the
+    // sun on its side), so a felled trunk drawn by the entity pass keeps the colour it had standing (Oct 24 20:49: "the
+    // log turns into a different color": it was lit flat, a third brighter, its bark stretched round it once).
+    static func shade(_ n: V3, sky s: Int, block b: Int, day: Float, sun: V3) -> V3 {
+        func smooth(_ a: Float, _ b: Float, _ x: Float) -> Float { let t = simd_clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t) }
+        let skyL = Float(s) / 15, blkL = Float(b) / 15
+        let sky = skyL * (0.35 + 0.65 * skyL) * day
+        let k = smooth(0.30, 0.62, day)
+        let skyTint = simd_mix(V3(0.6, 0.7, 1.0), V3(1, 1, 1), V3(repeating: k))
+        let blk0 = blkL / (4 - 3 * blkL), inv = 1 - blk0
+        let blk = min(1, (blk0 + (1 - inv * inv * inv * inv - blk0) * 0.6) * 1.05)
+        let warm = simd_mix(V3(1.06, 0.82, 0.56), V3(1.0, 0.95, 0.86), V3(repeating: blk * blk))
+        let lit = simd_max(simd_max(skyTint * sky, warm * blk), V3(repeating: 0.055))
+        let base = n.x * n.x * 0.80 + n.z * n.z * 0.68 + n.y * n.y * (n.y > 0 ? 1.0 : 0.55)
+        let w0: Float = 0.85 * smooth(0, 0.45, day) * skyL * skyL
+        let w = w0 * simd_clamp((sky - blk) * 4 + 0.5, 0, 1)
+        guard w > 0 else { return lit * base }
+        let l = simd_normalize(sun + V3(0, 1e-4, 0))
+        let g = simd_clamp(l.y * 2.2, 0, 1)
+        let sunC = simd_mix(V3(1.22, 0.80, 0.48), V3(1.04, 1.0, 0.93), V3(repeating: g))
+        let d = V3(0.84, 0.92, 1.08) * 0.6 + sunC * (0.54 * max(0, simd_dot(n, l)))
+        return lit * simd_mix(V3(repeating: base), d, V3(repeating: w))
+    }
 }
 
 extension Game {
@@ -113,6 +153,7 @@ extension Game {
         away = simd_normalize(away)
         s.angVel = simd_cross(V3(0, 1, 0), away) * 0.35
         s.vel = away * 0.4
+        Felling.girth[s.id] = Felling.girthOf(logs)
         Felling.falls.append(hold(s, cells: logs.union(leaves)))
         Felling.felled += 1
         let mid = s.pos
@@ -170,6 +211,7 @@ extension Game {
         away = simd_normalize(away)
         s.angVel = simd_cross(V3(0, 1, 0), away) * (tree ? 0.35 : 0.15)
         s.vel = away * 0.2
+        if tree { Felling.girth[s.id] = Felling.girthOf(Set(logs)) }
         Felling.falls.append(hold(s, cells: leaves.union(cells)))
         Felling.toppled += 1
         sfx(.hullCreak, tree ? 1.3 : 0.8, at: s.pos)
@@ -272,6 +314,7 @@ extension Game {
         t.vel = s.vel; t.angVel = s.angVel
         t.updateBounds()
         t.initialBlocks = t.blockCount
+        Felling.inherit(s, t)
         world.ships.remove(s)
     }
 
@@ -298,8 +341,9 @@ extension Game {
         guard Felling.roundTrunks else { return }
         let ships = world.ships.list.filter { Felling.isFelled($0) && !$0.hidden }
         if ships.isEmpty { if !Felling.trunkCells.isEmpty { Felling.trunkCells.removeAll() }; return }
-        let n = 8
+        let n = 9                                            // (the world's near trunks: ShapeTrunks.column)
         let texT = Blocks.tex
+        let sun = sunDir
         for s in ships where simd_length(s.pos - eye) < 112 {
             let g = s.grid
             if Felling.trunkCells[s.id]?.count != s.blockCount {
@@ -317,6 +361,10 @@ extension Game {
                     }
                     cells.append((c, b, run >= 3 ? ShapeTrunks.treeRadius(run + 1) : 0.13))
                 }
+                // A piece with no upright run of 3 is a cut length of trunk, not a limb: drawn at its tree's girth.
+                if !cells.contains(where: { $0.2 > 0.13 }), let r = Felling.girth[s.id] ?? Felling.girth[s.root.id] {
+                    for k in cells.indices where ShapeTrunks.axisOf[Int(cells[k].1)] == 1 { cells[k].2 = r }
+                }
                 Felling.trunkCells[s.id] = (s.blockCount, cells)
             }
             guard let cells = Felling.trunkCells[s.id]?.cells else { continue }
@@ -327,17 +375,18 @@ extension Game {
                 let mid = V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5
                 let wc = s.toWorld(mid)
                 let l = world.lightAt(Int(floor(wc.x)), Int(floor(wc.y)), Int(floor(wc.z)))
-                let light = max(0.2, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+                let sky = Int(l.sky), blk = Int(l.block)
                 let bark = Int(texT[Int(b) * 6 + (ax == 0 ? 2 : 0)]), ring = Int(texT[Int(b) * 6 + ax * 2])
+                let wrap = max(1, (2 * .pi * r).rounded())    // bark repeats round it as on a standing trunk
                 let a0 = mid - d * 0.5, a1 = mid + d * 0.5
                 func w(_ p: V3) -> V3 { s.toWorld(p) - eye }
                 for k in 0..<n {
                     let t0 = Float(k) / Float(n) * 2 * .pi, t1 = Float(k + 1) / Float(n) * 2 * .pi
                     let o0 = (u * cosf(t0) + v * sinf(t0)) * r, o1 = (u * cosf(t1) + v * sinf(t1)) * r
                     let nrm = s.rot.act(simd_normalize(o0 + o1))
-                    let sh = light * (0.7 + 0.3 * nrm.y)
-                    let col = V4(sh, sh, sh, 1)
-                    let ua = Float(k) / Float(n), ub = Float(k + 1) / Float(n)
+                    let sh = Felling.shade(nrm, sky: sky, block: blk, day: daylight, sun: sun)
+                    let col = V4(sh.x, sh.y, sh.z, 1)
+                    let ua = Float(k) / Float(n) * wrap, ub = Float(k + 1) / Float(n) * wrap
                     wr.quad4(w(a0 + o0), w(a0 + o1), w(a1 + o1), w(a1 + o0), V2(ua, 1), V2(ub, 1), V2(ub, 0), V2(ua, 0), bark, col)
                 }
                 // Ring caps where the log ends along its axis.
@@ -345,13 +394,14 @@ extension Game {
                     let nb = c + IVec3(ax == 0 ? Int(sgn) : 0, ax == 1 ? Int(sgn) : 0, ax == 2 ? Int(sgn) : 0)
                     let nbB = g.get(nb.x, nb.y, nb.z)
                     if ShapeTrunks.isTrunk[Int(nbB)] && ShapeTrunks.axisOf[Int(nbB)] == UInt8(ax) { continue }
-                    let ny = s.rot.act(d * sgn).y
-                    let sh = light * (0.7 + 0.3 * ny)
+                    let sh = Felling.shade(s.rot.act(d * sgn), sky: sky, block: blk, day: daylight, sun: sun)
                     for k in 0..<n {
                         let t0 = Float(k) / Float(n) * 2 * .pi, t1 = Float(k + 1) / Float(n) * 2 * .pi
                         let o0 = u * cosf(t0) + v * sinf(t0), o1 = u * cosf(t1) + v * sinf(t1)
                         let c0 = V2(0.5, 0.5), p0 = V2(0.5 + 0.5 * cosf(t0), 0.5 + 0.5 * sinf(t0)), p1 = V2(0.5 + 0.5 * cosf(t1), 0.5 + 0.5 * sinf(t1))
-                        wr.quad4(w(end), w(end + o0 * r), w(end + o1 * r), w(end), c0, p0, p1, c0, ring, V4(sh, sh, sh, 1))
+                        // (Wound to face out of the log at both ends: the foot's cap faced in and drew black.)
+                        if sgn > 0 { wr.quad4(w(end), w(end + o0 * r), w(end + o1 * r), w(end), c0, p0, p1, c0, ring, V4(sh.x, sh.y, sh.z, 1)) }
+                        else { wr.quad4(w(end), w(end + o1 * r), w(end + o0 * r), w(end), c0, p1, p0, c0, ring, V4(sh.x, sh.y, sh.z, 1)) }
                     }
                 }
             }

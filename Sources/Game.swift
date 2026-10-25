@@ -2395,6 +2395,46 @@ final class Game {
     }
 
     // Buckets: pick up a water or lava source / pour it out.
+    // Where a full bucket pours: the cell in front of the face it points at, or into what it points at when that is
+    // snow cover or a plant (as a placed block goes: P443, lava poured on snow stood a block over the snow), or the last
+    // open cell along the look when it points at nothing within reach.
+    func bucketCell(dir: V3, target tg: (hit: IVec3, normal: IVec3)?) -> IVec3? {
+        var at: IVec3?
+        if let tg {
+            let c = world.block(tg.hit.x, tg.hit.y, tg.hit.z)
+            at = Blocks.replaceable[Int(c)] && !Blocks.isLiquid(c) ? tg.hit : tg.hit + tg.normal
+        } else {
+            var t: Float = 0, last: IVec3?
+            while t < 5 {
+                let q = player.eye + dir * t
+                let c = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+                let b = world.block(c.x, c.y, c.z)
+                if Blocks.fluidLevel[Int(b)] == 0 { return nil }
+                if Blocks.targetable(b) { break }
+                last = c
+                t += 0.05
+            }
+            at = last
+        }
+        guard let a = at, Blocks.replaceable[Int(world.materialAt(a.x, a.y, a.z))] else { return nil }
+        // P443 (Oct 24 20:53, lava poured on snow "hovering in midair on top of the snow"): over a cell the drawn ground
+        // only reaches into (shallowGround) it pours into that cell, onto the ground, not into the cell over it, where a
+        // source stood a block over the ground with its flow falling out under it.
+        if a.y > 0 && world.shallowGround(a.x, a.y - 1, a.z) { return IVec3(a.x, a.y - 1, a.z) }
+        return a
+    }
+
+    // Empties a bucket of `fluid` into cell a (from bucketCell). Into a shallow ground cell the ground stays under it
+    // (as a flow keeps it: World.setFluid), and snow cover or a plant standing on that ground, in the cell over it, goes.
+    func pourFluid(_ fluid: BlockID, at a: IVec3) {
+        guard world.shallowGround(a.x, a.y, a.z) else { world.setBlock(a.x, a.y, a.z, fluid); return }
+        BlockStore.keepGround = true
+        defer { BlockStore.keepGround = false }
+        let up = world.block(a.x, a.y + 1, a.z)
+        if up != AIR && Blocks.replaceable[Int(up)] && !Blocks.isLiquid(up) { world.setBlock(a.x, a.y + 1, a.z, AIR) }
+        world.setBlock(a.x, a.y, a.z, fluid)
+    }
+
     private func useBucket() -> Bool {
         let k = Items.key(held.item)
         // W8: a creature bucket pours its water and the creature where it points (players could not empty one before).
@@ -2404,7 +2444,6 @@ final class Game {
         }
         guard k == "bucket" || k == "water_bucket" || k == "lava_bucket" else { return false }
         var fluidHit: IVec3?
-        var lastAir: IVec3?
         let dir = player.look
         var t: Float = 0
         while t < 5 {
@@ -2413,7 +2452,6 @@ final class Game {
             let b = world.block(c.x, c.y, c.z)
             if Blocks.fluidLevel[Int(b)] == 0 { fluidHit = c; break }
             if Blocks.targetable(b) { break }
-            lastAir = c
             t += 0.05
         }
         if k == "bucket", let f = fluidHit {
@@ -2440,13 +2478,11 @@ final class Game {
             }
         }
         if k == "water_bucket" || k == "lava_bucket" {
-            var at: IVec3?
-            if let tg = target { at = tg.hit + tg.normal } else if fluidHit == nil { at = lastAir }
-            if let a = at, Blocks.replaceable[Int(world.materialAt(a.x, a.y, a.z))] {
+            if let a = bucketCell(dir: dir, target: target) {
                 if k == "water_bucket" && dim.dim.ultrawarm {
                     sfx(.fireExtinguish, 0.8)          // water evaporates in the Emberdeep
                 } else {
-                    world.setBlock(a.x, a.y, a.z, k == "water_bucket" ? WATER : LAVA)
+                    pourFluid(k == "water_bucket" ? WATER : LAVA, at: a)
                     sfx(k == "water_bucket" ? .bucketEmpty : .bucketEmptyLava, 0.8, at: V3(Float(a.x), Float(a.y), Float(a.z)) + 0.5)
                 }
                 if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }

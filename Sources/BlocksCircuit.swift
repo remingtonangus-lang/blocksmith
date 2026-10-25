@@ -212,7 +212,7 @@ extension BlockRegistry {
             case 4: arm = Box(4, 6, 6, 16, 10, 10)
             default: arm = Box(0, 6, 6, 12, 10, 10)
             }
-            var a2 = arm; a2.tex = Array(repeating: Tex.id("piston_side"), count: 6)
+            var a2 = arm; a2.tex = Array(repeating: Tex.id("piston_rod"), count: 6)          // (P442: a steel rod, not the body's side)
             d.boxes = [plate, a2]
             add(d)
         } }
@@ -227,7 +227,7 @@ extension BlockRegistry {
             for trig in [false, true] { for dd in 0..<6 {
                 let k = dd + (trig ? 6 : 0)
                 var d = state(k == 0 ? n : "\(n)[\(k)]", n, n.capitalized, k == 0)
-                d.tex = BlockRegistry.facedTex(dd, front: dd <= 1 ? "\(n)_front_vertical" : "\(n)_front", back: "furnace_side", side: "furnace_side", top: "furnace_top")
+                d.tex = BlockRegistry.facedTex(dd, front: dd <= 1 ? "\(n)_front_vertical" : "\(n)_front", back: "machine_casing", side: "machine_casing", top: "machine_casing_top")
                 d.hardness = 3.5; d.tool = .pickaxe; d.requiresTool = true; d.shape = "dispenser"
                 add(d)
             } }
