@@ -100,7 +100,13 @@ final class CreativeMenu: Menu {
             return every.filter { Items.def($0).display.lowercased().contains(q) || Items.key($0).contains(q.replacingOccurrences(of: " ", with: "_")) }
         }
         if let c = cache[t.rawValue] { return c }
-        let list = every.filter { category($0) == t }
+        var list = every.filter { category($0) == t }
+        // P456 (Oct 25 13:54, "Put the ammunition at the top of the ingredients section in the inventory. I grab ammo
+        // all the time"): rounds, shells, cells, rockets and magazines lead the Ingredients tab.
+        if t == .misc {
+            let ammo = Set(Guns.ammo.map { $0.0 } + Guns.all.map { $0.ammo } + Magazines.kinds.map { $0.key })
+            list = list.filter { ammo.contains(Items.key($0)) } + list.filter { !ammo.contains(Items.key($0)) }
+        }
         cache[t.rawValue] = list
         return list
     }

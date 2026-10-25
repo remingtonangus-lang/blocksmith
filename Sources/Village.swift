@@ -703,7 +703,11 @@ enum Village {
             } }
             b.fill(&w, 0, 4, 0, l.w - 1, 4, l.d - 1, g("stone_slab"))
             b.fill(&w, 1, 0, l.d - 3, 2, 0, l.d - 2, LAVA)
-            b.fill(&w, 1, 1, l.d - 3, 2, 1, l.d - 3, g("iron_bars"))
+            // P456 (Oct 25 14:12, "these gates are not properly positioned in the... blacksmith house"): the bars stood in
+            // the forge pit, over the lava's front row. They rail it off now, standing on the floor along its two open
+            // sides (in front of it and between it and the furnaces), two high.
+            b.fill(&w, 1, 1, l.d - 4, 3, 2, l.d - 4, g("iron_bars"))
+            b.fill(&w, 3, 1, l.d - 3, 3, 2, l.d - 2, g("iron_bars"))
             b.set(&w, 4, 1, l.d - 2, g("furnace")); b.set(&w, 5, 1, l.d - 2, g("furnace"))
             b.set(&w, 3, 1, 2, g("grindstone"))
             let c = world(l, l.w - 2, l.d - 2)

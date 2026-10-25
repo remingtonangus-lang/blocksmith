@@ -283,6 +283,8 @@ final class MapCache {
         case "capital_city": return ("C", V4(0.92, 0.94, 0.97, 1), "Capital city")
         case "boreal_station": return ("N", V4(0.45, 0.72, 1, 1), "Boreal Station")
         case "greywall_base": return ("G", V4(0.55, 0.62, 0.72, 1), "Greywall base")
+        case "great_ruin": return ("A", V4(0.8, 0.75, 0.6, 1), "Ancient Spire")                 // P456 orders
+        case "pillager_outpost": return ("M", V4(0.7, 0.3, 0.25, 1), "Marauder Watchtower")
         case "objective": return ("!", V4(1, 0.85, 0.2, 1), "Next objective")           // Y6 (Spine.swift)
         case "sky_isle": return ("K", V4(0.6, 0.85, 1.0, 1), "Sky isle")
         case "village": return ("V", V4(0.95, 0.8, 0.3, 1), "Village")

@@ -24,7 +24,8 @@ extension Game {
         let px = Int(player.pos.x), pz = Int(player.pos.z)
         for (k, n) in [("military_base", "Capital Citadel (enemy)"), ("capital_city", "Capital City"), (Greywall.kind, "Greywall Base")] {
             if let s = sc.nearest(k, x: px, z: pz, maxRegions: 4) {
-                out.append(RadarContact(name: n, kind: k, x: (s.min.x + s.max.x) / 2, z: (s.min.z + s.max.z) / 2))
+                let c = sc.siteCentre(s)                     // (P456: the site's own walls, not its trailing pieces)
+                out.append(RadarContact(name: n, kind: k, x: c.x, z: c.z))
             }
         }
         if fleetSails, let w = nearestWarship() { out.append(w) }
@@ -108,34 +109,8 @@ extension Game {
             return true
         }
         if k == "intercepted_orders" {
-            var target: RadarContact?
-            var text = ""
-            if fleetSails, let w = nearestWarship() {
-                target = w; text = "The orders give a \(w.name)'s patrol"
-            } else if let sc = world.gen.structures {
-                // The nearest Capital city or citadel not on the map yet (or the nearest one if all are).
-                let px = Int(player.pos.x), pz = Int(player.pos.z)
-                var cands: [RadarContact] = []
-                for (kd, n) in [("capital_city", "Capital City"), ("military_base", "Capital Citadel")] {
-                    guard let t = sc.types.first(where: { $0.name == kd }) else { continue }
-                    let rx = floorDiv(floorDiv(px, CS), t.spacing), rz = floorDiv(floorDiv(pz, CS), t.spacing)
-                    for dz in -3...3 { for dx in -3...3 {
-                        if let s = sc.start(t, regionX: rx + dx, regionZ: rz + dz) {
-                            cands.append(RadarContact(name: n, kind: kd, x: (s.min.x + s.max.x) / 2, z: (s.min.z + s.max.z) / 2))
-                        }
-                    } }
-                }
-                func dist(_ c: RadarContact) -> Int { (c.x - px) * (c.x - px) + (c.z - pz) * (c.z - pz) }
-                var fresh = cands.filter { c in !MapCache.shared.marked(kind: c.kind, x: c.x, z: c.z) && dist(c) > 120 * 120 }
-                // The first orders read point to a citadel while none is on the map (done audit 25b6, G6: the first
-                // base meant wandering ~1,200 blocks; orders now turn up in outlaw and abandoned camps, WildCamps.loot).
-                if !MapCache.shared.marks.contains(where: { $0.kind == "military_base" }), fresh.contains(where: { $0.kind == "military_base" }) {
-                    fresh = fresh.filter { $0.kind == "military_base" }
-                }
-                target = (fresh.isEmpty ? cands : fresh).min { dist($0) < dist($1) }
-                if let t = target { text = "Capital patrol routes lead to a \(t.name)" }
-            }
-            guard let t = target else { onToast?("The orders are coded beyond reading"); return true }
+            guard let ot = ordersTarget() else { onToast?("The orders are coded beyond reading"); return true }
+            let (t, text) = ot
             inventory.main[inventory.selected].count -= 1
             if inventory.main[inventory.selected].count <= 0 { inventory.main[inventory.selected] = .empty }
             MapCache.shared.discover(self, kind: t.kind, x: t.x, z: t.z)
@@ -156,6 +131,88 @@ extension Game {
         return false
     }
 
+    // P456 (Oct 25 14:03, "the orders were not accurate. There's nothing here... There should also be different types
+    // of orders, not just ones that lead to the Capital bases"). The place a set of intercepted orders points at, and the
+    // toast's opening: a warship's patrol once the fleet sails, else a Capital site not on the map yet. The kinds:
+    // report to a citadel or a city; a strike on a Greywall base; a supply run to a Boreal Station; a survey of an
+    // Ancient Spire; a bounty on a Marauder Watchtower. Which kind a set of orders carries comes from where it is read
+    // (the same spot reads the same), the first ones always pointing at a citadel while none is on the map. A place is
+    // offered only when its pieces lay blocks where its map mark goes (StructureCache.builds), so the orders never send
+    // him to an empty forest.
+    static let orderKinds: [(kind: String, name: String, verb: String)] = [
+        ("military_base", "Capital Citadel", "report"), ("capital_city", "Capital City", "report"),
+        (Greywall.kind, "Greywall Base", "strike"), (BorealStation.kind, "Boreal Station", "supply"),
+        ("great_ruin", "Ancient Spire", "survey"), ("pillager_outpost", "Marauder Watchtower", "bounty")]
+    static var ordersSkipped = 0                     // (checks: places passed over as not there)
+    func ordersTarget() -> (RadarContact, String)? {
+        if fleetSails, let w = nearestWarship() { return (w, "The orders give a \(w.name)'s patrol") }
+        guard let sc = world.gen.structures else { return nil }
+        let px = Int(player.pos.x), pz = Int(player.pos.z)
+        var cands: [RadarContact] = []
+        var starts: [StructureStart] = []
+        for (kd, n, _) in Game.orderKinds {
+            guard let t = sc.types.first(where: { $0.name == kd }) else { continue }
+            let rx = floorDiv(floorDiv(px, CS), t.spacing), rz = floorDiv(floorDiv(pz, CS), t.spacing)
+            let reach = max(1, min(3, 120 / max(1, t.spacing)))        // (about 2,000 blocks round him whatever the spacing)
+            for dz in -reach...reach { for dx in -reach...reach {
+                guard let s = sc.start(t, regionX: rx + dx, regionZ: rz + dz) else { continue }
+                let c = sc.siteCentre(s)
+                cands.append(RadarContact(name: n, kind: kd, x: c.x, z: c.z))
+                starts.append(s)
+            } }
+        }
+        func dist(_ c: RadarContact) -> Int { (c.x - px) * (c.x - px) + (c.z - pz) * (c.z - pz) }
+        // The kind of orders these are (from where they are read: the same spot reads the same).
+        let roll = hashf(px >> 4, pz >> 4, 4560, 0x0D)
+        var target: RadarContact?
+        for _ in 0..<12 where !cands.isEmpty {
+            let near = cands.filter { dist($0) <= 2200 * 2200 }
+            var fresh = near.filter { c in !MapCache.shared.marked(kind: c.kind, x: c.x, z: c.z) && dist(c) > 120 * 120 }
+            // The first orders read point to a citadel while none is on the map (done audit 25b6, G6: the first base
+            // meant wandering ~1,200 blocks; orders turn up in outlaw and abandoned camps, WildCamps.loot).
+            if !MapCache.shared.marks.contains(where: { $0.kind == "military_base" }), fresh.contains(where: { $0.kind == "military_base" }) {
+                fresh = fresh.filter { $0.kind == "military_base" }
+            } else if !fresh.isEmpty {
+                let kinds = Array(Set(fresh.map { $0.kind })).sorted()
+                let pick = kinds[min(kinds.count - 1, Int(roll * Float(kinds.count)))]
+                fresh = fresh.filter { $0.kind == pick }
+            }
+            guard let t = (fresh.isEmpty ? (near.isEmpty ? cands : near) : fresh).min(by: { dist($0) < dist($1) }),
+                  let i = cands.firstIndex(where: { $0.kind == t.kind && $0.x == t.x && $0.z == t.z }) else { break }
+            // Only a place that is really there: its pieces lay blocks where the map mark goes, and ground already made
+            // there (loaded, or saved by an earlier build that placed it elsewhere) has them.
+            if sc.builds(starts[i], at: IVec3(t.x, 0, t.z)) >= 24 && siteStands(t.x, t.z) { target = t; break }
+            Game.ordersSkipped += 1
+            cands.remove(at: i); starts.remove(at: i)
+        }
+        guard let t = target else { return nil }
+        let verb = Game.orderKinds.first { $0.kind == t.kind }?.verb ?? "report"
+        switch verb {
+        case "strike": return (t, "The orders set a Capital strike on a \(t.name)")
+        case "supply": return (t, "A Capital supply run is bound for a \(t.name)")
+        case "survey": return (t, "The orders send a Capital survey party to an \(t.name)")
+        case "bounty": return (t, "The Capital has a bounty on a \(t.name)")
+        default: return (t, "Capital patrol routes lead to a \(t.name)")
+        }
+    }
+
+    // Whether ground already made at (x, z) has something built on it (a structure's blocks, not ground, trees, plants
+    // or water). Ground not made yet: true (the generator lays it down when he gets there).
+    func siteStands(_ x: Int, _ z: Int) -> Bool {
+        func built(_ b: BlockID) -> Bool {
+            !(b == AIR || SmoothTerrain.natural[Int(b)] || CapitalBase.isLog(b) || CapitalBase.isLeaf(b) || Blocks.replaceable[Int(b)] || Blocks.isLiquid(b))
+        }
+        var n = 0
+        if world.chunkAt(x, z) != nil {
+            let bx = floorDiv(x, CS) * CS, bz = floorDiv(z, CS) * CS
+            for lz in stride(from: 0, to: CS, by: 2) { for lx in stride(from: 0, to: CS, by: 2) { for y in 1..<(CH - 1) where built(world.builtBlock(bx + lx, y, bz + lz)) { n += 1 } } }
+            return n >= 6
+        }
+        guard let save = world.save, let b = save.loadChunk(ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))) else { return true }
+        for lz in stride(from: 0, to: CS, by: 2) { for lx in stride(from: 0, to: CS, by: 2) { for y in 1..<(CH - 1) where built(b[lx + lz * CS + y * CSQ]) { n += 1 } } }
+        return n >= 6
+    }
+
     // The text of a set of intercepted orders pointing at `t`: a dispatch header, the orders themselves (where, which
     // way, how far, what to watch for) and a signature, a page or two of the book screen. The words come from the
     // target and a hash of its position, so the same orders always read the same.
@@ -174,8 +231,14 @@ extension Game {
         let warship = t.kind.hasPrefix("vessel_")
         var p1 = warship ? "FLEET SIGNAL - MOST SECRET\nIntercept no. \(1000 + h(1))\n" : "CAPITAL STAFF - DISPATCH\nIntercept no. \(1000 + h(1))\n"
         p1 += "To: \(units[h(2) % units.count])\n\n"
-        if warship { p1 += "The \(t.name) keeps station \(bearing). Supply boats to come alongside by night only, no lamps." }
-        else { p1 += "Report to the \(t.name), \(bearing). Be inside the walls by nightfall." }
+        switch warship ? "fleet" : (Game.orderKinds.first { $0.kind == t.kind }?.verb ?? "report") {
+        case "fleet": p1 += "The \(t.name) keeps station \(bearing). Supply boats to come alongside by night only, no lamps."
+        case "strike": p1 += "The \(t.name), \(bearing), is to be taken. Form up out of sight of its towers and go in at first light, guns first."
+        case "supply": p1 += "Escort the supply sledges to the \(t.name), \(bearing). Fuel, rations and spare valves; sign for every crate."
+        case "survey": p1 += "Survey party to the \(t.name), \(bearing). Map the halls, take nothing apart, bring back anything with writing on it."
+        case "bounty": p1 += "The \(t.name), \(bearing), harbours raiders. Twenty crowns a head; clear it and burn the stores."
+        default: p1 += "Report to the \(t.name), \(bearing). Be inside the walls by nightfall."
+        }
         let p2b = "Watch for \(watch[h(3) % watch.count]). Stop and search; send word by runner, not by radio.\n\n"
         let p2 = p2b + "Burn these orders once read.\n\n- \(officers[h(4) % officers.count])"
         return [p1, p2]                  // (PlaytestOct12Tests.readOrders: each fits the book page)

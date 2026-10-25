@@ -105,6 +105,8 @@ if CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains(
 if CommandLine.arguments.contains("--flytest") { exit(QuestFlyTest.run()) }
 // --vehiclecheck: P449, the Ash Vault's vehicles and the frigate's helm (quest/src/test/QuestVehicleCheck.swift).
 if CommandLine.arguments.contains("--vehiclecheck") { exit(QuestVehicleCheck.run()) }
+// --orderscheck: P456, intercepted orders point at places really built, in several kinds (quest/src/test/QuestOrdersCheck.swift).
+if CommandLine.arguments.contains("--orderscheck") { exit(QuestOrdersCheck.run()) }
 // --detailcheck (P451): a cold sea keeps its ice through the spring melt; pumpkins grow in patches.
 if CommandLine.arguments.contains("--detailcheck") { exit(QuestDetailCheck.run()) }
 // --treerepair: P447, old second stems and kinks tidied out of saved land (quest/src/test/QuestTreeRepair.swift).

@@ -162,6 +162,16 @@ extension Game {
         guard t.hasPrefix("/") else { say("<Player> \(t)"); return }
         say(t)
         let out = execute(t.dropFirst().split(separator: " ").map(String.init))
+        // P456 (Oct 25 14:13, the commands list: "we got a duplicate here... two Boreal stations"): a place found again
+        // replaces the line it had in the log (where the nearest one was when last asked) instead of listing it twice.
+        let cmd = t.dropFirst().split(separator: " ").first.map { $0.lowercased() } ?? ""
+        if cmd == "locate" || Game.shortcutNames.contains(cmd) {
+            for l in out {
+                guard let colon = l.firstIndex(of: ":") else { continue }
+                let head = "  " + l[..<colon] + ":"
+                commandLog.removeAll { $0.hasPrefix(head) }
+            }
+        }
         for l in out { say("  " + l) }
         if let f = out.first { onToast?(f) }
     }
