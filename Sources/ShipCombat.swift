@@ -72,7 +72,11 @@ extension ShipManager {
                 let horiz = simd_normalize(V3(dir.x, 0, dir.z) + V3(1e-5, 0, 0))
                 dir = simd_normalize(horiz * cosf(elev) + V3(0, sinf(elev), 0))
                 if t.gunScatter > 0 { dir = Guns.scatter(dir, t.gunScatter) }
-                let sh = Shell(pos: muzzle, vel: dir * t.gunSpeed + t.velocity(at: muzzle), owner: t.root.id, power: t.gunPower)
+                // P455 (Oct 25 14:24-14:25, a captured crawler's guns: "not doing enough damage... more damage from the
+                // guns on this crawler and related guns"): a war vessel's guns fired from its helm by him hit half again
+                // as hard (its crew's stay as they were).
+                let his = game != nil && pilot?.root === t.root && t.root.role != nil
+                let sh = Shell(pos: muzzle, vel: dir * t.gunSpeed + t.velocity(at: muzzle), owner: t.root.id, power: t.gunPower * (his ? 1.5 : 1))
                 sh.gravity = t.gunGravity
                 // A cannon under water looses a torpedo: level, self-driven, no drop (C8, Submarines.swift).
                 if Blocks.fluidKind[Int(world.rawBlock(Int(floor(muzzle.x)), Int(floor(muzzle.y)), Int(floor(muzzle.z))))] == 1 {

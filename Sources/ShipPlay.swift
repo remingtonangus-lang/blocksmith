@@ -381,6 +381,7 @@ extension Game {
             // Attack charges the Tidebreaker when a Meridian frigate's is loaded (it fires 2.6 s later along the bow), else
             // fires the cannons, raised to the view pitch.
             if breakNow && ships.playerMainGun(s, game: self) { swing = 1; return true }
+            if breakNow && ships.playerRail(s, pitch: pilotGunPitch(s), game: self) { swing = 1 }     // P455 (and the turrets)
             // P93: in survival the guns use cannonballs from the pack, one a gun.
             if breakNow || (breakHeld && s.role == "dropship") {         // (P435: the autocannon fires while held)
                 let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }

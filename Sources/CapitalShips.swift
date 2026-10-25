@@ -284,8 +284,8 @@ enum Capital {
 
     static let naval = GunSpec2(speed: 120, power: 3.5, reload: 3.5, pitchMin: -0.35, pitchMax: 0.75)
     static let navalHung = GunSpec2(speed: 120, power: 3.5, reload: 3.5, pitchMin: -1.35, pitchMax: 0.2)
-    static let heavy = GunSpec2(speed: 110, power: 4, reload: 4.5, pitchMin: -0.3, pitchMax: 0.7)
-    static let auto = GunSpec2(speed: 140, power: 1.8, reload: 1.2, pitchMin: -0.4, pitchMax: 1.0, scatter: 0.025)
+    static let heavy = GunSpec2(speed: 110, power: 4, reload: 4.5, pitchMin: -0.45, pitchMax: 0.7)     // (P455: "can't shoot down far enough")
+    static let auto = GunSpec2(speed: 140, power: 1.8, reload: 1.2, pitchMin: -0.6, pitchMax: 1.0, scatter: 0.025)
     // P435: the same gun flown by him (ShipPlay.startPiloting): a quicker, heavier high-explosive round.
     static let autoHeld = GunSpec2(speed: 170, power: 3.4, reload: 0.4, pitchMin: -0.4, pitchMax: 1.0, scatter: 0.012)
 
@@ -1296,6 +1296,33 @@ extension ShipManager {
         let speed = steered && drives ? s.throttle * 9 * (1 - lost) : 0
         st.wantSpeed = abs(speed)
         crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: steered && drives && abs(s.steer) > 0.05 ? 0.18 : 0)
+        // P455 (Oct 25 14:21, driving one: "this thing's, like, impossible to drive 'cause of the trees"): it crushes
+        // what stands in its way as it does under its own crew; and its rail gun reloads (ShipManager.playerRail).
+        if st.wantSpeed > 0.3 { crush(s, st, dt) }
+        st.mainGunCD -= dt
+    }
+
+    // P455 (Oct 25 14:24-14:25, at a captured Ironback Crawler's helm: "the main gun doesn't do anything, so it's just
+    // all these little guns in the back that I have to use"): attack fires the spinal rail gun along the bow too when
+    // it is loaded (raised or lowered a little toward the view), a slug as its crew fires it, reloading in 8 s.
+    func playerRail(_ s: Ship, pitch: Float, game g: Game) -> Bool {
+        guard s.role == "crawler", s.captured, let st = capState[s.id], st.mainGunCD <= 0 else { return false }
+        let mw = s.toWorld(st.mainGunMuzzle)
+        let md = s.dirToWorld(st.mainGunDir)
+        let flat = simd_normalize(V3(md.x, 0, md.z) + V3(1e-5, 0, 0))
+        let p = max(-0.3, min(0.3, pitch))
+        let dir = simd_normalize(flat * cosf(p) + V3(0, sinf(p), 0))
+        st.mainGunCD = 8
+        let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: 7)
+        sh.gravity = 1.5
+        sh.kind = 1
+        sh.life = 4
+        shells.append(sh)
+        g.sfx(.gun(9), 2, at: mw)
+        g.sfx(.explode, 0.8, at: mw)
+        g.particles.explosion(at: mw, power: 2)
+        g.addShake(0.35)
+        return true
     }
 
     // A commandeered Capital flier: a dropship flown straight from the helm's throttle, steer and climb (kinematic, as

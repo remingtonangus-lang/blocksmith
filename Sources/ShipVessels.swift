@@ -162,23 +162,27 @@ enum Vessels {
         }
         for x in -2...2 { b.set(x, 4, 20, "ship_engine") }
         b.set(0, 4, 2, "ship_engine")
-        // Cab at the stern with the helm.
-        b.box(-2, 2, 7, 9, 18, 22, "stone_bricks", hollow: true)
-        for x in -1...1 { b.set(x, 8, 18, "glass_pane") }
-        b.box(-2, 2, 10, 10, 18, 22, "polished_blackstone_slab")
+        // Cab at the stern with the helm. P455 (Oct 25 14:21, "the driving seat isn't even a room you can be in. It's
+        // literally just a wheel enclosed in... material"; switching the view put his head in its roof and he fell out):
+        // a room three blocks tall on the deck, windows on three sides, a door at the back.
+        b.box(-2, 2, 6, 10, 17, 22, "stone_bricks", hollow: true)
+        for x in -1...1 { for y in 8...9 { b.set(x, y, 17, "glass_pane") } }
+        for x in [-2, 2] { for z in 18...20 { b.set(x, 8, z, "glass_pane") } }
         b.clear(0, 7, 22); b.clear(0, 8, 22)
-        b.set(0, 7, 20, "ship_helm[south]")
+        b.set(0, 7, 19, "ship_helm[south]")
         b.set(1, 7, 21, "chest")
         b.chests.append((IVec3(1, 7, 21), "bastion"))
-        // Giant turret: armoured housing, long barrel, three guns at the muzzle.
-        b.set(0, 7, 9, "ship_turret_ring")
+        // Giant turret: armoured housing, long barrel, three guns at the muzzle (on a plinth: the barrel swings clear
+        // over the cab's roof).
+        b.set(0, 7, 9, "polished_blackstone")
+        b.set(0, 8, 9, "ship_turret_ring")
         let t = Blueprint()
         t.box(-3, 3, 0, 3, -3, 3, "polished_blackstone", hollow: true)
         t.box(-3, 3, 4, 4, -3, 3, "iron_block")
         for z in -13 ... -4 { t.set(0, 2, z, "iron_block") }
         t.box(-1, 1, 1, 3, -15, -14, "iron_block")
         t.set(0, 2, -16, "ship_cannon[south]"); t.set(-1, 2, -16, "ship_cannon[south]"); t.set(1, 2, -16, "ship_cannon[south]")
-        b.turrets.append((IVec3(0, 7, 9), t))
+        b.turrets.append((IVec3(0, 8, 9), t))
         b.crew = [V3(-3.5, 7, 3.5), V3(3.5, 7, 15.5)]
         return b
     }
