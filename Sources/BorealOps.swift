@@ -217,6 +217,11 @@ extension Game {
                 }
                 if !inside.isEmpty && !op.cleared && op.waves < BorealStation.maxWaves {
                     op.waveT += dt
+                    // P454 (Oct 25 14:06, "I just got like nearly one-shotted": a squad stood up at the stair foot
+                    // beside him and three rifles took 22 at once): a squad doesn't arrive while anyone stands at the
+                    // foot of the stair; it waits until the way down is clear.
+                    let blocked = players.contains { simd_length($0 - op.stairFoot) < 9 }
+                    if blocked { op.waveT = min(op.waveT, BorealStation.waveEvery - 0.5) }
                     if op.waveT >= BorealStation.waveEvery {
                         op.waveT = 0
                         op.waves += 1
@@ -372,6 +377,7 @@ extension Game {
             m.stationDoors = true
             let br = m.soldierBrain
             br.ready = true
+            br.react = max(br.react, 1.2 + 0.4 * Float(i))      // P454: off the stair and taking aim first
             br.lastSeen = target; br.seenAgo = min(br.seenAgo, 2)
             m.lockTime = max(m.lockTime, 20)
             mobs.mobs.append(m)

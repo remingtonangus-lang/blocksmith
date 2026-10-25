@@ -214,6 +214,7 @@ enum Enchant {
     static func applies(_ e: Ench, _ item: ItemID, table: Bool) -> Bool {
         let k = Items.key(item)
         if k == "book" || k == "enchanted_book" { return true }
+        if e == .stability && Guns.ironSightsOnly.contains(k) { return false }      // P454: no scope on these
         let c = category(item)
         let d = def(e)
         return !c.intersection(table ? d.primary : d.supported).isEmpty

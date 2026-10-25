@@ -3,7 +3,7 @@ import simd
 
 // The sheriff's six-iron, the iron rule and taking a town (SixIron.swift, TownConquest.swift; docs/status/six-iron.md).
 // Run by TownTests.honour (questcheck on the host and `--towns-only`, `--towntests` on the Mac).
-//   rule:      the damage table: below iron one shot kills (even on easy), iron takes 3, steel 4+, titanium and
+//   rule:      the damage table: below iron two shots kill on normal (three on easy, one on hard), iron takes 3, steel 4+, titanium and
 //              Duskium are chip damage; peaceful none. Real rounds against worn sets: leather would kill (a totem
 //              pops), iron takes 8 of 20, titanium 1.
 //   duel:      every sheriff carries it; his challenge draws it; the first round is a warning over your head; each
@@ -42,15 +42,16 @@ extension TownTests {
         let row = Dictionary(uniqueKeysWithValues: t.map { ($0.0, $0.2) })
         print("six-iron table (normal): " + t.map { String(format: "%@ %.2f -> %@", $0.0, $0.1, $0.2 == SixIron.lethal ? "dead" : "\($0.2)") }.joined(separator: "; "))
         let soft = ["no armour", "leather", "golden", "chainmail", "copper"]
-        check(soft.allSatisfy { row[$0] == SixIron.lethal }, "iron rule: below iron one round kills (\(soft.map { "\($0) \(row[$0] ?? -1)" }.joined(separator: ", ")))")
+        check(soft.allSatisfy { row[$0] == 10 }, "iron rule: below iron two rounds kill on normal (\(soft.map { "\($0) \(row[$0] ?? -1)" }.joined(separator: ", ")))")
         let iron = row["iron"] ?? 0, steel = row["steel"] ?? 0
         check(iron * 3 >= 20 && iron * 2 < 20, "iron rule: a full iron set takes \(iron) a round: three shots kill")
         check(steel < iron && steel * 3 < 20 && steel * 6 >= 20, "iron rule: steel takes \(steel) a round: 4-6 shots")
         check((row["titanium"] ?? 99) <= 1 && (row["Duskium"] ?? 99) <= 1, "iron rule: titanium and Duskium take chip damage (\(row["titanium"] ?? -1), \(row["Duskium"] ?? -1))")
         let leather = SixIron.armourScore(SixIron.fullSet("leather")), ti = SixIron.armourScore(SixIron.fullSet("diamond"))
-        check(SixIron.damage(score: leather, difficulty: 1) == SixIron.lethal && SixIron.damage(score: leather, difficulty: 0) == 0
+        check(SixIron.damage(score: leather, difficulty: 1) == 7 && SixIron.damage(score: leather, difficulty: 3) == SixIron.lethal
+              && SixIron.damage(score: leather, difficulty: 0) == 0
               && SixIron.damage(score: ti, difficulty: 3) == 2,
-              "iron rule: still one shot on easy below iron; nothing on peaceful; titanium 2 on hard")
+              "iron rule: below iron three shots on easy, one on hard; nothing on peaceful; titanium 2 on hard")
         // Iron with leather boots is iron; iron without boots isn't.
         var mixed = SixIron.fullSet("iron"); mixed[3] = SixIron.fullSet("leather")[3]
         var bare = SixIron.fullSet("iron"); bare[3] = .empty
@@ -67,15 +68,20 @@ extension TownTests {
             g.sixIronHit(by: sheriff, at: g.player.eye)
             return g.health
         }
+        // Normal: a round in leather goes through it for half his health (P454: "two shots to kill you on normal").
+        let normalLeft = shot("leather")
+        g.sixIronHit(by: sheriff, at: g.player.eye)
+        check(normalLeft == 10 && (g.health <= 0 || !g.alive), "iron rule: on normal a round in leather leaves \(normalLeft) of 20, the second kills")
+        g.difficulty = 3                                                // (hard: one round)
         let leatherLeft = shot("leather", totem: true)
-        check(leatherLeft == 1 && g.inventory.offhand[0].isEmpty && g.alive, "iron rule: a round in leather is lethal (the totem took it: \(leatherLeft) left)")
+        check(leatherLeft == 1 && g.inventory.offhand[0].isEmpty && g.alive, "iron rule: on hard a round in leather is lethal (the totem took it: \(leatherLeft) left)")
         // Resistance IV and golden hearts don't soften a lethal round (verifier: enchanted leather landed in the iron band).
         wear(g, "leather"); g.health = 20; g.alive = true; g.effects.clear()
         g.inventory.offhand[0] = Items.has("totem_of_undying") ? ItemStack(Items.id("totem_of_undying"), 1) : .empty
         g.applyEffect(.resistance, amp: 3, seconds: 30); g.absorption = 8
         g.sixIronHit(by: sheriff, at: g.player.eye)
         check(g.health == 1 && g.inventory.offhand[0].isEmpty, "iron rule: Resistance IV and golden hearts don't save you below iron (\(g.health) left: the totem did)")
-        g.effects.clear(); g.absorption = 0
+        g.effects.clear(); g.absorption = 0; g.difficulty = 2
         let ironLeft = shot("iron"), tiLeft = shot("diamond")
         check(ironLeft == 12 && tiLeft == 19, "iron rule: a round in iron leaves 12 of 20 (\(ironLeft)), in titanium 19 (\(tiLeft))")
         g.difficulty = 0

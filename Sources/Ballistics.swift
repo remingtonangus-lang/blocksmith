@@ -388,6 +388,13 @@ final class Armory {
     }
 
     private func impactPlayer(_ s: Slug, at: V3, dir: V3, _ g: Game) {
+        // P454 (Oct 25 14:17, a Greywall outpost's deck gun: "getting hit directly by a naval gun should probably do a
+        // little more damage"; it took 3): a shell striking him lands its weight on him as well as its blast, about a
+        // third of his health on Normal for a field gun's shell, half for a naval gun's (the level's cap per blow holds).
+        if s.kind == .shell {
+            let blow = Int((4 + 2.4 * s.power).rounded())
+            g.hurtPlayer(blow, from: at - dir * 3, cause: "was hit by a shell from \(s.by)", knockback: 1.4, type: .explosion)
+        }
         if s.kind == .rocket || s.kind == .shell { detonate(s, at: at - dir * 0.3, g); return }
         let whole = floorf(s.damage)
         let n = Int(whole) + (Rand.float(in: 0..<1) < s.damage - whole ? 1 : 0)

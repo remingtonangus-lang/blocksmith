@@ -32,6 +32,7 @@ enum VRScope {
     static func scopeZoom(_ held: ItemStack) -> Float? {
         guard !held.isEmpty else { return nil }
         if Items.key(held.item) == gun { return zoom }
+        if Guns.ironSightsOnly.contains(Items.key(held.item)) { return nil }       // P454: iron sights only
         let lv = Enchant.level(.stability, held)                    // a scope fitted at the gunsmith (Upgrades)
         return lv > 0 ? min(3, 1.5 + 0.5 * Float(lv)) : nil
     }

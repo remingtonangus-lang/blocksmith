@@ -186,6 +186,9 @@ enum Guns {
         return max(base + 1, Int((Float(base) * (1 + 0.25 * Float(l))).rounded(.up)))
     }
     static func reloadTime(_ s: ItemStack, _ gi: Int) -> Float { all[gi].reload * (1 - 0.18 * Float(Enchant.level(.quickReload, s))) * GunGrade.reload(s) }
+    // P454 (Oct 25 14:07, the Sturmwind: "shouldn't be a sight on the Sturmgewehr. This thing wouldn't have a sight"): the
+    // Ashguard's automatic arms keep their iron sights: no scope is fitted (gunsmith, loot or an older save's).
+    static let ironSightsOnly: Set<String> = ["gun_sturmwind", "gun_hagel", "gun_ashsaw"]
     static func steadiness(_ s: ItemStack) -> Float { (1 - 0.18 * Float(Enchant.level(.stability, s))) * Legendaries.recoilScale(s) * GunGrade.recoil(s) }
 
     // Tooltip lines for a gun: loaded rounds, ammunition, damage and fire rate.
@@ -289,7 +292,8 @@ enum Guns {
         guard ench != 0 else { return [] }
         let key = Int(truncatingIfNeeded: ench &* 31 &+ UInt64(gi) &* 2 &+ (magOut ? 1 : 0))
         if let p = upgradeCache[key] { return p }
-        var p = Upgrades.gunParts(models[gi], mag: magParts[gi], ench)
+        let shown = ironSightsOnly.contains(all[gi].key) ? Enchant.pack(Enchant.list(ench).filter { $0.0 != .stability }) : ench
+        var p = Upgrades.gunParts(models[gi], mag: magParts[gi], shown)
         if magOut { p = p.filter { q in !magParts[gi].contains { models[gi][$0].mn.x == q.mn.x && models[gi][$0].mx.x == q.mx.x && models[gi][$0].mn.z == q.mn.z } } }
         if upgradeCache.count > 64 { upgradeCache = [:] }
         upgradeCache[key] = p

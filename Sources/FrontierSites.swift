@@ -219,7 +219,12 @@ enum FrontierSites {
             for dx in -10...(-3) { put(dx, 3, -9, f.log(wd == "dark_oak" ? "oak" : wd, alongX: true)) }   // a ridge beam from gable to gable carries the roof (P388)
             for dz in -11...(-7) { put(-11, 3, dz, stairs) }
             put(-9, 0, -11, b("furnace")); put(-8, 0, -11, b("crafting_table")); chest(-4, 0, -11, "homestead")
-            put(-9, 0, -7, b("red_wool", "white_wool")); put(-8, 0, -7, b("red_wool", "white_wool"))      // the cot
+            // The homesteader's bed (P454, Oct 25 13:58: "There should be a bed inside the homesteads"), along the back
+            // wall, its head to the east gable; the facing follows the site's turn (the head is opposite the bed's front).
+            let (fx, fz) = f.p(-9, -7), (hx, hz) = f.p(-8, -7)
+            let bedFace = hz < fz ? 1 : (hz > fz ? 0 : (hx > fx ? 2 : 3))
+            put(-9, 0, -7, b("red_bed", "white_wool") + BlockID(Blocks.has("red_bed") ? bedFace : 0))
+            put(-8, 0, -7, b("red_bed_head", "white_wool") + BlockID(Blocks.has("red_bed_head") ? bedFace : 0))
             put(-6, 2, -11, b("lantern", "torch"))
             for dz in -12...(-6) { put(-2, -1, dz, plank) }                                    // the porch
             put(-2, 0, -12, fence); put(-2, 0, -6, fence); put(-2, 1, -12, fence); put(-2, 1, -6, fence)
