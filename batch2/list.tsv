@@ -1,0 +1,56 @@
+helicopter_rotor_loop	6	true	Military transport helicopter rotor blades thumping overhead with turbine whine, seamless loop
+dropship_engine_loop	6	true	Heavy futuristic military dropship hovering, deep jet thrusters with humming turbines, seamless loop
+jetpack_thrust_loop	4	true	Personal jetpack thrusting, roaring rocket flame with hiss, seamless loop
+submarine_sonar_ping	4	false	Submarine sonar ping echoing underwater, single ping with long fading echo
+ship_horn_distant	4	false	Large steamship horn blowing in the distance over water
+rail_cart_rolling_loop	6	true	Heavy iron mine cart rolling fast on steel rails, rhythmic clacking and rumble, seamless loop
+minigun_spinup_fire	4	false	Rotary minigun spinning up then firing a long buzzing burst, then spinning down
+sword_swing_hit	1.5	false	Steel sword swinging through the air and striking a body, whoosh then heavy impact
+shield_block_metal	1.5	false	Heavy metal shield blocking a sword strike, loud clang
+bow_arrow_shot	1.5	false	Wooden longbow releasing an arrow, string twang and arrow whoosh
+arrow_trap_fire	2	false	Hidden dart trap in an ancient stone temple firing arrows with a mechanical click and whoosh
+tnt_fuse_hiss	3	false	Lit fuse on explosive charge, sparking and hissing
+bombs_falling_whistle	4	false	Aerial bombs whistling down from a plane, several descending whistles, no explosion
+air_raid_siren	6	false	WW2 air raid siren winding up and wailing in a town
+base_alarm_klaxon_loop	4	true	Military base alarm klaxon blaring in a concrete corridor, seamless loop
+distant_battle_ambience_loop	8	true	Distant battlefield ambience, faraway gunfire, muffled explosions and artillery, seamless loop
+radio_static_chatter	4	false	Military field radio static with garbled unintelligible voice chatter and squelch, no clear words
+metal_door_slam	2	false	Heavy steel door slamming shut with echo in a concrete bunker
+wooden_door_open_creak	2	false	Old wooden door creaking open slowly on rusty hinges
+chest_open_wood	1.5	false	Wooden treasure chest lid opening with a creak and thunk
+glass_shatter	2	false	Window glass shattering and falling onto a stone floor
+tree_crack_fall	5	false	Large tree trunk cracking, groaning and crashing down onto the forest floor with branches snapping
+leaves_rustle_push	3	false	Pushing through dense jungle leaves and thin branches, rustling and snapping twigs
+stone_mining_pick	2	false	Iron pickaxe striking hard stone three times, sharp chips and clinks
+wood_chop_axe	2	false	Axe chopping into a thick wooden log twice, solid thunks
+dirt_dig_shovel	2	false	Shovel digging into soft dirt and tossing it aside
+footsteps_snow	3	false	Footsteps crunching through fresh deep snow, about six steps
+footsteps_gravel	3	false	Footsteps on loose gravel, about six steps, natural pace
+footsteps_wood_floor	3	false	Boots walking on old wooden floorboards inside a saloon, about six steps with slight creaks
+footsteps_metal_deck	3	false	Boots walking on a steel ship deck, metallic clanks, about six steps
+ladder_climb_metal	3	false	Climbing a metal ladder, hands and boots clanking on rungs
+water_splash_jump	2	false	Person jumping into a lake, big splash
+swimming_strokes_loop	5	true	Swimming strokes in calm water, rhythmic splashes, seamless loop
+underwater_ambience_loop	8	true	Muffled underwater ambience with bubbles and low drone, seamless loop
+river_flow_loop	8	true	Gentle forest river flowing over rocks, seamless loop
+ocean_waves_loop	8	true	Ocean waves rolling onto a sandy beach, seamless loop
+rain_heavy_loop	8	true	Heavy rain falling on leaves and ground with occasional drips, seamless loop
+rain_on_roof_loop	8	true	Rain pattering on a wooden cabin roof, heard from inside, seamless loop
+thunder_crack	5	false	Close thunder crack followed by long rolling rumble
+cave_drips_ambience_loop	8	true	Deep stone cave ambience with water drips echoing and faint low wind, seamless loop
+forest_birds_day_loop	8	true	Daytime temperate forest ambience with songbirds and light breeze, seamless loop
+night_crickets_loop	8	true	Night countryside ambience with crickets and a distant owl, seamless loop
+village_ambience_loop	8	true	Old western frontier town ambience, distant chatter murmur, horse hooves, creaking signs, no clear words, seamless loop
+saloon_piano_loop	8	true	Honky-tonk upright piano playing a simple ragtime tune in a saloon, seamless loop
+horse_gallop_loop	4	true	Horse galloping on hard dirt road, rhythmic hoofbeats, seamless loop
+horse_neigh	2	false	Horse neighing and snorting
+eat_food	2	false	Person eating, crunchy bites and chewing
+drink_gulp	2	false	Drinking from a canteen, a few gulps and a sigh
+body_hit_thud	1	false	Heavy punch impact on a body, dull thud
+hell_creature_growl	3	false	Monstrous demonic creature growling low and menacing in a lava cavern
+hell_creature_screech	2	false	Flying fiery hell creature screeching, sharp and inhuman
+marauder_war_cry	2	false	Group of masked bandits shouting a wordless war cry, aggressive, no clear words
+fire_ignite_whoosh	2	false	Fire igniting with a whoosh as flames catch
+lava_bubble_pop	2	false	Thick lava bubbling and popping
+crafting_hammer_anvil	2	false	Blacksmith hammer striking an anvil twice, ringing metal
+inventory_cloth_rustle	1	false	Soft canvas backpack rustle as items are moved, short
