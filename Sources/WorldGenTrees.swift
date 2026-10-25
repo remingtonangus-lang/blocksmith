@@ -287,6 +287,20 @@ enum TreePlacer {
 }
 
 extension WorldGen {
+    // P451: a pumpkin patch: one in five 48 x 48 squares has a patch somewhere in it; inside 4 blocks of its middle
+    // about a third of the grass grows a pumpkin, thinning out toward its edge.
+    func pumpkinPatch(_ wx: Int, _ wz: Int) -> Bool {
+        let S = 48
+        let gx = floorDiv(wx, S), gz = floorDiv(wz, S)
+        guard hashf(gx, 7, gz, s32 ^ 0x9A3B) < 0.2 else { return false }
+        let cx = gx * S + 6 + Int(hashf(gx, 8, gz, s32 ^ 0x9A3C) * Float(S - 12))
+        let cz = gz * S + 6 + Int(hashf(gx, 9, gz, s32 ^ 0x9A3D) * Float(S - 12))
+        let dx = Float(wx - cx), dz = Float(wz - cz)
+        let d2 = dx * dx + dz * dz
+        guard d2 <= 16 else { return false }
+        return hashf(wx, 10, wz, s32 ^ 0x9A3E) < 0.38 * (1 - d2 / 22)
+    }
+
     // A reef at a column: the nearest coral head (one per 9-block cell, three in four cells hold one), its species,
     // height there (a dome with a rough top), an optional cap species, a branching finger, or the rim species when
     // the column lies just outside a head. World coordinates only, so heads cross chunk borders whole.
@@ -501,7 +515,9 @@ extension WorldGen {
                 let patch = flora.noise2(Float(wx) / 9 + 300, Float(wz) / 9 + 300)
                 if patch > 0.25 { b[i] = g("pale_moss_block"); if h2 < 0.45 { b[above] = g("pale_moss_carpet") }; continue }
             }
-            if h > 0.9993 && ground == GRASS { b[above] = g("pumpkin"); continue }
+            // P451 (Remington, Oct 25 09:00: "pumpkins should be in patches"): pumpkins grow in patches, a few to a dozen
+            // within 4 blocks of a patch's middle, about as many in all as the lone ones scattered before.
+            if ground == GRASS && pumpkinPatch(wx, wz) { b[above] = g("pumpkin"); continue }
             // Newer ground cover: leaf litter under forests, wildflowers, bushes, firefly bushes by swamps.
             switch biome {
             case .forest, .darkForest, .birchForest, .oldGrowthBirchForest, .windsweptForest:

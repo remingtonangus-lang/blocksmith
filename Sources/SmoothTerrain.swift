@@ -769,8 +769,14 @@ extension Mesher {
                 }
                 let tintB = Int(tintT[id])
                 let texF = tintB == 3 ? (nrm.y > 0.2 * len ? 2 : 3) : f
-                let layer = Int(texT[id * 6 + texF])
-                let tint = tintB == 3 ? (texF == 2 ? 1 : 0) : tintB
+                var layer = Int(texT[id * 6 + texF])
+                var tint = tintB == 3 ? (texF == 2 ? 1 : 0) : tintB
+                // P451 (Oct 25 08:46, Quest World: "got some snow hovering in a way it shouldn't be"): the snow lying on a
+                // canopy was drawn as its flat slab over the round leaf blob, plates of snow sticking out in the air round
+                // every snowy crown. The slab isn't drawn on a blob now (Mesher); the blob's top under it is snow instead.
+                if leaves && f == 2 && Int(R[ri(s[0], s[1] + 1, s[2])]) == SmoothTerrain.snowLayer {
+                    layer = Int(texT[SmoothTerrain.snowLayer * 6 + 2]); tint = 0
+                }
                 let blendQuad = fieldLike && blendT[id]
                 let a0 = Int(VL[corner[0]]) >> 8, a1 = Int(VL[corner[1]]) >> 8
                 let a2 = Int(VL[corner[2]]) >> 8, a3 = Int(VL[corner[3]]) >> 8

@@ -98,7 +98,10 @@ void main() {
             float ring = sin((dd - ph * 0.22) * 90.0) * (1.0 - ph) * (1.0 - smoothstep(0.0, 0.25, abs(dd - ph * 0.22) * 6.0));
             g += dv / max(dd, 1e-3) * ring * 0.12 * u.waves.y;
         }
-        if (wp.y > 124.5 && wp.y < 127.5) { g -= oceanWave(wp.xz, t).yz * 1.5; }
+        // P451 (Oct 25 09:00, a beach: the water "really sticky... like goo. It just doesn't totally flatten out against
+        // the surface"): the swell's tilt dies out over the shallows with its height (chunk.vert waveK). A sheet of water
+        // a few centimetres deep over the sand rolled with the open sea's reflections, a thick gel sliding on the beach.
+        if (wp.y > 124.5 && wp.y < 127.5) { g -= oceanWave(wp.xz, t).yz * (1.5 * smoothstep(0.25, 1.4, oWDepth)); }
         n = normalize(vec3(g.x, 1.0, g.y));
     }
 

@@ -103,6 +103,8 @@ if CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains(
 // --flytest DIR [--rd 24] [--seconds 60] [--walk]: flying flat out over a new world; the speed never drops while the
 // world loads (P414, quest/src/test/QuestFlyTest.swift).
 if CommandLine.arguments.contains("--flytest") { exit(QuestFlyTest.run()) }
+// --detailcheck (P451): a cold sea keeps its ice through the spring melt; pumpkins grow in patches.
+if CommandLine.arguments.contains("--detailcheck") { exit(QuestDetailCheck.run()) }
 // --streamtest --seed S --at X,Y,Z [--rd 10] [--seconds 30] [--speed B/S] [--shots 2,5 --out DIR]: new land coming in
 // round a player, second by second (P446, quest/src/test/QuestStreamTest.swift).
 if CommandLine.arguments.contains("--streamtest") { exit(QuestStreamTest.run(ctx: vkctx)) }

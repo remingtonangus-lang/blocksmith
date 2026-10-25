@@ -145,10 +145,22 @@ enum Seasons {
 extension Game {
     // Winter snow and spring melt (Weather.precipitationTicks, the columns it samples).
     func seasonalMelt(_ x: Int, _ y: Int, _ z: Int, _ top: BlockID, _ biome: Biome) {
-        guard Seasons.seasonal(biome, at: y), !Seasons.snows(biome, at: y), Rand.int(in: 0..<3) == 0 else { return }
+        guard Rand.int(in: 0..<3) == 0, seasonalCover(x, y, z, top, biome) else { return }
         if Blocks.has("snow"), world.block(x, y + 1, z) == Blocks.id("snow") { world.setBlockAsync(x, y + 1, z, AIR) }
         else if Blocks.has("snow"), top == Blocks.id("snow") { world.setBlockAsync(x, y, z, AIR) }
         else if Blocks.has("ice"), top == Blocks.id("ice"), world.block(x, y - 1, z) == WATER || isShallowIce(x, y, z) { world.setBlockAsync(x, y, z, WATER) }
+    }
+    // Snow or ice on a column whose top is at y that winter put there and spring takes away. The generator's own cover
+    // (WorldGen.freeze: wherever the climate is cold enough, biome or not) stays all year: the sweep below melted it
+    // too, a chunk at a time, so a frozen sea round the player turned into open water in chunk-sized squares while the
+    // chunks further out, and every chunk generated after, still had their ice (P451, Oct 25 08:58, a cold sea at
+    // -858 75 -1613: "perfect chunks that just spawn in the ice... with no ice in them at all"), and snowy ground went
+    // green the same way.
+    private func seasonalCover(_ x: Int, _ y: Int, _ z: Int, _ top: BlockID, _ biome: Biome) -> Bool {
+        guard Seasons.seasonal(biome, at: y), !Seasons.snows(biome, at: y) else { return false }
+        let ground = Blocks.has("snow") && top == Blocks.id("snow") ? y - 1 : y       // (a snow layer lies on the ground's top)
+        if let wg = world.gen as? WorldGen, wg.freezesAllYear(x, ground, z, biome) { return false }
+        return true
     }
     private func isShallowIce(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { world.builtBlock(x + $0.0, y, z + $0.1) == WATER }
@@ -180,7 +192,7 @@ extension Game {
             let capped = top != ice && world.builtBlock(x, y + 1, z) == snow
             guard top == ice || top == snow || capped else { continue }
             let biome = world.gen.column(x, z).biome
-            guard Seasons.seasonal(biome, at: y), !Seasons.snows(biome, at: y), Rand.float(in: 0..<1) < p else { continue }
+            guard Rand.float(in: 0..<1) < p, seasonalCover(x, y, z, top, biome) else { continue }
             if capped { world.setBlockAsync(x, y + 1, z, AIR) }
             else if top == snow { world.setBlockAsync(x, y, z, AIR) }
             else if world.builtBlock(x, y - 1, z) == WATER || isShallowIce(x, y, z) { world.setBlockAsync(x, y, z, WATER); Seasons.swept += 1 }

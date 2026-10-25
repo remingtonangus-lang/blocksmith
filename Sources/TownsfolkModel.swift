@@ -15,6 +15,7 @@ struct TownLook {
     var glasses = false, tape = false, gunBelt = false, star = false
     var woman = false              // P343: the figure and face
     var mask: V3? = nil, bandolier = false, gloves: V3? = nil     // P444: the raiders' bandana, bolts and gloves
+    var pack = false, staff = false                              // P451: the wandering trader's pack and walking stick
 
     enum Hat { case none, wideBrim, flatCap, bowler, bonnet, cap, straw }
 
@@ -26,6 +27,7 @@ struct TownLook {
 
     static func of(_ m: Mob) -> TownLook {
         if m.kind == .pillager || m.kind == .vindicator { return raider(m) }
+        if m.kind == .wanderingTrader { return trader(m) }
         let v = m.villager
         let k = v?.look ?? Int(Townsfolk.mix(Int(m.pos.x), Int(m.pos.z), 7) & 0xFFFF)
         let woman = Townsfolk.isWoman(v)
@@ -113,6 +115,24 @@ struct TownLook {
     }
 }
 
+extension TownLook {
+    // P451 (Oct 25 08:54, "Wandering Trader needs to look better too"): the wandering trader on the townsfolk body as
+    // a pedlar off the road: a long travelling coat (deep blue, plum or bottle green) over a cream shirt, a yellow
+    // neckerchief, a weathered wide-brimmed hat, a grey-flecked beard, a big leather pack with a bedroll strapped over
+    // it and a pot and a lantern hanging off its sides, and a walking stick in his left hand.
+    static func trader(_ m: Mob) -> TownLook {
+        let k = Int(m.coatSeed) & 0xFFFF
+        var l = TownLook(skin: Livery.skins[k % Livery.skins.count], hair: mixV(Livery.hairs[(k / 5) % Livery.hairs.count], V3(0.7, 0.69, 0.66), 0.45),
+                         shirt: V3(0.86, 0.82, 0.72), legs: trousers[1], boots: V3(0.24, 0.16, 0.1))
+        l.coat = [V3(0.16, 0.24, 0.48), V3(0.36, 0.17, 0.3), V3(0.15, 0.32, 0.24)][(k / 3) % 3]
+        l.bowTie = V3(0.85, 0.66, 0.2)
+        l.hat = .wideBrim; l.hatColor = [V3(0.42, 0.32, 0.22), V3(0.3, 0.26, 0.22)][(k / 11) % 2]
+        l.beard = true
+        l.pack = true; l.staff = true
+        return l
+    }
+}
+
 func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
     let l = TownLook.of(m)
     let raider = m.kind == .pillager || m.kind == .vindicator          // P444: Marauders and Brigands
@@ -187,6 +207,21 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
         d(0.4, 12.5, 2.6, 3.2, 21.5, 4.6, V3(0.36, 0.25, 0.15), Pat.leather, q, -0.3)                // the quiver
         if lv < 2 { d(0.7, 21.5, 3.0, 2.9, 23.6, 4.2, V3(0.82, 0.8, 0.74), Pat.cloth, q, -0.3) }        // fletchings
     }
+    if l.pack {
+        // A frame pack on the back: the bag with its flap, a bedroll across the top, a pot and a lantern on the sides,
+        // straps over the shoulders.
+        let hide = V3(0.42, 0.29, 0.17), roll = V3(0.5, 0.2, 0.17), strap = V3(0.24, 0.17, 0.11)
+        b(-3.7, 12.5, 2.4, 3.7, 23.0, 6.6, hide, Pat.leather)
+        b(-3.8, 19.5, 2.3, 3.8, 23.4, 6.8, hide * 0.85, Pat.leather)                              // the flap
+        b(-5.2, 23.0, 3.0, 5.2, 25.6, 5.8, roll)                                                   // the bedroll
+        if lv < 2 { b(-5.3, 23.4, 2.9, -4.4, 25.2, 5.9, roll * 0.8); b(4.4, 23.4, 2.9, 5.3, 25.2, 5.9, roll * 0.8) }
+        b(-3.0, 14.2, -2.56, -2.0, 23.6, -2.34, strap, Pat.leather); b(2.0, 14.2, -2.56, 3.0, 23.6, -2.34, strap, Pat.leather)
+        b(3.7, 13.5, 3.4, 5.5, 16.0, 5.6, V3(0.3, 0.3, 0.32), Pat.metal)                           // a pot
+        if lv < 2 {
+            b(-5.3, 13.0, 3.6, -3.7, 16.6, 5.2, V3(0.2, 0.19, 0.18), Pat.metal)                    // a lantern, its glass lit
+            b(-5.0, 13.6, 3.9, -4.0, 16.0, 4.9, V3(0.95, 0.78, 0.4), Pat.enamel)
+        }
+    }
     // Arms: walk swing, the weapon raised / striking, or hands up.
     let engaged = raider ? m.aggro || aiming : m.town.foe != nil || m.town.anger > 0 || m.town.drawn > 0
     var right = -swing * 0.8, left = swing * 0.8
@@ -236,6 +271,12 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
             let tx0: Float = side < 0 ? x1 - 1.0 : x0 + 0.2, tx1: Float = side < 0 ? x1 - 0.2 : x0 + 1.0
             arm(V3(tx0, 12.8, -1.5), V3(tx1, 14.1, -0.95), hand * 0.96, l.gloves == nil ? Pat.skin : Pat.leather)
         }
+    }
+    if l.staff {
+        // The walking stick in the left hand, its foot on the ground as the arm swings.
+        let wood = V3(0.36, 0.25, 0.15)
+        p.append(Part(mn: V3(-6.1, -0.5, -1.0), mx: V3(-5.1, 17.0, 0.0), pivot: V3(-5.6, 23, 0), rotX: left, color: wood, pattern: Pat.leather))
+        if lv < 2 { p.append(Part(mn: V3(-6.3, 15.5, -1.2), mx: V3(-4.9, 17.6, 0.2), pivot: V3(-5.6, 23, 0), rotX: left, color: wood * 0.8, pattern: Pat.leather)) }
     }
     // The weapon or tool in the right hand.
     p += townWeaponParts(w, combat: engaged && m.town.handsUp <= 0, pivot: V3(5.6, 23, 0), rotX: right, rotZ: rz)

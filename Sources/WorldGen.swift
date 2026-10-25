@@ -806,6 +806,17 @@ final class WorldGen: TerrainGenerator {
         }
     }
 
+    // P451 (Oct 25 08:58, a cold sea: "perfect chunks that just spawn in the ice... with no ice in them at all"): whether
+    // the final freeze below covers a column whose top is at y (ice on its water, snow on its ground) whatever the season:
+    // the climate's own snow and ice, which the spring melt (Seasons) leaves alone. Same test as freeze, dither included.
+    func freezesAllYear(_ x: Int, _ y: Int, _ z: Int, _ biome: Biome) -> Bool {
+        let k = terrain.column(x, z)
+        let clump: Float = flora.noise2(Float(x) / 7 + 731, Float(z) / 7 + 419)
+        let jit: Float = hashf(x, y, z, s32 ^ 0x5110) - 0.5
+        let t = terrain.temperature(k, Float(y + 1 - YOFF)) + (clump * 0.9 + jit * 0.08) * 0.12
+        return t < -0.25 || (biome.snows(at: y + 1) && t < -0.15)
+    }
+
     // Last decoration step, like the reference game's freeze_top_layer: snow on whatever is on top
     // (ground, leaves) and ice on still water where it is cold enough.
     // Snow follows the surface temperature (altitude lapse included), so snowlines climb in warm regions.
