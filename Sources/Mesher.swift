@@ -1184,6 +1184,14 @@ enum Mesher {
                             var q = p; q[a] += 1
                             let f0 = F[p.x + p.z * N + p.y * NN], f1 = F[q.x + q.z * N + q.y * NN]
                             guard (f0 > 0) != (f1 > 0) else { continue }
+                            // P453 (Oct 25 14:00, a frozen sea from up high: "a grid full of weird blue lines... when you
+                            // get close to them, they disappear"): water under ice is the ice's (frozen water: Mesher's
+                            // cells draw no water face against it either). Its surface net under the ice opened along the
+                            // chunk borders, and the deep water showed through the clear ice as dark lines.
+                            if kind == 1 {
+                                let s = f0 > 0 ? p : q
+                                if Mesher.iceT[Int(R[(s.x + C0) + (s.z + C0) * RW + (s.y + C0 + 1) * RL])] { continue }
+                            }
                             var cells = [SIMD3<Int>](repeating: p, count: 4)
                             cells[0][b] -= 1; cells[0][c] -= 1
                             cells[1][c] -= 1
