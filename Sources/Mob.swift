@@ -421,6 +421,8 @@ final class Mob {
     var variant = 0                 // colour / breed variant
     var lookSettled = false         // (P411: settleLook ran)
     var coatSeed: UInt32 = 0        // P295: a steady cosmetic seed (coat, face colours) from where it was made; saved
+    var armourLost: UInt8 = 0       // P449: an Ashguard vehicle's armour plates shot off (a bit per sector, AshArmour); saved
+    var armourWear: [Float] = []    // (each sector's plate: damage it has taken)
     var sitting = false
     var lying = false               // a villager asleep in its bed: drawn on its back along the bed (VillageLife)
     var fallen = false              // P326: one of the Ash Vault's fallen Allied soldiers (AshFallen): olive drab, drawn only
@@ -1650,6 +1652,8 @@ final class Mob {
             let d = V2(src.x - pos.x, src.z - pos.z)
             if simd_length(d) > 0.01 && simd_dot(simd_normalize(d), V2(forward.x, forward.z)) < -0.35 { damage = damage * 8 / 5 }
         }
+        // P449: the hull's armour plates take hits on their side of it and come off (AshArmour.swift).
+        if kind.ashVehicle && damage > 0 { damage = AshArmour.hit(self, damage, from: src) }
         hurtSound = true
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {

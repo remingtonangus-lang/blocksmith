@@ -39,24 +39,23 @@ enum AshCommandeer {
         takeable(m.kind) && hash3(Int(floor(h.x)), 31, Int(floor(h.z)), 0xA59) % 2 == 0
     }
 
-    // The sidecar motorcycle, front toward -Z: the bike on x 0 (two wheels in line), the car on x 1-2 with its own
-    // wheel on x 3 and a light machine gun.
+    // The sidecar motorcycle, front toward -Z: the bike on x 0 (two wheels in line), the car on x 1 with its own wheel
+    // and a light machine gun.
+    // P449 (Oct 25 09:04-09:05: "why are there five wheels clumped together?"; "doesn't look anything like that"): each
+    // wheel was a plus of five wheel blocks three tall, drawn as five discs, the bike riding a block and a half up on
+    // them. A wheel is one block now, the bike four blocks long over its two, the car low beside it on its own.
     static func sidecar() -> Blueprint {
         let b = Blueprint()
-        func wheel(_ x: Int, _ zc: Int) {
-            for y in 0...2 { for z in (zc - 1)...(zc + 1) where (y - 1) * (y - 1) + (z - zc) * (z - zc) <= 1 { b.set(x, y, z, "ship_wheel") } }
-        }
-        wheel(0, 0); wheel(0, 5); wheel(3, 3)
-        for z in 1...4 { b.set(0, 2, z, "polished_blackstone") }
-        // P435 (Oct 24 15:50, "moves like I'm walking with it on top of me... inverted controls"): the helm sat at the
-        // back, so the rider stood over the rear wheel behind the engine. The controls are now just behind the
-        // handlebars and the rider sits in the saddle facing the way it goes; the engine is under the pillion.
-        b.set(0, 3, 4, "ship_engine")
-        b.set(0, 3, 1, "ship_helm[south]")
-        b.set(0, 3, 0, "iron_bars")                                  // the handlebars
-        b.box(1, 2, 1, 2, 1, 4, "polished_blackstone")
-        b.set(1, 3, 1, "red_nether_bricks")
-        b.set(2, 3, 1, "ship_cannon[south]")                         // the car's machine gun
+        b.set(0, 0, 0, "ship_wheel"); b.set(0, 0, 3, "ship_wheel"); b.set(1, 0, 2, "ship_wheel")
+        b.set(0, 1, 0, "iron_bars")                                  // the forks and handlebars over the front wheel
+        // P435: the controls just behind the handlebars, the rider in the saddle facing the way it goes; the engine
+        // under the pillion.
+        b.set(0, 1, 1, "ship_helm[south]")
+        b.set(0, 1, 2, "ship_engine")
+        b.set(0, 1, 3, "polished_blackstone")                        // the pillion over the rear wheel
+        b.set(1, 1, 1, "red_nether_bricks")                          // the car's nose
+        b.set(1, 1, 2, "polished_blackstone"); b.set(1, 1, 3, "polished_blackstone")
+        b.set(1, 2, 2, "ship_cannon[south]")                         // the car's machine gun
         return b
     }
 }
@@ -194,7 +193,7 @@ final class AshSeat {
         }
     }
     private var jumpWas = false
-    static var entered = 0, shots = 0   // (counters)
+    static var entered = 0, shots = 0, ploughed = 0, tracked = 0   // (counters)
 
     // The seat on the vehicle, in its own frame (blocks: x to the right, y up from its feet, z toward the back).
     func seatOffset(_ m: Mob) -> V3 {
