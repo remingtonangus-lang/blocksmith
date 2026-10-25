@@ -506,6 +506,23 @@ final class StructureCache {
         return (ents, mobs)
     }
 
+    // P456 (Oct 25 14:03, intercepted orders: "the orders were not accurate. There's nothing here"). The middle of a
+    // start's main piece (a citadel's own walls, not the garrison row trailing south of it), and whether the start really
+    // lays blocks in the chunk there: its pieces built into an empty chunk, as place() does.
+    func siteCentre(_ s: StructureStart) -> IVec3 {
+        guard let p = s.pieces.first else { return IVec3((s.min.x + s.max.x) / 2, s.anchor.y, (s.min.z + s.max.z) / 2) }
+        return IVec3((p.min.x + p.max.x) / 2, s.anchor.y, (p.min.z + p.max.z) / 2)
+    }
+    func builds(_ s: StructureStart, at c: IVec3) -> Int {
+        let bx = floorDiv(c.x, CS) * CS, bz = floorDiv(c.z, CS) * CS
+        var blocks = [BlockID](repeating: AIR, count: CSQ * CH)
+        blocks.withUnsafeMutableBufferPointer { buf in
+            var w = StructWriter(bx: bx, bz: bz, blocks: buf.baseAddress!)
+            for p in s.pieces where p.overlaps(bx, bz) { p.build(&w) }
+        }
+        return blocks.reduce(0) { $0 + ($1 == AIR ? 0 : 1) }
+    }
+
     // Nearest structure start of a kind (searching regions outward), for locating / the snapshot harness.
     func nearest(_ kind: String, x: Int, z: Int, maxRegions: Int = 6, accept: (StructureStart) -> Bool = { _ in true }) -> StructureStart? {
         let fx = fixed.filter { $0.kind == kind && accept($0) }

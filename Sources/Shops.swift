@@ -94,7 +94,9 @@ enum ShopKind: String, CaseIterable, Codable {
         }
     }
     // Open hours as day fractions (0 sunrise, 0.25 noon, 0.5 sunset). The saloon stays open into the night.
-    var hours: (Float, Float) { self == .saloon ? (0.08, 0.66) : (0.02, 0.47) }
+    // P456 (Oct 25 13:55, "the saloon should always be open. I asked for a room, it didn't let me have one"): the
+    // saloon never shuts (its rooms are for the night); the stores keep shop hours.
+    var hours: (Float, Float) { self == .saloon ? (0, 1.01) : (0.02, 0.47) }
 }
 
 // A paid service instead of an item (the doctor patching you up, a hot meal at the saloon).

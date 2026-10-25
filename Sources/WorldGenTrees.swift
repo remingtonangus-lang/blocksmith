@@ -434,8 +434,10 @@ extension WorldGen {
             let above = Chunk.index(lx, y + 1, lz)
             guard b[above] == AIR || b[above] == snowLayerID else { continue }
             if b[above] == snowLayerID { continue }
-            // Sugar cane beside water.
-            if (ground == GRASS || ground == SAND || ground == DIRT) && h < 0.12 * calm(0.4) {
+            // Sugar cane beside water. P456 (Oct 25 14:00, a snowy beach: "I don't think there should be sugar cane
+            // spawning in cold climates"): not where it is cold (the taigas, snowy land and cold coasts and rivers).
+            if (ground == GRASS || ground == SAND || ground == DIRT) && h < 0.12 * calm(0.4)
+                && terrain.temperature(cols?[lx + lz * CS] ?? terrain.column(wx, wz), Float(y + 1 - YOFF)) > -0.15 {
                 let nearWater = [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { d in
                     let nx = lx + d.0, nz = lz + d.1
                     return nx >= 0 && nx < CS && nz >= 0 && nz < CS && b[Chunk.index(nx, y, nz)] == WATER
