@@ -1024,6 +1024,7 @@ final class Game {
             clock += dt
             world.extraCenter = coop.active ? coop.otherPlayerPos(self) : nil
             world.lead = riding.map { V3($0.vel.x, 0, $0.vel.z) } ?? V3(player.vel.x, 0, player.vel.z)
+            world.facing = player.yaw                        // (P446: the land he faces streams in first)
             world.update(center: player.pos)
             TickProf.mark("world.update")
         }

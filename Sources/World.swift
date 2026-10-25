@@ -91,6 +91,8 @@ final class World {
     private var genInFlight = Set<ChunkKey>()
     private var jobs = 0
     var jobsOut: Int { jobs }                 // (harness: generation and mesh jobs not yet installed)
+    private var frontOut = Set<ChunkKey>()     // P446: chunks with an edit's mesh job ahead of the queue
+    static var frontAll = ProcessInfo.processInfo.environment["BS_FRONTALL"] == "1"     // (P446 before: every change, no cap)
     let maxJobs: Int
     private var lastCenter: ChunkKey?
     // P440 (Oct 24 evening, "performance, performance, performance"; "why is it rendering the caves underneath? As I'm
@@ -102,6 +104,12 @@ final class World {
     // harness). BS_BURIED=0: off.
     static var deferBuried = ProcessInfo.processInfo.environment["BS_BURIED"] != "0"
     static var buriedNear = 3, buriedNearUnder = 8
+    // P446 (Oct 25, "in creative, I can't really travel anywhere"): flying well over the ground (more than 24 blocks over
+    // it, back under 12), the rock under him is meshed only in his own chunk and the eight round it: the 49 chunks of the
+    // usual ring each meshed their caves and rock as he flew over them, about a third of the meshing at view 10. They
+    // mesh when he comes down. BS_HIGHRING=0: off.
+    static var buriedNearHigh = ProcessInfo.processInfo.environment["BS_HIGHRING"] == "0" ? 3 : 1
+    private(set) var flyingHigh = false
     private(set) var underground = false
     private var eyeSection = 0                      // the section his eye is in (World.update), P404 (3)
     private var buriedCentre: ChunkKey?
@@ -221,6 +229,33 @@ final class World {
         for dz in -r...r { for dx in -r...r where World.inDisc(dx, dz, renderDistance, grow: 1) { o.append((dx, dz, dx * dx + dz * dz)) } }
         o.sort { $0.2 < $1.2 }
         offsets = o
+        scanHeading = -1
+    }
+
+    // P446 (Oct 25, "this is just not rendering fast enough at all"): the land he faces comes first. The scan walks the
+    // chunks in this order: nearest first, those outside the 120 degree cone round his heading as if half as far again
+    // (the headset shows about 100 degrees across), rebuilt when his heading turns into another eighth. It walked every
+    // side alike, so what was in front of him waited on the land behind him. BS_FACINGFIRST=0: off.
+    static var facingFirst = ProcessInfo.processInfo.environment["BS_FACINGFIRST"] != "0"
+    var facing: Float? = nil                       // (Game.tickSeat: the player's heading, his head's on the headset)
+    private var scanOrder: [(Int, Int, Int)] = []
+    private var scanHeading = -1
+    private func orderedScan() -> [(Int, Int, Int)] {
+        guard World.facingFirst, let yaw = facing else { return offsets }
+        let eighth = Float.pi / 4
+        let h = Int(((yaw.truncatingRemainder(dividingBy: 2 * .pi) + 2 * .pi) / eighth).rounded()) & 7
+        if h == scanHeading { return scanOrder }
+        scanHeading = h
+        let a = Float(h) * eighth
+        let fx = -sinf(a), fz = -cosf(a)
+        var keyed: [(Int, Int, Int, Int)] = offsets.map { (dx, dz, d2) in
+            let len = sqrtf(Float(d2))
+            let ahead = d2 <= 2 || (Float(dx) * fx + Float(dz) * fz) >= 0.5 * len
+            return (dx, dz, d2, ahead ? d2 * 4 : d2 * 9)
+        }
+        keyed.sort { $0.3 != $1.3 ? $0.3 < $1.3 : $0.2 < $1.2 }
+        scanOrder = keyed.map { ($0.0, $0.1, $0.2) }
+        return scanOrder
     }
 
     // Whether (dx, dz) lies within `grow` chunks (Chebyshev) of the mesh disc of radius r.
@@ -261,6 +296,8 @@ final class World {
         let leavesOnly = c.lod != 1 && want != 1
         let farChange = (c.lod == 1) != (want == 1)
         c.lod = want
+        World.backgroundEdits = true                      // (P446: a detail change meshes in the queue's order)
+        defer { World.backgroundEdits = false }
         for s in c.sections where s.meshedVersion != -1 && (!leavesOnly || s.leafy) { s.version += 1 }
         // P283: a far neighbour's ground now meets this chunk the other way (Mesher.coarseGround's seams).
         if farChange && fieldTerrain && Mesher.farGround {
@@ -496,7 +533,7 @@ final class World {
                 remeshSync(n, sy)
             }
         }
-        let lo = max(0, (min(y, oldH, newH) - 16) >> 4), hi = min(NSEC - 1, (max(y, oldH, newH) + 16) >> 4)
+        let (lo, hi) = World.lightReach(y, oldH, newH)
         let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
         for dz in -1...1 {
             for dx in -1...1 {
@@ -508,6 +545,16 @@ final class World {
         }
         scheduleFluid(around: IVec3(x, y, z))
     }
+
+    // The sections whose light a change at y can reach: those within 16 blocks of it (a section's mesh lights a 48-block
+    // region round it), and, when the column's top moved, every one between the old and the new top (P172).
+    // P446: with the top where it was, it still bumped every section from the cell up to the top: water settling in a
+    // cave redrew the nine columns over it up to the surface, a few times a second.
+    @inline(__always) static func lightReach(_ y: Int, _ oldH: Int, _ newH: Int) -> (Int, Int) {
+        let a = oldH == newH && World.narrowLight ? y : min(y, oldH, newH), b = oldH == newH && World.narrowLight ? y : max(y, oldH, newH)
+        return (max(0, (a - 16) >> 4), min(NSEC - 1, (b + 16) >> 4))
+    }
+    static var narrowLight = ProcessInfo.processInfo.environment["BS_NARROWLIGHT"] != "0"
 
     // Waterlogging rules for every write: a full cube (double slab) holds no water, and a waterlogged block that is
     // removed (broken, blown up, pushed away) leaves its water behind (reference).
@@ -581,7 +628,7 @@ final class World {
         // between the old and the new top, as setBlock already remeshed; this only covered 16 blocks round the edit, so
         // a flow or fall that opened or closed a column left the sections further down lit as before (dark or bright
         // patches until something else touched them).
-        let lo = max(0, (min(y, oldH, newH) - 16) >> 4), hi = min(NSEC - 1, (max(y, oldH, newH) + 16) >> 4)
+        let (lo, hi) = World.lightReach(y, oldH, newH)
         for dz in -1...1 {
             for dx in -1...1 {
                 guard let n = chunkAt(x + dx * 16, z + dz * 16) else { continue }
@@ -1101,7 +1148,10 @@ final class World {
         bites[p] = list
         let r = Int(ceil(radius * 1.4)) + 1
         if sync {
-            remeshArea(x0: p.x - r, z0: p.z - r, x1: p.x + r, z1: p.z + r, y0: p.y - r, y1: p.y + r)
+            // P446 (Oct 25 09:13, "it's freezing every time I break a block", fps 4 mining dirt): each crack level of a
+            // block he mines carves a bite here, and its sections (up to 8) were meshed on the frame, outside the edit
+            // lane P440 gave placed and broken blocks. Now on the lane: the bite shows a frame or two later.
+            editBatch { remeshArea(x0: p.x - r, z0: p.z - r, x1: p.x + r, z1: p.z + r, y0: p.y - r, y1: p.y + r) }
         } else {
             for cz in floorDiv(p.z - r, CS)...floorDiv(p.z + r, CS) { for cx in floorDiv(p.x - r, CS)...floorDiv(p.x + r, CS) {
                 guard let ch = chunks[ChunkKey(x: cx, z: cz)] else { continue }
@@ -1137,7 +1187,7 @@ final class World {
         if cur == v { return }
         damage[p] = v
         if !remesh { return }
-        remeshArea(x0: p.x - 1, z0: p.z - 1, x1: p.x + 1, z1: p.z + 1, y0: p.y - 1, y1: p.y + 1)
+        editBatch { remeshArea(x0: p.x - 1, z0: p.z - 1, x1: p.x + 1, z1: p.z + 1, y0: p.y - 1, y1: p.y + 1) }     // (P446: the edit lane)
         // A chipped block also dents the smooth surface round it (as far as the relaxation reaches): in the background.
         if SmoothTerrain.enabled {
             let r = 3 + SmoothTerrain.relax
@@ -1157,10 +1207,24 @@ final class World {
         return words.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
     }
 
+    // P446 (Oct 25, new land: "it's literally trying to render it from the bottom up"; a village half drawn for 20 s): a
+    // mesh made for a section that changed while it was made (water settling, grass, a neighbour's border, a door) was
+    // thrown away and the section waited for its next turn. New land's surface changes all the time while it comes in
+    // and the caves under it don't, so the surface was thrown away again and again while the rock under it showed. Now a
+    // mesh newer than the one drawn is drawn, and the section stays out of date (it meshes again). BS_STALEMESH=0: old way.
+    static var keepStale = ProcessInfo.processInfo.environment["BS_STALEMESH"] != "0"
+    // P446: set while water and lava settle and random ticks run: the sections they change mesh in the queue's order,
+    // not ahead of it (World.update's edited-chunk pass is for edits: a blast, a dug block, a door).
+    static var backgroundEdits = false
+    static var staleMeshes = 0, staleDrawn = 0      // (harness --streamtest: meshes for a changed section; of them drawn)
     private func apply(_ m: SectionMesh, to c: Chunk, sy: Int, version: Int) {
         let s = c.sections[sy]
         if let l = m.light { c.light[sy] = l }
-        guard version == s.version else { return }
+        if version != s.version {
+            World.staleMeshes &+= 1
+            guard World.keepStale && version > s.meshedVersion else { return }
+            World.staleDrawn &+= 1
+        }
         s.opaqueBuf = makeBuffer(m.farGround.isEmpty ? m.opaque : m.opaque + m.farGround)
         s.opaqueQuads = m.opaque.count / 8
         s.solidQuads = m.solidQuads
@@ -1245,6 +1309,7 @@ final class World {
         while mi < mr.count && (mi <= nearMeshes || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
             let (k, list) = mr[mi]; mi += 1
             jobs -= 1
+            if !frontOut.isEmpty { frontOut.remove(k) }
             guard let c = chunks[k] else { continue }
             let ti = World.resultsProfile ? CFAbsoluteTimeGetCurrent() : 0
             c.meshJobsOut = max(0, c.meshJobsOut - 1)
@@ -1312,12 +1377,20 @@ final class World {
         // P430 (a) (Oct 24: a hit's crater "takes a while to form"): a chunk edited round the player (a blast, a dug block,
         // a door) is re-meshed ahead of every waiting job and past the queue limit. While the far land streamed in, its
         // job waited behind the full queue of far chunks (8 a worker) and the crater showed well after the flash.
+        // P446 (Oct 25, new land: "in creative, I can't really travel anywhere"; a village half drawn for 20 s): only for
+        // edits, and at most half the workers at a time. Water settling in the caves of new land marked the chunks round
+        // him changed several times a second, each went ahead of every waiting job as soon as its last one finished, and
+        // the workers did nothing else: on his New World (4) spot no new chunk was made or drawn for 40 s
+        // (questcheck --streamtest).
         if !dirtyChunks.isEmpty {
-            for c in dirtyChunks where c.dirty && c.meshedOnce && !c.meshInFlight && c.needsMesh
+            let cap = World.frontAll ? Int.max : max(1, maxJobs / 2)
+            for c in dirtyChunks where c.dirty && (c.urgent || World.frontAll) && c.meshedOnce && !c.meshInFlight && c.needsMesh
                 && abs(c.cx - center.x) <= 6 && abs(c.cz - center.z) <= 6 {
+                if frontOut.count >= cap { break }
                 let k = ChunkKey(x: c.cx, z: c.cz)
                 guard chunks[k] === c, let nb = neighbourhood(c) else { continue }
                 c.dirty = false
+                frontOut.insert(k)
                 scheduleMesh(k, c, nb, front: true)
             }
         }
@@ -1363,7 +1436,7 @@ final class World {
         var meshed = 0
         var cutShort = false
         let centres: [ChunkKey] = extra.map { [center, $0] } ?? [center]
-        scan: for (dx, dz, _) in offsets {
+        scan: for (dx, dz, _) in orderedScan() {
         if sameCentres && jobs >= maxQueued { cutShort = true; break scan }
         for (ci, cen) in centres.enumerated() {
             let k = ChunkKey(x: cen.x + dx, z: cen.z + dz)
@@ -1419,7 +1492,7 @@ final class World {
     }
 
     private func nearBuried(_ k: ChunkKey) -> Bool {
-        let r = underground ? World.buriedNearUnder : World.buriedNear
+        let r = underground ? World.buriedNearUnder : flyingHigh ? World.buriedNearHigh : World.buriedNear
         guard let c0 = buriedCentre else { return true }
         if max(abs(k.x - c0.x), abs(k.z - c0.z)) <= r { return true }
         if let e = buriedExtra, max(abs(k.x - e.x), abs(k.z - e.z)) <= r { return true }
@@ -1437,6 +1510,11 @@ final class World {
     // A chunk's deferred sections mesh again (he came near, went underground, or the ground under them was opened).
     private func undeferBuried(_ c: Chunk) {
         guard c.deferredBuried > 0 else { return }
+        // (P446: in the queue's order, not ahead of it: new land's surface comes before the rock under the land he nears.
+        // A dig under the lowest surface undefers too; the dig's own edit marks its sections for the edit lane.)
+        let was = World.backgroundEdits
+        World.backgroundEdits = true
+        defer { World.backgroundEdits = was }
         for s in c.sections where s.deferred { s.deferred = false; s.version += 1 }
         c.deferredBuried = 0
     }
@@ -1445,23 +1523,25 @@ final class World {
     // deferred sections handed back to meshing, and the far chunks' buried meshes dropped (they cost the GPU too).
     private func buriedTick(_ pos: V3, _ center: ChunkKey, _ extra: ChunkKey?) {
         guard World.deferBuried && fieldTerrain && dim != .deep else { buriedCentre = nil; return }
-        var under = false
+        var under = false, high = flyingHigh
         if let c = chunks[center] {
             let lx = mod(Int(floor(pos.x)), CS), lz = mod(Int(floor(pos.z)), CS), col = lx + lz * CS
             var y = min(min(CH, c.blocks.storedCount / CSQ) - 1, Int(c.height[col]))
             while y > 0 && !c.blocks.ground(col + y * CSQ) { y -= 1 }
             under = Float(y) > pos.y + 2.5             // ground over his head: in a cave, a dug hole, a mine
+            high = !under && pos.y - Float(y) > (flyingHigh ? 12 : 24)       // (P446)
         }
-        guard center != buriedCentre || extra != buriedExtra || under != underground else { return }
+        guard center != buriedCentre || extra != buriedExtra || under != underground || high != flyingHigh else { return }
         let wasUnder = underground
-        underground = under; buriedCentre = center; buriedExtra = extra
-        let r = under ? World.buriedNearUnder : World.buriedNear
+        underground = under; flyingHigh = high; buriedCentre = center; buriedExtra = extra
+        let r = under ? World.buriedNearUnder : high ? World.buriedNearHigh : World.buriedNear
+        let rKeep = under ? World.buriedNearUnder : World.buriedNear       // (flying high doesn't give meshes back)
         for (k, c) in chunks where !c.hollow {
             let d = min(max(abs(k.x - center.x), abs(k.z - center.z)), extra.map { max(abs(k.x - $0.x), abs(k.z - $0.z)) } ?? Int.max)
             if d <= r { undeferBuried(c); continue }
             // Past the ring by two (not see-sawing at its edge), and only when the ring didn't just grow: buried
             // sections meshed while he was near give their meshes back.
-            if d > r + 1 && !wasUnder && !under && c.meshedOnce && !c.meshInFlight {
+            if d > rKeep + 1 && !wasUnder && !under && c.meshedOnce && !c.meshInFlight {
                 let low = buriedLow(c)
                 guard low > 16 else { continue }
                 for sy in 0..<min(NSEC, low / 16) where !c.sections[sy].deferred && !c.sections[sy].needsMesh && c.sections[sy].meshedVersion >= 0 {
@@ -1474,6 +1554,7 @@ final class World {
     // Hands a chunk's out-of-date sections to a mesh worker.
     private func scheduleMesh(_ k: ChunkKey, _ c: Chunk, _ nb: ([BlockStore], [[Int16]]), front: Bool = false) {
         let (n9, h9) = nb
+        c.urgent = false
         let todo = deferringBuried(c, dirtySections(c))
         if todo.isEmpty { return }
         let lod = c.lod
@@ -2142,6 +2223,8 @@ final class World {
 
     func fluidTick(lava: Bool = false) {
         if lava { if lavaPending.isEmpty { return } } else if fluidPending.isEmpty { return }
+        World.backgroundEdits = true
+        defer { World.backgroundEdits = false }
         let timed = World.fluidSeconds.isFinite && !World.deterministic
         // Timed (Quest): take about twice what the last tick got through, so little is handed back.
         let limit = timed ? min(World.fluidBudget, max(64, 2 * (lava ? lavaDone : fluidDone))) : World.fluidBudget
