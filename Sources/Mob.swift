@@ -1841,9 +1841,11 @@ private func parts(_ m: Mob) -> [Part] {
         return walkerParts(m, swing: swing)                  // P185: gaunt, hunched dead men (WalkerModel.swift)
     case .skeleton, .stray, .parched:
         return skeletonParts(m, swing: swing)                // P246: real bones (MonsterLooks.swift)
-    case .enderman, .drowned, .pillager, .vindicator, .witch, .illusioner:
+    case .pillager, .vindicator:
+        return townsfolkParts(m, swing: swing)               // P444: masked outlaws on the townsfolk body (TownsfolkModel.swift)
+    case .enderman, .drowned, .witch, .illusioner:
         let sk = m.kind == .skeleton || m.kind == .stray || m.kind == .parched, en = m.kind == .enderman
-        let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch
+        let illager = m.kind == .witch
         var skin = sk ? V3(0.78, 0.78, 0.76) : (en ? V3(0.08, 0.06, 0.1) : V3(0.36, 0.55, 0.3))
         var shirt = sk || en ? skin : V3(0.15, 0.55, 0.58)
         var pants = sk || en ? skin : V3(0.25, 0.25, 0.55)
@@ -1852,8 +1854,6 @@ private func parts(_ m: Mob) -> [Part] {
         case .stray: skin = V3(0.7, 0.76, 0.78); shirt = V3(0.45, 0.52, 0.55); pants = shirt
         case .parched: skin = V3(0.86, 0.78, 0.6); shirt = V3(0.72, 0.6, 0.42); pants = shirt
         case .drowned: skin = V3(0.46, 0.55, 0.52); shirt = V3(0.13, 0.17, 0.27); pants = V3(0.24, 0.25, 0.27)   // P151: a drowned sailor
-        case .pillager: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.25, 0.25, 0.3); pants = V3(0.3, 0.3, 0.32)
-        case .vindicator: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.2, 0.22, 0.28); pants = V3(0.15, 0.15, 0.2)
         case .witch: skin = V3(0.6, 0.55, 0.45); shirt = V3(0.3, 0.2, 0.35); pants = shirt
         case .illusioner: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.2, 0.32, 0.62); pants = V3(0.16, 0.2, 0.4)
         default: break
@@ -1864,7 +1864,7 @@ private func parts(_ m: Mob) -> [Part] {
         let armLen: Float = en ? 30 : 12
         let bodyY = legH
         let zombieLike = m.kind == .zombie || m.kind == .husk || m.kind == .drowned
-        let armFwd: Float = zombieLike || (en && m.aggro) || (m.kind == .vindicator && m.aggro) || (sk && m.aimHold > 0) ? 1.45 : 0
+        let armFwd: Float = zombieLike || (en && m.aggro) || (sk && m.aimHold > 0) ? 1.45 : 0
         let armAngle = armFwd + (armFwd == 0 ? swing : 0)
         let pat: Float = sk ? 5 : 4
         let armC = sk || en ? skin : shirt

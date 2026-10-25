@@ -14,6 +14,7 @@ struct TownLook {
     var beard = false, longHair = false, bald = false, rolledSleeves = false, badge = false, bowTie: V3? = nil
     var glasses = false, tape = false, gunBelt = false, star = false
     var woman = false              // P343: the figure and face
+    var mask: V3? = nil, bandolier = false, gloves: V3? = nil     // P444: the raiders' bandana, bolts and gloves
 
     enum Hat { case none, wideBrim, flatCap, bowler, bonnet, cap, straw }
 
@@ -24,6 +25,7 @@ struct TownLook {
                           V3(0.28, 0.26, 0.3)]
 
     static func of(_ m: Mob) -> TownLook {
+        if m.kind == .pillager || m.kind == .vindicator { return raider(m) }
         let v = m.villager
         let k = v?.look ?? Int(Townsfolk.mix(Int(m.pos.x), Int(m.pos.z), 7) & 0xFFFF)
         let woman = Townsfolk.isWoman(v)
@@ -83,11 +85,39 @@ struct TownLook {
         }
         return l
     }
+
+    // P444 (Oct 24 20:58: "These pillager assholes need to get fixed... Looks really, really primitive"): the raiders on
+    // the townsfolk body as an outlaw band, every face behind a bandana. Marauders (crossbows): a long duster, a
+    // wide-brimmed hat, a bandolier of bolts and a quiver on the back. Brigands (axes): a waistcoat over rolled sleeves,
+    // a flat cap or a bare head. Their own look from the mob's coat seed (steady as it walks).
+    static func raider(_ m: Mob) -> TownLook {
+        let k = Int(m.coatSeed) & 0xFFFF
+        var l = TownLook(skin: Livery.skins[k % Livery.skins.count] * 0.94, hair: Livery.hairs[(k / 5) % Livery.hairs.count],
+                         shirt: shirts[0], legs: trousers[(k / 7) % 2 == 0 ? 3 : 1], boots: V3(0.14, 0.1, 0.08))
+        // Cloth colours no hair or skin comes in (a black or a tan one read as a beard).
+        l.mask = [V3(0.58, 0.1, 0.09), V3(0.14, 0.2, 0.38), V3(0.16, 0.3, 0.19), V3(0.36, 0.38, 0.44)][(k / 3) % 4]
+        l.gloves = V3(0.26, 0.19, 0.13)
+        if m.kind == .pillager {
+            l.shirt = [V3(0.62, 0.55, 0.44), V3(0.44, 0.42, 0.38), V3(0.55, 0.4, 0.3)][(k / 11) % 3]
+            l.coat = [V3(0.33, 0.26, 0.19), V3(0.21, 0.2, 0.19), V3(0.42, 0.34, 0.25)][(k / 13) % 3]
+            l.hat = .wideBrim; l.hatColor = [V3(0.16, 0.13, 0.11), V3(0.3, 0.23, 0.16), V3(0.11, 0.1, 0.1)][(k / 17) % 3]
+            l.bandolier = true
+        } else {
+            l.shirt = [V3(0.48, 0.2, 0.16), V3(0.38, 0.36, 0.32), V3(0.3, 0.33, 0.38)][(k / 11) % 3]
+            l.vest = [V3(0.2, 0.15, 0.11), V3(0.12, 0.12, 0.12)][(k / 13) % 2]
+            l.rolledSleeves = true
+            if k % 2 == 0 { l.hat = .flatCap; l.hatColor = [V3(0.24, 0.22, 0.2), V3(0.3, 0.25, 0.19)][(k / 17) % 2] }
+            else { l.bald = k % 3 == 0 }
+        }
+        return l
+    }
 }
 
 func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
     let l = TownLook.of(m)
-    let w = m.townWeapon
+    let raider = m.kind == .pillager || m.kind == .vindicator          // P444: Marauders and Brigands
+    let w: TownWeapon = raider ? (m.kind == .vindicator ? .axe : .none) : m.townWeapon
+    let aiming = m.kind == .pillager && m.aimHold > 0                     // the crossbow up at the shoulder
     var p: [Part] = []
     p.reserveCapacity(48)
     func b(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = Pat.cloth) {
@@ -143,11 +173,34 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
     }
     if let t = l.bowTie { b(-1.4, 22.4, -2.5, 1.4, 23.3, -2.3, t) }
     if l.tape { b(-2.4, 21, -2.45, -1.6, 23.5, -2.3, V3(0.92, 0.82, 0.3)); b(1.6, 21, -2.45, 2.4, 23.5, -2.3, V3(0.92, 0.82, 0.3)) }
+    if l.bandolier {
+        // From the left shoulder to the right hip, front and back, bolt heads in its loops; a quiver on the back.
+        let strap = V3(0.24, 0.17, 0.11), tip = V3(0.55, 0.56, 0.58)
+        func d(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float, _ pv: V3, _ rz: Float) {
+            p.append(Part(mn: V3(x0, y0, z0), mx: V3(x1, y1, z1), pivot: pv, rotZ: rz, color: c, pattern: pat))
+        }
+        let f = V3(0, 18.3, -2.75), bk = V3(0, 18.3, 2.75)
+        d(-0.85, 11.8, -2.95, 0.85, 24.8, -2.55, strap, Pat.leather, f, 0.65)
+        d(-0.85, 11.8, 2.55, 0.85, 24.8, 2.95, strap, Pat.leather, bk, 0.65)
+        if lv < 2 { for o: Float in [-4.4, -2.2, 0, 2.2, 4.4] { d(-0.5, 18.3 + o - 0.45, -3.25, 0.5, 18.3 + o + 0.45, -2.9, tip, Pat.metal, f, 0.65) } }
+        let q = V3(1.8, 18, 3.6)
+        d(0.4, 12.5, 2.6, 3.2, 21.5, 4.6, V3(0.36, 0.25, 0.15), Pat.leather, q, -0.3)                // the quiver
+        if lv < 2 { d(0.7, 21.5, 3.0, 2.9, 23.6, 4.2, V3(0.82, 0.8, 0.74), Pat.cloth, q, -0.3) }        // fletchings
+    }
     // Arms: walk swing, the weapon raised / striking, or hands up.
-    let engaged = m.town.foe != nil || m.town.anger > 0 || m.town.drawn > 0
+    let engaged = raider ? m.aggro || aiming : m.town.foe != nil || m.town.anger > 0 || m.town.drawn > 0
     var right = -swing * 0.8, left = swing * 0.8
     var rz: Float = 0
-    if m.town.handsUp > 0 {
+    var aimY: (left: Float, right: Float) = (0, 0)
+    if aiming {
+        // Both arms up and in: the right hand under the crossbow's fore-end, the left across at its grip.
+        right = 1.8; left = 1.8; aimY = (-0.9, 0.37)
+    } else if raider {
+        if m.kind == .vindicator && m.strikeT > 0 {
+            let k = 1 - min(1, m.strikeT / 0.3)                  // the axe comes down through the lunge
+            right = 2.6 - 2.2 * k * k
+        } else if m.kind == .vindicator && engaged { right = 1.0 }
+    } else if m.town.handsUp > 0 {
         right = .pi - 0.12; left = .pi - 0.12; rz = 0.22
     } else if w == .revolver && m.town.swing > 0 {
         right = .pi / 2 + 0.6 * m.town.swing / 0.3            // the six-iron's recoil kick
@@ -164,26 +217,29 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
     let sway: Float = sinf(m.animT * 1.25 + Float((m.villager?.look ?? 0) % 7)) * 0.04 * still
     right += sway; left -= sway * 0.8
     let sleeve = l.coat ?? l.shirt
+    let hand = l.gloves ?? l.skin
     for (side, rot) in [(Float(-1), left), (1, right)] {
         let x0: Float = side < 0 ? -7.0 : 4.2, x1: Float = side < 0 ? -4.2 : 7.0
         let pivot = V3(side * 5.6, 23, 0)
         let z = side * rz + side * 0.03 * still
+        let y = side < 0 ? aimY.left : aimY.right
         func arm(_ mn: V3, _ mx: V3, _ c: V3, _ pat: Float) {
-            p.append(Part(mn: mn, mx: mx, pivot: pivot, rotX: rot, rotZ: z, color: c, pattern: pat))
+            p.append(Part(mn: mn, mx: mx, pivot: pivot, rotX: rot, rotZ: z, color: c, pattern: pat, rotY: y))
         }
         let cuff: Float = l.rolledSleeves ? 18 : 14.4
         arm(V3(x0, cuff, -1.4), V3(x1, 23.6, 1.4), sleeve, Pat.cloth)
         if l.rolledSleeves { arm(V3(x0 + 0.15, 14.2, -1.25), V3(x1 - 0.15, 18, 1.25), l.skin, Pat.skin) }
         else if lv < 2 { arm(V3(x0 - 0.05, 14.4, -1.45), V3(x1 + 0.05, 15.0, 1.45), sleeve * 0.9, Pat.cloth) }       // cuff
         // The hand: narrower and flatter than the arm, the thumb forward on the inner side.
-        arm(V3(x0 + 0.35, 11.7, -1.05), V3(x1 - 0.35, 14.4, 1.15), l.skin, Pat.skin)
+        arm(V3(x0 + 0.35, 11.7, -1.05), V3(x1 - 0.35, 14.4, 1.15), hand, l.gloves == nil ? Pat.skin : Pat.leather)
         if lv == 0 {
             let tx0: Float = side < 0 ? x1 - 1.0 : x0 + 0.2, tx1: Float = side < 0 ? x1 - 0.2 : x0 + 1.0
-            arm(V3(tx0, 12.8, -1.5), V3(tx1, 14.1, -0.95), l.skin * 0.96, Pat.skin)
+            arm(V3(tx0, 12.8, -1.5), V3(tx1, 14.1, -0.95), hand * 0.96, l.gloves == nil ? Pat.skin : Pat.leather)
         }
     }
     // The weapon or tool in the right hand.
     p += townWeaponParts(w, combat: engaged && m.town.handsUp <= 0, pivot: V3(5.6, 23, 0), rotX: right, rotZ: rz)
+    if m.kind == .pillager { p += crossbowParts(aiming: aiming, pivot: V3(5.6, 23, 0), rotX: right, lod: lv) }
     // Head: face, hair, beard, glasses, headgear. P295: built in the old head's frame (23.5 to 30.5), then drawn at a
     // person's proportions (a fifth smaller, about one in five and a half of their height) on a neck: ears, chin, lips,
     // pupils and lids, blinking now and then.
@@ -242,6 +298,20 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
     else { b(-3.35, 26, 0, -3.15, 29, 3.3, l.hair); b(3.15, 26, 0, 3.35, 29, 3.3, l.hair) }
     if l.longHair { b(-3.5, 21.5, 2.2, 3.5, 30, 3.6, l.hair); b(-3.5, 25.5, -1.5, -3.2, 30, 3, l.hair); b(3.2, 25.5, -1.5, 3.5, 30, 3, l.hair) }
     if l.beard { b(-3.3, 23.4, -3.45, 3.3, 25.6, -1.2, l.hair); b(-1.8, 25.4, -3.5, 1.8, 26, -3.3, l.hair) }
+    if let mk = l.mask {
+        // The bandana: round the jaw and pulled up over the nose to just under the eyes, its point under the chin, the
+        // knot behind.
+        // Up to the eyes so no skin shows between (under a strip of skin it read as a beard), a low ridge over the nose
+        // (a tall one read as a clown's nose), a folded hem, the cloth hanging from the nose in a tent (shaded sides,
+        // no marks across it: a row of dots read as teeth) to a wide point under the chin, the knot behind.
+        b(-3.38, 23.2, -3.52, 3.38, 26.75, 3.52, mk)
+        b(-3.42, 26.35, -3.6, 3.42, 26.8, -3.48, mk * 0.78)                                        // hem
+        b(-0.75, 22.4, -3.82, 0.75, 26.7, -3.5, mk * 1.08)                                         // from the nose down
+        if lv < 2 { b(-1.35, 22.4, -3.66, -0.75, 25.6, -3.5, mk * 0.84); b(0.75, 22.4, -3.66, 1.35, 25.6, -3.5, mk * 0.84) }
+        b(-2.6, 22.2, -3.7, 2.6, 23.25, -3.3, mk * 0.92)                                           // the point
+        b(-1.3, 21.35, -3.66, 1.3, 22.2, -3.34, mk * 0.86)
+        if lv < 2 { b(-0.8, 24.6, 3.5, 0.8, 26.3, 4.1, mk * 0.82); b(-0.45, 23.2, 3.6, 0.45, 24.6, 3.95, mk * 0.82) }   // knot
+    }
     if l.glasses {
         let g = V3(0.25, 0.22, 0.2)
         b(-2.5, 26.8, -3.5, -0.6, 27.1, -3.35, g, Pat.metal); b(0.6, 26.8, -3.5, 2.5, 27.1, -3.35, g, Pat.metal)
@@ -304,6 +374,44 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
 }
 
 @inline(__always) private func mixV(_ a: V3, _ b: V3, _ t: Float) -> V3 { a + (b - a) * t }
+
+// P444: the Marauder's crossbow. Aimed: level at the right eye's height along the body's front, the butt by the
+// shoulder, bolt loaded and the string drawn back to the nut (the arms posed up and in to hold it: townsfolkParts).
+// Carried: in the right hand, canted on its side so the prod stands upright beside the leg, swinging with the arm.
+// (Parts carry a pivot, so the head's turn leaves them alone: MobAnim's fixedOnly.)
+func crossbowParts(aiming: Bool, pivot: V3, rotX: Float, lod: Int) -> [Part] {
+    let wood = V3(0.42, 0.28, 0.15), dark = V3(0.25, 0.17, 0.1), iron = V3(0.34, 0.35, 0.38), str = V3(0.82, 0.8, 0.72)
+    var p: [Part] = []
+    if aiming {
+        let pv = V3(2.5, 26.4, -8)
+        func a(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = 0, ry: Float = 0, at: V3? = nil) {
+            p.append(Part(mn: V3(x0, y0, z0), mx: V3(x1, y1, z1), pivot: at ?? pv, color: c, pattern: pat, rotY: ry))
+        }
+        a(1.9, 25.9, -14.6, 3.1, 26.9, -2.9, wood, Pat.leather)                     // stock
+        a(1.75, 25.0, -4.4, 3.25, 27.0, -2.9, dark, Pat.leather)                     // butt
+        a(2.3, 25.0, -7.0, 2.7, 25.9, -6.2, iron, Pat.metal)                         // trigger
+        a(-3.5, 26.2, -14.2, 8.5, 26.9, -13.4, dark, Pat.leather)                    // prod
+        a(-4.0, 26.2, -13.6, -3.0, 26.9, -12.0, iron, Pat.metal); a(8.0, 26.2, -13.6, 9.0, 26.9, -12.0, iron, Pat.metal)
+        a(1.7, 25.6, -15.6, 3.3, 26.9, -14.6, iron, Pat.metal)                       // stirrup
+        let nut = V3(2.5, 27.0, -8.0)
+        a(2.5 - 7.33, 26.95, -8.06, 2.5, 27.1, -7.94, str, ry: -0.61, at: nut)        // string, drawn back
+        a(2.5, 26.95, -8.06, 2.5 + 7.33, 27.1, -7.94, str, ry: 0.61, at: nut)
+        a(2.35, 26.9, -16.0, 2.65, 27.25, -8.0, wood)                                // bolt
+        a(2.3, 26.85, -17.0, 2.7, 27.3, -16.0, iron, Pat.metal)
+        if lod < 2 { a(2.1, 26.95, -9.2, 2.9, 27.2, -8.0, str * 0.95) }               // fletching
+    } else {
+        func a(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = 0) {
+            p.append(Part(mn: V3(x0, y0, z0), mx: V3(x1, y1, z1), pivot: pivot, rotX: rotX, color: c, pattern: pat))
+        }
+        a(5.0, 12.5, -10.2, 6.2, 13.7, 3.2, wood, Pat.leather)                       // stock through the fist
+        a(4.9, 11.6, 1.8, 6.3, 13.8, 3.4, dark, Pat.leather)                         // butt
+        a(5.2, 7.6, -9.6, 6.0, 18.6, -8.8, dark, Pat.leather)                        // prod, upright
+        a(5.25, 7.1, -8.8, 5.95, 8.1, -7.6, iron, Pat.metal); a(5.25, 18.1, -8.8, 5.95, 19.1, -7.6, iron, Pat.metal)
+        a(5.5, 7.9, -7.7, 5.7, 18.8, -7.5, str)                                      // string, slack
+        a(4.95, 12.3, -11.2, 6.25, 13.9, -10.2, iron, Pat.metal)                     // stirrup
+    }
+    return p
+}
 
 // The weapon in the right hand: carried along the arm (hanging / a staff), or pointing forward from the hand while
 // fighting (raised by the arm's rotation). Built in the right arm's frame (same pivot and rotation).
