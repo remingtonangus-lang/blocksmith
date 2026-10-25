@@ -1,6 +1,6 @@
 # Voice bug notes 2026-10-24 (Quest)
 
-Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 344 notes.
+Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 464 notes.
 
 ## 10:12:18 - Okay, here we are
 
@@ -7964,3 +7964,2789 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 - **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-160559-273.aac
 
 ![16:05:59](voice-shots/vn-20261024-160559-273.jpg)
+
+## 20:47:21 - Okay, let's see what we're doing here
+
+- **Transcript:** Okay, let's see what we're doing here
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4680.4 106.5 -3353.8
+- **Facing:** north-east (yaw 43, pitch -52)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4681 105 -3355
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 07:31, clear
+- **Fps:** 71
+- **Levels:** mic -31 dBFS, game sound -85 dBFS
+- **Length:** 2.7 s (voice 1.2 s)
+- **Just before:** -5s opened PauseMenu; -2s closed PauseMenu; -2s message: Playtest build: voice bug notes ON, your speech is saved (Options > Interface); --0s holding empty hand; --2s message: Walking; --3s opened PauseMenu; --7s opened KeyboardMenu; --7s opened PauseMenu; -5s closed PauseMenu; -5s holding Grass Block; -5s message: In Clear Ford's jail safe: a Greywall Dispatch; -4s message: In Clear Ford's jail safe: a Greywall Dispatch. Added to journal: Who Holds the Frontier; -2s opened ChestMenu; -2s closed ChestMenu; -0s message: Spring: the snow melts and the young are born
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4680.4 --z -3353.8 --yaw -43 --pitch -52 --time 0.064`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204721-758.aac
+
+![20:47:21](voice-shots/vn-20261024-204721-758.jpg)
+
+## 20:47:25 - Trees look good so far
+
+- **Transcript:** Trees look good so far
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4695.0 104.9 -3355.9
+- **Facing:** east (yaw 69, pitch -38)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4696 104 -3357
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 07:35, clear
+- **Fps:** 72
+- **Levels:** mic -36 dBFS, game sound -19 dBFS
+- **Length:** 3.9 s (voice 1.0 s)
+- **Just before:** -8s opened PauseMenu; -5s closed PauseMenu; -5s message: Playtest build: voice bug notes ON, your speech is saved (Options > Interface); -3s holding empty hand; -2s message: Walking; -0s opened PauseMenu; --3s opened KeyboardMenu; --4s opened PauseMenu; -8s closed PauseMenu; -8s holding Grass Block; -8s message: In Clear Ford's jail safe: a Greywall Dispatch; -7s message: In Clear Ford's jail safe: a Greywall Dispatch. Added to journal: Who Holds the Frontier; -6s opened ChestMenu; -5s closed ChestMenu; -4s message: Spring: the snow melts and the young are born
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4695.0 --z -3355.9 --yaw -69 --pitch -38 --time 0.067`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204725-179.aac
+
+## 20:47:38 - Now what is going on here?
+
+- **Transcript:** Now what is going on here?
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4736.9 100.3 -3392.0
+- **Facing:** east (yaw 104, pitch -67)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4736 99 -3393
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 07:51, clear
+- **Fps:** 70
+- **Levels:** mic -39 dBFS, game sound -26 dBFS
+- **Length:** 3.0 s (voice 1.5 s)
+- **Just before:** -21s opened PauseMenu; -19s closed PauseMenu; -19s message: Playtest build: voice bug notes ON, your speech is saved (Options > Interface); -17s holding empty hand; -15s message: Walking; -14s opened PauseMenu; -10s opened KeyboardMenu; -9s opened PauseMenu; -21s closed PauseMenu; -21s holding Grass Block; -21s message: In Clear Ford's jail safe: a Greywall Dispatch; -21s message: In Clear Ford's jail safe: a Greywall Dispatch. Added to journal: Who Holds the Frontier; -19s opened ChestMenu; -18s closed ChestMenu; -17s message: Spring: the snow melts and the young are born; -8s left the pack: Himmelsturm Launcher (at 4708 101 -3377); -8s left the pack: Donnerkeil Service Rifle x3 (at 4708 101 -3377); -8s left the pack: Hagel Machine Pistol (at 4708 101 -3377); -8s left the pack: Falke Pistol x2 (at 4708 101 -3377); -8s left the pack: Rocket x6 (at 4708 101 -3377); -8s left the pack: Mahlwerk Rotary Gun (at 4708 101 -3377); -8s left the pack: Aero Engine Spares x4 (at 4708 101 -3377); -8s left the pack: Jetpack x2 (at 4708 101 -3377); -8s left the pack: Regular Armour Set (at 4708 101 -3377); -8s left the pack: Spec Ops Armour Set (at 4708 101 -3377); -8s left the pack: Faustrohr Warhead x12 (at 4708 101 -3377); -8s left the pack: Fernblick Rifle x2 (at 4708 101 -3377); -8s left the pack: Titanium Pickaxe (at 4708 101 -3377); -8s left the pack: Sturmwind Carbine x2 (at 4708 101 -3377)
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4736.9 --z -3392.0 --yaw -104 --pitch -67 --time 0.078`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204738-559.aac
+
+![20:47:38](voice-shots/vn-20261024-204738-559.jpg)
+
+## 20:47:48 - That is so weird. Why isn't this loading?
+
+- **Transcript:** That is so weird. Why isn't this loading?
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4727.1 100.5 -3391.2
+- **Facing:** north-west (yaw 308, pitch -48)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4725 99 -3393
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 08:03, clear
+- **Fps:** 72
+- **Levels:** mic -37 dBFS, game sound -26 dBFS
+- **Length:** 4.1 s (voice 2.5 s)
+- **Just before:** -28s closed PauseMenu; -28s message: Playtest build: voice bug notes ON, your speech is saved (Options > Interface); -26s holding empty hand; -25s message: Walking; -23s opened PauseMenu; -20s opened KeyboardMenu; -19s opened PauseMenu; -28s opened ChestMenu; -28s closed ChestMenu; -27s message: Spring: the snow melts and the young are born; -18s left the pack: Himmelsturm Launcher (at 4708 101 -3377); -18s left the pack: Donnerkeil Service Rifle x3 (at 4708 101 -3377); -18s left the pack: Hagel Machine Pistol (at 4708 101 -3377); -18s left the pack: Falke Pistol x2 (at 4708 101 -3377); -18s left the pack: Rocket x6 (at 4708 101 -3377); -18s left the pack: Mahlwerk Rotary Gun (at 4708 101 -3377); -18s left the pack: Aero Engine Spares x4 (at 4708 101 -3377); -18s left the pack: Jetpack x2 (at 4708 101 -3377); -18s left the pack: Regular Armour Set (at 4708 101 -3377); -18s left the pack: Spec Ops Armour Set (at 4708 101 -3377); -18s left the pack: Faustrohr Warhead x12 (at 4708 101 -3377); -18s left the pack: Fernblick Rifle x2 (at 4708 101 -3377); -18s left the pack: Titanium Pickaxe (at 4708 101 -3377); -18s left the pack: Sturmwind Carbine x2 (at 4708 101 -3377); -5s took 1 damage (health 19/20)
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4727.1 --z -3391.2 --yaw 52 --pitch -48 --time 0.086`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204748-279.aac
+
+## 20:47:52 - Why are there mobs over there?
+
+- **Transcript:** Why are there mobs over there?
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4741.6 101.1 -3382.4
+- **Facing:** east (yaw 91, pitch -3)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Spruce Leaves at 4744 102 -3383
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 08:08, clear
+- **Fps:** 70
+- **Levels:** mic -26 dBFS, game sound -25 dBFS
+- **Length:** 2.7 s (voice 1.3 s)
+- **Just before:** -29s message: Walking; -27s opened PauseMenu; -24s opened KeyboardMenu; -23s opened PauseMenu; -22s left the pack: Himmelsturm Launcher (at 4708 101 -3377); -22s left the pack: Donnerkeil Service Rifle x3 (at 4708 101 -3377); -22s left the pack: Hagel Machine Pistol (at 4708 101 -3377); -22s left the pack: Falke Pistol x2 (at 4708 101 -3377); -22s left the pack: Rocket x6 (at 4708 101 -3377); -22s left the pack: Mahlwerk Rotary Gun (at 4708 101 -3377); -22s left the pack: Aero Engine Spares x4 (at 4708 101 -3377); -22s left the pack: Jetpack x2 (at 4708 101 -3377); -22s left the pack: Regular Armour Set (at 4708 101 -3377); -22s left the pack: Spec Ops Armour Set (at 4708 101 -3377); -22s left the pack: Faustrohr Warhead x12 (at 4708 101 -3377); -22s left the pack: Fernblick Rifle x2 (at 4708 101 -3377); -22s left the pack: Titanium Pickaxe (at 4708 101 -3377); -22s left the pack: Sturmwind Carbine x2 (at 4708 101 -3377); -9s took 1 damage (health 19/20)
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4741.6 --z -3382.4 --yaw -91 --pitch -3 --time 0.089`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204752-299.aac
+
+![20:47:52](voice-shots/vn-20261024-204752-299.jpg)
+
+## 20:47:55 - Something is, uh, not right
+
+- **Transcript:** Something is, uh, not right
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4746.0 102.0 -3372.0
+- **Facing:** south-east (yaw 133, pitch -39)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4748 100 -3370
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 08:12, clear
+- **Fps:** 72
+- **Levels:** mic -42 dBFS, game sound -24 dBFS
+- **Length:** 3.4 s (voice 1.8 s)
+- **Just before:** -27s opened KeyboardMenu; -26s opened PauseMenu; -25s left the pack: Himmelsturm Launcher (at 4708 101 -3377); -25s left the pack: Donnerkeil Service Rifle x3 (at 4708 101 -3377); -25s left the pack: Hagel Machine Pistol (at 4708 101 -3377); -25s left the pack: Falke Pistol x2 (at 4708 101 -3377); -25s left the pack: Rocket x6 (at 4708 101 -3377); -25s left the pack: Mahlwerk Rotary Gun (at 4708 101 -3377); -25s left the pack: Aero Engine Spares x4 (at 4708 101 -3377); -25s left the pack: Jetpack x2 (at 4708 101 -3377); -25s left the pack: Regular Armour Set (at 4708 101 -3377); -25s left the pack: Spec Ops Armour Set (at 4708 101 -3377); -25s left the pack: Faustrohr Warhead x12 (at 4708 101 -3377); -25s left the pack: Fernblick Rifle x2 (at 4708 101 -3377); -25s left the pack: Titanium Pickaxe (at 4708 101 -3377); -25s left the pack: Sturmwind Carbine x2 (at 4708 101 -3377); -12s took 1 damage (health 19/20); -3s message: The sky is clouding over: fog is coming
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4746.0 --z -3372.0 --yaw -133 --pitch -39 --time 0.092`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204755-659.aac
+
+## 20:48:02 - Wait a minute
+
+- **Transcript:** Wait a minute
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4743.6 101.4 -3373.4
+- **Facing:** north-east (yaw 31, pitch -44)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4744 100 -3375
+- **Mode:** Survival, health 20/20, screen PauseMenu
+- **Time:** day 1 08:20, clear
+- **Fps:** 71
+- **Levels:** mic -39 dBFS, game sound -31 dBFS
+- **Length:** 2.2 s (voice 0.4 s)
+- **Just before:** -19s took 1 damage (health 19/20); -10s message: The sky is clouding over: fog is coming; -0s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4743.6 --z -3373.4 --yaw -31 --pitch -44 --time 0.097`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204802-999.aac
+
+![20:48:02](voice-shots/vn-20261024-204802-999.jpg)
+
+## 20:48:14 - Yeah, so
+
+- **Transcript:** Yeah, so
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4831.1 121.3 -3358.0
+- **Facing:** west (yaw 284, pitch -51)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:29, clear
+- **Fps:** 62
+- **Levels:** mic -25 dBFS, game sound -21 dBFS
+- **Length:** 2.9 s (voice 1.3 s)
+- **Just before:** -29s took 1 damage (health 19/20); -20s message: The sky is clouding over: fog is coming; -10s opened PauseMenu; -8s message: Creative mode; -8s closed PauseMenu; -7s message: Flying; -3s message: Walking; -1s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4831.1 --z -3358.0 --yaw 76 --pitch -51 --time 0.104`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204814-739.aac
+
+![20:48:14](voice-shots/vn-20261024-204814-739.jpg)
+
+## 20:48:19 - Shit's not loading very well
+
+- **Transcript:** Shit's not loading very well
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4717.5 143.4 -3269.3
+- **Facing:** north-west (yaw 313, pitch -51)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:33, clear
+- **Fps:** 49
+- **Levels:** mic -32 dBFS, game sound -17 dBFS
+- **Length:** 2.5 s (voice 1.2 s)
+- **Just before:** -23s message: The sky is clouding over: fog is coming; -13s opened PauseMenu; -11s message: Creative mode; -11s closed PauseMenu; -9s message: Flying; -5s message: Walking; -4s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4717.5 --z -3269.3 --yaw 47 --pitch -51 --time 0.106`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204819-239.aac
+
+## 20:48:23 - Distance eight, research check. Distance
+
+- **Transcript:** Distance eight, research check. Distance
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4740.5 143.5 -3278.6
+- **Facing:** north (yaw 17, pitch -34)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen PauseMenu
+- **Time:** day 1 08:35, clear
+- **Fps:** 41
+- **Levels:** mic -29 dBFS, game sound -27 dBFS
+- **Length:** 4.3 s (voice 0.9 s)
+- **Just before:** -26s message: The sky is clouding over: fog is coming; -16s opened PauseMenu; -15s message: Creative mode; -14s closed PauseMenu; -13s message: Flying; -9s message: Walking; -8s message: Flying; -2s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4740.5 --z -3278.6 --yaw -17 --pitch -34 --time 0.108`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204823-719.aac
+
+## 20:48:27 - Things really are not loading very well. I don't know why
+
+- **Transcript:** Things really are not loading very well. I don't know why
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4711.5 143.5 -3296.5
+- **Facing:** north-west (yaw 334, pitch -59)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:36, clear
+- **Fps:** 63
+- **Levels:** mic -30 dBFS, game sound -16 dBFS
+- **Length:** 4.4 s (voice 2.7 s)
+- **Just before:** -29s message: The sky is clouding over: fog is coming; -19s opened PauseMenu; -18s message: Creative mode; -17s closed PauseMenu; -16s message: Flying; -12s message: Walking; -11s message: Flying; -5s opened PauseMenu; -1s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4711.5 --z -3296.5 --yaw 26 --pitch -59 --time 0.109`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204827-919.aac
+
+![20:48:27](voice-shots/vn-20261024-204827-919.jpg)
+
+## 20:48:36 - This is loading really badly
+
+- **Transcript:** This is loading really badly
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4713.7 143.5 -3195.1
+- **Facing:** south-east (yaw 138, pitch -40)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:45, clear
+- **Fps:** 72
+- **Levels:** mic -29 dBFS, game sound -21 dBFS
+- **Length:** 3.2 s (voice 1.7 s)
+- **Just before:** -27s opened PauseMenu; -25s message: Creative mode; -25s closed PauseMenu; -24s message: Flying; -20s message: Walking; -18s message: Flying; -13s opened PauseMenu; -9s closed PauseMenu; -7s walked into Grove; -5s walked into Taiga; -1s walked into Grove
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4713.7 --z -3195.1 --yaw -138 --pitch -40 --time 0.115`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204836-159.aac
+
+## 20:48:39 - Fact that this, like, chunks over here are refusing to load. Like, thi
+
+- **Transcript:** Fact that this, like, chunks over here are refusing to load. Like, this is just, this is just really bad
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4838.1 143.5 -3320.4
+- **Facing:** north (yaw 10, pitch -48)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:48, clear
+- **Fps:** 72
+- **Levels:** mic -30 dBFS, game sound -17 dBFS
+- **Length:** 6.1 s (voice 3.6 s)
+- **Just before:** -30s opened PauseMenu; -28s message: Creative mode; -28s closed PauseMenu; -26s message: Flying; -23s message: Walking; -21s message: Flying; -15s opened PauseMenu; -11s closed PauseMenu; -10s walked into Grove; -8s walked into Taiga; -4s walked into Grove; -2s walked into Taiga
+- **Position at the end:** 4800.8 143.5 -3207.9
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4838.1 --z -3320.4 --yaw -10 --pitch -48 --time 0.117`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204839-119.aac
+
+![20:48:39](voice-shots/vn-20261024-204839-119.jpg)
+
+## 20:48:48 - It's not loading at all. Like it can't-- It's not doing anything
+
+- **Transcript:** It's not loading at all. Like it can't-- It's not doing anything
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4778.3 143.5 -3361.0
+- **Facing:** north-west (yaw 327, pitch -31)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:59, clear
+- **Fps:** 66
+- **Levels:** mic -34 dBFS, game sound -17 dBFS
+- **Length:** 4.4 s (voice 2.1 s)
+- **Just before:** -30s message: Flying; -24s opened PauseMenu; -20s closed PauseMenu; -19s walked into Grove; -17s walked into Taiga; -13s walked into Grove; -11s walked into Taiga
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4778.3 --z -3361.0 --yaw 33 --pitch -31 --time 0.125`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204848-379.aac
+
+## 20:48:52 - Yeah, mayor
+
+- **Transcript:** Yeah, mayor
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4780.5 143.5 -3344.0
+- **Facing:** south-west (yaw 211, pitch -53)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen PauseMenu
+- **Time:** day 1 09:02, clear
+- **Fps:** 70
+- **Levels:** mic -31 dBFS, game sound -37 dBFS
+- **Length:** 1.7 s (voice 0.6 s)
+- **Just before:** -28s opened PauseMenu; -24s closed PauseMenu; -22s walked into Grove; -20s walked into Taiga; -16s walked into Grove; -14s walked into Taiga; -1s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4780.5 --z -3344.0 --yaw 149 --pitch -53 --time 0.127`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204852-499.aac
+
+![20:48:52](voice-shots/vn-20261024-204852-499.jpg)
+
+## 20:49:03 - I'm gonna put it on 24 just to see what happens
+
+- **Transcript:** I'm gonna put it on 24 just to see what happens
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4816.4 143.5 -3294.8
+- **Facing:** south-west (yaw 213, pitch -60)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 09:04, clear
+- **Fps:** 62
+- **Levels:** mic -33 dBFS, game sound -18 dBFS
+- **Length:** 4.2 s (voice 2.0 s)
+- **Just before:** -29s walked into Taiga; -25s walked into Grove; -23s walked into Taiga; -10s opened PauseMenu; -1s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4816.4 --z -3294.8 --yaw 147 --pitch -60 --time 0.128`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204903-279.aac
+
+![20:49:03](voice-shots/vn-20261024-204903-279.jpg)
+
+## 20:49:08 - Which predictably nothing happened
+
+- **Transcript:** Which predictably nothing happened
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4737.4 143.5 -3281.1
+- **Facing:** west (yaw 262, pitch -44)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen PauseMenu
+- **Time:** day 1 09:09, clear
+- **Fps:** 62
+- **Levels:** mic -19 dBFS, game sound -13 dBFS
+- **Length:** 2.5 s (voice 1.0 s)
+- **Just before:** -28s walked into Taiga; -15s opened PauseMenu; -6s closed PauseMenu; -0s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4737.4 --z -3281.1 --yaw 98 --pitch -44 --time 0.132`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204908-199.aac
+
+## 20:49:19 - Active distance slider is doing nothing
+
+- **Transcript:** Active distance slider is doing nothing
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4731.1 143.1 -3271.1
+- **Facing:** west (yaw 264, pitch -40)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 09:10, clear
+- **Fps:** 72
+- **Levels:** mic -24 dBFS, game sound -16 dBFS
+- **Length:** 3.7 s (voice 1.9 s)
+- **Just before:** -26s opened PauseMenu; -17s closed PauseMenu; -11s opened PauseMenu; -1s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4731.1 --z -3271.1 --yaw 96 --pitch -40 --time 0.132`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204919-139.aac
+
+![20:49:19](voice-shots/vn-20261024-204919-139.jpg)
+
+## 20:49:23 - Like, wow, it's not rendering fast at all. Like, it is worst it's ever
+
+- **Transcript:** Like, wow, it's not rendering fast at all. Like, it is worst it's ever been for rendering
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4631.0 147.4 -3256.6
+- **Facing:** east (yaw 110, pitch -44)
+- **Held:** Grass Block x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 09:15, clear
+- **Fps:** 67
+- **Levels:** mic -36 dBFS, game sound -15 dBFS
+- **Length:** 7.3 s (voice 4.0 s)
+- **Just before:** -30s opened PauseMenu; -21s closed PauseMenu; -15s opened PauseMenu; -5s closed PauseMenu; -2s walked into Grove; -0s walked into Snowy Taiga
+- **While talking:** -3s walked into Taiga
+- **Position at the end:** 4698.2 156.7 -3210.2
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4631.0 --z -3256.6 --yaw -110 --pitch -44 --time 0.136`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204923-599.aac
+
+## 20:49:33 - Like, holy shit
+
+- **Transcript:** Like, holy shit
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4669.9 123.3 -3177.9
+- **Facing:** south (yaw 180, pitch -74)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Snowy Grass Block at 4670 122 -3178
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 09:26, clear
+- **Fps:** 72
+- **Levels:** mic -23 dBFS, game sound -18 dBFS
+- **Length:** 2.0 s (voice 0.7 s)
+- **Just before:** -24s opened PauseMenu; -14s closed PauseMenu; -12s walked into Grove; -10s walked into Snowy Taiga; -8s walked into Taiga; -4s walked into Grove; -3s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4669.9 --z -3177.9 --yaw 180 --pitch -74 --time 0.143`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204933-299.aac
+
+![20:49:33](voice-shots/vn-20261024-204933-299.jpg)
+
+## 20:49:35 - I don't know what's wrong
+
+- **Transcript:** I don't know what's wrong
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4675.3 122.0 -3185.5
+- **Facing:** south-west (yaw 210, pitch -76)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Snow at 4675 122 -3186
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 09:28, clear
+- **Fps:** 63
+- **Levels:** mic -29 dBFS, game sound -12 dBFS
+- **Length:** 2.1 s (voice 0.7 s)
+- **Just before:** -26s opened PauseMenu; -16s closed PauseMenu; -14s walked into Grove; -12s walked into Snowy Taiga; -10s walked into Taiga; -6s walked into Grove; -5s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4675.3 --z -3185.5 --yaw 150 --pitch -76 --time 0.145`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204935-599.aac
+
+## 20:49:38 - I'm gonna go test in a older world. It could be a generation issue or 
+
+- **Transcript:** I'm gonna go test in a older world. It could be a generation issue or something. I have no idea
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4684.0 121.2 -3180.1
+- **Facing:** south (yaw 162, pitch -47)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Snow at 4684 121 -3179
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 09:31, clear
+- **Fps:** 63
+- **Levels:** mic -25 dBFS, game sound -15 dBFS
+- **Length:** 5.9 s (voice 4.3 s)
+- **Just before:** -29s opened PauseMenu; -19s closed PauseMenu; -17s walked into Grove; -14s walked into Snowy Taiga; -12s walked into Taiga; -8s walked into Grove; -8s message: Walking; -1s opened PauseMenu; -0s closed PauseMenu
+- **Position at the end:** 4677.1 122.3 -3176.2
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4684.0 --z -3180.1 --yaw -162 --pitch -47 --time 0.147`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204938-399.aac
+
+## 20:49:44 - Um, okay
+
+- **Transcript:** Um, okay
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4675.6 122.6 -3175.0
+- **Facing:** north-east (yaw 49, pitch -16)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 09:38, clear
+- **Fps:** 72
+- **Levels:** mic -29 dBFS, game sound -19 dBFS
+- **Length:** 2.9 s (voice 1.1 s)
+- **Just before:** -24s closed PauseMenu; -22s walked into Grove; -20s walked into Snowy Taiga; -18s walked into Taiga; -14s walked into Grove; -13s message: Walking; -7s opened PauseMenu; -6s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4675.6 --z -3175.0 --yaw -49 --pitch -16 --time 0.152`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204944-379.aac
+
+![20:49:44](voice-shots/vn-20261024-204944-379.jpg)
+
+## 20:49:47 - The tree did way better
+
+- **Transcript:** The tree did way better
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4678.2 122.1 -3178.2
+- **Facing:** east (yaw 73, pitch -30)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Spruce Log at 4680 122 -3179
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 09:41, clear
+- **Fps:** 69
+- **Levels:** mic -26 dBFS, game sound -15 dBFS
+- **Length:** 2.9 s (voice 1.5 s)
+- **Just before:** -27s closed PauseMenu; -25s walked into Grove; -23s walked into Snowy Taiga; -21s walked into Taiga; -17s walked into Grove; -16s message: Walking; -10s opened PauseMenu; -9s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4678.2 --z -3178.2 --yaw -73 --pitch -30 --time 0.154`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204947-359.aac
+
+## 20:49:49 - Uh, the only thing is the log turns into a different color
+
+- **Transcript:** Uh, the only thing is the log turns into a different color
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4684.8 121.0 -3176.0
+- **Facing:** north-east (yaw 46, pitch -17)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 09:45, clear
+- **Fps:** 69
+- **Levels:** mic -29 dBFS, game sound -25 dBFS
+- **Length:** 5.3 s (voice 2.7 s)
+- **Just before:** -28s walked into Grove; -26s walked into Snowy Taiga; -24s walked into Taiga; -20s walked into Grove; -19s message: Walking; -12s opened PauseMenu; -12s closed PauseMenu
+- **Position at the end:** 4676.6 122.5 -3173.9
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4684.8 --z -3176.0 --yaw -46 --pitch -17 --time 0.156`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-204949-999.aac
+
+## 20:50:01 - Okay. Whoa, this log turned into a square. That shouldn't have happene
+
+- **Transcript:** Okay. Whoa, this log turned into a square. That shouldn't have happened
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4676.3 122.5 -3169.5
+- **Facing:** east (yaw 100, pitch -29)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Snowy Grass Block at 4680 121 -3169
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 09:58, clear
+- **Fps:** 71
+- **Levels:** mic -53 dBFS, game sound -13 dBFS
+- **Length:** 4.3 s (voice 2.6 s)
+- **Just before:** -30s message: Walking; -23s opened PauseMenu; -23s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4676.3 --z -3169.5 --yaw -100 --pitch -29 --time 0.165`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205001-199.aac
+
+## 20:50:05 - This log is floating. That shouldn't be able to happen. It should be a
+
+- **Transcript:** This log is floating. That shouldn't be able to happen. It should be able to sit on whatever's under it
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4677.5 122.4 -3171.0
+- **Facing:** north-east (yaw 64, pitch -22)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Spruce Log at 4681 122 -3173
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 10:02, clear
+- **Fps:** 71
+- **Levels:** mic -33 dBFS, game sound -22 dBFS
+- **Length:** 6.4 s (voice 4.5 s)
+- **Just before:** -27s opened PauseMenu; -27s closed PauseMenu
+- **Position at the end:** 4677.0 122.4 -3173.5
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4677.5 --z -3171.0 --yaw -64 --pitch -22 --time 0.169`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205005-219.aac
+
+## 20:50:12 - This one turned into a giant square. Look at this. Not good. We don't 
+
+- **Transcript:** This one turned into a giant square. Look at this. Not good. We don't want that
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4673.1 123.0 -3174.6
+- **Facing:** north-east (yaw 37, pitch -27)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Snow at 4673 123 -3176
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 10:10, clear
+- **Fps:** 69
+- **Levels:** mic -39 dBFS, game sound -18 dBFS
+- **Length:** 5.7 s (voice 3.3 s)
+- **Position at the end:** 4681.8 121.6 -3176.1
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4673.1 --z -3174.6 --yaw -37 --pitch -27 --time 0.174`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205012-059.aac
+
+![20:50:12](voice-shots/vn-20261024-205012-059.jpg)
+
+## 20:50:18 - Um, I'm gonna put a little hole here
+
+- **Transcript:** Um, I'm gonna put a little hole here
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4686.9 120.6 -3181.5
+- **Facing:** east (yaw 73, pitch -48)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4688 119 -3183
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 10:18, clear
+- **Fps:** 68
+- **Levels:** mic -26 dBFS, game sound -23 dBFS
+- **Length:** 3.2 s (voice 1.5 s)
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4686.9 --z -3181.5 --yaw -73 --pitch -48 --time 0.179`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205018-599.aac
+
+## 20:50:27 - Tree falling over is nice
+
+- **Transcript:** Tree falling over is nice
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4684.2 121.1 -3180.3
+- **Facing:** north-east (yaw 64, pitch 5)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 10:27, clear
+- **Fps:** 60
+- **Levels:** mic -51 dBFS, game sound -22 dBFS
+- **Length:** 2.6 s (voice 1.1 s)
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4684.2 --z -3180.3 --yaw -64 --pitch 5 --time 0.186`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205027-499.aac
+
+## 20:50:33 - Yeah. Okay, neat
+
+- **Transcript:** Yeah. Okay, neat
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4685.3 120.8 -3181.7
+- **Facing:** north-east (yaw 34, pitch -24)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Spruce Log at 4687 120 -3185
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 10:35, clear
+- **Fps:** 71
+- **Levels:** mic -33 dBFS, game sound -17 dBFS
+- **Length:** 2.5 s (voice 0.9 s)
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4685.3 --z -3181.7 --yaw -34 --pitch -24 --time 0.191`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205033-979.aac
+
+## 20:50:37 - Little bit of lag for it, uh, falling over
+
+- **Transcript:** Little bit of lag for it, uh, falling over
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4685.9 120.5 -3185.6
+- **Facing:** north-east (yaw 26, pitch 20)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 10:39, clear
+- **Fps:** 67
+- **Levels:** mic -27 dBFS, game sound -25 dBFS
+- **Length:** 3.6 s (voice 1.7 s)
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4685.9 --z -3185.6 --yaw -26 --pitch 20 --time 0.194`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205037-779.aac
+
+![20:50:37](voice-shots/vn-20261024-205037-779.jpg)
+
+## 20:50:41 - Okay, this shouldn't be happening
+
+- **Transcript:** Okay, this shouldn't be happening
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4688.7 120.0 -3186.9
+- **Facing:** north (yaw 12, pitch 14)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 10:43, clear
+- **Fps:** 63
+- **Levels:** mic -29 dBFS, game sound -21 dBFS
+- **Length:** 2.8 s (voice 1.3 s)
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4688.7 --z -3186.9 --yaw -12 --pitch 14 --time 0.197`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205041-339.aac
+
+## 20:50:44 - See, this right here shows you the physics engine isn't developed yet.
+
+- **Transcript:** See, this right here shows you the physics engine isn't developed yet. I really like that rolling, though. That was really good. But see this?
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4688.9 119.9 -3187.2
+- **Facing:** north (yaw 15, pitch 33)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 10:45, clear
+- **Fps:** 63
+- **Levels:** mic -39 dBFS, game sound -21 dBFS
+- **Length:** 7.7 s (voice 4.8 s)
+- **Just before:** -2s walked into Taiga
+- **While talking:** -3s walked into Grove
+- **Position at the end:** 4687.8 120.1 -3186.2
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4688.9 --z -3187.2 --yaw -15 --pitch 33 --time 0.199`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205044-219.aac
+
+## 20:50:52 - This break between these two, this shouldn't-- this isn't physically p
+
+- **Transcript:** This break between these two, this shouldn't-- this isn't physically possible. That should be falling through the snow. This should be falling independently because it's not connected to this anymore
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4690.0 119.7 -3186.9
+- **Facing:** north (yaw 358, pitch 36)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 10:54, clear
+- **Fps:** 65
+- **Levels:** mic -27 dBFS, game sound -16 dBFS
+- **Length:** 10.5 s (voice 6.4 s)
+- **Just before:** -9s walked into Taiga; -5s walked into Grove; -1s walked into Taiga
+- **Position at the end:** 4690.0 119.7 -3186.9
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4690.0 --z -3186.9 --yaw 2 --pitch 36 --time 0.204`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205052-059.aac
+
+![20:50:52](voice-shots/vn-20261024-205052-059.jpg)
+
+## 20:51:02 - Not good. I've read that
+
+- **Transcript:** Not good. I've read that
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4688.7 120.0 -3186.9
+- **Facing:** north-west (yaw 331, pitch 41)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 11:04, clear
+- **Fps:** 58
+- **Levels:** mic -28 dBFS, game sound -20 dBFS
+- **Length:** 3.1 s (voice 1.1 s)
+- **Just before:** -17s walked into Taiga; -13s walked into Grove; -9s walked into Taiga
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4688.7 --z -3186.9 --yaw 29 --pitch 41 --time 0.211`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205102-279.aac
+
+![20:51:02](voice-shots/vn-20261024-205102-279.jpg)
+
+## 20:51:05 - It still thinks it's connected to the bigger log
+
+- **Transcript:** It still thinks it's connected to the bigger log
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4687.6 120.1 -3186.7
+- **Facing:** north-east (yaw 38, pitch 7)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 11:06, clear
+- **Fps:** 58
+- **Levels:** mic -30 dBFS, game sound -19 dBFS
+- **Length:** 2.8 s (voice 1.5 s)
+- **Just before:** -20s walked into Taiga; -16s walked into Grove; -11s walked into Taiga; -1s walked into Grove
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4687.6 --z -3186.7 --yaw -38 --pitch 7 --time 0.213`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205105-359.aac
+
+## 20:51:13 - See how that turned into branches? We don't want that. No more algorit
+
+- **Transcript:** See how that turned into branches? We don't want that. No more algorithmic
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4689.3 118.9 -3196.3
+- **Facing:** north (yaw 346, pitch -20)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Snowy Grass Block at 4688 118 -3201
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 11:14, clear
+- **Fps:** 53
+- **Levels:** mic -47 dBFS, game sound -26 dBFS
+- **Length:** 5.6 s (voice 3.3 s)
+- **Just before:** -26s walked into Taiga; -22s walked into Grove; -18s walked into Taiga; -8s walked into Grove; -6s walked into Taiga; -4s walked into Grove
+- **Position at the end:** 4689.2 118.9 -3196.3
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4689.3 --z -3196.3 --yaw 14 --pitch -20 --time 0.218`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205113-679.aac
+
+![20:51:13](voice-shots/vn-20261024-205113-679.jpg)
+
+## 20:51:19 - Log generation like that
+
+- **Transcript:** Log generation like that
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4689.2 118.9 -3196.3
+- **Facing:** north (yaw 340, pitch -5)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** Spruce Log at 4688 120 -3200
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 11:19, clear
+- **Fps:** 56
+- **Levels:** mic -25 dBFS, game sound -24 dBFS
+- **Length:** 2.7 s (voice 1.2 s)
+- **Just before:** -26s walked into Grove; -22s walked into Taiga; -12s walked into Grove; -10s walked into Taiga; -8s walked into Grove
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4689.2 --z -3196.3 --yaw 20 --pitch -5 --time 0.222`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205119-239.aac
+
+## 20:51:25 - As for the, uh, there's also a bit of a lag between, um
+
+- **Transcript:** As for the, uh, there's also a bit of a lag between, um
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4691.0 118.0 -3202.1
+- **Facing:** north (yaw 12, pitch 24)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 11:25, clear
+- **Fps:** 53
+- **Levels:** mic -29 dBFS, game sound -20 dBFS
+- **Length:** 5.5 s (voice 3.4 s)
+- **Just before:** -27s walked into Taiga; -17s walked into Grove; -15s walked into Taiga; -13s walked into Grove
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4691.0 --z -3202.1 --yaw -12 --pitch 24 --time 0.226`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205125-819.aac
+
+![20:51:25](voice-shots/vn-20261024-205125-819.jpg)
+
+## 20:51:31 - The tree cutting down and like it kind of, the old version of it kind 
+
+- **Transcript:** The tree cutting down and like it kind of, the old version of it kind of hovers there for a second
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4693.1 117.5 -3202.7
+- **Facing:** north-east (yaw 49, pitch 6)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 11:31, clear
+- **Fps:** 63
+- **Levels:** mic -27 dBFS, game sound -32 dBFS
+- **Length:** 5.7 s (voice 3.4 s)
+- **Just before:** -22s walked into Grove; -20s walked into Taiga; -18s walked into Grove
+- **Position at the end:** 4695.8 116.7 -3206.2
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4693.1 --z -3202.7 --yaw -49 --pitch 6 --time 0.230`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205131-319.aac
+
+## 20:51:38 - This was really good though. Um, the physics for this actually worked 
+
+- **Transcript:** This was really good though. Um, the physics for this actually worked out all right. But yeah, we see here this thing turned into a square tree, which it shouldn't have. This one maintained its, uh
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Grove
+- **Position:** 4696.5 116.5 -3206.9
+- **Facing:** east (yaw 92, pitch -28)
+- **Held:** Grass Block x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 11:37, clear
+- **Fps:** 59
+- **Levels:** mic -35 dBFS, game sound -28 dBFS
+- **Length:** 13.0 s (voice 7.8 s)
+- **Just before:** -27s walked into Grove; -25s walked into Taiga; -23s walked into Grove
+- **While talking:** -2s holding Crafting Table; -2s message: Crafting Table
+- **Position at the end:** 4698.6 116.2 -3205.3
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4696.5 --z -3206.9 --yaw -92 --pitch -28 --time 0.235`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205138-079.aac
+
+![20:51:38](voice-shots/vn-20261024-205138-079.jpg)
+
+## 20:51:57 - Anyway, we are going to interesting
+
+- **Transcript:** Anyway, we are going to interesting
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4702.0 114.7 -3230.1
+- **Facing:** north-east (yaw 28, pitch -54)
+- **Held:** Crafting Table x64
+- **Mount:** on foot
+- **Looking at:** Air at 4702 115 -3232
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 11:54, clear
+- **Fps:** 51
+- **Levels:** mic -31 dBFS, game sound -25 dBFS
+- **Length:** 3.5 s (voice 1.9 s)
+- **Just before:** -12s holding Crafting Table; -12s message: Crafting Table; -1s walked into Taiga
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4702.0 --z -3230.1 --yaw -28 --pitch -54 --time 0.246`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205157-278.aac
+
+## 20:52:00 - Something is really stressing out the, the Quest. It, it just has so l
+
+- **Transcript:** Something is really stressing out the, the Quest. It, it just has so little processing power
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4703.0 114.4 -3230.2
+- **Facing:** north (yaw 349, pitch -32)
+- **Held:** Crafting Table x64
+- **Mount:** on foot
+- **Looking at:** Snowy Grass Block at 4702 113 -3234
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 11:55, clear
+- **Fps:** 51
+- **Levels:** mic -23 dBFS, game sound -33 dBFS
+- **Length:** 6.4 s (voice 4.1 s)
+- **Just before:** -13s holding Crafting Table; -13s message: Crafting Table; -2s walked into Taiga
+- **While talking:** -3s walked into Taiga
+- **Position at the end:** 4702.7 113.4 -3231.3
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4703.0 --z -3230.2 --yaw 11 --pitch -32 --time 0.247`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205200-479.aac
+
+## 20:52:07 - All right, we're gonna try some redstone stuff. Also, okay
+
+- **Transcript:** All right, we're gonna try some redstone stuff. Also, okay
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4702.8 113.5 -3231.2
+- **Facing:** north-east (yaw 39, pitch -27)
+- **Held:** Crafting Table x64
+- **Mount:** on foot
+- **Looking at:** Snow at 4704 114 -3233
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 11:58, clear
+- **Fps:** 22
+- **Levels:** mic -36 dBFS, game sound -29 dBFS
+- **Length:** 5.0 s (voice 2.5 s)
+- **Just before:** -16s holding Crafting Table; -16s message: Crafting Table; -4s walked into Taiga
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4702.8 --z -3231.2 --yaw -39 --pitch -27 --time 0.249`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205207-399.aac
+
+![20:52:07](voice-shots/vn-20261024-205207-399.jpg)
+
+## 20:52:13 - Or copper, I mean, copper stuff
+
+- **Transcript:** Or copper, I mean, copper stuff
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4703.0 113.2 -3231.8
+- **Facing:** north (yaw 0, pitch 4)
+- **Held:** Crafting Table x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 1 12:04, clear
+- **Fps:** 52
+- **Levels:** mic -34 dBFS, game sound -25 dBFS
+- **Length:** 4.2 s (voice 1.6 s)
+- **Just before:** -21s holding Crafting Table; -21s message: Crafting Table; -9s walked into Taiga; -4s opened CreativeMenu; -3s closed CreativeMenu; -2s message: Flying; -1s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4703.0 --z -3231.8 --yaw -0 --pitch 4 --time 0.253`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205213-659.aac
+
+## 20:52:20 - Wire here. Uh, sure, trap chest, why not?
+
+- **Transcript:** Wire here. Uh, sure, trap chest, why not?
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4703.0 113.2 -3231.8
+- **Facing:** north (yaw 0, pitch 4)
+- **Held:** Crafting Table x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 1 12:10, clear
+- **Fps:** 55
+- **Levels:** mic -33 dBFS, game sound -29 dBFS
+- **Length:** 4.4 s (voice 2.0 s)
+- **Just before:** -26s holding Crafting Table; -26s message: Crafting Table; -15s walked into Taiga; -9s opened CreativeMenu; -9s closed CreativeMenu; -7s message: Flying; -7s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4703.0 --z -3231.8 --yaw -0 --pitch 4 --time 0.258`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205220-599.aac
+
+![20:52:20](voice-shots/vn-20261024-205220-599.jpg)
+
+## 20:52:37 - All right. This is what we'll do. Trap chest
+
+- **Transcript:** All right. This is what we'll do. Trap chest
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4704.0 114.0 -3233.1
+- **Facing:** north (yaw 16, pitch -4)
+- **Held:** Crafting Table x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 12:26, clear
+- **Fps:** 54
+- **Levels:** mic -34 dBFS, game sound -26 dBFS
+- **Length:** 3.4 s (voice 1.3 s)
+- **Just before:** -28s walked into Taiga; -22s opened CreativeMenu; -22s closed CreativeMenu; -20s message: Flying; -20s opened CreativeMenu; -1s into the pack: Lava Bucket; -1s closed CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4704.0 --z -3233.1 --yaw -16 --pitch -4 --time 0.269`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205237-639.aac
+
+![20:52:37](voice-shots/vn-20261024-205237-639.jpg)
+
+## 20:52:46 - Yeah, okay. This is nice
+
+- **Transcript:** Yeah, okay. This is nice
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4704.6 112.8 -3246.8
+- **Facing:** west (yaw 257, pitch -53)
+- **Held:** Copper Wire x64
+- **Mount:** on foot
+- **Looking at:** Air at 4703 112 -3247
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 12:33, clear
+- **Fps:** 45
+- **Levels:** mic -26 dBFS, game sound -23 dBFS
+- **Length:** 2.9 s (voice 0.9 s)
+- **Just before:** -28s opened CreativeMenu; -28s closed CreativeMenu; -27s message: Flying; -26s opened CreativeMenu; -7s into the pack: Lava Bucket; -7s closed CreativeMenu; -6s holding Grass Block; -6s message: Grass Block; -6s holding Dirt; -6s message: Dirt; -5s holding Stone; -5s message: Stone; -5s holding Copper Wire; -5s message: Copper Wire; -5s holding Trapped Chest; -5s message: Trapped Chest; -4s message: Walking; -4s holding Dispenser; -3s holding Trapped Chest; -3s holding Copper Wire
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4704.6 --z -3246.8 --yaw 103 --pitch -53 --time 0.274`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205246-819.aac
+
+## 20:52:51 - Serious lag between placing blocks. It could be because of whatever is
+
+- **Transcript:** Serious lag between placing blocks. It could be because of whatever is really stressing out the system. I don't know
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4705.3 112.8 -3246.7
+- **Facing:** west (yaw 258, pitch -34)
+- **Held:** Stone x64
+- **Mount:** on foot
+- **Looking at:** Snowy Grass Block at 4702 112 -3247
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 12:35, clear
+- **Fps:** 27
+- **Levels:** mic -34 dBFS, game sound -24 dBFS
+- **Length:** 7.8 s (voice 4.6 s)
+- **Just before:** -30s opened CreativeMenu; -29s closed CreativeMenu; -28s message: Flying; -28s opened CreativeMenu; -8s into the pack: Lava Bucket; -8s closed CreativeMenu; -7s holding Grass Block; -7s message: Grass Block; -7s holding Dirt; -7s message: Dirt; -7s holding Stone; -7s message: Stone; -7s holding Copper Wire; -7s message: Copper Wire; -7s holding Trapped Chest; -7s message: Trapped Chest; -6s message: Walking; -5s holding Dispenser; -5s holding Trapped Chest; -5s holding Copper Wire; -1s holding Stone; -1s message: Stone
+- **While talking:** -4s holding Stone; -4s message: Stone
+- **Position at the end:** 4705.1 112.8 -3246.1
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4705.3 --z -3246.7 --yaw 102 --pitch -34 --time 0.275`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205251-379.aac
+
+![20:52:51](voice-shots/vn-20261024-205251-379.jpg)
+
+## 20:52:59 - Okay, the wire. Oh, the wire. Okay, we fixed the wire
+
+- **Transcript:** Okay, the wire. Oh, the wire. Okay, we fixed the wire
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4704.8 112.8 -3247.1
+- **Facing:** north-west (yaw 296, pitch -51)
+- **Held:** Copper Wire x64
+- **Mount:** on foot
+- **Looking at:** Copper Wire at 4703 113 -3248
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 12:41, clear
+- **Fps:** 46
+- **Levels:** mic -28 dBFS, game sound -22 dBFS
+- **Length:** 4.8 s (voice 3.1 s)
+- **Just before:** -13s into the pack: Lava Bucket; -13s closed CreativeMenu; -12s holding Grass Block; -12s message: Grass Block; -12s holding Dirt; -12s message: Dirt; -12s holding Stone; -12s message: Stone; -12s holding Copper Wire; -12s message: Copper Wire; -12s holding Trapped Chest; -12s message: Trapped Chest; -11s message: Walking; -10s holding Dispenser; -10s holding Trapped Chest; -9s holding Copper Wire; -6s holding Stone; -6s message: Stone; -1s holding Copper Wire; -1s message: Copper Wire
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4704.8 --z -3247.1 --yaw 64 --pitch -51 --time 0.279`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205259-020.aac
+
+## 20:53:05 - For the most part. Yeah, this is actually not bad
+
+- **Transcript:** For the most part. Yeah, this is actually not bad
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4706.7 112.6 -3247.5
+- **Facing:** west (yaw 279, pitch -28)
+- **Held:** Copper Wire x64
+- **Mount:** on foot
+- **Looking at:** Copper Wire at 4704 113 -3248
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 12:46, clear
+- **Fps:** 46
+- **Levels:** mic -28 dBFS, game sound -19 dBFS
+- **Length:** 3.7 s (voice 1.6 s)
+- **Just before:** -18s into the pack: Lava Bucket; -17s closed CreativeMenu; -17s holding Grass Block; -17s message: Grass Block; -16s holding Dirt; -16s message: Dirt; -16s holding Stone; -16s message: Stone; -16s holding Copper Wire; -16s message: Copper Wire; -16s holding Trapped Chest; -16s message: Trapped Chest; -15s message: Walking; -15s holding Dispenser; -14s holding Trapped Chest; -14s holding Copper Wire; -10s holding Stone; -10s message: Stone; -6s holding Copper Wire; -6s message: Copper Wire
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4706.7 --z -3247.5 --yaw 81 --pitch -28 --time 0.283`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205305-379.aac
+
+![20:53:05](voice-shots/vn-20261024-205305-379.jpg)
+
+## 20:53:09 - What the fuck is
+
+- **Transcript:** What the fuck is
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4706.2 112.6 -3243.9
+- **Facing:** north (yaw 350, pitch -4)
+- **Held:** Dispenser x64
+- **Mount:** on foot
+- **Looking at:** Snow at 4705 113 -3247
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 12:50, clear
+- **Fps:** 56
+- **Levels:** mic -36 dBFS, game sound -20 dBFS
+- **Length:** 2.7 s (voice 0.6 s)
+- **Just before:** -21s into the pack: Lava Bucket; -21s closed CreativeMenu; -20s holding Grass Block; -20s message: Grass Block; -20s holding Dirt; -20s message: Dirt; -20s holding Stone; -20s message: Stone; -19s holding Copper Wire; -19s message: Copper Wire; -19s holding Trapped Chest; -19s message: Trapped Chest; -18s message: Walking; -18s holding Dispenser; -17s holding Trapped Chest; -17s holding Copper Wire; -14s holding Stone; -14s message: Stone; -9s holding Copper Wire; -9s message: Copper Wire; -3s holding Trapped Chest; -3s message: Trapped Chest; -3s holding Dispenser; -3s message: Dispenser
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4706.2 --z -3243.9 --yaw 10 --pitch -4 --time 0.285`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205309-339.aac
+
+## 20:53:12 - What the hell?
+
+- **Transcript:** What the hell?
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4706.7 112.6 -3244.1
+- **Facing:** north (yaw 17, pitch -37)
+- **Held:** Dispenser x64
+- **Mount:** on foot
+- **Looking at:** Snow at 4706 113 -3246
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 12:53, clear
+- **Fps:** 57
+- **Levels:** mic -28 dBFS, game sound -15 dBFS
+- **Length:** 2.2 s (voice 0.7 s)
+- **Just before:** -23s into the pack: Lava Bucket; -23s closed CreativeMenu; -22s holding Grass Block; -22s message: Grass Block; -22s holding Dirt; -22s message: Dirt; -22s holding Stone; -22s message: Stone; -22s holding Copper Wire; -22s message: Copper Wire; -22s holding Trapped Chest; -22s message: Trapped Chest; -21s message: Walking; -20s holding Dispenser; -20s holding Trapped Chest; -19s holding Copper Wire; -16s holding Stone; -16s message: Stone; -11s holding Copper Wire; -11s message: Copper Wire; -5s holding Trapped Chest; -5s message: Trapped Chest; -5s holding Dispenser; -5s message: Dispenser
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4706.7 --z -3244.1 --yaw -17 --pitch -37 --time 0.287`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205312-319.aac
+
+## 20:53:14 - Okay, uh, the dispenser, when I place the dispenser
+
+- **Transcript:** Okay, uh, the dispenser, when I place the dispenser
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4710.7 112.1 -3245.4
+- **Facing:** north-west (yaw 298, pitch -18)
+- **Held:** Dispenser x64
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4707 112 -3248
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 12:55, clear
+- **Fps:** 57
+- **Levels:** mic -22 dBFS, game sound -18 dBFS
+- **Length:** 5.0 s (voice 2.9 s)
+- **Just before:** -25s into the pack: Lava Bucket; -25s closed CreativeMenu; -24s holding Grass Block; -24s message: Grass Block; -24s holding Dirt; -24s message: Dirt; -24s holding Stone; -24s message: Stone; -24s holding Copper Wire; -24s message: Copper Wire; -23s holding Trapped Chest; -23s message: Trapped Chest; -22s message: Walking; -22s holding Dispenser; -21s holding Trapped Chest; -21s holding Copper Wire; -18s holding Stone; -18s message: Stone; -13s holding Copper Wire; -13s message: Copper Wire; -7s holding Trapped Chest; -7s message: Trapped Chest; -7s holding Dispenser; -7s message: Dispenser
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4710.7 --z -3245.4 --yaw 62 --pitch -18 --time 0.289`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205314-659.aac
+
+## 20:53:19 - It's literally just a, a fucking stone wall
+
+- **Transcript:** It's literally just a, a fucking stone wall
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4709.1 112.3 -3243.3
+- **Facing:** west (yaw 288, pitch 13)
+- **Held:** Lava Bucket x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 13:00, clear
+- **Fps:** 57
+- **Levels:** mic -26 dBFS, game sound -11 dBFS
+- **Length:** 4.8 s (voice 2.5 s)
+- **Just before:** -29s into the pack: Lava Bucket; -29s closed CreativeMenu; -28s holding Grass Block; -28s message: Grass Block; -28s holding Dirt; -28s message: Dirt; -28s holding Stone; -28s message: Stone; -28s holding Copper Wire; -28s message: Copper Wire; -27s holding Trapped Chest; -27s message: Trapped Chest; -26s message: Walking; -26s holding Dispenser; -26s holding Trapped Chest; -25s holding Copper Wire; -22s holding Stone; -22s message: Stone; -17s holding Copper Wire; -17s message: Copper Wire; -11s holding Trapped Chest; -11s message: Trapped Chest; -11s holding Dispenser; -11s message: Dispenser; -4s holding Lava Bucket; -4s message: Lava Bucket; -4s holding Dispenser; -4s message: Dispenser; -1s holding Lava Bucket; -1s message: Lava Bucket; -1s opened ChestMenu; -0s closed ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4709.1 --z -3243.3 --yaw 72 --pitch 13 --time 0.292`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205319-719.aac
+
+![20:53:19](voice-shots/vn-20261024-205319-719.jpg)
+
+## 20:53:27 - I don't... Okay
+
+- **Transcript:** I don't... Okay
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4709.4 113.9 -3244.3
+- **Facing:** north-west (yaw 308, pitch -8)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 13:06, clear
+- **Fps:** 45
+- **Levels:** mic -24 dBFS, game sound -18 dBFS
+- **Length:** 2.5 s (voice 0.9 s)
+- **Just before:** -27s holding Stone; -27s message: Stone; -22s holding Copper Wire; -22s message: Copper Wire; -16s holding Trapped Chest; -16s message: Trapped Chest; -16s holding Dispenser; -16s message: Dispenser; -9s holding Lava Bucket; -9s message: Lava Bucket; -9s holding Dispenser; -9s message: Dispenser; -6s holding Lava Bucket; -6s message: Lava Bucket; -6s opened ChestMenu; -5s closed ChestMenu; -2s holding Torch; -2s message: Torch
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4709.4 --z -3244.3 --yaw 52 --pitch -8 --time 0.296`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205327-639.aac
+
+## 20:53:30 - The lava could be a little better because you can see this, it's just 
+
+- **Transcript:** The lava could be a little better because you can see this, it's just not, it's not flowing correctly. It's like hovering in midair on top of the snow and top of the terrain, which it's not supposed to. It's supposed to flow onto the terrain as if it's falling down
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4707.5 113.6 -3236.6
+- **Facing:** north (yaw 0, pitch -40)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** Snow at 4707 113 -3240
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 13:08, clear
+- **Fps:** 45
+- **Levels:** mic -23 dBFS, game sound -14 dBFS
+- **Length:** 18.2 s (voice 10.3 s)
+- **Just before:** -29s holding Stone; -29s message: Stone; -24s holding Copper Wire; -24s message: Copper Wire; -18s holding Trapped Chest; -18s message: Trapped Chest; -18s holding Dispenser; -18s message: Dispenser; -11s holding Lava Bucket; -11s message: Lava Bucket; -11s holding Dispenser; -11s message: Dispenser; -8s holding Lava Bucket; -8s message: Lava Bucket; -8s opened ChestMenu; -7s closed ChestMenu; -4s holding Torch; -4s message: Torch
+- **Position at the end:** 4711.9 112.0 -3246.2
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4707.5 --z -3236.6 --yaw -0 --pitch -40 --time 0.298`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205330-239.aac
+
+![20:53:30](voice-shots/vn-20261024-205330-239.jpg)
+
+## 20:53:48 - So maintaining its position
+
+- **Transcript:** So maintaining its position
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4718.9 111.5 -3263.7
+- **Facing:** west (yaw 287, pitch -10)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** Snow at 4715 112 -3265
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 13:25, clear
+- **Fps:** 50
+- **Levels:** mic -31 dBFS, game sound -19 dBFS
+- **Length:** 2.6 s (voice 1.2 s)
+- **Just before:** -25s holding Lava Bucket; -25s message: Lava Bucket; -24s holding Dispenser; -24s message: Dispenser; -22s holding Lava Bucket; -22s message: Lava Bucket; -22s opened ChestMenu; -21s closed ChestMenu; -18s holding Torch; -18s message: Torch
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4718.9 --z -3263.7 --yaw 73 --pitch -10 --time 0.309`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205348-279.aac
+
+![20:53:48](voice-shots/vn-20261024-205348-279.jpg)
+
+## 20:53:51 - This log spawned hovering, I think, so that's not good
+
+- **Transcript:** This log spawned hovering, I think, so that's not good
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4722.8 110.3 -3272.9
+- **Facing:** north-west (yaw 305, pitch -16)
+- **Held:** Torch x64
+- **Mount:** on foot
+- **Looking at:** Spruce Log at 4720 111 -3275
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 13:28, clear
+- **Fps:** 50
+- **Levels:** mic -20 dBFS, game sound -19 dBFS
+- **Length:** 4.1 s (voice 2.1 s)
+- **Just before:** -27s holding Lava Bucket; -27s message: Lava Bucket; -27s holding Dispenser; -27s message: Dispenser; -24s holding Lava Bucket; -24s message: Lava Bucket; -24s opened ChestMenu; -23s closed ChestMenu; -20s holding Torch; -20s message: Torch
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4722.8 --z -3272.9 --yaw 55 --pitch -16 --time 0.311`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205351-179.aac
+
+## 20:53:58 - All right. I'm gonna try, I guess, not the dispenser, 'cause we don't 
+
+- **Transcript:** All right. I'm gonna try, I guess, not the dispenser, 'cause we don't need that
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4721.8 85.9 -3280.6
+- **Facing:** north-east (yaw 53, pitch -35)
+- **Held:** Dispenser x64
+- **Mount:** on foot
+- **Looking at:** Stone at 4724 84 -3283
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 13:34, clear
+- **Fps:** 57
+- **Levels:** mic -23 dBFS, game sound -17 dBFS
+- **Length:** 6.1 s (voice 3.3 s)
+- **Just before:** -30s holding Lava Bucket; -30s message: Lava Bucket; -29s opened ChestMenu; -28s closed ChestMenu; -26s holding Torch; -26s message: Torch; -2s message: Flying; -1s holding Lava Bucket; -0s holding Dispenser; -0s message: Walking
+- **While talking:** -4s holding Lava Bucket; -4s holding Dispenser; -4s message: Walking; -3s holding Trapped Chest; -2s opened CreativeMenu
+- **Position at the end:** 4721.3 86.0 -3280.7
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4721.8 --z -3280.6 --yaw -53 --pitch -35 --time 0.316`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205358-079.aac
+
+## 20:54:04 - I'm gonna do dropper and s-- No, I don't even want dropper
+
+- **Transcript:** I'm gonna do dropper and s-- No, I don't even want dropper
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4721.3 86.0 -3280.7
+- **Facing:** north-east (yaw 62, pitch -25)
+- **Held:** Trapped Chest x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 1 13:40, clear
+- **Fps:** 53
+- **Levels:** mic -24 dBFS, game sound -27 dBFS
+- **Length:** 3.8 s (voice 1.1 s)
+- **Just before:** -6s message: Flying; -5s holding Lava Bucket; -5s holding Dispenser; -5s message: Walking; -4s holding Trapped Chest; -3s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4721.3 --z -3280.7 --yaw -62 --pitch -25 --time 0.320`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205404-639.aac
+
+![20:54:04](voice-shots/vn-20261024-205404-639.jpg)
+
+## 20:54:08 - Let's see if the observer was fixed. I'm sure dropper also
+
+- **Transcript:** Let's see if the observer was fixed. I'm sure dropper also
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4721.3 86.0 -3280.7
+- **Facing:** north-east (yaw 62, pitch -25)
+- **Held:** Trapped Chest x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 1 13:44, clear
+- **Fps:** 53
+- **Levels:** mic -37 dBFS, game sound -32 dBFS
+- **Length:** 4.3 s (voice 1.7 s)
+- **Just before:** -9s message: Flying; -8s holding Lava Bucket; -8s holding Dispenser; -8s message: Walking; -7s holding Trapped Chest; -6s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4721.3 --z -3280.7 --yaw -62 --pitch -25 --time 0.322`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205408-759.aac
+
+## 20:54:24 - No, the dropper's fucked also, so that's nice
+
+- **Transcript:** No, the dropper's fucked also, so that's nice
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4727.3 85.9 -3280.8
+- **Facing:** north (yaw 349, pitch -16)
+- **Held:** Dropper x64
+- **Mount:** on foot
+- **Looking at:** Stone at 4726 86 -3286
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 13:59, clear
+- **Fps:** 62
+- **Levels:** mic -24 dBFS, game sound -12 dBFS
+- **Length:** 4.2 s (voice 1.7 s)
+- **Just before:** -22s message: Flying; -21s holding Lava Bucket; -21s holding Dispenser; -21s message: Walking; -20s holding Trapped Chest; -19s opened CreativeMenu; -11s closed CreativeMenu; -11s holding Dropper; -11s message: Dropper; -10s holding Lava Bucket; -10s message: Lava Bucket; -10s holding Observer; -10s message: Observer; -10s holding Dropper; -10s message: Dropper; -10s holding Observer; -10s message: Observer; -7s holding Lava Bucket; -7s message: Lava Bucket; -7s holding Dropper; -7s message: Dropper; -7s holding Trapped Chest; -7s message: Trapped Chest; -7s holding Copper Wire; -7s message: Copper Wire; -4s holding Trapped Chest; -4s message: Trapped Chest; -3s holding Dropper; -3s message: Dropper; -3s holding Lava Bucket; -3s message: Lava Bucket; -2s holding Observer; -2s message: Observer; -2s holding Lava Bucket; -2s message: Lava Bucket; -2s holding Dropper; -2s message: Dropper
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4727.3 --z -3280.8 --yaw 11 --pitch -16 --time 0.333`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205424-719.aac
+
+## 20:54:29 - Or a piston. We put piston down
+
+- **Transcript:** Or a piston. We put piston down
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4727.7 85.5 -3281.3
+- **Facing:** north (yaw 347, pitch -32)
+- **Held:** Trapped Chest x64
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 1 14:03, clear
+- **Fps:** 62
+- **Levels:** mic -29 dBFS, game sound -19 dBFS
+- **Length:** 3.2 s (voice 1.4 s)
+- **Just before:** -26s message: Flying; -25s holding Lava Bucket; -25s holding Dispenser; -25s message: Walking; -24s holding Trapped Chest; -23s opened CreativeMenu; -15s closed CreativeMenu; -14s holding Dropper; -14s message: Dropper; -14s holding Lava Bucket; -14s message: Lava Bucket; -14s holding Observer; -14s message: Observer; -14s holding Dropper; -14s message: Dropper; -13s holding Observer; -13s message: Observer; -11s holding Lava Bucket; -11s message: Lava Bucket; -11s holding Dropper; -11s message: Dropper; -11s holding Trapped Chest; -11s message: Trapped Chest; -11s holding Copper Wire; -11s message: Copper Wire; -7s holding Trapped Chest; -7s message: Trapped Chest; -7s holding Dropper; -7s message: Dropper; -6s holding Lava Bucket; -6s message: Lava Bucket; -6s holding Observer; -6s message: Observer; -6s holding Lava Bucket; -6s message: Lava Bucket; -6s holding Dropper; -6s message: Dropper; -3s holding Trapped Chest; -3s message: Trapped Chest; -1s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4727.7 --z -3281.3 --yaw 13 --pitch -32 --time 0.336`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205429-099.aac
+
+## 20:54:40 - Piston's fucked too. That's cool. Look at that. That is very wrong. Ve
+
+- **Transcript:** Piston's fucked too. That's cool. Look at that. That is very wrong. Very, very wrong
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4726.1 85.8 -3281.0
+- **Facing:** north (yaw 20, pitch -22)
+- **Held:** Piston x64
+- **Mount:** on foot
+- **Looking at:** Copper Wire at 4726 85 -3284
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 14:15, clear
+- **Fps:** 65
+- **Levels:** mic -34 dBFS, game sound -26 dBFS
+- **Length:** 7.7 s (voice 3.3 s)
+- **Just before:** -25s closed CreativeMenu; -24s holding Dropper; -24s message: Dropper; -24s holding Lava Bucket; -24s message: Lava Bucket; -24s holding Observer; -24s message: Observer; -24s holding Dropper; -24s message: Dropper; -23s holding Observer; -23s message: Observer; -21s holding Lava Bucket; -21s message: Lava Bucket; -21s holding Dropper; -21s message: Dropper; -21s holding Trapped Chest; -21s message: Trapped Chest; -20s holding Copper Wire; -20s message: Copper Wire; -17s holding Trapped Chest; -17s message: Trapped Chest; -17s holding Dropper; -17s message: Dropper; -16s holding Lava Bucket; -16s message: Lava Bucket; -16s holding Observer; -16s message: Observer; -16s holding Lava Bucket; -16s message: Lava Bucket; -16s holding Dropper; -16s message: Dropper; -12s holding Trapped Chest; -12s message: Trapped Chest; -11s opened CreativeMenu; -4s closed CreativeMenu; -3s holding Piston; -3s message: Piston
+- **Position at the end:** 4728.1 85.6 -3281.1
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4726.1 --z -3281.0 --yaw -20 --pitch -22 --time 0.344`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205440-079.aac
+
+![20:54:40](voice-shots/vn-20261024-205440-079.jpg)
+
+## 20:54:48 - Yeah. Wow. That is not right at all
+
+- **Transcript:** Yeah. Wow. That is not right at all
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4725.6 84.9 -3281.4
+- **Facing:** north-east (yaw 39, pitch -21)
+- **Held:** Piston x64
+- **Mount:** on foot
+- **Looking at:** Copper Wire at 4726 85 -3284
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 14:24, clear
+- **Fps:** 62
+- **Levels:** mic -40 dBFS, game sound -26 dBFS
+- **Length:** 4.0 s (voice 2.0 s)
+- **Just before:** -28s holding Lava Bucket; -28s message: Lava Bucket; -28s holding Dropper; -28s message: Dropper; -28s holding Trapped Chest; -28s message: Trapped Chest; -28s holding Copper Wire; -28s message: Copper Wire; -24s holding Trapped Chest; -24s message: Trapped Chest; -24s holding Dropper; -24s message: Dropper; -23s holding Lava Bucket; -23s message: Lava Bucket; -23s holding Observer; -23s message: Observer; -23s holding Lava Bucket; -23s message: Lava Bucket; -23s holding Dropper; -23s message: Dropper; -19s holding Trapped Chest; -19s message: Trapped Chest; -18s opened CreativeMenu; -11s closed CreativeMenu; -11s holding Piston; -11s message: Piston
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4725.6 --z -3281.4 --yaw -39 --pitch -21 --time 0.350`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205448-779.aac
+
+## 20:54:54 - Like what happened here? Like this is not at all what it's supposed to
+
+- **Transcript:** Like what happened here? Like this is not at all what it's supposed to be
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4729.4 85.5 -3281.0
+- **Facing:** north-east (yaw 41, pitch -38)
+- **Held:** Piston x64
+- **Mount:** on foot
+- **Looking at:** Stone at 4732 83 -3285
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 14:28, clear
+- **Fps:** 50
+- **Levels:** mic -34 dBFS, game sound -20 dBFS
+- **Length:** 4.9 s (voice 2.4 s)
+- **Just before:** -28s holding Trapped Chest; -28s message: Trapped Chest; -27s holding Dropper; -27s message: Dropper; -27s holding Lava Bucket; -27s message: Lava Bucket; -27s holding Observer; -27s message: Observer; -26s holding Lava Bucket; -26s message: Lava Bucket; -26s holding Dropper; -26s message: Dropper; -23s holding Trapped Chest; -23s message: Trapped Chest; -22s opened CreativeMenu; -15s closed CreativeMenu; -14s holding Piston; -14s message: Piston
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4729.4 --z -3281.0 --yaw -41 --pitch -38 --time 0.353`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205454-059.aac
+
+![20:54:54](voice-shots/vn-20261024-205454-059.jpg)
+
+## 20:54:59 - How did, uh... Yeah, the observer's fucked
+
+- **Transcript:** How did, uh... Yeah, the observer's fucked
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4726.7 85.7 -3281.0
+- **Facing:** north (yaw 359, pitch -36)
+- **Held:** Observer x64
+- **Mount:** on foot
+- **Looking at:** Stone at 4726 84 -3285
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 14:33, clear
+- **Fps:** 55
+- **Levels:** mic -27 dBFS, game sound -23 dBFS
+- **Length:** 3.5 s (voice 1.5 s)
+- **Just before:** -28s holding Trapped Chest; -28s message: Trapped Chest; -26s opened CreativeMenu; -19s closed CreativeMenu; -19s holding Piston; -19s message: Piston; -0s holding Lava Bucket; -0s message: Lava Bucket; -0s holding Observer; -0s message: Observer
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4726.7 --z -3281.0 --yaw 1 --pitch -36 --time 0.357`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205459-459.aac
+
+## 20:55:02 - Let me just try some other blocks here
+
+- **Transcript:** Let me just try some other blocks here
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4726.8 85.7 -3281.0
+- **Facing:** north (yaw 20, pitch -18)
+- **Held:** Lava Bucket x1
+- **Mount:** on foot
+- **Looking at:** Stone at 4728 86 -3286
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 14:36, clear
+- **Fps:** 56
+- **Levels:** mic -34 dBFS, game sound -21 dBFS
+- **Length:** 2.8 s (voice 1.2 s)
+- **Just before:** -29s opened CreativeMenu; -22s closed CreativeMenu; -21s holding Piston; -21s message: Piston; -3s holding Lava Bucket; -3s message: Lava Bucket; -3s holding Observer; -3s message: Observer; -1s opened CreativeMenu; -0s closed CreativeMenu; -0s holding Lava Bucket; -0s message: Lava Bucket
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4726.8 --z -3281.0 --yaw -20 --pitch -18 --time 0.359`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205502-979.aac
+
+## 20:55:07 - The blocks, although it literally causes the thing to freeze for about
+
+- **Transcript:** The blocks, although it literally causes the thing to freeze for about point five seconds every time I place one. Five hundred millisecond freeze every time I place a block, so that's great. Um, clearly there is something wrong. Uh, that's just without question
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4726.2 85.4 -3281.2
+- **Facing:** north-west (yaw 293, pitch -3)
+- **Held:** Stone x64
+- **Mount:** on foot
+- **Looking at:** Stone at 4723 87 -3285
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 14:38, clear
+- **Fps:** 24
+- **Levels:** mic -42 dBFS, game sound -14 dBFS
+- **Length:** 15.3 s (voice 9.3 s)
+- **Just before:** -23s closed CreativeMenu; -23s holding Piston; -23s message: Piston; -4s holding Lava Bucket; -4s message: Lava Bucket; -4s holding Observer; -4s message: Observer; -2s opened CreativeMenu; -2s closed CreativeMenu; -2s holding Lava Bucket; -2s message: Lava Bucket; -1s holding Piston; -1s message: Piston; -1s holding Trapped Chest; -1s message: Trapped Chest; -1s holding Copper Wire; -1s message: Copper Wire; -1s holding Stone; -1s message: Stone
+- **While talking:** -2s message: Flying
+- **Position at the end:** 4754.2 106.6 -3287.8
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4726.2 --z -3281.2 --yaw 67 --pitch -3 --time 0.360`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205507-839.aac
+
+## 20:55:22 - Um, this thing is
+
+- **Transcript:** Um, this thing is
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4896.3 123.7 -3278.8
+- **Facing:** south-east (yaw 118, pitch -46)
+- **Held:** Stone x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 14:51, clear
+- **Fps:** 44
+- **Levels:** mic -31 dBFS, game sound -20 dBFS
+- **Length:** 2.4 s (voice 1.3 s)
+- **Just before:** -15s holding Lava Bucket; -15s message: Lava Bucket; -15s holding Observer; -15s message: Observer; -13s opened CreativeMenu; -13s closed CreativeMenu; -12s holding Lava Bucket; -12s message: Lava Bucket; -12s holding Piston; -12s message: Piston; -12s holding Trapped Chest; -12s message: Trapped Chest; -12s holding Copper Wire; -12s message: Copper Wire; -12s holding Stone; -12s message: Stone; -9s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4896.3 --z -3278.8 --yaw -118 --pitch -46 --time 0.369`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205522-919.aac
+
+![20:55:22](voice-shots/vn-20261024-205522-919.jpg)
+
+## 20:55:25 - Choking. Uh, the quest is choking
+
+- **Transcript:** Choking. Uh, the quest is choking
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4806.9 123.7 -3289.1
+- **Facing:** south (yaw 198, pitch -37)
+- **Held:** Stone x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 14:54, clear
+- **Fps:** 58
+- **Levels:** mic -17 dBFS, game sound -16 dBFS
+- **Length:** 3.6 s (voice 1.3 s)
+- **Just before:** -17s holding Lava Bucket; -17s message: Lava Bucket; -17s holding Observer; -17s message: Observer; -15s opened CreativeMenu; -15s closed CreativeMenu; -14s holding Lava Bucket; -14s message: Lava Bucket; -14s holding Piston; -14s message: Piston; -14s holding Trapped Chest; -14s message: Trapped Chest; -14s holding Copper Wire; -14s message: Copper Wire; -14s holding Stone; -14s message: Stone; -11s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4806.9 --z -3289.1 --yaw 162 --pitch -37 --time 0.371`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205525-619.aac
+
+## 20:55:29 - It's not able to process this. I'm gonna try my, one of my old worlds 
+
+- **Transcript:** It's not able to process this. I'm gonna try my, one of my old worlds and see if it's the same way
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (3) (seed 5933896066598527833)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4752.8 123.7 -3290.2
+- **Facing:** north (yaw 343, pitch -38)
+- **Held:** Stone x64
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 14:58, clear
+- **Fps:** 61
+- **Levels:** mic -28 dBFS, game sound -19 dBFS
+- **Length:** 6.2 s (voice 3.5 s)
+- **Just before:** -21s holding Lava Bucket; -21s message: Lava Bucket; -20s holding Observer; -20s message: Observer; -18s opened CreativeMenu; -18s closed CreativeMenu; -18s holding Lava Bucket; -18s message: Lava Bucket; -18s holding Piston; -18s message: Piston; -17s holding Trapped Chest; -17s message: Trapped Chest; -17s holding Copper Wire; -17s message: Copper Wire; -17s holding Stone; -17s message: Stone; -15s message: Flying
+- **While talking:** -4s opened PauseMenu; -4s closed PauseMenu
+- **Position at the end:** 4716.8 123.7 -3281.7
+- **Repro (Mac):** `./snap.sh note --seed 5933896066598527833 --x 4752.8 --z -3290.2 --yaw 17 --pitch -38 --time 0.374`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205529-039.aac
+
+## 20:55:52 - Okay. It is the same way, I'm pretty sure
+
+- **Transcript:** Okay. It is the same way, I'm pretty sure
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 319.2 108.8 335.7
+- **Facing:** south-east (yaw 153, pitch -60)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 07:56, rain
+- **Fps:** 67
+- **Levels:** mic -50 dBFS, game sound -100 dBFS
+- **Length:** 4.8 s (voice 2.9 s)
+- **Just before:** --346s holding Dropper; --346s message: Dropper; --346s holding Lava Bucket; --346s message: Lava Bucket; --346s holding Observer; --346s message: Observer; --347s holding Lava Bucket; --347s message: Lava Bucket; --347s holding Dropper; --347s message: Dropper; --350s holding Trapped Chest; --350s message: Trapped Chest; --351s opened CreativeMenu; --358s closed CreativeMenu; --359s holding Piston; --359s message: Piston; --377s holding Lava Bucket; --377s message: Lava Bucket; --377s holding Observer; --377s message: Observer; --379s opened CreativeMenu; --380s closed CreativeMenu; --380s holding Lava Bucket; --380s message: Lava Bucket; --380s holding Piston; --380s message: Piston; --380s holding Trapped Chest; --380s message: Trapped Chest; --380s holding Copper Wire; --380s message: Copper Wire; --381s holding Stone; --381s message: Stone; --383s message: Flying; --398s opened PauseMenu; --399s closed PauseMenu; --403s opened PauseMenu; -4s closed PauseMenu; -4s holding empty hand; -3s took 10 damage (health 10/20); -2s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 319.2 --z 335.7 --yaw -153 --pitch -60 --time 0.081`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205552-798.aac
+
+![20:55:52](voice-shots/vn-20261024-205552-798.jpg)
+
+## 20:55:57 - Or let me see. In that
+
+- **Transcript:** Or let me see. In that
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 425.3 112.1 391.0
+- **Facing:** north-east (yaw 27, pitch -42)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:01, rain
+- **Fps:** 69
+- **Levels:** mic -26 dBFS, game sound -27 dBFS
+- **Length:** 4.6 s (voice 1.0 s)
+- **Just before:** --342s message: Dropper; --342s holding Lava Bucket; --342s message: Lava Bucket; --342s holding Observer; --342s message: Observer; --343s holding Lava Bucket; --343s message: Lava Bucket; --343s holding Dropper; --343s message: Dropper; --346s holding Trapped Chest; --346s message: Trapped Chest; --348s opened CreativeMenu; --354s closed CreativeMenu; --355s holding Piston; --355s message: Piston; --373s holding Lava Bucket; --373s message: Lava Bucket; --373s holding Observer; --373s message: Observer; --375s opened CreativeMenu; --376s closed CreativeMenu; --376s holding Lava Bucket; --376s message: Lava Bucket; --376s holding Piston; --376s message: Piston; --376s holding Trapped Chest; --376s message: Trapped Chest; --376s holding Copper Wire; --376s message: Copper Wire; --377s holding Stone; --377s message: Stone; --379s message: Flying; --394s opened PauseMenu; --395s closed PauseMenu; --399s opened PauseMenu; -8s closed PauseMenu; -8s holding empty hand; -7s took 10 damage (health 10/20); -6s message: Flying; -0s message: The sky is clouding over: fog is coming
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 425.3 --z 391.0 --yaw -27 --pitch -42 --time 0.084`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205557-499.aac
+
+## 20:56:06 - Back to eight. Okay. Playlist checklist
+
+- **Transcript:** Back to eight. Okay. Playlist checklist
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 418.7 119.8 398.5
+- **Facing:** north (yaw 6, pitch -33)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20, screen PauseMenu
+- **Time:** day 5 08:03, rain
+- **Fps:** 52
+- **Levels:** mic -43 dBFS, game sound -31 dBFS
+- **Length:** 3.8 s (voice 1.4 s)
+- **Just before:** --336s holding Lava Bucket; --336s message: Lava Bucket; --336s holding Observer; --336s message: Observer; --336s holding Lava Bucket; --336s message: Lava Bucket; --336s holding Dropper; --336s message: Dropper; --340s holding Trapped Chest; --340s message: Trapped Chest; --341s opened CreativeMenu; --348s closed CreativeMenu; --348s holding Piston; --348s message: Piston; --367s holding Lava Bucket; --367s message: Lava Bucket; --367s holding Observer; --367s message: Observer; --369s opened CreativeMenu; --369s closed CreativeMenu; --370s holding Lava Bucket; --370s message: Lava Bucket; --370s holding Piston; --370s message: Piston; --370s holding Trapped Chest; --370s message: Trapped Chest; --370s holding Copper Wire; --370s message: Copper Wire; --370s holding Stone; --370s message: Stone; --373s message: Flying; --388s opened PauseMenu; --389s closed PauseMenu; --392s opened PauseMenu; -14s closed PauseMenu; -14s holding empty hand; -13s took 10 damage (health 10/20); -13s message: Flying; -7s message: The sky is clouding over: fog is coming; -5s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 418.7 --z 398.5 --yaw -6 --pitch -33 --time 0.086`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205606-099.aac
+
+![20:56:06](voice-shots/vn-20261024-205606-099.jpg)
+
+## 20:56:10 - 14. Okay
+
+- **Transcript:** 14. Okay
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 414.6 119.8 385.9
+- **Facing:** north-east (yaw 34, pitch -62)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:04, rain
+- **Fps:** 53
+- **Levels:** mic -38 dBFS, game sound -28 dBFS
+- **Length:** 3.2 s (voice 1.3 s)
+- **Just before:** --333s message: Lava Bucket; --333s holding Observer; --333s message: Observer; --333s holding Lava Bucket; --333s message: Lava Bucket; --333s holding Dropper; --333s message: Dropper; --337s holding Trapped Chest; --337s message: Trapped Chest; --338s opened CreativeMenu; --345s closed CreativeMenu; --345s holding Piston; --345s message: Piston; --364s holding Lava Bucket; --364s message: Lava Bucket; --364s holding Observer; --364s message: Observer; --366s opened CreativeMenu; --366s closed CreativeMenu; --367s holding Lava Bucket; --367s message: Lava Bucket; --367s holding Piston; --367s message: Piston; --367s holding Trapped Chest; --367s message: Trapped Chest; --367s holding Copper Wire; --367s message: Copper Wire; --367s holding Stone; --367s message: Stone; --370s message: Flying; --385s opened PauseMenu; --385s closed PauseMenu; --389s opened PauseMenu; -17s closed PauseMenu; -17s holding empty hand; -16s took 10 damage (health 10/20); -16s message: Flying; -10s message: The sky is clouding over: fog is coming; -8s opened PauseMenu; -0s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 414.6 --z 385.9 --yaw -34 --pitch -62 --time 0.086`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205610-639.aac
+
+## 20:56:14 - Okay. No, there's no problem rendering here. This is working wonderful
+
+- **Transcript:** Okay. No, there's no problem rendering here. This is working wonderfully for rendering. Doing a really good job
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Birch Forest
+- **Position:** 385.3 119.8 351.7
+- **Facing:** south-east (yaw 138, pitch -36)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:06, rain
+- **Fps:** 47
+- **Levels:** mic -75 dBFS, game sound -24 dBFS
+- **Length:** 8.7 s (voice 4.5 s)
+- **Just before:** --330s message: Lava Bucket; --331s holding Observer; --331s message: Observer; --331s holding Lava Bucket; --331s message: Lava Bucket; --331s holding Dropper; --331s message: Dropper; --334s holding Trapped Chest; --334s message: Trapped Chest; --336s opened CreativeMenu; --342s closed CreativeMenu; --343s holding Piston; --343s message: Piston; --361s holding Lava Bucket; --361s message: Lava Bucket; --361s holding Observer; --361s message: Observer; --363s opened CreativeMenu; --364s closed CreativeMenu; --364s holding Lava Bucket; --364s message: Lava Bucket; --364s holding Piston; --364s message: Piston; --365s holding Trapped Chest; --365s message: Trapped Chest; --365s holding Copper Wire; --365s message: Copper Wire; --365s holding Stone; --365s message: Stone; --367s message: Flying; --383s opened PauseMenu; --383s closed PauseMenu; --387s opened PauseMenu; -20s closed PauseMenu; -20s holding empty hand; -19s took 10 damage (health 10/20); -18s message: Flying; -12s message: The sky is clouding over: fog is coming; -10s opened PauseMenu; -3s closed PauseMenu
+- **While talking:** --328s message: Lava Bucket; --328s holding Observer; --328s message: Observer; --329s holding Lava Bucket; --329s message: Lava Bucket; --329s holding Dropper; --329s message: Dropper; --332s holding Trapped Chest; --332s message: Trapped Chest; --334s opened CreativeMenu; --340s closed CreativeMenu; --341s holding Piston; --341s message: Piston; --359s holding Lava Bucket; --359s message: Lava Bucket; --359s holding Observer; --359s message: Observer; --361s opened CreativeMenu; --362s closed CreativeMenu; --362s holding Lava Bucket; --362s message: Lava Bucket; --362s holding Piston; --362s message: Piston; --362s holding Trapped Chest; --362s message: Trapped Chest; --362s holding Copper Wire; --362s message: Copper Wire; --363s holding Stone; --363s message: Stone; --365s message: Flying; --380s opened PauseMenu; --381s closed PauseMenu; --385s opened PauseMenu; -5s closed PauseMenu
+- **Position at the end:** 415.6 119.8 525.2
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 385.3 --z 351.7 --yaw -138 --pitch -36 --time 0.088`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205614-859.aac
+
+## 20:56:23 - The water looks wonderful. Oh, I thought that... Yeah. Okay. Anyway, y
+
+- **Transcript:** The water looks wonderful. Oh, I thought that... Yeah. Okay. Anyway, yeah, so interesting
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Lukewarm Ocean
+- **Position:** 510.8 119.8 631.2
+- **Facing:** south-east (yaw 113, pitch -57)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:12, rain
+- **Fps:** 44
+- **Levels:** mic -21 dBFS, game sound -23 dBFS
+- **Length:** 6.6 s (voice 3.7 s)
+- **Just before:** --326s message: Lava Bucket; --326s holding Observer; --326s message: Observer; --326s holding Lava Bucket; --326s message: Lava Bucket; --326s holding Dropper; --326s message: Dropper; --329s holding Trapped Chest; --329s message: Trapped Chest; --331s opened CreativeMenu; --338s closed CreativeMenu; --338s holding Piston; --338s message: Piston; --357s holding Lava Bucket; --357s message: Lava Bucket; --357s holding Observer; --357s message: Observer; --359s opened CreativeMenu; --359s closed CreativeMenu; --359s holding Lava Bucket; --359s message: Lava Bucket; --360s holding Piston; --360s message: Piston; --360s holding Trapped Chest; --360s message: Trapped Chest; --360s holding Copper Wire; --360s message: Copper Wire; --360s holding Stone; --360s message: Stone; --363s message: Flying; --378s opened PauseMenu; --378s closed PauseMenu; --382s opened PauseMenu; -24s closed PauseMenu; -24s holding empty hand; -23s took 10 damage (health 10/20); -23s message: Flying; -17s message: The sky is clouding over: fog is coming; -15s opened PauseMenu; -8s closed PauseMenu
+- **While talking:** --323s message: Lava Bucket; --323s holding Observer; --323s message: Observer; --323s holding Lava Bucket; --323s message: Lava Bucket; --324s holding Dropper; --324s message: Dropper; --327s holding Trapped Chest; --327s message: Trapped Chest; --328s opened CreativeMenu; --335s closed CreativeMenu; --336s holding Piston; --336s message: Piston; --354s holding Lava Bucket; --354s message: Lava Bucket; --354s holding Observer; --354s message: Observer; --356s opened CreativeMenu; --356s closed CreativeMenu; --357s holding Lava Bucket; --357s message: Lava Bucket; --357s holding Piston; --357s message: Piston; --357s holding Trapped Chest; --357s message: Trapped Chest; --357s holding Copper Wire; --357s message: Copper Wire; --357s holding Stone; --357s message: Stone; --360s message: Flying; --375s opened PauseMenu; --376s closed PauseMenu; --379s opened PauseMenu
+- **Position at the end:** 682.9 119.8 682.3
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 510.8 --z 631.2 --yaw -113 --pitch -57 --time 0.092`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205623-739.aac
+
+![20:56:23](voice-shots/vn-20261024-205623-739.jpg)
+
+## 20:56:33 - Yeah, it's having trouble now rendering shit
+
+- **Transcript:** Yeah, it's having trouble now rendering shit
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 692.3 119.8 638.9
+- **Facing:** north (yaw 21, pitch -53)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:18, rain
+- **Fps:** 39
+- **Levels:** mic -28 dBFS, game sound -22 dBFS
+- **Length:** 3.4 s (voice 1.7 s)
+- **Just before:** --321s message: Lava Bucket; --321s holding Observer; --321s message: Observer; --321s holding Lava Bucket; --321s message: Lava Bucket; --322s holding Dropper; --322s message: Dropper; --325s holding Trapped Chest; --325s message: Trapped Chest; --326s opened CreativeMenu; --333s closed CreativeMenu; --334s holding Piston; --334s message: Piston; --352s holding Lava Bucket; --352s message: Lava Bucket; --352s holding Observer; --352s message: Observer; --354s opened CreativeMenu; --355s closed CreativeMenu; --355s holding Lava Bucket; --355s message: Lava Bucket; --355s holding Piston; --355s message: Piston; --355s holding Trapped Chest; --355s message: Trapped Chest; --355s holding Copper Wire; --355s message: Copper Wire; --355s holding Stone; --355s message: Stone; --358s message: Flying; --373s opened PauseMenu; --374s closed PauseMenu; --378s opened PauseMenu; -29s closed PauseMenu; -29s holding empty hand; -28s took 10 damage (health 10/20); -27s message: Flying; -22s message: The sky is clouding over: fog is coming; -20s opened PauseMenu; -12s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 692.3 --z 638.9 --yaw -21 --pitch -53 --time 0.096`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205633-179.aac
+
+## 20:56:40 - Um, auto render. I want that to, yeah
+
+- **Transcript:** Um, auto render. I want that to, yeah
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 660.9 141.3 504.2
+- **Facing:** north-east (yaw 37, pitch -67)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:20, rain
+- **Fps:** 20
+- **Levels:** mic -30 dBFS, game sound -19 dBFS
+- **Length:** 5.1 s (voice 2.9 s)
+- **Just before:** --319s message: Lava Bucket; --319s holding Observer; --319s message: Observer; --319s holding Lava Bucket; --319s message: Lava Bucket; --320s holding Dropper; --320s message: Dropper; --323s holding Trapped Chest; --323s message: Trapped Chest; --324s opened CreativeMenu; --331s closed CreativeMenu; --332s holding Piston; --332s message: Piston; --350s holding Lava Bucket; --350s message: Lava Bucket; --350s holding Observer; --350s message: Observer; --352s opened CreativeMenu; --353s closed CreativeMenu; --353s holding Lava Bucket; --353s message: Lava Bucket; --353s holding Piston; --353s message: Piston; --353s holding Trapped Chest; --353s message: Trapped Chest; --353s holding Copper Wire; --353s message: Copper Wire; --353s holding Stone; --353s message: Stone; --356s message: Flying; --371s opened PauseMenu; --372s closed PauseMenu; --376s opened PauseMenu; -29s message: Flying; -24s message: The sky is clouding over: fog is coming; -21s opened PauseMenu; -14s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 660.9 --z 504.2 --yaw -37 --pitch -67 --time 0.098`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205640-039.aac
+
+## 20:56:47 - Why isn't it auto rendering?
+
+- **Transcript:** Why isn't it auto rendering?
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 643.9 145.9 428.7
+- **Facing:** north-west (yaw 333, pitch -9)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20, screen PauseMenu
+- **Time:** day 5 08:22, rain
+- **Fps:** 21
+- **Levels:** mic -31 dBFS, game sound -24 dBFS
+- **Length:** 2.9 s (voice 1.3 s)
+- **Just before:** --317s holding Observer; --317s message: Observer; --317s holding Lava Bucket; --317s message: Lava Bucket; --317s holding Dropper; --317s message: Dropper; --321s holding Trapped Chest; --321s message: Trapped Chest; --322s opened CreativeMenu; --329s closed CreativeMenu; --330s holding Piston; --330s message: Piston; --348s holding Lava Bucket; --348s message: Lava Bucket; --348s holding Observer; --348s message: Observer; --350s opened CreativeMenu; --350s closed CreativeMenu; --351s holding Lava Bucket; --351s message: Lava Bucket; --351s holding Piston; --351s message: Piston; --351s holding Trapped Chest; --351s message: Trapped Chest; --351s holding Copper Wire; --351s message: Copper Wire; --351s holding Stone; --351s message: Stone; --354s message: Flying; --369s opened PauseMenu; --370s closed PauseMenu; --373s opened PauseMenu; -26s message: The sky is clouding over: fog is coming; -24s opened PauseMenu; -16s closed PauseMenu; -1s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 643.9 --z 428.7 --yaw 27 --pitch -9 --time 0.099`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205647-359.aac
+
+## 20:56:57 - We can have the thing auto render. That'd be nice
+
+- **Transcript:** We can have the thing auto render. That'd be nice
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 621.8 145.9 396.2
+- **Facing:** north (yaw 5, pitch -32)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:22, rain
+- **Fps:** 33
+- **Levels:** mic -25 dBFS, game sound -18 dBFS
+- **Length:** 3.4 s (voice 2.0 s)
+- **Just before:** --312s message: Observer; --312s holding Lava Bucket; --312s message: Lava Bucket; --313s holding Dropper; --313s message: Dropper; --316s holding Trapped Chest; --316s message: Trapped Chest; --317s opened CreativeMenu; --324s closed CreativeMenu; --325s holding Piston; --325s message: Piston; --343s holding Lava Bucket; --343s message: Lava Bucket; --343s holding Observer; --343s message: Observer; --345s opened CreativeMenu; --346s closed CreativeMenu; --346s holding Lava Bucket; --346s message: Lava Bucket; --346s holding Piston; --346s message: Piston; --346s holding Trapped Chest; --346s message: Trapped Chest; --346s holding Copper Wire; --346s message: Copper Wire; --346s holding Stone; --346s message: Stone; --349s message: Flying; --364s opened PauseMenu; --365s closed PauseMenu; --369s opened PauseMenu; -29s opened PauseMenu; -21s closed PauseMenu; -6s opened PauseMenu; -1s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 621.8 --z 396.2 --yaw -5 --pitch -32 --time 0.099`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205657-719.aac
+
+![20:56:57](voice-shots/vn-20261024-205657-719.jpg)
+
+## 20:57:10 - It doesn't like making new terrain we haven't seen yet
+
+- **Transcript:** It doesn't like making new terrain we haven't seen yet
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 522.8 145.9 60.6
+- **Facing:** north-west (yaw 297, pitch -49)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:33, rain
+- **Fps:** 56
+- **Levels:** mic -21 dBFS, game sound -18 dBFS
+- **Length:** 4.0 s (voice 2.5 s)
+- **Just before:** --304s holding Lava Bucket; --304s message: Lava Bucket; --304s holding Dropper; --304s message: Dropper; --307s holding Trapped Chest; --307s message: Trapped Chest; --308s opened CreativeMenu; --315s closed CreativeMenu; --316s holding Piston; --316s message: Piston; --334s holding Lava Bucket; --334s message: Lava Bucket; --334s holding Observer; --334s message: Observer; --336s opened CreativeMenu; --337s closed CreativeMenu; --337s holding Lava Bucket; --337s message: Lava Bucket; --337s holding Piston; --337s message: Piston; --337s holding Trapped Chest; --337s message: Trapped Chest; --337s holding Copper Wire; --337s message: Copper Wire; --338s holding Stone; --338s message: Stone; --340s message: Flying; --355s opened PauseMenu; --356s closed PauseMenu; --360s opened PauseMenu; -15s opened PauseMenu; -9s closed PauseMenu; -1s message: Entering Zoregard
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 522.8 --z 60.6 --yaw 63 --pitch -49 --time 0.107`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205710-979.aac
+
+![20:57:10](voice-shots/vn-20261024-205710-979.jpg)
+
+## 20:57:18 - He doesn't like making train he hasn't seen yet
+
+- **Transcript:** He doesn't like making train he hasn't seen yet
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 494.0 145.9 -164.7
+- **Facing:** north-west (yaw 333, pitch -36)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:42, rain
+- **Fps:** 52
+- **Levels:** mic -23 dBFS, game sound -17 dBFS
+- **Length:** 3.4 s (voice 2.0 s)
+- **Just before:** --296s message: Lava Bucket; --297s holding Dropper; --297s message: Dropper; --300s holding Trapped Chest; --300s message: Trapped Chest; --301s opened CreativeMenu; --308s closed CreativeMenu; --309s holding Piston; --309s message: Piston; --327s holding Lava Bucket; --327s message: Lava Bucket; --327s holding Observer; --327s message: Observer; --329s opened CreativeMenu; --330s closed CreativeMenu; --330s holding Lava Bucket; --330s message: Lava Bucket; --330s holding Piston; --330s message: Piston; --330s holding Trapped Chest; --330s message: Trapped Chest; --330s holding Copper Wire; --330s message: Copper Wire; --330s holding Stone; --330s message: Stone; --333s message: Flying; --348s opened PauseMenu; --349s closed PauseMenu; --352s opened PauseMenu; -22s opened PauseMenu; -17s closed PauseMenu; -9s message: Entering Zoregard; -7s message: Zoregard - Weneheim border post marked on the map
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 494.0 --z -164.7 --yaw 27 --pitch -36 --time 0.113`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205718-419.aac
+
+## 20:57:25 - And again
+
+- **Transcript:** And again
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 491.4 137.8 -160.7
+- **Facing:** south (yaw 195, pitch -25)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20, screen PauseMenu
+- **Time:** day 5 08:45, rain
+- **Fps:** 35
+- **Levels:** mic -38 dBFS, game sound -22 dBFS
+- **Length:** 2.2 s (voice 0.7 s)
+- **Just before:** --293s message: Dropper; --296s holding Trapped Chest; --296s message: Trapped Chest; --298s opened CreativeMenu; --305s closed CreativeMenu; --305s holding Piston; --305s message: Piston; --324s holding Lava Bucket; --324s message: Lava Bucket; --324s holding Observer; --324s message: Observer; --326s opened CreativeMenu; --326s closed CreativeMenu; --326s holding Lava Bucket; --326s message: Lava Bucket; --327s holding Piston; --327s message: Piston; --327s holding Trapped Chest; --327s message: Trapped Chest; --327s holding Copper Wire; --327s message: Copper Wire; --327s holding Stone; --327s message: Stone; --330s message: Flying; --345s opened PauseMenu; --345s closed PauseMenu; --349s opened PauseMenu; -25s opened PauseMenu; -20s closed PauseMenu; -12s message: Entering Zoregard; -10s message: Zoregard - Weneheim border post marked on the map; -1s message: Walking; -1s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 491.4 --z -160.7 --yaw 165 --pitch -25 --time 0.115`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205725-659.aac
+
+![20:57:25](voice-shots/vn-20261024-205725-659.jpg)
+
+## 20:57:38 - Pigs are restored. Thank God
+
+- **Transcript:** Pigs are restored. Thank God
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 495.7 73.0 -136.0
+- **Facing:** south (yaw 197, pitch -27)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Grass Block at 494 72 -133
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:50, rain
+- **Fps:** 50
+- **Levels:** mic -43 dBFS, game sound -27 dBFS
+- **Length:** 3.7 s (voice 1.6 s)
+- **Just before:** --298s holding Piston; --298s message: Piston; --316s holding Lava Bucket; --316s message: Lava Bucket; --317s holding Observer; --317s message: Observer; --319s opened CreativeMenu; --319s closed CreativeMenu; --319s holding Lava Bucket; --319s message: Lava Bucket; --320s holding Piston; --320s message: Piston; --320s holding Trapped Chest; --320s message: Trapped Chest; --320s holding Copper Wire; --320s message: Copper Wire; --320s holding Stone; --320s message: Stone; --322s message: Flying; --338s opened PauseMenu; --338s closed PauseMenu; --342s opened PauseMenu; -27s closed PauseMenu; -19s message: Entering Zoregard; -17s message: Zoregard - Weneheim border post marked on the map; -8s message: Walking; -8s opened PauseMenu; -6s closed PauseMenu; -5s opened PauseMenu; -4s closed PauseMenu; -3s message: Flying; -2s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 495.7 --z -136.0 --yaw 163 --pitch -27 --time 0.119`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205738-719.aac
+
+![20:57:38](voice-shots/vn-20261024-205738-719.jpg)
+
+## 20:57:47 - Yeah, it's
+
+- **Transcript:** Yeah, it's
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Cold Ocean
+- **Position:** 318.1 108.8 -342.4
+- **Facing:** west (yaw 269, pitch -43)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 08:59, rain
+- **Fps:** 51
+- **Levels:** mic -30 dBFS, game sound -13 dBFS
+- **Length:** 2.4 s (voice 1.0 s)
+- **Just before:** --291s message: Piston; --309s holding Lava Bucket; --309s message: Lava Bucket; --309s holding Observer; --309s message: Observer; --311s opened CreativeMenu; --312s closed CreativeMenu; --312s holding Lava Bucket; --312s message: Lava Bucket; --312s holding Piston; --312s message: Piston; --312s holding Trapped Chest; --312s message: Trapped Chest; --313s holding Copper Wire; --313s message: Copper Wire; --313s holding Stone; --313s message: Stone; --315s message: Flying; --331s opened PauseMenu; --331s closed PauseMenu; --335s opened PauseMenu; -26s message: Entering Zoregard; -24s message: Zoregard - Weneheim border post marked on the map; -16s message: Walking; -15s opened PauseMenu; -13s closed PauseMenu; -12s opened PauseMenu; -11s closed PauseMenu; -11s message: Flying; -9s message: Walking; -7s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 318.1 --z -342.4 --yaw 91 --pitch -43 --time 0.125`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205747-959.aac
+
+## 20:57:52 - Feel like it is still choking a little bit rendering at eight
+
+- **Transcript:** Feel like it is still choking a little bit rendering at eight
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Deep Cold Ocean
+- **Position:** 361.2 108.8 -439.7
+- **Facing:** north (yaw 10, pitch -74)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 09:03, rain
+- **Fps:** 64
+- **Levels:** mic -26 dBFS, game sound -23 dBFS
+- **Length:** 4.2 s (voice 2.4 s)
+- **Just before:** --287s message: Piston; --306s holding Lava Bucket; --306s message: Lava Bucket; --306s holding Observer; --306s message: Observer; --308s opened CreativeMenu; --308s closed CreativeMenu; --308s holding Lava Bucket; --308s message: Lava Bucket; --309s holding Piston; --309s message: Piston; --309s holding Trapped Chest; --309s message: Trapped Chest; --309s holding Copper Wire; --309s message: Copper Wire; --309s holding Stone; --309s message: Stone; --312s message: Flying; --327s opened PauseMenu; --327s closed PauseMenu; --331s opened PauseMenu; -30s message: Entering Zoregard; -28s message: Zoregard - Weneheim border post marked on the map; -19s message: Walking; -18s opened PauseMenu; -17s closed PauseMenu; -16s opened PauseMenu; -15s closed PauseMenu; -14s message: Flying; -13s message: Walking; -11s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 361.2 --z -439.7 --yaw -10 --pitch -74 --time 0.128`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205752-859.aac
+
+![20:57:52](voice-shots/vn-20261024-205752-859.jpg)
+
+## 20:57:57 - Maybe? Uh, maybe it's fine
+
+- **Transcript:** Maybe? Uh, maybe it's fine
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Cold Ocean
+- **Position:** 597.8 108.8 -493.1
+- **Facing:** east (yaw 104, pitch -41)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 09:09, rain
+- **Fps:** 52
+- **Levels:** mic -32 dBFS, game sound -21 dBFS
+- **Length:** 3.2 s (voice 1.3 s)
+- **Just before:** --283s message: Piston; --301s holding Lava Bucket; --301s message: Lava Bucket; --301s holding Observer; --301s message: Observer; --303s opened CreativeMenu; --304s closed CreativeMenu; --304s holding Lava Bucket; --304s message: Lava Bucket; --304s holding Piston; --304s message: Piston; --304s holding Trapped Chest; --304s message: Trapped Chest; --304s holding Copper Wire; --304s message: Copper Wire; --305s holding Stone; --305s message: Stone; --307s message: Flying; --323s opened PauseMenu; --323s closed PauseMenu; --327s opened PauseMenu; -24s message: Walking; -23s opened PauseMenu; -21s closed PauseMenu; -20s opened PauseMenu; -19s closed PauseMenu; -19s message: Flying; -17s message: Walking; -15s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 597.8 --z -493.1 --yaw -104 --pitch -41 --time 0.131`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205757-519.aac
+
+## 20:58:00 - Can't really tell. Um
+
+- **Transcript:** Can't really tell. Um
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 682.6 108.8 -342.3
+- **Facing:** south-east (yaw 132, pitch -16)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 09:12, rain
+- **Fps:** 69
+- **Levels:** mic -31 dBFS, game sound -18 dBFS
+- **Length:** 3.2 s (voice 1.2 s)
+- **Just before:** --280s message: Piston; --298s holding Lava Bucket; --298s message: Lava Bucket; --298s holding Observer; --298s message: Observer; --300s opened CreativeMenu; --301s closed CreativeMenu; --301s holding Lava Bucket; --301s message: Lava Bucket; --301s holding Piston; --301s message: Piston; --301s holding Trapped Chest; --301s message: Trapped Chest; --302s holding Copper Wire; --302s message: Copper Wire; --302s holding Stone; --302s message: Stone; --304s message: Flying; --320s opened PauseMenu; --320s closed PauseMenu; --324s opened PauseMenu; -27s message: Walking; -26s opened PauseMenu; -24s closed PauseMenu; -23s opened PauseMenu; -22s closed PauseMenu; -22s message: Flying; -20s message: Walking; -18s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 682.6 --z -342.3 --yaw -132 --pitch -16 --time 0.134`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205800-939.aac
+
+## 20:58:12 - [sighs] I don't know. It's doing better than it was in the other world
+
+- **Transcript:** [sighs] I don't know. It's doing better than it was in the other world, but
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 896.6 183.5 -149.5
+- **Facing:** north-east (yaw 49, pitch -42)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 09:24, rain
+- **Fps:** 61
+- **Levels:** mic -37 dBFS, game sound -17 dBFS
+- **Length:** 4.8 s (voice 2.5 s)
+- **Just before:** --270s message: Piston; --289s holding Lava Bucket; --289s message: Lava Bucket; --289s holding Observer; --289s message: Observer; --291s opened CreativeMenu; --291s closed CreativeMenu; --292s holding Lava Bucket; --292s message: Lava Bucket; --292s holding Piston; --292s message: Piston; --292s holding Trapped Chest; --292s message: Trapped Chest; --292s holding Copper Wire; --292s message: Copper Wire; --292s holding Stone; --292s message: Stone; --295s message: Flying; --310s opened PauseMenu; --310s closed PauseMenu; --314s opened PauseMenu; -30s message: Walking; -28s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 896.6 --z -149.5 --yaw -49 --pitch -42 --time 0.142`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205812-019.aac
+
+![20:58:12](voice-shots/vn-20261024-205812-019.jpg)
+
+## 20:58:16 - How much better? That's the question
+
+- **Transcript:** How much better? That's the question
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 939.9 183.5 -58.1
+- **Facing:** north (yaw 7, pitch -43)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 09:29, rain
+- **Fps:** 60
+- **Levels:** mic -22 dBFS, game sound -17 dBFS
+- **Length:** 2.7 s (voice 1.2 s)
+- **Just before:** --266s message: Piston; --284s holding Lava Bucket; --284s message: Lava Bucket; --285s holding Observer; --285s message: Observer; --287s opened CreativeMenu; --287s closed CreativeMenu; --287s holding Lava Bucket; --287s message: Lava Bucket; --288s holding Piston; --288s message: Piston; --288s holding Trapped Chest; --288s message: Trapped Chest; --288s holding Copper Wire; --288s message: Copper Wire; --288s holding Stone; --288s message: Stone; --291s message: Flying; --306s opened PauseMenu; --306s closed PauseMenu; --310s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 939.9 --z -58.1 --yaw -7 --pitch -43 --time 0.145`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205816-579.aac
+
+## 20:58:21 - These pillager assholes need to get fixed. This guy needs an update. H
+
+- **Transcript:** These pillager assholes need to get fixed. This guy needs an update. He looks like shit
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 965.2 93.0 -96.7
+- **Facing:** north-east (yaw 41, pitch -4)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 09:34, rain
+- **Fps:** 66
+- **Levels:** mic -36 dBFS, game sound -20 dBFS
+- **Length:** 5.8 s (voice 3.2 s)
+- **Just before:** --280s holding Lava Bucket; --280s message: Lava Bucket; --280s holding Observer; --280s message: Observer; --282s opened CreativeMenu; --283s closed CreativeMenu; --283s holding Lava Bucket; --283s message: Lava Bucket; --283s holding Piston; --283s message: Piston; --283s holding Trapped Chest; --283s message: Trapped Chest; --283s holding Copper Wire; --283s message: Copper Wire; --283s holding Stone; --283s message: Stone; --286s message: Flying; --301s opened PauseMenu; --302s closed PauseMenu; --306s opened PauseMenu; -4s message: Walking
+- **While talking:** --275s holding Lava Bucket; --275s message: Lava Bucket; --275s holding Observer; --275s message: Observer; --277s opened CreativeMenu; --278s closed CreativeMenu; --278s holding Lava Bucket; --278s message: Lava Bucket; --278s holding Piston; --278s message: Piston; --278s holding Trapped Chest; --278s message: Trapped Chest; --278s holding Copper Wire; --278s message: Copper Wire; --279s holding Stone; --279s message: Stone; --281s message: Flying; --296s opened PauseMenu; --297s closed PauseMenu; --301s opened PauseMenu
+- **Position at the end:** 965.4 93.0 -99.8
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 965.2 --z -96.7 --yaw -41 --pitch -4 --time 0.149`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205821-339.aac
+
+## 20:58:27 - Looks really, really primitive
+
+- **Transcript:** Looks really, really primitive
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 965.3 93.0 -99.8
+- **Facing:** north-west (yaw 329, pitch 15)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 09:41, rain
+- **Fps:** 72
+- **Levels:** mic -23 dBFS, game sound -14 dBFS
+- **Length:** 3.9 s (voice 1.5 s)
+- **Just before:** --274s holding Observer; --274s message: Observer; --276s opened CreativeMenu; --277s closed CreativeMenu; --277s holding Lava Bucket; --277s message: Lava Bucket; --277s holding Piston; --277s message: Piston; --277s holding Trapped Chest; --277s message: Trapped Chest; --277s holding Copper Wire; --277s message: Copper Wire; --277s holding Stone; --277s message: Stone; --280s message: Flying; --295s opened PauseMenu; --296s closed PauseMenu; --300s opened PauseMenu; -10s message: Walking; -1s opened ChestMenu; -0s closed ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 965.3 --z -99.8 --yaw 31 --pitch 15 --time 0.154`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205827-440.aac
+
+![20:58:27](voice-shots/vn-20261024-205827-440.jpg)
+
+## 20:58:32 - Ja, så sådan
+
+- **Transcript:** Ja, så sådan
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 1020.5 132.2 -150.1
+- **Facing:** south-west (yaw 212, pitch -53)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 09:46, rain
+- **Fps:** 71
+- **Levels:** mic -23 dBFS, game sound -17 dBFS
+- **Length:** 2.4 s (voice 1.0 s)
+- **Just before:** --270s message: Observer; --272s opened CreativeMenu; --272s closed CreativeMenu; --273s holding Lava Bucket; --273s message: Lava Bucket; --273s holding Piston; --273s message: Piston; --273s holding Trapped Chest; --273s message: Trapped Chest; --273s holding Copper Wire; --273s message: Copper Wire; --273s holding Stone; --273s message: Stone; --276s message: Flying; --291s opened PauseMenu; --292s closed PauseMenu; --295s opened PauseMenu; -14s message: Walking; -5s opened ChestMenu; -4s closed ChestMenu; -3s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1020.5 --z -150.1 --yaw 148 --pitch -53 --time 0.158`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205832-419.aac
+
+## 20:58:34 - There's still something wrong. Like I need, I need the AI, I need some
+
+- **Transcript:** There's still something wrong. Like I need, I need the AI, I need something to talk to me. What's wrong? Why isn't it rendering fast enough?
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 1041.1 135.1 -139.4
+- **Facing:** south-east (yaw 131, pitch -77)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 09:49, rain
+- **Fps:** 59
+- **Levels:** mic -45 dBFS, game sound -17 dBFS
+- **Length:** 7.3 s (voice 5.1 s)
+- **Just before:** --268s message: Observer; --270s opened CreativeMenu; --270s closed CreativeMenu; --271s holding Lava Bucket; --271s message: Lava Bucket; --271s holding Piston; --271s message: Piston; --271s holding Trapped Chest; --271s message: Trapped Chest; --271s holding Copper Wire; --271s message: Copper Wire; --271s holding Stone; --271s message: Stone; --274s message: Flying; --289s opened PauseMenu; --290s closed PauseMenu; --293s opened PauseMenu; -16s message: Walking; -7s opened ChestMenu; -6s closed ChestMenu; -5s message: Flying
+- **While talking:** --263s message: Observer; --265s opened CreativeMenu; --266s closed CreativeMenu; --266s holding Lava Bucket; --266s message: Lava Bucket; --266s holding Piston; --266s message: Piston; --266s holding Trapped Chest; --266s message: Trapped Chest; --266s holding Copper Wire; --266s message: Copper Wire; --266s holding Stone; --266s message: Stone; --269s message: Flying; --284s opened PauseMenu; --285s closed PauseMenu; --289s opened PauseMenu
+- **Position at the end:** 1066.7 135.1 -70.4
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1041.1 --z -139.4 --yaw -131 --pitch -77 --time 0.159`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205834-599.aac
+
+## 20:58:44 - I don't get it
+
+- **Transcript:** I don't get it
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 1141.1 135.1 -101.6
+- **Facing:** south-west (yaw 217, pitch -53)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 09:59, rain
+- **Fps:** 55
+- **Levels:** mic -33 dBFS, game sound -17 dBFS
+- **Length:** 1.9 s (voice 0.5 s)
+- **Just before:** --259s message: Observer; --261s opened CreativeMenu; --262s closed CreativeMenu; --262s holding Lava Bucket; --262s message: Lava Bucket; --262s holding Piston; --262s message: Piston; --262s holding Trapped Chest; --262s message: Trapped Chest; --262s holding Copper Wire; --262s message: Copper Wire; --263s holding Stone; --263s message: Stone; --265s message: Flying; --281s opened PauseMenu; --281s closed PauseMenu; --285s opened PauseMenu; -24s message: Walking; -16s opened ChestMenu; -15s closed ChestMenu; -14s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1141.1 --z -101.6 --yaw 143 --pitch -53 --time 0.166`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205844-579.aac
+
+## 20:58:51 - Okay, no, I think I see a fucking issue
+
+- **Transcript:** Okay, no, I think I see a fucking issue
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Old Growth Spruce Taiga
+- **Position:** 1316.8 135.1 -430.0
+- **Facing:** south-west (yaw 209, pitch -59)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 10:07, rain
+- **Fps:** 65
+- **Levels:** mic -44 dBFS, game sound -15 dBFS
+- **Length:** 3.2 s (voice 1.6 s)
+- **Just before:** --253s message: Observer; --255s opened CreativeMenu; --255s closed CreativeMenu; --256s holding Lava Bucket; --256s message: Lava Bucket; --256s holding Piston; --256s message: Piston; --256s holding Trapped Chest; --256s message: Trapped Chest; --256s holding Copper Wire; --256s message: Copper Wire; --256s holding Stone; --256s message: Stone; --259s message: Flying; --274s opened PauseMenu; --275s closed PauseMenu; --278s opened PauseMenu; -22s opened ChestMenu; -21s closed ChestMenu; -20s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1316.8 --z -430.0 --yaw 151 --pitch -59 --time 0.172`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205851-479.aac
+
+## 20:58:55 - Why is it rendering the caves underneath? As I'm flying, I can see cav
+
+- **Transcript:** Why is it rendering the caves underneath? As I'm flying, I can see caves underground. That shouldn't be. I shouldn't be able to see caves as I move around the world. I shouldn't be able to see caves 'cause that me- that means it's generating them, which could be slowing it down
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Ocean
+- **Position:** 1358.3 135.1 -594.2
+- **Facing:** south (yaw 193, pitch -66)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 10:11, rain
+- **Fps:** 70
+- **Levels:** mic -23 dBFS, game sound -20 dBFS
+- **Length:** 16.1 s (voice 10.7 s)
+- **Just before:** --250s message: Observer; --252s opened CreativeMenu; --252s closed CreativeMenu; --252s holding Lava Bucket; --252s message: Lava Bucket; --252s holding Piston; --252s message: Piston; --253s holding Trapped Chest; --253s message: Trapped Chest; --253s holding Copper Wire; --253s message: Copper Wire; --253s holding Stone; --253s message: Stone; --255s message: Flying; --271s opened PauseMenu; --271s closed PauseMenu; --275s opened PauseMenu; -26s opened ChestMenu; -25s closed ChestMenu; -24s message: Flying
+- **While talking:** --246s message: Observer; --248s opened CreativeMenu; --249s closed CreativeMenu; --249s holding Lava Bucket; --249s message: Lava Bucket; --249s holding Piston; --249s message: Piston; --249s holding Trapped Chest; --249s message: Trapped Chest; --249s holding Copper Wire; --249s message: Copper Wire; --249s holding Stone; --249s message: Stone; --252s message: Flying; --267s opened PauseMenu; --268s closed PauseMenu; --272s opened PauseMenu; --245s closed CreativeMenu; --246s holding Lava Bucket; --246s message: Lava Bucket; --246s holding Piston; --246s message: Piston; --246s holding Trapped Chest; --246s message: Trapped Chest; --246s holding Copper Wire; --246s message: Copper Wire; --246s holding Stone; --246s message: Stone; --249s message: Flying; --264s opened PauseMenu; --265s closed PauseMenu; --268s opened PauseMenu; -3s message: Walking; -1s message: Flying; --241s closed CreativeMenu; --241s holding Lava Bucket; --241s message: Lava Bucket; --242s holding Piston; --242s message: Piston; --242s holding Trapped Chest; --242s message: Trapped Chest; --242s holding Copper Wire; --242s message: Copper Wire; --242s holding Stone; --242s message: Stone; --245s message: Flying; --260s opened PauseMenu; --260s closed PauseMenu; --264s opened PauseMenu
+- **Position at the end:** 1611.3 138.4 -720.4
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1358.3 --z -594.2 --yaw 167 --pitch -66 --time 0.175`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205855-359.aac
+
+![20:58:55](voice-shots/vn-20261024-205855-359.jpg)
+
+## 20:59:12 - So that's something I can see
+
+- **Transcript:** So that's something I can see
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 1546.3 138.4 -759.6
+- **Facing:** north (yaw 14, pitch -48)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 10:25, rain
+- **Fps:** 57
+- **Levels:** mic -23 dBFS, game sound -18 dBFS
+- **Length:** 2.2 s (voice 0.8 s)
+- **Just before:** --240s closed CreativeMenu; --240s holding Lava Bucket; --240s message: Lava Bucket; --240s holding Piston; --240s message: Piston; --241s holding Trapped Chest; --241s message: Trapped Chest; --241s holding Copper Wire; --241s message: Copper Wire; --241s holding Stone; --241s message: Stone; --243s message: Flying; --259s opened PauseMenu; --259s closed PauseMenu; --263s opened PauseMenu; -8s message: Walking; -7s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1546.3 --z -759.6 --yaw -14 --pitch -48 --time 0.185`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205912-019.aac
+
+![20:59:12](voice-shots/vn-20261024-205912-019.jpg)
+
+## 20:59:17 - Now when I'm high above ground, it's not too much of an issue
+
+- **Transcript:** Now when I'm high above ground, it's not too much of an issue
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Cold Ocean
+- **Position:** 1196.4 138.3 -706.8
+- **Facing:** north-east (yaw 36, pitch -63)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 10:31, rain
+- **Fps:** 63
+- **Levels:** mic -32 dBFS, game sound -13 dBFS
+- **Length:** 4.6 s (voice 2.6 s)
+- **Just before:** --236s holding Lava Bucket; --236s message: Lava Bucket; --236s holding Piston; --236s message: Piston; --236s holding Trapped Chest; --236s message: Trapped Chest; --236s holding Copper Wire; --236s message: Copper Wire; --236s holding Stone; --236s message: Stone; --239s message: Flying; --254s opened PauseMenu; --254s closed PauseMenu; --258s opened PauseMenu; -13s message: Walking; -12s message: Flying; -0s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1196.4 --z -706.8 --yaw -36 --pitch -63 --time 0.188`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205917-179.aac
+
+## 20:59:22 - All right. Well, then again, I was kind of slow falling there 'cause I
+
+- **Transcript:** All right. Well, then again, I was kind of slow falling there 'cause I was struggling
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Cold Ocean
+- **Position:** 1191.7 87.9 -830.1
+- **Facing:** north (yaw 19, pitch -62)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 10:35, rain
+- **Fps:** 56
+- **Levels:** mic -31 dBFS, game sound -18 dBFS
+- **Length:** 4.8 s (voice 2.9 s)
+- **Just before:** --232s message: Lava Bucket; --232s holding Piston; --232s message: Piston; --232s holding Trapped Chest; --232s message: Trapped Chest; --233s holding Copper Wire; --233s message: Copper Wire; --233s holding Stone; --233s message: Stone; --235s message: Flying; --251s opened PauseMenu; --251s closed PauseMenu; --255s opened PauseMenu; -16s message: Walking; -15s message: Flying; -4s message: Walking; -2s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1191.7 --z -830.1 --yaw -19 --pitch -62 --time 0.191`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205922-479.aac
+
+![20:59:22](voice-shots/vn-20261024-205922-479.jpg)
+
+## 20:59:27 - Yeah, she's generating caves under me. That's hard for it to do, right
+
+- **Transcript:** Yeah, she's generating caves under me. That's hard for it to do, right? I don't know if that's hard on the GPU, but that's probably not good
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Deep Frozen Ocean
+- **Position:** 1217.5 87.9 -1245.6
+- **Facing:** south-east (yaw 119, pitch -61)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 10:41, rain
+- **Fps:** 51
+- **Levels:** mic -27 dBFS, game sound -17 dBFS
+- **Length:** 8.1 s (voice 4.8 s)
+- **Just before:** --227s message: Lava Bucket; --228s holding Piston; --228s message: Piston; --228s holding Trapped Chest; --228s message: Trapped Chest; --228s holding Copper Wire; --228s message: Copper Wire; --228s holding Stone; --228s message: Stone; --230s message: Flying; --246s opened PauseMenu; --246s closed PauseMenu; --250s opened PauseMenu; -21s message: Walking; -20s message: Flying; -8s message: Walking; -6s message: Flying
+- **While talking:** --223s message: Lava Bucket; --223s holding Piston; --223s message: Piston; --223s holding Trapped Chest; --223s message: Trapped Chest; --223s holding Copper Wire; --223s message: Copper Wire; --223s holding Stone; --223s message: Stone; --226s message: Flying; --241s opened PauseMenu; --241s closed PauseMenu; --245s opened PauseMenu
+- **Position at the end:** 1168.3 87.9 -1634.8
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1217.5 --z -1245.6 --yaw -119 --pitch -61 --time 0.195`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205927-619.aac
+
+## 20:59:35 - Um, yeah
+
+- **Transcript:** Um, yeah
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Deep Frozen Ocean
+- **Position:** 1341.1 87.9 -1690.2
+- **Facing:** south-east (yaw 126, pitch -34)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 10:50, rain
+- **Fps:** 70
+- **Levels:** mic -31 dBFS, game sound -18 dBFS
+- **Length:** 2.8 s (voice 0.9 s)
+- **Just before:** --219s message: Lava Bucket; --220s holding Piston; --220s message: Piston; --220s holding Trapped Chest; --220s message: Trapped Chest; --220s holding Copper Wire; --220s message: Copper Wire; --220s holding Stone; --220s message: Stone; --223s message: Flying; --238s opened PauseMenu; --238s closed PauseMenu; --242s opened PauseMenu; -29s message: Walking; -28s message: Flying; -16s message: Walking; -14s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1341.1 --z -1690.2 --yaw -126 --pitch -34 --time 0.202`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205935-999.aac
+
+![20:59:35](voice-shots/vn-20261024-205935-999.jpg)
+
+## 20:59:40 - We turn that to view distance of sixteen
+
+- **Transcript:** We turn that to view distance of sixteen
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Deep Frozen Ocean
+- **Position:** 1518.8 87.9 -1657.3
+- **Facing:** east (yaw 84, pitch -28)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20, screen PauseMenu
+- **Time:** day 5 10:53, rain
+- **Fps:** 71
+- **Levels:** mic -31 dBFS, game sound -27 dBFS
+- **Length:** 3.8 s (voice 2.1 s)
+- **Just before:** --215s holding Piston; --215s message: Piston; --215s holding Trapped Chest; --215s message: Trapped Chest; --215s holding Copper Wire; --215s message: Copper Wire; --216s holding Stone; --216s message: Stone; --218s message: Flying; --233s opened PauseMenu; --234s closed PauseMenu; --238s opened PauseMenu; -21s message: Walking; -19s message: Flying; -2s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1518.8 --z -1657.3 --yaw -84 --pitch -28 --time 0.204`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205940-439.aac
+
+## 20:59:44 - It's, uh, we're on ice, so it's really easy for it
+
+- **Transcript:** It's, uh, we're on ice, so it's really easy for it
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Frozen Ocean
+- **Position:** 1777.3 109.5 -1743.1
+- **Facing:** south (yaw 191, pitch -61)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 10:58, rain
+- **Fps:** 71
+- **Levels:** mic -28 dBFS, game sound -16 dBFS
+- **Length:** 4.3 s (voice 2.2 s)
+- **Just before:** --211s message: Piston; --211s holding Trapped Chest; --211s message: Trapped Chest; --211s holding Copper Wire; --211s message: Copper Wire; --212s holding Stone; --212s message: Stone; --214s message: Flying; --230s opened PauseMenu; --230s closed PauseMenu; --234s opened PauseMenu; -25s message: Walking; -23s message: Flying; -6s opened PauseMenu; -4s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1777.3 --z -1743.1 --yaw 169 --pitch -61 --time 0.207`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205944-719.aac
+
+## 20:59:51 - But yeah, it's actually doing okay now. It's rendering everything pret
+
+- **Transcript:** But yeah, it's actually doing okay now. It's rendering everything pretty good. Oh, I think this is an area I've already been in possibly
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 1970.9 120.6 -1563.7
+- **Facing:** east (yaw 96, pitch -40)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 11:04, rain
+- **Fps:** 64
+- **Levels:** mic -28 dBFS, game sound -16 dBFS
+- **Length:** 8.6 s (voice 5.1 s)
+- **Just before:** --206s message: Piston; --206s holding Trapped Chest; --206s message: Trapped Chest; --206s holding Copper Wire; --206s message: Copper Wire; --206s holding Stone; --206s message: Stone; --209s message: Flying; --224s opened PauseMenu; --224s closed PauseMenu; --228s opened PauseMenu; -28s message: Flying; -12s opened PauseMenu; -9s closed PauseMenu
+- **While talking:** --202s holding Trapped Chest; --202s message: Trapped Chest; --202s holding Copper Wire; --202s message: Copper Wire; --202s holding Stone; --202s message: Stone; --205s message: Flying; --220s opened PauseMenu; --221s closed PauseMenu; --225s opened PauseMenu; -1s message: Entering Selarwick
+- **Position at the end:** 2058.6 139.3 -1693.0
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1970.9 --z -1563.7 --yaw -96 --pitch -40 --time 0.212`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-205951-019.aac
+
+![20:59:51](voice-shots/vn-20261024-205951-019.jpg)
+
+## 21:00:01 - Slowing down now
+
+- **Transcript:** Slowing down now
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Snowy Beach
+- **Position:** 1879.1 139.3 -1694.1
+- **Facing:** north-west (yaw 304, pitch -65)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 11:12, rain
+- **Fps:** 41
+- **Levels:** mic -34 dBFS, game sound -15 dBFS
+- **Length:** 2.2 s (voice 0.8 s)
+- **Just before:** --200s message: Trapped Chest; --200s holding Copper Wire; --200s message: Copper Wire; --200s holding Stone; --200s message: Stone; --203s message: Flying; --218s opened PauseMenu; --218s closed PauseMenu; --222s opened PauseMenu; -17s opened PauseMenu; -15s closed PauseMenu; -3s message: Entering Selarwick; -1s message: Entering Zoregard
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1879.1 --z -1694.1 --yaw 56 --pitch -65 --time 0.217`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210001-019.aac
+
+![21:00:01](voice-shots/vn-20261024-210001-019.jpg)
+
+## 21:00:09 - Try to go to a place I definitely haven't been in
+
+- **Transcript:** Try to go to a place I definitely haven't been in
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Deep Frozen Ocean
+- **Position:** 1351.0 139.3 -1989.7
+- **Facing:** north-west (yaw 324, pitch -59)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 11:20, rain
+- **Fps:** 70
+- **Levels:** mic -29 dBFS, game sound -14 dBFS
+- **Length:** 4.1 s (voice 2.1 s)
+- **Just before:** --192s message: Trapped Chest; --193s holding Copper Wire; --193s message: Copper Wire; --193s holding Stone; --193s message: Stone; --195s message: Flying; --211s opened PauseMenu; --211s closed PauseMenu; --215s opened PauseMenu; -25s opened PauseMenu; -23s closed PauseMenu; -10s message: Entering Selarwick; -9s message: Entering Zoregard
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1351.0 --z -1989.7 --yaw 36 --pitch -59 --time 0.223`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210009-739.aac
+
+## 21:00:15 - But yeah, I can see like zombies and shit under, like underground. Lik
+
+- **Transcript:** But yeah, I can see like zombies and shit under, like underground. Like that's, that's a problem. It's not supposed to be trying to generate anything inside of you
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Deep Frozen Ocean
+- **Position:** 1101.2 139.3 -2245.4
+- **Facing:** north-west (yaw 317, pitch -61)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 11:27, rain
+- **Fps:** 69
+- **Levels:** mic -26 dBFS, game sound -13 dBFS
+- **Length:** 9.3 s (voice 6.0 s)
+- **Just before:** --187s message: Trapped Chest; --187s holding Copper Wire; --187s message: Copper Wire; --187s holding Stone; --187s message: Stone; --190s message: Flying; --205s opened PauseMenu; --206s closed PauseMenu; --209s opened PauseMenu; -28s closed PauseMenu; -16s message: Entering Selarwick; -14s message: Entering Zoregard
+- **While talking:** --182s holding Copper Wire; --182s message: Copper Wire; --182s holding Stone; --182s message: Stone; --185s message: Flying; --200s opened PauseMenu; --201s closed PauseMenu; --204s opened PauseMenu; -4s message: Entering Savador
+- **Position at the end:** 813.4 139.3 -2555.6
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 1101.2 --z -2245.4 --yaw 43 --pitch -61 --time 0.227`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210015-339.aac
+
+![21:00:15](voice-shots/vn-20261024-210015-339.jpg)
+
+## 21:00:41 - All right, homestead. See if the people are fixed
+
+- **Transcript:** All right, homestead. See if the people are fixed
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -188.7 140.0 -3154.0
+- **Facing:** south-west (yaw 232, pitch -65)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 11:56, rain
+- **Fps:** 60
+- **Levels:** mic -21 dBFS, game sound -14 dBFS
+- **Length:** 4.2 s (voice 2.1 s)
+- **Just before:** --163s message: Copper Wire; --163s holding Stone; --163s message: Stone; --165s message: Flying; --181s opened PauseMenu; --181s closed PauseMenu; --185s opened PauseMenu; -24s message: Entering Savador; -1s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x -188.7 --z -3154.0 --yaw 128 --pitch -65 --time 0.248`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210041-879.aac
+
+![21:00:41](voice-shots/vn-20261024-210041-879.jpg)
+
+## 21:00:46 - Well, maybe
+
+- **Transcript:** Well, maybe
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -192.9 75.0 -3145.1
+- **Facing:** south-west (yaw 236, pitch -38)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Snow at -195 75 -3145
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 11:59, rain
+- **Fps:** 42
+- **Levels:** mic -28 dBFS, game sound -18 dBFS
+- **Length:** 2.3 s (voice 1.0 s)
+- **Just before:** --161s holding Stone; --161s message: Stone; --163s message: Flying; --178s opened PauseMenu; --179s closed PauseMenu; --183s opened PauseMenu; -26s message: Entering Savador; -3s message: Walking; -2s message: Homestead marked on the map
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x -192.9 --z -3145.1 --yaw 124 --pitch -38 --time 0.250`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210046-819.aac
+
+## 21:00:50 - Good. People are fixed. Thank God
+
+- **Transcript:** Good. People are fixed. Thank God
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -199.0 74.8 -3136.9
+- **Facing:** west (yaw 249, pitch -73)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Snowy Grass Block at -200 74 -3137
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 12:01, rain
+- **Fps:** 31
+- **Levels:** mic -19 dBFS, game sound -16 dBFS
+- **Length:** 3.4 s (voice 1.3 s)
+- **Just before:** --159s message: Stone; --162s message: Flying; --177s opened PauseMenu; --177s closed PauseMenu; --181s opened PauseMenu; -28s message: Entering Savador; -5s message: Walking; -4s message: Homestead marked on the map; -1s message: A homestead, fenced against the wild. Someone's home.
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x -199.0 --z -3136.9 --yaw 111 --pitch -73 --time 0.251`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210050-759.aac
+
+## 21:01:08 - So I have a little trouble at render distance sixteen. Frame rate's dr
+
+- **Transcript:** So I have a little trouble at render distance sixteen. Frame rate's dropping
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -251.1 96.1 -3169.9
+- **Facing:** north-west (yaw 305, pitch -52)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 12:07, rain
+- **Fps:** 23
+- **Levels:** mic -27 dBFS, game sound -17 dBFS
+- **Length:** 5.8 s (voice 3.1 s)
+- **Just before:** --171s opened PauseMenu; --172s closed PauseMenu; --176s opened PauseMenu; -10s message: Walking; -9s message: Homestead marked on the map; -7s message: A homestead, fenced against the wild. Someone's home.; -4s message: Willa Dawes: If you're heading north, take a coat.; -1s message: Flying
+- **While talking:** --171s closed PauseMenu; --174s opened PauseMenu; -3s message: Flying; -1s message: Walking
+- **Position at the end:** -304.1 100.3 -3166.2
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x -251.1 --z -3169.9 --yaw 55 --pitch -52 --time 0.256`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210108-099.aac
+
+![21:01:08](voice-shots/vn-20261024-210108-099.jpg)
+
+## 21:01:19 - Anyway, yeah. Um, key theme here, performance, performance, performanc
+
+- **Transcript:** Anyway, yeah. Um, key theme here, performance, performance, performance
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -398.8 100.3 -3054.2
+- **Facing:** south-west (yaw 234, pitch -26)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 12:11, rain
+- **Fps:** 21
+- **Levels:** mic -23 dBFS, game sound -17 dBFS
+- **Length:** 5.2 s (voice 2.9 s)
+- **Just before:** --173s opened PauseMenu; -14s message: Walking; -12s message: Homestead marked on the map; -10s message: A homestead, fenced against the wild. Someone's home.; -7s message: Willa Dawes: If you're heading north, take a coat.; -5s message: Flying; -3s message: Walking; -1s message: Entering Branmere
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x -398.8 --z -3054.2 --yaw 126 --pitch -26 --time 0.258`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210119-339.aac
+
+![21:01:19](voice-shots/vn-20261024-210119-339.jpg)
+
+## 21:01:25 - Do a shitload. When you bring back like
+
+- **Transcript:** Do a shitload. When you bring back like
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -527.9 100.3 -2947.3
+- **Facing:** south-west (yaw 244, pitch -35)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 12:14, rain
+- **Fps:** 21
+- **Levels:** mic -33 dBFS, game sound -18 dBFS
+- **Length:** 3.7 s (voice 2.1 s)
+- **Just before:** --170s opened PauseMenu; -16s message: Walking; -14s message: Homestead marked on the map; -12s message: A homestead, fenced against the wild. Someone's home.; -9s message: Willa Dawes: If you're heading north, take a coat.; -7s message: Flying; -5s message: Walking; -3s message: Entering Branmere
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x -527.9 --z -2947.3 --yaw 116 --pitch -35 --time 0.260`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210125-999.aac
+
+## 21:01:29 - Oh, oh.
+
+- **Transcript:** Oh, oh.
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Snowy Plains
+- **Position:** -593.0 100.3 -2863.3
+- **Facing:** west (yaw 248, pitch -54)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 12:15, rain
+- **Fps:** 26
+- **Levels:** mic -28 dBFS, game sound -19 dBFS
+- **Length:** 2.3 s (voice 0.7 s)
+- **Just before:** --169s opened PauseMenu; -17s message: Walking; -16s message: Homestead marked on the map; -13s message: A homestead, fenced against the wild. Someone's home.; -11s message: Willa Dawes: If you're heading north, take a coat.; -8s message: Flying; -6s message: Walking; -4s message: Entering Branmere
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x -593.0 --z -2863.3 --yaw 112 --pitch -54 --time 0.261`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210129-659.aac
+
+![21:01:29](voice-shots/vn-20261024-210129-659.jpg)
+
+## 21:01:46 - You need to talk to me. I need to know, like, maybe there's something 
+
+- **Transcript:** You need to talk to me. I need to know, like, maybe there's something it wishes it could cut, but thinks it's not supposed to
+- **Status:** open
+- **Build:** 0.129 (47f4c4d4, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Surface
+- **Biome:** Frozen Peaks
+- **Position:** -811.7 205.7 -2350.9
+- **Facing:** west (yaw 249, pitch -56)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 5 12:33, clear
+- **Fps:** 66
+- **Levels:** mic -59 dBFS, game sound -14 dBFS
+- **Length:** 6.7 s (voice 3.8 s)
+- **Just before:** -30s message: Homestead marked on the map; -28s message: A homestead, fenced against the wild. Someone's home.; -25s message: Willa Dawes: If you're heading north, take a coat.; -22s message: Flying; -20s message: Walking; -19s message: Entering Branmere; -1s message: Walking
+- **While talking:** -4s message: Flying; -2s message: Walking; -1s message: Flying
+- **Position at the end:** -940.0 191.3 -2279.1
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x -811.7 --z -2350.9 --yaw 111 --pitch -56 --time 0.273`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261024-210146-119.aac
+
+![21:01:46](voice-shots/vn-20261024-210146-119.jpg)
