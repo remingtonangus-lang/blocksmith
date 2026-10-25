@@ -1091,7 +1091,9 @@ enum HeavyTurret {
     static let barrel: Float = 21                   // trunnion to muzzle
     static let spacing: Float = 2.25                // half the distance between the barrels
     static let speed: Float = 260, gravity: Float = 3  // flat direct fire: ~2 m of drop at 220 m (Quest round 4)
-    static let pitchMin: Float = -0.09, pitchMax: Float = 0.52     // -5 to +30 degrees
+    // P459 (Oct 25 16:19: "they're shooting over my head... They can't aim down far enough"; 16:51 "naval guns need to
+    // be able to shoot down further"): -13 degrees, down onto the ground round the base (was -5).
+    static let pitchMin: Float = -0.22, pitchMax: Float = 0.52     // -13 to +30 degrees
     static let traverse: Float = 0.2                // radians per second
     static let reload: Float = 9
     static let range: Float = 220                   // once provoked
@@ -1184,6 +1186,8 @@ func deckGunParts(_ m: Mob) -> [Part] {
     var grey = V3(0.56, 0.58, 0.6), dark = V3(0.2, 0.21, 0.23), mid = V3(0.42, 0.44, 0.47), deck = V3(0.32, 0.33, 0.35)
     if look == .greywall || look == .flak && m.factionValue == .greywall { grey = V3(0.33, 0.37, 0.41); mid = V3(0.25, 0.28, 0.31); dark = V3(0.12, 0.13, 0.15); deck = V3(0.22, 0.24, 0.26) }
     if look == .casemate { grey = V3(0.5, 0.52, 0.47); mid = V3(0.38, 0.4, 0.36) }      // (field drab)
+    // P459 (Oct 25 16:36: "Make it so that the capital naval guns are white"): the Capital's guns in its white plate.
+    if m.factionValue == .steelhold && look != .casemate { grey = V3(0.86, 0.87, 0.88); mid = V3(0.72, 0.73, 0.75); dark = V3(0.3, 0.31, 0.33); deck = V3(0.62, 0.63, 0.65) }
     // P102: a hurt gun's plate blackens (smoking, then burning: NavalGuns.state) and its right barrel droops.
     let hurt = NavalGuns.state(m)
     if hurt > 0 { let f: Float = hurt == 2 ? 0.5 : 0.78; grey *= f; mid *= f; deck *= f }

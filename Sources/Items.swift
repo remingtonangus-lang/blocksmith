@@ -392,9 +392,11 @@ final class ItemRegistry {
         }
 
         // Armor: (name, points per slot head/chest/legs/feet, durability multiplier, toughness, colour)
+        // (P459, Oct 25 16:17: "Make the steel better, more tough. Should be similar to titanium": a point under titanium's
+        // boots, its chest, 1.5 toughness)
         let armors: [(String, String, [Int], Int, Float, UInt32)] = [
             ("leather", "Leather", [1, 3, 2, 1], 5, 0, 0xA0592B), ("chainmail", "Chainmail", [2, 5, 4, 1], 15, 0, 0x9A9A9A),
-            ("iron", "Iron", [2, 6, 5, 2], 15, 0, 0xE0E0E0), ("steel", "Steel", [2, 7, 6, 2], 24, 1, 0x6F7A86), ("golden", "Golden", [2, 5, 3, 1], 7, 0, 0xF8D84A),
+            ("iron", "Iron", [2, 6, 5, 2], 15, 0, 0xE0E0E0), ("steel", "Steel", [3, 8, 6, 2], 30, 1.5, 0x6F7A86), ("golden", "Golden", [2, 5, 3, 1], 7, 0, 0xF8D84A),
             ("diamond", "Titanium", [3, 8, 6, 3], 33, 2, 0xA7B3C2), ("netherite", "Duskium", [3, 8, 6, 3], 37, 3, 0x5A555A),
             ("copper", "Copper", [2, 4, 3, 1], 11, 0, 0xC87A55),
         ]

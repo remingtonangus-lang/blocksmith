@@ -358,7 +358,7 @@ enum QuestBugTests {
                 check(r?.result.item == Items.id("steel_\(p)"), "r3 steel: steel \(p) crafts")
                 pts += Items.def(Items.id("steel_\(p)")).armor
             }
-            check(pts == 17, "r3 steel: steel armour totals 17 points (\(pts))")
+            check(pts == 19, "r3 steel: steel armour totals 19 points, a point under titanium (P459) (\(pts))")
             var worn = ItemStack(Items.id("steel_chestplate"), 1); worn.damage = 200
             let fix = Enchant.combine(worn, ItemStack(steel, 1), rename: nil, creative: true)
             check((fix?.out.damage ?? 999) < 200, "r3 steel: steel ingot repairs a steel chestplate on the anvil")

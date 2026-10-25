@@ -3,7 +3,7 @@ import simd
 
 // The sheriff's six-iron, the iron rule and taking a town (SixIron.swift, TownConquest.swift; docs/status/six-iron.md).
 // Run by TownTests.honour (questcheck on the host and `--towns-only`, `--towntests` on the Mac).
-//   rule:      the damage table: below iron two shots kill on normal (three on easy, one on hard), iron takes 3, steel 4+, titanium and
+//   rule:      the damage table: below iron two shots kill on normal (three on easy, one on hard), iron takes 3, steel (P459) and titanium and
 //              Duskium are chip damage; peaceful none. Real rounds against worn sets: leather would kill (a totem
 //              pops), iron takes 8 of 20, titanium 1.
 //   duel:      every sheriff carries it; his challenge draws it; the first round is a warning over your head; each
@@ -45,7 +45,7 @@ extension TownTests {
         check(soft.allSatisfy { row[$0] == 10 }, "iron rule: below iron two rounds kill on normal (\(soft.map { "\($0) \(row[$0] ?? -1)" }.joined(separator: ", ")))")
         let iron = row["iron"] ?? 0, steel = row["steel"] ?? 0
         check(iron * 3 >= 20 && iron * 2 < 20, "iron rule: a full iron set takes \(iron) a round: three shots kill")
-        check(steel < iron && steel * 3 < 20 && steel * 6 >= 20, "iron rule: steel takes \(steel) a round: 4-6 shots")
+        check(steel < iron && steel <= 2, "iron rule: steel takes \(steel) a round: near titanium (P459)")
         check((row["titanium"] ?? 99) <= 1 && (row["Duskium"] ?? 99) <= 1, "iron rule: titanium and Duskium take chip damage (\(row["titanium"] ?? -1), \(row["Duskium"] ?? -1))")
         let leather = SixIron.armourScore(SixIron.fullSet("leather")), ti = SixIron.armourScore(SixIron.fullSet("diamond"))
         check(SixIron.damage(score: leather, difficulty: 1) == 7 && SixIron.damage(score: leather, difficulty: 3) == SixIron.lethal
