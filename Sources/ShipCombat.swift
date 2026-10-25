@@ -348,9 +348,7 @@ extension ShipManager {
             }
             let at = s.toWorld(V3(Float(cell.x), Float(cell.y), Float(cell.z)) + 0.5)
             if let game {
-                if Rand.float(in: 0..<1) < 1 / max(1, power) {
-                    for st in Mining.drops(b, ItemStack(Items.id("netherite_pickaxe"), 1)) { game.drops.spawn(st, at: at) }
-                }
+                for st in Explosion.blastDrops(b) { game.drops.spawn(st, at: at) }                 // (P452)
                 if let be = s.blockEntities[cell] { for st in be.container.slots where !st.isEmpty { game.drops.spawn(st, at: at) } }
             }
             s.blockEntities.removeValue(forKey: cell)

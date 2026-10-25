@@ -17,8 +17,38 @@ enum Explosion {
         return r0
     }
 
-    // `decay`: blocks drop with chance 1/power (creepers, fireballs, beds...); primed blocks of TNT drop everything
-    // (reference: the TNT drop-decay rule is off by default).
+    // P452 (Remington, Oct 25 13:34: "if an explosion happens, any of the stuff it destroys is destroyed. There's no
+    // block left to pick up. Unless it's a very valuable block. Like a weapon upgrades block thing."): the fight at the
+    // surface left the ground strewn with blasted blocks to pick up and it lagged. What a blast (or a crater, a shell
+    // through a ship, a vehicle smashing through, a collapse crushing what it lands on) breaks is gone; only a very
+    // valuable block drops: one made with something precious (the Upgrade Bench's diamonds and obsidian, a beacon's
+    // star, the precious storage blocks, an anvil's iron blocks) or a gun or vehicle workshop. What a chest or furnace
+    // held still drops (his things, not the block).
+    static let precious = ["diamond", "emerald", "gold_ingot", "netherite_ingot", "netherite_scrap", "nether_star", "obsidian",
+                           "iron_block", "ender_eye", "ender_pearl", "shulker_shell", "heart_of_the_sea", "echo_shard", "totem"]
+    static let valuable: [Bool] = {
+        var v = [Bool](repeating: false, count: Blocks.count)
+        func mark(_ b: BlockID) {
+            let base = Int(Blocks.groupBase[Int(b)])
+            var i = base
+            while i < Blocks.count && Int(Blocks.groupBase[i]) == base { v[i] = true; i += 1 }
+        }
+        for r in Recipes.all {
+            guard let b = Items.defs[Int(r.result.item)].block else { continue }
+            let parts = r.shapeless.isEmpty ? r.cells.compactMap { $0 } : r.shapeless
+            if parts.contains(where: { p in precious.contains { p.contains($0) } }) { mark(b) }
+        }
+        for k in [WeaponPrinter.key, GunsmithBench.key, VehicleWorks.key, "beacon", "conduit", "enchanting_table"] where Blocks.has(k) { mark(Blocks.id(k)) }
+        return v
+    }()
+    // A blasted block's drops: only a valuable one's, and then always.
+    static func blastDrops(_ b: BlockID) -> [ItemStack] {
+        guard valuable[Int(b)] else { return [] }
+        return Mining.drops(b, ItemStack(Items.id("netherite_pickaxe"), 1))
+    }
+
+    // `decay` (blocks dropping with chance 1/power, TNT dropping everything) is gone with P452: a blast drops only
+    // valuable blocks (blastDrops).
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
                         decay: Bool = true, resistCap: Float = .infinity, along: V3? = nil) {
         let w = g.world
@@ -28,6 +58,7 @@ enum Explosion {
         let shot: V3? = along.flatMap { simd_length($0) > 1e-3 ? simd_normalize($0) : nil }
         // No friendly fire: the Capital's own shells (bases.quiet) leave its citadels' blocks and its troops alone.
         let own = g.bases.quiet
+        let lying = g.drops.items.count                    // (what this blast spills itself is thrown, not burnt: P452)
         let breakBlocks = breakBlocks && !(own && g.bases.inAnyBase(c))
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
         w.ships.blast(at: c, power: power, game: g, resistCap: resistCap)          // ship blocks (ShipCombat.swift)
@@ -92,10 +123,8 @@ enum Explosion {
         for b in destroyed {
             let id = w.block(b.x, b.y, b.z)
             if id == tntID { tnt.append(b); w.setBlockAsync(b.x, b.y, b.z, AIR); continue }
-            if !decay || Rand.float(in: 0..<1) < 1 / power {
-                for s in Mining.drops(id, ItemStack(Items.id("netherite_pickaxe"), 1)) {
-                    g.drops.spawn(s, at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5))
-                }
+            for s in Explosion.blastDrops(id) {                                                  // (P452)
+                g.drops.spawn(s, at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5))
             }
             if let be = w.blockEntities.removeValue(forKey: b) {
                 for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5)) }
@@ -191,7 +220,7 @@ enum Explosion {
             }
         }
         let star: ItemID = Items.has("nether_star") ? Items.id("nether_star") : ItemID.max
-        for it in g.drops.items {
+        for it in g.drops.items.prefix(lying) {
             if let im = impact(it.pos, 0.25), im.0 > 0 {
                 let (k, dir) = im
                 // The Blight Star survives blasts (the Blight's own skulls keep landing around its drop).
@@ -350,10 +379,7 @@ final class CraterJob {
                 for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }
                 be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
             }
-            // Loose blocks from the first 3000 only: P99's deep bowls (7000+ blocks) left the frame thread ticking hundreds of drops.
-            if removed < 3000 && Rand.float(in: 0..<1) < 0.02 {
-                for s in Mining.drops(id, ItemStack(Items.id("netherite_pickaxe"), 1)) { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }
-            }
+            for s in Explosion.blastDrops(id) { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }      // (P452)
             w.setBlockAsync(x, y, z, AIR)
             removed += 1
             budget -= 1
