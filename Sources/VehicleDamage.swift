@@ -20,6 +20,11 @@ extension ShipManager {
             s.crashCD = max(0, s.crashCD - dt)
             let v = s.crashSpeed
             s.crashSpeed = 0
+            // P428 (Oct 24 10:17, "this giant log, which isn't the same log I hit, it morphed into something else"): a
+            // felled tree is not a vehicle. Its crown came down faster than a crash, so it was torn apart where it struck
+            // (leaf blobs left in ragged pieces, bits drifting off as wreckage, a blast's bang and shake) and ploughed a
+            // pit in the ground under it. It lands as a tree (Felling: a thud and a rustle of leaves).
+            if Felling.isFelled(s) { continue }
             // P262: a heavy, fast hull breaks through what it hits in the world (any physics hull, AI or yours).
             var gave = false
             if v > Momentum.minSpeed && s.crashWorld && !s.kinematic && s.crashCD <= 0 { gave = Momentum.ram(s, v, g) }
