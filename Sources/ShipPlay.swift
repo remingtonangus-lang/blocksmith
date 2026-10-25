@@ -274,7 +274,10 @@ extension Game {
         var bd = Float.greatestFiniteMagnitude
         for s in ships.list where s.parent == nil && !s.wrecked && s.helm != nil {
             // Crewed vessels and Capital fliers only: near the player's own builds use keeps placing blocks.
-            if s.kinematic ? !ships.canCommandeer(s) : !(s.isVessel || s.role == "kestrel" || s.role == "capplane") { continue }
+            // P435 (Oct 24 15:51, the Ashguard sidecar: "Should be third person if I'm driving this thing"; he pushed it
+            // about on foot instead): a sidecar's helm is taken from beside it too, which puts him in the chase view.
+            let sidecar = s.name == AshCommandeer.sidecarName
+            if s.kinematic ? !ships.canCommandeer(s) : !(s.isVessel || s.role == "kestrel" || s.role == "capplane" || sidecar) { continue }
             guard let stand = helmStand(s) else { continue }
             let d = simd_length(s.toWorld(stand) - p)
             let zone: Float = s.role == "dropship" ? 9 : (s.role == "kestrel" || s.role == "capplane" ? 8 : 6)

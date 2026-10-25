@@ -284,6 +284,12 @@ extension Mob {
     // Called from monsterAI for the four ranks; returns the walk speed.
     func soldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         if hired { return companionAI(dt, g) }                       // O2: a companion (Companions.swift)
+        // P435 (Oct 24 15:56, in the Ash Vault: "That guy is holding a capital gun, I think. It's not right"): an
+        // Ashguard soldier only ever carries the army's period arms, whatever handed him another gun after ashSetup.
+        if faction == Faction.ashguard.rawValue && !Guns.isAshArm(variant) && Soldier.rank(kind) != nil {
+            variant = Soldier.ashGun(kind, roll: Rand.float(in: 0..<1))
+            soldierBrain.gun = variant; soldierBrain.mag = Guns.all[variant].mag
+        }
         var canTarget = canTarget && !g.repAllied(self)               // O3: an ally's soldiers hold fire
         // R23: an alerted soldier (an alarm, a lockdown, a comrade's call: lockTime) hunts the player out to 64 blocks;
         // senseTarget lets go past the rank's follow range (26-40), and the alerted garrison stood at its posts.

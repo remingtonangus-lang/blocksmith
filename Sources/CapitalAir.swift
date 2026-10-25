@@ -42,6 +42,7 @@ extension Game {
     }
 
     // What keeps the Kestrel on the ground: nil when the pad is there and clear (not blasted away, nothing on it).
+    func basePadProblem(_ r: BaseRecord) -> String? { padProblem(r) }
     private func padProblem(_ r: BaseRecord) -> String? {
         let p = r.pad
         let x = Int(floor(p.x)), y = Int(floor(p.y)), z = Int(floor(p.z))

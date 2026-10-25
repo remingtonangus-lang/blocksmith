@@ -359,20 +359,12 @@ extension Game {
             let n = Game.norm(a[1])
             guard let entry = Game.structureNames.first(where: { $0.0 == n || Game.norm($0.1) == n }) else { return ["Unknown structure \(a[1])"] }
             if ["warfrigate", "crawler", "frigate", "carriage"].contains(entry.0) {
-                // Nearest encounter region of that vessel (a battle region has both capital ships).
-                let R = Vessels.region
-                let rx = floorDiv(Int(player.pos.x), R), rz = floorDiv(Int(player.pos.z), R)
-                var best: (IVec3, Float)?
-                for r in 0...12 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
-                    guard let e = Vessels.encounter(seed: world.seed, rx: rx + dx, rz: rz + dz, gen: world.gen) else { continue }
-                    let match = e.0 == entry.0 || (e.0 == "battle" && (entry.0 == "warfrigate" || entry.0 == "crawler"))
-                    if !match { continue }
-                    let d = simd_length(V2(Float(e.1.x) - player.pos.x, Float(e.1.z) - player.pos.z))
-                    if best == nil || d < best!.1 { best = (e.1, d) }
-                } }
-                if best != nil && r >= 2 { break } }
-                guard let b = best else { return ["Could not find a \(entry.1) nearby"] }
-                return ["\(entry.1): \(b.0.x) ~ \(b.0.z) (\(Int(b.1)) blocks, patrols)"]
+                // The nearest one out (its live position when it is rolling), else its encounter region's home.
+                guard let b = vesselTarget(entry.0) else {
+                    return [entry.0 == "warfrigate" && !fleetSails ? "The Stormwarden Frigates sail once a Greywall Fortress falls"
+                                                                   : "Could not find a \(entry.1) nearby"]
+                }
+                return ["\(entry.1): \(b.0.x) ~ \(b.0.z) (\(Int(b.1)) blocks, \(b.2 ? "on the move" : "patrols"))"]
             }
             // P436 (Oct 24 15:46, "I need a command so I can find shit in another [dimension]"): what this dimension
             // doesn't hold is looked up in the others (the surface, the Deep and its hell band, the Emberdeep, the Hollow),

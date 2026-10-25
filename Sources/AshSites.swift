@@ -74,6 +74,17 @@ extension BlockRegistry {
         block("wreck_hull", "Burnt Hull Plate", h: 5, snd: .metal)
         block("wreck_olive", "Scorched Armour Plate", h: 5, snd: .metal)
         block("wreck_alu", "Torn Aircraft Skin", h: 3, snd: .metal)
+        // P435 (Oct 24 15:52, "I would prefer if the plane actually looked similar to the actual"): the salvaged fighter
+        // in the crashed one's colours, bare polished aluminium with an olive-drab anti-glare panel, instead of
+        // scorched armour plate and the Capital's white wings.
+        block("fighter_skin", "Fighter Skin", h: 3, snd: .metal)
+        block("fighter_trim", "Fighter Anti-Glare Panel", h: 3, snd: .metal)
+        if !has("fighter_wing") {
+            var d = BlockDef("fighter_wing", "Fighter Airfoil")
+            d.tex = ["fighter_wing"]; d.render = .model; d.opaque = false; d.hardness = 2; d.tool = .pickaxe; d.sound = .metal
+            d.boxes = [Box(0, 6, 0, 16, 10, 16)]; d.skyStop = true
+            add(d)
+        }
         if !has("ash_drum") {
             var d = BlockDef("ash_drum", "Fuel Drum")
             d.tex = ["ash_drum_side", "ash_drum_side", "ash_drum_top", "ash_drum_top", "ash_drum_side", "ash_drum_side"]
@@ -231,6 +242,20 @@ extension TextureGen {
             let streak = r(x, y / 6, 3338)
             if streak > 0.78 { return hex(0x2A2A2A, 0.8 + 0.3 * r(x, y, 3339)) }
             return hex(0x8A8E90, 0.9 + 0.12 * r(x / 4, y / 4, 3340))
+        }
+        p["fighter_skin"] = { x, y in
+            if y % 8 == 0 || x == 0 { return hex(0x8E9496) }                       // panel seams
+            if (y % 8 == 2 || y % 8 == 6) && x % 4 == 1 { return hex(0xA4AAAC) }    // rivets
+            return hex(0xB8BEC0, 0.95 + 0.06 * r(x / 4, y / 2, 3341))
+        }
+        p["fighter_trim"] = { x, y in
+            if y == 0 || x == 0 { return hex(0x3A3C24) }
+            return hex(0x4E5232, 0.92 + 0.1 * r(x / 2, y / 2, 3342))
+        }
+        p["fighter_wing"] = { x, y in
+            if y == 0 { return hex(0x7E8486) }                                     // leading edge
+            if y == 8 || x == 0 { return hex(0x9A9FA2) }
+            return hex(0xB4BABC, 0.95 + 0.06 * r(x / 4, y / 4, 3343))
         }
         p["ash_drum_top"] = { x, y in
             if (x - 10) * (x - 10) + (y - 5) * (y - 5) < 4 { return hex(0xB8903C, 0.9 + 0.15 * r(x, y, 3311)) }   // P318: the brass bung

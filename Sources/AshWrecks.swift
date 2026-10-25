@@ -186,21 +186,25 @@ extension Game {
 }
 
 extension AshWrecks {
-    // The repaired fighter: a single-engined, low-winged fighter, patched olive, flown from its cockpit (bow -Z).
+    // The repaired fighter: a single-engined, low-winged fighter, flown from its cockpit (bow -Z), in the crashed
+    // one's colours (P435): bare aluminium, an olive anti-glare panel ahead of the bubble canopy, and a dark cowl ring round
+    // the propeller.
     static func salvagedFighter() -> Blueprint {
         let b = Blueprint()
-        let skin = Blocks.has("wreck_olive") ? "wreck_olive" : "green_terracotta"
-        let metal = Blocks.has("wreck_alu") ? "wreck_alu" : "light_gray_concrete"
-        let wing = Blocks.has("capital_wing") ? "capital_wing" : "ship_wing"
+        let skin = Blocks.has("fighter_skin") ? "fighter_skin" : "light_gray_concrete"
+        let trim = Blocks.has("fighter_trim") ? "fighter_trim" : "green_terracotta"
+        let wing = Blocks.has("fighter_wing") ? "fighter_wing" : "ship_wing"
         let glass = "glass"
         b.box(-1, 1, 1, 1, -6, 8, skin)                                    // belly
         b.box(-1, 1, 2, 3, -6, 1, skin)                                    // cowling and cockpit sides
+        b.box(-1, 1, 3, 3, -6, -4, trim)                                   // the anti-glare panel on the cowling
         for z in -3...0 { for y in 2...3 { b.clear(0, y, z) } }
         for z in -3...0 { b.set(0, 4, z, glass); b.set(-1, 3, z, glass); b.set(1, 3, z, glass) }
         b.box(0, 0, 2, 2, 1, 8, skin)                                      // the spine to the tail
         b.set(0, 1, -5, "ship_engine"); b.set(0, 1, -4, "ship_engine")
         b.set(0, 1, -7, "ship_propeller[south]")
-        b.set(0, 2, -7, metal)                                             // spinner
+        b.set(0, 2, -7, skin)                                              // spinner
+        b.set(-1, 1, -7, trim); b.set(1, 1, -7, trim)                      // the cowl ring
         for x in -7...7 where abs(x) > 1 { for z in -1...1 where !(abs(x) == 7 && z == 1) { b.set(x, 1, z, wing) } }
         for x in -3...3 where x != 0 { for z in 7...8 { b.set(x, 2, z, wing) } }
         b.box(0, 0, 3, 4, 7, 8, skin)                                      // fin

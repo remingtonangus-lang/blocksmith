@@ -344,7 +344,7 @@ final class MapCache {
         let rx = floorDiv(px, Vessels.region), rz = floorDiv(pz, Vessels.region)
         for dz in -1...1 { for dx in -1...1 {
             guard let e = Vessels.encounter(seed: g.world.seed, rx: rx + dx, rz: rz + dz, gen: g.world.gen) else { continue }
-            if !g.fleetSails && Vessels.warship(e.0) { continue }        // faction warships sail once a Greywall Fortress falls (Y3)
+            if !Vessels.out(e.0, fleetSails: g.fleetSails) { continue }  // the Stormwarden warships sail once a Greywall Fortress falls (Y3)
             let ex = e.1.x - px, ez = e.1.z - pz
             if ex * ex + ez * ez < 200 * 200 { discover(g, kind: "vessel_" + e.0, x: e.1.x, z: e.1.z) }
         } }

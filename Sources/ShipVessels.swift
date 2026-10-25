@@ -187,6 +187,11 @@ enum Vessels {
 
     static let region = 2048
     static func warship(_ kind: String) -> Bool { kind == "frigate" || kind == "warfrigate" || kind == "crawler" || kind == "battle" }
+    // Whether an encounter of this kind is out in the world yet. The Stormwarden warships (and their battles) sail once
+    // a Greywall Fortress falls (Y3); the Meridian frigates (P243) and, P437 (Oct 24 15:36, "Where's this crawler you
+    // speak of? I don't see any crawlers": /locate sent him to one that wasn't rolling yet), the Ironback Crawlers
+    // patrol from the start.
+    static func out(_ kind: String, fleetSails: Bool) -> Bool { fleetSails || !warship(kind) || kind == "frigate" || kind == "crawler" }
     // The encounter of a region (deterministic from the seed): kind and home point, or nil (most regions).
     static func encounter(seed: UInt64, rx: Int, rz: Int, gen: TerrainGenerator) -> (String, IVec3)? {
         let h = hashf(rx, rz, 4111, UInt32(truncatingIfNeeded: seed))
@@ -239,7 +244,7 @@ extension ShipManager {
                 if capital {
                     // They sail once a Greywall Fortress falls (Y3; the key stays free), but the Meridian frigates sail from
                     // the start (P243: he had never seen one).
-                    if !g.fleetSails && kind != "frigate" { continue }
+                    if !Vessels.out(kind, fleetSails: g.fleetSails) { continue }
                     if simd_length(d) > (kind == "crawler" ? 320 : 520) { continue }
                     spawnedRegions.insert(key)
                     let yaw = Float(abs(home.x * 7 + home.z * 3) % 628) / 100

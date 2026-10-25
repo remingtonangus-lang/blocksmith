@@ -13,7 +13,7 @@ func check(_ ok: Bool, _ what: String) {
 }
 setvbuf(stdout, nil, _IOLBF, 0)
 
-let seed: UInt64 = 12345
+let seed: UInt64 = CommandLine.arguments.firstIndex(of: "--worldseed").flatMap { i in i + 1 < CommandLine.arguments.count ? UInt64(CommandLine.arguments[i + 1]) : nil } ?? 12345
 WorldRules.p44 = false                 // fixture seeds keep their cities and citadels (WorldRules.p44)
 StructureCache.plansOffThread = false   // base ticks find their sites at once (P124: HitchProbe turns the worker planning on)
 Blueprints.on = false                  // upgrades fit without blueprints (P138: --p12pm-only P138 turns them on)
@@ -202,7 +202,7 @@ if let out = arg("--view"), let ctx = vkctx {
         var cells: [IVec3] = []
         for dy in -6...6 { for dz in -3...3 { for dx in -3...3 {
             let x = ex + dx, y = Int(floor(vg.player.pos.y)) + dy, z = ez + dz
-            if vw.block(x, y, z) == AIR && Blocks.opaque[Int(vw.block(x, y - 1, z))] { cells.append(IVec3(x, y, z)) }
+            if vw.block(x, y, z) == AIR && (Blocks.opaque[Int(vw.block(x, y - 1, z))] || vw.solidAt(x, y - 1, z)) { cells.append(IVec3(x, y, z)) }
         } } }
         print("edittime: \(cells.count) candidate cells; on \(cells.first.map { Blocks.key(vw.block($0.x, $0.y - 1, $0.z)) } ?? "-")")
         func t(_ f: () -> Void) -> Double { let t0 = CFAbsoluteTimeGetCurrent(); f(); return (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
@@ -1212,7 +1212,11 @@ if CommandLine.arguments.contains("--towns-only") {
 // as `--structure military_base --basetest patrol` frames it (cloud threads can see which citadel G12's rules leave).
 if let i = CommandLine.arguments.firstIndex(of: "--basetest-only") {
     let phase = i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : "patrol"
-    let from = game.findSpawn(varied: false)               // the Mac snapshot's origin (reference shots keep it)
+    var from = game.findSpawn(varied: false)               // the Mac snapshot's origin (reference shots keep it)
+    if let j = CommandLine.arguments.firstIndex(of: "--from"), j + 1 < CommandLine.arguments.count {
+        let xz = CommandLine.arguments[j + 1].split(separator: ",").compactMap { Float($0) }
+        if xz.count == 2 { from = V3(xz[0], from.y, xz[1]) }    // --worldseed S --from X,Z: a playtest's citadel
+    }
     if let s = world.gen.structures?.nearest("military_base", x: Int(from.x), z: Int(from.z), maxRegions: 6) {
         print("basetest: citadel at \(s.anchor.x) \(s.anchor.z)")
         game.player.pos = V3(Float(s.anchor.x), Float(s.anchor.y + 1), Float(s.anchor.z))
