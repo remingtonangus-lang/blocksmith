@@ -682,7 +682,11 @@ extension ShipManager {
     // MARK: Contacts
 
     private func terrainContacts(_ s: Ship, _ rd: inout ShipBlockReader, _ out: inout [Contact]) {
-        let r = ShipTuning.hullRadius
+        // P441 (Oct 24 20:50: "This log is floating... It should be able to sit on whatever's under it"; "That should be
+        // falling through the snow"): a felled tree meets the ground at the girth it is drawn with (a 0.45 sphere held a
+        // thinner trunk off the ground), and snow cover and other things the ground wears don't hold it up.
+        let felled = Felling.isFelled(s)
+        let r = felled ? max(0.2, min(ShipTuning.hullRadius, Felling.girth[s.id] ?? Felling.girth[s.root.id] ?? ShipTuning.hullRadius)) : ShipTuning.hullRadius
         // Broadphase: nothing under the ship reaches its lowest point (heightmaps of its footprint).
         if s.terrainCheck <= 0 {
             var top = -1
@@ -723,7 +727,7 @@ extension ShipManager {
             }
             for y in y0...y1 { for z in z0...z1 { for x in x0...x1 {
                 let b = fieldW ? rd.raw(x, y, z) : rd.get(x, y, z)
-                if !collide[Int(b)] { continue }
+                if !collide[Int(b)] || felled && Blocks.replaceable[Int(b)] { continue }
                 let mn = V3(Float(x), Float(y), Float(z))
                 var mx = mn + 1
                 if !Blocks.fullCollide[Int(b)] {

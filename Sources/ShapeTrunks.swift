@@ -129,7 +129,7 @@ enum ShapeTrunks {
                     }
                     if crown { kind = 1 }
                     else if joined { kind = 0 }
-                    else if H <= 2 && rootBeside(ctx, x, bot, z) { kind = 3 }     // a root beside a trunk's foot (upright or lying)
+                    else if H <= 2 && rootBeside(ctx, x, bot, z) && !fallenRun(ctx, x, bot, z) { kind = 3 }     // a root beside a trunk's foot (upright or lying)
                     else if !vertical || H == 1 && lyingBeside(ctx, x, bot, z) { kind = 0 }   // a log lying on the ground
                     else if vertical && onRoots { kind = 4 }                           // P433: a mangrove's stump on its roots
                     else if H <= 2 && SmoothTerrain.natural[under] { kind = 4 }    // P297: a tree's stump on the ground
@@ -167,7 +167,7 @@ enum ShapeTrunks {
                 let nx = x + dx, ny = y + dy, nz = z + dz
                 guard nx >= -M && ny >= -M && nz >= -M && nx < 16 + M && ny < 16 + M && nz < 16 + M else { continue }
                 let j = wi(nx, ny, nz)
-                guard s.dist[j] < 0 && (s.col[j] == 0 || s.col[j] == 3) && log(nx, ny, nz) else { continue }
+                guard s.dist[j] < 0 && (s.col[j] == 0 || s.col[j] == 3) && log(nx, ny, nz) && !fallenRun(ctx, nx, ny, nz) else { continue }
                 // Breadth-first with face steps before edge and corner steps: a cell takes the nearest joint as its parent.
                 s.dist[j] = d + 1
                 s.par[j] = Int32(i)
@@ -635,6 +635,26 @@ enum ShapeTrunks {
     // MARK: Timber
 
     // A log on its own (a cabin wall, a fallen trunk, a pile): round along its axis, flat cut ends where the run stops.
+    // P441 (Oct 24 20:53: "this log spawned hovering"; 20:51: "see how that turned into branches... no more algorithmic
+    // log generation like that"): a log lying on the ground in a run of 3 or more along its axis is a fallen trunk. Lying
+    // against a tree's foot it was taken for one of the tree's roots or limbs and drawn thin at the block's middle
+    // height, over the drawn ground; now it is never reached from a tree and lies bedded in the ground (timber).
+    static func fallenRun(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        let b = ctx.block(x, y, z)
+        let a = Int(axisOf[Int(b)])
+        guard isTrunk[Int(b)], a != 1, SmoothTerrain.natural[Int(ctx.block(x, y - 1, z))] else { return false }
+        let sx = a == 0 ? 1 : 0, sz = a == 2 ? 1 : 0
+        var n = 1
+        for sgn in [1, -1] {
+            for k in 1...2 {
+                let c = ctx.block(x + sx * k * sgn, y, z + sz * k * sgn)
+                guard isTrunk[Int(c)] && Int(axisOf[Int(c)]) == a else { break }
+                n += 1
+            }
+        }
+        return n >= 3
+    }
+
     static func timber(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, axis: Int, bark: Int, rings: Int, sides: Int) {
         let o = SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
         var d = SIMD3<Float>(0, 0, 0); d[axis] = 1
