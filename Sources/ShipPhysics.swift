@@ -815,6 +815,12 @@ extension ShipManager {
             let closing: Float = -simd_dot(v, c.n)
             if closing > s.crashSpeed { s.crashSpeed = closing; s.crashAt = c.p; s.crashN = c.n; s.crashWorld = c.other == nil; s.crashVel = s.vel }
             if let o = c.other, closing > o.crashSpeed { o.crashSpeed = closing; o.crashAt = c.p; o.crashWorld = false }
+            // P455: a driven hull pressing on the world ahead (or astern when backing): Momentum.shove.
+            if c.other == nil && abs(c.n.y) < 0.55 && s.piloted && s.throttleEase != 0 {
+                let into = -simd_dot(c.n, s.dirToWorld(s.fwd)) * (s.throttleEase > 0 ? 1 : -1)
+                Momentum.sideContacts += 1; Momentum.lastSide = (c.p, c.n, into)
+                if into > 0.3 && into > s.pushInto { s.pushing = true; s.pushInto = into; s.pushAt = c.p; s.pushN = c.n }
+            }
         }
         for _ in 0..<6 {
             for k in cs.indices {

@@ -207,6 +207,9 @@ final class Ship {
     var crashN = V3(0, 1, 0)          // P262: that contact's normal (out of what it hit), whether it was the world,
     var crashWorld = false            //       and the hull's velocity just before it (Momentum, VehicleDamage.swift)
     var crashVel = V3(0, 0, 0)
+    // P455: driven into something this frame (the contact it presses on most squarely, out of the world, not a hull)
+    var pushing = false, pushInto: Float = 0, pushAt = V3(0, 0, 0), pushN = V3(0, 0, 0)
+    var shoveStore: Float = 0, heldT: Float = 0         // (the engine's push banked against what is in the way: Momentum.shove)
     var crashCD: Float = 0            // H4: a salvaged Tidebreaker breech (centre, muzzle direction; ship space)
     var props: [(V3, V3)] = []       // propeller centre, thrust direction (ship space)
     var wheels: [V3] = []

@@ -25,6 +25,9 @@ extension ShipManager {
             // (leaf blobs left in ragged pieces, bits drifting off as wreckage, a blast's bang and shake) and ploughed a
             // pit in the ground under it. It lands as a tree (Felling: a thud and a rustle of leaves).
             if Felling.isFelled(s) { continue }
+            let held = Momentum.held(s, dt)
+            if (s.pushing || held) && !s.kinematic { Momentum.shove(s, dt, g) } else { s.shoveStore = 0 }
+            s.pushing = false; s.pushInto = 0
             // P262: a heavy, fast hull breaks through what it hits in the world (any physics hull, AI or yours).
             var gave = false
             if v > Momentum.minSpeed && s.crashWorld && !s.kinematic && s.crashCD <= 0 { gave = Momentum.ram(s, v, g) }
@@ -90,7 +93,91 @@ extension ShipManager {
 enum Momentum {
     static let minSpeed: Float = 6.5               // a gentle landing or bump breaks nothing
     static let maxCells = 48
-    static var broken = 0                                            // (tests)
+    static var broken = 0, shoved = 0, shoveCalls = 0                // (tests)
+    static var sideContacts = 0, lastSide: (V3, V3, Float) = (.zero, .zero, 0)
+
+    // P455 (Oct 25 14:19, the Ironstride Siege Carriage: "the trees are bullying it too much. This thing should be able
+    // to just drive through trees and destroy them as it drives because it's so heavy. The physics and momentum and the
+    // power of the engine should all work together... Should be a consistent physics engine, not something specific to
+    // the crawlers"): a hull driven into something keeps pushing with its engine. The push banks up (its mass times the
+    // throttle, a second's worth at most) and pays for what stands ahead of its bow at twelve times each block's
+    // hardness, four at most a frame, the middle of the bow first: what it can't shift (natural ground and rock, masonry
+    // and metal harder than 3, anything harder than its mass allows: a hundredth of its mass, so a heavy carriage snaps
+    // trunks, timber walls and glass while a light car only gets through leaves, brush and glass) stops it as before. A trunk snapped at the hull brings the tree above down (Felling). Nothing is
+    // left to pick up (P452). The crawlers' own crush stays (they drive by script, not by their engines).
+    // A driven hull held up: its engine on (a quarter throttle or more) and it all but stopped along its heading for a
+    // moment. (The contact solver's sideways contacts start it too, but a hull riding up on what it meets, wheels on the
+    // trunk, meets it with its wheels, not its sides: questcheck --shovecheck, the carriage stopped dead at a row of
+    // trunks with no side contact at all.)
+    static func held(_ s: Ship, _ dt: Float) -> Bool {
+        guard s.piloted, abs(s.throttleEase) > 0.25, s.engines > 0 else { s.heldT = 0; return false }
+        let along = simd_dot(s.vel, s.dirToWorld(s.fwd)) * (s.throttleEase > 0 ? 1 : -1)
+        s.heldT = along < 1.2 ? s.heldT + dt : 0
+        return s.heldT > 0.25
+    }
+
+    static func shove(_ s: Ship, _ dt: Float, _ g: Game) {
+        shoveCalls += 1
+        guard s.engines > 0, s.blockCount > 1 else { return }
+        let heft = s.mass / 100
+        let power = s.mass * abs(s.throttleEase) * 0.25
+        s.shoveStore = min(s.shoveStore + power * dt, power + 4)
+        // The way it is driving, level.
+        var dir = s.dirToWorld(s.fwd) * (s.throttleEase < 0 ? -1 : 1)
+        dir.y = 0
+        guard simd_length(dir) > 1e-3 else { return }
+        dir = simd_normalize(dir)
+        let w = g.world
+        // What stands just ahead of its forward face: every hull cell and wheel with none of its own hull in front of it
+        // (the bow, and a superstructure set further back that a tree's crown presses on: P455, the carriage stopped by
+        // a spruce's leaves against its upper works), from a block under the wheels' axles up to its top.
+        let gr = s.grid
+        func own(_ q: V3) -> Bool {
+            let l = s.toLocal(q)
+            return gr.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))) != AIR
+        }
+        let pts = (s.hull + s.wheels).map { s.toWorld($0) }
+        var seen = Set<IVec3>()
+        var cand: [(IVec3, Float, BlockID)] = []
+        let mid = (s.worldMin + s.worldMax) * 0.5
+        for p in pts where !own(p + dir) {
+            for k: Float in [0.6, 1.3] {
+                let q = p + dir * k
+                for dy in -1...0 {
+                    let c = IVec3(Int(floor(q.x)), Int(floor(q.y)) + dy, Int(floor(q.z)))
+                    guard c.y >= 1, c.y < CH - 1, seen.insert(c).inserted else { continue }
+                    let b = w.block(c.x, c.y, c.z)
+                    guard b != AIR, Blocks.collide[Int(b)], !Blocks.isLiquid(b), w.blockEntities[c] == nil else { continue }
+                    let hard = Blocks.hardness[Int(b)]
+                    guard hard >= 0, hard <= min(heft, 3), !w.groundAt(c.x, c.y, c.z),
+                          !SmoothTerrain.natural[Int(b)] || CapitalBase.isLog(b) || CapitalBase.isLeaf(b) else { continue }
+                    // What it is touching, nearest the middle of its bow and lowest first: the trunk it presses on goes before its crown.
+                    let off = V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5) - mid
+                    let side = simd_length(off - dir * simd_dot(off, dir))
+                    cand.append((c, (k - 0.6) * 2 + side * 0.2 + Float(c.y) * 0.05, b))
+                }
+            }
+        }
+        guard !cand.isEmpty else { return }
+        cand.sort { $0.1 < $1.1 }
+        var gone: [(IVec3, BlockID)] = []
+        for (p, _, b) in cand where gone.count < 4 {
+            let cost = max(0.4, Blocks.hardness[Int(b)]) * 12
+            guard cost <= s.shoveStore else { break }
+            s.shoveStore -= cost
+            gone.append((p, b))
+        }
+        guard !gone.isEmpty else { return }
+        shoved += gone.count
+        for (i, (p, b)) in gone.enumerated() {
+            if i < 6 { g.particles.blockBreak(b, at: p) }
+            for st in Explosion.blastDrops(b) { g.drops.spawn(st, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
+            _ = w.setBlockAsync(p.x, p.y, p.z, AIR)
+            g.debris.blockChanged(p)
+        }
+        for (p, b) in gone where CapitalBase.isLog(b) { g.fellCheck(p, b) }
+        g.blockSound(g.audioBreakSound(gone[0].1), at: gone[0].0)
+    }
 
     // Returns true when it broke something.
     static func ram(_ s: Ship, _ v: Float, _ g: Game) -> Bool {
