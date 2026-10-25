@@ -997,7 +997,7 @@ final class SceneRenderer {
         var vis: UInt64 = 0
         var flags: UInt32 = 0                  // SecInfo.nonEmpty, .meshed, .deep, .solidFull
         var oPair: Int32 = -1, oVo: Int32 = 0, quads: Int32 = 0, solid: Int32 = 0, fSkip: Int32 = 0, fExtra: Int32 = 0
-        var farCut: Int32 = 0, farTail: Int32 = 0
+        var farCut: Int32 = 0, farTail: Int32 = 0, bAt: Int32 = 0, bN: Int32 = 0, bCut: Int32 = 0     // (P453: Section.blobFar*)
         var dPair: Int32 = -1, dVo: Int32 = 0, dQuads: Int32 = 0, dSolid: Int32 = 0, dSkip: Int32 = 0, dExtra: Int32 = 0
         var tPair: Int32 = -1, tVo: Int32 = 0, tQuads: Int32 = 0
         static let nonEmpty: UInt32 = 1, meshed: UInt32 = 2, deep: UInt32 = 4, solidFull: UInt32 = 8
@@ -1480,6 +1480,9 @@ final class SceneRenderer {
         return simd_length_squared(q - recEye) >= f * f
     }
     private(set) var mergedSections = 0
+    // P453: how far out the trees switch to their far shell (blocks; the ground's switch, GroundMerge.farDistance,
+    // when it is that or more). BS_BLOBFAR=N sets it (BS_BLOBFAR=999: as before).
+    static var blobFarFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBFAR"] ?? "") ?? 64
     static var drawMerged = true                  // (questcheck --view --pixelpair: the full grid everywhere for the left shot)
     func writeRecords(_ s: Slot, eye: V3) {
         recEye = eye
@@ -1859,6 +1862,7 @@ extension SceneRenderer {
                 e.oPair = pairOf(slabOf(b), ts); e.oVo = Int32(b.offset / 8)
                 e.quads = Int32(s.opaqueQuads); e.solid = Int32(s.solidQuads); e.fSkip = Int32(s.farSkip); e.fExtra = Int32(s.farExtra)
                 e.farCut = Int32(s.farCut); e.farTail = Int32(s.farTail)
+                e.bAt = Int32(s.blobFarAt); e.bN = Int32(s.blobFarN); e.bCut = Int32(s.blobCutN)
             }
             if s.detailQuads > 0, let b = s.detailBuf {
                 e.dPair = pairOf(slabOf(b), ts); e.dVo = Int32(b.offset / 16)
@@ -2454,6 +2458,7 @@ extension SceneRenderer {
         anyDetail = anyDet
         let mq = Int32(SceneRenderer.maxQuads)
         let mergeOn = SceneRenderer.drawMerged, re = recEye, mf = GroundMerge.farDistance
+        let bf = min(mf, SceneRenderer.blobFarFrom)
         for half in 0..<2 {
             let detail = half == 1
             if detail && !anyDet { break }
@@ -2478,13 +2483,15 @@ extension SceneRenderer {
                 let fSkip = detail ? e.dSkip : e.fSkip, fExtra = detail ? e.dExtra : e.fExtra
                 var cutFrom = solid
                 let cutSwitch = !detail && (e.farCut > 0 || tail > 0)
-                var far = false
+                var far = false, band = false
                 if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= mq && mergeOn {
                     // (mergedFar: past the merged ground distance)
                     let ci = tc[v / NSEC]
                     let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
                     let qn = simd_clamp(re, mn, mn + V3(16, 16, 16))
-                    far = simd_length_squared(qn - re) >= mf * mf
+                    let d2 = simd_length_squared(qn - re)
+                    far = d2 >= mf * mf
+                    band = !far && !detail && e.bN > 0 && d2 >= bf * bf
                 }
                 if far {
                     merged += 1
@@ -2504,6 +2511,16 @@ extension SceneRenderer {
                     batchCount[k] += 1
                     pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(solid * 6), instanceCount: 1, firstIndex: 0,
                                                                          vertexOffset: vo, firstInstance: UInt32(i))))
+                }
+                if band {
+                    // P453 (Oct 25 13:59, simpler far trees: "Yeah, sure. Let's try to simplify them somehow"): past
+                    // blobFarFrom the leaf blobs are their far shell (one solid, simplified skin) while the ground stays
+                    // near: their two cutout shells were most of what the headset drew in a forest.
+                    batchCount[k] += 1
+                    pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(e.bN * 6), instanceCount: 1, firstIndex: UInt32(e.bAt * 6),
+                                                                         vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
+                    cutFrom = min(total, solid + e.bCut)
+                    quadsDrawn += Int(e.bN - (cutFrom - solid))
                 }
                 if total > cutFrom {
                     batchCut[k] += 1
