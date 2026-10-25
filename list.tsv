@@ -1,0 +1,26 @@
+tank_engine_idle_loop	6	true	Heavy WW2 tank diesel engine idling, deep rumbling with metal rattles, steady, seamless loop
+tank_tracks_drive_loop	6	true	WW2 tank driving on dirt, squeaking and clanking steel tracks with engine roar, seamless loop
+tank_cannon_fire	3	false	Heavy WW2 tank main cannon firing, deep boom with metallic clank of the breech and a short rolling echo, outdoors
+truck_engine_drive_loop	6	true	1940s military cargo truck driving, petrol engine with gear whine and rattling body, seamless loop
+motorcycle_sidecar_engine_loop	5	true	1940s military motorcycle with sidecar, single-cylinder engine at cruising speed, seamless loop
+propeller_plane_flyby	5	false	WW2 propeller fighter plane flying fast overhead, rising and falling engine roar, doppler flyby
+siege_carriage_engine_loop	6	true	Enormous heavy armored land vehicle engine, huge low diesel roar with grinding gears and creaking steel hull, seamless loop
+bolt_rifle_shot	2	false	WW2 bolt-action rifle single gunshot outdoors, sharp crack with short echo
+assault_rifle_burst	2	false	WW2-era assault rifle short three-round burst outdoors, punchy, with echo
+pistol_shot	1.5	false	1940s semi-automatic pistol single gunshot, snappy, outdoors
+smg_burst	2	false	WW2 submachine gun short burst, fast rattling, outdoors
+sniper_shot_distant	3	false	Distant sniper rifle shot echoing across a snowy valley
+magazine_reload	2	false	Rifle magazine reload: magazine out, new magazine slotted in, bolt racked, metallic
+gun_jam_click	1	false	Firearm jamming: dry trigger click then a stuck bolt rattle
+rocket_launch	2.5	false	Shoulder-fired rocket launching with a whoosh and backblast
+artillery_incoming_explosion	4	false	Artillery shell whistling in from above then a huge explosion with dirt and debris falling
+naval_gun_blast	4	false	Enormous battleship naval gun firing, massive concussive boom with long rolling echo
+flak_gun_fire	3	false	WW2 anti-aircraft flak cannon firing several rapid heavy rounds
+large_explosion_debris	4	false	Large explosion destroying a stone building, boom followed by falling rubble and debris
+grenade_explosion	2.5	false	Hand grenade explosion outdoors, sharp blast with dirt spray
+bulkhead_door_open	3	false	Heavy steel bulkhead door on a warship being unlatched and swung open, metal groan and clunk
+frigate_interior_hum_loop	8	true	Interior of a large military airship, low engine hum with creaking steel and distant machinery, seamless loop
+hell_lava_ambience_loop	8	true	Underground volcanic hell cavern ambience, bubbling lava, distant rumbles and hissing vents, seamless loop
+big_fire_crackle_loop	6	true	Large campfire burning, crackling wood and popping embers, seamless loop
+snow_wind_loop	8	true	Cold wind blowing across a snowy plain, gusts with fine snow hiss, seamless loop
+footsteps_grass	3	false	Footsteps walking on short dry grass and firm soil, about six steps, natural pace
