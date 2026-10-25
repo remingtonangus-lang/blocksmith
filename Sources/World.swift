@@ -102,6 +102,7 @@ final class World {
     static var deferBuried = ProcessInfo.processInfo.environment["BS_BURIED"] != "0"
     static var buriedNear = 3, buriedNearUnder = 8
     private(set) var underground = false
+    private var eyeSection = 0                      // the section his eye is in (World.update), P404 (3)
     private var buriedCentre: ChunkKey?
     private var buriedExtra: ChunkKey?
     private(set) var deferredTotal = 0          // (harness: sections deferred so far)
@@ -1011,6 +1012,7 @@ final class World {
                                                 chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond)) })
             }
             c.meshInFlight = true
+            c.meshJobsOut += 1
         }
         guard !builds.isEmpty else { return }
         jobs += builds.count
@@ -1196,6 +1198,7 @@ final class World {
         defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
         let center = ChunkKey(x: floorDiv(Int(floor(pos.x)), CS), z: floorDiv(Int(floor(pos.z)), CS))
         activeCenter = pos
+        eyeSection = max(0, min(NSEC - 1, (Int(floor(pos.y)) + 1) >> 4))
         buriedTick(pos, center, extraCenter.map { ChunkKey(x: floorDiv(Int(floor($0.x)), CS), z: floorDiv(Int(floor($0.z)), CS)) })
 
         if World.deterministic { workQueue.waitIdle() }
@@ -1235,7 +1238,8 @@ final class World {
             jobs -= 1
             guard let c = chunks[k] else { continue }
             let ti = World.resultsProfile ? CFAbsoluteTimeGetCurrent() : 0
-            c.meshInFlight = false
+            c.meshJobsOut = max(0, c.meshJobsOut - 1)
+            if c.meshJobsOut == 0 { c.meshInFlight = false }
             c.meshedOnce = true
             for (sy, version, mesh) in list { apply(mesh, to: c, sy: sy, version: version) }
             World.noteResult(ti, "meshes applied")
@@ -1467,21 +1471,37 @@ final class World {
         let dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c)
         let site = smoothSite(c)
         let near = nearSides(c, lod: lod), beyond = fineBeyond(c, n9)
-        c.meshInFlight = true
-        jobs += 1
-        // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
-        let job: () -> Void = { [weak self] in
-            guard let self else { return }
-            let t0 = CFAbsoluteTimeGetCurrent()
-            var out: [(Int, Int, SectionMesh)] = []
-            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond))) }
-            let el = CFAbsoluteTimeGetCurrent() - t0
-            self.lock.lock()
-            self.meshResults.append((k, out))
-            self.perfShared.meshJobs += 1; self.perfShared.meshSections += todo.count; self.perfShared.meshSeconds += el
-            self.lock.unlock()
+        func enqueue(_ list: [(Int, Int)], front: Bool) {
+            c.meshInFlight = true
+            c.meshJobsOut += 1
+            jobs += 1
+            // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
+            let job: () -> Void = { [weak self] in
+                guard let self else { return }
+                let t0 = CFAbsoluteTimeGetCurrent()
+                var out: [(Int, Int, SectionMesh)] = []
+                for (sy, v) in list { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond))) }
+                let el = CFAbsoluteTimeGetCurrent() - t0
+                self.lock.lock()
+                self.meshResults.append((k, out))
+                self.perfShared.meshJobs += 1; self.perfShared.meshSections += list.count; self.perfShared.meshSeconds += el
+                self.lock.unlock()
+            }
+            if front { workQueue.addFront(job) } else { workQueue.add(job) }
         }
-        if front { workQueue.addFront(job) } else { workQueue.add(job) }
+        // P404 (3) (Oct 22 22:23, under the ground: "looks like the chunk's having trouble loading... we're underground,
+        // this should be easy"): under the ground, a chunk round him meshes the sections at his level first, in a job
+        // ahead of the queue, and the rest of its column after. Its whole column was one job in distance order with
+        // every other chunk's, so the cave he stood in waited behind the surface and everything between.
+        if underground, let c0 = buriedCentre, todo.count > 3, abs(k.x - c0.x) <= 2 && abs(k.z - c0.z) <= 2 {
+            let band = todo.filter { abs($0.0 - eyeSection) <= 1 }
+            if !band.isEmpty && band.count < todo.count {
+                enqueue(band, front: true)
+                enqueue(todo.filter { abs($0.0 - eyeSection) > 1 }, front: front)
+                return
+            }
+        }
+        enqueue(todo, front: front)
     }
 
     // Loads a chunk from disk or generates it (thread-safe).

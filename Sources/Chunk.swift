@@ -357,6 +357,7 @@ final class Chunk {
     var needsSave: Bool { modified && unsaved }
     var heldCopyBytes: Int { 0 }                 // (perfscenes: what kept save copies cost; none now)
     var meshInFlight = false
+    var meshJobsOut = 0                      // (mesh jobs in flight for it: P404 (3) splits a column in two)
     var meshedOnce = false { didSet { if cullWatched { CullNotes.note(cx, cz) } } }
     var drawnMark: UInt32 = 0
     var dirty = false {            // a section's version changed since World.update last looked at this chunk
