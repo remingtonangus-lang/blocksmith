@@ -30,11 +30,15 @@ struct ViewGovernor {
     static let floor = 8, ceiling = 24, step = 2, exponent = 1.2
     static let dropFrac = 0.92, severeFrac = 1.25, fitFrac = 0.8, missFrac = 0.05
     static let badToDrop = 2, settle = 8.0, baseHold = 20.0, maxHold = 240.0, failWindow = 60.0, calmReset = 300.0
+    // P440 (Oct 24 evening: 20-23 fps at view 16 flying into new land, "why isn't it auto rendering?"): the GPU had room,
+    // the frames were lost to the CPU making land, and a loading window never counted. Two windows in a row missing
+    // more than a quarter of their frames, loading or not, now take a step down whatever the GPU says.
+    static let heavyMissFrac = 0.25
 
     private(set) var chosen: Int
     private(set) var current: Int
     private(set) var hold = ViewGovernor.baseHold
-    private var badStreak = 0, severeStreak = 0, good = 0.0, sinceChange = 1e9, sinceRaise = 1e9, sinceDrop = 1e9
+    private var badStreak = 0, severeStreak = 0, heavyStreak = 0, good = 0.0, sinceChange = 1e9, sinceRaise = 1e9, sinceDrop = 1e9
 
     static func even(_ rd: Int) -> Int { max(floor, min(ceiling, rd / step * step)) }
 
@@ -48,7 +52,7 @@ struct ViewGovernor {
     // The slider moved: the new ceiling, and the view the player asked for; history cleared.
     mutating func setChosen(_ rd: Int) {
         chosen = Self.even(rd); current = chosen
-        badStreak = 0; severeStreak = 0; good = 0; sinceChange = 1e9; sinceRaise = 1e9; sinceDrop = 1e9; hold = Self.baseHold
+        badStreak = 0; severeStreak = 0; heavyStreak = 0; good = 0; sinceChange = 1e9; sinceRaise = 1e9; sinceDrop = 1e9; hold = Self.baseHold
     }
 
     // The modelled GPU time of the window's frame drawn at another view.
@@ -74,6 +78,14 @@ struct ViewGovernor {
         if severeStreak >= (w.loading ? 2 : 1) && sinceChange >= Self.settle * 0.5 && current > Self.floor {
             good = 0; badStreak = 0; severeStreak = 0
             current = min(current - Self.step, fitting(w))
+            if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
+            sinceChange = 0; sinceDrop = 0
+            return .lower(current)
+        }
+        heavyStreak = !w.excused && w.frames > 0 && Double(w.missed) > Double(w.frames) * Self.heavyMissFrac ? heavyStreak + 1 : 0
+        if heavyStreak >= 2 && sinceChange >= Self.settle && current > Self.floor {
+            good = 0; badStreak = 0; heavyStreak = 0
+            current -= Self.step
             if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
             sinceChange = 0; sinceDrop = 0
             return .lower(current)

@@ -92,6 +92,19 @@ final class World {
     private var jobs = 0
     let maxJobs: Int
     private var lastCenter: ChunkKey?
+    // P440 (Oct 24 evening, "performance, performance, performance"; "why is it rendering the caves underneath? As I'm
+    // flying, I can see caves underground"): a Polygons world's sections wholly under the lowest ground surface of their
+    // chunk and the eight round it (caves, solid rock) are not meshed past `buriedNear` chunks of the player while he is
+    // above ground; they mesh when he comes near or goes underground (then out to `buriedNearUnder`). On his world's
+    // seed about 70 % of the sections meshed and drawn were buried (questcheck --perfscenes taiga24/forest24/snowy24,
+    // "under the lowest surface"), and meshing is most of the land's cost (297 chunks: gen 21 s, mesh 91 s on the
+    // harness). BS_BURIED=0: off.
+    static var deferBuried = ProcessInfo.processInfo.environment["BS_BURIED"] != "0"
+    static var buriedNear = 3, buriedNearUnder = 8
+    private(set) var underground = false
+    private var buriedCentre: ChunkKey?
+    private var buriedExtra: ChunkKey?
+    private(set) var deferredTotal = 0          // (harness: sections deferred so far)
     // Split-screen co-op (Coop.swift): the second player's position, streamed around like the first (nil when alone).
     var extraCenter: V3?
     private var lastExtra: ChunkKey?
@@ -440,11 +453,20 @@ final class World {
         if old != id { queueSupportChecks(x, y, z, old, id); queueLoadCheck(x, y, z, old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
+        // P440: ground taken out under the lowest surface opens the buried sections round it.
+        if wasGround && !c.blocks.ground(Chunk.index(lx, y, lz)) && y - 1 < c.groundLow {
+            c.lowerGround(to: y - 1)
+            for dz in -1...1 { for dx in -1...1 { if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] { undeferBuried(n) } } }
+        }
         let newH = Int(c.height[lx + lz * CS])
         var sync: [(Chunk, Int)] = []
         // Smooth vertices move with blocks up to 2 away (relaxing carries it 1 more a pass: those sections remesh in the
         // background with the rest below, so a Quest edit doesn't mesh the whole ring on the frame).
+        // P440 (Oct 24 20:55, "a five hundred millisecond freeze every time I place a block"): in a field world the frame
+        // meshes the sections within 1 of the cell (its own, and a neighbour only when the cell is on their border); the
+        // second ring's slight surface change follows on a worker ahead of the queue.
         let r = SmoothTerrain.enabled || fieldTerrain ? 2 : 1
+        let rNow = fieldTerrain ? 1 : r
         for dz in -r...r {
             for dx in -r...r {
                 for dy in -r...r {
@@ -457,7 +479,13 @@ final class World {
         }
         for (n, sy) in sync {
             n.sections[sy].version += 1
-            if !deferRemesh { remeshSync(n, sy) }
+            guard !deferRemesh else { continue }
+            if rNow < r {
+                // (the section's box against the cell's: within rNow on every axis)
+                let x0 = n.cx * CS, z0 = n.cz * CS, y0 = sy * 16
+                guard x + rNow >= x0 && x - rNow < x0 + CS && z + rNow >= z0 && z - rNow < z0 + CS && y + rNow >= y0 && y - rNow < y0 + 16 else { continue }
+            }
+            remeshSync(n, sy)
         }
         let lo = max(0, (min(y, oldH, newH) - 16) >> 4), hi = min(NSEC - 1, (max(y, oldH, newH) + 16) >> 4)
         let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
@@ -921,8 +949,26 @@ final class World {
         for c in chunks.values { for s in c.sections where s.meshedVersion != -1 { s.version += 1 } }
     }
 
+    // P440 (Oct 24 20:55, "a five hundred millisecond freeze every time I place a block"): edits made together (a placed
+    // block, then the ground swelling to it) mesh each section once on the frame, at the end, not once an edit.
+    private var syncBatch: [(Chunk, Int)]?
+    static var syncMeshes = 0                       // sections meshed on the frame since start (questcheck --edittime)
+    func editBatch(_ f: () -> Void) {
+        if syncBatch != nil { f(); return }
+        syncBatch = []
+        f()
+        let list = syncBatch ?? []
+        syncBatch = nil
+        for (c, sy) in list { remeshSync(c, sy) }
+    }
+
     func remeshSync(_ c: Chunk, _ sy: Int) {
+        if syncBatch != nil {
+            if !syncBatch!.contains(where: { $0.0 === c && $0.1 == sy }) { syncBatch!.append((c, sy)) }
+            return
+        }
         guard let nb = neighbourhood(c) else { return }
+        World.syncMeshes &+= 1
         apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), pieces: pieceList(c), objects: objectReg.draws(c), site: smoothSite(c), chunk: (c.cx, c.cz),
                                   nearSides: nearSides(c, lod: c.lod), adaptive: !fieldTerrain, fineBeyond: fineBeyond(c, nb.0)), to: c, sy: sy, version: c.sections[sy].version)
         // P381 step 5: on the frame the edit draws the section's ground in full (no wait, exact), and a mesh worker then
@@ -1089,6 +1135,7 @@ final class World {
         defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
         let center = ChunkKey(x: floorDiv(Int(floor(pos.x)), CS), z: floorDiv(Int(floor(pos.z)), CS))
         activeCenter = pos
+        buriedTick(pos, center, extraCenter.map { ChunkKey(x: floorDiv(Int(floor($0.x)), CS), z: floorDiv(Int(floor($0.z)), CS)) })
 
         if World.deterministic { workQueue.waitIdle() }
         lock.lock()
@@ -1272,10 +1319,89 @@ final class World {
         }
     }
 
+    // P440: the buried sections of a far chunk are left unmeshed (an empty mesh, closed to the cave-culling walk);
+    // the others are returned to mesh.
+    private func deferringBuried(_ c: Chunk, _ todo: [(Int, Int)]) -> [(Int, Int)] {
+        guard World.deferBuried && fieldTerrain && dim != .deep else { return todo }
+        let k = ChunkKey(x: c.cx, z: c.cz)
+        if nearBuried(k) { return todo }
+        let low = buriedLow(c)
+        guard low > 16 else { return todo }
+        var keep: [(Int, Int)] = []
+        keep.reserveCapacity(todo.count)
+        for (sy, v) in todo {
+            if (sy + 1) * 16 <= low { deferSection(c, sy) } else { keep.append((sy, v)) }
+        }
+        return keep
+    }
+
+    // The lowest ground top over a chunk and its eight neighbours (an unloaded neighbour: the chunk's own).
+    private func buriedLow(_ c: Chunk) -> Int {
+        var low = c.groundLow
+        for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 {
+            if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)], !n.hollow { low = min(low, n.groundLow) }
+        } }
+        return low
+    }
+
+    private func nearBuried(_ k: ChunkKey) -> Bool {
+        let r = underground ? World.buriedNearUnder : World.buriedNear
+        guard let c0 = buriedCentre else { return true }
+        if max(abs(k.x - c0.x), abs(k.z - c0.z)) <= r { return true }
+        if let e = buriedExtra, max(abs(k.x - e.x), abs(k.z - e.z)) <= r { return true }
+        return false
+    }
+
+    private func deferSection(_ c: Chunk, _ sy: Int) {
+        let s = c.sections[sy]
+        var m = SectionMesh(opaque: [], trans: [], light: nil)
+        m.vis = 0
+        apply(m, to: c, sy: sy, version: s.version)
+        if !s.deferred { s.deferred = true; c.deferredBuried += 1; deferredTotal += 1 }
+    }
+
+    // A chunk's deferred sections mesh again (he came near, went underground, or the ground under them was opened).
+    private func undeferBuried(_ c: Chunk) {
+        guard c.deferredBuried > 0 else { return }
+        for s in c.sections where s.deferred { s.deferred = false; s.version += 1 }
+        c.deferredBuried = 0
+    }
+
+    // Each frame: where the player is (above ground or under it) and, when that or his chunk changed, the near chunks'
+    // deferred sections handed back to meshing, and the far chunks' buried meshes dropped (they cost the GPU too).
+    private func buriedTick(_ pos: V3, _ center: ChunkKey, _ extra: ChunkKey?) {
+        guard World.deferBuried && fieldTerrain && dim != .deep else { buriedCentre = nil; return }
+        var under = false
+        if let c = chunks[center] {
+            let lx = mod(Int(floor(pos.x)), CS), lz = mod(Int(floor(pos.z)), CS), col = lx + lz * CS
+            var y = min(min(CH, c.blocks.storedCount / CSQ) - 1, Int(c.height[col]))
+            while y > 0 && !c.blocks.ground(col + y * CSQ) { y -= 1 }
+            under = Float(y) > pos.y + 2.5             // ground over his head: in a cave, a dug hole, a mine
+        }
+        guard center != buriedCentre || extra != buriedExtra || under != underground else { return }
+        let wasUnder = underground
+        underground = under; buriedCentre = center; buriedExtra = extra
+        let r = under ? World.buriedNearUnder : World.buriedNear
+        for (k, c) in chunks where !c.hollow {
+            let d = min(max(abs(k.x - center.x), abs(k.z - center.z)), extra.map { max(abs(k.x - $0.x), abs(k.z - $0.z)) } ?? Int.max)
+            if d <= r { undeferBuried(c); continue }
+            // Past the ring by two (not see-sawing at its edge), and only when the ring didn't just grow: buried
+            // sections meshed while he was near give their meshes back.
+            if d > r + 1 && !wasUnder && !under && c.meshedOnce && !c.meshInFlight {
+                let low = buriedLow(c)
+                guard low > 16 else { continue }
+                for sy in 0..<min(NSEC, low / 16) where !c.sections[sy].deferred && !c.sections[sy].needsMesh && c.sections[sy].meshedVersion >= 0 {
+                    deferSection(c, sy)
+                }
+            }
+        }
+    }
+
     // Hands a chunk's out-of-date sections to a mesh worker.
     private func scheduleMesh(_ k: ChunkKey, _ c: Chunk, _ nb: ([BlockStore], [[Int16]]), front: Bool = false) {
         let (n9, h9) = nb
-        let todo = dirtySections(c)
+        let todo = deferringBuried(c, dirtySections(c))
+        if todo.isEmpty { return }
         let lod = c.lod
         let dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c)
         let site = smoothSite(c)
@@ -1530,6 +1656,7 @@ final class World {
     func loadSync(center pos: V3, radius: Int) -> (gen: Double, mesh: Double) {
         let cx = floorDiv(Int(floor(pos.x)), CS), cz = floorDiv(Int(floor(pos.z)), CS)
         let r = radius + 1
+        buriedCentre = ChunkKey(x: cx, z: cz); underground = false          // (P440: buriedTick decides on the next update)
         var keys: [ChunkKey] = []
         for dz in -r...r { for dx in -r...r where World.inDisc(dx, dz, radius, grow: 1) {
             let k = ChunkKey(x: cx + dx, z: cz + dz)
@@ -1550,7 +1677,7 @@ final class World {
         for dz in -radius...radius { for dx in -radius...radius where World.inDisc(dx, dz, radius, grow: 0) && inMeshRadius(dx, dz) {
             if let c = chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.needsMesh, let nb = neighbourhood(c) {
                 c.lod = lodFor(dx, dz)
-                for (sy, v) in dirtySections(c) { toMesh.append((c, sy, v, nb.0, nb.1)) }
+                for (sy, v) in deferringBuried(c, dirtySections(c)) { toMesh.append((c, sy, v, nb.0, nb.1)) }
             }
         } }
         let dls = toMesh.map { damageList($0.0) }, bls = toMesh.map { biteList($0.0) }, pls = toMesh.map { pieceList($0.0) }

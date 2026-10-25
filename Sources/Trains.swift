@@ -155,7 +155,7 @@ enum Trains {
         case .overworld:
             guard let gen = g.world.gen as? WorldGen else { return [] }
             let x = Int(floor(p.x)), z = Int(floor(p.z))
-            return Railways.near(gen, x0: x - r, z0: z - r, x1: x + r, z1: z + r, pad: r).map { cachedTrack($0) }
+            return Railways.near(gen, x0: x - r, z0: z - r, x1: x + r, z1: z + r, pad: r, wait: false).map { cachedTrack($0) }   // (P440: never plans on the frame)
         case .deep:
             guard DeepGen.inVault(p.y) else { return [] }
             return vaultTracks.filter { t in
@@ -539,7 +539,7 @@ enum Trains {
 
     // Finding a station puts the whole line on the map (once a second).
     static func discover(_ g: Game) {
-        guard g.dim.dim == .overworld, let gen = g.world.gen as? WorldGen, let (l, _) = Railways.station(gen, near: g.player.pos, within: 40) else { return }
+        guard g.dim.dim == .overworld, let gen = g.world.gen as? WorldGen, let (l, _) = Railways.station(gen, near: g.player.pos, within: 40, wait: false) else { return }
         guard !MapCache.shared.marked(kind: "station", x: l.stations[0].x, z: l.stations[0].z) else { return }
         for s in l.stations { MapCache.shared.discover(g, kind: "station", x: s.x, z: s.z, name: "\(s.name) Station") }
         g.onToast?("You found the \(l.name): \(l.stations.count) stations, marked on your map")

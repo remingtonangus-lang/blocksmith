@@ -542,7 +542,19 @@ extension World {
             } }
         }
         for (n, s) in all { n.sections[s].version += 1 }
-        if remesh { for (n, s) in all where !deferRemesh { remeshSync(n, s) } }
+        // P440 (Oct 24 20:55, "a five hundred millisecond freeze every time I place a block"): the frame remeshes only the
+        // sections the sphere's surface can reach (its box grown by two cells: the dual cells round a changed sample),
+        // usually one, not the up to 27 round every touched section; the others follow on a worker ahead of the queue
+        // (World.update's edited-chunk pass), as the light round an edit always has.
+        if remesh && !deferRemesh {
+            let g = r + 2
+            let lo = V3(ctr.x - g, ctr.y - g, ctr.z - g), hi = V3(ctr.x + g, ctr.y + g, ctr.z + g)
+            for (n, s) in all {
+                let x0 = Float(n.cx * CS), z0 = Float(n.cz * CS), y0 = Float(s * 16)
+                guard hi.x >= x0 && lo.x < x0 + 16 && hi.z >= z0 && lo.z < z0 + 16 && hi.y >= y0 && lo.y < y0 + 16 else { continue }
+                remeshSync(n, s)
+            }
+        }
         fieldStamp &+= 1
         if carve && !flipped.isEmpty && !collapsing { collapseQueue.append((IVec3(cxI, cyI, czI), min(6, Int(ceil(r)) + 1))) }   // P351 (GroundCollapse)
         return flipped

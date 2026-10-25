@@ -204,19 +204,57 @@ if let out = arg("--view"), let ctx = vkctx {
             let x = ex + dx, y = Int(floor(vg.player.pos.y)) + dy, z = ez + dz
             if vw.block(x, y, z) == AIR && (Blocks.opaque[Int(vw.block(x, y - 1, z))] || vw.solidAt(x, y - 1, z)) { cells.append(IVec3(x, y, z)) }
         } } }
+        if cells.isEmpty {
+            // (P440: no air over solid round the eye: the ground's top under it, from the column down)
+            for dz in -2...2 { for dx in -2...2 {
+                let x = ex + dx, z = ez + dz
+                var y = CH - 2
+                while y > 1 && !vw.solidAt(x, y - 1, z) { y -= 1 }
+                if y > 1 && !vw.solidAt(x, y, z) { cells.append(IVec3(x, y, z)) }
+            } }
+            print("edittime: none round the eye; \(cells.count) on the ground under it (top \(cells.first?.y ?? -1))")
+        }
         print("edittime: \(cells.count) candidate cells; on \(cells.first.map { Blocks.key(vw.block($0.x, $0.y - 1, $0.z)) } ?? "-")")
         func t(_ f: () -> Void) -> Double { let t0 = CFAbsoluteTimeGetCurrent(); f(); return (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
         for c in cells.prefix(4) {
             print("edittime: \(vw.loadQueue.count) checks waiting before; cleared")
             vw.loadQueue.removeAll(); vw.loadQueued.removeAll()
-            let place = t { vw.setBlock(c.x, c.y, c.z, Blocks.id("stone_bricks")) }
+            // (as Game places a built block on field ground: the write, then the ground rising to its floor, meshed together)
+            let m0 = World.syncMeshes
+            let place = t { vw.editBatch { vw.setBlock(c.x, c.y, c.z, Blocks.id("stone_bricks")); vw.meetGround(c.x, c.y, c.z, Blocks.id("stone_bricks")) } }
+            print("edittime: place meshed \(World.syncMeshes - m0) sections on the frame")
             print("edittime: place queued \(vw.loadQueue.count), grounded \(vw.loadQueue.first.map { Structure.grounded(vw, $0) } ?? false)")
             let sp = t { Structure.tick(vg) }
+            let m1 = World.syncMeshes
             let brk = t { vw.setBlock(c.x, c.y - 1, c.z, AIR) }
+            print("edittime: break meshed \(World.syncMeshes - m1) sections on the frame")
             let sb = t { Structure.tick(vg) }
             let tick = t { vg.gravityTick() }
             print(String(format: "edittime: at %d %d %d (under: %@) place %.1f ms + structure %.1f ms; break below %.1f ms + structure %.1f ms; gravity %.1f ms; worst check %.1f ms",
                          c.x, c.y, c.z, Blocks.key(vw.block(c.x, c.y - 2, c.z)), place, sp, brk, sb, tick, Structure.worstMs))
+        }
+        // P440: stone put on the ground as the game does it (the write, then the ground swelling toward the aim), against
+        // what the frame meshed before (every section round the touched ones: 27 at most, besides the write's own).
+        if vw.fieldTerrain, let c = cells.dropFirst(4).first ?? cells.first {
+            let stone = Blocks.id("stone")
+            let m0 = World.syncMeshes
+            let ms = t {
+                vw.editBatch {
+                    vw.setBlock(c.x, c.y, c.z, stone)
+                    vw.fieldSphere(V3(Float(c.x) + 0.5, Float(c.y) + 0.45, Float(c.z) + 0.5), radius: 0.62, carve: false,
+                                   material: FieldMat.index[Int(stone)], keepSolid: true, remesh: true)
+                }
+            }
+            let meshed = World.syncMeshes - m0
+            var ring: [(Chunk, Int)] = []
+            let sy = c.y >> 4
+            for dz in -1...1 { for dx in -1...1 {
+                guard let n = vw.chunkAt(c.x + dx * CS, c.z + dz * CS) else { continue }
+                for s in max(0, sy - 1)...min(NSEC - 1, sy + 1) { ring.append((n, s)) }
+            } }
+            let old = t { for (n, s) in ring { vw.remeshSync(n, s) } }
+            print(String(format: "edittime: stone on the ground at %d %d %d: %.1f ms on the frame (%d sections meshed); before, the ring of %d sections alone took %.1f ms",
+                         c.x, c.y, c.z, ms, meshed, ring.count, old))
         }
     }
     // P337 step 7: --rail plays 4 s through Game.tick beside the line and reports what the trains cost a frame.

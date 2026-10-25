@@ -87,6 +87,7 @@ final class Section {
     var vis: UInt64 = ~0         // face connectivity (cave culling)
     var leafy = true             // its mesh has faces between leaf blocks (SectionMesh.leafy)
     var needsMesh: Bool { meshedVersion != version }
+    var deferred = false        // P440: buried and far, left unmeshed (World.deferSection)
     var empty: Bool { opaqueQuads == 0 && transQuads == 0 && detailQuads == 0 }
 }
 
@@ -410,6 +411,25 @@ final class Chunk {
         }
         return h
     }
+
+    // P440 (World.deferBuried): the lowest top of the ground over the chunk's columns (field worlds: the field's ground
+    // cells, so trees, water and buildings over it don't count), worked out on first use; an edit only ever lowers it
+    // (World.setBlock), so a section is never wrongly taken for buried.
+    private var groundLowCache: Int? = nil
+    var deferredBuried = 0                      // sections left unmeshed under it (World.deferSection)
+    var groundLow: Int {
+        if let g = groundLowCache { return g }
+        var low = CH
+        let top = min(CH, blocks.storedCount / CSQ) - 1
+        for c in 0..<CSQ {
+            var y = min(top, Int(height[c]))
+            while y > 0 && !blocks.ground(c + y * CSQ) { y -= 1 }
+            low = min(low, y)
+        }
+        groundLowCache = low
+        return low
+    }
+    func lowerGround(to y: Int) { if y < groundLow { groundLowCache = max(0, y) } }
 
     func recomputeHeight(_ x: Int, _ z: Int) {
         let skyT = Blocks.sky
