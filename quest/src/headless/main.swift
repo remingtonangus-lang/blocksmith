@@ -602,19 +602,29 @@ if let out = arg("--view"), let ctx = vkctx {
     // --fell S (P441): the foot log of the nearest living trunk is cut as the game cuts it (Game.breakBlock: what stood
     // on it comes loose and topples away from the eye), then the game runs S seconds before the render.
     if let secs = Double(arg("--fell") ?? "") {
+        if CommandLine.arguments.contains("--editlane") { World.editLane = true }       // (as on the headset)
         if let (x, foot, z) = nearestTrunk() {
             let p = IVec3(x, foot, z), b = vw.block(x, foot, z)
             vg.paused = false
+            // (warmed up first: the first ticks after load pay one-time costs, 11 s of "input+hud" in a debug build)
+            var before = 0.0
+            for _ in 0..<36 { let t0 = CFAbsoluteTimeGetCurrent(); vg.tick(1.0 / 72); before = max(before, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
+            print(String(format: "view: fell: worst of 36 ticks before the cut %.1f ms", before))
             let ships0 = vw.ships.list.count
+            let tb = CFAbsoluteTimeGetCurrent()
             vg.breakBlock(p, b, drop: false)
-            print("view: fell: trunk at \(x) \(foot) \(z) cut at its foot; \(vw.ships.list.count - ships0) body loose")
+            print(String(format: "view: fell: the cut took %.1f ms; ", (CFAbsoluteTimeGetCurrent() - tb) * 1000)
+                  + "trunk at \(x) \(foot) \(z) cut at its foot; \(vw.ships.list.count - ships0) body loose")
             let frames = Int(secs * 72)
-            var worst = 0.0
-            for _ in 0..<frames {
+            var worst = 0.0, worstAt = 0, worstWhat = "", sum = 0.0
+            for i in 0..<frames {
                 let t0 = CFAbsoluteTimeGetCurrent()
                 vg.tick(1.0 / 72)
-                worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
+                let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                sum += ms
+                if ms > worst { worst = ms; worstAt = i; worstWhat = TickProf.summary() }
             }
+            print(String(format: "view: fell: worst tick %.1f ms at frame %d (mean %.1f): ", worst, worstAt, sum / Double(max(1, frames))) + worstWhat)
             vw.remeshArea(x0: x - 12, z0: z - 12, x1: x + 12, z1: z + 12, y0: foot - 8, y1: foot + 30)
             if let s = vw.ships.list.last(where: { Felling.isFelled($0) }) {
                 print(String(format: "view: fell: after %.1f s the body is at %.1f %.1f %.1f, tipped %.0f deg, %d blocks; worst tick %.1f ms",
@@ -678,26 +688,60 @@ if let out = arg("--view"), let ctx = vkctx {
         vg.player.pos = V3(Float(bx) + 0.5 + (Float(arg("--dx") ?? "") ?? 0), Float(by + 1), Float(bz - 7) + dist); vg.player.vel = .zero
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     }
-    // --scene machines (P442): the copper-circuit machines put on the ground in a row 4 blocks in front of the eye (-z)
-    // as the game places them, fronts toward the eye: dispenser, dropper, piston, sticky piston, observer, a pushed
-    // piston with its head, a dispenser facing up and an observer facing away.
+    // --scene machines (P442): the copper-circuit machines on a stone platform in the air at --at (daylight), fronts
+    // south toward the camera, which stands --dist (6) blocks south of the row: dispenser, dropper, piston, sticky
+    // piston, observer, a pushed piston with its head, a dispenser facing up and an observer facing away. --look turns
+    // the view (try 25,-20 to see fronts, sides and tops).
     if arg("--scene") == "machines" {
-        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
-        let ex = Int(floor(vg.player.pos.x)), ez = Int(floor(vg.player.pos.z))
+        let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
+        for x in (bx - 10)...(bx + 10) { for z in (bz - 6)...(bz + 8) {
+            vw.setBlock(x, by, z, Blocks.id("smooth_stone"))
+            for y in (by + 1)...(by + 4) { vw.setBlock(x, y, z, AIR) }
+        } }
         let keys = ["dispenser[3]", "dropper[3]", "piston[3]", "sticky_piston[3]", "observer[3]", "piston[9]", "dispenser[1]", "observer[2]"]
-        let z = ez - 4
-        var top = 0
+        let z = bz - 3
         for (k, key) in keys.enumerated() {
-            let x = ex - keys.count + 1 + 2 * k
-            var y = CH - 2
-            while y > 1 && !vw.solidAt(x, y - 1, z) { y -= 1 }
-            vw.editBatch { vw.setBlock(x, y, z, Blocks.id(key)); vw.meetGround(x, y, z, Blocks.id(key)) }
-            if key == "piston[9]" { vw.setBlock(x, y, z + 1, Blocks.id("piston_head[3]")) }
-            top = max(top, y)
+            let x = bx - keys.count + 1 + 2 * k
+            vw.editBatch { vw.setBlock(x, by + 1, z, Blocks.id(key)) }
+            if key == "piston[9]" { vw.setBlock(x, by + 1, z + 1, Blocks.id("piston_head[3]")) }
         }
-        vg.player.pos.y = Float(top) + 2.2
-        vw.remeshArea(x0: ex - 12, z0: ez - 10, x1: ex + 12, z1: ez + 4, y0: top - 12, y1: top + 6)
-        print("view: machines: \(keys.count) placed in a row at z \(z), top \(top)")
+        let dist = Float(arg("--dist") ?? "") ?? 6
+        vg.player.pos = V3(Float(bx) + 0.5, Float(by + 1), Float(z) + 0.5 + dist); vg.player.vel = .zero
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        vw.remeshArea(x0: bx - 12, z0: bz - 8, x1: bx + 12, z1: bz + 10, y0: by - 4, y1: by + 6)
+        print("view: machines: \(keys.count) placed in a row at z \(z), y \(by + 1)")
+    }
+    // --pour lava|water [--pourticks N] (P443): a bucket emptied where the eye looks, as Game.useBucket pours it, then
+    // N game ticks (default 720, 10 s) before the render, from 4 blocks back; prints the cells it reached and what
+    // each stands on.
+    if let kind = arg("--pour") {
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        let dir = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
+        let lava = kind == "lava", fluid = lava ? LAVA : WATER
+        vg.player.yaw = yaw; vg.player.pitch = pitch
+        if let at = vg.bucketCell(dir: dir, target: vw.raycast(vg.player.eye, dir, maxDist: 5)) {
+            vg.pourFluid(fluid, at: at)
+            print("view: pour: \(kind) at \(at.x) \(at.y) \(at.z) on \(Blocks.key(vw.block(at.x, at.y - 1, at.z))), ground there \(vw.groundAt(at.x, at.y - 1, at.z))")
+            vg.paused = false
+            for _ in 0..<(Int(arg("--pourticks") ?? "") ?? 720) { vg.tick(1.0 / 72) }    // (the game's own fluid clock)
+            vg.player.pos += V3(-dir.x, 0, -dir.z) * 4                                    // (stepped back to see it)
+            // --pourview YAW,PITCH,DIST (as --look): the eye DIST blocks from the poured cell, looking at it.
+            if let pv = arg("--pourview")?.split(separator: ",").compactMap({ Float($0) }), pv.count == 3 {
+                yaw = -pv[0] * .pi / 180; pitch = pv[1] * .pi / 180
+                let vd = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
+                vg.player.yaw = yaw; vg.player.pitch = pitch
+                vg.player.pos = V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5) - vd * pv[2] - (vg.player.eye - vg.player.pos)
+            }
+            var cells: [String] = []
+            for y in (at.y - 6)...(at.y + 1) { for z in (at.z - 6)...(at.z + 6) { for x in (at.x - 6)...(at.x + 6) {
+                let b = vw.block(x, y, z)
+                guard Blocks.fluidKind[Int(b)] == (lava ? 2 : 1) else { continue }
+                let u = vw.block(x, y - 1, z)
+                if Blocks.fluidKind[Int(u)] == 0 { cells.append("\(x),\(y),\(z) lv\(Blocks.fluidLevel[Int(b)]) on \(Blocks.key(u))\(vw.groundAt(x, y - 1, z) ? "" : " (no ground)")") }
+            } } }
+            print("view: pour: \(cells.count) bottom cells: " + cells.prefix(24).joined(separator: "; "))
+            vw.remeshArea(x0: at.x - 10, z0: at.z - 10, x1: at.x + 10, z1: at.z + 10, y0: at.y - 10, y1: at.y + 6)
+        } else { print("view: pour: nothing to pour on") }
     }
     // --scene groundthings (P382): copper wire and the other things that lie on the ground laid on the field's ground in
     // front of the eye (GroundDrapeTests.swift); --groundcheck prints how far each is off the drawn ground.
@@ -797,6 +841,8 @@ if let out = arg("--view"), let ctx = vkctx {
             m.yaw = yaw + .pi + (Float(arg("--mobyaw") ?? "") ?? 0) * .pi / 180     // --mobyaw DEG: turned (a profile at 90)
             if let c = Float(arg("--mobclock") ?? "") { m.callTimer = c }               // --mobclock S: the call clock (P295 idles)
             m.aggro = CommandLine.arguments.contains("--aggro")
+            if CommandLine.arguments.contains("--aim") { m.aimHold = 1 }              // --aim: archers drawn on the camera (P444)
+            if let s = Int(arg("--mobseed") ?? "") { m.coatSeed = UInt32(truncatingIfNeeded: s + i * 7919) }   // --mobseed N: their looks
             m.persistent = true
             vg.mobs.mobs.append(m)
         }
