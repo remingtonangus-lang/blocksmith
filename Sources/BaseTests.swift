@@ -75,6 +75,15 @@ enum BaseTests {
             phaseT0 = CFAbsoluteTimeGetCurrent(); simT0 = t
         }
 
+        // 0. P437 (Oct 24 15:36, "There should be a helicopter that spawns here, right?"): the Kestrel stands parked on
+        // the pad once the player is near.
+        if want("kestrel") {
+            let up = sim(8) { rec().parked != nil }
+            check(up != nil, "a Kestrel stands parked on the pad", up.map { String(format: "after %.0f s", $0) }
+                  ?? "pad: \(g.basePadProblem(rec()) ?? "clear"), taken \(rec().kestrelTaken ?? false), air \(rec().air != nil)")
+            lap("kestrel")
+        }
+
         // 1. Gunshot outside: patrol out, search, back.
         if want("patrol") {
             // A spot 40 blocks out the patrol can walk to: the first heading from the gate the path finder can walk
