@@ -611,6 +611,16 @@ if let out = arg("--view"), let ctx = vkctx {
             for _ in 0..<36 { let t0 = CFAbsoluteTimeGetCurrent(); vg.tick(1.0 / 72); before = max(before, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
             print(String(format: "view: fell: worst of 36 ticks before the cut %.1f ms", before))
             let ships0 = vw.ships.list.count
+            // --felledits (P428): every block change from the cut on, and the ground cells round the tree that opened or
+            // closed, printed after the run.
+            let trace = CommandLine.arguments.contains("--felledits")
+            var ground0: [IVec3: Bool] = [:]
+            if trace {
+                World.editTally = [:]; World.editCells = [:]
+                for yy in (foot - 6)...(foot + 6) { for zz in (z - 14)...(z + 14) { for xx in (x - 14)...(x + 14) {
+                    ground0[IVec3(xx, yy, zz)] = vw.groundAt(xx, yy, zz)
+                } } }
+            }
             let tb = CFAbsoluteTimeGetCurrent()
             vg.breakBlock(p, b, drop: false)
             print(String(format: "view: fell: the cut took %.1f ms; ", (CFAbsoluteTimeGetCurrent() - tb) * 1000)
@@ -625,12 +635,61 @@ if let out = arg("--view"), let ctx = vkctx {
                 if ms > worst { worst = ms; worstAt = i; worstWhat = TickProf.summary() }
             }
             print(String(format: "view: fell: worst tick %.1f ms at frame %d (mean %.1f): ", worst, worstAt, sum / Double(max(1, frames))) + worstWhat)
-            vw.remeshArea(x0: x - 12, z0: z - 12, x1: x + 12, z1: z + 12, y0: foot - 8, y1: foot + 30)
+            if trace {
+                let top = (World.editTally ?? [:]).sorted { $0.value > $1.value }.prefix(12).map { k, n in
+                    "\(k >> 32 != 0 ? "async " : "")\(Blocks.key(BlockID(truncatingIfNeeded: (k >> 16) & 0xFFFF))) -> \(Blocks.key(BlockID(truncatingIfNeeded: k & 0xFFFF))) x\(n)"
+                }
+                print("view: felledits: \(World.editCells.count) cells changed in the background; " + top.joined(separator: "; "))
+                let moved = ground0.filter { vw.groundAt($0.key.x, $0.key.y, $0.key.z) != $0.value }.keys.sorted { ($0.y, $0.z, $0.x) < ($1.y, $1.z, $1.x) }
+                print("view: felledits: \(moved.count) ground cells round the tree changed: " + moved.prefix(30).map {
+                    "\($0.x),\($0.y),\($0.z) \(ground0[$0]! ? "opened" : "filled") (\(Blocks.key(vw.block($0.x, $0.y, $0.z))))"
+                }.joined(separator: "; "))
+                World.editTally = nil
+            }
+            // --noremesh (P428): the frame shows the meshes the game itself made while it ran (see --settlemesh), not a
+            // fresh synchronous remesh round the cut.
+            if !CommandLine.arguments.contains("--noremesh") {
+                vw.remeshArea(x0: x - 12, z0: z - 12, x1: x + 12, z1: z + 12, y0: foot - 8, y1: foot + 30)
+            }
             if let s = vw.ships.list.last(where: { Felling.isFelled($0) }) {
                 print(String(format: "view: fell: after %.1f s the body is at %.1f %.1f %.1f, tipped %.0f deg, %d blocks; worst tick %.1f ms",
                              secs, s.pos.x, s.pos.y, s.pos.z, acosf(max(-1, min(1, s.rot.act(V3(0, 1, 0)).y))) * 180 / .pi, s.blockCount, worst))
+                // --fellview YAW,PITCH,DIST (as --look): the eye DIST blocks from the stump, looking at it (P428).
+                if let fv = arg("--fellview")?.split(separator: ",").compactMap({ Float($0) }), fv.count == 3 {
+                    yaw = -fv[0] * .pi / 180; pitch = fv[1] * .pi / 180
+                    let vd = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
+                    vg.player.yaw = yaw; vg.player.pitch = pitch
+                    vg.player.pos = V3(Float(x) + 0.5, Float(foot) + 1, Float(z) + 0.5) - vd * fv[2] - (vg.player.eye - vg.player.pos)
+                }
             }
         } else { print("view: fell: no living trunk within 16 blocks") }
+    }
+    // --tick S (P428): the game runs S seconds on its own clock (nothing else done) before the render.
+    if let secs = Double(arg("--tick") ?? "") {
+        vg.paused = false
+        for _ in 0..<Int(secs * 72) { vg.tick(1.0 / 72) }
+    }
+    // --settlemesh (P428): the world keeps updating at the eye until no generation or mesh job is out (at most 120 s),
+    // so the frame shows what the game would draw once its own mesher caught up.
+    if CommandLine.arguments.contains("--settlemesh") {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var quiet = 0, rounds = 0
+        while quiet < 5 && CFAbsoluteTimeGetCurrent() - t0 < 120 {
+            vw.update(center: vg.player.pos); rounds += 1
+            quiet = vw.jobsOut == 0 ? quiet + 1 : 0
+            usleep(20_000)
+        }
+        print(String(format: "view: settlemesh: %d updates, %.1f s, %d jobs still out", rounds, CFAbsoluteTimeGetCurrent() - t0, vw.jobsOut))
+    }
+    // --finelist (P428): the chunks within 4 of the eye holding half-block (fine) ground samples, and their sections.
+    if CommandLine.arguments.contains("--finelist") {
+        let ecx = floorDiv(Int(floor(vg.player.pos.x)), CS), ecz = floorDiv(Int(floor(vg.player.pos.z)), CS)
+        var rows: [String] = []
+        for dz in -4...4 { for dx in -4...4 {
+            guard let c = vw.chunks[ChunkKey(x: ecx + dx, z: ecz + dz)], !c.blocks.fine.isEmpty else { continue }
+            rows.append("\(c.cx),\(c.cz) [\(c.blocks.fine.keys.sorted().map(String.init).joined(separator: " "))]")
+        } }
+        print("view: finelist: \(rows.count) chunks with fine samples (eye in \(ecx),\(ecz)): " + rows.joined(separator: "; "))
     }
     // --sign TEXT: stand just inside the door under the nearest street sign with that line (the town nearest --at),
     // looking in (the generator moves towns between builds, so a note's position may no longer hold the building).
