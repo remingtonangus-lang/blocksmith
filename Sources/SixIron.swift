@@ -51,7 +51,7 @@ enum SixIron {
     //   below iron:        10 -> 2 shots (P454, Oct 25 13:58: "if you don't have at least iron, it goes right
     //                      through you... Two shots to kill you on normal"); easy 7 (3 shots), hard one shot
     //   iron (1.0):        8   -> 3 shots
-    //   steel (~1.5):      6   -> 4 shots
+    //   steel (~2.0):      1   -> chip damage (P459: steel near titanium)
     //   titanium (~2.3):   1   -> 20 shots (chip damage)
     static func damage(score: Float, difficulty: Int) -> Int {
         guard difficulty > 0 else { return 0 }

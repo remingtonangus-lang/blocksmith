@@ -458,6 +458,9 @@ final class Armory {
                 if m.troop == 0 { dmg *= 1 - min(0.35, Float(m.armorPoints.0) * 0.015) }
                 dmg /= max(0.25, Difficulty.tough(m))
             }
+            // P459 (Oct 25 16:32, the Blitzlanze: "The air gun should kill soldiers one shot. Unless it's like a Hannibal
+            // troop"): his bolt drops any foot soldier but a Hannibal trooper.
+            if infantry && fromPlayer && shooter == nil && m.troop != Int8(TroopClass.hannibal.rawValue) { dmg = max(dmg, Float(m.health) + 1) }
             Mob.roundHit = infantry
             m.hit(from: o, damage: max(1, Int(dmg)), knockback: 0.9)
             Mob.roundHit = false
