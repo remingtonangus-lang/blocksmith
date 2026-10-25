@@ -108,6 +108,25 @@ final class SoldierBrain {
 }
 
 enum Soldier {
+    // P460 (Oct 25 16:21: "The AI are way too oblivious to what's going on. Like, they should be attacking me as soon as I
+    // break through the wall"): a block he breaks is heard by the soldiers within 20 blocks of it: they turn on him
+    // (where he is), and the first of them calls its garrison.
+    static var breachesHeard = 0                    // (checks)
+    static func heardBreach(_ g: Game, at p: V3) {
+        guard g.survival, g.alive else { return }
+        var caller: Mob?
+        for m in g.mobs.mobs where m.kind.steelhold && m.health > 0 && !m.hired && !m.aggro && Soldier.rank(m.kind) != nil
+            && simd_length_squared(m.pos - p) < 400 && !g.repAllied(m) {
+            let b = m.soldierBrain
+            m.aggro = true
+            b.react = max(b.react, 0.8)
+            b.lastSeen = g.player.pos; b.seenAgo = min(b.seenAgo, 1)
+            m.lockTime = max(m.lockTime, 20)
+            if caller == nil { caller = m }
+        }
+        if let c = caller { breachesHeard += 1; c.alertGarrison(g, g.player.pos) }
+    }
+
     static let rotaryWarn: Float = 0.8      // P391: seconds a Mahlwerk gunner's barrels whine up before a burst
     struct Rank {
         let near: Float, far: Float     // preferred distance band (overridden per gun below)

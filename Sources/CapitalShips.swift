@@ -2233,6 +2233,35 @@ extension ShipManager {
 
     // A crippled capital ship: a frigate comes down out of the sky with fires breaking out and crash-lands; a crawler
     // grinds to a halt, burning. Neither vanishes: the wreck stays where it came to rest, its crew aboard.
+    // P461 (Oct 25 17:02, a crash-landed Stormwarden Frigate in the jungle: "Why are trees spawning inside the ship?"): what
+    // stood where the hull came down (trees, plants, anything not ground and not a chest) is gone: every cell in its hull
+    // and between its keel and its deckhead, column by column.
+    func clearInside(_ s: Ship, _ g: Game) {
+        let gr = s.grid, w = g.world
+        var lowY = [Int](repeating: Int.max, count: gr.sx * gr.sz), highY = [Int](repeating: -1, count: gr.sx * gr.sz)
+        for z in 0..<gr.sz { for x in 0..<gr.sx { for y in 0..<gr.sy where gr.get(x, y, z) != AIR {
+            let c = x + z * gr.sx
+            lowY[c] = min(lowY[c], y); highY[c] = max(highY[c], y)
+        } } }
+        let a = s.worldMin, b = s.worldMax
+        var gone = 0
+        for y in max(1, Int(floor(a.y)))...min(CH - 2, Int(floor(b.y))) {
+            for z in Int(floor(a.z))...Int(floor(b.z)) { for x in Int(floor(a.x))...Int(floor(b.x)) {
+                let blk = w.block(x, y, z)
+                guard blk != AIR, !Blocks.isLiquid(blk), !w.groundAt(x, y, z), w.blockEntities[IVec3(x, y, z)] == nil else { continue }
+                let l = s.toLocal(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
+                let lx = Int(floor(l.x)), ly = Int(floor(l.y)), lz = Int(floor(l.z))
+                guard lx >= 0, lz >= 0, lx < gr.sx, lz < gr.sz else { continue }
+                let c = lx + lz * gr.sx
+                guard ly >= lowY[c] && ly <= highY[c] else { continue }
+                _ = w.setBlockAsync(x, y, z, AIR)
+                gone += 1
+            } }
+        }
+        ShipManager.insideCleared += gone
+    }
+    static var insideCleared = 0                // (checks)
+
     private func founder(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         if st.settled { s.vel = .zero; s.angVel = .zero; return }
         st.wreckFx -= dt
@@ -2327,6 +2356,7 @@ extension ShipManager {
         s.vel = .zero
         s.angVel = .zero
         s.updateBounds()
+        clearInside(s, g)
         let lo = s.localMin, hi = s.localMax
         for k in 0..<3 {
             let p = V3((lo.x + hi.x) * 0.5, lo.y + 0.5, lo.z + (hi.z - lo.z) * (0.2 + 0.3 * Float(k)))

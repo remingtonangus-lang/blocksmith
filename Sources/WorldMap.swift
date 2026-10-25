@@ -430,6 +430,9 @@ enum MapDraw {
         return V2(x0 + (Float(cols) / 2 + dx / k) * px, y0 + (Float(rows) / 2 + dz / k) * px)
     }
 
+    // P463 (Oct 25 16:57: "the arrow for where I'm pointing on the radar should correspond to where my headset's pointed
+    // and looking at, not what my right joystick is"): the headset's yaw (QuestApp); the body's yaw elsewhere.
+    static var facingYaw: (() -> Float?)?
     static func markers(_ out: inout [HudLine], _ g: Game, x0: Float, y0: Float, cols: Int, rows: Int, px: Float, wx: Float, wz: Float, bpc: Int, s: Float, labels: Bool = false) {
         func at(_ x: Float, _ z: Float) -> V2? { project(x, z, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: wx, wz: wz, bpc: bpc) }
         if g.dim.dim == .overworld {
@@ -492,7 +495,8 @@ enum MapDraw {
         }
         // The player: a dot with a facing tick.
         if let p = at(g.player.pos.x, g.player.pos.z) {
-            let f = V2(-sinf(g.player.yaw), -cosf(g.player.yaw))
+            let yaw = MapDraw.facingYaw?() ?? g.player.yaw
+            let f = V2(-sinf(yaw), -cosf(yaw))
             // Bigger, with a longer outlined facing tick (a 6 px square read as just another mark: blind UI critic, map).
             for k in 1...5 {
                 let q = p + f * Float(k + 3) * s

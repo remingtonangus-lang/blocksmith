@@ -166,7 +166,9 @@ final class Player {
         // him sink through a canopy rather than drop.
         // P447 (Oct 25 09:10, "walking straight through branches is too slow"): 0.92 of the pace, momentum kept
         // (brush), where it was 0.75 with every step started from a standstill.
-        if brush(b) { return (0.92, 6, 20) }
+        // P462 (Oct 25 17:04, the jungle: "These branches are slowing me down way too much"): his full pace through
+        // leaves and limbs; only the sinking through a canopy is kept.
+        if brush(b) { return (1, 6, 20) }
         return nil
     }
     @inline(__always) static func brush(_ b: BlockID) -> Bool { ShapeClass.kind[Int(b)] == .foliage || ShapeClass.kind[Int(b)] == .trunk }

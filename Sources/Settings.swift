@@ -114,6 +114,10 @@ final class Settings {
     static let devToolsDefault = true
     #endif
     @Pref("devTools") var devTools = Settings.devToolsDefault
+    // P463 (Oct 25 16:26: "a creative test mode where if I die in survival, I just turn into creative. Now I don't have
+    // to continuously go back to my stuff"): a death in survival turns the game to creative where he stands, with
+    // everything still on him.
+    @Pref("testMode") var testMode = false
     @Pref("directorOn") var directorOn = true
     @Pref("directorBackend") var directorBackend = 1
     @Pref("directorFreq") var directorFreq = 1
@@ -129,7 +133,7 @@ final class Settings {
         targetBar = true; lookNames = true
         display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0; bugNoteVideo = true   // (P432: Polygons for new worlds again)
         mapZoom = 3; wreckHint = false; mastHint = false; chestJoinTold = false       // (questcheck --settings-only: every @Pref resets)
-        directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false; devTools = Settings.devToolsDefault   // (tutorialStep is progress, not an option)
+        directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false; devTools = Settings.devToolsDefault; testMode = false   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1
         for c in SoundCategory.allCases { AudioSettings.set(c, c == .master ? 0.8 : 1) }

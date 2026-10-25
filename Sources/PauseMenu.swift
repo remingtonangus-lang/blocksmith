@@ -119,7 +119,7 @@ final class PauseMenu: Menu {
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "ad", "chipping", "smooth", "new_terrain", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
                                         "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness",
-                                        "dir_on", "dir_backend", "dir_freq", "dir_early", "devtools"]
+                                        "dir_on", "dir_backend", "dir_freq", "dir_early", "devtools", "testmode"]
 
     static func isValue(_ id: String) -> Bool {
         valueIDs.contains(id) || id.hasPrefix("vol:") || id.hasPrefix("fx") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol", "audio_music_titles"].contains(id)
@@ -238,6 +238,7 @@ final class PauseMenu: Menu {
         "resetask": "Put every option and key binding back to its default.",
         "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
         "debug": "Shows your position, the biome, the frame rate and chunk details in the corner (F3 on the keyboard).",
+        "testmode": "Testing: dying in survival turns the game to creative where you stand, with everything still on you, instead of the death screen.",
         "devtools": "Shows Commands (time, weather, items, mode) and Shortcuts (teleport) in the pause menu in survival. Creative always has them.",
         "perf": "Frame rate, frame times (average and worst of the last second), render distance and chunk jobs in the corner of the view.",
         "quit": "Save the world and close Sunderfall (asks first).",
@@ -374,6 +375,7 @@ final class PauseMenu: Menu {
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Coordinates & Details: \(on(g.showDebug))", "debug"),
                         ("Performance Overlay: \(on(st.perfOverlay))", "perf"),
                         ("Cheats & Shortcuts: \(on(st.devTools))", "devtools"),          // Q2c-console-15
+                        ("Test Mode (Creative on Death): \(on(st.testMode))", "testmode"),     // P463
                         ("About and Licences...", "about"), ("Reset Options...", "resetask")]
                 if BugNotes.available {
                     rows.insert(("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"), at: rows.count - 1)
@@ -1051,6 +1053,7 @@ final class PauseMenu: Menu {
         case "debug": g.showDebug.toggle()
         case "perf": st.perfOverlay.toggle(); PerfOverlay.shared.reset()
         case "devtools": st.devTools.toggle()
+        case "testmode": st.testMode.toggle()
         case "subtitles": st.subtitles.toggle()
         case "colorblind": st.colorblind.toggle()
         case "tutorial": st.tutorialHints.toggle()

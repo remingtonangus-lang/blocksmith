@@ -1308,6 +1308,16 @@ final class QuestControls {
             scrapeBuzz = 0.2
             app.input.haptic(aimHand, amplitude: 0.45, seconds: 0.03, frequency: 240)
         }
+        // P462 (Oct 25 17:07: "Should be able to slash through branches"): a blade swung through leaves cuts them away.
+        if speed >= VRMelee.minTipSpeed && VRMelee.isSwingWeapon(Items.key(game.held.item)) {
+            for t: Float in [0.5, 0.8, 1] {
+                let p = a1 + (b1 - a1) * t
+                let c = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+                let b = game.world.block(c.x, c.y, c.z)
+                guard b != AIR, ShapeClass.kind[Int(b)] == .foliage, Blocks.hardness[Int(b)] >= 0, Blocks.hardness[Int(b)] < 0.5 else { continue }
+                game.breakBlock(c, b, drop: false)
+            }
+        }
         // Hostiles take a casual swing; villagers, townsfolk, golems, animals and pets only with the trigger held.
         guard let (m, point) = game.bladeContact(a0: a0, b0: b0, a1: a1, b1: b1, radius: radius, eye: rig.headWorld, except: bladeHits,
                                                  deliberate: trigBtn[1].down) else { return }
