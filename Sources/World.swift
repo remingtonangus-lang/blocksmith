@@ -90,6 +90,7 @@ final class World {
     private var meshResults: [(ChunkKey, [(Int, Int, SectionMesh)])] = []
     private var genInFlight = Set<ChunkKey>()
     private var jobs = 0
+    var jobsOut: Int { jobs }                 // (harness: generation and mesh jobs not yet installed)
     let maxJobs: Int
     private var lastCenter: ChunkKey?
     // P440 (Oct 24 evening, "performance, performance, performance"; "why is it rendering the caves underneath? As I'm
@@ -431,6 +432,14 @@ final class World {
     static var syncEdits = 0, asyncEdits = 0        // P283: block changes since start (questcheck --perfscenes)
     static var editTally: [UInt64: Int]? = nil      // P283: (async << 32 | old << 16 | new) -> count, when the harness asks
     static var editCells: [IVec3: Int] = [:]        // (and how often each cell changed in the background)
+    // A fluid written over ground, or drained off it, under BlockStore.keepGround (World.setFluid, Game.pourFluid)
+    // leaves the ground as it is: no fine samples are made for it. (They were: every section a flow ran onto shallow
+    // ground got half-block samples, so it and the 3x3 chunks round it drew and meshed half-block ground, and the lava
+    // tick that made them stalled 15 ms on the host each time new land's deep lava began to run.)
+    @inline(__always) static func keepsGround(_ wasGround: Bool, _ id: BlockID) -> Bool {
+        wasGround && BlockStore.keepGround && (id == AIR || Blocks.fluidKind[Int(id)] != 0)
+    }
+
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
         guard y >= 0 && y < CH, let c0 = chunkAt(x, z) else { return }
         // P389: a struck object's cell changed by anything but the object itself (a blast, a bucket): the object is
@@ -446,7 +455,7 @@ final class World {
         let id = World.storedState(id0, replacing: old)
         if World.editTally != nil { World.editTally![UInt64(old) << 16 | UInt64(id), default: 0] += 1 }
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
-        if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
+        if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) && !World.keepsGround(wasGround, id) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
         c.blocks[Chunk.index(lx, y, lz)] = id
         var fbox: (lo: IVec3, hi: IVec3)? = nil
         if old != id { fbox = measureChanges { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) } }      // PG1 (TerrainField.swift)
@@ -539,7 +548,7 @@ final class World {
             World.editCells[IVec3(x, y, z), default: 0] += 1
         }
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
-        if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
+        if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) && !World.keepsGround(wasGround, id) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
         c.blocks[Chunk.index(lx, y, lz)] = id
         if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
