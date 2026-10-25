@@ -164,9 +164,12 @@ final class Player {
         if b == wireID { return (0.3, 1.2, 3.0) }
         // P417 (a): crushing through leaves and limbs (passed through: World.foliageSoft) slows him a little and lets
         // him sink through a canopy rather than drop.
-        if ShapeClass.kind[Int(b)] == .foliage || ShapeClass.kind[Int(b)] == .trunk { return (0.75, 6, 20) }
+        // P447 (Oct 25 09:10, "walking straight through branches is too slow"): 0.92 of the pace, momentum kept
+        // (brush), where it was 0.75 with every step started from a standstill.
+        if brush(b) { return (0.92, 6, 20) }
         return nil
     }
+    @inline(__always) static func brush(_ b: BlockID) -> Bool { ShapeClass.kind[Int(b)] == .foliage || ShapeClass.kind[Int(b)] == .trunk }
     private var lastGoodPos: V3?
     static let moveOverUnmade = ProcessInfo.processInfo.environment["BS_P414"] != "0"
     private(set) var overUnloaded = false          // P414: over ground not made yet (moving on through it)
@@ -336,7 +339,7 @@ final class Player {
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k
         }
-        if held != nil { vel.x = target.x; vel.z = target.z }        // no momentum carried into a web or a bush
+        if held != nil && !Player.brush(feet) && !Player.brush(body) { vel.x = target.x; vel.z = target.z }        // no momentum carried into a web or a bush
 
         if flying {
             var vy: Float = 0

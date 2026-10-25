@@ -26,6 +26,7 @@ enum Felling {
         var wait: [(Chunk, Int, Int)] = []
         var launch = (V3(0, 0, 0), V3(0, 0, 0))
         var held: Float = -1
+        var pushed = false
         init(_ s: Ship) { ship = s }
     }
     static var falls: [Fall] = []
@@ -244,11 +245,20 @@ extension Game {
         for f in Felling.falls {
             guard let s = f.ship else { continue }
             if f.held >= 0 {
-                // (let go at most 1.5 s on, whatever is still waiting: a section unloaded or a worker behind)
+                // P447 (Oct 25 08:48-08:52, a piece broken off: "the existing piece stays standing and then eventually
+                // disappears. But the piece that broke off... it's almost like it duplicated"): the body was let go after
+                // 1.5 s whether or not the world had redrawn the tree without it, and with the workers behind (P446) both
+                // showed for many seconds. A section still waiting after a few frames is meshed on the edit lane, and the
+                // body waits up to 4 s for it (a section unloaded meanwhile counts as drawn).
                 f.held += dt
                 let drawn = f.wait.allSatisfy { $0.0.sections[$0.1].meshedVersion >= $0.2 || self.world.chunks[ChunkKey(x: $0.0.cx, z: $0.0.cz)] !== $0.0 }
+                if !drawn && !f.pushed && f.held > 0.1 {
+                    f.pushed = true
+                    let w = world
+                    w.editBatch { for (ch, sy, v) in f.wait where ch.sections[sy].meshedVersion < v && w.chunks[ChunkKey(x: ch.cx, z: ch.cz)] === ch { w.remeshSync(ch, sy) } }
+                }
                 let built = !s.mesh.busy && !s.mesh.sections.isEmpty
-                if !(drawn && built) && f.held < 1.5 { s.vel = .zero; s.angVel = .zero; continue }
+                if !(drawn && built) && f.held < 4 { s.vel = .zero; s.angVel = .zero; continue }
                 s.hidden = false; s.kinematic = false
                 (s.vel, s.angVel) = f.launch
                 f.held = -1

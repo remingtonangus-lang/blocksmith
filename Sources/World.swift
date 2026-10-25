@@ -658,6 +658,7 @@ final class World {
         if !Blocks.collide[b] { return }
         if foliageSoft && softFoliage(b, x, y, z) { return }
         let o = V3(Float(x), Float(y), Float(z))
+        if fieldTerrain, let r = fallenLog(b, x, y, z) { out.append((r.0 + o, r.1 + o)); return }
         if Blocks.fullCollide[b] {
             // A chipped block gives up the whole layers it has lost (you sink into a block chipped from the top).
             if !damage.isEmpty && !World.realistic, let dv = damage[IVec3(x, y, z)] {
@@ -728,6 +729,18 @@ final class World {
             return ShapeClass.kind[u] != .trunk && !Blocks.collide[u]
         default: return false
         }
+    }
+    // P447 (Oct 25 08:59: "the physics when I'm on top of a log is weird"): a log lying on natural ground with nothing
+    // on it is drawn as a fallen trunk bedded in the ground, about half a block high and a tree's thickness across
+    // (ShapeTrunks.timber), but was met as a whole block: he stood on air half a block over it and bumped into nothing
+    // beside it. Met now as the trunk is drawn (the cell-local box), in field worlds where trunks are drawn round.
+    @inline(__always) func fallenLog(_ b: Int, _ x: Int, _ y: Int, _ z: Int) -> (V3, V3)? {
+        guard ShapeTrunks.isLog[b], Felling.roundTrunks else { return nil }
+        let a = ShapeTrunks.axisOf[b]
+        guard a != 1, SmoothTerrain.natural[Int(materialAt(x, y - 1, z))], !ShapeTrunks.isTrunk[Int(builtBlock(x, y + 1, z))] else { return nil }
+        let r = ShapeTrunks.fallenRadius
+        let top = min(1, r * 1.8 + 0.06)                    // (its centre r * 0.8 over the ground, the ground about at the cell's foot)
+        return a == 0 ? (V3(0, -0.5, 0.5 - r), V3(1, top, 0.5 + r)) : (V3(0.5 - r, -0.5, 0), V3(0.5 + r, top, 1))
     }
     var playerBox: (V3, V3)?
     var touchedPlayer = false
@@ -1724,6 +1737,7 @@ final class World {
         if let r = remoteChunk, let got = r(k) { blocks = got.0; ents = got.1 }        // a co-op guest: the host's chunk
         else if let saved = save?.loadChunk(k) {
             blocks = saved; fromDisk = true
+            TreeRepair.tidy(&blocks)                                // P447: old second stems and kinks
             // PG1: the saved built layer and the saved ground. A lost ground file comes back from the seed under the saved
             // built layer (what was dug stays dug only where something was built there since).
             if fieldTerrain { ground = save?.loadField(k) ?? gen.generateField(cx: k.x, cz: k.z).ground }
