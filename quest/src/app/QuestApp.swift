@@ -283,6 +283,7 @@ final class QuestApp {
             self.xr.haptic(1, amplitude: k, seconds: secs, frequency: f)
         }
         game.appAction = { [weak self] id in self?.appAction(id) }
+        MapDraw.facingYaw = { [weak self] in self?.rig.headYaw }        // P463: the map's arrow is where he looks
         if let why = joinFailed { joinFailed = nil; game.onToast?(why) }
         rig.needsRecenter = true
         rig.bodyYaw = game.player.yaw

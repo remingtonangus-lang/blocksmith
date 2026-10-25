@@ -2279,6 +2279,7 @@ final class Game {
         if !quiet {
             blockSound(audioBreakSound(b), at: p)
             particles.blockBreak(b, at: p)
+            Soldier.heardBreach(self, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))     // P460
         }
         let deferred = world.deferRemesh
         if quiet { world.deferRemesh = true }
@@ -2937,6 +2938,16 @@ final class Game {
 
     func die(_ cause: String) {
         guard !(menu is DeathMenu) else { return }
+        // P463: Test Mode: no death in survival, the game turns to creative where he is with all he carries.
+        if Settings.shared.testMode && survival {
+            health = maxHealth; absorption = 0; hunger = max(hunger, 6)
+            effects.clear()
+            player.vel = .zero
+            survival = false
+            let said = cause.hasPrefix("was ") ? "You were " + cause.dropFirst(4) : "You " + cause
+            onToast?("\(said). Test Mode: Creative mode")
+            return
+        }
         Stats.add("deaths")                                            // Q2c-console-57
         Stats.lifeEnded()                                              // Q2c-console-59
         sfx(.playerDeath)

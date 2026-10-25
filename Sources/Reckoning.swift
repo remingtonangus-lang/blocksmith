@@ -56,7 +56,9 @@ enum Reckoning {
     static let start: ClosedRange<Float> = 450...700
     static let near: Float = 72         // a group this close brings its units in
     static let lost: Float = 130        // a unit this far behind goes back into its group
-    static let liveCap = 24             // units alive at once over every group
+    // P460 (Oct 25 17:05-17:08, the hunt in the jungle: "There's way too many red soldiers... I think they just keep
+    // spawning", the frame rate down to 30): 14 at once (was 24); the rest stay in their groups until some fall.
+    static let liveCap = 14             // units alive at once over every group
     static let reward = 25000           // $250
     static let deathPush: Float = 250
 

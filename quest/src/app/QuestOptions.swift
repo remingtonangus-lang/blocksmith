@@ -60,7 +60,7 @@ enum QuestOptions {
             let S = QuestSettings.self, now = g.world.renderDistance
             return ("View Distance: \(S.renderDistance)" + (S.autoViewDistance && now != S.renderDistance ? " (now \(now))" : ""), "q_view")
         }
-        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autoview", "q_autord", "q_hud", "q_bright", "q_diff"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autoview", "q_active", "q_autord", "q_hud", "q_bright", "q_diff"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
@@ -91,6 +91,7 @@ enum QuestOptions {
             "q_hand": "Which hand aims, breaks and uses (the other hand moves). Left swaps every button, stick, trigger and grip between the hands; the Menu button stays on the left controller.",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
             "q_diff": "How hard the enemies hit, aim and come at you in this world. It changes at once.",
+            "q_active": "How far round you the world lives: crops grow, water flows, animals and soldiers move. Never past the View Distance.",
             "q_view": "How far the land is drawn, 8 to 24 chunks. Lower it when the game isn't keeping up; it applies at once.",
             "q_autoview": "The land is drawn as far as the headset keeps up with, 8 to 24 chunks under your View Distance, and the edge fades into haze. Off: always your View Distance.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
@@ -153,6 +154,7 @@ enum QuestOptions {
                 ("Brightness: \(PauseMenu.brightnessName(S.brightness))", "q_bright"),
                 ("View Distance: \(S.renderDistance) chunks", "q_view"),                                              // P415
                 ("Auto View Distance: \(S.autoViewDistance ? "On (now \(hooks.game()?.world.renderDistance ?? S.startView))" : "Off")", "q_autoview"),   // P425
+                (hooks.game().map { PauseMenu.adLabel($0) } ?? "Active Distance", "q_active"),                       // P463: on the headset's page too
                 ("Auto Render Distance: \(on(S.autoRenderDistance))", "q_autord"),
                 ("Clouds: \(on(S.clouds))", "q_clouds"),
                 ("HUD Fade: \(on(S.hudFade))", "q_hudfade"),
@@ -288,6 +290,11 @@ enum QuestOptions {
             // P425: off puts the view back at the slider; on lets the governor take it from there.
             S.autoViewDistance.toggle()
             if !S.autoViewDistance, let g = hooks.game() { g.setRenderDistance(S.renderDistance); g.setActiveDistance(Game.savedActiveDistance) }
+        case "q_active":
+            // P463 (Oct 25 16:21: "Active distance is nowhere to be seen"): the Video page's row, here by the view distance.
+            guard let g = hooks.game() else { break }
+            let c = PauseMenu.activeChoice(g)
+            g.setActiveDistance(step(World.activeOptions, World.activeOptions.contains(c) ? c : 8, back))
         case "q_autord": S.autoRenderDistance.toggle()
         case "q_clouds": S.clouds.toggle()
         case "q_hudfade": S.hudFade.toggle()
