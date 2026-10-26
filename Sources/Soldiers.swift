@@ -193,6 +193,16 @@ enum Soldier {
         }
     }
 
+    // P460 (Oct 25 17:01: "They need to come at me from a greater range"): in a fight a soldier sees and fires out to
+    // its gun's reach (seven tenths of the round's range, at most 64 blocks) instead of its rank's sight (26-40: a
+    // rifle good for 70 held fire at 33). Before a fight it notices him as before.
+    static let fightReach: Float = 64
+    static var reachOff = false              // (questcheck --soldierrange: the rank's sight alone, for the before)
+    static func sight(_ rank: Int, gun: Int, fighting: Bool) -> Float {
+        let s = ranks[rank].sight
+        return fighting && !reachOff ? max(s, min(Guns.all[gun].range * 0.7, fightReach)) : s
+    }
+
     // Preferred distance band for a gun (the rank's own for its main weapon).
     static func band(_ rank: Int, _ gun: Int) -> (Float, Float) {
         switch gun {
@@ -207,6 +217,8 @@ enum Soldier {
         case Guns.arc: return (6, 18)
         case Guns.pistol: return (4, 12)
         case Guns.rifle where rank == 2: return (12, 26)
+        // (P460: riflemen hold off at 12-24 and shoot rather than walking up to 7-14 of him)
+        case Guns.rifle: return (12, 24)
         default: return (ranks[rank].near, ranks[rank].far)
         }
     }
@@ -387,7 +399,7 @@ extension Mob {
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.2 + Rand.float(in: 0..<0.1)
-            b.sees = canTarget && dist < rank.sight * WeatherWar.sight && w.canSee(eye, g.player.eye)    // O7: fog and storms
+            b.sees = canTarget && dist < Soldier.sight(r, gun: b.gun, fighting: aggro) * WeatherWar.sight && w.canSee(eye, g.player.eye)    // O7: fog and storms
         }
         let sees = b.sees && canTarget
         // No player in sight: fire on an enemy faction's vessel or crawler in range (frigates, crawlers: CapitalShips.swift).
@@ -690,7 +702,7 @@ extension Mob {
     }
 
     func soldierFire(_ dt: Float, _ g: Game, _ b: SoldierBrain, _ gs: GunSpec, rank r: Int, dist: Float, target: V3) {
-        guard b.reload <= 0, b.react <= 0, dist < Soldier.ranks[r].sight else { b.aimTime = 0; return }
+        guard b.reload <= 0, b.react <= 0, dist < Soldier.sight(r, gun: b.gun, fighting: aggro) else { b.aimTime = 0; return }
         if b.mag <= 0 {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
             b.reloadTotal = b.reload

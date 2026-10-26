@@ -1493,6 +1493,10 @@ if CommandLine.arguments.contains("--brigandcheck") {         // P460: a Brigand
     BrigandRoundsCheck.run(game, check)
     print(failures == 0 ? "brigandcheck: all checks passed" : "brigandcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--soldierrange") {         // P460: riflemen fire out to their gun's reach
+    SoldierRangeCheck.run(game, check)
+    print(failures == 0 ? "soldierrange: all checks passed" : "soldierrange: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
