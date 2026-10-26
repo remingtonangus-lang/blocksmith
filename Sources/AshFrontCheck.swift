@@ -93,11 +93,21 @@ enum AshFrontCheck {
             game.changeDimension(to: .deep, at: V3(Float(s.x) + 0.5, Float(vg.top(s.x, s.z) + 2), Float(s.z) + 0.5))
             _ = game.world.loadSync(center: game.player.pos, radius: 2)
             AshFallen.refresh(game)
-            let ms = AshFallen.mobs
+            let ms = AshFallen.mobs + game.mobs.corpses.filter { $0.fallen }      // (P465: those beside him are loose bodies)
             let l = ms.first.map { Livery.of($0, rank: 1, seed: 3) }
             let olive = l.map { $0.cloth.y > $0.cloth.z + 0.06 && $0.cloth.x < 0.45 } ?? false
             let lyingOK = ms.allSatisfy { $0.fallen && $0.lying && fallenAlliedParts($0).count > 25 && $0.deathT >= MobAnim.deathTime && abs($0.pos.y - Float(vg.top(Int(floor($0.pos.x)), Int(floor($0.pos.z))) + 1)) < 2.5 }
             check(ms.count >= 8 && olive && lyingOK, "ashfront: \(ms.count) fallen Allied soldiers at the wall by \(s.x) \(s.z), olive drab \(olive), lying on the ground \(lyingOK)")
+            // P465: a blast beside one throws it (a body like any other now), and it comes down on the ground again.
+            if let m = AshFallen.mobs.first {
+                let y0 = m.pos.y
+                Explosion.explode(at: m.pos + V3(1.2, 0.3, 0), power: 3, game: game, breakBlocks: false)
+                var top: Float = y0
+                for _ in 0..<216 { game.tick(1.0 / 72); top = max(top, m.pos.y) }
+                let loose = game.mobs.corpses.contains { $0 === m } && !AshFallen.mobs.contains { $0 === m }
+                check(loose && top > y0 + 0.5 && m.onGround,
+                      "ashfront: a blast beside a fallen soldier throws him (loose \(loose), up \(String(format: "%.1f", top - y0)) blocks, landed \(m.onGround))")
+            }
             game.changeDimension(to: homeDim, at: home)
             game.player.pos = home
             AshFallen.refresh(game)

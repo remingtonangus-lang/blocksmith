@@ -298,6 +298,9 @@ extension Mob {
         if let f = town.foe, f.health <= 0 || simd_length(f.pos - home) > 44 { town.foe = nil }
         let playerFoe = town.anger > 0 && g.alive && g.survival && simd_length(g.player.pos - pos) < (w == .revolver ? SixIron.chase : 24)
         guard town.foe != nil || playerFoe else { town.aim = 0; return nil }   // an interrupted aim never fires later
+        // P465 (Oct 25 20:02, "She's attacking with her arms raised"): hands raised at his gun a moment before stayed up
+        // through the fight (townReact, which lowers them, doesn't run while she fights).
+        town.handsUp = 0; town.holdUp = 0
         if w == .revolver && town.foe == nil { return SixIron.duel(self, dt, g) }
         town.aim = 0
         let at = town.foe?.pos ?? g.player.pos

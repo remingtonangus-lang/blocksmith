@@ -470,9 +470,43 @@ enum AshFront {
 // Fallen Allied soldiers (P326 b: "dead Germans aren't scary, dead Allies are"): olive-drab bodies lying on their backs
 // at the scenes and along the Ember Line's wire, as the dead lie after the fall (deathT past it). Not mobs: never
 // updated, hit or saved; drawn with the mobs (writeMobVertices), rebuilt as the player moves about the vault.
+// P465 (Oct 25 19:40, Burnt Woods: "These bodies should be entities that fall and everything"): one that is disturbed
+// becomes a body like any other (MobManager.corpses): a blast in reach throws it, the ground shot out from under it lets
+// it fall, and one he walks up to can be taken by the hand and dragged (HandGrab). Its spot stays empty after (moved).
 enum AshFallen {
     static var mobs: [Mob] = []
     private static var built: [Int64: (bodies: [Mob], want: Int)] = [:]
+    private static var moved = Set<Int64>()               // spots whose body is now a loose one (this session)
+    static var loosed = 0                                 // (checks)
+    static let handReach: Float = 3.5
+
+    private static func spot(_ x: Float, _ z: Float) -> Int64 { (Int64(Int(floorf(x * 4))) << 32) ^ Int64(Int(floorf(z * 4))) & 0xFFFF_FFFF }
+
+    // The body lets go of its spot and joins the bodies lying round (thrown at `vel`).
+    static func loose(_ m: Mob, _ g: Game, vel: V3 = .zero) {
+        guard let i = mobs.firstIndex(where: { $0 === m }) else { return }
+        mobs.remove(at: i)
+        moved.insert(spot(m.pos.x, m.pos.z))
+        for (k, b) in built { if let j = b.bodies.firstIndex(where: { $0 === m }) { var nb = b; nb.bodies.remove(at: j); nb.want -= 1; built[k] = nb } }
+        m.vel = vel
+        m.onGround = vel.y <= 0 && simd_length_squared(vel) < 0.01
+        if g.mobs.corpses.count >= MobAnim.maxCorpses, let r = g.mobs.corpses.removeFirst().ragdoll { g.debris.ragdolls.remove(r.id) }
+        g.mobs.corpses.append(m)
+        loosed += 1
+    }
+
+    // Explosion.explode: the fallen in its reach are thrown.
+    static func blast(_ g: Game, at c: V3, power: Float) {
+        guard !mobs.isEmpty else { return }
+        let reach = power * 2.5
+        for m in mobs {
+            let mid = m.pos + V3(0, 0.3, 0), away = mid - c, dl = simd_length(away)
+            guard dl < reach, g.world.canSee(c + V3(0, 0.4, 0), mid + V3(0, 0.3, 0)) else { continue }
+            let k = 1 - dl / reach
+            let dir = dl > 1e-3 ? away / dl : V3(0, 1, 0)
+            loose(m, g, vel: V3(dir.x, 0, dir.z) * (power * 2.2 * k) + V3(0, 3 + power * 1.6 * k, 0))
+        }
+    }
     static let reach: Float = 80
     static let cap = 24
     static let wireR: Float = 446, wireStep: Float = 18
@@ -500,13 +534,15 @@ enum AshFallen {
     static func refresh(_ g: Game) {
         guard g.dim.dim == .deep, DeepGen.inVault(g.player.pos.y), let dg = g.world.gen as? DeepGen else {
             if !mobs.isEmpty || !built.isEmpty { mobs = []; built = [:] }
+            if g.dim.dim != .deep { moved.removeAll() }
             AshWrecks.clear()
             return
         }
         let p = g.player.pos
         var want = Set<Int64>()
-        func lay(_ key: Int64, _ spots: [(Float, Float, Float)]) {
+        func lay(_ key: Int64, _ all: [(Float, Float, Float)]) {
             want.insert(key)
+            let spots = moved.isEmpty ? all : all.filter { !moved.contains(spot($0.0, $0.1)) }
             if let b = built[key], b.bodies.count == b.want { return }
             built[key] = (spots.compactMap { body($0.0, $0.1, $0.2, g, dg) }, spots.count)
         }
@@ -525,6 +561,12 @@ enum AshFallen {
         for (_, b) in built { all += b.bodies }
         all.sort { simd_length_squared($0.pos - p) < simd_length_squared($1.pos - p) }
         mobs = Array(all.prefix(cap))
+        // P465: one with the ground gone from under it falls; one beside him is ready for his hand.
+        for m in mobs {
+            let ix = Int(floorf(m.pos.x)), iz = Int(floorf(m.pos.z))
+            let under = g.world.solidAt(ix, Int(floorf(m.pos.y - 0.3)), iz) || g.world.solidAt(ix, Int(floorf(m.pos.y - 1.1)), iz)
+            if !under || simd_length_squared(m.pos - p) < handReach * handReach { loose(m, g) }
+        }
         AshWrecks.refresh(g, dg)
     }
 

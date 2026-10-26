@@ -6,7 +6,7 @@ import simd
 // the gun isn't full); bringing that hand to the gun slots it in and the gun is loaded at once (P161: forgiving, below). The timed reload (X, or the trigger on an empty gun)
 // still works, for seated play and comfort. The Quest controls feed hand positions in world space each frame.
 enum VRReload {
-    enum Event { case none, grabbed, inserted, dropped, refused, kept }
+    enum Event { case none, grabbed, inserted, dropped, refused, kept, full }
     // P161 (Oct 13: "loading a magazine is too hard"): forgiving now. The magazine stays in the hand once taken (no need
     // to keep squeezing) for up to `holdFor` seconds; it seats anywhere within `wellReach` of the gun, from the gun hand
     // along the barrel to `barrelReach` ahead of it; a fresh grip press away from the gun puts it back (and steps the
@@ -88,8 +88,10 @@ enum VRReload {
         // R1: a hand resting at the side (the relaxed arm) is not a reach for the pouch; its grip is the hotbar's.
         guard !buttonMode, grip && (!gripWas || entered) && !resting && atHip(head: head, hand: offHand, forward: fwd) else { return .none }
         let gs = Guns.all[gi]
-        // A full gun: the grip is the hotbar's (no toast; P74).
-        if g.held.tag >= Guns.magSize(g.held) && !DualWield.offEmptyOrLow(g) { return .none }
+        // A full gun: nothing to take (no toast; P74). P465 (Oct 25 19:41-19:42, "Reloading sucks... I am not trying to
+        // move across the toolbar": a squeeze at the hip for the Faustrohr's next warhead stepped the hotbar off the
+        // launcher): a reach for the pouch never steps the hotbar; the grip in front of the waist (P109) still does.
+        if g.held.tag >= Guns.magSize(g.held) && !DualWield.offEmptyOrLow(g) { return .full }
         if g.ammoCount(gs.ammo) <= 0 { g.onToast?("No \(Items.def(Items.id(gs.ammo)).display)"); return .refused }   // P300 (b)
         // D8: both hands full (two revolvers): a speedloader for each gun, at once.
         if DualWield.active(g) != nil {

@@ -817,9 +817,10 @@ enum PlaytestOct12Tests {
         pm.touch = PadSnapshot(); g.tick(1.0 / 72)
         check(gunOut && opened && aimed > 0.3,
               "P74 gun in hand: the use press opens a door in reach (\(opened)) and still aims the gun elsewhere (aim \(String(format: "%.2f", aimed)))")
-        // The left grip by the side with a full gun: no magazine taken, so the grip steps the hotbar (QuestControls).
+        // The left grip by the side with a full gun: no magazine taken; P465: and it doesn't step the hotbar either (the
+        // grip in front of the waist does, P109).
         let head = g.player.eye
         let ev = VRReload.tick(g, offHand: head + V3(-0.25, -0.8, 0.05), gunHand: head + V3(0.2, -0.35, -0.35), head: head, grip: true, gripWas: false)
-        check(ev == .none && !g.arms.magInHand, "P74 gun in hand: a left grip at the side with a full magazine takes nothing (\(ev)), so it steps the hotbar")
+        check(ev == .full && !g.arms.magInHand, "P74/P465 gun in hand: a left grip at the side with a full magazine takes nothing (\(ev)) and keeps the gun")
     }
 }
