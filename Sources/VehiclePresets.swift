@@ -133,9 +133,12 @@ final class VehicleWorksMenu: ListMenu {
         var out: [Row] = []
         let c = V3(Float(at.x) + 0.5, Float(at.y), Float(at.z) + 0.5)
         for v in VehiclePresets.known(game) {
+            // P459 (Oct 25 16:11-16:12, at the Works: "if I wanna build something... I can't see what it needs"): the
+            // whole bill, every part (spelled out under the list when the row is pointed at): what it takes, or in
+            // survival what is still short.
             let short = VehicleWorks.missing(game, v.bill)
-            let detail = short.isEmpty ? "All parts in your pack"
-                : "Needs " + short.prefix(2).map { "\($0.1) \(Items.def(Items.id($0.0)).display)" }.joined(separator: ", ") + (short.count > 2 ? "..." : "")
+            let detail = (short.isEmpty ? (game.survival ? "All in your pack: " : "Takes ") : "Still needs ")
+                + VehicleWorks.listed(short.isEmpty ? v.bill : short)
             acts.append(.build(v))
             out.append(Row(name: "Build a \(v.name)", detail: detail, value: "", enabled: short.isEmpty, good: short.isEmpty))
         }
@@ -165,7 +168,10 @@ final class VehicleWorksMenu: ListMenu {
         guard i < acts.count else { return }
         switch acts[i] {
         case .build(let v):
-            if VehicleWorks.build(game, at, v) { game.closeMenu() } else { say("Not yet: see what it needs", good: false) }
+            if VehicleWorks.build(game, at, v) { game.closeMenu() } else {
+                let short = VehicleWorks.missing(game, v.bill)
+                say(short.isEmpty ? "No room beside the Works" : "Needs " + VehicleWorks.listed(short), good: false)
+            }
         case .takeOut(let k):
             let r = VehicleDepot.takeOut(game, k, at: at)
             if r.1 { game.closeMenu() } else if !r.0.isEmpty { say(r.0, good: false) }

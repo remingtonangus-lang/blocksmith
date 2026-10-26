@@ -44,12 +44,17 @@ enum VehicleWorks {
         }
     }
 
+    // A bill as words: "96 Iron Ingot, 2 Engine, ...".
+    static func listed(_ list: [(String, Int)]) -> String {
+        list.map { "\($0.1) \(Items.def(Items.id($0.0)).display)" }.joined(separator: ", ")
+    }
+
     // Use on the block: with more than the Field Tank's drawings learned, the Works asks which (D43, VehiclePresets);
     // with a vehicle of yours anywhere or one in its garage, it offers to garage, take out or recall it (D44,
     // VehicleDepot); otherwise it builds the tank.
     static func use(_ g: Game, _ p: IVec3) {
-        if VehiclePresets.known(g).count > 1 || VehicleDepot.anything(g) { g.openMenu(VehicleWorksMenu(game: g, at: p)); return }
-        build(g, p, VehiclePresets.all[0])
+        // (P459: always the list now, so the bill is there to read before building, the Field Tank's too.)
+        g.openMenu(VehicleWorksMenu(game: g, at: p))
     }
 
     // Build a preset on the side away from the player, if the parts are there and so is the room.
@@ -57,8 +62,7 @@ enum VehicleWorks {
     static func build(_ g: Game, _ p: IVec3, _ v: VehiclePresets.Preset) -> Bool {
         let short = missing(g, v.bill)
         if !short.isEmpty {
-            let list = short.prefix(3).map { "\($0.1) \(Items.def(Items.id($0.0)).display)" }.joined(separator: ", ")
-            g.onToast?("Vehicle Works: a \(v.name) needs \(list)\(short.count > 3 ? "..." : "") more")
+            g.onToast?("Vehicle Works: a \(v.name) needs \(listed(short)) more")
             return false
         }
         guard let (c, yaw) = spot(g, p) else { return false }

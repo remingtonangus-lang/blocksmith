@@ -965,10 +965,17 @@ enum PlaytestOct11Tests {
         w.setBlock(base.x, base.y, base.z, Blocks.id(VehicleWorks.key))
         g.player.pos = V3(Float(base.x) - 2.5, Float(base.y), Float(base.z) + 0.5)
         let ships0 = w.ships.list.count
+        // (P459: the Works always opens its list, every row with its whole bill.)
         VehicleWorks.use(g, base)
-        let asked = toast.contains("needs") && w.ships.list.count == ships0
+        let wm = g.menu as? VehicleWorksMenu
+        let bill = wm?.rows.first?.detail ?? ""
+        wm?.pressed(0)
+        let asked = toast.contains("needs") && w.ships.list.count == ships0 && bill.contains("Still needs 96 ")
+        g.closeMenu()
         g.survival = false
         VehicleWorks.use(g, base)
+        (g.menu as? VehicleWorksMenu)?.pressed(0)
+        if g.menu != nil { g.closeMenu() }
         let made = w.ships.list.filter { $0.name == "Field Tank" }
         var rolled = false, wheelsDown = false
         if let t = made.last {
@@ -980,7 +987,7 @@ enum PlaytestOct11Tests {
             for y in (base.y - 1)...(base.y + 8) where !w.isAir(x, y, z) { w.setBlockAsync(x, y, z, AIR) }
         } }
         check(asked && made.count == 1 && rolled && wheelsDown,
-              "P54 vehicle works: short of parts it says so (\(asked)); with them a Field Tank rolls out beside it (\(made.count), on the far side: \(rolled)), wheels on the ground (\(wheelsDown))")
+              "P54 vehicle works: short of parts it says so (\(asked): \(bill)); with them a Field Tank rolls out beside it (\(made.count), on the far side: \(rolled)), wheels on the ground (\(wheelsDown))")
     }
 
     // G21: the Farsight raised to the eye zooms 4x; the crosshair sits where the hand's ray (the round's line) meets
