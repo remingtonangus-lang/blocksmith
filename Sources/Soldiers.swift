@@ -124,7 +124,7 @@ enum Soldier {
             m.lockTime = max(m.lockTime, 20)
             if caller == nil { caller = m }
         }
-        if let c = caller { breachesHeard += 1; c.alertGarrison(g, g.player.pos) }
+        if let c = caller { breachesHeard += 1; c.alertGarrison(g, g.player.pos); TroopVoice.say(g, c, .breach, gap: 2) }
     }
 
     static let rotaryWarn: Float = 0.8      // P391: seconds a Mahlwerk gunner's barrels whine up before a burst
@@ -428,7 +428,7 @@ extension Mob {
             if !aggro && (dist < 16 || simd_dot(toP, forward) > 0.2 || hurt > 0 || b.watchT > 1.5) {
                 aggro = true
                 b.react = rank.react
-                shout(g, .soldier(Soldier.voice(r), .alert), 1.1, at: eye)
+                barkLine(g, .spot, .soldier(Soldier.voice(r), .alert), 1.1)          // P468: "Contact!", or the bark
                 if Rand.float(in: 0..<1) < 0.5 { g.sfx(.gun(11), 0.6, at: eye) }
                 if r == 4 { b.pointT = 1.4 }
                 alertGarrison(g, g.player.pos)
@@ -462,7 +462,7 @@ extension Mob {
             b.hunt = nil
             // R23: lost him for good (no sighting for 45 s, nobody calling it in): stand down, so the next sighting is
             // called out again and the post duty below walks it back to its post.
-            if aggro && lockTime <= 0 && b.seenAgo > 45 && b.order == nil { aggro = false; b.lastSeen = nil }
+            if aggro && lockTime <= 0 && b.seenAgo > 45 && b.order == nil { aggro = false; b.lastSeen = nil; TroopVoice.say(g, self, .lost, gap: 2, chance: 0.6) }
             if let sp = followOrder(g) { return sp }
             // Garrison duty: stroll near the post; marksmen keep watch, and so does a vehicle's crew at its post in the
             // hull's frame (a stroll round `home`, where it spawned in the world, pulled it off its post as the vehicle
@@ -507,13 +507,16 @@ extension Mob {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
             b.reloadTotal = b.reload
             g.sfx(.gunReload(gs.sound), 0.6, at: eye)
-            if Rand.float(in: 0..<1) < 0.5 { shout(g, .soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
+            if Rand.float(in: 0..<1) < 0.5 { barkLine(g, .reload, .soldier(Soldier.voice(r), .reload), 0.9) }
         }
         if b.reload <= 0 { b.cover = nil }
         let (near, far) = Soldier.band(r, b.gun)
         var speed: Float = 0
         // Recruits fall back when badly hurt; marksmen back off from anyone who gets close.
-        if r == 0 && health < spec.health * 3 / 10 && b.retreatCD <= 0 { b.retreat = 4; b.retreatCD = 12 }
+        if r == 0 && health < spec.health * 3 / 10 && b.retreatCD <= 0 {
+            b.retreat = 4; b.retreatCD = 12
+            TroopVoice.say(g, self, Rand.float(in: 0..<1) < 0.35 ? .surrender : .flee, gap: 2, chance: 0.7)   // P468
+        }
         if r == 2 && sees && dist < 9 && b.retreatCD <= 0 { b.retreat = 2.5; b.retreatCD = 5 }
         if b.retreat > 0 {
             face(pos * 2 - g.player.pos)
@@ -561,7 +564,7 @@ extension Mob {
                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
                 let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
                 b.flank = g.player.pos + simd_normalize(toMe + side * 1.4) * min(dist, (near + far) / 2)
-                if Rand.float(in: 0..<1) < 0.5 { shout(g, .soldier(Soldier.voice(r), .attack), 0.9, at: eye) }      // "flanking!"
+                if Rand.float(in: 0..<1) < 0.5 { barkLine(g, .fight, .soldier(Soldier.voice(r), .attack), 0.9) }      // "flanking!"
             }
             // Troop classes: Spec Ops swing wide round the target's flank, quietly; Hannibal troopers push in firing.
             if tc == .specOps && r != 2 && b.flankTimer <= 0 && b.reload <= 0 {
@@ -578,7 +581,7 @@ extension Mob {
                 let right = V3(cosf(yaw), 0, -sinf(yaw))
                 b.flank = pos + right * (Rand.float(in: 0..<1) < 0.5 ? -5 : 5)
                 b.flankTimer = 2.5
-                if Rand.float(in: 0..<1) < 0.3 { shout(g, .soldier(Soldier.voice(r), .retreat), 0.8, at: eye) }     // "moving!"
+                if Rand.float(in: 0..<1) < 0.3 { barkLine(g, .fight, .soldier(Soldier.voice(r), .retreat), 0.8) }     // "moving!"
             }
         } else {
             b.aimTime = 0
@@ -664,7 +667,7 @@ extension Mob {
                         b.hunt = c
                         if simd_length(V2(c.x - pos.x, c.z - pos.z)) >= 3 { break }
                     }
-                    if b.huntN % 4 == 1 && Rand.float(in: 0..<1) < 0.5 { shout(g, .soldier(Soldier.voice(r), .alert), 0.8, at: eye) }   // "search the area!"
+                    if b.huntN % 4 == 1 && Rand.float(in: 0..<1) < 0.5 { barkLine(g, .search, .soldier(Soldier.voice(r), .alert), 0.8) }   // "search the area!"
                 }
                 if let hs = b.hunt { face(hs) }
                 speed = spec.speed * 0.9
@@ -691,7 +694,7 @@ extension Mob {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
             b.reloadTotal = b.reload
             g.sfx(.gunReload(gs.sound), 0.6, at: eye)
-            if Rand.float(in: 0..<1) < 0.4 { shout(g, .soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
+            if Rand.float(in: 0..<1) < 0.4 { barkLine(g, .reload, .soldier(Soldier.voice(r), .reload), 0.9) }
             return
         }
         guard b.shotTimer <= 0 else { return }
@@ -1078,6 +1081,7 @@ extension Game {
             NavalGuns.wreck(m, self)                                    // P102: a wreck where it stood
             return
         }
+        TroopVoice.say(self, m, .dying, gap: 2, chance: 0.3)          // P468: last words, now and then
         m.troopLoot(self)                                              // the plate it still wore (TroopClasses.swift)
         BountyHunters.loot(self, m, at: at)                            // R21: a bounty hunter's poster and purse
         // P206 (Oct 13 18:42, "I never found the key to unlock the computer on the second floor"): a Greywall base's

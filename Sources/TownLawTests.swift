@@ -456,10 +456,13 @@ extension TownTests {
         TownLines.on = false
         defer { TownLines.on = linesOn }
         let takes = TownVoice.takes
-        check(TownVoice.loaded >= takes.count && TownVoice.bankBytes < 6_000_000,
-              String(format: "voices: %d/%d takes packed (%.2f MB)", TownVoice.loaded, takes.count, Double(TownVoice.bankBytes) / 1e6))
+        // P468: the first book (TownVoice.script) must all be packed; the second book and the troop lines play once voiced
+        // (tools/townvoice_gen.py on the Mac), their bark or murmur until then.
+        let firstBook = takes.prefix(TownVoice.firstBook).filter { TownVoice.clip($0.key) == nil }.count
+        check(firstBook == 0 && TownVoice.bankBytes < 60_000_000,
+              String(format: "voices: %d/%d takes packed (%.2f MB), first book complete (%d missing)", TownVoice.loaded, takes.count, Double(TownVoice.bankBytes) / 1e6, firstBook))
         var bad: [String] = [], secs = 0.0, peak: Float = 0
-        for (i, t) in takes.enumerated() {
+        for (i, t) in takes.enumerated() where TownVoice.clip(t.key) != nil {
             let x = TownVoice.render(i)
             let p = x.reduce(0) { max($0, abs($1)) }
             peak = max(peak, p)

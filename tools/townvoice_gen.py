@@ -4,7 +4,7 @@
   tools/townvoice_gen.py            fetch missing takes, pack, write build/voicewav/*.wav and assets/voices/manifest.tsv
   tools/townvoice_gen.py --pack     pack from the cache only (no network)
 
-Reads the line table in Sources/TownVoice.swift (voices, groups, script). Each (voice, text) is spoken by an
+Reads the line tables in Sources/TownVoice.swift, TownVoiceMore.swift and TroopLines.swift (voices, groups, script). Each (voice, text) is spoken by an
 ElevenLabs model through OpenRouter's OpenAI-compatible speech endpoint (key in ~/.config/openrouter/api-key),
 24 kHz mono PCM, cached in build/voicecache/<key>.pcm so a re-run only fetches new or changed lines. Processing:
 trim silence (20 ms head, 80 ms tail kept), the voice's rate change (the child), low-pass + resample to 16 kHz,
@@ -15,7 +15,7 @@ import concurrent.futures as cf, datetime, json, os, re, struct, sys, urllib.req
 import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "Sources", "TownVoice.swift")
+SRCS = ["TownVoice.swift", "TownVoiceMore.swift", "TroopLines.swift"]
 CACHE = os.path.join(ROOT, "build", "voicecache")
 WAVS = os.path.join(ROOT, "build", "voicewav")
 OUT = os.path.join(ROOT, "Resources", "voices.bin")
@@ -24,16 +24,20 @@ MODEL = "elevenlabs/eleven-v4-turbo"
 RATE_IN, RATE_OUT = 24000, 16000
 
 def parse():
-    s = open(SRC).read()
-    voices = {k: (v, float(r)) for k, v, r in re.findall(r'"(\w+)": \("(\w+)", ([\d.]+)\)', s.split("static let groups")[0])}
-    gpart = s.split("static let groups")[1].split("static let script")[0]
-    groups = {g: re.findall(r'"(\w+)"', vs) for g, vs in re.findall(r'"(\w+)": \[([^\]]*)\]', gpart)}
-    spart = s.split("static let script")[1].split("struct Take")[0]
-    takes = []
-    for g, c, body in re.findall(r'\("(\w+)", "(\w+)", \[(.*?)\]\)', spart, re.S):
-        for t in re.findall(r'"((?:[^"\\]|\\.)*)"', body):
-            for v in groups[g]:
-                takes.append((v, c, t))
+    """Every (voice, context, text) take: TownVoice.swift's first book, TownVoiceMore.swift's second (P468, the same
+    voices and groups) and TroopLines.swift (P468, the soldiers', outlaws' and crews' own voices and groups)."""
+    voices, groups, takes = {}, {}, []
+    for name in SRCS:
+        s = open(os.path.join(ROOT, "Sources", name)).read()
+        if "static let groups" in s:
+            voices.update({k: (v, float(r)) for k, v, r in re.findall(r'"(\w+)": \("(\w+)", ([\d.]+)\)', s.split("static let groups")[0])})
+            gpart = s.split("static let groups")[1].split("static let script")[0]
+            groups.update({g: re.findall(r'"(\w+)"', vs) for g, vs in re.findall(r'"(\w+)": \[([^\]]*)\]', gpart)})
+        spart = re.split(r"static let script2?: ", s, maxsplit=1)[1].split("\n    ]\n")[0]
+        for g, c, body in re.findall(r'\("(\w+)", "(\w+)", \[(.*?)\]\)', spart, re.S):
+            for t in re.findall(r'"((?:[^"\\]|\\.)*)"', body):
+                for v in groups[g]:
+                    takes.append((v, c, t))
     return voices, takes
 
 def fnv(voice, text):

@@ -2675,14 +2675,20 @@ final class MobManager {
             }
             if m.hurtSound {
                 m.hurtSound = false
-                if MobVoice.profile(m.kind).family != .silent { game.sfx(m.baby ? .babyMob(m.kind, .hurt) : .mob(m.kind, .hurt), 0.8, at: m.pos + V3(0, m.height * 0.8, 0)) }
+                // P468: a soldier or an outlaw sometimes says it (a Hannibal trooper scoffs instead).
+                let said = TroopVoice.say(game, m, m.troop == 3 && Rand.float(in: 0..<1) < 0.5 ? .taunt : .hurt, gap: 2.5, chance: 0.35) != nil
+                if !said && MobVoice.profile(m.kind).family != .silent { game.sfx(m.baby ? .babyMob(m.kind, .hurt) : .mob(m.kind, .hurt), 0.8, at: m.pos + V3(0, m.height * 0.8, 0)) }
             }
             if m.callTimer <= 0 {
                 m.callTimer = Rand.float(in: 8...24)
                 if let r = Soldier.rank(m.kind) {
                     // Soldiers chatter at ease and shout orders in a fight (more often while fighting).
                     if m.aggro { m.callTimer = Rand.float(in: 4...9) }
-                    m.shout(game, .soldier(Soldier.voice(r), m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                    // P468: a spoken line when it has one (fighting talk, or an everyday line he overhears unseen), else the bark.
+                    let spoke = m.aggro ? (TroopVoice.say(game, m, .taunt, gap: 5, chance: 0.3) ?? TroopVoice.say(game, m, .fight, gap: 5)) != nil
+                                        : TroopVoice.overhear(game, m)
+                    if !spoke { m.shout(game, .soldier(Soldier.voice(r), m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0)) }
+                } else if TroopVoice.outlawCall(game, m) {
                 } else if MobVoice.profile(m.kind).family != .silent {
                     // Hissers and magma cubes only rustle / squelch faintly; everyone else calls at the usual level.
                     let quiet: Bool = m.kind == .creeper || m.kind == .magmaCube
