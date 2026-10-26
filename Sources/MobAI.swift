@@ -67,6 +67,10 @@ extension Mob {
         if kind.hostile { range *= Difficulty.row.sight }               // P302: how far enemies notice you, per level
         if g.player.sneaking { range *= 0.8 }
         if let h = kind.disguiseHead, Items.key(g.inventory.armor[0].item) == h { range *= 0.5 }
+        // P460 (Oct 25 17:01, Stormwarden marines while he hung over them on a jetpack: "Not attacking me very well
+        // though. Their AI isn't smart. They need to come at me from a greater range"): soldiers already in a fight
+        // keep track of him out to 64 blocks (their rank's 26-40 let him go once he climbed 30 over them).
+        if aggro && kind.steelhold && Soldier.rank(kind) != nil && !Soldier.reachOff { range = max(range, Soldier.fightReach) }
         if g.effects.has(.invisibility) { range = min(range, 7) }
         guard dist < range else { return false }
         if sightTimer <= 0 {
