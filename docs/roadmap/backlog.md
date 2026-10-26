@@ -7,7 +7,7 @@ Rules (Remington; full history in backlog-archive.md):
 - NO SILENT HANGS (Oct 23, after an 11-hour stall): no command, build or wait runs longer than 20 minutes; wrap builds and tests in `timeout 20m`. If it trips, kill it, write one line in the item, move on. Push and merge each finished item before starting the next; never hold finished items for one shared build. Headset or Mac-only checks are skipped in the cloud.
 - POLYGONS ARE BACK (Remington, Oct 24 16:06): P431 (block world) is reversed by P432. Old polygon items count again; POLYGON STRICT applies as before.
 - NO TEXT: no instructional or hint text in play (toasts, tutorials, tips, objective pop-ups); use in-world cues.
-- When every open item is done or claimed, stop.
+- When every open item is done, or claimed with no part still open, stop.
 - IP: inspiration only. No coined names from Halo, GoldenEye, Red Dead, Minecraft or real military units in player-visible text (tools/namecheck.py --coined). The WW2 layer is fictional: no swastikas, SS runes, Iron Crosses or real insignia.
 - Quest 3 is the product: 72 fps in the busiest scene.
 - Item format: `P<n>. text`. Status tags only: [DONE ...], [CLAIMED: ...], [ON HOLD by Remington]; plus the owner tag [HIGH AGENT]. Never write those words inside an item's text (the stop hook counts them).
