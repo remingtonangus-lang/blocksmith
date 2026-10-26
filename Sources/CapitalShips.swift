@@ -2184,6 +2184,14 @@ extension ShipManager {
                 let a = Float(i) * 2.1
                 m.home = lead.pos + V3(cosf(a) * 2.5, 0, sinf(a) * 2.5)
                 if lead.aggro && !m.aggro, let seen = lead.brain?.lastSeen { m.aggro = true; m.soldierBrain.lastSeen = seen }
+                // P460 (Oct 25 16:38, a Capital Dropship's troops round him: "These guys didn't do anything"): they come
+                // off the ramp already in the fight, so the line above never passed the officer's sighting on, and a
+                // trooper that hadn't seen him itself (behind the ramp, a rise, past its rank's sight) strolled round its
+                // spot. While the officer has him in sight the squad knows where he is and closes in.
+                if lead.aggro && lead.soldierBrain.seenAgo < 1 {
+                    m.lockTime = max(m.lockTime, 2)
+                    if m.soldierBrain.seenAgo > 2 { m.soldierBrain.lastSeen = g.player.pos; m.soldierBrain.seenAgo = 2 }
+                }
             }
         }
         let keel = st.groundOffset
