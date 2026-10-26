@@ -21,6 +21,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 REMOTE = "/sdcard/Android/data/com.blocksmith.quest/files/voicenotes"
 LOCAL = Path.home() / "Documents/Blocksmith/QuestVoiceNotes"
+FOOTAGE = LOCAL / "footage"                     # P467: all play, 5-minute clips
 KEY = Path.home() / ".config/openrouter/api-key"
 MODEL = "elevenlabs/scribe-v2"
 
@@ -48,7 +49,27 @@ def pull(raw: Path):
     for n in new:
         subprocess.run([a, "pull", f"{REMOTE}/{n}", str(raw / n)], capture_output=True)
     print(f"pulled {len(new)} new files ({len(names)} on the headset)")
+    pull_footage(a, ls.stdout.split())
     return names
+
+
+def pull_footage(a, listing):
+    """P467: the headset's rec-* clips (all play, 5 minutes each, with a state sidecar) go to FOOTAGE on this Mac and are
+    deleted from the headset; the newest pair is still being written and waits for the next run. tools/footage-sweep.py
+    looks through them."""
+    recs = sorted(n.strip() for n in listing if n.strip().startswith("rec-"))
+    stamps = sorted({n.rsplit(".", 1)[0] for n in recs})
+    if len(stamps) < 2:
+        return
+    done = [n for n in recs if n.rsplit(".", 1)[0] != stamps[-1]]
+    FOOTAGE.mkdir(parents=True, exist_ok=True)
+    got = []
+    for n in done:
+        if subprocess.run([a, "pull", f"{REMOTE}/{n}", str(FOOTAGE / n)], capture_output=True).returncode == 0:
+            got.append(n)
+    for i in range(0, len(got), 50):
+        subprocess.run([a, "shell", "rm", "-f"] + [f"{REMOTE}/{n}" for n in got[i:i + 50]])
+    print(f"footage: pulled {len(got)} files to {FOOTAGE} (run tools/footage-sweep.py to look through them)")
 
 
 def transcribe(audio: Path, key: str) -> str:
