@@ -31,6 +31,7 @@ enum QuestShoveCheck {
         }
         let log = Blocks.id("oak_log")
         var ghosts = 0
+        var wallLeft = (0, 0)
 
         func drive(_ bp: Blueprint, _ name: String, at x0: Int, _ z0: Int, seconds: Float) -> (Ship, Int, Int, Float) {
             var gy = 0
@@ -102,10 +103,22 @@ enum QuestShoveCheck {
                     let key = Blocks.key(Blocks.groupBase[Int(w.builtBlock(x, y, z))])
                     guard key == "oak_log" || key == "oak_planks" else { continue }
                     let l = s.toLocal(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
-                    if s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))) != AIR { inside += 1 }
+                    if s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))) != AIR {
+                        inside += 1
+                        print(String(format: "shovecheck:   inside its hull: %@ at %d %d %d (hull bottom %.2f)", key, x, y, z, s.worldMin.y))
+                    }
                 }
             } }
             ghosts = inside
+            // The plank wall where its wheels ran, the four outer columns each side (P455: the wheels rode up over it;
+            // the middle passes under the carriage's belly, clear of its hull, and is left standing).
+            var planks = 0
+            let cols = Array(span)
+            for a in cols.prefix(4) + cols.suffix(4) {
+                let (x, z) = cell(a, 3)
+                for y in (top(x, z) - 6)...(top(x, z) + 6) where Blocks.key(Blocks.groupBase[Int(w.builtBlock(x, y, z))]) == "oak_planks" { planks += 1 }
+            }
+            wallLeft = (planks, 24)
             return (s, n0, count(), simd_dot(s.pos - p0, ahead))
         }
         let shoved0 = Momentum.shoved
@@ -114,6 +127,7 @@ enum QuestShoveCheck {
         // (the rows two and five blocks off its bow, then the spruce wood beyond: his 14:19 "blasts through trees")
         check(bMoved > 12, String(format: "the siege carriage drives on past both rows (%.1f blocks in 10 s; it was held at 9.1 by a tree against its upper works)", bMoved))
         check(ghosts == 0, "nothing it drove past is left standing inside its hull (\(ghosts) blocks)")
+        check(wallLeft.0 * 2 <= wallLeft.1, "its wheels break through the plank wall rather than riding over it (\(wallLeft.0) of \(wallLeft.1) planks left in their tracks; 21 before)")
         check(Momentum.shoved - shoved0 >= 10, "Momentum.shove broke what was in its way (\(Momentum.shoved - shoved0) blocks)")
         w.ships.remove(big)
 
