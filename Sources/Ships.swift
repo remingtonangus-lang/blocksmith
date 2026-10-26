@@ -245,6 +245,7 @@ final class Ship {
     var flight: FlightModel?         // the real flight model (helicopters, Capital aircraft); nil: arcade
     var sails = 0                    // wool blocks (catch the wind while someone steers)
     var cannons: [(V3, V3)] = []     // cannon centre, muzzle direction (ship space)
+    var cannonLength: [Int] = []     // P459: Gun Barrels in line on from each cannon's muzzle (0-5)
     var balloons = 0
     var ballast = 0                  // ballast tanks (submarines, C8 Submarines.swift)
     var ballastLevel: Float = 0      // -1 (flooded: pulls down) ... 1 (blown: pushes up)
@@ -442,6 +443,21 @@ final class Ship {
             }
         } } }
         blockCount = n
+        // P459: each cannon's Gun Barrels, laid along its line on from the muzzle.
+        cannonLength = cannons.map { (c, d) in
+            let tubeID = Blocks.has("ship_gun_barrel") ? Blocks.id("ship_gun_barrel") : AIR
+            guard tubeID != AIR else { return 0 }
+            var k = 0
+            while k < 5 {
+                let q = c + d * Float(k + 1)
+                let x = Int(floor(q.x)), y = Int(floor(q.y)), z = Int(floor(q.z))
+                guard x >= 0, y >= 0, z >= 0, x < sx, y < sy, z < sz else { break }
+                let b = g.blocks[g.index(x, y, z)]
+                guard Blocks.groupBase[Int(b)] == tubeID, abs(simd_dot(ShipParts.facingDir[ShipParts.facing(b)], d)) > 0.9 else { break }
+                k += 1
+            }
+            return k
+        }
         findWheelParts()
         let lowest = wheels.map { $0.y }.min() ?? 0
         wheelBase = wheels.filter { $0.y < lowest + 0.5 }.count

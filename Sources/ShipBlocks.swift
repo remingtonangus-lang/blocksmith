@@ -122,6 +122,15 @@ extension BlockRegistry {
             }
         }
 
+        // P459 (Oct 25 16:10-16:11, "we need gun barrels. So if I wanna make my own gun, naval gun thing, then I need to
+        // be able to do that"): a Gun Barrel, a steel tube laid along its facing. Set in a line on from a cannon's muzzle
+        // (any number, the first five count) it lengthens that gun: each one adds 40 % to its shell's burst and 12 % to
+        // its speed, the shell leaves from the last tube's end, and the gun reloads a little slower (Ship.cannonLength).
+        var tube = BlockDef("ship_gun_barrel", "Gun Barrel")
+        tube.tex = ["ship_barrel"]; tube.render = .model; tube.layer = .cutout; tube.opaque = false; tube.hardness = 4
+        tube.tool = .pickaxe; tube.requiresTool = true; tube.sound = .stone; tube.skyStop = false; tube.resistance = 8
+        facing4(tube, [Box(5, 5, 0, 11, 11, 16, tex: barrel), Box(4, 4, 7, 12, 12, 9, tex: dark)])
+
         // H4: the Tidebreaker's breech, salvaged from a Meridian frigate's main gun (ShipManager.salvageMainGun). Set on
         // a ship of your own, it gives the helm the main gun, firing out of the side opposite its front like a cannon.
         var breech = BlockDef("tidebreaker_breech", "Tidebreaker Breech")
@@ -283,6 +292,8 @@ extension Recipes {
         r.append(shaped(["III", "I I", "III"], ["I": "iron_ingot"], "ship_turret_ring"))
         r.append(shaped(["II ", "IGI", "PPP"], ["I": "iron_ingot", "G": "gunpowder", "P": "#planks"], "ship_cannon"))
         r.append(shapeless(["iron_ingot", "gunpowder"], Wrecks.cannonball, 4))                                              // P93
+        r.append(shaped(["SSS"], ["S": "steel_ingot"], "ship_gun_barrel", 2))                                                 // P459
+        r.append(shaped(["III"], ["I": "iron_ingot"], "ship_gun_barrel", 1))
         r.append(shaped(["BBB", "ECE", "BBB"], ["B": "iron_block", "E": "ship_engine", "C": "crafting_table"], VehicleWorks.key))   // P54
         r.append(shaped(["BBB", "BHB", "PEP"], ["B": "ship_balloon", "H": "ship_helm", "P": "ship_propeller", "E": "ship_engine"], SkySkiff.key))   // A4
         r.append(shaped(["  I", " S ", "S  "], ["I": "iron_ingot", "S": "string"], GrappleLine.key))      // C7
