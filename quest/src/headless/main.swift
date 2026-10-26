@@ -1505,6 +1505,10 @@ if CommandLine.arguments.contains("--droptroops") {           // P460: what a Ca
     DropTroopsCheck.run(game, check)
     print(failures == 0 ? "droptroops: all checks passed" : "droptroops: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--frigatedecks") {         // P450/P461: the Stormwarden Frigate's decks and stairs
+    FrigateDecksCheck.run(check)
+    print(failures == 0 ? "frigatedecks: all checks passed" : "frigatedecks: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

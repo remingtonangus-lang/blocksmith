@@ -413,10 +413,8 @@ enum Capital {
         hb.set(0, 77, 330, Blocks.id("chest"))
         hb.chests.append((hb.grid(0, 77, 330), "steelhold_vault"))
         for x in [-6, 6] { hb.set(x, 88, 320, light) }
-        // Ladders: hangar -> upper deck -> bridge.
-        let ladder = Blocks.id("ladder")
-        for y in 27...46 { hb.set(-7, y, 300, panel); hb.set(-6, y, 300, ladder + 3) }
-        for y in 47...76 { hb.set(7, y, 330, panel); hb.set(6, y, 330, ladder + 2) }
+        // Decks, hallways, cabins and staircases (P450, P461: FrigateDecks.swift; the ladders are gone).
+        if !decksOff { frigateDecks(hb) }
         // Engine room: four drive cores (critical systems) and the stern nozzles glowing in their recesses.
         hb.fill(-38, 38, 20, 20, 384, 474, deck)
         for x in [-18, 18] { for cy in [30, 54] { hb.fill(x - 2, x + 2, cy - 2, cy + 2, 438, 446, engine) } }

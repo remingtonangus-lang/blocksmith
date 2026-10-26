@@ -89,7 +89,9 @@ final class ShipDraw {
             let f = fog(s, u)
             let m = model(s, eye: eye)
             let perSection = s.mesh.sections.count > 48
-            for sec in s.mesh.sections.values {
+            let outside = perSection && !s.mesh.outerSecs.isEmpty && ShipMesh.eyeOutside(s, eye)     // P450: the hull as seen from outside
+            for (k, full) in s.mesh.sections {
+                let sec = outside ? s.mesh.outerSecs[k] ?? full : full
                 if perSection && !ShipDraw.sectionVisible(s, sec, frustum) { continue }
                 drawSec(sl, sec, m, s.skyLight, f, pass)
             }
@@ -205,7 +207,9 @@ final class ShipDraw {
             let m = model(s, eye: eye)
             let f = fog(s, u)
             let perSection = s.mesh.sections.count > 48
-            for sec in s.mesh.sections.values {
+            let outside = perSection && !s.mesh.outerSecs.isEmpty && ShipMesh.eyeOutside(s, eye)     // P450: the hull as seen from outside
+            for (k, full) in s.mesh.sections {
+                let sec = outside ? s.mesh.outerSecs[k] ?? full : full
                 guard let buf = sec.trans, sec.transQuads > 0 else { continue }
                 if perSection && !ShipDraw.sectionVisible(s, sec, frustum) { continue }
                 if !bound { vkCmdBindPipeline(sl.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scene.pipe("shipTrans")); bound = true }
