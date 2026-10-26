@@ -423,6 +423,22 @@ if let out = arg("--view"), let ctx = vkctx {
         let sk = AshWrecks.skinMobs
         print("view: Salvaged Fighter at \(Int(fp.pos.x)) \(Int(fp.pos.y)) \(Int(fp.pos.z)), \(fp.blockCount) blocks, skin \(sk.count) (\(sk.first.map { String(format: "%.1f %.1f %.1f", $0.pos.x, $0.pos.y, $0.pos.z) } ?? "-")), hidden \(fp.hidden)")
     }
+    // --sidecarskin [DEG]: an Ashguard Sidecar (P461) on the ground 6 blocks ahead, turned DEG from facing the eye (90:
+    // side-on, its left showing); BS_FIGHTERBLOCKS=1 draws its blocks instead of the motorcycle model.
+    if CommandLine.arguments.contains("--sidecarskin") {
+        let f = V3(-sinf(yaw), 0, -cosf(yaw))
+        let at = vg.player.pos + f * 6
+        let gx = Int(floor(at.x)), gz = Int(floor(at.z))
+        var gy = Int(vg.player.pos.y) + 4
+        while gy > 1 && !vw.solidAt(gx, gy - 1, gz) { gy -= 1 }
+        let sc = vw.ships.spawn(AshCommandeer.sidecar(), at: V3(at.x, Float(gy) + 3, at.z), yaw: yaw + (Float(arg("--sidecarskin") ?? "") ?? 90) * .pi / 180, name: AshCommandeer.sidecarName, role: "")
+        sc.role = nil
+        VehicleWorks.settle(sc, on: V3(at.x, Float(gy), at.z))
+        sc.initialBlocks = sc.blockCount
+        sc.mesh.rebuildAll(sc, device: vw.device, queue: vw.ships.meshQueue)
+        AshWrecks.syncSkins(vw, dt: 0.1)
+        print("view: Ashguard Sidecar at \(Int(sc.pos.x)) \(Int(sc.pos.y)) \(Int(sc.pos.z)), \(sc.blockCount) blocks, skins \(AshWrecks.skinMobs.count), hidden \(sc.hidden)")
+    }
     // --cave: the eye in the nearest open cave below (spiralling out from the spot until one has room round the eye).
     if CommandLine.arguments.contains("--cave") {
         let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z))
