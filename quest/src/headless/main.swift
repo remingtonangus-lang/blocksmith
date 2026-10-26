@@ -1521,6 +1521,10 @@ if CommandLine.arguments.contains("--cityfloat") {             // P462: Capital 
     CityFloatCheck.run(game, check)
     print(failures == 0 ? "cityfloat: all checks passed" : "cityfloat: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--fueldepot") {             // P461: dropship fuel cans and Fuel Depot bases
+    FuelDepotCheck.run(game, check)
+    print(failures == 0 ? "fueldepot: all checks passed" : "fueldepot: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

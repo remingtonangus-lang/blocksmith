@@ -183,6 +183,9 @@ extension Game {
         if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
         if guns > 0, let sight = tankSightHUD(s) { t += sight }                 // D42
         if let f = VehicleDepot.hud(s) { t += f }                                  // D44
+        if s.root.role == "dropship", let st = world.ships.capState[s.root.id] {   // P461
+            t += String(format: "  fuel %d%%", Int((st.fuel / CapitalState.dropFuel * 100).rounded()))
+        }
         if let (m, _, _) = world.ships.mainGunStatus(s.root) {
             t += "  \(MainGun.name) " + m
             // Range to the helm's aim marker (MainGun.swift mainGunAimTick), or that the shot would land nowhere.

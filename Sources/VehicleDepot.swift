@@ -52,6 +52,13 @@ enum VehicleDepot {
         return String(format: "  fuel %d%%", Int((level(s) * 100).rounded()))
     }
 
+    // His dropship: the one he flies, else a taken one within r of p.
+    static func dropship(_ g: Game, _ p: V3, _ r: Float) -> Ship? {
+        if let s = g.world.ships.pilot?.root { return s.role == "dropship" ? s : nil }
+        return g.world.ships.list.filter { $0.parent == nil && $0.role == "dropship" && $0.captured && !$0.wrecked
+            && g.world.ships.boundsDistance($0, p) < r }.min { g.world.ships.boundsDistance($0, p) < g.world.ships.boundsDistance($1, p) }
+    }
+
     // The nearest vehicle of yours that burns fuel, within r of p.
     static func nearestVehicle(_ g: Game, _ p: V3, _ r: Float) -> Ship? {
         g.world.ships.list.filter { usesFuel($0) && g.world.ships.boundsDistance($0, p) < r }
@@ -76,6 +83,16 @@ enum VehicleDepot {
     // useGadget: a Fuel Can at the helm or beside your vehicle.
     static func useCan(_ g: Game) -> Bool {
         guard !g.held.isEmpty, Items.key(g.held.item) == canKey else { return false }
+        // P461: a dropship of his (at its helm or within 6 blocks of its hull) takes a can as a third of its tank.
+        if let d = dropship(g, g.player.pos, 6), let st = g.world.ships.capState[d.id] {
+            guard st.fuel < CapitalState.dropFuel - 1 else { g.onToast?("The \(d.name)'s tanks are full"); return true }
+            st.fuel = min(CapitalState.dropFuel, st.fuel + ShipManager.canFuel)
+            if g.survival { g.consumeHeld() }
+            refuels += 1
+            g.sfx(.bucketEmpty, 0.8, at: g.player.pos)
+            g.onToast?("Poured in a can: fuel \(Int((st.fuel / CapitalState.dropFuel * 100).rounded()))%")
+            return true
+        }
         let s = g.world.ships.pilot.map { $0.root } ?? nearestVehicle(g, g.player.pos, 6)
         guard let v = s, usesFuel(v) else { g.onToast?("No vehicle beside you"); return true }
         guard level(v) < 0.99 else { g.onToast?("The \(v.name)'s tank is full"); return true }

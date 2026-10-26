@@ -1647,21 +1647,19 @@ extension ShipManager {
         for t in turrets(of: s) { t.followParent(0) }
     }
 
-    // P66: a commandeered drop craft burns fuel while it thrusts (four minutes on full tanks). Running dry, it takes
-    // coal, charcoal or blaze rods from the pilot's pack (a lump is 40 s, a rod 80 s); with none, it sinks gently
-    // to the ground. Returns false when there is no fuel.
-    static let fuelItems: [(String, Float)] = [("blaze_rod", 240), ("coal", 120), ("charcoal", 120), ("coal_block", 1080)]
+    // P66: a commandeered drop craft burns fuel while it thrusts (P461: fifteen minutes on full tanks). Running dry, it
+    // pours in a Fuel Can from the pilot's pack (a third of a tank); with none, it sinks gently to the ground. Returns
+    // false when there is no fuel.
+    // P461 (Oct 25 16:40, "It needs to refuel... fuel we have to get from a fuel depot. Make that one of the bases, base
+    // types, a fuel depot"): fuel comes in Fuel Cans (VehicleDepot) and from a Fuel Depot base he has taken, which
+    // fills it standing there (BaseSpecialties); coal and blaze rods no longer run it.
+    static let canFuel: Float = CapitalState.dropFuel / 3
     func dropFuel(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) -> Bool {
         if abs(s.throttle) > 0.05 || abs(s.climb) > 0.05 { st.fuel -= dt * (s.boost && s.throttle > 0.05 ? 2 : 1) }
-        if st.fuel <= 0 {
-            for (k, secs) in ShipManager.fuelItems where Items.has(k) {
-                let id = Items.id(k)
-                if g.inventory.main.remove(id, 1) == 1 {
-                    st.fuel += secs
-                    g.onToast?("Refuelled the \(s.name) with \(Items.def(id).display)")
-                    break
-                }
-            }
+        if st.fuel <= 0, Items.has(VehicleDepot.canKey), g.inventory.main.remove(Items.id(VehicleDepot.canKey), 1) == 1 {
+            st.fuel += ShipManager.canFuel
+            g.sfx(.bucketEmpty, 0.8, at: g.player.pos)
+            g.onToast?("Poured a Fuel Can into the \(s.name)")
         }
         if st.fuel > 30 { st.fuelTold = 0 }
         if st.fuel <= 30 && st.fuel > 0 && st.fuelTold == 0 { st.fuelTold = 1; g.onToast?("\(s.name): fuel low") }

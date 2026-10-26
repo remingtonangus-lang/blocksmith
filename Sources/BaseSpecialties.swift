@@ -9,11 +9,14 @@ import simd
 //   field hospital  once a day: health and food topped up, every effect on you washed out
 //   armoury         once: an elite-grade gun from the racks, with ammunition
 //   radar station   once: the bearing and distance of every other base within 3 km, as map waypoints
+//   fuel depot      P461 (Oct 25 16:40, "fuel we have to get from a fuel depot. Make that one of the bases, base types,
+//                   a fuel depot"): his vehicles there are filled whenever he comes (his dropship and anything with a
+//                   fuel tank, within 40 blocks of its middle), and once a day its stores hand him three Fuel Cans
 // Used days and one-off gifts are saved with the world extras ("baseSpecials").
 enum BaseSpecialty: Int, CaseIterable {
-    case none, ammoDepot, fieldHospital, armoury, radarStation
+    case none, ammoDepot, fieldHospital, armoury, radarStation, fuelDepot
 
-    var name: String { ["", "Ammo Depot", "Field Hospital", "Armoury", "Radar Station"][rawValue] }
+    var name: String { ["", "Ammo Depot", "Field Hospital", "Armoury", "Radar Station", "Fuel Depot"][rawValue] }
     var promise: String {
         switch self {
         case .none: return ""
@@ -21,15 +24,18 @@ enum BaseSpecialty: Int, CaseIterable {
         case .fieldHospital: return "take it and its doctors patch you up every day"
         case .armoury: return "take it and its racks hold an elite gun for you"
         case .radarStation: return "take it and its radar marks every base around"
+        case .fuelDepot: return "take it and its pumps fill your vehicles"
         }
     }
 }
 
 enum BaseSpecialties {
     static let reach: Float = 28                    // from the base centre
+    static let pumpReach: Float = 40                // a Fuel Depot fills vehicles this far from its centre
     static var usedDay: [String: Int] = [:]          // daily specialities: the last game day used
     static var given: Set<String> = []               // one-off specialities already handed over
     static var told: Set<String> = []                // (session) bases already announced
+    static var filled = 0                            // (harness: vehicles a Fuel Depot filled)
 
     // The speciality of a base, from its key (deterministic: the same base is the same everywhere).
     static func of(_ key: String) -> BaseSpecialty {
@@ -41,6 +47,7 @@ enum BaseSpecialties {
         case 3, 4: return .fieldHospital
         case 5: return .armoury
         case 6, 7: return .radarStation
+        case 8, 9: return .fuelDepot
         default: return .none
         }
     }
@@ -84,12 +91,29 @@ extension Game {
             if !mine {
                 if d < 90 && !BaseSpecialties.told.contains(key) {
                     BaseSpecialties.told.insert(key)
-                    onToast?("Intel: this base is an \(sp.name)")
+                    onToast?("Intel: this base is \("AEIOU".contains(sp.name.first ?? " ") ? "an" : "a") \(sp.name)")
                 }
                 continue
             }
+            if sp == .fuelDepot { fillAtDepot(c) }
             guard d < BaseSpecialties.reach, abs(c.y - pp.y) < 24 else { continue }
             serveSpecialty(sp, key: key)
+        }
+    }
+
+    // A Fuel Depot of his fills his vehicles standing within its reach (each time he comes: a vehicle filled is told
+    // once, until it has burnt some again).
+    func fillAtDepot(_ c: V3) {
+        let ships = world.ships
+        for s in ships.list where s.parent == nil && !s.wrecked && ships.boundsDistance(s, c) < BaseSpecialties.pumpReach {
+            if s.role == "dropship", s.captured, let st = ships.capState[s.id], st.fuel < CapitalState.dropFuel - 1 {
+                st.fuel = CapitalState.dropFuel
+            } else if VehicleDepot.usesFuel(s), VehicleDepot.level(s) < 0.99 {
+                VehicleDepot.setLevel(s, 1)
+            } else { continue }
+            BaseSpecialties.filled += 1
+            sfx(.bucketFill, 0.8, at: s.pos)
+            onToast?("Fuel Depot: the \(s.name) is filled")
         }
     }
 
@@ -97,6 +121,13 @@ extension Game {
         let day = Int(time / DAY_LENGTH)
         switch sp {
         case .none: return
+        case .fuelDepot:
+            guard BaseSpecialties.usedDay[key] != day, Items.has(VehicleDepot.canKey) else { return }
+            BaseSpecialties.usedDay[key] = day
+            let rest = inventory.add(ItemStack(Items.id(VehicleDepot.canKey), 3))
+            if !rest.isEmpty { dropItem(rest) }
+            sfx(.bucketFill, 0.8, at: player.pos)
+            onToast?("Fuel Depot: three Fuel Cans from its stores (again tomorrow)")
         case .ammoDepot:
             guard BaseSpecialties.usedDay[key] != day else { return }
             var kinds: [String: Int] = [:]
