@@ -254,6 +254,7 @@ extension Game {
         // Teleported, respawned or knocked away: no longer at the helm.
         if simd_length(at - player.pos) > 4 { leaveHelm(); return false }
         if mi.sneak { leaveHelm(); return false }
+        if s.name == AshCommandeer.truckName { ashRunOverHull(s) }               // P449: his truck runs people down
         s.piloted = true
         // Per-vehicle keyboard / controller layout (VehicleControls.swift).
         let c = VehicleControls.read(self, s, mi)
@@ -319,7 +320,7 @@ extension Game {
             // Crewed vessels and Capital fliers only: near the player's own builds use keeps placing blocks.
             // P435 (Oct 24 15:51, the Ashguard sidecar: "Should be third person if I'm driving this thing"; he pushed it
             // about on foot instead): a sidecar's helm is taken from beside it too, which puts him in the chase view.
-            let sidecar = s.name == AshCommandeer.sidecarName
+            let sidecar = AshCommandeer.smallHull(s)                       // (P449: and his Army Truck)
             if s.kinematic ? !ships.canCommandeer(s) : !(s.isVessel || s.role == "kestrel" || s.role == "capplane" || sidecar) { continue }
             guard let stand = helmStand(s) else { continue }
             let d = simd_length(s.toWorld(stand) - p)
@@ -394,7 +395,7 @@ extension Game {
         // P461 (Oct 25 16:49, the sidecar motorcycle: "I can't get out of this. Why can't I get out of this?"): its
         // saddle (the helm's stand) is inside the bike's engine block, so leaving the helm left him standing in the
         // hull, held by it. Off a sidecar he gets down onto the ground beside it, as from an Ashguard vehicle.
-        if s.name == AshCommandeer.sidecarName, let at = dismountSpot(s) {
+        if AshCommandeer.smallHull(s), let at = dismountSpot(s) {
             player.pos = at
             player.vel = .zero
             player.airPeak = at.y
