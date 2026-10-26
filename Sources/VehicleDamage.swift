@@ -26,7 +26,7 @@ extension ShipManager {
             // pit in the ground under it. It lands as a tree (Felling: a thud and a rustle of leaves).
             if Felling.isFelled(s) { continue }
             let held = Momentum.held(s, dt)
-            if (s.pushing || held) && !s.kinematic { Momentum.shove(s, dt, g) } else { s.shoveStore = 0 }
+            if (s.pushing || held || Momentum.underWay(s)) && !s.kinematic { Momentum.shove(s, dt, g) } else { s.shoveStore = 0 }
             s.pushing = false; s.pushInto = 0
             // P262: a heavy, fast hull breaks through what it hits in the world (any physics hull, AI or yours).
             var gave = false
@@ -116,6 +116,15 @@ enum Momentum {
         return s.heldT > 0.25
     }
 
+    // P455 (Oct 25 14:19-14:25; questcheck --shovecheck: the siege carriage rode up and over a three-high plank wall,
+    // 15 of its 17 columns left standing): a heavy hull's wheels meet a wall's foot with an upward contact, so it climbed
+    // instead of pushing and the shove never started. A hull of 300 t or more under power shoves all the time, so what
+    // it could break (timber, glass, brush: up to a hundredth of its mass in hardness) goes before it rides up on it;
+    // what it drives on (anything not standing above its lowest point) is left alone.
+    static func underWay(_ s: Ship) -> Bool {
+        s.piloted && abs(s.throttleEase) > 0.25 && s.mass >= 300 && s.engines > 0
+    }
+
     static func shove(_ s: Ship, _ dt: Float, _ g: Game) {
         shoveCalls += 1
         guard s.engines > 0, s.blockCount > 1 else { return }
@@ -140,12 +149,14 @@ enum Momentum {
         var seen = Set<IVec3>()
         var cand: [(IVec3, Float, BlockID)] = []
         let mid = (s.worldMin + s.worldMax) * 0.5
+        let floorY = s.worldMin.y + 0.25                     // (cells under this are what it drives on)
         for p in pts where !own(p + dir) {
             for k: Float in [0.6, 1.3] {
                 let q = p + dir * k
-                for dy in -1...0 {
+                // (and the cell over it: a crown hanging onto the top edge of its bow held the carriage at a spruce)
+                for dy in -1...1 {
                     let c = IVec3(Int(floor(q.x)), Int(floor(q.y)) + dy, Int(floor(q.z)))
-                    guard c.y >= 1, c.y < CH - 1, seen.insert(c).inserted else { continue }
+                    guard c.y >= 1, c.y < CH - 1, Float(c.y + 1) > floorY, seen.insert(c).inserted else { continue }
                     let b = w.block(c.x, c.y, c.z)
                     guard b != AIR, Blocks.collide[Int(b)], !Blocks.isLiquid(b), w.blockEntities[c] == nil else { continue }
                     let hard = Blocks.hardness[Int(b)]
@@ -156,6 +167,19 @@ enum Momentum {
                     let side = simd_length(off - dir * simd_dot(off, dir))
                     cand.append((c, (k - 0.6) * 2 + side * 0.2 + Float(c.y) * 0.05, b))
                 }
+            }
+        }
+        // The block the contact solver found it pressing on, first (P455: a spruce crown against the carriage's
+        // chamfered bow corner, off the straight line ahead of any hull cell, held it).
+        if s.pushing {
+            let q = s.pushAt - s.pushN * 0.3
+            let c = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+            let b = w.block(c.x, c.y, c.z)
+            let hard = Blocks.hardness[Int(b)]
+            if c.y >= 1, c.y < CH - 1, Float(c.y + 1) > floorY, !seen.contains(c), b != AIR, Blocks.collide[Int(b)], !Blocks.isLiquid(b),
+               w.blockEntities[c] == nil, hard >= 0, hard <= min(heft, 3), !w.groundAt(c.x, c.y, c.z),
+               !SmoothTerrain.natural[Int(b)] || CapitalBase.isLog(b) || CapitalBase.isLeaf(b) {
+                cand.append((c, -1, b))
             }
         }
         guard !cand.isEmpty else { return }
