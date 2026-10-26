@@ -130,6 +130,7 @@ final class QuestControls {
     // Swing melee (swingContact): last frame's blade capsule (world), its tip relative to the head (tracking space), the
     // mobs this swing already hit, and the slow-touch buzz timer.
     private var bladeA = V3.zero, bladeB = V3.zero, bladeTipRel = V3.zero
+    private var bladeHandRel = V3.zero                 // P459: the hand relative to the head (VRMelee.swingSpeed)
     private var bladeTravel: Float = 0                 // the tip's path since this swing began (P136)
     private var bladeValid = false
     private var bladeHits: [ObjectIdentifier] = []
@@ -1307,19 +1308,24 @@ final class QuestControls {
             app.input.haptic(moveHand, amplitude: 0.45, seconds: 0.05, frequency: 300)
         }
         let tipRel = tip - rig.trackingHead
-        let a0 = bladeA, b0 = bladeB, prevRel = bladeTipRel
-        bladeA = a1; bladeB = b1; bladeTipRel = tipRel
+        let handRel = R.aimPos - rig.trackingHead
+        let a0 = bladeA, b0 = bladeB, prevRel = bladeTipRel, prevHand = bladeHandRel
+        bladeA = a1; bladeB = b1; bladeTipRel = tipRel; bladeHandRel = handRel
         touchBuzz = max(0, touchBuzz - dt)
         guard bladeValid else { bladeValid = true; return }
         // A jump of more than 1.5 m (teleport, respawn, boarding) is not a swing.
         guard simd_length(a1 - a0) < 1.5 else { bladeTrail.clear(); return }
-        let speed = simd_length(tipRel - prevRel) / dt
+        let tipSpeed = simd_length(tipRel - prevRel) / dt
+        // P459: hits and their power go by the swing's speed, the tip's capped by the hand's (a twirled wrist grazes).
+        let speed = VRMelee.swingSpeed(tip: tipSpeed, hand: simd_length(handRel - prevHand) / dt)
         laserFade = speed > VRMelee.rearmSpeed ? max(0, laserFade - dt * 12) : min(1, laserFade + dt * 3)
         bladeTrail.add(base: a1, tip: b1, speed: speed, now: game.clock)
         trailPeak = max(trailPeak, bladeTrail.segmentCount(now: game.clock))
-        if speed < VRMelee.rearmSpeed { bladeHits.removeAll(keepingCapacity: true); bladeHitAt.removeAll(keepingCapacity: true); bladeTravel = 0 }
+        // P459: the swing ending (the tip slowing at the turn of a back-and-forth) no longer frees the mobs it cut: each
+        // takes the blade again only VRMelee.rehit after its last cut, so wagging the arm can't land cuts every turn.
+        if speed < VRMelee.rearmSpeed { bladeTravel = 0 }
         else { bladeTravel += simd_length(tipRel - prevRel) }
-        // Several hits a second: a mob can take the blade again VRMelee.rehit after its last hit.
+        // A mob can take the blade again VRMelee.rehit after its last hit.
         while let t = bladeHitAt.first, game.clock - t >= VRMelee.rehit { bladeHits.removeFirst(); bladeHitAt.removeFirst() }
         // The blade knocking into stone or wood: a dull knock in the hand (blocks are never broken by a swing).
         scrapeBuzz = max(0, scrapeBuzz - dt)
@@ -1329,7 +1335,7 @@ final class QuestControls {
             app.input.haptic(aimHand, amplitude: 0.45, seconds: 0.03, frequency: 240)
         }
         // P462 (Oct 25 17:07: "Should be able to slash through branches"): a blade swung through leaves cuts them away.
-        if speed >= VRMelee.minTipSpeed && VRMelee.isSwingWeapon(Items.key(game.held.item)) {
+        if tipSpeed >= VRMelee.minTipSpeed && VRMelee.isSwingWeapon(Items.key(game.held.item)) {
             for t: Float in [0.5, 0.8, 1] {
                 let p = a1 + (b1 - a1) * t
                 let c = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
@@ -1358,6 +1364,7 @@ final class QuestControls {
             game.swingPower = pow
             game.swingMob = m
             bladeHits.append(ObjectIdentifier(m)); bladeHitAt.append(game.clock)
+            bladeTravel = 0                                        // P459: the next cut winds up afresh
             bladeContacts += 1
             game.swingPoint = point          // the contact flash and sparks there once the hit lands (Game.bladeFlash)
             game.swingDir = along

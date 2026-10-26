@@ -636,8 +636,32 @@ enum QuestSim {
         let upper = swingPath(.husk, dist: 1.4, from: V3(0, -1.0, -0.35), to: V3(0, 0.2, -0.35), rot: level, frames: 4)
         let chop = swingPath(.caveSpider, dist: 1.3, from: V3(0, 0.1, -0.4), to: V3(0, -1.2, -0.4), rot: simd_quatf(angle: -1.4, axis: V3(1, 0, 0)), frames: 4)
         let flurry = swingPath(.husk, dist: 1.5, from: V3(0.6, -0.35, -0.3), to: V3(-0.6, -0.35, -0.3), rot: tilt, frames: 72, back: true)
-        check(upper.0 > 0 && chop.0 > 0 && flurry.1 >= 4,
+        // P459 (Oct 25 17:05, "way too generous"): quick back-and-forth swings land two or three cuts a second, not one
+        // every turn.
+        check(upper.0 > 0 && chop.0 > 0 && flurry.1 >= 2 && flurry.1 <= 3,
               "VR swing P13/P16: an uppercut hits (\(upper.0) damage), a chop at a low cave spider hits (\(chop.0)), quick swings land \(flurry.1) hits in 1 s (\(flurry.0) damage, one fast swing \(fast.0))")
+        // P459 ("I'm just pretty much helicoptering my hand here"): the hand held still and the blade twirled round it
+        // twice a second through a husk ahead (the tip at ~17 m/s) only grazes it: no damage.
+        let twirl: (Int, Int) = {
+            frames(8) { _ in idleHands(); sim.hands[1].aimPos = sim.headPos + V3(0.15, -0.35, -0.35); sim.hands[1].aimRot = level }
+            let at = ahead(1.4)
+            let z = Mob(.husk, at: at)
+            z.equip = nil
+            game.mobs.mobs.append(z)
+            let h0 = z.health, c0 = controls.bladeContacts
+            frames(73) { i in
+                z.pos = at; z.vel = .zero
+                idleHands()
+                let rot = simd_quatf(angle: Float(i) * 0.175, axis: V3(0, 1, 0)) * level
+                sim.hands[1].aimPos = sim.headPos + V3(0.15, -0.35, -0.35); sim.hands[1].aimRot = rot
+                sim.hands[1].gripPos = sim.hands[1].aimPos; sim.hands[1].gripRot = rot
+            }
+            let r = (h0 - z.health, controls.bladeContacts - c0)
+            remove(z)
+            frames(4) { _ in idleHands() }
+            return r
+        }()
+        check(twirl.0 == 0 && twirl.1 == 0, "VR swing P459: the blade twirled from a still hand through a husk for 1 s: \(twirl.0) damage, \(twirl.1) cuts (want none)")
         // (c2) The same swing into a husk rearing back to strike: a parry (no damage, a clang), not a hit.
         let p0 = controls.parriesLanded, g0 = game.parries
         let parried = swingAcross(1.6, step: 0.3, windUp: true)

@@ -11,10 +11,20 @@ import simd
 enum VRMelee {
     static let minTipSpeed: Float = 2.0      // m/s relative to the head: slower is a touch (a light buzz), not a hit
     static let rearmSpeed: Float = 1.2       // the tip slowing below this ends the swing (each mob is hit once per swing)
-    static let rehit: Double = 0.16          // ... or this long after the hit: fast back-and-forth swings land several hits a second
+    // P459 (Oct 25 17:05, "Classify as a hit is way too generous... I'm just pretty much helicoptering my hand here. I'm
+    // just absolutely destroying these guys"): a wrist twirled in circles kept the tip over minTipSpeed, so the swing
+    // never ended, its wind-up bonus grew to the full x1.4, and the fat, long capsule caught every mob in reach again
+    // each 0.16 s. Now a mob takes the blade again only after 0.45 s (about two cuts a second), the capsule is closer
+    // to the drawn blade, the wind-up counts from the last hit, and the power follows the hand's own speed as well as
+    // the tip's (handLever): a cut needs the arm behind it, a wrist flick only grazes.
+    static let rehit: Double = 0.45          // ... or this long after the hit: a fast back-and-forth lands about two cuts a second
     static let reach: Float = 3.0            // eyes to the contact point, blocks (the reference melee reach)
-    static let bladeScale: Float = 1.3       // hit capsule length vs the drawn blade
-    static let bladeRadius: Float = 0.25
+    static let bladeScale: Float = 1.15      // hit capsule length vs the drawn blade
+    static let bladeRadius: Float = 0.14
+    // The tip of a blade swung from the shoulder moves about 2.5 times as fast as the hand; spun from the wrist, many
+    // times. The swing's speed for a hit and its power is the tip's, capped at handLever times the hand's.
+    static let handLever: Float = 3
+    static func swingSpeed(tip: Float, hand: Float) -> Float { min(tip, hand * handLever) }
     static let fistLength: Float = 0.15, fistRadius: Float = 0.15
     static let weaponHostileGuard: Float = 6 // a melee weapon never mines with a hostile this close (blocks)
     static let weaponMobGuard: Float = 3     // ... or any other creature this close (a cow 4 blocks off is fine)
