@@ -20,6 +20,21 @@ extension BlockRegistry {
             add(d)
             family("capital_paving", "capital_paving", "Capital Paving", h: 2, tool: .pickaxe, req: true, snd: .stone, stairs: false, slab: true, fence: false, wall: false)
         }
+        // P462 (Oct 25 16:31, his Capital City: "I want it to be more New Alexandria looking... Reminds me of Greek
+        // architecture too much"): the glass curtain walls and the dark steel of the towers that replaced the white
+        // colonnades.
+        if !has("capital_steel") {
+            var d = BlockDef("capital_steel", "Capital Steel")
+            d.tex = ["capital_steel"]; d.hardness = 5; d.resistance = 12; d.tool = .pickaxe; d.requiresTool = true; d.sound = .metal
+            add(d)
+            family("capital_steel", "capital_steel", "Capital Steel", h: 5, tool: .pickaxe, req: true, snd: .metal, stairs: true, slab: true, fence: false, wall: false)
+        }
+        if !has("capital_curtain") {
+            var d = BlockDef("capital_curtain", "Capital Curtain Glass")
+            d.tex = ["capital_curtain"]; d.opaque = false; d.layer = .cutout; d.cullSame = true
+            d.hardness = 0.6; d.resistance = 2; d.sound = .glass
+            add(d)
+        }
     }
 }
 
@@ -29,6 +44,18 @@ extension TextureGen {
         p["capital_paving"] = { x, y in
             if y == 15 || x == 15 || (y == 7 && x < 15) { return hex(0x8A8F94) }
             return hex(0xA9AEB3, 0.96 + 0.03 * r(x / 4, y / 4 + (y > 7 ? 9 : 0), 2501) + 0.02 * r(x, y, 2502))
+        }
+        // Satin steel panels, blue-grey: a fine brushed grain, a light edge on top, a dark joint at the bottom.
+        p["capital_steel"] = { x, y in
+            if y == 0 { return hex(0x8D96A1) }
+            if y == 15 { return hex(0x3A4048) }
+            return hex(0x5C6672, 0.95 + 0.04 * r(0, y, 2511) + 0.02 * r(x / 2, y, 2512))
+        }
+        // Curtain glass: one even sheet of blue-green, the faintest ripple (no frame inside it: the steel mullions and
+        // the white floor bands frame the panes).
+        p["capital_curtain"] = { x, y in
+            let k = 0.97 + 0.03 * r(x / 4, y / 4, 2513)
+            return V4(0.25 * k, 0.47 * k, 0.58 * k, 0.6)
         }
     }
 }
@@ -47,6 +74,7 @@ enum CapitalCity {
         var flat = [Bool](repeating: false, count: 4 * N * N)     // building lots (kind 0) that are flats, not offices
         var seed: UInt64 = 0                                      // the world seed (lot seeds, CapitalTown)
         var size = 2                                              // G12: 0 small (16 lots), 1 medium (24), 2 large (32)
+        var modern = false                                        // P462: glass and steel towers (ground no save had before it)
         init(ox: Int, oz: Int) { self.ox = ox; self.oz = oz }
         @inline(__always) func idx(_ i: Int, _ j: Int) -> Int { (j + N) * 2 * N + (i + N) }
         func has(_ i: Int, _ j: Int) -> Bool { i >= -N && i < N && j >= -N && j < N && level[idx(i, j)] != Int.min }
@@ -84,6 +112,8 @@ enum CapitalCity {
 
     static func site(_ gen: WorldGen, _ seed: UInt64, _ cx: Int, _ cz: Int) -> StructureStart? {
             guard let sc = gen.structures, sc.clear(cx: cx, cz: cz, reach: 9), let plan = planFor(gen, seed, cx, cz) else { return nil }
+            plan.modern = sc.clear(cx: cx, cz: cz, reach: 9, guardSet: sc.legacyP462)
+            let top = plan.modern ? 64 : 48
             var pieces: [Piece] = []
             for j in -N..<N { for i in -N..<N where plan.has(i, j) {
                 let x0 = plan.ox + (i + N) * lot, z0 = plan.oz + (j + N) * lot
@@ -91,7 +121,7 @@ enum CapitalCity {
                 let ex = plan.has(i + 1, j) ? 0 : street, ez = plan.has(i, j + 1) ? 0 : street
                 let m = 6                                    // margin for clearing leaves of trees cut at the edge
                 let pseed = lotSeed(seed, i, j)
-                pieces.append(Piece(min: IVec3(x0 - m, L - 40, z0 - m), max: IVec3(x0 + lot - 1 + ex + m, L + 48, z0 + lot - 1 + ez + m),
+                pieces.append(Piece(min: IVec3(x0 - m, L - 40, z0 - m), max: IVec3(x0 + lot - 1 + ex + m, L + top, z0 + lot - 1 + ez + m),
                                     build: { w in CapitalCity.buildLot(&w, plan, i, j, pseed) }))
             } }
             let L0 = plan.lv(0, 0)!
@@ -209,6 +239,11 @@ enum CapitalCity {
         let pave = g("capital_paving", grey), paveSlab = g("capital_paving_slab", g("smooth_stone_slab"))
         let roofSlab = g("capital_stone_slab", white), roofTop = g("capital_stone_slab[top]", white)
         let light = g("light_panel", g("glowstone"))
+        // P462: a modern city's posts and canopy edges are dark steel, its covered walks a white canopy cantilevered
+        // off a line of slim posts on the outer side only, ten apart (the white colonnades read as Greek).
+        let modern = plan.modern
+        let steel = g("capital_steel", grey), steelSlab = g("capital_steel_slab", roofSlab), steelTop = g("capital_steel_slab[top]", roofTop)
+        let post = modern ? steel : white
         let x0 = plan.ox + (i + N) * lot, z0 = plan.oz + (j + N) * lot
         let L = plan.lv(i, j)!
         let k = plan.idx(i, j)
@@ -258,7 +293,7 @@ enum CapitalCity {
                 let along = alongZ ? z : x
                 if a == 0 && mod(along, 12) == 6 {
                     let f = base + 1                                  // (P462: on a half step it replaces the slab)
-                    for y in f..<(f + 3) { w.set(x, y, z, white) }
+                    for y in f..<(f + 3) { w.set(x, y, z, post) }
                     w.set(x, f + 3, z, light)
                 }
                 continue
@@ -266,8 +301,14 @@ enum CapitalCity {
             let a = alongZ ? (u < street ? u : u - lot) : (v < street ? v : v - lot)     // 0...5 across the strip
             let along = alongZ ? z : x
             let roofY = base + 5
-            let pillar = (a == 0 || a == street - 1) && mod(along, 5) == 0
-            if pillar {
+            let pillar = modern ? a == 0 && mod(along, 10) == 0 : (a == 0 || a == street - 1) && mod(along, 5) == 0
+            let rim = modern && (a == 0 || a == street - 1)
+            if pillar && modern {
+                for y in (base + 1)...(base + (half ? 5 : 4)) { w.set(x, y, z, steel) }
+                if !half { w.set(x, roofY, z, steelSlab) }
+            } else if rim {
+                w.set(x, roofY, z, half ? steelTop : steelSlab)
+            } else if pillar {
                 // P462 (Oct 25 16:33, his Capital City: "The pillars are still floating"): on a half step the column
                 // stood on the paving slab's top cell, half a block over the slab; it now replaces the slab and stands
                 // on the paving under it.
@@ -307,7 +348,7 @@ enum CapitalCity {
         } } }
 
         switch plan.kind[k] {
-        case 0: building(&w, x0, z0, L, &rng, home: CapitalTown.isResidence(plan, i, j) ? (plan, i, j) : nil)
+        case 0: building(&w, x0, z0, L, &rng, home: CapitalTown.isResidence(plan, i, j) ? (plan, i, j) : nil, modern: modern)
         case 1: plaza(&w, x0, z0, L, &rng, fountain: false, plan: plan)
         case 3: plaza(&w, x0, z0, L, &rng, fountain: true, plan: plan)
         case 4: CapitalTown.market(&w, plan, i, j, x0, z0, L, &rng)
@@ -377,7 +418,7 @@ enum CapitalCity {
     }
 
     // `home`: a block of flats (beds along the back wall, residents) instead of offices.
-    static func building(_ w: inout StructWriter, _ x0: Int, _ z0: Int, _ L: Int, _ rng: inout SRng, home: (Plan, Int, Int)? = nil) {
+    static func building(_ w: inout StructWriter, _ x0: Int, _ z0: Int, _ L: Int, _ rng: inout SRng, home: (Plan, Int, Int)? = nil, modern: Bool = false) {
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let white = g("capital_stone", g("white_concrete")), grey = g("capital_stone_trim", g("light_gray_concrete"))
         let window = g("capital_window", GLASS), light = g("light_panel", g("glowstone")), pave = g("capital_paving", grey)
@@ -385,6 +426,11 @@ enum CapitalCity {
         let fp = footprint(x0, z0, &rng)
         let bw = fp.bw, storeys = fp.storeys, bx0 = fp.bx0, bz0 = fp.bz0
         let bx1 = bx0 + bw - 1, bz1 = bz0 + fp.bd - 1
+        if modern {
+            tower(&w, fp, L, &rng, home: home)
+            terrace(&w, x0, z0, L, (bx0 + bx1) / 2, &rng)
+            return
+        }
         func box(_ ax: Int, _ az: Int, _ bx: Int, _ bz: Int, _ y0: Int) {
             let H = 5
             for z in az...bz { for x in ax...bx {
@@ -444,17 +490,118 @@ enum CapitalCity {
             planterTree(&w, bx1 - 1, L + 4, bz1 - 1, &rng, planter: false)
             w.chest(ux1 - 1, L + 6, uz1 - 1, loot: "capital_city", seed: rng.next(), facing: 0)
         }
-        // Café terrace in front of the entrance, trees in planters at the corners of the lot.
+        terrace(&w, x0, z0, L, ex, &rng)
+    }
+
+    // Café terrace in front of the entrance, trees in planters at the corners of the lot.
+    static func terrace(_ w: inout StructWriter, _ x0: Int, _ z0: Int, _ L: Int, _ ex: Int, _ rng: inout SRng) {
         let tz = z0 + street + 4
         for u in [9, 13, 25] where rng.chance(0.85) { seating(&w, x0 + u, L, tz, &rng) }     // clear of the ramp (u 17-20)
         for (dx, dz) in [(street + 2, lot - 2), (lot - 3, lot - 2)] where rng.chance(0.8) { planterTree(&w, x0 + dx, L - 1, z0 + dz, &rng) }
         if rng.chance(0.55) { w.mob(watch[rng.int(watch.count)], V3(Float(ex) + 0.5, Float(L + 1), Float(z0 + street + 2) + 0.5)) }
     }
 
+    // P462 (Oct 25 16:31, his Capital City: "I want it to be more New Alexandria looking... Reminds me of Greek
+    // architecture too much"): on new ground a building lot holds a tower of glass and steel: offices 4-9 storeys
+    // (20-45 blocks), flats 3-5, five blocks a storey. Curtain glass full height between slim steel mullions three
+    // apart, white corners and a white band at every floor, white floors lit from the ceiling, a flat roof with a steel parapet (a lit
+    // mast on the tall ones, a roof garden on the flats); no columns or portico: a steel canopy cantilevered over the
+    // door. A spiral stair in a steel shaft climbs to the top floor: no ladders. The ground floor keeps its reception,
+    // desks, beds and purpose as before.
+    static var sampleTower: (IVec3, Int)?                  // (the first tower built: CapitalTownTests prints where)
+    static let towerCore = 7                                // the stair core's walls from the east face in: bx1 - 6 ... bx1 - 2
+    static func tower(_ w: inout StructWriter, _ fp: Footprint, _ L: Int, _ rng: inout SRng, home: (Plan, Int, Int)?) {
+        func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
+        let white = g("capital_stone", g("white_concrete")), grey = g("capital_stone_trim", g("light_gray_concrete"))
+        let steel = g("capital_steel", grey), glass = g("capital_curtain", GLASS), light = g("light_panel", g("glowstone"))
+        let pave = g("capital_paving", grey), steelSlab = g("capital_steel_slab", steel)
+        let bx0 = fp.bx0, bz0 = fp.bz0, bx1 = fp.bx0 + fp.bw - 1, bz1 = fp.bz0 + fp.bd - 1
+        let floors = home != nil ? 3 + rng.int(3) : 4 + rng.int(6)
+        let H = 5, top = L + floors * H
+        for z in bz0...bz1 { for x in bx0...bx1 {
+            let wall = x == bx0 || x == bx1 || z == bz0 || z == bz1
+            let corner = (x == bx0 || x == bx1) && (z == bz0 || z == bz1)
+            let along = (z == bz0 || z == bz1) ? x - bx0 : z - bz0
+            let mullion = along % 3 == 0
+            w.set(x, L, z, pave)
+            for f in 0..<floors {
+                let y0 = L + f * H
+                if f > 0 { w.set(x, y0, z, white) }                                // the floor, a white band round the face
+                for y in (y0 + 1)...(y0 + H - 1) { w.set(x, y, z, !wall ? AIR : (corner ? white : mullion ? steel : glass)) }
+                if !wall && (x - bx0) % 4 == 2 && (z - bz0) % 4 == 2 { w.set(x, y0 + H - 1, z, light) }
+            }
+            w.set(x, top, z, wall ? steel : white)                                  // the roof and its parapet
+            if wall { w.set(x, top + 1, z, steelSlab) }
+        } }
+        // The door (3 wide in the north face) under a steel canopy, no columns.
+        let ex = (bx0 + bx1) / 2
+        for x in (ex - 1)...(ex + 1) { for y in (L + 1)...(L + 3) { w.set(x, y, bz0, AIR) } }
+        for z in (bz0 - 3)...(bz0 - 1) { for x in (ex - 3)...(ex + 3) { w.set(x, L + 5, z, steelSlab) } }
+        // The stair core: a spiral in a 3 x 3 shaft in the north-east corner (x cx-1...cx+1, z bz0+1...bz0+3) round a
+        // steel newel, one step a cell and eight a turn (head room 7), walled in steel (x cx-2 and cx+2, z bz0+4; a
+        // passage along the east wall), with a door off the step that comes level with each floor.
+        let cx = bx1 - 4, cz = bz0 + 2, Yt = L + (floors - 1) * H
+        if sampleTower == nil { sampleTower = (IVec3(cx, L, cz), floors) }
+        let ring: [(Int, Int)] = [(-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0)]
+        func step(_ d: (Int, Int)) -> BlockID {
+            d.0 > 0 ? g("capital_stone_stairs[east]", white) : d.0 < 0 ? g("capital_stone_stairs[west]", white)
+                : d.1 > 0 ? g("capital_stone_stairs[south]", white) : g("capital_stone_stairs[north]", g("capital_stone_stairs", white))
+        }
+        for y in (L + 1)..<top {
+            for dz in -1...1 { for dx in -1...1 { w.set(cx + dx, y, cz + dz, dx == 0 && dz == 0 ? steel : AIR) } }
+            for dz in -1...2 { w.set(cx - 2, y, cz + dz, steel); w.set(cx + 2, y, cz + dz, steel) }
+            for dx in -1...1 { w.set(cx + dx, y, cz + 2, steel) }
+        }
+        for s in 0..<(Yt - L) {
+            let a = ring[s % 8], b = ring[(s + 1) % 8]
+            w.set(cx + a.0, L + 1 + s, cz + a.1, step((b.0 - a.0, b.1 - a.1)))
+        }
+        // Doors: on the ground floor in at the first step, then off the step level with each floor (the middle one on
+        // the north side, against the face, goes out off the next step instead).
+        func door(_ c: (Int, Int), _ y: Int) {
+            let (dx, dz) = c.0 < 0 ? (-2, c.1) : c.0 > 0 ? (2, c.1) : (0, 2)
+            for yy in y...(y + 2) { w.set(cx + dx, yy, cz + dz, AIR) }
+        }
+        door(ring[0], L + 1)
+        for k in 1..<floors {
+            let s = k * H - 1
+            let c = ring[s % 8]
+            if c.0 == 0 && c.1 < 0 { door(ring[(s + 1) % 8], L + k * H + 1) } else { door(c, L + k * H + 1) }
+        }
+        // Upper floors: rows of desks (offices), or nothing but the light (flats).
+        if home == nil {
+            for f in 1..<floors {
+                let Y = L + f * H
+                for x in stride(from: bx0 + 2, through: bx1 - towerCore - 1, by: 3) { for z in [bz0 + 3, bz1 - 2] where z > bz0 && z < bz1 {
+                    if w.inside(x, Y + 1, z) && w.get(x, Y + 1, z) == AIR { w.set(x, Y + 1, z, grey) }
+                } }
+            }
+        }
+        // The roof: a lit mast on a tall office tower, a garden on the flats.
+        if home == nil && floors >= 6 {
+            for y in (top + 1)...(top + 7) { w.set(bx0 + 2, y, bz0 + 2, steel) }
+            w.set(bx0 + 2, top + 8, bz0 + 2, light)
+        } else if home != nil {
+            planterTree(&w, bx0 + 3, top - 1, bz1 - 3, &rng, planter: false)
+        }
+        // The ground floor as before: flats or offices.
+        if let (plan, i, j) = home {
+            w.chest(bx1 - 1, L + 1, bz1 - 1, loot: "capital_city", seed: rng.next(), facing: 0)
+            CapitalTown.residents(&w, plan, i, j, fp, L)
+        } else {
+            w.set(ex - 3, L + 1, bz0 + 3, white); w.set(ex - 2, L + 1, bz0 + 3, white); w.set(ex - 1, L + 1, bz0 + 3, white)
+            w.chest(bx1 - 1, L + 1, bz1 - 1, loot: "capital_city", seed: rng.next(), facing: 0)
+            bench(&w, bx0 + 2, L, bz1 - 2, alongX: true, dir: "south")
+            CapitalTown.desks(&w, fp, L)
+            CityPurpose.furnish(&w, fp, L)
+        }
+    }
+
     // A paved square: four trees in planters with benches, seating, light posts; the civic centre has a fountain
     // pool in the middle and two guards.
     static func plaza(_ w: inout StructWriter, _ x0: Int, _ z0: Int, _ L: Int, _ rng: inout SRng, fountain: Bool, plan: Plan? = nil) {
         let white = Blocks.has("capital_stone") ? Blocks.id("capital_stone") : STONE
+        let post = plan?.modern == true && Blocks.has("capital_steel") ? Blocks.id("capital_steel") : white     // (P462)
         let light = Blocks.has("light_panel") ? Blocks.id("light_panel") : STONE
         let cx = x0 + street + 13, cz = z0 + street + 13
         for (dx, dz) in [(-8, -8), (8, -8), (-8, 8), (8, 8)] {
@@ -468,7 +615,7 @@ enum CapitalCity {
                 w.set(cx + dx, L, cz + dz, white)
                 w.set(cx + dx, L + 1, cz + dz, edge ? white : WATER)
             } }
-            for y in (L + 1)...(L + 3) { w.set(cx, y, cz, white) }
+            for y in (L + 1)...(L + 3) { w.set(cx, y, cz, post) }
             w.set(cx, L + 4, cz, WATER)
             w.mob("soldier_trooper", V3(Float(cx - 6) + 0.5, Float(L + 1), Float(cz) + 0.5))
             w.mob("soldier_marksman", V3(Float(cx + 6) + 0.5, Float(L + 1), Float(cz) + 0.5))
@@ -478,7 +625,7 @@ enum CapitalCity {
         }
         if let plan { CapitalTown.square(&w, plan, cx, cz, L, civic: fountain) }   // the bell townsfolk meet at, the city's name
         for (dx, dz) in [(-11, -11), (11, -11), (-11, 11), (11, 11)] {      // light posts in the corners (off the ramps)
-            for y in (L + 1)...(L + 3) { w.set(cx + dx, y, cz + dz, white) }
+            for y in (L + 1)...(L + 3) { w.set(cx + dx, y, cz + dz, post) }
             CityPurpose.lamp(&w, cx + dx, L + 4, cz + dz, fallback: light)
         }
     }

@@ -89,6 +89,7 @@ extension TownTests {
               "capitals: the city holds one keeper of each of the 8 shops (\(keepers.count) kinds) and \(signs) shop signs")
         check(!welcome.isEmpty && bells >= 1 && citizens >= 8 && desks >= citizens * 2 / 3 && beds >= citizens + 8,
               "capitals: \(welcome.isEmpty ? "no name sign" : "\"\(welcome)\""), \(bells) bells, \(citizens) citizens (\(desks) with a desk), \(beds) beds")
+        if let (c, n) = CapitalCity.sampleTower { print("capitals: a tower of \(n) storeys, its stair shaft's newel at \(c.x) \(c.y) \(c.z)") }
         check(blocked.isEmpty, "capitals: every keeper, citizen and desk has a floor and head room" + (blocked.isEmpty ? "" : ": " + blocked.prefix(6).joined(separator: ", ")))
         day(w, centre, check)
     }
