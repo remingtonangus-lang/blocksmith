@@ -40,6 +40,30 @@ enum GunParts {
     }
     static func canTurn(_ m: Mob) -> Bool { !broken(m, mount) }
 
+    // P465 (Oct 25 19:51, "this naval gun should have fallen because it destroyed the tower under it"): a gun on the
+    // ground or a roof (not a ship's deck) stands while something solid is under its ring, in the two layers below it.
+    static func supported(_ m: Mob, _ w: World) -> Bool {
+        guard m.deck == nil else { return true }
+        let r = max(1, Int((2 * HeavyTurret.scale(m)).rounded()))
+        let x0 = Int(floor(m.pos.x)), y0 = Int(floor(m.pos.y + 0.01)), z0 = Int(floor(m.pos.z))
+        for (dx, dz) in [(-r, -r), (r, -r), (-r, r), (r, r)] where w.chunkAt(x0 + dx, z0 + dz) == nil { return true }   // (not loaded: unknown)
+        for dy in 1...2 { for dz in -r...r { for dx in -r...r where w.solidAt(x0 + dx, y0 - dy, z0 + dz) { return true } } }
+        return false
+    }
+    // ... and without it the gun falls to whatever is under it and is wrecked there.
+    static var falls = 0                                         // (checks)
+    static func fall(_ m: Mob, _ g: Game) {
+        falls += 1
+        let w = g.world
+        let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
+        var y = Int(floor(m.pos.y + 0.01)) - 1
+        while y > 1 && !w.solidAt(x, y, z) && Int(floor(m.pos.y)) - y < 60 { y -= 1 }
+        m.pos.y = Float(y + 1)
+        Mob.plateHit = true
+        m.hit(from: m.pos + V3(0, 3, 0), damage: m.health + 1000, knockback: 0)
+        Mob.plateHit = false
+    }
+
     // Which part a blow from `src` lands on.
     static func part(_ m: Mob, from src: V3) -> Int {
         let k = HeavyTurret.scale(m)

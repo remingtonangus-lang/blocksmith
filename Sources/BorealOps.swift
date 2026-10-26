@@ -372,7 +372,7 @@ extension Game {
             let p = world.freeSpawn(op.stairFoot + V3(Float(i % 2) - 0.5, 0, Float(-i)))
             let m = Mob(Soldier.garrison(k, at: p), at: p)
             m.persistent = true
-            m.home = p
+            m.home = nil                                    // (P465: no post to hold: the squad hunts him)
             m.aggro = true
             m.stationDoors = true
             let br = m.soldierBrain

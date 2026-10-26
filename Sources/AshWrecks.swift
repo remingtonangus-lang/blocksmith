@@ -104,6 +104,15 @@ enum AshWrecks {
         mobs = built.values.flatMap { $0 }
     }
     static func clear() { if !mobs.isEmpty || !built.isEmpty { mobs = []; built = [:] } }
+    // P464 (Oct 25 19:35, "I repaired a cinder tank, but the problem is the old tank that was broke and remained in its
+    // place"): a scene's wrecks are built again (the repaired one left out), and the solid core hidden in that hull goes.
+    static func rebuild(_ s: AshScene, _ g: Game, clearing sp: Spot?) {
+        built[StructureCache.key(s.x, s.z)] = nil
+        guard let sp = sp else { return }
+        let bx = Int(floorf(sp.pos.x)), by = Int(floorf(sp.pos.y)), bz = Int(floorf(sp.pos.z))
+        let fx = Int(roundf(-sinf(sp.yaw))), fz = Int(roundf(-cosf(sp.yaw)))
+        for a in -1...1 where g.world.builtBlock(bx - a * fx, by, bz - a * fz) != AIR { g.world.setBlock(bx - a * fx, by, bz - a * fz, AIR) }
+    }
 }
 
 extension Game {
@@ -180,6 +189,7 @@ extension Game {
         sfx(.engineStart, 1, at: sp.pos)
         particles.smoke(at: sp.pos + V3(0, 2.2, 0))
         AshWrecks.tanksRepaired += 1
+        AshWrecks.rebuild(s, self, clearing: sp)
         AshWrecks.refresh(self, dg)
         return true
     }

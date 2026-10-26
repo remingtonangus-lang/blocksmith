@@ -247,6 +247,8 @@ final class ProjectileManager {
                 let speedPerTick = simd_length(a.vel) / 20
                 var dmg = Int(ceilf(speedPerTick * a.damage))
                 if a.crit { dmg += Rand.int(in: 0...(dmg / 2 + 1)) }       // only a full draw (it was a 25 % roll on any shot)
+                // P465 (Oct 25 19:49: "Bow and arrow needs to do more damage, I think. Maybe, uh, double it"): his arrows hit twice as hard.
+                if a.fromPlayer && a.trident == nil && hitMob != nil { dmg *= 2 }
                 if let m = hitMob, m.kind == .enderman, a.trident == nil {
                     m.teleport(w)                                  // voidwalkers dodge arrows
                 } else if let m = hitMob {

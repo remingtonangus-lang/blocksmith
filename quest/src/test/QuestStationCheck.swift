@@ -107,6 +107,9 @@ enum QuestStationCheck {
         print("stationcheck: with him there 80 s: \(after.count) of \(before.count) soldiers alive; his health fell as low as \(low) in a tick")
         check(after.count * 10 >= before.count * 9, "nothing but him kills the garrison (\(after.count) of \(before.count) alive after 80 s with him not firing)")
         check(garrison.count >= 6, "the station is held (\(garrison.count) soldiers)")
+        // P465: no gun on a whole tower falls (GunParts.supported).
+        let guns = garrison.filter { $0.kind == .deckGun }
+        check(GunParts.falls == 0, "no gun with its tower standing fell (\(GunParts.falls) fell; \(guns.filter { $0.health > 0 }.count) of \(guns.count) guns stand)")
         check(alive.count * 10 >= garrison.count * 9, "left alone for 90 s the garrison stands (\(alive.count) of \(garrison.count) alive)")
         print(fails == 0 ? "stationcheck: all passed" : "stationcheck: \(fails) failed")
         return fails == 0 ? 0 : 1

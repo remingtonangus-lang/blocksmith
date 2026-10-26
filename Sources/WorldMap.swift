@@ -19,7 +19,7 @@ final class MapCache {
     private var epoch = 0                     // bumped by use(): a batch sampled with the old generator is dropped
     private(set) var version = 0              // bumped whenever sampled cells arrive or the cache restarts (minimap redraw)
 
-    struct Mark: Codable, Hashable { var kind: String; var x: Int; var z: Int; var name: String? = nil }   // name: a town's
+    struct Mark: Codable, Hashable { var kind: String; var x: Int; var z: Int; var name: String? = nil; var own: Bool? = nil }   // name: a town's
     private(set) var marks: [Mark] = []
     private var marksWorld = ""
     func replaceMarks(_ m: [Mark]) { marks = m }       // (checks set marks aside and put them back)
@@ -175,28 +175,31 @@ final class MapCache {
         if let u = marksURL(g), let d = try? JSONEncoder().encode(marks) { try? d.write(to: u, options: .atomic) }
     }
 
-    // Your own waypoints (up to 32): placing one within `near` blocks of another removes that one instead.
-    // Returns true when a pin was added.
+    // P466 (Oct 25 20:03: "it looks like there should only be one waypoint. There shouldn't be multiple. So when I place
+    // another waypoint, it deletes the old one"; "Having difficulty placing a waypoint on a certain place"): one waypoint
+    // of his own. Placing it again moves it; placing it on itself removes it. The named pins the game puts down (bases the
+    // radar found, his things after a death) are not his waypoint: a tap by one no longer takes that pin away.
+    static func isOwnPin(_ m: Mark) -> Bool { m.kind == "pin" && (m.own == true || m.name == nil) }
     @discardableResult
     func togglePin(_ g: Game, x: Int, z: Int, near: Int) -> Bool {
         loadMarks(g)
-        if let i = marks.firstIndex(where: { $0.kind == "pin" && abs($0.x - x) <= near && abs($0.z - z) <= near }) {
+        if let i = marks.firstIndex(where: { MapCache.isOwnPin($0) && abs($0.x - x) <= near && abs($0.z - z) <= near }) {
             marks.remove(at: i)
             saveMarks(g)
             return false
         }
-        if marks.filter({ $0.kind == "pin" }).count >= 32, let i = marks.firstIndex(where: { $0.kind == "pin" }) { marks.remove(at: i) }
-        marks.append(Mark(kind: "pin", x: x, z: z))
+        marks.removeAll { MapCache.isOwnPin($0) }
+        marks.append(Mark(kind: "pin", x: x, z: z, own: true))
         saveMarks(g)
         return true
     }
 
-    // Q2c-console-20: a waypoint named after a place's marker, on the marker (no second one there).
+    // Q2c-console-20: a waypoint named after a place's marker, on the marker (P466: it replaces his waypoint).
     func pinPlace(_ g: Game, x: Int, z: Int, name: String) {
         loadMarks(g)
-        guard !marks.contains(where: { $0.kind == "pin" && $0.x == x && $0.z == z }) else { return }
-        if marks.filter({ $0.kind == "pin" }).count >= 32, let i = marks.firstIndex(where: { $0.kind == "pin" }) { marks.remove(at: i) }
-        marks.append(Mark(kind: "pin", x: x, z: z, name: name))
+        guard !marks.contains(where: { MapCache.isOwnPin($0) && $0.x == x && $0.z == z }) else { return }
+        marks.removeAll { MapCache.isOwnPin($0) }
+        marks.append(Mark(kind: "pin", x: x, z: z, name: name, own: true))
         saveMarks(g)
     }
 

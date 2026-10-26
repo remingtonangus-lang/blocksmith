@@ -88,7 +88,9 @@ extension Mob {
         let left = troopSeg[seg], full = c.segMax[seg]
         guard left > 0 else { return dmg }
         let cracked = left < full * 0.5
-        let soak = dmg * c.absorb * (cracked ? 0.6 : 1)
+        // P465 (Oct 25 19:49: "The guys with helmets on, they should be immune to at least one hit in the head. Most of
+        // the sniper rifle"): a whole helmet stops the first round to the head outright; the blow goes into the plate.
+        let soak = seg == 0 && left >= full ? dmg : dmg * c.absorb * (cracked ? 0.6 : 1)
         let now = max(0, left - dmg)
         troopSeg[seg] = now
         if let g = g {

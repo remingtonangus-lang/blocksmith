@@ -213,6 +213,12 @@ enum Contracts {
         }
         body += "\n\nTaken on day \(c.day + 1). It lapses if not done within three days."
         g.logDocument("Contract: \(what)", [body], cat: .orders, id: "contract:\(board)#\(slot)#\(c.day)")
+        // P466 (Oct 25 19:53, a parcel to Silver Gulch taken at a base: "I wanna see that parcel on a map of some kind"):
+        // where it goes is on the map at once, and followed (the compass and the beacon), not after the next marks pass.
+        if let a = c.target ?? c.destAt, a.count >= 2, g.dim.dim == .overworld {
+            Waymarks.marksAt = -1e9
+            Waymarks.track(g, Waymarks.Target(kind: "contract", key: "\(board)#\(slot)", name: "Contract: " + what, pos: Waymarks.v(a[0], a[1], g.player.pos.y)))
+        }
     }
 
     @discardableResult
