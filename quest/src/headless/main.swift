@@ -383,6 +383,25 @@ if let out = arg("--view"), let ctx = vkctx {
     if CommandLine.arguments.contains("--fallen") { AshFallen.refresh(vg); print("view: \(AshFallen.mobs.count) fallen") }   // P326: the Ash Vault's dead
     // The note's "facing" yaw is the player's yaw negated (VoiceNoteCore).
     var yaw = (nearYaw ?? 0) - look[0] * .pi / 180, pitch = look[1] * .pi / 180
+    // --breakup [SECONDS]: a Cinder Tank 14 blocks ahead destroyed (P464: it comes apart in pieces), its pieces
+    // flying for SECONDS (0.6) before the picture.
+    if CommandLine.arguments.contains("--breakup") {
+        let f = V3(-sinf(yaw), 0, -cosf(yaw))
+        let at = vg.player.pos + f * 14
+        let gx = Int(floor(at.x)), gz = Int(floor(at.z))
+        var gy = Int(vg.player.pos.y)
+        while gy > 1 && !vw.solidAt(gx, gy - 1, gz) { gy -= 1 }
+        let tk = Mob(.ashTank, at: V3(at.x, Float(gy), at.z))
+        tk.ashSetup()
+        tk.yaw = yaw + 0.6
+        let n0 = vg.debris.bodies.count
+        vg.ashUnitDied(tk)
+        let n1 = vg.debris.bodies.count
+        let secs = Float(arg("--breakup") ?? "") ?? 0.6
+        var tt: Float = 0
+        while tt < secs { vg.debris.tick(1.0 / 72, world: vw); tt += 1.0 / 72 }
+        print("view: breakup: a Cinder Tank came apart in \(n1 - n0) pieces (\(vg.debris.bodies.count) live after \(secs) s)")
+    }
     // --fighterskin [PITCH,ROLL]: a Salvaged Fighter (P464) on the ground 16 blocks ahead, side-on, optionally tilted
     // (degrees); BS_FIGHTERBLOCKS=1 draws its blocks instead of the fighter model.
     if CommandLine.arguments.contains("--fighterskin") {

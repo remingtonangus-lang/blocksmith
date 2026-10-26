@@ -246,6 +246,33 @@ extension Game {
     }
 
     // A vehicle brewed up (ashUnitDied): plate debris, a fire that burns on, and the crew out of the hatches.
+    // P464 (Oct 25 19:36, "This tank should get destroyed as if it were made out of blocks... They don't get destroyed
+    // like that?"): the hull comes apart: its biggest pieces (hull, turret, gun, track runs, wheels...) as they stood,
+    // each broken in two or three and thrown out from the blast, tumbling down and lying about (the debris bodies,
+    // in the plating's metal), instead of the model vanishing in the smoke.
+    func ashBreakUp(_ m: Mob, _ plate: BlockID) {
+        let parts = mobModelParts(m)
+        guard !parts.isEmpty else { return }
+        let k = (m.sized ? 1 : m.scale) / 16
+        let cy = cosf(m.yaw), sy = sinf(m.yaw)
+        let mid = m.pos + V3(0, m.height * 0.4, 0)
+        let big = parts.map { p -> (Part, Float) in let s = p.mx - p.mn; return (p, s.x * s.y * s.z) }
+            .sorted { $0.1 > $1.1 }.prefix(m.kind == .ashBehemoth ? 18 : 12)
+        var seed = UInt32(truncatingIfNeeded: Int(m.pos.x * 7 + m.pos.z * 13) &* 2654435761)
+        for (p, _) in big {
+            let size = (p.mx - p.mn) * k
+            guard min(size.x, min(size.y, size.z)) > 0.04 else { continue }
+            let q = p.place((p.mn + p.mx) * 0.5, p.rotation) * k
+            let at = m.pos + V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
+            let out = at - mid + V3(0, 0.6, 0)
+            let dir = simd_length(out) > 1e-3 ? simd_normalize(out) : V3(0, 1, 0)
+            let vol = size.x * size.y * size.z
+            seed = seed &* 1664525 &+ 1013904223
+            debris.bits(plate, at: at, size: SIMD3(size.x, size.y, size.z), direction: dir, count: vol > 1.5 ? 3 : 2,
+                        speed: 5 + 4 / (1 + vol), seed: seed)
+        }
+    }
+
     func ashWreck(_ m: Mob) {
         let plate = Blocks.id("ash_plating")
         let c = IVec3(Int(floor(m.pos.x)), Int(floor(m.pos.y + 1)), Int(floor(m.pos.z)))
@@ -259,6 +286,7 @@ extension Game {
             let x = c.x + dx, z = c.z + dz, y = c.y - 1
             if w.isAir(x, y, z) && w.solidAt(x, y - 1, z) { w.setBlock(x, y, z, FIRE) }
         }
+        ashBreakUp(m, plate)
         guard m.kind == .ashTank || m.kind == .ashHalftrack else { return }
         let n = m.kind == .ashTank ? 2 : 1
         for i in 0..<n {
