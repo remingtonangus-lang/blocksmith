@@ -1550,6 +1550,10 @@ if CommandLine.arguments.contains("--planeparts") {             // P459: aircraf
     PlanePartsCheck.run(game, check)
     print(failures == 0 ? "planeparts: all checks passed" : "planeparts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--gunwreck") {               // P459: a gun mount destroyed comes apart
+    GunWreckCheck.run(game, check)
+    print(failures == 0 ? "gunwreck: all checks passed" : "gunwreck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

@@ -2511,6 +2511,7 @@ final class Game {
         if dim.dim == .deep || m.kind.ashVehicle { ashUnitDied(m) }
         if dim.dim == .deep { wardenDied(m) }
         if m.kind.hellOwn { hellDied(m) }
+        if m.kind == .deckGun { gunWrecked(m) }                // P459: a gun destroyed comes apart
         // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).
         if m.saddled && m.kind != .happyGhast && Items.has("saddle") { drops.spawn(ItemStack(Items.id("saddle"), 1), at: at) }
         if m.kind == .horse, let k = MountMenu.armorItems[m.armorTier], Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
