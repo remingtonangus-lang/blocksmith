@@ -730,9 +730,24 @@ extension Mob {
 }
 
 extension ShipManager {
+    // P464: the capital vessels he has taken (saved in takencaps.json, Ships.swift) come back where he left them, his,
+    // unmanned and whole (their grids are too big to save: the hull is built afresh from its plans).
+    func restoreTaken() {
+        guard !takenStarted else { return }
+        takenStarted = true
+        for c in takenToRestore where c.pos.count == 3 && c.rot.count == 4 {
+            let p = V3(c.pos[0], c.pos[1], c.pos[2])
+            spawnCapital(c.kind, home: IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))), yaw: 0, region: nil,
+                         faction: Faction(rawValue: c.faction), taken: (p, Quat(vector: V4(c.rot[0], c.rot[1], c.rot[2], c.rot[3])), c.name))
+        }
+        takenToRestore.removeAll { $0.pos.count != 3 || $0.rot.count != 4 }     // (the rest leave the list as each is installed)
+    }
+
     // Starts building a capital ship on a worker thread (sync: here and now, for the harness). It appears with its
     // turrets when finished (capitalTick picks it up).
-    func spawnCapital(_ kind: String, home: IVec3, yaw: Float, region: String?, sync: Bool = false, faction: Faction? = nil) {
+    // (taken: one of his, built where he left it.)
+    func spawnCapital(_ kind: String, home: IVec3, yaw: Float, region: String?, sync: Bool = false, faction: Faction? = nil,
+                      taken: (V3, Quat, String)? = nil) {
         if let r = region { capitalPending.insert(r) }
         let ids = (0..<24).map { _ in newId() }
         let gen = world.gen
@@ -784,6 +799,14 @@ extension ShipManager {
                 s.pos = V3(hx, Float(h + 1) + st.groundOffset, hz)
             }
             s.rot = Quat(angle: yaw, axis: V3(0, 1, 0))
+            if let (p, q, n) = taken {
+                s.pos = p; s.rot = q
+                if frigate { s.hoverY = p.y }
+                s.name = n
+                s.captured = true
+                st.crewDone = Set(st.crew.indices)                // (no crew of theirs aboard)
+                st.announced = true
+            }
             s.prevPos = s.pos; s.prevRot = s.rot
             s.home = V3(hx, s.pos.y, hz)
             s.initialBlocks = s.blockCount
@@ -810,7 +833,10 @@ extension ShipManager {
             add(s)
             s.mesh.rebuildAll(s, device: world.device, queue: meshQueue)
         }
-        if let s = ships.first { capState[s.id] = st }
+        if let s = ships.first {
+            capState[s.id] = st
+            if s.captured, let i = takenToRestore.firstIndex(where: { $0.kind == s.role && $0.name == s.name }) { takenToRestore.remove(at: i) }
+        }
         if let r = st.region { capitalPending.remove(r); st.parties = max(st.parties, navyParties[r] ?? 0) }
     }
 
@@ -967,12 +993,14 @@ extension ShipManager {
         capitalLock.unlock()
         for b in ready { installCapital(b) }
         guard dt > 0 else { return }
+        restoreTaken()
         salvagedGunsTick(dt, g)
         for s in capitals {
             guard let st = capState[s.id] else { continue }
             let pd = boundsDistance(s, g.player.pos)
-            // Far behind the player: gone, and its region may bring it back (wrecks stay gone).
-            if pd > 1400 && aboard?.root !== s {
+            // Far behind the player: gone, and its region may bring it back (wrecks stay gone). P464 (Oct 25 20:29,
+            // "there was a frigate here and it's not here anymore"): one he has taken stays where he left it.
+            if pd > 1400 && aboard?.root !== s && !s.captured {
                 if let r = st.region, !s.wrecked { spawnedRegions.remove(r) }
                 remove(s)
                 capState.removeValue(forKey: s.id)

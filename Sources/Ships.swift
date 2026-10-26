@@ -683,6 +683,9 @@ final class ShipManager {
     var navyParties: [String: Int] = [:]          // T8: boarding parties a region's frigate has sent (navyparties.json)
     var capitalPending = Set<String>()
     var capState: [Int: CapitalState] = [:]
+    struct TakenCap: Codable { var kind: String; var faction: Int; var name: String; var pos: [Float]; var rot: [Float] }
+    var takenToRestore: [TakenCap] = []             // P464: taken capital vessels read from the save, built on the first tick
+    var takenStarted = false
     var salvagedGuns: [Int: CapitalState] = [:]     // H4: the main gun of each ship carrying a Tidebreaker breech
 
     init(world: World) {
@@ -1023,9 +1026,18 @@ final class ShipManager {
         guard let url else { return }
         // Regions whose capital ship is still afloat are left out, so it returns after a reload (wrecks stay gone).
         let afloat = Set(capState.compactMap { (id, st) -> String? in
-            guard let r = st.region, let s = list.first(where: { $0.id == id }), !s.wrecked else { return nil }
+            guard let r = st.region, let s = list.first(where: { $0.id == id }), !s.wrecked, !s.captured else { return nil }
             return r
         })
+        // P464: the capital vessels he has taken are kept as their plans, pose and name (Capital.restoreTaken).
+        let taken = capitals.filter { $0.captured && !$0.wrecked && ["capfrigate", "warfrigate", "crawler"].contains($0.role ?? "") }.map { s -> TakenCap in
+            let q = s.rot.vector
+            return TakenCap(kind: s.role ?? "", faction: s.faction, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w])
+        } + takenToRestore
+        if let r = world.save?.dir.appendingPathComponent("takencaps.json") {
+            if taken.isEmpty { try? FileManager.default.removeItem(at: r) }
+            else if let d = try? JSONEncoder().encode(taken) { try? d.write(to: r, options: .atomic) }
+        }
         if let r = world.save?.dir.appendingPathComponent("shipregions.json"), let d = try? JSONEncoder().encode(Array(spawnedRegions.subtracting(afloat)).sorted()) {
             try? d.write(to: r, options: .atomic)
         }
@@ -1097,6 +1109,8 @@ final class ShipManager {
            let a = try? JSONDecoder().decode([String].self, from: d) { spawnedRegions = Set(a) }
         if let r = world.save?.dir.appendingPathComponent("navyparties.json"), let d = try? Data(contentsOf: r),
            let a = try? JSONDecoder().decode([String: Int].self, from: d) { navyParties = a }
+        if let r = world.save?.dir.appendingPathComponent("takencaps.json"), let d = try? Data(contentsOf: r),
+           let a = try? JSONDecoder().decode([TakenCap].self, from: d) { takenToRestore = a }
         guard let url, let d = try? Data(contentsOf: url) else { return }
         decode(d)
     }
