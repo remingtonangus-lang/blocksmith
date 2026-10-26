@@ -14,6 +14,7 @@ protocol TrackDeck: AnyObject {
     var available: Bool { get }             // the tracks are there and can be decoded
     var current: String? { get }            // the track playing (not fading out); nil once it ended or stopped
     var volume: Float { get set }           // master x music x duck
+    var names: Set<String> { get }          // every track file it can play (a state's own and its takes, P457)
     func play(_ name: String, gain: Float, fade: Float)
     func stop(fade: Float)
     func update(_ dt: Float)
@@ -32,7 +33,21 @@ enum Soundtrack {
                                       "ash_vault_battle", "death", "victory"]
     // States that play again with no quiet when their track ends (fights, screens).
     static let looping: Set<String> = urgent.union(["main_title", "loading_screen", "military_base_infiltration"])
-    static func gain(_ name: String) -> Float { SoundtrackGains.table[name] ?? 1 }
+    static func gain(_ name: String) -> Float { SoundtrackGains.table[name] ?? SoundtrackGains.table[state(of: name)] ?? 1 }
+    // P457 (Oct 25 14:40, "we need 3x the songs... Maybe 7 songs for the most normal areas you are in. That way it's not
+    // just the same song playing over and over"): a state has several takes, its own file and "<state>_2", "_3b"...
+    // (the overworld, caves, village and combat about seven each, the rest three). The state a file plays for: its name
+    // without a trailing take number.
+    static func state(of file: String) -> String {
+        guard let u = file.lastIndex(of: "_") else { return file }
+        let tail = file[file.index(after: u)...]
+        guard let f = tail.first, f.isNumber, tail.dropFirst().allSatisfy({ $0.isNumber || ($0.isLetter && $0.isLowercase) }),
+              tail.filter({ $0.isLetter }).count <= 1 else { return file }
+        return String(file[..<u])
+    }
+    static func takes(_ state: String, in names: Set<String>) -> [String] {
+        names.filter { Soundtrack.state(of: $0) == state }.sorted()
+    }
     // Where the files are: next to the working directory (harness runs) or in the Mac app bundle (build.sh copies them).
     static func folders() -> [String] {
         var f = [FileManager.default.currentDirectoryPath + "/Resources/Music/sunderfall"]
@@ -53,6 +68,24 @@ final class SoundtrackDirector {
     var lastCur: String? = nil       // the track playing last frame
     var log: [String]? = nil         // harness: every track started
     var playedFor: Float = 0         // seconds the track playing now has played (P437: calm tracks keep the floor 45 s)
+    var takes: [String: [String]] = [:]     // P457: each state's takes the deck has (looked up once)
+    var recent: [String: [String]] = [:]    // P457: each state's takes played lately, newest last
+
+    // P457: the take to play for a state: one not heard lately (the last half of its takes, at most four back), at
+    // random among the rest; the state's own name when the deck has no takes for it.
+    func nextTake(_ state: String, _ deck: TrackDeck) -> String {
+        if takes[state] == nil { takes[state] = Soundtrack.takes(state, in: deck.names) }
+        let all = takes[state] ?? []
+        guard all.count > 1 else { return all.first ?? state }
+        var heard = recent[state] ?? []
+        let keep = min(4, all.count / 2)
+        if heard.count > keep { heard.removeFirst(heard.count - keep) }
+        let fresh = all.filter { !heard.contains($0) }
+        let pick = fresh.isEmpty ? all[Int.random(in: 0..<all.count)] : fresh[Int.random(in: 0..<fresh.count)]
+        heard.append(pick)
+        recent[state] = heard
+        return pick
+    }
 }
 
 extension Game {
@@ -144,9 +177,10 @@ extension Game {
         let d = music.soundtrack
         // A track that ended by itself: its state rests 30-90 s before it plays again.
         let now = deck.current
-        if let lc = d.lastCur, now == nil { d.ended = lc; d.quiet = Rand.float(in: 30...90) }
+        if let lc = d.lastCur, now == nil { d.ended = Soundtrack.state(of: lc); d.quiet = Rand.float(in: 30...90) }
         d.lastCur = now
-        func start(_ name: String, fade: Float) {
+        func start(_ state: String, fade: Float) {
+            let name = d.nextTake(state, deck)                          // P457: one of the state's takes
             deck.play(name, gain: Soundtrack.gain(name), fade: fade)
             d.ended = ""
             d.lastCur = name
@@ -183,7 +217,8 @@ extension Game {
             if deck.current != nil { deck.stop(fade: 2) }
             return
         }
-        if let cur = deck.current {
+        if let file = deck.current {
+            let cur = Soundtrack.state(of: file)
             if cur == want { return }                                   // never restart a track while its state goes on
             // A new state: crossfade (fights cut in quicker, and hand back over 4 s).
             if !Soundtrack.urgent.contains(want) && !Soundtrack.urgent.contains(cur) && !Soundtrack.looping.contains(cur) && d.playedFor < 45 { return }

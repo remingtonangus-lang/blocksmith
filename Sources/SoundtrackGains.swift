@@ -2,44 +2,142 @@
 enum SoundtrackGains {
     static let table: [String: Float] = [
         "ash_vault_battle": 0.841,      // -14.5 LUFS, peak 0.2 dBFS
+        "ash_vault_battle_2": 0.813,      // -14.2 LUFS, peak -0.2 dBFS
+        "ash_vault_battle_3": 0.966,      // -18.1 LUFS, peak -0.7 dBFS
         "ash_vault_front": 0.902,      // -15.1 LUFS, peak -0.3 dBFS
+        "ash_vault_front_2": 0.881,      // -15.4 LUFS, peak 0.1 dBFS
+        "ash_vault_front_3": 0.902,      // -17.5 LUFS, peak -0.1 dBFS
         "boss_battle": 0.813,      // -14.2 LUFS, peak -0.2 dBFS
+        "boss_battle_2": 0.733,      // -13.3 LUFS, peak -0.5 dBFS
+        "boss_battle_3": 0.832,      // -14.4 LUFS, peak -0.1 dBFS
         "brimstone_keep": 0.832,      // -14.4 LUFS, peak 0.1 dBFS
+        "brimstone_keep_2": 0.841,      // -14.5 LUFS, peak 0.1 dBFS
+        "brimstone_keep_3": 0.841,      // -14.5 LUFS, peak 0.1 dBFS
         "capital_city": 0.832,      // -14.4 LUFS, peak -0.1 dBFS
+        "capital_city_2": 0.832,      // -14.4 LUFS, peak -0.2 dBFS
+        "capital_city_3": 0.891,      // -15.0 LUFS, peak 0.0 dBFS
         "caves": 0.841,      // -14.5 LUFS, peak -0.0 dBFS
+        "caves_2": 0.881,      // -15.6 LUFS, peak 0.1 dBFS
+        "caves_3": 0.832,      // -14.4 LUFS, peak -0.2 dBFS
+        "caves_3b": 0.902,      // -15.3 LUFS, peak -0.1 dBFS
+        "caves_4": 0.832,      // -14.4 LUFS, peak -0.0 dBFS
+        "caves_5": 0.944,      // -16.7 LUFS, peak -0.5 dBFS
+        "caves_6": 0.841,      // -14.5 LUFS, peak -0.5 dBFS
+        "caves_7": 0.902,      // -15.1 LUFS, peak -0.1 dBFS
+        "caves_7b": 0.912,      // -15.2 LUFS, peak -0.2 dBFS
         "combat": 0.813,      // -14.2 LUFS, peak -0.6 dBFS
+        "combat_2": 0.881,      // -15.5 LUFS, peak 0.1 dBFS
+        "combat_3": 0.692,      // -12.8 LUFS, peak -0.3 dBFS
+        "combat_4": 0.750,      // -13.5 LUFS, peak -0.2 dBFS
+        "combat_5": 0.759,      // -13.6 LUFS, peak -0.1 dBFS
+        "combat_6": 0.861,      // -14.7 LUFS, peak -0.4 dBFS
+        "combat_7": 0.902,      // -15.1 LUFS, peak -0.6 dBFS
         "creative_mode": 0.912,      // -15.5 LUFS, peak -0.2 dBFS
+        "creative_mode_2": 0.933,      // -15.4 LUFS, peak -0.4 dBFS
+        "creative_mode_3": 0.944,      // -16.3 LUFS, peak -0.5 dBFS
         "danger_nearby": 0.804,      // -14.1 LUFS, peak 0.0 dBFS
+        "danger_nearby_2": 0.933,      // -16.2 LUFS, peak -0.4 dBFS
+        "danger_nearby_3": 0.871,      // -14.8 LUFS, peak 0.1 dBFS
         "death": 1.758,      // -20.9 LUFS, peak -6.1 dBFS
         "desert": 0.841,      // -14.5 LUFS, peak -0.1 dBFS
+        "desert_2": 0.923,      // -15.3 LUFS, peak -0.3 dBFS
+        "desert_3": 0.923,      // -15.9 LUFS, peak -0.3 dBFS
         "drop_ship_flight": 0.923,      // -15.3 LUFS, peak -0.9 dBFS
+        "drop_ship_flight_2": 0.794,      // -14.0 LUFS, peak 0.6 dBFS
+        "drop_ship_flight_3": 0.785,      // -13.9 LUFS, peak -0.7 dBFS
         "emberdeep": 0.851,      // -14.6 LUFS, peak -0.0 dBFS
+        "emberdeep_2": 0.891,      // -15.1 LUFS, peak 0.0 dBFS
+        "emberdeep_3": 0.750,      // -13.5 LUFS, peak -0.2 dBFS
         "frigate_command": 0.750,      // -13.5 LUFS, peak -0.3 dBFS
+        "frigate_command_2": 0.813,      // -14.2 LUFS, peak -0.0 dBFS
+        "frigate_command_3": 0.759,      // -13.6 LUFS, peak 0.2 dBFS
         "helicopter": 0.794,      // -14.0 LUFS, peak -0.1 dBFS
+        "helicopter_2": 0.944,      // -15.5 LUFS, peak -0.5 dBFS
+        "helicopter_3": 0.741,      // -13.4 LUFS, peak 0.0 dBFS
         "hell_exploration": 0.767,      // -13.7 LUFS, peak -0.5 dBFS
+        "hell_exploration_2": 0.871,      // -15.5 LUFS, peak 0.2 dBFS
+        "hell_exploration_3": 0.881,      // -14.9 LUFS, peak 0.0 dBFS
         "hell_purple_wastes": 0.822,      // -14.3 LUFS, peak -0.0 dBFS
+        "hell_purple_wastes_2": 0.832,      // -14.4 LUFS, peak -0.4 dBFS
+        "hell_purple_wastes_3": 0.891,      // -15.7 LUFS, peak -0.0 dBFS
         "hell_red_forest": 0.891,      // -15.0 LUFS, peak -0.2 dBFS
+        "hell_red_forest_2": 0.891,      // -15.7 LUFS, peak -0.0 dBFS
+        "hell_red_forest_3": 0.871,      // -14.8 LUFS, peak -0.1 dBFS
         "jungle": 0.861,      // -14.7 LUFS, peak -0.3 dBFS
+        "jungle_2": 0.861,      // -14.7 LUFS, peak -0.2 dBFS
+        "jungle_3": 0.861,      // -14.7 LUFS, peak -0.3 dBFS
         "knight_duel": 0.813,      // -14.2 LUFS, peak -0.0 dBFS
+        "knight_duel_2": 0.759,      // -13.6 LUFS, peak -0.3 dBFS
+        "knight_duel_3": 0.750,      // -13.5 LUFS, peak 0.3 dBFS
         "loading_screen": 0.902,      // -16.6 LUFS, peak -0.1 dBFS
         "main_title": 0.851,      // -14.6 LUFS, peak 0.2 dBFS
         "military_base_infiltration": 0.912,      // -15.9 LUFS, peak -0.2 dBFS
+        "military_base_infiltration_2": 0.912,      // -15.3 LUFS, peak -0.2 dBFS
+        "military_base_infiltration_3": 0.891,      // -15.0 LUFS, peak -0.6 dBFS
         "mountains": 0.832,      // -14.4 LUFS, peak -0.5 dBFS
+        "mountains_2": 0.794,      // -14.0 LUFS, peak 0.1 dBFS
+        "mountains_3": 0.724,      // -13.2 LUFS, peak -0.1 dBFS
         "no_mans_land": 0.891,      // -16.4 LUFS, peak 0.0 dBFS
+        "no_mans_land_2": 0.785,      // -13.9 LUFS, peak 0.0 dBFS
+        "no_mans_land_3": 0.912,      // -17.6 LUFS, peak -0.2 dBFS
         "ocean_sailing": 0.881,      // -14.9 LUFS, peak 0.1 dBFS
+        "ocean_sailing_2": 0.776,      // -13.8 LUFS, peak -0.2 dBFS
+        "ocean_sailing_3": 0.785,      // -13.9 LUFS, peak -0.5 dBFS
         "old_growth_forest": 0.891,      // -15.0 LUFS, peak -0.5 dBFS
+        "old_growth_forest_2": 0.841,      // -14.5 LUFS, peak -0.6 dBFS
+        "old_growth_forest_3": 0.944,      // -16.2 LUFS, peak -0.5 dBFS
         "overworld_daytime": 0.881,      // -14.9 LUFS, peak 0.0 dBFS
+        "overworld_daytime_2": 0.902,      // -15.6 LUFS, peak -0.1 dBFS
+        "overworld_daytime_3": 0.912,      // -15.6 LUFS, peak -0.2 dBFS
+        "overworld_daytime_4": 0.851,      // -14.6 LUFS, peak 0.2 dBFS
+        "overworld_daytime_5": 0.902,      // -15.1 LUFS, peak -0.6 dBFS
+        "overworld_daytime_6": 0.785,      // -13.9 LUFS, peak -0.1 dBFS
+        "overworld_daytime_7": 0.902,      // -15.2 LUFS, peak -0.1 dBFS
         "overworld_night": 0.902,      // -15.1 LUFS, peak -0.2 dBFS
+        "overworld_night_2": 1.175,      // -17.9 LUFS, peak -2.4 dBFS
+        "overworld_night_2b": 0.902,      // -17.7 LUFS, peak -0.1 dBFS
+        "overworld_night_3": 0.708,      // -13.0 LUFS, peak 0.1 dBFS
+        "overworld_night_4": 1.035,      // -16.3 LUFS, peak -1.4 dBFS
+        "overworld_night_5": 0.841,      // -14.5 LUFS, peak 0.0 dBFS
+        "overworld_night_6": 0.841,      // -14.5 LUFS, peak -0.0 dBFS
+        "overworld_night_7": 0.891,      // -15.4 LUFS, peak -0.0 dBFS
         "raid_incoming": 0.902,      // -16.7 LUFS, peak -0.1 dBFS
+        "raid_incoming_2": 0.804,      // -14.1 LUFS, peak -0.1 dBFS
+        "raid_incoming_2b": 0.861,      // -14.7 LUFS, peak -0.6 dBFS
+        "raid_incoming_2c": 0.851,      // -14.6 LUFS, peak -0.7 dBFS
+        "raid_incoming_3": 0.881,      // -15.2 LUFS, peak 0.1 dBFS
         "rain": 0.912,      // -16.0 LUFS, peak -0.2 dBFS
+        "rain_2": 0.944,      // -15.5 LUFS, peak -0.5 dBFS
+        "rain_3": 0.891,      // -16.7 LUFS, peak 0.0 dBFS
         "sky_islands": 0.741,      // -13.4 LUFS, peak -0.0 dBFS
+        "sky_islands_2": 0.881,      // -14.9 LUFS, peak -0.1 dBFS
+        "sky_islands_3": 0.733,      // -13.3 LUFS, peak -0.3 dBFS
         "snow": 0.785,      // -13.9 LUFS, peak -0.3 dBFS
+        "snow_2": 0.776,      // -13.8 LUFS, peak -0.1 dBFS
+        "snow_3": 0.912,      // -15.7 LUFS, peak -0.2 dBFS
         "submarine": 0.841,      // -14.5 LUFS, peak -0.3 dBFS
+        "submarine_2": 0.902,      // -15.4 LUFS, peak -0.1 dBFS
+        "submarine_3": 0.923,      // -15.5 LUFS, peak -0.3 dBFS
         "swamp": 0.861,      // -14.7 LUFS, peak 0.0 dBFS
+        "swamp_2": 0.891,      // -17.2 LUFS, peak 0.0 dBFS
+        "swamp_3": 0.891,      // -16.5 LUFS, peak 0.0 dBFS
         "the_hollow": 0.804,      // -14.1 LUFS, peak -0.2 dBFS
+        "the_hollow_2": 0.871,      // -14.8 LUFS, peak -0.3 dBFS
+        "the_hollow_3": 0.902,      // -16.3 LUFS, peak -0.1 dBFS
         "trains_and_railways": 0.724,      // -13.2 LUFS, peak -0.1 dBFS
+        "trains_and_railways_2": 0.891,      // -15.3 LUFS, peak 0.0 dBFS
+        "trains_and_railways_3": 0.813,      // -14.2 LUFS, peak -0.3 dBFS
+        "trains_and_railways_3b": 0.933,      // -15.4 LUFS, peak -0.4 dBFS
         "underwater": 0.871,      // -14.8 LUFS, peak -0.4 dBFS
+        "underwater_2": 0.804,      // -14.1 LUFS, peak 0.0 dBFS
+        "underwater_3": 0.716,      // -13.1 LUFS, peak -0.1 dBFS
         "victory": 0.861,      // -14.8 LUFS, peak 0.3 dBFS
         "village": 0.794,      // -14.0 LUFS, peak -0.2 dBFS
+        "village_2": 0.841,      // -14.5 LUFS, peak -0.5 dBFS
+        "village_3": 0.785,      // -13.9 LUFS, peak -0.3 dBFS
+        "village_4": 0.851,      // -14.6 LUFS, peak -0.3 dBFS
+        "village_5": 2.265,      // -23.4 LUFS, peak -8.1 dBFS
+        "village_6": 0.871,      // -14.8 LUFS, peak -0.1 dBFS
+        "village_7": 0.804,      // -14.1 LUFS, peak -0.1 dBFS
     ]
 }

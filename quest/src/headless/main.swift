@@ -1554,6 +1554,10 @@ if CommandLine.arguments.contains("--gunwreck") {               // P459: a gun m
     GunWreckCheck.run(game, check)
     print(failures == 0 ? "gunwreck: all checks passed" : "gunwreck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--musictakes") {             // P457: several takes per soundtrack state
+    MusicTakesCheck.run(game, check)
+    print(failures == 0 ? "musictakes: all checks passed" : "musictakes: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
