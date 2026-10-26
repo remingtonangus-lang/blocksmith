@@ -13,7 +13,7 @@ enum TownSizesTests {
         defer { TownSizes.on = on0 }
         var count = [Int](repeating: 0, count: 5), lots = [Int](repeating: 0, count: 5), shops = [Int](repeating: 0, count: 5)
         var deputies = [Int](repeating: 0, count: 5), offices = [Int](repeating: 0, count: 5), mines = [Int](repeating: 0, count: 5)
-        var unsized = 0
+        var unsized = 0, reachMax = 0
         let t0 = CFAbsoluteTimeGetCurrent()
         var gens: [WorldGen] = []
         for k in 0..<50 {
@@ -23,12 +23,19 @@ enum TownSizesTests {
             for rz in -3...3 { for rx in -3...3 {
                 guard let s = sc.start(vt, regionX: rx, regionZ: rz) else { continue }
                 guard let z = TownSizes.of(s)?.rawValue else { unsized += 1; continue }
+                // P456: every piece within the village kind's reach of the start's chunk (or chunks past it never build it).
+                let ax = floorDiv(s.anchor.x, CS), az = floorDiv(s.anchor.z, CS)
+                for p in s.pieces {
+                    let d = max(abs(floorDiv(p.min.x, CS) - ax), abs(floorDiv(p.max.x, CS) - ax), abs(floorDiv(p.min.z, CS) - az), abs(floorDiv(p.max.z, CS) - az))
+                    reachMax = max(reachMax, d)
+                }
                 count[z] += 1; lots[z] += s.info["lots"] ?? 0; shops[z] += s.info["shops"] ?? 0
                 deputies[z] += s.info["deputies"] ?? 0; offices[z] += s.info["office"] ?? 0
                 if s.plan is Mine { mines[z] += 1 }
             } }
         }
         print(String(format: "sizes: 50 seeds in %.1f s", CFAbsoluteTimeGetCurrent() - t0))
+        let vtReach = gens.first?.structures?.types.first(where: { $0.name == "village" })?.reach ?? 8
         func mean(_ a: [Int], _ i: Int) -> Float { count[i] > 0 ? Float(a[i]) / Float(count[i]) : 0 }
         let r1 = Float(count[0]) / Float(max(1, count[1])), r2 = Float(count[1]) / Float(max(1, count[2]))
         let hist = (0..<5).map { "\(TownSizes.names[$0]) \(count[$0])" }.joined(separator: ", ")
@@ -42,6 +49,7 @@ enum TownSizesTests {
         let moreLaw = zip(depMeans, depMeans.dropFirst()).allSatisfy { $0 < $1 }
         check(rising && moreShops && moreLaw && offices[0] == 0 && (1..<5).allSatisfy { offices[$0] * 10 >= count[$0] * 9 },
               "C13 growth: lots \(lotMeans.map { String(format: "%.1f", $0) }), shops \(shopMeans.map { String(format: "%.1f", $0) }), deputies \(depMeans.map { Int($0) }); offices \(offices)")
+        check(reachMax <= vtReach, "P456: every town's pieces stand within \(vtReach) chunks of its square (farthest \(reachMax))")
         check(mines[0] == 0 && mines[1] == 0 && (count[2] + count[3] + count[4] == 0 || mines[2] + mines[3] + mines[4] >= 1),
               "C13 mines: by size \(mines) (towns and up only)")
 

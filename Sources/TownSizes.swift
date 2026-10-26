@@ -46,7 +46,14 @@ enum TownSizes {
     static let biggerSpec: [Spec] = [
         Spec(length: 0.8, branch: 0.5, firstRoads: 3, extraRoads: -8, minLots: 3, shops: 1, deputies: 0, office: false, bank: false, mine: false),
         Spec(length: 0.9, branch: 0.8, firstRoads: 5, extraRoads: -3, minLots: 6, shops: 3, deputies: 1, office: true, bank: true, mine: false),
-    ] + spec[2...]
+        spec[2],
+        // P456 (Remington, Oct 25 13:57: "some villages much bigger... really big, kind of like a big city"): on ground no
+        // save had generated before P456 (StructureCache.legacyP456) a large town and a city, about one place in
+        // forty, are laid out far bigger: streets about twice a town's length, many more of them and nearly every
+        // one branching.
+        Spec(length: 1.7, branch: 1.7, firstRoads: 6, extraRoads: 14, minLots: 6, shops: 8, deputies: 3, office: true, bank: true, mine: true),
+        Spec(length: 2.3, branch: 2.0, firstRoads: 6, extraRoads: 26, minLots: 6, shops: 8, deputies: 4, office: true, bank: true, mine: true),
+    ]
 
     // The size of a town at (ox, oz): weights 1, 1/3.5, 1/3.5^2... (71.6%, 20.5%, 5.8%, 1.7%, 0.5%).
     static func size(_ ox: Int, _ oz: Int, seed: UInt64) -> TownSize {
