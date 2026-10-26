@@ -1496,6 +1496,29 @@ if let a = arg("--railprobe") {
     } }
     print(String(format: "railprobe: %d of %d stretches have a line (%.1f s); no line: ", found, tried, CFAbsoluteTimeGetCurrent() - t0)
           + why.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+// --depotfind SEED,R (P469): the depot compounds (Depots.swift) within R blocks of the origin on a world of SEED.
+if let a = arg("--depotfind") {
+    let v = a.split(separator: ",").map { String($0) }
+    let gen = WorldGen(seed: UInt64(v[0]) ?? 1)
+    gen.fieldWorld = true
+    let r = Int(v.count > 1 ? v[1] : "4000") ?? 4000
+    if let sc = gen.structures, let gt = sc.types.first(where: { $0.name == Greywall.kind }) {
+        let sp = Greywall.spacing * CS
+        var bases = 0, depots = 0
+        for rz in floorDiv(-r, sp)...floorDiv(r, sp) { for rx in floorDiv(-r, sp)...floorDiv(r, sp) {
+            guard let b = sc.start(gt, regionX: rx, regionZ: rz) else { continue }
+            bases += 1
+            let (cx, cz) = Greywall.centre(b)
+            let spec = BaseSpecialties.of("greywall:\(cx),\(cz)")
+            guard let d = Depots.site(gen, sc, b) else {
+                if spec == .fuelDepot || spec == .ammoDepot { print("depotfind: \(spec.name) base at \(cx) \(cz) has no room for its compound") }
+                continue
+            }
+            depots += 1
+            print("depotfind: \(d.fuel ? "Fuel" : "Ammo") Depot: base \(cx) \(cz) (\(Greywall.Tier.of(b).name)), compound x \(d.x0)...\(d.x1) z \(d.z0)...\(d.z1) yard y \(d.S) side \(d.side)")
+        } }
+        print("depotfind: \(depots) compounds at \(bases) bases")
+    }
     exit(0)
 }
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).

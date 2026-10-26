@@ -533,6 +533,7 @@ extension Game {
         // Its guns stand down (dismounted), its alarm is silent for good.
         let s = site
         mobs.mobs.removeAll { $0.kind == .deckGun && $0.faction == Faction.greywall.rawValue && Greywall.inside(s, $0.pos, pad: 2) }
+        depotGuardsStandDown(site.cx, site.cz, site.tier.half)      // P469: a depot's compound guards too
         // Your flag goes up on the keep; the wall turrets stand down (they never fire on a taken base).
         let mine = Blocks.id("taken_flag")
         for f in site.flags where world.isLoaded(f.x, f.z) && world.block(f.x, f.y, f.z) == Blocks.id("greywall_flag") { world.setBlock(f.x, f.y, f.z, mine) }

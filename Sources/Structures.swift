@@ -294,6 +294,7 @@ final class StructureCache {
             legacyP456 = SaveManager.guarding?.structureGuard(file: "structure-guard-p456.txt") ?? []
             legacyP462 = SaveManager.guarding?.structureGuard(file: "structure-guard-p462.txt") ?? []
             legacyP470 = SaveManager.guarding?.structureGuard(file: "structure-guard-p470.txt") ?? []
+            legacyP469 = SaveManager.guarding?.structureGuard(file: "structure-guard-p469.txt") ?? []
         }
     }
     var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
@@ -302,6 +303,7 @@ final class StructureCache {
     var legacyP456: Set<Int64> = []              // ground saved before P456 laid large towns and cities out far bigger (TownSizes.biggerSpec)
     var legacyP462: Set<Int64> = []              // ground saved before P462 built Capital cities of glass and steel towers (CapitalCity.tower)
     var legacyP470: Set<Int64> = []              // ground saved before P470 let two stations make a line (Railways.plan)
+    var legacyP469: Set<Int64> = []              // ground saved before P469 gave depot bases their compounds (Depots.swift)
     var legacyP360: Set<Int64> = []              // ground saved before the Dust Mission replaced the desert temple (DustMission.swift)
     var legacyR22: Set<Int64> = []                // ground saved before the R22 rarity pass (StructureCache.keepR22)
 
@@ -791,7 +793,7 @@ enum Loot {
             GunGrade.gradeChest(c, table: "steelhold_vault", rng: &rng)
             return
         }
-        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] ?? NavalPort.loot[table] ?? FrontierSites.loot[table] else { return }
+        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? Depots.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] ?? NavalPort.loot[table] ?? FrontierSites.loot[table] else { return }
         roll(c, t.rolls, t.entries, rng: &rng)
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
         if BaseSundries.supplyTables.contains(table) { roll(c, BaseSundries.supplyPool.rolls, BaseSundries.supplyPool.entries, rng: &rng) }
