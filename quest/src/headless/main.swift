@@ -1497,6 +1497,10 @@ if CommandLine.arguments.contains("--soldierrange") {         // P460: riflemen 
     SoldierRangeCheck.run(game, check)
     print(failures == 0 ? "soldierrange: all checks passed" : "soldierrange: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--lavamelt") {         // P461: a hull in lava rides it and melts
+    LavaMeltCheck.run(game, check)
+    print(failures == 0 ? "lavamelt: all checks passed" : "lavamelt: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

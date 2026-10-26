@@ -603,6 +603,9 @@ enum Capital {
         var y = w.topY(x, z)
         var k = 0
         while y > 1 && k < 48 && (w.block(x, y, z) == AIR || crushable(w.block(x, y, z))) && !w.groundAt(x, y, z) { y -= 1; k += 1 }
+        // P461 (Oct 25 16:43, "if I like drop this drop ship into the volcano, the lava just degrades it"): lava holds
+        // nothing up: a craft let down onto it settles two blocks in, and melts (ShipMelt).
+        if Blocks.fluidKind[Int(w.block(x, y, z))] == 2 { return y - 2 }
         return y
     }
 
@@ -2517,6 +2520,9 @@ extension ShipManager {
             if g.inside(c.x, c.y, c.z) && g.get(c.x, c.y, c.z) != AIR && !seen.contains(c) { starts.append(c) }
         } }
         if starts.count > 400 { starts = Array(starts.prefix(400)) }
+        // (P461: a small hull, the dropship's 295 blocks, is itself under the limit: one block melted or shot out of
+        // it cut the whole craft loose as a wreck. A piece holding half the hull or more is the hull and stays.)
+        let limit = min(limit, max(1, s.blockCount / 2))
         for st in starts where !seen.contains(st) {
             var comp: [IVec3] = [st]
             var local = Set<IVec3>([st])
