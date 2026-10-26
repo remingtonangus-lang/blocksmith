@@ -229,6 +229,7 @@ extension Game {
         // Per-vehicle keyboard / controller layout (VehicleControls.swift).
         let c = VehicleControls.read(self, s, mi)
         s.strafe = c.strafe
+        s.boost = mi.sprint                                               // P461: sprint at the helm
         if VehicleControls.kind(s) == .vtol {
             s.throttle = c.throttle                                       // P334: a VTOL flies off the stick, no telegraph
         } else if s.wheels.isEmpty {
@@ -349,7 +350,7 @@ extension Game {
         guard let s = ships.pilot else { return }
         ships.pilot = nil
         s.piloted = false
-        s.throttle = 0; s.steer = 0; s.climb = 0; s.strafe = 0
+        s.throttle = 0; s.steer = 0; s.climb = 0; s.strafe = 0; s.boost = false
         ships.aboard = s
         player.vel = s.velocity(at: player.pos)
         player.airPeak = player.pos.y
