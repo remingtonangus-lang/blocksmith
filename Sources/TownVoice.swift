@@ -132,19 +132,23 @@ enum TownVoice {
     ]
 
     // Every (voice, context, text) take, in a fixed order: Snd.voice(id) indexes this.
-    struct Take { let voice: String; let ctx: Ctx; let text: String; let key: UInt64 }
+    // P468: the townsfolk's second table (TownVoiceMore.swift) and the soldiers', outlaws' and crews' lines (TroopLines.swift;
+    // `troop` is their TroopVoice context, `ctx` unused: their voice keys are their own).
+    struct Take { let voice: String; let ctx: Ctx; let text: String; let key: UInt64; var troop: String? = nil }
     static let takes: [Take] = {
         var out: [Take] = []
-        for (g, c, lines) in script {
+        for (g, c, lines) in script + script2 {
             guard let ctx = Ctx(rawValue: c), let vs = groups[g] else { continue }
             for v in vs { for t in lines { out.append(Take(voice: v, ctx: ctx, text: t, key: hashKey(v, t))) } }
         }
+        for (v, c, t) in TroopVoice.takeRows { out.append(Take(voice: v, ctx: .chatter, text: t, key: hashKey(v, t), troop: c)) }
         return out
     }()
+    static var firstBook: Int { script.reduce(0) { $0 + $1.2.count * (groups[$1.0]?.count ?? 0) } }    // (takes from `script`)
     // voice -> context -> take ids.
     static let index: [String: [Ctx: [Int]]] = {
         var d: [String: [Ctx: [Int]]] = [:]
-        for (i, t) in takes.enumerated() { d[t.voice, default: [:]][t.ctx, default: []].append(i) }
+        for (i, t) in takes.enumerated() where t.troop == nil { d[t.voice, default: [:]][t.ctx, default: []].append(i) }
         return d
     }()
 
@@ -184,6 +188,9 @@ enum TownVoice {
     static func line(_ ctx: Ctx, _ m: Mob, late: Bool = false) -> (String, Int)? {
         let vk = voice(m)
         guard var ids = index[vk]?[ctx], !ids.isEmpty else { return nil }
+        // P468: lines not voiced yet (the second book before tools/townvoice_gen.py has run) wait for their takes.
+        let voiced = ids.filter { clip(takes[$0].key) != nil }
+        if !voiced.isEmpty { ids = voiced }
         if late && ctx == .night {
             ids = ids.filter { !eveningOnly.contains(takes[$0].text) }
             if ids.isEmpty { return line(index[vk]?[.closed]?.isEmpty == false ? .closed : .greet, m) }
