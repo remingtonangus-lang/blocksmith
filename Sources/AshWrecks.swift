@@ -139,6 +139,10 @@ extension Game {
         if have >= AshWrecks.needSpares {
             // Patched up: the wreck is gone and the fighter stands on its wheels where it lay.
             let ship = world.ships.spawn(AshWrecks.salvagedFighter(), at: sp.pos + V3(0, 1.2, 0), yaw: sp.yaw, name: AshWrecks.fighterName, role: "capplane")
+            // P464 (Oct 25 19:38, "the plane keeps getting thrusted into the air and then it breaks when it hits the
+            // ground"): it was set down at the gouge where the wreck nosed in, so its wings and tail stood in the field
+            // round it and the contacts threw it up. Its wheels now go down on the highest ground under it.
+            AshWrecks.setDown(ship, world)
             ship.initialBlocks = ship.blockCount
             FlightModel.attach(ship)
             sfx(.engineStart, 1, at: sp.pos)
@@ -196,6 +200,17 @@ extension Game {
 }
 
 extension AshWrecks {
+    // Sets a spawned craft's wheels down just clear of the highest ground under its footprint.
+    static func setDown(_ s: Ship, _ w: World) {
+        s.updateBounds()
+        let y0 = Int(floorf(s.worldMin.y))
+        var top = y0 - 4
+        for z in Int(floorf(s.worldMin.z))...Int(floorf(s.worldMax.z)) { for x in Int(floorf(s.worldMin.x))...Int(floorf(s.worldMax.x)) {
+            for y in stride(from: y0 + 6, through: max(top + 1, y0 - 4), by: -1) where w.solidAt(x, y, z) { top = max(top, y); break }
+        } }
+        VehicleWorks.settle(s, on: V3(s.pos.x, Float(top + 1) - 0.5, s.pos.z))     // (wheels 0.1 over it)
+    }
+
     // The repaired fighter: a single-engined, low-winged fighter, flown from its cockpit (bow -Z), in the crashed
     // one's colours (P435): bare aluminium, an olive anti-glare panel ahead of the bubble canopy, and a dark cowl ring round
     // the propeller.

@@ -86,7 +86,9 @@ final class CombatHUD {
                 let dy = y0 + 54 * s
                 let d = Capital.drive(ship.root, st)
                 let out0 = d <= 0
-                let tag = out0 ? "Engines out" : String(format: "Pitch %+d", Int((st.helmPitch * 180 / .pi).rounded()))
+                // P464: what stopped them: stalled (they catch again) or shot away (count of engine blocks left).
+                let stalled = st.engines0 > 0 && ship.root.engines * 10 < st.engines0 * 4 && st.restartT > 0
+                let tag = out0 ? (stalled ? "Engines stalled" : "Engines \(ship.root.engines)/\(st.engines0)") : String(format: "Pitch %+d", Int((st.helmPitch * 180 / .pi).rounded()))
                 let tw = Float(Font.width(tag)) * s
                 let dc = out0 ? Settings.shared.badColor : (d < 0.6 ? V4(0.95, 0.75, 0.2, 1) : V4(0.55, 0.85, 1, 1))
                 out.append(HudLine(text: "Drive", x: x, y: dy, scale: s, color: out0 ? dc : V4(0.85, 0.85, 0.85, 1)))

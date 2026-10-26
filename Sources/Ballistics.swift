@@ -190,7 +190,10 @@ final class Armory {
                     s.dead = true
                     slugs[i] = s
                     detonate(s, at: at, g)
-                    if s.kind == .shell { w.ships.heavyHit(h.1, at: at, game: g, power: s.breach.isFinite ? HeavyTurret.mannedShipPower : 6, resistCap: s.breach) }
+                    if s.kind == .shell {
+                        let pw: Float = !s.breaks ? max(1, s.power) : (s.breach.isFinite ? HeavyTurret.mannedShipPower : 6)
+                        w.ships.heavyHit(h.1, at: at, game: g, power: pw, resistCap: s.breach, stopsEngines: s.breaks)
+                    }
                     continue
                 }
             }

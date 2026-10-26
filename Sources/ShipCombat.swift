@@ -257,10 +257,13 @@ extension ShipManager {
 
     // A 42 cm shell striking a Capital vessel (Quest round 4: hits barely scratched them): the drive engines are
     // knocked out (a frigate goes down, a crawler stops: CapitalShips' disable check) and the hull is torn open.
-    func heavyHit(_ s: Ship, at p: V3, game: Game, power: Float = 6, resistCap: Float = .infinity) {
+    // P464 (Oct 25 20:16, "Was the base shooting this thing? ... That's what brought down the engines"): only a heavy
+    // gun's shell (one whose burst breaks blocks) stops the drive, and never on a vessel the player has taken; flak
+    // bursts at its own strength (every base anti-aircraft shell was striking as a 42 cm shell and stopping them).
+    func heavyHit(_ s: Ship, at p: V3, game: Game, power: Float = 6, resistCap: Float = .infinity, stopsEngines: Bool = true) {
         let r = s.root
         blast(at: p, power: power, game: game, resistCap: resistCap)
-        if r.kinematic && r.parent == nil && r.role != nil { r.engines = 0 }   // after the blast (its rebuild recounts them)
+        if stopsEngines && !r.captured && r.kinematic && r.parent == nil && r.role != nil { r.engines = 0 }   // after the blast (its rebuild recounts them)
     }
 
     // Whether a world point is inside a solid block of ship s.
