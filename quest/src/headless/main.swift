@@ -1513,6 +1513,10 @@ if CommandLine.arguments.contains("--bigfight") {              // P450: the Reck
     BigFightCheck.run(game, check)
     print(failures == 0 ? "bigfight: all checks passed" : "bigfight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--sandbreak") {             // P462: dug beach sand stays ground
+    SandBreakCheck.run(game, check)
+    print(failures == 0 ? "sandbreak: all checks passed" : "sandbreak: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

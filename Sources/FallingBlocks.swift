@@ -33,7 +33,11 @@ extension Game {
             if !world.activeHere(p) { world.park(falling: p); continue }   // P376
             FarTicks.note(world, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             if plantSupportCheck(p) { continue }          // plants that lost their support pop (PlantSupport.swift)
-            let b = world.materialAt(p.x, p.y, p.z)
+            // P462 (Oct 25 16:58, on a beach: "when I break a sand block, it's like an existing block form of it spawns
+            // and drops, which is wrong"): in a field world only built blocks fall; the drawn ground's sand and gravel
+            // hold where they are (thin overhangs break off as ground: GroundSettle), so a dug beach no longer drops
+            // cubes of sand out of its slope.
+            let b = world.fieldTerrain ? world.builtBlock(p.x, p.y, p.z) : world.materialAt(p.x, p.y, p.z)
             guard World.fallingIDs[Int(b)], p.y > 0 else {
                 hardenConcrete(p)
                 continue
