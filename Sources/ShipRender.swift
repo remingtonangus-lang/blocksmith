@@ -17,11 +17,14 @@ final class ShipMesh {
         var transQuads = 0
     }
     private(set) var sections: [Int: Sec] = [:]
+    // P450: a big hull's look from outside (outerBuild): drawn in place of `sections` while the eye is outside the
+    // hull's box; a section remeshed round a hit has no outer copy and draws in full.
+    private(set) var outerSecs: [Int: Sec] = [:]
     var wheelSecs: [[Sec]] = []      // per Ship.wheelParts entry (ShipRenderer builds them)
     var wheelGen = -1
     private var layoutGen = 0
     private let lock = NSLock()
-    private var results: [(gen: Int, full: Bool, secs: [(Int, SectionMesh, V3)])] = []
+    private var results: [(gen: Int, full: Bool, secs: [(Int, SectionMesh, V3)], outer: [(Int, SectionMesh, V3)]?)] = []
     var building = 0                 // jobs in flight (harness waits for 0)
 
     @inline(__always) static func key(_ cx: Int, _ sy: Int, _ cz: Int) -> Int { (cx & 0xFFF) | ((sy & 0xFF) << 12) | ((cz & 0xFFF) << 20) }
@@ -39,6 +42,7 @@ final class ShipMesh {
     func release() {
         layoutGen += 1                   // results still in flight are dropped
         sections.removeAll()
+        outerSecs.removeAll()
         wheelSecs = []
         wheelGen = -1
         released = true
@@ -100,7 +104,7 @@ final class ShipMesh {
                     }
                     guard let self else { return }
                     self.lock.lock()
-                    self.results.append((gen, full, secs))
+                    self.results.append((gen, full, secs, nil))
                     self.building -= 1
                     self.lock.unlock()
                 }
@@ -111,9 +115,10 @@ final class ShipMesh {
         lock.lock(); building += 1; lock.unlock()
         queue.async { [weak self] in
             let secs = ShipMesh.build(sx: sx, sy: sy, sz: sz, blocks: blocks, only: only, damage: dmg, trunks: trunks)
+            let outer = only == nil ? ShipMesh.outerBuild(sx: sx, sy: sy, sz: sz, blocks: blocks, damage: dmg, trunks: trunks) : nil
             guard let self else { return }
             self.lock.lock()
-            self.results.append((gen, full, secs))
+            self.results.append((gen, full, secs, outer))
             self.building -= 1
             self.lock.unlock()
         }
@@ -127,19 +132,79 @@ final class ShipMesh {
         let rs = results
         results.removeAll()
         lock.unlock()
-        for r in rs where r.gen == layoutGen {
-            if r.full { sections.removeAll() }
-            for (k, m, origin) in r.secs {
-                if m.opaque.isEmpty && m.trans.isEmpty { sections.removeValue(forKey: k); continue }
-                var s = Sec(origin: origin)
-                s.opaque = m.opaque.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
-                s.opaqueQuads = m.opaque.count / 8
-                s.solidQuads = m.solidQuads
-                s.trans = m.trans.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
-                s.transQuads = m.trans.count / 8
-                sections[k] = s
-            }
+        func sec(_ m: SectionMesh, _ origin: V3) -> Sec {
+            var s = Sec(origin: origin)
+            s.opaque = m.opaque.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
+            s.opaqueQuads = m.opaque.count / 8
+            s.solidQuads = m.solidQuads
+            s.trans = m.trans.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
+            s.transQuads = m.trans.count / 8
+            return s
         }
+        for r in rs where r.gen == layoutGen {
+            if r.full { sections.removeAll(); outerSecs.removeAll() }
+            for (k, m, origin) in r.secs {
+                if r.outer == nil { outerSecs.removeValue(forKey: k) }     // (remeshed round a hit: drawn in full)
+                if m.opaque.isEmpty && m.trans.isEmpty { sections.removeValue(forKey: k); continue }
+                sections[k] = sec(m, origin)
+            }
+            for (k, m, origin) in r.outer ?? [] { outerSecs[k] = m.opaque.isEmpty && m.trans.isEmpty ? Sec(origin: origin) : sec(m, origin) }
+        }
+    }
+
+    // P450 (the Stormwarden Frigate decked from keel to bridge: 5.7 times the shell's quads): a big hull is meshed a
+    // second time as it looks from outside. Outside air floods in from past the grid's edges through air and
+    // see-through blocks (glass, slabs, stairs, rails), never through a door, open or shut; every other cell that
+    // isn't a solid block is filled with plate, so the decks, rooms and fittings sealed inside give no faces. The
+    // renderers draw that copy while the eye is outside the hull's box (eyeOutside). Only hulls over a million cells
+    // (the capitals with decks inside) get one.
+    static let outerMinCells = 1_000_000
+    private static let outerPass: [Bool] = (0..<Blocks.count).map { i in
+        let sh = Blocks.shape[i]
+        return !Blocks.opaque[i] && sh != "door" && sh != "trapdoor" && sh != "gate"
+    }
+    private static let outerFill: BlockID = Blocks.has("warship_panel") ? Blocks.id("warship_panel") : STONE
+    static func outsideMask(sx: Int, sy: Int, sz: Int, blocks: [BlockID]) -> [Bool]? {
+        let n = sx * sy * sz
+        guard n > outerMinCells, blocks.count == n else { return nil }
+        let pass = outerPass
+        let layer = sx * sz
+        var outside = [Bool](repeating: false, count: n)
+        var queue = [Int32](repeating: 0, count: n)
+        blocks.withUnsafeBufferPointer { b in outside.withUnsafeMutableBufferPointer { o in queue.withUnsafeMutableBufferPointer { q in
+            var tail = 0
+            @inline(__always) func seed(_ i: Int) { if !o[i] && pass[Int(b[i])] { o[i] = true; q[tail] = Int32(i); tail += 1 } }
+            for y in 0..<sy { for z in 0..<sz {
+                let row = z * sx + y * layer
+                if y == 0 || y == sy - 1 || z == 0 || z == sz - 1 { for x in 0..<sx { seed(row + x) } }
+                else { seed(row); seed(row + sx - 1) }
+            } }
+            var head = 0
+            while head < tail {
+                let i = Int(q[head]); head += 1
+                let y = i / layer, r = i - y * layer, z = r / sx, x = r - z * sx
+                if x > 0 { seed(i - 1) }
+                if x < sx - 1 { seed(i + 1) }
+                if z > 0 { seed(i - sx) }
+                if z < sz - 1 { seed(i + sx) }
+                if y > 0 { seed(i - layer) }
+                if y < sy - 1 { seed(i + layer) }
+            }
+        } } }
+        return outside
+    }
+    static func outerBuild(sx: Int, sy: Int, sz: Int, blocks: [BlockID], damage: [IVec3: UInt8] = [:], trunks: Bool = true) -> [(Int, SectionMesh, V3)]? {
+        guard let outside = outsideMask(sx: sx, sy: sy, sz: sz, blocks: blocks) else { return nil }
+        let opaque = Blocks.opaque, fill = outerFill
+        var shell = blocks
+        for i in 0..<shell.count where !outside[i] && !opaque[Int(shell[i])] { shell[i] = fill }
+        return build(sx: sx, sy: sy, sz: sz, blocks: shell, only: nil, damage: damage, trunks: trunks)
+    }
+
+    // Whether the eye (world space) is outside the hull's box: the outer copy is all it can see from there.
+    static func eyeOutside(_ s: Ship, _ eye: V3) -> Bool {
+        let l = s.toLocal(eye), g = s.grid
+        return l.x < -1 || l.y < -1 || l.z < -1 || l.x > Float(g.sx + 1) || l.y > Float(g.sy + 1) || l.z > Float(g.sz + 1)
     }
 
     // Builds section meshes for a grid snapshot (any thread).
@@ -508,7 +573,9 @@ final class ShipRenderer {
             let m = model(s, eye: eye)
             // Big hulls (capital ships: over a thousand sections) are culled per section.
             let perSection = s.mesh.sections.count > 48
-            for sec in s.mesh.sections.values {
+            let outside = perSection && !s.mesh.outerSecs.isEmpty && ShipMesh.eyeOutside(s, eye)     // P450: the hull as seen from outside
+            for (k, full) in s.mesh.sections {
+                let sec = outside ? s.mesh.outerSecs[k] ?? full : full
                 guard let buf = sec.opaque, sec.opaqueQuads > 0 else { continue }
                 if perSection && !ShipRenderer.sectionVisible(s, sec, frustum) { continue }
                 let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
@@ -693,7 +760,9 @@ final class ShipRenderer {
         for s in ships.list where !s.hidden && frustum.visible(min: s.worldMin, max: s.worldMax) {
             let m = model(s, eye: eye)
             let perSection = s.mesh.sections.count > 48
-            for sec in s.mesh.sections.values {
+            let outside = perSection && !s.mesh.outerSecs.isEmpty && ShipMesh.eyeOutside(s, eye)     // P450: the hull as seen from outside
+            for (k, full) in s.mesh.sections {
+                let sec = outside ? s.mesh.outerSecs[k] ?? full : full
                 guard let buf = sec.trans, sec.transQuads > 0 else { continue }
                 if perSection && !ShipRenderer.sectionVisible(s, sec, frustum) { continue }
                 if !any {
