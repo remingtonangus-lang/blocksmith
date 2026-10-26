@@ -601,7 +601,8 @@ extension Mob {
             }
             // A last sighting it can't get to (the path finder gave it up) is dropped for the search below.
             if let ls = b.lastSeen, gaveUp(ls) { b.lastSeen = nil }
-            if let ls = b.lastSeen, b.seenAgo < 14 {
+            let holding = lockTime > 0 && dist < 64 && canTarget && home.map { holdsPost(g, $0, dist) } == true
+            if !holding, let ls = b.lastSeen, b.seenAgo < 14 {
                 // Troopers flush players out of cover with a grenade, everyone closes in on the last sighting.
                 let d = simd_length(ls - pos)
                 if (r == 1 || troop == 2) && b.grenadeCD <= 0 && b.seenAgo < 5 && d > 5 && d < 22 {
@@ -611,6 +612,21 @@ extension Mob {
                 face(ls)
                 speed = d > 2 ? spec.speed : 0
                 if d <= 2 { b.lastSeen = nil; b.hunt = nil }
+            } else if holding, let h = home {
+                // P465 (Oct 25 19:57: "I want them to kind of work like they do in GoldenEye, where... you find them in each
+                // room, you find them in the halls... Seems like currently everyone in the base just goes and piles down by
+                // the stairs"): an alerted soldier that doesn't see him, isn't near him on his floor and isn't one of the
+                // base's runners holds its own room: back to its post, then stands ready there, looking round.
+                b.hunt = nil
+                let off = simd_length(V2(h.x - pos.x, h.z - pos.z))
+                if off > 2.5 && !gaveUp(h) { face(h); speed = spec.speed * 0.7 } else {
+                    if aiTimer <= 0 {
+                        aiTimer = Rand.float(in: 1.5...3.5)
+                        if b.watchYaw == nil { b.watchYaw = yaw }
+                        yaw = (b.watchYaw ?? yaw) + Rand.float(in: -1.4...1.4)
+                    }
+                    speed = 0
+                }
             } else if lockTime > 0 && dist < 64 && canTarget {
                 // P197 (Oct 13: "the men are just spinning around... bunched at the front"): an alerted garrison
                 // hunts the raider the whole time instead of milling round the last sighting: each soldier heads for
@@ -659,6 +675,14 @@ extension Mob {
             }
         }
         return speed * vary.speed                                    // R16: this soldier's own stride
+    }
+
+    // P465: whether an alerted soldier out of sight of him keeps to its post (GoldenEye's rooms) rather than hunting him:
+    // not within 12 blocks, not on his floor within 28, and not one of the base's runners (about one post in three, by
+    // where the post is, hunts him anywhere). Squads sent after him have no post and always hunt.
+    func holdsPost(_ g: Game, _ h: V3, _ dist: Float) -> Bool {
+        if dist < 12 || (abs(g.player.pos.y - pos.y) < 4.5 && dist < 28) { return false }
+        return hash3(Int(floor(h.x)), Int(floor(h.y)), Int(floor(h.z)), 0x60E7) % 3 != 0
     }
 
     func soldierFire(_ dt: Float, _ g: Game, _ b: SoldierBrain, _ gs: GunSpec, rank r: Int, dist: Float, target: V3) {
@@ -883,6 +907,7 @@ extension Mob {
             b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye)
             b.crewed = deckGunCrewed(g)
             if !b.crewed && factionValue != .greywall { claimGunner(g) }
+            if !GunParts.supported(self, g.world) { GunParts.fall(self, g); return }         // P465: its tower shot away
         }
         if b.sees && canTarget {
             if !aggro { aggro = true; g.sfx(.gun(10), 1.5, at: pivot); alertGarrison(g, g.player.pos, radius: 40) }

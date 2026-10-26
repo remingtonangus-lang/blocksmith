@@ -104,6 +104,10 @@ final class QuestControls {
     // P371: the right grip held on the thing in the hand (a tap still steps the hotbar, on release), and the hand's
     // speed in the world, smoothed over a few frames.
     private var rHoldAt: Double = -1
+    private var lHoldAt: Double = -1
+    private var rThrows = false                // (the right grip went down on a throwable thing, not a gun)
+    private var lBraced = false                // (the left grip held round a braced gun's foregrip at some point)
+    private var gripOpenAt: [Double] = [-9, -9]  // when each hand was last open (grip under a quarter)
     private var prevRWorld: V3?
     private var velR = V3(0, 0, 0)
     // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
@@ -451,6 +455,7 @@ final class QuestControls {
         }
         // Grips step the hotbar: left = previous slot, right = next (a press; at a ship's helm the left grip descends).
         let lGrip = gripBtn[0].down, rGrip = gripBtn[1].down
+        for i in 0..<2 where gripBtn[i].value < 0.25 { gripOpenAt[i] = game.clock }
         // P177: a grip with the hand on a small creature picks it up (let go to throw it); on a carcass, drags it
         // (HandGrab.swift). Those grips don't step the hotbar.
         var handGrab = false
@@ -595,14 +600,23 @@ final class QuestControls {
         }
         // (A grip squeezed round the braced rifle's foregrip holds the gun, R6: it doesn't step the hotbar.)
         if !inMenu && !bagGrip && !magGrip && !handGrab && game.world.ships.pilot == nil {
-            if lGrip && !prevGripL && braceRot == nil { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
-            // P371: with something other than a gun in the hand, the right grip's step waits for its release (a tap);
-            // held and swung, it throws the thing instead.
-            if rGrip && !prevGripR {
-                if !game.held.isEmpty && game.heldGun == nil && R.gripValid { rHoldAt = game.clock }
-                else { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
-            }
+            // P465 (Oct 25 19:41-19:42: "If I hold the grip for longer than a certain amount of time then [I'm] putting
+            // [away] my gun. I am not trying to move across the toolbar"; his pack went Faustrohr, Spruce Log, Faustrohr
+            // every second while he held the launcher): a grip steps the hotbar only on a tap (let go within 0.35 s),
+            // with anything or nothing in the hand. A grip held to hold a gun never steps. P371: a held, swung right grip
+            // throws what isn't a gun.
+            // (Only from an open hand: squeezing harder round a held gun after easing off reads as a new press.)
+            if lGrip && !prevGripL && game.clock - gripOpenAt[0] < 0.5 { lHoldAt = game.clock; lBraced = braceRot != nil }
+            if rGrip && !prevGripR && game.clock - gripOpenAt[1] < 0.5 { rHoldAt = game.clock; rThrows = !game.held.isEmpty && game.heldGun == nil && R.gripValid }
             if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
+        } else { lHoldAt = -1; rHoldAt = -1 }
+        if lGrip && braceRot != nil { lBraced = true }
+        if lHoldAt >= 0 && !lGrip {
+            let held = game.clock - lHoldAt
+            lHoldAt = -1
+            if held < 0.35 && !lBraced && !inMenu && game.menu == nil {
+                game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300)
+            }
         }
         if R.gripValid {
             let p = rig.toWorld(R.gripPos)
@@ -612,11 +626,11 @@ final class QuestControls {
         if rHoldAt >= 0 && !rGrip {
             let held = game.clock - rHoldAt
             rHoldAt = -1
-            if !inMenu && game.menu == nil && R.gripValid && held > 0.15 && simd_length(velR) > 2.5 {
+            if rThrows && !inMenu && game.menu == nil && R.gripValid && held > 0.15 && simd_length(velR) > 2.5 {
                 if ThrownHeld.throwHeld(game, from: rig.toWorld(R.gripPos), vel: velR * 1.6) {
                     app.input.haptic(aimHand, amplitude: 0.7, seconds: 0.05, frequency: 120)
                 }
-            } else if held < 0.4 && game.menu == nil {
+            } else if held < 0.35 && !inMenu && game.menu == nil {
                 game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300)
             }
         }

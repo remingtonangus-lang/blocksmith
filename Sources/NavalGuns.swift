@@ -26,7 +26,11 @@ enum NavalGuns {
             let d = simd_length(centre - at)
             guard d < reach else { continue }
             let k = 1 - d / reach
-            let dmg = Int((directShare * k * (manned ? 1 : 0.6)).rounded())
+            var dmg = Int((directShare * k * (manned ? 1 : 0.6)).rounded())
+            // P465 (Oct 25 19:51, at a station's gun from a deck gun he manned: "I only did, like, 1% damage to this
+            // turret, which is ridiculous. I should, should take one shot, not two thousand"): his own heavy shell
+            // bursting by a gun destroys it.
+            if s.fromPlayer && manned { dmg = max(dmg, m.health + 1) }
             guard dmg > 0 else { continue }
             Mob.plateHit = true
             m.hit(from: at, damage: dmg, knockback: 0)

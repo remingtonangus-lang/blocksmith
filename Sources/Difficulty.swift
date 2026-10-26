@@ -81,7 +81,10 @@ enum Difficulty {
     // and Easy no enemy rolls tougher than plain (MobVary's brutes and elites still run faster and hit harder), the
     // Deep's veterans lose the doubled health they carry on Normal and up (a hit on one counts twice), and the Marshal
     // and the Chancellor take twice (Very Easy) or half again (Easy) what a hit does on Normal.
-    static func tough(_ m: Mob) -> Float {
+    // P465 (Oct 25 20:17-20:25, Hannibal troopers: "not tough enough. It should be way tougher"; "They just need to be
+    // tougher. That's my only complaint"): a Hannibal trooper shrugs off twice what it did, on top of its plate.
+    static func tough(_ m: Mob) -> Float { m.troop == 3 ? toughBase(m) * 2 : toughBase(m) }
+    private static func toughBase(_ m: Mob) -> Float {
         let t = m.vary.tough
         guard level == 1 || level == 2 else { return t }
         if m.kind == .ashMarshal || m.kind == .ashChancellor { return min(t, 1) * (level == 1 ? 0.5 : 0.67) }
