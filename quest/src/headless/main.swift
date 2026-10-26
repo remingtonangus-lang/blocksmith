@@ -383,6 +383,27 @@ if let out = arg("--view"), let ctx = vkctx {
     if CommandLine.arguments.contains("--fallen") { AshFallen.refresh(vg); print("view: \(AshFallen.mobs.count) fallen") }   // P326: the Ash Vault's dead
     // The note's "facing" yaw is the player's yaw negated (VoiceNoteCore).
     var yaw = (nearYaw ?? 0) - look[0] * .pi / 180, pitch = look[1] * .pi / 180
+    // --fighterskin [PITCH,ROLL]: a Salvaged Fighter (P464) on the ground 16 blocks ahead, side-on, optionally tilted
+    // (degrees); BS_FIGHTERBLOCKS=1 draws its blocks instead of the fighter model.
+    if CommandLine.arguments.contains("--fighterskin") {
+        let f = V3(-sinf(yaw), 0, -cosf(yaw))
+        let at = vg.player.pos + f * 16
+        let gx = Int(floor(at.x)), gz = Int(floor(at.z))
+        var gy = Int(vg.player.pos.y)
+        while gy > 1 && !vw.solidAt(gx, gy - 1, gz) { gy -= 1 }
+        let fp = vw.ships.spawn(AshWrecks.salvagedFighter(), at: V3(at.x, Float(gy) + 1.2, at.z), yaw: yaw + .pi / 2, name: AshWrecks.fighterName, role: "capplane")
+        fp.initialBlocks = fp.blockCount
+        AshWrecks.setDown(fp, vw)
+        let tilt = (arg("--fighterskin") ?? "").split(separator: ",").compactMap { Float($0) }
+        if tilt.count == 2 {
+            fp.rot = fp.rot * Quat(angle: tilt[0] * .pi / 180, axis: V3(1, 0, 0)) * Quat(angle: tilt[1] * .pi / 180, axis: V3(0, 0, 1))
+            fp.pos.y += 4
+        }
+        fp.mesh.rebuildAll(fp, device: vw.device, queue: vw.ships.meshQueue)
+        AshWrecks.syncSkins(vw)
+        let sk = AshWrecks.skinMobs
+        print("view: Salvaged Fighter at \(Int(fp.pos.x)) \(Int(fp.pos.y)) \(Int(fp.pos.z)), \(fp.blockCount) blocks, skin \(sk.count) (\(sk.first.map { String(format: "%.1f %.1f %.1f", $0.pos.x, $0.pos.y, $0.pos.z) } ?? "-")), hidden \(fp.hidden)")
+    }
     // --cave: the eye in the nearest open cave below (spiralling out from the spot until one has room round the eye).
     if CommandLine.arguments.contains("--cave") {
         let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z))
