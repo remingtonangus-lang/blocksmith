@@ -2507,7 +2507,9 @@ final class Game {
             horseDied(m)
             onToast?("\(m.customName ?? "Your horse") has died. Where it fell is marked on your map")
         }
-        if dim.dim == .deep { ashUnitDied(m); wardenDied(m) }
+        // (P460: a vehicle of the Ashguard's make brews up wherever it dies: a Boreal Station's on the surface too.)
+        if dim.dim == .deep || m.kind.ashVehicle { ashUnitDied(m) }
+        if dim.dim == .deep { wardenDied(m) }
         if m.kind.hellOwn { hellDied(m) }
         // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).
         if m.saddled && m.kind != .happyGhast && Items.has("saddle") { drops.spawn(ItemStack(Items.id("saddle"), 1), at: at) }

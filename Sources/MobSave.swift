@@ -167,7 +167,7 @@ extension Mob {
         if (d["hired"] ?? 0) > 0 { hired = true; persistent = true }
         if let c = d["tc"], c >= 1, c <= 3 { troop = Int8(c); troopSeg = SIMD3(d["ts0"] ?? 0, d["ts1"] ?? 0, d["ts2"] ?? 0) }
         if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup(loading: true) }
-        else if let f = d["fac"], Faction(rawValue: Int(f)) != nil { faction = Int(f) }
+        else if let f = d["fac"], Faction(rawValue: Int(f)) != nil { faction = Int(f); if boreal { borealSetup() } }
         greyRearm()                                     // P104: Greywall's own arms (GreywallArms.swift)
         if (d["warden"] ?? 0) > 0 { makeKeepWarden(loading: true) }
         if let x = d["gpx"], let y = d["gpy"], let z = d["gpz"], let fx = d["gfx"], let fy = d["gfy"], let fz = d["gfz"] {

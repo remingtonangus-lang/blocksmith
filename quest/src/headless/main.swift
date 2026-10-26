@@ -1062,6 +1062,7 @@ if let out = arg("--view"), let ctx = vkctx {
             if CommandLine.arguments.contains("--aim") { m.aimHold = 1 }              // --aim: archers drawn on the camera (P444)
             if let s = Int(arg("--mobseed") ?? "") { m.coatSeed = UInt32(truncatingIfNeeded: s + i * 7919) }   // --mobseed N: their looks
             m.persistent = true
+            if CommandLine.arguments.contains("--boreal") && kind.ashVehicle { m.borealSetup() }     // --boreal: P460's winter vehicles
             vg.mobs.mobs.append(m)
         }
         vg.mobs.rebuildIndex()
@@ -1540,6 +1541,10 @@ if CommandLine.arguments.contains("--cityfloat") {             // P462: Capital 
 if CommandLine.arguments.contains("--fueldepot") {             // P461: dropship fuel cans and Fuel Depot bases
     FuelDepotCheck.run(game, check)
     print(failures == 0 ? "fueldepot: all checks passed" : "fueldepot: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--borealcars") {            // P460: a Boreal Station's own trucks and tank
+    BorealCarsCheck.run(game, check)
+    print(failures == 0 ? "borealcars: all checks passed" : "borealcars: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)

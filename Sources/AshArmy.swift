@@ -274,7 +274,7 @@ extension Game {
     }
 
     func ashWreck(_ m: Mob) {
-        let plate = Blocks.id("ash_plating")
+        let plate = Blocks.id(m.boreal && Blocks.has("bunker_concrete") ? "bunker_concrete" : "ash_plating")   // (P460: white plate)
         let c = IVec3(Int(floor(m.pos.x)), Int(floor(m.pos.y + 1)), Int(floor(m.pos.z)))
         for _ in 0..<6 { particles.blockBreak(plate, at: IVec3(c.x + Rand.int(in: -1...1), c.y + Rand.int(in: 0...1), c.z + Rand.int(in: -1...1))) }
         sfx(.debrisRain, 1.0, at: m.pos)
@@ -293,7 +293,7 @@ extension Game {
             let side: Float = i == 0 ? 1 : -1
             let off = V3(cosf(m.yaw) * 2.2 * side, 0, -sinf(m.yaw) * 2.2 * side)
             let crew = Mob(.soldierCrew, at: m.pos + off)
-            crew.ashSetup()
+            if !m.boreal { crew.ashSetup() }               // (P460: a Boreal tank's crew are the Capital's)
             crew.aggro = true
             crew.fire = 3                                  // out of a burning hull
             crew.health = max(1, crew.spec.health * 2 / 3)
