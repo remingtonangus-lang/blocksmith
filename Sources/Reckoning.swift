@@ -69,11 +69,12 @@ enum Reckoning {
     static var timer: Float = 0         // the warning's seconds left
     static var hunts: [Hunt] = []
     static var underground = false      // the player is below the surface (the groups have lost the trail)
+    static var crawlerAt: V2?           // P460: where the hunt's Capital Crawler set out (it's found by its home)
     static var won: Bool { stage == 3 }
     static var groupsLeft: Int { hunts.filter { $0.left > 0 }.count }
     private static var gameID: ObjectIdentifier?
 
-    static func reset() { stage = 0; timer = 0; hunts = []; underground = false; barrageTold = false }
+    static func reset() { stage = 0; timer = 0; hunts = []; underground = false; barrageTold = false; crawlerAt = nil }
     static func own(_ g: Game) {
         let id = ObjectIdentifier(g)
         if gameID != id { reset(); gameID = id }
@@ -104,6 +105,25 @@ enum Reckoning {
         if stage == 2 && hunts.isEmpty && d["reckoningHunts"] == nil { begin(game) }      // a P46 save mid-waves: new groups
     }
 
+    // Dry ground for a band's crawler on the band's side of him: as far out as the world runs vehicles (a ship past the
+    // active distance waits where it is: ShipPhysics), straight towards the band first, then fanning round him and
+    // nearer (a band crossing the sea brings it round by land).
+    static func crawlerSpot(_ g: Game, _ band: V2, from p: V2) -> IVec3? {
+        let w = g.world
+        let back = atan2f(band.x - p.x, band.y - p.y)
+        let rMax = Float(min(w.activeDistance, w.renderDistance) * CS) - 8
+        for r in [min(rMax, simd_length(band - p) + 40), rMax - 20, rMax - 40] where r >= 40 {
+            for a: Float in [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.6, -1.6, 2.2, -2.2] {
+                let x = Int(floor(p.x + sinf(back + a) * r)), z = Int(floor(p.y + cosf(back + a) * r))
+                let col = w.gen.column(x, z)
+                if col.height > SEA + 1 && !col.biome.isOcean { return IVec3(x, col.height + 1, z) }
+            }
+        }
+        return nil
+    }
+    static func huntCrawler(_ g: Game, _ c: V2) -> Ship? {
+        g.world.ships.capitals.first { $0.role == "crawler" && !$0.captured && simd_length(V2(($0.home ?? $0.pos).x - c.x, ($0.home ?? $0.pos).z - c.y)) < 4 }
+    }
     static func isHunter(_ m: Mob) -> Bool { m.posse >= posseBase && m.posse < posseBase + 40 }
     static func members(_ g: Game) -> [Mob] { hunts.flatMap { $0.live }.filter { $0.health > 0 } }
 
@@ -229,8 +249,20 @@ enum Reckoning {
                                                region: nil, faction: .stormwarden)
                     g.onToast?("A Stormwarden warship joins the hunt")
                 }
+                // P460 (Oct 25 17:08, overrun by the Capital's band in the jungle: "there should be a giant crawler"): the
+                // first Capital band to close in brings a Capital Crawler, rolling in from the band's side (on land) and
+                // driving on him.
+                if h.side == .capital && !h.warship && d < 260 && crawlerAt == nil, let at = crawlerSpot(g, h.pos, from: p) {
+                    h.warship = true
+                    crawlerAt = V2(Float(at.x) + 0.5, Float(at.z) + 0.5)
+                    g.world.ships.spawnCapital("crawler", home: at, yaw: atan2f(-(p.x - Float(at.x)), -(p.y - Float(at.z))),
+                                               region: nil, faction: .steelhold)
+                    g.onToast?("The ground shakes: a Capital Crawler joins the hunt")
+                }
             }
         }
+        // The hunt's crawler drives on him wherever he is on the surface (its target in sight or not); below, it waits.
+        if let c = crawlerAt, let s = huntCrawler(g, c), let st = g.world.ships.capState[s.id] { st.goal = down ? nil : g.player.pos }
         if !down { barrages(g, p, dt) }
         // Bring units in, nearest groups first, while the player is on the surface.
         var alive = hunts.reduce(0) { $0 + $1.live.count }
