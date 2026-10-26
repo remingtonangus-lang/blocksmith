@@ -1572,6 +1572,10 @@ if CommandLine.arguments.contains("--chasehull") {              // P449: the big
     ChaseHullCheck.run(game, check)
     print(failures == 0 ? "chasehull: all checks passed" : "chasehull: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--gunflight") {              // P449: the field gun's shell lands quickly
+    GunFlightCheck.run(game, check)
+    print(failures == 0 ? "gunflight: all checks passed" : "gunflight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
