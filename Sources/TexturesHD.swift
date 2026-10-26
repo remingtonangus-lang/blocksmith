@@ -1993,6 +1993,7 @@ enum HDTex {
     // sparkstone lamp's lattice, the target's straw rings and the sea lantern's glowing panes.
     static let cobbleGen: Gen = cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838)
     static let machineStone: Gen = stone([(0, 0x46464A), (0.5, 0x5C5C60), (1, 0x727276)], veins: 0.1, strata: 0)
+    static let observerShell: Gen = stone([(0, 0x8C9CA6), (0.5, 0xA2B2BC), (1, 0xB6C4CC)], veins: 0, strata: 0)     // P463
     static func sparkFace(_ kind: String) -> Gen {
         { n, s in
             let fn = Float(n), u = n / 16
@@ -2122,8 +2123,11 @@ enum HDTex {
                 var img = Img(n, V4(0.5, 0.5, 0.52, 1))
                 rod(&img, 0, n, 0, n)
                 return img
-            case "observer_front", "observer_back", "observer_back_on", "observer_side", "observer_top":
-                var img = polished(machineStone, calm: 0.45, rim: 1 / 20)(n, s)
+            case "observer_front", "observer_back", "observer_back_on", "observer_side", "observer_top",
+                 "observer_arrow_up", "observer_arrow_down", "observer_arrow_left", "observer_arrow_right":
+                // P463 (Oct 25 16:08-16:09, "the arrows on the observers are very confusing"; the dispenser "looks too
+                // similar to it"): a pale painted sensor housing, not the machines' dark casing.
+                var img = polished(observerShell, calm: 0.45, rim: 1 / 20)(n, s)
                 for y in 0..<n { for x in 0..<n {
                     let i = y * n + x
                     let lx = x / u, ly = y / u
@@ -2169,12 +2173,20 @@ enum HDTex {
                             put(&img, x, y, (lx % 4 == 1 ? col(0x5A3018) : col(0xB87333)) * (top * fk))
                         }
                     default:
-                        // Top: a red arrow pointing toward the face.
-                        let shaft: Bool = (lx == 7 || lx == 8) && ly > 5
-                        let off: Float = abs(Float(x) + 0.5 - fn / 2)
-                        let halfW: Float = Float(ly - 2) * Float(u) * 1.2
-                        let head: Bool = ly >= 3 && ly <= 5 && off < halfW
-                        if shaft || head { put(&img, x, y, col(0x9A2A1A) * fk) }
+                        // P463: the arrow the signal takes, from the lens to the red output on the back, on every face
+                        // between them (observer_arrow_<way>, each face of each facing picks the way it points there;
+                        // observer_top, the old single top, points up). It starts at a small lens-blue dot.
+                        let way = kind.hasSuffix("down") ? 1 : kind.hasSuffix("left") ? 2 : kind.hasSuffix("right") ? 3 : 0
+                        let ax = way == 0 ? x : way == 1 ? n - 1 - x : way == 2 ? y : n - 1 - y      // turned to "up"
+                        let ay = way == 0 ? y : way == 1 ? n - 1 - y : way == 2 ? x : n - 1 - x
+                        let alx = ax / u, aly = ay / u
+                        let shaft: Bool = (alx == 7 || alx == 8) && aly > 5 && aly < 13
+                        let off: Float = abs(Float(ax) + 0.5 - fn / 2)
+                        let halfW: Float = Float(aly - 1) * Float(u) * 1.25
+                        let head: Bool = aly >= 2 && aly <= 5 && off < halfW
+                        let ddx: Float = (Float(ax) + 0.5 - fn / 2) / Float(u), ddy: Float = (Float(ay) + 0.5) / Float(u) - 13.5
+                        let dot: Bool = ddx * ddx + ddy * ddy < 2.6
+                        if dot { put(&img, x, y, col(0x2A6A8A) * fk) } else if shaft || head { put(&img, x, y, col(0xC0301C) * fk) }
                     }
                 } }
                 return img
@@ -6043,6 +6055,8 @@ enum HDTex {
         "observer_back_on": sparkFace("observer_back_on"),
         "observer_side": sparkFace("observer_side"),
         "observer_top": sparkFace("observer_top"),
+        "observer_arrow_up": sparkFace("observer_arrow_up"), "observer_arrow_down": sparkFace("observer_arrow_down"),
+        "observer_arrow_left": sparkFace("observer_arrow_left"), "observer_arrow_right": sparkFace("observer_arrow_right"),
         "dispenser_front": sparkFace("dispenser_front"),
         "dispenser_front_vertical": sparkFace("dispenser_front_vertical"),
         "dropper_front": sparkFace("dropper_front"),

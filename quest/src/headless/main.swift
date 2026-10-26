@@ -423,6 +423,16 @@ if let out = arg("--view"), let ctx = vkctx {
         let sk = AshWrecks.skinMobs
         print("view: Salvaged Fighter at \(Int(fp.pos.x)) \(Int(fp.pos.y)) \(Int(fp.pos.z)), \(fp.blockCount) blocks, skin \(sk.count) (\(sk.first.map { String(format: "%.1f %.1f %.1f", $0.pos.x, $0.pos.y, $0.pos.z) } ?? "-")), hidden \(fp.hidden)")
     }
+    // --put "KEY@DX,DY,DZ;...": blocks set round the eye's cell before the frame (block looks, e.g. P463's observers).
+    if let put = arg("--put") {
+        let e = vg.player.pos
+        for item in put.split(separator: ";") {
+            let kv = item.split(separator: "@")
+            let o = kv.count == 2 ? kv[1].split(separator: ",").compactMap { Int($0) } : []
+            guard o.count == 3, Blocks.has(String(kv[0])) else { print("view: --put: bad \(item)"); continue }
+            vw.setBlock(Int(floor(e.x)) + o[0], Int(floor(e.y)) + o[1], Int(floor(e.z)) + o[2], Blocks.id(String(kv[0])))
+        }
+    }
     // --sidecarskin [DEG]: an Ashguard Sidecar (P461) on the ground 6 blocks ahead, turned DEG from facing the eye (90:
     // side-on, its left showing); BS_FIGHTERBLOCKS=1 draws its blocks instead of the motorcycle model.
     if CommandLine.arguments.contains("--sidecarskin") {

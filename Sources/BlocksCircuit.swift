@@ -22,6 +22,15 @@ extension BlockRegistry {
     // Face index (+X -X +Y -Y +Z -Z) of a dir6.
     static func faceOf(_ d: Int) -> Int { [3, 2, 5, 4, 1, 0][d] }
 
+    // Which way a world direction points on a face's texture (Mesher.faceUV: u right, v down): up/down/left/right.
+    static func arrowWay(face f: Int, _ w: IVec3) -> String {
+        let ug: IVec3 = [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(1, 0, 0), IVec3(1, 0, 0), IVec3(1, 0, 0), IVec3(-1, 0, 0)][f]
+        let vg: IVec3 = [IVec3(0, -1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0), IVec3(0, -1, 0)][f]
+        let du = w.x * ug.x + w.y * ug.y + w.z * ug.z, dv = w.x * vg.x + w.y * vg.y + w.z * vg.z
+        if du != 0 { return du > 0 ? "right" : "left" }
+        return dv > 0 ? "down" : "up"
+    }
+
     // A 6-way facing cube: `front` on the facing side, `back` opposite, `side` elsewhere (tops use `side` too).
     static func facedTex(_ d: Int, front: String, back: String, side: String, top: String? = nil) -> [String] {
         var t = [String](repeating: side, count: 6)
@@ -182,6 +191,12 @@ extension BlockRegistry {
             let k = dd + (powered ? 6 : 0)
             var d = state(k == 0 ? "observer" : "observer[\(k)]", "observer", "Observer", k == 0)
             d.tex = BlockRegistry.facedTex(dd, front: "observer_front", back: powered ? "observer_back_on" : "observer_back", side: "observer_side", top: "observer_top")
+            // P463 (Oct 25 16:08, "the arrows on the observers are very confusing"): every face between the lens and the
+            // output shows an arrow the way the signal goes (the one top arrow pointed the same way whatever the facing).
+            let out = BlockRegistry.dir6[[1, 0, 3, 2, 5, 4][dd]]
+            for f in 0..<6 where d.tex[f] != "observer_front" && !d.tex[f].hasPrefix("observer_back") {
+                d.tex[f] = "observer_arrow_" + BlockRegistry.arrowWay(face: f, out)
+            }
             d.hardness = 3; d.tool = .pickaxe; d.requiresTool = true; d.shape = "observer"
             add(d)
         } }

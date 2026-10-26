@@ -84,6 +84,16 @@ extension TextureGen {
             return hex(0x4A4A4C, 0.85 + 0.2 * r(x, y, 711))
         }
         p["observer_top"] = { x, y in (x == 7 || x == 8) && y > 3 ? hex(0x9A2A1A) : hex(0x5A5A5A, 0.85 + 0.2 * r(x, y, 712)) }
+        // P463: the signal's way, lens to output, on the faces between them (TexturesHD has the full look).
+        for (way, name) in ["up", "down", "left", "right"].enumerated() {
+            p["observer_arrow_" + name] = { x, y in
+                let ax = way == 0 ? x : way == 1 ? 15 - x : way == 2 ? y : 15 - y
+                let ay = way == 0 ? y : way == 1 ? 15 - y : way == 2 ? x : 15 - x
+                let off = abs(Float(ax) - 7.5)
+                if (ax == 7 || ax == 8) && ay > 5 && ay < 13 || ay >= 2 && ay <= 5 && off < Float(ay - 1) * 1.25 { return hex(0xC0301C) }
+                return hex(0xA2B2BC, 0.9 + 0.12 * r(x, y, 712))
+            }
+        }
         let planksC: UInt32 = 0xA2824E
         p["piston_top"] = { x, y in
             if x < 2 || x > 13 || y < 2 || y > 13 { return hex(0x8A8A8A, 0.9 + 0.1 * r(x, y, 713)) }
