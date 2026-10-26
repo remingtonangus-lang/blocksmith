@@ -62,6 +62,11 @@ final class QuestControls {
     private var offTracked = false
     private var offRelAvg = V3(0, -0.8, 0)      // R1: the off hand against the head, smoothed over ~0.5 s
     private var wellCued = false
+    // P466 (the body under the view): its parts for what he wears (rebuilt when that changes) and the way it faces.
+    private var bodyParts: [Part] = []
+    private var bodyKey = -1
+    private var bodyYaw: Float = 0
+    private var bodyClock: Double = 0
     private var laserFade: Float = 1            // R12: the laser fades out during a swing
     private var braceRot: simd_quatf?          // R6: the braced rifle's world rotation (barrel between the hands)
     private var hintShown: String?
@@ -564,13 +569,14 @@ final class QuestControls {
             case .inserted:
                 app.input.haptic(moveHand, amplitude: 1, seconds: 0.09, frequency: 120)
                 app.input.haptic(aimHand, amplitude: 1, seconds: 0.09, frequency: 120)
+            case .full: app.input.haptic(moveHand, amplitude: 0.15, seconds: 0.02, frequency: 80)
             default: break
             }
             // Only a grip that took or slotted a magazine (P74, Oct 12 playtest: a hand resting at the side is "at the
             // hip", so with a gun out and a full magazine every left grip was refused and the hotbar never stepped).
             // P162 (Oct 13: "while reloading, the left grip can't step the hotbar"): only the press that took or seated a
             // magazine is the reload's; holding one no longer swallows the next press (that press puts it back and steps).
-            magGrip = ev == .grabbed || ev == .inserted || ev == .kept
+            magGrip = ev == .grabbed || ev == .inserted || ev == .kept || ev == .full      // P465: a full gun at the hip too
             // R7: a magazine in hand near the well ticks the off hand once (the snap is close).
             if game.arms.magInHand, let w = drawnWell() {
                 let close = simd_length(rig.toWorld(L.gripPos) - w) < VRReload.wellSnap + 0.12
@@ -1608,6 +1614,7 @@ final class QuestControls {
                 }
             }
         }
+        appendBody(&v, eye: eye)
         if let off = app.scene.push(s, v, priority: true) {
             app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count)
             let st = MemoryLayout<SimpleVert>.stride
@@ -1645,6 +1652,66 @@ final class QuestControls {
                 QuestControls.quad(&lv, c - r - u, c + r - u, c + r + u, c - r + u, V4(c0.x, c0.y, c0.z, 0.9))
             }
             if let off = app.scene.push(s, lv, priority: true) { app.scene.drawScratch(s, "simple", offset: off, count: lv.count) }
+        }
+    }
+
+    // P466 (Oct 25 19:45, looking down: "the way I look in person needs to reflect the armor I have on. Currently it just
+    // looks gray and like my appearance doesn't at all reflect the picture of the armor in the inventory"): his body under
+    // the view, the inventory figure's own (playerParts: tunic, trousers, boots and every worn piece as its shell, in the
+    // piece's colours), without the head and arms (the tracked hands are the arms). It hangs from the head: the neck a
+    // little under and behind the eyes, the feet on the ground (shorter when he sits), facing the way he last faced
+    // (it turns after the head once the head is well round, or as he walks); the legs walk. Not on a seat or at controls.
+    private func appendBody(_ v: inout [SimpleVert], eye: V3) {
+        let g = game, p = g.player
+        guard g.alive, g.sleeping == 0, g.riding == nil, g.world.ships.pilot == nil, Turrets.shared.manned == nil, !p.prone,
+              !g.handsOnControls else { return }
+        var h = Hasher()
+        for s in g.inventory.armor.slots { h.combine(s.item); h.combine(s.damage * 4 / max(1, s.def.durability)); h.combine(s.ench); h.combine(s.pat?.first ?? 0) }
+        h.combine(g.coop.current)
+        let key = h.finalize()
+        if key != bodyKey || bodyParts.isEmpty {
+            bodyKey = key
+            let neck = V3(0, 24, 0)
+            bodyParts = playerParts(g, pitch: 0, walk: 0, hit: 0, posed: false).filter { pt in
+                pt.pivot != neck && !(pt.pivot.y == 22 && abs(pt.pivot.x) == 6)
+            }
+        }
+        // The way the body faces: after the head when it is well round or he is moving.
+        let dt = Float(min(0.1, max(0, g.clock - bodyClock)))
+        bodyClock = g.clock
+        var d = p.yaw - bodyYaw
+        while d > .pi { d -= 2 * .pi }
+        while d < -.pi { d += 2 * .pi }
+        if abs(d) > 0.75 || g.walkAmount > 0.2 { bodyYaw += d * min(1, dt * 5) } else if abs(d) > 2.5 { bodyYaw = p.yaw }
+        let cy = cosf(bodyYaw), sy = sinf(bodyYaw)
+        let head = app.rig.headWorld
+        let feet = p.pos.y
+        let px: Float = 0.9375 / 16
+        let neckY: Float = 24 * px
+        let k: Float = max(0.5, min(1.15, (head.y - 0.22 - feet) / neckY))          // vertical: the neck under the eyes
+        let back: Float = 0.17                                                       // the neck behind the eyes
+        let base = V3(head.x + sy * back, feet, head.z + cy * back) - eye
+        let walk = sinf(g.walkBob) * 0.8 * g.walkAmount
+        let l = g.world.lightAt(Int(floorf(p.pos.x)), Int(floorf(p.pos.y + 1)), Int(floorf(p.pos.z)))
+        let skyK: Float = 0.12 + 0.88 * g.renderDaylight
+        var bright = max(0.08, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), g.nightVision * 0.9)
+        bright += (1 - bright) * g.world.dim.ambient
+        let CT = Mesher.cornerTable
+        let shades = QuestControls.faceShades
+        for var part in bodyParts {
+            if part.pivot.y == 12 && abs(part.pivot.x) == 2 { part.rotX = part.pivot.x < 0 ? walk : -walk }
+            let rot = part.rotation
+            let size = part.mx - part.mn
+            for f in 0..<6 {
+                let col = V4(part.color * (shades[f] * bright), 1)
+                for kq in QuestControls.quadOrder {
+                    let ci = (f * 4 + kq) * 3
+                    let lp = part.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
+                    let q0 = part.place(lp, rot)
+                    let q = V3(q0.x * px, q0.y * px * k, q0.z * px)
+                    v.append(SimpleVert(pos: V4(V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base, 1), color: col))
+                }
+            }
         }
     }
 

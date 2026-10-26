@@ -103,6 +103,19 @@ enum Explosion {
                 rw.push(r.id, at: at, impulse: (dir * (power * 3) + V3(0, power, 0)) * (1 - dl / reach))
             }
         }
+        // P465: bodies with no ragdoll (an Ash Vault fallen one, a body lying flat) are thrown as well.
+        AshFallen.blast(g, at: c, power: power)
+        if !g.mobs.corpses.isEmpty {
+            let reach = power * 2.5
+            for d in g.mobs.corpses where d.ragdoll == nil && !d.carcass && !HandGrab.holds(d) {
+                let away = d.pos + V3(0, 0.3, 0) - c, dl = simd_length(away)
+                guard dl < reach else { continue }
+                let k = 1 - dl / reach
+                let dir = dl > 1e-3 ? away / dl : V3(0, 1, 0)
+                d.vel += V3(dir.x, 0, dir.z) * (power * 2.2 * k) + V3(0, 3 + power * 1.6 * k, 0)
+                d.onGround = false
+            }
+        }
         // Realistic world: the blocks it breaks split on the spot and fly out as pieces (the nearest ones, within the
         // debris budget: 16 blocks of 4 pieces), and pieces already lying round fly again.
         if World.realistic && !destroyed.isEmpty {
@@ -175,11 +188,16 @@ enum Explosion {
 
         // Entities.
         let radius = power * 2
+        // P465 (Oct 25 19:50, "That grenade should have hurt me"): a grenade at rest on the drawn ground lies inside the
+        // cell the field counts as ground whenever the surface is in that cell's upper half, so every line from it
+        // started blocked and nothing beside it was hurt. Its lines of sight start from the open cell above.
+        var from = c
+        for _ in 0..<2 where w.groundAt(Int(floorf(from.x)), Int(floorf(from.y)), Int(floorf(from.z))) { from.y = floorf(from.y) + 1.05 }
         func impact(_ p: V3, _ height: Float) -> (Float, V3)? {
             let center = p + V3(0, height * 0.5, 0)
             let d = simd_length(center - c)
             if d > radius { return nil }
-            let exposure: Float = w.canSee(c, center) ? 1 : (w.canSee(c, p + V3(0, height, 0)) ? 0.5 : 0)
+            let exposure: Float = w.canSee(from, center) ? 1 : (w.canSee(from, p + V3(0, height, 0)) ? 0.5 : 0)
             let k = (1 - d / radius) * exposure
             let dir = d > 0.01 ? (center - c) / d : V3(0, 1, 0)
             return (k, dir)

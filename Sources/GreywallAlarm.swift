@@ -641,11 +641,13 @@ extension Game {
                         addFlash(at: muzzle, color: V3(4, 0.4, 0.3), radius: 3, life: wind)
                     }
                     gs.windup += dt
-                    if gs.windup >= wind { gs.windup = 0; gs.shots = GreywallAlarmState.turretBurst; gs.gap = 0 }
+                    if gs.windup >= wind { gs.windup = 0; gs.shots = damaged ? 1 : GreywallAlarmState.turretBurst; gs.gap = 0 }   // (P465)
                 } else {
                     gs.windup = max(0, gs.windup - dt * 2)
                 }
                 if damaged && Rand.float(in: 0..<1) < dt * 2 {
+                    particles.add(Particle(pos: centre + V3(0, 0.5, 0), vel: V3(0, 0.8, 0), life: 1.6, maxLife: 1.6, layer: Int(Tex.id("smoke")), uv0: V2(0, 0),
+                                           uvSize: 1, size: 0.3, gravity: -0.2, color: V3(0.18, 0.18, 0.18), collide: false))
                     particles.add(Particle(pos: centre + V3(0, 0.3, 0), vel: V3(Rand.float(in: -1...1), 2, Rand.float(in: -1...1)), life: 0.25, maxLife: 0.25,
                                            layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.05, gravity: 6, color: V3(2.4, 1.6, 0.5), collide: false, glow: true))
                 }
@@ -671,8 +673,19 @@ extension Game {
                 let healthy = id >= gun && id < gun + 4
                 let f = id - (healthy ? gun : hurt)
                 world.setBlock(b.x, b.y, b.z, (healthy ? hurt : wreck) + f)
-                particles.explosion(at: V3(Float(b.x) + 0.5, Float(b.y) + 0.6, Float(b.z) + 0.5), power: healthy ? 0.6 : 1.2)
-                sfx(.explode, healthy ? 0.4 : 0.8, at: at)
+                // P465 (Oct 25 19:49, "Guns when destroyed still fire it seems"): the first six hits blew the turret up
+                // with a bang and it kept shooting. Damaged, it now sparks and smokes (and fires single shots, slower);
+                // only the wreck goes up.
+                if healthy {
+                    for _ in 0..<14 {
+                        particles.add(Particle(pos: at, vel: V3(Rand.float(in: -2...2), Rand.float(in: 1...4), Rand.float(in: -2...2)), life: 0.4, maxLife: 0.4,
+                                               layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.05, gravity: 9, color: V3(2.8, 1.9, 0.6), collide: false, glow: true))
+                    }
+                    sfx(.bulletImpact(.metal), 1.0, at: at)
+                } else {
+                    particles.explosion(at: V3(Float(b.x) + 0.5, Float(b.y) + 0.6, Float(b.z) + 0.5), power: 1.2)
+                    sfx(.explode, 0.8, at: at)
+                }
             }
             st.guns[b] = gs
             return true
