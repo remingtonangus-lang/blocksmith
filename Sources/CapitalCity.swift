@@ -257,7 +257,7 @@ enum CapitalCity {
                 let a = alongZ ? (u < street ? u : u - lot) : (v < street ? v : v - lot)
                 let along = alongZ ? z : x
                 if a == 0 && mod(along, 12) == 6 {
-                    let f = base + (half ? 2 : 1)
+                    let f = base + 1                                  // (P462: on a half step it replaces the slab)
                     for y in f..<(f + 3) { w.set(x, y, z, white) }
                     w.set(x, f + 3, z, light)
                 }
@@ -268,7 +268,10 @@ enum CapitalCity {
             let roofY = base + 5
             let pillar = (a == 0 || a == street - 1) && mod(along, 5) == 0
             if pillar {
-                for y in (base + (half ? 2 : 1))...(base + (half ? 5 : 4)) { w.set(x, y, z, white) }
+                // P462 (Oct 25 16:33, his Capital City: "The pillars are still floating"): on a half step the column
+                // stood on the paving slab's top cell, half a block over the slab; it now replaces the slab and stands
+                // on the paving under it.
+                for y in (base + 1)...(base + (half ? 5 : 4)) { w.set(x, y, z, white) }
                 if !half { w.set(x, roofY, z, roofSlab) }
             } else {
                 w.set(x, roofY, z, half ? roofTop : roofSlab)
