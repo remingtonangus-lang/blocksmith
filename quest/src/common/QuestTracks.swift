@@ -47,6 +47,7 @@ final class QuestTrackDeck: TrackDeck {
     }
 
     var available: Bool { QuestTrackDeck.open != nil && !QuestTrackDeck.names.isEmpty }
+    var names: Set<String> { QuestTrackDeck.names }
 
     var current: String? {
         lock.lock(); defer { lock.unlock() }

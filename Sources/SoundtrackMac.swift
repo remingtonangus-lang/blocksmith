@@ -27,14 +27,16 @@ final class MacTrackDeck: TrackDeck {
         }
         let fm = FileManager.default
         for dir in Soundtrack.folders() {
-            for n in Soundtrack.tracks where files[n] == nil {
-                let u = URL(fileURLWithPath: dir + "/" + n + ".m4a")
-                if fm.fileExists(atPath: u.path) { files[n] = u }
+            // Every track there: each state's own and its takes (P457).
+            for f in (try? fm.contentsOfDirectory(atPath: dir)) ?? [] where f.hasSuffix(".m4a") {
+                let n = String(f.dropLast(4))
+                if files[n] == nil { files[n] = URL(fileURLWithPath: dir + "/" + f) }
             }
         }
     }
 
     var available: Bool { !files.isEmpty }
+    var names: Set<String> { Set(files.keys) }
 
     var current: String? {
         for d in decks where d.target > 0 && !d.ended { return d.name }
