@@ -764,14 +764,19 @@ private func orderParts(_ m: Mob, swing: Float) -> [Part] {
     let s = m.hell?.s ?? .idle
     // P246: the Gravesworn (surface night duellists) wear the same cut of plate, tarnished grey-green with old brass,
     // a moss-dark tabard, a torn grave cloak and a cold blue light in the visor.
+    // P460 (Oct 25 16:28, "the guys that spawn at night with swords, with the yellow shit, they should look like zombified
+    // or something 'cause they look too official"): dead men now: the plate rusted brown and missing pieces (the left
+    // pauldron gone, the helm broken open), no brass or tabard stripe, the rotten grey-green face showing (dark sockets
+    // with a pinpoint of cold light, a bare jaw of teeth), the shield arm a bare rotten arm, and they stoop.
     let grave = m.kind == .spider || m.kind == .caveSpider
+    let skin = V3(0.33, 0.42, 0.3), bone = V3(0.68, 0.64, 0.52), hollow = V3(0.03, 0.03, 0.025)
     // P341 (a): the order's plate is a true deep burgundy (wine red, glossy enamel over steel; it read brown before).
-    let plate = grave ? V3(0.33, 0.36, 0.33) : V3(0.5, 0.02, 0.11)
-    let dark = grave ? V3(0.1, 0.14, 0.11) : V3(0.26, 0.01, 0.06)
+    let plate = grave ? V3(0.27, 0.24, 0.2) : V3(0.5, 0.02, 0.11)
+    let dark = grave ? V3(0.09, 0.08, 0.07) : V3(0.26, 0.01, 0.06)
     let pp: Float = grave ? 8 : 7
     let style = m.orderStyle, side = m.hell?.side ?? 1, low = m.strikeLow
-    let mail = grave ? V3(0.16, 0.16, 0.15) : V3(0.12, 0.1, 0.11)
-    let trim = grave ? V3(0.5, 0.44, 0.3) : (rank >= 2 ? V3(0.85, 0.66, 0.22) : V3(0.45, 0.42, 0.44))
+    let mail = grave ? V3(0.14, 0.13, 0.11) : V3(0.12, 0.1, 0.11)
+    let trim = grave ? V3(0.33, 0.17, 0.08) : (rank >= 2 ? V3(0.85, 0.66, 0.22) : V3(0.45, 0.42, 0.44))     // (grave: rust)
     let visor = grave ? V3(0.5, 1.3, 2.3) : V3(2.2, 0.7, 0.2)
     let steel = V3(0.72, 0.72, 0.76)
     let legSwing = s == .charge ? swing * 1.6 : swing
@@ -782,26 +787,41 @@ private func orderParts(_ m: Mob, swing: Float) -> [Part] {
         Part(mn: V3(0.2, 5, -2.3), mx: V3(4.3, 7, 2.3), pivot: V3(2, 12, 0), rotX: -legSwing, color: trim, pattern: 8),
     ]
     // Body: leaning in on a charge, rocked back when staggered.
-    let lean: Float = s == .charge || s == .aim ? 0.35 : (s == .stagger || s == .dazed ? -0.25 : 0)
+    let lean: Float = (s == .charge || s == .aim ? 0.35 : (s == .stagger || s == .dazed ? -0.25 : 0)) + (grave ? 0.18 : 0)
     let body = V3(0, 12, 0)
     p.append(Part(mn: V3(-4, 12, -2), mx: V3(4, 24, 2), pivot: body, rotX: lean, color: plate, pattern: pp))
     p.append(Part(mn: V3(-3, 12.5, -2.4), mx: V3(3, 22, -2), pivot: body, rotX: lean, color: dark, pattern: 6))      // tabard
-    p.append(Part(mn: V3(-0.6, 13, -2.6), mx: V3(0.6, 21.5, -2.3), pivot: body, rotX: lean, color: trim))            // its stripe
+    if !grave { p.append(Part(mn: V3(-0.6, 13, -2.6), mx: V3(0.6, 21.5, -2.3), pivot: body, rotX: lean, color: trim)) }   // its stripe
     p.append(Part(mn: V3(-4.2, 12, -2.2), mx: V3(4.2, 13.2, 2.2), pivot: body, rotX: lean, color: mail))              // belt
-    p.append(Part(mn: V3(-5, 21.5, -2.5), mx: V3(-3, 24.5, 2.5), pivot: body, rotX: lean, color: plate * 1.15, pattern: pp))   // pauldrons
+    p.append(Part(mn: V3(-5, 21.5, -2.5), mx: V3(-3, 24.5, 2.5), pivot: body, rotX: lean, color: grave ? skin : plate * 1.15, pattern: grave ? 4 : pp))   // pauldrons
     p.append(Part(mn: V3(3, 21.5, -2.5), mx: V3(5, 24.5, 2.5), pivot: body, rotX: lean, color: plate * 1.15, pattern: pp))
-    // Helm with the glowing slit, a plume for knights and up, a crown of spikes for the Commander.
-    p.append(Part(mn: V3(-4, 24, -4), mx: V3(4, 32, 4), pivot: body, rotX: lean, color: dark, pattern: pp))
-    p.append(Part(mn: V3(-3, 27.6, -4.3), mx: V3(3, 28.6, -3.9), pivot: body, rotX: lean, color: visor, pattern: 9))
-    p.append(Part(mn: V3(-0.5, 24.5, -4.4), mx: V3(0.5, 27.4, -3.9), pivot: body, rotX: lean, color: trim))
     if grave {
-        // The torn cloak down the back (ragged hem at three lengths) and a rust bloom on the helm.
+        // The rotten head in a broken helm: the cap, the back and one cheek guard left; sockets, a nose hole, teeth.
+        p.append(Part(mn: V3(-3.6, 24, -3.6), mx: V3(3.6, 31.2, 3.6), pivot: body, rotX: lean, color: skin, pattern: 4))
+        p.append(Part(mn: V3(-4, 29.6, -4), mx: V3(4, 32, 4), pivot: body, rotX: lean, color: plate, pattern: pp))
+        p.append(Part(mn: V3(-4, 24, 0.5), mx: V3(4, 29.6, 4), pivot: body, rotX: lean, color: plate, pattern: pp))
+        p.append(Part(mn: V3(-4, 24.5, -4), mx: V3(-3.2, 29.6, 0.5), pivot: body, rotX: lean, color: plate, pattern: pp))
+        for x: Float in [-2.8, 0.9] {
+            p.append(Part(mn: V3(x, 27.3, -3.75), mx: V3(x + 1.9, 28.9, -3.55), pivot: body, rotX: lean, color: hollow))
+            p.append(Part(mn: V3(x + 0.6, 27.8, -3.8), mx: V3(x + 1.2, 28.4, -3.7), pivot: body, rotX: lean, color: visor * 0.55, pattern: 9))
+        }
+        p.append(Part(mn: V3(-0.5, 26.5, -3.75), mx: V3(0.5, 27.2, -3.6), pivot: body, rotX: lean, color: hollow))
+        p.append(Part(mn: V3(-2.2, 25.6, -3.75), mx: V3(2.2, 26.3, -3.6), pivot: body, rotX: lean, color: hollow))
+        p.append(Part(mn: V3(-2.2, 24.5, -3.8), mx: V3(2.2, 25.6, -3.55), pivot: body, rotX: lean, color: bone, pattern: 8))
+    } else {
+        // Helm with the glowing slit, a plume for knights and up, a crown of spikes for the Commander.
+        p.append(Part(mn: V3(-4, 24, -4), mx: V3(4, 32, 4), pivot: body, rotX: lean, color: dark, pattern: pp))
+        p.append(Part(mn: V3(-3, 27.6, -4.3), mx: V3(3, 28.6, -3.9), pivot: body, rotX: lean, color: visor, pattern: 9))
+        p.append(Part(mn: V3(-0.5, 24.5, -4.4), mx: V3(0.5, 27.4, -3.9), pivot: body, rotX: lean, color: trim))
+    }
+    if grave {
+        // The torn cloak down the back (ragged hem at three lengths) and a rust bloom on the helm's cap.
         let cloak = V3(0.07, 0.08, 0.07)
         p.append(Part(mn: V3(-4.4, 6, 2.1), mx: V3(4.4, 24.5, 2.8), pivot: body, rotX: lean, color: cloak, pattern: 6))
         p.append(Part(mn: V3(-4.4, 3, 2.15), mx: V3(-1.6, 6, 2.75), pivot: body, rotX: lean, color: cloak, pattern: 6))
         p.append(Part(mn: V3(1.2, 4.5, 2.15), mx: V3(3.6, 6, 2.75), pivot: body, rotX: lean, color: cloak, pattern: 6))
         p.append(Part(mn: V3(-4.6, 23.5, -2.6), mx: V3(4.6, 25, 3), pivot: body, rotX: lean, color: cloak, pattern: 6))      // the hood fold
-        p.append(Part(mn: V3(1.5, 29, -4.15), mx: V3(3.6, 31.2, -3.95), pivot: body, rotX: lean, color: V3(0.42, 0.22, 0.1), pattern: 4))
+        p.append(Part(mn: V3(1, 30, -4.15), mx: V3(3.4, 31.6, -3.95), pivot: body, rotX: lean, color: V3(0.42, 0.22, 0.1), pattern: 4))
         if rank >= 1 { p.append(Part(mn: V3(-0.6, 32, -3), mx: V3(0.6, 33.5, 3.5), pivot: body, rotX: lean, color: trim * 0.8, pattern: 8)) }   // crest ridge
     } else if rank >= 1 && rank < 3 { p.append(Part(mn: V3(-0.8, 32, -2), mx: V3(0.8, 35, 4), pivot: body, rotX: lean, color: V3(0.6, 0.06, 0.08), pattern: 2)) }
     if rank == 2 && !grave {
@@ -868,13 +888,13 @@ private func orderParts(_ m: Mob, swing: Float) -> [Part] {
     let lp = V3(-6, 22, 0)
     if up {
         let armL: Float = 1.3
-        p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp, rotX: armL, color: plate, pattern: pp))
+        p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp, rotX: armL, color: grave ? skin : plate, pattern: grave ? 4 : pp))
         p.append(Part(mn: V3(-6 - shieldW, 9.6, -shieldW * 1.2), mx: V3(-6 + shieldW, 10.8, shieldW * 1.2), pivot: lp, rotX: armL, color: face, pattern: 7))
         p.append(Part(mn: V3(-6.8, 9.3, -shieldW * 1.1), mx: V3(-5.2, 9.7, shieldW * 1.1), pivot: lp, rotX: armL, color: trim))      // boss stripe
         p.append(Part(mn: V3(-6 - shieldW * 0.9, 9.3, -0.8), mx: V3(-6 + shieldW * 0.9, 9.7, 0.8), pivot: lp, rotX: armL, color: trim))
     } else {
         let armL: Float = s == .windup ? 0.6 : 0.1
-        p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp, rotX: armL, rotZ: s == .windup ? -0.5 : 0, color: plate, pattern: pp))
+        p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp, rotX: armL, rotZ: s == .windup ? -0.5 : 0, color: grave ? skin : plate, pattern: grave ? 4 : pp))
         p.append(Part(mn: V3(-9.6, 22 - shieldW * 2.2, -shieldW), mx: V3(-8.4, 22, shieldW), pivot: lp, rotX: armL, rotZ: s == .windup ? -0.5 : 0,
                       color: face, pattern: 7))
     }
