@@ -1445,6 +1445,10 @@ if CommandLine.arguments.contains("--gunparts-only") {          // P372: emplace
     GunPartsCheck.run(game, check)
     print(failures == 0 ? "gunparts: all checks passed" : "gunparts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
+    ShellThroughCheck.run(game, check)
+    print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--frigatecheck") {
     FrigateCheck.run(game, check)
     print(failures == 0 ? "frigate: all checks passed" : "frigate: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
