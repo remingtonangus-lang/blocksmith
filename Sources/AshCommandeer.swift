@@ -70,6 +70,29 @@ extension Game {
         return true
     }
 
+    // P464 (Oct 25 19:33, "should be able to run people over with it"): the vehicle he drives runs down whoever stands
+    // in front of it (behind, backing up) at more than a walking pace: a blow growing with the speed (a truck at full
+    // throttle kills a soldier outright; a tank kills anything on foot) and a shove off to the side. Other vehicles and
+    // big beasts it only nudges.
+    func ashRunOver(_ v: Mob, _ speed: Float) {
+        guard abs(speed) > 2.5 else { return }
+        let dir = v.forward * (speed > 0 ? 1 : -1), side = V3(-dir.z, 0, dir.x)
+        let reach: Float = (v.kind == .ashBehemoth ? 4.4 : (v.kind == .ashTank ? 3.4 : 3.0)) + 0.6
+        let heavy = v.kind == .ashTank || v.kind == .ashBehemoth
+        for m in mobs.mobs where m !== v && m.health > 0 && !m.kind.ashVehicle && m.kind != .deckGun && m.spec.halfW < 1 {
+            let d = m.pos - v.pos
+            let along = simd_dot(d, dir), across = simd_dot(d, side)
+            guard along > 0, along < reach, abs(across) < v.halfW + m.spec.halfW + 0.1, abs(d.y) < 2.5 else { continue }
+            if clock - m.playerHurtAt < 0.6 { continue }                       // (once per pass)
+            let dmg = Int((abs(speed) * (heavy ? 5 : 2.4)).rounded())
+            m.killedByPlayer = true; m.playerHurtAt = clock
+            m.hit(from: v.pos - dir, damage: dmg, knockback: 1.6)
+            m.vel += side * (across < 0 ? -1 : 1) * min(8, abs(speed)) + V3(0, 3, 0)
+            sfx(.shipCollide, min(1.5, abs(speed) / 8), at: m.pos)
+            AshSeat.ranOver += 1
+        }
+    }
+
     func ashguardNear(_ p: V3, _ r: Float, except: Mob) -> Bool {
         mobs.mobs.contains { $0 !== except && $0.health > 0 && $0.faction == Faction.ashguard.rawValue && !$0.kind.ashVehicle
             && simd_length_squared($0.pos - p) < r * r }
@@ -193,7 +216,7 @@ final class AshSeat {
         }
     }
     private var jumpWas = false
-    static var entered = 0, shots = 0, ploughed = 0, tracked = 0   // (counters)
+    static var entered = 0, shots = 0, ploughed = 0, tracked = 0, ranOver = 0   // (counters)
 
     // The seat on the vehicle, in its own frame (blocks: x to the right, y up from its feet, z toward the back).
     func seatOffset(_ m: Mob) -> V3 {

@@ -295,6 +295,7 @@ final class Mob {
     var boatWear: Float = 0         // boats: wear toward the next lost health point (Boats.updateBoat)
     var scale: Float = 1            // babies 0.5
     var walkPhase: Float = 0
+    var wheelRoll: Float = 0         // P464: an Ashguard vehicle's wheels, radians (AshUnits.ashRolls)
     var walkAmount: Float = 0
     // Animation layers over every model (MobAnim.swift): the head turned toward what it watches, a lunge on each
     // attack, breathing at rest, the fall when it dies.
