@@ -730,6 +730,7 @@ final class BlockRegistry {
         registerDeepGateBlocks()
         registerHellGateBlocks()
         registerGreywallBlocks()
+        registerDepotBlocks()                       // P469 (Depots.swift)
         registerHellLandBlocks()                    // P292: the Sulfur Flats' crust (HellLands.swift)
         registerSeats()                             // P370 (b): chairs, benches, stools (Seats.swift)
         // Building families: stairs, slabs, fences, walls for each material.
