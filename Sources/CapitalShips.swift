@@ -122,7 +122,11 @@ final class CapitalState {
     var troopsLeft = 0
     var rocketeer = false                               // P215: a raid's last trooper carries a rocket launcher
     var fuel: Float = CapitalState.dropFuel            // a commandeered drop craft: seconds of thrust left (P66)
-    static let dropFuel: Float = 240
+    // P461 (Oct 25 16:40-16:44, "maybe 15 minutes of driving before... it needs to refuel", "the fuel should last
+    // longer"): a full tank flies 15 minutes (was 4), and coal and the rest go three times as far.
+    static let dropFuel: Float = 900
+    var lightCells: [V3]?                               // P461: the craft's white light panels (overdrive glow)
+    var crushT: Float = 0                               // P461: time to the next sweep for what the hull runs into
     var fuelTold = 0
 }
 
@@ -583,6 +587,25 @@ enum Capital {
 
     // A 19-block troop carrier: a boxy fuselage with an open troop bay and rear ramp, a glazed cockpit nose, stub
     // wings with engine pods glowing aft, a tail fin and an autocannon on its back.
+    // P461: what a flown craft breaks through (Ship crush) and lands through: leaves, plants, logs, wood, wool, glass,
+    // snow; not ground, stone, metal or ore.
+    static func crushable(_ b: BlockID) -> Bool {
+        guard !Blocks.isLiquid(b), Blocks.hardness[Int(b)] >= 0 else { return false }
+        switch Blocks.def(b).sound {
+        case .leaves, .wood, .wool, .glass: return Blocks.hardness[Int(b)] < 3.5
+        case .plant, .grass, .snow: return !Blocks.opaque[Int(b)]          // plants and snow layers, not the grass block
+        default: return false
+        }
+    }
+    // The highest block in the column that a landing craft rests on (the top block, under any crown of leaves, trunk
+    // or plants it would crush on the way down).
+    static func firmTop(_ w: World, _ x: Int, _ z: Int) -> Int {
+        var y = w.topY(x, z)
+        var k = 0
+        while y > 1 && k < 48 && (w.block(x, y, z) == AIR || crushable(w.block(x, y, z))) && !w.groundAt(x, y, z) { y -= 1; k += 1 }
+        return y
+    }
+
     static func dropship() -> HullBuilder {
         let W = 6
         let hb = HullBuilder(sx: 2 * W + 1, sy: 8, sz: 20, ox: W)
@@ -1367,13 +1390,22 @@ extension ShipManager {
             let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
             let fwd = V3(fh.x, 0, fh.y), right = V3(-fh.y, 0, fh.x)
             let thr: Float = steered ? s.throttle : 0, side: Float = steered ? s.strafe : 0, turn: Float = steered ? s.steer : 0
-            var want = fwd * (thr * (thr > 0 ? 28 : 12)) + right * (side * 14)
+            // P461 (Oct 25 16:40-16:41, "make the thing go faster when you sprint with it", "the white things on it, make
+            // them light up blue when it's in overdrive"): sprint at the helm drives it 1.8 times as fast (burning fuel
+            // twice as quickly) and its light panels glow blue.
+            let over = steered && s.boost && thr > 0.3
+            var want = fwd * (thr * (thr > 0 ? (over ? 50 : 28) : 12)) + right * (side * 14)
             want.y = steered ? s.climb * 9 : 0
             if steered && !dropFuel(s, st, dt, g) { want = V3(0, -2.5, 0) }       // dry tanks: it settles to the ground
-            // Never into the ground: the keel keeps 2 blocks over the top block under the hull's centre.
+            // P461 (16:42, "after landing it's somehow floating into midair instead of falling"): left without a pilot
+            // it comes down and rests on the ground instead of hanging where it was left.
+            if !steered { want.y = -3 }
+            // Never into the ground. P461 (16:41, "This thing should be able to crush trees on landing"): the keel
+            // comes down onto the ground itself (it kept 2 blocks over the top block, a tree's crown included), and
+            // what stands in its way, leaves, trunks, plants, tents and planking, is crushed (crush).
             let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
-            let top = Float(world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height)
-            if s.worldMin.y < top + 3 { want.y = max(want.y, (top + 3 - s.worldMin.y) * 2) }
+            let top = Float(world.isLoaded(gx, gz) ? Capital.firmTop(world, gx, gz) : world.gen.column(gx, gz).height)
+            if s.worldMin.y < top + 1.05 { want.y = max(want.y, (top + 1.05 - s.worldMin.y) * 2) }
             if s.worldMax.y > Float(CH - 4) { want.y = min(want.y, 0) }
             let accel = want - s.vel
             s.vel += accel * min(1, dt * 1.8)
@@ -1386,6 +1418,8 @@ extension ShipManager {
             st.helmPitch += (max(-1, min(1, -along / 12)) * Capital.vtolPitch - st.helmPitch) * min(1, dt * 3)
             st.helmBank += (max(-1, min(1, -across / 10 + yawNow * min(1, speed / 12) * 0.8)) * Capital.vtolBank - st.helmBank) * min(1, dt * 3)
             steerAttitude(s, pitch: st.helmPitch, bank: st.helmBank, yawRate: yawNow)
+            crush(s, st, dt, g)
+            if over { overdriveGlow(s, st, g) }
         } else {
             flyCommandeered(s, st, dt, g)
             hullContact(s, st, dt, g)
@@ -1612,9 +1646,9 @@ extension ShipManager {
     // P66: a commandeered drop craft burns fuel while it thrusts (four minutes on full tanks). Running dry, it takes
     // coal, charcoal or blaze rods from the pilot's pack (a lump is 40 s, a rod 80 s); with none, it sinks gently
     // to the ground. Returns false when there is no fuel.
-    static let fuelItems: [(String, Float)] = [("blaze_rod", 80), ("coal", 40), ("charcoal", 40), ("coal_block", 360)]
+    static let fuelItems: [(String, Float)] = [("blaze_rod", 240), ("coal", 120), ("charcoal", 120), ("coal_block", 1080)]
     func dropFuel(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) -> Bool {
-        if abs(s.throttle) > 0.05 || abs(s.climb) > 0.05 { st.fuel -= dt }
+        if abs(s.throttle) > 0.05 || abs(s.climb) > 0.05 { st.fuel -= dt * (s.boost && s.throttle > 0.05 ? 2 : 1) }
         if st.fuel <= 0 {
             for (k, secs) in ShipManager.fuelItems where Items.has(k) {
                 let id = Items.id(k)
@@ -2308,6 +2342,51 @@ extension ShipManager {
         ShipManager.insideCleared += gone
     }
     static var insideCleared = 0                // (checks)
+
+    // P461 (Oct 25 16:41-16:42, "This thing should be able to crush trees on landing", ramming a tent: "it didn't crash.
+    // Just going through shit... This thing should either be getting damaged or be damaging other things"): a flown
+    // craft tears through what its hull runs into that isn't ground or stone: leaves, trunks, plants, wool (tents),
+    // planking, glass and the like break as the hull meets them (a few spill their drops), with the crunch of each.
+    // Ground, stone, metal and anything with a block entity stop nothing and are left alone (the keel rides over them).
+    static var crushed = 0                      // (checks)
+    func crush(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        st.crushT -= dt
+        guard st.crushT <= 0 else { return }
+        st.crushT = 0.12
+        guard simd_length(s.vel) > 0.5 || abs(s.angVel.y) > 0.2 else { return }
+        let gr = s.grid, w = g.world
+        let a = s.worldMin - V3(0.5, 0.5, 0.5), b = s.worldMax + V3(0.5, 0.5, 0.5)
+        var n = 0
+        for y in max(1, Int(floor(a.y)))...min(CH - 2, Int(floor(b.y))) {
+            for z in Int(floor(a.z))...Int(floor(b.z)) { for x in Int(floor(a.x))...Int(floor(b.x)) where n < 48 {
+                let blk = w.block(x, y, z)
+                guard blk != AIR, Capital.crushable(blk), !w.groundAt(x, y, z), w.blockEntities[IVec3(x, y, z)] == nil else { continue }
+                let l = s.toLocal(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
+                guard Blocks.collide[Int(gr.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))))] else { continue }
+                g.breakBlock(IVec3(x, y, z), blk, drop: n % 4 == 0)
+                n += 1
+            } }
+        }
+        ShipManager.crushed += n
+    }
+
+    // The blue glow on a craft's light panels in overdrive (one sprite each a frame).
+    func overdriveGlow(_ s: Ship, _ st: CapitalState, _ g: Game) {
+        if st.lightCells == nil {
+            let light = Blocks.has("light_panel") ? Blocks.id("light_panel") : AIR
+            var cells: [V3] = []
+            let gr = s.grid
+            for y in 0..<gr.sy { for z in 0..<gr.sz { for x in 0..<gr.sx where light != AIR && gr.get(x, y, z) == light {
+                cells.append(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
+            } } }
+            st.lightCells = cells
+        }
+        let layer = FrigateBoarding.puffLayer
+        for c in st.lightCells ?? [] where Blocks.collide[Int(s.grid.get(Int(c.x), Int(c.y), Int(c.z)))] {
+            g.particles.add(Particle(pos: s.toWorld(c), vel: s.vel, life: 0.05, maxLife: 0.05, layer: layer, uv0: V2(0, 0), uvSize: 1,
+                                     size: 1.8, gravity: 0, color: V3(0.35, 0.65, 2.2), collide: false, glow: true))
+        }
+    }
 
     private func founder(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         if st.settled { s.vel = .zero; s.angVel = .zero; return }

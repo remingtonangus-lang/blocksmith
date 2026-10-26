@@ -266,6 +266,7 @@ final class Ship {
     // Control (set by the pilot each frame, ShipPlay.swift).
     var throttle: Float = 0          // -1...1
     var strafe: Float = 0            // -1...1: a VTOL's sideways thrust (P334, VehicleControls .vtol)
+    var boost = false                // P461: sprint held at the helm (a dropship's overdrive)
     var telegraphPause: Float = 0    // piloting: throttle resting at stop after passing through it
     var asleep = false               // far from the player or over unloaded ground: no physics this frame
     var gunPitch: Float = 0          // barrel elevation shown on this ship's cannons (radians)
