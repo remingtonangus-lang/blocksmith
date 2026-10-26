@@ -2252,6 +2252,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
         if dx * dx + dz * dz <= min(maxD2, 140 * 140) { list.append(m) }
     }
+    list += AshWrecks.skinMobs                                   // P464: Salvaged Fighters, drawn as fighters
     defer { MobOrder.list = list }
     for (idx, m) in list.enumerated() {
         // Out of view and over 64 blocks away (nearer ones can still throw a shadow into view): skipped. Every mob in

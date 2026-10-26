@@ -50,7 +50,7 @@ final class WorldRenderer {
     private func startMobs(_ s: SceneRenderer.Slot, _ eye: V3, _ frustum: Frustum) {
         mobPending = nil
         guard WorldRenderer.mobThread, !WorldRenderer.debugSkip.contains("mobs") else { return }
-        guard !game.mobs.mobs.isEmpty || !game.mobs.corpses.isEmpty || !Hunting.bodyMobs.isEmpty || !AshFallen.mobs.isEmpty else { return }
+        guard !game.mobs.mobs.isEmpty || !game.mobs.corpses.isEmpty || !Hunting.bodyMobs.isEmpty || !AshFallen.mobs.isEmpty || !AshWrecks.mobs.isEmpty || !AshWrecks.skinMobs.isEmpty else { return }
         let id = ObjectIdentifier(s)
         if mobBufs[id] == nil { mobBufs[id] = try? VkBuf(scene.ctx, size: WorldRenderer.mobBufBytes, usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true) }
         guard let b = mobBufs[id], let p = b.mapped else { return }
@@ -541,7 +541,7 @@ final class WorldRenderer {
             addMobMotion(s, b.buffer, offset: 0)
             return
         }
-        guard !game.mobs.mobs.isEmpty || !game.mobs.corpses.isEmpty || !Hunting.bodyMobs.isEmpty || !AshFallen.mobs.isEmpty || tp || others else { return }   // (P326: the vault's fallen with no mob about)
+        guard !game.mobs.mobs.isEmpty || !game.mobs.corpses.isEmpty || !Hunting.bodyMobs.isEmpty || !AshFallen.mobs.isEmpty || !AshWrecks.mobs.isEmpty || !AshWrecks.skinMobs.isEmpty || tp || others else { return }   // (P326: the vault's fallen with no mob about)
         let (ptr, off, cap) = scene.reserve(s, MobVert.self)
         guard cap > 36 else { return }
         Mob.settleLooks(game.mobs.mobs, game.world)                                         // P411

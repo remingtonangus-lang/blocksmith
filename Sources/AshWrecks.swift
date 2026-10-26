@@ -104,6 +104,58 @@ enum AshWrecks {
         mobs = built.values.flatMap { $0 }
     }
     static func clear() { if !mobs.isEmpty || !built.isEmpty { mobs = []; built = [:] } }
+
+    // P464 (Oct 25 19:36-19:38, "the plane, when it gets repaired, needs to look just like it looked when it wasn't
+    // repaired"): a Salvaged Fighter is drawn as the wreck's own fighter, whole and clean (fighterWholeParts: both
+    // wings, its gear down, the propeller turning), at the hull's pose; its blocks fly and collide as before, unseen.
+    // Broken up past a sixth of its blocks it shows its blocks again. Each ship step (ShipManager.update), on the main
+    // thread; the mob writer draws skinMobs.
+    static let skinScale: Float = 1.45                  // the model's 10-block fuselage over the 16-block hull
+    private static var skins: [Int: Mob] = [:]
+    private static var skinOrigin: [Int: V3] = [:]      // ship space of the model's origin (hull centre line, wheels)
+    static var skinsOff = ProcessInfo.processInfo.environment["BS_FIGHTERBLOCKS"] != nil     // (looks work: the blocks)
+    static var skinMobs: [Mob] = []
+    static func syncSkins(_ w: World) {
+        if w.ships.isEmpty && skins.isEmpty { if !skinMobs.isEmpty { skinMobs = [] }; return }
+        var out: [Mob] = []
+        for s in w.ships.list where s.name == fighterName && s.parent == nil {
+            if skinOrigin[s.id] == nil, let h = s.helm {
+                // The helm stands at (0, 2, -3) of salvagedFighter's plan; the model's origin is the plan's (0, 0, 0)
+                // cell, centred.
+                skinOrigin[s.id] = V3(Float(h.x) + 0.5, Float(h.y) - 2, Float(h.z) + 3.5)
+            }
+            guard let o = skinOrigin[s.id], !skinsOff, s.blockCount * 6 >= s.initialBlocks * 5 else { s.hidden = false; continue }
+            s.hidden = true
+            let m: Mob
+            if let have = skins[s.id] { m = have } else {
+                m = Mob(.ashBehemoth, at: s.pos)
+                m.wreck = 5
+                m.health = 1
+                m.onGround = true
+                m.scale = skinScale
+                skins[s.id] = m
+            }
+            // The hull's turn as yaw, then roll, then pitch (the mob writer turns a part by Rz * Rx about its pivot,
+            // the body by its yaw): the yaw that leaves the right wing level in the body's own frame.
+            let r = s.dirToWorld(V3(1, 0, 0)), u = s.dirToWorld(V3(0, 1, 0)), b = s.dirToWorld(V3(0, 0, 1))
+            let yaw = atan2f(-r.z, r.x)
+            let cy = cosf(yaw), sy = sinf(yaw)
+            let rx = r.x * cy - r.z * sy
+            let uz = u.x * sy + u.z * cy, bz = b.x * sy + b.z * cy
+            m.yaw = yaw
+            m.boatRock = V2(atan2f(uz, bz), atan2f(r.y, rx))
+            let c = V3(0, 4 * skinScale / 16, 0)                 // (the turn's centre: BoatLooks.rock's, scaled)
+            m.pos = s.toWorld(o + c) - c
+            m.walkPhase += w.ships.pilot === s || s.engines > 0 && simd_length(s.vel) > 1 ? 0.9 : 0       // the propeller
+            out.append(m)
+        }
+        if skins.count > out.count {
+            let live = Set(w.ships.list.map { $0.id })
+            skins = skins.filter { live.contains($0.key) }
+            skinOrigin = skinOrigin.filter { live.contains($0.key) }
+        }
+        skinMobs = out
+    }
     // P464 (Oct 25 19:35, "I repaired a cinder tank, but the problem is the old tank that was broke and remained in its
     // place"): a scene's wrecks are built again (the repaired one left out), and the solid core hidden in that hull goes.
     static func rebuild(_ s: AshScene, _ g: Game, clearing sp: Spot?) {
@@ -266,6 +318,10 @@ func ashWreckParts(_ m: Mob) -> [Part] {
     switch m.wreck {
     case 0: bomberParts(add, soot, sd)
     case 1: fighterParts(add, soot, sd)
+    case 5:
+        // P464: a Salvaged Fighter in flight (syncSkins), tilted to the hull.
+        fighterWholeParts(add, spin: m.walkPhase)
+        BoatLooks.rock(&p, pitch: m.boatRock.x, roll: m.boatRock.y)
     case 4:
         // P435: a repaired one, driven: clean paint, the turret and gun on his aim.
         let b = m.soldierBrain
@@ -383,6 +439,43 @@ private func fighterParts(_ add: WreckAdd, _ soot: V3, _ sd: Int) {
     // The snapped wing lying flat on the ground off to the right, and scorched earth round the nose.
     b(50, 0, -20, 110, 3.5, 12, alu, 8, pv: V3(80, 0, -4), ry: 0.7)
     b(50, 0, -20, 58, 4, 12, dark, 8, pv: V3(80, 0, -4), ry: 0.7)
+}
+
+// The same fighter whole and clean (P464, a Salvaged Fighter: syncSkins), on its wheels, level, laid out over the
+// salvagedFighter plan at AshWrecks.skinScale: nose at the propeller (plan z -7), the canopy over the helm, wings the
+// plan's span, the fin over its tail. No part turns on its own (the hull's pitch and roll go on every part).
+private func fighterWholeParts(_ add: WreckAdd, spin: Float) {
+    let alu = V3(0.6, 0.62, 0.63), od = V3(0.28, 0.3, 0.19), dark = V3(0.06, 0.06, 0.07), glass = V3(0.2, 0.25, 0.28)
+    let rubber = V3(0.05, 0.05, 0.05)
+    func b(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = 8) {
+        add(x0, y0, z0, x1, y1, z1, c, pat, .zero, 0, 0, 0, false)
+    }
+    b(-9, 7, -86, 9, 25, -50, alu)                          // engine cowling
+    b(-9.5, 25, -86, 9.5, 27.5, -40, od)                    // the olive anti-glare panel
+    b(-10, 6, -90, 10, 26, -86, dark)                       // cowl ring
+    b(-2.5, 13, -95, 2.5, 19, -90, alu)                     // spinner
+    // The propeller: four blades, turning (two looks a quarter apart; a blur of dark at speed).
+    if Int(spin) % 2 == 0 {
+        b(-1.5, 3, -94, 1.5, 29, -92, dark); b(-14, 14.5, -94, 14, 17.5, -92, dark)
+    } else {
+        b(-10, 6, -94, 10, 26, -92.5, dark, 0); b(-1, 15, -94, 1, 17, -92, dark)
+    }
+    b(-8, 9, -50, 8, 31, 34, alu)                           // fuselage
+    b(-6, 11, 34, 6, 27, 94, alu)                           // to the tail
+    b(-6, 31, -36, 6, 38, -10, glass, 11)                   // the bubble canopy
+    b(-6.5, 37, -30, 6.5, 38.5, -28, dark)                  // its frame
+    b(-5, 4, -10, 5, 9, 22, alu)                            // the belly scoop
+    b(-1.5, 27, 78, 1.5, 57, 94, alu)                       // fin and rudder
+    b(-30, 21, 80, 30, 23.5, 94, alu)                       // tailplane
+    b(-83, 11, -17, -8, 14.5, 17, alu)                      // wings
+    b(8, 11, -17, 83, 14.5, 17, alu)
+    b(-83, 10.5, 7, -50, 11, 17, od, 4); b(50, 10.5, 7, 83, 11, 17, od, 4)      // ailerons
+    for x: Float in [-1, 1] {                               // the main gear: legs and wheels
+        b(x * 29.5 - 1.5, 6, -8, x * 29.5 + 1.5, 11, -5, dark)
+        b(x * 29.5 - 3.5, 0, -10, x * 29.5 + 3.5, 8, -2, rubber, 0)
+    }
+    b(-1, 4, 87, 1, 11, 89, dark)                           // tail wheel
+    b(-2, 0, 85, 2, 4, 91, rubber, 0)
 }
 
 // A Sherman-like medium tank, knocked out: a cast turret with a short 75 and its mantlet, the hull's sloped glacis,
