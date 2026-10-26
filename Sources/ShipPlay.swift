@@ -136,6 +136,7 @@ extension Game {
     var chaseOffset: V3? {
         var fwd: V3, back: Float
         if let s = world.ships.pilot {
+            if let o = hullChase(s.root) { return o }
             fwd = s.dirToWorld(V3(0, 0, -1)); back = thirdPersonDistance
         } else if let m = riding, m.kind == .boat {
             fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw)); back = 6
@@ -162,6 +163,31 @@ extension Game {
             let q = eye + dir * t
             if world.opaqueAt(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { return dir * max(0, t - 1) }
             t += 0.5
+        }
+        return want
+    }
+
+    // P449 (Oct 25 09:19, "in the big ship, third person puts him inside the ship so he can't drive"): the chase view's
+    // pull-in only sees the world's blocks, so from a big hull's helm (the frigate's bridge sits mid-ship, 70 blocks of
+    // hull behind it) the camera, 48 back, sat inside the ship. A hull longer or wider than 24 blocks gets its chase
+    // view behind its stern and over its highest block instead, by a share of its size, still pulled in short of the
+    // world's blocks.
+    func hullChase(_ h: Ship) -> V3? {
+        let ext = h.localMax - h.localMin
+        let span = max(ext.x, ext.z)
+        guard span > 24 else { return nil }
+        let midX: Float = (h.localMin.x + h.localMax.x) * 0.5
+        let high: Float = h.localMax.y + 4 + span * 0.12
+        let astern: Float = h.localMax.z + 6 + span * 0.2
+        let want = h.toWorld(V3(midX, high, astern)) - player.eye
+        // From the camera back toward the eye: the first world block on the way (outside the hull) stops it short.
+        let len = simd_length(want), dir = want / max(len, 1e-3)
+        let eye = player.eye
+        var t = len
+        while t > 1 {
+            let q = eye + dir * t
+            if !world.opaqueAt(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { return dir * t }
+            t -= 0.5
         }
         return want
     }
