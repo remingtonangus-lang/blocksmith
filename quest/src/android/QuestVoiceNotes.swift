@@ -157,6 +157,8 @@ final class BugNotes {
         QuestVideo.tick(listening: go)
         for st in s { noteStarted(st, g, wall) }
         for x in e { noteEnded(x) }
+        if !e.isEmpty { noteOffAt = wall }
+        footageTick(g, wall, go)
         recording = open != nil
         if let o = open, wall - lastState >= 5 {
             lastState = wall
@@ -174,8 +176,58 @@ final class BugNotes {
         return c
     }
 
+    // MARK: P467 footage
+
+    // P467 (Oct 25 20:31-20:34: "the headset records video all the time... AI could review all the footage, and then if
+    // it sees any bugs itself that I hadn't reported, it could grab them"; "only do it if it doesn't take up too much"):
+    // while Bug Notes listens and Record All Play is on, the clip writer that already runs for the notes (QuestVideo:
+    // the same encoder, no extra work on the headset) keeps everything, as rec-<stamp>.mp4 clips of 5 minutes (each
+    // opening with the 10 s buffered before it), with rec-<stamp>.jsonl: the game state every 10 s. A voice note's own
+    // clip takes the writer while he talks (from 10 s before to 2 s after); the next 5 minutes start after it. About
+    // 0.9 GB an hour; the oldest go past 16 GB on the headset. tools/quest-bugnotes.py pulls them to the Mac and
+    // tools/footage-sweep.py looks through them for bugs he didn't mention.
+    static let segmentSeconds = 300.0
+    static let footageMax: Int64 = 16 << 30
+    private var seg: String?
+    private var segAt = 0.0, segState = 0.0, noteOffAt = -100.0
+
+    private func footageTick(_ g: Game, _ wall: Double, _ go: Bool) {
+        let want = go && Settings.shared.recordFootage && Settings.shared.bugNoteVideo
+        if !want {
+            if let s = seg { QuestVideo.end(path: "\(dir)/\(s).mp4", keep: true); seg = nil }
+            return
+        }
+        guard open == nil, wall - noteOffAt > QuestVideo.tail + 0.5 else { return }
+        if seg == nil || wall - segAt >= BugNotes.segmentSeconds {
+            let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyyMMdd-HHmmss"
+            let name = "rec-" + f.string(from: Date())
+            segAt = wall
+            seg = QuestVideo.begin(path: "\(dir)/\(name).mp4") ? name : nil        // (the last one closes as this opens)
+            segState = -100
+            let d = dir
+            io.async { BugNotes.footageCap(dir: d) }
+        }
+        if let s = seg, wall - segState >= 10 {
+            segState = wall
+            appendPath("\(dir)/\(s).jsonl", VoiceNoteContext.json([("event", "state"), ("time", BugNotes.iso()), ("context", context(g))]))
+        }
+    }
+
+    // The oldest clips go once the footage passes footageMax.
+    static func footageCap(dir: String) {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: dir) else { return }
+        var files: [(String, Int64)] = [], total: Int64 = 0
+        for n in names.sorted() where n.hasPrefix("rec-") {
+            let size = ((try? fm.attributesOfItem(atPath: dir + "/" + n))?[.size] as? NSNumber)?.int64Value ?? 0
+            files.append((n, size)); total += size
+        }
+        for (n, size) in files where total > footageMax { try? fm.removeItem(atPath: dir + "/" + n); total -= size }
+    }
+
     private func noteStarted(_ st: String, _ g: Game, _ wall: Double) {
         open = st
+        seg = nil                                       // (P467: the note's clip closes the running 5 minutes)
         lastState = wall
         var shot: String?
         if wall - lastShot > 10 {
@@ -202,8 +254,9 @@ final class BugNotes {
         io.async { VoiceNoteContext.enforceCap(dir: d, maxBytes: BugNotes.maxBytes) }
     }
 
-    private func append(_ stamp: String, _ line: String) {
-        let path = "\(dir)/vn-\(stamp).jsonl"
+    private func append(_ stamp: String, _ line: String) { appendPath("\(dir)/vn-\(stamp).jsonl", line) }
+
+    private func appendPath(_ path: String, _ line: String) {
         io.async {
             let data = Data((line + "\n").utf8)
             if let h = FileHandle(forWritingAtPath: path) { h.seekToEndOfFile(); h.write(data); h.closeFile() }
