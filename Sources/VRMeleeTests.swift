@@ -38,11 +38,16 @@ enum VRMeleeTests {
         let (sb, st, sr) = VRMelee.blade(handPos: .zero, handRot: simd_quatf(angle: 0, axis: V3(0, 1, 0)), size: 0.55, tool: true)
         let (fb, ft, _) = VRMelee.blade(handPos: .zero, handRot: simd_quatf(angle: 0, axis: V3(0, 1, 0)), size: 0, tool: false)
         let len = simd_length(st), flen = simd_length(ft - fb)
-        check(len > 1.4 && len < 1.8 && sr >= 0.2 && simd_length(sb) < 0.3 && flen < 0.25,
+        check(len > 1.25 && len < 1.8 && sr >= 0.12 && sr < 0.2 && simd_length(sb) < 0.3 && flen < 0.25,
               String(format: "blade capsule: sword tip %.2f m from the hand (r %.2f), fist %.2f m", len, sr, flen))
         check(abs(VRMelee.power(VRMelee.minTipSpeed) - 0.45) < 0.01 && abs(VRMelee.power(4.5) - 1) < 0.01 && abs(VRMelee.power(9) - 2) < 0.01
               && abs(VRMelee.power(20) - 2) < 0.01,
               "swing power (P136, linear): 0.45 at the minimum tip speed, 1 at 4.5 m/s, 2 at 9 m/s and over")
+        // P459: a swing from the arm (tip 7 m/s, hand 2.8) keeps its speed; a wrist twirl (tip 7, hand 0.5) is under the
+        // speed of a hit; a mob takes at most about two cuts a second.
+        let arm = VRMelee.swingSpeed(tip: 7, hand: 2.8), wrist = VRMelee.swingSpeed(tip: 7, hand: 0.5)
+        check(arm == 7 && wrist < VRMelee.minTipSpeed && VRMelee.rehit >= 0.4,
+              String(format: "P459 swing speed: arm swing %.1f m/s, wrist twirl %.1f m/s (a hit needs %.1f); a mob is cut again after %.2f s", arm, wrist, VRMelee.minTipSpeed, VRMelee.rehit))
     }
 
     // The bow for both hands: the arrow points from the drawing hand through the grip, the nock follows the hand
