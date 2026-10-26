@@ -1496,6 +1496,8 @@ if let a = arg("--railprobe") {
     } }
     print(String(format: "railprobe: %d of %d stretches have a line (%.1f s); no line: ", found, tried, CFAbsoluteTimeGetCurrent() - t0)
           + why.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+    exit(0)
+}
 // --depotfind SEED,R (P469): the depot compounds (Depots.swift) within R blocks of the origin on a world of SEED.
 if let a = arg("--depotfind") {
     let v = a.split(separator: ",").map { String($0) }
