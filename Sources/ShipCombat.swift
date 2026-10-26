@@ -66,8 +66,12 @@ extension ShipManager {
         var fired = 0
         for t in [s] + turrets(of: s) where t.reload <= 0 && !t.cannons.isEmpty {
             let elev = max(t.pitchMin, min(t.pitchMax, pitch))
-            for (c, d) in t.cannons {
-                let muzzle = t.toWorld(c + d * 0.9)
+            var longest = 0
+            for (i, (c, d)) in t.cannons.enumerated() {
+                // P459: Gun Barrels on from the muzzle: a harder, faster shell from the far end of the tube.
+                let tubes = i < t.cannonLength.count ? t.cannonLength[i] : 0
+                longest = max(longest, tubes)
+                let muzzle = t.toWorld(c + d * (0.9 + Float(tubes)))
                 var dir = t.dirToWorld(d)
                 let horiz = simd_normalize(V3(dir.x, 0, dir.z) + V3(1e-5, 0, 0))
                 dir = simd_normalize(horiz * cosf(elev) + V3(0, sinf(elev), 0))
@@ -76,7 +80,8 @@ extension ShipManager {
                 // guns on this crawler and related guns"): a war vessel's guns fired from its helm by him hit half again
                 // as hard (its crew's stay as they were).
                 let his = game != nil && pilot?.root === t.root && t.root.role != nil
-                let sh = Shell(pos: muzzle, vel: dir * t.gunSpeed + t.velocity(at: muzzle), owner: t.root.id, power: t.gunPower * (his ? 1.5 : 1))
+                let long: Float = 1 + 0.4 * Float(tubes), quick: Float = 1 + 0.12 * Float(tubes)
+                let sh = Shell(pos: muzzle, vel: dir * (t.gunSpeed * quick) + t.velocity(at: muzzle), owner: t.root.id, power: t.gunPower * (his ? 1.5 : 1) * long)
                 sh.gravity = t.gunGravity
                 // A cannon under water looses a torpedo: level, self-driven, no drop (C8, Submarines.swift).
                 if Blocks.fluidKind[Int(world.rawBlock(Int(floor(muzzle.x)), Int(floor(muzzle.y)), Int(floor(muzzle.z))))] == 1 {
@@ -93,7 +98,7 @@ extension ShipManager {
                     g.baseNoise(at: muzzle, kind: .cannon, hostile: s.factionValue != .steelhold)   // the Capital's own guns don't alarm it
                 }
             }
-            t.reload = t.reloadTime
+            t.reload = t.reloadTime * (1 + 0.1 * Float(longest))
         }
         return fired
     }
