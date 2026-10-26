@@ -82,7 +82,7 @@ enum CapitalTown {
         let x0 = plan.ox + (oi + N) * CapitalCity.lot, z0 = plan.oz + (oj + N) * CapitalCity.lot
         var rng = SRng(CapitalCity.lotSeed(plan.seed, oi, oj) | 1)
         let fp = CapitalCity.footprint(x0, z0, &rng)
-        // A row clear of the reception desk (bz0 + 3), the bench (bz1 - 2) and the ladder: bz0 + 5.
+        // A row clear of the reception desk (bz0 + 3), the bench (bz1 - 2) and the ladder (a tower's stair core): bz0 + 5.
         return IVec3(fp.bx0 + 2 + (n * 3) % max(1, fp.bw - 4), plan.lv(oi, oj)! + 1, fp.bz0 + 5)
     }
 
@@ -103,6 +103,8 @@ enum CapitalTown {
         let bz1 = fp.bz0 + fp.bd - 1, bx1 = fp.bx0 + fp.bw - 1
         let colors = ["white_bed", "light_blue_bed", "light_gray_bed", "cyan_bed"]
         var n = 0
+        // (P462: in a tower they stand clear of the stair core's south wall at bz0 + 4.)
+        let mz = plan.modern ? max(bz1 - 4, fp.bz0 + 5) : bz1 - 4
         for x in stride(from: fp.bx0 + 3, through: bx1 - 3, by: 4) where n < perFlat {
             let c = colors[Int(Townsfolk.mix(x, bz1, plan.seed) % 4)]
             guard Blocks.has(c), Blocks.has(c + "_head") else { continue }
@@ -112,7 +114,7 @@ enum CapitalTown {
             if Blocks.has("lantern") { w.set(x + 1, L + 2, bz1 - 1, Blocks.id("lantern")) }
             var tag = "villager:citizen"
             if let d = desk(plan, i, j, n) { tag += "@\(d.x),\(d.y),\(d.z)" }
-            w.mob(tag, V3(Float(x) + 0.5, Float(L + 1), Float(bz1 - 4) + 0.5))
+            w.mob(tag, V3(Float(x) + 0.5, Float(L + 1), Float(mz) + 0.5))
             n += 1
         }
     }
@@ -121,7 +123,7 @@ enum CapitalTown {
     static func market(_ w: inout StructWriter, _ plan: CapitalCity.Plan, _ i: Int, _ j: Int, _ x0: Int, _ z0: Int, _ L: Int, _ rng: inout SRng) {
         let st = CapitalCity.street
         for (n, k) in plan.shops[plan.idx(i, j)].enumerated() {
-            storefront(&w, x0 + st + 1 + n * 14, z0 + st + 3, L, k, seed: CapitalCity.lotSeed(plan.seed, i, j) &+ UInt64(n))
+            storefront(&w, x0 + st + 1 + n * 14, z0 + st + 3, L, k, seed: CapitalCity.lotSeed(plan.seed, i, j) &+ UInt64(n), modern: plan.modern)
         }
         for u in [9, 13, 25] where rng.chance(0.8) { CapitalCity.seating(&w, x0 + u, L, z0 + 24, &rng) }
         for u in [8, 29] { CapitalCity.planterTree(&w, x0 + u, L - 1, z0 + 29, &rng) }
@@ -131,11 +133,14 @@ enum CapitalTown {
 
     // One shop: walls 6 high, the front glazed at street level with a 3-wide opening, the sign over it, an awning,
     // the shop's colour along the fascia; inside the town shop's counter, keeper, bed and fittings (TownBuildings).
-    static func storefront(_ w: inout StructWriter, _ sx: Int, _ sz: Int, _ L: Int, _ k: ShopKind, seed: UInt64) {
+    static func storefront(_ w: inout StructWriter, _ sx: Int, _ sz: Int, _ L: Int, _ k: ShopKind, seed: UInt64, modern: Bool = false) {
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
-        let white = g("capital_stone", g("white_concrete")), grey = g("capital_stone_trim", g("light_gray_concrete"))
-        let window = g("capital_window", GLASS), light = g("light_panel", g("glowstone")), pave = g("capital_paving", grey)
-        let roofSlab = g("capital_stone_slab", white)
+        let white = g("capital_stone", g("white_concrete"))
+        // P462: in a modern city the shop windows are curtain glass, the trim, fascia and overhang dark steel.
+        let grey = modern ? g("capital_steel", g("light_gray_concrete")) : g("capital_stone_trim", g("light_gray_concrete"))
+        let window = modern ? g("capital_curtain", GLASS) : g("capital_window", GLASS)
+        let light = g("light_panel", g("glowstone")), pave = g("capital_paving", g("capital_stone_trim", g("light_gray_concrete")))
+        let roofSlab = modern ? g("capital_steel_slab", white) : g("capital_stone_slab", white)
         let W = storeW, D = storeD, H = 6
         let l = Village.Lot(kind: k == .saloon ? .saloon : .shop, ax: sx, az: sz, face: 0, w: W, d: D, y: L + 1, seed: seed, job: "")
         let b = Village.LB(l: l)
