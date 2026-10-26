@@ -106,8 +106,16 @@ enum Village {
             let r20 = streets && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyR20) } ?? true)
             // P354 (Oct 16 20:06): homes as big as the stores, a workshop for every trade, the bigger jail (TownHomes.swift).
             let p354 = gap && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP354) } ?? true)
-            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets,
-                          townSize: size, r20: r20, p354: p354)
+            let first = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets,
+                               townSize: size, r20: r20, p354: p354)
+            // P466: a hamlet or village on new ground is laid out bigger (TownSizes.biggerSpec); whether there is a place
+            // here at all is still the old layout's say, so the bigger plan doesn't add towns (it would add five times as
+            // many hamlets: most old ones had too few lots and were never built).
+            guard first != nil, let sz = size, sz.rawValue < 2,
+                  gen.structures.map({ $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP466) }) ?? true,
+                  let big = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide,
+                                   streets: streets, townSize: size, r20: r20, p354: p354, bigger: true) else { return first }
+            return big
         }
     }
 
@@ -125,8 +133,8 @@ enum Village {
     static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
 
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
-                       wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil, r20: Bool = false, p354: Bool = false) -> StructureStart? {
-        let sz = townSize.map { TownSizes.spec[$0.rawValue] }
+                       wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil, r20: Bool = false, p354: Bool = false, bigger: Bool = false) -> StructureStart? {
+        let sz = townSize.map { (bigger ? TownSizes.biggerSpec : TownSizes.spec)[$0.rawValue] }
         func scaled(_ n: Int) -> Int { sz.map { max(8, Int(Float(n) * $0.length)) } ?? n }
         let gap = townsGap ?? frontier
         var rng = SRng(seed)

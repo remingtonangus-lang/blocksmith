@@ -38,6 +38,16 @@ enum TownSizes {
         Spec(length: 1.5, branch: 1.6, firstRoads: 6, extraRoads: 8, minLots: 6, shops: 8, deputies: 4, office: true, bank: true, mine: true),
     ]
 
+    // P466 (Remington, Oct 25 20:00, Iron Hollow: "These villages are just too small"): on ground no save had generated
+    // before P466 (StructureCache.legacyP466) the two small sizes, seven places in ten, are laid out bigger: a hamlet
+    // gets three streets at 0.8 of a town's length (was two at half), a village five at 0.9 with most of a town's
+    // side streets (was four at 0.75): about 5 and 8 lots (were 4 and 6; a town has 8). The law, shops and mines stay
+    // as each size has them, and whether a place is built at all is the old plan's say (Village.layout's caller).
+    static let biggerSpec: [Spec] = [
+        Spec(length: 0.8, branch: 0.5, firstRoads: 3, extraRoads: -8, minLots: 3, shops: 1, deputies: 0, office: false, bank: false, mine: false),
+        Spec(length: 0.9, branch: 0.8, firstRoads: 5, extraRoads: -3, minLots: 6, shops: 3, deputies: 1, office: true, bank: true, mine: false),
+    ] + spec[2...]
+
     // The size of a town at (ox, oz): weights 1, 1/3.5, 1/3.5^2... (71.6%, 20.5%, 5.8%, 1.7%, 0.5%).
     static func size(_ ox: Int, _ oz: Int, seed: UInt64) -> TownSize {
         let weights = (0..<5).map { powf(1 / ratio, Float($0)) }
