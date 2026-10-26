@@ -12,6 +12,13 @@ enum ShapeRails {
     static let steel: BlockID = Blocks.has("iron_block") ? Blocks.id("iron_block") : STONE
     static let timber: BlockID = Blocks.has("dark_oak_planks") ? Blocks.id("dark_oak_planks") : PLANKS
     static let gauge: Float = 0.3                   // rails this far each side of the centre line
+    // P470 ("make big train tracks"): a railway's track (a rail on the line's three-wide ballast or trestle deck, open
+    // either side) is drawn at main-line size: rails 1.44 apart on heavy sleepers the bed's width, the trains' own
+    // scale. A rail laid anywhere else keeps the light track.
+    static let mainGauge: Float = 0.72
+    static let bedKinds: [Bool] = (0..<Blocks.count).map { i in
+        ["gravel", "stone_bricks", "spruce_planks"].contains(Blocks.key(Blocks.groupBase[i]))
+    }
 
     static func emit(_ ctx: DetailContext) {
         var any = false
@@ -24,6 +31,7 @@ enum ShapeRails {
             guard isRail[Int(b)] else { continue }
             let shape = Int(b - Blocks.groupBase[Int(b)])
             let o = SIMD3<Float>(Float(x), Float(y), Float(z))
+            let big = mainline(ctx, x, y, z, shape)
             // The centre line through the block, as points.
             var pts: [SIMD3<Float>]
             switch shape {
@@ -69,19 +77,35 @@ enum ShapeRails {
                 let s = simd_normalize(simd_cross(SIMD3<Float>(0, 1, 0), a))
                 let h = simd_cross(a, s)
                 let len = simd_length(p1 - p0)
-                // Sleepers: across the line every half block.
+                // Sleepers: across the line every half block (a main line's: heavier, the bed's width).
                 let n = max(1, Int((len / 0.5).rounded()))
                 for j in 0..<n {
-                    let c = p0 + (p1 - p0) * ((Float(j) + 0.5) / Float(n)) + h * 0.06
-                    box(ctx, c, a, s, h, 0.09, 0.46, 0.05, woodL)
+                    let c = p0 + (p1 - p0) * ((Float(j) + 0.5) / Float(n)) + h * (big ? 0.07 : 0.06)
+                    box(ctx, c, a, s, h, big ? 0.12 : 0.09, big ? 1.22 : 0.46, big ? 0.06 : 0.05, woodL)
                 }
                 // The two rails, on the sleepers.
                 for side: Float in [-1, 1] {
-                    let c = (p0 + p1) * 0.5 + s * (side * gauge) + h * 0.16
-                    box(ctx, c, a, s, h, len * 0.5 + 0.01, 0.035, 0.05, steelL)
+                    let c = (p0 + p1) * 0.5 + s * (side * (big ? mainGauge : gauge)) + h * (big ? 0.21 : 0.16)
+                    box(ctx, c, a, s, h, len * 0.5 + 0.01, big ? 0.055 : 0.035, big ? 0.08 : 0.05, steelL)
                 }
             }
         } } }
+    }
+
+    // A railway's rail (P470): on the line's bed, the bed cells either side of it open above.
+    static func mainline(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, _ shape: Int) -> Bool {
+        let sides: [(Int, Int)]
+        switch shape {
+        case 1, 2, 3: sides = [(0, -1), (0, 1)]
+        case 0, 4, 5: sides = [(-1, 0), (1, 0)]
+        default: sides = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        }
+        var open = 0
+        for (dx, dz) in sides {
+            let at = ctx.block(x + dx, y, z + dz), under = ctx.block(x + dx, y - 1, z + dz)
+            if !Blocks.collide[Int(at)] && (bedKinds[Int(under)] || isRail[Int(at)]) { open += 1 }
+        }
+        return shape >= 6 ? open >= 2 : open == 2
     }
 
     // The drawn bed's top under a rail at section-local (x, y, z), relative to the rail's cell (-0.5 ... 0.5): where the

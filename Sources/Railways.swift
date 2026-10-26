@@ -28,10 +28,12 @@ enum Railways {
     // P337 step 1: every stretch with towns enough carries a line (was 0.3: a line every 4,000 blocks was a rare find,
     // and the towns between went unlinked). Ground a save generated before keeps none (Y5, FreshGround).
     static var share: Float = 1
-    static let minStations = 3
+    static let minStations = 2             // P470: two stations make a line (on ground no save had before P470)
+    static let oldMinStations = 3          // (the rule before: ground saved earlier keeps its lines as laid)
     static let stationRun = 10             // the straight past each side of a town's box
     static let southGap = 5                // the track, blocks south of the town's box
     static var on = true                   // (the host checks turn lines off to compare)
+    static var tally: ((String) -> Void)?  // (questcheck --railprobe: why a stretch has no line)
 
     struct Station { let name: String; let index: Int; let x: Int; let z: Int; var halt = false; var site = false }   // halt: a hamlet's (C13); site: P379
     final class Line {
@@ -199,14 +201,19 @@ enum Railways {
     }
 
     static func plan(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
-        if let l = plan(gen, row: row, stretch: s, avoid: nil) { return l }
+        if let l = plan(gen, row: row, stretch: s, avoid: nil, need: oldMinStations) { return l }
+        guard let sc = gen.structures else { return nil }
         // Y5: the line as before failed; on an old save, its stations and legs on fresh ground still make a line.
-        guard let sc = gen.structures, !sc.legacyC1.isEmpty, let fresh = FreshGround.guardSet(sc) else { return nil }
-        return plan(gen, row: row, stretch: s, avoid: fresh)
+        if !sc.legacyC1.isEmpty, let fresh = FreshGround.guardSet(sc), let l = plan(gen, row: row, stretch: s, avoid: fresh, need: oldMinStations) { return l }
+        // P470 ("the trains were never added": over his playtests he never met one; 64 of 80 stretches round his
+        // Capital City had fewer than three towns): two stations (towns or major sites) make a line, on ground no save
+        // had generated before P470 (structure-guard-p470.txt), so explored land never grows half a railway.
+        return plan(gen, row: row, stretch: s, avoid: sc.legacyP470.isEmpty ? nil : sc.legacyP470, need: minStations)
     }
 
     // `avoid`: chunks no part of the line may come within 3 chunks of (a town or leg there ends the run).
-    static func plan(_ gen: WorldGen, row: Int, stretch s: Int, avoid: Set<Int64>?) -> Line? {
+    // `need`: stations a line needs (P470: with two, the major sites count toward it before the towns are counted).
+    static func plan(_ gen: WorldGen, row: Int, stretch s: Int, avoid: Set<Int64>?, need: Int) -> Line? {
         guard let sc = gen.structures, let vt = sc.types.first(where: { $0.name == "village" }) else { return nil }
         func fresh(_ cells: [(Int, Int)]) -> Bool {
             guard let avoid, !avoid.isEmpty else { return true }
@@ -223,15 +230,16 @@ enum Railways {
             towns.append(Town(name: Townsfolk.townName(v.anchor.x, v.anchor.z, seed: gen.seed), box: (v.min, v.max), sq: v.anchor,
                               halt: v.info["size"] == TownSize.hamlet.rawValue))
         }
-        guard towns.count >= minStations else { return nil }
-        if gen.railSites { towns += sites(gen, sc, row: row, stretch: s) }
+        if need < oldMinStations && gen.railSites { towns += sites(gen, sc, row: row, stretch: s) }
+        guard towns.count >= need else { tally?("fewer than \(need) towns in the stretch"); return nil }
+        if need >= oldMinStations && gen.railSites { towns += sites(gen, sc, row: row, stretch: s) }
         towns.sort { $0.sq.x < $1.sq.x }
         // Ground saved before railways: no line (checked along the whole run below).
         let legacy = sc.legacyC1
         var best: [IVec3] = [], bestStations: [Station] = []
         var cur: [IVec3] = [], curSt: [Station] = []
         func flush() {
-            if curSt.count >= minStations && curSt.count > bestStations.count { best = cur; bestStations = curSt }
+            if curSt.count >= need && curSt.count > bestStations.count { best = cur; bestStations = curSt }
             cur = []; curSt = []
         }
         // (a site is passed over only by its own straight: a leg never runs through a citadel or a base)
@@ -299,21 +307,23 @@ enum Railways {
             prevEnd = (xb, z)
             if ti == towns.count - 1 { flush() }
         }
-        guard bestStations.count >= minStations else { return nil }
+        guard bestStations.count >= need, bestStations.contains(where: { !$0.site }) || need >= oldMinStations else {
+            tally?("no run of \(need) stations (straights or legs blocked)"); return nil
+        }
         // No part on ground a save had generated before railways, and never over the open sea.
         for i in stride(from: 0, to: best.count, by: 24) {
             let c = best[i]
-            if !legacy.isEmpty && !sc.clear(cx: floorDiv(c.x, CS), cz: floorDiv(c.z, CS), reach: 3, guardSet: legacy) { return nil }
+            if !legacy.isEmpty && !sc.clear(cx: floorDiv(c.x, CS), cz: floorDiv(c.z, CS), reach: 3, guardSet: legacy) { tally?("old ground"); return nil }
         }
-        for i in stride(from: 0, to: best.count, by: 4) where gen.column(best[i].x, best[i].z).biome.isOcean { return nil }
+        for i in stride(from: 0, to: best.count, by: 4) where gen.column(best[i].x, best[i].z).biome.isOcean { tally?("over the sea"); return nil }
         let first = bestStations.first!.name, last = bestStations.last!.name
         let name = lineName(first, last, gen.seed, row, s)
         if gen.fieldWorld {
-            guard let h = gentleProfile(gen, best, bestStations) else { return nil }
+            guard let h = gentleProfile(gen, best, bestStations) else { tally?("field grade"); return nil }
             let cells = best.indices.map { IVec3(best[$0].x, Int(h[$0].rounded()), best[$0].z) }
             return Line(id: key(row, s), name: name, cells: cells, stations: bestStations, heights: h)
         }
-        guard let levels = profile(gen, best, bestStations) else { return nil }
+        guard let levels = profile(gen, best, bestStations) else { tally?("block profile"); return nil }
         let cells = best.indices.map { IVec3(best[$0].x, levels[$0], best[$0].z) }
         return Line(id: key(row, s), name: name, cells: cells, stations: bestStations)
     }
@@ -437,7 +447,7 @@ enum Railways {
         }
         var h = target
         for i in 0..<n {
-            if lo[i] > hi[i] + 1e-3 { return nil }
+            if lo[i] > hi[i] + 1e-3 { tally?("grade: fixed levels too far apart"); return nil }
             h[i] = fixed[i] ?? max(lo[i], min(hi[i], h[i]))
         }
         // Hold the grade (forward and back), then ease it: a running mean over 9 steps, kept in the bands.
@@ -454,7 +464,7 @@ enum Railways {
             h = m
         }
         for i in 1..<n where abs(h[i] - h[i - 1]) > grade + 0.01 { return nil }
-        for i in 0..<n where abs(h[i] - target[i]) > 28 { return nil }
+        for i in 0..<n where abs(h[i] - target[i]) > 28 { tally?("grade: track 28+ off the land"); return nil }
         return h
     }
 
