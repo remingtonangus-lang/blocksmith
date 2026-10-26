@@ -385,9 +385,15 @@ enum BorealStation {
         ("soldier_ironclad", 19, 1, -16), ("soldier_recruit", 17, 1, 21),
         ("soldier_recruit", -16, 1, 15), ("soldier_recruit", -19, 1, -12), ("soldier_trooper", -18, 1, -20),
     ]
+    // P454 (Oct 25: clearing a station's top "shouldn't have been that easy"; "Where's the gun that's supposed to shoot
+    // at me?"): the roof gun never fired, as a gun is only laid by a gunner within a few blocks of its level and every
+    // surface soldier stood six below it. A gunner now stands by it on the blockhouse roof with a lookout marksman, and
+    // the yard holds a heavy and a second trooper.
     static let surfaceGarrison: [(String, Int, Int, Int)] = [
         ("soldier_recruit", -3, 1, 32), ("soldier_recruit", -7, 1, 32), ("soldier_trooper", 0, 1, 0),
         ("soldier_marksman", -21, 10, 20), ("soldier_recruit", 18, 1, -10),
+        ("soldier_trooper", 1, 7, 17), ("soldier_marksman", -3, 7, 21),
+        ("soldier_ironclad:heavy", 9, 1, 27), ("soldier_trooper", -12, 1, 26),
     ]
 
     // The surface row S (blockhouse floor) and the bunker floor row F of a station, from its plan (the piece starts at
