@@ -291,11 +291,13 @@ final class StructureCache {
             legacyP354 = SaveManager.guarding?.structureGuard(file: "structure-guard-p354.txt") ?? []
             legacyP360 = SaveManager.guarding?.structureGuard(file: "structure-guard-p360.txt") ?? []
             legacyP466 = SaveManager.guarding?.structureGuard(file: "structure-guard-p466.txt") ?? []
+            legacyP456 = SaveManager.guarding?.structureGuard(file: "structure-guard-p456.txt") ?? []
         }
     }
     var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
     var legacyP354: Set<Int64> = []              // ground saved before P354's homes, workshops and jail (TownHomes.swift)
     var legacyP466: Set<Int64> = []              // ground saved before P466 laid hamlets and villages out bigger (TownSizes.biggerSpec)
+    var legacyP456: Set<Int64> = []              // ground saved before P456 laid large towns and cities out far bigger (TownSizes.biggerSpec)
     var legacyP360: Set<Int64> = []              // ground saved before the Dust Mission replaced the desert temple (DustMission.swift)
     var legacyR22: Set<Int64> = []                // ground saved before the R22 rarity pass (StructureCache.keepR22)
 

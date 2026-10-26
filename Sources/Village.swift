@@ -111,8 +111,11 @@ enum Village {
             // P466: a hamlet or village on new ground is laid out bigger (TownSizes.biggerSpec); whether there is a place
             // here at all is still the old layout's say, so the bigger plan doesn't add towns (it would add five times as
             // many hamlets: most old ones had too few lots and were never built).
-            guard first != nil, let sz = size, sz.rawValue < 2,
-                  gen.structures.map({ $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP466) }) ?? true,
+            // P456: a large town or a city on new ground is laid out far bigger (its streets reach about twice as far, so
+            // the guard looks further round it).
+            guard first != nil, let sz = size, sz.rawValue != 2,
+                  gen.structures.map({ sz.rawValue < 2 ? $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP466)
+                                                       : $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP456) }) ?? true,
                   let big = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide,
                                    streets: streets, townSize: size, r20: r20, p354: p354, bigger: true) else { return first }
             return big
@@ -208,6 +211,9 @@ enum Village {
         // shoulder paved at its own ground height, and the lots set back past the outer shoulder.
         let spare = wide ? 4 : 2
         func halfWidth(_ r: Road) -> Int { r20 ? (r.main ? spare - 1 : spare / 2) : 2 }
+        // P456: a far bigger town's streets stop 92 blocks out from the square either way, so its lots, mine and edges stay
+        // within the village kind's reach of eight chunks (StructureCache.startsNear finds it from every chunk it builds in).
+        let bound = bigger && (townSize?.rawValue ?? 0) >= 3 ? 92 : Int.max
         for r in roads {
             var cols: [(Int, Int, Int)] = []
             var sh: [IVec2Key: [(Int, Int, Int)]] = [:]
@@ -215,6 +221,7 @@ enum Village {
             var ok = true
             for s in 0..<r.len {
                 let x = r.x + r.dx * s, z = r.z + r.dz * s
+                if max(abs(x - ox), abs(z - oz)) > bound { break }
                 let y = gen.groundY(x, z)
                 if abs(y - lastY) > 2 || y < SEA - 1 { if s < 5 { ok = false }; break }
                 lastY = y
