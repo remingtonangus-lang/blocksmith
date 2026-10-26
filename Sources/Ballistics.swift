@@ -147,7 +147,8 @@ final class Armory {
             }
             s.life -= dt
             if s.life <= 0 {
-                if s.kind == .grenade || s.kind == .rocket { detonate(s, at: s.pos, g) }
+                // (P449: his own shells that run out of time burst where they are; they vanished with no burst.)
+                if s.kind == .grenade || s.kind == .rocket || s.kind == .shell && s.breaks && s.fromPlayer { detonate(s, at: s.pos, g) }
                 s.dead = true; slugs[i] = s; continue
             }
             // P252: a fuzed shell bursts in the air when its time is up.
@@ -407,7 +408,9 @@ final class Armory {
         g.bulletHit = false
     }
 
+    static var detonations = 0                      // (harness)
     func detonate(_ s: Slug, at: V3, _ g: Game) {
+        Armory.detonations += 1
         if s.pulse { g.pulseBurst(at: at); return }
         if s.fromPlayer {
             for m in g.mobs.mobs where simd_length(m.pos - at) < s.power * 2 + 1 { m.killedByPlayer = true; m.playerHurtAt = g.clock }

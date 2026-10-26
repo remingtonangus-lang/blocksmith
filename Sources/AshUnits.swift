@@ -359,7 +359,7 @@ extension Mob {
             ashSlew(dt, toYaw: view, pitch: max(0, min(1.2, up)))
             if seat.fireTap && b.reload <= 0 {
                 b.reload = 5
-                ashCannon(g, power: AshSeat.gunPower, speed: 46, gravity: 12, len: 3.9, spread: 0.006, mine: true, antiTank: AshSeat.gunAntiTank)
+                ashCannon(g, power: AshSeat.gunPower, speed: AshSeat.gunSpeed, gravity: AshSeat.gunGravity, len: 3.9, spread: 0.006, mine: true, antiTank: AshSeat.gunAntiTank)
                 AshSeat.shots += 1
             }
             return 0                                               // a field gun is laid, not driven

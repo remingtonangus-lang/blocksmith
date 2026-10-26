@@ -205,6 +205,10 @@ final class AshSeat {
     // breaks nothing) and the field gun's shell burst against walls and hole a vehicle's plate (Slug.antiTank).
     static let tankPower: Float = 3.6, tankAntiTank: Float = 110
     static let gunPower: Float = 4.2, gunAntiTank: Float = 90
+    // P449 (Oct 25 09:05, "the explosion from your artillery took way too long to generate"): the field gun's shell left
+    // at 46 blocks a second under 12 of drop, 2-7 s in the air (and a high shot outlived its 6 s and vanished with no
+    // burst). Now 100 under 40: about the same reach (250 blocks at most), a 100-block shot lands in about 1 s.
+    static let gunSpeed: Float = 100, gunGravity: Float = 40
     // P435 (15:49, "when you sprint with the tank, it goes up to like 30, 40 kilometers per hour"): driven by him, a
     // vehicle cruises at the first speed and sprints at the second (blocks a second; 10 b/s is 36 km/h). The crews
     // still drive at the spec's pace.
