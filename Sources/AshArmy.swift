@@ -189,6 +189,7 @@ extension AshArmy {
     static var squadsSent = 0
     static var patrolsSent = 0
     static var bailedOut = 0
+    static var gunsWrecked = 0                     // (harness: gun mounts broken up, P459)
 }
 
 extension Game {
@@ -271,6 +272,26 @@ extension Game {
             debris.bits(plate, at: at, size: SIMD3(size.x, size.y, size.z), direction: dir, count: vol > 1.5 ? 3 : 2,
                         speed: 5 + 4 / (1 + vol), seed: seed)
         }
+    }
+
+    // P459 (Oct 25 16:26-16:30, his flak gun on a Capital gun: "I wish these guns actually had blocks that they're made
+    // up of... It should have been obliterated"; "I can't seem to destroy the little guns here"): a gun mount destroyed
+    // no longer just vanishes. It bursts (smoke, a flash, no blocks broken) and its biggest pieces (shield, barrels,
+    // cradle, mount) fly off as debris in its own plate: white for the Capital's, grey for Greywall's, steel otherwise.
+    func gunWrecked(_ m: Mob) {
+        let key: String
+        switch m.factionValue {
+        case .steelhold, .meridian: key = "white_concrete"
+        case .greywall: key = "light_gray_concrete"
+        default: key = "iron_block"
+        }
+        guard Blocks.has(key) else { return }
+        let at = m.pos + V3(0, m.height * 0.5, 0)
+        particles.explosion(at: at, power: 1.4)
+        for _ in 0..<6 { particles.smoke(at: at + V3(Rand.float(in: -0.8...0.8), Rand.float(in: 0...1.2), Rand.float(in: -0.8...0.8))) }
+        sfx(.debrisRain, 0.9, at: at)
+        ashBreakUp(m, Blocks.id(key))
+        AshArmy.gunsWrecked += 1
     }
 
     func ashWreck(_ m: Mob) {
