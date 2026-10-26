@@ -1489,6 +1489,10 @@ if CommandLine.arguments.contains("--dropflight") {           // P461: a taken d
     DropFlightCheck.run(game, check)
     print(failures == 0 ? "dropflight: all checks passed" : "dropflight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--brigandcheck") {         // P460: a Brigand takes pistol rounds
+    BrigandRoundsCheck.run(game, check)
+    print(failures == 0 ? "brigandcheck: all checks passed" : "brigandcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

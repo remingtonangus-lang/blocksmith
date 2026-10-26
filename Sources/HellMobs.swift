@@ -140,7 +140,10 @@ extension Mob {
 
     // P341: this knight's fighting style (MobKind.orderStyleRoll).
     var orderStyle: Int { kind == .brandSquire || kind == .brandKnight ? variant : 0 }
-    var orderShield: Bool { orderStyle == 0 }
+    // P460 (Oct 25 16:59, Brigands met in the open: "How do I kill this Brigand guy? He's just not dying... Okay, so I
+    // need to hit him with a sword"): a Brigand duels like a squire but carries an axe and no shield, yet his guard
+    // took gunfire as a shield does (a pistol or rifle round from the front lost all of it). He takes rounds whole now.
+    var orderShield: Bool { kind != .vindicator && orderStyle == 0 }
 
     var orderGuardMax: Int {
         if kind == .brandCommander { return hell?.raged == true ? 16 : 12 }
