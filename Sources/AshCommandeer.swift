@@ -217,6 +217,7 @@ final class AshSeat {
     }
     private var jumpWas = false
     static var entered = 0, shots = 0, ploughed = 0, tracked = 0, ranOver = 0   // (counters)
+    static var lastDrive: Float = 0                 // (the throttle the stick last asked for, -1...1)
 
     // The seat on the vehicle, in its own frame (blocks: x to the right, y up from its feet, z toward the back).
     func seatOffset(_ m: Mob) -> V3 {
@@ -338,6 +339,24 @@ enum AshDriveCheck {
                 check(moved > 6, String(format: "\(name): drives, %.1f blocks in 6 s (he rides %.1f from its centre)", moved, simd_length(game.player.pos - v.pos)))
                 run(120, act(forward: 1, strafe: 1))
                 check(abs(v.yaw - y0) > 0.5, String(format: "\(name): turns, %.0f degrees in 2 s", abs(v.yaw - y0) * 180 / .pi))
+                // P461: the stick goes the way he looks. Looking a quarter round to the right and pushing ahead, the
+                // hull comes round to his view and drives off that way; looking along it and pulling back, it backs up
+                // instead of turning about.
+                func wrap(_ a: Float) -> Float { var a = a; while a > .pi { a -= 2 * .pi }; while a < -.pi { a += 2 * .pi }; return a }
+                let look = v.yaw - .pi / 2
+                game.player.yaw = look
+                let q0 = v.pos
+                run(180, act(forward: 1))
+                let along = simd_dot(V2(v.pos.x - q0.x, v.pos.z - q0.z), V2(-sinf(look), -cosf(look)))
+                check(abs(wrap(v.yaw - look)) < 0.15 && along > 2, String(format: "\(name): pushed ahead looking right, it comes round to his view (%.0f degrees off) and drives that way (%.1f blocks in 3 s)",
+                                                                           abs(wrap(v.yaw - look)) * 180 / .pi, along))
+                run(90, act())                                  // (rolled to a stop first)
+                game.player.yaw = v.yaw
+                let y2 = v.yaw, q1 = v.pos
+                run(120, act(forward: -1))
+                let back = simd_dot(V2(v.pos.x - q1.x, v.pos.z - q1.z), V2(-sinf(y2), -cosf(y2)))
+                check(back < -1 && abs(wrap(v.yaw - y2)) < 0.2, String(format: "\(name): pulled back, it reverses (%.1f blocks, turned %.0f degrees)", back, abs(wrap(v.yaw - y2)) * 180 / .pi))
+                run(60, act())
             }
             if kind == .ashHalftrack {
                 run(2, act(jump: true)); run(2, act())
