@@ -169,6 +169,11 @@ enum Vessels {
         for x in -1...1 { for y in 8...9 { b.set(x, y, 17, "glass_pane") } }
         for x in [-2, 2] { for z in 18...20 { b.set(x, 8, z, "glass_pane") } }
         b.clear(0, 7, 22); b.clear(0, 8, 22)
+        // P455 (Oct 25 14:21, "entering from the bottom gives a weird reaction"): nothing led up to the deck, seven blocks
+        // over the ground, so he came at it from under the belly. A ladder now climbs the stern from the ground to the
+        // cab's door, on a post under the hull.
+        for y in 0...2 { b.set(0, y, 22, "polished_blackstone") }
+        for y in 0...7 { b.set(0, y, 23, "ladder[1]") }
         b.set(0, 7, 19, "ship_helm[south]")
         b.set(1, 7, 21, "chest")
         b.chests.append((IVec3(1, 7, 21), "bastion"))
