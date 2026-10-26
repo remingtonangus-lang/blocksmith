@@ -832,5 +832,13 @@ enum BorealStation {
         for (k, dx, ly, dz) in garrison { w.mob(k + tag, V3(Float(X(dx)) + 0.5, Float(F + ly), Float(Z(dz)) + 0.5)) }
         for (k, dx, ly, dz) in surfaceGarrison { w.mob(k + tag, V3(Float(X(dx)) + 0.5, Float(S + ly), Float(Z(dz)) + 0.5)) }
         w.mob("deck_gun" + tag, V3(Float(X(4)) + 0.5, Float(S + 7), Float(Z(16)) + 0.5))
+        // P460 (Oct 25 17:08, "the Boreal guys, make it so they have like their own trucks or something, maybe their own
+        // tanks too"): a Capital station keeps its own vehicles in winter colours: a truck in the shed, a fuel truck by
+        // the tanks and a tank in the east yard (Mob.borealSetup).
+        if !grey {
+            for (k, dx, dz) in BorealStation.vehicles { w.mob(k, V3(Float(X(dx)) + 0.5, Float(S + 1), Float(Z(dz)) + 0.5)) }
+        }
     }
+    // (mob key, dx, dz) on the surface row.
+    static let vehicles: [(String, Int, Int)] = [("ash_truck@boreal^270", 19, 9), ("ash_truck:fuel@boreal^0", -15, -9), ("ash_tank@boreal^180", 18, 22)]
 }

@@ -89,7 +89,8 @@ extension Mob {
             if v.count == 3 { leash = V3(v[0] + 0.5, v[1] + 0.5, v[2]) }
             n = n[..<i]
         }
-        var ash = false, deep = false
+        var ash = false, deep = false, boreal = false
+        if n.hasSuffix("@boreal") { boreal = true; n = n.dropLast(7) }   // P460: a Boreal Station's own vehicles
         if n.hasSuffix("@ash") { ash = true; n = n.dropLast(4) }
         if n.hasSuffix("@deep") { deep = true; n = n.dropLast(5) }       // a Brimstone Keep's monsters: Deep strength
         var grey = false, corsair = false, marauder = false
@@ -110,6 +111,7 @@ extension Mob {
         if deep { m.power = MobManager.depthPower(.deep, p.y) }
         if let h = heading { m.yaw = -h * .pi / 180; m.soldierBrain.turret = m.yaw }
         if tag == "fuel" { m.variant = 1 }
+        if boreal { m.borealSetup() }
         if tag == "light" && k0 == .deckGun { m.variant = HeavyTurret.lightVariant }
         if k0 == .deckGun, let v = HeavyTurret.smallTags[tag] { m.variant = v }        // P222: the Capital's small guns
         if tag == "heavy" && !grey && !ash { m.setTroop(.hannibal, rearm: false) }     // T7: a Capital fortress heavy     // T6: a light coastal gun
@@ -119,6 +121,15 @@ extension Mob {
         if ash, let r = AshArmy.role(tag) { m.ashTakeRole(r) }
         if k0 == .villager && !tag.isEmpty { Townsfolk.setup(m, tag: tag, game: nil) }
         return m
+    }
+
+    // P460: one of a Boreal Station's own vehicles: the Capital's, in winter white with its blue band (ashVehicleParts),
+    // crewed by Capital soldiers. Kept through a save by its faction (MobSave).
+    var boreal: Bool { kind.ashVehicle && faction == Faction.steelhold.rawValue }
+    func borealSetup() {
+        faction = Faction.steelhold.rawValue
+        spec.name = kind == .ashTank ? "Boreal Tank" : (kind == .ashHalftrack ? "Boreal Half-track" : (variant == 1 ? "Boreal Fuel Truck" : "Boreal Truck"))
+        persistent = true
     }
 
     var ashTurretY: Float {
@@ -291,7 +302,7 @@ extension Mob {
             if !aggro { aggro = true; g.sfx(.gun(10), 1.1, at: pivot) }
             b.lastSeen = g.player.eye - V3(0, 0.5, 0)
             b.seenAgo = 0
-            ashSpotted(g)
+            if !boreal { ashSpotted(g) }                          // (the Ashguard's spotting net, not the Capital's)
         } else {
             b.seenAgo += dt
             // Stands down 45 s after the last sighting, its own or (a field gun firing on reports) any unit's.
@@ -692,8 +703,12 @@ extension Mob {
 // MARK: Models (1/16 block, origin at the feet, facing -Z; hull yaw is the mob's, turrets turn by brain.turret)
 
 func ashVehicleParts(_ m: Mob) -> [Part] {
-    let black = V3(0.075, 0.075, 0.082), plate = V3(0.11, 0.11, 0.12), dark = V3(0.035, 0.035, 0.04)
-    let red = V3(0.62, 0.06, 0.04), steel = V3(0.2, 0.2, 0.22), glow = V3(2.6, 0.25, 0.12)
+    // P460: a Boreal Station's vehicles in the Capital's winter colours: white and pale grey, a blue band, white lamps.
+    let snow = m.boreal
+    let black = snow ? V3(0.62, 0.64, 0.66) : V3(0.075, 0.075, 0.082), plate = snow ? V3(0.5, 0.52, 0.54) : V3(0.11, 0.11, 0.12)
+    let dark = snow ? V3(0.07, 0.075, 0.08) : V3(0.035, 0.035, 0.04)
+    let red = snow ? V3(0.12, 0.26, 0.5) : V3(0.62, 0.06, 0.04), steel = V3(0.2, 0.2, 0.22)
+    let glow = snow ? V3(1.9, 2.1, 2.6) : V3(2.6, 0.25, 0.12)
     let b = m.brain
     let ty = (b?.turret ?? m.yaw) - m.yaw
     let pitch = b?.pitch ?? 0
@@ -710,7 +725,7 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         if gun { q.rotX = pitch }
         p.append(q)
     }
-    let ember = V3(0.85, 0.41, 0.12)   // P360 (b): the ember mark's orange (was a white disc)
+    let ember = snow ? V3(0.78, 0.63, 0.29) : V3(0.85, 0.41, 0.12)   // P360 (b): the ember mark's orange (was a white disc); P460: the Capital's gold
     // The ember mark on a flank: an orange plate with the black bar.
     func mark(_ x: Float, _ y: Float, _ z: Float, side: Float, size: Float) {
         p.append(box(x - (side < 0 ? 0.4 : 0), y, z, 0.4, size, size, ember))
@@ -733,7 +748,7 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         var t = box(out + (x0 < 0 ? -0.1 : 0.1), 0.4, z - 0.8, 1, 11.2, 1.6, V3(0.3, 0.29, 0.27), 4); t.pivot = pv; t.rotX = a; p.append(t)
     }
     // P344 (e): a crewed vehicle shows its crew (none once it is his).
-    let coat = V3(0.17, 0.165, 0.15), skin = V3(0.72, 0.56, 0.46), helm = V3(0.1, 0.1, 0.105)
+    let coat = snow ? V3(0.7, 0.72, 0.74) : V3(0.17, 0.165, 0.15), skin = V3(0.72, 0.56, 0.46), helm = snow ? V3(0.82, 0.83, 0.84) : V3(0.1, 0.1, 0.105)
     switch m.kind {
     case .ashTank:
         // A heavy tank in the period's style: a slab hull with a near-vertical front plate, big interleaved road wheels,
@@ -898,7 +913,7 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
             p.append(box(-4, 14, 36.2, 8, 8, 0.6, red))
         } else {
             p.append(box(-14, 10, -24, 28, 4, 62, plate, 7))
-            p.append(box(-14, 14, -24, 28, 22, 60, V3(0.09, 0.09, 0.1), 6))
+            p.append(box(-14, 14, -24, 28, 22, 60, snow ? V3(0.56, 0.58, 0.58) : V3(0.09, 0.09, 0.1), 6))      // the tilt (P460: white canvas)
             p.append(box(-14.4, 28, -18, 28.8, 3, 48, red, 6))
         }
         p.append(box(-14, 10, 38, 3, 2, 0.6, glow, 9)); p.append(box(11, 10, 38, 3, 2, 0.6, glow, 9))

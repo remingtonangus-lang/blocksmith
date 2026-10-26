@@ -53,14 +53,14 @@ extension Game {
 
     // Called from mobDied.
     func ashUnitDied(_ m: Mob) {
-        if m.kind == .ashTank && m.killedByPlayer { achieve("ash_tank") }
+        if m.kind == .ashTank && m.killedByPlayer && !m.boreal { achieve("ash_tank") }
         // The first officer you kill carries a Keeper's Journal (a soldier's story: the keep's forge and its flux, P328).
         if m.kind == .soldierOfficer && m.killedByPlayer && !ashOfficerHint {
             ashOfficerHint = true
             drops.spawn(ItemStack(Items.id("keepers_journal"), 1), at: m.pos + V3(0, 0.5, 0))
             onToast?("The officer carried a Keeper's Journal")
         }
-        if m.faction == Faction.ashguard.rawValue { ashAlarmKill(m) }
+        if m.faction == Faction.ashguard.rawValue && dim.dim == .deep { ashAlarmKill(m) }      // (the Vault's alarm: kills below)
         if m.kind.ashVehicle {
             // Vehicles brew up: a burst (fuel trucks a big one, with fire) and smoke; the blocks around are spared.
             let fuel = m.kind == .ashTruck && m.variant == 1

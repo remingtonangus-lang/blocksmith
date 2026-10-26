@@ -119,7 +119,7 @@ extension Game {
             let x = Int(floor(p.x)), z = Int(floor(p.z)), y = Int(floor(m.pos.y))
             if w.solidAt(x, y, z) || w.solidAt(x, y + 1, z) { p = m.pos + V3(0, m.height + 0.2, 0) }
             let c = Mob(.soldierCrew, at: p)
-            c.ashSetup()
+            if !m.boreal { c.ashSetup() }                     // (a Boreal vehicle's crew are the Capital's)
             c.persistent = true
             c.aggro = true
             c.soldierBrain.lastSeen = player.eye
@@ -142,7 +142,7 @@ extension Game {
             return true
         }
         // One half-track or truck in two keeps a sidecar motorcycle beside it (none if one already stands near).
-        if m.kind != .ashTank, !b.sidecarDone, dist < 64, let h = b.patrolHome {
+        if m.kind != .ashTank, !m.boreal, !b.sidecarDone, dist < 64, let h = b.patrolHome {
             b.sidecarDone = true
             if hash3(Int(floor(h.x)), 7, Int(floor(h.z)), 0x51DE) % 2 == 0
                 && !world.ships.list.contains(where: { $0.name == AshCommandeer.sidecarName && simd_length($0.pos - h) < 18 }) {
