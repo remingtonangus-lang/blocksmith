@@ -668,6 +668,12 @@ extension ShipManager {
             // P261: with the stick centred the hull holds its heading harder (bumps, a scraping keel, waves, wind).
             let hold: Float = abs(s.steerEase) < 0.05 ? 7 : 4
             T += up * (I.y * hold * (target - wy))
+            // P449: a small car on its wheels (the sidecar, his Army Truck) turns the way its front wheels point: its
+            // yaw rate follows the stick about as quickly as its sideways slip dies away (the tyres' sideways grip held
+            // a 37-block truck to 25 degrees in 2 s of full lock).
+            if s.grounded && sub <= 0 && s.blockCount < 40 && s.name != Felling.name && abs(s.steerEase) > 0.05 {
+                s.angVel += up * ((target - wy) * min(1, h * 5))
+            }
         }
 
         // Keep upright (aircraft: roll toward the bank the pilot asks for, pitch free; pitch by climb input).

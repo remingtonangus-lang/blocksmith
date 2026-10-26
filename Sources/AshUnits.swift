@@ -919,5 +919,6 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         p.append(box(-14, 10, 38, 3, 2, 0.6, glow, 9)); p.append(box(11, 10, 38, 3, 2, 0.6, glow, 9))
     }
     AshArmour.strip(m, &p)                                                                     // P449: plates shot off
+    if m.wreck == 7 { BoatLooks.rock(&p, pitch: m.boatRock.x, roll: m.boatRock.y) }          // P449: over his truck's hull
     return p
 }

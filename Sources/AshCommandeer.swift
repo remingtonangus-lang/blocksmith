@@ -31,6 +31,34 @@ enum AshCommandeer {
     static let crewOut: Float = 4.5               // the crew jumps down this far from the hull's middle (outside its wheels)
     static var taken = 0, bailed = 0, salvos = 0, sidecars = 0, sidecarNoRoom = 0          // (counters)
 
+    // P449 (Oct 25 09:02, "the truck shouldn't be entities, they should be built up of blocks... Although I want it to
+    // still look like this"): an Army Truck he takes becomes a hull of blocks (truckHull) under its own model, driven
+    // from its helm like any of his craft: it rolls on its six wheels with the hull physics, its blocks are shot out
+    // one by one (past a sixth gone the blocks show instead of the model, AshWrecks.syncSkins), it is saved as a ship
+    // and it still runs down whoever stands in its way (ashRunOver). Its paint comes along in the role: "ashtruck",
+    // the variant (0 supply, 1 fuel, 2 Greywall) and "b" for a Boreal Station's. The crews' own trucks stay vehicles.
+    static let truckName = "Army Truck"
+    static var truckHulls = true                  // (the --ashdrive check's mob-truck leg turns it off)
+    static var hulled = 0
+    static func smallHull(_ s: Ship) -> Bool { s.name == sidecarName || s.name == truckName }
+    static func truckRole(_ m: Mob) -> String { "ashtruck\(max(0, min(2, m.variant)))" + (m.boreal ? "b" : "") }
+
+    // Front toward -Z: wheels at three axles either side, the bonnet with the engine, the cab (helm at its front, his
+    // seat behind it under the roof) and the bed with its tilt behind; three blocks wide, six long, about the model's
+    // size (5.6 long, 2.1 wide, 2.3 high).
+    static func truckHull() -> Blueprint {
+        let b = Blueprint()
+        for z in [-2, 1, 2] { b.set(-1, 0, z, "ship_wheel"); b.set(1, 0, z, "ship_wheel") }
+        b.box(-1, 1, 1, 1, -3, 2, "polished_blackstone")
+        b.set(0, 1, -3, "ship_engine")
+        b.set(0, 1, -2, "ship_helm[south]")
+        b.clear(0, 1, -1)
+        b.box(-1, 1, 2, 2, -2, -2, "polished_blackstone")                 // the cab's front and roof over the helm
+        b.set(-1, 2, -1, "polished_blackstone"); b.set(1, 2, -1, "polished_blackstone")
+        b.box(-1, 1, 2, 2, 0, 2, "black_wool")                             // the tilt over the bed
+        return b
+    }
+
     static func takeable(_ k: MobKind) -> Bool { k == .ashTank || k == .ashHalftrack || k == .ashTruck || k == .ashArtillery }
     static func crew(_ k: MobKind) -> Int { k == .ashTank ? 3 : (k == .ashHalftrack || k == .ashArtillery ? 2 : 1) }
 
@@ -66,8 +94,32 @@ extension Game {
     func ashCommandeer(_ m: Mob) -> Bool {
         guard AshCommandeer.takeable(m.kind), m.health > 0, alive, world.ships.pilot == nil, AshSeat.shared.vehicle == nil else { return false }
         if !m.tamed { ashEmpty(m) }
+        if m.kind == .ashTruck && AshCommandeer.truckHulls { return ashTruckHull(m) }
         AshSeat.shared.enter(self, m)
         return true
+    }
+
+    // P449: the truck he takes, as a hull of blocks under its model, at his helm.
+    func ashTruckHull(_ m: Mob) -> Bool {
+        let s = world.ships.spawn(AshCommandeer.truckHull(), at: m.pos + V3(0, 1.5, 0), yaw: m.yaw, name: AshCommandeer.truckName,
+                                  role: AshCommandeer.truckRole(m))
+        AshWrecks.setDown(s, world)
+        s.initialBlocks = s.blockCount
+        mobs.mobs.removeAll { $0 === m }
+        if let st = helmStand(s) { player.pos = s.toWorld(st) }
+        player.vel = .zero
+        takeCommand(s)
+        sfx(.engineStart, 1, at: s.pos)
+        AshCommandeer.hulled += 1
+        return true
+    }
+
+    // P449: his truck hull at the helm runs people down as the truck did (its speed along its heading).
+    func ashRunOverHull(_ s: Ship) {
+        let fwd = s.dirToWorld(V3(0, 0, -1))
+        let speed = simd_dot(s.vel, fwd)
+        let feet = V3(s.pos.x, s.worldMin.y, s.pos.z)
+        ashRunOver(at: feet, forward: V3(fwd.x, 0, fwd.z), halfW: 1.4, reach: 4.2, heavy: false, speed: speed, except: nil)
     }
 
     // P464 (Oct 25 19:33, "should be able to run people over with it"): the vehicle he drives runs down whoever stands
@@ -75,18 +127,21 @@ extension Game {
     // throttle kills a soldier outright; a tank kills anything on foot) and a shove off to the side. Other vehicles and
     // big beasts it only nudges.
     func ashRunOver(_ v: Mob, _ speed: Float) {
-        guard abs(speed) > 2.5 else { return }
-        let dir = v.forward * (speed > 0 ? 1 : -1), side = V3(-dir.z, 0, dir.x)
         let reach: Float = (v.kind == .ashBehemoth ? 4.4 : (v.kind == .ashTank ? 3.4 : 3.0)) + 0.6
-        let heavy = v.kind == .ashTank || v.kind == .ashBehemoth
+        ashRunOver(at: v.pos, forward: v.forward, halfW: v.halfW, reach: reach, heavy: v.kind == .ashTank || v.kind == .ashBehemoth, speed: speed, except: v)
+    }
+
+    func ashRunOver(at pos: V3, forward: V3, halfW: Float, reach: Float, heavy: Bool, speed: Float, except v: Mob?) {
+        guard abs(speed) > 2.5 else { return }
+        let dir = forward * (speed > 0 ? 1 : -1), side = V3(-dir.z, 0, dir.x)
         for m in mobs.mobs where m !== v && m.health > 0 && !m.kind.ashVehicle && m.kind != .deckGun && m.spec.halfW < 1 {
-            let d = m.pos - v.pos
+            let d = m.pos - pos
             let along = simd_dot(d, dir), across = simd_dot(d, side)
-            guard along > 0, along < reach, abs(across) < v.halfW + m.spec.halfW + 0.1, abs(d.y) < 2.5 else { continue }
+            guard along > 0, along < reach, abs(across) < halfW + m.spec.halfW + 0.1, abs(d.y) < 2.5 else { continue }
             if clock - m.playerHurtAt < 0.6 { continue }                       // (once per pass)
             let dmg = Int((abs(speed) * (heavy ? 5 : 2.4)).rounded())
             m.killedByPlayer = true; m.playerHurtAt = clock
-            m.hit(from: v.pos - dir, damage: dmg, knockback: 1.6)
+            m.hit(from: pos - dir, damage: dmg, knockback: 1.6)
             m.vel += side * (across < 0 ? -1 : 1) * min(8, abs(speed)) + V3(0, 3, 0)
             sfx(.shipCollide, min(1.5, abs(speed) / 8), at: m.pos)
             AshSeat.ranOver += 1
@@ -305,9 +360,10 @@ enum AshDriveCheck {
         let (x, z) = RideCheck.land(world, near: game.player.pos, rough: false, verify: true)
         _ = world.loadSync(center: V3(Float(x), 100, Float(z)), radius: 4)
         func ground(_ x: Int, _ z: Int) -> V3 { V3(Float(x) + 0.5, world.ships.groundTop(x, z) + 1, Float(z) + 0.5) }      // (on the top block)
-        // A level yard: stone, 17 wide, from 12 behind to 40 ahead (-Z), cleared above.
+        // A level yard: stone, 17 wide, from 12 behind to 52 ahead (-Z), cleared above (the sidecar's 5 s run and turn
+        // end some 45 ahead).
         let y0 = Int(world.ships.groundTop(x, z))
-        for dz in -40...12 { for dx in -8...8 {
+        for dz in -52...12 { for dx in -8...8 {
             for y in (y0 - 3)...y0 { world.setBlock(x + dx, y, z + dz, STONE) }
             for y in (y0 + 1)...(y0 + 10) where !world.isAir(x + dx, y, z + dz) { world.setBlock(x + dx, y, z + dz, AIR) }
         } }
@@ -322,7 +378,7 @@ enum AshDriveCheck {
             var a = AgentAction(); a.forward = forward; a.strafe = strafe; a.jump = jump; a.sneak = sneak; a.attack = attack; return a
         }
         // Takes one, drives it 6 s ahead and 2 s turning (unless a field gun), fires its gun, climbs out.
-        for kind in [MobKind.ashTank, .ashHalftrack, .ashTruck, .ashArtillery] {
+        for kind in [MobKind.ashTank, .ashHalftrack, .ashArtillery] {                // (the truck: below, P449)
             let v = Mob(kind, at: ground(x, z + 6))
             v.ashSetup()
             v.yaw = 0
@@ -378,6 +434,54 @@ enum AshDriveCheck {
             check(AshSeat.shared.vehicle == nil && v.tamed && simd_length(V2(v.pos.x - p1.x, v.pos.z - p1.z)) < 0.5, "\(name): sneak climbs out; it stands parked")
             game.mobs.mobs.removeAll { $0 === v }
         }
+        // P449: a truck he takes becomes a hull of blocks under the truck's model, driven from its helm: it drives and
+        // turns on its wheels, runs a soldier down and, sneaking, he gets down beside it and it stands parked.
+        do {
+            let v = Mob(.ashTruck, at: ground(x, z + 6))
+            v.ashSetup()
+            v.yaw = 0
+            v.persistent = true
+            game.mobs.mobs.append(v)
+            game.player.pos = ground(x - 5, z + 6)
+            run(5, act())
+            let took = game.ashCommandeer(v)
+            let hull = game.world.ships.pilot
+            check(took && hull?.name == AshCommandeer.truckName && !game.mobs.mobs.contains { $0 === v },
+                  "Army Truck: taken, it is a hull of \(hull?.blockCount ?? 0) blocks at his helm")
+            game.mobs.mobs.removeAll { $0.faction == Faction.ashguard.rawValue && !$0.kind.ashVehicle }
+            run(10, act())
+            let skin = AshWrecks.skinMobs.first { $0.kind == .ashTruck && $0.wreck == 7 }
+            check(skin != nil && hull?.hidden == true, "Army Truck: drawn as the truck over its hidden hull")
+            if let h = hull {
+                func heading() -> Float { let f = h.dirToWorld(V3(0, 0, -1)); return atan2f(-f.x, -f.z) }
+                let p0 = h.pos, y0 = heading()
+                // (on the yard: a soldier 14 ahead of it, run down within its first 2.5 s)
+                let f = h.dirToWorld(V3(0, 0, -1))
+                let at = h.pos + V3(f.x, 0, f.z) * 14
+                let man = Mob(.soldierRecruit, at: ground(Int(floor(at.x)), Int(floor(at.z))))
+                man.ashSetup()
+                man.persistent = true
+                game.mobs.mobs.append(man)
+                let r0 = AshSeat.ranOver, hp0 = man.health
+                run(150, act(forward: 1))
+                check(AshSeat.ranOver > r0 || man.health < hp0, "Army Truck: runs down a soldier in its way (\(hp0) -> \(man.health) health)")
+                game.mobs.mobs.removeAll { $0 === man }
+                run(210, act(forward: 1))
+                let moved = simd_length(V2(h.pos.x - p0.x, h.pos.z - p0.z))
+                check(moved > 6, String(format: "Army Truck: drives on its wheels, %.1f blocks in 6 s", moved))
+                run(120, act(forward: 1, strafe: 1))
+                var turned = abs(heading() - y0)
+                if turned > .pi { turned = 2 * .pi - turned }
+                check(turned > 0.5, String(format: "Army Truck: turns, %.0f degrees in 2 s", turned * 180 / .pi))
+                run(90, act())
+                run(2, act(sneak: true))
+                let q1 = h.pos
+                run(120, act())
+                check(game.world.ships.pilot == nil && game.world.ships.aboard == nil && simd_length(V2(h.pos.x - q1.x, h.pos.z - q1.z)) < 0.5,
+                      "Army Truck: sneaking he gets down beside it; it stands parked")
+                world.ships.remove(h)
+            }
+        }
         // P435: the sidecar motorcycle, driven from its saddle: how fast it goes and which way it turns.
         do {
             let sc = world.ships.spawn(AshCommandeer.sidecar(), at: ground(x, z + 6) + V3(0, 3, 0), yaw: 0, name: AshCommandeer.sidecarName, role: "")
@@ -413,9 +517,12 @@ enum AshDriveCheck {
                          world.ships.boundsDistance(sc, off), world.ships.aboard == nil ? "no" : "yes"))
             check(world.ships.pilot == nil && world.ships.aboard == nil && free && world.ships.boundsDistance(sc, off) > 0.2,
                   "sidecar: sneak gets him off onto the ground beside it, clear of the hull")
+            let w0 = game.player.pos
+            let away = V3(w0.x - sc.pos.x, 0, w0.z - sc.pos.z)                // (turned away from it)
+            game.player.yaw = atan2f(-away.x, -away.z)
             run(60, act(forward: 1))
-            check(simd_length(V2(game.player.pos.x - off.x, game.player.pos.z - off.z)) > 2,
-                  String(format: "sidecar: he walks away from it (%.1f blocks in 1 s)", simd_length(V2(game.player.pos.x - off.x, game.player.pos.z - off.z))))
+            check(simd_length(V2(game.player.pos.x - w0.x, game.player.pos.z - w0.z)) > 2,
+                  String(format: "sidecar: he walks away from it (%.1f blocks in 1 s)", simd_length(V2(game.player.pos.x - w0.x, game.player.pos.z - w0.z))))
             world.ships.remove(sc)
         }
         // P435: the repaired fighter on a long strip: its take-off run and its speed (Oct 24 15:53: "this thing can't

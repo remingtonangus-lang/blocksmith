@@ -121,18 +121,30 @@ enum AshWrecks {
     static func syncSkins(_ w: World, dt: Float = 1.0 / 72) {
         if w.ships.isEmpty && skins.isEmpty { if !skinMobs.isEmpty { skinMobs = [] }; return }
         var out: [Mob] = []
-        for s in w.ships.list where (s.name == fighterName || s.name == AshCommandeer.sidecarName) && s.parent == nil {
-            let bike = s.name == AshCommandeer.sidecarName
+        for s in w.ships.list where (s.name == fighterName || AshCommandeer.smallHull(s)) && s.parent == nil {
+            let bike = s.name == AshCommandeer.sidecarName, truck = s.name == AshCommandeer.truckName
             if skinOrigin[s.id] == nil, let h = s.helm {
                 // The helm stands at (0, 2, -3) of salvagedFighter's plan and at (0, 1, 1) of the sidecar's; the
-                // model's origin is the plan's (0, 0, 0) cell, centred.
-                skinOrigin[s.id] = bike ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) - 0.5)
+                // model's origin is the plan's (0, 0, 0) cell, centred. P449: the truck's helm at (0, 1, -2) of its
+                // plan, whose six blocks run z -3...2; the model's middle is 0.4 ahead of its origin.
+                skinOrigin[s.id] = truck ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) + 2.4)
+                                 : bike ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) - 0.5)
                                         : V3(Float(h.x) + 0.5, Float(h.y) - 2, Float(h.z) + 3.5)
             }
             guard let o = skinOrigin[s.id], !skinsOff, s.blockCount * 6 >= s.initialBlocks * 5 else { s.hidden = false; continue }
             s.hidden = true
             let m: Mob
-            if let have = skins[s.id] { m = have } else {
+            if let have = skins[s.id] { m = have } else if truck {
+                // P449: his Army Truck, in the paint it was taken in (its role: "ashtruck", the variant, "b" Boreal).
+                let role = s.role ?? ""
+                m = Mob(.ashTruck, at: s.pos)
+                m.variant = role.dropFirst(8).first.flatMap { Int(String($0)) } ?? 0
+                m.faction = role.hasSuffix("b") ? Faction.steelhold.rawValue : Faction.ashguard.rawValue
+                m.wreck = 7
+                m.health = 1
+                m.onGround = true
+                skins[s.id] = m
+            } else {
                 m = Mob(.ashBehemoth, at: s.pos)
                 m.wreck = bike ? 6 : 5
                 m.health = 1
@@ -151,7 +163,11 @@ enum AshWrecks {
             m.boatRock = V2(atan2f(uz, bz), atan2f(r.y, rx))
             let c = V3(0, 4 * m.scale / 16, 0)                   // (the turn's centre: BoatLooks.rock's, scaled)
             m.pos = s.toWorld(o + c) - c
-            if bike {
+            if truck {
+                // Its wheels (6/16 of a block round) turn with the ground going by.
+                let along = simd_dot(s.vel, s.dirToWorld(V3(0, 0, -1)))
+                m.wheelRoll = (m.wheelRoll + along * dt / (6.0 / 16)).truncatingRemainder(dividingBy: 2 * .pi)
+            } else if bike {
                 // The wheels (9/16 of a block round) turn with the ground going by under them.
                 let along = simd_dot(s.vel, s.dirToWorld(V3(0, 0, -1)))
                 m.walkPhase = (m.walkPhase + along * dt / (9.0 / 16)).truncatingRemainder(dividingBy: 2 * .pi)

@@ -1799,7 +1799,7 @@ func mobModelParts(_ m: Mob) -> [Part] { parts(m) + equipmentParts(m) }
 
 private func parts(_ m: Mob) -> [Part] {
     if m.fallen { return fallenAlliedParts(m) }                  // P346 (AshWrecks.swift)
-    if m.wreck >= 0 { return ashWreckParts(m) }
+    if m.wreck >= 0 && m.wreck != 7 { return ashWreckParts(m) }        // (7: a vehicle of his drawn over its hull, P449)
     let swing = sinf(m.walkPhase) * 0.7 * m.walkAmount
     if m.posse == Prisoners.posse { return prisonerParts(m, swing: swing) }     // P347
     func leg(_ x: Float, _ z: Float, _ w: Float, _ h: Float, _ ph: Float, _ c: V3, _ pat: Float = 0) -> Part {
