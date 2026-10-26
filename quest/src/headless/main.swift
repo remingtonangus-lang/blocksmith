@@ -1568,6 +1568,10 @@ if CommandLine.arguments.contains("--musictakes") {             // P457: several
     MusicTakesCheck.run(game, check)
     print(failures == 0 ? "musictakes: all checks passed" : "musictakes: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--chasehull") {              // P449: the big ship's chase view outside its hull
+    ChaseHullCheck.run(game, check)
+    print(failures == 0 ? "chasehull: all checks passed" : "chasehull: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
