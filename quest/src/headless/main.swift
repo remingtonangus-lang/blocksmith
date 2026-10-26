@@ -1517,6 +1517,10 @@ if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--huntcrawler") {          // P460: the Reckoning's Capital band brings a crawler
+    HuntCrawlerCheck.run(game, check)
+    print(failures == 0 ? "huntcrawler: all checks passed" : "huntcrawler: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--frigatecheck") {
     FrigateCheck.run(game, check)
     print(failures == 0 ? "frigate: all checks passed" : "frigate: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
