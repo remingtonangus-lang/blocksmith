@@ -1509,6 +1509,10 @@ if CommandLine.arguments.contains("--frigatedecks") {         // P450/P461: the 
     FrigateDecksCheck.run(check)
     print(failures == 0 ? "frigatedecks: all checks passed" : "frigatedecks: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--bigfight") {              // P450: the Reckoning's barrages, dropships and truce
+    BigFightCheck.run(game, check)
+    print(failures == 0 ? "bigfight: all checks passed" : "bigfight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
