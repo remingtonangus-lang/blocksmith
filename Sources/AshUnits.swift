@@ -314,7 +314,7 @@ extension Mob {
         }
     }
 
-    // P344: his at the controls. The stick drives (forward) and turns (sideways) the hull; the turret, the pintle gun or
+    // P344: his at the controls. The stick sends the hull the way it is pushed, from his view (P461); the turret, the pintle gun or
     // the field gun lays on his view at its own traverse rate; the trigger fires the seat's gun.
     private func ashSeatDrive(_ dt: Float, _ g: Game, _ seat: AshSeat) -> Float {
         let b = soldierBrain
@@ -355,16 +355,40 @@ extension Mob {
         default:
             ashSlew(dt, toYaw: yaw, pitch: 0)                      // the pintle gun rides fore and aft
         }
-        let turn: Float = kind == .ashHalftrack ? 1.4 : (kind == .ashTruck ? 1.2 : 0.7)
+        let turn: Float = kind == .ashHalftrack ? 1.4 : (kind == .ashTruck ? 1.2 : 1.0)
         let sp = AshSeat.seatSpeed(kind)
-        let top = seat.sprint && seat.drive > 0.3 ? sp.sprint : sp.cruise
+        // P461 (Oct 25 16:47: "Controlling the tank is weird. It is very unintuitive"): the stick drove the hull's own
+        // way (up: ahead along the hull wherever he looked; sideways: turn) while the turret followed his head, so
+        // looking off to the side and pushing ahead went the hull's way, not his. Now the stick says where to go as it
+        // does on foot: pushed any way, the hull turns toward that way (from where he looks) and drives off along it;
+        // a tank pivots on its tracks when it is far round and slows into the turn, wheels steer while they roll; a way
+        // more than about 125 degrees round the back reverses toward it instead of turning about.
+        let stick = V2(seat.steer, seat.drive)
+        let push = min(1, simd_length(stick))
+        var drive: Float = 0, swing: Float = 0
+        if push > 0.15 {
+            let look = g.player.moveYaw ?? view
+            var d = look - atan2f(stick.x, stick.y) - yaw
+            while d > .pi { d -= 2 * .pi }
+            while d < -.pi { d += 2 * .pi }
+            if abs(d) > 2.2 {
+                d += d > 0 ? -.pi : .pi
+                drive = -push
+            } else {
+                drive = push * (kind == .ashTank ? max(0, cosf(d)) : max(0.4, cosf(d)))
+            }
+            swing = d
+        }
+        AshSeat.lastDrive = drive
+        let top = seat.sprint && drive > 0.3 ? sp.sprint : sp.cruise
         // (The throttle eases toward what the stick asks: a 40 tonne tank doesn't reach 36 km/h in a frame.)
-        let want = seat.drive >= 0 ? top * seat.drive : sp.cruise * 0.5 * seat.drive
+        let want = drive >= 0 ? top * drive : sp.cruise * 0.5 * drive
         soldierBrain.seatSpeed += max(-9 * dt, min((kind == .ashTank ? 3.2 : 5) * dt, want - soldierBrain.seatSpeed))
         let speed = soldierBrain.seatSpeed
-        // Turning: a tank pivots on its tracks; wheels need the hull rolling (and steer the other way in reverse).
-        let roll: Float = kind == .ashTank ? 1 : min(1, abs(speed) / 2) * (speed < 0 ? -1 : 1)
-        yaw -= seat.steer * turn * roll * dt
+        // Turning toward the way asked: a tank pivots on its tracks; wheels need the hull rolling.
+        let roll: Float = kind == .ashTank ? 1 : min(1, abs(speed) / 2)
+        let step = turn * roll * dt
+        yaw += max(-step, min(step, swing))
         walkPhase += speed * dt
         return speed
     }
