@@ -294,6 +294,12 @@ extension Recipes {
         r.append(shapeless(["iron_ingot", "gunpowder"], Wrecks.cannonball, 4))                                              // P93
         r.append(shaped(["SSS"], ["S": "steel_ingot"], "ship_gun_barrel", 2))                                                 // P459
         r.append(shaped(["III"], ["I": "iron_ingot"], "ship_gun_barrel", 1))
+        // P459 (Oct 25 16:10, "Do we have like barrels and stuff? ... If I wanna make like a plane or something"): the
+        // Capital's aircraft parts can be made: four steel ingots make four sheets of light white airframe, three
+        // sheets make three airfoils, and a black dye turns one into the Ashguard's dark fighter airfoil.
+        r.append(shaped(["SS", "SS"], ["S": "steel_ingot"], "capital_airframe", 4))
+        r.append(shaped(["AAA"], ["A": "capital_airframe"], "capital_wing", 3))
+        r.append(shapeless(["capital_wing", "black_dye"], "fighter_wing"))
         r.append(shaped(["BBB", "ECE", "BBB"], ["B": "iron_block", "E": "ship_engine", "C": "crafting_table"], VehicleWorks.key))   // P54
         r.append(shaped(["BBB", "BHB", "PEP"], ["B": "ship_balloon", "H": "ship_helm", "P": "ship_propeller", "E": "ship_engine"], SkySkiff.key))   // A4
         r.append(shaped(["  I", " S ", "S  "], ["I": "iron_ingot", "S": "string"], GrappleLine.key))      // C7

@@ -1546,6 +1546,10 @@ if CommandLine.arguments.contains("--borealcars") {            // P460: a Boreal
     BorealCarsCheck.run(game, check)
     print(failures == 0 ? "borealcars: all checks passed" : "borealcars: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--planeparts") {             // P459: aircraft parts from steel
+    PlanePartsCheck.run(game, check)
+    print(failures == 0 ? "planeparts: all checks passed" : "planeparts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
