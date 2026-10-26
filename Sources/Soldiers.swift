@@ -1028,9 +1028,15 @@ extension Mob {
         b.gunnerCD -= 0.4
         guard b.gunnerCD <= 0 else { return }
         b.gunnerCD = 6
-        let back = V3(sinf(yaw), 0, cosf(yaw))
         var spot: V3?
-        search: for k: Float in [4.5, 6.5, 9] {
+        // P454 (Oct 25 14:18, a Boreal Station: "Where's the gun that's supposed to shoot at me?"): a gun placed facing
+        // in toward its roof had no floor behind it, so nobody was ever called to it; then a spot to its side or ahead
+        // is taken, nearer in.
+        let turns: [Float] = [0.785, -0.785, 1.571, -1.571, 2.356, -2.356, 3.142]
+        let behind: [(Float, Float)] = [(0, 4.5), (0, 6.5), (0, 9)]
+        let tries: [(Float, Float)] = behind + turns.flatMap { (a: Float) -> [(Float, Float)] in [(a, 2.5), (a, 4.5)] }
+        search: for (a, k) in tries {
+            let back = V3(sinf(yaw + a), 0, cosf(yaw + a))
             let p = pos + back * k
             let x = Int(floor(p.x)), z = Int(floor(p.z)), y0 = Int(floor(pos.y))
             for dy in [0, -1, 1] {
