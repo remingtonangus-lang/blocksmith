@@ -47,6 +47,9 @@ enum Reckoning {
         var nextTry: Double = 0         // ... and when it may try again (g.clock)
         var landed = false              // T16: its dropship squad has been flown in (soldier bands)
         var warship = false             // T16: the Stormwarden band's frigate has come over
+        var dropAgain: Double = 0       // P450: when its next dropship squad may fly in (g.clock; 0: none yet)
+        var drops = 0                   // P450: dropships it has called in
+        var barrage: Float = -1         // P450: seconds to its guns' next barrage on him (-1: out of their range)
         init(side: Side, pos: V2, waiting: [String]) { self.side = side; self.pos = pos; self.waiting = waiting }
         var left: Int { waiting.count + live.filter { $0.health > 0 }.count }
     }
@@ -70,7 +73,7 @@ enum Reckoning {
     static var groupsLeft: Int { hunts.filter { $0.left > 0 }.count }
     private static var gameID: ObjectIdentifier?
 
-    static func reset() { stage = 0; timer = 0; hunts = []; underground = false }
+    static func reset() { stage = 0; timer = 0; hunts = []; underground = false; barrageTold = false }
     static func own(_ g: Game) {
         let id = ObjectIdentifier(g)
         if gameID != id { reset(); gameID = id }
@@ -199,14 +202,25 @@ enum Reckoning {
         if !down {
             for h in hunts where h.side.faction != .none {
                 let d = simd_length(h.pos - p)
-                if !h.landed && d < near * 2.2 && h.waiting.count >= 4 {
-                    let n = min(6, h.waiting.count - 2)
+                // P450 (Oct 25 09:08, "Should have drop ships and everything pestering me... the drop ships aren't even
+                // coming at me"): after its first squad (from its own troops) a band calls in fresh ones, four at a time
+                // every 75 s, up to three dropships in all, while it has anyone left.
+                let first = !h.landed && h.waiting.count >= 4
+                let again = h.landed && h.dropAgain > 0 && g.clock >= h.dropAgain && h.drops < dropMax && h.left > 0
+                if (first || again) && d < near * 2.2 {
+                    let n = first ? min(6, h.waiting.count - 2) : 4
                     let from = V3(h.pos.x, g.player.pos.y + 40, h.pos.y)
+                    let who = h.side == .greywall ? "Greywall" : h.side == .capital ? "Capital" : "Stormwarden"
                     if g.world.ships.callDropship(faction: h.side.faction, from: from, to: g.player.pos, game: g, troops: n) {
                         h.landed = true
-                        h.waiting.removeLast(n)
-                        g.onToast?("A \(h.side == .greywall ? "Greywall" : h.side == .capital ? "Capital" : "Stormwarden") dropship is coming in with a squad")
-                    } else { h.landed = g.stormGrounds ? false : true }          // (a storm: it tries again when it clears)
+                        h.drops += 1
+                        h.dropAgain = g.clock + dropEvery
+                        if first { h.waiting.removeLast(n) }
+                        g.onToast?(first ? "A \(who) dropship is coming in with a squad" : "Another \(who) dropship is coming in")
+                    } else {
+                        if first { h.landed = !g.stormGrounds }                   // (a storm: it tries again when it clears)
+                        h.dropAgain = g.clock + (g.stormGrounds ? 10 : dropEvery)
+                    }
                 }
                 if h.side == .stormwarden && !h.warship && d < 260 {
                     h.warship = true
@@ -217,6 +231,7 @@ enum Reckoning {
                 }
             }
         }
+        if !down { barrages(g, p, dt) }
         // Bring units in, nearest groups first, while the player is on the surface.
         var alive = hunts.reduce(0) { $0 + $1.live.count }
         if !down {
@@ -244,6 +259,41 @@ enum Reckoning {
             g.onToast?("The last war band is destroyed. The land is at peace with you for good (+\(Money.format(reward)))")
             g.sfx(.goatHorn, 1)
         }
+    }
+
+    // P450 (Oct 25 09:08, on the surface with every band closing in: "I should have a bunch of bombs coming down. Should be
+    // a really tough time"): a soldier band within 200 blocks has its guns on him. Every 20 s (14 on hard) three marked
+    // shells come down round him (the red smoke and the whistle two seconds ahead, leading him a little), the bands
+    // taking turns; underground they lose him.
+    static let barrageRange: Float = 200
+    static let dropEvery: Double = 75
+    static let dropMax = 3
+    static var barrageTold = false
+    static func barrages(_ g: Game, _ p: V2, _ dt: Float) {
+        for (i, h) in hunts.enumerated() where h.side.faction != .none {
+            guard simd_length(h.pos - p) < barrageRange else { h.barrage = -1; continue }
+            if h.barrage < 0 { h.barrage = 10 + Float(i % 4) * 5 }          // (the first a little after they close; bands staggered)
+            h.barrage -= dt
+            guard h.barrage <= 0 else { continue }
+            h.barrage = g.difficulty >= 3 ? 14 : 20
+            let by = "\(h.side == .greywall ? "Greywall" : h.side == .capital ? "Capital" : "Stormwarden") artillery"
+            let lead = V3(g.player.vel.x, 0, g.player.vel.z) * 1.2
+            for k in 0..<3 {
+                let off = k == 0 ? V3.zero : V3(Rand.float(in: -5...5), 0, Rand.float(in: -5...5))
+                g.ashStrikes.append(AshStrike(at: g.player.pos + lead + off, t: 2.2 + Float(k) * 0.5, power: 1.3, from: nil, by: by))
+            }
+            barrageShells += 3
+            if !barrageTold { barrageTold = true; g.onToast?("\(by) has your range: keep moving") }
+        }
+    }
+    static var barrageShells = 0        // (harness tally)
+
+    // P450 (Oct 25 09:08, "This is when everybody tries to kill me all at once, right?... all the factions are trying to
+    // kill each other"): while the war bands hunt him, the armies hunting him hold their fire on each other near him
+    // (ShipManager.nearestFoe: soldiers, guns and warships alike).
+    static func hunting(_ f: Faction) -> Bool { f == .steelhold || f == .greywall || f == .stormwarden }
+    static func truce(_ g: Game, _ f: Faction, _ at: V3) -> Bool {
+        stage == 2 && g.ashVictory && hunting(f) && simd_length(V2(at.x - g.player.pos.x, at.z - g.player.pos.z)) < 250
     }
 
     // One unit in out of sight, 36-56 blocks from the player on the group's side.

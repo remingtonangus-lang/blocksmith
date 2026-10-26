@@ -987,9 +987,10 @@ extension ShipManager {
     func nearestFoe(of faction: Faction, near p: V3, range: Float, game g: Game) -> CapTarget? {
         var best: CapTarget?
         var bd = range
+        let truce = Reckoning.truce(g, faction, p)            // P450: the armies hunting him leave each other be
         for o in list where o.parent == nil && !o.wrecked {
             let f = o.factionValue
-            if f == .none || f == faction { continue }
+            if f == .none || f == faction || truce && Reckoning.hunting(f) { continue }
             let d = boundsDistance(o, p)
             if d < bd {
                 bd = d
@@ -1000,7 +1001,7 @@ extension ShipManager {
             }
         }
         do {
-            for m in g.mobs.mobs where m.health > 0 && m.factionValue != .none && m.factionValue != faction {
+            for m in g.mobs.mobs where m.health > 0 && m.factionValue != .none && m.factionValue != faction && !(truce && Reckoning.hunting(m.factionValue)) {
                 let d = simd_length(m.pos - p)
                 if d < bd { bd = d; best = CapTarget(point: m.pos + V3(0, m.height * 0.5, 0), vel: m.vel, ship: nil, mob: m, player: false) }
             }
