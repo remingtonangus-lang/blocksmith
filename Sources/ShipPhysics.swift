@@ -101,17 +101,17 @@ struct ShipBlockReader {
         return Int(c.height[(x & 15) + (z & 15) * 16])
     }
 
-    // Height of the water surface in the column at p (near p.y), nil if there is no water there.
-    mutating func waterTop(_ p: V3) -> Float? {
+    // Height of the water surface in the column at p (near p.y), nil if there is no water there (kind 2: lava's).
+    mutating func waterTop(_ p: V3, kind: UInt8 = 1) -> Float? {
         let x = Int(floor(p.x)), z = Int(floor(p.z))
         var y = Int(floor(p.y))
         let fk = Blocks.fluidKind
-        if fk[Int(raw(x, y, z))] == 1 {
+        if fk[Int(raw(x, y, z))] == kind {
             var k = 0
-            while k < 6 && fk[Int(raw(x, y + 1, z))] == 1 { y += 1; k += 1 }
+            while k < 6 && fk[Int(raw(x, y + 1, z))] == kind { y += 1; k += 1 }
             return Float(y) + 0.875 + (k == 6 ? 4 : 0)
         }
-        for d in 1...2 where fk[Int(raw(x, y - d, z))] == 1 { return Float(y - d) + 0.875 }
+        for d in 1...2 where fk[Int(raw(x, y - d, z))] == kind { return Float(y - d) + 0.875 }
         return nil
     }
 }
@@ -243,6 +243,7 @@ extension ShipManager {
         if steps == 4 { accum = 0 }
         TickProf.mark("ships.physics")
         updateShells(dt, game: game)
+        meltTick(dt, game: game)                                   // P461: hulls in lava (ShipMelt.swift)
         if let g = game { AutoTurrets.tick(g, dt) }                // P93 (Wrecks.swift)
         TickProf.mark("ships.shells")
         // Carry riders with their ship.
@@ -469,17 +470,21 @@ extension ShipManager {
         var sub: Float = 0
         for b in s.buckets {
             let wp = s.toWorld(b.centre)
-            guard let flat = rd.waterTop(wp) else { continue }
-            let top: Float = flat + SeaStorms.waveLift(wp, top: flat)      // H9: the storm swell under this bucket
+            // P461: lava holds a hull up as water does, three times as dense and thick: it settles in slowly and rides
+            // high (stone-heavy hulls float on it, iron sinks) while what touches it melts (ShipMelt).
+            var found = rd.waterTop(wp), lava = false
+            if found == nil { found = rd.waterTop(wp, kind: 2); lava = found != nil }
+            guard let flat = found else { continue }
+            let top: Float = lava ? flat : flat + SeaStorms.waveLift(wp, top: flat)      // H9: the storm swell under this bucket
             let f = min(1, max(0, (top - (wp.y - b.height * 0.5)) / b.height))
             if f <= 0 { continue }
             let v = b.volume * f
             sub += v
-            var force = V3(0, v * g, 0)
+            var force = V3(0, v * g * (lava ? 3 : 1), 0)             // (lava weighs about three times what water does)
             let vl = s.dirToLocal(s.velocity(at: wp))
             let quad: V3 = vl * simd_abs(vl)
             let rel: V3 = vl + quad * 0.3
-            let drag: V3 = -(cw * rel) * v
+            let drag: V3 = -(cw * rel) * v * (lava ? 4 : 1)
             force += s.dirToWorld(drag)
             apply(force, at: wp)
         }

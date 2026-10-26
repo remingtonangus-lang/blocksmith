@@ -179,6 +179,7 @@ final class Ship {
     var grid: ShipGrid
     var blockEntities: [IVec3: BlockEntity] = [:]     // ship space
     var damage: [IVec3: UInt8] = [:]                // chipped blocks (capital hulls), grid space: face << 5 | level
+    var melt: [IVec3: Float] = [:]                  // P461: seconds each cell has lain in lava (ShipMelt.swift)
     var name = "Ship"
 
     // Pose and motion.
@@ -660,6 +661,7 @@ final class ShipManager {
     private(set) var list: [Ship] = []
     private var nextId = 1
     var pilot: Ship?                 // the ship the player steers
+    var meltClock: Float = 0         // P461: time since the last lava check (ShipMelt.swift)
     var aboard: Ship?                // the ship whose frame the player moved in last frame
     // The player's motion relative to the deck it rides (ShipPlay.shipPlayerUpdate): kept in the ship's frame from
     // tick to tick so the deck's own acceleration and turning never leak into it (riders slid and were shoved as a
