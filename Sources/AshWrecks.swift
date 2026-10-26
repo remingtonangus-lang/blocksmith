@@ -115,24 +115,29 @@ enum AshWrecks {
     private static var skinOrigin: [Int: V3] = [:]      // ship space of the model's origin (hull centre line, wheels)
     static var skinsOff = ProcessInfo.processInfo.environment["BS_FIGHTERBLOCKS"] != nil     // (looks work: the blocks)
     static var skinMobs: [Mob] = []
-    static func syncSkins(_ w: World) {
+    // P461 (Oct 25 16:48, the sidecar motorcycle: "we need a completely new design for the motorcycle. It needs to look
+    // realistic... Like the tank"): an Ashguard Sidecar is drawn the same way, as a modelled motorcycle and sidecar
+    // (sidecarParts) over its blocks, its wheels turning as it rolls.
+    static func syncSkins(_ w: World, dt: Float = 1.0 / 72) {
         if w.ships.isEmpty && skins.isEmpty { if !skinMobs.isEmpty { skinMobs = [] }; return }
         var out: [Mob] = []
-        for s in w.ships.list where s.name == fighterName && s.parent == nil {
+        for s in w.ships.list where (s.name == fighterName || s.name == AshCommandeer.sidecarName) && s.parent == nil {
+            let bike = s.name == AshCommandeer.sidecarName
             if skinOrigin[s.id] == nil, let h = s.helm {
-                // The helm stands at (0, 2, -3) of salvagedFighter's plan; the model's origin is the plan's (0, 0, 0)
-                // cell, centred.
-                skinOrigin[s.id] = V3(Float(h.x) + 0.5, Float(h.y) - 2, Float(h.z) + 3.5)
+                // The helm stands at (0, 2, -3) of salvagedFighter's plan and at (0, 1, 1) of the sidecar's; the
+                // model's origin is the plan's (0, 0, 0) cell, centred.
+                skinOrigin[s.id] = bike ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) - 0.5)
+                                        : V3(Float(h.x) + 0.5, Float(h.y) - 2, Float(h.z) + 3.5)
             }
             guard let o = skinOrigin[s.id], !skinsOff, s.blockCount * 6 >= s.initialBlocks * 5 else { s.hidden = false; continue }
             s.hidden = true
             let m: Mob
             if let have = skins[s.id] { m = have } else {
                 m = Mob(.ashBehemoth, at: s.pos)
-                m.wreck = 5
+                m.wreck = bike ? 6 : 5
                 m.health = 1
                 m.onGround = true
-                m.scale = skinScale
+                m.scale = bike ? 1 : skinScale
                 skins[s.id] = m
             }
             // The hull's turn as yaw, then roll, then pitch (the mob writer turns a part by Rz * Rx about its pivot,
@@ -144,9 +149,15 @@ enum AshWrecks {
             let uz = u.x * sy + u.z * cy, bz = b.x * sy + b.z * cy
             m.yaw = yaw
             m.boatRock = V2(atan2f(uz, bz), atan2f(r.y, rx))
-            let c = V3(0, 4 * skinScale / 16, 0)                 // (the turn's centre: BoatLooks.rock's, scaled)
+            let c = V3(0, 4 * m.scale / 16, 0)                   // (the turn's centre: BoatLooks.rock's, scaled)
             m.pos = s.toWorld(o + c) - c
-            m.walkPhase += w.ships.pilot === s || s.engines > 0 && simd_length(s.vel) > 1 ? 0.9 : 0       // the propeller
+            if bike {
+                // The wheels (9/16 of a block round) turn with the ground going by under them.
+                let along = simd_dot(s.vel, s.dirToWorld(V3(0, 0, -1)))
+                m.walkPhase = (m.walkPhase + along * dt / (9.0 / 16)).truncatingRemainder(dividingBy: 2 * .pi)
+            } else {
+                m.walkPhase += w.ships.pilot === s || s.engines > 0 && simd_length(s.vel) > 1 ? 0.9 : 0   // the propeller
+            }
             out.append(m)
         }
         if skins.count > out.count {
@@ -322,6 +333,10 @@ func ashWreckParts(_ m: Mob) -> [Part] {
         // P464: a Salvaged Fighter in flight (syncSkins), tilted to the hull.
         fighterWholeParts(add, spin: m.walkPhase)
         BoatLooks.rock(&p, pitch: m.boatRock.x, roll: m.boatRock.y)
+    case 6:
+        // P461: an Ashguard Sidecar (syncSkins), tilted to the hull.
+        sidecarParts(add, spin: m.walkPhase)
+        BoatLooks.rock(&p, pitch: m.boatRock.x, roll: m.boatRock.y)
     case 4:
         // P435: a repaired one, driven: clean paint, the turret and gun on his aim.
         let b = m.soldierBrain
@@ -476,6 +491,108 @@ private func fighterWholeParts(_ add: WreckAdd, spin: Float) {
     }
     b(-1, 4, 87, 1, 11, 89, dark)                           // tail wheel
     b(-2, 0, 85, 2, 4, 91, rubber, 0)
+}
+
+// P461 (Oct 25 16:48: "a completely new design for the motorcycle. It needs to look realistic... Like the tank"): the
+// Ashguard's sidecar motorcycle, whole and clean (an Ashguard Sidecar: syncSkins): a heavy flat-twin army motorcycle
+// with its car on the right, laid out over AshCommandeer.sidecar's plan: the front wheel over plan cell z 0, the rear
+// over z 3, the car's own wheel outside cell (1, 0, 2); the saddle where the rider sits at the helm, the car's machine
+// gun over the plan's gun. `spin`: how far the wheels have turned.
+private func sidecarParts(_ add: WreckAdd, spin: Float) {
+    let od = V3(0.29, 0.3, 0.19), dark = V3(0.06, 0.06, 0.07), steel = V3(0.22, 0.22, 0.21), alu = V3(0.4, 0.41, 0.4)
+    let rubber = V3(0.05, 0.05, 0.05), leather = V3(0.27, 0.17, 0.1), lamp = V3(0.78, 0.74, 0.58), red = V3(0.45, 0.05, 0.04)
+    func b(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = 4) {
+        add(x0, y0, z0, x1, y1, z1, c, pat, .zero, 0, 0, 0, false)
+    }
+    // A part turned about a pivot on the x axis (a fork leg's rake, a mudguard's sweep, a wheel's turn).
+    func t(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float, _ pv: V3, _ a: Float) {
+        add(x0, y0, z0, x1, y1, z1, c, pat, pv, a, 0, 0, false)
+    }
+    // A spoked wheel 18 across with its hub on (x, 9, z), turning: eight tyre and rim segments, eight spokes, the drum;
+    // its mudguard swept round the top.
+    func wheel(_ x: Float, _ z: Float, guardFrom: Float, guardTo: Float) {
+        let r: Float = 9, w: Float = 1.6, hub = V3(x, r, z)
+        let seg = r * tanf(.pi / 8)
+        for i in 0..<8 {
+            let a = Float(i) * .pi / 4 - spin
+            t(x - w, r * 2 - 2.6, z - seg, x + w, r * 2, z + seg, rubber, 0, hub, a)
+            t(x - w * 0.6, r * 2 - 3.4, z - seg * 0.8, x + w * 0.6, r * 2 - 2.6, z + seg * 0.8, alu, 8, hub, a)
+        }
+        for i in 0..<4 { t(x - 0.25, 2.6, z - 0.25, x + 0.25, r * 2 - 2.6, z + 0.25, alu, 8, hub, Float(i) * .pi / 4 - spin) }
+        t(x - w - 0.7, r - 3, z - 3, x + w + 0.7, r + 3, z + 3, dark, 8, hub, -spin)
+        var a = guardFrom
+        while a <= guardTo + 0.01 {
+            t(x - w - 1.2, r * 2 + 0.4, z - 3.4, x + w + 1.2, r * 2 + 2.2, z + 3.4, od, 4, hub, a)
+            a += 0.42
+        }
+    }
+    // The wheels: the bike's in line (front, rear), the car's out on the right.
+    wheel(0, 0, guardFrom: -1.26, guardTo: 0.4)
+    wheel(0, 48, guardFrom: -0.84, guardTo: 1.68)
+    wheel(26.5, 32, guardFrom: -0.84, guardTo: 0.84)
+    // The front fork (raked back to the steering head), the headlamp, the handlebars and their grips.
+    for x: Float in [-3.3, 2.1] { t(x, 9, -0.8, x + 1.2, 28.3, 0.8, steel, 8, V3(0, 9, 0), 0.37) }
+    b(-1.6, 25, 5.5, 1.6, 29, 9, od)                                   // steering head
+    b(-3.2, 23, 1.5, 3.2, 28.5, 6.5, dark, 8)                          // headlamp
+    b(-2.4, 23.8, 1.1, 2.4, 27.7, 1.5, lamp, 8)
+    b(-1, 27.5, 7, 1, 30, 9.5, dark, 8)                                // risers
+    b(-11, 29, 8, 11, 30.5, 9.5, dark, 8)                              // handlebars
+    b(-13, 28.6, 7.6, -10, 30.9, 9.9, rubber, 0); b(10, 28.6, 7.6, 13, 30.9, 9.9, rubber, 0)
+    // Frame, tank, the flat twin's crankcase, cylinders and heads, its air box, the gearbox.
+    b(-1.2, 10, 7, 1.2, 24, 10, od)                                    // down tube
+    b(-1.2, 21, 9, 1.2, 23, 31, od)                                    // top tube under the tank
+    b(-4.5, 22, 10, 4.5, 29, 25, od)                                   // fuel tank
+    b(-4.9, 23, 16, -4.5, 26.5, 22, rubber, 0); b(4.5, 23, 16, 4.9, 26.5, 22, rubber, 0)      // knee pads
+    b(-1, 29, 12, 1, 30, 14, alu, 8)                                   // filler cap
+    b(-5, 7, 12, 5, 17, 25, alu, 8)                                    // crankcase
+    for s: Float in [-1, 1] {
+        let (c0, c1, h0, h1) = s < 0 ? (Float(-9.5), Float(-5), Float(-11), Float(-9.5)) : (Float(5), Float(9.5), Float(9.5), Float(11))
+        b(c0, 10, 13, c1, 16, 19, alu, 8)                              // cylinder
+        for f: Float in [0.25, 0.6] { let fx = c0 + (c1 - c0) * f; b(fx, 9.6, 12.6, fx + 0.8, 16.4, 19.4, dark, 8) }      // fins
+        b(h0, 9, 12.5, h1, 17, 19.5, dark, 8)                          // head and rocker cover
+    }
+    b(-2, 17, 18, 2, 21, 24, dark, 8)                                  // air box
+    b(-4.5, 8, 25, 4.5, 16, 31, alu, 8)                                // gearbox
+    // Exhausts: down from each head and back under the saddle to one silencer on the left.
+    b(-10.5, 6, 11, -8.5, 9.5, 13, steel, 8); b(8.5, 6, 11, 10.5, 9.5, 13, steel, 8)
+    b(-10, 5.5, 13, -8, 7.5, 34, steel, 8); b(8, 5.5, 13, 10, 7.5, 30, steel, 8)
+    b(-8, 5.5, 28, 8, 7, 30, steel, 8)                                 // crossover
+    b(-10.5, 5, 34, -7, 8.5, 50, steel, 8)                             // silencer
+    b(-11, 10, 23, -5, 11, 31, dark, 8); b(5, 10, 23, 11, 11, 31, dark, 8)      // footboards
+    // The rear: frame stays both sides, the drive shaft on the right to the rear drive, saddle, pillion, pannier.
+    for x: Float in [-3.8, 2.4] {
+        b(x, 9, 31, x + 1.4, 11, 49, od)
+        b(x, 9, 46, x + 1.4, 22, 49, od)
+        b(x, 20, 30, x + 1.4, 22, 49, od)
+    }
+    b(2.6, 8, 31, 5, 10.5, 46, alu, 8)                                 // shaft
+    b(2.4, 5.5, 44.5, 6, 12.5, 51.5, alu, 8)                           // rear drive
+    b(-3, 29.2, 22, 3, 31.6, 25, leather, 10)                          // saddle: nose
+    b(-5, 29, 25, 5, 32, 34, leather, 10)                              //   seat
+    b(-1, 22, 24, 1, 29, 27, od)                                       //   post
+    b(-4, 23, 31, -2.5, 29, 33, steel, 8); b(2.5, 23, 31, 4, 29, 33, steel, 8)                // springs
+    b(-4.5, 20.6, 37, 4.5, 23.6, 46, leather, 10)                      // pillion pad
+    b(-10, 14, 36, -4.6, 22, 43, leather, 10)                          // pannier, ahead of the rear wheel
+    b(-1.5, 15, 57.5, 1.5, 17.5, 58.8, red, 9)                         // tail lamp
+    // The car on the right: its boat-shaped tub on a sprung chassis, the cockpit and seat back, the gun on its pintle,
+    // a jerrycan on the tail.
+    b(5, 7, 10, 13, 9, 12, steel, 8); b(5, 7, 42, 13, 9, 44, steel, 8)                        // chassis to the bike
+    b(24.5, 7.5, 31, 26.5, 10.5, 33, steel, 8)                        // the car wheel's stub axle
+    b(12, 10, 14, 25, 23, 44, od)                                      // tub
+    b(13, 11, 7, 24, 21, 14, od)                                       // its nose
+    b(14.5, 12.5, 3, 22.5, 19, 7, od)
+    b(13, 11, 44, 24, 21.5, 48, od)                                    // its tail
+    b(13, 23.05, 21, 24, 23.3, 41, dark, 0)                            // the cockpit
+    b(12.6, 23, 20, 24.4, 24, 21, leather, 10)                         // its padded rim
+    b(14, 23, 37, 23, 30, 39, leather, 10)                             // seat back
+    b(17.5, 23, 17, 19.5, 29, 19, steel, 8)                            // pintle
+    b(17, 29, 10, 20, 32, 26, dark, 8)                                 // the machine gun
+    b(17.6, 29.6, -1, 19.4, 31.4, 10, dark, 8)                         // its barrel jacket
+    b(18, 30, -4, 19, 31, -1, dark, 8)
+    b(17.5, 28, 26, 19.5, 31, 31, dark, 8)                             // butt
+    b(14, 29.5, 15, 23, 33.5, 19, dark, 8)                             // saddle drum
+    b(14, 14, 48, 23, 22, 51, od)                                      // jerrycan
+    b(23.5, 19, 7.5, 25.5, 21, 9.5, lamp, 8)                           // the car's side lamp
 }
 
 // A Sherman-like medium tank, knocked out: a cast turret with a short 75 and its mantlet, the hull's sloped glacis,

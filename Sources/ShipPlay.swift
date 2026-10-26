@@ -365,6 +365,45 @@ extension Game {
         ships.aboard = s
         player.vel = s.velocity(at: player.pos)
         player.airPeak = player.pos.y
+        // P461 (Oct 25 16:49, the sidecar motorcycle: "I can't get out of this. Why can't I get out of this?"): its
+        // saddle (the helm's stand) is inside the bike's engine block, so leaving the helm left him standing in the
+        // hull, held by it. Off a sidecar he gets down onto the ground beside it, as from an Ashguard vehicle.
+        if s.name == AshCommandeer.sidecarName, let at = dismountSpot(s) {
+            player.pos = at
+            player.vel = .zero
+            player.airPeak = at.y
+            ships.aboard = nil
+            ships.riderShip = nil
+        }
+    }
+
+    // Standing room on the ground beside a small vehicle: off its left side first (a sidecar's car is on the right),
+    // then behind it, then off the car's side; a block and a half to four out from its middle, with the ground found
+    // within two blocks of the hull's feet.
+    func dismountSpot(_ s: Ship) -> V3? {
+        let w = world
+        let mid = V3((s.worldMin.x + s.worldMax.x) / 2, s.worldMin.y, (s.worldMin.z + s.worldMax.z) / 2)
+        let right = s.dirToWorld(V3(1, 0, 0)), back = s.dirToWorld(V3(0, 0, 1))
+        let r = simd_normalize(V3(right.x, 0, right.z)), bk = simd_normalize(V3(back.x, 0, back.z))
+        let half = player.halfW - 0.02
+        for k: Float in [1.6, 2.2, 3, 4] {
+            for d in [-r, bk, -bk, r, simd_normalize(bk - r), simd_normalize(-bk - r)] {
+                let p = mid + d * (k + (abs(simd_dot(d, r)) > 0.5 ? 0 : 1.2))
+                let x = Int(floor(p.x)), z = Int(floor(p.z))
+                for y in stride(from: Int(floor(mid.y)) + 2, through: Int(floor(mid.y)) - 2, by: -1) {
+                    guard w.solidAt(x, y - 1, z) else { continue }
+                    // (A field world's drawn ground can stand up to a block over the cell's foot.)
+                    for up: Float in [0, 0.5, 1] {
+                        let at = V3(p.x, Float(y) + up, p.z)
+                        if w.collides(V3(at.x - half, at.y + 0.02, at.z - half), V3(at.x + half, at.y + player.height - 0.02, at.z + half)) { continue }
+                        if w.ships.boundsDistance(s, at) < half || w.ships.boundsDistance(s, at + V3(0, 1, 0)) < half { break }
+                        return at
+                    }
+                    break
+                }
+            }
+        }
+        return nil
     }
 
     // Breaking, placing and using blocks on ships, and assembling helms. Returns true when handled

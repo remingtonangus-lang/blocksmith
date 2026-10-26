@@ -130,7 +130,7 @@ private struct Contact {
 extension ShipManager {
     // Advances every ship (call once per frame) and carries what stands on them.
     func update(_ dt: Float, game: Game?) {
-        defer { AshWrecks.syncSkins(world) }           // P464: Salvaged Fighters drawn as fighters, at the hull's pose
+        defer { AshWrecks.syncSkins(world, dt: dt) }   // P464: Salvaged Fighters drawn as fighters, at the hull's pose (P461: sidecars)
         riderStamp += 1
         if !ghosts.isEmpty { ghosts = ghosts.map { ($0.0, $0.1 - dt) }.filter { $0.1 > 0 } }
         if let game {

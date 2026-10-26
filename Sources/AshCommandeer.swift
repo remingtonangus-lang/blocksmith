@@ -396,7 +396,22 @@ enum AshDriveCheck {
             while dy < -.pi { dy += 2 * .pi }
             print(String(format: "ashdrive:   sidecar: right stick turned it %.0f degrees (a tank turning right: negative)", dy * 180 / .pi))
             check(dy < -0.1, "sidecar: steering right turns it right")
+            // P461: drawn as a motorcycle and sidecar (its blocks hidden), and he gets off it onto the ground.
+            let skin = AshWrecks.skinMobs.filter { $0.wreck == 6 }.min { simd_length($0.pos - sc.pos) < simd_length($1.pos - sc.pos) }
+            check(sc.hidden && skin != nil && simd_length(V2(skin!.pos.x - sc.pos.x, skin!.pos.z - sc.pos.z)) < 4,
+                  "sidecar: drawn as the motorcycle model over its hull (\(AshWrecks.skinMobs.count) skins, hidden \(sc.hidden))")
+            run(60, act())
             run(2, act(sneak: true))
+            let off = game.player.pos
+            let pb = game.player
+            let free = !world.collides(V3(off.x - pb.halfW + 0.02, off.y + 0.05, off.z - pb.halfW + 0.02), V3(off.x + pb.halfW - 0.02, off.y + pb.height - 0.05, off.z + pb.halfW - 0.02))
+            print(String(format: "ashdrive:   sidecar: off at %.1f %.1f %.1f, %.1f from the hull's box, aboard %@", off.x, off.y, off.z,
+                         world.ships.boundsDistance(sc, off), world.ships.aboard == nil ? "no" : "yes"))
+            check(world.ships.pilot == nil && world.ships.aboard == nil && free && world.ships.boundsDistance(sc, off) > 0.2,
+                  "sidecar: sneak gets him off onto the ground beside it, clear of the hull")
+            run(60, act(forward: 1))
+            check(simd_length(V2(game.player.pos.x - off.x, game.player.pos.z - off.z)) > 2,
+                  String(format: "sidecar: he walks away from it (%.1f blocks in 1 s)", simd_length(V2(game.player.pos.x - off.x, game.player.pos.z - off.z))))
             world.ships.remove(sc)
         }
         // P435: the repaired fighter on a long strip: its take-off run and its speed (Oct 24 15:53: "this thing can't
