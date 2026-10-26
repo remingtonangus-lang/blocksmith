@@ -1476,6 +1476,28 @@ if let dir = arg("--treesheet"), let ctx = vkctx {
     do { try TreeShots.run(game: game, ctx: ctx, dir: dir, designs: true) } catch { print("FAIL treesheet: \(error)"); failures += 1 }
     print(failures == 0 ? "trees: all checks passed" : "trees: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --railprobe SEED,X,Z,R (P470): every stretch a line may run in round (X, Z) on a field world of SEED: the lines planned
+// and, for the rest, why none.
+if let a = arg("--railprobe") {
+    let v = a.split(separator: ",").map { String($0) }
+    let seed = UInt64(v[0]) ?? 1, cx = Int(v[1]) ?? 0, cz = Int(v[2]) ?? 0, r = Int(v[3]) ?? 4000
+    let gen = WorldGen(seed: seed)
+    gen.fieldWorld = true
+    var why: [String: Int] = [:]
+    Railways.tally = { why[$0, default: 0] += 1 }
+    let span = Railways.span, w = Railways.stretch * span
+    var tried = 0, found = 0
+    let t0 = CFAbsoluteTimeGetCurrent()
+    for row in floorDiv(cz - r, span)...floorDiv(cz + r, span) { for st in floorDiv(cx - r, w)...floorDiv(cx + r, w) {
+        tried += 1
+        guard let l = Railways.plan(gen, row: row, stretch: st) else { continue }
+        found += 1
+        print("railprobe: \(l.name): \(l.stations.count) stations \(l.stations.map { "\($0.name) \($0.x) \($0.z)" }), x \(l.minX)...\(l.maxX), z \(l.minZ)...\(l.maxZ)")
+    } }
+    print(String(format: "railprobe: %d of %d stretches have a line (%.1f s); no line: ", found, tried, CFAbsoluteTimeGetCurrent() - t0)
+          + why.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+    exit(0)
+}
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
     if !CommandLine.arguments.contains("--railride") { RailwayTests.run(game, check: check) }
