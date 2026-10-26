@@ -1400,8 +1400,15 @@ final class World {
         // (questcheck --streamtest).
         if !dirtyChunks.isEmpty {
             let cap = World.frontAll ? Int.max : max(1, maxJobs / 2)
-            for c in dirtyChunks where c.dirty && (c.urgent || World.frontAll) && c.meshedOnce && !c.meshInFlight && c.needsMesh
-                && abs(c.cx - center.x) <= 6 && abs(c.cz - center.z) <= 6 {
+            // P458 (Oct 25 16:29-16:56 and 19:51, bases: "the blocks aren't getting updated"; a door "looks closed even
+            // though it's open... takes like five seconds"; "explosion pits need to render quicker"): a chunk round him
+            // whose last job went to the back of the queue (the quiet pass, the scan) waited for it there, behind a full
+            // queue of far land, before anything changed since could be drawn: what soldiers, blasts and falling pieces
+            // changed round him showed up to 10 s late (questcheck --basecheck, the headset's settings). One within two
+            // chunks of him gets a job ahead of the queue as well; the older one's mesh is dropped when it comes.
+            for c in dirtyChunks where c.dirty && (c.urgent || World.frontAll) && c.meshedOnce && c.needsMesh
+                && abs(c.cx - center.x) <= 6 && abs(c.cz - center.z) <= 6
+                && (!c.meshInFlight || (c.meshJobsOut < 2 && abs(c.cx - center.x) <= 2 && abs(c.cz - center.z) <= 2 && !frontOut.contains(ChunkKey(x: c.cx, z: c.cz)))) {
                 if frontOut.count >= cap { break }
                 let k = ChunkKey(x: c.cx, z: c.cz)
                 guard chunks[k] === c, let nb = neighbourhood(c) else { continue }
@@ -1436,7 +1443,7 @@ final class World {
                 c.dirty = false
                 guard !c.meshInFlight && c.needsMesh else { continue }
                 let near = inMeshRadius(k.x - center.x, k.z - center.z) || (extra.map { inMeshRadius(k.x - $0.x, k.z - $0.z) } ?? false)
-                if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb) }
+                if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb, front: abs(k.x - center.x) <= 2 && abs(k.z - center.z) <= 2) }   // (P458)
             }
             list.removeAll()
             scanEpoch = MeshEpoch.value
@@ -1464,7 +1471,7 @@ final class World {
                 if jobs >= maxQueued { continue }
                 if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh, let nb = neighbourhood(c) {
                     c.dirty = false
-                    scheduleMesh(k, c, nb)
+                    scheduleMesh(k, c, nb, front: ci == 0 && abs(dx) <= 2 && abs(dz) <= 2 && c.meshedOnce)          // (P458)
                 }
             } else if jobs < maxQueued && !genInFlight.contains(k) {
                 // P376: inside the view past the active distance, a chunk with cached meshes comes back as a shell.
