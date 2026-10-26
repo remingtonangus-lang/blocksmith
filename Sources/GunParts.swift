@@ -193,6 +193,20 @@ enum GunPartsCheck {
             while !GunParts.broken(m, GunParts.mount) && blows < 200 { m.hit(from: low, damage: 7); m.health = m.spec.health; blows += 1 }
             check(GunParts.broken(m, GunParts.mount) && !GunParts.canTurn(m), "P372 \(name): \(blows) blows low down break the mount: it can't turn")
         }
+        // P459: rifle-round-sized hits (7) from in front to wreck an AA mount, the light quick-firer and the battleship
+        // turret: the small guns go down to a magazine or so, the big one stays a fortress.
+        var kills: [Int] = []
+        for v in [HeavyTurret.aaTwin, HeavyTurret.lightVariant, 1] {
+            let m = gun(v, 0)
+            HeavyTurret.sizeUp(m)
+            g.mobs.mobs = [m]; g.mobs.rebuildIndex()
+            let src = m.pos + V3(-sinf(m.yaw), 0, -cosf(m.yaw)) * 12 + V3(0, 1, 0)
+            var n = 0
+            while m.health > 0 && n < 3000 { m.hit(from: src, damage: 7); n += 1 }
+            kills.append(n)
+        }
+        check(kills[0] <= 15 && kills[1] <= 40 && kills[2] > 3 * kills[1],
+              "P459 hits of 7 to wreck a gun: AA mount \(kills[0]), light quick-firer \(kills[1]), battleship turret \(kills[2])")
         // Taken by its handles: the hand turns it.
         let m = gun(HeavyTurret.aaTwin, 0)
         g.mobs.mobs = [m]; g.mobs.rebuildIndex()

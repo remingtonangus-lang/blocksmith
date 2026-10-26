@@ -239,10 +239,16 @@ final class Turrets {
     func shoot(_ g: Game, _ m: Mob) {
         let b = m.soldierBrain
         if loaded <= 0 { loaded = 2 }
-        var sx: Float = loaded == 2 ? -1 : 1           // left barrel first
-        if !GunParts.canFire(m, sx) { sx = -sx }       // P372: a broken barrel is skipped
+        let flak = HeavyTurret.isFlak(m), small = HeavyTurret.scale(m) < 1
+        var sx: Float = flak ? -1 : (loaded == 2 ? -1 : 1)       // left barrel first (the flak gun has the one)
+        if !flak && !GunParts.canFire(m, sx) { sx = -sx }         // P372: a broken barrel is skipped
         loaded -= 1
-        reload = loaded > 0 ? Turrets.beat : HeavyTurret.reload * 0.6
+        // P459 (Oct 25 16:26, on a small gun: "should have a fast rate of fire... Should be like a flak gun. Shotguns
+        // shoot faster than this"): every gun took the battleship turret's 5.4 s reload in his hands. The light and
+        // small mounts now reload in about a second (their own crews fire four times as often as the big gun's), and
+        // the flak gun fires as fast as he pulls, up to about four rounds a second.
+        if flak { reload = 0.25 }
+        else { reload = loaded > 0 ? Turrets.beat * (small ? 0.4 : 1) : HeavyTurret.reload * 0.6 * (small ? 0.2 : 1) }
         lastFired = g.clock
         let pivot = m.pos + V3(0, HeavyTurret.trunnionY, 0)
         let fwd = V3(-sinf(m.yaw) * cosf(b.pitch), sinf(b.pitch), -cosf(m.yaw) * cosf(b.pitch))

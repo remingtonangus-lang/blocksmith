@@ -264,7 +264,8 @@ extension Mob {
 
     // Base armour of the garrison ranks (added to any worn pieces).
     var steelholdArmor: (Int, Float) {
-        if kind == .deckGun { return (20, 8) }
+        // P459 (Oct 25 16:30, "I can't seem to destroy the little guns here"): plate by the gun's size (sizeUp).
+        if kind == .deckGun { let k = HeavyTurret.scale(self); return k >= 1 ? (20, 8) : (k < 0.3 ? (6, 0) : (12, 2)) }
         if kind.ash { return ashArmor }
         guard let r = Soldier.rank(kind) else { return (0, 0) }
         // Ashguard plate: +5 armour, +2 toughness over the Capital rank's (AshUnits.ashSetup).
@@ -876,6 +877,7 @@ extension Mob {
     }
 
     func updateDeckGun(_ dt: Float, _ g: Game) {
+        HeavyTurret.sizeUp(self)                                                 // P459
         NavalGuns.hurtEffects(self, dt, g)
         GunParts.update(self, g)                                                  // P372
         if Turrets.shared.manned === self { vel = .zero; soldierBrain.kick = max(0, soldierBrain.kick - dt * 1.5); return }   // the player has it (VehicleControls.swift)
@@ -1158,6 +1160,19 @@ enum HeavyTurret {
     // P210 (Oct 13 18:46, "the tower guns sit off their towers and are far too big for the base"): Greywall's light
     // guns are smaller still (0.26: a 3.3-block gunhouse with 5.5-block barrels), sized for a 7-block tower roof and
     // the wall walk; every Greywall tower carries one of those instead of the 13-block battleship turret.
+    // P459 (Oct 25 16:26-16:30, his rifle on a small Capital mount: "it should absolutely be able to destroy one of
+    // these guns by shooting at it... It should have been obliterated", "I can't seem to destroy the little guns"):
+    // every gun had the battleship turret's 400 health and full plate (armour 20, toughness 8: a rifle round did a
+    // point or so, ~300 rounds a gun). A small mount (AA, pom-pom, dual-purpose, flak, Greywall's tower guns) now
+    // has 60 and light plate, the light quick-firer 140 (a magazine or two from a rifle); the heavy gun is unchanged.
+    static let fullHealth = 400
+    static func sizeUp(_ m: Mob) {
+        guard m.kind == .deckGun, m.spec.health == fullHealth else { return }
+        let k = scale(m)
+        guard k < 1 else { return }
+        m.spec.health = k < 0.3 ? 60 : 140
+        m.health = min(m.health, m.spec.health)
+    }
     static func scale(_ m: Mob) -> Float {
         guard m.kind == .deckGun else { return 1 }
         if small.contains(m.variant) { return 0.24 }
