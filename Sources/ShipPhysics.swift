@@ -282,7 +282,17 @@ extension ShipManager {
                     var away = V3(m.pos.x - s.pos.x, 0, m.pos.z - s.pos.z)
                     away = simd_length(away) > 0.01 ? simd_normalize(away) : V3(1, 0, 0)
                     m.pos += away * 0.4
-                    m.vel += away * 2 + s.velocity(at: m.pos) * 0.5
+                    let hv = s.velocity(at: m.pos)
+                    m.vel += away * 2 + hv * 0.5
+                    // P464 (Oct 25 19:33, "should be able to run people over with it"): a hull he drives into someone at
+                    // more than a walking pace runs them down (a blow growing with its speed, twice for a heavy hull).
+                    let sp = simd_length(V2(hv.x, hv.z))
+                    if s.root === pilot && sp > 3 && game.clock - m.playerHurtAt > 0.6 && !m.kind.ashVehicle && m.kind != .deckGun {
+                        m.killedByPlayer = true; m.playerHurtAt = game.clock
+                        m.hit(from: m.pos - hv, damage: Int((sp * (s.root.mass > 500 ? 5 : 2.4)).rounded()), knockback: 1.6)
+                        game.sfx(.shipCollide, min(1.5, sp / 8), at: m.pos)
+                        AshSeat.ranOver += 1
+                    }
                 }
             }
         }
@@ -630,6 +640,12 @@ extension ShipManager {
                 long = max(-grip, min(grip, long))
                 apply(V3(0, fn, 0), at: wp)
                 apply(side * lat + fh * long, at: V3(wp.x, (wp.y + ground) * 0.5, wp.z))
+            }
+            // P464 (Oct 25 19:33, the Ashguard Sidecar: "Still doesn't really drive like a truck. Kinda drifts"): a small
+            // car's tyres don't slide sideways the way the clamped grip let its light hull do through a turn: on the
+            // ground the sideways part of its motion dies away in about a fifth of a second, so it goes where it points.
+            if s.grounded && sub <= 0 && s.blockCount < 40 && s.name != Felling.name {
+                s.vel -= side * simd_dot(s.vel, side) * min(1, h * 5)
             }
         }
 

@@ -532,7 +532,14 @@ extension Mob {
     // or a truck through leaves, brush, glass and panes. The ground, stone and brick stop it as before. What it breaks
     // is gone (nothing to pick up: P452), a few cells a frame. Returns the speed it was given.
     // Both, for a hull on the move (Animals.swift, every vehicle, his or the army's).
-    func ashRolls(_ g: Game, _ speed: Float) -> Float { ashTracks(g, speed); return ashPlough(g, speed) }
+    func ashRolls(_ g: Game, _ speed: Float, _ dt: Float) -> Float {
+        ashTracks(g, speed)
+        // P464 (Oct 25 19:34, the truck: "this thing should probably have wheels on, right? It's as if I'm running"):
+        // the wheels turn with the ground it covers (radius 6/16 block); his run down whoever stands in the way.
+        wheelRoll = (wheelRoll + speed * dt / 0.375).truncatingRemainder(dividingBy: 2 * .pi)
+        if AshSeat.shared.vehicle === self { g.ashRunOver(self, speed) }
+        return ashPlough(g, speed)
+    }
 
     // P449 (Oct 25 09:02, the Ash Vault: the tank should leave "tracks behind it where it drove"): a tracked hull (the
     // Cinder Tank, the Behemoth, a half-track's rear tracks) churns the ground under its two tracks: grass, snowy grass,
@@ -689,6 +696,18 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         turned(x - (side < 0 ? 0.4 : 0), y, z, 0.4, size, size, ember, pivot: pivot, pat: 0)
         turned(x - (side < 0 ? 0.8 : -0.4), y + size * 0.15, z + size * 0.38, 0.4, size * 0.7, size * 0.24, dark, pivot: pivot, pat: 0)
     }
+    // P464: a road wheel (x0 its inner face, width wide, centre z) turning with the ground covered: an octagon of two
+    // squares, a hub and a pale tread bar that shows it roll (the bar and hub only near).
+    func wheel(_ x0: Float, _ z: Float, width: Float = 4) {
+        let pv = V3(x0 + width / 2, 6, z), a = -m.wheelRoll
+        for k in 0..<(fine ? 2 : 1) {
+            var q = box(x0, 0, z - 6, width, 12, 12, dark, 4); q.pivot = pv; q.rotX = a + Float(k) * .pi / 4; p.append(q)
+        }
+        guard fine else { return }
+        let out: Float = x0 < 0 ? x0 - 0.5 : x0 + width - 0.5
+        var h = box(out, 3, z - 3, 1, 6, 6, steel, 8); h.pivot = pv; h.rotX = a; p.append(h)
+        var t = box(out + (x0 < 0 ? -0.1 : 0.1), 0.4, z - 0.8, 1, 11.2, 1.6, V3(0.3, 0.29, 0.27), 4); t.pivot = pv; t.rotX = a; p.append(t)
+    }
     // P344 (e): a crewed vehicle shows its crew (none once it is his).
     let coat = V3(0.17, 0.165, 0.15), skin = V3(0.72, 0.56, 0.46), helm = V3(0.1, 0.1, 0.105)
     switch m.kind {
@@ -783,8 +802,7 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         // An armoured half-track: wheels at the front, tracks behind, an angular hull with stepped plates, an open top
         // and a shielded machine gun.
         for s: Float in [-1, 1] {
-            p.append(box(s < 0 ? -20 : 14, 0, -40, 6, 12, 12, dark, 4))                       // front wheels
-            if fine { p.append(box(s < 0 ? -20.5 : 19.5, 3, -37, 1, 6, 6, steel, 8)) }
+            wheel(s < 0 ? -20 : 14, -34, width: 6)                                             // front wheels
             p.append(box(s < 0 ? -20 : 12, 0, -8, 8, 10, 42, dark, 4))                         // rear tracks
             for k in 0..<4 where fine { p.append(box(s < 0 ? -20.6 : 19.6, 1.5, Float(k) * 9.5 - 6, 1, 7, 7, steel * (k % 2 == 0 ? 1 : 0.8), 8)) }
             p.append(box(s < 0 ? -21 : 15, 12, -42, 6, 1.5, 16, black, 7))                    // fenders
@@ -838,9 +856,7 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         q = box(-2.3, 11.7, -67 + kick, 4.6, 4.6, 3, dark, 8); q.pivot = pv; q.rotX = pitch; p.append(q)  // muzzle brake
     default:
         // Supply truck (canvas tilt) or fuel truck (tank with red bands).
-        for z: Float in [-36, 10, 24] {
-            p.append(box(-17, 0, z - 6, 4, 12, 12, dark, 4)); p.append(box(13, 0, z - 6, 4, 12, 12, dark, 4))
-        }
+        for z: Float in [-36, 10, 24] { wheel(-17, z); wheel(13, z) }
         p.append(box(-12, 6, -42, 24, 4, 82, steel, 8))                                // chassis
         p.append(box(-12, 8, -50, 24, 11, 9, black, 7))                                // hood
         p.append(box(-14, 8, -42, 28, 18, 16, black, 7))                               // cab

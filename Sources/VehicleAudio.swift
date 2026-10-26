@@ -168,6 +168,37 @@ enum VehicleAudio {
     }
 }
 
+// P464 (Oct 25 19:34, the Ashguard truck he drove: "This truck doesn't have its driving sound either"): the
+// Ashguard's vehicles near him (the nearest three in 56 blocks: his, any moving, any crewed and roused) run their
+// engines, idle to full with the throttle, over the wheels' rumble or the tracks' clatter as they roll.
+extension Game {
+    private static var ashLast: [ObjectIdentifier: V3] = [:]
+    func ashVehicleAudio(_ dt: Float, ask: (String, Snd, Float, V3?) -> Void) {
+        let eye = player.eye
+        let near = mobs.mobs.filter { $0.kind.ashVehicle && $0.kind != .ashArtillery && $0.health > 0 && simd_length_squared($0.pos - eye) < 56 * 56 }
+            .sorted { simd_length_squared($0.pos - eye) < simd_length_squared($1.pos - eye) }.prefix(3)
+        guard !near.isEmpty || !Game.ashLast.isEmpty else { return }
+        var next: [ObjectIdentifier: V3] = [:]
+        for m in near {
+            let id = ObjectIdentifier(m)
+            let last = Game.ashLast[id] ?? m.pos
+            next[id] = m.pos
+            let speed = dt > 0 ? simd_length(V2(m.pos.x - last.x, m.pos.z - last.z)) / dt : 0
+            let his = AshSeat.shared.vehicle === m
+            guard his || speed > 0.3 || (m.aggro && !m.tamed) else { continue }
+            audioWarm("vehicles", SoundBank.vehicleSounds)
+            let key = "ash\(id.hashValue)"
+            let thr: Float = his ? min(1, abs(m.soldierBrain.seatSpeed) / 9) : min(1, speed / 6)
+            ask(key + "e0", .engineIdleLoop, 0.6 * (1 - thr * 0.6), m.pos)
+            ask(key + "e1", .engineFullLoop, 0.75 * thr, m.pos)
+            guard speed > 0.5 else { continue }
+            if m.kind == .ashTruck || m.kind == .ashHalftrack { ask(key + "w", .wheelRollLoop, min(0.9, 0.25 + speed / 10), m.pos) }
+            if m.kind != .ashTruck { ask(key + "t", .carriageTreadLoop, min(0.8, 0.2 + speed / 12), m.pos) }
+        }
+        Game.ashLast = next
+    }
+}
+
 final class ShipAudioState {
     var lastVel = V3.zero
     var lastSubmerged: Float = 0
@@ -178,6 +209,7 @@ final class ShipAudioState {
 extension Game {
     // Per-tick ship sounds for the nearest few ships within 64 blocks.
     func vehicleAudioTick(_ dt: Float, ask: (String, Snd, Float, V3?) -> Void) {
+        ashVehicleAudio(dt, ask: ask)
         let list = world.ships.list
         guard !list.isEmpty else { return }
         audioWarm("vehicles", SoundBank.vehicleSounds)

@@ -499,7 +499,7 @@ extension Mob {
             }
             wander(); return moving ? spec.speed * 0.4 : 0
         case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashBehemoth:
-            return ashRolls(g, ashVehicleAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory) * VaultObjectives.fuelFactor)
+            return ashRolls(g, ashVehicleAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory) * VaultObjectives.fuelFactor, dt)
         case .ashChancellor:
             return ashChancellorAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
         case .ashMarshal:
