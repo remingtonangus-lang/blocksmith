@@ -68,6 +68,7 @@ final class CapitalState {
     var missileCD: Float = 5
     var pods: [(V3, V3)] = []          // missile pod mouths and launch directions (ship space)
     var enginesShaken = false            // P434 (g): the drive engines knocked off their mounts by a hard knock, till an ingot restarts them
+    var restartT: Float = 0              // P464: seconds the stopped (not missing) engines have been coughing back to life
     var exhausts: [V3] = []            // drive nozzle mouths (ship space)
     var retarget: Float = 0
     var target: CapTarget?
@@ -1399,6 +1400,24 @@ extension ShipManager {
         let ang = 2 * acosf(max(-1, min(1, e.real)))
         let axis: V3 = ang > 1e-4 ? simd_normalize(e.imag) : V3(0, 1, 0)
         s.angVel = axis * min(0.8, ang * 3) + V3(0, yawRate, 0)
+        // P464 (Remington, Oct 25 20:15, "Engine's out? What? How are the engines out?... there should be a way more
+        // intuitive way"): engines stopped with their blocks still in place (a hard knock, a heavy shell) catch again
+        // on their own after Capital.restartTime seconds; an ingot on the hull still restarts them at once, and
+        // engine blocks shot away still need the ingots.
+        if st.engines0 > 0 {
+            var present = 0
+            for (c, _) in st.engineCells where ShipParts.kinds[Int(s.grid.get(c.x, c.y, c.z))] == .engine { present += 1 }
+            if s.engines < present {
+                st.restartT += dt
+                if st.restartT >= Capital.restartTime {
+                    s.engines = present
+                    st.enginesShaken = false
+                    st.restartT = 0
+                    g.sfx(.anvil, 0.6, at: s.pos)
+                    if aboard?.root === s || pilot === s { g.onToast?("The \(s.name)'s engines caught again") }
+                }
+            } else { st.restartT = 0 }
+        }
         // (e) The engine room shows what the drive has lost: smoke rises from the empty engine sockets.
         if !st.engineCells.isEmpty && simd_length(g.player.pos - s.pos) < 160 {
             for _ in 0..<4 {
@@ -2477,6 +2496,8 @@ extension Capital {
 
     // The drive's strength, 0...1: nothing with under 40 % of the engine blocks left (the line that disables a frigate
     // under its own crew), a third at that line, full with every engine.
+    static let restartTime: Float = 12     // P464: seconds till stopped engines (blocks in place) catch again
+
     static func drive(_ s: Ship, _ st: CapitalState) -> Float {
         guard st.engines0 > 0 else { return 1 }
         let k = Float(s.engines) / Float(st.engines0)
