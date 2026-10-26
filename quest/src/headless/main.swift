@@ -1576,6 +1576,8 @@ if CommandLine.arguments.contains("--gunflight") {              // P449: the fie
     GunFlightCheck.run(game, check)
     print(failures == 0 ? "gunflight: all checks passed" : "gunflight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --boardcheck: P455, on foot at a parked siege carriage: under its belly, up its stern ladder (quest/src/test/QuestBoardCheck.swift).
+if CommandLine.arguments.contains("--boardcheck") { exit(QuestBoardCheck.run()) }
 if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck-gun shells into a frigate's side
     ShellThroughCheck.run(game, check)
     print(failures == 0 ? "shellthrough: all checks passed" : "shellthrough: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
