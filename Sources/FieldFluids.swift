@@ -43,6 +43,7 @@ extension FieldTerrain {
             seen[s] = true
             comp.removeAll(keepingCapacity: true); stack.removeAll(keepingCapacity: true); fix.removeAll(keepingCapacity: true)
             stack.append(s)
+            let lava = Blocks.fluidKind[Int(b[s])] == 2
             var side = false, floats = false, overDrop = false, tops = 0, roofed = 0, openSides = 0
             while let i = stack.popLast() {
                 comp.append(i)
@@ -118,6 +119,12 @@ extension FieldTerrain {
                 // a patch of sand flush with the water on a shelf (22:10, 22:24). A side open under it (a drop) is
                 // still raised: a wall, not a bank.
                 if big && side && solid(j - CSQ) { continue }
+                // P462 (Oct 25 16:44, a volcano's crater: "One cave is at its opening and the lava kind of just ignores
+                // it, doesn't flow into it... Not confined by its pre-generated boundaries"): lava's open sides stay
+                // open. A rim raised there walled a cave's mouth off from the lake; now the lake spills into it (its
+                // edge cells are springs, World.springs) and runs down as a lavafall. Lips with ground in them are
+                // still raised (the sheet standing over thin ground, 15:56).
+                if lava && side && fd[j] <= 0 { continue }
                 if fd[j] <= 0 || fm[j] == 0 {
                     // The rock beside it (the commonest material among its neighbours).
                     var count: [UInt8: Int] = [:]
