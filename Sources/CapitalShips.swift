@@ -127,6 +127,8 @@ final class CapitalState {
     static let dropFuel: Float = 900
     var lightCells: [V3]?                               // P461: the craft's white light panels (overdrive glow)
     var crushT: Float = 0                               // P461: time to the next sweep for what the hull runs into
+    var ramT: Float = 0                                 // P461: time before another ram can tear plating off
+    var crushEvery: Float = 0.12                        // P461: the sweep's interval (shorter at speed)
     var fuelTold = 0
 }
 
@@ -2357,27 +2359,81 @@ extension ShipManager {
     // Just going through shit... This thing should either be getting damaged or be damaging other things"): a flown
     // craft tears through what its hull runs into that isn't ground or stone: leaves, trunks, plants, wool (tents),
     // planking, glass and the like break as the hull meets them (a few spill their drops), with the crunch of each.
-    // Ground, stone, metal and anything with a block entity stop nothing and are left alone (the keel rides over them).
-    static var crushed = 0                      // (checks)
+    // Ground, stone, metal and anything with a block entity are left alone.
+    // Ramming (16:42, "This thing should either be getting damaged or be damaging other things. From the new physics"):
+    // ground, stone and metal ahead of it stop the craft (it flew through hillsides and walls): it is put back out of
+    // them and bounces off (a rise only as high as its keel row it rides up over), and a hit over 10 m/s tears hull
+    // plates off where it struck (more the faster: 30 m/s takes six), with a crash. Anyone in its way at speed is hit by the hull.
+    static var crushed = 0, rams = 0, ramTorn = 0   // (checks)
     func crush(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         st.crushT -= dt
+        st.ramT -= dt
         guard st.crushT <= 0 else { return }
-        st.crushT = 0.12
-        guard simd_length(s.vel) > 0.5 || abs(s.angVel.y) > 0.2 else { return }
+        let speed = simd_length(s.vel)
+        let step = st.crushT + st.crushEvery        // (seconds since the last sweep)
+        st.crushEvery = speed > 10 ? 0.04 : 0.12    // (fast: often enough that the nose never gets through a wall)
+        st.crushT = st.crushEvery
+        guard speed > 0.5 || abs(s.angVel.y) > 0.2 else { return }
         let gr = s.grid, w = g.world
         let a = s.worldMin - V3(0.5, 0.5, 0.5), b = s.worldMax + V3(0.5, 0.5, 0.5)
         var n = 0
+        var hard: [IVec3] = [], at = V3.zero, lift: Float = 0
         for y in max(1, Int(floor(a.y)))...min(CH - 2, Int(floor(b.y))) {
-            for z in Int(floor(a.z))...Int(floor(b.z)) { for x in Int(floor(a.x))...Int(floor(b.x)) where n < 48 {
+            for z in Int(floor(a.z))...Int(floor(b.z)) { for x in Int(floor(a.x))...Int(floor(b.x)) {
                 let blk = w.block(x, y, z)
-                guard blk != AIR, Capital.crushable(blk), !w.groundAt(x, y, z), w.blockEntities[IVec3(x, y, z)] == nil else { continue }
-                let l = s.toLocal(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
-                guard Blocks.collide[Int(gr.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))))] else { continue }
-                g.breakBlock(IVec3(x, y, z), blk, drop: n % 4 == 0)
-                n += 1
+                guard blk != AIR, Blocks.collide[Int(blk)] || Capital.crushable(blk) else { continue }
+                let wc = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                let l = s.toLocal(wc)
+                let cell = IVec3(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))
+                guard Blocks.collide[Int(gr.get(cell.x, cell.y, cell.z))] else { continue }
+                if Capital.crushable(blk) && !w.groundAt(x, y, z) && w.blockEntities[IVec3(x, y, z)] == nil {
+                    if n < 48 { g.breakBlock(IVec3(x, y, z), blk, drop: n % 4 == 0); n += 1 }
+                } else if Blocks.collide[Int(blk)] {
+                    // Under the keel row: ground it rides up over (a rise in the ground isn't a ram); ahead: a ram.
+                    if wc.y < s.worldMin.y + 1.2 { lift = max(lift, Float(y) + 1 - s.worldMin.y) }
+                    else if hard.count < 64 && simd_dot(wc - s.pos, s.vel) > 0 { hard.append(cell); at += wc }
+                }
             } }
         }
         ShipManager.crushed += n
+        if lift > 0 && hard.isEmpty {                // (a wall's foot is part of the wall: rammed, not climbed)
+            s.pos.y += min(lift, 1)
+            s.vel.y = max(s.vel.y, 0)
+            s.updateBounds()
+        }
+        if !hard.isEmpty && speed > 1 {
+            at /= Float(hard.count)
+            // Back out the way it came (at most this sweep's travel) and bounce off.
+            let back = min(simd_length(s.vel * step), 3) + 0.2
+            let dir = s.vel / speed
+            s.pos -= dir * back
+            s.updateBounds()
+            s.vel = -dir * min(speed * 0.25, 4)
+            if speed > 10 && st.ramT <= 0 {
+                st.ramT = 0.6
+                ShipManager.rams += 1
+                let k = min(hard.count, min(12, Int((speed - 10) / 3.5) + 1))
+                var torn = Set<IVec3>()
+                for c in hard.sorted(by: { simd_length(s.toWorld(V3(Float($0.x), Float($0.y), Float($0.z)) + 0.5) - at) < simd_length(s.toWorld(V3(Float($1.x), Float($1.y), Float($1.z)) + 0.5) - at) }) where torn.count < k {
+                    if c != s.helm, let t = ShipManager.meltTime(gr.get(c.x, c.y, c.z)), t < 60 { torn.insert(c) }      // (not the helm or the hardest plate)
+                }
+                ShipManager.ramTorn += torn.count
+                g.particles.explosion(at: at, power: min(3, speed / 12))
+                g.sfx(.shipCollideHard, min(1.4, 0.6 + speed / 40), at: at)
+                if !torn.isEmpty { removeCells(s, torn, chipped: [], center: at, power: 0, game: nil) }
+            } else if st.ramT <= 0 {
+                st.ramT = 0.3
+                g.sfx(.shipCollide, 0.5, at: at)
+            }
+        }
+        // Anyone in its way at speed: struck by the hull and thrown aside (not those riding in it, moving with it).
+        if speed > 8 {
+            for m in g.mobs.mobs where m.health > 0 && simd_length(m.vel - s.vel) > 6 && m.pos.x > a.x && m.pos.x < b.x && m.pos.z > a.z && m.pos.z < b.z && m.pos.y > a.y - 2 && m.pos.y < b.y {
+                let l = s.toLocal(m.pos + V3(0, m.height * 0.5, 0))
+                let near = (-1...1).contains { dx in (-1...1).contains { dz in Blocks.collide[Int(gr.get(Int(floor(l.x)) + dx, Int(floor(l.y)), Int(floor(l.z)) + dz))] } }
+                if near { m.hit(from: m.pos - s.vel, damage: Int(4 + speed / 3), knockback: 2.5) }
+            }
+        }
     }
 
     // The blue glow on a craft's light panels in overdrive (one sprite each a frame).
