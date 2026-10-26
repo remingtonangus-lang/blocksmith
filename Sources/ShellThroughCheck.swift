@@ -7,6 +7,26 @@ import simd
 // (grid x along the beam: the hull spans 0 to sx) and how far into the hull the hole reaches. Passes while the first
 // three stop inside the hull.
 enum ShellThroughCheck {
+    // P459: his dropship's autocannon shell (power 5.1) bursts inside a plank wall a villager stands 3 blocks in front
+    // of, in the open; he dies (the burst saw nobody from inside the block). The wall is put back afterwards.
+    static func burstInWall(_ g: Game, _ check: (Bool, String) -> Void) {
+        let w = g.world
+        let mobs0 = g.mobs.mobs
+        defer { g.mobs.mobs = mobs0; g.mobs.rebuildIndex() }
+        let x = Int(floor(g.player.pos.x)) + 12, z = Int(floor(g.player.pos.z))
+        let y = w.topY(x, z) + 1
+        var old: [(Int, Int, Int, BlockID)] = []
+        for dy in 0..<4 { for dz in -2...2 { old.append((x, y + dy, z + dz, w.block(x, y + dy, z + dz))); w.setBlock(x, y + dy, z + dz, Blocks.id("oak_planks")) } }
+        for dy in 0..<3 { for dx in -4...(-1) { for dz in -1...1 where w.block(x + dx, y + dy, z + dz) != AIR {
+            old.append((x + dx, y + dy, z + dz, w.block(x + dx, y + dy, z + dz))); w.setBlock(x + dx, y + dy, z + dz, AIR) } } }
+        defer { for (bx, by, bz, id) in old.reversed() { w.setBlock(bx, by, bz, id) } }
+        let v = Mob(.villager, at: V3(Float(x) - 2.5, Float(y), Float(z) + 0.5))
+        g.mobs.mobs = [v]; g.mobs.rebuildIndex()
+        let at = V3(Float(x) + 0.3, Float(y) + 1.2, Float(z) + 0.5)          // 0.3 into the wall, flying east
+        Explosion.explode(at: at, power: 5.1, game: g, breakBlocks: false, along: V3(1, -0.1, 0))
+        check(v.health <= 0, "shellthrough: a dropship burst 0.3 into a plank wall kills a villager 3 blocks in front (health \(v.health))")
+    }
+
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
         guard g.dim.dim == .overworld else { check(false, "shellthrough: needs the overworld"); return }
         let w = g.world
@@ -48,6 +68,7 @@ enum ShellThroughCheck {
         for x in 0..<gr.sx where Blocks.collide[Int(gr.get(x, 16, 80))] { solid += 1 }
         // Found: each shell stops on the hull and tears about four blocks in; the fourth blows out the far side, and
         // later shells fly through the tunnel the first ones tore (a real hole, not shells passing through plate).
+        burstInWall(g, check)
         check(firstThrough < 0 || firstThrough >= 3,
               "shellthrough: 10 manned shells at one spot on a frigate's side (beam 0-\(gr.sx)) stopped at x \(stops.joined(separator: ", ")); \(through) flew out the far side (first: shot \(firstThrough + 1)); \(solid) solid cells left on the line")
     }

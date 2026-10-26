@@ -193,6 +193,12 @@ enum Explosion {
         // started blocked and nothing beside it was hurt. Its lines of sight start from the open cell above.
         var from = c
         for _ in 0..<2 where w.groundAt(Int(floorf(from.x)), Int(floorf(from.y)), Int(floorf(from.z))) { from.y = floorf(from.y) + 1.05 }
+        // P459 (Oct 25 16:39-16:43, his dropship's autocannon on a village: "To the village it does nothing", "Should be
+        // one-shotting villagers"): a shell bursts a little inside the wall, floor or path block it struck, and only
+        // the drawn ground lifted the sight lines out (above), so a burst in a placed block saw nobody and hurt nobody
+        // beside it. The lines start back along the shot, in the open air it came through (or above the block).
+        if let shot { for _ in 0..<8 where w.opaqueAt(Int(floorf(from.x)), Int(floorf(from.y)), Int(floorf(from.z))) { from -= shot * 0.25 } }
+        for _ in 0..<2 where w.opaqueAt(Int(floorf(from.x)), Int(floorf(from.y)), Int(floorf(from.z))) { from.y = floorf(from.y) + 1.05 }
         func impact(_ p: V3, _ height: Float) -> (Float, V3)? {
             let center = p + V3(0, height * 0.5, 0)
             let d = simd_length(center - c)
@@ -226,7 +232,7 @@ enum Explosion {
                 // in the open, a body is killed outright, plate or not. Bosses and armour (tanks, golems, the Behemoth,
                 // the wyrm...) still only take the damage.
                 let lethal = power * 1.1
-                if power >= 2, simd_length(m.pos + V3(0, m.height * 0.5, 0) - c) <= lethal, w.canSee(c, m.pos + V3(0, m.height * 0.5, 0)),
+                if power >= 2, simd_length(m.pos + V3(0, m.height * 0.5, 0) - c) <= lethal, w.canSee(from, m.pos + V3(0, m.height * 0.5, 0)),
                    !Explosion.blastProof(m.kind) {
                     dmg = max(dmg, 9999)                                   // (past shields, plate and difficulty scaling)
                 }

@@ -224,10 +224,14 @@ extension ShipManager {
             if let g = game {
                 // The Capital's own guns don't alarm its citadels (CapitalBases.swift).
                 let from = list.first { $0.id == owner }
-                g.bases.quiet = from?.factionValue == .steelhold
                 // A side's ship guns spare its own soldiers (marines boarding beside the impact), as their shells do.
                 // (Not a hull the player steers: a captured frigate's guns hit its old side.)
                 let steered = from != nil && g.world.ships.pilot?.root.id == from?.root.id
+                // P459 (Oct 25 16:39-16:40, flying a taken Capital Dropship over the Capital: "There's nothing to the
+                // Capitol building", "nothing's happening to the capital when it's hit"): the Capital's own guns leave
+                // its citadels standing (bases.quiet), and a Capital hull he flew still counted as theirs, so his
+                // autocannon broke nothing inside a base and spared its garrison. Steered by him, it's his gun.
+                g.bases.quiet = from?.factionValue == .steelhold && !steered
                 g.blastSpares = steered ? .none : (from?.factionValue ?? .none)
                 if kind == 5 { g.depthChargeBurst(at: p, power: power, owner: owner) }     // P278: boom, plume, pressure wave
                 Explosion.explode(at: p, power: power, game: g, breakBlocks: !gentle, along: onHull ? nil : vel)   // (P357 e)
