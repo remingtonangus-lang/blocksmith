@@ -456,11 +456,12 @@ extension TownTests {
         TownLines.on = false
         defer { TownLines.on = linesOn }
         let takes = TownVoice.takes
-        // P468: the first book (TownVoice.script) must all be packed; the second book and the troop lines play once voiced
-        // (tools/townvoice_gen.py on the Mac), their bark or murmur until then.
-        let firstBook = takes.prefix(TownVoice.firstBook).filter { TownVoice.clip($0.key) == nil }.count
-        check(firstBook == 0 && TownVoice.bankBytes < 60_000_000,
-              String(format: "voices: %d/%d takes packed (%.2f MB), first book complete (%d missing)", TownVoice.loaded, takes.count, Double(TownVoice.bankBytes) / 1e6, firstBook))
+        // P468: every line is voiced (Oct 26: the second book and the troop lines, 1,858 takes in all): a line written
+        // after the last voicing run plays its bark or murmur until tools/townvoice_gen.py voices it, and fails here.
+        let missing = takes.filter { TownVoice.clip($0.key) == nil }
+        check(missing.isEmpty && TownVoice.bankBytes < 60_000_000,
+              String(format: "voices: %d/%d takes packed (%.2f MB), every line voiced (%d missing)", TownVoice.loaded, takes.count, Double(TownVoice.bankBytes) / 1e6, missing.count)
+              + (missing.isEmpty ? "" : ": " + missing.prefix(3).map { "\($0.voice) '\($0.text)'" }.joined(separator: ", ")))
         var bad: [String] = [], secs = 0.0, peak: Float = 0
         for (i, t) in takes.enumerated() where TownVoice.clip(t.key) != nil {
             let x = TownVoice.render(i)
