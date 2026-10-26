@@ -294,9 +294,17 @@ extension Game {
             if s.kinematic ? !ships.canCommandeer(s) : !(s.isVessel || s.role == "kestrel" || s.role == "capplane" || sidecar) { continue }
             guard let stand = helmStand(s) else { continue }
             let d = simd_length(s.toWorld(stand) - p)
-            let zone: Float = s.role == "dropship" ? 9 : (s.role == "kestrel" || s.role == "capplane" ? 8 : 6)
+            // P461 (Oct 25 16:42, taking his landed dropship from the ground beside it: "shouldn't have been able to mount it
+            // like this"): a dropship's helm is taken from inside its hull (up the ramp) or at the helm itself; the 9-block
+            // reach and the 3 blocks round the hull let him in through its plating from the ground anywhere near it.
+            if s.role == "dropship" {
+                let inHull = ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.3 && p.y > s.worldMin.y + 0.4
+                if (inHull && d < 9 || d < 2) && d < bd { best = s; bd = d }
+                continue
+            }
+            let zone: Float = s.role == "kestrel" || s.role == "capplane" ? 8 : 6
             // (P357 b, Oct 16 20:13: "I could fly it from anywhere aboard": a frigate's helm is taken at the helm only.)
-            let aboard = s.kinematic && s.role != "capfrigate" && (ships.aboard?.root === s || ships.boundsDistance(s, p) < (s.role == "dropship" ? 3 : 0.5))
+            let aboard = s.kinematic && s.role != "capfrigate" && (ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.5)
             if (d < zone || aboard) && d < bd { best = s; bd = d }
         }
         return best
