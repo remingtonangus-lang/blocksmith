@@ -135,6 +135,38 @@ extension Game {
         // Vessel encounters (ShipVessels.swift / CapitalShips.swift), found by region rather than as structures.
         ("warfrigate", "Stormwarden Frigate"), ("crawler", "Ironback Crawler"), ("frigate", "Meridian Frigate"), ("carriage", "Siege Carriage")]
 
+    // P474 (Oct 26 19:30-19:31, after /locate in creative: "What are the trail ruins? I don't even know what trail
+    // ruins are"; "What the sealed armory is"; at the Sealed Armoury's spot, "Sunken dreadnought, huh?... Nothing"):
+    // what each place is and how it is found, the line under a /locate result.
+    static let placeAbout: [String: String] = [
+        "village": "a farming town with houses, fields, a well, people to trade with and work for",
+        "stronghold": "an old fortress buried deep underground, its gate room holds the way to the Hollow; follow a thrown Seeker Eye",
+        "monument": "a Capital battleship sunk on the deep ocean floor, its hull guarded; dive, or take a submarine down",
+        "mansion": "a brigand gang's log stockade deep in the dark forest, a long hall full of loot and armed men",
+        "ancient_city": "never built in this game; there is none to find",
+        "trial_chambers": "a Capital armoury sealed underground before the war (its halls 40 to 60 blocks down); dig down where it is marked, or find a cave tunnel into it",
+        "temple": "a stone temple in the desert or jungle, its treasure under the floor and trapped",
+        "pillager_outpost": "a marauders' timber watchtower on open ground, their captain at the top",
+        "wild_camp": "a small camp in open country (hunters, prospectors, traders, or one left empty) with a chest",
+        "frontier_site": "a ghost town, homestead, mission or other place people built out on the land",
+        "shipwreck": "an old wooden ship, wrecked on a beach or on the sea floor, its chests still aboard",
+        "buried_treasure": "a chest buried in a beach; dig where it is marked",
+        "mineshaft": "abandoned mine tunnels underground, timbered, with rails, ore carts and cobwebs",
+        "ocean_ruin": "sunken stone ruins on the sea floor, a chest among them",
+        "trail_ruins": "an old roadside settlement buried in the ground, only its tops showing; dig the gravel round it for pottery and trinkets",
+        "desert_well": "a lone stone well in the desert",
+        "fossil": "the bones of a great beast buried in the rock",
+        "fortress": "the Brand Order's walled house in the Emberdeep",
+        "bastion": "a Searwing spire on a rock islet in the Emberdeep",
+        "end_city": "violite towers on the Hollow's outer islands, guarded, with treasure at the top",
+        "military_base": "a Capital citadel, the enemy's walled base, with guns, soldiers and an armoury",
+        "capital_city": "a Capital city, walled, with avenues, guns and a garrison",
+        "great_ruin": "a colossal ruined stone tower; a stair inside climbs to a chest at the top",
+        "boreal_station": "a Capital post on the ice, manned, its vehicles parked in the yard",
+        "brimstone_keep": "a walled castle over the lava sea in the Deep's hell band, holding the Sunderite Ore",
+        "warfrigate": "a Greywall warship under sail", "crawler": "a Capital land ship on its patrol",
+        "frigate": "a Meridian frigate on patrol", "carriage": "a Capital siege carriage on the move"]
+
     static func snake(_ s: String) -> String {
         var out = ""
         for c in s { if c.isUppercase { out += "_" + c.lowercased() } else { out.append(c) } }
@@ -205,7 +237,7 @@ extension Game {
     private func locateAll(_ keys: [String]) -> [String] {
         var out: [(Int, String)] = []
         for k in keys {
-            for l in execute(["locate", k]) {
+            for l in execute(["locate", k]).prefix(1) {          // (P474: the place, not the line on what it is)
                 let d = l.range(of: "(").flatMap { Int(l[$0.upperBound...].prefix { $0.isNumber }) } ?? Int.max
                 out.append((d, l))
             }
@@ -390,7 +422,19 @@ extension Game {
             }
             guard let (s, whereIn) = found else { return ["Could not find a \(entry.1) nearby"] }
             let dx = Float(s.anchor.x) - player.pos.x, dz = Float(s.anchor.z) - player.pos.z
-            return ["\(entry.1)\(whereIn): \(s.anchor.x) ~ \(s.anchor.z) (\(Int(sqrtf(dx * dx + dz * dz))) blocks)"]
+            // P474: how deep it lies (a place under the ground or the sea shows nothing where he stands), it goes on
+            // his map, and what it is.
+            var depth = ""
+            if whereIn.isEmpty {
+                let top = world.gen.column(s.anchor.x, s.anchor.z).height
+                if s.anchor.y < top - 6 {
+                    depth = ", underground: its floor at y \(s.anchor.y - YOFF), \(top - s.anchor.y) blocks under the \(top < SEA - 2 ? "sea floor" : "surface")"
+                } else if top < SEA - 2 { depth = ", on the sea floor \(max(0, SEA - s.anchor.y)) blocks down" }
+                MapCache.shared.discover(self, kind: entry.0, x: s.anchor.x, z: s.anchor.z, name: entry.1, silent: true)
+            }
+            var out = ["\(entry.1)\(whereIn): \(s.anchor.x) ~ \(s.anchor.z) (\(Int(sqrtf(dx * dx + dz * dz))) blocks\(depth))\(whereIn.isEmpty ? ", marked on your map" : "")"]
+            if let about = Game.placeAbout[entry.0] { out.append(about.prefix(1).uppercased() + about.dropFirst() + ".") }
+            return out
         case "spawnpoint":
             spawnPoint = player.pos
             return [String(format: "Set spawn point to %.0f, %.0f, %.0f", player.pos.x, player.pos.y - Float(YOFF), player.pos.z)]

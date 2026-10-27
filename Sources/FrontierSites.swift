@@ -412,15 +412,20 @@ enum FrontierSites {
               let s = sites(g, near: m.pos).first(where: { wares[$0.kind] != nil && simd_length(V3(Float($0.anchor.x), Float($0.anchor.y), Float($0.anchor.z)) - m.pos) < 26 }),
               let w = wares[s.kind]
         else { return false }
+        // P474 (Oct 26 19:29, at a homestead: "Why aren't they talking? I don't hear them"): their wares lines had no
+        // recorded takes; they answer in their own voice (the trade and can't-afford takes) and the wares are a note.
         if g.survival && g.money < farePrice {
-            Townsfolk.say(g, m, "\(w.ask) for \(Money.format(farePrice)), when you've the money."); return true
+            if TownVoice.speak(g, m, .broke) == nil { Townsfolk.say(g, m, "\(w.ask) for \(Money.format(farePrice)), when you've the money.") }
+            else { g.onToast?("\(w.ask), \(Money.format(farePrice))") }
+            return true
         }
         if g.survival { g.money -= farePrice }
         for (k, n) in w.sell where Items.has(k) {
             g.drops.spawn(ItemStack(Items.id(k), n), at: g.player.pos + V3(0, 0.5, 0))
         }
         g.sfx(.villagerTrade, 0.6, at: m.pos)
-        Townsfolk.say(g, m, w.lines[Int(g.clock) % w.lines.count])
+        if TownVoice.speak(g, m, .trade) == nil { Townsfolk.say(g, m, w.lines[Int(g.clock) % w.lines.count]) }
+        else { g.onToast?("\(w.ask), \(Money.format(farePrice))") }
         return true
     }
 }

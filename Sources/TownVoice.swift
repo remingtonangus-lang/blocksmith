@@ -206,7 +206,10 @@ enum TownVoice {
     static func speak(_ g: Game, _ m: Mob, _ ctx: Ctx) -> String? {
         guard m.health > 0 else { return nil }          // P366 (g): a dead trader can't answer
         // R20: a line for the hour, the weather and the moment when one fits (TownLines.swift), else a recorded take.
-        if let text = TownLines.line(g, m, ctx) {
+        // P474 (Oct 26 19:29-19:58, "Why aren't they talking? I don't hear them... You're not talking"): only when that
+        // line has a recorded take in this voice; TownLines' lines are written, not recorded, so half of every greeting
+        // and chatter (and most at night or in the rain) was a caption with no voice.
+        if let text = TownLines.line(g, m, ctx), hasTake(m, text) {
             Townsfolk.say(g, m, text)
             return text
         }
@@ -241,6 +244,11 @@ enum TownVoice {
         }
         if TownLines.spoken(text) { written += 1 } else { murmured += 1 }
         return false                                // P362 (e): no hum in place of a line with no take
+    }
+    // Whether this speaker's voice has a recorded take of the line.
+    static func hasTake(_ m: Mob, _ text: String) -> Bool {
+        let key = hashKey(voice(m), text)
+        return takeID[key] != nil && clip(key) != nil
     }
     static let takeID: [UInt64: Int] = {
         var d: [UInt64: Int] = [:]

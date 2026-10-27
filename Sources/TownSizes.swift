@@ -55,11 +55,27 @@ enum TownSizes {
         Spec(length: 2.3, branch: 2.0, firstRoads: 6, extraRoads: 26, minLots: 6, shops: 8, deputies: 4, office: true, bank: true, mine: true),
     ]
 
+    // P474 (Remington, Oct 26 19:58: "These villages are just too small on average. Like, I expect the average village
+    // to be twice this size"): on ground no save had generated before P474 (StructureCache.legacyP474) the sizes are
+    // drawn 2.2 times rarer each (56% hamlets, 25% villages, 12% towns, 5% large towns, 2% cities, was 72/21/6/2/0.5)
+    // and the three small sizes are laid out bigger again: a hamlet as P466's village (about 9 lots), a village longer
+    // than the old town (about 13), a town half as long again. On average a place has about twice the lots it had.
+    static let newRatio: Float = 2.2
+    static let biggestSpec: [Spec] = [
+        Spec(length: 1.1, branch: 1.0, firstRoads: 5, extraRoads: 0, minLots: 3, shops: 1, deputies: 0, office: false, bank: false, mine: false),
+        Spec(length: 1.3, branch: 1.2, firstRoads: 6, extraRoads: 4, minLots: 6, shops: 3, deputies: 1, office: true, bank: true, mine: false),
+        Spec(length: 1.5, branch: 1.4, firstRoads: 6, extraRoads: 7, minLots: 6, shops: 5, deputies: 2, office: true, bank: true, mine: true),
+        biggerSpec[3],
+        biggerSpec[4],
+    ]
+
     // The size of a town at (ox, oz): weights 1, 1/3.5, 1/3.5^2... (71.6%, 20.5%, 5.8%, 1.7%, 0.5%).
-    static func size(_ ox: Int, _ oz: Int, seed: UInt64) -> TownSize {
+    // P474's roll (`ratio` newRatio) is its own draw (salt 1914): on the old roll's draw a place's new size would follow
+    // its old one, and as most old hamlets were never built (too few lots) the places left would be mostly big ones.
+    static func size(_ ox: Int, _ oz: Int, seed: UInt64, ratio: Float = TownSizes.ratio) -> TownSize {
         let weights = (0..<5).map { powf(1 / ratio, Float($0)) }
         let total = weights.reduce(0, +)
-        let u = Float(hash3(ox, 1913, oz, UInt32(truncatingIfNeeded: seed ^ (seed >> 29))) % 1_000_000) / 1_000_000 * total
+        let u = Float(hash3(ox, ratio == TownSizes.ratio ? 1913 : 1914, oz, UInt32(truncatingIfNeeded: seed ^ (seed >> 29))) % 1_000_000) / 1_000_000 * total
         var acc: Float = 0
         for (k, wt) in weights.enumerated() { acc += wt; if u < acc { return TownSize(rawValue: k)! } }
         return .city

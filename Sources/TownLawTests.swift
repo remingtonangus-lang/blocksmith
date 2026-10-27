@@ -508,6 +508,9 @@ extension TownTests {
         for _ in 0..<50 { TownLaw.lastAmbient = -100; TownLaw.ambientChatter(g) }
         check(TownVoice.played + TownVoice.murmured == before, "voices: no chatter within 20 s of the last line")
         busyTown(g, check)
+        // P474: and with the written lines for the hour on, as in play (--voicetown runs this alone).
+        TownLines.on = true
+        busyTown(g, check)
     }
 
     // Ten minutes in a busy town: 20 townsfolk round the player (time passes by moving the throttles' clocks back).
