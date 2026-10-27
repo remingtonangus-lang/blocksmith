@@ -11,12 +11,15 @@ import simd
 //   aircraft             RT throttle, LT brake, LS left/right bank and turn, LS up/down pitch (pull back to climb,
 //                        Options > Controller > Flight Stick)
 //   warship              a commandeered frigate (P325): LS throttle and turn, RB / LB pitch the bow up and down (on
-//                        Quest the right stick's up/down, so the grips stay free), RT the guns
+//                        Quest the right stick's up/down, so the grips stay free, and its left/right turns her: P472),
+//                        RT the guns
 //   any                  A climb, B leave the helm
 enum VehicleControls {
     enum Kind { case boat, land, airship, aircraft, helicopter, warship, vtol }
     // Quest: the right stick's up/down while at a warship's helm (QuestControls sets it each frame; nil elsewhere).
     static var vrPitch: Float?
+    // P472: ...and its left/right, which turns the warship instead of his view.
+    static var vrSteer: Float?
 
     static func kind(_ s: Ship) -> Kind {
         if !s.rotors.isEmpty { return .helicopter }
@@ -66,6 +69,7 @@ enum VehicleControls {
         if let p = g.seatPad {
             if kind(s) == .warship, let v = vrPitch {
                 climb += abs(v) > 0.2 ? v : 0            // Quest: the right stick pitches the bow
+                if let t = vrSteer, abs(t) > 0.2 { steer += t }      // ...and turns her (P472)
             } else {
                 if p.rb { climb += 1 }                   // RB / LB climb and descend on every vehicle (pitch, a warship)
                 if p.lb { climb -= 1 }

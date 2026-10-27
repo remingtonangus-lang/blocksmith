@@ -249,6 +249,34 @@ enum FrigateCheck {
         w.ships.pointHull(s, pitch: 0)
         if w.ships.pilot !== s { g.player.pos = s.toWorld(stand); g.takeCommand(s) }
 
+        // P472 (Oct 26 20:14, "the frigate should also break through trees and break through blocks too, to a degree"):
+        // a stand of trunks and leaves from the ground up past her keel, dead ahead of the bow: under way she breaks
+        // through it, no crash.
+        do {
+            g.survival = true; g.player.flying = false; g.health = 20; g.alive = true
+            if w.ships.pilot !== s { g.player.pos = s.toWorld(stand); g.takeCommand(s) }
+            let lo = s.localMin, hi = s.localMax
+            let keel = lo.y + 2, cx = (lo.x + hi.x) * 0.5
+            let foot = s.toWorld(V3(cx, keel, lo.z - 16))
+            _ = w.loadSync(center: foot, radius: 3)
+            let ground = w.topY(Int(floor(foot.x)), Int(floor(foot.z)))
+            let topY = Int(floor(s.toWorld(V3(cx, keel + 6, lo.z)).y))
+            var stood = 0
+            for dz in 0..<3 { for dx in -3...3 {
+                let c = s.toWorld(V3(cx + Float(dx), keel, lo.z - 16 - Float(dz)))
+                let x = Int(floor(c.x)), z = Int(floor(c.z))
+                guard ground < topY else { continue }
+                for y in (ground + 1)...topY { w.setBlock(x, y, z, Blocks.id(dz == 1 && abs(dx) < 2 ? "oak_log" : "oak_leaves")); stood += 1 }
+            } }
+            let crushed0 = ShipManager.crushed, crashes1 = Capital.crashes
+            var ahead = MoveInput(); ahead.forward = 1
+            fly(ahead, 7)
+            check(stood > 0 && ShipManager.crushed - crushed0 >= 20 && Capital.crashes == crashes1 && !s.wrecked && g.health == 20,
+                  "frigate P472: under way she breaks through a stand of trunks and leaves dead ahead (\(ShipManager.crushed - crushed0) of \(stood) blocks broken, \(Capital.crashes - crashes1) crashes, \(20 - g.health) half-hearts)")
+            s.pos = start; s.prevPos = start; s.vel = .zero; s.angVel = .zero; s.throttle = 0
+            w.ships.pointHull(s, pitch: 0)
+        }
+
         // (d) Bow down at full throttle into the ground, in survival.
         g.survival = true; g.player.flying = false; g.health = 20; g.alive = true
         if w.ships.pilot !== s { g.player.pos = s.toWorld(stand); g.takeCommand(s) }
@@ -259,8 +287,9 @@ enum FrigateCheck {
         g.input.control = false
         fly(dive, 40)
         let hurt = 20 - g.health
-        check(s.wrecked && st.disabledWhy == "crashed" && Capital.crashes == crashes0 + 1 && w.ships.pilot == nil && (!g.alive || hurt >= 10),
-              "frigate (d): flown bow-first into the ground it is wrecked (\(s.wrecked ? st.disabledWhy : "flying"), \(frames) frames), the pilot thrown from the helm and \(g.alive ? "hurt \(hurt) half-hearts" : "killed")")
+        // P472 (Oct 26 19:48, "crashing shouldn't kill you like that"): the pilot rides it out, unhurt.
+        check(s.wrecked && st.disabledWhy == "crashed" && Capital.crashes == crashes0 + 1 && w.ships.pilot == nil && g.alive && hurt == 0,
+              "frigate (d): flown bow-first into the ground it is wrecked (\(s.wrecked ? st.disabledWhy : "flying"), \(frames) frames), the pilot thrown from the helm \(g.alive ? "hurt \(hurt) half-hearts" : "killed") (P472: unhurt)")
         // P357 (c), (d): the crash tore the hull open and every light aboard is out.
         var lit = 0
         let emitters = Set(["light_panel", "frigate_porthole", "frigate_thruster"].filter { Blocks.has($0) }.map { Blocks.id($0) })

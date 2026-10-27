@@ -67,16 +67,14 @@ extension ShipManager {
                 }
             }
             g.sfx(.explode, min(1, 0.3 + k), at: at)
+            let riding = aboard?.root === s || pilot === s
             g.particles.explosion(at: at, power: 0.4 + k)
+            Explosion.sparePlayer = riding
             if !cells.isEmpty { removeCells(s, cells, chipped: [], center: at, power: 4 + 8 * k, game: g) }
-            // Whoever rides it is thrown about.
-            if aboard?.root === s || pilot === s {
-                g.addShake(0.4 + 0.5 * k)
-                if g.survival {
-                    let hurt = Int((v - VehicleDamage.safe) * 0.45)
-                    if hurt > 0 { g.damage(hurt, "was killed in a crash") }
-                }
-            }
+            Explosion.sparePlayer = false
+            // Whoever rides it is thrown about. P472 (Oct 26 20:14, "with a wreck, I don't see why that needs to actually
+            // hurt me"): shaken, not hurt; the vehicle takes the crash.
+            if riding { g.addShake(0.4 + 0.5 * k) }
         }
     }
 }

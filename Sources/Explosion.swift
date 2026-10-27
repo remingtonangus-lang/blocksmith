@@ -52,6 +52,8 @@ enum Explosion {
     // P471: the blast is a heavy naval shell's (Armory.detonate): Game.hurtPlayer lets it hit harder than the level's
     // cap on one blow.
     static var heavyShell = false
+    // P472: a crash's own blasts spare whoever rides the crashing ship (CapitalShips.hullContact, VehicleDamage).
+    static var sparePlayer = false
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
                         decay: Bool = true, resistCap: Float = .infinity, along: V3? = nil) {
         let w = g.world
@@ -214,7 +216,7 @@ enum Explosion {
         // Every split-screen player in reach (typed closure and split arithmetic: the inferred form timed out the
         // type checker on CI).
         let hitPlayer: () -> Void = {
-            guard let im = impact(g.player.pos, 1.8), im.0 > 0 else { return }
+            guard !Explosion.sparePlayer, let im = impact(g.player.pos, 1.8), im.0 > 0 else { return }
             let k: Float = im.0
             let dir: V3 = im.1
             let base: Float = (k * k + k) / 2
