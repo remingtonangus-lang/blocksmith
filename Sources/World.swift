@@ -1069,6 +1069,12 @@ final class World {
             else { byChunk.append((c, [sy])) }
         }
         var builds: [() -> (ChunkKey, [(Int, Int, SectionMesh)])] = []
+        // P474 (Oct 26 19:42, in the Capital citadel: "placing blocks inside the capital, blocks take a second to load"):
+        // the lane drew each section's ground simplified (AdaptiveGround), nine tenths of its time: about 300 ms a
+        // section on the cloud host, an edit's 4-8 sections one after another. It draws the ground exact, as the frame's
+        // own remesh does, and a worker then redraws the touched sections simplified (the version bump below).
+        let adapt = !fieldTerrain
+        var redraw: [(Chunk, Int)] = []
         for (c, sys) in byChunk {
             guard let nb = neighbourhood(c) else { continue }           // (its regular job meshes it once the ring is in)
             let k = ChunkKey(x: c.cx, z: c.cz)
@@ -1079,12 +1085,14 @@ final class World {
             builds.append {
                 (k, todo.map { (sy, v) in
                     (sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site,
-                                                chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond)) })
+                                                chunk: (k.x, k.z), nearSides: near, adaptive: adapt, fineBeyond: beyond)) })
             }
             c.meshInFlight = true
             c.meshJobsOut += 1
+            for sy in sys { redraw.append((c, sy)) }
         }
         guard !builds.isEmpty else { return }
+        if fieldTerrain && AdaptiveGround.enabled { for (c, sy) in redraw { c.sections[sy].version += 1 } }
         jobs += builds.count
         World.editQueue.async { [weak self] in
             let out = builds.map { $0() }
