@@ -628,6 +628,27 @@ final class WorldGen: TerrainGenerator {
         }
     }
 
+    // P474 (generation speed): grass the chunk's later passes covered (a structure's floor, a boulder, a path) or left
+    // under water turns to dirt here, as its first random tick would have made it (Farming.grassTick). By his citadel,
+    // about 40 such cells a second died to dirt on new land, and each one re-meshed the ground's section round it (about
+    // 24 ms a time on the cloud host): three quarters of the meshing while flying in (questcheck --streamtest).
+    static var settlesGrass = ProcessInfo.processInfo.environment["BS_SETTLEGRASS"] != "0"     // (0: the old way)
+    static func settleGrass(_ b: inout [BlockID]) {
+        guard settlesGrass else { return }
+        let op = Blocks.opaque, fk = Blocks.fluidKind
+        let grass = GRASS, snowy = SNOWY_GRASS, myc = MYCELIUM, dirt = DIRT
+        b.withUnsafeMutableBufferPointer { p in
+            let n = p.count - CSQ
+            guard n > 0 else { return }
+            for i in 0..<n {
+                let c = p[i]
+                guard c == grass || c == snowy || c == myc else { continue }
+                let above = Int(p[i + CSQ])
+                if op[above] || fk[above] == 1 { p[i] = dirt }
+            }
+        }
+    }
+
     // Swamp puddles and pond edges at or above the water level whose bank a later pass took away (trees beside a jungle edge cleared the
     // neighbour's top block: the swamp check found ~40 spilling cells on seed 12345) turn to mud, pad and all.
     private func sealSwampPuddles(_ b: inout [BlockID], _ biomes: [Biome], _ wls: [Int]) {
