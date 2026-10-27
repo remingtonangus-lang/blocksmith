@@ -165,6 +165,7 @@ enum FrigateCheck {
             Wrecks.hintTick(g)
             check(w.ships.pilot === s && g.menu == nil, "frigate (f) \(mode): use at the helm takes command and no menu opens (\(g.menu.map { String(describing: type(of: $0)) } ?? "none"))")
             guard w.ships.pilot === s else { continue }
+            check(g.helmFarView, "frigate P472 (\(mode)): at the helm the far ground (FarRing) shows past the loaded chunks, Auto View or not")
             // Throttle up, level: along the bow, nothing up, down or sideways.
             let p0 = s.pos, f0 = bow()
             var fwd = MoveInput(); fwd.forward = 1

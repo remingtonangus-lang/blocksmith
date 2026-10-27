@@ -182,7 +182,8 @@ final class WorldRenderer {
         // out to the ring's rim, so chunks and ring share one fog (no fog wall at the loaded edge with clearer land
         // beyond) and the rim melts into the horizon shell.
         let baseEnd: Float = rd * 16 - 12
-        farRingOn = FarRing.enabled && !autoView && game.dim.dim == .overworld && !underwater && !p.headInLava && !vaultSky && !underground
+        // (P472: at a big hull's helm, or flying, the ring shows under Auto View Distance too: Game.helmFarView.)
+        farRingOn = FarRing.enabled && (!autoView || game.helmFarView) && game.dim.dim == .overworld && !underwater && !p.headInLava && !vaultSky && !underground
             && game.blindFog == nil && fogEnd >= baseEnd - 0.01 && game.world.gen is WorldGen
         // (Only once a ring is up: until its first build lands the loaded edge keeps the usual fog.)
         if farRingOn && farLive >= 0 && farSeed == game.world.seed { fogEnd = max(fogEnd, FarRing.outer - 16); fogStart = fogEnd * clearStart }

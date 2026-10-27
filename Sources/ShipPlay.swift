@@ -192,6 +192,17 @@ extension Game {
         return want
     }
 
+    // P472 (Oct 26 19:49, at the frigate's helm: "I can't see shit when I'm driving that thing. I don't have a very good
+    // understanding of the ground at all... Just for when driving the frigate"): at the helm of a big hull (longer or
+    // wider than 24 blocks) or of anything flying 32 blocks over the sea, the middle ring (FarRing.swift: the ground as
+    // a low-poly height field out to 1024 blocks, one draw) shows past the loaded chunks even under Auto View Distance,
+    // whose haze otherwise closes the view at the drawn edge.
+    var helmFarView: Bool {
+        guard let s = world.ships.pilot else { return false }
+        let h = s.root, ext = h.localMax - h.localMin
+        return max(ext.x, ext.z) > 24 || h.pos.y > Float(SEA + 32)
+    }
+
     // Third-person camera distance: farther back while steering, scaled to the ship.
     var thirdPersonDistance: Float {
         guard let s = world.ships.pilot else { return 4 }
