@@ -317,8 +317,8 @@ enum BaseTests {
             lap("air")
         }
 
-        // P33 (run alone: `--basetest alarm`): a player walking in through the gate in survival sets off the alarm at once
-        // and locks the citadel down after 10 s inside.
+        // P33 (run alone: `--basetest alarm`): a player walking in through the gate in survival sets off the alarm once the
+        // garrison has had him in sight 2 s, and locks the citadel down after 5 s seen (P471).
         if name == "alarm" {
             g.survival = true
             g.player.flying = false
@@ -331,7 +331,8 @@ enum BaseTests {
             }
             g.survival = false
             check(first != nil && locked != nil, "P33 an intruder inside the walls sounds the alarm and brings a lockdown",
-                  String(format: "alarm %@, lockdown after %.0f s", first == nil ? "never" : "at once", locked ?? -1))
+                  String(format: "alarm %@, lockdown after %.0f s (seen inside %.0f s)", first.map { String(format: "after %.0f s", $0) } ?? "never", locked ?? -1,
+                         b.intruded.values.max() ?? 0))
             return finish(g, b, t0)
         }
 

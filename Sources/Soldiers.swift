@@ -65,6 +65,7 @@ final class SoldierBrain {
     // next look for a new one when the post is empty.
     var gunPost: V3?
     var gunnerCD: Float = 0
+    var offPost: Float = 0         // P471: seconds a gun's crewman is off his post, fighting the player close by
     var ready = false
     // The Ash Vault's squads (AshArmy.swift): a role (mortar crew, medic, MG gunner), whether this is a patrol or
     // reinforcement (an extra, counted against the unit cap), the far-AI tick accumulator, a medic's patient and a
@@ -468,15 +469,26 @@ extension Mob {
             }
             return 0
         }
-        // Turret crews stay at their guns whatever happens round them.
-        if b.orderStation == .gunner, let sp = followOrder(g) { return sp }
+        // Turret crews stay at their guns while the fight is out where the gun reaches. P471 (Oct 26 19:39-19:54, a
+        // Capital base: "none of the troops are coming after me... backs turned... They don't even have a gun in their
+        // hand"; "oblivious... even though I just killed his friend right beside him"): a crewman stood at the handles,
+        // back to him, whatever he did. Now one who sees him within 20 blocks, is hurt, or is alerted with him that
+        // close (a comrade killed beside him) leaves the post, draws and fights; back to the gun 20 s after he lost him.
+        b.offPost -= dt
+        if b.orderStation == .gunner {
+            let near = dist < 20 && canTarget
+            if near && (sees || hurt > 0 || (aggro && b.seenAgo < 2)) { b.offPost = 20 }
+            if b.offPost > 0 {
+                if b.station != .none { b.station = .none }
+            } else if let sp = followOrder(g) { return sp }
+        }
         guard aggro && canTarget else {
             b.aimTime = 0; b.glinted = false
             b.hunt = nil
             // R23: lost him for good (no sighting for 45 s, nobody calling it in): stand down, so the next sighting is
             // called out again and the post duty below walks it back to its post.
             if aggro && lockTime <= 0 && b.seenAgo > 45 && b.order == nil { aggro = false; b.lastSeen = nil; TroopVoice.say(g, self, .lost, gap: 2, chance: 0.6) }
-            if let sp = followOrder(g) { return sp }
+            if b.offPost <= 0, let sp = followOrder(g) { return sp }
             // Garrison duty: stroll near the post; marksmen keep watch, and so does a vehicle's crew at its post in the
             // hull's frame (a stroll round `home`, where it spawned in the world, pulled it off its post as the vehicle
             // drove away: ridecheck crew, a trooper 1.9 blocks off post 0, runs 605 and 634).
@@ -1088,6 +1100,25 @@ extension Mob {
 }
 
 extension Game {
+    // P471 (Oct 26 19:52: "This guy's completely oblivious to my existence even though I just killed his friend right
+    // beside him... They're all oblivious"): a soldier he kills is seen to fall. Its own side within 12 blocks, or within
+    // 28 with the body or him in sight, turn on him: alerted with where he is, and an ally's hold-fire gone (FactionRep:
+    // they count it as a blow to them). A suppressed Spec Ops shot carries no further, but the body still drops in view.
+    func soldierWitnesses(_ m: Mob) {
+        let w = world, p = player.pos, body = m.pos + V3(0, 0.8, 0)
+        for o in mobs.mobs where o !== m && o.health > 0 && o.kind.steelhold && o.kind != .deckGun && o.faction == m.faction && o.posse == m.posse
+            && !o.hired && Soldier.rank(o.kind) != nil {
+            let d = simd_length(o.pos - m.pos)
+            guard d < 28, d < 12 || w.canSee(o.eye, body) || w.canSee(o.eye, player.eye) else { continue }
+            let b = o.soldierBrain
+            if !o.aggro { o.aggro = true; b.react = max(b.react, 0.5) }
+            b.lastSeen = p; b.seenAgo = min(b.seenAgo, 0.5)
+            o.lockTime = max(o.lockTime, 20)
+            o.playerHurtAt = clock
+            if b.orderStation == .gunner && simd_length(o.pos - p) < 20 { b.offPost = 20 }
+        }
+    }
+
     // Guns and ammo from a fallen soldier; deck guns burst into smoke and scrap.
     func soldierDied(_ m: Mob) {
         guard m.kind.steelhold else { return }
@@ -1106,6 +1137,7 @@ extension Game {
             return
         }
         TroopVoice.say(self, m, .dying, gap: 2, chance: 0.3)          // P468: last words, now and then
+        if m.killedByPlayer { soldierWitnesses(m) }                     // P471: his comrades round him turn
         m.troopLoot(self)                                              // the plate it still wore (TroopClasses.swift)
         BountyHunters.loot(self, m, at: at)                            // R21: a bounty hunter's poster and purse
         // P206 (Oct 13 18:42, "I never found the key to unlock the computer on the second floor"): a Greywall base's

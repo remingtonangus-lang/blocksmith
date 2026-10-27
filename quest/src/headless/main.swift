@@ -833,10 +833,42 @@ if let out = arg("--view"), let ctx = vkctx {
             }
         } else { print("view: fell: no living trunk within 16 blocks") }
     }
-    // --tick S (P428): the game runs S seconds on its own clock (nothing else done) before the render.
+    // --tick S (P428): the game runs S seconds on its own clock (nothing else done) before the render; with --troops,
+    // in survival (P471: the soldiers' minds as when he walked in).
     if let secs = Double(arg("--tick") ?? "") {
         vg.paused = false
+        if arg("--troops") != nil { vg.survival = true; vg.player.flying = false }
         for _ in 0..<Int(secs * 72) { vg.tick(1.0 / 72) }
+    }
+    // --troops R (P471): every soldier within R blocks of the eye after the run (--tick): what it is, whose, its gun,
+    // whether it has seen him, and which way it faces from him (0: toward him).
+    if let rr = Float(arg("--troops") ?? "") {
+        let e = vg.player.pos
+        let near = vg.mobs.mobs.filter { $0.kind.steelhold && $0.health > 0 && simd_length($0.pos - e) <= rr }.sorted { simd_length($0.pos - e) < simd_length($1.pos - e) }
+        // (and every structure start whose box takes in the eye's column, or nearest 3 within 200 blocks)
+        if let sc = vw.gen.structures {
+            let cx = floorDiv(Int(e.x), CS), cz = floorDiv(Int(e.z), CS)
+            var seen: [(Int, String)] = []
+            for t in sc.types {
+                for s in sc.startsNear(cx: cx, cz: cz, t) {
+                    let dx = max(s.min.x - Int(e.x), Int(e.x) - s.max.x, 0), dz = max(s.min.z - Int(e.z), Int(e.z) - s.max.z, 0)
+                    seen.append((dx + dz, "\(t.name) box \(s.min.x),\(s.min.y),\(s.min.z)..\(s.max.x),\(s.max.y),\(s.max.z) anchor \(s.anchor.x),\(s.anchor.y),\(s.anchor.z), \(dx + dz) off"))
+                }
+            }
+            for (_, line) in seen.sorted(by: { $0.0 < $1.0 }).prefix(6) { print("troops: start " + line) }
+        }
+        print("troops: \(near.count) within \(Int(rr)) of \(Int(e.x)) \(Int(e.y)) \(Int(e.z)) (alarm \(String(format: "%.2f", vg.ashAlarm)), player \(vg.survival ? "survival" : "creative"))")
+        for m in near {
+            let b = m.soldierBrain, d = e - m.pos
+            var off = atan2f(-d.x, -d.z) - m.yaw
+            while off > .pi { off -= 2 * .pi }
+            while off < -.pi { off += 2 * .pi }
+            func f1(_ v: Float) -> String { String(format: "%.1f", v) }
+            let gun = b.gun >= 0 && b.gun < Guns.all.count ? Guns.all[b.gun].key : "-"
+            print("troops:   \(MobKind.keys[m.kind] ?? "?") \(m.factionValue.name) at \(Int(m.pos.x)) \(Int(m.pos.y)) \(Int(m.pos.z)), \(f1(simd_length(d))) off, "
+                  + "facing \(Int(abs(off) * 180 / .pi)) deg from him, gun \(gun), aggro \(m.aggro), sees \(b.sees), seen \(f1(b.seenAgo)) s ago, "
+                  + "watched \(f1(b.watchT)), aim \(f1(b.aimHold)), station \(b.station), deck \(m.deck != nil), leash \(m.leash.map { "\(Int($0.x)),\(Int($0.y))" } ?? "-"), posse \(m.posse)")
+        }
     }
     // --settlemesh (P428): the world keeps updating at the eye until no generation or mesh job is out (at most 120 s),
     // so the frame shows what the game would draw once its own mesher caught up.
@@ -1632,6 +1664,11 @@ if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck
 if CommandLine.arguments.contains("--huntcrawler") {          // P460: the Reckoning's Capital band brings a crawler
     HuntCrawlerCheck.run(game, check)
     print(failures == 0 ? "huntcrawler: all checks passed" : "huntcrawler: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --troopfight: P471 part 2, gun crews and comrades who stood by while he fought them (Sources/TroopFightCheck.swift).
+if CommandLine.arguments.contains("--troopfight") {
+    TroopFightCheck.run(game, check)
+    print(failures == 0 ? "troopfight: all checks passed" : "troopfight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --navalblow: P471, a crew's heavy naval shell on the levels and through Capital stone (Sources/NavalBlowCheck.swift).
 if CommandLine.arguments.contains("--navalblow") {
