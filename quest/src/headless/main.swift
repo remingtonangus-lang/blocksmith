@@ -1686,6 +1686,11 @@ if CommandLine.arguments.contains("--troopfight") {
     TroopFightCheck.run(game, check)
     print(failures == 0 ? "troopfight: all checks passed" : "troopfight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --doorway: P471, walking through a doorway a little off its middle (Sources/DoorwayCheck.swift).
+if CommandLine.arguments.contains("--doorway") {
+    DoorwayCheck.run(game, check)
+    print(failures == 0 ? "doorway: all checks passed" : "doorway: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --gunroom: P471 part 4, gun rooms with a seated operator at the computer (Sources/GunRoomCheck.swift).
 if CommandLine.arguments.contains("--gunroom") {
     GunRoomCheck.run(game, check)
