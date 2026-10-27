@@ -487,6 +487,9 @@ final class Mob {
     var carcass = false             // a body waiting to be skinned (Hunting.bodies, never in the mob list), drawn on its side
     var stayAt: V3?                 // where a horse of yours was left: it waits, grazes and wanders there (saved)
     weak var mount: Mob?            // rider (raid siegebeast riders)
+    var mountOffset: V3?            // P470: where on its mount a rider stands (blocks, the mount's own frame), not on its back
+    var trainPitch: Float = 0       // P470: a train car's tilt up a grade (its nose up, positive)
+    var livery: UInt8 = 0           // P470: a train car's paint (Trains.swift)
     weak var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
     var crewPost: V3?               // capital crew: its post in the ship's frame, held while the vehicle runs
     var crewRoute: [V3] = []        // capital crew: ship-space waypoints it walks (troops leaving by the ramp)
@@ -1167,7 +1170,10 @@ final class Mob {
         if let mt = mount {
             if mt.health > 0 {
                 if speed != 0 && !mt.kind.hostile { mt.driven = 0.3; mt.driveSpeed = abs(speed); mt.driveYaw = speed < 0 ? yaw + .pi : yaw }
-                pos = mt.pos + V3(0, mt.height * 0.8, 0)
+                if let o = mountOffset {
+                    let cy = cosf(mt.yaw), sy = sinf(mt.yaw)
+                    pos = mt.pos + V3(cy * o.x + sy * o.z, o.y, -sy * o.x + cy * o.z)
+                } else { pos = mt.pos + V3(0, mt.height * 0.8, 0) }
                 vel = .zero
                 onGround = true
                 return
@@ -2762,6 +2768,10 @@ final class MobManager {
             // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
             // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
             if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }
+            // P470: a train's cars come and go with their train (Trains.tick, 128 blocks): a real-size train is long
+            // enough that its tail cars stood past the distance limit, at unloaded ground or at random despawn range, and
+            // the whole train was rebuilt each second (throwing him off the footplate).
+            if Trains.isCar(m) && Trains.carOf[ObjectIdentifier(m)] != nil { return false }
             // A position made non-finite outside this seat's update (another seat's knockback) can't be turned into a
             // chunk: the mob goes (its update would put it back, but Int(floor(NaN)) below is undefined).
             guard m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite else { MobManager.quarantined += 1; return true }

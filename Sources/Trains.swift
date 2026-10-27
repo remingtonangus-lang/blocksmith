@@ -115,6 +115,16 @@ enum Trains {
         var roofAt: Double = -1e9               // when the player last stood on one of its roofs
         var chuff: Float = 0
         var lastS: Float = 0
+        // P470 part 2 (TrainCars.swift): a real-size train's kind, its cars' places along it (variant, turned round,
+        // offset of the car's middle from the train's, blocks along the track), its length, the way it runs, each
+        // car's place on the track this frame, and the soldiers riding it.
+        var kind: Kind = .passenger
+        var layout: [(Int, Bool, Float)] = []
+        var length: Float = 0
+        var dir: Float = 1
+        var carS: [Float] = []
+        var troops: [Mob] = []
+        var roused = false
         init(_ t: Track) {
             track = t
             if let st = Trains.saved[t.id] { delay = st.delay; robbedDay = st.robbedDay; wrecked = st.wrecked }
@@ -122,7 +132,7 @@ enum Trains {
         var time: Double = 0                    // timetable time (Game.time less the delay), set each frame
     }
     static var trains: [Int64: Train] = [:]
-    private static var carOf: [ObjectIdentifier: (Train, Int)] = [:]
+    static var carOf: [ObjectIdentifier: (Train, Int)] = [:]
 
     // MARK: Tracks
 
@@ -208,7 +218,7 @@ enum Trains {
             let c0 = t.cells[max(0, min(t.cells.count - 1, Int(t.at(tr.time).s)))]
             guard g.world.isLoaded(c0.x, c0.z), Rails.isRail(g.world.block(c0.x, c0.y, c0.z)) else { continue }
             want.insert(t.id)
-            if tr.cars.isEmpty || tr.cars.contains(where: { $0.health <= 0 && !t.armoured && !tr.bullion }) || !tr.cars.allSatisfy({ m in g.mobs.mobs.contains { $0 === m } }) {
+            if tr.cars.isEmpty || tr.cars.contains(where: { $0.health <= 0 && !t.armoured && !tr.bullion && tr.kind != .troop }) || !tr.cars.allSatisfy({ m in g.mobs.mobs.contains { $0 === m } }) {
                 build(g, tr)
             }
         }
@@ -216,10 +226,10 @@ enum Trains {
         // Cars not in a train (a save's leftovers) go.
         g.mobs.mobs.removeAll { isCar($0) && carOf[ObjectIdentifier($0)] == nil }
         // A held train with the player gone, or a minute on, runs again.
-        for tr in trains.values where !tr.cars.isEmpty { raidTick(g, tr) }       // D50: hold-ups of the train you ride
+        for tr in trains.values where !tr.cars.isEmpty { raidTick(g, tr); troopTick(g, tr) }       // D50: hold-ups of the train you ride
         for tr in trains.values where tr.heldBy && tr.raid.isEmpty {
             tr.stoppedFor += 1
-            let far = tr.cars.first.map { simd_length($0.pos - p) > 48 } ?? true
+            let far = lead(tr).map { simd_length($0.pos - p) > 48 } ?? true
             if far || tr.stoppedFor > 60 { tr.heldBy = false; tr.brake = 0; tr.stoppedFor = 0; tr.holdUp = 0 }
         }
         if trains.count > 48 { for (id, tr) in trains where tr.cars.isEmpty && !want.contains(id) { trains[id] = nil } }
@@ -231,9 +241,12 @@ enum Trains {
         let day = Int(g.time / DAY_LENGTH)
         let wasBullion = tr.bullion
         tr.bullion = !tr.track.armoured && tr.track.dim == .overworld && VaultObjectives.bullionDay(tr.track.id, day) && tr.robbedDay != day
+            && forceKind == nil                // (checks: the kind they ask for, whatever the day)
         if tr.bullion && !wasBullion {
             g.onToast?("A bullion train runs the \(tr.track.name) today: armoured, guarded, and carrying the bank's gold")
         }
+        tr.layout = []
+        if !tr.track.armoured { buildBig(g, tr, day: day); return }       // P470 part 2: the railways' trains at real size
         let kinds = tr.track.armoured ? [armouredLoco, gunCar] : (tr.bullion ? [armouredLoco, gunCar, express] : [loco, coach, express])
         for (k, v) in kinds.enumerated() {
             let m = Mob(.minecart, at: tr.track.point(0))
@@ -253,6 +266,10 @@ enum Trains {
 
     static func remove(_ g: Game, _ tr: Train) {
         if let r = g.riding, tr.cars.contains(where: { $0 === r }) { g.dismount() }
+        // (soldiers still aboard go with it; those who got off stay and fight)
+        let riders = Set(tr.troops.filter { $0.mount != nil }.map { ObjectIdentifier($0) })
+        if !riders.isEmpty { g.mobs.mobs.removeAll { riders.contains(ObjectIdentifier($0)) } }
+        tr.troops = []
         for m in tr.cars { carOf[ObjectIdentifier(m)] = nil }
         let gone = Set(tr.cars.map { ObjectIdentifier($0) })
         g.mobs.mobs.removeAll { gone.contains(ObjectIdentifier($0)) }
@@ -262,13 +279,32 @@ enum Trains {
     // Mob.update for a car: the train's head car moves the whole train; every car keeps its pose.
     static func drive(_ m: Mob, _ dt: Float, _ g: Game) {
         guard let (tr, k) = carOf[ObjectIdentifier(m)] else { m.health = -1; return }
-        if !tr.track.armoured && !(tr.bullion && k == 1) { m.health = m.spec.health; m.hurt = 0 }
+        let guards = tr.layout.isEmpty ? (tr.bullion && k == 1) : ((tr.bullion || tr.kind == .troop) && m.variant == gunCar)
+        if !tr.track.armoured && !guards { m.health = m.spec.health; m.hurt = 0 }
         if k == 0 { place(g, tr, dt: dt) }
         if g.riding === m {
-            g.player.pos = m.pos + V3(0, 1.0, 0)
+            g.player.pos = seat(m)
             g.player.vel = .zero
             g.player.airPeak = g.player.pos.y
+            // ... and the leaves and limbs round his head on the footplate, once the train has moved (the nose ahead can
+            // be over ground not loaded yet when he rides the engine at the back; a trunk stood in the cab's window where
+            // a tree beside the line had grown after the line was drawn).
+            if !tr.layout.isEmpty {
+                let e = g.player.eye
+                let ex = Int(floor(e.x)), ey = Int(floor(e.y)), ez = Int(floor(e.z))
+                for y in (ey - 1)...(ey + 1) { for dz in -1...1 { for dx in -1...1 where Railways.clearable[Int(g.world.block(ex + dx, y, ez + dz))] {
+                    g.world.setBlock(ex + dx, y, ez + dz, AIR)
+                } } }
+            }
         }
+    }
+
+    // P470: a real-size train's nose brushes off the leaves of trees leaning over the line (a crown over the bed stood
+    // in the cab's window: the ride check's driver had his head in spruce leaves).
+    static func brushFoliage(_ g: Game, _ c: IVec3) {
+        for y in (c.y + 1)...(c.y + 8) { for dz in -2...2 { for dx in -2...2 where CapitalBase.isLeaf(g.world.block(c.x + dx, y, c.z + dz)) {
+            g.world.setBlock(c.x + dx, y, c.z + dz, AIR)
+        } } }
     }
 
     static func place(_ g: Game, _ tr: Train, dt: Float) {
@@ -278,12 +314,16 @@ enum Trains {
         // line climbs a grade, and into a cutting's side on a curve, and read as a blocked line).
         if dt > 0, tr.cars.first != nil {
             let (s0, dir0, _) = t.at(tr.time)
-            let c = t.cells[max(0, min(t.cells.count - 1, Int((s0 + dir0 * (gap * 0.75 + 1.2)).rounded())))]
+            let ahead = tr.layout.isEmpty ? s0 + dir0 * (gap * 0.75 + 1.2) : tr.lastS + dir0 * (tr.length / 2 + 1.5)    // (P470: the front's nose)
+            let c = t.cells[max(0, min(t.cells.count - 1, Int(ahead.rounded())))]
             let b = g.world.block(c.x, c.y, c.z)
             if Blocks.collide[Int(b)] && !Rails.isRail(b) && t.at(tr.time).stop == nil && !t.armoured {
                 if !tr.heldBy { tr.heldBy = true; tr.stoppedFor = 0; whistle(g, tr) }
             }
             holdUpTick(g, tr, dt)
+            if !tr.layout.isEmpty {
+                brushFoliage(g, c)
+            }
         }
         tr.brake += ((tr.heldBy ? 1 : 0) - tr.brake) * min(1, dt * 1.2)
         // P337 step 3: riding the locomotive is driving it. Forward opens the regulator, back closes it, through stop
@@ -292,7 +332,7 @@ enum Trains {
         // P379 step 2: the brake is its own control (jump: the pad's A, the space bar), held to apply it, let go to
         // release; the regulator stays where it was left. The regulator pulls the train's pace toward its setting at
         // steam's pace; the brake pulls it to a stand whatever the regulator says.
-        if dt > 0, let lead = tr.cars.first, g.riding === lead {
+        if dt > 0, let r = g.riding, tr.cars.contains(where: { $0 === r }), isEngine(r) {
             let f = g.rideInput.forward
             if abs(f) > 0.1 { tr.throttle = max(-1, min(2, tr.throttle + f * 0.7 * dt)) }
             let on: Float = g.rideInput.jump ? 1 : 0
@@ -310,11 +350,12 @@ enum Trains {
         tr.delay += Double(dt * (1 - rate))
         tr.time = g.time - tr.delay
         let (s, dir, stop) = t.at(tr.time)
-        let moving = abs(s - tr.lastS)
-        tr.lastS = s
-        if dt > 0 { tr.blocksPerSec += (moving / dt - tr.blocksPerSec) * min(1, dt * 4) }
         let before = tr.cars.map { ($0.pos, $0.yaw) }
-        for (k, m) in tr.cars.enumerated() {
+        let big = !tr.layout.isEmpty
+        let moving = big ? placeBig(tr, s, dir, dt) : abs(s - tr.lastS)
+        if !big { tr.lastS = s }
+        if dt > 0 { tr.blocksPerSec += (moving / dt - tr.blocksPerSec) * min(1, dt * 4) }
+        for (k, m) in tr.cars.enumerated() where !big {
             let sk = s - dir * gap * Float(k)
             let p = t.point(sk)
             let d = t.point(sk + dir * 0.7) - t.point(sk - dir * 0.7)
@@ -326,36 +367,37 @@ enum Trains {
         }
         if dt > 0 { carryRoofRider(g, tr, before: before) }                // D50: a rider on the roofs
         // Steam: chuffs with speed, a whistle leaving each stop.
-        guard dt > 0, let lead = tr.cars.first, simd_length(lead.pos - g.player.pos) < 96 else { return }
+        guard dt > 0, let lead = lead(tr), simd_length(lead.pos - g.player.pos) < 96 else { return }
         let sp = moving / max(dt, 1e-4)
         tr.chuff -= dt * (0.6 + sp * 0.5)
         if tr.chuff <= 0 {
             tr.chuff = 1
-            let top = lead.pos + V3(0, 3.6, 0) + lead.forward * 1.4
-            if !tr.track.armoured { g.particles.smoke(at: top, dark: true); g.particles.smoke(at: top + V3(0, 0.4, 0), dark: false) }
-            if sp > 0.3 || stop != nil { g.sfx(.steamChuff, tr.track.armoured ? 0.5 : 0.7, at: top) }
+            let top = chimney(lead)
+            let steam = !tr.track.armoured && lead.variant == loco
+            if steam { g.particles.smoke(at: top, dark: true); g.particles.smoke(at: top + V3(0, 0.4, 0), dark: false) }
+            if sp > 0.3 || stop != nil { g.sfx(.steamChuff, steam ? 0.7 : 0.5, at: top) }
         }
         if let st = stop, t.at(tr.time + 2).stop == nil, t.at(tr.time - Double(dt)).stop == st, tr.brake < 0.1 { whistle(g, tr) }
-        if t.armoured || tr.bullion { gunCar(g, tr, dt) }
+        if t.armoured || tr.bullion || tr.kind == .troop { gunCar(g, tr, dt) }
     }
 
     // The train whose locomotive the player rides (drives), if any.
     static func cab(_ g: Game) -> Train? {
-        guard let r = g.riding, isCar(r), let (tr, k) = carOf[ObjectIdentifier(r)], k == 0 else { return nil }
+        guard let r = g.riding, isCar(r), let (tr, k) = carOf[ObjectIdentifier(r)], tr.layout.isEmpty ? k == 0 : isEngine(r) else { return nil }
         return tr
     }
 
     static func whistle(_ g: Game, _ tr: Train) {
-        guard let lead = tr.cars.first else { return }
-        g.sfx(.trainWhistle, tr.track.armoured ? 0.7 : 1, at: lead.pos + V3(0, 3, 0))
+        guard let lead = lead(tr) else { return }
+        g.sfx(.trainWhistle, tr.track.armoured ? 0.7 : 1, at: chimney(lead))
     }
 
     // MARK: Hold-ups and robbery
 
     static func holdUpTick(_ g: Game, _ tr: Train, _ dt: Float) {
-        guard !tr.track.armoured, !tr.bullion, !tr.heldBy, let lead = tr.cars.first, g.alive, g.survival, Guns.index(g.held.item) != nil else { tr.holdUp = 0; return }
+        guard !tr.track.armoured, !tr.bullion, tr.kind != .troop, !tr.heldBy, let lead = lead(tr), g.alive, g.survival, Guns.index(g.held.item) != nil else { tr.holdUp = 0; return }
         let from = g.vrAim?.origin ?? g.player.eye, dir = simd_normalize(g.vrAim?.dir ?? g.player.look)
-        let cab = lead.pos + V3(0, 2.2, 0) - lead.forward * 0.9
+        let cab = cabPoint(lead)
         let to = cab - from, d = simd_length(to)
         guard d > 1, d < 20, simd_dot(to / d, dir) > 0.985, g.world.canSee(from, cab) else { tr.holdUp = max(0, tr.holdUp - dt); return }
         tr.holdUp += dt
@@ -372,11 +414,13 @@ enum Trains {
         _ = k
         if climbRoof(g, tr, m) { return true }                              // D50: sneak-use climbs onto the roof
         switch m.variant {
+        case boxcar:
+            return openBoxcar(g, tr, m)
         case coach, loco:
             if g.riding === m { return false }
             if g.riding != nil { g.dismount() }
             g.riding = m
-            g.player.pos = m.pos + V3(0, 1.0, 0)
+            g.player.pos = seat(m)
             g.sfx(.armorEquip(0), 0.5, at: m.pos)
             g.onToast?("Riding the \(tr.track.name)")         // P300 (b)
             return true
@@ -392,7 +436,7 @@ enum Trains {
         guard tr.brake > 0.8 else { g.onToast?("The strongbox won't budge"); return true }
         guard tr.robbedDay != day else { g.onToast?("The strongbox is empty"); return true }
         // Q2: a bullion car's guards keep you off it while their gun still fires (D47).
-        if tr.bullion, tr.cars.count > 1, tr.cars[1].health > 0 {
+        if tr.bullion, let gc = tr.cars.first(where: { $0.variant == gunCar }), gc.health > 0 {
             g.onToast?("The guard car's gun covers the bullion car")
             return true
         }
@@ -433,25 +477,26 @@ enum Trains {
     // MARK: The armoured gun car
 
     static func gunCar(_ g: Game, _ tr: Train, _ dt: Float) {
-        guard tr.cars.count > 1 else { return }
+        guard tr.cars.count > 1, let gun = tr.cars.first(where: { $0.variant == gunCar }) else { return }
         // Wrecked: both cars down (explosives and heavy rounds). A bullion train's guard car just falls silent (D47).
-        if !tr.bullion && tr.cars.allSatisfy({ $0.health <= 0 }) || tr.cars[0].health <= 0 {
+        if tr.track.armoured && (tr.cars.allSatisfy({ $0.health <= 0 }) || tr.cars[0].health <= 0) {
             for c in tr.cars { Explosion.explode(at: c.pos + V3(0, 1, 0), power: 2.5, game: g, except: c) }
             tr.wrecked = true
             g.onToast?("The armoured train is wrecked")
             remove(g, tr)
             return
         }
-        let gun = tr.cars[1]
         // Q2: the guard car going quiet is a moment: a bang at its turret and a word on what's next.
-        if tr.bullion && gun.health <= 0 && !tr.gunSilenced {
+        if !tr.track.armoured && gun.health <= 0 && !tr.gunSilenced {
             tr.gunSilenced = true
             g.sfx(.explodeSmall, 0.9, at: gun.pos + V3(0, 2.6, 0))
             g.sfx(.levelUp, 0.6)
             g.onToast?("The guard car falls silent")
         }
-        guard gun.health > 0, g.alive, g.survival, tr.bullion || !g.ashVictory else { return }
-        let muzzle = gun.pos + V3(0, 2.6, 0)
+        guard gun.health > 0, g.alive, g.survival, tr.bullion || tr.kind == .troop || !g.ashVictory else { return }
+        // P470: a troop train's gun opens up once its troops are roused (the train stopped or fired on).
+        if tr.kind == .troop && !tr.roused && gun.health >= 160 { return }
+        let muzzle = isBig(gun) ? gun.pos + V3(0, 3.45, 0) : gun.pos + V3(0, 2.6, 0)
         let to = g.player.eye - muzzle, d = simd_length(to)
         tr.gunCool -= dt
         // The turret turns to the player (yaw kept in the gun car's jobTimer for the model).
@@ -463,7 +508,7 @@ enum Trains {
             let dir = Guns.scatter(simd_normalize(to), 0.03)
             let dmg: Float = 1.5 * Soldier.difficultyScale(g.difficulty) + 0.5
             g.arms.spawn(Slug(pos: muzzle + dir * 1.2, vel: dir * 140, kind: .bullet, damage: dmg, fromPlayer: false, shooter: ObjectIdentifier(gun),
-                              by: tr.bullion ? "a bullion train's Guard Car" : "an Ashguard Gun Car", life: 0.6 + Float(k) * 0.02, gravity: 1.5))
+                              by: tr.bullion ? "a bullion train's Guard Car" : (tr.kind == .troop ? "a troop train's Guard Car" : "an Ashguard Gun Car"), life: 0.6 + Float(k) * 0.02, gravity: 1.5))
         }
         g.addFlash(at: muzzle + simd_normalize(to) * 1.2, color: V3(6, 3.5, 1.6), radius: 5, life: 0.06)
         g.sfx(.gun(1), 1, at: muzzle)
@@ -548,6 +593,7 @@ enum Trains {
     // MARK: Models (units 1/16 at scale 2: one unit is an eighth of a block; the car faces -Z)
 
     static func parts(_ m: Mob) -> [Part] {
+        if isBig(m) { return bigParts(m) }                      // P470 part 2 (TrainCars.swift)
         let iron = V3(0.16, 0.16, 0.17), brass = V3(0.85, 0.66, 0.3), red = V3(0.55, 0.12, 0.1)
         var p: [Part] = []
         func wheels(_ zs: [Float], _ c: V3) {

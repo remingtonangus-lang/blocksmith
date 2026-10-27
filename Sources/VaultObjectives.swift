@@ -60,13 +60,13 @@ extension Game {
         var out: [(String, Float, V4)] = []
         let p = player.pos
         for tr in Trains.trains.values where tr.bullion && tr.cars.count > 1 {
-            let gc = tr.cars[1]
+            guard let gc = tr.cars.first(where: { $0.variant == Trains.gunCar }) else { continue }
             if gc.health > 0 && simd_length(gc.pos - p) < 64 { out.append(("Bullion Train Guard Car", Float(gc.health) / 160, V4(0.85, 0.7, 0.2, 1))) }
         }
         // Q2: a hold-up in progress: robbers left, and the time before they blow the strongbox.
         for tr in Trains.trains.values where !tr.raid.isEmpty {
             let left = tr.raid.filter { $0.health > 0 }.count
-            guard left > 0, let lead = tr.cars.first, simd_length(lead.pos - p) < 72 else { continue }
+            guard left > 0, let lead = Trains.lead(tr), simd_length(lead.pos - p) < 72 else { continue }
             let frac = max(0, 1 - Float(tr.raidT) / Trains.raidTime)
             out.append(("Hold-up: \(left) robber\(left == 1 ? "" : "s") left before they blow the strongbox", frac, V4(0.9, 0.45, 0.15, 1)))
         }

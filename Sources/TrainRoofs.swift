@@ -20,23 +20,27 @@ extension Trains {
     static var roofShift = V2(0, 0)                                 // Q2: the cars' carry this frame (footsteps leave it out)
     static var roofAt: Double = -1e9                                // Q2: last frame the player stood on a roof
 
-    // The car whose roof the player stands on (at the cars' poses `poses`, (pos, yaw)), and that roof's height.
-    static func roofUnder(_ g: Game, _ tr: Train, _ poses: [(V3, Float)]) -> (Int, Float)? {
+    // The car whose roof the player stands on (at the cars' poses `poses`, (pos, yaw)), that surface's height above the
+    // car and whether it is the floor inside (P470 part 2: a real-size coach or troop car is walked through).
+    static func roofUnder(_ g: Game, _ tr: Train, _ poses: [(V3, Float)]) -> (Int, Float, Bool)? {
         guard g.riding == nil, tr.cars.count == poses.count else { return nil }
         let p = g.player.pos
         for (k, (c, yaw)) in poses.enumerated() {
+            let car = tr.cars[k]
             let fwd = V3(-sinf(yaw), 0, -cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
             let rel = p - c
-            guard abs(simd_dot(rel, fwd)) < carHalfLength, abs(simd_dot(rel, right)) < carHalfWidth else { continue }
-            let top = c.y + (roofHeight[tr.cars[k].variant] ?? 2)
-            if p.y > top - 0.7 && p.y < top + 0.35 && g.player.vel.y <= 0.5 { return (k, top) }
+            guard abs(simd_dot(rel, fwd)) < halfLength(car), abs(simd_dot(rel, right)) < halfWidth(car) else { continue }
+            let h = roofTop(car)
+            if p.y > c.y + h - 0.7 && p.y < c.y + h + 0.35 && g.player.vel.y <= 0.5 { return (k, h, false) }
+            // Inside: stepping in off a platform (the floor is a step up), walking, jumping in the aisle.
+            if let f = floorTop(car), p.y > c.y + f - (tr.blocksPerSec < 0.3 ? 1.3 : 0.7), p.y < c.y + f + 1.6 { return (k, f, true) }
         }
         return nil
     }
 
     // Trains.place, after the cars have moved: carry a roof rider along and hold them up on the roof.
     static func carryRoofRider(_ g: Game, _ tr: Train, before: [(V3, Float)]) {
-        guard g.alive, let (k, _) = roofUnder(g, tr, before) else { return }
+        guard g.alive, let (k, h, inside) = roofUnder(g, tr, before) else { return }
         let car = tr.cars[k]
         let (c0, y0) = before[k]
         // The car's move, turn included (round a curve the rider swings with it).
@@ -46,13 +50,22 @@ extension Trains {
         let cs = cosf(dy), sn = sinf(dy)
         let turned = V3(rel.x * cs + rel.z * sn, rel.y, -rel.x * sn + rel.z * cs)
         var np = car.pos + turned
-        np.y = car.pos.y + (roofHeight[car.variant] ?? 2)
+        let floor = car.pos.y + h
+        if inside {
+            // In the aisle: carried along, kept between the walls while the train runs (the doors open at a stand).
+            let right = V3(cosf(car.yaw), 0, -sinf(car.yaw)), w = halfWidth(car) - 0.45
+            let across = simd_dot(np - car.pos, right)
+            if tr.blocksPerSec > 0.3 && abs(across) > w { np -= right * (across - (across > 0 ? w : -w)) }
+            np.y = max(floor, g.player.pos.y + car.pos.y - c0.y)
+        } else { np.y = floor }
         roofShift += V2(np.x - g.player.pos.x, np.z - g.player.pos.z)
         roofAt = g.clock
         g.player.pos = np
-        if g.player.vel.y < 0 { g.player.vel.y = 0 }
-        g.player.onGround = true
-        g.player.airPeak = np.y
+        if np.y <= floor + 0.001 {
+            if g.player.vel.y < 0 { g.player.vel.y = 0 }
+            g.player.onGround = true
+            g.player.airPeak = np.y
+        }
         g.player.yaw += dy
         tr.roofAt = g.clock
         roofSnaps += 1
@@ -62,7 +75,7 @@ extension Trains {
     static func climbRoof(_ g: Game, _ tr: Train, _ m: Mob) -> Bool {
         guard g.player.sneaking, !tr.wrecked else { return false }
         if g.riding != nil { g.dismount() }
-        let top = m.pos.y + (roofHeight[m.variant] ?? 2)
+        let top = m.pos.y + roofTop(m)
         g.player.pos = V3(m.pos.x, top, m.pos.z) - m.forward * 0.4
         g.player.vel = .zero
         g.player.onGround = true
@@ -85,7 +98,7 @@ extension Trains {
         if !tr.raid.isEmpty {
             tr.raidT += 1
             let alive = tr.raid.filter { r in r.health > 0 && g.mobs.mobs.contains(where: { $0 === r }) }
-            let far = tr.cars.first.map { simd_length($0.pos - g.player.pos) > 72 } ?? true
+            let far = lead(tr).map { simd_length($0.pos - g.player.pos) > 72 } ?? true
             if alive.isEmpty {
                 tr.raid = []
                 tr.heldBy = false; tr.stoppedFor = 0
@@ -105,7 +118,7 @@ extension Trains {
                 if !far {
                     tr.robbedDay = day
                     raidsLost += 1
-                    if let ex = tr.cars.last { Explosion.explode(at: ex.pos + V3(0, 1, 0), power: 0.8, game: g, except: ex) }
+                    if let ex = tr.cars.first(where: { $0.variant == express }) ?? tr.cars.last { Explosion.explode(at: ex.pos + V3(0, 1, 0), power: 0.8, game: g, except: ex) }
                     g.onToast?("The robbers blow the strongbox and ride off with the takings")
                 } else if g.alive {
                     tr.robbedDay = day                              // Q2: left behind, the train is still robbed
@@ -117,13 +130,13 @@ extension Trains {
             }
             return
         }
-        guard g.survival, g.difficulty > 0, !tr.track.armoured, !tr.wrecked, tr.robbedDay != day, tr.raidedDay != day,
+        guard g.survival, g.difficulty > 0, !tr.track.armoured, tr.kind != .troop, !tr.wrecked, tr.robbedDay != day, tr.raidedDay != day,
               tr.cars.count >= 3, !tr.heldBy, aboard(g, tr), tr.track.at(tr.time).stop == nil else { return }
         guard Rand.float(in: 0..<1) < raidChancePerSecond else { return }
         tr.raidedDay = day
         tr.raidT = 0
-        guard let lead = tr.cars.first else { return }
-        let ahead = lead.pos + lead.forward * 12
+        guard let lead = lead(tr) else { return }
+        let ahead = lead.pos + lead.forward * (halfLength(lead) + 10)
         let side = V3(lead.forward.z, 0, -lead.forward.x)
         let spots = [ahead + side * 2, ahead - side * 2, lead.pos + side * 6 - lead.forward * 4, lead.pos - side * 6 - lead.forward * 8]
         for (i, s) in spots.enumerated() {

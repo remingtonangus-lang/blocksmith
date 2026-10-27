@@ -195,6 +195,7 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     // --rail [N]: the eye beside the nearest town railway's middle (P337 looks work), 8 blocks south and 5 up, facing
     // north; N picks the cell at N/100 along the line instead of the middle.
+    var railLine: Railways.Line?, railCell = 0
     if CommandLine.arguments.contains("--rail"), let gen = vw.gen as? WorldGen {
         let ax = Int(at[0]), az = Int(at[2])
         if let l = Railways.near(gen, x0: ax - 3000, z0: az - 3000, x1: ax + 3000, z1: az + 3000, pad: 0)
@@ -202,6 +203,10 @@ if let out = arg("--view"), let ctx = vkctx {
             let f = Float(arg("--rail").flatMap { Int($0) } ?? 50) / 100
             let c = l.cells[min(l.cells.count - 1, max(0, Int(Float(l.cells.count - 1) * f)))]
             vg.player.pos = V3(Float(c.x) + 0.5, Float(c.y) + 5, Float(c.z) + 8.5)
+            railLine = l; railCell = min(l.cells.count - 1, max(0, Int(Float(l.cells.count - 1) * f)))
+            if let o = arg("--railoff")?.split(separator: ",").compactMap({ Float($0) }), o.count == 3 {
+                vg.player.pos = V3(Float(c.x) + 0.5 + o[0], Float(c.y) + o[1], Float(c.z) + 0.5 + o[2])
+            }
             nearYaw = 0
             print("view: railway \(l.name), \(l.cells.count) cells, \(l.stations.count) stations; eye by \(c.x) \(c.y) \(c.z)")
         }
@@ -213,6 +218,21 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
+    // --rail --train passenger|cargo|troop (P470 part 2): that kind of train on the line, its middle at the --rail cell
+    // (the clock set to when the timetable has it there), built as the game builds it near the player.
+    if let kn = arg("--train"), let l = railLine {
+        Trains.forceKind = ["passenger": .passenger, "cargo": .cargo, "troop": .troop][kn] ?? .passenger
+        let t = Trains.track(l)
+        var best = 0.0, bd = Float.greatestFiniteMagnitude, tt = 0.0
+        while tt < t.period { let a = t.at(tt); if abs(a.s - Float(railCell)) < bd { bd = abs(a.s - Float(railCell)); best = tt }; tt += 0.1 }
+        vg.time = best
+        Trains.tick(vg)
+        if let tr = Trains.trains[t.id] {
+            for _ in 0..<3 { Trains.place(vg, tr, dt: 1.0 / 72) }
+            print("view: train: \(tr.kind) of \(tr.cars.count) cars, \(String(format: "%.1f", tr.length)) blocks, middle at cell \(String(format: "%.1f", tr.lastS)) of \(l.cells.count), \(tr.troops.count) soldiers aboard; cars " +
+                  tr.cars.map { "\($0.customName ?? "?") at \(Int($0.pos.x)) \(Int($0.pos.y)) \(Int($0.pos.z)) yaw \(Int($0.yaw * 180 / .pi)) pitch \(String(format: "%.1f", $0.trainPitch * 180 / .pi))" }.joined(separator: "; "))
+        } else { print("view: train: none built (\(Trains.trains.count) trains)") }
+    }
     // P437 (h): --edittime: place a block in the first air cell beside a solid one near the eye, then break it, and
     // time each step (the write with its remesh, the structure check, falling-block checks) as the game runs them.
     if CommandLine.arguments.contains("--edittime") {
