@@ -2,7 +2,7 @@ import Foundation
 
 // Town sizes (backlog C13), `questcheck --sizes-only`:
 //   histogram  the towns of 7x7 village regions round the origin of 50 seeds: hamlets most, then villages, towns,
-//              large towns and cities, each size about 3 to 4 times rarer than the one below
+//              large towns and cities, each size about 3 to 4 times rarer than the one below (P474: 2.2 on new ground)
 //   growth     bigger places have more lots, more shops and more deputies; a hamlet has no office or bank
 //   mines      only towns and up work a mine
 //   railways   a line gives villages and up a station, hamlets only a halt (eight seeds)
@@ -39,8 +39,8 @@ enum TownSizesTests {
         func mean(_ a: [Int], _ i: Int) -> Float { count[i] > 0 ? Float(a[i]) / Float(count[i]) : 0 }
         let r1 = Float(count[0]) / Float(max(1, count[1])), r2 = Float(count[1]) / Float(max(1, count[2]))
         let hist = (0..<5).map { "\(TownSizes.names[$0]) \(count[$0])" }.joined(separator: ", ")
-        check(count[0] > count[1] && count[1] > count[2] && count[2] > count[3] && count[3] >= count[4] && count[3] + count[4] >= 1
-              && r1 >= 2 && r1 <= 6 && r2 >= 2 && r2 <= 6 && unsized == 0,
+        check(count[0] > count[1] && count[1] > count[2] && count[2] > count[3] + count[4] && count[3] + count[4] >= 1
+              && r1 >= 1.4 && r1 <= 6 && r2 >= 1.4 && r2 <= 6 && unsized == 0,          // (P474: 2.2 times rarer each on new ground)
               String(format: "C13 histogram over 50 seeds: %@ (hamlet:village %.1f, village:town %.1f); unsized %d", hist, r1, r2, unsized))
         let present = (0..<5).filter { count[$0] > 0 }
         let lotMeans = present.map { mean(lots, $0) }, shopMeans = present.map { mean(shops, $0) }, depMeans = present.map { mean(deputies, $0) }
@@ -49,6 +49,9 @@ enum TownSizesTests {
         let moreLaw = zip(depMeans, depMeans.dropFirst()).allSatisfy { $0 < $1 }
         check(rising && moreShops && moreLaw && offices[0] == 0 && (1..<5).allSatisfy { offices[$0] * 10 >= count[$0] * 9 },
               "C13 growth: lots \(lotMeans.map { String(format: "%.1f", $0) }), shops \(shopMeans.map { String(format: "%.1f", $0) }), deputies \(depMeans.map { Int($0) }); offices \(offices)")
+        // P474: about twice the lots a place had on average (6.2 before: 72% hamlets of 5, 21% villages of 8...).
+        let all = Float(lots.reduce(0, +)) / Float(max(1, count.reduce(0, +)))
+        check(all >= 10.5, String(format: "P474: a place has %.1f lots on average (was about 6)", all))
         check(reachMax <= vtReach, "P456: every town's pieces stand within \(vtReach) chunks of its square (farthest \(reachMax))")
         check(mines[0] == 0 && mines[1] == 0 && (count[2] + count[3] + count[4] == 0 || mines[2] + mines[3] + mines[4] >= 1),
               "C13 mines: by size \(mines) (towns and up only)")

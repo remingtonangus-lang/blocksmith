@@ -99,8 +99,13 @@ enum Village {
             // keeps its old streets and lots: verifier, PR #56).
             let streets = wide && WorldRules.p69(gen, cx, cz, reach: 7)
             // C13: a size (hamlet to city) on ground no save had generated before sizes (TownSizes.swift).
-            let size = gap && TownSizes.on && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyC13) } ?? true)
-                ? TownSizes.size(ox, oz, seed: gen.seed) : nil
+            let sized = gap && TownSizes.on && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyC13) } ?? true)
+            // P474: on ground no save had generated before P474, bigger places more often, and laid out bigger.
+            let p474 = sized && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP474) } ?? true)
+            // (Whether there is a place here at all stays the say of the old roll's layout, so P474 adds no places, only
+            // bigger ones: a bigger roll's plan would pass where a hamlet's failed, and towns would crowd out hamlets.)
+            let size = sized ? TownSizes.size(ox, oz, seed: gen.seed) : nil
+            let newSize = p474 ? TownSizes.size(ox, oz, seed: gen.seed, ratio: TownSizes.newRatio) : nil
             // R20 (Oct 13 evening, said again after P71): streets as wide as the lots are spread, a walk to every door
             // and the stone jail, only where no save had generated any of the town before R20.
             let r20 = streets && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyR20) } ?? true)
@@ -113,6 +118,9 @@ enum Village {
             // many hamlets: most old ones had too few lots and were never built).
             // P456: a large town or a city on new ground is laid out far bigger (its streets reach about twice as far, so
             // the guard looks further round it).
+            if p474, first != nil,
+               let big = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide,
+                                streets: streets, townSize: newSize, r20: r20, p354: p354, biggest: true) { return big }
             guard first != nil, let sz = size, sz.rawValue != 2,
                   gen.structures.map({ sz.rawValue < 2 ? $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP466)
                                                        : $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP456) }) ?? true,
@@ -136,8 +144,9 @@ enum Village {
     static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
 
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
-                       wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil, r20: Bool = false, p354: Bool = false, bigger: Bool = false) -> StructureStart? {
-        let sz = townSize.map { (bigger ? TownSizes.biggerSpec : TownSizes.spec)[$0.rawValue] }
+                       wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil, r20: Bool = false, p354: Bool = false, bigger: Bool = false,
+                       biggest: Bool = false) -> StructureStart? {
+        let sz = townSize.map { (biggest ? TownSizes.biggestSpec : (bigger ? TownSizes.biggerSpec : TownSizes.spec))[$0.rawValue] }
         func scaled(_ n: Int) -> Int { sz.map { max(8, Int(Float(n) * $0.length)) } ?? n }
         let gap = townsGap ?? frontier
         var rng = SRng(seed)
@@ -213,7 +222,7 @@ enum Village {
         func halfWidth(_ r: Road) -> Int { r20 ? (r.main ? spare - 1 : spare / 2) : 2 }
         // P456: a far bigger town's streets stop 92 blocks out from the square either way, so its lots, mine and edges stay
         // within the village kind's reach of eight chunks (StructureCache.startsNear finds it from every chunk it builds in).
-        let bound = bigger && (townSize?.rawValue ?? 0) >= 3 ? 92 : Int.max
+        let bound = biggest || (bigger && (townSize?.rawValue ?? 0) >= 3) ? 92 : Int.max
         for r in roads {
             var cols: [(Int, Int, Int)] = []
             var sh: [IVec2Key: [(Int, Int, Int)]] = [:]

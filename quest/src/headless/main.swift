@@ -1638,6 +1638,26 @@ if CommandLine.arguments.contains("--navalblow") {
     NavalBlowCheck.run(game, check)
     print(failures == 0 ? "navalblow: all checks passed" : "navalblow: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --voicetown (P474): ten minutes in a busy town with R20's written lines for the hour and the weather on, as in play:
+// every line said is a recorded take (TownLawTests.busyTown).
+if CommandLine.arguments.contains("--voicetown") {
+    TownLines.on = true
+    TownTests.busyTown(game, check)
+    print(failures == 0 ? "voicetown: all checks passed" : "voicetown: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --locatecheck (P474): /locate says what a place is, how deep it lies, and marks it on the map.
+if CommandLine.arguments.contains("--locatecheck") {
+    for k in ["trail_ruins", "trial_chambers", "village"] {
+        let n0 = game.commandLog.count, m0 = MapCache.shared.marks.count
+        game.command("/locate \(k)")
+        let out = game.commandLog.dropFirst(n0 + 1)
+        for l in out { print("locatecheck: \(k):\(l)") }
+        let found = out.first.map { !$0.contains("Could not") } ?? false
+        check(!found || (out.count == 2 && out.first!.contains("marked on your map") && MapCache.shared.marks.count == m0 + 1),
+              "/locate \(k): \(found ? "found, with what it is (\(out.count) lines) and a map mark" : "none near")")
+    }
+    print(failures == 0 ? "locatecheck: all checks passed" : "locatecheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--frigatecheck") {
     FrigateCheck.run(game, check)
     print(failures == 0 ? "frigate: all checks passed" : "frigate: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
