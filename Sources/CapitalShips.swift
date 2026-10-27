@@ -1514,11 +1514,37 @@ extension ShipManager {
         if st.probes == nil || abs(s.blockCount - st.probeBlocks) > 150 { st.probes = Capital.hullProbes(s.grid); st.probeBlocks = s.blockCount }
         let leaf = Mesher.leafT
         var hits: [V3] = []
+        // P472 (Oct 26 20:14, "the frigate should also break through trees and break through blocks too, to a degree"):
+        // under way she breaks what her hull runs into a moment ahead: trees (leaves, trunks), plants, planking, glass
+        // and wool always; built blocks short of stone's hardness at 8 blocks a second or more. Natural ground, stone
+        // and harder stop her as before. A budget a frame (160 blocks) keeps a forest from stalling it.
+        let speed = simd_length(s.vel)
+        var broke = 0
+        func breakable(_ q: IVec3) -> Bool {
+            let ab = world.block(q.x, q.y, q.z)
+            guard ab != AIR, !Blocks.isLiquid(ab), world.blockEntities[q] == nil, !world.groundAt(q.x, q.y, q.z) else { return false }
+            return Capital.crushable(ab) || (speed >= 8 && !ShipParts.natural[Int(ab)] && Blocks.hardness[Int(ab)] >= 0 && Blocks.hardness[Int(ab)] < 1.5)
+        }
         for l in st.probes ?? [] {
             let p = s.toWorld(l)
+            if speed > 1.5 && broke < 160 {
+                // (the probes stand 3 cells apart: a probe meeting something breakable clears the cells round it too)
+                let a = p + s.vel * 0.15
+                let q0 = IVec3(Int(floor(a.x)), Int(floor(a.y)), Int(floor(a.z)))
+                if breakable(q0) {
+                    for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where broke < 160 {
+                        let q = IVec3(q0.x + dx, q0.y + dy, q0.z + dz)
+                        guard dx == 0 && dy == 0 && dz == 0 || breakable(q) else { continue }
+                        // A few break as he would (pieces, a drop now and then); the rest go at once, unremeshed here.
+                        if broke % 8 == 0 { g.breakBlock(q, world.block(q.x, q.y, q.z), drop: broke % 16 == 0) } else { world.setBlockAsync(q.x, q.y, q.z, AIR) }
+                        broke += 1
+                    } } }
+                }
+            }
             let b = world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
-            if Blocks.collide[Int(b)] && !leaf[Int(b)] { hits.append(p); if hits.count >= 12 { break } }
+            if Blocks.collide[Int(b)] && !leaf[Int(b)] && !(speed > 1.5 && Capital.crushable(b)) { hits.append(p); if hits.count >= 12 { break } }
         }
+        ShipManager.crushed += broke
         guard !hits.isEmpty else { return }
         var c = V3(0, 0, 0)
         for h in hits { c += h }
@@ -1534,6 +1560,10 @@ extension ShipManager {
             // The crash: the drive goes up and the hull is a wreck.
             Capital.crashes += 1
             let k = min(1, (impact - Capital.crashSpeed) / 12)
+            // P472 (Oct 26 19:48 and 20:14, "crashing shouldn't kill you like that... if I hit the ground, I don't see
+            // why that needs to kill me"): whoever is aboard rides out the crash shaken, not hurt; the ship takes it.
+            Explosion.sparePlayer = aboard
+            defer { Explosion.sparePlayer = false }
             for h in hits.prefix(4) { Explosion.explode(at: h, power: 3 + 3 * k, game: g, fire: true) }
             // P357 (c), (d) (Oct 16 20:14): a crash breaks the ship apart where it struck (wider the faster it hit, and
             // what is torn loose falls away: removeCells), and every light aboard goes out.
@@ -1552,7 +1582,6 @@ extension ShipManager {
             s.angVel = .zero
             if pilot === s { g.leaveHelm() }
             let hurt = Int(((impact - 8) * 3).rounded())
-            if aboard && g.survival { g.hurtPlayer(hurt, from: c, cause: "crashed", knockback: 0, type: .generic) }
             for m in g.mobs.mobs where m.deck === s && m.health > 0 { m.health -= hurt; m.hurt = 0.3; m.crewFree = true }
             return
         }
@@ -1565,14 +1594,15 @@ extension ShipManager {
         // A hard knock: hull and ground torn where they met, the deck jolts.
         st.bumpCD = 0.8
         let k = min(1, (impact - 6) / 8)
+        Explosion.sparePlayer = aboard
         for h in hits.prefix(2) { Explosion.explode(at: h, power: 1.5 + 2 * k, game: g) }
+        Explosion.sparePlayer = false
         tearHull(s, at: hits[0], radius: 1.5 + 2 * k, game: g)
         engineShock(s, st, impact, g)
         g.sfx(.shipCollideHard, 1 + k, at: c)
         for _ in 0..<Int(6 + 10 * k) { g.particles.smoke(at: c + V3(Rand.float(in: -2...2), Rand.float(in: 0...2), Rand.float(in: -2...2)), dark: true) }
         if aboard {
             g.addShake(0.35 + 0.4 * k)
-            if g.survival { g.hurtPlayer(Int(((impact - 4) * 0.8).rounded()), from: c, cause: "crashed", knockback: 0, type: .generic) }
         }
     }
 
@@ -2548,15 +2578,17 @@ extension ShipManager {
         s.updateBounds()
         clearInside(s, g)
         let lo = s.localMin, hi = s.localMax
+        Explosion.sparePlayer = aboard?.root === s || pilot === s
         for k in 0..<3 {
             let p = V3((lo.x + hi.x) * 0.5, lo.y + 0.5, lo.z + (hi.z - lo.z) * (0.2 + 0.3 * Float(k)))
             Explosion.explode(at: s.toWorld(p) - V3(0, 1, 0), power: 3, game: g)
         }
+        Explosion.sparePlayer = false
         g.sfx(.shipCollideHard, 2, at: s.pos)
-        // The jolt: riders on deck take damage for a hard touchdown (over 3.5 b/s), none for a flared one.
+        // The jolt: the crew on deck take damage for a hard touchdown (over 3.5 b/s), none for a flared one; the
+        // player rides it out (P472).
         let hurt = Int(max(0, (st.impact - 3.5) * 2).rounded())
         if hurt > 0 {
-            if aboard?.root === s { g.damage(hurt, "was thrown about in a crash landing", type: .fall) }
             for m in g.mobs.mobs where m.deck === s && m.health > 0 { m.health -= hurt; m.hurt = 0.3 }
         }
         if simd_length(s.pos - g.player.pos) < 400 { g.onToast?("The \(s.name) has crash-landed") }

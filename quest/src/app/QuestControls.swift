@@ -336,8 +336,13 @@ final class QuestControls {
         let wheel = !inMenu && WeaponWheel.shared.open
         // P334: at a dropship's helm the right stick flies the craft (turn and climb), so it doesn't turn the view.
         let vtolHelm = game.world.ships.pilot.map { VehicleControls.kind($0) == .vtol } ?? false
+        // P472 (Oct 26 20:14, "the right joystick being up and down makes it confusing, because it's not left and right.
+        // Because if I do left and right, it's as if I'm turning my head"): at a warship's helm the right stick's
+        // left/right turns the ship (VehicleControls.read), not his view; its up/down still pitches the bow.
+        let warHelm = game.world.ships.pilot.map { VehicleControls.kind($0) == .warship } ?? false
+        VehicleControls.vrSteer = warHelm && !inMenu ? R.stick.x : nil
         // Turning (never inside a menu: the panel stays put).
-        if !inMenu && !wheel && !vtolHelm {
+        if !inMenu && !wheel && !vtolHelm && !warHelm {
             let tx = R.stick.x
             if QuestSettings.smoothTurn && !QuestSettings.reclined {      // (lying down always snap-turns: S6)
                 if abs(tx) > 0.15 {
@@ -358,7 +363,6 @@ final class QuestControls {
         // Right stick up/down: only in Reclined Mode, where it looks up/down in snapped steps (like snap turn).
         let ty = R.stick.y
         // P325: at a warship's helm it pitches the bow instead (VehicleControls.read).
-        let warHelm = game.world.ships.pilot.map { VehicleControls.kind($0) == .warship } ?? false
         VehicleControls.vrPitch = warHelm && !inMenu ? ty : nil
         if wheel || inMenu { flickArmed = false; snapArmed = false }
         else if warHelm || vtolHelm { flickArmed = false }
