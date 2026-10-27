@@ -39,6 +39,7 @@ enum Waymarks {
             let what = c.kind == "camp" ? "Clear a bandit camp" : (c.kind == "defend" ? "Defend \(c.board)" : "\(c.kind.capitalizedFirst) to \(c.dest ?? "town")")
             out.append(Target(kind: "contract", key: key, name: "Contract: " + what, pos: v(a[0], a[1], py)))
         }
+        out += outlaws(g, py)                                       // P474: notice-board outlaw jobs
         if let (gg, _, _) = GangLeaders.wanted(g, from: IVec3(Int(g.player.pos.x), 0, Int(g.player.pos.z))), let p = leaderPos(g, gg) {
             out.append(Target(kind: "bounty", key: gg.leader, name: "Bounty: \(gg.leader) (\(Money.format(gg.bounty)))", pos: p))
         }
@@ -53,6 +54,28 @@ enum Waymarks {
         out += Director.targets(g)                                  // P266: the Director's events
         for m in MapCache.shared.marks where m.kind == "note" || m.kind == "pin" {
             out.append(Target(kind: m.kind, key: "\(m.x),\(m.z)", name: (m.kind == "note" ? "Note: " : "Waypoint: ") + (m.name ?? "\(m.x), \(m.z)"), pos: v(m.x, m.z, py)))
+        }
+        return out
+    }
+
+    // P474 (Oct 26 20:00, an outlaw job taken at a notice board, then flying out to find him: "There's gotta be a better
+    // way to track these bounties... This just doesn't work out"): a taken outlaw job is on the list, the map and the HUD:
+    // where he was last seen, then the man himself once he has shown up, then the board that pays once he's dead.
+    static func outlaws(_ g: Game, _ py: Float) -> [Target] {
+        guard let jobs = TownLaw.state.jobs else { return [] }
+        let day = Int(g.time / DAY_LENGTH)
+        var out: [Target] = []
+        for (key, j) in jobs.sorted(by: { $0.key < $1.key }) where j.kind == "outlaw" && j.taken && !j.paid && day - j.day < 3 {
+            let name = j.outlaw ?? "the outlaw"
+            if j.done {
+                guard let a = j.anchor, a.count >= 2 else { continue }
+                let town = key.split(separator: "#").first.map(String.init) ?? "town"
+                out.append(Target(kind: "outlaw", key: key, name: "Bounty: collect for \(name) at \(town)'s board", pos: v(a[0], a[1], py)))
+            } else if j.spawned == true, let m = g.mobs.mobs.first(where: { $0.posse == 1 && $0.customName == name && $0.health > 0 }) {
+                out.append(Target(kind: "outlaw", key: key, name: "Outlaw: \(name)", pos: m.pos))
+            } else if let t = j.target, t.count >= 2 {
+                out.append(Target(kind: "outlaw", key: key, name: "Outlaw: \(name), last seen", pos: v(t[0], t[1], py)))
+            }
         }
         return out
     }
@@ -161,7 +184,7 @@ enum Waymarks {
         marksAt = g.clock
         func q(_ f: Float) -> Int { Int(floor(f / 8)) * 8 + 4 }        // to 8 blocks (fewer map writes as things move)
         let all = candidates(g)
-        for kind in ["contract", "bounty", "my_horse", "my_ship", "my_vehicle", "director", "horse_grave"] {
+        for kind in ["contract", "bounty", "outlaw", "my_horse", "my_ship", "my_vehicle", "director", "horse_grave"] {
             let list = all.filter { $0.kind == kind }.prefix(12).map { t in
                 MapCache.Mark(kind: kind, x: q(t.pos.x), z: q(t.pos.z), name: t.name.split(separator: ":").last.map { String($0).trimmingCharacters(in: .whitespaces) })
             }

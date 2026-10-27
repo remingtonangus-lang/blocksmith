@@ -165,6 +165,13 @@ extension TownTests {
             let t = TownBoard.jobs(g, town, anchor: anchor)[i]
             let dist = t.target.map { simd_length(V2(Float($0[0] - anchor.x), Float($0[1] - anchor.z))) } ?? 0
             check(t.taken && dist >= 78 && dist <= 142 && msg.contains("blocks"), "honour gap: an outlaw job says where he was last seen (\(msg))")
+            // P474: taking him is following him: the HUD marker, and W on the map where he was seen.
+            let tr = Waymarks.current(g)
+            Waymarks.tick(g)
+            let mark = MapCache.shared.marks.first { $0.kind == "outlaw" }
+            let mOff = mark.map { abs($0.x - t.target![0]) + abs($0.z - t.target![1]) } ?? 99
+            check(tr?.kind == "outlaw" && mOff <= 8 && Waymarks.hud(g) != nil,
+                  "honour gap (P474): the taken outlaw is followed (\(tr?.name ?? "-")) and marked on the map (\(mark == nil ? "no mark" : "\(mOff) off"))")
             // Near where he was seen, he turns up with his gang.
             let spot = V3(Float(t.target![0]) + 0.5, 0, Float(t.target![1]) + 0.5)
             g.player.pos = V3(spot.x + 10, base.y, spot.z)
@@ -179,7 +186,15 @@ extension TownTests {
             let fake = Mob(.chicken, at: spot); fake.customName = j.outlaw; fake.killedByPlayer = true; g.mobDied(fake)
             check(g.mobs.mobs.count == n1 && boss?.posse == 1 && !TownBoard.jobs(g, town, anchor: anchor)[i].done,
                   "honour gap: he shows up once, and a chicken name-tagged \(j.outlaw ?? "") doesn't finish the job")
+            // P474: once he's out, the marker follows the man; dead, it points back to the board that pays.
+            Waymarks.cache = (-1e9, nil)
+            let onHim = boss.map { b in Waymarks.current(g).map { simd_length($0.pos - b.pos) < 0.5 } ?? false } ?? false
             if let b = boss { b.killedByPlayer = true; g.mobDied(b) }
+            Waymarks.cache = (-1e9, nil)
+            let home = Waymarks.current(g)
+            let homeOff = home.map { abs(Int(floor($0.pos.x)) - anchor.x) + abs(Int(floor($0.pos.z)) - anchor.z) } ?? 99
+            check(onHim && home?.kind == "outlaw" && homeOff <= 1,
+                  "honour gap (P474): the marker follows \(j.outlaw ?? "him") (\(onHim)), then points to the board (\(home?.name ?? "-"))")
             g.player.pos = base
             let m0 = g.money
             let r = TownBoard.use(g, town, i, anchor: anchor)

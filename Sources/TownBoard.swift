@@ -131,7 +131,7 @@ enum TownBoard {
             if j.done { return (what, "Done: press to collect") }
             guard j.taken, let t = j.target else { return (what, "Wanted dead or alive. Press to take the job") }
             let d = V2(Float(t[0]) + 0.5 - g.player.pos.x, Float(t[1]) + 0.5 - g.player.pos.z)
-            return (what, "Last seen \(Int(simd_length(d))) blocks \(direction(d.x, d.y)) of you")
+            return (what, "Last seen \(Int(simd_length(d))) blocks \(direction(d.x, d.y)) of you. W on your map")
         }
     }
 
@@ -168,7 +168,12 @@ enum TownBoard {
                 j.target = [anchor.x + Int(sinf(a) * r), anchor.z - Int(cosf(a) * r)]
                 save(town, slot, j)
                 let d = V2(Float(j.target![0]) - g.player.pos.x, Float(j.target![1]) - g.player.pos.z)
-                return ("\(j.outlaw ?? "He") was last seen \(Int(simd_length(d))) blocks \(direction(d.x, d.y)) of here.", true)
+                // P474: followed at once (HUD marker, beacon) and marked W on the map.
+                if g.dim.dim == .overworld, let t = Waymarks.outlaws(g, g.player.pos.y).first(where: { $0.key == "\(town)#\(slot)" }) {
+                    Waymarks.marksAt = -1e9
+                    Waymarks.track(g, t)
+                }
+                return ("\(j.outlaw ?? "He") was last seen \(Int(simd_length(d))) blocks \(direction(d.x, d.y)) of here. Followed on your HUD and map.", true)
             }
             guard j.done else { return ("He's still out there.", false) }
         }
@@ -190,10 +195,17 @@ enum TownBoard {
         var changed = false
         for (k, var j) in all where j.taken && !j.done {
             // The outlaw dead some other way (drowned, a fall, the sheriff got him): the job's off, no reward.
-            if j.kind == "outlaw", m.posse == 1, let n = j.outlaw, m.customName == n, !(m.killedByPlayer && g.survival) {
+            if j.kind == "outlaw", m.posse == 1, let n = j.outlaw, m.customName == n, !m.killedByPlayer {
                 j.done = true; j.paid = true
                 all[k] = j; changed = true
                 g.onToast?("\(n) is dead, but not by your hand. No reward")
+                continue
+            }
+            // P474: the outlaw is yours in Creative too (he went looking for one in Creative and never found him).
+            if j.kind == "outlaw", m.killedByPlayer, m.posse == 1, let n = j.outlaw, m.customName == n {
+                j.done = true; j.progress = 1
+                all[k] = j; changed = true
+                g.onToast?("\(n) is dead. Collect at the board")
                 continue
             }
             guard m.killedByPlayer, g.survival else { continue }
@@ -202,10 +214,6 @@ enum TownBoard {
                 j.progress += 1
                 if j.progress >= j.count { j.done = true; g.onToast?("Job done") }
                 all[k] = j; changed = true
-            } else if j.kind == "outlaw", m.posse == 1, let n = j.outlaw, m.customName == n {
-                j.done = true; j.progress = 1
-                all[k] = j; changed = true
-                g.onToast?("\(n) is dead")
             }
         }
         if changed { TownLaw.state.jobs = all }
@@ -213,7 +221,7 @@ enum TownBoard {
 
     // Once a second (TownLaw.tick): a taken outlaw shows up when you get near where he was seen.
     static func tick(_ g: Game) {
-        guard g.dim.dim == .overworld, g.survival, g.difficulty > 0, let all = TownLaw.state.jobs else { return }
+        guard g.dim.dim == .overworld, g.difficulty > 0, let all = TownLaw.state.jobs else { return }      // P474: Creative too
         let day = Int(g.time / DAY_LENGTH)
         // He turns up once (persistent: he's saved with his ground after that), on dry land, while the job is fresh.
         for (k, var j) in all where j.kind == "outlaw" && j.taken && !j.done && j.spawned != true && day - j.day < 3 {
