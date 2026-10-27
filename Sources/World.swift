@@ -1238,6 +1238,24 @@ final class World {
     // P446: set while water and lava settle and random ticks run: the sections they change mesh in the queue's order,
     // not ahead of it (World.update's edited-chunk pass is for edits: a blast, a dug block, a door).
     static var backgroundEdits = false
+    // P474 (Oct 26 19:28-20:14: "land doesn't like generating unless it's really forced to"; "I had to literally fly
+    // into the void in order to get things to generate"): water and lava settling in the caves of new land (and random
+    // ticks) changed the chunks round him every few frames, and each such chunk meshed again as soon as its last job was
+    // done: standing still by a citadel, the workers spent three quarters of their time re-meshing settling fluid, and
+    // new land waited behind it. A chunk more than two chunks off whose only change is such settling now meshes again
+    // at most every settleGap seconds (lava moves a block in 1.5 s); an edit (a blast, a dug block, a door) still goes at
+    // once. Within two chunks of him the gap is settleNear (water moves a block every quarter second), so what flows
+    // in front of him still moves block by block. BS_SETTLEMESH=0: the old way.
+    static var settleGap: Double = ProcessInfo.processInfo.environment["BS_SETTLEMESH"] == "0" ? 0 : 0.75
+    static var settleNear: Double = Double(ProcessInfo.processInfo.environment["BS_SETTLENEAR"] ?? "") ?? 0.25
+    private var held: [Chunk] = []
+    private var heldCheck: Double = 0
+    @inline(__always) private func holdBack(_ c: Chunk, _ dx: Int, _ dz: Int, _ now: Double) -> Bool {
+        guard World.settleGap > 0 && c.meshedOnce && !c.urgent
+              && now - c.meshAt < (max(abs(dx), abs(dz)) > 2 ? World.settleGap : World.settleNear) else { return false }
+        if !c.held { c.held = true; held.append(c) }
+        return true
+    }
     static var staleMeshes = 0, staleDrawn = 0      // (harness --streamtest: meshes for a changed section; of them drawn)
     private func apply(_ m: SectionMesh, to c: Chunk, sy: Int, version: Int) {
         let s = c.sections[sy]
@@ -1426,6 +1444,21 @@ final class World {
             }
         }
 
+        // P474: settling changes held back long enough mesh now (marked dirty again: the quiet pass looks at them).
+        let now = CFAbsoluteTimeGetCurrent()
+        if !held.isEmpty && now - heldCheck > 0.05 {
+            heldCheck = now
+            var released = false
+            func near(_ c: Chunk) -> Bool { max(abs(c.cx - center.x), abs(c.cz - center.z)) <= 2 }
+            held.removeAll { c in
+                guard now - c.meshAt >= World.settleNear && (now - c.meshAt >= World.settleGap || near(c)) else { return false }
+                c.held = false
+                if chunks[ChunkKey(x: c.cx, z: c.cz)] === c && c.needsMesh { c.dirty = true; released = true }
+                return true
+            }
+            if released { scanEpoch &-= 1 }
+        }
+
         // Nothing new since the last scan (same centre, no results, no invalidated sections): the scan
         // would schedule nothing, so skip it (it walks ~1000-2000 chunks at rd 16-24).
         let quiet = gr.isEmpty && mr.isEmpty && center == scanCenter && extra == scanExtra
@@ -1449,7 +1482,7 @@ final class World {
                 }
                 i += 1
                 c.dirty = false
-                guard !c.meshInFlight && c.needsMesh else { continue }
+                guard !c.meshInFlight && c.needsMesh && !holdBack(c, k.x - center.x, k.z - center.z, now) else { continue }
                 let near = inMeshRadius(k.x - center.x, k.z - center.z) || (extra.map { inMeshRadius(k.x - $0.x, k.z - $0.z) } ?? false)
                 if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb, front: abs(k.x - center.x) <= 2 && abs(k.z - center.z) <= 2) }   // (P458)
             }
@@ -1477,7 +1510,7 @@ final class World {
                 let wantLod = lodFor(ox, oz, current: c.lod)
                 if wantLod != c.lod && !c.meshInFlight { setLod(c, wantLod) }
                 if jobs >= maxQueued { continue }
-                if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh, let nb = neighbourhood(c) {
+                if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh && !holdBack(c, ox, oz, now), let nb = neighbourhood(c) {
                     c.dirty = false
                     scheduleMesh(k, c, nb, front: ci == 0 && abs(dx) <= 2 && abs(dz) <= 2 && c.meshedOnce)          // (P458)
                 }
@@ -1586,6 +1619,7 @@ final class World {
     private func scheduleMesh(_ k: ChunkKey, _ c: Chunk, _ nb: ([BlockStore], [[Int16]]), front: Bool = false) {
         let (n9, h9) = nb
         c.urgent = false
+        c.meshAt = CFAbsoluteTimeGetCurrent()
         let todo = deferringBuried(c, dirtySections(c))
         if todo.isEmpty { return }
         let lod = c.lod

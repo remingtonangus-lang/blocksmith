@@ -367,6 +367,8 @@ final class Chunk {
     var dirty = false {            // a section's version changed since World.update last looked at this chunk
         didSet { if dirty && !oldValue { world?.dirtyChunks.append(self) } }
     }
+    var meshAt: Double = 0         // P474: when its last mesh job was queued (World.holdBack)
+    var held = false               // P474: on World.held, its settling change waiting out World.settleGap
     var urgent = false             // P446: changed by an edit (not water settling or a random tick): meshes ahead of the queue
     var lod = 0 {                  // 0 full detail, 1 far (flat light, merged faces, no small decorations), 2 mid ("fast" leaves)
         didSet { if cullWatched { CullNotes.note(cx, cz) } }
