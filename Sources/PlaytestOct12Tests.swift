@@ -304,10 +304,11 @@ enum PlaytestOct12Tests {
     // a bed under it, buffer stops, the locomotive and two freight cars, clear of every other structure; old ground none.
     static func trains(_ check: (Bool, String) -> Void) {
         let p440 = WorldRules.p44
-        defer { WorldRules.p44 = p440 }
+        defer { WorldRules.p44 = p440; CapitalRail.keepSpur = false }
         var bad0: [String] = []
-        func spurs(_ on: Bool) -> (WorldGen, [StructureStart], Int) {
+        func spurs(_ on: Bool, keep: Bool = true) -> (WorldGen, [StructureStart], Int) {
             WorldRules.p44 = on
+            CapitalRail.keepSpur = keep          // (P470: ground no save had before P470 has none; the spur as drawn before)
             let gen = WorldGen(seed: 12345)
             guard let sc = gen.structures, let t = sc.types.first(where: { $0.name == CapitalRail.kind }),
                   let mt = sc.types.first(where: { $0.name == "military_base" }) else { return (gen, [], 0) }
@@ -325,6 +326,7 @@ enum PlaytestOct12Tests {
         }
         let (_, old, _) = spurs(false)
         let oldSpurs = old.count
+        let (_, p470, _) = spurs(true, keep: false)
         let (gen, withRail, bases) = spurs(true)
         let fresh = Array(repeating: 0, count: bases)     // (the citadels counted)
         var bad: [String] = bad0, cars: [String] = [], steps = 0, overlaps = 0, inWay: [String] = []
@@ -365,8 +367,8 @@ enum PlaytestOct12Tests {
         }
         let loco = Mob.structureMob("minecart:loco_e", at: V3(0, 100, 0)), freight = Mob.structureMob("minecart:freight", at: V3(4, 100, 0))
         let carsOK = loco?.variant == 4 && loco?.customName == "Capital Locomotive" && freight?.variant == 1 && (freight?.cargo.map { c in (0..<c.count).contains { !c[$0].isEmpty } } ?? false)
-        check(oldSpurs == 0 && !withRail.isEmpty && bad.isEmpty && steps >= 40 && cars.count == 3 && carsOK && overlaps == 0,
-              "P92 trains: \(withRail.count) of \(fresh.count) citadels on new ground lay a rail spur (old ground \(oldSpurs)); the first: \(steps) steps of connected track with head room and a bed, "
+        check(oldSpurs == 0 && p470.isEmpty && !withRail.isEmpty && bad.isEmpty && steps >= 40 && cars.count == 3 && carsOK && overlaps == 0,
+              "P92 trains: \(withRail.count) of \(fresh.count) citadels on new ground lay a rail spur (old ground \(oldSpurs); ground new since P470 \(p470.count): a citadel is a main-line station); the first: \(steps) steps of connected track with head room and a bed, "
               + "\(cars.count) cars parked (\(cars.joined(separator: " "))), cars set up \(carsOK), \(overlaps) other structures in its way \(inWay)" + (bad.isEmpty ? "" : "; " + bad.prefix(4).joined(separator: "; ")))
     }
 
