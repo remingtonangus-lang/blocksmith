@@ -446,8 +446,42 @@ extension Game {
             if let h = s.raycast(eye, look, maxDist: 4.5, world: world), best == nil || h.t < best!.2 { best = (s, h.cell, h.t) }
         }
         guard let (s, c, _) = best else { return false }
-        let shape = Blocks.shape[Int(s.grid.get(c.x, c.y, c.z))]
-        return shape == "door" || shape == "trapdoor" || shape == "gate"
+        let b = s.grid.get(c.x, c.y, c.z)
+        let shape = Blocks.shape[Int(b)]
+        if shape == "door" || shape == "trapdoor" || shape == "gate" { return true }
+        // P472 (Oct 26 19:44, on the frigate: "I wasn't able to open the chest when I had a gun in my hand"): a ship's
+        // chests, its helm and its chart tables answer the use press with a gun out too.
+        let key = Blocks.key(Blocks.groupBase[Int(b)])
+        return s.blockEntities[c] != nil || key.hasSuffix("chest") || key == "barrel" || ShipParts.kinds[Int(b)] == .helm || Self.chartKeys.contains(key)
+    }
+    static let chartKeys: Set<String> = ["cartography_table", "lectern"]
+
+    // P472 (Oct 26 19:44: "Not sure what these map blocks are for, but they're not doing anything when I click on them.
+    // Like, where do I even go?"; 20:14: "if I find the frigate and I want to find the helm, I can fight my way to it"):
+    // a chart table or a lectern aboard reads out the deck plan: where the helm and the engines are from here.
+    func shipChart(_ t: Ship) {
+        let s = t.parent ?? t
+        let here = s.toLocal(player.pos)
+        func way(_ to: V3) -> String {
+            let w = s.toWorld(to) - player.pos
+            let flat = V2(w.x, w.z), d = simd_length(flat)
+            let fw = V2(-sinf(player.yaw), -cosf(player.yaw)), rt = V2(cosf(player.yaw), -sinf(player.yaw))
+            let a = simd_dot(flat, fw), r = simd_dot(flat, rt)
+            let side = d < 3 ? "right here" : (abs(a) >= abs(r) ? (a > 0 ? "ahead" : "behind you") : (r > 0 ? "to your right" : "to your left"))
+            let decks = Int(((to.y - here.y) / 6).rounded())
+            let level = decks == 0 ? "on this deck" : (decks > 0 ? "\(decks) deck\(decks == 1 ? "" : "s") up" : "\(-decks) deck\(decks == -1 ? "" : "s") down")
+            return d < 3 ? "\(level)" : "\(Int(d)) blocks \(side), \(level)"
+        }
+        var lines: [String] = []
+        if let h = s.helm { lines.append("The helm: " + way(V3(Float(h.x), Float(h.y), Float(h.z)) + 0.5)) }
+        var engine: V3?, best: Float = .infinity
+        let g = s.grid
+        for y in 0..<g.sy { for z in 0..<g.sz { for x in 0..<g.sx where ShipParts.kinds[Int(g.get(x, y, z))] == .engine {
+            let c = V3(Float(x), Float(y), Float(z)) + 0.5, d = simd_length(c - here)
+            if d < best { best = d; engine = c }
+        } } }
+        if let e = engine { lines.append("the engine room: " + way(e)) }
+        onToast?(lines.isEmpty ? "A chart of the \(s.name). Nothing marked on it" : "Deck plan of the \(s.name). " + lines.joined(separator: "; "))
     }
 
     func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float) -> Bool {
@@ -458,7 +492,11 @@ extension Game {
             ships.target = nil; target = nil; mining = nil
             // Attack charges the Tidebreaker when a Meridian frigate's is loaded (it fires 2.6 s later along the bow), else
             // fires the cannons, raised to the view pitch.
-            if breakNow && ships.playerMainGun(s, game: self) { swing = 1; return true }
+            // P472 (Oct 26 19:47 at a taken frigate's helm: "Where are my guns firing?... They have the main gun, yeah,
+            // but the little guns on the frigate are not firing"): the press that charges the Tidebreaker fires the
+            // point-defence guns too (it took the press whole, and with the gun loaded again every 22 s they hardly spoke).
+            let charged = breakNow && ships.playerMainGun(s, game: self)
+            if charged { swing = 1 }
             if breakNow && ships.playerRail(s, pitch: pilotGunPitch(s), game: self) { swing = 1 }     // P455 (and the turrets)
             // P93: in survival the guns use cannonballs from the pack, one a gun.
             if breakNow || (breakHeld && s.role == "dropship") {         // (P435: the autocannon fires while held)
@@ -654,6 +692,7 @@ extension Game {
             audioOpenable(shape: shape, base: base, opening: st & 4 == 0, at: IVec3(Int(floor(centre.x)), Int(floor(centre.y)), Int(floor(centre.z))))
             return true
         }
+        if !sneak && Self.chartKeys.contains(Blocks.key(Blocks.groupBase[Int(b)])) && s.blockEntities[cell] == nil { shipChart(s); return true }   // P472
         if !sneak, let be = s.blockEntities[cell] ?? (Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("chest") ? newShipChest(s, cell) : nil) {
             openMenu(ChestMenu(game: self, container: be.container, title: Blocks.name(b)))
             return true
