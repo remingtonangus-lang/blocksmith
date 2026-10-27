@@ -68,6 +68,10 @@ enum FrigateLayoutCheck {
         }
         check(reached.contains(helm) || reached.contains(bridgeDeck), "frigatelayout: from the boarding hangar he walks to the helm (\(reached.contains(helm)))")
         check(reached.contains(engine), "frigatelayout: ... and down to the engine room")
+        // P472 (20:14, "Design a ship like a ship would be designed... intuitively designed"): one stairwell from the hangar
+        // to the bridge, no ladder on the way.
+        let byStairs = Capital.walkable(hb, from: hangar, ladders: false)
+        check(byStairs.contains(helm) || byStairs.contains(bridgeDeck), "frigatelayout P472: hangar to the helm by stairs alone, no ladder (\(byStairs.count) cells that way)")
         let pk = pockets(hb, reached, ys: ys)
         let big = pk.filter { $0.cells >= 6 }
         for p in big.prefix(12) { print("frigatelayout: unreached \(p.cells) cells, x \(p.lo.x)...\(p.hi.x) y \(p.lo.y) z \(p.lo.z)...\(p.hi.z)") }

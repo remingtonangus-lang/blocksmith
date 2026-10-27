@@ -469,6 +469,29 @@ if let out = arg("--view"), let ctx = vkctx {
         AshWrecks.syncSkins(vw, dt: 0.1)
         print("view: Ashguard Sidecar at \(Int(sc.pos.x)) \(Int(sc.pos.y)) \(Int(sc.pos.z)), \(sc.blockCount) blocks, skins \(AshWrecks.skinMobs.count), hidden \(sc.hidden)")
     }
+    // --frigatein BX,BY,BZ (P472): a Meridian frigate held level 40 blocks over the spot, the eye inside it at its builder
+    // cell (x across from the centre line, y up from the keel, z aft from the bow: Capital.capitalFrigate), --look's yaw
+    // turning from the bow.
+    if let fi = arg("--frigatein")?.split(separator: ",").compactMap({ Int($0) }), fi.count == 3 {
+        let n0 = vw.ships.list.count
+        let home = vg.player.pos
+        vw.ships.spawnCapital("capfrigate", home: IVec3(Int(floor(home.x)), 0, Int(floor(home.z))), yaw: 0, region: nil, sync: true)
+        if let fs = vw.ships.list.dropFirst(n0).first(where: { $0.role == "capfrigate" }) {
+            fs.captured = true; fs.vel = .zero; fs.angVel = .zero
+            fs.pos = V3(home.x, home.y + 40, home.z)
+            vw.ships.pointHull(fs, pitch: 0)
+            for sh in [fs] + vw.ships.turrets(of: fs) {
+                sh.mesh.rebuildAll(sh, device: vw.device, queue: vw.ships.meshQueue)
+                var n = 0
+                while sh.mesh.busy && n < 20000 { usleep(1000); sh.mesh.apply(device: vw.device); n += 1 }
+                sh.mesh.apply(device: vw.device)
+            }
+            vg.player.pos = fs.toWorld(V3(Float(fi[0] + 13) + 0.5, Float(fi[1]), Float(fi[2]) + 0.5))
+            yaw = atan2f(fs.dirToWorld(V3(0, 0, -1)).x, fs.dirToWorld(V3(0, 0, -1)).z) + .pi - look[0] * .pi / 180
+            _ = vw.loadSync(center: vg.player.pos, radius: 2)
+            print("view: in the frigate at builder \(fi[0]) \(fi[1]) \(fi[2]), eye \(Int(vg.player.pos.x)) \(Int(vg.player.pos.y)) \(Int(vg.player.pos.z))")
+        } else { print("view: --frigatein: no frigate spawned") }
+    }
     // --cave: the eye in the nearest open cave below (spiralling out from the spot until one has room round the eye).
     if CommandLine.arguments.contains("--cave") {
         let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z))
