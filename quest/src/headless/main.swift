@@ -1665,6 +1665,11 @@ if CommandLine.arguments.contains("--huntcrawler") {          // P460: the Recko
     HuntCrawlerCheck.run(game, check)
     print(failures == 0 ? "huntcrawler: all checks passed" : "huntcrawler: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --crewfight: P471, a frigate's crew with him on its deck (Sources/CrewFightCheck.swift).
+if CommandLine.arguments.contains("--crewfight") {
+    CrewFightCheck.run(game, check)
+    print(failures == 0 ? "crewfight: all checks passed" : "crewfight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --troopfight: P471 part 2, gun crews and comrades who stood by while he fought them (Sources/TroopFightCheck.swift).
 if CommandLine.arguments.contains("--troopfight") {
     TroopFightCheck.run(game, check)
