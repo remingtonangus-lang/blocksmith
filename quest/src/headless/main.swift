@@ -1670,6 +1670,11 @@ if CommandLine.arguments.contains("--crewfight") {
     CrewFightCheck.run(game, check)
     print(failures == 0 ? "crewfight: all checks passed" : "crewfight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --shipchart: P472, a frigate's chest and chart table used with a gun in hand (Sources/ShipChartCheck.swift).
+if CommandLine.arguments.contains("--shipchart") {
+    ShipChartCheck.run(game, check)
+    print(failures == 0 ? "shipchart: all checks passed" : "shipchart: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --troopfight: P471 part 2, gun crews and comrades who stood by while he fought them (Sources/TroopFightCheck.swift).
 if CommandLine.arguments.contains("--troopfight") {
     TroopFightCheck.run(game, check)
