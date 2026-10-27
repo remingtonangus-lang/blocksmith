@@ -199,6 +199,16 @@ enum Soldier {
     // rifle good for 70 held fire at 33). Before a fight it notices him as before.
     static let fightReach: Float = 64
     static var reachOff = false              // (questcheck --soldierrange: the rank's sight alone, for the before)
+    // P471 (Oct 26 20:14: "pretty well everywhere, whether or not the enemy shot at me was hit and miss"): how far an
+    // unaware soldier notices him. A recruit stood 35 blocks off in open daylight and never saw him (sight 26-34 for
+    // line troops) while the man beside him, nearer, fought: now a line soldier notices him out to 46 blocks unless he
+    // sneaks (then the rank's own sight, as before); fog and storms still shorten it (WeatherWar.sight).
+    static let noticeRange: Float = 46
+    static func notice(_ rank: Int, sneaking: Bool) -> Float {
+        let s = ranks[rank].sight
+        return sneaking ? s : max(s, noticeRange)
+    }
+
     static func sight(_ rank: Int, gun: Int, fighting: Bool) -> Float {
         let s = ranks[rank].sight
         return fighting && !reachOff ? max(s, min(Guns.all[gun].range * 0.7, fightReach)) : s
@@ -400,7 +410,7 @@ extension Mob {
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.2 + Rand.float(in: 0..<0.1)
-            b.sees = canTarget && dist < Soldier.sight(r, gun: b.gun, fighting: aggro) * WeatherWar.sight && w.canSee(eye, g.player.eye)    // O7: fog and storms
+            b.sees = canTarget && dist < (aggro ? Soldier.sight(r, gun: b.gun, fighting: true) : Soldier.notice(r, sneaking: g.player.sneaking)) * WeatherWar.sight && w.canSee(eye, g.player.eye)    // O7: fog and storms
         }
         let sees = b.sees && canTarget
         // P471 (Oct 26 19:53-19:56: "There should be a guy in here... sitting in a chair operating the naval gun on top"):

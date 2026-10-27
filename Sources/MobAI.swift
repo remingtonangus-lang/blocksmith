@@ -71,6 +71,9 @@ extension Mob {
         // though. Their AI isn't smart. They need to come at me from a greater range"): soldiers already in a fight
         // keep track of him out to 64 blocks (their rank's 26-40 let him go once he climbed 30 over them).
         if aggro && kind.steelhold && Soldier.rank(kind) != nil && !Soldier.reachOff { range = max(range, Soldier.fightReach) }
+        // P471 (Oct 26 20:14, "whether or not the enemy shot at me was hit and miss"): an unaware soldier notices him
+        // out to Soldier.noticeRange (on this level) unless he sneaks; line troops 35 blocks off in the open never saw him.
+        if !aggro && kind.steelhold && Soldier.rank(kind) != nil && !g.player.sneaking { range = max(range, Soldier.noticeRange * Difficulty.row.sight) }
         if g.effects.has(.invisibility) { range = min(range, 7) }
         guard dist < range else { return false }
         if sightTimer <= 0 {
