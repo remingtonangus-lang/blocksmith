@@ -75,6 +75,10 @@ enum FrigateLayoutCheck {
         let pk = pockets(hb, reached, ys: ys)
         let big = pk.filter { $0.cells >= 6 }
         for p in big.prefix(12) { print("frigatelayout: unreached \(p.cells) cells, x \(p.lo.x)...\(p.hi.x) y \(p.lo.y) z \(p.lo.z)...\(p.hi.z)") }
+        // P476: fifty aboard, every post a cell he can walk to.
+        let posts = hb.crew.map { IVec3(Int(floor($0.x)) - hb.ox, Int($0.y), Int(floor($0.z))) }
+        let onFoot = posts.filter { reached.contains($0) }.count
+        check(hb.crew.count == 50 && onFoot >= 45, "frigatelayout P476: \(hb.crew.count) crew posts aboard, \(onFoot) of them on the walk from the hangar")
         check(big.isEmpty, "frigatelayout: every room and hallway inside is reached from the hangar without breaking a wall (\(reached.count) cells reached, \(big.count) pockets of 6+ not)")
     }
 }

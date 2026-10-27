@@ -561,6 +561,21 @@ extension Capital {
         for (x, y, z) in [(-5, 9, 104), (5, 9, 106), (-6, 9, 80), (6, 9, 90), (1, 15, 95), (0, 25, 82)] { hb.post(x, y, z, .troop) }
         // P472 (19:46, "Engine room, nice. Should be like engineer troops in here too... Engineering troops with guns").
         for (x, y, z) in [(-3, 9, 127), (3, 9, 146), (0, 15, 139), (-10, 15, 124)] { hb.post(x, y, z, .troop) }
+        // P476 (Oct 27 19:03: "There used to be more troops on the frigate... let's say 50 troops on here. It should be a
+        // pain to take... the guys just storm you"): marines through the whole ship, up to fifty aboard, each post a
+        // standing cell walked from the hangar at least five blocks from any other (picked in a fixed shuffled order).
+        do {
+            var taken: [V3] = hb.crew.map { V3($0.x - Float(hb.ox), $0.y, $0.z) }
+            let cells = walkable(hb, from: IVec3(-6, 9, 106)).sorted {
+                hash3($0.x, $0.y, $0.z, 0x476) < hash3($1.x, $1.y, $1.z, 0x476)
+            }
+            for c in cells where hb.crew.count < 50 {
+                let at = V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5)
+                guard !taken.contains(where: { simd_length_squared($0 - at) < 25 }) else { continue }
+                taken.append(at)
+                hb.post(c.x, c.y, c.z, .troop)
+            }
+        }
         return hb
     }
 

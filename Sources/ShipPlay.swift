@@ -344,7 +344,9 @@ extension Game {
                 if (inHull && d < 9 || d < 2) && d < bd { best = s; bd = d }
                 continue
             }
-            let zone: Float = s.role == "kestrel" || s.role == "capplane" ? 8 : 6
+            // P476 (Oct 27 19:02, aboard the frigate: "I just tried to open a door and it caused me to start driving the
+            // frigate. I need to be exactly at the helm"): a capital hull's helm is taken within 2 blocks of its stand.
+            let zone: Float = s.role == "kestrel" || s.role == "capplane" ? 8 : (s.role == "capfrigate" || s.blockCount > 2000 ? 2 : 6)
             // (P357 b, Oct 16 20:13: "I could fly it from anywhere aboard": a frigate's helm is taken at the helm only.)
             let aboard = s.kinematic && s.role != "capfrigate" && (ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.5)
             if (d < zone || aboard) && d < bd { best = s; bd = d }
