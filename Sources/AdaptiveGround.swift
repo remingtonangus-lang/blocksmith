@@ -360,16 +360,19 @@ enum AdaptiveGround {
         // Cheapest first, a few passes (costs change as vertices go).
         for _ in 0..<6 {
             var cand: [(Double, Int32, Int32)] = []
+            // (each edge once, from the triangle where it runs low to high: the one across has it the other way, and an
+            // edge with one triangle never collapses; only those within the bound, the rest were sorted for nothing)
             for (ti, t) in tris.enumerated() where alive[ti] {
                 for k in 0..<3 {
                     let a = Int(t[k]), b = Int(t[(k + 1) % 3])
-                    if !locked[a] && g.same(a, b) { cand.append((Q[a].error(pos[b]) / planes[a], Int32(a), Int32(b))) }
-                    if !locked[b] && g.same(a, b) { cand.append((Q[b].error(pos[a]) / planes[b], Int32(b), Int32(a))) }
+                    guard a < b, g.same(a, b) else { continue }
+                    if !locked[a] { let c = Q[a].error(pos[b]) / planes[a]; if c <= tol2 { cand.append((c, Int32(a), Int32(b))) } }
+                    if !locked[b] { let c = Q[b].error(pos[a]) / planes[b]; if c <= tol2 { cand.append((c, Int32(b), Int32(a))) } }
                 }
             }
             cand.sort { $0.0 < $1.0 }
             var done = 0
-            for (c, v, u) in cand where c <= tol2 { if collapse(Int(v), into: Int(u)) { done += 1 } }
+            for (_, v, u) in cand { if collapse(Int(v), into: Int(u)) { done += 1 } }
             if done == 0 { break }
         }
         var live: [SIMD3<Int32>] = []
