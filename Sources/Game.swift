@@ -3132,6 +3132,7 @@ final class Game {
             else if land == "slime_block" && !player.sneaking { k = 0 }
             // P291 (d, Oct 15): no slow drift down hell's tall halls any more; a landing there takes a tenth of the damage.
             if dim.dim == .deep && DeepGen.inHell(p.y) { k *= 0.1 }
+            if dim.dim == .deep && DeepGen.inVault(p.y) { k *= 0.1 }        // P473: and the Ash Vault's (no updraft)
             let over: Float = fall - safeFall
             let dmg = Int(ceilf(over * k))                          // safeFall carries a 0.05 margin for measuring noise
             if dmg > 0 { damage(dmg, "fell from a high place", bypassArmor: true, type: .fall) }

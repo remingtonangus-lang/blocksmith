@@ -23,16 +23,10 @@ extension Game {
             crossSeam(down: false)
         // P291 (d, Oct 15): the hell band's slow updraft drift is gone; falls there are normal speed and a landing takes
         // a tenth of the fall damage (Game.survivalTick).
-        case .deep:
-            // Updrafts: a long drop into the vault floats down (no fall damage), so breaking through its roof is survivable.
-            // P291 (d): creative falls at the normal speed.
-            if survival && DeepGen.inVault(p.y) && !player.onGround && !player.flying {
-                if player.vel.y < -6 { applyEffect(.slowFalling, amp: 0, seconds: 1.5) }
-                // P328 (NO TEXT): the updraft shows instead of a toast: warm air streaming up past him as he floats down.
-                if effects.has(.slowFalling) && Rand.float(in: 0..<1) < 0.5 {
-                    particles.smoke(at: p + V3(Rand.float(in: -1.5...1.5), Rand.float(in: -2...1), Rand.float(in: -1.5...1.5)), dark: false)
-                }
-            }
+        // P473 (Remington, Oct 26 19:27: "this whole thing with feather falling, I find annoying. In the [Ash Vault]..."):
+        // no updraft floating him down into the vault any more; he falls at the normal speed and a long drop into the
+        // vault takes a tenth of its fall damage, as in hell's halls (Game.survivalTick), so breaking through its roof
+        // is still survivable.
         default: break
         }
     }

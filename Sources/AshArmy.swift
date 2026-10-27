@@ -290,7 +290,9 @@ extension Game {
         particles.explosion(at: at, power: 1.4)
         for _ in 0..<6 { particles.smoke(at: at + V3(Rand.float(in: -0.8...0.8), Rand.float(in: 0...1.2), Rand.float(in: -0.8...0.8))) }
         sfx(.debrisRain, 0.9, at: at)
-        ashBreakUp(m, Blocks.id(key))
+        // P473 (Oct 26 19:42: "The gun is the structure. It doesn't have to turn into a bunch of blocks afterwards"): it
+        // stays as its burnt hulk (NavalGuns.wreck); a few fittings fly. On a ship's deck it still comes apart.
+        if m.deck == nil { ashShed(m, Blocks.id(key), count: 4) } else { ashBreakUp(m, Blocks.id(key)) }
         AshArmy.gunsWrecked += 1
     }
 
@@ -307,7 +309,9 @@ extension Game {
             let x = c.x + dx, z = c.z + dz, y = c.y - 1
             if w.isAir(x, y, z) && w.solidAt(x, y - 1, z) { w.setBlock(x, y, z, FIRE) }
         }
-        ashBreakUp(m, plate)
+        // P473 (Oct 26 19:27: wrecks that "still look decent"): the vehicle stays as its burnt hulk, a few fittings thrown
+        // off; on a ship's deck (a crawler's cargo) it still comes apart.
+        if m.deck == nil { ashShed(m, plate, count: 5); Hulks.add(m) } else { ashBreakUp(m, plate) }
         guard m.kind == .ashTank || m.kind == .ashHalftrack else { return }
         let n = m.kind == .ashTank ? 2 : 1
         for i in 0..<n {

@@ -92,44 +92,11 @@ enum NavalGuns {
         if st == 2 { g.particles.flame(at: at) }
     }
 
-    // The gun is destroyed: a wreck in blocks where it stood (not on a ship's deck: those just go up).
+    // The gun is destroyed: it stays where it stood as its own model, burnt, a barrel drooping (P473: Hulks; it was a
+    // heap of plate blocks with its barrels fallen across it). Not on a ship's deck: those just go up.
     static func wreck(_ m: Mob, _ g: Game) {
         guard m.deck == nil else { return }
-        let w = g.world
-        func b(_ n: String, _ f: BlockID) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
-        let plate = b("steel_plating", STONE), burnt = b("blackstone", STONE), coal = b("coal_block", STONE)
-        let grate = b("steel_grating", plate), barrel = b("iron_block", plate), fire = b("fire", AIR)
-        let ox = Int(floor(m.pos.x)), oy = Int(floor(m.pos.y)), oz = Int(floor(m.pos.z))
-        let side = V2(cosf(m.yaw), -sinf(m.yaw)), fwd = V2(-sinf(m.yaw), -cosf(m.yaw))
-        let salt = UInt32(truncatingIfNeeded: ox &* 31 &+ oz)
-        func put(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
-            let old = w.block(x, y, z)
-            guard old == AIR || Blocks.replaceable[Int(old)] else { return }
-            w.setBlockAsync(x, y, z, id)
-        }
-        // The collapsed gunhouse: a heap 11 x 13, highest in the middle, ragged at the edges.
-        for lz in -6...7 { for lx in -5...5 {
-            let rr = Float(lx * lx) / 30 + Float((lz - 1) * (lz - 1)) / 42
-            guard rr < 1 else { continue }
-            let p = V2(Float(ox) + 0.5, Float(oz) + 0.5) + side * Float(lx) + fwd * Float(-lz)
-            let x = Int(floor(p.x)), z = Int(floor(p.y))
-            let r = hashf(x, oy, z, salt)
-            let h = Int((1 - rr) * 3.2 + r * 1.2)
-            guard h > 0 else { continue }
-            for dy in 0..<h {
-                let pick = hashf(x, oy + dy, z, salt ^ 0x51)
-                put(x, oy + dy, z, pick < 0.55 ? plate : (pick < 0.8 ? burnt : (pick < 0.9 ? grate : coal)))
-            }
-            if r < 0.12 && fire != AIR { put(x, oy + h, z, fire) }
-        } }
-        // The two barrels fallen forward off the heap, one lying flat, one leaning on it.
-        for sx in [-2, 2] {
-            for i in 0..<14 {
-                let p = V2(Float(ox) + 0.5, Float(oz) + 0.5) + side * Float(sx) + fwd * Float(7 + i)
-                let y = sx < 0 ? oy : oy + max(0, 2 - i / 4)
-                put(Int(floor(p.x)), y, Int(floor(p.y)), barrel)
-            }
-        }
+        Hulks.add(m)
         g.onToast?(m.killedByPlayer ? "The turret is wrecked" : "A turret is wrecked")
         for _ in 0..<12 { g.particles.smoke(at: m.pos + V3(Rand.float(in: -5...5), Rand.float(in: 1...5), Rand.float(in: -5...5)), dark: true) }
     }

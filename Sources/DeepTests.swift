@@ -244,7 +244,7 @@ enum DeepTests {
         game.player.flying = false
         game.player.vel = V3(0, -20, 0)
         game.deepTick(0.05)
-        check(game.effects.has(.slowFalling), "deep: the vault's updraft slows a long fall")
+        check(!game.effects.has(.slowFalling), "deep: P473: no updraft slows a fall into the vault (a landing there takes a tenth of the damage)")
         game.effects.clear()
         if homeDim != game.dim.dim { game.changeDimension(to: homeDim, at: home) }
         game.player.pos = home

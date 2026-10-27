@@ -60,7 +60,7 @@ enum QuestOptions {
             let S = QuestSettings.self, now = g.world.renderDistance
             return ("View Distance: \(S.renderDistance)" + (S.autoViewDistance && now != S.renderDistance ? " (now \(now))" : ""), "q_view")
         }
-        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autoview", "q_active", "q_autord", "q_hud", "q_bright", "q_diff"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_body", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autoview", "q_active", "q_autord", "q_hud", "q_bright", "q_diff"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
@@ -83,6 +83,7 @@ enum QuestOptions {
             "q_knock": "How far hits and blasts push you: Reduced moves you 40% as far, Off not at all. Damage, the red flash and the thump in your hands stay.",   // Q2c-console-60
             "q_vib": "How strongly the Touch controllers vibrate: hits, mining, attacks, the bow, low health, explosions and menus. Off stops every buzz. Also in Options > Accessibility.",   // Q2c-console-35
             "q_ring": "A steady ring at your feet while a ship you stand on moves or turns: a fixed reference for your eyes.",
+            "q_body": "Looking down you see your own body, in the armour you wear. Off (the default) keeps it out of your view.",
             "q_seated": "Seated: leaning doesn't walk you through the world, and recentring sets standing eye height.",
             "q_reclined": VRMelee.reclinedPostureHelp,
             "q_swing": VRMelee.optionHelp,
@@ -137,6 +138,7 @@ enum QuestOptions {
                 ("Craft Bank: \(S.craftBankFull ? "Full" : "Gentle")", "q_bank"),                                     // P334 (d)
                 ("Blast Shake: \(on(S.blastShake))", "q_shake"),
                 ("Vehicle View: \(S.chaseView ? "Chase" : "First Person")", "q_chase"),
+                ("Show My Body: \(on(S.showBody))", "q_body"),                                                       // P473
                 ("Seated Mode: \(on(S.seated))", "q_seated"),
                 ("Lying Down View: \(on(S.reclined))", "q_reclined"),
                 ("Melee: \(S.swingMode ? "Swing" : "Reclined")", "q_swing"),
@@ -257,6 +259,7 @@ enum QuestOptions {
         case "q_bank": S.craftBankFull.toggle()
         case "q_shake": S.blastShake.toggle()
         case "q_chase": S.chaseView.toggle()
+        case "q_body": S.showBody.toggle()
         case "q_seated": S.seated.toggle(); hooks.recenter()
         case "q_reclined": reclinedPosture(!S.reclined); hooks.recenter()
         case "q_swing": S.swingMode.toggle()

@@ -487,6 +487,35 @@ extension ShipManager {
         var parts = [[Int]](repeating: [], count: sizes.count)
         for i in 0..<n where comp[i] >= 0 && Int(comp[i]) != keep { parts[Int(comp[i])].append(i) }
         let mounted = turrets(of: s)
+        // P473: a hull drawn as its model (a Salvaged Fighter, a taken truck or sidecar) sheds its broken-off pieces as
+        // debris of their plate, not as hulls of blocks.
+        if AshWrecks.skinned(s), let game = Hulks.game {
+            var seed = UInt32(truncatingIfNeeded: s.id &* 2654435761)
+            for (pi, cells) in parts.enumerated() where pi != keep && !cells.isEmpty {
+                var c = V3.zero
+                for i in cells {
+                    let y = i / (sx * sz), rem = i - y * sx * sz, z = rem / sx, x = rem - z * sx
+                    c += V3(Float(x), Float(y), Float(z))
+                }
+                let at = s.toWorld(c / Float(cells.count) + V3(0.5, 0.5, 0.5))
+                let b = g.blocks[cells[0]]
+                let e = Float(min(cells.count, 8)).squareRoot() * 0.45
+                seed = seed &* 1664525 &+ 1013904223
+                let out = at - s.pos
+                game.debris.bits(b, at: at, size: SIMD3(e, e * 0.6, e), direction: simd_length(out) > 1e-3 ? simd_normalize(out) : V3(0, 1, 0),
+                              count: 2, speed: 5, seed: seed)
+                for i in cells {
+                    let y = i / (sx * sz), rem = i - y * sx * sz, z = rem / sx, x = rem - z * sx
+                    s.blockEntities.removeValue(forKey: IVec3(x, y, z))
+                    g.set(x, y, z, AIR)
+                }
+            }
+            let wasPiloted = pilot === s
+            s.rebuild()
+            s.mesh.rebuildAll(s, device: world.device, queue: meshQueue)
+            if wasPiloted && s.helm == nil { pilot = nil; s.piloted = false }
+            return
+        }
         for (pi, cells) in parts.enumerated() where pi != keep && !cells.isEmpty {
             var lo = IVec3(Int.max, Int.max, Int.max), hi = IVec3(Int.min, Int.min, Int.min)
             for i in cells {

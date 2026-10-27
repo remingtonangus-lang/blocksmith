@@ -108,13 +108,17 @@ enum AshWrecks {
     // P464 (Oct 25 19:36-19:38, "the plane, when it gets repaired, needs to look just like it looked when it wasn't
     // repaired"): a Salvaged Fighter is drawn as the wreck's own fighter, whole and clean (fighterWholeParts: both
     // wings, its gear down, the propeller turning), at the hull's pose; its blocks fly and collide as before, unseen.
-    // Broken up past a sixth of its blocks it shows its blocks again. Each ship step (ShipManager.update), on the main
+    // P473 (Oct 26 19:27, shot up with warheads: "The plane shouldn't turn into blocks after it's destroyed"): broken up
+    // past a sixth of its blocks it stays its model, burnt (a hulk's colours, Hulks.burn), and the pieces shot off it
+    // fly as debris of its plate instead of block hulls (ShipCombat.splitIfNeeded); it showed its blocks. Each ship step (ShipManager.update), on the main
     // thread; the mob writer draws skinMobs.
     static let skinScale: Float = 1.45                  // the model's 10-block fuselage over the 16-block hull
     private static var skins: [Int: Mob] = [:]
     private static var skinOrigin: [Int: V3] = [:]      // ship space of the model's origin (hull centre line, wheels)
     static var skinsOff = ProcessInfo.processInfo.environment["BS_FIGHTERBLOCKS"] != nil     // (looks work: the blocks)
     static var skinMobs: [Mob] = []
+    // A hull drawn as a model (its blocks hidden): its broken-off pieces are debris, not hulls (P473).
+    static func skinned(_ s: Ship) -> Bool { (s.name == fighterName || AshCommandeer.smallHull(s)) && s.parent == nil && !skinsOff }
     // P461 (Oct 25 16:48, the sidecar motorcycle: "we need a completely new design for the motorcycle. It needs to look
     // realistic... Like the tank"): an Ashguard Sidecar is drawn the same way, as a modelled motorcycle and sidecar
     // (sidecarParts) over its blocks, its wheels turning as it rolls.
@@ -131,7 +135,7 @@ enum AshWrecks {
                                  : bike ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) - 0.5)
                                         : V3(Float(h.x) + 0.5, Float(h.y) - 2, Float(h.z) + 3.5)
             }
-            guard let o = skinOrigin[s.id], !skinsOff, s.blockCount * 6 >= s.initialBlocks * 5 else { s.hidden = false; continue }
+            guard let o = skinOrigin[s.id], !skinsOff else { s.hidden = false; continue }
             s.hidden = true
             let m: Mob
             if let have = skins[s.id] { m = have } else if truck {
@@ -152,6 +156,7 @@ enum AshWrecks {
                 m.scale = bike ? 1 : skinScale
                 skins[s.id] = m
             }
+            m.hulk = s.blockCount * 6 < s.initialBlocks * 5
             // The hull's turn as yaw, then roll, then pitch (the mob writer turns a part by Rz * Rx about its pivot,
             // the body by its yaw): the yaw that leaves the right wing level in the body's own frame.
             let r = s.dirToWorld(V3(1, 0, 0)), u = s.dirToWorld(V3(0, 1, 0)), b = s.dirToWorld(V3(0, 0, 1))
