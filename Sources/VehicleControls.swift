@@ -68,7 +68,11 @@ enum VehicleControls {
         }
         if let p = g.seatPad {
             if kind(s) == .warship, let v = vrPitch {
-                climb += abs(v) > 0.2 ? v : 0            // Quest: the right stick pitches the bow
+                // P476 (Oct 27 19:05: "I think we should invert the joystick, since usually flying is up is down, down
+                // is up"): the bow follows the Flight Stick option as an aircraft's nose does (pull back to climb, the
+                // default).
+                let pitch = Settings.shared.flightInverted ? -v : v
+                climb += abs(v) > 0.2 ? pitch : 0         // Quest: the right stick pitches the bow
                 if let t = vrSteer, abs(t) > 0.2 { steer += t }      // ...and turns her (P472)
             } else {
                 if p.rb { climb += 1 }                   // RB / LB climb and descend on every vehicle (pitch, a warship)
@@ -81,9 +85,12 @@ enum VehicleControls {
             switch kind(s) {
             case .boat, .land:
                 throttle = keysForward + trig + ls.y * 0.5
-            case .airship, .warship:
+            case .airship:
                 throttle = keysForward + trig
                 climb += ls.y
+            case .warship:
+                throttle = keysForward + trig
+                climb += Settings.shared.flightInverted ? -ls.y : ls.y      // (P476: as the right stick)
             case .aircraft:
                 throttle = keysForward + trig
                 climb += Settings.shared.flightInverted ? -ls.y : ls.y

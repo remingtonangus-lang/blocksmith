@@ -1297,7 +1297,8 @@ extension ShipManager {
             // soldiers). Only over loaded ground (mobs there don't update, so they'd be left hanging as the hull
             // moved on).
             let troopRanks: [MobKind] = [.soldierTrooper, .soldierTrooper, .soldierRecruit, .soldierIronclad]
-            for (i, post) in st.crew.enumerated() where !st.crewDone.contains(i) {
+            var made = 0                                  // (P476: fifty aboard a frigate come six a frame)
+            for (i, post) in st.crew.enumerated() where !st.crewDone.contains(i) && made < 6 {
                 let at = s.toWorld(post + V3(0, 0.05, 0))
                 guard world.isLoaded(Int(floor(at.x)), Int(floor(at.z))), simd_length(at - g.player.pos) < 120 else { continue }
                 st.crewDone.insert(i)
@@ -1319,6 +1320,7 @@ extension ShipManager {
                 }        // no rockets bursting inside their own hull
                 g.mobs.mobs.append(m)
                 st.crewMobs[i] = m
+                made += 1
             }
         }
     }
