@@ -144,6 +144,7 @@ final class Turrets {
     // P430 (c): worked from a station's console (BaseConsoles.stationGunUse): where he stands at it; leaving the gun
     // brings him back there.
     var remote: V3?
+    var remoteSeat: IVec3?                           // P471: ... in the gun room's chair, sat back in when he leaves
 
     static let roofY: Float = 5.5                    // the heavy turret's gunhouse roof above its origin (HeavyTurret model)
     static func canMan(_ m: Mob) -> Bool { m.kind == .deckGun && m.health > 0 }
@@ -156,6 +157,7 @@ final class Turrets {
         manned = m
         lastManned = m
         remote = nil
+        remoteSeat = nil
         m.aggro = false
         m.persistent = true
         if !same { reload = 0.5; loaded = 2 }
@@ -175,6 +177,8 @@ final class Turrets {
         remote = nil
         g.player.vel = .zero
         g.player.airPeak = g.player.pos.y
+        if let c = remoteSeat { ChairSeat.shared.sit(g, c) }
+        remoteSeat = nil
     }
 
     // P194 (Oct 13: "exiting the gun deposits you outside the base, in mid-air"): the nearest standing spot behind or
@@ -207,6 +211,8 @@ final class Turrets {
         if m.health <= 0 || !g.alive || g.mobs.mobs.first(where: { $0 === m }) == nil {
             manned = nil
             if let r = remote { g.player.pos = r; g.player.vel = .zero; remote = nil }      // (back at the console)
+            if let c = remoteSeat { ChairSeat.shared.sit(g, c) }
+            remoteSeat = nil
             return false
         }
         if sneak { leave(g); return false }

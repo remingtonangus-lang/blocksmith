@@ -216,6 +216,7 @@ enum Greywall {
             let x = cx * CS + 8, z = cz * CS + 8
             let e = t.half + margin
             let bank = WorldRules.p69(gen, cx, cz, reach: 4)          // P91 banks, on ground first generated with them
+            let p471 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: e / CS + 1, guardSet: $0.legacyP471) } ?? true   // (gun rooms)
             // T6: a shore base (sea within 40 blocks beyond a wall) mounts coastal guns on its sea walls.
             var shore: [Int] = []
             if t.rawValue >= 1 {
@@ -231,7 +232,7 @@ enum Greywall {
                 }
             }
             let piece = Piece(min: IVec3(x - e, S - 12, z - e), max: IVec3(x + e, S + t.wallH + 16, z + e),
-                              build: { w in Greywall.build(&w, x, S, z, t, seed, bank: bank, shore: shore) })
+                              build: { w in Greywall.build(&w, x, S, z, t, seed, bank: bank, shore: shore, p471: p471) })
             return StructureStart(kind: kind, pieces: [piece], anchor: IVec3(x, S + 1, z + t.half + 3))
         }
     }
@@ -242,7 +243,7 @@ enum Greywall {
 
     // MARK: Build
 
-    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ t: Tier, _ seed: UInt64, bank: Bool = false, shore: [Int] = []) {
+    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ t: Tier, _ seed: UInt64, bank: Bool = false, shore: [Int] = [], p471: Bool = false) {
         // (`bank`: ground first generated with the Oct 12 rules: the earth bank, P91, and Greywall's own equipment, P68)
         var rng = SRng(seed)
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
@@ -373,6 +374,20 @@ enum Greywall {
             wallLamp(alarmPanel, c.x - 2 * sx, 2, c.z + 2 * sz, wall: sz > 0 ? 1 : 0)
             wallLamp(alarm, c.x, R - 1, c.z + 4 * sz, wall: sz < 0 ? 1 : 0)
             if t.deckGuns { w.mob("deck_gun:light@grey", V3(Float(cx + c.x) + 0.5, Float(S + R + 1), Float(cz + c.z) + 0.5)) }   // (P210)
+            // P471 (Oct 26 19:53, at a tower's foot: "this should be a computer room right here. There should be a guy in
+            // here, and you should have to get in the chair and operate the computer in order to control the gun"): on
+            // ground no save had before, a gunned tower's foot is its gun room: a terminal and two server racks on the outer
+            // wall, a chair at the terminal and the operator in it, who works the gun on the roof (Mob.makeGunOperator,
+            // Game.stationGunUse).
+            let gunned = t.deckGuns || shore.contains { k in (k == 0 && sz < 0) || (k == 1 && sz > 0) || (k == 2 && sx < 0) || (k == 3 && sx > 0) }
+            if p471 && gunned {
+                let face = BlockID(sx > 0 ? 2 : 3)                  // (the screens toward the room)
+                put(c.x + 2 * sx, 1, c.z, term + (tf == 1 ? face : 0))
+                for oz in [-sz, -2 * sz] { put(c.x + 2 * sx, 1, c.z + oz, rack + face) }
+                put(c.x + sx, 1, c.z, g(sx > 0 ? "oak_chair[east]" : "oak_chair[west]", AIR))
+                w.mob("soldier_trooper:operator@grey\(leashTag(cx, cz, t))^\(sx > 0 ? 90 : -90)",
+                      V3(Float(cx + c.x + sx) + 0.5, Float(S + 1), Float(cz + c.z) + 0.5))
+            }
         }
 
         // MARK: Keep

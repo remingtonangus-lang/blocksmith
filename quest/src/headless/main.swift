@@ -1686,6 +1686,11 @@ if CommandLine.arguments.contains("--troopfight") {
     TroopFightCheck.run(game, check)
     print(failures == 0 ? "troopfight: all checks passed" : "troopfight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --gunroom: P471 part 4, gun rooms with a seated operator at the computer (Sources/GunRoomCheck.swift).
+if CommandLine.arguments.contains("--gunroom") {
+    GunRoomCheck.run(game, check)
+    print(failures == 0 ? "gunroom: all checks passed" : "gunroom: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --navalblow: P471, a crew's heavy naval shell on the levels and through Capital stone (Sources/NavalBlowCheck.swift).
 if CommandLine.arguments.contains("--navalblow") {
     NavalBlowCheck.run(game, check)

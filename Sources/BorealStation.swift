@@ -370,8 +370,9 @@ enum BorealStation {
             let x = cx * CS + 8, z = cz * CS + 8
             let grey = WorldRules.p69(gen, cx, cz, reach: 4)
             let e = BorealStation.yard + 8
+            let p471 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: e / CS + 1, guardSet: $0.legacyP471) } ?? true   // (the gun room)
             let piece = Piece(min: IVec3(x - e, S - depth - 4, z - e), max: IVec3(x + e, S + 32, z + e),
-                              build: { w in BorealStation.build(&w, x, S, z, seed, grey: grey, bank: grey) })
+                              build: { w in BorealStation.build(&w, x, S, z, seed, grey: grey, bank: grey, p471: p471) })
             return StructureStart(kind: kind, pieces: [piece], anchor: IVec3(x - 5, S + 1, z + yard + 2))
         }
     }
@@ -437,7 +438,7 @@ enum BorealStation {
 
     // `grey`: a station on ground no save had generated before P69 is Greywall Command's (its troops and stores), not
     // the Capital's (Oct 12 AM playtest 09:18: "it shouldn't be Capital ... it's a different force").
-    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ seed: UInt64, grey: Bool = false, bank: Bool = false) {
+    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ seed: UInt64, grey: Bool = false, bank: Bool = false, p471: Bool = false) {
         var rng = SRng(seed)
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let con = g("bunker_concrete"), dark = g("bunker_concrete_dark", con), tile = g("bunker_floor", con)
@@ -695,17 +696,32 @@ enum BorealStation {
                     let window = y == S + 3 && (dx + dz) % 3 == 0 && !(dz == bz1 && dx >= -7 && dx <= -4)
                     put(dx, y, dz, y == S + 1 ? dark : (window ? glass : con))
                 }
-            } else if !(dx >= -4 && dx <= 5 && dz >= 16 && dz <= 21) || (dz >= 18 && dz <= 19 && dx <= 3) {
+            } else if !(dx >= -4 && dx <= 5 && dz >= 16 && dz <= 21) || (dz >= 18 && dz <= 19 && dx <= 3) || (p471 && !(dz >= 20 && dx <= 3)) {
                 put(dx, S, dz, tile)
             }
             put(dx, S + 6, dz, wall ? con : ((dx % 3 + 3) % 3 == 0 && (dz % 3 + 3) % 3 == 1 ? panel : con))
         } }
         put(-7 + 1, S + 6, 18, panel)
         // Rails round the shaft openings.
-        for y in (S + 1)...(S + 2) {                                        // two high: no jumping onto them
-            for dx in -3...5 { for dz in [15, 18, 19, 22] { put(dx, y, dz, bars) } }
-            for dz in 16...21 { put(6, y, dz, bars) }
-            put(-4, y, 16, bars); put(-4, y, 17, bars)
+        // P471 (Oct 26 19:56, in the blockhouse: "There's still too many gates and shit in here, and there needs to be a
+        // computer and some guy sitting in a chair operating the naval gun on top"): on ground no save had before, the
+        // floor covers the down flight and the turn landing (they keep their headroom below), so only the way down (lane
+        // B) is open, railed on its two sides and its end; the north half is the gun room: a desk of consoles and data
+        // cabinets on the north wall, a chair at its middle console and the operator in it, who works the roof gun
+        // (Mob.makeGunOperator, Game.stationGunUse).
+        if p471 {
+            for y in (S + 1)...(S + 2) {
+                for dx in -3...3 { put(dx, y, 19, bars); put(dx, y, 22, bars) }
+                for dz in 19...22 { put(4, y, dz, bars) }
+            }
+            for dx in 1...5 { put(dx, S + 1, 15, dx == 1 || dx == 5 ? cab + 1 : console) }
+            put(3, S + 1, 16, g("oak_chair", AIR))
+        } else {
+            for y in (S + 1)...(S + 2) {                                    // two high: no jumping onto them
+                for dx in -3...5 { for dz in [15, 18, 19, 22] { put(dx, y, dz, bars) } }
+                for dz in 16...21 { put(6, y, dz, bars) }
+                put(-4, y, 16, bars); put(-4, y, 17, bars)
+            }
         }
         // Entrance: a pair of bulkhead doors in the south wall, a canopy, floodlights.
         for dx in [-6, -5] { put(dx, S + 1, bz1, door + 1); put(dx, S + 2, bz1, door + 9) }
@@ -838,6 +854,7 @@ enum BorealStation {
         for (k, dx, ly, dz) in garrison { w.mob(k + tag, V3(Float(X(dx)) + 0.5, Float(F + ly), Float(Z(dz)) + 0.5)) }
         for (k, dx, ly, dz) in surfaceGarrison { w.mob(k + tag, V3(Float(X(dx)) + 0.5, Float(S + ly), Float(Z(dz)) + 0.5)) }
         w.mob("deck_gun" + tag, V3(Float(X(4)) + 0.5, Float(S + 7), Float(Z(16)) + 0.5))
+        if p471 { w.mob("soldier_trooper:operator" + tag + "^0", V3(Float(X(3)) + 0.5, Float(S + 1), Float(Z(16)) + 0.5)) }
         // P460 (Oct 25 17:08, "the Boreal guys, make it so they have like their own trucks or something, maybe their own
         // tanks too"): a Capital station keeps its own vehicles in winter colours: a truck in the shed, a fuel truck by
         // the tanks and a tank in the east yard (Mob.borealSetup).
