@@ -142,7 +142,9 @@ extension Game {
         }
         if player.headInWater { return "underwater" }
         if audio.cave > 0.85 && p.y < Float(SEA - 6) { return "caves" }
-        if !survival { return "creative_mode" }
+        // P474 (Oct 26 19:32, "Does Creative not have any other songs it can play?"): Creative's own three takes had the
+        // whole overworld to themselves; now they hold ten minutes in thirty and the place, biome and hour play the rest.
+        if !survival && Int(clock / 600) % 3 == 0 { return "creative_mode" }
         if music.soundtrack.place == "capital_city" { return "capital_city" }
         if music.soundtrack.place == "village" { return "village" }
         let b = audio.biomeHere

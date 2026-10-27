@@ -31,6 +31,13 @@ enum MusicTakesCheck {
         check(soon && Set(caves).count >= 8, "musictakes: caves' takes come round without one again within five plays (\(Set(caves).count) of 9 in 20): \(caves.prefix(6).joined(separator: " "))")
         let noGain = files.filter { SoundtrackGains.table[$0] == nil }.sorted()
         check(noGain.isEmpty, "musictakes: every take has its loudness gain (missing \(noGain.count): \(noGain.prefix(4)))")
+        // P474: Creative plays more than its own three takes over an hour (on the surface, nothing near).
+        let surv = g.survival, clk = g.clock
+        g.survival = false
+        var heard = Set<String>()
+        for k in 0..<60 { g.clock = Double(k) * 60; heard.insert(g.soundtrackState()) }
+        g.survival = surv; g.clock = clk
+        check(heard.contains("creative_mode") && heard.count >= 2, "musictakes: an hour in Creative plays \(heard.sorted())")
         // The director with the game: a track plays; when it ends, after its quiet another take of the same state.
         let had = AudioSettings.volume(.music)
         if had <= 0 { AudioSettings.set(.music, 1) }
