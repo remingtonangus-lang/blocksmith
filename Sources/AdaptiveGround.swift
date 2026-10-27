@@ -178,6 +178,7 @@ enum AdaptiveGround {
 
     // The collapse (P381; see the header) on any triangle mesh: exact positions, positions as drawn (`grid`), triangles.
     // Returns the triangles left.
+    static let retriesNear = ProcessInfo.processInfo.environment["BS_AGRETRY"] != "0"
     static func collapse<G: CollapseGuard>(pos: [SIMD3<Double>], grid: [SIMD3<Double>], tris: [SIMD3<Int32>], tol: Float, guard g: G) -> [SIMD3<Int32>] {
         let nv = pos.count, nt0 = tris.count
         var tris = tris
@@ -221,7 +222,7 @@ enum AdaptiveGround {
         var orig: [Int32] = []
         var fan: [SIMD3<Int32>] = []
         var fanLo: [SIMD3<Double>] = [], fanHi: [SIMD3<Double>] = []
-        var gone = [Bool](repeating: false, count: nv)
+        var gone = [Bool](repeating: false, count: nv), touched = gone
         // Neighbours of a vertex (through its live triangles).
         // (reused arrays: a ring is a handful of vertices, and a Set per attempt cost more than the search)
         var rv: [Int32] = [], ru: [Int32] = []
@@ -355,17 +356,30 @@ enum AdaptiveGround {
             Q[u] += Q[v]; planes[u] += planes[v]
             absorbed[u].append(Int32(v)); absorbed[u] += absorbed[v]
             gone[v] = true
+            touched[u] = true; for w in rv { touched[Int(w)] = true }
             return true
         }
         // Cheapest first, a few passes (costs change as vertices go).
-        for _ in 0..<6 {
+        // P474: a later pass tries again only edges by a vertex whose triangles or stand-ins changed in the pass before,
+        // or by one of its neighbours (everything a try reads lies there: the rest would fail just as they did; within
+        // a few triangles of the same out, since a pass no longer retries what changed later in that pass until the
+        // next; BS_AGRETRY=0 the old way).
+        var hot = [Bool](repeating: true, count: nv)
+        for pass in 0..<6 {
+            if pass > 0 && retriesNear {
+                for x in 0..<nv { hot[x] = touched[x] }
+                for (ti, t) in tris.enumerated() where alive[ti] {
+                    if touched[Int(t[0])] || touched[Int(t[1])] || touched[Int(t[2])] { hot[Int(t[0])] = true; hot[Int(t[1])] = true; hot[Int(t[2])] = true }
+                }
+                for x in 0..<nv { touched[x] = false }
+            }
             var cand: [(Double, Int32, Int32)] = []
             // (each edge once, from the triangle where it runs low to high: the one across has it the other way, and an
             // edge with one triangle never collapses; only those within the bound, the rest were sorted for nothing)
             for (ti, t) in tris.enumerated() where alive[ti] {
                 for k in 0..<3 {
                     let a = Int(t[k]), b = Int(t[(k + 1) % 3])
-                    guard a < b, g.same(a, b) else { continue }
+                    guard a < b, hot[a] || hot[b], g.same(a, b) else { continue }
                     if !locked[a] { let c = Q[a].error(pos[b]) / planes[a]; if c <= tol2 { cand.append((c, Int32(a), Int32(b))) } }
                     if !locked[b] { let c = Q[b].error(pos[a]) / planes[b]; if c <= tol2 { cand.append((c, Int32(b), Int32(a))) } }
                 }
