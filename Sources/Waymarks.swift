@@ -43,6 +43,13 @@ enum Waymarks {
         if let (gg, _, _) = GangLeaders.wanted(g, from: IVec3(Int(g.player.pos.x), 0, Int(g.player.pos.z))), let p = leaderPos(g, gg) {
             out.append(Target(kind: "bounty", key: gg.leader, name: "Bounty: \(gg.leader) (\(Money.format(gg.bounty)))", pos: p))
         }
+        // P474 (Oct 26 19:36-19:37, at a citadel: "So a helicopter here... No, there's no helicopter"; P333 and P437 the
+        // same): it stood on the landing pad 42 blocks up the main tower, where he never looked. A citadel's parked
+        // Kestrel, free to take, is on this list and on the map (T).
+        for r in g.bases.records.values.sorted(by: { $0.key < $1.key }) where r.kestrelTaken != true {
+            guard let id = r.parked, let k = g.world.ships.list.first(where: { $0.id == id && $0.role == "kestrel" }) else { continue }
+            out.append(Target(kind: "kestrel", key: "\(id)", name: "Kestrel: on the citadel's landing pad, free to take", pos: k.pos))
+        }
         if let h = horsePos(g) { out.append(Target(kind: "my_horse", key: "horse", name: "Your horse", pos: h.1)) }
         if g.horseBond == 0, let gr = g.horseGrave, gr.dim == Dim.overworld.rawValue {          // P259: where it fell
             out.append(Target(kind: "horse_grave", key: "grave", name: "Where \(gr.name) fell", pos: v(gr.x, gr.z, py)))
@@ -184,7 +191,7 @@ enum Waymarks {
         marksAt = g.clock
         func q(_ f: Float) -> Int { Int(floor(f / 8)) * 8 + 4 }        // to 8 blocks (fewer map writes as things move)
         let all = candidates(g)
-        for kind in ["contract", "bounty", "outlaw", "my_horse", "my_ship", "my_vehicle", "director", "horse_grave"] {
+        for kind in ["contract", "bounty", "outlaw", "kestrel", "my_horse", "my_ship", "my_vehicle", "director", "horse_grave"] {
             let list = all.filter { $0.kind == kind }.prefix(12).map { t in
                 MapCache.Mark(kind: kind, x: q(t.pos.x), z: q(t.pos.z), name: t.name.split(separator: ":").last.map { String($0).trimmingCharacters(in: .whitespaces) })
             }

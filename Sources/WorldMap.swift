@@ -304,6 +304,7 @@ final class MapCache {
         case "contract": return ("$", V4(0.95, 0.75, 0.25, 1), "Contract")                 // D51 (Waymarks.swift)
         case "bounty": return ("X", V4(0.9, 0.25, 0.2, 1), "Bounty")
         case "outlaw": return ("W", V4(1, 0.4, 0.3, 1), "Outlaw (a notice-board job)")          // P474
+        case "kestrel": return ("T", V4(0.6, 0.9, 0.6, 1), "Parked Kestrel (free to take)")       // P474 (Waymarks)
         case "director": return ("E", V4(0.85, 0.5, 1, 1), "Event")                         // P266 (Director.swift)
         case "my_horse": return ("Y", V4(0.85, 0.65, 0.4, 1), "Your horse")
         case "horse_grave": return ("#", V4(0.72, 0.7, 0.66, 1), "Where your horse fell")     // P259
