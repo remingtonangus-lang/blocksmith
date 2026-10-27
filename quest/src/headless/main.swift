@@ -1716,6 +1716,11 @@ if CommandLine.arguments.contains("--doorway") {
     DoorwayCheck.run(game, check)
     print(failures == 0 ? "doorway: all checks passed" : "doorway: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --spurcheck: P92's citadel rail spurs, none on ground new since P470 (Sources/PlaytestOct12Tests.swift trains).
+if CommandLine.arguments.contains("--spurcheck") {
+    PlaytestOct12Tests.trains(check)
+    print(failures == 0 ? "spurcheck: all checks passed" : "spurcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --gunroom: P471 part 4, gun rooms with a seated operator at the computer (Sources/GunRoomCheck.swift).
 if CommandLine.arguments.contains("--gunroom") {
     GunRoomCheck.run(game, check)

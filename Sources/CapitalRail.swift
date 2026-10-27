@@ -16,6 +16,7 @@ enum CapitalRail {
     static let lineZ = -24                           // north of the centre (the garrison row is to the south)
     static let reach = 14                            // chunks from its region's corner: covers the whole spur
     static let kind = "capital_rail"
+    static var keepSpur = false                      // (checks: spurs drawn as on ground saved before P470)
 
     // A kind of its own (not pieces of the citadel's start, whose box many readers take as the citadel: the base
     // record's centre, map markers, the garrison test, and older ground decisions that ask how big a citadel is).
@@ -28,6 +29,11 @@ enum CapitalRail {
             let x = base.anchor.x, z = base.anchor.z - CapitalBase.podium - 8
             let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
             // On ground first generated with banks (the citadel's own rule) and with none of the spur's ground saved.
+            // P470 (Oct 26 19:36, at a citadel's spur: "There's railway here, it just doesn't go anywhere... the engine
+            // stopped and the car's not oriented the correct way. I can't push the car"): on ground no save had before
+            // P470 the spur is gone; a citadel is a station on the main lines, which real-size trains run (Railways,
+            // TrainCars). A spur some of whose ground a save already had keeps being drawn whole.
+            guard keepSpur || !sc.clear(cx: cx, cz: cz, reach: reach, guardSet: sc.legacyP470) else { return nil }
             guard WorldRules.p69(gen, cx, cz, reach: 6), let l = plan(gen, x, z, seed) else { return nil }
             let mid = l.x(l.level.count / 2)
             guard WorldRules.p69(gen, floorDiv(mid, CS), floorDiv(l.z, CS), reach: 9) else { return nil }
