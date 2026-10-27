@@ -431,6 +431,7 @@ extension TerrainGenerator {
         ents += World.orphanEntities(b, ChunkKey(x: cx, z: cz), have: ents)
         _ = PlantSupport.dropFloating(&b)
         FieldTerrain.clearFallenTops(&b)
+        WorldGen.settleGrass(&b)                            // (P474: no grass left to die under what covers it)
         let ground = FieldTerrain.split(&b, cx: cx, cz: cz, gen: self, built: mark, carved: carved, added: added)
         return FieldChunk(built: b, ground: ground, entities: ents, mobs: mobs)
     }

@@ -41,6 +41,8 @@ enum QuestStreamTest {
         g.paused = false
         let dt = 1.0 / 72
         print("streamtest: seed \(w.seed) at \(Int(at[0])) \(Int(at[1]) - YOFF) \(Int(at[2])), view \(rd), \(w.maxJobs) workers, \(secs) s, speed \(speed) b/s; stale meshes \(World.keepStale ? "drawn" : "thrown away (BS_STALEMESH=0)"), edits ahead of the queue \(World.frontAll ? "every change, no cap (BS_FRONTALL=1)" : "edits only, half the workers"), light reach \(World.narrowLight ? "16 blocks unless the top moved" : "up to the top (BS_NARROWLIGHT=0)")")
+        let tally = ProcessInfo.processInfo.environment["BS_EDITTALLY"] == "1"
+        if tally { World.editTally = [:]; World.editCells = [:] }
         var versions: [ChunkKey: [Int]] = [:]
         var stale0 = 0, drawn0 = 0, async0 = World.asyncEdits, sync0 = World.syncEdits
         var perf0 = w.perf
@@ -108,6 +110,13 @@ enum QuestStreamTest {
             let due = t0 + shift + Double(f + 1) * dt
             let now = CFAbsoluteTimeGetCurrent()
             if due > now { usleep(useconds_t((due - now) * 1_000_000)) }
+        }
+        if tally {
+            let top = (World.editTally ?? [:]).sorted { $0.value > $1.value }.prefix(12).map { k, n in
+                "\(k >> 32 != 0 ? "async " : "")\(Blocks.key(BlockID(truncatingIfNeeded: (k >> 16) & 0xFFFF))) -> \(Blocks.key(BlockID(truncatingIfNeeded: k & 0xFFFF))) x\(n)"
+            }
+            print("streamtest: edits: \(World.editCells.count) cells changed; " + top.joined(separator: "; "))
+            World.editTally = nil
         }
         allTicks.sort()
         let p99 = allTicks.isEmpty ? 0 : allTicks[min(allTicks.count - 1, allTicks.count * 99 / 100)]

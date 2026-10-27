@@ -297,6 +297,7 @@ final class World {
         let leavesOnly = c.lod != 1 && want != 1
         let farChange = (c.lod == 1) != (want == 1)
         c.lod = want
+        c.lodRemeshLog = true
         World.backgroundEdits = true                      // (P446: a detail change meshes in the queue's order)
         defer { World.backgroundEdits = false }
         for s in c.sections where s.meshedVersion != -1 && (!leavesOnly || s.leafy) { s.version += 1 }
@@ -1238,6 +1239,7 @@ final class World {
     // P446: set while water and lava settle and random ticks run: the sections they change mesh in the queue's order,
     // not ahead of it (World.update's edited-chunk pass is for edits: a blast, a dug block, a door).
     static var backgroundEdits = false
+    static var meshLog = ProcessInfo.processInfo.environment["BS_MESHLOG"] == "1"
     // P474 (Oct 26 19:28-20:14: "land doesn't like generating unless it's really forced to"; "I had to literally fly
     // into the void in order to get things to generate"): water and lava settling in the caves of new land (and random
     // ticks) changed the chunks round him every few frames, and each such chunk meshed again as soon as its last job was
@@ -1618,6 +1620,10 @@ final class World {
     // Hands a chunk's out-of-date sections to a mesh worker.
     private func scheduleMesh(_ k: ChunkKey, _ c: Chunk, _ nb: ([BlockStore], [[Int16]]), front: Bool = false) {
         let (n9, h9) = nb
+        let why = !c.meshedOnce ? "new" : (c.urgent ? "edit" : (c.lodRemeshLog ? "lod" : "settle"))
+        c.lodRemeshLog = false
+        let dist = max(abs(k.x - floorDiv(Int(floor(activeCenter.x)), CS)), abs(k.z - floorDiv(Int(floor(activeCenter.z)), CS)))
+        let lowSec = c.groundLow >> 4
         c.urgent = false
         c.meshAt = CFAbsoluteTimeGetCurrent()
         let todo = deferringBuried(c, dirtySections(c))
@@ -1637,6 +1643,7 @@ final class World {
                 var out: [(Int, Int, SectionMesh)] = []
                 for (sy, v) in list { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond))) }
                 let el = CFAbsoluteTimeGetCurrent() - t0
+                if World.meshLog { print(String(format: "meshlog: %@ d%d lod%d low%d secs %@ %.1f ms", why, dist, lod, lowSec, list.map { String($0.0) }.joined(separator: ","), el * 1000)) }
                 self.lock.lock()
                 self.meshResults.append((k, out))
                 self.perfShared.meshJobs += 1; self.perfShared.meshSections += list.count; self.perfShared.meshSeconds += el
@@ -1803,6 +1810,7 @@ final class World {
         } else {
             blocks = gen.generate(cx: k.x, cz: k.z)
             if let st = gen.structures { (ents, mobs) = st.place(into: &blocks, cx: k.x, cz: k.z) }
+            WorldGen.settleGrass(&blocks)                   // (P474)
             ents += World.orphanEntities(blocks, k, have: ents)
         }
         let field = fromDisk && keepsField ? save?.loadFieldEdits(k) ?? [:] : [:]
