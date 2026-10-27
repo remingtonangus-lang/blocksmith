@@ -61,10 +61,12 @@ extension Game {
     // An ally's soldier holds fire unless the player hurt one of them in the last minute.
     func repAllied(_ m: Mob) -> Bool {
         // T12: soldiers in a front battle hold fire at you until you hurt their side (FrontBattles.swift).
-        if let i = FrontBattle.side(m) { return !(FrontBattle.current?.angered.contains(i) ?? false) && clock - m.playerHurtAt > 60 }
+        if let i = FrontBattle.side(m) { return !(FrontBattle.current?.angered.contains(i) ?? false) && clock - max(m.playerHurtAt, m.provokedAt) > 60 }
         let f = m.factionValue
         guard FactionRep.tracked.contains(f), FactionRep.of(f) >= FactionRep.allyAt else { return false }
-        return clock - m.playerHurtAt > 60
+        // P471 (Oct 26 19:46, an ally's frigate: "Even after I shot a round, he equipped his gun, but he's not shooting
+        // me"): fired on, shot past or seen killing a comrade counts as hurt.
+        return clock - max(m.playerHurtAt, m.provokedAt) > 60
     }
 
     // Hunters (once a second is plenty: called from the HUD tick).

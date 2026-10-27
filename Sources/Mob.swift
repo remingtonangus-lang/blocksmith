@@ -540,6 +540,7 @@ final class Mob {
     var troopSeg = SIMD3<Float>(0, 0, 0)    // helmet, chest, legs armour left
     var leash: V3?                  // a Greywall base's soldier: (centre x, centre z, half-size) it never leaves (GreywallAlarm.swift)
     var playerHurtAt: Double = -1e9 // game clock the player last hurt it (Honour: a murder needs a hit within 10 s)
+    var provokedAt: Double = -1e9   // P471: game clock the player last fired on or near it, or killed its comrade (FactionRep.repAllied)
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind

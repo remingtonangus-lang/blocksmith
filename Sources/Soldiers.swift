@@ -1102,8 +1102,8 @@ extension Mob {
 extension Game {
     // P471 (Oct 26 19:52: "This guy's completely oblivious to my existence even though I just killed his friend right
     // beside him... They're all oblivious"): a soldier he kills is seen to fall. Its own side within 12 blocks, or within
-    // 28 with the body or him in sight, turn on him: alerted with where he is, and an ally's hold-fire gone (FactionRep:
-    // they count it as a blow to them). A suppressed Spec Ops shot carries no further, but the body still drops in view.
+    // 28 with the body or him in sight, turn on him: alerted with where he is, and an ally's hold-fire gone (Mob.provokedAt,
+    // FactionRep.repAllied). A suppressed Spec Ops shot carries no further, but the body still drops in view.
     func soldierWitnesses(_ m: Mob) {
         let w = world, p = player.pos, body = m.pos + V3(0, 0.8, 0)
         for o in mobs.mobs where o !== m && o.health > 0 && o.kind.steelhold && o.kind != .deckGun && o.faction == m.faction && o.posse == m.posse
@@ -1114,7 +1114,7 @@ extension Game {
             if !o.aggro { o.aggro = true; b.react = max(b.react, 0.5) }
             b.lastSeen = p; b.seenAgo = min(b.seenAgo, 0.5)
             o.lockTime = max(o.lockTime, 20)
-            o.playerHurtAt = clock
+            o.provokedAt = clock
             if b.orderStation == .gunner && simd_length(o.pos - p) < 20 { b.offPost = 20 }
         }
     }

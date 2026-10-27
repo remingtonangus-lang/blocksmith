@@ -790,6 +790,12 @@ extension Game {
                 let b = m.soldierBrain
                 if !m.aggro { m.aggro = true; b.react = max(b.react, 0.8) }
                 if !b.sees { b.lastSeen = player.pos; b.seenAgo = min(b.seenAgo, 1) }
+                // P471: a round fired at or past him (within 3 blocks of the line), or fired where he watches within
+                // 16, ends an ally's hold-fire (FactionRep.repAllied): he drew and stood by while being shot at.
+                let to = m.pos + V3(0, m.height * 0.6, 0) - muzzle
+                let along = simd_dot(to, look)
+                let past = along > 0 && simd_length(to - look * along) < 3
+                if past || (b.sees && simd_length(to) < 16) { m.provokedAt = clock }
             }
         }
         let right = V3(cosf(player.yaw), 0, -sinf(player.yaw))
