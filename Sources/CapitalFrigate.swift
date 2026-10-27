@@ -351,31 +351,101 @@ extension Capital {
         for z in 99...113 { hb.set(-9, 14, z, light); hb.set(-9, 8, z, trim) }
 
         // P357 (Oct 16 20:12 and 21:42: "far more complex inside: many more, smaller rooms, narrower corridors that branch
-        // and turn, stairs and ladders between decks; no single big central hallway"): the main and upper decks are laid out
-        // by deckPlan below. Each deck's corridor is two wide and zigzags from side to side; every other cell inside the
-        // hull is cut into small rooms (bulkheads every 3 to 5 blocks, a second row where the side is wide), each with a
-        // door onto the corridor or onto a room that has one; a pocket too small to stand in is a locker. Rooms take their
-        // trades in turn (bunks, mess, galley, armoury, medbay, workshops, storerooms, crew quarters, comms, engineering).
+        // and turn, stairs and ladders between decks; no single big central hallway") and P472 (Oct 26 19:44-20:14: "too
+        // plain and boring... just going room to room... Design a ship like a ship would be designed... so if I find the
+        // frigate and I want to find the helm, I can fight my way to it"): the main and upper decks are laid out as a
+        // warship's are, by deckPlan below. A passage runs fore and aft down the middle of each deck, shut by a pair of
+        // watertight doors at each main bulkhead (so it never reads as one long hall), athwartship passages run out to
+        // portholes, and the ship's great spaces open off it: the crew's berthing forward (racks of bunks), the stair
+        // hall amidships, the mess deck aft of it, and above them the officers' cabins, the wardroom and the captain's
+        // cabin. Every other cell is cut into smaller compartments (bulkheads every 3 to 5 blocks), each with a door onto
+        // a passage or a hall or onto one that has one, taking the trades in turn (workshops, stores, armoury, medbay...).
+        // One stairwell climbs the ship (below): from the boarding hangar to the main deck's stair hall, up to the upper
+        // deck's landing, and up again to the bridge, so the way to the helm is always "up the stairs, forward".
         // Fire control, forward (z 48-57): consoles facing the bow and the plot between them.
         for x in -4...4 where x != 0 { put(x, 15, 51, console) }
         put(0, 15, 54, cabinet)
         put(-5, 20, 54, light); put(5, 20, 54, light)
         let stairs = id("polished_andesite_stairs", id("stone_brick_stairs", trim))
-        let mainRooms = ["mess", "galley", "bunks", "armoury", "medbay", "workshop", "stores", "quarters", "comms", "engineering",
-                         "bunks", "stores", "workshop", "bunks", "medbay", "galley", "armoury", "quarters", "engineering", "stores"]
-        let upperRooms = ["officer", "comms", "chart", "officer", "stores", "medbay", "officer", "armoury", "quarters", "comms",
-                          "officer", "stores", "chart", "quarters"]
+        let mainRooms = ["stores", "workshop", "armoury", "heads", "stores", "medbay", "workshop", "engineering", "armoury", "stores",
+                         "galley", "stores", "galley", "laundry", "workshop", "stores"]
+        let upperRooms = ["officer", "officer", "comms", "officer", "chart", "officer", "stores", "officer", "comms", "officer",
+                          "chart", "officer", "stores", "officer"]
+        // Main deck (walk level 15). Halls and passages are open floor; a one-cell piece is the doorway that joins one.
         deckPlan(hb, inner: inner, y: 15, h: 5, z0: 58, z1: 119, xr: 8, salt: 3570,
-                 corridors: [(-1, 0, 58, 71), (-1, 5, 70, 71), (4, 5, 70, 87), (-3, 5, 86, 87), (-3, -2, 86, 103), (-3, 3, 102, 103),
-                             (2, 3, 102, 119), (0, 3, 118, 119)],
+                 corridors: [(-1, 0, 58, 87),                                   // the main passage (doors across at z 73)
+                             (-8, -3, 59, 71), (-2, -2, 65, 65),                 // port berthing, its door
+                             (2, 8, 59, 71), (1, 1, 65, 65),                     // starboard berthing
+                             (-8, 8, 81, 81),                                    // a cross passage out to the portholes
+                             (-8, 3, 88, 99),                                    // the stair hall
+                             (-1, 0, 100, 100), (-8, 8, 101, 111),               // its doors, the mess deck
+                             (-1, 0, 112, 119)],                                 // aft to the engine room
                  kinds: mainRooms, wall: wall, door: door, light: light, ceilingLight: true, furnish: { x, z, k, i in
                      furnish(hb, x, 15, z, k, i, put: put, console: console, cabinet: cabinet, barrel: barrel, wool: wool, slab: slab, bars: bars)
                  })
+        // Upper deck (walk level 21, low headroom).
         deckPlan(hb, inner: inner, y: 21, h: 3, z0: 58, z1: 119, xr: 8, salt: 3571,
-                 corridors: [(-1, 0, 58, 75), (-3, 0, 74, 75), (-3, -2, 74, 99), (-3, 4, 98, 99), (3, 4, 98, 119), (-2, 4, 116, 117)],
+                 corridors: [(-1, 0, 58, 85),                                   // officers' passage (doors across at z 74)
+                             (-8, 8, 66, 66), (-8, 8, 81, 81),                   // cross passages to the portholes
+                             (-4, 1, 86, 99),                                    // the landing: stair up from below, stair to the bridge
+                             (-1, 0, 100, 100), (-8, 8, 101, 108),               // the wardroom
+                             (-1, 0, 109, 119),                                  // aft passage
+                             (2, 8, 111, 119), (1, 1, 115, 115)],                // the captain's cabin, its door
                  kinds: upperRooms, wall: wall, door: door, light: light, ceilingLight: false, furnish: { x, z, k, i in
                      furnish(hb, x, 21, z, k, i, put: put, console: console, cabinet: cabinet, barrel: barrel, wool: wool, slab: slab, bars: bars)
                  })
+        // Watertight doors across the passages (a pair, the passage being two wide) and in the halls' doorways.
+        func pairDoor(_ y: Int, _ h: Int, _ z: Int) {
+            for x in -1...0 { doorway(x, y, z, 1); for dy in 2..<h { hb.set(x, y + dy, z, wall) } }
+        }
+        pairDoor(15, 5, 73); pairDoor(15, 5, 100); pairDoor(15, 5, 112)
+        pairDoor(21, 3, 74); pairDoor(21, 3, 100); pairDoor(21, 3, 109)
+        doorway(-2, 15, 65, 3); doorway(1, 15, 65, 2); doorway(1, 21, 115, 2)
+        for y in 17...19 { hb.set(-2, y, 65, wall); hb.set(1, y, 65, wall) }
+        hb.set(1, 23, 115, wall)
+        // The outermost cell inside the hull along x on the side `sg` at (y, z), no nearer the middle than `least`.
+        func outer(_ sg: Int, _ y: Int, _ z: Int, _ least: Int) -> Int? {
+            var ax = 8
+            while ax > least && !inner(sg * ax, y, z) { ax -= 1 }
+            return ax > least ? sg * ax : nil
+        }
+        // Berthing: racks of three bunks along the hull and down the middle in pairs, lockers by the door, a chest each.
+        var fit = 0
+        for sg in [-1, 1] {
+            for z in 59...71 where z != 65 { if let x = outer(sg, 15, z, 3) { furnish(hb, x, 15, z, "bunks", fit, put: put, console: console, cabinet: cabinet, barrel: barrel, wool: wool, slab: slab, bars: bars); fit += 1 } }
+            for z in [60, 61, 62, 68, 69, 70] { furnish(hb, sg * 5, 15, z, "bunks", fit, put: put, console: console, cabinet: cabinet, barrel: barrel, wool: wool, slab: slab, bars: bars); fit += 1 }
+            put(sg * 3, 15, 59, barrel); put(sg * 3, 15, 71, barrel); put(sg * 3, 16, 71, barrel)
+            furnish(hb, sg * 3, 15, 60, "stores", 1, put: put, console: console, cabinet: cabinet, barrel: barrel, wool: wool, slab: slab, bars: bars)
+        }
+        // The stair hall: a rack of rifles (bars) and lockers on the port side, a lamp over each flight.
+        for z in [89, 90, 91] { if let x = outer(-1, 15, z, 5) { put(x, 15, z, bars); put(x, 16, z, bars) } }
+        if let x = outer(-1, 15, 96, 6) { furnish(hb, x, 15, 96, "armoury", 1, put: put, console: console, cabinet: cabinet, barrel: barrel, wool: wool, slab: slab, bars: bars) }
+        // The mess deck: two long tables with benches, the serving counter along the aft bulkhead.
+        for z in 103...109 { for tx in [-5, 4] {
+            put(tx, 15, z, slab)
+            put(tx - 1, 15, z, stairs + 3); put(tx + 1, 15, z, stairs + 2)
+        } }
+        for x in -6...6 where abs(x) > 1 && Blocks.shape[Int(hb.get(x, 15, 112))] != "door" {        // (clear of a door aft)
+            put(x, 15, 111, x % 3 == 0 ? id("smoker", barrel) : slab)
+        }
+        // The wardroom: one long table (benches either side) under the lamps, a sideboard of lecterns and cabinets.
+        for z in 102...107 { put(4, 21, z, slab); put(3, 21, z, stairs + 3); put(5, 21, z, stairs + 2) }
+        for z in [102, 104, 106] { if let x = outer(-1, 21, z, 3) { put(x, 21, z, z == 104 ? id("lectern", cabinet) : cabinet) } }
+        // The captain's cabin: a bunk under the porthole, a desk, the chart table, his own chest.
+        if let x = outer(1, 21, 118, 3) { put(x, 21, 118, wool); put(x, 21, 117, wool) }
+        if let x = outer(1, 21, 113, 3) { put(x, 21, 113, id("lectern", cabinet)); put(x, 21, 112, cabinet) }
+        put(4, 21, 119, id("cartography_table", cabinet))
+        put(4, 21, 112, Blocks.id("chest"))
+        if hb.get(4, 21, 112) == Blocks.id("chest") { hb.chests.append((hb.grid(4, 21, 112), "meridian_hold")) }
+        // Lamps in the upper deck's halls (its ceiling is the skin or the bridge's floor: lamps go in the walls).
+        // (each in the first wall outward from the given cell; never in a door)
+        for (x, z) in [(-5, 92), (2, 88), (2, 97), (-8, 104), (8, 104), (8, 116), (-8, 66), (8, 66), (-8, 81), (8, 81)] {
+            var ax = x
+            let sg = x < 0 ? -1 : 1
+            while abs(ax) < 13 && hb.get(ax, 23, z) == AIR { ax += sg }
+            let b = hb.get(ax, 23, z)
+            if b != AIR && Blocks.shape[Int(b)] != "door" { hb.set(ax, 23, z, light) }
+        }
         // Between the decks: a stair up the main deck's corridor (x -2, z 92-96, the upper deck's floor open over it) and a
         // ladder at the forward end (x -1, z 60), besides the trunk below.
         // P472 (Oct 26 19:45): six steps, the last in the upper deck's floor (five left a full block to climb at the top).
@@ -385,6 +455,17 @@ extension Capital {
         }
         hb.set(-2, 14, 92, deck)
         ladderUp(-1, 15, 20, 60, 3, backing: wall)
+        // P472: the stairwell's first flight, two wide, from the boarding hangar's forward end on the gun deck (x -5...-4,
+        // rising forward over z 98-93) into the main deck's stair hall, where it comes up beside the flight to the upper
+        // deck (a switchback). Rails round both openings.
+        for k in 0...5 { for x in [-5, -4] {
+            hb.set(x, 9 + k, 98 - k, stairs)
+            if k < 5 { for y in (10 + k)...14 { hb.set(x, y, 98 - k, AIR) } }
+        } }
+        for z in 94...98 { hb.set(-6, 15, z, bars); hb.set(-3, 15, z, bars) }
+        for x in [-5, -4] { hb.set(x, 15, 99, bars) }
+        for z in 92...96 { hb.set(-3, 21, z, bars); hb.set(-1, 21, z, bars) }
+        hb.set(-4, 14, 99, light)                                                // (over the flight's foot)
 
         // The ladder trunk (x -3, z 89): gun deck, main deck and upper deck, one shaft.
         for y in 9...20 { hb.set(-3, y, 89, ladder + 3); hb.set(-4, y, 89, trim) }
@@ -399,13 +480,6 @@ extension Capital {
         }
         for x in [-3, -2] { hb.set(x, 24, 91, AIR) }
         hb.set(-4, 26, 88, light)
-        // P472 (Oct 26 19:45, "Why doesn't this hallway link up with the one right beside it?"): the stair stood across the
-        // upper deck's corridor, cutting it in two (the fore half ended under the steps); a passage beside it (x -1) joins
-        // them, walled from the rooms beyond.
-        for z in 86...91 {
-            for y in 21...23 { hb.set(-1, y, z, AIR) }
-            for y in 21...23 where Blocks.shape[Int(hb.get(0, y, z))] != "door" { hb.set(0, y, z, wall) }
-        }
 
         // The engine room (z 121-154): bulkheads fore and aft, the lower level beside the lower engines (floor y 8), a catwalk
         // deck at y 14 (the main deck's level) down the middle, along both flanks and across at both ends and the middle,
@@ -484,7 +558,7 @@ extension Capital {
         // Crew: the helmsman, a gunner per mount, marines in the hangar.
         hb.post(0, 25, 75, .driver)
         for (x, y, z) in [(2, 25, 96), (2, 29, 126), (-7, 14, 33), (7, 14, 33)] { hb.post(x, y, z, .gunner) }
-        for (x, y, z) in [(-5, 9, 104), (5, 9, 106), (-6, 9, 80), (6, 9, 90), (-2, 15, 100), (0, 25, 82)] { hb.post(x, y, z, .troop) }
+        for (x, y, z) in [(-5, 9, 104), (5, 9, 106), (-6, 9, 80), (6, 9, 90), (1, 15, 95), (0, 25, 82)] { hb.post(x, y, z, .troop) }
         // P472 (19:46, "Engine room, nice. Should be like engineer troops in here too... Engineering troops with guns").
         for (x, y, z) in [(-3, 9, 127), (3, 9, 146), (0, 15, 139), (-10, 15, 124)] { hb.post(x, y, z, .troop) }
         return hb
@@ -492,12 +566,13 @@ extension Capital {
 
     // Every standing cell (feet) reachable on foot from `start` (doors open, ladders and stairs climbed, never through a
     // wall), in builder coordinates (x relative to the centreline).
-    static func walkable(_ hb: HullBuilder, from start: IVec3) -> Set<IVec3> {
+    // (ladders: false walks stairs and doors only, a ladder as good as a wall: P472's "up the stairs" way to the helm)
+    static func walkable(_ hb: HullBuilder, from start: IVec3, ladders: Bool = true) -> Set<IVec3> {
         let ladderBase = Blocks.groupBase[Int(Blocks.id("ladder"))]
-        func ladder(_ x: Int, _ y: Int, _ z: Int) -> Bool { Blocks.groupBase[Int(hb.get(x, y, z))] == ladderBase }
+        func ladder(_ x: Int, _ y: Int, _ z: Int) -> Bool { ladders && Blocks.groupBase[Int(hb.get(x, y, z))] == ladderBase }
         func pass(_ x: Int, _ y: Int, _ z: Int) -> Bool {
             let b = Int(hb.get(x, y, z))
-            return !Blocks.collide[b] || Blocks.shape[b] == "door" || Blocks.shape[b] == "trapdoor" || Blocks.groupBase[b] == ladderBase
+            return !Blocks.collide[b] || Blocks.shape[b] == "door" || Blocks.shape[b] == "trapdoor" || (ladders && Blocks.groupBase[b] == ladderBase)
         }
         func fits(_ c: IVec3) -> Bool { pass(c.x, c.y, c.z) && pass(c.x, c.y + 1, c.z) }
         func held(_ c: IVec3) -> Bool { !pass(c.x, c.y - 1, c.z) || ladder(c.x, c.y, c.z) || ladder(c.x, c.y - 1, c.z) }
@@ -707,6 +782,8 @@ extension Capital {
         case "comms": put(x, y, z, i % 2 == 0 ? console : cabinet)
         case "engineering": put(x, y, z, [cabinet, console, g("cauldron", barrel), barrel][i % 4])
         case "chart": put(x, y, z, [g("cartography_table", cabinet), g("lectern", cabinet), cabinet][i % 3])
+        case "heads": put(x, y, z, [g("cauldron", barrel), barrel][i % 2])
+        case "laundry": put(x, y, z, [g("cauldron", barrel), wool, barrel][i % 3])
         default: put(x, y, z, barrel)
         }
     }
