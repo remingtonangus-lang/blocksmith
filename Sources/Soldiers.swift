@@ -357,8 +357,11 @@ extension Mob {
         // left the ground. Now any fight within 48 blocks lifts it once the 5-9 s wait is up, a burst under way or not,
         // and it climbs higher (4-8 over the higher of the two), firing down from the air.
         if jet <= 0 && jetCD <= 0 && aggro && canTarget && onGround && !Blocks.isLiquid(g.world.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))) && dist < 48 {
+            // P460 (Oct 25 16:37, a jet trooper "just flying in the air and dropping... He's not even shooting at me"): it
+            // lifted when it had lost sight of him too, and hung in the air with nothing to fire at. It lifts only in a
+            // fight it can see now (or saw a moment ago, him above it), and cuts its jets once it has lost him in the air.
             let above = g.player.pos.y - pos.y > 2.5
-            if above || dist > 6 || !b.sees {
+            if (b.sees && (above || dist > 6)) || (above && b.seenAgo < 1.5) {
                 jet = Rand.float(in: 3.5...6)
                 jetY = max(pos.y, g.player.pos.y) + Rand.float(in: 4...8)
                 jetCD = Rand.float(in: 5...9)
@@ -368,6 +371,7 @@ extension Mob {
             }
         }
         guard jet > 0 else { return speed }
+        if b.seenAgo > 1.2 || !canTarget { jet = min(jet, 0.4) }      // (lost him: down it comes)
         let back = V3(sinf(yaw), 0, cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
         for side: Float in [-1, 1] where Rand.float(in: 0..<1) < dt * 40 {
             let n = pos + back * 0.35 + right * (0.18 * side) + V3(0, 0.9, 0)

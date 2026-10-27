@@ -166,6 +166,19 @@ enum TroopTests {
         r.aggro = true; r.soldierBrain.react = 0; r.soldierBrain.sees = true; r.soldierBrain.losTimer = 5
         let sr = r.soldierAI(0.05, g, dist: 12, canTarget: true)
         check(sp > 0.4 * h.spec.speed && sp >= sr, String(format: "troop behaviour: a Hannibal trooper pushes in at 12 blocks (%.2f, a Regular %.2f)", sp, sr))
+        // P460: a Hannibal trooper lifts on its jets only in a fight it can see, and comes down once it loses him.
+        let j = Mob(.soldierIronclad, at: base + V3(20, 0, 0))
+        j.setTroop(.hannibal)
+        j.aggro = true; j.onGround = true; j.jetCD = 0; j.soldierBrain.react = 0
+        j.soldierBrain.sees = false; j.soldierBrain.seenAgo = 5; j.soldierBrain.losTimer = 5
+        _ = j.hannibalJets(0.05, g, dist: 20, canTarget: true, speed: 1)
+        let blind = j.jet
+        j.soldierBrain.sees = true; j.soldierBrain.seenAgo = 0
+        _ = j.hannibalJets(0.05, g, dist: 20, canTarget: true, speed: 1)
+        let lifted = j.jet
+        j.soldierBrain.sees = false; j.soldierBrain.seenAgo = 2
+        _ = j.hannibalJets(0.05, g, dist: 20, canTarget: true, speed: 1)
+        check(blind <= 0 && lifted > 3 && j.jet <= 0.4, String(format: "troop behaviour: a Hannibal trooper lifts only seeing him (out of sight %.1f s of jets, in sight %.1f), and drops once it loses him (%.1f left)", blind, lifted, j.jet))
         let q = Mob(.soldierTrooper, at: base); q.setTroop(.specOps); q.soldierBrain.gun = Guns.smg
         let s = Mob(.soldierMarksman, at: base); s.setTroop(.specOps)
         check(TroopClass.suppressed(q) && !TroopClass.suppressed(s), "troop behaviour: Spec Ops SMGs are suppressed, their scoped rifles are not")
