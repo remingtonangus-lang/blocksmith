@@ -84,24 +84,56 @@ extension Game {
     // P430 (c) (Oct 24 10:25: "the gun should be controllable from a computer inside the building"): a command console
     // in a Boreal Station works the station's deck gun from where he stands. The view goes up to the gun as when he
     // climbs on (aim, fire, B / Shift to leave) and leaving brings him back to the console.
+    // P471 (Oct 26 19:53: "you should have to get in the chair and operate the computer in order to control the gun"):
+    // so does a console or Greywall terminal with a gun right over it (a gun room: a Greywall tower's foot, the Boreal
+    // blockhouse), and where a chair stands at the computer he sits in it first and is back in it when he leaves the
+    // gun. The room's operator in that chair holds the gun (in survival): he has to be dealt with first.
     func stationGunUse(_ p: IVec3) -> Bool {
         let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
-        guard k == "command_console", world.ships.pilot == nil, Turrets.shared.manned == nil,
-              let s = world.gen.structures?.structure(at: p.x, p.y, p.z, kind: BorealStation.kind) else { return false }
-        let cx = Float(s.min.x + s.max.x) / 2, cz = Float(s.min.z + s.max.z) / 2, R = Float(BorealStation.yard + 4)
+        guard k == "command_console" || k == "greywall_terminal", world.ships.pilot == nil, Turrets.shared.manned == nil else { return false }
         let at = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
-        let guns = mobs.mobs.filter { Turrets.canMan($0) && abs($0.pos.x - cx) < R && abs($0.pos.z - cz) < R }
+        var guns: [Mob]
+        var station = false
+        if k == "command_console", let s = world.gen.structures?.structure(at: p.x, p.y, p.z, kind: BorealStation.kind) {
+            let cx = Float(s.min.x + s.max.x) / 2, cz = Float(s.min.z + s.max.z) / 2, R = Float(BorealStation.yard + 4)
+            guns = mobs.mobs.filter { Turrets.canMan($0) && abs($0.pos.x - cx) < R && abs($0.pos.z - cz) < R }
+            station = true
+        } else {
+            guns = mobs.mobs.filter { Turrets.canMan($0) && $0.deck == nil && simd_length(V2($0.pos.x - at.x, $0.pos.z - at.z)) < 6
+                && $0.pos.y > at.y + 2 && $0.pos.y < at.y + 20 }
+            if guns.isEmpty { return false }                    // (not a gun room: the console's own job)
+        }
         guard let gun = guns.min(by: { simd_length($0.pos - at) < simd_length($1.pos - at) }) else {
             sfx(.click, 0.8, at: at)
             onToast?("Gun Control: the station's gun is out of action")
             return true
         }
-        if survival, gun.deckGunCrewed(self) { onToast?("Gun Control: the gunner holds the gun"); return true }
-        let stand = player.pos
+        let chair = gunChair(p)
+        if survival, gun.deckGunCrewed(self) {
+            let op = mobs.mobs.contains { $0.health > 0 && $0.brain?.orderStation == .seated && $0.brain?.station == .seated && $0.brain?.gunPost != nil
+                && simd_length(V2($0.pos.x - at.x, $0.pos.z - at.z)) < 2.5 }
+            onToast?(op ? "Gun Control: the operator is at the gun" : "Gun Control: the gunner holds the gun")
+            return true
+        }
+        let taken = chair.map { c in mobs.mobs.contains { $0.health > 0 && $0.brain?.station == .seated
+            && Int(floor($0.pos.x)) == c.x && Int(floor($0.pos.z)) == c.z && abs($0.pos.y - Float(c.y)) < 1 } } ?? true
+        let seat = !taken ? chair : nil
+        let stand = seat.map { c in V3(Float(c.x) + 0.5, Float(c.y) + 0.1, Float(c.z) + 0.5) } ?? player.pos
+        ChairSeat.shared.release()
         Turrets.shared.mount(self, gun)
         Turrets.shared.remote = stand
-        onToast?("Gun Control: the station's deck gun, worked from here")
+        Turrets.shared.remoteSeat = seat
+        onToast?(station ? "Gun Control: the station's deck gun, worked from here" : "Gun Control: the gun overhead, worked from this computer")
         return true
+    }
+
+    // The chair at a computer (a seat beside it, on its level), if any.
+    func gunChair(_ p: IVec3) -> IVec3? {
+        for (dx, dz) in [(0, 1), (0, -1), (1, 0), (-1, 0)] {
+            let c = IVec3(p.x + dx, p.y, p.z + dz)
+            if ChairSeat.seatTop(ChairSeat.key(world, c)) != nil { return c }
+        }
+        return nil
     }
 
     // Opens every door within reach of the console (both halves, as a hand would), or shuts them when most stand open.

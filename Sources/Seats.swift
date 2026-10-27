@@ -98,6 +98,9 @@ final class ChairSeat {
         return true
     }
 
+    // Off the seat where he is (P471: he goes up to the gun the computer works; Turrets brings him back to it).
+    func release() { at = nil }
+
     // Up and a step out in front of the seat (onto it when the front is blocked).
     func stand(_ g: Game) {
         guard let p = at else { return }

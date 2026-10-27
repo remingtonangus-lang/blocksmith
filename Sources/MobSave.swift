@@ -119,6 +119,7 @@ extension Mob {
         if let b = brain, let g = b.gunPost, let f = b.orderFace {      // P194: a deck gun's gunner keeps his post
             d["gpx"] = g.x; d["gpy"] = g.y; d["gpz"] = g.z; d["gfx"] = f.x; d["gfy"] = f.y; d["gfz"] = f.z
         }
+        if let b = brain, b.orderStation == .seated, b.gunPost != nil { d["gop"] = 1 }     // P471: a gun room's operator
         if let b = brain, b.role != 0 { d["ashRole"] = Float(b.role) }
         if let b = brain, b.extra {
             d["ashExtra"] = 1
@@ -172,6 +173,7 @@ extension Mob {
         if (d["warden"] ?? 0) > 0 { makeKeepWarden(loading: true) }
         if let x = d["gpx"], let y = d["gpy"], let z = d["gpz"], let fx = d["gfx"], let fy = d["gfy"], let fz = d["gfz"] {
             takeGunPost(V3(x, y, z), face: V3(fx, fy, fz))
+            if (d["gop"] ?? 0) > 0 { seatAsOperator() }
         }
         if let r = d["ashRole"] { ashTakeRole(Int(r)) }
         if (d["ashExtra"] ?? 0) > 0 {

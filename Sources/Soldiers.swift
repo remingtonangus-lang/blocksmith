@@ -403,6 +403,19 @@ extension Mob {
             b.sees = canTarget && dist < Soldier.sight(r, gun: b.gun, fighting: aggro) * WeatherWar.sight && w.canSee(eye, g.player.eye)    // O7: fog and storms
         }
         let sees = b.sees && canTarget
+        // P471 (Oct 26 19:53-19:56: "There should be a guy in here... sitting in a chair operating the naval gun on top"):
+        // a gun room's operator works the gun over the room from his chair (deckGunCrewed). He gets up to fight only when
+        // the player is in the room with him (seen within 7 blocks) or he is hurt, and sits back down 20 s after.
+        if b.orderStation == .seated, let post = b.gunPost {
+            if (sees && dist < 7) || hurt > 0 { b.offPost = 20; aggro = true }
+            if b.offPost <= 0 {
+                if let sp = followOrder(g), sp > 0 { return sp }
+                if simd_length(V2(pos.x - post.x, pos.z - post.z)) < 1 { pos.x = post.x; pos.z = post.z; vel.x = 0; vel.z = 0 }   // (into the chair)
+                strafe = 0; moving = false
+                return 0
+            }
+            if b.station != .none { b.station = .none }
+        }
         // No player in sight: fire on an enemy faction's vessel or crawler in range (frigates, crawlers: CapitalShips.swift).
         // P163 (Oct 13: "two different bases beside each other, and they're not attacking each other"): rival soldiers
         // are noticed out to 64 blocks (was 1.5 x the rank's sight, 30-45); one beyond firing range is advanced on.
@@ -1078,6 +1091,22 @@ extension Mob {
         m.takeGunPost(s, face: pos)
     }
 
+    // P471: a gun room's operator, seated at the computer in front of him (his heading) and working the gun over the
+    // room; he keeps the post through a save (MobSave "gop").
+    func makeGunOperator(at p: V3) {
+        let fwd = V3(-sinf(yaw), 0, -cosf(yaw))
+        takeGunPost(p, face: p + fwd * 2 + V3(0, 1.2, 0))
+        seatAsOperator()
+        soldierBrain.station = .seated
+        customName = "Gun Operator"
+        home = p
+    }
+    func seatAsOperator() {
+        let br = soldierBrain
+        br.orderStation = .seated
+        br.seat = 10.0 / 16
+    }
+
     func takeGunPost(_ s: V3, face: V3) {
         let br = soldierBrain
         br.gunPost = s
@@ -1091,7 +1120,14 @@ extension Mob {
     func deckGunCrewed(_ g: Game) -> Bool {
         // (A Greywall base's tower guns are worked by any of its soldiers posted beside them: the tower's lookout.)
         let grey = factionValue == .greywall
-        for m in g.mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil && (m.brain?.orderStation == .gunner || grey && m.factionValue == .greywall) {
+        for m in g.mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil {
+            // P471: a gun room's operator in his chair works the gun over the room.
+            if let b = m.brain, b.orderStation == .seated, let post = b.gunPost {
+                if b.station == .seated && m.faction == faction && simd_length(V2(post.x - pos.x, post.z - pos.z)) < 8
+                    && pos.y > post.y + 1 && pos.y < post.y + 20 { return true }
+                continue
+            }
+            guard m.brain?.orderStation == .gunner || grey && m.factionValue == .greywall else { continue }
             let d = V2(m.pos.x - pos.x, m.pos.z - pos.z)
             if simd_length_squared(d) < 13 * 13 && abs(m.pos.y - pos.y) < 8 { return true }
         }

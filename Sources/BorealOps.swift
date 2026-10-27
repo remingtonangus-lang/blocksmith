@@ -367,10 +367,19 @@ extension Game {
     }
 
     func stationReinforce(_ op: StationOp, toward target: V3) {
-        let kinds: [MobKind] = [.soldierTrooper, .soldierRecruit, .soldierRecruit]
+        // P471 (Oct 26 19:56, a Boreal Station's bunker: "How is everyone in here dead?"; Oct 25: "I never killed these
+        // guys"): the squads were always Capital troops, so at a station Greywall holds they came down the stair into a
+        // Greywall garrison and the two sides shot each other dead before he got there. A squad is the garrison's own side.
+        let site = BorealAlarmState.Site(cx: op.cx, cz: op.cz, S: op.S)
+        var grey = 0, capital = 0
+        for m in mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil && !m.hired && BorealStation.insideSite(site, m.pos) {
+            if m.factionValue == .greywall { grey += 1 } else if m.faction == Faction.steelhold.rawValue { capital += 1 }
+        }
+        let side = grey > capital ? "@grey" : ""
+        let kinds = ["soldier_trooper", "soldier_recruit", "soldier_recruit"]
         for (i, k) in kinds.enumerated() {
             let p = world.freeSpawn(op.stairFoot + V3(Float(i % 2) - 0.5, 0, Float(-i)))
-            let m = Mob(Soldier.garrison(k, at: p), at: p)
+            guard let m = Mob.structureMob(k + side, at: p) else { continue }
             m.persistent = true
             m.home = nil                                    // (P465: no post to hold: the squad hunts him)
             m.aggro = true
