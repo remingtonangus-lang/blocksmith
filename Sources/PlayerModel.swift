@@ -83,6 +83,7 @@ func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float, posed: Bool =
     parts.append(head(V3(-2, 27, -4.2), V3(-1, 28.5, -4.1), V3(0.2, 0.3, 0.55)))
     parts.append(head(V3(2, 27, -4.2), V3(3, 28.5, -4.1), V3(0.2, 0.3, 0.55)))
     parts.append(head(V3(-2, 25, -4.15), V3(2, 25.8, -4.05), V3(0.55, 0.35, 0.3)))
+    playerClothesParts = parts.count
     parts += playerArmorParts(armor, pitch: pitch, walk: walk, hit: hit)
     if Items.key(armor[1].item) == "jetpack" && !armor[1].isEmpty {
         // Jetpack on the back: two steel tanks with copper nozzles.
@@ -124,6 +125,10 @@ enum HandsPose {
     // A shoulder rotation pointing the arm along the view: level is a quarter turn up from hanging, the look's pitch on top.
     static func aim(_ pitch: Float) -> Float { .pi / 2 + max(-0.8, min(0.8, pitch)) }
 }
+
+// How many of playerParts' boxes are the body and clothes (the rest, worn pieces and the held item, lie over them: the
+// inventory figure draws them after, P473).
+var playerClothesParts = 0
 
 // P276 (a): another player's worn pieces while their body is drawn (NetCoop.writeRemote); nil: this player's own.
 var playerArmorOverride: [ItemStack]?
