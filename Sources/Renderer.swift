@@ -1514,6 +1514,12 @@ final class Renderer: NSObject, MTKViewDelegate {
             v.append(HudVert(pos: p[2], uv: uv[2], color: c, extra: ex)); v.append(HudVert(pos: p[0], uv: uv[0], color: c, extra: ex))
             v.append(HudVert(pos: p[2], uv: uv[2], color: c, extra: ex)); v.append(HudVert(pos: p[3], uv: uv[3], color: c, extra: ex))
         }
+        // A flat triangle with a colour at each corner (the inventory figure's lit rounded parts, P473).
+        func tri(_ a: V2, _ b: V2, _ c: V2, _ ca: V4, _ cb: V4, _ cc: V4) {
+            let z = V2(0, 0), ex = V4(-1, 0, 0, 0)
+            v.append(HudVert(pos: a, uv: z, color: ca, extra: ex)); v.append(HudVert(pos: b, uv: z, color: cb, extra: ex))
+            v.append(HudVert(pos: c, uv: z, color: cc, extra: ex))
+        }
         // An axis-aligned textured quad (text glyphs) without building corner arrays.
         func glyphQuad(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ u1: Float, _ v1: Float, _ c: V4, _ layer: Float) {
             let ex = V4(layer, 0, 0, 0)
@@ -1967,7 +1973,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             if m is InventoryMenu {
                 rect(o.x + 26 * s, o.y + 8 * s, 50 * s, 70 * s, V4(0, 0, 0, 1))
                 rect(o.x + 27 * s, o.y + 9 * s, 48 * s, 68 * s, V4(0.35, 0.35, 0.38, 1))
-                playerPreview(x: o.x + 27 * s, y: o.y + 9 * s, w: 48 * s, h: 68 * s, quad)
+                playerPreview(x: o.x + 27 * s, y: o.y + 9 * s, w: 48 * s, h: 68 * s, tri)
                 text("Crafting", o.x + 97 * s, o.y + 7 * s, s, titleC, shadow: false)
                 text("Open the book", o.x + 97 * s, o.y + 20 * s, s, V4(0.3, 0.3, 0.33, 1), shadow: false)
                 text("to craft", o.x + 97 * s, o.y + 30 * s, s, V4(0.3, 0.3, 0.33, 1), shadow: false)
@@ -3202,10 +3208,13 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
     }
 
-    // The player in the inventory's preview box (it was left empty): the third-person model's boxes projected
-    // flat into the HUD (no depth pass needed, so it works in the Fast and Fancy final passes alike), turned toward
-    // the cursor, back faces dropped, faces drawn far to near.
-    func playerPreview(x: Float, y: Float, w: Float, h: Float, _ quad: ([V2], [V2], V4, Float) -> Void) {
+    // The player in the inventory's preview box (it was left empty): the third-person model projected flat into the
+    // HUD (no depth pass needed, so it works in the Fast and Fancy final passes alike), turned toward the cursor.
+    // P473 (Oct 26 19:25, "the way I look when I'm in inventory should show me with the same armour... Shouldn't just
+    // be this boring, lazy, one-toned, low poly whatever"): every part is a rounded box (MobRound's bevelled shape,
+    // the plate's edges bevelled finer), lit per corner with a key light, a fill and a rim, the polished metal, enamel
+    // and leather of worn pieces catching a highlight as in the world (mob.frag's sheen), parts far to near.
+    func playerPreview(x: Float, y: Float, w: Float, h: Float, _ tri: (V2, V2, V2, V4, V4, V4) -> Void) {
         let cx = x + w / 2
         let mx = game.input.mouseX, my = game.input.mouseY
         var yaw: Float = 0.45, pitch: Float = 0
@@ -3220,37 +3229,72 @@ final class Renderer: NSObject, MTKViewDelegate {
         let k: Float = h * 0.86 / 32.5
         let feetY: Float = y + h * 0.95
         let cyw = cosf(yaw), syw = sinf(yaw)
-        let CT = Mesher.cornerTable
-        let shade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
-        var faces: [(depth: Float, pts: [V2], color: V4)] = []
-        for part in parts {
+        // The camera looks along +Z (the model faces -Z); the light comes from the upper left, in front.
+        let toCam = V3(0, 0, -1)
+        let key = simd_normalize(V3(-0.45, 0.75, -0.55)), fill = simd_normalize(V3(0.6, 0.2, -0.4))
+        // Painter's order by whole parts (each a convex box with its back faces dropped, so it never overlaps itself),
+        // far to near by its middle. A worn piece lies a fraction of a pixel over the clothes it sinks into (the helmet's
+        // dome into the head, a greave into its leg; only touching, as a sleeve does the tunic, does not count): it goes
+        // just in front of the nearest of them (sorted by triangle, the tunic's larger triangles cut through the plate).
+        let clothes = playerClothesParts
+        @inline(__always) func turn(_ q: V3) -> V3 { V3(cyw * q.x + syw * q.z, q.y, -syw * q.x + cyw * q.z) }
+        var order = [Float](repeating: 0, count: parts.count)
+        for (i, part) in parts.enumerated() { order[i] = turn(part.place((part.mn + part.mx) * 0.5, part.rotation)).z }
+        for i in clothes..<parts.count {
+            let a = parts[i]
+            var o = order[i]
+            for j in 0..<min(clothes, parts.count) {
+                let lap = simd_min(a.mx, parts[j].mx) - simd_max(a.mn, parts[j].mn)
+                if min(lap.x, min(lap.y, lap.z)) > 0.7 { o = min(o, order[j]) }
+            }
+            order[i] = o - 0.01
+        }
+        var tris: [(part: Int, depth: Float, p: (V2, V2, V2), c: (V4, V4, V4))] = []
+        tris.reserveCapacity(parts.count * 24)
+        var pts = [V3](repeating: .zero, count: 24), cols = [V4](repeating: .zero, count: 24), scr = [V2](repeating: .zero, count: 24)
+        for (pi, part) in parts.enumerated() {
             let rot = part.rotation
             let size = part.mx - part.mn
-            func place(_ lp: V3) -> V3 {
-                let q = part.place(lp, rot)
-                return V3(cyw * q.x + syw * q.z, q.y, -syw * q.x + cyw * q.z)
+            let thin = min(size.x, min(size.y, size.z))
+            // Cloth and skin round off; plate keeps a fine bevel (it reads as a pressed edge); slivers stay sharp.
+            let metal = part.pattern == 7 || part.pattern == 8
+            let bev: Float = thin < 0.8 ? 0 : min(metal ? 0.45 : 1.6, thin * (metal ? 0.18 : 0.3))
+            let pt = Int(part.pattern + 0.5)
+            let (shin, spec): (Float, Float) = pt == 8 ? (40, 0.55) : (pt == 7 ? (32, 0.35) : (pt == 10 ? (24, 0.22) : (pt == 11 ? (90, 0.55) : (16, 0.06))))
+            for i in 0..<24 {
+                let lp = MobRound.point(i, part.mn, part.mx, bev)
+                let r = turn(part.place(lp, rot))
+                pts[i] = r
+                scr[i] = V2(cx - r.x * k, feetY - r.y * k)
+                // (rounded: the normal turns smoothly round the edges; a sharp box: its face's own)
+                var fnrm = V3.zero
+                if bev <= 0 { let cb = MobRound.corner[i], a = i % 3; fnrm[a] = cb[a] > 0.5 ? 1 : -1 }
+                let n = simd_normalize(turn(rot * (bev > 0 ? MobRound.normal[i] : fnrm)))
+                var c = part.color
+                if pt == 9 { cols[i] = V4(c.x, c.y, c.z, 1); continue }                    // emissive: unlit
+                let lam = max(0, simd_dot(n, key)) * 0.62 + max(0, simd_dot(n, fill)) * 0.18
+                let up = 0.5 + 0.5 * n.y
+                c = c * (0.34 + 0.12 * up + lam)
+                let hv = simd_normalize(key + toCam)
+                let sp = powf(max(0, simd_dot(n, hv)), shin) * spec
+                let rim = powf(1 - min(1, abs(simd_dot(n, toCam))), 3) * 0.10
+                c += V3(repeating: sp + rim)
+                cols[i] = V4(min(c.x, 1), min(c.y, 1), min(c.z, 1), 1)
             }
-            let mid = place(part.mn + size * 0.5)
-            for f in 0..<6 {
-                var pts: [V2] = []
-                var fc = V3(0, 0, 0)
-                for c in 0..<4 {
-                    let ci = (f * 4 + c) * 3
-                    let lp: V3 = part.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
-                    let r = place(lp)
-                    fc += r * 0.25
-                    let px: Float = cx - r.x * k, py: Float = feetY - r.y * k
-                    pts.append(V2(px, py))
-                }
-                // The camera looks along +Z from the front (the model faces -Z): keep faces turned toward it.
-                if fc.z - mid.z > -0.001 { continue }
-                let c: V3 = part.color * shade[f]
-                faces.append((depth: fc.z, pts: pts, color: V4(c.x, c.y, c.z, 1)))
+            let T = MobRound.tris
+            var t = 0
+            while t + 2 < T.count {
+                let a = T[t], b = T[t + 1], c = T[t + 2]
+                t += 3
+                let pa = pts[a], pb = pts[b], pc = pts[c]
+                // Turned away from the camera (or edge-on): dropped.
+                let fn = simd_cross(pb - pa, pc - pa)
+                if simd_dot(fn, toCam) <= 1e-6 { continue }
+                tris.append((part: pi, depth: order[pi], p: (scr[a], scr[b], scr[c]), c: (cols[a], cols[b], cols[c])))
             }
         }
-        faces.sort { $0.depth > $1.depth }
-        let uv = [V2](repeating: .zero, count: 4)
-        for f in faces { quad(f.pts, uv, f.color, -1) }
+        tris.sort { $0.depth != $1.depth ? $0.depth > $1.depth : $0.part < $1.part }
+        for t in tris { tri(t.p.0, t.p.1, t.p.2, t.c.0, t.c.1, t.c.2) }
     }
 
     // MARK: Headless snapshot

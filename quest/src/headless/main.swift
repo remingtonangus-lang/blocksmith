@@ -1613,6 +1613,59 @@ if let a = arg("--kestrelfield") {
     print("kestrelfield: \(parked ? "a Kestrel parked on the pad" : "no Kestrel"): records \(kg.bases.records.count), pad \(rec.map { kg.basePadProblem($0) ?? "clear" } ?? "-"), taken \(rec?.kestrelTaken ?? false), sortie \(rec?.air != nil)")
     exit(parked ? 0 : 1)
 }
+// --figureshot OUT.ppm [--armour PREFIX] [--mouse X,Y] (P473): the inventory's figure wearing a set (regular_ by default), the HUD's
+// flat triangles rasterised on the host (text and icons left out), cropped round the preview box and scaled 4x.
+if let out = arg("--figureshot") {
+    let pre = arg("--armour") ?? "regular_"
+    for (i, names) in [["helmet"], ["chestplate", "vest"], ["leggings", "greaves"], ["boots"]].enumerated() {
+        if let piece = names.first(where: { Items.has(pre + $0) }) { game.inventory.armor.slots[i] = ItemStack(Items.id(pre + piece), 1) }
+    }
+    game.survival = true; game.paused = false
+    game.openMenu(InventoryMenu(game: game))
+    if let m = arg("--mouse")?.split(separator: ",").compactMap({ Float($0) }), m.count == 2 { game.input.mouseX = m[0]; game.input.mouseY = m[1] }
+    let W = 1280, H = 720
+    let verts = Renderer(game: game).buildHUD(Float(W), Float(H))
+    var img = [Float](repeating: 0, count: W * H * 3)
+    var t = 0
+    while t + 2 < verts.count {
+        let a = verts[t], b = verts[t + 1], c = verts[t + 2]
+        t += 3
+        guard a.extra.x < 0 else { continue }
+        let x0 = max(0, Int(min(a.pos.x, min(b.pos.x, c.pos.x)))), x1 = min(W - 1, Int(max(a.pos.x, max(b.pos.x, c.pos.x))))
+        let y0 = max(0, Int(min(a.pos.y, min(b.pos.y, c.pos.y)))), y1 = min(H - 1, Int(max(a.pos.y, max(b.pos.y, c.pos.y))))
+        let d = (b.pos.x - a.pos.x) * (c.pos.y - a.pos.y) - (c.pos.x - a.pos.x) * (b.pos.y - a.pos.y)
+        guard abs(d) > 1e-6, x0 <= x1, y0 <= y1 else { continue }
+        for py in y0...y1 { for px in x0...x1 {
+            let q = V2(Float(px) + 0.5, Float(py) + 0.5)
+            let w1 = ((q.x - a.pos.x) * (c.pos.y - a.pos.y) - (c.pos.x - a.pos.x) * (q.y - a.pos.y)) / d
+            let w2 = ((b.pos.x - a.pos.x) * (q.y - a.pos.y) - (q.x - a.pos.x) * (b.pos.y - a.pos.y)) / d
+            let w0 = 1 - w1 - w2
+            guard w0 >= 0, w1 >= 0, w2 >= 0 else { continue }
+            let col = a.color * w0 + b.color * w1 + c.color * w2
+            let i = (py * W + px) * 3, al = col.w
+            img[i] = img[i] * (1 - al) + col.x * al; img[i + 1] = img[i + 1] * (1 - al) + col.y * al; img[i + 2] = img[i + 2] * (1 - al) + col.z * al
+        } }
+    }
+    // The preview box: the darkest-grey 0.35 panel inside the inventory; cropped by its known place (Renderer: o + 27*s, 9*s).
+    var minX = W, minY = H, maxX = 0, maxY = 0
+    for y in 0..<H { for x in 0..<W {
+        let i = (y * W + x) * 3
+        if abs(img[i] - 0.35) < 0.004 && abs(img[i + 1] - 0.35) < 0.004 && abs(img[i + 2] - 0.38) < 0.004 { minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y) }
+    } }
+    guard maxX > minX, maxY > minY else { print("figureshot: no preview box"); exit(1) }
+    let cw = maxX - minX + 1, chh = maxY - minY + 1, z = 4
+    var rgba = [UInt8](repeating: 255, count: cw * z * chh * z * 4)
+    for y in 0..<(chh * z) { for x in 0..<(cw * z) {
+        let i = ((minY + y / z) * W + minX + x / z) * 3, o = (y * cw * z + x) * 4
+        for k in 0..<3 { rgba[o + k] = UInt8(max(0, min(255, img[i + k] * 255))) }
+    } }
+    // (a binary PPM: the host turns it into a PNG to look at)
+    var ppm = Data("P6\n\(cw * z) \(chh * z)\n255\n".utf8)
+    for i in stride(from: 0, to: rgba.count, by: 4) { ppm.append(contentsOf: rgba[i..<(i + 3)]) }
+    try? ppm.write(to: URL(fileURLWithPath: out))
+    print("figureshot: \(pre) set, preview \(cw)x\(chh) px at \(minX),\(minY) -> \(out)")
+    exit(0)
+}
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
     if !CommandLine.arguments.contains("--railride") { RailwayTests.run(game, check: check) }
