@@ -206,9 +206,21 @@ enum AdaptiveGround {
         let tol2 = Double(tol * tol), tolD = Double(tol)
         // The original triangles (the full ground) round each vertex, for measuring new triangles against.
         let tris0 = tris, vt0 = vt
+        // P474 (generation speed: this pass was about 70% of all meshing): a point further than the bound outside a
+        // triangle's box is further than the bound from the triangle, so those are passed over without measuring
+        // (the same answers; most of the triangles round a wide collapse are far from the point measured).
+        var lo0 = [SIMD3<Double>](repeating: .zero, count: tris0.count), hi0 = lo0
+        for (ti, t) in tris0.enumerated() {
+            let a = pos[Int(t[0])], b = pos[Int(t[1])], c = pos[Int(t[2])]
+            lo0[ti] = simd_min(simd_min(a, b), c) - SIMD3(repeating: Double(tol)); hi0[ti] = simd_max(simd_max(a, b), c) + SIMD3(repeating: Double(tol))
+        }
+        @inline(__always) func outside(_ q: SIMD3<Double>, _ lo: SIMD3<Double>, _ hi: SIMD3<Double>) -> Bool {
+            q.x < lo.x || q.y < lo.y || q.z < lo.z || q.x > hi.x || q.y > hi.y || q.z > hi.z
+        }
         var stamp = [Int32](repeating: -1, count: tris0.count), stampNow: Int32 = 0
         var orig: [Int32] = []
         var fan: [SIMD3<Int32>] = []
+        var fanLo: [SIMD3<Double>] = [], fanHi: [SIMD3<Double>] = []
         var gone = [Bool](repeating: false, count: nv)
         // Neighbours of a vertex (through its live triangles).
         // (reused arrays: a ring is a handful of vertices, and a Set per attempt cost more than the search)
@@ -273,10 +285,21 @@ enum AdaptiveGround {
             }
             // Within the bound of the fan, and (joining across seams) drawn true to what vertex q shades by: the nearest
             // fan triangle's corners, weighted where q lies on it.
+            // (the fan's boxes, grown by the bound: a triangle whose box q lies outside is beyond the bound and
+            // can neither draw q nor end the search, so it is passed over)
+            func boxes(from i: Int) {
+                fanLo.removeSubrange(min(i, fanLo.count)...); fanHi.removeSubrange(min(i, fanHi.count)...)
+                for f in fan[i...] {
+                    let a = pos[Int(f[0])], b = pos[Int(f[1])], c = pos[Int(f[2])]
+                    fanLo.append(simd_min(simd_min(a, b), c) - SIMD3(repeating: tolD)); fanHi.append(simd_max(simd_max(a, b), c) + SIMD3(repeating: tolD))
+                }
+            }
+            boxes(from: 0)
             func near(_ qi: Int) -> Bool {
                 let q = pos[qi]
                 var bestD = Double.infinity, bestT = SIMD3<Int32>(0, 0, 0), bestB = SIMD3<Double>(0, 0, 0)
-                for f in fan {
+                for (fi, f) in fan.enumerated() {
+                    if outside(q, fanLo[fi], fanHi[fi]) { continue }
                     let (d, b) = closestBary(q, pos[Int(f[0])], pos[Int(f[1])], pos[Int(f[2])])
                     if d < bestD { bestD = d; bestT = f; bestB = b }
                     // (q over a triangle's inside within the bound: that triangle draws it; no need to look further)
@@ -298,6 +321,7 @@ enum AdaptiveGround {
                     if t[0] == Int32(v) || t[1] == Int32(v) || t[2] == Int32(v) { continue }
                     fan.append(t)
                 }
+                boxes(from: mark)
                 for q in absorbed[Int(w)] where !near(Int(q)) { return false }
             }
             // And every new triangle lies within the bound of the full ground there (corners, edge middles, centre
@@ -310,6 +334,7 @@ enum AdaptiveGround {
             for w in rv { addOrig(Int(w)); for q in absorbed[Int(w)] { addOrig(Int(q)) } }
             @inline(__always) func onGround(_ q: SIMD3<Double>) -> Bool {
                 for ti in orig {
+                    if outside(q, lo0[Int(ti)], hi0[Int(ti)]) { continue }
                     let t = tris0[Int(ti)]
                     if pointTriangle(q, pos[Int(t[0])], pos[Int(t[1])], pos[Int(t[2])]) <= tolD { return true }
                 }

@@ -26,8 +26,12 @@ extension FieldTerrain {
         let n = min(b.count, fd.count, fm.count)
         guard n > 0 else { return }
         let collide = Blocks.collide
+        // P474 (generation speed): the registry's tables read once, not per cell (every Blocks.isLiquid in the scan
+        // of a chunk's 98,304 cells retained and released the table: about two fifths of a field chunk's making).
+        let fluidLevel = Blocks.fluidLevel, fluidKind = Blocks.fluidKind
+        @inline(__always) func liquid(_ id: BlockID) -> Bool { fluidLevel[Int(id)] >= 0 }
         @inline(__always) func open(_ j: Int) -> Bool {
-            j >= 0 && j < n && fd[j] <= 0 && !collide[Int(b[j])] && !Blocks.isLiquid(b[j])
+            j >= 0 && j < n && fd[j] <= 0 && !collide[Int(b[j])] && !liquid(b[j])
         }
         @inline(__always) func solid(_ j: Int) -> Bool { j >= 0 && j < n && (fd[j] > 0 || collide[Int(b[j])]) }
         // A cell's 6 neighbours inside the chunk (columns: x and z within 0...15).
@@ -39,11 +43,11 @@ extension FieldTerrain {
         }
         var seen = [Bool](repeating: false, count: n)
         var comp: [Int] = [], stack: [Int] = [], fix: [(j: Int, side: Bool)] = []
-        for s in 0..<n where !seen[s] && Blocks.isLiquid(b[s]) {
+        for s in 0..<n where !seen[s] && liquid(b[s]) {
             seen[s] = true
             comp.removeAll(keepingCapacity: true); stack.removeAll(keepingCapacity: true); fix.removeAll(keepingCapacity: true)
             stack.append(s)
-            let lava = Blocks.fluidKind[Int(b[s])] == 2
+            let lava = fluidKind[Int(b[s])] == 2
             var side = false, floats = false, overDrop = false, tops = 0, roofed = 0, openSides = 0
             while let i = stack.popLast() {
                 comp.append(i)
@@ -62,7 +66,7 @@ extension FieldTerrain {
                     guard inside else { continue }
                     let j = i + step
                     guard j >= 0 && j < n else { continue }
-                    if Blocks.isLiquid(b[j]) { if !seen[j] { seen[j] = true; stack.append(j) }; continue }
+                    if liquid(b[j]) { if !seen[j] { seen[j] = true; stack.append(j) }; continue }
                     if k == 4 { tops += 1; if fd[j] > 0 { roofed += 1 }; continue }   // (a pool's top is open; air, a plant)
                     guard !collide[Int(b[j])] else { continue }
                     guard fd[j] < rim else { continue }
