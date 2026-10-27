@@ -1308,6 +1308,7 @@ extension ShipManager {
                 m.persistent = true
                 m.deck = s
                 m.crewPost = post
+                if s.role == "capfrigate" && role == .troop && post.z >= 121 { m.customName = "Meridian Engineer" }    // P472: the engine room's watch
                 if s.wrecked { m.crewFree = true }
                 if m.kind == .soldierIronclad { m.variant = Guns.arc }
                 if st.rocketeer && st.troopsLeft == 1 {

@@ -378,9 +378,10 @@ extension Capital {
                  })
         // Between the decks: a stair up the main deck's corridor (x -2, z 92-96, the upper deck's floor open over it) and a
         // ladder at the forward end (x -1, z 60), besides the trunk below.
-        for k in 0...4 {
+        // P472 (Oct 26 19:45): six steps, the last in the upper deck's floor (five left a full block to climb at the top).
+        for k in 0...5 {
             hb.set(-2, 15 + k, 92 + k, stairs + 1)
-            for y in (16 + k)...20 where y > 15 + k { hb.set(-2, y, 92 + k, AIR) }
+            for y in stride(from: 16 + k, through: 20, by: 1) { hb.set(-2, y, 92 + k, AIR) }
         }
         hb.set(-2, 14, 92, deck)
         ladderUp(-1, 15, 20, 60, 3, backing: wall)
@@ -398,6 +399,13 @@ extension Capital {
         }
         for x in [-3, -2] { hb.set(x, 24, 91, AIR) }
         hb.set(-4, 26, 88, light)
+        // P472 (Oct 26 19:45, "Why doesn't this hallway link up with the one right beside it?"): the stair stood across the
+        // upper deck's corridor, cutting it in two (the fore half ended under the steps); a passage beside it (x -1) joins
+        // them, walled from the rooms beyond.
+        for z in 86...91 {
+            for y in 21...23 { hb.set(-1, y, z, AIR) }
+            for y in 21...23 where Blocks.shape[Int(hb.get(0, y, z))] != "door" { hb.set(0, y, z, wall) }
+        }
 
         // The engine room (z 121-154): bulkheads fore and aft, the lower level beside the lower engines (floor y 8), a catwalk
         // deck at y 14 (the main deck's level) down the middle, along both flanks and across at both ends and the middle,
@@ -469,11 +477,89 @@ extension Capital {
                 if Blocks.groupBase[Int(hb.get(x, y + 1, z))] == doorBase { hb.set(x, y + 1, z, AIR); hb.set(x, y + 2, z, AIR) }
             } } }
         }
+        // P472 (Oct 26 19:44-20:14: "a hallway that doesn't connect to anything else... I had to break through a wall to
+        // find other hallways"): walked from the boarding hangar (FrigateLayoutCheck), every room and passage left out of
+        // reach gets a door through its bulkhead onto one that is reached, until the whole ship is walkable.
+        connectInterior(hb, from: IVec3(-6, 9, 106), wall: wall, door: door)
         // Crew: the helmsman, a gunner per mount, marines in the hangar.
         hb.post(0, 25, 75, .driver)
         for (x, y, z) in [(2, 25, 96), (2, 29, 126), (-7, 14, 33), (7, 14, 33)] { hb.post(x, y, z, .gunner) }
         for (x, y, z) in [(-5, 9, 104), (5, 9, 106), (-6, 9, 80), (6, 9, 90), (-2, 15, 100), (0, 25, 82)] { hb.post(x, y, z, .troop) }
+        // P472 (19:46, "Engine room, nice. Should be like engineer troops in here too... Engineering troops with guns").
+        for (x, y, z) in [(-3, 9, 127), (3, 9, 146), (0, 15, 139), (-10, 15, 124)] { hb.post(x, y, z, .troop) }
         return hb
+    }
+
+    // Every standing cell (feet) reachable on foot from `start` (doors open, ladders and stairs climbed, never through a
+    // wall), in builder coordinates (x relative to the centreline).
+    static func walkable(_ hb: HullBuilder, from start: IVec3) -> Set<IVec3> {
+        let ladderBase = Blocks.groupBase[Int(Blocks.id("ladder"))]
+        func ladder(_ x: Int, _ y: Int, _ z: Int) -> Bool { Blocks.groupBase[Int(hb.get(x, y, z))] == ladderBase }
+        func pass(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            let b = Int(hb.get(x, y, z))
+            return !Blocks.collide[b] || Blocks.shape[b] == "door" || Blocks.shape[b] == "trapdoor" || Blocks.groupBase[b] == ladderBase
+        }
+        func fits(_ c: IVec3) -> Bool { pass(c.x, c.y, c.z) && pass(c.x, c.y + 1, c.z) }
+        func held(_ c: IVec3) -> Bool { !pass(c.x, c.y - 1, c.z) || ladder(c.x, c.y, c.z) || ladder(c.x, c.y - 1, c.z) }
+        func step(_ c: IVec3) -> Bool { let s = Blocks.shape[Int(hb.get(c.x, c.y, c.z))]; return s == "stairs" || s == "slab" }
+        let up = IVec3(0, 1, 0), down = IVec3(0, -1, 0)
+        var seen: Set<IVec3> = [start]
+        var queue = [start], head = 0
+        while head < queue.count {
+            let c = queue[head]; head += 1
+            var next: [IVec3] = []
+            if ladder(c.x, c.y, c.z) || ladder(c.x, c.y + 1, c.z) { next.append(c + up) }
+            if ladder(c.x, c.y - 1, c.z) || ladder(c.x, c.y, c.z) { next.append(c + down) }
+            for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                var n = c + d
+                if !fits(n) {
+                    guard step(n), fits(n + up), pass(c.x, c.y + 2, c.z) else { continue }       // a stair or slab, headroom over both
+                    n = n + up
+                }
+                var drop = 0
+                while !held(n) && drop < 24 { n = n + down; drop += 1 }
+                next.append(n)
+            }
+            for n in next where fits(n) && held(n) && !seen.contains(n) { seen.insert(n); queue.append(n) }
+        }
+        return seen
+    }
+
+    // P472: doors through the interior bulkheads (`wall`, two high): each piece of standing room out of reach gets one onto
+    // a reached cell beyond, then the ship is walked again, until nothing inside is left out or no bulkhead joins them.
+    static func connectInterior(_ hb: HullBuilder, from start: IVec3, wall: BlockID, door: BlockID) {
+        let wallBase = Blocks.groupBase[Int(wall)]
+        func isWall(_ x: Int, _ y: Int, _ z: Int) -> Bool { Blocks.groupBase[Int(hb.get(x, y, z))] == wallBase }
+        let dirs = [(IVec3(0, 0, -1), 0), (IVec3(0, 0, 1), 1), (IVec3(-1, 0, 0), 2), (IVec3(1, 0, 0), 3)]
+        for _ in 0..<8 {
+            let reached = walkable(hb, from: start)
+            var left: Set<IVec3> = []
+            for y in [3, 9, 15, 21, 25] { for z in 0..<hb.sz { for gx in 0..<hb.sx {
+                let x = gx - hb.ox
+                if hb.get(x, y, z) == AIR && hb.get(x, y + 1, z) == AIR && Blocks.collide[Int(hb.get(x, y - 1, z))]
+                    && !reached.contains(IVec3(x, y, z)) { left.insert(IVec3(x, y, z)) }
+            } } }
+            var made = 0
+            while let s0 = left.first {
+                // One piece: its cells, and the first bulkhead between it and the reached ship.
+                left.remove(s0)
+                var q = [s0], i = 0
+                var cut: (IVec3, Int)?
+                while i < q.count {
+                    let c = q[i]; i += 1
+                    for (d, f) in dirs {
+                        let n = c + d
+                        if left.contains(n) { left.remove(n); q.append(n); continue }
+                        let o = n + d
+                        if cut == nil && isWall(n.x, n.y, n.z) && isWall(n.x, n.y + 1, n.z) && reached.contains(o) { cut = (n, f) }
+                    }
+                }
+                guard let (w, f) = cut, q.count >= 2 else { continue }
+                hb.set(w.x, w.y, w.z, door + BlockID(f)); hb.set(w.x, w.y + 1, w.z, door + BlockID(f | 8))
+                made += 1
+            }
+            if made == 0 { return }
+        }
     }
 }
 
