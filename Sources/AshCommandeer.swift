@@ -109,9 +109,30 @@ extension Game {
         if let st = helmStand(s) { player.pos = s.toWorld(st) }
         player.vel = .zero
         takeCommand(s)
+        let bow = s.dirToWorld(V3(0, 0, -1))
+        player.yaw = atan2f(-bow.x, -bow.z)                // (looking the way it faces: the stick drives from his view)
         sfx(.engineStart, 1, at: s.pos)
         AshCommandeer.hulled += 1
         return true
+    }
+
+    // P449: his truck hull goes where the stick points from his view, as the truck did before it was a hull (P461,
+    // AshUnits.ashSeatDrive): it turns toward that way and drives off along it, slowing into a tight turn; a way far
+    // round the back reverses toward it instead of turning about. (Throttle, steer: steer +1 turns it right.)
+    func ashLookDrive(_ s: Ship, _ mi: MoveInput) -> (Float, Float) {
+        let stick = V2(mi.strafe, mi.forward)
+        let push = min(1, simd_length(stick))
+        guard push > 0.15 else { return (0, 0) }
+        let f = s.dirToWorld(V3(0, 0, -1))
+        var d = (player.moveYaw ?? player.yaw) - atan2f(stick.x, stick.y) - atan2f(-f.x, -f.z)
+        while d > .pi { d -= 2 * .pi }
+        while d < -.pi { d += 2 * .pi }
+        var drive = push * max(0.4, cosf(d))
+        if abs(d) > 2.2 {
+            d += d > 0 ? -.pi : .pi
+            drive = -push
+        }
+        return (drive, max(-1, min(1, -d * 3)))
     }
 
     // P449: his truck hull at the helm runs people down as the truck did (its speed along its heading).
@@ -360,13 +381,17 @@ enum AshDriveCheck {
         let (x, z) = RideCheck.land(world, near: game.player.pos, rough: false, verify: true)
         _ = world.loadSync(center: V3(Float(x), 100, Float(z)), radius: 4)
         func ground(_ x: Int, _ z: Int) -> V3 { V3(Float(x) + 0.5, world.ships.groundTop(x, z) + 1, Float(z) + 0.5) }      // (on the top block)
-        // A level yard: stone, 17 wide, from 12 behind to 52 ahead (-Z), cleared above (the sidecar's 5 s run and turn
-        // end some 45 ahead).
+        // A level yard: stone, 49 wide, from 12 behind to 52 ahead (-Z), cleared above (the sidecar's 5 s run and turn
+        // end some 45 ahead; the truck turns off to the right).
         let y0 = Int(world.ships.groundTop(x, z))
-        for dz in -52...12 { for dx in -8...8 {
-            for y in (y0 - 3)...y0 { world.setBlock(x + dx, y, z + dz, STONE) }
-            for y in (y0 + 1)...(y0 + 10) where !world.isAir(x + dx, y, z + dz) { world.setBlock(x + dx, y, z + dz, AIR) }
-        } }
+        let yardTop = y0
+        func layYard() {
+            for dz in -52...12 { for dx in -24...24 {
+                for y in (y0 - 3)...y0 where world.materialAt(x + dx, y, z + dz) != STONE { world.setBlock(x + dx, y, z + dz, STONE) }
+                for y in (y0 + 1)...(y0 + 10) where !world.isAir(x + dx, y, z + dz) { world.setBlock(x + dx, y, z + dz, AIR) }
+            } }
+        }
+        layYard()
         game.mobs.mobs.removeAll { $0.kind.hostile }
         game.player.flying = false
         var fails = 0
@@ -437,6 +462,9 @@ enum AshDriveCheck {
         // P449: a truck he takes becomes a hull of blocks under the truck's model, driven from its helm: it drives and
         // turns on its wheels, runs a soldier down and, sneaking, he gets down beside it and it stands parked.
         do {
+            // (the yard laid again: the tank's and field gun's shells above leave craters in it, and the truck's nose
+            // dropped into one 24 ahead: 2 runs in 5 it could not back out)
+            layYard()
             let v = Mob(.ashTruck, at: ground(x, z + 6))
             v.ashSetup()
             v.yaw = 0
@@ -453,7 +481,11 @@ enum AshDriveCheck {
             let skin = AshWrecks.skinMobs.first { $0.kind == .ashTruck && $0.wreck == 7 }
             check(skin != nil && hull?.hidden == true, "Army Truck: drawn as the truck over its hidden hull")
             if let h = hull {
+                // (a sidecar the truck parked beside itself, before he took it, stood in the way of backing up: 1 run in 3)
+                let parked = game.world.ships.list.filter { $0 !== h && $0.parent == nil && simd_length($0.pos - h.pos) < 24 }
+                for o in parked { game.world.ships.remove(o) }
                 func heading() -> Float { let f = h.dirToWorld(V3(0, 0, -1)); return atan2f(-f.x, -f.z) }
+                ShipManager.probeId = h.id
                 let p0 = h.pos, y0 = heading()
                 // (on the yard: a soldier 14 ahead of it, run down within its first 2.5 s)
                 let f = h.dirToWorld(V3(0, 0, -1))
@@ -466,19 +498,45 @@ enum AshDriveCheck {
                 run(150, act(forward: 1))
                 check(AshSeat.ranOver > r0 || man.health < hp0, "Army Truck: runs down a soldier in its way (\(hp0) -> \(man.health) health)")
                 game.mobs.mobs.removeAll { $0 === man }
-                run(210, act(forward: 1))
+                run(60, act(forward: 1))                        // (3.5 s in all: it stays on the yard for what follows)
                 let moved = simd_length(V2(h.pos.x - p0.x, h.pos.z - p0.z))
-                check(moved > 6, String(format: "Army Truck: drives on its wheels, %.1f blocks in 6 s", moved))
+                check(moved > 6, String(format: "Army Truck: drives on its wheels, %.1f blocks in 3.5 s", moved))
+                func wrap(_ a: Float) -> Float { var a = a; while a > .pi { a -= 2 * .pi }; while a < -.pi { a += 2 * .pi }; return a }
+                // Let go, it slows on the engine to a stop within 2 s.
+                run(120, act())
+                let idle = simd_length(V2(h.vel.x, h.vel.z))
+                check(idle < 0.6, String(format: "Army Truck: let go, it comes to a stop on the engine within 2 s (%.1f b/s left)", idle))
+                // As on foot: looking along it and pulling back, it backs up (back down the yard it came up).
+                game.player.yaw = heading()
+                let y2 = heading(), q2 = h.pos
+                run(120, act(forward: -1))
+                let back = simd_dot(V2(h.pos.x - q2.x, h.pos.z - q2.z), V2(-sinf(y2), -cosf(y2)))
+                check(back < -1 && abs(wrap(heading() - y2)) < 0.2,
+                      String(format: "Army Truck: pulled back, it reverses (%.1f blocks in 2 s, turned %.0f degrees)", back, abs(wrap(heading() - y2)) * 180 / .pi) + (back < -1 ? "" : " \(parked.count) parked hulls cleared; contacts \(h.contacts), grounded \(h.grounded), pilot \(game.world.ships.pilot === h), throttle \(h.throttle) eased \(h.throttleEase), engines \(h.engines), flak \(h.flakHits), asleep \(h.asleep), vel \(h.vel), contacts " + ShipManager.probeContacts.joined(separator: " ") + ", wheels " + ShipManager.probeWheels.joined(separator: " ") + ", under the bow " + { () -> String in let b = h.toWorld(V3(0, 0, -2.5)); let bx = Int(floor(b.x)), bz = Int(floor(b.z)); return (Int(floor(b.y)) - 4...Int(floor(b.y)) + 1).map { "\($0):\(Blocks.key(world.materialAt(bx, $0, bz)))" }.joined(separator: " ") + " (yard top \(yardTop))" }() + ", start \(String(format: "%.1f %.1f %.1f", h.pos.x - Float(x), h.pos.y, h.pos.z - Float(z))), ships near: " + game.world.ships.list.filter { $0 !== h && simd_length($0.pos - h.pos) < 30 }.map { String(format: "%@ %.1f", $0.name, simd_length($0.pos - h.pos)) }.joined(separator: ", ")))
+                run(60, act())
                 run(120, act(forward: 1, strafe: 1))
                 var turned = abs(heading() - y0)
                 if turned > .pi { turned = 2 * .pi - turned }
                 check(turned > 0.5, String(format: "Army Truck: turns, %.0f degrees in 2 s", turned * 180 / .pi))
+                // Looking a quarter round to the right and pushing ahead, it comes round and drives off that way.
+                run(60, act())
+                let look = heading() - .pi / 2
+                game.player.yaw = look
+                let q0 = h.pos
+                // (his look stays where it was in the cab, as the headset's does when he doesn't turn his head: it keeps
+                // coming round until he looks ahead again; here it is checked as it passes his first look)
+                run(240, act(forward: 1))
+                let along = simd_dot(V2(h.pos.x - q0.x, h.pos.z - q0.z), V2(-sinf(look), -cosf(look)))
+                check(abs(wrap(heading() - look)) < 0.25 && along > 2,
+                      String(format: "Army Truck: pushed ahead looking right, it comes round to his view (%.0f degrees off) and drives that way (%.1f blocks in 4 s)",
+                             abs(wrap(heading() - look)) * 180 / .pi, along))
                 run(90, act())
                 run(2, act(sneak: true))
                 let q1 = h.pos
                 run(120, act())
                 check(game.world.ships.pilot == nil && game.world.ships.aboard == nil && simd_length(V2(h.pos.x - q1.x, h.pos.z - q1.z)) < 0.5,
-                      "Army Truck: sneaking he gets down beside it; it stands parked")
+                      String(format: "Army Truck: sneaking he gets down beside it; it stands parked (pilot %@, aboard %@, rolled %.1f)",
+                             game.world.ships.pilot == nil ? "none" : "his", game.world.ships.aboard == nil ? "no" : "yes", simd_length(V2(h.pos.x - q1.x, h.pos.z - q1.z))))
                 world.ships.remove(h)
             }
         }
