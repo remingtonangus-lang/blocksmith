@@ -1674,7 +1674,7 @@ final class QuestControls {
     // (it turns after the head once the head is well round, or as he walks); the legs walk. Not on a seat or at controls.
     private func appendBody(_ v: inout [SimpleVert], eye: V3) {
         let g = game, p = g.player
-        guard g.alive, g.sleeping == 0, g.riding == nil, g.world.ships.pilot == nil, Turrets.shared.manned == nil, !p.prone,
+        guard QuestSettings.showBody, g.alive, g.sleeping == 0, g.riding == nil, g.world.ships.pilot == nil, Turrets.shared.manned == nil, !p.prone,
               !g.handsOnControls else { return }
         var h = Hasher()
         for s in g.inventory.armor.slots { h.combine(s.item); h.combine(s.damage * 4 / max(1, s.def.durability)); h.combine(s.ench); h.combine(s.pat?.first ?? 0) }

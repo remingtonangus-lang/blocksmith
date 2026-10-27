@@ -76,6 +76,9 @@ enum QuestSettings {
     static var teleport: Bool { get { bool("quest.teleport", false) } set { store(newValue, "quest.teleport") } }
     // Movement follows the head (true) or the left controller (false).
     static var headLocomotion: Bool { get { bool("quest.headLocomotion", false) } set { store(newValue, "quest.headLocomotion") } }
+    // P473 (Oct 26 19:25-19:28: "I don't wanna see the character though... Gets in the way of what I can see"): his body
+    // under the view (P466) is hidden by default; Options > Show My Body draws it again.
+    static var showBody: Bool { get { bool("quest.showBody", false) } set { store(newValue, "quest.showBody") } }
     // Seated: the game's eye height (1.62 blocks) whatever the real head height.
     static var seated: Bool { get { bool("quest.seated", false) } set { store(newValue, "quest.seated") } }
     // Reclined (lying down): recentring also levels the view to the current gaze pitch; implies seated.

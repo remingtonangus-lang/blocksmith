@@ -427,6 +427,8 @@ final class Mob {
     var sitting = false
     var lying = false               // a villager asleep in its bed: drawn on its back along the bed (VillageLife)
     var fallen = false              // P326: one of the Ash Vault's fallen Allied soldiers (AshFallen): olive drab, drawn only
+    var hulk = false                // P473: a destroyed gun or vehicle left as its charred model (Hulks.swift)
+    var hulkT: Float = 0
     var wreck: Int8 = -1            // P346: one of the Ash Vault's wrecks (AshWrecks): drawn only, its model by kind
     var collar = 0
     var saddled = false
@@ -2253,6 +2255,10 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         if dx * dx + dz * dz <= min(maxD2, 140 * 140) { list.append(m) }
     }
     list += AshWrecks.skinMobs                                   // P464: Salvaged Fighters, drawn as fighters
+    for m in Hulks.mobs {                                        // P473: destroyed guns and vehicles, as their models
+        let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
+        if dx * dx + dz * dz <= min(maxD2, 160 * 160) { list.append(m) }
+    }
     defer { MobOrder.list = list }
     for (idx, m) in list.enumerated() {
         // Out of view and over 64 blocks away (nearer ones can still throw a shadow into view): skipped. Every mob in
@@ -2333,7 +2339,8 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             let rot = p.rotation
             let isHead = pose.joint?.holds(p) ?? false
             let bi = rag?.bone(p, hj) ?? 0
-            let pc: V3 = simd_mix(p.color * tint, flashCol, V3(repeating: flash * 0.85))
+            let pc: V3 = m.hulk ? Hulks.burn(p.color, m, pi) : simd_mix(p.color * tint, flashCol, V3(repeating: flash * 0.85))
+            let pat: Float = m.hulk && p.pattern == 9 ? 4 : p.pattern            // (a hulk's lamps are out)
             var ctr = V3.zero
             if cullBack {
                 var q = p.place(p.mn + size * 0.5, rot)
@@ -2366,7 +2373,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                     q *= scale / 16
                     var r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
                     r = rag != nil ? MobRagdoll.turn[bi] * r + MobRagdoll.shift[bi] : r + base
-                    pts[i] = MobVert(pos: V4(r, p.pattern), color: V4(pc, sh + (1.15 - sh) * flash), local: V4(lp, 0))
+                    pts[i] = MobVert(pos: V4(r, pat), color: V4(pc, sh + (1.15 - sh) * flash), local: V4(lp, 0))
                 }
                 for t in 0..<rTris.count { out[n + t] = pts[rTris[t]] }
                 n += rTris.count
@@ -2390,7 +2397,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                 q *= scale / 16
                 var r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
                 r = rag != nil ? MobRagdoll.turn[bi] * r + MobRagdoll.shift[bi] : r + base
-                pts[c] = MobVert(pos: V4(r, p.pattern), color: V4(pc, ground * ((c >> 1) & 1 == 0 ? 0.9 : 1)), local: V4(lp, 0))
+                pts[c] = MobVert(pos: V4(r, pat), color: V4(pc, ground * ((c >> 1) & 1 == 0 ? 0.9 : 1)), local: V4(lp, 0))
             }
             for f in 0..<6 {
                 // A ragdoll's faces turn with it: shaded by where they face now (the same weights as faceShade).
@@ -2748,6 +2755,7 @@ final class MobManager {
         }
         let limit = Float((w.renderDistance + 1) * CS)
         corpseTick(dt, game)
+        Hulks.tick(game, dt)                                     // P473 (after the bodies' boxes)
         mobs.removeAll { m in
             if m.health <= 0 { addCorpse(m, game); return true }
             // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow

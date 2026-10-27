@@ -131,7 +131,7 @@ enum PlaytestOct12NoonTests {
         m.health = max(1, m.health)
         m.health = 1; let burning = NavalGuns.state(m)
         let partsHurt = deckGunParts(m).first.map { $0.color } ?? .zero
-        // Destroyed: the wreck in blocks (the box round it saved and put back).
+        // Destroyed: its burnt hulk where it stood, no blocks put down (P473; the box round it saved and put back).
         let ox = Int(floor(m.pos.x)), oy = Int(floor(m.pos.y)), oz = Int(floor(m.pos.z))
         var before: [(IVec3, BlockID)] = []
         for z in (oz - 24)...(oz + 24) { for y in oy...(oy + 5) { for x in (ox - 24)...(ox + 24) { before.append((IVec3(x, y, z), w.block(x, y, z))) } } }
@@ -139,10 +139,12 @@ enum PlaytestOct12NoonTests {
         g.soldierDied(m)
         var wreck = 0
         for (p, b) in before where w.block(p.x, p.y, p.z) != b { wreck += 1; w.setBlockAsync(p.x, p.y, p.z, b) }
-        check(manned >= 120 && crew >= 40 && manned > crew && hits <= 4 && state1 >= 1 && burning == 2 && partsHurt.x < parts0.x && wreck >= 60,
+        let hulk = Hulks.mobs.contains { $0 === m }
+        Hulks.mobs.removeAll { $0 === m }
+        check(manned >= 120 && crew >= 40 && manned > crew && hits <= 4 && state1 >= 1 && burning == 2 && partsHurt.x < parts0.x && wreck == 0 && hulk,
               "P102 gun damage: a manned shell on a turret's gunhouse takes \(manned) of \(hp0) (a crewed one \(crew)), it is "
               + "destroyed in \(hits) hits (state after one \(state1), \(state2) at the end), hurt plate darker (\(String(format: "%.2f", partsHurt.x)) < \(String(format: "%.2f", parts0.x))), "
-              + "a wreck of \(wreck) blocks where it stood")
+              + "its hulk standing \(hulk), \(wreck) blocks put down where it stood")
     }
 
     // P103: a manned naval shell blows a breach through a 3-thick wall of Capital stone, carved over frames.
