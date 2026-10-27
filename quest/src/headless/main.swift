@@ -1706,6 +1706,11 @@ if CommandLine.arguments.contains("--troopfight") {
     TroopFightCheck.run(game, check)
     print(failures == 0 ? "troopfight: all checks passed" : "troopfight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --fireprobe: P471, who of each rank and side fires on him in the open (Sources/FireProbeCheck.swift).
+if CommandLine.arguments.contains("--fireprobe") {
+    FireProbeCheck.run(game, check)
+    print(failures == 0 ? "fireprobe: all checks passed" : "fireprobe: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --doorway: P471, walking through a doorway a little off its middle (Sources/DoorwayCheck.swift).
 if CommandLine.arguments.contains("--doorway") {
     DoorwayCheck.run(game, check)
