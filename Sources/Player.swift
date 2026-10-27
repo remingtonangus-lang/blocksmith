@@ -111,6 +111,33 @@ final class Player {
         return w.collides(V3(p.x - halfW, p.y, p.z - halfW), V3(p.x + halfW, p.y + height, p.z + halfW))
     }
 
+    // A one-block opening (a door, a gap in a wall) just ahead and to one side of where the body pushes against its
+    // edge: the body slides sideways toward the opening's middle, up to 3 blocks a second and never more than 0.45, as
+    // if the frame's corners were rounded. Only for a push mostly along one axis (not a glancing walk along a wall).
+    static var doorwayAssistOn = true                  // (off only for the check's before-and-after)
+    private func doorwayAssist(_ wish: V3, _ w: World, _ dt: Float) {
+        let d = simd_normalize(V2(wish.x, wish.z))
+        let alongX = abs(d.x) > abs(d.y)
+        guard max(abs(d.x), abs(d.y)) > 0.85 else { return }
+        let ahead: Float = 0.4
+        let perp = alongX ? pos.z : pos.x
+        let base = Int(floor(perp))
+        var best: Float?
+        for c in [base, base - 1, base + 1] {
+            let mid = Float(c) + 0.5
+            guard abs(mid - perp) < 0.45 else { continue }
+            var probe = pos, there = pos
+            if alongX { probe.z = mid; probe.x += d.x > 0 ? ahead : -ahead; there.z = mid }
+            else { probe.x = mid; probe.z += d.y > 0 ? ahead : -ahead; there.x = mid }
+            // Room in the opening ahead, and nothing in the way of the slide itself.
+            guard !collides(at: probe, w), !collides(at: there, w) else { continue }
+            if best == nil || abs(mid - perp) < abs(best! - perp) { best = mid }
+        }
+        guard let mid = best else { return }
+        let step = max(-3 * dt, min(3 * dt, mid - perp))
+        _ = w.moveBody(&pos, halfW: halfW, height: height, alongX ? V3(0, 0, step) : V3(step, 0, 0), step: 0, onGround: onGround)
+    }
+
     func intersectsBlock(_ b: IVec3) -> Bool {
         let bx = Float(b.x), by = Float(b.y), bz = Float(b.z)
         return pos.x + halfW > bx && pos.x - halfW < bx + 1 &&
@@ -442,6 +469,9 @@ final class Player {
                 jumpArc = true
             }
         }
+        // P471 (Oct 26 19:53: "Still having trouble getting through doors sometimes"; P458, Oct 25: "Make it so my hitbox
+        // is smaller than the door opening"): pushing into a doorway's frame, the body slides into line with the opening.
+        if !flying && Player.doorwayAssistOn && (hit.x || hit.z) && simd_length(wish) > 0.3 { doorwayAssist(wish, w, dt) }
         // Climbing out of water: pushing into a wall while in water lifts you along it (reference: 0.3 blocks/tick
         // while there's room 0.6 higher), so a one-block bank is easy to get onto.
         if wetish && !flying && (hit.x || hit.z) && simd_length(wish) > 0.3 && !collides(at: pos + V3(0, 0.6, 0), w) {
