@@ -423,7 +423,9 @@ final class Armory {
         // Every side's soldiers spare their own, not only the Capital and the Ashguard (Greywall and Meridian launchers
         // hit their own front ranks: questcheck --friendlyfire-only, Q2).
         g.blastSpares = s.fromPlayer ? .none : (shooter?.factionValue ?? (s.side != nil && s.side != Faction.none ? s.side! : (own ? .steelhold : .none)))
-        defer { g.ashQuiet = false; g.blastSpares = .none }
+        // P471: a heavy naval shell's blast is a blow of its own on the levels' caps (Game.hurtPlayer).
+        Explosion.heavyShell = s.kind == .shell && s.power >= HeavyTurret.power
+        defer { g.ashQuiet = false; g.blastSpares = .none; Explosion.heavyShell = false }
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks,
                           resistCap: s.breach, along: simd_length(s.vel) > 25 ? s.vel : nil)        // (P357 e: shells, not grenades)
         NavalGuns.heavyBurst(s, at: at, shooter: shooter, spares: g.blastSpares, g)       // P102 / P103
