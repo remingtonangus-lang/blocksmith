@@ -294,6 +294,7 @@ extension Game {
         }
         s.steer = c.steer
         s.climb = c.climb
+        if s.name == AshCommandeer.truckName { (s.throttle, s.steer) = ashLookDrive(s, mi) }   // P449: the way he looks, as before
         VehicleDepot.burn(self, s, dt)                                    // D44: land vehicles burn fuel
         if let fm = s.flight { fm.playerInput(self, s, mi, dt) }          // helicopter controls (FlightModel.swift)
         // Turrets follow the view; barrels rise with it.

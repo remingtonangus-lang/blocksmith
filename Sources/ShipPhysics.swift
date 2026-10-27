@@ -412,6 +412,7 @@ extension ShipManager {
                 shipContacts(o, s, &contactScratch, flip: true)
             }
             s.contacts = contactScratch.count
+            if s.id == ShipManager.probeId { ShipManager.probeContacts = contactScratch.map { String(format: "(%.2f %.2f %.2f n %.1f %.1f %.1f d %.2f%@)", $0.p.x - s.pos.x, $0.p.y - s.pos.y, $0.p.z - s.pos.z, $0.n.x, $0.n.y, $0.n.z, $0.pen, $0.other == nil ? "" : " ship") } }
             if !contactScratch.isEmpty { solve(s, &contactScratch, h) }
         }
         for s in list where s.parent == nil {
@@ -606,6 +607,8 @@ extension ShipManager {
             var fh = V3(fwdW.x, 0, fwdW.z)
             fh = simd_length(fh) > 1e-3 ? simd_normalize(fh) : V3(0, 0, -1)
             let side = V3(-fh.z, 0, fh.x)
+            let car = s.blockCount < 40 && s.name != Felling.name       // (the sidecar, his Army Truck)
+            if s.id == ShipManager.probeId { ShipManager.probeWheels.removeAll() }
             for p in s.wheels {
                 let wp = s.toWorld(p)
                 let x = Int(floor(wp.x)), z = Int(floor(wp.z))
@@ -625,23 +628,29 @@ extension ShipManager {
                     y -= 1
                 }
                 // Up to half a block above the axle: the wheel rides up onto a step.
+                if s.id == ShipManager.probeId { ShipManager.probeWheels.append(String(format: "(%.2f %.2f %.2f top %@)", wp.x - s.pos.x, wp.y - s.pos.y, wp.z - s.pos.z, top.map { String(format: "%.2f", $0 - wp.y) } ?? "none")) }
                 guard let ground = top, ground <= wp.y + 0.55 else { continue }
                 let comp = 0.75 - (wp.y - ground)
                 if comp <= 0 { continue }
                 let cp = V3(wp.x, ground, wp.z)
                 let v = s.velocity(at: cp)
-                let fn = max(0, k * min(comp, 0.6) - c * v.y)
+                // (P449: a small car's springs hold on to a full block of travel, so a rise under one axle lifts the hull on
+                // its tyres instead of setting the wheel blocks themselves down on it)
+                let fn = max(0, k * min(comp, car ? 1.0 : 0.6) - c * v.y)
                 if fn <= 0 { continue }
                 s.grounded = true
                 let grip = 0.9 * fn
                 let vs = simd_dot(v, side), vf = simd_dot(v, fh)
                 let lat = max(-grip, min(grip, -vs * share * 12))
                 var long: Float
-                if piloted && s.throttleEase != 0 && power > 0 {
-                    let fade = s.throttleEase * vf > 0 ? max(0, 1 - abs(vf) / 16) : 1
+                // P449: a small car (the sidecar, his Army Truck) pulled back while it still rolls ahead brakes hard
+                // before it backs up, and let go it slows on the engine within a couple of seconds (it coasted on for
+                // seven blocks, so pulling back went on ahead).
+                if piloted && s.throttleEase != 0 && power > 0 && !(car && s.throttle == 0) {      // (a small car let go: the engine brakes at once)
+                    let fade = s.throttleEase * vf > 0 ? max(0, 1 - abs(vf) / 16) : (car && abs(vf) > 0.3 ? 4.5 : 1)
                     long = s.throttleEase * share * ShipTuning.wheelAccel * power * fade - vf * share * 0.3
                 } else {
-                    long = -vf * share * (piloted ? 0.6 : 8)       // rolling resistance / parking brake
+                    long = -vf * share * (piloted ? (car ? 3.5 : 0.6) : 8)       // rolling resistance / engine braking / parking brake
                 }
                 long = max(-grip, min(grip, long))
                 apply(V3(0, fn, 0), at: wp)
@@ -751,7 +760,14 @@ extension ShipManager {
             // distance to the surface, so it overlaps by r + d along the surface's outward direction.
             if fieldW {
                 let d = rd.density(at: w)
-                if d > -r { best = (rd.fieldNormal(w), min(r + d, 1.5)) }
+                if d > -r {
+                    best = (rd.fieldNormal(w), min(r + d, 1.5))
+                    // P449: wheeled vehicles climb a low rise of the drawn ground as they do a block step (backing up,
+                    // a truck's low tail met the slope behind it side-on and stood still under full throttle).
+                    if stepUp, let b = best, abs(b.0.y) < 0.7, b.1 < 1.05, rd.density(at: w + V3(0, 1, 0)) < -r {
+                        best = (V3(0, 1, 0), min(0.35, b.1))
+                    }
+                }
             }
             for y in y0...y1 { for z in z0...z1 { for x in x0...x1 {
                 let b = fieldW ? rd.raw(x, y, z) : rd.get(x, y, z)
@@ -835,6 +851,18 @@ extension ShipManager {
         let invM = 1 / s.mass
         let iw = s.invInertiaWorld
         let mu: Float = 0.6
+        // P449: a small car whose belly or tail sits on the ground while its wheels touch too slides on it: the hull's
+        // own grip on the ground (more than all its wheels could push) held his Army Truck where it had stopped, full
+        // throttle either way, and it would only turn on the spot.
+        let sled = s.grounded && s.piloted && !s.wheels.isEmpty && s.blockCount < 40 && s.name != Felling.name
+        // (and a wheel block resting on the ground rolls on it: no grip from that contact at all)
+        var tyre = [Bool](repeating: false, count: sled ? cs.count : 0)
+        if sled {
+            let wp = s.wheels.map { s.toWorld($0) }
+            for (i, c) in cs.enumerated() where c.other == nil && c.n.y > 0.5 {
+                tyre[i] = wp.contains { simd_length(V2($0.x - c.p.x, $0.z - c.p.z)) < 0.75 && abs($0.y - c.p.y) < 0.9 }
+            }
+        }
         // H11: the hardest closing speed this step, for crash damage (VehicleDamage.swift).
         for c in cs {
             let r = c.p - s.pos
@@ -885,7 +913,7 @@ extension ShipManager {
                     let rt = simd_cross(r, t)
                     var kt = invM + simd_dot(rt, iw * rt)
                     if c.other != nil { let rot = simd_cross(ro, t); kt += oInvM + simd_dot(rot, oIw * rot) }
-                    let jt = max(-vtl / kt, -mu * acc)
+                    let jt = max(-vtl / kt, -(sled && c.other == nil ? (tyre[k] ? 0 : 0.08) : mu) * acc)
                     applyImpulse(s, t * jt, r, invM, iw)
                     if let o = c.other { applyImpulse(o, -t * jt, ro, oInvM, oIw) }
                 }
