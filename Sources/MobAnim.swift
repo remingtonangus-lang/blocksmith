@@ -93,6 +93,7 @@ enum MobAnim {
             p.hb = j.pivot - p.ha * j.pivot
             if (m.headYaw != 0 || m.headPitch != 0) && turn > 0 || big != 1 { p.joint = j }
         }
+        if m.trainPitch != 0 && Trains.isCar(m) { p.a = rx(m.trainPitch); return p }      // P470: a car up a grade
         guard falls(m) else { return p }
         // Body: a lunge forward on an attack (front down), rocked back by a hit or a wind-up, a breath at rest.
         let strike = m.strikeT > 0 ? sinf(min(1, m.strikeT / 0.3) * .pi) : 0

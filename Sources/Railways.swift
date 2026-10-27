@@ -538,9 +538,10 @@ enum Railways {
             // Across the track: along x the bed spans z-1...z+1; along z it spans x-1...x+1 (both at a curve).
             let (alongX, bed) = Railways.bed(l, i)
             for (x, z) in bed where w.inside(x, y, z) {
-                // Cutting / tunnel: four clear blocks over the track; trees overhead go (no floating trunks).
-                for yy in y...(y + 3) { w.set(x, yy, z, AIR) }
-                var yy = y + 4
+                // Cutting / tunnel: six clear blocks over the track (P470: a real-size train is four and a half
+                // tall); trees overhead go (no floating trunks).
+                for yy in y...(y + 5) { w.set(x, yy, z, AIR) }
+                var yy = y + 6
                 while yy < CH - 1 && Int(w.get(x, yy, z)) < clearable.count && clearable[Int(w.get(x, yy, z))] { w.set(x, yy, z, AIR); yy += 1 }
                 let ground = w.get(x, y - 1, z)
                 // R22: gravel only on firm ground; over a cave or a ravine's lip the bed is stone (gravel fell out at the

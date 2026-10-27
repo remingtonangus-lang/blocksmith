@@ -38,7 +38,8 @@ enum RailwayTests {
         sites(check)
         let perSquare = Float(lines) / area
         print(String(format: "rail: %d lines (%d stations) over %d seeds in %.1f s", lines, stations, seeds, CFAbsoluteTimeGetCurrent() - t0))
-        check(perSquare > 0.15 && perSquare < 2.5 && stations >= lines * Railways.minStations && bad.isEmpty,
+        check(perSquare > 0.15 && perSquare < 4.5 && stations   // (P470: two stations make a line on new ground, about 3 a square)
+               >= lines * Railways.minStations && bad.isEmpty,
               String(format: "C1 lines: %d over %d seeds (%.2f per 4000 x 4000), %d stations, %d seeds with one; plan problems %d", lines, seeds, perSquare, stations, seedsWithLine, bad.count)
               + (bad.isEmpty ? "" : ": " + bad.prefix(4).joined(separator: "; ")))
         guard let (seed, line) = sample else { check(false, "C1: no line in \(seeds) seeds"); return }
@@ -114,7 +115,7 @@ enum RailwayTests {
             } else { sinceLeg = 0 }
         }
         let signs = ents.filter { $0.1.kind == .sign }
-        let named = l.stations.filter { s in signs.contains { abs($0.0.x - s.x) < 8 && abs($0.0.z - s.z) < 12 && $0.1.lines.contains { $0.contains(s.name) } } }.count
+        let named = l.stations.filter { s in signs.contains { abs($0.0.x - s.x) < 8 && abs($0.0.z - s.z) < 12 && $0.1.lines.joined(separator: " ").contains(s.name) } }.count   // (a long name runs over two lines)
         let tickets = l.stations.filter { s in signs.contains { abs($0.0.x - s.x) < 8 && abs($0.0.z - s.z) < 12 && Trains.isTicketSign($0.1) } }.count
         let stops = [l.cells.first!, l.cells.last!].enumerated().filter { (k, c) in
             let n = k == 0 ? l.cells[1] : l.cells[l.cells.count - 2]
@@ -208,12 +209,61 @@ enum RailwayTests {
         var at = g.time
         for k in 0..<Int(t.period) { let a = t.at(g.time + Double(k)); if a.stop == 0 && a.dir > 0 { at = g.time + Double(k) + 1; break } }
         g.time = at
+        Trains.forceKind = .passenger
+        defer { Trains.forceKind = nil }
         Trains.tick(g)
         guard let tr = Trains.trains[t.id], let lead = tr.cars.first else { check(false, "P379 (4): no train built at \(first.name)"); return }
         _ = Trains.use(g, lead)
         tr.throttle = 2                                                       // (the driver's regulator wide open)
         let dt: Float = 1.0 / 60
-        // P379 step 2, leaving the first station: the brake alone stops it, the regulator left open; let off, it runs again.
+        var passed = Set<UInt8>(), stops: Set<Int> = [0], headIn = 0, offTrack = 0, unseated = 0, frames = 0, worst = 0.0
+        var lastLoad = g.time, maxS: Float = 0, stall = 0
+        let t1 = CFAbsoluteTimeGetCurrent()
+        while frames < 60 * 900 {
+            if g.time - lastLoad > 1.5 { _ = world.loadSync(center: g.player.pos, radius: 3); lastLoad = g.time }
+            let f0 = CFAbsoluteTimeGetCurrent()
+            g.tick(Double(dt))
+            worst = max(worst, CFAbsoluteTimeGetCurrent() - f0)
+            frames += 1
+            guard let lead = tr.cars.first else { unseated += 1; break }
+            if g.riding !== lead {
+                if unseated < 3 {
+                    print("rail ride: unseated at frame \(frames): riding \(g.riding.map { "\($0.variant) h\($0.health)" } ?? "nil"), lead \(lead.variant) h\(lead.health) "
+                          + "in mobs \(g.mobs.mobs.contains { $0 === lead }), car of \(Trains.carOf[ObjectIdentifier(lead)] != nil), cars \(tr.cars.count), same train \(Trains.trains[t.id] === tr), trains \(Trains.trains.count)")
+                }
+                unseated += 1; _ = Trains.use(g, lead)
+            }
+            tr.throttle = 2
+            let s = t.at(tr.time).s
+            maxS = max(maxS, s)
+            let i = max(0, min(l.cells.count - 1, Int(s.rounded())))
+            if tag[i] != 0 { passed.insert(tag[i]) }
+            if let st = t.at(tr.time).stop { stops.insert(st) }
+            let e = g.player.eye
+            if world.solidAt(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))) {
+                if headIn == 0 {
+                    let b = world.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z)))
+                    print(String(format: "rail ride: head in %@ at frame %d, cell %d (tag %d), eye %.1f over the rail, cab %.1f %.1f %.1f, pitch %.2f",
+                                 Blocks.key(b), frames, i, Int(tag[i]), e.y - hs[i], lead.pos.x, lead.pos.y, lead.pos.z, lead.trainPitch))
+                }
+                headIn += 1
+            }
+            let px = Int(floor(lead.pos.x)), pz = Int(floor(lead.pos.z))
+            let li = tr.carS.isEmpty ? i : max(0, min(l.cells.count - 1, Int(tr.carS[0].rounded())))     // (P470: the cab's own place)
+            if abs(px - l.cells[li].x) > 1 || abs(pz - l.cells[li].z) > 1 || abs(lead.pos.y - hs[li]) > 0.75 { offTrack += 1 }
+            if stops.contains(l.stations.count - 1) { break }                // (the last station's dwell)
+            // (a stall away from a station: what holds it, printed once)
+            if tr.blocksPerSec < 0.05 && t.at(tr.time).stop == nil { stall += 1 } else { stall = 0 }
+            if stall == 300 {
+                let c = l.cells[i], a = l.cells[min(l.cells.count - 1, i + 3)]
+                print("rail ride: stalled at cell \(i) (\(c.x) \(c.y) \(c.z)): held \(tr.heldBy) brake \(tr.brake) cab brake \(tr.cabBrake) regulator \(tr.throttle) pace \(tr.rate); 3 ahead \(Blocks.key(world.block(a.x, a.y, a.z)))")
+            }
+        }
+        let wall = CFAbsoluteTimeGetCurrent() - t1
+        print(String(format: "rail ride: %d frames (%.0f s of play, %.1f s wall), worst tick %.1f ms, reached cell %.0f of %d", frames, Float(frames) * dt, wall, worst * 1000, maxS, l.cells.count))
+        check(maxS >= Float(last.index) - 0.5 && stops.count == l.stations.count && passed.count == 3 && unseated == 0 && headIn == 0 && offTrack == 0,
+              "P379 (4): rode \(l.name) end to end from the cab: \(stops.count) of \(l.stations.count) stations, through cutting/tunnel/bridge \(passed.sorted()), unseated \(unseated), head in ground \(headIn) frames, off the track \(offTrack) frames")
+        // P379 step 2, leaving the last station (after the ride: at full regulator it ran past the bridge before the ride was counted): the brake alone stops it, the regulator left open; let off, it runs again.
         let lead2 = tr.cars[0]
         var n = 0
         while t.at(tr.time).stop != nil && n < 60 * 60 { g.time += Double(dt); Trains.drive(lead2, dt, g); n += 1 }  // (the dwell)
@@ -232,39 +282,6 @@ enum RailwayTests {
         check(moving0 > 1 && stopAfter > 0 && braked > 0.9 && tr.cabBrake < 0.1 && tr.blocksPerSec > 0.3,
               String(format: "P379 (2): regulator open at %.0f%%, the brake alone stopped the train from %.1f b/s in %.1f s; let off, it runs again (%.1f b/s)",
                      tr.throttle * 50, moving0, stopAfter, tr.blocksPerSec))
-        var passed = Set<UInt8>(), stops: Set<Int> = [0], headIn = 0, offTrack = 0, unseated = 0, frames = 0, worst = 0.0
-        var lastLoad = g.time, maxS: Float = 0, stall = 0
-        let t1 = CFAbsoluteTimeGetCurrent()
-        while frames < 60 * 900 {
-            if g.time - lastLoad > 1.5 { _ = world.loadSync(center: g.player.pos, radius: 3); lastLoad = g.time }
-            let f0 = CFAbsoluteTimeGetCurrent()
-            g.tick(Double(dt))
-            worst = max(worst, CFAbsoluteTimeGetCurrent() - f0)
-            frames += 1
-            guard let lead = tr.cars.first else { unseated += 1; break }
-            if g.riding !== lead { unseated += 1; _ = Trains.use(g, lead) }
-            tr.throttle = 2
-            let s = t.at(tr.time).s
-            maxS = max(maxS, s)
-            let i = max(0, min(l.cells.count - 1, Int(s.rounded())))
-            if tag[i] != 0 { passed.insert(tag[i]) }
-            if let st = t.at(tr.time).stop { stops.insert(st) }
-            let e = g.player.eye
-            if world.solidAt(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))) { headIn += 1 }
-            let px = Int(floor(lead.pos.x)), pz = Int(floor(lead.pos.z))
-            if abs(px - l.cells[i].x) > 1 || abs(pz - l.cells[i].z) > 1 || abs(lead.pos.y - hs[i]) > 0.75 { offTrack += 1 }
-            if stops.contains(l.stations.count - 1) { break }                // (the last station's dwell)
-            // (a stall away from a station: what holds it, printed once)
-            if tr.blocksPerSec < 0.05 && t.at(tr.time).stop == nil { stall += 1 } else { stall = 0 }
-            if stall == 300 {
-                let c = l.cells[i], a = l.cells[min(l.cells.count - 1, i + 3)]
-                print("rail ride: stalled at cell \(i) (\(c.x) \(c.y) \(c.z)): held \(tr.heldBy) brake \(tr.brake) cab brake \(tr.cabBrake) regulator \(tr.throttle) pace \(tr.rate); 3 ahead \(Blocks.key(world.block(a.x, a.y, a.z)))")
-            }
-        }
-        let wall = CFAbsoluteTimeGetCurrent() - t1
-        print(String(format: "rail ride: %d frames (%.0f s of play, %.1f s wall), worst tick %.1f ms, reached cell %.0f of %d", frames, Float(frames) * dt, wall, worst * 1000, maxS, l.cells.count))
-        check(maxS >= Float(last.index) - 0.5 && stops.count == l.stations.count && passed.count == 3 && unseated == 0 && headIn == 0 && offTrack == 0,
-              "P379 (4): rode \(l.name) end to end from the cab: \(stops.count) of \(l.stations.count) stations, through cutting/tunnel/bridge \(passed.sorted()), unseated \(unseated), head in ground \(headIn) frames, off the track \(offTrack) frames")
         g.dismount()
         Trains.trains.removeAll()
     }
@@ -300,6 +317,8 @@ enum RailwayTests {
         var at: Double = g.time, found = false
         for k in 0..<Int(t.period) { if t.at(g.time + Double(k)).stop == si { at = g.time + Double(k) + 2; found = true; break } }
         g.time = at
+        Trains.forceKind = .passenger
+        defer { Trains.forceKind = nil }
         Trains.tick(g)
         let tr = Trains.trains[t.id] ?? tr0
         let cars = tr.cars.count
@@ -308,16 +327,16 @@ enum RailwayTests {
             let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
             if l.cells.contains(where: { abs($0.x - x) <= 1 && abs($0.z - z) <= 1 }) { onRail += 1 }
         }
-        check(found && cars == 3 && onRail == 3 && g.mobs.mobs.filter({ Trains.isCar($0) }).count == 3,
+        check(found && cars >= 3 && onRail == cars && g.mobs.mobs.filter({ Trains.isCar($0) }).count == cars,
               "C1 train at \(st.name) Station: \(cars) cars built, \(onRail) on the track")
-        guard cars == 3 else { return }
+        guard cars >= 3, let coach = tr.cars.first(where: { $0.variant == Trains.coach }),
+              let strong = tr.cars.first(where: { $0.variant == Trains.express }) else { return }
         // Ride the coach while it pulls out.
-        let coach = tr.cars[1]
         _ = Trains.use(g, coach)
         let start = coach.pos
         for _ in 0..<(60 * 40) { g.time += 1.0 / 60; Trains.drive(tr.cars[0], 1.0 / 60, g); Trains.drive(coach, 1.0 / 60, g) }
         let moved = simd_length(coach.pos - start)
-        let carried = g.riding === coach && simd_length(g.player.pos - coach.pos) < 1.6
+        let carried = g.riding === coach && simd_length(g.player.pos - Trains.seat(coach)) < 0.1
         check(moved > 20 && carried, String(format: "C1 riding: the coach carried the player %.0f blocks in 40 s (seated %@)", moved, carried ? "yes" : "no"))
         g.dismount()
         // A hold-up: a gun on the driver stops it.
@@ -325,21 +344,23 @@ enum RailwayTests {
         else if let k = Items.allKeys.first(where: { Guns.index(Items.id($0)) != nil }) { g.inventory.held = ItemStack(Items.id(k), 1) }
         var stoppedAfter: Float = -1
         for f in 0..<(60 * 12) {
-            let lead = tr.cars[0]
-            let cab = lead.pos + V3(0, 2.2, 0) - lead.forward * 0.9
+            guard let lead = Trains.lead(tr) else { break }
+            let cab = Trains.cabPoint(lead)
             g.player.pos = cab + lead.forward * 9 + V3(0, -0.6, 0) - V3(0, g.player.eyeHeight, 0) + V3(0, 1.6, 0)
             let d = simd_normalize(cab - g.player.eye)
             g.player.yaw = atan2f(-d.x, -d.z); g.player.pitch = asinf(d.y)
             g.time += 1.0 / 60
-            Trains.drive(lead, 1.0 / 60, g)
+            Trains.drive(tr.cars[0], 1.0 / 60, g)
             if tr.brake > 0.95 { stoppedAfter = Float(f) / 60; break }
         }
-        // Crack the strongbox.
-        let money0 = g.money, bounty0 = Honour.bounty(Townsfolk.town(g, at: tr.cars[2].pos))
+        // Crack the strongbox (stood at its side, out on the ground beside the stopped train).
+        let side = V3(cosf(strong.yaw), 0, -sinf(strong.yaw)) * 2.6
+        g.player.pos = world.freeSpawn(strong.pos + side)
+        let money0 = g.money, bounty0 = Honour.bounty(Townsfolk.town(g, at: strong.pos))
         g.inventory.held = .empty
-        for _ in 0..<Trains.crackUses { _ = Trains.use(g, tr.cars[2]) }
+        for _ in 0..<Trains.crackUses { _ = Trains.use(g, strong) }
         let posse = g.mobs.mobs.filter { $0.posse == 3 }.count
-        let bounty = Honour.bounty(Townsfolk.town(g, at: tr.cars[2].pos)) - bounty0
+        let bounty = Honour.bounty(Townsfolk.town(g, at: strong.pos)) - bounty0
         check(stoppedAfter >= 0 && g.money - money0 >= 4000 && bounty >= Trains.robBounty && posse >= 3 && Trains.robbed >= 1,
               String(format: "C1 robbery: stopped %.1f s after the gun came up, strongbox %@, bounty +%@, posse of %d", stoppedAfter,
                      Money.format(g.money - money0), Money.format(bounty), posse))
