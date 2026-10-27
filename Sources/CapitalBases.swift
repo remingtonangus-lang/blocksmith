@@ -129,7 +129,7 @@ final class BaseWatch {
     private let lock = NSLock()
     private var ready: [String: [(IVec3, BlockID)]] = [:]
     var timer: Float = 0
-    var intruded: [String: Float] = [:]              // seconds a player has been inside a citadel's walls (P33)
+    var intruded: [String: Float] = [:]              // seconds a player inside a citadel's walls has been seen there (P33, P471)
     var routes: [String: [IVec3]] = [:]              // a marching patrol's one long path, gate to noise (T4)
     var routeSearch: [String: PathSearch] = [:]      // that path's search, run a slice an update until it ends
     func dropRoute(_ k: String) {
@@ -310,31 +310,29 @@ extension Game {
             }
         }
         // A player inside the walls (survival) sets off the alarm (Oct 11 playtest P33: "entering a capital base should
-        // trigger an alarm and send reinforcements"): alert at once, lockdown, with its dropships and Kestrel, after 10 s
-        // inside. A cleared citadel has nobody left to sound it.
-        if survival, r.cleared != true, (0..<max(1, coop.seatCount)).contains(where: { r.inside(coop.seatPlayer($0, self).pos) }) {
+        // trigger an alarm and send reinforcements"). P471 (Oct 26 19:37: "why'd the soldiers immediately sound the
+        // alarm?... I need to piss them off or do something before they can sound the alarm"): not the moment he is
+        // inside, but once one of the garrison has marked him in sight there for 2 s (time to call it in: drop the man
+        // first and nobody did), lockdown, with its dropships and Kestrel, after 5 s seen. A shot or a blast is heard
+        // as before (baseHear). A cleared citadel has nobody left to sound it.
+        let inside = survival && r.cleared != true && (0..<max(1, coop.seatCount)).contains(where: { r.inside(coop.seatPlayer($0, self).pos) })
+        let spotted = inside && mobs.mobs.contains { m in
+            m.kind.steelhold && m.kind != .deckGun && m.health > 0 && m.aggro && (m.brain?.sees ?? false) && r.inside(m.pos)
+        }
+        if spotted {
             let was = b.intruded[r.key] ?? 0
             let now = was + 1                                       // (this runs once a second)
             b.intruded[r.key] = now
-            if was == 0 && r.alert.rawValue < BaseAlert.alert.rawValue {
-                b.note("\(r.key) alarm (intruder inside the walls)")
+            if now >= 2 && r.alert.rawValue < BaseAlert.alert.rawValue {
+                b.note("\(r.key) alarm (intruder seen inside the walls)")
                 raise(&r, .alert, b)
                 sfx(.gun(10), 1.2, at: r.centre)
                 onToast?("Alarm! Intruder in the citadel")
             }
-            if now >= 10 && r.alert != .lockdown { r.calm = 0; b.note("\(r.key) lockdown (intruder held out)"); raise(&r, .lockdown, b) }
+            if now >= 5 && r.alert != .lockdown { r.calm = 0; b.note("\(r.key) lockdown (intruder held out)"); raise(&r, .lockdown, b) }
             r.calm = min(r.calm, 5)
-        } else {
+        } else if !inside {
             b.intruded[r.key] = nil
-        }
-        // A garrison soldier who can see the player inside the walls is an attack too.
-        if survival, (0..<max(1, coop.seatCount)).contains(where: { r.inside(coop.seatPlayer($0, self).pos) }), r.alert != .lockdown {
-            for m in mobs.mobs where m.kind.steelhold && m.kind != .deckGun && m.health > 0 && m.aggro && (m.brain?.sees ?? false) && r.inside(m.pos) {
-                r.calm = 0
-                b.note("\(r.key) lockdown (intruder)")
-                raise(&r, .lockdown, b)
-                break
-            }
         }
     }
 
