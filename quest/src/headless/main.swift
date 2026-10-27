@@ -1675,6 +1675,12 @@ if CommandLine.arguments.contains("--shipchart") {
     ShipChartCheck.run(game, check)
     print(failures == 0 ? "shipchart: all checks passed" : "shipchart: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --frigatelayout: P472, the Meridian frigate walked from its hangar (Sources/FrigateLayoutCheck.swift); FRIGATE_PLANS=1
+// prints each deck.
+if CommandLine.arguments.contains("--frigatelayout") {
+    FrigateLayoutCheck.run(check)
+    print(failures == 0 ? "frigatelayout: all checks passed" : "frigatelayout: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --troopfight: P471 part 2, gun crews and comrades who stood by while he fought them (Sources/TroopFightCheck.swift).
 if CommandLine.arguments.contains("--troopfight") {
     TroopFightCheck.run(game, check)
