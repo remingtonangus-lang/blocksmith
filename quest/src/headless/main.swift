@@ -1575,6 +1575,44 @@ if let a = arg("--depotfind") {
     }
     exit(0)
 }
+// --kestrelfield SEED[,X,Z] (P474, Oct 26 19:36-19:37, at a Capital citadel in Creative: "So a helicopter here... No,
+// there's no helicopter"): the citadel nearest X,Z on Polygons ground (as the headset makes worlds): where its pad is,
+// what stands in its way, and whether the Kestrel parks on it with the player near.
+if let a = arg("--kestrelfield") {
+    let v = a.split(separator: ",").map { String($0) }
+    let kw = World(seed: UInt64(v[0]) ?? 1, device: device, save: nil)
+    kw.makeFieldWorld()
+    kw.renderDistance = 6
+    let kg = Game(world: kw, save: nil, persistent: false)
+    kg.smoothTerrain = true; SmoothTerrain.use(world: true, world: kw)
+    let fx = v.count > 2 ? Int(v[1]) ?? 0 : 0, fz = v.count > 2 ? Int(v[2]) ?? 0 : 0
+    guard let s = kw.gen.structures?.nearest("military_base", x: fx, z: fz, maxRegions: 6) else { print("kestrelfield: no citadel"); exit(1) }
+    let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2
+    let r0 = BaseRecord(key: "citadel:\(cx),\(cz)", cx: cx, cz: cz, y0: s.min.y + 20)
+    kg.survival = false; kg.player.flying = true; kg.paused = false; kg.menu = nil
+    kg.player.pos = r0.pad + V3(0, 12, 40)
+    _ = kw.loadSync(center: kg.player.pos, radius: 6)
+    let p = r0.pad
+    print("kestrelfield: citadel at \(s.anchor.x) \(s.anchor.y) \(s.anchor.z) (box y \(s.min.y)...\(s.max.y)); pad at \(Int(floor(p.x))) \(Int(floor(p.y))) \(Int(floor(p.z))): \(kg.basePadProblem(r0) ?? "clear")")
+    for dy in -3...3 {
+        let y = Int(floor(p.y)) + dy
+        print("kestrelfield: y \(y): " + (-3...3).map { dz in Blocks.key(kw.materialAt(Int(floor(p.x)), y, Int(floor(p.z)) + dz)) }.joined(separator: " "))
+    }
+    var parked = false
+    for _ in 0..<(12 * 72) {
+        kg.tick(1.0 / 72); kg.health = 20; kg.alive = true
+        if kg.bases.records.values.contains(where: { $0.parked != nil }) { parked = true; break }
+    }
+    let rec = kg.bases.records.values.first
+    // On the Track a Target list and the map (T) once parked.
+    Waymarks.marksAt = -1e9; Waymarks.tick(kg)
+    let listed = Waymarks.candidates(kg).first { $0.kind == "kestrel" }
+    let mark = MapCache.shared.marks.first { $0.kind == "kestrel" }
+    print("kestrelfield: listed \(listed?.name ?? "no"), map mark \(mark.map { "at \($0.x) \($0.z)" } ?? "none")")
+    if parked && (listed == nil || mark == nil) { exit(1) }
+    print("kestrelfield: \(parked ? "a Kestrel parked on the pad" : "no Kestrel"): records \(kg.bases.records.count), pad \(rec.map { kg.basePadProblem($0) ?? "clear" } ?? "-"), taken \(rec?.kestrelTaken ?? false), sortie \(rec?.air != nil)")
+    exit(parked ? 0 : 1)
+}
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
     if !CommandLine.arguments.contains("--railride") { RailwayTests.run(game, check: check) }

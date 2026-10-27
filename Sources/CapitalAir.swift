@@ -15,6 +15,10 @@ extension BaseRecord {
     var pad: V3 { V3(Float(cx) + 0.5, Float(y0 + 42), Float(cz - 21) + 0.5) }
 }
 
+enum CapitalAir {
+    static var told = Set<String>()          // citadels whose parked Kestrel was announced this session (P474)
+}
+
 extension Game {
     // A launch: called by the citadel when it sends its Kestrel up (no-op while one is up).
     func baseCallAir(_ r: inout BaseRecord, _ b: BaseWatch, to goal: V3) {
@@ -83,6 +87,12 @@ extension Game {
         s.home = pad
         r.parked = s.id
         b.note("\(r.key) kestrel parked on the pad")
+        // P474: said once a session per citadel (he looked for it three times and never saw it up there).
+        if !CapitalAir.told.contains(r.key) {
+            CapitalAir.told.insert(r.key)
+            Waymarks.marksAt = -1e9
+            onToast?("A Capital Kestrel stands on the landing pad up the citadel's tower. T on your map")
+        }
     }
 
     func baseAir(_ r: inout BaseRecord, _ b: BaseWatch, _ dt: Float) {
