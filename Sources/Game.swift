@@ -2749,7 +2749,14 @@ final class Game {
             // P302 (Oct 15 18:53, "easy all but instakilled me"): on the easy levels no single attack takes more
             // than a heart and a half (Very Easy) or two and a half (Easy), however big the gun or the blast.
             if row.cap > 0 { amount = min(amount, row.cap) }
-            if row.blow > 0 { amount = min(amount, row.blow) }                // P413: Normal and Hard
+            // P413: Normal and Hard. P471 (Oct 26 19:54 and 20:14, "on normal, that gun hitting me should have done a lot
+            // more damage. That naval gun should be something to respect... if they hit me, or hit near me, should do a
+            // lot more damage. On normal, at least. With hard and very hard, predictable scaling"): a heavy naval shell's
+            // blast takes up to 9 hearts on Normal (a direct hit or a near miss leaves a heart), and on Hard and Very
+            // Hard its full share (1.5 and 2 times Normal's: it kills).
+            let heavy = Explosion.heavyShell && type == .explosion
+            let blow = heavy ? (diffLevel >= 4 ? 0 : max(row.blow, 18)) : row.blow
+            if blow > 0 { amount = min(amount, blow) }
             amount = levelRate(amount)                                         // P358: and no more in any one second
             guard amount > 0 else { return }
         }

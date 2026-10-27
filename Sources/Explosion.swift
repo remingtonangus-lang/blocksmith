@@ -49,6 +49,9 @@ enum Explosion {
 
     // `decay` (blocks dropping with chance 1/power, TNT dropping everything) is gone with P452: a blast drops only
     // valuable blocks (blastDrops).
+    // P471: the blast is a heavy naval shell's (Armory.detonate): Game.hurtPlayer lets it hit harder than the level's
+    // cap on one blow.
+    static var heavyShell = false
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
                         decay: Bool = true, resistCap: Float = .infinity, along: V3? = nil) {
         let w = g.world

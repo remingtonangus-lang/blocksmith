@@ -1633,6 +1633,11 @@ if CommandLine.arguments.contains("--huntcrawler") {          // P460: the Recko
     HuntCrawlerCheck.run(game, check)
     print(failures == 0 ? "huntcrawler: all checks passed" : "huntcrawler: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --navalblow: P471, a crew's heavy naval shell on the levels and through Capital stone (Sources/NavalBlowCheck.swift).
+if CommandLine.arguments.contains("--navalblow") {
+    NavalBlowCheck.run(game, check)
+    print(failures == 0 ? "navalblow: all checks passed" : "navalblow: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--frigatecheck") {
     FrigateCheck.run(game, check)
     print(failures == 0 ? "frigate: all checks passed" : "frigate: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

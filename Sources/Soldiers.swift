@@ -1000,6 +1000,10 @@ extension Mob {
                         var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.006) * v, kind: .shell, damage: 0, fromPlayer: false,
                                      shooter: ObjectIdentifier(self), by: spec.name, life: 3.5, gravity: grav)   // ~900 blocks at 260 m/s, then it's gone
                         HeavyTurret.arm(&s)
+                        // P471 (Oct 26 19:42, "make sure that the naval guns do shoot their own buildings. The amount of
+                        // damage they do to the building should be the exact same amount of damage I do to the building
+                        // when I shoot the gun"): a crew's heavy shell bursts and breaches as his own does (NavalGuns).
+                        if !light && !flak { s.power = HeavyTurret.mannedPower; s.breach = HeavyTurret.mannedBreach }
                         if light { s.power = 1.1 }
                         if flak { s.tracer = true }
                         g.arms.spawn(s)
