@@ -166,12 +166,6 @@ echo "library: $SO"
 cp "$SO" "$STAGE/lib/arm64-v8a/"
 cp "$BPKG/libs/libopenxr_loader.so" "$STAGE/lib/arm64-v8a/"
 cp "$SYSROOT/usr/lib/aarch64-linux-android/libc++_shared.so" "$STAGE/lib/arm64-v8a/"
-# P266 (d): the Director's on-device model runner (optional: a failed build leaves it out and the rules director plays;
-# DIRECTOR_LLM=0 skips it). The model is a separate download (quest/tools/push-director-model.sh).
-if [ "${DIRECTOR_LLM:-1}" = 1 ]; then
-  if quest/tools/build-director-llm.sh "$STAGE/lib/arm64-v8a" > build/director-llm.log 2>&1; then echo "director llm: built"
-  else echo "WARNING: libdirectorllm.so not built (build/director-llm.log); the rules director plays"; tail -5 build/director-llm.log; fi
-fi
 READELF="$PREBUILT/bin/llvm-readelf"
 # Any non-system library libblocksmith still needs (if the Swift runtime was not linked statically) comes from the SDK.
 SDKDIR=$(find ${SWIFT_SDKS_PATH:+"$SWIFT_SDKS_PATH"} "$HOME"/.swiftpm/swift-sdks "$HOME"/.config/swiftpm/swift-sdks -maxdepth 1 -name "${SDK}*" -print -quit 2>/dev/null || true)

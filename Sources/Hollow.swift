@@ -316,8 +316,12 @@ extension Game {
         "and crossed the dark to the Hollow.", "", "Every block you placed was a choice.",
         "Every tunnel, every tower, every farm", "was a small world of your own making.", "",
         "The portal home is open.", "The world you built is waiting.", "", "", "",
-        "Made for Remington", "", "Game design, code, art and sound", "generated procedurally in Swift and Metal", "",
-        "Thanks for playing.", "", "", "", "",
+    ] + madeBy + ["Thanks for playing.", "", "", "", ""]
+    // P479 (Remington, Oct 27 21:12: "Sure, name the credits"; "AI didn't just influence the creation of this game. No,
+    // it made it"): who made it, at the end of both endings and in Options > About.
+    static let madeBy: [String] = [
+        "A game by Remington Wilbur", "Noobmaster Industries", "",
+        "Made with Claude, by Anthropic:", "the code, the world, the art,", "the sound and the music", "",
     ]
     static var creditsLength: Float { Float(creditsLines.count) * 1.4 + 12 }
 

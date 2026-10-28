@@ -30,7 +30,7 @@ enum TownTests {
         upgrades(g, check)                   // UpgradesTests.swift: the Upgrade Bench, trees, costs, old saves, the model
         defence(g, check)
         towns(makeWorld, check)
-        townGap(g, makeWorld, check)         // TownGapTests.swift: plans, bank, upgrades, dice, night raids, the map
+        townGap(g, makeWorld, check)         // TownGapTests.swift: plans, bank, upgrades, night raids, the map
         capitals(makeWorld, check)
         print(String(format: "towntests: %.1f s", CFAbsoluteTimeGetCurrent() - t0))
     }

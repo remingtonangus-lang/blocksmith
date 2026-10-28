@@ -6,7 +6,7 @@ import simd
 func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutablePointer<MobVert>, capacity: Int) -> Int {
     if BoatLooks.drawsRider(g) { return 0 }        // H9: seated in a boat, the boat's model draws the body (BoatLooks.swift)
     let p = g.player
-    let prone = p.prone || Partner.isDowned(g)          // Q2: a downed co-op partner lies on the ground
+    let prone = p.prone
     let walk = sinf(g.walkBob) * 0.8 * g.walkAmount
     let sw = g.swing
     let hit = playerHitAngle(sw)
@@ -130,7 +130,7 @@ enum HandsPose {
 // inventory figure draws them after, P473).
 var playerClothesParts = 0
 
-// P276 (a): another player's worn pieces while their body is drawn (NetCoop.writeRemote); nil: this player's own.
+// P276 (a): another player's worn pieces while their body is drawn (a split-screen seat); nil: this player's own.
 var playerArmorOverride: [ItemStack]?
 
 // P265 (Oct 14 12:19, "the player figure in the inventory wears the armour he has equipped"): worn pieces as shells

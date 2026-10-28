@@ -414,8 +414,6 @@ final class Mob {
     var villager: VillagerData?     // profession, level, trades
     var town = TownState()          // townsperson: anger, reactions, swings (Townsfolk.swift; not saved)
     var customName: String?         // name tag
-    var netRiddenUntil: Double = -1e9   // C14: a co-op guest rides it (the guest's headset moves it; no AI here)
-    var netHitAt: Double = -1e9     // C14: the game clock a co-op guest last hit it (its loot drops on the guest's side)
     var posse = 0                   // TownBoard/BountyHunters: 1 a wanted outlaw, 2 his gang, 3 a bounty hunter (saved)
     var posseSince: Double = -1     // the game clock when a hunter rode in (not saved: reloaded hunters leave when far)
     var owner: Bool?                // tamed by the player (wolves, cats, horses, parrots)
@@ -640,7 +638,6 @@ final class Mob {
         // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
         hitFlash = max(0, hitFlash - dt)     // before the dead-mob return: the death fall doesn't stay white
         if health <= 0 && kind != .enderDragon { return }
-        if netRiddenUntil > g.clock { vel = .zero; animTick(dt, g); return }   // C14: the guest's mount, moved by the link
         animTick(dt, g)
         if downed > 0 { downedTick(dt, g); return }                 // an injured horse lies still (HorseLife.swift)
         settleLook(w)
@@ -1602,7 +1599,6 @@ final class Mob {
 
     // Harness: every hit on a mob as it arrives (the friendly-fire oracle, AshVaultGapTests.biggestBattle).
     static var onHit: ((Mob, V3, Int) -> Void)?
-    static var netHit: ((Mob, V3, Int, Float) -> Bool)?      // C14: a guest's hit on a mirrored mob goes to the host
 
     // `iframes`: the reference 0.5 s after a hit in which only a bigger hit counts, and only by the difference, with no
     // knockback (player melee and arrows: fists and hoes hit 4 times a second, and all three Multishot arrows landed).
@@ -1612,7 +1608,6 @@ final class Mob {
     static var roundHit = false
     static let litCampfires: Set<BlockID> = Set(["campfire", "soul_campfire"].filter { Blocks.has($0) }.map { Blocks.id($0) })
     func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
-        if let f = Mob.netHit, f(self, src, damage, knockback) { return }     // a co-op guest's view of a host's mob (NetCoop)
         if posse == Prisoners.posse { return }                              // P347: the camp's prisoners can't be hurt
         Mob.onHit?(self, src, damage)
         if kind == .warden && emergeTime > 0 { return }
@@ -2773,11 +2768,7 @@ final class MobManager {
                 }
             }
             if m.health > -1000 {
-                // Killed by the co-op guest: its loot lands on the guest's side (NetCoop.swift).
-                let byGuest = game.netHost != nil && game.clock - m.netHitAt < 3
-                if byGuest { NetCoop.redirect = game.netHost }
                 game.mobDied(m)
-                NetCoop.redirect = nil
             }
         }
         let limit = Float((w.renderDistance + 1) * CS)

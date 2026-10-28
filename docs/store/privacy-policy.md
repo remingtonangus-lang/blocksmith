@@ -6,9 +6,8 @@ _Draft for review before store submission. Fill in the publisher name, contact a
 
 ## What Sunderfall collects
 
-No data leaves your headset. The only connection Sunderfall makes is Play Together, directly to a friend's headset on
-your local Wi-Fi (below), and only when you start it. Sunderfall has no account, no analytics, no advertising and no
-telemetry, and it never contacts a server on the internet.
+No data leaves your headset. Sunderfall has no account, no multiplayer, no analytics, no advertising and no telemetry,
+and it never contacts a server on the internet.
 
 ## What stays on your headset
 
@@ -19,17 +18,10 @@ telemetry, and it never contacts a server on the internet.
 - **Microphone:** Sunderfall does not use the microphone. The store build has no recording code and does not ask for
   the microphone permission.
 
-## Play Together (local network)
-
-When you host or join a Play Together session, the game connects directly to the other headset over your local Wi-Fi.
-Each headset sends the other its player name, position, actions and the world data needed to play. Hosting also
-announces the game on the local network so friends can find it. Nothing goes over the internet or to the publisher.
-This data is not stored after the session ends, except that edits to the host's world are saved in the host's world.
-
 ## The Director (after the story)
 
-Once the story is finished, the Director plans new events for your world. Its built-in rules and the optional
-on-device model run entirely on your headset and send nothing anywhere. The store build has no online planner.
+Once the story is finished, the Director plans new events for your world. Its rules run entirely on your headset and
+send nothing anywhere.
 
 ## Platform services
 

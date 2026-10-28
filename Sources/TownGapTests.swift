@@ -9,12 +9,10 @@ import simd
 //   bank:     the exchange at $1.20 / $1.00; deposits and withdrawals; interest at 1% a day, capped a day and a week.
 //   upgrades: the gunsmith's Upgrade button lists each gun's next upgrade level, takes the money and fits it; maxed or
 //             unaffordable upgrades can't be bought.
-//   dice:     the saloon's Dice button; the odds favour the house (you win 575 in 1296, 44%); a win pays even money, a loss takes the bet,
-//             no bet over the wallet.
 //   raids:    a town is raided at night (two waves, level I), not again for three days, not while you're wanted there;
 //             a won defence pays the town purse and honour.
 //   map:      a discovered town is marked under its name; the big map labels it; old unnamed marks get their names.
-//   screens:  the bank, the upgrades and the dice table fit their panels at every scroll position.
+//   screens:  the bank and the upgrades fit their panels at every scroll position.
 extension TownTests {
     static func townGap(_ g: Game, _ makeWorld: () -> World, _ check: (Bool, String) -> Void) {
         let savedMobs = g.mobs.mobs, savedPos = g.player.pos, savedMoney = g.money, savedTime = g.time, savedRaid = g.raid
@@ -23,7 +21,7 @@ extension TownTests {
             g.mobs.mobs = savedMobs; g.player.pos = savedPos; g.money = savedMoney; g.time = savedTime; g.raid = savedRaid
             for j in 0..<36 { g.inventory.main[j] = savedMain[j] }
             if g.menu != nil { g.closeMenu() }
-            TownLaw.forceTown = nil; TownLaw.reset(); Dice.roll = { Rand.int(in: 1...6) }
+            TownLaw.forceTown = nil; TownLaw.reset()
         }
         TownLaw.reset(); g.survival = true
 
@@ -180,30 +178,6 @@ extension TownTests {
             check(GunUpgrades.offers(g).isEmpty, "town gap: a fully upgraded gun has nothing left to buy")
             check(up.overflow().isEmpty, "town gap: the upgrades fit their panel")
         } else { check(false, "town gap: Upgrade opens the upgrades") }
-        if g.menu != nil { g.closeMenu() }
-
-        // The saloon's dice.
-        let bar = keeper(g, .saloon, at: base + V3(2, 0, 0))
-        g.mobs.mobs = [bar]
-        let saloon = ShopMenu(game: g, keeper: bar, kind: .saloon)
-        g.openMenu(saloon)
-        saloon.buttonPressed(ShopMenu.extra)
-        check(g.menu is DiceMenu && abs(Dice.winChance - 575.0 / 1296) < 0.001, String(format: "town gap: the saloon's Dice opens the dice table; you win %.1f%% (the house's edge)", Dice.winChance * 100))
-        if let d = g.menu as? DiceMenu {
-            g.money = 1000
-            var seq = [6, 6, 1, 1]; Dice.roll = { seq.removeFirst() }
-            d.pressed(1)
-            let afterWin = g.money
-            seq = [1, 2, 2, 1]; Dice.roll = { seq.removeFirst() }
-            d.pressed(2)                                   // a tie: the house
-            check(afterWin == 1500 && g.money == 500, "town gap: a win pays even money, a tie goes to the house (\(Money.format(afterWin)) then \(Money.format(g.money)))")
-            g.money = 50
-            Dice.roll = { 6 }
-            d.buttonPressed(0)
-            check(g.money == 50, "town gap: no bet over what's in your wallet")
-            check(d.overflow().isEmpty, "town gap: the dice table fits its panel")
-            Dice.roll = { Rand.int(in: 1...6) }
-        }
         if g.menu != nil { g.closeMenu() }
 
         // Night raids.

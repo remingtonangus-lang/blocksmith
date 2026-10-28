@@ -9,7 +9,7 @@ final class PauseMenu: Menu {
     static let sens: [Float] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10]
     static let zones: [Float] = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25]
     static let outers: [Float] = [0, 0.02, 0.05, 0.08, 0.1, 0.15, 0.2]
-    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, net, stats, checklist, compute, messages }
+    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, stats, checklist, compute, messages }
     enum Cat: Int, CaseIterable {
         // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
         // distance setting" - it sat on page 3 behind the input pages).
@@ -31,12 +31,8 @@ final class PauseMenu: Menu {
     var newSurvival = true
     var newDifficulty = 3                           // P302: a level (0 Peaceful ... 3 Normal ... 5 Very Hard)
     var newSmooth = true                            // Q2: every new world is the polygon world (PG6; no block option)
-    var editing: Int? = nil        // 0 name, 1 seed, 2 rename, 3 host address
+    var editing: Int? = nil        // 0 name, 1 seed, 2 rename
     private var slotsKept: [MenuSlot] = []   // the last layout's buttons (P201)
-    var netAddr = ""                // C14 Play Together: a host typed by address
-    static var found: [(ip: String, port: UInt16, world: String)] = []
-    static var searching = false
-    static let foundLock = NSLock()
     var selWorld = ""              // world picked on the worlds page
     var renameText = ""
     var worlds: [WorldStore.Info] = []
@@ -118,8 +114,8 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "ad", "chipping", "smooth", "new_terrain", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness",
-                                        "dir_on", "dir_backend", "dir_freq", "dir_early", "devtools", "testmode"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "brightness",
+                                        "dir_on", "dir_freq", "dir_early", "devtools", "testmode"]
 
     static func isValue(_ id: String) -> Bool {
         valueIDs.contains(id) || id.hasPrefix("vol:") || id.hasPrefix("fx") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol", "audio_music_titles"].contains(id)
@@ -143,7 +139,6 @@ final class PauseMenu: Menu {
         "rumble": "How strongly the controllers vibrate: when you are hit, mine, attack, draw a bow, run low on health or something explodes, and in menus. Off stops it all.",
         "southpaw": "Southpaw swaps the sticks: look with the left, move with the right.",
         "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
-        "splitlayout": "How the screen divides for two players: top and bottom (wide views) or side by side (menus stay bigger on a TV).",
         "looknames": "Rest your aim on a block or creature for a moment to see its name (and, for a block, the tool it needs).",
         "targetbar": "After you hit a creature, its name and health show at the top of the view for a few seconds.",
         "minimap": "A small biome map in the corner with nearby bases and villages. M or hold View for the full map.",
@@ -160,8 +155,6 @@ final class PauseMenu: Menu {
         "new_diff": "How much damage mobs do and whether hunger can kill.",
         "edit_name": "The name shown in the worlds list.",
         "edit_seed": "Leave empty for a random world; the same seed always makes the same world.",
-        "coop": "Split screen: a second controller joins (or press Menu on it while playing); player 2 leaves from their pause menu.",
-        "netmenu": "Play together over Wi-Fi: host this world for a friend, or join theirs.",
         "photo": "A free camera with the HUD hidden: keyframe paths and depth of field (F6).",
         "worldmap": "Biomes around you and the Capital citadels and villages you have found.",
         "flight": "Aircraft pitch on the left stick: pull back to climb (like a plane) or push up to climb.",
@@ -215,10 +208,8 @@ final class PauseMenu: Menu {
         "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
         "narrator": "Reads the highlighted menu item and messages aloud with the system voice.",
         "dir_on": "After the story the Director keeps the land alive: raids, outlaws, wrecks, storms, traders, announced by radio and marked on your map.",
-        "dir_backend": "Who plans the events. Built-in Rules always work. On-Device AI: a small model on this device that thinks only while you are paused. Cloud AI: a server; only a summary of the world is sent.",
         "dir_freq": "How much play time passes between events.",
         "dir_early": "Lets the Director start before the story is finished (for trying it out).",
-        "dir_cloud": "For testing (Cheats & Shortcuts): the Cloud AI's server. Test: a built-in stand-in that uses no network.",
         // Q2c-console-6: rows that had no help.
         "journal": "Every order, log, note, pamphlet, message and Director event you have received, to read again.",
         "shortcuts": "Teleport to the nearest place of a kind (testing).",
@@ -228,10 +219,6 @@ final class PauseMenu: Menu {
         "w_rename_yes": "Give the world the name above.",
         "w_delete_yes": "Yes, delete this world.",
         "mode_yes": "Yes, switch the game mode now.",
-        "net_host": "Let a friend on the same network join this world.",
-        "net_stop": "Stop letting others join (anyone here is sent home).",
-        "net_leave": "Leave the host's world and go back to your own.",
-        "net_addr": "Join the world at the address typed above.",
         "dir_journal": "Every Director event, under way and finished, with its outcome: the journal's Events shelf.",
         "bugnotes": BugNotes.hint,
         "flashes": "Reduced makes the red damage flash and portal tint faint.",
@@ -295,8 +282,7 @@ final class PauseMenu: Menu {
             rows = [("Back to Game", "resume"), ("Options...", "options"), PauseMenu.distanceRow(g), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Messages", "messages"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Difficulty.name(g.diffLevel))", "difficulty"),   // P369: changeable for the life of the world
-                    ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
-                    ("Play Together...", "netmenu"),
+                    ("Worlds...", "worlds"), ("Photo Mode", "photo"),
                     ("Save and Quit", "totitle")]   // P330: one leave row (the title screen has Quit Game)
             if g.coop.current > 0 {
                 // Player 2's pause menu: their own screens, and leaving (the world itself belongs to player 1).
@@ -371,7 +357,6 @@ final class PauseMenu: Menu {
                         ("Minimap: \(on(st.minimap))", "minimap"),
                         ("Target Health Bar: \(on(st.targetBar))", "targetbar"),                                  // Q2c-console-52
                         ("Look-at Names: \(on(st.lookNames))", "looknames"),                                      // Q2c-console-55
-                        ("Split Screen: \(st.splitSideBySide ? "Side by Side" : "Top / Bottom")", "splitlayout"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Coordinates & Details: \(on(g.showDebug))", "debug"),
                         ("Performance Overlay: \(on(st.perfOverlay))", "perf"),
                         ("Cheats & Shortcuts: \(on(st.devTools))", "devtools"),          // Q2c-console-15
@@ -394,16 +379,11 @@ final class PauseMenu: Menu {
             case .director:
                 // P266 (h, n): the Director's switches, and what it is doing now (the hover help says it in full).
                 rows = [("Director: \(on(st.directorOn))", "dir_on"),
-                        ("Planner: \(Director.backendNames[Director.effectiveBackend])", "dir_backend"),
                         ("Event Frequency: \(Director.freqNames[max(0, min(2, st.directorFreq))])", "dir_freq"),
                         ("Before the Story Ends: \(on(st.directorEarly))", "dir_early"),       // (Q2c-console-16: testing; below)
-                        (Director.shortStatus(g), "dir_status"), (Director.shortPlanner(), "dir_model"),
-                        ("Cloud Server: \(DirectorPlanner.shared.cloud.endpoint == "mock" ? "Test (built in)" : "Custom")", "dir_cloud"),
+                        (Director.shortStatus(g), "dir_status"),
                         ("Director Events (Journal)...", "dir_journal")]
                 if !st.devTools && !st.directorEarly { rows.removeAll { $0.1 == "dir_early" } }     // Q2c-console-16
-                // Q2c-console-45: only planners that can work here; the cloud's server is a testing row.
-                if Director.plannerChoices().count < 2 { rows.removeAll { $0.1 == "dir_backend" || $0.1 == "dir_model" } }
-                if !st.devTools { rows.removeAll { $0.1 == "dir_cloud" } }
             }
             rows.append(("Done", "back"))
         case .padmap:
@@ -487,27 +467,6 @@ final class PauseMenu: Menu {
             title = "Rename World"
             let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
             rows = [("Name: \(renameText)\(editing == 2 ? caret : "")", "edit_rename"), ("Save", "w_rename_yes"), ("Cancel", "back")]
-        case .net:
-            title = "Play Together"
-            let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
-            if let gu = g.netGuest {
-                subtitle = "In \(gu.worldName): the host's world"
-                rows = [("Leave and go back to my world", "net_leave"), ("Back", "back")]
-            } else {
-                if let h = g.netHost {
-                    subtitle = "Hosting at \(NetSock.localIP() ?? "?"): \(h.joined ? "your friend is here" : "waiting for a friend")"
-                    rows = [("Stop Hosting", "net_stop")]
-                } else {
-                    subtitle = "A friend on the same Wi-Fi can join this world"
-                    rows = [("Host This World", "net_host")]
-                }
-                PauseMenu.foundLock.lock()
-                let found = PauseMenu.found, searching = PauseMenu.searching
-                PauseMenu.foundLock.unlock()
-                rows.append((searching ? "Searching the network..." : "Search for Friends' Worlds", "net_search"))
-                rows += found.map { ("Join \($0.world) (\($0.ip))", "net_join:\($0.ip)") }
-                rows += [("Address: \(netAddr)\(editing == 3 ? caret : "")", "edit_addr"), ("Join Address", "net_addr"), ("Back", "back")]
-            }
         case .create:
             title = "Create New World"
             // Q2c-console-17: what is about to be made.
@@ -547,7 +506,7 @@ final class PauseMenu: Menu {
                 (["resume", "restorebackup"], 0),
                 (["options", vr, PauseMenu.distanceID, "mode"], 0),                              // settings
                 (["worldmap", "track", "advancements", "stats", "messages"], 0),             // map and progress
-                (["worlds", "netmenu", "coop", "photo", "commands", "checklist", "compute", "shortcuts"], 0),
+                (["worlds", "photo", "commands", "checklist", "compute", "shortcuts"], 0),
                 (["totitle"], 0)])                                                // leaving, apart from the rest
         case .title:
             return Style(width: 440, btnH: 30, gapX: 12, gapY: 6, groupGap: 12, cols: 4, lines: 6, groups: [
@@ -709,7 +668,7 @@ final class PauseMenu: Menu {
             return c == .master ? "Volume of every sound and the music together."
                                 : "Volume of \(c.label.lowercased()) sounds, on top of Master."
         }
-        if id == "dir_status" || id == "dir_model" { return Director.statusLines(game).prefix(2).joined(separator: ". ") }   // P266 (n)
+        if id == "dir_status" { return Director.statusLines(game).prefix(2).joined(separator: ". ") }   // P266 (n)
         if id == "w_delete" && !WorldStore.useTrash { return "Delete this world for good (there is no Trash on this device): Copy it first to keep a backup." }   // Q2c-console-5
         if let h = PlaytestChecklist.help(id) { return h }               // P399
         if id == "mode" { return "Survival: health, hunger, mining. Creative: fly and build freely. Asks before switching." }
@@ -844,31 +803,6 @@ final class PauseMenu: Menu {
             scroll = 0
             resetCursor = true
         case "create": go(.create); editing = nil; resetCursor = true
-        case "netmenu": go(.net); resetCursor = true
-        case "net_host":
-            if g.coop.active { g.onToast?("End split screen first"); break }
-            if let h = NetHost(g) { g.netHost = h; g.onToast?("Hosting: a friend can join at \(NetSock.localIP() ?? "this headset")") }
-            else { g.onToast?("Couldn't open the network port") }
-        case "net_stop": g.netHost?.stop(g); g.netHost = nil; g.onToast?("Stopped hosting")
-        case "net_search":
-            PauseMenu.foundLock.lock()
-            let busy = PauseMenu.searching
-            PauseMenu.searching = true
-            PauseMenu.foundLock.unlock()
-            guard !busy else { break }
-            DispatchQueue.global().async {
-                let f = NetSock.discover(seconds: 2.5)
-                PauseMenu.foundLock.lock(); PauseMenu.found = f; PauseMenu.searching = false; PauseMenu.foundLock.unlock()
-            }
-        case _ where id.hasPrefix("net_join:"): g.appAction?("netjoin:" + String(id.dropFirst(9)))
-        case "edit_addr":
-            editing = 3
-            if Prompt.pad || HudLayout.couch { g.openMenu(KeyboardMenu(game: g, target: self)) }
-        case "net_addr":
-            editing = nil
-            let a = netAddr.trimmingCharacters(in: .whitespaces)
-            if a.isEmpty { g.onToast?("Type the host's address first") } else { g.appAction?("netjoin:" + a) }
-        case "net_leave": g.appAction?("netleave")
         case "newworld": g.appAction?("newworld")
         case "workshop": g.appAction?("workshop")
         case "edit_name", "edit_seed", "edit_rename":
@@ -927,14 +861,10 @@ final class PauseMenu: Menu {
         case "worldmap": g.closeMenu(); g.openMenu(MapMenu(game: g))
         case "track": g.closeMenu(); g.openTrackMenu()               // D51 (Waymarks.swift)
         case "photo": g.closeMenu(); g.paused = false; g.togglePhotoMode()
-        case "coop":
-            if g.coop.active { g.closeMenu(); g.paused = false; g.coop.leave(g) }
-            else if g.coop.secondPadAvailable { g.closeMenu(); g.paused = false; g.coop.join(g, controller: nil) }
-            else { g.onToast?("Connect a second controller, then press its Menu button") }
+        case "coop": if g.coop.active { g.closeMenu(); g.paused = false; g.coop.leave(g) }     // (player 2 leaves; P479: no joining)
         case "minimap": st.minimap.toggle()
         case "targetbar": st.targetBar.toggle()
         case "looknames": st.lookNames.toggle()
-        case "splitlayout": st.splitSideBySide.toggle()
         case "brightness": st.brightness = step([0, 0.25, 0.5, 0.75, 1], st.brightness)
         case "commands": g.closeMenu(); g.openCommands()
         case "mode": go(.confirm); confirmMode = true; resetCursor = true          // Q2c-console-5: ask first
@@ -1028,18 +958,13 @@ final class PauseMenu: Menu {
         case "footage": st.recordFootage.toggle()
         case "flashes": st.screenEffects.toggle()
         case "narrator": st.narrator.toggle(); if st.narrator { Narrator.shared.say("Narrator on", clock: g.clock) }
-        case "dir_on": st.directorOn.toggle(); if !st.directorOn { DirectorLLM.release() }      // P266 (h)
-        case "dir_backend":
-            st.directorBackend = step(Director.plannerChoices(), Director.effectiveBackend)      // Q2c-console-45
-            DirectorPlanner.shared.reset(); Director.fallbackNote = ""
-            if st.directorBackend != 1 { DirectorLLM.release() }
-            if st.directorBackend == 2 { g.onToast?("Cloud planner: only a summary of your world is sent, nothing about you or this device") }
+        case "dir_on": st.directorOn.toggle()                                                    // P266 (h)
         case "dir_freq":
             let was = st.directorFreq
             st.directorFreq = step([0, 1, 2], st.directorFreq)
             Director.rescheduled(from: was)
         case "dir_early": st.directorEarly.toggle()
-        case "dir_status", "dir_model", "dir_cloud": return
+        case "dir_status": return
         case "dir_journal": g.closeMenu(); g.openJournal(tab: .events)
         case "about": g.closeMenu(); g.openMenu(AboutMenu(game: g))      // Q2 (AboutMenu.swift)
         case "resetask": go(.confirm); confirmReset = true; resetCursor = true
@@ -1078,15 +1003,10 @@ final class PauseMenu: Menu {
         }
     }
 
-    override var capturesText: Bool { ((page == .create || page == .rename || page == .net) && editing != nil) || binding != nil }
+    override var capturesText: Bool { ((page == .create || page == .rename) && editing != nil) || binding != nil }
     override func typed(_ str: String) {
         guard let e = editing else { return }
         for c in str {
-            if e == 3 {
-                if c == "\u{8}" { if !netAddr.isEmpty { netAddr.removeLast() } }
-                else if netAddr.count < 40 && (c.isNumber || c == "." || c.isLetter || c == "-") { netAddr.append(c) }
-                continue
-            }
             if c == "\u{8}" {
                 if e == 0 { if !newName.isEmpty { newName.removeLast() } }
                 else if e == 1 { if !newSeed.isEmpty { newSeed.removeLast() } }

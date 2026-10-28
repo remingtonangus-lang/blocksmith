@@ -4,9 +4,9 @@ import GameController
 #endif
 import simd
 
-// Split-screen couch co-op (Future ideas #10). A second controller joins by pressing Menu (Start) while the game runs
-// (or Pause > Split Screen); the screen splits top / bottom and each half is one player's view with its own HUD and
-// menus. Everything that belongs to one local player lives in a seat (SeatState): Game.exchangeSeat swaps a seat's
+// Split-screen couch co-op (Future ideas #10). P479 (Remington, Oct 27 21:12: "Scrap co-op for now"): nothing in play
+// starts it any more (the Menu press, Pause > Split Screen); the seats stay for the harness's checks. When on, the
+// screen splits top / bottom and each half is one player's view with its own HUD and menus. Everything that belongs to one local player lives in a seat (SeatState): Game.exchangeSeat swaps a seat's
 // state with the live fields, so the whole game (survival, interaction, menus, the HUD) runs unchanged for whichever
 // seat is being ticked or drawn. Seat 0 (keyboard + mouse + the first pad) is always the live one between frames.
 // The world, mobs and time are shared: chunks stream round both players, each mob, item and arrow is updated by the
@@ -176,16 +176,11 @@ final class Coop {
     private(set) var slots: [SeatState?] = [nil]
     private(set) var current = 0
     var active: Bool { slots.count > 1 }
-    // A seat played from another headset over the network (NetCoop.swift): its body comes from there, and the screen
-    // doesn't split for it.
-    var netSeat: Int?
-    var split: Bool { active && netSeat == nil }
+    var split: Bool { active }
     var seatCount: Int { slots.count }
     private var pads: [Int: GCController] = [:]       // the controller each seat > 0 plays with
     var simulated: [Int: PadSnapshot] = [:]            // harness input for seats > 0
-    private var joinScan: Float = 0
     private var padCheck = 0
-    private var otherPads = 0
     private var parked: SeatState?                     // player 2's state after leaving (rejoining picks it up again)
     private var savedInventoryCallback: ((Bool) -> Void)?
     var lastDim: Dim?
@@ -265,7 +260,7 @@ final class Coop {
         slots.append(s)
         if let c = controller { pads[slots.count - 1] = c }
         lastDim = g.dim.dim
-        if netSeat == nil { g.onToast?("Player 2 joined: split screen") }
+        g.onToast?("Player 2 joined: split screen")
     }
 
     // Player 2 leaves (their state is kept for this session in case they rejoin).
@@ -284,32 +279,13 @@ final class Coop {
         simulated[1] = nil
         g.world.extraCenter = nil
         if !g.paused && g.menu is PauseMenu { g.menu = nil }        // the shared pause ended with player 2's choice
-        if netSeat == nil { g.onToast?("Player 2 left") }
+        g.onToast?("Player 2 left")
     }
 
     var secondPadAvailable: Bool {
         if simulated[1] != nil { return true }
         let first = PadManager.shared.controller ?? GCController.current
         return GCController.controllers().contains { $0 !== first && $0.extendedGamepad != nil }
-    }
-
-    // A second controller joins with Menu (Start). Scanned four times a second while alone.
-    func pollJoin(_ g: Game, _ dt: Float) {
-        if let s = simulated[1], s.menu { if !active { join(g, controller: nil) }; return }
-        guard !active else { return }
-        joinScan -= dt
-        guard joinScan <= 0 else { return }
-        joinScan = 0.25
-        let first = PadManager.shared.controller ?? GCController.current
-        var others = 0
-        for c in GCController.controllers() where c !== first {
-            guard let gp = c.extendedGamepad else { continue }
-            others += 1
-            if gp.buttonMenu.isPressed { join(g, controller: c); return }
-        }
-        // A second controller just connected: say how to join (once per connection).
-        if others > otherPads && first != nil && g.menu == nil { g.onToast?("Second controller connected") }
-        otherPads = others
     }
 
     // Seat i's controller this frame, with the button mapping applied (nil when it has none).

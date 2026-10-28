@@ -2058,15 +2058,10 @@ if let i = CommandLine.arguments.firstIndex(of: "--oct14-only") {
     PlaytestOct14Tests.run(game, only: next.hasPrefix("P") ? next : nil, render: render, check: check)
     print(failures == 0 ? "oct14: all checks passed" : "oct14: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
-// --water-only: P44 surface water in new worlds (Sources/NetTests.swift WaterTests).
+// --water-only: P44 surface water in new worlds (Sources/WaterTests.swift).
 if CommandLine.arguments.contains("--water-only") {
     WaterTests.run(check: check)
     print(failures == 0 ? "water: all checks passed" : "water: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
-}
-// --net-only: C14 Play Together over loopback (Sources/NetTests.swift).
-if CommandLine.arguments.contains("--net-only") {
-    NetTests.run(game, device: device, check: check)
-    print(failures == 0 ? "net: all checks passed" : "net: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--tower-only") { PlaytestOct13Tests.towers(game); exit(0) }
 // --freeze-only: the P169 gallop probe (Sources/PlaytestOct13Tests.swift).

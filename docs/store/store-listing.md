@@ -25,8 +25,6 @@ you can join or end.
   bounty hunters and a jail cell.
 - **A war to win.** Take a Greywall base, break the Capital's grip on the coast, descend into Emberdeep and face the
   Blight.
-- **Play together.** Split screen, or a friend on your Wi-Fi: share your world, ride double, man the guns while your
-  partner drives, split the pay and pick each other up when one of you goes down.
 
 Seated, standing and reclined play. Comfort options for snap or smooth turning, a vignette and left-handed controls.
 
@@ -37,7 +35,11 @@ Seated, standing and reclined play. Comfort options for snap or smooth turning, 
 - Living frontier towns: shops, contracts, law, bounties and jail; homesteads, ghost towns and pueblos out on the land
 - Hunting with wind, tracks, bait and snares
 - A campaign through military bases, the navy and the underworld
-- Two-player co-op: split screen or Play Together over local Wi-Fi, with gun seats and revives
+
+## Release (P479, Oct 27)
+Single player only (co-op scrapped for now). Early Access, US$9.99 (set on the Meta dashboard; nothing in the build). App ID 1396130500248132, Noobmaster Industries.
+AI content: yes, the game was made with AI (Claude, by Anthropic), with music, textures and voices from the generators
+listed in credits-and-licences.md.
 
 ## Genres / tags
 Sandbox, Survival, Action, Adventure, Building, Western, Open World

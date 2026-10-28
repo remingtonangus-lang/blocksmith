@@ -9,9 +9,8 @@ import simd
 //   - The gunsmith's upgrades (an Upgrade button on the gunsmith's counter): the guns you carry, each gun upgrade's
 //     next level for a price (Extended Magazine, Quick Reload, Stability, Penetration, Incendiary: the gun upgrades
 //     the anvil and the table already know), so money buys a better gun without the enchanting table.
-//   - The saloon's dice table (a Dice button on the saloon's counter): high dice, you against the house, two dice each;
-//     the house wins ties, so the odds are with it (575 in 1296 to win, 44%, paid even money: -11% a bet), $1/$5/$10
-//     a throw.
+//   (P479, Remington Oct 27 21:12: "If there are [gambling games], cut it": the saloon's dice table, knife game and poker
+//   are gone.)
 
 // MARK: The bank
 
@@ -248,65 +247,6 @@ final class GunUpgradeMenu: ListMenu {
         else if i - js.count - ls.count < os.count { r = GunUpgrades.apply(game, os[i - js.count - ls.count]) }
         else { return }
         say(r.0, good: r.1)
-    }
-}
-
-// MARK: The saloon's dice
-
-enum Dice {
-    static let bets = [100, 500, 1000]
-    static var roll: () -> Int = { Rand.int(in: 1...6) }
-    static var played = 0
-
-    // Two dice each, the house wins ties. Returns (your total, house total, won).
-    static func play(_ g: Game, bet: Int) -> (Int, Int, Bool)? {
-        guard bet > 0, g.money >= bet else { return nil }
-        let you = roll() + roll(), house = roll() + roll()
-        let won = you > house
-        g.money += won ? bet : -bet
-        played += 1
-        g.sfx(won ? .villagerYes : .click, 0.5)
-        return (you, house, won)
-    }
-
-    // The odds (the house edge test): P(you > house) for two dice each.
-    static var winChance: Double {
-        var w = 0, n = 0
-        for a in 2...12 { for b in 2...12 {
-            let ca = 6 - abs(7 - a), cb = 6 - abs(7 - b)
-            n += ca * cb
-            if a > b { w += ca * cb }
-        } }
-        return Double(w) / Double(n)
-    }
-}
-
-final class DiceMenu: ListMenu {
-    var last = ""
-    weak var keeper: Mob?
-    init(game g: Game, keeper m: Mob? = nil) {
-        keeper = m
-        super.init("High Dice", game: g)
-        subtitle = "Beat the house's two dice. Ties go to the house."
-        say("Place your bet.", good: true)
-    }
-    override var rows: [Row] {
-        corner = "Wallet " + Money.format(game.money)
-        return Dice.bets.map { b in
-            Row(name: "Bet \(Money.format(b))", detail: last.isEmpty ? "Even money" : last, value: Money.format(b), enabled: game.money >= b)
-        } + [Row(name: "The Knife Game", detail: "A knife between the fingers", value: "Play"),          // D18
-             Row(name: "Five-Card Draw", detail: "Poker against the house", value: "Play")]
-    }
-    override func pressed(_ i: Int) {
-        if i == Dice.bets.count { game.switchMenu(to: KnifeGameMenu(game: game, keeper: keeper)); return }
-        if i == Dice.bets.count + 1 { game.switchMenu(to: PokerMenu(game: game, keeper: keeper)); return }
-        guard i < Dice.bets.count, let (you, house, won) = Dice.play(game, bet: Dice.bets[i]) else { return }
-        last = "You \(you), house \(house)"
-        say(won ? "You rolled \(you) to \(house). You win \(Money.format(Dice.bets[i]))!" : "You rolled \(you) to \(house). The house wins.", good: won)
-    }
-    override func tick() {
-        super.tick()
-        if TownServices.keeperGone(game, keeper) { game.closeMenu() }
     }
 }
 

@@ -2,7 +2,7 @@ import Foundation
 
 // A list screen in the shop's look (dark text on the beige panel, legible at headset distance): a sub-title line, up
 // to six rows (icon, name, a detail line, a value on the right) that are buttons, scroll buttons and a status line.
-// Subclasses give the rows and act on a press. Used by the town notice board, the bank, the saloon's dice table and
+// Subclasses give the rows and act on a press. Used by the town notice board, the bank and
 // the stable (TownBoard.swift, TownServices.swift, HorseStable.swift).
 class ListMenu: Menu, CustomDrawnMenu {
     struct Row {
