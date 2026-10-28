@@ -154,6 +154,11 @@ enum Mining {
         case "ender_chest": return one("obsidian", 8)
         case "podzol", "mycelium", "dirt_path", "farmland": return one("dirt")
         case "cocoa": return one("cocoa_beans", stage >= 2 ? 3 : 1)
+        // P484 (Oct 28 17:50, mining the caves: "Spore blossom, lantern [vines], all that shit. That's just junk. We don't
+        // wanna pick that up"; 18:17 "Your pack is full: the Bush stays on the ground"): cave growths and bushes give
+        // nothing broken in passing; shears still take them.
+        case "spore_blossom", "glow_lichen", "hanging_roots", "bush", "firefly_bush", "leaf_litter":
+            return shears ? one(gkey) : []
         case _ where gkey.hasSuffix("_stained_glass") || gkey.hasSuffix("_stained_glass_pane"): return []
         default: break
         }
@@ -190,7 +195,7 @@ enum Mining {
         case "creaking_heart": return one("resin_clump", rnd(1, 3))
         case "sweet_berry_bush_2": return one("sweet_berries", rnd(1, 2))
         case "sweet_berry_bush_3": return one("sweet_berries", rnd(2, 3))
-        case "cave_vines": return stage == 1 ? one("glow_berries") : []          // lanternvine: only a podded one (P125)
+        case "cave_vines": return shears && stage == 1 ? one("glow_berries") : []          // lanternvine (P125; P484: shears only)
         case "budding_amethyst", "reinforced_deepslate", "sculk_shrieker": return []
         case "amethyst_cluster": return one("amethyst_shard", 4)
         case "ice", "packed_ice", "blue_ice", "kelp", "bubble_coral", "tube_coral", "brain_coral", "fire_coral", "horn_coral": return key == "kelp" ? one("kelp") : []
