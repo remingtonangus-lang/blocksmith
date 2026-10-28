@@ -278,7 +278,11 @@ extension Mob {
         switch activity(g.dayFraction) {
         case .work:
             if let js = villager?.jobSite {
-                return stroll(around: V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5), 2.5, 0.6)
+                // P484 (Oct 28 18:18, a town's farm: "Why are all these farmers gathering for a group photo? They're all
+                // swarmed together"): a farmer works the whole field round the composter (the farm's composters stand
+                // side by side), not the 2.5 blocks by it.
+                let r: Float = villager?.profession == "farmer" ? 8 : 2.5
+                return stroll(around: V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5), r, 0.6)
             }
         case .meet:
             if let bell = meetingPoint(g, dt) {

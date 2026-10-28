@@ -193,6 +193,14 @@ enum WildCamps {
             let seat = f.log("stripped_spruce", alongX: !seatsX)
             for k in [-2, 2] { put(dx + (seatsX ? k : 0), 0, dz + (seatsX ? 0 : k), seat) }
         }
+        // P484 (Oct 28 18:13, "The campsite should have a bed"): a bedroll, foot at (dx, dz), head toward local +z.
+        func bed(_ dx: Int, _ dy: Int, _ dz: Int, _ color: String) {
+            guard Blocks.has(color + "_bed"), Blocks.has(color + "_bed_head") else { return }
+            let (fx, fz) = f.p(dx, dz), (hx, hz) = f.p(dx, dz + 1)
+            let facing = [(0, 1), (0, -1), (1, 0), (-1, 0)].firstIndex { $0 == (hx - fx, hz - fz) } ?? 0
+            w.set(fx, f.y + dy, fz, Blocks.id(color + "_bed") + BlockID(facing))
+            w.set(hx, f.y + dy, hz, Blocks.id(color + "_bed_head") + BlockID(facing))
+        }
         func barrels(_ dx: Int, _ dz: Int, _ n: Int) {
             for i in 0..<n { put(dx + i % 2, 0, dz + i / 2, i == 2 ? b("hay_block") : b("barrel")) }
         }
@@ -200,6 +208,7 @@ enum WildCamps {
         case "camp_hunters":
             let hide = rng.chance(0.5) ? b("brown_wool") : b("green_wool")
             tent(-4, -1, wool: hide, ridge: "spruce")
+            bed(-4, 0, -2, "brown")                           // (under the tent's peak)
             campfire(2, 1, lit: true)
             mob("villager:camper", 2, 3)                      // (P97: someone at the fire)
             // Drying rack: two posts with a fence bar, hides hanging from it.
@@ -228,21 +237,23 @@ enum WildCamps {
             // Lean-to: canvas sloping from a row of posts down to the ground, a work table under it.
             let canvas = b("light_gray_wool", "white_wool")
             for dz in 2...4 { put(-6, 0, dz, b("spruce_fence", "oak_fence")); put(-6, 1, dz, b("spruce_fence", "oak_fence")); put(-6, 2, dz, canvas); put(-5, 1, dz, canvas) }
-            put(-5, 0, 3, b("crafting_table"))
+            put(-5, 0, 2, b("crafting_table"))
+            bed(-5, 0, 3, "gray")                             // (under the lean-to)
             put(3, 0, 3, b("grindstone", "crafting_table"))
             campfire(-2, 2, lit: rng.chance(0.6), seatsX: false)
             mob("villager:camper", 0, 2)                      // (P97: the prospector, by the fire)
             chest(-3, 5, "camp_prospectors")
         case "camp_traders":
             // Covered wagon along local z: plank bed on log wheels, wool canopy on fence hoops.
-            let bed = b("spruce_planks"), canopy = b("white_wool"), hoop = b("spruce_fence", "oak_fence")
+            let deck = b("spruce_planks"), canopy = b("white_wool"), hoop = b("spruce_fence", "oak_fence")
             for dz in [-3, 1] { put(-3, 0, dz, f.log("oak", alongX: true)); put(1, 0, dz, f.log("oak", alongX: true)) }
-            for dz in -4...2 { for dx in -2...0 { put(dx, 1, dz, bed) } }
+            for dz in -4...2 { for dx in -2...0 { put(dx, 1, dz, deck) } }
             for dz in -3...1 {
                 put(-2, 2, dz, hoop); put(0, 2, dz, hoop)
                 put(-2, 3, dz, canopy); put(0, 3, dz, canopy); put(-1, 4, dz, canopy)
             }
-            put(-1, 2, -2, b("barrel")); put(-1, 2, 0, b("hay_block"))
+            put(-1, 2, -2, b("barrel")); put(-1, 2, -3, b("hay_block"))
+            bed(-1, 2, 0, "white")                            // (in the wagon, under the canopy)
             put(-1, 1, 3, b("spruce_fence", "oak_fence"))        // the tongue
             put(-1, 0, -5, b("hay_block"))                        // a step up onto the tail of the bed
             // Hitching post, hay and goods round a small fire.
@@ -256,6 +267,7 @@ enum WildCamps {
         case "camp_outlaws":
             let dark = rng.chance(0.5) ? b("black_wool") : b("red_wool")
             tent(-4, -2, wool: dark, ridge: "dark_oak")
+            bed(-4, 0, -3, "black")
             tent(4, -2, wool: b("brown_wool"), ridge: "dark_oak", len: 3)
             campfire(0, 2, lit: true)
             // Lookout: a plank platform on posts with a ladder.

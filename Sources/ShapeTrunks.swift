@@ -683,7 +683,11 @@ enum ShapeTrunks {
         // P297 (d, a): a fallen trunk is a tree's thickness (built timber keeps nearly the whole block, so a cabin's walls
         // stay closed), and it lies along the drawn ground itself, bedded a little: each end at the ground between this
         // block and the next (the same height the next block's piece starts at, so the trunk bends with the slope unbroken).
-        if axis != 1 && SmoothTerrain.natural[Int(ctx.block(x, y - 1, z))] && !isTrunk[Int(ctx.block(x, y + 1, z))] {
+        // P484 (Oct 28 17:44, a trader's covered wagon: "Why is it hovering?"): only a fallen trunk (3+ along the ground,
+        // fallenRun) with nothing solid on it; a wagon's wheel under its bed, a log seat by a fire or a log he set down
+        // keeps the whole block, so the bed sits on its wheels.
+        let up = ctx.block(x, y + 1, z)
+        if axis != 1 && fallenRun(ctx, x, y, z) && !isTrunk[Int(up)] && (!Blocks.collide[Int(up)] || Mesher.leafT[Int(up)]) {
             r = fallenRadius
             let lift = r * 0.8
             let g0 = ctx.groundTop(x, y - 1, z, reach: 2) ?? Float(y)

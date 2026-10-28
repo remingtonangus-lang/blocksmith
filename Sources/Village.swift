@@ -78,6 +78,24 @@ enum Village {
 
     static func type(_ gen: WorldGen) -> StructureType {
         StructureType(name: "village", spacing: 34, separation: 8, salt: 10387312, reach: 8) { [unowned gen] seed, cx, cz in
+            if let s = place(gen, seed, cx, cz) { return s }
+            // P484 (Oct 28 18:13, "I want you to make villagers slightly more common"): a region whose spot fell on
+            // forest or broken ground tries a few more spots in it, on ground no save had generated before P484 (a
+            // region that had a place keeps it where it was).
+            guard let sc = gen.structures else { return nil }
+            let rx = floorDiv(cx, 34), rz = floorDiv(cz, 34), s32 = UInt32(truncatingIfNeeded: gen.seed)
+            for k in 1...extraTries {
+                let ax = rx * 34 + Int(hashf(rx, rz, 4840 + k, s32) * 25), az = rz * 34 + Int(hashf(rx, rz, 4850 + k, s32) * 25)
+                guard sc.clear(cx: ax, cz: az, reach: 14, guardSet: sc.legacyP484) else { continue }
+                if let s = place(gen, seed &+ UInt64(k), ax, az) { return s }
+            }
+            return nil
+        }
+    }
+    static let extraTries = 3
+
+    static func place(_ gen: WorldGen, _ seed: UInt64, _ cx: Int, _ cz: Int) -> StructureStart? {
+        do {
             let ox = cx * CS + 8, oz = cz * CS + 8
             guard let style = style(gen.column(ox, oz).biome) else { return nil }
             let cy = gen.groundY(ox, oz)
