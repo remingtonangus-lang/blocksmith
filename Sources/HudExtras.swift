@@ -8,6 +8,17 @@ import simd
 enum MenuColors {
     static let hover = V4(0.26, 0.5, 0.98, 1)
     static let selected = V4(0.98, 0.76, 0.24, 1)
+    // P481 (Oct 28, store look-alike review: docs/store/lookalike-review.md): Sunderfall's own container screens. The
+    // panel was the reference game's exact light grey with a white and dark-grey bevel and a black rim, its slots the
+    // same inset squares; now a warm canvas panel with a dark leather rim, a brass line and rounded corners, and dark
+    // recessed slots with a soft shadow along the top. (Light enough that the menus' dark text still reads on it.)
+    static let panel = V4(0.84, 0.79, 0.69, 1)
+    static let rim = V4(0.2, 0.13, 0.08, 1)
+    static let brass = V4(0.7, 0.53, 0.27, 1)
+    static let title = V4(0.27, 0.18, 0.1, 1)
+    static let slotRim = V4(0.33, 0.25, 0.18, 1)
+    static let slot = V4(0.55, 0.48, 0.4, 1)
+    static let slotShade = V4(0.43, 0.36, 0.29, 1)
 }
 
 struct HudLine {
