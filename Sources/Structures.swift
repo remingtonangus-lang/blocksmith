@@ -205,6 +205,10 @@ final class StructureStart {
     let anchor: IVec3                     // a representative walkable spot (start piece floor)
     var plan: AnyObject?                  // the layout a kind keeps for later queries (CapitalCity.Plan)
     var info: [String: Int] = [:]         // a few numbers a kind keeps (towns: size, lots, shops, deputies: TownSizes)
+    // P483 (Oct 28 17:40, "we still need some sort of compression mechanism... compress the city from a very long
+    // distance away"): the town as a handful of boxes for the far land (LandmarkRender): its buildings and terraces,
+    // min..max inclusive, each with a FarTone.
+    var far: [(min: IVec3, max: IVec3, tone: FarTone)] = []
     init(kind: String, pieces: [Piece], anchor: IVec3) {
         self.kind = kind
         self.anchor = anchor
@@ -220,6 +224,9 @@ final class StructureStart {
         x >= min.x && x <= max.x && y >= min.y && y <= max.y && z >= min.z && z <= max.z
     }
 }
+
+// The colour a far box is drawn in (LandmarkRender.townBoxes).
+enum FarTone: UInt8 { case timber, roof, white, glass, paving, stone }
 
 // A structure type: grid spacing/separation (chunks) and how to lay out a start in a region.
 struct StructureType {

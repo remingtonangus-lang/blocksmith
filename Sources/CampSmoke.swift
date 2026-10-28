@@ -113,14 +113,17 @@ extension Renderer {
     static var townList: [V4] = []                  // (x, ground y, z, radius), refreshed every 3 s
     static var townAt: Double = -10
     static var townPlanning = false
+    static var townBoxes: [(min: IVec3, max: IVec3, tone: FarTone)] = []   // P483: their far boxes (StructureStart.far)
     func townCache(_ game: Game) -> [V4] {
         if game.clock - Renderer.townAt < 3 { return Renderer.townList }
         Renderer.townAt = game.clock
         Renderer.townList.removeAll()
+        Renderer.townBoxes.removeAll(keepingCapacity: true)
         guard let sc = (game.world.gen as? WorldGen)?.structures else { return [] }
         let p = game.player.pos
         var todo: [(StructureType, Int, Int)] = []
-        for (name, radius) in [("village", Float(36)), ("capital_city", Float(80))] {
+        // (Greywall bases: their far boxes only, no glow over them: radius 0.)
+        for (name, radius) in [("village", Float(36)), ("capital_city", Float(80)), (Greywall.kind, Float(0))] {
             guard let t = sc.types.first(where: { $0.name == name }) else { continue }
             let span = t.spacing * CS
             let rx0 = floorDiv(Int(p.x), span), rz0 = floorDiv(Int(p.z), span)
@@ -129,7 +132,8 @@ extension Renderer {
                 guard sc.isCached(t, regionX: rx, regionZ: rz) else { todo.append((t, rx, rz)); continue }
                 guard let s = sc.start(t, regionX: rx, regionZ: rz) else { continue }
                 let cx = Float(s.min.x + s.max.x) / 2, cz = Float(s.min.z + s.max.z) / 2
-                Renderer.townList.append(V4(cx, Float(s.anchor.y), cz, radius))
+                if radius > 0 { Renderer.townList.append(V4(cx, Float(s.anchor.y), cz, radius)) }
+                Renderer.townBoxes += s.far
             } }
         }
         if !todo.isEmpty && !Renderer.townPlanning {

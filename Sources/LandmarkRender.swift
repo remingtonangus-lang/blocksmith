@@ -20,6 +20,7 @@ extension Renderer {
     static let citadelRange: Float = 2400
     static var citadelList: [V3] = []
     static var citadelAt: Double = -10
+    static var citadelPlanning = false
     func citadelCache(_ game: Game) -> [V3] {
         if game.clock - Renderer.citadelAt < 2 { return Renderer.citadelList }
         Renderer.citadelAt = game.clock
@@ -29,11 +30,21 @@ extension Renderer {
         let p = game.player.pos
         let rx0 = floorDiv(Int(p.x), span), rz0 = floorDiv(Int(p.z), span)
         let n = Int(Renderer.citadelRange) / span + 1
+        // A region not planned yet is planned off the render thread (a citadel's plan is a heavy job) and shows next time.
+        var todo: [(Int, Int)] = []
         for rz in (rz0 - n)...(rz0 + n) { for rx in (rx0 - n)...(rx0 + n) {
+            guard sc.isCached(t, regionX: rx, regionZ: rz) else { todo.append((rx, rz)); continue }
             guard let st = sc.start(t, regionX: rx, regionZ: rz) else { continue }
             let x = (st.min.x + st.max.x) / 2, z = (st.min.z + st.max.z) / 2
             Renderer.citadelList.append(V3(Float(x), Float(wg.groundY(x, z)), Float(z)))
         } }
+        if !todo.isEmpty && !Renderer.citadelPlanning {
+            Renderer.citadelPlanning = true
+            DispatchQueue.global(qos: .utility).async {
+                for (rx, rz) in todo { _ = sc.start(t, regionX: rx, regionZ: rz) }
+                Renderer.citadelPlanning = false
+            }
+        }
         return Renderer.citadelList
     }
 
@@ -243,11 +254,16 @@ extension Renderer {
             }
         }
         // The Capital's citadels: the white hall on its podium, the great tower and its two side towers, as boxes.
+        // Inside the far plane they stand at their true place (`near`): on the shell, the middle ring's ground (FarRing,
+        // at its true depth out to 1024 blocks) rising behind them covered them from above (P483, "I can't see it").
+        func at(_ w: V3, _ near: Bool) -> V4 { near ? V4(w - eye, 1) : p(w) }
         let stone = V3(0.9, 0.91, 0.92), trim = V3(0.68, 0.7, 0.73)
         for ct in citadelCache(game) {
             let dist = simd_length(V2(ct.x - eye.x, ct.z - eye.z))
             guard dist > loaded + 16, dist < Renderer.citadelRange else { continue }
             let haze: Float = 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.citadelRange, dist)
+            let near = dist + 60 < place * 0.9
+            func p(_ w: V3) -> V4 { at(w, near) }
             let y0 = ct.y + 1
             // (centre offset x, z, half width, foot, top, colour) of each box (CapitalBase.build: the podium 44, the hall
             // roof 11 up, the tower roof 59 up, the side towers at 36 either side).
@@ -266,6 +282,38 @@ extension Renderer {
                 }
                 let roof = V4(col * (0.5 + 0.5 * day) * hdrK * (1 - haze) + fog * haze, 1)
                 let r0 = V3(c.x - h, y0 + hi, c.z - h), r1 = V3(c.x + h, y0 + hi, c.z - h), r2 = V3(c.x + h, y0 + hi, c.z + h), r3 = V3(c.x - h, y0 + hi, c.z + h)
+                tri(p(r0), p(r2), p(r1), roof, &out); tri(p(r0), p(r3), p(r2), roof, &out)
+            }
+        }
+        // P483 (Oct 28 17:40, "compress the city from a very long distance away"): past the loaded land the towns and
+        // the Capital's cities stand as boxes (StructureStart.far): their buildings and terraces, walls facing the eye only.
+        let tones: [V3] = [V3(0.6, 0.47, 0.33), V3(0.36, 0.24, 0.19), V3(0.9, 0.91, 0.92), V3(0.3, 0.48, 0.58),
+                           V3(0.64, 0.66, 0.69), V3(0.55, 0.55, 0.56)]
+        _ = townCache(game)
+        for bx in Renderer.townBoxes {
+            // (down into the middle ring's coarse ground)
+            let lo = V3(Float(bx.min.x), Float(bx.min.y - 6), Float(bx.min.z)), hi = V3(Float(bx.max.x + 1), Float(bx.max.y + 1), Float(bx.max.z + 1))
+            let ox = max(lo.x - eye.x, eye.x - hi.x, 0), oz = max(lo.z - eye.z, eye.z - hi.z, 0)
+            let dist = (ox * ox + oz * oz).squareRoot()                 // to its nearest corner: none of it on loaded land
+            guard dist > loaded + 2, dist < Renderer.campSmokeRange else { continue }
+            let haze: Float = 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.campSmokeRange, dist)
+            let col = tones[Int(bx.tone.rawValue)]
+            let near = dist + 40 < place * 0.9
+            func p(_ w: V3) -> V4 { at(w, near) }
+            func wall(_ n: V3, _ a: V3, _ b: V3) {
+                guard simd_dot(n, eye - a) > 0 else { return }
+                let lit: Float = 0.38 + 0.62 * max(0, simd_dot(n, sun)) * day + 0.06
+                let k = V4(col * lit * hdrK * (1 - haze) + fog * haze, 1)
+                let a1 = V3(a.x, hi.y, a.z), b1 = V3(b.x, hi.y, b.z)
+                tri(p(a), p(b), p(b1), k, &out); tri(p(a), p(b1), p(a1), k, &out)
+            }
+            wall(V3(1, 0, 0), V3(hi.x, lo.y, lo.z), V3(hi.x, lo.y, hi.z))
+            wall(V3(-1, 0, 0), V3(lo.x, lo.y, hi.z), V3(lo.x, lo.y, lo.z))
+            wall(V3(0, 0, 1), V3(hi.x, lo.y, hi.z), V3(lo.x, lo.y, hi.z))
+            wall(V3(0, 0, -1), V3(lo.x, lo.y, lo.z), V3(hi.x, lo.y, lo.z))
+            if eye.y > hi.y {
+                let roof = V4(col * (0.5 + 0.5 * day) * hdrK * (1 - haze) + fog * haze, 1)
+                let r0 = V3(lo.x, hi.y, lo.z), r1 = V3(hi.x, hi.y, lo.z), r2 = V3(hi.x, hi.y, hi.z), r3 = V3(lo.x, hi.y, hi.z)
                 tri(p(r0), p(r2), p(r1), roof, &out); tri(p(r0), p(r3), p(r2), roof, &out)
             }
         }
