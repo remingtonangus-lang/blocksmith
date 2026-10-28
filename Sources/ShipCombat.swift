@@ -93,10 +93,17 @@ extension ShipManager {
                     var cdir = dir
                     if spec.scatter > 0 { cdir = Guns.scatter(cdir, spec.scatter) }
                     sh.vel = cdir * (spec.speed * (1 + 0.06 * extra)) + t.velocity(at: muzzle)
-                    sh.power = min(CannonCalibre.maxPower, spec.power * (1 + 0.15 * extra) * (his ? 1.5 : 1))
                     sh.gravity = spec.gravity
                     sh.kind = 6
-                    calReload = max(calReload, spec.reload * (1 + 0.05 * extra))
+                    // P477: a vessel the world built (a Capital warship, a patrol, a corsair) keeps its mount's own punch and
+                    // reload (the crews' guns as tuned; half again from his helm); the barrels give its shell's flight.
+                    if t.root.role?.isEmpty == false {
+                        sh.power = t.gunPower * (his ? 1.5 : 1)
+                        calReload = max(calReload, t.reloadTime)
+                    } else {
+                        sh.power = min(CannonCalibre.maxPower, spec.power * (1 + 0.15 * extra) * (his ? 1.5 : 1))
+                        calReload = max(calReload, spec.reload * (1 + 0.05 * extra))
+                    }
                 }
                 // A cannon under water looses a torpedo: level, self-driven, no drop (C8, Submarines.swift).
                 if Blocks.fluidKind[Int(world.rawBlock(Int(floor(muzzle.x)), Int(floor(muzzle.y)), Int(floor(muzzle.z))))] == 1 {

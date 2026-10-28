@@ -65,6 +65,7 @@ enum Corsairs {
         b.set(0, 3, -3, "ship_turret_ring")
         let t = Blueprint()
         t.set(0, 0, 0, "ship_cannon[south]")
+        for z in -2 ... -1 { t.set(0, 0, z, "gun_barrel_medium[south]") }        // (P477: a barrelled gun)
         b.turrets.append((IVec3(0, 3, -3), t))
         b.crew = [V3(-1.5, 3, 1.5), V3(1.5, 3, -0.5), V3(-0.5, 3, 3.5)]
         return b

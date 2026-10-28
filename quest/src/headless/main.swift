@@ -1833,6 +1833,10 @@ if CommandLine.arguments.contains("--chasehull") {              // P449: the big
     print(failures == 0 ? "chasehull: all checks passed" : "chasehull: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --vehicleworks: P477, the Vehicle Works' presets of real blocks, calibre guns, tracks, speed, the yard (Sources/VehicleWorksCheck.swift).
+if CommandLine.arguments.contains("--navalbarrels") {           // P477: the naval and Capital guns as breech + bored barrels
+    NavalBarrelsCheck.run(game, check)
+    print(failures == 0 ? "navalbarrels: all checks passed" : "navalbarrels: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--vehicleworks") {
     VehicleWorksCheck.run(game, check)
     print(failures == 0 ? "vehicleworks: all checks passed" : "vehicleworks: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

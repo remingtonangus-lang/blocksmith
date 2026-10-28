@@ -211,8 +211,8 @@ extension Capital {
         let t = Blueprint()
         t.box(-1, 1, 0, 1, -1, 1, "frigate_plate")
         t.set(0, 2, 0, "frigate_trim")
-        for z in -3 ... -2 { t.set(0, 1, z, "frigate_trim") }
-        t.set(0, 1, -4, "ship_cannon[south]")
+        t.set(0, 1, -1, "ship_cannon[south]")                              // (P477: breech in the face, small-bore barrels)
+        for z in -4 ... -2 { t.set(0, 1, z, "gun_barrel_small[south]") }
         return t
     }
 
