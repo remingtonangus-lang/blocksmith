@@ -1506,7 +1506,7 @@ final class Game {
                     let dug = hitPoint(t)
                     breakBlock(t.hit, b, drop: false)
                     // P377 step 3: in creative too the hole follows the tool (survival's PG1 ball where the blow landed).
-                    if SmoothTerrain.natural[Int(b)] { world.carve(at: dug + player.look * 0.25, radius: Game.digRadius(b), mode: .shape) }
+                    if SmoothTerrain.natural[Int(b)] { world.carve(at: dug + player.look * 0.25, radius: Game.digRadius(b), mode: .shape, remesh: true) }
                     if t.hit == digDownCell { centreOverHole(t.hit) }
                     breakCooldown = 0.3
                 }
@@ -1573,7 +1573,7 @@ final class Game {
                         let natural = SmoothTerrain.natural[Int(b)], dug = hitPoint(t)
                         breakBlock(t.hit, b, drop: true, toPack: true)
                         // PG1: the hole follows the tool: the field round it is shaped by a ball where the blow landed.
-                        if natural { world.carve(at: dug + player.look * 0.25, radius: Game.digRadius(b), mode: .shape) }
+                        if natural { world.carve(at: dug + player.look * 0.25, radius: Game.digRadius(b), mode: .shape, remesh: true) }
                         if t.hit == digDownCell { centreOverHole(t.hit) }
                         if b == SEALROCK {
                             achieve("break_seal")

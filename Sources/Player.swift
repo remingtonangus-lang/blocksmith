@@ -72,10 +72,18 @@ final class Player {
     var autoJump = false           // hop up one-block steps automatically while walking into them
     var crawling = false           // no headroom to stand (after swimming into a low gap): 0.6 tall
 
-    let halfW: Float = 0.3
-    var prone: Bool { swimming || crawling || gliding }
-    var height: Float { prone ? 0.6 : (sneaking && !flying ? 1.5 : 1.8) }
+    // P484 (Oct 28 17:47-18:06: "Should be able to squeeze through this", "making it so the player can squeeze through
+    // better", "sneak into things, just squeeze into things like an animal that squeezes its way into shit... Physics
+    // needs to be much more lenient like that"): sneaking or crawling into a gap too tight for the body (the drawn
+    // ground's rounded walls, a hole between rocks) squeezes into it: a body 0.36 wide and half a block tall, slowly,
+    // until there is room to crawl again.
+    var squeezing = false
+    static let squeezeW: Float = 0.18, squeezeH: Float = 0.5
+    var halfW: Float { squeezing ? Player.squeezeW : 0.3 }
+    var prone: Bool { swimming || crawling || gliding || squeezing }
+    var height: Float { prone ? (squeezing ? Player.squeezeH : 0.6) : (sneaking && !flying ? 1.5 : 1.8) }
     let eyeHeight: Float = 1.62
+    static var squeezes = 0                         // (checks)
 
     var eye: V3 { pos + V3(0, prone ? 0.4 : ((sneaking && !flying) ? eyeHeight - 0.35 : eyeHeight), 0) }
     var look: V3 { V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch)) }
@@ -269,6 +277,22 @@ final class Player {
             func fitsAhead(_ h: Float) -> Bool { !w.collides(V3(q.x - halfW, q.y, q.z - halfW), V3(q.x + halfW, q.y + h, q.z + halfW)) }
             if fitsAhead(0.6) && !fitsAhead(1.5) { crawling = true }
         }
+        // (P484) The squeeze: in while a crawl won't go on but the small body will; out once a crawl fits again.
+        func fitsBody(_ hw: Float, _ h: Float, _ p: V3) -> Bool { !w.collides(V3(p.x - hw, p.y, p.z - hw), V3(p.x + hw, p.y + h, p.z + hw)) }
+        if squeezing {
+            if flying || swimming || gliding || fitsBody(0.3, 0.6, pos) {
+                squeezing = false
+                crawling = !flying && !swimming && !gliding && !fitsBody(0.3, 1.5, pos)
+            }
+        } else if (sneaking || ducking || input.sneak || crawling) && !flying && !swimming && !gliding && stick > 0.04 {
+            let my0 = moveYaw ?? yaw
+            let dir = V3(-sinf(my0), 0, -cosf(my0)) * input.forward + V3(cosf(my0), 0, -sinf(my0)) * input.strafe
+            let q = pos + simd_normalize(dir) * 0.4
+            if !fitsBody(0.3, 0.6, q) && fitsBody(Player.squeezeW, Player.squeezeH, q) && fitsBody(Player.squeezeW, Player.squeezeH, pos) {
+                squeezing = true
+                Player.squeezes += 1
+            }
+        }
         let forcedCrouch = !flying && !prone && fits(1.5) && !fits(1.8)
 
         // Unstuck: if spawned or placed inside a block, pop upward. A hair's overlap with a wall first slides out
@@ -350,7 +374,7 @@ final class Player {
             if depthStrider > 0 { speed += (4.317 - speed) * Float(min(3, depthStrider)) / 3 }
             if dolphinsGrace { speed *= 2.2 }
         }
-        else if sneaking || crawling { speed = 4.317 * min(1, 0.3 + 0.15 * Float(swiftSneak)) }
+        else if sneaking || crawling || squeezing { speed = 4.317 * min(1, 0.3 + 0.15 * Float(swiftSneak)) }
         // VR sprints at 2x a walk (P274; 1.6x before; the reference's 1.3x is near invisible in a headset: playtest v78, fourth report).
         else { speed = sprinting ? (moveYaw != nil ? Player.vrSprintSpeed : Player.sprintSpeed) : 4.317 }
         if !flying { speed *= speedMul * HandGrab.slow * gunSlow }          // P258: a body dragged or carried; P391: a heavy gun

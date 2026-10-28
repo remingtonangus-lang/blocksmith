@@ -796,7 +796,10 @@ extension World {
     // World.carve in a field world: a ball subtracted from the field. .dig takes every ground cell whose centre the ball
     // reaches (`remove` sees each first: drops, debris), .shape and .dent only move the surface inside the cells (a
     // blast's bowl after its rays broke what they broke; a round's mark). Returns the cells removed.
-    func fieldCarve(at c: V3, radius r: Float, mode: CarveMode, remove: ((IVec3, BlockID) -> Void)?) -> Int {
+    // P484 (Oct 28 18:08, mining overhead with a titanium pick: "Seemed to be a little delay between when I broke those
+    // blocks and the damage showed"): a hole he digs (`remesh`) is drawn the same frame, the sections next to the changed
+    // samples remeshed at once (as a placed block's are, P440); blasts and the rest still follow on a worker.
+    func fieldCarve(at c: V3, radius r: Float, mode: CarveMode, remesh: Bool = false, remove: ((IVec3, BlockID) -> Void)?) -> Int {
         guard r > 0.05 else { return 0 }
         if mode == .dig, let remove {
             let reach = Int(ceil(r))
@@ -811,7 +814,7 @@ extension World {
                 remove(IVec3(x, y, z), b)
             } } }
         }
-        let flipped = fieldSphere(c, radius: mode == .dent ? r * 0.8 : r, carve: true, material: nil, keepSolid: mode != .dig)
+        let flipped = fieldSphere(c, radius: mode == .dent ? r * 0.8 : r, carve: true, material: nil, keepSolid: mode != .dig, remesh: remesh)
         for p in flipped {
             if !damage.isEmpty { damage.removeValue(forKey: p) }
             queueSupportChecks(p.x, p.y, p.z, STONE, AIR)
