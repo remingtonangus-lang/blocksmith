@@ -395,7 +395,10 @@ final class QuestApp {
             g.sound?.setAway(!xr.focused, duck: g.paused && !(pm?.cameFromTitle ?? false) && !audioPage)
             // S8: away (the boundary or the system menu up, the headset taken off) for two seconds: saved once.
             awayFor = xr.focused ? 0 : awayFor + dt
-            if xr.focused { savedAway = false } else if awayFor > 2 && !savedAway { savedAway = true; saveNow() }
+            // P483 (Oct 28 17:42, back from the pause menu: "just had a really bad freeze there"): this save is taken
+            // the autosave's way (snapshots now, the files written on the save queue), so coming back just as it starts
+            // doesn't meet a frame stalled on every chunk write; the session stopping still saves and flushes (above).
+            if xr.focused { savedAway = false } else if awayFor > 2 && !savedAway { savedAway = true; g.saveNow(background: true) }
             // S8: head tracking lost (XRSession.headTracked; the view holds the last tracked pose): no ticks, and after
             // a moment the pause menu, so nothing happens to the player in the dark.
             headLostFor = xr.headTracked ? 0 : headLostFor + dt

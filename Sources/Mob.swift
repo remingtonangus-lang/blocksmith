@@ -998,6 +998,7 @@ final class Mob {
                 face(player)
                 speed = spec.speed * (baby ? 1.5 : 1)
                 if drownedThrow(g, dist: dist) { speed = 0 }
+                if variant == DeadSheriff.variant && kind == .zombie, let s = DeadSheriff.step(self, dt, g, dist: dist) { speed = s }   // P483
                 // Spiders leap at a target 2-4 blocks away (reference leap goal).
                 if (kind == .spider || kind == .caveSpider) && onGround && dist > 2 && dist < 4 && Rand.float(in: 0..<1) < dt * 4 {
                     vel += forward * 4 + V3(0, 5, 0)
@@ -1605,6 +1606,7 @@ final class Mob {
     // knockback (player melee and arrows: fists and hoes hit 4 times a second, and all three Multishot arrows landed).
     // Off for guns, blasts and scripted hits, which have their own rates.
     static var plateHit = false
+    static var glanced = 0                    // P483: melee blows that glanced off a gun (checks)
     // P321: a gun round on a soldier, its armour and toughness already worked out (Armory.impactMob): taken as dealt.
     static var roundHit = false
     static let litCampfires: Set<BlockID> = Set(["campfire", "soul_campfire"].filter { Blocks.has($0) }.map { Blocks.id($0) })
@@ -1612,6 +1614,18 @@ final class Mob {
         if posse == Prisoners.posse { return }                              // P347: the camp's prisoners can't be hurt
         Mob.onHit?(self, src, damage)
         if kind == .warden && emergeTime > 0 { return }
+        // P483 (Oct 28 17:41, "where I can damage the turret just by swinging the sword shouldn't happen"): a blade, a
+        // fist or a club glances off an emplacement gun's steel with a clang and sparks; shells, rounds and blasts
+        // still wreck it part by part.
+        if kind == .deckGun && Mob.playerMelee {
+            if let g = Mob.meleeGame {
+                let at = src + simd_normalize(pos + V3(0, height * 0.5, 0) - src + V3(1e-4, 0, 0)) * 1.2
+                g.particles.crit(at: at)
+                g.sfx(.anvilLand, 0.35, at: at)
+            }
+            Mob.glanced += 1
+            return
+        }
         if kind == .deckGun { GunParts.hit(self, from: src, damage: damage) }        // P372
         if Mob.playerMelee && damage >= 6 { stagger = max(stagger, 0.45) }   // P371 (5)
         // A downed horse takes no more (HorseLife.swift), except the player's own blow, which puts it down for good (he

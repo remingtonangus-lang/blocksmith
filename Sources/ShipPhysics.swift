@@ -162,7 +162,9 @@ extension ShipManager {
                    !(m.onGround && !holdsRider(d, d.toLocal(m.pos), halfW: m.halfW)),
                    m.onGround || overHull(d, d.toLocal(m.pos), halfW: m.halfW) || atShipLadder(d, d.toLocal(m.pos), halfW: m.halfW) {
                     mobRiders.append((m, d))
-                } else if let s = boardShip(for: m) {
+                } else if !(m.kind == .deckGun && m.deck == nil), let s = boardShip(for: m) {
+                    // (P483, Oct 28 17:37: "a drop ship that somehow has a flak turret on it": an emplacement gun on the
+                    // ground never boards a hull that comes down round it; only guns placed on a deck ride one.)
                     if m.deck !== s {
                         if let o = m.deck, list.contains(where: { $0 === o }) { m.vel += o.velocity(at: m.pos) }
                         m.vel -= s.velocity(at: m.pos)

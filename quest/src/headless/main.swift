@@ -1148,9 +1148,18 @@ if let out = arg("--view"), let ctx = vkctx {
             if let s = Int(arg("--mobseed") ?? "") { m.coatSeed = UInt32(truncatingIfNeeded: s + i * 7919) }   // --mobseed N: their looks
             m.persistent = true
             if CommandLine.arguments.contains("--boreal") && kind.ashVehicle { m.borealSetup() }     // --boreal: P460's winter vehicles
+            if let v = Int(arg("--mobvariant") ?? "") { m.variant = v }                // --mobvariant N: e.g. 7, a Dead Sheriff (P483)
             vg.mobs.mobs.append(m)
         }
         vg.mobs.rebuildIndex()
+        // --mobrun S (P483): S seconds of survival play with them (the player stands still), then what the Dead
+        // Sheriffs fired and what reached him.
+        if let secs = Double(arg("--mobrun") ?? "") {
+            vg.paused = false; vg.survival = true; vg.player.flying = false
+            let hp0 = vg.health
+            for _ in 0..<Int(secs * 72) { vg.tick(1.0 / 72); if !vg.alive { break } }
+            print("view: mobrun \(secs) s: sheriff shots \(DeadSheriff.shots), hits \(DeadSheriff.hits), health \(hp0) -> \(vg.health), alive \(vg.alive)")
+        }
     }
     // --scene shapes: the realistic world's shape classes side by side on a lawn in the air at --at (organic objects,
     // cut timber, a log wall, a post), seen from --dist blocks off (8).

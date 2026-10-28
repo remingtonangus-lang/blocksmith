@@ -180,7 +180,8 @@ extension Game {
         // (a homesteader's or camp's six-iron, P454: shot by the person, no lawman's title)
         let role = m.villager?.role
         let title = role == "deputy" ? "Deputy" : role == "sheriff" ? "Sheriff" : ""
-        let who = m.villager?.person.map { title.isEmpty ? $0 : "\(title) \($0)" } ?? (title.isEmpty ? "a homesteader" : "the \(title.lowercased())")
+        let who = DeadSheriff.isOne(m) ? "a Dead Sheriff"
+            : m.villager?.person.map { title.isEmpty ? $0 : "\(title) \($0)" } ?? (title.isEmpty ? "a homesteader" : "the \(title.lowercased())")
         if amount == SixIron.lethal {
             // Below iron: no enchantment, Resistance or golden hearts soften it; only a totem pulls you through.
             Game.onDamage?(health, "was shot by \(who)")

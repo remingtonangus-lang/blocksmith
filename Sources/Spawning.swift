@@ -64,7 +64,12 @@ enum Spawns {
         if b == .dripstoneCaves { zombie = [(.drowned, 95, 4, 4), (.zombieVillager, 5, 1, 1)] }
         if snowy.contains(b) { skeleton = [(.skeleton, 20, 4, 4), (.stray, 80, 4, 4)] }
         if b == .swamp || b == .mangroveSwamp { skeleton = [(.skeleton, 70, 4, 4), (.bogged, 50, 4, 4)] }
-        var list: [SpawnEntry] = [(.spider, 70, 1, 2)]      // P246: Gravesworn duellists walk alone or in pairs + zombie + skeleton
+        // P246: Gravesworn duellists walk alone or in pairs. P483 (Oct 28 17:57, "there should be slightly more mobs"; "to
+        // replace the skeleton... some like zombified sheriff that just happens to have a six iron... one out of every
+        // five zombies"): the walkers are back (P246 had left them, and the bowmen, out of the list since Oct 14), one in
+        // five a Dead Sheriff (DeadSheriff.swift); the skeleton bowmen stay gone.
+        _ = skeleton
+        var list: [SpawnEntry] = [(.spider, 70, 1, 2)] + zombie
             + [(.creeper, 100, 4, 4), (.slime, 100, 4, 4), (.witch, 5, 1, 1)]     // (P418: no voidwalkers)
         if b.isRiver { list.append((.drowned, 100, 1, 1)) }
         else if b.isOcean { list.append((.drowned, 5, 1, 1)) }
@@ -118,7 +123,7 @@ extension MobManager {
     // Playtest Oct 9 PM #4 ("surface mob density: about half"): surface monsters fill this share of the monster cap
     // (caves keep theirs), animal packs come to this share of new chunks and timed animal spawns this often. The pm9b
     // check sets it to 1 to measure the old density against the new on the same world.
-    static var surfaceSpawnScale: Float = 0.5
+    static var surfaceSpawnScale: Float = 0.6          // (P483, Oct 28: "there should be slightly more mobs"; was 0.5)
 
     // Non-persistent monsters near the player standing on the surface (not 8+ blocks under the ground).
     func surfaceMonsters(near p: V3, _ w: World) -> Int {
@@ -538,7 +543,8 @@ extension MobManager {
             if Items.has(n) { var eq = m.equip ?? [ItemStack](repeating: .empty, count: 5); eq[4] = ItemStack(Items.id(n), 1); m.equip = eq }
         }
         if m.isZombie {
-            if Rand.float(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
+            if m.kind == .zombie && Rand.float(in: 0..<1) < DeadSheriff.share { m.variant = DeadSheriff.variant }    // P483
+            else if Rand.float(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
             m.breaksDoors = m.kind != .drowned && Rand.float(in: 0..<1) < game.regionalDifficulty * 0.1
         }
         mobs.append(m)

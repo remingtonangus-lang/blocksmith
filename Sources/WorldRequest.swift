@@ -30,6 +30,7 @@ struct WorldRequest {
     func setUp(_ game: Game, meta: WorldMeta?) {
         if let m = meta { game.apply(m) } else {
             if let sv = survival { game.survival = sv }
+            if game.survival { game.takeCreativeStarter() }                   // (P483)
             if let d = difficulty { game.diffLevel = Difficulty.clamp(d) }     // P302: a level (0...5)
             game.smoothTerrain = smooth ?? Settings.shared.smoothTerrain     // (PG6: a new world is Polygons unless chosen)
             // (PG1 rewrite: its ground is a density field.) Before spawnPoint: settling the spawn loads chunks, and
