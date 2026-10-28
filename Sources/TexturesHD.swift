@@ -1671,70 +1671,120 @@ enum HDTex {
         }
     }
 
-    // Crafting table (same layout as the small painters). Top: a worktop of light planks in a dark frame, split into
-    // four by grooves, with a few scratches. Sides: the tabletop's dark edge band over planks with two legs; the
-    // front hangs a saw (toothed blade, wooden grip) and a hammer.
+    // P481 part 3 (docs/store/lookalike-review.md: the gridded top with its dark rim, and the front's hanging saw and hammer,
+    // echoed the reference's crafting table): a carpenter's bench of our own. Top: two wide boards along the bench, a row
+    // of bench-dog holes near the front edge, a wooden vise jaw on its iron guide rods at the left end, a steel square
+    // left lying on it and an old cup ring. Sides: the top's end grain over an open frame (corner legs, a low stretcher,
+    // shadow under the top). Front: two drawers with iron ring pulls under the top, an open shelf low between the legs.
     static func craftingTable(_ face: Int) -> Gen {            // 0 top, 1 side, 2 front
         { n, s in
             let u = n / 16
-            let fn = Float(n)
-            var img = planks([(0, 0x8A6838), (0.5, 0xB08850), (1, 0xC8A468)])(n, s)
+            let fu = Float(u)
             let fine = vnoise(n, max(1, n / 64), s &+ 3)
+            let grainW = fbm(n, n / 4, 3, s &+ 5)
+            var img = Img(n)
             func put(_ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
-            let dark = col(0x5A4020), groove = col(0x6B4F2C), leg = col(0x3E2C16)
+            func k(_ x: Int, _ y: Int) -> Float { 0.9 + 0.2 * fine[(y % n) * n + (x % n)] }
+            let pal: [(Float, UInt32)] = [(0, 0x7A5A30), (0.5, 0xA27C48), (1, 0xC29C62)]
+            // A long board's grain, running along x (the bench's length).
+            func board(_ x: Int, _ y: Int, _ b: Int) -> V3 {
+                let gw: Float = grainW[(y % n) * n + (x % n)] - 0.5
+                let gy: Float = Float(y) + gw * fu * 5
+                let grain: Float = 0.5 + 0.5 * sinf(gy / Float(n) * 2 * Float.pi * 14)
+                let tone: Float = h2(b, 9, s) * 0.14
+                return ramp(0.3 + grain * 0.3 + tone + (fine[(y % n) * n + (x % n)] - 0.5) * 0.1, pal)
+            }
+            let iron = col(0x3A3A3E), steel = col(0x9A9CA2), shadow = col(0x2A1E10), leg = col(0x5E4424), endGrain = col(0xB89462)
             if face == 0 {
                 for y in 0..<n { for x in 0..<n {
-                    let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
-                    let k: Float = 0.9 + 0.2 * fine[y * n + x]
-                    let rim: Float = edge == 0 ? 0.8 : 1.05
-                    if edge < u { put(x, y, dark * (k * rim)) }
-                    else if (x >= 7 * u && x < 8 * u) || (y >= 7 * u && y < 8 * u) {
-                        let lip: Bool = x == 7 * u || y == 7 * u
-                        put(x, y, groove * (k * (lip ? 0.75 : 1)))
-                    }
+                    let b = y < 7 * u ? 0 : 1                                       // two boards, the joint at 7
+                    var c = board(x, y, b)
+                    if y == 7 * u || y == 7 * u + 1 { c = c * 0.62 }
+                    put(x, y, c)
                 } }
-                for k in 0..<5 {                                                   // scratches
-                    let x0: Float = h2(k, 1, s) * fn, y0: Float = h2(k, 2, s) * fn
-                    let ang: Float = h2(k, 3, s) * Float.pi
-                    for t in 0..<(n / 6) {
-                        let x = Int(x0 + cosf(ang) * Float(t)), y = Int(y0 + sinf(ang) * Float(t))
-                        let c = img[x, y]
-                        img[x, y] = V4(c.x * 0.85, c.y * 0.85, c.z * 0.85, 1)
-                    }
+                // Bench-dog holes: a row near the front edge, not evenly spaced.
+                for (i, hx) in [Float(3.2), 6.6, 10.1, 13.4].enumerated() {
+                    let cx = hx * fu, cy = 12.6 * fu, r = 0.62 * fu
+                    for y in Int(cy - r - 2)...Int(cy + r + 2) { for x in Int(cx - r - 2)...Int(cx + r + 2) {
+                        let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+                        let d: Float = (dx * dx + dy * dy).squareRoot()
+                        if d < r { put(x, y, shadow * (0.6 + 0.3 * (d / r)) * (i == 2 ? 0.9 : 1)) }
+                        else if d < r + 1.5 { let c = img[x, y]; img[x, y] = V4(c.x * 0.8, c.y * 0.8, c.z * 0.8, 1) }
+                    } }
                 }
+                // The vise: a darker jaw block across the left end, two iron guide rods running into the bench.
+                for y in (1 * u)..<(6 * u) { for x in 0..<(2 * u) {
+                    let edge: Float = x >= 2 * u - max(1, u / 4) ? 0.7 : 1
+                    put(x, y, leg * (k(x, y) * edge * (y == u ? 0.8 : 1.05)))
+                } }
+                for ry in [Float(2), 4.6] {
+                    for y in Int(ry * fu)..<Int((ry + 0.45) * fu) { for x in (2 * u)..<(4 * u + u / 2) {
+                        let lit: Float = y == Int(ry * fu) ? 1.25 : 0.9
+                        put(x, y, iron * (lit * k(x, y)))
+                    } }
+                }
+                // A steel square left on the bench: the blade along the length, the stock across, rule marks on the blade.
+                let sx = 7 * u, sy = 3 * u
+                for y in sy..<(sy + u * 2 / 3) { for x in sx..<(sx + 7 * u) {
+                    let tick = (x - sx) % max(2, u / 2) == 0 && y < sy + u / 3
+                    put(x, y, (tick ? iron : steel) * ((y == sy ? 1.2 : 1) * k(x, y)))
+                } }
+                for y in sy..<(sy + 4 * u) { for x in sx..<(sx + u) {
+                    let wood: Bool = y > sy + u * 2 / 3
+                    put(x, y, (wood ? col(0x4A3018) : steel) * (k(x, y) * (x == sx ? 1.15 : 1)))
+                } }
+                // An old cup ring.
+                let rx = 11.5 * fu, ryc = 9.2 * fu, rr = 1.4 * fu
+                for y in Int(ryc - rr - 2)...Int(ryc + rr + 2) { for x in Int(rx - rr - 2)...Int(rx + rr + 2) {
+                    let dx: Float = Float(x) - rx, dy: Float = Float(y) - ryc
+                    let d: Float = (dx * dx + dy * dy).squareRoot()
+                    if abs(d - rr) < max(1, fu / 5) { let c = img[x, y]; img[x, y] = V4(c.x * 0.78, c.y * 0.74, c.z * 0.7, 1) }
+                } }
                 return img
             }
+            // Sides and front: the top's thick edge (end grain on the sides, the board's face on the front), then the frame.
+            let slab = 2 * u
             for y in 0..<n { for x in 0..<n {
-                let k: Float = 0.9 + 0.2 * fine[y * n + x]
-                let under: Float = y >= 3 * u - u / 2 ? 0.75 : 1
-                if y < 3 * u { put(x, y, dark * (k * under)) }
-                else if (x >= 2 * u && x < 3 * u) || (x >= 13 * u && x < 14 * u) { put(x, y, leg * k) }
+                var c: V3
+                if y < slab {
+                    if face == 1 {
+                        let ring: Float = 0.85 + 0.15 * sinf((Float(x) * 0.7 + Float(y) * 2.3) / fu * 3)
+                        c = endGrain * (ring * k(x, y))
+                    } else { c = board(x, y + 3 * u, 0) * 1.05 }
+                    if y == slab - 1 { c = c * 0.7 }
+                } else if x < 2 * u || x >= n - 2 * u {
+                    let lit: Float = x < 2 * u ? (x < max(1, u / 4) ? 0.8 : 1.05) : (x >= n - max(1, u / 4) ? 0.75 : 0.95)
+                    c = leg * (lit * k(x, y))
+                } else if y >= 12 * u && y < 13 * u {
+                    c = leg * ((y == 12 * u ? 1.15 : 0.95) * k(x, y))                 // the stretcher
+                } else {
+                    // The back boards seen through the open frame, deep in shadow (darkest just under the top).
+                    let under: Float = y < slab + u ? 0.28 : (y < slab + 3 * u ? 0.36 : 0.42)
+                    c = board(x, y * 2, 3) * under
+                    if (y - slab) % (3 * u) == 0 { c = c * 0.6 }
+                }
+                put(x, y, c)
             } }
             guard face == 2 else { return img }
-            // Saw: a triangular blade (teeth along its lower edge) on a wooden grip.
-            for y in (5 * u)..<(13 * u) { for x in (3 * u)..<(7 * u) {
-                let fx: Float = Float(x - 3 * u) / Float(u), fy: Float = Float(13 * u - y) / Float(u)
-                guard fx + fy <= 6.2 else { continue }
-                let tooth: Bool = fy < 0.6 && Int(fx * 2) % 2 == 0
-                let fade: Float = 0.25 * (1 - fx / 4)
-                let shine: Float = 0.85 + fade + 0.1 * fine[y * n + x]
-                let blade: V3 = V3(0.72, 0.72, 0.74) * shine
-                put(x, y, tooth ? V3(0.5, 0.5, 0.52) : blade)
+            // Two drawers with iron ring pulls, an open shelf low down holding a plane.
+            for (x0, x1) in [(2 * u + u / 2, 7 * u + u / 2), (8 * u + u / 2, 13 * u + u / 2)] {
+                for y in (slab + u / 2)..<(6 * u + u / 2) { for x in x0..<x1 {
+                    let rim = x == x0 || x == x1 - 1 || y == slab + u / 2 || y == 6 * u + u / 2 - 1
+                    put(x, y, board(x, y + 5 * u, 1) * (rim ? 0.65 : 1))
+                } }
+                let cx = Float(x0 + x1) / 2, cy = Float(slab + u / 2 + 6 * u + u / 2) / 2, r = 0.55 * fu
+                for y in Int(cy - r - 2)...Int(cy + r + 2) { for x in Int(cx - r - 2)...Int(cx + r + 2) {
+                    let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+                    let d: Float = (dx * dx + dy * dy).squareRoot()
+                    if abs(d - r) < max(1, fu / 6) { put(x, y, iron * (Float(y) < cy ? 1.3 : 0.9)) }
+                } }
+            }
+            for y in (10 * u + u / 2)..<(12 * u) { for x in (2 * u)..<(n - 2 * u) {
+                if y < 11 * u { put(x, y, board(x, y, 1) * 0.95) }                 // the shelf's front edge
             } }
-            let grip = col(0x7A4A22)
-            for y in (11 * u)..<(14 * u) { for x in (2 * u)..<(4 * u) {
-                let gk: Float = 0.9 + 0.2 * fine[y * n + x]
-                put(x, y, grip * gk)
-            } }
-            // Hammer: a steel head across the top of a handle.
-            for y in (5 * u)..<(6 * u + u / 2) { for x in (9 * u)..<(14 * u) {
-                let top: Bool = y < 5 * u + u / 3
-                let hk: Float = top ? 1.2 : 0.95
-                put(x, y, V3(0.5, 0.5, 0.53) * hk)
-            } }
-            for y in (6 * u + u / 2)..<(13 * u) { for x in (11 * u)..<(12 * u) {
-                let lit: Float = x < 11 * u + u / 2 ? 1.1 : 0.85
-                put(x, y, col(0x6B4F2C) * lit)
+            for y in (9 * u)..<(10 * u + u / 2) { for x in (9 * u)..<(13 * u) {     // a plane on the shelf
+                let body: Bool = y >= 9 * u + u / 3
+                put(x, y, (body ? col(0x6A4A26) : steel) * k(x, y))
             } }
             return img
         }
@@ -3604,50 +3654,95 @@ enum HDTex {
         }
     }
 
-    // TNT (same layout as the small painters). Side: four red paper tubes, each rounded with its own shading, under a
-    // white label band with the black marks of the small design. Top / bottom: the tube ends as paper rings, a fuse in
-    // the middle of the top.
+    // P481 part 3 (docs/store/lookalike-review.md: red paper tubes under a white label band echoed the reference's
+    // explosive): a crate of blasting sticks. Side: pale pine boards in a dark iron frame with corner rivets, a red
+    // painted disc stencilled with a black flame. Top: the lid's boards under two iron straps, a coil of fuse cord
+    // with its end hanging over. Bottom: the boards and straps.
     static func tntHD(_ part: Int) -> Gen {                      // 0 side, 1 top, 2 bottom
         { n, s in
-            let fn = Float(n), u = n / 16
+            let u = n / 16
+            let fu = Float(u), fn = Float(n)
             var img = Img(n)
-            let fine = vnoise(n, max(1, n / 64), s)
-            let red = col(0xC23A28), paper = col(0xB8B0A0), white = col(0xEAEAEA), ink = col(0x2A2A2A)
+            let fine = vnoise(n, max(1, n / 64), s &+ 7)
+            let grainW = fbm(n, n / 4, 3, s &+ 8)
+            let pine: [(Float, UInt32)] = [(0, 0x9C8460), (0.5, 0xC2A87C), (1, 0xD8C49A)]
+            // Crate boards: four running the face's width (the lid's run across its straps), grain along them.
+            let bh = n / 4
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
-                let grain: Float = 0.93 + 0.12 * fine[i]
-                var c: V3
-                if part == 0 {
-                    let tube: Float = (Float(x % (4 * u)) + 0.5) / Float(4 * u)       // 0...1 across a tube
-                    let round: Float = 0.72 + 0.4 * sinf(Float.pi * tube) - 0.1 * tube
-                    c = red * (round * grain)
-                    let ly = y / u, lx = x / u
-                    if ly >= 5 && ly <= 10 {
-                        let lit: Float = 0.9 + 0.12 * sinf(Float.pi * tube)
-                        c = white * (grain * lit)
-                        let glyph: Bool = lx % 4 == 1 || (ly == 6 && lx % 4 != 0)
-                        let mark: Bool = ly >= 6 && ly <= 9 && glyph
-                        if mark { c = ink * grain }
-                    }
-                } else {
-                    // Tube ends: a 2x2 grid of paper rings (each tube end), a fuse on top.
-                    let cell = n / 2
-                    let half: Float = Float(cell) / 2
-                    let cx: Float = Float(x % cell) + 0.5 - half
-                    let cy: Float = Float(y % cell) + 0.5 - half
-                    let d: Float = (cx * cx + cy * cy).squareRoot() / half
-                    let rings: Float = 0.85 + 0.15 * cosf(d * 18)
-                    let ring: Float = d < 0.9 ? rings : 0.55
-                    c = paper * (ring * grain)
-                    if part == 1 {
-                        let fx: Float = Float(x) + 0.5 - fn / 2
-                        let fy: Float = Float(y) + 0.5 - fn / 2
-                        let fuseR2: Float = Float(u * u) * 4
-                        if fx * fx + fy * fy < fuseR2 { c = ink * grain }
-                    }
-                }
-                img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+                let b = y / bh
+                let gw: Float = grainW[i] - 0.5
+                let gy: Float = Float(y) + gw * fu * 4
+                let grain: Float = 0.5 + 0.5 * sinf(gy / fn * 2 * Float.pi * 16)
+                let tone: Float = h2(b, 11, s) * 0.16
+                var c = ramp(0.3 + grain * 0.3 + tone + (fine[i] - 0.5) * 0.1, pine)
+                let inB = y % bh
+                if inB < max(1, n / 64) { c = c * 0.55 } else if inB < max(2, n / 32) { c = c * 1.08 }
+                img.px[i] = V4(c.x, c.y, c.z, 1)
             } }
+            func put(_ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
+            func k(_ x: Int, _ y: Int) -> Float { 0.9 + 0.2 * fine[(y % n) * n + (x % n)] }
+            let iron = col(0x34343A), red = col(0xB0301E), ink = col(0x1E1A18), cord = col(0x4A4440)
+            // The iron: a frame round the side; two straps across the lid and the bottom.
+            for y in 0..<n { for x in 0..<n {
+                let band: Bool
+                if part == 0 { band = x < u || y < u || x >= n - u || y >= n - u }
+                else { band = (x >= 3 * u && x < 4 * u) || (x >= 12 * u && x < 13 * u) }
+                guard band else { continue }
+                let inner: Bool = part == 0 ? (x == u - 1 || y == u - 1 || x == n - u || y == n - u) : (x == 3 * u || x == 12 * u)
+                put(x, y, iron * ((inner ? 0.7 : 1.05) * k(x, y)))
+            } }
+            // Rivets.
+            let rivets: [(Float, Float)] = part == 0 ? [(0.5, 0.5), (15.5, 0.5), (0.5, 15.5), (15.5, 15.5), (8, 0.5), (8, 15.5)]
+                                                     : [(3.5, 1.5), (3.5, 14.5), (12.5, 1.5), (12.5, 14.5), (3.5, 8), (12.5, 8)]
+            for (rx, ry) in rivets {
+                let cx = rx * fu, cy = ry * fu, r = max(1, 0.28 * fu)
+                for y in Int(cy - r - 1)...Int(cy + r + 1) { for x in Int(cx - r - 1)...Int(cx + r + 1) {
+                    let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+                    if dx * dx + dy * dy < r * r { put(x, y, col(0x7A7A80) * (dy < 0 ? 1.3 : 0.85)) }
+                } }
+            }
+            if part == 0 {
+                // A red painted disc, worn at its edge, with a black flame stencilled on it.
+                let cx = fn / 2, cy = fn / 2, r = 4.6 * fu
+                for y in 0..<n { for x in 0..<n {
+                    let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+                    let d: Float = (dx * dx + dy * dy).squareRoot()
+                    let wear: Float = fine[y * n + x] * fu * 0.5
+                    guard d < r - wear else { continue }
+                    // The flame: three tongues (the middle one tallest, leaning) rising off a round base.
+                    func tongue(_ cx: Float, _ tip: Float, _ hw: Float, _ lean: Float) -> Bool {
+                        let base: Float = 1.6 * fu
+                        guard dy > tip && dy < base else { return false }
+                        let t: Float = (dy - tip) / (base - tip)                        // 0 at the tip, 1 at the base
+                        let off: Float = lean * (1 - t) * (1 - t)
+                        return abs(dx - cx - off) < hw * powf(t, 0.75)
+                    }
+                    let bdy: Float = dy - 1.5 * fu
+                    let base: Bool = dx * dx * 0.8 + bdy * bdy < (2.3 * fu) * (2.3 * fu) && dy > 0
+                    let lit: Bool = base || tongue(0.2 * fu, -3.9 * fu, 1.7 * fu, 0.9 * fu) || tongue(-1.5 * fu, -1.2 * fu, 1.0 * fu, -0.6 * fu)
+                        || tongue(1.7 * fu, -1.9 * fu, 0.9 * fu, 0.7 * fu)
+                    put(x, y, (lit ? ink : red) * k(x, y))
+                } }
+                return img
+            }
+            if part == 1 {
+                // A coil of fuse cord on the lid, its end trailing off toward the edge.
+                let cx = 8 * fu, cy = 8 * fu
+                for y in 0..<n { for x in 0..<n {
+                    let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+                    let d: Float = (dx * dx + dy * dy).squareRoot()
+                    guard d < 3.2 * fu else { continue }
+                    let a: Float = atan2f(dy, dx)
+                    let turn: Float = (d / (0.8 * fu) - a / (2 * Float.pi))
+                    let f: Float = turn - floorf(turn)
+                    if d > 0.6 * fu && f < 0.62 { put(x, y, cord * ((0.75 + 0.5 * sinf(f / 0.62 * Float.pi)) * k(x, y))) }
+                } }
+                for t in 0..<(5 * u) {                                              // the trailing end
+                    let x = Int(cx + 3 * fu) + t, y = Int(cy) + Int(sinf(Float(t) / fu) * fu * 0.4)
+                    for w in 0..<max(1, u / 2) { put(x, y + w, cord * (w == 0 ? 1.2 : 0.8)) }
+                }
+            }
             return img
         }
     }

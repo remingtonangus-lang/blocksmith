@@ -1636,6 +1636,31 @@ if let a = arg("--kestrelfield") {
     print("kestrelfield: \(parked ? "a Kestrel parked on the pad" : "no Kestrel"): records \(kg.bases.records.count), pad \(rec.map { kg.basePadProblem($0) ?? "clear" } ?? "-"), taken \(rec?.kestrelTaken ?? false), sortie \(rec?.air != nil)")
     exit(parked ? 0 : 1)
 }
+// --texshot NAME,NAME,... OUT.ppm (P481): those texture layers side by side, at the game's size (128) over the 16 px
+// painters' own (upscaled), for looks work on block faces without a renderer.
+if let names = arg("--texshot"), let i = CommandLine.arguments.firstIndex(of: "--texshot"), i + 2 < CommandLine.arguments.count {
+    let out = CommandLine.arguments[i + 2]
+    TextureGen.registerAll()
+    let want = names.split(separator: ",").map(String.init).compactMap { Tex.names.firstIndex(of: $0) }
+    let n = TextureGen.size, gap = 4
+    let W = gap + want.count * (n + gap), H = gap + 2 * (n + gap)
+    var px = [UInt8](repeating: 40, count: W * H * 3)
+    for (c, layer) in want.enumerated() {
+        for (row, size) in [n, 16].enumerated() {
+            let data = TextureGen.base(size: size, layers: layer..<(layer + 1))
+            for y in 0..<n { for x in 0..<n {
+                let sx = x * size / n, sy = y * size / n
+                let si = (sy * size + sx) * 4
+                let o = ((gap + row * (n + gap) + y) * W + gap + c * (n + gap) + x) * 3
+                for ch in 0..<3 { px[o + ch] = data[si + ch] }
+            } }
+        }
+    }
+    let head = Array("P6\n\(W) \(H)\n255\n".utf8)
+    FileManager.default.createFile(atPath: out, contents: Data(head + px))
+    print("texshot: \(want.count) layers -> \(out)")
+    exit(0)
+}
 // --figureshot OUT.ppm [--armour PREFIX] [--mouse X,Y] (P473): the inventory's figure wearing a set (regular_ by default), the HUD's
 // flat triangles rasterised on the host (text and icons left out), cropped round the preview box and scaled 4x.
 if let out = arg("--figureshot") {

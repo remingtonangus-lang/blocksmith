@@ -500,24 +500,33 @@ enum TextureGen {
             return v > 0.9 ? hex(0xFFF3C4) : (v > 0.6 ? hex(0xE8B55A) : hex(0x9A6A30, 0.9 + 0.2 * r(x, y, 82)))
         }
 
-        let plank = planks(0xA2824E, salt: 41)
+        // P481 part 3: a carpenter's bench (TexturesHD.craftingTable has the full design).
         p["crafting_table_top"] = { x, y in
-            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x5A4020) }
-            if x == 7 || y == 7 { return hex(0x6B4F2C) }
-            return hex(0xB08850, 0.9 + 0.12 * r(x, y, 101))
+            if x < 2 && y >= 1 && y < 6 { return hex(0x5E4424, 0.9 + 0.15 * r(x, y, 101)) }          // the vise jaw
+            if (y == 2 || y == 4) && x >= 2 && x < 4 { return hex(0x3A3A3E) }                       // its guide rods
+            if y == 3 && x >= 7 && x < 14 { return hex(x % 2 == 0 ? 0x6A6C72 : 0x9A9CA2) }          // a steel square
+            if x == 7 && y > 3 && y < 7 { return hex(0x4A3018) }
+            if y == 12 && [3, 6, 10, 13].contains(x) { return hex(0x2A1E10) }                      // bench-dog holes
+            if y == 7 { return hex(0x6E5230) }                                                     // the boards' joint
+            return hex(0xA27C48, 0.9 + 0.12 * r(x, y, 101) + (y < 7 ? 0 : 0.05))
         }
         p["crafting_table_side"] = { x, y in
-            if y < 3 { return hex(0x5A4020, 0.9 + 0.1 * r(x, y, 102)) }
-            if (x == 2 || x == 13) && y >= 3 { return hex(0x3E2C16) }
-            return plank(x, y)
+            if y < 2 { return hex(0xB89462, 0.85 + 0.15 * r(x, y, 102)) }
+            if x < 2 || x >= 14 { return hex(0x5E4424, 0.9 + 0.1 * r(x, y, 102)) }
+            if y == 12 { return hex(0x5E4424) }
+            return hex(0x4A3820, (y == 2 ? 0.55 : 0.75) * ((y - 2) % 3 == 0 ? 0.7 : 1) * (0.9 + 0.1 * r(x, y, 105)))   // back boards in shadow
         }
         p["crafting_table_front"] = { x, y in
-            if y < 3 { return hex(0x5A4020, 0.9 + 0.1 * r(x, y, 102)) }
-            // A saw and a hammer hanging on the front.
-            if y >= 5 && y <= 12 && x >= 3 && x <= 6 && (x - 3) + (12 - y) <= 6 { return hex(0xB8B8B8, 0.9 + 0.2 * r(x, y, 103)) }
-            if x >= 9 && x <= 13 && y == 5 { return hex(0x8A8A8A) }
-            if x == 11 && y > 5 && y < 13 { return hex(0x6B4F2C) }
-            return plank(x, y)
+            if y < 2 { return hex(0xA27C48, 0.9 + 0.1 * r(x, y, 104)) }
+            if x < 2 || x >= 14 { return hex(0x5E4424, 0.9 + 0.1 * r(x, y, 102)) }
+            if y >= 3 && y <= 6 && ((x >= 2 && x <= 6) || (x >= 9 && x <= 13)) {                     // two drawers
+                if y == 5 && (x == 4 || x == 11) { return hex(0x3A3A3E) }
+                return hex(0x9A7444, (y == 3 || y == 6 || x == 2 || x == 6 || x == 9 || x == 13 ? 0.7 : 1) * (0.9 + 0.1 * r(x, y, 103)))
+            }
+            if y == 10 { return hex(0xA27C48) }                                                    // the shelf
+            if y == 9 && x >= 9 && x <= 12 { return hex(x == 9 ? 0x9A9CA2 : 0x6A4A26) }           // a plane on it
+            if y == 12 { return hex(0x5E4424) }
+            return hex(0x4A3820, (y == 2 || y == 7 ? 0.55 : 0.75) * (0.9 + 0.1 * r(x, y, 105)))
         }
         let cobbleP = cobble(0x7A7A7A, 0x444444, 9)
         let furnaceSide: Painter = { x, y in
@@ -639,19 +648,29 @@ enum TextureGen {
                 return hex(c, (x == 0 || x == 15 ? 0.8 : 1) * (0.9 + 0.1 * r(x, y, 143)))
             }
         }
+        // P481 part 3: a crate of blasting sticks (TexturesHD.tntHD has the full design).
+        let crate: Painter = { x, y in hex(0xC2A87C, (y % 4 == 0 ? 0.75 : 1) * (0.9 + 0.12 * r(x, y, 150))) }
+        // A flame, three tongues off a round base (rows 3...12, columns 4...12).
+        let flame16 = ["....#....", "....##...", ".#..##...", ".#.###.#.", ".#####.#.", ".#######.",
+                       "#########", "#########", ".#######.", "..#####.."]
         p["tnt_side"] = { x, y in
-            if y >= 5 && y <= 10 {
-                if y >= 6 && y <= 9 && (x % 4 == 1 || (y == 6 && x % 4 != 0)) { return hex(0x2A2A2A) }
-                return hex(0xEAEAEA)
+            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x34343A) }
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            if dx * dx + dy * dy < 24 {
+                let fy = y - 3, fx = x - 4
+                let f = fy >= 0 && fy < flame16.count && fx >= 0 && fx < 9 && Array(flame16[fy])[fx] == "#"
+                return hex(f ? 0x1E1A18 : 0xB0301E, 0.9 + 0.1 * r(x, y, 151))
             }
-            return hex(0xC23A28, (x % 4 == 0 ? 0.8 : 1) * (0.9 + 0.1 * r(x, y, 150)))
+            return crate(x, y)
         }
         p["tnt_top"] = { x, y in
+            if x == 3 || x == 12 { return hex(0x34343A) }
             let dx = Float(x) - 7.5, dy = Float(y) - 7.5
-            if dx * dx + dy * dy < 4 { return hex(0x3A3A3A) }
-            return hex(0xB8B0A0, 0.9 + 0.1 * r(x, y, 151))
+            let d = (dx * dx + dy * dy).squareRoot()
+            if (d >= 1.6 && d < 2.6) || d < 0.8 || (y == 8 && x >= 10 && x <= 15) { return hex(0x4A4440) }      // a coil of fuse cord
+            return crate(x, y)
         }
-        p["tnt_bottom"] = { x, y in hex(0xB8B0A0, 0.85 + 0.1 * r(x, y, 152)) }
+        p["tnt_bottom"] = { x, y in x == 3 || x == 12 ? hex(0x34343A) : crate(x, y) }
         // Emberdeep
         // Netherrack: lumpy fleshy rock - rounded lumps (cell pattern) lit on top, dark seams between them.
         var npts: [V2] = []
