@@ -375,7 +375,7 @@ extension ShipManager {
     }
 
     // Removes a blast's destroyed cells from ship s (drops, counts, remesh; a free ship is pushed, rebuilt and split).
-    func removeCells(_ s: Ship, _ destroyed: Set<IVec3>, chipped: [IVec3], center c: V3, power: Float, game: Game?) {
+    func removeCells(_ s: Ship, _ destroyed: Set<IVec3>, chipped: [IVec3], center c: V3, power: Float, game: Game?, detach: Bool = true) {
         let g = s.grid
         let kinds = ShipParts.kinds
         for cell in destroyed {
@@ -399,7 +399,7 @@ extension ShipManager {
             // A 7-million-cell grid can't be rebuilt or flood-filled per blast: count, remesh the touched sections.
             s.blockCount -= destroyed.count
             s.mesh.rebuildAround(s, Array(destroyed) + chipped, device: world.device, queue: meshQueue)
-            detachLoose(s, around: Array(destroyed))
+            if detach { detachLoose(s, around: Array(destroyed)) }
             return
         }
         // Push: an impulse away from the blast, applied at the blast point.

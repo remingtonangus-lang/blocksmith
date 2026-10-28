@@ -549,6 +549,7 @@ extension ShipManager {
             let k = min(1, st.gunCharge / MainGun.chargeTime)
             return ("\(Int(k * 100))%", k, false)
         }
+        if st.mainGunCD > 1e30 { return ("OUT", 0, false) }                // (P476: its barrel torn away in a crash)
         if st.mainGunCD > 0 {
             let total = st.gunByPlayer ? MainGun.playerReload : MainGun.aiReload
             return (String(format: "%.0f s", st.mainGunCD.rounded(.up)), max(0, 1 - st.mainGunCD / total), false)
