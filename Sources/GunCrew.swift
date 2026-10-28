@@ -91,8 +91,7 @@ extension ShipManager {
     }
 
     // Elevation to land a 45 b/s shell `horiz` away and `dy` up under gravity 20 (the low arc).
-    static func elevation(_ horiz: Float, _ dy: Float) -> Float {
-        let v: Float = 45, gr: Float = 20
+    static func elevation(_ horiz: Float, _ dy: Float, speed v: Float = 45, gravity gr: Float = 20) -> Float {
         let v2 = v * v
         let disc: Float = v2 * v2 - gr * (gr * horiz * horiz + 2 * dy * v2)
         return disc > 0 ? atanf((v2 - sqrtf(disc)) / (gr * horiz)) : 0.6

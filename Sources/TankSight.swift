@@ -36,7 +36,10 @@ extension Game {
             let muzzle = tu.toWorld(tu.pivot)
             let v = p - muzzle
             let horiz = simd_length(V2(v.x, v.z))
-            let e: Float = horiz < 4 ? max(-0.2, min(0.6, player.pitch + 0.05)) : max(-0.2, min(0.6, ShipManager.elevation(horiz, v.y)))
+            // P477 (Oct 27 19:27, the Works' tank: "Has a tendency to shoot upwards... Should be a straight shooter"): each
+            // turret is laid for its own shell (a calibre gun's flat and fast one: CannonCalibre), not the old lobbed ball.
+            let (sv, sg) = tu.shellFlight
+            let e: Float = horiz < 4 ? max(-0.2, min(0.6, player.pitch)) : max(-0.2, min(0.6, ShipManager.elevation(horiz, v.y, speed: sv, gravity: sg)))
             tu.gunPitch = e
             if i == 0 { TankSight.elev = e; s.gunPitch = e }
             let tf = tu.dirToWorld(V3(0, 0, -1))

@@ -63,7 +63,7 @@ enum ShipParts {
     static let kinds: [Kind] = {
         var t = [Kind](repeating: .none, count: Blocks.count)
         let names: [(String, Kind)] = [("ship_helm", .helm), ("ship_propeller", .propeller), ("ship_engine", .engine),
-                                       ("ship_balloon", .balloon), ("ship_wing", .wing), ("capital_wing", .wing), ("fighter_wing", .wing), ("ship_wheel", .wheel),
+                                       ("ship_balloon", .balloon), ("ship_wing", .wing), ("capital_wing", .wing), ("fighter_wing", .wing), ("ship_wheel", .wheel), ("ship_track", .wheel),
                                        ("ship_turret_ring", .ring), ("ship_cannon", .cannon), ("ship_rotor", .rotor),
                                        ("ship_ballast", .ballast)]
         for i in 0..<Blocks.count {
@@ -73,6 +73,8 @@ enum ShipParts {
         return t
     }()
     static let wool: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_wool") }
+    // P477: track links, wheels that are drawn with the hull and never spun.
+    static let track: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]) == "ship_track" }
     // Unit direction of facing index 0...3 (north, south, west, east).
     static let facingDir: [V3] = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)]
     @inline(__always) static func facing(_ b: BlockID) -> Int { Int(b - Blocks.groupBase[Int(b)]) & 3 }
@@ -247,6 +249,7 @@ final class Ship {
     var sails = 0                    // wool blocks (catch the wind while someone steers)
     var cannons: [(V3, V3)] = []     // cannon centre, muzzle direction (ship space)
     var cannonLength: [Int] = []     // P459: Gun Barrels in line on from each cannon's muzzle (0-5)
+    var cannonCalibre: [Int] = []    // P477: the first tube's bore: 0 none (the old ball), 1 small, 2 medium, 3 large
     var balloons = 0
     var ballast = 0                  // ballast tanks (submarines, C8 Submarines.swift)
     var ballastLevel: Float = 0      // -1 (flooded: pulls down) ... 1 (blown: pushes up)
@@ -371,9 +374,10 @@ final class Ship {
             let g = grid
             let kinds = ShipParts.kinds
             var seen = Set<IVec3>()
+            let track = ShipParts.track
             for w in wheels {
                 let start = IVec3(Int(floor(w.x)), Int(floor(w.y)), Int(floor(w.z)))
-                if seen.contains(start) { continue }
+                if seen.contains(start) || track[Int(g.get(start.x, start.y, start.z))] { continue }
                 var cells: [IVec3] = [start]
                 seen.insert(start)
                 var i = 0
@@ -381,7 +385,7 @@ final class Ship {
                     let c = cells[i]; i += 1
                     for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
                         let n = c + d
-                        if !g.inside(n.x, n.y, n.z) || seen.contains(n) || kinds[Int(g.get(n.x, n.y, n.z))] != .wheel { continue }
+                        if !g.inside(n.x, n.y, n.z) || seen.contains(n) || kinds[Int(g.get(n.x, n.y, n.z))] != .wheel || track[Int(g.get(n.x, n.y, n.z))] { continue }
                         seen.insert(n); cells.append(n)
                     }
                 }
@@ -446,20 +450,25 @@ final class Ship {
         } } }
         blockCount = n
         // P459: each cannon's Gun Barrels, laid along its line on from the muzzle.
+        // P477: the calibre barrels count as tubes too (up to 8 of them), the first one's bore setting the calibre.
+        let tubeKinds = CannonCalibre.tubeBases
+        var calibres: [Int] = []
         cannonLength = cannons.map { (c, d) in
-            let tubeID = Blocks.has("ship_gun_barrel") ? Blocks.id("ship_gun_barrel") : AIR
-            guard tubeID != AIR else { return 0 }
-            var k = 0
-            while k < 5 {
+            var k = 0, cal = 0
+            while k < 8 {
                 let q = c + d * Float(k + 1)
                 let x = Int(floor(q.x)), y = Int(floor(q.y)), z = Int(floor(q.z))
                 guard x >= 0, y >= 0, z >= 0, x < sx, y < sy, z < sz else { break }
                 let b = g.blocks[g.index(x, y, z)]
-                guard Blocks.groupBase[Int(b)] == tubeID, abs(simd_dot(ShipParts.facingDir[ShipParts.facing(b)], d)) > 0.9 else { break }
+                guard let kind = tubeKinds[Blocks.groupBase[Int(b)]], abs(simd_dot(ShipParts.facingDir[ShipParts.facing(b)], d)) > 0.9 else { break }
+                if k == 0 { cal = kind }
+                if cal == 0 && k >= 5 { break }                    // (the plain Gun Barrel: the first five count, as before)
                 k += 1
             }
+            calibres.append(cal)
             return k
         }
+        cannonCalibre = calibres
         findWheelParts()
         let lowest = wheels.map { $0.y }.min() ?? 0
         wheelBase = wheels.filter { $0.y < lowest + 0.5 }.count

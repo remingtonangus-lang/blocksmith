@@ -131,6 +131,21 @@ extension BlockRegistry {
         tube.tool = .pickaxe; tube.requiresTool = true; tube.sound = .stone; tube.skyStop = false; tube.resistance = 8
         facing4(tube, [Box(5, 5, 0, 11, 11, 16, tex: barrel), Box(4, 4, 7, 12, 12, 9, tex: dark)])
 
+        // P477 (Oct 27 19:28-19:30: "Things should be hollow inside at least"; "Big, medium, and small gun barrels, and
+        // then fit them into... all gun systems"; "Stop using the cannonball thing. Use the barrel system"): three bored
+        // steel tubes, open end to end. Laid in line on from a cannon's muzzle the first one sets the gun's calibre
+        // (Ship.cannonCalibre, CannonCalibre): small a quick-firing autocannon, medium a tank gun, large a naval gun,
+        // each a long straight shot with a shell, not a lobbed ball; every further tube adds reach and punch.
+        for (n, label, o, i) in [("gun_barrel_small", "Small Gun Barrel", 6, 7), ("gun_barrel_medium", "Medium Gun Barrel", 4, 6),
+                                 ("gun_barrel_large", "Large Gun Barrel", 1, 4)] {
+            var d = BlockDef(n, label)
+            d.tex = ["ship_barrel"]; d.render = .model; d.layer = .cutout; d.opaque = false; d.hardness = 4 + Float(7 - i)
+            d.tool = .pickaxe; d.requiresTool = true; d.sound = .stone; d.skyStop = false; d.resistance = 8 + Float(7 - i) * 2
+            let e = 16 - o, j = 16 - i
+            facing4(d, [Box(o, o, 0, e, i, 16, tex: barrel), Box(o, j, 0, e, e, 16, tex: barrel),
+                        Box(o, i, 0, i, j, 16, tex: barrel), Box(j, i, 0, e, j, 16, tex: barrel)])
+        }
+
         // H4: the Tidebreaker's breech, salvaged from a Meridian frigate's main gun (ShipManager.salvageMainGun). Set on
         // a ship of your own, it gives the helm the main gun, firing out of the side opposite its front like a cannon.
         var breech = BlockDef("tidebreaker_breech", "Tidebreaker Breech")
@@ -149,6 +164,12 @@ extension BlockRegistry {
             Box(3, 4, 0, 13, 12, 16, tex: tyre), Box(3, 0, 4, 13, 16, 12, tex: tyre), Box(3, 2, 2, 13, 14, 14, tex: tyre),
             Box(2, 6, 6, 14, 10, 10, tex: metal),
         ])
+        // P477 (Oct 27 19:27, the Works' tank: "This thing's tracks go in circles as if they were a wheel"): a track
+        // link, a wheel to the physics (it carries and drives the hull) that is drawn with the hull, not spun. A run of
+        // them makes a tank's track; the cleats show on every face.
+        var track = BlockDef("ship_track", "Track Link")
+        track.tex = ["ship_track"]; track.hardness = 3; track.tool = .pickaxe; track.sound = .metal; track.resistance = 10
+        add(track)
 
         // Rotor head (helicopters, FlightModel.swift): mast, swashplate and hub with blade roots; on a flying ship
         // it turns and the blades are drawn to the rotor's full diameter from the render-only blade below.
@@ -270,6 +291,11 @@ extension TextureGen {
             let band = y % 8 < 2
             return hex(band ? 0x3A3E42 : 0x55595E, 0.9 + 0.1 * r(x, y, 2615))
         }
+        p["ship_track"] = { x, y in
+            if x % 8 < 2 { return hex(0x1E2022, 0.9 + 0.1 * r(x, y, 2616)) }                     // the cleats
+            if y < 2 || y > 13 { return hex(0x3A3E42) }                                       // the link edges
+            return hex(0x2C2F33, 0.88 + 0.12 * r(x, y, 2617))
+        }
         p["ship_tyre"] = { x, y in
             let tread = (x + y) % 4 == 0
             return hex(0x2B2B2D, tread ? 0.7 : 0.95 + 0.1 * r(x, y, 2611))
@@ -294,6 +320,10 @@ extension Recipes {
         r.append(shapeless(["iron_ingot", "gunpowder"], Wrecks.cannonball, 4))                                              // P93
         r.append(shaped(["SSS"], ["S": "steel_ingot"], "ship_gun_barrel", 2))                                                 // P459
         r.append(shaped(["III"], ["I": "iron_ingot"], "ship_gun_barrel", 1))
+        r.append(shaped(["S", "S"], ["S": "steel_ingot"], "gun_barrel_small", 2))                                           // P477
+        r.append(shaped(["SSS", "S S"], ["S": "steel_ingot"], "gun_barrel_medium", 2))
+        r.append(shaped(["SSS", "S S", "SSS"], ["S": "steel_ingot"], "gun_barrel_large", 1))
+        r.append(shapeless(["ship_wheel", "iron_ingot", "iron_ingot"], "ship_track", 4))
         // P459 (Oct 25 16:10, "Do we have like barrels and stuff? ... If I wanna make like a plane or something"): the
         // Capital's aircraft parts can be made: four steel ingots make four sheets of light white airframe, three
         // sheets make three airfoils, and a black dye turns one into the Ashguard's dark fighter airfoil.

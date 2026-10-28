@@ -4,10 +4,11 @@ import simd
 // D43: vehicle presets unlocked by blueprints, a stage at a time. The Vehicle Works always knows the Field Tank; four
 // more drawings turn up as Vehicle Blueprints in chests along the spine, each where its stage takes you, about one
 // chest in fourteen of those places:
-//   Scout Buggy  (a town)      camps' and towns' chests      four wheels, an engine, quick and unarmed
-//   Gun Truck    (Greywall)    Greywall bases' chests        six wheels and a light gun on a turret
-//   Heavy Tank   (the fleet)   wrecks, dockyards, vessels    ten wheels, two engines, a twin-gun turret
-//   Siege Gun    (hell)        the Ashguard's and hell's     eight wheels, a three-barrel turret with long tubes
+//   Scout Buggy  (a town)      camps' and towns' chests      a roll cage on four wheels, two engines, quick and unarmed
+//   Gun Truck    (Greywall)    Greywall bases' chests        a cab and flatbed with a small-bore autocannon
+//   Heavy Tank   (the fleet)   wrecks, dockyards, vessels    wide on tall tracks, a big-bore gun and an autocannon
+//   Siege Gun    (hell)        the Ashguard's and hell's     a long big-bore gun behind a shield on a low carriage
+// (P477: the builds are in VehicleGuns.swift.)
 // Read one (use it) and the Works learns it for good (Blueprints.known, "vehicle:<key>"); with more than one known,
 // using the Works asks which to build (VehicleWorksMenu), showing the parts each still needs.
 enum VehiclePresets {
@@ -19,55 +20,29 @@ enum VehiclePresets {
     static let itemKey = "vehicle_blueprint"
     static let chestChance = 70                         // per thousand chests of a stage's places
 
+    // P477: each its own build of blocks (VehicleGuns.swift), every gun a cannon with calibre barrels.
     static let all: [Preset] = [
-        Preset(key: "field_tank", name: "Field Tank", stage: 0, bill: VehicleWorks.bill, blueprint: VehicleWorks.fieldTank),
+        Preset(key: "field_tank", name: "Field Tank", stage: 0, bill: VehicleWorks.bill, blueprint: fieldTank),
         Preset(key: "scout_buggy", name: "Scout Buggy", stage: 1,
-               bill: [("iron_ingot", 32), ("ship_engine", 1), ("ship_wheel", 4), ("ship_helm", 1)],
-               blueprint: { vehicle(halfWidth: 2, length: 8, wheels: 2, engines: 1, guns: 0, tube: 0) }),
+               bill: [("iron_ingot", 32), ("ship_engine", 2), ("ship_wheel", 4), ("ship_helm", 1)],
+               blueprint: scoutBuggy),
         Preset(key: "gun_truck", name: "Gun Truck", stage: 2,
-               bill: [("iron_ingot", 64), ("ship_engine", 1), ("ship_wheel", 6), ("ship_turret_ring", 1), ("ship_cannon", 1), ("ship_helm", 1)],
-               blueprint: { vehicle(halfWidth: 3, length: 11, wheels: 3, engines: 1, guns: 1, tube: 3) }),
+               bill: [("iron_ingot", 64), ("ship_engine", 2), ("ship_wheel", 6), ("ship_turret_ring", 1), ("ship_cannon", 1),
+                      ("gun_barrel_small", 3), ("ship_helm", 1)],
+               blueprint: gunTruck),
         Preset(key: "heavy_tank", name: "Heavy Tank", stage: 3,
-               bill: [("iron_ingot", 160), ("ship_engine", 2), ("ship_wheel", 10), ("ship_turret_ring", 1), ("ship_cannon", 2), ("ship_helm", 1)],
-               blueprint: { vehicle(halfWidth: 4, length: 15, wheels: 5, engines: 2, guns: 2, tube: 5) }),
+               bill: [("iron_ingot", 160), ("ship_engine", 3), ("ship_wheel", 10), ("ship_turret_ring", 2), ("ship_cannon", 2),
+                      ("gun_barrel_large", 6), ("gun_barrel_small", 2), ("ship_helm", 1)],
+               blueprint: heavyTank),
         Preset(key: "siege_gun", name: "Siege Gun", stage: 4,
-               bill: [("iron_ingot", 192), ("ship_engine", 2), ("ship_wheel", 8), ("ship_turret_ring", 1), ("ship_cannon", 3), ("ship_helm", 1)],
-               blueprint: { vehicle(halfWidth: 4, length: 14, wheels: 4, engines: 2, guns: 3, tube: 7) }),
+               bill: [("iron_ingot", 192), ("ship_engine", 2), ("ship_wheel", 8), ("ship_turret_ring", 1), ("ship_cannon", 1),
+                      ("gun_barrel_large", 8), ("ship_helm", 1)],
+               blueprint: siegeGun),
     ]
 
     static func knownKey(_ p: Preset) -> String { "vehicle:" + p.key }
     static func knows(_ p: Preset) -> Bool { p.stage == 0 || Blueprints.known.contains(knownKey(p)) }
     static func known(_ g: Game) -> [Preset] { g.survival ? all.filter { knows($0) } : all }
-
-    // A wheeled hull, front toward -Z, wheels at y 0, centreline x 0 (the Field Tank's build, sized).
-    static func vehicle(halfWidth hw: Int, length L: Int, wheels n: Int, engines: Int, guns: Int, tube: Int) -> Blueprint {
-        let b = Blueprint()
-        for i in 0..<n {
-            let zc = n == 1 ? L / 2 : 2 + (L - 4) * i / (n - 1)
-            for x in [-hw - 1, hw + 1] {
-                for y in 0...2 { for z in (zc - 1)...(zc + 1) where (y - 1) * (y - 1) + (z - zc) * (z - zc) <= 1 { b.set(x, y, z, "ship_wheel") } }
-            }
-        }
-        b.box(-hw, hw, 1, 3, 0, L, "iron_block", hollow: true)
-        b.set(0, 2, L - 2, "ship_engine")
-        if engines > 1 { b.set(0, 2, 2, "ship_engine") }
-        for z in 0...L { b.set(-hw, 4, z, "iron_bars"); b.set(hw, 4, z, "iron_bars") }
-        for x in (-hw + 1)...(hw - 1) { b.set(x, 4, 0, "iron_bars") }
-        b.set(0, 4, L - 1, "ship_helm[south]")
-        guard guns > 0 else { return b }
-        let ring = IVec3(0, 4, L / 2 - 1)
-        b.set(ring.x, ring.y, ring.z, "ship_turret_ring")
-        let t = Blueprint()
-        let r = guns > 2 ? 2 : (hw > 3 ? 2 : 1)
-        t.box(-r, r, 0, 2, -r, r, "iron_block", hollow: true)
-        let xs: [Int] = guns == 1 ? [0] : (guns == 2 ? [-1, 1] : [-1, 0, 1])
-        for x in xs {
-            if tube > 0 { for z in (-r - tube)...(-r - 1) { t.set(x, 1, z, "iron_block") } }
-            t.set(x, 1, -r - tube - 1, "ship_cannon[south]")
-        }
-        b.turrets.append((ring, t))
-        return b
-    }
 
     // MARK: The drawings
 

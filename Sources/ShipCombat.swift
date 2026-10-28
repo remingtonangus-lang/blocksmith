@@ -13,10 +13,11 @@ final class Shell {
     var vel: V3
     var age: Float = 0
     let owner: Int                   // firing ship (its turrets and parent are ignored)
-    let power: Float
+    var power: Float
     var gravity: Float = 20
     var kind = 0                     // 0 cannon shell, 1 rail slug (capital main guns), 2 missile, 3 Tidebreaker slug (craters),
-                                     // 4 torpedo (a cannon fired under water), 5 depth charge (bursts at fuseY: Submarines.swift)
+                                     // 4 torpedo (a cannon fired under water), 5 depth charge (bursts at fuseY: Submarines.swift),
+                                     // 6 a calibre gun's shell (P477: CannonCalibre)
     var fuseY: Float = -1000
     var life: Float = 10
     // Missiles steer toward their target (a ship, a mob or the player) and burst near it.
@@ -62,11 +63,13 @@ extension ShipManager {
 
     // Fires every loaded cannon on s and its turrets. Pitch: barrel elevation in radians (clamped).
     @discardableResult
-    func fire(_ s: Ship, pitch: Float, game: Game?) -> Int {
+    // laid: each turret fires at its own elevation (gunPitch), as the tank sight laid it (P477: guns of different shells).
+    func fire(_ s: Ship, pitch: Float, game: Game?, laid: Bool = false) -> Int {
         var fired = 0
         for t in [s] + turrets(of: s) where t.reload <= 0 && !t.cannons.isEmpty {
-            let elev = max(t.pitchMin, min(t.pitchMax, pitch))
+            let elev = max(t.pitchMin, min(t.pitchMax, laid && t !== s ? t.gunPitch : pitch))
             var longest = 0
+            var calReload: Float = 0                     // (P477: the slowest calibre gun's reload, if any fired)
             for (i, (c, d)) in t.cannons.enumerated() {
                 // P459: Gun Barrels on from the muzzle: a harder, faster shell from the far end of the tube.
                 let tubes = i < t.cannonLength.count ? t.cannonLength[i] : 0
@@ -83,6 +86,18 @@ extension ShipManager {
                 let long: Float = 1 + 0.4 * Float(tubes), quick: Float = 1 + 0.12 * Float(tubes)
                 let sh = Shell(pos: muzzle, vel: dir * (t.gunSpeed * quick) + t.velocity(at: muzzle), owner: t.root.id, power: t.gunPower * (his ? 1.5 : 1) * long)
                 sh.gravity = t.gunGravity
+                // P477: a gun with a calibre barrel fires a shell flat and fast, its punch and reload by bore.
+                if i < t.cannonCalibre.count, t.cannonCalibre[i] > 0 {
+                    let spec = CannonCalibre.spec(t.cannonCalibre[i])
+                    let extra = Float(max(0, tubes - 1))
+                    var cdir = dir
+                    if spec.scatter > 0 { cdir = Guns.scatter(cdir, spec.scatter) }
+                    sh.vel = cdir * (spec.speed * (1 + 0.06 * extra)) + t.velocity(at: muzzle)
+                    sh.power = min(CannonCalibre.maxPower, spec.power * (1 + 0.15 * extra) * (his ? 1.5 : 1))
+                    sh.gravity = spec.gravity
+                    sh.kind = 6
+                    calReload = max(calReload, spec.reload * (1 + 0.05 * extra))
+                }
                 // A cannon under water looses a torpedo: level, self-driven, no drop (C8, Submarines.swift).
                 if Blocks.fluidKind[Int(world.rawBlock(Int(floor(muzzle.x)), Int(floor(muzzle.y)), Int(floor(muzzle.z))))] == 1 {
                     sh.kind = 4; sh.gravity = 0; sh.life = Submarine.torpedoLife
@@ -98,7 +113,7 @@ extension ShipManager {
                     g.baseNoise(at: muzzle, kind: .cannon, hostile: s.factionValue != .steelhold)   // the Capital's own guns don't alarm it
                 }
             }
-            t.reload = t.reloadTime * (1 + 0.1 * Float(longest))
+            t.reload = calReload > 0 ? calReload : t.reloadTime * (1 + 0.1 * Float(longest))
         }
         return fired
     }
@@ -121,6 +136,13 @@ extension ShipManager {
                 let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
                 for k in 0..<3 { wr.cube(center: sh.pos - d * Float(k) * 0.3 - eye, half: 0.17, yaw: 0, block: dart, light: 1) }
             case 5: wr.cube(center: sh.pos - eye, half: 0.3, yaw: sh.age * 3, block: b, light: 1)
+            case 6:
+                // P477: a calibre gun's shell: a steel body sized by its punch with a glowing tracer behind.
+                let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
+                let h = min(0.3, 0.07 + sh.power * 0.012)
+                wr.cube(center: sh.pos - eye, half: h, yaw: 0, block: dart, light: 1)
+                wr.cube(center: sh.pos - d * h * 2 - eye, half: h * 0.9, yaw: 0, block: dart, light: 1)
+                wr.cube(center: sh.pos - d * h * 4.5 - eye, half: h * 0.6, yaw: sh.age * 9, block: slug, light: 1)
             case 3:
                 // The Tidebreaker's slug: a long white-blue streak.
                 let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)

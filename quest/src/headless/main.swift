@@ -1785,6 +1785,11 @@ if CommandLine.arguments.contains("--chasehull") {              // P449: the big
     ChaseHullCheck.run(game, check)
     print(failures == 0 ? "chasehull: all checks passed" : "chasehull: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --vehicleworks: P477, the Vehicle Works' presets of real blocks, calibre guns, tracks, speed, the yard (Sources/VehicleWorksCheck.swift).
+if CommandLine.arguments.contains("--vehicleworks") {
+    VehicleWorksCheck.run(game, check)
+    print(failures == 0 ? "vehicleworks: all checks passed" : "vehicleworks: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--gunflight") {              // P449: the field gun's shell lands quickly
     GunFlightCheck.run(game, check)
     print(failures == 0 ? "gunflight: all checks passed" : "gunflight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

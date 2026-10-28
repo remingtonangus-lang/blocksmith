@@ -42,7 +42,9 @@ extension Game {
 
     // Break held at an object: true when the aim is at one (handled here, nothing mined).
     func strikeObject(breakNow: Bool, breakHeld: Bool, dt: Float) -> Bool {
-        guard world.objectsOn, breakHeld, let t = target else { objectStrikeWait = 0; return false }
+        // (P477, Oct 27 19:25: "I'm in creative mode. I shouldn't have to wait for this barrel to break": creative breaks
+        // an object's blocks at once, as any block)
+        guard world.objectsOn, breakHeld, survival, let t = target else { objectStrikeWait = 0; return false }
         let t0 = DispatchTime.now().uptimeNanoseconds
         let reg = world.objectReg
         let p = t.hit
