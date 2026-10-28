@@ -22,6 +22,8 @@ enum Greywall {
     // P255 (Oct 14 12:05-12:09, "keep the little base as a variant, as long as it's not replacing the big ones"): the big
     // bases (garrison and up) keep their regions; outposts are extra, in a share of the regions that had none.
     static let outpostShare: Float = 0.2
+    // P484: blocks between a base's wall and a town's plan (its troops shoot whoever comes in sight, from the town too).
+    static let townBerth = 160
 
     enum Tier: Int, CaseIterable {
         case outpost = 0, garrison, fortress, command
@@ -189,10 +191,14 @@ enum Greywall {
             func crowded(_ cx: Int, _ cz: Int, _ t: Tier) -> Bool {
                 guard let sc = gen.structures else { return false }
                 let bx = cx * CS + 8, bz = cz * CS + 8
+                // P484 (Oct 28 18:19, a garrison's troops shooting into a town: "shouldn't be a Greywall garrison right
+                // beside a village like this"): on ground no save had generated before P484, a town is given a wide berth.
+                let berth = sc.clear(cx: cx, cz: cz, reach: (t.half + townBerth) / CS + 1, guardSet: sc.legacyP484)
                 for k in ["village", "temple", "pillager_outpost", "mansion", "ruined_portal", "trail_ruins", "military_base",
                           "capital_city", "great_ruin", BorealStation.kind] {
                     guard let o = sc.nearest(k, x: bx, z: bz, maxRegions: 1) else { continue }
-                    let m = apart && WorldRules.capitalKinds.contains(k) ? t.half + Greywall.margin + WorldRules.capitalApartP69 : t.half + 16   // (P69: the whole box)
+                    var m = apart && WorldRules.capitalKinds.contains(k) ? t.half + Greywall.margin + WorldRules.capitalApartP69 : t.half + 16   // (P69: the whole box)
+                    if berth && k == "village" { m = max(m, t.half + townBerth) }
                     if o.max.x >= bx - m && o.min.x <= bx + m && o.max.z >= bz - m && o.min.z <= bz + m { return true }
                 }
                 return false

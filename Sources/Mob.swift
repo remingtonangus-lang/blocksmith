@@ -2527,9 +2527,13 @@ final class MobManager {
             }
         }
         let step = min(0.25, 4 * dt)
+        // P484 (Oct 28 18:19, "two villagers on top of each other"): pushed against a wall or a counter, a body slides
+        // along it (a quarter turn either way) instead of staying inside the other.
         func nudge(_ m: Mob, _ dir: V2, _ by: Float) {
-            let q = m.pos + V3(dir.x, 0, dir.y) * min(step, by)
-            if !m.collides(q, w) { m.pos = q; MobManager.separated += 1 }
+            for d in [dir, V2(-dir.y, dir.x), V2(dir.y, -dir.x)] {
+                let q = m.pos + V3(d.x, 0, d.y) * min(step, by)
+                if !m.collides(q, w) { m.pos = q; MobManager.separated += 1; return }
+            }
         }
         func dirOf(_ dx: Float, _ dz: Float) -> (V2, Float) {
             let l = sqrtf(dx * dx + dz * dz)
