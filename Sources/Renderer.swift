@@ -1712,6 +1712,23 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(x, y, b, h, c)
             rect(x + w - b, y, b, h, c)
         }
+        // P481: a Sunderfall panel (MenuColors): dark rim with rounded corners, a brass line inside, the canvas fill.
+        func panel(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ s: Float) {
+            let C = MenuColors.self
+            rect(x + 2 * s, y, w - 4 * s, h, C.rim)
+            rect(x, y + 2 * s, w, h - 4 * s, C.rim)
+            rect(x + s, y + s, w - 2 * s, h - 2 * s, C.rim)
+            rect(x + 2 * s, y + 2 * s, w - 4 * s, h - 4 * s, C.brass)
+            rect(x + 3 * s, y + 3 * s, w - 6 * s, h - 6 * s, C.panel)
+        }
+        // A slot: recessed, rounded, a shadow along its top and left inside the rim.
+        func slotBox(_ x: Float, _ y: Float, _ w: Float, _ s: Float) {
+            let C = MenuColors.self
+            rect(x + s, y, w - 2 * s, w, C.slotRim)
+            rect(x, y + s, w, w - 2 * s, C.slotRim)
+            rect(x + s, y + s, w - 2 * s, w - 2 * s, C.slotShade)
+            rect(x + 2 * s, y + 2 * s, w - 3 * s, w - 3 * s, C.slot)
+        }
         // A pixel-art arrow pointing right (crafting result): a shaft and a stepped head, `len` long, centred on cy.
         // `upTo` (0...1) draws only that much of it from the left (progress fills).
         func arrowRight(_ x: Float, _ cy: Float, _ len: Float, _ s: Float, _ c: V4, upTo: Float = 1) {
@@ -1877,15 +1894,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(0, 0, W, H, m is DeathMenu ? V4(0.45, 0, 0, 0.55) : V4(0, 0, 0, 0.45))
             let o = m.origin(ML)
             let pw = Float(m.width) * s, ph = Float(m.height) * s
-            let bg = V4(0.776, 0.776, 0.776, 1)
-            rect(o.x + s, o.y, pw - 2 * s, ph, V4(0, 0, 0, 1))
-            rect(o.x, o.y + s, pw, ph - 2 * s, V4(0, 0, 0, 1))
-            rect(o.x + s, o.y + s, pw - 2 * s, ph - 2 * s, bg)
-            rect(o.x + s, o.y + s, pw - 3 * s, 2 * s, V4(1, 1, 1, 1))
-            rect(o.x + s, o.y + s, 2 * s, ph - 3 * s, V4(1, 1, 1, 1))
-            rect(o.x + 2 * s, o.y + ph - 3 * s, pw - 3 * s, 2 * s, V4(0.333, 0.333, 0.333, 1))
-            rect(o.x + pw - 3 * s, o.y + 2 * s, 2 * s, ph - 3 * s, V4(0.333, 0.333, 0.333, 1))
-            let titleC = V4(0.25, 0.25, 0.25, 1)
+            panel(o.x, o.y, pw, ph, s)                        // P481: Sunderfall's own panel (MenuColors)
+            let titleC = MenuColors.title
             text(m.title, o.x + 8 * s, o.y + 6 * s, s, titleC, shadow: false)
             // Q2c-console-65: why a slot refused the carried item, above the window for 2.5 s.
             if let n = game.menuNote, game.clock - n.at < 2.5, game.clock >= n.at {
@@ -1953,8 +1963,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let bw = 120 * s
                     let bx = right - bw
                     guard bx > 0 else { break }
-                    rect(bx, y, bw, 32 * s, V4(0.776, 0.776, 0.776, 1))
-                    frame(bx, y, bw, 32 * s, s, V4(0.2, 0.2, 0.2, 1))
+                    panel(bx, y, bw, 32 * s, s)
                     quad([V2(bx + 6 * s, y + 7 * s), V2(bx + 24 * s, y + 7 * s), V2(bx + 24 * s, y + 25 * s), V2(bx + 6 * s, y + 25 * s)],
                          [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)], V4(1, 1, 1, 1), Float(Tex.id("effect_" + e.key)))
                     // Dark text on the light panel like the menu titles (white and mid-grey read poorly: blind critic,
@@ -2180,8 +2189,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let book = hb.book
                 if book.open {
                     let bx = o.x - 122 * s
-                    rect(bx, o.y, 120 * s, 162 * s, V4(0.776, 0.776, 0.776, 1))
-                    frame(bx, o.y, 120 * s, 162 * s, s, V4(0.33, 0.33, 0.33, 1))
+                    panel(bx, o.y, 120 * s, 162 * s, s)
                     text("Recipes \(book.page + 1)/\(book.pages)", bx + 4 * s, o.y + 16 * s, s, titleC, shadow: false)
                 }
                 let pool = hb.poolFor(hb.craftGrid)
@@ -2635,9 +2643,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let bigSlot = (m is CraftingTableMenu || m is FurnaceMenu || m is AnvilMenu || m is SmithingMenu || m is StonecutterMenu || m is GrindstoneMenu) && { if case .result = sl.kind { return true } else if case .output = sl.kind { return true } else { return false } }()
                 let big: Float = bigSlot ? 4 : 0
                 let bx = x - big * s, by = y - big * s, bs = (18 + 2 * big) * s
-                rect(bx, by, bs, bs, V4(0.216, 0.216, 0.216, 1))
-                rect(bx + s, by + s, bs - s, bs - s, V4(1, 1, 1, 1))
-                rect(bx + s, by + s, bs - 2 * s, bs - 2 * s, V4(0.545, 0.545, 0.545, 1))
+                slotBox(bx, by, bs, s)                          // P481 (MenuColors)
                 itemIcon(sl.stack, x + s, y + s, 16 * s)
                 if let im = m as? InventoryMenu, !im.query.isEmpty, sl.isPlayerInv {
                     // Inventory search: matches framed in gold, everything else dimmed.
@@ -2673,7 +2679,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             if let c = m as? CreativeMenu, c.maxScroll > 0 {
                 let tx = o.x + 175 * s, ty = o.y + 32 * s, th = 90 * s
-                rect(tx, ty, 12 * s, th, V4(0.216, 0.216, 0.216, 1))
+                rect(tx, ty, 12 * s, th, MenuColors.slotRim)
                 let k = Float(c.scroll) / Float(c.maxScroll)
                 rect(tx + s, ty + (th - 15 * s) * k, 10 * s, 15 * s, V4(0.8, 0.8, 0.8, 1))
             }
@@ -2830,48 +2836,44 @@ final class Renderer: NSObject, MTKViewDelegate {
                 for _ in 0..<ones { rect(mx, xpY - 2 * s, s, 2 * s, V4(0.96, 0.86, 0.56, 0.85)); mx += 2 * s }
             }
             let yh = xpY - 2 * s - isz
-            let uv4 = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
-            func sprite(_ layer: Int, _ x: Float, _ y: Float) {
-                quad([V2(x, y), V2(x + isz, y), V2(x + isz, y + isz), V2(x, y + isz)], uv4, V4(1, 1, 1, 1), Float(layer))
+            // P481 (Oct 28, store look-alike review): health, armour and air are slim segmented bars in the style P360
+            // gave hunger (a row of heart, armour-shirt and bubble icons was the reference game's HUD): health red from the
+            // left (rows of ten upward with health boost, gold for absorption, green under poison, ashen under the
+            // Blight), armour a thin steel line above it, air a thin blue line above hunger. One segment = 2 points.
+            let segW = step - s, bh = floor(isz * 0.45)
+            func seg(_ x: Float, _ y: Float, _ units: Int, _ c: V4, fromRight: Bool = false, h: Float = 0) {
+                let hh = h > 0 ? h : bh, sy = y + floor((isz - hh) / 2)
+                rect(x, sy, segW, hh, V4(0, 0, 0, 0.5))
+                guard units > 0 else { return }
+                let fw = units >= 2 ? segW - 2 * s : (segW - 2 * s) / 2
+                rect(fromRight ? x + segW - s - fw : x + s, sy + s, fw, hh - 2 * s, c)
             }
-            // Hearts: rows of ten (health boost adds rows), then golden absorption hearts; poison/blight tint them.
-            let heartKind = game.effects.has(.wither) ? "wither" : (game.effects.has(.poison) ? "poison" : "")
-            let fullH = heartKind.isEmpty ? HudTex.heart : Int(Tex.id("heart_" + heartKind))
-            let halfH = heartKind.isEmpty ? HudTex.heartHalf : Int(Tex.id("heart_\(heartKind)_half"))
+            let heartC = game.effects.has(.wither) ? V4(0.36, 0.3, 0.34, 1) : (game.effects.has(.poison) ? V4(0.5, 0.66, 0.18, 1) : V4(0.88, 0.24, 0.2, 1))
             let slotsH = (game.maxHealth + 1) / 2
             let absorb = Int(game.absorption.rounded(.up))
             let totalHearts = slotsH + (absorb + 1) / 2
             let rows = (totalHearts + 9) / 10
             let rowStep = max(3 * s, 10 * s - Float(rows - 2) * s)
-            func heartSprite(_ layer: Int, _ x: Float, _ y: Float, _ c: V4) {
-                quad([V2(x, y), V2(x + isz, y), V2(x + isz, y + isz), V2(x, y + isz)], uv4, c, Float(layer))
-            }
             // Q2c-console-34: at two hearts or less they jiggle (a pixel up or down each heart, 20 times a second).
             let jiggle = game.alive && game.health <= 4
             let jig = UInt(max(0, game.clock * 20))
             for i in 0..<totalHearts {
                 let x = x0 + Float(i % 10) * step
                 let y = yh - Float(i / 10) * rowStep + (jiggle ? Float(Int((jig &* 2654435761 &+ UInt(i) &* 40503) >> 7 % 3) - 1) * s : 0)
-                if i < slotsH {
-                    let h = game.health - i * 2
-                    heartSprite(h >= 2 ? fullH : (h == 1 ? halfH : HudTex.heartEmpty), x, y, V4(1, 1, 1, 1))
-                } else {
-                    let a = absorb - (i - slotsH) * 2
-                    heartSprite(Int(Tex.id(a >= 2 ? "heart_gold" : "heart_gold_half")), x, y, V4(1, 1, 1, 1))
-                }
+                if i < slotsH { seg(x, y, game.health - i * 2, heartC) }
+                else { seg(x, y, absorb - (i - slotsH) * 2, V4(0.98, 0.8, 0.28, 1)) }
             }
             if let mount = game.riding, mount.health > 0, mount.kind.spec.behavior != .vehicle, mount.kind != .boat {
                 // Riding an animal: its hearts replace the hunger row (rows of 10 upward), as in the reference.
                 let slots = (max(mount.kind.spec.health, mount.health) + 1) / 2
                 for i in 0..<slots {
-                    let h = mount.health - i * 2
-                    heartSprite(h >= 2 ? fullH : (h == 1 ? halfH : HudTex.heartEmpty), x0 + total - isz - Float(i % 10) * step, yh - Float(i / 10) * rowStep, V4(1, 1, 1, 1))
+                    seg(x0 + total - Float(i % 10 + 1) * step + s, yh - Float(i / 10) * rowStep, mount.health - i * 2, V4(0.86, 0.5, 0.26, 1), fromRight: true)
                 }
                 if mount.gaited && mount.tamed { horseBar(mount, yh - Float((slots - 1) / 10) * rowStep - 6 * s) }
             } else {
                 // P360: hunger is a slim bar of ten segments (filled from the right, as the row was), wheat-coloured,
                 // sickly green under the hunger effect, pulsing when low; no food icons.
-                let segW = step - s, bh = floor(isz * 0.45), by = yh + floor((isz - bh) / 2)
+                let by = yh + floor((isz - bh) / 2)
                 let pulse: Float = game.hunger <= 6 && game.alive ? 0.7 + 0.3 * sinf(Float(game.clock) * 6) : 1
                 let fill = (game.effects.has(.hunger) ? V4(0.55, 0.72, 0.36, 1) : V4(0.87, 0.66, 0.3, 1)) * V4(pulse, pulse, pulse, 1)
                 for i in 0..<10 {
@@ -2884,14 +2886,11 @@ final class Renderer: NSObject, MTKViewDelegate {
             let armorY = yh - Float(rows - 1) * rowStep - step - s
             let ap = game.inventory.armorPoints
             if ap > 0 {
-                for i in 0..<10 {
-                    let a = ap - i * 2
-                    sprite(a >= 2 ? HudTex.armor : (a == 1 ? HudTex.armorHalf : HudTex.armorEmpty), x0 + Float(i) * step, armorY)
-                }
+                for i in 0..<10 { seg(x0 + Float(i) * step, armorY + 2 * s, ap - i * 2, V4(0.76, 0.8, 0.86, 1), h: 3 * s) }
             }
             if game.air < 15 {
-                let b = Int(ceilf(game.air / 1.5))
-                for i in 0..<b { sprite(HudTex.bubble, x0 + total - isz - Float(i) * step, yh - step - s) }
+                let b = Int(ceilf(game.air / 0.75))                  // half segments: 10 segments for 15 s of air
+                for i in 0..<10 { seg(x0 + total - Float(i + 1) * step + s, yh - step + s, b - i * 2, V4(0.45, 0.75, 0.98, 1), fromRight: true, h: 3 * s) }
             }
         }
 
