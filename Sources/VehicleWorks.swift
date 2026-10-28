@@ -3,36 +3,21 @@ import simd
 
 // P54 (Oct 11 evening playtest, design prototype; docs/design/vehicles-p54.md): the Vehicle Works, a workshop block
 // that builds a preset vehicle from a bill of parts. Use it with the parts in your inventory and a Field Tank rolls
-// out beside it: an iron hull on eight wheels, two engines, a helm at the back and a turret with a cannon, built on
+// out beside it (P477: the Ashguard's tank in blocks: track links, a sunk helm, a long calibre gun), built on
 // the ship system (Vessels blueprints), so it drives, takes hits and can be taken apart like any assembled vehicle.
 // The other road (building a vehicle block by block round a helm) already works and stays: the Works is the quick,
 // fixed design for a price; the helm is the slow, free one.
 enum VehicleWorks {
     static let key = "vehicle_works"
     // The bill: a ludicrous amount of iron on top of the parts.
+    // (P477: "96 iron ingots, two engines, eight wheels. I like that": the wheels go into its track links; its gun's barrels
+    // are on the bill now.)
     static let bill: [(String, Int)] = [("iron_ingot", 96), ("ship_engine", 2), ("ship_wheel", 8), ("ship_turret_ring", 1),
-                                        ("ship_cannon", 1), ("ship_helm", 1)]
+                                        ("ship_cannon", 1), ("gun_barrel_medium", 5), ("gun_barrel_large", 1), ("ship_helm", 1)]
     static let footprint = IVec3(11, 8, 20)         // the clear space beside the Works (x, y, z): the hull, and the barrel past the bow (D43: room for the biggest preset)
 
-    // Field Tank, front toward -Z, wheels at y 0, centreline x 0.
-    static func fieldTank() -> Blueprint {
-        let b = Blueprint()
-        for x in [-4, 4] { for zc in [2, 5, 8, 11] {
-            for y in 0...2 { for z in (zc - 1)...(zc + 1) where (y - 1) * (y - 1) + (z - zc) * (z - zc) <= 1 { b.set(x, y, z, "ship_wheel") } }
-        } }
-        b.box(-3, 3, 1, 3, 0, 13, "iron_block", hollow: true)
-        b.set(0, 2, 11, "ship_engine"); b.set(0, 2, 2, "ship_engine")
-        for z in 0...13 { b.set(-3, 4, z, "iron_bars"); b.set(3, 4, z, "iron_bars") }
-        for x in -2...2 { b.set(x, 4, 0, "iron_bars") }
-        b.set(0, 4, 12, "ship_helm[south]")
-        b.set(0, 4, 5, "ship_turret_ring")
-        let t = Blueprint()
-        t.box(-2, 2, 0, 2, -2, 2, "iron_block", hollow: true)
-        for z in -7 ... -3 { t.set(0, 1, z, "iron_block") }
-        t.set(0, 1, -8, "ship_cannon[south]")
-        b.turrets.append((IVec3(0, 4, 5), t))
-        return b
-    }
+    // Field Tank (P477: the Ashguard's tank in blocks, VehicleGuns.swift).
+    static func fieldTank() -> Blueprint { VehiclePresets.fieldTank() }
 
     // What the player is short of (empty: they have it all, or play creative).
     static func missing(_ g: Game, _ list: [(String, Int)] = bill) -> [(String, Int)] {
@@ -78,18 +63,32 @@ enum VehicleWorks {
 
     // The yard beside the Works on the side away from the player, and the heading away from it (nil, with a toast:
     // not clear).
+    // P477 (Oct 27 19:22-19:23: "There's no room beside the works. There's plenty of room everywhere... I can't seem to
+    // build it", then "It worked in another place"): only the side away from him was tried, at the Works' own level,
+    // so a yard a block higher or lower, or anything on that one side, refused it. Now every side (away from him first,
+    // then either hand, then his own side) at the Works' level or up to two blocks above or below it.
     static func spot(_ g: Game, _ p: IVec3) -> (V3, Float)? {
         let d = V2(Float(p.x) + 0.5 - g.player.pos.x, Float(p.z) + 0.5 - g.player.pos.z)
-        let alongX = abs(d.x) > abs(d.y)
-        let sgn: Float = alongX ? (d.x >= 0 ? 1 : -1) : (d.y >= 0 ? 1 : -1)
+        let alongX0 = abs(d.x) > abs(d.y)
+        let sgn0: Float = alongX0 ? (d.x >= 0 ? 1 : -1) : (d.y >= 0 ? 1 : -1)
         let gap = Float(footprint.z) / 2 + 1.5
-        let c = V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5) + (alongX ? V3(sgn * gap, 0, 0) : V3(0, 0, sgn * gap))
-        guard clear(g.world, centre: c, alongX: alongX) else {
-            g.onToast?("Vehicle Works: no room")
-            return nil
-        }
-        // Heading: the vehicle's front (-Z in the blueprint) points away from the Works.
-        return (c, alongX ? (sgn > 0 ? -.pi / 2 : .pi / 2) : (sgn > 0 ? .pi : 0))
+        let sides: [(Bool, Float)] = [(alongX0, sgn0), (!alongX0, 1), (!alongX0, -1), (alongX0, -sgn0)]
+        // (Ground right under the yard's middle first, then a block or two of drop.)
+        for loose in [false, true] { for (alongX, sgn) in sides { for dy in [0, 1, -1, 2, -2] {
+            let c = V3(Float(p.x) + 0.5, Float(p.y + dy), Float(p.z) + 0.5) + (alongX ? V3(sgn * gap, 0, 0) : V3(0, 0, sgn * gap))
+            guard grounded(g.world, centre: c, loose: loose), clear(g.world, centre: c, alongX: alongX) else { continue }
+            // Heading: the vehicle's front (-Z in the blueprint) points away from the Works.
+            return (c, alongX ? (sgn > 0 ? -.pi / 2 : .pi / 2) : (sgn > 0 ? .pi : 0))
+        } } }
+        g.onToast?("Vehicle Works: no room")
+        return nil
+    }
+
+    // Something to stand on under the yard's middle (right under it, or loose: within three), so a vehicle isn't set
+    // out over a drop.
+    static func grounded(_ w: World, centre c: V3, loose: Bool) -> Bool {
+        let x = Int(floor(c.x)), z = Int(floor(c.z)), y = Int(floor(c.y))
+        return ((loose ? y - 3 : y - 1)...(y - 1)).contains { w.solidAt(x, $0, z) }
     }
 
     // Sets a vehicle's wheels down on the yard at c.

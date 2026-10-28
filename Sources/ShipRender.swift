@@ -216,7 +216,7 @@ final class ShipMesh {
         let nsec = min(NSEC - 1, (vh + 15) / 16)
         let skyT = Blocks.sky
         // Propellers, wheels and cannons are drawn on their own, moving (ShipRenderer), so the hull mesh leaves them out.
-        let kinds = ShipParts.kinds
+        let kinds = ShipParts.kinds, track = ShipParts.track
         var stores: [Int: (BlockStore, [Int16])] = [:]
         let empty = (BlockStore([]), [Int16](repeating: -1, count: CSQ))
         func store(_ cx: Int, _ cz: Int) -> (BlockStore, [Int16]) {
@@ -235,7 +235,7 @@ final class ShipMesh {
                         let gx = cx * 16 + x
                         if gx >= sx { break }
                         let b = blocks[gx + gz * sx + y * sx * sz]
-                        if b == AIR || (spinning && (kinds[Int(b)] == .propeller || kinds[Int(b)] == .wheel || kinds[Int(b)] == .cannon || kinds[Int(b)] == .rotor)) { continue }
+                        if b == AIR || (spinning && (kinds[Int(b)] == .propeller || (kinds[Int(b)] == .wheel && !track[Int(b)]) || kinds[Int(b)] == .cannon || kinds[Int(b)] == .rotor)) { continue }
                         if !trunks && ShapeTrunks.isTrunk[Int(b)] { continue }
                         a[x + z * 16 + vy * CSQ] = b
                         if skyT[Int(b)] { h[x + z * 16] = Int16(vy) }

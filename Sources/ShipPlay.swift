@@ -519,7 +519,7 @@ extension Game {
                 if guns > 0 && balls < guns {         // a broadside takes one ball a gun ready
                     onToast?(balls == 0 ? "No cannonballs" : "\(guns) guns ready, \(balls) cannonball\(balls == 1 ? "" : "s")")
                 } else {
-                    let fired = ships.fire(s, pitch: pilotGunPitch(s), game: self)
+                    let fired = ships.fire(s, pitch: pilotGunPitch(s), game: self, laid: !s.wheels.isEmpty && TankSight.aim != nil)
                     if fired > 0 { swing = 1; if survival && s.role == nil { Wrecks.useCannonballs(self, fired) } }
                 }
             }

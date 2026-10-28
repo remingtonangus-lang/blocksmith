@@ -608,6 +608,9 @@ extension ShipManager {
             fh = simd_length(fh) > 1e-3 ? simd_normalize(fh) : V3(0, 0, -1)
             let side = V3(-fh.z, 0, fh.x)
             let car = s.blockCount < 40 && s.name != Felling.name       // (the sidecar, his Army Truck)
+            // P477 (Oct 27 19:24, the Scout Buggy: "needs to go faster"): a light hull with engines to spare runs faster
+            // than the 16 b/s every wheeled hull topped out at, up to 35 b/s (by engines per block).
+            let topSpeed: Float = car ? 16 : 16 * max(1, min(2.2, Float(s.engines * 120) / Float(max(1, s.blockCount))))
             if s.id == ShipManager.probeId { ShipManager.probeWheels.removeAll() }
             for p in s.wheels {
                 let wp = s.toWorld(p)
@@ -647,8 +650,10 @@ extension ShipManager {
                 // before it backs up, and let go it slows on the engine within a couple of seconds (it coasted on for
                 // seven blocks, so pulling back went on ahead).
                 if piloted && s.throttleEase != 0 && power > 0 && !(car && s.throttle == 0) {      // (a small car let go: the engine brakes at once)
-                    let fade = s.throttleEase * vf > 0 ? max(0, 1 - abs(vf) / 16) : (car && abs(vf) > 0.3 ? 4.5 : 1)
-                    long = s.throttleEase * share * ShipTuning.wheelAccel * power * fade - vf * share * 0.3
+                    let fade = s.throttleEase * vf > 0 ? max(0, 1 - abs(vf) / topSpeed) : (car && abs(vf) > 0.3 ? 4.5 : 1)
+                    // (P477: a light hull's spare engines also pull harder and drag less: 1 for most, up to 2.2)
+                    let pull = topSpeed / 16
+                    long = s.throttleEase * share * ShipTuning.wheelAccel * pull * power * fade - vf * share * 0.3 / (pull * pull)
                 } else {
                     long = -vf * share * (piloted ? (car ? 3.5 : 0.6) : 8)       // rolling resistance / engine braking / parking brake
                 }
