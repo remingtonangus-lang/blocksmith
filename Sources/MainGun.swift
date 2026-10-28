@@ -61,6 +61,8 @@ enum MainGun {
     static var lastTorn = 0                             // hull blocks the last ship hit tore out
     static var shipHits = 0                             // slugs that struck another ship's hull (ShipCombat)
     static var aimUpdates = 0                           // helm aim predictions made (MainGunTests)
+    static var boreMarks = 0                            // frames the bore ring was drawn (P483: no impact in reach)
+    static let boreMark: Float = 220                    // how far out along the barrel that ring sits
     static var warnings = 0                             // charges an AI frigate aimed at a player (MainGunTests)
 
     // Controller rumble (Touch controllers on the Quest, the pad on the Mac).
@@ -134,7 +136,7 @@ extension ShipManager {
     func mainGunTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         guard st.gunCharge >= 0 else { return }
         if let b = st.bombardAt { bombardMark(b, charge: st.gunCharge / MainGun.chargeTime, dt: dt, game: g) }
-        if s.wrecked || (!st.gunByPlayer && !st.driverAlive) { st.gunCharge = -1; return }
+        if s.wrecked && !(s.captured && st.gunByPlayer) || (!st.gunByPlayer && !st.driverAlive) { st.gunCharge = -1; return }   // (P483)
         st.gunCharge += dt
         let k = min(1, st.gunCharge / MainGun.chargeTime)
         let md = s.dirToWorld(st.mainGunDir)
@@ -490,8 +492,8 @@ extension ShipManager {
             st.aimPoint = mainGunAimPoint(s, st)
             if st.aimPoint != nil { MainGun.aimUpdates += 1 }
         }
-        guard let c = st.aimPoint else { return }
         let ready = st.gunCharge >= 0 || st.mainGunCD <= 0
+        guard let c = st.aimPoint else { boreReticle(s, st, ready: ready, dt: dt, g); return }
         let dist = simd_length(c - g.player.eye)
         let size = max(0.9, dist * 0.007)
         let pulse = 0.75 + 0.25 * sinf(Float(g.clock.truncatingRemainder(dividingBy: 100)) * (st.gunCharge >= 0 ? 14 : 5))
@@ -508,6 +510,31 @@ extension ShipManager {
         }
         g.particles.add(Particle(pos: c + V3(0, 1.5, 0), vel: .zero, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),
                                  uvSize: 1, size: size * 1.4, gravity: 0, color: col, collide: false, glow: true))
+    }
+
+    // P483 (Oct 28 17:36, "Should be a reticle to show where the big gun's pointed on the frigate"): with nothing in reach
+    // along the barrel (the shot would land past the drawn world, or over the sky) the bore itself is marked: a ring of
+    // light 220 blocks out along it, square to it, pale blue when loaded and amber while it reloads.
+    func boreReticle(_ s: Ship, _ st: CapitalState, ready: Bool, dt: Float, _ g: Game) {
+        guard st.mainGunLength > 0, st.mainGunCD < 1e30 else { return }
+        let d = simd_normalize(s.dirToWorld(st.mainGunDir))
+        let c = s.toWorld(st.mainGunMuzzle) + d * MainGun.boreMark
+        let side = simd_normalize(simd_cross(d, abs(d.y) > 0.95 ? V3(1, 0, 0) : V3(0, 1, 0)))
+        let up = simd_cross(side, d)
+        let dist = simd_length(c - g.player.eye)
+        let R: Float = dist * 0.022
+        let pulse = 0.75 + 0.25 * sinf(Float(g.clock.truncatingRemainder(dividingBy: 100)) * (st.gunCharge >= 0 ? 14 : 5))
+        let col = (ready ? V3(0.45, 0.85, 1.0) : V3(0.9, 0.55, 0.2) * 0.6) * pulse
+        let layer = Int(Tex.id("puff"))
+        for i in 0..<16 {
+            let a = Float(i) / 16 * 2 * .pi
+            let p = c + side * (cosf(a) * R) + up * (sinf(a) * R)
+            g.particles.add(Particle(pos: p, vel: .zero, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),
+                                     uvSize: 1, size: dist * 0.005, gravity: 0, color: col, collide: false, glow: true))
+        }
+        g.particles.add(Particle(pos: c, vel: .zero, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),
+                                 uvSize: 1, size: dist * 0.008, gravity: 0, color: col, collide: false, glow: true))
+        MainGun.boreMarks += 1
     }
 
     // P99: the struck ground marked while the crew's gun charges: a red ring the size of the bowl, pulsing faster as the

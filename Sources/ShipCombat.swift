@@ -37,8 +37,11 @@ extension Ship {
     func followParent(_ h: Float) {
         guard let p = parent else { return }
         if let a = aimAt {
-            let d = a - toWorld(pivot)
-            if d.x * d.x + d.z * d.z > 0.01 { aimYaw = atan2f(-d.x, -d.z) - p.yaw }
+            // P483 (Oct 28 17:35-17:36, at a frigate's helm: "the guns are firing the wrong direction... the little guns
+            // just are not shooting where one would expect"): the bearing is taken in the parent's own frame, so a gun
+            // on a hull pitched or banked (a frigate climbing, 26 degrees at most) turns onto the mark, not off it.
+            let d = p.dirToLocal(a - toWorld(pivot))
+            if d.x * d.x + d.z * d.z > 0.01 { aimYaw = atan2f(-d.x, -d.z) }
         }
         if let target = aimYaw {
             var d = target - turretYaw

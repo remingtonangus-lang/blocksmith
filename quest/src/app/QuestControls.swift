@@ -796,7 +796,7 @@ final class QuestControls {
             // click is a clear 1.6x jump (Player: VR sprint 6.9 b/s), with a haptic tick and speed streaks.
             let st = L.stick, sm = simd_length(st)
             sprintCool -= dt
-            let fed = !(game.survival && game.hunger <= 6)          // too hungry to sprint (reference)
+            let fed = !(game.survival && game.hunger <= HungerRates.noSprint)          // too hungry to sprint (P483: 3)
             // Riding a horse every click is a spur (up a gait: HorseFeel.swift), sprinting or not.
             let spurring = game.riding.map { $0.gaited && $0.tamed } ?? false
             if clickSprint && !prevClickSprint && spurring && sm > 0.3 && sprintCool <= 0 {

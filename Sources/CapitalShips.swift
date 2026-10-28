@@ -65,6 +65,7 @@ final class CapitalState {
     var pingT: Float = 0               // ... seconds since that ping (it gives up after 60)
     var bombardShots = 0               // ... shots so far at that player (each lands nearer)
     var aimTimer: Float = 0            // seconds to the next aim prediction (10 a second)
+    var rounds = -1                    // P483: the guns' magazine while he holds the helm (-1: not filled yet; Capital.magazine)
     var missileCD: Float = 5
     var pods: [(V3, V3)] = []          // missile pod mouths and launch directions (ship space)
     var enginesShaken = false            // P434 (g): the drive engines knocked off their mounts by a hard knock, till an ingot restarts them
@@ -1039,6 +1040,7 @@ extension ShipManager {
             }
             if s.asleep { continue }                 // P376: past the active distance a capital ship waits where it is
             if s.captured && !s.wrecked && (s.role == "dropship" || s.isFlyingCapital) { commandeeredTick(s, st, dt, g); continue }
+            if s.captured && s.wrecked && s.isFlyingCapital { founder(s, st, dt, g); downedGunsTick(s, st, dt, g); continue }
             if s.captured && s.role == "crawler" { capturedCrawlerTick(s, st, dt, g); continue }
             if s.role == "dropship" { dropshipTick(s, st, dt, g); continue }
             // Drive exhaust: a blue-white glow streaming aft from the nozzles while the engines hold (blind critic: the
@@ -1333,6 +1335,9 @@ extension ShipManager {
         if s.kinematic && s.parent == nil && s.helm != nil && s.role == "crawler" { return capState[s.id].map { !$0.driverAlive } ?? false }
         // P334 (a): a crewed dropship is taken once its pilot is dead (it has come down by then).
         if s.role == "dropship" && !s.captured, let st = capState[s.id], !st.crew.isEmpty, st.driverAlive { return false }
+        // P483 (Oct 28 17:37, his frigate crashed: "Things should still work, and I should definitely still be able to
+        // use the guns"): a flier he took that has come down can be manned again for its guns; it flies no more.
+        if s.wrecked && s.captured && s.isFlyingCapital { return s.kinematic && s.parent == nil && s.helm != nil }
         return s.kinematic && s.parent == nil && !s.wrecked && s.helm != nil && (s.role == "dropship" || s.isFlyingCapital)
     }
 
@@ -1436,6 +1441,15 @@ extension ShipManager {
         driveGlow(s, st, boundsDistance(s, g.player.pos), dt, g)
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
         if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
+        for t in turrets(of: s) { t.aimAt = nil }
+    }
+
+    // P483: a frigate he took that crashed keeps its guns. Manned at the helm the turrets and the Tidebreaker work as
+    // they did in flight (the bow's aim is wherever it came to rest); the hull itself goes nowhere.
+    private func downedGunsTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        st.target = nil
+        st.mainGunCD -= dt
+        if s.role == "capfrigate" { mainGunTick(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
         for t in turrets(of: s) { t.aimAt = nil }
     }
 
@@ -2748,6 +2762,12 @@ extension Capital {
     // The drive's strength, 0...1: nothing with under 40 % of the engine blocks left (the line that disables a frigate
     // under its own crew), a third at that line, full with every engine.
     static let restartTime: Float = 12     // P464: seconds till stopped engines (blocks in place) catch again
+    // P483: rounds aboard for the guns he fires from the helm: a dropship's autocannon 600 (four minutes held), a
+    // frigate's 40 a gun (each salvo spends one a barrel), a crawler's 30 a gun.
+    static func magazine(_ s: Ship, barrels: Int) -> Int {
+        if s.role == "dropship" { return 600 }
+        return max(60, barrels * (s.isFlyingCapital ? 40 : 30))
+    }
 
     static func drive(_ s: Ship, _ st: CapitalState) -> Float {
         guard st.engines0 > 0 else { return 1 }

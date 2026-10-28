@@ -16,6 +16,8 @@ enum FrigateBoarding {
     static let heaveRadius: Float = 34       // a player this close to the foot (horizontally) makes the frigate heave to
     static var hauled = 0                    // players hauled aboard (tests)
     static let puffLayer = Int(Tex.id("puff"))   // (looked up once: the line and the drive glow draw every frame)
+    // Each frigate's hanging line this frame (ship id: top, foot height, when): drawn as a cable by writeLeads.
+    static var cables: [Int: (top: V3, foot: Float, at: Double)] = [:]
 
     static func anchor(_ s: Ship) -> V3 { s.toWorld(V3(anchorX, anchorY, anchorZ)) }
 }
@@ -23,24 +25,21 @@ enum FrigateBoarding {
 extension ShipManager {
     // Per frame for every Meridian frigate (AI-flown or commandeered): the line, the haul, the heave-to.
     func boardingWinch(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
-        guard s.role == "capfrigate", !s.wrecked else { st.heaveTo = false; return }
+        guard s.role == "capfrigate", !s.wrecked else { st.heaveTo = false; FrigateBoarding.cables[s.id] = nil; return }
         let top = FrigateBoarding.anchor(s)
         let pp = g.player.pos
         let flat = simd_length(V2(pp.x - top.x, pp.z - top.z))
         let onBoard = aboard?.root === s || pilot?.root === s
         st.heaveTo = !onBoard && flat < FrigateBoarding.heaveRadius && pp.y < top.y
         // The line: a dark cable from the door to the ground, drawn when the player is near enough to see it.
+        // P483 (Oct 28 17:34, "Plume coming from the frigate"): a column of dark puffs read as smoke; it is drawn as a
+        // thin cable now (Game.writeLeads), with the lit hook at its foot.
         let gx = Int(floor(top.x)), gz = Int(floor(top.z))
         let ground = Float(world.isLoaded(gx, gz) ? world.topY(gx, gz) + 1 : world.gen.column(gx, gz).height + 1)
         let length = max(0, top.y - ground)
         if simd_length(pp - top) < 140 && length > 0 {
             let layer = FrigateBoarding.puffLayer
-            var y: Float = 0
-            while y < length {
-                g.particles.add(Particle(pos: top - V3(0, y, 0), vel: s.vel, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),
-                                         uvSize: 1, size: 0.22, gravity: 0, color: V3(0.16, 0.16, 0.15), collide: false))
-                y += 1.2
-            }
+            FrigateBoarding.cables[s.id] = (top, ground + 0.4, g.clock)
             // A lit hook at the foot so it reads from a distance at night.
             g.particles.add(Particle(pos: V3(top.x, ground + 0.4, top.z), vel: .zero, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),
                                      uvSize: 1, size: 0.45, gravity: 0, color: V3(1.4, 0.9, 0.3), collide: false, glow: true))
