@@ -413,9 +413,18 @@ final class MerchantMenu: Menu {
         if o.disabled { return }
         let a = price(o), b = o.buyB
         func enough(_ need: ItemStack) -> Bool {
-            need.isEmpty || pay.slots.contains { $0.item == need.item && $0.count >= need.count }
+            need.isEmpty || pay.slots.contains { $0.item == need.item && $0.count >= need.count } || cashDue(need).map { $0 <= game.money } == true
         }
         if enough(a) && enough(b) { result[0] = o.sell }
+    }
+
+    // P484 (Oct 28 17:43, at a trader: "I'm wondering traders should take cash"): emeralds short in the payment slots
+    // are paid from the wallet at the store's price for an emerald ($1.20: Economy.emeraldBuy, so no money loop).
+    // nil: not an emerald price.
+    func cashDue(_ need: ItemStack) -> Int? {
+        guard !need.isEmpty, Economy.isEmerald(need.item) else { return nil }
+        let have = pay.slots.filter { $0.item == need.item }.map { $0.count }.max() ?? 0
+        return max(0, need.count - have) * Economy.emeraldBuy
     }
 
     override func takeResult(_ slot: MenuSlot) -> ItemStack? {
@@ -426,6 +435,10 @@ final class MerchantMenu: Menu {
         for need in [price(o), o.buyB] where !need.isEmpty {
             if let k = (0..<2).first(where: { pay[$0].item == need.item && pay[$0].count >= need.count }) {
                 var s = pay[k]; s.count -= need.count; pay[k] = s.count > 0 ? s : .empty
+            } else if let due = cashDue(need), due <= game.money {
+                // (P484: the emeralds there are, the rest in cash)
+                if let k = (0..<2).filter({ pay[$0].item == need.item }).max(by: { pay[$0].count < pay[$1].count }) { pay[k] = .empty }
+                game.money -= due
             }
         }
         v.offers[selected].uses += 1

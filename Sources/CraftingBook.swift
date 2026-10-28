@@ -80,13 +80,21 @@ enum CraftBook {
     }
 
     // Crafts recipe r up to `times` times from the inventory into the inventory; stops when the ingredients run out
-    // or the result no longer fits (nothing is dropped). Returns the number of crafts made.
+    // or the result no longer fits (with a full pack the first goes into his hand, P484). Returns the number of crafts made.
     @discardableResult
     static func craft(_ r: Recipe, times: Int, game g: Game) -> Int {
         let inv = g.inventory.main
         var made = 0
         while made < times {
-            guard room(g, for: r.result) >= r.result.count else { break }
+            // P484 (Oct 28 18:04, "if I want to craft something and I don't have enough inventory, let me, kind of like
+            // it does in Minecraft, and then I can push something else out"): with the pack full, one craft goes into
+            // his hand (the carried stack, empty or the same thing) to set down wherever he makes room.
+            var toHand = false
+            if room(g, for: r.result) < r.result.count {
+                let c = g.carried
+                guard made == 0, g.menu != nil, c.isEmpty || c.stacks(with: r.result) && c.count + r.result.count <= c.maxStack else { break }
+                toHand = true
+            }
             // Find one item per ingredient (distinct units), then take them.
             var take: [Int: Int] = [:]
             var ok = true
@@ -108,10 +116,16 @@ enum CraftBook {
                 if key == "honey_bottle", Items.has("glass_bottle") { returns.append(ItemStack(Items.id("glass_bottle"), n)) }
                 inv[j] = s.count > 0 ? s : .empty
             }
-            let rest = g.inventory.add(Recipes.keepContents(r.result, used))
-            if !rest.isEmpty { g.dropItem(rest) }
+            let res = Recipes.keepContents(r.result, used)
+            if toHand {
+                if g.carried.isEmpty { g.carried = res } else { g.carried.count += res.count }
+            } else {
+                let rest = g.inventory.add(res)
+                if !rest.isEmpty { g.dropItem(rest) }
+            }
             for b in returns { let left = g.inventory.add(b); if !left.isEmpty { g.dropItem(left) } }
             made += 1
+            if toHand { break }
         }
         if made > 0 {
             Stats.add("crafted", Double(made * r.result.count))             // Q2c-console-57

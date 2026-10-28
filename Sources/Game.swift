@@ -2011,15 +2011,22 @@ final class Game {
         let t2 = simd_cross(nrm, t1)
         var pts: [V3] = []
         pts.reserveCapacity(n)
+        // P484 (Oct 28 17:56, "sometimes it glitches into the block I'm trying to hit"): in a corner of rock (a cave wall
+        // meeting its floor) the ring's point found no surface along the normal and stayed on the flat plane, inside
+        // the rock; it now comes in toward the middle until it finds the surface, and stands a little further off it
+        // (the drawn ground is up to 5 cm off the field's own surface).
         for k in 0..<n {
             let a = Float(k) / Float(n) * 2 * .pi
-            var p = g.at + (t1 * cosf(a) + t2 * sinf(a)) * r
-            var lo: Float = -0.6, hi: Float = 0.6                 // along the normal: inside the ground at lo, out at hi
-            if world.fieldDensity(at: p + nrm * lo) > 0 && world.fieldDensity(at: p + nrm * hi) <= 0 {
+            var q = g.at
+            for scale: Float in [1, 0.6, 0.3] {
+                let p = g.at + (t1 * cosf(a) + t2 * sinf(a)) * r * scale
+                var lo: Float = -0.6, hi: Float = 0.6             // along the normal: inside the ground at lo, out at hi
+                guard world.fieldDensity(at: p + nrm * lo) > 0 && world.fieldDensity(at: p + nrm * hi) <= 0 else { continue }
                 for _ in 0..<6 { let m = (lo + hi) * 0.5; if world.fieldDensity(at: p + nrm * m) > 0 { lo = m } else { hi = m } }
-                p += nrm * hi
+                q = p + nrm * hi
+                break
             }
-            pts.append(p + nrm * 0.025)
+            pts.append(q + nrm * 0.06)
         }
         return pts
     }

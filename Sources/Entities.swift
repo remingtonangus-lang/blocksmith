@@ -287,7 +287,7 @@ final class ItemEntityManager {
                 }
             }
         }
-        if pickOnly { if picked > 0 { game.sfx(.pickup, 0.5) }; return picked }
+        if pickOnly { if picked > 0 { game.sfx(.pickup, 0.9) }; return picked }
         // P114 (Oct 12 PM: "items should burn when they're thrown into lava"): a dropped item in lava or fire burns up
         // with a hiss and a puff of smoke (Duskium gear and the Emberdeep's star survive, as in the reference).
         for e in items where !e.stack.isEmpty && ItemEntityManager.burns(e.stack) {
@@ -355,7 +355,7 @@ final class ItemEntityManager {
             }
             items.removeAll { $0.stack.isEmpty }
         }
-        if picked > 0 { game.sfx(.pickup, 0.5) }
+        if picked > 0 { game.sfx(.pickup, 0.9) }
         return picked
     }
 
@@ -370,7 +370,10 @@ final class ItemEntityManager {
             let l = world.lightAt(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.2)), Int(floor(e.pos.z)))
             // The cave fill (Shaders.caveFill): an item on a dark cave floor shows like the floor around it.
             let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(c))
-            let fill: Float = max(0.08, MobLight.fill * near)
+            // P484 (Oct 28 17:56, mining in a cave: "I can't see the piece of the block I break when it falls very
+            // well"): a drop within a few blocks of him is lit at least a third (a dark chip of rock on dark rock
+            // vanished), and it is a fifth bigger.
+            let fill: Float = max(0.08, MobLight.fill * near, 0.34 * (1 - Terrain.smooth(4, 9, simd_length(c))))
             let light = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             let copies = d2 > 256 && ItemEntityManager.p446 ? 1 : ItemEntityManager.copies(e.stack.count)
             for k in 0..<copies {
@@ -380,7 +383,7 @@ final class ItemEntityManager {
                     let off = k == 0 ? V3(0, 0, 0) : V3(cosf(a) * 0.13, Float(k) * 0.07, sinf(a) * 0.13)
                     let t = Blocks.tint[Int(b)]
                     let tint = t == 1 || t == 3 ? V3(0.57, 0.74, 0.35) : (t == 2 ? V3(0.47, 0.67, 0.18) : V3(1, 1, 1))
-                    wr.cube(center: c + off, half: 0.125, yaw: e.age * 1.5 + e.spin, block: b, light: light, tint: tint)
+                    wr.cube(center: c + off, half: 0.15, yaw: e.age * 1.5 + e.spin, block: b, light: light, tint: tint)
                 } else {
                     // Flat icons fan out across the view (offsets along the camera's own axes stay visible) and
                     // step back a little so they overlap like a held hand of cards.

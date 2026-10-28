@@ -1287,6 +1287,12 @@ final class WorldGen: TerrainGenerator {
             for _ in 0..<100 { vein(&b, bx, bz, &rng, em, dEm, y: y(triangle(&rng, -16, 480)), size: 3) }
         }
         if countryOres { placeCountryOres(&b, bx, bz) }
+        // P484 (Oct 28 17:47-17:49, mining the caves under a forest: "I've gotta bring the iron back... iron is just like
+        // nonexistent pretty much"): the cave depths carried 12 small veins a chunk against 54 up in the mountains.
+        // About twice that below sea level now, on a stream of its own so nothing else in the chunk moves.
+        var irng = SRng(seed ^ 0x1_4840_FE &+ UInt64(bitPattern: Int64(bx &* 83492791 ^ bz &* 2971215073)))
+        for _ in 0..<10 { vein(&b, bx, bz, &irng, iron, dIron, y: y(triangle(&irng, -40, 56)), size: 9) }
+        for _ in 0..<6 { vein(&b, bx, bz, &irng, iron, dIron, y: y(irng.range(-64, 40)), size: 6) }
     }
 
     // Countries (Countries.swift): extra veins of the two minerals the country under this chunk is rich in, on a random
@@ -1433,6 +1439,7 @@ final class WorldGen: TerrainGenerator {
 
     // Monster rooms: 8 attempts per chunk; valid when the floor and ceiling are solid and 1-5 wall
     // openings lead out. Cobblestone/mossy walls, a zombie/skeleton/spider spawner, 1-2 chests.
+    static let dungeons = false
     private func placeDungeons(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ rng: inout SRng) {
         for _ in 0..<8 {
             let cx = rng.range(4, 11), cz = rng.range(4, 11), y = rng.range(8, SEA - 6)
@@ -1448,6 +1455,9 @@ final class WorldGen: TerrainGenerator {
             for dy in -1...4 { for dz in -rz - 1...rz + 1 { for dx in -rx - 1...rx + 1 {
                 let i = Chunk.index(cx + dx, y + dy, cz + dz)
                 let wall = abs(dx) == rx + 1 || abs(dz) == rz + 1 || dy == -1 || dy == 4
+                // P484 (Oct 28 17:59, "Spawners. These probably should go, eh? We shouldn't have these little dungeons"):
+                // none are built any more; the draws stay, so everything after them in the chunk lies where it did.
+                guard WorldGen.dungeons else { if wall && dy == -1 { _ = rng.chance(0.25) }; continue }
                 if wall {
                     if dy == -1 { b[i] = rng.chance(0.25) ? COBBLE : Blocks.id("mossy_cobblestone") }
                     else if b[i] != AIR || dy == 4 { b[i] = COBBLE }
@@ -1455,11 +1465,11 @@ final class WorldGen: TerrainGenerator {
             } } }
             // Spawner and chests get their block entities from World.orphanEntities (mob and loot
             // are derived from the position, so every thread agrees).
-            b[Chunk.index(cx, y, cz)] = Blocks.id("spawner")
+            if WorldGen.dungeons { b[Chunk.index(cx, y, cz)] = Blocks.id("spawner") }
             for _ in 0..<rng.range(1, 2) {
                 let side = rng.int(4)
                 let (px, pz) = [(rx, 0), (-rx, 0), (0, rz), (0, -rz)][side]
-                b[Chunk.index(cx + px, y, cz + pz)] = Blocks.id("chest")
+                if WorldGen.dungeons { b[Chunk.index(cx + px, y, cz + pz)] = Blocks.id("chest") }
             }
             return
         }

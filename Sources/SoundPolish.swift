@@ -256,10 +256,14 @@ extension Synth {
 
     // P362 (c): picking something up is a soft natural sound: a muffled pat into the hand and a little cloth rustle
     // (it was a rising synth pop, and then a recorded take that sounded odd).
+    // P484 (Oct 28 17:56, "There should be a sound it makes when I pick up the block that I break... That way I have some
+    // reinforcement that I did indeed pick it up"): the pat was too soft to hear over the dig; a small rounded wooden
+    // tock now marks it, the pat and rustle under it (each buffer variant has its own pitch, p), played louder.
     mutating func pickupPop(p: Float) -> [Float] {
-        let pat = burst(0.07, lp: 1300 * p, hp: 120, attack: 0.003, decay: 0.018, gain: 0.55)
+        let pat = burst(0.07, lp: 1800 * p, hp: 140, attack: 0.002, decay: 0.016, gain: 0.7)
+        let tock = modes(0.12, [(780 * p, 0.32, 0.03), (1960 * p, 0.1, 0.012), (3150 * p, 0.04, 0.006)])
         let rustle = burst(0.1, lp: 4200, hp: 1300, attack: 0.012, decay: 0.03, gain: 0.1)
-        return Synth.mix(pat, rustle, at: frames(0.015))
+        return Synth.mix(Synth.mix(pat, tock), rustle, at: frames(0.015))
     }
 
     // P362 (e): a trade is a quiet coin and cloth sound: two coins clink into a purse.
