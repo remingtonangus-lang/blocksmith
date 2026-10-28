@@ -16,3 +16,4 @@ Checked against Meta's hz-store-submit skill (github.com/meta-quest/agentic-tool
 | 72 Hz sustained, no thermal throttling in 5 min, interactive in 15 s | Needs the headset (with P339's performance work) | |
 | Store assets | Plan in art-plan.md; captured on device | docs/store/art-plan.md |
 | Privacy policy, age rating, comfort | Drafts in this folder | |
+| Data use answers | The bug and idea reporter (P480) sends, on the player's Send only: their words, a random per-install report ID, the game version and game details (position, biome, held item, frame rate). Data types: "user-generated content" and "app diagnostics / crash and performance data"; purpose "app functionality / developer communications"; not linked to identity; deletion on request by report ID (privacy-policy.md). | Reporter.swift |

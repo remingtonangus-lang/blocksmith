@@ -19,7 +19,7 @@ _Draft answers from the game as it is today. Check them against the build you su
 | User interaction | No | Single player only (co-op scrapped for now, P479). No chat, no voice, no user-made content shared online. |
 | Shares location | No | |
 | Digital purchases | No | |
-| Unrestricted internet | No | The store build sends no data off the headset: no online planner, no voice recording, no telemetry (P396). |
+| Unrestricted internet | No | No browsing and nothing from other players. The only thing sent off the headset is a bug or idea report the player writes and sends to the developer (P480); no online planner, no voice recording, no telemetry (P396). |
 
 Expected outcome: Mature (ESRB M / PEGI 18 / IARC 18+), driven by realistic war violence against human soldiers with
 real period weapons. (No gambling descriptor: the table games are gone.)

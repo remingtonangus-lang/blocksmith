@@ -51,7 +51,8 @@ you.
 
 ## Already handled in the build (no action)
 - No microphone in the store build (the voice notes and the playtest tools are playtest builds only).
-- No data leaves the headset: no telemetry, no online planner, no voice upload.
+- Nothing leaves the headset but the bug and idea reports a player chooses to send (P480: words, a random report ID,
+  version and place in the game); no telemetry, no online planner, no voice upload.
 - No real insignia, parties, units, people or weapon names; every name is Sunderfall's own (docs/status/ip-renames.md).
 - No profanity in townsfolk or soldier lines (the swear words in the code are block-lists, not lines).
 - Pauses and saves when the headset comes off or the system menu opens.
