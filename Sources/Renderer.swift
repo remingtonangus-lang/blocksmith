@@ -669,7 +669,6 @@ final class Renderer: NSObject, MTKViewDelegate {
                                  ragdolls: game.debris.ragdolls)
         if game.showsPlayerModel { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
         n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
-        n += NetCoop.writeRemote(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
         MobDrawStats.written += n
         if MobDrawStats.dropped > droppedBefore && mobBufBytes < 1 << 24 {
             mobBufBytes <<= 1
@@ -682,7 +681,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let lf = lightFrame
         let eye = cameraEye().eye
         var n = 0
-        if !game.mobs.mobs.isEmpty || game.showsPlayerModel || game.coop.active || game.netGuest != nil,
+        if !game.mobs.mobs.isEmpty || game.showsPlayerModel || game.coop.active,
            let pre = writeMobBuffer(eye: eye, daylight: game.renderDaylight, cull: mobCullFrustum(width, height)) {
             mobPre = pre
             n = pre.count
@@ -1186,7 +1185,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                 enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: pre.count)
             }
-        } else if !game.mobs.mobs.isEmpty || tp || game.coop.active || game.netGuest != nil {
+        } else if !game.mobs.mobs.isEmpty || tp || game.coop.active {
             // Fast: the same buffers (the frame's scratch ring shares its 4 MB with everything else).
             if let pre = writeMobBuffer(eye: eye, daylight: daylight, cull: frustum) {
                 MobDrawStats.path = hdrActive ? "Fancy (no shadow pass)" : "Fast buffer"
@@ -1615,7 +1614,6 @@ final class Renderer: NSObject, MTKViewDelegate {
                 v.append(q0); v.append(q1); v.append(q2); v.append(q0); v.append(q2); v.append(q3)
             }
         }
-        if Partner.isDowned(game) { rect(0, 0, W, H, V4(0.3, 0, 0, (0.32 + 0.1 * sinf(Float(game.clock) * 2.5)) * max(fx, 0.6))) }   // Q2: down (D52)
         if game.portalTime > 0 { rect(0, 0, W, H, V4(0.45, 0.1, 0.8, min(0.7, game.portalTime / 4 * 0.7) * fx)) }
         if game.onFire > 0 && game.menu == nil {
             // Flickering flames along the bottom of the view.
@@ -1658,7 +1656,6 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let a = game.hellBossBar() { bars.append((a.0, a.1, V4(0.55, 0.06, 0.14, 1))) }
             if let a = game.ashAlarmBar() { bars.append(a) }
             bars += game.huntedBars()               // D47
-            if let b = Partner.bar(game) { bars.insert(b, at: 0) }          // D52: downed, reviving
             for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
             if bars.isEmpty, let tb = game.targetBar() { bars.append(tb) }        // Q2c-console-52: the creature he is fighting
             Goals.bars = bars.count + (game.deepWayUpHUD() != nil ? 1 : 0) + (Waymarks.hud(game) != nil ? 2 : 0)

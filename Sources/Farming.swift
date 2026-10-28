@@ -446,10 +446,6 @@ extension Game {
 
     // Right-click on a mob with the held item.
     func useItemOnMob(_ m: Mob) -> Bool {
-        // C14 Play Together (NetShare.swift): the host's own mobs are used on the host; the friend's mount is taken.
-        if let gu = netGuest, gu.use(self, m) { return true }
-        if netHost != nil, m.netRiddenUntil > clock, coop.netSeat != coop.current { onToast?("Your friend is riding that"); return true }
-        if Partner.mountBehind(self, m) { return true }                 // D52: up behind your partner
         let key = Items.key(held.item)
         if companionUse(m) { return true }                            // O2: hire, gear or part with a companion
         if copperGolemUse(m) { return true }

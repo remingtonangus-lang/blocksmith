@@ -6,14 +6,12 @@ import simd
 // (Options > Director > Event Frequency), arriving in the world as a radio call, a messenger, a map marker or a sound,
 // never as a menu. Each is one of the templates below, built only from systems the game already has (town raids,
 // outlaw gangs, faction dropships, wrecks, storms, eruptions, legendary beasts, traders...).
-//   who plans  a DirectorBackend (DirectorLLM.swift): the rule director (always there, the fallback), a small language
-//              model on the device (llama.cpp, loaded after the story, run only while the game is paused, asleep,
-//              loading or idle somewhere safe), or a cloud endpoint (off by default; a built-in mock server). A backend
-//              gets a compact world summary (DirectorSummary) and the catalogue, and answers with event requests as
-//              strict JSON: a template id, numbers, picks from fixed lists and short in-world text.
-//   trust      nothing a backend says runs as code. `accept` drops unknown templates, clamps every number to its range
-//              (and the player's tier), keeps only listed picks, and cleans every name and line (DirectorText: length
-//              caps, printable text, the coined-name filter); what fails is replaced by the rule director's choice.
+//   who plans  the rule director (DirectorPlanner.swift) from a compact world summary (DirectorSummary) and the
+//              catalogue: a template id, numbers, picks from fixed lists and short in-world text. (P479: the language
+//              model and cloud planners that could stand in for it are gone.)
+//   trust      `accept` drops unknown templates, clamps every number to its range (and the player's tier), keeps only
+//              listed picks, and cleans every name and line (DirectorText: length caps, printable text, the coined-name
+//              filter).
 //   pacing     play time (survival, alive, not paused) counts toward the next event; it escalates with his strength
 //              (tiers 1-4), never repeats a template of the last three events or a name used before, waits for
 //              night or day, a fitting dimension, a town or volcano nearby, and a safe moment (not dead, flying,
@@ -100,12 +98,8 @@ struct DirectorState: Codable {
 enum Director {
     static var state = DirectorState()
     static var lastSecond: Double = -1
-    static var lastActive: Double = 0             // the last frame of active play (the model's quiet test off the Quest)
-    static var idleSince: Double = 0
-    static var lastPos = V3(0, 0, 0), lastYaw: Float = 0
     static var refs: [Int: [Mob]] = [:]           // the mobs each event put in the world (this session)
     static var waitNote = ""                      // why the next event is waiting (Options > Director)
-    static var fallbackNote = ""                  // why the backend asked fell back to rules
     static let posse = 3                          // gunmen ride on the bounty hunters' soldier rig (no faction)
     static let maxActive = 2
 
@@ -231,23 +225,6 @@ enum Director {
         switch Settings.shared.directorFreq { case 0: return 30...45; case 2: return 8...15; default: return 15...30 }
     }
     static let freqNames = ["Rare (30-45 min)", "Normal (15-30 min)", "Often (8-15 min)"]
-    static let backendNames = ["Built-in Rules", "On-Device AI", "Cloud AI"]
-    // Q2c-console-45: the planners that can work here: the rules always, the on-device AI once its model is installed,
-    // the cloud once a server is set (with Cheats & Shortcuts on, all three, for testing). A saved choice outside these
-    // plans with the rules (effectiveBackend) and reads so on the Director page.
-    static func plannerChoices() -> [Int] {
-        let dev = Settings.shared.devTools
-        var out = [0]
-        if dev || DirectorLLM.modelPath != nil { out.append(1) }
-        // P396: the store build has no cloud planner (nothing leaves the headset); playtest builds keep it.
-        if Playtest.enabled && (dev || DirectorPlanner.shared.cloud.endpoint != "mock") { out.append(2) }
-        return out
-    }
-    static var effectiveBackend: Int {
-        let b = Settings.shared.directorBackend
-        return plannerChoices().contains(b) ? b : 0
-    }
-
     // The Director page's status line (n): what it is doing now.
     static func statusLines(_ g: Game) -> [String] {
         let st = Settings.shared
@@ -263,8 +240,6 @@ enum Director {
             out.append(s)
         }
         if g.difficulty == 0 { out[0] += " (Peaceful: only peaceful events)" }         // Q2c-console-23
-        out.append("Planner: " + backendNames[effectiveBackend] + ", " + DirectorPlanner.shared.status(effectiveBackend))
-        if !fallbackNote.isEmpty && effectiveBackend != 0 { out.append("Last plan: " + fallbackNote) }
         return out
     }
 
@@ -279,20 +254,6 @@ enum Director {
         let left = Int((max(0, state.nextDue - state.play) / 60).rounded())
         return left > 0 ? "Now: Next event in ~\(left) min" : "Now: Next event soon"
     }
-    static func shortPlanner() -> String {
-        switch effectiveBackend {
-        case 1:
-            if DirectorLLM.slow { return "On-Device AI: too slow here (using rules)" }
-            if DirectorLLM.modelPath == nil { return "On-Device AI: not installed (using rules)" }
-            if !DirectorLLM.open() { return "On-Device AI: not in this version (rules)" }
-            if DirectorLLM.busy { return "On-Device AI: thinking" }
-            return DirectorLLM.loaded ? "On-Device AI: loaded" : "On-Device AI: ready"
-        case 2:
-            if DirectorPlanner.shared.cloud.endpoint == "mock" { return "Cloud AI: test server" }
-            return DirectorCloudBackend.https ? "Cloud AI: on" : "Cloud AI: no secure link here (rules)"
-        default: return "Built-in Rules: ready"
-        }
-    }
     // Event Frequency changed: the wait already running follows the new pace.
     static func rescheduled(from old: Int) {
         let left = state.nextDue - state.play
@@ -302,34 +263,16 @@ enum Director {
 
     // MARK: Ticking (f, k, l)
 
-    // Every frame (HudExtras.tick): the model's heartbeat while he plays, the once-a-second step.
+    // Every frame (HudExtras.tick): the once-a-second step.
     static func frame(_ g: Game) {
-        let playing = !g.paused && g.menu == nil && g.sleeping <= 0 && HudExtras.loading == nil && !idleSafe(g)
-        if playing { lastActive = g.clock; DirectorLLM.heartbeat() }
         guard g.clock - lastSecond >= 1 || lastSecond < 0 || g.clock < lastSecond else { return }
         let dt = lastSecond < 0 || g.clock < lastSecond ? 1 : min(5, g.clock - lastSecond)
         lastSecond = g.clock
         second(g, dt)
     }
 
-    // Idle somewhere safe (the model may think then): still for 20 s, no hostile within 32 blocks, at home, in a
-    // town or a base he holds.
-    static func idleSafe(_ g: Game) -> Bool {
-        let p = g.player.pos
-        if simd_length(p - lastPos) > 0.05 || abs(g.player.yaw - lastYaw) > 0.02 { lastPos = p; lastYaw = g.player.yaw; idleSince = g.clock; return false }
-        guard g.clock - idleSince > 20, g.alive else { return false }
-        let home = simd_length(g.spawnPoint - p) < 48 || TownLaw.inTown != nil || g.bases.inAnyBase(p)
-        guard home else { return false }
-        return !g.mobs.mobs.contains { $0.health > 0 && $0.kind.hostile && simd_length($0.pos - p) < 32 }
-    }
-
     static func second(_ g: Game, _ dt: Double) {
-        DirectorPlanner.shared.collect(g)
-        guard on(g) else {
-            DirectorLLM.idle(g, wanted: false)
-            return
-        }
-        DirectorLLM.idle(g, wanted: effectiveBackend == 1)
+        guard on(g) else { return }
         // Q2c-console-24: when this world started being played here, and his last death.
         if arrivedAt < 0 || g.clock < arrivedAt { arrivedAt = g.clock }
         if !g.alive { diedAt = g.clock }
@@ -633,7 +576,7 @@ enum Director {
         return s
     }
     static func decode(_ s: String?) {
-        refs = [:]; lastSecond = -1; waitNote = ""; fallbackNote = ""; arrivedAt = -1; diedAt = -1000
+        refs = [:]; lastSecond = -1; waitNote = ""; arrivedAt = -1; diedAt = -1000
         state = s.flatMap { $0.data(using: .utf8) }.flatMap { try? JSONDecoder().decode(DirectorState.self, from: $0) } ?? DirectorState()
         // Creatures that were not saved with the world come back when he is near again.
         for i in state.active.indices where state.active[i].t == "legend" || state.active[i].t == "warband" { state.active[i].spawned = false }

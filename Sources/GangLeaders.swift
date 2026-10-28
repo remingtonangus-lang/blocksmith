@@ -85,7 +85,6 @@ enum GangLeaders {
         beatenCount += 1
         let pay = alive ? gg.bounty * 2 : gg.bounty
         g.money += pay
-        Partner.sharePay(g, pay, "bounty")                              // D52
         for o in g.mobs.mobs where o.posse == 2 && simd_length(o.pos - p) < 40 && isLeader(o) == nil {
             o.aggro = false; o.panic = max(o.panic, 12)
         }

@@ -300,7 +300,7 @@ extension Game {
         // Turrets follow the view; barrels rise with it.
         let elev = max(-0.2, min(0.6, player.pitch + 0.05))
         s.gunPitch = elev
-        for t in ships.turrets(of: s) where !Partner.manned(self, t) {     // D52: a manned turret follows its gunner
+        for t in ships.turrets(of: s) {
             t.gunPitch = elev
             var rel = player.yaw - s.yaw
             while rel > .pi { rel -= 2 * .pi }
@@ -501,7 +501,6 @@ extension Game {
     func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float) -> Bool {
         let ships = world.ships
         ships.breakCooldown -= dt
-        if Partner.gunSeatTick(self, breakNow: breakNow, breakHeld: breakHeld) { return true }   // D52: a gun seat
         if let s = ships.pilot {
             ships.target = nil; target = nil; mining = nil
             // Attack charges the Tidebreaker when a Meridian frigate's is loaded (it fires 2.6 s later along the bow), else

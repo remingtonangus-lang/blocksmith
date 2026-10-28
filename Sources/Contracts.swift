@@ -226,7 +226,6 @@ enum Contracts {
         c.done = true; c.paid = true
         save(board, slot, c)
         g.money += c.pay
-        Partner.sharePay(g, c.pay, "contract")                          // D52
         g.sfx(.villagerTrade, 0.7)
         Honour.earn(g, c.honour, source: "job", "a contract for \(patron(g, board))")
         if !isBase(board), let k = Countries.ofKnown(g, town: board) { Countries.change(g, k, 3) }

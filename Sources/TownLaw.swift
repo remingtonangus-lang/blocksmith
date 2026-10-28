@@ -286,7 +286,6 @@ enum TownLaw {
     static var shotsHeard = 0
     static var lastShot: (at: V3, clock: Double)?   // R20: the last gunfire in a town (townsfolk talk about it: TownLines)
     static func gunfire(_ g: Game, at p: V3) {
-        if let gu = g.netGuest { gu.gunfire(at: p); return }                   // C14: the host's townsfolk hear it
         MiningTowns.spark(g, at: p)                                            // C12: a muzzle flash in mine gas
         guard g.dim.dim == .overworld, isTownSpot(g, IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))) else { return }
         lastShot = (p, g.clock)
@@ -415,7 +414,6 @@ enum TownLaw {
 
     static func offence(_ g: Game, heat add: Float, at p: V3, victim: Mob? = nil, speak: Bool = true) {
         guard g.dim.dim == .overworld, g.survival else { return }      // creative: no theft, no warnings
-        if let gu = g.netGuest { gu.crime(heat: add, at: p, speak: speak); return }   // C14: the host's town answers
         if TownConquest.owns(Townsfolk.town(g, at: p)) { return }        // your own town: its things are yours
         var ws = witnesses(g, at: p)
         if let v = victim, !ws.contains(where: { $0 === v }) { ws.insert(v, at: 0) }

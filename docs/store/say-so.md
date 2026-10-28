@@ -6,6 +6,15 @@ needs my say so". The game's own store build is ready to make (`STORE=1 quest/to
 intent; see meta-checks.md). What is left is in this list: things only you can do or decide. Nothing here was done for
 you.
 
+## His answers (Oct 27 21:12, P479)
+- Early Access, US$9.99 (set by the overseer on the dashboard; nothing in the build). App ID 1396130500248132 under
+  Noobmaster Industries; the release key is on his Mac, never in the repo.
+- Gambling: cut. The saloon dice, poker and knife game are gone from every build.
+- The Director's language model: gone, and the cloud planner with it; the rules plan every event.
+- Co-op: scrapped for now (Play Together and split screen).
+- Credits: "A game by Remington Wilbur, Noobmaster Industries", made with Claude by Anthropic.
+- AI content: yes. "AI didn't just influence the creation of this game. No, it made it."
+
 ## Accounts and keys (only you can do these)
 1. **Meta Horizon developer account and the app's store page.** Create the app in the Meta Horizon Developer Dashboard
    (organisation, payment and tax details). It gives the **app ID**: build the store APK with `QUEST_APP_ID=<id>` so the
@@ -16,11 +25,10 @@ you.
    store asks for its link).
 
 ## Decisions
-4. **Price**, and whether there's a demo or early access.
+4. **Price**, and whether there's a demo or early access. (Answered: Early Access, US$9.99.)
 5. **Age rating questionnaire (IARC).** Draft answers in iarc-answers.md. Expected result: 18+ / Mature, for war
    violence against human soldiers. Two answers are yours to confirm:
-   - **Simulated gambling**: the saloon dice, poker and knife game, staked with in-game dollars. Keep them (adds a
-     gambling descriptor, may narrow some regions) or take them out of the store build.
+   - **Simulated gambling**: answered, cut (the saloon dice, poker and knife game are gone).
    - **Alcohol**: saloons and drink as set dressing. Keep as is.
 6. **Rights to the generated assets** (credits-and-licences.md now lists where each comes from):
    - Music: 40 tracks you made in Google Flow Music. Confirm Flow's terms allow sale in a paid app.
@@ -29,12 +37,10 @@ you.
      OpenRouter). Confirm the voices too.
    - The store's submission form asks whether the app uses AI-generated content: the answer is yes (art, sound, music,
      voices).
-7. **The Director's language model** (the optional download of a Qwen model for the on-device planner): keep it as an
-   optional download in the store build, or leave it out. It is the one large download outside the APK, and its licence
-   (Apache 2.0) must ship with it.
-8. **Play Together** (two headsets on local Wi-Fi): keep it listed as a feature. If it stays, the listing says "local
-   co-op" and the rating answer is "users interact: local network only".
-9. **Credits line**: "Created by Remington [surname]": your name as you want it shown, or a studio name.
+7. **The Director's language model**: answered, gone (the rules plan every event).
+8. **Play Together**: answered, scrapped for now (Play Together, split screen and the Wi-Fi permissions are gone;
+   the listing is single player and the rating answer is "users interact: no").
+9. **Credits line**: answered: "A game by Remington Wilbur, Noobmaster Industries", made with Claude by Anthropic.
 10. **Comfort rating**: proposed Moderate (comfort-rating.md). Flying craft and the frigate may push Meta to
     Intense; you can accept that or ask for comfort defaults to be tightened.
 

@@ -172,15 +172,6 @@ final class CombatHUD {
             out.append(HudLine(text: t, x: cx - Float(Font.width(t)) * s / 2, y: cy + 22 * s, scale: s,
                                color: TankSight.laid ? Settings.shared.goodColor : V4(0.95, 0.75, 0.2, 1)))
         }
-        // Q2: a co-op gun seat (D52): which gun, and its reload under the crosshair.
-        if let tid = Partner.gunner[Partner.seat(g)], let t = g.world.ships.list.first(where: { $0.id == tid }), g.menu == nil {
-            let w = 40 * s, x = cx - w / 2, y = cy + 14 * s
-            let f = t.reloadTime > 0 ? max(0, 1 - t.reload / t.reloadTime) : 1
-            out.append(HudLine(text: "", x: x, y: y, scale: s, bg: V4(0, 0, 0, 0.55), box: V2(w, 4 * s)))
-            out.append(HudLine(text: "", x: x, y: y, scale: s, bg: f >= 1 ? Settings.shared.goodColor : V4(0.95, 0.75, 0.2, 1), box: V2(w * f, 4 * s)))
-            let label = f >= 1 ? "Gun seat: ready" : "Gun seat: loading"
-            out.append(HudLine(text: label, x: cx - Float(Font.width(label)) * s / 2, y: y + 6 * s, scale: s, color: V4(0.9, 0.9, 0.9, 0.9)))
-        }
         // Manned deck gun: reload bar under the crosshair.
         if Turrets.shared.active {
             let r = max(0, Turrets.shared.reload)

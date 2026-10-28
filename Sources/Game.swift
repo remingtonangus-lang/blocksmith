@@ -45,8 +45,6 @@ final class Game {
         }
     }
     var appAction: ((String) -> Void)?
-    var netHost: NetHost?                 // C14: hosting a co-op guest over the network (NetCoop.swift)
-    var netGuest: NetGuest?               // C14: this game is a guest in another headset's world
     var invertY: Bool = UserDefaults.standard.bool(forKey: "invertY") { didSet { UserDefaults.standard.set(invertY, forKey: "invertY") } }
     // Graphics: Fancy (sky gradient, water reflections, extra effects) or Fast (the plain renderer). Default Fancy.
     // Fancy only: the 3D world renders at this fraction of the window size and is upscaled (HUD stays sharp).
@@ -988,7 +986,6 @@ final class Game {
         audioMenuClosed(m)
         TownLaw.closed(self, m)
         m.onClose()
-        if netHost != nil || netGuest != nil { NetCoop.menuClosed(self, m) }     // C14: a chest's contents to the other player
         if !carried.isEmpty {
             let rest = inventory.add(carried)
             if !rest.isEmpty { dropItem(rest) }
@@ -1006,10 +1003,6 @@ final class Game {
     // MARK: Tick
 
     func tick(_ rawDt: Double) {
-        let ndt = Float(min(rawDt, 0.05))
-        netHost?.tick(self, ndt)                             // C14: co-op over the network (NetCoop.swift)
-        netGuest?.tick(self, ndt)
-        if netGuest == nil { coop.pollJoin(self, ndt) }
         if coop.active { coopTick(rawDt); return }
         tickSeat(rawDt)
     }
@@ -1018,7 +1011,6 @@ final class Game {
     func tickSeat(_ rawDt: Double) {
         let dt = min(rawDt, 0.05)
         let seat = coop.current
-        if let ns = coop.netSeat, seat == ns, let h = netHost { h.seatTick(self, dt); return }     // the guest's body (NetCoop)
         if seat == 0 {
             TickProf.begin()
             clock += dt
@@ -1187,7 +1179,6 @@ final class Game {
         if bumpersFree && padHotbarScroll && p.rb && !q.rb && !WeaponWheel.shared.ownsRB(self) { select(selected + 1) }
         if bumpersFree && padHotbarScroll && p.lb && !q.lb { select(selected - 1) }
 
-        Partner.tick(self, fdt)                                          // D52: downed, revives, riding pillion
         seatedEatTick(p, fdt)                                            // P435: eating at the controls of a vehicle
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
         if AshSeat.shared.tick(self, p, q, mi, dt: fdt) { updateFov(Float(dt)); advance(dt); return }      // P344
@@ -1217,7 +1208,7 @@ final class Game {
         survivalTick(dt, from: before)
         TickProf.mark("survival")
 
-        if Partner.isDowned(self) { mining = nil } else { interact(p, q, dt) }   // Q2: a downed player can't fight (D52)
+        interact(p, q, dt)
         updateFov(Float(dt))
         if input.middleClicked || (p.x && !q.x && heldGun == nil) { pickBlock() }
         TickProf.mark("interact")
@@ -2735,7 +2726,6 @@ final class Game {
         // strikes the gun.
         if let r = Turrets.shared.remote, let gun = Turrets.shared.manned,
            simd_length(src - r) > 8 || simd_length_squared(src - gun.pos) < simd_length_squared(src - r) { return }
-        if let ns = coop.netSeat, coop.current == ns, let h = netHost { h.hurt(amount, from: src, cause: cause, knockback: knockback, type: type); return }
         CombatHUD.shared.hurt(self, from: src, amount: amount)
         if let a = attacker { petsAttack(a) }
         if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
@@ -2845,7 +2835,6 @@ final class Game {
 
     func damage(_ amount0: Int, _ cause: String, bypassArmor: Bool = false, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount0 > 0 else { return }
-        if let ns = coop.netSeat, coop.current == ns, let h = netHost { h.hurt(amount0, from: player.pos, cause: cause, knockback: 0, type: type); return }
         Game.onDamage?(amount0, cause)
         if type == .fire && effects.has(.fireResistance) { return }
         // P358 (b): everything that isn't an attack (falls, fire, lava, drowning, freezing, cactus, lightning, crashes,
@@ -2926,10 +2915,8 @@ final class Game {
         audioHurt(type)
         if bulletHit && absorption <= 0 && amount >= 2 { dmg = max(dmg, 1) }      // a round that lands always hurts a little
         guard dmg >= 0.5 else { return }
-        if Partner.isDowned(self) { Partner.hitWhileDown(self, type); return }   // D52: down and out of the fight
         health -= max(1, Int(dmg.rounded()))
         if health <= 0 && useTotem() { return }
-        if health <= 0 && Partner.goDown(self, cause) { return }        // D52: a partner can get you up
         if health <= 0 { die(cause) }
     }
 
@@ -3207,7 +3194,6 @@ final class Game {
     // World clock, fluids, furnaces, entities and autosave (runs whenever the game isn't paused).
     private func advance(_ dt: Double) {
         if coop.current > 0 { coopAdvance(dt); return }       // a second seat: only its own share (Coop.swift)
-        if netGuest != nil { netGuestAdvance(dt); return }    // a co-op guest: the host runs the world (NetCoop.swift)
         world.ships.update(Float(dt), game: self)              // (docking writes blocks back: stays synchronous, no hole)
         TickProf.mark("ships")
         // The world's own changes from here on remesh on the workers (World.deferRemesh), not on the frame thread.

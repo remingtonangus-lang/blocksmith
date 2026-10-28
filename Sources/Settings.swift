@@ -103,9 +103,8 @@ final class Settings {
     @Pref("screenEffects") var screenEffects = true
     @Pref("targetBar") var targetBar = true          // Q2c-console-52: the health of the creature he last hurt
     @Pref("lookNames") var lookNames = true          // Q2c-console-55: name what the aim rests on
-    // P266 the Director (Director.swift): on, its planner (0 Rules, 1 On-Device Model, 2 Cloud), event frequency
-    // (0 rare, 1 normal, 2 often), and switching it on before the story ends (testing). The cloud endpoint is the
-    // UserDefaults string "directorCloud" ("mock" when unset).
+    // P266 the Director (Director.swift): on, event frequency (0 rare, 1 normal, 2 often), and switching it on before
+    // the story ends (testing). (P479: its planner choice is gone; the rules plan every event.)
     @Pref("chestJoinTold") var chestJoinTold = false   // P264: the first double chest was announced
     // Q2c-console-15: Commands and Shortcuts in a survival game. Off in store builds (the Quest without the playtest's
     // VOICE_NOTES), on in playtest and Mac builds; creative always has them.
@@ -120,7 +119,6 @@ final class Settings {
     // everything still on him.
     @Pref("testMode") var testMode = false
     @Pref("directorOn") var directorOn = true
-    @Pref("directorBackend") var directorBackend = 1
     @Pref("directorFreq") var directorFreq = 1
     @Pref("directorEarly") var directorEarly = false  // full-strength red damage flash and portal tint (off = faint)
 
@@ -134,7 +132,7 @@ final class Settings {
         targetBar = true; lookNames = true
         display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0; bugNoteVideo = true; recordFootage = true   // (P432: Polygons for new worlds again)
         mapZoom = 3; wreckHint = false; mastHint = false; chestJoinTold = false       // (questcheck --settings-only: every @Pref resets)
-        directorOn = true; directorBackend = 1; directorFreq = 1; directorEarly = false; devTools = Settings.devToolsDefault; testMode = false   // (tutorialStep is progress, not an option)
+        directorOn = true; directorFreq = 1; directorEarly = false; devTools = Settings.devToolsDefault; testMode = false   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1
         for c in SoundCategory.allCases { AudioSettings.set(c, c == .master ? 0.8 : 1) }

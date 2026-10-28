@@ -524,7 +524,7 @@ final class WorldRenderer {
     }
     private func drawMobs(_ s: SceneRenderer.Slot, _ eye: V3, _ frustum: Frustum) {
         let tp = game.cameraMode != 0
-        let others = game.coop.active || game.netGuest != nil          // C14: the other player's body
+        let others = game.coop.active
         // P385: the worker's mobs (startMobs), then the player's body and the other players' after them in its buffer.
         if let b = mobPending, let p = b.mapped {
             joinMobs()
@@ -535,7 +535,6 @@ final class WorldRenderer {
             if tp { n += writePlayerModel(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n) }
             if others {
                 n += game.coop.writeOthers(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n)
-                n += NetCoop.writeRemote(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n)
             }
             lastMobVerts = n
             scene.drawBuffer(s, "mob", b.buffer, offset: 0, count: n)
@@ -553,7 +552,6 @@ final class WorldRenderer {
         if tp { n += writePlayerModel(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n) }
         if others {
             n += game.coop.writeOthers(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n)
-            n += NetCoop.writeRemote(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n)
         }
         lastMobVerts = n
         scene.commit(off, n, MobVert.self)

@@ -14,8 +14,7 @@ enum AshWar {
         "and went down into the bunker where the war was made.", "",
         "The war below the world is over.", "Their tanks are cold. Their guns are silent.", "The red lamps burn for no one now.", "",
         "A lift in the command bunker", "will carry you back to the surface.", "", "", "THE END", "", "", "",
-        "Made for Remington", "", "Thanks for playing.", "", "", "",
-    ]
+    ] + Game.madeBy + ["Thanks for playing.", "", "", ""]
     static var epilogueLength: Float { Float(epilogue.count) * 1.4 + 12 }
 }
 

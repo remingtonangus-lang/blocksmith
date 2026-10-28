@@ -69,7 +69,7 @@ extension Game {
     // P205: a death's belongings in one or two chests side by side at the nearest open spot by `p` (up to 6 blocks
     // around, out of liquids), with a map pin. Returns false when no spot was found (the items drop as before).
     func deathChests(_ items: [ItemStack], near p: V3) -> Bool {
-        guard netGuest == nil, Blocks.has("chest") else { return false }
+        guard Blocks.has("chest") else { return false }
         let chest = Blocks.id("chest")
         let need = (items.count + 26) / 27
         let bx = Int(floor(p.x)), by = max(-60, min(CH - YOFF - 3, Int(floor(p.y)))), bz = Int(floor(p.z))

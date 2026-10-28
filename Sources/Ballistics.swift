@@ -739,7 +739,6 @@ extension Game {
     }
 
     func fireHeldGun(_ gi: Int) {
-        if Partner.isDowned(self) { return }                         // Q2: down and out of the fight (D52)
         let gs = Guns.all[gi]
         let a = arms
         // VR: rounds leave the aiming hand along its ray, like the crossbow's bolts (from the eye toward a point 60 blocks

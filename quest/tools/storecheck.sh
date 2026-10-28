@@ -25,7 +25,6 @@ check() {   # name, count found
 check "RECORD_AUDIO permission" "$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null | grep -c RECORD_AUDIO)"
 check "mic/encoder symbols" "$("$READELF" --dyn-syms "$SO" | grep -cE 'bs_mic_|bs_aac_|bs_venc_|AMediaCodec_createEncoderByType|AMediaMuxer_|AAudioStreamBuilder_setInputPreset')"
 check "recorder strings" "$(strings -a "$SO" | grep -cE 'voicenotes|voicevideo|RECORD_AUDIO')"
-check "cloud planner request (P396)" "$(strings -a "$SO" | grep -c 'blocksmith-director-1')"
 check "playtest checklist asset (P399)" "$(unzip -l "$APK" 2>/dev/null | grep -c 'assets/device-checklist.md')"
 # P360 (c): Meta store packaging (hz-store-submit's VRC packaging rows), on store builds only.
 if [ "$EXPECT" = 0 ]; then

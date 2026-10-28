@@ -207,7 +207,7 @@ final class SaveManager {
         return out
     }
 
-    // The chunk file's bytes (also the co-op wire format, NetCoop.swift) to blocks, or nil.
+    // The chunk file's bytes to blocks, or nil.
     static func decodeBlocks(_ d: [UInt8]) -> [BlockID]? {
         guard let raw = try? (Data(d) as NSData).decompressed(using: .lzfse) as Data else { return nil }
         let bytes = [UInt8](raw)

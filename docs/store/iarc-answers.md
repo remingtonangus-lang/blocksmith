@@ -12,14 +12,14 @@ _Draft answers from the game as it is today. Check them against the build you su
 | Sexual content / nudity | None | |
 | Language | None | Lines are written without profanity. Recheck the townsfolk lines before submitting. |
 | Controlled substances | References | Saloons and drinks in frontier towns, and "drunk" townsfolk lines. The player can't use drugs. Alcohol is set dressing. |
-| Gambling | Simulated gambling, in-game money only | Saloon table games: High Dice, five-card draw poker against the house and the knife game, staked with the game's own dollars. Nothing can be bought or cashed out with real money. Answer "simulated gambling: yes". |
+| Gambling | None | The saloon table games were cut (P479, Oct 27). Nothing can be bought or cashed out with real money. Answer "simulated gambling: no". |
 | Crime | Yes | The player can rob, steal and shoot in towns, and hold up trains (the bullion train too). Law, bounties, arrest and jail follow. |
 | Discrimination | None | |
 | In-app purchases | None | |
-| User interaction | Yes, local network only | Play Together with one friend on the same Wi-Fi (shared pay and revives pass between the two headsets). No chat, no voice, no user-made content shared online. |
+| User interaction | No | Single player only (co-op scrapped for now, P479). No chat, no voice, no user-made content shared online. |
 | Shares location | No | |
 | Digital purchases | No | |
 | Unrestricted internet | No | The store build sends no data off the headset: no online planner, no voice recording, no telemetry (P396). |
 
 Expected outcome: Mature (ESRB M / PEGI 18 / IARC 18+), driven by realistic war violence against human soldiers with
-real period weapons. Simulated gambling adds a gambling descriptor.
+real period weapons. (No gambling descriptor: the table games are gone.)

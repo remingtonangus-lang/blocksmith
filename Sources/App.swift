@@ -138,31 +138,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     // Switches to another world in place (saving the current one).
-    func switchWorld(name: String, seed: UInt64?, survival: Bool?, difficulty: Int?, smooth: Bool? = nil, join: String? = nil) {
+    func switchWorld(name: String, seed: UInt64?, survival: Bool?, difficulty: Int?, smooth: Bool? = nil) {
         // One synchronous frame of the loading screen before the (blocking) save + load.
-        HudExtras.loading = join.map { "Joining \($0)..." } ?? "Loading \(name)..."
+        HudExtras.loading = "Loading \(name)..."
         view.draw()
         defer { HudExtras.loading = nil }
-        // C14 Play Together: connect first, so a failed join leaves the current world as it was.
-        var guest: NetGuest?
-        if let ip = join {
-            guard let gu = NetGuest(ip: ip, name: "Mac player"), gu.waitWelcome(seconds: 6) else {
-                game.onToast?("Couldn't join \(ip): is the host's world open with hosting on?"); return
-            }
-            guest = gu
-        }
         game.closeMenusForExit()
         game.saveNow()
-        game.netHost?.stop(game); game.netHost = nil
-        if let gu = game.netGuest { gu.detach(game); game.netGuest = nil }
-        if let gu = guest {
-            game = WorldRequest.guestGame(gu, device: device, renderDistance: min(game.world.renderDistance, 8))
-            game.sound = soundEngine
-            game.sound?.volume = game.volumeSetting
-            _ = game.world.loadSync(center: game.player.pos, radius: 2)
-        } else {
-            makeGame(name: name, seed: seed, survival: survival, difficulty: difficulty, smooth: smooth)
-        }
+        makeGame(name: name, seed: seed, survival: survival, difficulty: difficulty, smooth: smooth)
         view.input = game.input
         do { renderer = try Renderer(device: device, game: game, colorFormat: view.colorPixelFormat) } catch { fatalError("Renderer init failed: \(error)") }
         view.delegate = renderer
@@ -171,7 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         worldsPanel = nil
         overlay.removeFromSuperview()
         buildOverlay()
-        window.title = "Sunderfall — \(join == nil ? name : (guest?.worldName ?? name))"
+        window.title = "Sunderfall — \(name)"
         // Straight into the world (console style) rather than back to a pause menu.
         game.paused = false
         pauseChanged(false)
@@ -300,11 +283,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "worlds": self.showWorlds()
             case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)
             case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.diffLevel, smooth: true)   // (PG6: a new world is Polygons, even from a block world)
-            case _ where id.hasPrefix("netjoin:"):
-                self.switchWorld(name: "", seed: nil, survival: nil, difficulty: nil, join: String(id.dropFirst(8)))
-            case "netleave":
-                if let gu = self.game.netGuest { gu.detach(self.game); gu.clearMirrors(self.game); self.game.netGuest = nil }
-                self.switchWorld(name: UserDefaults.standard.string(forKey: "lastWorld") ?? "World", seed: nil, survival: nil, difficulty: nil)
             case "workshop": self.switchWorld(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 2)
             case _ where id.hasPrefix("create:"):
                 // create:<survival 0/1>:<difficulty>:<smooth terrain 0/1>:<name>:<seed text>

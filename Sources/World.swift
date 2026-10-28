@@ -22,13 +22,8 @@ final class World {
     var chunks: [ChunkKey: Chunk] = [:] { didSet { chunksEpoch &+= 1 } }
     private(set) var chunksEpoch = 0           // P385: bumped at every change of `chunks` (the Quest's cull table)
     var blockEntities: [IVec3: BlockEntity] = [:]
-    // Co-op over the network (NetCoop.swift): every block change is reported (unless it came from the other player,
-    // World.netQuiet), and a guest's chunks come from the host instead of the generator.
-    var netEdit: ((Int, Int, Int, BlockID) -> Void)?
-    var remoteChunk: ((ChunkKey) -> ([BlockID], [(IVec3, BlockEntity)])?)?
     static var lessWaterUnsaved = false      // H8 water, the same way
     static var fewerLakesUnsaved = false     // P44 water for worlds with no save (harness; a co-op guest takes the host's)
-    static var netQuiet = false
     var pendingMobs: [(String, V3)] = []
     var rainLevel: Float = 0                        // set by the game: rain puts out exposed fires
     var gravityQueue: [IVec3] = []                  // cells to check for sand/gravel/anvils that should fall
@@ -506,7 +501,6 @@ final class World {
         c.blocks[Chunk.index(lx, y, lz)] = id
         var fbox: (lo: IVec3, hi: IVec3)? = nil
         if old != id { fbox = measureChanges { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) } }      // PG1 (TerrainField.swift)
-        if old != id, let e = netEdit, !World.netQuiet { e(x, y, z, id) }
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id); queueLoadCheck(x, y, z, old, id) }
         c.modified = true
@@ -1715,7 +1709,6 @@ final class World {
         var springs: [IVec3] = []            // fluid cells open to air (World.springs: flow once loaded)
         var field: [Int32: UInt16] = [:]     // PG1: saved terrain field edits (TerrainField.swift)
         var ground: FieldData? = nil         // PG1 rewrite: the chunk's density field (field worlds, FieldTerrain.swift)
-        var netBlocks: [BlockID] = []        // (co-op host: the merged cells sent to a guest)
         var cached: MeshCache.Entry? = nil   // P376: a shell's meshes read from the disk cache (ChunkShells)
     }
 
@@ -1828,8 +1821,7 @@ final class World {
         var ents: [(IVec3, BlockEntity)] = []
         var mobs: [(String, V3)] = []
         var ground: FieldData? = nil
-        if let r = remoteChunk, let got = r(k) { blocks = got.0; ents = got.1 }        // a co-op guest: the host's chunk
-        else if let saved = save?.loadChunk(k) {
+        if let saved = save?.loadChunk(k) {
             blocks = saved; fromDisk = true
             TreeRepair.tidy(&blocks)                                // P447: old second stems and kinks
             // PG1: the saved built layer and the saved ground. A lost ground file comes back from the seed under the saved
@@ -1858,7 +1850,7 @@ final class World {
             return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                             fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
                             emitMask: BlockStore.emitMask(of: merged), springs: World.springs(merged, k, heights), field: field,
-                            ground: g, netBlocks: merged)
+                            ground: g)
         }
         _ = PlantSupport.dropFloating(&blocks)
         let heights = Chunk.computeHeights(blocks)
@@ -1870,17 +1862,11 @@ final class World {
             let f = FieldTerrain.split(&blocks, cx: k.x, cz: k.z, gen: gen)
             return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                             fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
-                            emitMask: BlockStore.emitMask(of: merged), springs: springs, field: field, ground: f, netBlocks: merged)
+                            emitMask: BlockStore.emitMask(of: merged), springs: springs, field: field, ground: f)
         }
         return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                         fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
                         emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field)
-    }
-
-    // A chunk for a co-op guest (NetCoop.swift, any thread): from disk or generated, with its containers.
-    func produceForNet(_ k: ChunkKey) -> ([BlockID], [(IVec3, BlockEntity)]) {
-        let p = produce(k)
-        return (p.ground != nil ? p.netBlocks : p.blocks, p.entities)
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.

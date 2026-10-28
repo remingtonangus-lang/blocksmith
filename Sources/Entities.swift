@@ -203,7 +203,6 @@ final class ItemEntityManager {
 
     func spawn(_ s: ItemStack, at p: V3, vel: V3? = nil, delay: Float = 0.5, deliberate: Bool = false, leftLying: Bool = false) {
         if s.isEmpty { return }
-        if let h = NetCoop.redirect { h.drop(s, at: p); return }      // C14: loot of a mob the co-op guest killed
         let v = vel ?? V3(Rand.float(in: -1...1), Rand.float(in: 2...3.5), Rand.float(in: -1...1))
         let e = ItemEntity(s, at: p, vel: v, delay: delay)
         e.deliberate = deliberate

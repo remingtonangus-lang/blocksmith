@@ -5,29 +5,6 @@ import Metal
 // Shared so questcheck tests the exact create path the headset runs.
 struct WorldRequest {
     var name: String?; var seed: UInt64?; var survival: Bool?; var difficulty: Int?; var smooth: Bool? = nil   // (difficulty: a P302 level, 0...5)
-    var join: String? = nil          // C14: a host's address (Play Together); the world is the host's, nothing is saved
-
-    // A guest's world from the host's welcome: the host's seed and rules, a game that never saves.
-    static func guestGame(_ gu: NetGuest, device: MTLDevice, renderDistance: Int) -> Game {
-        World.fewerLakesUnsaved = gu.fewerLakes             // the host's terrain (P44 water), set before World.init
-        World.lessWaterUnsaved = gu.lessWater               // (H8 water)
-        let wasField = FieldTerrain.unsaved
-        FieldTerrain.unsaved = gu.field                     // (PG1 rewrite: the host's ground is a field: the guest's is too)
-        let world = World(seed: gu.seed, device: device, save: nil)
-        World.fewerLakesUnsaved = false; World.lessWaterUnsaved = false; FieldTerrain.unsaved = wasField
-        world.renderDistance = renderDistance
-        let game = Game(world: world, save: nil, persistent: false)
-        game.survival = gu.survival
-        game.diffLevel = Difficulty.clamp(gu.difficulty)          // P302: the host sends its level
-        game.smoothTerrain = gu.smooth
-        SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
-        game.time = gu.time
-        game.player.pos = gu.spawn
-        game.spawnPoint = gu.spawn
-        gu.attach(game)
-        game.netGuest = gu
-        return game
-    }
 
     // create:<survival 0/1>:<difficulty>:<smooth terrain 0/1>:<name>:<seed text> (PauseMenu's Create New World).
     static func create(action id: String) -> WorldRequest? {

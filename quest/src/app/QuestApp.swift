@@ -101,10 +101,9 @@ final class QuestApp {
     private func startLoading(_ req: WorldRequest = WorldRequest()) {
         loadStart = CFAbsoluteTimeGetCurrent()
         let old = savingGame
-        // P293 (a): the loading scene names the world: the one being saved on a quit, else the one opening (a join's
-        // name arrives with the host's welcome).
+        // P293 (a): the loading scene names the world: the one being saved on a quit, else the one opening.
         let title = exitWhenSaved ? (old?.save?.dir.lastPathComponent ?? "")
-            : req.join != nil ? "" : (req.name ?? UserDefaults.standard.string(forKey: "lastWorld") ?? "Quest World")
+            : (req.name ?? UserDefaults.standard.string(forKey: "lastWorld") ?? "Quest World")
         loadLock.lock(); loadProgress = 0; loadStatus = "Starting"; loadTitle = title; loadLock.unlock()
         savingGame = nil
         let quitting = exitWhenSaved
@@ -124,9 +123,9 @@ final class QuestApp {
                 } else {
                     g.saveNow(background: true)
                     MapFog.shared.save(g, background: true)
-                    // Reopening the same world (leaving a co-op game, a restore): its files are read first, so on disk now.
+                    // Reopening the same world (a restore): its files are read first, so on disk now.
                     let target = req.name ?? UserDefaults.standard.string(forKey: "lastWorld") ?? ""
-                    if req.join == nil && WorldStore.url(target).lastPathComponent == g.save?.dir.lastPathComponent { SaveIO.flush() }
+                    if WorldStore.url(target).lastPathComponent == g.save?.dir.lastPathComponent { SaveIO.flush() }
                 }
                 print(String(format: "save: world snapshot %.2f s", CFAbsoluteTimeGetCurrent() - a))
             }
@@ -152,23 +151,6 @@ final class QuestApp {
             status("Painting textures", 0.05)
             TextureGen.registerAll()
             tex = TextureCache.mipChain(dir: QuestPaths.root + "/cache")
-        }
-        if let ip = req.join {
-            status("Joining \(ip)", 0.4)
-            if let gu = NetGuest(ip: ip, name: "Quest player"), gu.waitWelcome(seconds: 6) {
-                let game = WorldRequest.guestGame(gu, device: device, renderDistance: min(QuestSettings.renderDistance, 8))
-                Game.oceanSwellDrawn = true
-                game.rdGovernor = RenderDistanceGovernor(chosen: game.world.activeDistance)
-                loadLock.lock(); loadTitle = gu.worldName; loadLock.unlock()
-                status("Receiving \(gu.worldName)", 0.55)
-                _ = game.world.loadSync(center: game.player.pos, radius: min(2, game.world.renderDistance))
-                HorizonRing.shared.request(game, eye: game.player.eye)
-                FarRing.shared.request(game, eye: game.player.eye)
-                status("Ready", 1)
-                loadLock.lock(); loaded = (game, nil, tex); loadLock.unlock()
-                return
-            }
-            joinFailed = "Couldn't join \(ip): is the host's world open with hosting on?"
         }
         status("Opening the world", 0.4)
         let name = req.name ?? UserDefaults.standard.string(forKey: "lastWorld") ?? "Quest World"
@@ -309,8 +291,6 @@ final class QuestApp {
             guard let g = game, let dir = g.save?.dir else { break }
             let name = dir.lastPathComponent
             savingGame = nil
-            if let gu = g.netGuest { gu.detach(g); g.netGuest = nil }
-            g.netHost?.stop(g); g.netHost = nil
             scene.waitIdle()
             g.sound?.stopAll()
             QuestAudioOutput.shared.stop()
@@ -325,11 +305,6 @@ final class QuestApp {
             switchWorld(WorldRequest(name: String(id.dropFirst(5))))
         case "newworld":
             switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.diffLevel, smooth: true))   // (PG6: Polygons, even from a block world)
-        case _ where id.hasPrefix("netjoin:"):
-            switchWorld(WorldRequest(join: String(id.dropFirst(8))))
-        case "netleave":
-            if let g = game, let gu = g.netGuest { gu.detach(g); gu.clearMirrors(g); g.netGuest = nil }
-            switchWorld(WorldRequest())
         case "workshop":
             switchWorld(WorldRequest(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 2))
         case _ where id.hasPrefix("create:"):
@@ -340,11 +315,10 @@ final class QuestApp {
 
     // Saves and closes the current world, then loads another behind the loading scene.
     private func switchWorld(_ req: WorldRequest) {
-        print("world: switching to \(req.name ?? req.join ?? "?")")
+        print("world: switching to \(req.name ?? "?")")
         let t0 = CFAbsoluteTimeGetCurrent()
         defer { print(String(format: "world: switch took %.1f ms on the frame thread", (CFAbsoluteTimeGetCurrent() - t0) * 1000)) }
         savingGame = game                    // saved on the loading thread (startLoading), behind "Saving the world"
-        if let g = game { g.netHost?.stop(g); g.netHost = nil; if let gu = g.netGuest { gu.detach(g); g.netGuest = nil } }
         scene.waitIdle()
         game?.sound?.stopAll()
         QuestAudioOutput.shared.stop()
