@@ -1757,6 +1757,16 @@ if CommandLine.arguments.contains("--sandbreak") {             // P462: dug beac
     SandBreakCheck.run(game, check)
     print(failures == 0 ? "sandbreak: all checks passed" : "sandbreak: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--treeprobe") {             // P478: logs hanging free off generated trees
+    let a = CommandLine.arguments.firstIndex(of: "--treeprobe").flatMap { $0 + 1 < CommandLine.arguments.count ? CommandLine.arguments[$0 + 1] : nil }
+    TreeProbeCheck.run(game, a?.hasPrefix("--") == false ? a : nil, check)
+    print(failures == 0 ? "treeprobe: all checks passed" : "treeprobe: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled tree into its neighbour; standing on it
+    TreeProbeCheck.fell(game, check)
+    TreeProbeCheck.fellReal(game, check)
+    print(failures == 0 ? "fellcheck: all checks passed" : "fellcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--cityfloat") {             // P462: Capital City's pillars on the ground
     CityFloatCheck.run(game, check)
     print(failures == 0 ? "cityfloat: all checks passed" : "cityfloat: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

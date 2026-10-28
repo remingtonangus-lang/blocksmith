@@ -807,6 +807,9 @@ final class ShipManager {
     // The ship whose frame a body at world position p belongs to (aboard or about to be).
     func frameShip(for p: V3, height: Float, current: Ship?) -> Ship? {
         func test(_ s: Ship, _ margin: Float) -> Bool {
+            // P478 (Oct 27, "really weird physics when I stand on top of the logs"): a felled tree lies on its side, so
+            // its frame's down is sideways: he stands on its world-space boxes (World.collides) instead.
+            if s.name == Felling.name { return false }
             let l = s.toLocal(p)
             return l.x > s.localMin.x - margin && l.x < s.localMax.x + margin && l.z > s.localMin.z - margin && l.z < s.localMax.z + margin
                 && l.y > s.localMin.y - 1 - height * 0.5 && l.y < s.localMax.y + 2.5
