@@ -3236,12 +3236,27 @@ final class Renderer: NSObject, MTKViewDelegate {
         @inline(__always) func turn(_ q: V3) -> V3 { V3(cyw * q.x + syw * q.z, q.y, -syw * q.x + cyw * q.z) }
         var order = [Float](repeating: 0, count: parts.count)
         for (i, part) in parts.enumerated() { order[i] = turn(part.place((part.mn + part.mx) * 0.5, part.rotation)).z }
+        // P481: a thin piece laid on a bigger one (an eye on the face, its iris on the eye, the buckle on the belt) goes
+        // just in front of it while it lies on the near side (or about level with it: an iris on its eye): by middles alone the head drew over a turned face's eye.
+        let mid = order
+        for i in 0..<min(clothes, parts.count) {
+            let a = parts[i], sa = a.mx - a.mn
+            guard min(sa.x, min(sa.y, sa.z)) < 0.7 else { continue }
+            for j in 0..<i {
+                let b = parts[j], sb = b.mx - b.mn
+                guard b.pivot == a.pivot && b.rotX == a.rotX && mid[i] < mid[j] + 0.5, sa.x * sa.y * sa.z < sb.x * sb.y * sb.z else { continue }
+                let lap = simd_min(a.mx, b.mx) - simd_max(a.mn, b.mn)
+                if min(lap.x, min(lap.y, lap.z)) > -0.02 { order[i] = min(order[i], order[j] - 0.001) }
+            }
+        }
         for i in clothes..<parts.count {
             let a = parts[i]
             var o = order[i]
             for j in 0..<min(clothes, parts.count) {
                 let lap = simd_min(a.mx, parts[j].mx) - simd_max(a.mn, parts[j].mn)
-                if min(lap.x, min(lap.y, lap.z)) > 0.7 { o = min(o, order[j]) }
+                // (or the clothes piece lies under it whole: the collar and buckle under a breastplate)
+                let sj = parts[j].mx - parts[j].mn
+                if min(lap.x, min(lap.y, lap.z)) > 0.7 || (lap.x > min(0.7, sj.x - 0.05) && lap.y > min(0.7, sj.y - 0.05) && lap.z > min(0.7, sj.z - 0.05)) { o = min(o, order[j]) }
             }
             order[i] = o - 0.01
         }
