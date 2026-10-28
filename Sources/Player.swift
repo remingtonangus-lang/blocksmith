@@ -17,6 +17,7 @@ final class Player {
     var pitch: Float = 0
     var flying = false
     var fastFlight = true           // sprint while flying goes ~8x normal flight speed (V toggles it)
+    var hyperFlight = false         // P478: creative flight with the right stick held in, ten times fast flight (Quest)
     var onGround = false
     var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn eye (ViewStep.swift)
     var steadyY: Float?                             // Steady Saddle: the eased height of the saddle (ViewStep.swift)
@@ -337,7 +338,7 @@ final class Player {
         if len > 1 || (vrSprint && len > 1e-3) { wish /= len }
 
         var speed: Float
-        if flying { speed = sprinting ? (fastFlight ? 87.0 : 21.6) : 10.9 }
+        if flying { speed = hyperFlight ? 870 : (sprinting ? (fastFlight ? 87.0 : 21.6) : 10.9) }
         else if inFluid {
             speed = inLava && !inWater ? 1.0 : (sprinting ? 3.0 : 2.2)
             // Depth magmastrider closes the gap to land speed; dolphin's grace is much faster.
@@ -374,7 +375,7 @@ final class Player {
             var vy: Float = 0
             if input.jump { vy += 1 }
             if input.sneak { vy -= 1 }
-            let ty = vy * (sprinting ? (fastFlight ? 48 : 12) : 8)
+            let ty = vy * (hyperFlight ? 144 : (sprinting ? (fastFlight ? 48 : 12) : 8))
             vel.y += (ty - vel.y) * (1 - expf(-10 * dt))
         } else if swimming {
             // Sprint-swimming goes where you look (dive and surface with the view), about sprint speed.

@@ -395,7 +395,7 @@ enum Recipes {
         }
         r.append(shaped(["S", "H"], ["S": "string", "H": "honeycomb"], "candle"))
         r.append(shaped(["S", "#", "S"], ["S": "shulker_shell", "#": "chest"], "shulker_box"))
-        r.append(shaped(["###", "#E#", "###"], ["#": "obsidian", "E": "ender_eye"], "ender_chest"))
+        // (P478: no Void Chest recipe: "That probably doesn't need to be in the game")
         r.append(shapeless(["chest", "tripwire_hook"], "trapped_chest"))
         r.append(shaped(["CCC", "C#C", "CCC"], ["C": "copper_ingot", "#": "chest"], "copper_chest"))   // CopperGolem.swift
         r.append(shaped(["MMM", "SES", "WWW"], ["M": "milk_bucket", "S": "sugar", "E": "#eggs", "W": "wheat"], "cake"))

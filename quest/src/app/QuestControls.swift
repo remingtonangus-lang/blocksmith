@@ -713,7 +713,13 @@ final class QuestControls {
             if yPulse > 0 { yPulse -= 1 }
         }
         p.lb = gripBtn[0].down && game.world.ships.pilot != nil      // (the helm's descend; the hotbar no longer scrolls)
-        p.rb = R.stickClick
+        // P478 (Oct 27 19:32, flying in creative: "let's make a third speed mode in creative that makes me travel like 10
+        // times as fast... if I hold down the right joystick"): flying in creative (not at a helm), the right stick held
+        // in is hyper flight, ten times fast flight, the way he looks; the weapon wheel stays shut then.
+        let hyper = !game.survival && game.player.flying && game.world.ships.pilot == nil && game.riding == nil && R.stickClick && !inMenu
+        if hyper && !game.player.hyperFlight { app.input.haptic(aimHand, amplitude: 0.4, seconds: 0.05, frequency: 200) }
+        game.player.hyperFlight = hyper
+        p.rb = hyper ? false : R.stickClick
         // Left stick click: sneak. Held, you sneak while it is held; a tap (under 0.3 s) latches sneaking until the next
         // tap (cleared by flying or water, where holding it descends). A click with the stick pushed out sprints.
         if inMenu {

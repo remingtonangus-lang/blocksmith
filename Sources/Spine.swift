@@ -141,7 +141,17 @@ enum Spine {
         if id != targetGoal || g.clock - targetAt >= 5 {
             let changed = id != targetGoal
             targetGoal = id; targetAt = g.clock
-            let t = id.flatMap { g.dim.dim == .overworld ? known(g, $0) : nil }
+            var t = id.flatMap { g.dim.dim == .overworld ? known(g, $0) : nil }
+            // P478 (Oct 27 19:32, flying at a Greywall garrison: "I'm literally looking straight at the Greywall Garrison
+            // and flying towards it, and it's saying I'm not getting any closer"): the nearest known base was picked again
+            // every 5 s, so as each new one came onto his map the marker jumped to it and the distance stayed the same.
+            // For the same goal the target he is heading for stays, while it is still there to take, unless another
+            // is under half as far.
+            if !changed, let old = target, let n = t, n.x != old.x || n.z != old.z, let goal = id, stillOpen(g, goal, old) {
+                let px = g.player.pos.x, pz = g.player.pos.z
+                func d2(_ c: Game.RadarContact) -> Float { let dx = Float(c.x) - px, dz = Float(c.z) - pz; return dx * dx + dz * dz }
+                if d2(n) > d2(old) * 0.25 { t = old }
+            }
             let moved = t.map { n in target.map { abs($0.x - n.x) + abs($0.z - n.z) > 64 } ?? true } ?? (target != nil)
             target = t
             if changed || moved {
@@ -151,6 +161,19 @@ enum Spine {
         if g.clock - bearingAt >= 0.5 {
             bearingAt = g.clock
             bearing = target.map { "\($0.name): \(g.radarBearing($0))" }
+        }
+    }
+
+    // Whether a place picked for a goal is still one to go to (P478: the marker stays on it).
+    static func stillOpen(_ g: Game, _ id: String, _ c: Game.RadarContact) -> Bool {
+        switch id {
+        case "spine/find_town": return true
+        case "spine/take_town": return !TownConquest.owns(c.name)
+        case "spine/greywall_base", "spine/greywall_top":
+            return !g.greywallAlarm.taken.contains("greywall:\(c.x),\(c.z)") && MapCache.shared.marks.contains { $0.kind == Greywall.kind && $0.x == c.x && $0.z == c.z }
+        case "spine/capital_citadel", "spine/capital_fall":
+            return !g.bases.records.values.contains { $0.cleared == true && abs($0.cx - c.x) < 80 && abs($0.cz - c.z) < 80 }
+        default: return false                                      // (the flagship sails: follow it)
         }
     }
 

@@ -241,18 +241,26 @@ final class World {
     var facing: Float? = nil                       // (Game.tickSeat: the player's heading, his head's on the headset)
     private var scanOrder: [(Int, Int, Int)] = []
     private var scanHeading = -1
+    // P478 (Oct 27 19:18, flying: "instead of generating the stuff behind me as I'm flying, maybe the stuff in front of
+    // me should get prioritized"): moving faster than a run (8 b/s), the way he travels leads, not the way he looks
+    // (he looks round while he flies), and above 30 b/s the land behind him waits as if twice as far (it was half as far
+    // again).
     private func orderedScan() -> [(Int, Int, Int)] {
-        guard World.facingFirst, let yaw = facing else { return offsets }
+        guard World.facingFirst, var yaw = facing else { return offsets }
+        let speed = simd_length(V2(lead.x, lead.z))
+        if speed > 8 { yaw = atan2f(-lead.x, -lead.z) }
+        let fast = speed > 30
         let eighth = Float.pi / 4
-        let h = Int(((yaw.truncatingRemainder(dividingBy: 2 * .pi) + 2 * .pi) / eighth).rounded()) & 7
+        let h = (Int(((yaw.truncatingRemainder(dividingBy: 2 * .pi) + 2 * .pi) / eighth).rounded()) & 7) + (fast ? 8 : 0)
         if h == scanHeading { return scanOrder }
         scanHeading = h
-        let a = Float(h) * eighth
+        let a = Float(h & 7) * eighth
         let fx = -sinf(a), fz = -cosf(a)
+        let behind = fast ? 16 : 9
         var keyed: [(Int, Int, Int, Int)] = offsets.map { (dx, dz, d2) in
             let len = sqrtf(Float(d2))
             let ahead = d2 <= 2 || (Float(dx) * fx + Float(dz) * fz) >= 0.5 * len
-            return (dx, dz, d2, ahead ? d2 * 4 : d2 * 9)
+            return (dx, dz, d2, ahead ? d2 * 4 : d2 * behind)
         }
         keyed.sort { $0.3 != $1.3 ? $0.3 < $1.3 : $0.2 < $1.2 }
         scanOrder = keyed.map { ($0.0, $0.1, $0.2) }
