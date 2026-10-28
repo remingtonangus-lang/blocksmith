@@ -17,7 +17,7 @@ extension Game {
     // pilotTick, after the turrets followed the view.
     func tankSightTick(_ s: Ship) {
         let ships = world.ships
-        let tur = ships.turrets(of: s).filter { !$0.cannons.isEmpty }
+        let tur = ships.turrets(of: s).filter { !$0.cannons.isEmpty && !VehicleGunners.manned($0) }   // (P478: not a gunner's)
         guard !s.wheels.isEmpty, !tur.isEmpty else { TankSight.aim = nil; return }
         let o = player.eye, d = player.look
         var t = TankSight.reach

@@ -300,7 +300,7 @@ extension Game {
         // Turrets follow the view; barrels rise with it.
         let elev = max(-0.2, min(0.6, player.pitch + 0.05))
         s.gunPitch = elev
-        for t in ships.turrets(of: s) {
+        for t in ships.turrets(of: s) where !VehicleGunners.manned(t) {       // (P478: a gunner's turret is his)
             t.gunPitch = elev
             var rel = player.yaw - s.yaw
             while rel > .pi { rel -= 2 * .pi }

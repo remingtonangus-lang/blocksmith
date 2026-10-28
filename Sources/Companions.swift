@@ -48,6 +48,15 @@ extension Game {
         guard companions.count < Companions.max else { onToast?("You can't lead more than \(Companions.max) companions."); return true }
         guard money >= fee else { onToast?("Hiring them takes \(Money.format(fee)).");  return true }
         money -= fee
+        let c = enlist(m)
+        sfx(.levelUp, 0.6, at: c.pos)
+        onToast?("\(c.customName ?? "They") joins you for \(Money.format(fee)).")
+        return true
+    }
+
+    // A townsperson or soldier taken on as a companion (hired, or a volunteer: VehicleGunners): the companion it is now.
+    @discardableResult
+    func enlist(_ m: Mob) -> Mob {
         let name = m.villager?.person ?? m.customName ?? m.spec.name
         let c: Mob
         if m.kind == .villager {
@@ -70,9 +79,7 @@ extension Game {
         if c.troop < 0 { c.troop = 0 }
         let b = c.soldierBrain
         b.mag = Guns.all[b.gun].mag
-        sfx(.levelUp, 0.6, at: c.pos)
-        onToast?("\(name) joins you for \(Money.format(fee)).")
-        return true
+        return c
     }
 
     // Gear handed over: a troop class armour piece or a gun.
@@ -114,6 +121,8 @@ extension Mob {
     // A companion's whole AI (from soldierAI): follow the player, fire on what threatens them. Returns the walk speed.
     func companionAI(_ dt: Float, _ g: Game) -> Float {
         let b = soldierBrain
+        // P478: at the gun of his vehicle (VehicleGunners): the gun is the work; they ride where they stand.
+        if VehicleGunners.place(self) { aggro = false; return 0 }
         let gs = Guns.all[max(0, min(Guns.all.count - 1, b.gun))]
         b.clock += dt
         b.aimHold -= dt

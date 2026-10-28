@@ -1812,6 +1812,11 @@ if CommandLine.arguments.contains("--vehicleworks") {
     VehicleWorksCheck.run(game, check)
     print(failures == 0 ? "vehicleworks: all checks passed" : "vehicleworks: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --gunners: P478, his people at his vehicle's guns while he drives (Sources/GunnerCheck.swift).
+if CommandLine.arguments.contains("--gunners") {
+    GunnerCheck.run(game, check)
+    print(failures == 0 ? "gunners: all checks passed" : "gunners: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --p478: P478, townsfolk lines that fit, hyper flight, the palette (Sources/P478Check.swift).
 if CommandLine.arguments.contains("--p478") {
     P478Check.run(game, check)

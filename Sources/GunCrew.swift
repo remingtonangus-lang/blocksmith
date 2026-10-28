@@ -37,6 +37,13 @@ extension ShipManager {
             let d = simd_length(m.pos - p)
             if d < bd { bd = d; best = m.pos + V3(0, m.height * 0.5, 0) }
         }
+        // P478: and anything else out for him (monsters, brigands, raiders) within a gunner's sight, never one so near
+        // him that the shell would burst on him.
+        for m in g.mobs.mobs where m.health > 0 && !m.hired && m.kind.hostile && Soldier.rank(m.kind) == nil && m.aggro
+            && simd_length(m.pos - g.player.pos) > 7 {
+            let d = simd_length(m.pos - p)
+            if d < min(bd, VehicleGunners.sight) { bd = d; best = m.pos + V3(0, m.height * 0.5, 0) }
+        }
         return best
     }
 
@@ -47,33 +54,39 @@ extension ShipManager {
     }
 
     // Every tick (vesselTick): your crews at the guns.
+    // P478: also while he drives, at the turrets a companion has climbed onto (VehicleGunners): theirs to lay and fire, his
+    // sight keeps the rest. Each gun is laid for its own shell (a calibre gun's flat, fast one, as the tank sight does).
     func gunCrewTick(_ dt: Float, game g: Game) {
         let hands = g.companions
         guard !hands.isEmpty else { return }
-        for s in list where isYours(s) && s !== pilot && !s.wrecked {
-            let crew = hands.filter { aboard($0, s) }.count
-            guard crew > 0 else { continue }
+        for s in list where isYours(s) && !s.wrecked {
             let tur = turrets(of: s).filter { !$0.cannons.isEmpty }
+            let gunners = tur.filter { VehicleGunners.manned($0) }
+            let driven = s === pilot
+            if driven && gunners.isEmpty { continue }
+            let crew = driven ? gunners.count : max(gunners.count, hands.filter { aboard($0, s) }.count)
+            guard crew > 0 else { continue }
             guard !tur.isEmpty || !s.cannons.isEmpty else { continue }
             guard let aim = crewFoe(near: s.pos, game: g) else {
-                for t in tur { t.aimAt = nil }
+                for t in (driven ? gunners : tur) { t.aimAt = nil }
                 continue
             }
-            let manned = Array(tur.prefix(crew))
+            let manned = driven ? gunners : Array((gunners + tur.filter { t in !gunners.contains { $0 === t } }).prefix(crew))
             for t in manned {
                 t.aimAt = aim
                 let muzzle = t.toWorld(t.pivot)
                 let d = aim - muzzle
                 let horiz = simd_length(V2(d.x, d.z))
                 guard horiz >= 10 else { continue }
-                let elev = ShipManager.elevation(horiz, d.y)
+                let (sv, sg) = t.shellFlight
+                let elev = ShipManager.elevation(horiz, d.y, speed: sv, gravity: sg)
                 t.gunPitch += (max(-0.2, min(0.6, elev)) - t.gunPitch) * min(1, dt * 3)
                 let tf = t.dirToWorld(V3(0, 0, -1))
                 let a = simd_normalize(V2(tf.x, tf.z) + V2(1e-5, 0)), b = simd_normalize(V2(d.x, d.z) + V2(1e-5, 0))
                 if t.reload <= 0 && acosf(max(-1, min(1, simd_dot(a, b)))) < 0.15 && fire(t, pitch: elev, game: g) > 0 { ShipManager.crewVolleys += 1 }
             }
             // The hull's own cannons, when the target lies off a muzzle.
-            if s.reload <= 0, !s.cannons.isEmpty, crew > manned.count {
+            if !driven, s.reload <= 0, !s.cannons.isEmpty, crew > manned.count {
                 for (c, dir) in s.cannons {
                     let muzzle = s.toWorld(c)
                     let d = aim - muzzle
@@ -82,7 +95,8 @@ extension ShipManager {
                     let md = s.dirToWorld(dir)
                     let a = simd_normalize(V2(md.x, md.z) + V2(1e-5, 0)), b = simd_normalize(V2(d.x, d.z) + V2(1e-5, 0))
                     if acosf(max(-1, min(1, simd_dot(a, b)))) < 0.2 {
-                        if fireHull(s, pitch: ShipManager.elevation(horiz, d.y), game: g) > 0 { ShipManager.crewVolleys += 1 }
+                        let (sv, sg) = s.shellFlight
+                        if fireHull(s, pitch: ShipManager.elevation(horiz, d.y, speed: sv, gravity: sg), game: g) > 0 { ShipManager.crewVolleys += 1 }
                         break
                     }
                 }
