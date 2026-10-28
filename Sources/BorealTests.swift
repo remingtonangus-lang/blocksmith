@@ -455,28 +455,69 @@ enum BorealTests {
         let door = IVec3(cx - 15, F + 1, cz)
         let shut = Int(world.block(door.x, door.y, door.z) - Blocks.groupBase[Int(world.materialAt(door.x, door.y, door.z))]) & 4 == 0
         var out = false, t: Float = 0
+        var track: [String] = []                                     // (printed if it fails)
         // (P475: an alerted soldier holds its room unless he is within 14 on its floor, and a fresh alarm rouses only the
         // third nearest the noise: he fires outside the archive, and the soldier comes
         // out to him: he stands in the ring corridor outside its bulkhead)
-        let ring = at(-12, F + 1, 0)
+        // (The first open, floored cell east of the bulkhead: at a fixed -12 he could stand inside the corridor wall on
+        // some layouts, and the game lifted him out of it to the surface each tick, so the garrison hunted up there.)
+        // (And to one side of the door, along the corridor: in line with it the soldier saw him through the door's
+        // window and fought him from its room, and his death in the harness reset every soldier's memory of him.)
+        func open(_ x: Float, _ z: Float) -> Bool {
+            !world.collides(at(x, F + 1, z) - V3(0.3, 0, 0.3) + V3(0, 0.05, 0), at(x, F + 1, z) + V3(0.3, 1.75, 0.3))
+                && world.collides(at(x, F, z) - V3(0.3, 0, 0.3) + V3(0, 0.5, 0), at(x, F, z) + V3(0.3, 0.98, 0.3))
+        }
+        // (So in the ring corridor itself, -13...-11, a few cells along from the passage to the archive's door.)
+        var rx: Float = -12
+        while rx < -6 && !open(rx, 4) && !open(rx, -4) { rx += 1 }
+        var rz: Float = 0
+        for z: Float in [4, -4, 5, -5, 3, -3] where open(rx, z) { rz = z; break }
+        let ring = at(rx, F + 1, rz)
         g2.player.pos = ring
+        g2.health = 10000
         g2.baseNoise(at: ring, kind: .gunshot)
+        // (printed if it fails: can the path finder take each one out to him through the door at all?)
+        var probe: [String] = []
+        for m in archive {
+            var pr = m.pathProfile(g2); pr.doors = true
+            let s = PathFinder.begin(world, from: m.pos, to: ring, profile: pr, maxNodes: 400)
+            _ = PathFinder.run(s, world, deadline: .infinity)
+            let last = s.result?.last.map { "\($0.x - cx) \($0.y - F) \($0.z - cz)" } ?? "none"
+            probe.append("path probe from \(Int(m.pos.x) - cx) \(Int(m.pos.z) - cz): \(s.result?.count ?? 0) nodes, ends at \(last), tall \(pr.tall) span \(pr.span)")
+            PathFinder.recycle(s)
+        }
         while t < 40 && !out {
-            g2.tick(0.05); g2.player.pos = ring; g2.player.vel = .zero; g2.health = 20; g2.menu = nil; t += 0.05
+            g2.tick(0.05); if abs(g2.player.pos.y - ring.y) > 2 && track.count < 60 { track.append(String(format: "t %.2f he was moved to %.1f %.1f %.1f", t, g2.player.pos.x - Float(cx), g2.player.pos.y - Float(F), g2.player.pos.z - Float(cz))) }; g2.player.pos = ring; g2.player.vel = .zero; g2.health = 10000; g2.menu = nil; t += 0.05
             out = archive.contains { $0.pos.x > Float(cx - 14) }
+            if Int(t * 20) % (t < 15 ? 20 : 100) == 0 {
+                for m in archive { track.append(String(format: "t %.0f at %.1f %.1f %.1f aggro %@ doors %@ sees %@ lastSeen %@ path %d%@ goal %.0f %.0f %.0f unreach %.0f stall %.1f", t, m.pos.x - Float(cx), m.pos.y - Float(F), m.pos.z - Float(cz), m.aggro ? "y" : "n", m.stationDoors ? "y" : "n", m.soldierBrain.sees ? "y" : "n", m.soldierBrain.lastSeen.map { String(format: "%.0f %.0f %.0f", $0.x - Float(cx), $0.y - Float(F), $0.z - Float(cz)) } ?? "nil", m.path.nodes.count, m.path.partial ? " partial" : "", m.path.goal.x - Float(cx), m.path.goal.y - Float(F), m.path.goal.z - Float(cz), m.unreachableTimer, m.path.stallTime) + (m.soldierBrain.foe.map { f in String(format: " foe %.0f %.0f %.0f %@", f.point.x - Float(cx), f.point.y - Float(F), f.point.z - Float(cz), f.mob.map { "\($0.kind) f\($0.faction)" } ?? "ship") } ?? "") + " seenAgo \(Int(m.soldierBrain.seenAgo)) f\(m.faction)") }
+            }
         }
         // The alarm stands down once things are quiet (player gone): the soldiers keep to their rooms again.
         let doorsDuring = archive.allSatisfy { $0.stationDoors }
         g2.survival = false                                          // gone: nobody can be seen or fought
+        // (An Ashguard column fighting the garrison up in the yard keeps the alarm on with its shells, as it should:
+        // on seed 12345 a tank shelled the yard the whole minute. The stand-down is checked with the station quiet.)
+        g2.mobs.mobs.removeAll { $0.faction == Faction.ashguard.rawValue }
+        g2.mobs.rebuildIndex()
         var quiet: Float = 0
+        var heard: [String: Int] = [:], lastHeard = ""                // (printed if it fails: what kept the alarm on)
         while quiet < BorealAlarmState.standDown + 15 && g2.borealAlarm.sites[key]?.on != false {
             g2.tick(0.05); g2.player.pos = hall + V3(0, 0, Float(BorealStation.yard + 40)); g2.player.vel = .zero; g2.player.flying = true; g2.health = 20; g2.menu = nil
             quiet += 0.05
+            for n in g2.bases.noises where n.hostile && !n.byMob && abs(n.pos.x - Float(cx)) < 40 && abs(n.pos.z - Float(cz)) < 40 {
+                heard["\(n.kind)", default: 0] += 1
+                lastHeard = String(format: "%@ at %.0f %.0f %.0f t %.1f", "\(n.kind)", n.pos.x - Float(cx), n.pos.y - Float(F), n.pos.z - Float(cz), quiet)
+            }
+        }
+        if g2.borealAlarm.sites[key]?.on != false {
+            print("  stand-down: heard \(heard.map { "\($0.key) x\($0.value)" }.joined(separator: ", ")); last \(lastHeard); fighting " +
+                  g2.mobs.mobs.filter { $0.kind.steelhold && $0.health > 0 && $0.aggro && ($0.brain?.sees ?? false) }.prefix(4).map { "\($0.kind) at \(Int($0.pos.x) - cx) \(Int($0.pos.y) - F) \(Int($0.pos.z) - cz)" }.joined(separator: "; "))
         }
         g2.basesTick(1.0)
         check(g2.borealAlarm.sites[key]?.on == false && !g2.mobs.mobs.contains { $0.stationDoors },
               "boreal ops: after the alarm stands down no soldier works the doors (\(g2.mobs.mobs.filter { $0.stationDoors }.count), alarm \(g2.borealAlarm.sites[key]?.on ?? false), \(g2.borealAlarm.log.suffix(4).joined(separator: "; ")))")
-        if !out { for m in archive { print("  archive soldier at \(m.pos.x - Float(cx)) \(m.pos.y - Float(F)) \(m.pos.z - Float(cz)), aggro \(m.aggro), doors \(m.stationDoors), gave up \(m.gaveUp(hall)), lastSeen \(String(describing: m.soldierBrain.lastSeen)), path \(m.path.nodes.count) partial \(m.path.partial) door \(String(describing: m.path.door))") } }
+        if !out { print("  he stood at \(rx) \(1) \(rz), door open \(Int(world.block(door.x, door.y, door.z) - Blocks.groupBase[Int(world.materialAt(door.x, door.y, door.z))]) & 4 != 0)"); for line in probe { print("  " + line) }; for line in track { print("  archive soldier " + line) }; print("  alarm log: " + g2.borealAlarm.log.suffix(8).joined(separator: "; ")) }
         check(!archive.isEmpty && shut && out && doorsDuring,
               String(format: "boreal ops: a roused soldier leaves the shut archive through its bulkhead door (%d there, out after %.1f s)", archive.count, t))
         g2.mobs.mobs.removeAll()

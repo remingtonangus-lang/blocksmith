@@ -449,7 +449,11 @@ extension Mob {
         if var foe = b.foe {
             if let fm = foe.mob { foe.point = fm.pos + V3(0, fm.height * 0.6, 0) }
             let fd: Float = simd_length(foe.point - eye)
-            if !sees || fd + 4 < dist { b.foe = foe } else { b.foe = nil; b.foeTimer = max(b.foeTimer, 0.3) }
+            // (P475: a foe it can't see doesn't pull it off a fresh sighting of him either: shut in a Boreal Station's
+            // archive with him at its door, a soldier left for the other side's men up in the yard, 30 blocks off
+            // through the rock, and gave him up.)
+            let onHim = b.lastSeen != nil && b.seenAgo < 14 && g.survival && g.alive && !b.foeSees
+            if (!sees && !onHim) || fd + 4 < dist { b.foe = foe } else { b.foe = nil; b.foeTimer = max(b.foeTimer, 0.3) }
         }
         if let foe = b.foe {
             aggro = true
@@ -822,7 +826,7 @@ extension Mob {
         }
         let quiet = TroopClass.suppressed(self)                       // Spec Ops suppressors: hushed, no alarm noise
         g.sfx(.gun(gs.sound), quiet ? 0.35 : 1, at: muzzle)
-        if factionValue != .steelhold && !quiet { g.baseNoise(at: muzzle, kind: .gunshot) }      // other factions' fire carries to citadels
+        if factionValue != .steelhold && !quiet { g.baseNoise(at: muzzle, kind: .gunshot, byMob: true) }      // other factions' fire carries to citadels
         g.particles.add(Particle(pos: muzzle + dir * 0.2, vel: dir * 0.5, life: 0.06, maxLife: 0.06, layer: Int(Tex.id("smoke")), uv0: V2(0, 0),
                                  uvSize: 1, size: 0.14, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6), collide: false, glow: true))
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)

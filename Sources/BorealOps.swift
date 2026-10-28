@@ -204,7 +204,13 @@ extension Game {
             for m in mobs.mobs where m.kind.steelhold && m.kind != .deckGun && m.stationDoors != alarm {
                 // Rousing: soldiers inside. Standing down: any of them, also those who chased a player out past the fence.
                 if alarm ? (m.health > 0 && BorealStation.insideSite(site, m.pos))
-                         : max(abs(m.pos.x - Float(op.cx)), abs(m.pos.z - Float(op.cz))) < Float(BorealStation.yard + 80) { m.stationDoors = alarm }
+                         : max(abs(m.pos.x - Float(op.cx)), abs(m.pos.z - Float(op.cz))) < Float(BorealStation.yard + 80) {
+                    m.stationDoors = alarm
+                    // P475: a way it gave up on with the doors still shut (its first search can run before this
+                    // once-a-second pass: shut in the archive, it gave up on him for 15 s and then forgot him) is
+                    // tried again now that it opens them.
+                    if alarm { m.unreachableTimer = 0; m.path.nodes.removeAll(keepingCapacity: true); m.path.timer = 0; m.dropSearch() }
+                }
             }
             // A generator wrecked some other way (rockets, a blast of the player's own, its glowing vents broken out with
             // a pick: P288 (c)) counts as sabotaged: there would be nothing left to set the charge on.
