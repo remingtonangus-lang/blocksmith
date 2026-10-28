@@ -3201,6 +3201,7 @@ final class Game {
         w.deferRemesh = true
         defer { w.deferRemesh = false }
         FlightCrew.tick(self)                                  // seated aircraft crews (Aircraft.swift)
+        vehicleGunnersTick(Float(dt))                          // P478: his people at his vehicle's guns (VehicleGunners.swift)
         aircraftCrashTick(Float(dt))                           // P294: crashes and rotor strikes (AircraftCrash.swift)
         fellingTick(Float(dt))                                 // P298: felled trees and a carried trunk (Felling.swift)
         TickProf.mark("flight crews")
