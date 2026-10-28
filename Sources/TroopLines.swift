@@ -294,7 +294,7 @@ enum TroopVoice {
               m.troopClass != .specOps || ctx == .hurt || ctx == .dying,
               let vk = voice(m, g), var ids = index[vk]?[ctx.rawValue], !ids.isEmpty,
               simd_length(m.pos - g.player.pos) < 40 else { return nil }
-        ids = ids.filter { TownVoice.clip(TownVoice.takes[$0].key) != nil }
+        ids = ids.filter { TownVoice.clip(TownVoice.takes[$0].key) != nil && LineTruth.fits(g, m, TownVoice.takes[$0].text) }   // (P478 lines sweep)
         guard !ids.isEmpty, chance >= 1 || Rand.float(in: 0..<1) < chance else { return nil }
         if ids.count > 1, let last = lastTake[vk] { ids.removeAll { $0 == last } }
         let id = ids[Rand.int(in: 0...(ids.count - 1))]

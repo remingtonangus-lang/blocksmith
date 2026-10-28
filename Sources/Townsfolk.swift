@@ -193,8 +193,9 @@ enum Townsfolk {
 
     // MARK: Speech
 
-    static func say(_ g: Game, _ m: Mob, _ line: String) {
-        guard let v = m.villager else { return }
+    static func say(_ g: Game, _ m: Mob, _ text: String) {
+        // P478 lines sweep: a line said straight from code is said only when true (its greeting put right for the hour).
+        guard let v = m.villager, let line = LineTruth.truthful(g, m, text) else { return }
         // Spoken (TownVoice): with subtitles on, the caption at the speaker replaces the toast.
         let said = "\(v.person ?? "Townsperson"): \(line)"
         if !(TownVoice.play(g, m, line) && AudioSettings.subtitles) { g.onToast?(said) } else { g.logMessage(said) }   // P421: the caption too
