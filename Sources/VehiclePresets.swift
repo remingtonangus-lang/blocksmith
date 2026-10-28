@@ -57,6 +57,13 @@ enum VehiclePresets {
         return s.tag - 1
     }
 
+    // P478 (Oct 27 19:22, "What is the vehicle badge thing?"): the drawing says what it is for.
+    static func tooltip(_ s: ItemStack) -> [String] {
+        guard !s.isEmpty, Items.key(s.item) == itemKey else { return [] }
+        guard let i = preset(s) else { return ["A blank drawing"] }
+        return ["Use it to teach the Vehicle Works", "to build the \(all[i].name)"]
+    }
+
     // Which preset a chest's table may hold (the stage its place belongs to).
     static func forTable(_ t: String) -> Int? {
         if t.hasPrefix("camp_") || t.hasPrefix("village") || t.hasPrefix("town") || t.hasPrefix("shop_") { return 1 }

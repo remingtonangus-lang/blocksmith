@@ -111,8 +111,10 @@ enum Village {
             let r20 = streets && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyR20) } ?? true)
             // P354 (Oct 16 20:06): homes as big as the stores, a workshop for every trade, the bigger jail (TownHomes.swift).
             let p354 = gap && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP354) } ?? true)
+            // P478: streets only as far as the buildings along them (Village.layout).
+            let p478 = gap && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP478) } ?? true)
             let first = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets,
-                               townSize: size, r20: r20, p354: p354)
+                               townSize: size, r20: r20, p354: p354, p478: p478)
             // P466: a hamlet or village on new ground is laid out bigger (TownSizes.biggerSpec); whether there is a place
             // here at all is still the old layout's say, so the bigger plan doesn't add towns (it would add five times as
             // many hamlets: most old ones had too few lots and were never built).
@@ -120,12 +122,12 @@ enum Village {
             // the guard looks further round it).
             if p474, first != nil,
                let big = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide,
-                                streets: streets, townSize: newSize, r20: r20, p354: p354, biggest: true) { return big }
+                                streets: streets, townSize: newSize, r20: r20, p354: p354, p478: p478, biggest: true) { return big }
             guard first != nil, let sz = size, sz.rawValue != 2,
                   gen.structures.map({ sz.rawValue < 2 ? $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP466)
                                                        : $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP456) }) ?? true,
                   let big = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide,
-                                   streets: streets, townSize: size, r20: r20, p354: p354, bigger: true) else { return first }
+                                   streets: streets, townSize: size, r20: r20, p354: p354, bigger: true, p478: p478) else { return first }
             return big
         }
     }
@@ -142,10 +144,11 @@ enum Village {
     static let planNames = ["crossroads", "main street", "grid"]
     // Tests: every town laid out reports (anchor x, z, style, plan, lots).
     static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
+    static var pathsLog: ((Int, Int, Int, Int) -> Void)?          // P478: streets and columns before and after the trim
 
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
                        wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil, r20: Bool = false, p354: Bool = false, bigger: Bool = false,
-                       biggest: Bool = false) -> StructureStart? {
+                       p478: Bool = false, biggest: Bool = false) -> StructureStart? {
         let sz = townSize.map { (biggest ? TownSizes.biggestSpec : (bigger ? TownSizes.biggerSpec : TownSizes.spec))[$0.rawValue] }
         func scaled(_ n: Int) -> Int { sz.map { max(8, Int(Float(n) * $0.length)) } ?? n }
         let gap = townsGap ?? frontier
@@ -207,6 +210,7 @@ enum Village {
         var goodRoads: [Road] = []
         var lamps = Set<IVec2Key>()                                  // frontier street lamps (edge columns)
         var ends: [(Int, Int, Int, Int, Int, Bool)] = []             // frontier: the outer end of each street (x, z, y, dx, dz, main)
+        var spans: [(start: Int, steps: Int)] = []                   // each good road's steps in pathCols (P478)
         // P71 (Oct 12 AM, "the path needs to be wider ... with all the width that the houses are apart"): wide towns'
         // streets are five blocks, a shoulder column either side of the three-wide road (kept apart in `shoulders`,
         // by the road step's centre column, so the stepping code below still reads three columns a step); lots stand a
@@ -249,6 +253,7 @@ enum Village {
                 }
             }
             guard ok, cols.count >= 15 else { continue }
+            spans.append((pathCols.count, cols.count / 3))
             pathCols += cols
             for (k, v) in sh { shoulders[k] = v; for c in v { occupied.insert(IVec2Key(c.0, c.1)) } }
             goodRoads.append(Road(x: r.x, z: r.z, dx: r.dx, dz: r.dz, len: cols.count / 3, main: r.main, own: r.own))
@@ -273,6 +278,7 @@ enum Village {
         guard !goodRoads.isEmpty else { return nil }
         // Buildings along the streets.
         var lots: [Lot] = []
+        var lotFrom: [(road: Int, step: Int)] = []                   // the street each lot fronts and where (P478)
         let weights: [(Kind, Int)] = [(.smallHouse, 30), (.mediumHouse, 20), (.bigHouse, 8), (.farm, 14), (.pen, 5), (.smithy, 4),
                                       (.library, 4), (.temple, 3), (.jobHut, 16)]
         let jobs = ["butcher", "cartographer", "fletcher", "shepherd", "mason", "leatherworker", "armorer", "fisherman", "toolsmith"]
@@ -281,7 +287,7 @@ enum Village {
         // first, then the rest in a per-town order. A lot that doesn't fit leaves its shop for the next one.
         var shopQueue = Village.shopOrder(&rng)
         if let sz { shopQueue = Array(shopQueue.prefix(sz.shops)) }          // C13: more shops in bigger places
-        for r in goodRoads {
+        for (ri, r) in goodRoads.enumerated() {
             var s = 2
             while s < r.len - 3 {
                 for side in [-1, 1] {
@@ -327,11 +333,45 @@ enum Village {
                     var lot = Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: floorY, seed: rng.next(), job: job)
                     lot.p354 = p354
                     lots.append(lot)
+                    lotFrom.append((ri, s))
                 }
                 s += p354 ? rng.range(12, 16) : (wide ? rng.range(9, 13) : rng.range(7, 10))
             }
         }
         guard lots.count >= (sz?.minLots ?? 6) else { return nil }
+        // P478 (Oct 27 18:56, larger villages: "Good, except there's way too many walking paths"): on ground no save had
+        // generated before P478, a street runs only as far as the last building that fronts it, or the last kept street
+        // branching off it, and a street no building fronts is not laid at all (one passing behind another street's
+        // houses made loops of paths round them) (whether there is a place here is
+        // still decided above, so no place comes or goes).
+        if p478 {
+            var keep = [Int](repeating: 0, count: goodRoads.count)
+            for i in goodRoads.indices.reversed() {                   // (side streets come after the street they leave)
+                let (start, steps) = spans[i]
+                var last = lotFrom.filter { $0.road == i }.map { $0.step }.max() ?? -1
+                for j in (i + 1)..<goodRoads.count where keep[j] > 0 {
+                    let b = pathCols[spans[j].start + 1]
+                    for st in 0..<steps {
+                        let c = pathCols[start + st * 3 + 1]
+                        if abs(c.0 - b.0) + abs(c.1 - b.1) <= 3 { last = max(last, st) }
+                    }
+                }
+                keep[i] = last < 0 ? 0 : min(steps, last + 5)
+            }
+            var cols2: [(Int, Int, Int)] = []
+            var roads2: [Road] = []
+            var spans2: [(start: Int, steps: Int)] = []
+            ends = []
+            for (i, r) in goodRoads.enumerated() where keep[i] > 0 {
+                let (start, k) = (spans[i].start, keep[i])
+                spans2.append((cols2.count, k))
+                cols2 += pathCols[start..<(start + k * 3)]
+                roads2.append(Road(x: r.x, z: r.z, dx: r.dx, dz: r.dz, len: k, main: r.main, own: r.own))
+                if gap { let c = pathCols[start + (k - 1) * 3 + 1]; ends.append((c.0, c.1, c.2, r.dx, r.dz, r.main)) }
+            }
+            Village.pathsLog?(goodRoads.count, pathCols.count, roads2.count, cols2.count)
+            pathCols = cols2; goodRoads = roads2; spans = spans2
+        }
         if frontier && sz?.office != false { frontierLots(&lots, ox: ox, oz: oz, bank: gap && sz?.bank != false, r20: r20) }
         planLog?(ox, oz, style, plan, lots.count)
         var pieces: [Piece] = []
