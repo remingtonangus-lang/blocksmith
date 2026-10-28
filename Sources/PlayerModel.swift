@@ -61,28 +61,77 @@ func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float, posed: Bool =
     let chest: V3 = g.coop.current == 1 ? V3(0.16, 0.34, 0.62) : V3(0.62, 0.26, 0.16)
     let legs = V3(0.22, 0.22, 0.26), feet = V3(0.35, 0.22, 0.12)
     let armor = playerArmorOverride ?? g.inventory.armor.slots
-    var parts: [Part] = [
-        Part(mn: V3(-4, 0, -2), mx: V3(0, 3, 2), pivot: V3(-2, 12, 0), rotX: walk, color: feet, pattern: 4),
-        Part(mn: V3(0, 0, -2), mx: V3(4, 3, 2), pivot: V3(2, 12, 0), rotX: -walk, color: feet, pattern: 4),
-        Part(mn: V3(-4, 3, -2), mx: V3(-0.01, 12, 2), pivot: V3(-2, 12, 0), rotX: walk, color: legs, pattern: 4),
-        Part(mn: V3(0.01, 3, -2), mx: V3(4, 12, 2), pivot: V3(2, 12, 0), rotX: -walk, color: legs, pattern: 4),
-        box(-4, 12, -2, 8, 12, 4, chest, 4),
-        Part(mn: V3(-8, 12, -2), mx: V3(-4, 24, 2), pivot: V3(-6, 22, 0), rotX: -walk, color: chest, pattern: 4),
-        Part(mn: V3(-8, 12, -2.01), mx: V3(-4, 15, 2.01), pivot: V3(-6, 22, 0), rotX: -walk, color: skin),
-        Part(mn: V3(4, 12, -2), mx: V3(8, 24, 2), pivot: V3(6, 22, 0), rotX: walk + hit, color: chest, pattern: 4),
-        Part(mn: V3(4, 12, -2.01), mx: V3(8, 15, 2.01), pivot: V3(6, 22, 0), rotX: walk + hit, color: skin),
-    ]
-    // Head turns with the view pitch around the neck.
+    // P481 (store look-alike review, Oct 28): a person's figure, not the reference game's block man (an 8-pixel cube
+    // head with a painted face on a 4-wide-limbed box body). Limbs slimmer than the torso with gaps between them, a
+    // waist narrower than the chest, hands below the sleeves, and a modelled head on a neck, built like the townsfolk's
+    // (TownsfolkModel): nose, ears, eyes with iris and lids, brows, lips, jaw, hair. The joints stay where they were
+    // (hips at 12, shoulders at +-6/22, the neck at 24), so the walk, the seat poses and the worn pieces still fit.
+    let boot = V3(0.3, 0.19, 0.1), belt = V3(0.16, 0.11, 0.08)
+    var parts: [Part] = []
+    parts.reserveCapacity(56)
+    func b(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = Pat.cloth) {
+        parts.append(Part(mn: V3(x0, y0, z0), mx: V3(x1, y1, z1), color: c, pattern: pat))
+    }
+    // Legs from the hips: trousers, boots with a toe and a darker sole.
+    for right in [false, true] {
+        let sx: Float = right ? 1 : -1, rot = right ? -walk : walk
+        func leg(_ a: Float, _ y0: Float, _ z0: Float, _ c: Float, _ y1: Float, _ z1: Float, _ col: V3, _ pat: Float) {
+            let x0 = right ? a : -c, x1 = right ? c : -a
+            parts.append(Part(mn: V3(x0, y0, z0), mx: V3(x1, y1, z1), pivot: V3(sx * 2, 12, 0), rotX: rot, color: col, pattern: pat))
+        }
+        leg(0.35, 3, -1.8, 3.65, 12, 1.8, legs, Pat.cloth)
+        leg(0.25, 0.6, -2.2, 3.75, 4, 1.95, feet, Pat.leather)
+        leg(0.3, 0.6, -3.0, 3.7, 2.2, -2.2, feet * 0.92, Pat.leather)                  // the toe
+        leg(0.2, 0, -3.05, 3.8, 0.6, 2.0, boot * 0.6, Pat.leather)                     // the sole
+    }
+    // Torso: the waist narrower than the chest, the shoulders rounded off; a belt and buckle, a collar opening.
+    b(-3.9, 12, -2.0, 3.9, 16.5, 2.0, chest)
+    b(-4.3, 16.5, -2.3, 4.3, 23.2, 2.3, chest)
+    b(-3.9, 23.2, -2.0, 3.9, 24.0, 2.0, chest * 0.96)
+    b(-4.0, 12.0, -2.15, 4.0, 13.3, 2.15, belt, Pat.leather)
+    b(-0.8, 12.1, -2.27, 0.8, 13.2, -2.15, V3(0.72, 0.62, 0.38), Pat.metal)
+    b(-1.0, 21.4, -2.36, 1.0, 23.2, -2.3, skin * 0.97, Pat.skin)                        // the open collar
+    b(-1.9, 22.6, -2.42, -1.0, 23.4, -2.3, chest * 0.86); b(1.0, 22.6, -2.42, 1.9, 23.4, -2.3, chest * 0.86)
+    // Arms from the shoulders: sleeves with a cuff, the hand narrower and flatter, the thumb forward.
+    for right in [false, true] {
+        let sx: Float = right ? 1 : -1, rot = right ? walk + hit : -walk
+        func arm(_ a: Float, _ y0: Float, _ z0: Float, _ c: Float, _ y1: Float, _ z1: Float, _ col: V3, _ pat: Float) {
+            let x0 = right ? a : -c, x1 = right ? c : -a
+            parts.append(Part(mn: V3(x0, y0, z0), mx: V3(x1, y1, z1), pivot: V3(sx * 6, 22, 0), rotX: rot, color: col, pattern: pat))
+        }
+        arm(4.45, 14.6, -1.45, 7.35, 23.8, 1.45, chest, Pat.cloth)
+        arm(4.4, 14.4, -1.5, 7.4, 15.1, 1.5, chest * 0.88, Pat.cloth)                   // the cuff
+        arm(4.75, 11.6, -1.1, 7.05, 14.4, 1.2, skin, Pat.skin)
+        arm(4.6, 12.7, -1.55, 5.4, 14.1, -1.0, skin * 0.96, Pat.skin)                  // the thumb
+    }
+    // Head, on the neck: built in the townsfolk's head frame (23.5 to 30.5) and drawn at their proportions.
     let neck = V3(0, 24, 0)
-    func head(_ mn: V3, _ mx: V3, _ c: V3) -> Part { Part(mn: mn, mx: mx, pivot: neck, rotX: pitch, color: c) }
-    parts.append(head(V3(-4, 24, -4), V3(4, 32, 4), skin))
-    parts.append(head(V3(-4.2, 29.5, -4.2), V3(4.2, 32.3, 4.2), hair))
-    parts.append(head(V3(-4.2, 24.5, 1), V3(4.2, 29.5, 4.2), hair))
-    parts.append(head(V3(-3, 27, -4.15), V3(-1, 28.5, -4.05), V3(0.95, 0.95, 0.95)))
-    parts.append(head(V3(1, 27, -4.15), V3(3, 28.5, -4.05), V3(0.95, 0.95, 0.95)))
-    parts.append(head(V3(-2, 27, -4.2), V3(-1, 28.5, -4.1), V3(0.2, 0.3, 0.55)))
-    parts.append(head(V3(2, 27, -4.2), V3(3, 28.5, -4.1), V3(0.2, 0.3, 0.55)))
-    parts.append(head(V3(-2, 25, -4.15), V3(2, 25.8, -4.05), V3(0.55, 0.35, 0.3)))
+    func h(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = Pat.skin) {
+        let h0 = V3(0, 23.5, 0), hs = V3(0.8, 0.8, 0.82), lift = V3(0, 1.1, 0)
+        parts.append(Part(mn: h0 + (V3(x0, y0, z0) - h0) * hs + lift, mx: h0 + (V3(x1, y1, z1) - h0) * hs + lift,
+                          pivot: neck, rotX: pitch, color: c, pattern: pat))
+    }
+    h(-3.2, 23.5, -3.2, 3.2, 30.5, 3.2, skin)
+    h(-0.6, 25.9, -3.85, 0.6, 27.6, -3.2, skin * 0.92)                                      // nose
+    h(-0.85, 25.7, -4.0, 0.85, 26.4, -3.5, skin * 0.9)                                      // its tip
+    h(-3.55, 25.8, -0.6, -3.2, 28.2, 0.9, skin * 0.94); h(3.2, 25.8, -0.6, 3.55, 28.2, 0.9, skin * 0.94)   // ears
+    h(-1.5, 23.5, -3.45, 1.5, 24.4, -3.2, skin * 0.97)                                      // chin
+    h(-2.2, 27, -3.3, -0.9, 28, -3.2, V3(0.95, 0.95, 0.93)); h(0.9, 27, -3.3, 2.2, 28, -3.2, V3(0.95, 0.95, 0.93))   // eyes
+    let iris = V3(0.25, 0.4, 0.55)
+    h(-1.7, 27, -3.36, -1.0, 27.9, -3.28, iris, Pat.enamel); h(1.0, 27, -3.36, 1.7, 27.9, -3.28, iris, Pat.enamel)
+    h(-1.5, 27.2, -3.4, -1.2, 27.7, -3.36, V3(0.04, 0.03, 0.03), Pat.enamel); h(1.2, 27.2, -3.4, 1.5, 27.7, -3.36, V3(0.04, 0.03, 0.03), Pat.enamel)
+    h(-2.25, 27.85, -3.34, -0.85, 28.1, -3.2, skin * 0.78); h(0.85, 27.85, -3.34, 2.25, 28.1, -3.2, skin * 0.78)   // lids
+    h(-2.4, 28.4, -3.32, -0.8, 28.9, -3.2, hair * 0.8, Pat.cloth); h(0.8, 28.4, -3.32, 2.4, 28.9, -3.2, hair * 0.8, Pat.cloth)   // brows
+    let lip = skin * V3(0.82, 0.58, 0.55)
+    h(-1.2, 25.0, -3.3, 1.2, 25.3, -3.2, lip * 0.85); h(-0.95, 24.7, -3.32, 0.95, 25.0, -3.2, lip)
+    let cheek = skin * V3(1.03, 0.93, 0.92)
+    h(-2.8, 25.3, -3.25, -1.6, 26.4, -3.2, cheek); h(1.6, 25.3, -3.25, 2.8, 26.4, -3.2, cheek)
+    // Short hair: one cap over the crown, the back and the ears' tops (it rounds off in the inventory's figure; flat
+    // slabs the head's width stood out of its rounded corners there), sideburns, a swept front.
+    h(-3.55, 27.0, -2.4, 3.55, 31.5, 3.6, hair, Pat.cloth)
+    h(-3.42, 25.2, -1.3, -3.2, 27.0, 0.6, hair * 0.9, Pat.cloth); h(3.2, 25.2, -1.3, 3.42, 27.0, 0.6, hair * 0.9, Pat.cloth)
+    h(-2.9, 29.3, -3.45, 2.2, 30.9, -2.35, hair, Pat.cloth)
+    parts.append(Part(mn: V3(-1.2, 23.2, -1.0), mx: V3(1.2, 24.9, 1.3), pivot: neck, rotX: pitch * 0.4, color: skin, pattern: Pat.skin))   // neck
     playerClothesParts = parts.count
     parts += playerArmorParts(armor, pitch: pitch, walk: walk, hit: hit)
     if Items.key(armor[1].item) == "jetpack" && !armor[1].isEmpty {
@@ -143,13 +192,20 @@ var playerArmorOverride: [ItemStack]?
 func playerArmorParts(_ a: [ItemStack], pitch: Float, walk: Float, hit: Float) -> [Part] {
     var p: [Part] = []
     let neck = V3(0, 24, 0)
-    func head(_ mn: V3, _ mx: V3, _ c: V3, _ pat: Float) -> Part { Part(mn: mn, mx: mx, pivot: neck, rotX: pitch, color: c, pattern: pat) }
+    // P481: the pieces are laid out round the old block figure's sizes (an 8-wide head, 4-wide limbs) and drawn fitted
+    // to the person's figure (playerParts): the head's pieces to its smaller head, the arms' and legs' to slimmer limbs.
+    func fitHead(_ v: V3) -> V3 { V3(v.x * 0.68, 24.6 + (v.y - 24) * 0.75, v.z * 0.72) }
+    func head(_ mn: V3, _ mx: V3, _ c: V3, _ pat: Float) -> Part { Part(mn: fitHead(mn), mx: fitHead(mx), pivot: neck, rotX: pitch, color: c, pattern: pat) }
     func arm(_ x0: Float, _ x1: Float, _ y0: Float, _ y1: Float, _ r: Float, _ c: V3, _ pat: Float, right: Bool) -> Part {
-        Part(mn: V3(x0, y0, -r), mx: V3(x1, y1, r), pivot: V3(right ? 6 : -6, 22, 0), rotX: right ? walk + hit : -walk, color: c, pattern: pat)
+        let sx: Float = right ? 1 : -1
+        func fx(_ x: Float) -> Float { sx * 5.9 + (x - sx * 6) * 0.75 }
+        return Part(mn: V3(fx(x0), y0, -r * 0.75), mx: V3(fx(x1), y1, r * 0.75), pivot: V3(sx * 6, 22, 0), rotX: right ? walk + hit : -walk, color: c, pattern: pat)
     }
     func leg(_ right: Bool, _ y0: Float, _ y1: Float, _ r: Float, _ c: V3, _ pat: Float, front: Float = 0) -> Part {
         let x0: Float = right ? 0 : -4 - (r - 2), x1: Float = right ? 4 + (r - 2) : 0
-        return Part(mn: V3(x0, y0, -r - front), mx: V3(x1, y1, r), pivot: V3(right ? 2 : -2, 12, 0), rotX: right ? -walk : walk, color: c, pattern: pat)
+        let sx: Float = right ? 2 : -2
+        func fx(_ x: Float) -> Float { sx + (x - sx) * 0.8 }
+        return Part(mn: V3(fx(x0), y0, (-r - front) * 0.9), mx: V3(fx(x1), y1, r * 0.9), pivot: V3(sx, 12, 0), rotX: right ? -walk : walk, color: c, pattern: pat)
     }
     guard a.count >= 4 else { return p }
     // Head.
