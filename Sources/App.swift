@@ -125,6 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if rd >= 2 { world.renderDistance = rd }
         if let m = meta { game.apply(m) } else {
             if let sv = survival { game.survival = sv }
+            if game.survival { game.takeCreativeStarter() }                   // (P483)
             if let d = difficulty { game.diffLevel = Difficulty.clamp(d) }     // P302: a level (0...5)
             game.smoothTerrain = smooth ?? Settings.shared.smoothTerrain     // (PG6: a new world is Polygons unless chosen)
             if game.smoothTerrain { game.world.makeFieldWorld() }             // (before spawnPoint loads chunks; WorldRequest.setUp)

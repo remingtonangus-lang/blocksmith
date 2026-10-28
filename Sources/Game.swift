@@ -526,10 +526,19 @@ final class Game {
         _ = World.fallingIDs.count; _ = Game.hardened.count; _ = PlantSupport.ruleOf(AIR)
     }
 
+    static let creativeStarter = ["grass_block", "dirt", "stone", "cobblestone", "oak_planks", "oak_log", "glass", "torch", "crafting_table"]
     func giveCreativeStarter() {
-        let start = ["grass_block", "dirt", "stone", "cobblestone", "oak_planks", "oak_log", "glass", "torch", "crafting_table"]
-        for (i, n) in start.enumerated() where Items.has(n) {
+        for (i, n) in Game.creativeStarter.enumerated() where Items.has(n) {
             inventory.main[i] = ItemStack(Items.id(n), 64)
+        }
+    }
+
+    // P483 (Oct 28 17:33, "Survival mode, I was given 64 of a bunch of different items, which shouldn't have happened
+    // unless I spawned in creative mode"): a new survival world starts with an empty pack (the spawn camp's chest
+    // holds what it starts with); the creative stacks every Game is made with are taken back.
+    func takeCreativeStarter() {
+        for (i, n) in Game.creativeStarter.enumerated() where Items.has(n) && inventory.main[i].item == Items.id(n) {
+            inventory.main[i] = .empty
         }
     }
 
@@ -1502,6 +1511,7 @@ final class Game {
         if let t = target, breakHeld, !weaponGuard {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
             if !survival {
+                if !held.isEmpty && held.def.tool == .sword { return }     // (P483: a sword in creative breaks nothing)
                 if breakNow || breakCooldown <= 0 {
                     let dug = hitPoint(t)
                     breakBlock(t.hit, b, drop: false)
@@ -2553,6 +2563,11 @@ final class Game {
                 var item = Items.id(n)
                 if m.fire > 0, let cooked = Recipes.smelt(item), Items.def(item).food != nil { item = cooked }
                 if c > 0 { drops.spawn(ItemStack(item, c), at: at) }
+            }
+            // P483: a Dead Sheriff carries a few rifle rounds, and one in ten still has his revolver.
+            if DeadSheriff.isOne(m) && m.killedByPlayer {
+                if Items.has("rifle_rounds") { drops.spawn(ItemStack(Items.id("rifle_rounds"), Rand.int(in: 1...4)), at: at) }
+                if Items.has("gun_revolver") && Rand.float(in: 0..<1) < 0.1 { drops.spawn(ItemStack(Items.id("gun_revolver"), 1), at: at) }
             }
             // Reference loot pools these mobs have of their own.
             func give(_ n: String, _ c: Int) { if c > 0 && Items.has(n) { drops.spawn(ItemStack(Items.id(n), c), at: at) } }

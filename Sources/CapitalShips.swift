@@ -2268,7 +2268,17 @@ extension ShipManager {
         let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
         // Over loaded ground, the real top block (tree crowns too: hovering at terrain height put it in the canopy).
         let top: Int = world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height
-        let ground = Float(max(top, SEA))
+        // P483 (Oct 28 17:37, "the dropship just went, drove through the frigate, which is not okay"): another craft's
+        // hull under it or a little ahead (a crash-landed frigate, a crawler, a parked hull) is ground to it as well.
+        var hullTop: Float = -1
+        let reachA = V3(abs(s.vel.x), 0, abs(s.vel.z)) * 1.5 + V3(3, 0, 3)
+        let mn = s.worldMin - reachA, mx = s.worldMax + reachA
+        let land = Float(max(top, SEA))
+        for o in list where o !== s && o.parent == nil && o.blockCount > 40 && o.worldMin.y < land + 10 {   // (one at rest)
+            if o.worldMax.x < mn.x || o.worldMin.x > mx.x || o.worldMax.z < mn.z || o.worldMin.z > mx.z { continue }
+            hullTop = max(hullTop, o.worldMax.y + 1)
+        }
+        let ground = max(land, hullTop)
         // P65 (Oct 11 evening playtest: dropships flew through Capital towers): in flight it clears the highest block
         // under its whole hull and a hull length ahead, not just the column at its centre.
         var clear = ground

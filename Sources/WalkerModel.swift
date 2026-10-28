@@ -8,9 +8,10 @@ import simd
 // ember eyes deep in dark sockets; lank strands of hair; one shoe lost. Original design (no reference art).
 func walkerParts(_ m: Mob, swing: Float) -> [Part] {
     let husk = m.kind == .husk
+    let lawman = DeadSheriff.isOne(m)                        // P483: the Dead Sheriff (DeadSheriff.swift)
     let skin = husk ? V3(0.58, 0.5, 0.36) : V3(0.45, 0.5, 0.42)
     let bruise = husk ? V3(0.4, 0.31, 0.2) : V3(0.3, 0.32, 0.3)
-    let shirt = husk ? V3(0.46, 0.38, 0.26) : V3(0.27, 0.3, 0.29)
+    let shirt = husk ? V3(0.46, 0.38, 0.26) : lawman ? V3(0.12, 0.11, 0.1) : V3(0.27, 0.3, 0.29)
     let pants = husk ? V3(0.36, 0.3, 0.22) : V3(0.2, 0.2, 0.24)
     let dark = V3(0.05, 0.04, 0.04), bone = V3(0.74, 0.7, 0.6), hair = husk ? V3(0.24, 0.2, 0.15) : V3(0.12, 0.12, 0.11)
     let ember = V3(1.0, 0.42, 0.16) * (m.aggro ? 1.0 : 0.75)
@@ -49,7 +50,9 @@ func walkerParts(_ m: Mob, swing: Float) -> [Part] {
     let twitch = sinf(m.walkPhase * 1.7) * 0.12
     for side: Float in [-1, 1] {
         let sh = bent(side * 4.4, 10.5, 0)
-        let a = reach + hunch * 0.25 + (side < 0 ? 0.12 : -0.14)              // reaching out ahead of the bent body + (side < 0 ? twitch : -twitch) + (m.attackCooldown > 0.6 ? -0.5 : 0)
+        // (The Dead Sheriff's gun arm comes up level at you while he aims, and kicks with the shot.)
+        let aiming = lawman && side > 0 && (m.town.aim > 0 || m.town.swing > 0)
+        let a = aiming ? 1.57 + m.town.swing * 1.5 : reach + hunch * 0.25 + (side < 0 ? 0.12 : -0.14)              // reaching out ahead of the bent body + (side < 0 ? twitch : -twitch) + (m.attackCooldown > 0.6 ? -0.5 : 0)
         let x0 = side < 0 ? sh.x - limb + 0.6 : sh.x - 0.6
         let len: Float = 15.5
         func arm(_ dx: Float, _ y0: Float, _ y1: Float, _ dz0: Float, _ dz1: Float, _ w: Float, _ c: V3, _ pat: Float = 4) -> Part {
@@ -58,6 +61,15 @@ func walkerParts(_ m: Mob, swing: Float) -> [Part] {
         p += [arm(0, 0, 5.5, -1.6, 1.6, limb + 0.2, shirt),                                         // the sleeve stump
               arm(0.25, 4.5, len, -1.2, 1.2, limb - 0.3, skin),                                     // bare forearm
               arm(0.1, 9, 10.5, -1.35, 1.35, limb - 0.1, bruise)]                                   // a dark wrist band of rot
+        if lawman && side > 0 {
+            // His six-iron: the grip in the fist, the cylinder and the long barrel on along the arm.
+            let iron = DeadSheriff.iron
+            p += [arm(0.2, len - 1.2, len + 1.6, -1.3, 1.3, limb - 0.2, skin * 0.75),                 // the fist round the grip
+                  arm(0.4, len + 1.2, len + 3.2, -1.0, 1.0, 2.0, iron, 0),                           // the cylinder
+                  arm(0.85, len + 3.0, len + 8.0, -0.5, 0.5, 1.0, iron, 0),                          // the barrel
+                  arm(0.4, len + 0.4, len + 1.6, 0.9, 2.6, 1.2, V3(0.32, 0.22, 0.14))]               // the walnut grip
+            continue
+        }
         // Three hooked fingers and a thumb past the hand.
         for f in 0..<3 {
             let fx = Float(f) * 0.9
@@ -87,6 +99,13 @@ func walkerParts(_ m: Mob, swing: Float) -> [Part] {
           hd(-2.2, -0.6, -4.3, 4.4, 1.8, 0.2, dark, 0),
           hd(-2.6, -1.9, -4.0, 5.2, 1.4, 4.2, skin * 0.88),
           hd(-2.0, -0.7, -4.15, 4.0, 0.5, 0.2, bone * 0.9, 0)]
+    if lawman {
+        // The wide-brimmed hat, crown and band, pulled down on the drooping head; the tarnished star on the waistcoat.
+        p += [hd(-6.0, 7.2, -6.8, 12.0, 0.6, 12.0, DeadSheriff.hat),
+              hd(-3.7, 7.6, -4.5, 7.4, 3.4, 7.2, DeadSheriff.hat),
+              hd(-3.75, 7.7, -4.55, 7.5, 0.7, 7.3, DeadSheriff.band, 0),
+              up(-3.0, 7.6, -2.0, 1.6, 1.6, 0.25, DeadSheriff.star, 9)]
+    }
     // Rot and old blood: dark patches on the skin and the cloth.
     p += [up(1.8, 6.0, -1.7, 1.3, 2.4, 0.2, V3(0.22, 0.08, 0.06)), up(-3.0, 9.0, 1.9, 2.0, 1.8, 0.2, V3(0.22, 0.08, 0.06), 0)]
     return p

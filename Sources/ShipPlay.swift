@@ -604,6 +604,9 @@ extension Game {
                 return true
             }
             var done = false
+            // P483 (Oct 28 17:41, his dropship's turret: "I can damage the turret just by swinging the sword... This
+            // shouldn't happen"): in creative a sword breaks nothing, on a hull or in the world (the reference's rule).
+            if !survival && !held.isEmpty && held.def.tool == .sword { return true }
             if !survival {
                 if breakNow || ships.breakCooldown <= 0 { done = true; ships.breakCooldown = 0.3 }
             } else {
