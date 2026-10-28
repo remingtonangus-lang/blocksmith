@@ -736,7 +736,10 @@ extension Mob {
     // not within 12 blocks, not on his floor within 28, and not one of the base's runners (about one post in three, by
     // where the post is, hunts him anywhere). Squads sent after him have no post and always hunt.
     func holdsPost(_ g: Game, _ h: V3, _ dist: Float) -> Bool {
-        if dist < 12 || (abs(g.player.pos.y - pos.y) < 4.5 && dist < 28) { return false }
+        // (P475, Oct 27 18:52, a Boreal Station: "every single enemy inside the base rushed the door": a station's
+        // whole floor lay within the 28 blocks that turned everyone on his floor out, so none held. Only those within
+        // 14 of him on his floor come now; the runners still hunt him.)
+        if dist < 10 || (abs(g.player.pos.y - pos.y) < 4.5 && dist < 14) { return false }
         return hash3(Int(floor(h.x)), Int(floor(h.y)), Int(floor(h.z)), 0x60E7) % 3 != 0
     }
 

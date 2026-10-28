@@ -2129,7 +2129,9 @@ final class Game {
             ringBell(p)
         case "composter": useComposter(p)
         case "lectern": useLectern(p)
-        case _ where ChairSeat.seatTop(k) != nil: ChairSeat.shared.sit(self, p)      // P370 (b)
+        // (P475: a gun room's chair works the gun over it, as its computer does: "I can sit at the oak chair, but I can't
+        // use the gun")
+        case _ where ChairSeat.seatTop(k) != nil: if !gunChairUse(p) { ChairSeat.shared.sit(self, p) }      // P370 (b)
         case "chiseled_bookshelf": useShelf(p)
         case _ where k.hasSuffix("_shelf"): useDisplayShelf(p)
         case "crafter":
@@ -2727,8 +2729,12 @@ final class Game {
 
     func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
-        // P430 (c): working a station's gun from its console, what strikes the gun's roof isn't him.
-        if let r = Turrets.shared.remote, Turrets.shared.manned != nil, simd_length(src - r) > 8 { return }
+        // P430 (c): working a station's gun from its console, what strikes the gun's roof isn't him. P475 (Oct 27 18:58: "I
+        // was in the computer room, not in the gun, so it hitting the gun should [not] have been doing damage to my
+        // health"): a gun room sits right under its gun, inside those 8 blocks; what lands nearer the gun than his chair
+        // strikes the gun.
+        if let r = Turrets.shared.remote, let gun = Turrets.shared.manned,
+           simd_length(src - r) > 8 || simd_length_squared(src - gun.pos) < simd_length_squared(src - r) { return }
         if let ns = coop.netSeat, coop.current == ns, let h = netHost { h.hurt(amount, from: src, cause: cause, knockback: knockback, type: type); return }
         CombatHUD.shared.hurt(self, from: src, amount: amount)
         if let a = attacker { petsAttack(a) }

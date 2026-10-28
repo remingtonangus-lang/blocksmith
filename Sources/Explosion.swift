@@ -220,7 +220,8 @@ enum Explosion {
             let k: Float = im.0
             let dir: V3 = im.1
             let base: Float = (k * k + k) / 2
-            let raw: Float = base * 7 * radius + 1
+            let naval: Float = Explosion.heavyShell ? 4 : 1           // P475: a naval gun's burst, four times as hard on him
+            let raw: Float = base * 7 * radius * naval + 1
             g.hurtPlayer(Int(raw.rounded()), from: c, cause: "blew up", knockback: 0, type: .explosion)
             let push: V3 = dir * (k * 12)
             if g.survival { g.player.vel += push * g.knockbackScale }       // (PG7: a blast doesn't throw a creative player about either; Q2c-console-60)

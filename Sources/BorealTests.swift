@@ -44,6 +44,13 @@ enum BorealTests {
             check(S > 0 && tileKey == "bunker_floor", "boreal \(seed): blockhouse floor where the plan puts it (S = \(S - YOFF), \(tileKey))")
             guard S > 0 else { continue }
             let F = S - BorealStation.depth
+            // P475: chain link round the yard, the road in through an open gate under its lintel.
+            let Y = BorealStation.yard
+            let link = Blocks.key(Blocks.groupBase[Int(world.block(cx + 7, S + 2, cz + Y))])
+            let gateOpen = (S + 1...S + 3).allSatisfy { !Blocks.collide[Int(world.block(cx - 5, $0, cz + Y))] }
+            let lintel = Blocks.key(world.block(cx - 5, S + 5, cz + Y))
+            check(link == "chain_link_fence" && gateOpen && lintel == "hazard_plating",
+                  "boreal \(seed) (P475): chain-link fence (\(link)), the gate open under its lintel (\(lintel))")
 
             // Route: from outside the gate to every room (doors open, stairs walked).
             let start = IVec3(s.anchor.x, s.anchor.y, s.anchor.z)
@@ -294,6 +301,23 @@ enum BorealTests {
         let bar0 = g.stationOpBar()?.0 ?? "none"
         check(g.stationOps[key]?.stage == 1 && bar0.hasPrefix("Station operation 0 / 3") && !toasts.contains { $0.hasPrefix("Station operation") },
               "boreal ops: stepping inside starts the operation (bar \"\(bar0)\")")
+        // P475: the ring's ceiling guns fire on him below them, and the control room's console shuts them down.
+        let gunId = Blocks.id(CeilingGuns.key)
+        let gunsHung = CeilingGuns.spots.filter { world.block(cx + $0.0, F + $0.1, cz + $0.2) == gunId }.count
+        g.player.pos = at(-12, F + 1, -6); g.player.vel = .zero
+        let fired0 = CeilingGuns.fired
+        for _ in 0..<40 { g.ceilingGunsTick(0.05) }
+        let shots = CeilingGuns.fired - fired0
+        g.player.pos = at(0, F + 1, -21)
+        let offUse = g.stationUse(console)
+        let offToast = toasts.last ?? "none"
+        g.player.pos = at(-12, F + 1, -6)
+        let fired1 = CeilingGuns.fired
+        for _ in 0..<40 { g.ceilingGunsTick(0.05) }
+        check(gunsHung == 4 && shots > 0 && offUse && g.stationOps[key]?.gunsOff == true && offToast == "Ceiling guns offline" && CeilingGuns.fired == fired1,
+              "boreal ops (P475): \(gunsHung)/4 ceiling guns in the ring, \(shots) rounds at him below one in 2 s, the console shuts them down (\(offToast)), none after")
+        g.health = 20
+        g.bases.noises.removeAll()                                     // (the guns' bursts are a noise: no alarm for the copy)
         // Copy: two seconds, walk off (interrupted, progress kept), come back, finish.
         g.player.pos = at(0, F + 1, -21)
         let used = g.stationUse(console)
@@ -383,6 +407,7 @@ enum BorealTests {
         g.player.pos = hall
         secs(1)
         g.player.pos = at(0, F + 1, -21)
+        _ = g.stationUse(console)                                      // (P475: the first use shuts the ceiling guns down)
         _ = g.stationUse(console)
         secs(2)
         let before = g.stationOps[key]?.codes ?? 0
@@ -430,10 +455,14 @@ enum BorealTests {
         let door = IVec3(cx - 15, F + 1, cz)
         let shut = Int(world.block(door.x, door.y, door.z) - Blocks.groupBase[Int(world.materialAt(door.x, door.y, door.z))]) & 4 == 0
         var out = false, t: Float = 0
-        g2.player.pos = hall
-        g2.baseNoise(at: hall, kind: .gunshot)
+        // (P475: an alerted soldier holds its room unless he is within 14 on its floor, and a fresh alarm rouses only the
+        // third nearest the noise: he fires outside the archive, and the soldier comes
+        // out to him: he stands in the ring corridor outside its bulkhead)
+        let ring = at(-12, F + 1, 0)
+        g2.player.pos = ring
+        g2.baseNoise(at: ring, kind: .gunshot)
         while t < 40 && !out {
-            g2.tick(0.05); g2.player.pos = hall; g2.player.vel = .zero; g2.health = 20; g2.menu = nil; t += 0.05
+            g2.tick(0.05); g2.player.pos = ring; g2.player.vel = .zero; g2.health = 20; g2.menu = nil; t += 0.05
             out = archive.contains { $0.pos.x > Float(cx - 14) }
         }
         // The alarm stands down once things are quiet (player gone): the soldiers keep to their rooms again.

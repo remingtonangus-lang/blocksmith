@@ -503,9 +503,19 @@ extension MobManager {
         default:
             if wet || Blocks.isLiquid(feet) { return false }
             if !darkEnough(w, x, y, z, game) { return false }
+            if insideGarrison(game, V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)) { return false }
             if (k == .husk || k == .stray || k == .parched || k == .camelHusk) && w.topY(x, z) >= y { return false }      // need open sky
             return true
         }
+    }
+
+    // P475 (Oct 27 18:57: "There shouldn't be mobs inside the bases because they should get shot by the Greywall
+    // troops"): no monster comes up inside a manned Greywall base's or Boreal Station's fence.
+    func insideGarrison(_ game: Game, _ p: V3) -> Bool {
+        let b = game.bases
+        for (key, s) in b.greywall.sites where !b.greywall.taken.contains(key) && Greywall.inside(s, p, pad: 6) { return true }
+        for (_, s) in b.boreal.sites where BorealStation.insideSite(s, p) { return true }
+        return false
     }
 
     // Babies, jockeys, armour and door breaking for a naturally spawned monster.

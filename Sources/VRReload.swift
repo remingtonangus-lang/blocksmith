@@ -79,6 +79,7 @@ enum VRReload {
                 a.magInHand = false
                 a.reload = 0
                 g.loadMagazine(gi, shells: GunActions.shellByShell(gi) ? handful : nil)     // D7 / P286 (c): a handful of shells
+                GunActions.magazineIn(gi)                   // P475: then charge it
                 inserts += 1
                 return .inserted
             }

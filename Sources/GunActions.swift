@@ -14,7 +14,11 @@ import simd
 // locked gun (VRReload) and the off hand grabs the slide's rear serrations, pulls it back and lets go to chamber a round.
 // Racked on an empty magazine it locks back again and the trigger still dry-clicks.
 enum GunActions {
-    enum Action { case none, bolt, pump, hammer, slide }
+    // P475 (Oct 27 18:50: "I should have to cock all the weapons after I put a magazine into it"): every other
+    // magazine-fed gun has a charging handle: a magazine slotted in by hand leaves it uncocked, and the off hand to the
+    // gun and a grip charges it (as the bolt is worked); emptied, it stays open until a magazine goes in and it is
+    // charged.
+    enum Action { case none, bolt, pump, hammer, slide, charge }
     static var manual = false                         // QuestControls: on in swing play
     static var cocked = true                          // the held gun's action is worked (a round up, the hammer back)
     static var cycles = 0                             // (tests)
@@ -25,7 +29,7 @@ enum GunActions {
         case Guns.shotgun: return .pump
         case Guns.revolver: return .hammer
         case Guns.pistol: return .slide                      // P301 (a): the self-loading pistols (the Falke; the Hagel is retired)
-        default: return .none
+        default: return gi >= 0 && gi < Guns.all.count && Guns.all[gi].shot == .bullet ? .charge : .none
         }
     }
     static func shellByShell(_ gi: Int) -> Bool { gi == Guns.shotgun }
@@ -40,7 +44,12 @@ enum GunActions {
     // After a shot (`left`: rounds still in the gun). P301: a pistol's slide cycles itself; only the last round locks it back.
     static func fired(_ gi: Int, left: Int = 1) {
         guard manual && action(gi) != .none else { return }
-        if action(gi) != .slide || left <= 0 { cocked = false }
+        if (action(gi) != .slide && action(gi) != .charge) || left <= 0 { cocked = false }
+    }
+
+    // P475: a magazine slotted in by hand: a charging-handle gun wants charging before it fires.
+    static func magazineIn(_ gi: Int) {
+        if manual && action(gi) == .charge { cocked = false }
     }
 
     // Before a shot: false while the action wants working (a trigger press clicks and says so).
@@ -65,7 +74,7 @@ enum GunActions {
         guard let gi = g.heldGun, !cocked, action(gi) != .none, action(gi) != .slide else { return false }   // (a slide is pulled: rack)
         cocked = true
         cycles += 1
-        g.sfx(.gun(14), action(gi) == .hammer ? 0.45 : 0.8)
+        g.sfx(.gun(14), action(gi) == .hammer ? 0.45 : action(gi) == .charge ? 0.9 : 0.8)
         return true
     }
 

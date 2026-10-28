@@ -221,6 +221,20 @@ final class Armory {
                     slugs[i] = s
                     continue
                 }
+                // P475 (Oct 27 18:55, a Greywall base: "Should be able to shoot through doors too"): a round goes on
+                // through a door or trapdoor, a wooden one taking a quarter of its punch, a steel one half.
+                let did = w.materialAt(b.1.x, b.1.y, b.1.z)
+                if s.kind == .bullet, ["door", "trapdoor"].contains(Blocks.shape[Int(did)]) {
+                    let metal = soundMat(did) == .metal
+                    g.particles.dust(did, at: at, count: 3, spread: 0.05)
+                    g.sfx(.bulletImpact(soundMat(did)), 0.55, at: at)
+                    s.damage *= metal ? 0.5 : 0.75
+                    s.pos = at + dir * 0.4
+                    s.traveled += b.0
+                    s.dead = s.damage < 0.5
+                    slugs[i] = s
+                    continue
+                }
                 s.dead = true
                 slugs[i] = s
                 // P305 (a): a round that shot out a weak block (glass, leaves, a pane, wool) goes on through it.
@@ -396,8 +410,13 @@ final class Armory {
         // little more damage"; it took 3): a shell striking him lands its weight on him as well as its blast, about a
         // third of his health on Normal for a field gun's shell, half for a naval gun's (the level's cap per blow holds).
         if s.kind == .shell {
-            let blow = Int((4 + 2.4 * s.power).rounded())
+            // P475 (Oct 27 19:10: "On normal getting hit by a naval gun should still do probably four or five times the
+            // damage"): a naval gun's shell lands four times its weight, a blow on the heavy shell's cap (Game.hurtPlayer).
+            let naval = s.power >= HeavyTurret.power
+            let blow = Int(((4 + 2.4 * s.power) * (naval ? 4 : 1)).rounded())
+            Explosion.heavyShell = naval
             g.hurtPlayer(blow, from: at - dir * 3, cause: "was hit by a shell from \(s.by)", knockback: 1.4, type: .explosion)
+            Explosion.heavyShell = false
         }
         if s.kind == .rocket || s.kind == .shell { detonate(s, at: at - dir * 0.3, g); return }
         let whole = floorf(s.damage)

@@ -32,6 +32,7 @@ struct StationOp: Codable {
     var dark = 0                      // P288: bands of the station blacked out since the generator died (blackoutBands: all)
     var cleared = false               // P430 (e): every soldier inside the fence dead: no more reinforcements, ever
     var emptyT: Float = 0             // seconds the loaded station has had nobody of its garrison inside
+    var gunsOff = false               // P475: the ceiling guns shut down from the control room (CeilingGuns.swift)
 
     var F: Int { S - BorealStation.depth }
     var console: V3 { V3(Float(cx) + 0.5, Float(F + 1), Float(cz - 21) + 0.5) }
@@ -57,6 +58,7 @@ struct StationOp: Codable {
         silent = try? c.decodeIfPresent(Bool.self, forKey: .silent)
         dark = (try? c.decodeIfPresent(Int.self, forKey: .dark)) ?? 0     // P288: a station blown in an older save goes dark too
         cleared = (try? c.decodeIfPresent(Bool.self, forKey: .cleared)) ?? false
+        gunsOff = (try? c.decodeIfPresent(Bool.self, forKey: .gunsOff)) ?? false
         doneClock = nil
     }
 }
@@ -141,6 +143,14 @@ extension Game {
         if op.stage == 2 { onToast?(isConsole ? "The uplink codes are already out" : "This station's operation is done"); return true }
         startOp(&op)
         if isConsole {
+            // P475: the first use of a control-room console shuts the station's ceiling guns down.
+            if !op.gunsOff && CeilingGuns.spots.contains(where: { s in world.block(op.cx + s.0, op.F + s.1, op.cz + s.2) == Blocks.id(CeilingGuns.key) }) {
+                op.gunsOff = true
+                sfx(.click, 0.9, at: hp)
+                onToast?("Ceiling guns offline")
+                bases.boreal.log.append("\(op.key) ceiling guns off")
+                return true
+            }
             if op.codes >= 1 { onToast?("Uplink codes already copied"); return true }
             if bases.boreal.sites[op.key]?.on == true { sfx(.dispenseFail, 0.8, at: hp); onToast?("Uplink locked down while the alarm sounds"); return true }
             op.copyAt = [hp.x, hp.y, hp.z]

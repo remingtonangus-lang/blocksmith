@@ -1061,6 +1061,18 @@ final class World {
     static var syncMeshes = 0                       // sections meshed on the frame since start (questcheck --edittime)
     static var editLane = false
     static let editQueue = DispatchQueue(label: "blocksmith.editmesh", qos: .userInteractive)
+    // P475 (Oct 27 19:12, in a Greywall base under fire: "It took three seconds for the door to open"; "It took a minute
+    // for those blocks to get destroyed in the base"): every edit's sections waited on the one lane behind all the
+    // blasts before them, each meshed from its own snapshot. A section a later edit queues again is now skipped by the
+    // earlier job (the later one meshes it from newer blocks), and a small edit (a door, a placed block) has a lane of
+    // its own, so it never queues behind a battle's craters.
+    static let quickQueue = DispatchQueue(label: "blocksmith.quickmesh", qos: .userInteractive)
+    private var editTicket = 0
+    private var editLatest: [Int64: Int] = [:]          // section -> the newest edit job that meshes it (under lock)
+    static var editSkipped = 0                           // (harness: sections an older edit job left to a newer one)
+    @inline(__always) static func sectionKey(_ k: ChunkKey, _ sy: Int) -> Int64 {
+        (Int64(k.x & 0xFFFFFF) << 32) | (Int64(k.z & 0xFFFFFF) << 8) | Int64(sy & 0xFF)
+    }
     func editBatch(_ f: () -> Void) {
         if syncBatch != nil { f(); return }
         syncBatch = []
@@ -1077,7 +1089,7 @@ final class World {
             if let i = byChunk.firstIndex(where: { $0.0 === c }) { if !byChunk[i].1.contains(sy) { byChunk[i].1.append(sy) } }
             else { byChunk.append((c, [sy])) }
         }
-        var builds: [() -> (ChunkKey, [(Int, Int, SectionMesh)])] = []
+        var builds: [(_ live: (ChunkKey, Int) -> Bool) -> (ChunkKey, [(Int, Int, SectionMesh)])] = []
         // P474 (Oct 26 19:42, in the Capital citadel: "placing blocks inside the capital, blocks take a second to load"):
         // the lane drew each section's ground simplified (AdaptiveGround), nine tenths of its time: about 300 ms a
         // section on the cloud host, an edit's 4-8 sections one after another. It draws the ground exact, as the frame's
@@ -1091,8 +1103,8 @@ final class World {
             let lod = c.lod, dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c), site = smoothSite(c)
             let near = nearSides(c, lod: lod), beyond = fineBeyond(c, nb.0)
             let (n9, h9) = nb
-            builds.append {
-                (k, todo.map { (sy, v) in
+            builds.append { live in
+                (k, todo.filter { live(k, $0.0) }.map { (sy, v) in
                     (sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site,
                                                 chunk: (k.x, k.z), nearSides: near, adaptive: adapt, fineBeyond: beyond)) })
             }
@@ -1103,10 +1115,26 @@ final class World {
         guard !builds.isEmpty else { return }
         if fieldTerrain && AdaptiveGround.enabled { for (c, sy) in redraw { c.sections[sy].version += 1 } }
         jobs += builds.count
-        World.editQueue.async { [weak self] in
-            let out = builds.map { $0() }
+        lock.lock()
+        editTicket += 1
+        let ticket = editTicket
+        let edited = redraw.map { World.sectionKey(ChunkKey(x: $0.0.cx, z: $0.0.cz), $0.1) }
+        for key in edited { editLatest[key] = ticket }
+        lock.unlock()
+        let lane = edited.count <= 4 ? World.quickQueue : World.editQueue
+        lane.async { [weak self] in
             guard let self else { return }
+            let out = builds.map { b in
+                b { k, sy in
+                    let key = World.sectionKey(k, sy)
+                    self.lock.lock(); defer { self.lock.unlock() }
+                    guard let t = self.editLatest[key], t > ticket else { return true }
+                    World.editSkipped &+= 1
+                    return false
+                }
+            }
             self.lock.lock()
+            for key in edited where self.editLatest[key] == ticket { self.editLatest[key] = nil }
             self.meshResults.append(contentsOf: out)
             self.lock.unlock()
         }

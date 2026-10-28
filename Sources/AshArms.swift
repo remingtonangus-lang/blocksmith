@@ -6,7 +6,8 @@ import simd
 // toward -Z, y up); no part uses the enamel pattern, so a soldier's livery never repaints them.
 //   Kessel Bolt Rifle (gun_kessel) long walnut stock, turned-down bolt, barrel bands, hooded front sight; five rounds
 //   Hagel Machine Pistol (gun_hagel) round receiver tube, long straight magazine, bakelite grip and housing, folding wire
-//                 stock, the barrel rest under the muzzle (P326: back, with its own look)
+//                 stock, the barrel rest under the muzzle (P326: back, with its own look; P475, Oct 27 18:50: "blocks on it
+//                 that are detached from its main body, making it look cheap": every part now meets the gun)
 //   Sturmwind Carbine (gun_sturmwind) stamped receiver, curved magazine, walnut butt, pistol grip
 //   Faustrohr     (gun_faust) the single-shot anti-tank tube
 // (P217, Oct 14: the machine gun is gone; its key loads as the Sturmwind.)
@@ -49,17 +50,18 @@ enum AshArms {
                 b(-0.7, -0.2, -8, 1.4, 1.4, 11, blued, pMetal),                    // receiver tube
                 b(-0.35, 0.15, -13, 0.7, 0.7, 5, blued, pMetal),                   // barrel
                 b(-0.3, -0.65, -12.6, 0.6, 0.5, 2.2, steel, pMetal),               // barrel rest bar
+                b(-0.25, -0.2, -12.5, 0.5, 0.4, 0.5, steel, pMetal),               // ... its bracket up to the barrel
                 b(-0.45, 0.05, -13.6, 0.9, 0.9, 0.6, steel, pMetal),               // muzzle nut
                 b(-0.15, 0.35, -13.7, 0.3, 0.3, 0.12, bore, 0),
-                b(-0.3, 1.2, -12.8, 0.6, 0.7, 0.6, blued, pMetal),                 // hooded front sight
+                b(-0.3, 0.8, -12.8, 0.6, 1.1, 0.6, blued, pMetal),                 // hooded front sight (on the barrel)
                 b(-0.3, 1.2, -2.6, 0.6, 0.6, 1.0, steel, pMetal),                  // rear sight
                 b(-0.75, -1.4, -6, 1.5, 1.2, 8, bakelite, pWood),                  // lower housing
                 b(-0.6, -2.1, -5.6, 1.2, 0.8, 1.6, blued, pMetal),                 // magazine well
                 b(-0.6, -4.4, 0.4, 1.2, 3.0, 1.6, bakelite, pWood),                // pistol grip
-                b(-0.25, -1.9, -1.4, 0.5, 0.3, 1.8, steel, pMetal),                // trigger guard
+                b(-0.25, -1.9, -1.4, 0.5, 0.55, 1.8, steel, pMetal),               // trigger guard
                 b(-1.5, 0.4, -5.2, 0.8, 0.5, 0.6, steel, pMetal),                  // cocking handle (left)
-                b(-0.7, -0.8, 3, 0.15, 0.5, 8, steel, pMetal),                     // folding stock arms, unfolded
-                b(0.55, -0.8, 3, 0.15, 0.5, 8, steel, pMetal),
+                b(-0.7, -0.8, 1.5, 0.15, 0.5, 9.5, steel, pMetal),                 // folding stock arms, unfolded (from the housing)
+                b(0.55, -0.8, 1.5, 0.15, 0.5, 9.5, steel, pMetal),
                 b(-0.7, -2.6, 9.6, 1.4, 0.4, 1.0, steel, pMetal),                  // stock strut
                 b(-0.75, -2.8, 10.6, 1.5, 2.8, 0.5, steel, pMetal),                // butt plate
             ]
@@ -84,7 +86,7 @@ enum AshArms {
                 b(-0.9, -3.4, 5, 1.8, 4.6, 7, walnut, pWood),                      // butt
                 b(-0.95, -3.5, 12, 1.9, 4.8, 0.4, steel, pMetal),                  // butt plate
                 b(-0.6, -1.6, -5, 1.2, 0.4, 3, steel, pMetal),                     // floor plate
-                b(-0.25, -2.0, -2.8, 0.5, 0.3, 2.4, steel, pMetal),                // trigger guard
+                b(-0.25, -2.0, -2.8, 0.5, 0.45, 2.4, steel, pMetal),               // trigger guard
             ]
             return GunModel(parts: p, mag: [], grip: V3(0, -1.0, 2.2), fore: V3(0, -0.6, -12), butt: V3(0, -0.6, 12.4),
                             muzzle: V3(0, 1.4, -27.2), magAt: V3(0, 1.8, -3), bolt: V3(2.1, 0.7, -1.2), scale: 0.56)
@@ -98,7 +100,7 @@ enum AshArms {
                 b(-0.2, 0.8, -17.5, 0.4, 0.4, 0.12, bore, 0),
                 b(-0.3, 2.1, -4, 0.6, 0.6, 1.2, steel, pMetal),                    // rear sight
                 b(-0.65, -3.6, 0.8, 1.3, 3.4, 1.6, walnut, pWood),                 // pistol grip
-                b(-0.25, -1.6, -2.4, 0.5, 0.3, 2.2, blued, pMetal),                // trigger guard
+                b(-0.25, -1.6, -2.4, 0.5, 1.35, 2.2, blued, pMetal),               // trigger guard
                 b(-0.8, -1.8, 3, 1.6, 3.0, 8, walnut, pWood),                      // butt
                 b(-0.85, -2.8, 7, 1.7, 1.4, 4, walnut, pWood),
                 b(-0.9, -2.9, 11, 1.8, 4.2, 0.4, steel, pMetal),                   // butt plate
@@ -119,7 +121,7 @@ enum AshArms {
             break                                                                // (all in the model)
         case Guns.hagel:
             for k in 0..<3 { p.append(b(-0.72, 0.1 + Float(k) * 0.35, -7.5, 0.04, 0.15, 7, steel * 0.75, pMetal)) }   // receiver grooves
-            p.append(b(-0.2, -0.95, -7.6, 0.4, 0.3, 0.5, steel, pMetal))        // sling loop
+            p.append(b(-0.2, -0.5, -7.6, 0.4, 0.35, 0.5, steel, pMetal))        // sling loop
         case Guns.kessel:
             p.append(b(-0.2, -1.6, -19.8, 0.4, 0.4, 0.6, steel, pMetal))
             p.append(b(-0.2, -3.7, 9.0, 0.4, 0.4, 0.8, steel, pMetal))

@@ -53,6 +53,12 @@ final class GreywallAlarmState {
     static let leashPad: Float = 4
     static let turretIds: (BlockID, BlockID) = (Blocks.id("wall_turret"), Blocks.id("wall_turret_damaged"))
     static let turretDirs = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)]
+    // A wall turret's field of fire round its look `f` (u: unit vector to the target).
+    static func inArc(_ u: V3, _ f: V3) -> Bool {
+        let h = simd_length(V2(u.x, u.z))
+        guard h > 1e-3, u.y > -0.574 else { return false }                  // (35 degrees below level at most)
+        return (u.x * f.x + u.z * f.z) / h > 0.42                           // (65 degrees either side)
+    }
 }
 
 extension Greywall {
@@ -617,7 +623,11 @@ extension Game {
                     for i in 0..<seats {
                         let e = seats == 1 ? player.eye : coop.seatPlayer(i, self).eye
                         let v = e - muzzle, dd = simd_length(v)
-                        guard dd < best, simd_dot(v / max(dd, 0.01), dirs[f]) > -0.05, world.canSee(muzzle + dirs[f] * 0.5, e) else { continue }
+                        // P475 (Oct 27 18:52: "the turret should have a range of fire appropriate to where it's pointed
+                        // at. If I'm right under the wall, there should be no physical way it can hit me"): a wall gun
+                        // swings 65 degrees either way of its look and dips 35 below level (it took a half sphere,
+                        // straight down the wall's face included).
+                        guard dd < best, GreywallAlarmState.inArc(v / max(dd, 0.01), dirs[f]), world.canSee(muzzle + dirs[f] * 0.5, e) else { continue }
                         best = dd; gs.sees = true; gs.seat = i
                     }
                 }
@@ -627,6 +637,7 @@ extension Game {
                 let wind = damaged ? GreywallAlarmState.turretWind * 1.55 : GreywallAlarmState.turretWind
                 if gs.shots > 0 {
                     gs.gap -= dt
+                    if gs.gap <= 0 && !GreywallAlarmState.inArc(to / max(d, 0.01), dirs[f]) { gs.shots = 0; gs.cool = GreywallAlarmState.turretCool }
                     if gs.gap <= 0 {
                         gs.gap = 0.12; gs.shots -= 1
                         let dir = Guns.scatter(to / max(d, 0.01), damaged ? 0.05 : 0.025)
