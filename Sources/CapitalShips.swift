@@ -1560,32 +1560,52 @@ extension ShipManager {
         s.angVel = V3(0, s.angVel.y * 0.3, 0)
         let aboard = (self.aboard?.root === s || pilot === s) && g.alive
         if impact >= Capital.crashSpeed {
-            // The crash: the drive goes up and the hull is a wreck.
             Capital.crashes += 1
-            let k = min(1, (impact - Capital.crashSpeed) / 12)
+            // P476 (Oct 27 19:14, "crashing it shouldn't really do that much damage. It'll damage the front. Maybe if it
+            // crashed too hard, it would destroy enough blocks to disrupt the main gun"): a crash tears the hull open
+            // where it struck, wider the harder, and stops her there; she flies on unless it was too hard (Capital.
+            // wreckSpeed: the drive goes up and the hull is a wreck, as every crash was before) or it tore the main gun's
+            // barrel away (the gun is out). Engines knocked off their mounts stall as from a hard knock.
+            let k = min(1, (impact - Capital.crashSpeed) / (Capital.wreckSpeed - Capital.crashSpeed))
+            let wreck = impact >= Capital.wreckSpeed
             // P472 (Oct 26 19:48 and 20:14, "crashing shouldn't kill you like that... if I hit the ground, I don't see
             // why that needs to kill me"): whoever is aboard rides out the crash shaken, not hurt; the ship takes it.
             Explosion.sparePlayer = aboard
             defer { Explosion.sparePlayer = false }
-            for h in hits.prefix(4) { Explosion.explode(at: h, power: 3 + 3 * k, game: g, fire: true) }
+            let had = s.blockCount
+            for h in hits.prefix(wreck ? 4 : 1) { Explosion.explode(at: h, power: wreck ? 6 : 1.5 + 3 * k, game: g, fire: wreck || k > 0.6) }
+            let blasted = had - s.blockCount
             // P357 (c), (d) (Oct 16 20:14): a crash breaks the ship apart where it struck (wider the faster it hit, and
-            // what is torn loose falls away: removeCells), and every light aboard goes out.
-            for h in hits.prefix(6) { tearHull(s, at: h, radius: 3.5 + 6 * k, game: g) }
+            // what is torn loose falls away: removeCells); a wrecking one puts every light aboard out.
+            var torn = 0
+            for h in hits.prefix(wreck ? 6 : 2) { torn += tearHull(s, at: h, radius: wreck ? 9.5 : 1.5 + 4 * k, game: g) }
+            Capital.crashLog.append(String(format: "crash %.1f b/s: blast %d, torn %d, loose %d", impact, blasted, torn, had - s.blockCount - blasted - torn))
+            g.sfx(.shipCollideHard, 2, at: c)
+            if simd_length(g.player.pos - c) < 200 { g.addShake(min(1, 0.5 + 0.5 * k)) }
+            s.vel *= 0.15
+            s.angVel = .zero
+            let hurt = Int(((impact - 8) * (wreck ? 3 : 1)).rounded())
+            for m in g.mobs.mobs where m.deck === s && m.health > 0 { m.health -= hurt; m.hurt = 0.3; if wreck { m.crewFree = true } }
+            guard wreck else {
+                st.bumpCD = 1.5                                          // (her rebound off it is the same crash)
+                let before = s.blockCount
+                engineShock(s, st, impact, g)
+                Capital.crashLog.append("engines \(before - s.blockCount)")
+                if st.mainGunLength > 0 && st.mainGunCD < 1e30 && Capital.barrelTorn(s, st) {
+                    st.mainGunCD = .greatestFiniteMagnitude; st.gunCharge = -1
+                    if aboard || simd_length(g.player.pos - c) < 200 { g.onToast?("The crash tore away the \(MainGun.name)'s barrel") }
+                }
+                return
+            }
             lightsOut(s)
             if !st.exhausts.isEmpty {                                    // the drive goes up
                 let e = st.exhausts.reduce(V3(0, 0, 0), +) / Float(st.exhausts.count)
                 blast(at: s.toWorld(e + V3(0, 0, -8)), power: 6, game: g)
             }
-            g.sfx(.shipCollideHard, 2, at: c)
-            if simd_length(g.player.pos - c) < 200 { g.addShake(min(1, 0.6 + 0.4 * k)) }
             s.wrecked = true
             st.disabledWhy = "crashed"
             st.gunCharge = -1
-            s.vel *= 0.15
-            s.angVel = .zero
             if pilot === s { g.leaveHelm() }
-            let hurt = Int(((impact - 8) * 3).rounded())
-            for m in g.mobs.mobs where m.deck === s && m.health > 0 { m.health -= hurt; m.hurt = 0.3; m.crewFree = true }
             return
         }
         s.vel -= inward * min(2, impact * 0.25)                          // a recoil off the ground
@@ -1597,6 +1617,8 @@ extension ShipManager {
         // A hard knock: hull and ground torn where they met, the deck jolts.
         st.bumpCD = 0.8
         let k = min(1, (impact - 6) / 8)
+        let had = s.blockCount
+        defer { Capital.crashLog.append(String(format: "knock %.1f b/s: %d", impact, had - s.blockCount)) }
         Explosion.sparePlayer = aboard
         for h in hits.prefix(2) { Explosion.explode(at: h, power: 1.5 + 2 * k, game: g) }
         Explosion.sparePlayer = false
@@ -1623,7 +1645,9 @@ extension ShipManager {
             let n = min(mounted.count, 2 + Int((impact - 11) * 0.7))
             let torn = Set(mounted.shuffled().prefix(n))
             let mid = torn.reduce(V3(0, 0, 0)) { $0 + V3(Float($1.x) + 0.5, Float($1.y) + 0.5, Float($1.z) + 0.5) } / Float(torn.count)
-            removeCells(s, torn, chipped: [], center: s.toWorld(mid), power: 2, game: g)
+            // (P476: torn off their mounts, not cut loose: a block or two gone from an engine never dropped the rest of it
+            // through the hull, 952 blocks at a 17 b/s crash.)
+            removeCells(s, torn, chipped: [], center: s.toWorld(mid), power: 2, game: g, detach: false)
         }
         s.engines = 0
         st.enginesShaken = true
@@ -2693,7 +2717,25 @@ extension Capital {
     static var fullBank = false
     static var vtolPitch: Float { fullBank ? 0.21 : 0.09 }      // 12 or 5 degrees
     static var vtolBank: Float { fullBank ? 0.38 : 0.14 }       // 22 or 8 degrees
-    static let crashSpeed: Float = 14          // closing speed (blocks/s) at the touching part that wrecks the hull
+    static let crashSpeed: Float = 14          // closing speed (blocks/s) at the touching part that tears the hull (a crash)
+    static let wreckSpeed: Float = 30          // ... and that wrecks it (P476: below it she flies on, torn where she struck)
+    // P476: the main gun's barrel torn away: under half its tube left 3 to 9 blocks back from the muzzle (the ring two
+    // out from the axis: the axis itself is the bore, open air).
+    static func barrelTorn(_ s: Ship, _ st: CapitalState) -> Bool {
+        let d = simd_normalize(st.mainGunDir)
+        let side = simd_normalize(simd_cross(d, abs(d.y) > 0.9 ? V3(1, 0, 0) : V3(0, 1, 0)))
+        let up = simd_cross(side, d)
+        var have = 0, n = 0
+        for b in 3...9 where Float(b) <= max(3, st.mainGunLength) {
+            for o in [side, -side, up, -up] {
+                let p = st.mainGunMuzzle - d * Float(b) + o * 2
+                n += 1
+                if s.grid.get(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) != AIR { have += 1 }
+            }
+        }
+        return n > 0 && have * 2 < n
+    }
+    static var crashLog: [String] = []         // (FrigateCheck: the hull blocks each part of a crash took)
     static var crashes = 0                     // (FrigateCheck)
     static var darkened = Set<Int>()           // hulls whose lights a crash put out (P357 d; FrigateCheck)
 

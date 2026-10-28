@@ -311,5 +311,51 @@ enum FrigateCheck {
         } } }
         let lean = cnt > 0 ? sumX / cnt : 0
         check(cnt > 20 && lean > 1.5, String(format: "frigate P357 (e): the crater's lower part sits %.1f blocks on along the shot (%.0f blocks dug below 3 deep)", lean, cnt))
+
+        // P476 (Oct 27 19:14, "crashing it shouldn't really do that much damage. It'll damage the front. Maybe if it
+        // crashed too hard, it would destroy enough blocks to disrupt the main gun"): a second frigate (the first is a
+        // wreck by now), its bow pitched down and driven into the ground at 19 blocks/s: a crash that tears her where she
+        // struck, and she flies on, gun and pilot still in place.
+        do {
+            let n1 = w.ships.list.count
+            w.ships.spawnCapital("capfrigate", home: IVec3(Int(floor(home.x)) + 400, 0, Int(floor(home.z)) + 260), yaw: 0, region: nil, sync: true)
+            guard let f = w.ships.list.dropFirst(n1).first(where: { $0.role == "capfrigate" }), let fs = w.ships.capState[f.id],
+                  let fstand = g.helmStand(f) else { check(false, "frigate P476: a second frigate spawns"); return }
+            defer { w.ships.remove(f); w.ships.capState.removeValue(forKey: f.id); w.ships.shells.removeAll { $0.owner == f.id } }
+            g.survival = true; g.player.flying = false; g.health = 20; g.alive = true
+            w.ships.pilot = nil; w.ships.aboard = nil
+            g.player.pos = f.toWorld(fstand); g.takeCommand(f)
+            f.vel = .zero; f.angVel = .zero; f.throttle = 0
+            w.ships.pointHull(f, pitch: -Capital.maxPitch)
+            f.updateBounds()
+            // (the hull's lowest block, not its box's corner: the bow's foot, half a block over the firm ground under it)
+            let bowLocal = Capital.hullProbes(f.grid).min { f.toWorld($0).y < f.toWorld($1).y } ?? V3(0, 0, 0)
+            let bowPt = f.toWorld(bowLocal)
+            _ = w.loadSync(center: bowPt, radius: 4)
+            let gy = Float(Capital.firmTop(w, Int(floor(bowPt.x)), Int(floor(bowPt.z))) + 1)
+            f.pos.y += gy + 0.5 - bowPt.y; f.prevPos = f.pos; f.updateBounds()
+            let blocks2 = f.blockCount, crashes2 = Capital.crashes
+            Capital.crashLog = []
+            check(!Capital.barrelTorn(f, fs), "frigate P476: a whole frigate's main gun reads as whole")
+            f.vel = f.dirToWorld(V3(0, 0, -1)) * 19
+            var trace: [String] = []
+            for i in 0..<180 {
+                guard w.ships.pilot === f else { trace.append("no pilot at \(i)"); break }
+                g.player.pos = f.toWorld(fstand); g.player.vel = f.vel
+                if !g.pilotTick(f, MoveInput(), dt) { trace.append("helm left at \(i)"); break }
+                w.ships.update(dt, game: g)
+                if i % 10 == 0 && Capital.crashes == crashes2 {
+                    let b = f.toWorld(bowLocal)
+                    trace.append(String(format: "%d: keel %.1f bow %.1f over %d, v %.1f %.1f %.1f", i, f.worldMin.y, b.y,
+                                        Capital.firmTop(w, Int(floor(b.x)), Int(floor(b.z))) + 1, f.vel.x, f.vel.y, f.vel.z))
+                }
+                if f.wrecked { break }
+            }
+            if Capital.crashes == crashes2 { print("P476 trace: " + trace.joined(separator: "; ")) }
+            print("P476 crash: " + Capital.crashLog.suffix(12).joined(separator: "; "))
+            check(Capital.crashes == crashes2 + 1 && !f.wrecked && blocks2 - f.blockCount > 0 && blocks2 - f.blockCount < 300
+                  && w.ships.pilot === f && fs.mainGunCD < 1e30 && g.health == 20,
+                  "frigate P476: a bow-first crash at 19 b/s tears \(blocks2 - f.blockCount) hull blocks where she struck and she flies on (\(Capital.crashes - crashes2) crashes, \(f.wrecked ? "wrecked" : "whole"), pilot \(w.ships.pilot === f ? "at the helm" : "thrown"), gun \(fs.mainGunCD < 1e30 ? "intact" : "out"))")
+        }
     }
 }
