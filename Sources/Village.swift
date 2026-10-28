@@ -515,6 +515,19 @@ enum Village {
         start.info = ["lots": lots.count, "shops": lots.filter { $0.kind == .shop || $0.kind == .saloon }.count,
                       "deputies": sz?.deputies ?? 1, "office": lots.contains { $0.kind == .office } ? 1 : 0]
         if let townSize { start.info["size"] = townSize.rawValue }
+        // (P483: the far view's boxes: each building's walls and its roof, no farms or pens.)
+        for l in lots where l.kind != .farm && l.kind != .pen {
+            let (x0, z0, x1, z1) = bounds(l)
+            let tall: Int
+            switch l.kind {
+            case .bigHouse, .library, .saloon, .bank: tall = 6
+            case .temple: tall = 8
+            default: tall = 4
+            }
+            let stone = l.kind == .temple || l.kind == .bank || l.kind == .smithy || l.r20
+            start.far.append((IVec3(x0, l.y, z0), IVec3(x1, l.y + tall, z1), stone ? .stone : .timber))
+            if x1 - x0 > 2 && z1 - z0 > 2 { start.far.append((IVec3(x0 + 1, l.y + tall + 1, z0 + 1), IVec3(x1 - 1, l.y + tall + 2, z1 - 1), .roof)) }
+        }
         if let office = lots.first(where: { $0.kind == .office }) { Jail.record(office, into: &start.info) }   // R20 (TownJail.swift)
         return start
     }

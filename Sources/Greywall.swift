@@ -239,7 +239,19 @@ enum Greywall {
             }
             let piece = Piece(min: IVec3(x - e, S - 12, z - e), max: IVec3(x + e, S + t.wallH + 16, z + e),
                               build: { w in Greywall.build(&w, x, S, z, t, seed, bank: bank, shore: shore, p471: p471) })
-            return StructureStart(kind: kind, pieces: [piece], anchor: IVec3(x, S + 1, z + t.half + 3))
+            let start = StructureStart(kind: kind, pieces: [piece], anchor: IVec3(x, S + 1, z + t.half + 3))
+            // P476/P483 ("I can't see the base if it's been turned into a compression... Include the base in its
+            // compression"): the curtain wall, the corner towers and the keep for the far land (LandmarkRender).
+            let h = t.half, W = t.wallH
+            for (a, b) in [((-h, -h), (h, -h + 1)), ((-h, h - 1), (h, h)), ((-h, -h), (-h + 1, h)), ((h - 1, -h), (h, h))] {
+                start.far.append((IVec3(x + a.0, S, z + a.1), IVec3(x + b.0, S + W, z + b.1), .stone))
+            }
+            for (sx, sz) in t.towers {
+                let c = tower(t, sx, sz)
+                start.far.append((IVec3(x + c.x - 3, S, z + c.z - 3), IVec3(x + c.x + 3, S + W + 6, z + c.z + 3), .stone))
+            }
+            start.far.append((IVec3(x - t.keepX, S, z + t.keepC - t.keepZ), IVec3(x + t.keepX, S + W + 4, z + t.keepC + t.keepZ), .stone))
+            return start
         }
     }
 

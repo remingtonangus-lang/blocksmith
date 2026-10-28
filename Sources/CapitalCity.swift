@@ -127,7 +127,30 @@ enum CapitalCity {
             let L0 = plan.lv(0, 0)!
             let start = StructureStart(kind: "capital_city", pieces: pieces, anchor: IVec3(plan.ox + N * lot + street + 3, L0 + 1, plan.oz + N * lot + street + 3))
             start.plan = plan
+            start.far = farBoxes(plan)
             return start
+    }
+
+    // P483: the city for the far land (LandmarkRender): every lot's terrace, and on a building lot the building as
+    // buildLot raises it (the same lot seed: footprint first, then a tower's floors).
+    static func farBoxes(_ plan: Plan) -> [(min: IVec3, max: IVec3, tone: FarTone)] {
+        var out: [(min: IVec3, max: IVec3, tone: FarTone)] = []
+        for j in -N..<N { for i in -N..<N where plan.has(i, j) {
+            let x0 = plan.ox + (i + N) * lot, z0 = plan.oz + (j + N) * lot
+            let L = plan.lv(i, j)!
+            out.append((IVec3(x0 + street, L - 3, z0 + street), IVec3(x0 + lot - 1, L, z0 + lot - 1), .paving))
+            guard plan.kind[plan.idx(i, j)] == 0 else { continue }
+            var rng = SRng(lotSeed(plan.seed, i, j) | 1)
+            let fp = footprint(x0, z0, &rng)
+            let a = IVec3(fp.bx0, L + 1, fp.bz0)
+            if plan.modern {
+                let floors = CapitalTown.isResidence(plan, i, j) ? 3 + rng.int(3) : 4 + rng.int(6)
+                out.append((a, IVec3(fp.bx0 + fp.bw - 1, L + floors * 5, fp.bz0 + fp.bd - 1), .glass))
+            } else {
+                out.append((a, IVec3(fp.bx0 + fp.bw - 1, L + fp.storeys * 5, fp.bz0 + fp.bd - 1), .white))
+            }
+        } }
+        return out
     }
 
     // The city plan for a centre chunk corner (nil: the ground or the neighbours won't have a city there); kept on the
