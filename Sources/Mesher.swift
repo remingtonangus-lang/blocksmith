@@ -368,7 +368,12 @@ enum Mesher {
         let centre = srcs[4]
         // PG1 field worlds (FieldTerrain.swift): the ground is the chunks' density field, not blocks.
         let fieldOn = n9[4].isField
-        if base >= n9[4].storedCount { return SectionMesh(opaque: [], trans: [], light: nil) }
+        // P478 (Oct 27 18:55, Frozen Peaks: "I still see some cracks in the ground, just like right here"): a section over
+        // its own chunk's highest block still owns the smooth quads against its +x / +z neighbours' ground (below), and
+        // this quick exit dropped them: wherever the ground climbs across a chunk border into the next section up, a slit
+        // a block wide stayed open along the border, the sky showing through it from a low eye.
+        let edgeStored = (SmoothTerrain.enabled || fieldOn) && smoothOK && [5, 7, 8].contains { base < n9[$0].storedCount }
+        if base >= n9[4].storedCount && !edgeStored { return SectionMesh(opaque: [], trans: [], light: nil) }
         var anyBlock = false
         if base < centre.count { for i in base..<(base + 16 * CSQ) where centre[i] != AIR { anyBlock = true; break } }
         if !anyBlock && fieldOn { for i in base..<(base + 16 * CSQ) where n9[4].ground(i) { anyBlock = true; break } }
