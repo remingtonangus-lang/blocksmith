@@ -1767,6 +1767,10 @@ if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled
     TreeProbeCheck.fellReal(game, check)
     print(failures == 0 ? "fellcheck: all checks passed" : "fellcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--reportcheck") {           // P480: the bug and idea reporter (Reporter.swift)
+    ReporterTests.run(game, check)
+    print(failures == 0 ? "reportcheck: all checks passed" : "reportcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--cityfloat") {             // P462: Capital City's pillars on the ground
     CityFloatCheck.run(game, check)
     print(failures == 0 ? "cityfloat: all checks passed" : "cityfloat: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

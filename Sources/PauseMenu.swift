@@ -188,6 +188,7 @@ final class PauseMenu: Menu {
         "resethints": "Starts the goals again from the first one.",
         "controls": "Every control for keyboard, mouse and controller.",
         "keys": "Choose which keys walk, jump, open the inventory and more.",
+        "report": "Tell the maker about a bug or an idea for the game: your words go to him with where you are in the game.",
         "about": "Who made Sunderfall, and the open source parts it is built on with their licences.",
         "padmap": "Move actions to other controller buttons. Prompts follow your layout.",
         "pbindreset": "Put every controller button back to the standard layout.",
@@ -297,6 +298,10 @@ final class PauseMenu: Menu {
             if Playtest.enabled && g.coop.current == 0, let at = rows.firstIndex(where: { $0.1 == "shortcuts" || $0.1 == "mode" }) {
                 rows.insert(("Playtest Checklist...", "checklist"), at: at)
                 rows.insert(("What Is Using the Compute", "compute"), at: at + 1)   // P420
+            }
+            // P480: the bug and idea reporter (builds that know where to send reports).
+            if Reporter.available && g.coop.current == 0, let at = rows.firstIndex(where: { $0.1 == "commands" || $0.1 == "mode" }) {
+                rows.insert(("Report a Bug or Idea", "report"), at: at)
             }
             // S4: after a crash, the newest rolling backup of this world can be put back.
             if CrashGuard.crashed && g.coop.current == 0 { rows.insert(("Restore Last Backup (after a crash)", "restorebackup"), at: 1) }
@@ -506,7 +511,7 @@ final class PauseMenu: Menu {
                 (["resume", "restorebackup"], 0),
                 (["options", vr, PauseMenu.distanceID, "mode"], 0),                              // settings
                 (["worldmap", "track", "advancements", "stats", "messages"], 0),             // map and progress
-                (["worlds", "photo", "commands", "checklist", "compute", "shortcuts"], 0),
+                (["worlds", "photo", "report", "commands", "checklist", "compute", "shortcuts"], 0),
                 (["totitle"], 0)])                                                // leaving, apart from the rest
         case .title:
             return Style(width: 440, btnH: 30, gapX: 12, gapY: 6, groupGap: 12, cols: 4, lines: 6, groups: [
@@ -966,6 +971,7 @@ final class PauseMenu: Menu {
         case "dir_early": st.directorEarly.toggle()
         case "dir_status": return
         case "dir_journal": g.closeMenu(); g.openJournal(tab: .events)
+        case "report": g.closeMenu(); g.openMenu(ReportMenu(game: g))      // P480 (Reporter.swift)
         case "about": g.closeMenu(); g.openMenu(AboutMenu(game: g))      // Q2 (AboutMenu.swift)
         case "resetask": go(.confirm); confirmReset = true; resetCursor = true
         case "reset_yes":

@@ -15,7 +15,7 @@ final class AboutMenu: ListMenu {
         out += [Part(name: "Khronos OpenXR loader", licence: "Apache License 2.0", notice: "Copyright The Khronos Group Inc."),
                 Part(name: "Vulkan headers", licence: "Apache License 2.0 / MIT", notice: "Copyright The Khronos Group Inc.")]
         #endif
-        out.append(Part(name: "Privacy", licence: "Nothing leaves this device", notice: "No account, no tracking, no network play"))
+        out.append(Part(name: "Privacy", licence: "Only the reports you send", notice: "No account, no tracking; a bug report goes to the maker"))
         out.append(Part(name: "Licence texts", licence: "apache.org/licenses/LICENSE-2.0  opensource.org/license/mit",
                         notice: "Each licence's full text is published at these addresses"))
         return out

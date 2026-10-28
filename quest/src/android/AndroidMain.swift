@@ -167,6 +167,20 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     PlaytestChecklist.dir = URL(fileURLWithPath: (extPath ?? dataPath) + "/voicenotes")
     if let d = readAsset(activity.pointee.assetManager, "device-checklist.md") { PlaytestChecklist.load(text: String(decoding: d, as: UTF8.self)) }
     #endif
+    // P480: the bug and idea reporter posts through java.net on a worker thread (quest/c/report/reportpost.c).
+    if !QuestBuild.reportURL.isEmpty {
+        Reporter.url = QuestBuild.reportURL
+        Reporter.version = "0.\(QuestBuild.versionCode) (\(QuestBuild.commit), \(QuestBuild.milestone))"
+        let act = UnsafeMutableRawPointer(activity)
+        Reporter.transport = { url, body, done in
+            Thread.detachNewThread {
+                var reply = [CChar](repeating: 0, count: 4096)
+                let json = String(decoding: body, as: UTF8.self)
+                let status = bs_report_post(act.assumingMemoryBound(to: ANativeActivity.self), url, json, &reply, Int32(reply.count))
+                done(Int(status), String(cString: reply))
+            }
+        }
+    }
     app.pointee.onAppCmd = { a, cmd in handleCmd(a, cmd) }
     app.pointee.onInputEvent = { a, e in handleInput(a, e) }
     keyboardShown = false

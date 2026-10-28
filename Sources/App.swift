@@ -101,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ note: Notification) {
         buildMenu()
+        Reporter.installMac()                 // P480
         guard let dev = MTLCreateSystemDefaultDevice() else { fatalError("Metal not available") }
         device = dev
         let last = UserDefaults.standard.string(forKey: "lastWorld") ?? "World1"

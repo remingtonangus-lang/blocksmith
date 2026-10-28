@@ -44,6 +44,7 @@ final class KeyboardMenu: Menu {
             if let b = target as? BookMenu, !b.signing { b.typed("\n") } else if let s = target as? SignMenu { s.line = min(3, s.line + 1) }
             else if let cm = target as? CommandMenu { cm.run() }
             else if let pm = target as? PauseMenu { pm.editing = nil; pm.build(); finish() }
+            else if target is ReportMenu { finish() }
         case "Done": finish()
         default: target.typed(keys[i])
         }
@@ -65,6 +66,7 @@ final class KeyboardMenu: Menu {
             return ("Page \(bm.page + 1)", pg.split(separator: "\n", omittingEmptySubsequences: false).last.map(String.init) ?? "")
         case let am as AnvilMenu: return ("Item name", am.name)
         case let cm as CommandMenu: return ("Command", cm.line)
+        case let rm as ReportMenu: return (rm.kind == .bug ? "Bug report" : "Idea", String(rm.text.suffix(40)))
         case let cr as CreativeMenu: return ("Search", cr.query)
         case let cb as CraftingBookMenu: return ("Search recipes", cb.query)
         case let im as InventoryMenu: return ("Search inventory", im.query)
