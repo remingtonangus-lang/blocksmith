@@ -78,11 +78,24 @@ extension Game {
             if site.on {
                 // The garrison stands to. Only a new noise or sighting points them at a spot (once, like a citadel's
                 // alert), so they don't keep marching on and grenading an empty place for the whole alarm.
-                for m in mobs.mobs where m.kind.steelhold && m.kind != .deckGun && m.health > 0 && BorealStation.insideSite(site, m.pos) {
+                // P475 (Oct 27 18:52, a Boreal Station: "every single enemy inside the base rushed the door... way less
+                // should be rushing the door. It should be way more in the hallways... a fight all the way through the
+                // base"): only the third of the garrison nearest the noise goes to it (two at least), with anyone within
+                // 14 blocks of it; the rest stand to where they are, in their rooms and halls, and fight whoever comes
+                // into their sight.
+                let garrison = mobs.mobs.filter { $0.kind.steelhold && $0.kind != .deckGun && $0.health > 0 && BorealStation.insideSite(site, $0.pos) }
+                var sent = Set<ObjectIdentifier>()
+                if fresh {
+                    let near = garrison.sorted { simd_length_squared($0.pos - site.src) < simd_length_squared($1.pos - site.src) }
+                    for m in near.prefix(max(2, garrison.count / 3)) { sent.insert(ObjectIdentifier(m)) }
+                    // (and anyone within 14 blocks of it, a shut door between or not: the shot was outside his room)
+                    for m in garrison where simd_length_squared(m.pos - site.src) < 14 * 14 { sent.insert(ObjectIdentifier(m)) }
+                }
+                for m in garrison {
                     let br = m.soldierBrain
                     br.ready = true
                     if !m.aggro { m.aggro = true; br.react = max(br.react, 0.5) }
-                    if fresh && !br.sees { br.lastSeen = site.src; br.seenAgo = min(br.seenAgo, 2) }
+                    if fresh && !br.sees && sent.contains(ObjectIdentifier(m)) { br.lastSeen = site.src; br.seenAgo = min(br.seenAgo, 2) }
                     m.lockTime = max(m.lockTime, 20)
                 }
                 // The klaxon from the speaker nearest the player: hall, blockhouse or yard.

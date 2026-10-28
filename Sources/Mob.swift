@@ -1747,7 +1747,27 @@ final class Mob {
         let mn = V3(pos.x - halfW, pos.y, pos.z - halfW)
         let mx = V3(pos.x + halfW, pos.y + height, pos.z + halfW)
         guard let h = World.rayBox(o, d, mn, mx), h.0 <= maxDist else { return nil }
-        return h.0
+        return kind == .deckGun ? partsHit(o, d, maxDist: maxDist) : h.0
+    }
+
+    // P475 (Oct 27 18:50: "Any rounds fired anywhere near the naval gun, even if I'm shooting at a soldier, it just hits
+    // the naval gun"): a gun mount's box is as wide as its barrels' swing (a naval gun's: 14 blocks across), so every
+    // round through that space struck it. It is struck only where it is drawn: the segment against each of its model's
+    // boxes, in the box's own turned frame.
+    func partsHit(_ o: V3, _ d: V3, maxDist: Float) -> Float? {
+        let ps = mobModelParts(self)
+        let k = (sized ? 1 : scale) / 16
+        let cy = cosf(yaw), sy = sinf(yaw)
+        let w = o - pos
+        let oq = V3(cy * w.x - sy * w.z, w.y, sy * w.x + cy * w.z) / k
+        let dq = V3(cy * d.x - sy * d.z, d.y, sy * d.x + cy * d.z) / k
+        var best: Float?
+        for p in ps {
+            let rt = p.rotation.transpose
+            let po = rt * (oq - p.pivot) + p.pivot, pd = rt * dq
+            if let h = World.rayBox(po, pd, p.mn, p.mx), h.0 <= maxDist, h.0 < (best ?? .greatestFiniteMagnitude) { best = h.0 }
+        }
+        return best
     }
 }
 

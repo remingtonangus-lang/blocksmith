@@ -119,14 +119,16 @@ final class Player {
     private func doorwayAssist(_ wish: V3, _ w: World, _ dt: Float) {
         let d = simd_normalize(V2(wish.x, wish.z))
         let alongX = abs(d.x) > abs(d.y)
-        guard max(abs(d.x), abs(d.y)) > 0.85 else { return }
-        let ahead: Float = 0.4
+        // (P475, Oct 27: "Still a little too hard to get through doors": it now takes a door met at up to 45 degrees,
+        // looks further ahead, and centres the body faster)
+        guard max(abs(d.x), abs(d.y)) > 0.7 else { return }
+        let ahead: Float = 0.6
         let perp = alongX ? pos.z : pos.x
         let base = Int(floor(perp))
         var best: Float?
         for c in [base, base - 1, base + 1] {
             let mid = Float(c) + 0.5
-            guard abs(mid - perp) < 0.45 else { continue }
+            guard abs(mid - perp) < 0.55 else { continue }
             var probe = pos, there = pos
             if alongX { probe.z = mid; probe.x += d.x > 0 ? ahead : -ahead; there.z = mid }
             else { probe.x = mid; probe.z += d.y > 0 ? ahead : -ahead; there.x = mid }
@@ -135,7 +137,7 @@ final class Player {
             if best == nil || abs(mid - perp) < abs(best! - perp) { best = mid }
         }
         guard let mid = best else { return }
-        let step = max(-3 * dt, min(3 * dt, mid - perp))
+        let step = max(-5 * dt, min(5 * dt, mid - perp))
         _ = w.moveBody(&pos, halfW: halfW, height: height, alongX ? V3(0, 0, step) : V3(step, 0, 0), step: 0, onGround: onGround)
     }
 

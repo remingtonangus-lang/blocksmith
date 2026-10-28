@@ -72,6 +72,7 @@ extension BlockRegistry {
             off.emit = 0; off.hidden = true
             add(off)
         }
+        registerCeilingGun()                            // P475 (CeilingGuns.swift)
         if !has("light_panel_off") {
             var d = BlockDef("light_panel_off", "Dead Light Panel")
             d.tex = ["light_panel_off"]; d.hardness = 3; d.resistance = 600; d.tool = .pickaxe; d.requiresTool = true
@@ -371,8 +372,9 @@ enum BorealStation {
             let grey = WorldRules.p69(gen, cx, cz, reach: 4)
             let e = BorealStation.yard + 8
             let p471 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: e / CS + 1, guardSet: $0.legacyP471) } ?? true   // (the gun room)
+            let p475 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: e / CS + 1, guardSet: $0.legacyP475) } ?? true   // (the fence and gate)
             let piece = Piece(min: IVec3(x - e, S - depth - 4, z - e), max: IVec3(x + e, S + 32, z + e),
-                              build: { w in BorealStation.build(&w, x, S, z, seed, grey: grey, bank: grey, p471: p471) })
+                              build: { w in BorealStation.build(&w, x, S, z, seed, grey: grey, bank: grey, p471: p471, p475: p475) })
             return StructureStart(kind: kind, pieces: [piece], anchor: IVec3(x - 5, S + 1, z + yard + 2))
         }
     }
@@ -438,7 +440,7 @@ enum BorealStation {
 
     // `grey`: a station on ground no save had generated before P69 is Greywall Command's (its troops and stores), not
     // the Capital's (Oct 12 AM playtest 09:18: "it shouldn't be Capital ... it's a different force").
-    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ seed: UInt64, grey: Bool = false, bank: Bool = false, p471: Bool = false) {
+    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ seed: UInt64, grey: Bool = false, bank: Bool = false, p471: Bool = false, p475: Bool = false) {
         var rng = SRng(seed)
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let con = g("bunker_concrete"), dark = g("bunker_concrete_dark", con), tile = g("bunker_floor", con)
@@ -745,12 +747,23 @@ enum BorealStation {
             // P430 (d) (Oct 24 10:25, "what are all these gates here? These are just annoying"): the railing panels
             // between the fence posts are gone; the posts and the corner lamps mark the yard, and nothing stops a walk in.
             if post { for y in (S + 1)...(S + 3) { put(dx, y, dz, con) } }
+            // P475 (Oct 27 18:50, "Boreal Station still doesn't have its gate"; 19:11 at a depot: "I see some gates here.
+            // Why wasn't the gate used at the Boreal station?"): on new ground the yard is fenced as a depot's is, chain
+            // link on the posts with barbed wire along the top, and the road comes in through a gate under a lintel.
+            if p475 {
+                if post { put(dx, S + 4, dz, g("bunker_concrete_slab", con)) } else {
+                    for y in (S + 1)...(S + 3) { put(dx, y, dz, g("chain_link_fence", bars)) }
+                    put(dx, S + 4, dz, g("ash_wire", AIR))
+                }
+            }
             if abs(dx) == Y && abs(dz) == Y {
                 for y in (S + 4)...(S + 5) { put(dx, y, dz, steel) }
                 put(dx, S + 6, dz, panel)
             }
         }
         for dx in [-9, -2] { for y in (S + 1)...(S + 4) { put(dx, y, Y, y == S + 4 ? panel : hazard) } }
+        if p475 { for dx in -9...(-2) { put(dx, S + 5, Y, dx == -9 || dx == -2 ? steel : hazard) } }      // (the gate's lintel)
+        if p475 { for (dx, ly, dz) in CeilingGuns.spots { put(dx, F + ly, dz, g(CeilingGuns.key, AIR)) } }     // P475: the ring's ceiling guns
         // Gatehouse inside the gate (east of the road): a concrete hut with glass on three sides.
         for dz in (Y - 4)...(Y - 1) { for dx in -1...3 {
             let wall = dx == -1 || dx == 3 || dz == Y - 4 || dz == Y - 1

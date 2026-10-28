@@ -127,6 +127,18 @@ extension Game {
         return true
     }
 
+    // P475 (Oct 27 18:58: "I can sit at the oak chair, but I can't use the gun. There's no gun to be used here... I still
+    // have to drive or climb up to the gun"): the chair at a gun room's computer works the gun as the computer does
+    // (he sits in it, and is back in it when he leaves the gun). False when no computer beside it has a gun to work.
+    func gunChairUse(_ c: IVec3) -> Bool {
+        for (dx, dz) in [(0, 1), (0, -1), (1, 0), (-1, 0)] {
+            let p = IVec3(c.x + dx, c.y, c.z + dz)
+            let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
+            if (k == "command_console" || k == "greywall_terminal") && gunChair(p) == c && stationGunUse(p) { return true }
+        }
+        return false
+    }
+
     // The chair at a computer (a seat beside it, on its level), if any.
     func gunChair(_ p: IVec3) -> IVec3? {
         for (dx, dz) in [(0, 1), (0, -1), (1, 0), (-1, 0)] {
