@@ -199,6 +199,7 @@ enum Townsfolk {
         let said = "\(v.person ?? "Townsperson"): \(line)"
         if !(TownVoice.play(g, m, line) && AudioSettings.subtitles) { g.onToast?(said) } else { g.logMessage(said) }   // P421: the caption too
         townLastLine = g.clock
+        if v.metDay == nil { m.villager?.metDay = Int(g.time / DAY_LENGTH) }          // P478: now they've met
     }
     static var townLastLine: Double = -100
 

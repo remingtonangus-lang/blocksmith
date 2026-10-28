@@ -358,7 +358,9 @@ extension Honour {
             Townsfolk.say(g, m, "Good to see you, \(name). " + t)
             return true
         }
-        if Rand.float(in: 0..<1) < 0.5 { Townsfolk.say(g, m, Townsfolk.pick(["Good to see you again, \(name).", "Howdy, \(name)!", "Evening, \(name). Stay safe out there."], UInt64(v.look ?? 0) &+ UInt64(Int(g.clock)))); return true }
+        // (P478: "again" only from someone he met on an earlier day)
+        let again = (v.metDay ?? Int.max) < Int(g.time / DAY_LENGTH)
+        if Rand.float(in: 0..<1) < 0.5 { Townsfolk.say(g, m, Townsfolk.pick([again ? "Good to see you again, \(name)." : "Well met, \(name).", "Howdy, \(name)!", "Evening, \(name). Stay safe out there."], UInt64(v.look ?? 0) &+ UInt64(Int(g.clock)))); return true }
         return false
     }
     static var giftsGiven = 0

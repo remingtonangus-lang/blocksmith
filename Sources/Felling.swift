@@ -5,8 +5,7 @@ import simd
 //   the cut     breaking a log under a tree (logs above it with their leaves, resting on nothing else) fells it: the
 //               trunk and crown come loose as one body (a Ship named Felled Tree, held upright by nothing) and topple
 //               away from the woodsman with a creak, then land with a crash and a rustle of leaves.
-//   the crown   once it lies still the leaves drop away (falling leaf bits, a sapling or a stick now and then, as a
-//               decaying crown gives) and the bare trunk is left lying.
+//   the crown   stays on the fallen tree, branches and leaves (P478; it used to drop away once the tree lay still).
 //   the trunk   a fallen trunk is chopped where it lies (each log mined drops a log), or, up to 24 logs, picked up
 //               with an empty hand (use) and carried in front of you as a whole; use again sets it down (thrown a
 //               little the way you look). Logs float.
@@ -275,7 +274,9 @@ extension Game {
             }
             let resting = simd_length(s.vel) < 0.4 && simd_length(s.angVel) < 0.25
             f.still = resting ? f.still + dt : 0
-            if (f.still > 1.5 && f.age > 2) || f.age > 9 { shedLeaves(f) }
+            // P478 (Oct 27 18:47: "I don't want the branches and shit to disappear after the log falls"): the crown stays
+            // on the fallen tree; it used to drop away once the tree lay still, leaving the bare trunk.
+            if (f.still > 1.5 && f.age > 2) || f.age > 9 { f.age = -1 }
         }
         Felling.falls.removeAll { $0.ship == nil || $0.age < 0 }
         // The carried trunk: held 2 blocks ahead at chest height, out of everyone's way.
@@ -291,41 +292,6 @@ extension Game {
             s.rot = simd_slerp(s.rot, target, min(1, dt * 8))
             s.angVel = .zero
         }
-    }
-
-    // The crown falls away: the bare trunk (logs only) replaces the tree where it lies.
-    private func shedLeaves(_ f: Felling.Fall) {
-        f.age = -1                                           // (done with this fall)
-        guard let s = f.ship else { return }
-        let g = s.grid
-        let bp = Blueprint()
-        var lo = IVec3(Int.max, Int.max, Int.max)
-        var leafCells: [(IVec3, BlockID)] = []
-        for i in 0..<g.blocks.count where g.blocks[i] != AIR {
-            let c = IVec3(i % g.sx, i / (g.sx * g.sz), (i / g.sx) % g.sz)
-            if CapitalBase.isLeaf(g.blocks[i]) { leafCells.append((c, g.blocks[i])); continue }
-            bp.cells[c] = g.blocks[i]
-            lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z))
-        }
-        guard !leafCells.isEmpty else { return }
-        // Leaf bits fluttering down, and what a decaying crown gives now and then.
-        for (k, (c, b)) in leafCells.enumerated() {
-            let at = s.toWorld(V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5)
-            if k % 3 == 0 { particles.blockBreak(b, at: IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z)))) }
-            if survival { for st in Mining.drops(b, .empty) { drops.spawn(st, at: at) } }
-        }
-        sfx(.plantBrush, 1.2, at: s.pos)
-        guard !bp.cells.isEmpty else { world.ships.remove(s); return }
-        let t = world.ships.spawn(bp, at: s.pos, yaw: 0, name: Felling.name, role: "")
-        t.role = nil
-        t.rot = s.rot
-        t.pos = s.pos + s.rot.act(V3(Float(lo.x), Float(lo.y), Float(lo.z)) - s.com + t.com)
-        t.prevPos = t.pos; t.prevRot = t.rot
-        t.vel = s.vel; t.angVel = s.angVel
-        t.updateBounds()
-        t.initialBlocks = t.blockCount
-        Felling.inherit(s, t)
-        world.ships.remove(s)
     }
 
     // Ship interaction (use) on a felled trunk: pick it up (empty hand or a non-block item), or set the carried one down.

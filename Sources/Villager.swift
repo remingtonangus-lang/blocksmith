@@ -44,6 +44,7 @@ struct VillagerData: Codable {
     var gossipDay: Int? = nil            // last day gossip decayed
     // Townsfolk (Townsfolk.swift, Shops.swift): who they are and what they sell.
     var person: String? = nil            // "Clara Whitlock"
+    var metDay: Int? = nil               // P478: the day he first heard this one speak (TownVoice.fits)
     var town: String? = nil              // "Cedar Ford"
     var role: String? = nil              // shopkeeper, deputy, farmer, craftsman, worker, elder, child
     var look: Int? = nil                 // appearance seed (skin, hair, clothes)

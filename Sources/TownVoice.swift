@@ -185,15 +185,43 @@ enum TownVoice {
                                            "Animals are in. Day's done.", "Getting late. I'm turning in."]
     static func isLate(_ dayFraction: Double) -> Bool { dayFraction > 0.62 && dayFraction < 0.97 }
 
-    static func line(_ ctx: Ctx, _ m: Mob, late: Bool = false) -> (String, Int)? {
+    // P478 (Oct 27 19:20, a shopkeeper's greeting: "This guy saying good to see you again is wrong 'cause I've never seen
+    // this guy before. It needs a logic behind it"; a woman at night: "I don't have a horse, so she can only say that line
+    // if I have a horse with me"): lines that say they know him only from someone he met on an earlier day, and lines
+    // about his horse only when one is with him (ridden, or his own within 32 blocks).
+    static let familiar: Set<String> = ["Back again? Town must agree with you.", "Good to see you again.", "Look who's still breathing. Glad of it.",
+                                        "Hey! Weren't you here last week? Thought so.", "Welcome back! I saved you the good stuff.",
+                                        "Ah, you again. Your money's always welcome.", "Ah, a regular! Usual?", "Hmph. You again.",
+                                        "Good to see you again, friend.", "There's our favourite traveller!", "Supper's on me next time."]
+    static let horseOwner: Set<String> = ["Lock up your horse. Thieves love a moonless night.", "Go on, then. Don't fall off your horse.",
+                                          "I'll board your horse for a fair price."]
+    static func fits(_ g: Game?, _ m: Mob, _ text: String) -> Bool {
+        guard let g = g else { return true }
+        if familiar.contains(text) {
+            guard let met = m.villager?.metDay, met < Int(g.time / DAY_LENGTH) else { return false }
+        }
+        if horseOwner.contains(text) && !hasHorse(g) { return false }
+        return true
+    }
+    static func hasHorse(_ g: Game) -> Bool {
+        if let r = g.riding, r.gaited { return true }
+        let p = g.player.pos
+        return g.mobs.mobs.contains { $0.gaited && $0.owner == true && $0.health > 0 && simd_distance_squared($0.pos, p) < 32 * 32 }
+    }
+
+    static func line(_ ctx: Ctx, _ m: Mob, late: Bool = false, game: Game? = nil) -> (String, Int)? {
         let vk = voice(m)
         guard var ids = index[vk]?[ctx], !ids.isEmpty else { return nil }
         // P468: lines not voiced yet (the second book before tools/townvoice_gen.py has run) wait for their takes.
         let voiced = ids.filter { clip(takes[$0].key) != nil }
         if !voiced.isEmpty { ids = voiced }
+        if game != nil {
+            let fit = ids.filter { fits(game, m, takes[$0].text) }
+            if !fit.isEmpty { ids = fit }
+        }
         if late && ctx == .night {
             ids = ids.filter { !eveningOnly.contains(takes[$0].text) }
-            if ids.isEmpty { return line(index[vk]?[.closed]?.isEmpty == false ? .closed : .greet, m) }
+            if ids.isEmpty { return line(index[vk]?[.closed]?.isEmpty == false ? .closed : .greet, m, game: game) }
         }
         var pick = ids[Rand.int(in: 0...(ids.count - 1))]
         if ids.count > 1 && pick == lastTake[vk] { pick = ids[(ids.firstIndex(of: pick)! + 1) % ids.count] }
@@ -209,11 +237,11 @@ enum TownVoice {
         // P474 (Oct 26 19:29-19:58, "Why aren't they talking? I don't hear them... You're not talking"): only when that
         // line has a recorded take in this voice; TownLines' lines are written, not recorded, so half of every greeting
         // and chatter (and most at night or in the rain) was a caption with no voice.
-        if let text = TownLines.line(g, m, ctx), hasTake(m, text) {
+        if let text = TownLines.line(g, m, ctx), hasTake(m, text), fits(g, m, text) {
             Townsfolk.say(g, m, text)
             return text
         }
-        guard let (text, _) = line(ctx, m, late: isLate(Double(g.dayFraction))) else { return nil }
+        guard let (text, _) = line(ctx, m, late: isLate(Double(g.dayFraction)), game: g) else { return nil }
         Townsfolk.say(g, m, text)
         return text
     }
