@@ -200,7 +200,7 @@ extension Game {
         guard let b = bobber else { return }
         if Items.key(held.item) != "fishing_rod" || (b.fight == nil && simd_length(b.pos - player.pos) > 32) { bobber = nil; return }
         let cell = world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y)), Int(floor(b.pos.z)))
-        b.inWater = Blocks.fluidKind[Int(cell)] == 1
+        b.inWater = Blocks.watery[Int(cell)]
         if let f = b.fight { fishFightTick(b, f, dt); return }
         if let m = b.hooked {
             b.pos = m.pos + V3(0, m.height * 0.8, 0)

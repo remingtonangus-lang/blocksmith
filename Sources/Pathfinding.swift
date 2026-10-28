@@ -172,7 +172,7 @@ enum PathFinder {
                 if k == 0 && top > 0.05 { supported = true }
             }
             let feet = blk(w, cx, y, cz)
-            if Blocks.fluidKind[Int(feet)] == 1 { wet = true; supported = true; continue }
+            if Blocks.watery[Int(feet)] { wet = true; supported = true; continue }
             if pr.climbs && pr.span == 1 && climbable(feet) { climb = true; supported = true }
             let below = blk(w, cx, y - 1, cz)
             if danger(below) { return nil }
@@ -359,7 +359,7 @@ enum PathFinder {
             if expanded > maxNodes { break }
             var flat: UInt8 = 0                                    // orthogonal neighbours reachable on the same level (bits)
             let feetHere = blk(w, p.x, p.y, p.z)
-            let lifted = pr.span == 1 && (pr.climbs && climbable(feetHere) || Blocks.fluidKind[Int(feetHere)] == 1)
+            let lifted = pr.span == 1 && (pr.climbs && climbable(feetHere) || Blocks.watery[Int(feetHere)])
             for (di, (dx, dz)) in dirs.enumerated() {
                 let qx = p.x + dx, qz = p.z + dz
                 if blocked && qx == goal.x && qz == goal.z { continue }        // not over the goal block
@@ -398,11 +398,11 @@ enum PathFinder {
             // Ladders / vines straight up and down; swimming up and down.
             if pr.span == 1 {
                 let feet = blk(w, p.x, p.y, p.z)
-                let wet = Blocks.fluidKind[Int(feet)] == 1
+                let wet = Blocks.watery[Int(feet)]
                 if pr.climbs && climbable(feet) || wet {
                     if open(w, p.x, p.z, p.y + pr.tall, p.y + pr.tall + 1), let c = standCost(w, p.x, p.y + 1, p.z, pr) { add(i, IVec3(p.x, p.y + 1, p.z), c) }
                     let down = blk(w, p.x, p.y - 1, p.z)
-                    if (pr.climbs && climbable(down)) || Blocks.fluidKind[Int(down)] == 1, let c = standCost(w, p.x, p.y - 1, p.z, pr) { add(i, IVec3(p.x, p.y - 1, p.z), c) }
+                    if (pr.climbs && climbable(down)) || Blocks.watery[Int(down)], let c = standCost(w, p.x, p.y - 1, p.z, pr) { add(i, IVec3(p.x, p.y - 1, p.z), c) }
                 }
             }
         }

@@ -2221,13 +2221,25 @@ final class World {
     static let lavaMeet = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0), IVec3(0, 1, 0)]   // (P412 (d): and lava over it)
     static let allDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
     var onFluidEvent: ((IVec3) -> Void)?     // lava/water reactions (sound)
+    var onFuelLit: ((IVec3) -> Void)?        // P478: fuel caught alight (sound)
+
+    // P478: fuel set alight: the cell burns as fire, and the fuel round it ticks soon, sees the fire and catches too,
+    // so the flame runs through a pool or a tank a cell every quarter second.
+    func igniteFuel(_ q: IVec3) {
+        setBlockAsync(q.x, q.y, q.z, FIRE)
+        fires[q] = 0
+        scheduleFluid(around: q)
+        onFuelLit?(q)
+    }
+    @inline(__always) static func burns(_ b: BlockID) -> Bool { b == FIRE || Blocks.fluidKind[Int(b)] == 2 || b == World.soulFireID }
+    static let soulFireID: BlockID = Blocks.has("soul_fire") ? Blocks.id("soul_fire") : FIRE
 
     func scheduleFluid(around p: IVec3) {
         let fk = Blocks.fluidKind
         var water = false, lava = false
         for q in [p] + World.allDirs.map({ p + $0 }) {
             let k = fk[Int(builtBlock(q.x, q.y, q.z))]
-            if k == 1 { water = true } else if k == 2 { lava = true }
+            if k == 1 || k == 3 { water = true } else if k == 2 { lava = true }       // (fuel runs with the water: P478)
         }
         if water { fluidPending.insert(p); for d in World.allDirs { fluidPending.insert(p + d) } }
         if lava { lavaPending.insert(p); for d in World.allDirs { lavaPending.insert(p + d) } }
@@ -2328,8 +2340,8 @@ final class World {
         let limit = timed ? min(World.fluidBudget, max(64, 2 * (lava ? lavaDone : fluidDone))) : World.fluidBudget
         let batch = lava ? lavaPending.take(limit) : fluidPending.take(limit)
         let lvT = Blocks.fluidLevel, fkT = Blocks.fluidKind
-        let kind: UInt8 = lava ? 2 : 1
-        let flow = lava ? LAVA_FLOW : WATER_FLOW, fall = lava ? LAVA_FALL : WATER_FALL
+        var kind: UInt8 = lava ? 2 : 1
+        var flow = lava ? LAVA_FLOW : WATER_FLOW, fall = lava ? LAVA_FALL : WATER_FALL
         let stepLevel = lava && !dim.ultrawarm ? 2 : 1
         let t0 = CFAbsoluteTimeGetCurrent()
         if lava { lavaDone = batch.count } else { fluidDone = batch.count }
@@ -2343,9 +2355,18 @@ final class World {
             if !activeHere(p) { park(fluid: p, lava: lava); continue }     // P376: waits for the player to come near
             FarTicks.note(self, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             let cur = fluidCell(p.x, p.y, p.z)
-            guard fkT[Int(cur)] == kind else { continue }
+            let ck = fkT[Int(cur)]
+            // P478: the water pass runs fuel too, each cell with its own kind's states.
+            guard lava ? ck == 2 : (ck == 1 || ck == 3) else { continue }
+            if !lava && ck != kind { kind = ck; flow = ck == 3 ? FUEL_FLOW : WATER_FLOW; fall = ck == 3 ? FUEL_FALL : WATER_FALL }
             var lv = Int(lvT[Int(cur)])
-            if !lava {
+            if kind == 3 {
+                // Fuel beside (or under) fire or lava catches.
+                var lit = false
+                for d in World.lavaMeet where World.burns(fluidCell(p.x + d.x, p.y + d.y, p.z + d.z)) { lit = true; break }
+                if lit { igniteFuel(p); continue }
+            }
+            if kind == 1 {
                 // R17 ("obsidian forms quickly"): water reaching lava hardens it now, not on the lava's own 1.5 s tick
                 // after a wait in its queue: a source to obsidian, a flow to cobblestone.
                 for d in World.lavaMeet {
@@ -2370,6 +2391,8 @@ final class World {
                     onFluidEvent?(p)
                     continue
                 }
+                // P478: lava sets fuel it touches alight.
+                for d in World.lavaMeet where fkT[Int(fluidCell(p.x + d.x, p.y + d.y, p.z + d.z))] == 3 { igniteFuel(p + d) }
                 // Basalt generator (reference): lava over soul soil beside blue ice turns to basalt.
                 if World.basaltID != AIR && materialAt(p.x, p.y - 1, p.z) == World.soulSoilID {
                     var ice = false
@@ -2399,7 +2422,7 @@ final class World {
                         best = min(best, n == 8 ? 0 : n)
                     }
                     let below = fluidCell(p.x, p.y - 1, p.z)
-                    if !lava && sources >= 2 && (Blocks.opaque[Int(below)] || (lvT[Int(below)] == 0 && fkT[Int(below)] == kind)) { want = 0 }
+                    if kind == 1 && sources >= 2 && (Blocks.opaque[Int(below)] || (lvT[Int(below)] == 0 && fkT[Int(below)] == kind)) { want = 0 }
                     else if best + stepLevel > 7 { want = -1 }
                     else { want = best + stepLevel }
                 }
@@ -2518,6 +2541,7 @@ final class World {
             for d in World.allDirs {
                 let q = p + d
                 let nb = block(q.x, q.y, q.z)
+                if Blocks.fluidKind[Int(nb)] == 3 { anyFlammable = true; igniteFuel(q); continue }     // P478: fuel catches at once
                 // Blocks holding items (barrels, chiseled bookshelves, lecterns) don't burn away: their contents were
                 // left behind with no block to open.
                 guard fl[Int(nb)], blockEntities[q] == nil else { continue }

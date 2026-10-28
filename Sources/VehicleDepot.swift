@@ -12,7 +12,7 @@ import simd
 //             take a garaged one out beside the Works, or recall one from anywhere for $50 (it's brought by road).
 // Fuel and the garage are kept with the world (TownLaw.state.vehicleFuel, garage).
 enum VehicleDepot {
-    static let canKey = "fuel_can", pumpKey = "fuel_pump"
+    static let canKey = "fuel_can", pumpKey = "fuel_pump", bucketKey = "fuel_bucket"
     static let burnSeconds: Float = 1200
     static let fumes: Float = 0.15, low: Float = 0.2
     static let pumpReach: Float = 14, garageReach: Float = 24
@@ -83,24 +83,43 @@ enum VehicleDepot {
     // useGadget: a Fuel Can at the helm or beside your vehicle.
     static func useCan(_ g: Game) -> Bool {
         guard !g.held.isEmpty, Items.key(g.held.item) == canKey else { return false }
+        return pourIn(g, bucket: false)
+    }
+
+    // P478: Game.useBucket: a bucket of fuel at the helm or beside his vehicle goes in as a can does (the empty bucket
+    // back); with no vehicle near it pours out as the liquid (false).
+    static func pourBucket(_ g: Game) -> Bool {
+        guard !g.held.isEmpty, Items.key(g.held.item) == bucketKey else { return false }
+        return pourIn(g, bucket: true)
+    }
+
+    private static func pourIn(_ g: Game, bucket: Bool) -> Bool {
+        let what = bucket ? "a bucket" : "a can"
+        func used() {
+            guard g.survival else { return }
+            if bucket { g.inventory.held = ItemStack(Items.id("bucket"), 1) } else { g.consumeHeld() }
+        }
         // P461: a dropship of his (at its helm or within 6 blocks of its hull) takes a can as a third of its tank.
         if let d = dropship(g, g.player.pos, 6), let st = g.world.ships.capState[d.id] {
             guard st.fuel < CapitalState.dropFuel - 1 else { g.onToast?("The \(d.name)'s tanks are full"); return true }
             st.fuel = min(CapitalState.dropFuel, st.fuel + ShipManager.canFuel)
-            if g.survival { g.consumeHeld() }
+            used()
             refuels += 1
             g.sfx(.bucketEmpty, 0.8, at: g.player.pos)
-            g.onToast?("Poured in a can: fuel \(Int((st.fuel / CapitalState.dropFuel * 100).rounded()))%")
+            g.onToast?("Poured in \(what): fuel \(Int((st.fuel / CapitalState.dropFuel * 100).rounded()))%")
             return true
         }
         let s = g.world.ships.pilot.map { $0.root } ?? nearestVehicle(g, g.player.pos, 6)
-        guard let v = s, usesFuel(v) else { g.onToast?("No vehicle beside you"); return true }
+        guard let v = s, usesFuel(v) else {
+            if bucket { return false }
+            g.onToast?("No vehicle beside you"); return true
+        }
         guard level(v) < 0.99 else { g.onToast?("The \(v.name)'s tank is full"); return true }
         setLevel(v, level(v) + 0.5)
-        if g.survival { g.consumeHeld() }
+        used()
         refuels += 1
         g.sfx(.bucketEmpty, 0.8, at: g.player.pos)
-        g.onToast?("Poured in a can: fuel \(Int((level(v) * 100).rounded()))%")
+        g.onToast?("Poured in \(what): fuel \(Int((level(v) * 100).rounded()))%")
         return true
     }
 
@@ -197,6 +216,11 @@ extension ItemRegistry {
         d.sprite = Sprite(mask: "jerry_can", base: 0xB0322A, extras: ["k": 0x2A2A2C])     // P365 (b)
         d.maxStack = 4
         add(d)
+        // P478: a bucket of fuel (from a pool or a depot's tank): poured out as the liquid, or into his vehicle.
+        var b = ItemDef(VehicleDepot.bucketKey, "Fuel Bucket")
+        b.sprite = Sprite(mask: "bucket", base: 0xC8C8C8, extras: ["c": 0x6A4210])
+        b.maxStack = 1
+        add(b)
     }
 }
 
@@ -207,6 +231,18 @@ extension BlockRegistry {
         d.tex = ["fuel_pump_side", "fuel_pump_side", "ship_metal", "ship_metal", "fuel_pump_front", "fuel_pump_side"]
         d.hardness = 3; d.resistance = 5; d.tool = .pickaxe; d.requiresTool = true; d.sound = .stone
         add(d)
+    }
+
+    // P478: fuel, 9 states as water (source, flowing 1-7, falling); the source is the creative palette's fuel block.
+    func registerFuel() {
+        guard !has("fuel") else { return }
+        for k in 0...8 {
+            var f = BlockDef(k == 0 ? "fuel" : (k == 8 ? "fuel_falling" : "fuel_\(k)"), "Fuel")
+            f.render = .liquid; f.layer = .translucent; f.tex = ["fuel"]; f.opaque = false; f.collide = false
+            f.skyStop = true; f.replaceable = true; f.fluid = Int8(k); f.fluidKind = 3; f.hardness = -1; f.hidden = k != 0
+            f.group = "fuel"; f.sound = .snow
+            add(f)
+        }
     }
 }
 
@@ -226,12 +262,42 @@ extension TextureGen {
             if rr > 2 && rr < 3.4 { return hex(0x1E1E22) }
             return hex(0xB0322A, 0.9 + 0.1 * r(x, y, 4412))
         }
+        // P478: fuel, dark amber, nearly opaque, a paler streak where the surface catches the light.
+        p["fuel"] = { x, y in
+            let v: Float = 0.85 + 0.15 * r(x / 2, y, 4413)
+            let streak = (x + 2 * y) % 11 == 0 ? Float(1.25) : 1
+            return hex(0x8A5A14, v * streak, 0.84)
+        }
+    }
+}
+
+extension HDTex {
+    // P478: fuel. Dark amber over oily swirls: where the warped bands crest, a faint sheen running from gold through
+    // green to violet, as oil on a puddle.
+    static func fuelHD(_ n: Int, _ s: Int) -> Img {
+        var img = Img(n)
+        let base = fbm(n, n / 2, 4, s &+ 11)
+        let wx = fbm(n, n / 4, 3, s &+ 13), wy = fbm(n, n / 4, 3, s &+ 14)
+        let f = warp(base, n, wx, wy, Float(n) * 0.18)
+        let amber = col(0x9A6416), deep = col(0x4E300A)
+        let sheenA = col(0xC8A040), sheenB = col(0x4E8A5A), sheenC = col(0x6A4E9A)
+        for i in 0..<(n * n) {
+            let band: Float = 0.5 + 0.5 * sinf(f[i] * 14)
+            var c: V3 = deep + (amber - deep) * (0.55 + 0.45 * base[i])
+            let crest: Float = band > 0.82 ? (band - 0.82) / 0.18 : 0
+            let hue: Float = f[i] * 3 - floor(f[i] * 3)
+            let sheen: V3 = hue < 0.33 ? sheenA : (hue < 0.66 ? sheenB : sheenC)
+            c = c + (sheen - c) * (0.35 * crest)
+            img.px[i] = V4(c.x, c.y, c.z, 0.84)
+        }
+        return img
     }
 }
 
 extension VehicleDepot {
     static func recipes() -> [Recipe?] {
         [Recipes.shapeless(["bucket", "cauldron", "iron_ingot", "iron_ingot"], pumpKey),
-         Recipes.shapeless(["bucket", "iron_ingot", "coal", "coal"], canKey)]
+         Recipes.shapeless(["bucket", "iron_ingot", "coal", "coal"], canKey),
+         Recipes.shapeless([bucketKey, "iron_ingot"], canKey)]          // P478: a can filled from a bucket of fuel (the bucket back)
     }
 }

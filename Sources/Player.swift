@@ -28,6 +28,7 @@ final class Player {
     var inLava = false
     var headInLava = false
     var headInWater = false
+    var inFuel = false, headInFuel = false   // P478: in fuel (it swims as water: inWater and headInWater hold too)
     var headAt: V3?                // the headset's eye in the world (VR), for headInWater (P188)
     var sneaking = false
     var ducking = false            // VR: the user physically crouched (QuestControls.roomScale): counts as sneaking
@@ -251,7 +252,7 @@ final class Player {
         if overUnloaded { airPeak = pos.y }
 
         // Pose: sprint-swim in water; crawl when there is no room to stand or sneak.
-        let wet = Blocks.fluidKind[Int(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 1
+        let wet = Blocks.watery[Int(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))]
         if swimming {
             if !(wet && input.sprint && input.forward > 0) || flying { swimming = false }
         } else if !flying && input.sprint && input.forward > 0 && headInWater { swimming = true }
@@ -298,7 +299,8 @@ final class Player {
 
         let feet = w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
         let body = w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + (prone ? 0.3 : 0.9))), Int(floor(pos.z)))
-        inWater = Blocks.fluidKind[Int(feet)] == 1 || Blocks.fluidKind[Int(body)] == 1
+        inWater = Blocks.watery[Int(feet)] || Blocks.watery[Int(body)]
+        inFuel = Blocks.fluidKind[Int(feet)] == 3 || Blocks.fluidKind[Int(body)] == 3
         inLava = Blocks.fluidKind[Int(feet)] == 2 || Blocks.fluidKind[Int(body)] == 2
         // P188 (Oct 13: "the underwater look only goes away once I'm completely out of the water"): on the headset the
         // real head (headAt, Game.vrHead) is tested, against the water's surface rather than its whole block: the top
@@ -306,9 +308,10 @@ final class Player {
         let e = headAt.map { simd_length($0 - eye) < 2.5 ? $0 : eye } ?? eye
         let hb = w.builtBlock(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z)))
         var headKind = Blocks.fluidKind[Int(hb)]
-        if headKind == 1 && Blocks.fluidKind[Int(w.builtBlock(Int(floor(e.x)), Int(floor(e.y)) + 1, Int(floor(e.z))))] != 1
+        if (headKind == 1 || headKind == 3) && Blocks.fluidKind[Int(w.builtBlock(Int(floor(e.x)), Int(floor(e.y)) + 1, Int(floor(e.z))))] != headKind
             && e.y - floor(e.y) > 0.85 { headKind = 0 }
-        headInWater = headKind == 1
+        headInWater = headKind == 1 || headKind == 3
+        headInFuel = headKind == 3
         headInLava = headKind == 2
         // Movement treats both fluids alike (lava is slower and heavier below); views, air and swimming are water only.
         let inFluid = inWater || inLava

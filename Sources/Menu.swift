@@ -379,7 +379,7 @@ final class CraftingGrid {
             let key = Items.key(s.item)
             s.count -= 1
             // Buckets give their bucket back.
-            if s.count <= 0 && (key == "water_bucket" || key == "lava_bucket" || key == "milk_bucket") { s = ItemStack(Items.id("bucket"), 1) }
+            if s.count <= 0 && (key == "water_bucket" || key == "lava_bucket" || key == "milk_bucket" || key == "fuel_bucket") { s = ItemStack(Items.id("bucket"), 1) }
             grid[i] = s
         }
         update()

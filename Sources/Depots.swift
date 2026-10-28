@@ -74,6 +74,7 @@ enum Depots {
         let lamp = g("corner_lamp", panel), door = g("bulkhead_door", g("iron_door")), crate = g("ammo_crate", steel)
         let drum = g("ash_drum", g("barrel")), box = g("ash_crate", crate), bags = g("ash_sandbags", g("gravel"))
         let ladder = g("ladder"), slab = g("bunker_concrete_slab", con), steelSlab = g("steel_plating_slab", steel)
+        let fuel = g("fuel", AIR)
         let tank = g("depot_tank", g("white_concrete")), band = g("depot_tank_band", g("red_concrete")), tanker = g("depot_tanker", dark)
         let pipeX = g("depot_pipe_x", g("iron_bars")), pipeZ = g("depot_pipe_z", g("iron_bars")), pipeY = g("depot_pipe_y", g("iron_bars"))
         let pallet = g("spruce_slab", g("oak_slab")), pump = g("fuel_pump", steel), railB = g("rail", AIR)
@@ -148,7 +149,8 @@ enum Depots {
                     guard d <= R else { continue }
                     let shell = d > R - 1.15
                     for y in 1...top {
-                        if shell { put(a, y, b, y == 8 ? band : tank) } else if y == top { put(a, y, b, tank) } else { put(a, y, b, AIR) }
+                        // P478: full to two below the roof with fuel (a bucket dips it through the hatch).
+                        if shell { put(a, y, b, y == 8 ? band : tank) } else if y == top { put(a, y, b, tank) } else { put(a, y, b, y <= top - 2 ? fuel : AIR) }
                     }
                     if shell { put(a, top + 1, b, rail) }
                     if !shell && d < 1.2 { put(a, top + 1, b, k == 1 ? pipeY : steel) }       // a vent on the roof
@@ -156,6 +158,7 @@ enum Depots {
                 // The ladder up the face toward the road, and a hatch on top.
                 for y in 1...top { put(ta + 6, y, tb, ladder + wallLowerA) }
                 put(ta + 5, top + 1, tb, AIR)
+                put(ta + 4, top, tb, AIR)                                   // (the hatch, open: P478)
                 // A pipe out of the tank's foot to the road (beside the ladder), up over it on the rack.
                 for a in (ta + 5)...16 { put(a, 2, tb + 2, pipeX) }
             }

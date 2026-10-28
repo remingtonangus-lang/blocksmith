@@ -325,13 +325,13 @@ extension Game {
             // W8: fish, axolotl and tadpole buckets pour their water and the creature in front.
             if releaseBucketMob(key, at: front) { c[slot] = ItemStack(Items.id("bucket"), 1) }
         case "fire_charge": projectiles.fireball(from: from, dir: fd, big: false, byPlayer: true); take(); sfx(.fireball, 0.5, at: from)
-        case "water_bucket", "lava_bucket":
-            if Blocks.replaceable[Int(fb)] { world.setBlock(front.x, front.y, front.z, key == "water_bucket" ? WATER : LAVA); c[slot] = ItemStack(Items.id("bucket"), 1) }
+        case "water_bucket", "lava_bucket", "fuel_bucket":
+            if Blocks.replaceable[Int(fb)] { world.setBlock(front.x, front.y, front.z, key == "water_bucket" ? WATER : (key == "fuel_bucket" ? FUEL : LAVA)); c[slot] = ItemStack(Items.id("bucket"), 1) }
         case "bucket" where Blocks.key(fb) == "powder_snow":
             world.setBlock(front.x, front.y, front.z, AIR); c[slot] = ItemStack(Items.id("powder_snow_bucket"), 1)
             sfx(.bucketFill, 0.8, at: from)
         case "bucket":
-            if fb == WATER || fb == LAVA { world.setBlock(front.x, front.y, front.z, AIR); c[slot] = ItemStack(Items.id(fb == WATER ? "water_bucket" : "lava_bucket"), 1) }
+            if fb == WATER || fb == LAVA || fb == FUEL { world.setBlock(front.x, front.y, front.z, AIR); c[slot] = ItemStack(Items.id(fb == WATER ? "water_bucket" : (fb == FUEL ? "fuel_bucket" : "lava_bucket")), 1) }
         case "flint_and_steel":
             if fb == AIR { world.placeFire(front) } else if Blocks.key(fb) == "tnt" { world.setBlock(front.x, front.y, front.z, AIR); tnts.prime(at: front) }
             stack.damage += 1; c[slot] = stack.damage >= stack.def.durability ? .empty : stack

@@ -580,7 +580,13 @@ extension Game {
         let body = world.builtBlock(Int(floor(p.x)), Int(floor(p.y + 1)), Int(floor(p.z)))
         let under = world.materialAt(Int(floor(p.x)), Int(floor(p.y - 0.1)), Int(floor(p.z)))
         let inLava = Blocks.fluidKind[Int(feet)] == 2 || Blocks.fluidKind[Int(body)] == 2
-        if player.inWater && !inLava { onFire = 0 }
+        if player.inWater && !inLava && !player.inFuel { onFire = 0 }
+        // P478: fuel puts nothing out: a burning body sets the fuel round it alight.
+        if onFire > 0 && player.inFuel {
+            for c in [feet, body].indices where Blocks.fluidKind[Int([feet, body][c])] == 3 {
+                world.igniteFuel(IVec3(Int(floor(p.x)), Int(floor(p.y + (c == 0 ? 0.1 : 1))), Int(floor(p.z))))
+            }
+        }
         contactTimer -= dt
         if contactTimer <= 0 {
             var dmg = 0

@@ -44,7 +44,7 @@ extension Game {
     // What a used-up grid item leaves behind (reference remainders).
     static func craftRemainder(_ s: ItemStack) -> ItemStack {
         let k = Items.key(s.item)
-        if k == "water_bucket" || k == "lava_bucket" || k == "milk_bucket" || k == "powder_snow_bucket" { return ItemStack(Items.id("bucket"), 1) }
+        if k == "water_bucket" || k == "lava_bucket" || k == "milk_bucket" || k == "powder_snow_bucket" || k == "fuel_bucket" { return ItemStack(Items.id("bucket"), 1) }
         let potion = Potions.potion(of: s.item).map { $0.form == 0 } ?? false
         if k == "honey_bottle" || k == "dragon_breath" || potion {
             return Items.has("glass_bottle") ? ItemStack(Items.id("glass_bottle"), 1) : .empty

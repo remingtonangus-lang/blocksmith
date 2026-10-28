@@ -619,6 +619,7 @@ enum Recipes {
         switch k {
         case "coal_block": return 16000
         case "lava_bucket": return 20000
+        case "fuel_bucket": return 16000                  // P478
         case "blaze_rod": return 2400
         // Reference burn times the per-sound default (every wooden-sounding block 300) got wrong (fidelity audit).
         case "dried_kelp_block": return 4001

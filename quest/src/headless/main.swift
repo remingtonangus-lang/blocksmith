@@ -1842,6 +1842,11 @@ if CommandLine.arguments.contains("--gunners") {
     GunnerCheck.run(game, check)
     print(failures == 0 ? "gunners: all checks passed" : "gunners: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --fuelcheck: P478's fuel liquid (Sources/FuelCheck.swift).
+if CommandLine.arguments.contains("--fuelcheck") {
+    FuelCheck.run(game, check)
+    print(failures == 0 ? "fuelcheck: all checks passed" : "fuelcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --p478: P478, townsfolk lines that fit, hyper flight, the palette (Sources/P478Check.swift).
 if CommandLine.arguments.contains("--p478") {
     P478Check.run(game, check)

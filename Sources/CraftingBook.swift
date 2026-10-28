@@ -104,7 +104,7 @@ enum CraftBook {
                 let key = Items.key(s.item)
                 s.count -= n
                 // Buckets give their bucket back, bottles their bottle.
-                if key == "water_bucket" || key == "lava_bucket" || key == "milk_bucket" { returns.append(ItemStack(Items.id("bucket"), n)) }
+                if key == "water_bucket" || key == "lava_bucket" || key == "milk_bucket" || key == "fuel_bucket" { returns.append(ItemStack(Items.id("bucket"), n)) }
                 if key == "honey_bottle", Items.has("glass_bottle") { returns.append(ItemStack(Items.id("glass_bottle"), n)) }
                 inv[j] = s.count > 0 ? s : .empty
             }
