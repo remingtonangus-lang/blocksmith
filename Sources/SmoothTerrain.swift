@@ -569,13 +569,19 @@ extension Mesher {
             // P142: on smooth land the 8 blocks round a vertex are the block steps the field was rounded to, and their ao
             // drew a dark contour line at every step of a hillside (the terraced look). Occlusion from the 4x4x4 blocks
             // round the vertex instead: about half solid on any even slope, more in a hollow or under an overhang.
-            if fieldLike {
+            // P478 (Oct 27 18:45, "shadows getting baked into the polygon [ground] on the grass... the old issue we first
+            // had with the polygonal switch"): the same for the rounded blocks of an older world switched to polygons
+            // outside the overworld (the Deep, the hell band: no generator fields there), where the 8 corners still drew a
+            // dark smudge along every block step of the Ash Vault's grass.
+            if fieldLike || !leaves {
                 var cnt = 0
                 for j in 0..<4 { for k in 0..<4 { for i in 0..<4 {
                     cnt += Int(S[(cx + SO - 1 + i) + (cz + SO - 1 + k) * N + (cy + SO - 1 + j) * NN])
                 } } }
                 ao = 3 - min(3, max(0, (cnt - 42) / 5))
                 if stored != nil { ao = 3 - min(3, max(0, Int(floor((occF - 20) / 10)))) }   // (the same scale: cnt = (occF + 64) / 2)
+            }
+            if fieldLike {
                 // The vertex's own material (P142 blending: the shader blends a quad's corners): snow under a snow layer and
                 // turf where the ground faces up, else the commonest ground among its 8 blocks; -1 keeps the quad's own.
                 let up = -g.y / max(1e-6, simd_length(g))
