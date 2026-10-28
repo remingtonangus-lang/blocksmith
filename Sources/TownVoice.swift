@@ -195,14 +195,8 @@ enum TownVoice {
                                         "Good to see you again, friend.", "There's our favourite traveller!", "Supper's on me next time."]
     static let horseOwner: Set<String> = ["Lock up your horse. Thieves love a moonless night.", "Go on, then. Don't fall off your horse.",
                                           "I'll board your horse for a fair price."]
-    static func fits(_ g: Game?, _ m: Mob, _ text: String) -> Bool {
-        guard let g = g else { return true }
-        if familiar.contains(text) {
-            guard let met = m.villager?.metDay, met < Int(g.time / DAY_LENGTH) else { return false }
-        }
-        if horseOwner.contains(text) && !hasHorse(g) { return false }
-        return true
-    }
+    // (P478 lines sweep: every line's truth, these two lists among it, is LineTruth's.)
+    static func fits(_ g: Game?, _ m: Mob, _ text: String) -> Bool { LineTruth.fits(g, m, text) }
     static func hasHorse(_ g: Game) -> Bool {
         if let r = g.riding, r.gaited { return true }
         let p = g.player.pos
@@ -216,8 +210,9 @@ enum TownVoice {
         let voiced = ids.filter { clip(takes[$0].key) != nil }
         if !voiced.isEmpty { ids = voiced }
         if game != nil {
-            let fit = ids.filter { fits(game, m, takes[$0].text) }
-            if !fit.isEmpty { ids = fit }
+            // (P478 lines sweep: nothing fits, nothing said; it fell back to the untrue lines)
+            ids = ids.filter { fits(game, m, takes[$0].text) }
+            if ids.isEmpty { return nil }
         }
         if late && ctx == .night {
             ids = ids.filter { !eveningOnly.contains(takes[$0].text) }

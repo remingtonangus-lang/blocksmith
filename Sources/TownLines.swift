@@ -377,7 +377,9 @@ enum TownLines {
         else if TownLaw.heat(town) > 0 { urgent.append("robbery") }
         let f = g.dayFraction
         soft.append(f >= 0.95 || f < 0.07 ? "dawn" : (f < 0.42 ? "day" : (f < 0.56 ? "dusk" : "night")))
-        if g.weather.thunder > 0.3 { soft.append("storm") } else if g.weather.rain > 0.3 { soft.append("rain") }
+        // (P478: as it falls where they stand: no rain over a desert or a savanna, snow in the cold, so no rain talk there)
+        let wet = g.precipitation(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z))) == 1
+        if wet && g.weather.thunder > 0.3 { soft.append("storm") } else if wet && g.weather.rain > 0.3 { soft.append("rain") }
         if let r = g.riding, r.kind == .horse || r.gaited { soft.append("horseback") }
         if g.money >= 5000 { soft.append("rich") }
         // D21: how he looks and what he has just done (Deeds.swift).
@@ -412,7 +414,7 @@ enum TownLines {
         else { return nil }
         let r = role(m)
         var cands: [String] = []
-        for k in keys { for grp in groups(r) { for t in pools["\(grp)|\(k)"] ?? [] where !recentSet.contains(t) { cands.append(t) } } }
+        for k in keys { for grp in groups(r) { for t in pools["\(grp)|\(k)"] ?? [] where !recentSet.contains(t) && LineTruth.fits(g, m, t) { cands.append(t) } } }
         guard let t = cands.randomElement() else { return nil }
         remember(t)
         lastSaid = fill(t, g, m)

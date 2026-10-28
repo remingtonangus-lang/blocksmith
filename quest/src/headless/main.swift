@@ -1817,6 +1817,11 @@ if CommandLine.arguments.contains("--p478") {
     P478Check.run(game, check)
     print(failures == 0 ? "p478: all checks passed" : "p478: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --linetruth: P478's lines sweep, every line's claims true when said (Sources/LineTruthCheck.swift).
+if CommandLine.arguments.contains("--linetruth") {
+    LineTruthCheck.run(game, check)
+    print(failures == 0 ? "linetruth: all checks passed" : "linetruth: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--gunflight") {              // P449: the field gun's shell lands quickly
     GunFlightCheck.run(game, check)
     print(failures == 0 ? "gunflight: all checks passed" : "gunflight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
