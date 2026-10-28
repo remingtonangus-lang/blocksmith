@@ -104,7 +104,17 @@ extension Game {
             }
             if ground || Blocks.collide[Int(b)] && !Blocks.isLiquid(b) {
                 // Land in the cell above.
-                let at = IVec3(cell.x, cell.y + 1, cell.z)
+                // P484 (Oct 28 18:18, planks he built out: "It should fall... fall onto the ground and not despawn"): on a
+                // field world's drawn ground it settles in the first free cell where the ground was met (the cell the
+                // ground passes through when that is still open), and a block that comes down onto something it can't
+                // take the place of stacks up to 3 cells higher instead of popping into items.
+                func open(_ c: IVec3) -> Bool {
+                    guard c.y >= 0 && c.y < CH else { return false }
+                    let m = world.materialAt(c.x, c.y, c.z)
+                    return m == AIR || Blocks.replaceable[Int(m)] || Blocks.isLiquid(m)
+                }
+                var at = IVec3(cell.x, ground && open(cell) ? cell.y : cell.y + 1, cell.z)
+                for _ in 0..<3 where !open(at) { at.y += 1 }
                 f.dead = true
                 let key = Blocks.key(f.block)
                 let fell = f.start - Float(at.y)

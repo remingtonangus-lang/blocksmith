@@ -132,11 +132,14 @@ enum ShapeTrunks {
                     else if H <= 2 && rootBeside(ctx, x, bot, z) && !fallenRun(ctx, x, bot, z) { kind = 3 }     // a root beside a trunk's foot (upright or lying)
                     else if !vertical || H == 1 && lyingBeside(ctx, x, bot, z) { kind = 0 }   // a log lying on the ground
                     else if vertical && onRoots { kind = 4 }                           // P433: a mangrove's stump on its roots
-                    else if H <= 2 && SmoothTerrain.natural[under] { kind = 4 }    // P297: a tree's stump on the ground
+                    // P297: a tree's stump on the ground. P484 (Oct 28 18:17, "if I place an oak log, it shouldn't turn
+                    // into a tree stump"): only where the tree shows, a root lying out from its foot or the leaf mound of
+                    // a shrub over it; a log he set down on the grass is a log (built timber).
+                    else if H <= 2 && SmoothTerrain.natural[under] && treeFoot(ctx, x, bot, top, z) { kind = 4 }
                     // P433: a taller crownless trunk on natural ground with nothing built against it is a felled
                     // tree's stump too (its top fell away as one body), as thick as the tree it was; a post of a
                     // building (a log with a wall or floor beside it) keeps its full timber.
-                    else if vertical && SmoothTerrain.natural[under] && !builtBeside(ctx, x, bot, top, z) { kind = 4 }
+                    else if vertical && SmoothTerrain.natural[under] && !builtBeside(ctx, x, bot, top, z) && treeFoot(ctx, x, bot, top, z) { kind = 4 }
                     else { kind = 2 }                                               // a post (built timber)
                     if kind != 0 {
                         let rb: Float = kind == 1 ? treeRadius(H) : (kind == 4 ? treeRadius(max(5, H + 4)) : 0.45)
@@ -231,6 +234,18 @@ enum ShapeTrunks {
         guard gap > 0 else { return -1 }
         let b = ctx.column(x, c, z)
         return isLog[Int(b)] && axisOf[Int(b)] == 1 ? c : -1
+    }
+    // P484: a run that was a tree: a root lying out from its foot (WorldGenTrees roots, a mangrove's root blocks), or
+    // leaves on or round its top (a shrub's mound).
+    static func treeFoot(_ ctx: DetailContext, _ x: Int, _ bot: Int, _ top: Int, _ z: Int) -> Bool {
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            for dy in [0, -1] {
+                let b = Int(ctx.column(x + dx, bot + dy, z + dz))
+                if isRoot[b] || isLog[b] && axisOf[b] != 1 { return true }
+            }
+        }
+        for dz in -1...1 { for dx in -1...1 where Mesher.leafT[Int(ctx.column(x + dx, top + 1, z + dz))] { return true } }
+        return false
     }
     // P433: something built (not ground, log, leaf or plant) against a run's side at any of its heights.
     static func builtBeside(_ ctx: DetailContext, _ x: Int, _ bot: Int, _ top: Int, _ z: Int) -> Bool {

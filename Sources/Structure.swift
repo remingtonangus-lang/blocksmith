@@ -550,6 +550,11 @@ enum Structure {
             let pc = w.pieces.remove(at: i)
             let (lo, hi) = boxes[ids.firstIndex(of: i)!]
             g.debris.bits(pc.mat, at: (lo + hi) * 0.5, size: hi - lo, direction: V3(0, -1, 0), count: 6, speed: 0.3, seed: UInt32(truncatingIfNeeded: i &* 2654435761))
+            // P484 (Oct 28 18:18, his planks roof: "the block just breaks... It should fall... fall onto the ground and
+            // not despawn"): the piece comes down as its block and lands, to be picked up again.
+            let c = (lo + hi) * 0.5
+            if Blocks.collide[Int(pc.mat)] { g.falling.append(FallingBlock(V3(floor(c.x) + 0.5, floor(c.y), floor(c.z) + 0.5), pc.mat)) }
+            else if let it = Items.item(forBlock: pc.mat) { g.drops.spawn(ItemStack(it, 1), at: c) }
         }
         w.piecesChanged(at: p)
         fallen += dead.count
