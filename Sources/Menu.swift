@@ -366,6 +366,7 @@ final class CraftingGrid {
         update()
         if let sp = special {
             for i in 0..<grid.count where !grid[i].isEmpty && !sp.keep.contains(i) {
+                if let left = Jetpack.leftAfter(grid[i], result: sp.0) { grid[i] = left; continue }   // (the piece stays)
                 var s = grid[i]; s.count -= 1; grid[i] = s
             }
             update()

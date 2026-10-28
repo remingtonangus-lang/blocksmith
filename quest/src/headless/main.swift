@@ -1767,6 +1767,10 @@ if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled
     TreeProbeCheck.fellReal(game, check)
     print(failures == 0 ? "fellcheck: all checks passed" : "fellcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--jetplate") {             // P478: a jetpack strapped onto a chest piece
+    JetplateCheck.run(game, check)
+    print(failures == 0 ? "jetplate: all checks passed" : "jetplate: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--reportcheck") {           // P480: the bug and idea reporter (Reporter.swift)
     ReporterTests.run(game, check)
     print(failures == 0 ? "reportcheck: all checks passed" : "reportcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
