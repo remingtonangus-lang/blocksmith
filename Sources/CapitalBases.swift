@@ -30,6 +30,7 @@ struct BaseNoise {
     var kind: NoiseKind
     var power: Float
     var hostile: Bool
+    var byMob = false        // a soldier's own fire (P475: a Boreal Station's alarm listens for the player's noise only)
 }
 
 struct PatrolRecord: Codable {
@@ -183,11 +184,11 @@ extension Game {
     var bases: BaseWatch { BaseWatch.of(self) }
 
     // The noise bus: guns, cannon, turrets and explosions report here; citadels within hearing react.
-    func baseNoise(at p: V3, kind: NoiseKind, power: Float = 1, hostile: Bool = true) {
+    func baseNoise(at p: V3, kind: NoiseKind, power: Float = 1, hostile: Bool = true, byMob: Bool = false) {
         horseHears(at: p, kind: kind, power: power)        // a ridden horse spooks (HorseFeel.swift)
         monstersHear(at: p, kind: kind, power: power)      // D15: monsters come to look (MonsterHearing.swift)
         let b = bases
-        if b.noises.count < 48 { b.noises.append(BaseNoise(pos: p, kind: kind, power: power, hostile: hostile && !b.quiet)) }
+        if b.noises.count < 48 { b.noises.append(BaseNoise(pos: p, kind: kind, power: power, hostile: hostile && !b.quiet, byMob: byMob)) }
     }
 
     // MARK: Tick

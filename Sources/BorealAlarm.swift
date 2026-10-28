@@ -46,7 +46,9 @@ extension Game {
                 continue
             }
             var trigger: V3? = nil
-            for n in b.noises where n.hostile && BorealStation.insideSite(site, n.pos) { trigger = n.pos }
+            // (P475: not its own soldiers' fire: a Greywall-held station's roof gunner shooting at the surface moved the
+            // alarm there, and the men it sent from the deep rooms walked off toward a spot 18 blocks over their heads.)
+            for n in b.noises where n.hostile && !n.byMob && BorealStation.insideSite(site, n.pos) { trigger = n.pos }
             // A soldier of the station who can see a player inside it.
             let players = (0..<max(1, coop.seatCount)).map { coop.seatPlayer($0, self).pos }
             if survival, trigger == nil, let p = players.first(where: { BorealStation.insideSite(site, $0) }) {
@@ -95,7 +97,10 @@ extension Game {
                     let br = m.soldierBrain
                     br.ready = true
                     if !m.aggro { m.aggro = true; br.react = max(br.react, 0.5) }
-                    if fresh && !br.sees && sent.contains(ObjectIdentifier(m)) { br.lastSeen = site.src; br.seenAgo = min(br.seenAgo, 2) }
+                    if fresh && !br.sees && sent.contains(ObjectIdentifier(m)) {
+                        br.lastSeen = site.src; br.seenAgo = min(br.seenAgo, 2)
+                        m.unreachableTimer = 0                       // (P475: a way given up on behind a shut door, tried again)
+                    }
                     m.lockTime = max(m.lockTime, 20)
                 }
                 // The klaxon from the speaker nearest the player: hall, blockhouse or yard.
