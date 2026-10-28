@@ -11,6 +11,10 @@ enum TankSight {
     static var aim: V3?                          // the sight's point (nil: no sight to lay)
     static var elev: Float = 0                   // the first turret's elevation for that point
     static var laid = false                      // every turret bears on it
+    // P483 (Oct 28 17:35-17:36, at a frigate's helm: "the little guns just are not shooting where one would expect"): a
+    // warship's (a frigate's) guns are laid on the sight too; they followed the view's bearing and pitch.
+    static func sighted(_ s: Ship) -> Bool { !s.wheels.isEmpty || s.kinematic && s.isFlyingCapital }
+    static let shipReach: Float = 400
 }
 
 extension Game {
@@ -18,9 +22,9 @@ extension Game {
     func tankSightTick(_ s: Ship) {
         let ships = world.ships
         let tur = ships.turrets(of: s).filter { !$0.cannons.isEmpty && !VehicleGunners.manned($0) }   // (P478: not a gunner's)
-        guard !s.wheels.isEmpty, !tur.isEmpty else { TankSight.aim = nil; return }
+        guard TankSight.sighted(s), !tur.isEmpty else { TankSight.aim = nil; return }
         let o = player.eye, d = player.look
-        var t = TankSight.reach
+        var t = s.wheels.isEmpty ? TankSight.shipReach : TankSight.reach
         if let h = world.raycast(o, d, maxDist: t) {
             let c = V3(Float(h.hit.x), Float(h.hit.y), Float(h.hit.z)) + 0.5
             t = min(t, simd_length(c - o))
@@ -34,12 +38,18 @@ extension Game {
         for (i, tu) in tur.enumerated() {
             tu.aimAt = p
             let muzzle = tu.toWorld(tu.pivot)
+            // (the bearing in the hull's frame: a frigate's tick clears aimAt before the turrets turn)
+            if let par = tu.parent {
+                let l = par.dirToLocal(p - muzzle)
+                if l.x * l.x + l.z * l.z > 0.01 { tu.aimYaw = atan2f(-l.x, -l.z) }
+            }
             let v = p - muzzle
             let horiz = simd_length(V2(v.x, v.z))
             // P477 (Oct 27 19:27, the Works' tank: "Has a tendency to shoot upwards... Should be a straight shooter"): each
             // turret is laid for its own shell (a calibre gun's flat and fast one: CannonCalibre), not the old lobbed ball.
             let (sv, sg) = tu.shellFlight
-            let e: Float = horiz < 4 ? max(-0.2, min(0.6, player.pitch)) : max(-0.2, min(0.6, ShipManager.elevation(horiz, v.y, speed: sv, gravity: sg)))
+            let lo: Float = s.wheels.isEmpty ? tu.pitchMin : -0.2, hi: Float = s.wheels.isEmpty ? tu.pitchMax : 0.6     // (a frigate's guns: their own arcs)
+            let e: Float = horiz < 4 ? max(lo, min(hi, player.pitch)) : max(lo, min(hi, ShipManager.elevation(horiz, v.y, speed: sv, gravity: sg)))
             tu.gunPitch = e
             if i == 0 { TankSight.elev = e; s.gunPitch = e }
             let tf = tu.dirToWorld(V3(0, 0, -1))
@@ -51,12 +61,12 @@ extension Game {
 
     // shipInteract: the elevation the pilot's guns fire at.
     func pilotGunPitch(_ s: Ship) -> Float {
-        !s.wheels.isEmpty && TankSight.aim != nil ? TankSight.elev : player.pitch + 0.05
+        TankSight.sighted(s) && TankSight.aim != nil ? TankSight.elev : player.pitch + 0.05
     }
 
     // shipHUDLine: the sight's range and whether the gun is laid.
     func tankSightHUD(_ s: Ship) -> String? {
-        guard !s.wheels.isEmpty, let p = TankSight.aim else { return nil }
+        guard TankSight.sighted(s), let p = TankSight.aim else { return nil }
         return String(format: "  sight %.0f m %@", simd_length(p - player.eye), TankSight.laid ? "laid" : "traversing")
     }
 }

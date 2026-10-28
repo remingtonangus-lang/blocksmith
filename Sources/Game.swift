@@ -1124,7 +1124,7 @@ final class Game {
         if input.control || (p.l3 && !q.l3) || (player.moveYaw == nil && PadActions.autoSprint(ls, fdt)) { player.sprinting = true }
         // VR (head-relative stick, Player.moveYaw): a sprint holds in any direction the stick is pushed (Quest round 4).
         let push = player.moveYaw != nil ? (mi.forward * mi.forward + mi.strafe * mi.strafe).squareRoot() : mi.forward
-        mi.sprint = player.sprinting && push > 0.3 && !(survival && hunger <= 6) && eatProgress == 0
+        mi.sprint = player.sprinting && push > 0.3 && !(survival && hunger <= HungerRates.noSprint) && eatProgress == 0
         mi.spur = (p.l3 && !q.l3) || (input.control && !HorseFeel.controlWas)
         HorseFeel.controlWas = input.control
         if push <= 0.3 { player.sprinting = false }
@@ -1325,7 +1325,7 @@ final class Game {
            shipInteract(breakHeld: false, breakNow: false, useNow: true, sneak: false, dt: fdt) { mining = nil; return }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if !swung && !handsOnControls && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
-        if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
+        if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt, useHeld: useHeld) { return }
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
@@ -3466,6 +3466,8 @@ final class Game {
 //   walking 0 | swimming 0.01 a block | sprinting 0.04 a block (1,000 blocks: 10 points) | jump 0.03, sprint jump 0.1
 //   attack 0.1 | hit taken 0.1 | healing half a heart 4
 enum HungerRates {
+    // P483 (Oct 28 18:15, "Too hungry to sprint, Christ"): sprinting stops at 1.5 drumsticks (3), not 3 (6: reference).
+    static let noSprint = 3
     static let swim: Float = 0.01
     static let sprint: Float = 0.032         // per block; P274: a quarter faster sprint, so the drain a second stays as tuned (0.04 a block)
     static let jump: Float = 0.03

@@ -219,6 +219,7 @@ extension Game {
         let guns = ([s] + world.ships.turrets(of: s)).reduce(0) { $0 + $1.cannons.count }
         if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
         if guns > 0, let sight = tankSightHUD(s) { t += sight }                 // D42
+        if guns > 0, s.root.kinematic, let st = world.ships.capState[s.root.id], st.rounds >= 0 { t += "  rounds \(st.rounds)" }   // P483
         if let f = VehicleDepot.hud(s) { t += f }                                  // D44
         if s.root.role == "dropship", let st = world.ships.capState[s.root.id] {   // P461
             t += String(format: "  fuel %d%%", Int((st.fuel / CapitalState.dropFuel * 100).rounded()))
@@ -328,7 +329,7 @@ extension Game {
         let p = player.pos
         var best: Ship?
         var bd = Float.greatestFiniteMagnitude
-        for s in ships.list where s.parent == nil && !s.wrecked && s.helm != nil {
+        for s in ships.list where s.parent == nil && (!s.wrecked || s.captured && s.isFlyingCapital) && s.helm != nil {
             // Crewed vessels and Capital fliers only: near the player's own builds use keeps placing blocks.
             // P435 (Oct 24 15:51, the Ashguard sidecar: "Should be third person if I'm driving this thing"; he pushed it
             // about on foot instead): a sidecar's helm is taken from beside it too, which puts him in the chase view.
@@ -372,6 +373,7 @@ extension Game {
 
     func startPiloting(_ s: Ship) {
         let ships = world.ships
+        let downed = s.wrecked && s.captured && s.isFlyingCapital      // (P483: manned for its guns; it stays down)
 
         ships.pilot = s
         ships.aboard = s
@@ -379,7 +381,7 @@ extension Game {
         achieve("pilot_ship")
         if s.isVessel && !s.captured { achieve("capture_vessel") }
         s.captured = true
-        s.wrecked = false                // a new crew (the player) takes over
+        if !downed { s.wrecked = false } // a new crew (the player) takes over
         // P435 (Oct 24 15:41-15:43, "gun on the drop ship doesn't do enough damage", "doesn't do damage to buildings so
         // much... I wanna do way more damage to buildings"): flown by him, a dropship's autocannon fires as long as the
         // trigger is held, quicker, with heavier high-explosive rounds that blow holes in walls.
@@ -498,7 +500,7 @@ extension Game {
         onToast?(lines.isEmpty ? "A chart of the \(s.name). Nothing marked on it" : "Deck plan of the \(s.name). " + lines.joined(separator: "; "))
     }
 
-    func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float) -> Bool {
+    func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float, useHeld: Bool = false) -> Bool {
         let ships = world.ships
         ships.breakCooldown -= dt
         if let s = ships.pilot {
@@ -511,18 +513,32 @@ extension Game {
             let charged = breakNow && ships.playerMainGun(s, game: self)
             if charged { swing = 1 }
             if breakNow && ships.playerRail(s, pitch: pilotGunPitch(s), game: self) { swing = 1 }     // P455 (and the turrets)
+            if useNow && dropFromRacks(s) { swing = 1; return true }    // P278: the racks let go (DepthCharges.swift)
+            // P483 (Oct 28 17:36, "Should be a reticle to show where the big gun's pointed... Also probably some separate
+            // controls for the smaller guns"): at the helm of a ship with a Tidebreaker, attack is the big gun and use
+            // (held) the guns laid on the sight, firing as each reloads; attack fires them only while the big gun can't.
+            let tide = ships.gunState(s) != nil
+            let small = tide ? useHeld || breakNow && !charged : breakNow || (breakHeld && s.role == "dropship")
             // P93: in survival the guns use cannonballs from the pack, one a gun.
-            if breakNow || (breakHeld && s.role == "dropship") {         // (P435: the autocannon fires while held)
+            if small {                                                   // (P435: the autocannon fires while held)
                 let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }
                 let balls = survival && s.role == nil ? Wrecks.cannonballs(self) : Int.max
+                // P483 (Oct 28 17:40, at a dropship's helm: "there should also be a certain amount of ammo... Should have a
+                // really big magazine... They should run out of ammo eventually"): a war vessel's guns draw on its magazine.
+                let mag = s.root.kinematic && s.root.role != nil ? ships.capState[s.root.id] : nil
+                if let st = mag, st.rounds < 0 {
+                    st.rounds = Capital.magazine(s.root, barrels: ([s.root] + ships.turrets(of: s.root)).reduce(0) { $0 + $1.cannons.count })
+                }
                 if guns > 0 && balls < guns {         // a broadside takes one ball a gun ready
-                    onToast?(balls == 0 ? "No cannonballs" : "\(guns) guns ready, \(balls) cannonball\(balls == 1 ? "" : "s")")
+                    if breakNow || useNow { onToast?(balls == 0 ? "No cannonballs" : "\(guns) guns ready, \(balls) cannonball\(balls == 1 ? "" : "s")") }
+                } else if let st = mag, st.rounds <= 0 {
+                    if breakNow || useNow { onToast?("The magazine is empty"); sfx(.click, 0.5) }
                 } else {
-                    let fired = ships.fire(s, pitch: pilotGunPitch(s), game: self, laid: !s.wheels.isEmpty && TankSight.aim != nil)
+                    let fired = ships.fire(s, pitch: pilotGunPitch(s), game: self, laid: TankSight.sighted(s) && TankSight.aim != nil)
                     if fired > 0 { swing = 1; if survival && s.role == nil { Wrecks.useCannonballs(self, fired) } }
+                    if let st = mag { st.rounds = max(0, st.rounds - fired) }
                 }
             }
-            if useNow && dropFromRacks(s) { swing = 1 }                // P278: the racks let go (DepthCharges.swift)
             return true
         }
         // P268 (Oct 14 19:24, "still can't break blocks on the little drop ship"): on the Quest the hand's laser picks the

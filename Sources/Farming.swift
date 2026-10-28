@@ -579,7 +579,18 @@ extension Game {
         let feet = world.builtBlock(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
         let body = world.builtBlock(Int(floor(p.x)), Int(floor(p.y + 1)), Int(floor(p.z)))
         let under = world.materialAt(Int(floor(p.x)), Int(floor(p.y - 0.1)), Int(floor(p.z)))
-        let inLava = Blocks.fluidKind[Int(feet)] == 2 || Blocks.fluidKind[Int(body)] == 2
+        // P483 (Oct 28 17:54, in a cave: "I fell in lava, but it didn't hurt me on survival. It's 'cause it probably
+        // wasn't considered an entire lava block"): lava anywhere the body touches burns (the four corners of the
+        // body as well as its middle), and in a Polygons world the lava drawn down over the ground a little below the
+        // feet too (a flow drapes over the drawn ground below its own cell).
+        var inLava = Blocks.fluidKind[Int(feet)] == 2 || Blocks.fluidKind[Int(body)] == 2
+        if !inLava {
+            let hw = player.halfW * 0.9
+            let ys: [Float] = world.fieldTerrain ? [-0.25, 0.1, 1] : [0.1, 1]
+            scan: for dy in ys { for (dx, dz) in [(-hw, -hw), (hw, -hw), (-hw, hw), (hw, hw), (0, 0)] {
+                if Blocks.fluidKind[Int(world.builtBlock(Int(floor(p.x + dx)), Int(floor(p.y + dy)), Int(floor(p.z + dz))))] == 2 { inLava = true; break scan }
+            } }
+        }
         if player.inWater && !inLava && !player.inFuel { onFire = 0 }
         // P478: fuel puts nothing out: a burning body sets the fuel round it alight.
         if onFire > 0 && player.inFuel {

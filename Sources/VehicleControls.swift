@@ -12,7 +12,8 @@ import simd
 //                        Options > Controller > Flight Stick)
 //   warship              a commandeered frigate (P325): LS throttle and turn, RB / LB pitch the bow up and down (on
 //                        Quest the right stick's up/down, so the grips stay free, and its left/right turns her: P472),
-//                        RT the guns
+//                        RT the Tidebreaker (the guns while it reloads), LT held the deck guns on the sight (P483); a
+//                        crashed one he took is manned for its guns from the helm
 //   any                  A climb, B leave the helm
 enum VehicleControls {
     enum Kind { case boat, land, airship, aircraft, helicopter, warship, vtol }

@@ -167,7 +167,7 @@ final class CombatHUD {
             out.append(HudLine(text: "", x: bx, y: y0 + 34 * s, scale: s, bg: Settings.shared.badColor, box: V2(bw * tr.cabBrake, 5 * s)))
         }
         // Q2: the tank sight (D42) under the crosshair while a wheeled vehicle's gun is laid on it.
-        if let ship = g.world.ships.pilot, !ship.wheels.isEmpty, let p = TankSight.aim, g.menu == nil, VehicleControls.armed(g, ship) {
+        if let ship = g.world.ships.pilot, TankSight.sighted(ship), let p = TankSight.aim, g.menu == nil, VehicleControls.armed(g, ship) {
             let t = String(format: "%.0f m  %@", simd_length(p - g.player.eye), TankSight.laid ? "LAID" : "traversing")
             out.append(HudLine(text: t, x: cx - Float(Font.width(t)) * s / 2, y: cy + 22 * s, scale: s,
                                color: TankSight.laid ? Settings.shared.goodColor : V4(0.95, 0.75, 0.2, 1)))

@@ -83,6 +83,15 @@ extension Game {
     // Leashes draw as sagging ropes from the mob to the player's hand or the fence knot.
     func writeLeads(_ wr: inout EntityWriter, eye: V3) {
         let white = Int(Tex.id("smoke"))
+        // The Meridian frigates' winch lines (P483): a dark cable, square to the view, from the door down to the hook.
+        for (id, c) in FrigateBoarding.cables {
+            if clock - c.at > 0.25 { FrigateBoarding.cables[id] = nil; continue }
+            let a: V3 = c.top - eye
+            let b: V3 = V3(c.top.x, c.foot, c.top.z) - eye
+            let cr: V3 = simd_cross(b - a, (a + b) * 0.5) + V3(1e-5, 0, 0)
+            let side: V3 = simd_normalize(cr) * 0.045
+            wr.quad([a - side, a + side, b + side, b - side], [V2(0.4, 0.4), V2(0.6, 0.4), V2(0.6, 0.6), V2(0.4, 0.6)], white, V4(0.13, 0.12, 0.11, 1))
+        }
         for m in mobs.mobs where m.leashed {
             let from = m.pos + V3(0, m.height * 0.8, 0) + m.forward * m.halfW
             let to: V3

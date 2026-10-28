@@ -2874,7 +2874,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 // P360: hunger is a slim bar of ten segments (filled from the right, as the row was), wheat-coloured,
                 // sickly green under the hunger effect, pulsing when low; no food icons.
                 let by = yh + floor((isz - bh) / 2)
-                let pulse: Float = game.hunger <= 6 && game.alive ? 0.7 + 0.3 * sinf(Float(game.clock) * 6) : 1
+                let pulse: Float = game.hunger <= HungerRates.noSprint && game.alive ? 0.7 + 0.3 * sinf(Float(game.clock) * 6) : 1
                 let fill = (game.effects.has(.hunger) ? V4(0.55, 0.72, 0.36, 1) : V4(0.87, 0.66, 0.3, 1)) * V4(pulse, pulse, pulse, 1)
                 for i in 0..<10 {
                     let x = x0 + total - Float(i + 1) * step + s
