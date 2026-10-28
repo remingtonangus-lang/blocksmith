@@ -15,7 +15,10 @@ final class Blueprint {
     var crew: [V3] = []                                  // crew stations (ship space of the blueprint)
 
     func set(_ x: Int, _ y: Int, _ z: Int, _ name: String) {
-        let b = Blocks.has(name) ? Blocks.id(name) : PLANKS
+        // (A four-facing block's north state is its plain name: "ship_cannon[north]" was no block, and the destroyer's
+        // aft turret carried a plank where its gun should be.)
+        let key = !Blocks.has(name) && name.hasSuffix("[north]") ? String(name.dropLast(7)) : name
+        let b = Blocks.has(key) ? Blocks.id(key) : PLANKS
         cells[IVec3(x, y, z)] = b
     }
     func clear(_ x: Int, _ y: Int, _ z: Int) { cells.removeValue(forKey: IVec3(x, y, z)) }
@@ -137,6 +140,7 @@ enum Vessels {
             t.box(-1, 1, 0, 0, -1, 1, "iron_block")
             t.box(-1, 1, 1, 1, -1, 1, "polished_blackstone")
             t.set(-1, 1, -2, "ship_cannon[south]"); t.set(1, 1, -2, "ship_cannon[south]")
+            for x in [-1, 1] { for z in -5 ... -3 { t.set(x, 1, z, "gun_barrel_medium[south]") } }   // (P477: barrelled guns)
             b.turrets.append((IVec3(0, 5, rz), t))
         }
         b.crew = [V3(0.5, 5, 20.5), V3(-2.5, 5, 26.5), V3(2.5, 5, 12.5), V3(0.5, 5, 40.5)]
@@ -177,16 +181,19 @@ enum Vessels {
         b.set(0, 7, 19, "ship_helm[south]")
         b.set(1, 7, 21, "chest")
         b.chests.append((IVec3(1, 7, 21), "bastion"))
-        // Giant turret: armoured housing, long barrel, three guns at the muzzle (on a plinth: the barrel swings clear
-        // over the cab's roof).
+        // Giant turret: armoured housing and three big-bore guns side by side, their breeches in its face (P477: bored
+        // barrels laid on from each, where three cannons sat on the tip of an iron rod; on a plinth: the barrels swing
+        // clear over the cab's roof).
         b.set(0, 7, 9, "polished_blackstone")
         b.set(0, 8, 9, "ship_turret_ring")
         let t = Blueprint()
         t.box(-3, 3, 0, 3, -3, 3, "polished_blackstone", hollow: true)
         t.box(-3, 3, 4, 4, -3, 3, "iron_block")
-        for z in -13 ... -4 { t.set(0, 2, z, "iron_block") }
-        t.box(-1, 1, 1, 3, -15, -14, "iron_block")
-        t.set(0, 2, -16, "ship_cannon[south]"); t.set(-1, 2, -16, "ship_cannon[south]"); t.set(1, 2, -16, "ship_cannon[south]")
+        for x in -1...1 {
+            t.set(x, 2, -3, "ship_cannon[south]")
+            for z in -11 ... -4 { t.set(x, 2, z, "gun_barrel_large[south]") }
+        }
+        t.box(-2, 2, 1, 1, -5, -4, "iron_block")                            // the cradle under the barrels' roots
         b.turrets.append((IVec3(0, 8, 9), t))
         b.crew = [V3(-3.5, 7, 3.5), V3(3.5, 7, 15.5)]
         return b

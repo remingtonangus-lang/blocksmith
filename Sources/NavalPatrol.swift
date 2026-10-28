@@ -51,6 +51,7 @@ enum NavalPatrol {
             let t = Blueprint()
             t.set(0, 0, 0, aft ? "ship_cannon[north]" : "ship_cannon[south]")
             t.set(-1, 0, 0, hull); t.set(1, 0, 0, hull)
+            for k in 1...3 { t.set(0, 0, aft ? k : -k, aft ? "gun_barrel_medium[north]" : "gun_barrel_medium[south]") }   // (P477: a barrelled gun)
             b.turrets.append((IVec3(0, 5, z), t))
         }
         b.chests.append((IVec3(-1, 5, 18), "shipwreck_supply"))

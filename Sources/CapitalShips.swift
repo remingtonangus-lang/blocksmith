@@ -227,42 +227,40 @@ enum Capital {
         let y0 = hang ? -3 : 0, y1 = hang ? -1 : 2
         func yy(_ k: Int) -> Int { hang ? -1 - k : k }                    // k up from the ring's floor (or down, hung)
         let by = hang ? -2 : 1
+        // P477 (Oct 27 19:21, "Big, medium, and small gun barrels, and then fit them into the current naval gun systems";
+        // P476 19:1x: "Not a cannon placed on the end of blocks connected to one of these guns. That's just low effort"):
+        // each gun is a breech in the gunhouse's face and bored barrels laid on from it, as the Vehicle Works' guns are,
+        // where an iron rod carried a cannon at its tip. Large bores on the naval mounts, medium on the quad.
+        func gun(_ bx: Int, _ tubes: Int, _ bore: String) {
+            t.set(bx, by, -s, "ship_cannon[south]")
+            for z in (-s - tubes)...(-s - 1) { t.set(bx, by, z, "gun_barrel_\(bore)[south]") }
+        }
         switch style % 4 {
         case 1:
             t.box(-s - 1, s + 1, y0, y1, -s, s, "warship_hull", hollow: true)
             let roof = hang ? -4 : 3
             t.box(-s, s, roof, roof, -s + 1, s - 1, "warship_panel")
             for x in (-s)...s { t.set(x, yy(2), -s - 1, "warship_panel") }        // the sloped face's lip
-            for bx in [-2, 0, 2] {
-                for z in (-s - 8)...(-s - 1) { t.set(bx, by, z, "iron_block") }
-                t.set(bx, by, -s - 9, "ship_cannon[south]")
-            }
+            for bx in [-2, 0, 2] { gun(bx, 8, "large") }
             t.set(-s - 1, yy(1) + up, s, "warship_stripe"); t.set(s + 1, yy(1) + up, s, "warship_stripe")
         case 2:
             t.box(-s, s, y0, y1, -s, s, "warship_hull", hollow: true)
             let roof = hang ? -4 : 3
             t.box(-s + 1, s - 1, roof, roof, -s + 1, s - 1, "warship_panel")
-            for z in (-s - 13)...(-s - 1) { t.set(0, by, z, "iron_block") }
-            t.set(-1, by, -s - 12, "iron_block"); t.set(1, by, -s - 12, "iron_block")   // muzzle brake
-            t.set(0, by, -s - 14, "ship_cannon[south]")
-            // The rangefinder: a bar across the roof, standing off on two posts.
+            gun(0, 8, "large")
+            // The barrel's collar where it leaves the house, and the rangefinder: a bar across the roof on two posts.
+            for (dx, dy) in [(-1, 0), (1, 0), (0, up)] { t.set(dx, by + dy, -s - 1, "warship_panel") }
             for x in (-s - 2)...(s + 2) { t.set(x, roof + up * 2, 1, "warship_panel") }
             t.set(-s, roof + up, 1, "iron_block"); t.set(s, roof + up, 1, "iron_block")
         case 3:
             t.box(-s, s, y0, hang ? -2 : 1, -s, s, "warship_hull", hollow: true)
-            for bx in [-2, -1, 1, 2] {
-                for z in (-s - 4)...(-s - 1) { t.set(bx, by, z, "iron_block") }
-                t.set(bx, by, -s - 5, "ship_cannon[south]")
-            }
+            for bx in [-2, -1, 1, 2] { gun(bx, 4, "medium") }
             t.set(0, hang ? -2 : 1, s, "warship_stripe")
         default:
             t.box(-s, s, y0, y1, -s, s, "warship_hull", hollow: true)
             let roof = hang ? -4 : 3
             t.box(-s + 1, s - 1, roof, roof, -s + 1, s - 1, "warship_panel")
-            for bx in [-1, 1] {
-                for z in (-s - 8)...(-s - 1) { t.set(bx, by, z, "iron_block") }
-                t.set(bx, by, -s - 9, "ship_cannon[south]")
-            }
+            for bx in [-1, 1] { gun(bx, 8, "large") }
             t.set(0, hang ? -1 : 2, s, "warship_stripe")
         }
         return t
@@ -284,8 +282,8 @@ enum Capital {
         let t = Blueprint()
         t.box(-1, 1, 0, 1, -1, 1, "warship_hull")
         t.set(0, 2, 0, "warship_panel")
-        for z in -3 ... -2 { t.set(0, 1, z, "iron_block") }
-        t.set(0, 1, -4, "ship_cannon[south]")
+        t.set(0, 1, -1, "ship_cannon[south]")                              // (P477: breech in the face, small-bore barrels)
+        for z in -4 ... -2 { t.set(0, 1, z, "gun_barrel_small[south]") }
         return t
     }
 
@@ -675,6 +673,8 @@ enum Capital {
             t.pivot = V3(0.5 - Float(lo.x), -Float(lo.y), 0.5 - Float(lo.z))
             t.gunSpeed = spec.speed; t.gunGravity = spec.gravity; t.gunPower = spec.power; t.reloadTime = spec.reload
             t.pitchMin = spec.pitchMin; t.pitchMax = spec.pitchMax; t.gunScatter = spec.scatter
+            // P477: the crews lay a barrelled gun for its own shell (flat and fast), not the old lobbed ball.
+            if role != "dropship", t.cannonCalibre.contains(where: { $0 > 0 }) { (t.gunSpeed, t.gunGravity) = t.shellFlight }
             t.reload = Float(i % 5) * 0.6                                     // staggered first volleys
             out.append(t)
         }
