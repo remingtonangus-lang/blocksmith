@@ -34,8 +34,9 @@ enum QuestPlaceCheck {
         g.player.pos = V3(-496.5, 72 + Float(YOFF), 6102.5)            // (his 08:53 copper wire spot)
         _ = w.loadSync(center: g.player.pos, radius: 3)
         g.tick(1.0 / 72)
-        check(g.freePieceKind(Blocks.id("crafting_table")) == nil && g.freePieceKind(Blocks.id("oak_planks")) == .wall,
-              "in a field world a crafting table places as itself, planks set down a wall")
+        // P484 (Oct 28 18:02-18:18, "Who makes walls like this?"): nothing sets down a wall piece any more.
+        check(g.freePieceKind(Blocks.id("crafting_table")) == nil && g.freePieceKind(Blocks.id("oak_planks")) == nil
+              && g.freePieceKind(Blocks.id("cobblestone")) == nil, "in a field world crafting tables, planks and cobblestone place as blocks")
 
         // A stray dispenser wall (as P338 set them down) by him: a dispenser again within about a second.
         func top(_ x: Int, _ z: Int) -> Int {
@@ -50,6 +51,14 @@ enum QuestPlaceCheck {
         g.settleStrayPieces()                                           //  whose support check may take a piece off the slope)
         let became = (sy...sy + 1).map { Blocks.key(Blocks.groupBase[Int(w.builtBlock(sx, $0, sz))]) }
         check(w.pieces.isEmpty && became.contains("dispenser"), "a stray dispenser wall turned back into a dispenser (\(became.joined(separator: ", ")), \(w.pieces.count) pieces left)")
+        // P484: a cobblestone wall he set down before turns back into cobblestone too.
+        let cx = sx + 3, cy = top(cx, sz) + 1
+        w.pieces.append(FreePiece(k: FreeBuild.Kind.wall.rawValue, m: "cobblestone", p: [Float(cx) + 0.5, Float(cy), Float(sz) + 0.5], yaw: 0))
+        w.strayPieces = true
+        w.strayTick = 71
+        g.settleStrayPieces()
+        let cob = (cy...cy + 1).map { Blocks.key(Blocks.groupBase[Int(w.builtBlock(cx, $0, sz))]) }
+        check(w.pieces.isEmpty && cob.contains("cobblestone"), "a cobblestone wall turned back into cobblestone (\(cob.joined(separator: ", ")), \(w.pieces.count) pieces left)")
 
         // Wire on a stone strip: aimed at from above, it is met at its thin strip, and the next goes on in front.
         let x = -500, z0 = 6100

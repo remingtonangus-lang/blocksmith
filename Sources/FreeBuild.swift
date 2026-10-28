@@ -77,8 +77,12 @@ enum FreeBuild {
         guard (1..<6).allSatisfy({ Blocks.tex[i * 6 + $0] == t }), Blocks.emit[i] == 0, Circuit.kind(b) == .none else { return false }
         return !Blocks.key(b).hasPrefix("ship_") && !Game.opens(b)
     }
-    // A wall piece of a block that is no wall material (set down before P448).
-    static func stray(_ pc: FreePiece) -> Bool { pc.kind == .wall && !wallMaterial[Int(pc.mat)] }
+    // P484 (Remington, Oct 28 18:02-18:18: "cobblestone's broken... It just turns into walls... make sure this wall
+    // bullshit is settled... Who makes walls like this?"; smooth stone and planks the same): building blocks place as
+    // blocks in every world. Pieces already set down still stand, open and break; their walls turn back into blocks.
+    static let placing = false
+    // A wall piece of a block that is no wall material (set down before P448), or any wall piece once pieces aren't placed.
+    static func stray(_ pc: FreePiece) -> Bool { pc.kind == .wall && (!placing || !wallMaterial[Int(pc.mat)]) }
     static func halfWidth(_ k: Kind) -> Float { k == .door || k == .stairs ? 0.5 : (k == .post ? 0.13 : 1) }
 
     // World collision boxes: each part cut into slices no wider than about a third of a block, each slice's box taken
@@ -233,7 +237,7 @@ extension World {
 extension Game {
     // What the held block sets down as a piece in this world (nil: it places as a block).
     func freePieceKind(_ b: BlockID) -> FreeBuild.Kind? {
-        guard world.fieldTerrain else { return nil }
+        guard FreeBuild.placing, world.fieldTerrain else { return nil }
         let key = Blocks.key(Blocks.groupBase[Int(b)]), shape = Blocks.shape[Int(b)]
         if shape == "door" { return .door }
         if shape == "slab" { return .floor }
