@@ -17,7 +17,7 @@ enum Fireworks {
 
     // Special crafting (dynamic ingredients). Returns the result and grid slots that are not consumed.
     static func craft(_ g: [ItemStack]) -> (ItemStack, keep: Set<Int>)? {
-        if let j = Jetpack.refuel(g) { return j }
+        if let j = Jetpack.refuel(g) ?? Jetpack.fit(g) ?? Jetpack.unfit(g) { return j }
         let items = g.enumerated().filter { !$0.element.isEmpty }
         guard !items.isEmpty else { return nil }
         let keys = items.map { Items.key($0.element.item) }
@@ -107,7 +107,7 @@ enum Fireworks {
 
     static func tooltip(_ s: ItemStack) -> [String] {
         let k = Items.key(s.item)
-        var out: [String] = []
+        var out: [String] = Jetpack.tooltip(s)
         if Bundles.isBundle(s) {
             for c in (s.contents ?? []).prefix(6) { out.append("\(c.displayName) x\(c.count)") }
             if (s.contents ?? []).count > 6 { out.append("and \((s.contents ?? []).count - 6) more...") }

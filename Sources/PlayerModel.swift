@@ -134,11 +134,12 @@ func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float, posed: Bool =
     parts.append(Part(mn: V3(-1.2, 23.2, -1.0), mx: V3(1.2, 24.9, 1.3), pivot: neck, rotX: pitch * 0.4, color: skin, pattern: Pat.skin))   // neck
     playerClothesParts = parts.count
     parts += playerArmorParts(armor, pitch: pitch, walk: walk, hit: hit)
-    if Items.key(armor[1].item) == "jetpack" && !armor[1].isEmpty {
-        // Jetpack on the back: two steel tanks with copper nozzles.
+    if Jetpack.worn(armor[1]) != nil {
+        // Jetpack on the back: two steel tanks with copper nozzles (behind a chest piece it is strapped on, P478).
+        let z0: Float = Jetpack.isJetpack(armor[1]) ? 2.3 : 2.65
         for x: Float in [-3.6, 0.4] {
-            parts.append(Part(mn: V3(x, 13, 2), mx: V3(x + 3.2, 23, 5), pivot: .zero, rotX: 0, color: V3(0.48, 0.52, 0.57), pattern: 8))
-            parts.append(Part(mn: V3(x + 0.6, 11, 2.6), mx: V3(x + 2.6, 13, 4.4), pivot: .zero, rotX: 0, color: V3(0.78, 0.45, 0.23)))
+            parts.append(Part(mn: V3(x, 13, z0), mx: V3(x + 3.2, 23, z0 + 3), pivot: .zero, rotX: 0, color: V3(0.48, 0.52, 0.57), pattern: 8))
+            parts.append(Part(mn: V3(x + 0.6, 11, z0 + 0.6), mx: V3(x + 2.6, 13, z0 + 2.4), pivot: .zero, rotX: 0, color: V3(0.78, 0.45, 0.23)))
         }
     }
     // P282 (c): the hand shows what the game holds (Game.held: nothing at the helm or a deck gun), not the slot.

@@ -22,27 +22,71 @@ enum Jetpack {
     static func isJetpack(_ s: ItemStack) -> Bool { !s.isEmpty && Items.key(s.item) == "jetpack" }
     static func fuel(_ s: ItemStack) -> Int { max(0, s.def.durability - s.damage) }
 
-    // Special craft (Fireworks.craft): jetpack + fuel items -> refuelled jetpack; surplus fuel slots are kept.
+    // P478 (Oct 27 19:30, "Make it so I can have an armour chest plate on and a jet pack"): a jetpack strapped onto a
+    // chest piece rides in the piece's contents. Crafted together (the piece and the pack) they make the piece carrying
+    // the pack, worn as both: the piece's armour, the pack's thrust and fuel. Crafted alone it gives the pack back and
+    // the piece stays in the grid (leftAfter). Fuel crafted with it refuels the pack.
+    static func strapsOn(_ s: ItemStack) -> Bool {
+        guard !s.isEmpty, s.def.armorSlot == .chest, s.contents == nil else { return false }
+        let k = Items.key(s.item)
+        return k != "jetpack" && k != "elytra" && !(0..<3).contains { TroopClass.hannibal.item($0) == k }   // (the plate has its own jets)
+    }
+    static func fitted(_ s: ItemStack) -> ItemStack? {
+        guard !s.isEmpty, s.def.armorSlot == .chest, let c = s.contents, c.count == 1, isJetpack(c[0]) else { return nil }
+        return c[0]
+    }
+    // The pack worn in the chest slot: the jetpack itself or the one strapped on the chest piece.
+    static func worn(_ s: ItemStack) -> ItemStack? { isJetpack(s) ? s : fitted(s) }
+    // The chest slot after the pack's fuel changed.
+    static func withPack(_ s: ItemStack, _ pack: ItemStack) -> ItemStack {
+        if isJetpack(s) { return pack }
+        var o = s; o.contents = [pack]; return o
+    }
+    static func fit(_ g: [ItemStack]) -> (ItemStack, keep: Set<Int>)? {
+        let used = g.filter { !$0.isEmpty }
+        guard used.count == 2, let jet = used.first(where: { isJetpack($0) }), let piece = used.first(where: { strapsOn($0) }) else { return nil }
+        var out = piece.with(count: 1)
+        out.contents = [jet.with(count: 1)]
+        return (out, [])
+    }
+    static func unfit(_ g: [ItemStack]) -> (ItemStack, keep: Set<Int>)? {
+        let used = g.filter { !$0.isEmpty }
+        guard used.count == 1, let jet = fitted(used[0]) else { return nil }
+        return (jet, [])
+    }
+    // What a crafted slot leaves behind: the chest piece, its pack taken off (nil: the usual one used up).
+    static func leftAfter(_ s: ItemStack, result: ItemStack) -> ItemStack? {
+        guard isJetpack(result), fitted(s) != nil else { return nil }
+        var o = s; o.contents = nil; return o
+    }
+
+    // Special craft (Fireworks.craft): jetpack (or a chest piece carrying one) + fuel items -> refuelled; surplus fuel
+    // slots are kept.
     static func refuel(_ g: [ItemStack]) -> (ItemStack, keep: Set<Int>)? {
         let used = g.enumerated().filter { !$0.element.isEmpty }
-        let jets = used.filter { isJetpack($0.element) }
-        guard jets.count == 1 else { return nil }
-        let fuels = used.filter { !isJetpack($0.element) }
+        let jets = used.filter { worn($0.element) != nil }
+        guard jets.count == 1, let pack = worn(jets[0].element) else { return nil }
+        let fuels = used.filter { worn($0.element) == nil }
         guard !fuels.isEmpty, fuels.allSatisfy({ fuelValue[Items.key($0.element.item)] != nil }) else { return nil }
-        var jet = jets[0].element.with(count: 1)
+        var jet = pack.with(count: 1)
         guard jet.damage > 0 else { return nil }                  // already full
         var keep: Set<Int> = []
         for f in fuels {
             if jet.damage <= 0 { keep.insert(f.offset); continue }
             jet.damage = max(0, jet.damage - fuelValue[Items.key(f.element.item)]!)
         }
-        return (jet, keep)
+        return (withPack(jets[0].element.with(count: 1), jet), keep)
+    }
+
+    static func tooltip(_ s: ItemStack) -> [String] {
+        if isJetpack(s) { return ["Craft it with a chestplate to strap it on"] }
+        guard let j = fitted(s) else { return [] }
+        return ["Jetpack strapped on: fuel \(fuel(j) * 100 / tank)%"]
     }
 
     // Fuel gauge above the armour bars, left of the hotbar, while one is worn.
     static func gauge(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        let st = g.inventory.armor[1]
-        guard isJetpack(st), !g.hideHUD else { return [] }
+        guard let st = worn(g.inventory.armor[1]), !g.hideHUD else { return [] }
         let s = L.s
         let f = Float(fuel(st)) / Float(tank)
         let x = L.hotbarX0 - 30 * s, y = L.hotbarY0 - 10 * s
@@ -75,8 +119,8 @@ extension Game {
     func jetpackTick(_ dt: Float, _ mi: MoveInput) {
         let p = player
         p.jetThrust = false
-        var c = inventory.armor[1]
-        let jet = Jetpack.isJetpack(c)
+        var c = Jetpack.worn(inventory.armor[1]) ?? .empty
+        let jet = !c.isEmpty
         let suit = !jet && PowerSuit.worn(self)
         guard jet || suit else { p.jetHold = 0; p.jetBoost = 0; return }
         p.jetHold = mi.jump ? p.jetHold + dt : 0
@@ -104,7 +148,7 @@ extension Game {
                 p.jetBurn += dt * 20 * rate
                 let n = Int(p.jetBurn)
                 p.jetBurn -= Float(n)
-                if n > 0 { c.damage = min(c.def.durability, c.damage + n); inventory.armor[1] = c }
+                if n > 0 { c.damage = min(c.def.durability, c.damage + n); inventory.armor[1] = Jetpack.withPack(inventory.armor[1], c) }
             }
         }
         // Flame and smoke from two nozzles low on the back.

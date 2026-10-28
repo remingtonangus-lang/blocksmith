@@ -62,6 +62,7 @@ extension Game {
         else { sfx(.crafterFail, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5); return }
         var leftovers: [ItemStack] = []
         for i in 0..<min(9, grid.count) where !grid[i].isEmpty && !keep.contains(i) {
+            if let left = Jetpack.leftAfter(be.container[i], result: result) { be.container[i] = left; continue }
             var s = be.container[i]
             let rest = Game.craftRemainder(s)
             if !rest.isEmpty { leftovers.append(rest) }
