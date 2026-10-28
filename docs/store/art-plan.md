@@ -25,3 +25,33 @@ Capture each with the in-game photo mode off (no HUD), the comfort vignette off,
 
 ## Trailer (optional)
 45 s, 2560 x 1440 MP4: the eight shots in motion in the same order, recorded on the headset.
+
+## How the pictures are made (P482)
+Two ways, both the real game:
+
+1. **Scenery from the game's own renderer** (no headset needed). `questcheck --view` draws a frame through the same
+   Vulkan renderer, shaders and meshes the headset runs (on the host's software Vulkan), at any size. It renders both
+   eyes side by side; keep the left half. Store sizes: `--w 2560 --h 1440` per eye for a screenshot or the hero,
+   `--w 1280 --h 720` for the small landscape. About 4 min a shot at 1280 x 720 and view 10 on the cloud host, roughly
+   four times that at 2560 x 1440.
+   `questcheck --view OUT.png --field --questlod --seed SEED --at X,Y,Z --rd 10 --w W --h H --fov 80 --time T`
+   plus `--up N` (eye height over the ground), `--look YAW,PITCH`, `--near village|capital_city|military_base --off N`
+   (framed on the nearest one), `--rail N --train passenger|cargo|troop` (a train on the nearest line).
+   It shows no hands, guns, people or HUD: those shots come from the headset.
+   First candidates (1280 x 720, his world's seed 7639458412018979794): `store-candidates/` in the project files
+   (village, Capital city at noon, a Greywall base, a passenger train in the pines, a snowy taiga). The overseer picks;
+   none is final.
+2. **On the headset**, for the shots with hands, guns, horses, crews and the trailer. The headset plugged into his Mac;
+   the overseer runs, over adb (the action names below are the commonly used ones; confirm them on his headset's
+   firmware the first time):
+   - keep it awake with nobody wearing it: `adb shell am broadcast -a com.oculus.vrpowermanager.prox_close`
+     (undo: `...automation_disable`);
+   - capture size: `adb shell setprop debug.oculus.capture.width 2560` and `debug.oculus.capture.height 1440`
+     (video also `debug.oculus.capture.bitrate 20000000`);
+   - a still: `adb shell am startservice -n com.oculus.metacam/.capture.CaptureService -a TAKE_SCREENSHOT`, then pull
+     the newest file from `/sdcard/Oculus/Screenshots/`;
+   - video: the same service with `-a START_CAPTURE` / `-a STOP_CAPTURE`, files in `/sdcard/Oculus/VideoShots/`.
+   In the game: Photo Mode off the HUD, comfort vignette off, default render settings, a store build (no bug-note or
+   playtest overlays).
+
+Nothing captured goes into the repo (pictures and clips are binaries): they live in the project files until uploaded.
