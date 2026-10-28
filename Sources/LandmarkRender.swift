@@ -14,6 +14,29 @@ extension Renderer {
     static var spireList: [V4] = []                // x, base y, z, height (refreshed every 2 s)
     static var spireAt: Double = -10
 
+    // P483 (Oct 28 17:35, at a frigate's helm: "the compressed background should show the citadel I'm going to try to
+    // hit... It's gonna be much harder for me to hit it now because I can't see it"): the Capital's citadels stand on the
+    // horizon too, as the spires do: x, ground y, z (refreshed every 2 s).
+    static let citadelRange: Float = 2400
+    static var citadelList: [V3] = []
+    static var citadelAt: Double = -10
+    func citadelCache(_ game: Game) -> [V3] {
+        if game.clock - Renderer.citadelAt < 2 { return Renderer.citadelList }
+        Renderer.citadelAt = game.clock
+        Renderer.citadelList.removeAll()
+        guard let wg = game.world.gen as? WorldGen, let sc = wg.structures, let t = sc.types.first(where: { $0.name == "military_base" }) else { return [] }
+        let span = t.spacing * CS
+        let p = game.player.pos
+        let rx0 = floorDiv(Int(p.x), span), rz0 = floorDiv(Int(p.z), span)
+        let n = Int(Renderer.citadelRange) / span + 1
+        for rz in (rz0 - n)...(rz0 + n) { for rx in (rx0 - n)...(rx0 + n) {
+            guard let st = sc.start(t, regionX: rx, regionZ: rz) else { continue }
+            let x = (st.min.x + st.max.x) / 2, z = (st.min.z + st.max.z) / 2
+            Renderer.citadelList.append(V3(Float(x), Float(wg.groundY(x, z)), Float(z)))
+        } }
+        return Renderer.citadelList
+    }
+
     // Ancient Spire starts within the landmark range (structure regions are 1024 blocks).
     func spireCache(_ game: Game) -> [V4] {
         if game.clock - Renderer.spireAt < 2 { return Renderer.spireList }
@@ -217,6 +240,33 @@ extension Renderer {
                 let f4 = V4(fog, 1)
                 let d0 = b0 - V3(0, 70, 0), d1 = b1 - V3(0, 70, 0)
                 tri(p(d0), p(d1), p(b1), f4, &out); tri(p(d0), p(b1), p(b0), f4, &out)
+            }
+        }
+        // The Capital's citadels: the white hall on its podium, the great tower and its two side towers, as boxes.
+        let stone = V3(0.9, 0.91, 0.92), trim = V3(0.68, 0.7, 0.73)
+        for ct in citadelCache(game) {
+            let dist = simd_length(V2(ct.x - eye.x, ct.z - eye.z))
+            guard dist > loaded + 16, dist < Renderer.citadelRange else { continue }
+            let haze: Float = 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.citadelRange, dist)
+            let y0 = ct.y + 1
+            // (centre offset x, z, half width, foot, top, colour) of each box (CapitalBase.build: the podium 44, the hall
+            // roof 11 up, the tower roof 59 up, the side towers at 36 either side).
+            let boxes: [(Float, Float, Float, Float, Float, V3)] = [(0, 0, 40, -6, 11, trim), (0, 0, 9, 11, 59, stone),
+                                                                   (-36, 0, 5, 0, 50, stone), (36, 0, 5, 0, 50, stone)]
+            for (ox, oz, h, lo, hi, col) in boxes {
+                let c = V3(ct.x + ox, 0, ct.z + oz)
+                let faces: [(V3, V3, V3)] = [(V3(1, 0, 0), V3(0, 0, 1), V3(h, 0, 0)), (V3(-1, 0, 0), V3(0, 0, -1), V3(-h, 0, 0)),
+                                             (V3(0, 0, 1), V3(-1, 0, 0), V3(0, 0, h)), (V3(0, 0, -1), V3(1, 0, 0), V3(0, 0, -h))]
+                for (n, along, off) in faces {
+                    let lit: Float = 0.38 + 0.62 * max(0, simd_dot(n, sun)) * day + 0.06
+                    let k = V4(col * lit * hdrK * (1 - haze) + fog * haze, 1)
+                    let a = c + off - along * h, b = c + off + along * h
+                    let a0 = V3(a.x, y0 + lo, a.z), b0 = V3(b.x, y0 + lo, b.z), a1 = V3(a.x, y0 + hi, a.z), b1 = V3(b.x, y0 + hi, b.z)
+                    tri(p(a0), p(b0), p(b1), k, &out); tri(p(a0), p(b1), p(a1), k, &out)
+                }
+                let roof = V4(col * (0.5 + 0.5 * day) * hdrK * (1 - haze) + fog * haze, 1)
+                let r0 = V3(c.x - h, y0 + hi, c.z - h), r1 = V3(c.x + h, y0 + hi, c.z - h), r2 = V3(c.x + h, y0 + hi, c.z + h), r3 = V3(c.x - h, y0 + hi, c.z + h)
+                tri(p(r0), p(r2), p(r1), roof, &out); tri(p(r0), p(r3), p(r2), roof, &out)
             }
         }
         Renderer.plumeRising = !smoke.isEmpty                    // (volcano smoke: the Quest rebuilds it every 2nd frame)
