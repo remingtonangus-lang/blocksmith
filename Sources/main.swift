@@ -1445,9 +1445,10 @@ enum Snapshot {
             let e = game.player.eye, f = game.player.pos
             let headKind = Blocks.fluidKind[Int(world.builtBlock(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))]
             let feetKind = Blocks.fluidKind[Int(world.builtBlock(Int(floor(f.x)), Int(floor(f.y + 0.1)), Int(floor(f.z))))]
-            game.player.headInWater = headKind == 1          // 1 water, 2 lava (lava gets its own view)
+            game.player.headInWater = headKind == 1 || headKind == 3          // 1 water, 2 lava (lava gets its own view), 3 fuel
+            game.player.headInFuel = headKind == 3
             game.player.headInLava = headKind == 2
-            game.player.inWater = feetKind == 1
+            game.player.inWater = feetKind == 1 || feetKind == 3
             game.player.inLava = feetKind == 2
         }
         if arg("--menu") == nil { game.advToasts.removeAll() }      // no "Advancement Made" toasts over test views

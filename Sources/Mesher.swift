@@ -1042,7 +1042,7 @@ enum Mesher {
         let fluidNets = fieldOn && Mesher.fluidNets            // (every distance: P378 step 3)
         if fluidNets {
             kindNow = MeshKind.fluid
-            for kind in [UInt8(1), UInt8(2)] {
+            for kind in [UInt8(1), UInt8(2), UInt8(3)] {                // (3: fuel, P478)
                 var any = false
                 outer: for y in (C0 - 2)..<(C0 + 20) { for z in (C0 - 2)..<(C0 + 20) { for x in (C0 - 2)..<(C0 + 20) where fkT[Int(R[x + z * RW + y * RL])] == kind { any = true; break outer } } }
                 if !any { continue }
@@ -1172,8 +1172,8 @@ enum Mesher {
                         V[ci] = SIMD3<Float>(Float(cx), Float(cy), Float(cz)) + 0.5 + sum / n
                         has[ci] = true
                     } } }
-                    let layer = Int(texT[(kind == 1 ? Int(WATER) : Int(LAVA)) * 6 + 2])
-                    let trans = kind == 1 || layerT[Int(LAVA)] == translucent
+                    let layer = Int(texT[(kind == 1 ? Int(WATER) : (kind == 3 ? Int(FUEL) : Int(LAVA))) * 6 + 2])
+                    let trans = kind != 2 || layerT[Int(LAVA)] == translucent
                     // Quads: one per sample edge with a crossing, round it the four cells' vertices. A section owns the
                     // edges starting at 0...15 along the edge and 1...16 across it, so every edge is drawn once.
                     for a in 0..<3 {
@@ -1228,6 +1228,8 @@ enum Mesher {
                                 if kind == 1 {
                                     let ao = Mesher.waterDepthAO && face == 2 ? depthAO(cl.x + 1 + C0, cl.y + C0, cl.z + 1 + C0) : 3
                                     vert(true, x16, y16, z16, face, 3, u16, v16, layer, ao, sky | blk << 4, false)
+                                } else if kind == 3 {
+                                    vert(true, x16, y16, z16, face, 0, u16, v16, layer, 3, sky | blk << 4, false)    // (fuel: no water swell)
                                 } else {
                                     curCut = false
                                     vert(trans, x16, y16, z16, 7, 0, u16, v16, layer, 3, sky | blk << 4, false)     // (P378: every face glows)

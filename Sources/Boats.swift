@@ -46,7 +46,7 @@ extension Game {
             let q = player.eye + dir * t
             let c = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
             let b = world.block(c.x, c.y, c.z)
-            if Blocks.fluidKind[Int(b)] == 1 { spot = V3(q.x, Float(c.y) + 0.6, q.z); break }
+            if Blocks.watery[Int(b)] { spot = V3(q.x, Float(c.y) + 0.6, q.z); break }
             if Blocks.targetable(b) && !Blocks.replaceable[Int(b)] {
                 if let tg = target, tg.normal.y == 1 { spot = V3(q.x, Float(tg.hit.y + 1), q.z) }
                 break
@@ -130,9 +130,9 @@ extension Mob {
         let start = y
         while y > start - 3 {
             let b = w.block(bx, y, bz)
-            if Blocks.fluidKind[Int(b)] == 1 {
+            if Blocks.watery[Int(b)] {
                 var top = y
-                while Blocks.fluidKind[Int(w.builtBlock(bx, top + 1, bz))] == 1 && top < y + 8 { top += 1 }
+                while Blocks.watery[Int(w.builtBlock(bx, top + 1, bz))] && top < y + 8 { top += 1 }
                 surface = Float(top) + 0.9
                 break
             }

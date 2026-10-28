@@ -5934,6 +5934,7 @@ enum HDTex {
         "stone": stone(stoneGrey),
         "lava": lava,
         "water": waterHD,
+        "fuel": fuelHD,                                     // P478 (VehicleDepot.swift)
         "leaf_litter": leafLitter,
         // Flowers.
         "sunflower_bottom": tallFlowerHD(bottom: true, stem: 0x4A8A30, bloom: 0, kind: .sunflower, salt: 420),

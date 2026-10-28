@@ -50,7 +50,7 @@ struct BlockDef {
     var tint: UInt8 = 0              // 1 grass, 2 foliage, 3 grass overlay (tint only marked texels)
     var replaceable = false          // placing a block here overwrites it (air, plants, fluids, snow layer)
     var fluid: Int8 = -1             // -1 none, 0 source, 1...7 flowing, 8 falling
-    var fluidKind: UInt8 = 0         // 1 water, 2 lava
+    var fluidKind: UInt8 = 0         // 1 water, 2 lava, 3 fuel (P478)
     var damage: UInt8 = 0            // contact damage per second (cactus, magma, fire, lava)
     var connect: UInt8 = 0           // 1 fence, 2 pane/bars, 3 wall (render .connect)
     var shape: String = ""           // "stairs", "slab" (placement rules)
@@ -98,6 +98,7 @@ final class BlockRegistry {
     var replaceable: [Bool] = []
     var fluidLevel: [Int8] = []
     var fluidKind: [UInt8] = []
+    var watery: [Bool] = []         // P478: water and fuel, the liquids a body swims and floats in
     var contactDamage: [UInt8] = []
     var connectKind: [UInt8] = []
     var shape: [String] = []
@@ -222,6 +223,7 @@ final class BlockRegistry {
         replaceable.append(d.replaceable)
         fluidLevel.append(d.fluid)
         fluidKind.append(d.fluid >= 0 ? (d.fluidKind == 0 ? 1 : d.fluidKind) : 0)
+        watery.append(d.fluid >= 0 && d.fluidKind != 2)
         contactDamage.append(d.damage)
         connectKind.append(d.connect)
         shape.append(d.shape)
@@ -459,6 +461,10 @@ final class BlockRegistry {
             l.hidden = k != 0; l.group = "lava"; l.emit = 15; l.damage = 4; l.sound = .stone
             add(l)
         }
+        // P478 (Oct 27 19:33, "at these fuel depots, the fuel inside should be equivalent to water but a different
+        // colour... buckets of fuel or jerry cans of fuel... a fuel block"): fuel, a third liquid. It flows, fills and
+        // carries a swimmer as water does, in its own dark amber; fire or lava touching it sets it alight, and the fire
+        // runs through the pool (World.fluidTick, fireTick). Registered last (registerFuel) so no other block's id moves.
         var fire = BlockDef("fire", "Fire")
         fire.tex = ["fire"]; fire.render = .cross; fire.layer = .cutout; fire.opaque = false; fire.collide = false
         fire.emit = 15; fire.hardness = 0; fire.replaceable = true; fire.randomTicks = true; fire.hidden = true; fire.damage = 1
@@ -715,6 +721,7 @@ final class BlockRegistry {
         registerDepthChargeBlocks()                       // P278 (DepthCharges.swift)
         registerVehicleWorks()
         registerFuelPump()                                // D44 (VehicleDepot.swift)
+        registerFuel()                                    // P478 (VehicleDepot.swift)
         registerSnare()                                   // D46 (Tracking.swift)
         registerWeaponPrinter()
         registerGunsmithBench()                           // D31
@@ -966,6 +973,9 @@ let EMBERSLATE = Blocks.id("emberslate")
 let LAVA = Blocks.id("lava")
 let LAVA_FLOW: [BlockID] = [LAVA] + (1...7).map { Blocks.id("lava_\($0)") }
 let LAVA_FALL = Blocks.id("lava_falling")
+let FUEL = Blocks.id("fuel")
+let FUEL_FLOW: [BlockID] = [FUEL] + (1...7).map { Blocks.id("fuel_\($0)") }
+let FUEL_FALL = Blocks.id("fuel_falling")
 let FIRE = Blocks.id("fire")
 let OBSIDIAN = Blocks.id("obsidian")
 let NETHERRACK = Blocks.id("netherrack")

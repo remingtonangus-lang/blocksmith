@@ -2052,7 +2052,8 @@ final class QuestControls {
         let g = game
         let fx: Float = Settings.shared.screenEffects ? 1 : 0.3
         func tint(_ c: V4) { QuestControls.quad(&v, V4(-1, -1, 0, 2), V4(1, -1, 0, 2), V4(1, 1, 0, 2), V4(-1, 1, 0, 2), c, c, c, c) }
-        if g.player.headInWater { tint(V4(0.05, 0.15, 0.45, 0.18)) }
+        if g.player.headInFuel { tint(V4(0.35, 0.2, 0.03, 0.4)) }                   // P478: fuel, murky amber
+        else if g.player.headInWater { tint(V4(0.05, 0.15, 0.45, 0.18)) }
         if g.player.headInLava { tint(V4(0.9, 0.3, 0.02, 0.45)) }
         if g.portalTime > 0 { tint(V4(0.45, 0.1, 0.8, min(0.7, g.portalTime / 4 * 0.7) * fx)) }
         if g.sleeping > 0 { tint(V4(0.02, 0.02, 0.06, min(1, g.sleeping / 1.5))) }

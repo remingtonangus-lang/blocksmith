@@ -712,6 +712,14 @@ final class Game {
         Trains.load(w)                                      // P337 step 6
         w.redstone.game = self
         w.onFluidEvent = { [weak self] p in self?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+        // P478: fuel catching: a whoomp, at most every 0.3 s however many cells catch.
+        var lastWhoomp = 0.0
+        w.onFuelLit = { [weak self] p in
+            let now = CFAbsoluteTimeGetCurrent()
+            guard now - lastWhoomp > 0.3 else { return }
+            lastWhoomp = now
+            self?.sfx(.fireball, 0.7, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+        }
         w.onIgnite = { [weak self] p, b in
             guard let self else { return }
             if Blocks.key(b) == "tnt" { self.world.setBlockAsync(p.x, p.y, p.z, AIR); self.tnts.prime(at: p) }
@@ -2435,14 +2443,16 @@ final class Game {
         world.setBlock(a.x, a.y, a.z, fluid)
     }
 
-    private func useBucket() -> Bool {
+    func useBucket() -> Bool {
         let k = Items.key(held.item)
         // W8: a creature bucket pours its water and the creature where it points (players could not empty one before).
         if Game.bucketMob(k) != nil, let tg = target {
             if releaseBucketMob(k, at: tg.hit + tg.normal), survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
             return true
         }
-        guard k == "bucket" || k == "water_bucket" || k == "lava_bucket" else { return false }
+        guard k == "bucket" || k == "water_bucket" || k == "lava_bucket" || k == VehicleDepot.bucketKey else { return false }
+        // P478: a bucket of fuel at his vehicle's helm or beside it goes into its tank.
+        if k == VehicleDepot.bucketKey && VehicleDepot.pourBucket(self) { return true }
         var fluidHit: IVec3?
         let dir = player.look
         var t: Float = 0
@@ -2456,12 +2466,12 @@ final class Game {
         }
         if k == "bucket", let f = fluidHit {
             let cur = world.block(f.x, f.y, f.z)
-            let lava = Blocks.fluidKind[Int(cur)] == 2
+            let lava = Blocks.fluidKind[Int(cur)] == 2, fuel = Blocks.fluidKind[Int(cur)] == 3
             world.setBlock(f.x, f.y, f.z, Blocks.isWaterlogged(cur) ? Blocks.dry[Int(cur)] : AIR)      // drains a waterlogged block
             sfx(lava ? .fizz : .splash, 0.4)
             if survival {
                 consumeHeld()
-                let rest = inventory.add(ItemStack(Items.id(lava ? "lava_bucket" : "water_bucket"), 1))
+                let rest = inventory.add(ItemStack(Items.id(lava ? "lava_bucket" : (fuel ? VehicleDepot.bucketKey : "water_bucket")), 1))
                 if !rest.isEmpty { dropItem(rest) }
             }
             return true
@@ -2477,12 +2487,12 @@ final class Game {
                 return true
             }
         }
-        if k == "water_bucket" || k == "lava_bucket" {
+        if k == "water_bucket" || k == "lava_bucket" || k == VehicleDepot.bucketKey {
             if let a = bucketCell(dir: dir, target: target) {
                 if k == "water_bucket" && dim.dim.ultrawarm {
                     sfx(.fireExtinguish, 0.8)          // water evaporates in the Emberdeep
                 } else {
-                    pourFluid(k == "water_bucket" ? WATER : LAVA, at: a)
+                    pourFluid(k == "water_bucket" ? WATER : (k == "lava_bucket" ? LAVA : FUEL), at: a)
                     sfx(k == "water_bucket" ? .bucketEmpty : .bucketEmptyLava, 0.8, at: V3(Float(a.x), Float(a.y), Float(a.z)) + 0.5)
                 }
                 if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }

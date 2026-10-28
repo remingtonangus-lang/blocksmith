@@ -145,7 +145,7 @@ final class BlockEntity: Codable {
                 burnMax = ticks
                 var nf = f
                 nf.count -= 1
-                if Items.key(f.item) == "lava_bucket" { nf = ItemStack(Items.id("bucket"), 1) }
+                if Items.key(f.item) == "lava_bucket" || Items.key(f.item) == "fuel_bucket" { nf = ItemStack(Items.id("bucket"), 1) }
                 c[1] = nf
             }
         }
