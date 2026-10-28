@@ -23,6 +23,7 @@ enum FrontierSites {
     static let chance: Float = 0.6
     static let reachBlocks = 18
     static let ghostMinSpawn: Float = 500
+    static let ghostReach = 22                    // P478: a ghost town laid out from its seed reaches further
 
     static let ghostLand: Set<Biome> = [.desert, .badlands, .woodedBadlands, .erodedBadlands, .savanna, .windsweptSavanna, .plains, .snowyPlains]
     static let farmLand: Set<Biome> = [.plains, .sunflowerPlains, .meadow, .forest, .flowerForest, .birchForest, .taiga, .snowyTaiga,
@@ -69,7 +70,11 @@ enum FrontierSites {
             if ghostLand.contains(bio) && spawnD > ghostMinSpawn { options.append("ghost_town") }
             guard !options.isEmpty else { return nil }
             let site = options[rng.int(options.count)]
-            let r = reachBlocks - 1
+            // P478: on ground no save had generated before it, a ghost town lays itself out from its seed (build) on
+            // a wider levelled patch.
+            let p478 = site == "ghost_town" && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyP478) } ?? true)
+            let reach = p478 ? ghostReach : reachBlocks
+            let r = reach - 1
             let y: Int
             if site == "stilt_hamlet" {
                 // Low, wet ground: no column far above or below the water.
@@ -82,16 +87,17 @@ enum FrontierSites {
                 y = gen.groundY(x, z)
                 guard y > SEA else { return nil }
                 let q = 12
-                for (dx, dz) in [(-q, -q), (q, -q), (-q, q), (q, q), (0, -r), (0, r), (-r, 0), (r, 0), (-6, -6), (6, 6), (-6, 6), (6, -6)] {
+                let d = p478 ? 15 : q
+                for (dx, dz) in [(-d, -d), (d, -d), (-d, d), (d, d), (0, -r), (0, r), (-r, 0), (r, 0), (-6, -6), (6, 6), (-6, 6), (6, -6)] {
                     let c = gen.column(x + dx, z + dz)
                     if abs(c.height - y) > 4 || c.height <= SEA || c.biome.isOcean || c.biome == .river || c.biome == .frozenRiver { return nil }
                 }
             }
             if crowded(gen, x, z) { return nil }
             let s = rng.next(), rot = rng.int(4)
-            let st = StructureStart(kind: site, pieces: [Piece(min: IVec3(x - reachBlocks, y - 10, z - reachBlocks),
-                                                               max: IVec3(x + reachBlocks, y + 12, z + reachBlocks)) { w in
-                build(&w, site, bio, x, y, z, rot, s)
+            let st = StructureStart(kind: site, pieces: [Piece(min: IVec3(x - reach, y - 10, z - reach),
+                                                               max: IVec3(x + reach, y + 12, z + reach)) { w in
+                build(&w, site, bio, x, y, z, rot, s, p478: p478)
             }], anchor: IVec3(x, y + 1, z))
             return st
         }
@@ -124,11 +130,13 @@ enum FrontierSites {
         }
     }
 
-    static func build(_ w: inout StructWriter, _ site: String, _ bio: Biome, _ x: Int, _ y: Int, _ z: Int, _ rot: Int, _ seed: UInt64) {
+    static func build(_ w: inout StructWriter, _ site: String, _ bio: Biome, _ x: Int, _ y: Int, _ z: Int, _ rot: Int, _ seed: UInt64,
+                      p478: Bool = false) {
         var rng = SRng(seed)
         let f = WildCamps.Frame(x: x, y: y + 1, z: z, rot: rot)
         let s32 = UInt32(truncatingIfNeeded: seed)
-        if site != "stilt_hamlet" { WildCamps.level(&w, x, y, z, seed, r: reachBlocks - 1, flatR: Float(reachBlocks) - 4.5) }
+        let reach = p478 && site == "ghost_town" ? ghostReach : reachBlocks
+        if site != "stilt_hamlet" { WildCamps.level(&w, x, y, z, seed, r: reach - 1, flatR: Float(reach) - 4.5) }
         func put(_ dx: Int, _ dy: Int, _ dz: Int, _ blk: BlockID) { let (px, pz) = f.p(dx, dz); w.set(px, f.y + dy, pz, blk) }
         func get(_ dx: Int, _ dy: Int, _ dz: Int) -> BlockID { let (px, pz) = f.p(dx, dz); return w.get(px, f.y + dy, pz) }
         func down(_ dx: Int, _ dy: Int, _ dz: Int, _ blk: BlockID) { let (px, pz) = f.p(dx, dz); w.groundDown(px, f.y + dy, pz, blk, minY: f.y - 16) }
@@ -160,6 +168,123 @@ enum FrontierSites {
         }
 
         switch site {
+        case "ghost_town" where p478:
+            // P478 (Oct 27 18:56, "Abandoned villages are not algorithmic enough": every ghost town was the same four
+            // buildings in the same places): on ground no save had generated before P478 each one lays itself out from
+            // its seed: a street of its own length, three to eight buildings of their own kinds, sizes and heights at
+            // their own setbacks, each wrecked its own amount (some down to stumps), empty lots between, a graveyard or
+            // a corral among them, the dry well where it falls and the gallows at one end or none.
+            let wd = wood(bio)
+            let plank = b("\(wd)_planks"), log = b("\(wd)_log", "oak_log"), slab = b("\(wd)_slab", "oak_slab"), fence = b("\(wd)_fence", "oak_fence")
+            let path = b("coarse_dirt", "dirt"), web = b("cobweb", "air"), brush = b("dead_bush", "air"), cobble = b("cobblestone", "stone")
+            let flatR = Float(ghostReach) - 5.5
+            let half = rng.range(11, 16)
+            for dz in -half...half { for dx in -2...2 where !holed(dx, 3, dz, 0.18 + 0.2 * Float(abs(dz)) / Float(half)) { put(dx, -1, dz, path) } }
+            var kinds = ["saloon", "store", "bank", "house", "house", "church", "stable", "jail", "smithy", "graveyard", "house"]
+            for i in stride(from: kinds.count - 1, to: 0, by: -1) { kinds.swapAt(i, rng.int(i + 1)) }
+            var built = 0
+            for side in [-1, 1] {
+                var z = -half + rng.int(3)
+                while z <= half - 4 {
+                    let width = rng.range(5, 8), depth = rng.range(5, 7), setback = rng.int(3)
+                    let z0 = z, z1 = min(half, z + width - 1)
+                    let xin = 4 + setback, xout = xin + depth - 1
+                    let (x0, x1) = side < 0 ? (-xout, -xin) : (xin, xout)
+                    let far = max(abs(x0), abs(x1)), farZ = max(abs(z0), abs(z1))
+                    z = z1 + 2 + rng.int(3)
+                    guard z1 - z0 >= 4, Float(far * far + farZ * farZ).squareRoot() <= flatR else { continue }
+                    if built >= 2 && rng.chance(0.2) {
+                        // An empty lot: what's left of a burnt-out frame, a corner post and a few boards.
+                        put(x0, 0, z0, log); if rng.chance(0.5) { put(x0, 1, z0, log) }
+                        put(x1, 0, z1, fence)
+                        for dz in z0...z1 where !holed(x0 + x1, 5, dz, 0.5) { put((x0 + x1) / 2, -1, dz, slab) }
+                        continue
+                    }
+                    let what = kinds.isEmpty ? "house" : kinds.removeLast()
+                    built += 1
+                    let doorX = side < 0 ? x1 : x0, doorZ = (z0 + z1) / 2
+                    let ix = side < 0 ? x0 + 1 : x1 - 1, inward = side < 0 ? 1 : -1
+                    if what == "graveyard" {
+                        // Leaning headstones in rows inside a broken picket fence, a dead tree's stump in the corner.
+                        for dz in z0...z1 { for dx in x0...x1 where dx == x0 || dx == x1 || dz == z0 || dz == z1 {
+                            if dx == doorX && dz == doorZ { continue }
+                            if !holed(dx, 11, dz, 0.35) { put(dx, 0, dz, fence) }
+                        } }
+                        for dz in stride(from: z0 + 1, to: z1, by: 2) { for dx in stride(from: min(x0, x1) + 1, to: max(x0, x1), by: 2) where !holed(dx, 12, dz, 0.3) {
+                            put(dx, 0, dz, holed(dx, 13, dz, 0.5) ? b("cobblestone_wall", "cobblestone") : b("stone_brick_slab", "stone_slab"))
+                            put(dx, -1, dz, b("coarse_dirt", "dirt"))
+                        } }
+                        put(ix, 0, side < 0 ? z0 + 1 : z1 - 1, log); put(ix, 1, side < 0 ? z0 + 1 : z1 - 1, log)
+                        continue
+                    }
+                    let tall: Int
+                    switch what { case "saloon": tall = 5; case "church": tall = 6; case "store": tall = 4; default: tall = rng.range(3, 4) }
+                    let fallen = rng.chance(0.15)                           // fallen in: stumps of walls, no roof
+                    let ruin: Float = fallen ? 0.9 : (what == "bank" || what == "jail" ? 0.1 : 0.15 + rng.float() * 0.35)
+                    let roofRuin: Float = fallen ? 1 : 0.2 + rng.float() * 0.4
+                    let wall = what == "jail" || what == "smithy" ? cobble : plank
+                    shell(min(x0, x1), max(x0, x1), z0, z1, tall, wall: wall, corner: log, floor: what == "smithy" ? cobble : plank, roof: slab,
+                          door: (doorX, doorZ), ruin: ruin, roofRuin: roofRuin)
+                    if (what == "saloon" || what == "store") && !fallen {
+                        for dz in z0...z1 { for dy in tall...(tall + 1) where !holed(doorX, dy, dz, 0.2) && get(doorX, dy - 1, dz) != AIR { put(doorX, dy, dz, plank) } }
+                    }
+                    if what == "church" && !fallen {
+                        // A steeple over the door: a plank tower three up from the roof, a bell under its cap.
+                        let sx = doorX + inward
+                        for dy in tall...(tall + 3) { for dz in (doorZ - 1)...(doorZ + 1) where dy < tall + 3 || dz == doorZ {
+                            put(sx, dy, dz, dz == doorZ && dy == tall + 1 ? b("bell", "oak_fence") : (dz == doorZ && dy < tall + 3 ? AIR : plank))
+                        } }
+                        put(sx, tall + 3, doorZ, slab)
+                    }
+                    // Porch boards and posts on the street side, broken here and there.
+                    let px = side < 0 ? x1 + 1 : x0 - 1
+                    if what != "stable" {
+                        for dz in z0...z1 where !holed(px, 9, dz, 0.2) { put(px, -1, dz, plank) }
+                        for dz in [z0, z1] where !fallen { put(px, 0, dz, fence); put(px, 1, dz, fence); put(px, 2, dz, slab) }
+                    }
+                    put(ix, 0, z0 + 1, web); if !fallen { put(ix, tall - 1, z1 - 1, web) }
+                    switch what {
+                    case "saloon":
+                        for dz in (z0 + 1)...(z1 - 2) { put(ix, 0, dz, plank) }
+                        put(ix + inward, 0, z1 - 1, b("barrel")); chest(ix, 0, z1 - 1, "ghost_town")
+                    case "store":
+                        put(ix, 0, z0 + 1, b("barrel")); put(ix, 1, z0 + 1, b("barrel")); chest(ix, 0, z1 - 1, "ghost_town")
+                    case "bank":
+                        for dz in (z0 + 1)...(z1 - 1) { put(ix + inward, 0, dz, b("iron_bars", "oak_fence")) }
+                        chest(ix, 0, z0 + 1, "ghost_bank")
+                    case "jail":
+                        for dz in (z0 + 1)...(z1 - 1) { put(ix + inward, 0, dz, b("iron_bars", "oak_fence")); put(ix + inward, 1, dz, b("iron_bars", "oak_fence")) }
+                        put(ix, 0, doorZ, b("white_wool")); chest(doorX + inward, 0, z0 + 1, "ghost_town")
+                    case "church":
+                        for dz in (z0 + 1)...(z1 - 1) where dz != doorZ { for dx in stride(from: doorX + inward * 2, to: ix, by: inward * 2) { put(dx, 0, dz, slab) } }
+                        put(ix, 0, doorZ, b("lectern", "bookshelf"))
+                    case "stable":
+                        for dz in stride(from: z0 + 2, to: z1, by: 2) { put(ix, 0, dz, fence); put(ix + inward, 0, dz, fence) }
+                        put(ix, 0, z0 + 1, b("hay_block")); put(ix, 0, z1 - 1, b("hay_block")); chest(ix, 0, doorZ, "ghost_town")
+                    case "smithy":
+                        put(ix, 0, z0 + 1, b("anvil", "cobblestone")); put(ix, 0, z1 - 1, b("furnace")); chest(ix, 0, doorZ, "ghost_town")
+                    default:
+                        put(ix, 0, z0 + 1, b("crafting_table")); put(ix, 0, z1 - 1, b("white_wool")); chest(ix, 0, doorZ, "ghost_town")
+                    }
+                }
+            }
+            // The dry well somewhere along the street, the gallows at one end (or none), tumbleweed brush and boards.
+            let wz = rng.range(-half / 2, half / 2)
+            for (dx, dz) in [(-1, 0), (1, 0), (0, -1), (0, 1)] { put(dx, 0, wz + dz, cobble) }
+            put(0, -1, wz, AIR); put(0, -2, wz, AIR); put(0, -3, wz, b("gravel"))
+            for dy in 0...3 { put(-1, dy, wz - 1, fence); put(1, dy, wz + 1, fence) }
+            put(-1, 4, wz - 1, slab); put(0, 4, wz, slab); put(1, 4, wz + 1, slab)
+            if rng.chance(0.6) {
+                let gz = rng.chance(0.5) ? half - 1 : -(half - 1)
+                for dy in 0...3 { put(-2, dy, gz, log); put(2, dy, gz, log) }
+                for dx in -2...2 { put(dx, 4, gz, log) }
+                put(0, 3, gz, b("chain", "oak_fence"))
+            }
+            for i in 0..<rng.range(6, 14) {
+                let dx = Int(hashf(i, 1, 7, s32) * Float(2 * half)) - half, dz = Int(hashf(i, 2, 7, s32) * Float(2 * half)) - half
+                if get(dx, 0, dz) == AIR && Blocks.collide[Int(get(dx, -1, dz))] { put(dx, 0, dz, i % 3 == 0 ? slab : brush) }
+            }
+
         case "ghost_town":
             let wd = wood(bio)
             let plank = b("\(wd)_planks"), log = b("\(wd)_log", "oak_log"), slab = b("\(wd)_slab", "oak_slab"), fence = b("\(wd)_fence", "oak_fence")

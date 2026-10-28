@@ -107,7 +107,7 @@ enum Fireworks {
 
     static func tooltip(_ s: ItemStack) -> [String] {
         let k = Items.key(s.item)
-        var out: [String] = Jetpack.tooltip(s)
+        var out: [String] = Jetpack.tooltip(s) + VehiclePresets.tooltip(s)
         if Bundles.isBundle(s) {
             for c in (s.contents ?? []).prefix(6) { out.append("\(c.displayName) x\(c.count)") }
             if (s.contents ?? []).count > 6 { out.append("and \((s.contents ?? []).count - 6) more...") }
