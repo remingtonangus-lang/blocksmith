@@ -12,8 +12,11 @@ final class CreativeMenu: Menu {
     // (P292; P478, Oct 27 19:21: "Void chest. That probably doesn't need to be in the game": out of the palette and the
     // crafting book; one already placed still opens. 19:22, "What is the vehicle badge thing?": the palette's Vehicle
     // Blueprint was a blank drawing of nothing, and in creative the Vehicle Works already builds every vehicle; out.)
+    // (P481 part 4: the Hollow gate's frame is out too. New worlds have had no gate since G20 (the stronghold's dais holds a
+    // reliquary), and a ring of frames built from the palette was the one way left into the Hollow, the reference's
+    // floating island, spikes and towers, from a world made today.)
     static let every: [ItemID] = Items.creativeList.filter {
-        !SpawnEggs.retired($0) && Items.key($0) != "ender_chest" && Items.key($0) != VehiclePresets.itemKey
+        !SpawnEggs.retired($0) && !["ender_chest", VehiclePresets.itemKey, "end_portal_frame"].contains(Items.key($0))
     }
     static var cache: [Int: [ItemID]] = [:]
     var all: [ItemID] = CreativeMenu.every
