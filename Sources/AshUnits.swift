@@ -466,7 +466,7 @@ extension Mob {
         g.arms.spawn(s)
         for _ in 0..<4 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
         g.addFlash(at: muzzle + fwd * 0.4, color: V3(6, 3.5, 1.6), radius: 7, life: 0.08)
-        g.sfx(.gun(9), kind == .ashBehemoth ? 1.5 : (kind == .ashTank ? 1.3 : 1.1), at: muzzle)
+        g.sfx(kind == .ashTank ? .tankCannon : .gun(9), kind == .ashBehemoth ? 1.5 : (kind == .ashTank ? 1.3 : 1.1), at: muzzle)
         soldierBrain.kick = 1
     }
 

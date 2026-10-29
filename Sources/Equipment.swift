@@ -79,6 +79,12 @@ extension Mob {
         if eq.contains(where: { !$0.isEmpty }) { equip = eq }
     }
 
+    // P457: worn armour (gear, Steelhold plate, horse or wolf armour), not a zombie's natural toughness.
+    var wearsArmour: Bool {
+        if steelholdArmor.0 > 0 || armorTier > 0 { return true }
+        return equip?.prefix(4).contains { !$0.isEmpty } ?? false
+    }
+
     var armorPoints: (Int, Float) {
         var (pts, tough) = steelholdArmor
         // Natural armour (reference): the zombie family 2, the Blight 4.
