@@ -69,7 +69,7 @@ enum HellLooks {
 
     // Wind ripples over a drift (soft bright and dark bands along a wandering direction).
     static func rippled(_ base: @escaping Gen) -> Gen {
-        { n, s in
+        { (n: Int, s: Int) -> HDTex.Img in
             var img = base(n, s)
             let w = HDTex.fbm(n, n / 4, 2, s &+ 41)
             let fn = Float(n)
@@ -194,7 +194,7 @@ enum HellLooks {
 
     // Layered feathery fronds packed into a block (wrapping), darker deep in, bright at the tips.
     static func fronds(dark: UInt32, mid: UInt32, tip: UInt32, salt: Int) -> Gen {
-        { n, s in
+        { (n: Int, s: Int) -> HDTex.Img in
             let fn = Float(n)
             var img = HDTex.Img(n, V4(col(dark).x, col(dark).y, col(dark).z, 1))
             let cd = col(dark), cm = col(mid), ct = col(tip)

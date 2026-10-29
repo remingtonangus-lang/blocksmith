@@ -603,8 +603,21 @@ enum AshDriveCheck {
                 let y2 = heading(), q2 = h.pos
                 run(120, act(forward: -1))
                 let back = simd_dot(V2(h.pos.x - q2.x, h.pos.z - q2.z), V2(-sinf(y2), -cosf(y2)))
-                check(back < -1 && abs(wrap(heading() - y2)) < 0.2,
-                      String(format: "Army Truck: pulled back, it reverses (%.1f blocks in 2 s, turned %.0f degrees)", back, abs(wrap(heading() - y2)) * 180 / .pi) + (back < -1 ? "" : " \(parked.count) parked hulls cleared; contacts \(h.contacts), grounded \(h.grounded), pilot \(game.world.ships.pilot === h), throttle \(h.throttle) eased \(h.throttleEase), engines \(h.engines), flak \(h.flakHits), asleep \(h.asleep), vel \(h.vel), contacts " + ShipManager.probeContacts.joined(separator: " ") + ", wheels " + ShipManager.probeWheels.joined(separator: " ") + ", under the bow " + { () -> String in let b = h.toWorld(V3(0, 0, -2.5)); let bx = Int(floor(b.x)), bz = Int(floor(b.z)); return (Int(floor(b.y)) - 4...Int(floor(b.y)) + 1).map { "\($0):\(Blocks.key(world.materialAt(bx, $0, bz)))" }.joined(separator: " ") + " (yard top \(yardTop))" }() + ", start \(String(format: "%.1f %.1f %.1f", h.pos.x - Float(x), h.pos.y, h.pos.z - Float(z))), ships near: " + game.world.ships.list.filter { $0 !== h && simd_length($0.pos - h.pos) < 30 }.map { String(format: "%@ %.1f", $0.name, simd_length($0.pos - h.pos)) }.joined(separator: ", ")))
+                let turnedBack: Float = abs(wrap(heading() - y2))
+                var backWhy = ""
+                if back >= -1 {
+                    let b = h.toWorld(V3(0, 0, -2.5)); let bx = Int(floor(b.x)), bz = Int(floor(b.z)), by = Int(floor(b.y))
+                    let bow: String = (by - 4...by + 1).map { "\($0):\(Blocks.key(world.materialAt(bx, $0, bz)))" }.joined(separator: " ")
+                    let start: String = String(format: "%.1f %.1f %.1f", h.pos.x - Float(x), h.pos.y, h.pos.z - Float(z))
+                    let near: [Ship] = game.world.ships.list.filter { $0 !== h && simd_length($0.pos - h.pos) < 30 }
+                    let nearText: String = near.map { String(format: "%@ %.1f", $0.name, simd_length($0.pos - h.pos)) }.joined(separator: ", ")
+                    backWhy = " \(parked.count) parked hulls cleared; contacts \(h.contacts), grounded \(h.grounded), pilot \(game.world.ships.pilot === h), throttle \(h.throttle) eased \(h.throttleEase)"
+                    backWhy += ", engines \(h.engines), flak \(h.flakHits), asleep \(h.asleep), vel \(h.vel), contacts " + ShipManager.probeContacts.joined(separator: " ")
+                    backWhy += ", wheels " + ShipManager.probeWheels.joined(separator: " ") + ", under the bow " + bow + " (yard top \(yardTop))"
+                    backWhy += ", start \(start), ships near: " + nearText
+                }
+                check(back < -1 && turnedBack < 0.2,
+                      String(format: "Army Truck: pulled back, it reverses (%.1f blocks in 2 s, turned %.0f degrees)", back, turnedBack * 180 / .pi) + backWhy)
                 run(60, act())
                 run(120, act(forward: 1, strafe: 1))
                 var turned = abs(heading() - y0)

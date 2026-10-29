@@ -810,7 +810,8 @@ enum Loot {
             GunGrade.gradeChest(c, table: "steelhold_vault", rng: &rng)
             return
         }
-        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? Depots.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] ?? NavalPort.loot[table] ?? FrontierSites.loot[table] else { return }
+        let t0 = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? Depots.loot[table]
+        guard let t = t0 ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] ?? NavalPort.loot[table] ?? FrontierSites.loot[table] else { return }
         roll(c, t.rolls, t.entries, rng: &rng)
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
         if BaseSundries.supplyTables.contains(table) { roll(c, BaseSundries.supplyPool.rolls, BaseSundries.supplyPool.entries, rng: &rng) }

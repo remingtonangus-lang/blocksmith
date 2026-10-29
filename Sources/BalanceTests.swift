@@ -181,9 +181,10 @@ enum BalanceTests {
         check(trivial.isEmpty, "balance no trivia: a diamond sword needs more than one swing on every mob\(trivial.isEmpty ? "" : ": " + trivial.map { $0.name }.joined(separator: ", "))")
         // (A witch's harming potions are magic, which armour doesn't stop: only the player's side counts for her.)
         let flat = rows.filter { r in
-            (0..<2).contains { t in
-                (r.kills[t + 1] ?? inf) > (r.kills[t] ?? inf) + 0.3
-                    || (r.name != MobKind.witch.spec.name && (r.toKill[t + 1] ?? inf) * 1.15 + 0.3 < (r.toKill[t] ?? inf))
+            (0..<2).contains { (t: Int) -> Bool in
+                let k0: Float = r.kills[t] ?? inf, k1: Float = r.kills[t + 1] ?? inf
+                let d0: Float = r.toKill[t] ?? inf, d1: Float = r.toKill[t + 1] ?? inf
+                return k1 > k0 + 0.3 || (r.name != MobKind.witch.spec.name && d1 * 1.15 + 0.3 < d0)
             }
         }
         check(flat.isEmpty, "balance gear pays: each tier up kills every mob as fast or faster and survives as long or longer\(flat.isEmpty ? "" : ": not for " + flat.map { $0.name }.joined(separator: ", "))")

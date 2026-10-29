@@ -138,7 +138,8 @@ extension Trains {
         guard let lead = lead(tr) else { return }
         let ahead = lead.pos + lead.forward * (halfLength(lead) + 10)
         let side = V3(lead.forward.z, 0, -lead.forward.x)
-        let spots = [ahead + side * 2, ahead - side * 2, lead.pos + side * 6 - lead.forward * 4, lead.pos - side * 6 - lead.forward * 8]
+        let s6: V3 = side * 6, f4: V3 = lead.forward * 4, f8: V3 = lead.forward * 8
+        let spots: [V3] = [ahead + side * 2, ahead - side * 2, lead.pos + s6 - f4, lead.pos - s6 - f8]
         for (i, s) in spots.enumerated() {
             let m = Mob(i % 2 == 0 ? .pillager : .vindicator, at: g.world.freeSpawn(s))
             m.customName = robberName

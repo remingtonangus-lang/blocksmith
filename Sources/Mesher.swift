@@ -1076,10 +1076,10 @@ enum Mesher {
                     let base: Float = dens[j] > -16 ? 0.5 + Float(dens[j]) / 32 : min(0, -0.5 + Float(dens[j - RL]) / 32)
                     return base + 0.8 * top(j)
                 }
-                withUnsafeTemporaryAllocation(of: Float.self, capacity: N * NN) { F in
-                withUnsafeTemporaryAllocation(of: SIMD3<Float>.self, capacity: M * MM) { V in
-                withUnsafeTemporaryAllocation(of: Bool.self, capacity: M * MM) { has in
-                withUnsafeTemporaryAllocation(of: Float.self, capacity: W * W * N) { FLW in
+                withUnsafeTemporaryAllocation(of: Float.self, capacity: N * NN) { (F: UnsafeMutableBufferPointer<Float>) -> Void in
+                withUnsafeTemporaryAllocation(of: SIMD3<Float>.self, capacity: M * MM) { (V: UnsafeMutableBufferPointer<SIMD3<Float>>) -> Void in
+                withUnsafeTemporaryAllocation(of: Bool.self, capacity: M * MM) { (has: UnsafeMutableBufferPointer<Bool>) -> Void in
+                withUnsafeTemporaryAllocation(of: Float.self, capacity: W * W * N) { (FLW: UnsafeMutableBufferPointer<Float>) -> Void in
                     // P412 (a) (Oct 22 22:10, "block thing underneath": the sea's edge a staircase of cells against the
                     // smooth shore): the flood. A bank cell whose drawn ground lies under the level of the fluid beside
                     // it on the same layer (within a block of it, ground or fluid under the cell) is flooded, and the

@@ -110,7 +110,8 @@ extension World {
             var same = true
             let r0 = raw[(bx + 1) + (bz + 1) * N + (by + 1) * NN]
             for k in 0..<8 {
-                let r = raw[(bx + 1 + (k & 1)) + (bz + 1 + (k >> 2)) * N + (by + 1 + ((k >> 1) & 1)) * NN]
+                let rx: Int = bx + 1 + (k & 1), rz: Int = bz + 1 + (k >> 2), ry: Int = by + 1 + ((k >> 1) & 1)
+                let r = raw[rx + rz * N + ry * NN]
                 v[k] = Float(r)
                 if r != r0 { same = false }
             }
@@ -293,7 +294,8 @@ extension Mesher {
                     for o in [-RL, 1, -1, RW, -RW, RL] where dens[src + o] > 0 && natT[Int(R[src + o])] { b = R[src + o]; found = true; break }
                     if !found {
                         let bx = gx >> 1, by = sy * 16 + (gy >> 1), bz = gz >> 1
-                        let st = n9[(bx >> 4) + 1 + ((bz >> 4) + 1) * 3]
+                        let si: Int = (bx >> 4) + 1 + ((bz >> 4) + 1) * 3
+                        let st = n9[si]
                         let m = by >= 0 && by < CH ? Int(st.material(Chunk.index(bx & 15, by, bz & 15))) : 0
                         if m != 0 { b = FieldMat.blocks[m] }
                     }

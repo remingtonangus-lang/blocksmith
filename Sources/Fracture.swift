@@ -835,7 +835,8 @@ enum Fracture {
                 let s = a + b + cc
                 v6 += det
                 m1 += s * det
-                let q: SIMD3<Double> = a * a + b * b + cc * cc + s * s
+                let aa: SIMD3<Double> = a * a, bb: SIMD3<Double> = b * b, cs: SIMD3<Double> = cc * cc, ss: SIMD3<Double> = s * s
+                let q: SIMD3<Double> = aa + bb + cs + ss
                 let p1 = SIMD3<Double>(a.x, a.x, a.y) * SIMD3<Double>(a.y, a.z, a.z)
                 let p2 = SIMD3<Double>(b.x, b.x, b.y) * SIMD3<Double>(b.y, b.z, b.z)
                 let p3 = SIMD3<Double>(cc.x, cc.x, cc.y) * SIMD3<Double>(cc.y, cc.z, cc.z)

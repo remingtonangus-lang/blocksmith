@@ -105,9 +105,14 @@ final class Player {
     }()
     static let fieldNudgeRadii: [Float] = [0.06, 0.12, 0.2, 0.3, 0.45, 0.6, 0.75]
     // (Up first: feet a hair into the floor; down: a head into a rounded ceiling's corners; then sideways and slanting.)
-    static let fieldNudgeDirs: [V3] = [V3(0, 1, 0), V3(0, -1, 0)] + (0..<8).map { k in V3(cosf(Float(k) * .pi / 4), 0, sinf(Float(k) * .pi / 4)) }
-        + (0..<4).map { k in simd_normalize(V3(cosf(Float(k) * .pi / 2 + .pi / 4), 1, sinf(Float(k) * .pi / 2 + .pi / 4))) }
-        + (0..<4).map { k in simd_normalize(V3(cosf(Float(k) * .pi / 2 + .pi / 4), -1, sinf(Float(k) * .pi / 2 + .pi / 4))) }
+    static let fieldNudgeDirs: [V3] = {
+        var d: [V3] = [V3(0, 1, 0), V3(0, -1, 0)]
+        for k in 0..<8 { let a: Float = Float(k) * .pi / 4; d.append(V3(cosf(a), 0, sinf(a))) }
+        for y: Float in [1, -1] {
+            for k in 0..<4 { let a: Float = Float(k) * .pi / 2 + .pi / 4; d.append(simd_normalize(V3(cosf(a), y, sinf(a)))) }
+        }
+        return d
+    }()
     static func nearestFree(_ p: V3, _ free: (V3) -> Bool) -> V3? {
         let base = V3(floorf(p.x) + 0.5, floorf(p.y), floorf(p.z) + 0.5)
         if free(base) { return base }

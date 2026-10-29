@@ -2045,7 +2045,7 @@ enum HDTex {
     static let machineStone: Gen = stone([(0, 0x46464A), (0.5, 0x5C5C60), (1, 0x727276)], veins: 0.1, strata: 0)
     static let observerShell: Gen = stone([(0, 0x8C9CA6), (0.5, 0xA2B2BC), (1, 0xB6C4CC)], veins: 0, strata: 0)     // P463
     static func sparkFace(_ kind: String) -> Gen {
-        { n, s in
+        { (n: Int, s: Int) -> Img in
             let fn = Float(n), u = n / 16
             let fine = vnoise(n, max(1, n / 64), s &+ 2)
             func put(_ img: inout Img, _ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
