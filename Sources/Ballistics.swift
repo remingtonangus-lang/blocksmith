@@ -176,7 +176,9 @@ final class Armory {
             // bullets stop on hulls too. (d) ("trying to fire rockets in the frigate, they're not working"): his own
             // ship's hull is spared only for the first 3 blocks (clear of the muzzle); rockets fired inside it went
             // straight out through its walls.
-            if s.kind == .bullet, !w.ships.list.isEmpty, let h = w.ships.segmentHit(s.pos, dir, len, except: -1), h.0 < hitT,
+            // (P449: his own rounds from the gun of the hull he drives, the half-track's, pass its own plates)
+            if s.kind == .bullet, !w.ships.list.isEmpty,
+               let h = w.ships.segmentHit(s.pos, dir, len, except: s.fromPlayer && s.traveled < 3 ? (w.ships.pilot?.root.id ?? -1) : -1), h.0 < hitT,
                Armory.blockHit(w, s.pos, dir, h.0).map({ $0.0 >= h.0 }) ?? true {
                 s.dead = true
                 slugs[i] = s
