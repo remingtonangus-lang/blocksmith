@@ -126,19 +126,33 @@ enum AshWrecks {
         if w.ships.isEmpty && skins.isEmpty { if !skinMobs.isEmpty { skinMobs = [] }; return }
         var out: [Mob] = []
         for s in w.ships.list where (s.name == fighterName || AshCommandeer.smallHull(s)) && s.parent == nil {
-            let bike = s.name == AshCommandeer.sidecarName, truck = s.name == AshCommandeer.truckName
+            let bike = s.name == AshCommandeer.sidecarName, truck = s.name == AshCommandeer.truckName, tank = s.name == AshCommandeer.tankName
             if skinOrigin[s.id] == nil, let h = s.helm {
                 // The helm stands at (0, 2, -3) of salvagedFighter's plan and at (0, 1, 1) of the sidecar's; the
                 // model's origin is the plan's (0, 0, 0) cell, centred. P449: the truck's helm at (0, 1, -2) of its
                 // plan, whose six blocks run z -3...2; the model's middle is 0.4 ahead of its origin.
-                skinOrigin[s.id] = truck ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) + 2.4)
+                // The tank's helm at (0, 1, 1) of its plan, whose six blocks run z -3...2; the model's middle is 2/16
+                // ahead of its origin.
+                skinOrigin[s.id] = tank ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) - 0.875)
+                                 : truck ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) + 2.4)
                                  : bike ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) - 0.5)
                                         : V3(Float(h.x) + 0.5, Float(h.y) - 2, Float(h.z) + 3.5)
             }
-            guard let o = skinOrigin[s.id], !skinsOff else { s.hidden = false; continue }
+            let turrets = tank ? w.ships.turrets(of: s) : []
+            guard let o = skinOrigin[s.id], !skinsOff else { s.hidden = false; for t in turrets { t.hidden = false }; continue }
             s.hidden = true
+            for t in turrets { t.hidden = true }                     // (the model's turret and gun follow it)
             let m: Mob
-            if let have = skins[s.id] { m = have } else if truck {
+            if let have = skins[s.id] { m = have } else if tank {
+                // P449: his Cinder Tank, in the paint it was taken in (its role: "ashtank", "b" Boreal); no crew showing.
+                m = Mob(.ashTank, at: s.pos)
+                m.faction = (s.role ?? "").hasSuffix("b") ? Faction.steelhold.rawValue : Faction.ashguard.rawValue
+                m.wreck = 7
+                m.health = 1
+                m.owner = true                             // (his: no crew showing)
+                m.onGround = true
+                skins[s.id] = m
+            } else if truck {
                 // P449: his Army Truck, in the paint it was taken in (its role: "ashtruck", the variant, "b" Boreal).
                 let role = s.role ?? ""
                 m = Mob(.ashTruck, at: s.pos)
@@ -168,7 +182,17 @@ enum AshWrecks {
             m.boatRock = V2(atan2f(uz, bz), atan2f(r.y, rx))
             let c = V3(0, 4 * m.scale / 16, 0)                   // (the turn's centre: BoatLooks.rock's, scaled)
             m.pos = s.toWorld(o + c) - c
-            if truck {
+            if tank {
+                // The turret and gun as his turret of blocks lies (world yaw, pitch), the road wheels (6/16 round)
+                // turning with the ground going by.
+                if let t = turrets.first {
+                    let f = t.dirToWorld(V3(0, 0, -1))
+                    m.soldierBrain.turret = atan2f(-f.x, -f.z)
+                    m.soldierBrain.pitch = max(-0.14, min(0.35, t.gunPitch))
+                }
+                let along = simd_dot(s.vel, s.dirToWorld(V3(0, 0, -1)))
+                m.wheelRoll = (m.wheelRoll + along * dt / (6.0 / 16)).truncatingRemainder(dividingBy: 2 * .pi)
+            } else if truck {
                 // Its wheels (6/16 of a block round) turn with the ground going by.
                 let along = simd_dot(s.vel, s.dirToWorld(V3(0, 0, -1)))
                 m.wheelRoll = (m.wheelRoll + along * dt / (6.0 / 16)).truncatingRemainder(dividingBy: 2 * .pi)

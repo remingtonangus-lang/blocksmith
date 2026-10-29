@@ -40,7 +40,7 @@ enum AshCommandeer {
     static let truckName = "Army Truck"
     static var truckHulls = true                  // (the --ashdrive check's mob-truck leg turns it off)
     static var hulled = 0
-    static func smallHull(_ s: Ship) -> Bool { s.name == sidecarName || s.name == truckName }
+    static func smallHull(_ s: Ship) -> Bool { s.name == sidecarName || s.name == truckName || s.name == tankName }
     static func truckRole(_ m: Mob) -> String { "ashtruck\(max(0, min(2, m.variant)))" + (m.boreal ? "b" : "") }
 
     // Front toward -Z: wheels at three axles either side, the bonnet with the engine, the cab (helm at its front, his
@@ -56,6 +56,36 @@ enum AshCommandeer {
         b.box(-1, 1, 2, 2, -2, -2, "polished_blackstone")                 // the cab's front and roof over the helm
         b.set(-1, 2, -1, "polished_blackstone"); b.set(1, 2, -1, "polished_blackstone")
         b.box(-1, 1, 2, 2, 0, 2, "black_wool")                             // the tilt over the bed
+        return b
+    }
+
+    // P449 (the same note: "Same thing with the tank. Its armor should be individual blocks that somehow work"): a
+    // Cinder Tank he takes becomes a hull of steel plate on track links under the tank's own model, its turret a turret
+    // of blocks (a breech and four medium tubes: the calibre gun the Vehicle Works' tanks fire, laid on his sight) that
+    // the model's turret and gun follow. Shells and blasts take its plates off block by block; it pivots on its
+    // tracks and runs down whoever stands in its way, as before. Role "ashtank" (+ "b" for a Boreal Station's).
+    static let tankName = "Cinder Tank"
+    static var tankHulls = true                   // (the --ashdrive check's seat leg turns it off)
+    static let tankTop: Float = 10.5, tankCruise: Float = 6     // blocks a second sprinting and not, as from its seat (P435)
+    static func tankRole(_ m: Mob) -> String { "ashtank" + (m.boreal ? "b" : "") }
+
+    // Front toward -Z: track links down both sides, a hull of plate three wide and six long with the engine at the
+    // back, the helm sunk in the deck behind the turret ring (his hatch behind it), and on the ring a boxy turret
+    // with the gun in its face; about the model's size (5.5 long, 3.5 wide, 2.75 high).
+    static func tankHull() -> Blueprint {
+        let b = Blueprint()
+        for x in [-1, 1] { for z in -3...2 { b.set(x, 0, z, "ship_track") } }
+        let plate = "polished_blackstone"                                  // (plate a shell or rocket can take off: ash plating shrugs off any blast)
+        b.box(-1, 1, 1, 1, -3, 2, plate)
+        b.set(-1, 1, 2, "ship_engine")
+        b.set(0, 1, 1, "ship_helm[south]")
+        b.clear(0, 1, 2)                                                   // ...his hatch behind it
+        b.set(0, 1, 0, "ship_turret_ring")
+        let t = Blueprint()
+        t.box(-1, 1, 0, 0, -1, 1, plate)
+        t.set(0, 0, -2, "ship_cannon[south]")
+        for z in -6 ... -3 { t.set(0, 0, z, "gun_barrel_medium[south]") }
+        b.turrets.append((IVec3(0, 1, 0), t))
         return b
     }
 
@@ -94,15 +124,15 @@ extension Game {
     func ashCommandeer(_ m: Mob) -> Bool {
         guard AshCommandeer.takeable(m.kind), m.health > 0, alive, world.ships.pilot == nil, AshSeat.shared.vehicle == nil else { return false }
         if !m.tamed { ashEmpty(m) }
-        if m.kind == .ashTruck && AshCommandeer.truckHulls { return ashTruckHull(m) }
+        if m.kind == .ashTruck && AshCommandeer.truckHulls { return ashHull(m, AshCommandeer.truckHull(), AshCommandeer.truckName, AshCommandeer.truckRole(m)) }
+        if m.kind == .ashTank && AshCommandeer.tankHulls { return ashHull(m, AshCommandeer.tankHull(), AshCommandeer.tankName, AshCommandeer.tankRole(m)) }
         AshSeat.shared.enter(self, m)
         return true
     }
 
-    // P449: the truck he takes, as a hull of blocks under its model, at his helm.
-    func ashTruckHull(_ m: Mob) -> Bool {
-        let s = world.ships.spawn(AshCommandeer.truckHull(), at: m.pos + V3(0, 1.5, 0), yaw: m.yaw, name: AshCommandeer.truckName,
-                                  role: AshCommandeer.truckRole(m))
+    // P449: the truck (or tank) he takes, as a hull of blocks under its model, at his helm.
+    func ashHull(_ m: Mob, _ bp: Blueprint, _ name: String, _ role: String) -> Bool {
+        let s = world.ships.spawn(bp, at: m.pos + V3(0, 1.5, 0), yaw: m.yaw, name: name, role: role)
         AshWrecks.setDown(s, world)
         s.initialBlocks = s.blockCount
         mobs.mobs.removeAll { $0 === m }
@@ -127,7 +157,8 @@ extension Game {
         var d = (player.moveYaw ?? player.yaw) - atan2f(stick.x, stick.y) - atan2f(-f.x, -f.z)
         while d > .pi { d -= 2 * .pi }
         while d < -.pi { d += 2 * .pi }
-        var drive = push * max(0.4, cosf(d))
+        // (a tank pivots on its tracks before it drives off; wheels roll on through the turn)
+        var drive = push * (s.name == AshCommandeer.tankName ? max(0, cosf(d)) : max(0.4, cosf(d)))
         if abs(d) > 2.2 {
             d += d > 0 ? -.pi : .pi
             drive = -push
@@ -140,7 +171,8 @@ extension Game {
         let fwd = s.dirToWorld(V3(0, 0, -1))
         let speed = simd_dot(s.vel, fwd)
         let feet = V3(s.pos.x, s.worldMin.y, s.pos.z)
-        ashRunOver(at: feet, forward: V3(fwd.x, 0, fwd.z), halfW: 1.4, reach: 4.2, heavy: false, speed: speed, except: nil)
+        let tank = s.name == AshCommandeer.tankName
+        ashRunOver(at: feet, forward: V3(fwd.x, 0, fwd.z), halfW: tank ? 1.7 : 1.4, reach: tank ? 4.0 : 4.2, heavy: tank, speed: speed, except: nil)
     }
 
     // P464 (Oct 25 19:33, "should be able to run people over with it"): the vehicle he drives runs down whoever stands
@@ -399,10 +431,11 @@ enum AshDriveCheck {
         let bot = Drive()
         func run(_ ticks: Int, _ a: AgentAction) { bot.next = a; for _ in 0..<ticks { agent.step(bot) } }
         func crew() -> Int { game.mobs.mobs.filter { $0.faction == Faction.ashguard.rawValue && !$0.kind.ashVehicle }.count }
-        func act(forward: Float = 0, strafe: Float = 0, jump: Bool = false, sneak: Bool = false, attack: Bool = false) -> AgentAction {
-            var a = AgentAction(); a.forward = forward; a.strafe = strafe; a.jump = jump; a.sneak = sneak; a.attack = attack; return a
+        func act(forward: Float = 0, strafe: Float = 0, jump: Bool = false, sneak: Bool = false, attack: Bool = false, sprint: Bool = false) -> AgentAction {
+            var a = AgentAction(); a.forward = forward; a.strafe = strafe; a.jump = jump; a.sneak = sneak; a.attack = attack; a.sprint = sprint; return a
         }
         // Takes one, drives it 6 s ahead and 2 s turning (unless a field gun), fires its gun, climbs out.
+        AshCommandeer.tankHulls = false                   // (the tank from its seat here; as a hull of blocks below, P449)
         for kind in [MobKind.ashTank, .ashHalftrack, .ashArtillery] {                // (the truck: below, P449)
             let v = Mob(kind, at: ground(x, z + 6))
             v.ashSetup()
@@ -459,6 +492,7 @@ enum AshDriveCheck {
             check(AshSeat.shared.vehicle == nil && v.tamed && simd_length(V2(v.pos.x - p1.x, v.pos.z - p1.z)) < 0.5, "\(name): sneak climbs out; it stands parked")
             game.mobs.mobs.removeAll { $0 === v }
         }
+        AshCommandeer.tankHulls = true
         // P449: a truck he takes becomes a hull of blocks under the truck's model, driven from its helm: it drives and
         // turns on its wheels, runs a soldier down and, sneaking, he gets down beside it and it stands parked.
         do {
@@ -537,6 +571,72 @@ enum AshDriveCheck {
                 check(game.world.ships.pilot == nil && game.world.ships.aboard == nil && simd_length(V2(h.pos.x - q1.x, h.pos.z - q1.z)) < 0.5,
                       String(format: "Army Truck: sneaking he gets down beside it; it stands parked (pilot %@, aboard %@, rolled %.1f)",
                              game.world.ships.pilot == nil ? "none" : "his", game.world.ships.aboard == nil ? "no" : "yes", simd_length(V2(h.pos.x - q1.x, h.pos.z - q1.z))))
+                world.ships.remove(h)
+            }
+        }
+        // P449: a tank he takes becomes a hull of plate on track links with a turret of blocks, under the tank's model:
+        // it drives at the tank's pace, pivots round to his view, its gun fires and the model's turret follows the
+        // turret of blocks; a shell bursting on its flank takes plates off; sneaking he gets down and it stands parked.
+        do {
+            layYard()
+            let v = Mob(.ashTank, at: ground(x, z + 6))
+            v.ashSetup()
+            v.yaw = 0
+            v.persistent = true
+            game.mobs.mobs.append(v)
+            game.player.pos = ground(x - 5, z + 6)
+            run(5, act())
+            let took = game.ashCommandeer(v)
+            let hull = game.world.ships.pilot
+            let tur = hull.map { game.world.ships.turrets(of: $0) } ?? []
+            check(took && hull?.name == AshCommandeer.tankName && !game.mobs.mobs.contains { $0 === v } && tur.count == 1 && !(tur.first?.cannons.isEmpty ?? true),
+                  "Cinder Tank: taken, it is a hull of \(hull?.blockCount ?? 0) blocks and a turret of \(tur.first?.blockCount ?? 0) with its gun, at his helm")
+            game.mobs.mobs.removeAll { $0.faction == Faction.ashguard.rawValue && !$0.kind.ashVehicle }
+            for o in game.world.ships.list where o.root !== hull && o.parent == nil && hull.map({ simd_length(o.pos - $0.pos) < 24 }) == true { game.world.ships.remove(o) }
+            run(10, act())
+            let skin = AshWrecks.skinMobs.first { $0.kind == .ashTank && $0.wreck == 7 }
+            check(skin != nil && hull?.hidden == true && tur.allSatisfy { $0.hidden }, "Cinder Tank: drawn as the tank over its hidden hull and turret")
+            if let h = hull, let t = tur.first {
+                func wrap(_ a: Float) -> Float { var a = a; while a > .pi { a -= 2 * .pi }; while a < -.pi { a += 2 * .pi }; return a }
+                func heading() -> Float { let f = h.dirToWorld(V3(0, 0, -1)); return atan2f(-f.x, -f.z) }
+                let p0 = h.pos
+                var top: Float = 0
+                for _ in 0..<5 { run(60, act(forward: 1, sprint: true)); top = max(top, simd_length(V2(h.vel.x, h.vel.z))) }
+                let moved = simd_length(V2(h.pos.x - p0.x, h.pos.z - p0.z))
+                check(moved > 6 && top < AshCommandeer.tankTop + 1, String(format: "Cinder Tank: drives on its tracks, %.1f blocks in 5 s, top %.1f b/s", moved, top))
+                run(120, act())
+                // Looking a quarter round to the right and pushing ahead, it pivots on its tracks toward his view (his look
+                // turns with the hull, as in the truck, so it is checked over the first second and a half).
+                let h0 = heading()
+                game.player.yaw = h0 - .pi / 2
+                let q0 = h.pos
+                run(90, act(forward: 1))
+                let swung = wrap(h0 - heading()), slid = simd_length(V2(h.pos.x - q0.x, h.pos.z - q0.z))
+                check(swung > 0.8 && slid < 1.5, String(format: "Cinder Tank: pushed ahead looking right, it pivots round toward his view (%.0f degrees in 1.5 s, %.1f blocks on)",
+                                                            swung * 180 / .pi, slid))
+                run(120, act())
+                // The turret follows his look, the model's turret follows the turret, and the trigger fires the gun.
+                game.player.yaw = heading() + 0.8
+                game.player.pitch = 0
+                run(150, act())
+                let f = t.dirToWorld(V3(0, 0, -1))
+                let laid = atan2f(-f.x, -f.z)
+                check(abs(wrap(laid - game.player.yaw)) < 0.3 && abs(wrap((skin?.brain?.turret ?? 9) - laid)) < 0.05,
+                      String(format: "Cinder Tank: the turret comes round to his look (%.0f degrees off) and the model's turret with it", abs(wrap(laid - game.player.yaw)) * 180 / .pi))
+                let r0 = t.reload
+                run(2, act()); run(20, act(attack: true)); run(2, act())
+                check(r0 <= 0 && t.reload > 0, String(format: "Cinder Tank: the trigger fires its gun (reload %.1f s)", t.reload))
+                run(260, act())
+                // A shell bursting on its flank (a medium gun's: power 6) takes plates off.
+                let b0 = h.blockCount
+                game.world.ships.heavyHit(h, at: h.toWorld(h.com + V3(1.8, 0, 0)), game: game, power: 6)
+                run(5, act())
+                check(h.blockCount < b0, "Cinder Tank: a burst on its flank takes \(b0 - h.blockCount) of its \(b0) blocks off")
+                run(2, act(sneak: true))
+                let q1 = h.pos
+                run(120, act())
+                check(game.world.ships.pilot == nil && game.world.ships.aboard == nil && simd_length(V2(h.pos.x - q1.x, h.pos.z - q1.z)) < 0.5,
+                      "Cinder Tank: sneaking he gets down beside it; it stands parked")
                 world.ships.remove(h)
             }
         }

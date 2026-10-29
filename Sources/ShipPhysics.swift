@@ -612,7 +612,9 @@ extension ShipManager {
             let car = s.blockCount < 40 && s.name != Felling.name       // (the sidecar, his Army Truck)
             // P477 (Oct 27 19:24, the Scout Buggy: "needs to go faster"): a light hull with engines to spare runs faster
             // than the 16 b/s every wheeled hull topped out at, up to 35 b/s (by engines per block).
-            let topSpeed: Float = car ? 16 : 16 * max(1, min(2.2, Float(s.engines * 120) / Float(max(1, s.blockCount))))
+            // (P449: his Cinder Tank cruises at 6 and sprints at 10.5, as from its seat)
+            let tank = s.name == AshCommandeer.tankName
+            let topSpeed: Float = car ? (tank ? (s.boost ? AshCommandeer.tankTop : AshCommandeer.tankCruise) : 16) : 16 * max(1, min(2.2, Float(s.engines * 120) / Float(max(1, s.blockCount))))
             if s.id == ShipManager.probeId { ShipManager.probeWheels.removeAll() }
             for p in s.wheels {
                 let wp = s.toWorld(p)
@@ -645,7 +647,8 @@ extension ShipManager {
                 if fn <= 0 { continue }
                 s.grounded = true
                 let grip = 0.9 * fn
-                let vs = simd_dot(v, side), vf = simd_dot(v, fh)
+                // (P449: a tank's tracks skid as it pivots: they grip against the hull's own drift and roll, not its turn)
+                let vs = simd_dot(tank ? s.vel : v, side), vf = simd_dot(tank ? s.vel : v, fh)
                 let lat = max(-grip, min(grip, -vs * share * 12))
                 var long: Float
                 // P449: a small car (the sidecar, his Army Truck) pulled back while it still rolls ahead brakes hard
@@ -654,7 +657,7 @@ extension ShipManager {
                 if piloted && s.throttleEase != 0 && power > 0 && !(car && s.throttle == 0) {      // (a small car let go: the engine brakes at once)
                     let fade = s.throttleEase * vf > 0 ? max(0, 1 - abs(vf) / topSpeed) : (car && abs(vf) > 0.3 ? 4.5 : 1)
                     // (P477: a light hull's spare engines also pull harder and drag less: 1 for most, up to 2.2)
-                    let pull = topSpeed / 16
+                    let pull = car ? 1 : topSpeed / 16
                     long = s.throttleEase * share * ShipTuning.wheelAccel * pull * power * fade - vf * share * 0.3 / (pull * pull)
                 } else {
                     long = -vf * share * (piloted ? (car ? 3.5 : 0.6) : 8)       // rolling resistance / engine braking / parking brake
