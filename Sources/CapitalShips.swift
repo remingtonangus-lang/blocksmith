@@ -21,6 +21,11 @@ enum Faction: Int {
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
 final class CapitalState {
+    // P476: the hull as built (HullBuilder blocks, the root grid's layout) for repairs, drawn up off the frame once she
+    // is his; its solid cell count for the helm's hull readout.
+    var blueprint: [BlockID]?
+    var blueprintSolid = 0
+    var blueprintAsked = false
     // Crew of a role still able to serve: posts not yet manned by a spawned soldier count (the crew is aboard
     // but not simulated yet), spawned soldiers count while alive.
     func crewAlive(_ role: CrewRole) -> Int {
@@ -938,10 +943,13 @@ extension ShipManager {
             }
             let missing = st.engineCells.filter { s.grid.get($0.0.x, $0.0.y, $0.0.z) == AIR }
                 .sorted { simd_length(V3(Float($0.0.x), Float($0.0.y), Float($0.0.z)) - at) < simd_length(V3(Float($1.0.x), Float($1.0.y), Float($1.0.z)) - at) }
-            if what.isEmpty {
-                guard !missing.isEmpty else { return nil }
+            if what.isEmpty && !missing.isEmpty {
                 for (c, b) in missing.prefix(8) { setBlock(s, c, b) }
                 what = "Engine rebuilt (\(s.engines)/\(st.engines0) engine blocks)"
+            }
+            if what.isEmpty {
+                guard let m = patchHull(s, st, near: at) else { return nil }
+                what = m
             }
         }
         let drives = st.wheelsLost * 2 < st.wheels.count && (st.engines0 == 0 || s.engines * 10 >= st.engines0 * 4)
@@ -949,6 +957,84 @@ extension ShipManager {
             st.disabledWhy = ""; st.grind = -1; st.sag = V2(0, 0)
             return what + ": the \(s.name) can drive again"
         }
+        return what
+    }
+
+    // P476 (Oct 27 19:1x, "I wanted to figure out how to repair it. I should be able to go to the helm and figure out
+    // how"): a warship he took is mended with ingots, at her helm or anywhere on her: once her engines run, each ingot
+    // puts back up to 64 of her blocks as built, the main gun's barrel first while it is torn away (and the gun works
+    // again once it is whole), then those nearest where the ingot was used, and smooths the chipped plating there.
+    // The plans are drawn up from her builder off the frame the first time she is his (requestBlueprint).
+    func requestBlueprint(_ s: Ship, _ st: CapitalState) {
+        guard !st.blueprintAsked, ["capfrigate", "frigate", "crawler"].contains(s.role ?? "") else { return }
+        st.blueprintAsked = true
+        let role = s.role ?? "", sx = s.grid.sx, sy = s.grid.sy, sz = s.grid.sz, id = s.id
+        DispatchQueue.global(qos: .utility).async {
+            let hb = role == "capfrigate" ? Capital.capitalFrigate() : (role == "frigate" ? Capital.frigate() : Capital.crawler())
+            guard hb.sx == sx && hb.sy == sy && hb.sz == sz else { return }
+            let solid = hb.blocks.reduce(0) { $0 + ($1 == AIR ? 0 : 1) }
+            ShipManager.plansLock.lock()
+            ShipManager.plans[id] = (hb.blocks, solid)
+            ShipManager.plansLock.unlock()
+        }
+    }
+    static var plans: [Int: ([BlockID], Int)] = [:]               // drawn up, waiting to be taken on the frame
+    static let plansLock = NSLock()
+    private func takePlan(_ s: Ship, _ st: CapitalState) {
+        guard st.blueprint == nil, st.blueprintAsked else { return }
+        ShipManager.plansLock.lock()
+        if let (b, n) = ShipManager.plans.removeValue(forKey: s.id) { st.blueprint = b; st.blueprintSolid = n }
+        ShipManager.plansLock.unlock()
+    }
+
+    func hullShare(_ s: Ship, _ st: CapitalState) -> Float? {
+        takePlan(s, st)
+        guard st.blueprint != nil, st.blueprintSolid > 0 else { return nil }
+        return min(1, Float(s.blockCount) / Float(st.blueprintSolid))
+    }
+
+    func patchHull(_ s: Ship, _ st: CapitalState, near at: V3) -> String? {
+        requestBlueprint(s, st)
+        takePlan(s, st)
+        guard let bp = st.blueprint, bp.count == s.grid.blocks.count else { return nil }
+        let gr = s.grid
+        let gunOut = st.mainGunLength > 0 && st.mainGunCD >= 1e30
+        let mz = st.mainGunMuzzle, md = simd_normalize(st.mainGunDir)
+        var want: [(Float, IVec3, BlockID)] = []
+        for y in 0..<gr.sy { for z in 0..<gr.sz { for x in 0..<gr.sx {
+            let i = gr.index(x, y, z)
+            let b = bp[i]
+            guard b != AIR, gr.blocks[i] == AIR else { continue }
+            let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+            var d = simd_length(p - at)
+            if gunOut {
+                let rel = p - mz, along = -simd_dot(rel, md)
+                if along >= -2 && along <= st.mainGunLength && simd_length(rel + md * along) < 4.5 { d -= 100_000 }
+            }
+            want.append((d, IVec3(x, y, z), b))
+        } } }
+        var chips: [IVec3] = []
+        for (c, _) in s.damage where simd_length(V3(Float(c.x), Float(c.y), Float(c.z)) - at) < 6 { chips.append(c) }
+        guard !want.isEmpty || !chips.isEmpty else { return nil }
+        want.sort { $0.0 < $1.0 }
+        var cells: [IVec3] = []
+        let kinds = ShipParts.kinds
+        for (_, c, b) in want.prefix(64) {
+            gr.set(c.x, c.y, c.z, b)
+            s.blockCount += 1
+            if kinds[Int(b)] == .engine { s.engines += 1 }
+            if kinds[Int(b)] == .helm && s.helm == nil { s.helm = c }
+            cells.append(c)
+        }
+        for c in chips.prefix(64) { s.damage.removeValue(forKey: c) }
+        s.mesh.rebuildAround(s, cells + chips.prefix(64), device: world.device, queue: meshQueue)
+        st.probes = nil                                            // (hullContact's outline drawn again)
+        var what = cells.isEmpty ? "Plating smoothed" : "Hull patched: \(cells.count) blocks"
+        if gunOut && !Capital.barrelTorn(s, st) {
+            st.mainGunCD = 0
+            what += ", the \(MainGun.name)'s barrel is whole again"
+        }
+        if let k = hullShare(s, st) { what += String(format: " (hull %d%%)", Int((k * 100).rounded(.down))) }
         return what
     }
 
@@ -1039,6 +1125,7 @@ extension ShipManager {
                 g.onToast?(s.role == "crawler" ? "The ground shakes: an Ironback Crawler is near" : "A \(s.name) looms on the horizon")
             }
             if s.asleep { continue }                 // P376: past the active distance a capital ship waits where it is
+            if s.captured { requestBlueprint(s, st) }                       // P476: her plans, for repairs
             if s.captured && !s.wrecked && (s.role == "dropship" || s.isFlyingCapital) { commandeeredTick(s, st, dt, g); continue }
             if s.captured && s.wrecked && s.isFlyingCapital { founder(s, st, dt, g); downedGunsTick(s, st, dt, g); continue }
             if s.captured && s.role == "crawler" { capturedCrawlerTick(s, st, dt, g); continue }
