@@ -359,3 +359,55 @@ enum FrigateCheck {
         }
     }
 }
+
+// P483 (Oct 28 17:34, on foot in survival with a Meridian frigate overhead: "the frigate's guns aren't hurting me at all
+// on survival normal"; questcheck --frigatefire): a hostile frigate spawned 90 blocks off, the player standing in
+// survival on Normal; for 40 s of play, what it fires, how near its rounds come and what reaches him.
+extension FrigateCheck {
+    static func fireOnPlayer(_ g: Game, _ check: (Bool, String) -> Void) {
+        let w = g.world, home = g.player.pos
+        g.paused = false; g.survival = true; g.player.flying = false; g.health = 20; g.alive = true; g.difficulty = 2
+        let n0 = w.ships.list.count
+        w.ships.spawnCapital("capfrigate", home: IVec3(Int(floor(home.x)), 0, Int(floor(home.z)) + 90), yaw: 0, region: nil, sync: true)
+        guard let s = w.ships.list.dropFirst(n0).first(where: { $0.role == "capfrigate" }), let st = w.ships.capState[s.id] else {
+            check(false, "frigatefire: the Meridian frigate spawns"); return
+        }
+        var seen = Set<ObjectIdentifier>(), fired = 0, kinds: [Int: Int] = [:], nearest: Float = 1e9, low = g.health, targeted = 0
+        var firstHurt: Double = -1
+        var last: [ObjectIdentifier: (V3, Int)] = [:], bursts: [String] = [], track: [String] = [], tick = 0
+        let t0 = g.clock
+        for _ in 0..<(72 * 40) {
+            g.tick(1.0 / 72)
+            if st.target?.player == true { targeted += 1 }
+            var live = Set<ObjectIdentifier>()
+            for sh in w.ships.shells where w.ships.list.first(where: { $0.id == sh.owner })?.root === s {
+                live.insert(ObjectIdentifier(sh))
+                if seen.insert(ObjectIdentifier(sh)).inserted { fired += 1; kinds[sh.kind, default: 0] += 1 }
+                nearest = min(nearest, simd_length(sh.pos - g.player.eye))
+                last[ObjectIdentifier(sh)] = (sh.pos, sh.kind)
+            }
+            // A round gone since the last tick burst (or ran out) where it was last seen.
+            for (k, v) in last where !live.contains(k) {
+                bursts.append(String(format: "%d:%.0f", v.1, simd_length(v.0 - g.player.pos)))
+                last[k] = nil
+            }
+            tick += 1
+            if tick % 360 == 0 {
+                let d = w.ships.boundsDistance(s, g.player.pos)
+                let sight = w.clearShot(s.pos, g.player.eye) || w.clearShot(V3(s.pos.x, s.worldMax.y + 1, s.pos.z), g.player.eye)
+                let gunSight = w.ships.turrets(of: s).contains { w.clearShot($0.toWorld($0.pivot) + V3(0, 1, 0), g.player.eye) }
+                let on = st.target.map { t in t.player ? " T" : (t.mob.map { " mob \($0.kind)" } ?? (t.ship != nil ? " ship" : " fixed")) } ?? ""
+                track.append(String(format: "%.0fs %.0f%@%@%@", Double(tick) / 72, d, sight ? "" : " blind", gunSight ? "" : " gunsblind", on))
+            }
+            if g.health < low { low = g.health; if firstHurt < 0 { firstHurt = g.clock - t0 } }
+            if !g.alive { break }
+        }
+        print(String(format: "frigatefire: frigate %.0f blocks off (%.0f up), targeting him %d of %d ticks, %d rounds fired %@, nearest %.1f blocks, health 20 -> %d%@, first hurt at %.1f s",
+                     simd_length(s.pos - home), s.pos.y - home.y, targeted, 72 * 40, fired, "\(kinds)", nearest, low, g.alive ? "" : " (killed)", firstHurt))
+        print("frigatefire: every 5 s (bounds distance, T targeting him): \(track.joined(separator: ", "))")
+        print("frigatefire: rounds burst (kind:blocks from him): \(bursts.joined(separator: " "))")
+        check(fired > 0 && low < 20, "frigatefire: a hostile frigate's guns hurt a survival player on Normal (\(fired) rounds, health 20 -> \(low))")
+        w.ships.remove(s); w.ships.capState.removeValue(forKey: s.id)
+        g.health = 20; g.alive = true; g.player.pos = home
+    }
+}
