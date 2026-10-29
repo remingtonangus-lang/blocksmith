@@ -1140,9 +1140,15 @@ extension ShipManager {
                 let d = self.boundsDistance(s, pp)
                 // In sight and in a sane range only: a frigate killed a player inside a house the moment they
                 // switched to survival, nobody near (Quest round 4). Sighted from the hull's centre or its top.
-                guard d < min(bd, 180) else { return }
+                // P483 (Oct 28 17:34, "the frigate's guns aren't hurting me at all on survival normal"): once her crew has
+                // spotted him (st.engaged) she keeps him in her whole sight; at 180 her orbit carried him out of it and
+                // her guns fell silent for most of a fight.
+                guard d < min(bd, st.engaged ? st.sight : 180) else { return }
                 let eye = g.player.eye
-                guard self.world.clearShot(s.pos, eye) || self.world.clearShot(V3(s.pos.x, s.worldMax.y + 1, s.pos.z), eye) else { return }
+                // (Or from any of her gun mounts: overhead, her centre and top looked down through her own decks' shadow of
+                // trees and roofs while a boom gun had him in plain view; P483 frigatefire: 30 s of 40 without a target.)
+                guard self.world.clearShot(s.pos, eye) || self.world.clearShot(V3(s.pos.x, s.worldMax.y + 1, s.pos.z), eye)
+                      || self.turrets(of: s).contains(where: { self.world.clearShot($0.toWorld($0.pivot) + V3(0, 1, 0), eye) }) else { return }
                 if d < bd { bd = d; best = CapTarget(point: pp + V3(0, 1, 0), vel: g.player.vel, ship: nil, mob: nil, player: true, seat: i) }
             }
         }
@@ -2014,7 +2020,15 @@ extension ShipManager {
             let aimErr = acosf(max(-1, min(1, simd_dot(a, b))))
             // Out of the barrels' reach (straight below a dorsal gun): hold fire.
             if elev < tr.pitchMin - 0.05 || elev > tr.pitchMax + 0.05 { continue }
-            if aimErr < 0.12 && tr.reload <= 0 {
+            // P483 (Oct 28 17:34-17:36, "the frigate's guns aren't hurting me at all", "the little guns just are not
+            // shooting where one would expect"): a gun fired while still turning, up to 7 degrees off, so its rounds
+            // burst 15 to 40 blocks from a man 150 off. It fires once laid within about two blocks of him (or 0.12 rad,
+            // close in).
+            // (Or once it has come round onto its bearing, on a hull pitched so that its plane never quite meets him.)
+            // (Dropships as they were: "the aiming for the drop ship... it's actually working".)
+            let laid: Float = s.role == "dropship" ? 0.12 : max(0.02, min(0.12, 2.5 / max(1, simd_length(d))))
+            let onBearing = tr.aimYaw.map { t in abs(remainderf(t - tr.turretYaw, 2 * .pi)) < 0.01 } ?? false
+            if (aimErr < laid || (onBearing && aimErr < 0.12)) && tr.reload <= 0 {
                 if s.role == "dropship" { dropshipBurst(s, tr, t, pitch: elev, g) } else { fire(tr, pitch: elev, game: g) }
             }
         }

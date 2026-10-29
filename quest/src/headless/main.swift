@@ -1950,6 +1950,10 @@ if CommandLine.arguments.contains("--locatecheck") {
     }
     print(failures == 0 ? "locatecheck: all checks passed" : "locatecheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--frigatefire") {
+    FrigateCheck.fireOnPlayer(game, check)
+    exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--frigatecheck") {
     FrigateCheck.run(game, check)
     print(failures == 0 ? "frigate: all checks passed" : "frigate: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

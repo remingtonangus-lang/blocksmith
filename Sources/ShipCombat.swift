@@ -189,7 +189,9 @@ extension ShipManager {
                     let k = ang > 1e-3 ? min(1, 2.5 * dt / ang) : 1
                     sh.vel = simd_normalize(cur + (want - cur) * k + V3(1e-5, 0, 0)) * speed
                     // Near the target: burst (missiles chasing a 480-block hull aim at its centre, so a hull hit fuses first).
-                    if simd_length(a - start) < 2.5 { near = true }
+                    // P483: at a man or a mob it bursts within reach of its own blast (a 1.0 missile's 2 blocks): fused at
+                    // 2.5 from his middle it burst just out of reach and never hurt anyone (frigatefire: 12 bursts at 3 blocks).
+                    if simd_length(a - start) < (sh.seekPlayer || sh.seekMob != nil ? 1.2 : 2.5) { near = true }
                 }
                 if let g = game, Int(sh.age * 30) % 3 == 0 { g.particles.smoke(at: start, dark: false) }
             }
