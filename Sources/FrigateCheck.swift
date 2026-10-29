@@ -265,6 +265,28 @@ enum FrigateCheck {
                   String(format: "frigate P476: with no way on she hovers and comes straight down onto the ground (%.1f blocks over it, slid %.1f, bow %.1f degrees, %d hull blocks lost, %d crashes, %d half-hearts)",
                          left, slid, asinf(fwd.y) * 180 / .pi, had - s.blockCount, Capital.crashes - crashes, 20 - g.health))
         }
+        // P476 ("if it doesn't have enough thrust, it doesn't get off the ground"): her stern's thruster cores shot
+        // away, 30 up with nothing at the helm's controls: no drive, and she settles to the ground.
+        do {
+            if w.ships.pilot !== s { g.player.pos = s.toWorld(stand); g.takeCommand(s) }
+            let thr = Blocks.id("frigate_thruster"), cells = st.thrustCells
+            for c in cells { w.ships.setBlock(s, c, AIR) }
+            s.vel = .zero; s.angVel = .zero; s.throttle = 0
+            w.ships.pointHull(s, pitch: 0)
+            s.pos.y += ground + 30 - s.worldMin.y; s.prevPos = s.pos; s.updateBounds()
+            fly(MoveInput(), 12)
+            var under: Float = 0                    // (the ground right under her, not at the start spot)
+            for (i, j) in [(1, 1), (0, 0), (2, 0), (0, 2), (2, 2)] {
+                let x = Int(floor(s.worldMin.x + (s.worldMax.x - s.worldMin.x) * Float(i) * 0.5))
+                let z = Int(floor(s.worldMin.z + (s.worldMax.z - s.worldMin.z) * Float(j) * 0.5))
+                under = max(under, Float(w.topY(x, z)) + 1)
+            }
+            let left = s.worldMin.y - under, power = Capital.power(s, st), drive = Capital.drive(s, st)
+            check(!cells.isEmpty && power < 0.05 && drive == 0 && left < 3,
+                  String(format: "frigate P476: with her %d thruster cores gone she has no thrust (power %.2f, drive %.2f) and settles from 30 up to %.1f over the ground", cells.count, power, drive, left))
+            for c in cells { w.ships.setBlock(s, c, thr) }
+            st.thrustT = 0
+        }
         s.pos = start; s.prevPos = start; s.vel = .zero
         w.ships.pointHull(s, pitch: 0)
         if w.ships.pilot !== s { g.player.pos = s.toWorld(stand); g.takeCommand(s) }
