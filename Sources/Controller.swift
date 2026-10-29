@@ -16,6 +16,7 @@ final class PadManager {
     private(set) var controller: GCController?
     private(set) var style: Style = .xbox          // which button art prompts use
     var simulated: PadSnapshot?          // harness input; replaces the real pad while set
+    var touch: PadSnapshot?              // the Quest's Touch-controller pad (QuestPad.swift); harness checks set it here too
     private(set) var usingPad = false    // the last input came from a controller
     var onConnect: ((String) -> Void)?
     var onDisconnect: ((String, Bool) -> Void)?   // name, whether the player was using it
@@ -27,7 +28,7 @@ final class PadManager {
     var disconnectedAt: Double?          // game clock when the active pad dropped out (pause-menu notice)
     var clock: () -> Double = { 0 }          // harness: strengths of requested rumbles (kept short)
 
-    var connected: Bool { simulated != nil || controller != nil || USBGamepads.shared.active }
+    var connected: Bool { simulated != nil || touch != nil || controller != nil || USBGamepads.shared.active }
     // A pad macOS drives itself (GameController); the USB GIP fallback (USBGamepad.swift) stays out of its way.
     // (Set on the main thread in pick(); the USB queue only reads it.)
     private(set) var hasSystemPad = false
@@ -113,7 +114,7 @@ final class PadManager {
     }
 
     private func readRaw() -> PadSnapshot? {
-        if let s = simulated { return s }
+        if let s = simulated ?? touch { return s }
         if !started, controller == nil { controller = GCController.current ?? GCController.controllers().first }
         guard let c = controller ?? GCController.current, let g = c.extendedGamepad else {
             guard var u = USBGamepads.shared.snapshot() else { return nil }

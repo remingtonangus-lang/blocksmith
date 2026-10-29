@@ -377,6 +377,10 @@ enum Snapshot {
                 m.name = "Digger"; m.editing = true
                 m.changed()
                 game.openMenu(m)
+            case "chest":
+                let c = ItemContainer(27)
+                for (i, n) in ["bread", "coal", "raw_iron", "torch", "apple"].enumerated() where Items.has(n) { c.slots[i * 4] = ItemStack(Items.id(n), 9) }
+                game.openMenu(ChestMenu(game: game, container: c, title: "Chest"))
             default:
                 game.survival = true
                 game.applyEffect(.speed, amp: 1, seconds: 95)
@@ -384,6 +388,8 @@ enum Snapshot {
                 game.applyEffect(.poison, amp: 0, seconds: 8)
                 game.openMenu(InventoryMenu(game: game))
             }
+            // --vrpanel: draw the menu as the headset's menu panel does (use with --w 1024 --h 640).
+            if CommandLine.arguments.contains("--vrpanel") { game.vrHead = game.player.pos + V3(0, 1.62, 0) }
             if !(game.menu is EnchantMenu) {
                 let n = game.menu?.slots.count ?? 0
                 game.menuCursor = min(12, max(0, n - 1))
