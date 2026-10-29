@@ -21,6 +21,14 @@ enum Faction: Int {
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
 final class CapitalState {
+    // P476 (Oct 27, "these four giant things are engines... thruster blocks back here. The engines connect to the
+    // thruster blocks and somehow are what drives the frigate... if it doesn't have enough thrust, it doesn't get off
+    // the ground"): the stern's thruster cores as built (the cells by the exhaust mouths), how many still burn, and
+    // the hull's block count as built (her load).
+    var thrustCells: [IVec3] = []
+    var thrustLive = 0
+    var thrustT: Float = 0
+    var blocks0 = 0
     // P476: the hull as built (HullBuilder blocks, the root grid's layout) for repairs, drawn up off the frame once she
     // is his; its solid cell count for the helm's hull readout.
     var blueprint: [BlockID]?
@@ -799,6 +807,18 @@ extension ShipManager {
             st.mainGunLength = hb.mainGunLength
             st.pods = hb.pods
             st.exhausts = hb.exhausts
+            if let thr = Blocks.has("frigate_thruster") ? Blocks.id("frigate_thruster") : nil, !hb.exhausts.isEmpty {
+                let gr = s.grid
+                for e in hb.exhausts {
+                    let ex = Int(floor(e.x)), ey = Int(floor(e.y)), ez = Int(floor(e.z))
+                    for y in (ey - 7)...(ey + 7) { for z in (ez - 7)...(ez + 1) { for x in (ex - 7)...(ex + 7) where gr.get(x, y, z) == thr {
+                        let c = IVec3(x, y, z)
+                        if !st.thrustCells.contains(c) { st.thrustCells.append(c) }
+                    } } }
+                }
+                st.thrustLive = st.thrustCells.count
+            }
+            st.blocks0 = s.blockCount
             st.crew = hb.crew
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
             st.wheels = Capital.vehicleWheels(s)
@@ -1563,6 +1583,11 @@ extension ShipManager {
         // her lift jets: she levels out, and the bow's pitch control lifts or lowers her straight up and down instead
         // (6 blocks/s, easing to 1.5 over the last dozen blocks so she settles onto the ground gently); the steer still
         // turns her on the spot. Drive on and she flies along her bow again.
+        Capital.countThrust(s, st, dt)
+        let lift = Capital.power(s, st)
+        // Under half the thrust her weight wants she can't hold her height: she settles toward the ground, faster the
+        // less she has (8 blocks/s with none), whoever is at the helm.
+        let sink: Float = lift < 0.5 ? -(0.5 - lift) * 16 : 0
         let hover = steered && abs(way) < 3 && abs(s.throttle) < 0.15
         if hover { st.helmPitch += -st.helmPitch * min(1, dt * 1.5) }
         else { st.helmPitch = max(-Capital.maxPitch, min(Capital.maxPitch, st.helmPitch + pitchIn * 0.32 * dt)) }
@@ -1581,10 +1606,12 @@ extension ShipManager {
                 below = max(below, Float(world.isLoaded(x, z) ? world.topY(x, z) : world.gen.column(x, z).height) + 1)
             }
             let clear = s.worldMin.y - below
-            let rate: Float = pitchIn > 0 ? 6 : max(1.5, min(6, clear * 0.5))
-            s.vel.y += (pitchIn * rate - s.vel.y) * min(1, dt * 2)
+            // (Short of thrust she climbs slower, and not at all under 0.5 of it.)
+            let rate: Float = pitchIn > 0 ? 6 * max(0, min(1, (lift - 0.5) / 0.3)) : max(1.5, min(6, clear * 0.5))
+            s.vel.y += (min(pitchIn * rate, sink < 0 ? sink : .infinity) - s.vel.y) * min(1, dt * 2)
             Capital.hovering = true
         } else if steered { Capital.hovering = false }
+        if !hover && sink < 0 { s.vel.y += (min(s.vel.y, sink) - s.vel.y) * min(1, dt * 1.5) }
         if s.worldMax.y > Float(CH - 4) { s.vel.y = min(s.vel.y, 0) }        // the sky's ceiling
         // Turning: slow with no way on, quicker under way; the pitch and bank eased toward the helm's.
         let under = min(1, abs(way) / 12)
@@ -2902,8 +2929,25 @@ extension Capital {
 
     static func drive(_ s: Ship, _ st: CapitalState) -> Float {
         guard st.engines0 > 0 else { return 1 }
-        let k = Float(s.engines) / Float(st.engines0)
+        let k = power(s, st)
         return k < 0.4 ? 0 : min(1, 0.35 + 0.65 * (k - 0.4) / 0.6)
+    }
+
+    // P476: her thrust over her load, 1 as built: the engines drive the stern's thruster cores, so the weaker of the
+    // two sets it (each a share of what she was built with), and every block added past her built weight drags it down.
+    static func power(_ s: Ship, _ st: CapitalState) -> Float {
+        guard st.engines0 > 0 else { return 1 }
+        let ke = Float(s.engines) / Float(st.engines0)
+        let kt: Float = st.thrustCells.isEmpty ? 1 : Float(st.thrustLive) / Float(st.thrustCells.count)
+        let load: Float = st.blocks0 > 0 ? max(1, Float(s.blockCount) / Float(st.blocks0)) : 1
+        return min(ke, kt) / load
+    }
+    static func countThrust(_ s: Ship, _ st: CapitalState, _ dt: Float) {
+        st.thrustT -= dt
+        guard st.thrustT <= 0, !st.thrustCells.isEmpty else { return }
+        st.thrustT = 0.5
+        let thr = Blocks.has("frigate_thruster") ? Blocks.id("frigate_thruster") : AIR
+        st.thrustLive = st.thrustCells.reduce(0) { $0 + (s.grid.get($1.x, $1.y, $1.z) == thr ? 1 : 0) }
     }
 
     // Top speed along the bow at full throttle (blocks/s).
