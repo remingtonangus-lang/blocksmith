@@ -2079,7 +2079,9 @@ enum HDTex {
                 let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
                 if frame && edge < u {
                     let k: Float = y < u && edge == y ? 1.18 : (y >= n - u && edge == n - 1 - y ? 0.74 : (x < u ? 1.02 : 0.86))
-                    put(&img, x, y, col(0xB87333) * (k * fk))
+                    let tone: Float = k * fk
+                    let cu: V3 = col(0xB87333)
+                    put(&img, x, y, cu * tone)
                     continue
                 }
                 if frame && edge == u { let c = img[x, y]; img[x, y] = V4(c.x * 0.55, c.y * 0.55, c.z * 0.55, 1); continue }
@@ -2089,14 +2091,16 @@ enum HDTex {
                 if frame && rx * rx + ry * ry < 0.55 * fu * fu {
                     let cy: Float = Float(y) < fn / 2 ? 2.5 * fu : fn - 2.5 * fu
                     let hi: Float = Float(y) + 0.5 < cy ? 1.25 : 0.85
-                    put(&img, x, y, col(0xC8884A) * (hi * fk))
+                    let tone: Float = hi * fk
+                    let cu: V3 = col(0xC8884A)
+                    put(&img, x, y, cu * tone)
                     continue
                 }
                 if hatch {
                     let hx = abs(Float(x) + 0.5 - fn / 2), hy = abs(Float(y) + 0.5 - fn / 2)
                     let he = 3.2 * fu - max(hx, hy)
                     if he >= 0 && he < 0.45 * fu { let c = img[x, y]; img[x, y] = V4(c.x * 0.45, c.y * 0.45, c.z * 0.45, 1) }   // the seam
-                    else if hy < 0.5 * fu && hx < 1.6 * fu { put(&img, x, y, col(0xB87333) * ((Float(y) + 0.5 < fn / 2 ? 1.2 : 0.8) * fk)) }
+                    else if hy < 0.5 * fu && hx < 1.6 * fu { let tone: Float = (Float(y) + 0.5 < fn / 2 ? 1.2 : 0.8) * fk; let cu: V3 = col(0xB87333); put(&img, x, y, cu * tone) }
                 }
             } }
             return img
@@ -2115,7 +2119,9 @@ enum HDTex {
                     put(&img, x, y, V3(k, k * 0.97, k * 0.95) * fk)
                 } else if d < (r + 0.9) * fu {
                     let k: Float = dy < 0 ? 0.82 : 1.18
-                    put(&img, x, y, col(0xB87333) * (k * fk))
+                    let tone: Float = k * fk
+                    let cu: V3 = col(0xB87333)
+                    put(&img, x, y, cu * tone)
                 } else if d < (r + 1.2) * fu {
                     put(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
                 }
@@ -2202,7 +2208,9 @@ enum HDTex {
                         put(&img, x, y, c)
                     } else if d < 4.8 {
                         let bevel: Float = 0.8 + 0.4 * cl((dy * -1 + 4.8) / 9.6)
-                        put(&img, x, y, col(0xB87333) * (bevel * fk))
+                        let tone: Float = bevel * fk
+                        let cu: V3 = col(0xB87333)
+                        put(&img, x, y, cu * tone)
                     } else if d < 5.5 {
                         put(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
                     } else {
