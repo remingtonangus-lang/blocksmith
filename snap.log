@@ -1,0 +1,99 @@
+natural census: 63 sample chunks in 29220 ms
+posecheck FAIL soldier_recruit gun_needle aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL soldier_recruit gun_needle aim seated right hand on the grip: 4.4 px off
+posecheck FAIL soldier_recruit gun_needle aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL soldier_recruit gun_breaker aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL soldier_recruit gun_breaker aim seated right hand on the grip: 4.4 px off
+posecheck FAIL soldier_recruit gun_breaker aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL soldier_trooper gun_needle aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL soldier_trooper gun_needle aim seated right hand on the grip: 4.4 px off
+posecheck FAIL soldier_trooper gun_needle aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL soldier_trooper gun_breaker aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL soldier_trooper gun_breaker aim seated right hand on the grip: 4.4 px off
+posecheck FAIL soldier_trooper gun_breaker aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL soldier_marksman gun_needle aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL soldier_marksman gun_needle aim seated right hand on the grip: 4.4 px off
+posecheck FAIL soldier_marksman gun_needle aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL soldier_marksman gun_breaker aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL soldier_marksman gun_breaker aim seated right hand on the grip: 4.4 px off
+posecheck FAIL soldier_marksman gun_breaker aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL soldier_ironclad gun_needle aim seated muzzle ahead of the hands: muzzle -4.1 hand -5.9
+posecheck FAIL soldier_ironclad gun_needle aim seated right hand on the grip: 5.0 px off
+posecheck FAIL soldier_ironclad gun_needle aim seated left hand on the fore grip: 9.2 px off
+posecheck FAIL soldier_ironclad gun_breaker aim seated muzzle ahead of the hands: muzzle -4.1 hand -5.9
+posecheck FAIL soldier_ironclad gun_breaker aim seated right hand on the grip: 5.0 px off
+posecheck FAIL soldier_ironclad gun_breaker aim seated left hand on the fore grip: 9.2 px off
+posecheck FAIL soldier_officer gun_needle aim level left hand ahead of the chest: z 2.2
+posecheck FAIL soldier_officer gun_needle aim level left hand on the fore grip: 16.5 px off
+posecheck FAIL soldier_officer gun_needle aim up left hand ahead of the chest: z 2.2
+posecheck FAIL soldier_officer gun_needle aim up left hand on the fore grip: 16.6 px off
+posecheck FAIL soldier_officer gun_needle aim down left hand ahead of the chest: z 2.2
+posecheck FAIL soldier_officer gun_needle aim down left hand on the fore grip: 16.5 px off
+posecheck FAIL soldier_officer gun_needle firing left hand ahead of the chest: z 2.2
+posecheck FAIL soldier_officer gun_needle firing left hand on the fore grip: 16.5 px off
+posecheck FAIL soldier_officer gun_needle aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL soldier_officer gun_needle aim seated right hand on the grip: 4.4 px off
+posecheck FAIL soldier_officer gun_needle aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL soldier_officer gun_breaker aim level left hand ahead of the chest: z 2.2
+posecheck FAIL soldier_officer gun_breaker aim level left hand on the fore grip: 16.5 px off
+posecheck FAIL soldier_officer gun_breaker aim up left hand ahead of the chest: z 2.2
+posecheck FAIL soldier_officer gun_breaker aim up left hand on the fore grip: 16.6 px off
+posecheck FAIL soldier_officer gun_breaker aim down left hand ahead of the chest: z 2.2
+posecheck FAIL soldier_officer gun_breaker aim down left hand on the fore grip: 16.5 px off
+posecheck FAIL soldier_officer gun_breaker firing left hand ahead of the chest: z 2.2
+posecheck FAIL soldier_officer gun_breaker firing left hand on the fore grip: 16.5 px off
+posecheck FAIL soldier_officer gun_breaker aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL soldier_officer gun_breaker aim seated right hand on the grip: 4.4 px off
+posecheck FAIL soldier_officer gun_breaker aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL soldier_crew gun_needle aim seated muzzle ahead of the hands: muzzle -6.1 hand -5.3
+posecheck FAIL soldier_crew gun_needle aim seated right hand on the grip: 7.8 px off
+posecheck FAIL soldier_crew gun_needle aim seated left hand on the fore grip: 6.8 px off
+posecheck FAIL soldier_crew gun_breaker aim seated muzzle ahead of the hands: muzzle -6.1 hand -5.3
+posecheck FAIL soldier_crew gun_breaker aim seated right hand on the grip: 7.8 px off
+posecheck FAIL soldier_crew gun_breaker aim seated left hand on the fore grip: 6.8 px off
+posecheck FAIL ash_marshal gun_needle aim level left hand ahead of the chest: z 2.2
+posecheck FAIL ash_marshal gun_needle aim level left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_marshal gun_needle aim up left hand ahead of the chest: z 2.2
+posecheck FAIL ash_marshal gun_needle aim up left hand on the fore grip: 16.6 px off
+posecheck FAIL ash_marshal gun_needle aim down left hand ahead of the chest: z 2.2
+posecheck FAIL ash_marshal gun_needle aim down left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_marshal gun_needle firing left hand ahead of the chest: z 2.2
+posecheck FAIL ash_marshal gun_needle firing left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_marshal gun_needle aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL ash_marshal gun_needle aim seated right hand on the grip: 4.4 px off
+posecheck FAIL ash_marshal gun_needle aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL ash_marshal gun_breaker aim level left hand ahead of the chest: z 2.2
+posecheck FAIL ash_marshal gun_breaker aim level left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_marshal gun_breaker aim up left hand ahead of the chest: z 2.2
+posecheck FAIL ash_marshal gun_breaker aim up left hand on the fore grip: 16.6 px off
+posecheck FAIL ash_marshal gun_breaker aim down left hand ahead of the chest: z 2.2
+posecheck FAIL ash_marshal gun_breaker aim down left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_marshal gun_breaker firing left hand ahead of the chest: z 2.2
+posecheck FAIL ash_marshal gun_breaker firing left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_marshal gun_breaker aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL ash_marshal gun_breaker aim seated right hand on the grip: 4.4 px off
+posecheck FAIL ash_marshal gun_breaker aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL ash_chancellor gun_needle aim level left hand ahead of the chest: z 2.2
+posecheck FAIL ash_chancellor gun_needle aim level left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_chancellor gun_needle aim up left hand ahead of the chest: z 2.2
+posecheck FAIL ash_chancellor gun_needle aim up left hand on the fore grip: 16.6 px off
+posecheck FAIL ash_chancellor gun_needle aim down left hand ahead of the chest: z 2.2
+posecheck FAIL ash_chancellor gun_needle aim down left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_chancellor gun_needle firing left hand ahead of the chest: z 2.2
+posecheck FAIL ash_chancellor gun_needle firing left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_chancellor gun_needle aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL ash_chancellor gun_needle aim seated right hand on the grip: 4.4 px off
+posecheck FAIL ash_chancellor gun_needle aim seated left hand on the fore grip: 8.2 px off
+posecheck FAIL ash_chancellor gun_breaker aim level left hand ahead of the chest: z 2.2
+posecheck FAIL ash_chancellor gun_breaker aim level left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_chancellor gun_breaker aim up left hand ahead of the chest: z 2.2
+posecheck FAIL ash_chancellor gun_breaker aim up left hand on the fore grip: 16.6 px off
+posecheck FAIL ash_chancellor gun_breaker aim down left hand ahead of the chest: z 2.2
+posecheck FAIL ash_chancellor gun_breaker aim down left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_chancellor gun_breaker firing left hand ahead of the chest: z 2.2
+posecheck FAIL ash_chancellor gun_breaker firing left hand on the fore grip: 16.5 px off
+posecheck FAIL ash_chancellor gun_breaker aim seated muzzle ahead of the hands: muzzle -3.7 hand -5.3
+posecheck FAIL ash_chancellor gun_breaker aim seated right hand on the grip: 4.4 px off
+posecheck FAIL ash_chancellor gun_breaker aim seated left hand on the fore grip: 8.2 px off
+posecheck: weapon clearance: 353 of 1100 poses had the weapon through an arm or the body before clearing; worst after 0.45 px
+posecheck: 1209 raised limbs checked, 96 failed -> soldier_recruit gun_needle aim seated muzzle ahead of the hands, soldier_recruit gun_needle aim seated right hand on the grip, soldier_recruit gun_needle aim seated left hand on the fore grip, soldier_recruit gun_breaker aim seated muzzle ahead of the hands, soldier_recruit gun_breaker aim seated right hand on the grip, soldier_recruit gun_breaker aim seated left hand on the fore grip, soldier_trooper gun_needle aim seated muzzle ahead of the hands, soldier_trooper gun_needle aim seated right hand on the grip, soldier_trooper gun_needle aim seated left hand on the fore grip, soldier_trooper gun_breaker aim seated muzzle ahead of the hands, soldier_trooper gun_breaker aim seated right hand on the grip, soldier_trooper gun_breaker aim seated left hand on the fore grip

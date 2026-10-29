@@ -1,0 +1,2071 @@
+/Users/runner/work/blocksmith/blocksmith/Sources/AshSites.swift:295:21: warning: expression took 2119ms to type-check (limit: 150ms)
+293 |         s += townSites + [airfield]                                           // the gap pass (AshVault.swift)
+294 |         for k in 0..<8 {
+295 |             let a = (Float(k) * 45 + 22.5) * .pi / 180
+    |                     `- warning: expression took 2119ms to type-check (limit: 150ms)
+296 |             s.append(AshSite(kind: "outpost", x: Int(sinf(a) * 470), z: Int(-cosf(a) * 470), r: 16, face: k * 45 + 22))
+297 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshSites.swift:63:123: warning: expression took 2866ms to type-check (limit: 150ms)
+ 61 |         cloth("ash_banner", "Ashguard Banner", tex: "ash_banner")
+ 62 |         cloth("ash_banner_end", "Ashguard Banner", tex: "ash_banner_end")
+ 63 |         for i in 0..<9 { cloth("ash_standard_\(i)", "Ashguard Standard", tex: "ash_standard_\(i)", mirror: "ash_standard_\(i / 3 * 3 + 2 - i % 3)") }
+    |                                                                                                                           `- warning: expression took 2866ms to type-check (limit: 150ms)
+ 64 |         block("ash_bunkercrete", "Bunker Concrete", h: -1)
+ 65 |         block("ash_blastdoor", "Blast Door", h: -1)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshSites.swift:133:21: warning: expression took 217ms to type-check (limit: 150ms)
+131 |             if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x18181A) }
+132 |             if x == 8 || y == 8 { return hex(0x2A1010) }
+133 |             let c = Float(abs(x - 8) + abs(y - 8))
+    |                     `- warning: expression took 217ms to type-check (limit: 150ms)
+134 |             return hex(0xFF5A3C, 1.05 - c * 0.04)
+135 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshSites.swift:585:73: warning: expression took 261ms to type-check (limit: 150ms)
+583 |                 // corner tower's platform, its sharpshooter beside it, the lamp on a bar at the rail.
+584 |                 put(u + (u > 0 ? 2 : -2), y0 + 14, v + (v > 0 ? 2 : -2), k.lamp)
+585 |                 unit("deck_gun:light@ash", Float(u), Float(v), heading: Int(atan2f(Float(-u), Float(v)) * 180 / .pi + 540) % 360, y: y0 + 13)
+    |                                                                         `- warning: expression took 261ms to type-check (limit: 150ms)
+586 |                 soldier("marksman", Float(u + (u > 0 ? -1 : 1)), Float(v + (v > 0 ? -1 : 1)), y: y0 + 13)
+587 |             }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshSites.swift:585:73: warning: expression took 212ms to type-check (limit: 150ms)
+583 |                 // corner tower's platform, its sharpshooter beside it, the lamp on a bar at the rail.
+584 |                 put(u + (u > 0 ? 2 : -2), y0 + 14, v + (v > 0 ? 2 : -2), k.lamp)
+585 |                 unit("deck_gun:light@ash", Float(u), Float(v), heading: Int(atan2f(Float(-u), Float(v)) * 180 / .pi + 540) % 360, y: y0 + 13)
+    |                                                                         `- warning: expression took 212ms to type-check (limit: 150ms)
+586 |                 soldier("marksman", Float(u + (u > 0 ? -1 : 1)), Float(v + (v > 0 ? -1 : 1)), y: y0 + 13)
+587 |             }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshSites.swift:585:17: warning: expression took 190ms to type-check (limit: 150ms)
+583 |                 // corner tower's platform, its sharpshooter beside it, the lamp on a bar at the rail.
+584 |                 put(u + (u > 0 ? 2 : -2), y0 + 14, v + (v > 0 ? 2 : -2), k.lamp)
+585 |                 unit("deck_gun:light@ash", Float(u), Float(v), heading: Int(atan2f(Float(-u), Float(v)) * 180 / .pi + 540) % 360, y: y0 + 13)
+    |                 `- warning: expression took 190ms to type-check (limit: 150ms)
+586 |                 soldier("marksman", Float(u + (u > 0 ? -1 : 1)), Float(v + (v > 0 ? -1 : 1)), y: y0 + 13)
+587 |             }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshVaultGapTests.swift:134:13: warning: expression took 4614ms to type-check (limit: 150ms)
+132 |                 counted.insert(pos); boards += 1
+133 |             }
+134 |             carts += patch.mobs.filter { $0.0 == "minecart" && AshWar.railShape(Int(floor($0.1.x)), Int(floor($0.1.z))) != nil }
+    |             `- warning: expression took 4614ms to type-check (limit: 150ms)
+135 |                 .filter { m in AshWar.halts.contains { $0.run == i && abs((r.alongX ? Int(floor(m.1.x)) : Int(floor(m.1.z))) - ($0.from + $0.dir * AshWar.haltLength / 2)) == 0 } }.count
+136 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:164:19: warning: expression took 183ms to type-check (limit: 150ms)
+162 |             }
+163 |             rows.append(r)
+164 |             print("balance: \(r.name): kills the player in " + r.toKill.map(f).joined(separator: " / ")
+    |                   `- warning: expression took 183ms to type-check (limit: 150ms)
+165 |                   + "; the player kills it in " + r.kills.map(f).joined(separator: " / ") + " (early / iron / diamond)")
+166 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:164:19: warning: expression took 155ms to type-check (limit: 150ms)
+162 |             }
+163 |             rows.append(r)
+164 |             print("balance: \(r.name): kills the player in " + r.toKill.map(f).joined(separator: " / ")
+    |                   `- warning: expression took 155ms to type-check (limit: 150ms)
+165 |                   + "; the player kills it in " + r.kills.map(f).joined(separator: " / ") + " (early / iron / diamond)")
+166 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:164:19: warning: expression took 171ms to type-check (limit: 150ms)
+162 |             }
+163 |             rows.append(r)
+164 |             print("balance: \(r.name): kills the player in " + r.toKill.map(f).joined(separator: " / ")
+    |                   `- warning: expression took 171ms to type-check (limit: 150ms)
+165 |                   + "; the player kills it in " + r.kills.map(f).joined(separator: " / ") + " (early / iron / diamond)")
+166 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:164:13: warning: expression took 167ms to type-check (limit: 150ms)
+162 |             }
+163 |             rows.append(r)
+164 |             print("balance: \(r.name): kills the player in " + r.toKill.map(f).joined(separator: " / ")
+    |             `- warning: expression took 167ms to type-check (limit: 150ms)
+165 |                   + "; the player kills it in " + r.kills.map(f).joined(separator: " / ") + " (early / iron / diamond)")
+166 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:164:13: warning: expression took 178ms to type-check (limit: 150ms)
+162 |             }
+163 |             rows.append(r)
+164 |             print("balance: \(r.name): kills the player in " + r.toKill.map(f).joined(separator: " / ")
+    |             `- warning: expression took 178ms to type-check (limit: 150ms)
+165 |                   + "; the player kills it in " + r.kills.map(f).joined(separator: " / ") + " (early / iron / diamond)")
+166 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:164:13: warning: expression took 175ms to type-check (limit: 150ms)
+162 |             }
+163 |             rows.append(r)
+164 |             print("balance: \(r.name): kills the player in " + r.toKill.map(f).joined(separator: " / ")
+    |             `- warning: expression took 175ms to type-check (limit: 150ms)
+165 |                   + "; the player kills it in " + r.kills.map(f).joined(separator: " / ") + " (early / iron / diamond)")
+166 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:164:13: warning: expression took 201ms to type-check (limit: 150ms)
+162 |             }
+163 |             rows.append(r)
+164 |             print("balance: \(r.name): kills the player in " + r.toKill.map(f).joined(separator: " / ")
+    |             `- warning: expression took 201ms to type-check (limit: 150ms)
+165 |                   + "; the player kills it in " + r.kills.map(f).joined(separator: " / ") + " (early / iron / diamond)")
+166 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:164:13: warning: expression took 224ms to type-check (limit: 150ms)
+162 |             }
+163 |             rows.append(r)
+164 |             print("balance: \(r.name): kills the player in " + r.toKill.map(f).joined(separator: " / ")
+    |             `- warning: expression took 224ms to type-check (limit: 150ms)
+165 |                   + "; the player kills it in " + r.kills.map(f).joined(separator: " / ") + " (early / iron / diamond)")
+166 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:164:13: warning: expression took 168ms to type-check (limit: 150ms)
+162 |             }
+163 |             rows.append(r)
+164 |             print("balance: \(r.name): kills the player in " + r.toKill.map(f).joined(separator: " / ")
+    |             `- warning: expression took 168ms to type-check (limit: 150ms)
+165 |                   + "; the player kills it in " + r.kills.map(f).joined(separator: " / ") + " (early / iron / diamond)")
+166 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:195:42: warning: expression took 192ms to type-check (limit: 150ms)
+193 |         if CommandLine.arguments.contains("--write-balance") {
+194 |             var lines = ["| mob | kills you: early | iron | diamond | you kill it: early | iron | diamond |", "|---|---|---|---|---|---|---|"]
+195 |             for r in rows { lines.append("| \(r.name) | " + r.toKill.map(f).joined(separator: " | ") + " | " + r.kills.map(f).joined(separator: " | ") + " |") }
+    |                                          `- warning: expression took 192ms to type-check (limit: 150ms)
+196 |             let doc = """
+197 |             # Combat balance: time-to-kill table (Q2)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BalanceTests.swift:195:42: warning: expression took 197ms to type-check (limit: 150ms)
+193 |         if CommandLine.arguments.contains("--write-balance") {
+194 |             var lines = ["| mob | kills you: early | iron | diamond | you kill it: early | iron | diamond |", "|---|---|---|---|---|---|---|"]
+195 |             for r in rows { lines.append("| \(r.name) | " + r.toKill.map(f).joined(separator: " | ") + " | " + r.kills.map(f).joined(separator: " | ") + " |") }
+    |                                          `- warning: expression took 197ms to type-check (limit: 150ms)
+196 |             let doc = """
+197 |             # Combat balance: time-to-kill table (Q2)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Ballistics.swift:758:22: warning: expression took 154ms to type-check (limit: 150ms)
+756 |         let pierce = Int8(Enchant.level(.penetration, st))
+757 |         let fiery = Enchant.level(.incendiary, st) > 0
+758 |         let muzzle = vrAim.map { $0.origin + $0.dir * 0.3 } ?? player.eye + look * 0.3
+    |                      `- warning: expression took 154ms to type-check (limit: 150ms)
+759 |         let quiet = GunCare.suppressed(st)                              // D9: a suppressor fitted
+760 |         switch gs.shot {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Banners.swift:88:34: warning: expression took 198ms to type-check (limit: 150ms)
+ 86 |             return b(v < 0.06 + (0.5 - abs(t - 0.5)) * 0.2)
+ 87 |         case "circle": return b(dx * dx + dy * dy < 22)
+ 88 |         case "rhombus": return b(abs(dx) / 6 + abs(dy) / 10 < 1)
+    |                                  `- warning: expression took 198ms to type-check (limit: 150ms)
+ 89 |         case "border": return b(x == 0 || x == 15 || y == 0 || y == 31)
+ 90 |         case "curly_border":
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Banners.swift:88:32: warning: expression took 152ms to type-check (limit: 150ms)
+ 86 |             return b(v < 0.06 + (0.5 - abs(t - 0.5)) * 0.2)
+ 87 |         case "circle": return b(dx * dx + dy * dy < 22)
+ 88 |         case "rhombus": return b(abs(dx) / 6 + abs(dy) / 10 < 1)
+    |                                `- warning: expression took 152ms to type-check (limit: 150ms)
+ 89 |         case "border": return b(x == 0 || x == 15 || y == 0 || y == 31)
+ 90 |         case "curly_border":
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Banners.swift:88:32: warning: expression took 208ms to type-check (limit: 150ms)
+ 86 |             return b(v < 0.06 + (0.5 - abs(t - 0.5)) * 0.2)
+ 87 |         case "circle": return b(dx * dx + dy * dy < 22)
+ 88 |         case "rhombus": return b(abs(dx) / 6 + abs(dy) / 10 < 1)
+    |                                `- warning: expression took 208ms to type-check (limit: 150ms)
+ 89 |         case "border": return b(x == 0 || x == 15 || y == 0 || y == 31)
+ 90 |         case "curly_border":
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Banners.swift:215:24: warning: expression took 257ms to type-check (limit: 150ms)
+213 |             let o = a + halfDown * Float(half)
+214 |             let pts = [o + halfDown, o + right + halfDown, o + right, o]
+215 |             let back = [o + right + halfDown, o + halfDown, o, o + right]
+    |                        `- warning: expression took 257ms to type-check (limit: 150ms)
+216 |             let uv = [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)]
+217 |             let uvBack = [V2(1, 1), V2(0, 1), V2(0, 0), V2(1, 0)]
+/Users/runner/work/blocksmith/blocksmith/Sources/AdaptiveGround.swift:82:16: warning: expression took 1360ms to type-check (limit: 150ms)
+ 80 |         if va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0 { return simd_length(bp - (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)))) }
+ 81 |         let den = 1 / (va + vb + vc)
+ 82 |         return simd_length(ap - ab * (vb * den) - ac * (vc * den))
+    |                `- warning: expression took 1360ms to type-check (limit: 150ms)
+ 83 |     }
+ 84 |     // A vertex stands for at most this many collapsed ones (bounds the checks' cost on wide flat ground).
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AdaptiveGround.swift:82:16: warning: expression took 1320ms to type-check (limit: 150ms)
+ 80 |         if va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0 { return simd_length(bp - (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)))) }
+ 81 |         let den = 1 / (va + vb + vc)
+ 82 |         return simd_length(ap - ab * (vb * den) - ac * (vc * den))
+    |                `- warning: expression took 1320ms to type-check (limit: 150ms)
+ 83 |     }
+ 84 |     // A vertex stands for at most this many collapsed ones (bounds the checks' cost on wide flat ground).
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AdaptiveGround.swift:162:21: warning: expression took 210ms to type-check (limit: 150ms)
+160 |         if va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0 {
+161 |             let t = (d4 - d3) / ((d4 - d3) + (d5 - d6))
+162 |             return (simd_length(bp - (c - b) * t), SIMD3(0, 1 - t, t))
+    |                     `- warning: expression took 210ms to type-check (limit: 150ms)
+163 |         }
+164 |         let den = 1 / (va + vb + vc)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AdaptiveGroundTests.swift:416:42: warning: expression took 239ms to type-check (limit: 150ms)
+414 |             + ". Mob-sized body (adaptive): " + stat(mobGaps, signed: true) + " (\(onBuilt) samples on built things left out)"
+415 |             + String(format: ". Eye: %d ticks, largest change in climb rate %.2f blocks/s, %d turn-overs", eyeTicks, jolt, turns)
+416 |             + ". Kept ground triangles: \(w.chunks.values.reduce(0) { $0 + $1.sections.reduce(0) { $0 + ($1.ground?.quads ?? 0) } }) quads, "
+    |                                          `- warning: expression took 239ms to type-check (limit: 150ms)
+417 |             + String(format: "%.1f MB", Double(w.chunks.values.reduce(0) { $0 + $1.sections.reduce(0) { $0 + ($1.ground?.bytes ?? 0) } }) / 1048576)
+418 |             + " in \(w.chunks.count) chunks"
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AdaptiveGroundTests.swift:416:42: warning: expression took 214ms to type-check (limit: 150ms)
+414 |             + ". Mob-sized body (adaptive): " + stat(mobGaps, signed: true) + " (\(onBuilt) samples on built things left out)"
+415 |             + String(format: ". Eye: %d ticks, largest change in climb rate %.2f blocks/s, %d turn-overs", eyeTicks, jolt, turns)
+416 |             + ". Kept ground triangles: \(w.chunks.values.reduce(0) { $0 + $1.sections.reduce(0) { $0 + ($1.ground?.quads ?? 0) } }) quads, "
+    |                                          `- warning: expression took 214ms to type-check (limit: 150ms)
+417 |             + String(format: "%.1f MB", Double(w.chunks.values.reduce(0) { $0 + $1.sections.reduce(0) { $0 + ($1.ground?.bytes ?? 0) } }) / 1048576)
+418 |             + " in \(w.chunks.count) chunks"
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AdaptiveGroundTests.swift:412:16: warning: expression took 414ms to type-check (limit: 150ms)
+410 |             return String(format: "%d samples, worst %.3f, mean %.3f, %d over 0.05", a.count, worst, mean, over)
+411 |         }
+412 |         return "adaptivewalk: feet to drawn ground: full " + stat(gaps[0], signed: true) + "; adaptive " + stat(gaps[1], signed: true)
+    |                `- warning: expression took 414ms to type-check (limit: 150ms)
+413 |             + ". Field hits (dig/place) to drawn ground: full " + stat(hits[0], signed: false) + "; adaptive " + stat(hits[1], signed: false)
+414 |             + ". Mob-sized body (adaptive): " + stat(mobGaps, signed: true) + " (\(onBuilt) samples on built things left out)"
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Animals.swift:429:21: warning: expression took 195ms to type-check (limit: 150ms)
+ 427 |                 } else {
+ 428 |                     let d = (g.vrHead ?? g.player.eye) - pos       // VR: dives at the real head
+ 429 |                     vel += (simd_normalize(d) * spec.speed * 1.4 - vel) * min(1, dt * 3)
+     |                     `- warning: expression took 195ms to type-check (limit: 150ms)
+ 430 |                     if simd_length(d) < 1.2 {
+ 431 |                         if attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Nightwing", attacker: self) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Animals.swift:429:21: warning: expression took 154ms to type-check (limit: 150ms)
+ 427 |                 } else {
+ 428 |                     let d = (g.vrHead ?? g.player.eye) - pos       // VR: dives at the real head
+ 429 |                     vel += (simd_normalize(d) * spec.speed * 1.4 - vel) * min(1, dt * 3)
+     |                     `- warning: expression took 154ms to type-check (limit: 150ms)
+ 430 |                     if simd_length(d) < 1.2 {
+ 431 |                         if attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Nightwing", attacker: self) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/App.swift:476:52: warning: expression took 161ms to type-check (limit: 150ms)
+474 |     @objc func createWorld(_ sender: NSButton) {
+475 |         guard let panel = worldsPanel else { return }
+476 |         func find<T: NSView>(_ id: String) -> T? { panel.subviews.flatMap { ($0 as? NSStackView)?.views ?? [] }.first { $0.identifier?.rawValue == id } as? T }
+    |                                                    `- warning: expression took 161ms to type-check (limit: 150ms)
+477 |         let fieldName = (find("newName") as NSTextField?)?.stringValue.trimmingCharacters(in: .whitespaces) ?? ""
+478 |         let name = fieldName.isEmpty ? "World\(Rand.int(in: 100...999))" : fieldName.replacingOccurrences(of: "/", with: "-")
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshArmour.swift:95:19: warning: expression took 541ms to type-check (limit: 150ms)
+ 93 |             let c = (p[i].mn + p[i].mx) * 0.5 - mid
+ 94 |             // The armour, not the running gear: parts out toward the hull's skin (wheels and tracks are dark already).
+ 95 |             guard max(abs(c.x) / max(1, half.x), abs(c.z) / max(1, half.z)) > 0.35 else { continue }
+    |                   `- warning: expression took 541ms to type-check (limit: 150ms)
+ 96 |             let s = sector(angle: atan2f(c.x, -c.z))
+ 97 |             guard m.armourLost & (1 << s) != 0 else { continue }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshArmour.swift:95:19: warning: expression took 510ms to type-check (limit: 150ms)
+ 93 |             let c = (p[i].mn + p[i].mx) * 0.5 - mid
+ 94 |             // The armour, not the running gear: parts out toward the hull's skin (wheels and tracks are dark already).
+ 95 |             guard max(abs(c.x) / max(1, half.x), abs(c.z) / max(1, half.z)) > 0.35 else { continue }
+    |                   `- warning: expression took 510ms to type-check (limit: 150ms)
+ 96 |             let s = sector(angle: atan2f(c.x, -c.z))
+ 97 |             guard m.armourLost & (1 << s) != 0 else { continue }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshFront.swift:367:13: warning: immutable value 'glass' was never used; consider replacing with '_' or removing it
+365 |         func X(_ u: Int, _ v: Int) -> Int { s.x + u * (-fz) + v * fx }
+366 |         func Z(_ u: Int, _ v: Int) -> Int { s.z + u * fx + v * fz }
+367 |         let glass = Blocks.id("glass"), bars = Blocks.id("iron_bars"), coal = Blocks.id("coal_block")
+    |             `- warning: immutable value 'glass' was never used; consider replacing with '_' or removing it
+368 |         let fence = Blocks.has("dark_oak_fence") ? Blocks.id("dark_oak_fence") : bars
+369 |         let cobble = Blocks.id("cobblestone"), mossy = Blocks.id("mossy_cobblestone")
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshLines.swift:92:21: warning: expression took 218ms to type-check (limit: 150ms)
+ 90 |         var s: [AshSite] = []
+ 91 |         for k in 0..<24 where k % 6 != 0 {
+ 92 |             let a = Float(k) * 15 * .pi / 180
+    |                     `- warning: expression took 218ms to type-check (limit: 150ms)
+ 93 |             s.append(AshSite(kind: "bunker", x: Int((sinf(a) * (emberR - 1)).rounded()), z: Int((-cosf(a) * (emberR - 1)).rounded()), r: 5, face: k * 15))
+ 94 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/AshLines.swift:93:13: warning: expression took 182ms to type-check (limit: 150ms)
+ 91 |         for k in 0..<24 where k % 6 != 0 {
+ 92 |             let a = Float(k) * 15 * .pi / 180
+ 93 |             s.append(AshSite(kind: "bunker", x: Int((sinf(a) * (emberR - 1)).rounded()), z: Int((-cosf(a) * (emberR - 1)).rounded()), r: 5, face: k * 15))
+    |             `- warning: expression took 182ms to type-check (limit: 150ms)
+ 94 |         }
+ 95 |         let c = lastR - 2
+/Users/runner/work/blocksmith/blocksmith/Sources/BaseSecurity.swift:96:16: warning: expression took 221ms to type-check (limit: 150ms)
+ 94 |         p["security_camera_side"] = { x, y in
+ 95 |             let cx = Float(x) - 7.5, cy = Float(y) - 7.5
+ 96 |             if cx * cx + cy * cy < 5 { return hex(0x101418) }
+    |                `- warning: expression took 221ms to type-check (limit: 150ms)
+ 97 |             if cx * cx + cy * cy < 9 { return hex(0x3A5A78) }
+ 98 |             if x == 12 && y == 3 { return hex(0xE02A20) }                       // the tally light
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BaseTests.swift:130:28: warning: expression took 271ms to type-check (limit: 150ms)
+128 |                     return true
+129 |                 }
+130 |                 var from = mid + side * 9 + dir * 6 + V3(0, 3.5, 0)
+    |                            `- warning: expression took 271ms to type-check (limit: 150ms)
+131 |                 search: for up in stride(from: Float(3.5), through: 15.5, by: 3) {
+132 |                     for sd in [Float(1), -1] {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BaseTests.swift:130:28: warning: expression took 481ms to type-check (limit: 150ms)
+128 |                     return true
+129 |                 }
+130 |                 var from = mid + side * 9 + dir * 6 + V3(0, 3.5, 0)
+    |                            `- warning: expression took 481ms to type-check (limit: 150ms)
+131 |                 search: for up in stride(from: Float(3.5), through: 15.5, by: 3) {
+132 |                     for sd in [Float(1), -1] {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BaseTests.swift:130:28: warning: expression took 526ms to type-check (limit: 150ms)
+128 |                     return true
+129 |                 }
+130 |                 var from = mid + side * 9 + dir * 6 + V3(0, 3.5, 0)
+    |                            `- warning: expression took 526ms to type-check (limit: 150ms)
+131 |                 search: for up in stride(from: Float(3.5), through: 15.5, by: 3) {
+132 |                     for sd in [Float(1), -1] {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BenchRoutes.swift:133:16: warning: expression took 152ms to type-check (limit: 150ms)
+131 |             if max(tk + e, g) * 1000 > budget * 1.5 { missed += 1 }
+132 |             // A hitch's split (first eight): tick vs CPU encode vs GPU, so a non-tick hitch is named too.
+133 |             if max(tk + e, g) * 1000 > 25 && hitchLines < 8 {
+    |                `- warning: expression took 152ms to type-check (limit: 150ms)
+134 |                 hitchLines += 1
+135 |                 print("bench \(name) hitch at \(f(Double(i) * dt, 1)) s: tick \(f(tk * 1000)) (\(TickProf.top().0)) encode \(f(e * 1000)) gpu \(f(g * 1000)) ms, jobs \(world.pendingJobs)")
+
+/Users/runner/work/blocksmith/blocksmith/Sources/BigStructures.swift:301:113: warning: capture 'gen' was never used
+299 | 
+300 |     static func trialChambers(_ gen: WorldGen) -> StructureType {
+301 |         StructureType(name: "trial_chambers", spacing: 36, separation: 18, salt: 94251327, reach: 3) { [unowned gen] seed, cx, cz in
+    |                                                                                                                 `- warning: capture 'gen' was never used
+302 |             let x = cx * CS + 8, z = cz * CS + 8
+303 |             var rng = SRng(seed)
+/Users/runner/work/blocksmith/blocksmith/Sources/Contracts.swift:111:23: warning: expression took 176ms to type-check (limit: 150ms)
+109 |         guard let sc = g.world.gen.structures else { return nil }
+110 |         for k in 0..<8 {
+111 |             let ang = Float((h >> 4) % 360 + UInt64(k) * 45) * .pi / 180
+    |                       `- warning: expression took 176ms to type-check (limit: 150ms)
+112 |             let r: Float = 600 + Float((h >> 13) % 600)
+113 |             let px = a.x + Int(sinf(ang) * r), pz = a.z - Int(cosf(ang) * r)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Contracts.swift:111:23: warning: expression took 154ms to type-check (limit: 150ms)
+109 |         guard let sc = g.world.gen.structures else { return nil }
+110 |         for k in 0..<8 {
+111 |             let ang = Float((h >> 4) % 360 + UInt64(k) * 45) * .pi / 180
+    |                       `- warning: expression took 154ms to type-check (limit: 150ms)
+112 |             let r: Float = 600 + Float((h >> 13) % 600)
+113 |             let px = a.x + Int(sinf(ang) * r), pz = a.z - Int(cosf(ang) * r)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CountriesTests.swift:189:22: warning: expression took 203ms to type-check (limit: 150ms)
+187 |             tick(at: p + fwd * 120)
+188 |             tick(at: p - fwd * 120)
+189 |             tick(at: p - fwd * 25 + side * 30)
+    |                      `- warning: expression took 203ms to type-check (limit: 150ms)
+190 |             let before = Countries.standing(n)
+191 |             tick(at: p + fwd * 20 + side * 30)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CountriesTests.swift:191:22: warning: expression took 278ms to type-check (limit: 150ms)
+189 |             tick(at: p - fwd * 25 + side * 30)
+190 |             let before = Countries.standing(n)
+191 |             tick(at: p + fwd * 20 + side * 30)
+    |                      `- warning: expression took 278ms to type-check (limit: 150ms)
+192 |             check(Countries.smuggled == 1 && Countries.standing(n) < before, "countries: running the post costs standing with \(n.name) (\(Int(before)) -> \(Int(Countries.standing(n))))")
+193 |             // A post built near you: floor, booth and both flags.
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Craters.swift:166:22: warning: expression took 174ms to type-check (limit: 150ms)
+164 |             pos[k + j * W] = q + disp; flat[k + j * W] = q
+165 |             dep[k + j * W] = simd_length(disp)
+166 |             let nn = nrm[0] * w0 + nrm[1] * w1 + nrm[2] * w2 + nrm[3] * w3
+    |                      `- warning: expression took 174ms to type-check (limit: 150ms)
+167 |             sn[k + j * W] = simd_length(nn) > 1e-5 ? simd_normalize(nn) : SIMD3<Float>(0, 1, 0)
+168 |         } }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Craters.swift:171:22: warning: expression took 325ms to type-check (limit: 150ms)
+169 |         // Normal: the corners' smooth normal, turned by however much the carving tilts the surface there.
+170 |         @inline(__always) func grad(_ P: [SIMD3<Float>], _ k: Int, _ j: Int) -> SIMD3<Float> {
+171 |             let du = P[min(W - 1, k + 1) + j * W] - P[max(0, k - 1) + j * W]
+    |                      `- warning: expression took 325ms to type-check (limit: 150ms)
+172 |             let dv = P[k + min(H - 1, j + 1) * W] - P[k + max(0, j - 1) * W]
+173 |             return simd_cross(du, dv)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Craters.swift:172:22: warning: expression took 306ms to type-check (limit: 150ms)
+170 |         @inline(__always) func grad(_ P: [SIMD3<Float>], _ k: Int, _ j: Int) -> SIMD3<Float> {
+171 |             let du = P[min(W - 1, k + 1) + j * W] - P[max(0, k - 1) + j * W]
+172 |             let dv = P[k + min(H - 1, j + 1) * W] - P[k + max(0, j - 1) * W]
+    |                      `- warning: expression took 306ms to type-check (limit: 150ms)
+173 |             return simd_cross(du, dv)
+174 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CrewFightCheck.swift:51:34: warning: expression took 160ms to type-check (limit: 150ms)
+49 |         let chest = m.pos + V3(0, m.height * 0.6, 0)
+50 |         let side = simd_normalize(simd_cross(chest - g.player.eye, V3(0, 1, 0)))
+51 |         g.vrAim = (g.player.eye, simd_normalize(chest + side * 1.5 - g.player.eye))
+   |                                  `- warning: expression took 160ms to type-check (limit: 150ms)
+52 |         g.arms.lastNoise = -100
+53 |         let shots0 = g.arms.slugs.count
+/Users/runner/work/blocksmith/blocksmith/Sources/CampSmoke.swift:98:27: warning: expression took 943ms to type-check (limit: 150ms)
+ 96 |             let flicker: Float = 0.85 + 0.15 * sinf(t * 9 + c.x)
+ 97 |             let glowA: Float = min(1, (night - 0.3) * 2) * fadeIn * fadeOut * flicker
+ 98 |             let glow = V4(V3(1.0, 0.55, 0.2) * 1.4 * hdrK * (1 - haze * 0.6) + fog * haze * 0.6, glowA)
+    |                           `- warning: expression took 943ms to type-check (limit: 150ms)
+ 99 |             let g0 = c + V3(0, 0.8, 0)
+100 |             let top = at(g0 + V3(0, gs, 0)), bot = at(g0 - V3(0, gs * 0.6, 0))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CampSmoke.swift:98:24: warning: expression took 538ms to type-check (limit: 150ms)
+ 96 |             let flicker: Float = 0.85 + 0.15 * sinf(t * 9 + c.x)
+ 97 |             let glowA: Float = min(1, (night - 0.3) * 2) * fadeIn * fadeOut * flicker
+ 98 |             let glow = V4(V3(1.0, 0.55, 0.2) * 1.4 * hdrK * (1 - haze * 0.6) + fog * haze * 0.6, glowA)
+    |                        `- warning: expression took 538ms to type-check (limit: 150ms)
+ 99 |             let g0 = c + V3(0, 0.8, 0)
+100 |             let top = at(g0 + V3(0, gs, 0)), bot = at(g0 - V3(0, gs * 0.6, 0))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CampSmoke.swift:98:24: warning: expression took 529ms to type-check (limit: 150ms)
+ 96 |             let flicker: Float = 0.85 + 0.15 * sinf(t * 9 + c.x)
+ 97 |             let glowA: Float = min(1, (night - 0.3) * 2) * fadeIn * fadeOut * flicker
+ 98 |             let glow = V4(V3(1.0, 0.55, 0.2) * 1.4 * hdrK * (1 - haze * 0.6) + fog * haze * 0.6, glowA)
+    |                        `- warning: expression took 529ms to type-check (limit: 150ms)
+ 99 |             let g0 = c + V3(0, 0.8, 0)
+100 |             let top = at(g0 + V3(0, gs, 0)), bot = at(g0 - V3(0, gs * 0.6, 0))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalBases.swift:399:20: warning: expression took 634ms to type-check (limit: 150ms)
+397 |     // The garrison soldiers of a citadel (inside its walls, not crewing, not on patrol).
+398 |     func garrison(_ r: BaseRecord, _ b: BaseWatch) -> [Mob] {
+399 |         let busy = Set((b.patrols[r.key] ?? []).map { ObjectIdentifier($0) } + (b.crews[r.key] ?? []).map { ObjectIdentifier($0) }
+    |                    `- warning: expression took 634ms to type-check (limit: 150ms)
+400 |                        + (b.workers[r.key] ?? []).map { ObjectIdentifier($0) })
+401 |         return mobs.mobs.filter { m in
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalBasesWork.swift:285:22: warning: expression took 241ms to type-check (limit: 150ms)
+283 |             crew.append(m)
+284 |         }
+285 |         var budget = Int((dt * Float(max(1, crew.count)) * 0.9).rounded()) + (away > 5 ? Int(away * 1.8) : 0)
+    |                      `- warning: expression took 241ms to type-check (limit: 150ms)
+286 |         var skipped: [(IVec3, BlockID)] = []
+287 |         while budget > 0, !q.isEmpty {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalBasesWork.swift:285:22: warning: expression took 210ms to type-check (limit: 150ms)
+283 |             crew.append(m)
+284 |         }
+285 |         var budget = Int((dt * Float(max(1, crew.count)) * 0.9).rounded()) + (away > 5 ? Int(away * 1.8) : 0)
+    |                      `- warning: expression took 210ms to type-check (limit: 150ms)
+286 |         var skipped: [(IVec3, BlockID)] = []
+287 |         while budget > 0, !q.isEmpty {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalBasesWork.swift:285:22: warning: expression took 203ms to type-check (limit: 150ms)
+283 |             crew.append(m)
+284 |         }
+285 |         var budget = Int((dt * Float(max(1, crew.count)) * 0.9).rounded()) + (away > 5 ? Int(away * 1.8) : 0)
+    |                      `- warning: expression took 203ms to type-check (limit: 150ms)
+286 |         var skipped: [(IVec3, BlockID)] = []
+287 |         while budget > 0, !q.isEmpty {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalRail.swift:163:47: warning: expression took 193ms to type-check (limit: 150ms)
+161 |             m.customName = "Capital Freight Car"
+162 |             let c = ItemContainer(27)
+163 |             var rng = SRng(UInt64(bitPattern: Int64(Int(m.pos.x) &* 73856093 ^ Int(m.pos.z) &* 19349663)))
+    |                                               `- warning: expression took 193ms to type-check (limit: 150ms)
+164 |             Loot.fill(c, table: "steelhold_supply", rng: &rng)
+165 |             m.cargo = c
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalRail.swift:163:28: warning: expression took 196ms to type-check (limit: 150ms)
+161 |             m.customName = "Capital Freight Car"
+162 |             let c = ItemContainer(27)
+163 |             var rng = SRng(UInt64(bitPattern: Int64(Int(m.pos.x) &* 73856093 ^ Int(m.pos.z) &* 19349663)))
+    |                            `- warning: expression took 196ms to type-check (limit: 150ms)
+164 |             Loot.fill(c, table: "steelhold_supply", rng: &rng)
+165 |             m.cargo = c
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalRail.swift:163:23: warning: expression took 177ms to type-check (limit: 150ms)
+161 |             m.customName = "Capital Freight Car"
+162 |             let c = ItemContainer(27)
+163 |             var rng = SRng(UInt64(bitPattern: Int64(Int(m.pos.x) &* 73856093 ^ Int(m.pos.z) &* 19349663)))
+    |                       `- warning: expression took 177ms to type-check (limit: 150ms)
+164 |             Loot.fill(c, table: "steelhold_supply", rng: &rng)
+165 |             m.cargo = c
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalShips.swift:2187:27: warning: expression took 619ms to type-check (limit: 150ms)
+2185 |                 let frigate = s.isFlyingCapital
+2186 |                 st.mainGunCD = frigate ? 24 : 16
+2187 |                 var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
+     |                           `- warning: expression took 619ms to type-check (limit: 150ms)
+2188 |                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
+2189 |                 let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: frigate ? 10 : 7)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalShips.swift:2187:27: warning: expression took 660ms to type-check (limit: 150ms)
+2185 |                 let frigate = s.isFlyingCapital
+2186 |                 st.mainGunCD = frigate ? 24 : 16
+2187 |                 var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
+     |                           `- warning: expression took 660ms to type-check (limit: 150ms)
+2188 |                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
+2189 |                 let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: frigate ? 10 : 7)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalShips.swift:2903:25: warning: expression took 190ms to type-check (limit: 150ms)
+2901 |         for b in 3...9 where Float(b) <= max(3, st.mainGunLength) {
+2902 |             for o in [side, -side, up, -up] {
+2903 |                 let p = st.mainGunMuzzle - d * Float(b) + o * 2
+     |                         `- warning: expression took 190ms to type-check (limit: 150ms)
+2904 |                 n += 1
+2905 |                 if s.grid.get(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) != AIR { have += 1 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/CapitalShips.swift:2903:25: warning: expression took 173ms to type-check (limit: 150ms)
+2901 |         for b in 3...9 where Float(b) <= max(3, st.mainGunLength) {
+2902 |             for o in [side, -side, up, -up] {
+2903 |                 let p = st.mainGunMuzzle - d * Float(b) + o * 2
+     |                         `- warning: expression took 173ms to type-check (limit: 150ms)
+2904 |                 n += 1
+2905 |                 if s.grid.get(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) != AIR { have += 1 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Cinematic.swift:141:22: warning: expression took 360ms to type-check (limit: 150ms)
+139 |             let fast: Float = input.control || p.l3 ? 4 : 1
+140 |             let fw = V3(-sinf(c.yaw), 0, -cosf(c.yaw)), rt = V3(cosf(c.yaw), 0, -sinf(c.yaw))
+141 |             c.pos += (fw * f + rt * s + V3(0, u, 0)) * 8 * fast * dt
+    |                      `- warning: expression took 360ms to type-check (limit: 150ms)
+142 |             // Keyframes and playback.
+143 |             if input.tapped(40) || (p.x && !q.x) {                                           // K
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Cinematic.swift:141:13: warning: expression took 595ms to type-check (limit: 150ms)
+139 |             let fast: Float = input.control || p.l3 ? 4 : 1
+140 |             let fw = V3(-sinf(c.yaw), 0, -cosf(c.yaw)), rt = V3(cosf(c.yaw), 0, -sinf(c.yaw))
+141 |             c.pos += (fw * f + rt * s + V3(0, u, 0)) * 8 * fast * dt
+    |             `- warning: expression took 595ms to type-check (limit: 150ms)
+142 |             // Keyframes and playback.
+143 |             if input.tapped(40) || (p.x && !q.x) {                                           // K
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Cinematic.swift:141:13: warning: expression took 553ms to type-check (limit: 150ms)
+139 |             let fast: Float = input.control || p.l3 ? 4 : 1
+140 |             let fw = V3(-sinf(c.yaw), 0, -cosf(c.yaw)), rt = V3(cosf(c.yaw), 0, -sinf(c.yaw))
+141 |             c.pos += (fw * f + rt * s + V3(0, u, 0)) * 8 * fast * dt
+    |             `- warning: expression took 553ms to type-check (limit: 150ms)
+142 |             // Keyframes and playback.
+143 |             if input.tapped(40) || (p.x && !q.x) {                                           // K
+/Users/runner/work/blocksmith/blocksmith/Sources/DebrisField.swift:58:21: warning: expression took 329ms to type-check (limit: 150ms)
+ 56 |             r = r &* 1664525 &+ 1013904223
+ 57 |             let jitter = V3(Float(r & 0xFF) / 255 - 0.5, Float((r >> 8) & 0xFF) / 255, Float((r >> 16) & 0xFF) / 255 - 0.5)
+ 58 |             let v = normal * (1.6 + 1.2 * jitter.y) + jitter * 1.4 - blow * 0.4 + V3(0, 1.2, 0)
+    |                     `- warning: expression took 329ms to type-check (limit: 150ms)
+ 59 |             add(p, b, origin: o, velocity: v, spin: jitter * 9)
+ 60 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DebrisField.swift:58:21: warning: expression took 849ms to type-check (limit: 150ms)
+ 56 |             r = r &* 1664525 &+ 1013904223
+ 57 |             let jitter = V3(Float(r & 0xFF) / 255 - 0.5, Float((r >> 8) & 0xFF) / 255, Float((r >> 16) & 0xFF) / 255 - 0.5)
+ 58 |             let v = normal * (1.6 + 1.2 * jitter.y) + jitter * 1.4 - blow * 0.4 + V3(0, 1.2, 0)
+    |                     `- warning: expression took 849ms to type-check (limit: 150ms)
+ 59 |             add(p, b, origin: o, velocity: v, spin: jitter * 9)
+ 60 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DebrisField.swift:58:21: warning: expression took 927ms to type-check (limit: 150ms)
+ 56 |             r = r &* 1664525 &+ 1013904223
+ 57 |             let jitter = V3(Float(r & 0xFF) / 255 - 0.5, Float((r >> 8) & 0xFF) / 255, Float((r >> 16) & 0xFF) / 255 - 0.5)
+ 58 |             let v = normal * (1.6 + 1.2 * jitter.y) + jitter * 1.4 - blow * 0.4 + V3(0, 1.2, 0)
+    |                     `- warning: expression took 927ms to type-check (limit: 150ms)
+ 59 |             add(p, b, origin: o, velocity: v, spin: jitter * 9)
+ 60 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DebrisField.swift:87:21: warning: expression took 228ms to type-check (limit: 150ms)
+ 85 |             let out = c - SIMD3<Float>(0.5, 0.5, 0.5)
+ 86 |             // (A block mined through slumps apart into a pile; a blasted one flies.)
+ 87 |             let v = dir * speed * (0.6 + 0.6 * jitter.y + 0.3) + out * (speed * 0.8 + 3.5) + jitter * (speed * 0.5 + 1.2) + V3(0, 1.2, 0)
+    |                     `- warning: expression took 228ms to type-check (limit: 150ms)
+ 88 |             add(p, b, origin: o, velocity: v, spin: jitter * (4 + speed))
+ 89 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DeepGapTests.swift:44:21: warning: expression took 264ms to type-check (limit: 150ms)
+ 42 |                     let (_, ms) = sc.place(into: &b, cx: cx, cz: cz)
+ 43 |                     chunks[StructureCache.key(cx, cz)] = b
+ 44 |                     mobs += ms.filter { abs($0.1.x - Float(c.ox)) < 26 && abs($0.1.z - Float(c.oz)) < 26 }.map { $0.0 }
+    |                     `- warning: expression took 264ms to type-check (limit: 150ms)
+ 45 |                 } }
+ 46 |                 func get(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DeepGapTests.swift:181:23: warning: expression took 152ms to type-check (limit: 150ms)
+179 |         // with no recipe in it (P328 f), found in Deep fortress and keep chests.
+180 |         let kj = DeepJournals.all["keepers_journal"]?.pages.joined(separator: " ") ?? ""
+181 |         let missing = ["Sealrock", "Brimstone Keep", "Sunderite", "forge", "flux", "blast furnace"].filter { !kj.contains($0) }
+    |                       `- warning: expression took 152ms to type-check (limit: 150ms)
+182 |             + ["Two Raw", "make Sunderite", "Three Ingots", "An Ingot and", "at any bench", "compass"].filter { kj.contains($0) }.map { "recipe: " + $0 }
+183 |         let inLoot = ["fortress", "brimstone_keep"].allSatisfy { t in Loot.tables[t]?.entries.contains { $0.0 == "keepers_journal" } ?? false }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DeepGapTests.swift:332:22: warning: expression took 641ms to type-check (limit: 150ms)
+330 |         // Harder than the surface: the Ashguard rifleman takes longer to kill and kills faster than a Capital one; the tank
+331 |         // shrugs off rifles (or takes far longer) and falls to the launcher; every unit can be beaten with full gear.
+332 |         let harder = (rifle?.playerKills ?? 0) > (cap?.playerKills ?? .infinity) * 1.3
+    |                      `- warning: expression took 641ms to type-check (limit: 150ms)
+333 |             && (rifle?.toKillPlayer ?? .infinity) < (cap?.toKillPlayer ?? 0)
+334 |         let armoured = (tankR?.playerKills == nil || (tankR?.playerKills ?? 0) > 3 * (tankL?.playerKills ?? .infinity)) && tankL?.playerKills != nil
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DeepGapTests.swift:332:22: warning: expression took 787ms to type-check (limit: 150ms)
+330 |         // Harder than the surface: the Ashguard rifleman takes longer to kill and kills faster than a Capital one; the tank
+331 |         // shrugs off rifles (or takes far longer) and falls to the launcher; every unit can be beaten with full gear.
+332 |         let harder = (rifle?.playerKills ?? 0) > (cap?.playerKills ?? .infinity) * 1.3
+    |                      `- warning: expression took 787ms to type-check (limit: 150ms)
+333 |             && (rifle?.toKillPlayer ?? .infinity) < (cap?.toKillPlayer ?? 0)
+334 |         let armoured = (tankR?.playerKills == nil || (tankR?.playerKills ?? 0) > 3 * (tankL?.playerKills ?? .infinity)) && tankL?.playerKills != nil
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DeepGates.swift:127:21: warning: expression took 201ms to type-check (limit: 150ms)
+125 |         }
+126 |         p["deep_lift"] = { x, y in
+127 |             let d = max(abs(Float(x) - 7.5), abs(Float(y) - 7.5))
+    |                     `- warning: expression took 201ms to type-check (limit: 150ms)
+128 |             if d > 6.5 { return hex(0x2A2A30) }
+129 |             if d > 5 { return hex(0xB03A55) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DetailMesh.swift:45:17: warning: expression took 246ms to type-check (limit: 150ms)
+ 43 |         let q = w * scale
+ 44 |         let f = floor(q), t = q - f
+ 45 |         let s = t * t * (3 - 2 * t)
+    |                 `- warning: expression took 246ms to type-check (limit: 150ms)
+ 46 |         let ix = Int(f.x), iy = Int(f.y), iz = Int(f.z)
+ 47 |         @inline(__always) func h(_ dx: Int, _ dy: Int, _ dz: Int) -> Float { hashf(ix + dx, iy + dy, iz + dz, salt) * 2 - 1 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DetailMesh.swift:45:17: warning: expression took 277ms to type-check (limit: 150ms)
+ 43 |         let q = w * scale
+ 44 |         let f = floor(q), t = q - f
+ 45 |         let s = t * t * (3 - 2 * t)
+    |                 `- warning: expression took 277ms to type-check (limit: 150ms)
+ 46 |         let ix = Int(f.x), iy = Int(f.y), iz = Int(f.z)
+ 47 |         @inline(__always) func h(_ dx: Int, _ dy: Int, _ dz: Int) -> Float { hashf(ix + dx, iy + dy, iz + dz, salt) * 2 - 1 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DetailMesh.swift:59:9: warning: expression took 189ms to type-check (limit: 150ms)
+ 57 |         out.append(pos16(p.x) | pos16(p.y) << 16)
+ 58 |         out.append(pos16(p.z) | snorm8(n.x) << 16 | snorm8(n.y) << 24)
+ 59 |         out.append(snorm8(n.z) | UInt32(tint & 3) << 8 | UInt32(ao & 3) << 10 | UInt32(light & 15) << 12
+    |         `- warning: expression took 189ms to type-check (limit: 150ms)
+ 60 |                    | UInt32((light >> 4) & 15) << 16 | UInt32(layer & 2047) << 20 | (cut ? 1 << 31 : 0))
+ 61 |         out.append(half(uv.x) | half(uv.y) << 16)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Director.swift:462:22: warning: expression took 1059ms to type-check (limit: 150ms)
+460 |             let dx = a.x - g.player.pos.x, dz = a.y - g.player.pos.z
+461 |             dir = TownBoard.direction(dx, dz)
+462 |             dist = "\(Int((dx * dx + dz * dz).squareRoot() / 10) * 10)"
+    |                      `- warning: expression took 1059ms to type-check (limit: 150ms)
+463 |         } else { dir = "nearby"; dist = "a few" }
+464 |         let reward = Money.format(e.int("reward") * 100)
+/Users/runner/work/blocksmith/blocksmith/Sources/DropFlightCheck.swift:64:25: warning: expression took 277ms to type-check (limit: 150ms)
+ 62 |             var stone: [IVec3] = []
+ 63 |             for k in -14...14 { for dy in -2...14 { for t in 0...1 {
+ 64 |                 let p = wallAt + side * Float(k) + fh * Float(t)
+    |                         `- warning: expression took 277ms to type-check (limit: 150ms)
+ 65 |                 let c = IVec3(Int(floor(p.x)), Int(floor(s.worldMin.y)) + dy, Int(floor(p.z)))
+ 66 |                 if !stone.contains(c) { w.setBlock(c.x, c.y, c.z, Blocks.id("stone_bricks")); stone.append(c) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/DropFlightCheck.swift:64:25: warning: expression took 316ms to type-check (limit: 150ms)
+ 62 |             var stone: [IVec3] = []
+ 63 |             for k in -14...14 { for dy in -2...14 { for t in 0...1 {
+ 64 |                 let p = wallAt + side * Float(k) + fh * Float(t)
+    |                         `- warning: expression took 316ms to type-check (limit: 150ms)
+ 65 |                 let c = IVec3(Int(floor(p.x)), Int(floor(s.worldMin.y)) + dy, Int(floor(p.z)))
+ 66 |                 if !stone.contains(c) { w.setBlock(c.x, c.y, c.z, Blocks.id("stone_bricks")); stone.append(c) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/FactionGear.swift:75:77: warning: expression took 167ms to type-check (limit: 150ms)
+ 73 |         let f = NumberFormatter()
+ 74 |         f.numberStyle = .decimal
+ 75 |         return "\(f.string(from: NSNumber(value: d)) ?? "\(d)") m \(abs8), \(words[Int((r + 22.5) / 45) % 8])"
+    |                                                                             `- warning: expression took 167ms to type-check (limit: 150ms)
+ 76 |     }
+ 77 | 
+
+/Users/runner/work/blocksmith/blocksmith/Sources/FarCopy.swift:59:36: warning: expression took 308ms to type-check (limit: 150ms)
+ 57 |             let lo: Double = w[0] * occ(a) + w[1] * occ(b) + w[2] * occ(c)
+ 58 |             if abs(lo - occ(qi)) > oTol { return false }
+ 59 |             let n: SIMD3<Double> = nrm[a] * w[0] + nrm[b] * w[1] + nrm[c] * w[2]
+    |                                    `- warning: expression took 308ms to type-check (limit: 150ms)
+ 60 |             if simd_length(n - nrm[qi]) > nTol { return false }
+ 61 |             let u: SIMD2<Double> = uv[a] * w[0] + uv[b] * w[1] + uv[c] * w[2]
+
+/Users/runner/work/blocksmith/blocksmith/Sources/FarCopy.swift:61:36: warning: expression took 316ms to type-check (limit: 150ms)
+ 59 |             let n: SIMD3<Double> = nrm[a] * w[0] + nrm[b] * w[1] + nrm[c] * w[2]
+ 60 |             if simd_length(n - nrm[qi]) > nTol { return false }
+ 61 |             let u: SIMD2<Double> = uv[a] * w[0] + uv[b] * w[1] + uv[c] * w[2]
+    |                                    `- warning: expression took 316ms to type-check (limit: 150ms)
+ 62 |             return simd_length(u - uv[qi]) <= uTol
+ 63 |         }
+/Users/runner/work/blocksmith/blocksmith/Sources/FieldTerrain.swift:69:86: warning: expression took 423ms to type-check (limit: 150ms)
+ 67 |         let r = max(1, why.reduce(0, +))
+ 68 |         func pc(_ k: Int) -> Double { Double(why[k]) * 100 / Double(r) }
+ 69 |         let top = whyKeys.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \(Int(Double($0.value) * 100 / Double(r)))%" }
+    |                                                                                      `- warning: expression took 423ms to type-check (limit: 150ms)
+ 70 |         return String(format: "fieldstats: %d surface cells: %.1f%% generator field, %.1f%% rule shapes, %.1f%% rounded from cells"
+ 71 |                       + " (of those: %.0f%% by water, %.0f%% by lava, %.0f%% added ground, %.0f%% carved, %.0f%% other)",
+
+/Users/runner/work/blocksmith/blocksmith/Sources/FieldTerrain.swift:69:86: warning: expression took 373ms to type-check (limit: 150ms)
+ 67 |         let r = max(1, why.reduce(0, +))
+ 68 |         func pc(_ k: Int) -> Double { Double(why[k]) * 100 / Double(r) }
+ 69 |         let top = whyKeys.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \(Int(Double($0.value) * 100 / Double(r)))%" }
+    |                                                                                      `- warning: expression took 373ms to type-check (limit: 150ms)
+ 70 |         return String(format: "fieldstats: %d surface cells: %.1f%% generator field, %.1f%% rule shapes, %.1f%% rounded from cells"
+ 71 |                       + " (of those: %.0f%% by water, %.0f%% by lava, %.0f%% added ground, %.0f%% carved, %.0f%% other)",
+
+/Users/runner/work/blocksmith/blocksmith/Sources/FineField.swift:342:17: warning: expression took 304ms to type-check (limit: 150ms)
+340 |                 // grid, lands on the very same point: a vertex a thirty-second off was still a slit from a low angle.)
+341 |                 guard bestD < .infinity else { return nil }
+342 |                 return (best * 16).rounded(.toNearestOrAwayFromZero) / 16 * 2 - off
+    |                 `- warning: expression took 304ms to type-check (limit: 150ms)
+343 |             }
+344 |             smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles, exact: exact, pin: pin) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+
+/Users/runner/work/blocksmith/blocksmith/Sources/FineField.swift:342:17: warning: expression took 291ms to type-check (limit: 150ms)
+340 |                 // grid, lands on the very same point: a vertex a thirty-second off was still a slit from a low angle.)
+341 |                 guard bestD < .infinity else { return nil }
+342 |                 return (best * 16).rounded(.toNearestOrAwayFromZero) / 16 * 2 - off
+    |                 `- warning: expression took 291ms to type-check (limit: 150ms)
+343 |             }
+344 |             smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles, exact: exact, pin: pin) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+
+/Users/runner/work/blocksmith/blocksmith/Sources/FlightModel.swift:132:30: warning: expression took 185ms to type-check (limit: 150ms)
+130 |         stalled = stallN * 3 > s.wings.count
+131 |         // Virtual fin over the tail: weathervane and rudder (steer adds a little rudder for coordinated turns).
+132 |         let tail = s.toWorld(com - fwdL * max(2, aft) + upL * 1.5)
+    |                              `- warning: expression took 185ms to type-check (limit: 150ms)
+133 |         let vt = s.velocity(at: tail)
+134 |         let rightW = s.dirToWorld(rightL)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/FreeBuild.swift:50:30: warning: expression took 6080ms to type-check (limit: 150ms)
+ 48 |         case .roof: return [(V3(-1, 0, 0), V3(1, 0.15, roofLen), false)]
+ 49 |         case .post: return [(V3(-0.13, 0, -0.13), V3(0.13, 2, 0.13), false)]
+ 50 |         case .stairs: return (0..<4).map { s in (V3(-0.5, 0, -1 + 0.5 * Float(s)), V3(0.5, 0.5 * Float(s + 1), -0.5 + 0.5 * Float(s)), false) }
+    |                              `- warning: expression took 6080ms to type-check (limit: 150ms)
+ 51 |         case .door: return open ? [(V3(-0.56, 0, 0.06), V3(-0.44, 2, 1.06), false)] : [(V3(-0.5, 0, -0.06), V3(0.5, 2, 0.06), false)]
+ 52 |         case .window:
+/Users/runner/work/blocksmith/blocksmith/Sources/GameCircuit.swift:343:44: warning: expression took 195ms to type-check (limit: 150ms)
+341 |             if boneMealGrow(front) { take() }
+342 |         default:
+343 |             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
+    |                                            `- warning: expression took 195ms to type-check (limit: 150ms)
+344 |                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
+345 |                 inventory.armor[sl.rawValue] = stack.with(count: 1); take()
+
+/Users/runner/work/blocksmith/blocksmith/Sources/GameCircuit.swift:343:44: warning: expression took 199ms to type-check (limit: 150ms)
+341 |             if boneMealGrow(front) { take() }
+342 |         default:
+343 |             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
+    |                                            `- warning: expression took 199ms to type-check (limit: 150ms)
+344 |                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
+345 |                 inventory.armor[sl.rawValue] = stack.with(count: 1); take()
+
+/Users/runner/work/blocksmith/blocksmith/Sources/GameCircuit.swift:343:44: warning: expression took 207ms to type-check (limit: 150ms)
+341 |             if boneMealGrow(front) { take() }
+342 |         default:
+343 |             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
+    |                                            `- warning: expression took 207ms to type-check (limit: 150ms)
+344 |                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
+345 |                 inventory.armor[sl.rawValue] = stack.with(count: 1); take()
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Greywall.swift:593:32: warning: expression took 6572ms to type-check (limit: 150ms)
+591 |         for k in shore {
+592 |             for along in [-(H / 3), H / 3] {
+593 |                 let (dx, dz) = k == 0 ? (along, -(H - 1)) : k == 1 ? (along, H - 1) : k == 2 ? (-(H - 1), along) : (H - 1, along)
+    |                                `- warning: expression took 6572ms to type-check (limit: 150ms)
+594 |                 if k == 1 && abs(dx) <= 4 { continue }               // (never over the gate)
+595 |                 if p471 {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Greywall.swift:274:100: warning: immutable value 'barrel' was never used; consider replacing with '_' or removing it
+272 |         let lamp = g("corner_lamp", panel), cab = g("data_cabinet", console), door = g("bulkhead_door", g("iron_door"))
+273 |         let alarm = g("alarm_lamp", lamp), alarmPanel = g("alarm_panel", console), mapTable = g("greywall_map_table", console)
+274 |         let yardB = g("coarse_dirt", DIRT), path = GRAVEL, wool = g("gray_wool", g("white_wool")), barrel = g("barrel", crate)
+    |                                                                                                    `- warning: immutable value 'barrel' was never used; consider replacing with '_' or removing it
+275 |         let ladder = g("ladder"), stairsW = g("bunker_concrete_stairs[west]", con)
+276 |         let slab = g("bunker_concrete_slab", con), steelSlabTop = g("steel_plating_slab[top]", steel)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Greywall.swift:814:24: warning: expression took 1233ms to type-check (limit: 150ms)
+812 |             if x == 9 && y == 4 { return hex(0x3A7AD0) }
+813 |             if x % 5 == 0 || y % 5 == 0 { return hex(0x9AA6AE) }
+814 |             let land = Float(x) * 0.6 + sinf(Float(y) * 0.7) * 2 < 7
+    |                        `- warning: expression took 1233ms to type-check (limit: 150ms)
+815 |             let k: Float = 0.96 + 0.04 * r(x, y, 4204)
+816 |             return land ? hex(0xC8C29A, k) : hex(0x8FB0C4, k)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/GreywallAlarm.swift:181:30: warning: variable 'next' was never mutated; consider changing to 'let' constant
+179 |         guard !st.scanning.isEmpty else { return }
+180 |         for key in Array(st.scanning.keys) {
+181 |             guard var (part, next) = st.scanning[key] else { continue }
+    |                              `- warning: variable 'next' was never mutated; consider changing to 'let' constant
+182 |             guard let done = Greywall.scanColumn(world, &part, next) else { continue }       // (that column not in yet)
+183 |             if done { st.scanning[key] = nil; st.scanned[key] = part } else { st.scanning[key] = (part, next + 1) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/GreywallAlarm.swift:415:21: warning: expression took 988ms to type-check (limit: 150ms)
+413 |                 if let f = t.hunters {
+414 |                     let back = V3(sinf(m.yaw), 0, cosf(m.yaw)) * 3.2, side = V3(cosf(m.yaw), 0, -sinf(m.yaw))
+415 |                     radioTruckSquad(f, t.squad, at: { k in at + back + side * (Float(k) - 1.5) * 1.2 })
+    |                     `- warning: expression took 988ms to type-check (limit: 150ms)
+416 |                     sfx(.gun(12), 0.6, at: at)
+417 |                     st.trucks[i] = t; continue
+
+/Users/runner/work/blocksmith/blocksmith/Sources/GreywallAlarm.swift:492:20: warning: expression took 502ms to type-check (limit: 150ms)
+490 |         }
+491 |         let right = V3(cosf(yaw), 0, -sinf(yaw))
+492 |         let next = pos + forward * speed * 0.6 + right * strafe * 0.6
+    |                    `- warning: expression took 502ms to type-check (limit: 150ms)
+493 |         if out(next) { strafe = 0; return 0 }
+494 |         return speed
+
+/Users/runner/work/blocksmith/blocksmith/Sources/GreywallAlarm.swift:492:20: warning: expression took 500ms to type-check (limit: 150ms)
+490 |         }
+491 |         let right = V3(cosf(yaw), 0, -sinf(yaw))
+492 |         let next = pos + forward * speed * 0.6 + right * strafe * 0.6
+    |                    `- warning: expression took 500ms to type-check (limit: 150ms)
+493 |         if out(next) { strafe = 0; return 0 }
+494 |         return speed
+/Users/runner/work/blocksmith/blocksmith/Sources/GroundDrape.swift:72:13: warning: expression took 446ms to type-check (limit: 150ms)
+ 70 |         var best: Float = -.greatestFiniteMagnitude
+ 71 |         tri.withUnsafeBufferPointer { t in
+ 72 |             for k in cells[(cx + 1) + (cz + 1) * GroundDrape.N] {
+    |             `- warning: expression took 446ms to type-check (limit: 150ms)
+ 73 |                 let o = Int(k) * 9
+ 74 |                 let ax = t[o], az = t[o + 2], bx = t[o + 3], bz = t[o + 5], qx = t[o + 6], qz = t[o + 8]
+
+/Users/runner/work/blocksmith/blocksmith/Sources/GroundDrape.swift:99:17: warning: expression took 604ms to type-check (limit: 150ms)
+ 97 |         tri.withUnsafeBufferPointer { t in
+ 98 |             for bz in max(-1, cz - 1)...min(16, cz + 1) { for bx in max(-1, cx - 1)...min(16, cx + 1) {
+ 99 |                 for k in cells[(bx + 1) + (bz + 1) * GroundDrape.N] {
+    |                 `- warning: expression took 604ms to type-check (limit: 150ms)
+100 |                     let o = Int(k) * 9
+101 |                     // (seen from above: the squared distance to the triangle's nearest edge; adaptive ground triangles
+/Users/runner/work/blocksmith/blocksmith/Sources/HellLooks.swift:105:33: warning: expression took 282ms to type-check (limit: 150ms)
+103 |                 for k in 0..<max(1, steps) {
+104 |                     let t: Float = Float(k) / Float(max(1, steps))
+105 |                     let c: V3 = (c0 * (1 - t * t) + c1 * (t * t)) * tone
+    |                                 `- warning: expression took 282ms to type-check (limit: 150ms)
+106 |                     img[Int(x), Int(y)] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+107 |                     if t < 0.5 { img[Int(x) + 1, Int(y)] = V4(c.x * 0.7, c.y * 0.7, c.z * 0.7, 1) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HellLooks.swift:387:53: warning: expression took 1085ms to type-check (limit: 150ms)
+385 |                 for y in Int(cy - r)...Int(cy + r) { for x in Int(fn / 2 - r * 1.6)...Int(fn / 2 + r * 1.6) {
+386 |                     let dx: Float = (Float(x) - fn / 2) / 1.6, dy: Float = Float(y) - cy
+387 |                     if dx * dx + dy * dy <= r * r { HDTex.plot(&img, x, y, crown * (0.8 + 0.3 * (1 - (dx * dx + dy * dy) / (r * r)))) }
+    |                                                     `- warning: expression took 1085ms to type-check (limit: 150ms)
+388 |                 } }
+389 |             }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HellMobs.swift:530:16: warning: expression took 1269ms to type-check (limit: 150ms)
+ 528 |     var slagHand: V3 {
+ 529 |         let side = V3(cosf(yaw), 0, -sinf(yaw))
+ 530 |         return pos + V3(0, height * 0.95, 0) + side * 0.5 - forward * 0.5
+     |                `- warning: expression took 1269ms to type-check (limit: 150ms)
+ 531 |     }
+ 532 | 
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HellMobs.swift:530:16: warning: expression took 1020ms to type-check (limit: 150ms)
+ 528 |     var slagHand: V3 {
+ 529 |         let side = V3(cosf(yaw), 0, -sinf(yaw))
+ 530 |         return pos + V3(0, height * 0.95, 0) + side * 0.5 - forward * 0.5
+     |                `- warning: expression took 1020ms to type-check (limit: 150ms)
+ 531 |     }
+ 532 | 
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HellOwn.swift:82:13: warning: expression took 204ms to type-check (limit: 150ms)
+ 80 |         if warden {
+ 81 |             // The Keep Castellan (DeepGates.swift): the same boss, now a Brand Champion, with the health it had.
+ 82 |             n.health = Int(Float(health) / Float(max(1, spec.health)) * 240)
+    |             `- warning: expression took 204ms to type-check (limit: 150ms)
+ 83 |             n.wardenRaged = wardenRaged
+ 84 |             n.makeKeepWarden(loading: true)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HellOwn.swift:82:13: warning: expression took 222ms to type-check (limit: 150ms)
+ 80 |         if warden {
+ 81 |             // The Keep Castellan (DeepGates.swift): the same boss, now a Brand Champion, with the health it had.
+ 82 |             n.health = Int(Float(health) / Float(max(1, spec.health)) * 240)
+    |             `- warning: expression took 222ms to type-check (limit: 150ms)
+ 83 |             n.wardenRaged = wardenRaged
+ 84 |             n.makeKeepWarden(loading: true)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HellOwn.swift:82:13: warning: expression took 226ms to type-check (limit: 150ms)
+ 80 |         if warden {
+ 81 |             // The Keep Castellan (DeepGates.swift): the same boss, now a Brand Champion, with the health it had.
+ 82 |             n.health = Int(Float(health) / Float(max(1, spec.health)) * 240)
+    |             `- warning: expression took 226ms to type-check (limit: 150ms)
+ 83 |             n.wardenRaged = wardenRaged
+ 84 |             n.makeKeepWarden(loading: true)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Holsters.swift:18:21: warning: expression took 200ms to type-check (limit: 150ms)
+16 |         let fwd = V3(-sinf(yaw), 0, -cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
+17 |         let d = hand - head
+18 |         let chest = V3(0, -0.5, 0) + fwd * 0.14 - right * 0.06
+   |                     `- warning: expression took 200ms to type-check (limit: 150ms)
+19 |         if simd_length(d - chest) < 0.12 { return .chest }
+20 |         let side = simd_dot(d, right), ahead = simd_dot(d, fwd)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Holsters.swift:18:21: warning: expression took 243ms to type-check (limit: 150ms)
+16 |         let fwd = V3(-sinf(yaw), 0, -cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
+17 |         let d = hand - head
+18 |         let chest = V3(0, -0.5, 0) + fwd * 0.14 - right * 0.06
+   |                     `- warning: expression took 243ms to type-check (limit: 150ms)
+19 |         if simd_length(d - chest) < 0.12 { return .chest }
+20 |         let side = simd_dot(d, right), ahead = simd_dot(d, fwd)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Holsters.swift:44:24: warning: expression took 507ms to type-check (limit: 150ms)
+42 |         if g.selected == slot {
+43 |             // Holster it: back to what the hand held before (or the first slot without a handgun).
+44 |             let back = before.flatMap { $0 != slot ? $0 : nil }
+   |                        `- warning: expression took 507ms to type-check (limit: 150ms)
+45 |                 ?? (0..<9).first { i in i != hip && i != chest } ?? slot
+46 |             g.select(back)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HorseGapTests.swift:353:23: warning: expression took 263ms to type-check (limit: 150ms)
+351 |             let h = horse(15, 0); h.yaw = 0
+352 |             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
+353 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+    |                       `- warning: expression took 263ms to type-check (limit: 150ms)
+354 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+355 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HorseGapTests.swift:353:23: warning: expression took 565ms to type-check (limit: 150ms)
+351 |             let h = horse(15, 0); h.yaw = 0
+352 |             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
+353 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+    |                       `- warning: expression took 565ms to type-check (limit: 150ms)
+354 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+355 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HorseGapTests.swift:353:23: warning: expression took 412ms to type-check (limit: 150ms)
+351 |             let h = horse(15, 0); h.yaw = 0
+352 |             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
+353 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+    |                       `- warning: expression took 412ms to type-check (limit: 150ms)
+354 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+355 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HorseGapTests.swift:354:24: warning: expression took 290ms to type-check (limit: 150ms)
+352 |             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
+353 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+354 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+    |                        `- warning: expression took 290ms to type-check (limit: 150ms)
+355 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+356 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HorseGapTests.swift:354:24: warning: expression took 402ms to type-check (limit: 150ms)
+352 |             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
+353 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+354 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+    |                        `- warning: expression took 402ms to type-check (limit: 150ms)
+355 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+356 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HorseGapTests.swift:354:24: warning: expression took 411ms to type-check (limit: 150ms)
+352 |             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
+353 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+354 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+    |                        `- warning: expression took 411ms to type-check (limit: 150ms)
+355 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+356 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HorseGapTests.swift:355:25: warning: expression took 264ms to type-check (limit: 150ms)
+353 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+354 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+355 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+    |                         `- warning: expression took 264ms to type-check (limit: 150ms)
+356 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+357 |             check(HorseLife.reachesSaddlebag(h, hand: bag) && HorseLife.reachesSaddlebag(h, hand: bagL) && !HorseLife.reachesSaddlebag(h, hand: ahead)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HorseGapTests.swift:355:25: warning: expression took 443ms to type-check (limit: 150ms)
+353 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+354 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+355 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+    |                         `- warning: expression took 443ms to type-check (limit: 150ms)
+356 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+357 |             check(HorseLife.reachesSaddlebag(h, hand: bag) && HorseLife.reachesSaddlebag(h, hand: bagL) && !HorseLife.reachesSaddlebag(h, hand: ahead)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HorseGapTests.swift:355:25: warning: expression took 436ms to type-check (limit: 150ms)
+353 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+354 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+355 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+    |                         `- warning: expression took 436ms to type-check (limit: 150ms)
+356 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+357 |             check(HorseLife.reachesSaddlebag(h, hand: bag) && HorseLife.reachesSaddlebag(h, hand: bagL) && !HorseLife.reachesSaddlebag(h, hand: ahead)
+/Users/runner/work/blocksmith/blocksmith/Sources/Hunting.swift:454:25: warning: expression took 231ms to type-check (limit: 150ms)
+452 |         let i = seat(g)
+453 |         guard skinningBy[i] != nil, progressBy[i] > 0 else { return nil }
+454 |         let n = 10, f = Int(min(1, progressBy[i] / max(0.1, needBy[i])) * Float(n))
+    |                         `- warning: expression took 231ms to type-check (limit: 150ms)
+455 |         return ("Skinning " + String(repeating: "|", count: f) + String(repeating: ".", count: n - f), V4(0.95, 0.85, 0.75, 1))
+456 |     }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Hunting.swift:454:25: warning: expression took 181ms to type-check (limit: 150ms)
+452 |         let i = seat(g)
+453 |         guard skinningBy[i] != nil, progressBy[i] > 0 else { return nil }
+454 |         let n = 10, f = Int(min(1, progressBy[i] / max(0.1, needBy[i])) * Float(n))
+    |                         `- warning: expression took 181ms to type-check (limit: 150ms)
+455 |         return ("Skinning " + String(repeating: "|", count: f) + String(repeating: ".", count: n - f), V4(0.95, 0.85, 0.75, 1))
+456 |     }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HuntingTests.swift:191:75: warning: expression took 335ms to type-check (limit: 150ms)
+189 |         let pikeS = Fishing.species[2]
+190 |         let ws = (0..<300).map { _ in Fishing.weight(pikeS, luck: 0) }
+191 |         check(ws.allSatisfy { $0 >= pikeS.minLb && $0 <= pikeS.maxLb } && (ws.max() ?? 0) - (ws.min() ?? 0) > 10, String(format: "hunting: pike weigh %.1f-%.1f lb", ws.min() ?? 0, ws.max() ?? 0))
+    |                                                                           `- warning: expression took 335ms to type-check (limit: 150ms)
+192 |         func play(_ power: Float, _ bot: (Fishing.Fight) -> Bool) -> Fishing.Outcome {
+193 |             let f = Fishing.Fight(species: 2, weight: 20, power: power, line: 16, dir: V3(0, 0, -1))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/HuntingTests.swift:191:9: warning: expression took 285ms to type-check (limit: 150ms)
+189 |         let pikeS = Fishing.species[2]
+190 |         let ws = (0..<300).map { _ in Fishing.weight(pikeS, luck: 0) }
+191 |         check(ws.allSatisfy { $0 >= pikeS.minLb && $0 <= pikeS.maxLb } && (ws.max() ?? 0) - (ws.min() ?? 0) > 10, String(format: "hunting: pike weigh %.1f-%.1f lb", ws.min() ?? 0, ws.max() ?? 0))
+    |         `- warning: expression took 285ms to type-check (limit: 150ms)
+192 |         func play(_ power: Float, _ bot: (Fishing.Fight) -> Bool) -> Fishing.Outcome {
+193 |             let f = Fishing.Fight(species: 2, weight: 20, power: power, line: 16, dir: V3(0, 0, -1))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/InputMatrix.swift:83:9: warning: expression took 2903ms to type-check (limit: 150ms)
+ 81 |         ]
+ 82 |         var md = "# Input binding matrix (Blocksmith --inputmatrix)\n\nController layout: \(PadMap.layoutName). Each cell: what a tap / a 0.8 s hold changed.\n\n"
+ 83 |         md += "| button | " + contexts.map { $0.0 }.joined(separator: " | ") + " |\n|---|" + contexts.map { _ in "---|" }.joined() + "\n"
+    |         `- warning: expression took 2903ms to type-check (limit: 150ms)
+ 84 |         var conflicts: [String] = []
+ 85 |         var cells: [String: [String]] = [:]
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Journal.swift:160:13: warning: variable 'note' was never mutated; consider changing to 'let' constant
+158 |         // time, where to find it too. A message shown a moment ago (the orders' bearing) keeps its place: the note goes
+159 |         // after it.
+160 |         var note = Journal.tag + title
+    |             `- warning: variable 'note' was never mutated; consider changing to 'let' constant
+161 |         // P296 / NO TEXT (Oct 15): no "where to reread it" hint any more; the journal sits in the inventory beside the
+162 |         // armour, with a badge when something is new.
+/Users/runner/work/blocksmith/blocksmith/Sources/LandmarkRender.swift:117:24: warning: expression took 412ms to type-check (limit: 150ms)
+115 |                 let lit: Float = 0.26 + (0.42 * max(0, simd_dot(n, sun)) + 0.62 * key) * day
+116 |                 let tint: V3 = simd_mix(V3(0.86, 0.9, 1.04), V3(1.12, 1.0, 0.86), V3(repeating: key))
+117 |                 return base * tint * lit * hdrK * (1 - haze) + fog * haze
+    |                        `- warning: expression took 412ms to type-check (limit: 150ms)
+118 |             }
+119 |             func height(_ t: Float) -> Float {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/LandmarkRender.swift:117:24: warning: expression took 483ms to type-check (limit: 150ms)
+115 |                 let lit: Float = 0.26 + (0.42 * max(0, simd_dot(n, sun)) + 0.62 * key) * day
+116 |                 let tint: V3 = simd_mix(V3(0.86, 0.9, 1.04), V3(1.12, 1.0, 0.86), V3(repeating: key))
+117 |                 return base * tint * lit * hdrK * (1 - haze) + fog * haze
+    |                        `- warning: expression took 483ms to type-check (limit: 150ms)
+118 |             }
+119 |             func height(_ t: Float) -> Float {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/LandmarkRender.swift:195:31: warning: expression took 306ms to type-check (limit: 150ms)
+193 |             if er > 0 {
+194 |                 let ct = Float(game.clock.truncatingRemainder(dividingBy: 1000))
+195 |                 let bomb = V4(V3(1.0, 0.45, 0.1) * glowK * 1.3 * (1 - haze * 0.5) + fog * haze * 0.5, 1)
+    |                               `- warning: expression took 306ms to type-check (limit: 150ms)
+196 |                 let bs: Float = max(4, dist * 0.008)
+197 |                 for k in 0..<18 {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/LandmarkRender.swift:195:28: warning: expression took 181ms to type-check (limit: 150ms)
+193 |             if er > 0 {
+194 |                 let ct = Float(game.clock.truncatingRemainder(dividingBy: 1000))
+195 |                 let bomb = V4(V3(1.0, 0.45, 0.1) * glowK * 1.3 * (1 - haze * 0.5) + fog * haze * 0.5, 1)
+    |                            `- warning: expression took 181ms to type-check (limit: 150ms)
+196 |                 let bs: Float = max(4, dist * 0.008)
+197 |                 for k in 0..<18 {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/LandmarkRender.swift:195:28: warning: expression took 191ms to type-check (limit: 150ms)
+193 |             if er > 0 {
+194 |                 let ct = Float(game.clock.truncatingRemainder(dividingBy: 1000))
+195 |                 let bomb = V4(V3(1.0, 0.45, 0.1) * glowK * 1.3 * (1 - haze * 0.5) + fog * haze * 0.5, 1)
+    |                            `- warning: expression took 191ms to type-check (limit: 150ms)
+196 |                 let bs: Float = max(4, dist * 0.008)
+197 |                 for k in 0..<18 {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/LastWarTests.swift:105:66: warning: expression took 250ms to type-check (limit: 150ms)
+103 |         var asym = 0, white = 0, black = 0
+104 |         for Y in 0..<48 { for X in 0..<48 {
+105 |             func px(_ x: Int, _ y: Int) -> V4 { p["ash_standard_\((y / 16) * 3 + x / 16)"]!(x % 16, y % 16) }
+    |                                                                  `- warning: expression took 250ms to type-check (limit: 150ms)
+106 |             guard missing.isEmpty else { break }
+107 |             let a = cls(px(X, Y)), b = cls(px(47 - X, Y))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/MainGun.swift:176:62: warning: expression took 274ms to type-check (limit: 150ms)
+174 |                 let a = Rand.float(in: 0..<(2 * .pi)), rr = Rand.float(in: 2...5)
+175 |                 let off = (side * cosf(a) + up * sinf(a)) * rr - md * Rand.float(in: 0...6)
+176 |                 g.particles.add(Particle(pos: mw + off, vel: s.vel - off * 3 + md * 4, life: 0.3, maxLife: 0.3, layer: layer, uv0: V2(0, 0),
+    |                                                              `- warning: expression took 274ms to type-check (limit: 150ms)
+177 |                                          uvSize: 1, size: Rand.float(in: 0.12...0.3), gravity: 0, color: V3(0.55, 0.85, 1), collide: false, glow: true))
+178 |             }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/MainGun.swift:233:43: warning: expression took 391ms to type-check (limit: 150ms)
+231 |             let r = side * cosf(a) + up * sinf(a)
+232 |             let g0 = Rand.float(in: 0.55...0.75)
+233 |             g.particles.add(Particle(pos: mw + dir * 3 + r * 2, vel: r * Rand.float(in: 10...16) + dir * 6 + s.vel, life: Rand.float(in: 1.2...2.2), maxLife: 2.2,
+    |                                           `- warning: expression took 391ms to type-check (limit: 150ms)
+234 |                                      layer: layer, uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 1.0...1.8), gravity: -0.3, color: V3(g0, g0, g0), collide: false))
+235 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/MainGun.swift:233:13: warning: expression took 219ms to type-check (limit: 150ms)
+231 |             let r = side * cosf(a) + up * sinf(a)
+232 |             let g0 = Rand.float(in: 0.55...0.75)
+233 |             g.particles.add(Particle(pos: mw + dir * 3 + r * 2, vel: r * Rand.float(in: 10...16) + dir * 6 + s.vel, life: Rand.float(in: 1.2...2.2), maxLife: 2.2,
+    |             `- warning: expression took 219ms to type-check (limit: 150ms)
+234 |                                      layer: layer, uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 1.0...1.8), gravity: -0.3, color: V3(g0, g0, g0), collide: false))
+235 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/MainGun.swift:433:41: warning: expression took 320ms to type-check (limit: 150ms)
+431 |                     if d < MainGun.shockRadius && !onShooter && abs(pp.y - c.y) < MainGun.shockHeight {
+432 |                         let f = 1 - d / MainGun.shockRadius
+433 |                         if g.survival { g.hurtPlayer(Int((2 + 10 * f * f).rounded()), from: c, cause: "was flattened by a shockwave", knockback: 0, type: .explosion) }
+    |                                         `- warning: expression took 320ms to type-check (limit: 150ms)
+434 |                         let out = d > 0.1 ? V3((pp.x - c.x) / d, 0, (pp.z - c.z) / d) : V3(1, 0, 0)
+435 |                         g.player.vel += out * (3 + 7 * f) + V3(0, 2 + 3 * f, 0)
+/Users/runner/work/blocksmith/blocksmith/Sources/Music.swift:315:9: warning: expression took 169ms to type-check (limit: 150ms)
+313 |         gainTarget = 1
+314 |         gainRate = 1 / max(0.01, fadeIn * sr)
+315 |         seed = UInt64(bitPattern: Int64(s.title.utf8.reduce(0) { ($0 &* 31 &+ Int($1)) & 0x7FFFFFFF })) | 1
+    |         `- warning: expression took 169ms to type-check (limit: 150ms)
+316 |     }
+317 | 
+
+/Users/runner/work/blocksmith/blocksmith/Sources/NavalGuns.swift:66:31: warning: expression took 2056ms to type-check (limit: 150ms)
+ 64 |     static func platesLost(_ m: Mob) -> Int {
+ 65 |         guard m.health > 0 else { return 0 }
+ 66 |         return max(0, min(10, Int((1 - Float(m.health) / Float(max(1, m.spec.health))) * 10)))
+    |                               `- warning: expression took 2056ms to type-check (limit: 150ms)
+ 67 |     }
+ 68 | 
+
+/Users/runner/work/blocksmith/blocksmith/Sources/NavalGuns.swift:66:23: warning: expression took 1423ms to type-check (limit: 150ms)
+ 64 |     static func platesLost(_ m: Mob) -> Int {
+ 65 |         guard m.health > 0 else { return 0 }
+ 66 |         return max(0, min(10, Int((1 - Float(m.health) / Float(max(1, m.spec.health))) * 10)))
+    |                       `- warning: expression took 1423ms to type-check (limit: 150ms)
+ 67 |     }
+ 68 | 
+
+/Users/runner/work/blocksmith/blocksmith/Sources/NavalGuns.swift:66:16: warning: expression took 1373ms to type-check (limit: 150ms)
+ 64 |     static func platesLost(_ m: Mob) -> Int {
+ 65 |         guard m.health > 0 else { return 0 }
+ 66 |         return max(0, min(10, Int((1 - Float(m.health) / Float(max(1, m.spec.health))) * 10)))
+    |                `- warning: expression took 1373ms to type-check (limit: 150ms)
+ 67 |     }
+ 68 | 
+
+/Users/runner/work/blocksmith/blocksmith/Sources/NavalGuns.swift:66:16: warning: expression took 1388ms to type-check (limit: 150ms)
+ 64 |     static func platesLost(_ m: Mob) -> Int {
+ 65 |         guard m.health > 0 else { return 0 }
+ 66 |         return max(0, min(10, Int((1 - Float(m.health) / Float(max(1, m.spec.health))) * 10)))
+    |                `- warning: expression took 1388ms to type-check (limit: 150ms)
+ 67 |     }
+ 68 | 
+
+/Users/runner/work/blocksmith/blocksmith/Sources/NavalGuns.swift:77:26: warning: expression took 370ms to type-check (limit: 150ms)
+ 75 |             let k = HeavyTurret.scale(m)
+ 76 |             for _ in m.platesShed..<lost {
+ 77 |                 let at = m.pos + V3(0, 3 * k, 0) + side * Rand.float(in: -5...5) * k + fwd * Rand.float(in: -4...5) * k
+    |                          `- warning: expression took 370ms to type-check (limit: 150ms)
+ 78 |                 let plate = Blocks.has("steel_plating") ? Blocks.id("steel_plating") : STONE
+ 79 |                 g.particles.blockBreak(plate, at: IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z))))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/NavalGuns.swift:77:26: warning: expression took 360ms to type-check (limit: 150ms)
+ 75 |             let k = HeavyTurret.scale(m)
+ 76 |             for _ in m.platesShed..<lost {
+ 77 |                 let at = m.pos + V3(0, 3 * k, 0) + side * Rand.float(in: -5...5) * k + fwd * Rand.float(in: -4...5) * k
+    |                          `- warning: expression took 360ms to type-check (limit: 150ms)
+ 78 |                 let plate = Blocks.has("steel_plating") ? Blocks.id("steel_plating") : STONE
+ 79 |                 g.particles.blockBreak(plate, at: IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z))))
+/Users/runner/work/blocksmith/blocksmith/Sources/PadTest.swift:758:44: warning: expression took 177ms to type-check (limit: 150ms)
+756 |             let r = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw)), f = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
+757 |             CombatHUD.shared.hurt(g, from: g.player.pos + r * 4, amount: 4)
+758 |             CombatHUD.shared.hurt(g, from: g.player.pos - f * 4 - r * 2, amount: 2)
+    |                                            `- warning: expression took 177ms to type-check (limit: 150ms)
+759 |             if name == "combat" {
+760 |                 for (i, n) in ["gun_rifle", "gun_shotgun", "gun_kessel", "gun_sniper", "gun_launcher"].enumerated() where Items.has(n) {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Particles.swift:152:21: warning: expression took 159ms to type-check (limit: 150ms)
+150 |         for _ in 0..<n {
+151 |             let r = V3(Rand.float(in: -1...1), Rand.float(in: -0.4...1), Rand.float(in: -1...1))
+152 |             let d = simd_normalize(dir * 1.4 + r + V3(0, 1e-4, 0))
+    |                     `- warning: expression took 159ms to type-check (limit: 150ms)
+153 |             add(Particle(pos: c, vel: d * Rand.float(in: 4...8), life: Rand.float(in: 0.12...0.26), maxLife: 0.26, layer: smoke,
+154 |                          uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.03...0.05), gravity: 10,
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Particles.swift:152:21: warning: expression took 173ms to type-check (limit: 150ms)
+150 |         for _ in 0..<n {
+151 |             let r = V3(Rand.float(in: -1...1), Rand.float(in: -0.4...1), Rand.float(in: -1...1))
+152 |             let d = simd_normalize(dir * 1.4 + r + V3(0, 1e-4, 0))
+    |                     `- warning: expression took 173ms to type-check (limit: 150ms)
+153 |             add(Particle(pos: c, vel: d * Rand.float(in: 4...8), life: Rand.float(in: 0.12...0.26), maxLife: 0.26, layer: smoke,
+154 |                          uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.03...0.05), gravity: 10,
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Player.swift:379:44: warning: expression took 173ms to type-check (limit: 150ms)
+377 |             speed = inLava && !inWater ? 1.0 : (sprinting ? 3.0 : 2.2)
+378 |             // Depth magmastrider closes the gap to land speed; dolphin's grace is much faster.
+379 |             if depthStrider > 0 { speed += (4.317 - speed) * Float(min(3, depthStrider)) / 3 }
+    |                                            `- warning: expression took 173ms to type-check (limit: 150ms)
+380 |             if dolphinsGrace { speed *= 2.2 }
+381 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Player.swift:569:17: warning: expression took 166ms to type-check (limit: 150ms)
+567 |                 boost -= 0.05
+568 |                 let push: V3 = l * 0.1
+569 |                 v += push + (l * 1.5 - v) * 0.5
+    |                 `- warning: expression took 166ms to type-check (limit: 150ms)
+570 |             }
+571 |             v *= V3(0.99, 0.98, 0.99)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Player.swift:569:17: warning: expression took 154ms to type-check (limit: 150ms)
+567 |                 boost -= 0.05
+568 |                 let push: V3 = l * 0.1
+569 |                 v += push + (l * 1.5 - v) * 0.5
+    |                 `- warning: expression took 154ms to type-check (limit: 150ms)
+570 |             }
+571 |             v *= V3(0.99, 0.98, 0.99)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct12PMTests.swift:90:48: warning: expression took 290ms to type-check (limit: 150ms)
+  88 |             g.arms.magInHand = false
+  89 |             let f = V3(-sinf(yaw), 0, -cosf(yaw)), r = V3(-f.z, 0, f.x)
+  90 |             let head = g.player.eye, gunHand = head + r * 0.2 + f * 0.35 + V3(0, -0.35, 0)
+     |                                                `- warning: expression took 290ms to type-check (limit: 150ms)
+  91 |             // In front of the waist, a little to the left: the usual pose for pressing the grip.
+  92 |             let waist = head + f * 0.3 - r * 0.15 + V3(0, -0.6, 0)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct12PMTests.swift:90:48: warning: expression took 433ms to type-check (limit: 150ms)
+  88 |             g.arms.magInHand = false
+  89 |             let f = V3(-sinf(yaw), 0, -cosf(yaw)), r = V3(-f.z, 0, f.x)
+  90 |             let head = g.player.eye, gunHand = head + r * 0.2 + f * 0.35 + V3(0, -0.35, 0)
+     |                                                `- warning: expression took 433ms to type-check (limit: 150ms)
+  91 |             // In front of the waist, a little to the left: the usual pose for pressing the grip.
+  92 |             let waist = head + f * 0.3 - r * 0.15 + V3(0, -0.6, 0)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct12PMTests.swift:90:48: warning: expression took 416ms to type-check (limit: 150ms)
+  88 |             g.arms.magInHand = false
+  89 |             let f = V3(-sinf(yaw), 0, -cosf(yaw)), r = V3(-f.z, 0, f.x)
+  90 |             let head = g.player.eye, gunHand = head + r * 0.2 + f * 0.35 + V3(0, -0.35, 0)
+     |                                                `- warning: expression took 416ms to type-check (limit: 150ms)
+  91 |             // In front of the waist, a little to the left: the usual pose for pressing the grip.
+  92 |             let waist = head + f * 0.3 - r * 0.15 + V3(0, -0.6, 0)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct12PMTests.swift:92:25: warning: expression took 159ms to type-check (limit: 150ms)
+  90 |             let head = g.player.eye, gunHand = head + r * 0.2 + f * 0.35 + V3(0, -0.35, 0)
+  91 |             // In front of the waist, a little to the left: the usual pose for pressing the grip.
+  92 |             let waist = head + f * 0.3 - r * 0.15 + V3(0, -0.6, 0)
+     |                         `- warning: expression took 159ms to type-check (limit: 150ms)
+  93 |             front.append(VRReload.tick(g, offHand: waist, gunHand: gunHand, head: head, grip: true, gripWas: false))
+  94 |             // Down by the left hip.
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct12PMTests.swift:92:25: warning: expression took 421ms to type-check (limit: 150ms)
+  90 |             let head = g.player.eye, gunHand = head + r * 0.2 + f * 0.35 + V3(0, -0.35, 0)
+  91 |             // In front of the waist, a little to the left: the usual pose for pressing the grip.
+  92 |             let waist = head + f * 0.3 - r * 0.15 + V3(0, -0.6, 0)
+     |                         `- warning: expression took 421ms to type-check (limit: 150ms)
+  93 |             front.append(VRReload.tick(g, offHand: waist, gunHand: gunHand, head: head, grip: true, gripWas: false))
+  94 |             // Down by the left hip.
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct12PMTests.swift:92:25: warning: expression took 342ms to type-check (limit: 150ms)
+  90 |             let head = g.player.eye, gunHand = head + r * 0.2 + f * 0.35 + V3(0, -0.35, 0)
+  91 |             // In front of the waist, a little to the left: the usual pose for pressing the grip.
+  92 |             let waist = head + f * 0.3 - r * 0.15 + V3(0, -0.6, 0)
+     |                         `- warning: expression took 342ms to type-check (limit: 150ms)
+  93 |             front.append(VRReload.tick(g, offHand: waist, gunHand: gunHand, head: head, grip: true, gripWas: false))
+  94 |             // Down by the left hip.
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct12PMTests.swift:95:23: warning: expression took 200ms to type-check (limit: 150ms)
+  93 |             front.append(VRReload.tick(g, offHand: waist, gunHand: gunHand, head: head, grip: true, gripWas: false))
+  94 |             // Down by the left hip.
+  95 |             let hip = head - r * 0.25 + f * 0.02 + V3(0, -0.8, 0)
+     |                       `- warning: expression took 200ms to type-check (limit: 150ms)
+  96 |             side.append(VRReload.tick(g, offHand: hip, gunHand: gunHand, head: head, grip: true, gripWas: false))
+  97 |             g.arms.magInHand = false
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct12PMTests.swift:95:23: warning: expression took 336ms to type-check (limit: 150ms)
+  93 |             front.append(VRReload.tick(g, offHand: waist, gunHand: gunHand, head: head, grip: true, gripWas: false))
+  94 |             // Down by the left hip.
+  95 |             let hip = head - r * 0.25 + f * 0.02 + V3(0, -0.8, 0)
+     |                       `- warning: expression took 336ms to type-check (limit: 150ms)
+  96 |             side.append(VRReload.tick(g, offHand: hip, gunHand: gunHand, head: head, grip: true, gripWas: false))
+  97 |             g.arms.magInHand = false
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct12PMTests.swift:95:23: warning: expression took 358ms to type-check (limit: 150ms)
+  93 |             front.append(VRReload.tick(g, offHand: waist, gunHand: gunHand, head: head, grip: true, gripWas: false))
+  94 |             // Down by the left hip.
+  95 |             let hip = head - r * 0.25 + f * 0.02 + V3(0, -0.8, 0)
+     |                       `- warning: expression took 358ms to type-check (limit: 150ms)
+  96 |             side.append(VRReload.tick(g, offHand: hip, gunHand: gunHand, head: head, grip: true, gripWas: false))
+  97 |             g.arms.magInHand = false
+/Users/runner/work/blocksmith/blocksmith/Sources/MainGunTests.swift:234:21: warning: expression took 290ms to type-check (limit: 150ms)
+232 |         _ = w.loadSync(center: g.player.pos, radius: 3)
+233 |         let side = simd_normalize(V3(-h.y, 0, h.x))
+234 |         var watch = land - V3(h.x, 0, h.y) * 40 + side * 45      // (outside the 48-block strike radius)
+    |                     `- warning: expression took 290ms to type-check (limit: 150ms)
+235 |         watch.y = Float(w.gen.column(Int(watch.x), Int(watch.z)).height) + 12
+236 |         _ = w.loadSync(center: land, radius: 4)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/MainGunTests.swift:234:21: warning: expression took 206ms to type-check (limit: 150ms)
+232 |         _ = w.loadSync(center: g.player.pos, radius: 3)
+233 |         let side = simd_normalize(V3(-h.y, 0, h.x))
+234 |         var watch = land - V3(h.x, 0, h.y) * 40 + side * 45      // (outside the 48-block strike radius)
+    |                     `- warning: expression took 206ms to type-check (limit: 150ms)
+235 |         watch.y = Float(w.gen.column(Int(watch.x), Int(watch.z)).height) + 12
+236 |         _ = w.loadSync(center: land, radius: 4)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/MainGunTests.swift:456:49: warning: expression took 363ms to type-check (limit: 150ms)
+454 |             } else {
+455 |                 let mw = s.toWorld(st.mainGunMuzzle)
+456 |                 w.ships.fireMainGun(s, st, dir: simd_normalize((e.worldMin + e.worldMax) * 0.5 - mw), game: g)
+    |                                                 `- warning: expression took 363ms to type-check (limit: 150ms)
+457 |                 var frames = 0
+458 |                 while MainGun.shipHits == hits0 && frames < 300 { w.ships.updateShells(1.0 / 72, game: g); frames += 1 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mesher.swift:156:21: warning: expression took 504ms to type-check (limit: 150ms)
+ 154 |         var t = [UInt8](repeating: 0, count: 6 * 8 * 4)
+ 155 |         for f in 0..<6 { for lv in 0..<8 { for v in 0..<4 {
+ 156 |             let m = chipTable[(f * 8 + lv) * 4 + v]
+     |                     `- warning: expression took 504ms to type-check (limit: 150ms)
+ 157 |             var k = 0
+ 158 |             while k < 3 {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mesher.swift:1192:38: warning: expression took 453ms to type-check (limit: 150ms)
+1190 |                             p[a] = pa; p[b] = pb; p[c] = pc
+1191 |                             var q = p; q[a] += 1
+1192 |                             let f0 = F[p.x + p.z * N + p.y * NN], f1 = F[q.x + q.z * N + q.y * NN]
+     |                                      `- warning: expression took 453ms to type-check (limit: 150ms)
+1193 |                             guard (f0 > 0) != (f1 > 0) else { continue }
+1194 |                             // P453 (Oct 25 14:00, a frozen sea from up high: "a grid full of weird blue lines... when you
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mesher.swift:1192:72: warning: expression took 491ms to type-check (limit: 150ms)
+1190 |                             p[a] = pa; p[b] = pb; p[c] = pc
+1191 |                             var q = p; q[a] += 1
+1192 |                             let f0 = F[p.x + p.z * N + p.y * NN], f1 = F[q.x + q.z * N + q.y * NN]
+     |                                                                        `- warning: expression took 491ms to type-check (limit: 150ms)
+1193 |                             guard (f0 > 0) != (f1 > 0) else { continue }
+1194 |                             // P453 (Oct 25 14:00, a frozen sea from up high: "a grid full of weird blue lines... when you
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mesher.swift:1739:29: warning: expression took 2051ms to type-check (limit: 150ms)
+1737 |                             && cornerDrop(x, y, z + 1, 1) == 1 && cornerDrop(x + 1, y, z + 1, 1) == 1 {
+1738 |                             if waterMask.isEmpty { waterMask = [Int32](repeating: 0, count: 16 * 256) }
+1739 |                             waterMask[ly * 256 + lx + lz * 16] = Int32(1 + (aos[0] | ((lit[0] & 255) << 2) | (layer << 10)))
+     |                             `- warning: expression took 2051ms to type-check (limit: 150ms)
+1740 |                             continue
+1741 |                         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mesher.swift:1739:29: warning: expression took 1906ms to type-check (limit: 150ms)
+1737 |                             && cornerDrop(x, y, z + 1, 1) == 1 && cornerDrop(x + 1, y, z + 1, 1) == 1 {
+1738 |                             if waterMask.isEmpty { waterMask = [Int32](repeating: 0, count: 16 * 256) }
+1739 |                             waterMask[ly * 256 + lx + lz * 16] = Int32(1 + (aos[0] | ((lit[0] & 255) << 2) | (layer << 10)))
+     |                             `- warning: expression took 1906ms to type-check (limit: 150ms)
+1740 |                             continue
+1741 |                         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mesher.swift:1739:29: warning: expression took 1936ms to type-check (limit: 150ms)
+1737 |                             && cornerDrop(x, y, z + 1, 1) == 1 && cornerDrop(x + 1, y, z + 1, 1) == 1 {
+1738 |                             if waterMask.isEmpty { waterMask = [Int32](repeating: 0, count: 16 * 256) }
+1739 |                             waterMask[ly * 256 + lx + lz * 16] = Int32(1 + (aos[0] | ((lit[0] & 255) << 2) | (layer << 10)))
+     |                             `- warning: expression took 1936ms to type-check (limit: 150ms)
+1740 |                             continue
+1741 |                         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mesher.swift:1806:39: warning: expression took 268ms to type-check (limit: 150ms)
+1804 |                             default: sl = lz; a = lx; bb = ly
+1805 |                             }
+1806 |                             var key = UInt64(layer) | UInt64(tintF) << 11 | UInt64(overlay ? 1 : 0) << 13 | UInt64(isTrans ? 1 : 0) << 14
+     |                                       `- warning: expression took 268ms to type-check (limit: 150ms)
+1807 |                                 | UInt64(curCut ? 1 : 0) << 15
+1808 |                             for c in 0..<4 { key |= UInt64(aos[c]) << UInt64(16 + 2 * c) | UInt64(lit[c] & 255) << UInt64(24 + 8 * c) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mob.swift:590:16: warning: expression took 5728ms to type-check (limit: 150ms)
+ 588 |         guard Mob.bowKinds.contains(kind) else { return eye + forward * 0.3 }
+ 589 |         let r = V3(cosf(yaw), 0, -sinf(yaw))
+ 590 |         return pos + V3(0, 22.0 / 16 * scale, 0) + forward * 0.5 * scale + r * 0.31 * scale
+     |                `- warning: expression took 5728ms to type-check (limit: 150ms)
+ 591 |     }
+ 592 |     static let bowKinds: Set<MobKind> = [.skeleton, .stray, .parched, .bogged]
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mob.swift:590:16: warning: expression took 4380ms to type-check (limit: 150ms)
+ 588 |         guard Mob.bowKinds.contains(kind) else { return eye + forward * 0.3 }
+ 589 |         let r = V3(cosf(yaw), 0, -sinf(yaw))
+ 590 |         return pos + V3(0, 22.0 / 16 * scale, 0) + forward * 0.5 * scale + r * 0.31 * scale
+     |                `- warning: expression took 4380ms to type-check (limit: 150ms)
+ 591 |     }
+ 592 |     static let bowKinds: Set<MobKind> = [.skeleton, .stray, .parched, .bogged]
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mob.swift:1622:32: warning: expression took 152ms to type-check (limit: 150ms)
+1620 |         if kind == .deckGun && Mob.playerMelee {
+1621 |             if let g = Mob.meleeGame {
+1622 |                 let at = src + simd_normalize(pos + V3(0, height * 0.5, 0) - src + V3(1e-4, 0, 0)) * 1.2
+     |                                `- warning: expression took 152ms to type-check (limit: 150ms)
+1623 |                 g.particles.crit(at: at)
+1624 |                 g.sfx(.anvilLand, 0.35, at: at)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mob.swift:1622:32: warning: expression took 150ms to type-check (limit: 150ms)
+1620 |         if kind == .deckGun && Mob.playerMelee {
+1621 |             if let g = Mob.meleeGame {
+1622 |                 let at = src + simd_normalize(pos + V3(0, height * 0.5, 0) - src + V3(1e-4, 0, 0)) * 1.2
+     |                                `- warning: expression took 150ms to type-check (limit: 150ms)
+1623 |                 g.particles.crit(at: at)
+1624 |                 g.sfx(.anvilLand, 0.35, at: at)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mob.swift:2367:40: warning: expression took 163ms to type-check (limit: 150ms)
+2365 |         // The Ash Vault's vehicles (hundreds of parts each) drop their small fittings from 48 blocks, up to 3 px.
+2366 |         let heavy = m.kind.ashVehicle
+2367 |         let far = !m.kind.steelhold && simd_length_squared(base) > (heavy ? 48 * 48 : 64 * 64)
+     |                                        `- warning: expression took 163ms to type-check (limit: 150ms)
+2368 |         let tiny: Float = (heavy ? 3 : 1.2) / max(0.25, scale)
+2369 |         // Soldiers and vehicles (closed opaque boxes) past 16 blocks: faces turned away are not written (about half).
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mob.swift:2367:19: warning: expression took 157ms to type-check (limit: 150ms)
+2365 |         // The Ash Vault's vehicles (hundreds of parts each) drop their small fittings from 48 blocks, up to 3 px.
+2366 |         let heavy = m.kind.ashVehicle
+2367 |         let far = !m.kind.steelhold && simd_length_squared(base) > (heavy ? 48 * 48 : 64 * 64)
+     |                   `- warning: expression took 157ms to type-check (limit: 150ms)
+2368 |         let tiny: Float = (heavy ? 3 : 1.2) / max(0.25, scale)
+2369 |         // Soldiers and vehicles (closed opaque boxes) past 16 blocks: faces turned away are not written (about half).
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mob.swift:2367:19: warning: expression took 169ms to type-check (limit: 150ms)
+2365 |         // The Ash Vault's vehicles (hundreds of parts each) drop their small fittings from 48 blocks, up to 3 px.
+2366 |         let heavy = m.kind.ashVehicle
+2367 |         let far = !m.kind.steelhold && simd_length_squared(base) > (heavy ? 48 * 48 : 64 * 64)
+     |                   `- warning: expression took 169ms to type-check (limit: 150ms)
+2368 |         let tiny: Float = (heavy ? 3 : 1.2) / max(0.25, scale)
+2369 |         // Soldiers and vehicles (closed opaque boxes) past 16 blocks: faces turned away are not written (about half).
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mob.swift:2860:88: warning: expression took 757ms to type-check (limit: 150ms)
+2858 |         switch b {
+2859 |         case .plains, .sunflowerPlains: t = std + [(.horse, 5, 3, 7), (.donkey, 1, 1, 3), (.bison, 3, 4, 8), (.deer, 2, 2, 3)]      // D2: herds of 3-7; D45
+2860 |         case .forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest: t = std + (b == .forest ? [(.wolf, 5, 4, 4)] : []) + (b == .flowerForest ? [(.rabbit, 4, 2, 3)] : [])
+     |                                                                                        `- warning: expression took 757ms to type-check (limit: 150ms)
+2861 |             + [(.deer, 6, 2, 4)] + (b == .forest || b == .darkForest ? [(.boar, 3, 2, 3)] : [])                // D45
+2862 |         case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga: t = std + [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4), (.cougar, 1, 1, 1), (.elk, 4, 2, 4), (.deer, 4, 2, 3)]
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mob.swift:2860:88: warning: expression took 769ms to type-check (limit: 150ms)
+2858 |         switch b {
+2859 |         case .plains, .sunflowerPlains: t = std + [(.horse, 5, 3, 7), (.donkey, 1, 1, 3), (.bison, 3, 4, 8), (.deer, 2, 2, 3)]      // D2: herds of 3-7; D45
+2860 |         case .forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest: t = std + (b == .forest ? [(.wolf, 5, 4, 4)] : []) + (b == .flowerForest ? [(.rabbit, 4, 2, 3)] : [])
+     |                                                                                        `- warning: expression took 769ms to type-check (limit: 150ms)
+2861 |             + [(.deer, 6, 2, 4)] + (b == .forest || b == .darkForest ? [(.boar, 3, 2, 3)] : [])                // D45
+2862 |         case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga: t = std + [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4), (.cougar, 1, 1, 1), (.elk, 4, 2, 4), (.deer, 4, 2, 3)]
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Mob.swift:2860:88: warning: expression took 787ms to type-check (limit: 150ms)
+2858 |         switch b {
+2859 |         case .plains, .sunflowerPlains: t = std + [(.horse, 5, 3, 7), (.donkey, 1, 1, 3), (.bison, 3, 4, 8), (.deer, 2, 2, 3)]      // D2: herds of 3-7; D45
+2860 |         case .forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest: t = std + (b == .forest ? [(.wolf, 5, 4, 4)] : []) + (b == .flowerForest ? [(.rabbit, 4, 2, 3)] : [])
+     |                                                                                        `- warning: expression took 787ms to type-check (limit: 150ms)
+2861 |             + [(.deer, 6, 2, 4)] + (b == .forest || b == .darkForest ? [(.boar, 3, 2, 3)] : [])                // D45
+2862 |         case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga: t = std + [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4), (.cougar, 1, 1, 1), (.elk, 4, 2, 4), (.deer, 4, 2, 3)]
+/Users/runner/work/blocksmith/blocksmith/Sources/RenderDistanceGovernor.swift:161:21: warning: expression took 5591ms to type-check (limit: 150ms)
+159 |         }
+160 |         let minRD = trace.min() ?? 16
+161 |         let steps = (1..<trace.count).map { (trace[$0] - trace[$0 - 1]).signum() }.filter { $0 != 0 }
+    |                     `- warning: expression took 5591ms to type-check (limit: 150ms)
+162 |         let changes = steps.isEmpty ? 0 : (1..<steps.count).filter { steps[$0] != steps[$0 - 1] }.count
+163 |         log("trace 1 (heavy 60 s, then light): " + trace.map(String.init).joined(separator: " "))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Renderer.swift:887:30: warning: expression took 170ms to type-check (limit: 150ms)
+ 885 |                 let rain = min(1, game.weather.rain)
+ 886 |                 let dens: Float = (0.019 * WeatherWar.fogThick + 0.012 * rain) * caveScale
+ 887 |                 pp.mist = V4(fogColor * 0.95 + lf.color * 0.25, dens)
+     |                              `- warning: expression took 170ms to type-check (limit: 150ms)
+ 888 |                 pp.mistH = V4(Float(SEA) - eye.y + 2, 9, 0, 0)
+ 889 |             }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Renderer.swift:919:17: warning: variable 'verts' was never mutated; consider changing to 'let' constant
+ 917 |         // Sky bodies (camera-relative, no depth): stars, then the textured sun and moon.
+ 918 |         do {
+ 919 |             var verts: [SimpleVert] = []
+     |                 `- warning: variable 'verts' was never mutated; consider changing to 'let' constant
+ 920 |             let sd = game.sunDir
+ 921 |             let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Renderer.swift:1695:55: warning: expression took 195ms to type-check (limit: 150ms)
+1693 |                 if let r = label.range(of: #" \d+ m$"#, options: .regularExpression),
+1694 |                    let m = Int(label[r].dropFirst().dropLast(2)), m >= 100 {
+1695 |                     label.replaceSubrange(r, with: " \((m + 5) / 10 * 10) m")
+     |                                                       `- warning: expression took 195ms to type-check (limit: 150ms)
+1696 |                 }
+1697 |                 rect(W / 2 - half, my + 2.5 * s, half * 2, 1 * s, V4(1, 1, 1, 0.25))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Renderer.swift:1695:55: warning: expression took 189ms to type-check (limit: 150ms)
+1693 |                 if let r = label.range(of: #" \d+ m$"#, options: .regularExpression),
+1694 |                    let m = Int(label[r].dropFirst().dropLast(2)), m >= 100 {
+1695 |                     label.replaceSubrange(r, with: " \((m + 5) / 10 * 10) m")
+     |                                                       `- warning: expression took 189ms to type-check (limit: 150ms)
+1696 |                 }
+1697 |                 rect(W / 2 - half, my + 2.5 * s, half * 2, 1 * s, V4(1, 1, 1, 0.25))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Renderer.swift:2874:72: warning: expression took 508ms to type-check (limit: 150ms)
+2872 |             for i in 0..<totalHearts {
+2873 |                 let x = x0 + Float(i % 10) * step
+2874 |                 let y = yh - Float(i / 10) * rowStep + (jiggle ? Float(Int((jig &* 2654435761 &+ UInt(i) &* 40503) >> 7 % 3) - 1) * s : 0)
+     |                                                                        `- warning: expression took 508ms to type-check (limit: 150ms)
+2875 |                 if i < slotsH { seg(x, y, game.health - i * 2, heartC) }
+2876 |                 else { seg(x, y, absorb - (i - slotsH) * 2, V4(0.98, 0.8, 0.28, 1)) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Renderer.swift:2874:72: warning: expression took 586ms to type-check (limit: 150ms)
+2872 |             for i in 0..<totalHearts {
+2873 |                 let x = x0 + Float(i % 10) * step
+2874 |                 let y = yh - Float(i / 10) * rowStep + (jiggle ? Float(Int((jig &* 2654435761 &+ UInt(i) &* 40503) >> 7 % 3) - 1) * s : 0)
+     |                                                                        `- warning: expression took 586ms to type-check (limit: 150ms)
+2875 |                 if i < slotsH { seg(x, y, game.health - i * 2, heartC) }
+2876 |                 else { seg(x, y, absorb - (i - slotsH) * 2, V4(0.98, 0.8, 0.28, 1)) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Renderer.swift:2874:66: warning: expression took 519ms to type-check (limit: 150ms)
+2872 |             for i in 0..<totalHearts {
+2873 |                 let x = x0 + Float(i % 10) * step
+2874 |                 let y = yh - Float(i / 10) * rowStep + (jiggle ? Float(Int((jig &* 2654435761 &+ UInt(i) &* 40503) >> 7 % 3) - 1) * s : 0)
+     |                                                                  `- warning: expression took 519ms to type-check (limit: 150ms)
+2875 |                 if i < slotsH { seg(x, y, game.health - i * 2, heartC) }
+2876 |                 else { seg(x, y, absorb - (i - slotsH) * 2, V4(0.98, 0.8, 0.28, 1)) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Renderer.swift:2874:25: warning: expression took 436ms to type-check (limit: 150ms)
+2872 |             for i in 0..<totalHearts {
+2873 |                 let x = x0 + Float(i % 10) * step
+2874 |                 let y = yh - Float(i / 10) * rowStep + (jiggle ? Float(Int((jig &* 2654435761 &+ UInt(i) &* 40503) >> 7 % 3) - 1) * s : 0)
+     |                         `- warning: expression took 436ms to type-check (limit: 150ms)
+2875 |                 if i < slotsH { seg(x, y, game.health - i * 2, heartC) }
+2876 |                 else { seg(x, y, absorb - (i - slotsH) * 2, V4(0.98, 0.8, 0.28, 1)) }
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct14Tests.swift:230:13: warning: expression took 387ms to type-check (limit: 150ms)
+228 |         let towerGuns = t.towers.filter { tw in
+229 |             let c = Greywall.tower(t, tw.0, tw.1)
+230 |             return mobs.contains { $0.0.hasPrefix("deck_gun") && abs($0.1.x - Float(c.x) - 0.5) < 1 && abs($0.1.z - Float(c.z) - 0.5) < 1 }
+    |             `- warning: expression took 387ms to type-check (limit: 150ms)
+231 |         }.count
+232 |         let garrisonGuns: Int = {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct14Tests.swift:230:13: warning: expression took 356ms to type-check (limit: 150ms)
+228 |         let towerGuns = t.towers.filter { tw in
+229 |             let c = Greywall.tower(t, tw.0, tw.1)
+230 |             return mobs.contains { $0.0.hasPrefix("deck_gun") && abs($0.1.x - Float(c.x) - 0.5) < 1 && abs($0.1.z - Float(c.z) - 0.5) < 1 }
+    |             `- warning: expression took 356ms to type-check (limit: 150ms)
+231 |         }.count
+232 |         let garrisonGuns: Int = {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct14Tests.swift:230:13: warning: expression took 432ms to type-check (limit: 150ms)
+228 |         let towerGuns = t.towers.filter { tw in
+229 |             let c = Greywall.tower(t, tw.0, tw.1)
+230 |             return mobs.contains { $0.0.hasPrefix("deck_gun") && abs($0.1.x - Float(c.x) - 0.5) < 1 && abs($0.1.z - Float(c.z) - 0.5) < 1 }
+    |             `- warning: expression took 432ms to type-check (limit: 150ms)
+231 |         }.count
+232 |         let garrisonGuns: Int = {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct14Tests.swift:240:149: warning: expression took 321ms to type-check (limit: 150ms)
+238 |                     var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: b.baseAddress!)
+239 |                     Greywall.build(&w, 0, S, 0, gt, 777)
+240 |                     n += w.mobs.filter { m in m.0.hasPrefix("deck_gun:light") && gt.towers.contains { tw in let c = Greywall.tower(gt, tw.0, tw.1); return abs(m.1.x - Float(c.x) - 0.5) < 1 && abs(m.1.z - Float(c.z) - 0.5) < 1 } }.count
+    |                                                                                                                                                     `- warning: expression took 321ms to type-check (limit: 150ms)
+241 |                 }
+242 |             } }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct14Tests.swift:240:149: warning: expression took 267ms to type-check (limit: 150ms)
+238 |                     var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: b.baseAddress!)
+239 |                     Greywall.build(&w, 0, S, 0, gt, 777)
+240 |                     n += w.mobs.filter { m in m.0.hasPrefix("deck_gun:light") && gt.towers.contains { tw in let c = Greywall.tower(gt, tw.0, tw.1); return abs(m.1.x - Float(c.x) - 0.5) < 1 && abs(m.1.z - Float(c.z) - 0.5) < 1 } }.count
+    |                                                                                                                                                     `- warning: expression took 267ms to type-check (limit: 150ms)
+241 |                 }
+242 |             } }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestOct14Tests.swift:240:149: warning: expression took 265ms to type-check (limit: 150ms)
+238 |                     var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: b.baseAddress!)
+239 |                     Greywall.build(&w, 0, S, 0, gt, 777)
+240 |                     n += w.mobs.filter { m in m.0.hasPrefix("deck_gun:light") && gt.towers.contains { tw in let c = Greywall.tower(gt, tw.0, tw.1); return abs(m.1.x - Float(c.x) - 0.5) < 1 && abs(m.1.z - Float(c.z) - 0.5) < 1 } }.count
+    |                                                                                                                                                     `- warning: expression took 265ms to type-check (limit: 150ms)
+241 |                 }
+242 |             } }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestPM9BTests.swift:94:25: warning: expression took 6511ms to type-check (limit: 150ms)
+ 92 |             // Per biome a few dozen blades decide it: 1/8 with room for sampling noise; the sum over biomes below is strict.
+ 93 |             check(og < 20 || ratio <= 0.2, String(format: "plants: %@ short grass %.1f -> %.1f per chunk (x%.3f, want ~1/8)", biome, per(og, a.cols), per(ng, b.cols), ratio))
+ 94 |             let total = plantKeys.reduce(0) { $0 + (b.n[$1] ?? 0) } - (b.n["kelp"] ?? 0) - (b.n["seagrass"] ?? 0) - (b.n["bamboo"] ?? 0)
+    |                         `- warning: expression took 6511ms to type-check (limit: 150ms)
+ 95 |             let before = plantKeys.reduce(0) { $0 + (a.n[$1] ?? 0) } - (a.n["kelp"] ?? 0) - (a.n["seagrass"] ?? 0) - (a.n["bamboo"] ?? 0)
+ 96 |             check(per(total, b.cols) <= 22, String(format: "plants: %@ land plants %.1f -> %.1f per chunk (want <= 22: about one column in 12)", biome, per(before, a.cols), per(total, b.cols)))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PlaytestPM9BTests.swift:95:26: warning: expression took 5925ms to type-check (limit: 150ms)
+ 93 |             check(og < 20 || ratio <= 0.2, String(format: "plants: %@ short grass %.1f -> %.1f per chunk (x%.3f, want ~1/8)", biome, per(og, a.cols), per(ng, b.cols), ratio))
+ 94 |             let total = plantKeys.reduce(0) { $0 + (b.n[$1] ?? 0) } - (b.n["kelp"] ?? 0) - (b.n["seagrass"] ?? 0) - (b.n["bamboo"] ?? 0)
+ 95 |             let before = plantKeys.reduce(0) { $0 + (a.n[$1] ?? 0) } - (a.n["kelp"] ?? 0) - (a.n["seagrass"] ?? 0) - (a.n["bamboo"] ?? 0)
+    |                          `- warning: expression took 5925ms to type-check (limit: 150ms)
+ 96 |             check(per(total, b.cols) <= 22, String(format: "plants: %@ land plants %.1f -> %.1f per chunk (want <= 22: about one column in 12)", biome, per(before, a.cols), per(total, b.cols)))
+ 97 |             if biome == "desert" {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PowerSuit.swift:28:17: warning: expression took 1638ms to type-check (limit: 150ms)
+26 |         lastBlast = g.clock
+27 |         let d = simd_normalize(g.vrAim?.dir ?? g.player.look)
+28 |         let o = (g.vrAim?.origin ?? (g.player.eye + V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw)) * 0.3 - V3(0, 0.25, 0))) + d * 0.35
+   |                 `- warning: expression took 1638ms to type-check (limit: 150ms)
+29 |         g.arms.beam(g, from: o, dir: d, range: range, damage: damage, fromPlayer: true, shooter: nil, by: "Player")
+30 |         g.sfx(.fireworkBlast, 0.6, at: o)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/PowerSuit.swift:28:17: warning: expression took 1653ms to type-check (limit: 150ms)
+26 |         lastBlast = g.clock
+27 |         let d = simd_normalize(g.vrAim?.dir ?? g.player.look)
+28 |         let o = (g.vrAim?.origin ?? (g.player.eye + V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw)) * 0.3 - V3(0, 0.25, 0))) + d * 0.35
+   |                 `- warning: expression took 1653ms to type-check (limit: 150ms)
+29 |         g.arms.beam(g, from: o, dir: d, range: range, damage: damage, fromPlayer: true, shooter: nil, by: "Player")
+30 |         g.sfx(.fireworkBlast, 0.6, at: o)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/RadioSpoof.swift:296:43: warning: expression took 454ms to type-check (limit: 150ms)
+294 |         world.setBlock(p.x, p.y, p.z, Blocks.id("chest"))
+295 |         let be = world.entity(p, .chest)
+296 |         var rng = SRng(UInt64(bitPattern: Int64(p.x &* 73856093 ^ p.z &* 19349663 ^ Int(clock))) | 1)
+    |                                           `- warning: expression took 454ms to type-check (limit: 150ms)
+297 |         Loot.fill(be.container, table: table, rng: &rng)
+298 |         particles.explosion(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), power: 0.2)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/RadioSpoof.swift:296:24: warning: expression took 433ms to type-check (limit: 150ms)
+294 |         world.setBlock(p.x, p.y, p.z, Blocks.id("chest"))
+295 |         let be = world.entity(p, .chest)
+296 |         var rng = SRng(UInt64(bitPattern: Int64(p.x &* 73856093 ^ p.z &* 19349663 ^ Int(clock))) | 1)
+    |                        `- warning: expression took 433ms to type-check (limit: 150ms)
+297 |         Loot.fill(be.container, table: table, rng: &rng)
+298 |         particles.explosion(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), power: 0.2)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/RadioSpoof.swift:296:24: warning: expression took 480ms to type-check (limit: 150ms)
+294 |         world.setBlock(p.x, p.y, p.z, Blocks.id("chest"))
+295 |         let be = world.entity(p, .chest)
+296 |         var rng = SRng(UInt64(bitPattern: Int64(p.x &* 73856093 ^ p.z &* 19349663 ^ Int(clock))) | 1)
+    |                        `- warning: expression took 480ms to type-check (limit: 150ms)
+297 |         Loot.fill(be.container, table: table, rng: &rng)
+298 |         particles.explosion(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), power: 0.2)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/RadioSpoof.swift:296:19: warning: expression took 420ms to type-check (limit: 150ms)
+294 |         world.setBlock(p.x, p.y, p.z, Blocks.id("chest"))
+295 |         let be = world.entity(p, .chest)
+296 |         var rng = SRng(UInt64(bitPattern: Int64(p.x &* 73856093 ^ p.z &* 19349663 ^ Int(clock))) | 1)
+    |                   `- warning: expression took 420ms to type-check (limit: 150ms)
+297 |         Loot.fill(be.container, table: table, rng: &rng)
+298 |         particles.explosion(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), power: 0.2)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/RadioSpoof.swift:296:19: warning: expression took 446ms to type-check (limit: 150ms)
+294 |         world.setBlock(p.x, p.y, p.z, Blocks.id("chest"))
+295 |         let be = world.entity(p, .chest)
+296 |         var rng = SRng(UInt64(bitPattern: Int64(p.x &* 73856093 ^ p.z &* 19349663 ^ Int(clock))) | 1)
+    |                   `- warning: expression took 446ms to type-check (limit: 150ms)
+297 |         Loot.fill(be.container, table: table, rng: &rng)
+298 |         particles.explosion(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), power: 0.2)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/RailwayTests.swift:349:13: warning: expression took 193ms to type-check (limit: 150ms)
+347 |             guard let lead = Trains.lead(tr) else { break }
+348 |             let cab = Trains.cabPoint(lead)
+349 |             g.player.pos = cab + lead.forward * 9 + V3(0, -0.6, 0) - V3(0, g.player.eyeHeight, 0) + V3(0, 1.6, 0)
+    |             `- warning: expression took 193ms to type-check (limit: 150ms)
+350 |             let d = simd_normalize(cab - g.player.eye)
+351 |             g.player.yaw = atan2f(-d.x, -d.z); g.player.pitch = asinf(d.y)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/RailwayTests.swift:349:13: warning: expression took 218ms to type-check (limit: 150ms)
+347 |             guard let lead = Trains.lead(tr) else { break }
+348 |             let cab = Trains.cabPoint(lead)
+349 |             g.player.pos = cab + lead.forward * 9 + V3(0, -0.6, 0) - V3(0, g.player.eyeHeight, 0) + V3(0, 1.6, 0)
+    |             `- warning: expression took 218ms to type-check (limit: 150ms)
+350 |             let d = simd_normalize(cab - g.player.eye)
+351 |             g.player.yaw = atan2f(-d.x, -d.z); g.player.pitch = asinf(d.y)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/RailwayTests.swift:349:13: warning: expression took 216ms to type-check (limit: 150ms)
+347 |             guard let lead = Trains.lead(tr) else { break }
+348 |             let cab = Trains.cabPoint(lead)
+349 |             g.player.pos = cab + lead.forward * 9 + V3(0, -0.6, 0) - V3(0, g.player.eyeHeight, 0) + V3(0, 1.6, 0)
+    |             `- warning: expression took 216ms to type-check (limit: 150ms)
+350 |             let d = simd_normalize(cab - g.player.eye)
+351 |             g.player.yaw = atan2f(-d.x, -d.z); g.player.pitch = asinf(d.y)
+/Users/runner/work/blocksmith/blocksmith/Sources/Stagecoach.swift:94:40: warning: expression took 157ms to type-check (limit: 150ms)
+ 92 |             c.ambushed = true; Contracts.save(board, slot, c)
+ 93 |             let side = simd_normalize(V3(goal.z - d.pos.z, 0, d.pos.x - goal.x) + V3(0.001, 0, 0))
+ 94 |             Contracts.bandits(g, near: d.pos + side * 14 + simd_normalize(V3(goal.x - d.pos.x, 0, goal.z - d.pos.z)) * 10, 4, "Road Agent")
+    |                                        `- warning: expression took 157ms to type-check (limit: 150ms)
+ 95 |             g.onToast?("Road agents!")
+ 96 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Stagecoach.swift:94:13: warning: expression took 151ms to type-check (limit: 150ms)
+ 92 |             c.ambushed = true; Contracts.save(board, slot, c)
+ 93 |             let side = simd_normalize(V3(goal.z - d.pos.z, 0, d.pos.x - goal.x) + V3(0.001, 0, 0))
+ 94 |             Contracts.bandits(g, near: d.pos + side * 14 + simd_normalize(V3(goal.x - d.pos.x, 0, goal.z - d.pos.z)) * 10, 4, "Road Agent")
+    |             `- warning: expression took 151ms to type-check (limit: 150ms)
+ 95 |             g.onToast?("Road agents!")
+ 96 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Structure.swift:68:17: warning: expression took 2037ms to type-check (limit: 150ms)
+ 66 |         guard let m = material(i) else { return nil }
+ 67 |         if Blocks.fullCollide[i] { return m }
+ 68 |         let v = Blocks.boxes[i].reduce(Float(0)) { $0 + Float(max(0, Int($1.x1) - Int($1.x0)) * max(0, Int($1.y1) - Int($1.y0)) * max(0, Int($1.z1) - Int($1.z0))) } / 4096
+    |                 `- warning: expression took 2037ms to type-check (limit: 150ms)
+ 69 |         // (under half a cell: a fitting, as a lantern, a carpet, a rail, a pane or a fence: its reach counts from the
+ 70 |         // sound blocks it's fixed to)
+/Users/runner/work/blocksmith/blocksmith/Sources/ShapeClass.swift:161:16: warning: expression took 363ms to type-check (limit: 150ms)
+159 |         let old = Set((0..<Blocks.count).filter { legacyGround[$0] }.map { group(BlockID($0)) })
+160 |         let now = Set(groups[5])
+161 |         out += "  terrain vs old natural list: lost [" + old.subtracting(now).sorted().joined(separator: " ") + "], new [" +
+    |                `- warning: expression took 363ms to type-check (limit: 150ms)
+162 |             now.subtracting(old).sorted().joined(separator: " ") + "]\n"
+163 |         for i in 0..<Blocks.count where kind[i] == .organic {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/ShapeClass.swift:161:16: warning: expression took 5863ms to type-check (limit: 150ms)
+159 |         let old = Set((0..<Blocks.count).filter { legacyGround[$0] }.map { group(BlockID($0)) })
+160 |         let now = Set(groups[5])
+161 |         out += "  terrain vs old natural list: lost [" + old.subtracting(now).sorted().joined(separator: " ") + "], new [" +
+    |                `- warning: expression took 5863ms to type-check (limit: 150ms)
+162 |             now.subtracting(old).sorted().joined(separator: " ") + "]\n"
+163 |         for i in 0..<Blocks.count where kind[i] == .organic {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/ShapeClass.swift:161:9: warning: expression took 8084ms to type-check (limit: 150ms)
+159 |         let old = Set((0..<Blocks.count).filter { legacyGround[$0] }.map { group(BlockID($0)) })
+160 |         let now = Set(groups[5])
+161 |         out += "  terrain vs old natural list: lost [" + old.subtracting(now).sorted().joined(separator: " ") + "], new [" +
+    |         `- warning: expression took 8084ms to type-check (limit: 150ms)
+162 |             now.subtracting(old).sorted().joined(separator: " ") + "]\n"
+163 |         for i in 0..<Blocks.count where kind[i] == .organic {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/ShapeRails.swift:83:29: warning: expression took 542ms to type-check (limit: 150ms)
+ 81 |                 let n = max(1, Int((len / 0.5).rounded()))
+ 82 |                 for j in 0..<n {
+ 83 |                     let c = p0 + (p1 - p0) * ((Float(j) + 0.5) / Float(n)) + h * (big ? 0.07 : 0.06)
+    |                             `- warning: expression took 542ms to type-check (limit: 150ms)
+ 84 |                     box(ctx, c, a, s, h, big ? 0.12 : 0.09, big ? 1.22 : 0.46, big ? 0.06 : 0.05, woodL)
+ 85 |                 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/ShapeRails.swift:83:29: warning: expression took 489ms to type-check (limit: 150ms)
+ 81 |                 let n = max(1, Int((len / 0.5).rounded()))
+ 82 |                 for j in 0..<n {
+ 83 |                     let c = p0 + (p1 - p0) * ((Float(j) + 0.5) / Float(n)) + h * (big ? 0.07 : 0.06)
+    |                             `- warning: expression took 489ms to type-check (limit: 150ms)
+ 84 |                     box(ctx, c, a, s, h, big ? 0.12 : 0.09, big ? 1.22 : 0.46, big ? 0.06 : 0.05, woodL)
+ 85 |                 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/ShapeRails.swift:88:29: warning: expression took 202ms to type-check (limit: 150ms)
+ 86 |                 // The two rails, on the sleepers.
+ 87 |                 for side: Float in [-1, 1] {
+ 88 |                     let c = (p0 + p1) * 0.5 + s * (side * (big ? mainGauge : gauge)) + h * (big ? 0.21 : 0.16)
+    |                             `- warning: expression took 202ms to type-check (limit: 150ms)
+ 89 |                     box(ctx, c, a, s, h, len * 0.5 + 0.01, big ? 0.055 : 0.035, big ? 0.08 : 0.05, steelL)
+ 90 |                 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/ShapeRails.swift:88:29: warning: expression took 4065ms to type-check (limit: 150ms)
+ 86 |                 // The two rails, on the sleepers.
+ 87 |                 for side: Float in [-1, 1] {
+ 88 |                     let c = (p0 + p1) * 0.5 + s * (side * (big ? mainGauge : gauge)) + h * (big ? 0.21 : 0.16)
+    |                             `- warning: expression took 4065ms to type-check (limit: 150ms)
+ 89 |                     box(ctx, c, a, s, h, len * 0.5 + 0.01, big ? 0.055 : 0.035, big ? 0.08 : 0.05, steelL)
+ 90 |                 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/ShapeRails.swift:88:29: warning: expression took 3457ms to type-check (limit: 150ms)
+ 86 |                 // The two rails, on the sleepers.
+ 87 |                 for side: Float in [-1, 1] {
+ 88 |                     let c = (p0 + p1) * 0.5 + s * (side * (big ? mainGauge : gauge)) + h * (big ? 0.21 : 0.16)
+    |                             `- warning: expression took 3457ms to type-check (limit: 150ms)
+ 89 |                     box(ctx, c, a, s, h, len * 0.5 + 0.01, big ? 0.055 : 0.035, big ? 0.08 : 0.05, steelL)
+ 90 |                 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/ShipCombat.swift:190:30: warning: expression took 425ms to type-check (limit: 150ms)
+188 |                     let ang = acosf(max(-1, min(1, simd_dot(cur, want))))
+189 |                     let k = ang > 1e-3 ? min(1, 2.5 * dt / ang) : 1
+190 |                     sh.vel = simd_normalize(cur + (want - cur) * k + V3(1e-5, 0, 0)) * speed
+    |                              `- warning: expression took 425ms to type-check (limit: 150ms)
+191 |                     // Near the target: burst (missiles chasing a 480-block hull aim at its centre, so a hull hit fuses first).
+192 |                     // P483: at a man or a mob it bursts within reach of its own blast (a 1.0 missile's 2 blocks): fused at
+/Users/runner/work/blocksmith/blocksmith/Sources/Ships.swift:115:21: warning: expression took 246ms to type-check (limit: 150ms)
+ 113 |                 var v: Float = 0
+ 114 |                 for bx in Blocks.boxes[i] {
+ 115 |                     v += Float(Int(bx.x1) - Int(bx.x0)) * Float(Int(bx.y1) - Int(bx.y0)) * Float(Int(bx.z1) - Int(bx.z0)) / 4096
+     |                     `- warning: expression took 246ms to type-check (limit: 150ms)
+ 116 |                 }
+ 117 |                 d *= max(0.1, min(1, v > 0 ? v : 0.5))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/SmoothTerrain.swift:124:17: warning: expression took 786ms to type-check (limit: 150ms)
+122 |     // The normal a code stands for (the shader's octDecode; tests and the harness).
+123 |     static func triNormal(_ code: Int) -> SIMD3<Float> {
+124 |         let e = (SIMD2<Float>(Float(code % triN), Float(code / triN)) + 0.5) / Float(triN) * 2 - 1
+    |                 `- warning: expression took 786ms to type-check (limit: 150ms)
+125 |         var n = SIMD3<Float>(e.x, 1 - abs(e.x) - abs(e.y), e.y)
+126 |         if n.y < 0 { n.x = (1 - abs(e.y)) * (e.x >= 0 ? 1 : -1); n.z = (1 - abs(e.x)) * (e.y >= 0 ? 1 : -1) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/SmoothTerrain.swift:124:17: warning: expression took 968ms to type-check (limit: 150ms)
+122 |     // The normal a code stands for (the shader's octDecode; tests and the harness).
+123 |     static func triNormal(_ code: Int) -> SIMD3<Float> {
+124 |         let e = (SIMD2<Float>(Float(code % triN), Float(code / triN)) + 0.5) / Float(triN) * 2 - 1
+    |                 `- warning: expression took 968ms to type-check (limit: 150ms)
+125 |         var n = SIMD3<Float>(e.x, 1 - abs(e.x) - abs(e.y), e.y)
+126 |         if n.y < 0 { n.x = (1 - abs(e.y)) * (e.x >= 0 ? 1 : -1); n.z = (1 - abs(e.x)) * (e.y >= 0 ? 1 : -1) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/SmoothTerrain.swift:325:27: warning: expression took 8065ms to type-check (limit: 150ms)
+323 |                 else { f = nrm.z > 0 ? 4 : 5 }
+324 |                 // The ground half a block under the quad's middle (the lattice sample may be the dirt under the turf).
+325 |                 let mid = (pts[0] + pts[1] + pts[2] + pts[3]) * 0.25 - nrm / len * 0.5
+    |                           `- warning: expression took 8065ms to type-check (limit: 150ms)
+326 |                 let mi = ri(Int(floor(mid.x)), Int(floor(mid.y)), Int(floor(mid.z)))
+327 |                 var id = E[mi] > 0 && nat[Int(R[mi])] ? Int(R[mi]) : Int(R[ri(sb[0], sb[1], sb[2])])
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Soldiers.swift:630:42: warning: expression took 664ms to type-check (limit: 150ms)
+ 628 |                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
+ 629 |                 let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
+ 630 |                 b.flank = g.player.pos + simd_normalize(toMe * 0.4 + side * 1.6) * min(dist, (near + far) / 2)
+     |                                          `- warning: expression took 664ms to type-check (limit: 150ms)
+ 631 |             }
+ 632 |             if tc == .hannibal && b.reload <= 0 && dist > 4 { speed = max(speed, spec.speed * 0.55); strafe *= 0.3 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Soldiers.swift:630:42: warning: expression took 253ms to type-check (limit: 150ms)
+ 628 |                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
+ 629 |                 let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
+ 630 |                 b.flank = g.player.pos + simd_normalize(toMe * 0.4 + side * 1.6) * min(dist, (near + far) / 2)
+     |                                          `- warning: expression took 253ms to type-check (limit: 150ms)
+ 631 |             }
+ 632 |             if tc == .hannibal && b.reload <= 0 && dist > 4 { speed = max(speed, spec.speed * 0.55); strafe *= 0.3 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Soldiers.swift:630:17: warning: expression took 483ms to type-check (limit: 150ms)
+ 628 |                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
+ 629 |                 let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
+ 630 |                 b.flank = g.player.pos + simd_normalize(toMe * 0.4 + side * 1.6) * min(dist, (near + far) / 2)
+     |                 `- warning: expression took 483ms to type-check (limit: 150ms)
+ 631 |             }
+ 632 |             if tc == .hannibal && b.reload <= 0 && dist > 4 { speed = max(speed, spec.speed * 0.55); strafe *= 0.3 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Soldiers.swift:630:17: warning: expression took 453ms to type-check (limit: 150ms)
+ 628 |                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
+ 629 |                 let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
+ 630 |                 b.flank = g.player.pos + simd_normalize(toMe * 0.4 + side * 1.6) * min(dist, (near + far) / 2)
+     |                 `- warning: expression took 453ms to type-check (limit: 150ms)
+ 631 |             }
+ 632 |             if tc == .hannibal && b.reload <= 0 && dist > 4 { speed = max(speed, spec.speed * 0.55); strafe *= 0.3 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Soldiers.swift:630:17: warning: expression took 489ms to type-check (limit: 150ms)
+ 628 |                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
+ 629 |                 let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
+ 630 |                 b.flank = g.player.pos + simd_normalize(toMe * 0.4 + side * 1.6) * min(dist, (near + far) / 2)
+     |                 `- warning: expression took 489ms to type-check (limit: 150ms)
+ 631 |             }
+ 632 |             if tc == .hannibal && b.reload <= 0 && dist > 4 { speed = max(speed, spec.speed * 0.55); strafe *= 0.3 }
+/Users/runner/work/blocksmith/blocksmith/Sources/TroopTests.swift:211:21: warning: expression took 153ms to type-check (limit: 150ms)
+209 |         ]
+210 |         let kinds: [(TroopClass, MobKind)] = [(.regular, .soldierRecruit), (.specOps, .soldierTrooper), (.hannibal, .soldierIronclad)]
+211 |         var lines = ["| class (as) | " + weapons.map { $0.0 }.joined(separator: " | ") + " |", "|---|" + weapons.map { _ in "---|" }.joined()]
+    |                     `- warning: expression took 153ms to type-check (limit: 150ms)
+212 |         var secs: [[Float]] = []
+213 |         for (c, k) in kinds {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/VehicleDamage.swift:257:23: warning: expression took 192ms to type-check (limit: 150ms)
+255 |         if gone.count >= 8 { g.sfx(.debrisRain, min(1, 0.4 + Float(gone.count) / 40), at: c) }
+256 |         if w.keepsField || w.fieldTerrain {
+257 |             let far = gone.map { simd_length(V3(Float($0.0.x), Float($0.0.y), Float($0.0.z)) + 0.5 - c) }.max() ?? 1
+    |                       `- warning: expression took 192ms to type-check (limit: 150ms)
+258 |             _ = w.carve(at: c, radius: min(reach, far + 0.3), mode: .shape)
+259 |         }
+/Users/runner/work/blocksmith/blocksmith/Sources/Trains.swift:157:21: warning: expression took 2701ms to type-check (limit: 150ms)
+155 |         let hs = AshWar.halts.filter { $0.run == ri }
+156 |         let stops = hs.map { h in h.from + h.dir * (AshWar.haltLength / 2) - r.a }.map { max(4, min(cells.count - 5, $0)) }.sorted()
+157 |         let names = stops.map { s in hs.min { abs($0.from + $0.dir * (AshWar.haltLength / 2) - r.a - s) < abs($1.from + $1.dir * (AshWar.haltLength / 2) - r.a - s) }!.name }
+    |                     `- warning: expression took 2701ms to type-check (limit: 150ms)
+158 |         return Track(id: Int64(-1 - ri), name: "Ashguard Rail", cells: cells, slopes: cells.map { _ in false }, stops: stops,
+159 |                      stopNames: names, armoured: true, dim: .deep)
+/Users/runner/work/blocksmith/blocksmith/Sources/WalkerModel.swift:50:9: warning: initialization of immutable value 'twitch' was never used; consider replacing with assignment to '_' or removing it
+ 48 |     // Arms: from the bent shoulders, too long, one reaching higher than the other; claw-like fingers.
+ 49 |     let reach: Float = 1.45 + (m.aggro ? 0.1 : 0)
+ 50 |     let twitch = sinf(m.walkPhase * 1.7) * 0.12
+    |         `- warning: initialization of immutable value 'twitch' was never used; consider replacing with assignment to '_' or removing it
+ 51 |     for side: Float in [-1, 1] {
+ 52 |         let sh = bent(side * 4.4, 10.5, 0)
+/Users/runner/work/blocksmith/blocksmith/Sources/Structures.swift:591:98: warning: expression took 226ms to type-check (limit: 150ms)
+589 | 
+590 | enum Loot {
+591 |     static let tables: [String: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])] = [
+    |                                                                                                  `- warning: expression took 226ms to type-check (limit: 150ms)
+592 |         "fortress": (2...4, [("keepers_journal", 1, 1, 6), ("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 5), ("gold_ingot", 1, 3, 15), ("golden_sword", 1, 1, 5),
+593 |                              ("golden_chestplate", 1, 1, 5), ("flint_and_steel", 1, 1, 5), ("nether_wart", 3, 7, 5),
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Structures.swift:829:17: warning: initialization of immutable value 'k' was never used; consider replacing with assignment to '_' or removing it
+827 |         var need: [String] = []
+828 |         for i in 0..<c.count where !c[i].isEmpty {
+829 |             let k = Items.key(c[i].item)
+    |                 `- warning: initialization of immutable value 'k' was never used; consider replacing with assignment to '_' or removing it
+830 |             if let gi = Guns.index(c[i].item) { need.append(Guns.all[gi].ammo) }
+831 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/TerrainField.swift:289:17: warning: expression took 247ms to type-check (limit: 150ms)
+287 |             for (i, v) in e.sorted(by: { $0.key < $1.key }) {
+288 |                 let u = UInt32(bitPattern: i)
+289 |                 d.append(contentsOf: [UInt8(u & 255), UInt8((u >> 8) & 255), UInt8((u >> 16) & 255), UInt8(u >> 24),
+    |                 `- warning: expression took 247ms to type-check (limit: 150ms)
+290 |                                       UInt8(v & 255), UInt8(v >> 8)])
+291 |             }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/TerrainTools.swift:81:26: warning: expression took 221ms to type-check (limit: 150ms)
+ 79 |             for col in 0..<n {
+ 80 |                 let i = row * n + col
+ 81 |                 let hx = (hs[row * n + min(n - 1, col + 1)] - hs[row * n + max(0, col - 1)]) / Float(2 * step)
+    |                          `- warning: expression took 221ms to type-check (limit: 150ms)
+ 82 |                 let zi1: Int = min(n - 1, row + 1) * n + col, zi0: Int = max(0, row - 1) * n + col
+ 83 |                 let hz: Float = (hs[zi1] - hs[zi0]) / Float(2 * step)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/Textures.swift:659:16: warning: expression took 173ms to type-check (limit: 150ms)
+ 657 |             if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x34343A) }
+ 658 |             let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+ 659 |             if dx * dx + dy * dy < 24 {
+     |                `- warning: expression took 173ms to type-check (limit: 150ms)
+ 660 |                 let fy = y - 3, fx = x - 4
+ 661 |                 let f = fy >= 0 && fy < flame16.count && fx >= 0 && fx < 9 && Array(flame16[fy])[fx] == "#"
+
+/Users/runner/work/blocksmith/blocksmith/Sources/TexturesHD.swift:1738:17: warning: expression took 160ms to type-check (limit: 150ms)
+1736 |                 // An old cup ring.
+1737 |                 let rx = 11.5 * fu, ryc = 9.2 * fu, rr = 1.4 * fu
+1738 |                 for y in Int(ryc - rr - 2)...Int(ryc + rr + 2) { for x in Int(rx - rr - 2)...Int(rx + rr + 2) {
+     |                 `- warning: expression took 160ms to type-check (limit: 150ms)
+1739 |                     let dx: Float = Float(x) - rx, dy: Float = Float(y) - ryc
+1740 |                     let d: Float = (dx * dx + dy * dy).squareRoot()
+
+/Users/runner/work/blocksmith/blocksmith/Sources/TexturesHD.swift:2920:41: warning: expression took 246ms to type-check (limit: 150ms)
+2918 |                     let dx: Float = abs(Float(x) + 0.5 - fn / 2), dy: Float = abs(Float(y) + 0.5 - fn / 2)
+2919 |                     if flower && max(dx, dy) < 3 * Float(u) {
+2920 |                         let bk: Float = 0.9 + 0.2 * fine[y * n + x] + 0.1 * (1 - max(dx, dy) / (3 * Float(u)))
+     |                                         `- warning: expression took 246ms to type-check (limit: 150ms)
+2921 |                         plot(&img, x, y, col(0xE0CCE8) * bk)
+2922 |                     } else if !flower && edge < u {
+
+/Users/runner/work/blocksmith/blocksmith/Sources/TexturesHD.swift:3712:17: warning: expression took 409ms to type-check (limit: 150ms)
+3710 |             for (rx, ry) in rivets {
+3711 |                 let cx = rx * fu, cy = ry * fu, r = max(1, 0.28 * fu)
+3712 |                 for y in Int(cy - r - 1)...Int(cy + r + 1) { for x in Int(cx - r - 1)...Int(cx + r + 1) {
+     |                 `- warning: expression took 409ms to type-check (limit: 150ms)
+3713 |                     let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+3714 |                     if dx * dx + dy * dy < r * r { put(x, y, col(0x7A7A80) * (dy < 0 ? 1.3 : 0.85)) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/TexturesHD.swift:3712:62: warning: expression took 392ms to type-check (limit: 150ms)
+3710 |             for (rx, ry) in rivets {
+3711 |                 let cx = rx * fu, cy = ry * fu, r = max(1, 0.28 * fu)
+3712 |                 for y in Int(cy - r - 1)...Int(cy + r + 1) { for x in Int(cx - r - 1)...Int(cx + r + 1) {
+     |                                                              `- warning: expression took 392ms to type-check (limit: 150ms)
+3713 |                     let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+3714 |                     if dx * dx + dy * dy < r * r { put(x, y, col(0x7A7A80) * (dy < 0 ? 1.3 : 0.85)) }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/TexturesHD.swift:3734:38: warning: expression took 1258ms to type-check (limit: 150ms)
+3732 |                     }
+3733 |                     let bdy: Float = dy - 1.5 * fu
+3734 |                     let base: Bool = dx * dx * 0.8 + bdy * bdy < (2.3 * fu) * (2.3 * fu) && dy > 0
+     |                                      `- warning: expression took 1258ms to type-check (limit: 150ms)
+3735 |                     let lit: Bool = base || tongue(0.2 * fu, -3.9 * fu, 1.7 * fu, 0.9 * fu) || tongue(-1.5 * fu, -1.2 * fu, 1.0 * fu, -0.6 * fu)
+3736 |                         || tongue(1.7 * fu, -1.9 * fu, 0.9 * fu, 0.7 * fu)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/TexturesHD.swift:4232:33: warning: expression took 362ms to type-check (limit: 150ms)
+4230 |             for y in 0..<n { for x in 0..<n {
+4231 |                 let i = y * n + x
+4232 |                 let wy: Float = Float(y) + (w[i] - 0.5) * Float(n) * 0.25
+     |                                 `- warning: expression took 362ms to type-check (limit: 150ms)
+4233 |                 let rip: Float = 0.5 + 0.5 * sinf(wy / Float(n) * 2 * Float.pi * 6)
+4234 |                 let t0: Float = 0.55 + (grain[i] - 0.5) * 0.24
+
+/Users/runner/work/blocksmith/blocksmith/Sources/TexturesHD.swift:4917:68: warning: expression took 162ms to type-check (limit: 150ms)
+4915 |                 for (rx, ry) in [(2.5, 2.5), (13.5, 2.5), (2.5, 13.5), (13.5, 13.5)] as [(Float, Float)] {
+4916 |                     let cx: Float = rx * fu, cy: Float = ry * fu
+4917 |                     for y in Int(cy - rr - 1)...Int(cy + rr + 1) { for x in Int(cx - rr - 1)...Int(cx + rr + 1) {
+     |                                                                    `- warning: expression took 162ms to type-check (limit: 150ms)
+4918 |                         let ox: Float = Float(x) + 0.5 - cx, oy: Float = Float(y) + 0.5 - cy
+4919 |                         let d: Float = (ox * ox + oy * oy).squareRoot() / rr
+/Users/runner/work/blocksmith/blocksmith/Sources/main.swift:1407:62: warning: expression took 256ms to type-check (limit: 150ms)
+1405 |                 let side = st < 4 ? V3(-nv.z, 0, nv.x) : V3(1, 0, 0)
+1406 |                 renderer.probes.append(("item \(p.x),\(p.z)", c - nv * 0.42))
+1407 |                 renderer.probes.append(("rim \(p.x),\(p.z)", c - nv * 0.44 + side * 0.33))
+     |                                                              `- warning: expression took 256ms to type-check (limit: 150ms)
+1408 |             }
+1409 |             // A control frame placed like the decor scene's, beside the first listed one (do frames here draw at all?).
+
+/Users/runner/work/blocksmith/blocksmith/Sources/main.swift:1407:17: warning: expression took 155ms to type-check (limit: 150ms)
+1405 |                 let side = st < 4 ? V3(-nv.z, 0, nv.x) : V3(1, 0, 0)
+1406 |                 renderer.probes.append(("item \(p.x),\(p.z)", c - nv * 0.42))
+1407 |                 renderer.probes.append(("rim \(p.x),\(p.z)", c - nv * 0.44 + side * 0.33))
+     |                 `- warning: expression took 155ms to type-check (limit: 150ms)
+1408 |             }
+1409 |             // A control frame placed like the decor scene's, beside the first listed one (do frames here draw at all?).
+
+/Users/runner/work/blocksmith/blocksmith/Sources/main.swift:1436:26: warning: expression took 407ms to type-check (limit: 150ms)
+1434 |             // A dropped apple two blocks ahead: does anything in the entity pass reach the image here?
+1435 |             let side = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))          // beside the crosshair, not under it
+1436 |             let dropAt = e + game.player.look * 3 + side * 0.8 - V3(0, 0.25, 0)
+     |                          `- warning: expression took 407ms to type-check (limit: 150ms)
+1437 |             game.drops.spawn(ItemStack(Items.id("apple"), 1), at: dropAt, vel: .zero, delay: 100)
+1438 |             renderer.probes.append(("dropped apple", dropAt + V3(0, 0.25, 0)))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/main.swift:1436:26: warning: expression took 1058ms to type-check (limit: 150ms)
+1434 |             // A dropped apple two blocks ahead: does anything in the entity pass reach the image here?
+1435 |             let side = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))          // beside the crosshair, not under it
+1436 |             let dropAt = e + game.player.look * 3 + side * 0.8 - V3(0, 0.25, 0)
+     |                          `- warning: expression took 1058ms to type-check (limit: 150ms)
+1437 |             game.drops.spawn(ItemStack(Items.id("apple"), 1), at: dropAt, vel: .zero, delay: 100)
+1438 |             renderer.probes.append(("dropped apple", dropAt + V3(0, 0.25, 0)))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/main.swift:1436:26: warning: expression took 1051ms to type-check (limit: 150ms)
+1434 |             // A dropped apple two blocks ahead: does anything in the entity pass reach the image here?
+1435 |             let side = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))          // beside the crosshair, not under it
+1436 |             let dropAt = e + game.player.look * 3 + side * 0.8 - V3(0, 0.25, 0)
+     |                          `- warning: expression took 1051ms to type-check (limit: 150ms)
+1437 |             game.drops.spawn(ItemStack(Items.id("apple"), 1), at: dropAt, vel: .zero, delay: 100)
+1438 |             renderer.probes.append(("dropped apple", dropAt + V3(0, 0.25, 0)))
+
+/Users/runner/work/blocksmith/blocksmith/Sources/main.swift:1541:17: warning: expression took 208ms to type-check (limit: 150ms)
+1539 |             let fwd = V3(-sinf(p1.yaw), 0, -cosf(p1.yaw)), right = V3(cosf(p1.yaw), 0, -sinf(p1.yaw))
+1540 |             game.coop.withSeat(1, game) {
+1541 |                 game.player.pos = game.settleSpawn(p1.pos + fwd * 4 + right * 1.2)
+     |                 `- warning: expression took 208ms to type-check (limit: 150ms)
+1542 |                 game.player.yaw = p1.yaw + .pi
+1543 |                 game.player.pitch = -0.05
+
+/Users/runner/work/blocksmith/blocksmith/Sources/World.swift:1223:9: warning: expression took 180ms to type-check (limit: 150ms)
+1221 |         if damage.count > 4096 && cur == nil { return }
+1222 |         let f = cur.map { Int($0 >> 5) } ?? face
+1223 |         damage[p] = UInt8((f & 7) << 5 | min(7, lv))
+     |         `- warning: expression took 180ms to type-check (limit: 150ms)
+1224 |         for dz in -1...1 { for dx in -1...1 {
+1225 |             guard let n = chunkAt(p.x + dx * 16, p.z + dz * 16) else { continue }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/WorldGenCheck.swift:47:21: warning: expression took 292ms to type-check (limit: 150ms)
+ 45 |         setvbuf(stdout, nil, _IOLBF, 0)
+ 46 |         let n = Int(arg("--worldgencheck") ?? "") ?? 24
+ 47 |         var seeds = (0..<n).map { UInt64(1000 + $0 * 7919) }
+    |                     `- warning: expression took 292ms to type-check (limit: 150ms)
+ 48 |         seeds.append(2943808052895834412)                          // Remington's Quest world (playtest Oct 10)
+ 49 |         var fails: [String] = []
+
+/Users/runner/work/blocksmith/blocksmith/Sources/WorldObjects.swift:414:25: warning: expression took 275ms to type-check (limit: 150ms)
+412 |             let e = el * .pi / 180
+413 |             for k in 0..<12 {
+414 |                 let a = (Float(k) + (Int(el) % 2 == 0 ? 0 : 0.5)) * .pi / 6
+    |                         `- warning: expression took 275ms to type-check (limit: 150ms)
+415 |                 o.append(SIMD3(cosf(e) * cosf(a), sinf(e), cosf(e) * sinf(a)))
+416 |             }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/WorldObjectsGame.swift:71:46: warning: expression took 154ms to type-check (limit: 150ms)
+ 69 |         // Where the blow lands: the exact point on the object's pieces the ray met (World.raycast), else the cell's boxes.
+ 70 |         var at = hitPoint(t), nrm = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
+ 71 |         if let h = reg.lastHit, h.cell == p, simd_length(h.at - (player.eye + player.look * simd_dot(h.at - player.eye, player.look))) < 0.01 {
+    |                                              `- warning: expression took 154ms to type-check (limit: 150ms)
+ 72 |             at = h.at; nrm = h.normal
+ 73 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/WorldObjectsGame.swift:142:43: warning: expression took 650ms to type-check (limit: 150ms)
+140 |                 let j = jitter()
+141 |                 if debris.piece(f.poly, o.blocks[o.parts[f.part].cell], origin: pieceOrigin(f),
+142 |                                 velocity: cn * (1.8 + j.y) + blow * 1.2 + j * 1.4 + V3(0, 1.4, 0), spin: j * 10, layers: layers(f)) {
+    |                                           `- warning: expression took 650ms to type-check (limit: 150ms)
+143 |                     objectStats.debris += 1
+144 |                 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/WorldObjectsGame.swift:142:43: warning: expression took 972ms to type-check (limit: 150ms)
+140 |                 let j = jitter()
+141 |                 if debris.piece(f.poly, o.blocks[o.parts[f.part].cell], origin: pieceOrigin(f),
+142 |                                 velocity: cn * (1.8 + j.y) + blow * 1.2 + j * 1.4 + V3(0, 1.4, 0), spin: j * 10, layers: layers(f)) {
+    |                                           `- warning: expression took 972ms to type-check (limit: 150ms)
+143 |                     objectStats.debris += 1
+144 |                 }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/WorldObjectsGame.swift:141:20: warning: expression took 1198ms to type-check (limit: 150ms)
+139 |                 }
+140 |                 let j = jitter()
+141 |                 if debris.piece(f.poly, o.blocks[o.parts[f.part].cell], origin: pieceOrigin(f),
+    |                    `- warning: expression took 1198ms to type-check (limit: 150ms)
+142 |                                 velocity: cn * (1.8 + j.y) + blow * 1.2 + j * 1.4 + V3(0, 1.4, 0), spin: j * 10, layers: layers(f)) {
+143 |                     objectStats.debris += 1
+
+/Users/runner/work/blocksmith/blocksmith/Sources/WorldObjectsGame.swift:213:36: warning: expression took 2128ms to type-check (limit: 150ms)
+211 |                 ? Blocks.boxes[bi][pt.boxIndex].tex : nil
+212 |             debris.piece(f.poly, b, origin: ov + V3(0, world.objectSeat(b, o.cells[k]), 0),
+213 |                          velocity: out * 1.2 + player.look * 0.8 + j * 1.2 + V3(0, 0.8, 0), spin: j * 5, layers: lay)
+    |                                    `- warning: expression took 2128ms to type-check (limit: 150ms)
+214 |         }
+215 |         tb = objectStats.note("break: pieces", tb)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/WorldObjectsGame.swift:213:36: warning: expression took 5125ms to type-check (limit: 150ms)
+211 |                 ? Blocks.boxes[bi][pt.boxIndex].tex : nil
+212 |             debris.piece(f.poly, b, origin: ov + V3(0, world.objectSeat(b, o.cells[k]), 0),
+213 |                          velocity: out * 1.2 + player.look * 0.8 + j * 1.2 + V3(0, 0.8, 0), spin: j * 5, layers: lay)
+    |                                    `- warning: expression took 5125ms to type-check (limit: 150ms)
+214 |         }
+215 |         tb = objectStats.note("break: pieces", tb)
+
+/Users/runner/work/blocksmith/blocksmith/Sources/WorldObjectsGame.swift:212:13: warning: expression took 5250ms to type-check (limit: 150ms)
+210 |             let lay: [UInt16]? = pt.boxIndex >= 0 && pt.boxIndex < Blocks.boxes[bi].count && Blocks.boxes[bi][pt.boxIndex].tex.count == 6
+211 |                 ? Blocks.boxes[bi][pt.boxIndex].tex : nil
+212 |             debris.piece(f.poly, b, origin: ov + V3(0, world.objectSeat(b, o.cells[k]), 0),
+    |             `- warning: expression took 5250ms to type-check (limit: 150ms)
+213 |                          velocity: out * 1.2 + player.look * 0.8 + j * 1.2 + V3(0, 0.8, 0), spin: j * 5, layers: lay)
+214 |         }
+
+/Users/runner/work/blocksmith/blocksmith/Sources/WorldObjectsGame.swift:212:13: warning: expression took 5411ms to type-check (limit: 150ms)
+210 |             let lay: [UInt16]? = pt.boxIndex >= 0 && pt.boxIndex < Blocks.boxes[bi].count && Blocks.boxes[bi][pt.boxIndex].tex.count == 6
+211 |                 ? Blocks.boxes[bi][pt.boxIndex].tex : nil
+212 |             debris.piece(f.poly, b, origin: ov + V3(0, world.objectSeat(b, o.cells[k]), 0),
+    |             `- warning: expression took 5411ms to type-check (limit: 150ms)
+213 |                          velocity: out * 1.2 + player.look * 0.8 + j * 1.2 + V3(0, 0.8, 0), spin: j * 5, layers: lay)
+214 |         }
+Built build/Blocksmith.app (fast)
