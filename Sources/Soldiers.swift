@@ -819,7 +819,11 @@ extension Mob {
                          shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 0.6)
             s.power = b.gun == Guns.faust ? 2.2 : 1.8
             if b.gun == Guns.faust { s.antiTank = Guns.faustAntiTank }          // P320
-            s.breaks = customName == FactionRaids.rocketeerName              // P215: a raider's rockets hole houses
+            // P215: a raider's rockets hole houses. P465 (Oct 25 19:56, on a Boreal Station watchtower a soldier's
+            // rocket hit: "that gunshot [should have] blown up the tower I was on. But it didn't. I don't know why"): every
+            // soldier's rocket at him breaks what it bursts against, as his own do (the Capital's still spare their own
+            // citadels: Explosion.explode).
+            s.breaks = true
             g.arms.spawn(s)
         case .beam:
             g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, rank.spread * Difficulty.row.aim), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
