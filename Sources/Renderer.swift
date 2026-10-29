@@ -1891,9 +1891,21 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Big panels drop to a smaller GUI scale so they always fit (TV GUI scales, safe area).
             let ML = L.fitted(m)
             let s = ML.s
-            rect(0, 0, W, H, m is DeathMenu ? V4(0.45, 0, 0, 0.55) : V4(0, 0, 0, 0.45))
             let o = m.origin(ML)
             let pw = Float(m.width) * s, ph = Float(m.height) * s
+            let dim = m is DeathMenu ? V4(0.45, 0, 0, 0.55) : V4(0, 0, 0, 0.45)
+            if game.vrHead != nil {
+                // P466 (Oct 25 19:58, a chest open in the headset: "Texture frame still need a little bit of work. This
+                // just doesn't look right"): there the window floats on its own 1024 x 640 panel in the world, and the
+                // dim over the whole panel showed as a dark slab, bigger than the window and off its middle. Only a soft
+                // shadow hugs the window now.
+                for k in 1...3 {
+                    let e = Float(k) * 2 * s
+                    rect(o.x - e, o.y - e, pw + 2 * e, ph + 2 * e, V4(dim.x, dim.y, dim.z, 0.16))
+                }
+            } else {
+                rect(0, 0, W, H, dim)
+            }
             panel(o.x, o.y, pw, ph, s)                        // P481: Sunderfall's own panel (MenuColors)
             let titleC = MenuColors.title
             text(m.title, o.x + 8 * s, o.y + 6 * s, s, titleC, shadow: false)
