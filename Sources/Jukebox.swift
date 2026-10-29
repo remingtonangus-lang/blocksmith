@@ -84,7 +84,7 @@ extension Game {
     func jukeboxTick(_ dt: Float) {
         for j in jukeboxes { j.t += dt }
         let a = audio
-        let near = jukeboxes.filter { $0.playing && simd_length($0.center - player.pos) < 64 }
+        let near = jukeboxes.filter { $0.playing && simd_length($0.center - player.pos) < ($0.disc.hasPrefix(Saloon.pianoPrefix) ? 12 : 64) }   // P457: past 12 the saloon piano is a recording
         let best = near.min { simd_length($0.center - player.pos) < simd_length($1.center - player.pos) }
         if let cur = a.discPlaying, best !== cur {
             sound?.disc?.stop(fade: cur.playing ? 1.5 : 3)

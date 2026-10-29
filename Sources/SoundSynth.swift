@@ -963,6 +963,10 @@ struct Synth {
         case .soldierStep(let r): out = SoldierVoice.step(&self, rank: r, p: p)
         case .hoof(let s): out = HorseLife.hoof(&self, surface: s, p: p)
         case .voice(let i): out = TownVoice.render(i)
+        case .tankEngineLoop, .tankTracksLoop, .truckEngineLoop, .motorbikeLoop, .rotorLoop, .jetpackLoop, .frigateInsideLoop,
+             .battleLoop, .forestDayLoop, .townLoop, .saloonPianoLoop, .planeFlyby, .sonarPing, .shipHorn, .airRaidSiren,
+             .tankCannon, .flakFire, .dartTrap, .ladderClimb, .armourHit, .packRustle:
+            out = render(s.synthStandIn ?? .click, pitch: p)            // P457: recorded only (SoundBank.render maps them first)
         }
         if !s.isLoop { out = Synth.trimTail(out) }
         return Synth.finish(s, out)

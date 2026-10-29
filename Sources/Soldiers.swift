@@ -1061,7 +1061,7 @@ extension Mob {
                     HeavyTurret.flash(g, muzzle, fwd, smoke: light ? 2 : 6)
                 }
                 if airShot { b.rangeShots += 1 }
-                g.sfx(.gun(9), flak ? 1.4 : 2, at: pivot)
+                g.sfx(flak ? .flakFire : .gun(9), flak ? 1.4 : 2, at: pivot)
                 b.kick = 1; b.kickSide = 0
             }
         } else if !aligned {

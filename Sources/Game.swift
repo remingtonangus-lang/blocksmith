@@ -395,6 +395,7 @@ final class Game {
     var sound: SoundEngine?
     private var stepDist: Float = 0
     var plantBrushDist: Float = 0.9          // blocks walked inside plants since the last rustle
+    var climbDist: Float = 0                 // blocks climbed on a ladder since the last rung (P457)
     var plantBrushes = 0                     // rustles played (checks)
     private var wasInWater = false
 
@@ -1017,6 +1018,7 @@ final class Game {
     func openInventory() {
         // Riding a horse, donkey, mule or camel: its inventory (saddle, armour, pack), as in the reference game.
         if let r = riding, MountMenu.opens(r), r.tamed { openMenu(MountMenu(game: self, mob: r)); return }
+        if survival { sfx(.packRustle, 0.6) }            // P457: the pack opened
         openMenu(survival ? InventoryMenu(game: self) : CreativeMenu(game: self))
     }
 
@@ -1492,7 +1494,9 @@ final class Game {
                 }
                 if crit { particles.crit(at: m.pos + V3(0, m.height * 0.7, 0)) }
                 let swept = held.def.tool == .sword && charge > 0.9 && player.onGround && !player.sprinting && !crit
-                let hitSound: Snd = crit ? .attackCrit : (swept ? .attackSweep : (charge < 0.5 ? .attackWeak : (player.sprinting ? .attackKnockback : .attack)))
+                var hitSound: Snd = crit ? .attackCrit : (swept ? .attackSweep : (charge < 0.5 ? .attackWeak : (player.sprinting ? .attackKnockback : .attack)))
+                // P457 (Remington on the approved sword hit: "only on armour hits"): a blade landing on worn armour rings.
+                if (held.def.tool == .sword || held.def.tool == .axe) && charge >= 0.5 && m.wearsArmour { hitSound = .armourHit }
                 sfx(hitSound, 0.8, at: m.pos + V3(0, m.height * 0.5, 0))
                 if survival { exhaustion += 0.1 }
                 // Wear per hit (reference): swords, tridents and maces 1, other tools 2, anything else none (a bow or a
@@ -3119,6 +3123,19 @@ final class Game {
             plantBrushDist += moved
             if plantBrushDist > (p.sneaking ? 2.4 : 1.2) { plantBrushDist = 0; plantBrushes += 1; sfx(.plantBrush, p.sneaking ? 0.25 : (p.sprinting ? 0.75 : 0.55), at: p.pos + V3(0, 0.4, 0)) }
         } else if !plant { plantBrushDist = 0.9 }
+        // P457: climbing a ladder: a rung every block climbed; clanking where it is bolted to metal, wooden steps otherwise.
+        if !p.onGround && !p.flying && !p.inWater && abs(p.pos.y - before.y) > 0.001 {
+            let feet = world.builtBlock(px, Int(floor(p.pos.y)), pz)
+            if Player.climbable(feet) || Player.climbable(world.builtBlock(px, Int(floor(p.pos.y + 1)), pz)) {
+                climbDist += abs(p.pos.y - before.y)
+                if climbDist > 0.9 {
+                    climbDist = 0
+                    let wall = [(1, 0), (-1, 0), (0, 1), (0, -1)].map { world.materialAt(px + $0.0, Int(floor(p.pos.y + 0.5)), pz + $0.1) }
+                    let metal = wall.contains { $0 != AIR && soundMat($0) == .metal }
+                    sfx(metal ? .ladderClimb : .step(.wood), p.sneaking ? 0.3 : 0.7, at: p.pos + V3(0, 0.6, 0))
+                }
+            }
+        }
         guard p.onGround && !p.flying && !p.inWater else { stepDist = 0.8; return }
         stepDist += moved
         if stepDist > (p.sprinting ? 2.1 : 1.7) {

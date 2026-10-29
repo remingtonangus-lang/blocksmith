@@ -135,7 +135,7 @@ extension Game {
             if clock - (Submarine.lastPing[f.id] ?? -100) < Submarine.sonarEvery { continue }
             Submarine.lastPing[f.id] = clock
             if let st = world.ships.capState[f.id] { st.pingAt = sub.pos; st.pingT = 0 }     // she steers to the ping
-            sfx(.click, 1.3, at: sub.pos)
+            sfx(.sonarPing, 1.3, at: sub.pos)
             onToast?("Sonar ping: the navy has heard you")
             depthCharges(from: f, at: sub.pos)
         }

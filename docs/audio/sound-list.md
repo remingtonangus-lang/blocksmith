@@ -982,6 +982,33 @@ One file set per mob kind (MobKind key = the stable save key, not the display na
 
 - `note_<instrument>_<pitch>` (blocks): note blocks, made on demand for instrument 0-15 (0 harp, 1 bass drum, 2 snare, 3 hat (clicks), 4 bass, 5 flute, 6 bell, 7 guitar, 8 chime, 9 xylophone, 10 iron xylophone, 11 cow bell, 12 didgeridoo, 13 bit, 14 banjo, 15 pling) and pitch 0-24 (12 = the instrument's base note). An override can be given per exact pitch (`note_0_12.wav`); there is no automatic repitching of one sample across the range yet.
 
+## Recorded only (P457)
+
+Made for Remington's approved recordings (Resources/Sounds/elevenlabs/README.md, wired in Oct 29, 2026); with no file each
+plays a close synthesized stand-in (`Snd.synthStandIn`).
+
+- `tankEngineLoop` (blocks): a Cinder tank (or a taken one) idling.
+- `tankTracksLoop` (blocks): a tank's tracks and engine on the move (half-tracks too, quieter).
+- `truckEngineLoop` (blocks): an Army truck's or half-track's petrol engine driving.
+- `motorbikeLoop` (blocks): a taken sidecar motorbike running.
+- `rotorLoop` (blocks): a helicopter's rotor (any hull with rotor blocks) running or flying.
+- `jetpackLoop` (players): the jetpack thrusting.
+- `frigateInsideLoop` (blocks): below decks on a warship in flight.
+- `battleLoop` (ambient): the far-off war heard over the Ash Vault.
+- `forestDayLoop` (ambient): songbirds in woods by day.
+- `townLoop` (ambient): a town's bustle while the player is in one (quieter at night).
+- `saloonPianoLoop` (ambient): a saloon's piano heard from the street (10-48 blocks; closer, the pianist's own pieces).
+- `planeFlyby` (blocks): a plane roaring past within 40 blocks.
+- `sonarPing` (blocks): the navy's sonar finding a submarine; an enemy submarine's contact.
+- `shipHorn` (blocks): a ship at sea now and then.
+- `airRaidSiren` (hostile): a town's siren while a strike dropship comes at it.
+- `tankCannon` (players): a Cinder tank's main gun.
+- `flakFire` (players): a flak gun's shot.
+- `dartTrap` (blocks): a dispenser loosing an arrow.
+- `ladderClimb` (players): a rung climbed on a ladder bolted to metal.
+- `armourHit` (players): a sword or axe landing on worn armour.
+- `packRustle` (players): opening the pack.
+
 ## Ambience per biome
 
 Which beds and stings make up each place (the soundscapes `Blocksmith --sounds` mixes in scapes/). Wind is the one sound the owner praised: keep its character.

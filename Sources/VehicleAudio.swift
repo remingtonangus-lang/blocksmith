@@ -189,13 +189,34 @@ extension Game {
             audioWarm("vehicles", SoundBank.vehicleSounds)
             let key = "ash\(id.hashValue)"
             let thr: Float = his ? min(1, abs(m.soldierBrain.seatSpeed) / 9) : min(1, speed / 6)
-            ask(key + "e0", .engineIdleLoop, 0.6 * (1 - thr * 0.6), m.pos)
-            ask(key + "e1", .engineFullLoop, 0.75 * thr, m.pos)
+            // P457: the approved recordings: a tank idling and driving on its tracks, a truck's petrol engine.
+            let wheeled = m.kind == .ashTruck || m.kind == .ashHalftrack
+            if wheeled {
+                ask(key + "e0", .engineIdleLoop, 0.6 * (1 - thr * 0.7), m.pos)
+                ask(key + "e1", .truckEngineLoop, 0.8 * thr, m.pos)
+            } else {
+                ask(key + "e0", .tankEngineLoop, 0.7 * (1 - thr * 0.4), m.pos)
+            }
             guard speed > 0.5 else { continue }
-            if m.kind == .ashTruck || m.kind == .ashHalftrack { ask(key + "w", .wheelRollLoop, min(0.9, 0.25 + speed / 10), m.pos) }
-            if m.kind != .ashTruck { ask(key + "t", .carriageTreadLoop, min(0.8, 0.2 + speed / 12), m.pos) }
+            if wheeled { ask(key + "w", .wheelRollLoop, min(0.9, 0.25 + speed / 10), m.pos) }
+            if m.kind != .ashTruck { ask(key + "t", .tankTracksLoop, min(0.9, 0.3 + speed / 8) * (wheeled ? 0.6 : 1), m.pos) }
         }
         Game.ashLast = next
+    }
+}
+
+extension VehicleAudio {
+    static var hornAt: [Int: Double] = [:]          // when each ship at sea next sounds its horn
+    static var flybyAt: [Int: Double] = [:]         // when a plane last roared past
+    static var sirenAt: Double = -100
+
+    static func engineLoops(_ s: Ship) -> (Snd, Snd) {
+        switch s.name {
+        case AshCommandeer.tankName: return (.tankEngineLoop, .tankTracksLoop)
+        case AshCommandeer.truckName, AshCommandeer.halftrackName: return (.engineIdleLoop, .truckEngineLoop)
+        case AshCommandeer.sidecarName: return (.engineIdleLoop, .motorbikeLoop)
+        default: return (.engineIdleLoop, .engineFullLoop)
+        }
     }
 }
 
@@ -226,6 +247,8 @@ extension Game {
                 if s.role == "crawler" && dc < 220 { ask("vessel\(s.id)", .carriageTreadLoop, 1.0, c) }
                 // P228 (Oct 13 21:44): a strike team's dropship roars from far off, the warning that it is coming.
                 if s.role == "dropship" && dc < 380 { ask("vessel\(s.id)", .strikeRoarLoop, simd_length(s.vel) > 0.5 ? 1.0 : 0.5, c) }
+                // P457: a strike dropship coming at a town sets off its air raid siren.
+                if s.role == "dropship" && dc < 380 && !s.captured && world.ships.pilot?.root !== s { airRaidSiren() }
                 continue
             }
             if s.role == "frigate" && d < 180 && !s.grounded {
@@ -233,7 +256,14 @@ extension Game {
             } else if s.role == "carriage" && d < 110 && (simd_length(s.vel) > 0.3 || s.autopilot != nil || s.piloted) {
                 ask("vessel\(s.id)", .carriageTreadLoop, min(1, 0.5 + simd_length(s.vel) / 6), s.pos)
             }
+            // P457: ships at sea sound their horns now and then.
+            if s.submerged > 0 && !s.isFlyingCapital && s.role != "carriage" && s.role != "crawler" && d < 300 {
+                let next = VehicleAudio.hornAt[s.id] ?? clock + Double(Rand.float(in: 10...40))
+                if clock >= next { sfx(.shipHorn, 1, at: s.pos); VehicleAudio.hornAt[s.id] = clock + Double(Rand.float(in: 60...150)) }
+                else { VehicleAudio.hornAt[s.id] = next }
+            }
         }
+        planeFlybys(list, eye)
         let near = list.filter { simd_length($0.pos - eye) < 64 }
             .sorted { simd_length($0.pos - eye) < simd_length($1.pos - eye) }.prefix(3)
         var seen = Set<Int>()
@@ -245,12 +275,18 @@ extension Game {
             let key = "ship\(s.id)"
             let thr = abs(s.throttle)
             let powered = s.engines > 0 || !s.props.isEmpty
-            // Engine: idle while piloted, full layer grows with throttle.
+            // Engine: idle while piloted, full layer grows with throttle (P457: a taken tank, truck, half-track or
+            // sidecar motorbike plays its own recorded engine).
             if s.engines > 0 && (s.piloted || thr > 0.01 || s.autopilot != nil) {
                 if !st.running { st.running = true; sfx(.engineStart, 0.8, at: s.pos) }
-                ask(key + "eng0", .engineIdleLoop, 0.55 * (1 - thr * 0.7), s.pos)
-                ask(key + "eng1", .engineFullLoop, 0.7 * thr, s.pos)
+                let (idle, full) = VehicleAudio.engineLoops(s)
+                ask(key + "eng0", idle, 0.55 * (1 - thr * 0.7), s.pos)
+                ask(key + "eng1", full, 0.7 * thr, s.pos)
             } else { st.running = false }
+            // P457: rotor blades thump while a helicopter runs or flies.
+            if !s.rotors.isEmpty && (st.running || !s.grounded) {
+                ask(key + "rotor", .rotorLoop, 0.5 + 0.5 * max(thr, min(1, speed / 20)), s.pos)
+            }
             if !s.props.isEmpty && (thr > 0.01 || speed > 1) {
                 let spin = max(thr, min(1, speed / 20))
                 ask(key + "prop0", .propSlowLoop, 0.45 * (1 - spin), s.pos)
@@ -289,5 +325,26 @@ extension Game {
             st.lastSubmerged = s.submerged
         }
         if audio.ships.count > seen.count { audio.ships = audio.ships.filter { seen.contains($0.key) } }
+    }
+
+    // P457: a plane that will pass within 40 blocks in about two seconds (the recording's loudest moment) roars past.
+    private func planeFlybys(_ list: [Ship], _ eye: V3) {
+        let mine = world.ships.pilot?.root
+        for s in list where !s.wings.isEmpty && s.parent == nil && s !== mine && !s.grounded && s.submerged <= 0 {
+            let v = s.vel, v2 = simd_length_squared(v)
+            guard v2 > 14 * 14, simd_length(s.pos - eye) < 160 else { continue }
+            let rel = s.pos - eye
+            let t = -simd_dot(rel, v) / v2
+            guard t > 1.8 && t < 2.6, simd_length(rel + v * t) < 40, clock - (VehicleAudio.flybyAt[s.id] ?? -100) > 8 else { continue }
+            VehicleAudio.flybyAt[s.id] = clock
+            sfx(.planeFlyby, 1.2, at: s.pos)
+        }
+    }
+
+    // P457: the air raid siren of the town the player is in, every 9 s while the threat lasts.
+    func airRaidSiren() {
+        guard clock - VehicleAudio.sirenAt > 9, TownLaw.inTown != nil, let (_, a) = Director.nearTown(self, within: 300) else { return }
+        VehicleAudio.sirenAt = clock
+        sfx(.airRaidSiren, 1.2, at: V3(Float(a.x) + 0.5, player.pos.y + 10, Float(a.z) + 0.5))
     }
 }

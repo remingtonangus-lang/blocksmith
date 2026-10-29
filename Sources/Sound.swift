@@ -102,6 +102,36 @@ enum Snd: Hashable {
     case fallRushLoop, hellImpact, hellArrival   // P291: a long fall's rushing air; dropping into hell (HellDrop.swift)
     // A recorded townsfolk line (TownVoice.swift: index into TownVoice.takes; decoded on demand, never cached).
     case voice(Int)
+    // P457: events for Remington's approved recordings (Resources/Sounds/elevenlabs/README.md). Recording only: with no
+    // file each plays a close synthesized sound (synthStandIn), which also sets the loudness the recording is matched to.
+    case tankEngineLoop, tankTracksLoop, truckEngineLoop, motorbikeLoop, rotorLoop, jetpackLoop, frigateInsideLoop
+    case battleLoop, forestDayLoop, townLoop, saloonPianoLoop
+    case planeFlyby, sonarPing, shipHorn, airRaidSiren, tankCannon, flakFire, dartTrap, ladderClimb, armourHit, packRustle
+
+    var synthStandIn: Snd? {
+        switch self {
+        case .tankEngineLoop: return .engineIdleLoop
+        case .tankTracksLoop: return .carriageTreadLoop
+        case .truckEngineLoop, .motorbikeLoop: return .engineFullLoop
+        case .rotorLoop: return .propSlowLoop
+        case .jetpackLoop: return .rocketFlightLoop
+        case .frigateInsideLoop: return .frigateDroneLoop
+        case .battleLoop: return .ashVaultLoop
+        case .forestDayLoop: return .jungleLoop
+        case .townLoop: return .windLoop
+        case .saloonPianoLoop: return .fireLoop
+        case .planeFlyby: return .phantomSwoop
+        case .sonarPing: return .amethystChime
+        case .shipHorn: return .trainWhistle
+        case .airRaidSiren: return .raidHorn
+        case .tankCannon, .flakFire: return .gun(9)
+        case .dartTrap: return .bow
+        case .ladderClimb: return .step(.metal)
+        case .armourHit: return .parryClang
+        case .packRustle: return .bundleInsert
+        default: return nil
+        }
+    }
 
     var category: SoundCategory {
         switch self {
@@ -144,6 +174,9 @@ enum Snd: Hashable {
              .mainGunCharge, .mainGunFire, .mainGunRumble: return .blocks
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .swampInsectsLoop, .iceCreak, .rockfall, .volcanoRumble, .hellArrival: return .ambient
         case .rainLeavesLoop, .snowWindLoop, .thunderFar: return .weather
+        case .battleLoop, .forestDayLoop, .townLoop, .saloonPianoLoop: return .ambient
+        case .jetpackLoop, .tankCannon, .flakFire, .ladderClimb, .armourHit, .packRustle: return .players
+        case .airRaidSiren: return .hostile
         default: return .blocks
         }
     }
@@ -169,6 +202,11 @@ enum Snd: Hashable {
         case .frigateDroneLoop: return 160
         case .strikeRoarLoop: return 380          // P228: heard well before the dropship arrives
         case .carriageTreadLoop: return 96
+        case .tankEngineLoop, .tankTracksLoop, .truckEngineLoop, .motorbikeLoop, .saloonPianoLoop: return 48
+        case .rotorLoop, .planeFlyby: return 128
+        case .tankCannon, .flakFire: return 128
+        case .sonarPing: return 64
+        case .shipHorn, .airRaidSiren: return 400
         case .waterfallLoop: return 32
         case .raidHorn, .goatHorn, .bellResonate: return 96
         case .dragonGrowl, .dragonDeath, .witherSpawn, .witherDeath, .dragonFlap: return 128
@@ -190,7 +228,9 @@ enum Snd: Hashable {
              .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop,
              .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
-             .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop, .fallRushLoop, .ashSiren:
+             .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop, .fallRushLoop, .ashSiren,
+             .tankEngineLoop, .tankTracksLoop, .truckEngineLoop, .motorbikeLoop, .rotorLoop, .jetpackLoop, .frigateInsideLoop,
+             .battleLoop, .forestDayLoop, .townLoop, .saloonPianoLoop:
             return true
         default: return false
         }
@@ -254,6 +294,8 @@ enum Snd: Hashable {
              .netherMood, .underwaterMood, .caveWind, .totem, .elderCurse, .tntFuse, .fireworkTwinkle, .enchant, .villagerCelebrate, .levelUp, .fireworkBlastLarge, .lightning:
             return 0.5...12
         case .ashSiren: return 9...11
+        case .planeFlyby, .shipHorn, .tankCannon, .flakFire, .sonarPing, .airRaidSiren: return 0.3...12
+        case .ladderClimb: return 0.02...0.7
         case _ where isLoop: return 1.5...8
         default: return 0.03...4
         }
@@ -322,6 +364,7 @@ final class SoundBank {
         s += [.shellIncoming, .ashSiren, .depthBoom]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         for k in 0...5 { s.append(.hoof(k)) }
+        s += approvedSounds
         return s
     }
 
@@ -337,11 +380,16 @@ final class SoundBank {
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         return s
     }
+    // P457: the sounds made for the approved recordings.
+    static let approvedSounds: [Snd] = [.tankEngineLoop, .tankTracksLoop, .truckEngineLoop, .motorbikeLoop, .rotorLoop, .jetpackLoop,
+        .frigateInsideLoop, .battleLoop, .forestDayLoop, .townLoop, .saloonPianoLoop, .planeFlyby, .sonarPing, .shipHorn, .airRaidSiren,
+        .tankCannon, .flakFire, .dartTrap, .ladderClimb, .armourHit, .packRustle]
     static var vehicleSounds: [Snd] {
         [.mainGunCharge, .mainGunFire, .mainGunRumble,            // first: long renders, wanted the moment a frigate fires
          .engineStart, .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
          .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop, .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake,
-         .shipCannon, .turretTraverseLoop, .shellFlightLoop, .explodeLarge]
+         .shipCannon, .turretTraverseLoop, .shellFlightLoop, .explodeLarge,
+         .tankEngineLoop, .tankTracksLoop, .truckEngineLoop, .motorbikeLoop, .rotorLoop, .planeFlyby, .shipHorn, .tankCannon, .flakFire]
     }
 
     // Sounds worth having ready before the first frame (rendered first by the prewarm thread).
@@ -389,7 +437,7 @@ final class SoundBank {
         var g = Synth(seed: seed(s, variant: v))
         let n = variants(for: s)
         let pitch: Float = n <= 1 ? 1 : 1 + (Float(v) - Float(n - 1) / 2) * 0.07
-        let x = g.render(s, pitch: pitch)
+        let x = g.render(s.synthStandIn ?? s, pitch: pitch)
         // Takes also differ by a small playback-rate change (like a pitch jitter), so even fully
         // deterministic patches (bells, chimes, level-up) vary between takes.
         guard n > 1 && v > 0 && !s.isLoop else { return x }

@@ -73,7 +73,7 @@ extension Game {
             EnemySub.spawned += 1
             EnemySub.fireCD[s.id] = 6
             onToast?("Sonar contact: a navy submarine is hunting you")
-            sfx(.click, 1.3, at: p)
+            sfx(.sonarPing, 1.3, at: p)
             return
         }
     }

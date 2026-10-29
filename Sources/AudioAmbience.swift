@@ -227,7 +227,16 @@ extension Game {
         vehicleAudioTick(dt, ask: ask)
         // Player state loops.
         if player.headInWater { ask("underwater", .underwaterLoop, 0.9) }
-        if player.jetThrust { ask("jetpack", .rocketFlightLoop, 0.85) }
+        if player.jetThrust { ask("jetpack", .jetpackLoop, 0.85) }
+        // P457: below decks on a warship in flight, her engines hum through the hull.
+        if let sh = world.ships.aboard?.root, sh.isFlyingCapital || sh.role == "frigate", a.enclosure > 0.45 {
+            ask("frigateinside", .frigateInsideLoop, 0.7 * min(1, (a.enclosure - 0.45) * 3))
+        }
+        // P457: a saloon's piano heard from the street (the pianist's own pieces play within 12 blocks, Jukebox.swift).
+        if let j = jukeboxes.first(where: { $0.playing && $0.disc.hasPrefix(Saloon.pianoPrefix) }) {
+            let d = simd_length(j.center - eye)
+            if d > 10 && d < 48 { ask("saloonpiano", .saloonPianoLoop, 0.7 * min(1, (d - 10) / 3), at: j.center) }
+        }
         if player.gliding { ask("glide", .elytraLoop, min(1, simd_length(player.vel) / 28)) }
         // P291 (a): a long fall roars: air rushing past once you fall faster than ~16 b/s (about 5 blocks down), louder
         // toward full speed; loudest on a drop into hell.
@@ -244,7 +253,9 @@ extension Game {
 
         // Biome beds.
         switch dim.dim {
-        case .deep where DeepGen.inVault(p.y): ask("bed", .ashVaultLoop, 0.55)
+        case .deep where DeepGen.inVault(p.y):
+            ask("bed", .ashVaultLoop, 0.55)
+            ask("battle", .battleLoop, 0.4 * (1 - a.cave))            // P457: the war goes on somewhere out there
         case .deep where !DeepGen.inHell(p.y): ask("bed", .basaltLoop, 0.4)
         case .nether, .deep:
             let b = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome
@@ -261,6 +272,8 @@ extension Game {
         case .overworld:
             if a.cave > 0.6 && a.caveBiome > 0 {
                 ask("bed", a.caveBiome == 1 ? .deepDarkLoop : (a.caveBiome == 2 ? .lushLoop : .dripstoneLoop), 0.45 * a.cave)
+            } else if a.cave > 0.6 {
+                ask("bed", .dripstoneLoop, 0.3 * a.cave)               // P457: plain caves drip and echo too
             }
             if a.cave < 0.6 && !player.headInWater {
                 overworldAmbience(dt, open: 1 - a.cave, ask: ask)
@@ -343,6 +356,9 @@ extension Game {
         if night > 0 && !snowy.contains(b) && !dry.contains(b) && !jungle.contains(b) && !high {
             ask("crickets", .cricketsLoop, 0.3 * wet * open, nil)
         }
+        // P457: songbirds through the woods by day, and a town's bustle (quieter at night).
+        if wooded.contains(b) && day > 0 && !high { ask("forestday", .forestDayLoop, 0.4 * wet * open, nil) }
+        if TownLaw.inTown != nil { ask("town", .townLoop, (0.12 + 0.28 * day) * open, nil) }
         // Stings: birdsong by day in wooded land, an owl at night in forests.
         if wooded.contains(b) || jungle.contains(b) {
             let rate: Float = (jungle.contains(b) ? 0.5 : 0.25) * day * wet * open

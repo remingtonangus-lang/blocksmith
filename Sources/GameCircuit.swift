@@ -267,12 +267,12 @@ extension Game {
                 cart.yaw = [0, 0, Float.pi, 0, Float.pi / 2, -Float.pi / 2][dir]
                 mobs.mobs.append(cart); take()
             } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
-        case "arrow": projectiles.shoot(from: from, dir: simd_normalize(fd + V3(0, 0.1, 0)), speed: 22, fromPlayer: true, damage: 2); take(); sfx(.bow, 0.6, at: from)
+        case "arrow": projectiles.shoot(from: from, dir: simd_normalize(fd + V3(0, 0.1, 0)), speed: 22, fromPlayer: true, damage: 2); take(); sfx(.dartTrap, 0.7, at: from)
         case _ where key == "spectral_arrow" || (Potions.potion(of: stack.item).map { $0.form == 3 } ?? false):
             // W8: spectral and tipped arrows fly like plain ones and carry their effect.
             let a = projectiles.shoot(from: from, dir: aim, speed: 22, fromPlayer: true, damage: 2)
             a.tip = stack.item
-            take(); sfx(.bow, 0.6, at: from)
+            take(); sfx(.dartTrap, 0.7, at: from)
         case "firework_rocket":
             // W8: launched along the dispenser's facing.
             rockets.append(Rocket(at: from, dir: fd, flight: stack.tag, stars: stack.contents ?? []))
