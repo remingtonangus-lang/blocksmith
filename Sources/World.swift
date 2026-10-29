@@ -1392,6 +1392,8 @@ final class World {
             for (sy, version, mesh) in list { apply(mesh, to: c, sy: sy, version: version) }
             World.noteResult(ti, "meshes applied")
         }
+        World.handoverSpent += CFAbsoluteTimeGetCurrent() - tUpdate; World.handedOver += gi + mi
+        World.leftWaiting = gr.count - gi + mr.count - mi
         if gi < gr.count || mi < mr.count {
             lock.lock()
             genResults.insert(contentsOf: gr[gi...], at: 0)
@@ -1788,6 +1790,8 @@ final class World {
     // A worker generates (or loads) chunk k; with `shell`, reads its cached meshes instead (ChunkShells).
     // (P400 harness: the slowest single result handed over, and what it was)
     static var resultsProfile = false, resultsWorstMs = 0.0, resultsWorst = ""
+    // (questcheck --streamtest: frame time spent handing results over, how many, and how many were left for later)
+    static var handoverSpent = 0.0, handedOver = 0, leftWaiting = 0
     @inline(__always) static func noteResult(_ t0: Double, _ what: String) {
         guard resultsProfile else { return }
         let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000

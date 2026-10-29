@@ -96,6 +96,21 @@ enum AdaptiveGround {
     // farGround ones). Returns the quads removed from the buffer.
     static func mesh(_ buf: GrowBuf<UInt32>, from: Int, exact: UnsafePointer<Float>? = nil, farSkip: inout Int, farGround: inout [UInt32]) -> Int {
         let far = from == 0 && farEnabled && Mesher.farGround && buf.count - from >= 32
+        if far && farChain {
+            // P474 (flying at dropship speed the workers fell behind, a third of their time in this pass): the far copy
+            // is simplified on from the near one's triangles by the far bound, instead of again from the full ground
+            // (BS_FARCHAIN=0 the old way). Within 0.05 + 1/8 block of the full ground (about 1.4 pixels at the far
+            // switch, under one past ~250 blocks); 2% fewer far quads than before at view 16 (0.075 on: 6% more), and a
+            // mesh job takes 5.9 ms instead of 7.4.
+            var fw: [UInt32] = []
+            let removed = simplify(buf, from: from, tol: tolerance, exact: exact, farTol: chainTol, farWords: &fw)
+            if !fw.isEmpty && fw.count < buf.count - from {
+                farSkip = (buf.count - from) / 8
+                farGround = fw
+                tally.lock(); farIn += (buf.count - from) / 8; farOut += fw.count / 8; tally.unlock()
+            }
+            return removed
+        }
         let raw = far ? Array(UnsafeBufferPointer(start: buf.ptr + from, count: buf.count - from)) : []
         let removed = simplify(buf, from: from, tol: tolerance, exact: exact)
         guard far else { return removed }
@@ -111,6 +126,8 @@ enum AdaptiveGround {
         return removed
     }
     static var farIn = 0, farOut = 0
+    static var farChain = ProcessInfo.processInfo.environment["BS_FARCHAIN"] != "0"
+    static var chainTol: Float = Float(ProcessInfo.processInfo.environment["BS_FARCHAINTOL"] ?? "") ?? farTolerance
     // P383 step 3: how far what a vertex shades by may drift where a collapse joins different ones (see the header).
     static var lightTol: Double = Double(ProcessInfo.processInfo.environment["BS_ADAPTIVE_LIGHT"] ?? "") ?? 1.0
     static var aoTol: Double = Double(ProcessInfo.processInfo.environment["BS_ADAPTIVE_AO"] ?? "") ?? 0.5
@@ -427,6 +444,12 @@ enum AdaptiveGround {
     @discardableResult
     static func simplify(_ buf: GrowBuf<UInt32>, from: Int, tol: Float, exact: UnsafePointer<Float>? = nil, capture capt: Bool = true,
                          blob: Bool = false) -> Int {
+        var none: [UInt32] = []
+        return simplify(buf, from: from, tol: tol, exact: exact, capture: capt, blob: blob, farTol: 0, farWords: &none)
+    }
+    // (farTol > 0: farWords also gets the near result simplified on by farTol, as quads)
+    static func simplify(_ buf: GrowBuf<UInt32>, from: Int, tol: Float, exact: UnsafePointer<Float>? = nil, capture capt: Bool = true,
+                         blob: Bool = false, farTol: Float, farWords: inout [UInt32]) -> Int {
         let nq = (buf.count - from) / 8
         guard nq >= 4 else { return 0 }
         let p = buf.ptr + from
@@ -468,6 +491,11 @@ enum AdaptiveGround {
         if tallyPos { tally.lock(); positions += perPos.count; splitPositions += splitPos.count; tally.unlock() }
         let live = collapse(pos: pos, grid: grid, tris: tris, tol: tol, guard: GroundGuard(words: words, seams: joinSeams))
         let out = pairQuads(live)
+        if farTol > 0 {
+            let fq = pairQuads(collapse(pos: pos, grid: grid, tris: live, tol: farTol, guard: GroundGuard(words: words, seams: joinSeams)))
+            farWords.reserveCapacity(fq.count * 8)
+            for q in fq { for k in 0..<4 { let key = words[Int(q[k])]; farWords.append(UInt32(key >> 32)); farWords.append(UInt32(key & 0xFFFF_FFFF)) } }
+        }
         let nt0 = tris.count
         // (questcheck --farcheck, P384: a leaf blob's far shell and the shell it stands for, at their exact positions)
         if capture && blob && Thread.isMainThread {

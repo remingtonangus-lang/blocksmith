@@ -17,7 +17,7 @@ enum QuestStreamTest {
 
     static func run(ctx: VkContext?) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
-        World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = QuestApp.leafNear
+        World.fluidSeconds = 0.002; World.handoverSeconds = (Double(ProcessInfo.processInfo.environment["BS_HANDOVERMS"] ?? "") ?? 1.5) / 1000; World.lodNear = 99; World.leafNear = QuestApp.leafNear
         World.editLane = true                                                       // (QuestApp)
         let at = (arg("--at") ?? "0,160,0").split(separator: ",").compactMap { Float($0) }
         let look = (arg("--look") ?? "0,-20").split(separator: ",").compactMap { Float($0) }
@@ -64,13 +64,17 @@ enum QuestStreamTest {
             if (f + 1) % 72 == 0 {
                 let sec = (f + 1) / 72
                 let c0 = ChunkKey(x: floorDiv(Int(floor(p.pos.x)), CS), z: floorDiv(Int(floor(p.pos.z)), CS))
-                var inView = 0, made = 0, drawn = 0, surf = 0, underOnly = 0, surfStale = 0, bumpUp = 0, bumpDeep = 0
+                var inView = 0, made = 0, drawn = 0, shellN = 0, surf = 0, underOnly = 0, surfStale = 0, bumpUp = 0, bumpDeep = 0
                 for dz in -rd...rd { for dx in -rd...rd where w.inMeshRadius(dx, dz) {
                     inView += 1
                     let k = ChunkKey(x: c0.x + dx, z: c0.z + dz)
-                    guard let c = w.chunks[k], !c.hollow else { continue }
+                    guard let c = w.chunks[k] else { continue }
                     made += 1
                     if c.meshedOnce { drawn += 1 }
+                    // P474 (Oct 29): a shell past the active distance (P376) is made and drawn from its kept meshes; its
+                    // blocks are gone, so its surface counts as drawn (before, every shell counted as a gap: at view 16
+                    // about 240 of 861 chunks "missing" while the workers sat idle with nothing left to make).
+                    if c.hollow { if c.meshedOnce { surf += 1; shellN += 1 }; continue }
                     // The ground's top at the chunk's middle column, and its section.
                     let col = 8 + 8 * CS
                     var y = min(min(CH, c.blocks.storedCount / CSQ) - 1, Int(c.height[col]))
@@ -93,11 +97,13 @@ enum QuestStreamTest {
                 let tmean = ticks.reduce(0, +) / Double(max(1, ticks.count)), tworst = ticks.max() ?? 0
                 if sec > 2 { allTicks += ticks }
                 ticks.removeAll(keepingCapacity: true)
-                print(String(format: "streamtest: %3d s (%.1f): tick %.2f ms mean, %.1f worst; %d in view, made %d, drawn %d, surface drawn %d (out of date %d), under it only %d; meshes for a changed section %d (drawn %d); bumps over the low ground %d, under %d; edits %d + %d in the background, fluid cells waiting %d + %d lava; gen %d (%.0f ms), mesh jobs %d (%d sections, %.0f ms); jobs %d",
-                             sec, el, tmean, tworst, inView, made, drawn, surf, surfStale, underOnly, World.staleMeshes - stale0, World.staleDrawn - drawn0, bumpUp, bumpDeep,
+                print(String(format: "streamtest: %3d s (%.1f): tick %.2f ms mean, %.1f worst; %d in view, made %d, drawn %d (%d of them shells), surface drawn %d (out of date %d), under it only %d; meshes for a changed section %d (drawn %d); bumps over the low ground %d, under %d; edits %d + %d in the background, fluid cells waiting %d + %d lava; gen %d (%.0f ms), mesh jobs %d (%d sections, %.0f ms); jobs %d; handed over %d in %.0f ms, %d left waiting",
+                             sec, el, tmean, tworst, inView, made, drawn, shellN, surf, surfStale, underOnly, World.staleMeshes - stale0, World.staleDrawn - drawn0, bumpUp, bumpDeep,
                              World.syncEdits - sync0, World.asyncEdits - async0, w.fluidPending.count, w.lavaPending.count,
                              pf.genChunks - perf0.genChunks, (pf.genSeconds - perf0.genSeconds) * 1000, pf.meshJobs - perf0.meshJobs,
-                             pf.meshSections - perf0.meshSections, (pf.meshSeconds - perf0.meshSeconds) * 1000, w.pendingJobs))
+                             pf.meshSections - perf0.meshSections, (pf.meshSeconds - perf0.meshSeconds) * 1000, w.pendingJobs,
+                             World.handedOver, World.handoverSpent * 1000, World.leftWaiting))
+                World.handedOver = 0; World.handoverSpent = 0
                 stale0 = World.staleMeshes; drawn0 = World.staleDrawn; perf0 = pf; async0 = World.asyncEdits; sync0 = World.syncEdits
                 if shots.contains(sec), let ctx {
                     let ts = CFAbsoluteTimeGetCurrent()
