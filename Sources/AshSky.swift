@@ -22,6 +22,19 @@ enum AshSky {
     // P346 (e): no man's land's own air: browner, and the fog closes in to 68.
     static let nmlHaze = V3(0.43, 0.41, 0.37)
     static let nmlFogEnd: Float = 68
+    // P458 (Oct 25 16:52 at the Ashguard HQ: "Should be a red sheen to the fog when you're near this base... kind of
+    // like an orange, a darker orange sheen. Kind of like sunset"): round the Ashguard's bases (the HQ, the staging
+    // ground, the motor pools and the fuel depots) the haze takes a dark sunset orange, full within the site and gone 80
+    // blocks out.
+    static let baseHaze = V3(0.47, 0.29, 0.20)
+    static func baseGlow(_ x: Float, _ z: Float) -> Float {
+        var best: Float = 0
+        for s in AshWar.sites where ["hq", "staging", "motorpool", "fueldepot"].contains(s.kind) {
+            let d = max(abs(x - Float(s.x)), abs(z - Float(s.z))) - Float(s.r)
+            best = max(best, 1 - simd_clamp(d / 80, 0, 1))
+        }
+        return best * best * (3 - 2 * best)
+    }
 }
 
 extension Game {

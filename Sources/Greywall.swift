@@ -582,11 +582,21 @@ enum Greywall {
         for (dx, y, dz, f) in corridorTurrets(t) { put(dx, y, dz, turret + BlockID(f)) }
         // Coastal guns (T6) on each sea wall: two light quick-firers on the walkway, looking out to sea, and where the
         // towers carry no deck guns, a heavy gun on each tower roof of that side.
+        // P458 (Oct 25 16:22, on a Greywall wall: "There shouldn't be whole ass naval guns on the side of the base...
+        // someone has to be inside the naval gun... someone on a computer underneath the gun in a room underneath the
+        // gun"): the towers' guns have their gun rooms and operators (P471); on ground no save had before, the walkway's
+        // two are wall turrets looking out to sea, like the other walls' (no crewed gun with nobody in it).
         let headings = [0, -180, -90, 90]
+        let walls = Set(turrets(t).map { IVec3($0.0, 0, $0.1) })
         for k in shore {
             for along in [-(H / 3), H / 3] {
                 let (dx, dz) = k == 0 ? (along, -(H - 1)) : k == 1 ? (along, H - 1) : k == 2 ? (-(H - 1), along) : (H - 1, along)
                 if k == 1 && abs(dx) <= 4 { continue }               // (never over the gate)
+                if p471 {
+                    let (tx, tz) = k == 0 ? (along, -H) : k == 1 ? (along, H) : k == 2 ? (-H, along) : (H, along)
+                    if !walls.contains(IVec3(tx, 0, tz)) { put(tx, W + 1, tz, turret + BlockID(k)) }
+                    continue
+                }
                 w.mob("deck_gun:light@grey^\(headings[k])", V3(Float(cx + dx) + 0.5, Float(S + W + 1), Float(cz + dz) + 0.5))
             }
             if !t.deckGuns {

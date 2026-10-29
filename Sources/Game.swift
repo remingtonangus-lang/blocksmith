@@ -794,7 +794,10 @@ final class Game {
 
     var skyColor: V3 {
         if dim.dim == .nether || (dim.dim == .deep && DeepGen.inHell(player.pos.y)) { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }   // (P292: both hells)
-        if inVaultHaze { return simd_mix(AshSky.haze, AshSky.nmlHaze, V3(repeating: vaultNML)) }   // (P323: the whole cavern; P346: no man's land)
+        if inVaultHaze {                                                                     // (P323: the whole cavern; P346: no man's land)
+            let h = simd_mix(AshSky.haze, AshSky.nmlHaze, V3(repeating: vaultNML))
+            return simd_mix(h, AshSky.baseHaze, V3(repeating: 0.7 * AshSky.baseGlow(player.pos.x, player.pos.z)))   // (P458)
+        }
         if !dim.dim.hasSky { return dim.dim.fogColor }
         let day = V3(0.64, 0.77, 0.92), night = V3(0.015, 0.02, 0.06)   // AV polish: a paler hazy horizon
         var c = simd_mix(night, day, V3(repeating: (daylight - 0.12) / 0.88))
@@ -812,7 +815,7 @@ final class Game {
 
     // Colour straight up for the Fancy sky gradient: a deeper blue than the horizon by day, near black at night.
     var skyZenith: V3 {
-        if inVaultHaze { return AshSky.zenith }
+        if inVaultHaze { return simd_mix(AshSky.zenith, AshSky.baseHaze * 0.7, V3(repeating: 0.6 * AshSky.baseGlow(player.pos.x, player.pos.z))) }
         if inHellSky { return HellSky.zenith(skyColor) }           // P342 (b)
         let c = skyColor
         // A hazy biome (desert) washes the zenith toward the horizon; a cold one keeps it deep.
