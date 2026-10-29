@@ -31,6 +31,24 @@ enum MusicTakesCheck {
         check(soon && Set(caves).count >= 8, "musictakes: caves' takes come round without one again within five plays (\(Set(caves).count) of 9 in 20): \(caves.prefix(6).joined(separator: " "))")
         let noGain = files.filter { SoundtrackGains.table[$0] == nil }.sorted()
         check(noGain.isEmpty, "musictakes: every take has its loudness gain (missing \(noGain.count): \(noGain.prefix(4)))")
+        // P456: every vessel he can drive or ride has its music: the crawler shares the frigate's, planes fly to the flight
+        // theme, and boats, trucks and balloons leave the land or sea's own.
+        func craft(_ role: String?, _ setup: (Ship) -> Void = { _ in }) -> String {
+            let s = Ship(id: -1, grid: ShipGrid(sx: 1, sy: 1, sz: 1))
+            s.role = role
+            setup(s)
+            return Soundtrack.vehicle(s) ?? "-"
+        }
+        let crafts = ["crawler": craft("crawler") { $0.wheels = [V3(0, 0, 0)] }, "carriage": craft("carriage"),
+                      "capfrigate": craft("capfrigate") { $0.kinematic = true }, "frigate": craft("frigate"),
+                      "ashtankb": craft("ashtankb") { $0.wheels = [V3(0, 0, 0)] }, "dropship": craft("dropship") { $0.kinematic = true },
+                      "plane": craft(nil) { $0.wings = [V3(0, 0, 0)] }, "heli": craft(nil) { $0.rotors = [V3(0, 0, 0)] },
+                      "sub": craft(nil) { $0.ballast = 2 }, "boat": craft(nil), "truck": craft("ashtruck") { $0.wheels = [V3(0, 0, 0)] },
+                      "balloon": craft(nil) { $0.balloons = 1 }]
+        let wantCraft = ["crawler": "frigate_command", "carriage": "frigate_command", "capfrigate": "frigate_command",
+                         "frigate": "frigate_command", "ashtankb": "frigate_command", "dropship": "drop_ship_flight",
+                         "plane": "drop_ship_flight", "heli": "helicopter", "sub": "submarine", "boat": "-", "truck": "-", "balloon": "-"]
+        check(crafts == wantCraft, "musictakes: each craft's music \(crafts.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" })")
         // P474: Creative plays more than its own three takes over an hour (on the surface, nothing near).
         let surv = g.survival, clk = g.clock
         g.survival = false

@@ -1498,6 +1498,12 @@ enum Snapshot {
             // Voice bug notes pipeline with a synthesized voice (BugNotes.selfTest).
             BugNotes.selfTest(game) { url in _ = renderer.renderToPNG(path: url.path, width: 640, height: 400) }
         }
+        if CommandLine.arguments.contains("--musictakes") {
+            // The soundtrack's files, takes and states (questcheck --musictakes on the Mac).
+            var failed = 0
+            MusicTakesCheck.run(game) { ok, what in print((ok ? "ok   " : "FAIL ") + what); if !ok { failed += 1 } }
+            print(failed == 0 ? "musictakes: all checks passed" : "musictakes: \(failed) FAILED"); exit(failed == 0 ? 0 : 1)
+        }
         if CommandLine.arguments.contains("--boom") {
             // An explosion 9 blocks ahead (no block damage): flash light, smoke and debris mid-burst.
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))

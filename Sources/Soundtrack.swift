@@ -45,6 +45,22 @@ enum Soundtrack {
               tail.filter({ $0.isLetter }).count <= 1 else { return file }
         return String(file[..<u])
     }
+    // The music of a craft he drives or rides; nil plays the land or sea around him (boats, trucks, cars, balloons).
+    // P456 (Oct 29 13:59, "for the crawler I think we can just use another song used for something similar"): the
+    // capital vessels (the crawler and siege carriage on land, the frigates at sea and in the air) and the armour he
+    // takes (Cinder tanks, half-tracks) share the frigate's command theme; any plane or drop craft has the flight theme.
+    static func vehicle(_ s: Ship) -> String? {
+        let role = s.role ?? ""
+        if ["capfrigate", "warfrigate", "frigate", "crawler", "carriage"].contains(role)
+            || role.hasPrefix("ashtank") || role.hasPrefix("ashhalftrack") { return "frigate_command" }
+        if s.ballast > 0 { return "submarine" }
+        switch VehicleControls.kind(s) {
+        case .helicopter: return "helicopter"
+        case .vtol, .aircraft: return "drop_ship_flight"
+        case .warship: return "frigate_command"
+        case .boat, .land, .airship: return role == "dropship" ? "drop_ship_flight" : nil
+        }
+    }
     static func takes(_ state: String, in names: Set<String>) -> [String] {
         names.filter { Soundtrack.state(of: $0) == state }.sorted()
     }
@@ -116,16 +132,12 @@ extension Game {
         if raid != nil || FactionRaids.active != nil { return "raid_incoming" }
         if audio.combat >= 2 || (danger && clock - lastHurtAt < 6) { return "combat" }
         // Vehicles: the craft at the player's helm, or the train under them.
-        if let s = world.ships.pilot?.root {
-            let role = s.role ?? ""
-            if role == "capfrigate" || role == "warfrigate" || role == "frigate" { return "frigate_command" }
-            if role == "dropship" { return "drop_ship_flight" }
-            if s.ballast > 0 { return "submarine" }
-            if VehicleControls.kind(s) == .helicopter { return "helicopter" }
-        }
+        if let s = world.ships.pilot?.root, let v = Soundtrack.vehicle(s) { return v }
         if let r = riding, Trains.trains.values.contains(where: { $0.cars.contains { $0 === r } }) { return "trains_and_railways" }
         if music.soundtrack.place == "military_base" && audio.combat == 1 { return "military_base_infiltration" }
         if danger || audio.combat == 1 { return "danger_nearby" }
+        // Aboard as a passenger or crew (a dropship's hold, a frigate's deck): the craft's music once nothing threatens.
+        if let s = world.ships.aboard?.root, let v = Soundtrack.vehicle(s) { return v }
         switch dim.dim {
         case .nether: return "emberdeep"
         case .end:
