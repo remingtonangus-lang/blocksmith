@@ -430,3 +430,42 @@ extension FrigateCheck {
         g.health = 20; g.alive = true; g.player.pos = home
     }
 }
+
+// P476 (Oct 27, "I wanted to figure out how to repair it. I should be able to go to the helm and figure out how";
+// questcheck --frigaterepair): a Meridian frigate he has taken, her barrel blown away and a hole in her side; ingots
+// used at her helm put the barrel back first (the gun works again), then the side.
+extension FrigateCheck {
+    static func repair(_ g: Game, _ check: (Bool, String) -> Void) {
+        let w = g.world, home = g.player.pos
+        let n0 = w.ships.list.count
+        w.ships.spawnCapital("capfrigate", home: IVec3(Int(floor(home.x)), 0, Int(floor(home.z)) + 120), yaw: 0, region: nil, sync: true)
+        guard let s = w.ships.list.dropFirst(n0).first(where: { $0.role == "capfrigate" }), let st = w.ships.capState[s.id], let helm = s.helm else {
+            check(false, "frigaterepair: the Meridian frigate spawns"); return
+        }
+        s.captured = true
+        w.ships.requestBlueprint(s, st)
+        let t0 = CFAbsoluteTimeGetCurrent()
+        while w.ships.hullShare(s, st) == nil && CFAbsoluteTimeGetCurrent() - t0 < 20 { usleep(20_000) }
+        let drawn = CFAbsoluteTimeGetCurrent() - t0
+        let whole = w.ships.hullShare(s, st) ?? 0
+        // The barrel blown away just behind the muzzle, and a hole in the port side amidships.
+        let md = simd_normalize(st.mainGunDir)
+        let had = s.blockCount
+        w.ships.blast(at: s.toWorld(st.mainGunMuzzle - md * 6), power: 12, game: nil)
+        w.ships.blast(at: s.toWorld(V3(1, 14, 80)), power: 8, game: nil)
+        if Capital.barrelTorn(s, st) { st.mainGunCD = .greatestFiniteMagnitude }
+        let out = st.mainGunCD >= 1e30, lost = had - s.blockCount, hurt = w.ships.hullShare(s, st) ?? 0
+        var ingots = 0, gunAt = -1
+        var last = ""
+        while ingots < 200 {
+            guard let msg = w.ships.repairVehicle(s, near: helm) else { break }
+            ingots += 1; last = msg
+            if gunAt < 0 && st.mainGunCD < 1e30 { gunAt = ingots }
+        }
+        print(String(format: "frigaterepair: plans drawn in %.2f s (hull %.0f%%), blasts took %d blocks (hull %.0f%%, gun %@), %d ingots: gun back after %d, hull %.0f%%, last: %@",
+                     drawn, whole * 100, lost, hurt * 100, out ? "out" : "whole", ingots, gunAt, (w.ships.hullShare(s, st) ?? 0) * 100, last))
+        check(whole > 0.99 && out && gunAt > 0 && s.blockCount >= had && !Capital.barrelTorn(s, st),
+              "frigaterepair: ingots at the helm put the torn barrel back first (gun working after \(gunAt) of \(ingots)) and the hull back whole (\(s.blockCount) of \(had) blocks)")
+        w.ships.remove(s); w.ships.capState.removeValue(forKey: s.id)
+    }
+}

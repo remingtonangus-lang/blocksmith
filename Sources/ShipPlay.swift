@@ -220,6 +220,10 @@ extension Game {
         if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
         if guns > 0, let sight = tankSightHUD(s) { t += sight }                 // D42
         if guns > 0, s.root.kinematic, let st = world.ships.capState[s.root.id], st.rounds >= 0 { t += "  rounds \(st.rounds)" }   // P483
+        // P476: a warship he took shows how much of her hull is left once it is under 100%.
+        if s.root.kinematic, s.root.captured, let st = world.ships.capState[s.root.id], let k = world.ships.hullShare(s.root, st), k < 0.995 {
+            t += String(format: "  hull %d%%", Int((k * 100).rounded(.down)))
+        }
         if let f = VehicleDepot.hud(s) { t += f }                                  // D44
         if s.root.role == "dropship", let st = world.ships.capState[s.root.id] {   // P461
             t += String(format: "  fuel %d%%", Int((st.fuel / CapitalState.dropFuel * 100).rounded()))
