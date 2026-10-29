@@ -117,6 +117,7 @@ enum AshWrecks {
     private static var skinOrigin: [Int: V3] = [:]      // ship space of the model's origin (hull centre line, wheels)
     static var skinsOff = ProcessInfo.processInfo.environment["BS_FIGHTERBLOCKS"] != nil     // (looks work: the blocks)
     static var skinMobs: [Mob] = []
+    static func skin(_ s: Ship) -> Mob? { skins[s.id] }
     // A hull drawn as a model (its blocks hidden): its broken-off pieces are debris, not hulls (P473).
     static func skinned(_ s: Ship) -> Bool { (s.name == fighterName || AshCommandeer.smallHull(s)) && s.parent == nil && !skinsOff }
     // P461 (Oct 25 16:48, the sidecar motorcycle: "we need a completely new design for the motorcycle. It needs to look
@@ -127,13 +128,16 @@ enum AshWrecks {
         var out: [Mob] = []
         for s in w.ships.list where (s.name == fighterName || AshCommandeer.smallHull(s)) && s.parent == nil {
             let bike = s.name == AshCommandeer.sidecarName, truck = s.name == AshCommandeer.truckName, tank = s.name == AshCommandeer.tankName
+            let half = s.name == AshCommandeer.halftrackName
             if skinOrigin[s.id] == nil, let h = s.helm {
                 // The helm stands at (0, 2, -3) of salvagedFighter's plan and at (0, 1, 1) of the sidecar's; the
                 // model's origin is the plan's (0, 0, 0) cell, centred. P449: the truck's helm at (0, 1, -2) of its
                 // plan, whose six blocks run z -3...2; the model's middle is 0.4 ahead of its origin.
                 // The tank's helm at (0, 1, 1) of its plan, whose six blocks run z -3...2; the model's middle is 2/16
                 // ahead of its origin.
+                // The half-track's at (0, 1, -2) of a plan the same length; its model's middle is 5/16 ahead of its origin.
                 skinOrigin[s.id] = tank ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) - 0.875)
+                                 : half ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) + 2.3125)
                                  : truck ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) + 2.4)
                                  : bike ? V3(Float(h.x) + 0.5, Float(h.y) - 1, Float(h.z) - 0.5)
                                         : V3(Float(h.x) + 0.5, Float(h.y) - 2, Float(h.z) + 3.5)
@@ -143,9 +147,10 @@ enum AshWrecks {
             s.hidden = true
             for t in turrets { t.hidden = true }                     // (the model's turret and gun follow it)
             let m: Mob
-            if let have = skins[s.id] { m = have } else if tank {
-                // P449: his Cinder Tank, in the paint it was taken in (its role: "ashtank", "b" Boreal); no crew showing.
-                m = Mob(.ashTank, at: s.pos)
+            if let have = skins[s.id] { m = have } else if tank || half {
+                // P449: his Cinder Tank or Half-track, in the paint it was taken in (its role: "ashtank" or "ashhalftrack",
+                // "b" Boreal); no crew showing.
+                m = Mob(tank ? .ashTank : .ashHalftrack, at: s.pos)
                 m.faction = (s.role ?? "").hasSuffix("b") ? Faction.steelhold.rawValue : Faction.ashguard.rawValue
                 m.wreck = 7
                 m.health = 1
@@ -190,6 +195,17 @@ enum AshWrecks {
                     m.soldierBrain.turret = atan2f(-f.x, -f.z)
                     m.soldierBrain.pitch = max(-0.14, min(0.35, t.gunPitch))
                 }
+                let along = simd_dot(s.vel, s.dirToWorld(V3(0, 0, -1)))
+                m.wheelRoll = (m.wheelRoll + along * dt / (6.0 / 16)).truncatingRemainder(dividingBy: 2 * .pi)
+            } else if half {
+                // The pintle gun comes round to his look at its traverse (2.6 a second), the wheels turn as it rolls.
+                let b = m.soldierBrain
+                let aim = AshCommandeer.gunAim[s.id] ?? (yaw, 0)
+                var d = aim.yaw - b.turret
+                while d > .pi { d -= 2 * .pi }
+                while d < -.pi { d += 2 * .pi }
+                b.turret += max(-2.6 * dt, min(2.6 * dt, d))
+                b.pitch += max(-1.2 * dt, min(1.2 * dt, aim.pitch - b.pitch))
                 let along = simd_dot(s.vel, s.dirToWorld(V3(0, 0, -1)))
                 m.wheelRoll = (m.wheelRoll + along * dt / (6.0 / 16)).truncatingRemainder(dividingBy: 2 * .pi)
             } else if truck {

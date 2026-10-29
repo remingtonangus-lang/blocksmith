@@ -40,7 +40,8 @@ enum AshCommandeer {
     static let truckName = "Army Truck"
     static var truckHulls = true                  // (the --ashdrive check's mob-truck leg turns it off)
     static var hulled = 0
-    static func smallHull(_ s: Ship) -> Bool { s.name == sidecarName || s.name == truckName || s.name == tankName }
+    static func smallHull(_ s: Ship) -> Bool { s.name == sidecarName || s.name == truckName || s.name == tankName || s.name == halftrackName }
+    static func ashHull(_ s: Ship) -> Bool { s.name == truckName || s.name == tankName || s.name == halftrackName }
     static func truckRole(_ m: Mob) -> String { "ashtruck\(max(0, min(2, m.variant)))" + (m.boreal ? "b" : "") }
 
     // Front toward -Z: wheels at three axles either side, the bonnet with the engine, the cab (helm at its front, his
@@ -89,6 +90,32 @@ enum AshCommandeer {
         return b
     }
 
+    // P449: the Half-track the same way: wheels at the front, track links behind, a plate floor and side plates, the
+    // helm in the cab (his seat behind it); its pintle gun is the model's, following his look, firing while RT is held.
+    static let halftrackName = "Half-track"
+    static var halftrackHulls = true              // (the --ashdrive check's seat leg turns it off)
+    static func halftrackRole(_ m: Mob) -> String { "ashhalftrack" + (m.boreal ? "b" : "") }
+    static var gunAim: [Int: (yaw: Float, pitch: Float)] = [:]       // his look at a half-track hull's helm (world yaw)
+    static var gunCool: Float = 0
+    static func halftrackHull() -> Blueprint {
+        let b = Blueprint()
+        let plate = "polished_blackstone"
+        for x in [-1, 1] { b.set(x, 0, -2, "ship_wheel"); for z in 0...2 { b.set(x, 0, z, "ship_track") } }
+        b.box(-1, 1, 1, 1, -3, 2, plate)
+        b.set(0, 1, -3, "ship_engine")
+        b.set(0, 1, -2, "ship_helm[south]")
+        b.clear(0, 1, -1)
+        for x in [-1, 1] { for z in -2...2 { b.set(x, 2, z, plate) } }       // the side plates
+        return b
+    }
+    // Top speed of his hull, blocks a second: the tank and half-track cruise and sprint as from their seats (P435);
+    // nil for the rest (the wheeled hulls' 16).
+    static func hullTop(_ s: Ship) -> Float? {
+        if s.name == tankName { return s.boost ? tankTop : tankCruise }
+        if s.name == halftrackName { return s.boost ? 13 : 8 }
+        return nil
+    }
+
     static func takeable(_ k: MobKind) -> Bool { k == .ashTank || k == .ashHalftrack || k == .ashTruck || k == .ashArtillery }
     static func crew(_ k: MobKind) -> Int { k == .ashTank ? 3 : (k == .ashHalftrack || k == .ashArtillery ? 2 : 1) }
 
@@ -126,6 +153,9 @@ extension Game {
         if !m.tamed { ashEmpty(m) }
         if m.kind == .ashTruck && AshCommandeer.truckHulls { return ashHull(m, AshCommandeer.truckHull(), AshCommandeer.truckName, AshCommandeer.truckRole(m)) }
         if m.kind == .ashTank && AshCommandeer.tankHulls { return ashHull(m, AshCommandeer.tankHull(), AshCommandeer.tankName, AshCommandeer.tankRole(m)) }
+        if m.kind == .ashHalftrack && AshCommandeer.halftrackHulls {
+            return ashHull(m, AshCommandeer.halftrackHull(), AshCommandeer.halftrackName, AshCommandeer.halftrackRole(m))
+        }
         AshSeat.shared.enter(self, m)
         return true
     }
@@ -172,7 +202,25 @@ extension Game {
         let speed = simd_dot(s.vel, fwd)
         let feet = V3(s.pos.x, s.worldMin.y, s.pos.z)
         let tank = s.name == AshCommandeer.tankName
-        ashRunOver(at: feet, forward: V3(fwd.x, 0, fwd.z), halfW: tank ? 1.7 : 1.4, reach: tank ? 4.0 : 4.2, heavy: tank, speed: speed, except: nil)
+        ashRunOver(at: feet, forward: V3(fwd.x, 0, fwd.z), halfW: tank ? 1.7 : (s.name == AshCommandeer.halftrackName ? 1.3 : 1.4), reach: tank ? 4.0 : 4.2,
+                   heavy: tank, speed: speed, except: nil)
+    }
+
+    // P449: the half-track hull's pintle gun at his helm: it follows his look (AshWrecks.syncSkins lays the model's gun
+    // at its traverse rate) and fires his rounds from its muzzle while the trigger is held, as from its gunner's seat.
+    func ashHalftrackGun(_ s: Ship, _ dt: Float) {
+        AshCommandeer.gunAim[s.id] = (player.yaw, max(-0.4, min(0.6, player.pitch)))
+        AshCommandeer.gunCool -= dt
+        let held = input.leftDown || (seatPad?.rt ?? 0) > 0.5
+        guard held, AshCommandeer.gunCool <= 0, let m = AshWrecks.skin(s), let b = m.brain else { return }
+        AshCommandeer.gunCool = 0.1
+        let fwd = V3(-sinf(b.turret) * cosf(b.pitch), sinf(b.pitch), -cosf(b.turret) * cosf(b.pitch))
+        let pivot = m.pos + V3(0, 30.0 / 16, 0) + V3(-sinf(m.yaw), 0, -cosf(m.yaw)) * (12.0 / 16)
+        let from = pivot + fwd * 1.3
+        arms.spawn(Slug(pos: from, vel: Guns.scatter(fwd, 0.012) * 150, kind: .bullet, damage: 5, fromPlayer: true,
+                        shooter: ObjectIdentifier(m), by: "Player", life: 0.6, gravity: 1.5))
+        sfx(.gun(Guns.rifle), 0.9, at: from)
+        AshSeat.shots += 1
     }
 
     // P464 (Oct 25 19:33, "should be able to run people over with it"): the vehicle he drives runs down whoever stands
@@ -435,7 +483,8 @@ enum AshDriveCheck {
             var a = AgentAction(); a.forward = forward; a.strafe = strafe; a.jump = jump; a.sneak = sneak; a.attack = attack; a.sprint = sprint; return a
         }
         // Takes one, drives it 6 s ahead and 2 s turning (unless a field gun), fires its gun, climbs out.
-        AshCommandeer.tankHulls = false                   // (the tank from its seat here; as a hull of blocks below, P449)
+        AshCommandeer.tankHulls = false                   // (the tank and half-track from their seats here; as hulls of blocks below, P449)
+        AshCommandeer.halftrackHulls = false
         for kind in [MobKind.ashTank, .ashHalftrack, .ashArtillery] {                // (the truck: below, P449)
             let v = Mob(kind, at: ground(x, z + 6))
             v.ashSetup()
@@ -493,6 +542,14 @@ enum AshDriveCheck {
             game.mobs.mobs.removeAll { $0 === v }
         }
         AshCommandeer.tankHulls = true
+        AshCommandeer.halftrackHulls = true
+        // P449: a hull's model sits on it: its feet on the hull's lowest blocks, its middle over the hull's (within a
+        // block's length: each model's own length differs a little from its plan's).
+        func sits(_ h: Ship, _ m: Mob?, _ name: String) {
+            let c = (h.worldMin + h.worldMax) * 0.5
+            let off = m.map { simd_length(V2($0.pos.x - c.x, $0.pos.z - c.z)) } ?? 99, up = m.map { $0.pos.y - h.worldMin.y } ?? 99
+            check(off < 0.6 && abs(up) < 0.35, String(format: "\(name): the model sits on its hull (%.2f off its middle, feet %.2f over its lowest blocks)", off, up))
+        }
         // P449: a truck he takes becomes a hull of blocks under the truck's model, driven from its helm: it drives and
         // turns on its wheels, runs a soldier down and, sneaking, he gets down beside it and it stands parked.
         do {
@@ -514,6 +571,7 @@ enum AshDriveCheck {
             run(10, act())
             let skin = AshWrecks.skinMobs.first { $0.kind == .ashTruck && $0.wreck == 7 }
             check(skin != nil && hull?.hidden == true, "Army Truck: drawn as the truck over its hidden hull")
+            if let h = hull { sits(h, skin, "Army Truck") }
             if let h = hull {
                 // (a sidecar the truck parked beside itself, before he took it, stood in the way of backing up: 1 run in 3)
                 let parked = game.world.ships.list.filter { $0 !== h && $0.parent == nil && simd_length($0.pos - h.pos) < 24 }
@@ -596,6 +654,7 @@ enum AshDriveCheck {
             run(10, act())
             let skin = AshWrecks.skinMobs.first { $0.kind == .ashTank && $0.wreck == 7 }
             check(skin != nil && hull?.hidden == true && tur.allSatisfy { $0.hidden }, "Cinder Tank: drawn as the tank over its hidden hull and turret")
+            if let h = hull { sits(h, skin, "Cinder Tank") }
             if let h = hull, let t = tur.first {
                 func wrap(_ a: Float) -> Float { var a = a; while a > .pi { a -= 2 * .pi }; while a < -.pi { a += 2 * .pi }; return a }
                 func heading() -> Float { let f = h.dirToWorld(V3(0, 0, -1)); return atan2f(-f.x, -f.z) }
@@ -637,6 +696,51 @@ enum AshDriveCheck {
                 run(120, act())
                 check(game.world.ships.pilot == nil && game.world.ships.aboard == nil && simd_length(V2(h.pos.x - q1.x, h.pos.z - q1.z)) < 0.5,
                       "Cinder Tank: sneaking he gets down beside it; it stands parked")
+                world.ships.remove(h)
+            }
+        }
+        // P449: a half-track he takes becomes a hull of blocks under its model the same way: it drives, its pintle gun
+        // comes round to his look and fires while the trigger is held (his rounds pass its own plates), and he gets down.
+        do {
+            layYard()
+            let v = Mob(.ashHalftrack, at: ground(x, z + 6))
+            v.ashSetup()
+            v.yaw = 0
+            v.persistent = true
+            game.mobs.mobs.append(v)
+            game.player.pos = ground(x - 5, z + 6)
+            run(5, act())
+            let took = game.ashCommandeer(v)
+            let hull = game.world.ships.pilot
+            check(took && hull?.name == AshCommandeer.halftrackName && !game.mobs.mobs.contains { $0 === v },
+                  "Half-track: taken, it is a hull of \(hull?.blockCount ?? 0) blocks at his helm")
+            game.mobs.mobs.removeAll { $0.faction == Faction.ashguard.rawValue && !$0.kind.ashVehicle }
+            for o in game.world.ships.list where o.root !== hull && o.parent == nil && hull.map({ simd_length(o.pos - $0.pos) < 24 }) == true { game.world.ships.remove(o) }
+            run(10, act())
+            let skin = AshWrecks.skinMobs.first { $0.kind == .ashHalftrack && $0.wreck == 7 }
+            check(skin != nil && hull?.hidden == true, "Half-track: drawn as the half-track over its hidden hull")
+            if let h = hull {
+                sits(h, skin, "Half-track")
+                func wrap(_ a: Float) -> Float { var a = a; while a > .pi { a -= 2 * .pi }; while a < -.pi { a += 2 * .pi }; return a }
+                func heading() -> Float { let f = h.dirToWorld(V3(0, 0, -1)); return atan2f(-f.x, -f.z) }
+                let p0 = h.pos
+                run(240, act(forward: 1))
+                let moved = simd_length(V2(h.pos.x - p0.x, h.pos.z - p0.z))
+                check(moved > 6, String(format: "Half-track: drives, %.1f blocks in 4 s", moved))
+                run(150, act())
+                game.player.yaw = heading() + 1.2
+                game.player.pitch = 0.05
+                run(90, act())
+                let gun = skin?.brain?.turret ?? 9
+                check(abs(wrap(gun - game.player.yaw)) < 0.1, String(format: "Half-track: its gun comes round to his look (%.0f degrees off)", abs(wrap(gun - game.player.yaw)) * 180 / .pi))
+                let s0 = AshSeat.shots, slugs0 = game.arms.slugs.count, b0 = h.blockCount
+                run(30, act(attack: true))
+                check(AshSeat.shots - s0 >= 3 && game.arms.slugs.count > slugs0 && h.blockCount == b0,
+                      "Half-track: held, the trigger fires its gun (\(AshSeat.shots - s0) rounds in 0.5 s; its own plates \(b0) -> \(h.blockCount))")
+                run(2, act(sneak: true))
+                let q1 = h.pos
+                run(120, act())
+                check(game.world.ships.pilot == nil && simd_length(V2(h.pos.x - q1.x, h.pos.z - q1.z)) < 0.5, "Half-track: sneaking he gets down beside it; it stands parked")
                 world.ships.remove(h)
             }
         }

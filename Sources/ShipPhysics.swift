@@ -612,9 +612,9 @@ extension ShipManager {
             let car = s.blockCount < 40 && s.name != Felling.name       // (the sidecar, his Army Truck)
             // P477 (Oct 27 19:24, the Scout Buggy: "needs to go faster"): a light hull with engines to spare runs faster
             // than the 16 b/s every wheeled hull topped out at, up to 35 b/s (by engines per block).
-            // (P449: his Cinder Tank cruises at 6 and sprints at 10.5, as from its seat)
+            // (P449: his Cinder Tank and Half-track cruise and sprint as from their seats)
             let tank = s.name == AshCommandeer.tankName
-            let topSpeed: Float = car ? (tank ? (s.boost ? AshCommandeer.tankTop : AshCommandeer.tankCruise) : 16) : 16 * max(1, min(2.2, Float(s.engines * 120) / Float(max(1, s.blockCount))))
+            let topSpeed: Float = car ? (AshCommandeer.hullTop(s) ?? 16) : 16 * max(1, min(2.2, Float(s.engines * 120) / Float(max(1, s.blockCount))))
             if s.id == ShipManager.probeId { ShipManager.probeWheels.removeAll() }
             for p in s.wheels {
                 let wp = s.toWorld(p)

@@ -270,7 +270,7 @@ extension Game {
         // Teleported, respawned or knocked away: no longer at the helm.
         if simd_length(at - player.pos) > 4 { leaveHelm(); return false }
         if mi.sneak { leaveHelm(); return false }
-        let ashHull = s.name == AshCommandeer.truckName || s.name == AshCommandeer.tankName
+        let ashHull = AshCommandeer.ashHull(s)
         if ashHull { ashRunOverHull(s) }                                  // P449: his truck or tank runs people down
         s.piloted = true
         // Per-vehicle keyboard / controller layout (VehicleControls.swift).
@@ -301,6 +301,7 @@ extension Game {
         s.steer = c.steer
         s.climb = c.climb
         if ashHull { (s.throttle, s.steer) = ashLookDrive(s, mi) }        // P449: the way he looks, as before
+        if s.name == AshCommandeer.halftrackName { ashHalftrackGun(s, dt) }   // P449: its pintle gun on his look
         VehicleDepot.burn(self, s, dt)                                    // D44: land vehicles burn fuel
         if let fm = s.flight { fm.playerInput(self, s, mi, dt) }          // helicopter controls (FlightModel.swift)
         // Turrets follow the view; barrels rise with it.
