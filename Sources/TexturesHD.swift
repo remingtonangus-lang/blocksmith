@@ -2044,297 +2044,299 @@ enum HDTex {
     static let cobbleGen: Gen = cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838)
     static let machineStone: Gen = stone([(0, 0x46464A), (0.5, 0x5C5C60), (1, 0x727276)], veins: 0.1, strata: 0)
     static let observerShell: Gen = stone([(0, 0x8C9CA6), (0.5, 0xA2B2BC), (1, 0xB6C4CC)], veins: 0, strata: 0)     // P463
-    static func sparkFace(_ kind: String) -> Gen {
-        { (n: Int, s: Int) -> Img in
-            let fn = Float(n), u = n / 16
-            let fine = vnoise(n, max(1, n / 64), s &+ 2)
-            func put(_ img: inout Img, _ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
-            func rod(_ img: inout Img, _ x0: Int, _ x1: Int, _ y0: Int, _ y1: Int) {
-                for y in y0..<y1 { for x in x0..<x1 {
-                    let across: Float = (Float(x - x0) + 0.5) / Float(x1 - x0)
-                    let k: Float = 1.2 - 0.6 * abs(across - 0.35)
-                    put(&img, x, y, V3(0.72, 0.72, 0.74) * (k * (0.94 + 0.08 * fine[y * n + x])))
-                } }
-            }
-            func hole(_ img: inout Img, _ inside: (Float, Float) -> Bool) {
-                for y in 0..<n { for x in 0..<n {
+    static func sparkFace(_ kind: String) -> Gen { { n, s in sparkFacePaint(kind, n, s) } }
+    // The body is a function, not the closure: the CI compiler (Swift 6.0.3) gave up type-checking it as one expression.
+    static func sparkFacePaint(_ kind: String, _ n: Int, _ s: Int) -> Img {
+        let fn = Float(n), u = n / 16
+        let fine = vnoise(n, max(1, n / 64), s &+ 2)
+        func put(_ img: inout Img, _ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
+        func rod(_ img: inout Img, _ x0: Int, _ x1: Int, _ y0: Int, _ y1: Int) {
+            for y in y0..<y1 { for x in x0..<x1 {
+                let across: Float = (Float(x - x0) + 0.5) / Float(x1 - x0)
+                let k: Float = 1.2 - 0.6 * abs(across - 0.35)
+                put(&img, x, y, V3(0.72, 0.72, 0.74) * (k * (0.94 + 0.08 * fine[y * n + x])))
+            } }
+        }
+        func hole(_ img: inout Img, _ inside: (Float, Float) -> Bool) {
+            for y in 0..<n { for x in 0..<n {
+                let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                guard inside(dx, dy) else { continue }
+                let rim: Bool = inside(dx + Float(u) * 0.6, dy + Float(u) * 0.6) == false
+                let k: Float = rim ? 0.32 : 0.12
+                put(&img, x, y, V3(k, k, k * 1.05) * (0.85 + 0.3 * fine[y * n + x]))
+            } }
+        }
+        // P442 (Oct 24 20:53-20:54: "the dispenser... it's literally just a fucking stone wall"; "the dropper's fucked
+        // also"; "Piston's fucked too"): the copper-circuit machines share one casing, dark machine stone in a riveted
+        // copper frame lit from above (the dispenser and dropper wore the furnace's stone bricks; the imported art
+        // drew the piston's face as a crate). A hatch on top; the mouths set in the casing with copper rims.
+        func casing(frame: Bool = true, hatch: Bool = false) -> Img {
+            var img = polished(machineStone, calm: 0.45, rim: 0)(n, s)
+            let fu = Float(u)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let fk: Float = 0.9 + 0.2 * fine[i]
+                let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                if frame && edge < u {
+                    let k: Float = y < u && edge == y ? 1.18 : (y >= n - u && edge == n - 1 - y ? 0.74 : (x < u ? 1.02 : 0.86))
+                    put(&img, x, y, col(0xB87333) * (k * fk))
+                    continue
+                }
+                if frame && edge == u { let c = img[x, y]; img[x, y] = V4(c.x * 0.55, c.y * 0.55, c.z * 0.55, 1); continue }
+                // Rivets inside the frame's corners.
+                let rx = min(abs(Float(x) + 0.5 - 2.5 * fu), abs(Float(x) + 0.5 - (Float(n) - 2.5 * fu)))
+                let ry = min(abs(Float(y) + 0.5 - 2.5 * fu), abs(Float(y) + 0.5 - (Float(n) - 2.5 * fu)))
+                if frame && rx * rx + ry * ry < 0.55 * fu * fu {
+                    let cy: Float = Float(y) < fn / 2 ? 2.5 * fu : fn - 2.5 * fu
+                    let hi: Float = Float(y) + 0.5 < cy ? 1.25 : 0.85
+                    put(&img, x, y, col(0xC8884A) * (hi * fk))
+                    continue
+                }
+                if hatch {
+                    let hx = abs(Float(x) + 0.5 - fn / 2), hy = abs(Float(y) + 0.5 - fn / 2)
+                    let he = 3.2 * fu - max(hx, hy)
+                    if he >= 0 && he < 0.45 * fu { let c = img[x, y]; img[x, y] = V4(c.x * 0.45, c.y * 0.45, c.z * 0.45, 1) }   // the seam
+                    else if hy < 0.5 * fu && hx < 1.6 * fu { put(&img, x, y, col(0xB87333) * ((Float(y) + 0.5 < fn / 2 ? 1.2 : 0.8) * fk)) }
+                }
+            } }
+            return img
+        }
+        // A mouth: dark inside, a copper rim lit on its lower edge (the light falls into it from above).
+        func mouth(_ img: inout Img, square: Bool, r: Float) {
+            let fu = Float(u)
+            for y in 0..<n { for x in 0..<n {
+                let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                let d: Float = square ? max(abs(dx), abs(dy)) : (dx * dx + dy * dy).squareRoot()
+                let fk: Float = 0.9 + 0.2 * fine[y * n + x]
+                if d < r * fu {
+                    let depth: Float = cl(1 - d / (r * fu))
+                    let lift: Float = dy > 0 ? 0.04 * cl(dy / (r * fu)) : 0
+                    let k: Float = 0.16 - 0.09 * depth + lift
+                    put(&img, x, y, V3(k, k * 0.97, k * 0.95) * fk)
+                } else if d < (r + 0.9) * fu {
+                    let k: Float = dy < 0 ? 0.82 : 1.18
+                    put(&img, x, y, col(0xB87333) * (k * fk))
+                } else if d < (r + 1.2) * fu {
+                    put(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
+                }
+            } }
+        }
+        switch kind {
+        case "machine_casing":
+            return casing()
+        case "machine_casing_top":
+            return casing(hatch: true)
+        case "piston_top", "piston_top_sticky":
+            var img = planks(oakPlank)(n, s)
+            let rimImg = polished(machineStone, calm: 0.5, rim: 0)(n, s &+ 1)
+            for y in 0..<n { for x in 0..<n {
+                let edge: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                if edge < 2 * u {
+                    var c = rimImg[x, y]
+                    if edge == 2 * u - 1 { c = V4(c.x * 0.6, c.y * 0.6, c.z * 0.6, 1) }
+                    img[x, y] = c
+                }
+                if kind == "piston_top_sticky" && edge >= 4 * u {
                     let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
-                    guard inside(dx, dy) else { continue }
-                    let rim: Bool = inside(dx + Float(u) * 0.6, dy + Float(u) * 0.6) == false
-                    let k: Float = rim ? 0.32 : 0.12
-                    put(&img, x, y, V3(k, k, k * 1.05) * (0.85 + 0.3 * fine[y * n + x]))
-                } }
-            }
-            // P442 (Oct 24 20:53-20:54: "the dispenser... it's literally just a fucking stone wall"; "the dropper's fucked
-            // also"; "Piston's fucked too"): the copper-circuit machines share one casing, dark machine stone in a riveted
-            // copper frame lit from above (the dispenser and dropper wore the furnace's stone bricks; the imported art
-            // drew the piston's face as a crate). A hatch on top; the mouths set in the casing with copper rims.
-            func casing(frame: Bool = true, hatch: Bool = false) -> Img {
-                var img = polished(machineStone, calm: 0.45, rim: 0)(n, s)
-                let fu = Float(u)
-                for y in 0..<n { for x in 0..<n {
-                    let i = y * n + x
-                    let fk: Float = 0.9 + 0.2 * fine[i]
-                    let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
-                    if frame && edge < u {
-                        let k: Float = y < u && edge == y ? 1.18 : (y >= n - u && edge == n - 1 - y ? 0.74 : (x < u ? 1.02 : 0.86))
-                        put(&img, x, y, col(0xB87333) * (k * fk))
-                        continue
-                    }
-                    if frame && edge == u { let c = img[x, y]; img[x, y] = V4(c.x * 0.55, c.y * 0.55, c.z * 0.55, 1); continue }
-                    // Rivets inside the frame's corners.
-                    let rx = min(abs(Float(x) + 0.5 - 2.5 * fu), abs(Float(x) + 0.5 - (Float(n) - 2.5 * fu)))
-                    let ry = min(abs(Float(y) + 0.5 - 2.5 * fu), abs(Float(y) + 0.5 - (Float(n) - 2.5 * fu)))
-                    if frame && rx * rx + ry * ry < 0.55 * fu * fu {
-                        let cy: Float = Float(y) < fn / 2 ? 2.5 * fu : fn - 2.5 * fu
-                        let hi: Float = Float(y) + 0.5 < cy ? 1.25 : 0.85
-                        put(&img, x, y, col(0xC8884A) * (hi * fk))
-                        continue
-                    }
-                    if hatch {
-                        let hx = abs(Float(x) + 0.5 - fn / 2), hy = abs(Float(y) + 0.5 - fn / 2)
-                        let he = 3.2 * fu - max(hx, hy)
-                        if he >= 0 && he < 0.45 * fu { let c = img[x, y]; img[x, y] = V4(c.x * 0.45, c.y * 0.45, c.z * 0.45, 1) }   // the seam
-                        else if hy < 0.5 * fu && hx < 1.6 * fu { put(&img, x, y, col(0xB87333) * ((Float(y) + 0.5 < fn / 2 ? 1.2 : 0.8) * fk)) }
-                    }
-                } }
-                return img
-            }
-            // A mouth: dark inside, a copper rim lit on its lower edge (the light falls into it from above).
-            func mouth(_ img: inout Img, square: Bool, r: Float) {
-                let fu = Float(u)
-                for y in 0..<n { for x in 0..<n {
-                    let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
-                    let d: Float = square ? max(abs(dx), abs(dy)) : (dx * dx + dy * dy).squareRoot()
-                    let fk: Float = 0.9 + 0.2 * fine[y * n + x]
-                    if d < r * fu {
-                        let depth: Float = cl(1 - d / (r * fu))
-                        let lift: Float = dy > 0 ? 0.04 * cl(dy / (r * fu)) : 0
-                        let k: Float = 0.16 - 0.09 * depth + lift
-                        put(&img, x, y, V3(k, k * 0.97, k * 0.95) * fk)
-                    } else if d < (r + 0.9) * fu {
-                        let k: Float = dy < 0 ? 0.82 : 1.18
-                        put(&img, x, y, col(0xB87333) * (k * fk))
-                    } else if d < (r + 1.2) * fu {
+                    let gx: Float = dx + fn * 0.12, gy: Float = dy + fn * 0.12
+                    let gr: Float = (gx * gx + gy * gy) / (fn * fn * 0.02)
+                    let gl: Float = cl(1 - gr)
+                    let sk: Float = 0.8 + 0.15 * fine[y * n + x] + 0.35 * gl
+                    put(&img, x, y, col(0x5AAE4A) * sk)
+                }
+            } }
+            return img
+        case "piston_side":
+            // The casing under a wooden head, a copper band where the head meets the body.
+            var img = casing()
+            let head = planks(oakPlank)(n, s &+ 3)
+            for y in 0..<(5 * u) { for x in 0..<n {
+                if y < 4 * u {
+                    var c = head[x, y]
+                    if y >= 4 * u - u / 2 { c = V4(c.x * 0.6, c.y * 0.6, c.z * 0.6, 1) }
+                    img[x, y] = c
+                } else {
+                    let k: Float = y == 4 * u ? 1.2 : (y == 5 * u - 1 ? 0.75 : 1.0)
+                    put(&img, x, y, col(0xB87333) * (k * (0.9 + 0.2 * fine[y * n + x])))
+                }
+            } }
+            return img
+        case "piston_inner":
+            var img = casing(frame: false)
+            rod(&img, 5 * u, 11 * u, 5 * u, 11 * u)
+            return img
+        case "piston_bottom":
+            var img = casing()
+            mouth(&img, square: false, r: 2.2)
+            rod(&img, 7 * u, 9 * u, 7 * u, 9 * u)
+            return img
+        case "piston_rod":
+            var img = Img(n, V4(0.5, 0.5, 0.52, 1))
+            rod(&img, 0, n, 0, n)
+            return img
+        case "observer_front", "observer_back", "observer_back_on", "observer_side", "observer_top",
+             "observer_arrow_up", "observer_arrow_down", "observer_arrow_left", "observer_arrow_right":
+            // P463 (Oct 25 16:08-16:09, "the arrows on the observers are very confusing"; the dispenser "looks too
+            // similar to it"): a pale painted sensor housing, not the machines' dark casing.
+            var img = polished(observerShell, calm: 0.45, rim: 1 / 20)(n, s)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let lx = x / u, ly = y / u
+                let fk: Float = 0.9 + 0.2 * fine[i]
+                switch kind {
+                case "observer_front":
+                    // The face (P110: "the observer needs a new look"): a round glass lens set in a copper ring
+                    // with a dark gasket, a pale glint on the glass, and four copper bolts in the corners.
+                    let half: Float = fn / 2, fu: Float = Float(u)
+                    let dx: Float = (Float(x) + 0.5 - half) / fu, dy: Float = (Float(y) + 0.5 - half) / fu
+                    let d: Float = (dx * dx + dy * dy).squareRoot()
+                    if d < 3.4 {
+                        let depth: Float = cl(1 - d / 3.4)
+                        let glass: V3 = col(0x1E3A4A) * (0.55 + 0.45 * (1 - depth)), deep: V3 = col(0x0A1218) * depth
+                        var c: V3 = glass + deep
+                        let gx: Float = dx + 1.3, gy: Float = dy + 1.3
+                        let gd: Float = (gx * gx + gy * gy).squareRoot()
+                        let glint: Float = cl(1 - gd / 0.9)
+                        let shine: V3 = col(0xD8F0F8) - c, g2: Float = glint * glint
+                        c = c + shine * g2
+                        put(&img, x, y, c)
+                    } else if d < 4.8 {
+                        let bevel: Float = 0.8 + 0.4 * cl((dy * -1 + 4.8) / 9.6)
+                        put(&img, x, y, col(0xB87333) * (bevel * fk))
+                    } else if d < 5.5 {
                         put(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
-                    }
-                } }
-            }
-            switch kind {
-            case "machine_casing":
-                return casing()
-            case "machine_casing_top":
-                return casing(hatch: true)
-            case "piston_top", "piston_top_sticky":
-                var img = planks(oakPlank)(n, s)
-                let rimImg = polished(machineStone, calm: 0.5, rim: 0)(n, s &+ 1)
-                for y in 0..<n { for x in 0..<n {
-                    let edge: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
-                    if edge < 2 * u {
-                        var c = rimImg[x, y]
-                        if edge == 2 * u - 1 { c = V4(c.x * 0.6, c.y * 0.6, c.z * 0.6, 1) }
-                        img[x, y] = c
-                    }
-                    if kind == "piston_top_sticky" && edge >= 4 * u {
-                        let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
-                        let gx: Float = dx + fn * 0.12, gy: Float = dy + fn * 0.12
-                        let gr: Float = (gx * gx + gy * gy) / (fn * fn * 0.02)
-                        let gl: Float = cl(1 - gr)
-                        let sk: Float = 0.8 + 0.15 * fine[y * n + x] + 0.35 * gl
-                        put(&img, x, y, col(0x5AAE4A) * sk)
-                    }
-                } }
-                return img
-            case "piston_side":
-                // The casing under a wooden head, a copper band where the head meets the body.
-                var img = casing()
-                let head = planks(oakPlank)(n, s &+ 3)
-                for y in 0..<(5 * u) { for x in 0..<n {
-                    if y < 4 * u {
-                        var c = head[x, y]
-                        if y >= 4 * u - u / 2 { c = V4(c.x * 0.6, c.y * 0.6, c.z * 0.6, 1) }
-                        img[x, y] = c
                     } else {
-                        let k: Float = y == 4 * u ? 1.2 : (y == 5 * u - 1 ? 0.75 : 1.0)
-                        put(&img, x, y, col(0xB87333) * (k * (0.9 + 0.2 * fine[y * n + x])))
+                        let bx: Float = abs(abs(dx) - 5.6), by: Float = abs(abs(dy) - 5.6)
+                        if bx * bx + by * by < 0.5 { put(&img, x, y, col(0xC8884A) * (by < 0.2 && dy < 0 ? 1.2 : 0.95)) }
                     }
-                } }
-                return img
-            case "piston_inner":
-                var img = casing(frame: false)
-                rod(&img, 5 * u, 11 * u, 5 * u, 11 * u)
-                return img
-            case "piston_bottom":
-                var img = casing()
-                mouth(&img, square: false, r: 2.2)
-                rod(&img, 7 * u, 9 * u, 7 * u, 9 * u)
-                return img
-            case "piston_rod":
-                var img = Img(n, V4(0.5, 0.5, 0.52, 1))
-                rod(&img, 0, n, 0, n)
-                return img
-            case "observer_front", "observer_back", "observer_back_on", "observer_side", "observer_top",
-                 "observer_arrow_up", "observer_arrow_down", "observer_arrow_left", "observer_arrow_right":
-                // P463 (Oct 25 16:08-16:09, "the arrows on the observers are very confusing"; the dispenser "looks too
-                // similar to it"): a pale painted sensor housing, not the machines' dark casing.
-                var img = polished(observerShell, calm: 0.45, rim: 1 / 20)(n, s)
-                for y in 0..<n { for x in 0..<n {
-                    let i = y * n + x
-                    let lx = x / u, ly = y / u
-                    let fk: Float = 0.9 + 0.2 * fine[i]
-                    switch kind {
-                    case "observer_front":
-                        // The face (P110: "the observer needs a new look"): a round glass lens set in a copper ring
-                        // with a dark gasket, a pale glint on the glass, and four copper bolts in the corners.
-                        let half: Float = fn / 2, fu: Float = Float(u)
-                        let dx: Float = (Float(x) + 0.5 - half) / fu, dy: Float = (Float(y) + 0.5 - half) / fu
-                        let d: Float = (dx * dx + dy * dy).squareRoot()
-                        if d < 3.4 {
-                            let depth: Float = cl(1 - d / 3.4)
-                            let glass: V3 = col(0x1E3A4A) * (0.55 + 0.45 * (1 - depth)), deep: V3 = col(0x0A1218) * depth
-                            var c: V3 = glass + deep
-                            let gx: Float = dx + 1.3, gy: Float = dy + 1.3
-                            let glint: Float = cl(1 - (gx * gx + gy * gy).squareRoot() / 0.9)
-                            c = c + (col(0xD8F0F8) - c) * (glint * glint)
-                            put(&img, x, y, c)
-                        } else if d < 4.8 {
-                            let bevel: Float = 0.8 + 0.4 * cl((dy * -1 + 4.8) / 9.6)
-                            put(&img, x, y, col(0xB87333) * (bevel * fk))
-                        } else if d < 5.5 {
-                            put(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
-                        } else {
-                            let bx: Float = abs(abs(dx) - 5.6), by: Float = abs(abs(dy) - 5.6)
-                            if bx * bx + by * by < 0.5 { put(&img, x, y, col(0xC8884A) * (by < 0.2 && dy < 0 ? 1.2 : 0.95)) }
-                        }
-                    case "observer_back", "observer_back_on":
-                        let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
-                        let d: Float = (dx * dx + dy * dy).squareRoot() / Float(u)
-                        if d < 2.2 {
-                            let on: Bool = kind.hasSuffix("on")
-                            let core: Float = cl(1 - d / 2.2)
-                            let lit: V3 = col(0xF82A1A) + (col(0xFFC0A0) - col(0xF82A1A)) * (core * core)
-                            let ok: Float = 0.8 + 0.3 * core
-                            let c: V3 = on ? lit : col(0x3A1A18) * ok
-                            put(&img, x, y, c)
-                        } else if d < 2.8 { put(&img, x, y, V3(0.16, 0.16, 0.17) * fk) }
-                    case "observer_side":
-                        // A copper signal strip with notches (it carried a plain grey bar).
-                        if ly == 7 || ly == 8 {
-                            var top: Float = 1
-                            if ly == 7 && y % u == 0 { top = 1.25 } else if ly == 8 && y % u == u - 1 { top = 0.7 }
-                            put(&img, x, y, (lx % 4 == 1 ? col(0x5A3018) : col(0xB87333)) * (top * fk))
-                        }
-                    default:
-                        // P463: the arrow the signal takes, from the lens to the red output on the back, on every face
-                        // between them (observer_arrow_<way>, each face of each facing picks the way it points there;
-                        // observer_top, the old single top, points up). It starts at a small lens-blue dot.
-                        let way = kind.hasSuffix("down") ? 1 : kind.hasSuffix("left") ? 2 : kind.hasSuffix("right") ? 3 : 0
-                        let ax = way == 0 ? x : way == 1 ? n - 1 - x : way == 2 ? y : n - 1 - y      // turned to "up"
-                        let ay = way == 0 ? y : way == 1 ? n - 1 - y : way == 2 ? x : n - 1 - x
-                        let alx = ax / u, aly = ay / u
-                        let shaft: Bool = (alx == 7 || alx == 8) && aly > 5 && aly < 13
-                        let off: Float = abs(Float(ax) + 0.5 - fn / 2)
-                        let halfW: Float = Float(aly - 1) * Float(u) * 1.25
-                        let head: Bool = aly >= 2 && aly <= 5 && off < halfW
-                        let ddx: Float = (Float(ax) + 0.5 - fn / 2) / Float(u), ddy: Float = (Float(ay) + 0.5) / Float(u) - 13.5
-                        let dot: Bool = ddx * ddx + ddy * ddy < 2.6
-                        if dot { put(&img, x, y, col(0x2A6A8A) * fk) } else if shaft || head { put(&img, x, y, col(0xC0301C) * fk) }
-                    }
-                } }
-                return img
-            case "dispenser_front", "dispenser_front_vertical", "dropper_front", "dropper_front_vertical":
-                // The dispenser's round mouth, the dropper's square one, in the casing.
-                var img = casing()
-                mouth(&img, square: kind.hasPrefix("dropper"), r: kind.hasPrefix("dropper") ? 2.6 : 3.3)
-                return img
-            case "hopper_outside":
-                return metal(0x3A3A3E, tiles: 1, shine: 0.1)(n, s)
-            case "hopper_top":
-                var img = metal(0x4A4A4E, tiles: 1, shine: 0.1)(n, s)
-                for y in (2 * u)..<(14 * u) { for x in (2 * u)..<(14 * u) {
-                    let edge: Int = min(min(x - 2 * u, y - 2 * u), min(14 * u - 1 - x, 14 * u - 1 - y))
-                    let depth: Float = Float(min(edge, 3 * u)) / Float(3 * u)
-                    var k: Float = 0.12 + 0.03 * depth
-                    if edge < u / 2 { k = 0.07 }
-                    put(&img, x, y, V3(k, k, k * 1.08) * (0.9 + 0.2 * fine[y * n + x]))
-                } }
-                return img
-            case "note_block":
-                var img = planks([(0, 0x4A3220), (0.5, 0x6A4A2E), (1, 0x86603C)])(n, s)
-                for y in 0..<n { for x in 0..<n {
-                    let lx = x / u, ly = y / u
-                    let bar: Bool = lx > 4 && lx < 11 && (ly == 4 || ly == 5)
-                    let stem: Bool = (lx == 10 || lx == 5) && ly > 4 && ly < 12
-                    let hx: Float = Float(x) + 0.5 - fn * 4.5 / 16, hy: Float = Float(y) + 0.5 - fn * 12 / 16
-                    let hx2: Float = hx - fn * 5 / 16
-                    let headA: Bool = hx * hx * 0.6 + hy * hy < fn * fn * 0.004
-                    let headB: Bool = hx2 * hx2 * 0.6 + hy * hy < fn * fn * 0.004
-                    if bar || stem || headA || headB { put(&img, x, y, col(0x22160C) * (0.9 + 0.2 * fine[y * n + x])) }
-                } }
-                return img
-            case "redstone_lamp", "redstone_lamp_on":
-                let on = kind.hasSuffix("on")
-                var img = Img(n)
-                let blot = fbm(n, n / 8, 3, s &+ 5)
-                for y in 0..<n { for x in 0..<n {
-                    let i = y * n + x
-                    // Three panes a side in a frame one sixteenth wide, centred on the cell edges so the tile seam
-                    // shows one bar, not two (16 / 5 cells left a double bar there).
-                    let gx: Float = (Float(x) + 0.5) / fn * 3, gy: Float = (Float(y) + 0.5) / fn * 3
-                    let ex: Float = abs(gx - floorf(gx + 0.5)), ey: Float = abs(gy - floorf(gy + 0.5))
-                    let bar: Float = 3.0 / 32
-                    var c: V3
-                    if ex < bar || ey < bar {
-                        let across: Float = min(ex, ey) / bar
-                        let bevel: Float = 1.15 - 0.3 * across
-                        let frame: V3 = on ? col(0x8A5A2A) : col(0x4A2A1A)
-                        let fk: Float = bevel * (0.9 + 0.15 * fine[i])
-                        c = frame * fk
-                    } else {
-                        let cx: Float = (gx - floorf(gx) - 0.5) * 5, cy: Float = (gy - floorf(gy) - 0.5) * 5
-                        let centre: Float = cl(1 - (cx * cx + cy * cy) / 8)
-                        if on {
-                            let gk: Float = 0.8 + 0.25 * centre + 0.1 * blot[i]
-                            c = col(0xFFE8C8) * gk
-                        } else {
-                            let dk: Float = 0.75 + 0.2 * blot[i] + 0.1 * centre
-                            c = col(0x6A3A22) * dk
-                        }
-                    }
-                    put(&img, x, y, c)
-                } }
-                return img
-            case "target_top", "target_side":
-                var img = Img(n)
-                let straw = vnoise(n, max(1, n / 32), s &+ 7)
-                for y in 0..<n { for x in 0..<n {
-                    let i = y * n + x
+                case "observer_back", "observer_back_on":
                     let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
-                    let d: Float = (dx * dx + dy * dy).squareRoot() / (fn / 16)
-                    let ring: Int = Int(d) % 4
-                    let red: Bool = ring >= 2 || d < 1.6
-                    let fibre: Float = straw[(y * n + x / 3) % (n * n)]
-                    let base: V3 = red ? col(0xC82A1E) : col(0xE8E0C8)
-                    let k: Float = 0.82 + 0.22 * fibre + 0.06 * fine[i]
-                    put(&img, x, y, base * k)
-                } }
-                return img
-            default:  // sea_lantern
-                var img = Img(n)
-                let blot = fbm(n, n / 4, 3, s &+ 5)
-                for y in 0..<n { for x in 0..<n {
-                    let i = y * n + x
-                    let a: Float = (Float(x + y) / fn * 4).truncatingRemainder(dividingBy: 1)
-                    let b: Float = (Float(x - y + n) / fn * 4).truncatingRemainder(dividingBy: 1)
-                    let ea: Float = min(a, 1 - a), eb: Float = min(b, 1 - b)
-                    let seam: Float = cl(1 - min(ea, eb) / 0.06)
-                    let glow: Float = 0.85 + 0.2 * blot[i] + 0.1 * min(ea, eb)
-                    let pane: V3 = col(0xB8DCD2) * glow
-                    let c: V3 = pane + (col(0xF4FCF6) - pane) * seam
-                    put(&img, x, y, c)
-                } }
-                return img
-            }
+                    let d: Float = (dx * dx + dy * dy).squareRoot() / Float(u)
+                    if d < 2.2 {
+                        let on: Bool = kind.hasSuffix("on")
+                        let core: Float = cl(1 - d / 2.2)
+                        let lit: V3 = col(0xF82A1A) + (col(0xFFC0A0) - col(0xF82A1A)) * (core * core)
+                        let ok: Float = 0.8 + 0.3 * core
+                        let c: V3 = on ? lit : col(0x3A1A18) * ok
+                        put(&img, x, y, c)
+                    } else if d < 2.8 { put(&img, x, y, V3(0.16, 0.16, 0.17) * fk) }
+                case "observer_side":
+                    // A copper signal strip with notches (it carried a plain grey bar).
+                    if ly == 7 || ly == 8 {
+                        var top: Float = 1
+                        if ly == 7 && y % u == 0 { top = 1.25 } else if ly == 8 && y % u == u - 1 { top = 0.7 }
+                        put(&img, x, y, (lx % 4 == 1 ? col(0x5A3018) : col(0xB87333)) * (top * fk))
+                    }
+                default:
+                    // P463: the arrow the signal takes, from the lens to the red output on the back, on every face
+                    // between them (observer_arrow_<way>, each face of each facing picks the way it points there;
+                    // observer_top, the old single top, points up). It starts at a small lens-blue dot.
+                    let way = kind.hasSuffix("down") ? 1 : kind.hasSuffix("left") ? 2 : kind.hasSuffix("right") ? 3 : 0
+                    let ax = way == 0 ? x : way == 1 ? n - 1 - x : way == 2 ? y : n - 1 - y      // turned to "up"
+                    let ay = way == 0 ? y : way == 1 ? n - 1 - y : way == 2 ? x : n - 1 - x
+                    let alx = ax / u, aly = ay / u
+                    let shaft: Bool = (alx == 7 || alx == 8) && aly > 5 && aly < 13
+                    let off: Float = abs(Float(ax) + 0.5 - fn / 2)
+                    let halfW: Float = Float(aly - 1) * Float(u) * 1.25
+                    let head: Bool = aly >= 2 && aly <= 5 && off < halfW
+                    let ddx: Float = (Float(ax) + 0.5 - fn / 2) / Float(u), ddy: Float = (Float(ay) + 0.5) / Float(u) - 13.5
+                    let dot: Bool = ddx * ddx + ddy * ddy < 2.6
+                    if dot { put(&img, x, y, col(0x2A6A8A) * fk) } else if shaft || head { put(&img, x, y, col(0xC0301C) * fk) }
+                }
+            } }
+            return img
+        case "dispenser_front", "dispenser_front_vertical", "dropper_front", "dropper_front_vertical":
+            // The dispenser's round mouth, the dropper's square one, in the casing.
+            var img = casing()
+            mouth(&img, square: kind.hasPrefix("dropper"), r: kind.hasPrefix("dropper") ? 2.6 : 3.3)
+            return img
+        case "hopper_outside":
+            return metal(0x3A3A3E, tiles: 1, shine: 0.1)(n, s)
+        case "hopper_top":
+            var img = metal(0x4A4A4E, tiles: 1, shine: 0.1)(n, s)
+            for y in (2 * u)..<(14 * u) { for x in (2 * u)..<(14 * u) {
+                let edge: Int = min(min(x - 2 * u, y - 2 * u), min(14 * u - 1 - x, 14 * u - 1 - y))
+                let depth: Float = Float(min(edge, 3 * u)) / Float(3 * u)
+                var k: Float = 0.12 + 0.03 * depth
+                if edge < u / 2 { k = 0.07 }
+                put(&img, x, y, V3(k, k, k * 1.08) * (0.9 + 0.2 * fine[y * n + x]))
+            } }
+            return img
+        case "note_block":
+            var img = planks([(0, 0x4A3220), (0.5, 0x6A4A2E), (1, 0x86603C)])(n, s)
+            for y in 0..<n { for x in 0..<n {
+                let lx = x / u, ly = y / u
+                let bar: Bool = lx > 4 && lx < 11 && (ly == 4 || ly == 5)
+                let stem: Bool = (lx == 10 || lx == 5) && ly > 4 && ly < 12
+                let hx: Float = Float(x) + 0.5 - fn * 4.5 / 16, hy: Float = Float(y) + 0.5 - fn * 12 / 16
+                let hx2: Float = hx - fn * 5 / 16
+                let headA: Bool = hx * hx * 0.6 + hy * hy < fn * fn * 0.004
+                let headB: Bool = hx2 * hx2 * 0.6 + hy * hy < fn * fn * 0.004
+                if bar || stem || headA || headB { put(&img, x, y, col(0x22160C) * (0.9 + 0.2 * fine[y * n + x])) }
+            } }
+            return img
+        case "redstone_lamp", "redstone_lamp_on":
+            let on = kind.hasSuffix("on")
+            var img = Img(n)
+            let blot = fbm(n, n / 8, 3, s &+ 5)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                // Three panes a side in a frame one sixteenth wide, centred on the cell edges so the tile seam
+                // shows one bar, not two (16 / 5 cells left a double bar there).
+                let gx: Float = (Float(x) + 0.5) / fn * 3, gy: Float = (Float(y) + 0.5) / fn * 3
+                let ex: Float = abs(gx - floorf(gx + 0.5)), ey: Float = abs(gy - floorf(gy + 0.5))
+                let bar: Float = 3.0 / 32
+                var c: V3
+                if ex < bar || ey < bar {
+                    let across: Float = min(ex, ey) / bar
+                    let bevel: Float = 1.15 - 0.3 * across
+                    let frame: V3 = on ? col(0x8A5A2A) : col(0x4A2A1A)
+                    let fk: Float = bevel * (0.9 + 0.15 * fine[i])
+                    c = frame * fk
+                } else {
+                    let cx: Float = (gx - floorf(gx) - 0.5) * 5, cy: Float = (gy - floorf(gy) - 0.5) * 5
+                    let centre: Float = cl(1 - (cx * cx + cy * cy) / 8)
+                    if on {
+                        let gk: Float = 0.8 + 0.25 * centre + 0.1 * blot[i]
+                        c = col(0xFFE8C8) * gk
+                    } else {
+                        let dk: Float = 0.75 + 0.2 * blot[i] + 0.1 * centre
+                        c = col(0x6A3A22) * dk
+                    }
+                }
+                put(&img, x, y, c)
+            } }
+            return img
+        case "target_top", "target_side":
+            var img = Img(n)
+            let straw = vnoise(n, max(1, n / 32), s &+ 7)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                let d: Float = (dx * dx + dy * dy).squareRoot() / (fn / 16)
+                let ring: Int = Int(d) % 4
+                let red: Bool = ring >= 2 || d < 1.6
+                let fibre: Float = straw[(y * n + x / 3) % (n * n)]
+                let base: V3 = red ? col(0xC82A1E) : col(0xE8E0C8)
+                let k: Float = 0.82 + 0.22 * fibre + 0.06 * fine[i]
+                put(&img, x, y, base * k)
+            } }
+            return img
+        default:  // sea_lantern
+            var img = Img(n)
+            let blot = fbm(n, n / 4, 3, s &+ 5)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let a: Float = (Float(x + y) / fn * 4).truncatingRemainder(dividingBy: 1)
+                let b: Float = (Float(x - y + n) / fn * 4).truncatingRemainder(dividingBy: 1)
+                let ea: Float = min(a, 1 - a), eb: Float = min(b, 1 - b)
+                let seam: Float = cl(1 - min(ea, eb) / 0.06)
+                let glow: Float = 0.85 + 0.2 * blot[i] + 0.1 * min(ea, eb)
+                let pane: V3 = col(0xB8DCD2) * glow
+                let c: V3 = pane + (col(0xF4FCF6) - pane) * seam
+                put(&img, x, y, c)
+            } }
+            return img
         }
     }
 
