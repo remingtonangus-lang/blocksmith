@@ -1,0 +1,88 @@
+# Behaviour sim
+
+behaviorsim: fell 24, goal_missed_bed 5, goal_missed_work 1, in_wall 69, spinning 4, strayed 2, stuck 13; villager goals reached: bed 6/11, meet 13/13, work 11/12 (21 s)
+## seed 12345: village at -274 -962, 209 mobs tracked
+- mobs flagged per class: goal_missed_bed 1, in_wall 39, strayed 2, stuck 7
+- bat at -285.6 20.6 -1014.3: ok
+- minecart at -360.5 73.1 -906.5: in_wall 2
+- minecart at -350.5 73.1 -906.5: in_wall 5
+- bat at -299.3 40.0 -936.0: ok
+- minecart at -366.6 74.1 -906.5: in_wall 3
+- minecart at -401.5 73.1 -906.5: in_wall 1
+- minecart at -271.1 76.1 -906.5: in_wall 2
+- minecart at -347.5 73.1 -906.5: in_wall 4
+- minecart at -349.0 73.1 -906.5: in_wall 5
+- minecart at -422.6 72.5 -906.5: in_wall 1
+- minecart at -359.0 73.1 -906.5: in_wall 2
+- minecart at -376.1 74.1 -906.5: in_wall 3
+- minecart at -381.4 73.1 -906.5: in_wall 5
+- minecart at -404.5 73.1 -906.5: in_wall 2
+- minecart at -251.5 76.1 -906.5: in_wall 3
+- minecart at -374.6 74.1 -906.5: in_wall 3
+- minecart at -410.5 73.1 -906.5: in_wall 2
+- minecart at -409.0 73.1 -906.5: in_wall 2
+- minecart at -355.0 73.1 -906.5: in_wall 3
+- minecart at -424.1 72.1 -906.5: in_wall 3
+- rabbit at -226.5 67.0 -1076.9: stuck 106; gave up 3x (-208 74 -1002 air; -219 71 -1033 air; -221 71 -1030 air); doing when stuck or spinning: bed/stroll/onpath/partial 51, work/stroll/onpath/partial 31, free/stroll/onpath/partial 16
+- minecart at -412.5 73.1 -906.5: in_wall 1
+- rabbit at -224.5 67.0 -1076.7: stuck 108; gave up 2x (-213 68 -1091 air; -219 68 -1064 air); doing when stuck or spinning: bed/stroll/onpath/partial 51, work/stroll/onpath/partial 32, free/stroll/onpath/partial 17
+- minecart at -378.4 73.6 -906.5: in_wall 3
+- minecart at -365.0 74.1 -906.5: in_wall 3
+- minecart at -370.1 74.1 -906.5: in_wall 2
+- minecart at -391.2 73.1 -906.5: in_wall 4
+- wolf at -269.5 70.0 -1078.5: stuck 119; doing when stuck or spinning: bed/stroll/nopath 51, work/stroll/nopath 32, free/stroll/nopath 28
+- minecart at -367.1 74.1 -906.5: in_wall 3
+- minecart at -261.5 76.1 -906.5: in_wall 2
+- minecart at -397.2 73.1 -906.5: in_wall 1
+- minecart at -398.7 73.1 -906.5: in_wall 1
+- minecart at -282.4 76.1 -906.5: in_wall 2
+- minecart at -357.6 73.1 -906.5: in_wall 2
+- minecart at -411.1 73.1 -906.5: in_wall 1
+- minecart at -293.7 75.1 -906.5: in_wall 1
+- minecart at -385.9 73.1 -906.5: in_wall 4
+- villager at -299.5 71.6 -1013.5: strayed 1; closest to goals: bed 1.6; gave up 11x (-312 72 -1012 air; -304 72 -1020 snow; -308 72 -1008 air)
+- wolf at -256.5 69.0 -1077.5: stuck 119; doing when stuck or spinning: bed/stroll/nopath 51, work/stroll/nopath 32, free/stroll/nopath 28
+- minecart at -368.6 74.1 -906.5: in_wall 3
+
+## seed 777: village at 734 -1426, 119 mobs tracked
+- mobs flagged per class: fell 24, goal_missed_bed 4, goal_missed_work 1, in_wall 30, spinning 4, stuck 6
+- bat at 729.9 54.2 -1454.6: ok
+- minecart at 595.9 109.1 -1384.5: fell 1, in_wall 3
+- bat at 728.5 46.7 -1426.9: ok
+- minecart at 582.6 109.1 -1384.5: in_wall 2
+- minecart at 577.8 109.1 -1384.5: in_wall 2
+- villager at 722.5 97.9 -1434.7: spinning 49, stuck 42; closest to goals: meet 0.6, work 1.4; gave up 1x (721 104 -1461 air); doing when stuck or spinning: spin:bed/target/moving 39, bed/target/onpath 37, spin:free/target/moving 10
+- minecart at 607.1 108.1 -1384.5: fell 2, in_wall 3
+- minecart at 628.0 106.8 -1384.5: fell 1, in_wall 3
+- minecart at 589.4 109.1 -1384.5: fell 2, in_wall 3
+- minecart at 574.5 109.1 -1384.5: in_wall 2
+- minecart at 603.9 108.1 -1384.5: fell 2, in_wall 3
+- minecart at 629.6 106.0 -1384.5: fell 1, in_wall 4
+- minecart at 631.2 105.2 -1384.5: fell 1, in_wall 3
+- villager at 723.1 97.9 -1434.5: spinning 1; closest to goals: bed 25.9, meet 0.7, work 2.5; gave up 64x (719 104 -1460 brown_bed_head; 719 104 -1460 brown_bed_head; 728 97 -1429 air); doing when stuck or spinning: spin:bed/target/moving 1
+- minecart at 608.7 108.1 -1384.5: fell 2, in_wall 3
+- minecart at 576.1 109.1 -1384.5: in_wall 3
+- minecart at 612.4 108.1 -1384.5: fell 2, in_wall 2
+- minecart at 587.8 109.1 -1384.5: fell 1, in_wall 4
+- minecart at 615.7 108.1 -1384.5: fell 2, in_wall 5
+- villager at 732.1 96.9 -1434.7: spinning 29, stuck 22; closest to goals: bed 17.3, meet 0.7; gave up 32x (739 98 -1435 snow; 735 98 -1436 snow; 746 98 -1437 air); doing when stuck or spinning: spin:bed/stroll/moving 20, bed/stroll/onpath 14, spin:free/stroll/moving 4
+- minecart at 592.7 109.1 -1384.5: fell 1, in_wall 2
+- minecart at 618.9 108.1 -1384.5: fell 2, in_wall 4
+- minecart at 605.5 108.1 -1384.5: fell 2, in_wall 3
+- minecart at 614.0 108.1 -1384.5: fell 2, in_wall 3
+- villager at 707.5 97.9 -1429.3: spinning 4, stuck 3; closest to goals: bed 6.9, work 5.4; gave up 45x (707 99 -1424 air; 707 99 -1424 air; 707 99 -1424 air); doing when stuck or spinning: bed/target/onpath 3, spin:bed/target/moving 3, spin:free/target/moving 1
+- fox at 651.5 101.0 -1534.3: stuck 46; gave up 4x (635 106 -1490 snow; 633 106 -1483 short_grass; 647 105 -1478 air); doing when stuck or spinning: bed/stroll/onpath/partial 41, free/stroll/onpath/partial 5
+- minecart at 591.1 109.1 -1384.5: fell 1, in_wall 4
+- minecart at 624.7 108.0 -1384.5: fell 2, in_wall 5
+- minecart at 626.3 107.1 -1384.5: fell 1, in_wall 4
+- minecart at 632.8 104.4 -1384.5: fell 1, in_wall 4
+- fox at 646.7 101.0 -1534.0: stuck 57; gave up 1x (645 104 -1510 snow); doing when stuck or spinning: bed/stroll/nopath 51, free/stroll/nopath 6
+- minecart at 600.6 108.1 -1384.5: fell 2, in_wall 2
+- minecart at 617.3 108.1 -1384.5: fell 2, in_wall 4
+- minecart at 581.0 109.1 -1384.5: in_wall 2
+- minecart at 579.4 109.1 -1384.5: in_wall 1
+- minecart at 620.5 108.1 -1384.5: fell 2, in_wall 3
+- minecart at 602.2 108.1 -1384.5: fell 2, in_wall 3
+- minecart at 594.3 109.1 -1384.5: fell 1, in_wall 3
+- villager at 731.5 104.9 -1454.7: stuck 1; closest to goals: bed 7.6, meet 0.9, work 2.4; gave up 31x (740 108 -1455 brown_bed_head; 740 108 -1455 brown_bed_head; 739 97 -1433 snow); doing when stuck or spinning: bed/target/onpath 1
+
