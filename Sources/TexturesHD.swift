@@ -2186,11 +2186,13 @@ enum HDTex {
                     case "observer_front":
                         // The face (P110: "the observer needs a new look"): a round glass lens set in a copper ring
                         // with a dark gasket, a pale glint on the glass, and four copper bolts in the corners.
-                        let dx: Float = (Float(x) + 0.5 - fn / 2) / Float(u), dy: Float = (Float(y) + 0.5 - fn / 2) / Float(u)
+                        let half: Float = fn / 2, fu: Float = Float(u)
+                        let dx: Float = (Float(x) + 0.5 - half) / fu, dy: Float = (Float(y) + 0.5 - half) / fu
                         let d: Float = (dx * dx + dy * dy).squareRoot()
                         if d < 3.4 {
                             let depth: Float = cl(1 - d / 3.4)
-                            var c: V3 = col(0x1E3A4A) * (0.55 + 0.45 * (1 - depth)) + col(0x0A1218) * depth
+                            let glass: V3 = col(0x1E3A4A) * (0.55 + 0.45 * (1 - depth)), deep: V3 = col(0x0A1218) * depth
+                            var c: V3 = glass + deep
                             let gx: Float = dx + 1.3, gy: Float = dy + 1.3
                             let glint: Float = cl(1 - (gx * gx + gy * gy).squareRoot() / 0.9)
                             c = c + (col(0xD8F0F8) - c) * (glint * glint)

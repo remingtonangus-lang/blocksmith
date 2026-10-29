@@ -75,7 +75,9 @@ enum HellLooks {
             let fn = Float(n)
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
-                let ph: Float = (Float(y) + Float(x) * 0.25) / fn * 2 * Float.pi * 6 + (w[i] - 0.5) * 5
+                let band: Float = (Float(y) + Float(x) * 0.25) / fn
+                let wob: Float = (w[i] - 0.5) * 5
+                let ph: Float = band * 2 * Float.pi * 6 + wob
                 let k: Float = 0.94 + 0.09 * sinf(ph)
                 let p = img.px[i]
                 img.px[i] = V4(min(1, p.x * k), min(1, p.y * k), min(1, p.z * k), p.w)
@@ -215,7 +217,9 @@ enum HellLooks {
                     let wdt: Float = sinf(t * Float.pi) * (0.75 + 0.25 * sinf(t * 40))       // serrated edge
                     guard abs(across) <= wdt else { continue }
                     let rib: Float = abs(across) < 0.1 ? 0.75 : 1
-                    let c: V3 = (base * (1 - t * 0.5) + ct * (t * t * 0.6)) * rib * (0.85 + 0.2 * (1 - abs(across)))
+                    let lit: V3 = base * (1 - t * 0.5), tipC: V3 = ct * (t * t * 0.6)
+                    let shade: Float = rib * (0.85 + 0.2 * (1 - abs(across)))
+                    let c: V3 = (lit + tipC) * shade
                     img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
                 } }
             }

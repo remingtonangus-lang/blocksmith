@@ -1135,7 +1135,8 @@ enum Mesher {
                                     Lc = max(Lc, Float(dy) + s - (draped(j) ? td : 0))
                                 }
                             } } }
-                            let Lf = FLW[(sx + WM) + (sz + WM) * W + sy * W * W]
+                            let li: Int = (sx + WM) + (sz + WM) * W + sy * W * W
+                            let Lf = FLW[li]
                             if Lf > 0 { f = Lf - 0.5 }
                             else if L > -9 {
                                 // The level runs on flat only where the ground here reaches it (the drawn top in this
@@ -1161,7 +1162,8 @@ enum Mesher {
                         var c8 = SIMD8<Float>(repeating: 0)
                         var inside = 0
                         for k in 0..<8 {
-                            let v = F[(cx + (k & 1)) + (cz + ((k >> 2) & 1)) * N + (cy + ((k >> 1) & 1)) * NN]
+                            let ix: Int = cx + (k & 1), iz: Int = cz + ((k >> 2) & 1), iy: Int = cy + ((k >> 1) & 1)
+                            let v = F[ix + iz * N + iy * NN]
                             c8[k] = v; if v > 0 { inside += 1 }
                         }
                         if inside == 0 || inside == 8 { continue }
