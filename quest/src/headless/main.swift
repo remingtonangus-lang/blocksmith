@@ -845,6 +845,26 @@ if let out = arg("--view"), let ctx = vkctx {
                 let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
                 sum += ms
                 if ms > worst { worst = ms; worstAt = i; worstWhat = TickProf.summary() }
+                // --felltrace: the body every half second (held, where, how far over, speed, spin, contacts).
+                if CommandLine.arguments.contains("--felltrace"), i % 36 == 35, let s = vw.ships.list.last(where: { Felling.isFelled($0) }) {
+                    let f = Felling.falls.first { $0.ship === s }
+                    print(String(format: "view: felltrace %.1f s: %@ at %.1f %.1f %.1f, tipped %.0f deg, speed %.2f, spin %.2f, %d contacts, %d blocks%@",
+                                 Double(i + 1) / 72, s.hidden ? "held" : "free", s.pos.x, s.pos.y, s.pos.z,
+                                 acosf(max(-1, min(1, s.rot.act(V3(0, 1, 0)).y))) * 180 / .pi, simd_length(s.vel), simd_length(s.angVel),
+                                 s.contacts, s.blockCount, f == nil ? " (fall over)" : ""))
+                    // (what it touches: hull cells within 0.5 of a solid block, with the block)
+                    var touch: [String] = []
+                    for l in s.hull {
+                        let p = s.toWorld(l)
+                        for y in Int(floor(p.y - 0.5))...Int(floor(p.y + 0.5)) { for z in Int(floor(p.z - 0.5))...Int(floor(p.z + 0.5)) { for x in Int(floor(p.x - 0.5))...Int(floor(p.x + 0.5)) {
+                            let b = vw.block(x, y, z)
+                            guard Blocks.collide[Int(b)] else { continue }
+                            let q = simd_clamp(p, V3(Float(x), Float(y), Float(z)), V3(Float(x + 1), Float(y + 1), Float(z + 1)))
+                            if simd_length(p - q) < 0.5 && touch.count < 12 { touch.append(String(format: "%.1f,%.1f,%.1f(%@ %@ at %d,%d,%d)", p.x, p.y, p.z, Blocks.key(s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))), Blocks.key(b), x, y, z)) }
+                        } } }
+                    }
+                    print("view: felltrace touches: " + touch.joined(separator: "; ") + " | lowest hull cells: " + s.hull.sorted { s.toWorld($0).y < s.toWorld($1).y }.prefix(4).map { let p = s.toWorld($0); return String(format: "%.1f,%.1f,%.1f %@ ground below %@", p.x, p.y, p.z, Blocks.key(s.grid.get(Int(floor($0.x)), Int(floor($0.y)), Int(floor($0.z)))), vw.groundAt(Int(floor(p.x)), Int(floor(p.y)) - 1, Int(floor(p.z))) ? "yes" : "no") }.joined(separator: "; "))
+                }
             }
             print(String(format: "view: fell: worst tick %.1f ms at frame %d (mean %.1f): ", worst, worstAt, sum / Double(max(1, frames))) + worstWhat)
             if trace {
