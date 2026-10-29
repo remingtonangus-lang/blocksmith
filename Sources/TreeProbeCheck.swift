@@ -142,14 +142,46 @@ enum TreeProbeCheck {
             while groundTop > 1 && !w.groundAt(px, groundTop, pz) { groundTop -= 1 }
             let sunk = Float(groundTop + 1) - s.worldMax.y
             let standing = isLog(w.builtBlock(b.x, b.y + 2, b.z))
-            let line = String(format: "%d %d %d toward %d %d %d: %@, %d of %d blocks, top speed %.1f, body top %.1f above the ground, neighbour %@",
-                              a.x, a.y - 64, a.z, b.x, b.y - 64, b.z, gone ? "GONE" : "there", gone ? 0 : s.blockCount, blocks0, top,
+            let lean = TreeProbeCheck.lean(s)
+            let line = String(format: "%d %d %d toward %d %d %d: %@, %d of %d blocks, %.0f degrees over, top speed %.1f, body top %.1f above the ground, neighbour %@",
+                              a.x, a.y - 64, a.z, b.x, b.y - 64, b.z, gone ? "GONE" : "there", gone ? 0 : s.blockCount, blocks0, lean, top,
                               -sunk, standing ? "standing" : "down")
             print("fellreal: " + line)
-            if gone || s.blockCount < blocks0 || sunk > 0 || top > 16 { bad.append(line) }
+            if gone || s.blockCount < blocks0 || sunk > 0 || top > 16 || lean < 20 { bad.append(line) }
             w.ships.remove(s)
         }
-        check(!pairs.isEmpty && bad.isEmpty, "fellreal: \(pairs.count) of his trees felled into a neighbour stay whole and above the ground (\(bad.joined(separator: "; ")))")
+        check(!pairs.isEmpty && bad.isEmpty, "fellreal: \(pairs.count) of his trees felled into a neighbour go over and stay whole and above the ground (\(bad.joined(separator: "; ")))")
+        // His 18:46 spruce (3921 76 -1716), cut at its foot from where he stood: it dropped onto the ground under the cut
+        // and stood there upright as a body, 4 degrees over, for good. It must go over and lie down.
+        do {
+            let foot = IVec3(3921, 76 + 64, -1716)
+            g.player.pos = V3(3922.2, 75.8 + 64, -1719.8)
+            let cut = w.builtBlock(foot.x, foot.y, foot.z), n0 = Felling.felled
+            w.setBlock(foot.x, foot.y, foot.z, AIR)
+            g.fellCheck(foot, cut)
+            if Felling.felled > n0, let s = w.ships.list.last(where: { Felling.isFelled($0) }) {
+                var t: Float = 0
+                while t < 8 { w.ships.update(1.0 / 60, game: g); g.fellingTick(1.0 / 60); t += 1.0 / 60 }
+                let lean = TreeProbeCheck.lean(s)
+                let there = w.ships.list.contains { $0 === s }
+                check(there && lean > 60, String(format: "fellreal: his 18:46 spruce cut at its foot goes over and lies down (%.0f degrees over after 8 s, %@)", lean, there ? "there" : "GONE"))
+                w.ships.remove(s)
+            } else { check(false, "fellreal: his 18:46 spruce cut at its foot falls (\(cut == AIR ? "no log there" : Blocks.key(cut)))") }
+        }
+    }
+
+    // How far over a felled trunk lies, in degrees from upright: its lowest log to its highest as it stood.
+    static func lean(_ s: Ship) -> Float {
+        var lo: IVec3?, hi: IVec3?
+        let g = s.grid
+        for y in 0..<g.sy { for z in 0..<g.sz { for x in 0..<g.sx where CapitalBase.isLog(g.get(x, y, z)) {
+            if lo == nil || y < lo!.y { lo = IVec3(x, y, z) }
+            if hi == nil || y > hi!.y { hi = IVec3(x, y, z) }
+        } } }
+        guard let a = lo, let b = hi, b.y > a.y else { return 0 }
+        func w(_ c: IVec3) -> V3 { s.toWorld(V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5) }
+        let d = simd_normalize(w(b) - w(a))
+        return acosf(max(-1, min(1, d.y))) * 180 / .pi
     }
 
     static func fell(_ g0: Game, _ check: (Bool, String) -> Void) {
@@ -188,8 +220,19 @@ enum TreeProbeCheck {
             }
         }
         spruce(ox, oz)
-        spruce(ox + 4, oz)                                  // crowns all but touching, 4 apart
-        // He chops the first at its foot from the west: it goes over east, into the second.
+        spruce(ox + 3, oz + 2)                              // crowns through each other, trunks 3 and 2 apart
+        // (the second's own crown: leaves nearer its trunk than the first's)
+        func theirs() -> Int {
+            var n = 0
+            for y in y0...(y0 + 10) { for z in (oz - 1)...(oz + 5) { for x in (ox)...(ox + 6) where CapitalBase.isLeaf(w.builtBlock(x, y, z)) {
+                let a = (x - ox) * (x - ox) + (z - oz) * (z - oz), b = (x - ox - 3) * (x - ox - 3) + (z - oz - 2) * (z - oz - 2)
+                if b < a { n += 1 }
+            } } }
+            return n
+        }
+        let crown0 = theirs()
+        // He chops the first at its foot from the west: it goes over east, its crown through the second's (P478: the
+        // second's trunk inside its crown held it standing; its own trunk passes the second's by).
         let felled0 = Felling.felled
         w.setBlock(ox, y0, oz, AIR)
         g.fellCheck(IVec3(ox, y0, oz), log)
@@ -207,10 +250,28 @@ enum TreeProbeCheck {
             top2 = max(top2, simd_length(s.vel))
         }
         let moved = simd_length(V3(s.pos.x - p0.x, 0, s.pos.z - p0.z))
-        let standing = (0..<9).allSatisfy { w.builtBlock(ox + 4, y0 + $0, oz) == log }
-        check(!gone && s.blockCount == n0 && top2 < 14 && moved < 9 && standing,
-              String(format: "fellcheck: a spruce felled into its neighbour stays (gone %@, %d of %d blocks, top speed %.1f, came to rest %.1f from where it stood; the neighbour stands %@)",
-                     gone ? "yes" : "no", s.blockCount, n0, top2, moved, standing ? "yes" : "no"))
+        let standing = (0..<9).allSatisfy { w.builtBlock(ox + 3, y0 + $0, oz + 2) == log }
+        let lean = TreeProbeCheck.lean(s)
+        if lean < 60 {                          // (what holds it up: hull cells within 0.5 of a solid block)
+            var touch: [String] = []
+            for l in s.hull {
+                let p = s.toWorld(l)
+                for y in Int(floor(p.y - 0.5))...Int(floor(p.y + 0.5)) { for z in Int(floor(p.z - 0.5))...Int(floor(p.z + 0.5)) { for x in Int(floor(p.x - 0.5))...Int(floor(p.x + 0.5)) {
+                    let b = w.block(x, y, z)
+                    let q = simd_clamp(p, V3(Float(x), Float(y), Float(z)), V3(Float(x + 1), Float(y + 1), Float(z + 1)))
+                    if (Blocks.collide[Int(b)] || w.groundAt(x, y, z)) && simd_length(p - q) < 0.5 && touch.count < 16 {
+                        touch.append(String(format: "%d,%d,%d %@ on %@ at %d,%d,%d", Int(floor(p.x)) - ox, Int(floor(p.y)) - y0, Int(floor(p.z)) - oz,
+                                            Blocks.key(s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))), Blocks.key(b), x - ox, y - y0, z - oz))
+                    }
+                } } }
+            }
+            print("fellcheck: held at \(Int(lean)) degrees (body turned \(Int(acosf(max(-1, min(1, s.rot.act(V3(0, 1, 0)).y))) * 180 / .pi))) by " + touch.joined(separator: "; "))
+        }
+        // (P478: it must also have gone over: held up by its neighbour's leaves it stood where it was, a body.)
+        let crown1 = theirs()
+        check(!gone && s.blockCount == n0 && top2 < 14 && moved < 9 && standing && lean > 60 && crown1 == crown0,
+              String(format: "fellcheck: a spruce felled through its neighbour's crown goes over, lies down and stays (gone %@, %d of %d blocks, %.0f degrees over, top speed %.1f, came to rest %.1f from where it stood; the neighbour stands %@ with %d of its %d leaves)",
+                     gone ? "yes" : "no", s.blockCount, n0, lean, top2, moved, standing ? "yes" : "no", crown1, crown0))
         guard !gone else { return }
         // He steps up onto the fallen trunk and stands still for 4 s: he stays on it and it stays put.
         let mid = s.toWorld(s.com)

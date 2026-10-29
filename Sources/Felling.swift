@@ -26,6 +26,7 @@ enum Felling {
         var launch = (V3(0, 0, 0), V3(0, 0, 0))
         var held: Float = -1
         var pushed = false
+        var over = V3(0, 0, 0)                  // (the axis a felled tree goes over about, away from the woodsman)
         init(_ s: Ship) { ship = s }
     }
     static var falls: [Fall] = []
@@ -34,6 +35,27 @@ enum Felling {
     static var toppled = 0                       // (counter: P407's whole pieces)
 
     static func isFelled(_ s: Ship) -> Bool { s.root.name == name }
+    // P478: whether a leaf is this tree's: no log of another tree (outside `logs`, above `above`, within 6 of them) is
+    // nearer to it than the nearest of `logs`.
+    static func ownLeaf(_ w: World, logs: Set<IVec3>, above: Int) -> (IVec3) -> Bool {
+        guard let f = logs.first else { return { _ in true } }
+        var lo = f, hi = f
+        for c in logs { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z)) }
+        var others: [IVec3] = []
+        for y in max(above + 1, lo.y - 6)...min(CH - 1, hi.y + 6) { for z in (lo.z - 6)...(hi.z + 6) { for x in (lo.x - 6)...(hi.x + 6) {
+            let c = IVec3(x, y, z)
+            if !logs.contains(c) && CapitalBase.isLog(w.block(x, y, z)) { others.append(c) }
+        } } }
+        if others.isEmpty { return { _ in true } }
+        let own = Array(logs)
+        func d2(_ a: IVec3, _ b: IVec3) -> Int { let d = a - b; return d.x * d.x + d.y * d.y + d.z * d.z }
+        return { q in
+            var a = Int.max, b = Int.max
+            for c in own { a = min(a, d2(q, c)) }
+            for c in others { b = min(b, d2(q, c)); if b < a { return false } }
+            return a <= b
+        }
+    }
 
     // The standing tree's girth from its tallest upright run of logs (ShapeTrunks.treeRadius, as the world drew it).
     static func girthOf(_ logs: Set<IVec3>) -> Float {
@@ -113,12 +135,17 @@ extension Game {
             if Blocks.collide[Int(b)] && !CapitalBase.isLog(b) && !CapitalBase.isLeaf(b) { return }
             if CapitalBase.isLog(b) && below.y <= p.y { return }
         }
-        // The crown: leaves joined to the logs (6-connected through leaves, within 5 of a log).
+        // The crown: leaves joined to the logs (6-connected through leaves, within 5 of a log), and only its own.
+        // P478 (Oct 27 18:46, "trees disappear when they hit another root"): crowns in a wood grow through each other,
+        // and the body took every leaf it could reach, half its neighbours' crowns with it; that weight pulled it over
+        // onto the next trunk, where it hung, and the trees round it were left with holes. A leaf goes with the cut tree
+        // only when none of another tree's logs is nearer to it.
+        let mine = Felling.ownLeaf(world, logs: logs, above: p.y)
         var leaves: Set<IVec3> = []
         var lq: [IVec3] = []
         for c in logs { for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
             let q = c + d
-            if !leaves.contains(q) && CapitalBase.isLeaf(world.block(q.x, q.y, q.z)) { leaves.insert(q); lq.append(q) }
+            if !leaves.contains(q) && CapitalBase.isLeaf(world.block(q.x, q.y, q.z)) && mine(q) { leaves.insert(q); lq.append(q) }
         } }
         guard leaves.count >= 4 || logs.count >= 3 && leaves.count >= 1 else { return }
         var head = 0
@@ -127,7 +154,7 @@ extension Game {
             for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
                 let q = c + d
                 guard q.y > p.y, !leaves.contains(q), CapitalBase.isLeaf(world.block(q.x, q.y, q.z)) else { continue }
-                guard logs.contains(where: { abs($0.x - q.x) + abs($0.y - q.y) + abs($0.z - q.z) <= 5 }) else { continue }
+                guard logs.contains(where: { abs($0.x - q.x) + abs($0.y - q.y) + abs($0.z - q.z) <= 5 }), mine(q) else { continue }
                 leaves.insert(q); lq.append(q)
             }
         }
@@ -171,10 +198,11 @@ extension Game {
         var leaves: Set<IVec3> = []
         if !logs.isEmpty {
             let body = Set(cells)
+            let mine = Felling.ownLeaf(world, logs: Set(logs), above: start.y - 1)        // (P478: its own crown only)
             var lq: [IVec3] = []
             for c in logs { for d in World.allDirs {
                 let q = c + d
-                if !body.contains(q) && !leaves.contains(q) && CapitalBase.isLeaf(world.block(q.x, q.y, q.z)) { leaves.insert(q); lq.append(q) }
+                if !body.contains(q) && !leaves.contains(q) && CapitalBase.isLeaf(world.block(q.x, q.y, q.z)) && mine(q) { leaves.insert(q); lq.append(q) }
             } }
             var head = 0
             while head < lq.count && leaves.count < Felling.maxLeaves {
@@ -182,7 +210,7 @@ extension Game {
                 for d in World.allDirs {
                     let q = c + d
                     guard !leaves.contains(q), !body.contains(q), CapitalBase.isLeaf(world.block(q.x, q.y, q.z)) else { continue }
-                    guard logs.contains(where: { abs($0.x - q.x) + abs($0.y - q.y) + abs($0.z - q.z) <= 5 }) else { continue }
+                    guard logs.contains(where: { abs($0.x - q.x) + abs($0.y - q.y) + abs($0.z - q.z) <= 5 }), mine(q) else { continue }
                     leaves.insert(q); lq.append(q)
                 }
             }
@@ -229,6 +257,7 @@ extension Game {
             if seen.insert(key).inserted { f.wait.append((ch, sy, ch.sections[sy].version)) }
         }
         f.launch = (s.vel, s.angVel)
+        if Felling.isFelled(s) && simd_length(s.angVel) > 0 { f.over = simd_normalize(s.angVel) }
         s.vel = .zero; s.angVel = .zero
         s.hidden = true; s.kinematic = true
         f.held = 0
@@ -263,6 +292,17 @@ extension Game {
                 f.held = -1
             }
             f.age += dt
+            // P478 (Oct 27 18:46, "trees disappear when they hit another root"): at his spot the spruce cut at its foot
+            // dropped onto the ground under the cut and stood there upright for good, 4 degrees over and a body: the
+            // landing took the nudge's spin out and its round foot held it. A cut tree goes over: until it is 15 degrees
+            // over (past its foot, where its weight takes it) it is kept turning away from the woodsman.
+            if f.age < 5 && simd_length(f.over) > 0 {
+                let lean = acosf(max(-1, min(1, s.rot.act(V3(0, 1, 0)).y)))
+                if lean < 0.26 {
+                    let have = simd_dot(s.angVel, f.over), want = 0.35 + 2 * lean
+                    if have < want { s.angVel += f.over * min(want - have, dt * 3) }
+                }
+            }
             let dv = simd_length(s.vel - f.lastVel)
             f.lastVel = s.vel
             if !f.landed && f.age > 0.4 && s.contacts > 0 && dv > 2.5 {

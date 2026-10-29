@@ -730,6 +730,7 @@ extension ShipManager {
         // falling through the snow"): a felled tree meets the ground at the girth it is drawn with (a 0.45 sphere held a
         // thinner trunk off the ground), and snow cover and other things the ground wears don't hold it up.
         let felled = Felling.isFelled(s)
+        let upright = felled && s.rot.act(V3(0, 1, 0)).y > 0.6
         let r = felled ? max(0.2, min(ShipTuning.hullRadius, Felling.girth[s.id] ?? Felling.girth[s.root.id] ?? ShipTuning.hullRadius)) : ShipTuning.hullRadius
         // Broadphase: nothing under the ship reaches its lowest point (heightmaps of its footprint).
         if s.terrainCheck <= 0 {
@@ -758,7 +759,11 @@ extension ShipManager {
         let natural = SmoothTerrain.natural
         while i < hull.count {
             let w = s.toWorld(hull[i])
+            let leafy = felled && CapitalBase.isLeaf(s.grid.get(Int(floor(hull[i].x)), Int(floor(hull[i].y)), Int(floor(hull[i].z))))
             i += stride
+            // P478: while a felled tree is still going over (under 53 degrees) its low boughs give way on the ground
+            // instead of propping it up (his spruce stood at 27 degrees on its foot and its bottom ring of branches).
+            if leafy && upright { continue }
             let x0 = Int(floor(w.x - r)), x1 = Int(floor(w.x + r))
             let y0 = Int(floor(w.y - r)), y1 = Int(floor(w.y + r))
             let z0 = Int(floor(w.z - r)), z1 = Int(floor(w.z + r))
@@ -778,7 +783,12 @@ extension ShipManager {
             }
             for y in y0...y1 { for z in z0...z1 { for x in x0...x1 {
                 let b = fieldW ? rd.raw(x, y, z) : rd.get(x, y, z)
-                if !collide[Int(b)] || felled && Blocks.replaceable[Int(b)] { continue }
+                // P478 (Oct 27 18:46, "trees disappear when they hit another root"): a cut tree's crown is wound round
+                // the trunks and through the crowns of the trees beside it, and they held it: at his spot the spruce hung
+                // on its neighbour's trunk, its foot in the air, and stood there as a body; every tree cut in a wood did.
+                // Leaves give way to a falling tree, and its own crown sweeps past the trunks round it; its trunk is
+                // still stopped by theirs.
+                if !collide[Int(b)] || felled && (Blocks.replaceable[Int(b)] || CapitalBase.isLeaf(b) || leafy && CapitalBase.isLog(b)) { continue }
                 let mn = V3(Float(x), Float(y), Float(z))
                 var mx = mn + 1
                 if !Blocks.fullCollide[Int(b)] {
