@@ -73,11 +73,16 @@ final class ParticleManager {
     func explosion(at c: V3, power: Float) {
         let smoke = Int(Tex.id("smoke"))
         // Fireball: short-lived glowing orange puffs at the core (bloom in Fancy).
+        // P465 (Oct 25 19:35, firing a tank in the Ash Vault: "The explosions are still taking slightly too long to form.
+        // Maybe half, a quarter second too long"): the puffs started as a small knot at the centre and took their 0.2-0.45 s
+        // of flight to spread to the fireball's size. They now start already spread through it, bigger with the blast,
+        // and swell a little from there: the fireball is all there on the frame of the blast.
+        let big = max(0.6, min(1.6, power / 4))
         for _ in 0..<Int(power * 6) {
             let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: -0.3...1), Rand.float(in: -1...1)))
-            add(Particle(pos: c + d * Rand.float(in: 0...power * 0.35), vel: d * Rand.float(in: 1.5...3.5) + V3(0, 1.2, 0),
-                         life: Rand.float(in: 0.2...0.45), maxLife: 0.45, layer: smoke, uv0: V2(0, 0), uvSize: 1,
-                         size: Rand.float(in: 0.35...0.8), gravity: -2, color: V3(1.0, Rand.float(in: 0.45...0.75), 0.18),
+            add(Particle(pos: c + d * Rand.float(in: 0...power * 0.55), vel: d * Rand.float(in: 0.6...1.6) + V3(0, 1.2, 0),
+                         life: Rand.float(in: 0.22...0.45), maxLife: 0.45, layer: smoke, uv0: V2(0, 0), uvSize: 1,
+                         size: Rand.float(in: 0.45...0.95) * big, gravity: -2, color: V3(1.0, Rand.float(in: 0.45...0.75), 0.18),
                          collide: false, glow: true))
         }
         for _ in 0..<Int(power * 12) {
