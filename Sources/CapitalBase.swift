@@ -216,14 +216,16 @@ enum CapitalBase {
         for dz in stride(from: 31, through: 41, by: 5) { for sx in [-1, 1] { tree(sx * 15, P1 + 1, dz, 5) } }
         for sx in [-1, 1] {
             // Barbette: a grey ring with a white band, the turret sits on its top (y P1 + 5).
+            // P458 (Oct 25 16:38, over a Capital base: "the bases and the corners are way too big for what the gun is"):
+            // 7 blocks across, sized to the small gun P222 put on it (it was 15, built for a battleship turret).
             let bx = sx * 30, bz = 32
-            columns(bx - 8, bx + 8, bz - 8, bz + 8) { dx, dz in
+            columns(bx - 5, bx + 5, bz - 5, bz + 5) { dx, dz in
                 let r2 = (dx - bx) * (dx - bx) + (dz - bz) * (dz - bz)
-                if r2 <= 56 { for y in (P1 + 1)...(P1 + 4) { put(dx, y, dz, y == P1 + 3 ? white : grey) } }
-                if r2 <= 64 && r2 > 56 { put(dx, P1 + 1, dz, grey) }
+                if r2 <= 12 { for y in (P1 + 1)...(P1 + 4) { put(dx, y, dz, y == P1 + 3 ? white : grey) } }
+                if r2 <= 20 && r2 > 12 { put(dx, P1 + 1, dz, grey) }
             }
             // Steps up to the barbette top on its inner side.
-            for i in 0..<4 { put(bx - sx * (8 + 3 - i), P1 + 1 + i, bz, grey); put(bx - sx * (8 + 3 - i), P1 + 1 + i, bz + 1, grey) }
+            for i in 0..<4 { put(bx - sx * (4 + 3 - i), P1 + 1 + i, bz, grey); put(bx - sx * (4 + 3 - i), P1 + 1 + i, bz + 1, grey) }
             // P222: a small gun on each barbette (the twin AA mount west, the dual-purpose mount east), not a 13-block
             // battleship turret.
             w.mob(sx < 0 ? "deck_gun:aa" : "deck_gun:dp", V3(Float(X(bx)) + 0.5, Float(P1 + 5), Float(Z(bz)) + 0.5))
@@ -267,15 +269,24 @@ enum CapitalBase {
         let safeSeed = seed ^ UInt64(bitPattern: Int64(cx &* 73856093 ^ cz &* 19349663))
         w.safeKey(X(-12), P1 + 1, Z(-14), baseSeed: safeSeed)                          // P248: the vault safe's key
         // East armory: crate stacks, weapon chests, guns on the wall.
+        // P458 (Oct 25 16:37, gun frames on the hall's glass: "These picture frames shouldn't be here... somewhere that's
+        // obviously an armory"): the armory is a room of its own, walled off from the hall in grey with a door toward
+        // the tower and the east doorway, the guns racked on its inner wall instead of on the windows.
+        w.fill(X(14), P1 + 1, Z(-14), X(14), P2 - 1, Z(11), grey)
+        w.fill(X(15), P1 + 1, Z(-14), X(HA - 1), P2 - 1, Z(-14), grey)
+        w.fill(X(15), P1 + 1, Z(11), X(HA - 1), P2 - 1, Z(11), grey)
+        w.fill(X(14), P1 + 1, Z(-1), X(14), P1 + 3, Z(1), AIR)
         for dz in stride(from: -12, through: 8, by: 5) {
             w.fill(X(22), P1 + 1, Z(dz), X(23), P1 + 2, Z(dz + 1), Cr)
             w.materials(X(21), P1 + 1, Z(dz), seed: seed)                                     // P254: a store barrel by each stack
         }
         for (i, dz) in [-10, -2, 6].enumerated() { w.chest(X(16), P1 + 1, Z(dz), loot: "steelhold_armory", seed: rng.next(), facing: i % 2 == 0 ? 2 : 3) }
-        for dz in stride(from: -8, through: 8, by: 2) where rng.chance(0.7) {
-            let rack: [Int] = [Guns.rifle, Guns.rifle, Guns.shotgun, Guns.shotgun, Guns.arc, Guns.sniper]   // (P217)
-            let gun = Guns.all[rack[rng.int(6)]]
-            if Items.has(gun.key) { w.frame(X(27), P1 + 3, Z(dz), state: 2, item: ItemStack(Items.id(gun.key), 1)) }
+        for dz in stride(from: -12, through: 9, by: 1) where abs(dz) > 2 {
+            for y in [P1 + 2, P1 + 3] where rng.chance(0.7) {
+                let rack: [Int] = [Guns.rifle, Guns.rifle, Guns.shotgun, Guns.shotgun, Guns.arc, Guns.sniper]   // (P217)
+                let gun = Guns.all[rack[rng.int(6)]]
+                if Items.has(gun.key) { w.frame(X(15), y, Z(dz), state: 3, item: ItemStack(Items.id(gun.key), 1)) }
+            }
         }
         // North mess: long tables with benches.
         for dx in stride(from: -12, through: 12, by: 6) where abs(dx) > 2 {

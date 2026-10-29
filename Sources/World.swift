@@ -1915,7 +1915,13 @@ final class World {
         // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.
         if !p.mobs.isEmpty {
             c.modified = true
-            for (name, at) in p.mobs { pendingMobs.append((name, freeSpawn(at, wide: name == "iron_golem" || name == "ravager"))) }
+            for (name, at) in p.mobs {
+                // P458 (Oct 25 16:52, the Ash Vault: "A half truck on top of the base? How'd that get up there?"): a
+                // vehicle whose spot was taken was lifted up to 4 blocks, onto the roof of the shed it was parked in;
+                // vehicles look along the ground for room instead.
+                let vehicle = ["ash_tank", "ash_halftrack", "ash_truck", "ash_artillery", "ash_behemoth"].contains { name.hasPrefix($0) }
+                pendingMobs.append((name, freeSpawn(at, wide: name == "iron_golem" || name == "ravager", level: vehicle)))
+            }
         }
     }
 
@@ -1971,7 +1977,7 @@ final class World {
     // cell where a two-block body fits: straight up first, then one and two blocks around.
     // wide: a body over a block across (iron golems, siegebeasts) stands on a cell corner with all four cells round it
     // clear (a golem placed in a one-block gap between a house and the bank stood in both walls: behaviour sim, run 377).
-    func freeSpawn(_ p: V3, wide: Bool = false) -> V3 {
+    func freeSpawn(_ p: V3, wide: Bool = false, level: Bool = false) -> V3 {
         func clear(_ x: Int, _ y: Int, _ z: Int) -> Bool {
             for k in 0...1 {
                 if groundAt(x, y + k, z) { return false }                // (P377 step 2: the ground by its field)
@@ -1997,6 +2003,13 @@ final class World {
             return p
         }
         if clear(x, y, z) { return p }
+        if level {
+            for r in 1...8 { for dy in [0, 1, -1] { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                let fx = x + dx, fy = y + dy, fz = z + dz
+                if clear(fx, fy, fz) && solidAt(fx, fy - 1, fz) { return V3(Float(fx) + 0.5, Float(fy), Float(fz) + 0.5) }
+            } } } }
+            return p
+        }
         for dy in 1...4 where clear(x, y + dy, z) { return V3(p.x, Float(y + dy), p.z) }
         for r in 1...2 { for dy in -1...2 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
             let fx = x + dx, fy = y + dy, fz = z + dz
