@@ -246,6 +246,25 @@ enum FrigateCheck {
         fly(MoveInput(), 3)
         check(!s.wrecked && !wreck0 && blocks0 - s.blockCount < 10 && g.health == 20,
               "frigate P357 (c): a careful landing does no harm (\(s.wrecked ? "wrecked" : "whole"), \(blocks0 - s.blockCount) hull blocks lost, \(20 - g.health) half-hearts)")
+        // P476 (Oct 27 19:11, "Maybe there has to be a VTOL mode"): 40 blocks up with no way on and the bow pitched
+        // down 10 degrees, the pitch control held down: she levels, sinks straight down and settles onto the ground
+        // unharmed.
+        do {
+            if w.ships.pilot !== s { g.player.pos = s.toWorld(stand); g.takeCommand(s) }
+            s.vel = .zero; s.angVel = .zero; s.throttle = 0
+            w.ships.pointHull(s, pitch: -0.17)
+            if let cst = w.ships.capState[s.id] { cst.helmPitch = -0.17 }
+            s.pos.y += ground + 40 - s.worldMin.y; s.prevPos = s.pos; s.updateBounds()
+            let x0 = s.pos.x, z0 = s.pos.z, had = s.blockCount, crashes = Capital.crashes
+            g.input.control = true
+            fly(MoveInput(), 30)
+            g.input.control = false
+            let fwd = s.dirToWorld(V3(0, 0, -1))
+            let slid = simd_length(V2(s.pos.x - x0, s.pos.z - z0)), left = s.worldMin.y - ground
+            check(!s.wrecked && Capital.hovering && Capital.crashes == crashes && had - s.blockCount < 10 && left < 2 && slid < 6 && abs(fwd.y) < 0.03 && g.health == 20,
+                  String(format: "frigate P476: with no way on she hovers and comes straight down onto the ground (%.1f blocks over it, slid %.1f, bow %.1f degrees, %d hull blocks lost, %d crashes, %d half-hearts)",
+                         left, slid, asinf(fwd.y) * 180 / .pi, had - s.blockCount, Capital.crashes - crashes, 20 - g.health))
+        }
         s.pos = start; s.prevPos = start; s.vel = .zero
         w.ships.pointHull(s, pitch: 0)
         if w.ships.pilot !== s { g.player.pos = s.toWorld(stand); g.takeCommand(s) }

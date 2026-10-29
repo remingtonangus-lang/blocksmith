@@ -1469,16 +1469,35 @@ extension ShipManager {
         let steered = pilot === s
         let meridian = s.role == "capfrigate"
         let pitchIn: Float = steered ? s.climb : 0, steerIn: Float = steered ? s.steer : 0
-        st.helmPitch = max(-Capital.maxPitch, min(Capital.maxPitch, st.helmPitch + pitchIn * 0.32 * dt))
-        st.helmBank += (-steerIn * Capital.maxBank - st.helmBank) * min(1, dt * 1.5)
         let fw = s.dirToWorld(V3(0, 0, -1))
         var way = simd_dot(s.vel, fw)
+        // P476 (Oct 27 19:11, "There's not really any landing the frigate... harder to do than it ought to be... Maybe
+        // there has to be a VTOL mode"): with no way on (under 3 blocks/s along the bow) and the drive off she hovers on
+        // her lift jets: she levels out, and the bow's pitch control lifts or lowers her straight up and down instead
+        // (6 blocks/s, easing to 1.5 over the last dozen blocks so she settles onto the ground gently); the steer still
+        // turns her on the spot. Drive on and she flies along her bow again.
+        let hover = steered && abs(way) < 3 && abs(s.throttle) < 0.15
+        if hover { st.helmPitch += -st.helmPitch * min(1, dt * 1.5) }
+        else { st.helmPitch = max(-Capital.maxPitch, min(Capital.maxPitch, st.helmPitch + pitchIn * 0.32 * dt)) }
+        st.helmBank += (-steerIn * Capital.maxBank - st.helmBank) * min(1, dt * 1.5)
         var drift = s.vel - fw * way
         let want = steered ? max(-0.35, s.throttle) * Capital.helmSpeed(s, st) : 0
         let acc: Float = (abs(want) > abs(way) && want * way >= 0 ? 4.5 : 6) * (meridian ? 1 : 1.4)
         way += max(-acc * dt, min(acc * dt, want - way))
         drift *= max(0, 1 - dt * 2)                         // (the hull carves round: sideways way bleeds off fast)
         s.vel = fw * way + drift
+        if hover {
+            var below: Float = 0
+            for (i, j) in [(1, 1), (0, 0), (2, 0), (0, 2), (2, 2)] {
+                let x = Int(floor(s.worldMin.x + (s.worldMax.x - s.worldMin.x) * Float(i) * 0.5))
+                let z = Int(floor(s.worldMin.z + (s.worldMax.z - s.worldMin.z) * Float(j) * 0.5))
+                below = max(below, Float(world.isLoaded(x, z) ? world.topY(x, z) : world.gen.column(x, z).height) + 1)
+            }
+            let clear = s.worldMin.y - below
+            let rate: Float = pitchIn > 0 ? 6 : max(1.5, min(6, clear * 0.5))
+            s.vel.y += (pitchIn * rate - s.vel.y) * min(1, dt * 2)
+            Capital.hovering = true
+        } else if steered { Capital.hovering = false }
         if s.worldMax.y > Float(CH - 4) { s.vel.y = min(s.vel.y, 0) }        // the sky's ceiling
         // Turning: slow with no way on, quicker under way; the pitch and bank eased toward the helm's.
         let under = min(1, abs(way) / 12)
@@ -2753,6 +2772,7 @@ extension Capital {
     // P334 (d): how far a dropship pitches and banks; Craft Bank (Quest comfort option) picks gentle or full while the
     // player rides one (the view itself keeps a level horizon: the rig follows only the craft's yaw).
     static var fullBank = false
+    static var hovering = false                                  // P476: the frigate at the helm hovers (checks)
     static var vtolPitch: Float { fullBank ? 0.21 : 0.09 }      // 12 or 5 degrees
     static var vtolBank: Float { fullBank ? 0.38 : 0.14 }       // 22 or 8 degrees
     static let crashSpeed: Float = 14          // closing speed (blocks/s) at the touching part that tears the hull (a crash)

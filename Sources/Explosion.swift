@@ -420,9 +420,22 @@ final class CraterJob {
             for b in rim { w.scheduleFluid(around: b) }
             rim.removeAll()
         }
+        // P476 (Oct 27 19:17, "Some of the ground didn't quite disappear after the frigate's shot damage"): in a field
+        // world each block taken opened only a ball under a block across round its centre, which left slivers and fins
+        // of drawn ground standing in the bowl; the bowl is carved out of the field as a whole too, one ball a frame
+        // down its axis (as a plain blast's bowl is: Explosion.explode).
+        if carved && bowlNext < 6 && (w.fieldTerrain || w.keepsField) {
+            let t = Float(bowlNext) * Float(depth) / 6
+            let k = t / Float(max(1, depth))
+            let rr = 0.85 * r * sqrtf(max(0.05, 1 - k * k))
+            _ = w.carve(at: center + V3(shear.x * t, -t, shear.y * t), radius: rr, mode: .shape)
+            bowlNext += 1
+            return done
+        }
         if carved && budget > 0 { scorch(g, columns: max(1, budget / 3)) }      // (up to ~3 block changes a column)
         return done
     }
+    private var bowlNext = 0
 
     // After the carving: the bowl's floor burnt to blackstone and basalt with a few glowing magma blocks, a ring of
     // scorched earth round the rim fading out to 1.5 radii (grass and podzol to coarse dirt, plants and snow burnt
