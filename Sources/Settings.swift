@@ -182,6 +182,17 @@ enum ShaderFX {
     static func on(_ bit: Int) -> Bool { Settings.shared.shaderFX & bit != 0 }
 
     // Texture layers that take a metal or ice sheen (bit per layer, 2048 layers: the frame uniforms' `sheen`).
+    // P496 (night lane, Oct 30, a snowy peaks render: a snowfield read as a fine knit, the same picture every block):
+    // ground whose art has no grain or wind direction to keep has its tops turned and flipped per block (the Quest's
+    // chunk shader, as grass tops already were). Sand, sandstone and red sand keep their ripples' direction.
+    static let turnedTops: Set<String> = ["snow", "snow_block", "powder_snow", "dirt", "coarse_dirt", "gravel", "mud", "clay",
+                                          "moss_block", "stone", "andesite", "diorite", "granite", "tuff", "calcite", "packed_ice",
+                                          "blue_ice", "netherrack", "soul_soil", "end_stone"]
+    static func turnBits() -> [UInt32] {
+        var bits = [UInt32](repeating: 0, count: 64)
+        for (i, n) in Tex.names.enumerated() where i < 2048 && turnedTops.contains(n) { bits[i >> 5] |= 1 << UInt32(i & 31) }
+        return bits
+    }
     static func sheenBits() -> [UInt32] {
         var bits = [UInt32](repeating: 0, count: 64)
         let metal = ["iron_block", "gold_block", "diamond_block", "netherite_block", "copper_block", "cut_copper", "copper_grate",
