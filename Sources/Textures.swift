@@ -1129,7 +1129,7 @@ enum TextureGen {
         let li = Int(Tex.id(nm))
         var s16 = [V4](repeating: V4(0, 0, 0, 0), count: S * S)
         if let f = table[nm] { for y in 0..<S { for x in 0..<S { s16[y * S + x] = simd_clamp(f(x, y), V4(repeating: 0), V4(repeating: 1)) } } }
-        if !TextureGen.painted.contains(nm), let imp = TextureImport.image(nm, size: n) { return imp }
+        if !TextureGen.painted.contains(nm), let imp = TextureImport.image(nm, size: n) { return TextureSeams.mend(nm, imp, n: n) }
         if let g = HDTex.generator(nm, s16) { return g(n, Int(hash3(li, 7, 3, 0x7E57) & 0xFFFF)).px }
         return HDTex.detailed(s16, salt: li, n: n).px
     }
@@ -1191,7 +1191,7 @@ enum TextureGen {
                 // P232 (Oct 13 21:47, "the image in inventory is still black"): a gun's icon is always drawn from its
                 // model (Guns.iconHD), never the old imported pictures, which were dark and showed other guns.
                 } else if !TextureGen.painted.contains(name), !name.hasPrefix("item_gun_"), let imp = TextureImport.image(name, size: n) {
-                    px = imp
+                    px = TextureSeams.mend(name, imp, n: n)                                 // (P493)
                 } else if let g = HDTex.generator(name, src) {
                     px = g(n, Int(hash3(layer, 7, 3, 0x7E57) & 0xFFFF)).px
                 } else if crisp.contains(name) || name.hasPrefix("item_") || name.hasPrefix("effect_") || table[name] == nil {
