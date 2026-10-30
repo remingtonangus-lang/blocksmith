@@ -176,6 +176,8 @@ final class Game {
     var elytraWear: Float = 0
     var bullets: [SentryBolt] = []
     weak var riding: Mob?          // the minecart the player sits in
+    var leadFrom: V3? = nil        // P487: where he stood at the last world update (World.lead, from how he really moves)
+    var leadSmooth = V3.zero
     var riderPush: Float = 0
     var sneakHeldFromMenu = false      // the sneak / B that closed a menu is still held: it doesn't dismount
     var clouds: [AcidCloud] = []
@@ -1037,7 +1039,18 @@ final class Game {
             TickProf.begin()
             clock += dt
             world.extraCenter = coop.active ? coop.otherPlayerPos(self) : nil
-            world.lead = riding.map { V3($0.vel.x, 0, $0.vel.z) } ?? V3(player.vel.x, 0, player.vel.z)
+            // P487 (his dropship and frigate flights: "I had to literally fly into the void in order to get things to
+            // generate"): the way he travels, from how far he really moved since the last update. His own velocity is the
+            // deck's frame aboard a ship he flies or rides (zero at the helm), so at the dropship's 60 blocks a second
+            // the land ahead was not made first (P414) nor the scan led by his heading (P478). A jump of more than 250
+            // blocks a second is a teleport (a portal, a respawn, a dimension), not travel.
+            let at = player.pos
+            var moved = V3.zero
+            if let p0 = leadFrom, dt > 0 { moved = V3(at.x - p0.x, 0, at.z - p0.z) / Float(dt) }
+            if simd_length(moved) > 250 { moved = .zero; leadSmooth = .zero }
+            leadFrom = at
+            leadSmooth += (moved - leadSmooth) * Float(min(1, dt * 6))
+            world.lead = simd_length(leadSmooth) < 0.5 ? .zero : leadSmooth
             world.facing = player.yaw                        // (P446: the land he faces streams in first)
             world.update(center: player.pos)
             TickProf.mark("world.update")

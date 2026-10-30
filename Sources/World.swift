@@ -106,6 +106,11 @@ final class World {
     // mesh when he comes down. BS_HIGHRING=0: off.
     static var buriedNearHigh = ProcessInfo.processInfo.environment["BS_HIGHRING"] == "0" ? 3 : 1
     private(set) var flyingHigh = false
+    // P487: flying high and fast (over settleFast), the chunks under him pass in a fraction of a second: none of their
+    // buried rock is meshed (the nine round him each meshed their caves as they came under him, about a third of all
+    // meshing at the dropship's 60 b/s at view 16); it meshes when he slows or comes down. BS_HIGHFAST=0: off.
+    static var highFastNone = ProcessInfo.processInfo.environment["BS_HIGHFAST"] != "0"
+    private(set) var flyingFast = false
     private(set) var underground = false
     private var eyeSection = 0                      // the section his eye is in (World.update), P404 (3)
     private var buriedCentre: ChunkKey?
@@ -1282,9 +1287,17 @@ final class World {
     static var settleNear: Double = Double(ProcessInfo.processInfo.environment["BS_SETTLENEAR"] ?? "") ?? 0.25
     private var held: [Chunk] = []
     private var heldCheck: Double = 0
+    // P487: flying faster than settleFast (blocks a second), the chunks round him pass under him in a second or two
+    // and he isn't watching their water flow block by block: they settle on the far gap too, and their workers' time
+    // goes to the land coming up ahead (at the dropship's 60 b/s, re-meshing the settling caves of the chunks within
+    // two of him was over two fifths of all meshing). BS_SETTLEFAST=0: the old way.
+    static var settleFast: Float = ProcessInfo.processInfo.environment["BS_SETTLEFAST"] == "0" ? .infinity : 20
+    @inline(__always) private var settleNearGap: Double {
+        simd_length_squared(V2(lead.x, lead.z)) > World.settleFast * World.settleFast ? World.settleGap : World.settleNear
+    }
     @inline(__always) private func holdBack(_ c: Chunk, _ dx: Int, _ dz: Int, _ now: Double) -> Bool {
         guard World.settleGap > 0 && c.meshedOnce && !c.urgent
-              && now - c.meshAt < (max(abs(dx), abs(dz)) > 2 ? World.settleGap : World.settleNear) else { return false }
+              && now - c.meshAt < (max(abs(dx), abs(dz)) > 2 ? World.settleGap : settleNearGap) else { return false }
         if !c.held { c.held = true; held.append(c) }
         return true
     }
@@ -1484,8 +1497,9 @@ final class World {
             heldCheck = now
             var released = false
             func near(_ c: Chunk) -> Bool { max(abs(c.cx - center.x), abs(c.cz - center.z)) <= 2 }
+            let nearGap = settleNearGap
             held.removeAll { c in
-                guard now - c.meshAt >= World.settleNear && (now - c.meshAt >= World.settleGap || near(c)) else { return false }
+                guard now - c.meshAt >= nearGap && (now - c.meshAt >= World.settleGap || near(c)) else { return false }
                 c.held = false
                 if chunks[ChunkKey(x: c.cx, z: c.cz)] === c && c.needsMesh { c.dirty = true; released = true }
                 return true
@@ -1590,7 +1604,7 @@ final class World {
     }
 
     private func nearBuried(_ k: ChunkKey) -> Bool {
-        let r = underground ? World.buriedNearUnder : flyingHigh ? World.buriedNearHigh : World.buriedNear
+        let r = underground ? World.buriedNearUnder : flyingHigh ? (flyingFast ? -1 : World.buriedNearHigh) : World.buriedNear
         guard let c0 = buriedCentre else { return true }
         if max(abs(k.x - c0.x), abs(k.z - c0.z)) <= r { return true }
         if let e = buriedExtra, max(abs(k.x - e.x), abs(k.z - e.z)) <= r { return true }
@@ -1629,10 +1643,11 @@ final class World {
             under = Float(y) > pos.y + 2.5             // ground over his head: in a cave, a dug hole, a mine
             high = !under && pos.y - Float(y) > (flyingHigh ? 12 : 24)       // (P446)
         }
-        guard center != buriedCentre || extra != buriedExtra || under != underground || high != flyingHigh else { return }
+        let fast = World.highFastNone && simd_length_squared(V2(lead.x, lead.z)) > World.settleFast * World.settleFast
+        guard center != buriedCentre || extra != buriedExtra || under != underground || high != flyingHigh || fast != flyingFast else { return }
         let wasUnder = underground
-        underground = under; flyingHigh = high; buriedCentre = center; buriedExtra = extra
-        let r = under ? World.buriedNearUnder : high ? World.buriedNearHigh : World.buriedNear
+        underground = under; flyingHigh = high; flyingFast = fast; buriedCentre = center; buriedExtra = extra
+        let r = under ? World.buriedNearUnder : high ? (fast ? -1 : World.buriedNearHigh) : World.buriedNear
         let rKeep = under ? World.buriedNearUnder : World.buriedNear       // (flying high doesn't give meshes back)
         for (k, c) in chunks where !c.hollow {
             let d = min(max(abs(k.x - center.x), abs(k.z - center.z)), extra.map { max(abs(k.x - $0.x), abs(k.z - $0.z)) } ?? Int.max)
