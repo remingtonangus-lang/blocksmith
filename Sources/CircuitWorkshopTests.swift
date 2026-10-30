@@ -67,13 +67,8 @@ enum CircuitWorkshopTests {
                   "workshop: the observer clock pulses every 4 game ticks, 2 on (gaps \(Array(Set(gaps)).sorted()), on \(onTicks) of 80), its lamp stays lit")
         } else { check(false, "workshop: the observer clock bench was built") }
 
-        // 3. Bulb toggle: each press of the button flips the lamp; the release doesn't.
-        if let b = at["bulb_toggle"] {
-            let button = b + IVec3(1, 0, 0), lamp = b + IVec3(4, 0, 0)
-            var got: [Bool] = []
-            for _ in 0..<4 { use(button); tick(30); got.append(lit(lamp)) }
-            check(got == [true, false, true, false], "workshop: the bulb toggle flips its lamp on each press (\(got))")
-        } else { check(false, "workshop: the bulb toggle bench was built") }
+        // 3. (P463: the bulb toggle bench left with the copper bulb.)
+        check(at["bulb_toggle"] == nil, "workshop: no bulb toggle bench (the copper bulb is retired)")
 
         // 4. Piston door: shut by the torch at rest; the lever pulls both door blocks back (a 1x2 opening you can walk
         // through), off again it shuts.

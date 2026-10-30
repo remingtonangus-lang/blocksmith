@@ -51,7 +51,7 @@ enum Recipes {
     static var all: [Recipe] = build()
 
     static func shaped(_ rows: [String], _ key: [Character: String], _ result: String, _ n: Int = 1) -> Recipe? {
-        guard Items.has(result) else { return nil }
+        guard Items.has(result), !Copper.retired(result) else { return nil }      // (P463: no copper leftovers)
         let h = rows.count, w = rows.map { $0.count }.max() ?? 0
         var cells: [String?] = []
         for r in rows {
@@ -62,7 +62,7 @@ enum Recipes {
     }
 
     static func shapeless(_ ings: [String], _ result: String, _ n: Int = 1) -> Recipe? {
-        guard Items.has(result) else { return nil }
+        guard Items.has(result), !Copper.retired(result) else { return nil }
         return Recipe(w: 0, h: 0, cells: [], result: ItemStack(Items.id(result), n), shapeless: ings)
     }
 

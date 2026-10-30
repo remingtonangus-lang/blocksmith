@@ -62,12 +62,6 @@ enum CircuitWorkshop {
             b.put(b.P(3), "observer", 4)                             // watches west, fires east
             b.put(b.P(4), "redstone_lamp")
         },
-        Bench(key: "bulb_toggle", title: ["Bulb Toggle", "T flip-flop:", "each press flips", "the lamp"], width: 7) { b in
-            b.put(b.P(1), "stone_button")                            // on the deck
-            b.put(b.P(2), "copper_bulb")
-            b.put(b.P(3), "comparator", 3)                           // facing east, reads the bulb
-            b.put(b.P(4), "redstone_lamp")
-        },
         Bench(key: "piston_door", title: ["Piston Door", "lever opens it", "(an inverting", "torch holds it)"], width: 10) { b in
             // A pillar in front of the wall with the lever on top; a torch on the pillar's face powers the upper piston
             // and, through the block space above it, the lower one (quasi-connectivity). The lever turns the torch off.

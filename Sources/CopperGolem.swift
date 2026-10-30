@@ -24,6 +24,7 @@ enum CopperGolem {
 extension Game {
     // Carved pumpkin placed on a copper block (any stage, waxed or not): a Copper Golem of that stage.
     func trySummonCopperGolem(_ p: IVec3) -> Bool {
+        guard !Copper.golemsRetired else { return false }           // P463: the iron golem's pumpkin instead
         let below = world.block(p.x, p.y - 1, p.z)
         guard case let (form, stage, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(below)])], form == "block" else { return false }
         world.setBlock(p.x, p.y, p.z, AIR)
@@ -59,6 +60,7 @@ extension Game {
 
     // An axe on an unwaxed statue scrapes it back into a golem one stage cleaner.
     func reviveCopperStatue(_ p: IVec3) -> Bool {
+        guard !Copper.golemsRetired else { return false }
         let b = world.block(p.x, p.y, p.z)
         guard case let (form, stage, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(b)])], form == "copper_golem_statue", !waxed else { return false }
         world.setBlock(p.x, p.y, p.z, AIR)

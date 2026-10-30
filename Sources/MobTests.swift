@@ -601,11 +601,13 @@ enum MobTests {
         let a = Arena(w: world, cx: x0 - 30, cz: z0 - 30, gy: min(CH - 24, world.topY(x0 - 30, z0 - 30) + 14))
         a.clear()
         guard Blocks.has("copper_chest"), Blocks.has("exposed_copper"), Items.has("cobblestone") else { check(false, "copper chest and golem blocks exist"); return }
-        // The rest of the copper set: every item has a recipe, every block ages and can be waxed.
+        // P463: the reference's trial-chamber and copper-age pieces are retired: no recipe, not in the palette.
         let copperSet = ["copper_sword", "copper_pickaxe", "copper_spear", "copper_helmet", "copper_boots", "copper_nugget", "copper_torch",
-                         "copper_lantern", "copper_bars", "copper_chain", "copper_door", "copper_trapdoor", "copper_chest"]
-        let missing: [String] = copperSet.filter { (k: String) -> Bool in !Items.has(k) || !Recipes.all.contains { $0.result.item == Items.id(k) } }
-        check(missing.isEmpty, "the copper set is craftable", missing.joined(separator: ", "))
+                         "copper_lantern", "copper_bars", "copper_chain", "copper_door", "copper_trapdoor", "copper_chest", "copper_bulb", "copper_grate"]
+        let still: [String] = copperSet.filter { (k: String) -> Bool in
+            Items.has(k) && (Recipes.all.contains { $0.result.item == Items.id(k) } || CreativeMenu.every.contains(Items.id(k)))
+        }
+        check(still.isEmpty, "the copper leftovers are out of the recipes and the palette (P463)", still.joined(separator: ", "))
         let shelves: Bool = ["oak_shelf", "crimson_shelf", "pale_oak_shelf"].allSatisfy { (k: String) -> Bool in
             Items.has(k) && Recipes.all.contains { $0.result.item == Items.id(k) && $0.result.count == 6 }
         }
@@ -627,46 +629,13 @@ enum MobTests {
             return ox == "oxidized_" + k && wx == "waxed_" + k
         }
         check(ages, "copper blocks have every oxidation stage and a waxed form")
-        // Built from a carved pumpkin on exposed copper: an exposed golem.
+        // P463: a carved pumpkin on copper builds no copper golem any more.
         a.set(0, 0, 0, Blocks.id("exposed_copper"))
         a.set(0, 1, 0, Blocks.id("carved_pumpkin"))
         let built = g.trySummonCopperGolem(IVec3(a.cx, a.gy + 1, a.cz))
-        guard let golem = mm.mobs.first(where: { $0.kind == .copperGolem }) else { check(false, "carved pumpkin on copper builds a copper golem"); return }
-        check(built && golem.variant == 1 && world.isAir(a.cx, a.gy, a.cz), "carved pumpkin on exposed copper builds an exposed copper golem")
-        golem.variant = 4                                                   // waxed, unaffected: no ageing during the test
-        golem.pos = a.p(0, 0, 0)
-        // A copper chest of 20 cobblestone, a chest already holding cobblestone and an empty chest.
-        let cobble = Items.id("cobblestone")
-        func chest(_ u: Int, _ v: Int, _ name: String, _ s: ItemStack?) -> BlockEntity {
-            a.set(u, 0, v, Blocks.id(name))
-            let be = BlockEntity(.chest)
-            if let s { be.container[0] = s }
-            world.blockEntities[IVec3(a.cx + u, a.gy, a.cz + v)] = be
-            return be
-        }
-        let src = chest(-4, 0, "copper_chest", ItemStack(cobble, 20))
-        let match = chest(5, 4, "chest", ItemStack(cobble, 1))
-        let empty = chest(5, -4, "chest", nil)
-        var t: Float = 0
-        func moved() -> Int { match.container.slots.reduce(0) { $0 + ($1.item == cobble ? $1.count : 0) } }
-        while t < 90 && moved() < 21 { mm.update(0.05, game: g); t += 0.05 }
-        let left = src.container.slots.reduce(0) { $0 + $1.count }
-        check(moved() == 21 && left == 0 && empty.container.slots.allSatisfy { $0.isEmpty },
-              "a copper golem carries a copper chest's items to the chest that holds them", "\(moved()) moved, \(left) left, \(String(format: "%.1f", t)) s")
-        // Honeycomb, axe, statue.
-        golem.variant = 3
-        g.petrifyCopperGolem(golem)
-        let sp = IVec3(Int(floor(golem.pos.x)), Int(floor(golem.pos.y + 0.1)), Int(floor(golem.pos.z)))
-        check(golem.health < -1000 && Blocks.key(world.materialAt(sp.x, sp.y, sp.z)) == "oxidized_copper_golem_statue", "an oxidized golem becomes a statue")
-        mm.update(0.05, game: g)
+        check(!built && !mm.mobs.contains { $0.kind == .copperGolem }, "a carved pumpkin on copper builds no copper golem (P463)")
+        a.set(0, 0, 0, AIR); a.set(0, 1, 0, AIR)
         let keep = g.inventory.held
-        g.inventory.held = ItemStack(Items.id("iron_axe"), 1)
-        let revived = g.reviveCopperStatue(sp)
-        check(revived && world.isAir(sp.x, sp.y, sp.z) && mm.mobs.contains { $0.kind == .copperGolem && $0.variant == 2 },
-              "an axe scrapes a statue back into a weathered golem")
-        g.inventory.held = keep
-        for d in [IVec3(-4, 0, 0), IVec3(5, 0, 4), IVec3(5, 0, -4)] { world.blockEntities[IVec3(a.cx + d.x, a.gy, a.cz + d.z)] = nil }
-        mm.mobs.removeAll()
         // Signs: a dye colours the text, a glow ink sac makes it glow (Bright Letters), an ink sac dims it again.
         if Blocks.has("oak_sign") {
             let sp2 = IVec3(a.cx + 2, a.gy, a.cz + 2)

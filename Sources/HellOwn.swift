@@ -140,5 +140,5 @@ extension MobManager {
 extension SpawnEggs {
     // P292: eggs of retired kinds stay registered (old saves keep their stacks; one used hatches the heir) but are
     // left out of the creative palette.
-    static func retired(_ id: ItemID) -> Bool { kindOf[id]?.retiredHell == true }
+    static func retired(_ id: ItemID) -> Bool { kindOf[id]?.retiredHell == true || kindOf[id] == .copperGolem }      // (P463: no copper golems)
 }
