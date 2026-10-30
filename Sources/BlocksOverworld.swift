@@ -137,7 +137,13 @@ extension BlockRegistry {
                        ("white_tulip", "White Tulip"), ("pink_tulip", "Pink Tulip"), ("oxeye_daisy", "Oxeye Daisy"),
                        ("lily_of_the_valley", "Lily of the Valley"), ("blue_orchid", "Blue Orchid"), ("dead_bush", "Dead Bush"),
                        ("brown_mushroom", "Brown Mushroom"), ("red_mushroom", "Red Mushroom"), ("pink_petals", "Pink Petals")] {
-            plant(n, d)
+            if n == "pink_petals" {
+                // P492: petals lie flat on the ground (like leaf litter and wildflowers), not as crossed upright cards.
+                var f = BlockDef(n, d)
+                f.tex = [n]; f.render = .model; f.layer = .cutout; f.opaque = false; f.collide = false
+                f.boxes = [Box(0, 0, 0, 16, 1, 16)]; f.hardness = 0; f.sound = .plant; f.replaceable = true; f.skyStop = false
+                add(f)
+            } else { plant(n, d) }
         }
         for st in 0...3 {
             var b = BlockDef(st == 0 ? "sweet_berry_bush" : "sweet_berry_bush_\(st)", "Sweet Berry Bush")
