@@ -86,7 +86,8 @@ enum PlantSupport {
             if holds(IVec3(p.x, p.y + 1, p.z)) { return true }
             for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
                 let o = w.materialAt(p.x + d.x, p.y, p.z + d.z)
-                if Blocks.collide[Int(o)] && Blocks.opaque[Int(o)] { return true }
+                // (P490: and a leaf, which the generator hangs them from: a vine beside a crown popped on the next check.)
+                if Blocks.collide[Int(o)] && (Blocks.opaque[Int(o)] || Mesher.leafT[Int(o)]) { return true }
             }
             return false
         case 5:

@@ -175,14 +175,41 @@ enum TreePlacer {
         } } }
     }
 
+    // P490 (night lane, Oct 30): the vines hang from the crown's leaves. They were laid on a ring round the trunk at a
+    // fixed height whatever the tree's design, and the designed crowns (P433) seldom fill that ring, so strings of vine
+    // hung in the air a block or more out from any leaf (a jungle seen from below: two strands over nothing). Each
+    // strand now walks in from the ring toward the trunk until it meets the crown: it starts at the highest open cell
+    // (from a block over the old height to three under it) with a leaf or a log beside it or over it, and stops at the
+    // first cell that isn't air (it went on under a branch it met, a piece hanging under nothing). A strand that meets
+    // nothing is left out. (The rolls are drawn as before, so every chunk a crown crosses lays the same strands.)
     static func vines(_ w: TreeWriter, _ x: Int, _ y: Int, _ z: Int, _ r: Int, _ rng: inout SRng) {
         let vine = Blocks.id("vine")
         for _ in 0..<r * 3 {
             let dx = rng.range(-r - 1, r + 1), dz = rng.range(-r - 1, r + 1)
             guard abs(dx) == r + 1 || abs(dz) == r + 1 else { continue }
             let len = rng.range(1, 5)
-            for k in 0..<len where w.get(x + dx, y - k, z + dz) == AIR { w.leaf(x + dx, y - k, z + dz, vine) }
+            var cx = x + dx, cz = z + dz, top: Int? = nil
+            for _ in 0...(r + 1) {
+                for yy in stride(from: y + 1, through: y - 3, by: -1) where w.get(cx, yy, cz) == AIR && hung(w, cx, yy, cz, sides: true) {
+                    top = yy; break
+                }
+                if top != nil { break }
+                cx -= dx.signum(); cz -= dz.signum()
+            }
+            guard let t = top else { continue }
+            for k in 0..<len {
+                guard w.get(cx, t - k, cz) == AIR else { break }
+                w.leaf(cx, t - k, cz, vine)
+            }
         }
+    }
+
+    // Something solid (a leaf, a log) over the cell, or beside it when `sides`.
+    static func hung(_ w: TreeWriter, _ x: Int, _ y: Int, _ z: Int, sides: Bool) -> Bool {
+        let collide = Blocks.collide
+        if collide[Int(w.get(x, y + 1, z))] { return true }
+        guard sides else { return false }
+        return collide[Int(w.get(x + 1, y, z))] || collide[Int(w.get(x - 1, y, z))] || collide[Int(w.get(x, y, z + 1))] || collide[Int(w.get(x, y, z - 1))]
     }
 
     static func build(_ w: TreeWriter, _ kind: TreeKind, _ x: Int, _ y: Int, _ z: Int, _ rng: inout SRng) {
