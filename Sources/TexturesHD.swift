@@ -3355,26 +3355,25 @@ enum HDTex {
             return img
         }
     }
+    // P492: pink petals lie flat on the ground, so this is seen from above: a few small leaves and clusters of
+    // five-petal blossoms with pale middles.
     static func pinkPetalsHD(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0, 0, 0, 0))
-        let petal = col(0xF0A0C8), leaf = col(0x4A8A30)
-        for i in 0..<9 {
-            let cx: Float = (0.1 + 0.8 * h2(i, 1, s)) * fn, cy: Float = fn * (0.8 + 0.18 * h2(i, 2, s))
-            let r: Float = fn / 20
-            for k in 0..<5 {
-                let a: Float = Float(k) / 5 * 2 * Float.pi + h2(i, 3, s)
-                let px: Float = cx + cosf(a) * r, py: Float = cy + sinf(a) * r * 0.5
-                for dy in -2...2 { for dx in -3...3 {
-                    let x = Int(px) + dx, y = Int(py) + dy
-                    guard x >= 0 && x < n && y >= 0 && y < n else { continue }
-                    let tone: Float = 0.85 + 0.2 * h2(x, y, s &+ 4)
-                    let c: V3 = petal * tone
-                    img.px[y * n + x] = V4(c.x, c.y, c.z, 1)
-                } }
+        for k in 0..<10 {
+            let x: Float = h2(k, 1, s) * fn, y: Float = h2(k, 2, s) * fn
+            leafBlob(&img, x, y, fn / 16, h2(k, 3, s) * 6.28, col(0x4A8A30) * (0.8 + 0.3 * h2(k, 4, s)))
+        }
+        for k in 0..<14 {
+            let x: Float = (0.06 + 0.88 * h2(k, 5, s)) * fn, y: Float = (0.06 + 0.88 * h2(k, 6, s)) * fn
+            let r: Float = fn / 34
+            let tone: Float = 0.88 + 0.2 * h2(k, 8, s)
+            let petal: V3 = col(k % 4 == 0 ? 0xF8B8D8 : 0xF0A0C8) * tone
+            for q in 0..<5 {
+                let a: Float = Float(q) * 2 * Float.pi / 5 + h2(k, 7, s) * 6.28
+                leafBlob(&img, x + cosf(a) * r, y + sinf(a) * r, r * 1.3, a, petal * (0.92 + 0.1 * Float(q % 2)))
             }
-            let stemTop = min(n, Int(cy) + 2)
-            for y in stemTop..<n { for x in (Int(cx) - 1)...(Int(cx) + 1) where x >= 0 && x < n { img.px[y * n + x] = V4(leaf.x, leaf.y, leaf.z, 1) } }
+            for dy in -1...1 { for dx in -1...1 where dx * dx + dy * dy < 2 { plot(&img, Int(x) + dx, Int(y) + dy, col(0xF8E0A0)) } }
         }
         return img
     }

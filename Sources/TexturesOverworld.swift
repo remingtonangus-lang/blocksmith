@@ -183,7 +183,17 @@ extension TextureGen {
         p["oxeye_daisy"] = flower(0xF4F4F4, 0xE8C83A, 442, top: 5, size: 3)
         p["lily_of_the_valley"] = flower(0xF8F8F8, 0xE8F0E0, 444, top: 6, size: 1.8)
         p["blue_orchid"] = flower(0x2AA8F0, 0x1A78C8, 446, top: 5, size: 2.8)
-        p["pink_petals"] = { x, y in y > 11 && r(x, y, 448) < 0.5 ? hex(0xF0A0C8) : (y > 13 && x % 3 == 0 ? hex(0x4A8A30) : clear) }
+        // P492: seen from above (the petals lie flat): a little four-petal flower in most 8x8 quarters, a leaf beside it.
+        p["pink_petals"] = { x, y in
+            let qx = x / 8, qy = y / 8
+            guard r(qx, qy, 448) > 0.2 else { return clear }
+            let cx = qx * 8 + 2 + Int(r(qx, qy, 449) * 4), cy = qy * 8 + 2 + Int(r(qx, qy, 450) * 4)
+            let dx = x - cx, dy = y - cy
+            if dx == 0 && dy == 0 { return hex(0xF8E0A0) }
+            if abs(dx) + abs(dy) == 1 || (abs(dx) == 1 && abs(dy) == 1 && r(x, y, 451) < 0.5) { return hex(0xF0A0C8, 0.9 + 0.15 * r(x, y, 452)) }
+            if dx == 2 && dy == 1 || dx == -1 && dy == 2 { return hex(0x4A8A30) }
+            return clear
+        }
         p["dead_bush"] = { x, y in
             let branch = (x == 7 && y > 6) || (abs(x - 7) == (13 - y) && y > 4 && y < 13) || (abs(x - 7) == (y - 2) / 2 && y < 7 && y > 2)
             return branch ? hex(0x7A5A2A, 0.85 + 0.25 * r(x, y, 449)) : clear
