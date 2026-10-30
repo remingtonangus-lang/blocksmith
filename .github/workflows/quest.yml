@@ -31,8 +31,10 @@ jobs:
   host:
     # Shared code + Quest sources built for Linux: questcheck (world, meshing, Game.tick with Touch input, mixer, saves),
     # a stereo render and the scripted VR controls test on lavapipe.
+    # (90 min: the unoptimized build and the checks outgrew 45 by Oct 30; every run that day was cancelled mid-checks
+    # and reported nothing.)
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
