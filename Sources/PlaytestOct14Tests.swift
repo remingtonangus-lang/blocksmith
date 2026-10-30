@@ -245,7 +245,8 @@ enum PlaytestOct14Tests {
         check(towerGuns == t.towers.count && garrisonGuns == Greywall.Tier.garrison.towers.count,
               "P255 (d): a gun on every tower (outpost \(towerGuns) of \(t.towers.count), garrison \(garrisonGuns) of \(Greywall.Tier.garrison.towers.count))")
         let inner = (t.keepX * 2 - 1) * (t.keepZ * 2 - 1)
-        check(t.floors == 2 && upper * 10 >= inner * 8 && stairs >= 6 && chestsUp >= 1,
+        // (P485: a one-wide stair where the mess room's door is beside its foot: 4 steps, was always 8.)
+        check(t.floors == 2 && upper * 10 >= inner * 8 && stairs >= 4 && chestsUp >= 1,
               "P255 (e): the outpost's keep has a second floor (\(upper) of \(inner) cells floored, \(stairs) stair blocks up, \(chestsUp) chest upstairs)")
     }
 

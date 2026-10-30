@@ -151,8 +151,10 @@ extension FieldTerrain {
     // water. Such cells hold their fluid as the chunk is made:
     //   - an open cell (air, or ground filling a quarter block or less) under a source of water or lava, with something
     //     under it (ground, a solid block, the same fluid);
-    //   - a small enclosed pocket of open cells (64 or fewer, not reaching the chunk's side) whose walls are ground,
-    //     solid blocks or the same fluid, touching a source.
+    //   - a small enclosed pocket of open cells (64 or fewer, not reaching the chunk's side, none higher than the source
+    //     it touches) whose walls are ground, solid blocks or the same fluid. (P489 part 2: the height limit. Water
+    //     doesn't climb, but a pocket open to it filled up past the water's own level: in questcheck --basetest a
+    //     Capital citadel's patrol came back a man short with part 1 alone, and is whole again with the limit.)
     // A shore's cells under open air are left as they were (the sea runs onto the drawn beach: P363 (d), P412 (a)), and
     // a cave under a lake's floor still takes its waterfall (the pocket reaches far).
     static var pocketsFilled = 0                           // (harness tally, cells; not thread-exact)
@@ -193,6 +195,7 @@ extension FieldTerrain {
                 default: j = s - CSQ
                 }
                 guard j >= 0 && j < n, !seen[j], open(j), j < top[j & (CSQ - 1)] else { continue }
+                let level = s / CSQ                             // (no higher than the source: water doesn't climb)
                 seen[j] = true
                 comp.removeAll(keepingCapacity: true); stack.removeAll(keepingCapacity: true)
                 stack.append(j)
@@ -200,7 +203,8 @@ extension FieldTerrain {
                 while ok, let i = stack.popLast() {
                     comp.append(i)
                     let x = i & 15, z = (i >> 4) & 15
-                    if comp.count > 64 || x == 0 || x == 15 || z == 0 || z == 15 || i < CSQ || i + CSQ >= n || i > top[i & (CSQ - 1)] {
+                    if comp.count > 64 || x == 0 || x == 15 || z == 0 || z == 15 || i < CSQ || i + CSQ >= n || i > top[i & (CSQ - 1)]
+                        || i / CSQ > level {
                         ok = false; break
                     }
                     for o in nbr {
