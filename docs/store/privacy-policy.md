@@ -1,8 +1,7 @@
-# Sunderfall privacy policy (draft)
+# Sunderfall privacy policy
 
-_Draft for review before store submission. Fill in the publisher name, contact address and date._
 
-**Publisher:** [publisher name] · **Contact:** [email] · **Last updated:** [date]
+**Publisher:** Noobmaster Industries (Remington Wilbur) · **Contact:** sunderfall.support@gmail.com · **Last updated:** October 30, 2026
 
 ## What Sunderfall collects
 
