@@ -98,7 +98,7 @@ extension TownTests {
             if ex.count < 3 { grew = false }
             maxVerts = max(maxVerts, (Guns.models[gi].count + ex.count + 1) * 36)
         }
-        check(grew && maxVerts <= 1336, "upgrades: every gun model gains its scope, magazine and parts (largest \(maxVerts) vertices; the arm buffer holds 1536)")
+        check(grew && maxVerts <= 1900, "upgrades: every gun model gains its scope, magazine and parts (largest \(maxVerts) vertices; the arm buffer holds 2048 with the arm)")
         var sw = ItemStack(id("iron_sword"), 1)
         sw.ench = Enchant.pack([(.sharpness, 2), (.knockback, 1), (.unbreaking, 3)])
         let buf = UnsafeMutablePointer<EntityVert>.allocate(capacity: 200)

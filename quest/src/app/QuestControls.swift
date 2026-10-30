@@ -1751,7 +1751,7 @@ final class QuestControls {
         let light = max(0.15, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
         if let gi = game.heldGun {
             let (ptr, off, cap) = app.scene.reserve(s, MobVert.self, priority: true)
-            guard cap > 1536 else { return }      // up to ~1300 with upgrade parts (Upgrades.gunParts)
+            guard cap > 2048 else { return }      // up to ~1700 with upgrade parts (Upgrades.gunParts) and the arm
             // Larger than life (rifle ~1.2 m, sidearm ~0.33 m): 3.2x the screen model. Empty: no magazine, red light.
             let gk: Float = 3.2 * QuestSettings.heldScale
             let n = Guns.writeFirstPerson(gi, aim: 1, kick: game.arms.kick, lower: 0, bob: .zero, light: light,
