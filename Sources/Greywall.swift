@@ -497,6 +497,20 @@ enum Greywall {
             default: break
             }
         }
+        // P476 (Remington, Oct 29 13:33: "obsidian grade armour is whatever would make it annoying to get through a wall
+        // instead of just finding the keycard"): the vault and the comms room behind their locked doors are walled,
+        // floored and roofed in armour plate (Armour); the ceiling lights and the doors stay.
+        if Blocks.has(Armour.plate) {
+            let armour = Blocks.id(Armour.plate)
+            for r in rs where r.use == "vault" || r.use == "comms" {
+                for dz in (r.z0 - 1)...(r.z1 + 1) { for dx in (r.x0 - 1)...(r.x1 + 1) { for y in 0...5 {
+                    if dx >= r.x0 && dx <= r.x1 && dz >= r.z0 && dz <= r.z1 && y >= 1 && y <= 4 { continue }
+                    let at = w.get(cx + dx, S + y, cz + dz)
+                    if at == AIR || Blocks.emit[Int(at)] > 0 || Blocks.key(Blocks.groupBase[Int(at)]).hasSuffix("door") { continue }
+                    put(dx, y, dz, armour)
+                } } }
+            }
+        }
 
         // MARK: Upper floor (fortress and up, and the outpost: P255): up a stair at the corridor's west end
         if t.floors > 1 {

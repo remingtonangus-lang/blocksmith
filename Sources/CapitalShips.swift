@@ -701,11 +701,13 @@ enum Capital {
 extension BlockRegistry {
     func registerCapitalBlocks() {
         // Warship plate: tougher than stone against blasts (resistance 9; steel plating is 600, which no shell could
-        // ever break), so naval guns and rail slugs tear real holes in a hull.
+        // ever break), so naval guns and rail slugs tear real holes in a hull. (P476: the hull skin is armour grade now,
+        // Armour in MilitaryBase.swift: shells and the main gun bite it, nothing smaller does.)
         for (n, disp) in [("warship_hull", "Warship Hull"), ("warship_panel", "Warship Panel"), ("warship_stripe", "Warship Trim")] where !has(n) {
             var d = BlockDef(n, disp)
             d.tex = [n]
             d.hardness = 8; d.resistance = 9; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 2; d.sound = .stone
+            if Armour.skins.contains(n) { Armour.harden(&d) }                 // P476: the hull skin is armour
             add(d)
         }
         registerCapitalFactionBlocks()

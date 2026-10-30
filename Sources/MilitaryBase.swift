@@ -29,7 +29,32 @@ extension BlockRegistry {
             add(d)
         }
         family("steel_plating", "steel_plating", "Steel Plating", h: 12, tool: .pickaxe, req: true, snd: .stone, stairs: true, slab: true, fence: false, wall: false)
+        if !has(Armour.plate) {
+            var d = BlockDef(Armour.plate, "Armour Plate")
+            d.tex = [Armour.plate]; d.sound = .metal
+            Armour.harden(&d)
+            add(d)
+        }
     }
+}
+
+// P476 (Remington, Oct 29 13:33: "obsidian grade armour is whatever would make it annoying to get through a wall instead
+// of just finding the keycard or something that you would expect, like a tank, or maybe one layer of that armour around
+// a frigate, whatever you would expect to be hard to get through as opposed to just metal"): Armour Plate and the
+// warships' hull skins mine as slowly as obsidian (a titanium pick's work) and stand against grenades, rockets and
+// charges; only a heavy gun's shell or the main gun bites into them, counting each as Armour.breach (steel's plates
+// count three times a shell's cap, stone just the cap). It walls a Greywall keep's vault and comms room, plates a
+// Cinder Tank he takes, and skins the Meridian and Stormwarden frigates and the Ironback Crawler.
+enum Armour {
+    static let plate = "armour_plate"
+    static let breach: Float = 30
+    static let heavyCap: Float = 1e6          // the main gun on a hull: every other block counts in full, armour as breach
+    static let skins: Set<String> = [plate, "frigate_hull", "frigate_plate", "frigate_trim", "frigate_mark", "warship_hull"]
+    static func harden(_ d: inout BlockDef) {
+        d.hardness = 50; d.resistance = 1200; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 3
+    }
+    private static let grade: [Bool] = (0..<Blocks.count).map { skins.contains(Blocks.key(Blocks.groupBase[$0])) }
+    @inline(__always) static func isGrade(_ id: BlockID) -> Bool { Int(id) < grade.count && grade[Int(id)] }
 }
 
 extension TextureGen {
@@ -41,6 +66,17 @@ extension TextureGen {
             if rivet { return hex(0x8A9098) }
             if (x == 3 || x == 14) && (y == 3 || y == 14) { return hex(0x3A3E44) }
             return hex(0x585E66, 0.93 + 0.05 * r(0, y, 1901) + 0.04 * r(x, y, 1902))
+        }
+        p[Armour.plate] = { x, y in
+            // Thick dark plate: heavy bolts at the corners, a weld bead across the middle, rolled-steel mottling.
+            if x == 0 || y == 0 { return hex(0x4A4E54) }
+            if x == 15 || y == 15 { return hex(0x1E2124) }
+            let bolt = (x == 2 || x == 13) && (y == 2 || y == 13)
+            if bolt { return hex(0x7A8088) }
+            if (x == 3 || x == 14) && (y == 3 || y == 14) { return hex(0x202326) }
+            if y == 8 && x > 1 && x < 14 { return hex(0x52575E, 0.9 + 0.12 * r(x, y, 1911)) }
+            if y == 7 && x > 1 && x < 14 { return hex(0x26292D) }
+            return hex(0x3A3F45, 0.9 + 0.06 * r(x / 3, y / 3, 1912) + 0.04 * r(x, y, 1913))
         }
         p["steel_grating"] = { x, y in
             if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x3A3E43) }

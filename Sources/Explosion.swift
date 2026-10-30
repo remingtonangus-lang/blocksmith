@@ -10,10 +10,13 @@ enum Explosion {
     // plating, the crawlers' hulls and the Capital tower's cladding) stayed whole against every shell; it now counts
     // three times the cap, so a manned gun's burst bites a few plates where stone opens a hole. Obsidian, vaults
     // (over 600) and unbreakable blocks stay.
+    // P476: obsidian-grade armour (Armour.grade) shrugs off every other blast but a heavy gun's shell and the main gun
+    // count it as Armour.breach: a few plates bitten off where steel would open a hole.
     static func capped(_ id: BlockID, _ r0: Float, _ cap: Float) -> Float {
         guard cap.isFinite else { return r0 }
         if r0 <= 12 { return min(cap, r0) }
         if r0 <= 600 && Blocks.hardness[Int(id)] >= 0 { return min(r0, cap * 3) }
+        if Armour.isGrade(id) { return Armour.breach }
         return r0
     }
 
@@ -346,7 +349,7 @@ final class CraterJob {
         offsets = Explosion.craterOffsets(ri, depth: self.depth)
         if quiet { return }
         let t0 = CFAbsoluteTimeGetCurrent()
-        g.world.ships.blast(at: c, power: 14, game: g)
+        g.world.ships.blast(at: c, power: 14, game: g, resistCap: Armour.heavyCap)
         let t1 = CFAbsoluteTimeGetCurrent()
         Explosion.explode(at: c, power: 8, game: g, breakBlocks: false)
         let t2 = CFAbsoluteTimeGetCurrent()

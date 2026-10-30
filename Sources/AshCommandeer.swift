@@ -76,7 +76,7 @@ enum AshCommandeer {
     static func tankHull() -> Blueprint {
         let b = Blueprint()
         for x in [-1, 1] { for z in -3...2 { b.set(x, 0, z, "ship_track") } }
-        let plate = "polished_blackstone"                                  // (plate a shell or rocket can take off: ash plating shrugs off any blast)
+        let plate = Armour.plate                                           // (P476: armour plate: a heavy shell bites it, grenades and rockets don't)
         b.box(-1, 1, 1, 1, -3, 2, plate)
         b.set(-1, 1, 2, "ship_engine")
         b.set(0, 1, 1, "ship_helm[south]")

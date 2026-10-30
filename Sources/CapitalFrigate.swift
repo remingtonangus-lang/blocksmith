@@ -20,6 +20,7 @@ extension BlockRegistry {
             var d = BlockDef(n, disp)
             d.tex = [n]
             d.hardness = 8; d.resistance = 9; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 2; d.sound = .metal
+            if Armour.skins.contains(n) { Armour.harden(&d) }                 // P476: her skin is armour
             add(d)
         }
         for (n, disp, e) in [("frigate_porthole", "Meridian Porthole", UInt8(11)), ("frigate_thruster", "Meridian Thruster Core", UInt8(15)),
