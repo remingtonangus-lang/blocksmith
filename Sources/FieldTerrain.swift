@@ -290,6 +290,7 @@ enum FieldTerrain {
             } } }
         }
         FieldTerrain.holdPools(&b, &fd, &fm, cx: cx, cz: cz)   // P378 step 2: the drawn ground holds each pool
+        FieldTerrain.fillPockets(&b, fd)                      // P489: and the cells under and inside it hold their fluid
         if statsOn { statsLock.lock(); for k in 0..<3 { stats[k] += st[k] }; statsLock.unlock() }
         if let wg, wg.fieldWorld, built != nil { Railways.shapeBed(wg, &fd, cx: cx, cz: cz) }        // P379 step 3
         var out = FieldData(fd: fd, fm: fm)

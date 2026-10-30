@@ -141,4 +141,81 @@ extension FieldTerrain {
             }
         }
     }
+
+    // P489 (night lane, Oct 30): the generator lays its seas, lakes and lava seas on the block world's ground, and the
+    // field smooths that ground: a seabed cell the drawn ground now fills only a little (a quarter block or less), and a
+    // cell of the old ground the smoothing left empty inside a reef or under a lava sea, was left as air under the fluid.
+    // Each one filled from the water over it as soon as its chunk woke near the player: flying at 20 b/s, 3,600 cells
+    // flowed in 40 s (water running down into the seabed, through the reefs and the lava seas), every step re-meshing
+    // the surface sections of land already drawn, and the sea grass over those cells popped off as its floor turned to
+    // water. Such cells hold their fluid as the chunk is made:
+    //   - an open cell (air, or ground filling a quarter block or less) under a source of water or lava, with something
+    //     under it (ground, a solid block, the same fluid);
+    //   - a small enclosed pocket of open cells (64 or fewer, not reaching the chunk's side) whose walls are ground,
+    //     solid blocks or the same fluid, touching a source.
+    // A shore's cells under open air are left as they were (the sea runs onto the drawn beach: P363 (d), P412 (a)), and
+    // a cave under a lake's floor still takes its waterfall (the pocket reaches far).
+    static var pocketsFilled = 0                           // (harness tally, cells; not thread-exact)
+
+    static func fillPockets(_ b: inout [BlockID], _ fd: [Int8]) {
+        let n = min(b.count, fd.count)
+        guard n > CSQ else { return }
+        let fluidLevel = Blocks.fluidLevel, fluidKind = Blocks.fluidKind, collide = Blocks.collide
+        @inline(__always) func open(_ j: Int) -> Bool { b[j] == AIR && fd[j] <= 8 }
+        // Ground past a quarter block, a solid block, or the same fluid: what holds a fluid cell over it.
+        @inline(__always) func holds(_ j: Int, _ kind: UInt8) -> Bool {
+            fd[j] > 8 || collide[Int(b[j])] || (fluidLevel[Int(b[j])] >= 0 && fluidKind[Int(b[j])] == kind)
+        }
+        var filled = 0
+        // Under a source, top down (a cell filled here holds the one over it only if it was already a source).
+        for i in stride(from: n - CSQ - 1, through: CSQ, by: -1) where open(i) {
+            let up = b[i + CSQ]
+            guard up == WATER || up == LAVA, holds(i - CSQ, fluidKind[Int(up)]) else { continue }
+            b[i] = up; filled += 1
+        }
+        // Enclosed pockets. Open air over the highest thing in its column is sky, never a pocket: a flood that meets it
+        // stops there (a sea's surface and every shore start one).
+        var top = [Int](repeating: -1, count: CSQ)
+        for i in stride(from: n - 1, through: 0, by: -1) where top[i & (CSQ - 1)] < 0 && !open(i) { top[i & (CSQ - 1)] = i }
+        let nbr = [1, -1, CS, -CS, CSQ, -CSQ]
+        var seen = [Bool](repeating: false, count: n)
+        var comp: [Int] = [], stack: [Int] = []
+        for s in 0..<n where b[s] == WATER || b[s] == LAVA {
+            let src = b[s], kind = fluidKind[Int(src)]
+            let sx = s & 15, sz = (s >> 4) & 15
+            for k in 0..<6 where k != 4 {                       // (over a fluid: air, or the pocket's own top cell)
+                let j: Int
+                switch k {
+                case 0: guard sx < 15 else { continue }; j = s + 1
+                case 1: guard sx > 0 else { continue }; j = s - 1
+                case 2: guard sz < 15 else { continue }; j = s + CS
+                case 3: guard sz > 0 else { continue }; j = s - CS
+                default: j = s - CSQ
+                }
+                guard j >= 0 && j < n, !seen[j], open(j), j < top[j & (CSQ - 1)] else { continue }
+                seen[j] = true
+                comp.removeAll(keepingCapacity: true); stack.removeAll(keepingCapacity: true)
+                stack.append(j)
+                var ok = true
+                while ok, let i = stack.popLast() {
+                    comp.append(i)
+                    let x = i & 15, z = (i >> 4) & 15
+                    if comp.count > 64 || x == 0 || x == 15 || z == 0 || z == 15 || i < CSQ || i + CSQ >= n || i > top[i & (CSQ - 1)] {
+                        ok = false; break
+                    }
+                    for o in nbr {
+                        let m = i + o
+                        if open(m) { if !seen[m] { seen[m] = true; stack.append(m) } }
+                        else if holds(m, kind) || fluidLevel[Int(b[m])] < 0 { continue }   // (a wall; a plant or a fitting)
+                        else { ok = false; break }                                          // (another fluid)
+                    }
+                }
+                guard ok else { continue }
+                for i in comp { b[i] = src }
+                filled += comp.count
+            }
+        }
+        pocketsFilled &+= filled
+    }
 }
+
