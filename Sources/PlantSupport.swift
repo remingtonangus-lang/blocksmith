@@ -60,7 +60,9 @@ enum PlantSupport {
         let g = Blocks.groupBase[Int(b)]
         func holds(_ q: IVec3) -> Bool {
             let o = w.materialAt(q.x, q.y, q.z)
-            return Blocks.collide[Int(o)] || Blocks.groupBase[Int(o)] == g
+            // (P489: or the drawn ground in that cell, under the water that runs onto it: sea grass on a seabed cell the
+            // field fills a little popped as soon as water ran into the cell.)
+            return Blocks.collide[Int(o)] || Blocks.groupBase[Int(o)] == g || w.groundAt(q.x, q.y, q.z)
         }
         switch ruleOf(b) {
         case 1:
