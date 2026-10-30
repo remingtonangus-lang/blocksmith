@@ -55,7 +55,7 @@ enum CityPurpose: Int, CaseIterable {
         case .powerStation:
             for x in xs {
                 put(x, L + 1, backZ, g("redstone_block"))
-                put(x, L + 2, backZ, (x - fp.bx0) % 3 == 0 ? g("waxed_copper_bulb[lit]") : g("waxed_copper_grate"))
+                put(x, L + 2, backZ, (x - fp.bx0) % 3 == 0 ? g("redstone_lamp[lit]") : g("waxed_cut_copper"))      // (P463: no bulbs or grates)
                 put(x, L + 1, backZ - 1, (x - fp.bx0) % 3 == 0 ? g("waxed_cut_copper_slab") : nil)
             }
             // Lightning rods on the roof corners.
@@ -63,11 +63,12 @@ enum CityPurpose: Int, CaseIterable {
         }
     }
 
-    // A plaza light post's lamp: a lit copper bulb over a Copper Battery (the light panel where copper is missing).
+    // A plaza light post's lamp: a lit Copper Lamp over a Copper Battery (the light panel where it is missing; P463: it was
+    // the reference's copper bulb).
     static func lamp(_ w: inout StructWriter, _ x: Int, _ y: Int, _ z: Int, fallback: BlockID) {
-        if Blocks.has("waxed_copper_bulb[lit]") && Blocks.has("redstone_block") {
+        if Blocks.has("redstone_lamp[lit]") && Blocks.has("redstone_block") {
             w.set(x, y - 1, z, Blocks.id("redstone_block"))
-            w.set(x, y, z, Blocks.id("waxed_copper_bulb[lit]"))
+            w.set(x, y, z, Blocks.id("redstone_lamp[lit]"))
         } else { w.set(x, y, z, fallback) }
     }
 }

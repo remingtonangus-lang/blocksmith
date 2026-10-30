@@ -25,6 +25,25 @@ enum Copper {
         return m
     }()
 
+    // P463 (Remington, Oct 29 13:33: "all this copper stuff is like, maybe the bronze update from Minecraft residuals,
+    // it's like some sort of copper items that would have been in the trial chamber in Minecraft, they gotta go"): the
+    // reference's trial-chamber and copper-age pieces leave the palette, the recipes and generation, and no copper golem
+    // is built any more. Copper ore, ingots, blocks, cut copper, lightning rods and the copper circuits stay. A piece a
+    // save already holds stays as it is (blocks and items are still registered, so old saves load unchanged).
+    static let retiredForms: Set<String> = ["chiseled_copper", "copper_grate", "copper_bulb", "copper_chest", "copper_golem_statue",
+                                            "copper_lantern", "copper_bars", "copper_chain", "copper_door", "copper_trapdoor"]
+    static let retiredItems: Set<String> = {
+        var s: Set<String> = ["copper_torch", "copper_nugget"]
+        for t in ["sword", "pickaxe", "axe", "shovel", "hoe", "spear", "helmet", "chestplate", "leggings", "boots"] { s.insert("copper_" + t) }
+        return s
+    }()
+    static let golemsRetired = true
+    static func retired(_ key: String) -> Bool {
+        if retiredItems.contains(key) { return true }
+        if let f = index[key]?.0 { return retiredForms.contains(f) }
+        return false
+    }
+
     // Same form and state offset at another stage / wax setting.
     static func convert(_ b: BlockID, stage: Int, waxed: Bool) -> BlockID? {
         let base = Blocks.groupBase[Int(b)]

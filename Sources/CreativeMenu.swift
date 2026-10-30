@@ -16,7 +16,7 @@ final class CreativeMenu: Menu {
     // reliquary), and a ring of frames built from the palette was the one way left into the Hollow, the reference's
     // floating island, spikes and towers, from a world made today.)
     static let every: [ItemID] = Items.creativeList.filter {
-        !SpawnEggs.retired($0) && !["ender_chest", VehiclePresets.itemKey, "end_portal_frame"].contains(Items.key($0))
+        !SpawnEggs.retired($0) && !["ender_chest", VehiclePresets.itemKey, "end_portal_frame"].contains(Items.key($0)) && !Copper.retired(Items.key($0))
     }
     static var cache: [Int: [ItemID]] = [:]
     var all: [ItemID] = CreativeMenu.every
@@ -121,7 +121,7 @@ final class CreativeMenu: Menu {
 
     static let sparkWords = ["redstone", "piston", "repeater", "comparator", "lever", "button", "pressure_plate", "hopper", "dispenser", "dropper",
                              "observer", "rail", "tnt", "lamp", "daylight", "target", "note_block", "tripwire", "minecart", "sculk_sensor",
-                             "crafter", "slime_block", "honey_block", "copper_bulb", "trapped_chest", "lightning_rod"]
+                             "crafter", "slime_block", "honey_block", "trapped_chest", "lightning_rod"]
     static let functionalWords = ["crafting_table", "furnace", "chest", "barrel", "anvil", "enchanting", "brewing", "_bed", "smoker", "loom",
                                   "stonecutter", "grindstone", "smithing", "cartography", "lectern", "composter", "bell", "campfire", "torch",
                                   "lantern", "beacon", "shulker_box", "jukebox", "sign", "banner", "item_frame", "painting", "flower_pot",
