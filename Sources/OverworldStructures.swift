@@ -869,10 +869,18 @@ enum OverworldStructures {
         StructureType(name: "desert_well", spacing: 22, separation: 2, salt: 40306, reach: 0) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             guard gen.column(x, z).biome == .desert else { return nil }
-            let y = gen.groundY(x, z)
+            // P495 (night lane, Oct 30, a desert render: a well's base stood a block proud of the sand on a beach slope,
+            // its underside showing): the well sits at the lowest of its footprint's corners and middle, set into the
+            // sand on the high side (the sand over its base cleared), and its base is carried down to the ground where
+            // the sand falls away under an edge.
+            let y = [(0, 0), (-2, -2), (2, -2), (-2, 2), (2, 2)].map { gen.groundY(x + $0.0, z + $0.1) }.min()!
             guard y > SEA else { return nil }
-            return StructureStart(kind: "desert_well", pieces: [piece(x - 2, y - 2, z - 2, x + 2, y + 4, z + 2) { w in
+            return StructureStart(kind: "desert_well", pieces: [piece(x - 2, y - 8, z - 2, x + 2, y + 6, z + 2) { w in
                 let ss = SANDSTONE, slab = Blocks.id("sandstone_slab")
+                for dz in -2...2 { for dx in -2...2 {
+                    for yy in (y + 1)...(y + 6) where w.inside(x + dx, yy, z + dz) && Blocks.collide[Int(w.get(x + dx, yy, z + dz))] { w.set(x + dx, yy, z + dz, AIR) }
+                    w.groundDown(x + dx, y - 2, z + dz, ss, minY: y - 8)
+                } }
                 w.fill(x - 2, y - 1, z - 2, x + 2, y, z + 2, ss)
                 w.set(x, y, z, WATER); w.set(x, y - 1, z, WATER)
                 for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { w.set(x + dx, y + 1, z + dz, slab) }
