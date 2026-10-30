@@ -189,6 +189,12 @@ enum GroundSettle {
     // neighbours (Chunk.borderSeeds) is checked once all eight neighbours exist.
     static func borderCheck(_ w: World, around k: ChunkKey) {
         guard w.fieldTerrain, borderCheck else { return }
+        // P488: generation's own leftovers, not an edit: the sections round what is taken out mesh in the queue's order
+        // (P446). Marked as edits, every chunk installed beside a loose piece sent its neighbours' sections ahead of
+        // the queue: flying at 60 b/s, a fifth of all meshing was these, the chunks under him re-meshed again and again.
+        let was = World.backgroundEdits
+        World.backgroundEdits = true
+        defer { World.backgroundEdits = was }
         for dz in -1...1 { for dx in -1...1 {
             let kk = ChunkKey(x: k.x + dx, z: k.z + dz)
             guard let c = w.chunks[kk], !c.borderSeeds.isEmpty, !c.hollow else { continue }
