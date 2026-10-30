@@ -472,7 +472,11 @@ enum TreeShapes {
             for _ in 0..<10 {
                 let dx = rng.range(-3, 4), dz = rng.range(-3, 4)
                 let len = rng.range(1, 4)
-                for k in 0..<len where w.get(x + dx, top - 2 - k, z + dz) == AIR { w.leaf(x + dx, top - 2 - k, z + dz, moss) }
+                guard TreePlacer.hung(w, x + dx, top - 2, z + dz, sides: false) else { continue }     // (P490: under the crown)
+                for k in 0..<len {
+                    guard w.get(x + dx, top - 2 - k, z + dz) == AIR else { break }
+                    w.leaf(x + dx, top - 2 - k, z + dz, moss)
+                }
             }
         case .megaSpruce, .megaPine:
             let podzol = Blocks.id("podzol")
