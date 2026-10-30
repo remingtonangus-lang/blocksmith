@@ -35,7 +35,7 @@ if [ "$EXPECT" = 0 ]; then
   pk "targetSdk >= 32 ($tsdk)" "$([ "${tsdk:-0}" -ge 32 ] && echo 1)"
   other=$(unzip -Z1 "$APK" | grep '^lib/' | grep -vc '^lib/arm64-v8a/')
   pk "arm64-v8a libraries only ($other others)" "$([ "$other" -eq 0 ] && echo 1)"
-  pk "VR intent category" "$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null | grep -q 'com.oculus.intent.category.VR' && echo 1)"
+  pk "VR intent category" "$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null | grep -c 'com.oculus.intent.category.VR' | grep -qv '^0$' && echo 1)"
   bad=$(echo "$MAN" | grep -cE "uses-permission: name='android.permission.(CALL_PHONE|SEND_SMS|READ_SMS|READ_CONTACTS|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|READ_EXTERNAL_STORAGE|CAMERA|READ_PHONE_STATE)'")
   pk "no prohibited permissions ($bad)" "$([ "$bad" -eq 0 ] && echo 1)"
   if [ -n "${APKSIGNER:-}" ]; then
