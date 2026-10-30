@@ -23,7 +23,30 @@ enum SpaceWarpCheck {
         }
         print(String(format: "dynres: pixel-bound settles at %.2f (%d drops), triangle-bound at %.2f (lowest %.2f, %d taken back)",
                      sa, a.drops, sb, minB, b.takenBack))
-        let ok = sa >= 0.74 && sa <= 0.81 && sb == 1 && b.takenBack >= 1
+        var ok = sa >= 0.74 && sa <= 0.81 && sb == 1 && b.takenBack >= 1
+        // P498: his Oct 30 captures at 72 Hz, nearly all pixels (31-175k quads): the grove at 15:15 (GPU 20.0 ms at
+        // full size) and the village at 15:01 (25.9 ms, the worst), walking: each frame's time swings +-15 % round a
+        // scene that drifts +-10 % every few seconds. Frames over the 13.9 ms budget in the last 15 of 20 s, and how
+        // soon the first frame fits. The grove must hold; the village is reported (at 70 % its pixels alone are the
+        // budget, so the ground shader's own cost has to come down too).
+        for (name, full) in [("grove 15:15", 19.97), ("village 15:01", 25.89)] {
+            var c = DynamicResolution(), sc: Float = 1, rng: UInt64 = 0x9E3779B97F4A7C15
+            var late = 0, over = 0, first = -1, lo: Float = 1
+            for f in 0..<(72 * 20) {
+                rng = rng &* 6364136223846793005 &+ 1442695040888963407
+                let jitter = 0.85 + 0.3 * Double(rng >> 11) / Double(1 << 53)
+                let drift = 1 + 0.1 * sin(Double(f) / 72 * 1.3)
+                let px = Double(sc * sc)
+                let gpu = full * (0.08 + 0.92 * px) * jitter * drift
+                if gpu <= 1000.0 / 72 && first < 0 { first = f }
+                if f >= 72 * 5 { late += 1; if gpu > 1000.0 / 72 { over += 1 } }
+                sc = c.observe(gpuMs: gpu, budgetMs: 1000.0 / 72, enabled: true, fps: 72)
+                lo = min(lo, sc)
+            }
+            print("dynres: \(name) " + String(format: "(%.1f ms full) walking at 72 Hz: first frame in the budget after %.2f s, then %d of %d frames over (%.0f%%), scale %.2f (lowest %.2f), %d drops, %d taken back",
+                         full, Double(first) / 72, over, late, Double(over) * 100 / Double(late), sc, lo, c.drops, c.takenBack))
+            if full < 21 { ok = ok && first >= 0 && first < 72 && Double(over) / Double(late) < 0.1 && c.takenBack == 0 }
+        }
         print(ok ? "dynres: ok" : "FAIL dynres")
         return ok ? 0 : 1
     }

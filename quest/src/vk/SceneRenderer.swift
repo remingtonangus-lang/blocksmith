@@ -393,7 +393,13 @@ final class SceneRenderer {
     private var modules: [String: VkShaderModule] = [:]
     private func module(_ name: String) throws -> VkShaderModule {
         if let m = modules[name] { return m }
-        let m = try ctx.shaderModule(QuestSPIRV.words(name))
+        // P498 harness: BS_SPVDIR=DIR loads DIR/<name>.spv over the built-in module (shader experiments on lavapipe
+        // without a rebuild).
+        var words = QuestSPIRV.words(name)
+        if let d = ProcessInfo.processInfo.environment["BS_SPVDIR"], let data = FileManager.default.contents(atPath: d + "/" + name + ".spv") {
+            words = data.withUnsafeBytes { Array($0.bindMemory(to: UInt32.self)) }
+        }
+        let m = try ctx.shaderModule(words)
         modules[name] = m
         return m
     }
