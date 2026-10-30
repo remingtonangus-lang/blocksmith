@@ -114,6 +114,18 @@ enum TreePlacer {
         func blocked(_ x: Int, _ y: Int, _ z: Int, reach: Int = 4, tall: Int = 14) -> Bool {
             keepOut.contains { mn, mx in x >= mn.x - reach && x <= mx.x + reach && z >= mn.z - reach && z <= mx.z + reach && y + tall >= mn.y && y - 2 <= mx.y }
         }
+        // P494 (night lane, Oct 30): no tree within 5 blocks of a railway's track (8 for an ancient oak). The track's
+        // cutting clears only its bed's columns, and the field then smooths the cutting's sides, so a tree beside it
+        // lost the ground under its trunk and hung over the line with a hole cut through its crown (two oaks by the
+        // jungle town's station at 6308, 2565 on his Oct 28 seed, seen from across the line).
+        let railPad = margin + 8
+        var railCells: [(Int, Int)] = []
+        for l in Railways.near(gen, x0: bx - railPad, z0: bz - railPad, x1: bx + CS - 1 + railPad, z1: bz + CS - 1 + railPad, pad: 0) {
+            for c in l.cells where c.x >= bx - railPad && c.x < bx + CS + railPad && c.z >= bz - railPad && c.z < bz + CS + railPad {
+                railCells.append((c.x, c.z))
+            }
+        }
+        func nearRail(_ x: Int, _ z: Int, _ r: Int) -> Bool { railCells.contains { abs($0.0 - x) <= r && abs($0.1 - z) <= r } }
         b.withUnsafeMutableBufferPointer { buf in
             let w = TreeWriter(b: buf.baseAddress!, bx: bx, bz: bz)
             var sites: [(TreeKind, Int, Int, Int)] = []
@@ -140,6 +152,7 @@ enum TreePlacer {
                     guard k.rv > 1.2, let kind = choose(biome, r2, pick, YOFF + Int(k.h)), let gy = top(tx, tz, hint),
                           gy >= SEA, gy - YOFF >= Int(floorf(k.wl)) else { continue }
                     if !keepOut.isEmpty && (kind == .ancientOak ? blocked(tx, gy, tz, reach: 8, tall: 18) : blocked(tx, gy, tz)) { continue }
+                    if !railCells.isEmpty && nearRail(tx, tz, kind == .ancientOak ? 8 : 5) { continue }
                     // Soil check where we can see it (inside this chunk).
                     if w.inside(tx, gy, tz) {
                         let soil = Blocks.key(w.get(tx, gy, tz))
