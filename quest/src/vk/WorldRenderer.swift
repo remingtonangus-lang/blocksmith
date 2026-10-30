@@ -10,6 +10,7 @@ final class WorldRenderer {
     let game: Game
     private var caveK: Float = -1
     private var sheenBits: [UInt32] = []                      // SH1: ShaderFX.sheenBits, built once the textures exist
+    private var turnBits: [UInt32] = []                       // P496: ShaderFX.turnBits
     var extraOpaque: ((SceneRenderer.Slot, V3) -> Void)?     // hands, rays, panels (the XR layer)
     var extraOverlay: ((SceneRenderer.Slot, V3) -> Void)?    // drawn last (panels over everything)
     var prePass: ((SceneRenderer.Slot) -> Void)?              // offscreen passes before the world pass (the HUD panel)
@@ -250,6 +251,11 @@ final class WorldRenderer {
         withUnsafeMutableBytes(of: &u.sheen) { raw in
             let p = raw.bindMemory(to: UInt32.self)
             for i in 0..<min(p.count, sheenBits.count) { p[i] = sheenBits[i] }
+        }
+        if turnBits.isEmpty { turnBits = ShaderFX.turnBits() }
+        withUnsafeMutableBytes(of: &u.turn) { raw in
+            let p = raw.bindMemory(to: UInt32.self)
+            for i in 0..<min(p.count, turnBits.count) { p[i] = turnBits[i] }
         }
         let skyKind: Float = underwater || underground || game.blindFog != nil ? 0 : (hasSky || vaultSky || hellSky ? 1 : (game.dim.dim == .end ? 2 : 0))
         // Eye darkness: skylight 13.5+ around the eye (daylight, near the surface) 0 ... 4.5 or less (caves, deep dives) 1;

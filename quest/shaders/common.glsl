@@ -22,6 +22,7 @@ layout(set = 0, binding = 0, std140) uniform Frame {
     vec4 fx;               // SH1: x = switched-on pieces (Sources/Settings.swift ShaderFX bits), y = valley mist strength,
                            // z = mist top (world y), w = colour grade (-1 night cool ... 0 day ... 1 sunrise/sunset warm)
     uvec4 sheen[16];       // SH1: a bit per texture layer that shines like metal or ice (2048 layers)
+    uvec4 turn[16];        // P496: a bit per texture layer whose tops are turned per block like grass (ShaderFX.turnBits)
 } u;
 
 // SH1: is a shader piece switched on (Video options)?
@@ -117,6 +118,11 @@ vec4 texSharpTurnedG(vec2 uv, float layer, vec2 cell, vec2 gx, vec2 gy) {
     return textureGrad(tex, vec3(o, layer), gx, gy);
 }
 vec4 texSharpTurned(vec2 uv, float layer, vec2 cell) { return texSharpTurnedG(uv, layer, cell, dFdx(uv), dFdy(uv)); }
+// P496: does this layer's top turn per block (snow, soil, rock: the same picture every block read as a knit from afar)?
+bool turnedLayer(float layer) {
+    uint li = uint(layer + 0.5);
+    return (u.turn[(li >> 7u) & 15u][(li >> 5u) & 3u] & (1u << (li & 31u))) != 0u;
+}
 #endif
 
 float vnoise(vec2 p) {

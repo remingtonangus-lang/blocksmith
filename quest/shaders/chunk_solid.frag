@@ -51,9 +51,11 @@ void main() {
         for (int k = 0; k < 3; k++) { triGX[k] = dFdx(triUV[k]); triGY[k] = dFdy(triUV[k]); }
         triCell = floor(wp.xz);
     }
-    // Grass tops: turned per block (texSharpTurned); the cell is the world block under this fragment.
-    vec4 c = triOn ? triTex(oLayer, oAnim > 1.5)
-        : oAnim > 1.5 ? texSharpTurned(uv, oLayer, floor(oRel.xz + u.eye.xz - fract(uv) + 0.5)) : texSharp(uv, oLayer);
+    // Grass tops: turned per block (texSharpTurned); the cell is the world block under this fragment. P496: so are
+    // the tops of the layers ShaderFX.turnBits lists (snow, soil, rock).
+    bool turn = oAnim > 1.5 || (uint(oFace + 0.5) == 2u && turnedLayer(oLayer));
+    vec4 c = triOn ? triTex(oLayer, oAnim > 1.5 || turnedLayer(oLayer))
+        : turn ? texSharpTurned(uv, oLayer, floor(oRel.xz + u.eye.xz - fract(uv) + 0.5)) : texSharp(uv, oLayer);
     if (oAnim > 0.5 && oAnim < 1.5) { c.rgb = lavaGlow(c.rgb, oRel); }
     // Smooth terrain (P142): where the quad's corners are different materials (grass to dirt to stone to sand), blend
     // them by how near each corner is, sharpened and broken up by the texture's own brightness so the border wanders
@@ -67,7 +69,7 @@ void main() {
             float wsum = dot(w, 1.0 - diff);
             for (int k = 0; k < 4; k++) {
                 if (diff[k] > 0.5) {
-                    vec4 ck = triOn ? triTex(L[k], false) : texSharp(uv, L[k]);
+                    vec4 ck = triOn ? triTex(L[k], turnedLayer(L[k])) : texSharp(uv, L[k]);
                     float wk = w[k] * (0.6 + 0.8 * dot(ck.rgb, vec3(0.333)));     // brighter grains of the other ground poke through first
                     acc += ck.rgb * wk; wsum += wk;
                 }

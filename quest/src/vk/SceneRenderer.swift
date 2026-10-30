@@ -24,6 +24,9 @@ struct FrameUniforms {
     // SH1 sheen: a bit per texture layer that shines like metal or ice (ShaderFX.sheenBits), 2048 bits.
     var sheen: (U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4) =
         (U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4())
+    // P496: a bit per texture layer whose tops turn per block like grass (ShaderFX.turnBits), 2048 bits.
+    var turn: (U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4) =
+        (U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4())
     typealias U4 = SIMD4<UInt32>
 }
 
