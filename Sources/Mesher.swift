@@ -1676,6 +1676,12 @@ enum Mesher {
                         let nx = NT[f * 3], ny = NT[f * 3 + 1], nz = NT[f * 3 + 2]
                         let ax = x + nx, ay = y + ny, az = z + nz
                         var flat = max(0, light(ax, ay, az))
+                        // P497 (night lane, Oct 30, a village render): a face beside a round shape the detail stream
+                        // draws (a house's corner post, a trunk against a wall) shows in the notch the shape leaves, but
+                        // the shape's cell stops light, so the face was lit pitch black: a black slit down every log-post
+                        // corner of the towns' houses. It takes the brightest light round that cell, with no corner shading.
+                        let roundNb = detailDraw && detT[Int(nb)] && loT[Int(nb)]
+                        if roundNb { for g in 0..<6 { flat = max(flat, light(ax + NT[g * 3], ay + NT[g * 3 + 1], az + NT[g * 3 + 2])) } }
                         // Far: pitch-dark cave walls can't be seen. Faces under water stay: a deep seabed gets no light,
                         // and without it far oceans showed the sky through the water.
                         // From a cave these missing faces let the surface's trees show through (Oct 11 Quest playtest P4):
@@ -1687,7 +1693,7 @@ enum Mesher {
                             let sky = flat & 15, blk = flat >> 4
                             flat = (sky | 3) | ((blk == 0 ? 0 : blk | 3) << 4)
                         }
-                        if isLiquid || rt != rCube || far {
+                        if isLiquid || rt != rCube || far || roundNb {
                             for c in 0..<4 { lit[c] = flat; aos[c] = 3 }
                             if Mesher.waterDepthAO && fk == 1 && f != 3 && liquidTop {
                                 // Quest: the water's depth at each corner of a surface cell in the AO bits (water never
