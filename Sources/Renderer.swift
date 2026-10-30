@@ -1375,7 +1375,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         // First-person arm + held item, squeezed into the front of the depth range so it never clips.
         // Both are written without per-vertex bounds checks, so the pass only runs when its worst case
         // (1024 arm / gun vertices + 64 held-item vertices) fits in what is left of the ring.
-        let firstPersonEnd = ((scratchOff + 255) & ~255) + 1536 * MemoryLayout<MobVert>.stride + 256 + 160 * MemoryLayout<EntityVert>.stride
+        let firstPersonEnd = ((scratchOff + 255) & ~255) + 2048 * MemoryLayout<MobVert>.stride + 256 + 160 * MemoryLayout<EntityVert>.stride
         if drawHUD && !game.hideHUD && !tp && game.menu == nil && game.sleeping == 0 && firstPersonEnd <= ringSize {
             var uh = u
             uh.viewProj = perspectiveRH(fovy: 70 * .pi / 180, aspect: W / max(H, 1), near: 0.01, far: 8)
@@ -1402,7 +1402,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let held = game.held
             // Arm (skin-coloured box angled up into the screen).
             let armOff = (scratchOff + 255) & ~255
-            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 1536)
+            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 2048)
             var an = 0
             let skin = V3(0.84, 0.64, 0.5)
             let axL = simd_normalize(V3(-0.12, 0.62, -0.78)) * (held.isEmpty ? 0.36 : 0.3)

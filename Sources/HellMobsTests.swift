@@ -257,7 +257,8 @@ enum HellMobsTests {
             }
             var over: [String] = []
             for k in hellKinds where g.mobs.mobs.filter({ $0.kind == k }).count > HellMobs.caps[k.hellIndex] { over.append(k.key) }
-            check(groups.count == 4 && packMax >= 5 && over.isEmpty,
+            // (P436: pack sizes go by the land's creature, 1-2 up to 5-8, so a pack here is anything past one.)
+            check(groups.count == 4 && packMax >= 2 && over.isEmpty,
                   "hell: hell spawns order patrols (\(groups[.brandKnight] ?? 0)), Scorchling packs (\(groups[.scorchling] ?? 0), up to \(packMax)), Slagthrowers (\(groups[.slagthrower] ?? 0)) and Searwings (\(groups[.searwing] ?? 0)) within caps")
             clear()
         }
@@ -352,7 +353,8 @@ enum HellMobsTests {
             for x in 0...3 { for y in 0...4 { w.setBlock(ox + x, oy + y, oz, AIR) } }
         }
 
-        // Ember Charges are base loot: every command chest holds one, vaults one or two, and no recipe makes one.
+        // Ember Charges are base loot: every command chest holds one, vaults one or two; the only recipe is P249's dear
+        // forged one (three diamonds, three TNT, a gold block), so the way down never hangs on loot.
         do {
             var cmd = 0, vault = 0
             for s in 0..<20 {
@@ -363,8 +365,10 @@ enum HellMobsTests {
                     if c.countOf(Items.id(HellGate.chargeKey)) >= 1 { if n == 0 { cmd += 1 } else { vault += 1 } }
                 }
             }
-            let crafted = Recipes.all.contains { $0.result.item == Items.id(HellGate.chargeKey) }
-            check(cmd == 20 && vault == 20 && !crafted, "hell: Ember Charges come from base command rooms (\(cmd)/20) and vaults (\(vault)/20), never a recipe")
+            let recipes = Recipes.all.filter { $0.result.item == Items.id(HellGate.chargeKey) }
+            let dear = recipes.allSatisfy { $0.shapeless.contains("gold_block") }
+            check(cmd == 20 && vault == 20 && recipes.count <= 1 && dear,
+                  "hell: Ember Charges come from base command rooms (\(cmd)/20) and vaults (\(vault)/20); the one recipe is the dear forged one (\(recipes.count))")
         }
 
         // Saved surface chunks from before the floor get it; a chunk already floored keeps its blasted shafts.

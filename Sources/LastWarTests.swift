@@ -49,13 +49,15 @@ enum LastWarTests {
     static func arms(_ check: (Bool, String) -> Void) {
         var bad: [String] = []
         let painters = TextureGen.painters()
-        for i in [Guns.kessel, Guns.hagel, Guns.sturmwind, Guns.ashsaw] {
+        // (The Ashsaw is retired into the Sturmwind, P217; every gun's icon is painted from its model as item_<key>.)
+        let carried = [Guns.kessel, Guns.hagel, Guns.sturmwind].filter { !Guns.isRetired($0) }
+        for i in carried {
             let s = Guns.all[i]
             if !Items.has(s.key) { bad.append("\(s.key): no item") }
             if s.name.isEmpty || s.mag <= 0 || s.damage <= 0 { bad.append("\(s.key): spec") }
             let m = AshArms.model(i)
             if m.parts.count < 8 || m.parts.count > 60 { bad.append("\(s.key): \(m.parts.count) model parts") }
-            if AshArms.icons[s.key] == nil && painters[s.key] == nil { bad.append("\(s.key): no icon") }
+            if AshArms.icons[s.key] == nil && painters["item_" + s.key] == nil { bad.append("\(s.key): no icon") }
         }
         var synth = Synth(seed: 7)
         for slot in 16...19 {
@@ -64,21 +66,21 @@ enum LastWarTests {
             if a.count < 400 || peak < 0.05 { bad.append("gun sound \(slot): \(a.count) samples, peak \(peak)") }
         }
         let all: UInt64 = Enchant.pack([(.stability, 3), (.extendedMag, 3), (.penetration, 1), (.quickReload, 2)])
-        for i in [Guns.kessel, Guns.hagel, Guns.sturmwind, Guns.ashsaw] {
+        for i in carried {
             let v = (Guns.models[i].count + Guns.upgradeParts(i, all, magOut: false).count + 1) * 36
-            if v > 1336 { bad.append("\(Guns.all[i].key): \(v) vertices upgraded") }
+            if v > 1900 { bad.append("\(Guns.all[i].key): \(v) vertices upgraded") }
         }
-        check(bad.isEmpty, "lastwar: the Kessel, Hagel, Sturmwind and Ashsaw have items, models (within the arm buffer upgraded), icons and sounds \(bad)")
-        // Loadouts: every Ashguard rank carries the army's own arms, and heavies the Ashsaw.
+        check(bad.isEmpty, "lastwar: the Kessel, Hagel and Sturmwind have items, models (within the arm buffer upgraded), icons and sounds \(bad)")
+        // Loadouts: every Ashguard rank carries the army's own arms, and heavies their anti-tank tube or a rifle (P320).
         var wrong: [String] = []
         for key in ["soldier_recruit", "soldier_trooper", "soldier_marksman", "soldier_ironclad", "soldier_officer", "ash_marshal", "ash_chancellor"] {
             for _ in 0..<6 {
                 guard let m = Mob.structureMob(key + "@ash", at: V3(0, 100, 0)) else { wrong.append(key); break }
                 if !Guns.isAshArm(m.variant) { wrong.append("\(key): \(Guns.all[m.variant].key)") }
-                if key == "soldier_ironclad" && m.variant != Guns.ashsaw { wrong.append("heavy without the Ashsaw") }
+                if key == "soldier_ironclad" && m.variant != Guns.faust && m.variant != Guns.kessel { wrong.append("heavy with \(Guns.all[m.variant].key)") }
             }
         }
-        check(wrong.isEmpty, "lastwar: every Ashguard rank carries period-style arms, heavies the Ashsaw \(wrong)")
+        check(wrong.isEmpty, "lastwar: every Ashguard rank carries period-style arms, heavies the Faustrohr or the Kessel \(wrong)")
     }
 
     // Uniforms and vehicles build, the Behemoth and Chancellor register, and the emblem is mirror-symmetric (so it can
@@ -260,7 +262,10 @@ enum LastWarTests {
                 if until() { return }
             }
         }
-        func kill(_ ms: [Mob]) { for m in ms { m.killedByPlayer = true; m.hit(from: m.pos + V3(1, 0, 0), damage: m.health + 900) } }
+        // (Hit until down: an armoured hull's plates soak half of each hit (AshArmour), so one blow can leave the Behemoth up.)
+        func kill(_ ms: [Mob]) {
+            for m in ms { m.killedByPlayer = true; var n = 0; while m.health > 0 && n < 40 { m.hit(from: m.pos + V3(1, 0, 0), damage: m.health + 900); n += 1 } }
+        }
         g.player.pos = stand
         guard let marshal = Mob.structureMob("ash_marshal@ash", at: stand + V3(0, 0, -6)) else { check(false, "lastwar: no Marshal"); return }
         g.mobs.mobs.append(marshal)
@@ -332,10 +337,15 @@ enum LastWarTests {
                                                    live3.count, ms, full, base))
         kill(g.lastWar.wave)
         sim(2) { g.ashStage == 2 }
-        var open = 0
-        for z in AshFinal.hatchZ { for x in AshFinal.hatchX where w.isAir(x, AshFinal.hatchY, z) { open += 1 } }
-        check(g.ashStage == 2 && open == 9 && g.advancements.contains("adventure/ash_last_battle"),
-              "lastwar: the last army beaten (stage \(g.ashStage), \(g.lastWar.wave.count) left), the blast door opens (\(open)/9) and the advancement")
+        // (P318: the door waits for the player at the console beside it, lit once the army is broken.)
+        func opened() -> Int { var n = 0; for z in AshFinal.hatchZ { for x in AshFinal.hatchX where w.isAir(x, AshFinal.hatchY, z) { n += 1 } }; return n }
+        let shut0 = opened()
+        let c = AshSabotage.consoleAt
+        g.ashHatchUse(V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5))
+        sim(1)
+        let open = opened()
+        check(g.ashStage == 2 && shut0 == 0 && open == 9 && g.advancements.contains("adventure/ash_last_battle"),
+              "lastwar: the last army beaten (stage \(g.ashStage), \(g.lastWar.wave.count) left), the blast door shut (\(9 - shut0)/9) until the console opens it (\(open)/9), and the advancement")
         // Down in the bunker: the Chancellor and two heavies wait in the study.
         g.mobs.mobs.removeAll()
         pin = V3(8.5, Float(AshFinal.y0 + 1), 22.5)

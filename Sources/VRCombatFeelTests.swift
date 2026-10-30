@@ -133,7 +133,7 @@ enum VRCombatFeelTests {
         game.mobs.update(1.0 / 60, game: game)
         let frozen = abs(z.pos.x - x0) < 1e-4
         for _ in 0..<6 { game.mobs.update(1.0 / 60, game: game) }
-        check(frozen && z.hitStop <= 0 && abs(z.pos.x - x0) > 0.01, "combat feel: a landed blade freezes the mob for the hit-stop, then it moves")
+        check(frozen && z.hitStop <= 0 && abs(z.pos.x - x0) > 0.01, "combat feel: a landed blade freezes the mob for the hit-stop, then it moves (frozen \(frozen), hit-stop left \(z.hitStop), moved \(z.pos.x - x0), active \(game.world.activeHere(z.pos)))")
 
         // 6. Reclined aim assist: a zombie 8 degrees off the laser is picked; a villager there isn't; Swing melee has none.
         game.mobs.mobs.removeAll { m in spawned.contains { $0 === m } }; spawned.removeAll()
