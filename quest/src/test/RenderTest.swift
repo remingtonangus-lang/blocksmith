@@ -75,6 +75,10 @@ enum RenderTest {
         landmarkVerts = wr.landmarkCount
         drawnQuads = scene.drawnQuads; recordMs = wr.frameCPUMs
         if wr.landmarkCount > 0 { print(String(format: "rendertest: landmark impostors %d vertices, %.2f ms", wr.landmarkCount, wr.landmarkMs)) }
+        if wr.gapChunks > 0, let m = FarRing.shared.current() {
+            print(String(format: "rendertest: gap cover over %d chunks not drawn yet (%d with no ring ground), ring built round %d %d, eye at %.0f %.0f",
+                         wr.gapChunks, wr.gapMissing, m.cx, m.cz, center.x, center.z))
+        }
         if wr.farRingQuads > 0 || scene.deepSeaSkipped > 0 || scene.batchedWater > 0 {
             print(String(format: "rendertest: far ring %d quads (build %.0f ms), deep-sea sections skipped %d, far water sections batched %d",
                          wr.farRingQuads, FarRing.shared.lastBuildMs, scene.deepSeaSkipped, scene.batchedWater))

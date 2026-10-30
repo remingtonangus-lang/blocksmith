@@ -21,6 +21,8 @@ final class FarRing {
     static let shared = FarRing()
     // BS_FARRING=0 turns the ring off (before/after measurements).
     static var enabled = ProcessInfo.processInfo.environment["BS_FARRING"] != "0"
+    // P484: the ring's ground drawn over chunks inside the loaded disc that are not drawn yet (BS_GAPCOVER=0: off).
+    static var gapCover = ProcessInfo.processInfo.environment["BS_GAPCOVER"] != "0"
     static let outer: Float = 1024                 // blocks: the rim (64 chunks)
     static let cell = 128                          // rebuild cell
     static let spacings = [8, 16, 32]
@@ -33,6 +35,11 @@ final class FarRing {
         var blocky = false                         // terraced block columns (block world) or the smooth field
         var verts: [SimpleVert] = []
         var quads: Int { verts.count / 4 }
+        // P484 (gap cover): the ring's own quads over every chunk inside the loaded disc, one chunk's run each (the 8-
+        // and 16-block bands line up with the chunks). WorldRenderer draws them over the chunks not drawn yet, so a gap
+        // in the land while it streams in shows coarse ground instead of the void and the caves of the chunks beside it.
+        var inner: [ChunkKey: Range<Int>] = [:]
+        var innerVerts: [SimpleVert] = []
     }
 
     // kind: 0 ground, 1 water, 2 lava. `side`: the colour of the ground's flanks seen from the side in a block world
@@ -95,7 +102,14 @@ final class FarRing {
             let t0 = CFAbsoluteTimeGetCurrent()
             if self.memoSeed != sd || self.memo.count > 150_000 { self.memo.removeAll(keepingCapacity: true); self.memoSeed = sd }
             var out = Mesh(seed: sd, cx: cx, cz: cz, rd: rd, gen: n, blocky: blocky)
-            out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo, blocky: blocky)
+            var inner: [ChunkKey: [SimpleVert]] = [:]
+            out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo, blocky: blocky,
+                                      inner: &inner, wantInner: FarRing.gapCover)
+            out.innerVerts.reserveCapacity(inner.values.reduce(0) { $0 + $1.count })
+            for (k, v) in inner {
+                out.inner[k] = out.innerVerts.count..<(out.innerVerts.count + v.count)
+                out.innerVerts += v
+            }
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             self.lock.lock()
             // A build for a world left meanwhile is dropped (the next request starts the new world's).
@@ -221,7 +235,10 @@ final class FarRing {
     // P229 (Oct 13 21:44, "the far chunks must still look like blocks from a distance"): in a block world each cell is a
     // flat-topped column at a whole-block height with straight sides down to its lower neighbours, a terraced, blocky
     // skyline; Polygons (Smooth) worlds keep the smooth height field.
-    static func build(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, memo: inout [Int64: Sample], blocky: Bool = false) -> [SimpleVert] {
+    // `inner`: also every 8- or 16-block quad (or block column) within reach of the loaded disc, under its chunk (the
+    // gap cover), including the ones left out of the ring itself because the chunks always cover them.
+    static func build(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, memo: inout [Int64: Sample], blocky: Bool = false,
+                      inner: inout [ChunkKey: [SimpleVert]], wantInner: Bool = false) -> [SimpleVert] {
         func a32(_ v: Float) -> Int { (Int(v.rounded(.up)) + 31) / 32 * 32 }
         let e0 = a32(rin + 64)
         let e1 = max(e0 + 128, a32(rin + 320), 640)
@@ -232,6 +249,10 @@ final class FarRing {
         // outer chunks unload before the next ring is built, the old ring still covers the gap (24 -> 14 is 0.58).
         let skip: Float = min(rin - 100, rin * 0.55)
         let rim: Float = FarRing.outer
+        // (The player is within 64 blocks of the centre each way, 91 across, and a fast flyer can be a whole cell past
+        // that before the next build lands: a chunk of his loaded disc lies within rin + 91 + 181 + 23 of it. At the
+        // dropship's 60 b/s a strip of gaps ahead showed the sky where the ring was built for the cell behind him.)
+        let innerReach: Float = rin + 296
         func S(_ x: Int, _ z: Int) -> Sample {
             let key = (Int64(x) << 32) | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: z)))
             if let s = memo[key] { return s }
@@ -333,14 +354,22 @@ final class FarRing {
                     let mx: Float = Float(x0) + Float(s) * 0.5, mz: Float = Float(z0) + Float(s) * 0.5
                     let r: Float = (mx * mx + mz * mz).squareRoot()
                     if r > rim - Float(s) * 0.5 { continue }
+                    var inRing = true
                     if band == 0 {
                         let fx: Float = max(abs(Float(x0)), abs(Float(x1))), fz: Float = max(abs(Float(z0)), abs(Float(z1)))
-                        if (fx * fx + fz * fz).squareRoot() < skip { continue }
+                        if (fx * fx + fz * fz).squareRoot() < skip { inRing = false }
                     }
+                    let gap = wantInner && s <= CS && r < innerReach
+                    if !inRing && !gap { continue }
+                    var q: [SimpleVert] = []
                     if blocky {
-                        column(x0, z0, s, &out)
+                        column(x0, z0, s, &q)
                     } else {
-                        out.append(vert(x0, z0)); out.append(vert(x1, z0)); out.append(vert(x1, z1)); out.append(vert(x0, z1))
+                        q = [vert(x0, z0), vert(x1, z0), vert(x1, z1), vert(x0, z1)]
+                    }
+                    if inRing { out += q }
+                    if gap {
+                        inner[ChunkKey(x: floorDiv(cx + x0, CS), z: floorDiv(cz + z0, CS)), default: []] += q
                     }
                 }
             }

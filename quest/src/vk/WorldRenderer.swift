@@ -89,6 +89,19 @@ final class WorldRenderer {
     private var farOrigin = (0, 0), farSeed: UInt64 = 0
     private(set) var farRingQuads = 0            // drawn last frame (perf lines)
     private var farCover: Float = 0              // P250 (c): the meshed radius the ring sinks inside (every 6 frames)
+    // P484 (gap cover, FarRing.Mesh.inner): the ring's quads over the chunks of the loaded disc not drawn yet, gathered
+    // every 4th frame into one of two host-visible buffers (the same 3-frame rule as the ring's).
+    private var gapBufs: [VkBuf?] = [nil, nil]
+    private var gapLive = -1, gapQuads = 0
+    private var gapUsed = [-10, -10]
+    private var gapOrigin = (0, 0)
+    private var gapKeys: [ChunkKey] = []         // this build's gaps (compared to skip an unchanged rebuild)
+    private var gapRingGen = -1
+    private var gapMade = 0                      // of them, chunks made (not meshed yet)
+    private var gapVerts: [SimpleVert] = []
+    private(set) var gapChunks = 0               // chunks covered last frame (perf lines, questcheck --streamtest)
+    private(set) var gapMissing = 0              // of the chunks not drawn, those the ring had no ground for (harness)
+    static var gapTint = ProcessInfo.processInfo.environment["BS_GAPTINT"] == "1"     // (harness: the cover in magenta)
 
     init(scene: SceneRenderer, game: Game) {
         self.scene = scene
@@ -357,6 +370,14 @@ final class WorldRenderer {
     private func drawFarRing(_ s: SceneRenderer.Slot, _ eye: V3) {
         farFrame += 1
         farRingQuads = 0
+        gapChunks = 0
+        // P484: the gap cover shows wherever the ring could (open overworld sky), Auto View Distance or not.
+        let gapOn = FarRing.enabled && FarRing.gapCover && game.dim.dim == .overworld && !game.player.headInWater && !game.player.headInLava
+            && !underground && !game.inVaultSky && game.world.gen is WorldGen
+        if gapOn {
+            FarRing.shared.request(game, eye: eye)
+            drawGaps(s, eye)
+        }
         guard farRingOn else { return }
         let ring = FarRing.shared
         ring.request(game, eye: eye)
@@ -384,12 +405,100 @@ final class WorldRenderer {
         // stream in (fast flight, a distance raised, a world opening) the ring keeps its true height where they are
         // still missing, instead of a 12-block pit with sloped walls showing through the gap (his 11:58 "slopes").
         if farFrame % 6 == 1 || farCover <= 0 {
-            farCover = FarRing.meshedRadius(game.world, game.world.renderDistance, center: ChunkKey(x: pcx, z: pcz))
+            // (With the gap cover up, every chunk not drawn yet inside the disc has its own ground: the ring sinks in
+            // the whole disc instead of standing at its true height over meshed land out from the nearest gap.)
+            farCover = gapLive >= 0 ? FarRing.loadedRadius(game.world.renderDistance)
+                : FarRing.meshedRadius(game.world, game.world.renderDistance, center: ChunkKey(x: pcx, z: pcz))
         }
         let rin = farCover
         let params = float4x4(columns: (V4(ox, -eye.y, oz, 0), V4(lx, lz, rin, 12), V4(0, 0, 0, 0), V4(0, 0, 0, 0)))
         scene.drawFar(s, b, quads: farQuads, params: params)
         farRingQuads = farQuads
+    }
+
+    // P484 (Oct 28 17:42, flying: "it still is rendering underground actually. I can see it doing it"; 17:50: "Still got
+    // holes in the environment"; Oct 26 19:28: "I see a gap in the generation right here"): a chunk of the loaded disc
+    // not made or not meshed yet was a hole: the sky through it, and the caves and rock of the chunks beside it where
+    // they meet it. Each such chunk is covered by the middle ring's own ground (FarRing.Mesh.inner: its 8-block quads,
+    // the colours and canopy of the far land), 2 blocks under its true height like the ring, until its meshes are in.
+    private func drawGaps(_ s: SceneRenderer.Slot, _ eye: V3) {
+        guard let m = FarRing.shared.current(), m.seed == game.world.seed, !m.inner.isEmpty else { gapLive = -1; return }
+        let w = game.world
+        let rd = w.renderDistance
+        let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
+        if farFrame % 4 == 1 || m.gen != gapRingGen {
+            var keys: [ChunkKey] = []
+            keys.reserveCapacity(gapKeys.count + 16)
+            var made = 0
+            for dz in -rd...rd { for dx in -rd...rd where w.inMeshRadius(dx, dz) {
+                let k = ChunkKey(x: pcx + dx, z: pcz + dz)
+                if let c = w.chunks[k] { if c.meshedOnce { continue }; made += 1 }
+                keys.append(k)
+            } }
+            // (A gap chunk made since the last build lifts its cover: liftGaps.)
+            if keys != gapKeys || made != gapMade || m.gen != gapRingGen || (gapLive < 0 && !keys.isEmpty) {
+                gapVerts.removeAll(keepingCapacity: true)
+                var missing = 0
+                for k in keys { if let r = m.inner[k] { gapVerts += m.innerVerts[r] } else { missing += 1 } }
+                gapMissing = missing
+                if WorldRenderer.gapLift { liftGaps(w, ox: m.cx, oz: m.cz) }
+                if WorldRenderer.gapTint { for i in gapVerts.indices { gapVerts[i].color = V4(1, 0, 1, 0) } }
+                let k = gapLive < 0 ? 0 : 1 - gapLive
+                // (Written only into the buffer both frames in flight are done with; otherwise next time round.)
+                if farFrame - gapUsed[k] >= 3 {
+                    gapKeys = keys; gapRingGen = m.gen; gapMade = made
+                    if gapVerts.isEmpty {
+                        gapLive = k; gapQuads = 0; gapOrigin = (m.cx, m.cz)
+                    } else {
+                        let bytes = gapVerts.count * MemoryLayout<SimpleVert>.stride
+                        if gapBufs[k] == nil || gapBufs[k]!.size < bytes {
+                            gapBufs[k] = nil
+                            gapBufs[k] = try? VkBuf(scene.ctx, size: max(bytes * 3 / 2, 1 << 18), usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true)
+                        }
+                        if let b = gapBufs[k], let p = b.mapped {
+                            gapVerts.withUnsafeBytes { src in _ = memcpy(p, src.baseAddress!, bytes) }
+                            gapLive = k; gapQuads = gapVerts.count / 4; gapOrigin = (m.cx, m.cz)
+                        }
+                    }
+                }
+            }
+        }
+        guard gapLive >= 0, gapQuads > 0, let b = gapBufs[gapLive] else { return }
+        gapUsed[gapLive] = farFrame
+        gapChunks = gapKeys.count
+        let ox: Float = Float(gapOrigin.0) - eye.x, oz: Float = Float(gapOrigin.1) - eye.z
+        // (A loaded radius of 0: far.vert sinks none of it, only the ring's usual 2 blocks.)
+        let params = float4x4(columns: (V4(ox, -eye.y, oz, 0), V4(0, 0, 0, 0), V4(0, 0, 0, 0), V4(0, 0, 0, 0)))
+        scene.drawFar(s, b, quads: gapQuads, params: params)
+    }
+
+    // A chunk next to a drawn one is always made (meshing waits for its neighbours), so the ground the cover stands for
+    // is known there: each corner of the cover takes the top of the made ground, built blocks or water in its column
+    // (not leaves). The ring's height is the land before structures and before fine shape: under a citadel's yard or a
+    // cut bank the cover lay blocks under the drawn ground beside it, and the sky showed through the step between them
+    // (the rock under a drawn chunk's edge isn't meshed while he flies). BS_GAPLIFT=0: the ring's heights.
+    static var gapLift = ProcessInfo.processInfo.environment["BS_GAPLIFT"] != "0"
+    private func liftGaps(_ w: World, ox: Int, oz: Int) {
+        let opaqueT = Blocks.opaque, leafT = Mesher.leafT, fluidT = Blocks.fluidKind
+        var lastKey = ChunkKey(x: Int.min, z: 0)
+        var lastChunk: Chunk? = nil
+        for i in gapVerts.indices {
+            let x = ox + Int(gapVerts[i].pos.x), z = oz + Int(gapVerts[i].pos.z)
+            let k = ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))
+            if k != lastKey { lastKey = k; lastChunk = w.chunks[k] }
+            guard let c = lastChunk, !c.hollow else { continue }
+            let col = mod(x, CS) + mod(z, CS) * CS
+            var y = min(min(CH, c.blocks.storedCount / CSQ) - 1, Int(c.height[col]))
+            while y > 0 {
+                let j = col + y * CSQ
+                if c.blocks.ground(j) { break }
+                let b = Int(c.blocks[j])
+                if (opaqueT[b] && !leafT[b]) || fluidT[b] != 0 { break }
+                y -= 1
+            }
+            guard y > 0 else { continue }
+            gapVerts[i].pos.y = Float(y + 1)
+        }
     }
 
     // Opaque cones / spires (depth-writing, so the sky goes behind them) here; their blended smoke after the sky

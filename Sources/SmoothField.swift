@@ -116,6 +116,11 @@ final class SmoothField {
     @exclusivity(unchecked) private(set) var oy = 0
     @exclusivity(unchecked) private(set) var oz = 0
     @exclusivity(unchecked) private(set) var gen: WorldGen?
+    // P474: the box's sizes as plain instance constants. The statics are lazily made globals, and every read in the hot
+    // paths below went through swift_once (about a tenth of the generator's field split, callgrind on --genprof).
+    private let n_ = SmoothField.N, nn_ = SmoothField.NN
+    private let tx_ = SmoothField.TX, ty_ = SmoothField.TY, kx_ = SmoothField.KX, ky_ = SmoothField.KY
+    private let latTop_ = SmoothField.latNY - 2, caveTop_ = SmoothField.caveNY - 2
 
     // Block samples: terrain density (> 0 solid) and the three carve fields (> 0 carved). NaN = not yet computed.
     private let sT = UnsafeMutablePointer<Float>.allocate(capacity: SmoothField.NNN)
@@ -134,6 +139,10 @@ final class SmoothField {
     // Cave lattice nodes: every 4 blocks on all axes, five noises.
     private static let KX = N / 4 + 3, KY = CH / 4 + 2
     private let kNode = UnsafeMutablePointer<Float>.allocate(capacity: KX * KX * KY * 5)
+    // (P474: per cave field, the lattice cell last sampled and its 8 corners: the samples round a surface cell mostly
+    // fall in the same 4-block cell, and the 8 node reads were most of a sample's cost.)
+    private let kCellKey = UnsafeMutablePointer<Int>.allocate(capacity: 5)
+    private let kCell = UnsafeMutablePointer<Float>.allocate(capacity: 40)
     // PG1: field edits per sample (FieldEdit bounds; FieldEdit.none where there are none).
     private let sE = UnsafeMutablePointer<UInt16>.allocate(capacity: SmoothField.NNN)
     @exclusivity(unchecked) private(set) var hasEdits = false
@@ -142,6 +151,7 @@ final class SmoothField {
         sE.deallocate()
         sT.deallocate(); sK.deallocate(); spagT.deallocate(); roofY.deallocate()
         tNode.deallocate(); tCol.deallocate(); tColSet.deallocate(); kNode.deallocate()
+        kCellKey.deallocate(); kCell.deallocate()
     }
 
     // Starts a section: sample (ix, iy, iz) is world block (x0 + ix, y0 + iy, z0 + iz).
@@ -154,6 +164,7 @@ final class SmoothField {
             tNode.initialize(repeating: nan, count: SmoothField.TX * SmoothField.TX * SmoothField.TY)
             tColSet.initialize(repeating: false, count: SmoothField.TX * SmoothField.TX)
             kNode.initialize(repeating: nan, count: SmoothField.KX * SmoothField.KX * SmoothField.KY * 5)
+            kCellKey.initialize(repeating: Int.min, count: 5)
         }
         gen = g
         ox = x0; oy = y0; oz = z0
@@ -184,7 +195,7 @@ final class SmoothField {
     // The generator's distance to the surface at sample i in blocks (+ in the ground): every field's value over the
     // length of its gradient (central differences), the closest surface of the terrain and the three cave fields.
     func genDistance(_ i: Int) -> Float {
-        let y = oy + i / SmoothField.NN
+        let y = oy + i / nn_
         if y < 3 { return 4 }
         var d = fieldDist(0, i)
         if y >= 6 { for k in 1...3 { d = min(d, fieldDist(k, i)) } }
@@ -192,7 +203,7 @@ final class SmoothField {
     }
 
     private func fieldDist(_ which: Int, _ i: Int) -> Float {
-        let N = SmoothField.N, NN = SmoothField.NN
+        let N = n_, NN = nn_
         let v = value(which, i)
         let ix = i % N, iz = (i / N) % N, iy = i / NN
         func diff(_ step: Int, _ c: Int) -> Float {
@@ -212,7 +223,7 @@ final class SmoothField {
 
     // Inside the world's height range (the field says nothing outside it).
     @inline(__always) func inWorld(_ i: Int) -> Bool {
-        let y = oy + i / SmoothField.NN
+        let y = oy + i / nn_
         return y >= 0 && y < CH
     }
 
@@ -221,12 +232,14 @@ final class SmoothField {
     private static let latNY = CH / 8 + 1           // WorldGen.Lattice.ny
 
     @inline(__always) private func tNodeAt(_ gx: Int, _ gy: Int, _ gz: Int) -> Float {
-        let ix = gx - tgx0, iz = gz - tgz0, iy = gy
-        let k = (ix * SmoothField.TX + iz) * SmoothField.TY + iy
+        let k = ((gx - tgx0) * tx_ + (gz - tgz0)) * ty_ + gy
         let v = tNode[k]
-        if !v.isNaN { return v }
+        return v.isNaN ? tNodeMake(gx, gy, gz, k) : v
+    }
+    @inline(never) private func tNodeMake(_ gx: Int, _ gy: Int, _ gz: Int, _ k: Int) -> Float {
+        let ix = gx - tgx0, iz = gz - tgz0
         let g = gen!
-        let ci = ix * SmoothField.TX + iz
+        let ci = ix * tx_ + iz
         if !tColSet[ci] { tCol[ci] = g.colInfo(gx * 4, gz * 4); tColSet[ci] = true }
         let d = g.density(tCol[ci], gx * 4, gy * 8, gz * 4)
         tNode[k] = d
@@ -237,9 +250,9 @@ final class SmoothField {
     func terrain(_ i: Int) -> Float {
         let v = sT[i]
         if !v.isNaN { return v }
-        let ix = i % SmoothField.N, iz = (i / SmoothField.N) % SmoothField.N, iy = i / SmoothField.NN
+        let ix = i % n_, iz = (i / n_) % n_, iy = i / nn_
         let x = ox + ix, y = max(0, min(CH - 1, oy + iy)), z = oz + iz      // (callers stay in the world; clamped for safety)
-        let gx = floorDiv(x, 4), gz = floorDiv(z, 4), gy = min(SmoothField.latNY - 2, y >> 3)
+        let gx = x >> 2, gz = z >> 2, gy = min(latTop_, y >> 3)
         let fx = Float(x & 3) / 4, fz = Float(z & 3) / 4, fy = Float(y - gy * 8) / 8
         let c000 = tNodeAt(gx, gy, gz), c100 = tNodeAt(gx + 1, gy, gz)
         let c010 = tNodeAt(gx, gy + 1, gz), c110 = tNodeAt(gx + 1, gy + 1, gz)
@@ -259,10 +272,12 @@ final class SmoothField {
 
     // Cave noise f (0 cheese, 1-2 spaghetti, 3-4 noodles) at node (gx, gy, gz).
     @inline(__always) private func kNodeAt(_ f: Int, _ gx: Int, _ gy: Int, _ gz: Int) -> Float {
-        let ix = gx - tgx0, iz = gz - tgz0, iy = gy
-        let k = (((ix * SmoothField.KX + iz) * SmoothField.KY) + iy) * 5 + f
+        let k = ((((gx - tgx0) * kx_ + (gz - tgz0)) * ky_) + gy) * 5 + f
         let v = kNode[k]
-        if !v.isNaN { return v }
+        return v.isNaN ? kNodeMake(f, gx, gy, gz, k) : v
+    }
+    // (P474: the first read of a node, out of line, so the read of a known one stays a load and a test.)
+    @inline(never) private func kNodeMake(_ f: Int, _ gx: Int, _ gy: Int, _ gz: Int, _ k: Int) -> Float {
         let g = gen!
         let x = Float(gx * 4), z = Float(gz * 4), y = Float(gy * 4 - YOFF)
         let r: Float
@@ -279,12 +294,19 @@ final class SmoothField {
 
     // WorldGen.CaveLattice.sample at a world block.
     private func caveSample(_ f: Int, _ x: Int, _ y: Int, _ z: Int) -> Float {
-        let gx = floorDiv(x, 4), gz = floorDiv(z, 4), gy = min(SmoothField.caveNY - 2, y >> 2)
+        let gx = x >> 2, gz = z >> 2, gy = min(caveTop_, y >> 2)
         let fx = Float(x & 3) / 4, fz = Float(z & 3) / 4, fy = Float(y & 3) / 4
-        let a0 = kNodeAt(f, gx, gy, gz), a1 = kNodeAt(f, gx + 1, gy, gz)
-        let b0 = kNodeAt(f, gx, gy + 1, gz), b1 = kNodeAt(f, gx + 1, gy + 1, gz)
-        let c0 = kNodeAt(f, gx, gy, gz + 1), c1 = kNodeAt(f, gx + 1, gy, gz + 1)
-        let d0 = kNodeAt(f, gx, gy + 1, gz + 1), d1 = kNodeAt(f, gx + 1, gy + 1, gz + 1)
+        let key = ((gx - tgx0) * kx_ + (gz - tgz0)) * ky_ + gy
+        let cc = kCell + f * 8
+        if kCellKey[f] != key {
+            kCellKey[f] = key
+            cc[0] = kNodeAt(f, gx, gy, gz); cc[1] = kNodeAt(f, gx + 1, gy, gz)
+            cc[2] = kNodeAt(f, gx, gy + 1, gz); cc[3] = kNodeAt(f, gx + 1, gy + 1, gz)
+            cc[4] = kNodeAt(f, gx, gy, gz + 1); cc[5] = kNodeAt(f, gx + 1, gy, gz + 1)
+            cc[6] = kNodeAt(f, gx, gy + 1, gz + 1); cc[7] = kNodeAt(f, gx + 1, gy + 1, gz + 1)
+        }
+        let a0 = cc[0], a1 = cc[1], b0 = cc[2], b1 = cc[3]
+        let c0 = cc[4], c1 = cc[5], d0 = cc[6], d1 = cc[7]
         let a = a0 + (a1 - a0) * fx, b = b0 + (b1 - b0) * fx
         let c = c0 + (c1 - c0) * fx, d = d0 + (d1 - d0) * fx
         let e = a + (b - a) * fy, g = c + (d - c) * fy
@@ -295,11 +317,11 @@ final class SmoothField {
     func carve(_ k: Int, _ i: Int) -> Float {
         let v = sK[i * 3 + k]
         if !v.isNaN { return v }
-        let ix = i % SmoothField.N, iz = (i / SmoothField.N) % SmoothField.N, iy = i / SmoothField.NN
+        let ix = i % n_, iz = (i / n_) % n_, iy = i / nn_
         let x = ox + ix, y = max(0, min(CH - 1, oy + iy)), z = oz + iz
         let yd = y - YOFF
         // P373 (b): outside the patches where caves may open to the sky, a 4-block roof under the ground (as carveCaves).
-        let ci0 = ix + iz * SmoothField.N
+        let ci0 = ix + iz * n_
         if roofY[ci0] == Int.min {
             let g = gen!
             roofY[ci0] = g.caveMouths(x, z, g.column(x, z).biome) ? Int.max : g.groundY(x, z) - 4
@@ -312,7 +334,7 @@ final class SmoothField {
             if yd > 95 { r = -1; break }
             r = caveSample(0, x, y, z) + (yd < 30 ? 0 : -Float(yd - 30) / 90) - 0.3
         case 1:
-            let ci = ix + iz * SmoothField.N
+            let ci = ix + iz * n_
             var t = spagT[ci]
             if t.isNaN { t = 0.05 + 0.025 * gen!.spagMod.noise2(Float(x) / 40, Float(z) / 40); spagT[ci] = t }
             r = t - max(abs(caveSample(1, x, y, z)), abs(caveSample(2, x, y, z)))
@@ -328,7 +350,7 @@ final class SmoothField {
     // What the generator's fields alone make of sample i: solid ground or open (air, water, lava).
     func solid(_ i: Int) -> Bool {
         if edited(i) { return distance(i) > 0 }
-        let y = oy + i / SmoothField.NN
+        let y = oy + i / nn_
         if y < 3 { return true }                       // the hot rock floor is always solid
         if terrain(i) <= 0 { return false }
         if y < 6 { return true }
@@ -346,7 +368,7 @@ final class SmoothField {
         var t: Float = 2, which = -1
         let ta = terrain(a), tb = terrain(b)
         if ta > 0 && tb <= 0 { t = ta / (ta - tb); which = 0 }
-        let yb = oy + b / SmoothField.NN, ya = oy + a / SmoothField.NN
+        let yb = oy + b / nn_, ya = oy + a / nn_
         if yb >= 6 && ya >= 6 {
             for k in 0..<3 {
                 let ka = carve(k, a), kb = carve(k, b)
@@ -366,7 +388,7 @@ final class SmoothField {
 
     // Outward surface direction of field `which` over the 2x2x2 samples from c0 (minus its gradient), normalized.
     func outward(_ which: Int, _ c0: Int) -> SIMD3<Float> {
-        let N = SmoothField.N, NN = SmoothField.NN
+        let N = n_, NN = nn_
         var s = (Float(0), Float(0), Float(0), Float(0), Float(0), Float(0), Float(0), Float(0))
         s.0 = value(which, c0); s.1 = value(which, c0 + 1)
         s.2 = value(which, c0 + NN); s.3 = value(which, c0 + NN + 1)

@@ -117,6 +117,8 @@ if CommandLine.arguments.contains("--treerepair") { exit(QuestTreeRepair.run()) 
 // --streamtest --seed S --at X,Y,Z [--rd 10] [--seconds 30] [--speed B/S] [--shots 2,5 --out DIR]: new land coming in
 // round a player, second by second (P446, quest/src/test/QuestStreamTest.swift).
 if CommandLine.arguments.contains("--streamtest") { exit(QuestStreamTest.run(ctx: vkctx)) }
+// --genprof --seed S --at X,Z [--n 8]: one field chunk's making, pass by pass (P474, quest/src/test/QuestGenProf.swift).
+if CommandLine.arguments.contains("--genprof") { exit(QuestGenProf.run()) }
 // --placecheck: P448, blocks placed in a field world (quest/src/test/QuestPlaceCheck.swift).
 if CommandLine.arguments.contains("--placecheck") { exit(QuestPlaceCheck.run()) }
 // --blastcheck: P452, a blast leaves nothing to pick up but valuable blocks (quest/src/test/QuestBlastCheck.swift).
