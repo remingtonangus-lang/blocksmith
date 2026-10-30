@@ -514,18 +514,22 @@ enum Greywall {
 
         // MARK: Upper floor (fortress and up, and the outpost: P255): up a stair at the corridor's west end
         if t.floors > 1 {
+            // (The outpost's keep is narrow: its mess is under the stair's whole run, so a two-wide stair walled its door
+            // off. There the stair takes the corridor's north row only and the south row walks on to the mess door.)
+            let narrow = rs.contains { $0.use == "mess" && $0.door.0 > -(kx - 1) && $0.door.0 <= -(kx - 1) + 4 }
+            let rows = narrow ? kc...kc : kc...(kc + 1)
             for k in 1...4 {
                 let dx = -(kx - 1) + k
-                for dz in kc...(kc + 1) {
+                for dz in rows {
                     if k < 4 { fill(dx, 1, dz, dx, 4 - k, dz, con) }
                     put(dx, 5 - k, dz, stairsW)
                     put(dx, 5, dz, AIR)
                 }
             }
-            for dz in kc...(kc + 1) { fill(-(kx - 1), 1, dz, -(kx - 1), 5, dz, con) }
+            for dz in rows { fill(-(kx - 1), 1, dz, -(kx - 1), 5, dz, con) }
             // A rail round the stairwell on the upper floor (two high on the open side).
-            for k in 1...5 { put(-(kx - 1) + k, 6, kc - 1, rail); put(-(kx - 1) + k, 6, kc + 2, rail) }
-            for dz in kc...(kc + 1) { put(-(kx - 1) + 5, 6, dz, rail) }
+            for k in 1...5 { put(-(kx - 1) + k, 6, kc - 1, rail); put(-(kx - 1) + k, 6, rows.upperBound + 1, rail) }
+            for dz in rows { put(-(kx - 1) + 5, 6, dz, rail) }
             let nz = kz0 + 1
             if t.rawValue >= 2 {
                 // Command hall: the command console and map table at the north wall, officers' bunks, the command chests.
