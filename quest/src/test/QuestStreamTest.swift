@@ -26,6 +26,10 @@ enum QuestStreamTest {
         let speed = Float(arg("--speed") ?? "") ?? 0
         let shots = Set((arg("--shots") ?? "").split(separator: ",").compactMap { Int($0) })
         let out = arg("--out") ?? "."
+        // P484 (--shaft D): at 3 s a shaft is dug from the ground's top under him down D blocks and he stands in it, as
+        // when he mines straight down in survival; each line then says whether the world counts him under the ground and
+        // how many chunks within 8 still keep their buried sections undrawn (holes in the caves he can see).
+        let shaft = Int(arg("--shaft") ?? "")
         TextureGen.registerAll()
         let w = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: sharedSystemDevice, save: nil)
         w.renderDistance = rd
@@ -57,10 +61,21 @@ enum QuestStreamTest {
             p.flying = true
             p.yaw = yaw; p.pitch = pitch
             if speed > 0 { p.pos += V3(-sinf(yaw), 0, -cosf(yaw)) * (speed * Float(dt)) }
+            if let d = shaft, f == 3 * 72 {
+                let x = Int(floor(p.pos.x)), z = Int(floor(p.pos.z))
+                var top = CH - 1
+                while top > 0 && !w.solidAt(x, top, z) { top -= 1 }
+                for y in (top - d)...top { w.setBlock(x, y, z, AIR) }
+                p.pos = V3(Float(x) + 0.5, Float(top - d), Float(z) + 0.5)
+                print("streamtest: shaft dug at \(x) \(z) from \(top - YOFF) down to \(top - d - YOFF)")
+            }
+            if shaft != nil && f > 3 * 72 { p.flying = false }
             p.vel = .zero
             let tt = CFAbsoluteTimeGetCurrent()
             g.tick(dt)
             ticks.append((CFAbsoluteTimeGetCurrent() - tt) * 1000)
+            // (As the headset's frame does every frame: the middle ring follows him, built in the background.)
+            if (f + 1) % 18 == 0 { FarRing.shared.request(g, eye: p.eye) }
             if (f + 1) % 72 == 0 {
                 let sec = (f + 1) / 72
                 let c0 = ChunkKey(x: floorDiv(Int(floor(p.pos.x)), CS), z: floorDiv(Int(floor(p.pos.z)), CS))
@@ -103,6 +118,11 @@ enum QuestStreamTest {
                              pf.genChunks - perf0.genChunks, (pf.genSeconds - perf0.genSeconds) * 1000, pf.meshJobs - perf0.meshJobs,
                              pf.meshSections - perf0.meshSections, (pf.meshSeconds - perf0.meshSeconds) * 1000, w.pendingJobs,
                              World.handedOver, World.handoverSpent * 1000, World.leftWaiting))
+                if shaft != nil {
+                    var held = 0
+                    for dz in -8...8 { for dx in -8...8 { if let c = w.chunks[ChunkKey(x: c0.x + dx, z: c0.z + dz)], c.deferredBuried > 0 { held += 1 } } }
+                    print("streamtest: under the ground \(w.underground); chunks within 8 with buried sections undrawn: \(held)")
+                }
                 World.handedOver = 0; World.handoverSpent = 0
                 stale0 = World.staleMeshes; drawn0 = World.staleDrawn; perf0 = pf; async0 = World.asyncEdits; sync0 = World.syncEdits
                 if shots.contains(sec), let ctx {

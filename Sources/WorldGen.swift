@@ -118,8 +118,9 @@ final class WorldGen: TerrainGenerator {
         var y = min(CH - 2, YOFF + Int(max(max(c00.h, c10.h), max(c01.h, c11.h))) + 40)
         var cachedGY = -1
         var L0: (Float, Float, Float, Float) = (0, 0, 0, 0), L1: (Float, Float, Float, Float) = (0, 0, 0, 0)
+        let gyTop = Lattice.ny - 2                      // (P474: read once; the lazy static's swift_once ran every block)
         while y > 4 {
-            let gy = min(Lattice.ny - 2, y >> 3)
+            let gy = min(gyTop, y >> 3)
             if gy != cachedGY {
                 cachedGY = gy
                 L0 = (density(c00, x0, gy * 8, z0), density(c10, x0 + 4, gy * 8, z0), density(c01, x0, gy * 8, z0 + 4), density(c11, x0 + 4, gy * 8, z0 + 4))
@@ -217,7 +218,8 @@ final class WorldGen: TerrainGenerator {
         static let nx = 9, ny = CH / 8 + 1
         var d: [Float]
         let bx: Int, bz: Int
-        @inline(__always) func at(_ gx: Int, _ gy: Int, _ gz: Int) -> Float { d[(gx * Lattice.ny + gy) * Lattice.nx + gz] }
+        let nyI = Lattice.ny                    // (P474: the lazy static read once, not per node)
+        @inline(__always) func at(_ gx: Int, _ gy: Int, _ gz: Int) -> Float { d[(gx * nyI + gy) * Lattice.nx + gz] }
         // Trilinear density at world x,z (within the lattice) and internal y.
         func sample(_ x: Int, _ y: Int, _ z: Int) -> Float {
             let lx = x - (bx - 8), lz = z - (bz - 8)
@@ -289,9 +291,13 @@ final class WorldGen: TerrainGenerator {
     private struct CaveLattice {
         static let ny = CH / 4 + 1
         var f: [Float]     // [field][gx][gy][gz]
-        @inline(__always) func at(_ k: Int, _ gx: Int, _ gy: Int, _ gz: Int) -> Float { f[((k * 5 + gx) * CaveLattice.ny + gy) * 5 + gz] }
+        // P474: the static's value held here: read through its lazy accessor (swift_once) eight times a sample, for up
+        // to five samples a cell of the chunk.
+        let ny = CaveLattice.ny
+        init(f: [Float]) { self.f = f }
+        @inline(__always) func at(_ k: Int, _ gx: Int, _ gy: Int, _ gz: Int) -> Float { f[((k * 5 + gx) * ny + gy) * 5 + gz] }
         func sample(_ k: Int, _ lx: Int, _ y: Int, _ lz: Int) -> Float {
-            let gx = lx >> 2, gz = lz >> 2, gy = min(CaveLattice.ny - 2, y >> 2)
+            let gx = lx >> 2, gz = lz >> 2, gy = min(ny - 2, y >> 2)
             let fx = Float(lx & 3) / 4, fz = Float(lz & 3) / 4, fy = Float(y & 3) / 4
             let a = at(k, gx, gy, gz) + (at(k, gx + 1, gy, gz) - at(k, gx, gy, gz)) * fx
             let b = at(k, gx, gy + 1, gz) + (at(k, gx + 1, gy + 1, gz) - at(k, gx, gy + 1, gz)) * fx
@@ -406,6 +412,7 @@ final class WorldGen: TerrainGenerator {
         // (bit-identical, groundY relies on it) without 8 lattice loads per block.
         var rowA = [Float](repeating: 0, count: Lattice.ny), rowB = [Float](repeating: 0, count: Lattice.ny)
         let topGY = min(Lattice.ny - 1, min(Lattice.ny - 2, maxTop >> 3) + 1)
+        let gyTop = Lattice.ny - 2, yoff = YOFF, stone = STONE, ember = EMBERSLATE     // (P474: once, not per cell)
         for lz in 0..<CS { for lx in 0..<CS {
             let wx = bx + lx, wz = bz + lz
             let llx = wx - (bx - 8), llz = wz - (bz - 8)
@@ -421,13 +428,13 @@ final class WorldGen: TerrainGenerator {
                 let i = Chunk.index(lx, y, lz)
                 // No bedrock floor: the bottom layers are always solid hot rock, and digging through layer 0 drops into
                 // the Deep below (DeepSeam.swift).
-                if y < 3 { b[i] = EMBERSLATE; continue }
-                let gy = min(Lattice.ny - 2, y >> 3)
+                if y < 3 { b[i] = ember; continue }
+                let gy = min(gyTop, y >> 3)
                 let fy = Float(y - gy * 8) / 8
                 let y0 = rowA[gy] + (rowA[gy + 1] - rowA[gy]) * fy
                 let y1 = rowB[gy] + (rowB[gy + 1] - rowB[gy]) * fy
                 if y0 + (y1 - y0) * fz > 0 {
-                    let yd = y - YOFF
+                    let yd = y - yoff
                     if yd < -24 {
                         // The deeper, the hotter: emberslate creeps into the deeprock below -24 and owns it below -56,
                         // with the odd magma block.
@@ -441,10 +448,10 @@ final class WorldGen: TerrainGenerator {
                                 if r < share / 3 { b[i] = magma; continue }
                                 if r < share { b[i] = (y + Int(h % 2)) % 5 < 2 ? basalt : blackstone; continue }
                             }
-                            b[i] = yd < -40 && h % 53 == 0 ? magma : EMBERSLATE; continue
+                            b[i] = yd < -40 && h % 53 == 0 ? magma : ember; continue
                         }
                     }
-                    b[i] = yd < 0 || (yd < 8 && Int(hash3(wx, y, wz, s32 ^ 0xDEE) % 8) > yd) ? deep : STONE
+                    b[i] = yd < 0 || (yd < 8 && Int(hash3(wx, y, wz, s32 ^ 0xDEE) % 8) > yd) ? deep : stone
                 }
             }
         } }
@@ -888,6 +895,9 @@ final class WorldGen: TerrainGenerator {
     private func carveCaves(_ b: inout [BlockID], _ cl: CaveLattice, _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ cols: [Terrain.Column],
                             _ biomes: [Biome], _ aquifer: inout [Int32]) {
         let lavaLevel = YOFF - 55
+        // (P474: the ids and the fluid table as locals: read per cell through their lazy accessors and the registry.)
+        let air = AIR, water = WATER, bedrock = BEDROCK, lava = LAVA, fluidLevel = Blocks.fluidLevel
+        let csq = CSQ, ch = CH, yoff = YOFF
         for lz in 0..<CS { for lx in 0..<CS {
             let top = tops[lx + lz * CS]
             let wetColumn = top < wls[lx + lz * CS] + 2 || cols[lx + lz * CS].rv < 2.5
@@ -895,7 +905,7 @@ final class WorldGen: TerrainGenerator {
             // P373 (b, Oct 18 08:11: "too many caves all out in the open"): tunnels break the surface only in patches
             // (a slow noise: about a quarter of the land, a seventh in forests); elsewhere they keep a 4-block roof.
             let mouths = caveMouths(wx, wz, biomes[lx + lz * CS])
-            let maxY = min(CH - 2, wetColumn ? top - 5 : (mouths ? top + 1 : top - 4))
+            let maxY = min(ch - 2, wetColumn ? top - 5 : (mouths ? top + 1 : top - 4))
             guard maxY > 6 else { continue }
             // Spaghetti tunnel width: a column constant (it was evaluated for every block of the column, ~38k noise
             // calls per chunk: the biggest share of generate's time in the CI profile).
@@ -903,8 +913,8 @@ final class WorldGen: TerrainGenerator {
             for y in 6...maxY {
                 let i = Chunk.index(lx, y, lz)
                 let cur = b[i]
-                if cur == AIR || cur == WATER || cur == BEDROCK || Blocks.isLiquid(cur) { continue }
-                let yd = y - YOFF
+                if cur == air || cur == water || cur == bedrock || fluidLevel[Int(cur)] >= 0 { continue }
+                let yd = y - yoff
                 var carve = false
                 // Cheese caverns, biggest deep down, fading out toward the surface.
                 let cheese = cl.sample(0, lx, y, lz) + (yd < 30 ? 0 : -Float(yd - 30) / 90)
@@ -917,12 +927,12 @@ final class WorldGen: TerrainGenerator {
                 }
                 guard carve else { continue }
                 // Never open the sea floor: keep a shell under water.
-                if y + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }
-                if y <= lavaLevel { b[i] = LAVA; continue }
+                if y + 1 < ch && fluidLevel[Int(b[i + csq])] >= 0 { continue }
+                if y <= lavaLevel { b[i] = lava; continue }
                 // Aquifers: some 16-block cells below sea level hold water up to a local level; drainAquifers then
                 // lets out whatever isn't held in a basin.
-                if aquiferWet(wx, y, wz) { b[i] = WATER; aquifer.append(Int32(i)); continue }
-                b[i] = AIR
+                if aquiferWet(wx, y, wz) { b[i] = water; aquifer.append(Int32(i)); continue }
+                b[i] = air
             }
         } }
     }

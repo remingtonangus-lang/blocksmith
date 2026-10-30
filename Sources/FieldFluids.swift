@@ -112,7 +112,7 @@ extension FieldTerrain {
                     guard sealed else { continue }
                     var count: [UInt8: Int] = [:]
                     around(i) { m in if fd[m] > 0 && fm[m] != 0 { count[fm[m], default: 0] += 1 } }
-                    if let best = count.max(by: { $0.value < $1.value })?.key { fm[i] = best; fd[i] = 32 }
+                    if let best = count.max(by: { $0.value < $1.value || $0.value == $1.value && $0.key > $1.key })?.key { fm[i] = best; fd[i] = 32 }
                 }
                 continue
             }
@@ -133,7 +133,9 @@ extension FieldTerrain {
                     // The rock beside it (the commonest material among its neighbours).
                     var count: [UInt8: Int] = [:]
                     around(j) { m in if fd[m] > 0 && fm[m] != 0 { count[fm[m], default: 0] += 1 } }
-                    if let best = count.max(by: { $0.value < $1.value })?.key { fm[j] = best }
+                    // (A tie goes to the lower material: a dictionary's order changes from run to run, and the same
+                    // seed made a different shore each time the game started.)
+                    if let best = count.max(by: { $0.value < $1.value || $0.value == $1.value && $0.key > $1.key })?.key { fm[j] = best }
                     if fm[j] == 0 { continue }
                 }
                 fd[j] = rim
@@ -163,7 +165,9 @@ extension FieldTerrain {
         let n = min(b.count, fd.count)
         guard n > CSQ else { return }
         let fluidLevel = Blocks.fluidLevel, fluidKind = Blocks.fluidKind, collide = Blocks.collide
-        @inline(__always) func open(_ j: Int) -> Bool { b[j] == AIR && fd[j] <= 8 }
+        // (The ids as locals: each global read in the scans of every cell went through its lazy accessor.)
+        let air = AIR, water = WATER, lava = LAVA
+        @inline(__always) func open(_ j: Int) -> Bool { b[j] == air && fd[j] <= 8 }
         // Ground past a quarter block, a solid block, or the same fluid: what holds a fluid cell over it.
         @inline(__always) func holds(_ j: Int, _ kind: UInt8) -> Bool {
             fd[j] > 8 || collide[Int(b[j])] || (fluidLevel[Int(b[j])] >= 0 && fluidKind[Int(b[j])] == kind)
@@ -172,7 +176,7 @@ extension FieldTerrain {
         // Under a source, top down (a cell filled here holds the one over it only if it was already a source).
         for i in stride(from: n - CSQ - 1, through: CSQ, by: -1) where open(i) {
             let up = b[i + CSQ]
-            guard up == WATER || up == LAVA, holds(i - CSQ, fluidKind[Int(up)]) else { continue }
+            guard up == water || up == lava, holds(i - CSQ, fluidKind[Int(up)]) else { continue }
             b[i] = up; filled += 1
         }
         // Enclosed pockets. Open air over the highest thing in its column is sky, never a pocket: a flood that meets it
@@ -182,7 +186,7 @@ extension FieldTerrain {
         let nbr = [1, -1, CS, -CS, CSQ, -CSQ]
         var seen = [Bool](repeating: false, count: n)
         var comp: [Int] = [], stack: [Int] = []
-        for s in 0..<n where b[s] == WATER || b[s] == LAVA {
+        for s in 0..<n where b[s] == water || b[s] == lava {
             let src = b[s], kind = fluidKind[Int(src)]
             let sx = s & 15, sz = (s >> 4) & 15
             for k in 0..<6 where k != 4 {                       // (over a fluid: air, or the pocket's own top cell)

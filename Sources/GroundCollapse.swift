@@ -74,7 +74,7 @@ enum GroundCollapse {
             lo = simd_min(lo, SIMD3(c.x, c.y, c.z)); hi = simd_max(hi, SIMD3(c.x, c.y, c.z))
             mats[w.block(c.x, c.y, c.z), default: 0] += 1
         }
-        let mat = mats.max { $0.value < $1.value }?.key ?? STONE
+        let mat = mats.max { $0.value < $1.value || $0.value == $1.value && $0.key > $1.key }?.key ?? STONE
         w.collapsing = true
         for c in cells { w.setBlockAsync(c.x, c.y, c.z, AIR) }
         w.collapsing = false
@@ -104,15 +104,22 @@ extension FieldTerrain {
         let n = min(f.fd.count, CSQ * CH)
         guard n > 0 else { return }
         var mark = [UInt8](repeating: 0, count: n)          // 1 seen
-        var stack: [Int] = [], comp: [Int] = []
-        for s in 0..<n where f.fd[s] > 0 && mark[s] == 0 {
-            mark[s] = 1
+        var stack: [Int] = [], comp: [Int] = [], seeds: [Int] = []
+        stack.reserveCapacity(4096)
+        let outsideV = FieldTerrain.outside
+        var dropped = 0
+        // P474: through raw buffers (the flood visits every cell of the chunk's ground; through the struct's array each
+        // read checked it, about a tenth of the field split's time).
+        let cs = CS, csq = CSQ
+        f.fd.withUnsafeMutableBufferPointer { fd in mark.withUnsafeMutableBufferPointer { mk in
+        for s in 0..<n where fd[s] > 0 && mk[s] == 0 {
+            mk[s] = 1
             stack.removeAll(keepingCapacity: true); comp.removeAll(keepingCapacity: true)
             stack.append(s)
             var anchored = false, side = false, held = false
             while let i = stack.popLast() {
                 if !anchored { comp.append(i) }
-                let x = i & 15, z = (i >> 4) & 15, y = i / CSQ
+                let x = i & 15, z = (i >> 4) & 15, y = i / csq
                 if x == 0 || x == 15 || z == 0 || z == 15 { anchored = true; side = true }
                 if y <= 1 || comp.count >= 400 { anchored = true; held = true }
                 for k in 0..<6 {
@@ -120,17 +127,20 @@ extension FieldTerrain {
                     switch k {
                     case 0: if x == 15 { continue }; j = i + 1
                     case 1: if x == 0 { continue }; j = i - 1
-                    case 2: if z == 15 { continue }; j = i + CS
-                    case 3: if z == 0 { continue }; j = i - CS
-                    case 4: j = i + CSQ
-                    default: j = i - CSQ
+                    case 2: if z == 15 { continue }; j = i + cs
+                    case 3: if z == 0 { continue }; j = i - cs
+                    case 4: j = i + csq
+                    default: j = i - csq
                     }
                     guard j >= 0 && j < n else { continue }
-                    if f.fd[j] > 0 && mark[j] == 0 { mark[j] = 1; stack.append(j) }
+                    if fd[j] > 0 && mk[j] == 0 { mk[j] = 1; stack.append(j) }
                 }
             }
-            if !anchored { for i in comp { f.fd[i] = FieldTerrain.outside; floatersDropped += 1 } }
-            else if side && !held { f.borderSeeds.append(s) }      // P380 (2): checked once its neighbours exist
+            if !anchored { for i in comp { fd[i] = outsideV; dropped += 1 } }
+            else if side && !held { seeds.append(s) }              // P380 (2): checked once its neighbours exist
         }
+        } }
+        floatersDropped += dropped
+        f.borderSeeds += seeds
     }
 }

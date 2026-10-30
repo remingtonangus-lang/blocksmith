@@ -12,6 +12,10 @@ MODE="${1:-typecheck}"
 # IP: no flagged coined names (UNSC, MAC, ...; tools/coined-terms.txt) in player-visible strings (docs/status/ip-renames.md).
 python3 tools/namecheck.py --coined
 OPT="${QUEST_OPT:--Onone}"
+# An optimized host build compiles like the APK (build-apk.sh: one whole module, exclusivity unchecked): file by file,
+# nothing crossed a file (no inlining of Math.swift's hashes, a once-check on every read of a global like CH or AIR),
+# and host profiles blamed costs the headset never pays. QUEST_FAST=1: file by file anyway.
+case "$OPT" in *-Onone*|*-wmo*) ;; *-O*) [ "${QUEST_FAST:-0}" = 1 ] || OPT="$OPT -wmo -enforce-exclusivity=unchecked" ;; esac
 python3 quest/tools/extract_hud.py "$GEN/HudGenerated.swift" >/dev/null
 python3 quest/tools/shaders.py "$GEN/QuestSPIRV.swift" >/dev/null
 for m in simd os Metal; do

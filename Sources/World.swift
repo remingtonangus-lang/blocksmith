@@ -100,6 +100,8 @@ final class World {
     // harness). BS_BURIED=0: off.
     static var deferBuried = ProcessInfo.processInfo.environment["BS_BURIED"] != "0"
     static var buriedNear = 3, buriedNearUnder = 8
+    // P484: ground over his head 3 blocks off on two sides counts as under the ground (a shaft). BS_SHAFTUNDER=0: off.
+    static var shaftUnder = ProcessInfo.processInfo.environment["BS_SHAFTUNDER"] != "0"
     // P446 (Oct 25, "in creative, I can't really travel anywhere"): flying well over the ground (more than 24 blocks over
     // it, back under 12), the rock under him is meshed only in his own chunk and the eight round it: the 49 chunks of the
     // usual ring each meshed their caves and rock as he flew over them, about a third of the meshing at view 10. They
@@ -1636,11 +1638,28 @@ final class World {
     private func buriedTick(_ pos: V3, _ center: ChunkKey, _ extra: ChunkKey?) {
         guard World.deferBuried && fieldTerrain && dim != .deep else { buriedCentre = nil; return }
         var under = false, high = flyingHigh
-        if let c = chunks[center] {
-            let lx = mod(Int(floor(pos.x)), CS), lz = mod(Int(floor(pos.z)), CS), col = lx + lz * CS
+        // The top of the drawn ground in a column (nil: its chunk isn't loaded, or is a shell).
+        func groundTop(_ x: Int, _ z: Int) -> Int? {
+            guard let c = chunkAt(x, z), !c.hollow else { return nil }
+            let col = mod(x, CS) + mod(z, CS) * CS
             var y = min(min(CH, c.blocks.storedCount / CSQ) - 1, Int(c.height[col]))
             while y > 0 && !c.blocks.ground(col + y * CSQ) { y -= 1 }
-            under = Float(y) > pos.y + 2.5             // ground over his head: in a cave, a dug hole, a mine
+            return y
+        }
+        let px = Int(floor(pos.x)), pz = Int(floor(pos.z))
+        if let y = groundTop(px, pz) {
+            under = Float(y) > pos.y + 2.5             // ground over his head: in a cave, a mine
+            // P484 (Oct 28 17:50, mining at -32 in survival: "Still got holes in the environment"): a shaft he dug down
+            // (or fell down) is open to the sky over his own column, so he counted as above ground and only the three
+            // chunks round him drew their caves and rock: the caves he broke into past 48 blocks were holes. Ground over
+            // his head 3 blocks off on two sides of the four counts as under it too.
+            if !under && World.shaftUnder {
+                var covered = 0
+                for (dx, dz) in [(3, 0), (-3, 0), (0, 3), (0, -3)] {
+                    if let t = groundTop(px + dx, pz + dz), Float(t) > pos.y + 2.5 { covered += 1 }
+                }
+                under = covered >= 2
+            }
             high = !under && pos.y - Float(y) > (flyingHigh ? 12 : 24)       // (P446)
         }
         let fast = World.highFastNone && simd_length_squared(V2(lead.x, lead.z)) > World.settleFast * World.settleFast

@@ -136,13 +136,13 @@ struct DetailContext {
     func light(_ p: SIMD3<Float>) -> Int {
         let bx = Int(floor(p.x - 0.5)), by = Int(floor(p.y - 0.5)), bz = Int(floor(p.z - 0.5))
         var bs = 0, bb = 0, any = false
-        let lo = Blocks.lightOpaque
+        let lo = Blocks.lightOpaque, op = Blocks.opaque
         for c in 0..<8 {
             let x = bx + (c & 1), y = by + ((c >> 1) & 1), z = bz + (c >> 2)
             let rx = x + Mesher.C0, ry = y + Mesher.C0, rz = z + Mesher.C0
             guard rx >= 0 && ry >= 0 && rz >= 0 && rx < Mesher.RW && ry < Mesher.RH && rz < Mesher.RW else { continue }
             let i = ri(x, y, z)
-            if lo[Int(R[i])] && Blocks.opaque[Int(R[i])] { continue }
+            if lo[Int(R[i])] && op[Int(R[i])] { continue }
             any = true
             bs = max(bs, Int(sky[i])); bb = max(bb, Int(blk[i]))
         }

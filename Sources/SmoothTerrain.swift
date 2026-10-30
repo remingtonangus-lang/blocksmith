@@ -368,6 +368,10 @@ extension Mesher {
         let texT = Blocks.tex, tintT = Blocks.tint, pinT = detailHoles ? SmoothTerrain.pinsDetail : SmoothTerrain.pins, rockSlot = SmoothTerrain.rockSlot
         let detT = Mesher.detailT
         let skyL = sc.sky, blkL = sc.blk
+        // (P474: the static tables read per quad and per vertex, held once here: each read of a static was a lazy
+        // global's check and a retain.)
+        let voteProbe = SmoothTerrain.voteProbe, turfProbe = SmoothTerrain.turfProbe, rockIDs = SmoothTerrain.rockIDs
+        let snowLayer = SmoothTerrain.snowLayer, dirtID = Int(DIRT)
         func ri(_ x: Int, _ y: Int, _ z: Int) -> Int { (x + C0) + (z + C0) * RW + (y + C0) * RL }
 
         // Anything natural in the owned 17^3 block range?
@@ -614,7 +618,7 @@ extension Mesher {
                     }
                 }
                 if snow && up > 0.3 { m = snowB }
-                else if turf >= 0 && up > 0.35 && (!sampled || m == Int(DIRT) || tintT[m] == 3) { m = turf }
+                else if turf >= 0 && up > 0.35 && (!sampled || m == dirtID || tintT[m] == 3) { m = turf }
                 VM[vi] = Int32(m)
             }
             VL[vi] = Int32(l | ao << 8)
@@ -754,8 +758,8 @@ extension Mesher {
                 // P141/P142: dirt facing up under a neighbour's turf shows the turf (on a hillside every block row exposes the
                 // dirt under the row above's grass, which striped slopes grass/dirt/grass: the checkered look).
                 var id = blockID
-                if id == Int(DIRT) && nrm.y > 0.35 * len {
-                    turf: for (dx, dy, dz) in SmoothTerrain.turfProbe {
+                if id == dirtID && nrm.y > 0.35 * len {
+                    turf: for (dx, dy, dz) in turfProbe {
                         let t = Int(R[ri(s[0] + dx, s[1] + dy, s[2] + dz)])
                         if nat[t] && tintT[t] == 3 { id = t; break turf }
                     }
@@ -765,13 +769,13 @@ extension Mesher {
                 // wall reads as patches and strata instead of a grid of single blocks. Ores and everything else keep their own look.
                 if fieldLike && rockSlot[id] >= 0 {
                     var counts = SIMD16<Int32>(repeating: 0)
-                    for (dx, dy, dz) in SmoothTerrain.voteProbe {
+                    for (dx, dy, dz) in voteProbe {
                         let k = Int(rockSlot[Int(R[ri(s[0] + dx, s[1] + dy, s[2] + dz)])])
                         if k >= 0 { counts[k] += 1 }
                     }
                     var bestK = Int(rockSlot[id])
-                    for k in 0..<SmoothTerrain.rockIDs.count where counts[k] > counts[bestK] { bestK = k }
-                    id = SmoothTerrain.rockIDs[bestK]
+                    for k in 0..<rockIDs.count where counts[k] > counts[bestK] { bestK = k }
+                    id = rockIDs[bestK]
                 }
                 let tintB = Int(tintT[id])
                 let texF = tintB == 3 ? (nrm.y > 0.2 * len ? 2 : 3) : f
@@ -780,8 +784,8 @@ extension Mesher {
                 // P451 (Oct 25 08:46, Quest World: "got some snow hovering in a way it shouldn't be"): the snow lying on a
                 // canopy was drawn as its flat slab over the round leaf blob, plates of snow sticking out in the air round
                 // every snowy crown. The slab isn't drawn on a blob now (Mesher); the blob's top under it is snow instead.
-                if leaves && f == 2 && Int(R[ri(s[0], s[1] + 1, s[2])]) == SmoothTerrain.snowLayer {
-                    layer = Int(texT[SmoothTerrain.snowLayer * 6 + 2]); tint = 0
+                if leaves && f == 2 && Int(R[ri(s[0], s[1] + 1, s[2])]) == snowLayer {
+                    layer = Int(texT[snowLayer * 6 + 2]); tint = 0
                 }
                 let blendQuad = fieldLike && blendT[id]
                 let a0 = Int(VL[corner[0]]) >> 8, a1 = Int(VL[corner[1]]) >> 8
