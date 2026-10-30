@@ -67,10 +67,15 @@ void main() {
             vec4 w = oLW * oLW;
             vec3 acc = c.rgb * dot(w, 1.0 - diff);
             float wsum = dot(w, 1.0 - diff);
+            // P498: corners of the same other material are read once with their weights summed (a rock or a path in
+            // grass is mostly quads with two or three corners of it: they read its texture two or three times).
+            vec4 left = diff;
             for (int k = 0; k < 4; k++) {
-                if (diff[k] > 0.5) {
+                if (left[k] > 0.5) {
+                    float wl = 0.0;
+                    for (int j = k; j < 4; j++) { if (left[j] > 0.5 && L[j] == L[k]) { wl += w[j]; left[j] = 0.0; } }
                     vec4 ck = triOn ? triTex(L[k], turnedLayer(L[k])) : texSharp(uv, L[k]);
-                    float wk = w[k] * (0.6 + 0.8 * dot(ck.rgb, vec3(0.333)));     // brighter grains of the other ground poke through first
+                    float wk = wl * (0.6 + 0.8 * dot(ck.rgb, vec3(0.333)));     // brighter grains of the other ground poke through first
                     acc += ck.rgb * wk; wsum += wk;
                 }
             }

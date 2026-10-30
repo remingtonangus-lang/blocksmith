@@ -139,8 +139,11 @@ enum QuestSettings {
     // headset the synthesised frames stood still while he walked, a 36/45 Hz vibration; SpaceWarpPass.swift.)
     static var spaceWarp: Bool { get { bool("quest.spaceWarp3", false) } set { store(newValue, "quest.spaceWarp3") } }
     static var spaceWarpActive = false
-    // P403 7b: dynamic eye-buffer resolution (DynamicResolution); off by default since P426.
-    static var dynamicResolution: Bool { get { bool("quest.dynRes2", false) } set { store(newValue, "quest.dynRes2") } }
+    // P403 7b: dynamic eye-buffer resolution (DynamicResolution). Off by default from P426 (Oct 24) until the jitter
+    // was pinned on Space Warp; P498 (Oct 30 playtest: double vision walking at 25-58 fps, every perf capture GPU-bound
+    // on pixels, 15-26 ms at 31-175k quads) puts it back on by default, as he approved it Oct 23. A new key, so the
+    // off saved under P426's key doesn't keep it off; turning it off in Options sticks.
+    static var dynamicResolution: Bool { get { bool("quest.dynRes3", true) } set { store(newValue, "quest.dynRes3") } }
     // Texture pixels per face: 128 by default, the imported art's own resolution (tools/texpack.py packs it at 128).
     // 64 was the default for a day and halved the art's detail: "everything's blurry, too compressed" (playtest
     // Oct 10, docs/status/texture-sharpness.md). The 64 that default left in saved settings moves to 128 once
@@ -168,7 +171,7 @@ extension QuestSettings {
          ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.buttonReload", buttonReload), ("quest.swingBeforeReclined", swingBeforeReclined),
          ("quest.leftHanded", leftHanded), ("quest.controlPreset", controlPreset), ("quest.standHeight", standHeight), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
          ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.autoView", autoViewDistance), ("quest.hudDrop", hudDrop), ("quest.menuScale", menuScale), ("quest.hudScale", hudScale), ("quest.knockback", knockback), ("quest.mineToggle", mineToggle), ("quest.ctrlHints", ctrlHints),
-         ("quest.foveation", foveation), ("quest.spaceWarp3", spaceWarp), ("quest.dynRes2", dynamicResolution), ("quest.textureRes", textureRes)]
+         ("quest.foveation", foveation), ("quest.spaceWarp3", spaceWarp), ("quest.dynRes3", dynamicResolution), ("quest.textureRes", textureRes)]
     }
     // The headset's own defaults for shared options: the TV-style HUD scale (bigger text), since the panel is read at
     // arm's length, unless the player picked one.
