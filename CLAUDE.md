@@ -1,4 +1,6 @@
-# Blocksmith — agent guide (CLAUDE.md)
+# Sunderfall (formerly Blocksmith) — code guide (CLAUDE.md)
+
+How to work: the one rule at the top of docs/roadmap/backlog.md. This file is only a map of the code and build; it holds no rules.
 
 Native macOS voxel sandbox game (a feature-parity block-building survival game: mechanics and numbers follow the classic genre reference; every name, text, texture and sound is Blocksmith's own) for Remington's M1 MacBook (8 GB RAM, macOS 26, Command Line Tools only — NO full Xcode, no .xcodeproj, no .metal files compiled offline).
 
@@ -6,17 +8,16 @@ The repo is PUBLIC. Naming rule (Remington, 2026-10): user-facing names of block
 
 Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a TV (GameController framework) — design input with that in mind from day one.
 
-## Hard rules
+## Build facts (Mac build)
 - Swift 5 mode, AppKit + MetalKit + Metal + GameController + simd (+ AVFoundation/AVAudioEngine for synthesized sound, + IOKit/IOUSBHost for the wired Xbox GIP fallback in USBGamepad.swift) only. No third-party packages.
 - Shaders live in a Swift string (Shaders.swift) and compile at runtime with `device.makeLibrary(source:options:)`.
 - Build ONLY with `./build.sh` (outputs build/Blocksmith.app). Keep it warning-free if practical.
-- CI: `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3) has two lanes. FAST on every push (< 6 min): `./build.sh fast` (unoptimized, parallel), type-check times as warnings only (`tools/typecheck_report.sh`), one 16 px snapshot -> orphan branch `ci-fast-<branch>`. HEAVY on every 5th run, a head commit message containing `[full]`, a manual dispatch or the nightly schedule: one release build shared as an artifact, then parallel jobs (smoke, perf, play, checks, shots; `SNAP_SHARD=checks|tours|shots ./snap.sh`) -> `ci-snaps-<branch>` (the main line also updates `ci-snaps`). Batch fixes per push; put `[full]` in the last commit of a batch that needs the heavy checks; never wait idle on a run.
+- CI: `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3) has two lanes. FAST on every push (< 6 min): `./build.sh fast` (unoptimized, parallel), type-check times as warnings only (`tools/typecheck_report.sh`), one 16 px snapshot -> orphan branch `ci-fast-<branch>`. HEAVY on every 5th run, a head commit message containing `[full]`, a manual dispatch or the nightly schedule: one release build shared as an artifact, then parallel jobs (smoke, perf, play, checks, shots; `SNAP_SHARD=checks|tours|shots ./snap.sh`) -> `ci-snaps-<branch>` (the main line also updates `ci-snaps`).
 - NEVER launch the GUI app, `open` anything, or bring windows to the front — the user is using the Mac. Test with the headless harness: `./snap.sh` (default views into snaps/) or `./snap.sh name --seed N --x N --z N --yaw DEG --pitch DEG --time FRAC --up N --rd N --w PX --h PX --slot N`. It renders one frame offscreen (world + HUD), writes a PNG, prints gen/mesh/frame timings, exits. Extra flags: --find <biome> (jump to the middle of a biome), --torches (torch ring + lamp), --flood (water springs + 60 fluid ticks), --mobs (animals in front of the camera), --inventory <cursor>, --survival <hp> (survival HUD), --sim <seconds> (scripted gameplay through Game.tick; prints tick avg/worst ms). `Blocksmith --sounds <dir>` writes every synthesized sound as a WAV. --time is a day fraction: 0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight. Look at the PNGs you produce (you can view images) to judge correctness.
 - Launch smoke test: `./smoke.sh [seconds] [rds...]` (Sources/Smoke.swift) plays the built game headless through Game.tick + the full renderFrame path at render distances 8, 16 and 24 (60 s each on CI) and fails on a crash, a stall or a stuck menu; a failure is rerun under lldb in a debug build for a backtrace.
-- Commit to git after every working milestone with a clear message. Keep STATUS.md current (what works, what's broken, next steps).
 - Performance budget: 60 fps at render distance 8 on M1; chunk gen+mesh off the main thread; no per-frame allocations in hot paths.
 
-## Existing code (Sources/) — reuse, don't rewrite without reason
+## Existing code (Sources/)
 - Math/Noise: V2/V3/V4, IVec3, matrices, Frustum, hash3/hashf, floorDiv/mod; seeded Perlin noise2/noise3/fbm2.
 - Blocks.swift: `BlockID = UInt16` flattened states registered by name (BlockDef: render cube/cross/liquid/model, layer, tex per face, boxes in 1/16, hardness/tool/tier, tint, fluid level, emit…); flat per-state tables (`Blocks.opaque[id]` etc.); `addFacing` for 4-facing blocks; globals like STONE resolved by name. Texture names → layers via `Tex` registry.
 - Items.swift / ItemArt.swift: item registry (block items auto-registered per state group, then materials, food, tools, armor) with sprites painted from 16x16 ASCII masks; Inventory.swift: ItemStack (saved by name), ItemContainer, PlayerInventory.
@@ -38,23 +39,7 @@ Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a T
 - Ships (moving block structures, Engine session): Ships.swift (Ship grid/pose/mass, ShipManager: assembly, docking, editing, save, world-space collision boxes), ShipPhysics.swift (60 Hz rigid-body step, buoyancy, propulsion, contacts, sleeping), ShipRender.swift (ship meshes via Mesher on virtual chunks, own Metal library; spinning propellers/wheels/cannon barrels drawn separately), ShipPlay.swift (player in the ship's frame via World.frame, piloting, HUD), ShipCombat.swift (turrets = child ships, cannons, shells, blasts, hull splitting), ShipVessels.swift (blueprints, Skyward Frigate / Ironstride Siege Carriage, encounters, crew AI), ShipBlocks.swift, ShipTest.swift (--ship scenes, --physicstest), ShipBench.swift (bench scene ships).
 - Swift gotchas seen on CI: long float expressions time out the type checker (split them with typed lets); `import simd` in every file that uses simd_*.
 
-## Voice bug notes
-Remington speaks bugs while playing. They land in ~/Documents/Blocksmith/BugNotes/bug-notes.md (transcript + game state +
-screenshot + .m4a per entry). When he hands you that file, follow BUGNOTES.md: reproduce each `Status: open` entry with the
-harness from its seed/position/facing, fix it, and cite the note's timestamp in the commit. Code: Sources/BugNotes.swift;
-CI check: `--bugnotetest`.
-
-## Roadmap
-Done: the full survival game through the Hollow and the Blight, plus Blocksmith's own additions (Steelhold fortresses,
-guns and soldiers; ships, airships and vehicles; realistic climate terrain; Fancy HDR renderer; synthesized audio and
-music; controller/TV play). The live to-do list is the Work queue in STATUS.md.
-
-## Sessions (2026-10-01)
-One session now: the six workstream sessions (PRs #1-#8) are wound down and merged into claude/blocksmith-playtest.
-Work directly on claude/blocksmith-playtest (draft PR #9 "Playtest build: all workstreams combined" keeps the
-player-facing what's-new list). Never push to main or claude/eloquent-lovelace-bsc5v1; never merge PRs. CI cancels an
-in-progress run on a new push, so batch commits and push when the previous run has published. Routine actions
-(keep-alives, merges, CI re-runs) are logged in STATUS.md's session log.
+## More files
 - Newer files: Smoke.swift (--smoke), Spear.swift, CopperGolem.swift (+ copper chests/statues in BlocksCopper.swift),
   FarmVariants.swift (cow/pig/chicken climate looks, eggs), Shelf.swift (wooden shelves), WorldMap.swift (map,
   minimap, waypoints), VehicleControls.swift, CombatHUD.swift (weapon wheel, gauges), Vibrant*.swift (Fancy renderer),

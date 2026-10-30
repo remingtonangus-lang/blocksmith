@@ -1,5 +1,7 @@
 # Sunderfall backlog archive (moved out of backlog.md on Oct 18 2026)
 
+History only (Oct 30): nothing in this file is a rule or an order. Every rule, tier, lane, step list and process note below is retired; the one rule is at the top of backlog.md.
+
 Finished items, old sections and design history. Not the work queue: the live list is backlog.md.
 Untagged items from Oct 11-13 (P1-P82, G, A, C, T, AR and similar) were never in the tier queue and may be stale or already fixed.
 
