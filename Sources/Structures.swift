@@ -307,6 +307,7 @@ final class StructureCache {
             legacyP475 = SaveManager.guarding?.structureGuard(file: "structure-guard-p475.txt") ?? []
             legacyP478 = SaveManager.guarding?.structureGuard(file: "structure-guard-p478.txt") ?? []
             legacyP484 = SaveManager.guarding?.structureGuard(file: "structure-guard-p484.txt") ?? []
+            legacyP499 = SaveManager.guarding?.structureGuard(file: "structure-guard-p499.txt") ?? []
         }
     }
     var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
@@ -318,6 +319,7 @@ final class StructureCache {
     var legacyP471: Set<Int64> = []              // ground saved before P471's gun rooms (Greywall towers, Boreal blockhouses)
     var legacyP478: Set<Int64> = []              // ground saved before P478 trimmed streets to the buildings along them (Village.layout)
     var legacyP484: Set<Int64> = []              // ground saved before P484 kept Greywall bases well away from towns (Greywall.townBerth)
+    var legacyP499: Set<Int64> = []              // ground saved before P499 left out every other small place (Village.thinned)
     var legacyP475: Set<Int64> = []              // ground saved before P475 fenced Boreal Stations in chain link with a gate
     var legacyP470: Set<Int64> = []              // ground saved before P470 let two stations make a line (Railways.plan)
     var legacyP469: Set<Int64> = []              // ground saved before P469 gave depot bases their compounds (Depots.swift)
@@ -596,7 +598,7 @@ enum Loot {
                             ("music_disc_otherside", 1, 1, 2), ("music_disc_13", 1, 1, 15), ("music_disc_cat", 1, 1, 15),
                             ("name_tag", 1, 1, 20), ("golden_horse_armor", 1, 1, 10), ("iron_horse_armor", 1, 1, 15),
                             ("diamond_horse_armor", 1, 1, 5), ("enchanted_book", 1, 1, 10)]),
-        "stronghold_corridor": (2...3, [("ender_pearl", 1, 1, 10), ("diamond", 1, 3, 3), ("iron_ingot", 1, 5, 10), ("gold_ingot", 1, 3, 5),
+        "stronghold_corridor": (2...3, [("amethyst_shard", 1, 3, 10), ("diamond", 1, 3, 3), ("iron_ingot", 1, 5, 10), ("gold_ingot", 1, 3, 5),
                                         ("redstone", 4, 9, 5), ("bread", 1, 3, 15), ("apple", 1, 3, 15), ("iron_pickaxe", 1, 1, 5),
                                         ("iron_sword", 1, 1, 5), ("iron_chestplate", 1, 1, 5), ("iron_helmet", 1, 1, 5),
                                         ("iron_leggings", 1, 1, 5), ("iron_boots", 1, 1, 5), ("golden_apple", 1, 1, 1)]),
@@ -661,7 +663,7 @@ enum Loot {
                                   ("iron_leggings@20-39", 1, 1, 3), ("ward_armor_trim_smithing_template", 1, 1, 4),
                                   ("silence_armor_trim_smithing_template", 1, 1, 1), ("recovery_compass", 1, 1, 2)]),
         "trial_chambers_corridor": (1...3, [("iron_axe@0", 1, 1, 1), ("honeycomb", 1, 8, 1), ("stone_axe", 1, 1, 2), ("stone_pickaxe", 1, 1, 2),
-                                            ("ender_pearl", 1, 2, 2), ("bamboo_hanging_sign", 1, 4, 2), ("bamboo_planks", 3, 6, 2), ("scaffolding", 2, 10, 2),
+                                            ("amethyst_shard", 1, 3, 2), ("bamboo_hanging_sign", 1, 4, 2), ("bamboo_planks", 3, 6, 2), ("scaffolding", 2, 10, 2),
                                             ("torch", 3, 6, 2), ("tuff", 8, 20, 3)]),
         "trial_vault": (1...3, [("emerald", 2, 4, 5), ("arrow", 2, 8, 4), ("iron_ingot", 1, 2, 4), ("wind_charge", 4, 12, 4),
                                 ("honey_bottle", 1, 2, 3), ("ominous_bottle", 1, 1, 2), ("diamond", 1, 2, 2), ("golden_apple", 1, 1, 2),
@@ -801,6 +803,7 @@ enum Loot {
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
         if table == "base_sundries" { roll(c, BaseSundries.barrel.rolls, BaseSundries.barrel.entries, rng: &rng); return }
         if table == BaseMaterials.loot { roll(c, BaseMaterials.table.rolls, BaseMaterials.table.entries, rng: &rng); return }   // P254
+        if table == BaseMaterials.crateLoot { roll(c, BaseMaterials.crateTable.rolls, BaseMaterials.crateTable.entries, rng: &rng); return }   // P499
         if table == BaseSafes.loot || table == BaseSafes.greyLoot {     // P248
             // P256: Greywall's safe swaps the Capital's Fernblick for its own Slate Repeater.
             let entries = table == BaseSafes.greyLoot ? BaseSafes.table.entries.map { $0.0 == "gun_sniper" ? ("gun_repeater", $0.1, $0.2, $0.3) : $0 }

@@ -601,6 +601,12 @@ enum Capital {
     // wings with engine pods glowing aft, a tail fin and an autocannon on its back.
     // P461: what a flown craft breaks through (Ship crush) and lands through: leaves, plants, logs, wood, wool, glass,
     // snow; not ground, stone, metal or ore.
+    // What a ground crawler drives through (crawler crush), per block state: trees, wood, glass, cactus, bamboo.
+    static let crawlerSoft: [Bool] = (0..<Blocks.count).map { i in
+        let key = Blocks.key(Blocks.groupBase[i])
+        return key.hasSuffix("_leaves") || key.hasSuffix("_log") || key.hasSuffix("_planks") || key.hasSuffix("_fence")
+            || key.contains("glass") || key.hasSuffix("_wood") || key.contains("mushroom_block") || key == "cactus" || key == "bamboo"
+    }
     static func crushable(_ b: BlockID) -> Bool {
         guard !Blocks.isLiquid(b), Blocks.hardness[Int(b)] >= 0 else { return false }
         switch Blocks.def(b).sound {
@@ -1470,11 +1476,12 @@ extension ShipManager {
         if drives { st.winchTold = false }
         let fw = s.dirToWorld(V3(0, 0, -1))
         let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
-        let a = steered ? -s.steer * 0.7 : 0
+        // P499 (Oct 30 20:19, "its turning is inverted"): a positive angle turns the bow clockwise seen from above (right).
+        let a = steered ? s.steer * 0.7 : 0
         let want = V2(fh.x * cosf(a) - fh.y * sinf(a), fh.x * sinf(a) + fh.y * cosf(a))
         let speed = steered && drives ? s.throttle * 9 * (1 - lost) : 0
         st.wantSpeed = abs(speed)
-        crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: steered && drives && abs(s.steer) > 0.05 ? 0.18 : 0)
+        crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: steered && drives && abs(s.steer) > 0.05 ? 0.18 : 0, piloted: steered)
         // P455 (Oct 25 14:21, driving one: "this thing's, like, impossible to drive 'cause of the trees"): it crushes
         // what stands in its way as it does under its own crew; and its rail gun reloads (ShipManager.playerRail).
         if st.wantSpeed > 0.3 { crush(s, st, dt) }
@@ -1492,16 +1499,33 @@ extension ShipManager {
         let p = max(-0.3, min(0.3, pitch))
         let dir = simd_normalize(flat * cosf(p) + V3(0, sinf(p), 0))
         st.mainGunCD = 8
-        let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: 7)
-        sh.gravity = 1.5
-        sh.kind = 1
-        sh.life = 4
-        shells.append(sh)
-        g.sfx(.gun(9), 2, at: mw)
-        g.sfx(.explode, 0.8, at: mw)
-        g.particles.explosion(at: mw, power: 2)
+        railShot(s, from: mw, dir: dir, power: 7, game: g)
         g.addShake(0.35)
         return true
+    }
+
+    // P499 (Oct 30 20:20, at a captured Ironback Crawler's helm: "his main cannon should be more of a railgun, not whatever
+    // the hell it currently is"): a Capital main gun's rail slug flew at 260 m/s on a shell's arc, drawn as a magma-red
+    // streak, left the muzzle in a fireball and burst like a shell where it struck. Now a slug at 700 m/s that hardly
+    // drops, a white-blue bolt leaving a glowing line in the air, a blue flash and sparks at the muzzle, and where it
+    // strikes it drives on through what it hits (up to `railReach` blocks, ShipManager.railBore) before it bursts.
+    static let railSpeed: Float = 700
+    static let railReach = 14
+    func railShot(_ s: Ship, from mw: V3, dir: V3, power: Float, game g: Game) {
+        let sh = Shell(pos: mw + dir * 2, vel: dir * ShipManager.railSpeed, owner: s.id, power: power)
+        sh.gravity = 0.4
+        sh.kind = 1
+        sh.life = 2
+        shells.append(sh)
+        g.sfx(.gun(9), 2, at: mw)
+        g.sfx(.gun(12), 1.4, at: mw)
+        g.addFlash(at: mw + dir, color: V3(3, 4.5, 7), radius: 22, life: 0.25)
+        let layer = Int(Tex.id("puff"))
+        for _ in 0..<14 {
+            let v = dir * Rand.float(in: 4...14) + V3(Rand.float(in: -3...3), Rand.float(in: -3...3), Rand.float(in: -3...3))
+            g.particles.add(Particle(pos: mw + dir * 1.5, vel: v, life: 0.35, maxLife: 0.35, layer: layer, uv0: V2(0, 0), uvSize: 1,
+                                     size: Rand.float(in: 0.12...0.3), gravity: 4, color: V3(0.7, 0.9, 1.4), collide: false, glow: true))
+        }
     }
 
     // A commandeered Capital flier: a dropship flown straight from the helm's throttle, steer and climb (kinematic, as
@@ -1521,17 +1545,25 @@ extension ShipManager {
             // them light up blue when it's in overdrive"): sprint at the helm drives it 1.8 times as fast (burning fuel
             // twice as quickly) and its light panels glow blue.
             let over = steered && s.boost && thr > 0.3
-            var want = fwd * (thr * (thr > 0 ? (over ? 50 : 28) : 12)) + right * (side * 14)
+            // P499 (Oct 30 20:38: "this drop ship should go two hundred, maybe 300 kilometres per hour when you do the whole
+            // boost thing"): 55 m/s flat out (about 200 km/h, was 28), 83 in overdrive (300 km/h, was 50).
+            var want = fwd * (thr * (thr > 0 ? (over ? 83 : 55) : 12)) + right * (side * 14)
             want.y = steered ? s.climb * 9 : 0
             if steered && !dropFuel(s, st, dt, g) { want = V3(0, -2.5, 0) }       // dry tanks: it settles to the ground
             // P461 (16:42, "after landing it's somehow floating into midair instead of falling"): left without a pilot
             // it comes down and rests on the ground instead of hanging where it was left.
-            if !steered { want.y = -3 }
             // Never into the ground. P461 (16:41, "This thing should be able to crush trees on landing"): the keel
             // comes down onto the ground itself (it kept 2 blocks over the top block, a tree's crown included), and
             // what stands in its way, leaves, trunks, plants, tents and planking, is crushed (crush).
             let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
             let top = Float(world.isLoaded(gx, gz) ? Capital.firmTop(world, gx, gz) : world.gen.column(gx, gz).height)
+            // P499 (Oct 30 20:40, left landed: "keeps shaking up and down after I landed it"): unpiloted it eased down
+            // at 3 m/s and was pushed back up at the ground each frame, a bob that never settled; it now eases onto the
+            // ground (gently damped) and stays there.
+            if !steered {
+                want.y = max(-3, min(3, top + 1.05 - s.worldMin.y))
+                if abs(top + 1.05 - s.worldMin.y) < 0.05 && abs(s.vel.y) < 0.3 { want.y = 0; s.vel.y = 0 }
+            }
             if s.worldMin.y < top + 1.05 { want.y = max(want.y, (top + 1.05 - s.worldMin.y) * 2) }
             if s.worldMax.y > Float(CH - 4) { want.y = min(want.y, 0) }
             let accel = want - s.vel
@@ -1595,8 +1627,21 @@ extension ShipManager {
         else { st.helmPitch = max(-Capital.maxPitch, min(Capital.maxPitch, st.helmPitch + pitchIn * 0.32 * dt)) }
         st.helmBank += (-steerIn * Capital.maxBank - st.helmBank) * min(1, dt * 1.5)
         var drift = s.vel - fw * way
-        let want = steered ? max(-0.35, s.throttle) * Capital.helmSpeed(s, st) : 0
-        let acc: Float = (abs(want) > abs(way) && want * way >= 0 ? 4.5 : 6) * (meridian ? 1 : 1.4)
+        // P499 (Oct 30 20:27-20:28, at the Meridian's helm: "Let's make it so the frigate goes like... a thousand
+        // kilometers per hour"): the sprint held with the throttle up runs her up to 280 m/s (1,000 km/h) in about ten
+        // seconds, the whole of it only with 80 blocks of air under the keel (none under 30), so low down, where the
+        // ground ahead may not be made yet, she keeps her cruising speed. Let go and she sheds it as quickly.
+        let cruise = Capital.helmSpeed(s, st)
+        var top = cruise
+        if meridian && steered && s.boost && s.throttle > 0.3 {
+            let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
+            let ground = Float(world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height)
+            let air = s.worldMin.y - ground
+            top += (Capital.dashSpeed * Capital.drive(s, st) - top) * max(0, min(1, (air - 30) / 50))
+        }
+        let want = steered ? max(-0.35, s.throttle) * top : 0
+        let dash = abs(want) > cruise + 1 || abs(way) > cruise + 1
+        let acc: Float = dash ? 26 : (abs(want) > abs(way) && want * way >= 0 ? 4.5 : 6) * (meridian ? 1 : 1.4)
         way += max(-acc * dt, min(acc * dt, want - way))
         drift *= max(0, 1 - dt * 2)                         // (the hull carves round: sideways way bleeds off fast)
         s.vel = fw * way + drift
@@ -1609,7 +1654,9 @@ extension ShipManager {
             }
             let clear = s.worldMin.y - below
             // (Short of thrust she climbs slower, and not at all under 0.5 of it.)
-            let rate: Float = pitchIn > 0 ? 6 * max(0, min(1, (lift - 0.5) / 0.3)) : max(1.5, min(6, clear * 0.5))
+            // P499 (Oct 30 20:33, "it's still a little difficult to climb... should go the climb to like 400"): she
+            // rises on her lift jets at 16 blocks/s (was 6): from the ground to the sky's ceiling in about 15 s.
+            let rate: Float = pitchIn > 0 ? (meridian ? 16 : 6) * max(0, min(1, (lift - 0.5) / 0.3)) : max(1.5, min(6, clear * 0.5))
             s.vel.y += (min(pitchIn * rate, sink < 0 ? sink : .infinity) - s.vel.y) * min(1, dt * 2)
             Capital.hovering = true
         } else if steered { Capital.hovering = false }
@@ -1993,7 +2040,7 @@ extension ShipManager {
     // Moves a crawler at `speed` toward heading `want`, its hull following the ground (pitch and roll from the terrain
     // under its wheels, smoothed: the four samples step a block at a time as they cross block edges, and the hull's
     // turn rate eases in, so riders on deck feel no jolts), turning back from water and cliffs.
-    private func crawlerMotion(_ s: Ship, _ st: CapitalState, _ dt: Float, want want0: V2, speed speed0: Float, turnRate: Float) {
+    private func crawlerMotion(_ s: Ship, _ st: CapitalState, _ dt: Float, want want0: V2, speed speed0: Float, turnRate: Float, piloted: Bool = false) {
         var want = want0, speed = speed0
         let fw = s.dirToWorld(V3(0, 0, -1))
         let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
@@ -2004,11 +2051,14 @@ extension ShipManager {
         let hF = ground(c2 + fh * half), hB = ground(c2 - fh * half)
         let hL = ground(c2 - side * track), hR = ground(c2 + side * track)
         // Water or a cliff ahead: turn away.
-        if turnRate > 0 {
+        // P499 (Oct 30 20:19, at a captured crawler's helm: "its turning is inverted"): under the player it no longer
+        // swings itself round its patrol's way (the stick turned it the other way, or not at all): it stops short and
+        // the stick still turns it, or backs it off.
+        if turnRate > 0 || (piloted && speed > 0) {
             let hA = ground(c2 + fh * (half + 14))
             if hA < Float(SEA) || hA - hF > 8 {
-                want = V2(-fh.y, fh.x) * st.orbitDir
-                speed = min(speed, 1.5)
+                if piloted { speed = min(speed, 0) }
+                else { want = V2(-fh.y, fh.x) * st.orbitDir; speed = min(speed, 1.5) }
             }
         }
         let yawRate = turnRate > 0 ? turnToward(s, want, maxRate: turnRate) : 0
@@ -2063,8 +2113,7 @@ extension ShipManager {
         let lo = s.localMin, hi = s.localMax
         var n = 0
         let hardness = Blocks.hardness
-        // On arrival the whole footprint is cleared once (it spawned among trees that hid its wheels: run 404),
-        // afterwards only the front rows it drives into.
+        // On arrival the whole footprint is cleared once (it spawned among trees that hid its wheels: run 404).
         // The full pass waits until every corner of the footprint is loaded and repeats until one pass finishes under
         // the cap (done when only the centre had loaded, the rest of the trees stayed in the hull: blind critic, run 417
         // ship_crawler, an oak through a wheel arch).
@@ -2074,10 +2123,17 @@ extension ShipManager {
             if !world.isLoaded(Int(floor(c.x)), Int(floor(c.z))) { cornersLoaded = false }
         }
         let full = !st.crushedAll && cornersLoaded
-        let zEnd: Float = full ? hi.z : lo.z + 6
-        let cap = full ? 4000 : 80
+        // P499 (Oct 30 20:18-20:21, "the crawler is not destroying trees as it travels", "the trees are bullying the
+        // crawler", "a bunch of trees it's just morphing through"): under way every pass sweeps the whole footprint, from
+        // four rows ahead of the bow back to the stern (a turn swings the sides and the stern through trees the bow
+        // never met; a quarter second at full speed is over two rows), and a crown of leaves no longer uses up the pass
+        // before the trunks behind it (80 blocks a pass left most of a tree standing in the hull). Buildings break only
+        // where the bow and the first rows ram them.
+        if !full && st.wantSpeed < 0.3 { return }          // (parked: nothing new under it)
+        let cap = full ? 4000 : 900
         defer { if full && n < cap { st.crushedAll = true } }
-        for lz in stride(from: lo.z - 1, through: zEnd, by: 1) {
+        for lz in stride(from: lo.z - 4, through: hi.z, by: 1) {
+            let bow = lz <= lo.z + 6
             for lx in stride(from: lo.x, through: hi.x, by: 1) {
                 // From the bottom row (trunks stood through the wheel arches); soft blocks only, so ground is never dug.
                 for ly in stride(from: lo.y, through: hi.y, by: 1) {
@@ -2086,13 +2142,10 @@ extension ShipManager {
                     guard world.isLoaded(x, z) else { continue }
                     let b = world.block(x, y, z)
                     if b == AIR || Blocks.isLiquid(b) { continue }
-                    let key = Blocks.key(Blocks.groupBase[Int(b)])
-                    let soft: Bool = key.hasSuffix("_leaves") || key.hasSuffix("_log") || key.hasSuffix("_planks") || key.hasSuffix("_fence")
-                        || key.contains("glass") || key.hasSuffix("_wood") || key.contains("mushroom_block") || key == "cactus"
-                        || key == "bamboo" || (!Blocks.collide[Int(b)] && hardness[Int(b)] >= 0)
+                    let soft = Capital.crawlerSoft[Int(b)] || (!Blocks.collide[Int(b)] && hardness[Int(b)] >= 0)
                     // P65: driving on, it breaks through buildings (walls, brick, stone work) instead of passing
                     // through them; natural ground and unbreakable blocks stay.
-                    let built = !full && !ShipParts.natural[Int(b)] && hardness[Int(b)] >= 0
+                    let built = bow && !full && !ShipParts.natural[Int(b)] && hardness[Int(b)] >= 0
                     if !soft && !built { continue }
                     world.setBlockAsync(x, y, z, AIR)
                     n += 1
@@ -2186,16 +2239,9 @@ extension ShipManager {
                 st.mainCharge = 0
                 let frigate = s.isFlyingCapital
                 st.mainGunCD = frigate ? 24 : 16
-                var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
+                var dir = simd_normalize(t.point + t.vel * (dist / ShipManager.railSpeed) - mw)
                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
-                let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: frigate ? 10 : 7)
-                sh.gravity = 1.5
-                sh.kind = 1
-                sh.life = 4
-                shells.append(sh)
-                g.sfx(.gun(9), 2, at: mw)
-                g.sfx(.explode, 0.8, at: mw)
-                g.particles.explosion(at: mw, power: 2)
+                railShot(s, from: mw, dir: dir, power: frigate ? 10 : 7, game: g)       // (P499: a rail gun)
             }
         } else if st.mainCharge > 0 && cosA <= 0.9 {
             st.mainCharge = 0
@@ -2435,7 +2481,7 @@ extension ShipManager {
             let lo = s.localMin, hi = s.localMax
             let ahead = V3(s.vel.x, 0, s.vel.z) * 1.5
             for c in [V3(lo.x, 0, lo.z), V3(hi.x, 0, lo.z), V3(lo.x, 0, hi.z), V3(hi.x, 0, hi.z), (lo + hi) * 0.5] {
-                for a in [V3(0, 0, 0), ahead] {
+                for a in [V3(0, 0, 0), ahead * 0.5, ahead] {        // (P499: and half way, at a chase's speed)
                     let w = s.toWorld(c) + a
                     let x = Int(floor(w.x)), z = Int(floor(w.z))
                     if world.isLoaded(x, z) { clear = max(clear, Float(world.topY(x, z))) }
@@ -2516,6 +2562,20 @@ extension ShipManager {
                 st.troopsLeft -= 1
             }
             if st.troopsLeft <= 0 && st.phaseT > 1 { st.phase = 4; st.phaseT = 0 }
+        case 4 where (st.target.map { simd_length(V2($0.vel.x, $0.vel.z)) > 8 } ?? false):
+            // P499 (Oct 30 20:35, flying the Meridian past a citadel: "the drop ship should chase, chase my ship and just
+            // start firing at me relentlessly"): a target on the move (a hull, a rider) is chased: it holds a slot 30
+            // blocks behind and 25 off its quarter, matching its speed up to 55 m/s, 10 over it and clear of what stands
+            // below, its guns on it the while; it turns for home 15 s after it loses it.
+            let t = st.target!
+            let tv = V2(t.vel.x, t.vel.z), sp = simd_length(tv)
+            let back = tv / sp, side = V2(-back.y, back.x)
+            let slot = V2(t.point.x, t.point.z) - back * 30 + side * 25
+            var hv = tv + (slot - here) * 0.8
+            if simd_length(hv) > Capital.dropChase { hv = simd_normalize(hv) * Capital.dropChase }
+            let alt = max(t.point.y + 10, max(ground + 16, clear + 6) + keel)
+            want = V3(hv.x, max(-10, min(10, (alt - s.pos.y) * 0.8)), hv.y)
+            st.phaseT = min(st.phaseT, 30)
         case 4:
             let c = st.target.map { V2($0.point.x, $0.point.z) } ?? drop2
             let to = c - here
@@ -2526,7 +2586,9 @@ extension ShipManager {
             if st.phaseT > 45 { st.phase = 5; st.phaseT = 0 }
         default:
             let away = simd_normalize(here - V2(g.player.pos.x, g.player.pos.z) + V2(1e-3, 0))
-            want = V3(away.x, 0, away.y) * 20 + V3(0, 8, 0)
+            // (P499: "Drop ship just flew through one of its own buildings": heading home it climbs over what stands
+            // under and ahead of it, as on the way in.)
+            want = V3(away.x, 0, away.y) * 20 + V3(0, max(8, min(14, (clear + 8 + keel - s.pos.y) * 0.8)), 0)
             if st.phaseT > 20 || s.pos.y > Float(CH - 12) { remove(s); capState.removeValue(forKey: s.id); return }
         }
         s.vel += (want - s.vel) * min(1, dt * 1.5)
@@ -2953,6 +3015,8 @@ extension Capital {
     }
 
     // Top speed along the bow at full throttle (blocks/s).
+    static let dropChase: Float = 55          // P499: a Capital Dropship's top speed giving chase (200 km/h, as his own)
+    static let dashSpeed: Float = 280         // P499: the Meridian's top speed with the sprint held, high up (1,000 km/h)
     static func helmSpeed(_ s: Ship, _ st: CapitalState) -> Float {
         (s.role == "capfrigate" ? 42 : 18) * drive(s, st)
     }

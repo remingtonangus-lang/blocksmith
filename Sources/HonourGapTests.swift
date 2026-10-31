@@ -291,6 +291,7 @@ extension TownTests {
         TownLaw.inTown = nil
         BountyHunters.chancePerSecond = 1
         BountyHunters.lastPosse = -1e9
+        FactionRaids.lastAssault = -1e9                    // (P215: no posse within 90 minutes of any check's assault)
         BountyHunters.tick(g)
         check(!g.mobs.mobs.contains { $0.customName == BountyHunters.name }, "honour gap: no hunters for someone with a clean name")
         Honour.value = -90
@@ -305,7 +306,11 @@ extension TownTests {
         // (P88: a bigger posse, from 30-42 blocks out, so it rides in.)
         // (R21: two to four on the soldier AI, riding in on an order to where he is.)
         let near = hunters.allSatisfy { simd_length($0.pos - g.player.pos) < 50 && $0.brain?.order != nil }
-        check(hunters.count >= 2 && near, "honour gap: an outlaw in the wild gets \(hunters.count) bounty hunters within 44 blocks, already on the trail")
+        let why: String = hunters.count >= 2 ? "" : " [party \(BountyHunters.party.map { "\(Int($0.x - g.player.pos.x)),\(Int($0.y - g.player.pos.z))" } ?? "none"), "
+            + "survival \(g.survival), difficulty \(g.difficulty), dim \(g.dim.dim), in town \(TownLaw.inTown != nil), won \(Reckoning.won), worth \(BountyHunters.worthHunting()), "
+            + "below \(BountyHunters.below(g)), hunters day \(TownLaw.state.huntersDay ?? -99) today \(Int(g.time / DAY_LENGTH)), mobs \(g.mobs.mobs.count), "
+            + "spots passed over (unloaded, water or leaves, dark or off his level, in sight, blocked) \(BountyHunters.tries.prefix(5).map(String.init).joined(separator: " ")), at \(Int(g.player.pos.x)) \(Int(g.player.pos.y)) \(Int(g.player.pos.z))]"
+        check(hunters.count >= 2 && near, "honour gap: an outlaw in the wild gets \(hunters.count) bounty hunters within 44 blocks, already on the trail" + why)
         let n0 = g.mobs.mobs.count
         BountyHunters.tick(g)
         check(g.mobs.mobs.count == n0, "honour gap: at most one posse a day")

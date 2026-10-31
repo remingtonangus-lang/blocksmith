@@ -29,7 +29,7 @@ extension BlockRegistry {
         }
         if !has("capital_window") {
             var d = BlockDef("capital_window", "Capital Window")
-            d.tex = ["capital_window"]; d.opaque = false; d.layer = .cutout; d.cullSame = true
+            d.tex = ["capital_window"]; d.opaque = false; d.layer = .translucent; d.cullSame = true; d.aoOcc = false   // (P499: tinted glass, blended)
             d.hardness = 0.6; d.resistance = 2; d.sound = .glass
             add(d)
         }
@@ -48,12 +48,12 @@ extension TextureGen {
             if y == 0 { return hex(0xD0D4D8) }
             return hex(0xBEC3C8, 0.97 + 0.03 * r(x / 3, y, 2403))
         }
-        // Tall window: pale sky-tinted glass with a slim white mullion on one side.
+        // Tall window: dark grey tinted glass (P499: "gray, dark tinted windows") with a slim white mullion on one side.
         p["capital_window"] = { x, y in
             if x == 0 { return hex(0xF4F6F8) }
             if x == 15 { return hex(0xC8CDD2) }
-            if abs(x - y / 2 - 2) <= 0 { return hex(0xDDEBF5, 1, 0.45) }
-            return V4(0.62, 0.74, 0.84, 0.32)
+            if abs(x - y / 2 - 2) <= 0 { return V4(0.42, 0.45, 0.48, 0.6) }
+            return V4(0.2, 0.22, 0.24, 0.5)
         }
     }
 }

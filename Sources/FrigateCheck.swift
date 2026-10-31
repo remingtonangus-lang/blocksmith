@@ -210,6 +210,17 @@ enum FrigateCheck {
             let bank = asinf(s.dirToWorld(V3(1, 0, 0)).y) * 180 / .pi
             check(turned < -0.4 && slip < 0.3 && bank < -8, String(format: "frigate (c): steering right turns it %.0f degrees in 4 s, banked %.0f degrees, slipping sideways at %.0f%% of its speed",
                                                                 -turned * 180 / .pi, -bank, slip * 100))
+            // P499 (Oct 30 20:27, "the frigate goes like... a thousand kilometers per hour"): high up with the sprint held
+            // she runs up to about 1,000 km/h (the hull speed cap let no ship past 216 km/h before).
+            s.pos.y += 110; s.prevPos = s.pos
+            w.ships.pointHull(s, pitch: 0)
+            var dash = fwd; dash.sprint = true
+            fly(dash, 13)
+            let top = simd_length(s.vel)
+            fly(fwd, 4)
+            let after = simd_length(s.vel)
+            check(top > 250 && after < top * 0.7, String(format: "frigate P499: with the sprint held high up she dashes at %.0f km/h; let go, she sheds it (%.0f km/h 4 s later)",
+                                                       top * 3.6, after * 3.6))
         }
 
         // (a) The main gun: the hull pointed 12 degrees down and to the side, the slug leaves along the barrel, flat.
@@ -353,6 +364,26 @@ enum FrigateCheck {
         let lean = cnt > 0 ? sumX / cnt : 0
         check(cnt > 20 && lean > 1.5, String(format: "frigate P357 (e): the crater's lower part sits %.1f blocks on along the shot (%.0f blocks dug below 3 deep)", lean, cnt))
 
+        // P499 (Oct 30 20:28, "I literally shot through a building and made a crater in the ground as if I was shooting
+        // vertically downwards"): a level shot into a wall drives its bowl on into the wall, not down under the impact.
+        do {
+            let wx = gx - 40, wz = gz
+            _ = w.loadSync(center: V3(Float(wx), 100, Float(wz)), radius: 3)
+            let wy = w.topY(wx, wz) + 1
+            for y in wy..<(wy + 24) { for z in (wz - 12)...(wz + 12) { for x in wx..<(wx + 14) { _ = w.setBlockAsync(x, y, z, STONE) } } }
+            let iy = wy + 12
+            Explosion.crater(at: V3(Float(wx) + 0.5, Float(iy) + 0.5, Float(wz) + 0.5), radius: 6, game: g, depth: 12, along: V3(1, 0, 0))
+            var ahead: Float = 0, dug: Float = 0, low = 0
+            for y in wy..<(wy + 24) { for z in (wz - 12)...(wz + 12) { for x in wx..<(wx + 14) where w.isAir(x, y, z) {
+                ahead += Float(x - wx); dug += 1
+                if y < iy - 7 { low += 1 }
+            } } }
+            let into = dug > 0 ? ahead / dug : 0
+            // (A half bowl twelve deep along the shot and six round: its dug cells average about 4 in, ragged edge and all.)
+            check(dug > 300 && into > 3.3 && low == 0,
+                  String(format: "frigate P499: a level shot into a wall digs on into it (%.0f blocks, %.1f deep on average, %d below the impact's reach)", dug, into, low))
+        }
+
         // P476 (Oct 27 19:14, "crashing it shouldn't really do that much damage. It'll damage the front. Maybe if it
         // crashed too hard, it would destroy enough blocks to disrupt the main gun"): a second frigate (the first is a
         // wreck by now), its bow pitched down and driven into the ground at 19 blocks/s: a crash that tears her where she
@@ -374,6 +405,13 @@ enum FrigateCheck {
             let bowPt = f.toWorld(bowLocal)
             _ = w.loadSync(center: bowPt, radius: 4)
             let gy = Float(Capital.firmTop(w, Int(floor(bowPt.x)), Int(floor(bowPt.z))) + 1)
+            // (Firm stone where she strikes, open air over it: the ground generated there can be a tree's crown or a
+            // trunk she crushes on the way down, and a crash into that is no test of one into the ground.)
+            let bx = Int(floor(bowPt.x)), bz = Int(floor(bowPt.z)), iy = Int(gy)
+            for z in (bz - 14)...(bz + 14) { for x in (bx - 14)...(bx + 14) {
+                for y in (iy - 6)..<iy { w.setBlock(x, y, z, STONE) }
+                for y in iy...(iy + 30) where !w.isAir(x, y, z) { w.setBlock(x, y, z, AIR) }
+            } }
             f.pos.y += gy + 0.5 - bowPt.y; f.prevPos = f.pos; f.updateBounds()
             let blocks2 = f.blockCount, crashes2 = Capital.crashes
             Capital.crashLog = []
@@ -397,6 +435,26 @@ enum FrigateCheck {
             check(Capital.crashes == crashes2 + 1 && !f.wrecked && blocks2 - f.blockCount > 0 && blocks2 - f.blockCount < 300
                   && w.ships.pilot === f && fs.mainGunCD < 1e30 && g.health == 20,
                   "frigate P476: a bow-first crash at 19 b/s tears \(blocks2 - f.blockCount) hull blocks where she struck and she flies on (\(Capital.crashes - crashes2) crashes, \(f.wrecked ? "wrecked" : "whole"), pilot \(w.ships.pilot === f ? "at the helm" : "thrown"), gun \(fs.mainGunCD < 1e30 ? "intact" : "out"))")
+            // P499 (Oct 30 20:36, "the capital's naval guns should be doing a number on the ship, which I don't think they
+            // are"): a citadel's main battery shell fired at her in the air, striking her flank aft of the bridge, breaks
+            // through her armour skin (it took nothing: not a block, not a chip).
+            do {
+                let aft = f.toWorld(V3(Float(f.grid.sx) * 0.5, Float(f.grid.sy) * 0.45, Float(f.grid.sz) * 0.8))
+                let side = f.dirToWorld(V3(1, 0, 0))
+                var sh = Slug(pos: aft + side * 60, vel: -side * AirDefence.flakSpeed, kind: .shell, damage: 0, fromPlayer: false,
+                              shooter: nil, by: "Capital naval gun", life: 4, gravity: 0)
+                sh.breaks = false; sh.tracer = true
+                AirDefence.mainBattery(&sh)
+                let had = f.blockCount, chips = f.damage.count
+                let shots = g.arms.slugs.count
+                g.arms.spawn(sh)
+                for _ in 0..<90 where g.arms.slugs.count > shots {
+                    g.player.pos = f.toWorld(fstand); g.player.vel = .zero
+                    g.arms.update(dt, g)
+                }
+                check(had - f.blockCount >= 4 && g.alive,
+                      "frigate P499: a main battery shell striking her flank in flight breaks \(had - f.blockCount) hull blocks (\(f.damage.count - chips) more chipped)")
+            }
         }
     }
 }

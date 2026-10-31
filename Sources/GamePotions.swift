@@ -132,6 +132,8 @@ extension Game {
     // Drinks the held potion / milk / honey (after the 1.6 s use time).
     func finishDrink(_ h: ItemStack) {
         let key = Items.key(h.item)
+        // (P499: a stim's effects came with foodEffects; it clicks as it injects and is spent)
+        if key.hasSuffix("_stim") { sfx(.gun(7), 0.6); consumeHeld(); return }
         sfx(.drink, 0.7)
         if case let (_, t)? = Potions.potion(of: h.item) {
             applyPotion(t, scale: 1)

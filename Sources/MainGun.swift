@@ -107,6 +107,7 @@ extension ShipManager {
             DispatchQueue.global(qos: .utility).async {
                 MainGunStrikes.prewarm(sc, at: warm)
                 _ = Explosion.craterOffsets(Int(ceilf(MainGun.craterRadius)), depth: MainGun.craterDepth)   // (sorted once: the bowl's cells)
+                _ = Explosion.craterOffsets(MainGun.craterDepth, depth: MainGun.craterDepth)                // (a flat shot's turned bowl, P499)
             }
         }
         // Aimed at a player: a warning in words and in the hands, so the 2.6 s charge is a chance to get clear.

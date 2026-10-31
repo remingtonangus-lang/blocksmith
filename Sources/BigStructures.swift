@@ -385,6 +385,10 @@ enum BigStructures {
             let warm = b == .warmOcean || b == .lukewarmOcean || b == .deepLukewarmOcean
             let y = gen.groundY(x, z)
             guard y < SEA - 3 else { return nil }
+            // P499 (the overlap check): never inside a monument's walls, on ground no save had before.
+            if let sc = gen.structures, sc.clear(cx: cx, cz: cz, reach: 1, guardSet: sc.legacyP499),
+               let m = sc.nearest("monument", x: x, z: z, maxRegions: 1),
+               m.max.x >= x - 10 && m.min.x <= x + 10 && m.max.z >= z - 10 && m.min.z <= z + 10 { return nil }
             return StructureStart(kind: "ocean_ruin", pieces: [piece(x - 8, y - 6, z - 8, x + 8, y + 10, z + 8) { w in
                 // A drowned building: a paved floor on the seabed, walls worn down unevenly (tallest at the corners), a
                 // doorway, inner piers and a fallen roof slab on the big ones (a box riddled with random holes read as

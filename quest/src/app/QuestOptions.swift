@@ -183,6 +183,7 @@ enum QuestOptions {
         "A: jump      B: back; hold: drop item",
         "X: pick block; hold: offhand",
         "Y: fly on / off; hold: inventory",
+        "Flying, creative: hold R stick in: fastest",            // (P499: P478's hyper flight was on no page)
         "(World map: pause menu)",
         "Click R stick: weapon wheel (flick at a gun to take it)",
         "Menu: pause; hold: recenter view",

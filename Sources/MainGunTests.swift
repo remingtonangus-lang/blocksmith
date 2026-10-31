@@ -475,6 +475,31 @@ enum MainGunTests {
                 w.ships.pilot = nil; e.throttle = 0
                 check(takeable && est.wheelsLost == 0 && rebuilt >= lost0 && est.disabledWhy.isEmpty && v > 2,
                       String(format: "crawler: a crewless wreck can be taken, %d ingot uses rebuild its %d lost wheels (%d/%d) and engines (%d/%d), and it drives at %.1f b/s", rebuilt, lost0, est.wheels.count - est.wheelsLost, est.wheels.count, e.engines, est.engines0, v))
+                // P499 (Oct 30 20:20, "his main cannon should be more of a railgun"): its main gun fires a rail slug at
+                // 700 m/s that drives on through a stone wall 16 blocks thick before it bursts.
+                est.mainGunCD = 0
+                w.ships.shells.removeAll()
+                let mw = e.toWorld(est.mainGunMuzzle), md = e.dirToWorld(est.mainGunDir)
+                let flat = simd_normalize(V3(md.x, 0, md.z) + V3(1e-5, 0, 0))
+                let side = V3(-flat.z, 0, flat.x)
+                var wall: [IVec3] = [], line: [IVec3] = []
+                for k in 20..<36 {
+                    let c = mw + flat * Float(k)
+                    for a in -1...1 { for b in -1...1 {
+                        let q = c + side * Float(a) + V3(0, Float(b), 0)
+                        let cell = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+                        if !wall.contains(cell) { wall.append(cell); w.setBlock(cell.x, cell.y, cell.z, STONE) }
+                        if a == 0 && b == 0 { line.append(cell) }
+                    } }
+                }
+                defer { for q in wall { w.setBlock(q.x, q.y, q.z, AIR) } }
+                let fired = w.ships.playerRail(e, pitch: 0, game: g)
+                let speed = w.ships.shells.first { $0.kind == 1 }.map { simd_length($0.vel) } ?? 0
+                var frames = 0
+                while w.ships.shells.contains(where: { $0.kind == 1 }) && frames < 200 { w.ships.updateShells(1.0 / 72, game: g); frames += 1 }
+                let bored = line.filter { w.block($0.x, $0.y, $0.z) == AIR }.count
+                check(fired && speed >= 600 && bored >= 11,
+                      String(format: "crawler P499: its main gun is a rail gun: a slug at %.0f m/s bores %d of 16 blocks through a stone wall", speed, bored))
             }
         }
 

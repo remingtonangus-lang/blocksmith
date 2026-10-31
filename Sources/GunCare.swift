@@ -15,7 +15,7 @@ enum GunCare {
     static let soldiersHear: Float = 9
     static var cleaned = 0                             // (tests)
 
-    static func takesSuppressor(_ gi: Int) -> Bool { gi != Guns.shotgun && !Guns.isLauncher(gi) && gi != Guns.arc }
+    static func takesSuppressor(_ gi: Int) -> Bool { gi != Guns.shotgun && gi != Guns.autoShotgun && !Guns.isLauncher(gi) && gi != Guns.arc }
     static func suppressed(_ s: ItemStack) -> Bool { s.contents?.contains { Items.key($0.item) == suppressor } ?? false }
     static func suppressedHeld(_ g: Game) -> Bool { g.heldGun != nil && suppressed(g.held) }
 

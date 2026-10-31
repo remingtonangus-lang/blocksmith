@@ -104,7 +104,7 @@ extension ItemRegistry {
 
 extension Recipes {
     static func deepGateRecipes() -> [Recipe?] {
-        [shapeless(["sunderite_ingot", "ender_pearl"], "gate_shard"),
+        [shapeless(["sunderite_ingot", "ender_eye"], "gate_shard"),   // P499: a Seeker Eye where a void pearl went
          shapeless(["sunderite_ingot", "piston", "iron_block"], DeepGates.liftKey),
          shapeless(["sealrock_shard", "sealrock_shard", "sealrock_shard", "sealrock_shard"], "sealbound_bricks")]
     }

@@ -218,8 +218,9 @@ enum PlaytestOct11Tests {
         book.query = "chest"; book.refresh()
         let L = HudLayout(1280, 800).fitted(book)
         let texts = book.drawLines(L, book.origin(L)).map { $0.text }
-        check(texts.contains("6"),
-              "P28 crafting counts: with 48 planks the chest tile reads 6 (\(texts.filter { Int($0) != nil }.prefix(8).joined(separator: " ")))")
+        // (P213: the count sits top left as "x6", clear of the item's own stack number.)
+        check(texts.contains("x6"),
+              "P28 crafting counts: with 48 planks the chest tile reads x6 (\(texts.filter { $0.hasPrefix("x") && Int($0.dropFirst()) != nil }.prefix(8).joined(separator: " ")))")
     }
 
     // A step's character: the share of its energy below 250 Hz (mud is mostly low thud), above 2 kHz (dry grit and
@@ -250,10 +251,12 @@ enum PlaytestOct11Tests {
                 low += sh.low / 3; high += sh.high / 3; decay = max(decay, sh.decay)
             }
             lines.append(String(format: "%@ low %.2f high %.2f %.0f ms", "\(m)", low, high, decay * 1000))
-            if low > 0.3 || high < 0.12 || decay > 0.16 { ok = false; worst = "\(m)" }
+            // P457: the steps are Remington's approved recordings now (grass and dirt carry the boot's own thud, so the
+            // synthesized steps' 30% low-thud bound is gone); each still has grit mud has none of and stops short.
+            if high < 0.12 || high < mud.high * 4 || decay > 0.16 { ok = false; worst += (worst.isEmpty ? "" : ", ") + "\(m)" }
         }
         print("p14 steps: mud low \(String(format: "%.2f", mud.low)) high \(String(format: "%.2f", mud.high)) \(Int(mud.decay * 1000)) ms; " + lines.joined(separator: "; "))
-        check(ok, "P14 footsteps: dry steps are crisp, not muddy (low thud <= 30%, grit >= 12%, ring <= 160 ms\(worst.isEmpty ? "" : "; \(worst) fails"))")
+        check(ok, "P14 footsteps: dry steps are crisp, not muddy (grit >= 12% and 4x mud's, ring <= 160 ms\(worst.isEmpty ? "" : "; \(worst) fail"))")
     }
 
     // P18: lava at a chunk's edge beside air in the next chunk flows when the chunks meet (World.borderSprings; the
@@ -280,6 +283,10 @@ enum PlaytestOct11Tests {
             w.chunkAt(x, z)?.blocks[Chunk.index(x & 15, y + dy, z & 15)] = STONE
         } } }
         c.blocks[ia] = LAVA; n.blocks[ib] = AIR
+        // (P376: fluid past the active distance is parked; 380 blocks off, the cell is centred on by hand.)
+        let active0 = w.activeCenter
+        w.activeCenter = V3(Float(cx * 16 + 16), Float(y), Float(cz * 16 + lz))
+        defer { w.activeCenter = active0 }
         let before = w.lavaPending.count
         w.borderSprings(n)
         let queued = w.lavaPending.count > before
@@ -434,16 +441,28 @@ enum PlaytestOct11Tests {
     static func vrGunAim(_ game: Game, _ check: (Bool, String) -> Void) {
         let gi = Guns.all.firstIndex { $0.key == "gun_rifle" } ?? 0
         let held0 = game.inventory.held
-        defer { game.inventory.held = held0; game.vrAim = nil }
+        let two0 = game.vrTwoHanded
+        defer { game.inventory.held = held0; game.vrAim = nil; game.vrTwoHanded = two0 }
         var gun = ItemStack(Items.id("gun_rifle"), 1); gun.tag = 10
         game.inventory.held = gun
         let hand = game.player.eye + V3(0.25, -0.45, -0.2), dir = simd_normalize(V3(0.1, 0.05, -1))
         game.vrAim = (hand, dir)
+        // Braced on its foregrip with the other hand (P499: one-handed, a shouldered gun throws its rounds wide).
+        game.vrTwoHanded = true
         let n0 = game.arms.slugs.count
         game.fireHeldGun(gi)
         guard let s = game.arms.slugs.last, game.arms.slugs.count > n0 else { check(false, "P32 VR gun aim: no round fired"); return }
         let off = simd_length(s.pos - (hand + dir * 0.3)), ang = acosf(min(1, simd_dot(simd_normalize(s.vel), dir))) * 180 / .pi
-        check(off < 0.01 && ang < 0.05, String(format: "P32/P43 VR gun aim: the round leaves the hand (%.2f off) exactly along the hand's ray (%.2f degrees off)", off, ang))
+        check(off < 0.01 && ang < 0.05, String(format: "P32/P43 VR gun aim: braced, the round leaves the hand (%.2f off) exactly along the hand's ray (%.2f degrees off)", off, ang))
+        // One-handed: rounds go wide (up to about 7 degrees), never 0 every time.
+        game.vrTwoHanded = false
+        var wide: Float = 0
+        for _ in 0..<8 {
+            let n1 = game.arms.slugs.count
+            game.fireHeldGun(gi)
+            if game.arms.slugs.count > n1, let r = game.arms.slugs.last { wide = max(wide, acosf(min(1, simd_dot(simd_normalize(r.vel), dir))) * 180 / .pi) }
+        }
+        check(wide > 0.3 && wide < 8, String(format: "P499 VR gun aim: fired one-handed a rifle's rounds go wide (up to %.1f degrees in 8 shots)", wide))
     }
 
     // P36: a citadel's command console, used, puts the Capital sites and patrols on the radar readout for 30 s.
@@ -519,22 +538,25 @@ enum PlaytestOct11Tests {
         let paused0 = game.paused
         defer { game.difficulty = was.0; Difficulty.level = was.1; game.paused = paused0 }
         var blows: [Int] = [], caps: [Int] = []
-        for lv in 1...3 {
+        // (P302: levels 2-4 are Easy, Normal and Hard. P435: on Easy no monster rolls tougher than plain: a tough roll
+        // takes more blows from Normal up.)
+        for lv in 2...4 {
             Difficulty.level = lv
             let z = Mob(.zombie, at: game.player.pos + V3(0, 0, -40))
+            z.vary.tough = 1.5
             var n = 0
             while z.health > 0 && n < 200 { z.health -= Difficulty.scaleHit(6, z); n += 1 }
             blows.append(n)
             caps.append(game.mobs.cap(.monster, game.world))
         }
-        let hunger = (1...3).map { Difficulty.rows[$0].hunger }, speed = (1...3).map { Difficulty.rows[$0].speed }
+        let hunger = (2...4).map { Difficulty.rows[$0].hunger }, speed = (2...4).map { Difficulty.rows[$0].speed }
         game.difficulty = 2
         let menu = PauseMenu(game: game)
         game.menu = menu
         menu.act("difficulty", back: false)
         let locked = game.diffLevel == 4          // P369: the row now steps the level (Normal -> Hard), no lock
         game.menu = was.2
-        check(blows[0] < blows[1] && blows[1] < blows[2] && caps[0] < caps[1] && caps[1] < caps[2]
+        check(blows[0] < blows[1] && blows[1] <= blows[2] && caps[0] < caps[1] && caps[1] < caps[2]
                 && hunger[0] < hunger[1] && hunger[1] < hunger[2] && speed[0] < speed[2] && locked,
               "G19 difficulty: a zombie takes \(blows) blows of 6 on easy/normal/hard, monster cap \(caps), hunger x\(hunger), speed x\(speed); the pause menu changes it (\(locked))")
     }
@@ -585,8 +607,9 @@ enum PlaytestOct11Tests {
         TownLaw.placed(g, mine)
         TownLaw.sleptIn(g, mine + IVec3(1, 0, 0))                 // the head half of a bed you placed
         let d = Honour.value
-        check(real && chefLate.isEmpty && windows && b < a && c == b && d == c,
-              "P58/P59 night manners: evening-only lines are real takes (\(real)), the chef has none late (\(chefLate.count)), late window ok (\(windows)); a town bed costs \(b - a) honour once a night (again: \(c - b)), your own bed \(d - c)")
+        // (P468's second book gave the chef night lines of his own; with none he falls back to the closed lines.)
+        check(real && windows && b < a && c == b && d == c,
+              "P58/P59 night manners: evening-only lines are real takes (\(real)), the chef has \(chefLate.count) lines late, late window ok (\(windows)); a town bed costs \(b - a) honour once a night (again: \(c - b)), your own bed \(d - c)")
     }
 
     // P55: monsters vary one from the next (speed, hit, toughness, archers' aim); animals and townsfolk don't.
@@ -600,10 +623,12 @@ enum PlaytestOct11Tests {
         let cow = Mob(.cow, at: game.player.pos).vary
         func range(_ a: [Float]) -> Float { (a.max() ?? 0) - (a.min() ?? 0) }
         let hits = zs.map { $0.vary.hit(4) }
-        check(range(sp) > 0.3 && range(dm) > 0.5 && range(tg) > 0.4 && range(sk) > 0.08 && cow.speed == 1 && cow.tough == 1
+        // (R-batch, Oct 14: animals vary a little too, never into a monster's builds.)
+        let cowMild = cow.build == .middling && cow.aim == 0 && cow.speed >= 0.75 && cow.speed <= 1.35 && cow.tough >= 0.8 && cow.tough <= 1.3
+        check(range(sp) > 0.3 && range(dm) > 0.5 && range(tg) > 0.4 && range(sk) > 0.08 && cowMild
               && Set(hits).count >= 3,
-              String(format: "P55 mob variety: zombie speed x%.2f-%.2f, hit x%.2f-%.2f (a 4 lands as %@), toughness x%.2f-%.2f; skeleton aim spread %.2f-%.2f; a cow stays plain",
-                     sp.min()!, sp.max()!, dm.min()!, dm.max()!, Set(hits).sorted().map(String.init).joined(separator: "/"), tg.min()!, tg.max()!, sk.min()!, sk.max()!))
+              String(format: "P55 mob variety: zombie speed x%.2f-%.2f, hit x%.2f-%.2f (a 4 lands as %@), toughness x%.2f-%.2f; skeleton aim spread %.2f-%.2f; a cow varies only a little (speed x%.2f, toughness x%.2f)",
+                     sp.min()!, sp.max()!, dm.min()!, dm.max()!, Set(hits).sorted().map(String.init).joined(separator: "/"), tg.min()!, tg.max()!, sk.min()!, sk.max()!, cow.speed, cow.tough))
     }
 
     // P60: two zombies standing in each other, and a voidwalker standing in the player, are eased apart within a second.
@@ -700,11 +725,13 @@ enum PlaytestOct11Tests {
         let hip = head + V3(-0.25, -0.8, 0.05), mid = head + V3(0.1, -0.1, -0.5)
         let away = VRReload.tick(game, offHand: mid, gunHand: gunHand, head: head, grip: true, gripWas: false)
         let grab = VRReload.tick(game, offHand: hip, gunHand: gunHand, head: head, grip: true, gripWas: false)
-        _ = VRReload.tick(game, offHand: mid, gunHand: gunHand, head: head, grip: true, gripWas: true)
+        // Carried up on the far side (mid-chest is inside P286's wider 0.38 m well reach: it seated there already).
+        let carry = head + V3(-0.35, -0.2, -0.3)
+        let held = VRReload.tick(game, offHand: carry, gunHand: gunHand, head: head, grip: true, gripWas: true)
         let ins = VRReload.tick(game, offHand: gunHand + V3(0, -0.08, 0.02), gunHand: gunHand, head: head, grip: true, gripWas: true)
         let full = game.held.tag == Guns.magSize(game.held)
-        check(away == .none && grab == .grabbed && ins == .inserted && full,
-              "P56 VR reload: a grip away from the hip takes nothing (\(away)); at the hip a magazine (\(grab)); at the gun it slots in (\(ins)): \(game.held.tag) / \(Guns.magSize(game.held))")
+        check(away == .none && grab == .grabbed && held == .none && ins == .inserted && full,
+              "P56 VR reload: a grip away from the hip takes nothing (\(away)); at the hip a magazine (\(grab)), carried (\(held)); at the gun it slots in (\(ins)): \(game.held.tag) / \(Guns.magSize(game.held))")
     }
 
     // P39: lava stays easy to find: cupped single sources on cave floors between -50 and -8, never spilling.
@@ -852,6 +879,27 @@ enum PlaytestOct11Tests {
         let fire = GarrisonTown.opened && s.aggro && !GarrisonTown.shelters(g, s)
         check(rows >= 3 && Float(rows) >= Float(sites) * 0.4 && keepers.isSuperset(of: ["general", "saloon"]) && guards == 2 && calm && held && fire,
               "P48 garrison row: \(rows) of \(sites) citadel sites get a row (shops \(keepers.sorted().joined(separator: ", ")), \(guards) guards); calm while hands are empty (\(calm)), a warning (\(held)), then the garrison opens fire (\(fire))")
+        // P499 (Oct 30 20:01): a Capital city keeps the same peace, but a weapon counts only where a soldier sees it.
+        if Items.has("gun_sidearm") {
+            GarrisonTown.forceRow = nil; GarrisonTown.forceCity = true; GarrisonTown.opened = false; GarrisonTown.tense = 0; GarrisonTown.warned = false
+            defer { GarrisonTown.forceCity = nil }
+            let far = Mob(.soldierTrooper, at: g.player.pos + V3(70, 0, 0))
+            g.mobs.mobs = [far]
+            g.inventory.held = ItemStack(Items.id("gun_sidearm"), 1)
+            for _ in 0..<6 { GarrisonTown.tick(g, 1) }
+            let unseen = !GarrisonTown.opened && GarrisonTown.tense == 0 && GarrisonTown.shelters(g, far)
+            let near = Mob(.soldierTrooper, at: g.player.pos + V3(5, 0, 0))
+            g.mobs.mobs = [near]
+            g.inventory.held = ItemStack()
+            GarrisonTown.tick(g, 1)
+            let calmCity = GarrisonTown.inCity && GarrisonTown.shelters(g, near)
+            g.inventory.held = ItemStack(Items.id("gun_sidearm"), 1)
+            let seen = g.world.canSee(near.eye, g.player.eye)
+            for _ in 0..<5 { GarrisonTown.tick(g, 1) }
+            let open = GarrisonTown.opened && near.aggro && !GarrisonTown.shelters(g, near)
+            check(unseen && calmCity && (open || !seen),
+                  "P499 Capital city peace: a gun out with no soldier in sight leaves the watch calm (\(unseen)); empty hands beside a soldier, calm (\(calmCity)); a gun out where he sees it (\(seen)) and the watch opens fire (\(open))")
+        }
     }
 
     // P51: roads join neighbouring towns over new ground; a rider held at gunpoint throws down their satchel, which is a
@@ -864,20 +912,31 @@ enum PlaytestOct11Tests {
         WorldRules.p44 = true
         var segs: [Roads.Seg] = []
         for rz in -3...3 { for rx in -3...3 { for (dx, dz) in [(1, 0), (0, 1)] { if let sgm = Roads.segment(gen, rx, rz, dx, dz) { segs.append(sgm) } } } }
-        var paved = 0, cols = 0
+        var paved = 0, cols = 0, wet = 0
+        var bare: [String: Int] = [:]                      // the ground of the unpaved columns (for the log)
         if let sgm = segs.first {
             let mid = Roads.point(sgm, 0.5)
             let cx = floorDiv(Int(mid.x), CS), cz = floorDiv(Int(mid.y), CS)
-            var blocks = gen.generate(cx: cx, cz: cz)
-            let path = Blocks.id("dirt_path")
+            // (WorldGen.generate is the bare ground; the roads go down with the structures, StructureCache.place's after
+            // pass, so they are drawn here over it and compared with it.)
+            let before = gen.generate(cx: cx, cz: cz)
+            var blocks = before
+            // (PG5: in a Polygons world the path goes down as packed earth, StructWriter.roadID, and sand roads as sandstone.)
+            let surfaces: Set<BlockID> = [Blocks.id("dirt_path"), StructWriter.roadID, Blocks.has("sandstone") ? Blocks.id("sandstone") : AIR,
+                                          Blocks.has("smooth_sandstone") ? Blocks.id("smooth_sandstone") : AIR]
             blocks.withUnsafeMutableBufferPointer { buf in
                 var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
                 Roads.draw(gen, &w, cx, cz)
                 for lz in 0..<CS { for lx in 0..<CS {
                     let x = cx * CS + lx, z = cz * CS + lz
                     guard Roads.distance(sgm, V2(Float(x) + 0.5, Float(z) + 0.5)).0 <= Roads.halfWidth else { continue }
+                    // (P499: a road isn't paved across water: a column under water or below the sea doesn't count.)
+                    var gy = CH - 2
+                    while gy > 1 && !(Blocks.collide[Int(before[Chunk.index(lx, gy, lz)])] && !CapitalBase.isLeaf(before[Chunk.index(lx, gy, lz)])) { gy -= 1 }
+                    if gy <= SEA - 1 || Blocks.isLiquid(before[Chunk.index(lx, gy + 1, lz)]) { wet += 1; continue }
                     cols += 1
-                    if (40..<(CH - 1)).contains(where: { w.get(x, $0, z) == path }) { paved += 1 }
+                    if (40..<(CH - 1)).contains(where: { surfaces.contains(w.get(x, $0, z)) && before[Chunk.index(lx, $0, lz)] != w.get(x, $0, z) }) { paved += 1 }
+                    else { bare[Blocks.key(before[Chunk.index(lx, gy, lz)]), default: 0] += 1 }
                 } }
             }
         }
@@ -885,11 +944,11 @@ enum PlaytestOct11Tests {
         // A rider, held up.
         let mobs0 = g.mobs.mobs, money0 = g.money, held0 = g.inventory.held, honour0 = Honour.value, law0 = TownLaw.state
         let survival0 = g.survival, pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch
-        let alive0 = g.alive, riding0 = g.riding, aim0 = g.vrAim
+        let alive0 = g.alive, riding0 = g.riding, aim0 = g.vrAim, coach0 = Stagecoach.chance
         defer {
             g.alive = alive0; g.riding = riding0; g.vrAim = aim0
             g.mobs.mobs = mobs0; g.money = money0; g.inventory.held = held0; Honour.value = honour0; TownLaw.state = law0
-            g.survival = survival0; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0; Riders.forceRoad = nil; Riders.along = 50...80
+            g.survival = survival0; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0; Riders.forceRoad = nil; Riders.along = 50...80; Stagecoach.chance = coach0
         }
         g.survival = true; g.mobs.mobs = []; g.money = 0; TownLaw.state.bounty = [:]
         g.alive = true; g.riding = nil; g.vrAim = nil            // (whatever an earlier check left: on foot, aiming with the view)
@@ -899,6 +958,8 @@ enum PlaytestOct11Tests {
         Riders.forceRoad = (Roads.Seg(a: V2(p.x - 120, p.z), b: V2(p.x + 120, p.z), phase: 0), 0.5)
         Riders.along = 10...16                 // (inside the host check's loaded ground)
         var rider: Mob?
+        Stagecoach.chance = 0                              // (a rider on a saddled horse: a third drew a coach, unsaddled)
+        FactionRaids.lastAssault = -1e9                    // (P215: no posse within 90 minutes of any check's assault)
         for _ in 0..<6 where rider == nil { rider = Riders.send(g) }
         var robbedOK = false, posse = 0, gunmen = true, mounted = false, robWhy = ""
         if let r = rider, let h = r.mount, Items.has("gun_sidearm") {
@@ -927,7 +988,7 @@ enum PlaytestOct11Tests {
         BountyHunters.chancePerSecond = chance0
         let gunHunter = g.mobs.mobs.contains { $0.customName == BountyHunters.name && ($0.brain?.gun ?? -1) == Guns.revolver }   // (R21: the leader)
         check(segs.count >= 3 && cols > 0 && paved * 10 >= cols * 6 && mounted && robbedOK && posse >= 2 && gunmen && collected && gunHunter,
-              "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) road columns paved; a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)\(robWhy.isEmpty ? "" : ": " + robWhy)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
+              "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) dry road columns paved (\(wet) over water\(bare.isEmpty ? "" : "; unpaved on " + bare.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))); a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)\(robWhy.isEmpty ? "" : ": " + robWhy)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
     }
 
     // P49 horse items: half as much stamina again; a monster beside the horse makes it shy briefly (no throw, never at

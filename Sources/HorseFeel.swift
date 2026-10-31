@@ -42,6 +42,7 @@ final class HorseState {
     var calm: Float = -1             // taming: the calm meter (-1 = not taming), HorseLife.tameStep
     var bucking = false
     var buckTime: Float = 0
+    var bolt: Float = 0              // taming: the bolting run's turn (rad/s), HorseLife.tameRun
     var callStuck: Float = 0         // s a called horse has made no headway (then it's brought round behind you)
     var callWas = V3(0, -9999, 0)
     var tricks = 0                   // rears on command (HorseTests)
@@ -228,13 +229,27 @@ extension Mob {
         }
     }
 
+    // Something solid ahead at the legs (the lowest metre over the hooves, across the horse's width).
+    func legsBlocked(_ w: World) -> Bool {
+        let f = forward, side = V3(-f.z, 0, f.x)
+        let y0 = Int(floor(pos.y + 0.05))
+        for k: Float in [-0.8, 0, 0.8] {
+            let p = pos + f * (halfW + 0.45) + side * (halfW * k)
+            let x = Int(floor(p.x)), z = Int(floor(p.z))
+            if Blocks.collide[Int(w.block(x, y0, z))] || Blocks.collide[Int(w.block(x, Int(floor(pos.y + 0.9)), z))] { return true }
+        }
+        return false
+    }
+
     func inWaterNow(_ w: World) -> Bool { Blocks.isLiquid(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))) }
 
     // After the move: crashes and riding bond.
     func gaitAfterMove(_ g: Game, moved: V3, hitWall: Bool, dt: Float) {
         let h = hs
         let along = simd_dot(V3(moved.x, 0, moved.z), forward) / max(dt, 1e-4)
-        if hitWall && h.gait == .gallop && h.speed > HorseFeel.crashSpeed && h.speed - along > 5 && h.rear <= 0 {        // head-on, not a graze
+        // P499 (Oct 30 20:10, "crashing into a stump? Yeah. A tree? Yeah. Branches? No"): only something at the legs (a
+        // trunk, a stump, a wall) makes a crash; a bough at chest height or over the head slows the horse, no more.
+        if hitWall && h.gait == .gallop && h.speed > HorseFeel.crashSpeed && h.speed - along > 5 && h.rear <= 0 && legsBlocked(g.world) {   // head-on, not a graze
             stumble(g)
         } else if hitWall {
             h.speed = max(0, min(h.speed, along))

@@ -68,10 +68,13 @@ final class Armory {
     var spinHeld = false           // ...the trigger was down last frame (the whine plays on each change)
     var shotsFired = 0             // harness counters
     var hits = 0
+    static var fired = 0                 // (harness: rounds the player's side put in the air)
+    static var foeFired = 0              // (harness: everyone else's)
 
     func spawn(_ s0: Slug) {
         guard slugs.count < 600 else { return }
         var s = s0
+        if s.fromPlayer { Armory.fired &+= 1 } else { Armory.foeFired &+= 1 }
         if s.fromPlayer { s.seat = Int8(truncatingIfNeeded: Coop.liveSeat) }
         slugs.append(s)
     }
@@ -163,7 +166,11 @@ final class Armory {
             let len = simd_length(step)
             if len < 1e-5 { slugs[i] = s; continue }
             let dir = step / len
-            if let near = AirDefence.proximity(s, dir, len, g) { s.dead = true; slugs[i] = s; detonate(s, at: near, g); continue }
+            // (P499: a hull between the shell and him stops it first; it burst by him inside the frigate he flew.)
+            if let near = AirDefence.proximity(s, dir, len, g),
+               w.ships.list.isEmpty || w.ships.segmentHit(s.pos, dir, simd_length(near - s.pos), except: -1) == nil {
+                s.dead = true; slugs[i] = s; detonate(s, at: near, g); continue
+            }
             var hitT = Float.greatestFiniteMagnitude
             var mob: Mob?
             var player = false
@@ -194,7 +201,7 @@ final class Armory {
                     slugs[i] = s
                     detonate(s, at: at, g)
                     if s.kind == .shell {
-                        let pw: Float = !s.breaks ? max(1, s.power) : (s.breach.isFinite ? HeavyTurret.mannedShipPower : 6)
+                        let pw: Float = s.breach.isFinite ? HeavyTurret.mannedShipPower : (!s.breaks ? max(1, s.power) : 6)   // (P499: a main battery's air shell too)
                         w.ships.heavyHit(h.1, at: at, game: g, power: pw, resistCap: s.breach, stopsEngines: s.breaks && s.fromPlayer)
                     }
                     continue
@@ -372,7 +379,7 @@ final class Armory {
             // pistol rounds (4 or more), a short burst of four lighter rounds. The marshal and the chancellor are bosses.
             if m.kind != .ashMarshal && m.kind != .ashChancellor {
                 let full = Float(max(m.spec.health, m.health))
-                let share: Float = head || s.damage >= 9 ? 1 : (s.damage >= 4 ? 0.5 : 0.25)
+                let share: Float = head ? 1 : (s.damage >= 9 ? 1 : (s.damage >= 4 ? 0.5 : 0.25)) / Difficulty.foes(m)   // P499
                 dmg = max(dmg, ceilf(full * share + 0.5))
             }
         }
@@ -752,7 +759,13 @@ extension Game {
         let hip = vrAim != nil ? (gs.spread + gs.aimSpread) / 2 : gs.spread
         // P43 (Oct 11 evening, superseding P32's accuracy): the player's guns hit exactly where the sights point; only
         // the shotgun's pellets spread.
-        let spread = gs.pellets > 1 ? (hip + (gs.aimSpread - hip) * a.aim) * steady + a.bloom : 0
+        var spread = gs.pellets > 1 ? (hip + (gs.aimSpread - hip) * a.aim) * steady + a.bloom : 0
+        // P499 (Oct 30 20:01, "make the weapon far less accurate if you're only one-handing it"): in the headset a long gun
+        // fired from one hand, not braced on its foregrip, throws its rounds wide (a rifle about 3 degrees, the Fernblick
+        // about 7). On horseback the other hand is on the reins and the sights hold as before.
+        if vrAim != nil && !vrTwoHanded && !mountedOneHand && gi < CapitalArms.models.count && CapitalArms.models[gi].shouldered {
+            spread = max(spread, min(0.12, gs.spread * 2.5) * (gs.pellets > 1 ? 0.6 : 1))
+        }
         let pierce = Int8(Enchant.level(.penetration, st))
         let fiery = Enchant.level(.incendiary, st) > 0
         let muzzle = vrAim.map { $0.origin + $0.dir * 0.3 } ?? player.eye + look * 0.3

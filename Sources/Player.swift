@@ -79,7 +79,11 @@ final class Player {
     // until there is room to crawl again.
     var squeezing = false
     static let squeezeW: Float = 0.18, squeezeH: Float = 0.5
-    var halfW: Float { squeezing ? Player.squeezeW : 0.3 }
+    // P499 (Oct 30 14:56, at a station's doors and in spruce boughs: "make the box for the character smaller... so I can
+    // get through branches easier and quicker, and through doors with no problems"): the body is half a block across
+    // (was 0.6).
+    static let bodyW: Float = 0.25
+    var halfW: Float { squeezing ? Player.squeezeW : Player.bodyW }
     var prone: Bool { swimming || crawling || gliding || squeezing }
     var height: Float { prone ? (squeezing ? Player.squeezeH : 0.6) : (sneaking && !flying ? 1.5 : 1.8) }
     let eyeHeight: Float = 1.62
@@ -280,15 +284,15 @@ final class Player {
         // (P484) The squeeze: in while a crawl won't go on but the small body will; out once a crawl fits again.
         func fitsBody(_ hw: Float, _ h: Float, _ p: V3) -> Bool { !w.collides(V3(p.x - hw, p.y, p.z - hw), V3(p.x + hw, p.y + h, p.z + hw)) }
         if squeezing {
-            if flying || swimming || gliding || fitsBody(0.3, 0.6, pos) {
+            if flying || swimming || gliding || fitsBody(Player.bodyW, 0.6, pos) {
                 squeezing = false
-                crawling = !flying && !swimming && !gliding && !fitsBody(0.3, 1.5, pos)
+                crawling = !flying && !swimming && !gliding && !fitsBody(Player.bodyW, 1.5, pos)
             }
         } else if (sneaking || ducking || input.sneak || crawling) && !flying && !swimming && !gliding && stick > 0.04 {
             let my0 = moveYaw ?? yaw
             let dir = V3(-sinf(my0), 0, -cosf(my0)) * input.forward + V3(cosf(my0), 0, -sinf(my0)) * input.strafe
             let q = pos + simd_normalize(dir) * 0.4
-            if !fitsBody(0.3, 0.6, q) && fitsBody(Player.squeezeW, Player.squeezeH, q) && fitsBody(Player.squeezeW, Player.squeezeH, pos) {
+            if !fitsBody(Player.bodyW, 0.6, q) && fitsBody(Player.squeezeW, Player.squeezeH, q) && fitsBody(Player.squeezeW, Player.squeezeH, pos) {
                 squeezing = true
                 Player.squeezes += 1
             }

@@ -91,7 +91,7 @@ enum SkySkiffTests {
         guard let b = back else { return }
         defer { w.ships.remove(b) }
 
-        // Weight: iron on every free deck cell and it can't hold height even climbing.
+        // Weight: iron on every free deck cell (P263: six balloons or more hold it up).
         // (its flight can end over ground the harness never loaded, where a ship sleeps: load round it)
         _ = w.loadSync(center: b.pos, radius: 3)
         let iron = Blocks.id("iron_block")
@@ -101,13 +101,20 @@ enum SkySkiffTests {
             for k in 1...2 where y + k < b.grid.sy && b.grid.get(x, y + k, z) == AIR { w.ships.setBlock(b, IVec3(x, y + k, z), iron); cargo += 1 }
         } } }
         b.autopilot = V3(0, 0, 1)
+        // (a ship past the active distance from him sleeps, P376: he waits over it while it's weighed down)
+        g.player.pos = b.pos + V3(0, 30, 0)
         run(1)
         let h0 = b.pos.y
+        b.hoverY = h0                              // (holding where it is now: its saved hover height was from before it climbed)
         run(3)
         let sank = b.pos.y - h0
         let why = String(format: " [asleep %@, vel.y %.2f, lift %.2f, hoverY %.1f, kin %@]", b.asleep ? "y" : "n", b.vel.y, b.liftLevel, b.hoverY ?? -1, b.kinematic ? "y" : "n")
         b.autopilot = nil
-        check(b.mass > Float(b.balloons) * ShipTuning.balloonLift && sank < -1,
-              String(format: "skiff: loaded with %d iron blocks (%.0f t over %.0f t of lift) it sinks %.1f in 3 s with the balloons full", cargo, b.mass, Float(b.balloons) * ShipTuning.balloonLift, -sank) + why)
+        // P263: six balloons hold up any hull (each a sixth of it), so a skiff with six still climbs, loaded; with fewer
+        // the iron outweighs them and it sinks.
+        let loadedLift = Float(b.balloons) * ShipTuning.liftPerBalloon(b.mass)
+        let holds = b.balloons >= 6
+        check(holds ? sank > -1 : (b.mass > loadedLift && sank < -1),
+              String(format: "skiff: loaded with %d iron blocks (%.0f t, %d balloons: %.0f t of lift) it %@ %.1f in 3 s with the balloons full", cargo, b.mass, b.balloons, loadedLift, holds ? "holds height, rising" : "sinks", holds ? sank : -sank) + why)
     }
 }

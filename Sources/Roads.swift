@@ -5,7 +5,7 @@ import simd
 // bounty hunters with guns.
 //   Roads    a dirt road from each town square to the squares of the towns in the next village regions east and
 //            south (and the diagonals), when they are less than `maxLen` apart. Gently winding, three blocks wide, only
-//            over natural ground (grass, dirt, sand, snow) with open air above, never through a building or water.
+//            over natural ground (grass, snowy grass, dirt, sand, snow) with open air above, never through a building or water.
 //            Only on ground first generated with them (WorldRules.savedBeforeP44 all along the road, the P44 guard),
 //            so no road ends at the edge of explored land.
 //   Riders   now and then a traveller on horseback rides a road near the player (Riders, below).
@@ -109,6 +109,9 @@ enum Roads {
         // turns the path into packed earth; a sand road is sandstone, not the cut stone a block world's road gets.)
         let sandPath = SmoothTerrain.enabled && Blocks.has("sandstone") ? Blocks.id("sandstone")
             : (Blocks.has("smooth_sandstone") ? Blocks.id("smooth_sandstone") : path)
+        // P499: a road runs on across snowy grass (it stopped at the snow line: 34 of 48 columns of a taiga road bare).
+        // New ground only: a road already drawn on saved ground keeps its gap rather than ending at a chunk seam.
+        let snowy = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyP499) } ?? true
         for lz in 0..<CS { for lx in 0..<CS {
             let x = bx + lx, z = bz + lz
             let p = V2(Float(x) + 0.5, Float(z) + 0.5)
@@ -121,7 +124,7 @@ enum Roads {
                 y -= 1
             }
             let top = w.get(x, y, z)
-            guard y > SEA - 1, Int(top) < natural.count, natural[Int(top)] else { continue }
+            guard y > SEA - 1, Int(top) < natural.count, natural[Int(top)] || (snowy && top == SNOWY_GRASS) else { continue }
             let above = w.get(x, y + 1, z)
             guard !Blocks.isLiquid(above), !Blocks.collide[Int(above)] else { continue }
             let k = Blocks.key(top)

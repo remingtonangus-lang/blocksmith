@@ -144,7 +144,7 @@ enum Villagers {
             [emeraldFor("rotten_flesh", 32, 16, 2), forEmeralds("redstone", 1, 2, 12, 1)],
             [emeraldFor("gold_ingot", 3, 12, 10), forEmeralds("lapis_lazuli", 1, 1, 12, 5)],
             [emeraldFor("rabbit_foot", 2, 12, 20), forEmeralds("glowstone", 4, 1, 12, 10)],
-            [emeraldFor("turtle_scute", 4, 12, 30), emeraldFor("glass_bottle", 9, 12, 30), forEmeralds("ender_pearl", 5, 1, 12, 15)],
+            [emeraldFor("turtle_scute", 4, 12, 30), emeraldFor("glass_bottle", 9, 12, 30), forEmeralds("amethyst_shard", 2, 2, 12, 15)],
             [emeraldFor("nether_wart", 22, 12, 30), forEmeralds("experience_bottle", 3, 1, 12, 30)],
         ],
         "armorer": [

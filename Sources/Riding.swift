@@ -369,16 +369,17 @@ extension Mob {
             // Untamed: the calm-down minigame (HorseLife.tameStep): sit still through the bucks, pat it as it settles.
             if !tamed {
                 if !tameStep(dt, g, inp) { return }
+                if !tamed && gaited { speed = tameRun(dt, g) }          // (it bolts as it fights: P499)
             }
             // (bond 0 too: with no horse bonded yet, horseBond is 0 as well, so the first tamed horse never bonded.)
             if tamed && kind != .camel && (bond == 0 || bond != g.horseBond) { g.bondHorse(self) }
             if gaited && tamed {
                 gaitStep(dt, g, inp)                        // gaits, momentum, stamina, nerves, footing (HorseFeel.swift)
                 if g.riding !== self { return }             // thrown
-            } else {
+            } else if tamed || !gaited {
                 yaw = g.player.moveYaw ?? g.player.yaw      // VR: steer with the head, not the aiming hand
                 let base: Float = kind == .camel ? 3.8 : (kind == .donkey || kind == .mule ? 7.5 : horseSpeed)
-                speed = tamed && saddled ? base * max(-0.25, inp.forward) : 0          // (a wild horse goes its own way)
+                if tamed { speed = saddled ? base * max(-0.25, inp.forward) : 0 }    // (a wild horse goes its own way)
             }
             // Hold jump to charge, release to leap (horses); camels dash. P49: a swimming horse can jump too (out of
             // the water onto a bank).
@@ -499,7 +500,7 @@ extension Mob {
             self.hs.duck += (want - self.hs.duck) * min(1, dt * (want > self.hs.duck ? 14 : 4))
         }
         // R13: the saddle rises and falls with the stride (horseBob, 1/16 block), so the rider moves with the horse.
-        let lift: Float = fam ? horseBob(self) / 16 : 0
+        let lift: Float = fam ? horseBob(self) / 16 + (gaited ? horseLunge(self) : 0) : 0
         g.player.pos = pos + V3(0, height * 0.75 - (gaited ? self.hs.duck : 0) + lift, 0)
         g.player.vel = .zero
         g.player.airPeak = g.player.pos.y

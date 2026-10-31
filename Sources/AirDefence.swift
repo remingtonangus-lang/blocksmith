@@ -71,6 +71,16 @@ enum AirDefence {
         return s
     }
 
+    // P499 (Remington, Oct 30 20:36, flying the Meridian Frigate past a citadel: "the capital's naval guns should be
+    // doing a number on the ship, which I don't think they are"): a main battery's shell fired at a craft struck its
+    // armour skin as a flak burst (power 2.4, no cap: plates of resistance 1200 took nothing, not even a chip). It
+    // breaches a hull it strikes as a manned shell does (Armory.update: his own deck gun's blow, armour as breach);
+    // it still breaks no ground where it bursts.
+    static func mainBattery(_ s: inout Slug) {
+        s.power = HeavyTurret.power
+        s.breach = HeavyTurret.mannedBreach
+    }
+
     // Each frame for a fuzed shell (Armory.update): the point on this step's path nearest the player when it comes
     // within the proximity fuze, or nil.
     static func proximity(_ s: Slug, _ dir: V3, _ len: Float, _ g: Game) -> V3? {

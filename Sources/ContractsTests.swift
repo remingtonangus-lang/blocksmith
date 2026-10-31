@@ -61,11 +61,15 @@ enum ContractsTests {
         // Courier.
         if let (i, c) = take("courier"), let t = c.destAt {
             let parcel = g.inventory.main.slots.contains { $0.pages == ["parcel:\(town)#\(i)"] }
+            // P499: carried in the off hand (the headset's other hand) it still counts.
+            if let k = g.inventory.main.slots.firstIndex(where: { $0.pages == ["parcel:\(town)#\(i)"] }), g.inventory.offhand[0].isEmpty {
+                g.inventory.offhand.slots[0] = g.inventory.main.slots[k]; g.inventory.main.slots[k] = .empty
+            }
             let m0 = g.money, h0 = Honour.value
             g.player.pos = V3(Float(t[0]), 100, Float(t[1]) + 20)
             Contracts.tick(g)
             let paid = state(i)?.paid == true
-            let gone = !g.inventory.main.slots.contains { $0.pages == ["parcel:\(town)#\(i)"] }
+            let gone = !(g.inventory.main.slots + g.inventory.offhand.slots).contains { $0.pages == ["parcel:\(town)#\(i)"] }
             check(parcel && paid && gone && g.money == m0 + c.pay && Honour.value > h0,
                   "C11 courier: a parcel for \(c.dest ?? "?") (\(Int(simd_length(V2(Float(t[0] - anchor.x), Float(t[1] - anchor.z))))) blocks) pays \(Money.format(c.pay)) on arrival; parcel handed over \(gone)")
         } else { check(false, "C11 courier: none came up") }

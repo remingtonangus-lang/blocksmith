@@ -44,6 +44,9 @@ enum OverlapTests {
                 let s = all[a], t = all[b]
                 guard hit(s.min, s.max, t.min, t.max),
                       s.pieces.contains(where: { p in t.pieces.contains { q in hit(p.min, p.max, q.min, q.max) } }) else { continue }
+                // P469: a depot's compound is its own base's annex, built against its wall by design.
+                if let base = s.kind == Greywall.kind ? s : t.kind == Greywall.kind ? t : nil, (s.kind == Depots.kind ? s : t).kind == Depots.kind,
+                   let site = Depots.site(gen, sc, base), (s.kind == Depots.kind ? s : t).anchor == IVec3((site.x0 + site.x1) / 2, site.S + 1, site.z1 + 2) { continue }
                 total += 1
                 pairs[[s.kind, t.kind].sorted().joined(separator: " + "), default: 0] += 1
                 if StructureCache.yields[s.kind]?.contains(t.kind) == true || StructureCache.yields[t.kind]?.contains(s.kind) == true {

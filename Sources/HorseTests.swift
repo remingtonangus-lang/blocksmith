@@ -18,8 +18,32 @@ enum HorseTests {
         let t0 = CFAbsoluteTimeGetCurrent()
         let w = g.world
         let wasRiding = g.riding, wasPos = g.player.pos, wasBond = g.horseBond, wasSurvival = g.survival
+        let wasAim = g.vrAim, wasPaused = g.paused
+        // A living rider on foot, nothing piloted, manned or open (the full questcheck runs this after checks that can
+        // leave the player dead on the death screen, at a helm or behind a gun: then Game.tick rode nothing).
+        if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }
+        g.alive = true; g.health = max(g.health, g.maxHealth); g.paused = false; g.vrAim = nil
+        g.world.ships.pilot = nil; g.world.ships.aboard = nil
+        if Turrets.shared.manned != nil { Turrets.shared.leave(g) }
+        // (P499: the strip goes up over the same ground every run, the world's spawn, on the surface. The full questcheck
+        // built it wherever the checks before it left him: --horse-only passed every horse check that the full run failed,
+        // the treat and the sliding stop for weeks and four calling checks since part 1's town checks.)
+        let wasDim = g.dim.dim, mobs0 = g.mobs.mobs
+        if g.dim.dim != .overworld { g.changeDimension(to: .overworld, at: g.spawnPoint) }
+        g.player.pos = g.spawnPoint; g.player.vel = .zero; g.mobs.mobs = []
+        // (No volcano's boom on its way or eruption under way from the checks before: it startles a ridden horse.)
+        let eruption0 = g.eruption, booms0 = g.eruptionBooms
+        g.eruption = nil; g.eruptionBooms = []
+        // (Nor a craft an earlier check left over the spawn: its hull is solid to a horse. In the full run the sliding
+        // stop's gallop halted 3 blocks into an empty strip, nothing in the blocks ahead.)
+        let craft = w.ships.list.filter { $0.root === $0 && simd_length(V2($0.pos.x - g.spawnPoint.x, $0.pos.z - g.spawnPoint.z)) < 160 }
+        if !craft.isEmpty { print("horsetests: \(craft.count) craft over the strip, removed: " + craft.map { "\($0.root.name) at y \(Int($0.pos.y))" }.joined(separator: ", ")) }
+        for s in craft where w.ships.list.contains(where: { $0 === s }) { w.ships.remove(s) }
         defer {
+            if wasDim != g.dim.dim { g.changeDimension(to: wasDim, at: wasPos) }
+            g.mobs.mobs = mobs0; g.eruption = eruption0; g.eruptionBooms = booms0
             g.riding = wasRiding; g.player.pos = wasPos; g.horseBond = wasBond; g.survival = wasSurvival
+            g.vrAim = wasAim; g.paused = wasPaused
             g.player.moveYaw = nil; g.rideInput = MoveInput()
             print(String(format: "horsetests: %.1f s", CFAbsoluteTimeGetCurrent() - t0))
         }
@@ -102,7 +126,8 @@ enum HorseTests {
             check(walk > 1 && walk <= 2.7 && abs(trot - h.topSpeed * 0.5) < 0.4 && abs(canter - h.topSpeed * 0.75) < 0.4 && abs(gallop - h.topSpeed) < 0.5,
                   String(format: "horse gaits: walk %.1f, trot %.1f, a full push canters %.1f, spurred gallop %.1f b/s (top %.0f)", walk, trot, canter, gallop, h.topSpeed))
             check(tGallop >= 1 && tGallop <= 2.2, String(format: "horse: standstill to gallop in %.2f s (1-2.2)", tGallop))
-            check(tStop >= 0.6 && tStop <= 1.6, String(format: "horse: gallop to a stop in %.2f s (0.6-1.6)", tStop))
+            // (The brake stays under the ride's comfort limit: 12 b/s^2 from a 20 b/s gallop is 1.7 s.)
+            check(tStop >= 0.6 && tStop <= 2.0, String(format: "horse: gallop to a stop in %.2f s (0.6-2.0)", tStop))
             check(max(lurch, lurch2) <= 12.5, String(format: "horse: no lurch (worst %.1f b/s^2 on the ground, comfort limit 12.5)", max(lurch, lurch2)))
             // Turning: the rider looks 90 degrees aside; the horse comes round fast at a walk, slowly at a gallop.
             func turnRate(_ push: Float, spurs: Set<Int>) -> Float {
@@ -254,6 +279,17 @@ enum HorseTests {
             w.deferRemesh = true
             for x in sx - 3...sx + 3 { for y in Y + 1...Y + 3 { w.setBlock(x, y, wz, AIR) } }
             w.deferRemesh = false
+            // P499: a bough at the horse's chest (clear at the legs) slows it; no stumble, nobody thrown.
+            w.deferRemesh = true
+            for x in sx - 3...sx + 3 { for y in Y + 2...Y + 3 { w.setBlock(x, y, wz, stone) } }
+            w.deferRemesh = false
+            let hb = horse(xp: 0); mount(hb)
+            ride(hb, 6, push: 1, spurAt: [2, 12]) { _ in hb.hs.stumbles > 0 }
+            check(hb.hs.stumbles == 0 && g.riding === hb, "horse crash: a gallop into a bough at chest height doesn't stumble or throw (\(hb.hs.stumbles) stumbles, \(g.riding === hb ? "kept" : "thrown"))")
+            g.riding = nil
+            w.deferRemesh = true
+            for x in sx - 3...sx + 3 { for y in Y + 2...Y + 3 { w.setBlock(x, y, wz, AIR) } }
+            w.deferRemesh = false
         }
 
         // Nerves.
@@ -383,6 +419,9 @@ enum HorseTests {
             let held = g.inventory.held
             g.inventory.held = ItemStack(Items.id("apple"), 4)
             g.mobs.mobs.append(h); g.paused = false
+            // (A steady horse, back in the saddle: this is about where the treat is aimed. In the full run something in
+            // the tick startled the level-1 horse here and threw the rider: "ridden false, thrown 1".)
+            h.hs.bondXP = HorseFeel.levelXP[3]; mount(h)
             defer { g.mobs.mobs.removeAll { $0 === h }; g.paused = wasPaused }
             func press(_ pitch: Float) -> Float {
                 for i in 0..<60 {
@@ -397,9 +436,12 @@ enum HorseTests {
                 return h.stamina
             }
             let ahead = press(0), down = press(-1.5)
+            let ray = g.mobs.raycast(g.player.eye, g.player.look, maxDist: 4).map { $0.0 === h ? "the horse" : $0.0.kind.key } ?? "nothing"
+            let treatWhy = "ridden \(g.riding === h), thrown \(h.hs.thrown), eruption \(g.eruption != nil), tamed \(h.tamed), aimed at \(ray), menu \(g.menu == nil ? "none" : "open"), alive \(g.alive), held \(Items.key(g.inventory.held.item)) x\(g.inventory.held.count)"
             g.inventory.held = held
             g.eatProgress = 0
-            check(ahead < 30 && down >= 40, String(format: "horse treats only when aimed at the horse: stamina 20 -> %.0f aimed ahead, -> %.0f aimed down at it", ahead, down))
+            check(ahead < 30 && down >= 40, String(format: "horse treats only when aimed at the horse: stamina 20 -> %.0f aimed ahead, -> %.0f aimed down at it", ahead, down)
+                  + (down >= 40 ? "" : " (" + treatWhy + ")"))
             g.riding = nil
         }
         // The gap pass (HorseGapTests.swift): breeds, names, taming, fear, injury, the stable, calling, comfort, hooves.

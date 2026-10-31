@@ -214,7 +214,7 @@ enum BorealTests {
                 let g = Game(world: world, save: nil, persistent: false)
                 g.paused = false
                 g.weather.raining = false; g.weather.rain = 0
-                for (label, dx, dz) in [("hall", 0, 5), ("corridor", -12, 10)] {
+                for (label, dx, dz) in [("hall", 0, 5), ("corridor", 12, -5)] {      // (the east strip, clear of the corner doors)
                     g.player.pos = V3(Float(cx + dx) + 0.5, Float(F + 1), Float(cz + dz) + 0.5); g.player.vel = .zero
                     g.time = 0.25 * DAY_LENGTH
                     g.audio.record = [:]
@@ -224,7 +224,7 @@ enum BorealTests {
                     g.audio.record = nil
                     let wild = rec.keys.filter { k in ["birdCall", "owlHoot", "loop:crickets", "loop:jungle", "loop:wind"].contains { k.hasPrefix($0) } }
                     check((rec["loop:stationhum"] ?? 0) > 0 && wild.isEmpty,
-                          "boreal \(seed): \(label) at noon hums (\(rec["loop:stationhum"] ?? 0) ticks), wildlife: \(wild.isEmpty ? "none" : wild.sorted().joined(separator: " "))")
+                          "boreal \(seed): \(label) at noon hums (\(rec["loop:stationhum"] ?? 0) ticks), wildlife: \(wild.isEmpty ? "none" : wild.sorted().joined(separator: " ")) (sky light \(world.lightAt(Int(floor(g.player.eye.x)), Int(floor(g.player.eye.y)), Int(floor(g.player.eye.z))).sky))")
                 }
                 // The alarm: a gunshot in the hall sets it off, the klaxon blares, the garrison turns on the
                 // source, and it stands down once things have been quiet for a while.
@@ -500,17 +500,33 @@ enum BorealTests {
         // on seed 12345 a tank shelled the yard the whole minute. The stand-down is checked with the station quiet.)
         g2.mobs.mobs.removeAll { $0.faction == Faction.ashguard.rawValue }
         g2.mobs.rebuildIndex()
-        var quiet: Float = 0
+        // (P499: the stand-down is timed from the last blast heard near the station. On seed 777 something blew up in
+        // the yard 22 times in the first 19 s, each one starting the stand-down again, and the check gave up 15 s after
+        // the stand-down's own length.)
+        var quiet: Float = 0, total: Float = 0
         var heard: [String: Int] = [:], lastHeard = ""                // (printed if it fails: what kept the alarm on)
-        while quiet < BorealAlarmState.standDown + 15 && g2.borealAlarm.sites[key]?.on != false {
+        while quiet < BorealAlarmState.standDown + 15 && total < 150 && g2.borealAlarm.sites[key]?.on != false {
             g2.tick(0.05); g2.player.pos = hall + V3(0, 0, Float(BorealStation.yard + 40)); g2.player.vel = .zero; g2.player.flying = true; g2.health = 20; g2.menu = nil
-            quiet += 0.05
+            quiet += 0.05; total += 0.05
             for n in g2.bases.noises where n.hostile && !n.byMob && abs(n.pos.x - Float(cx)) < 40 && abs(n.pos.z - Float(cz)) < 40 {
                 heard["\(n.kind)", default: 0] += 1
-                lastHeard = String(format: "%@ at %.0f %.0f %.0f t %.1f", "\(n.kind)", n.pos.x - Float(cx), n.pos.y - Float(F), n.pos.z - Float(cz), quiet)
+                lastHeard = String(format: "%@ at %.0f %.0f %.0f t %.1f", "\(n.kind)", n.pos.x - Float(cx), n.pos.y - Float(F), n.pos.z - Float(cz), total)
+                quiet = 0
             }
         }
         if g2.borealAlarm.sites[key]?.on != false {
+            let st = V3(Float(cx), Float(F), Float(cz))
+            let near: [String] = g2.world.ships.list.filter { simd_length($0.pos - st) < 400 }.map { "\($0.role ?? "-") f\($0.factionValue) at \(Int(simd_length($0.pos - st)))" }
+            let guns: String = g2.mobs.mobs.filter { $0.kind == .deckGun && simd_length($0.pos - st) < 120 }.map { (m: Mob) -> String in
+                      func place(_ q: Mob) -> String { "\(q.kind.key) f\(q.factionValue) at \(Int(q.pos.x) - cx) \(Int(q.pos.y) - F) \(Int(q.pos.z) - cz)" }
+                      let range: Float = HeavyTurret.range * 1.5
+                      var what = "none"
+                      if let f = g2.world.ships.nearestFoe(of: m.factionValue, near: m.pos, range: range, game: g2) {
+                          if let q = f.mob { what = place(q) } else if let sh = f.ship { what = "ship " + sh.root.name } else { what = "?" }
+                      }
+                      return "\(m.variant) f\(m.faction) aggro \(m.aggro) seen \(m.soldierBrain.seenAgo) foe " + what }.joined(separator: ", ")
+            let tail = "; slugs \(g2.arms.slugs.count), shells \(g2.world.ships.shells.count), strikes \(g2.ashStrikes.count)"
+            print("  stand-down: ships near " + near.joined(separator: ", ") + "; guns " + guns + tail)
             print("  stand-down: heard \(heard.map { "\($0.key) x\($0.value)" }.joined(separator: ", ")); last \(lastHeard); fighting " +
                   g2.mobs.mobs.filter { $0.kind.steelhold && $0.health > 0 && $0.aggro && ($0.brain?.sees ?? false) }.prefix(4).map { "\($0.kind) at \(Int($0.pos.x) - cx) \(Int($0.pos.y) - F) \(Int($0.pos.z) - cz)" }.joined(separator: "; "))
         }

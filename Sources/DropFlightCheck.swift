@@ -47,10 +47,17 @@ enum DropFlightCheck {
             w.ships.update(1.0 / 60, game: g)
             top = max(top, simd_length(V2(s.vel.x, s.vel.z)))
         }
-        w.ships.pilot = nil
         let crushed = ShipManager.crushed - crushed0
-        check(top > 40 && crushed >= 10,
-              String(format: "dropflight: flown ahead in overdrive it reaches %.0f m/s (28 without) and crushed %d of the %d leaf and plank blocks in its way", top, crushed, placed))
+        // (Its top speed in the clear: at 83 m/s three seconds over the ground ends in the first hillside it rams.)
+        s.pos.y += 40; s.prevPos = s.pos; s.updateBounds()
+        for _ in 0..<(60 * 3) {
+            s.throttle = 1; s.boost = true; s.climb = 0; s.steer = 0; s.strafe = 0
+            w.ships.update(1.0 / 60, game: g)
+            top = max(top, simd_length(V2(s.vel.x, s.vel.z)))
+        }
+        w.ships.pilot = nil
+        check(top > 70 && crushed >= 10,
+              String(format: "dropflight: flown ahead in overdrive it reaches %.0f m/s (P499: 83 = 300 km/h; 55 without) and crushed %d of the %d leaf and plank blocks in its way", top, crushed, placed))
         // Ramming: a stone wall 30 blocks ahead, wider and taller than the hull, flown into in overdrive. It stops at the
         // wall (it flew through), loses plating where it struck, and the wall stands.
         do {
@@ -100,6 +107,35 @@ enum DropFlightCheck {
             check(!fromGround && fromHelm,
                   String(format: "dropflight: its helm is taken from inside (%@) but not from the ground beside the hull, %.1f blocks from the helm (%@)",
                          fromHelm ? "yes" : "no", simd_length(outside - helm), fromGround ? "taken: wrong" : "refused"))
+        }
+        // P499 (Oct 30 20:35, flying the Meridian: "the drop ship should chase, chase my ship and just start firing at me
+        // relentlessly"): a Capital Dropship whose target runs at 40 m/s gives chase and keeps close to it.
+        do {
+            let n1 = w.ships.list.count
+            let a0 = s.pos + V3(0, 30, 0)
+            guard w.ships.callDropship(faction: .steelhold, from: a0, to: a0 + V3(0, 0, -60), game: g, sync: true),
+                  let d = w.ships.list.dropFirst(n1).first(where: { $0.role == "dropship" && $0.parent == nil }),
+                  let st = w.ships.capState[d.id] else { check(false, "dropflight: a second dropship spawns to give chase"); return }
+            defer {
+                for t in w.ships.list where t === d || t.parent === d { w.ships.remove(t) }
+                w.ships.capState.removeValue(forKey: d.id)
+            }
+            let runner = Mob(.horse, at: a0 + V3(40, 0, 0))
+            runner.vel = V3(40, 0, 0)
+            st.phase = 4; st.phaseT = 0; st.retarget = 1e9
+            st.target = CapTarget(point: runner.pos, vel: runner.vel, ship: nil, mob: runner)
+            var worst: Float = 0, fastest: Float = 0
+            let pos0 = g.player.pos
+            defer { g.player.pos = pos0 }
+            for i in 0..<(60 * 10) {
+                runner.pos += runner.vel / 60
+                g.player.pos = runner.pos + V3(0, 40, 0)          // (a ship past his active distance sleeps: P376)
+                w.ships.update(1.0 / 60, game: g)
+                if i > 60 * 6 { worst = max(worst, simd_length(V2(d.pos.x - runner.pos.x, d.pos.z - runner.pos.z))) }
+                fastest = max(fastest, simd_length(V2(d.vel.x, d.vel.z)))
+            }
+            check(worst < 80 && fastest > 35 && st.phase == 4,
+                  String(format: "dropflight: a dropship gives chase to a target running at 40 m/s (up to %.0f m/s; at most %.0f blocks off it over the last 4 s of 10; phase %d)", fastest, worst, st.phase))
         }
     }
 }

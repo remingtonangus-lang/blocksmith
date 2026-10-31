@@ -90,6 +90,44 @@ extension TownTests {
         check(!welcome.isEmpty && bells >= 1 && citizens >= 8 && desks >= citizens * 2 / 3 && beds >= citizens + 8,
               "capitals: \(welcome.isEmpty ? "no name sign" : "\"\(welcome)\""), \(bells) bells, \(citizens) citizens (\(desks) with a desk), \(beds) beds")
         if let (c, n) = CapitalCity.sampleTower { print("capitals: a tower of \(n) storeys, its stair shaft's newel at \(c.x) \(c.y) \(c.z)") }
+        // P499 (Oct 30 15:10, "we need way more troops here... It should be 50"): the city's watch, each on a floor.
+        let watch = w.pendingMobs.filter { $0.0.hasPrefix("soldier_") }
+        let unstood = watch.filter { !room($0.1) }.count
+        check(watch.count >= 40 && unstood * 10 <= watch.count,
+              "capitals P499: the city keeps \(watch.count) soldiers on watch (\(unstood) without a floor and head room)")
+        // P499 (Oct 30 15:10, up a tower: "each of the floors are empty"): a new city's tower floors are furnished; the
+        // stair core and its doors are left as they were.
+        func floorsOf(_ flat: Bool, _ fitted: Bool) -> (things: Int, core: [BlockID]) {
+            var things = 0, core: [BlockID] = []
+            let L = 100
+            var r0 = SRng(4242)
+            let fp = CapitalCity.footprint(0, 0, &r0)
+            let plan = CapitalCity.Plan(ox: -200, oz: -200); plan.modern = true; plan.seed = 7
+            let keys = ["chair", "bed", "bookshelf", "barrel", "lantern", "flower_pot", "chest", "birch_planks", "capital_stone_trim"]
+            for cz in -1...3 { for cx in -1...3 {
+                var buf = [BlockID](repeating: AIR, count: CS * CS * CH)
+                buf.withUnsafeMutableBufferPointer { b in
+                    var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: b.baseAddress!)
+                    var rng = r0
+                    CapitalCity.tower(&w, fp, L, &rng, home: flat ? (plan, 0, 0) : nil, fitted: fitted)
+                }
+                for lz in 0..<CS { for lx in 0..<CS {
+                    let x = cx * CS + lx, z = cz * CS + lz
+                    guard x > fp.bx0 && x < fp.bx0 + fp.bw - 1 && z > fp.bz0 && z < fp.bz0 + fp.bd - 1 else { continue }
+                    let inCore = x >= fp.bx0 + fp.bw - 1 - 7 && z <= fp.bz0 + 5
+                    for y in (L + 6)..<min(CH, L + 60) {
+                        let b = buf[Chunk.index(lx, y, lz)]
+                        if inCore { core.append(b); continue }
+                        if b != AIR, (y - L) % 5 != 0, keys.contains(where: { Blocks.key(Blocks.groupBase[Int(b)]).contains($0) }) { things += 1 }
+                    }
+                } }
+            } }
+            return (things, core)
+        }
+        let office = floorsOf(false, true), officeOld = floorsOf(false, false), flats = floorsOf(true, true), flatsOld = floorsOf(true, false)
+        check(office.things >= officeOld.things + 20 && flats.things >= 12 && flatsOld.things == 0
+              && office.core == officeOld.core && flats.core == flatsOld.core,
+              "capitals P499: a new tower's upper floors are furnished (offices \(office.things) things, was \(officeOld.things); flats \(flats.things), was \(flatsOld.things)); the stair core unchanged (\(office.core == officeOld.core && flats.core == flatsOld.core))")
         check(blocked.isEmpty, "capitals: every keeper, citizen and desk has a floor and head room" + (blocked.isEmpty ? "" : ": " + blocked.prefix(6).joined(separator: ", ")))
         day(w, centre, check)
     }

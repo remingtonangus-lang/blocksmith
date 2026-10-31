@@ -130,7 +130,7 @@ final class Playthrough {
     func count(_ n: String) -> Int { Items.has(n) ? inv.countOf(Items.id(n)) : 0 }
     // Keeps a few slots free: a real player drops mob junk (flesh, bones, string, blocks) when the bag fills up.
     static let keepWords = ["pickaxe", "sword", "bow", "arrow", "_axe", "shovel", "helmet", "chestplate", "leggings", "boots", "elytra",
-                            "ender_pearl", "ender_eye", "dragon_egg", "torch", "soul_sand", "skull", "obsidian", "flint_and_steel", "blaze",
+                            "ender_pearl", "amethyst", "ender_eye", "dragon_egg", "torch", "soul_sand", "skull", "obsidian", "flint_and_steel", "blaze",
                             "nether_star", "diamond", "iron_ingot", "bucket", "crafting_table", "furnace", "glass", "shield", "bread",
                             "cooked", "golden", "stick", "planks", "log", "cobblestone", "raw_iron", "raw_titanium", "coal"]
     func makeRoom(_ need: Int = 4) {
@@ -423,7 +423,7 @@ final class Playthrough {
         print("playthrough: seed \(seed)\(world.fieldTerrain ? ", field world" : "")")
         t.start()
         if want("overworld") { t.overworld() } else { t.kit(["diamond_pickaxe", "flint_and_steel", "diamond_sword", "bow"]); t.give("arrow", 64); t.give("obsidian", 10) }
-        if want("emberdeep") { t.emberdeep() } else { t.give("blaze_rod", 7, bulk: "stage skipped"); t.give("ender_pearl", 12, bulk: "stage skipped") }
+        if want("emberdeep") { t.emberdeep() } else { t.give("blaze_rod", 7, bulk: "stage skipped"); t.give("amethyst_shard", 12, bulk: "stage skipped") }
         if want("stronghold") { t.eyesAndStronghold() }
         if want("end") { t.theHollow() }
         if want("blight") { t.blight() }
@@ -833,27 +833,9 @@ final class Playthrough {
         }
         if rods < 7 { give("blaze_rod", 7 - rods, bulk: "missing rods") }
 
-        // Void pearls from voidwalkers (warped forests / night surface); melee kills.
-        section("void pearls")
-        var pearls = count("ender_pearl"), vw = 0
-        while pearls < 12 && vw < 80 {
-            let at = feet + V3(0, 0, 3)
-            let m = Mob(.enderman, at: at + V3(0, 0, 2))
-            m.aggro = false
-            game.mobs.mobs.append(m)
-            var n = 0
-            while m.health > 0 && n < 12 {
-                swing(at: m, offset: V3(0, 0, -2))
-                n += 1
-            }
-            if m.health <= 0 { vw += 1 }
-            let died = m.pos                            // strolls and hit teleports move it away from where it appeared
-            game.mobs.mobs.removeAll { $0 === m && $0.health > 0 }
-            collect(near: died, 8)
-            pearls = count("ender_pearl")
-        }
-        check(pearls >= 12, "voidwalkers: \(pearls) void pearls from \(vw) kills")
-        if pearls < 12 { give("ender_pearl", 12 - pearls, bulk: "missing pearls") }
+        // (P499: no void pearls; a Seeker Eye is an amethyst shard and cinder powder. Shards come from geodes, which the
+        // overworld stage does not dig for.)
+        if count("amethyst_shard") < 12 { give("amethyst_shard", 12 - count("amethyst_shard"), bulk: "amethyst for seeker eyes") }
 
         // Home through the arrival portal (it must still be there and lead back to the one we built).
         section("back to the surface")
@@ -896,9 +878,9 @@ final class Playthrough {
         section("seeker eyes")
         if game.dim.dim != .overworld { game.changeDimension(to: .overworld, at: game.spawnPoint) }
         if count("blaze_rod") < 6 { give("blaze_rod", 6 - count("blaze_rod"), bulk: "stage setup") }
-        if count("ender_pearl") < 12 { give("ender_pearl", 12 - count("ender_pearl"), bulk: "stage setup") }
+        if count("amethyst_shard") < 12 { give("amethyst_shard", 12 - count("amethyst_shard"), bulk: "stage setup") }
         craft(["R"], ["R": "blaze_rod"], "blaze_powder", times: 6)
-        craft(["PB"], ["P": "ender_pearl", "B": "blaze_powder"], "ender_eye", times: 12)
+        craft(["PB"], ["P": "amethyst_shard", "B": "blaze_powder"], "ender_eye", times: 12)
         check(count("ender_eye") >= 12, "craft: \(count("ender_eye")) seeker eyes")
         guard let sh = world.gen.structures?.nearest("stronghold", x: Int(game.player.pos.x), z: Int(game.player.pos.z)) else {
             check(false, "worldgen: a stronghold exists"); return

@@ -135,8 +135,9 @@ extension TroopClass {
             if k == .soldierMarksman { return Guns.sniper }
             return r < 0.6 ? Guns.rifle : Guns.shotgun
         case .hannibal:
-            // (P217: the Kettensturm is retired.) P391: a third carry the Mahlwerk rotary gun.
-            return r < 0.34 ? Guns.arc : (r < 0.67 ? Guns.launcher : Guns.rotary)
+            // (P217: the Kettensturm is retired.) P391: a third carry the Mahlwerk rotary gun; P499: a quarter of them
+            // each the arc gun, the launcher, the Mahlwerk and the Sturmbrecher assault shotgun.
+            return r < 0.25 ? Guns.arc : (r < 0.5 ? Guns.launcher : (r < 0.75 ? Guns.rotary : Guns.autoShotgun))
         }
     }
     // Spec Ops SMGs and rifles are suppressed: quiet, and their shots don't carry to a base as noise.

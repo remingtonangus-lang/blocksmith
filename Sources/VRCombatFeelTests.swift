@@ -70,7 +70,22 @@ enum VRCombatFeelTests {
             for k in 0...3 { game.world.setBlock(fx + dx, fy + 1 + k, fz + dz, AIR) }
         } }
         game.paused = false; game.survival = true; game.health = 20; p.flying = false
+        // (A living player on Normal with no armour or absorption: whatever the checks before this one left.)
+        let diff0 = game.difficulty, armour0 = game.inventory.armor.slots
+        defer { game.difficulty = diff0; game.inventory.armor.slots = armour0 }
+        game.alive = true; game.difficulty = 2; game.absorption = 0
+        for i in 0..<4 { game.inventory.armor[i] = .empty }
+        if game.menu is DeathMenu { game.menu = nil }
         p.pos = P; p.vel = .zero; p.yaw = 0; p.pitch = 0
+        // (No Game.tick runs here: the active distance is centred on him by hand, or the mobs past it never move.)
+        let active0 = game.world.activeCenter
+        game.world.activeCenter = P
+        defer { game.world.activeCenter = active0 }
+        // (Only this group's mobs, and no gun console or raised shield left from an earlier group: a zombie with
+        // another monster near joins its flank or horde instead of striking, and a manned console turns blows away.)
+        let mobs0 = game.mobs.mobs, remote0 = Turrets.shared.remote, blocking0 = game.blocking
+        game.mobs.mobs = []; Turrets.shared.remote = nil; game.blocking = false; game.levelTaken = 0
+        defer { game.mobs.mobs = mobs0; Turrets.shared.remote = remote0; game.blocking = blocking0 }
         var spawned: [Mob] = []
         func mob(_ k: MobKind, _ at: V3) -> Mob { let m = Mob(k, at: at); m.equip = nil; game.mobs.mobs.append(m); spawned.append(m); return m }
         defer { game.mobs.mobs.removeAll { m in spawned.contains { $0 === m } } }
@@ -91,8 +106,9 @@ enum VRCombatFeelTests {
         // 3. VR: it winds up (a sound), then strikes if you're still there...
         game.vrHead = p.eye
         game.audio.record = [:]
-        z.attackCooldown = 0
+        z.attackCooldown = 0; z.riposte = 0
         let first = game.meleeStrike(z, reach: z.halfW + 1.3)
+        z.feint = false                     // (a real blow: about one wind-up in 7 is a feint, and the miss looked like a lost strike)
         let wound = z.windUp
         let grunt = game.audio.record?[Snd.meleeWindUp.name] ?? 0
         // The zombie's own AI lands the strike when the wind-up ends (the player's health drops then, not before).
@@ -100,10 +116,12 @@ enum VRCombatFeelTests {
         var landed = false, t: Float = 0
         while t < 1, !landed { z.update(1.0 / 60, game: game); z.pos = P + V3(0, 0, -1.6); z.vel = .zero; t += 1.0 / 60; landed = game.health < 20 }
         check(!first && wound == VRMelee.windUpTime && grunt == 1 && landed && t >= VRMelee.windUpTime - 0.02 && t < VRMelee.windUpTime + 0.2,
-              "combat feel: in VR a zombie winds up (" + String(format: "%.2f s", wound) + ", grunt \(grunt)) and strikes after " + String(format: "%.2f s", t))
+              "combat feel: in VR a zombie winds up (" + String(format: "%.2f s", wound) + ", grunt \(grunt)) and strikes after " + String(format: "%.2f s", t)
+              + (landed ? "" : " (missed: health \(game.health), cooldown " + String(format: "%.2f", z.attackCooldown) + ", horde \(z.hordeSlot), dodges \(game.dodges), mobs \(game.mobs.mobs.count))"))
         // ... and misses if you stepped back.
         z.attackCooldown = 0; z.windUp = 0; z.windUpDone = false
         _ = game.meleeStrike(z, reach: z.halfW + 1.3)
+        z.feint = false
         let d0 = game.dodges
         z.windUp = 0; z.windUpDone = true
         p.pos = P + V3(0, 0, 2.5); game.vrHead = p.eye                  // the body (and headset) stepped back

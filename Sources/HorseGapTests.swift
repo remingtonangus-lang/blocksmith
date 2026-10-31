@@ -126,10 +126,21 @@ extension HorseTests {
             ride(h3, 0.3, 0, [5])
             check(h3.hs.tricks == 1 && g.riding === h3, "horse gap: at bond level 3 a spur standing still rears on command, rider kept (\(h3.hs.tricks))")
             g.riding = nil
+            var why: [String] = []
             func stopDistance(_ xp: Float) -> Float {
                 let h = horse(15, xp); mount(h)
                 g.mobs.mobs = [h]
                 ride(h, 3, 1, [10, 40])
+                why.append(String(format: "speed %.1f, ridden %@, gait %@, stamina %.0f, at %.1f,%.1f,%.1f (lane %.1f), ground %@",
+                                  speed(h), g.riding === h ? "yes" : "no", h.hs.gait.name, h.stamina, h.pos.x, h.pos.y, h.pos.z, lane0.y,
+                                  h.onGround ? "yes" : "no")
+                           + {
+                               let f = V3(-sinf(h.yaw), 0, -cosf(h.yaw))
+                               let a = h.pos + f * 0.9
+                               let col = (0...3).map { Blocks.key(g.world.block(Int(floor(a.x)), Int(floor(h.pos.y)) + $0, Int(floor(a.z)))) }
+                               let under = Blocks.key(g.world.block(Int(floor(a.x)), Int(floor(h.pos.y)) - 1, Int(floor(a.z))))
+                               return String(format: ", yaw %.2f, ahead ", h.yaw) + col.joined(separator: "/") + " over " + under
+                           }())
                 let z0 = h.pos.z
                 var n = 0
                 while speed(h) > 0.2 && n < 72 * 6 { g.rideInput = MoveInput(); h.update(dt, game: g); n += 1 }
@@ -137,7 +148,8 @@ extension HorseTests {
                 return abs(z0 - h.pos.z)
             }
             let s1 = stopDistance(0), s4 = stopDistance(HorseFeel.levelXP[3])
-            check(s4 < s1 * 0.75, String(format: "horse gap: a level-4 horse stops in %.1f blocks, a level-1 in %.1f (a sliding stop)", s4, s1))
+            check(s4 < s1 * 0.75, String(format: "horse gap: a level-4 horse stops in %.1f blocks, a level-1 in %.1f (a sliding stop)", s4, s1)
+                  + (s4 < s1 * 0.75 ? "" : " (after the gallop: " + why.joined(separator: "; ") + ")"))
             func turned(_ xp: Float) -> Float {
                 let h = horse(15, xp); mount(h)
                 g.mobs.mobs = [h]
@@ -282,8 +294,17 @@ extension HorseTests {
             let round0 = HorseLife.broughtRound
             var t: Float = 0
             // (through the mob list's update: it hands out the path finder's per-tick budget)
-            while t < 25 && simd_length(h.pos - g.player.pos) > 5 { g.mobs.update(0.05, game: g); g.horseCall = max(g.horseCall, 1); t += 0.05 }
-            check(simd_length(h.pos - g.player.pos) <= 5 && HorseLife.broughtRound == round0, String(format: "horse gap: a called horse finds its way round a wall (%.1f s, %.1f blocks off; at %.1f %.1f %.1f from %.1f %.1f %.1f; brought round %d)", t, simd_length(h.pos - g.player.pos), h.pos.x, h.pos.y, h.pos.z, lane0.x, lane0.y, Float(wallZ) - 6, HorseLife.broughtRound - round0))
+            var fell = ""                                                  // (printed if it fails: where it left the strip)
+            while t < 25 && simd_length(h.pos - g.player.pos) > 5 {
+                let was = h.pos
+                g.mobs.update(0.05, game: g); g.horseCall = max(g.horseCall, 1); t += 0.05
+                if fell.isEmpty && h.pos.y < lane0.y - 2 {
+                    fell = String(format: " fell at %.1f s from %.1f %.1f %.1f (lane x %.1f, wall x %d...%d); call %.1f, panic %.1f, path %d nodes, mobs %d, below %@, paused %@, survival %@",
+                                  t, was.x, was.y, was.z, lane0.x, x0 - 3, x0, g.horseCall, h.panic, h.path.nodes.count, g.mobs.mobs.count,
+                                  BountyHunters.below(g) ? "y" : "n", g.paused ? "y" : "n", g.survival ? "y" : "n")
+                }
+            }
+            check(simd_length(h.pos - g.player.pos) <= 5 && HorseLife.broughtRound == round0, String(format: "horse gap: a called horse finds its way round a wall (%.1f s, %.1f blocks off; at %.1f %.1f %.1f from %.1f %.1f %.1f; brought round %d)", t, simd_length(h.pos - g.player.pos), h.pos.x, h.pos.y, h.pos.z, lane0.x, lane0.y, Float(wallZ) - 6, HorseLife.broughtRound - round0) + fell)
             // A gap it can't get through (the wall closed): after 6 s stuck it is brought round to you, on your level
             // (the strip is high in the air: never onto the ground far below).
             for dy in 0...3 { for x in (x0 + 1)...(x0 + 3) { w.setBlock(x, y + dy, wallZ, Blocks.id("stone")) } }

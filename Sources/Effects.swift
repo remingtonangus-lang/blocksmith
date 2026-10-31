@@ -303,6 +303,14 @@ extension Game {
         case "golden_apple":
             applyEffect(.regeneration, amp: 1, seconds: 5)
             applyEffect(.absorption, amp: 0, seconds: 120)
+        case "field_stim":                                   // (P499: a base's golden apple)
+            applyEffect(.regeneration, amp: 1, seconds: 8)
+            applyEffect(.absorption, amp: 0, seconds: 120)
+        case "combat_stim":                                  // (P499: a base's radiant apple)
+            applyEffect(.regeneration, amp: 1, seconds: 20)
+            applyEffect(.absorption, amp: 3, seconds: 120)
+            applyEffect(.resistance, amp: 0, seconds: 300)
+            applyEffect(.fireResistance, amp: 0, seconds: 300)
         case "enchanted_golden_apple":
             applyEffect(.regeneration, amp: 1, seconds: 20)
             applyEffect(.absorption, amp: 3, seconds: 120)

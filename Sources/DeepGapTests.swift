@@ -133,8 +133,8 @@ enum DeepGapTests {
         g.player.pos = V3(Float(lp.x) + 0.5, Float(lp.y) + 0.19, Float(lp.z) + 0.5)
         g.gateCooldown = 0
         g.gatesTick(0.05)
-        check(vline.contains("Deep Lift") && g.dim.dim == .overworld,
-              "deep gap: a Deep Lift in the vault is the way up (\"\(vline)\") and carries you home")
+        check(vline.contains("Hell Lift") && g.dim.dim == .overworld,
+              "deep gap: a Hell Lift in the vault is the way up (\"\(vline)\") and carries you home (now in \(g.dim.dim))")
         // Saved.
         let d = g.saveExtra()
         let before = (g.wokenGates, g.deepReturn, g.deepLifts)
@@ -196,7 +196,9 @@ enum DeepGapTests {
 
     // MARK: Balance: a full-gear run (D4b, DE1)
 
-    struct Duel { let name: String; let toKillPlayer: Float?; let playerKills: Float?; let weapon: String }
+    struct Duel { let name: String; let toKillPlayer: Float?; let playerKills: Float?; let weapon: String; var rounds: Float = 0; var dealt: Float = 0 }
+    static var lastRounds = 0              // rounds the unit fired dealing its 20 (the last duel's part 1)
+    static var lastDealt = 0               // ... and what they dealt (20, or less when 60 s ran out first)
 
     // Duskium armour, food full, normal difficulty; the unit `dist` blocks off on the open vault floor. Returns how long
     // the unit takes to do 20 points of damage to the player (who stands still; their health is topped up each tick)
@@ -208,7 +210,10 @@ enum DeepGapTests {
             g.mobs.mobs.removeAll(); w.pendingMobs.removeAll(); g.arms.slugs.removeAll()
             g.ashStrikes.removeAll(); g.ashSpot = nil
             g.ashAlarm = 0; g.ashAlarmLevel = 0; g.ashReinforceT = 999; g.ashPatrolT = 999
-            guard let m = make(spot + V3(0, 0, -dist)) else { return nil }
+            guard var m = make(spot + V3(0, 0, -dist)) else { return nil }
+            // (P292: a retired kind is what the game admits it as where it stands, the Blight Skeleton a Brand Knight. The
+            // duel held the old one, which the next tick took out of the world: 300 rounds through where it had been.)
+            if case .becomes(let n) = m.hellFate(w) { m = n }
             m.aggro = true
             m.soldierBrain.lastSeen = g.player.eye; m.soldierBrain.seenAgo = 0
             g.mobs.mobs = [m]
@@ -217,6 +222,8 @@ enum DeepGapTests {
         }
         // 1. The unit on the player.
         var toKill: Float?
+        let foe0 = Armory.foeFired
+        lastDealt = 0
         if let m = place() {
             var dealt = 0, t: Float = 0
             while t < limit && m.health > 0 {
@@ -230,7 +237,14 @@ enum DeepGapTests {
                 if !g.alive { g.alive = true; g.health = 20; dealt += 20 }
                 if dealt >= 20 { toKill = t; break }
             }
+            lastDealt = min(20, dealt)
+            if toKill == nil {
+                let own = g.arms.slugs.filter { $0.shooter == ObjectIdentifier(m) }.count
+                print("deep balance duel trace \(m.kind.key): dealt \(dealt) in \(t) s; alive \(m.health > 0), aggro \(m.aggro), seen \(m.soldierBrain.seenAgo), "
+                      + "its rounds in flight \(own), \(String(format: "%.1f", simd_length(m.pos - g.player.pos))) blocks off at y \(m.pos.y)")
+            }
         }
+        lastRounds = Armory.foeFired - foe0
         // 2. The player on the unit: aim at its middle and hold the trigger. The unit is held where it stands (it still
         // turns and fires): a pure damage race, the same for every unit (the Marshal charging in and out of the blast
         // swung his time from 44 s to over 180 s between runs).
@@ -241,7 +255,12 @@ enum DeepGapTests {
             for i in 0..<9 where i != g.inventory.selected { g.inventory.main[i] = ItemStack(Items.id(ammo), Items.def(Items.id(ammo)).maxStack) }
             let pm = PadManager.shared
             var t: Float = 0
+            var trace = "\(m.health)"
+            let hits0 = g.arms.hits, slugs0 = Armory.fired
+            var probe = ""
+            defer { print("deep balance duel trace \(m.kind.key): health \(trace) at \(m.pos.y), killed \(t) s, alive \(m.health > 0); \(Armory.fired - slugs0) rounds fired, \(g.arms.hits - hits0) hits, \(String(format: "%.1f", simd_length(m.pos - g.player.pos))) blocks off, gun \(g.heldGun != nil); \(probe)") }
             while t < limit && m.health > 0 {
+                if Int(t * 20) % 10 == 0 && t < 5 { trace += " \(m.health)/\(m.lastHurtAmount)" }
                 g.health = 20; g.hunger = 20
                 g.player.pos = spot; g.player.vel = .zero
                 let aim = m.pos + V3(0, m.height * 0.5, 0) - g.player.eye
@@ -249,6 +268,17 @@ enum DeepGapTests {
                 g.player.pitch = atan2f(aim.y, simd_length(V2(aim.x, aim.z)))
                 var p = PadSnapshot(); p.rt = (Int(t * 20) % 2 == 0 || (Guns.index(g.inventory.held.item).map { Guns.all[$0].auto } ?? true)) ? 1 : 0
                 pm.simulated = p
+                if probe.isEmpty && t > 3 {
+                    // (why no round lands: the sight line from the eye, the mob's box and the first block on it, the slugs
+                    // in flight and where they are)
+                    let e = g.player.eye, d = simd_normalize(aim)
+                    let mh = m.rayHit(e, d, maxDist: 40), bh = Armory.blockHit(w, e, d, 40)
+                    let sl = g.arms.slugs.prefix(3).map { String(format: "(%.1f %.1f %.1f) dead %@ shooter %@", $0.pos.x, $0.pos.y, $0.pos.z, $0.dead ? "y" : "n", $0.shooter == nil ? "nil" : "set") }
+                    probe = String(format: "probe: eye (%.1f %.1f %.1f) mob (%.1f %.1f %.1f) h %.2f w %.2f; mob ray %@, block ray %@; mobs %d riding %@; slugs %@",
+                                   e.x, e.y, e.z, m.pos.x, m.pos.y, m.pos.z, m.height, m.halfW, mh.map { String(format: "%.2f", $0) } ?? "none",
+                                   bh.map { "\(String(format: "%.2f", $0.0)) \(Blocks.key(w.block($0.1.x, $0.1.y, $0.1.z)))" } ?? "none",
+                                   g.mobs.mobs.count, g.riding === m ? "it" : "no", sl.joined(separator: ", "))
+                }
                 g.tick(0.05)
                 m.pos.x = hold.x; m.pos.z = hold.z; m.vel.x = 0; m.vel.z = 0
                 g.mobs.mobs.removeAll { $0 !== m }; w.pendingMobs.removeAll()     // one unit: no crews, squads or calls
@@ -295,8 +325,8 @@ enum DeepGapTests {
         }
         let cases: [(String, (V3) -> Mob?, String, String, Float)] = [
             ("Capital rifleman (surface, for scale)", capital(.soldierRecruit), "gun_rifle", "capital_rounds", 18),
-            ("Blight Skeleton (hell band)", deep("wither_skeleton"), "gun_rifle", "capital_rounds", 6),
-            ("Boarling Brute (hell band)", deep("piglin_brute"), "gun_rifle", "capital_rounds", 6),
+            ("Brand Knight (hell band, the Blight Skeleton's heir)", deep("wither_skeleton"), "gun_rifle", "capital_rounds", 6),
+            ("Brand Champion (hell band, the Boarling Brute's heir)", deep("piglin_brute"), "gun_rifle", "capital_rounds", 6),
             ("Keep Castellan", ash("piglin_brute:warden@deep"), "gun_rifle", "capital_rounds", 6),
             ("Ashguard Rifleman", ash("soldier_recruit@ash"), "gun_rifle", "capital_rounds", 18),
             ("Ashguard Stormer", ash("soldier_trooper@ash"), "gun_rifle", "capital_rounds", 18),
@@ -316,26 +346,34 @@ enum DeepGapTests {
             // swung the ratio from 1.2 to 1.6 between runs).
             let seeds = name.hasPrefix("Capital rifleman") || name.hasPrefix("Ashguard Rifleman") ? 3 : 1
             var runs: [(Float?, Float?)] = []
+            var rounds = 0, dealt = 0
             for k in 0..<seeds {
                 Rand.seed(0xBA1A_0000 + UInt64(i) + UInt64(k) * 0x100)
                 runs.append(duel(g, make, gun: gun, ammo: ammo, dist: dist, limit: name.hasPrefix("The Ash Marshal") ? 180 : 60))   // the boss: a long fight
+                rounds += lastRounds; dealt += lastDealt
             }
             func mean(_ xs: [Float?]) -> Float? { xs.contains { $0 == nil } ? nil : xs.compactMap { $0 }.reduce(0, +) / Float(xs.count) }
             let (a, b) = (mean(runs.map { $0.0 }), mean(runs.map { $0.1 }))
-            report.append(Duel(name: name, toKillPlayer: a, playerKills: b, weapon: Items.def(Items.id(gun)).display))
+            report.append(Duel(name: name, toKillPlayer: a, playerKills: b, weapon: Items.def(Items.id(gun)).display, rounds: Float(rounds) / Float(seeds), dealt: Float(dealt) / Float(seeds)))
             print("deep balance: \(name): kills full-gear player in \(a.map { String(format: "%.1f s", $0) } ?? "> 60 s"); player kills it in \(b.map { String(format: "%.1f s", $0) } ?? (name.hasPrefix("The Ash Marshal") ? "> 180 s" : "> 60 s")) (\(Items.def(Items.id(gun)).display))")
         }
         func r(_ n: String) -> Duel? { report.first { $0.name.hasPrefix(n) } }
         let cap = r("Capital rifleman"), rifle = r("Ashguard Rifleman"), tankR = r("Cinder Tank (rifle)"), tankL = r("Cinder Tank (launcher)")
         // Harder than the surface: the Ashguard rifleman takes longer to kill and kills faster than a Capital one; the tank
         // shrugs off rifles (or takes far longer) and falls to the launcher; every unit can be beaten with full gear.
-        let harder = (rifle?.playerKills ?? 0) > (cap?.playerKills ?? .infinity) * 1.3
-            && (rifle?.toKillPlayer ?? .infinity) < (cap?.toKillPlayer ?? 0)
+        // (P358, Oct 16 "the Nazis are still too tough": a soldier of any side dies to two rifle rounds, so the Ashguard
+        // rifleman is harder only by his aim and his gun, not by taking longer to drop. P499: and by his gun's round, not
+        // its rate: six in ten carry the Kessel bolt rifle (B7's period arms), one heavy round a second against the
+        // Capital's Donnerkeil at eight, so through full gear he kills slower (30.6 s to 16.8) but each round he fires
+        // takes several times what one of the Capital's does.)
+        // (What the rounds dealt over what was fired, whether or not 60 s ran out first: one seed's slow Kessel dealt 15.)
+        func perRound(_ d: Duel?) -> Float { d.map { $0.rounds > 0 ? $0.dealt / $0.rounds : 0 } ?? 0 }
+        let harder = perRound(rifle) > 2 * perRound(cap)
         let armoured = (tankR?.playerKills == nil || (tankR?.playerKills ?? 0) > 3 * (tankL?.playerKills ?? .infinity)) && tankL?.playerKills != nil
         let beatable = report.filter { !$0.name.hasPrefix("Cinder Tank (rifle)") }.allSatisfy { $0.playerKills != nil }
         let fair = report.allSatisfy { ($0.toKillPlayer ?? .infinity) > 2 }
         check(harder && armoured && beatable && fair,
-              "deep balance: full gear, Ashguard rifleman \(f(rifle?.playerKills)) to kill / kills you in \(f(rifle?.toKillPlayer)) vs Capital \(f(cap?.playerKills)) / \(f(cap?.toKillPlayer)); tank \(f(tankR?.playerKills)) by rifle, \(f(tankL?.playerKills)) by launcher; all beatable \(beatable), none faster than 2 s \(fair)")
+              "deep balance: full gear, Ashguard rifleman \(f(rifle?.playerKills)) to kill / kills you in \(f(rifle?.toKillPlayer)) (\(String(format: "%.1f", perRound(rifle))) a round) vs Capital \(f(cap?.playerKills)) / \(f(cap?.toKillPlayer)) (\(String(format: "%.1f", perRound(cap))) a round); tank \(f(tankR?.playerKills)) by rifle, \(f(tankL?.playerKills)) by launcher; all beatable \(beatable), none faster than 2 s \(fair)")
     }
     static func f(_ t: Float?) -> String { t.map { String(format: "%.1f s", $0) } ?? "> 60 s" }
 }

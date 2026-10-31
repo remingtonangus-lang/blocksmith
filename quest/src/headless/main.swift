@@ -1781,6 +1781,9 @@ if CommandLine.arguments.contains("--gunparts-only") {          // P372: emplace
     GunPartsCheck.run(game, check)
     print(failures == 0 ? "gunparts: all checks passed" : "gunparts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// P499: no held gun part or upgrade fitting floats clear of the gun (quest/src/test/GunFittingsCheck.swift).
+GunFittingsCheck.run(check)
+if CommandLine.arguments.contains("--gunfittings-only") { print(failures == 0 ? "gunfittings: all checks passed" : "gunfittings: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 if CommandLine.arguments.contains("--dropflight") {           // P461: a taken dropship lands, sprints and crushes
     DropFlightCheck.run(game, check)
     print(failures == 0 ? "dropflight: all checks passed" : "dropflight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -2222,6 +2225,13 @@ if CommandLine.arguments.contains("--settings-only") {
 if CommandLine.arguments.contains("--friendlyfire-only") {
     FriendlyFireTests.run(game: game, check: check)
     print(failures == 0 ? "friendlyfire: all checks passed" : "friendlyfire: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --military-only: the Steelhold soldier checks of the Mac --mobtests (Sources/MilitaryTests.swift; P499 marksman laser).
+if CommandLine.arguments.contains("--military-only") {
+    MobTests.failures = []
+    MobTests.military(game: game, world: game.world, pos: game.player.pos)
+    print(MobTests.failures.isEmpty ? "military: all checks passed" : "military: \(MobTests.failures.count) FAILED: \(MobTests.failures.joined(separator: ", "))")
+    exit(MobTests.failures.isEmpty ? 0 : 1)
 }
 // --latency-only: every control answers in the frame that reads the press (Sources/InputLatencyTests.swift, Q2).
 if CommandLine.arguments.contains("--latency-only") {
@@ -2859,12 +2869,19 @@ if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "bore
 func leaves(_ name: String, _ body: () -> Void) {
     let fly = game.player.flying, enc = game.world.ships.encounters, surv = game.survival, pos = game.player.pos, menu = game.menu == nil
     let menu0 = game.menu
+    // (P499: and at no helm and on no mount: a group that left him at a frigate's helm put every later aim and chase
+    // view check in the helm's hands.)
+    let pilot0 = game.world.ships.pilot, riding0 = game.riding, vrAim0 = game.vrAim
     // Put it all back after the check, so one group's leftover fails that group, not every group after it.
-    defer { game.player.flying = fly; game.world.ships.encounters = enc; game.survival = surv; game.player.pos = pos; game.player.vel = .zero; game.menu = menu0 }
+    defer {
+        game.player.flying = fly; game.world.ships.encounters = enc; game.survival = surv; game.player.pos = pos; game.player.vel = .zero; game.menu = menu0
+        game.world.ships.pilot = pilot0; game.riding = riding0; game.vrAim = vrAim0
+    }
     body()
     let moved = simd_length(game.player.pos - pos)
-    check(game.player.flying == fly && game.world.ships.encounters == enc && game.survival == surv && moved < 1 && (game.menu == nil) == menu,
-          "\(name): leaves the player and world as it found them (flying \(game.player.flying)/\(fly), encounters \(game.world.ships.encounters)/\(enc), survival \(game.survival)/\(surv), moved \(String(format: "%.1f", moved)), menu \(game.menu == nil ? "none" : "open"))")
+    let helm = game.world.ships.pilot === pilot0 && game.riding === riding0
+    check(game.player.flying == fly && game.world.ships.encounters == enc && game.survival == surv && moved < 1 && (game.menu == nil) == menu && helm,
+          "\(name): leaves the player and world as it found them (flying \(game.player.flying)/\(fly), encounters \(game.world.ships.encounters)/\(enc), survival \(game.survival)/\(surv), moved \(String(format: "%.1f", moved)), menu \(game.menu == nil ? "none" : "open"), helm \(game.world.ships.pilot?.root.name ?? "none")/\(pilot0?.root.name ?? "none"), riding \(game.riding?.kind.key ?? "none")/\(riding0?.kind.key ?? "none"))")
 }
 leaves("greywall") { if !CommandLine.arguments.contains("--no-greywall") { GreywallTests.run(device: device, game: game, check: check) } }
 leaves("troopclasses") { TroopTests.run(game: game, check: check) }
@@ -2982,7 +2999,7 @@ do {
     // A slug from the helm, through Game.tick, craters a citadel (FactionTests.frigate; done audit 25b6, G1).
     FactionTests.frigate(game, check)
     // Aboard the Meridian frigate from the ground: the winch, the ladder, the helm (G11).
-    BoardingTests.run(game, check)
+    leaves("boarding") { BoardingTests.run(game, check) }
     // The first citadel can be found: orders in outlaw camps (G6).
     FindabilityTests.run(game, check)
     if CommandLine.arguments.contains("--maingun-only") { print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }

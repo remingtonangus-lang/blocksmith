@@ -231,7 +231,8 @@ extension TownTests {
               "revolver: its own one-handed model with a walnut grip (\(CapitalArms.models[min(Guns.revolver, CapitalArms.models.count - 1)].parts.count) parts)")
         check(TextureGen.painters()["item_gun_revolver"] != nil, "revolver: has its own icon")
         let sold = ShopKind.allCases.contains { Economy.catalog($0).contains { $0.item == id } }
-        check(!sold && Economy.buysItem(.gunsmith, id), "revolver: gunsmiths buy it, nobody sells it")
+        // (P370: a period gunsmith stocks the six-iron among its guns.)
+        check(sold && Economy.buysItem(.gunsmith, id), "revolver: gunsmiths sell it and buy it")
         // The 25% drop.
         var hits = 0
         let n = 20_000
@@ -259,6 +260,20 @@ extension TownTests {
         g.drops.items = []
     }
 
+    // (a town's pieces, its box round the anchor, its start numbers and every sign near it: why an office or bank is missing)
+    static func townNote(_ s: StructureStart, _ w: World) -> String {
+        var signs: [String] = []
+        for (p, be) in w.blockEntities where be.kind == .sign && abs(p.x - s.anchor.x) < 120 && abs(p.z - s.anchor.z) < 120 {
+            let text: String = be.lines.filter { !$0.isEmpty }.joined(separator: " ")
+            signs.append(text + " @\(p.x - s.anchor.x),\(p.z - s.anchor.z)")
+        }
+        let keys: [String] = s.info.keys.sorted()
+        let info: String = keys.map { k in k + "=\(s.info[k] ?? 0)" }.joined(separator: " ")
+        let size: String = TownSizes.of(s).map { "\($0)" } ?? "old"
+        let box = "x \(s.min.x - s.anchor.x)...\(s.max.x - s.anchor.x) z \(s.min.z - s.anchor.z)...\(s.max.z - s.anchor.z)"
+        return "\(s.pieces.count) pieces, size " + size + ", box " + box + ", info " + info + "; signs " + signs.joined(separator: "; ")
+    }
+
     static func frontierTowns(_ makeWorld: () -> World, _ check: (Bool, String) -> Void) {
         let w = makeWorld()
         w.renderDistance = 3
@@ -266,12 +281,15 @@ extension TownTests {
         var seen: [IVec3] = [], offices = 0, cells = 0, wanted = 0, walks = 0, fronts = 0, visited = 0
         let bars = Blocks.id("iron_bars"), ironDoor = Blocks.groupBase[Int(Blocks.id("iron_door"))]
         for _ in 0..<3 {
-            guard let s = sc.nearest("village", x: 0, z: 0, maxRegions: 12, accept: { st in !seen.contains { $0 == st.anchor } }) else { break }
+            // (C13: a hamlet has no office or deputies, only the sheriff: towns from a village up.)
+            guard let s = sc.nearest("village", x: 0, z: 0, maxRegions: 12, accept: { st in !seen.contains { $0 == st.anchor } && TownSizes.of(st) != .hamlet }) else { break }
             seen.append(s.anchor)
             _ = w.loadSync(center: V3(Float(s.anchor.x), 140, Float(s.anchor.z)), radius: 4)
             visited += 1
+            let offices0 = offices
+            defer { if offices == offices0 { print("frontier: no sheriff's office within 80 of \(s.anchor) (" + TownTests.townNote(s, w) + ")") } }
             for (p, be) in w.blockEntities where be.kind == .sign && abs(p.x - s.anchor.x) < 80 && abs(p.z - s.anchor.z) < 80 {
-                if be.lines.contains("Sheriff") {
+                if be.lines.contains("Sheriff's Office") || be.lines.contains("Sheriff") {
                     offices += 1
                     var n = 0, doors = 0
                     for dy in -2...0 { for dz in -8...8 { for dx in -8...8 {
@@ -289,7 +307,8 @@ extension TownTests {
                 }
             }
         }
-        check(visited >= 2 && offices == visited && cells == offices && wanted == offices,
+        // (A roomy office, 7 wide or more, hangs a second WANTED poster beside his: Slim Pike's, since the Oct 14 batch.)
+        check(visited >= 2 && offices == visited && cells == offices && wanted >= offices && wanted <= 2 * offices,
               "frontier: \(visited) towns, \(offices) sheriff's offices, \(cells) with a jail cell behind bars and an iron door, \(wanted) WANTED boards")
         check(fronts > 0 && Float(walks) >= Float(fronts) * 0.75, "frontier: \(walks)/\(fronts) shop fronts have a plank boardwalk")
         // A town on ground a save already generated keeps its old lots.

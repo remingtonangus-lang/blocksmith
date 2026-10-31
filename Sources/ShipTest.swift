@@ -794,7 +794,9 @@ extension ShipTest {
             let on = w.ships.standing(on: g.player.pos)?.root === frigate
             let moved = simd_length(V2(g.player.pos.x - start.x, g.player.pos.z - start.z))
             check(on, String(format: "boarded: the player stays on the frigate's hangar deck in flight (moved %.1f blocks with it)", moved))
-            // Commandeer (Quest round 4): aboard, the use button takes the bridge helm; forward throttle flies her.
+            // Commandeer (Quest round 4): aboard, the use button takes the bridge helm (P476/P499: standing at it); forward
+            // throttle flies her.
+            if let st = g.helmStand(frigate) { g.player.pos = frigate.toWorld(st) }
             let can = g.commandeerable() === frigate
             if can { g.takeCommand(frigate) }
             let f0 = frigate.pos

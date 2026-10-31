@@ -9,6 +9,7 @@ import Metal
 // that changed meanwhile (and how many were drawn), sections invalidated over the surface and under it, the queue.
 //   questcheck --streamtest --seed S --at X,Y,Z [--rd 10] [--seconds 30] [--speed B/S] [--look YAW,PITCH]
 //              [--shots 2,5,10 --out DIR]      (--speed: flying on along the look's heading, as in creative)
+//              [--tnt N]                       (P499: an N-cube of TNT lit 3 blocks ahead at 5 s)
 enum QuestStreamTest {
     static func arg(_ k: String) -> String? {
         guard let i = CommandLine.arguments.firstIndex(of: k), i + 1 < CommandLine.arguments.count else { return nil }
@@ -30,6 +31,15 @@ enum QuestStreamTest {
         // when he mines straight down in survival; each line then says whether the world counts him under the ground and
         // how many chunks within 8 still keep their buried sections undrawn (holes in the caves he can see).
         let shaft = Int(arg("--shaft") ?? "")
+        // P499 (Oct 30 20:30-20:32, a stack of TNT in a Capital office: "it took too long for the damage to show up";
+        // "the building is trying to fall, but there's a duplicate that it leaves behind"): --tnt N stacks an N x N x N
+        // block of TNT 3 blocks ahead of him at 5 s and lights one corner, as with flint and steel. Each second then
+        // says how much of it is left, how many sections within 3 chunks still draw blocks they no longer hold (and the
+        // oldest of them), and how many pieces came down whole (and how many were let go before the world redrew them).
+        let tntN = Int(arg("--tnt") ?? "")
+        var tntCells: [IVec3] = []
+        var staleSince: [Int64: Int] = [:]
+        var tntWorst = 0.0
         TextureGen.registerAll()
         let w = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: sharedSystemDevice, save: nil)
         w.renderDistance = rd
@@ -70,6 +80,32 @@ enum QuestStreamTest {
                 print("streamtest: shaft dug at \(x) \(z) from \(top - YOFF) down to \(top - d - YOFF)")
             }
             if shaft != nil && f > 3 * 72 { p.flying = false }
+            if let n = tntN, f == 5 * 72 {
+                let fx = Int(floor(p.pos.x - sinf(yaw) * 3)), fz = Int(floor(p.pos.z - cosf(yaw) * 3))
+                var top = Int(floor(p.pos.y))
+                while top > 1 && !w.solidAt(fx, top - 1, fz) { top -= 1 }
+                let tnt = Blocks.id("tnt")
+                for y in top..<(top + n) { for z in fz..<(fz + n) { for x in fx..<(fx + n) {
+                    w.setBlock(x, y, z, tnt); tntCells.append(IVec3(x, y, z))
+                } } }
+                w.setBlock(fx, top, fz, AIR)
+                g.tnts.prime(at: IVec3(fx, top, fz))
+                print("streamtest: \(tntCells.count) TNT stacked at \(fx) \(top - YOFF) \(fz) and lit")
+            }
+            if tntN != nil && f >= 5 * 72 {
+                let c0 = ChunkKey(x: floorDiv(Int(floor(p.pos.x)), CS), z: floorDiv(Int(floor(p.pos.z)), CS))
+                var now: Set<Int64> = []
+                for dz in -3...3 { for dx in -3...3 {
+                    guard let c = w.chunks[ChunkKey(x: c0.x + dx, z: c0.z + dz)], !c.hollow, c.meshedOnce else { continue }
+                    for sy in 0..<NSEC where c.sections[sy].needsMesh && !c.sections[sy].deferred && c.sections[sy].meshedVersion >= 0 {
+                        let key = World.sectionKey(ChunkKey(x: c.cx, z: c.cz), sy)
+                        now.insert(key)
+                        if staleSince[key] == nil { staleSince[key] = f }
+                    }
+                } }
+                for k in staleSince.keys where !now.contains(k) { staleSince[k] = nil }
+                if let oldest = staleSince.values.min() { tntWorst = max(tntWorst, Double(f - oldest) / 72) }
+            }
             p.vel = .zero
             let tt = CFAbsoluteTimeGetCurrent()
             g.tick(dt)
@@ -118,6 +154,14 @@ enum QuestStreamTest {
                              pf.genChunks - perf0.genChunks, (pf.genSeconds - perf0.genSeconds) * 1000, pf.meshJobs - perf0.meshJobs,
                              pf.meshSections - perf0.meshSections, (pf.meshSeconds - perf0.meshSeconds) * 1000, w.pendingJobs,
                              World.handedOver, World.handoverSpent * 1000, World.leftWaiting))
+                if tntN != nil && sec >= 5 {
+                    let tnt = Blocks.id("tnt")
+                    let left = tntCells.filter { w.block($0.x, $0.y, $0.z) == tnt }.count
+                    let oldest = staleSince.values.min().map { Double(f - $0) / 72 } ?? 0
+                    let hidden = Felling.falls.filter { $0.held >= 0 }.count
+                    print(String(format: "streamtest: TNT %d of %d standing, %d lit; %d sections within 3 chunks out of date (oldest %.1f s, worst so far %.1f s); %d pieces came down whole, %d held hidden, %d let go before the world was redrawn",
+                                 left, tntCells.count, g.tnts.list.count, staleSince.count, oldest, tntWorst, Felling.toppled, hidden, Felling.letLate))
+                }
                 if shaft != nil {
                     var held = 0
                     for dz in -8...8 { for dx in -8...8 { if let c = w.chunks[ChunkKey(x: c0.x + dx, z: c0.z + dz)], c.deferredBuried > 0 { held += 1 } } }

@@ -652,7 +652,7 @@ extension Game {
         let table: [(String, Int, Int, Int)] = [
             ("@soul_speed_book", 1, 1, 5), ("@soul_speed_boots", 1, 1, 8), ("@fire_res_potion", 1, 1, 8), ("@fire_res_splash", 1, 1, 8),
             ("@water_bottle", 1, 1, 10),
-            ("ender_pearl", 2, 4, 10), ("string", 3, 9, 20), ("quartz", 5, 12, 20), ("obsidian", 1, 1, 40),
+            ("amethyst_shard", 2, 4, 10), ("string", 3, 9, 20), ("quartz", 5, 12, 20), ("obsidian", 1, 1, 40),
             ("crying_obsidian", 1, 3, 40), ("fire_charge", 1, 1, 40), ("leather", 2, 4, 40), ("soul_sand", 2, 8, 40),
             ("nether_brick", 2, 8, 40), ("spectral_arrow", 6, 12, 40), ("gravel", 8, 16, 40), ("blackstone", 8, 16, 40),
             ("iron_nugget", 10, 36, 10),

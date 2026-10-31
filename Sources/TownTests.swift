@@ -182,9 +182,12 @@ enum TownTests {
         // Selling: wheat to the general store, not to the gunsmith.
         g.money = 0
         g.inventory.main[5] = ItemStack(Items.id("wheat"), 40)
+        // (at the shop's own terms: standing, Honour, the town's and the country's, as Shop.sell prices it)
+        let tv = m.villager?.town
+        let each = Economy.sellPrice(Items.id("wheat"), ShopPricing(reputation: m.villager?.reputation ?? 0, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value,
+                                                                   town: TownConquest.standing(tv), country: Countries.terms(g, town: tv, at: m.pos)))
         let sw = Shop.sell(g, m, .general, item: Items.id("wheat"), count: Int.max)
-        let each = ShopPricing(reputation: m.villager?.reputation ?? 0, hero: 0).sell(Economy.value["wheat"]!)
-        check(sw.1 && count(g, "wheat") == 0 && g.money == 40 * each, "trade: sold 40 wheat for \(Money.format(g.money))")
+        check(sw.1 && count(g, "wheat") == 0 && g.money == 40 * each, "trade: sold 40 wheat for \(Money.format(g.money)) (\(Money.format(each)) each: \(Money.format(40 * each)); \(sw.0))")
         let gs = keeper(g, .gunsmith, at: g.player.pos + V3(-2, 0, 0))
         g.inventory.main[5] = ItemStack(Items.id("wheat"), 4)
         check(!Shop.sell(g, gs, .gunsmith, item: Items.id("wheat"), count: 4).1 && count(g, "wheat") == 4, "trade: the gunsmith won't buy wheat")
@@ -343,6 +346,19 @@ enum TownTests {
             let f = ground(b.x + 3, b.z)
             if abs(f.y - b.y) < 0.5 && w.canSee(b + V3(0, 1.6, 0), f + V3(0, 1.6, 0)) { base = b; foeAt = f; break }
         }
+        // (A clear stone yard round the spot, put back after: an elder cornered by whatever ground the checks before left
+        // the player on got 3.6 blocks from the zombie where open ground gives 8.)
+        let bx = Int(floor(base.x)), by = Int(floor(base.y)), bz = Int(floor(base.z))
+        var was: [(Int, Int, Int, BlockID)] = []
+        for dz in -12...12 { for dx in -12...12 { for dy in -1...3 { was.append((bx + dx, by + dy, bz + dz, w.block(bx + dx, by + dy, bz + dz))) } } }
+        defer { for (x, y, z, b) in was { w.setBlock(x, y, z, b) } }
+        w.deferRemesh = true
+        for dz in -12...12 { for dx in -12...12 {
+            w.setBlock(bx + dx, by - 1, bz + dz, STONE)
+            for dy in 0...3 { w.setBlock(bx + dx, by + dy, bz + dz, AIR) }
+        } }
+        w.deferRemesh = false
+        foeAt.y = base.y
         g.mobs.mobs.removeAll()
         let farmer = Mob(.villager, at: base); farmer.home = base
         var fv = VillagerData(); fv.profession = "farmer"; fv.locked = true; farmer.villager = fv
@@ -441,9 +457,10 @@ enum TownTests {
                 }
                 if name.hasPrefix("villager:shop_"), let k = ShopKind(rawValue: String(name.dropFirst(14))) {
                     shopsFound[k, default: 0] += 1
-                    // P24: a filled strongbox behind the keeper's counter, on the keeper's floor.
+                    // P24: a filled strongbox behind the keeper's counter, on the keeper's floor (P149's 15-wide saloon
+                    // keeps it 5.1 blocks from the barkeep).
                     let till = w.blockEntities.contains { (q, be) in
-                        be.kind == .chest && abs(q.y - Int(floor(p.y))) <= 0 && simd_length(V2(Float(q.x) + 0.5 - p.x, Float(q.z) + 0.5 - p.z)) < 5
+                        be.kind == .chest && abs(q.y - Int(floor(p.y))) <= 0 && simd_length(V2(Float(q.x) + 0.5 - p.x, Float(q.z) + 0.5 - p.z)) < 6
                             && be.container.slots.contains { $0.count > 0 }
                     }
                     if till { tills += 1 } else { noTill.append("\(k.rawValue) at \(Int(p.x)) \(Int(p.z))") }

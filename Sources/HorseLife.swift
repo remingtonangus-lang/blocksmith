@@ -150,8 +150,24 @@ extension Mob {
             g.onToast?("Tamed!")
             HorseLife.tamedCount += 1
         }
-        vel.x *= max(0, 1 - 6 * dt); vel.z *= max(0, 1 - 6 * dt)
         return true
+    }
+
+    // P499 (Oct 30 19:56, taming: "the horse needs to run around... At any point that I'm trying to tame it, it needs to
+    // be running, it needs to buck me off and shit, just like a real horse would"): a wild horse bolts while it fights
+    // the rider, a run that swerves this way and that, near a gallop at first and slowing as it settles; a drop, lava,
+    // or a wall ahead turns it hard. Its speed for updateRidden (it was held on the spot, hopping).
+    func tameRun(_ dt: Float, _ g: Game) -> Float {
+        let h = hs
+        guard h.calm >= 0 else { return 0 }
+        let wild = 1 - h.calm / 100
+        h.bolt += Rand.float(in: -1...1) * 6 * dt
+        h.bolt = max(-1.6, min(1.6, h.bolt * (1 - 0.6 * dt)))
+        if hazardAhead(g.world, maxDist: 3.5) != nil || legsBlocked(g.world) || inWaterNow(g.world) {
+            h.bolt = h.bolt >= 0 ? 2.6 : -2.6
+        }
+        yaw += h.bolt * dt
+        return (h.bucking ? 3.5 : 3 + 7 * wild) * min(1, wild * 1.5)
     }
 
     // A pat during taming: settling, it calms a lot; mid-buck, it frightens it.

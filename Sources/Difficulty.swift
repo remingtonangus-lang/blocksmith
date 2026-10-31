@@ -5,9 +5,9 @@ import Foundation
 // P302 (Oct 15, "easy is too hard"; "easy all but instakilled him"): five fighting levels with big steps between them,
 // Very Easy, Easy, Normal, Hard, Very Hard, plus Peaceful. Easy is a cakewalk even for a new player (a few deaths at
 // most), Normal is the reference game a seasoned player still dies in while learning, Hard and Very Hard are for a
-// struggle. Enemy health is realistic and the SAME on every level; what changes is the player's side (how much of a
-// blow lands, how much armour stops, the biggest single hit, how fast health comes back, hunger) and the enemy's
-// edge (speed, aim, how often they strike, how far they notice you, how many are about). Fliers (Searwings and the
+// struggle. Enemy health is realistic and the SAME on every level up to Normal (P499: Hard and Very Hard foes take
+// more to bring down, Row.foes); what changes is the player's side (how much of a blow lands, how much armour stops,
+// the biggest single hit, how fast health comes back, hunger) and the enemy's edge (speed, aim, how often they strike, how far they notice you, how many are about). Fliers (Searwings and the
 // rest) are easy kills on the easy levels: hits on them count for more and knock them down within reach.
 //
 // Game.diffLevel holds the level (0...5). Game.difficulty stays the older four-step band (0 peaceful, 1 easy, 2 normal,
@@ -22,8 +22,8 @@ enum Difficulty {
         "Very Easy: blows barely scratch you and none takes more than a heart and a half; enemies are slow, miss a lot and are few. Fliers fall to a hit or two.",
         "Easy: enemies hit softly (never more than two and a half hearts at once), aim poorly, strike slowly and come in small numbers; armour helps more. Fliers are easy kills.",
         "Normal: the game as intended. Enemies hit, aim and move as they should; expect to die a few times while learning.",
-        "Hard: blows land half again as hard and armour helps less; enemies are faster, sharper shots, quicker to strike and more numerous.",
-        "Very Hard: double damage, armour helps little, health returns slowly; enemies are fast, accurate, relentless and everywhere.",
+        "Hard: blows land half again as hard and armour helps less; enemies are tougher, faster, sharper shots, quicker to strike and more numerous.",
+        "Very Hard: double damage, armour helps little, health returns slowly; enemies take twice the beating and are fast, accurate, relentless and everywhere.",
     ]
     struct Row {
         let taken: Float      // share of an attack's damage that lands on the player
@@ -39,6 +39,7 @@ enum Difficulty {
         let flier: Float      // what a hit on a hostile flier counts for
         var rate: Int = 0     // P358: most half-hearts the player can lose in any one second (0: no limit)
         var blow: Int = 0     // P413: most half-hearts one attack can take on the levels without `cap` (0: no limit)
+        var foes: Float = 1   // P499: how much more an enemy takes to bring down (Hard and Very Hard)
     }
     static let rows: [Row] = [
         // peaceful
@@ -52,9 +53,9 @@ enum Difficulty {
         // hearts on Hard, and only Very Hard has no limit; attacks only: a fall or lava still kills)
         Row(taken: 1, cap: 0, armour: 1, regen: 1, hunger: 1, speed: 1, aim: 1, pace: 1, sight: 1, spawns: 1, flier: 1, blow: 10),
         // hard
-        Row(taken: 1.5, cap: 0, armour: 0.85, regen: 0.85, hunger: 1.25, speed: 1.12, aim: 0.75, pace: 1.2, sight: 1.15, spawns: 1.35, flier: 1, blow: 14),
+        Row(taken: 1.5, cap: 0, armour: 0.85, regen: 0.85, hunger: 1.25, speed: 1.12, aim: 0.75, pace: 1.2, sight: 1.15, spawns: 1.35, flier: 1, blow: 14, foes: 1.5),
         // very hard
-        Row(taken: 2, cap: 0, armour: 0.7, regen: 0.7, hunger: 1.5, speed: 1.25, aim: 0.55, pace: 1.45, sight: 1.3, spawns: 1.7, flier: 1),
+        Row(taken: 2, cap: 0, armour: 0.7, regen: 0.7, hunger: 1.5, speed: 1.25, aim: 0.55, pace: 1.45, sight: 1.3, spawns: 1.7, flier: 1, foes: 2),
     ]
     // P358 (Oct 16 21:42, "easy is too hard", asked many times): the numbers now reach the player on every path.
     //   Every way damage reaches him goes through the level's row (Game.levelShare): attacks (mobs, rounds, blasts,
@@ -83,7 +84,12 @@ enum Difficulty {
     // and the Chancellor take twice (Very Easy) or half again (Easy) what a hit does on Normal.
     // P465 (Oct 25 20:17-20:25, Hannibal troopers: "not tough enough. It should be way tougher"; "They just need to be
     // tougher. That's my only complaint"): a Hannibal trooper shrugs off twice what it did, on top of its plate.
-    static func tough(_ m: Mob) -> Float { m.troop == 3 ? toughBase(m) * 2 : toughBase(m) }
+    // P499 (Oct 30 15:05, "the enemies need to be tougher proportionally to the difficulty being played"): on Hard an
+    // enemy takes half again what it does on Normal to bring down, on Very Hard twice (Row.foes); a soldier's
+    // dies-like-a-man floor (Ballistics.impactMob) stretches the same way: two rifle rounds to the body on Normal, three
+    // on Hard, four on Very Hard. A round to the head still drops him on every level.
+    static func tough(_ m: Mob) -> Float { (m.troop == 3 ? toughBase(m) * 2 : toughBase(m)) * foes(m) }
+    static func foes(_ m: Mob) -> Float { m.kind.hostile || Soldier.rank(m.kind) != nil ? row.foes : 1 }
     private static func toughBase(_ m: Mob) -> Float {
         let t = m.vary.tough
         guard level == 1 || level == 2 else { return t }

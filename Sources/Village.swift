@@ -78,19 +78,30 @@ enum Village {
 
     static func type(_ gen: WorldGen) -> StructureType {
         StructureType(name: "village", spacing: 34, separation: 8, salt: 10387312, reach: 8) { [unowned gen] seed, cx, cz in
+            let rx = floorDiv(cx, 34), rz = floorDiv(cz, 34), s32 = UInt32(truncatingIfNeeded: gen.seed)
+            if thinned(gen, rx, rz, cx, cz) { return nil }
             if let s = place(gen, seed, cx, cz) { return s }
             // P484 (Oct 28 18:13, "I want you to make villagers slightly more common"): a region whose spot fell on
             // forest or broken ground tries a few more spots in it, on ground no save had generated before P484 (a
             // region that had a place keeps it where it was).
             guard let sc = gen.structures else { return nil }
-            let rx = floorDiv(cx, 34), rz = floorDiv(cz, 34), s32 = UInt32(truncatingIfNeeded: gen.seed)
             for k in 1...extraTries {
                 let ax = rx * 34 + Int(hashf(rx, rz, 4840 + k, s32) * 25), az = rz * 34 + Int(hashf(rx, rz, 4850 + k, s32) * 25)
                 guard sc.clear(cx: ax, cz: az, reach: 14, guardSet: sc.legacyP484) else { continue }
+                if thinned(gen, rx, rz, ax, az) { continue }
                 if let s = place(gen, seed &+ UInt64(k), ax, az) { return s }
             }
             return nil
         }
+    }
+
+    // P499 (Oct 30 19:58, "I'd say half as many villages"): every other region's hamlet, village or town is left out
+    // (large towns and cities stay), on ground no save had generated before P499 (a place a save began keeps going).
+    static func thinned(_ gen: WorldGen, _ rx: Int, _ rz: Int, _ cx: Int, _ cz: Int) -> Bool {
+        guard TownSizes.on, let sc = gen.structures else { return false }
+        guard hashf(rx, rz, 4990, UInt32(truncatingIfNeeded: gen.seed)) < 0.5 else { return false }
+        guard TownSizes.size(cx * CS + 8, cz * CS + 8, seed: gen.seed, ratio: TownSizes.newRatio).rawValue <= TownSize.town.rawValue else { return false }
+        return sc.clear(cx: cx, cz: cz, reach: 14, guardSet: sc.legacyP499)
     }
     static let extraTries = 3
 
@@ -131,8 +142,10 @@ enum Village {
             let p354 = gap && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP354) } ?? true)
             // P478: streets only as far as the buildings along them (Village.layout).
             let p478 = gap && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP478) } ?? true)
+            // P499: a town whose every lot went to a shop still gets its office and bank, and a sign further off.
+            let p499 = gap && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP499) } ?? true)
             let first = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets,
-                               townSize: size, r20: r20, p354: p354, p478: p478)
+                               townSize: size, r20: r20, p354: p354, p478: p478, p499: p499)
             // P466: a hamlet or village on new ground is laid out bigger (TownSizes.biggerSpec); whether there is a place
             // here at all is still the old layout's say, so the bigger plan doesn't add towns (it would add five times as
             // many hamlets: most old ones had too few lots and were never built).
@@ -140,12 +153,12 @@ enum Village {
             // the guard looks further round it).
             if p474, first != nil,
                let big = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide,
-                                streets: streets, townSize: newSize, r20: r20, p354: p354, p478: p478, biggest: true) { return big }
+                                streets: streets, townSize: newSize, r20: r20, p354: p354, p478: p478, biggest: true, p499: p499) { return big }
             guard first != nil, let sz = size, sz.rawValue != 2,
                   gen.structures.map({ sz.rawValue < 2 ? $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP466)
                                                        : $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP456) }) ?? true,
                   let big = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide,
-                                   streets: streets, townSize: size, r20: r20, p354: p354, bigger: true, p478: p478) else { return first }
+                                   streets: streets, townSize: size, r20: r20, p354: p354, bigger: true, p478: p478, p499: p499) else { return first }
             return big
         }
     }
@@ -166,7 +179,7 @@ enum Village {
 
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
                        wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil, r20: Bool = false, p354: Bool = false, bigger: Bool = false,
-                       p478: Bool = false, biggest: Bool = false) -> StructureStart? {
+                       p478: Bool = false, biggest: Bool = false, p499: Bool = false) -> StructureStart? {
         let sz = townSize.map { (biggest ? TownSizes.biggestSpec : (bigger ? TownSizes.biggerSpec : TownSizes.spec))[$0.rawValue] }
         func scaled(_ n: Int) -> Int { sz.map { max(8, Int(Float(n) * $0.length)) } ?? n }
         let gap = townsGap ?? frontier
@@ -390,7 +403,7 @@ enum Village {
             Village.pathsLog?(goodRoads.count, pathCols.count, roads2.count, cols2.count)
             pathCols = cols2; goodRoads = roads2; spans = spans2
         }
-        if frontier && sz?.office != false { frontierLots(&lots, ox: ox, oz: oz, bank: gap && sz?.bank != false, r20: r20) }
+        if frontier && sz?.office != false { frontierLots(&lots, ox: ox, oz: oz, bank: gap && sz?.bank != false, r20: r20, shopsGive: p499) }
         planLog?(ox, oz, style, plan, lots.count)
         var pieces: [Piece] = []
         let plaza = cy
@@ -463,14 +476,16 @@ enum Village {
         if gap {
             let name = Townsfolk.townName(ox + 6, oz + 6, seed: gen.seed)
             var signs = 0
-            for mainPass in [true, false] where mainPass || signs == 0 {
-                for (x, z, y, dx, dz, main) in ends where main == mainPass && (mainPass || signs == 0) {
+            // (P499: a town with no level spot by any street's end, Elk Ridge on the host seed, had none: on new ground a
+            // last pass looks up to eight steps back and five to the side, a block of slope allowed.)
+            for (mainPass, far) in [(true, false), (false, false), (false, true)] where (mainPass || signs == 0) && (!far || p499) {
+                for (x, z, y, dx, dz, main) in ends where (far || main == mainPass) && (mainPass || signs == 0) {
                     // Just off the street to either side, up to three steps back toward the square, on level ground.
                     var found: (Int, Int, Int)? = nil
-                    search: for back in 0...3 { for side in [2, -2, 3, -3] {
+                    search: for back in 0...(far ? 8 : 3) { for side in far ? [2, -2, 3, -3, 4, -4, 5, -5] : [2, -2, 3, -3] {
                         let sx = x - dx * back + dz * side, sz = z - dz * back + dx * side
                         let gy = gen.groundY(sx, sz)
-                        if abs(gy - y) <= 1 && gy >= SEA && !occupied.contains(IVec2Key(sx, sz)) { found = (sx, sz, gy); break search }
+                        if abs(gy - y) <= (far ? 2 : 1) && gy >= SEA && !occupied.contains(IVec2Key(sx, sz)) { found = (sx, sz, gy); break search }
                     } }
                     guard let (sx, sz, gy) = found else { continue }
                     occupied.insert(IVec2Key(sx, sz))

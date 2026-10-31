@@ -300,6 +300,10 @@ final class ItemRegistry {
         // The Capital's own food (Oct 11 playtest P34): a sealed field ration, more filling than a steak; found in citadel
         // stores and command chests.
         food("capital_ration", "Field Ration", "ration", 0xB8C4CC, 10, 16, ["a": 0x8A949C, "c": 0x2E5FA8], stack: 16)
+        // P499 (Oct 30 15:13, "instead of golden apples... some sort of medication or something that only exists at bases,
+        // something high-tech"): the bases' chests and safes hold auto-injectors where they held golden apples (Effects).
+        item("field_stim", "Field Stim", "injector", 0xD8DEE2, ["a": 0xE07A2A, "c": 0xC02828, "d": 0x8A9096], stack: 16)
+        item("combat_stim", "Combat Stim", "injector", 0x3A4048, ["a": 0xE8C040, "c": 0xE8C040, "d": 0x8A9096], stack: 8)
         food("beef", "Raw Beef", "steak", 0xD43B3B, 3, 1.8, ["c": 0xF0E0D0])
         food("cooked_beef", "Steak", "steak", 0x7A4A2A, 8, 12.8, ["c": 0xF0E0D0])
         food("porkchop", "Raw Porkchop", "chop", 0xF08C8C, 3, 1.8, ["c": 0xF8D8D0])
@@ -486,6 +490,7 @@ final class ItemRegistry {
         registerSpineItems()                          // Y2 (Spine.swift): the dispatch, the naval orders, the ledger
         for n in ["milk_bucket"] { defs[Int(id(n))].drink = true }
         for n in ["honey_bottle", "ominous_bottle"] { defs[Int(id(n))].drink = true }
+        for n in ["field_stim", "combat_stim"] { defs[Int(id(n))].drink = true }      // (used like a drink, Game.finishDrink)
         Enchant.assignEnchantability(self)
     }
 

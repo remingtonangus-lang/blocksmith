@@ -189,15 +189,20 @@ enum BountyHunters {
     }
 
     // Spawns the posse; returns how many came.
+    static var tries = [Int](repeating: 0, count: 6)   // (harness: why spots were passed over, the last send)
     @discardableResult
     static func send(_ g: Game, toward: V2? = nil) -> Int {
         let w = g.world
+        tries = [Int](repeating: 0, count: 6)
         let n = posseSize()
         let pp = g.player.pos
         var placed = 0
         var from: V3?
         // O8: from the trackers' side when they ride in (a spread of +-35 degrees round it).
         let base = toward.map { atan2f($0.x - pp.x, $0.y - pp.z) }
+        // (Level with him or with the ground under him: a man up on a horse's back, a roof or a jump is still in reach,
+        // as for a town's posse, Riders.sendPosse.)
+        let feet = Float(w.topY(Int(floor(pp.x)), Int(floor(pp.z))) + 1)
         for k in 0..<(n * 16) where placed < n {
             let x: Int, z: Int
             if let f = from {
@@ -207,23 +212,26 @@ enum BountyHunters {
                 let a = base.map { $0 + Rand.float(in: -0.6...0.6) } ?? Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 30...42)
                 x = Int(floor(pp.x + sinf(a) * r)); z = Int(floor(pp.z + cosf(a) * r))
             }
-            guard w.isLoaded(x, z) else { continue }
+            guard w.isLoaded(x, z) else { tries[0] += 1; continue }
             let top = w.topY(x, z), y = top + 1
             let ground = w.block(x, top, z)
+            guard w.lightAt(x, y, z).sky >= 12, abs(Float(y) - pp.y) < 12 || abs(Float(y) - feet) < 12 else { tries[2] += 1; continue }
             // Open ground on the surface, on his level: not water, not a tree's crown, not a cave or under a roof, not a
             // cliff top over a ravine he's in.
             guard Blocks.collide[Int(ground)], !Blocks.isLiquid(ground), !Blocks.isLiquid(w.builtBlock(x, y, z)),
-                  !Blocks.key(Blocks.groupBase[Int(ground)]).hasSuffix("_leaves"),
-                  w.lightAt(x, y, z).sky >= 12, abs(Float(y) - pp.y) < 12 else { continue }
+                  !Blocks.key(Blocks.groupBase[Int(ground)]).hasSuffix("_leaves") else { tries[1] += 1; continue }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             // Out of the player's sight if we can (the first few tries), so they ride in.
-            if from == nil && k < 24 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { continue }
+            if from == nil && k < 24 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { tries[3] += 1; continue }
             let m = makeHunter(g, index: placed, at: w.freeSpawn(at))
-            if m.collides(m.pos, w) { continue }
+            if m.collides(m.pos, w) { tries[4] += 1; continue }
             if placed == 0 { from = at }
             g.mobs.mobs.append(m)
             placed += 1
         }
+        // (P499: a party riding in over ground with no open spot on its side, sea or a forest's crowns, never arrived: it
+        // waited 44 blocks off, trying the same side each second. They come round to any side with open ground.)
+        if placed == 0 && toward != nil { return send(g, toward: nil) }
         if placed > 0 {
             sent += 1
             shouted = false

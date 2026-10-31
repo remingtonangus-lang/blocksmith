@@ -190,7 +190,7 @@ enum Recipes {
         r.append(shaped(["##", "##"], ["#": "popped_chorus_fruit"], "purpur_block", 4))
         r.append(shaped(["#", "#"], ["#": "purpur_slab"], "purpur_pillar", 1))
         r.append(shaped(["B", "P"], ["B": "blaze_powder", "P": "popped_chorus_fruit"], "end_rod", 4))
-        r.append(shapeless(["ender_pearl", "blaze_powder"], "ender_eye", 1))
+        r.append(shapeless(["amethyst_shard", "blaze_powder"], "ender_eye", 1))   // P499: no void pearls
         r.append(shaped(["###"], ["#": "sugar_cane"], "paper", 3))
         r.append(shapeless(["sugar_cane"], "sugar", 1))
         r.append(shapeless(["paper", "paper", "paper", "leather"], "book", 1))
@@ -324,7 +324,7 @@ enum Recipes {
         r.append(shaped(["##", "##"], ["#": "popped_chorus_fruit"], "purpur_block", 4))
         r.append(shaped(["#", "#"], ["#": "purpur_slab"], "purpur_pillar", 1))
         r.append(shaped(["B", "P"], ["B": "blaze_powder", "P": "popped_chorus_fruit"], "end_rod", 4))
-        r.append(shapeless(["ender_pearl", "blaze_powder"], "ender_eye"))
+        r.append(shapeless(["amethyst_shard", "blaze_powder"], "ender_eye"))
         r.append(shaped([" # ", "#R#", " # "], ["#": "iron_ingot", "R": "redstone"], "compass"))
         r.append(shaped([" # ", "#R#", " # "], ["#": "gold_ingot", "R": "redstone"], "clock"))
         r.append(shapeless(["bowl", "beetroot", "beetroot", "beetroot", "beetroot", "beetroot", "beetroot"], "beetroot_soup"))

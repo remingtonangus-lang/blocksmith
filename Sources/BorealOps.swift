@@ -415,7 +415,7 @@ extension Game {
         var got: [ItemStack] = []
         func give(_ k: String, _ n: Int) { if Items.has(k) { got.append(ItemStack(Items.id(k), n)) } }
         if silent { give("gun_sniper", 1); give("heavy_rounds", 24) } else { give("rifle_rounds", 90) }
-        give("golden_apple", silent ? 2 : 1)
+        give("field_stim", silent ? 2 : 1)
         for s in got { let rest = inventory.add(s); if !rest.isEmpty { dropItem(rest, thrown: false) } }
         money += silent ? 25000 : 10000
         sfx(.levelUp, 1)

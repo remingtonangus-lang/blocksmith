@@ -21,6 +21,7 @@ final class SoldierBrain {
     var react: Float = 1
     var aimTime: Float = 0
     var glinted = false            // an Ashguard sharpshooter has shown its scope's glint on this target (G5)
+    var laserEnd: V3?              // where the marksman's aiming laser ends: its target, or the first block in the way
     var strafeTimer: Float = 0
     var strafeDir: Float = 1
     var lastSeen: V3?
@@ -223,6 +224,7 @@ enum Soldier {
         case Guns.sturmwind: return (8, 18)
         case Guns.hagel: return (5, 14)
         case Guns.shotgun: return (2.5, 6)
+        case Guns.autoShotgun: return (3, 9)
         case Guns.launcher: return (10, 26)
         case Guns.faust: return (10, 30)
         case Guns.arc: return (6, 18)
@@ -611,7 +613,7 @@ extension Mob {
                 if b.strafeTimer <= 0 { b.strafeTimer = Rand.float(in: 0.8...2.2); b.strafeDir = Rand.float(in: 0..<1) < 0.5 ? -1 : 1 }
                 strafe = b.strafeDir * spec.speed * 0.75 * rank.strafe
             }
-            if b.gun == Guns.shotgun && dist > near { speed = spec.speed * 1.25 }   // shotgunners rush in
+            if (b.gun == Guns.shotgun || b.gun == Guns.autoShotgun) && dist > near { speed = spec.speed * 1.25 }   // shotgunners rush in
             if r == 3 && health < spec.health / 2 { speed = max(speed, spec.speed * 0.6) }
             // Rifle troopers swing round the target's side every few seconds (Spec Ops flank wider and quietly, below).
             let tc = troopClass
@@ -779,6 +781,11 @@ extension Mob {
         var glintDone = false
         if b.gun == Guns.sniper || (kind == .soldierMarksman && !b.glinted && faction == Faction.ashguard.rawValue) {
             b.aimTime += dt
+            // P499 (Oct 30 20:02, "their laser goes through blocks, which shouldn't happen"): the laser runs to the
+            // target it is held on (not always the player) and stops on the first block in the way.
+            let from = SoldierRig.muzzleWorld(self), to = target - from
+            let len = simd_length(to)
+            b.laserEnd = len > 0.01 ? from + to / len * (Armory.blockHit(g.world, from, to / len, len)?.0 ?? len) : target
             if b.aimTime < 1.1 { return }
             b.aimTime = 0
             glintDone = true
@@ -838,7 +845,8 @@ extension Mob {
         b.recoil = 1
         // The Ashsaw fires in long ripping bursts (with a long pause between them: the moment to move).
         if b.burst <= 0 {
-            b.burst = b.gun == Guns.rotary ? Rand.int(in: 24...40) : (b.gun == Guns.ashsaw ? Rand.int(in: 7...11) : (troop == 3 ? Rand.int(in: 6...10) : Rand.int(in: rank.burst)))
+            let bursts: ClosedRange<Int> = b.gun == Guns.rotary ? 24...40 : (b.gun == Guns.autoShotgun ? 3...5 : (b.gun == Guns.ashsaw ? 7...11 : (troop == 3 ? 6...10 : rank.burst)))
+            b.burst = Rand.int(in: bursts)
         }
         b.burst -= 1
         if b.burst <= 0 {
@@ -1045,6 +1053,7 @@ extension Mob {
                     if airShot {
                         var s = AirDefence.shell(self, at: muzzle, dir: fwd, speed: v, fuse: fuse - simd_length(muzzle - pivot) / v, ranging: ranging)
                         if !light { s.power = HeavyTurret.power }
+                        if !light && !flak { AirDefence.mainBattery(&s) }
                         g.arms.spawn(s)
                     } else {
                         var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.006) * v, kind: .shell, damage: 0, fromPlayer: false,
@@ -1235,7 +1244,7 @@ extension Game {
                 Armory.streak(&wr, eye, from - V3(0, 0.25, 0), from + V3(0, 0.25, 0), 0.04 + 0.04 * k, V4(3.2, 3.0, 2.4, 0.9))
                 continue
             }
-            Armory.streak(&wr, eye, from, player.eye - V3(0, 0.3, 0), 0.012 + 0.012 * k, V4(2.6, 0.15, 0.1, 0.5 + 0.5 * k))
+            Armory.streak(&wr, eye, from, b.laserEnd ?? player.eye - V3(0, 0.3, 0), 0.012 + 0.012 * k, V4(2.6, 0.15, 0.1, 0.5 + 0.5 * k))
         }
     }
 }

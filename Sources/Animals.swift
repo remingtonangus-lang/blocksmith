@@ -541,6 +541,17 @@ func horseBob(_ m: Mob) -> Float {
     return ((1 - gal) * pair * 0.3 * amt + gal * roll * 1.1)
 }
 
+// P499 (Oct 30 19:57-19:58, riding: "the horse isn't galloping proportionally to the sound it makes... it needs to
+// physically lunge... to the same rhythm of its footsteps"): the saddle's swell alone lifted the rider 7 cm. At the
+// canter and gallop the rider now rises and settles with each stride, up to 0.2 blocks over the saddle's swell, on the
+// stride the hoof beats fall on (walkPhase, Mob.hoofBeats). (A surge in speed over the stride was tried: at +/-12 % it
+// lurched the view at up to 44 blocks/s^2, over three times the ride's comfort limit of 12.5: HorseTests "no lurch".)
+func horseLunge(_ m: Mob) -> Float {
+    let hs = simd_length(V2(m.vel.x, m.vel.z))
+    let gal = max(0, min(1, (hs - 4.5) / 3.5)) * m.walkAmount
+    return gal * (0.5 + 0.5 * sinf(m.walkPhase - 0.6)) * 0.2
+}
+
 func horseParts(_ m: Mob) -> [Part] {
     let small = m.kind == .donkey || m.kind == .mule
     let c: V3

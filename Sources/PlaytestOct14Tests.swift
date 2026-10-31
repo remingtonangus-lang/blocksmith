@@ -164,19 +164,32 @@ enum PlaytestOct14Tests {
         w.setBlock(p.x, p.y, p.z, crate); w.blockEntities[p] = nil
         let opens = g.isInteractive(p)
         g.openBlock(p)
-        let title = g.menu?.title ?? "none", inside = blocks(g.crateEntity(p).container)
+        func items(_ c: ItemContainer) -> Int { c.slots.filter { !$0.isEmpty }.reduce(0) { $0 + $1.count } }
+        let title = g.menu?.title ?? "none", inside = items(g.crateEntity(p).container)
         g.closeMenu()
         g.openBlock(p)
-        let again = blocks(g.crateEntity(p).container)
+        let again = items(g.crateEntity(p).container)
         g.closeMenu()
         g.drops.items.removeAll()
         g.survival = true
         g.breakBlock(p, crate, drop: true)
-        let spilled = g.drops.items.filter { building.contains(Items.key($0.stack.item)) }.reduce(0) { $0 + $1.stack.count }
+        let spilled = g.drops.items.filter { Items.key($0.stack.item) != BaseMaterials.crate }.reduce(0) { $0 + $1.stack.count }
         let crateDrop = g.drops.items.contains { Items.key($0.stack.item) == BaseMaterials.crate }
-        check(opens && title == "Supply Crate" && inside >= 250 && again == inside && spilled == inside && !crateDrop
+        check(opens && title == "Supply Crate" && again == inside && spilled == inside && !crateDrop
               && Blocks.def(crate).display == "Supply Crate",
-              "P254: a base's Supply Crate opens with \(inside) building blocks (\(title)), keeps them, and broken spills \(spilled) with no crate to place again")
+              "P254: a base's Supply Crate opens with \(inside) items (\(title)), keeps them, and broken spills \(spilled) with no crate to place again")
+        // P499: a crate holds a stack or two at most, about half none (each held 6-9 full stacks of building blocks).
+        var empty = 0, most = 0, stacks = 0
+        for k in 0..<200 {
+            let q = IVec3(p.x + 1000 + k * 7, p.y, p.z - 3000)
+            let c = g.crateEntity(q).container
+            let n = c.slots.filter { !$0.isEmpty }.count
+            if n == 0 { empty += 1 }
+            most = max(most, n); stacks += n
+            w.blockEntities[q] = nil
+        }
+        check(empty >= 60 && empty <= 150 && most <= 2,
+              "P499: supply crates are sparse: \(empty) of 200 empty, at most \(most) stacks in one (\(stacks) stacks in all)")
     }
 
     // P255: small Greywall outposts: (a) an extra variant, never instead of a big base; (b) a little bigger; (c) no glare
@@ -248,6 +261,73 @@ enum PlaytestOct14Tests {
         // (P485: a one-wide stair where the mess room's door is beside its foot: 4 steps, was always 8.)
         check(t.floors == 2 && upper * 10 >= inner * 8 && stairs >= 4 && chestsUp >= 1,
               "P255 (e): the outpost's keep has a second floor (\(upper) of \(inner) cells floored, \(stairs) stair blocks up, \(chestsUp) chest upstairs)")
+        // P499 (Oct 30 15:06, "where are the bases with the second floors?"): a garrison on new ground has one too; one on
+        // ground saved before keeps its single floor.
+        func keep(_ up: Bool) -> (stairs: Int, roofed: Int, chests: Int, men: Int) {
+            let gt = Greywall.Tier.garrison
+            var st = 0, roofed = 0, ch = 0, men = 0
+            for cz in -3...2 { for cx in -3...2 {
+                var buf = [BlockID](repeating: AIR, count: CS * CS * CH)
+                buf.withUnsafeMutableBufferPointer { b in
+                    var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: b.baseAddress!)
+                    Greywall.build(&w, 0, S, 0, gt, 777, upper: up)
+                    ch += w.entities.filter { $0.0.y == S + 6 && $0.1.kind == .chest }.count
+                    men += w.mobs.filter { $0.0.hasPrefix("soldier") && Int(floor($0.1.y)) == S + 6 }.count
+                }
+                for lz in 0..<CS { for lx in 0..<CS {
+                    let x = cx * CS + lx, z = cz * CS + lz
+                    guard abs(x) < gt.keepX, z > gt.keepC - gt.keepZ, z < gt.keepC + gt.keepZ else { continue }
+                    for y in (S + 1)...(S + 4) where Blocks.groupBase[Int(buf[Chunk.index(lx, y, lz)])] == stairID { st += 1 }
+                    if buf[Chunk.index(lx, S + 7, lz)] == AIR && buf[Chunk.index(lx, S + 10, lz)] != AIR { roofed += 1 }
+                } }
+            } }
+            return (st, roofed, ch, men)
+        }
+        let newK = keep(true), oldK = keep(false)
+        let gInner = (Greywall.Tier.garrison.keepX * 2 - 1) * (Greywall.Tier.garrison.keepZ * 2 - 1)
+        check(newK.stairs >= 4 && newK.roofed * 10 >= gInner * 6 && newK.chests >= 1 && newK.men >= 1 && oldK.stairs == 0 && oldK.roofed == 0,
+              "P499 garrison: a new garrison's keep has an upper floor (\(newK.stairs) stair blocks, \(newK.roofed) of \(gInner) cells roofed over a second storey, \(newK.chests) chest and \(newK.men) soldier upstairs); an old one keeps one floor (\(oldK.stairs) stairs, \(oldK.roofed) cells)")
+        // P499 (15:13, "instead of golden apples... some sort of medication... that only exists at bases"): a Field Stim is
+        // used like a drink, gives a golden apple's regeneration and absorption, and is spent; nothing crafts one.
+        let surv0 = g.survival, held0 = g.inventory.held
+        g.survival = true
+        g.inventory.held = ItemStack(Items.id("field_stim"), 2)
+        let stim = g.inventory.held
+        g.foodEffects("field_stim"); g.finishDrink(stim)
+        let left = g.inventory.held.item == Items.id("field_stim") ? g.inventory.held.count : 0
+        let buffed = g.effects.has(.absorption) && g.effects.has(.regeneration)
+        let crafted = Recipes.all.contains { Items.key($0.result.item).hasSuffix("_stim") }
+        g.foodEffects("milk_bucket")                    // (clears the effects and the absorption again)
+        g.survival = surv0; g.inventory.held = held0
+        check(Items.def(Items.id("field_stim")).drink && buffed && left == 1 && !crafted,
+              "P499 stims: a Field Stim heals like a golden apple (absorption and regeneration \(buffed)), one is spent (\(left) left), none crafted (\(!crafted))")
+        // P499 (15:14, "an assault shotgun... one of the top level troops guns... rapid fire shotguns, shotgun shells").
+        let asg = Guns.all[Guns.autoShotgun]
+        let carried = TroopClass.pickGun(.hannibal, .soldierTrooper, roll: 0.9) == Guns.autoShotgun
+        check(asg.key == "gun_autoshotgun" && asg.auto && asg.pellets > 1 && asg.ammo == "shotgun_shells" && carried && Items.has(asg.key)
+              && CapitalArms.models[Guns.autoShotgun].parts.count > 12 && Guns.rotary == Guns.faust + 1 && Guns.all[Guns.rotary].key == "gun_rotary",
+              "P499 assault shotgun: the \(asg.name) fires \(asg.pellets) pellets automatically from shotgun shells, a Hannibal trooper carries it (\(carried)); the Faustrohr and Mahlwerk keep their indices")
+        // P499 (20:31, 64 TNT: "it took too long for the damage to show up"): a face blasted all round keeps at most 25
+        // grid lines each way; a lone bullet hole keeps every ring.
+        var blasted: [(Int, Int, Int, Bite)] = []
+        for x in 4...6 { for y in 4...6 { for z in 4...6 { for i in 0..<8 {
+            let a = Float(i) * 0.785 + Float(x * 3 + y * 5 + z * 7)
+            blasted.append((x, y, z, Bite(c: SIMD3<Float>(0.5 + 0.4 * cosf(a), 0.5 + 0.4 * sinf(a), Float(i) / 8), n: simd_normalize(SIMD3<Float>(cosf(a), 0.5, sinf(a))),
+                                          r: 0.25 + 0.03 * Float(i), d: 0.2, seed: UInt32(i * 977 + x * 31 + y * 17 + z))))
+        } } } }
+        let face: [SIMD3<Float>] = [SIMD3(5, 7, 5), SIMD3(6, 7, 5), SIMD3(6, 7, 6), SIMD3(5, 7, 6)]
+        let wall = CraterSet(blasted, sy: 0, wo: .zero) { x, y, z in x + y * 48 + z * 2304 }.ticks(face, base: 6)
+        let hole = CraterSet([(5, 6, 5, Bite(c: SIMD3<Float>(0.5, 1, 0.5), n: SIMD3<Float>(0, 1, 0), r: 0.08, d: 0.06, seed: 7))], sy: 0, wo: .zero) { x, y, z in x + y * 48 + z * 2304 }.ticks(face, base: 6)
+        check(wall.s.count <= 25 && wall.t.count <= 25 && hole.s.count > 12,
+              "P499 crater grid: a face blasted all round \(wall.s.count) x \(wall.t.count) lines (at most 25), a lone bullet hole \(hole.s.count) (every ring)")
+        // P499 (15:14, "we shouldn't have void pearls. No reason for those to exist").
+        let pearl = Items.id("ender_pearl")
+        func uses(_ r: Recipe, _ k: String) -> Bool { r.shapeless.contains(k) || r.cells.contains(k) }
+        let crafts = Recipes.all.filter { uses($0, "ender_pearl") }.map { Items.key($0.result.item) }
+        let dropped = MobKind.allCases.filter { k in k.spec.drops.contains { $0.0 == "ender_pearl" } }.map { "\($0)" }
+        let eye = Recipes.all.contains { Items.key($0.result.item) == "ender_eye" && uses($0, "amethyst_shard") }
+        check(!CreativeMenu.every.contains(pearl) && crafts.isEmpty && dropped.isEmpty && eye && !Director.rareGoods.contains("ender_pearl"),
+              "P499 void pearls: out of the palette; recipes using one \(crafts), mobs dropping one \(dropped); a Seeker Eye from amethyst (\(eye))")
     }
 
 

@@ -271,17 +271,19 @@ enum TreeShapes {
             for (k, r) in [3, 3, 2, 2].enumerated() { d.disk(2 + k, 0, 0, r) }
         },
     ]
-    // Mangroves: a trunk lifted on prop roots that arch down into the mud.
+    // Mangroves. P499 (Oct 30 19:58 in a mangrove swamp: "all these trees have got to go... looks like a bunch of spider
+    // trees... just get rid of the roots, make them look like normal trees"): a straight trunk from the mud (through
+    // the water) under a round crown, a few roots gathered at its foot under the water; no arching prop roots.
     static let mangroves: [TreeShape] = [
-        make("mangrove", 91, bole: 2) { d in
-            d.trunk(6, from: 2)
-            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1)] { d.propRoot(2, dx, dz, 2) }
+        make("mangrove", 91, bole: 3) { d in
+            d.trunk(8)
+            d.tips.append(IVec3(0, 0, 0))
             d.crown(0, 8, 0, 3.0, 2.0)
         },
-        make("mangrove, tall roots", 92, bole: 3) { d in
-            d.trunk(5, from: 3)
-            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1), (-1, 1), (1, -1)] { d.propRoot(3, dx, dz, 3) }
-            d.crown(0, 8, 0, 2.6, 1.8)
+        make("mangrove, tall", 92, bole: 3) { d in
+            d.trunk(9)
+            d.tips.append(IVec3(0, 0, 0))
+            d.crown(0, 9, 0, 2.6, 1.8)
         },
     ]
     // Cherries: a short trunk splitting into arching limbs under wide pink crowns.
@@ -423,7 +425,12 @@ enum TreeShapes {
             let ly = p.y >= s.bole ? p.y + grow : p.y
             return IVec3(x + (u + c) / 2, y + ly, z + (v + c) / 2)
         }
-        for p in s.logs { let q = at(p); w.log(q.x, q.y, q.z, log) }
+        // (a mangrove's trunk stands in the swamp's water: through it, as its roots are)
+        let wading = s.name.hasPrefix("mangrove")
+        for p in s.logs {
+            let q = at(p)
+            if wading && w.inside(q.x, q.y, q.z) && Blocks.isLiquid(w.get(q.x, q.y, q.z)) { w.force(q.x, q.y, q.z, log) } else { w.log(q.x, q.y, q.z, log) }
+        }
         // (the lengthened bole: each trunk column carried on through the added blocks)
         if grow > 0 {
             for p in s.logs where p.y == s.bole - 1 && s.logs.contains(IVec3(p.x, s.bole, p.z)) {

@@ -9,7 +9,7 @@ import Foundation
 // save like the other structure guards), so no house is finished half as an office across a chunk border.
 extension Village {
     // Called by layout once the lots are placed (no random numbers drawn, so a town's streets and lots stay the same).
-    static func frontierLots(_ lots: inout [Lot], ox: Int, oz: Int, bank: Bool = true, r20: Bool = false) {
+    static func frontierLots(_ lots: inout [Lot], ox: Int, oz: Int, bank: Bool = true, r20: Bool = false, shopsGive: Bool = false) {
         for i in lots.indices { lots[i].frontier = true }
         func d2(_ l: Lot) -> Int {
             let (x0, z0, x1, z1) = bounds(l)
@@ -18,9 +18,12 @@ extension Village {
         }
         // A medium house if the town has one, else a big one, else a small one (never a shop, farm or job hut).
         // (R20: the stone jail wants room for two proper cells, so a big house first.)
-        let rank: [Kind: Int] = r20 || lots.contains(where: { $0.p354 }) ? [.bigHouse: 0, .mediumHouse: 1, .smallHouse: 2] : [.mediumHouse: 0, .bigHouse: 1, .smallHouse: 2]
-        guard let i = lots.indices.filter({ rank[lots[$0].kind] != nil })
-                .min(by: { (rank[lots[$0].kind]!, d2(lots[$0])) < (rank[lots[$1].kind]!, d2(lots[$1])) }) else { return }
+        // (P499: on new ground a town whose every lot went to a shop, Dry Falls on the host seed with six, gives up the
+        // shop farthest from the square, so it still has its sheriff and, below, its bank.)
+        let houses: [Kind: Int] = r20 || lots.contains(where: { $0.p354 }) ? [.bigHouse: 0, .mediumHouse: 1, .smallHouse: 2] : [.mediumHouse: 0, .bigHouse: 1, .smallHouse: 2]
+        let rank = shopsGive ? houses.merging([.shop: 9]) { a, _ in a } : houses
+        func key(_ i: Int) -> (Int, Int) { (rank[lots[i].kind]!, lots[i].kind == .shop ? -d2(lots[i]) : d2(lots[i])) }
+        guard let i = lots.indices.filter({ rank[lots[$0].kind] != nil }).min(by: { key($0) < key($1) }) else { return }
         let l = lots[i]
         var office = Lot(kind: .office, ax: l.ax, az: l.az, face: l.face, w: l.w, d: l.d, y: l.y, seed: l.seed, job: "sheriff")
         office.frontier = true
@@ -31,8 +34,9 @@ extension Village {
         guard bank else { return }
         // (a town whose only house became the office gives up a job hut: every frontier town has its bank).
         let bankRank = rank.merging([.jobHut: 3]) { a, _ in a }
+        func bankKey(_ i: Int) -> (Int, Int) { (bankRank[lots[i].kind]!, lots[i].kind == .shop ? -d2(lots[i]) : d2(lots[i])) }
         guard let j = lots.indices.filter({ bankRank[lots[$0].kind] != nil && lots[$0].w >= 5 && $0 != i })
-                .min(by: { (bankRank[lots[$0].kind]!, d2(lots[$0])) < (bankRank[lots[$1].kind]!, d2(lots[$1])) }) else { return }
+                .min(by: { bankKey($0) < bankKey($1) }) else { return }
         let h = lots[j]
         var bankLot = Lot(kind: .bank, ax: h.ax, az: h.az, face: h.face, w: h.w, d: h.d, y: h.y, seed: h.seed, job: "banker")
         bankLot.frontier = true

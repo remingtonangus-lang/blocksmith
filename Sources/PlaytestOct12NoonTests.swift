@@ -23,7 +23,7 @@ enum PlaytestOct12NoonTests {
                     guard let m = Mob.structureMob("\(k)@grey\(Greywall.leashTag(Int(q.x), Int(q.z), t))", at: q) else { bad.append("\(k): none"); continue }
                     let gs = Guns.all[m.soldierBrain.gun]
                     seen.insert(gs.key)
-                    if !Guns.isGreyArm(m.soldierBrain.gun) || gs.ammo == "capital_rounds" { bad.append("\(k): \(gs.key)") }
+                    if !GreywallArms.allowed(m.soldierBrain.gun) || gs.ammo == "capital_rounds" { bad.append("\(k): \(gs.key)") }
                 }
             }
         }
@@ -44,8 +44,12 @@ enum PlaytestOct12NoonTests {
         let capBack = Mob.from(cap.record)
         let chests = Greywall.loot.values.flatMap { $0.entries.map { $0.0 } }
         let capitalInChests = chests.filter { ["capital_rounds", "gun_rifle", "gun_smg", "gun_sidearm", "gun_shotgun"].contains($0) }
-        let models = (Guns.slatefall...Guns.repeater).allSatisfy { !Guns.models[$0].isEmpty && TextureGen.painters()["item_" + Guns.all[$0].key] != nil }
-        check(bad.isEmpty && seen.count >= 4 && dropped.contains("greywall_rounds") && back.map { Guns.isGreyArm($0.variant) } == true
+        // (Retired guns, the Breaker and the rest, have no model of their own: a saved one loads as its successor.)
+        let models = (Guns.slatefall...Guns.repeater).filter { !Guns.isRetired($0) }.allSatisfy { !Guns.models[$0].isEmpty && TextureGen.painters()["item_" + Guns.all[$0].key] != nil }
+        // A kill drops the rounds of the gun he carried (a Greywall pistolman's revolver takes rifle rounds since the
+        // Breaker was retired), never the Capital's.
+        let own = Items.def(Items.id(Guns.all[m.soldierBrain.gun].ammo)).name
+        check(bad.isEmpty && seen.count >= 4 && dropped.contains(own) && !dropped.contains("capital_rounds") && back.map { GreywallArms.allowed($0.variant) } == true
               && capBack?.variant == Guns.rifle && capitalInChests.isEmpty && models,
               "P104 Greywall arms: 72 Greywall soldiers carry \(seen.sorted().joined(separator: ", ")) \(bad.isEmpty ? "" : "(wrong: \(bad.prefix(3)))"); "
               + "a kill drops \(dropped); saved with a Capital rifle it loads with \(back.map { Guns.all[$0.variant].key } ?? "nothing") "

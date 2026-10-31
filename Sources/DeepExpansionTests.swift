@@ -145,14 +145,20 @@ enum DeepExpansionTests {
         let p = ItemStack(Items.id(DeepSeal.pickaxe), 1).def
         check(p.tool == .pickaxe && p.tier == 5 && p.durability > 2031 && Items.def(Items.id("sunder_charge")).maxStack == 16,
               "deep ore: the Sunderite Pickaxe outranks Duskium (tier \(p.tier), \(p.durability) uses)")
-        // Never in open rock: 40 chunks far from any keep hold none.
+        // Never in open rock: 40 chunks far from any keep hold none, except P323's short seams in the hell band's floor
+        // just above the Sealrock (about one chunk in five).
         let g = DeepGen(seed: 777)
-        var natural = 0
+        var natural = 0, seams = 0
         for i in 0..<40 {
             let b = g.generate(cx: i * 37 - 700, cz: (i % 7) * 53 - 180)
-            for v in b where v == ore { natural += 1 }
+            var seam = false
+            for (j, v) in b.enumerated() where v == ore {
+                let y = j / CSQ
+                if y >= DeepGen.hellBase && y <= DeepGen.hellBase + 5 { seam = true } else { natural += 1 }
+            }
+            if seam { seams += 1 }
         }
-        check(natural == 0, "deep ore: no Sunderite in ordinary Deep rock (\(natural) in 40 chunks)")
+        check(natural == 0 && seams >= 2 && seams <= 16, "deep ore: no Sunderite in ordinary Deep rock (\(natural) in 40 chunks), only P323's floor seams (\(seams) chunks)")
         var missing: [String] = []
         for t in ["brimstone_keep", "brimstone_strongroom"] {
             guard let e = Loot.tables[t] else { missing.append(t); continue }
@@ -250,7 +256,7 @@ enum DeepExpansionTests {
         _ = g.world.loadSync(center: home, radius: 4)
     }
 
-    // A long drop into a hell-band hall (digging down from the surface through the thin crust) floats you down; a
+    // A long drop into a hell-band hall (digging down from the surface through the thin crust) is survivable; a
     // 12-block fall still hurts.
     static func hellDrop(_ g: Game, _ check: (Bool, String) -> Void) {
         let home = g.player.pos, homeDim = g.dim.dim, wasSurvival = g.survival
@@ -278,7 +284,8 @@ enum DeepExpansionTests {
             return 20 - g.health
         }
         let longHurt = drop(70, at: x), shortHurt = drop(12, at: x + 8)
-        check(longHurt == 0 && shortHurt > 0, "deep hell: a 70-block drop into a hall floats down unhurt (\(longHurt) damage), a 12-block fall still hurts (\(shortHurt))")
+        // P291 (d): no slow drift down any more; a landing in hell's halls takes a tenth of the fall damage.
+        check(longHurt > 0 && longHurt <= 5 && shortHurt > 0, "deep hell: a 70-block drop into a hall takes a tenth of its fall damage (\(longHurt), not 40), a 12-block fall still hurts (\(shortHurt))")
         g.effects.clear()
         g.survival = wasSurvival
         if homeDim != g.dim.dim { g.changeDimension(to: homeDim, at: home) }
@@ -315,8 +322,9 @@ enum DeepExpansionTests {
                 } } }
             } }
             let monsters = mobs.filter { $0.hasSuffix("@deep") }.count, ash = mobs.filter { $0.contains("@ash") }.count
-            // (the ring fort is the leanest of the three layouts in ember brick)
-            check(b[brick, default: 0] > 1500 && strongOre >= BrimstoneKeep.oreMin && chests >= 3 && monsters >= 12 && ash >= 6,
+            // (the ring fort is the leanest of the three layouts in ember brick; P292: the garrison is all hell's own, the
+            // Ashguard live below the seal, so any counted here are the vault's under the keep's chunks)
+            check(b[brick, default: 0] > 1500 && strongOre >= BrimstoneKeep.oreMin && chests >= 3 && monsters >= 12,
                   "deep keeps \(seed): keep \(dist) blocks from the origin: \(b[brick, default: 0]) ember brick, \(strongOre) Sunderite Ore in the strongroom, \(chests) chests, garrison \(monsters) monsters + \(ash) Ashguard")
             // Walk in from the hell band around it: from open ground 70-90 blocks out (a ring of 48 columns, the first
             // standing cell going down from over the keep's floor), on foot with jumps and ladders, into the strongroom.

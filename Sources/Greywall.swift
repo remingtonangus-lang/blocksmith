@@ -38,6 +38,10 @@ enum Greywall {
         var keepZ: Int { [7, 6, 8, 10][rawValue] }
         var keepC: Int { [-2, -3, -2, -3][rawValue] }            // keep centre (dz)
         var floors: Int { rawValue == 1 ? 1 : 2 }                // (P255: the outpost's keep has an upper floor)
+        // P499 (Oct 30 15:06, "where are the bases with the second floors? I haven't seen any of them"): the garrison,
+        // the commonest base, was the one tier whose keep had a single floor; on ground no save had before P499 its keep
+        // has the outpost's upper floor too (a watch room, the stair at the corridor's west end).
+        func floors(upper: Bool) -> Int { upper ? 2 : floors }
         var towers: [(Int, Int)] {                               // corner signs (sx, sz)
             switch self {
             case .outpost: return [(1, -1)]
@@ -94,7 +98,7 @@ enum Greywall {
     static func tower(_ t: Tier, _ sx: Int, _ sz: Int) -> (x: Int, z: Int) { (sx * (t.half - 2), sz * (t.half - 2)) }
 
     // Where the garrison stands (mob key, dx, row above S, dz), in the order troops are posted: the first t.troops.
-    static func posts(_ t: Tier) -> [(String, Int, Int, Int)] {
+    static func posts(_ t: Tier, upper: Bool = false) -> [(String, Int, Int, Int)] {
         let H = t.half, W = t.wallH, kx = t.keepX, kz = t.keepZ, kc = t.keepC
         var p: [(String, Int, Int, Int)] = []
         let rs = rooms(t)
@@ -104,7 +108,8 @@ enum Greywall {
         p.append(("soldier_recruit", -2, 1, H - 4)); p.append(("soldier_recruit", 2, 1, H - 4))
         p.append(("soldier_trooper", 3, 1, kc + kz + 2))
         if let c = room("comms") { let m = mid(c); p.append(("soldier_officer", m.0, 1, m.1)) }
-        p.append(("soldier_trooper", t.floors > 1 && t.keepX < 10 ? 3 : -3, 1, kc))      // (P255: off the outpost's stair)
+        p.append(("soldier_trooper", t.floors(upper: upper) > 1 && t.keepX < 10 ? 3 : -3, 1, kc))      // (P255: off the outpost's stair)
+        if upper && t == .garrison { p.append(("soldier_trooper", 2, 6, kc - kz + 3)) }               // (P499: the watch room)
         // P199 (Oct 13: "a guy spawned inside the gun"): the tower lookout stands inside the tower, not on the roof the
         // deck gun takes up.
         if let tw = t.towers.first { let c = tower(t, tw.0, tw.1); p.append(("soldier_marksman", c.x - tw.0, W + 1, c.z - tw.1)) }
@@ -223,6 +228,7 @@ enum Greywall {
             let e = t.half + margin
             let bank = WorldRules.p69(gen, cx, cz, reach: 4)          // P91 banks, on ground first generated with them
             let p471 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: e / CS + 1, guardSet: $0.legacyP471) } ?? true   // (gun rooms)
+            let upper = t == .garrison && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: e / CS + 1, guardSet: $0.legacyP499) } ?? true)
             // T6: a shore base (sea within 40 blocks beyond a wall) mounts coastal guns on its sea walls.
             var shore: [Int] = []
             if t.rawValue >= 1 {
@@ -238,7 +244,7 @@ enum Greywall {
                 }
             }
             let piece = Piece(min: IVec3(x - e, S - 12, z - e), max: IVec3(x + e, S + t.wallH + 16, z + e),
-                              build: { w in Greywall.build(&w, x, S, z, t, seed, bank: bank, shore: shore, p471: p471) })
+                              build: { w in Greywall.build(&w, x, S, z, t, seed, bank: bank, shore: shore, p471: p471, upper: upper) })
             let start = StructureStart(kind: kind, pieces: [piece], anchor: IVec3(x, S + 1, z + t.half + 3))
             // P476/P483 ("I can't see the base if it's been turned into a compression... Include the base in its
             // compression"): the curtain wall, the corner towers and the keep for the far land (LandmarkRender).
@@ -261,8 +267,11 @@ enum Greywall {
 
     // MARK: Build
 
-    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ t: Tier, _ seed: UInt64, bank: Bool = false, shore: [Int] = [], p471: Bool = false) {
+    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ t: Tier, _ seed: UInt64, bank: Bool = false, shore: [Int] = [], p471: Bool = false,
+                      upper: Bool = false) {
         // (`bank`: ground first generated with the Oct 12 rules: the earth bank, P91, and Greywall's own equipment, P68)
+        // (`upper`: a garrison's keep with an upper floor, P499)
+        let floors = t.floors(upper: upper)
         var rng = SRng(seed)
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let con = g("bunker_concrete"), dark = g("bunker_concrete_dark", con), tile = g("bunker_floor", con)
@@ -409,7 +418,7 @@ enum Greywall {
         }
 
         // MARK: Keep
-        let floorsH = 5 * t.floors
+        let floorsH = 5 * floors
         let kz0 = kc - kz, kz1 = kc + kz
         columns(-kx, kx, kz0, kz1) { dx, dz in
             let x = cx + dx, z = cz + dz
@@ -423,7 +432,7 @@ enum Greywall {
                 } else if y % 5 == 0 {
                     // Ceiling / upper floor: light panels on a 3-grid.
                     let lit = (dx % 3 + 3) % 3 == 0 && ((dz - kc) % 3 + 3) % 3 == 1
-                    w.set(x, S + y, z, lit ? panel : (y == 5 && t.floors > 1 ? tile : con))
+                    w.set(x, S + y, z, lit ? panel : (y == 5 && floors > 1 ? tile : con))
                 } else {
                     w.set(x, S + y, z, AIR)
                 }
@@ -513,7 +522,7 @@ enum Greywall {
         }
 
         // MARK: Upper floor (fortress and up, and the outpost: P255): up a stair at the corridor's west end
-        if t.floors > 1 {
+        if floors > 1 {
             // (The outpost's keep is narrow: its mess is under the stair's whole run, so a two-wide stair walled its door
             // off. There the stair takes the corridor's north row only and the south row walks on to the mess door.)
             let narrow = rs.contains { $0.use == "mess" && $0.door.0 > -(kx - 1) && $0.door.0 <= -(kx - 1) + 4 }
@@ -657,7 +666,7 @@ enum Greywall {
 
         // MARK: Garrison
         let tag = leashTag(cx, cz, t)
-        for (k, dx, y, dz) in posts(t) { w.mob("\(k)@grey\(tag)", V3(Float(cx + dx) + 0.5, Float(S + y), Float(cz + dz) + 0.5)) }
+        for (k, dx, y, dz) in posts(t, upper: upper) { w.mob("\(k)@grey\(tag)", V3(Float(cx + dx) + 0.5, Float(S + y), Float(cz + dz) + 0.5)) }
     }
 
     // MARK: Loot
@@ -665,18 +674,18 @@ enum Greywall {
     static let loot: [String: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])] = [
         "greywall_supply": (4...8, [("capital_ration", 2, 6, 14), ("bread", 2, 6, 15), ("cooked_beef", 2, 5, 10), ("iron_ingot", 2, 6, 10),
                                     ("gunpowder", 2, 8, 10), ("greywall_rounds", 8, 32, 14), ("coal", 4, 12, 8), ("compass", 1, 1, 2),
-                                    ("map", 1, 1, 2), ("golden_apple", 1, 1, 2), ("greywall_field_notes", 1, 1, 6)]),
+                                    ("map", 1, 1, 2), ("field_stim", 1, 1, 2), ("greywall_field_notes", 1, 1, 6)]),
         "greywall_armory": (3...6, [("gun_slatefall", 1, 1, 12), ("gun_repeater", 1, 1, 5),
                                     ("greywall_rounds", 16, 48, 22), ("heavy_rounds", 4, 12, 8),
                                     ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("shield", 1, 1, 3), ("firing_mechanism", 1, 2, 6)]),
         // P256: no Capital guns or rounds in Greywall's chests (the Fernblick, launcher and arc gun were the Capital's).
         "greywall_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_kessel", 1, 1, 6), ("gun_repeater", 1, 1, 5),
-                                     ("greywall_rounds", 16, 40, 6), ("heavy_rounds", 6, 15, 8), ("golden_apple", 1, 2, 5),
+                                     ("greywall_rounds", 16, 40, 6), ("heavy_rounds", 6, 15, 8), ("field_stim", 1, 2, 5),
                                      ("experience_bottle", 3, 8, 6), ("targeting_optic", 1, 1, 5), ("radar_module", 1, 1, 4),
                                      ("diamond_chestplate@20-30", 1, 1, 3), ("greywall_field_notes", 1, 1, 6)]),
         "greywall_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_repeater", 1, 1, 6),
                                    ("gun_slatefall", 1, 1, 6), ("greywall_rounds", 24, 64, 8), ("heavy_rounds", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
-                                   ("diamond_sword@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("radar_module", 1, 1, 5)]),
+                                   ("diamond_sword@25-35", 1, 1, 3), ("combat_stim", 1, 1, 2), ("radar_module", 1, 1, 5)]),
     ]
 }
 

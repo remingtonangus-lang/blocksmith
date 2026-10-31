@@ -353,9 +353,10 @@ extension Game {
             }
             // P476 (Oct 27 19:02, aboard the frigate: "I just tried to open a door and it caused me to start driving the
             // frigate. I need to be exactly at the helm"): a capital hull's helm is taken within 2 blocks of its stand.
-            let zone: Float = s.role == "kestrel" || s.role == "capplane" ? 8 : (s.role == "capfrigate" || s.blockCount > 2000 ? 2 : 6)
+            // P499: the Stormwarden frigate too (anywhere in its bounds, a use on a wall or a door's frame took its helm).
+            let zone: Float = s.role == "kestrel" || s.role == "capplane" ? 8 : (s.isFlyingCapital || s.blockCount > 2000 ? 2 : 6)
             // (P357 b, Oct 16 20:13: "I could fly it from anywhere aboard": a frigate's helm is taken at the helm only.)
-            let aboard = s.kinematic && s.role != "capfrigate" && (ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.5)
+            let aboard = s.kinematic && !s.isFlyingCapital && (ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.5)
             if (d < zone || aboard) && d < bd { best = s; bd = d }
         }
         return best

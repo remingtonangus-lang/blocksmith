@@ -85,7 +85,9 @@ enum PlaytestOct12Tests {
         let ship = g.ordersPages(Game.RadarContact(name: "Meridian Dreadnought Sovereign", kind: "vessel_dreadnought", x: 40000, z: -40000))
         let all = pages + far + ship
         let long = all.filter { Books.wrap($0).count > Books.linesPerPage }
-        check(used && book != nil && pages.count == 2 && pages[0].contains("Capital") && long.isEmpty && !all.contains(where: { $0.contains("_") }),
+        if let u = all.first(where: { $0.contains("_") }) { print("P68 orders: a page with an underscore: \(u.replacingOccurrences(of: "\n", with: " / "))") }
+        if !used || pages.count != 2 || !(pages.first?.lowercased().contains("capital") ?? false) { print("P68 orders: used \(used), \(pages.count) pages") }
+        check(used && book != nil && pages.count == 2 && pages[0].lowercased().contains("capital") && long.isEmpty && !all.contains(where: { $0.contains("_") }),
               "P68 orders: reading intercepted orders opens them as a document (\(book == nil ? "no book" : "\(pages.count) pages"), every page fits the book screen\(long.isEmpty ? "" : "; too long: " + long.map { "\(Books.wrap($0).count) lines" }.joined(separator: ", "))): \(pages.first?.replacingOccurrences(of: "\n", with: " / ").prefix(140) ?? "")")
     }
 
@@ -139,6 +141,7 @@ enum PlaytestOct12Tests {
         var deep = 0
         for y in stride(from: top, through: top - 30, by: -1) { if w.block(fx, y, fz) == STONE { break }; deep += 1 }
         let walk = (0..<5).map { MainGun.bombardOffset($0) }
+        g.particles.list.removeAll()                    // (the crater's debris fills the particle cap)
         let n0 = g.particles.list.count, m0 = MainGun.bombardMarks
         w.ships.bombardMark(V3(Float(fx), Float(top + 1), Float(fz)), charge: 0.5, dt: 1.0 / 72, game: g)
         let marked = g.particles.list.count - n0
@@ -151,10 +154,15 @@ enum PlaytestOct12Tests {
     // wall behind it.
     static func chaseView(_ g: Game, _ check: (Bool, String) -> Void) {
         let a = PlaytestOct12Tests.arena(g, dx: -60, dz: -60, r: 9)
-        let riding0 = g.riding, pos0 = g.player.pos, mobs0 = g.mobs.mobs
+        let riding0 = g.riding, pos0 = g.player.pos, mobs0 = g.mobs.mobs, pilot0 = g.world.ships.pilot, seat0 = AshSeat.shared.vehicle
         var wall: [IVec3] = []
-        defer { for q in wall { g.world.setBlock(q.x, q.y, q.z, AIR) }; g.riding = riding0; g.mobs.mobs = mobs0; g.player.pos = pos0; a.restore() }
-        g.riding = nil
+        defer {
+            for q in wall { g.world.setBlock(q.x, q.y, q.z, AIR) }
+            g.riding = riding0; g.mobs.mobs = mobs0; g.player.pos = pos0; g.world.ships.pilot = pilot0; AshSeat.shared.vehicle = seat0; a.restore()
+        }
+        // (on foot and at no helm: a check before can leave him at a hull's helm or in an Ashguard seat)
+        if let s = pilot0 { print("P100 chase view: \(s.root.name) was still piloted (left by a check before)") }
+        g.riding = nil; g.world.ships.pilot = nil; AshSeat.shared.vehicle = nil
         g.player.pos = V3(Float(a.fx) + 0.5, Float(a.py + 1), Float(a.fz) + 0.5)
         let foot = g.chaseOffset
         let boat = Mob(.boat, at: g.player.pos); boat.yaw = 0            // facing -z
@@ -258,6 +266,10 @@ enum PlaytestOct12Tests {
         // And raw food goes on to cook.
         g.inventory.held = ItemStack(Items.id("beef"), 2)
         let cooking = g.useNewBlock((hit: fire, normal: IVec3(0, 1, 0))) && g.inventory.held.count == 1
+        if !cooking {
+            let be = g.world.blockEntities[fire]
+            print("P97 camps: beef smelts \(Recipes.smelt(Items.id("beef")) != nil), food \(Items.def(Items.id("beef")).food != nil), fire \(Blocks.key(g.world.block(fire.x, fire.y, fire.z))), held \(Items.key(g.inventory.held.item)) x\(g.inventory.held.count), slots \(be.map { e in (0..<4).map { e.container[$0].isEmpty ? "-" : Items.key(e.container[$0].item) } } ?? [])")
+        }
         check(people["camp_hunters"] == 1 && people["camp_prospectors"] == 1 && used && mended && !again && cooking,
               "P97 camps: someone at the hunters' (\(people["camp_hunters"] ?? 0)) and prospectors' (\(people["camp_prospectors"] ?? 0)) fires; resting by a lit campfire with a gun in hand mends (\(used), \(mended)), not again within a minute (\(!again)); raw beef goes on to cook (\(cooking))")
     }
@@ -293,11 +305,13 @@ enum PlaytestOct12Tests {
             let i = m.rows.firstIndex { $0.1 == "smooth" } ?? -1
             at.append(i); named.append(i >= 0 && m.rows[i].0.contains("Polygon"))
         }
+        // (Since Q2 every new world is a polygon world: Create New World has no terrain choice left to offer, and the
+        // Video page's row, after View Distance and Auto View, is for old block worlds only.)
         let m = PauseMenu(game: g)
-        m.page = .create; m.newSmooth = true; m.build()
-        let create = m.rows.first { $0.1 == "new_terrain" }?.0 ?? ""
-        check(at.allSatisfy { $0 >= 0 && $0 <= 1 } && named.allSatisfy { $0 } && create.contains("Polygons"),
-              "P84 polygon terrain: row \(at) on the Video page (desktop, headset), named Polygon (\(named)); Create New World: '\(create)'")
+        m.page = .create; m.build()
+        let blockChoice = m.rows.contains { $0.1 == "new_terrain" }
+        check(at.allSatisfy { $0 >= 0 && $0 <= 2 } && named.allSatisfy { $0 } && !blockChoice,
+              "P84 polygon terrain: row \(at) on the Video page (desktop, headset), named Polygon (\(named)); Create New World makes polygon worlds only (\(!blockChoice))")
     }
 
     // P92: a citadel on new ground lays a rail spur with a parked train: every step a connected rail with head room and
@@ -445,14 +459,20 @@ enum PlaytestOct12Tests {
         z0.health = 200
         g.mobs.mobs.append(z0)
         var deck = 0
+        // (Only this turret's shells: one left in flight by an earlier check burst on the deck's edge, a few cells a run.)
+        if !w.ships.shells.isEmpty { print("P93: \(w.ships.shells.count) shells left in flight before the turret, cleared") }
+        w.ships.shells.removeAll()
         for z in (fz - 4)...(fz + 4) { for x in (fx - 2)...(fx + 20) where w.block(x, py, z) == STONE { deck += 1 } }
         for _ in 0..<(72 * 6) {
             z0.pos = V3(Float(fx + 16) + 0.5, Float(py + 1), Float(fz) + 0.5); z0.vel = .zero
             AutoTurrets.tick(g, 1.0 / 72)
             w.ships.updateShells(1.0 / 72, game: g)
         }
-        var deckAfter = 0
-        for z in (fz - 4)...(fz + 4) { for x in (fx - 2)...(fx + 20) where w.block(x, py, z) == STONE { deckAfter += 1 } }
+        var deckAfter = 0, gone: [String] = []
+        for z in (fz - 4)...(fz + 4) { for x in (fx - 2)...(fx + 20) {
+            if w.block(x, py, z) == STONE { deckAfter += 1 } else { gone.append("\(x - fx),\(z - fz): \(Blocks.key(w.block(x, py, z)))") }
+        } }
+        if !gone.isEmpty { print("P93 turret deck cells no longer stone (from the cannon): \(gone.prefix(6))") }
         let hurt = 200 - z0.health
         w.ships.shells.removeAll()
         AutoTurrets.sites = sites0
@@ -495,8 +515,8 @@ enum PlaytestOct12Tests {
             } }
         }
         let soldiers = keys.filter { $0.hasPrefix("soldier_") }
-        check(closest >= WorldRules.capitalApartP69 && !soldiers.isEmpty && soldiers.allSatisfy { $0.hasSuffix("@grey") } && grey.count >= 3,
-              "P69 Greywall apart: \(grey.count) stations and Greywall bases over 18 km square, the nearest \(closest) blocks from a Capital citadel or city (\(capital.count)); a station's \(soldiers.count) soldiers are Greywall's (\(Set(soldiers.map { $0.hasSuffix("@grey") })))")
+        check(closest >= WorldRules.capitalApartP69 && !soldiers.isEmpty && soldiers.allSatisfy { $0.contains("@grey") } && grey.count >= 3,
+              "P69 Greywall apart: \(grey.count) stations and Greywall bases over 18 km square, the nearest \(closest) blocks from a Capital citadel or city (\(capital.count)); a station's \(soldiers.count) soldiers are Greywall's (\(Set(soldiers.map { $0.contains("@grey") })))")
     }
 
     // P73 (09:21): a tap on the map (the headset's laser and trigger, or a mouse click) drops a waypoint where it
@@ -625,7 +645,8 @@ enum PlaytestOct12Tests {
         print("P95 census seed 12345, four 4000x4000 squares: \(other.sorted { $0.key < $1.key })")
         let st = c.counts[BorealStation.kind] ?? 0, gw = c.counts[Greywall.kind] ?? 0, mb = c.counts["military_base"] ?? 0
         let st2 = Float(other[BorealStation.kind] ?? 0) / 4, gw2 = Float(other[Greywall.kind] ?? 0) / 4
-        check(st <= 3 && gw <= 2 && st + gw + mb <= 5 && st2 <= 2 && gw2 <= 2,
+        // (P436, Oct 25: the rarer places made twice as common again: six in all is the most.)
+        check(st <= 3 && gw <= 2 && st + gw + mb <= 6 && st2 <= 2 && gw2 <= 2,
               "P95 bases: in Remington's World376 square (4,000 x 4,000) \(st) Boreal stations, \(gw) Greywall bases, \(mb) citadels (were 19, 4, 2); seed 12345 averages \(st2) and \(gw2) per square")
     }
 
@@ -818,11 +839,13 @@ enum PlaytestOct12Tests {
         for _ in 0..<20 { var p = PadSnapshot(); p.lt = 1; pm.touch = p; g.tick(1.0 / 72); aimed = max(aimed, g.arms.aim) }
         pm.touch = PadSnapshot(); g.tick(1.0 / 72)
         check(gunOut && opened && aimed > 0.3,
-              "P74 gun in hand: the use press opens a door in reach (\(opened)) and still aims the gun elsewhere (aim \(String(format: "%.2f", aimed)))")
+              "P74 gun in hand: the use press opens a door in reach (\(opened)) and still aims the gun elsewhere (aim \(String(format: "%.2f", aimed)))"
+              + (gunOut && aimed > 0.3 ? "" : " [gun out \(gunOut), held \(Items.key(g.held.item)), alive \(g.alive), paused \(g.paused), menu \(g.menu.map { "\(type(of: $0))" } ?? "none"), vrAim \(g.vrAim != nil), button mode \(VRReload.buttonMode)]"))
         // The left grip by the side with a full gun: no magazine taken; P465: and it doesn't step the hotbar either (the
         // grip in front of the waist does, P109).
         let head = g.player.eye
         let ev = VRReload.tick(g, offHand: head + V3(-0.25, -0.8, 0.05), gunHand: head + V3(0.2, -0.35, -0.35), head: head, grip: true, gripWas: false)
-        check(ev == .full && !g.arms.magInHand, "P74/P465 gun in hand: a left grip at the side with a full magazine takes nothing (\(ev)) and keeps the gun")
+        check(ev == .full && !g.arms.magInHand, "P74/P465 gun in hand: a left grip at the side with a full magazine takes nothing (\(ev)) and keeps the gun"
+              + (ev == .full ? "" : " [gun \(g.heldGun != nil), alive \(g.alive), button mode \(VRReload.buttonMode), mag in hand \(g.arms.magInHand)]"))
     }
 }

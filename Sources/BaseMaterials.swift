@@ -12,6 +12,14 @@ import Foundation
 enum BaseMaterials {
     static let loot = "base_materials"
     static let crate = "ammo_crate"
+    // P499 (Oct 30 15:02-15:03 at an ammo depot: "way too many supplies... no one would ever have to search again for
+    // stuff", "it's not supposed to have blocks"): a supply crate holds a stack or two of rounds, food or a little
+    // building stuff, and about half are empty (each held 6-9 full stacks of building blocks; a depot has 200 crates).
+    static let crateLoot = "supply_crate"
+    static let crateTable: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)]) =
+        (1...2, [("empty", 1, 1, 60), ("capital_rounds", 6, 20, 8), ("rifle_rounds", 6, 20, 6), ("shotgun_shells", 3, 10, 4),
+                 ("pistol_rounds", 6, 16, 4), ("bread", 1, 4, 4), ("cooked_beef", 1, 3, 2), ("torch", 4, 12, 3),
+                 ("cobblestone", 8, 24, 2), ("oak_planks", 8, 24, 2), ("ladder", 4, 8, 1), ("sandbag", 4, 8, 1)])
     static let table: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)]) =
         (6...9, [("cobblestone", 48, 64, 10), ("stone", 32, 64, 8), ("stone_bricks", 32, 64, 8), ("oak_planks", 48, 64, 9),
                  ("spruce_planks", 32, 64, 7), ("bricks", 24, 64, 6), ("smooth_stone", 24, 64, 5), ("glass", 16, 48, 5),
@@ -38,7 +46,7 @@ extension Game {
         if let be = world.blockEntities[p] { return be }
         let be = BlockEntity(.chest)
         var rng = SRng(UInt64(hash3(p.x, p.y, p.z, UInt32(truncatingIfNeeded: world.seed ^ (world.seed >> 32)) ^ 0xC8A7)) | 1)
-        Loot.fill(be.container, table: BaseMaterials.loot, rng: &rng)
+        Loot.fill(be.container, table: BaseMaterials.crateLoot, rng: &rng)
         world.blockEntities[p] = be
         return be
     }

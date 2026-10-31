@@ -174,7 +174,7 @@ enum TreePlacer {
         }
     }
 
-    static func blob(_ w: TreeWriter, _ x: Int, _ y: Int, _ z: Int, rx: Float, ry: Float, _ leaf: BlockID, _ rng: inout SRng) {
+    static func blob(_ w: TreeWriter, _ x: Int, _ y: Int, _ z: Int, rx: Float, ry: Float, lift: Float = 0, _ leaf: BlockID, _ rng: inout SRng) {
         let ix = Int(rx.rounded(.up)), iy = Int(ry.rounded(.up))
         // Crowns of trees in the 7-block margin mostly miss this chunk: skip them (and the outside voxels) before the
         // per-voxel hash (tree placement was half of world generation's time: bench gen phases, run 365).
@@ -182,7 +182,8 @@ enum TreePlacer {
         for dy in -iy...iy { for dz in -ix...ix { for dx in -ix...ix {
             let qx = x + dx, qz = z + dz
             if qx < w.bx || qx >= w.bx + CS || qz < w.bz || qz >= w.bz + CS { continue }
-            let e = Float(dx * dx + dz * dz) / (rx * rx) + Float(dy * dy) / (ry * ry)
+            let ey = Float(dy) - lift                       // (lift: the mound's middle that far over the block row y)
+            let e = Float(dx * dx + dz * dz) / (rx * rx) + ey * ey / (ry * ry)
             if e > 1 + (hashf(x + dx, y + dy, z + dz, 0x1EAF) - 0.5) * 0.3 { continue }
             w.leaf(x + dx, y + dy, z + dz, leaf)
         } } }
@@ -283,11 +284,13 @@ enum TreePlacer {
         if let set = TreeShapes.designs(kind) { TreeShapes.build(w, kind, set, x, y, z, &rng); return }
         switch kind {
         case .shrubOak, .shrubSpruce, .shrubAcacia:
-            // A knee-high woody shrub: one log and a low, lopsided leaf mound.
+            // A knee-high woody shrub: a low, lopsided leaf mound on the ground round one hidden log. P499 (Oct 30 20:16,
+            // "bushes don't have stumps under them", "the bush is floating too"): the mound sat a block up on its log.
             let log = kind == .shrubSpruce ? SPRUCE_LOG : (kind == .shrubAcacia ? g("acacia_log") : LOG)
             let leaf = kind == .shrubSpruce ? SPRUCE_LEAVES : (kind == .shrubAcacia ? g("acacia_leaves") : LEAVES)
             w.log(x, y, z, log)
-            blob(w, x + rng.range(-1, 1) / 2, y + 1, z + rng.range(-1, 1) / 2, rx: 1.4 + rng.float() * 0.8, ry: 0.9, leaf, &rng)
+            let ox = rng.range(-1, 1) / 2, rx = 1.4 + rng.float() * 0.8, oz = rng.range(-1, 1) / 2
+            blob(w, x + ox, y, z + oz, rx: rx, ry: 1.1, lift: 0.4, leaf, &rng)
         case .stumpOak, .stumpSpruce, .stumpBirch:
             let log = kind == .stumpOak ? LOG : (kind == .stumpSpruce ? SPRUCE_LOG : BIRCH_LOG)
             // P187: a stump is one log high (a 2-high lone log read as a stray pillar) with a root or two beside it.
@@ -432,16 +435,11 @@ extension WorldGen {
                     let species = ["tube", "brain", "bubble", "fire", "horn"]
                     let r = reef(wx, wz)
                     let room = depth - 2
+                    // P499 (Oct 30 19:59 over a warm ocean: "there's a lot of blocky coral stuff on the ground, which shouldn't
+                    // be... should be polygonal"): the heads are beds of coral plants and fans on the sand (no coral
+                    // block mounds and fingers), one species a head, a second species dotted through some.
                     if r.height > 0 && room > 0 {
-                        let hgt = min(r.height, room)
-                        for k in 1...hgt { b[Chunk.index(lx, fy + k, lz)] = g("\(species[k == hgt && r.cap >= 0 ? r.cap : r.kind])_coral_block") }
-                        var top = fy + hgt
-                        // Branching kinds (tube, horn, fire): thin fingers off the top of the head.
-                        if r.finger > 0 && top + r.finger <= fy + room {
-                            for k in 1...r.finger { b[Chunk.index(lx, top + k, lz)] = g("\(species[r.kind])_coral_block") }
-                            top += r.finger
-                        }
-                        if top + 1 <= fy + room + 1 && h < 0.55 { b[Chunk.index(lx, top + 1, lz)] = g("\(species[r.cap >= 0 && h < 0.3 ? r.cap : r.kind])_coral") }
+                        if h < 0.85 { b[Chunk.index(lx, fy + 1, lz)] = g("\(species[r.cap >= 0 && h < 0.3 ? r.cap : r.kind])_coral") }
                     } else if r.rim >= 0 && h < 0.6 {
                         b[Chunk.index(lx, fy + 1, lz)] = g("\(species[r.rim])_coral")              // fans round a head
                     } else if h < 0.3 + 0.4 * max(0, flora.noise2(Float(wx) / 14 + 300, Float(wz) / 14 + 300)) {

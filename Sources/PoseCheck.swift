@@ -140,7 +140,8 @@ enum PoseCheck {
         defer { print(String(format: "posecheck: weapon clearance: %d of %d poses had the weapon through an arm or the body before clearing; worst after %.2f px", clipped.0, clipped.1, worst)) }
         for k in kinds {
             let r = Soldier.rank(k) ?? 0
-            for gi in 0..<Guns.all.count {
+            // (retired guns are no one's to carry: the needle and breaker pistols load as revolvers)
+            for gi in 0..<Guns.all.count where !Guns.isRetired(gi) {
                 // Every weapon for the aim stances; the rank's own weapons for the rest.
                 let own = (0..<12).map { _ in Soldier.pickGun(k) }.contains(gi)
                 for s in stances where own || s.name.hasPrefix("aim") || s.name == "firing" || s.name == "low ready" {

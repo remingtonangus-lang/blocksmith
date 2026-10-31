@@ -17,7 +17,7 @@ import simd
 // there is gone.
 // P418 (Remington, Oct 23 21:06: "We gotta get rid of Enderman. They can't be in the game"): the voidwalker is retired
 // the same way, everywhere, with no heir: it never spawns, and one an old save, a spawner or an egg still holds is gone
-// (void pearls still come from boarling barter and the cleric's trades).
+// (P499: and the void pearl went after it; a Seeker Eye is an amethyst shard and cinder powder).
 extension MobKind {
     static let retiredHellKinds: [MobKind] = [.ghast, .blaze, .wither, .witherSkeleton, .piglin, .piglinBrute, .zombifiedPiglin,
                                               .hoglin, .zoglin, .strider, .magmaCube, .enderman]

@@ -58,6 +58,7 @@ enum QuestSim {
         // player's choice, no see-saw), and the game only ever saving the choice (Oct 10 playtest: 16 -> 13 for good).
         check(RenderDistanceGovernorTest.run() == 0, "rdgovernor: synthetic traces (down, back up to the choice, no oscillation)")
         check(RenderDistanceGovernorTest.gameChecks(game) == 0, "rdgovernor: the save and the menu keep the player's choice")
+        check(ViewGovernorTest.run() == 0, "viewgovernor: dynamic resolution counted in the view distance's pixel model")
         let dt: Float = 1.0 / 72
         ShipManager.stepRate = 72; ShipManager.stepSlack = 0.2 / 72       // as QuestApp: one ship step per frame
         func idleHands() {
@@ -250,6 +251,10 @@ enum QuestSim {
             try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_ship.png"))
         }
 
+        // 8a. P499: at a capital vehicle's helm the guns go where the right hand points (Oct 30 20:20, the crawler and the
+        // frigate: "its guns are turning as if I'm facing the other direction"), and the stick steers the way it's pushed.
+        helmAim(game: game, host: host, frames: frames, check: check)
+
         // 8b. Weapon wheel: hold the right stick click, push the stick toward a gun, let go: it is equipped and the body
         // did not snap-turn meanwhile.
         let rifle = Items.id("gun_rifle"), sniper = Items.id("gun_sniper")
@@ -292,10 +297,11 @@ enum QuestSim {
         game.paused = true
         check(pm.rows.contains { $0.1 == "host:vr" } && !pm.rows.contains { $0.1 == "photo" },
               "VR options: the pause menu lists \(PauseMenu.hostEntry?.0 ?? "-") (and no Photo Mode)")
-        frames(30) { _ in idleHands(); sim.hands[1].stick = V2(0, -1) }      // the right stick scrolls the list
-        check(pm.scroll > 0, "VR menus: the right stick scrolls the pause menu (scroll \(pm.scroll))")
-        frames(3) { _ in idleHands() }
+        // The right stick scrolls a list longer than the panel (the main page's rows fit it now: the VR page).
         pm.act("host:vr", back: false)
+        frames(30) { _ in idleHands(); sim.hands[1].stick = V2(0, -1) }
+        check(pm.scroll > 0, "VR menus: the right stick scrolls the pause menu's VR page (scroll \(pm.scroll), \(pm.rows.count) rows)")
+        frames(3) { _ in idleHands() }
         pm.act("host:touch", back: false)
         check(pm.title == "Touch Controls" && pm.rows.count > 8, "VR options: the Touch Controls page lists \(pm.rows.count) rows")
         frames(2) { _ in idleHands() }
@@ -903,6 +909,105 @@ enum QuestSim {
         ship.autopilot = nil
         ships.remove(ship)
         frames(3) { _ in idleHands() }
+    }
+
+    // P499: a Capital frigate and an Ironback crawler, each taken at its helm: the right hand points at bearings round
+    // the hull (ahead, abeam, astern), the turrets come round, and each gun's barrel and the shells it fires must head
+    // for what the hand's laser falls on. On the crawler the left stick pushed right turns it right.
+    static func helmAim(game: Game, host: SimHost, frames: (Int, (Int) -> Void) -> Void, check: (Bool, String) -> Void) {
+        let sim = host.sim, rig = host.rig, ships = game.world.ships
+        ships.encounters = false
+        let pos0 = game.player.pos
+        func idleHands() {
+            for h in 0..<2 {
+                var hd = XRHand()
+                hd.aimValid = true; hd.gripValid = true
+                hd.aimPos = sim.headPos + V3(h == 0 ? -0.2 : 0.2, -0.45, -0.3)
+                hd.gripPos = hd.aimPos
+                hd.aimRot = simd_quatf(); hd.gripRot = simd_quatf()
+                sim.hands[h] = hd
+            }
+        }
+        func bearing(_ v: V3) -> Float { atan2f(-v.x, -v.z) }
+        func off(_ a: Float, _ b: Float) -> Float {
+            var d = a - b
+            while d > .pi { d -= 2 * .pi }
+            while d < -.pi { d += 2 * .pi }
+            return abs(d) * 180 / .pi
+        }
+        let keep = QuestControls.chaseAim
+        defer { QuestControls.chaseAim = keep }
+        for (kind, fixed) in [("capfrigate", false), ("capfrigate", true), ("crawler", false), ("crawler", true)] {
+            QuestControls.chaseAim = fixed           // (first the aim as the Oct 30 build had it, reported only)
+            for c in ships.capitals { ships.remove(c) }
+            let home = IVec3(Int(pos0.x) + 40, 0, Int(pos0.z) - 60)
+            ships.spawnCapital(kind, home: home, yaw: 0.4, region: nil, sync: true)
+            frames(2) { _ in idleHands() }
+            guard let s = ships.capitals.first(where: { $0.role == kind }), let st = ships.capState[s.id],
+                  let stand = game.helmStand(s) else { check(false, "VR helm aim: the \(kind) spawned"); continue }
+            st.crewDone = Set(0..<st.crew.count); st.crewless = true
+            _ = game.world.loadSync(center: s.pos, radius: 3)
+            game.player.pos = s.toWorld(stand)
+            game.player.vel = s.velocity(at: game.player.pos)
+            game.takeCommand(s)
+            frames(6) { _ in idleHands() }
+            let guns = ships.turrets(of: s).filter { !$0.cannons.isEmpty }
+            guard ships.pilot === s, !guns.isEmpty else {
+                check(false, "VR helm aim: took the \(s.name)'s helm (pilot \(ships.pilot?.name ?? "none"), \(guns.count) gun turrets)"); continue
+            }
+            var worst: Float = 0, worstShell: Float = 0, fired = 0
+            var lines: [String] = []
+            for rel in [Float(0), .pi / 2, .pi, -.pi / 2] {
+                // The hand points level-ish at a bearing relative to the hull (a little down: the ground or sea out there).
+                let b = s.yaw + rel
+                let want = simd_normalize(V3(-sinf(b), -0.08, -cosf(b)))
+                frames(300) { _ in
+                    idleHands()
+                    sim.hands[1].aimRot = simd_quatf(from: V3(0, 0, -1), to: rig.yawRot.inverse.act(want))
+                }
+                // The mark is what the laser falls on (seen from 100+ m behind the hull, not the hand's own bearing).
+                guard let mark = QuestControls.chaseAimPoint else { check(false, "VR helm aim: a chase view at the \(s.name)'s helm"); break }
+                var errs: [Float] = []
+                for t in guns {
+                    let (c, d) = t.cannons[0]
+                    errs.append(off(bearing(t.dirToWorld(d)), bearing(mark - t.toWorld(c))))
+                }
+                let e = errs.max() ?? 0
+                worst = max(worst, e)
+                // Fire them as the helm does and read the shells' heading.
+                for t in guns { t.reload = 0 }
+                let n0 = ships.shells.count
+                fired += ships.fire(s, pitch: game.pilotGunPitch(s), game: game)
+                var se: Float = 0
+                for sh in ships.shells[n0...] { se = max(se, off(bearing(sh.vel - s.velocity(at: sh.pos)), bearing(mark - sh.pos))) }
+                worstShell = max(worstShell, se)
+                lines.append(String(format: "%.0f: barrels %.0f, shells %.0f", rel * 180 / .pi, e, se))
+            }
+            let line = String(format: "the %@'s guns follow the hand (degrees off at bearings %@; %d shells, chase view %.0f m)",
+                              s.name, lines.joined(separator: "; "), fired, simd_length(rig.chase))
+            if !fixed { print("questsim: VR helm aim, old aim: " + line); game.leaveHelm(); frames(3) { _ in idleHands() }; ships.remove(s); continue }
+            check(worst < 12 && worstShell < 15 && fired > 0, "VR helm aim: " + line)
+            if kind == "crawler" {
+                // Forward with the stick pushed right for 2 s: it turns right (its heading falls); then left.
+                func turn(_ x: Float) -> Float {
+                    let y0 = s.yaw
+                    frames(144) { _ in idleHands(); sim.hands[0].stick = V2(x, 0.6) }
+                    var dy = s.yaw - y0
+                    while dy > .pi { dy -= 2 * .pi }
+                    while dy < -.pi { dy += 2 * .pi }
+                    return dy
+                }
+                let r = turn(0.9), l = turn(-0.9)
+                check(r < -0.1 && l > 0.1, String(format: "VR helm aim: the crawler turns the way the stick is pushed (right %+.2f rad, left %+.2f)", r, l))
+            }
+            game.leaveHelm()
+            frames(3) { _ in idleHands() }
+            ships.remove(s)
+        }
+        for c in ships.capitals { ships.remove(c) }
+        game.player.pos = pos0
+        game.player.vel = .zero
+        frames(10) { _ in idleHands() }
     }
 
     static func render(scene: SceneRenderer, wr: WorldRenderer, rig: QuestRig, sim: SimXR, game: Game, path: String, size: Int = 640) throws {
