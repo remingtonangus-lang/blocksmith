@@ -130,14 +130,17 @@ extension TroopClass {
         case .regular:
             if k == .soldierOfficer || k == .soldierCrew { return Guns.pistol }
             if k == .soldierTrooper { return r < 0.4 ? Guns.shotgun : Guns.rifle }
+            if k == .soldierIronclad { return r < 0.4 ? Guns.autoShotgun : (r < 0.75 ? Guns.rifle : Guns.shotgun) }   // P501
             return r < 0.75 ? Guns.rifle : Guns.shotgun
         case .specOps:
             if k == .soldierMarksman { return Guns.sniper }
+            if k == .soldierIronclad { return r < 0.4 ? Guns.autoShotgun : (r < 0.7 ? Guns.rifle : Guns.shotgun) }   // P501
             return r < 0.6 ? Guns.rifle : Guns.shotgun
         case .hannibal:
             // (P217: the Kettensturm is retired.) P391: a third carry the Mahlwerk rotary gun; P499: a quarter of them
-            // each the arc gun, the launcher, the Mahlwerk and the Sturmbrecher assault shotgun.
-            return r < 0.25 ? Guns.arc : (r < 0.5 ? Guns.launcher : (r < 0.75 ? Guns.rotary : Guns.autoShotgun))
+            // each the arc gun, the launcher, the Mahlwerk and the Sturmbrecher assault shotgun. P501 (Oct 31 09:46, "we
+            // need those assault shotguns for the highest rank"): two in five the Sturmbrecher, a fifth each the others.
+            return r < 0.2 ? Guns.arc : (r < 0.4 ? Guns.launcher : (r < 0.6 ? Guns.rotary : Guns.autoShotgun))
         }
     }
     // Spec Ops SMGs and rifles are suppressed: quiet, and their shots don't carry to a base as noise.

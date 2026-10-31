@@ -176,7 +176,9 @@ enum Soldier {
         case .ashMarshal: return Guns.sturmwind
         case .ashChancellor: return Guns.sturmwind
         case .soldierCrew: return r < 0.7 ? Guns.pistol : Guns.rifle
-        default: return r < 0.5 ? Guns.launcher : Guns.arc
+        // P501 (Oct 31 09:46, "we need those assault shotguns for the highest rank capital and gray wall troops"): two
+        // heavies in five carry the Sturmbrecher.
+        default: return r < 0.4 ? Guns.autoShotgun : (r < 0.7 ? Guns.launcher : Guns.arc)
         }
     }
 
@@ -812,7 +814,9 @@ extension Mob {
         // The Ashguard are veterans (the Deep's harder army, docs/status/deep-balance.md): 60 % more damage and a
         // tighter group than the same rank on the surface.
         let veteran = faction == Faction.ashguard.rawValue
-        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * (gs.pellets > 1 ? 0.6 : 1) * (veteran ? 1.6 : 1) * vary.damage
+        // P501 (Oct 31 09:46, the assault shotgun: "it should be devastating"): the Sturmbrecher's pellets hit in full.
+        let soft: Float = gs.pellets > 1 && b.gun != Guns.autoShotgun ? 0.6 : 1
+        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * soft * (veteran ? 1.6 : 1) * vary.damage
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
@@ -979,7 +983,9 @@ extension Mob {
         let air = AirDefence.airborne(g)
         var engage: Float = aggro ? HeavyTurret.range : HeavyTurret.guardRange
         if air { engage = max(engage, flak ? AirDefence.flakRange : AirDefence.navalAirRange) }
-        let canTarget = g.survival && g.alive && dist < engage
+        // P501 (Oct 31 09:48, "If I go into the little town beside one of these capital citadels, they shouldn't be
+        // automatically hostile to me unless I have a gun in my hand"): the guns keep the row's peace as its troopers do.
+        let canTarget = g.survival && g.alive && dist < engage && !GarrisonTown.shelters(g, self) && !Disguise.covers(g, self)
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.4
@@ -1275,7 +1281,10 @@ enum HeavyTurret {
     static let traverse: Float = 0.2                // radians per second
     static let reload: Float = 9
     static let range: Float = 220                   // once provoked
-    static let guardRange: Float = 72               // unprovoked: the citadel's grounds
+    // Unprovoked: the base's grounds and their approaches. P501 (Oct 31 09:49-09:50 at a citadel: "When I approach the
+    // capital, I should get obliterated by a naval gun as soon as I come on the radar... I'm about like 60, 70 blocks
+    // from it... And yet nobody, nothing's firing at me"): 110 (was 72). The garrison row's peace still holds there.
+    static let guardRange: Float = 110
     static let power: Float = 2.4                   // TNT-like burst, about a 3-block crater
     // Manned by the player (P70, playtest 09:19: "this naval gun needs to do way more damage", on a crawler and a
     // citadel tower): a far bigger burst that bites through armoured stone (blocks count at most `mannedBreach` blast

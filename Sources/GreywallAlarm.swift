@@ -560,13 +560,18 @@ extension Game {
               let s = sc.nearest(Greywall.kind, x: p.x, z: p.z, maxRegions: 1), s.contains(p.x, p.y, p.z) else { return true }
         let (cx, cz) = Greywall.centre(s)
         let codes = inventory.main.slots.contains { !$0.isEmpty && Items.key($0.item) == "greywall_codebook" }
-        guard greywallAlarm.taken.contains("greywall:\(cx),\(cz)") || codes else {
+        let held = greywallAlarm.taken.contains("greywall:\(cx),\(cz)")
+        guard held || codes else {
             // P206: say where the key is.
             onToast?("Locked to Greywall codes")
             return true
         }
         let n = greywallRadarNet(from: cx, cz)
         onToast?(n.isEmpty ? "The radar net shows no other Greywall base within 3,000 blocks" : "The radar net marks \(n.count) Greywall bases on your map")
+        // P501 (Oct 31 09:44, at an enemy garrison's table with its code book: "Why am I doing quartermaster contracts at
+        // the [Greywall]?... Doesn't make a lick of sense"): the codes read the radar net; the quartermaster's work is
+        // only a base he holds.
+        guard held else { return true }
         openMenu(BaseContractsMenu(game: self, board: "greywall:\(cx),\(cz)", at: IVec3(cx, p.y, cz)))   // C11: contracts; its last row the war report (C2)
         return true
     }

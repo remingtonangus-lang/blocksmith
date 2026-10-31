@@ -790,8 +790,11 @@ enum Loot {
         "camp_traders": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         "steelhold_command": [(1...1, [("ember_charge", 1, 1, 1)])],
         // Greywall Command (Greywall.swift): every command chest holds a radar module (the radar network), every vault gold.
-        "greywall_command": [(1...1, [("radar_module", 1, 1, 1)]), (1...1, [("greywall_keycard", 1, 1, 1)])],   // (+ D35 keycard)
-        "greywall_vault": [(1...1, [("gold_block", 1, 2, 1)])],
+        // P501 (Oct 31 09:43 at a garrison: "where is the thing that burns into hell? Like the bomb you place to get into
+        // hell. I haven't seen them in any of these sites"): Greywall's command chests and vaults hold Ember Charges as
+        // the Capital's do (on new ground; a chest is filled where it is built).
+        "greywall_command": [(1...1, [("radar_module", 1, 1, 1)]), (1...1, [("greywall_keycard", 1, 1, 1)]), (1...1, [("ember_charge", 1, 1, 1)])],   // (+ D35 keycard)
+        "greywall_vault": [(1...1, [("gold_block", 1, 2, 1)]), (1...1, [("ember_charge", 1, 2, 1)])],
         // D33: each army's armour kit, one armoury chest in three (FactionArmour.swift).
         "greywall_armory": [(1...1, [("greywall_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],
         "steelhold_armory": [(1...1, [("capital_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],

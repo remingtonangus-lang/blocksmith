@@ -42,7 +42,7 @@ enum GreywallArms {
     // Greywall's loadouts by rank and troop class.
     // P256: the guns a Greywall soldier may carry (its own and the frontier's).
     static func allowed(_ gi: Int) -> Bool {
-        !Guns.isRetired(gi) && (Guns.isGreyArm(gi) || gi == Guns.revolver || gi == Guns.kessel || gi == Guns.sturmwind)
+        !Guns.isRetired(gi) && (Guns.isGreyArm(gi) || gi == Guns.revolver || gi == Guns.kessel || gi == Guns.sturmwind || gi == Guns.autoShotgun)
     }
 
     static func pickGun(_ c: TroopClass, _ k: MobKind, roll r: Float) -> Int {
@@ -55,7 +55,9 @@ enum GreywallArms {
         case .soldierMarksman: return c == .regular && r < 0.4 ? Guns.slatefall : Guns.kessel
         // P256 (Oct 14 12:07-12:08): Greywall carries Greywall and frontier arms only; the Brecher shotgun and the
         // Blitzlanze arc gun are the Capital's (they stay with its troops, so shells and arc cells still have guns).
-        case .soldierIronclad: return Guns.repeater
+        // P501 (Oct 31 09:46, "we need those assault shotguns for the highest rank capital and gray wall troops"): two
+        // Greywall heavies in five carry the Sturmbrecher (the one Capital arm Greywall takes up).
+        case .soldierIronclad: return r < 0.4 ? Guns.autoShotgun : Guns.repeater
         case .soldierTrooper: return r < 0.25 ? Guns.repeater : (r > 0.85 ? Guns.revolver : Guns.slatefall)
         default: return r < 0.8 ? Guns.slatefall : Guns.revolver
         }
