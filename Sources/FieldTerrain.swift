@@ -487,6 +487,7 @@ extension World {
     func fieldSphere(_ ctr: V3, radius r: Float, carve: Bool, material: UInt8?, keepCell: IVec3? = nil, keepSolid: Bool = false,
                      remesh: Bool = false) -> [IVec3] {
         var flipped: [IVec3] = []
+        World.sphereCalls &+= 1                                     // (P502: the turret freeze's counters)
         let outerBox = changeBox                                    // (P440: this sphere's changes measured)
         changeBox = (IVec3(Int.max, Int.max, Int.max), IVec3(Int.min, Int.min, Int.min))
         let prepared = prepareFine(ctr, radius: r)                  // P377 step 1 (FineField.swift)

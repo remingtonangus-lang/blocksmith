@@ -93,6 +93,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--saveacross"), i + 2 < Command
 if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }
 // --freezetest [--rd 8]: the Oct 23 base freezes (a bulkhead door opened, a wall block broken), frame by frame (P416).
 if CommandLine.arguments.contains("--freezetest") { exit(QuestFreezeTest.run()) }
+// --turretfreeze [--rd 6] [--seconds 30]: the Oct 31 afternoon freezes, a manned deck gun fired into a base (P502).
+if CommandLine.arguments.contains("--turretfreeze") { exit(QuestTurretFreeze.run()) }
 // --toppletest: what nothing holds falls whole, as itself (P407: a tower past the load fill, a tree on a broken plinth).
 if CommandLine.arguments.contains("--toppletest") { exit(QuestToppleTest.run()) }
 // --spacewarp: P403 7b, the space warp's motion vectors of a moving mob (quest/src/test/SpaceWarpCheck.swift).
