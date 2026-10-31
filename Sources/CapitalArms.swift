@@ -63,7 +63,7 @@ enum CapitalArms {
         switch i {
         case Guns.rifle:
             for z: Float in [-6.1, -5.1, 0.1, 1.1, 2.1] { p.append(b(-0.72, 3.25, z, 1.44, 0.22, 0.45, grey, pMetal)) }
-            p.append(b(-0.2, -0.55, -13.2, 0.4, 0.5, 0.5, silver, pMetal))                               // sling loop
+            p.append(b(-0.2, -0.5, -13.2, 0.4, 0.6, 0.5, silver, pMetal))                                // sling loop (P499: on the handguard)
         case Guns.shotgun:
             for k in 0..<4 { p.append(b(-0.4, 2.4, -16.5 + Float(k) * 2.6, 0.8, 0.18, 1.1, grey, pMetal)) } // rib vents
         case Guns.sniper:
@@ -119,7 +119,7 @@ enum CapitalArms {
                 b(-0.5, 5.0, -5, 1.0, 0.8, 7.3, graphite, pMetal),                 // carry handle
                 b(-0.7, -4.4, 1.4, 1.4, 3.2, 1.8, graphite, pMetal),               // pistol grip, raked back
                 b(-0.7, -5.9, 2.0, 1.4, 1.6, 1.8, graphite, pMetal),
-                b(-0.12, -2.2, 0.6, 0.24, 0.9, 0.3, silver, pMetal),               // trigger
+                b(-0.12, -2.2, 0.6, 0.24, 1.0, 0.3, silver, pMetal),               // trigger
                 b(-0.3, -2.6, 0.2, 0.6, 0.25, 1.5, graphite, pMetal),              // trigger guard
                 b(-0.6, -4.2, -5.8, 1.2, 3.0, 1.4, graphite, pMetal),              // fore grip
                 b(-2.6, -0.6, -4.5, 0.6, 1.8, 3.0, grey, pMetal),                  // feed chute
@@ -246,14 +246,14 @@ enum CapitalArms {
                 b(-1.1, 2.9, -9.6, 2.2, 2.2, 1.6, graphite, pMetal),               // objective bell
                 b(-0.85, 3.15, -9.7, 1.7, 1.7, 0.15, glow * 0.8, pGlow),           // lens
                 b(-1.0, 3.0, 1.6, 2.0, 2.0, 1.4, graphite, pMetal),                // eyepiece
-                b(-0.5, 2.6, -6, 1, 0.6, 1, silver, pMetal), b(-0.5, 2.6, -1, 1, 0.6, 1, silver, pMetal),
+                b(-0.5, 2.5, -6, 1, 0.7, 1, silver, pMetal), b(-0.5, 2.5, -1, 1, 0.7, 1, silver, pMetal),      // scope rings (P499: down onto the receiver)
                 b(-0.3, -1.4, -2.6, 0.6, 0.3, 2.0, graphite, pMetal),
                 b(-0.9, -2.0, 4, 1.8, 1.6, 7.4, enamel, pEnamel),                  // thumbhole stock (lower)
                 b(-0.9, 0.9, 4, 1.8, 1.6, 7.4, enamel, pEnamel),                   // (upper)
                 b(-0.9, -2.0, 9, 1.8, 4.5, 2.4, enamel, pEnamel),                  // (rear)
                 b(-0.95, 2.4, 4.5, 1.9, 0.8, 5, grey, pEnamel),                    // cheek riser
                 b(-0.95, -2.3, 11.4, 1.9, 5.0, 0.6, graphite, pMetal),
-                b(-0.85, -0.6, -15, 0.3, 0.4, 6, graphite, pMetal), b(0.55, -0.6, -15, 0.3, 0.4, 6, graphite, pMetal),   // bipod
+                b(-0.85, -0.6, -15, 0.3, 0.6, 6, graphite, pMetal), b(0.55, -0.6, -15, 0.3, 0.6, 6, graphite, pMetal),   // bipod (folded up against the handguard)
                 b(1.0, 1.4, -2.2, 1.0, 0.5, 0.5, silver, pMetal),                  // bolt knob
             ]
             p += grip(-0.7, 1.4, top: -0.3, graphite)
@@ -269,7 +269,7 @@ enum CapitalArms {
                 b(-2.5, -0.9, 10.6, 5, 5, 1.4, graphite, pMetal),
                 b(-2.3, -0.7, -3, 4.6, 4.6, 1.0, grey, pEnamel),
                 b(-2.3, -0.7, 6, 4.6, 4.6, 0.6, grey, pEnamel),
-                b(-4.2, 1.8, -6, 1.8, 2.2, 4, graphite, pMetal),                   // optic
+                b(-4.2, 1.8, -6, 2.0, 2.2, 4, graphite, pMetal),                   // optic (P499: on the tube)
                 b(-4.25, 2.15, -6.1, 1.5, 1.5, 0.15, glow * 0.7, pGlow),
                 b(-0.7, -4.4, -0.6, 1.4, 3.8, 1.8, graphite, pMetal),              // grip
                 b(-0.7, -4.2, -8.5, 1.4, 3.6, 1.6, graphite, pMetal),              // fore grip

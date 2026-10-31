@@ -101,6 +101,8 @@ enum SkySkiffTests {
             for k in 1...2 where y + k < b.grid.sy && b.grid.get(x, y + k, z) == AIR { w.ships.setBlock(b, IVec3(x, y + k, z), iron); cargo += 1 }
         } } }
         b.autopilot = V3(0, 0, 1)
+        // (a ship past the active distance from him sleeps, P376: he waits over it while it's weighed down)
+        g.player.pos = b.pos + V3(0, 30, 0)
         run(1)
         let h0 = b.pos.y
         run(3)

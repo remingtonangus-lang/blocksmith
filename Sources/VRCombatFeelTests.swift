@@ -71,6 +71,10 @@ enum VRCombatFeelTests {
         } }
         game.paused = false; game.survival = true; game.health = 20; p.flying = false
         p.pos = P; p.vel = .zero; p.yaw = 0; p.pitch = 0
+        // (No Game.tick runs here: the active distance is centred on him by hand, or the mobs past it never move.)
+        let active0 = game.world.activeCenter
+        game.world.activeCenter = P
+        defer { game.world.activeCenter = active0 }
         var spawned: [Mob] = []
         func mob(_ k: MobKind, _ at: V3) -> Mob { let m = Mob(k, at: at); m.equip = nil; game.mobs.mobs.append(m); spawned.append(m); return m }
         defer { game.mobs.mobs.removeAll { m in spawned.contains { $0 === m } } }

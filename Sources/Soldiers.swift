@@ -21,6 +21,7 @@ final class SoldierBrain {
     var react: Float = 1
     var aimTime: Float = 0
     var glinted = false            // an Ashguard sharpshooter has shown its scope's glint on this target (G5)
+    var laserEnd: V3?              // where the marksman's aiming laser ends: its target, or the first block in the way
     var strafeTimer: Float = 0
     var strafeDir: Float = 1
     var lastSeen: V3?
@@ -779,6 +780,11 @@ extension Mob {
         var glintDone = false
         if b.gun == Guns.sniper || (kind == .soldierMarksman && !b.glinted && faction == Faction.ashguard.rawValue) {
             b.aimTime += dt
+            // P499 (Oct 30 20:02, "their laser goes through blocks, which shouldn't happen"): the laser runs to the
+            // target it is held on (not always the player) and stops on the first block in the way.
+            let from = SoldierRig.muzzleWorld(self), to = target - from
+            let len = simd_length(to)
+            b.laserEnd = len > 0.01 ? from + to / len * (Armory.blockHit(g.world, from, to / len, len)?.0 ?? len) : target
             if b.aimTime < 1.1 { return }
             b.aimTime = 0
             glintDone = true
@@ -1045,6 +1051,7 @@ extension Mob {
                     if airShot {
                         var s = AirDefence.shell(self, at: muzzle, dir: fwd, speed: v, fuse: fuse - simd_length(muzzle - pivot) / v, ranging: ranging)
                         if !light { s.power = HeavyTurret.power }
+                        if !light && !flak { AirDefence.mainBattery(&s) }
                         g.arms.spawn(s)
                     } else {
                         var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.006) * v, kind: .shell, damage: 0, fromPlayer: false,
@@ -1235,7 +1242,7 @@ extension Game {
                 Armory.streak(&wr, eye, from - V3(0, 0.25, 0), from + V3(0, 0.25, 0), 0.04 + 0.04 * k, V4(3.2, 3.0, 2.4, 0.9))
                 continue
             }
-            Armory.streak(&wr, eye, from, player.eye - V3(0, 0.3, 0), 0.012 + 0.012 * k, V4(2.6, 0.15, 0.1, 0.5 + 0.5 * k))
+            Armory.streak(&wr, eye, from, b.laserEnd ?? player.eye - V3(0, 0.3, 0), 0.012 + 0.012 * k, V4(2.6, 0.15, 0.1, 0.5 + 0.5 * k))
         }
     }
 }

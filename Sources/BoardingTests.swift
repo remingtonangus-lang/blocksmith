@@ -2,8 +2,8 @@ import Foundation
 import simd
 
 // The way aboard the Meridian frigate from the ground (FrigateBoarding.swift; done audit 25b6, G11): a bot stands on
-// the ground under a cruising frigate's boarding winch, is hauled up into the hangar, walks to the ladder, climbs to
-// the bridge deck and walks to the helm, all through Game.tick with the left stick (nothing teleported after the
+// the ground under a cruising frigate's boarding winch, is hauled up into the hangar, climbs the stairwell to the
+// bridge and walks to the helm, all through Game.tick with the left stick (nothing teleported after the
 // start fixture). Run by questcheck after the main gun checks.
 enum BoardingTests {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
@@ -76,33 +76,41 @@ enum BoardingTests {
               String(format: "boarding: standing at the winch's foot hauls the player %.0f blocks up into the hangar in %.1f s (the frigate heaves to: %.1f -> %.1f b/s)",
                      a0.y - foot.y, Float(frames) / 72, speed0, slowest))
         check(g.health >= startHealth || !g.survival, "boarding: the haul does no fall damage (health \(g.health); hurt by \(hurt.isEmpty ? "nothing" : hurt.joined(separator: ", ")))")
-        // Walk the hangar to the ladder, climb to the bridge deck, walk to the helm (grid targets, the ship's frame).
-        let ladder = V3(10.5, 9.05, 89.5), helm = V3(13.5, 25.05, 75.5)   // (the ladder's cell; its wall is to the west)
+        // Up the stairwell to the helm (P472: the ladders became one stairwell; P434 (c): a stair up into the bridge), as a
+        // player goes: grid targets in the ship's frame (grid x = the blueprint's + 13), each leg walked until its test.
+        // The hangar to the first flight's foot, up it (rising forward) to the main deck's stair hall; round to the second
+        // flight's foot, up it (rising aft) to the upper deck's landing; round the rails to the bridge stair, up it
+        // (rising forward) through the bridge floor; forward to the helm.
+        let helm = V3(13.5, 25.05, 75.5)
+        let legs: [(String, V3, (V3) -> Bool)] = [
+            ("the first flight's foot", V3(8.5, 9, 100.0), { l in simd_length(V2(l.x - 8.5, l.z - 100)) < 0.7 }),
+            ("up to the main deck", V3(8.5, 15, 91.5), { l in l.y > 14.9 && l.z < 93.5 }),
+            ("the second flight's foot", V3(11.5, 15, 90.6), { l in simd_length(V2(l.x - 11.5, l.z - 90.6)) < 0.5 }),
+            ("up to the upper deck", V3(11.5, 21, 99.0), { l in l.y > 20.9 && l.z > 97.5 }),
+            ("round the rails", V3(13.6, 21, 98.8), { l in abs(l.x - 13.6) < 0.4 }),
+            ("along the landing", V3(13.6, 21, 91.6), { l in l.z < 92 }),
+            ("the bridge stair's foot", V3(11.0, 21, 91.6), { l in abs(l.x - 11.0) < 0.4 }),
+            ("up to the bridge", V3(11.0, 25, 85.0), { l in l.y > 24.9 }),
+            ("the helm", helm, { l in simd_length(l - helm) < 2 }),
+        ]
         var stage = 0
         frames = 0
         var best: Float = 999
-        while stage < 3 && frames < 72 * 40 {
+        while stage < legs.count && frames < 72 * 60 {
             let l = s.toLocal(g.player.pos)
-            switch stage {
-            case 0:
-                walk(g, toward: s.toWorld(V3(ladder.x, l.y, ladder.z)))
-                if simd_length(V2(l.x - ladder.x, l.z - ladder.z)) < 0.6 { stage = 1 }
-            case 1:
-                walk(g, toward: s.toWorld(V3(ladder.x - 2, l.y, ladder.z)), jump: true)   // into the ladder's wall: climb
-                if l.y > 25 { stage = 2 }
-            default:
-                walk(g, toward: s.toWorld(V3(helm.x, l.y, helm.z)))
-                best = min(best, simd_length(l - helm))
-                if simd_length(l - helm) < 2 { stage = 3 }
-            }
+            let (_, to, done) = legs[stage]
+            if done(l) { stage += 1; continue }
+            walk(g, toward: s.toWorld(V3(to.x, l.y, to.z)))
+            if stage == legs.count - 1 { best = min(best, simd_length(l - helm)) }
             tick()
             frames += 1
         }
         pm.simulated = nil
         let l = s.toLocal(g.player.pos)
-        check(stage == 3, String(format: "boarding: from the hangar the bot walks to the ladder, climbs to the bridge and reaches the helm in %.1f s (stage %d, at %.1f,%.1f,%.1f, %.1f from the helm)",
-                                 Float(frames) / 72, stage, l.x, l.y, l.z, best))
-        check(stage == 3 && w.ships.canCommandeer(s), "boarding: the helm the bot reached can be taken (canCommandeer)")
+        let reached = stage == legs.count
+        check(reached, String(format: "boarding: from the hangar the bot climbs the stairwell to the bridge and reaches the helm in %.1f s (%@, at %.1f,%.1f,%.1f, %.1f from the helm)",
+                              Float(frames) / 72, reached ? "there" : "stuck on " + legs[stage].0, l.x, l.y, l.z, best))
+        check(reached && w.ships.canCommandeer(s), "boarding: the helm the bot reached can be taken (canCommandeer)")
     }
 
     // The left stick pushed toward a world point (yaw turned to face it), A held to climb when asked.

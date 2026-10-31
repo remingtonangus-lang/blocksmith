@@ -78,19 +78,30 @@ enum Village {
 
     static func type(_ gen: WorldGen) -> StructureType {
         StructureType(name: "village", spacing: 34, separation: 8, salt: 10387312, reach: 8) { [unowned gen] seed, cx, cz in
+            let rx = floorDiv(cx, 34), rz = floorDiv(cz, 34), s32 = UInt32(truncatingIfNeeded: gen.seed)
+            if thinned(gen, rx, rz, cx, cz) { return nil }
             if let s = place(gen, seed, cx, cz) { return s }
             // P484 (Oct 28 18:13, "I want you to make villagers slightly more common"): a region whose spot fell on
             // forest or broken ground tries a few more spots in it, on ground no save had generated before P484 (a
             // region that had a place keeps it where it was).
             guard let sc = gen.structures else { return nil }
-            let rx = floorDiv(cx, 34), rz = floorDiv(cz, 34), s32 = UInt32(truncatingIfNeeded: gen.seed)
             for k in 1...extraTries {
                 let ax = rx * 34 + Int(hashf(rx, rz, 4840 + k, s32) * 25), az = rz * 34 + Int(hashf(rx, rz, 4850 + k, s32) * 25)
                 guard sc.clear(cx: ax, cz: az, reach: 14, guardSet: sc.legacyP484) else { continue }
+                if thinned(gen, rx, rz, ax, az) { continue }
                 if let s = place(gen, seed &+ UInt64(k), ax, az) { return s }
             }
             return nil
         }
+    }
+
+    // P499 (Oct 30 19:58, "I'd say half as many villages"): every other region's hamlet, village or town is left out
+    // (large towns and cities stay), on ground no save had generated before P499 (a place a save began keeps going).
+    static func thinned(_ gen: WorldGen, _ rx: Int, _ rz: Int, _ cx: Int, _ cz: Int) -> Bool {
+        guard TownSizes.on, let sc = gen.structures else { return false }
+        guard hashf(rx, rz, 4990, UInt32(truncatingIfNeeded: gen.seed)) < 0.5 else { return false }
+        guard TownSizes.size(cx * CS + 8, cz * CS + 8, seed: gen.seed, ratio: TownSizes.newRatio).rawValue <= TownSize.town.rawValue else { return false }
+        return sc.clear(cx: cx, cz: cz, reach: 14, guardSet: sc.legacyP499)
     }
     static let extraTries = 3
 

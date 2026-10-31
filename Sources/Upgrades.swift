@@ -228,13 +228,30 @@ enum Upgrades {
         func lv(_ e: Ench) -> Int { l.first { $0.0 == e }?.1 ?? 0 }
         let midX = (lo.x + hi.x) / 2
         let len = hi.z - lo.z
+        // P499 (Oct 30 20:01, "a little block floating at the top" of the Donnerkeil): every fitting sits on the gun's
+        // own parts at its place along it (the band and the scope rings were sized from the whole gun's bounds, so on a
+        // gun with a tall optic and a thin barrel they stood clear of it).
+        func across(_ z: Float) -> (V3, V3)? {          // the cross-section of the gun's fixed parts at z
+            var a = V3(repeating: .greatestFiniteMagnitude), c = -a
+            for (i, p) in parts.enumerated() where !mag.contains(i) && p.mn.z <= z && p.mx.z >= z { a = simd_min(a, p.mn); c = simd_max(c, p.mx) }
+            return a.x <= c.x ? (a, c) : nil
+        }
+        func topAt(_ z: Float) -> Float? {               // the highest part over the middle at z
+            var t: Float?
+            for (i, p) in parts.enumerated() where !mag.contains(i) && p.mn.z <= z && p.mx.z >= z && p.mn.x <= midX + 0.3 && p.mx.x >= midX - 0.3 {
+                t = max(t ?? p.mx.y, p.mx.y)
+            }
+            return t
+        }
         if lv(.stability) > 0 {                     // a scope on two rings, longer with each level
             let sl: Float = len * (0.22 + 0.06 * Float(lv(.stability)))
             let z0: Float = lo.z + len * 0.3
             out.append(Part(mn: V3(midX - 1.1, hi.y + 1, z0), mx: V3(midX + 1.1, hi.y + 3.2, z0 + sl), color: V3(0.12, 0.13, 0.15), pattern: 8))
             out.append(Part(mn: V3(midX - 0.9, hi.y + 1.4, z0 - 0.3), mx: V3(midX + 0.9, hi.y + 2.8, z0), color: V3(0.3, 0.55, 0.75), pattern: 11))
             for zr: Float in [0.25, 0.75] {
-                out.append(Part(mn: V3(midX - 0.6, hi.y, z0 + sl * zr - 0.4), mx: V3(midX + 0.6, hi.y + 1, z0 + sl * zr + 0.4), color: V3(0.2, 0.2, 0.22)))
+                let z = z0 + sl * zr
+                let foot = min(hi.y, topAt(z) ?? hi.y)       // (down to the part under the ring)
+                out.append(Part(mn: V3(midX - 0.6, foot, z - 0.4), mx: V3(midX + 0.6, hi.y + 1, z + 0.4), color: V3(0.2, 0.2, 0.22)))
             }
         }
         if lv(.extendedMag) > 0 {                   // the magazine grows down
@@ -246,14 +263,22 @@ enum Upgrades {
                 out.append(m)
             }
         }
-        if lv(.penetration) > 0 || lv(.incendiary) > 0 {     // a band near the muzzle: brass for piercing, red-orange for incendiary
+        if lv(.penetration) > 0 || lv(.incendiary) > 0 {     // a band round the barrel near the muzzle: brass for piercing, red-orange for incendiary
             let c = lv(.incendiary) > 0 ? V3(1, 0.4, 0.1) : V3(0.9, 0.8, 0.35)
             let z: Float = lo.z + len * 0.08
-            out.append(Part(mn: V3(midX - 1.2, (lo.y + hi.y) / 2 + 0.5, z), mx: V3(midX + 1.2, hi.y - 0.5, z + 1.2), color: c, pattern: 9))
+            if let (a, b) = across(z + 0.6) {
+                out.append(Part(mn: V3(a.x - 0.15, a.y - 0.15, z), mx: V3(b.x + 0.15, b.y + 0.15, z + 1.2), color: c, pattern: 9))
+            }
         }
-        if lv(.quickReload) > 0 {                   // a loader lever by the grip
+        if lv(.quickReload) > 0 {                   // a loader lever on the side by the grip
             let z: Float = lo.z + len * 0.62
-            out.append(Part(mn: V3(hi.x - 0.2, lo.y + 2, z), mx: V3(hi.x + 0.8, lo.y + 3, z + 2.5), color: V3(0.75, 0.75, 0.78), pattern: 8))
+            // (on the side of the widest part there: the receiver, not out in the air beside the grip)
+            var side: Part?
+            for (i, p) in parts.enumerated() where !mag.contains(i) && p.mn.z <= z + 1.25 && p.mx.z >= z + 1.25 && p.mx.x > (side?.mx.x ?? -.greatestFiniteMagnitude) { side = p }
+            if let p = side {
+                let h = min(1, p.mx.y - p.mn.y)
+                out.append(Part(mn: V3(p.mx.x - 0.1, p.mn.y, z), mx: V3(p.mx.x + 0.5, p.mn.y + h, z + 2.5), color: V3(0.75, 0.75, 0.78), pattern: 8))
+            }
         }
         return out
     }

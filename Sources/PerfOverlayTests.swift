@@ -22,7 +22,7 @@ enum PerfOverlayTests {
         let plain = PerfOverlay.lines(fps: 72, gpuMs: 0, game: g, now: now)
         check(lines.count >= 2 && lines[0].hasPrefix("72 fps") && lines[0].contains("worst 30.0") && lines[0].contains("GPU 9.2")
               && lines[1].contains("active \(rd0) of \(rd0 + 4) (auto)") && lines[1].contains("jobs")
-              && plain[1].hasPrefix("Render distance \(rd0)  ") && !plain[0].contains("GPU"),
+              && plain[1].hasPrefix("Render distance \(g.world.renderDistance)  active \(rd0)") && !plain[0].contains("GPU"),
               "perf overlay: \"\(lines[0])\" / \"\(lines[1])\"")
         // 3. The option (Options > Interface) toggles it and the HUD draws it only when on (Reset Options turns it off).
         PrefsSandbox.begin()

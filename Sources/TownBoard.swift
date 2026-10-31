@@ -345,12 +345,12 @@ final class NoticeBoardMenu: ListMenu {
                 let key = i == 0 ? Property.townKey : Property.homeKey, price = i == 0 ? Property.townPrice : Property.homePrice
                 return Row(icon: Items.has(key) ? ItemStack(Items.id(key), 1) : .empty, name: i == 0 ? "Land office: a town house" : "Land office: a homestead",
                            detail: i == 0 ? "A deed for an empty town building" : "Stake a cabin in open country",
-                           value: Money.format(price), enabled: g.money >= price)
+                           value: Money.format(price), good: g.money >= price)      // (P499: pressed short of money it says the price)
             case .donate:
                 let left = Honour.capLeft(g, "donation")
                 return Row(icon: Items.has("emerald") ? ItemStack(Items.id("emerald"), 1) : .empty, name: "Donate to the town fund",
                            detail: left > 0 ? "+2 honour (up to 6 a day)" : "The fund thanks you. Come back tomorrow",
-                           value: Money.format(TownBoard.donation), enabled: left > 0 && g.money >= TownBoard.donation)
+                           value: Money.format(TownBoard.donation), enabled: left > 0, good: g.money >= TownBoard.donation)
             case .emeralds:
                 // (G14) The exchange spelled out where every town's news is read: what an emerald is worth and where they come from.
                 return Row(icon: Items.has("emerald") ? ItemStack(Items.id("emerald"), 1) : .empty, name: "The bank buys emeralds",

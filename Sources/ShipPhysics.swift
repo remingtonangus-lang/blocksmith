@@ -431,8 +431,10 @@ extension ShipManager {
             let pos0: V3 = startOK ? s.pos : (s.lastGoodPos ?? s.home ?? V3(0, Float(SEA + 10), 0))
             let rot0 = startOK ? s.rot : (s.lastGoodRot ?? Quat(angle: 0, axis: V3(0, 1, 0)))
             if !startOK { s.pos = pos0; s.rot = rot0; s.vel = .zero; s.angVel = .zero; ShipManager.quarantined += 1 }
-            let sp = simd_length(s.vel)
-            if sp > 60 { s.vel *= 60 / sp }
+            // (P499: an AI-moved capital hull keeps its own drive's speed, the Meridian's 1,000 km/h dash and the
+            // dropship's 300 km/h: the 60 m/s cap is the rigid bodies' tunnelling guard.)
+            let sp = simd_length(s.vel), top: Float = s.kinematic ? 300 : 60
+            if sp > top { s.vel *= top / sp }
             let w = simd_length(s.angVel)
             if w > 4 { s.angVel *= 4 / w }
             s.pos += s.vel * h

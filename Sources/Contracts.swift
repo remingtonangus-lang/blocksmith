@@ -239,6 +239,23 @@ enum Contracts {
         return (String(key[..<i]), s)
     }
 
+    // Takes the parcel of contract `key` from the player (main slots, the off hand), sealed or by its label.
+    static func takeParcel(_ g: Game, key: String, dest: String?) -> Bool {
+        let seal = ["parcel:\(key)"], label = "Parcel for \(dest ?? "?")"
+        let paper = Items.has("paper") ? Int(Items.id("paper")) : -1
+        for box in [g.inventory.main, g.inventory.offhand] {
+            if let i = box.slots.firstIndex(where: { $0.pages == seal }) { box.slots[i] = .empty; return true }
+        }
+        for box in [g.inventory.main, g.inventory.offhand] {
+            if let i = box.slots.firstIndex(where: { Int($0.item) == paper && $0.label == label && $0.pages == nil }) {
+                box.slots[i].count -= 1
+                if box.slots[i].count <= 0 { box.slots[i] = .empty }
+                return true
+            }
+        }
+        return false
+    }
+
     // MARK: Once a second (TownLaw.tick)
 
     static func tick(_ g: Game) {
@@ -255,12 +272,11 @@ enum Contracts {
             }
             switch c.kind {
             case "courier":
-                let parcel = g.inventory.main.slots.firstIndex { $0.pages == ["parcel:\(key)"] }
-                guard let i = parcel, let t = c.destAt else { continue }
-                if simd_length(V2(Float(t[0]) - pos.x, Float(t[1]) - pos.z)) < 64 {
-                    g.inventory.main.slots[i] = .empty
-                    pay(g, board, slot, &c)
-                }
+                // P499 (Oct 30 20:11-20:12 in Flint Valley: "I delivered the parcel... it's not letting me collect pay"):
+                // the parcel counts wherever he carries it (either hand, the pack), and by its label if its seal (pages)
+                // was lost on the way; only the main slots were searched, by the seal alone.
+                guard let t = c.destAt, simd_length(V2(Float(t[0]) - pos.x, Float(t[1]) - pos.z)) < 64 else { continue }
+                if takeParcel(g, key: key, dest: c.dest) { pay(g, board, slot, &c) }
             case "escort":
                 guard let t = c.destAt else { continue }
                 guard let m = g.mobs.mobs.first(where: { $0.kind == .villager && $0.customName == c.who && $0.persistent }) else { continue }

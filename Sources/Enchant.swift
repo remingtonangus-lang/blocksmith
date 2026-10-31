@@ -109,7 +109,7 @@ enum Enchant {
             d("incendiary", "Incendiary Rounds", 1, 2, .gun, nil, (20, 0), (50, 0), anvil: 4),
             // D32: upgrades that change what happens, not just how much (BehaviourUpgrades.swift).
             d("ricochet", "Ricochet Rounds", 2, 2, .gun, nil, (18, 12), (48, 12), anvil: 4),
-            d("serrated", "Serrated Edge", 2, 3, .sword, [.sword, .axe, .spear], (12, 10), (42, 10), anvil: 4),
+            d("serrated", "Barbed Edge", 2, 3, .sword, [.sword, .axe, .spear], (12, 10), (42, 10), anvil: 4),
         ]
     }()
     static func def(_ e: Ench) -> EnchDef { defs[e.rawValue] }

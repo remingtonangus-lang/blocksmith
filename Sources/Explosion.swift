@@ -230,8 +230,11 @@ enum Explosion {
             if g.survival { g.player.vel += push * g.knockbackScale }       // (PG7: a blast doesn't throw a creative player about either; Q2c-console-60)
         }
         g.coop.eachSeat(g, hitPlayer)
-        for m in g.mobs.mobs where m !== except && !(own && m.kind.steelhold && m.factionValue == .steelhold) && !(g.ashQuiet && m.factionValue == .ashguard)
-            && !(g.blastSpares != .none && m.factionValue == g.blastSpares) {
+        // P499 (Oct 30 14:57, at a taken gun: "this guy has fired the flak cannon at me like 10 times... no damage to my
+        // gun"): a gun the player mans is his, not its old side's: their bursts no longer spare it.
+        let mannedGun = Turrets.shared.manned
+        for m in g.mobs.mobs where m !== except && (m === mannedGun || !(own && m.kind.steelhold && m.factionValue == .steelhold) && !(g.ashQuiet && m.factionValue == .ashguard)
+            && !(g.blastSpares != .none && m.factionValue == g.blastSpares)) {
             if let im = impact(m.pos, m.height), im.0 > 0 {
                 let (k, dir) = im
                 var dmg = ((k * k + k) / 2 * 7 * radius + 1).rounded()
@@ -320,6 +323,11 @@ final class CraterJob {
     let cap: Int
     let depth: Int                           // how far down the bowl reaches (P99: the Tidebreaker's goes 22 deep)
     private var shear = V2(0, 0)             // P357 (e): blocks each layer down shifts along the shot
+    // P499 (Oct 30 20:28, the Tidebreaker at a Capital citadel: "I literally shot through a building and made a crater
+    // in the ground as if I was shooting vertically downwards"): a shot flatter than 25 degrees down drives its bowl
+    // along the shot (the bowl's depth axis is the shot's heading), into the wall it struck, instead of a pit down
+    // through the floors under the impact. Rows of the bowl-space basis (side, up, ahead); nil: a plunging shot.
+    private var axes: (V3, V3, V3)?
     private let down: Float
     private let offsets: [SIMD3<Int16>]
     private var next = 0
@@ -340,13 +348,20 @@ final class CraterJob {
         if let a = along, simd_length(a) > 1e-3 {
             let n = simd_normalize(a)
             let hz = V2(n.x, n.z), hl = simd_length(hz)
-            let lean = hl > 1e-3 ? min(1.2, hl / max(0.2, abs(n.y))) : 0
-            shear = hl > 1e-3 ? hz / hl * lean : V2(0, 0)
+            if n.y > -0.42 && hl > 1e-3 {              // (flatter than 25 degrees: a 30-degree shot still leans, P357 e)
+                let side = simd_normalize(V3(-n.z, 0, n.x))
+                axes = (side, -n, simd_cross(side, -n))
+            } else {
+                let lean = hl > 1e-3 ? min(1.2, hl / max(0.2, abs(n.y))) : 0
+                shear = hl > 1e-3 ? hz / hl * lean : V2(0, 0)
+            }
         }
         let ri = Int(ceilf(r))
         self.depth = depth ?? Int(ceilf(Float(ri) / 1.5))
         down = r / Float(max(1, self.depth))
-        offsets = Explosion.craterOffsets(ri, depth: self.depth)
+        // (Turned: every cell within the bowl's longest reach, nearest first, each tested in the bowl's own space.)
+        let reach = max(ri, self.depth)
+        offsets = axes == nil ? Explosion.craterOffsets(ri, depth: self.depth) : Explosion.craterOffsets(reach, depth: reach)
         if quiet { return }
         let t0 = CFAbsoluteTimeGetCurrent()
         g.world.ships.blast(at: c, power: 14, game: g, resistCap: Armour.heavyCap)
@@ -370,7 +385,7 @@ final class CraterJob {
             // None: carve without the per-block circuit marks. 100k cells, straight through each chunk's array and
             // spread over the first few frames (one pass was a 30-40 ms frame); the carving waits for it (under the
             // fireball, unseen).
-            let R = Int(ceilf(r * 1.5)) + 3                   // (the scorch reaches 1.5 radii)
+            let R = max(Int(ceilf(r * 1.5)), axes == nil ? 0 : depth) + 3     // (the scorch reaches 1.5 radii; a turned bowl its depth)
             let y0 = max(0, cy - max(R, depth + 3)), y1 = min(CH - 1, cy + R)
             if scanY < y0 { scanY = y0 }
             if scanY > y1 { circuitsNear = false; return step(g, blocks: blocks) }   // (a blast above or below the world)
@@ -398,9 +413,19 @@ final class CraterJob {
             let dx = Int(o.x), dy = Int(o.y), dz = Int(o.z)
             let y = cy + dy
             guard y > 0 && y < CH - 1 else { continue }
-            let dyf = Float(dy) * (dy < 0 ? down : 1)        // a bowl (the old one shallower than wide, P99's deep)
-            let d2: Float = Float(dx * dx + dz * dz) + dyf * dyf
-            if d2 > r * r { next = offsets.count; break }     // nearest first: nothing further can be inside
+            let d2: Float
+            if let (ax, ay, az) = axes {
+                let o3 = V3(Float(dx), Float(dy), Float(dz))
+                if simd_length_squared(o3) > Float(max(r * r, Float(depth * depth))) + 1 { next = offsets.count; break }
+                let ly = simd_dot(o3, ay), lx = simd_dot(o3, ax), lz = simd_dot(o3, az)
+                let lyf = ly * (ly < 0 ? down : 1)
+                d2 = lx * lx + lz * lz + lyf * lyf
+                if d2 > r * r { continue }
+            } else {
+                let dyf = Float(dy) * (dy < 0 ? down : 1)        // a bowl (the old one shallower than wide, P99's deep)
+                d2 = Float(dx * dx + dz * dz) + dyf * dyf
+                if d2 > r * r { next = offsets.count; break }     // nearest first: nothing further can be inside
+            }
             let edge: Float = r * (0.8 + 0.2 * hashf(cx + dx, y, cz + dz, 911))
             guard d2 <= edge * edge else { continue }
             let sx = dy < 0 ? Int((shear.x * Float(-dy)).rounded()) : 0, sz = dy < 0 ? Int((shear.y * Float(-dy)).rounded()) : 0
@@ -431,7 +456,8 @@ final class CraterJob {
             let t = Float(bowlNext) * Float(depth) / 6
             let k = t / Float(max(1, depth))
             let rr = 0.85 * r * sqrtf(max(0.05, 1 - k * k))
-            _ = w.carve(at: center + V3(shear.x * t, -t, shear.y * t), radius: rr, mode: .shape)
+            let along: V3 = axes.map { -$0.1 * t } ?? V3(shear.x * t, -t, shear.y * t)
+            _ = w.carve(at: center + along, radius: rr, mode: .shape)
             bowlNext += 1
             return done
         }

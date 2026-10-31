@@ -99,14 +99,24 @@ enum GreywallTests {
         let tg = CFAbsoluteTimeGetCurrent()
         let r = StructCheck.check(world, s, typeName: Greywall.kind, seed: seed)
         let ms = (CFAbsoluteTimeGetCurrent() - tg) * 1000
-        let byClass = Dictionary(grouping: r.issues, by: { $0.cls }).map { "\($0.key) \($0.value.count)" }.sorted().joined(separator: ", ")
+        // P469: a depot base's fenced compound stands against its wall, inside the base's box; its stores are reached by
+        // its own gate (the depot's), not from the base's yard.
+        let depot = (world.gen as? WorldGen).flatMap { wg in wg.structures.flatMap { Depots.site(wg, $0, s) } }
+        let issues = r.issues.filter { i in depot.map { !(i.pos.x >= $0.x0 - 8 && i.pos.x <= $0.x1 + 8 && i.pos.z >= $0.z0 - 8 && i.pos.z <= $0.z1 + 12) } ?? true }
+        let byClass = Dictionary(grouping: issues, by: { $0.cls }).map { "\($0.key) \($0.value.count)" }.sorted().joined(separator: ", ")
         let guns = (t.deckGuns ? t.towers.count : 0) + (t.rawValue >= 1 ? 1 : 0)      // (+ P252: the keep roof's flak gun)
-        check(r.issues.isEmpty, String(format: "%@ at %d %d: structcheck %d doors, %d chests, %d mobs, issues: %@ (%.0f ms)",
-                                       tag, cx, cz, r.doors, r.pois, r.mobs, byClass.isEmpty ? "none" : byClass, ms))
-        for i in r.issues.prefix(8) { print("  \(i.cls) at \(i.pos.x - cx) \(i.pos.y - S) \(i.pos.z - cz) (relative): \(i.detail)") }
+        check(issues.isEmpty, String(format: "%@ at %d %d: structcheck %d doors, %d chests, %d mobs, issues: %@ (%.0f ms)",
+                                     tag, cx, cz, r.doors, r.pois, r.mobs, byClass.isEmpty ? "none" : byClass, ms))
+        for i in issues.prefix(8) { print("  \(i.cls) at \(i.pos.x - cx) \(i.pos.y - S) \(i.pos.z - cz) (relative): \(i.detail)") }
         let ours = world.pendingMobs.filter { $0.0.contains("@grey") && s.contains(Int(floor($0.1.x)), Int(floor($0.1.y)), Int(floor($0.1.z))) }
         let others = Set(world.pendingMobs.filter { !$0.0.contains("@grey") && s.contains(Int(floor($0.1.x)), Int(floor($0.1.y)), Int(floor($0.1.z))) }.map { $0.0 })
-        check(ours.count == t.troops + guns, "\(tag): \(ours.count) troops and guns posted (\(t.troops) soldiers + \(guns) deck and flak guns)\(others.isEmpty ? "" : "; others in the box: " + others.sorted().joined(separator: ", "))")
+        // P471: each gunned tower's gun room seats an operator who works its gun (on top of the garrison's troops).
+        let operators = ours.filter { $0.0.contains(":operator") }.count
+        if ours.count - operators != t.troops + guns {
+            print("  \(tag) posted: " + Dictionary(grouping: ours, by: { $0.0 }).map { "\($0.key) x\($0.value.count)" }.sorted().joined(separator: ", "))
+        }
+        check(ours.count - operators == t.troops + guns && operators <= t.towers.count,
+              "\(tag): \(ours.count) troops and guns posted (\(t.troops) soldiers + \(guns) deck and flak guns + \(operators) gun-room operators)\(others.isEmpty ? "" : "; others in the box: " + others.sorted().joined(separator: ", "))")
 
         // The keep where the plan puts it.
         let kx = t.keepX, kz = t.keepZ, kc = t.keepC
@@ -159,7 +169,8 @@ enum GreywallTests {
         check(lamps >= [8, 14, 22, 28][t.rawValue] && panels >= 1 + t.towers.count && maps >= 1,
               "\(tag): \(lamps) alarm lamps, \(panels) alarm panels, \(maps) map tables")
         let planned = Greywall.turrets(t).count + Greywall.corridorTurrets(t).count
-        check(turrets == planned && flags == 4, "\(tag): \(turrets) wall and corridor turrets (\(planned) planned), the flag on the keep (\(flags) cells)")
+        // (P471: a shore base adds two walkway turrets looking out to sea on each sea wall.)
+        check(turrets >= planned && turrets <= planned + 8 && flags == 4, "\(tag): \(turrets) wall and corridor turrets (\(planned) planned, up to 8 more on sea walls), the flag on the keep (\(flags) cells)")
         // What the alarm, the capture and the turrets will find on this generated base (Greywall.scan, as in play): a
         // command console to hold above all (an outpost had none: it could never be taken, A1 verifier).
         var site = GreywallAlarmState.Site(cx: cx, cz: cz, S: S, tier: t)

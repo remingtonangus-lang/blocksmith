@@ -1781,6 +1781,9 @@ if CommandLine.arguments.contains("--gunparts-only") {          // P372: emplace
     GunPartsCheck.run(game, check)
     print(failures == 0 ? "gunparts: all checks passed" : "gunparts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// P499: no held gun part or upgrade fitting floats clear of the gun (quest/src/test/GunFittingsCheck.swift).
+GunFittingsCheck.run(check)
+if CommandLine.arguments.contains("--gunfittings-only") { print(failures == 0 ? "gunfittings: all checks passed" : "gunfittings: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 if CommandLine.arguments.contains("--dropflight") {           // P461: a taken dropship lands, sprints and crushes
     DropFlightCheck.run(game, check)
     print(failures == 0 ? "dropflight: all checks passed" : "dropflight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -2222,6 +2225,13 @@ if CommandLine.arguments.contains("--settings-only") {
 if CommandLine.arguments.contains("--friendlyfire-only") {
     FriendlyFireTests.run(game: game, check: check)
     print(failures == 0 ? "friendlyfire: all checks passed" : "friendlyfire: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --military-only: the Steelhold soldier checks of the Mac --mobtests (Sources/MilitaryTests.swift; P499 marksman laser).
+if CommandLine.arguments.contains("--military-only") {
+    MobTests.failures = []
+    MobTests.military(game: game, world: game.world, pos: game.player.pos)
+    print(MobTests.failures.isEmpty ? "military: all checks passed" : "military: \(MobTests.failures.count) FAILED: \(MobTests.failures.joined(separator: ", "))")
+    exit(MobTests.failures.isEmpty ? 0 : 1)
 }
 // --latency-only: every control answers in the frame that reads the press (Sources/InputLatencyTests.swift, Q2).
 if CommandLine.arguments.contains("--latency-only") {

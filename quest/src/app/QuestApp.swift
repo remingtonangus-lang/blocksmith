@@ -87,6 +87,7 @@ final class QuestApp {
         }
         stats.recordStages = { [weak self] in self?.worldRenderer?.takeStages() ?? "" }
         stats.dynResProbe = { [weak self] in self?.dynRes.lastProbe ?? 0 }
+        stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && !(self?.xr.foveated ?? true) }      // P499
         stats.perfNotice = { [weak self] in self?.xr.perfNoticeLine ?? "" }
         startLoading()
     }
@@ -774,6 +775,7 @@ final class FrameStats {
     static let captureMissFrac = 0.15, captureGap = 120.0
     var viewGov: ViewGovernor?              // P425: Auto View Distance
     var dynResProbe: (() -> Double)?        // P403 step 2: DynamicResolution.lastProbe
+    var dynResOn: (() -> Bool)?             // P499: dynamic resolution is running (Auto View Distance reads it)
     var perfNotice: (() -> String)?         // P403 step 1: XRSession.perfNoticeLine
     private func capture(game: Game?, target: Double, now: Double) {
         defer { prevLine = lastLine }
@@ -876,8 +878,12 @@ final class FrameStats {
             // P425: Auto View Distance: the view follows the GPU's frame time under the slider (ViewGovernor.swift).
             if QuestSettings.autoViewDistance, var vg = viewGov, target > 0 {
                 if vg.chosen != QuestSettings.renderDistance { vg.setChosen(QuestSettings.renderDistance) }
+                // P499: with dynamic resolution on, its scale and its probe's pixel share (10 % fewer pixels gave N % less GPU).
+                let probe = dynResProbe?() ?? 0
                 let w = ViewGovernor.Window(seconds: now - since, frames: frames, missed: missed, gpuMs: sumGPU / n, budgetMs: target * 1000,
-                                            loading: genRate > FrameStats.loadingChunksPerSecond, excused: excused)
+                                            loading: genRate > FrameStats.loadingChunksPerSecond, excused: excused,
+                                            dynRes: dynResOn?() ?? false, scale: Double(scene.viewScale),
+                                            pixelShare: probe > 0 ? max(0, min(1, (1 - probe) * 10)) : 0)
                 switch vg.observe(w) {
                 case .lower(let rd):
                     g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance); QuestSettings.autoViewLast = rd

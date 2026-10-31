@@ -86,7 +86,7 @@ enum GreywallArms {
                 b(-1.2, 0.6, 1.2, 0.14, 0.5, 1.2, dark, pMetal),                   // charging handle (left)
                 b(1.06, 0.2, 0.8, 0.08, 0.9, 2.8, dark, pMetal),                   // ejection port (right)
                 b(-1.1, -1.9, 8.9, 2.2, 4.2, 0.8, dark, pPoly),                    // butt pad
-                b(-0.8, -2.1, -14.0, 1.6, 0.4, 5.0, dark, pPoly),                  // handguard grip ribs
+                b(-0.8, -0.8, -14.0, 1.6, 0.45, 5.0, dark, pPoly),                 // handguard grip ribs (P499: were 1.3 px under it)
             ]
             let m = p.count
             p += [b(-0.6, -5.2, 2.0, 1.2, 3.8, 2.2, dark, pPoly), b(-0.62, -5.5, 1.9, 1.24, 0.4, 2.4, steel, pMetal)]   // magazine behind the grip
@@ -103,10 +103,10 @@ enum GreywallArms {
                 b(-0.3, 2.6, 1.4, 0.6, 1.6, 0.6, dark, pMetal),
                 b(-1.22, 1.0, -7, 0.1, 0.6, 3, hazard, pPoly),
                 b(-0.65, -3.6, 0.8, 1.3, 3.4, 1.6, dark, pPoly),                  // grip
-                b(-0.25, -1.6, -2.4, 0.5, 0.3, 2.2, dark, pMetal),
+                b(-0.25, -1.3, -2.4, 0.5, 0.3, 2.2, dark, pMetal),               // trigger guard (P499: on the trigger)
                 b(-0.9, -1.8, 5, 1.8, 3.6, 6.4, slate * 0.9, pPoly),              // stock
                 b(-0.95, -2.0, 11.2, 1.9, 4.0, 0.6, dark, pPoly),
-                b(-0.2, -1.6, -20, 0.4, 0.8, 5, dark, pMetal),                    // bipod
+                b(-0.2, -0.8, -20, 0.4, 1.15, 5, dark, pMetal),                   // bipod (P499: folded up to the heat shield)
             ]
             let m = p.count
             p += [b(-2.9, -2.8, -6.8, 1.9, 3.0, 3.6, dark, pPoly)]                  // box magazine on the left

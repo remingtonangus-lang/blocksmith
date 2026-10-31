@@ -231,7 +231,8 @@ extension TownTests {
               "revolver: its own one-handed model with a walnut grip (\(CapitalArms.models[min(Guns.revolver, CapitalArms.models.count - 1)].parts.count) parts)")
         check(TextureGen.painters()["item_gun_revolver"] != nil, "revolver: has its own icon")
         let sold = ShopKind.allCases.contains { Economy.catalog($0).contains { $0.item == id } }
-        check(!sold && Economy.buysItem(.gunsmith, id), "revolver: gunsmiths buy it, nobody sells it")
+        // (P370: a period gunsmith stocks the six-iron among its guns.)
+        check(sold && Economy.buysItem(.gunsmith, id), "revolver: gunsmiths sell it and buy it")
         // The 25% drop.
         var hits = 0
         let n = 20_000
@@ -266,12 +267,13 @@ extension TownTests {
         var seen: [IVec3] = [], offices = 0, cells = 0, wanted = 0, walks = 0, fronts = 0, visited = 0
         let bars = Blocks.id("iron_bars"), ironDoor = Blocks.groupBase[Int(Blocks.id("iron_door"))]
         for _ in 0..<3 {
-            guard let s = sc.nearest("village", x: 0, z: 0, maxRegions: 12, accept: { st in !seen.contains { $0 == st.anchor } }) else { break }
+            // (C13: a hamlet has no office or deputies, only the sheriff: towns from a village up.)
+            guard let s = sc.nearest("village", x: 0, z: 0, maxRegions: 12, accept: { st in !seen.contains { $0 == st.anchor } && TownSizes.of(st) != .hamlet }) else { break }
             seen.append(s.anchor)
             _ = w.loadSync(center: V3(Float(s.anchor.x), 140, Float(s.anchor.z)), radius: 4)
             visited += 1
             for (p, be) in w.blockEntities where be.kind == .sign && abs(p.x - s.anchor.x) < 80 && abs(p.z - s.anchor.z) < 80 {
-                if be.lines.contains("Sheriff") {
+                if be.lines.contains("Sheriff's Office") || be.lines.contains("Sheriff") {
                     offices += 1
                     var n = 0, doors = 0
                     for dy in -2...0 { for dz in -8...8 { for dx in -8...8 {

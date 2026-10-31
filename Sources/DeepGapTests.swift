@@ -133,8 +133,8 @@ enum DeepGapTests {
         g.player.pos = V3(Float(lp.x) + 0.5, Float(lp.y) + 0.19, Float(lp.z) + 0.5)
         g.gateCooldown = 0
         g.gatesTick(0.05)
-        check(vline.contains("Deep Lift") && g.dim.dim == .overworld,
-              "deep gap: a Deep Lift in the vault is the way up (\"\(vline)\") and carries you home")
+        check(vline.contains("Hell Lift") && g.dim.dim == .overworld,
+              "deep gap: a Hell Lift in the vault is the way up (\"\(vline)\") and carries you home (now in \(g.dim.dim))")
         // Saved.
         let d = g.saveExtra()
         let before = (g.wokenGates, g.deepReturn, g.deepLifts)
@@ -241,7 +241,10 @@ enum DeepGapTests {
             for i in 0..<9 where i != g.inventory.selected { g.inventory.main[i] = ItemStack(Items.id(ammo), Items.def(Items.id(ammo)).maxStack) }
             let pm = PadManager.shared
             var t: Float = 0
+            var trace = "\(m.health)"
+            defer { print("deep balance duel trace \(m.kind.key): health \(trace) at \(m.pos.y), killed \(t) s, alive \(m.health > 0)") }
             while t < limit && m.health > 0 {
+                if Int(t * 20) % 10 == 0 && t < 5 { trace += " \(m.health)/\(m.lastHurtAmount)" }
                 g.health = 20; g.hunger = 20
                 g.player.pos = spot; g.player.vel = .zero
                 let aim = m.pos + V3(0, m.height * 0.5, 0) - g.player.eye

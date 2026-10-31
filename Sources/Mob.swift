@@ -366,7 +366,7 @@ final class Mob {
     var flinch: Float = 0           // powderwight: a hit stops the fuse this long (internal key creeper)
     var soaked: Float = 0           // powderwight: seconds until a doused fuse can be struck again
     var fire: Float = 0             // seconds left burning
-    var bleed: Float = 0            // D32 Serrated Edge: seconds left bleeding (BehaviourUpgrades.swift)
+    var bleed: Float = 0            // D32 Barbed Edge: seconds left bleeding (BehaviourUpgrades.swift)
     var bleedTick: Float = 0
     var fireTick: Float = 0
     var aggro = false               // voidwalker / spider provoked

@@ -221,12 +221,13 @@ enum AshVaultGapTests {
 
         // Reinforcements at Alarm: a squad with its roles runs from the nearest garrison toward the last contact.
         g.mobs.mobs.removeAll()
+        g.ashSiteSquads.removeAll()
         g.ashAlarm = 2.5; g.ashAlarmLevel = 2; g.ashSquadsSent = 0; g.ashReinforceT = 0
         g.ashSpot = stand; g.ashSpotSeen = -999
         tick(0.05)
         let squad = g.mobs.mobs.filter { $0.brain?.extra == true }
         let roles = Set(squad.compactMap { $0.brain?.role })
-        let mgGun = squad.first { $0.brain?.role == AshArmy.mg }?.brain?.gun == Guns.smg
+        let mgGun = squad.first { $0.brain?.role == AshArmy.mg }?.brain?.gun == Guns.sturmwind      // (P201: the retired SMG's belt gun)
         let far0 = squad.map { simd_length($0.pos - stand) }.max() ?? 0
         var e: Float = 0
         while e < 12 { g.health = 20; g.alive = true; g.tick(0.05); g.player.pos = stand; g.player.vel = .zero; w.pendingMobs.removeAll(); e += 0.05 }
@@ -249,8 +250,13 @@ enum AshVaultGapTests {
         // A patrol at Quiet walks between the two sites nearest and turns at the end of its leg.
         g.mobs.mobs.removeAll()
         g.ashAlarm = 0; g.ashAlarmLevel = 0; g.ashPatrolT = 0
+        g.ashSiteSquads.removeAll()                         // (the squads sent above used up the nearest sites' budgets)
         tick(0.05)
         let patrol = g.mobs.mobs.filter { $0.brain?.leg != nil }
+        if patrol.isEmpty {
+            let near = AshWar.sites.filter { AshArmy.senders.contains($0.kind) }.map { hypotf(Float($0.x) - g.player.pos.x, Float($0.z) - g.player.pos.z) }.sorted().prefix(3)
+            print("ash vault patrols: none sent; nearest senders \(near.map { Int($0) }), cleared \(g.ashCleared.count), difficulty \(g.difficulty), in vault \(DeepGen.inVault(g.player.pos.y)), level \(g.ashAlarmLevel)")
+        }
         var turned = false
         if let p = patrol.first, let leg = p.brain?.leg, let o = p.brain?.order {
             p.pos = V3(o.x, p.pos.y, o.z)
@@ -264,6 +270,12 @@ enum AshVaultGapTests {
         g.mobs.mobs.removeAll(); g.ashStrikes.removeAll()
         let crew = Mob.structureMob("soldier_trooper:mortar@ash", at: stand + V3(0, 0, 70))!
         g.mobs.mobs.append(crew)
+        // P318: a crew fires only from beside its tube (a spiked one is gone): one set down next to it.
+        let tubeAt = IVec3(Int(floor(crew.pos.x)) + 2, Int(floor(crew.pos.y)), Int(floor(crew.pos.z)))
+        _ = w.loadSync(center: crew.pos, radius: 1)
+        let tubeWas = w.block(tubeAt.x, tubeAt.y, tubeAt.z)
+        w.setBlock(tubeAt.x, tubeAt.y, tubeAt.z, Blocks.id("ash_mortar"))
+        defer { w.setBlock(tubeAt.x, tubeAt.y, tubeAt.z, tubeWas) }
         g.ashSpot = stand; g.ashSpotSeen = g.clock
         crew.soldierBrain.ashTimer = 0
         _ = crew.ashRoleAI(0.05, g, dist: 70, canTarget: true)
@@ -342,7 +354,7 @@ enum AshVaultGapTests {
         g.ashArmourCall = -999
         officer.ashCallArmour(g)
         let called = idle.aggro && idle.brain?.order != nil
-        check(healed && gb.gun == Guns.smg && suppressed && called,
+        check(healed && gb.gun == Guns.sturmwind && suppressed && called,
               "ash vault squads: a medic patches a soldier from \(h0) to \(hurtOne.health) health; an MG gunner keeps firing at the last spot (\(suppressed)); an officer calls the idle tank (\(called))")
 
         // A wrecked tank: debris, a fire that burns on, two crew out fighting.

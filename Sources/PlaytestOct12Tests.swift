@@ -85,6 +85,8 @@ enum PlaytestOct12Tests {
         let ship = g.ordersPages(Game.RadarContact(name: "Meridian Dreadnought Sovereign", kind: "vessel_dreadnought", x: 40000, z: -40000))
         let all = pages + far + ship
         let long = all.filter { Books.wrap($0).count > Books.linesPerPage }
+        if let u = all.first(where: { $0.contains("_") }) { print("P68 orders: a page with an underscore: \(u.replacingOccurrences(of: "\n", with: " / "))") }
+        if !used || pages.count != 2 || !(pages.first?.contains("Capital") ?? false) { print("P68 orders: used \(used), \(pages.count) pages") }
         check(used && book != nil && pages.count == 2 && pages[0].contains("Capital") && long.isEmpty && !all.contains(where: { $0.contains("_") }),
               "P68 orders: reading intercepted orders opens them as a document (\(book == nil ? "no book" : "\(pages.count) pages"), every page fits the book screen\(long.isEmpty ? "" : "; too long: " + long.map { "\(Books.wrap($0).count) lines" }.joined(separator: ", "))): \(pages.first?.replacingOccurrences(of: "\n", with: " / ").prefix(140) ?? "")")
     }
@@ -139,6 +141,7 @@ enum PlaytestOct12Tests {
         var deep = 0
         for y in stride(from: top, through: top - 30, by: -1) { if w.block(fx, y, fz) == STONE { break }; deep += 1 }
         let walk = (0..<5).map { MainGun.bombardOffset($0) }
+        g.particles.list.removeAll()                    // (the crater's debris fills the particle cap)
         let n0 = g.particles.list.count, m0 = MainGun.bombardMarks
         w.ships.bombardMark(V3(Float(fx), Float(top + 1), Float(fz)), charge: 0.5, dt: 1.0 / 72, game: g)
         let marked = g.particles.list.count - n0
@@ -293,11 +296,13 @@ enum PlaytestOct12Tests {
             let i = m.rows.firstIndex { $0.1 == "smooth" } ?? -1
             at.append(i); named.append(i >= 0 && m.rows[i].0.contains("Polygon"))
         }
+        // (Since Q2 every new world is a polygon world: Create New World has no terrain choice left to offer, and the
+        // Video page's row, after View Distance and Auto View, is for old block worlds only.)
         let m = PauseMenu(game: g)
-        m.page = .create; m.newSmooth = true; m.build()
-        let create = m.rows.first { $0.1 == "new_terrain" }?.0 ?? ""
-        check(at.allSatisfy { $0 >= 0 && $0 <= 1 } && named.allSatisfy { $0 } && create.contains("Polygons"),
-              "P84 polygon terrain: row \(at) on the Video page (desktop, headset), named Polygon (\(named)); Create New World: '\(create)'")
+        m.page = .create; m.build()
+        let blockChoice = m.rows.contains { $0.1 == "new_terrain" }
+        check(at.allSatisfy { $0 >= 0 && $0 <= 2 } && named.allSatisfy { $0 } && !blockChoice,
+              "P84 polygon terrain: row \(at) on the Video page (desktop, headset), named Polygon (\(named)); Create New World makes polygon worlds only (\(!blockChoice))")
     }
 
     // P92: a citadel on new ground lays a rail spur with a parked train: every step a connected rail with head room and
@@ -451,8 +456,11 @@ enum PlaytestOct12Tests {
             AutoTurrets.tick(g, 1.0 / 72)
             w.ships.updateShells(1.0 / 72, game: g)
         }
-        var deckAfter = 0
-        for z in (fz - 4)...(fz + 4) { for x in (fx - 2)...(fx + 20) where w.block(x, py, z) == STONE { deckAfter += 1 } }
+        var deckAfter = 0, gone: [String] = []
+        for z in (fz - 4)...(fz + 4) { for x in (fx - 2)...(fx + 20) {
+            if w.block(x, py, z) == STONE { deckAfter += 1 } else { gone.append("\(x - fx),\(z - fz): \(Blocks.key(w.block(x, py, z)))") }
+        } }
+        if !gone.isEmpty { print("P93 turret deck cells no longer stone (from the cannon): \(gone.prefix(6))") }
         let hurt = 200 - z0.health
         w.ships.shells.removeAll()
         AutoTurrets.sites = sites0
@@ -495,8 +503,8 @@ enum PlaytestOct12Tests {
             } }
         }
         let soldiers = keys.filter { $0.hasPrefix("soldier_") }
-        check(closest >= WorldRules.capitalApartP69 && !soldiers.isEmpty && soldiers.allSatisfy { $0.hasSuffix("@grey") } && grey.count >= 3,
-              "P69 Greywall apart: \(grey.count) stations and Greywall bases over 18 km square, the nearest \(closest) blocks from a Capital citadel or city (\(capital.count)); a station's \(soldiers.count) soldiers are Greywall's (\(Set(soldiers.map { $0.hasSuffix("@grey") })))")
+        check(closest >= WorldRules.capitalApartP69 && !soldiers.isEmpty && soldiers.allSatisfy { $0.contains("@grey") } && grey.count >= 3,
+              "P69 Greywall apart: \(grey.count) stations and Greywall bases over 18 km square, the nearest \(closest) blocks from a Capital citadel or city (\(capital.count)); a station's \(soldiers.count) soldiers are Greywall's (\(Set(soldiers.map { $0.contains("@grey") })))")
     }
 
     // P73 (09:21): a tap on the map (the headset's laser and trigger, or a mouse click) drops a waypoint where it
@@ -625,7 +633,8 @@ enum PlaytestOct12Tests {
         print("P95 census seed 12345, four 4000x4000 squares: \(other.sorted { $0.key < $1.key })")
         let st = c.counts[BorealStation.kind] ?? 0, gw = c.counts[Greywall.kind] ?? 0, mb = c.counts["military_base"] ?? 0
         let st2 = Float(other[BorealStation.kind] ?? 0) / 4, gw2 = Float(other[Greywall.kind] ?? 0) / 4
-        check(st <= 3 && gw <= 2 && st + gw + mb <= 5 && st2 <= 2 && gw2 <= 2,
+        // (P436, Oct 25: the rarer places made twice as common again: six in all is the most.)
+        check(st <= 3 && gw <= 2 && st + gw + mb <= 6 && st2 <= 2 && gw2 <= 2,
               "P95 bases: in Remington's World376 square (4,000 x 4,000) \(st) Boreal stations, \(gw) Greywall bases, \(mb) citadels (were 19, 4, 2); seed 12345 averages \(st2) and \(gw2) per square")
     }
 

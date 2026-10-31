@@ -101,6 +101,7 @@ final class BlockRegistry {
     var watery: [Bool] = []         // P478: water and fuel, the liquids a body swims and floats in
     var contactDamage: [UInt8] = []
     var connectKind: [UInt8] = []
+    var doorShape: [Bool] = []      // a door state (bars and panes join one: P499, a cell door stood apart from its bars)
     var shape: [String] = []
     var hidden: [Bool] = []
     var sway: [Bool] = []           // cross plants whose top corners bend in the wind (Quest chunk.vert; Mesher flags them)
@@ -226,6 +227,7 @@ final class BlockRegistry {
         watery.append(d.fluid >= 0 && d.fluidKind != 2)
         contactDamage.append(d.damage)
         connectKind.append(d.connect)
+        doorShape.append(d.shape == "door")
         shape.append(d.shape)
         hidden.append(d.hidden)
         sway.append(d.sway ?? BlockRegistry.swayDefault(d))
@@ -902,7 +904,7 @@ final class BlockRegistry {
     @inline(__always) func connects(_ kind: UInt8, _ nb: BlockID) -> Bool {
         let k = connectKind[Int(nb)]
         if k != 0 { return k == kind || (kind == 3 && k == 1) || (kind == 1 && k == 3) }
-        return opaque[Int(nb)]
+        return opaque[Int(nb)] || (kind == 2 && doorShape[Int(nb)])
     }
 }
 

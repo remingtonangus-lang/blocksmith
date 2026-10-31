@@ -182,9 +182,12 @@ enum TownTests {
         // Selling: wheat to the general store, not to the gunsmith.
         g.money = 0
         g.inventory.main[5] = ItemStack(Items.id("wheat"), 40)
+        // (at the shop's own terms: standing, Honour, the town's and the country's, as Shop.sell prices it)
+        let tv = m.villager?.town
+        let each = Economy.sellPrice(Items.id("wheat"), ShopPricing(reputation: m.villager?.reputation ?? 0, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value,
+                                                                   town: TownConquest.standing(tv), country: Countries.terms(g, town: tv, at: m.pos)))
         let sw = Shop.sell(g, m, .general, item: Items.id("wheat"), count: Int.max)
-        let each = ShopPricing(reputation: m.villager?.reputation ?? 0, hero: 0).sell(Economy.value["wheat"]!)
-        check(sw.1 && count(g, "wheat") == 0 && g.money == 40 * each, "trade: sold 40 wheat for \(Money.format(g.money))")
+        check(sw.1 && count(g, "wheat") == 0 && g.money == 40 * each, "trade: sold 40 wheat for \(Money.format(g.money)) (\(Money.format(each)) each: \(Money.format(40 * each)); \(sw.0))")
         let gs = keeper(g, .gunsmith, at: g.player.pos + V3(-2, 0, 0))
         g.inventory.main[5] = ItemStack(Items.id("wheat"), 4)
         check(!Shop.sell(g, gs, .gunsmith, item: Items.id("wheat"), count: 4).1 && count(g, "wheat") == 4, "trade: the gunsmith won't buy wheat")
@@ -441,9 +444,10 @@ enum TownTests {
                 }
                 if name.hasPrefix("villager:shop_"), let k = ShopKind(rawValue: String(name.dropFirst(14))) {
                     shopsFound[k, default: 0] += 1
-                    // P24: a filled strongbox behind the keeper's counter, on the keeper's floor.
+                    // P24: a filled strongbox behind the keeper's counter, on the keeper's floor (P149's 15-wide saloon
+                    // keeps it 5.1 blocks from the barkeep).
                     let till = w.blockEntities.contains { (q, be) in
-                        be.kind == .chest && abs(q.y - Int(floor(p.y))) <= 0 && simd_length(V2(Float(q.x) + 0.5 - p.x, Float(q.z) + 0.5 - p.z)) < 5
+                        be.kind == .chest && abs(q.y - Int(floor(p.y))) <= 0 && simd_length(V2(Float(q.x) + 0.5 - p.x, Float(q.z) + 0.5 - p.z)) < 6
                             && be.container.slots.contains { $0.count > 0 }
                     }
                     if till { tills += 1 } else { noTill.append("\(k.rawValue) at \(Int(p.x)) \(Int(p.z))") }

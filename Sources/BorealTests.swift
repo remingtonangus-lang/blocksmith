@@ -214,7 +214,7 @@ enum BorealTests {
                 let g = Game(world: world, save: nil, persistent: false)
                 g.paused = false
                 g.weather.raining = false; g.weather.rain = 0
-                for (label, dx, dz) in [("hall", 0, 5), ("corridor", -12, 10)] {
+                for (label, dx, dz) in [("hall", 0, 5), ("corridor", 12, -5)] {      // (the east strip, clear of the corner doors)
                     g.player.pos = V3(Float(cx + dx) + 0.5, Float(F + 1), Float(cz + dz) + 0.5); g.player.vel = .zero
                     g.time = 0.25 * DAY_LENGTH
                     g.audio.record = [:]
@@ -224,7 +224,7 @@ enum BorealTests {
                     g.audio.record = nil
                     let wild = rec.keys.filter { k in ["birdCall", "owlHoot", "loop:crickets", "loop:jungle", "loop:wind"].contains { k.hasPrefix($0) } }
                     check((rec["loop:stationhum"] ?? 0) > 0 && wild.isEmpty,
-                          "boreal \(seed): \(label) at noon hums (\(rec["loop:stationhum"] ?? 0) ticks), wildlife: \(wild.isEmpty ? "none" : wild.sorted().joined(separator: " "))")
+                          "boreal \(seed): \(label) at noon hums (\(rec["loop:stationhum"] ?? 0) ticks), wildlife: \(wild.isEmpty ? "none" : wild.sorted().joined(separator: " ")) (sky light \(world.lightAt(Int(floor(g.player.eye.x)), Int(floor(g.player.eye.y)), Int(floor(g.player.eye.z))).sky))")
                 }
                 // The alarm: a gunshot in the hall sets it off, the klaxon blares, the garrison turns on the
                 // source, and it stands down once things have been quiet for a while.

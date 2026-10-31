@@ -130,6 +130,11 @@ enum WildCamps {
                     guard let o = sc.nearest(kd, x: x, z: z, maxRegions: 1) else { continue }
                     if o.max.x >= x - m && o.min.x <= x + m && o.max.z >= z - m && o.min.z <= z + m { return nil }
                 }
+                // P499 (the overlap check found two camps cut into Greywall bases): clear of the bases too, on ground no
+                // save had before.
+                if sc.clear(cx: floorDiv(x, CS), cz: floorDiv(z, CS), reach: 2, guardSet: sc.legacyP499),
+                   let o = sc.nearest(Greywall.kind, x: x, z: z, maxRegions: 1),
+                   o.max.x >= x - 40 && o.min.x <= x + 40 && o.max.z >= z - 40 && o.min.z <= z + 40 { return nil }
             }
             let s = rng.next()
             let rot = rng.int(4)

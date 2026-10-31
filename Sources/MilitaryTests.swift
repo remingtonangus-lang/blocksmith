@@ -262,6 +262,27 @@ extension MobTests {
             t += 0.05
         }
         check(lasered && firedSniper, "marksman aims a laser, then fires", "laser \(lasered), shot \(firedSniper)")
+        // P499: the laser ends at the target, and on a block in the way (Oct 30 20:02 "their laser goes through blocks").
+        mk.brain?.aimTime = 0
+        let glassWall = Blocks.id("glass")
+        var open: Float = -99, walled: Float = -99
+        for phase in 0..<2 {
+            if phase == 1 { for x in (x0 - 4)...(x0 + 4) { for y in gy..<(gy + 4) { world.setBlockAsync(x, y, z0 - 20, glassWall) } } }
+            t = 0
+            while t < 5 {
+                mm.update(0.05, game: game)
+                game.arms.slugs.removeAll()
+                game.player.pos = at(0, 0); game.player.vel = .zero; mk.pos = at(0, -40)
+                game.health = 20; game.alive = true
+                t += 0.05
+                guard let b = mk.brain, b.aimTime > 0.2, let e = b.laserEnd else { continue }
+                if phase == 0 { open = e.z - Float(z0) } else { walled = e.z - Float(z0) }
+                break
+            }
+        }
+        for x in (x0 - 4)...(x0 + 4) { for y in gy..<(gy + 4) { world.setBlockAsync(x, y, z0 - 20, AIR) } }
+        check(open > -2 && walled < -19 && walled > -21, "marksman's laser reaches the target and stops on a wall",
+              String(format: "open end z %.1f, behind glass %.1f (wall at -20)", open, walled))
         mm.mobs.removeAll()
         game.arms.slugs.removeAll()
 

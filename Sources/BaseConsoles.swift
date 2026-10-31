@@ -109,11 +109,18 @@ extension Game {
             return true
         }
         let chair = gunChair(p)
-        if survival, gun.deckGunCrewed(self) {
+        // P499 (Oct 30 20:14 in a Greywall gun room: "it's not letting me control the gun... I killed the person"): only
+        // the operator in the chair at this console, or a soldier standing at the gun itself, holds it (deckGunCrewed
+        // counts any Greywall soldier within 13 blocks as a tower's lookout: the garrison coming down the stairwell).
+        if survival {
             let op = mobs.mobs.contains { $0.health > 0 && $0.brain?.orderStation == .seated && $0.brain?.station == .seated && $0.brain?.gunPost != nil
                 && simd_length(V2($0.pos.x - at.x, $0.pos.z - at.z)) < 2.5 }
-            onToast?(op ? "Gun Control: the operator is at the gun" : "Gun Control: the gunner holds the gun")
-            return true
+            let atGun = mobs.mobs.contains { $0 !== gun && $0.health > 0 && Soldier.rank($0.kind) != nil && $0.kind != .deckGun && $0.faction == gun.faction
+                && simd_length($0.pos - gun.pos) < 3 }
+            if op || atGun {
+                onToast?(op ? "Gun Control: the operator is at the gun" : "Gun Control: the gunner holds the gun")
+                return true
+            }
         }
         let taken = chair.map { c in mobs.mobs.contains { $0.health > 0 && $0.brain?.station == .seated
             && Int(floor($0.pos.x)) == c.x && Int(floor($0.pos.z)) == c.z && abs($0.pos.y - Float(c.y)) < 1 } } ?? true

@@ -4,7 +4,7 @@ import simd
 // Boarding the Meridian frigate from the ground (done audit 25b6, G11: "no designed way to board the frigate 45 blocks
 // up outside /vessel frigate"). A cargo winch hangs a line from the port hangar door (CapitalFrigate: the flank doors
 // at x -9, y 9-13, z 100-112) to the ground. Stand at its foot and it hauls you up and in onto the hangar deck; the
-// ladder at z 89 climbs to the bridge deck and the helm. While a player is near the line's foot the frigate heaves to
+// stairwell (P472) climbs to the bridge deck and the helm. While a player is near the line's foot the frigate heaves to
 // (slows to a crawl) so the line can be caught, under fire if its crew are hostile. Checked by BoardingTests.
 enum FrigateBoarding {
     static let anchorX: Float = 3.5          // grid x of the line (13 - 10 + 0.5: just outside the port door)

@@ -347,7 +347,8 @@ extension Game {
         let wooded = AmbientBiomes.wooded
         let jungle = AmbientBiomes.jungle
         let swamp = AmbientBiomes.swamp
-        if a.nearOcean { ask("surf", .oceanLoop, 0.55 * open, nil) }
+        // P499 (Oct 30 20:10 on a beach: "let's get rid of the sound of waves since there are no waves"): no breaking surf
+        // on a sea that is drawn flat; the still-water lap near the shore (waterAmbience) stays.
         // Plain wind where no landform bed takes over (TerrainAudio: mountain howl on peaks, tundra whistle).
         let ownWind = AmbientBiomes.peaks.contains(b) || p.y - Float(SEA) > 60 || AmbientBiomes.tundra.contains(b)
         if (high || snowy.contains(b) || dry.contains(b)) && !ownWind { ask("wind", .windLoop, (high ? 0.6 : 0.35) * open, nil) }
@@ -498,6 +499,9 @@ extension Game {
 
     func combatTick(_ dt: Float) {
         let a = audio
+        // P499 (Oct 30 20:15, "after I die, the music for the base should immediately cease"): death ends the fight;
+        // the respawned player starts calm (the 15 s hold brought the battle music back after the death track).
+        if health <= 0 || menu is DeathMenu { a.combatHold = 0; a.combat = 0; a.combatCheck = 0; return }
         a.combatHold = max(0, a.combatHold - dt)
         a.combatCheck -= dt
         guard a.combatCheck <= 0 else { return }

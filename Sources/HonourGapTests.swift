@@ -291,6 +291,7 @@ extension TownTests {
         TownLaw.inTown = nil
         BountyHunters.chancePerSecond = 1
         BountyHunters.lastPosse = -1e9
+        FactionRaids.lastAssault = -1e9                    // (P215: no posse within 90 minutes of any check's assault)
         BountyHunters.tick(g)
         check(!g.mobs.mobs.contains { $0.customName == BountyHunters.name }, "honour gap: no hunters for someone with a clean name")
         Honour.value = -90

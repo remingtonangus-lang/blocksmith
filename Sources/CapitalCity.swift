@@ -31,7 +31,9 @@ extension BlockRegistry {
         }
         if !has("capital_curtain") {
             var d = BlockDef("capital_curtain", "Capital Curtain Glass")
-            d.tex = ["capital_curtain"]; d.opaque = false; d.layer = .cutout; d.cullSame = true
+            // P499 (Oct 30 20:00, "this has got to be glass, glass buildings, not whatever that blue is"; 20:02 "gray, dark
+            // tinted windows"): drawn blended, as clear glass is (as a cutout its 60 % blue drew solid).
+            d.tex = ["capital_curtain"]; d.opaque = false; d.layer = .translucent; d.cullSame = true; d.aoOcc = false
             d.hardness = 0.6; d.resistance = 2; d.sound = .glass
             add(d)
         }
@@ -51,11 +53,12 @@ extension TextureGen {
             if y == 15 { return hex(0x3A4048) }
             return hex(0x5C6672, 0.95 + 0.04 * r(0, y, 2511) + 0.02 * r(x / 2, y, 2512))
         }
-        // Curtain glass: one even sheet of blue-green, the faintest ripple (no frame inside it: the steel mullions and
-        // the white floor bands frame the panes).
+        // Curtain glass: one even sheet of dark grey tinted glass, the faintest ripple and a soft diagonal sheen (no frame
+        // inside it: the steel mullions and the white floor bands frame the panes).
         p["capital_curtain"] = { x, y in
             let k = 0.97 + 0.03 * r(x / 4, y / 4, 2513)
-            return V4(0.25 * k, 0.47 * k, 0.58 * k, 0.6)
+            let sheen: Float = abs(x - y) <= 1 && x > 3 && x < 12 ? 0.1 : 0
+            return V4(0.2 * k + sheen, 0.22 * k + sheen, 0.24 * k + sheen, 0.55 + sheen)
         }
     }
 }

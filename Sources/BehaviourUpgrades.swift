@@ -6,7 +6,7 @@ import simd
 //   Ricochet Rounds (gun, rounds part, 2 levels)  a round that strikes stone, metal or brick at a glancing angle (or
 //                  anything, square on, at level 2) skips off it instead of stopping: up to one bounce a level, at 75%
 //                  of its damage and speed each time. Shoot round corners; clear a trench from its lip.
-//   Serrated Edge  (sword, axe or spear, edge part, 2 levels)  each hit opens a wound that bleeds: a point of damage
+//   Barbed Edge    (sword, axe or spear, edge part, 2 levels)  each hit opens a wound that bleeds: a point of damage
 //                  every 0.8 s for 3 s a level, topped up by the next hit. Plate, bone and stone don't bleed.
 enum Ricochet {
     static var bounces = 0                                 // (harness)

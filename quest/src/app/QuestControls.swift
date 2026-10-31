@@ -622,6 +622,9 @@ final class QuestControls {
             if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
         } else { lHoldAt = -1; rHoldAt = -1 }
         if lGrip && braceRot != nil { lBraced = true }
+        if QuestControls.debugGrip && (lGrip || prevGripL) {
+            print("dbggrip: l \(lGrip) prev \(prevGripL) open \(game.clock - gripOpenAt[0]) hold \(lHoldAt) menu \(inMenu) \(game.menu != nil) bag \(bagGrip) mag \(magGrip) grab \(handGrab) braced \(lBraced) \(braceRot != nil) pilot \(game.world.ships.pilot != nil) slide \(GunActions.slideHeld)")
+        }
         if lHoldAt >= 0 && !lGrip {
             let held = game.clock - lHoldAt
             lHoldAt = -1
@@ -1183,6 +1186,9 @@ final class QuestControls {
     }
 
     // Points the game's look at whatever the hand ray hits (blocks and mobs within reach, else far along the ray).
+    static let debugGrip = ProcessInfo.processInfo.environment["BS_DBGGRIP"] != nil     // (harness: grip trace)
+    static var chaseAim = ProcessInfo.processInfo.environment["BS_CHASEAIM"] != "0"     // (P499; harness: 0 = the old aim)
+    static private(set) var chaseAimPoint: V3?           // what the laser falls on under a chase view (the VR sim's mark)
     private func aimGame() {
         // Gliding steers with the look: the head, not the hand's laser (pointing at something mid-flight yanked the
         // flight path).
@@ -1194,6 +1200,32 @@ final class QuestControls {
             return
         }
         let w = game.world
+        // P499 (Oct 30 20:20-20:26, at the crawler's and the frigate's helms: "its guns are turning as if I'm facing the
+        // other direction", the dropship's "shots are going higher than where I'm pointing"): under a chase view the
+        // hands are out behind and above the hull, so a point 60 m down the laser, seen from the helm, lay behind the
+        // helm or above the mark: the guns turned onto that. There the look runs from the helm to what the laser itself
+        // falls on, out to the gun sight's reach (the vehicle he is in left out). (Not in a saddle or a boat: no guns
+        // to lay, and the laser still picks the horse he feeds.)
+        QuestControls.chaseAimPoint = nil
+        if simd_length(app.rig.chase) > 0.5 && game.riding == nil {
+            let own = w.ships.pilot?.root ?? w.ships.aboard?.root
+            var t: Float = TankSight.shipReach
+            if let h = w.raycast(aimOrigin, aimDir, maxDist: t) {
+                t = min(t, simd_length(V3(Float(h.hit.x), Float(h.hit.y), Float(h.hit.z)) + 0.5 - aimOrigin))
+            }
+            for s in w.ships.list where s.root !== own {
+                if let r = s.raycast(aimOrigin, aimDir, maxDist: t, world: w), r.t < t { t = r.t }
+            }
+            QuestControls.chaseAimPoint = aimOrigin + aimDir * t
+        }
+        if QuestControls.chaseAim, let p = QuestControls.chaseAimPoint {
+            let d = simd_normalize(p - game.player.eye)
+            game.player.yaw = atan2f(-d.x, -d.z)
+            game.player.pitch = asinf(max(-0.999, min(0.999, d.y)))
+            aimHit = nil
+            game.vrAim = (aimOrigin, aimDir)
+            return
+        }
         let reach: Float = 8
         var best: Float = 60
         if let hit = w.raycast(aimOrigin, aimDir, maxDist: reach) {

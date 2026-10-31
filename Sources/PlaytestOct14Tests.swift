@@ -164,19 +164,32 @@ enum PlaytestOct14Tests {
         w.setBlock(p.x, p.y, p.z, crate); w.blockEntities[p] = nil
         let opens = g.isInteractive(p)
         g.openBlock(p)
-        let title = g.menu?.title ?? "none", inside = blocks(g.crateEntity(p).container)
+        func items(_ c: ItemContainer) -> Int { c.slots.filter { !$0.isEmpty }.reduce(0) { $0 + $1.count } }
+        let title = g.menu?.title ?? "none", inside = items(g.crateEntity(p).container)
         g.closeMenu()
         g.openBlock(p)
-        let again = blocks(g.crateEntity(p).container)
+        let again = items(g.crateEntity(p).container)
         g.closeMenu()
         g.drops.items.removeAll()
         g.survival = true
         g.breakBlock(p, crate, drop: true)
-        let spilled = g.drops.items.filter { building.contains(Items.key($0.stack.item)) }.reduce(0) { $0 + $1.stack.count }
+        let spilled = g.drops.items.filter { Items.key($0.stack.item) != BaseMaterials.crate }.reduce(0) { $0 + $1.stack.count }
         let crateDrop = g.drops.items.contains { Items.key($0.stack.item) == BaseMaterials.crate }
-        check(opens && title == "Supply Crate" && inside >= 250 && again == inside && spilled == inside && !crateDrop
+        check(opens && title == "Supply Crate" && again == inside && spilled == inside && !crateDrop
               && Blocks.def(crate).display == "Supply Crate",
-              "P254: a base's Supply Crate opens with \(inside) building blocks (\(title)), keeps them, and broken spills \(spilled) with no crate to place again")
+              "P254: a base's Supply Crate opens with \(inside) items (\(title)), keeps them, and broken spills \(spilled) with no crate to place again")
+        // P499: a crate holds a stack or two at most, about half none (each held 6-9 full stacks of building blocks).
+        var empty = 0, most = 0, stacks = 0
+        for k in 0..<200 {
+            let q = IVec3(p.x + 1000 + k * 7, p.y, p.z - 3000)
+            let c = g.crateEntity(q).container
+            let n = c.slots.filter { !$0.isEmpty }.count
+            if n == 0 { empty += 1 }
+            most = max(most, n); stacks += n
+            w.blockEntities[q] = nil
+        }
+        check(empty >= 60 && empty <= 150 && most <= 2,
+              "P499: supply crates are sparse: \(empty) of 200 empty, at most \(most) stacks in one (\(stacks) stacks in all)")
     }
 
     // P255: small Greywall outposts: (a) an extra variant, never instead of a big base; (b) a little bigger; (c) no glare

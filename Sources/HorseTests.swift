@@ -102,7 +102,8 @@ enum HorseTests {
             check(walk > 1 && walk <= 2.7 && abs(trot - h.topSpeed * 0.5) < 0.4 && abs(canter - h.topSpeed * 0.75) < 0.4 && abs(gallop - h.topSpeed) < 0.5,
                   String(format: "horse gaits: walk %.1f, trot %.1f, a full push canters %.1f, spurred gallop %.1f b/s (top %.0f)", walk, trot, canter, gallop, h.topSpeed))
             check(tGallop >= 1 && tGallop <= 2.2, String(format: "horse: standstill to gallop in %.2f s (1-2.2)", tGallop))
-            check(tStop >= 0.6 && tStop <= 1.6, String(format: "horse: gallop to a stop in %.2f s (0.6-1.6)", tStop))
+            // (The brake stays under the ride's comfort limit: 12 b/s^2 from a 20 b/s gallop is 1.7 s.)
+            check(tStop >= 0.6 && tStop <= 2.0, String(format: "horse: gallop to a stop in %.2f s (0.6-2.0)", tStop))
             check(max(lurch, lurch2) <= 12.5, String(format: "horse: no lurch (worst %.1f b/s^2 on the ground, comfort limit 12.5)", max(lurch, lurch2)))
             // Turning: the rider looks 90 degrees aside; the horse comes round fast at a walk, slowly at a gallop.
             func turnRate(_ push: Float, spurs: Set<Int>) -> Float {
@@ -253,6 +254,17 @@ enum HorseTests {
                   "horse crash: a gallop into a wall stumbles (\(results[0].0), \(results[1].0) at \(Int(results[0].2)) b/s); level 1 throws the rider (\(results[0].1 ? "kept" : "thrown")), level 2 keeps them (\(results[1].1 ? "kept" : "thrown"))")
             w.deferRemesh = true
             for x in sx - 3...sx + 3 { for y in Y + 1...Y + 3 { w.setBlock(x, y, wz, AIR) } }
+            w.deferRemesh = false
+            // P499: a bough at the horse's chest (clear at the legs) slows it; no stumble, nobody thrown.
+            w.deferRemesh = true
+            for x in sx - 3...sx + 3 { for y in Y + 2...Y + 3 { w.setBlock(x, y, wz, stone) } }
+            w.deferRemesh = false
+            let hb = horse(xp: 0); mount(hb)
+            ride(hb, 6, push: 1, spurAt: [2, 12]) { _ in hb.hs.stumbles > 0 }
+            check(hb.hs.stumbles == 0 && g.riding === hb, "horse crash: a gallop into a bough at chest height doesn't stumble or throw (\(hb.hs.stumbles) stumbles, \(g.riding === hb ? "kept" : "thrown"))")
+            g.riding = nil
+            w.deferRemesh = true
+            for x in sx - 3...sx + 3 { for y in Y + 2...Y + 3 { w.setBlock(x, y, wz, AIR) } }
             w.deferRemesh = false
         }
 

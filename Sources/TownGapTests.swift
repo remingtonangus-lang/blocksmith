@@ -68,7 +68,8 @@ extension TownTests {
             var seenA: [IVec3] = []
             let lantern = Blocks.id("lantern")
             for _ in 0..<3 {
-                guard let s = sc.nearest("village", x: 0, z: 0, maxRegions: 12, accept: { st in !seenA.contains { $0 == st.anchor } }) else { break }
+                // (C13: hamlets have no bank: towns from a village up)
+                guard let s = sc.nearest("village", x: 0, z: 0, maxRegions: 12, accept: { st in !seenA.contains { $0 == st.anchor } && TownSizes.of(st) != .hamlet }) else { break }
                 seenA.append(s.anchor)
                 w.pendingMobs.removeAll()
                 _ = w.loadSync(center: V3(Float(s.anchor.x), 140, Float(s.anchor.z)), radius: 4)
@@ -86,7 +87,7 @@ extension TownTests {
                         if n == ShopMenu.fit(name, 88) { signsHere += 1 }
                     }
                 }
-                perTown.append("\(name): bank \(b), signs \(signsHere)")
+                perTown.append("\(name) (\(TownSizes.of(s).map { "\($0)" } ?? "old")): bank \(b), signs \(signsHere)")
                 if b >= 1 && bankSignHere >= 1 && signsHere >= 1 { townsOK += 1 }
                 for dz in -60...60 { for dx in -60...60 {
                     let x = s.anchor.x + dx, z = s.anchor.z + dz
@@ -161,7 +162,8 @@ extension TownTests {
         if let up = g.menu as? GunUpgradeMenu {
             let rows = up.rows
             let names = rows.map(\.name)
-            check(names.contains("Extended Magazine I") && names.contains("Incendiary Rounds I") && names.count == GunUpgrades.price.count,
+            let fits = names.filter { !$0.hasPrefix("Rework to ") && $0 != "Repair" }       // (O4: grade lifts and repairs head the list)
+            check(names.contains("Extended Magazine I") && names.contains("Incendiary Rounds I") && fits.count == GunUpgrades.price.count,
                   "town gap: the upgrades list each gun upgrade's next level (\(names.joined(separator: ", ")))")
             let ix = names.firstIndex(of: "Extended Magazine I") ?? 0
             up.pressed(ix)
@@ -183,6 +185,7 @@ extension TownTests {
         // Night raids.
         TownLaw.reset(); TownLaw.forceTown = true
         g.raid = nil
+        FactionRaids.lastAssault = -1e9                    // (P215: no assault within 90 minutes of the last one, any check's)
         let folk = (0..<4).map { townPerson(g, base + V3(Float($0), 0, 3)) }
         g.mobs.mobs = folk
         TownLaw.inTown = "Cedar Ford"
@@ -208,6 +211,7 @@ extension TownTests {
         TownRaids.tick(g)
         check(g.raid == nil, "town gap: no second raid on the town within three days")
         g.time = 11.7 * DAY_LENGTH
+        FactionRaids.lastAssault = -1e9                    // (the clock stood still: the days went by on g.time alone)
         TownRaids.tick(g)
         check(g.raid != nil, "town gap: and another after")
         if let rr = g.raid {

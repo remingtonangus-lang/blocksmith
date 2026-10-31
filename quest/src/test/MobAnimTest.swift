@@ -73,13 +73,15 @@ enum MobAnimTest {
         let inCorpses = game.mobs.corpses.contains { $0 === z }, gone = !game.mobs.mobs.contains { $0 === z }
         for _ in 0..<9 { game.mobs.corpses.forEach { $0.deathT += 0.05 } }
         let tipped = posed(z, V3(0, 30, 0), head: false)
-        check(inCorpses && gone && tipped.y < 14 && tipped.z > 18 && abs(tipped.x) < 1,
-              String(format: "mob anim: a dead zombie falls back onto its back instead of vanishing, no sideways flip (head at y %.1f, z %+.1f, x %+.1f px after %.2f s)", tipped.y, tipped.z, tipped.x, z.deathT))
-        // A dead cow folds its legs and slumps, low and only a little to one side.
+        // (R15: a body with a ragdoll falls by itself and its pose stays upright: MobRagdoll.swift.)
+        let rag = z.ragdoll != nil
+        check(inCorpses && gone && (rag || tipped.y < 14 && tipped.z > 18 && abs(tipped.x) < 1),
+              String(format: "mob anim: a dead zombie falls as a body instead of vanishing (ragdoll %@), posed: back onto its back, no sideways flip (head at y %.1f, z %+.1f, x %+.1f px after %.2f s)", rag ? "yes" : "no", tipped.y, tipped.z, tipped.x, z.deathT))
+        // A dead cow goes over onto its side (P178: "the cows aren't falling over like they should"), not onto its back.
         let deadCow = Mob(.cow, at: at); deadCow.deathT = 0.45
         let back = posed(deadCow, V3(0, 22, 0), head: false)
-        check(back.y < 17 && abs(back.z) < 4 && back.x > 1 && back.x < 9,
-              String(format: "mob anim: a dead cow slumps down onto its side, not onto its back (back at y %.1f, x %+.1f, z %+.1f px; 22 standing)", back.y, back.x, back.z))
+        check(back.y < 17 && abs(back.z) < 4 && back.x > 1,
+              String(format: "mob anim: a dead cow goes down onto its side, not onto its back (back at y %.1f, x %+.1f, z %+.1f px; 22 standing)", back.y, back.x, back.z))
         // A killing blow's white flash fades during the fall (corpses no longer run Mob.update).
         let flashed = Mob(.zombie, at: at); flashed.hitFlash = 0.14; flashed.health = 0
         game.mobs.addCorpse(flashed, game)

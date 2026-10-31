@@ -226,7 +226,9 @@ enum QuestTouchMatrix {
                 let p0 = g.player.pos
                 for _ in 0..<40 { frame { l, r in hold(&l, &r); l.stick = V2(0, 1) } }
                 let walked = simd_length(V2(g.player.pos.x - p0.x, g.player.pos.z - p0.z))
-                for _ in 0..<5 { frame { l, r in hold(&l, &r) } }
+                // (P257 (d): for two seconds after a hand arrives at the hip its grip is the pouch's, reach, pause,
+                // squeeze; a hand that has rested there longer is the hotbar's. These hands have just been put there.)
+                for _ in 0..<Int(72 * (VRReload.fresh + 0.3)) { frame { l, r in hold(&l, &r) } }
                 let sel0 = g.selected
                 for _ in 0..<3 { frame { l, r in hold(&l, &r); l.squeeze = 1 } }
                 for _ in 0..<5 { frame { l, r in hold(&l, &r) } }
