@@ -1965,6 +1965,11 @@ if CommandLine.arguments.contains("--doorway") {
     DoorwayCheck.run(game, check)
     print(failures == 0 ? "doorway: all checks passed" : "doorway: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --lift: P503, Lift Pads and the citadels' gun rooms and lifts (Sources/Lift.swift).
+if CommandLine.arguments.contains("--lift") {
+    LiftCheck.run(game, check)
+    print(failures == 0 ? "lift: all checks passed" : "lift: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --spurcheck: P92's citadel rail spurs, none on ground new since P470 (Sources/PlaytestOct12Tests.swift trains).
 if CommandLine.arguments.contains("--spurcheck") {
     PlaytestOct12Tests.trains(check)
@@ -2910,6 +2915,7 @@ func leaves(_ name: String, _ body: () -> Void) {
 }
 leaves("greywall") { if !CommandLine.arguments.contains("--no-greywall") { GreywallTests.run(device: device, game: game, check: check) } }
 leaves("troopclasses") { TroopTests.run(game: game, check: check) }
+leaves("lift") { LiftCheck.run(game, check) }
 leaves("navy") { NavyTests.run(game: game, check: check) }
 leaves("skiff") { SkySkiffTests.run(game: game, check: check) }
 leaves("mapfog") { MapFogTests.run(game: game, check: check) }

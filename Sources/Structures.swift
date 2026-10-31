@@ -308,6 +308,7 @@ final class StructureCache {
             legacyP478 = SaveManager.guarding?.structureGuard(file: "structure-guard-p478.txt") ?? []
             legacyP484 = SaveManager.guarding?.structureGuard(file: "structure-guard-p484.txt") ?? []
             legacyP499 = SaveManager.guarding?.structureGuard(file: "structure-guard-p499.txt") ?? []
+            legacyP503 = SaveManager.guarding?.structureGuard(file: "structure-guard-p503.txt") ?? []
         }
     }
     var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
@@ -320,6 +321,7 @@ final class StructureCache {
     var legacyP478: Set<Int64> = []              // ground saved before P478 trimmed streets to the buildings along them (Village.layout)
     var legacyP484: Set<Int64> = []              // ground saved before P484 kept Greywall bases well away from towns (Greywall.townBerth)
     var legacyP499: Set<Int64> = []              // ground saved before P499 left out every other small place (Village.thinned)
+    var legacyP503: Set<Int64> = []              // ground saved before P503's citadel gun rooms and lifts (CapitalBase.build)
     var legacyP475: Set<Int64> = []              // ground saved before P475 fenced Boreal Stations in chain link with a gate
     var legacyP470: Set<Int64> = []              // ground saved before P470 let two stations make a line (Railways.plan)
     var legacyP469: Set<Int64> = []              // ground saved before P469 gave depot bases their compounds (Depots.swift)

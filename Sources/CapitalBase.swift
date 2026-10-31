@@ -102,7 +102,7 @@ enum CapitalBase {
         return out
     }
 
-    static func build(_ w: inout StructWriter, _ cx: Int, _ y0: Int, _ cz: Int, _ seed: UInt64, bank: Bool = false) {
+    static func build(_ w: inout StructWriter, _ cx: Int, _ y0: Int, _ cz: Int, _ seed: UInt64, bank: Bool = false, gunRooms: Bool = false) {
         var rng = SRng(seed)
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let white = g("capital_stone", g("white_concrete")), grey = g("capital_stone_trim", g("light_gray_concrete"))
@@ -229,6 +229,21 @@ enum CapitalBase {
             // P222: a small gun on each barbette (the twin AA mount west, the dual-purpose mount east), not a 13-block
             // battleship turret.
             w.mob(sx < 0 ? "deck_gun:aa" : "deck_gun:dp", V3(Float(X(bx)) + 0.5, Float(P1 + 5), Float(Z(bz)) + 0.5))
+            // P503 (Oct 31 16:14:11 at a citadel's barbette: "this gun should be a room that I can go into. Otherwise,
+            // how's the gun even working?"): on ground no save had before, the barbette is hollow, a gun room under its
+            // gun: a doorway on its south side, a console under the gun, a chair at it and the operator in the chair, who
+            // works the gun (Mob.makeGunOperator, Game.stationGunUse).
+            if gunRooms {
+                columns(bx - 2, bx + 2, bz - 2, bz + 2) { dx, dz in
+                    let r2 = (dx - bx) * (dx - bx) + (dz - bz) * (dz - bz)
+                    if r2 <= 5 { for y in (P1 + 1)...(P1 + 3) { put(dx, y, dz, AIR) } }
+                }
+                put(bx, P1 + 1, bz + 3, AIR); put(bx, P1 + 2, bz + 3, AIR); put(bx, P1 + 1, bz + 4, AIR)
+                put(bx, P1 + 1, bz - 2, C)
+                put(bx, P1 + 1, bz - 1, g("oak_chair[north]", AIR))
+                put(bx + 1, P1 + 4, bz + 1, L)
+                w.mob("soldier_trooper:operator^0", V3(Float(X(bx)) + 0.5, Float(P1 + 1), Float(Z(bz - 1)) + 0.5))
+            }
         }
 
         // MARK: Hall
@@ -381,6 +396,18 @@ enum CapitalBase {
             // P222: a dual-purpose mount on each side tower's roof garden.
             w.fill(X(sx * 36 - 2), P1 + 38, Z(1), X(sx * 36 + 2), P1 + 38, Z(4), grey)
             w.mob("deck_gun:dp", V3(Float(X(sx * 36)) + 0.5, Float(P1 + 39), Float(Z(3)) + 0.5))
+            // P503 (Oct 31 16:18:24 on this roof: "Should be a computer or something. Be a room for this gun"): on ground
+            // no save had before, the tower's top floor under the garden is its gun room: a console under the gun, a
+            // chair at it and the operator in it.
+            if gunRooms {
+                put(sx * 36, P1 + 32, 3, C)
+                put(sx * 36, P1 + 32, 2, g("oak_chair[south]", AIR))
+                w.mob("soldier_trooper:operator^180", V3(Float(X(sx * 36)) + 0.5, Float(P1 + 32), Float(Z(2)) + 0.5))
+                // P503 (16:20:47, at the top of this tower: "there should be an elevator"): a Lift Pad in every floor
+                // and the roof garden, one over another (Lift.swift: a jump rides up, a crouch down).
+                let lift = g("lift_pad", grey)
+                for y in [P1] + Array(stride(from: P1 + 7, through: P1 + 31, by: 6)) + [P1 + 38] { put(sx * 36 - 3, y, 0, lift) }
+            }
             // The ladder carries on through the roof onto the garden.
             put(sx * 36, P1 + 37, -4, ladder + 1); put(sx * 36, P1 + 38, -4, ladder + 1); put(sx * 36, P1 + 38, -5, white)
             put(sx * 36, P1 + 39, -4, AIR)

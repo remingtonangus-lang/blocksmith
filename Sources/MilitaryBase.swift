@@ -234,7 +234,8 @@ enum MilitaryBase {
             let anchor = IVec3(x, y0 + 1, z + CapitalBase.podium + 8)
             guard WorldRules.citadelApart(gen, cx, cz, anchor: anchor) else { return nil }              // G12: none within 800
             let bank = WorldRules.p69(gen, cx, cz, reach: 6)          // P91 banks, on ground first generated with them
-            let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 80, z + e), build: { w in CapitalBase.build(&w, x, y0, z, seed, bank: bank) })
+            let rooms = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: e / CS + 1, guardSet: $0.legacyP503) } ?? true   // P503: gun rooms and lifts
+            let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 80, z + e), build: { w in CapitalBase.build(&w, x, y0, z, seed, bank: bank, gunRooms: rooms) })
             // P48: the garrison row below the south gate, on ground first generated with it (reach 6 covers it).
             let row = WorldRules.p44 && !WorldRules.savedBeforeP44(gen, cx, cz + 5, reach: 3) ? GarrisonTown.pieces(gen, x, z, seed) : []
             return StructureStart(kind: "military_base", pieces: [piece] + row, anchor: anchor)

@@ -1148,6 +1148,10 @@ final class Game {
         mi.strafe = simd_clamp(mi.strafe, -1, 1)
         mi.jump = input.down(KeyBinds.key(.jump)) || p.a
         mi.sneak = input.shift || PadActions.sneak(p, q, self)
+        // P503: on a Lift Pad a crouch rides down and a jump rides up (Lift.swift).
+        let sneakNow = mi.sneak
+        if sneakNow && !Lift.sneakWas && liftRide(up: false) { mi.sneak = false }
+        Lift.sneakWas = sneakNow
         // VR has no auto-sprint: a full push is the walk, the stick click sprints (QuestControls), so the two differ.
         if input.control || (p.l3 && !q.l3) || (player.moveYaw == nil && PadActions.autoSprint(ls, fdt)) { player.sprinting = true }
         // VR (head-relative stick, Player.moveYaw): a sprint holds in any direction the stick is pushed (Quest round 4).
@@ -1159,6 +1163,7 @@ final class Game {
         // (Not on a horse: the horse keeps its gait while the rider draws a bow or eats; HorseFeel.swift.)
         if (eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0) && !(riding.map { $0.gaited && $0.tamed } ?? false) && !handsOnControls { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
 
+        if (input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a)) && liftRide(up: true) { mi.jump = false }
         if input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a) {
             // P156 (Oct 13: "remove the glider wings: the jetpack replaces them"): a pair of wings worn from an old world
             // becomes a jetpack; wings no longer glide.
