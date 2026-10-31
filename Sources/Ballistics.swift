@@ -69,11 +69,12 @@ final class Armory {
     var shotsFired = 0             // harness counters
     var hits = 0
     static var fired = 0                 // (harness: rounds the player's side put in the air)
+    static var foeFired = 0              // (harness: everyone else's)
 
     func spawn(_ s0: Slug) {
         guard slugs.count < 600 else { return }
         var s = s0
-        if s.fromPlayer { Armory.fired &+= 1 }
+        if s.fromPlayer { Armory.fired &+= 1 } else { Armory.foeFired &+= 1 }
         if s.fromPlayer { s.seat = Int8(truncatingIfNeeded: Coop.liveSeat) }
         slugs.append(s)
     }

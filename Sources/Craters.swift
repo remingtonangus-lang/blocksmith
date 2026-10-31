@@ -172,13 +172,25 @@ struct CraterSet {
                 if y > 0 && y < 1 { tt.append(y) }
             }
         }
-        func clean(_ v: [Float]) -> [Float] {
-            var out: [Float] = []
-            for x in v.sorted() where out.isEmpty || x - out.last! > 0.012 { out.append(x) }
-            if out.last! < 1 { if 1 - out.last! < 0.012 { out[out.count - 1] = 1 } else { out.append(1) } }
-            return out
+        // P499 (Oct 30 20:31, 64 TNT in a Capital office: "it took too long for the damage to show up"): a blast leaves
+        // up to 8 bites in every block it shook, and a face took the rings of every bite round it: about 60 lines each way
+        // across one block's face, 3,600 vertices and 14,000 drawn corners a face (a blasted 6-block cube's 216 outer
+        // faces: 3 million corners, 1.1 s; the section by the blast took 8 s to mesh, its old faces standing all that
+        // while). Past 24 lines a block they are thinned to an even 1/24 of a block (4 cm; a bullet hole still gets 5
+        // across, and a face with few bites keeps every ring): the same faces 490 vertices each, 380,000 corners, 0.17 s.
+        func clean(_ v: [Float], _ len: Float) -> [Float] {
+            let sorted = v.sorted()
+            func pass(_ gap: Float) -> [Float] {
+                var out: [Float] = []
+                for x in sorted where out.isEmpty || x - out.last! > gap { out.append(x) }
+                if out.last! < 1 { if 1 - out.last! < gap { out[out.count - 1] = 1 } else { out.append(1) } }
+                return out
+            }
+            let most = max(8, Int(len * 24))
+            let fine = pass(0.012)
+            return fine.count <= most + 1 ? fine : pass(1 / Float(most))
         }
-        return (clean(ts), clean(tt))
+        return (clean(ts, su), clean(tt, sv))
     }
 
     // One surface quad (corners 0...3 counter-clockwise from outside) subdivided along `grid` (ticks) and carved, into the
@@ -233,7 +245,7 @@ struct CraterSet {
             }
             vn[i] = n
             let s = S[k], t = T[j]
-            let w = [(1 - s) * (1 - t), s * (1 - t), s * t, (1 - s) * t]
+            let w = SIMD4<Float>((1 - s) * (1 - t), s * (1 - t), s * t, (1 - s) * t)
             var sky: Float = 0, blk: Float = 0, aoF: Float = 0, best = 0
             for c in 0..<4 {
                 sky += w[c] * Float(light[c] & 15); blk += w[c] * Float((light[c] >> 4) & 15); aoF += w[c] * Float(ao[c])
@@ -249,11 +261,15 @@ struct CraterSet {
         for j in 0..<(H - 1) { for k in 0..<(W - 1) {
             let i00 = k + j * W, i10 = k + 1 + j * W, i11 = k + 1 + (j + 1) * W, i01 = k + (j + 1) * W
             // One material per small quad (flat-shaded layer): the corner nearest the bowl decides.
-            let deepest = [i00, i10, i11, i01].max { dep[$0] < dep[$1] }!
+            var deepest = i00
+            if dep[i10] > dep[deepest] { deepest = i10 }
+            if dep[i11] > dep[deepest] { deepest = i11 }
+            if dep[i01] > dep[deepest] { deepest = i01 }
             let lay = vlay[deepest], tn = vt[deepest]
-            for o in [i00, i10, i11, i01] {
+            @inline(__always) func corner(_ o: Int) {
                 DetailMesh.vertex(out, pos[o], vn[o], Craters.faceUV(f, pos[o]), layer: lay, tint: tn, ao: va[o], light: vl[o])
             }
+            corner(i00); corner(i10); corner(i11); corner(i01)
         } }
     }
 }

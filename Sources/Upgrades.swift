@@ -42,7 +42,7 @@ enum Upgrades {
             s(.loyalty, .tines, "string", 4, V3(0.9, 0.9, 0.85)), s(.impaling, .tines, "flint", 2, steel),
             s(.riptide, .tines, "prismarine_shard", 2, V3(0.35, 0.75, 0.7)), s(.channeling, .tines, "copper_ingot", 4, adv: true, V3(0.95, 0.55, 0.3)),
             s(.multishot, .string, "iron_ingot", 2, iron), s(.quickCharge, .grip, "iron_ingot", 1, iron), s(.piercing, .string, "flint", 2, steel),
-            s(.mending, .kit, "ender_pearl", 1, adv: true, V3(0.3, 0.9, 0.55)),
+            s(.mending, .kit, "experience_bottle", 1, adv: true, V3(0.3, 0.9, 0.55)),
             s(.density, .core, "iron_ingot", 2, V3(0.35, 0.35, 0.4)), s(.breach, .head, "flint", 3, steel),
             s(.windBurst, .core, "breeze_rod", 1, adv: true, V3(0.75, 0.8, 1)), s(.lunge, .grip, "leather", 1, leather),
             s(.extendedMag, .mag, "iron_ingot", 2, iron), s(.quickReload, .loader, "iron_ingot", 1, iron),

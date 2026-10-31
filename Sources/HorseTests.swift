@@ -25,7 +25,15 @@ enum HorseTests {
         g.alive = true; g.health = max(g.health, g.maxHealth); g.paused = false; g.vrAim = nil
         g.world.ships.pilot = nil; g.world.ships.aboard = nil
         if Turrets.shared.manned != nil { Turrets.shared.leave(g) }
+        // (P499: the strip goes up over the same ground every run, the world's spawn, on the surface. The full questcheck
+        // built it wherever the checks before it left him: --horse-only passed every horse check that the full run failed,
+        // the treat and the sliding stop for weeks and four calling checks since part 1's town checks.)
+        let wasDim = g.dim.dim, mobs0 = g.mobs.mobs
+        if g.dim.dim != .overworld { g.changeDimension(to: .overworld, at: g.spawnPoint) }
+        g.player.pos = g.spawnPoint; g.player.vel = .zero; g.mobs.mobs = []
         defer {
+            if wasDim != g.dim.dim { g.changeDimension(to: wasDim, at: wasPos) }
+            g.mobs.mobs = mobs0
             g.riding = wasRiding; g.player.pos = wasPos; g.horseBond = wasBond; g.survival = wasSurvival
             g.vrAim = wasAim; g.paused = wasPaused
             g.player.moveYaw = nil; g.rideInput = MoveInput()

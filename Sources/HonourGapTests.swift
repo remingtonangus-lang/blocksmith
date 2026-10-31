@@ -308,7 +308,8 @@ extension TownTests {
         let near = hunters.allSatisfy { simd_length($0.pos - g.player.pos) < 50 && $0.brain?.order != nil }
         let why: String = hunters.count >= 2 ? "" : " [party \(BountyHunters.party.map { "\(Int($0.x - g.player.pos.x)),\(Int($0.y - g.player.pos.z))" } ?? "none"), "
             + "survival \(g.survival), difficulty \(g.difficulty), dim \(g.dim.dim), in town \(TownLaw.inTown != nil), won \(Reckoning.won), worth \(BountyHunters.worthHunting()), "
-            + "below \(BountyHunters.below(g)), hunters day \(TownLaw.state.huntersDay ?? -99) today \(Int(g.time / DAY_LENGTH)), mobs \(g.mobs.mobs.count)]"
+            + "below \(BountyHunters.below(g)), hunters day \(TownLaw.state.huntersDay ?? -99) today \(Int(g.time / DAY_LENGTH)), mobs \(g.mobs.mobs.count), "
+            + "spots passed over (unloaded, water or leaves, dark or off his level, in sight, blocked) \(BountyHunters.tries.prefix(5).map(String.init).joined(separator: " ")), at \(Int(g.player.pos.x)) \(Int(g.player.pos.y)) \(Int(g.player.pos.z))]"
         check(hunters.count >= 2 && near, "honour gap: an outlaw in the wild gets \(hunters.count) bounty hunters within 44 blocks, already on the trail" + why)
         let n0 = g.mobs.mobs.count
         BountyHunters.tick(g)

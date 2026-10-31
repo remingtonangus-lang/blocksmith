@@ -15,8 +15,10 @@ final class CreativeMenu: Menu {
     // (P481 part 4: the Hollow gate's frame is out too. New worlds have had no gate since G20 (the stronghold's dais holds a
     // reliquary), and a ring of frames built from the palette was the one way left into the Hollow, the reference's
     // floating island, spikes and towers, from a world made today.)
+    // (P499, Oct 30 15:14: "we shouldn't have void pearls. No reason for those to exist": out of the palette, and nothing
+    // drops, holds, trades or crafts from one; a pearl already carried still throws.)
     static let every: [ItemID] = Items.creativeList.filter {
-        !SpawnEggs.retired($0) && !["ender_chest", VehiclePresets.itemKey, "end_portal_frame"].contains(Items.key($0)) && !Copper.retired(Items.key($0))
+        !SpawnEggs.retired($0) && !["ender_chest", VehiclePresets.itemKey, "end_portal_frame", "ender_pearl"].contains(Items.key($0)) && !Copper.retired(Items.key($0))
     }
     static var cache: [Int: [ItemID]] = [:]
     var all: [ItemID] = CreativeMenu.every

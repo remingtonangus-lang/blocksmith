@@ -90,11 +90,18 @@ enum Guns {
         GunSpec(key: "gun_rotary", name: "Mahlwerk Rotary Gun", ammo: "capital_rounds", mag: 200, interval: 0.035, auto: true, damage: 3, pellets: 1,
                 spread: 0.06, aimSpread: 0.04, speed: 150, recoil: 0.0035, reload: 5.0, range: 90, durability: 3000, zoom: 0.92,
                 shot: .bullet, sound: 20, accent: V3(0.9, 0.9, 0.88)),
+        // P499 (Oct 30 15:14, "Make a, uh, assault shotgun. Make that one of the top level troops guns. So just rapid fire
+        // shotguns, shotgun shells"): the Sturmbrecher, a box-fed automatic shotgun the Hannibal troopers carry (a quarter
+        // of them); eight pellets a shot, four shots a second, twenty in the box.
+        GunSpec(key: "gun_autoshotgun", name: "Sturmbrecher Assault Shotgun", ammo: "shotgun_shells", mag: 20, interval: 0.24, auto: true, damage: 4,
+                pellets: 8, spread: 0.075, aimSpread: 0.055, speed: 110, recoil: 0.05, reload: 3.0, range: 42, durability: 800, zoom: 0.9,
+                shot: .bullet, sound: 2, accent: V3(0.9, 0.9, 0.88)),
     ]
     static let rifle = 0, smg = 1, shotgun = 2, sniper = 3, launcher = 4, arc = 5, pistol = 6, revolver = 7
     static let kessel = 8, hagel = 9, sturmwind = 10, ashsaw = 11
-    static let faust = all.count - 2                                                         // P320
-    static let rotary = all.count - 1                                                        // P391
+    static let faust = 12 + GreywallArms.specs.count                                         // P320
+    static let rotary = faust + 1                                                            // P391
+    static let autoShotgun = rotary + 1                                                      // P499
     // P391: seconds the Mahlwerk's barrels take to come up to speed and to run down; the player walks slower holding it.
     static let rotarySpinUp: Float = 0.5, rotarySpinDown: Float = 1.4, rotaryWalk: Float = 0.72
     static func isAshArm(_ gi: Int) -> Bool { (gi >= kessel && gi <= ashsaw) || gi == faust }
@@ -173,6 +180,7 @@ enum Guns {
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "tnt", "firing_mechanism", "targeting_optic"], "gun_launcher"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "redstone", "redstone", "gold_ingot", "firing_mechanism", "targeting_optic"], "gun_arc"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "redstone", "firing_mechanism", "firing_mechanism"], "gun_rotary"),
+         Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "iron_ingot", "firing_mechanism", "firing_mechanism"], "gun_autoshotgun"),
          Recipes.shapeless(["radar_module", "compass", "steel_ingot", "steel_ingot", "redstone"], "radar_set"),
          Recipes.shapeless(["radar_module", "copper_ingot", "copper_ingot", "redstone", "redstone"], Navy.pulseKey, 2)]
     }

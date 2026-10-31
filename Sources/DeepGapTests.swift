@@ -196,7 +196,8 @@ enum DeepGapTests {
 
     // MARK: Balance: a full-gear run (D4b, DE1)
 
-    struct Duel { let name: String; let toKillPlayer: Float?; let playerKills: Float?; let weapon: String }
+    struct Duel { let name: String; let toKillPlayer: Float?; let playerKills: Float?; let weapon: String; var rounds: Float = 0 }
+    static var lastRounds = 0              // rounds the unit fired dealing its 20 (the last duel's part 1)
 
     // Duskium armour, food full, normal difficulty; the unit `dist` blocks off on the open vault floor. Returns how long
     // the unit takes to do 20 points of damage to the player (who stands still; their health is topped up each tick)
@@ -208,7 +209,10 @@ enum DeepGapTests {
             g.mobs.mobs.removeAll(); w.pendingMobs.removeAll(); g.arms.slugs.removeAll()
             g.ashStrikes.removeAll(); g.ashSpot = nil
             g.ashAlarm = 0; g.ashAlarmLevel = 0; g.ashReinforceT = 999; g.ashPatrolT = 999
-            guard let m = make(spot + V3(0, 0, -dist)) else { return nil }
+            guard var m = make(spot + V3(0, 0, -dist)) else { return nil }
+            // (P292: a retired kind is what the game admits it as where it stands, the Blight Skeleton a Brand Knight. The
+            // duel held the old one, which the next tick took out of the world: 300 rounds through where it had been.)
+            if case .becomes(let n) = m.hellFate(w) { m = n }
             m.aggro = true
             m.soldierBrain.lastSeen = g.player.eye; m.soldierBrain.seenAgo = 0
             g.mobs.mobs = [m]
@@ -217,6 +221,7 @@ enum DeepGapTests {
         }
         // 1. The unit on the player.
         var toKill: Float?
+        let foe0 = Armory.foeFired
         if let m = place() {
             var dealt = 0, t: Float = 0
             while t < limit && m.health > 0 {
@@ -236,6 +241,7 @@ enum DeepGapTests {
                       + "its rounds in flight \(own), \(String(format: "%.1f", simd_length(m.pos - g.player.pos))) blocks off at y \(m.pos.y)")
             }
         }
+        lastRounds = Armory.foeFired - foe0
         // 2. The player on the unit: aim at its middle and hold the trigger. The unit is held where it stands (it still
         // turns and fires): a pure damage race, the same for every unit (the Marshal charging in and out of the blast
         // swung his time from 44 s to over 180 s between runs).
@@ -316,8 +322,8 @@ enum DeepGapTests {
         }
         let cases: [(String, (V3) -> Mob?, String, String, Float)] = [
             ("Capital rifleman (surface, for scale)", capital(.soldierRecruit), "gun_rifle", "capital_rounds", 18),
-            ("Blight Skeleton (hell band)", deep("wither_skeleton"), "gun_rifle", "capital_rounds", 6),
-            ("Boarling Brute (hell band)", deep("piglin_brute"), "gun_rifle", "capital_rounds", 6),
+            ("Brand Knight (hell band, the Blight Skeleton's heir)", deep("wither_skeleton"), "gun_rifle", "capital_rounds", 6),
+            ("Brand Champion (hell band, the Boarling Brute's heir)", deep("piglin_brute"), "gun_rifle", "capital_rounds", 6),
             ("Keep Castellan", ash("piglin_brute:warden@deep"), "gun_rifle", "capital_rounds", 6),
             ("Ashguard Rifleman", ash("soldier_recruit@ash"), "gun_rifle", "capital_rounds", 18),
             ("Ashguard Stormer", ash("soldier_trooper@ash"), "gun_rifle", "capital_rounds", 18),
@@ -337,13 +343,15 @@ enum DeepGapTests {
             // swung the ratio from 1.2 to 1.6 between runs).
             let seeds = name.hasPrefix("Capital rifleman") || name.hasPrefix("Ashguard Rifleman") ? 3 : 1
             var runs: [(Float?, Float?)] = []
+            var rounds = 0
             for k in 0..<seeds {
                 Rand.seed(0xBA1A_0000 + UInt64(i) + UInt64(k) * 0x100)
                 runs.append(duel(g, make, gun: gun, ammo: ammo, dist: dist, limit: name.hasPrefix("The Ash Marshal") ? 180 : 60))   // the boss: a long fight
+                rounds += lastRounds
             }
             func mean(_ xs: [Float?]) -> Float? { xs.contains { $0 == nil } ? nil : xs.compactMap { $0 }.reduce(0, +) / Float(xs.count) }
             let (a, b) = (mean(runs.map { $0.0 }), mean(runs.map { $0.1 }))
-            report.append(Duel(name: name, toKillPlayer: a, playerKills: b, weapon: Items.def(Items.id(gun)).display))
+            report.append(Duel(name: name, toKillPlayer: a, playerKills: b, weapon: Items.def(Items.id(gun)).display, rounds: Float(rounds) / Float(seeds)))
             print("deep balance: \(name): kills full-gear player in \(a.map { String(format: "%.1f s", $0) } ?? "> 60 s"); player kills it in \(b.map { String(format: "%.1f s", $0) } ?? (name.hasPrefix("The Ash Marshal") ? "> 180 s" : "> 60 s")) (\(Items.def(Items.id(gun)).display))")
         }
         func r(_ n: String) -> Duel? { report.first { $0.name.hasPrefix(n) } }
@@ -351,13 +359,17 @@ enum DeepGapTests {
         // Harder than the surface: the Ashguard rifleman takes longer to kill and kills faster than a Capital one; the tank
         // shrugs off rifles (or takes far longer) and falls to the launcher; every unit can be beaten with full gear.
         // (P358, Oct 16 "the Nazis are still too tough": a soldier of any side dies to two rifle rounds, so the Ashguard
-        // rifleman is harder only by his aim and his gun, not by taking longer to drop.)
-        let harder = (rifle?.toKillPlayer ?? .infinity) < (cap?.toKillPlayer ?? 0)
+        // rifleman is harder only by his aim and his gun, not by taking longer to drop. P499: and by his gun's round, not
+        // its rate: six in ten carry the Kessel bolt rifle (B7's period arms), one heavy round a second against the
+        // Capital's Donnerkeil at eight, so through full gear he kills slower (30.6 s to 16.8) but each round he fires
+        // takes several times what one of the Capital's does.)
+        func perRound(_ d: Duel?) -> Float { d.map { $0.rounds > 0 && $0.toKillPlayer != nil ? 20 / $0.rounds : 0 } ?? 0 }
+        let harder = perRound(rifle) > 2 * perRound(cap)
         let armoured = (tankR?.playerKills == nil || (tankR?.playerKills ?? 0) > 3 * (tankL?.playerKills ?? .infinity)) && tankL?.playerKills != nil
         let beatable = report.filter { !$0.name.hasPrefix("Cinder Tank (rifle)") }.allSatisfy { $0.playerKills != nil }
         let fair = report.allSatisfy { ($0.toKillPlayer ?? .infinity) > 2 }
         check(harder && armoured && beatable && fair,
-              "deep balance: full gear, Ashguard rifleman \(f(rifle?.playerKills)) to kill / kills you in \(f(rifle?.toKillPlayer)) vs Capital \(f(cap?.playerKills)) / \(f(cap?.toKillPlayer)); tank \(f(tankR?.playerKills)) by rifle, \(f(tankL?.playerKills)) by launcher; all beatable \(beatable), none faster than 2 s \(fair)")
+              "deep balance: full gear, Ashguard rifleman \(f(rifle?.playerKills)) to kill / kills you in \(f(rifle?.toKillPlayer)) (\(String(format: "%.1f", perRound(rifle))) a round) vs Capital \(f(cap?.playerKills)) / \(f(cap?.toKillPlayer)) (\(String(format: "%.1f", perRound(cap))) a round); tank \(f(tankR?.playerKills)) by rifle, \(f(tankL?.playerKills)) by launcher; all beatable \(beatable), none faster than 2 s \(fair)")
     }
     static func f(_ t: Float?) -> String { t.map { String(format: "%.1f s", $0) } ?? "> 60 s" }
 }

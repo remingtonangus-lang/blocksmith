@@ -500,14 +500,18 @@ enum BorealTests {
         // on seed 12345 a tank shelled the yard the whole minute. The stand-down is checked with the station quiet.)
         g2.mobs.mobs.removeAll { $0.faction == Faction.ashguard.rawValue }
         g2.mobs.rebuildIndex()
-        var quiet: Float = 0
+        // (P499: the stand-down is timed from the last blast heard near the station. On seed 777 something blew up in
+        // the yard 22 times in the first 19 s, each one starting the stand-down again, and the check gave up 15 s after
+        // the stand-down's own length.)
+        var quiet: Float = 0, total: Float = 0
         var heard: [String: Int] = [:], lastHeard = ""                // (printed if it fails: what kept the alarm on)
-        while quiet < BorealAlarmState.standDown + 15 && g2.borealAlarm.sites[key]?.on != false {
+        while quiet < BorealAlarmState.standDown + 15 && total < 150 && g2.borealAlarm.sites[key]?.on != false {
             g2.tick(0.05); g2.player.pos = hall + V3(0, 0, Float(BorealStation.yard + 40)); g2.player.vel = .zero; g2.player.flying = true; g2.health = 20; g2.menu = nil
-            quiet += 0.05
+            quiet += 0.05; total += 0.05
             for n in g2.bases.noises where n.hostile && !n.byMob && abs(n.pos.x - Float(cx)) < 40 && abs(n.pos.z - Float(cz)) < 40 {
                 heard["\(n.kind)", default: 0] += 1
-                lastHeard = String(format: "%@ at %.0f %.0f %.0f t %.1f", "\(n.kind)", n.pos.x - Float(cx), n.pos.y - Float(F), n.pos.z - Float(cz), quiet)
+                lastHeard = String(format: "%@ at %.0f %.0f %.0f t %.1f", "\(n.kind)", n.pos.x - Float(cx), n.pos.y - Float(F), n.pos.z - Float(cz), total)
+                quiet = 0
             }
         }
         if g2.borealAlarm.sites[key]?.on != false {

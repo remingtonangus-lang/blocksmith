@@ -224,6 +224,7 @@ enum Soldier {
         case Guns.sturmwind: return (8, 18)
         case Guns.hagel: return (5, 14)
         case Guns.shotgun: return (2.5, 6)
+        case Guns.autoShotgun: return (3, 9)
         case Guns.launcher: return (10, 26)
         case Guns.faust: return (10, 30)
         case Guns.arc: return (6, 18)
@@ -612,7 +613,7 @@ extension Mob {
                 if b.strafeTimer <= 0 { b.strafeTimer = Rand.float(in: 0.8...2.2); b.strafeDir = Rand.float(in: 0..<1) < 0.5 ? -1 : 1 }
                 strafe = b.strafeDir * spec.speed * 0.75 * rank.strafe
             }
-            if b.gun == Guns.shotgun && dist > near { speed = spec.speed * 1.25 }   // shotgunners rush in
+            if (b.gun == Guns.shotgun || b.gun == Guns.autoShotgun) && dist > near { speed = spec.speed * 1.25 }   // shotgunners rush in
             if r == 3 && health < spec.health / 2 { speed = max(speed, spec.speed * 0.6) }
             // Rifle troopers swing round the target's side every few seconds (Spec Ops flank wider and quietly, below).
             let tc = troopClass
@@ -844,7 +845,8 @@ extension Mob {
         b.recoil = 1
         // The Ashsaw fires in long ripping bursts (with a long pause between them: the moment to move).
         if b.burst <= 0 {
-            b.burst = b.gun == Guns.rotary ? Rand.int(in: 24...40) : (b.gun == Guns.ashsaw ? Rand.int(in: 7...11) : (troop == 3 ? Rand.int(in: 6...10) : Rand.int(in: rank.burst)))
+            let bursts: ClosedRange<Int> = b.gun == Guns.rotary ? 24...40 : (b.gun == Guns.autoShotgun ? 3...5 : (b.gun == Guns.ashsaw ? 7...11 : (troop == 3 ? 6...10 : rank.burst)))
+            b.burst = Rand.int(in: bursts)
         }
         b.burst -= 1
         if b.burst <= 0 {

@@ -66,6 +66,8 @@ enum CapitalArms {
             p.append(b(-0.2, -0.5, -13.2, 0.4, 0.6, 0.5, silver, pMetal))                                // sling loop (P499: on the handguard)
         case Guns.shotgun:
             for k in 0..<4 { p.append(b(-0.4, 2.4, -16.5 + Float(k) * 2.6, 0.8, 0.18, 1.1, grey, pMetal)) } // rib vents
+        case Guns.autoShotgun:
+            for k in 0..<4 { p.append(b(-0.95, 1.2, -16.5 + Float(k) * 2.4, 1.9, 0.6, 1.0, grey, pMetal)) } // shroud vents
         case Guns.sniper:
             p.append(b(-0.35, 4.8, -4.4, 0.7, 0.55, 0.9, silver, pMetal))                                 // elevation turret
             p.append(b(0.8, 3.65, -4.4, 0.55, 0.7, 0.9, silver, pMetal))                                  // windage turret
@@ -233,6 +235,29 @@ enum CapitalArms {
             p += [b(1.2, 0, -4, 0.4, 1.4, 1, grey, pMetal), b(1.2, 0, -2.6, 0.4, 1.4, 1, grey, pMetal)]   // shell carrier
             return GunModel(parts: p, mag: [m, m + 1], grip: V3(0, -1.8, 0.3), fore: V3(0, -0.9, -11.5), butt: V3(0, 0.2, 10.1),
                             muzzle: V3(0, 1.8, -19.5), magAt: V3(0, -0.8, -3.5), bolt: V3(0, -0.9, -11.5), scale: 0.62)
+        case Guns.autoShotgun:
+            // P499 Sturmbrecher Assault Shotgun (original design): an enamel receiver with the grey band and a top rail, a
+            // vented graphite shroud over the barrel and a silver brake, an enamel handguard under it, a box magazine ahead
+            // of the trigger guard, a raked grip and the Brecher's stock.
+            var p: [Part] = [
+                b(-1.3, -0.6, -7, 2.6, 3.4, 10, enamel, pEnamel),                  // receiver
+                b(-1.35, 1.6, -6.5, 2.7, 0.4, 9, grey, pEnamel),                   // grey band
+                b(-0.6, 2.8, -6, 1.2, 0.5, 8, graphite, pMetal),                   // top rail
+                b(-0.9, 0.4, -18, 1.8, 1.8, 11, graphite, pMetal),                 // barrel shroud
+                b(-0.5, 0.75, -20.5, 1.0, 1.0, 2.5, graphite, pMetal),             // barrel
+                b(-0.8, 0.5, -21.4, 1.6, 1.6, 1.0, silver, pMetal),                // muzzle brake
+                b(-1.1, -0.9, -15, 2.2, 1.5, 8, enamel, pEnamel),                  // handguard
+                b(-0.2, 2.2, -17.5, 0.4, 0.8, 0.5, silver, pMetal),                // front sight
+                b(-0.3, -1.8, -2.8, 0.6, 0.3, 2.2, graphite, pMetal),              // trigger guard
+                b(-1.0, -1.4, 3, 2.0, 3.4, 6.5, enamel, pEnamel),                  // stock
+                b(-1.05, -1.7, 9.5, 2.1, 3.8, 0.6, graphite, pMetal),              // butt plate
+                b(1.3, 0.8, -5, 0.3, 0.8, 1.2, silver, pMetal),                    // charging handle
+            ]
+            p += grip(-0.7, 1.4, top: -0.6, graphite)
+            let m = p.count
+            p += [b(-1.2, -4.6, -6.2, 2.4, 4.0, 3.4, graphite, pMetal), b(-1.25, -4.0, -6.0, 2.5, 0.4, 3.0, grey, pMetal)]   // box magazine
+            return GunModel(parts: p, mag: [m, m + 1], grip: V3(0, -1.8, 0.3), fore: V3(0, -1.2, -12), butt: V3(0, 0.1, 10.1),
+                            muzzle: V3(0, 1.25, -21.5), magAt: V3(0, -3.0, -4.5), bolt: V3(1.45, 1.2, -4.4), scale: 0.62)
         case Guns.sniper:
             // Farsight Rifle: long fluted barrel, big scope with a glowing objective, thumbhole stock, folded bipod.
             var p: [Part] = [

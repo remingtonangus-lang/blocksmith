@@ -133,7 +133,7 @@ enum GreywallTests {
         for rm in rooms { probes.append((rm.use, rm.door.0, 1, rm.door.1 + (rm.door.1 < kc ? -1 : 1))) }
         if let tw = t.towers.first { let c = Greywall.tower(t, tw.0, tw.1); probes.append(("tower roof", c.x - tw.0, t.wallH + 6, c.z - tw.1)) }
         probes.append(("wall walk", 0, t.wallH + 1, -(t.half - 1)))
-        if t.floors > 1 { probes.append(("command hall", 2, 6, kc - kz + 4)) }
+        if t.floors(upper: t == .garrison) > 1 { probes.append(("command hall", 2, 6, kc - kz + 4)) }      // (P499: a new garrison's too)
         if t.bunker { probes.append(("war room", kx / 2, -5, kc - kz + 4)); probes.append(("bunker vault", -(kx / 2), -5, kc)) }
         var reached: [String] = [], missed: [String] = []
         for (n, dx, y, dz) in probes {

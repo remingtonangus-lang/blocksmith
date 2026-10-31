@@ -282,8 +282,17 @@ extension HorseTests {
             let round0 = HorseLife.broughtRound
             var t: Float = 0
             // (through the mob list's update: it hands out the path finder's per-tick budget)
-            while t < 25 && simd_length(h.pos - g.player.pos) > 5 { g.mobs.update(0.05, game: g); g.horseCall = max(g.horseCall, 1); t += 0.05 }
-            check(simd_length(h.pos - g.player.pos) <= 5 && HorseLife.broughtRound == round0, String(format: "horse gap: a called horse finds its way round a wall (%.1f s, %.1f blocks off; at %.1f %.1f %.1f from %.1f %.1f %.1f; brought round %d)", t, simd_length(h.pos - g.player.pos), h.pos.x, h.pos.y, h.pos.z, lane0.x, lane0.y, Float(wallZ) - 6, HorseLife.broughtRound - round0))
+            var fell = ""                                                  // (printed if it fails: where it left the strip)
+            while t < 25 && simd_length(h.pos - g.player.pos) > 5 {
+                let was = h.pos
+                g.mobs.update(0.05, game: g); g.horseCall = max(g.horseCall, 1); t += 0.05
+                if fell.isEmpty && h.pos.y < lane0.y - 2 {
+                    fell = String(format: " fell at %.1f s from %.1f %.1f %.1f (lane x %.1f, wall x %d...%d); call %.1f, panic %.1f, path %d nodes, mobs %d, below %@, paused %@, survival %@",
+                                  t, was.x, was.y, was.z, lane0.x, x0 - 3, x0, g.horseCall, h.panic, h.path.nodes.count, g.mobs.mobs.count,
+                                  BountyHunters.below(g) ? "y" : "n", g.paused ? "y" : "n", g.survival ? "y" : "n")
+                }
+            }
+            check(simd_length(h.pos - g.player.pos) <= 5 && HorseLife.broughtRound == round0, String(format: "horse gap: a called horse finds its way round a wall (%.1f s, %.1f blocks off; at %.1f %.1f %.1f from %.1f %.1f %.1f; brought round %d)", t, simd_length(h.pos - g.player.pos), h.pos.x, h.pos.y, h.pos.z, lane0.x, lane0.y, Float(wallZ) - 6, HorseLife.broughtRound - round0) + fell)
             // A gap it can't get through (the wall closed): after 6 s stuck it is brought round to you, on your level
             // (the strip is high in the air: never onto the ground far below).
             for dy in 0...3 { for x in (x0 + 1)...(x0 + 3) { w.setBlock(x, y + dy, wallZ, Blocks.id("stone")) } }

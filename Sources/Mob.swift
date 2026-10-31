@@ -74,7 +74,7 @@ enum MobKind: Int, CaseIterable {
                                   // P484 (Oct 28 18:05, "How do I get a spider eye?"): the Grave Eye is the Gravesworn's again.
                                   drops: [("string", 0, 2), ("iron_nugget", 0, 2), ("spider_eye", 0, 1)], xp: 7, call: .mob(self, .ambient))
         case .enderman: return Spec(name: "Voidwalker", halfW: 0.3, height: 2.9, health: 40, speed: 3.0, behavior: .enderman, attack: 7,
-                                    drops: [("ender_pearl", 0, 1)], xp: 5, call: .mobVoidwalker)
+                                    drops: [], xp: 5, call: .mobVoidwalker)   // P499: no void pearls
         case .slime: return Spec(name: "Slime", halfW: 0.26, height: 0.52, health: 1, speed: 2.0, behavior: .slime, attack: 0,
                                  drops: [("slime_ball", 0, 2)], xp: 1, call: .mobSlime)
         case .zombifiedPiglin: return Spec(name: "Undead Boarling", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .neutral, attack: 8,

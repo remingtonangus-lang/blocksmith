@@ -18,7 +18,7 @@ enum BaseSafes {
     static let table: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)]) = (5...8, [
         ("diamond", 3, 8, 16), ("gold_block", 1, 3, 12), ("emerald", 3, 8, 10),                 // (diamond is the Titanium Ingot)
         ("netherite_scrap", 1, 2, 4), ("gun_sniper", 1, 1, 4), ("gun_sturmwind", 1, 1, 4), ("gun_kessel", 1, 1, 3),
-        ("enchanted_golden_apple", 1, 1, 3), ("experience_bottle", 4, 12, 8), ("ember_charge", 1, 1, 3), ("radar_module", 1, 1, 3),
+        ("combat_stim", 1, 1, 3), ("experience_bottle", 4, 12, 8), ("ember_charge", 1, 1, 3), ("radar_module", 1, 1, 3),
         ("gold_ingot", 4, 12, 10), ("name_tag", 1, 1, 2),
     ])
 }

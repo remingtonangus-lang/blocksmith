@@ -916,18 +916,16 @@ enum PlaytestOct11Tests {
         if let sgm = segs.first {
             let mid = Roads.point(sgm, 0.5)
             let cx = floorDiv(Int(mid.x), CS), cz = floorDiv(Int(mid.y), CS)
-            // (The chunk's own generation draws the roads, StructureCache.after: the ground without them is the same chunk
-            // made without that pass. Drawing them again over a generated chunk changed only a few columns.)
-            let after = gen.structures?.after
-            gen.structures?.after = nil
+            // (WorldGen.generate is the bare ground; the roads go down with the structures, StructureCache.place's after
+            // pass, so they are drawn here over it and compared with it.)
             let before = gen.generate(cx: cx, cz: cz)
-            gen.structures?.after = after
-            var blocks = gen.generate(cx: cx, cz: cz)
+            var blocks = before
             // (PG5: in a Polygons world the path goes down as packed earth, StructWriter.roadID, and sand roads as sandstone.)
             let surfaces: Set<BlockID> = [Blocks.id("dirt_path"), StructWriter.roadID, Blocks.has("sandstone") ? Blocks.id("sandstone") : AIR,
                                           Blocks.has("smooth_sandstone") ? Blocks.id("smooth_sandstone") : AIR]
             blocks.withUnsafeMutableBufferPointer { buf in
-                let w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
+                var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
+                Roads.draw(gen, &w, cx, cz)
                 for lz in 0..<CS { for lx in 0..<CS {
                     let x = cx * CS + lx, z = cz * CS + lz
                     guard Roads.distance(sgm, V2(Float(x) + 0.5, Float(z) + 0.5)).0 <= Roads.halfWidth else { continue }
