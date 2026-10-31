@@ -163,8 +163,15 @@ enum BalanceTests {
                     runs.append(toKill(k, t))
                 }
                 r.toKill.append(runs.contains { $0 == nil } ? nil : runs.compactMap { $0 }.reduce(0, +) / 3)
-                Rand.seed(0xBA1A_6000 + UInt64(k.rawValue) * 16 + UInt64(t))
-                r.kills.append(kills(k, t))
+                // (P499: a Gravesworn's guard and feints made one duel's kill time the luck of when its guard dropped:
+                // the same build's diamond time went 7.2 s to 9.2 s with what ran before. Three seeds, averaged.)
+                let guardedKind = k.spec.name.hasPrefix("Gravesworn")
+                var kr: [Float?] = []
+                for n in 0..<(guardedKind ? 3 : 1) {
+                    Rand.seed(0xBA1A_6000 + UInt64(k.rawValue) * 16 + UInt64(t) + UInt64(n) * 0x1000)
+                    kr.append(kills(k, t))
+                }
+                r.kills.append(kr.contains { $0 == nil } ? nil : kr.compactMap { $0 }.reduce(0, +) / Float(kr.count))
             }
             rows.append(r)
             print("balance: \(r.name): kills the player in " + r.toKill.map(f).joined(separator: " / ")

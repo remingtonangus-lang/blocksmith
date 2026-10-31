@@ -912,7 +912,7 @@ enum PlaytestOct11Tests {
         WorldRules.p44 = true
         var segs: [Roads.Seg] = []
         for rz in -3...3 { for rx in -3...3 { for (dx, dz) in [(1, 0), (0, 1)] { if let sgm = Roads.segment(gen, rx, rz, dx, dz) { segs.append(sgm) } } } }
-        var paved = 0, cols = 0
+        var paved = 0, cols = 0, wet = 0
         if let sgm = segs.first {
             let mid = Roads.point(sgm, 0.5)
             let cx = floorDiv(Int(mid.x), CS), cz = floorDiv(Int(mid.y), CS)
@@ -929,6 +929,10 @@ enum PlaytestOct11Tests {
                 for lz in 0..<CS { for lx in 0..<CS {
                     let x = cx * CS + lx, z = cz * CS + lz
                     guard Roads.distance(sgm, V2(Float(x) + 0.5, Float(z) + 0.5)).0 <= Roads.halfWidth else { continue }
+                    // (P499: a road isn't paved across water: a column under water or below the sea doesn't count.)
+                    var gy = CH - 2
+                    while gy > 1 && !(Blocks.collide[Int(before[Chunk.index(lx, gy, lz)])] && !CapitalBase.isLeaf(before[Chunk.index(lx, gy, lz)])) { gy -= 1 }
+                    if gy <= SEA - 1 || Blocks.isLiquid(before[Chunk.index(lx, gy + 1, lz)]) { wet += 1; continue }
                     cols += 1
                     if (40..<(CH - 1)).contains(where: { surfaces.contains(w.get(x, $0, z)) && before[Chunk.index(lx, $0, lz)] != w.get(x, $0, z) }) { paved += 1 }
                 } }
@@ -938,11 +942,11 @@ enum PlaytestOct11Tests {
         // A rider, held up.
         let mobs0 = g.mobs.mobs, money0 = g.money, held0 = g.inventory.held, honour0 = Honour.value, law0 = TownLaw.state
         let survival0 = g.survival, pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch
-        let alive0 = g.alive, riding0 = g.riding, aim0 = g.vrAim
+        let alive0 = g.alive, riding0 = g.riding, aim0 = g.vrAim, coach0 = Stagecoach.chance
         defer {
             g.alive = alive0; g.riding = riding0; g.vrAim = aim0
             g.mobs.mobs = mobs0; g.money = money0; g.inventory.held = held0; Honour.value = honour0; TownLaw.state = law0
-            g.survival = survival0; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0; Riders.forceRoad = nil; Riders.along = 50...80
+            g.survival = survival0; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0; Riders.forceRoad = nil; Riders.along = 50...80; Stagecoach.chance = coach0
         }
         g.survival = true; g.mobs.mobs = []; g.money = 0; TownLaw.state.bounty = [:]
         g.alive = true; g.riding = nil; g.vrAim = nil            // (whatever an earlier check left: on foot, aiming with the view)
@@ -952,6 +956,7 @@ enum PlaytestOct11Tests {
         Riders.forceRoad = (Roads.Seg(a: V2(p.x - 120, p.z), b: V2(p.x + 120, p.z), phase: 0), 0.5)
         Riders.along = 10...16                 // (inside the host check's loaded ground)
         var rider: Mob?
+        Stagecoach.chance = 0                              // (a rider on a saddled horse: a third drew a coach, unsaddled)
         FactionRaids.lastAssault = -1e9                    // (P215: no posse within 90 minutes of any check's assault)
         for _ in 0..<6 where rider == nil { rider = Riders.send(g) }
         var robbedOK = false, posse = 0, gunmen = true, mounted = false, robWhy = ""
@@ -981,7 +986,7 @@ enum PlaytestOct11Tests {
         BountyHunters.chancePerSecond = chance0
         let gunHunter = g.mobs.mobs.contains { $0.customName == BountyHunters.name && ($0.brain?.gun ?? -1) == Guns.revolver }   // (R21: the leader)
         check(segs.count >= 3 && cols > 0 && paved * 10 >= cols * 6 && mounted && robbedOK && posse >= 2 && gunmen && collected && gunHunter,
-              "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) road columns paved; a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)\(robWhy.isEmpty ? "" : ": " + robWhy)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
+              "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) dry road columns paved (\(wet) over water); a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)\(robWhy.isEmpty ? "" : ": " + robWhy)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
     }
 
     // P49 horse items: half as much stamina again; a monster beside the horse makes it shy briefly (no throw, never at

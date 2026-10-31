@@ -307,7 +307,8 @@ extension TownTests {
                 }
             }
         }
-        check(visited >= 2 && offices == visited && cells == offices && wanted == offices,
+        // (A roomy office, 7 wide or more, hangs a second WANTED poster beside his: Slim Pike's, since the Oct 14 batch.)
+        check(visited >= 2 && offices == visited && cells == offices && wanted >= offices && wanted <= 2 * offices,
               "frontier: \(visited) towns, \(offices) sheriff's offices, \(cells) with a jail cell behind bars and an iron door, \(wanted) WANTED boards")
         check(fronts > 0 && Float(walks) >= Float(fronts) * 0.75, "frontier: \(walks)/\(fronts) shop fronts have a plank boardwalk")
         // A town on ground a save already generated keeps its old lots.

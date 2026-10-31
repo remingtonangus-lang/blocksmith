@@ -126,10 +126,14 @@ extension HorseTests {
             ride(h3, 0.3, 0, [5])
             check(h3.hs.tricks == 1 && g.riding === h3, "horse gap: at bond level 3 a spur standing still rears on command, rider kept (\(h3.hs.tricks))")
             g.riding = nil
+            var why: [String] = []
             func stopDistance(_ xp: Float) -> Float {
                 let h = horse(15, xp); mount(h)
                 g.mobs.mobs = [h]
                 ride(h, 3, 1, [10, 40])
+                why.append(String(format: "speed %.1f, ridden %@, gait %@, stamina %.0f, at %.1f,%.1f,%.1f (lane %.1f), ground %@",
+                                  speed(h), g.riding === h ? "yes" : "no", h.hs.gait.name, h.stamina, h.pos.x, h.pos.y, h.pos.z, lane0.y,
+                                  h.onGround ? "yes" : "no"))
                 let z0 = h.pos.z
                 var n = 0
                 while speed(h) > 0.2 && n < 72 * 6 { g.rideInput = MoveInput(); h.update(dt, game: g); n += 1 }
@@ -137,7 +141,8 @@ extension HorseTests {
                 return abs(z0 - h.pos.z)
             }
             let s1 = stopDistance(0), s4 = stopDistance(HorseFeel.levelXP[3])
-            check(s4 < s1 * 0.75, String(format: "horse gap: a level-4 horse stops in %.1f blocks, a level-1 in %.1f (a sliding stop)", s4, s1))
+            check(s4 < s1 * 0.75, String(format: "horse gap: a level-4 horse stops in %.1f blocks, a level-1 in %.1f (a sliding stop)", s4, s1)
+                  + (s4 < s1 * 0.75 ? "" : " (after the gallop: " + why.joined(separator: "; ") + ")"))
             func turned(_ xp: Float) -> Float {
                 let h = horse(15, xp); mount(h)
                 g.mobs.mobs = [h]

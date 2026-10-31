@@ -425,9 +425,12 @@ enum HorseTests {
                 return h.stamina
             }
             let ahead = press(0), down = press(-1.5)
+            let ray = g.mobs.raycast(g.player.eye, g.player.look, maxDist: 4).map { $0.0 === h ? "the horse" : $0.0.kind.key } ?? "nothing"
+            let treatWhy = "ridden \(g.riding === h), tamed \(h.tamed), aimed at \(ray), menu \(g.menu == nil ? "none" : "open"), alive \(g.alive), held \(Items.key(g.inventory.held.item)) x\(g.inventory.held.count)"
             g.inventory.held = held
             g.eatProgress = 0
-            check(ahead < 30 && down >= 40, String(format: "horse treats only when aimed at the horse: stamina 20 -> %.0f aimed ahead, -> %.0f aimed down at it", ahead, down))
+            check(ahead < 30 && down >= 40, String(format: "horse treats only when aimed at the horse: stamina 20 -> %.0f aimed ahead, -> %.0f aimed down at it", ahead, down)
+                  + (down >= 40 ? "" : " (" + treatWhy + ")"))
             g.riding = nil
         }
         // The gap pass (HorseGapTests.swift): breeds, names, taming, fear, injury, the stable, calling, comfort, hooves.
