@@ -12,9 +12,10 @@ enum BoardingTests {
         let pm = PadManager.shared
         let home = g.player.pos, wasPaused = g.paused, wasFlying = g.player.flying, wasSim = pm.simulated
         let wasYaw = g.player.yaw, wasMoveYaw = g.player.moveYaw, wasHealth = g.health
-        let wasAlive = g.alive, wasMenu = g.menu, wasSurvival = g.survival
+        let wasAlive = g.alive, wasMenu = g.menu, wasSurvival = g.survival, wasPilot = w.ships.pilot
         defer {
             g.alive = wasAlive; g.menu = wasMenu; g.survival = wasSurvival
+            w.ships.pilot = wasPilot                                // (P499: the walk ends at the helm; the frigate goes)
             pm.simulated = wasSim
             g.player.pos = home; g.player.vel = .zero; g.player.flying = wasFlying; g.paused = wasPaused
             g.player.yaw = wasYaw; g.player.moveYaw = wasMoveYaw; g.health = wasHealth

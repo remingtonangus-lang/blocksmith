@@ -86,6 +86,24 @@ enum GarrisonTown {
         return s
     }
 
+    // P499 (Oct 30 20:01, in a Capital city: "checking out my stealth ability... they immediately come after me even if
+    // I'm just walking around. It should be if I pull a weapon out and they see me with a weapon, then they are mad at
+    // me"): a Capital city keeps the row's peace too. Its soldiers leave an empty-handed visitor be; a weapon out where
+    // one of them can see it draws the warning and, held, the whole watch opens fire. A blow at anyone still opens it.
+    static var inCity = false            // the row's peace is a Capital city's (a weapon counts only where a soldier sees it)
+    static var forceCity: Bool?          // the host check stands the player in a city
+    static func city(_ g: Game, x: Int, z: Int) -> StructureStart? {
+        guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
+              let s = sc.nearest("capital_city", x: x, z: z, maxRegions: 1) else { return nil }
+        guard x >= s.min.x - 4, x <= s.max.x + 4, z >= s.min.z - 4, z <= s.max.z + 4 else { return nil }
+        return s
+    }
+    // A Capital soldier in reach who can see the player's hands.
+    static func watched(_ g: Game) -> Bool {
+        let p = g.player.pos
+        return g.mobs.mobs.contains { m in m.factionValue == .steelhold && Soldier.rank(m.kind) != nil && m.health > 0
+            && simd_length(m.pos - p) < 40 && g.world.canSee(m.eye, g.player.eye) }
+    }
     static var inRow = false             // the player is in a garrison row (set each second)
     static var tense: Float = 0          // seconds with a weapon out in the row
     static var opened = false            // the row has opened fire (until the player has been away a minute)
@@ -104,7 +122,10 @@ enum GarrisonTown {
         let id = ObjectIdentifier(g)
         if gameID != id { gameID = id; inRow = false; tense = 0; opened = false; away = 0; warned = false }
         let p = g.player.pos
-        inRow = g.survival && (forceRow ?? (citadel(g, x: Int(floor(p.x)), z: Int(floor(p.z))) != nil))
+        let bx = Int(floor(p.x)), bz = Int(floor(p.z))
+        let row = forceRow ?? (citadel(g, x: bx, z: bz) != nil)
+        inCity = g.survival && (forceCity ?? (!row && city(g, x: bx, z: bz) != nil))
+        inRow = g.survival && (row || inCity)
         guard inRow else {
             away += dt
             if away > 60 { opened = false }
@@ -117,7 +138,7 @@ enum GarrisonTown {
         if g.mobs.mobs.contains(where: { Soldier.rank($0.kind) != nil && $0.factionValue == .steelhold && $0.aggro && simd_length($0.pos - p) < 64 }) {
             open(g); return
         }
-        if weaponOut(g) {
+        if weaponOut(g) && (!inCity || watched(g)) {
             tense += dt
             if tense >= warnAt && !warned { warned = true; g.onToast?("The guards watch your hands. Put that away") }
             if tense >= patience { open(g) }

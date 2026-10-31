@@ -260,6 +260,20 @@ extension TownTests {
         g.drops.items = []
     }
 
+    // (a town's pieces, its box round the anchor, its start numbers and every sign near it: why an office or bank is missing)
+    static func townNote(_ s: StructureStart, _ w: World) -> String {
+        var signs: [String] = []
+        for (p, be) in w.blockEntities where be.kind == .sign && abs(p.x - s.anchor.x) < 120 && abs(p.z - s.anchor.z) < 120 {
+            let text: String = be.lines.filter { !$0.isEmpty }.joined(separator: " ")
+            signs.append(text + " @\(p.x - s.anchor.x),\(p.z - s.anchor.z)")
+        }
+        let keys: [String] = s.info.keys.sorted()
+        let info: String = keys.map { k in k + "=\(s.info[k] ?? 0)" }.joined(separator: " ")
+        let size: String = TownSizes.of(s).map { "\($0)" } ?? "old"
+        let box = "x \(s.min.x - s.anchor.x)...\(s.max.x - s.anchor.x) z \(s.min.z - s.anchor.z)...\(s.max.z - s.anchor.z)"
+        return "\(s.pieces.count) pieces, size " + size + ", box " + box + ", info " + info + "; signs " + signs.joined(separator: "; ")
+    }
+
     static func frontierTowns(_ makeWorld: () -> World, _ check: (Bool, String) -> Void) {
         let w = makeWorld()
         w.renderDistance = 3
@@ -272,6 +286,8 @@ extension TownTests {
             seen.append(s.anchor)
             _ = w.loadSync(center: V3(Float(s.anchor.x), 140, Float(s.anchor.z)), radius: 4)
             visited += 1
+            let offices0 = offices
+            defer { if offices == offices0 { print("frontier: no sheriff's office within 80 of \(s.anchor) (" + TownTests.townNote(s, w) + ")") } }
             for (p, be) in w.blockEntities where be.kind == .sign && abs(p.x - s.anchor.x) < 80 && abs(p.z - s.anchor.z) < 80 {
                 if be.lines.contains("Sheriff's Office") || be.lines.contains("Sheriff") {
                     offices += 1

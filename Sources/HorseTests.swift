@@ -18,8 +18,16 @@ enum HorseTests {
         let t0 = CFAbsoluteTimeGetCurrent()
         let w = g.world
         let wasRiding = g.riding, wasPos = g.player.pos, wasBond = g.horseBond, wasSurvival = g.survival
+        let wasAim = g.vrAim, wasPaused = g.paused
+        // A living rider on foot, nothing piloted, manned or open (the full questcheck runs this after checks that can
+        // leave the player dead on the death screen, at a helm or behind a gun: then Game.tick rode nothing).
+        if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }
+        g.alive = true; g.health = max(g.health, g.maxHealth); g.paused = false; g.vrAim = nil
+        g.world.ships.pilot = nil; g.world.ships.aboard = nil
+        if Turrets.shared.manned != nil { Turrets.shared.leave(g) }
         defer {
             g.riding = wasRiding; g.player.pos = wasPos; g.horseBond = wasBond; g.survival = wasSurvival
+            g.vrAim = wasAim; g.paused = wasPaused
             g.player.moveYaw = nil; g.rideInput = MoveInput()
             print(String(format: "horsetests: %.1f s", CFAbsoluteTimeGetCurrent() - t0))
         }

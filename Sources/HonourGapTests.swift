@@ -306,7 +306,10 @@ extension TownTests {
         // (P88: a bigger posse, from 30-42 blocks out, so it rides in.)
         // (R21: two to four on the soldier AI, riding in on an order to where he is.)
         let near = hunters.allSatisfy { simd_length($0.pos - g.player.pos) < 50 && $0.brain?.order != nil }
-        check(hunters.count >= 2 && near, "honour gap: an outlaw in the wild gets \(hunters.count) bounty hunters within 44 blocks, already on the trail")
+        let why: String = hunters.count >= 2 ? "" : " [party \(BountyHunters.party.map { "\(Int($0.x - g.player.pos.x)),\(Int($0.y - g.player.pos.z))" } ?? "none"), "
+            + "survival \(g.survival), difficulty \(g.difficulty), dim \(g.dim.dim), in town \(TownLaw.inTown != nil), won \(Reckoning.won), worth \(BountyHunters.worthHunting()), "
+            + "below \(BountyHunters.below(g)), hunters day \(TownLaw.state.huntersDay ?? -99) today \(Int(g.time / DAY_LENGTH)), mobs \(g.mobs.mobs.count)]"
+        check(hunters.count >= 2 && near, "honour gap: an outlaw in the wild gets \(hunters.count) bounty hunters within 44 blocks, already on the trail" + why)
         let n0 = g.mobs.mobs.count
         BountyHunters.tick(g)
         check(g.mobs.mobs.count == n0, "honour gap: at most one posse a day")

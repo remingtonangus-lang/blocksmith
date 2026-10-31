@@ -198,6 +198,9 @@ enum BountyHunters {
         var from: V3?
         // O8: from the trackers' side when they ride in (a spread of +-35 degrees round it).
         let base = toward.map { atan2f($0.x - pp.x, $0.y - pp.z) }
+        // (Level with him or with the ground under him: a man up on a horse's back, a roof or a jump is still in reach,
+        // as for a town's posse, Riders.sendPosse.)
+        let feet = Float(w.topY(Int(floor(pp.x)), Int(floor(pp.z))) + 1)
         for k in 0..<(n * 16) where placed < n {
             let x: Int, z: Int
             if let f = from {
@@ -214,7 +217,7 @@ enum BountyHunters {
             // cliff top over a ravine he's in.
             guard Blocks.collide[Int(ground)], !Blocks.isLiquid(ground), !Blocks.isLiquid(w.builtBlock(x, y, z)),
                   !Blocks.key(Blocks.groupBase[Int(ground)]).hasSuffix("_leaves"),
-                  w.lightAt(x, y, z).sky >= 12, abs(Float(y) - pp.y) < 12 else { continue }
+                  w.lightAt(x, y, z).sky >= 12, abs(Float(y) - pp.y) < 12 || abs(Float(y) - feet) < 12 else { continue }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             // Out of the player's sight if we can (the first few tries), so they ride in.
             if from == nil && k < 24 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { continue }

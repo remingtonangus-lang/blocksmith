@@ -123,7 +123,9 @@ extension Game {
         case .overworld:
             let l = world.lightAt(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z)))
             caveTarget = 1 - Float(l.sky) / 15
-            if eye.y > Float(SEA + 40) { caveTarget *= 0.5 }
+            // (high up, a little sky counts for more; none at all is indoors however high: P499, a Boreal station
+            // in a mountain heard songbirds in its corridors)
+            if eye.y > Float(SEA + 40) && l.sky > 0 { caveTarget *= 0.5 }
         case .nether, .deep: caveTarget = 0.7
         case .end: caveTarget = 0.2
         }

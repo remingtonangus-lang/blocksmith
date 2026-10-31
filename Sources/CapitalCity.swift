@@ -525,6 +525,16 @@ enum CapitalCity {
         for u in [9, 13, 25] where rng.chance(0.85) { seating(&w, x0 + u, L, tz, &rng) }     // clear of the ramp (u 17-20)
         for (dx, dz) in [(street + 2, lot - 2), (lot - 3, lot - 2)] where rng.chance(0.8) { planterTree(&w, x0 + dx, L - 1, z0 + dz, &rng) }
         if rng.chance(0.55) { w.mob(watch[rng.int(watch.count)], V3(Float(ex) + 0.5, Float(L + 1), Float(z0 + street + 2) + 0.5)) }
+        // P499 (Oct 30 15:10, in a Capital city: "we need way more troops here... a total maybe 10, maybe 15 troops. Not
+        // enough. It should be 50"): each building's entrance has a second sentry and most a third at the terrace's
+        // corner (rolled apart from the lot's own draws, so a lot half made before keeps its look; troops are placed only
+        // when their ground is first made).
+        var more = Self.watchRng(x0, z0)
+        w.mob(watch[more.int(watch.count)], V3(Float(ex) + 2.5, Float(L + 1), Float(z0 + street + 2) + 0.5))
+        if more.chance(0.7) { w.mob(watch[more.int(watch.count)], V3(Float(x0 + street + 2) + 0.5, Float(L + 1), Float(z0 + street + 2) + 0.5)) }
+    }
+    static func watchRng(_ x0: Int, _ z0: Int) -> SRng {
+        SRng(UInt64(bitPattern: Int64(x0) &* 73_856_093 ^ Int64(z0) &* 19_349_663) ^ 0xC17D_0050_5E17_0001 | 1)
     }
 
     // P462 (Oct 25 16:31, his Capital City: "I want it to be more New Alexandria looking... Reminds me of Greek
@@ -645,9 +655,17 @@ enum CapitalCity {
             w.set(cx, L + 4, cz, WATER)
             w.mob("soldier_trooper", V3(Float(cx - 6) + 0.5, Float(L + 1), Float(cz) + 0.5))
             w.mob("soldier_marksman", V3(Float(cx + 6) + 0.5, Float(L + 1), Float(cz) + 0.5))
+            // (P499: the civic square's guard, four more)
+            w.mob("soldier_officer", V3(Float(cx) + 0.5, Float(L + 1), Float(cz - 6) + 0.5))
+            w.mob("soldier_trooper", V3(Float(cx) + 0.5, Float(L + 1), Float(cz + 6) + 0.5))
+            w.mob("soldier_trooper", V3(Float(cx - 6) + 0.5, Float(L + 1), Float(cz - 6) + 0.5))
+            w.mob("soldier_trooper", V3(Float(cx + 6) + 0.5, Float(L + 1), Float(cz + 6) + 0.5))
         } else {
             for t in 0..<3 where rng.chance(0.8) { seating(&w, cx - 6 + t * 6, L, cz + 5, &rng) }
             if rng.chance(0.7) { w.mob(watch[rng.int(watch.count)], V3(Float(cx) + 0.5, Float(L + 1), Float(cz + 3) + 0.5)) }
+            var more = watchRng(x0, z0)                                          // (P499: a pair on every plaza)
+            w.mob(watch[more.int(watch.count)], V3(Float(cx - 3) + 0.5, Float(L + 1), Float(cz - 3) + 0.5))
+            w.mob(watch[more.int(watch.count)], V3(Float(cx + 3) + 0.5, Float(L + 1), Float(cz - 3) + 0.5))
         }
         if let plan { CapitalTown.square(&w, plan, cx, cz, L, civic: fountain) }   // the bell townsfolk meet at, the city's name
         for (dx, dz) in [(-11, -11), (11, -11), (-11, 11), (11, 11)] {      // light posts in the corners (off the ramps)

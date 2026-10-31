@@ -423,7 +423,9 @@ extension AshArmy {
         }
     }
     static let sendReach: Float = 400           // a reinforcement comes only from a garrison this near the last contact
-    static let patrolReach: Float = 300         // a patrol walks only between two sites this near the player
+    // A patrol walks only between two sites this near the player. P499 (host check): 300 left the vault's middle
+    // ground (its sites 210 and 340 blocks off) with no patrol at all; 400, as far as a reinforcement comes.
+    static let patrolReach: Float = 400
 }
 
 extension Game {

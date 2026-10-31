@@ -70,6 +70,12 @@ enum VRCombatFeelTests {
             for k in 0...3 { game.world.setBlock(fx + dx, fy + 1 + k, fz + dz, AIR) }
         } }
         game.paused = false; game.survival = true; game.health = 20; p.flying = false
+        // (A living player on Normal with no armour or absorption: whatever the checks before this one left.)
+        let diff0 = game.difficulty, armour0 = game.inventory.armor.slots
+        defer { game.difficulty = diff0; game.inventory.armor.slots = armour0 }
+        game.alive = true; game.difficulty = 2; game.absorption = 0
+        for i in 0..<4 { game.inventory.armor[i] = .empty }
+        if game.menu is DeathMenu { game.menu = nil }
         p.pos = P; p.vel = .zero; p.yaw = 0; p.pitch = 0
         // (No Game.tick runs here: the active distance is centred on him by hand, or the mobs past it never move.)
         let active0 = game.world.activeCenter

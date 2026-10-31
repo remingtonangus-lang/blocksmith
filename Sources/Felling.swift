@@ -33,6 +33,7 @@ enum Felling {
     static weak var carried: Ship?
     static var felled = 0                        // (counter)
     static var toppled = 0                       // (counter: P407's whole pieces)
+    static var letLate = 0                       // (counter: bodies let go at the 4 s limit with the world not yet redrawn)
 
     static func isFelled(_ s: Ship) -> Bool { s.root.name == name }
     // P478: whether a leaf is this tree's: no log of another tree (outside `logs`, above `above`, within 6 of them) is
@@ -287,6 +288,7 @@ extension Game {
                 }
                 let built = !s.mesh.busy && !s.mesh.sections.isEmpty
                 if !(drawn && built) && f.held < 4 { s.vel = .zero; s.angVel = .zero; continue }
+                if !drawn { Felling.letLate += 1 }
                 s.hidden = false; s.kinematic = false
                 (s.vel, s.angVel) = f.launch
                 f.held = -1

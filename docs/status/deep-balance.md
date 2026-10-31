@@ -25,7 +25,8 @@ Standing still is the worst case: a moving player takes far less fire.
 | The Ash Marshal (alone, no guard) | 4.2 s | 84.6 s | Skybreaker Launcher |
 
 The check enforces five things:
-- The Ashguard rifleman is harder than a surface one: it kills you faster and takes at least 1.3× as long to kill.
+- The Ashguard rifleman is harder than a surface one: it kills you faster. (It no longer takes longer to kill: since
+  P358 any soldier drops to two rifle rounds to the body or one to the head.)
 - A Cinder Tank shrugs off rifles: their rounds do a fifth of their damage on its plate, so bring a launcher.
 - Every unit can be beaten with full gear: the Marshal within 180 s, everything else within 60 s.
 - Nothing kills a full-gear player in under 2 s.

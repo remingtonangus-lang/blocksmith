@@ -90,6 +90,11 @@ extension TownTests {
         check(!welcome.isEmpty && bells >= 1 && citizens >= 8 && desks >= citizens * 2 / 3 && beds >= citizens + 8,
               "capitals: \(welcome.isEmpty ? "no name sign" : "\"\(welcome)\""), \(bells) bells, \(citizens) citizens (\(desks) with a desk), \(beds) beds")
         if let (c, n) = CapitalCity.sampleTower { print("capitals: a tower of \(n) storeys, its stair shaft's newel at \(c.x) \(c.y) \(c.z)") }
+        // P499 (Oct 30 15:10, "we need way more troops here... It should be 50"): the city's watch, each on a floor.
+        let watch = w.pendingMobs.filter { $0.0.hasPrefix("soldier_") }
+        let unstood = watch.filter { !room($0.1) }.count
+        check(watch.count >= 40 && unstood * 10 <= watch.count,
+              "capitals P499: the city keeps \(watch.count) soldiers on watch (\(unstood) without a floor and head room)")
         check(blocked.isEmpty, "capitals: every keeper, citizen and desk has a floor and head room" + (blocked.isEmpty ? "" : ": " + blocked.prefix(6).joined(separator: ", ")))
         day(w, centre, check)
     }

@@ -511,6 +511,18 @@ enum BorealTests {
             }
         }
         if g2.borealAlarm.sites[key]?.on != false {
+            let st = V3(Float(cx), Float(F), Float(cz))
+            let near: [String] = g2.world.ships.list.filter { simd_length($0.pos - st) < 400 }.map { "\($0.role ?? "-") f\($0.factionValue) at \(Int(simd_length($0.pos - st)))" }
+            let guns: String = g2.mobs.mobs.filter { $0.kind == .deckGun && simd_length($0.pos - st) < 120 }.map { (m: Mob) -> String in
+                      func place(_ q: Mob) -> String { "\(q.kind.key) f\(q.factionValue) at \(Int(q.pos.x) - cx) \(Int(q.pos.y) - F) \(Int(q.pos.z) - cz)" }
+                      let range: Float = HeavyTurret.range * 1.5
+                      var what = "none"
+                      if let f = g2.world.ships.nearestFoe(of: m.factionValue, near: m.pos, range: range, game: g2) {
+                          if let q = f.mob { what = place(q) } else if let sh = f.ship { what = "ship " + sh.root.name } else { what = "?" }
+                      }
+                      return "\(m.variant) f\(m.faction) aggro \(m.aggro) seen \(m.soldierBrain.seenAgo) foe " + what }.joined(separator: ", ")
+            let tail = "; slugs \(g2.arms.slugs.count), shells \(g2.world.ships.shells.count), strikes \(g2.ashStrikes.count)"
+            print("  stand-down: ships near " + near.joined(separator: ", ") + "; guns " + guns + tail)
             print("  stand-down: heard \(heard.map { "\($0.key) x\($0.value)" }.joined(separator: ", ")); last \(lastHeard); fighting " +
                   g2.mobs.mobs.filter { $0.kind.steelhold && $0.health > 0 && $0.aggro && ($0.brain?.sees ?? false) }.prefix(4).map { "\($0.kind) at \(Int($0.pos.x) - cx) \(Int($0.pos.y) - F) \(Int($0.pos.z) - cz)" }.joined(separator: "; "))
         }

@@ -1499,16 +1499,33 @@ extension ShipManager {
         let p = max(-0.3, min(0.3, pitch))
         let dir = simd_normalize(flat * cosf(p) + V3(0, sinf(p), 0))
         st.mainGunCD = 8
-        let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: 7)
-        sh.gravity = 1.5
-        sh.kind = 1
-        sh.life = 4
-        shells.append(sh)
-        g.sfx(.gun(9), 2, at: mw)
-        g.sfx(.explode, 0.8, at: mw)
-        g.particles.explosion(at: mw, power: 2)
+        railShot(s, from: mw, dir: dir, power: 7, game: g)
         g.addShake(0.35)
         return true
+    }
+
+    // P499 (Oct 30 20:20, at a captured Ironback Crawler's helm: "his main cannon should be more of a railgun, not whatever
+    // the hell it currently is"): a Capital main gun's rail slug flew at 260 m/s on a shell's arc, drawn as a magma-red
+    // streak, left the muzzle in a fireball and burst like a shell where it struck. Now a slug at 700 m/s that hardly
+    // drops, a white-blue bolt leaving a glowing line in the air, a blue flash and sparks at the muzzle, and where it
+    // strikes it drives on through what it hits (up to `railReach` blocks, ShipManager.railBore) before it bursts.
+    static let railSpeed: Float = 700
+    static let railReach = 14
+    func railShot(_ s: Ship, from mw: V3, dir: V3, power: Float, game g: Game) {
+        let sh = Shell(pos: mw + dir * 2, vel: dir * ShipManager.railSpeed, owner: s.id, power: power)
+        sh.gravity = 0.4
+        sh.kind = 1
+        sh.life = 2
+        shells.append(sh)
+        g.sfx(.gun(9), 2, at: mw)
+        g.sfx(.gun(12), 1.4, at: mw)
+        g.addFlash(at: mw + dir, color: V3(3, 4.5, 7), radius: 22, life: 0.25)
+        let layer = Int(Tex.id("puff"))
+        for _ in 0..<14 {
+            let v = dir * Rand.float(in: 4...14) + V3(Rand.float(in: -3...3), Rand.float(in: -3...3), Rand.float(in: -3...3))
+            g.particles.add(Particle(pos: mw + dir * 1.5, vel: v, life: 0.35, maxLife: 0.35, layer: layer, uv0: V2(0, 0), uvSize: 1,
+                                     size: Rand.float(in: 0.12...0.3), gravity: 4, color: V3(0.7, 0.9, 1.4), collide: false, glow: true))
+        }
     }
 
     // A commandeered Capital flier: a dropship flown straight from the helm's throttle, steer and climb (kinematic, as
@@ -2222,16 +2239,9 @@ extension ShipManager {
                 st.mainCharge = 0
                 let frigate = s.isFlyingCapital
                 st.mainGunCD = frigate ? 24 : 16
-                var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
+                var dir = simd_normalize(t.point + t.vel * (dist / ShipManager.railSpeed) - mw)
                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
-                let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: frigate ? 10 : 7)
-                sh.gravity = 1.5
-                sh.kind = 1
-                sh.life = 4
-                shells.append(sh)
-                g.sfx(.gun(9), 2, at: mw)
-                g.sfx(.explode, 0.8, at: mw)
-                g.particles.explosion(at: mw, power: 2)
+                railShot(s, from: mw, dir: dir, power: frigate ? 10 : 7, game: g)       // (P499: a rail gun)
             }
         } else if st.mainCharge > 0 && cosA <= 0.9 {
             st.mainCharge = 0

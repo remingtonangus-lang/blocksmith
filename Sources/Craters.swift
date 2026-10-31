@@ -36,6 +36,31 @@ struct CraterSet {
     private(set) var salt: [UInt32] = []
     var regionIndex = Set<Int>()                         // the bitten blocks (Mesher region index)
     private var lo = SIMD3<Float>(repeating: .greatestFiniteMagnitude), hi = SIMD3<Float>(repeating: -.greatestFiniteMagnitude)
+    // P499 (Oct 30 20:31, 64 TNT in a Capital office: "it took too long for the damage to show up... a lot of blocks just
+    // in some sort of half state"): every vertex, patch and quad of a section looked at every bite round it, and a blast
+    // leaves hundreds (each block it shook gets one), so a section near one took about 200 ms to mesh (questcheck
+    // --streamtest --tnt 4: 47 sections in 10 s, the workers busy for 13 s after the last blast while the pieces that
+    // broke off were let go over the old walls). Each bite is now listed in the blocks its bowl can reach, and a lookup
+    // reads only the bites listed where it is.
+    private var cells: [Int32: [Int32]] = [:]
+    private static let off = 6, span = 30                // section-local blocks -6...23 on each axis
+    @inline(__always) private static func cell(_ x: Int, _ y: Int, _ z: Int) -> Int32? {
+        let a = x + off, b = y + off, c = z + off
+        guard a >= 0 && b >= 0 && c >= 0 && a < span && b < span && c < span else { return nil }
+        return Int32(a + (b + c * span) * span)
+    }
+    // The bites listed in the blocks from mn to mx (each once).
+    private func near(_ mn: SIMD3<Float>, _ mx: SIMD3<Float>) -> [Int32] {
+        let x0 = Int(floorf(mn.x)), y0 = Int(floorf(mn.y)), z0 = Int(floorf(mn.z))
+        let x1 = Int(floorf(mx.x)), y1 = Int(floorf(mx.y)), z1 = Int(floorf(mx.z))
+        if x0 == x1 && y0 == y1 && z0 == z1 { return CraterSet.cell(x0, y0, z0).flatMap { cells[$0] } ?? [] }
+        var out: [Int32] = []
+        for z in z0...z1 { for y in y0...y1 { for x in x0...x1 {
+            guard let k = CraterSet.cell(x, y, z), let l = cells[k] else { continue }
+            for i in l where !out.contains(i) { out.append(i) }
+        } } }
+        return out
+    }
     let wo: SIMD3<Float>                                 // world position of section-local 0 (noise)
     var isEmpty: Bool { a.isEmpty }
 
@@ -61,14 +86,23 @@ struct CraterSet {
             lo = simd_min(lo, c - e - nn * 0.9); hi = simd_max(hi, c + e + nn * 0.6)
             lo = simd_min(lo, c - e); hi = simd_max(hi, c + e)
             if let ri = region(x, wy - y0, z) { regionIndex.insert(ri) }
+            // (Listed in every block its bowl can move a surface in: within 0.9 along its axis and 1.3 rims across.)
+            let ext = SIMD3<Float>(repeating: b.r * 1.3 + 0.95)
+            let cl = c - ext, ch = c + ext
+            let idx = Int32(a.count - 1)
+            for cz in Int(floorf(cl.z))...Int(floorf(ch.z)) { for cy in Int(floorf(cl.y))...Int(floorf(ch.y)) { for cx in Int(floorf(cl.x))...Int(floorf(ch.x)) {
+                if let k = CraterSet.cell(cx, cy, cz) { cells[k, default: []].append(idx) }
+            } } }
         }
     }
 
     // How far the surface at p moves (a vector into the material), summed over the bites it lies in.
     func displacement(_ p: SIMD3<Float>) -> SIMD3<Float> {
         if a.isEmpty || p.x < lo.x || p.y < lo.y || p.z < lo.z || p.x > hi.x || p.y > hi.y || p.z > hi.z { return .zero }
+        guard let k = CraterSet.cell(Int(floorf(p.x)), Int(floorf(p.y)), Int(floorf(p.z))), let list = cells[k] else { return .zero }
         var out = SIMD3<Float>(0, 0, 0)
-        for i in 0..<a.count {
+        for j in list {
+            let i = Int(j)
             let w = p - a[i]
             let along = simd_dot(w, n[i])
             if along < -0.9 || along > 0.6 { continue }               // (not the far side of a thin wall)
@@ -98,7 +132,8 @@ struct CraterSet {
         if mx.x < lo.x || mx.y < lo.y || mx.z < lo.z || mn.x > hi.x || mn.y > hi.y || mn.z > hi.z { return false }
         let c = (p[0] + p[1] + p[2] + p[3]) * 0.25
         let half = simd_length(mx - mn) * 0.5
-        for i in 0..<a.count {
+        for j in near(mn, mx) {
+            let i = Int(j)
             let w = c - a[i]
             let along = simd_dot(w, n[i])
             if along < -0.9 - half || along > 0.6 + half { continue }
@@ -119,7 +154,10 @@ struct CraterSet {
         guard lu > 1e-8 && lv > 1e-8 else { return (ts, tt) }
         let su = lu.squareRoot(), sv = lv.squareRoot()
         let rings: [Float] = [-1.2, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.2]
-        for i in 0..<a.count {
+        var mn = p[0], mx = p[0]
+        for q in p { mn = simd_min(mn, q); mx = simd_max(mx, q) }
+        for j in near(mn, mx) {
+            let i = Int(j)
             let w = a[i] - p[0]
             // (The bite's centre line meets the quad's plane: move the contact along its axis onto it.)
             let pn = simd_cross(eu, ev)

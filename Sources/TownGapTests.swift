@@ -87,7 +87,9 @@ extension TownTests {
                         if n == ShopMenu.fit(name, 88) { signsHere += 1 }
                     }
                 }
-                perTown.append("\(name) (\(TownSizes.of(s).map { "\($0)" } ?? "old")): bank \(b), signs \(signsHere)")
+                let span = s.pieces.reduce((Int.max, Int.min)) { (min($0.0, $1.min.x), max($0.1, $1.max.x)) }
+                perTown.append("\(name) (\(TownSizes.of(s).map { "\($0)" } ?? "old")): bank \(b), bank signs \(bankSignHere), signs \(signsHere) (\(welcome.suffix(2).joined(separator: "/"))), \(span.1 - span.0) wide, \(s.pieces.count) pieces")
+                if !(b >= 1 && bankSignHere >= 1 && signsHere >= 1) { print("town gap: \(name): " + TownTests.townNote(s, w)) }
                 if b >= 1 && bankSignHere >= 1 && signsHere >= 1 { townsOK += 1 }
                 for dz in -60...60 { for dx in -60...60 {
                     let x = s.anchor.x + dx, z = s.anchor.z + dz
@@ -209,8 +211,8 @@ extension TownTests {
         g.raid = nil
         g.time = 9.7 * DAY_LENGTH
         TownRaids.tick(g)
-        check(g.raid == nil, "town gap: no second raid on the town within three days")
-        g.time = 11.7 * DAY_LENGTH
+        check(g.raid == nil, "town gap: no second raid on the town within \(TownRaids.cooldownDays) days")
+        g.time = (8.7 + Double(TownRaids.cooldownDays)) * DAY_LENGTH      // (P231: a week between raids, was three days)
         FactionRaids.lastAssault = -1e9                    // (the clock stood still: the days went by on g.time alone)
         TownRaids.tick(g)
         check(g.raid != nil, "town gap: and another after")

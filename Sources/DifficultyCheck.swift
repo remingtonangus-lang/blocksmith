@@ -116,6 +116,21 @@ enum DifficultyCheck {
             table.append(row)
         }
         print("difficulty: hits to kill (body / head)\n" + table.joined(separator: "\n"))
+        // P499 (Oct 30 15:05, "tougher proportionally to the difficulty"): a trooper takes more Sturmwind rounds to the
+        // body on Hard than on Normal and more again on Very Hard; one to the head still drops him on every level.
+        if let gi = Guns.all.firstIndex(where: { $0.key == "gun_sturmwind" }) {
+            let gs = Guns.all[gi]
+            let make = { (p: V3, d: V3) in Slug(pos: p, vel: d * gs.speed, kind: .bullet, damage: gs.damage, fromPlayer: true, shooter: nil, by: "Player", life: 1, gravity: 0) }
+            var body: [Int] = [], heads: [Int] = []
+            for lv in 3...5 {
+                g.diffLevel = lv; g.difficulty = Difficulty.band(lv); Difficulty.level = lv
+                body.append(hits("soldier_trooper@ash", make, head: false) ?? 99)
+                heads.append(hits("soldier_trooper@ash", make, head: true) ?? 99)
+            }
+            g.diffLevel = lvl0; g.difficulty = diff0; Difficulty.level = lvl0
+            check(body[0] < body[1] && body[1] < body[2] && body[2] < 99 && heads.allSatisfy { $0 == 1 },
+                  "difficulty P499: Sturmwind rounds to drop a trooper, body \(body) and head \(heads) on Normal / Hard / Very Hard")
+        }
         check(worst.isEmpty, "difficulty (a): every soldier falls to 1-2 pistol or rifle rounds to the body, 1 to the head, a burst of 4 or fewer from a machine gun, one rocket or shell\(worst.isEmpty ? "" : ": not " + worst.joined(separator: ", "))")
 
         // (c) A fight per level.

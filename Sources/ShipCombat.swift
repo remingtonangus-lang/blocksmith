@@ -138,9 +138,9 @@ extension ShipManager {
         for sh in shells {
             switch sh.kind {
             case 1:
-                // A streak: a few cubes back along the flight path.
+                // P499: a rail slug, a thin white-blue bolt (its glowing line in the air is the wake, updateShells).
                 let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
-                for k in 0..<4 { wr.cube(center: sh.pos - d * Float(k) * 0.9 - eye, half: 0.45 - Float(k) * 0.08, yaw: sh.age * 9, block: slug, light: 1) }
+                for k in 0..<6 { wr.cube(center: sh.pos - d * Float(k) * 0.7 - eye, half: 0.28 - Float(k) * 0.03, yaw: sh.age * 9, block: mac, light: 1) }
             case 2: wr.cube(center: sh.pos - eye, half: 0.16, yaw: sh.age * 14, block: dart, light: 1)
             case 4:
                 let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
@@ -203,6 +203,18 @@ extension ShipManager {
                     g.particles.add(Particle(pos: at, vel: V3(Rand.float(in: -0.3...0.3), Rand.float(in: 0...0.5), Rand.float(in: -0.3...0.3)),
                                              life: 0.7, maxLife: 0.7, layer: layer, uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.5...0.8),
                                              gravity: 0, color: V3(0.6, 0.85, 1), collide: false, glow: true))
+                }
+            }
+            // P499: a rail slug's line: glowing motes all along the stretch it covered this frame, fading over a second.
+            if sh.kind == 1, let g = game {
+                let layer = Int(Tex.id("puff"))
+                let step = sh.vel * dt
+                let k = max(2, min(12, Int(simd_length(step) / 2)))
+                for i in 0..<k {
+                    let at = start + step * (Float(i) / Float(k))
+                    g.particles.add(Particle(pos: at, vel: V3(Rand.float(in: -0.1...0.1), Rand.float(in: 0...0.2), Rand.float(in: -0.1...0.1)),
+                                             life: 1, maxLife: 1, layer: layer, uv0: V2(0, 0), uvSize: 1, size: 0.22,
+                                             gravity: 0, color: V3(0.55, 0.8, 1.3), collide: false, glow: true))
                 }
             }
             sh.vel.y -= sh.gravity * dt
@@ -273,13 +285,46 @@ extension ShipManager {
                 g.bases.quiet = from?.factionValue == .steelhold && !steered
                 g.blastSpares = steered ? .none : (from?.factionValue ?? .none)
                 if kind == 5 { g.depthChargeBurst(at: p, power: power, owner: owner) }     // P278: boom, plume, pressure wave
-                Explosion.explode(at: p, power: power, game: g, breakBlocks: !gentle, along: onHull ? nil : vel)   // (P357 e)
+                // P499: a rail slug drives on through what it struck and bursts where it stops.
+                let at = kind == 1 && !onHull && !gentle ? railBore(from: p, along: vel, game: g) : p
+                Explosion.explode(at: at, power: power, game: g, breakBlocks: !gentle, along: onHull ? nil : vel)   // (P357 e)
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
                 // scratched paint, Quest round 4).
                 if onHull && from?.root.kinematic == true { blast(at: p, power: power * 1.5, game: g) }
             } else if !gentle { blast(at: p, power: power, game: nil) }
         }
+    }
+
+    // P499: a rail slug's path on through the blocks it struck: a bore about a block and a half across, through up to
+    // ShipManager.railReach blocks (a block of resistance over 1,200, bedrock or a citadel's armour, stops it; the
+    // Capital's own guns leave its citadels whole, as their shells do). Returns where it stops, to burst there.
+    func railBore(from p: V3, along vel: V3, game g: Game) -> V3 {
+        guard simd_length(vel) > 1e-3 else { return p }
+        let d = simd_normalize(vel)
+        let w = g.world
+        if g.bases.quiet && g.bases.inAnyBase(p) { return p }
+        var end = p, last = IVec3(Int.min, 0, 0)
+        var t: Float = 0
+        while t < Float(ShipManager.railReach) {
+            let c = p + d * t
+            let b = IVec3(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z)))
+            t += 0.35
+            if b == last { continue }
+            last = b
+            let id = w.block(b.x, b.y, b.z)
+            if id != AIR && !Blocks.isLiquid(id) && (Blocks.hardness[Int(id)] < 0 || Blocks.resistance[Int(id)] > 1200) { break }
+            for dz in -1...1 { for dy in -1...1 { for dx in -1...1 where abs(dx) + abs(dy) + abs(dz) <= 1 {
+                let q = IVec3(b.x + dx, b.y + dy, b.z + dz)
+                guard q.y > 0 && q.y < CH - 1 else { continue }
+                let qid = w.block(q.x, q.y, q.z)
+                guard qid != AIR, !Blocks.isLiquid(qid), Blocks.hardness[Int(qid)] >= 0, Blocks.resistance[Int(qid)] <= 1200 else { continue }
+                if w.blockEntities[q] != nil { continue }
+                w.setBlockAsync(q.x, q.y, q.z, AIR)
+            } } }
+            end = c
+        }
+        return end
     }
 
     // The first solid ship block along a segment (0.4-block steps), skipping the root `except`: hand-held rockets

@@ -68,10 +68,12 @@ final class Armory {
     var spinHeld = false           // ...the trigger was down last frame (the whine plays on each change)
     var shotsFired = 0             // harness counters
     var hits = 0
+    static var fired = 0                 // (harness: rounds the player's side put in the air)
 
     func spawn(_ s0: Slug) {
         guard slugs.count < 600 else { return }
         var s = s0
+        if s.fromPlayer { Armory.fired &+= 1 }
         if s.fromPlayer { s.seat = Int8(truncatingIfNeeded: Coop.liveSeat) }
         slugs.append(s)
     }
@@ -376,7 +378,7 @@ final class Armory {
             // pistol rounds (4 or more), a short burst of four lighter rounds. The marshal and the chancellor are bosses.
             if m.kind != .ashMarshal && m.kind != .ashChancellor {
                 let full = Float(max(m.spec.health, m.health))
-                let share: Float = head || s.damage >= 9 ? 1 : (s.damage >= 4 ? 0.5 : 0.25)
+                let share: Float = head ? 1 : (s.damage >= 9 ? 1 : (s.damage >= 4 ? 0.5 : 0.25)) / Difficulty.foes(m)   // P499
                 dmg = max(dmg, ceilf(full * share + 0.5))
             }
         }

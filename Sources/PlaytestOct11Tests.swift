@@ -879,6 +879,27 @@ enum PlaytestOct11Tests {
         let fire = GarrisonTown.opened && s.aggro && !GarrisonTown.shelters(g, s)
         check(rows >= 3 && Float(rows) >= Float(sites) * 0.4 && keepers.isSuperset(of: ["general", "saloon"]) && guards == 2 && calm && held && fire,
               "P48 garrison row: \(rows) of \(sites) citadel sites get a row (shops \(keepers.sorted().joined(separator: ", ")), \(guards) guards); calm while hands are empty (\(calm)), a warning (\(held)), then the garrison opens fire (\(fire))")
+        // P499 (Oct 30 20:01): a Capital city keeps the same peace, but a weapon counts only where a soldier sees it.
+        if Items.has("gun_sidearm") {
+            GarrisonTown.forceRow = nil; GarrisonTown.forceCity = true; GarrisonTown.opened = false; GarrisonTown.tense = 0; GarrisonTown.warned = false
+            defer { GarrisonTown.forceCity = nil }
+            let far = Mob(.soldierTrooper, at: g.player.pos + V3(70, 0, 0))
+            g.mobs.mobs = [far]
+            g.inventory.held = ItemStack(Items.id("gun_sidearm"), 1)
+            for _ in 0..<6 { GarrisonTown.tick(g, 1) }
+            let unseen = !GarrisonTown.opened && GarrisonTown.tense == 0 && GarrisonTown.shelters(g, far)
+            let near = Mob(.soldierTrooper, at: g.player.pos + V3(5, 0, 0))
+            g.mobs.mobs = [near]
+            g.inventory.held = ItemStack()
+            GarrisonTown.tick(g, 1)
+            let calmCity = GarrisonTown.inCity && GarrisonTown.shelters(g, near)
+            g.inventory.held = ItemStack(Items.id("gun_sidearm"), 1)
+            let seen = g.world.canSee(near.eye, g.player.eye)
+            for _ in 0..<5 { GarrisonTown.tick(g, 1) }
+            let open = GarrisonTown.opened && near.aggro && !GarrisonTown.shelters(g, near)
+            check(unseen && calmCity && (open || !seen),
+                  "P499 Capital city peace: a gun out with no soldier in sight leaves the watch calm (\(unseen)); empty hands beside a soldier, calm (\(calmCity)); a gun out where he sees it (\(seen)) and the watch opens fire (\(open))")
+        }
     }
 
     // P51: roads join neighbouring towns over new ground; a rider held at gunpoint throws down their satchel, which is a
@@ -895,14 +916,18 @@ enum PlaytestOct11Tests {
         if let sgm = segs.first {
             let mid = Roads.point(sgm, 0.5)
             let cx = floorDiv(Int(mid.x), CS), cz = floorDiv(Int(mid.y), CS)
+            // (The chunk's own generation draws the roads, StructureCache.after: the ground without them is the same chunk
+            // made without that pass. Drawing them again over a generated chunk changed only a few columns.)
+            let after = gen.structures?.after
+            gen.structures?.after = nil
+            let before = gen.generate(cx: cx, cz: cz)
+            gen.structures?.after = after
             var blocks = gen.generate(cx: cx, cz: cz)
             // (PG5: in a Polygons world the path goes down as packed earth, StructWriter.roadID, and sand roads as sandstone.)
             let surfaces: Set<BlockID> = [Blocks.id("dirt_path"), StructWriter.roadID, Blocks.has("sandstone") ? Blocks.id("sandstone") : AIR,
                                           Blocks.has("smooth_sandstone") ? Blocks.id("smooth_sandstone") : AIR]
-            let before = blocks
             blocks.withUnsafeMutableBufferPointer { buf in
-                var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
-                Roads.draw(gen, &w, cx, cz)
+                let w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
                 for lz in 0..<CS { for lx in 0..<CS {
                     let x = cx * CS + lx, z = cz * CS + lz
                     guard Roads.distance(sgm, V2(Float(x) + 0.5, Float(z) + 0.5)).0 <= Roads.halfWidth else { continue }

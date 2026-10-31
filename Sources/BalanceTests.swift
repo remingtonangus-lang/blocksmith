@@ -192,9 +192,11 @@ enum BalanceTests {
         // (Gun rounds: iron and titanium both stop at most 48% of a round, P45, so against a soldier the iron-to-diamond
         // step is the luck of his hits: within 30% there.)
         let gunners = Set(roster.filter { $0.steelhold }.map { $0.spec.name })
+        // (And a Gravesworn's guard and feints make one duel's kill time the luck of when its guard drops: within 15%.)
+        let guarded: Set<String> = ["Gravesworn Duellist", "Gravesworn Squire"]
         let flat = rows.filter { r in
             (0..<2).contains { t in
-                (r.kills[t + 1] ?? inf) > (r.kills[t] ?? inf) + 0.3
+                (r.kills[t + 1] ?? inf) > (r.kills[t] ?? inf) * (guarded.contains(r.name) ? 1.15 : 1) + 0.3
                     || (r.name != MobKind.witch.spec.name && (r.toKill[t + 1] ?? inf) * (gunners.contains(r.name) && t == 1 ? 1.3 : 1.15) + 0.3 < (r.toKill[t] ?? inf))
             }
         }

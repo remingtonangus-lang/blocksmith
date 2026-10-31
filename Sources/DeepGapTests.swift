@@ -230,6 +230,11 @@ enum DeepGapTests {
                 if !g.alive { g.alive = true; g.health = 20; dealt += 20 }
                 if dealt >= 20 { toKill = t; break }
             }
+            if toKill == nil {
+                let own = g.arms.slugs.filter { $0.shooter == ObjectIdentifier(m) }.count
+                print("deep balance duel trace \(m.kind.key): dealt \(dealt) in \(t) s; alive \(m.health > 0), aggro \(m.aggro), seen \(m.soldierBrain.seenAgo), "
+                      + "its rounds in flight \(own), \(String(format: "%.1f", simd_length(m.pos - g.player.pos))) blocks off at y \(m.pos.y)")
+            }
         }
         // 2. The player on the unit: aim at its middle and hold the trigger. The unit is held where it stands (it still
         // turns and fires): a pure damage race, the same for every unit (the Marshal charging in and out of the blast
@@ -242,7 +247,9 @@ enum DeepGapTests {
             let pm = PadManager.shared
             var t: Float = 0
             var trace = "\(m.health)"
-            defer { print("deep balance duel trace \(m.kind.key): health \(trace) at \(m.pos.y), killed \(t) s, alive \(m.health > 0)") }
+            let hits0 = g.arms.hits, slugs0 = Armory.fired
+            var probe = ""
+            defer { print("deep balance duel trace \(m.kind.key): health \(trace) at \(m.pos.y), killed \(t) s, alive \(m.health > 0); \(Armory.fired - slugs0) rounds fired, \(g.arms.hits - hits0) hits, \(String(format: "%.1f", simd_length(m.pos - g.player.pos))) blocks off, gun \(g.heldGun != nil); \(probe)") }
             while t < limit && m.health > 0 {
                 if Int(t * 20) % 10 == 0 && t < 5 { trace += " \(m.health)/\(m.lastHurtAmount)" }
                 g.health = 20; g.hunger = 20
@@ -252,6 +259,17 @@ enum DeepGapTests {
                 g.player.pitch = atan2f(aim.y, simd_length(V2(aim.x, aim.z)))
                 var p = PadSnapshot(); p.rt = (Int(t * 20) % 2 == 0 || (Guns.index(g.inventory.held.item).map { Guns.all[$0].auto } ?? true)) ? 1 : 0
                 pm.simulated = p
+                if probe.isEmpty && t > 3 {
+                    // (why no round lands: the sight line from the eye, the mob's box and the first block on it, the slugs
+                    // in flight and where they are)
+                    let e = g.player.eye, d = simd_normalize(aim)
+                    let mh = m.rayHit(e, d, maxDist: 40), bh = Armory.blockHit(w, e, d, 40)
+                    let sl = g.arms.slugs.prefix(3).map { String(format: "(%.1f %.1f %.1f) dead %@ shooter %@", $0.pos.x, $0.pos.y, $0.pos.z, $0.dead ? "y" : "n", $0.shooter == nil ? "nil" : "set") }
+                    probe = String(format: "probe: eye (%.1f %.1f %.1f) mob (%.1f %.1f %.1f) h %.2f w %.2f; mob ray %@, block ray %@; mobs %d riding %@; slugs %@",
+                                   e.x, e.y, e.z, m.pos.x, m.pos.y, m.pos.z, m.height, m.halfW, mh.map { String(format: "%.2f", $0) } ?? "none",
+                                   bh.map { "\(String(format: "%.2f", $0.0)) \(Blocks.key(w.block($0.1.x, $0.1.y, $0.1.z)))" } ?? "none",
+                                   g.mobs.mobs.count, g.riding === m ? "it" : "no", sl.joined(separator: ", "))
+                }
                 g.tick(0.05)
                 m.pos.x = hold.x; m.pos.z = hold.z; m.vel.x = 0; m.vel.z = 0
                 g.mobs.mobs.removeAll { $0 !== m }; w.pendingMobs.removeAll()     // one unit: no crews, squads or calls
@@ -332,8 +350,9 @@ enum DeepGapTests {
         let cap = r("Capital rifleman"), rifle = r("Ashguard Rifleman"), tankR = r("Cinder Tank (rifle)"), tankL = r("Cinder Tank (launcher)")
         // Harder than the surface: the Ashguard rifleman takes longer to kill and kills faster than a Capital one; the tank
         // shrugs off rifles (or takes far longer) and falls to the launcher; every unit can be beaten with full gear.
-        let harder = (rifle?.playerKills ?? 0) > (cap?.playerKills ?? .infinity) * 1.3
-            && (rifle?.toKillPlayer ?? .infinity) < (cap?.toKillPlayer ?? 0)
+        // (P358, Oct 16 "the Nazis are still too tough": a soldier of any side dies to two rifle rounds, so the Ashguard
+        // rifleman is harder only by his aim and his gun, not by taking longer to drop.)
+        let harder = (rifle?.toKillPlayer ?? .infinity) < (cap?.toKillPlayer ?? 0)
         let armoured = (tankR?.playerKills == nil || (tankR?.playerKills ?? 0) > 3 * (tankL?.playerKills ?? .infinity)) && tankL?.playerKills != nil
         let beatable = report.filter { !$0.name.hasPrefix("Cinder Tank (rifle)") }.allSatisfy { $0.playerKills != nil }
         let fair = report.allSatisfy { ($0.toKillPlayer ?? .infinity) > 2 }

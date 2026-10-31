@@ -86,8 +86,8 @@ enum PlaytestOct12Tests {
         let all = pages + far + ship
         let long = all.filter { Books.wrap($0).count > Books.linesPerPage }
         if let u = all.first(where: { $0.contains("_") }) { print("P68 orders: a page with an underscore: \(u.replacingOccurrences(of: "\n", with: " / "))") }
-        if !used || pages.count != 2 || !(pages.first?.contains("Capital") ?? false) { print("P68 orders: used \(used), \(pages.count) pages") }
-        check(used && book != nil && pages.count == 2 && pages[0].contains("Capital") && long.isEmpty && !all.contains(where: { $0.contains("_") }),
+        if !used || pages.count != 2 || !(pages.first?.lowercased().contains("capital") ?? false) { print("P68 orders: used \(used), \(pages.count) pages") }
+        check(used && book != nil && pages.count == 2 && pages[0].lowercased().contains("capital") && long.isEmpty && !all.contains(where: { $0.contains("_") }),
               "P68 orders: reading intercepted orders opens them as a document (\(book == nil ? "no book" : "\(pages.count) pages"), every page fits the book screen\(long.isEmpty ? "" : "; too long: " + long.map { "\(Books.wrap($0).count) lines" }.joined(separator: ", "))): \(pages.first?.replacingOccurrences(of: "\n", with: " / ").prefix(140) ?? "")")
     }
 
@@ -154,10 +154,15 @@ enum PlaytestOct12Tests {
     // wall behind it.
     static func chaseView(_ g: Game, _ check: (Bool, String) -> Void) {
         let a = PlaytestOct12Tests.arena(g, dx: -60, dz: -60, r: 9)
-        let riding0 = g.riding, pos0 = g.player.pos, mobs0 = g.mobs.mobs
+        let riding0 = g.riding, pos0 = g.player.pos, mobs0 = g.mobs.mobs, pilot0 = g.world.ships.pilot, seat0 = AshSeat.shared.vehicle
         var wall: [IVec3] = []
-        defer { for q in wall { g.world.setBlock(q.x, q.y, q.z, AIR) }; g.riding = riding0; g.mobs.mobs = mobs0; g.player.pos = pos0; a.restore() }
-        g.riding = nil
+        defer {
+            for q in wall { g.world.setBlock(q.x, q.y, q.z, AIR) }
+            g.riding = riding0; g.mobs.mobs = mobs0; g.player.pos = pos0; g.world.ships.pilot = pilot0; AshSeat.shared.vehicle = seat0; a.restore()
+        }
+        // (on foot and at no helm: a check before can leave him at a hull's helm or in an Ashguard seat)
+        if let s = pilot0 { print("P100 chase view: \(s.root.name) was still piloted (left by a check before)") }
+        g.riding = nil; g.world.ships.pilot = nil; AshSeat.shared.vehicle = nil
         g.player.pos = V3(Float(a.fx) + 0.5, Float(a.py + 1), Float(a.fz) + 0.5)
         let foot = g.chaseOffset
         let boat = Mob(.boat, at: g.player.pos); boat.yaw = 0            // facing -z
@@ -261,6 +266,10 @@ enum PlaytestOct12Tests {
         // And raw food goes on to cook.
         g.inventory.held = ItemStack(Items.id("beef"), 2)
         let cooking = g.useNewBlock((hit: fire, normal: IVec3(0, 1, 0))) && g.inventory.held.count == 1
+        if !cooking {
+            let be = g.world.blockEntities[fire]
+            print("P97 camps: beef smelts \(Recipes.smelt(Items.id("beef")) != nil), food \(Items.def(Items.id("beef")).food != nil), fire \(Blocks.key(g.world.block(fire.x, fire.y, fire.z))), held \(Items.key(g.inventory.held.item)) x\(g.inventory.held.count), slots \(be.map { e in (0..<4).map { e.container[$0].isEmpty ? "-" : Items.key(e.container[$0].item) } } ?? [])")
+        }
         check(people["camp_hunters"] == 1 && people["camp_prospectors"] == 1 && used && mended && !again && cooking,
               "P97 camps: someone at the hunters' (\(people["camp_hunters"] ?? 0)) and prospectors' (\(people["camp_prospectors"] ?? 0)) fires; resting by a lit campfire with a gun in hand mends (\(used), \(mended)), not again within a minute (\(!again)); raw beef goes on to cook (\(cooking))")
     }
@@ -827,11 +836,13 @@ enum PlaytestOct12Tests {
         for _ in 0..<20 { var p = PadSnapshot(); p.lt = 1; pm.touch = p; g.tick(1.0 / 72); aimed = max(aimed, g.arms.aim) }
         pm.touch = PadSnapshot(); g.tick(1.0 / 72)
         check(gunOut && opened && aimed > 0.3,
-              "P74 gun in hand: the use press opens a door in reach (\(opened)) and still aims the gun elsewhere (aim \(String(format: "%.2f", aimed)))")
+              "P74 gun in hand: the use press opens a door in reach (\(opened)) and still aims the gun elsewhere (aim \(String(format: "%.2f", aimed)))"
+              + (gunOut && aimed > 0.3 ? "" : " [gun out \(gunOut), held \(Items.key(g.held.item)), alive \(g.alive), paused \(g.paused), menu \(g.menu.map { "\(type(of: $0))" } ?? "none"), vrAim \(g.vrAim != nil), button mode \(VRReload.buttonMode)]"))
         // The left grip by the side with a full gun: no magazine taken; P465: and it doesn't step the hotbar either (the
         // grip in front of the waist does, P109).
         let head = g.player.eye
         let ev = VRReload.tick(g, offHand: head + V3(-0.25, -0.8, 0.05), gunHand: head + V3(0.2, -0.35, -0.35), head: head, grip: true, gripWas: false)
-        check(ev == .full && !g.arms.magInHand, "P74/P465 gun in hand: a left grip at the side with a full magazine takes nothing (\(ev)) and keeps the gun")
+        check(ev == .full && !g.arms.magInHand, "P74/P465 gun in hand: a left grip at the side with a full magazine takes nothing (\(ev)) and keeps the gun"
+              + (ev == .full ? "" : " [gun \(g.heldGun != nil), alive \(g.alive), button mode \(VRReload.buttonMode), mag in hand \(g.arms.magInHand)]"))
     }
 }
