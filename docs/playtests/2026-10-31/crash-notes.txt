@@ -1,0 +1,21 @@
+ANR 16:19:45, 0.129 b0d800c0 (#644), pid 5409. Input dispatching timed out; the main thread waits in NativeActivity.onPause while the game thread (Thread-3) is RUNNING in game code, not blocked.
+Game thread stack, symbolized with llvm-addr2line against build/quest-pkg/.build/out/Products/Release-android-aarch64/libblocksmith.so (Build ID cef9127d431215681958402a5c9e698677a317da, matches the trace):
+specialized __RawDictionaryStorage.find<A>(_:hashValue:)	AboutMenu.o:0
+specialized __RawDictionaryStorage.find<A>(_:)	AboutMenu.o:0
+specialized Dictionary.subscript.getter	/<compiler-generated>:0
+World.chunkAt(_:_:)	Sources/Blocksmith/World.swift:374
+World.fieldSphere(_:radius:carve:material:keepCell:keepSolid:remesh:)	Sources/Blocksmith/FieldTerrain.swift:499
+World.fieldCarve(at:radius:mode:remesh:remove:)	Sources/Blocksmith/FieldTerrain.swift:818
+CraterJob.step(_:blocks:)	Sources/Blocksmith/Explosion.swift:471
+CraterJob.step(_:blocks:)	Sources/Blocksmith/Explosion.swift:0
+specialized static NavalGuns.stepBreaches(_:)	Sources/Blocksmith/NavalGuns.swift:53
+static NavalGuns.stepBreaches(_:)	/<compiler-generated>:0
+Armory.update(_:_:)	Sources/Blocksmith/Ballistics.swift:141
+Game.armsTick(_:)	Sources/Blocksmith/Ballistics.swift:847
+Game.advance(_:)	Sources/Blocksmith/Game.swift:3285
+Game.tickSeat(_:)	Sources/Blocksmith/Game.swift:0
+Game.tick(_:)	Sources/Blocksmith/Game.swift:1031
+QuestApp.frame()	Sources/Blocksmith/QuestApp.swift:413
+android_main(_:)	Sources/Blocksmith/AndroidMain.swift:219
+
+Second freeze (after 16:29:49, pid 12504, relaunched ~16:19:50): no ANR recorded because the headset was off his head (no focus). At 16:34 top -H showed Thread-3 (game thread) at 100% CPU, 7:41 of CPU time, R state, and OVRInput at 100%; the game had been frozen since. Not debuggable, so no stack. Force-stopped at 16:35.
