@@ -54,8 +54,9 @@ enum Guns {
         GunSpec(key: "gun_arc", name: "Blitzlanze Arc Gun", ammo: "arc_cell", mag: 12, interval: 0.9, auto: false, damage: 28, pellets: 1,
                 spread: 0.01, aimSpread: 0, speed: 0, recoil: 0.05, reload: 2.4, range: 48, durability: 300, zoom: 0.75,
                 shot: .beam, sound: 5, accent: V3(0.9, 0.9, 0.88)),
-        // The Capital officers' and pilots' sidearm (CapitalArms.swift); its own sound slot (WeaponAudio 13).
-        GunSpec(key: "gun_sidearm", name: "Falke Pistol", ammo: "capital_rounds", mag: 18, interval: 0.22, auto: false, damage: 4, pellets: 1,
+        // The Capital officers' and pilots' sidearm (CapitalArms.swift); its own sound slot (WeaponAudio 13). P501 (Oct 31,
+        // "semi-automatic, but needs to have a higher rate of fire"): back for the next pull in 0.12 s (was 0.22).
+        GunSpec(key: "gun_sidearm", name: "Falke Pistol", ammo: "capital_rounds", mag: 18, interval: 0.12, auto: false, damage: 4, pellets: 1,
                 spread: 0.03, aimSpread: 0.009, speed: 140, recoil: 0.03, reload: 1.4, range: 60, durability: 900, zoom: 0.88,
                 shot: .bullet, sound: 13, accent: V3(0.9, 0.9, 0.88)),
         // The six-iron: the six-shot frontier revolver every town sheriff carries (SixIron.swift); a killed sheriff drops
@@ -264,7 +265,9 @@ enum Guns {
         // R9 (Oct 13: "the six-iron looks nothing like one; not futuristic"): the glowing ammo light is the Capital's
         // (its energy-era arms only). On the six-iron it sat as a lit strip down the barrel's side, and the frontier,
         // Ashguard and Greywall guns carried it too; they show their state by the magazine alone.
-        let lit = gi <= Guns.pistol && gi != Guns.revolver
+        // P501 (Oct 31 09:47, the Falke: "there's parts floating in the air... it just doesn't look good"): the service
+        // automatic is the classic pattern (P157), so its lit strip, which stood proud of the slide's top edge, is gone too.
+        let lit = gi < Guns.pistol
         // Upgrades show (Upgrades.gunParts: a scope, a longer magazine, a band for special rounds, a loader lever).
         let extra = upgradeParts(gi, upgrades, magOut: rounds <= 0)
         let slid: Float = max(slide, rounds <= 0 ? 1 : 0) * CapitalArms.models[gi].slideTravel

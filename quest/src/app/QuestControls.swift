@@ -2091,6 +2091,7 @@ final class QuestControls {
         if g.sleeping > 0 { tint(V4(0.02, 0.02, 0.06, min(1, g.sleeping / 1.5))) }
         if relocateFade > 0.01 { tint(V4(0, 0, 0, relocateFade)) }                         // Q2c-console-62
         if g.hurtFlash > 0 { ring(&v, min(1, g.hurtFlash * 2.5), V3(0.75, 0.02, 0.02), maxAlpha: 0.6 * fx) }
+        if g.stimFlash > 0 { ring(&v, min(1, g.stimFlash) * 0.8, V3(0.45, 1, 0.7), maxAlpha: 0.45 * fx) }      // P501: a stim's rush
         if Feedback.heartPulse > 0.01 { ring(&v, Feedback.heartPulse * 0.45, V3(0.5, 0, 0.02), maxAlpha: 0.35 * fx) }   // Q2c-console-34
         if g.freeze > 0 { ring(&v, min(1, g.freeze / 7) * 0.7, V3(0.85, 0.93, 1), maxAlpha: 0.55) }
         // Sprinting (VR has no FOV kick): faint streaks rushing outward at the edges of the view.

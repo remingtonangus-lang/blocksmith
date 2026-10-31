@@ -106,6 +106,7 @@ final class Game {
     var exhaustion: Float = 0
     var air: Float = 15        // seconds of breath
     var hurtFlash: Float = 0   // seconds left of the red damage tint
+    var stimFlash: Float = 0   // seconds left of a stim's rush at the edges of the view (P501)
     var alive = true
     var xpLevel = 0
     var xpPoints = 0               // points into the current level
@@ -1735,6 +1736,14 @@ final class Game {
             fullToldAt = clock
             onToast?("You're full")
         }
+        // P501 (Oct 31 09:54-09:56, holding a Field Stim at 1 health: "Not sure how these field sims work... I can't tell
+        // if this thing even works... How do I use it?"): a stim was a silent 1.6 s hold, like a drink, so a click did
+        // nothing. An auto-injector goes in on the click: it hisses, mends at once (Field 6, Combat 10) and the edges of
+        // the view rush cold green while its effects take hold.
+        if useNow && hk.hasSuffix("_stim") && !(target.map { isInteractive($0.hit) } ?? false) {
+            injectStim(hk)
+            return
+        }
         let canDrink = h.def.drink && (survival || Potions.potion(of: h.item) != nil)
         // P186 (Oct 13: "shouldn't I be able to cook stuff on the fire?"): raw food aimed at a lit campfire goes on
         // the fire (GameBlocks.useNewBlock) instead of being eaten.
@@ -2180,6 +2189,7 @@ final class Game {
             boarlingsGuard(p, block: world.block(p.x, p.y, p.z))
             let be = world.entity(p, .chest)
             world.blockEntities[p] = be
+            baseStims(p, be.container)
             // A neighbouring chest with the same facing along the chest's width makes a large chest.
             let b = world.block(p.x, p.y, p.z)
             let facing = Int(b - Blocks.groupBase[Int(b)])
@@ -3162,6 +3172,7 @@ final class Game {
     // Hunger, regeneration, starvation, drowning and fall damage.
     private func survivalTick(_ dt: Double, from before: V3) {
         hurtFlash = max(0, hurtFlash - Float(dt))
+        stimFlash = max(0, stimFlash - Float(dt))
         let fall = player.pendingFall
         player.pendingFall = 0
         guard survival else {

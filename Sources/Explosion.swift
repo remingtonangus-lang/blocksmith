@@ -55,6 +55,7 @@ enum Explosion {
     // P471: the blast is a heavy naval shell's (Armory.detonate): Game.hurtPlayer lets it hit harder than the level's
     // cap on one blow.
     static var heavyShell = false
+    static let heavyPlayerReach: Float = 14         // P501: how far a heavy shell's burst reaches him (Explosion.explode)
     // P472: a crash's own blasts spare whoever rides the crashing ship (CapitalShips.hullContact, VehicleDamage).
     static var sparePlayer = false
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
@@ -207,24 +208,31 @@ enum Explosion {
         // beside it. The lines start back along the shot, in the open air it came through (or above the block).
         if let shot { for _ in 0..<8 where w.opaqueAt(Int(floorf(from.x)), Int(floorf(from.y)), Int(floorf(from.z))) { from -= shot * 0.25 } }
         for _ in 0..<2 where w.opaqueAt(Int(floorf(from.x)), Int(floorf(from.y)), Int(floorf(from.z))) { from.y = floorf(from.y) + 1.05 }
-        func impact(_ p: V3, _ height: Float) -> (Float, V3)? {
+        func impact(_ p: V3, _ height: Float, reach: Float? = nil) -> (Float, V3)? {
             let center = p + V3(0, height * 0.5, 0)
             let d = simd_length(center - c)
-            if d > radius { return nil }
+            let r = reach ?? radius
+            if d > r { return nil }
             let exposure: Float = w.canSee(from, center) ? 1 : (w.canSee(from, p + V3(0, height, 0)) ? 0.5 : 0)
-            let k = (1 - d / radius) * exposure
+            let k = (1 - d / r) * exposure
             let dir = d > 0.01 ? (center - c) / d : V3(0, 1, 0)
             return (k, dir)
         }
         // Every split-screen player in reach (typed closure and split arithmetic: the inferred form timed out the
         // type checker on CI).
+        // P501 (Oct 31 09:53, a Boreal station's 42 cm gun, his armour off: hits of 1 and 2, "That should have taken me
+        // down about six hearts... That should have killed me... the naval gun needs to be way more devastating"): a heavy
+        // shell's burst reached him within its own blast radius (10 blocks for a crew's shell, 4.8 for the light-armed
+        // ones); now out to 14 blocks whatever its power, on the same curve (on Normal the level's 9-heart cap within
+        // about 12).
+        let heavyReach: Float = Explosion.heavyShell ? max(radius, Explosion.heavyPlayerReach) : radius
         let hitPlayer: () -> Void = {
-            guard !Explosion.sparePlayer, let im = impact(g.player.pos, 1.8), im.0 > 0 else { return }
+            guard !Explosion.sparePlayer, let im = impact(g.player.pos, 1.8, reach: heavyReach), im.0 > 0 else { return }
             let k: Float = im.0
             let dir: V3 = im.1
             let base: Float = (k * k + k) / 2
             let naval: Float = Explosion.heavyShell ? 4 : 1           // P475: a naval gun's burst, four times as hard on him
-            let raw: Float = base * 7 * radius * naval + 1
+            let raw: Float = base * 7 * max(radius, heavyReach * 0.72) * naval + 1
             g.hurtPlayer(Int(raw.rounded()), from: c, cause: "blew up", knockback: 0, type: .explosion)
             let push: V3 = dir * (k * 12)
             if g.survival { g.player.vel += push * g.knockbackScale }       // (PG7: a blast doesn't throw a creative player about either; Q2c-console-60)

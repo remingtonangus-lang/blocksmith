@@ -131,6 +131,7 @@ enum Mining {
         if gkey.hasSuffix("_bed_head") { return one(String(gkey.dropLast(5))) }
         switch gkey {
         case "ammo_crate": return []                                     // P254: it splinters; its contents spill (BaseMaterials)
+        case _ where gkey.hasSuffix(Armour.twinSuffix): return one(String(gkey.dropLast(Armour.twinSuffix.count)))   // P501: the plain block
         case "wheat":
             return stage == 7 ? one("wheat") + one("wheat_seeds", 1 + binom(3, 0.5714)) : one("wheat_seeds")
         case "carrots": return one("carrot", stage == 7 ? 1 + binom(3, 0.5714) : 1)

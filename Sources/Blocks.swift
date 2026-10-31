@@ -742,6 +742,7 @@ final class BlockRegistry {
         registerDepotBlocks()                       // P469 (Depots.swift)
         registerHellLandBlocks()                    // P292: the Sulfur Flats' crust (HellLands.swift)
         registerSeats()                             // P370 (b): chairs, benches, stools (Seats.swift)
+        registerArmouredTwins()                     // P501: a Greywall vault's walls (MilitaryBase.swift, Armour.twin)
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Charwood"), ("warped", "Gloamwood")]
             + BlockRegistry.extraWoods

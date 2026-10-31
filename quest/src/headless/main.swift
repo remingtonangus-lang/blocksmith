@@ -611,6 +611,29 @@ if let out = arg("--view"), let ctx = vkctx {
             print("probe: nearest shipwreck anchor \(st.anchor)")
         }
     }
+    // --slice R (P501, his door at a garrison): the blocks round the eye, layer by layer from the feet to two over the
+    // head, as a map (north up, a letter per kind, listed after each layer; doors in capitals by their open state).
+    if let r = Int(arg("--slice") ?? "") {
+        let e = vg.player.pos
+        let ex = Int(floor(e.x)), ez = Int(floor(e.z)), ey = Int(floor(e.y))
+        for y in (ey - 2)...(ey + 3) {
+            var kinds: [String: Character] = [:]
+            let letters = Array("abcdefghijklmnopqrstuvwxyz0123456789@#$%&*+=?")
+            print("slice: y \(y) (display \(y - YOFF)), x \(ex - r)...\(ex + r) left to right")
+            for z in (ez - r)...(ez + r) {
+                var row = ""
+                for x in (ex - r)...(ex + r) {
+                    let b = vw.rawBlock(x, y, z)
+                    if b == AIR { row.append(x == ex && z == ez ? "!" : "."); continue }
+                    let k = Blocks.key(b)
+                    if kinds[k] == nil { kinds[k] = letters[min(kinds.count, letters.count - 1)] }
+                    row.append(kinds[k]!)
+                }
+                print("slice: z \(String(format: "%6d", z)) \(row)")
+            }
+            print("slice: " + kinds.sorted { $0.value < $1.value }.map { "\($0.value)=\($0.key)" }.joined(separator: " "))
+        }
+    }
     // --fluidprobe R (P378 step 2): every water and lava cell within R blocks of the eye: its state, the ground's density
     // in it, under it and beside it (1/32 block, > 0 inside), what is built under and beside it, the block light over it
     // and the brightest in the open cells round it; then the pools taken out and rims raised as the chunks were made.

@@ -198,13 +198,17 @@ enum Soldier {
     // P460 (Oct 25 17:01: "They need to come at me from a greater range"): in a fight a soldier sees and fires out to
     // its gun's reach (seven tenths of the round's range, at most 64 blocks) instead of its rank's sight (26-40: a
     // rifle good for 70 held fire at 33). Before a fight it notices him as before.
-    static let fightReach: Float = 64
+    // P501 (Oct 31 09:41, at a Greywall garrison: "These guys need to be more aggressive... I'd say higher range in which
+    // they fire at you"; 09:47 "the NPCs need to be even more aggressive"): out to 96 blocks, 0.85 of the round's range.
+    static let fightReach: Float = 96
     static var reachOff = false              // (questcheck --soldierrange: the rank's sight alone, for the before)
+    // ... and quicker on the trigger: a third less time to first fire once roused, a quarter less between bursts.
+    static let eager: Float = 0.67, burstGap: Float = 0.75
     // P471 (Oct 26 20:14: "pretty well everywhere, whether or not the enemy shot at me was hit and miss"): how far an
     // unaware soldier notices him. A recruit stood 35 blocks off in open daylight and never saw him (sight 26-34 for
     // line troops) while the man beside him, nearer, fought: now a line soldier notices him out to 46 blocks unless he
     // sneaks (then the rank's own sight, as before); fog and storms still shorten it (WeatherWar.sight).
-    static let noticeRange: Float = 46
+    static let noticeRange: Float = 60      // (P501: was 46)
     static func notice(_ rank: Int, sneaking: Bool) -> Float {
         let s = ranks[rank].sight
         return sneaking ? s : max(s, noticeRange)
@@ -212,7 +216,7 @@ enum Soldier {
 
     static func sight(_ rank: Int, gun: Int, fighting: Bool) -> Float {
         let s = ranks[rank].sight
-        return fighting && !reachOff ? max(s, min(Guns.all[gun].range * 0.7, fightReach)) : s
+        return fighting && !reachOff ? max(s, min(Guns.all[gun].range * 0.85, fightReach)) : s
     }
 
     // Preferred distance band for a gun (the rank's own for its main weapon).
@@ -474,7 +478,7 @@ extension Mob {
             b.watchT += dt
             if !aggro && (dist < 16 || simd_dot(toP, forward) > 0.2 || hurt > 0 || b.watchT > 1.5) {
                 aggro = true
-                b.react = rank.react
+                b.react = rank.react * Soldier.eager
                 barkLine(g, .spot, .soldier(Soldier.voice(r), .alert), 1.1)          // P468: "Contact!", or the bark
                 if Rand.float(in: 0..<1) < 0.5 { g.sfx(.gun(11), 0.6, at: eye) }
                 if r == 4 { b.pointT = 1.4 }
@@ -482,7 +486,7 @@ extension Mob {
             }
             if aggro {
                 b.aimHold = 1.2
-                if b.seenAgo > 3 { b.react = max(b.react, rank.react) }
+                if b.seenAgo > 3 { b.react = max(b.react, rank.react * Soldier.eager) }
                 b.lastSeen = g.player.pos
                 b.seenAgo = 0
             }
@@ -856,7 +860,7 @@ extension Mob {
         let rate: Float = enraged ? 0.6 : 1
         let pace: Float = Difficulty.row.pace                    // P302: slower fire on the easy levels
         b.shotTimer = b.burst > 0 ? gs.interval * (b.gun == Guns.ashsaw ? 1 : 1.4) * rate / pace
-                                  : Rand.float(in: rank.gap) * rate * (b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : 1)) / pace
+                                  : Rand.float(in: rank.gap) * Soldier.burstGap * rate * (b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : 1)) / pace
     }
 
     // A short burst into the player's last position (wider spread; it pins them behind cover).

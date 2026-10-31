@@ -350,6 +350,10 @@ enum CapitalArms {
                 p.append(b(0.65, 0.2, -0.6 + Float(k) * 0.4, 0.06, 0.85, 0.18, graphite, pMetal))
                 p.append(b(-0.71, 0.2, -0.6 + Float(k) * 0.4, 0.06, 0.85, 0.18, graphite, pMetal))
             }
+            // P501 (Oct 31 09:47, "there's parts floating in the air"): a trigger in the guard and the guard closed
+            // behind it, so the guard's bar no longer hangs under the frame as a loose rod.
+            p += [b(-0.15, -1.2, -1.75, 0.3, 0.6, 0.3, graphite, pMetal),            // trigger
+                  b(-0.25, -1.45, -0.6, 0.5, 0.85, 0.25, enamel * 0.94, pEnamel)]    // guard's back, into the grip
             let m = p.count
             p += [b(-0.5, -3.55, 0.2, 1.0, 0.45, 1.6, graphite, pMetal)]          // magazine base
             // P301: the slide, bushing, bore, ejection port, both sights and the serrations run back together.

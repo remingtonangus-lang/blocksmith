@@ -129,6 +129,32 @@ extension Game {
         clouds.removeAll { $0.time <= 0 }
     }
 
+    // P501: a Field or Combat Stim injected from the hand (Game.useTick: on the click).
+    func injectStim(_ key: String) {
+        foodEffects(key)
+        heal(key == "combat_stim" ? 10 : 6)
+        stimFlash = 1.2
+        sfx(.gun(7), 0.6)
+        sfx(.drink, 0.35)
+        consumeHeld()
+        eatProgress = 0
+        swing = 1
+    }
+
+    // P501 (Oct 31 09:44, a Greywall garrison's chest: "we still have, uh, golden apples. So we gotta get rid of the
+    // golden apples"): a base's chests were filled when its ground was made, so a base made before P499 still held
+    // golden apples. Opened, a chest in a base (Greywall, Steelhold, Boreal station, depot, Capital citadel or city)
+    // holds stims where it held them.
+    static let baseKinds = [Greywall.kind, "military_base", BorealStation.kind, "greywall_depot", "capital_city"]
+    func baseStims(_ p: IVec3, _ c: ItemContainer) {
+        let gold = Items.id("golden_apple"), radiant = Items.id("enchanted_golden_apple")
+        guard (0..<c.count).contains(where: { c[$0].item == gold || c[$0].item == radiant }), let sc = world.gen.structures,
+              Game.baseKinds.contains(where: { sc.structure(at: p.x, p.y, p.z, kind: $0) != nil }) else { return }
+        for i in 0..<c.count where c[i].item == gold || c[i].item == radiant {
+            c[i] = ItemStack(Items.id(c[i].item == gold ? "field_stim" : "combat_stim"), c[i].count)
+        }
+    }
+
     // Drinks the held potion / milk / honey (after the 1.6 s use time).
     func finishDrink(_ h: ItemStack) {
         let key = Items.key(h.item)

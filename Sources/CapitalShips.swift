@@ -2256,7 +2256,7 @@ extension ShipManager {
                 SmallMissiles.launched += 1
                 let at = s.toWorld(p)
                 let dir = s.dirToWorld(d)
-                let sh = Shell(pos: at + dir, vel: dir * 30 + s.vel, owner: s.id, power: SmallMissiles.power)
+                let sh = Shell(pos: at + dir, vel: dir * 30 + s.vel, owner: s.id, power: SmallMissiles.podPower)
                 sh.kind = 2
                 sh.gravity = 0
                 sh.life = 12

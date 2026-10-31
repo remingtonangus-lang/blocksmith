@@ -2501,6 +2501,20 @@ final class MobManager {
         if m.kind.ashVehicle || m.kind.hellOwn || Soldier.rank(m.kind) != nil { return 1 }      // (their own far-AI beats)
         return d > 96 * 96 ? 4 : 2
     }
+    // P501 (Oct 31 09:50, 60-70 blocks from a Capital citadel in the open with a gun in hand: "They should have seen me
+    // and started firing, and I should have died in just a few seconds... And yet nobody, nothing's firing at me"): past
+    // the active distance a mob stood frozen (P339), and on the headset the frame governor takes the active distance
+    // down to 4 chunks (about 70 blocks), so a citadel's guns and garrison past that never saw him. A big gun within its
+    // full range and a soldier within its fight reach still run there while their chunk keeps its blocks (P376: out to
+    // the active distance and two chunks more).
+    static func inFiringReach(_ m: Mob, of p: V3, _ w: World) -> Bool {
+        let reach: Float
+        if m.kind == .deckGun { reach = HeavyTurret.range } else if Soldier.rank(m.kind) != nil { reach = Soldier.fightReach + 16 } else { return false }
+        let dx = m.pos.x - p.x, dz = m.pos.z - p.z
+        guard dx * dx + dz * dz <= reach * reach, m.health > 0 else { return false }
+        guard let c = w.chunks[ChunkKey(x: floorDiv(Int(floorf(m.pos.x)), CS), z: floorDiv(Int(floorf(m.pos.z)), CS))] else { return false }
+        return !c.hollow
+    }
     var corpses: [Mob] = []                       // dead mobs playing their fall (MobAnim.swift); drawn, never updated
     var stored: [ChunkKey: [MobRecord]] = [:]     // mobs outside the loaded area (see MobSave.swift)
     private var restoreTimer: Float = 0
@@ -2638,7 +2652,7 @@ final class MobManager {
             if m.hitStop > 0 { m.hitStop -= dt; continue }      // frozen by a landed blade (VRCombatFeel.swift)
             // P339: past the active distance a mob stands in its last pose (drawn, never ticked).
             // (P376: a deck crew past it too: its ship sleeps there, ShipPhysics.)
-            if !w.activeHere(m.pos) && game.riding !== m { continue }
+            if !w.activeHere(m.pos) && game.riding !== m && !MobManager.inFiringReach(m, of: p, w) { continue }
             FarTicks.note(w, m.pos)
             // P283: far calm mobs on a slower beat (the time they missed is handed over when their turn comes).
             let every = MobManager.lodEvery(m, distSq: simd_length_squared(m.pos - p), game: game)
