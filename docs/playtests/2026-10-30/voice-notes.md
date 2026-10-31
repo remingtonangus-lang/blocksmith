@@ -1,6 +1,6 @@
 # Voice bug notes 2026-10-30 (Quest)
 
-Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 290 notes.
+Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 291 notes.
 
 ## 14:53:05 - Well, I'm... Hmm
 
@@ -6803,3 +6803,27 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 - **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261030-204036-921.aac
 
 ![20:40:36](voice-shots/vn-20261030-204036-921.jpg)
+
+## 22:48:04 - I'm sorry, do what?
+
+- **Transcript:** I'm sorry, do what?
+- **Status:** open
+- **Build:** 0.129 (16892351, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (11) (seed 8581085287973377474)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** -12655.6 121.2 11180.1
+- **Facing:** north-east (yaw 30, pitch 24)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 7/20, screen PauseMenu
+- **Time:** day 3 13:18, rain
+- **Fps:** 61
+- **Levels:** mic -35 dBFS, game sound -27 dBFS
+- **Length:** 2.2 s (voice 0.7 s)
+- **Just before:** -28s walked into Plains; -24s message: Walking; -22s walked into Savanna; -20s piloting Capital Dropship; -20s message: Steering Capital Dropship; -16s walked into Plains; -2s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 8581085287973377474 --x -12655.6 --z 11180.1 --yaw -30 --pitch 24 --time 0.304`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261030-224804-422.aac
+
+![22:48:04](voice-shots/vn-20261030-224804-422.jpg)
