@@ -1,0 +1,766 @@
+[
+ {
+  "name": "town_street",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ]
+  },
+  "time": 0.42,
+  "seconds": 6,
+  "warm": 10,
+  "peaceful": true,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -34,
+     2.5,
+     -5
+    ],
+    "look": [
+     0,
+     2.2,
+     -8
+    ],
+    "ground": true
+   },
+   {
+    "t": 6,
+    "pos": [
+     -6,
+     2.5,
+     -5
+    ],
+    "look": [
+     30,
+     2.2,
+     -8
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "town_crane",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ]
+  },
+  "time": 0.45,
+  "seconds": 6,
+  "warm": 8,
+  "peaceful": true,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     38,
+     3,
+     22
+    ],
+    "look": [
+     5,
+     4,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 6,
+    "pos": [
+     62,
+     28,
+     48
+    ],
+    "look": [
+     0,
+     0,
+     -5
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "capital",
+  "anchor": {
+   "near": "capital_city",
+   "from": [
+    0,
+    0
+   ]
+  },
+  "time": 0.22,
+  "seconds": 6,
+  "warm": 8,
+  "peaceful": true,
+  "rd": 12,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     52,
+     10,
+     52
+    ],
+    "look": [
+     0,
+     14,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 6,
+    "pos": [
+     36,
+     12,
+     48
+    ],
+    "look": [
+     -6,
+     14,
+     -4
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "station_air",
+  "anchor": {
+   "near": "boreal_station",
+   "from": [
+    1500,
+    -1500
+   ],
+   "station": "boreal_station"
+  },
+  "time": 0.53,
+  "seconds": 6,
+  "warm": 6,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     6,
+     24
+    ],
+    "look": [
+     4,
+     -26,
+     -52
+    ]
+   },
+   {
+    "t": 6,
+    "pos": [
+     2,
+     -8,
+     -4
+    ],
+    "look": [
+     4,
+     -24,
+     -52
+    ]
+   }
+  ]
+ },
+ {
+  "name": "station_gate",
+  "anchor": {
+   "near": "boreal_station",
+   "from": [
+    1500,
+    -1500
+   ],
+   "station": "boreal_gate"
+  },
+  "time": 0.55,
+  "seconds": 5,
+  "warm": 8,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     1.6,
+     6
+    ],
+    "look": [
+     0,
+     1.8,
+     -30
+    ]
+   },
+   {
+    "t": 5,
+    "pos": [
+     0,
+     1.6,
+     -2
+    ],
+    "look": [
+     0,
+     1.8,
+     -30
+    ]
+   }
+  ]
+ },
+ {
+  "name": "station_corridor",
+  "anchor": {
+   "near": "boreal_station",
+   "from": [
+    1500,
+    -1500
+   ],
+   "station": "boreal_corridor"
+  },
+  "time": 0.3,
+  "seconds": 5,
+  "warm": 6,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     1.6,
+     4
+    ],
+    "look": [
+     0,
+     1.6,
+     -20
+    ]
+   },
+   {
+    "t": 5,
+    "pos": [
+     0,
+     1.6,
+     -4
+    ],
+    "look": [
+     0,
+     1.6,
+     -20
+    ]
+   }
+  ]
+ },
+ {
+  "name": "build_cabin",
+  "anchor": {
+   "find": "plains",
+   "from": [
+    200,
+    200
+   ]
+  },
+  "time": 0.3,
+  "seconds": 8,
+  "warm": 3,
+  "peaceful": true,
+  "events": [
+   {
+    "t": 0.3,
+    "do": "build",
+    "at": [
+     0,
+     0,
+     0
+    ],
+    "size": [
+     9,
+     5,
+     8
+    ],
+    "dur": 6.5
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -10,
+     5,
+     18
+    ],
+    "look": [
+     4.5,
+     3,
+     4
+    ],
+    "ground": true
+   },
+   {
+    "t": 4,
+    "pos": [
+     5,
+     6.5,
+     21
+    ],
+    "look": [
+     4.5,
+     3.5,
+     4
+    ],
+    "ground": true
+   },
+   {
+    "t": 8,
+    "pos": [
+     20,
+     8,
+     16
+    ],
+    "look": [
+     4.5,
+     4,
+     4
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "war_advance",
+  "anchor": {
+   "at": [
+    3090,
+    0,
+    65
+   ]
+  },
+  "time": 0.43,
+  "seconds": 7,
+  "warm": 2,
+  "rain": false,
+  "events": [
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "soldier_trooper@ash^90",
+    "at": [
+     -24,
+     0,
+     -2
+    ],
+    "n": 12,
+    "spread": 9
+   },
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "soldier_recruit@ash^90",
+    "at": [
+     -30,
+     0,
+     8
+    ],
+    "n": 6,
+    "spread": 6
+   },
+   {
+    "t": 0,
+    "do": "vehicle",
+    "mob": "ash_tank",
+    "at": [
+     -34,
+     0,
+     -8
+    ],
+    "yaw": 90
+   },
+   {
+    "t": 0,
+    "do": "vehicle",
+    "mob": "ash_halftrack",
+    "at": [
+     -36,
+     0,
+     12
+    ],
+    "yaw": 90
+   },
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "soldier_trooper^270",
+    "at": [
+     4,
+     0,
+     4
+    ],
+    "n": 4,
+    "spread": 4
+   },
+   {
+    "t": 1.0,
+    "do": "explode",
+    "at": [
+     -16,
+     0,
+     4
+    ],
+    "power": 6,
+    "fire": true
+   },
+   {
+    "t": 2.3,
+    "do": "explode",
+    "at": [
+     -26,
+     0,
+     -10
+    ],
+    "power": 6
+   },
+   {
+    "t": 3.5,
+    "do": "explode",
+    "at": [
+     -12,
+     0,
+     -6
+    ],
+    "power": 6,
+    "fire": true
+   },
+   {
+    "t": 4.6,
+    "do": "wreck",
+    "at": [
+     -36,
+     0,
+     12
+    ],
+    "spread": 6,
+    "power": 4
+   },
+   {
+    "t": 5.8,
+    "do": "explode",
+    "at": [
+     -20,
+     0,
+     10
+    ],
+    "power": 6,
+    "fire": true
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     10,
+     1.8,
+     14
+    ],
+    "look": [
+     -20,
+     2,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 7,
+    "pos": [
+     6,
+     2.2,
+     18
+    ],
+    "look": [
+     -24,
+     2,
+     -2
+    ],
+    "ground": true
+   }
+  ],
+  "survival": true
+ },
+ {
+  "name": "tank_breakup",
+  "anchor": {
+   "at": [
+    3090,
+    0,
+    30
+   ]
+  },
+  "time": 0.44,
+  "seconds": 5,
+  "warm": 1,
+  "events": [
+   {
+    "t": 0,
+    "do": "vehicle",
+    "mob": "ash_tank",
+    "at": [
+     0,
+     0,
+     0
+    ],
+    "yaw": 120
+   },
+   {
+    "t": 1.6,
+    "do": "wreck",
+    "at": [
+     0,
+     0,
+     0
+    ],
+    "spread": 6,
+    "power": 5
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     9,
+     2.2,
+     6
+    ],
+    "look": [
+     0,
+     1.2,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 5,
+    "pos": [
+     11,
+     3,
+     9
+    ],
+    "look": [
+     0,
+     1.5,
+     0
+    ],
+    "ground": true
+   }
+  ],
+  "rain": false
+ },
+ {
+  "name": "frigate_fire",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -200,
+    160,
+    0
+   ]
+  },
+  "time": 0.34,
+  "seconds": 6,
+  "warm": 2,
+  "events": [
+   {
+    "t": 0.3,
+    "do": "fire",
+    "pitch": -10
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -50,
+     -6,
+     -60
+    ],
+    "look": [
+     0,
+     0,
+     -30
+    ]
+   },
+   {
+    "t": 6,
+    "pos": [
+     -42,
+     -10,
+     -80
+    ],
+    "look": [
+     0,
+     -4,
+     -50
+    ]
+   }
+  ],
+  "rd": 12
+ },
+ {
+  "name": "frigate_strike",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -200,
+    160,
+    45
+   ]
+  },
+  "time": 0.34,
+  "seconds": 5,
+  "warm": 2,
+  "rd": 12,
+  "events": [
+   {
+    "t": 1.0,
+    "do": "impact",
+    "at": [
+     216,
+     0,
+     -190
+    ],
+    "ground": true
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     262,
+     5,
+     -146
+    ],
+    "look": [
+     214,
+     7,
+     -190
+    ],
+    "ground": true
+   },
+   {
+    "t": 5,
+    "pos": [
+     260,
+     6,
+     -140
+    ],
+    "look": [
+     214,
+     9,
+     -190
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "train",
+  "anchor": {
+   "rail": 50,
+   "from": [
+    -1500,
+    1500
+   ],
+   "train": "passenger"
+  },
+  "time": 0.45,
+  "seconds": 6,
+  "warm": 0,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     30,
+     16,
+     26
+    ],
+    "look": [
+     0,
+     2,
+     0
+    ]
+   },
+   {
+    "t": 6,
+    "pos": [
+     26,
+     14,
+     12
+    ],
+    "look": [
+     0,
+     2,
+     -14
+    ]
+   }
+  ]
+ },
+ {
+  "name": "finale",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ]
+  },
+  "time": 0.43,
+  "timeRate": 0.008,
+  "seconds": 7,
+  "warm": 6,
+  "peaceful": true,
+  "rd": 14,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     42,
+     14,
+     42
+    ],
+    "look": [
+     0,
+     4,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 7,
+    "pos": [
+     70,
+     30,
+     70
+    ],
+    "look": [
+     -10,
+     0,
+     -10
+    ],
+    "ground": true
+   }
+  ]
+ }
+]
