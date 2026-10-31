@@ -482,6 +482,27 @@ enum QuestSim {
                 }
                 try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: name))
             }
+            // P499 (Oct 30 14:59 and 15:03, "another triangle right here that I can see into the void with", "look at all
+            // these triangles"): his stills show sky-coloured wedges fanning from the held Slatefall's muzzle, the head
+            // and the gun pitched about 56 degrees down at the ground. The same pose here, firing and then still.
+            if CommandLine.arguments.contains("--slatefall-shots") {
+                var carbine = ItemStack(Items.id("gun_slatefall"), 1); carbine.tag = 30
+                game.inventory.held = carbine
+                let headKeep = sim.headRot
+                let down = simd_quatf(angle: -0.98, axis: V3(1, 0, 0))
+                sim.headRot = down
+                func lowHand() {
+                    idleHands()
+                    sim.hands[1].aimPos = sim.headPos + down.act(V3(0.17, -0.2, -0.28)); sim.hands[1].gripPos = sim.hands[1].aimPos
+                    sim.hands[1].aimRot = down; sim.hands[1].gripRot = down
+                }
+                frames(12) { i in lowHand(); sim.hands[1].trigger = i < 8 ? 1 : 0 }
+                frames(1) { _ in lowHand() }
+                try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_slatefall_fired.png"))
+                frames(30) { _ in lowHand() }
+                try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_slatefall.png"))
+                sim.headRot = headKeep
+            }
             (game.inventory.held, QuestSettings.swingMode) = keep
         }
         // Getting hurt: a red glow at the edges of the view (not a tinted HUD panel).
