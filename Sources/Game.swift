@@ -3290,6 +3290,7 @@ final class Game {
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load
+        StructureTip.tick(self)                                // P503: a piece shot out from under it tips
         settleStrayPieces()                                    // P448
         TickProf.mark("structure load")
         mobs.update(Float(dt), game: self)

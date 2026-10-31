@@ -60,6 +60,7 @@ final class World {
     var strikeRefills = Set<ChunkKey>()             // shells a far strike waits on: handed over first (World.dataReady)
     lazy var meshCache: MeshCache? = World.shells ? save.flatMap { MeshCache(saveDir: $0.chunkDir) } : nil      // P376 (ChunkShells)
     var collapseQueue: [(IVec3, Int)] = [] // P351: carves to check for loose ground (GroundCollapse)
+    var tipQueue: [(IVec3, Int)] = []      // P503: blasts that broke built blocks, what stood over them weighed (StructureTip)
     var loadQueue: [IVec3] = []            // P388: structural changes whose piece carries its load next (Structure.tick)
     var loadQueued = Set<IVec3>()          // (4-cubes already queued)
     var restoring = false                  // P416: a base's crew putting its own plan back (sound as built: no load check)

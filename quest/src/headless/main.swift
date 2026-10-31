@@ -1970,6 +1970,11 @@ if CommandLine.arguments.contains("--lift") {
     LiftCheck.run(game, check)
     print(failures == 0 ? "lift: all checks passed" : "lift: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --tipcheck: P503, a piece shot out from under it tips and falls (Sources/StructureTip.swift).
+if CommandLine.arguments.contains("--tipcheck") {
+    StructureTipCheck.run(game, check)
+    print(failures == 0 ? "tip: all checks passed" : "tip: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --spurcheck: P92's citadel rail spurs, none on ground new since P470 (Sources/PlaytestOct12Tests.swift trains).
 if CommandLine.arguments.contains("--spurcheck") {
     PlaytestOct12Tests.trains(check)
@@ -2916,6 +2921,7 @@ func leaves(_ name: String, _ body: () -> Void) {
 leaves("greywall") { if !CommandLine.arguments.contains("--no-greywall") { GreywallTests.run(device: device, game: game, check: check) } }
 leaves("troopclasses") { TroopTests.run(game: game, check: check) }
 leaves("lift") { LiftCheck.run(game, check) }
+leaves("tip") { StructureTipCheck.run(game, check) }
 leaves("navy") { NavyTests.run(game: game, check: check) }
 leaves("skiff") { SkySkiffTests.run(game: game, check: check) }
 leaves("mapfog") { MapFogTests.run(game: game, check: check) }

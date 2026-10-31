@@ -155,6 +155,11 @@ enum Explosion {
             w.setBlockAsync(b.x, b.y, b.z, AIR)
         }
         for b in destroyed { w.scheduleFluid(around: b) }
+        // P503: what stood over the hole is weighed (StructureTip): a top shot out from under it tips and falls.
+        if !destroyed.isEmpty {
+            let far = destroyed.reduce(Float(1)) { max($0, simd_length(V3(Float($1.x), Float($1.y), Float($1.z)) + 0.5 - c)) }
+            w.queueTipCheck(IVec3(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z))), Int(ceil(far)))
+        }
         // PG1: the crater is a bowl in the terrain field, not the blocks the rays took: its walls are bounded by a ball
         // the size of most of what broke (TerrainField.swift).
         if (w.keepsField || w.fieldTerrain) && !destroyed.isEmpty {
@@ -468,6 +473,7 @@ final class CraterJob {
         }
         if (next >= offsets.count || removed >= cap) && !carved {
             carved = true
+            w.queueTipCheck(IVec3(cx, cy, cz), Int(ceil(r)) + 1)        // (P503: what stood over the breach weighed)
             for b in rim { w.scheduleFluid(around: b) }
             rim.removeAll()
         }
