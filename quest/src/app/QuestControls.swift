@@ -1176,8 +1176,16 @@ final class QuestControls {
                 if game.riding == nil { pos += delta }
             } else {
                 game.world.mobsSolid = true        // P311 (a): a real step doesn't carry him through a mob either
-                _ = game.world.moveBody(&pos, halfW: pl.halfW, height: pl.height, delta, step: pl.onGround ? 0.6 : 0, onGround: pl.onGround)
+                let hit = game.world.moveBody(&pos, halfW: pl.halfW, height: pl.height, delta, step: pl.onGround ? 0.6 : 0, onGround: pl.onGround)
                 game.world.mobsSolid = false
+                // P501 (Oct 31 09:44, "I'm still having trouble getting through doors. I have to line myself up perfectly"):
+                // a real step into a doorway's frame slides the body into line with the opening too, as the stick's walk
+                // does (Player.doorwayAssist), up to three times the step.
+                if (hit.x || hit.z) && Player.doorwayAssistOn && !pl.flying && simd_length(delta) > 0.002 {
+                    pl.pos = pos
+                    pl.doorwayAssist(delta, game.world, simd_length(delta) * 0.43)
+                    pos = pl.pos
+                }
             }
             if game.riding == nil { pl.pos = pos }
         }

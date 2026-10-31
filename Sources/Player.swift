@@ -129,7 +129,7 @@ final class Player {
     // edge: the body slides sideways toward the opening's middle, up to 3 blocks a second and never more than 0.45, as
     // if the frame's corners were rounded. Only for a push mostly along one axis (not a glancing walk along a wall).
     static var doorwayAssistOn = true                  // (off only for the check's before-and-after)
-    private func doorwayAssist(_ wish: V3, _ w: World, _ dt: Float) {
+    func doorwayAssist(_ wish: V3, _ w: World, _ dt: Float) {
         let d = simd_normalize(V2(wish.x, wish.z))
         let alongX = abs(d.x) > abs(d.y)
         // (P475, Oct 27: "Still a little too hard to get through doors": it now takes a door met at up to 45 degrees,
