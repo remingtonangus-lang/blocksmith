@@ -110,6 +110,9 @@ enum Greywall {
         if let c = room("comms") { let m = mid(c); p.append(("soldier_officer", m.0, 1, m.1)) }
         p.append(("soldier_trooper", t.floors(upper: upper) > 1 && t.keepX < 10 ? 3 : -3, 1, kc))      // (P255: off the outpost's stair)
         if upper && t == .garrison { p.append(("soldier_trooper", 2, 6, kc - kz + 3)) }               // (P499: the watch room)
+        // P503 (Oct 31 16:28:57 in a garrison's keep: "There should be people on the second floor, like a Hannibal troop
+        // or something"): a Hannibal heavy holds the watch room with him.
+        if upper && t == .garrison { p.append(("soldier_ironclad:heavy", -2, 6, kc - kz + 3)) }
         // P199 (Oct 13: "a guy spawned inside the gun"): the tower lookout stands inside the tower, not on the roof the
         // deck gun takes up.
         if let tw = t.towers.first { let c = tower(t, tw.0, tw.1); p.append(("soldier_marksman", c.x - tw.0, W + 1, c.z - tw.1)) }

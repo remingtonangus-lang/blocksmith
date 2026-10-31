@@ -114,6 +114,7 @@ extension Mob {
         if boreal { m.borealSetup() }
         if tag == "light" && k0 == .deckGun { m.variant = HeavyTurret.lightVariant }
         if k0 == .deckGun, let v = HeavyTurret.smallTags[tag] { m.variant = v }        // P222: the Capital's small guns
+        if tag == "heavy" && grey { m.setTroop(.hannibal) }                           // P503: a garrison's watch-room heavy
         if tag == "heavy" && !grey && !ash { m.setTroop(.hannibal, rearm: false) }     // T7: a Capital fortress heavy     // T6: a light coastal gun
         if k0 == .minecart { CapitalRail.setupCar(m, tag: tag) }                // P92 trains
         if tag == "warden" { m.makeKeepWarden() }
