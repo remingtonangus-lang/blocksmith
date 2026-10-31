@@ -58,9 +58,25 @@ enum Explosion {
     static let heavyPlayerReach: Float = 14         // P501: how far a heavy shell's burst reaches him (Explosion.explode)
     // P472: a crash's own blasts spare whoever rides the crashing ship (CapitalShips.hullContact, VehicleDamage).
     static var sparePlayer = false
+    // (--turretfreeze: the slowest blast, stage by stage; nested blasts count in the outer one)
+    static var lapT = 0.0, lapT0 = 0.0, lapDepth = 0, laps = "", worstMs = 0.0, worstLaps = ""
+    static func lapStart() { lapDepth += 1; if lapDepth == 1 { lapT = CFAbsoluteTimeGetCurrent(); lapT0 = lapT; laps = "" } }
+    static func lap(_ s: String) {
+        guard lapDepth == 1 else { return }
+        let t = CFAbsoluteTimeGetCurrent(); laps += String(format: "%@ %.1f, ", s, (t - lapT) * 1000); lapT = t
+    }
+    static func lapEnd(_ s: String) {
+        lap(s); lapDepth -= 1
+        guard lapDepth == 0 else { return }
+        let ms = (lapT - lapT0) * 1000
+        if ms > worstMs { worstMs = ms; worstLaps = laps }
+    }
+
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
                         decay: Bool = true, resistCap: Float = .infinity, along: V3? = nil) {
         let w = g.world
+        Explosion.lapStart()
+        defer { Explosion.lapEnd("entities") }
         // P357 (e) (Oct 16 20:14: "a shell crater follows the angle of the shot"): a shell's blast carries on the way it
         // was flying: rays along the shot reach further, those back toward the gun less, so a plunging shot leaves a
         // slanted bowl and a flat one a gouge running on from where it struck.
@@ -71,6 +87,7 @@ enum Explosion {
         let breakBlocks = breakBlocks && !(own && g.bases.inAnyBase(c))
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
         w.ships.blast(at: c, power: power, game: g, resistCap: resistCap)          // ship blocks (ShipCombat.swift)
+        Explosion.lap("ships")
         var destroyed = Set<IVec3>()
         var shaken: [IVec3: Float] = [:]                    // blocks that stopped a ray: share of their cost it carried
         // (The rays only find blocks to break or chip: a blast that breaks none skips them, 17 ms at power 8.)
@@ -99,6 +116,7 @@ enum Explosion {
                 intensity -= 0.225
             }
         } } } }
+        Explosion.lap("rays")
         var tnt: [IVec3] = []
         let tntID = Blocks.id("tnt")
         // Realistic world: bodies lying round (ragdolls, MobRagdoll.swift) are thrown too.
@@ -154,6 +172,7 @@ enum Explosion {
             }
             w.setBlockAsync(b.x, b.y, b.z, AIR)
         }
+        Explosion.lap("bodies, removal")
         for b in destroyed { w.scheduleFluid(around: b) }
         // P503: what stood over the hole is weighed (StructureTip): a top shot out from under it tips and falls.
         if !destroyed.isEmpty {
@@ -172,6 +191,7 @@ enum Explosion {
                 w.carve(at: c, radius: r, mode: .shape)
             }
         }
+        Explosion.lap("fluids, carve")
         // Progressive block damage: blocks the blast couldn't break lose pieces on the side facing it.
         if Settings.shared.chipping {
             var bits = 0
@@ -199,6 +219,7 @@ enum Explosion {
             }
         }
         for b in tnt { g.tnts.prime(at: b, fuse: Rand.float(in: 0.5...1.5)) }
+        Explosion.lap("chips")
 
         // Entities.
         let radius = power * 2

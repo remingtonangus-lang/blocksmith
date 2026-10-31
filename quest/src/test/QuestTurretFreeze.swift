@@ -98,6 +98,7 @@ enum QuestTurretFreeze {
                      Turrets.shared.shots, worst, worstStage, sum / Double(max(1, n)), over, n, maxBreaches, maxFalling))
         print("turretfreeze: \(World.sphereCalls - spheres0) field spheres, \(World.refilledAtOnce - refills0) chunks refilled on the frame thread, \(CraterJob.outside - outside0) breaches outside the world")
         print(String(format: "turretfreeze: %d tip checks (worst %.1f ms), %d pieces tipped, %d toppled bodies", StructureTip.checks - tips0, StructureTip.worstMs, StructureTip.tipped - tipped0, Felling.toppled - toppled0))
+        print(String(format: "turretfreeze: slowest blast %.1f ms (%@); slowest breach step %.1f ms; slowest heavy burst %.1f ms", Explosion.worstMs, Explosion.worstLaps, NavalGuns.worstStep, Armory.worstBurst))
         let slow = slowBy.sorted { $0.value > $1.value }.prefix(4).map { "\($0.key) x\($0.value)" }
         if !slow.isEmpty { print("turretfreeze:   slow frames led by " + slow.joined(separator: ", ")) }
         if seconds >= 45 && CraterJob.outside == outside0 { print("FAIL turretfreeze: no shell burst over the world's top (the freeze's case not met)"); return 1 }

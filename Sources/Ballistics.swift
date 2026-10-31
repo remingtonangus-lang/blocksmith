@@ -444,6 +444,7 @@ final class Armory {
     }
 
     static var detonations = 0                      // (harness)
+    static var worstBurst = 0.0                     // (--turretfreeze: the slowest heavy burst's own work, ms)
     func detonate(_ s: Slug, at: V3, _ g: Game) {
         Armory.detonations += 1
         if s.pulse { g.pulseBurst(at: at); return }
@@ -463,7 +464,9 @@ final class Armory {
         defer { g.ashQuiet = false; g.blastSpares = .none; Explosion.heavyShell = false }
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks,
                           resistCap: s.breach, along: simd_length(s.vel) > 25 ? s.vel : nil)        // (P357 e: shells, not grenades)
+        let hb0 = CFAbsoluteTimeGetCurrent()
         NavalGuns.heavyBurst(s, at: at, shooter: shooter, spares: g.blastSpares, g)       // P102 / P103
+        Armory.worstBurst = max(Armory.worstBurst, (CFAbsoluteTimeGetCurrent() - hb0) * 1000)
         if s.tracer { AirDefence.burst(at: at, g) }                                         // P252: flak by a craft
         g.bases.quiet = false
     }
