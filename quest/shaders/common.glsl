@@ -38,8 +38,8 @@ layout(set = 0, binding = 1) uniform sampler2DArray tex;
 // tools/texsharp.py models it. Every texture-array lookup goes through here (HUD: hud.frag has its own copy).
 #ifdef BS_FRAG
 // d = texels per pixel (fwidth of uv * size), given so a caller that moves uv per block can pass the unmoved rate.
-vec2 sharpUVd(vec2 uv, vec2 dt) {
-    vec2 sz = vec2(textureSize(tex, 0).xy);
+// (sharpUVs: with the texture's size given, for a caller that has it already: P499)
+vec2 sharpUVs(vec2 uv, vec2 dt, vec2 sz) {
     vec2 t = uv * sz;
     vec2 seam = floor(t + 0.5);
     vec2 d = clamp(dt, vec2(1e-4), vec2(1.0));
@@ -50,6 +50,16 @@ vec2 sharpUVd(vec2 uv, vec2 dt) {
     bvec2 tile = bvec2(mod(seam.x, sz.x) == 0.0 && d.x < 1.0, mod(seam.y, sz.y) == 0.0 && d.y < 1.0);
     o = mix(o, floor(t) + 0.5, vec2(tile));
     return o / sz;
+}
+vec2 sharpUVd(vec2 uv, vec2 dt) { return sharpUVs(uv, dt, vec2(textureSize(tex, 0).xy)); }
+// P499: a read with its gradients given (textureGrad) where the gradients say magnified (no more than a texel a pixel
+// either way) is the top level's magnification whatever they are, so it is read at level 0 (textureLod): the same
+// texels and the same filter, without the explicit-gradient read, the slow kind on mobile GPUs. Close ground is
+// magnified at 128-texel blocks: about two thirds of the ground reads at his Oct 30 Tuff spot.
+vec4 texGradOrTop(vec3 p, vec2 gx, vec2 gy, vec2 sz) {
+    vec2 ax = gx * sz, ay = gy * sz;
+    if (max(dot(ax, ax), dot(ay, ay)) <= 1.0) { return textureLod(tex, p, 0.0); }
+    return textureGrad(tex, p, gx, gy);
 }
 vec2 sharpUV(vec2 uv) { return sharpUVd(uv, fwidth(uv * vec2(textureSize(tex, 0).xy))); }
 vec4 texSharp(vec2 uv, float layer) { return texture(tex, vec3(sharpUV(uv), layer)); }
@@ -105,7 +115,7 @@ float hash21(vec2 p) {
 // per-vertex and the projected top uv are), cell the block's world xz. The derivatives are taken before the turn and
 // turned with it, so the mip level and sharpUV see no jump at block edges (no seam lines between turned blocks).
 // (P383: with the derivatives given, for reads in non-uniform control flow)
-vec4 texSharpTurnedG(vec2 uv, float layer, vec2 cell, vec2 gx, vec2 gy) {
+vec4 texSharpTurnedGs(vec2 uv, float layer, vec2 cell, vec2 gx, vec2 gy, vec2 sz) {
     int r = int(hash21(cell * 1.618 + vec2(17.0, 5.0)) * 8.0) & 7;
     vec2 c = floor(uv), f = uv - c;
     if ((r & 4) != 0) { f.x = 1.0 - f.x; gx.x = -gx.x; gy.x = -gy.x; }
@@ -113,11 +123,12 @@ vec4 texSharpTurnedG(vec2 uv, float layer, vec2 cell, vec2 gx, vec2 gy) {
     if (r == 1) { f = vec2(f.y, 1.0 - f.x); gx = vec2(gx.y, -gx.x); gy = vec2(gy.y, -gy.x); }
     else if (r == 2) { f = 1.0 - f; gx = -gx; gy = -gy; }
     else if (r == 3) { f = vec2(1.0 - f.y, f.x); gx = vec2(-gx.y, gx.x); gy = vec2(-gy.y, gy.x); }
-    vec2 sz = vec2(textureSize(tex, 0).xy);
-    vec2 o = sharpUVd(c + f, (abs(gx) + abs(gy)) * sz);
-    return textureGrad(tex, vec3(o, layer), gx, gy);
+    vec2 o = sharpUVs(c + f, (abs(gx) + abs(gy)) * sz, sz);
+    return texGradOrTop(vec3(o, layer), gx, gy, sz);
 }
-vec4 texSharpTurned(vec2 uv, float layer, vec2 cell) { return texSharpTurnedG(uv, layer, cell, dFdx(uv), dFdy(uv)); }
+vec4 texSharpTurned(vec2 uv, float layer, vec2 cell) {
+    return texSharpTurnedGs(uv, layer, cell, dFdx(uv), dFdy(uv), vec2(textureSize(tex, 0).xy));
+}
 // P496: does this layer's top turn per block (snow, soil, rock: the same picture every block read as a knit from afar)?
 bool turnedLayer(float layer) {
     uint li = uint(layer + 0.5);

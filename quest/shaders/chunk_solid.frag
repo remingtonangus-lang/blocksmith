@@ -20,16 +20,15 @@ layout(location = 0) out vec4 outColor;
 // are taken up front (uniform control flow), so the reads can be skipped per fragment.
 vec3 triW;
 vec2 triUV[3], triGX[3], triGY[3];
-vec2 triCell;
+vec2 triCell, texSz;            // (texSz: the texture's size, asked once a fragment)
 bool triOn;
 vec4 texG(vec2 uv, vec2 gx, vec2 gy, float layer) {
-    vec2 sz = vec2(textureSize(tex, 0).xy);
-    return textureGrad(tex, vec3(sharpUVd(uv, (abs(gx) + abs(gy)) * sz), layer), gx, gy);
+    return texGradOrTop(vec3(sharpUVs(uv, (abs(gx) + abs(gy)) * texSz, texSz), layer), gx, gy, texSz);
 }
 vec4 triTex(float layer, bool turned) {
     vec4 c = vec4(0.0);
     if (triW.x > 0.0) c += triW.x * texG(triUV[0], triGX[0], triGY[0], layer);
-    if (triW.y > 0.0) c += triW.y * (turned ? texSharpTurnedG(triUV[1], layer, triCell, triGX[1], triGY[1]) : texG(triUV[1], triGX[1], triGY[1], layer));
+    if (triW.y > 0.0) c += triW.y * (turned ? texSharpTurnedGs(triUV[1], layer, triCell, triGX[1], triGY[1], texSz) : texG(triUV[1], triGX[1], triGY[1], layer));
     if (triW.z > 0.0) c += triW.z * texG(triUV[2], triGX[2], triGY[2], layer);
     return c;
 }
@@ -37,6 +36,7 @@ vec4 triTex(float layer, bool turned) {
 void main() {
     vec2 uv = oUV;
     if (oAnim > 0.5 && oAnim < 1.5) { uv += vec2(0.0, fract(u.params.z * 0.04)); }
+    texSz = vec2(textureSize(tex, 0).xy);
     triOn = dot(oNrm, oNrm) > 0.25;
     // (constant over a primitive, so the derivatives inside are taken over whole 2 x 2 fragment quads)
     if (triOn) {
