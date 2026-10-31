@@ -28,8 +28,28 @@ extension World {
     // Inside the active distance of the player (or of a second co-op player).
     @inline(__always) func activeHere(_ q: V3) -> Bool {
         if isActive(q, from: activeCenter) { return true }
-        if let e = extraCenter { return isActive(q, from: e) }
+        if let e = extraCenter, isActive(q, from: e) { return true }
+        return !hotZones.isEmpty && hot(q)
+    }
+    // (Remington, Oct 30 20:28-20:29, the frigate's gun on a Capital city: "I should be able to blow that thing to
+    // smithereens. Whole thing should just fall too because of physics"; then, flown over to it, "gravity does work...
+    // just doesn't work all the time"): a big gun's shot strikes well past the active distance, where nothing ticks,
+    // so what it cut loose waited for him to come near (load checks, falling blocks and a toppled tower parked, frozen).
+    // Round such a strike the world runs as if he were there for a while (heat): load checks, what falls, fire and
+    // fluid, the soldiers there, the toppled piece's fall (ShipManager: a body in a hot zone stays awake). Its chunks
+    // keep their blocks as long (World.dataReady holds them).
+    func hot(_ q: V3) -> Bool {
+        for z in hotZones where abs(q.x - z.center.x) <= z.r && abs(q.z - z.center.z) <= z.r { return true }
         return false
+    }
+    func heat(at p: V3, radius: Float, seconds: Double) {
+        let until = CFAbsoluteTimeGetCurrent() + seconds
+        hotZones.append((center: p, r: radius, until: until))
+    }
+    func coolZones() {
+        guard !hotZones.isEmpty else { return }
+        let now = CFAbsoluteTimeGetCurrent()
+        hotZones.removeAll { now > $0.until }
     }
     @inline(__always) func activeHere(_ c: IVec3) -> Bool { activeHere(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5)) }
 
@@ -47,6 +67,7 @@ extension World {
     // Once a second: parked cells whose chunk is active again go back to their queues; unloaded chunks drop theirs
     // (a loaded chunk re-queues its own springs and loose cells).
     func unparkActive() {
+        coolZones()
         guard !parked.isEmpty else { return }
         for (k, cells) in parked {
             if chunks[k] == nil { parked.removeValue(forKey: k); continue }

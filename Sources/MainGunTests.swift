@@ -532,5 +532,7 @@ enum MainGunTests {
 
         // 6. The gap pass (MainGunGapTests.swift): Blast Shake, a citadel struck and broken.
         gap(g, check)
+        // 7. Shots that strike past the active distance (FarStrikeTests.swift).
+        farStrike(g, check)
     }
 }

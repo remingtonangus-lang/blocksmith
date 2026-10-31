@@ -26,6 +26,7 @@ final class Shell {
     var seekPlayer = false
     var seekPoint: V3?
     var gentle = false               // hurts, breaks no blocks (an auto-turret's shell: Wrecks.swift)
+    var parked: Float = -1           // seconds waiting where it struck for a shell chunk's blocks (World.dataReady); -1 flying
     init(pos: V3, vel: V3, owner: Int, power: Float) { self.pos = pos; self.vel = vel; self.owner = owner; self.power = power }
 }
 
@@ -135,7 +136,7 @@ extension ShipManager {
         let slug = Blocks.has("magma_block") ? Blocks.id("magma_block") : b
         let dart = Blocks.has("iron_block") ? Blocks.id("iron_block") : b
         let mac = Blocks.has("frigate_thruster") ? Blocks.id("frigate_thruster") : slug
-        for sh in shells {
+        for sh in shells where sh.parked < 0 {          // (a shot waiting where it struck is out of sight in it)
             switch sh.kind {
             case 1:
                 // P499: a rail slug, a thin white-blue bolt (its glowing line in the air is the wake, updateShells).
@@ -196,7 +197,7 @@ extension ShipManager {
                 if let g = game, Int(sh.age * 30) % 3 == 0 { g.particles.smoke(at: start, dark: false) }
             }
             // The Tidebreaker's slug leaves a glowing wake that hangs in the air for a moment.
-            if sh.kind == 3, let g = game {
+            if sh.kind == 3, sh.parked < 0, let g = game {
                 let layer = Int(Tex.id("puff"))
                 for k in 0..<3 {
                     let at = start + sh.vel * (dt * Float(k) / 3)
@@ -206,7 +207,7 @@ extension ShipManager {
                 }
             }
             // P499: a rail slug's line: glowing motes all along the stretch it covered this frame, fading over a second.
-            if sh.kind == 1, let g = game {
+            if sh.kind == 1, sh.parked < 0, let g = game {
                 let layer = Int(Tex.id("puff"))
                 let step = sh.vel * dt
                 let k = max(2, min(12, Int(simd_length(step) / 2)))
@@ -233,7 +234,9 @@ extension ShipManager {
             let n = max(1, Int(ceil(len / 0.4)))
             var hit: V3?
             var onHull = false
+            var before = start
             for i in 1...n {
+                if i > 1 { before = start + (end - start) * (Float(i - 1) / Float(n)) }
                 let p = start + (end - start) * (Float(i) / Float(n))
                 let bx = Int(floor(p.x)), bz = Int(floor(p.z))
                 if Blocks.collide[Int(reader.get(bx, Int(floor(p.y)), bz))] { hit = p; break }
@@ -260,7 +263,20 @@ extension ShipManager {
                 }
             }
             if near && hit == nil { hit = start }
+            // (Remington, Oct 31 09:34: "the round goes through buildings without damaging them"): struck out in the
+            // shell band, the shot waits just short of what it hit while the blocks there come back on the workers
+            // (a few frames), then flies that stretch again through the real blocks: it bursts on the building it met
+            // (or flies on where the shell's heights only said "stone up to here"). After refillWait it goes off anyway.
+            if let p = hit, !sh.gentle, sh.parked < ShipManager.refillWait, !world.dataReady(around: p, reach: blastReach(sh)) {
+                if sh.parked < 0 { sh.parked = 0; sh.pos = before } else { sh.parked += dt }
+                sh.age -= dt
+                keep.append(sh); continue
+            }
+            if let p = hit, !sh.gentle, !world.activeHere(p) {
+                world.heat(at: p, radius: Float(sh.kind == 3 ? Int(ceilf(max(MainGun.craterRadius * 1.5, Float(MainGun.craterDepth)))) + 11 : blastReach(sh) + 8), seconds: 20)
+            }
             if let p = hit { blasts.append((p, sh.power, sh.owner, onHull, sh.kind, sh.gentle, sh.vel)); continue }
+            sh.parked = -1
             sh.pos = end
             if sh.age < sh.life && sh.pos.y > -64 { keep.append(sh) }
         }
@@ -293,6 +309,17 @@ extension ShipManager {
                 // scratched paint, Quest round 4).
                 if onHull && from?.root.kinematic == true { blast(at: p, power: power * 1.5, game: g) }
             } else if !gentle { blast(at: p, power: power, game: nil) }
+        }
+    }
+
+    // How far from where a shot strikes its burst can change blocks: a rail slug's bore and its burst, a shell's
+    // blast. A Tidebreaker's slug waits only for the ground it strikes (its bowl waits for the rest: CraterJob).
+    static let refillWait: Float = 1.5
+    func blastReach(_ sh: Shell) -> Int {
+        switch sh.kind {
+        case 3: return 8
+        case 1: return ShipManager.railReach + Int(ceilf(sh.power * 2)) + 2
+        default: return Int(ceilf(sh.power * 2)) + 2
         }
     }
 

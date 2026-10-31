@@ -337,6 +337,7 @@ final class CraterJob {
     static let blocksPerFrame = 250
     static var initCost = ""                 // (MainGunTests)
     private var circuitsNear: Bool?
+    private var waitFrames = 0
     private var scanY = Int.min
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
 
@@ -380,6 +381,16 @@ final class CraterJob {
         if done { return true }
         let w = g.world
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
+        // (Oct 31: a far strike) The bowl and its scorch reach shell chunks round the impact (ChunkShells: blocks
+        // dropped past the active distance): they come back on the workers first and the bowl opens under the dust
+        // once they have (an edit refilled each one on the frame thread, 12-30 ms apiece); after 2 s it goes on anyway.
+        if waitFrames >= 0 {
+            if blocks != .max && waitFrames < 144 && !w.dataReady(around: center, reach: Int(ceilf(max(r * 1.5, Float(depth)))) + 3) {
+                waitFrames += 1
+                return false
+            }
+            waitFrames = -1
+        }
         if circuitsNear == nil {
             // Any circuit part within reach of the bowl or its scorch (a changed block marks neighbours up to 2 away)?
             // None: carve without the per-block circuit marks. 100k cells, straight through each chunk's array and

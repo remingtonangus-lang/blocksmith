@@ -17,6 +17,7 @@ import simd
 extension World {
     static var shells = ProcessInfo.processInfo.environment["BS_SHELLS"] != "0"
     static var hollowed = 0, refilled = 0, fromCache = 0          // (harness tallies)
+    static var refilledAtOnce = 0                                 // (of them on the frame thread: refillNow)
 
     // Chunks within this many (Chebyshev) of a player keep their data.
     var keepDataDistance: Int { min(activeDistance, renderDistance) + 2 }
@@ -40,13 +41,14 @@ extension World {
     func reshell() {
         guard World.shells else { return }
         var refill: [ChunkKey] = []
+        let now = CFAbsoluteTimeGetCurrent()
         for (k, c) in chunks {
             let (dx, dz) = shellOffset(k)
             if c.hollow {
                 if max(abs(dx), abs(dz)) <= keepDataDistance || c.needsMesh { refill.append(k) }
                 continue
             }
-            guard inShellBand(dx, dz), c.meshedOnce, !c.needsMesh, !c.meshInFlight else { continue }
+            guard inShellBand(dx, dz), c.meshedOnce, !c.needsMesh, !c.meshInFlight, now >= c.holdData else { continue }
             // A neighbour still to mesh reads this chunk's blocks.
             var ready = true
             for nz in -1...1 { for nx in -1...1 where nx != 0 || nz != 0 {
@@ -58,7 +60,7 @@ extension World {
         for k in refill { requestRefill(k) }
     }
 
-    private func hollow(_ c: Chunk, _ k: ChunkKey) {
+    func hollow(_ c: Chunk, _ k: ChunkKey) {
         if c.modified || c.fieldDirty {
             guard let save else { return }                 // (an unsaved world keeps edited chunks whole)
             if c.needsSave { save.saveChunkAsync(k, c.blocks) }
@@ -74,12 +76,38 @@ extension World {
     }
 
     // The data back, generated or loaded on a worker (World.update installs it into the shell).
-    func requestRefill(_ k: ChunkKey) { startGen(k) }
+    func requestRefill(_ k: ChunkKey, urgent: Bool = false) { startGen(k, urgent: urgent) }
+
+    // (Remington, Oct 31 09:34, the frigate's slug "goes through buildings without damaging them"): a shot that strikes
+    // out in the shell band breaks blocks there, and a shell's blocks came back at once on the frame thread (refillNow,
+    // a chunk's whole making: 12-30 ms each, up to 25 chunks for a Tidebreaker's bowl). The shot waits where it struck
+    // (ShipManager.updateShells) while the chunks within `reach` of p come back on the workers, ahead of the queue, and
+    // the ring round them (their meshes read it) right behind; all of them keep their blocks for `hold` seconds, so the
+    // carving, the remesh after it and what then falls there (World.heat) find them. True when every chunk within reach has its blocks.
+    func dataReady(around p: V3, reach: Int, hold: Double = 24) -> Bool {
+        let now = CFAbsoluteTimeGetCurrent()
+        let x = Int(floor(p.x)), z = Int(floor(p.z))
+        let x0 = floorDiv(x - reach, CS), x1 = floorDiv(x + reach, CS), z0 = floorDiv(z - reach, CS), z1 = floorDiv(z + reach, CS)
+        var ready = true
+        // (The work queue's front is last in, first out: the ring goes in first, the chunks within reach ahead of it.)
+        for pass in 0..<2 {
+            for qz in (z0 - 1)...(z1 + 1) { for qx in (x0 - 1)...(x1 + 1) {
+                let inner = qx >= x0 && qx <= x1 && qz >= z0 && qz <= z1
+                guard inner == (pass == 1), let c = chunks[ChunkKey(x: qx, z: qz)] else { continue }
+                c.holdData = max(c.holdData, now + hold)
+                guard c.hollow else { continue }
+                requestRefill(ChunkKey(x: qx, z: qz), urgent: true)
+                if inner { ready = false; strikeRefills.insert(ChunkKey(x: qx, z: qz)) }
+            } }
+        }
+        return ready
+    }
 
     // At once (an edit reaching a shell).
     @discardableResult func refillNow(_ c: Chunk) -> Chunk {
         guard c.hollow else { return c }
         let k = ChunkKey(x: c.cx, z: c.cz)
+        World.refilledAtOnce += 1
         refill(c, produceNow(k))
         return c
     }

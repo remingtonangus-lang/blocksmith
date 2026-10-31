@@ -345,6 +345,7 @@ final class Chunk {
         topSec = t
     }
     var modified = false
+    var holdData: Double = 0       // keeps its blocks (not made a shell) until this time: a far shot's blast (ChunkShells)
     var hollow = false {           // P376: a shell, its blocks, field and light dropped past the active distance (ChunkShells)
         didSet { if cullWatched { CullNotes.note(cx, cz) } }
     }

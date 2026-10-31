@@ -56,6 +56,8 @@ final class World {
     var activeCenter = V3(0, 0, 0)                  // the player, as of the last update (FarTicks.swift)
     var shellClock = 0
     var parked: [ChunkKey: [(IVec3, UInt8)]] = [:]  // P376: fluid (1 water, 2 lava) and falling (0) cells past the active distance
+    var hotZones: [(center: V3, r: Float, until: Double)] = []      // far strikes the world runs round for a while (FarTicks)
+    var strikeRefills = Set<ChunkKey>()             // shells a far strike waits on: handed over first (World.dataReady)
     lazy var meshCache: MeshCache? = World.shells ? save.flatMap { MeshCache(saveDir: $0.chunkDir) } : nil      // P376 (ChunkShells)
     var collapseQueue: [(IVec3, Int)] = [] // P351: carves to check for loose ground (GroundCollapse)
     var loadQueue: [IVec3] = []            // P388: structural changes whose piece carries its load next (Structure.tick)
@@ -1385,11 +1387,17 @@ final class World {
         let budget = World.handoverSeconds
         let nearMeshes = World.deterministic ? 0 : mr.partition { abs($0.0.x - center.x) > 6 || abs($0.0.z - center.z) > 6 }
         var gi = 0, mi = 0
+        // (P500: a shot waiting where it struck in the shell band, its chunks' blocks go in ahead of new land.)
+        if !strikeRefills.isEmpty && !World.deterministic && gr.count > 1 {
+            let refills = strikeRefills
+            _ = gr.partition { !refills.contains($0.0) }
+        }
         while gi < gr.count && (gi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
             let (k, p) = gr[gi]; gi += 1
             genInFlight.remove(k)
             jobs -= 1
             let ti = World.resultsProfile ? CFAbsoluteTimeGetCurrent() : 0
+            if !strikeRefills.isEmpty { strikeRefills.remove(k) }
             if let c = chunks[k] { if c.hollow { refill(c, p) }; World.noteResult(ti, "refill"); continue }
             if let e = p.cached { installShell(k, e); World.noteResult(ti, "shell from the cache"); continue }
             install(k, p)

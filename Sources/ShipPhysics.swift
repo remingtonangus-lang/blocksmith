@@ -31,6 +31,11 @@ struct ShipBlockReader {
         let cx = x >> 4, cz = z >> 4
         if cx != key.x || cz != key.z { key = ChunkKey(x: cx, z: cz); chunk = w.chunks[key] }
         guard let c = chunk else { return AIR }
+        // (Remington, Oct 31 09:34: the frigate's slug "goes through buildings without damaging them, just spawning a
+        // crater where it was aimed": past the active distance a chunk is a shell (ChunkShells) and its blocks read as
+        // air here, so a long shot flew through every building out there and struck the ground beyond. A shell reads
+        // as stone up to its heights, as World.block reads it.)
+        if c.hollow { return y <= Int(c.height[(x & 15) + (z & 15) * 16]) ? STONE : AIR }
         return c.blocks[(x & 15) + (z & 15) * 16 + y * 256]
     }
     // PG2 rewrite (field worlds): the built layer alone, and the ground's density (blocks, + inside).
@@ -40,6 +45,7 @@ struct ShipBlockReader {
         let cx = x >> 4, cz = z >> 4
         if cx != key.x || cz != key.z { key = ChunkKey(x: cx, z: cz); chunk = w.chunks[key] }
         guard let c = chunk else { return AIR }
+        if c.hollow { return AIR }                     // (World.builtBlock's answer; the shell's ground is its density)
         return c.blocks.raw((x & 15) + (z & 15) * 16 + y * 256)
     }
     @inline(__always) mutating func density(_ x: Int, _ y: Int, _ z: Int) -> Float {
@@ -48,6 +54,7 @@ struct ShipBlockReader {
         let cx = x >> 4, cz = z >> 4
         if cx != key.x || cz != key.z { key = ChunkKey(x: cx, z: cz); chunk = w.chunks[key] }
         guard let c = chunk else { return -4 }
+        if c.hollow { return y <= Int(c.height[(x & 15) + (z & 15) * 16]) ? 4 : -4 }
         return FieldTerrain.f(c.blocks.density((x & 15) + (z & 15) * 16 + y * 256))
     }
     // Trilinear between the cell centres (as the mesh draws it).
@@ -212,7 +219,7 @@ extension ShipManager {
             // Kinematic (AI-moved) ships don't need the ground under them loaded: they never touch it physically.
             // P376: past the active distance every ship sleeps, capital ships too (they wait in place, drawn).
             let activeR = Float(min(world.activeDistance, world.renderDistance) * CS + CS / 2)
-            s.asleep = !steered && (d > activeR || (!r.kinematic && !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z)))))
+            s.asleep = !steered && ((d > activeR && !world.hot(r.pos)) || (!r.kinematic && !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z)))))
             if !s.asleep { FarTicks.shipAwakeFar += d > activeR ? 1 : 0 }
             if !s.asleep && dt > 0 {
                 // Sky light the world has around the ship (top and middle of its bounds): ships darken under cover.

@@ -106,6 +106,10 @@ enum FactionTests {
             pitch = max(-Capital.maxPitch, want)
         }
         w.ships.pointHull(s, pitch: pitch)
+        // (P500: the citadel lies past the active distance from the helm, where chunks keep only their meshes and read as
+        // stone up to their heights: its blocks come back first, so the census below counts the citadel, not a shell.)
+        var warm = 0
+        while !w.dataReady(around: aim, reach: 30) && warm < 600 { w.update(center: g.player.pos); usleep(2000); warm += 1 }
         let shells0 = w.ships.shells.filter { $0.kind == 3 }.count
         let blasts0 = MainGun.impacts
         let fired = w.ships.playerMainGun(s, game: g)
@@ -137,9 +141,11 @@ enum FactionTests {
             if simd_length(d) < 6, id != 0, !Blocks.isLiquid(id), Blocks.hardness[Int(id)] >= 0 { left += 1 }
         } } }
         let off = hit.map { simd_length(V2($0.x - aim.x, $0.z - aim.z)) } ?? -1
-        check(hit != nil && off < 12 && removed > 300 && MainGun.lastCrater >= removed && left == 0,
-              String(format: "factions: a Tidebreaker slug from the helm craters the citadel (landed %.0f blocks from its centre; %d of %d blocks gone, %d left in the bowl, at %d,%d,%d)",
-                     off, removed, before, left, ix, iy, iz))
+        // (The bowl's own count: what then fell or toppled round it, now that the world runs round a far strike (P500),
+        // goes on top.)
+        check(hit != nil && off < 12 && removed > 300 && MainGun.lastCrater > 300 && left == 0,
+              String(format: "factions: a Tidebreaker slug from the helm craters the citadel (landed %.0f blocks from its centre; %d of %d blocks gone, %d of them the bowl's, %d left in the bowl, at %d,%d,%d)",
+                     off, removed, before, MainGun.lastCrater, left, ix, iy, iz))
     }
 
     static func structures(_ check: (Bool, String) -> Void) {
