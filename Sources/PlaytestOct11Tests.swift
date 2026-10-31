@@ -913,6 +913,7 @@ enum PlaytestOct11Tests {
         var segs: [Roads.Seg] = []
         for rz in -3...3 { for rx in -3...3 { for (dx, dz) in [(1, 0), (0, 1)] { if let sgm = Roads.segment(gen, rx, rz, dx, dz) { segs.append(sgm) } } } }
         var paved = 0, cols = 0, wet = 0
+        var bare: [String: Int] = [:]                      // the ground of the unpaved columns (for the log)
         if let sgm = segs.first {
             let mid = Roads.point(sgm, 0.5)
             let cx = floorDiv(Int(mid.x), CS), cz = floorDiv(Int(mid.y), CS)
@@ -935,6 +936,7 @@ enum PlaytestOct11Tests {
                     if gy <= SEA - 1 || Blocks.isLiquid(before[Chunk.index(lx, gy + 1, lz)]) { wet += 1; continue }
                     cols += 1
                     if (40..<(CH - 1)).contains(where: { surfaces.contains(w.get(x, $0, z)) && before[Chunk.index(lx, $0, lz)] != w.get(x, $0, z) }) { paved += 1 }
+                    else { bare[Blocks.key(before[Chunk.index(lx, gy, lz)]), default: 0] += 1 }
                 } }
             }
         }
@@ -986,7 +988,7 @@ enum PlaytestOct11Tests {
         BountyHunters.chancePerSecond = chance0
         let gunHunter = g.mobs.mobs.contains { $0.customName == BountyHunters.name && ($0.brain?.gun ?? -1) == Guns.revolver }   // (R21: the leader)
         check(segs.count >= 3 && cols > 0 && paved * 10 >= cols * 6 && mounted && robbedOK && posse >= 2 && gunmen && collected && gunHunter,
-              "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) dry road columns paved (\(wet) over water); a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)\(robWhy.isEmpty ? "" : ": " + robWhy)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
+              "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) dry road columns paved (\(wet) over water\(bare.isEmpty ? "" : "; unpaved on " + bare.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))); a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)\(robWhy.isEmpty ? "" : ": " + robWhy)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
     }
 
     // P49 horse items: half as much stamina again; a monster beside the horse makes it shy briefly (no throw, never at

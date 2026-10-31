@@ -31,9 +31,12 @@ enum HorseTests {
         let wasDim = g.dim.dim, mobs0 = g.mobs.mobs
         if g.dim.dim != .overworld { g.changeDimension(to: .overworld, at: g.spawnPoint) }
         g.player.pos = g.spawnPoint; g.player.vel = .zero; g.mobs.mobs = []
+        // (No volcano's boom on its way or eruption under way from the checks before: it startles a ridden horse.)
+        let eruption0 = g.eruption, booms0 = g.eruptionBooms
+        g.eruption = nil; g.eruptionBooms = []
         defer {
             if wasDim != g.dim.dim { g.changeDimension(to: wasDim, at: wasPos) }
-            g.mobs.mobs = mobs0
+            g.mobs.mobs = mobs0; g.eruption = eruption0; g.eruptionBooms = booms0
             g.riding = wasRiding; g.player.pos = wasPos; g.horseBond = wasBond; g.survival = wasSurvival
             g.vrAim = wasAim; g.paused = wasPaused
             g.player.moveYaw = nil; g.rideInput = MoveInput()
@@ -411,6 +414,9 @@ enum HorseTests {
             let held = g.inventory.held
             g.inventory.held = ItemStack(Items.id("apple"), 4)
             g.mobs.mobs.append(h); g.paused = false
+            // (A steady horse, back in the saddle: this is about where the treat is aimed. In the full run something in
+            // the tick startled the level-1 horse here and threw the rider: "ridden false, thrown 1".)
+            h.hs.bondXP = HorseFeel.levelXP[3]; mount(h)
             defer { g.mobs.mobs.removeAll { $0 === h }; g.paused = wasPaused }
             func press(_ pitch: Float) -> Float {
                 for i in 0..<60 {
@@ -426,7 +432,7 @@ enum HorseTests {
             }
             let ahead = press(0), down = press(-1.5)
             let ray = g.mobs.raycast(g.player.eye, g.player.look, maxDist: 4).map { $0.0 === h ? "the horse" : $0.0.kind.key } ?? "nothing"
-            let treatWhy = "ridden \(g.riding === h), tamed \(h.tamed), aimed at \(ray), menu \(g.menu == nil ? "none" : "open"), alive \(g.alive), held \(Items.key(g.inventory.held.item)) x\(g.inventory.held.count)"
+            let treatWhy = "ridden \(g.riding === h), thrown \(h.hs.thrown), eruption \(g.eruption != nil), tamed \(h.tamed), aimed at \(ray), menu \(g.menu == nil ? "none" : "open"), alive \(g.alive), held \(Items.key(g.inventory.held.item)) x\(g.inventory.held.count)"
             g.inventory.held = held
             g.eatProgress = 0
             check(ahead < 30 && down >= 40, String(format: "horse treats only when aimed at the horse: stamina 20 -> %.0f aimed ahead, -> %.0f aimed down at it", ahead, down)

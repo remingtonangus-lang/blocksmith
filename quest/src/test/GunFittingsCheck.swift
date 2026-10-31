@@ -70,8 +70,25 @@ enum GunFittingsCheck {
                 }
             }
         }
+        // The held gun is written into the frame's scratch ring with room for 2048 vertices (QuestControls.drawHeld):
+        // every gun with every upgrade fits, and no part reaches far past its gun's own box (a pistol's scope stands 3-4 px over it) (a stray part fanned out of
+        // the muzzle as a wedge would).
+        let every = Enchant.pack([(.stability, 3), (.extendedMag, 3), (.penetration, 1), (.quickReload, 2)])
+        for gi in Guns.all.indices where Guns.current(gi) == gi {
+            let parts = (Guns.models[gi] + Guns.upgradeParts(gi, every, magOut: false)).map(placed)
+            let verts = (parts.count + 1) * 36
+            if verts > 2048 { bad.append("\(Guns.all[gi].key) \(verts) vertices"); detail.append("\(Guns.all[gi].key): \(verts) vertices upgraded (room for 2048)") }
+            let base = Guns.models[gi].map(placed)
+            let lo = base.reduce(V3(repeating: .greatestFiniteMagnitude)) { simd_min($0, $1.mn) }, hi = base.reduce(-V3(repeating: .greatestFiniteMagnitude)) { simd_max($0, $1.mx) }
+            let reach = simd_length(hi - lo)
+            for (i, q) in parts.enumerated() where !(q.mn.x.isFinite && q.mx.x.isFinite && q.mn.y.isFinite && q.mx.y.isFinite && q.mn.z.isFinite && q.mx.z.isFinite)
+                || simd_length(simd_max(q.mx - hi, V3(repeating: 0))) > max(6, reach * 0.25) || simd_length(simd_max(lo - q.mn, V3(repeating: 0))) > max(6, reach * 0.25) {
+                bad.append("\(Guns.all[gi].key) part \(i) stray")
+                detail.append("\(Guns.all[gi].key) part \(i) " + String(format: "[%.1f %.1f %.1f .. %.1f %.1f %.1f] past the gun's own box", q.mn.x, q.mn.y, q.mn.z, q.mx.x, q.mx.y, q.mx.z))
+            }
+        }
         for line in detail { print("gunfittings: " + line) }
         print("gunfittings: \(bad.isEmpty ? "every held gun part and upgrade fitting touches the gun" : "loose: " + bad.joined(separator: ", "))")
-        check(bad.isEmpty, "P499: no held gun part or upgrade fitting floats clear of the gun (\(bad.count) loose)")
+        check(bad.isEmpty, "P499: no held gun part or upgrade fitting floats clear of the gun or strays past it, and every upgraded gun fits its 2048 vertices (\(bad.count) wrong)")
     }
 }
