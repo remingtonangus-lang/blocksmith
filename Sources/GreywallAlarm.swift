@@ -25,6 +25,7 @@ final class GreywallAlarmState {
         var consoles: [IVec3] = [], turrets: [IVec3] = [], flags: [IVec3] = []
         var cameras: [IVec3] = []                   // D35 security cameras (BaseSecurity.swift)
         var hold: Float = 0                         // seconds a player has held the command console of a cleared base
+        var silencedUntil: Double = 0               // P503: a panel switched the alarm off (no fresh alarm until then)
     }
     // A truck bringing a squad (in memory: a reload finds the road empty).
     struct Truck { let mob: Mob; let stop: V3; let out: V3; let squad: Int; let leash: String; let src: V3; var hunters: Faction? = nil; var t: Float = 0; var unloaded = false }
@@ -252,6 +253,7 @@ extension Game {
             if survival, trigger == nil, let p = players.first(where: { Greywall.inside(site, $0) }) {
                 if mobs.mobs.contains(where: { mine($0) && $0.aggro && $0.troopClass != .specOps && ($0.brain?.sees ?? false) }) { trigger = p }    // (Spec Ops hunt quietly)
             }
+            if clock < site.silencedUntil { trigger = nil }        // (P503: switched off at a panel)
             var fresh = false
             if let t = trigger {
                 site.quiet = 0
@@ -550,6 +552,29 @@ extension Game {
         onToast?("The \(site.tier.name) is yours")
         if Items.has("greywall_flag") { _ = inventory.add(ItemStack(Items.id("greywall_flag"), 1)) }   // O6: its flag, a trophy
         Legendaries.fortressTaken(self, site.tier)            // C10
+    }
+
+    // P503 (Oct 31 16:29:08 at a station's Alarm Panel: "I should be able to turn the alarm off too. Which I can't seem
+    // to"): using a panel while the alarm sounds switches it off: the lamps go dark, the klaxon and the calls for help
+    // stop, and it can't sound again for two minutes (the soldiers already after him keep fighting). Returns true when
+    // the click was the panel's.
+    static let panelSilence: Double = 120
+    func greywallPanelUse(_ p: IVec3) -> Bool {
+        let panel = Blocks.groupBase[Int(Blocks.id("alarm_panel"))]
+        guard Blocks.groupBase[Int(world.block(p.x, p.y, p.z))] == panel else { return false }
+        let st = greywallAlarm
+        guard let key = st.sites.first(where: { $0.value.panels.contains(p) || Greywall.inside($0.value, V3(Float(p.x), Float(p.y), Float(p.z)), pad: 4) })?.key,
+              var site = st.sites[key] else { return false }
+        guard site.on else { return false }
+        site.on = false
+        site.quiet = 0
+        site.silencedUntil = clock + Game.panelSilence
+        greywallLamps(&site, lit: false)
+        st.sites[key] = site
+        st.log.append("\(key) alarm off at a panel")
+        sfx(.buttonStone, 0.8, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+        onToast?("Alarm off")
+        return true
     }
 
     // The map table of a base the player holds marks every other Greywall base within 3,000 blocks on the map (the

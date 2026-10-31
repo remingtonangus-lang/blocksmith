@@ -96,6 +96,7 @@ final class QuestControls {
     private var l3Rode = false                  // the left stick click began while riding
     private var prevStickClickL = false
     private var clickSprint = false             // this stick click began with the stick pushed out: sprint, not sneak
+    private var sprintClickHeld: Float = 0      // (P503: how long that click has been held in)
     private var prevClickSprint = false         // (riding: one spur per click)
     private var sprintPulse = 0
     private var sprintCool: Float = 0
@@ -514,6 +515,7 @@ final class QuestControls {
         // D7: the off hand to the gun and gripped works a bolt, pump or hammer (GunActions); swing play only.
         GunActions.manual = QuestSettings.swingMode
         VRReload.buttonMode = QuestSettings.buttonReload                 // P286 (b)
+        VRReload.reclined = QuestSettings.reclined                       // P503
         // P301 (a): a pistol's slide: the off hand grips the rear serrations as drawn, pulls back along the barrel and lets
         // go (GunActions.slideTick). A tick in both hands as it takes, a hard stop at the back, a heavy clack home.
         if !inMenu && !bagGrip && !handGrab && game.heldGun != nil && L.gripValid && R.gripValid {
@@ -539,7 +541,7 @@ final class QuestControls {
         }
         if !inMenu && !bagGrip && !handGrab && !magGrip && game.heldGun != nil && L.gripValid && R.gripValid && lGrip && !prevGripL
             && !game.arms.magInHand && !GunActions.cocked
-            && VRReload.toGun(rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), forward: aimDir) < VRReload.wellReach + 0.08
+            && VRReload.toGun(rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), forward: aimDir) < GunActions.workReach
             && GunActions.work(game) {
             app.input.haptic(moveHand, amplitude: 0.8, seconds: 0.06, frequency: 110)
             app.input.haptic(aimHand, amplitude: 0.5, seconds: 0.05, frequency: 110)
@@ -661,6 +663,7 @@ final class QuestControls {
         // it sprints. Only a click with the stick near the centre sneaks (that click held sneaking, which blocks sprint).
         if L.stickClick && !prevStickClickL { clickSprint = simd_length(L.stick) > 0.45 }
         if !L.stickClick { clickSprint = false }
+        sprintClickHeld = clickSprint ? sprintClickHeld + dt : 0
         prevStickClickL = L.stickClick
         let sneakClick = L.stickClick && !clickSprint
         // Any seat that sneak leaves: a mount, a boat or cart, the ship's helm, a deck gun.
@@ -719,7 +722,10 @@ final class QuestControls {
         // P478 (Oct 27 19:32, flying in creative: "let's make a third speed mode in creative that makes me travel like 10
         // times as fast... if I hold down the right joystick"): flying in creative (not at a helm), the right stick held
         // in is hyper flight, ten times fast flight, the way he looks; the weapon wheel stays shut then.
-        let hyper = !game.survival && game.player.flying && game.world.ships.pilot == nil && game.riding == nil && R.stickClick && !inMenu
+        // P503 (Oct 31 16:24:49, "that ultra fast moving mode in creative hasn't been added. Trying to sprint [in] creative
+        // and holding down the joystick, nothing's happening"): the sprint click held in (0.4 s) goes hyper too.
+        let hyper = !game.survival && game.player.flying && game.world.ships.pilot == nil && game.riding == nil && !inMenu
+            && (R.stickClick || sprintClickHeld > 0.4)
         if hyper && !game.player.hyperFlight { app.input.haptic(aimHand, amplitude: 0.4, seconds: 0.05, frequency: 200) }
         game.player.hyperFlight = hyper
         p.rb = hyper ? false : R.stickClick

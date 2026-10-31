@@ -224,7 +224,9 @@ extension Game {
         // a forest's edge swapped the forest and plains tracks every few seconds with a 3.5 s fade. A calm state now has
         // to hold 12 s, a calm track keeps playing at least 45 s before another calm one takes over, and calm changes
         // crossfade over 8 s (6 s back from a fight). Fights, bosses and death still cut in at once.
-        let calmHold: Float = Soundtrack.urgent.contains(d.settled) ? 4 : 12
+        // P503 (Oct 31 16:24:40, "When you die, it shouldn't continue after you respawn. 'Cause you already respawned"):
+        // the death track hands over the moment he is back, fading out in 1.5 s (it held 4 s, then faded over 6).
+        let calmHold: Float = d.settled == "death" ? 0 : (Soundtrack.urgent.contains(d.settled) ? 4 : 12)
         if d.want != d.settled && (Soundtrack.urgent.contains(d.want) || d.heldFor >= calmHold) { d.settled = d.want }
         let want = d.settled
         guard !want.isEmpty, AudioSettings.volume(.music) > 0 else {
@@ -236,7 +238,7 @@ extension Game {
             if cur == want { return }                                   // never restart a track while its state goes on
             // A new state: crossfade (fights cut in quicker, and hand back over 4 s).
             if !Soundtrack.urgent.contains(want) && !Soundtrack.urgent.contains(cur) && !Soundtrack.looping.contains(cur) && d.playedFor < 45 { return }
-            let fade: Float = Soundtrack.urgent.contains(want) ? 1.5 : (Soundtrack.urgent.contains(cur) ? 6 : 8)
+            let fade: Float = Soundtrack.urgent.contains(want) || cur == "death" ? 1.5 : (Soundtrack.urgent.contains(cur) ? 6 : 8)
             start(want, fade: fade)
             return
         }

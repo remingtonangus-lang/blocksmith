@@ -795,6 +795,10 @@ enum Loot {
         // the Capital's do (on new ground; a chest is filled where it is built).
         "greywall_command": [(1...1, [("radar_module", 1, 1, 1)]), (1...1, [("greywall_keycard", 1, 1, 1)]), (1...1, [("ember_charge", 1, 1, 1)])],   // (+ D35 keycard)
         "greywall_vault": [(1...1, [("gold_block", 1, 2, 1)]), (1...1, [("ember_charge", 1, 2, 1)])],
+        // P503 (Oct 31 16:29:13 at a garrison's locked bulkhead: "there should be a key to unlock this door... If there is,
+        // I haven't seen it"): the keycards were the comms officer's and the command chest's, both behind the locked door
+        // they open. The barracks' and the mess's supply chests hold one too.
+        "greywall_supply": [(1...1, [("greywall_keycard", 1, 1, 1)])],
         // D33: each army's armour kit, one armoury chest in three (FactionArmour.swift).
         "greywall_armory": [(1...1, [("greywall_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],
         "steelhold_armory": [(1...1, [("capital_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],

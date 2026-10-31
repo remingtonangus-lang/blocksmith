@@ -179,6 +179,10 @@ enum TownVoice {
     // A line for this person in this context (never the same twice running for one voice). Nil: the voice has none
     // (always in the speaker's own voice: no borrowed lines that would have no take).
     private static var lastTake: [String: Int] = [:]
+    // P503 (Oct 31 16:15:06, "this chick literally just said the same line that another person said... So I don't think
+    // it's random"): Ezra Quill, then Ida Stroud, "Somebody's chickens got loose": a voice skipped only its own last take,
+    // and the same words are in every voice's book. The last 24 lines anyone said wait their turn.
+    private static var recentText: [String] = []
     // P58: "night" lines that only fit the evening (closing up, off to bed). Past dusk (late) they are skipped; a voice
     // left with none falls back to its closed lines (shops) or its greeting.
     static let eveningOnly: Set<String> = ["Kitchen's closing up.", "Last call, folks.", "Early start tomorrow. Off to bed.",
@@ -218,9 +222,13 @@ enum TownVoice {
             ids = ids.filter { !eveningOnly.contains(takes[$0].text) }
             if ids.isEmpty { return line(index[vk]?[.closed]?.isEmpty == false ? .closed : .greet, m, game: game) }
         }
+        let fresh = ids.filter { !recentText.contains(takes[$0].text) }
+        if !fresh.isEmpty { ids = fresh }
         var pick = ids[Rand.int(in: 0...(ids.count - 1))]
         if ids.count > 1 && pick == lastTake[vk] { pick = ids[(ids.firstIndex(of: pick)! + 1) % ids.count] }
         lastTake[vk] = pick
+        recentText.append(takes[pick].text)
+        if recentText.count > 24 { recentText.removeFirst() }
         return (takes[pick].text, pick)
     }
 

@@ -1073,7 +1073,12 @@ extension Mob {
                         // damage they do to the building should be the exact same amount of damage I do to the building
                         // when I shoot the gun"): a crew's heavy shell bursts and breaches as his own does (NavalGuns).
                         if !light && !flak { s.power = HeavyTurret.mannedPower; s.breach = HeavyTurret.mannedBreach }
-                        if light { s.power = 1.1 }
+                        // P503 (Oct 31 16:29:49, on a Greywall garrison's tower gun: "the enemy is still unable to damage the
+                        // tower I'm on. Still inflicting no damage. I obliterated his tower though"): a light gun's crew
+                        // fired 1.1 bursts that scarcely marked station concrete, where his shells from the same gun breach.
+                        // Its crew's shell now bursts and breaches as his does (P471's rule); the small AA mounts keep 1.1.
+                        if light && variant == HeavyTurret.lightVariant { s.power = HeavyTurret.mannedPower; s.breach = HeavyTurret.mannedBreach }
+                        else if light { s.power = 1.1 }
                         if flak { s.tracer = true }
                         g.arms.spawn(s)
                     }

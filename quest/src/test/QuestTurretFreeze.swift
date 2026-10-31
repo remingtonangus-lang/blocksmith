@@ -35,9 +35,6 @@ enum QuestTurretFreeze {
         g.player.pos = V3(-483.2, Float(126 + YOFF), -1259.8)
         _ = w.loadSync(center: g.player.pos, radius: rd)
         for _ in 0..<72 { g.tick(1.0 / 72) }                 // (the garrison comes in as the game admits it)
-        let guns = g.mobs.mobs.filter { $0.kind == .deckGun && $0.health > 0 }.sorted { simd_length($0.pos - g.player.pos) < simd_length($1.pos - g.player.pos) }
-        print("turretfreeze: rd \(rd), \(g.mobs.mobs.count) mobs, \(guns.count) deck guns" + (guns.first.map { String(format: ", the nearest %.0f blocks off at %.0f %.0f %.0f", simd_length($0.pos - g.player.pos), $0.pos.x, $0.pos.y - Float(YOFF), $0.pos.z) } ?? ""))
-        guard let gun = guns.first, simd_length(gun.pos - g.player.pos) < 40 else { print("FAIL turretfreeze: no deck gun by the note's spot"); return 1 }
         // The cause (P502): a shell fired above the horizon times out hundreds of blocks over the world's top and its
         // breach's bowl looped (an inverted row range, counted up through every Int on the unchecked build). Bursts over
         // the top, under the bottom and at a point that isn't one finish at once.
@@ -52,6 +49,16 @@ enum QuestTurretFreeze {
             print(String(format: "turretfreeze: a breach %@: done %@ in %d steps, %.1f ms", name, job.done ? "yes" : "no", steps, ms))
             if !job.done || ms > 250 { print("FAIL turretfreeze: a breach \(name) did not finish"); return 1 }
         }
+        // The gun he manned (his 16:18:41 note stood at -481 130.5 -1252, on it): up to 10 s more for the base's mobs.
+        let spot = V3(-481, Float(127 + YOFF), -1252)
+        func guns() -> [Mob] { g.mobs.mobs.filter { $0.kind == .deckGun && $0.health > 0 }.sorted { simd_length($0.pos - spot) < simd_length($1.pos - spot) } }
+        var wait = 0
+        while wait < 720 && (guns().first.map { simd_length($0.pos - spot) > 20 } ?? true) { g.tick(1.0 / 72); wait += 1 }
+        let all = guns()
+        print("turretfreeze: rd \(rd), \(g.mobs.mobs.count) mobs after \(72 + wait) ticks, deck guns at " + all.prefix(6).map { String(format: "%.0f %.0f %.0f", $0.pos.x, $0.pos.y - Float(YOFF), $0.pos.z) }.joined(separator: "; "))
+        guard let gun = all.first, simd_length(gun.pos - spot) < 80 else { print("FAIL turretfreeze: no deck gun within 80 blocks of the note's spot"); return 1 }
+        if simd_length(gun.pos - spot) > 20 { print(String(format: "turretfreeze: (his gun not here: the nearest, %.0f blocks off)", simd_length(gun.pos - spot))) }
+        g.player.pos = gun.pos + V3(0, 2, 0)
         Turrets.shared.mount(g, gun)
         let yaw0 = gun.yaw
         let spheres0 = World.sphereCalls, refills0 = World.refilledAtOnce

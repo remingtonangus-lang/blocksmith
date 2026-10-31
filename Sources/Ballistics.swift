@@ -531,7 +531,9 @@ final class Armory {
                 }
             }
         } else if player {
-            g.hurtPlayer(Int(damage), from: o, cause: "was vaporised by \(by)", knockback: 0.4, type: .projectile)
+            // P503 (Oct 31 16:21:02, a Capital arc gunner on normal, 4 a bolt through his Regular Armour Set: "this guy still
+            // needs to do more damage... maybe three times as much damage, this arc gun"): an enemy bolt 2.5 times as hard.
+            g.hurtPlayer(Int(damage * 2.5), from: o, cause: "was vaporised by \(by)", knockback: 0.4, type: .projectile)
             if g.survival { g.onFire = max(g.onFire, 2) }
         }
         for _ in 0..<5 {
