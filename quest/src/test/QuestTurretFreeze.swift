@@ -7,7 +7,7 @@ import Metal
 // fieldSphere until the ANR (16:19:45), and a second time for good. A Polygons world there with the base as the game
 // spawns it; the gun manned, swung round and fired as fast as it reloads into the buildings and ground near it, frame by
 // frame at 72 Hz. Reports the worst and average tick, the slowest stage, the open breaches and the blocks falling.
-//   questcheck --turretfreeze [--rd 6] [--seconds 30]
+//   questcheck --turretfreeze [--rd 6] [--seconds 45]
 enum QuestTurretFreeze {
     static func arg(_ k: String) -> String? {
         guard let i = CommandLine.arguments.firstIndex(of: k), i + 1 < CommandLine.arguments.count else { return nil }
@@ -20,7 +20,7 @@ enum QuestTurretFreeze {
         StructureCache.plansOffThread = true
         defer { StructureCache.plansOffThread = false }
         let rd = Int(arg("--rd") ?? "") ?? 6
-        let seconds = Double(arg("--seconds") ?? "") ?? 30
+        let seconds = Double(arg("--seconds") ?? "") ?? 45
         TextureGen.registerAll()
         let w = World(seed: 8775627479714902329, device: sharedSystemDevice, save: nil)
         FieldTerrain.newWorlds = true; w.makeFieldWorld()
@@ -69,12 +69,14 @@ enum QuestTurretFreeze {
         for f in 0..<frames {
             g.menu = nil
             g.health = 20; g.alive = true
-            // Swung back and forth over 120 degrees, a little down: into the base's buildings and the ground by it; the
-            // last third raised 8 to 20 degrees (at the towers and the sky over them: his shells that timed out up there).
+            // Swung back and forth over 120 degrees, a little down: into the base's buildings and the ground by it; from
+            // 20 s raised 8 to 20 degrees (at the towers and the sky over them: his shells that timed out up there).
             let t = Float(f) / 72
             g.player.yaw = yaw0 + sinf(t * 0.35) * 1.05
-            g.player.pitch = f < frames * 2 / 3 ? -0.08 - 0.06 * sinf(t * 0.9) : 0.24 + 0.1 * sinf(t * 0.9)
-            g.input.leftClicked = true
+            // (Then the last 14 s with the trigger let go: the raised shells' 12 s run out, over the world's top.)
+            let raised = f >= frames * 4 / 9
+            g.player.pitch = raised ? 0.24 + 0.1 * sinf(t * 0.9) : -0.08 - 0.06 * sinf(t * 0.9)
+            g.input.leftClicked = f < frames - 14 * 72
             let a = CFAbsoluteTimeGetCurrent()
             g.tick(1.0 / 72)
             let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
@@ -97,6 +99,7 @@ enum QuestTurretFreeze {
         print("turretfreeze: \(World.sphereCalls - spheres0) field spheres, \(World.refilledAtOnce - refills0) chunks refilled on the frame thread, \(CraterJob.outside - outside0) breaches outside the world")
         let slow = slowBy.sorted { $0.value > $1.value }.prefix(4).map { "\($0.key) x\($0.value)" }
         if !slow.isEmpty { print("turretfreeze:   slow frames led by " + slow.joined(separator: ", ")) }
+        if seconds >= 45 && CraterJob.outside == outside0 { print("FAIL turretfreeze: no shell burst over the world's top (the freeze's case not met)"); return 1 }
         let limit = ProcessInfo.processInfo.environment["BS_FREEZE_MS"].flatMap { Double($0) } ?? 250
         if worst > limit { print(String(format: "FAIL turretfreeze: a frame took %.1f ms on the gun (limit %.0f)", worst, limit)); return 1 }
         print("turretfreeze: passed")
