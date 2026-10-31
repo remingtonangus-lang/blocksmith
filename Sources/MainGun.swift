@@ -501,6 +501,22 @@ extension ShipManager {
         let col = (ready ? V3(0.45, 0.85, 1.0) : V3(0.9, 0.55, 0.2) * 0.6) * pulse
         let layer = Int(Tex.id("puff"))
         let R = MainGun.craterRadius
+        // A flat shot (flatter than 25 degrees down) drives its bowl on into what it strikes (CraterJob): the ring stands
+        // square to the barrel on the wall or hillside it meets, the size of the hole it will open there.
+        let d = simd_normalize(s.dirToWorld(st.mainGunDir))
+        if d.y > -0.42 {
+            let side = simd_normalize(simd_cross(d, V3(0, 1, 0)) + V3(1e-5, 0, 0))
+            let up = simd_cross(side, d)
+            let at = c - d * 1.5
+            for i in 0..<24 {
+                let a = Float(i) / 24 * 2 * .pi
+                g.particles.add(Particle(pos: at + side * (cosf(a) * R) + up * (sinf(a) * R), vel: .zero, life: dt * 1.5, maxLife: dt * 1.5,
+                                         layer: layer, uv0: V2(0, 0), uvSize: 1, size: size * 0.6, gravity: 0, color: col, collide: false, glow: true))
+            }
+            g.particles.add(Particle(pos: at, vel: .zero, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),
+                                     uvSize: 1, size: size * 1.4, gravity: 0, color: col, collide: false, glow: true))
+            return
+        }
         for i in 0..<20 {
             let a = Float(i) / 20 * 2 * .pi
             let x = c.x + cosf(a) * R, z = c.z + sinf(a) * R
