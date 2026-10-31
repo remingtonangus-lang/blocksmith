@@ -133,7 +133,14 @@ extension HorseTests {
                 ride(h, 3, 1, [10, 40])
                 why.append(String(format: "speed %.1f, ridden %@, gait %@, stamina %.0f, at %.1f,%.1f,%.1f (lane %.1f), ground %@",
                                   speed(h), g.riding === h ? "yes" : "no", h.hs.gait.name, h.stamina, h.pos.x, h.pos.y, h.pos.z, lane0.y,
-                                  h.onGround ? "yes" : "no"))
+                                  h.onGround ? "yes" : "no")
+                           + {
+                               let f = V3(-sinf(h.yaw), 0, -cosf(h.yaw))
+                               let a = h.pos + f * 0.9
+                               let col = (0...3).map { Blocks.key(g.world.block(Int(floor(a.x)), Int(floor(h.pos.y)) + $0, Int(floor(a.z)))) }
+                               let under = Blocks.key(g.world.block(Int(floor(a.x)), Int(floor(h.pos.y)) - 1, Int(floor(a.z))))
+                               return String(format: ", yaw %.2f, ahead ", h.yaw) + col.joined(separator: "/") + " over " + under
+                           }())
                 let z0 = h.pos.z
                 var n = 0
                 while speed(h) > 0.2 && n < 72 * 6 { g.rideInput = MoveInput(); h.update(dt, game: g); n += 1 }

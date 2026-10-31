@@ -34,6 +34,11 @@ enum HorseTests {
         // (No volcano's boom on its way or eruption under way from the checks before: it startles a ridden horse.)
         let eruption0 = g.eruption, booms0 = g.eruptionBooms
         g.eruption = nil; g.eruptionBooms = []
+        // (Nor a craft an earlier check left over the spawn: its hull is solid to a horse. In the full run the sliding
+        // stop's gallop halted 3 blocks into an empty strip, nothing in the blocks ahead.)
+        let craft = w.ships.list.filter { $0.root === $0 && simd_length(V2($0.pos.x - g.spawnPoint.x, $0.pos.z - g.spawnPoint.z)) < 160 }
+        if !craft.isEmpty { print("horsetests: \(craft.count) craft over the strip, removed: " + craft.map { "\($0.root.name) at y \(Int($0.pos.y))" }.joined(separator: ", ")) }
+        for s in craft where w.ships.list.contains(where: { $0 === s }) { w.ships.remove(s) }
         defer {
             if wasDim != g.dim.dim { g.changeDimension(to: wasDim, at: wasPos) }
             g.mobs.mobs = mobs0; g.eruption = eruption0; g.eruptionBooms = booms0

@@ -346,6 +346,19 @@ enum TownTests {
             let f = ground(b.x + 3, b.z)
             if abs(f.y - b.y) < 0.5 && w.canSee(b + V3(0, 1.6, 0), f + V3(0, 1.6, 0)) { base = b; foeAt = f; break }
         }
+        // (A clear stone yard round the spot, put back after: an elder cornered by whatever ground the checks before left
+        // the player on got 3.6 blocks from the zombie where open ground gives 8.)
+        let bx = Int(floor(base.x)), by = Int(floor(base.y)), bz = Int(floor(base.z))
+        var was: [(Int, Int, Int, BlockID)] = []
+        for dz in -12...12 { for dx in -12...12 { for dy in -1...3 { was.append((bx + dx, by + dy, bz + dz, w.block(bx + dx, by + dy, bz + dz))) } } }
+        defer { for (x, y, z, b) in was { w.setBlock(x, y, z, b) } }
+        w.deferRemesh = true
+        for dz in -12...12 { for dx in -12...12 {
+            w.setBlock(bx + dx, by - 1, bz + dz, STONE)
+            for dy in 0...3 { w.setBlock(bx + dx, by + dy, bz + dz, AIR) }
+        } }
+        w.deferRemesh = false
+        foeAt.y = base.y
         g.mobs.mobs.removeAll()
         let farmer = Mob(.villager, at: base); farmer.home = base
         var fv = VillagerData(); fv.profession = "farmer"; fv.locked = true; farmer.villager = fv

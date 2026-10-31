@@ -459,6 +459,9 @@ enum PlaytestOct12Tests {
         z0.health = 200
         g.mobs.mobs.append(z0)
         var deck = 0
+        // (Only this turret's shells: one left in flight by an earlier check burst on the deck's edge, a few cells a run.)
+        if !w.ships.shells.isEmpty { print("P93: \(w.ships.shells.count) shells left in flight before the turret, cleared") }
+        w.ships.shells.removeAll()
         for z in (fz - 4)...(fz + 4) { for x in (fx - 2)...(fx + 20) where w.block(x, py, z) == STONE { deck += 1 } }
         for _ in 0..<(72 * 6) {
             z0.pos = V3(Float(fx + 16) + 0.5, Float(py + 1), Float(fz) + 0.5); z0.vel = .zero
