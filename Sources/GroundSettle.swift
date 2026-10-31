@@ -136,7 +136,7 @@ enum GroundSettle {
         let w = g.world
         let R = r + 2
         var bases: [IVec3] = []
-        for y in max(1, p.y - R)...min(CH - 2, p.y + R + 2) { for z in (p.z - R)...(p.z + R) { for x in (p.x - R)...(p.x + R) {
+        for y in stride(from: max(1, p.y - R), through: min(CH - 2, p.y + R + 2), by: 1) { for z in (p.z - R)...(p.z + R) { for x in (p.x - R)...(p.x + R) {
             let b = w.builtBlock(x, y, z)
             guard b != AIR, !Blocks.isLiquid(b) else { continue }
             let q = IVec3(x, y, z)

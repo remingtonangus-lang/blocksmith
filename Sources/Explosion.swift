@@ -344,6 +344,7 @@ final class CraterJob {
     private(set) var done = false
     static let blocksPerFrame = 250
     static var initCost = ""                 // (MainGunTests)
+    static var outside = 0                   // (P502: breaches burst outside the world, questcheck --turretfreeze)
     private var circuitsNear: Bool?
     private var waitFrames = 0
     private var scanY = Int.min
@@ -388,6 +389,9 @@ final class CraterJob {
     func step(_ g: Game, blocks: Int) -> Bool {
         if done { return true }
         let w = g.world
+        // P502: a breach burst wholly over the world's top (a deck gun's shell timed out in the sky) or under it, or at
+        // a point that isn't one, has nothing to carve, scorch or wait for.
+        guard World.reachesWorld(center, max(r * 1.5, Float(depth)) + 4) else { done = true; CraterJob.outside &+= 1; return true }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
         // (Oct 31: a far strike) The bowl and its scorch reach shell chunks round the impact (ChunkShells: blocks
         // dropped past the active distance): they come back on the workers first and the bowl opens under the dust

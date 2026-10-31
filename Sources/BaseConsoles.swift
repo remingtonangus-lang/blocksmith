@@ -160,7 +160,7 @@ extension Game {
         var doors: [IVec3] = [], open = 0
         let r = BaseConsoles.reach
         for x in (p.x - r)...(p.x + r) { for z in (p.z - r)...(p.z + r) where world.isLoaded(x, z) {
-            for y in max(0, p.y - 16)...min(CH - 1, p.y + 16) {
+            for y in stride(from: max(0, p.y - 16), through: min(CH - 1, p.y + 16), by: 1) {
                 let b = world.block(x, y, z)
                 guard Blocks.shape[Int(b)] == "door" else { continue }
                 let st = Int(b - Blocks.groupBase[Int(b)])

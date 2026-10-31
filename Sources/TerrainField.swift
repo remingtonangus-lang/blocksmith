@@ -122,7 +122,7 @@ extension World {
         let reach = r + 1.5
         let lo = IVec3(Int(floor(c.x - reach)), max(0, Int(floor(c.y - reach))), Int(floor(c.z - reach)))
         let hi = IVec3(Int(floor(c.x + reach)), min(CH - 1, Int(floor(c.y + reach))), Int(floor(c.z + reach)))
-        guard lo.y <= hi.y else { return 0 }
+        guard lo.y <= hi.y, World.reachesWorld(c, reach) else { return 0 }      // (P502: and a point that is one)
         let natT = SmoothTerrain.natural, opaqueT = Blocks.opaque
         var gone: [(IVec3, BlockID)] = []
         var caps: [(IVec3, Float)] = []

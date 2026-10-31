@@ -38,19 +38,35 @@ enum QuestTurretFreeze {
         let guns = g.mobs.mobs.filter { $0.kind == .deckGun && $0.health > 0 }.sorted { simd_length($0.pos - g.player.pos) < simd_length($1.pos - g.player.pos) }
         print("turretfreeze: rd \(rd), \(g.mobs.mobs.count) mobs, \(guns.count) deck guns" + (guns.first.map { String(format: ", the nearest %.0f blocks off at %.0f %.0f %.0f", simd_length($0.pos - g.player.pos), $0.pos.x, $0.pos.y - Float(YOFF), $0.pos.z) } ?? ""))
         guard let gun = guns.first, simd_length(gun.pos - g.player.pos) < 40 else { print("FAIL turretfreeze: no deck gun by the note's spot"); return 1 }
+        // The cause (P502): a shell fired above the horizon times out hundreds of blocks over the world's top and its
+        // breach's bowl looped (an inverted row range, counted up through every Int on the unchecked build). Bursts over
+        // the top, under the bottom and at a point that isn't one finish at once.
+        for (name, at) in [("over the top", V3(-483, Float(CH + 200), -1260)), ("under the bottom", V3(-483, -60, -1260)),
+                           ("at a non-point", V3(.nan, 200, .infinity)), ("just over the top", V3(-483, Float(CH) + 5.2, -1260))] {
+            let job = CraterJob(at: at, radius: NavalGuns.breachRadius, cap: NavalGuns.breachCap, game: g, quiet: true, depth: Int(NavalGuns.breachRadius))
+            let t0 = CFAbsoluteTimeGetCurrent()
+            var steps = 0
+            while !job.done && steps < 400 && CFAbsoluteTimeGetCurrent() - t0 < 5 { job.step(g, blocks: 150); steps += 1 }
+            _ = w.carve(at: at, radius: 4.7, mode: .shape)
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            print(String(format: "turretfreeze: a breach %@: done %@ in %d steps, %.1f ms", name, job.done ? "yes" : "no", steps, ms))
+            if !job.done || ms > 250 { print("FAIL turretfreeze: a breach \(name) did not finish"); return 1 }
+        }
         Turrets.shared.mount(g, gun)
         let yaw0 = gun.yaw
         let spheres0 = World.sphereCalls, refills0 = World.refilledAtOnce
         var worst = 0.0, sum = 0.0, n = 0, over = 0, worstStage = "-", maxBreaches = 0, maxFalling = 0
         var slowBy: [String: Int] = [:]
+        let outside0 = CraterJob.outside
         let frames = Int(seconds * 72)
         for f in 0..<frames {
             g.menu = nil
             g.health = 20; g.alive = true
-            // Swung back and forth over 120 degrees, a little down: into the base's buildings and the ground by it.
+            // Swung back and forth over 120 degrees, a little down: into the base's buildings and the ground by it; the
+            // last third raised 8 to 20 degrees (at the towers and the sky over them: his shells that timed out up there).
             let t = Float(f) / 72
             g.player.yaw = yaw0 + sinf(t * 0.35) * 1.05
-            g.player.pitch = -0.08 - 0.06 * sinf(t * 0.9)
+            g.player.pitch = f < frames * 2 / 3 ? -0.08 - 0.06 * sinf(t * 0.9) : 0.24 + 0.1 * sinf(t * 0.9)
             g.input.leftClicked = true
             let a = CFAbsoluteTimeGetCurrent()
             g.tick(1.0 / 72)
@@ -71,7 +87,7 @@ enum QuestTurretFreeze {
         }
         print(String(format: "turretfreeze: %d shots; worst %.1f ms (%@), average %.1f ms, %d of %d frames over 20 ms; at most %d breaches open, %d blocks falling",
                      Turrets.shared.shots, worst, worstStage, sum / Double(max(1, n)), over, n, maxBreaches, maxFalling))
-        print("turretfreeze: \(World.sphereCalls - spheres0) field spheres, \(World.refilledAtOnce - refills0) chunks refilled on the frame thread")
+        print("turretfreeze: \(World.sphereCalls - spheres0) field spheres, \(World.refilledAtOnce - refills0) chunks refilled on the frame thread, \(CraterJob.outside - outside0) breaches outside the world")
         let slow = slowBy.sorted { $0.value > $1.value }.prefix(4).map { "\($0.key) x\($0.value)" }
         if !slow.isEmpty { print("turretfreeze:   slow frames led by " + slow.joined(separator: ", ")) }
         let limit = ProcessInfo.processInfo.environment["BS_FREEZE_MS"].flatMap { Double($0) } ?? 250
