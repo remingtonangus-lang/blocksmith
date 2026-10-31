@@ -1970,6 +1970,11 @@ if CommandLine.arguments.contains("--lift") {
     LiftCheck.run(game, check)
     print(failures == 0 ? "lift: all checks passed" : "lift: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --cratermesh: a far crater's laid-open rock meshes (Sources/BuriedOpenCheck.swift).
+if CommandLine.arguments.contains("--cratermesh") {
+    BuriedOpenCheck.run(game, check)
+    print(failures == 0 ? "cratermesh: all checks passed" : "cratermesh: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --tipcheck: P503, a piece shot out from under it tips and falls (Sources/StructureTip.swift).
 if CommandLine.arguments.contains("--tipcheck") {
     StructureTipCheck.run(game, check)
@@ -2922,6 +2927,7 @@ leaves("greywall") { if !CommandLine.arguments.contains("--no-greywall") { Greyw
 leaves("troopclasses") { TroopTests.run(game: game, check: check) }
 leaves("lift") { LiftCheck.run(game, check) }
 leaves("tip") { StructureTipCheck.run(game, check) }
+leaves("cratermesh") { BuriedOpenCheck.run(game, check) }
 leaves("navy") { NavyTests.run(game: game, check: check) }
 leaves("skiff") { SkySkiffTests.run(game: game, check: check) }
 leaves("mapfog") { MapFogTests.run(game: game, check: check) }

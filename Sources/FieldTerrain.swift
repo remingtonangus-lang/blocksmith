@@ -529,6 +529,7 @@ extension World {
                         flipped.append(IVec3(x, y, z))
                         c.modified = true
                         c.recomputeHeight(mod(x, CS), mod(z, CS))
+                        if !now { groundOpened(c, y) }                  // (the rock a bowl lays open is not buried)
                     } else {
                         c.blocks.setDensity(i, q, material: nil, follow: false)
                         c.modified = true

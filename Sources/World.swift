@@ -515,11 +515,7 @@ final class World {
         if old != id { queueSupportChecks(x, y, z, old, id); queueLoadCheck(x, y, z, old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
-        // P440: ground taken out under the lowest surface opens the buried sections round it.
-        if wasGround && !c.blocks.ground(Chunk.index(lx, y, lz)) && y - 1 < c.groundLow {
-            c.lowerGround(to: y - 1)
-            for dz in -1...1 { for dx in -1...1 { if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] { undeferBuried(n) } } }
-        }
+        if wasGround && !c.blocks.ground(Chunk.index(lx, y, lz)) { groundOpened(c, y) }
         let newH = Int(c.height[lx + lz * CS])
         var sync: [(Chunk, Int)] = []
         // Smooth vertices move with blocks up to 2 away (relaxing carries it 1 more a pass: those sections remesh in the
@@ -617,6 +613,7 @@ final class World {
         c.modified = true
         let oldH = Int(c.height[lx + lz * CS])
         c.recomputeHeight(lx, lz)
+        if wasGround && !c.blocks.ground(Chunk.index(lx, y, lz)) { groundOpened(c, y) }      // (a crater's cells: below)
         let newH = Int(c.height[lx + lz * CS])
         // P283: a change that leaves the light as it was (the same light-blocking and glow, the column's top where it
         // was) only redraws the sections within two blocks of it. Grass creeping onto dirt and dying back under cover,
@@ -1628,6 +1625,16 @@ final class World {
         m.vis = 0
         apply(m, to: c, sy: sy, version: s.version)
         if !s.deferred { s.deferred = true; c.deferredBuried += 1; deferredTotal += 1 }
+    }
+
+    // P440: ground taken out under the lowest surface opens the buried sections round it (World.setBlock,
+    // setBlockAsync, fieldSphere). Store media (Oct 31): a Tidebreaker crater 60 blocks off stayed a hole to the sky
+    // for good: a crater takes its cells out through setBlockAsync and its bowl through fieldSphere, which never
+    // lowered the chunk's lowest ground, so the rock it laid open was taken for buried and its sections stayed unmeshed.
+    func groundOpened(_ c: Chunk, _ y: Int) {
+        guard y - 1 < c.groundLow else { return }
+        c.lowerGround(to: y - 1)
+        for dz in -1...1 { for dx in -1...1 { if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] { undeferBuried(n) } } }
     }
 
     // A chunk's deferred sections mesh again (he came near, went underground, or the ground under them was opened).

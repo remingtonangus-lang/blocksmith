@@ -54,7 +54,7 @@ extension MainGunTests {
             sh.gravity = 0; sh.kind = kind; sh.life = 3.5
             w.ships.shells = [sh]
             var probe = ShipBlockReader(w)
-            let seen = probe.get(x, top, z)
+            let seen = probe.get(x, top, z)              // (solid ground: stone, or grass grown over it since the world began)
             var hitAt: V3? = nil, waited = 0, frames = 0, waitMs = 0.0
             // The cells within 3 of the aim, as generated (read once the shell's blocks are back).
             var box: [IVec3] = []
@@ -81,7 +81,7 @@ extension MainGunTests {
             let removed = before.map { b in zip(b, box.map { w.block($0.x, $0.y, $0.z) }).filter { $0 != AIR && $1 == AIR }.count } ?? -1
             let off = kind == 3 ? simd_length(MainGun.lastImpact - aim) : 0
             let name = kind == 3 ? "a Tidebreaker slug" : "a rail slug"
-            check(hollow0 && seen == STONE && hitAt != nil && off < 4 && removed >= (kind == 3 ? 20 : 5) && (kind != 3 || MainGun.impacts == impacts0 + 1),
+            check(hollow0 && seen != AIR && Blocks.collide[Int(seen)] && hitAt != nil && off < 4 && removed >= (kind == 3 ? 20 : 5) && (kind != 3 || MainGun.impacts == impacts0 + 1),
                   String(format: "far strike: %@ fired at a shell chunk's ground stops on it and breaks it (%d of the %d cells %@ broken; impact %.1f blocks off; %d frames, %.0f ms, waiting for its blocks; a shell reads %@ under its heights)",
                          name, removed, box.count, kind == 3 ? "within 3 of the aim" : "along its line in from the aim", off, waited, waitMs, Blocks.key(seen)))
             check(!c.hollow && World.refilledAtOnce == at0,
