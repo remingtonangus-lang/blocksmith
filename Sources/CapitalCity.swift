@@ -673,7 +673,7 @@ enum CapitalCity {
             }
             let tx = bx0 + 4, tz = (bz0 + bz1) / 2
             put(tx, Y + 1, tz, g("birch_planks")); put(tx + 1, Y + 1, tz, g("birch_planks")); put(tx, Y + 2, tz, g("flower_pot"))
-            put(tx, Y + 1, tz - 1, g("oak_chair[south]")); put(tx + 1, Y + 1, tz + 1, g("oak_chair[north]"))
+            put(tx, Y + 1, tz - 1, g("oak_chair[south]")); put(tx + 1, Y + 1, tz + 1, g("oak_chair"))   // (north is the plain name: "[north]" was no block, a stone stood there)
             for z in stride(from: bz0 + 6, through: bz1 - 4, by: 1) { put(bx0 + 1, Y + 1, z, g("bookshelf")) }
         }
     }

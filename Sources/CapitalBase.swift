@@ -240,7 +240,7 @@ enum CapitalBase {
                 }
                 put(bx, P1 + 1, bz + 3, AIR); put(bx, P1 + 2, bz + 3, AIR); put(bx, P1 + 1, bz + 4, AIR)
                 put(bx, P1 + 1, bz - 2, C)
-                put(bx, P1 + 1, bz - 1, g("oak_chair[north]", AIR))
+                put(bx, P1 + 1, bz - 1, g("oak_chair", AIR))       // (a four-facing block's north state is its plain name)
                 put(bx + 1, P1 + 4, bz + 1, L)
                 w.mob("soldier_trooper:operator^0", V3(Float(X(bx)) + 0.5, Float(P1 + 1), Float(Z(bz - 1)) + 0.5))
             }
