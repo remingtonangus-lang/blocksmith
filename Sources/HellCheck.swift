@@ -256,8 +256,11 @@ enum HellCheck {
             }
             return seen
         }
+        // (P506 added hell's wildlife: herds of cinderhorn, ember asps, slagmaws. They belong there too.)
+        let wild: Set<String> = [MobKind.cinderhorn.key, MobKind.emberAsp.key, MobKind.slagmaw.key]
+        let ownWild = own.union(wild)
         let ember = sample(game, base: YOFF, height: 128)
-        check(!ember.isEmpty && ember.keys.allSatisfy { own.contains($0) }, "Emberdeep spawns: \(ember.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
+        check(!ember.isEmpty && ember.keys.allSatisfy { ownWild.contains($0) }, "Emberdeep spawns: \(ember.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
         let deep = World(seed: 4242, device: device, save: nil, dim: .deep)
         deep.renderDistance = 5
         let dg = Game(world: deep, save: nil, persistent: false)
@@ -267,7 +270,7 @@ enum HellCheck {
         _ = deep.loadSync(center: dat, radius: 5)
         dg.mobs.mobs.removeAll()
         let hell = sample(dg, base: DeepGen.hellBase, height: DeepGen.hellHeight)
-        check(!hell.isEmpty && hell.keys.allSatisfy { own.contains($0) }, "Deep hell band spawns: \(hell.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
+        check(!hell.isEmpty && hell.keys.allSatisfy { ownWild.contains($0) }, "Deep hell band spawns: \(hell.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
 
         print(String(format: "hellcheck: %d failed (%.1f s)", fails, CFAbsoluteTimeGetCurrent() - t0))
         return fails == 0 ? 0 : 1

@@ -2652,10 +2652,30 @@ final class MobManager {
         let t = CFAbsoluteTimeGetCurrent()
         stages.append(("\(name)", (t - stageT) * 1000)); stageT = t
     }
+    // The body loop's own work round each update (summed over the bodies, by part), and its slowest single piece.
+    static var partT = 0.0
+    static var parts: [(String, Double)] = []
+    static var worstPart = ""
+    static var worstPartMs = 0.0
+    @inline(__always) static func part(_ name: StaticString, _ m: Mob) {
+        guard profileOn else { return }
+        let t = CFAbsoluteTimeGetCurrent(), d = (t - partT) * 1000
+        partT = t
+        let k = "\(name)"
+        if let i = parts.firstIndex(where: { $0.0 == k }) { parts[i].1 += d } else { parts.append((k, d)) }
+        if d > worstPartMs { worstPartMs = d; worstPart = String(format: "%@ %.1f (%@)", k, d, m.kind.key) }
+    }
+    static var partSummary: String {
+        let big = parts.filter { $0.1 >= 0.5 }.sorted { $0.1 > $1.1 }.map { String(format: "%@ %.1f", $0.0, $0.1) }
+        return big.isEmpty ? "" : big.joined(separator: ", ") + "; slowest piece " + worstPart
+    }
     func update(_ dt: Float, game: Game) {
         let pOn = MobManager.profileOn
         var pT = pOn ? CFAbsoluteTimeGetCurrent() : 0
-        if pOn { MobManager.prof = (0, 0, 0, 0, 0, 0, "-", mobs.count); MobManager.worstStages = "" }
+        if pOn {
+            MobManager.prof = (0, 0, 0, 0, 0, 0, "-", mobs.count); MobManager.worstStages = ""
+            MobManager.parts.removeAll(keepingCapacity: true); MobManager.worstPart = ""; MobManager.worstPartMs = 0
+        }
         func pMark(_ k: Int) {
             guard pOn else { return }
             let t = CFAbsoluteTimeGetCurrent(), d = (t - pT) * 1000
@@ -2684,14 +2704,18 @@ final class MobManager {
         Mob.keepClearOf = bodyOn ? p : nil
         lodFrame &+= 1
         pMark(0)
+        if pOn { MobManager.partT = CFAbsoluteTimeGetCurrent() }
         for m in mobs where game.seatOwns(m.pos) {
+            MobManager.part("skipped", m)                   // (since the last mark: a skipped body's checks)
             if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
+            MobManager.part("town", m)
             let before = m.pos, wasGround = m.onGround
             if m.hitStop > 0 { m.hitStop -= dt; continue }      // frozen by a landed blade (VRCombatFeel.swift)
             // P339: past the active distance a mob stands in its last pose (drawn, never ticked).
             // (P376: a deck crew past it too: its ship sleeps there, ShipPhysics.)
             if !w.activeHere(m.pos) && game.riding !== m && !MobManager.inFiringReach(m, of: p, w) { continue }
             FarTicks.note(w, m.pos)
+            MobManager.part("active", m)
             // P283: far calm mobs on a slower beat (the time they missed is handed over when their turn comes).
             let every = MobManager.lodEvery(m, distSq: simd_length_squared(m.pos - p), game: game)
             if every > 1 {
@@ -2707,6 +2731,7 @@ final class MobManager {
                 m.fieldSettled = true
                 if w.fieldTerrain, m.deck == nil, m.mount == nil, m.kind != .minecart, m.kind != .boat, let h = w.restHeight(m.pos, halfW: min(0.3, m.halfW), up: 1, depth: 1) { m.pos.y = h }
             }
+            MobManager.part("settle", m)
             w.playerBox = bodyOn && game.riding !== m && m.deck == nil && m.mount == nil && MobManager.bodySolid(m.kind) ? pBox : nil
             let mt0 = pOn ? CFAbsoluteTimeGetCurrent() : 0
             if pOn { MobManager.stages.removeAll(keepingCapacity: true); MobManager.stageT = mt0 }
@@ -2720,11 +2745,13 @@ final class MobManager {
                 }
             }
             w.playerBox = nil
+            if pOn { MobManager.partT = CFAbsoluteTimeGetCurrent() }
             // Smooth worlds (P142): mobs near the player stand on the drawn ground, not the block steps under it (U1: out
             // to 96 blocks, where a herd on a hillside still read as hovering; the 4 column heights are cached per cell).
             let gnd: Float = (SmoothTerrain.enabled || w.fieldTerrain) && m.onGround && simd_length_squared(m.pos - p) < 96 * 96
                 ? w.smoothGroundOffset(m.pos, key: &m.groundKey, heights: &m.groundH) : 0
             m.easeStep(fromY: before.y, wasGround: wasGround, mdt, ground: gnd)
+            MobManager.part("ground", m)
             // NaN quarantine: a non-finite position, velocity or facing reaches Int(floor(...)) in the chunk and unload
             // checks (undefined in the -Ounchecked build) and makes the mob save fail as a whole. Put it back where it was.
             let sane: Bool = m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite && m.vel.x.isFinite && m.vel.y.isFinite && m.vel.z.isFinite
@@ -2780,6 +2807,7 @@ final class MobManager {
                     }
                 }
             }
+            MobManager.part("steps", m)
             if m.teleportSound {
                 m.teleportSound = false
                 game.sfx(.teleport, 0.9, at: before + V3(0, 1, 0))
@@ -2808,6 +2836,7 @@ final class MobManager {
                     game.sfx(m.baby ? .babyMob(m.kind, .ambient) : .mob(m.kind, .ambient), vol, at: m.pos + V3(0, m.height * 0.8, 0))
                 }
             }
+            MobManager.part("voices", m)
         }
         pMark(1)
         if second { spawnTick(dt, game); return }

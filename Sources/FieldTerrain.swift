@@ -285,6 +285,20 @@ enum FieldTerrain {
                             || lx > 0 && owned(i - 1) || lx < CS - 1 && owned(i + 1)
                             || lz > 0 && owned(i - CS) || lz < CS - 1 && owned(i + CS) { d = min(d, 0.5) }
                     }
+                    // P508 (the store trailer's Boreal Station gate: a dark slit under the yard's edge; white specks at the
+                    // foot of walls and wells): ground beside a block a structure built that stands on its floor came up
+                    // a little short of that floor (the generator's slope), so a sliver opened under the block's bottom
+                    // edge. The ground cell under such a block, the ground cells beside that one, and the open cells over
+                    // those now put the surface at the block's floor (or above it, banked against the block's side).
+                    func kept(_ j: Int) -> Bool { built[j] != 0 && fd[j] <= 0 && World.restsOnFloor[Int(b[j])] }
+                    if s && y < CH - 1 {
+                        let a = i + CSQ
+                        if kept(a) || lx > 0 && kept(a - 1) || lx < CS - 1 && kept(a + 1)
+                            || lz > 0 && kept(a - CS) || lz < CS - 1 && kept(a + CS) { d = max(d, 0.5) }
+                    } else if !s && y > 0 && fd[i - CSQ] > 0 && built[i] == 0 {
+                        if lx > 0 && kept(i - 1) || lx < CS - 1 && kept(i + 1)
+                            || lz > 0 && kept(i - CS) || lz < CS - 1 && kept(i + CS) { d = max(d, -0.5) }
+                    }
                 }
                 fd[i] = q(d)
             } } }

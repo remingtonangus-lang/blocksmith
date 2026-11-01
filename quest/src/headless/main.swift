@@ -337,6 +337,7 @@ if let out = arg("--view"), let ctx = vkctx {
         print("view: bites: \(made) scattered round the eye (\(vw.bites.count) bitten blocks)")
     }
     if let n = Int(arg("--digtime") ?? "") {
+        TownVoice.ensure()                              // (P508: as the headset does at startup; a first line read it mid-tick)
         if CommandLine.arguments.contains("--editlane") { World.editLane = true }       // (as on the headset)
         vg.survival = true; vg.paused = false
         var fill = 0
@@ -380,6 +381,8 @@ if let out = arg("--view"), let ctx = vkctx {
                         worstWhat += String(format: "; mobs %d: before %.1f, bodies %.1f (slowest %@ %.1f), deaths %.1f, restore %.1f, spawning %.1f",
                                             q.count, q.pre, q.loop, q.worstKind, q.worst, q.deaths, q.restore, q.spawn)
                         if !MobManager.worstStages.isEmpty { worstWhat += " [\(MobManager.worstStages)]" }
+                        let ps = MobManager.partSummary
+                        if !ps.isEmpty { worstWhat += " {loop: \(ps)}" }
                     }
                 }
             }
