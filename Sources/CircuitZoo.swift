@@ -55,11 +55,12 @@ enum CircuitZoo {
         func solid(_ x: Int, _ y: Int, _ z: Int, _ key: String = "stone") { put(x, y, z, key) }
         func lamp(_ x: Int, _ y: Int, _ z: Int) { put(x, y, z, "redstone_lamp") }
         func lever(_ x: Int, _ y: Int, _ z: Int) { put(x, y, z, "lever") }                       // on the floor
-        func wallLever(_ x: Int, _ y: Int, _ z: Int, faces f: Int) { put(x, y, z, "lever", f4(f) + 4) }
+        // (Wall parts take the dir6 they face, N/S/W/E, as pistons and observers do: their states hold a facing4.)
+        func wallLever(_ x: Int, _ y: Int, _ z: Int, faces d: Int) { put(x, y, z, "lever", f4(d - 2) + 4) }
         func button(_ x: Int, _ y: Int, _ z: Int, wood: Bool) { put(x, y, z, wood ? "oak_button" : "stone_button") }
-        func wallButton(_ x: Int, _ y: Int, _ z: Int, faces f: Int, wood: Bool) { put(x, y, z, wood ? "oak_button" : "stone_button", f4(f) + 4) }
+        func wallButton(_ x: Int, _ y: Int, _ z: Int, faces d: Int, wood: Bool) { put(x, y, z, wood ? "oak_button" : "stone_button", f4(d - 2) + 4) }
         func torch(_ x: Int, _ y: Int, _ z: Int) { put(x, y, z, "redstone_torch") }
-        func wallTorch(_ x: Int, _ y: Int, _ z: Int, faces f: Int) { put(x, y, z, "redstone_torch", 2 + f4(f)) }
+        func wallTorch(_ x: Int, _ y: Int, _ z: Int, faces d: Int) { put(x, y, z, "redstone_torch", 2 + f4(d - 2)) }
         func repeater(_ x: Int, _ y: Int, _ z: Int, faces f: Int, delay: Int) { put(x, y, z, "repeater", f4(f) + (delay - 1) * 4) }
         func comparator(_ x: Int, _ y: Int, _ z: Int, faces f: Int, subtract: Bool) { put(x, y, z, "comparator", f4(f) + (subtract ? 4 : 0)) }
         func observer(_ x: Int, _ y: Int, _ z: Int, watches d: Int) { put(x, y, z, "observer", d6(d)) }

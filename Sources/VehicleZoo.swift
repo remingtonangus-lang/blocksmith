@@ -183,6 +183,9 @@ enum VehicleZoo {
             } else {
                 box(0, W - 1, 4, 4, 0, L - 1, balloon)
             }
+            // A mast mid-deck up into the envelope (the corner posts end under an ellipsoid's rounded corners: it
+            // came away from the deck, 59 of 218 blocks assembled).
+            for y in 1...4 where !(y == 1 && p.cells.contains { $0.0 == IVec3(W / 2, 1, L / 2) }) { put(W / 2, y, L / 2, trim) }
             p.helm = IVec3(W / 2, 1, L - 2); put(W / 2, 1, L - 2, helmS)
             put(W / 2, 1, L - 3, engine)
             for x in (W >= 5 ? [0, W - 1] : [W / 2]) { put(x, 0, L, prop) }
@@ -216,7 +219,8 @@ enum VehicleZoo {
             for z in L..<(L + boom) { put(W / 2, 3, z, trim) }
             if r(4) != 0 { put(W / 2 + 1, 3, L + boom - 1, tailProp) }
             if r(3) == 0 { put(W / 2, 0, -1, cannon); p.guns += 1 }
-            p.medium = .air; p.expectClimb = true
+            // (On the road, as a player builds one on the ground: built in the air it fell while its rotor spun up.)
+            p.medium = .road; p.expectClimb = true
             p.name = "helicopter \(W)x\(L), boom \(boom)"
         }
         // Built facing any of the four ways (a player's helm points wherever he set it).
@@ -237,7 +241,9 @@ enum VehicleZoo {
     // MARK: The course
 
     static let courseY = 300                       // well over any land (internal y)
-    // Road: x -14...14, z -170...40 at courseY (vehicles stand on it); basin: x 40...70, z -170...40, water courseY-3...-1.
+    // Road: x -14...14, z -170...40 at courseY (vehicles stand on it); basin: x 40...70, z -170...40, water courseY-10...-1
+    // (ten deep: an iron-heavy gunboat drew more than the three it had and dragged its keel on the floor, so it hardly turned).
+    static let basinDepth = 10
     static func buildCourse(_ w: World, _ o: IVec3) {
         let stone = key("smooth_stone", "stone"), water = WATER
         for z in (o.z - 170)...(o.z + 40) {
@@ -246,9 +252,9 @@ enum VehicleZoo {
                 for y in (o.y + 1)...(o.y + 24) where w.rawBlock(x, y, z) != AIR { w.setBlockAsync(x, y, z, AIR) }
             }
             for x in (o.x + 40)...(o.x + 70) {
-                w.setBlockAsync(x, o.y - 4, z, stone)
+                w.setBlockAsync(x, o.y - basinDepth - 1, z, stone)
                 let edge = x == o.x + 40 || x == o.x + 70
-                for y in (o.y - 3)...(o.y - 1) { w.setBlockAsync(x, y, z, edge ? stone : water) }
+                for y in (o.y - basinDepth)...(o.y - 1) { w.setBlockAsync(x, y, z, edge ? stone : water) }
                 for y in o.y...(o.y + 24) where w.rawBlock(x, y, z) != AIR { w.setBlockAsync(x, y, z, AIR) }
             }
         }
@@ -261,8 +267,12 @@ enum VehicleZoo {
     static func test(_ g: Game, _ i: Int, _ o: IVec3) -> Result {
         let w = g.world, ships = w.ships
         let p = plan(i)
+        // The course's own blocks: the road, the basin's floor and walls (its water is liquid; a docked hull's blocks in
+        // the basin count as the vehicle's: they were counted as the course, so half a docked boat looked lost).
         func course(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-            (y == o.y && abs(x - o.x) <= 14) || (x >= o.x + 40 && x <= o.x + 70 && y >= o.y - 4 && y <= o.y - 1)
+            let inBasin = x >= o.x + 40 && x <= o.x + 70
+            return (y == o.y && abs(x - o.x) <= 14) || (inBasin && y == o.y - basinDepth - 1)
+                || ((x == o.x + 40 || x == o.x + 70) && y >= o.y - basinDepth && y <= o.y - 1)
         }
         // Where it is built: on the road, afloat in the basin, or in the air beside the road.
         let base: IVec3
@@ -314,7 +324,7 @@ enum VehicleZoo {
             }
         }
         if p.launch > 0 { s.vel = s.dirToWorld(s.fwd) * p.launch }
-        run(1.5)
+        run(p.family == .heli ? 5 : 1.5)                  // (a helicopter's rotor spins up for a few seconds first)
         let fwd0 = s.dirToWorld(s.fwd), start = s.pos, yaw0 = s.yaw
         // Function.
         if p.expectClimb {
@@ -336,7 +346,8 @@ enum VehicleZoo {
         var turned = abs(remainderf(s.yaw - yaw0, 2 * .pi)) * 180 / .pi
         if p.drives && turned < 8 && p.family != .heli {
             // (a helicopter's stick slides it sideways; others steer)
-            fail(String(format: "steered right for 2 s it turned %.0f degrees", turned))
+            fail(String(format: "steered right for 2 s it turned %.0f degrees (yaw rate %.2f, steer %.2f, %.0f t, submerged %.0f, grounded %@, %d contacts, speed %.1f)",
+                        turned, simd_dot(s.angVel, s.dirToWorld(V3(0, 1, 0))), s.steerEase, s.mass, s.submerged, s.grounded ? "yes" : "no", s.contacts, simd_length(s.vel)))
         }
         turned = max(turned, 0)
         // Sanity.

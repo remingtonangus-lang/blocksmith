@@ -518,7 +518,8 @@ extension ShipManager {
         let fwdW = s.dirToWorld(s.fwd)
         let props = s.props.count, wheels = s.wheels.count
         // Drive units: each propeller, and wheels by the square root of their cells (big wheels are made of many).
-        let drives = props + (wheels > 0 ? Int(ceil(sqrtf(Float(wheels)))) : 0)
+        // (P505, the vehicle zoo: a rotor is a drive too: a helicopter with no tail propeller had no power, so no lift.)
+        let drives = props + s.rotors.count + (wheels > 0 ? Int(ceil(sqrtf(Float(wheels)))) : 0)
         let power: Float = s.engines > 0 && drives > 0 && s.flakHits < 1 ? min(1, Float(s.engines * ShipTuning.perEngine) / Float(drives)) : 0
         let aircraft = s.wings.count >= 4 && s.balloons == 0
         let piloted = s.piloted

@@ -833,28 +833,57 @@ final class ShipManager {
         let natural = ShipParts.natural, kinds = ShipParts.kinds
         let limit = 60000
         let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
-        // Connected cells from start, not entering `taken`, never going up out of a turret ring.
-        func collect(_ start: IVec3, _ taken: Set<IVec3>) -> [IVec3]? {
+        // Connected cells from start, not entering `taken`, never going up out of a turret ring, never down out of a
+        // wheel or a track (it rests on the ground), never below `floor`. Overflow: the cells seen when it passed the limit.
+        func collect(_ start: IVec3, _ taken: Set<IVec3>, floor: Int = Int.min) -> (cells: [IVec3], over: Bool) {
             var seen = Set<IVec3>([start])
             var queue = [start]
             var head = 0
             while head < queue.count {
                 let c = queue[head]; head += 1
-                if queue.count > limit { return nil }
-                let ring = kinds[Int(w.rawBlock(c.x, c.y, c.z))] == .ring
+                if queue.count > limit { return (queue, true) }
+                let kind = kinds[Int(w.rawBlock(c.x, c.y, c.z))]
                 for (k, d) in dirs.enumerated() {
-                    if ring && k == 2 { continue }
+                    if kind == .ring && k == 2 { continue }
+                    if kind == .wheel && k == 3 { continue }
                     let n = c + d
-                    if seen.contains(n) || taken.contains(n) || n.y < 0 || n.y >= CH { continue }
+                    if n.y < floor || seen.contains(n) || taken.contains(n) || n.y < 0 || n.y >= CH { continue }
                     if natural[Int(w.rawBlock(n.x, n.y, n.z))] { continue }
                     seen.insert(n)
                     queue.append(n)
                 }
             }
-            return queue
+            return (queue, false)
         }
         let tooBig = "Too big to move (over \(limit) blocks) - is it touching a building?"
-        guard let main = collect(h, []) else { return (nil, tooBig) }
+        var first = collect(h, [])
+        // P505 (the vehicle zoo: a car on a smooth-stone road took the whole road with it, 6157 blocks, and the next
+        // car fell through the hole): what a wheeled vehicle stands on is not part of it. Below its lowest wheel, the
+        // cells reached are its ground when they reach out past the vehicle's own footprint (a road, a floor, a
+        // slab yard); a hull built down below the wheels (an amphibian's) stays inside it and is kept.
+        let wheelY = first.cells.lazy.filter { kinds[Int(w.rawBlock($0.x, $0.y, $0.z))] == .wheel }.map { $0.y }.min()
+        if let fy = wheelY, first.over || first.cells.contains(where: { $0.y < fy }) {
+            let upper = collect(h, [], floor: fy)
+            if !upper.over {
+                var lo = IVec3(Int.max, 0, Int.max), hi = IVec3(Int.min, 0, Int.min)
+                for c in upper.cells { lo = IVec3(min(lo.x, c.x), 0, min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), 0, max(hi.z, c.z)) }
+                let beyond = first.over || first.cells.contains { $0.y < fy && ($0.x < lo.x - 1 || $0.x > hi.x + 1 || $0.z < lo.z - 1 || $0.z > hi.z + 1) }
+                if beyond { first = upper }
+            }
+        }
+        // A vehicle with no wheels (a helicopter on its pad, a skid plane) standing on a road or a floor: the layer under
+        // it that is many times the vehicle's size is the ground (going down from the helm, the first such layer).
+        if wheelY == nil && (first.over || first.cells.count > 2000) {
+            var below: [Int: Int] = [:]
+            for c in first.cells { below[c.y, default: 0] += 1 }
+            for fy in stride(from: h.y, through: h.y - 24, by: -1) {
+                let upper = collect(h, [], floor: fy)
+                if upper.over { continue }
+                if (below[fy - 1] ?? 0) > upper.cells.count * 8 + 200 { first = upper; break }
+            }
+        }
+        guard !first.over else { return (nil, tooBig) }
+        let main = first.cells
         // P93: a wreck's rotten planks hold it to the seabed until they're replaced.
         let rot = Wrecks.rottenCount(w, main)
         if rot > 0 { return (nil, "This hull is rotten in \(rot) place\(rot == 1 ? "" : "s"): replace the rotten planks with any planks to raise it") }
@@ -864,7 +893,9 @@ final class ShipManager {
         for c in main where kinds[Int(w.rawBlock(c.x, c.y, c.z))] == .ring {
             let top = c + IVec3(0, 1, 0)
             if taken.contains(top) || natural[Int(w.rawBlock(top.x, top.y, top.z))] { continue }
-            guard let cells = collect(top, taken) else { return (nil, tooBig) }
+            let got = collect(top, taken)
+            guard !got.over else { return (nil, tooBig) }
+            let cells = got.cells
             for t in cells { taken.insert(t) }
             turrets.append((c, cells))
         }
