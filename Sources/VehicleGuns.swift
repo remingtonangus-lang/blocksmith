@@ -32,6 +32,8 @@ enum CannonCalibre {
         }
         return t
     }()
+    // P507: per block state, the calibre of a calibre tube (small, medium, large: 1...3), else 0.
+    static let boreT: [UInt8] = (0..<Blocks.count).map { UInt8(max(0, tubeBases[Blocks.groupBase[$0]] ?? 0)) }
 }
 
 extension Ship {

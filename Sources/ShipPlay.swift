@@ -707,7 +707,7 @@ extension Game {
             onToast?("Named the ship \(label)")
             return true
         }
-        if ShipParts.kinds[Int(b)] == .helm && s.helm == cell {
+        if (ShipParts.kinds[Int(b)] == .helm || ShipParts.console[Int(b)]) && s.helm == cell {
             // Capital fliers can be commandeered; other Capital ships can't be steered or taken apart: break the helm to
             // cripple one (CapitalShips.swift).
             if s.root.kinematic && ships.canCommandeer(s) && !sneak { takeCommand(s); return true }

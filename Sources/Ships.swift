@@ -73,6 +73,9 @@ enum ShipParts {
         return t
     }()
     static let wool: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_wool") }
+    // P507: a computer (Command Console, Greywall terminal) built into a gun of his works it: the hull's helm where it
+    // has no ship's helm (Game.builtGunUse).
+    static let console: [Bool] = (0..<Blocks.count).map { let k = Blocks.key(Blocks.groupBase[$0]); return k == "command_console" || k == "greywall_terminal" }
     // P477: track links, wheels that are drawn with the hull and never spun.
     static let track: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]) == "ship_track" }
     // Unit direction of facing index 0...3 (north, south, west, east).
@@ -204,6 +207,13 @@ final class Ship {
     var blockCount = 0
     var fwd = V3(0, 0, -1)           // ship-space forward (from the helm)
     var helm: IVec3?
+    // P507: a gun he built, worked from a computer (Game.builtGunUse): nothing to move it (no propellers, engines,
+    // wheels, balloons, wings or rotors), so it stands where he built it and only its turrets turn (a row of barrels
+    // over a one-block ring tipped the hull over).
+    var emplacement: Bool {
+        guard parent == nil, !kinematic, let h = helm, ShipParts.console[Int(grid.get(h.x, h.y, h.z))] else { return false }
+        return props.isEmpty && engines == 0 && wheels.isEmpty && balloons == 0 && wings.isEmpty && rotors.isEmpty
+    }
     var breech: (V3, V3)?
     var crashSpeed: Float = 0         // H11: hardest contact closing speed since the last frame (VehicleDamage.swift)
     var crashAt = V3(0, 0, 0)
@@ -420,8 +430,13 @@ final class Ship {
         helm = nil
         breech = nil
         let breechID = Blocks.has("tidebreaker_breech") ? Blocks.id("tidebreaker_breech") : AIR
+        let boreT = CannonCalibre.boreT, cannonT = ShipParts.kinds, consoleT = ShipParts.console
+        var bores: [(V3, V3)] = []
+        var consoleAt: IVec3?
         for y in 0..<sy { for z in 0..<sz { for x in 0..<sx {
             let b = g.blocks[g.index(x, y, z)]
+            if boreT[Int(b)] > 0 { bores.append((V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5), -ShipParts.facingDir[ShipParts.facing(b)])) }
+            if consoleT[Int(b)] && consoleAt == nil { consoleAt = IVec3(x, y, z) }
             if b == AIR { continue }
             n += 1
             let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
@@ -449,6 +464,21 @@ final class Ship {
             }
         } } }
         blockCount = n
+        if helm == nil, let c = consoleAt { helm = c }              // (P507: a built gun's computer)
+        // P507 (Nov 1 12:36:14-12:36:30, a gun he built on a hill of a Turret Ring and a row of Medium Gun Barrels: "This
+        // is kind of what I had in mind by a gun... we need a computer attached to it also to make it operational"): a
+        // row of calibre tubes is a gun on its own: the tube at its back end (no tube on its line or cannon behind it)
+        // is the breech, as a cannon block there would be.
+        for (p, d) in bores {
+            let q = p - d
+            let x = Int(floor(q.x)), y = Int(floor(q.y)), z = Int(floor(q.z))
+            if x >= 0, y >= 0, z >= 0, x < sx, y < sy, z < sz {
+                let b = g.blocks[g.index(x, y, z)]
+                if cannonT[Int(b)] == .cannon { continue }
+                if CannonCalibre.tubeBases[Blocks.groupBase[Int(b)]] != nil && abs(simd_dot(ShipParts.facingDir[ShipParts.facing(b)], d)) > 0.9 { continue }
+            }
+            cannons.append((q, d))
+        }
         // P459: each cannon's Gun Barrels, laid along its line on from the muzzle.
         // P477: the calibre barrels count as tubes too (up to 8 of them), the first one's bore setting the calibre.
         let tubeKinds = CannonCalibre.tubeBases

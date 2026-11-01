@@ -1803,7 +1803,7 @@ final class Game {
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && ashBaseUse(t.hit) { swing = 1; return }                    // P318
-        if useNow && !(input.shift || p.b) && (stationGunUse(t.hit) || baseConsoleUse(t.hit) || radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net (P422: or does its own job)
+        if useNow && !(input.shift || p.b) && (stationGunUse(t.hit) || builtGunUse(t.hit) || baseConsoleUse(t.hit) || radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net (P422: or does its own job)
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
             return

@@ -405,13 +405,13 @@ extension ShipManager {
         var reader = ShipBlockReader(world)
         for s in list where s.parent == nil {
             // Frozen while asleep (far from the player, or the ground under it isn't loaded).
-            if s.asleep { s.vel = .zero; s.angVel = .zero; continue }
+            if s.asleep || s.emplacement { s.vel = .zero; s.angVel = .zero; continue }    // (P507: a built gun stands)
             if s.kinematic { continue }                // velocity and turn rate come from its AI
             integrateForces(s, h, &reader)
         }
         // Contacts: terrain and ship-ship (a sleeping ship can still be run into). Kinematic ships take none, and other
         // ships don't push against them (their AI holds them on course).
-        for s in list where s.parent == nil && !s.kinematic {
+        for s in list where s.parent == nil && !s.kinematic && !s.emplacement {
             contactScratch.removeAll(keepingCapacity: true)
             if !s.asleep { terrainContacts(s, &reader, &contactScratch) }
             for o in list where o !== s && o.id < s.id && o.parent == nil && !o.kinematic && !(s.asleep && o.asleep) {
@@ -425,7 +425,7 @@ extension ShipManager {
             if !contactScratch.isEmpty { solve(s, &contactScratch, h) }
         }
         for s in list where s.parent == nil {
-            if s.asleep { continue }
+            if s.asleep || s.emplacement { s.vel = .zero; s.angVel = .zero; continue }   // (P507: a built gun stands)
             // NaN quarantine (a degenerate contact or AI steer): a non-finite velocity is dropped, and a non-finite pose
             // goes back to the last good one. NaN reached Int(floor()) in the hull's world bounds and failed the ship save.
             let vOK: Bool = s.vel.x.isFinite && s.vel.y.isFinite && s.vel.z.isFinite
