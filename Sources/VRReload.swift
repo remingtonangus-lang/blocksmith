@@ -35,11 +35,17 @@ enum VRReload {
     // P257 (Oct 14 12:04, a repeat of R7: "taking a magazine from the hip is still too hard"): a bigger zone, 0.2-1.4 m
     // under the head (seated and lying back too), within 0.75 m sideways and up to 0.22 m in front of the body.
     // P286: 0.15-1.5 m under the head, within 0.85 m sideways, up to 0.28 m in front.
-    static let frontLimit: Float = 0.28
+    // P503 (Oct 31 16:27:26, "When I try to use left grip to get across my inventory, if I'm holding a gun, it
+    // immediately loads the gun and cocks it instead of scrolling left on the toolbar... the box isn't so big... That
+    // way it doesn't just always think I'm hitting it"): standing or seated the pouch is at the hip, not anywhere under
+    // the chin: 0.35-1.5 m under the head and at most 0.12 m in front of it (a hand held in front of the waist steps the
+    // hotbar). Lying back (QuestSettings.reclined) keeps P286's wide zone.
+    static let frontLimit: Float = 0.28, hipFront: Float = 0.12, hipTop: Float = 0.35
+    static var reclined = false
     static func atHip(head: V3, hand: V3, forward: V3? = nil) -> Bool {
         let d = hand - head
-        guard d.y < -0.15 && d.y > -1.5 && simd_length(V2(d.x, d.z)) < 0.85 else { return false }
-        if let f = forward { return simd_dot(V2(d.x, d.z), simd_normalize(V2(f.x, f.z))) < frontLimit }
+        guard d.y < (reclined ? -0.15 : -hipTop) && d.y > -1.5 && simd_length(V2(d.x, d.z)) < 0.85 else { return false }
+        if let f = forward { return simd_dot(V2(d.x, d.z), simd_normalize(V2(f.x, f.z))) < (reclined ? frontLimit : hipFront) }
         return true
     }
 

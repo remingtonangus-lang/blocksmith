@@ -287,20 +287,25 @@ enum PlaytestOct14Tests {
         let gInner = (Greywall.Tier.garrison.keepX * 2 - 1) * (Greywall.Tier.garrison.keepZ * 2 - 1)
         check(newK.stairs >= 4 && newK.roofed * 10 >= gInner * 6 && newK.chests >= 1 && newK.men >= 1 && oldK.stairs == 0 && oldK.roofed == 0,
               "P499 garrison: a new garrison's keep has an upper floor (\(newK.stairs) stair blocks, \(newK.roofed) of \(gInner) cells roofed over a second storey, \(newK.chests) chest and \(newK.men) soldier upstairs); an old one keeps one floor (\(oldK.stairs) stairs, \(oldK.roofed) cells)")
-        // P499 (15:13, "instead of golden apples... some sort of medication... that only exists at bases"): a Field Stim is
-        // used like a drink, gives a golden apple's regeneration and absorption, and is spent; nothing crafts one.
-        let surv0 = g.survival, held0 = g.inventory.held
-        g.survival = true
+        // P499 (15:13, "instead of golden apples... some sort of medication... that only exists at bases"): a Field Stim
+        // gives a golden apple's regeneration and absorption, and is spent; nothing crafts one. P501 (Oct 31 09:56, "How
+        // do I use it?"): it goes in on one click of use, mending 6 at once, with its rush at the edges of the view.
+        let surv0 = g.survival, held0 = g.inventory.held, hp0 = g.health
+        g.survival = true; g.health = 4; g.stimFlash = 0
         g.inventory.held = ItemStack(Items.id("field_stim"), 2)
-        let stim = g.inventory.held
-        g.foodEffects("field_stim"); g.finishDrink(stim)
+        let pitch0 = g.player.pitch
+        g.player.pitch = 1.45                           // (at the sky: nothing under the laser)
+        g.input.rightClicked = true; g.input.rightDown = true
+        g.tick(1.0 / 60)
+        g.input.rightClicked = false; g.input.rightDown = false; g.player.pitch = pitch0
         let left = g.inventory.held.item == Items.id("field_stim") ? g.inventory.held.count : 0
         let buffed = g.effects.has(.absorption) && g.effects.has(.regeneration)
+        let mended = g.health, rush = g.stimFlash
         let crafted = Recipes.all.contains { Items.key($0.result.item).hasSuffix("_stim") }
         g.foodEffects("milk_bucket")                    // (clears the effects and the absorption again)
-        g.survival = surv0; g.inventory.held = held0
-        check(Items.def(Items.id("field_stim")).drink && buffed && left == 1 && !crafted,
-              "P499 stims: a Field Stim heals like a golden apple (absorption and regeneration \(buffed)), one is spent (\(left) left), none crafted (\(!crafted))")
+        g.survival = surv0; g.inventory.held = held0; g.health = hp0; g.stimFlash = 0
+        check(buffed && left == 1 && mended >= 10 && rush > 1 && !crafted,
+              "P499/P501 stims: one click injects a Field Stim (health 4 -> \(mended), absorption and regeneration \(buffed), rush \(rush)), one is spent (\(left) left), none crafted (\(!crafted))")
         // P499 (15:14, "an assault shotgun... one of the top level troops guns... rapid fire shotguns, shotgun shells").
         let asg = Guns.all[Guns.autoShotgun]
         let carried = TroopClass.pickGun(.hannibal, .soldierTrooper, roll: 0.9) == Guns.autoShotgun

@@ -308,6 +308,7 @@ final class StructureCache {
             legacyP478 = SaveManager.guarding?.structureGuard(file: "structure-guard-p478.txt") ?? []
             legacyP484 = SaveManager.guarding?.structureGuard(file: "structure-guard-p484.txt") ?? []
             legacyP499 = SaveManager.guarding?.structureGuard(file: "structure-guard-p499.txt") ?? []
+            legacyP503 = SaveManager.guarding?.structureGuard(file: "structure-guard-p503.txt") ?? []
         }
     }
     var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
@@ -320,6 +321,7 @@ final class StructureCache {
     var legacyP478: Set<Int64> = []              // ground saved before P478 trimmed streets to the buildings along them (Village.layout)
     var legacyP484: Set<Int64> = []              // ground saved before P484 kept Greywall bases well away from towns (Greywall.townBerth)
     var legacyP499: Set<Int64> = []              // ground saved before P499 left out every other small place (Village.thinned)
+    var legacyP503: Set<Int64> = []              // ground saved before P503's citadel gun rooms and lifts (CapitalBase.build)
     var legacyP475: Set<Int64> = []              // ground saved before P475 fenced Boreal Stations in chain link with a gate
     var legacyP470: Set<Int64> = []              // ground saved before P470 let two stations make a line (Railways.plan)
     var legacyP469: Set<Int64> = []              // ground saved before P469 gave depot bases their compounds (Depots.swift)
@@ -698,35 +700,35 @@ enum Loot {
                                      ("firing_mechanism", 1, 2, 7)]),
         "steelhold_supply": (4...8, [("capital_ration", 2, 6, 14), ("bread", 2, 6, 15), ("cooked_beef", 2, 5, 10), ("baked_potato", 2, 6, 10), ("iron_ingot", 2, 6, 10),
                                      ("copper_ingot", 4, 12, 8), ("gunpowder", 2, 8, 10), ("capital_rounds", 8, 32, 12), ("redstone", 4, 12, 6),
-                                     ("tnt", 1, 3, 3), ("golden_apple", 1, 1, 2), ("compass", 1, 1, 2), ("map", 1, 1, 2), ("capital_duty_log", 1, 1, 5)]),
+                                     ("tnt", 1, 3, 3), ("field_stim", 1, 1, 2), ("compass", 1, 1, 2), ("map", 1, 1, 2), ("capital_duty_log", 1, 1, 5)]),
         "steelhold_command": (4...7, [("capital_ration", 2, 4, 6), ("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_sniper", 1, 1, 6), ("gun_launcher", 1, 1, 5),
                                       ("gun_arc", 1, 1, 5), ("heavy_rounds", 6, 15, 8), ("rocket_ammo", 2, 6, 6), ("arc_cell", 4, 12, 6),
-                                      ("diamond_chestplate@20-30", 1, 1, 3), ("golden_apple", 1, 2, 5), ("enchanted_golden_apple", 1, 1, 1),
+                                      ("diamond_chestplate@20-30", 1, 1, 3), ("field_stim", 1, 2, 5), ("combat_stim", 1, 1, 1),
                                       ("experience_bottle", 3, 8, 6), ("firing_mechanism", 1, 2, 6), ("targeting_optic", 1, 1, 5),
                                       ("radar_module", 1, 1, 4), ("intercepted_orders", 1, 2, 7), ("capital_signal_log", 1, 1, 6)]),
         // The Meridian frigate's hold and bridge locker (CapitalFrigate.swift): post-game spoils.
         "meridian_hold": (4...7, [("diamond", 3, 8, 10), ("gun_launcher", 1, 1, 6), ("gun_arc", 1, 1, 6), ("gun_sniper", 1, 1, 5),
                                   ("rocket_ammo", 4, 10, 8), ("heavy_rounds", 8, 16, 8), ("arc_cell", 6, 14, 6),
                                   ("firing_mechanism", 1, 3, 8), ("targeting_optic", 1, 2, 6), ("radar_module", 1, 1, 4),
-                                  ("netherite_scrap", 1, 3, 4), ("enchanted_golden_apple", 1, 1, 2), ("experience_bottle", 4, 10, 6)]),
+                                  ("netherite_scrap", 1, 3, 4), ("combat_stim", 1, 1, 2), ("experience_bottle", 4, 10, 6)]),
         // Capital cities (CapitalCity.swift): offices and homes; the odd base component or patrol orders.
         "capital_city": (3...6, [("bread", 2, 5, 14), ("cookie", 3, 8, 8), ("apple", 2, 5, 10), ("paper", 3, 9, 10), ("book", 1, 3, 8),
                                  ("emerald", 1, 4, 8), ("gold_ingot", 1, 4, 6), ("clock", 1, 1, 3), ("compass", 1, 1, 3),
                                  ("rifle_rounds", 8, 24, 6), ("glass_bottle", 2, 4, 4), ("white_wool", 2, 6, 5), ("capital_recruiting_pamphlet", 1, 1, 6), ("town_pamphlet", 1, 1, 4)]),
         // Brimstone Keeps (BrimstoneKeep.swift): the hell band's strongholds and the Sunderite strongroom under each keep.
         "brimstone_keep": (3...6, [("keepers_journal", 1, 1, 4), ("raw_sunderite", 1, 2, 5), ("gold_ingot", 2, 6, 12), ("netherite_scrap", 1, 2, 4), ("blaze_rod", 2, 6, 10),
-                                   ("rifle_rounds", 12, 32, 10), ("heavy_rounds", 4, 10, 6), ("golden_apple", 1, 1, 4), ("diamond", 1, 3, 6),
+                                   ("rifle_rounds", 12, 32, 10), ("heavy_rounds", 4, 10, 6), ("field_stim", 1, 1, 4), ("diamond", 1, 3, 6),
                                    ("tnt", 1, 3, 6)]),
         "brimstone_strongroom": (4...7, [("raw_sunderite", 1, 3, 14), ("netherite_scrap", 1, 3, 6), ("diamond", 2, 4, 8), ("gold_block", 1, 2, 6),
-                                         ("enchanted_golden_apple", 1, 1, 1), ("experience_bottle", 3, 8, 6), ("blaze_powder", 2, 6, 8)]),
+                                         ("combat_stim", 1, 1, 1), ("experience_bottle", 3, 8, 6), ("blaze_powder", 2, 6, 8)]),
         // The Ashguard's sites in the Deep (AshSites.swift): what an army at war keeps in its depots.
         "ash_armory": (3...6, [("gun_kessel", 1, 1, 10), ("gun_sturmwind", 1, 1, 10), ("gun_hagel", 1, 1, 8),
                                ("gun_launcher", 1, 1, 4), ("gun_faust", 1, 1, 10), ("faust_warhead", 1, 4, 12), ("rifle_rounds", 16, 48, 20),
                                ("heavy_rounds", 6, 16, 10), ("rocket_ammo", 2, 6, 12), ("shotgun_shells", 6, 18, 6), ("tnt", 2, 6, 8),
-                               ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("golden_apple", 1, 1, 3)]),
+                               ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("field_stim", 1, 1, 3)]),
         "ash_supply": (4...8, [("aero_spares", 1, 1, 2), ("track_spares", 1, 2, 4), ("ashguard_journal", 1, 1, 5), ("bread", 3, 8, 15), ("cooked_beef", 2, 6, 12), ("baked_potato", 3, 8, 10), ("iron_ingot", 3, 8, 10),
                                ("gold_ingot", 2, 6, 8), ("gunpowder", 3, 9, 10), ("rifle_rounds", 12, 40, 12), ("rocket_ammo", 1, 4, 8), ("faust_warhead", 1, 3, 6),
-                               ("coal", 4, 12, 8), ("golden_apple", 1, 1, 3), ("potion_healing", 1, 2, 4)]),
+                               ("coal", 4, 12, 8), ("field_stim", 1, 1, 3), ("potion_healing", 1, 2, 4)]),
         "ash_fuel": (3...6, [("coal_block", 1, 4, 12), ("blaze_powder", 2, 6, 8), ("gunpowder", 4, 12, 12), ("tnt", 2, 6, 8),
                              ("fire_charge", 2, 6, 8), ("rocket_ammo", 2, 4, 6), ("iron_ingot", 2, 6, 8)]),
         // P346: what the bomber's crew had aboard, and the spares that put a crashed fighter back in the air.
@@ -790,8 +792,15 @@ enum Loot {
         "camp_traders": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         "steelhold_command": [(1...1, [("ember_charge", 1, 1, 1)])],
         // Greywall Command (Greywall.swift): every command chest holds a radar module (the radar network), every vault gold.
-        "greywall_command": [(1...1, [("radar_module", 1, 1, 1)]), (1...1, [("greywall_keycard", 1, 1, 1)])],   // (+ D35 keycard)
-        "greywall_vault": [(1...1, [("gold_block", 1, 2, 1)])],
+        // P501 (Oct 31 09:43 at a garrison: "where is the thing that burns into hell? Like the bomb you place to get into
+        // hell. I haven't seen them in any of these sites"): Greywall's command chests and vaults hold Ember Charges as
+        // the Capital's do (on new ground; a chest is filled where it is built).
+        "greywall_command": [(1...1, [("radar_module", 1, 1, 1)]), (1...1, [("greywall_keycard", 1, 1, 1)]), (1...1, [("ember_charge", 1, 1, 1)])],   // (+ D35 keycard)
+        "greywall_vault": [(1...1, [("gold_block", 1, 2, 1)]), (1...1, [("ember_charge", 1, 2, 1)])],
+        // P503 (Oct 31 16:29:13 at a garrison's locked bulkhead: "there should be a key to unlock this door... If there is,
+        // I haven't seen it"): the keycards were the comms officer's and the command chest's, both behind the locked door
+        // they open. The barracks' and the mess's supply chests hold one too.
+        "greywall_supply": [(1...1, [("greywall_keycard", 1, 1, 1)])],
         // D33: each army's armour kit, one armoury chest in three (FactionArmour.swift).
         "greywall_armory": [(1...1, [("greywall_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],
         "steelhold_armory": [(1...1, [("capital_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],

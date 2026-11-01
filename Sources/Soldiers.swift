@@ -176,7 +176,9 @@ enum Soldier {
         case .ashMarshal: return Guns.sturmwind
         case .ashChancellor: return Guns.sturmwind
         case .soldierCrew: return r < 0.7 ? Guns.pistol : Guns.rifle
-        default: return r < 0.5 ? Guns.launcher : Guns.arc
+        // P501 (Oct 31 09:46, "we need those assault shotguns for the highest rank capital and gray wall troops"): two
+        // heavies in five carry the Sturmbrecher.
+        default: return r < 0.4 ? Guns.autoShotgun : (r < 0.7 ? Guns.launcher : Guns.arc)
         }
     }
 
@@ -198,13 +200,17 @@ enum Soldier {
     // P460 (Oct 25 17:01: "They need to come at me from a greater range"): in a fight a soldier sees and fires out to
     // its gun's reach (seven tenths of the round's range, at most 64 blocks) instead of its rank's sight (26-40: a
     // rifle good for 70 held fire at 33). Before a fight it notices him as before.
-    static let fightReach: Float = 64
+    // P501 (Oct 31 09:41, at a Greywall garrison: "These guys need to be more aggressive... I'd say higher range in which
+    // they fire at you"; 09:47 "the NPCs need to be even more aggressive"): out to 96 blocks, 0.85 of the round's range.
+    static let fightReach: Float = 96
     static var reachOff = false              // (questcheck --soldierrange: the rank's sight alone, for the before)
+    // ... and quicker on the trigger: a third less time to first fire once roused, a quarter less between bursts.
+    static let eager: Float = 0.67, burstGap: Float = 0.75
     // P471 (Oct 26 20:14: "pretty well everywhere, whether or not the enemy shot at me was hit and miss"): how far an
     // unaware soldier notices him. A recruit stood 35 blocks off in open daylight and never saw him (sight 26-34 for
     // line troops) while the man beside him, nearer, fought: now a line soldier notices him out to 46 blocks unless he
     // sneaks (then the rank's own sight, as before); fog and storms still shorten it (WeatherWar.sight).
-    static let noticeRange: Float = 46
+    static let noticeRange: Float = 60      // (P501: was 46)
     static func notice(_ rank: Int, sneaking: Bool) -> Float {
         let s = ranks[rank].sight
         return sneaking ? s : max(s, noticeRange)
@@ -212,7 +218,7 @@ enum Soldier {
 
     static func sight(_ rank: Int, gun: Int, fighting: Bool) -> Float {
         let s = ranks[rank].sight
-        return fighting && !reachOff ? max(s, min(Guns.all[gun].range * 0.7, fightReach)) : s
+        return fighting && !reachOff ? max(s, min(Guns.all[gun].range * 0.85, fightReach)) : s
     }
 
     // Preferred distance band for a gun (the rank's own for its main weapon).
@@ -363,7 +369,12 @@ extension Mob {
             // lifted when it had lost sight of him too, and hung in the air with nothing to fire at. It lifts only in a
             // fight it can see now (or saw a moment ago, him above it), and cuts its jets once it has lost him in the air.
             let above = g.player.pos.y - pos.y > 2.5
-            if (b.sees && (above || dist > 6)) || (above && b.seenAgo < 1.5) {
+            // P503 (Oct 31 16:16:34, in a citadel's hall: "The AI for this guy and his jetpack needs to be improved... [he]
+            // doesn't know what the fuck he's doing"): indoors it lifted into the ceiling and hung against it. It lifts
+            // only with open air over it (8 clear blocks above its head).
+            let hx = Int(floor(pos.x)), hz = Int(floor(pos.z)), hy = Int(floor(pos.y)) + 2
+            let open = (0..<8).allSatisfy { !Blocks.collide[Int(g.world.block(hx, hy + $0, hz))] }
+            if open && ((b.sees && (above || dist > 6)) || (above && b.seenAgo < 1.5)) {
                 jet = Rand.float(in: 3.5...6)
                 jetY = max(pos.y, g.player.pos.y) + Rand.float(in: 4...8)
                 jetCD = Rand.float(in: 5...9)
@@ -374,6 +385,8 @@ extension Mob {
         }
         guard jet > 0 else { return speed }
         if b.seenAgo > 1.2 || !canTarget { jet = min(jet, 0.4) }      // (lost him: down it comes)
+        // (P503: a roof met on the way up: down it comes, not pinned under it)
+        if Blocks.collide[Int(g.world.block(Int(floor(pos.x)), Int(floor(pos.y + height + 0.3)), Int(floor(pos.z))))] { jet = min(jet, 0.4) }
         let back = V3(sinf(yaw), 0, cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
         for side: Float in [-1, 1] where Rand.float(in: 0..<1) < dt * 40 {
             let n = pos + back * 0.35 + right * (0.18 * side) + V3(0, 0.9, 0)
@@ -474,7 +487,7 @@ extension Mob {
             b.watchT += dt
             if !aggro && (dist < 16 || simd_dot(toP, forward) > 0.2 || hurt > 0 || b.watchT > 1.5) {
                 aggro = true
-                b.react = rank.react
+                b.react = rank.react * Soldier.eager
                 barkLine(g, .spot, .soldier(Soldier.voice(r), .alert), 1.1)          // P468: "Contact!", or the bark
                 if Rand.float(in: 0..<1) < 0.5 { g.sfx(.gun(11), 0.6, at: eye) }
                 if r == 4 { b.pointT = 1.4 }
@@ -482,7 +495,7 @@ extension Mob {
             }
             if aggro {
                 b.aimHold = 1.2
-                if b.seenAgo > 3 { b.react = max(b.react, rank.react) }
+                if b.seenAgo > 3 { b.react = max(b.react, rank.react * Soldier.eager) }
                 b.lastSeen = g.player.pos
                 b.seenAgo = 0
             }
@@ -808,7 +821,9 @@ extension Mob {
         // The Ashguard are veterans (the Deep's harder army, docs/status/deep-balance.md): 60 % more damage and a
         // tighter group than the same rank on the surface.
         let veteran = faction == Faction.ashguard.rawValue
-        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * (gs.pellets > 1 ? 0.6 : 1) * (veteran ? 1.6 : 1) * vary.damage
+        // P501 (Oct 31 09:46, the assault shotgun: "it should be devastating"): the Sturmbrecher's pellets hit in full.
+        let soft: Float = gs.pellets > 1 && b.gun != Guns.autoShotgun ? 0.6 : 1
+        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * soft * (veteran ? 1.6 : 1) * vary.damage
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
@@ -856,7 +871,7 @@ extension Mob {
         let rate: Float = enraged ? 0.6 : 1
         let pace: Float = Difficulty.row.pace                    // P302: slower fire on the easy levels
         b.shotTimer = b.burst > 0 ? gs.interval * (b.gun == Guns.ashsaw ? 1 : 1.4) * rate / pace
-                                  : Rand.float(in: rank.gap) * rate * (b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : 1)) / pace
+                                  : Rand.float(in: rank.gap) * Soldier.burstGap * rate * (b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : 1)) / pace
     }
 
     // A short burst into the player's last position (wider spread; it pins them behind cover).
@@ -975,7 +990,9 @@ extension Mob {
         let air = AirDefence.airborne(g)
         var engage: Float = aggro ? HeavyTurret.range : HeavyTurret.guardRange
         if air { engage = max(engage, flak ? AirDefence.flakRange : AirDefence.navalAirRange) }
-        let canTarget = g.survival && g.alive && dist < engage
+        // P501 (Oct 31 09:48, "If I go into the little town beside one of these capital citadels, they shouldn't be
+        // automatically hostile to me unless I have a gun in my hand"): the guns keep the row's peace as its troopers do.
+        let canTarget = g.survival && g.alive && dist < engage && !GarrisonTown.shelters(g, self) && !Disguise.covers(g, self)
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.4
@@ -1063,7 +1080,12 @@ extension Mob {
                         // damage they do to the building should be the exact same amount of damage I do to the building
                         // when I shoot the gun"): a crew's heavy shell bursts and breaches as his own does (NavalGuns).
                         if !light && !flak { s.power = HeavyTurret.mannedPower; s.breach = HeavyTurret.mannedBreach }
-                        if light { s.power = 1.1 }
+                        // P503 (Oct 31 16:29:49, on a Greywall garrison's tower gun: "the enemy is still unable to damage the
+                        // tower I'm on. Still inflicting no damage. I obliterated his tower though"): a light gun's crew
+                        // fired 1.1 bursts that scarcely marked station concrete, where his shells from the same gun breach.
+                        // Its crew's shell now bursts and breaches as his does (P471's rule); the small AA mounts keep 1.1.
+                        if light && variant == HeavyTurret.lightVariant { s.power = HeavyTurret.mannedPower; s.breach = HeavyTurret.mannedBreach }
+                        else if light { s.power = 1.1 }
                         if flak { s.tracer = true }
                         g.arms.spawn(s)
                     }
@@ -1271,7 +1293,10 @@ enum HeavyTurret {
     static let traverse: Float = 0.2                // radians per second
     static let reload: Float = 9
     static let range: Float = 220                   // once provoked
-    static let guardRange: Float = 72               // unprovoked: the citadel's grounds
+    // Unprovoked: the base's grounds and their approaches. P501 (Oct 31 09:49-09:50 at a citadel: "When I approach the
+    // capital, I should get obliterated by a naval gun as soon as I come on the radar... I'm about like 60, 70 blocks
+    // from it... And yet nobody, nothing's firing at me"): 110 (was 72). The garrison row's peace still holds there.
+    static let guardRange: Float = 110
     static let power: Float = 2.4                   // TNT-like burst, about a 3-block crater
     // Manned by the player (P70, playtest 09:19: "this naval gun needs to do way more damage", on a crawler and a
     // citadel tower): a far bigger burst that bites through armoured stone (blocks count at most `mannedBreach` blast

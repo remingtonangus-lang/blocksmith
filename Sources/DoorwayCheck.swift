@@ -23,12 +23,12 @@ enum DoorwayCheck {
             }
         }
         // Walk at it for 2 s from 0.38 off the opening's middle (the body overlaps the frame by 0.18).
-        func walk(_ off: Float) -> Float {
+        func walk(_ off: Float, yaw: Float = 0, ticks: Int = 120, near: Bool = false) -> Float {
             let p = g.player
-            p.flying = false; p.vel = .zero; p.yaw = 0; p.pitch = 0
-            p.pos = V3(Float(a.fx) + 0.5 + off, Float(y1), Float(a.fz) + 0.5)
+            p.flying = false; p.vel = .zero; p.yaw = yaw; p.pitch = 0
+            p.pos = V3(Float(a.fx) + 0.5 + off, Float(y1), near ? Float(wz) + 1.35 : Float(a.fz) + 0.5)
             var mi = MoveInput(); mi.forward = 1
-            for _ in 0..<120 { p.update(dt: 1.0 / 60, input: mi, world: w) }
+            for _ in 0..<ticks { p.update(dt: 1.0 / 60, input: mi, world: w) }
             return p.pos.z
         }
         var results: [String: (Bool, Bool)] = [:]
@@ -37,7 +37,14 @@ enum DoorwayCheck {
             Player.doorwayAssistOn = false
             let before = walk(0.38) < Float(wz)
             Player.doorwayAssistOn = true
-            let after = walk(0.38) < Float(wz) && walk(-0.38) < Float(wz)
+            var after = walk(0.38) < Float(wz) && walk(-0.38) < Float(wz)
+            // P501 (Oct 31 09:44, "I have to line myself up perfectly"): from 0.6 off its middle (the body just over the
+            // frame) and met at 40 degrees either way, a step from the wall.
+            for (off, yaw) in [(Float(0.6), Float(0.7)), (0.6, -0.7), (-0.6, 0.7), (-0.6, -0.7)] {
+                let ok = walk(off, yaw: yaw, ticks: 120, near: true) < Float(wz)
+                if !ok { print("doorway: \(opening) from \(off) off at yaw \(yaw): stuck at \(String(format: "%.2f %.2f", g.player.pos.x, g.player.pos.z))") }
+                after = after && ok
+            }
             results[opening] = (before, after)
         }
         wall("none")
@@ -45,6 +52,6 @@ enum DoorwayCheck {
         let solid = walk(0.38)
         let x = g.player.pos.x - (Float(a.fx) + 0.5 + 0.38)
         check(results["door"]!.1 && results["gap"]!.1 && solid > Float(wz) + 1 && abs(x) < 0.01,
-              "doorway: 0.38 off the middle, through an open bulkhead door \(results["door"]!.1) (without the assist \(results["door"]!.0)), a bare gap \(results["gap"]!.1) (\(results["gap"]!.0)); into a plain wall it stays put (\(String(format: "%.2f", z0 - solid)) on, \(String(format: "%.2f", x)) aside)")
+              "doorway: 0.38 off the middle (and 0.6 off at 40 degrees, P501), through an open bulkhead door \(results["door"]!.1) (without the assist \(results["door"]!.0)), a bare gap \(results["gap"]!.1) (\(results["gap"]!.0)); into a plain wall it stays put (\(String(format: "%.2f", z0 - solid)) on, \(String(format: "%.2f", x)) aside)")
     }
 }

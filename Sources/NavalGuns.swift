@@ -47,10 +47,15 @@ enum NavalGuns {
         }
     }
 
+    static var worstStep = 0.0                      // (--turretfreeze: the slowest breach step, ms)
     // Carves the open breaches a slice a frame.
     static func stepBreaches(_ g: Game) {
         guard !g.arms.breaches.isEmpty else { return }
-        for j in g.arms.breaches { j.step(g, blocks: 150) }
+        for j in g.arms.breaches {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            j.step(g, blocks: 150)
+            worstStep = max(worstStep, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
+        }
         g.arms.breaches.removeAll { $0.done }
     }
 

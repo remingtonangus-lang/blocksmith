@@ -50,6 +50,7 @@ final class Armory {
     var beams: [Beam] = []
     // Player gun state.
     var cooldown: Float = 0
+    var pressHeld: Float = 0                    // P501: a semi-automatic's trigger pulled a moment early (fires on time)
     var reload: Float = 0          // seconds left on a reload (0 = none)
     var reloadGun = -1
     var aim: Float = 0             // 0 hip ... 1 aimed down the sights
@@ -383,10 +384,16 @@ final class Armory {
                 dmg = max(dmg, ceilf(full * share + 0.5))
             }
         }
+        // P501 (Oct 31 09:40, a Greywall garrison's tower guns: "The [Kessel] bolt rifle should do way more damage to those
+        // machine guns... It's almost like the machine guns are tracking how many bullets hit them"): a heavy round (9 or
+        // more: the Kessel, the marksman rifles) goes through a light or small gun's plate at twice its weight (a light
+        // quick-firer falls to a Kessel's magazine, a small mount to two rounds); the heavy turret keeps its plate.
+        let pierces = m.kind == .deckGun && s.kind == .bullet && s.damage >= 9 && HeavyTurret.scale(m) < 1
+        if pierces { dmg *= 2 }
         let whole = floorf(dmg)
         let n = Int(whole) + (Rand.float(in: 0..<1) < dmg - whole ? 1 : 0)
         if s.fromPlayer { m.killedByPlayer = true }
-        Mob.roundHit = infantry
+        Mob.roundHit = infantry || pierces
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)
         Mob.roundHit = false
         if s.incendiary && !m.spec.fireImmune { m.fire = max(m.fire, 4) }
@@ -437,6 +444,7 @@ final class Armory {
     }
 
     static var detonations = 0                      // (harness)
+    static var worstBurst = 0.0                     // (--turretfreeze: the slowest heavy burst's own work, ms)
     func detonate(_ s: Slug, at: V3, _ g: Game) {
         Armory.detonations += 1
         if s.pulse { g.pulseBurst(at: at); return }
@@ -456,7 +464,9 @@ final class Armory {
         defer { g.ashQuiet = false; g.blastSpares = .none; Explosion.heavyShell = false }
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks,
                           resistCap: s.breach, along: simd_length(s.vel) > 25 ? s.vel : nil)        // (P357 e: shells, not grenades)
+        let hb0 = CFAbsoluteTimeGetCurrent()
         NavalGuns.heavyBurst(s, at: at, shooter: shooter, spares: g.blastSpares, g)       // P102 / P103
+        Armory.worstBurst = max(Armory.worstBurst, (CFAbsoluteTimeGetCurrent() - hb0) * 1000)
         if s.tracer { AirDefence.burst(at: at, g) }                                         // P252: flak by a craft
         g.bases.quiet = false
     }
@@ -524,7 +534,9 @@ final class Armory {
                 }
             }
         } else if player {
-            g.hurtPlayer(Int(damage), from: o, cause: "was vaporised by \(by)", knockback: 0.4, type: .projectile)
+            // P503 (Oct 31 16:21:02, a Capital arc gunner on normal, 4 a bolt through his Regular Armour Set: "this guy still
+            // needs to do more damage... maybe three times as much damage, this arc gun"): an enemy bolt 2.5 times as hard.
+            g.hurtPlayer(Int(damage * 2.5), from: o, cause: "was vaporised by \(by)", knockback: 0.4, type: .projectile)
             if g.survival { g.onFire = max(g.onFire, 2) }
         }
         for _ in 0..<5 {
@@ -720,8 +732,15 @@ extension Game {
             }
             return true
         }
-        let trigger = gs.auto ? fire : firePressed
+        // P501 (Oct 31 09:46, "Pistol should still be semi-automatic, but needs to have a higher rate of fire"): a pull
+        // that comes in just before the action is back (a tenth of a second) is kept and fires the moment it is, so
+        // quick pulls are never swallowed.
+        if !gs.auto && firePressed && a.cooldown > 0 { a.pressHeld = 0.1 }
+        let early = !gs.auto && a.pressHeld > 0 && a.cooldown <= 0 && fire
+        a.pressHeld = max(0, a.pressHeld - dt)
+        let trigger = gs.auto ? fire : (firePressed || early)
         guard trigger else { return true }
+        a.pressHeld = 0
         if held.tag <= 0 {
             // Empty: pulling the trigger reloads (or clicks dry without ammunition).
             if vr {

@@ -213,7 +213,7 @@ enum Momentum {
         let ri = Int(ceilf(reach))
         let cx = Int(floor(c.x)), cy = Int(floor(c.y)), cz = Int(floor(c.z))
         var cand: [(IVec3, Float, BlockID)] = []
-        for y in max(1, cy - ri)...min(CH - 2, cy + ri) { for z in (cz - ri)...(cz + ri) { for x in (cx - ri)...(cx + ri) {
+        for y in stride(from: max(1, cy - ri), through: min(CH - 2, cy + ri), by: 1) { for z in (cz - ri)...(cz + ri) { for x in (cx - ri)...(cx + ri) {
             let m = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
             let off = m - c, d = simd_length(off)
             guard d <= reach, d < 0.8 || simd_dot(off / d, dir) > -0.3 else { continue }

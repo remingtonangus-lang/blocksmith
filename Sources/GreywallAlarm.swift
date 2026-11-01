@@ -25,6 +25,7 @@ final class GreywallAlarmState {
         var consoles: [IVec3] = [], turrets: [IVec3] = [], flags: [IVec3] = []
         var cameras: [IVec3] = []                   // D35 security cameras (BaseSecurity.swift)
         var hold: Float = 0                         // seconds a player has held the command console of a cleared base
+        var silencedUntil: Double = 0               // P503: a panel switched the alarm off (no fresh alarm until then)
     }
     // A truck bringing a squad (in memory: a reload finds the road empty).
     struct Truck { let mob: Mob; let stop: V3; let out: V3; let squad: Int; let leash: String; let src: V3; var hunters: Faction? = nil; var t: Float = 0; var unloaded = false }
@@ -252,6 +253,7 @@ extension Game {
             if survival, trigger == nil, let p = players.first(where: { Greywall.inside(site, $0) }) {
                 if mobs.mobs.contains(where: { mine($0) && $0.aggro && $0.troopClass != .specOps && ($0.brain?.sees ?? false) }) { trigger = p }    // (Spec Ops hunt quietly)
             }
+            if clock < site.silencedUntil { trigger = nil }        // (P503: switched off at a panel)
             var fresh = false
             if let t = trigger {
                 site.quiet = 0
@@ -552,6 +554,29 @@ extension Game {
         Legendaries.fortressTaken(self, site.tier)            // C10
     }
 
+    // P503 (Oct 31 16:29:08 at a station's Alarm Panel: "I should be able to turn the alarm off too. Which I can't seem
+    // to"): using a panel while the alarm sounds switches it off: the lamps go dark, the klaxon and the calls for help
+    // stop, and it can't sound again for two minutes (the soldiers already after him keep fighting). Returns true when
+    // the click was the panel's.
+    static let panelSilence: Double = 120
+    func greywallPanelUse(_ p: IVec3) -> Bool {
+        let panel = Blocks.groupBase[Int(Blocks.id("alarm_panel"))]
+        guard Blocks.groupBase[Int(world.block(p.x, p.y, p.z))] == panel else { return false }
+        let st = greywallAlarm
+        guard let key = st.sites.first(where: { $0.value.panels.contains(p) || Greywall.inside($0.value, V3(Float(p.x), Float(p.y), Float(p.z)), pad: 4) })?.key,
+              var site = st.sites[key] else { return false }
+        guard site.on else { return false }
+        site.on = false
+        site.quiet = 0
+        site.silencedUntil = clock + Game.panelSilence
+        greywallLamps(&site, lit: false)
+        st.sites[key] = site
+        st.log.append("\(key) alarm off at a panel")
+        sfx(.buttonStone, 0.8, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+        onToast?("Alarm off")
+        return true
+    }
+
     // The map table of a base the player holds marks every other Greywall base within 3,000 blocks on the map (the
     // radar network). Returns true when the click was the table's.
     func greywallMapTableUse(_ p: IVec3) -> Bool {
@@ -560,13 +585,18 @@ extension Game {
               let s = sc.nearest(Greywall.kind, x: p.x, z: p.z, maxRegions: 1), s.contains(p.x, p.y, p.z) else { return true }
         let (cx, cz) = Greywall.centre(s)
         let codes = inventory.main.slots.contains { !$0.isEmpty && Items.key($0.item) == "greywall_codebook" }
-        guard greywallAlarm.taken.contains("greywall:\(cx),\(cz)") || codes else {
+        let held = greywallAlarm.taken.contains("greywall:\(cx),\(cz)")
+        guard held || codes else {
             // P206: say where the key is.
             onToast?("Locked to Greywall codes")
             return true
         }
         let n = greywallRadarNet(from: cx, cz)
         onToast?(n.isEmpty ? "The radar net shows no other Greywall base within 3,000 blocks" : "The radar net marks \(n.count) Greywall bases on your map")
+        // P501 (Oct 31 09:44, at an enemy garrison's table with its code book: "Why am I doing quartermaster contracts at
+        // the [Greywall]?... Doesn't make a lick of sense"): the codes read the radar net; the quartermaster's work is
+        // only a base he holds.
+        guard held else { return true }
         openMenu(BaseContractsMenu(game: self, board: "greywall:\(cx),\(cz)", at: IVec3(cx, p.y, cz)))   // C11: contracts; its last row the war report (C2)
         return true
     }

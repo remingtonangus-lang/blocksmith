@@ -1117,6 +1117,7 @@ enum TextureGen {
         greywallPainters(&p)
         depotPainters(&p)                                 // P469 (Depots.swift)
         securityCameraPainters(&p)                        // D35
+        liftPainters(&p)                                  // P503 (Lift.swift)
         for (k, v) in ItemTextures.painters() { p[k] = v }
         for (k, v) in Font.painters() { p[k] = v }
         rotatedPainters(&p)

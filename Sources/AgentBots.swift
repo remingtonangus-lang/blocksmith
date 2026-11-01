@@ -241,7 +241,7 @@ final class VillageBot: AgentBot {
 
     init(world w: World, village s: StructureStart) {
         PathFinder.doors = true
-        for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+        for y in stride(from: max(1, s.min.y), through: min(CH - 3, s.max.y), by: 1) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
             let b = w.block(x, y, z)
             guard Blocks.shape[Int(b)] == "door" else { continue }
             let st = Int(b - Blocks.groupBase[Int(b)])
@@ -486,7 +486,7 @@ final class LifeBot: AgentBot {
                     if m.lying || m.bedWalk != nil { sleepers.append(m.bedWalk ?? m.pos) }
                 }
                 var best = Int.max
-                for y in max(1, village.min.y)...min(CH - 3, village.max.y) { for z in village.min.z...village.max.z { for x in village.min.x...village.max.x {
+                for y in stride(from: max(1, village.min.y), through: min(CH - 3, village.max.y), by: 1) { for z in village.min.z...village.max.z { for x in village.min.x...village.max.x {
                     let k = Blocks.key(Blocks.groupBase[Int(a.world.block(x, y, z))])
                     guard k.hasSuffix("_bed") else { continue }
                     let p = IVec3(x, y, z)

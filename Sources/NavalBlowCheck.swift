@@ -13,14 +13,14 @@ enum NavalBlowCheck {
     }
 
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
-        let a = PlaytestOct12Tests.arena(g, dx: -90, dz: 90, r: 12)
+        let a = PlaytestOct12Tests.arena(g, dx: -90, dz: 90, r: 16)
         defer { a.restore(); g.drops.items.removeAll(); g.arms.breaches.removeAll() }
         g.survival = true
         let feet = V3(Float(a.fx) + 0.5, Float(a.py) + 1, Float(a.fz) + 0.5)
         var taken: [Int: [Int]] = [:]
         for level in [3, 4, 5] {
             g.diffLevel = level
-            for d: Float in [1, 4, 8] {
+            for d: Float in [1, 4, 8, 13] {
                 g.health = 20; g.alive = true; g.player.pos = feet; g.player.vel = .zero
                 g.levelSecond = -10
                 g.lastHurtAt = -100; g.lastHurtAmount = 0      // (each burst a fresh hit, not the cooldown's remainder)
@@ -31,9 +31,12 @@ enum NavalBlowCheck {
         }
         g.diffLevel = 3; g.health = 20; g.alive = true
         let n = taken[3] ?? [], h = taken[4] ?? [], vh = taken[5] ?? []
-        print("navalblow: half-hearts taken at 1, 4, 8 blocks: Normal \(n), Hard \(h), Very Hard \(vh)")
-        check(n.count == 3 && n[0] >= 16 && n[0] <= 18 && n[1] >= 12 && h[0] >= 20 && vh[0] >= 20 && n[2] < n[0] && h.indices.allSatisfy { h[$0] >= n[$0] } && vh.indices.allSatisfy { vh[$0] >= h[$0] },
-              "P471: a crew's heavy shell takes \(n[0]) half-hearts at a block on Normal (cap 18), \(n[1]) at 4, \(n[2]) at 8; Hard \(h), Very Hard \(vh)")
+        print("navalblow: half-hearts taken at 1, 4, 8, 13 blocks: Normal \(n), Hard \(h), Very Hard \(vh)")
+        // (P501, Oct 31 09:53: "the naval gun needs to be way more devastating": its burst reaches him out to 14 blocks,
+        // the level's cap within about 12.)
+        check(n.count == 4 && n[0] >= 16 && n[0] <= 18 && n[1] >= 16 && n[2] >= 14 && n[3] > 0 && n[3] < n[0] && h[0] >= 20 && vh[0] >= 20
+              && h.indices.allSatisfy { h[$0] >= n[$0] } && vh.indices.allSatisfy { vh[$0] >= h[$0] },
+              "P471/P501: a crew's heavy shell takes \(n[0]) half-hearts at a block on Normal (cap 18), \(n[1]) at 4, \(n[2]) at 8, \(n[3]) at 13; Hard \(h), Very Hard \(vh)")
         // Its breach through 3-thick Capital stone (the crews' shells used to bounce off their own walls).
         let w = g.world, stone = Blocks.has("capital_stone") ? Blocks.id("capital_stone") : STONE
         var placed: [IVec3] = []

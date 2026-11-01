@@ -169,7 +169,7 @@ extension Game {
         var out: [IVec3] = []
         let cx = Int(floor(c.x)), cy = Int(floor(c.y)), cz = Int(floor(c.z))
         for z in (cz - 48)...(cz + 48) { for x in (cx - 48)...(cx + 48) where world.isLoaded(x, z) {
-            for y in max(1, cy - 16)...min(CH - 2, cy + 24) {
+            for y in stride(from: max(1, cy - 16), through: min(CH - 2, cy + 24), by: 1) {
                 let b = world.block(x, y, z)
                 guard (b >= gun && b < gun + 4) || (b >= hurt && b < hurt + 4) else { continue }
                 let p = IVec3(x, y, z)

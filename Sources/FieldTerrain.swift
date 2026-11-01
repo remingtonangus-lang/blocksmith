@@ -487,13 +487,20 @@ extension World {
     func fieldSphere(_ ctr: V3, radius r: Float, carve: Bool, material: UInt8?, keepCell: IVec3? = nil, keepSolid: Bool = false,
                      remesh: Bool = false) -> [IVec3] {
         var flipped: [IVec3] = []
+        World.sphereCalls &+= 1                                     // (P502: the turret freeze's counters)
+        // P502 (Oct 31 16:19 and 16:29, two freezes on a manned deck gun): a shell fired above the horizon burst when its
+        // 12 s were up, hundreds of blocks over the world's top, and its breach's bowl came here. Its rows began above the
+        // last and ended below it: an inverted range, which the headset's unchecked build counts up through every Int
+        // instead of stopping (a checked build traps). The rows are a stride now (empty when inverted) and a ball wholly
+        // outside the world, or at a point that isn't one, does nothing.
+        guard World.reachesWorld(ctr, r + 1.5) else { return flipped }
         let outerBox = changeBox                                    // (P440: this sphere's changes measured)
         changeBox = (IVec3(Int.max, Int.max, Int.max), IVec3(Int.min, Int.min, Int.min))
         let prepared = prepareFine(ctr, radius: r)                  // P377 step 1 (FineField.swift)
         let reach = Int(ceil(r + 1.5))
         let cxI = Int(floor(ctr.x)), cyI = Int(floor(ctr.y)), czI = Int(floor(ctr.z))
         var touched: [(Chunk, Int)] = []
-        for y in max(0, cyI - reach)...min(CH - 1, cyI + reach) {
+        for y in stride(from: max(0, cyI - reach), through: min(CH - 1, cyI + reach), by: 1) {
             for z in (czI - reach)...(czI + reach) {
                 for x in (cxI - reach)...(cxI + reach) {
                     guard let c0 = chunkAt(x, z) else { continue }
@@ -522,6 +529,7 @@ extension World {
                         flipped.append(IVec3(x, y, z))
                         c.modified = true
                         c.recomputeHeight(mod(x, CS), mod(z, CS))
+                        if !now { groundOpened(c, y) }                  // (the rock a bowl lays open is not buried)
                     } else {
                         c.blocks.setDensity(i, q, material: nil, follow: false)
                         c.modified = true
@@ -786,6 +794,12 @@ extension World {
 
 extension World {
     // Is the cell under a point inside or beside the field's ground? (harness)
+    // P502: a ball of radius r at c is a real point and overlaps the world's rows (any x and z a chunk can have).
+    static func reachesWorld(_ c: V3, _ r: Float) -> Bool {
+        guard c.x.isFinite && c.y.isFinite && c.z.isFinite && r.isFinite else { return false }
+        return abs(c.x) < 3e7 && abs(c.z) < 3e7 && c.y + r >= 0 && c.y - r < Float(CH)
+    }
+
     func fieldNear(_ p: V3) -> Bool {
         let x = Int(floor(p.x)), y = Int(floor(p.y - 0.3)), z = Int(floor(p.z))
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
@@ -801,11 +815,11 @@ extension World {
     // blocks and the damage showed"): a hole he digs (`remesh`) is drawn the same frame, the sections next to the changed
     // samples remeshed at once (as a placed block's are, P440); blasts and the rest still follow on a worker.
     func fieldCarve(at c: V3, radius r: Float, mode: CarveMode, remesh: Bool = false, remove: ((IVec3, BlockID) -> Void)?) -> Int {
-        guard r > 0.05 else { return 0 }
+        guard r > 0.05, World.reachesWorld(c, r + 1.5) else { return 0 }        // (P502)
         if mode == .dig, let remove {
             let reach = Int(ceil(r))
             let cx = Int(floor(c.x)), cy = Int(floor(c.y)), cz = Int(floor(c.z))
-            for y in max(0, cy - reach)...min(CH - 1, cy + reach) { for z in (cz - reach)...(cz + reach) { for x in (cx - reach)...(cx + reach) {
+            for y in stride(from: max(0, cy - reach), through: min(CH - 1, cy + reach), by: 1) { for z in (cz - reach)...(cz + reach) { for x in (cx - reach)...(cx + reach) {
                 let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
                 guard let ch = chunkAt(x, z) else { continue }
                 let i = Chunk.index(mod(x, CS), y, mod(z, CS))
