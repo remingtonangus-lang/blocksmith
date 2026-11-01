@@ -343,8 +343,9 @@ enum DeepGapTests {
         defer { Rand.deterministic = wasDeterministic }
         for (i, (name, make, gun, ammo, dist)) in cases.enumerated() {
             // The two riflemen the harder-than-the-surface rule compares: three seeds each, averaged (one seed's hit luck
-            // swung the ratio from 1.2 to 1.6 between runs).
-            let seeds = name.hasPrefix("Capital rifleman") || name.hasPrefix("Ashguard Rifleman") ? 3 : 1
+            // swung the ratio from 1.2 to 1.6 between runs). P503: nine (with three, which of them drew the Kessel moved
+            // the Ashguard's per-round share from 1.3 to 1.1 and the Capital's from 0.5 to 0.6 between two builds).
+            let seeds = name.hasPrefix("Capital rifleman") || name.hasPrefix("Ashguard Rifleman") ? 9 : 1
             var runs: [(Float?, Float?)] = []
             var rounds = 0, dealt = 0
             for k in 0..<seeds {

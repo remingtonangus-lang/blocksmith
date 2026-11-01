@@ -180,6 +180,15 @@ enum TroopTests {
         j.soldierBrain.sees = false; j.soldierBrain.seenAgo = 2
         _ = j.hannibalJets(0.05, g, dist: 20, canTarget: true, speed: 1)
         check(blind <= 0 && lifted > 3 && j.jet <= 0.4, String(format: "troop behaviour: a Hannibal trooper lifts only seeing him (out of sight %.1f s of jets, in sight %.1f), and drops once it loses him (%.1f left)", blind, lifted, j.jet))
+        // P503: under a roof (a hall's ceiling 4 over its feet) it fights on foot.
+        let roof = IVec3(Int(floor(j.pos.x)), Int(floor(j.pos.y)) + 4, Int(floor(j.pos.z)))
+        let roof0 = g.world.block(roof.x, roof.y, roof.z)
+        g.world.setBlock(roof.x, roof.y, roof.z, STONE)
+        j.jet = 0; j.jetCD = 0; j.onGround = true; j.soldierBrain.sees = true; j.soldierBrain.seenAgo = 0
+        _ = j.hannibalJets(0.05, g, dist: 20, canTarget: true, speed: 1)
+        let roofed = j.jet
+        g.world.setBlock(roof.x, roof.y, roof.z, roof0)
+        check(roofed <= 0, String(format: "troop behaviour: a Hannibal trooper under a roof 4 over its feet keeps off its jets (%.1f s)", roofed))
         let q = Mob(.soldierTrooper, at: base); q.setTroop(.specOps); q.soldierBrain.gun = Guns.smg
         let s = Mob(.soldierMarksman, at: base); s.setTroop(.specOps)
         check(TroopClass.suppressed(q) && !TroopClass.suppressed(s), "troop behaviour: Spec Ops SMGs are suppressed, their scoped rifles are not")

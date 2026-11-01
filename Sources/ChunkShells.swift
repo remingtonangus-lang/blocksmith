@@ -18,6 +18,7 @@ extension World {
     static var shells = ProcessInfo.processInfo.environment["BS_SHELLS"] != "0"
     static var hollowed = 0, refilled = 0, fromCache = 0          // (harness tallies)
     static var refilledAtOnce = 0                                 // (of them on the frame thread: refillNow)
+    static var sphereCalls = 0                                    // (P502: fieldSphere calls, the turret freeze check)
 
     // Chunks within this many (Chebyshev) of a player keep their data.
     var keepDataDistance: Int { min(activeDistance, renderDistance) + 2 }

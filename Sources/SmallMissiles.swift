@@ -8,8 +8,11 @@ import simd
 // second (a sidestep or cover beats it) and bursts in a small blast that breaks no blocks. Crawlers carry 6, frigates
 // 10, citadels 8 (restocking one every five calm minutes); launches come 6 to 9 seconds apart, only at a survival
 // player 24 to 120 blocks off (inside that the guns do the work).
+// P501 (Oct 31 09:46, a citadel's missiles struck him for 1 at a time): a 1.6 burst (was 1.0): about 7 hearts where
+// it meets him on Normal, 3 a block and a half off; still no block broken (a crew's rocket never breaks one).
 enum SmallMissiles {
-    static let speed: Float = 22, turn: Float = 1.4, power: Float = 1.0, life: Float = 7
+    static let speed: Float = 22, turn: Float = 1.4, power: Float = 1.6, life: Float = 7
+    static let podPower: Float = 1.0                  // (a pod hull's salvo: ship shells, unchanged)
     static let minRange: Float = 24, maxRange: Float = 120
     static let crawlerLoad = 6, frigateLoad = 10, baseLoad = 8, podSalvos = 3
     static let baseRestock: Float = 300

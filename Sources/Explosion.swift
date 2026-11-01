@@ -55,11 +55,29 @@ enum Explosion {
     // P471: the blast is a heavy naval shell's (Armory.detonate): Game.hurtPlayer lets it hit harder than the level's
     // cap on one blow.
     static var heavyShell = false
+    static let heavyPlayerReach: Float = 14         // P501: how far a heavy shell's burst reaches him (Explosion.explode)
     // P472: a crash's own blasts spare whoever rides the crashing ship (CapitalShips.hullContact, VehicleDamage).
     static var sparePlayer = false
+    // (--turretfreeze: the slowest blast, stage by stage; nested blasts count in the outer one)
+    static let batchShape = ProcessInfo.processInfo.environment["BS_BLASTSHAPE"] != "1"
+    static var lapT = 0.0, lapT0 = 0.0, lapDepth = 0, laps = "", worstMs = 0.0, worstLaps = ""
+    static func lapStart() { lapDepth += 1; if lapDepth == 1 { lapT = CFAbsoluteTimeGetCurrent(); lapT0 = lapT; laps = "" } }
+    static func lap(_ s: String) {
+        guard lapDepth == 1 else { return }
+        let t = CFAbsoluteTimeGetCurrent(); laps += String(format: "%@ %.1f, ", s, (t - lapT) * 1000); lapT = t
+    }
+    static func lapEnd(_ s: String) {
+        lap(s); lapDepth -= 1
+        guard lapDepth == 0 else { return }
+        let ms = (lapT - lapT0) * 1000
+        if ms > worstMs { worstMs = ms; worstLaps = laps }
+    }
+
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
                         decay: Bool = true, resistCap: Float = .infinity, along: V3? = nil) {
         let w = g.world
+        Explosion.lapStart()
+        defer { Explosion.lapEnd("entities") }
         // P357 (e) (Oct 16 20:14: "a shell crater follows the angle of the shot"): a shell's blast carries on the way it
         // was flying: rays along the shot reach further, those back toward the gun less, so a plunging shot leaves a
         // slanted bowl and a flat one a gouge running on from where it struck.
@@ -70,6 +88,7 @@ enum Explosion {
         let breakBlocks = breakBlocks && !(own && g.bases.inAnyBase(c))
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
         w.ships.blast(at: c, power: power, game: g, resistCap: resistCap)          // ship blocks (ShipCombat.swift)
+        Explosion.lap("ships")
         var destroyed = Set<IVec3>()
         var shaken: [IVec3: Float] = [:]                    // blocks that stopped a ray: share of their cost it carried
         // (The rays only find blocks to break or chip: a blast that breaks none skips them, 17 ms at power 8.)
@@ -98,6 +117,7 @@ enum Explosion {
                 intensity -= 0.225
             }
         } } } }
+        Explosion.lap("rays")
         var tnt: [IVec3] = []
         let tntID = Blocks.id("tnt")
         // Realistic world: bodies lying round (ragdolls, MobRagdoll.swift) are thrown too.
@@ -141,6 +161,12 @@ enum Explosion {
                                  speed: power * 2.2 * k + 1, seed: hash3(b.x, b.y, b.z, 0xB1A5), crowding: 0.3)
             }
         }
+        Explosion.lap("bodies")
+        // A blast's ground cells are opened without each one's own round hollow (a field sphere a cell, about a third
+        // of a millisecond each on the host: a heavy shell's 450 cells were a 170 ms frame); the bowl carved below
+        // shapes the hole as a whole, and only the cells past it get their own. BS_BLASTSHAPE=1: a hollow a cell.
+        w.batchShape = Explosion.batchShape && w.fieldTerrain
+        var opened: [IVec3] = []
         for b in destroyed {
             let id = w.block(b.x, b.y, b.z)
             if id == tntID { tnt.append(b); w.setBlockAsync(b.x, b.y, b.z, AIR); continue }
@@ -151,21 +177,37 @@ enum Explosion {
                 for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5)) }
                 be.container.slots = Array(repeating: .empty, count: be.container.slots.count)   // an open screen shares it
             }
+            if w.batchShape && w.isGround(b) { opened.append(b) }
             w.setBlockAsync(b.x, b.y, b.z, AIR)
         }
+        w.batchShape = false
+        Explosion.lap("removal \(destroyed.count)")
         for b in destroyed { w.scheduleFluid(around: b) }
+        // P503: what stood over the hole is weighed (StructureTip): a top shot out from under it tips and falls.
+        if !destroyed.isEmpty {
+            let far = destroyed.reduce(Float(1)) { max($0, simd_length(V3(Float($1.x), Float($1.y), Float($1.z)) + 0.5 - c)) }
+            w.queueTipCheck(IVec3(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z))), Int(ceil(far)))
+        }
         // PG1: the crater is a bowl in the terrain field, not the blocks the rays took: its walls are bounded by a ball
         // the size of most of what broke (TerrainField.swift).
         if (w.keepsField || w.fieldTerrain) && !destroyed.isEmpty {
             let ds = destroyed.map { simd_length(V3(Float($0.x), Float($0.y), Float($0.z)) + 0.5 - c) }.sorted()
             let r = ds[min(ds.count - 1, ds.count * 3 / 4)] + 0.3
+            var balls: [(V3, Float)] = [(c, r)]
             if let shot {                                       // (the bowl leans and runs on along the shot)
-                w.carve(at: c + shot * (r * 0.3), radius: r * 0.9, mode: .shape)
-                w.carve(at: c + shot * (r * 0.95), radius: r * 0.6, mode: .shape)
-            } else {
-                w.carve(at: c, radius: r, mode: .shape)
+                balls = [(c + shot * (r * 0.3), r * 0.9), (c + shot * (r * 0.95), r * 0.6)]
             }
+            for (at, rr) in balls { w.carve(at: at, radius: rr, mode: .shape) }
+            // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
+            // surface in to a block and a half past its radius)
+            for b in opened {
+                let q = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
+                if !balls.contains(where: { simd_length(q - $0.0) < $0.1 + 1 }) { w.fieldShape(b.x, b.y, b.z, opened: true) }
+            }
+        } else {
+            for b in opened { w.fieldShape(b.x, b.y, b.z, opened: true) }
         }
+        Explosion.lap("fluids, carve")
         // Progressive block damage: blocks the blast couldn't break lose pieces on the side facing it.
         if Settings.shared.chipping {
             var bits = 0
@@ -193,6 +235,7 @@ enum Explosion {
             }
         }
         for b in tnt { g.tnts.prime(at: b, fuse: Rand.float(in: 0.5...1.5)) }
+        Explosion.lap("chips")
 
         // Entities.
         let radius = power * 2
@@ -207,24 +250,31 @@ enum Explosion {
         // beside it. The lines start back along the shot, in the open air it came through (or above the block).
         if let shot { for _ in 0..<8 where w.opaqueAt(Int(floorf(from.x)), Int(floorf(from.y)), Int(floorf(from.z))) { from -= shot * 0.25 } }
         for _ in 0..<2 where w.opaqueAt(Int(floorf(from.x)), Int(floorf(from.y)), Int(floorf(from.z))) { from.y = floorf(from.y) + 1.05 }
-        func impact(_ p: V3, _ height: Float) -> (Float, V3)? {
+        func impact(_ p: V3, _ height: Float, reach: Float? = nil) -> (Float, V3)? {
             let center = p + V3(0, height * 0.5, 0)
             let d = simd_length(center - c)
-            if d > radius { return nil }
+            let r = reach ?? radius
+            if d > r { return nil }
             let exposure: Float = w.canSee(from, center) ? 1 : (w.canSee(from, p + V3(0, height, 0)) ? 0.5 : 0)
-            let k = (1 - d / radius) * exposure
+            let k = (1 - d / r) * exposure
             let dir = d > 0.01 ? (center - c) / d : V3(0, 1, 0)
             return (k, dir)
         }
         // Every split-screen player in reach (typed closure and split arithmetic: the inferred form timed out the
         // type checker on CI).
+        // P501 (Oct 31 09:53, a Boreal station's 42 cm gun, his armour off: hits of 1 and 2, "That should have taken me
+        // down about six hearts... That should have killed me... the naval gun needs to be way more devastating"): a heavy
+        // shell's burst reached him within its own blast radius (10 blocks for a crew's shell, 4.8 for the light-armed
+        // ones); now out to 14 blocks whatever its power, on the same curve (on Normal the level's 9-heart cap within
+        // about 12).
+        let heavyReach: Float = Explosion.heavyShell ? max(radius, Explosion.heavyPlayerReach) : radius
         let hitPlayer: () -> Void = {
-            guard !Explosion.sparePlayer, let im = impact(g.player.pos, 1.8), im.0 > 0 else { return }
+            guard !Explosion.sparePlayer, let im = impact(g.player.pos, 1.8, reach: heavyReach), im.0 > 0 else { return }
             let k: Float = im.0
             let dir: V3 = im.1
             let base: Float = (k * k + k) / 2
             let naval: Float = Explosion.heavyShell ? 4 : 1           // P475: a naval gun's burst, four times as hard on him
-            let raw: Float = base * 7 * radius * naval + 1
+            let raw: Float = base * 7 * max(radius, heavyReach * 0.72) * naval + 1
             g.hurtPlayer(Int(raw.rounded()), from: c, cause: "blew up", knockback: 0, type: .explosion)
             let push: V3 = dir * (k * 12)
             if g.survival { g.player.vel += push * g.knockbackScale }       // (PG7: a blast doesn't throw a creative player about either; Q2c-console-60)
@@ -336,6 +386,7 @@ final class CraterJob {
     private(set) var done = false
     static let blocksPerFrame = 250
     static var initCost = ""                 // (MainGunTests)
+    static var outside = 0                   // (P502: breaches burst outside the world, questcheck --turretfreeze)
     private var circuitsNear: Bool?
     private var waitFrames = 0
     private var scanY = Int.min
@@ -380,6 +431,9 @@ final class CraterJob {
     func step(_ g: Game, blocks: Int) -> Bool {
         if done { return true }
         let w = g.world
+        // P502: a breach burst wholly over the world's top (a deck gun's shell timed out in the sky) or under it, or at
+        // a point that isn't one, has nothing to carve, scorch or wait for.
+        guard World.reachesWorld(center, max(r * 1.5, Float(depth)) + 4) else { done = true; CraterJob.outside &+= 1; return true }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
         // (Oct 31: a far strike) The bowl and its scorch reach shell chunks round the impact (ChunkShells: blocks
         // dropped past the active distance): they come back on the workers first and the bowl opens under the dust
@@ -456,6 +510,7 @@ final class CraterJob {
         }
         if (next >= offsets.count || removed >= cap) && !carved {
             carved = true
+            w.queueTipCheck(IVec3(cx, cy, cz), Int(ceil(r)) + 1)        // (P503: what stood over the breach weighed)
             for b in rim { w.scheduleFluid(around: b) }
             rim.removeAll()
         }

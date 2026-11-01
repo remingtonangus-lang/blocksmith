@@ -33,7 +33,7 @@ extension MobManager {
                 for i in wild {
                     let r = recs[i]
                     let lx = Int(floor(r.p[0])) - key.x * CS, ly = Int(floor(r.p[1])), lz = Int(floor(r.p[2])) - key.z * CS
-                    search: for y in max(0, ly - 2)...min(CH - 1, ly + 2) {
+                    search: for y in stride(from: max(0, ly - 2), through: min(CH - 1, ly + 2), by: 1) {
                         for z in max(0, lz - 4)...min(CS - 1, lz + 4) {
                             for x in max(0, lx - 4)...min(CS - 1, lx + 4) where pt[Int(b[Chunk.index(x, y, z)])] {
                                 penned.insert(i); break search

@@ -129,19 +129,22 @@ final class Player {
     // edge: the body slides sideways toward the opening's middle, up to 3 blocks a second and never more than 0.45, as
     // if the frame's corners were rounded. Only for a push mostly along one axis (not a glancing walk along a wall).
     static var doorwayAssistOn = true                  // (off only for the check's before-and-after)
-    private func doorwayAssist(_ wish: V3, _ w: World, _ dt: Float) {
+    func doorwayAssist(_ wish: V3, _ w: World, _ dt: Float) {
         let d = simd_normalize(V2(wish.x, wish.z))
         let alongX = abs(d.x) > abs(d.y)
         // (P475, Oct 27: "Still a little too hard to get through doors": it now takes a door met at up to 45 degrees,
         // looks further ahead, and centres the body faster)
-        guard max(abs(d.x), abs(d.y)) > 0.7 else { return }
+        // (P501, Oct 31 09:44: "my hitbox... I'm still having trouble getting through doors. I have to line myself up
+        // perfectly": a door met at up to 55 degrees, from as far as the body still touches the opening's cell, and
+        // centred faster)
+        guard max(abs(d.x), abs(d.y)) > 0.57 else { return }
         let ahead: Float = 0.6
         let perp = alongX ? pos.z : pos.x
         let base = Int(floor(perp))
         var best: Float?
         for c in [base, base - 1, base + 1] {
             let mid = Float(c) + 0.5
-            guard abs(mid - perp) < 0.55 else { continue }
+            guard abs(mid - perp) < 0.5 + halfW else { continue }
             var probe = pos, there = pos
             if alongX { probe.z = mid; probe.x += d.x > 0 ? ahead : -ahead; there.z = mid }
             else { probe.x = mid; probe.z += d.y > 0 ? ahead : -ahead; there.x = mid }
@@ -150,7 +153,7 @@ final class Player {
             if best == nil || abs(mid - perp) < abs(best! - perp) { best = mid }
         }
         guard let mid = best else { return }
-        let step = max(-5 * dt, min(5 * dt, mid - perp))
+        let step = max(-7 * dt, min(7 * dt, mid - perp))
         _ = w.moveBody(&pos, halfW: halfW, height: height, alongX ? V3(0, 0, step) : V3(step, 0, 0), step: 0, onGround: onGround)
     }
 

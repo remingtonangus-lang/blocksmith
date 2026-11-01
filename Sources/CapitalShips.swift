@@ -2256,7 +2256,7 @@ extension ShipManager {
                 SmallMissiles.launched += 1
                 let at = s.toWorld(p)
                 let dir = s.dirToWorld(d)
-                let sh = Shell(pos: at + dir, vel: dir * 30 + s.vel, owner: s.id, power: SmallMissiles.power)
+                let sh = Shell(pos: at + dir, vel: dir * 30 + s.vel, owner: s.id, power: SmallMissiles.podPower)
                 sh.kind = 2
                 sh.gravity = 0
                 sh.life = 12
@@ -2628,7 +2628,7 @@ extension ShipManager {
         } } }
         let a = s.worldMin, b = s.worldMax
         var gone = 0
-        for y in max(1, Int(floor(a.y)))...min(CH - 2, Int(floor(b.y))) {
+        for y in stride(from: max(1, Int(floor(a.y))), through: min(CH - 2, Int(floor(b.y))), by: 1) {
             for z in Int(floor(a.z))...Int(floor(b.z)) { for x in Int(floor(a.x))...Int(floor(b.x)) {
                 let blk = w.block(x, y, z)
                 guard blk != AIR, !Blocks.isLiquid(blk), !w.groundAt(x, y, z), w.blockEntities[IVec3(x, y, z)] == nil else { continue }
@@ -2668,7 +2668,7 @@ extension ShipManager {
         let a = s.worldMin - V3(0.5, 0.5, 0.5), b = s.worldMax + V3(0.5, 0.5, 0.5)
         var n = 0
         var hard: [IVec3] = [], at = V3.zero, lift: Float = 0
-        for y in max(1, Int(floor(a.y)))...min(CH - 2, Int(floor(b.y))) {
+        for y in stride(from: max(1, Int(floor(a.y))), through: min(CH - 2, Int(floor(b.y))), by: 1) {
             for z in Int(floor(a.z))...Int(floor(b.z)) { for x in Int(floor(a.x))...Int(floor(b.x)) {
                 let blk = w.block(x, y, z)
                 guard blk != AIR, Blocks.collide[Int(blk)] || Capital.crushable(blk) else { continue }

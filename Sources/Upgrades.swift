@@ -246,12 +246,15 @@ enum Upgrades {
         if lv(.stability) > 0 {                     // a scope on two rings, longer with each level
             let sl: Float = len * (0.22 + 0.06 * Float(lv(.stability)))
             let z0: Float = lo.z + len * 0.3
-            out.append(Part(mn: V3(midX - 1.1, hi.y + 1, z0), mx: V3(midX + 1.1, hi.y + 3.2, z0 + sl), color: V3(0.12, 0.13, 0.15), pattern: 8))
-            out.append(Part(mn: V3(midX - 0.9, hi.y + 1.4, z0 - 0.3), mx: V3(midX + 0.9, hi.y + 2.8, z0), color: V3(0.3, 0.55, 0.75), pattern: 11))
+            // P501 (Oct 31, the Falke "doesn't look good"): a handgun's sight is as wide as its slide (a rifle scope 2.2
+            // wide on a 1.3 slide hung out over both sides of it), sitting low on short rings.
+            let k: Float = len < 12 && hi.x - lo.x < 1.8 ? 0.55 : 1, lift: Float = k < 1 ? 0.4 : 1
+            out.append(Part(mn: V3(midX - 1.1 * k, hi.y + lift, z0), mx: V3(midX + 1.1 * k, hi.y + lift + 2.2 * k, z0 + sl), color: V3(0.12, 0.13, 0.15), pattern: 8))
+            out.append(Part(mn: V3(midX - 0.9 * k, hi.y + lift + 0.4 * k, z0 - 0.3), mx: V3(midX + 0.9 * k, hi.y + lift + 1.8 * k, z0), color: V3(0.3, 0.55, 0.75), pattern: 11))
             for zr: Float in [0.25, 0.75] {
                 let z = z0 + sl * zr
                 let foot = min(hi.y, topAt(z) ?? hi.y)       // (down to the part under the ring)
-                out.append(Part(mn: V3(midX - 0.6, foot, z - 0.4), mx: V3(midX + 0.6, hi.y + 1, z + 0.4), color: V3(0.2, 0.2, 0.22)))
+                out.append(Part(mn: V3(midX - 0.6 * k, foot, z - 0.4), mx: V3(midX + 0.6 * k, hi.y + lift, z + 0.4), color: V3(0.2, 0.2, 0.22)))
             }
         }
         if lv(.extendedMag) > 0 {                   // the magazine grows down

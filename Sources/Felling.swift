@@ -43,7 +43,7 @@ enum Felling {
         var lo = f, hi = f
         for c in logs { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z)) }
         var others: [IVec3] = []
-        for y in max(above + 1, lo.y - 6)...min(CH - 1, hi.y + 6) { for z in (lo.z - 6)...(hi.z + 6) { for x in (lo.x - 6)...(hi.x + 6) {
+        for y in stride(from: max(above + 1, lo.y - 6), through: min(CH - 1, hi.y + 6), by: 1) { for z in (lo.z - 6)...(hi.z + 6) { for x in (lo.x - 6)...(hi.x + 6) {
             let c = IVec3(x, y, z)
             if !logs.contains(c) && CapitalBase.isLog(w.block(x, y, z)) { others.append(c) }
         } } }

@@ -68,7 +68,7 @@ extension Game {
         let ids = Trophies.blockKeys.filter { Blocks.has($0) }.map { (Blocks.groupBase[Int(Blocks.id($0))], $0) }
         let cx = Int(floor(c.x)), cy = Int(floor(c.y)), cz = Int(floor(c.z)), ri = Int(r)
         for z in (cz - ri)...(cz + ri) { for x in (cx - ri)...(cx + ri) where world.isLoaded(x, z) {
-            for y in max(1, cy - 8)...min(CH - 2, cy + 12) {
+            for y in stride(from: max(1, cy - 8), through: min(CH - 2, cy + 12), by: 1) {
                 let b = world.block(x, y, z)
                 guard b != AIR else { continue }
                 let g = Blocks.groupBase[Int(b)]

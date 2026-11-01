@@ -22,6 +22,9 @@ enum GunActions {
     static var manual = false                         // QuestControls: on in swing play
     static var cocked = true                          // the held gun's action is worked (a round up, the hammer back)
     static var cycles = 0                             // (tests)
+    // P503 (Oct 31 16:27:26, the left grip that should step the hotbar cocked the gun): the off hand works the action
+    // only on the gun (within 0.22 m of the gun hand and barrel), not within 0.46 m (P286's magazine reach, + 0.08).
+    static let workReach: Float = 0.22
 
     static func action(_ gi: Int) -> Action {
         switch gi {

@@ -93,6 +93,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--saveacross"), i + 2 < Command
 if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }
 // --freezetest [--rd 8]: the Oct 23 base freezes (a bulkhead door opened, a wall block broken), frame by frame (P416).
 if CommandLine.arguments.contains("--freezetest") { exit(QuestFreezeTest.run()) }
+// --turretfreeze [--rd 6] [--seconds 30]: the Oct 31 afternoon freezes, a manned deck gun fired into a base (P502).
+if CommandLine.arguments.contains("--turretfreeze") { exit(QuestTurretFreeze.run()) }
 // --toppletest: what nothing holds falls whole, as itself (P407: a tower past the load fill, a tree on a broken plinth).
 if CommandLine.arguments.contains("--toppletest") { exit(QuestToppleTest.run()) }
 // --spacewarp: P403 7b, the space warp's motion vectors of a moving mob (quest/src/test/SpaceWarpCheck.swift).
@@ -609,6 +611,29 @@ if let out = arg("--view"), let ctx = vkctx {
         } } }
         if let sc = vw.gen.structures, let st = sc.nearest("shipwreck", x: ex, z: ez, maxRegions: 2) {
             print("probe: nearest shipwreck anchor \(st.anchor)")
+        }
+    }
+    // --slice R (P501, his door at a garrison): the blocks round the eye, layer by layer from the feet to two over the
+    // head, as a map (north up, a letter per kind, listed after each layer; doors in capitals by their open state).
+    if let r = Int(arg("--slice") ?? "") {
+        let e = vg.player.pos
+        let ex = Int(floor(e.x)), ez = Int(floor(e.z)), ey = Int(floor(e.y))
+        for y in (ey - 2)...(ey + 3) {
+            var kinds: [String: Character] = [:]
+            let letters = Array("abcdefghijklmnopqrstuvwxyz0123456789@#$%&*+=?")
+            print("slice: y \(y) (display \(y - YOFF)), x \(ex - r)...\(ex + r) left to right")
+            for z in (ez - r)...(ez + r) {
+                var row = ""
+                for x in (ex - r)...(ex + r) {
+                    let b = vw.rawBlock(x, y, z)
+                    if b == AIR { row.append(x == ex && z == ez ? "!" : "."); continue }
+                    let k = Blocks.key(b)
+                    if kinds[k] == nil { kinds[k] = letters[min(kinds.count, letters.count - 1)] }
+                    row.append(kinds[k]!)
+                }
+                print("slice: z \(String(format: "%6d", z)) \(row)")
+            }
+            print("slice: " + kinds.sorted { $0.value < $1.value }.map { "\($0.value)=\($0.key)" }.joined(separator: " "))
         }
     }
     // --fluidprobe R (P378 step 2): every water and lava cell within R blocks of the eye: its state, the ground's density
@@ -1940,6 +1965,21 @@ if CommandLine.arguments.contains("--doorway") {
     DoorwayCheck.run(game, check)
     print(failures == 0 ? "doorway: all checks passed" : "doorway: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --lift: P503, Lift Pads and the citadels' gun rooms and lifts (Sources/Lift.swift).
+if CommandLine.arguments.contains("--lift") {
+    LiftCheck.run(game, check)
+    print(failures == 0 ? "lift: all checks passed" : "lift: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --cratermesh: a far crater's laid-open rock meshes (Sources/BuriedOpenCheck.swift).
+if CommandLine.arguments.contains("--cratermesh") {
+    BuriedOpenCheck.run(game, check)
+    print(failures == 0 ? "cratermesh: all checks passed" : "cratermesh: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --tipcheck: P503, a piece shot out from under it tips and falls (Sources/StructureTip.swift).
+if CommandLine.arguments.contains("--tipcheck") {
+    StructureTipCheck.run(game, check)
+    print(failures == 0 ? "tip: all checks passed" : "tip: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --spurcheck: P92's citadel rail spurs, none on ground new since P470 (Sources/PlaytestOct12Tests.swift trains).
 if CommandLine.arguments.contains("--spurcheck") {
     PlaytestOct12Tests.trains(check)
@@ -2885,6 +2925,9 @@ func leaves(_ name: String, _ body: () -> Void) {
 }
 leaves("greywall") { if !CommandLine.arguments.contains("--no-greywall") { GreywallTests.run(device: device, game: game, check: check) } }
 leaves("troopclasses") { TroopTests.run(game: game, check: check) }
+leaves("lift") { LiftCheck.run(game, check) }
+leaves("tip") { StructureTipCheck.run(game, check) }
+leaves("cratermesh") { BuriedOpenCheck.run(game, check) }
 leaves("navy") { NavyTests.run(game: game, check: check) }
 leaves("skiff") { SkySkiffTests.run(game: game, check: check) }
 leaves("mapfog") { MapFogTests.run(game: game, check: check) }

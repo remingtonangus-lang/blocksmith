@@ -78,7 +78,7 @@ extension World {
             // PG1 rewrite: ground opened or placed reshapes the stored field round the cell (FieldTerrain.swift). A built
             // block of natural rock (a structure's) taken or set is a block like any other.
             let now = chunkAt(x, z).map { $0.blocks.ground(Chunk.index(mod(x, CS), y, mod(z, CS))) } ?? false
-            if wasGround != now { fieldShape(x, y, z, opened: wasGround) }
+            if wasGround != now && !(batchShape && wasGround) { fieldShape(x, y, z, opened: wasGround) }
             return
         }
         guard keepsField, old != new else { return }
@@ -122,7 +122,7 @@ extension World {
         let reach = r + 1.5
         let lo = IVec3(Int(floor(c.x - reach)), max(0, Int(floor(c.y - reach))), Int(floor(c.z - reach)))
         let hi = IVec3(Int(floor(c.x + reach)), min(CH - 1, Int(floor(c.y + reach))), Int(floor(c.z + reach)))
-        guard lo.y <= hi.y else { return 0 }
+        guard lo.y <= hi.y, World.reachesWorld(c, reach) else { return 0 }      // (P502: and a point that is one)
         let natT = SmoothTerrain.natural, opaqueT = Blocks.opaque
         var gone: [(IVec3, BlockID)] = []
         var caps: [(IVec3, Float)] = []

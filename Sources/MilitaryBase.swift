@@ -38,6 +38,21 @@ extension BlockRegistry {
     }
 }
 
+extension BlockRegistry {
+    // P501: the armoured twins of the keep's wall blocks (Armour.twin), after the blocks they copy.
+    func registerArmouredTwins() {
+        for k in Armour.twinned where has(k) && !has(k + Armour.twinSuffix) {
+            var d = def(id(k))
+            d.name = k + Armour.twinSuffix
+            d.group = nil
+            d.resistance = d.resistance ?? d.hardness
+            d.hardness = 50; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 3
+            d.hidden = true
+            add(d)
+        }
+    }
+}
+
 // P476 (Remington, Oct 29 13:33: "obsidian grade armour is whatever would make it annoying to get through a wall instead
 // of just finding the keycard or something that you would expect, like a tank, or maybe one layer of that armour around
 // a frigate, whatever you would expect to be hard to get through as opposed to just metal"): Armour Plate and the
@@ -52,6 +67,20 @@ enum Armour {
     static let skins: Set<String> = [plate, "frigate_hull", "frigate_plate", "frigate_trim", "frigate_mark", "warship_hull"]
     static func harden(_ d: inout BlockDef) {
         d.hardness = 50; d.resistance = 1200; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 3
+    }
+    // P501 (Oct 31 09:41, "the armor on the base is still here. Get rid of that"; Oct 30 15:06, "we don't need an armor
+    // block... just use existing blocks you already have as armor"; 17:52, "you took the armor thing a little too
+    // literally. So make sure the explosions do the exact same kind of damage they did before. It's just if I'm trying
+    // to hit the armor with a pickaxe, it's like obsidian"): a Greywall vault and comms room are walled in their own
+    // concrete and steel again, as the rest of the keep. Each is a twin of the block it looks like (same face, same name,
+    // the same blast resistance, so a charge or a shell does what it did) that only mines like obsidian, and drops the
+    // plain block when it is finally cut out.
+    static let twinSuffix = "_armoured"
+    static let twinned = ["bunker_concrete", "bunker_concrete_dark", "bunker_floor", "steel_plating", "steel_grating", "hazard_plating"]
+    static func twin(_ id: BlockID) -> BlockID {
+        let k = Blocks.key(Blocks.groupBase[Int(id)])
+        if twinned.contains(k), Blocks.has(k + twinSuffix) { return Blocks.id(k + twinSuffix) }
+        return Blocks.has("bunker_concrete" + twinSuffix) ? Blocks.id("bunker_concrete" + twinSuffix) : id
     }
     private static let grade: [Bool] = (0..<Blocks.count).map { skins.contains(Blocks.key(Blocks.groupBase[$0])) }
     @inline(__always) static func isGrade(_ id: BlockID) -> Bool { Int(id) < grade.count && grade[Int(id)] }
@@ -205,7 +234,8 @@ enum MilitaryBase {
             let anchor = IVec3(x, y0 + 1, z + CapitalBase.podium + 8)
             guard WorldRules.citadelApart(gen, cx, cz, anchor: anchor) else { return nil }              // G12: none within 800
             let bank = WorldRules.p69(gen, cx, cz, reach: 6)          // P91 banks, on ground first generated with them
-            let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 80, z + e), build: { w in CapitalBase.build(&w, x, y0, z, seed, bank: bank) })
+            let rooms = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: e / CS + 1, guardSet: $0.legacyP503) } ?? true   // P503: gun rooms and lifts
+            let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 80, z + e), build: { w in CapitalBase.build(&w, x, y0, z, seed, bank: bank, gunRooms: rooms) })
             // P48: the garrison row below the south gate, on ground first generated with it (reach 6 covers it).
             let row = WorldRules.p44 && !WorldRules.savedBeforeP44(gen, cx, cz + 5, reach: 3) ? GarrisonTown.pieces(gen, x, z, seed) : []
             return StructureStart(kind: "military_base", pieces: [piece] + row, anchor: anchor)

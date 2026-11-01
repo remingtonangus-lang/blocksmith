@@ -106,6 +106,7 @@ final class Game {
     var exhaustion: Float = 0
     var air: Float = 15        // seconds of breath
     var hurtFlash: Float = 0   // seconds left of the red damage tint
+    var stimFlash: Float = 0   // seconds left of a stim's rush at the edges of the view (P501)
     var alive = true
     var xpLevel = 0
     var xpPoints = 0               // points into the current level
@@ -1147,6 +1148,10 @@ final class Game {
         mi.strafe = simd_clamp(mi.strafe, -1, 1)
         mi.jump = input.down(KeyBinds.key(.jump)) || p.a
         mi.sneak = input.shift || PadActions.sneak(p, q, self)
+        // P503: on a Lift Pad a crouch rides down and a jump rides up (Lift.swift).
+        let sneakNow = mi.sneak
+        if sneakNow && !Lift.sneakWas && liftRide(up: false) { mi.sneak = false }
+        Lift.sneakWas = sneakNow
         // VR has no auto-sprint: a full push is the walk, the stick click sprints (QuestControls), so the two differ.
         if input.control || (p.l3 && !q.l3) || (player.moveYaw == nil && PadActions.autoSprint(ls, fdt)) { player.sprinting = true }
         // VR (head-relative stick, Player.moveYaw): a sprint holds in any direction the stick is pushed (Quest round 4).
@@ -1158,6 +1163,7 @@ final class Game {
         // (Not on a horse: the horse keeps its gait while the rider draws a bow or eats; HorseFeel.swift.)
         if (eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0) && !(riding.map { $0.gaited && $0.tamed } ?? false) && !handsOnControls { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
 
+        if (input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a)) && liftRide(up: true) { mi.jump = false }
         if input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a) {
             // P156 (Oct 13: "remove the glider wings: the jetpack replaces them"): a pair of wings worn from an old world
             // becomes a jetpack; wings no longer glide.
@@ -1301,6 +1307,7 @@ final class Game {
         // Boreal Station objectives (before held gear and guns): a control-room console or the generator (BorealOps.swift).
         if useNow && !(input.shift || p.b), let t = target, stationUse(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b), let t = target, greywallMapTableUse(t.hit) { swing = 1; return }
+        if useNow && !(input.shift || p.b), let t = target, greywallPanelUse(t.hit) { swing = 1; return }       // P503
         // Riding a horse and aiming at it: an empty hand pats it, a brush grooms it, a treat feeds it (HorseFeel.swift).
         // Aimed anywhere else, use does what it always does (eat, place, flip a lever, brush a block).
         // Taming (an untamed horse under you): use with an empty hand pats it wherever you aim (aiming the laser down at
@@ -1734,6 +1741,14 @@ final class Game {
             && (target == nil || (h.def.plants == nil && h.def.block == nil)) {
             fullToldAt = clock
             onToast?("You're full")
+        }
+        // P501 (Oct 31 09:54-09:56, holding a Field Stim at 1 health: "Not sure how these field sims work... I can't tell
+        // if this thing even works... How do I use it?"): a stim was a silent 1.6 s hold, like a drink, so a click did
+        // nothing. An auto-injector goes in on the click: it hisses, mends at once (Field 6, Combat 10) and the edges of
+        // the view rush cold green while its effects take hold.
+        if useNow && hk.hasSuffix("_stim") && !(target.map { isInteractive($0.hit) } ?? false) {
+            injectStim(hk)
+            return
         }
         let canDrink = h.def.drink && (survival || Potions.potion(of: h.item) != nil)
         // P186 (Oct 13: "shouldn't I be able to cook stuff on the fire?"): raw food aimed at a lit campfire goes on
@@ -2180,6 +2195,7 @@ final class Game {
             boarlingsGuard(p, block: world.block(p.x, p.y, p.z))
             let be = world.entity(p, .chest)
             world.blockEntities[p] = be
+            baseStims(p, be.container)
             // A neighbouring chest with the same facing along the chest's width makes a large chest.
             let b = world.block(p.x, p.y, p.z)
             let facing = Int(b - Blocks.groupBase[Int(b)])
@@ -3162,6 +3178,7 @@ final class Game {
     // Hunger, regeneration, starvation, drowning and fall damage.
     private func survivalTick(_ dt: Double, from before: V3) {
         hurtFlash = max(0, hurtFlash - Float(dt))
+        stimFlash = max(0, stimFlash - Float(dt))
         let fall = player.pendingFall
         player.pendingFall = 0
         guard survival else {
@@ -3273,6 +3290,7 @@ final class Game {
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load
+        StructureTip.tick(self)                                // P503: a piece shot out from under it tips
         settleStrayPieces()                                    // P448
         TickProf.mark("structure load")
         mobs.update(Float(dt), game: self)

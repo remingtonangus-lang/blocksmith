@@ -110,6 +110,9 @@ enum Greywall {
         if let c = room("comms") { let m = mid(c); p.append(("soldier_officer", m.0, 1, m.1)) }
         p.append(("soldier_trooper", t.floors(upper: upper) > 1 && t.keepX < 10 ? 3 : -3, 1, kc))      // (P255: off the outpost's stair)
         if upper && t == .garrison { p.append(("soldier_trooper", 2, 6, kc - kz + 3)) }               // (P499: the watch room)
+        // P503 (Oct 31 16:28:57 in a garrison's keep: "There should be people on the second floor, like a Hannibal troop
+        // or something"): a Hannibal heavy holds the watch room with him.
+        if upper && t == .garrison { p.append(("soldier_ironclad:heavy", -2, 6, kc - kz + 3)) }
         // P199 (Oct 13: "a guy spawned inside the gun"): the tower lookout stands inside the tower, not on the roof the
         // deck gun takes up.
         if let tw = t.towers.first { let c = tower(t, tw.0, tw.1); p.append(("soldier_marksman", c.x - tw.0, W + 1, c.z - tw.1)) }
@@ -508,15 +511,16 @@ enum Greywall {
         }
         // P476 (Remington, Oct 29 13:33: "obsidian grade armour is whatever would make it annoying to get through a wall
         // instead of just finding the keycard"): the vault and the comms room behind their locked doors are walled,
-        // floored and roofed in armour plate (Armour); the ceiling lights and the doors stay.
-        if Blocks.has(Armour.plate) {
-            let armour = Blocks.id(Armour.plate)
+        // floored and roofed in armour (Armour); the ceiling lights and the doors stay. P501 (Oct 31, "the armor on the
+        // base is still here. Get rid of that"): in the keep's own blocks, their armoured twins (Armour.twin), not a
+        // dark plate of their own.
+        do {
             for r in rs where r.use == "vault" || r.use == "comms" {
                 for dz in (r.z0 - 1)...(r.z1 + 1) { for dx in (r.x0 - 1)...(r.x1 + 1) { for y in 0...5 {
                     if dx >= r.x0 && dx <= r.x1 && dz >= r.z0 && dz <= r.z1 && y >= 1 && y <= 4 { continue }
                     let at = w.get(cx + dx, S + y, cz + dz)
                     if at == AIR || Blocks.emit[Int(at)] > 0 || Blocks.key(Blocks.groupBase[Int(at)]).hasSuffix("door") { continue }
-                    put(dx, y, dz, armour)
+                    put(dx, y, dz, Armour.twin(at))
                 } } }
             }
         }

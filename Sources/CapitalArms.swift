@@ -350,12 +350,19 @@ enum CapitalArms {
                 p.append(b(0.65, 0.2, -0.6 + Float(k) * 0.4, 0.06, 0.85, 0.18, graphite, pMetal))
                 p.append(b(-0.71, 0.2, -0.6 + Float(k) * 0.4, 0.06, 0.85, 0.18, graphite, pMetal))
             }
+            // P501 (Oct 31 09:47, "there's parts floating in the air"): a trigger in the guard and the guard closed
+            // behind it, so the guard's bar no longer hangs under the frame as a loose rod.
+            // His still from behind the gun showed the slide's top as one white board ("is this supposed to be a flat
+            // gun?"): a dark sighting rib runs down its middle between the sights, so it reads as a slide from above.
+            p += [b(-0.15, -1.2, -1.75, 0.3, 0.6, 0.3, graphite, pMetal),            // trigger
+                  b(-0.25, -1.45, -0.6, 0.5, 0.85, 0.25, enamel * 0.94, pEnamel),    // guard's back, into the grip
+                  b(-0.22, 1.25, -5.3, 0.44, 0.08, 6.3, graphite, pMetal)]           // sighting rib (rides the slide)
             let m = p.count
             p += [b(-0.5, -3.55, 0.2, 1.0, 0.45, 1.6, graphite, pMetal)]          // magazine base
             // P301: the slide, bushing, bore, ejection port, both sights and the serrations run back together.
             return GunModel(parts: p, mag: [m], grip: V3(0, -1.9, 0.5), fore: V3(-0.4, -2.6, 0.8), butt: V3(0, -1.9, 0.5),
                             muzzle: V3(0, 0.6, -6.6), magAt: V3(0, -3.3, 0.9), bolt: V3(0, 0.7, -0.6), scale: 0.68, shouldered: false,
-                            slide: [0, 1, 2, 4, 6, 7] + Array(17..<25), slideTravel: 2.2)
+                            slide: [0, 1, 2, 4, 6, 7] + Array(17..<25) + [27], slideTravel: 2.2)
         }
     }
 }
