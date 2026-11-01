@@ -560,7 +560,7 @@ final class CraterJob {
         }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
         let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt"), magma = Blocks.id("magma_block")
-        let coarse = Blocks.id("coarse_dirt"), fire = Blocks.id("fire"), snowLayer = Blocks.has("snow") ? Blocks.id("snow") : AIR
+        let coarse = Blocks.id("coarse_dirt"), snowLayer = Blocks.has("snow") ? Blocks.id("snow") : AIR
         let grass = Blocks.id("grass_block"), podzol = Blocks.id("podzol"), dirt = Blocks.id("dirt")
         var n = columns
         while n > 0 && scorchNext < cols.count {
@@ -605,7 +605,7 @@ final class CraterJob {
             }
             if to != AIR && to != top { w.setBlockAsync(x, y, z, to); scorched += 1 }
             if h > r * 0.7 && hashf(x, y, z, 917) < 0.05 * fade && w.isAir(x, y + 1, z) && to != magma {
-                w.setBlockAsync(x, y + 1, z, fire)
+                w.lightFire(IVec3(x, y + 1, z))
             }
         }
         if scorchNext >= cols.count { done = true }

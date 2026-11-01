@@ -65,9 +65,10 @@ enum NavyTests {
         g.mobs.mobs = [a]
         let o = a.pos + V3(-6, 1, 0)
         g.arms.beam(g, from: o, dir: simd_normalize(a.pos + V3(0, 1, 0) - o), range: 20, damage: 6, fromPlayer: true, shooter: nil, by: "test")
-        // (twice the bolt torn off the shield, then the bolt's own hit after a soldier's armour and toughness: 15-18)
+        // (twice the bolt torn off the shield, then the bolt's own hit after a marine's Hannibal plate and toughness: 13-18;
+        // P504 made a Hannibal twice as tough again, so the hit after the shield is half what it was)
         let took = Navy.shieldMax - a.shield
-        check(took >= 14.4 && took <= 18.6, String(format: "navy: an arc beam of 6 takes %.0f off a shield (2.5-3 times the bolt)", took))
+        check(took >= 12.4 && took <= 18.6, String(format: "navy: an arc beam of 6 takes %.0f off a shield (2.5-3 times the bolt)", took))
         // Crafted, and thrown: it bursts where it lands.
         let grid: [ItemID] = [Items.id("radar_module"), Items.id("copper_ingot"), Items.id("copper_ingot"), Items.id("redstone"), Items.id("redstone"), 0, 0, 0, 0]
         let craft = Recipes.match(grid, 3, 3)?.result

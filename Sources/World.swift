@@ -2565,6 +2565,34 @@ final class World {
         setBlock(p.x, p.y, p.z, FIRE)
         fires[p] = 0
     }
+    // P504 (Nov 1 07:35, a forest after a shelling: "We got some hovering fire. That's not good"): fire set without its
+    // tick (a crater's scorched rim, a burning wreck's ground) never burned out, and stood on in the air when the ground
+    // under it went. Every fire is lit here (or placeFire), so it ages, spreads and goes out as fire does.
+    func lightFire(_ p: IVec3) {
+        setBlockAsync(p.x, p.y, p.z, FIRE)
+        fires[p] = 0
+    }
+    // A fire cell met by a block check (Game.gravityTick: the cells round an edit or a blast) with nothing under it to
+    // burn on goes out; one that was never ticking (an old save's) starts its tick. True when it went out.
+    func fireCheck(_ p: IVec3) -> Bool {
+        guard block(p.x, p.y, p.z) == FIRE else { return false }
+        let below = block(p.x, p.y - 1, p.z)
+        if !Blocks.opaque[Int(below)] && !Blocks.flammable[Int(below)] && !World.fireHeldBeside(self, p) {
+            setBlockAsync(p.x, p.y, p.z, AIR)
+            fires.removeValue(forKey: p)
+            return true
+        }
+        if fires[p] == nil { fires[p] = 0 }
+        return false
+    }
+    // A fire on the face of a burning block beside it (a wall, a trunk: whole flammable blocks, not leaves or plants).
+    static func fireHeldBeside(_ w: World, _ p: IVec3) -> Bool {
+        for d in World.allDirs where d.y == 0 {
+            let b = Int(w.block(p.x + d.x, p.y, p.z + d.z))
+            if Blocks.flammable[b] && Blocks.opaque[b] { return true }
+        }
+        return false
+    }
 
     // Reference fire odds per block (FireBlock: ignite, burn). Logs catch slowly and last; leaves, wool and plants go
     // fast. Every flammable block burned at a flat 1 in 5 a fire tick.
@@ -2597,7 +2625,7 @@ final class World {
             if !isLoaded(p.x, p.z) || !activeHere(p) { continue }          // (P376: fire past the active distance waits)
             FarTicks.note(self, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             let below = block(p.x, p.y - 1, p.z)
-            let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
+            let eternal = below == NETHERRACK || below == BEDROCK || Blocks.key(below) == "magma_block"
             if rainLevel > 0.5 && !eternal, let c = chunks[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))],
                p.y >= Int(c.height[mod(p.x, CS) + mod(p.z, CS) * CS]), Rand.int(in: 0..<3) == 0 {
                 let b = gen.column(p.x, p.z).biome
@@ -2623,7 +2651,8 @@ final class World {
             // Spread to air next to flammable blocks nearby.
             if anyFlammable && Rand.int(in: 0..<3) == 0 {
                 let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -1...2), p.z + Rand.int(in: -1...1))
-                if block(q.x, q.y, q.z) == AIR {
+                let qb = block(q.x, q.y - 1, q.z)
+                if block(q.x, q.y, q.z) == AIR && (Blocks.opaque[Int(qb)] || Blocks.flammable[Int(qb)] || World.fireHeldBeside(self, q)) {
                     // Catches by the most flammable neighbour's ignite odds (reference (ignite + 40 + 7 x difficulty) /
                     // (age + 30) against 100, taking normal difficulty).
                     var ig = 0
@@ -2633,7 +2662,8 @@ final class World {
                     }
                 }
             }
-            let supported = Blocks.opaque[Int(below)] || anyFlammable
+            // (P504: a flame in the air beside leaves or grass was held up by them: it hung there, burning nothing under it)
+            let supported = Blocks.opaque[Int(below)] || Blocks.flammable[Int(below)] || World.fireHeldBeside(self, p)
             // No age cap: fire on a log burns until the log is gone (it went out after 30 steps whatever it stood on).
             if !eternal && (!supported || (age > 6 && Rand.int(in: 0..<4) == 0 && !anyFlammable)) {
                 setBlockAsync(p.x, p.y, p.z, AIR)

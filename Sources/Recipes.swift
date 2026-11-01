@@ -498,6 +498,7 @@ enum Recipes {
             r.append(shaped(["AAA", "APA", "AAA"], ["A": "arrow", "P": Potions.itemName("lingering_potion", t.key)], Potions.itemName("tipped_arrow", t.key), 8))
         }
         r += Guns.recipes()
+        r += [ShipShells.recipe()]
         r += WeaponPrinter.recipes()
         r += GunsmithBench.recipes()                      // D31
         r += VehicleDepot.recipes()                       // D44

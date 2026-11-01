@@ -95,6 +95,20 @@ extension FieldTerrain {
             // Ground straight over most of its top and on every side: water in a crack in the wall, not a pool (15:38:
             // the dark slot along the cave wall held a row of springs, drawn as a strip of water on the wall). A pool
             // under a low cave roof opens to the cave on a side and stays.
+            // P504 (store media, Nov 1, the cave room at 228 45 528: a lone lava cell on a smooth floor drawn as a flat orange
+            // diamond three blocks across with a stepped edge): the drawn level runs on over any ground lower than it
+            // within two cells (Mesher's fluid nets), and only the cells face-on to a pool got rims, so the sheet ran out
+            // over the low ground at its corners to the window's straight edge. A small pool's corner cells are held too.
+            if !big {
+                for i in comp {
+                    let x = i & 15, z = (i >> 4) & 15
+                    for (dx, dz) in [(1, 1), (1, -1), (-1, 1), (-1, -1)] where x + dx >= 0 && x + dx <= 15 && z + dz >= 0 && z + dz <= 15 {
+                        let j = i + dx + dz * CS
+                        guard !liquid(b[j]), !collide[Int(b[j])], fd[j] < rim, solid(j - CSQ) else { continue }
+                        fix.append((j, true))
+                    }
+                }
+            }
             var held = !floats && !overDrop && !(roofed * 2 >= tops && openSides == 0)
             if !big && held { for (j, _) in fix where !joins(j) { held = false; break } }
             if !big && !held, poolLog != nil {

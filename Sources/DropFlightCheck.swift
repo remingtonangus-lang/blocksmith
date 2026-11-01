@@ -137,5 +137,60 @@ enum DropFlightCheck {
             check(worst < 80 && fastest > 35 && st.phase == 4,
                   String(format: "dropflight: a dropship gives chase to a target running at 40 m/s (up to %.0f m/s; at most %.0f blocks off it over the last 4 s of 10; phase %d)", fastest, worst, st.phase))
         }
+        // P504 (Nov 1 07:50:43, a Capital city: "the drop ship is still morphing through buildings when it flies"): a
+        // tower 80 blocks tall across its way in. It goes over it, never through it.
+        do {
+            let n1 = w.ships.list.count
+            let a0 = s.pos + V3(0, 20, 0)
+            let far = a0 + V3(0, 0, -170)
+            guard w.ships.callDropship(faction: .steelhold, from: a0, to: far, game: g, sync: true),
+                  let d = w.ships.list.dropFirst(n1).first(where: { $0.role == "dropship" && $0.parent == nil }),
+                  let st = w.ships.capState[d.id] else { check(false, "dropflight: a third dropship spawns to fly at a tower"); return }
+            var tower: [IVec3] = []
+            defer {
+                for t in w.ships.list where t === d || t.parent === d { w.ships.remove(t) }
+                w.ships.capState.removeValue(forKey: d.id)
+                for c in tower { w.setBlock(c.x, c.y, c.z, AIR) }
+            }
+            let tx = Int(floor(a0.x)), tz = Int(floor(a0.z)) - 70
+            _ = w.loadSync(center: V3(Float(tx), a0.y, Float(tz)), radius: 4)
+            let foot = w.topY(tx, tz) + 1
+            for z in (tz - 3)...(tz + 3) { for x in (tx - 3)...(tx + 3) { for y in foot..<(foot + 80) {
+                w.setBlock(x, y, z, Blocks.id("stone_bricks")); tower.append(IVec3(x, y, z))
+            } } }
+            let topT = Float(foot + 80)
+            st.phase = 1; st.phaseT = 0
+            var through = 0, passed: Float = 0
+            let pos0 = g.player.pos
+            defer { g.player.pos = pos0 }
+            for _ in 0..<(60 * 30) {
+                g.player.pos = d.pos + V3(0, 10, 0)              // (a ship past his active distance sleeps: P376)
+                w.ships.update(1.0 / 60, game: g)
+                if d.worldMax.x > Float(tx - 3) && d.worldMin.x < Float(tx + 4) && d.worldMax.z > Float(tz - 3) && d.worldMin.z < Float(tz + 4)
+                    && d.worldMin.y < topT { through += 1 }
+                passed = max(passed, Float(tz) - d.pos.z)
+                if st.phase != 1 { break }
+            }
+            check(through == 0 && passed > 20,
+                  String(format: "dropflight: flying in at a tower 80 blocks tall across its way it goes over it (%d ticks with the hull in it; %.0f blocks past it)", through, passed))
+        }
+        // P504 (Nov 1 07:55:57, "Ship also needs a place to refill ammunition that you craft"): a Shell Crate, crafted
+        // from two iron, two gunpowder and a copper ingot, used aboard her puts a quarter of a full load in her magazine.
+        do {
+            guard let st = w.ships.capState[s.id] else { check(false, "shellcrate: the dropship has its state"); return }
+            let full = ShipShells.full(w.ships, s)
+            st.rounds = 0
+            let surv0 = g.survival, sel = g.selected, slot0 = g.inventory.main[sel]
+            defer { g.survival = surv0; g.inventory.main[sel] = slot0 }
+            g.survival = true
+            g.inventory.main[sel] = ItemStack(Items.id(ShipShells.key), 5)
+            _ = g.loadShells(s)
+            let one = st.rounds
+            for _ in 0..<4 { _ = g.loadShells(s) }
+            let left = g.inventory.main[sel].count
+            let crafted = Recipes.match(["iron_ingot", "iron_ingot", "gunpowder", "gunpowder", "copper_ingot", "", "", "", ""].map { $0.isEmpty ? ItemID(0) : Items.id($0) }, 3, 3)
+            check(one == full / 4 && st.rounds == full && left == 1 && crafted.map { Items.key($0.result.item) } == ShipShells.key,
+                  "shellcrate: a crate aboard her empty magazine loads \(one) of \(full) rounds; four fill it and a fifth stays in the pack (\(left) left); it is crafted (\(crafted != nil))")
+        }
     }
 }

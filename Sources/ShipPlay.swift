@@ -548,6 +548,9 @@ extension Game {
             }
             return true
         }
+        // P504 (Nov 1 07:55:57, at a Capital Dropship's helm: "Ship also needs a place to refill ammunition that you craft"):
+        // a Shell Crate used aboard a war vessel he holds goes into her magazine.
+        if useNow, Items.key(held.item) == ShipShells.key, let s = ships.aboard { return loadShells(s) }
         // P268 (Oct 14 19:24, "still can't break blocks on the little drop ship"): on the Quest the hand's laser picks the
         // block (8 blocks, QuestControls.updateAim); the eye's 6-block ray through that point fell short of a hull the
         // laser reached, so the wreck showed nothing to break. The hand's own ray picks ship blocks now.

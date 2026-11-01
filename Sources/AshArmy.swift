@@ -307,7 +307,7 @@ extension Game {
         let w = world
         for (dx, dz) in [(2, 0), (-2, 0), (0, 2)] {
             let x = c.x + dx, z = c.z + dz, y = c.y - 1
-            if w.isAir(x, y, z) && w.solidAt(x, y - 1, z) { w.setBlock(x, y, z, FIRE) }
+            if w.isAir(x, y, z) && w.solidAt(x, y - 1, z) { w.placeFire(IVec3(x, y, z)) }
         }
         // P473 (Oct 26 19:27: wrecks that "still look decent"): the vehicle stays as its burnt hulk, a few fittings thrown
         // off; on a ship's deck (a crawler's cargo) it still comes apart.

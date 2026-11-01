@@ -2488,9 +2488,10 @@ extension ShipManager {
         var clear = ground
         if st.phase == 1 || st.phase >= 4 {
             let lo = s.localMin, hi = s.localMax
-            let ahead = V3(s.vel.x, 0, s.vel.z) * 1.5
+            // (P504: three seconds ahead, time to slow and climb; it took a second and a half to turn its speed over)
+            let ahead = V3(s.vel.x, 0, s.vel.z) * 3
             for c in [V3(lo.x, 0, lo.z), V3(hi.x, 0, lo.z), V3(lo.x, 0, hi.z), V3(hi.x, 0, hi.z), (lo + hi) * 0.5] {
-                for a in [V3(0, 0, 0), ahead * 0.5, ahead] {        // (P499: and half way, at a chase's speed)
+                for a in [V3(0, 0, 0), ahead * 0.25, ahead * 0.5, ahead * 0.75, ahead] {        // (P499: and on the way, at a chase's speed)
                     let w = s.toWorld(c) + a
                     let x = Int(floor(w.x)), z = Int(floor(w.z))
                     if world.isLoaded(x, z) { clear = max(clear, Float(world.topY(x, z))) }
@@ -2599,6 +2600,18 @@ extension ShipManager {
             // under and ahead of it, as on the way in.)
             want = V3(away.x, 0, away.y) * 20 + V3(0, max(8, min(14, (clear + 8 + keel - s.pos.y) * 0.8)), 0)
             if st.phaseT > 20 || s.pos.y > Float(CH - 12) { remove(s); capState.removeValue(forKey: s.id); return }
+        }
+        // P504 (Nov 1 07:50:43, at a Capital city: "the drop ship is still morphing through buildings when it flies. That
+        // shouldn't be possible"): the climb over what stands ahead was capped at 4-6 blocks a second while it kept its
+        // speed, so a tower taller than it could climb in a second and a half's run went through the hull. Short of the
+        // height that clears it, it slows (to a hover 8 blocks short) and climbs as fast as it must.
+        if st.phase == 1 || st.phase >= 4 {
+            let short = clear + 2 + keel - s.pos.y
+            if short > 0 {
+                let f = max(0, 1 - short / 8)
+                want.x *= f; want.z *= f
+                want.y = max(want.y, min(16, 3 + short * 1.5))
+            }
         }
         s.vel += (want - s.vel) * min(1, dt * 1.5)
         // Face the way it flies (hovering: toward the target).

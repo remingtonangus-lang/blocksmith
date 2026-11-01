@@ -452,6 +452,7 @@ enum Guns {
             }
         }
         for (k, rows) in icons.merging(AshArms.icons, uniquingKeysWith: { a, _ in a }).merging(GreywallArms.icons, uniquingKeysWith: { a, _ in a })
+            .merging([ShipShells.key: ShipShells.icon], uniquingKeysWith: { a, _ in a })
             where !all.contains(where: { $0.key == k }) {
             let accent = all.first { $0.key == k }?.accent ?? V3(0.35, 0.4, 0.25)
             let grid = rows.map { Array($0) }

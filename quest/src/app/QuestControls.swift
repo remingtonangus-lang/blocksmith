@@ -932,8 +932,19 @@ final class QuestControls {
         // fades to black instead of showing the world from inside a wall (the usual VR answer: no x-ray, no disorienting
         // inside-out view), and clears as the head comes out.
         let hw = rig.headWorld
-        let hb = Int(game.world.block(Int(floor(hw.x)), Int(floor(hw.y)), Int(floor(hw.z))))
-        let inWall: Float = game.alive && Blocks.opaque[hb] && Blocks.fullCollide[hb] ? 1 : 0
+        let hx = Int(floor(hw.x)), hy = Int(floor(hw.y)), hz = Int(floor(hw.z))
+        let w = game.world
+        var hb = Int(w.block(hx, hy, hz))
+        var buried = false
+        // P504 (Nov 1 07:35:25, "when I go into some of the craters, sometimes my vision goes black, even though I'm not
+        // under anything"): in a field world the ground is the drawn surface, not its cells. A cell whose centre is in
+        // the ground read as a wall for a head over a crater's smooth slope, under the open sky; the head is in the
+        // ground where the field is, and in a wall where a built block is.
+        if w.fieldTerrain && w.frame == nil {
+            hb = Int(w.builtBlock(hx, hy, hz))
+            buried = w.fieldDensity(at: hw) > 0.1
+        }
+        let inWall: Float = game.alive && (buried || Blocks.opaque[hb] && Blocks.fullCollide[hb]) ? 1 : 0
         wallFade += (inWall - wallFade) * min(1, dt * (inWall > wallFade ? 14 : 8))
         if wallFade < 0.005 { wallFade = 0 }
         game.sound?.setListener(eye: rig.headWorld, yaw: rig.headYaw, pitch: rig.headPitch, cave: game.sound?.cave ?? 0,

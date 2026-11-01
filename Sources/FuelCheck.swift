@@ -103,6 +103,25 @@ enum FuelCheck {
         check(lavaLeft == 0, "fuelcheck: lava touching a line of fuel lights it all (\(lavaLeft) of 5 left)")
         tray()
 
+        // P504 ("We got some hovering fire"): a crater's fire burns as fire (it ticks), goes out when the ground under it
+        // goes, and a flame in the air beside leaves doesn't hang there.
+        let f1 = IVec3(bx + 3, by + 1, bz + 3)
+        w.lightFire(f1)
+        w.fireTick()
+        let ticking = w.fires[f1] != nil && w.block(f1.x, f1.y, f1.z) == FIRE
+        w.setBlock(f1.x, f1.y - 1, f1.z, AIR)
+        for _ in 0..<4 { g.gravityTick() }
+        let outWhenUndercut = w.block(f1.x, f1.y, f1.z) != FIRE
+        w.setBlock(f1.x, f1.y - 1, f1.z, STONE)
+        let leaf = Blocks.id("oak_leaves")
+        w.setBlock(bx + 8, by + 3, bz + 8, leaf)
+        w.lightFire(IVec3(bx + 9, by + 3, bz + 8))
+        for _ in 0..<3 { w.fireTick() }
+        let hanging = (7...10).filter { w.block(bx + $0, by + 3, bz + 8) == FIRE }.count
+        check(ticking && outWhenUndercut && hanging == 0,
+              "fuelcheck: a crater's fire ticks (\(ticking)), goes out when the ground under it goes (\(outWhenUndercut)), none hangs in the air by leaves (\(hanging))")
+        tray()
+
         // A fuel bucket beside his vehicle fills its tank (half a tank), the bucket back.
         let car = w.ships.spawn(AshCommandeer.sidecar(), at: home + V3(0, 30, 0), yaw: 0, name: "Test Car", role: "")
         car.role = nil
