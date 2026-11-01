@@ -1523,7 +1523,9 @@ extension ShipManager {
     // all these little guns in the back that I have to use"): attack fires the spinal rail gun along the bow too when
     // it is loaded (raised or lowered a little toward the view), a slug as its crew fires it, reloading in 8 s.
     func playerRail(_ s: Ship, pitch: Float, game g: Game) -> Bool {
-        guard s.role == "crawler", s.captured, let st = capState[s.id], st.mainGunCD <= 0 else { return false }
+        // (P507, Nov 1 12:08:59: "instead of having that giant cannon thing on the top, replace it with another naval gun":
+        // the crawler's rail cannon is gone, a twin naval turret in its place, Capital.crawler.)
+        guard ShipManager.crawlerRail, s.role == "crawler", s.captured, let st = capState[s.id], st.mainGunCD <= 0 else { return false }
         let mw = s.toWorld(st.mainGunMuzzle)
         let md = s.dirToWorld(st.mainGunDir)
         let flat = simd_normalize(V3(md.x, 0, md.z) + V3(1e-5, 0, 0))
@@ -1541,6 +1543,7 @@ extension ShipManager {
     // drops, a white-blue bolt leaving a glowing line in the air, a blue flash and sparks at the muzzle, and where it
     // strikes it drives on through what it hits (up to `railReach` blocks, ShipManager.railBore) before it bursts.
     static let railSpeed: Float = 700
+    static let crawlerRail = false                       // (P507: the crawler's spinal rail gun, replaced by a naval twin)
     static let railReach = 14
     func railShot(_ s: Ship, from mw: V3, dir: V3, power: Float, game g: Game) {
         let sh = Shell(pos: mw + dir * 2, vel: dir * ShipManager.railSpeed, owner: s.id, power: power)
@@ -2343,7 +2346,7 @@ extension ShipManager {
             // that craters whatever it hits. Once charging it commits and fires along the bow, toward the target if it
             // is still within the cone.
             if st.driverAlive && st.mainGunCD <= 0 && st.gunCharge < 0 && cosA > 0.9 && dist < 600 && dist > 40 { startMainGunCharge(s, st, g, byPlayer: false) }
-        } else if st.driverAlive && st.mainGunCD <= 0 && cosA > 0.9 && dist < 600 && dist > 20 {
+        } else if (s.role != "crawler" || ShipManager.crawlerRail) && st.driverAlive && st.mainGunCD <= 0 && cosA > 0.9 && dist < 600 && dist > 20 {
             if st.mainCharge == 0 { g.sfx(.gun(12), 2, at: mw) }
             st.mainCharge += dt
             if Int(st.mainCharge * 20) % 2 == 0 { g.particles.smoke(at: mw, dark: false) }
