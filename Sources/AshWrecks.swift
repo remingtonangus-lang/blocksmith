@@ -216,6 +216,7 @@ enum AshWrecks {
                 // The wheels (9/16 of a block round) turn with the ground going by under them.
                 let along = simd_dot(s.vel, s.dirToWorld(V3(0, 0, -1)))
                 m.walkPhase = (m.walkPhase + along * dt / (9.0 / 16)).truncatingRemainder(dividingBy: 2 * .pi)
+                m.sitting = w.ships.pilot === s                  // P504: his own legs on the saddle while he rides it
             } else {
                 m.walkPhase += w.ships.pilot === s || s.engines > 0 && simd_length(s.vel) > 1 ? 0.9 : 0   // the propeller
             }
@@ -396,7 +397,7 @@ func ashWreckParts(_ m: Mob) -> [Part] {
         BoatLooks.rock(&p, pitch: m.boatRock.x, roll: m.boatRock.y)
     case 6:
         // P461: an Ashguard Sidecar (syncSkins), tilted to the hull.
-        sidecarParts(add, spin: m.walkPhase)
+        sidecarParts(add, spin: m.walkPhase, rider: m.sitting)
         BoatLooks.rock(&p, pitch: m.boatRock.x, roll: m.boatRock.y)
     case 4:
         // P435: a repaired one, driven: clean paint, the turret and gun on his aim.
@@ -559,7 +560,7 @@ private func fighterWholeParts(_ add: WreckAdd, spin: Float) {
 // with its car on the right, laid out over AshCommandeer.sidecar's plan: the front wheel over plan cell z 0, the rear
 // over z 3, the car's own wheel outside cell (1, 0, 2); the saddle where the rider sits at the helm, the car's machine
 // gun over the plan's gun. `spin`: how far the wheels have turned.
-private func sidecarParts(_ add: WreckAdd, spin: Float) {
+private func sidecarParts(_ add: WreckAdd, spin: Float, rider: Bool = false) {
     let od = V3(0.29, 0.3, 0.19), dark = V3(0.06, 0.06, 0.07), steel = V3(0.22, 0.22, 0.21), alu = V3(0.4, 0.41, 0.4)
     let rubber = V3(0.05, 0.05, 0.05), leather = V3(0.27, 0.17, 0.1), lamp = V3(0.78, 0.74, 0.58), red = V3(0.45, 0.05, 0.04)
     func b(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = 4) {
@@ -654,6 +655,19 @@ private func sidecarParts(_ add: WreckAdd, spin: Float) {
     b(14, 29.5, 15, 23, 33.5, 19, dark, 8)                             // saddle drum
     b(14, 14, 48, 23, 22, 51, od)                                      // jerrycan
     b(23.5, 19, 7.5, 25.5, 21, 9.5, lamp, 8)                           // the car's side lamp
+    // P504 (Nov 1, "I should be able to see myself when I'm driving the sidecar"): ridden, his seat and legs on the
+    // saddle, knees in at the tank's pads, boots on the footboards (nothing above the belt, where his eyes are).
+    if rider {
+        let cloth = V3(0.21, 0.22, 0.18), boot = V3(0.1, 0.08, 0.06), belt = V3(0.12, 0.1, 0.08)
+        b(-5.2, 31.5, 25, 5.2, 37, 34, cloth, 10)                       // seat
+        b(-5.4, 36, 24.6, 5.4, 37.6, 34.4, belt, 8)                     // belt
+        for s: Float in [-1, 1] {
+            let (x0, x1) = s < 0 ? (Float(-8.6), Float(-4.9)) : (Float(4.9), Float(8.6))
+            b(x0, 27.5, 15.5, x1, 32.5, 31, cloth, 10)                  // thigh, forward to the knee
+            b(x0 + 0.2, 13, 16, x1 - 0.2, 28.5, 20.5, cloth, 10)        // shin, down to the footboard
+            b(x0 - 0.2, 11, 14.5, x1 + 0.2, 14.5, 25, boot, 8)          // boot
+        }
+    }
 }
 
 // A Sherman-like medium tank, knocked out: a cast turret with a short 75 and its mantlet, the hull's sloped glacis,

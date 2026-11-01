@@ -715,11 +715,17 @@ extension ShipManager {
         if s.flight != nil { err = .zero }                  // flown by its flight model, nothing holds it upright
         let felled = s.name == Felling.name                 // P298: a felled tree topples and rolls freely
         if felled { err = .zero }
-        let kr: Float = s.balloons > 0 ? 8 : (aircraft ? 5 : (s.grounded ? 1.5 : (sub > 0 ? 1.2 : 2)))
+        // P504 (Nov 1 08:02:13 and 08:04:32, the Ashguard sidecars: "they're upside down"; "Thing's fairly unstable. The
+        // right side isn't holding it up like a tricycle would"): a small car (the sidecar, his Army Truck) is held
+        // upright hard, as its wide track and low weight would hold a real one, and one on its back rolls over onto its
+        // wheels (the cross product of an upturned hull's up and the sky's is nil: it rolls about its keel).
+        let smallCar = s.blockCount < 40 && !s.wheels.isEmpty && !felled && s.flight == nil && !aircraft
+        if smallCar && simd_dot(up, desiredUp) < 0.2 && simd_length(err) < 0.5 { err = fwdW * (simd_length(err) < 0.05 ? 1 : simd_dot(err, fwdW) >= 0 ? 1 : -1) }
+        let kr: Float = s.balloons > 0 ? 8 : (aircraft ? 5 : (smallCar ? 14 : (s.grounded ? 1.5 : (sub > 0 ? 1.2 : 2))))
         let wHoriz = s.angVel - up * simd_dot(s.angVel, up)
         let damped: V3 = s.flight != nil ? .zero : (felled ? s.angVel * (s.contacts > 0 ? 0.4 : 0.05)
                                                     : (aircraft ? fwdW * simd_dot(wHoriz, fwdW) : wHoriz))
-        let kd: Float = iAvg * (s.balloons > 0 ? 3 : 1.2)
+        let kd: Float = iAvg * (s.balloons > 0 ? 3 : (smallCar ? 5 : 1.2))
         T += err * (kr * iAvg) - damped * kd
         if aircraft && piloted && s.flight == nil {
             let right = simd_normalize(simd_cross(fwdW, up))

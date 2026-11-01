@@ -302,4 +302,49 @@ enum TreeProbeCheck {
               String(format: "fellcheck: standing on the fallen trunk 4 s he drifts %.2f, bounces up to %.1f b/s, ends %.2f from his start height, the trunk moves %.2f (aboard %d of 240 ticks)",
                      drift, worst, g.player.pos.y - start.y, logMoved, aboard))
     }
+
+    // P504 (Nov 1 07:25, "This tree should have fallen"): his Ash Vault dark oak at 2914 -33 -3051, a 2x2 trunk. One foot
+    // cut, it stands on the other three; a second cut through the same trunk (half its section) fells it, and it goes
+    // over (it stood on its last foot until all four were cut).
+    static func fellHalf(_ g0: Game, _ check: (Bool, String) -> Void) {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        defer { FieldTerrain.newWorlds = field0 }
+        let w = World(seed: 5663059916303033239, device: g0.world.device, save: nil, dim: .deep)
+        w.makeFieldWorld()
+        w.renderDistance = 3; w.activeDistance = 3
+        let g = Game(world: w, save: nil, persistent: false)
+        g.paused = false; g.survival = false
+        g.player.pos = V3(2910.8, 31, -3051.0)
+        _ = w.loadSync(center: g.player.pos, radius: 3)
+        func isLog(_ b: BlockID) -> Bool { CapitalBase.isLog(b) }
+        var feet: [IVec3] = []
+        for z in -3053...(-3049) { for x in 2912...2916 {
+            for y in 25...40 where isLog(w.builtBlock(x, y, z)) && !isLog(w.builtBlock(x, y - 1, z)) && isLog(w.builtBlock(x, y + 1, z))
+                && isLog(w.builtBlock(x, y + 3, z)) { feet.append(IVec3(x, y, z)); break }
+        } }
+        print("fellhalf: feet " + feet.map { "\($0.x) \($0.y - 64) \($0.z)" }.joined(separator: ", "))
+        guard let a = feet.first(where: { $0.x == 2914 && $0.z == -3051 }) ?? feet.first,
+              let b = feet.first(where: { $0 != a && $0.y == a.y && Felling.sameTrunk($0, a) }) else {
+            check(false, "fellhalf: his dark oak at 2914 -33 -3051 has a 2x2 foot (\(feet.count) feet found)"); return
+        }
+        let n0 = Felling.felled
+        let cutA = w.builtBlock(a.x, a.y, a.z)
+        w.setBlock(a.x, a.y, a.z, AIR)
+        g.fellCheck(a, cutA)
+        let firstStands = Felling.felled == n0
+        let cutB = w.builtBlock(b.x, b.y, b.z)
+        w.setBlock(b.x, b.y, b.z, AIR)
+        g.fellCheck(b, cutB)
+        guard Felling.felled > n0, let s = w.ships.list.last(where: { Felling.isFelled($0) }) else {
+            check(false, "fellhalf: his dark oak cut on two feet of four falls (first cut stands: \(firstStands))"); return
+        }
+        var t: Float = 0
+        while t < 8 { w.ships.update(1.0 / 60, game: g); g.fellingTick(1.0 / 60); t += 1.0 / 60 }
+        let there = w.ships.list.contains { $0 === s }
+        let over = TreeProbeCheck.lean(s)
+        check(firstStands && there && over > 45,
+              String(format: "fellhalf: his dark oak stands on three feet of four (%@), falls cut on two and goes over (%.0f degrees after 8 s, %@)",
+                     firstStands ? "yes" : "no", over, there ? "there" : "GONE"))
+    }
 }

@@ -1849,6 +1849,7 @@ if CommandLine.arguments.contains("--treeprobe") {             // P478: logs han
 if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled tree into its neighbour; standing on it
     TreeProbeCheck.fell(game, check)
     TreeProbeCheck.fellReal(game, check)
+    TreeProbeCheck.fellHalf(game, check)
     print(failures == 0 ? "fellcheck: all checks passed" : "fellcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--jetplate") {             // P478: a jetpack strapped onto a chest piece

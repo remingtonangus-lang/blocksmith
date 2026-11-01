@@ -113,6 +113,9 @@ enum AshCommandeer {
     static func hullTop(_ s: Ship) -> Float? {
         if s.name == tankName { return s.boost ? tankTop : tankCruise }
         if s.name == halftrackName { return s.boost ? 13 : 8 }
+        // P504 (Nov 1 08:04:19, "Should also go faster, make it like 100 kilometers per hour that slowly accelerates"):
+        // the sidecar runs to 28 b/s (it topped out with the rest at 16).
+        if s.name == sidecarName { return 28 }
         return nil
     }
 
