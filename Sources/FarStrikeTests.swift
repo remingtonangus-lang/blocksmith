@@ -17,7 +17,7 @@ extension MainGunTests {
         defer {
             w.activeDistance = active0
             w.hotZones.removeAll()
-            w.ships.shells.removeAll(); w.ships.shockwaves.removeAll(); w.ships.pendingCraters.removeAll()
+            w.ships.shells.removeAll(); w.ships.shockwaves.removeAll(); w.ships.pendingCraters.removeAll(); w.ships.pendingAlong.removeAll()
         }
         _ = w.loadSync(center: home, radius: 9)
         let pcx = floorDiv(Int(floor(home.x)), CS), pcz = floorDiv(Int(floor(home.z)), CS)

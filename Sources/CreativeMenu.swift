@@ -18,7 +18,7 @@ final class CreativeMenu: Menu {
     // (P499, Oct 30 15:14: "we shouldn't have void pearls. No reason for those to exist": out of the palette, and nothing
     // drops, holds, trades or crafts from one; a pearl already carried still throws.)
     static let every: [ItemID] = Items.creativeList.filter {
-        !SpawnEggs.retired($0) && !["ender_chest", VehiclePresets.itemKey, "end_portal_frame", "ender_pearl"].contains(Items.key($0)) && !Copper.retired(Items.key($0))
+        !SpawnEggs.retired($0) && !["ender_chest", VehiclePresets.itemKey, "end_portal_frame", "ender_pearl", "golden_apple", "enchanted_golden_apple"].contains(Items.key($0)) && !Copper.retired(Items.key($0))
     }
     static var cache: [Int: [ItemID]] = [:]
     var all: [ItemID] = CreativeMenu.every

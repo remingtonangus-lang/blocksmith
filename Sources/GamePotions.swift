@@ -146,10 +146,17 @@ extension Game {
     // golden apples. Opened, a chest in a base (Greywall, Steelhold, Boreal station, depot, Capital citadel or city)
     // holds stims where it held them.
     static let baseKinds = [Greywall.kind, "military_base", BorealStation.kind, "greywall_depot", "capital_city"]
+    // ... and the pack (Game.tick, every few seconds): apples he carries from before turn to stims too.
+    func packStims() {
+        let gold = Items.id("golden_apple"), radiant = Items.id("enchanted_golden_apple")
+        for i in 0..<inventory.main.count where !inventory.main[i].isEmpty && inventory.main[i].item == gold || inventory.main[i].item == radiant {
+            inventory.main[i] = ItemStack(Items.id(inventory.main[i].item == gold ? "field_stim" : "combat_stim"), inventory.main[i].count)
+        }
+    }
     func baseStims(_ p: IVec3, _ c: ItemContainer) {
         let gold = Items.id("golden_apple"), radiant = Items.id("enchanted_golden_apple")
-        guard (0..<c.count).contains(where: { c[$0].item == gold || c[$0].item == radiant }), let sc = world.gen.structures,
-              Game.baseKinds.contains(where: { sc.structure(at: p.x, p.y, p.z, kind: $0) != nil }) else { return }
+        // P504 (Nov 1 07:27:21, "golden apples are still in the game"): any chest, not only a base's.
+        guard (0..<c.count).contains(where: { c[$0].item == gold || c[$0].item == radiant }) else { return }
         for i in 0..<c.count where c[i].item == gold || c[i].item == radiant {
             c[i] = ItemStack(Items.id(c[i].item == gold ? "field_stim" : "combat_stim"), c[i].count)
         }

@@ -3291,6 +3291,7 @@ final class Game {
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load
         StructureTip.tick(self)                                // P503: a piece shot out from under it tips
+        if Int(clock * 0.5) != Int((clock - Double(dt)) * 0.5) { packStims() }    // P504: no golden apples, every 2 s
         settleStrayPieces()                                    // P448
         TickProf.mark("structure load")
         mobs.update(Float(dt), game: self)

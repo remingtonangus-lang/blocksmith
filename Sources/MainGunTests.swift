@@ -409,7 +409,7 @@ enum MainGunTests {
             }
             check(waited && MainGun.lastCrater > 1000 && w.ships.shockwaves.isEmpty,
                   "maingun: a hit on ground not loaded yet waits, then the bowl is dug when it loads (\(MainGun.lastCrater) blocks after \(frames) frames)")
-            w.ships.pendingCraters.removeAll()
+            w.ships.pendingCraters.removeAll(); w.ships.pendingAlong.removeAll()
         }
 
         // 6. A slug into another Capital vessel's hull tears it open and knocks out its drive: it goes down.

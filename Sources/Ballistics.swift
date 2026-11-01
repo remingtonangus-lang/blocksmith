@@ -380,7 +380,10 @@ final class Armory {
             // pistol rounds (4 or more), a short burst of four lighter rounds. The marshal and the chancellor are bosses.
             if m.kind != .ashMarshal && m.kind != .ashChancellor {
                 let full = Float(max(m.spec.health, m.health))
-                let share: Float = head ? 1 : (s.damage >= 9 ? 1 : (s.damage >= 4 ? 0.5 : 0.25)) / Difficulty.foes(m)   // P499
+                // P504 (Nov 1 07:59:47, 08:00:09: "Someone really hard to kill... the Hannibal troops need to be twice as
+                // tough"): a Hannibal trooper takes twice the rounds: two to the head, four rifle rounds to the body.
+                let suit: Float = m.troop == 3 ? 0.5 : 1
+                let share: Float = suit * (head ? 1 : (s.damage >= 9 ? 1 : (s.damage >= 4 ? 0.5 : 0.25)) / Difficulty.foes(m))   // P499
                 dmg = max(dmg, ceilf(full * share + 0.5))
             }
         }

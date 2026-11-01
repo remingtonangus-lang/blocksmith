@@ -113,6 +113,9 @@ enum Greywall {
         // P503 (Oct 31 16:28:57 in a garrison's keep: "There should be people on the second floor, like a Hannibal troop
         // or something"): a Hannibal heavy holds the watch room with him.
         if upper && t == .garrison { p.append(("soldier_ironclad:heavy", -2, 6, kc - kz + 3)) }
+        // P504 (Nov 1 07:38:14, 07:59:47: "There should be a bunch of guys on the second floor of the Greywall station...
+        // They should be Hannibal troops or something up here"): a second heavy beside him.
+        if upper && t == .garrison { p.append(("soldier_ironclad:heavy", 0, 6, kc - kz + 3)) }
         // P199 (Oct 13: "a guy spawned inside the gun"): the tower lookout stands inside the tower, not on the roof the
         // deck gun takes up.
         if let tw = t.towers.first { let c = tower(t, tw.0, tw.1); p.append(("soldier_marksman", c.x - tw.0, W + 1, c.z - tw.1)) }
@@ -504,7 +507,7 @@ enum Greywall {
                 let m = ((r.x0 + r.x1) / 2, (r.z0 + r.z1 + 1) / 2)          // the officer's spot (posts)
                 for dx in r.x0...r.x1 where dx != m.0 && dx != r.door.0 { put(dx, 1, r.z1, dx % 2 == 0 || dx == r.x1 ? term : rack + 0) }   // (always a console at the east end: an outpost's room has one cell to spare)
                 put(m.0 + 1, 1, m.1, mapTable)
-                w.chest(cx + r.x1, S + 1, cz + r.z0, loot: t.rawValue >= 1 ? "greywall_command" : "greywall_armory", seed: rng.next(), facing: 2)
+                w.chest(cx + r.x1, S + 1, cz + r.z0, loot: t.rawValue >= 1 ? "greywall_charge" : "greywall_armory", seed: rng.next(), facing: 2)   // (P504: its one charge)
                 wallLamp(alarmPanel, r.x0, 2, r.z1, wall: 1)
             default: break
             }

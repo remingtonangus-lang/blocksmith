@@ -1015,6 +1015,14 @@ extension ShipManager {
         ShipManager.plansLock.unlock()
     }
 
+    // P504: rounds left in a war vessel's magazine for the helm's panel (nil: a vessel without one).
+    func magazineLeft(_ ship: Ship) -> Int? {
+        let r = ship.root
+        guard r.kinematic && r.role != nil, let st = capState[r.id] else { return nil }
+        if st.rounds >= 0 { return st.rounds }
+        return Capital.magazine(r, barrels: ([r] + turrets(of: r)).reduce(0) { $0 + $1.cannons.count })
+    }
+
     func hullShare(_ s: Ship, _ st: CapitalState) -> Float? {
         takePlan(s, st)
         guard st.blueprint != nil, st.blueprintSolid > 0 else { return nil }
@@ -1641,7 +1649,8 @@ extension ShipManager {
         }
         let want = steered ? max(-0.35, s.throttle) * top : 0
         let dash = abs(want) > cruise + 1 || abs(way) > cruise + 1
-        let acc: Float = dash ? 26 : (abs(want) > abs(way) && want * way >= 0 ? 4.5 : 6) * (meridian ? 1 : 1.4)
+        // (P504: the Meridian gains 16 m/s a second and sheds 24: to 400 km/h in 7 s, stopped from it in under 5)
+        let acc: Float = dash ? 26 : (meridian ? (abs(want) > abs(way) && want * way >= 0 ? 16 : 24) : (abs(want) > abs(way) && want * way >= 0 ? 4.5 : 6) * 1.4)
         way += max(-acc * dt, min(acc * dt, want - way))
         drift *= max(0, 1 - dt * 2)                         // (the hull carves round: sideways way bleeds off fast)
         s.vel = fw * way + drift
@@ -3017,8 +3026,11 @@ extension Capital {
     // Top speed along the bow at full throttle (blocks/s).
     static let dropChase: Float = 55          // P499: a Capital Dropship's top speed giving chase (200 km/h, as his own)
     static let dashSpeed: Float = 280         // P499: the Meridian's top speed with the sprint held, high up (1,000 km/h)
+    // P504 (Nov 1 07:45:22-07:45:29, at the Meridian's helm: "it's still maxing at a hundred and fifty kilometers per
+    // hour. It needs to go four hundred kilometers per hour... We should be able to get up to that speed and slow down
+    // pretty quickly"): she cruises at 111 m/s (400 km/h), was 42; the sprint still runs her to 1,000 high up.
     static func helmSpeed(_ s: Ship, _ st: CapitalState) -> Float {
-        (s.role == "capfrigate" ? 42 : 18) * drive(s, st)
+        (s.role == "capfrigate" ? 111 : 18) * drive(s, st)
     }
 
     // The hull's outline in ship space: the outermost solid cell of every third row each way (the keel and the top of

@@ -115,7 +115,7 @@ enum Director {
                    case .stormwarden: return "stormwarden"; default: return "capital" }
     }
     static var raidResults: [String: Bool] = [:]  // a town's night raid ended: did he stand with it (TownRaids.won)
-    static let rareGoods = ["diamond", "emerald", "golden_apple", "name_tag", "saddle", "experience_bottle", "blaze_rod",
+    static let rareGoods = ["diamond", "emerald", "field_stim", "name_tag", "saddle", "experience_bottle", "blaze_rod",
                             "nautilus_shell", "heart_of_the_sea", "totem_of_undying", "trident", "enchanted_golden_apple", "spyglass", "rifle_rounds",
                             "heavy_rounds", "shotgun_shells"]
 

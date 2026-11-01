@@ -11,6 +11,7 @@ final class QuestRig {
     var anchor = V3.zero
     var shake = V3.zero                         // eye jolt (Game.shakeVR: the Tidebreaker), set each frame by the app
     var zoom: Float = 1                         // G21: the Farsight scope narrows both eyes' views (VRScope)
+    var halfTan: Float = 1.2                    // the eyes' mean half-width, as a tangent, unzoomed (the scope's lens)
     // P100: the chase view while driving (Game.chaseOffset): the whole tracking space (head, hands, panels) eased out
     // behind the vehicle; zero on foot. The view never turns on its own: only where it sits moves.
     private(set) var chase = V3.zero
@@ -173,6 +174,7 @@ final class QuestRig {
             let (p, q) = xr.eyePose(i)
             var (l, r, u, d) = xr.fovTangents(i)
             minL = min(minL, l); maxR = max(maxR, r); maxU = max(maxU, u); minD = min(minD, d)   // (culling: the unzoomed view)
+            halfTan = i == 0 ? (r - l) * 0.25 : halfTan + (r - l) * 0.25         // (P504: the scope's lens size, both eyes' mean)
             if zoom > 1.001 { l /= zoom; r /= zoom; u /= zoom; d /= zoom }
             let proj = XRMath.projection(tanLeft: l, tanRight: r, tanUp: u, tanDown: d, near: 0.05, far: far)
             let rel = toWorld(p) - center + jolt

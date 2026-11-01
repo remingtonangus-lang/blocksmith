@@ -22,8 +22,10 @@ final class CombatHUD {
     func integrity(_ s: Ship) -> Float {
         let p = max(s.initialBlocks, peak[s.id] ?? 0, s.blockCount)
         peak[s.id] = p
-        return p > 0 ? Float(s.blockCount) / Float(p) : 1
+        return CombatHUD.hullMeter(p > 0 ? Float(s.blockCount) / Float(p) : 1)
     }
+    // P504: the hull reads its blocks left from 100% down to 70% (under 70% of them: 0).
+    static func hullMeter(_ share: Float) -> Float { max(0, min(1, (share - 0.7) / 0.3)) }
 
     func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         var out: [HudLine] = []
@@ -79,11 +81,15 @@ final class CombatHUD {
             // P325 (e): a commandeered warship's drive (the engines left) and the bow's pitch on a row of their own.
             let war = kind == .warship ? g.world.ships.capState[ship.root.id] : nil
             let extra: Float = (gun == nil ? 0 : 11) + (war == nil ? 0 : 11)
-            let x = L.insetX + 6 * s, y0 = L.H - L.insetY - (64 + extra) * s
+            // P504 (Nov 1 07:54:11-07:54:41, at a dropship's helm: "We should also have a magazine counter... we don't need
+            // altitude. We don't even need speed really... We don't need direction... No need guns ready. And we don't
+            // need it to tell us that it's a capital dropship in VTOL mode"): the hull, the magazine, the tank or lift,
+            // the throttle, and a warship's drive and big gun; no name, speed, heading, height or gun-ready words.
+            let x = L.insetX + 6 * s, y0 = L.H - L.insetY - (40 + extra) * s
             let w = 104 * s
-            out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, (58 + extra) * s)))
+            out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, (34 + extra) * s)))
             if let st = war {
-                let dy = y0 + 54 * s
+                let dy = y0 + 33 * s
                 let d = Capital.drive(ship.root, st)
                 let out0 = d <= 0
                 // P464: what stopped them: stalled (they catch again) or shot away (count of engine blocks left).
@@ -98,7 +104,7 @@ final class CombatHUD {
                 out.append(HudLine(text: "", x: x + 26 * s, y: dy + s, scale: s, bg: dc, box: V2(bw * d, 5 * s)))
             }
             if let (state, fill, ready) = gun {
-                let gy = y0 + (war == nil ? 54 : 65) * s
+                let gy = y0 + (war == nil ? 33 : 44) * s
                 let c = ready ? V4(0.55, 0.85, 1, 1) : V4(0.95, 0.75, 0.2, 1)
                 out.append(HudLine(text: MainGun.name, x: x, y: gy, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
                 let sw = Float(Font.width(state)) * s
@@ -107,17 +113,31 @@ final class CombatHUD {
                 out.append(HudLine(text: "", x: bx, y: gy + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(bw, 5 * s)))
                 out.append(HudLine(text: "", x: bx, y: gy + s, scale: s, bg: c, box: V2(bw * fill, 5 * s)))
             }
-            let speed = simd_length(ship.vel) * 3.6
-            out.append(HudLine(text: "\(ship.name) - \(VehicleControls.name(kind))", x: x, y: y0, scale: s, color: V4(1, 0.9, 0.6, 1)))
-            out.append(HudLine(text: String(format: "%3.0f km/h", speed), x: x, y: y0 + 11 * s, scale: s))
-            let dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-            var hd = Double(-ship.yaw * 180 / .pi).truncatingRemainder(dividingBy: 360)
-            if hd < 0 { hd += 360 }
-            let heading = dirs[Int((hd + 22.5) / 45) % 8]
-            out.append(HudLine(text: heading, x: x + w - Float(Font.width(heading)) * s, y: y0 + 11 * s, scale: s, color: V4(0.7, 0.9, 1, 1)))
-            if kind == .airship || kind == .aircraft || kind == .helicopter || kind == .warship || kind == .vtol {
-                let alt = Int(ship.pos.y) - SEA
-                out.append(HudLine(text: "Alt \(alt)", x: x + 56 * s, y: y0 + 11 * s, scale: s, color: V4(0.8, 0.95, 0.8, 1)))
+            // Integrity: P504 (Nov 1 07:49:15, "Hull damage indicator isn't very helpful. It never goes down"; 07:53:53-07:53:59,
+            // "if there's like less than 70% of the blocks, then the hull should be at 0%"): the share of her blocks left,
+            // read from 100% down to 70% (a hull of thousands of blocks lost a few hundred and the bar never moved).
+            let integ = integrity(ship)
+            let iy = y0
+            out.append(HudLine(text: "Hull", x: x, y: iy, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
+            out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(w - 26 * s, 5 * s)))
+            let ic = integ < 0.35 ? Settings.shared.badColor : (integ < 0.7 ? V4(0.95, 0.75, 0.2, 1) : Settings.shared.goodColor)
+            out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: ic, box: V2((w - 26 * s) * integ, 5 * s)))
+            // The magazine (P483: a war vessel's guns draw on it), and the tank or the lift.
+            let ry = y0 + 11 * s
+            if VehicleControls.armed(g, ship), let n = g.world.ships.magazineLeft(ship) {
+                let t = "Rounds \(n)"
+                out.append(HudLine(text: t, x: x, y: ry, scale: s, color: n == 0 ? Settings.shared.badColor : V4(0.85, 0.85, 0.85, 1)))
+            }
+            if kind == .airship {
+                let t = String(format: "Lift %d%%", Int(ship.liftLevel * 100))
+                out.append(HudLine(text: t, x: x + w - Float(Font.width(t)) * s, y: ry, scale: s, color: V4(0.8, 0.9, 1, 1)))
+            } else if VehicleDepot.usesFuel(ship.root) {
+                // Q2: the land vehicle's tank (D44), on the panel where it can be seen in play.
+                let f = VehicleDepot.level(ship.root)
+                let fc = f <= VehicleDepot.fumes ? Settings.shared.badColor : (f < VehicleDepot.low ? V4(0.95, 0.75, 0.2, 1) : V4(0.85, 0.85, 0.85, 1))
+                out.append(HudLine(text: "Fuel", x: x + w - 56 * s, y: ry, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
+                out.append(HudLine(text: "", x: x + w - 30 * s, y: ry + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(30 * s, 5 * s)))
+                out.append(HudLine(text: "", x: x + w - 30 * s, y: ry + s, scale: s, bg: fc, box: V2(30 * s * max(0, min(1, f)), 5 * s)))
             }
             // Throttle: centre line, bar to the right for forward, left for reverse.
             let ty = y0 + 23 * s, mid = x + w / 2
@@ -125,29 +145,6 @@ final class CombatHUD {
             let t = max(-1, min(1, ship.throttle))
             out.append(HudLine(text: "", x: t >= 0 ? mid : mid + w / 2 * t, y: ty, scale: s, bg: V4(0.95, 0.75, 0.2, 1), box: V2(abs(t) * w / 2, 5 * s)))
             out.append(HudLine(text: "", x: mid - s / 2, y: ty - s, scale: s, bg: V4(1, 1, 1, 0.9), box: V2(s, 7 * s)))
-            // Integrity: share of the vehicle's blocks still attached.
-            let integ = integrity(ship)
-            let iy = y0 + 33 * s
-            out.append(HudLine(text: "Hull", x: x, y: iy, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
-            out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(w - 26 * s, 5 * s)))
-            let ic = integ < 0.35 ? Settings.shared.badColor : (integ < 0.7 ? V4(0.95, 0.75, 0.2, 1) : Settings.shared.goodColor)
-            out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: ic, box: V2((w - 26 * s) * integ, 5 * s)))
-            if kind == .airship {
-                out.append(HudLine(text: String(format: "Lift %d%%", Int(ship.liftLevel * 100)), x: x, y: y0 + 43 * s, scale: s, color: V4(0.8, 0.9, 1, 1)))
-            } else if VehicleDepot.usesFuel(ship.root) {
-                // Q2: the land vehicle's tank (D44), on the panel where it can be seen in play.
-                let f = VehicleDepot.level(ship.root)
-                let fc = f <= VehicleDepot.fumes ? Settings.shared.badColor : (f < VehicleDepot.low ? V4(0.95, 0.75, 0.2, 1) : V4(0.85, 0.85, 0.85, 1))
-                out.append(HudLine(text: "Fuel", x: x, y: y0 + 43 * s, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
-                out.append(HudLine(text: "", x: x + 26 * s, y: y0 + 44 * s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(30 * s, 5 * s)))
-                out.append(HudLine(text: "", x: x + 26 * s, y: y0 + 44 * s, scale: s, bg: fc, box: V2(30 * s * max(0, min(1, f)), 5 * s)))
-            }
-            if VehicleControls.armed(g, ship) {
-                let loading = ship.reload > 0 || g.world.ships.turrets(of: ship).contains { $0.reload > 0 }
-                let t = loading ? "Guns loading" : "Guns ready"
-                out.append(HudLine(text: t, x: x + w - Float(Font.width(t)) * s, y: y0 + 43 * s, scale: s,
-                                   color: loading ? V4(0.95, 0.75, 0.2, 1) : Settings.shared.goodColor))
-            }
         }
         // P379 step 2: the locomotive's cab: speed, the regulator (forward right, reverse left) and the brake.
         if let tr = Trains.cab(g), g.menu == nil {

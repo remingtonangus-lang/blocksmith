@@ -602,7 +602,7 @@ enum BorealStation {
         // MARK: Control room (north): screen wall, two rows of desks, the command chest
         for dx in -5...5 { for ly in 2...3 { put(dx, F + ly, -24, console) } }
         for dz in [-20, -18] { for dx in -4...4 where dx != 0 { put(dx, F + 1, dz, console) } }
-        w.chest(X(5), F + 1, Z(-23), loot: grey ? "greywall_command" : "steelhold_command", seed: rng.next(), facing: 1)
+        w.chest(X(5), F + 1, Z(-23), loot: grey ? "greywall_charge" : "steelhold_charge", seed: rng.next(), facing: 1)   // (P504)
         w.chest(X(-5), F + 1, Z(-23), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 1)
 
         // MARK: Data archive (west): cabinet rows, two tall

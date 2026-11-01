@@ -40,6 +40,7 @@ final class SoldierBrain {
     var ashTimer: Float = 5         // the Ash Marshal: seconds to his next marked barrage
     var ashCalls = 0                // ... and how often he has called his guard
     var crewed = false              // deck gun: a live soldier stands at it in the gunner stance
+    var lineClear = false           // deck gun: the line from its muzzle to the player is open (P504)
     var airWarn: Float = -1         // deck gun: seconds since it warned a flying player it is tracking them (P252), -1 none
     var rangeShots = 0              // ... ranging rounds fired at them since
     var cover: V3?                  // a spot out of the player's sight to reload in
@@ -814,7 +815,11 @@ extension Mob {
         if glintDone { b.glinted = true }          // (a glint held up by a wall doesn't use up the warning)
         var aimAt = target
         let flight = gs.speed > 0 ? simd_length(target - muzzle) / gs.speed : 0
-        aimAt += g.player.vel * flight * 0.8
+        // P504 (Nov 1 07:30:44, at a Greywall fortress: "Those snipers should never miss"): a marksman leads him in full,
+        // allows for the round's drop and holds dead on (below); the laser and the glint are the warning.
+        let sniper = kind == .soldierMarksman
+        aimAt += g.player.vel * flight * (sniper ? 1 : 0.8)
+        if sniper { aimAt.y += 0.5 * 1.5 * flight * flight }
         if Guns.isLauncher(b.gun) { aimAt = g.player.pos + V3(0, 0.3, 0) + g.player.vel * flight * 0.6 }
         let dir = simd_normalize(aimAt - muzzle)
         // Soldiers' shotgun pellets hit softer (a point-blank volley shouldn't one-shot a full-health player).
@@ -832,7 +837,7 @@ extension Mob {
                 let kick = aimKick(gs)
                 let hunter: Float = posse == 3 ? 0.7 : 1                 // R21: bounty hunters shoot straighter than the ranks
                 let levelAim: Float = Difficulty.row.aim                 // P302: wide on the easy levels, tight on the hard
-                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : (b.gun == Guns.rotary ? 2.2 : 1)) * hunter * levelAim)
+                let d = sniper && gs.pellets == 1 ? dir : Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : (b.gun == Guns.rotary ? 2.2 : 1)) * hunter * levelAim)
                 g.arms.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * scale, fromPlayer: false,
                                   shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
             }
@@ -997,11 +1002,17 @@ extension Mob {
         if b.losTimer <= 0 {
             b.losTimer = 0.4
             b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye)
+            // P504 (Nov 1 07:27:56-07:28:11: "as soon as the base is in [range], it is able to spot me because of its
+            // special radar ability. And then its naval guns just immediately evaporate me if they can. Have to have a
+            // clear line of fire"): a base's gun knows him in its reach by radar and lays on him; it fires once the
+            // line from its muzzle is clear (its own parapet hid him from the turret's middle at a wall's foot).
+            b.lineClear = b.sees || canTarget && g.world.canSee(HeavyTurret.muzzle(self, 0), g.player.eye)
             b.crewed = deckGunCrewed(g)
             if !b.crewed && factionValue != .greywall { claimGunner(g) }
             if !GunParts.supported(self, g.world) { GunParts.fall(self, g); return }         // P465: its tower shot away
         }
-        if b.sees && canTarget {
+        let radar = canTarget && deck == nil
+        if (b.sees || radar) && canTarget {
             if !aggro { aggro = true; g.sfx(.gun(10), 1.5, at: pivot); alertGarrison(g, g.player.pos, radius: 40) }
             b.lastSeen = player
             b.seenAgo = 0
@@ -1017,6 +1028,9 @@ extension Mob {
         // Spotting still raises the alarm (above), but only a live gunner lays and fires the gun: an empty turret kept
         // shelling the player after the whole garrison was dead (Quest round 4).
         guard b.crewed, let tgt = b.lastSeen, b.seenAgo < 3 else { b.charge = 0; if b.seenAgo > 6 { b.airWarn = -1 }; return }
+        // (On him by radar: it lays, but holds its fire until the line is clear.)
+        let onPlayer = canTarget && (b.sees || radar)
+        let clearShot = !onPlayer || b.lineClear
         let v: Float = flak ? AirDefence.flakSpeed : HeavyTurret.speed, grav: Float = HeavyTurret.gravity
         var wantPitch: Float = 0.75, wantYaw: Float
         var dx: Float
@@ -1041,22 +1055,30 @@ extension Mob {
             let dy = aimP.y - pivot.y
             let disc = v * v * v * v - grav * (grav * dx * dx + 2 * dy * v * v)
             if disc >= 0 && dx > 0.5 { wantPitch = atanf((v * v - sqrtf(disc)) / (grav * dx)) }
+            else if dx <= 0.5 { wantPitch = dy < 0 ? -1.5 : 1.5 }
+            else { wantPitch = 9 }                                         // (out of its reach: no solution, no shot)
             wantYaw = atan2f(-(aimP.x - pivot.x), -(aimP.z - pivot.z))
             if !air { b.airWarn = -1 }
         }
-        wantPitch = max(HeavyTurret.pitchMin, min(HeavyTurret.pitchTop(self), wantPitch))
+        let rawPitch = wantPitch
+        wantPitch = max(HeavyTurret.pitchLow(self), min(HeavyTurret.pitchTop(self), wantPitch))
         var dyaw = wantYaw - yaw
         while dyaw > .pi { dyaw -= 2 * .pi }
         while dyaw < -.pi { dyaw += 2 * .pi }
         // A 1,000-tonne gunhouse traverses slowly; a flak gun lays fast enough to follow a helicopter.
         let turn: Float = (flak ? 1.6 : HeavyTurret.traverse * (light ? 4 : 1)) * dt
-        let elevate: Float = (flak ? 1.2 : (light && airShot ? 0.6 : 0.15)) * dt
+        let elevate: Float = (flak ? 1.2 : (light && airShot ? 0.6 : (light ? 0.4 : 0.25))) * dt
         if GunParts.canTurn(self) { yaw += max(-turn, min(turn, dyaw)) }         // P372: a broken mount holds it
         b.pitch += max(-elevate, min(elevate, wantPitch - b.pitch))
         walkPhase += abs(max(-turn, min(turn, dyaw)))
         let tol: Float = airShot ? 0.05 : 0.04
-        let aligned = abs(dyaw) * cosf(b.pitch) < tol && abs(wantPitch - b.pitch) < (airShot ? 0.04 : 0.03) && dx > (airShot ? 12 : 24)
-            && (!airShot || b.airWarn >= AirDefence.warnDelay)
+        // (P504: a man at the wall's foot is close below, not far off: the shell must clear its own gun, 16 blocks for
+        // the heavy gun's burst, 8 for the light ones; it held fire at 24 across the ground before. A target past its
+        // depression or out of its reach is not fired at: the shells went up into the sky.)
+        let near: Float = airShot ? 12 : (light || flak ? 8 : 16)
+        let laid = airShot || rawPitch >= HeavyTurret.pitchLow(self) - 0.02 && rawPitch <= HeavyTurret.pitchTop(self) + 0.02
+        let aligned = abs(dyaw) * cosf(b.pitch) < tol && abs(wantPitch - b.pitch) < (airShot ? 0.04 : 0.03) && simd_length(tgt - pivot) > near
+            && (!airShot || b.airWarn >= AirDefence.warnDelay) && clearShot && laid
         if aligned && b.reload <= 0 && GunParts.canFireAny(self) {
             if b.charge == 0 { g.sfx(.gun(12), 1.2, at: pivot) }
             b.charge += dt
@@ -1184,8 +1206,11 @@ extension Mob {
                 continue
             }
             guard m.brain?.orderStation == .gunner || grey && m.factionValue == .greywall else { continue }
+            // P504 (Nov 1 07:35:25: "this gun wasn't firing anymore. So somehow someone on the second level of the tower
+            // was operating the gun, even though the console's on the first level"): only a man at the gun's own level
+            // works it (8 blocks up or down took in the floors under it).
             let d = V2(m.pos.x - pos.x, m.pos.z - pos.z)
-            if simd_length_squared(d) < 13 * 13 && abs(m.pos.y - pos.y) < 8 { return true }
+            if simd_length_squared(d) < (grey ? 7 * 7 : 13 * 13) && m.pos.y > pos.y - 2.5 && m.pos.y < pos.y + 3 { return true }
         }
         return false
     }
@@ -1290,6 +1315,10 @@ enum HeavyTurret {
     // P459 (Oct 25 16:19: "they're shooting over my head... They can't aim down far enough"; 16:51 "naval guns need to
     // be able to shoot down further"): -13 degrees, down onto the ground round the base (was -5).
     static let pitchMin: Float = -0.22, pitchMax: Float = 0.52     // -13 to +30 degrees
+    // P504 (Nov 1 07:28:15 and 07:58:10, walking up to a Greywall fortress: "They can't really aim that far down",
+    // "the naval guns still need to be able to shoot downwards more, way more. That way they can actually hit me when
+    // I'm walking up"): a gun high on a tower depresses to -50 degrees (the light and small mounts -57), crewed or his.
+    static func pitchLow(_ m: Mob) -> Float { scale(m) < 1 ? -1.0 : -0.87 }
     static let traverse: Float = 0.2                // radians per second
     static let reload: Float = 9
     static let range: Float = 220                   // once provoked
@@ -1390,6 +1419,9 @@ func deckGunLook(_ m: Mob) -> DeckGunLook {
     default: break
     }
     if m.variant == 0 { m.variant = 1 + Int(hashf(Int(floor(m.pos.x)), Int(floor(m.pos.z)), 7070, 0xDEC) * 2.999) }
+    // P504 (Nov 1 08:01:01, the Ash Vault: "the naval guns here look weird. I don't know if there's supposed to be a cover
+    // over this"): the Ashguard's guns are the closed turret, never the open casemate.
+    if m.factionValue == .ashguard { return (m.variant - 1) % 3 == 2 ? .monitor : DeckGunLook(rawValue: (m.variant - 1) % 3) ?? .turret }
     return DeckGunLook(rawValue: (m.variant - 1) % 3) ?? .turret
 }
 
@@ -1400,6 +1432,8 @@ func deckGunParts(_ m: Mob) -> [Part] {
     if look == .casemate { grey = V3(0.5, 0.52, 0.47); mid = V3(0.38, 0.4, 0.36) }      // (field drab)
     // P459 (Oct 25 16:36: "Make it so that the capital naval guns are white"): the Capital's guns in its white plate.
     if m.factionValue == .steelhold && look != .casemate { grey = V3(0.86, 0.87, 0.88); mid = V3(0.72, 0.73, 0.75); dark = V3(0.3, 0.31, 0.33); deck = V3(0.62, 0.63, 0.65) }
+    // P504 (Nov 1 08:01:08, the Ash Vault's guns: "they should be black, not naval gray"): the Ashguard's in black plate.
+    if m.factionValue == .ashguard { grey = V3(0.12, 0.12, 0.13); mid = V3(0.08, 0.08, 0.09); dark = V3(0.04, 0.04, 0.045); deck = V3(0.1, 0.1, 0.11) }
     // P102: a hurt gun's plate blackens (smoking, then burning: NavalGuns.state) and its right barrel droops.
     let hurt = NavalGuns.state(m)
     if hurt > 0 { let f: Float = hurt == 2 ? 0.5 : 0.78; grey *= f; mid *= f; deck *= f }

@@ -401,7 +401,7 @@ extension Mob {
     static let mugPool: [(String, ClosedRange<Int>, Int)] = [
         ("stick", 1...3, 14), ("string", 1...2, 12), ("bread", 1...2, 12), ("apple", 1...2, 10), ("coal", 1...4, 10),
         ("iron_nugget", 2...6, 9), ("paper", 1...3, 8), ("gold_nugget", 1...4, 7), ("cookie", 1...3, 6), ("iron_ingot", 1...2, 4),
-        ("gold_ingot", 1...2, 3), ("emerald", 1...2, 2), ("golden_apple", 1...1, 1), ("diamond", 1...1, 1),
+        ("gold_ingot", 1...2, 3), ("emerald", 1...2, 2), ("field_stim", 1...1, 1), ("diamond", 1...1, 1),
     ]
     func townMug(_ g: Game) -> Bool {
         guard g.survival, health > 0, !lying, !baby, town.handsUp > 0, villager?.person != nil else { return false }

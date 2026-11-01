@@ -88,7 +88,11 @@ extension ShipManager {
                 // as hard (its crew's stay as they were).
                 let his = game != nil && pilot?.root === t.root && t.root.role != nil
                 let long: Float = 1 + 0.4 * Float(tubes), quick: Float = 1 + 0.12 * Float(tubes)
-                let sh = Shell(pos: muzzle, vel: dir * (t.gunSpeed * quick) + t.velocity(at: muzzle), owner: t.root.id, power: t.gunPower * (his ? 1.5 : 1) * long)
+                // P504 (Nov 1 07:46:48-07:47:01, at a frigate's helm: "the frigate is still shooting much too high... Little
+                // guns are shooting too high as well... Have to aim low"): a war vessel's shells leave on the line the
+                // sight laid (its own speed and climb carried them up and long: 40 blocks a second at her 150 km/h).
+                let carry = t.root.kinematic && t.root.role != nil ? V3(0, 0, 0) : t.velocity(at: muzzle)
+                let sh = Shell(pos: muzzle, vel: dir * (t.gunSpeed * quick) + carry, owner: t.root.id, power: t.gunPower * (his ? 1.5 : 1) * long)
                 sh.gravity = t.gunGravity
                 // P477: a gun with a calibre barrel fires a shell flat and fast, its punch and reload by bore.
                 if i < t.cannonCalibre.count, t.cannonCalibre[i] > 0 {
@@ -96,7 +100,7 @@ extension ShipManager {
                     let extra = Float(max(0, tubes - 1))
                     var cdir = dir
                     if spec.scatter > 0 { cdir = Guns.scatter(cdir, spec.scatter) }
-                    sh.vel = cdir * (spec.speed * (1 + 0.06 * extra)) + t.velocity(at: muzzle)
+                    sh.vel = cdir * (spec.speed * (1 + 0.06 * extra)) + carry
                     sh.gravity = spec.gravity
                     sh.kind = 6
                     // P477: a vessel the world built (a Capital warship, a patrol, a corsair) keeps its mount's own punch and
