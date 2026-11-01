@@ -2181,11 +2181,13 @@ private func parts(_ m: Mob) -> [Part] {
     case .minecart:
         if m.variant >= Trains.loco { return Trains.parts(m) }
         let iron = V3(0.55, 0.56, 0.6), dark = V3(0.3, 0.3, 0.33)
+        // P504 (Nov 1 08:03:01, riding the Ash Vault line: "the cart is still not facing the correct way"): the tub is
+        // long along its heading (-z, as it rolls: Rails.updateMinecart), its wheels at the sides; it lay across the track.
         return [
-            box(-10, 2, -7, 20, 2, 14, dark, 4),
-            box(-10, 4, -8, 20, 7, 1, iron, 4), box(-10, 4, 7, 20, 7, 1, iron, 4),
-            box(-11, 4, -8, 1, 7, 16, iron, 4), box(10, 4, -8, 1, 7, 16, iron, 4),
-            box(-8, 0, -7, 3, 2, 1, dark), box(5, 0, -7, 3, 2, 1, dark), box(-8, 0, 6, 3, 2, 1, dark), box(5, 0, 6, 3, 2, 1, dark),
+            box(-7, 2, -10, 14, 2, 20, dark, 4),
+            box(-8, 4, -10, 1, 7, 20, iron, 4), box(7, 4, -10, 1, 7, 20, iron, 4),
+            box(-8, 4, -11, 16, 7, 1, iron, 4), box(-8, 4, 10, 16, 7, 1, iron, 4),
+            box(-7, 0, -8, 1, 2, 3, dark), box(-7, 0, 5, 1, 2, 3, dark), box(6, 0, -8, 1, 2, 3, dark), box(6, 0, 5, 1, 2, 3, dark),
         ] + cartTop(m)
     case .villager:
         // Townsfolk: jointed people dressed for their trade, carrying their tool or weapon (TownsfolkModel.swift).

@@ -128,7 +128,10 @@ extension FieldTerrain {
                 // open. A rim raised there walled a cave's mouth off from the lake; now the lake spills into it (its
                 // edge cells are springs, World.springs) and runs down as a lavafall. Lips with ground in them are
                 // still raised (the sheet standing over thin ground, 15:56).
-                if lava && side && fd[j] <= 0 { continue }
+                // P504 (store media, Nov 1: a small lava pool on a smooth cave floor "sits as a flat orange sheet with a
+                // stepped edge sticking out of the floor"): only a lava lake's sides stay open; a small pool's are raised
+                // as rims, so the ground holds it and its block sides don't stand over the floor.
+                if lava && big && side && fd[j] <= 0 { continue }
                 if fd[j] <= 0 || fm[j] == 0 {
                     // The rock beside it (the commonest material among its neighbours).
                     var count: [UInt8: Int] = [:]

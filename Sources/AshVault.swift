@@ -119,7 +119,8 @@ extension AshWar {
                     // A cutting through rock and an embankment over dips: a gravel bed with basalt shoulders.
                     if abs(d) <= 2 { w.fill(x, y0 + 1, z, x, y0 + 6, z, AIR) }
                     if abs(d) <= 2 {
-                        w.set(x, y0, z, d == 0 ? gravel : k.basalt)
+                        // (P504: a three-wide gravel bed, so the line is drawn as main-line track, ShapeRails.mainline)
+                        w.set(x, y0, z, abs(d) <= 1 ? gravel : k.basalt)
                         var y = y0 - 1
                         while y > y0 - 14 && !Blocks.collide[Int(w.get(x, y, z))] { w.set(x, y, z, k.basalt); y -= 1 }
                     }
@@ -160,7 +161,7 @@ extension AshWar {
                 }
                 if t == mid {
                     let (x, z) = at(0)
-                    w.mob("minecart", V3(Float(x) + 0.5, Float(y0 + 1), Float(z) + 0.5))
+                    w.mob(r.alongX ? "minecart^90" : "minecart", V3(Float(x) + 0.5, Float(y0 + 1), Float(z) + 0.5))   // (P504: along the track)
                 }
                 if t == first + h.dir {
                     // The halt's board, facing up the line toward anyone arriving.
