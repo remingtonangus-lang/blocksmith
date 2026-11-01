@@ -198,10 +198,11 @@ enum Explosion {
                 balls = [(c + shot * (r * 0.3), r * 0.9), (c + shot * (r * 0.95), r * 0.6)]
             }
             for (at, rr) in balls { w.carve(at: at, radius: rr, mode: .shape) }
-            // (the opened cells the bowl doesn't reach their own round hollow, as every one had)
+            // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
+            // surface in to a block and a half past its radius)
             for b in opened {
                 let q = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
-                if !balls.contains(where: { simd_length(q - $0.0) < $0.1 - 1 }) { w.fieldShape(b.x, b.y, b.z, opened: true) }
+                if !balls.contains(where: { simd_length(q - $0.0) < $0.1 + 1 }) { w.fieldShape(b.x, b.y, b.z, opened: true) }
             }
         } else {
             for b in opened { w.fieldShape(b.x, b.y, b.z, opened: true) }
