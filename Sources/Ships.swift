@@ -63,7 +63,7 @@ enum ShipParts {
     static let kinds: [Kind] = {
         var t = [Kind](repeating: .none, count: Blocks.count)
         let names: [(String, Kind)] = [("ship_helm", .helm), ("ship_propeller", .propeller), ("ship_engine", .engine),
-                                       ("ship_balloon", .balloon), ("ship_wing", .wing), ("capital_wing", .wing), ("fighter_wing", .wing), ("ship_wheel", .wheel), ("ship_track", .wheel),
+                                       ("ship_balloon", .balloon), ("ship_wing", .wing), ("capital_wing", .wing), ("fighter_wing", .wing), ("ship_wheel", .wheel), ("cart_wheel", .wheel), ("ship_track", .wheel),
                                        ("ship_turret_ring", .ring), ("ship_cannon", .cannon), ("ship_rotor", .rotor),
                                        ("ship_ballast", .ballast)]
         for i in 0..<Blocks.count {
@@ -73,6 +73,9 @@ enum ShipParts {
         return t
     }()
     static let wool: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_wool") }
+    // P507: a computer (Command Console, Greywall terminal) built into a gun of his works it: the hull's helm where it
+    // has no ship's helm (Game.builtGunUse).
+    static let console: [Bool] = (0..<Blocks.count).map { let k = Blocks.key(Blocks.groupBase[$0]); return k == "command_console" || k == "greywall_terminal" }
     // P477: track links, wheels that are drawn with the hull and never spun.
     static let track: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]) == "ship_track" }
     // Unit direction of facing index 0...3 (north, south, west, east).
@@ -204,6 +207,13 @@ final class Ship {
     var blockCount = 0
     var fwd = V3(0, 0, -1)           // ship-space forward (from the helm)
     var helm: IVec3?
+    // P507: a gun he built, worked from a computer (Game.builtGunUse): nothing to move it (no propellers, engines,
+    // wheels, balloons, wings or rotors), so it stands where he built it and only its turrets turn (a row of barrels
+    // over a one-block ring tipped the hull over).
+    var emplacement: Bool {
+        guard parent == nil, !kinematic, let h = helm, ShipParts.console[Int(grid.get(h.x, h.y, h.z))] else { return false }
+        return props.isEmpty && engines == 0 && wheels.isEmpty && balloons == 0 && wings.isEmpty && rotors.isEmpty
+    }
     var breech: (V3, V3)?
     var crashSpeed: Float = 0         // H11: hardest contact closing speed since the last frame (VehicleDamage.swift)
     var crashAt = V3(0, 0, 0)
@@ -420,8 +430,13 @@ final class Ship {
         helm = nil
         breech = nil
         let breechID = Blocks.has("tidebreaker_breech") ? Blocks.id("tidebreaker_breech") : AIR
+        let boreT = CannonCalibre.boreT, cannonT = ShipParts.kinds, consoleT = ShipParts.console
+        var bores: [(V3, V3)] = []
+        var consoleAt: IVec3?
         for y in 0..<sy { for z in 0..<sz { for x in 0..<sx {
             let b = g.blocks[g.index(x, y, z)]
+            if boreT[Int(b)] > 0 { bores.append((V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5), -ShipParts.facingDir[ShipParts.facing(b)])) }
+            if consoleT[Int(b)] && consoleAt == nil { consoleAt = IVec3(x, y, z) }
             if b == AIR { continue }
             n += 1
             let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
@@ -449,6 +464,21 @@ final class Ship {
             }
         } } }
         blockCount = n
+        if helm == nil, let c = consoleAt { helm = c }              // (P507: a built gun's computer)
+        // P507 (Nov 1 12:36:14-12:36:30, a gun he built on a hill of a Turret Ring and a row of Medium Gun Barrels: "This
+        // is kind of what I had in mind by a gun... we need a computer attached to it also to make it operational"): a
+        // row of calibre tubes is a gun on its own: the tube at its back end (no tube on its line or cannon behind it)
+        // is the breech, as a cannon block there would be.
+        for (p, d) in bores {
+            let q = p - d
+            let x = Int(floor(q.x)), y = Int(floor(q.y)), z = Int(floor(q.z))
+            if x >= 0, y >= 0, z >= 0, x < sx, y < sy, z < sz {
+                let b = g.blocks[g.index(x, y, z)]
+                if cannonT[Int(b)] == .cannon { continue }
+                if CannonCalibre.tubeBases[Blocks.groupBase[Int(b)]] != nil && abs(simd_dot(ShipParts.facingDir[ShipParts.facing(b)], d)) > 0.9 { continue }
+            }
+            cannons.append((q, d))
+        }
         // P459: each cannon's Gun Barrels, laid along its line on from the muzzle.
         // P477: the calibre barrels count as tubes too (up to 8 of them), the first one's bore setting the calibre.
         let tubeKinds = CannonCalibre.tubeBases
@@ -692,6 +722,7 @@ final class ShipManager {
     var shells: [Shell] = []         // cannon shells in flight (ShipCombat.swift)
     var shockwaves: [Shockwave] = []
     var pendingCraters: [V3] = []                    // Tidebreaker hits on ground not loaded yet (MainGun.swift)
+    var pendingAlong: [V3?] = []                     // ... and the line each came in on (P504), index for index
     var pendingCraterTimer: Float = 0 // Tidebreaker impacts spreading out (MainGun.swift)
     var ghosts: [(Ship, Float)] = [] // docked ships still drawn while the world remeshes their blocks
     var wind = V3(4, 0, 2)           // world wind (b/s): sails (set each frame from the clock and weather)
@@ -832,28 +863,58 @@ final class ShipManager {
         let natural = ShipParts.natural, kinds = ShipParts.kinds
         let limit = 60000
         let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
-        // Connected cells from start, not entering `taken`, never going up out of a turret ring.
-        func collect(_ start: IVec3, _ taken: Set<IVec3>) -> [IVec3]? {
+        // Connected cells from start, not entering `taken`, never going up out of a turret ring, never down out of a
+        // wheel or a track (it rests on the ground), never below `floor`. Overflow: the cells seen when it passed the limit.
+        func collect(_ start: IVec3, _ taken: Set<IVec3>, floor: Int = Int.min) -> (cells: [IVec3], over: Bool) {
             var seen = Set<IVec3>([start])
             var queue = [start]
             var head = 0
             while head < queue.count {
                 let c = queue[head]; head += 1
-                if queue.count > limit { return nil }
-                let ring = kinds[Int(w.rawBlock(c.x, c.y, c.z))] == .ring
+                if queue.count > limit { return (queue, true) }
+                let kind = kinds[Int(w.rawBlock(c.x, c.y, c.z))]
                 for (k, d) in dirs.enumerated() {
-                    if ring && k == 2 { continue }
+                    if kind == .ring && k == 2 { continue }
                     let n = c + d
-                    if seen.contains(n) || taken.contains(n) || n.y < 0 || n.y >= CH { continue }
+                    // (a wheel's ground isn't the vehicle; a tank's track two blocks high is, all of it)
+                    if kind == .wheel && k == 3 && kinds[Int(w.rawBlock(n.x, n.y, n.z))] != .wheel { continue }
+                    if n.y < floor || seen.contains(n) || taken.contains(n) || n.y < 0 || n.y >= CH { continue }
                     if natural[Int(w.rawBlock(n.x, n.y, n.z))] { continue }
                     seen.insert(n)
                     queue.append(n)
                 }
             }
-            return queue
+            return (queue, false)
         }
         let tooBig = "Too big to move (over \(limit) blocks) - is it touching a building?"
-        guard let main = collect(h, []) else { return (nil, tooBig) }
+        var first = collect(h, [])
+        // P505 (the vehicle zoo: a car on a smooth-stone road took the whole road with it, 6157 blocks, and the next
+        // car fell through the hole): what a wheeled vehicle stands on is not part of it. Below its lowest wheel, the
+        // cells reached are its ground when they reach out past the vehicle's own footprint (a road, a floor, a
+        // slab yard); a hull built down below the wheels (an amphibian's) stays inside it and is kept.
+        let wheelY = first.cells.lazy.filter { kinds[Int(w.rawBlock($0.x, $0.y, $0.z))] == .wheel }.map { $0.y }.min()
+        if let fy = wheelY, first.over || first.cells.contains(where: { $0.y < fy }) {
+            let upper = collect(h, [], floor: fy)
+            if !upper.over {
+                var lo = IVec3(Int.max, 0, Int.max), hi = IVec3(Int.min, 0, Int.min)
+                for c in upper.cells { lo = IVec3(min(lo.x, c.x), 0, min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), 0, max(hi.z, c.z)) }
+                let beyond = first.over || first.cells.contains { $0.y < fy && ($0.x < lo.x - 1 || $0.x > hi.x + 1 || $0.z < lo.z - 1 || $0.z > hi.z + 1) }
+                if beyond { first = upper }
+            }
+        }
+        // A vehicle with no wheels (a helicopter on its pad, a skid plane) standing on a road or a floor: the layer under
+        // it that is many times the vehicle's size is the ground (going down from the helm, the first such layer).
+        if wheelY == nil && (first.over || first.cells.count > 2000) {
+            var below: [Int: Int] = [:]
+            for c in first.cells { below[c.y, default: 0] += 1 }
+            for fy in stride(from: h.y, through: h.y - 24, by: -1) {
+                let upper = collect(h, [], floor: fy)
+                if upper.over { continue }
+                if (below[fy - 1] ?? 0) > upper.cells.count * 8 + 200 { first = upper; break }
+            }
+        }
+        guard !first.over else { return (nil, tooBig) }
+        let main = first.cells
         // P93: a wreck's rotten planks hold it to the seabed until they're replaced.
         let rot = Wrecks.rottenCount(w, main)
         if rot > 0 { return (nil, "This hull is rotten in \(rot) place\(rot == 1 ? "" : "s"): replace the rotten planks with any planks to raise it") }
@@ -863,7 +924,9 @@ final class ShipManager {
         for c in main where kinds[Int(w.rawBlock(c.x, c.y, c.z))] == .ring {
             let top = c + IVec3(0, 1, 0)
             if taken.contains(top) || natural[Int(w.rawBlock(top.x, top.y, top.z))] { continue }
-            guard let cells = collect(top, taken) else { return (nil, tooBig) }
+            let got = collect(top, taken)
+            guard !got.over else { return (nil, tooBig) }
+            let cells = got.cells
             for t in cells { taken.insert(t) }
             turrets.append((c, cells))
         }
@@ -931,6 +994,7 @@ final class ShipManager {
         return s
     }
 
+    static var dockClashes: [String] = []        // (vehicle zoo: what a docking hull's dropped blocks ran into)
     // Puts a ship back into the world, snapped to the block grid and the nearest quarter turn.
     @discardableResult
     func disassemble(_ s: Ship, game: Game?) -> String {
@@ -939,14 +1003,35 @@ final class ShipManager {
         let turns = Int((s.yaw / (.pi / 2)).rounded())
         let snapped = Quat(angle: Float(turns) * .pi / 2, axis: V3(0, 1, 0))
         // World position of cell centres under the snapped rotation, rounded so they land on block centres.
-        let g = s.grid
         let anchorLocal = V3(0.5, 0.5, 0.5)
         let a = s.pos + snapped.act(anchorLocal - s.com)
-        let aCell = IVec3(Int(floor(a.x)), Int(floor(a.y)), Int(floor(a.z)))
-        func cell(_ x: Int, _ y: Int, _ z: Int) -> IVec3 {
+        // P507 (the vehicle zoo: a car docked on the road lost a quarter of its blocks): the anchor cell is the nearest
+        // one, not the one under it (a hull settled a few hundredths low went a whole block down, its bottom layer into
+        // the road, where nothing fits and it dropped); and where the cells there clash with the world more than a block
+        // up would, it goes a block up (a hull resting on a slope or tipped a little).
+        var aCell = IVec3(Int((a.x - 0.5).rounded()), Int((a.y - 0.5).rounded()), Int((a.z - 0.5).rounded()))
+        let g = s.grid
+        func cellAt(_ base: IVec3, _ x: Int, _ y: Int, _ z: Int) -> IVec3 {
             let d = snapped.act(V3(Float(x), Float(y), Float(z)))
-            return aCell + IVec3(Int(d.x.rounded()), Int(d.y.rounded()), Int(d.z.rounded()))
+            return base + IVec3(Int(d.x.rounded()), Int(d.y.rounded()), Int(d.z.rounded()))
         }
+        func clashes(_ base: IVec3) -> Int {
+            var n = 0
+            for y in 0..<min(g.sy, 3) { for z in 0..<g.sz { for x in 0..<g.sx where g.blocks[g.index(x, y, z)] != AIR {
+                let p = cellAt(base, x, y, z)
+                if p.y >= 0 && p.y < CH && !Blocks.replaceable[Int(w.rawBlock(p.x, p.y, p.z))] { n += 1 }
+            } } }
+            return n
+        }
+        if !s.kinematic && g.sx * g.sz <= 4096 {
+            var here = clashes(aCell), up = 0
+            while here > 0 && up < 3 {
+                let above = clashes(aCell + IVec3(0, 1, 0))
+                guard above < here else { break }
+                aCell.y += 1; here = above; up += 1
+            }
+        }
+        func cell(_ x: Int, _ y: Int, _ z: Int) -> IVec3 { cellAt(aCell, x, y, z) }
         var dropped = 0
         for y in 0..<g.sy { for z in 0..<g.sz { for x in 0..<g.sx {
             let b = g.blocks[g.index(x, y, z)]
@@ -965,6 +1050,7 @@ final class ShipManager {
                 continue
             }
             if !Blocks.replaceable[Int(here)] {
+                if ShipManager.dockClashes.count < 6 { ShipManager.dockClashes.append("\(Blocks.key(b)) into \(Blocks.key(here)) at cell y \(y)") }
                 if let game { game.drops.spawn(ItemStack(Items.item(forBlock: b) ?? 0, 1), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5); dropped += 1 }
                 spill()
                 continue

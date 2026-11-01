@@ -84,13 +84,35 @@ enum BlockWear {
     }
 }
 
+extension BlockWear {
+    // P507: a fuel depot's storage tank plate (Depots.swift).
+    static let tankPlates: Set<BlockID> = Set(["depot_tank", "depot_tank_band"].filter { Blocks.has($0) }.map { Blocks.groupBase[Int(Blocks.id($0))] })
+    static func tankPlate(_ id: BlockID) -> Bool { !tankPlates.isEmpty && tankPlates.contains(Blocks.groupBase[Int(id)]) }
+    static var tankBlasts: [IVec3: Double] = [:]          // (a tank goes up once: the blast and the fire do the rest)
+}
+
 extension Game {
+    // P507 (Nov 1 12:20:36 at the fuel depot: "shooting one of the fuel pylons should cause the thing to explode and all
+    // the fuel to..."): a round of his into a storage tank's plate with fuel behind it holes the tank in a burst that
+    // sets the fuel alight (Explosion.explode lights fuel in its reach), and the fire runs through the rest of the tank.
+    func ruptureTank(_ b: IVec3, at: V3) -> Bool {
+        let fuelBehind = World.allDirs.contains { d in Blocks.fluidKind[Int(world.builtBlock(b.x + d.x, b.y + d.y, b.z + d.z))] == 3 }
+        guard fuelBehind else { return false }
+        let key = IVec3(b.x >> 3, b.y >> 3, b.z >> 3)
+        if let t = BlockWear.tankBlasts[key], clock - t < 20 { return false }
+        BlockWear.tankBlasts[key] = clock
+        if BlockWear.tankBlasts.count > 64 { BlockWear.tankBlasts = BlockWear.tankBlasts.filter { clock - $0.value < 20 } }
+        Explosion.explode(at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5), power: 4.5, game: self, fire: true)
+        return true
+    }
+
     // A round of `damage` struck block b: wears it, and shoots it out once worn through. Returns what the round has left
     // when it broke the block (0 when it stopped in it).
     @discardableResult
     func wearBlock(_ b: IVec3, damage: Float, at: V3, fromPlayer: Bool, arc: Bool = false) -> Float {
         let w = world
         let id = w.materialAt(b.x, b.y, b.z)                // (what it's made of: ground wears as its rock)
+        if fromPlayer && BlockWear.tankPlate(id) && ruptureTank(b, at: at) { return 0 }        // P507
         let hp = BlockWear.hp(id)
         guard hp.isFinite, w.blockEntities[b] == nil else { return 0 }
         let scale = (fromPlayer ? BlockWear.playerShare : BlockWear.enemyShare) * (arc ? BlockWear.arcShare : 1)

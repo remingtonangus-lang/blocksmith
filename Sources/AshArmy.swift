@@ -307,7 +307,7 @@ extension Game {
         let w = world
         for (dx, dz) in [(2, 0), (-2, 0), (0, 2)] {
             let x = c.x + dx, z = c.z + dz, y = c.y - 1
-            if w.isAir(x, y, z) && w.solidAt(x, y - 1, z) { w.setBlock(x, y, z, FIRE) }
+            if w.isAir(x, y, z) && w.solidAt(x, y - 1, z) { w.placeFire(IVec3(x, y, z)) }
         }
         // P473 (Oct 26 19:27: wrecks that "still look decent"): the vehicle stays as its burnt hulk, a few fittings thrown
         // off; on a ship's deck (a crawler's cargo) it still comes apart.
@@ -318,7 +318,7 @@ extension Game {
             let side: Float = i == 0 ? 1 : -1
             let off = V3(cosf(m.yaw) * 2.2 * side, 0, -sinf(m.yaw) * 2.2 * side)
             let crew = Mob(.soldierCrew, at: m.pos + off)
-            if !m.boreal { crew.ashSetup() }               // (P460: a Boreal tank's crew are the Capital's)
+            if !m.boreal { crew.ashSetup() } else { crew.faction = Faction.meridian.rawValue }   // (P460, P504: a Boreal tank's crew are the station's)
             crew.aggro = true
             crew.fire = 3                                  // out of a burning hull
             crew.health = max(1, crew.spec.health * 2 / 3)

@@ -241,6 +241,12 @@ enum BorealTests {
                 let roused = gar.filter { $0.aggro }.count
                 check(site?.on == true && blares >= 2 && gar.count >= 10 && roused == gar.count,
                       "boreal \(seed): a shot in the hall sets the alarm off (\(blares) klaxon blares in 10 s, \(roused)/\(gar.count) soldiers roused)")
+                // P504 (Nov 1 09:33, "Boreal station and frigate are their own troops"): the garrison is the Meridian Navy's
+                // (or Greywall's, where Greywall holds the station), its troopers Aegis Marines.
+                let navy = gar.filter { $0.factionValue == .meridian }.count, grey = gar.filter { $0.factionValue == .greywall }.count
+                let aegis = gar.filter { $0.isAegis }.count
+                check(navy + grey == gar.count && (grey == gar.count || aegis >= 5),
+                      "boreal \(seed): the garrison is the Meridian Navy's (\(navy) of \(gar.count), \(aegis) Aegis Marines; Greywall's \(grey))")
                 // Once soldiers have searched the spot (lastSeen cleared), a running alarm doesn't send them back.
                 for m in gar { m.soldierBrain.lastSeen = nil }
                 for _ in 0..<3 { g.basesTick(1.0) }

@@ -6,9 +6,13 @@ import simd
 // on the bed under it (the ballast's top: FieldTerrain.split keeps a structure's ground to its faces). The block stays
 // for gameplay (minecarts, trains, breaking, saves); powered, detector and activator rails keep their cards.
 enum ShapeRails {
+    // P504 (Nov 1 08:01:32-08:02:55, the Ash Vault's yard: "still using the small rails... we should have the bigger rail
+    // system"): a powered rail is drawn as track too (a copper strip down its sleepers), so a line keeps one size.
     static let isRail: [Bool] = (0..<Blocks.count).map { i in
-        Blocks.render[i] == RenderType.rail.rawValue && Circuit.kinds[i] == .rail
+        Blocks.render[i] == RenderType.rail.rawValue && (Circuit.kinds[i] == .rail || Circuit.kinds[i] == .poweredRail)
     }
+    static let isPowered: [Bool] = (0..<Blocks.count).map { i in isRail[i] && Circuit.kinds[i] == .poweredRail }
+    static let strip: BlockID = Blocks.has("gold_block") ? Blocks.id("gold_block") : STONE
     static let steel: BlockID = Blocks.has("iron_block") ? Blocks.id("iron_block") : STONE
     static let timber: BlockID = Blocks.has("dark_oak_planks") ? Blocks.id("dark_oak_planks") : PLANKS
     static let gauge: Float = 0.3                   // rails this far each side of the centre line
@@ -17,19 +21,20 @@ enum ShapeRails {
     // scale. A rail laid anywhere else keeps the light track.
     static let mainGauge: Float = 0.72
     static let bedKinds: [Bool] = (0..<Blocks.count).map { i in
-        ["gravel", "stone_bricks", "spruce_planks"].contains(Blocks.key(Blocks.groupBase[i]))
+        ["gravel", "stone_bricks", "spruce_planks", "polished_blackstone"].contains(Blocks.key(Blocks.groupBase[i]))   // (P504: the Ash Vault's yards)
     }
 
     static func emit(_ ctx: DetailContext) {
         var any = false
         scan: for y in 0..<16 { for z in 0..<16 { for x in 0..<16 where isRail[Int(ctx.R[ctx.ri(x, y, z)])] { any = true; break scan } } }
         guard any else { return }
-        let steelL = Int(Blocks.tex[Int(steel) * 6 + 2]), woodL = Int(Blocks.tex[Int(timber) * 6 + 2])
+        let steelL = Int(Blocks.tex[Int(steel) * 6 + 2]), woodL = Int(Blocks.tex[Int(timber) * 6 + 2]), stripL = Int(Blocks.tex[Int(strip) * 6 + 2])
         let curveSegs = ctx.lod == 0 ? 4 : 2
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
             guard isRail[Int(b)] else { continue }
-            let shape = Int(b - Blocks.groupBase[Int(b)])
+            let powered = isPowered[Int(b)]
+            let shape = Int(b - Blocks.groupBase[Int(b)]) % (powered ? 6 : 100)     // (a powered rail's lit states: +6)
             let o = SIMD3<Float>(Float(x), Float(y), Float(z))
             let big = mainline(ctx, x, y, z, shape)
             // The centre line through the block, as points.
@@ -87,6 +92,10 @@ enum ShapeRails {
                 for side: Float in [-1, 1] {
                     let c = (p0 + p1) * 0.5 + s * (side * (big ? mainGauge : gauge)) + h * (big ? 0.21 : 0.16)
                     box(ctx, c, a, s, h, len * 0.5 + 0.01, big ? 0.055 : 0.035, big ? 0.08 : 0.05, steelL)
+                }
+                if powered {
+                    let c = (p0 + p1) * 0.5 + h * (big ? 0.15 : 0.11)
+                    box(ctx, c, a, s, h, len * 0.5, big ? 0.09 : 0.05, 0.02, stripL)
                 }
             }
         } } }

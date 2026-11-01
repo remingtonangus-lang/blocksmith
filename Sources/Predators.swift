@@ -12,12 +12,19 @@ import simd
 // Hides: cougar pelts and alligator hide make leather; rattlesnake skin is string (a band for a hat).
 extension MobKind {
     var frontierPredator: Bool { self == .cougar || self == .rattlesnake || self == .alligator }
+    var snakeLike: Bool { self == .rattlesnake || self == .emberAsp }          // P506: the Ember Asp lives as the rattlesnake
 
     var predatorSpec: Spec {
         switch self {
         case .cougar:
             return Spec(name: "Cougar", halfW: 0.4, height: 0.9, health: 22, speed: 3.6, behavior: .monster, attack: 5,
                         drops: [("leather", 1, 2), ("game_meat", 1, 2)], xp: 6, call: .mob(self, .ambient))
+        case .emberAsp:                                            // P506 (HellWild.swift)
+            return Spec(name: "Ember Asp", halfW: 0.3, height: 0.3, health: 8, speed: 1.6, behavior: .monster, attack: 3,
+                        drops: [("blaze_powder", 0, 1), ("string", 0, 1)], xp: 4, call: .mob(self, .ambient), fireImmune: true)
+        case .slagmaw:
+            return Spec(name: "Slagmaw", halfW: 0.7, height: 0.6, health: 40, speed: 1.6, behavior: .monster, attack: 9,
+                        drops: [("leather", 1, 2), ("magma_cream", 0, 2)], xp: 10, call: .mob(self, .ambient), fireImmune: true)
         case .rattlesnake:
             return Spec(name: "Rattlesnake", halfW: 0.3, height: 0.3, health: 6, speed: 1.4, behavior: .monster, attack: 2,
                         drops: [("string", 0, 2)], xp: 3, call: .mob(self, .ambient))
@@ -39,9 +46,11 @@ extension Mob {
         let fd = max(0.01, simd_length(flat))
         func bite(_ cause: String, venom: Bool = false) {
             guard attackCooldown <= 0, dist < halfW + 1.3 else { return }
-            attackCooldown = kind == .rattlesnake ? 1.6 : 1.1
+            attackCooldown = kind.snakeLike ? 1.6 : 1.1
             g.hurtPlayer(spec.attack, from: pos, cause: cause, attacker: self)
-            if venom { g.applyEffect(.poison, amp: 0, seconds: 6) }
+            // (P506: hell's bite burns instead of poisoning)
+            if kind.hellWild { if !g.effects.has(.fireResistance) { g.onFire = max(g.onFire, venom ? 4 : 2) } }
+            else if venom { g.applyEffect(.poison, amp: 0, seconds: 6) }
             g.sfx(.mob(kind, .hurt), 0.8, at: pos)
         }
         switch kind {
@@ -61,13 +70,13 @@ extension Mob {
             if phase == 1 { aiTimer -= dt; if aiTimer <= 0 || onGround && aiTimer < 0.8 { phase = 0 } }
             bite("was mauled by a Cougar")
             return dist > 1.4 ? spec.speed : 0
-        case .rattlesnake:
+        case .rattlesnake, .emberAsp:
             guard canTarget, dist < 6 else { wander(); return moving ? 0.6 : 0 }
             face(target)
             if callTimer > 1.5 { callTimer = 1.2; g.sfx(.mob(kind, .ambient), 0.9, at: pos) }    // the rattle
             if dist < 1.8 + halfW && attackCooldown <= 0 {
                 vel += flat / fd * 5
-                bite("was bitten by a Rattlesnake", venom: true)
+                bite(kind == .emberAsp ? "was burnt by an Ember Asp's bite" : "was bitten by a Rattlesnake", venom: true)
                 Predators.strikes += 1
             }
             return 0
@@ -78,7 +87,7 @@ extension Mob {
                 aiTimer -= dt
                 if aiTimer <= 0 { phase = 0; attackCooldown = max(attackCooldown, 2) }
                 face(target)
-                bite("was dragged under by an Alligator")
+                bite(kind == .slagmaw ? "was dragged into the lava by a Slagmaw" : "was dragged under by an Alligator")
                 return 5.2
             }
             guard canTarget, dist < 9, nearWater else { wander(); return moving ? (wet ? 2 : 0.8) : 0 }
@@ -88,7 +97,7 @@ extension Mob {
                 Predators.surges += 1
                 g.sfx(.mob(kind, .ambient), 1, at: pos)
             }
-            bite("was dragged under by an Alligator")
+            bite(kind == .slagmaw ? "was dragged into the lava by a Slagmaw" : "was dragged under by an Alligator")
             return wet ? 2.2 : 1.2
         }
     }

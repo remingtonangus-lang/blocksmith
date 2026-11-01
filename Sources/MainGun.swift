@@ -270,6 +270,7 @@ extension ShipManager {
             wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, depth: MainGun.craterDepth, along: along)
         } else if pendingCraters.count < MainGun.pendingCap {
             pendingCraters.append(p)                         // dug when the player comes near enough to load it
+            pendingAlong.append(along)
         }
         lap("crater")
         if wave.crater != nil { cost.append("(" + CraterJob.initCost + ")") }
@@ -365,11 +366,15 @@ extension ShipManager {
         pendingCraterTimer = 0.5
         if let i = pendingCraters.firstIndex(where: { craterGroundLoaded($0) }) {
             let p = pendingCraters.remove(at: i)
+            // P504 (Nov 1 07:50:28, "This crater is completely vertical, whereas it should reflect the angle of shot"): a
+            // far hit dug when its ground loads keeps the line it came in on (it was dug straight down).
+            if pendingAlong.count != pendingCraters.count + 1 { pendingAlong = [V3?](repeating: nil, count: pendingCraters.count + 1) }
+            let along = pendingAlong.remove(at: i)
             let wave = Shockwave(center: p, owner: -1)
             wave.r = MainGun.shockFelt                       // no front, no mobs struck, no shake, no smoke: just the bowl
             wave.age = 5
             wave.felt = ~0
-            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, quiet: true, depth: MainGun.craterDepth)
+            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, quiet: true, depth: MainGun.craterDepth, along: along)
             shockwaves.append(wave)
         }
     }

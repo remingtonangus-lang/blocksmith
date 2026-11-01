@@ -33,6 +33,7 @@ enum MobKind: Int, CaseIterable {
     case ashBehemoth, ashChancellor    // the last war (AshFinal.swift): the super-heavy tank and the Ash Chancellor
     case cougar, rattlesnake, alligator   // D14 frontier predators (Predators.swift)
     case deer, elk, bison, boar           // D45 big game in herds (HerdGame.swift)
+    case cinderhorn, emberAsp, slagmaw    // P506 hell's wildlife (HellWild.swift)
 
     struct Spec {
         var name: String
@@ -147,9 +148,9 @@ enum MobKind: Int, CaseIterable {
             return militarySpec
         case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashMarshal, .ashBehemoth, .ashChancellor:
             return ashSpec
-        case .cougar, .rattlesnake, .alligator:
+        case .cougar, .rattlesnake, .alligator, .emberAsp, .slagmaw:
             return predatorSpec
-        case .deer, .elk, .bison, .boar:
+        case .deer, .elk, .bison, .boar, .cinderhorn:
             return herdSpec
         case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower:
             return hellSpec
@@ -266,6 +267,7 @@ enum MobKind: Int, CaseIterable {
         .searwing: "searwing", .scorchling: "scorchling", .slagthrower: "slagthrower",
         .cougar: "cougar", .rattlesnake: "rattlesnake", .alligator: "alligator",
         .deer: "deer", .elk: "elk", .bison: "bison", .boar: "boar",
+        .cinderhorn: "cinderhorn", .emberAsp: "ember_asp", .slagmaw: "slagmaw",
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -392,6 +394,7 @@ final class Mob {
     var jetCD: Float = 0
     var volley = 0                  // cinderwisp: fireballs left in the current burst
     var persistent = false          // structure mobs never despawn at random
+    var consoleGunKnown: Int8 = -1  // P507: a gun worked from a computer under it (Mob.consoleGun): 1 yes, 0 no, -1 not looked
     // Depth toughness (task 22): monsters spawned deep underground take damage / power and deal damage x power.
     var power: Float = 1
     var warden = false              // a Brimstone Keep's Warden (DeepGates.swift)
@@ -1877,6 +1880,8 @@ private func parts(_ m: Mob) -> [Part] {
         return hellParts(m, swing: swing)
     case .cougar, .rattlesnake, .alligator:
         return predatorParts(m, swing: swing)
+    case .cinderhorn, .emberAsp, .slagmaw:
+        return hellWildParts(m, swing: swing)
     case .deer, .elk, .bison, .boar:
         return herdParts(m, swing: swing)
     case .copperGolem:
@@ -2181,11 +2186,13 @@ private func parts(_ m: Mob) -> [Part] {
     case .minecart:
         if m.variant >= Trains.loco { return Trains.parts(m) }
         let iron = V3(0.55, 0.56, 0.6), dark = V3(0.3, 0.3, 0.33)
+        // P504 (Nov 1 08:03:01, riding the Ash Vault line: "the cart is still not facing the correct way"): the tub is
+        // long along its heading (-z, as it rolls: Rails.updateMinecart), its wheels at the sides; it lay across the track.
         return [
-            box(-10, 2, -7, 20, 2, 14, dark, 4),
-            box(-10, 4, -8, 20, 7, 1, iron, 4), box(-10, 4, 7, 20, 7, 1, iron, 4),
-            box(-11, 4, -8, 1, 7, 16, iron, 4), box(10, 4, -8, 1, 7, 16, iron, 4),
-            box(-8, 0, -7, 3, 2, 1, dark), box(5, 0, -7, 3, 2, 1, dark), box(-8, 0, 6, 3, 2, 1, dark), box(5, 0, 6, 3, 2, 1, dark),
+            box(-7, 2, -10, 14, 2, 20, dark, 4),
+            box(-8, 4, -10, 1, 7, 20, iron, 4), box(7, 4, -10, 1, 7, 20, iron, 4),
+            box(-8, 4, -11, 16, 7, 1, iron, 4), box(-8, 4, 10, 16, 7, 1, iron, 4),
+            box(-7, 0, -8, 1, 2, 3, dark), box(-7, 0, 5, 1, 2, 3, dark), box(6, 0, -8, 1, 2, 3, dark), box(6, 0, 5, 1, 2, 3, dark),
         ] + cartTop(m)
     case .villager:
         // Townsfolk: jointed people dressed for their trade, carrying their tool or weapon (TownsfolkModel.swift).
@@ -2935,6 +2942,8 @@ final class MobManager {
         let spawnPos = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
         if !game.spawnHidden(spawnPos, min: 32) { return }                      // P307 (a): never in sight
         let inFortress = w.gen.structures?.structure(at: x, y, z, kind: "fortress") != nil && BrandChapterhouse.isFloor(w.materialAt(x, y - 1, z))
+        // P506: hell's wildlife by land (HellWild.swift): herds of Cinderhorns, Ember Asps, Slagmaws by the lava.
+        if !inFortress && HellWild.spawn(game, at: spawnPos, land: w.gen.column(x, z).biome) { return }
         _ = hellOwnSpawn(game, at: spawnPos, lean: inFortress ? [45, 20, 35, 0] : MobManager.hellLean(w.gen.column(x, z).biome), always: true)
     }
 

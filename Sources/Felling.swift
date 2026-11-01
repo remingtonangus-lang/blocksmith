@@ -36,6 +36,8 @@ enum Felling {
     static var letLate = 0                       // (counter: bodies let go at the 4 s limit with the world not yet redrawn)
 
     static func isFelled(_ s: Ship) -> Bool { s.root.name == name }
+    // (P504) Two cells of one trunk's section: within its 2x2 (a block apart on each axis at most).
+    static func sameTrunk(_ a: IVec3, _ b: IVec3) -> Bool { abs(a.x - b.x) <= 1 && abs(a.z - b.z) <= 1 }
     // P478: whether a leaf is this tree's: no log of another tree (outside `logs`, above `above`, within 6 of them) is
     // nearer to it than the nearest of `logs`.
     static func ownLeaf(_ w: World, logs: Set<IVec3>, above: Int) -> (IVec3) -> Bool {
@@ -128,13 +130,22 @@ extension Game {
         // one or two logs in its crown stayed in the air; with its leaves any part of a tree comes down)
         guard logs.count >= 1 else { return }
         Felling.roundTrunks = Felling.roundFor(world)
-        // Resting on anything else (another trunk of a 2x2 tree, a wall, the ground beside the cut): it stands.
+        // Resting on anything else (a wall, the ground beside the cut, another tree's log): it stands.
+        // P504 (Nov 1 07:25, his Ash Vault dark oak at 2914 -33 -3051: "This tree should have fallen"): a thick trunk (a
+        // dark oak's 2x2) stood until every one of its feet was cut, on one log in four. Cut through half its section
+        // (two feet of four) it goes over; the logs left at the cut's level stay as the stump.
+        var section = 0, holding = 0
+        for c in logs where c.y == p.y + 1 && Felling.sameTrunk(c, p) {
+            section += 1
+            if CapitalBase.isLog(world.block(c.x, p.y, c.z)) { holding += 1 }
+        }
+        let cutThrough = section >= 2 && holding * 2 <= section
         for c in logs {
             let below = IVec3(c.x, c.y - 1, c.z)
             if logs.contains(below) || below == p { continue }
             let b = world.block(below.x, below.y, below.z)
             if Blocks.collide[Int(b)] && !CapitalBase.isLog(b) && !CapitalBase.isLeaf(b) { return }
-            if CapitalBase.isLog(b) && below.y <= p.y { return }
+            if CapitalBase.isLog(b) && below.y <= p.y && !(cutThrough && below.y == p.y && c.y == p.y + 1 && Felling.sameTrunk(below, p)) { return }
         }
         // The crown: leaves joined to the logs (6-connected through leaves, within 5 of a log), and only its own.
         // P478 (Oct 27 18:46, "trees disappear when they hit another root"): crowns in a wood grow through each other,
@@ -193,7 +204,7 @@ extension Game {
     // drawn with its own mesh the whole way (a tree keeps its leaf blobs and round trunk, a tower its walls), tipping
     // away from him. A tree takes its crown along and lies as a felled trunk once still; anything else lies where it lands.
     static let toppledName = "Toppled"
-    func topple(_ cells: [IVec3]) {
+    func topple(_ cells: [IVec3], away awayDir: V3? = nil) {
         guard let start = cells.min(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) else { return }
         let logs = cells.filter { CapitalBase.isLog(world.block($0.x, $0.y, $0.z)) }
         var leaves: Set<IVec3> = []
@@ -235,10 +246,10 @@ extension Game {
         s.prevPos = s.pos
         s.updateBounds()
         s.initialBlocks = s.blockCount
-        var away = V3(s.pos.x - player.pos.x, 0, s.pos.z - player.pos.z)
+        var away = awayDir ?? V3(s.pos.x - player.pos.x, 0, s.pos.z - player.pos.z)      // (P507: a crawler's push, its way)
         if simd_length(away) < 0.1 { away = V3(-sinf(player.yaw), 0, -cosf(player.yaw)) }
         away = simd_normalize(away)
-        s.angVel = simd_cross(V3(0, 1, 0), away) * (tree ? 0.35 : 0.15)
+        s.angVel = simd_cross(V3(0, 1, 0), away) * (tree ? (awayDir != nil ? 0.7 : 0.35) : 0.15)
         s.vel = away * 0.2
         if tree { Felling.girth[s.id] = Felling.girthOf(Set(logs)) }
         Felling.falls.append(hold(s, cells: leaves.union(cells)))

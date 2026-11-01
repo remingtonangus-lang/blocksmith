@@ -302,8 +302,8 @@ extension Game {
         s.climb = c.climb
         if ashHull { (s.throttle, s.steer) = ashLookDrive(s, mi) }        // P449: the way he looks, as before
         if s.name == AshCommandeer.halftrackName { ashHalftrackGun(s, dt) }   // P449: its pintle gun on his look
-        VehicleDepot.burn(self, s, dt)                                    // D44: land vehicles burn fuel
         if let fm = s.flight { fm.playerInput(self, s, mi, dt) }          // helicopter controls (FlightModel.swift)
+        VehicleDepot.burn(self, s, dt)                                    // D44, P507: every vehicle of his burns fuel (after the flight input: dry, it holds)
         // Turrets follow the view; barrels rise with it.
         let elev = max(-0.2, min(0.6, player.pitch + 0.05))
         s.gunPitch = elev
@@ -525,7 +525,10 @@ extension Game {
             // controls for the smaller guns"): at the helm of a ship with a Tidebreaker, attack is the big gun and use
             // (held) the guns laid on the sight, firing as each reloads; attack fires them only while the big gun can't.
             let tide = ships.gunState(s) != nil
-            let small = tide ? useHeld || breakNow && !charged : breakNow || (breakHeld && s.role == "dropship")
+            // P507 (Nov 1 12:09:20-12:09:32 at a crawler's helm: "we need to increase the rate of fire... they should be
+            // semiautomatic, but I should be able to hold down the trigger and they will fire when they load
+            // automatically"): held, the trigger fires every gun of his as it reloads, on any hull.
+            let small = tide ? useHeld || breakNow && !charged : breakNow || breakHeld
             // P93: in survival the guns use cannonballs from the pack, one a gun.
             if small {                                                   // (P435: the autocannon fires while held)
                 let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }
@@ -548,6 +551,9 @@ extension Game {
             }
             return true
         }
+        // P504 (Nov 1 07:55:57, at a Capital Dropship's helm: "Ship also needs a place to refill ammunition that you craft"):
+        // a Shell Crate used aboard a war vessel he holds goes into her magazine.
+        if useNow, Items.key(held.item) == ShipShells.key, let s = ships.aboard { return loadShells(s) }
         // P268 (Oct 14 19:24, "still can't break blocks on the little drop ship"): on the Quest the hand's laser picks the
         // block (8 blocks, QuestControls.updateAim); the eye's 6-block ray through that point fell short of a hull the
         // laser reached, so the wreck showed nothing to break. The hand's own ray picks ship blocks now.
@@ -701,7 +707,7 @@ extension Game {
             onToast?("Named the ship \(label)")
             return true
         }
-        if ShipParts.kinds[Int(b)] == .helm && s.helm == cell {
+        if (ShipParts.kinds[Int(b)] == .helm || ShipParts.console[Int(b)]) && s.helm == cell {
             // Capital fliers can be commandeered; other Capital ships can't be steered or taken apart: break the helm to
             // cripple one (CapitalShips.swift).
             if s.root.kinematic && ships.canCommandeer(s) && !sneak { takeCommand(s); return true }
@@ -732,6 +738,7 @@ extension Game {
             return true
         }
         if !sneak && Self.chartKeys.contains(Blocks.key(Blocks.groupBase[Int(b)])) && s.blockEntities[cell] == nil { shipChart(s); return true }   // P472
+        if !sneak && Blocks.key(Blocks.groupBase[Int(b)]) == ShipShells.hoistKey { useShellHoist(s); return true }    // P507 (ShipShells.swift)
         if !sneak, let be = s.blockEntities[cell] ?? (Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("chest") ? newShipChest(s, cell) : nil) {
             openMenu(ChestMenu(game: self, container: be.container, title: Blocks.name(b)))
             return true

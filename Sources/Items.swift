@@ -461,6 +461,7 @@ final class ItemRegistry {
         Potions.register(self)
         SpawnEggs.register(self)
         Guns.register(self)
+        ShipShells.register(self)                          // P504: a war vessel's magazine refill
         registerPrinterParts()
         registerGunParts()                                // D31 (GunsmithBench.swift)
         registerFactionArmour()                           // D33 (FactionArmour.swift)

@@ -20,6 +20,7 @@ enum AirDefence {
     static let navalAirRange: Float = 110         // other deck guns, unprovoked
     static let prox: Float = 3.5                  // the proximity fuze
     static let power: Float = 1.7                 // a flak burst (no blocks broken)
+    static let flakBite: Float = 3.2              // ... and its bite on a hull beside it (P504)
     static let rangingShots = 2
     static let warnDelay: Float = 1.5
 
@@ -103,6 +104,15 @@ enum AirDefence {
             guard d < 6 else { continue }
             let was = s.flakHits
             s.flakHits = min(2, s.flakHits + 0.2 * (1 - d / 6) + 0.02)
+            // P504 (Nov 1 07:50:55, "the ship is still not taking damage from the flak guns. The flak guns should tear the
+            // ship apart"): a burst by a hull bites the plate nearest it (its 1.7 blast died in the 3 blocks of air
+            // between the fuze and the hull; armour stands as steel now, Explosion.capped): a hole of a few blocks.
+            if s.kinematic || s.role != nil {
+                let to = s.toWorld(s.com) - c, tl = simd_length(to)
+                if tl > 0.01, let h = g.world.ships.segmentHit(c, to / tl, min(tl, 12), except: -1), h.1.root === s {
+                    g.world.ships.blast(at: c + to / tl * max(0, h.0 - 0.3), power: flakBite * (1 - 0.04 * h.0), game: g)
+                }
+            }
             if was < 1 && s.flakHits >= 1 {
                 if g.world.ships.pilot?.root === s || g.world.ships.aboard?.root === s { g.onToast?("Engines hit: going down") }
                 g.sfx(.explode, 1.4, at: s.pos)

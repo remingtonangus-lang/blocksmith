@@ -269,7 +269,7 @@ enum Recipes {
         r.append(shaped([" #S", "# S", " #S"], ["#": "stick", "S": "string"], "bow"))
         r.append(shaped(["F", "#", "E"], ["F": "flint", "#": "stick", "E": "feather"], "arrow", 4))
         r.append(shaped(["###"], ["#": "wheat"], "bread"))
-        r.append(shaped(["###", "#A#", "###"], ["#": "gold_ingot", "A": "apple"], "golden_apple"))
+        // (P504, Nov 1 07:27:21: "golden apples are still in the game": no longer crafted; Field Stims take their place)
         r.append(shaped(["###", "#C#", "###"], ["#": "gold_nugget", "C": "carrot"], "golden_carrot"))
         r.append(shapeless(["paper", "paper", "paper", "leather"], "book"))
         r.append(shapeless(["bone"], "bone_meal", 3))
@@ -498,6 +498,7 @@ enum Recipes {
             r.append(shaped(["AAA", "APA", "AAA"], ["A": "arrow", "P": Potions.itemName("lingering_potion", t.key)], Potions.itemName("tipped_arrow", t.key), 8))
         }
         r += Guns.recipes()
+        r += [ShipShells.recipe()]
         r += WeaponPrinter.recipes()
         r += GunsmithBench.recipes()                      // D31
         r += VehicleDepot.recipes()                       // D44

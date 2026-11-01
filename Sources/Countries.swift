@@ -602,6 +602,24 @@ enum Countries {
         }
     }
 
+    // P507: the post's sign used (Decor.openSignEditor): the duty owed here paid at the desk, or nothing to declare.
+    static func payAtDesk(_ g: Game, sign: BlockEntity) {
+        let into = sign.lines.count > 1 ? sign.lines[1].replacingOccurrences(of: "Entering ", with: "") : "Border"
+        if g.survival, owed > 0, let to = owedTo, let c = byKey(g, to) {
+            if g.money >= owed {
+                g.money -= owed
+                g.sfx(.villagerTrade, 0.6)
+                g.onToast?("Paid \(Money.format(owed)) duty to \(c.name)")
+                paidPost = owedPost; owed = 0; owedTo = nil
+            } else {
+                g.onToast?("You can't pay the \(Money.format(owed)) duty")
+            }
+            return
+        }
+        g.sfx(.click, 0.5, at: g.player.pos)
+        g.onToast?("\(into) customs: nothing to declare")
+    }
+
     // The footprint holds nothing anyone built (an old save's base, a cabin): a post goes only on open ground.
     static func clear(_ g: Game, at s: (Int, Int)) -> Bool {
         let gy = g.world.gen.column(s.0, s.1).height

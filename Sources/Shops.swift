@@ -155,7 +155,7 @@ enum Economy {
         "upgrade_blueprint": 150,                                                                      // P138
         "bread": 30, "capital_ration": 90, "baked_potato": 25, "cookie": 10, "pumpkin_pie": 70, "beetroot_soup": 50, "mushroom_stew": 50,
         "rabbit_stew": 90, "cooked_beef": 45, "cooked_porkchop": 45, "cooked_chicken": 35, "cooked_mutton": 40,
-        "cooked_rabbit": 32, "cooked_cod": 28, "cooked_salmon": 33, "golden_carrot": 160, "golden_apple": 1300,
+        "cooked_rabbit": 32, "cooked_cod": 28, "cooked_salmon": 33, "golden_carrot": 160, "golden_apple": 1300, "field_stim": 1300,
         "glistering_melon_slice": 160, "milk_bucket": 400, "dried_kelp": 3,
         // Butcher's goods
         "beef": 30, "porkchop": 30, "chicken": 22, "mutton": 26, "rabbit": 20, "cod": 18, "salmon": 22,
@@ -229,7 +229,7 @@ enum Economy {
                    ("cooked_chicken", 16), ("cooked_mutton", 16), ("cooked_rabbit", 8), ("rabbit_stew", 6), ("leather", 8),
                    ("hunters_map", 1)],
         .doctor: [("potion_healing", 4), ("splash_potion_healing", 2), ("potion_regeneration", 2), ("potion_swiftness", 2),
-                  ("potion_night_vision", 2), ("potion_fire_resistance", 2), ("milk_bucket", 2), ("golden_apple", 1),
+                  ("potion_night_vision", 2), ("potion_fire_resistance", 2), ("milk_bucket", 2), ("field_stim", 1),
                   ("glistering_melon_slice", 4), ("honey_bottle", 6), ("saddle_salve", 2)],
         .stable: [("saddle", 1), ("lead", 4), ("hay_block", 16), ("leather_horse_armor", 1), ("iron_horse_armor", 1),
                   ("golden_horse_armor", 1), ("golden_carrot", 8), ("apple", 16), ("carrot_on_a_stick", 1), ("saddle_salve", 3), ("brush", 1)],
@@ -278,7 +278,7 @@ enum Economy {
     // P42: the doctor doesn't carry every tonic. These turn up only in some shops (the chance a given keeper stocks it,
     // fixed per keeper), so finding one is worth the ride.
     static let rare: [String: Float] = ["potion_regeneration": 0.35, "potion_fire_resistance": 0.3, "potion_night_vision": 0.4,
-                                        "splash_potion_healing": 0.5, "golden_apple": 0.25]
+                                        "splash_potion_healing": 0.5, "field_stim": 0.25]
     static func carries(_ key: String, keeper look: Int) -> Bool {
         guard let p = rare[key] else { return true }
         var h: UInt64 = 1469598103934665603 ^ UInt64(UInt32(truncatingIfNeeded: look))

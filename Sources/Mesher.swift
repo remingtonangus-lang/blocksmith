@@ -598,7 +598,12 @@ enum Mesher {
         // Realistic world (built blocks): face f drawn 1/16 short of each edge it shares with another exposed side `ex`,
         // the 45-degree strip across each such edge (drawn by the lower-numbered face) and a corner triangle where three
         // exposed sides meet (drawn by the lowest). Strips carry a tilted normal (u = 31, projected texture).
-        func bevelFace(f: Int, ex: Int, bx16: Int, by16: Int, bz16: Int, layer: Int, tint: Int, flat: Int, flip: Bool, isTrans: Bool) {
+        // P507 (Nov 1 12:28:28 at a Capital wall: "those little corners here where you can see through into the void"):
+        // a chamfered edge that ends against a block it doesn't run on into (a pillar beside a wall's top) left the end
+        // of its notch open, a 1/16 triangle onto the neighbour's culled face: `runsOn(d, f, g)` says whether the
+        // neighbour across side d carries the same chamfer on; where it doesn't, the notch's end is closed.
+        func bevelFace(f: Int, ex: Int, bx16: Int, by16: Int, bz16: Int, layer: Int, tint: Int, flat: Int, flip: Bool, isTrans: Bool,
+                       runsOn: (Int, Int, Int) -> Bool) {
             let a = f >> 1, sa = f & 1 == 0 ? 1 : -1, pa = sa > 0 ? 16 : 0
             let base = SIMD3<Int>(bx16, by16, bz16)
             kindNow = MeshKind.bevel
@@ -638,6 +643,20 @@ enum Mesher {
                 let e1 = SIMD3<Float>(pts[1] &- pts[0]), e2 = SIMD3<Float>(pts[2] &- pts[0])
                 if simd_dot(simd_cross(e1, e2), n) < 0 { pts.reverse() }
                 for q in pts { put(q, n, flat, 3) }
+                // The notch's ends against a neighbour it doesn't run on into: a triangle across each (as a quad, its
+                // last corner doubled), facing back along the edge.
+                for (end, side) in [(0, c3 * 2 + 1), (16, c3 * 2)] where ex & (1 << side) == 0 && !runsOn(side, f, g) {
+                    var p0 = SIMD3<Int>(0, 0, 0), p1 = p0, p2 = p0
+                    p0[c3] = end; p1[c3] = end; p2[c3] = end
+                    p0[a] = pa; p0[b] = pb - sb
+                    p1[b] = pb; p1[a] = pa - sa
+                    p2[a] = pa; p2[b] = pb
+                    var nc = SIMD3<Float>(0, 0, 0); nc[c3] = end == 0 ? 1 : -1
+                    var tri = [p0, p1, p2]
+                    if simd_dot(simd_cross(SIMD3<Float>(p1 &- p0), SIMD3<Float>(p2 &- p0)), nc) < 0 { tri = [p0, p2, p1] }
+                    for q in tri { put(q, nc, flat, 3) }
+                    put(tri[2], nc, flat, 3)
+                }
             }
             // Corner triangles (three exposed sides meet; drawn when f is the lowest of them).
             for c in 0..<4 {
@@ -1758,7 +1777,14 @@ enum Mesher {
                             let a = f >> 1, t1 = (a + 1) % 3, t2 = (a + 2) % 3
                             let sideMask = (3 << (t1 * 2)) | (3 << (t2 * 2))
                             if ex & sideMask != 0 {
-                                bevelFace(f: f, ex: ex, bx16: bx16, by16: by16, bz16: bz16, layer: layer, tint: tintF, flat: flat, flip: flip, isTrans: isTrans)
+                                bevelFace(f: f, ex: ex, bx16: bx16, by16: by16, bz16: bz16, layer: layer, tint: tintF, flat: flat, flip: flip, isTrans: isTrans,
+                                          runsOn: { d, f1, g1 in
+                                    // The neighbour across d: a bevelled cube of its own whose sides f1 and g1 are open too.
+                                    let j = i + offs[d], nb = Int(R[j])
+                                    guard bevelT[nb], renderT[nb] == rCube else { return false }
+                                    func open(_ k: Int) -> Bool { let m = Int(R[j + offs[k]]); return (!opaqueT[m] || detT[m] || leafBlob && leafT[m]) && !(cullSameT[nb] && R[j + offs[k]] == R[j]) }
+                                    return open(f1) && open(g1)
+                                })
                                 // P384 step 5: far, the face plain (a 1/16 chamfer is under half a pixel past
                                 // GroundMerge.farDistance), merged with the other plain ones where its corners match.
                                 if farCopies && !curCut && !isTrans {

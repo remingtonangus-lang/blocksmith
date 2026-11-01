@@ -705,7 +705,7 @@ enum Loot {
                                       ("gun_arc", 1, 1, 5), ("heavy_rounds", 6, 15, 8), ("rocket_ammo", 2, 6, 6), ("arc_cell", 4, 12, 6),
                                       ("diamond_chestplate@20-30", 1, 1, 3), ("field_stim", 1, 2, 5), ("combat_stim", 1, 1, 1),
                                       ("experience_bottle", 3, 8, 6), ("firing_mechanism", 1, 2, 6), ("targeting_optic", 1, 1, 5),
-                                      ("radar_module", 1, 1, 4), ("intercepted_orders", 1, 2, 7), ("capital_signal_log", 1, 1, 6)]),
+                                      ("radar_module", 1, 1, 4), ("intercepted_orders", 1, 1, 7), ("capital_signal_log", 1, 1, 6)]),
         // The Meridian frigate's hold and bridge locker (CapitalFrigate.swift): post-game spoils.
         "meridian_hold": (4...7, [("diamond", 3, 8, 10), ("gun_launcher", 1, 1, 6), ("gun_arc", 1, 1, 6), ("gun_sniper", 1, 1, 5),
                                   ("rocket_ammo", 4, 10, 8), ("heavy_rounds", 8, 16, 8), ("arc_cell", 6, 14, 6),
@@ -742,7 +742,7 @@ enum Loot {
         "steelhold_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_launcher", 1, 1, 6),
                                     ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 8, 8), ("arc_cell", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
                                     ("diamond_sword@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("targeting_optic", 1, 2, 6),
-                                    ("radar_module", 1, 1, 5), ("intercepted_orders", 1, 2, 6), ("hannibal_armour_set", 1, 1, 3)]),   // P350
+                                    ("radar_module", 1, 1, 5), ("intercepted_orders", 1, 1, 6), ("hannibal_armour_set", 1, 1, 3)]),   // P350
     ]
 
     // "name@a-b": enchant with a-b levels (treasure allowed); "name@0": enchant randomly (50%);
@@ -787,16 +787,18 @@ enum Loot {
         // The way into hell is base loot (HellGate.swift): every command chest holds an Ember Charge, a vault one or two.
         // Outlaws rob Capital couriers, a dead courier's pack lies in an abandoned camp and traders sell what they find:
         // these camps always hold intercepted orders (the first citadel's map, G6).
-        "camp_outlaws": [(1...1, [("intercepted_orders", 1, 2, 1)])],
+        // P507 (Nov 1 12:32:07, two in an outlaw chest: "Two intercepted orders? Really"): one set of orders a chest.
+        "camp_outlaws": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         "camp_abandoned": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         "camp_traders": [(1...1, [("intercepted_orders", 1, 1, 1)])],
-        "steelhold_command": [(1...1, [("ember_charge", 1, 1, 1)])],
         // Greywall Command (Greywall.swift): every command chest holds a radar module (the radar network), every vault gold.
         // P501 (Oct 31 09:43 at a garrison: "where is the thing that burns into hell? Like the bomb you place to get into
         // hell. I haven't seen them in any of these sites"): Greywall's command chests and vaults hold Ember Charges as
         // the Capital's do (on new ground; a chest is filled where it is built).
-        "greywall_command": [(1...1, [("radar_module", 1, 1, 1)]), (1...1, [("greywall_keycard", 1, 1, 1)]), (1...1, [("ember_charge", 1, 1, 1)])],   // (+ D35 keycard)
-        "greywall_vault": [(1...1, [("gold_block", 1, 2, 1)]), (1...1, [("ember_charge", 1, 2, 1)])],
+        // P504 (Nov 1 07:59:58, "we put ember charges in every single chest. Make it so it's one per base"): one chest a
+        // base holds the charge, its "_charge" table (the command table and one Ember Charge: Loot.fill); the rest none.
+        "greywall_command": [(1...1, [("radar_module", 1, 1, 1)]), (1...1, [("greywall_keycard", 1, 1, 1)])],   // (+ D35 keycard)
+        "greywall_vault": [(1...1, [("gold_block", 1, 2, 1)])],
         // P503 (Oct 31 16:29:13 at a garrison's locked bulkhead: "there should be a key to unlock this door... If there is,
         // I haven't seen it"): the keycards were the comms officer's and the command chest's, both behind the locked door
         // they open. The barracks' and the mess's supply chests hold one too.
@@ -805,11 +807,21 @@ enum Loot {
         "greywall_armory": [(1...1, [("greywall_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],
         "steelhold_armory": [(1...1, [("capital_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],
         "ash_armory": [(1...1, [("ashguard_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],
-        "steelhold_vault": [(1...1, [("ember_charge", 1, 2, 1)])],
         "shipwreck_treasure": [(2...5, [("iron_nugget", 1, 10, 50), ("gold_nugget", 1, 10, 10), ("lapis_lazuli", 1, 10, 20)])],
     ]
 
+    // P504 (Nov 1 07:27:21, "golden apples are still in the game"): no chest anywhere holds one; a stim where one was.
+    static let noApples = ["golden_apple": "field_stim", "enchanted_golden_apple": "combat_stim"]
+    static let chargeSuffix = "_charge"
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
+        if table.hasSuffix(chargeSuffix) {                                // P504: the base's one Ember Charge
+            fill(c, table: String(table.dropLast(chargeSuffix.count)) + "_command", rng: &rng)
+            if Items.has(HellGate.chargeKey), !(0..<c.count).contains(where: { Items.key(c[$0].item) == HellGate.chargeKey }),
+               let slot = (0..<c.count).first(where: { c[$0].isEmpty }) {
+                c[slot] = ItemStack(Items.id(HellGate.chargeKey), 1)
+            }
+            return
+        }
         if table == "base_sundries" { roll(c, BaseSundries.barrel.rolls, BaseSundries.barrel.entries, rng: &rng); return }
         if table == BaseMaterials.loot { roll(c, BaseMaterials.table.rolls, BaseMaterials.table.entries, rng: &rng); return }   // P254
         if table == BaseMaterials.crateLoot { roll(c, BaseMaterials.crateTable.rolls, BaseMaterials.crateTable.entries, rng: &rng); return }   // P499
@@ -863,7 +875,7 @@ enum Loot {
                     var slot = rng.int(c.count)
                     for _ in 0..<c.count where !c[slot].isEmpty { slot = (slot + 1) % c.count }
                     if !c[slot].isEmpty { return }                       // chest full
-                    c[slot] = stack(e.0, rng.range(e.1, e.2), rng: &rng)
+                    c[slot] = stack(Loot.noApples[e.0] ?? e.0, rng.range(e.1, e.2), rng: &rng)
                     break
                 }
             }

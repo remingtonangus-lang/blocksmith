@@ -121,6 +121,15 @@ final class World {
     private var eyeSection = 0                      // the section his eye is in (World.update), P404 (3)
     private var buriedCentre: ChunkKey?
     private var buriedExtra: ChunkKey?
+    // P504 (Remington, Nov 1 08:07, flying over the Hell: "the Nether takes a long time to load"): the Deep stacks two
+    // worlds, the Ash Vault (y 0-191) and the hell band (200-375), with the Sealrock between them that only Sunderite
+    // breaks. Every chunk meshed both, so in the Hell the whole Ash Vault under the Sealrock (its woods, towns and
+    // shell holes) was meshed and never seen: four times the surface's meshing for the same ground (questcheck --view
+    // at his 08:07 spot, 193 chunks: 6.9 s against 1.6 s). Past the chunk he is in and the eight round it, the layer
+    // he isn't in is left unmeshed; crossing over hands it back. BS_DEEPLAYER=0: off.
+    static var deepLayerCut = ProcessInfo.processInfo.environment["BS_DEEPLAYER"] != "0"
+    private var deepInHell: Bool?
+    private var deepCentre: ChunkKey?
     private(set) var deferredTotal = 0          // (harness: sections deferred so far)
     // Split-screen co-op (Coop.swift): the second player's position, streamed around like the first (nil when alone).
     var extraCenter: V3?
@@ -1590,6 +1599,7 @@ final class World {
     // P440: the buried sections of a far chunk are left unmeshed (an empty mesh, closed to the cave-culling walk);
     // the others are returned to mesh.
     private func deferringBuried(_ c: Chunk, _ todo: [(Int, Int)]) -> [(Int, Int)] {
+        if dim == .deep { return deferringDeepLayer(c, todo) }
         guard World.deferBuried && fieldTerrain && dim != .deep else { return todo }
         let k = ChunkKey(x: c.cx, z: c.cz)
         if nearBuried(k) { return todo }
@@ -1638,6 +1648,42 @@ final class World {
         for dz in -1...1 { for dx in -1...1 { if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] { undeferBuried(n) } } }
     }
 
+    // P504: the Deep's other layer (the Ash Vault under the Sealrock while he is in the Hell, the hell band over it while
+    // he is in the Vault): a section wholly on the far side of the Sealrock (y 192-199) and the hell band's first cells.
+    @inline(__always) static func deepOther(_ sy: Int, hell: Bool) -> Bool {
+        hell ? (sy + 1) * 16 <= DeepGen.hellBase - 8 : sy * 16 >= DeepGen.hellBase + 8
+    }
+
+    private func deferringDeepLayer(_ c: Chunk, _ todo: [(Int, Int)]) -> [(Int, Int)] {
+        guard World.deepLayerCut, let hell = deepInHell, let c0 = deepCentre else { return todo }
+        if max(abs(c.cx - c0.x), abs(c.cz - c0.z)) <= 1 { return todo }
+        var keep: [(Int, Int)] = []
+        keep.reserveCapacity(todo.count)
+        for (sy, v) in todo {
+            if World.deepOther(sy, hell: hell) { deferSection(c, sy) } else { keep.append((sy, v)) }
+        }
+        return keep
+    }
+
+    // Each frame in the Deep: which layer he is in. Crossing over gives the deferred sections back and drops the meshes
+    // of the layer he left; a new centre gives the nine chunks round him theirs.
+    private func deepLayerTick(_ pos: V3, _ center: ChunkKey) {
+        guard World.deepLayerCut else { deepInHell = nil; return }
+        let hell = pos.y >= Float(DeepGen.hellBase - 8)
+        if hell != deepInHell {
+            deepInHell = hell; deepCentre = center
+            for (k, c) in chunks where !c.hollow {
+                undeferBuried(c)
+                guard max(abs(k.x - center.x), abs(k.z - center.z)) > 1, c.meshedOnce, !c.meshInFlight else { continue }
+                for sy in 0..<NSEC where World.deepOther(sy, hell: hell) && !c.sections[sy].deferred && !c.sections[sy].needsMesh
+                    && c.sections[sy].meshedVersion >= 0 { deferSection(c, sy) }
+            }
+        } else if center != deepCentre {
+            deepCentre = center
+            for dz in -1...1 { for dx in -1...1 { if let c = chunks[ChunkKey(x: center.x + dx, z: center.z + dz)] { undeferBuried(c) } } }
+        }
+    }
+
     // A chunk's deferred sections mesh again (he came near, went underground, or the ground under them was opened).
     private func undeferBuried(_ c: Chunk) {
         guard c.deferredBuried > 0 else { return }
@@ -1653,7 +1699,8 @@ final class World {
     // Each frame: where the player is (above ground or under it) and, when that or his chunk changed, the near chunks'
     // deferred sections handed back to meshing, and the far chunks' buried meshes dropped (they cost the GPU too).
     private func buriedTick(_ pos: V3, _ center: ChunkKey, _ extra: ChunkKey?) {
-        guard World.deferBuried && fieldTerrain && dim != .deep else { buriedCentre = nil; return }
+        if dim == .deep { buriedCentre = nil; deepLayerTick(pos, center); return }
+        guard World.deferBuried && fieldTerrain else { buriedCentre = nil; return }
         var under = false, high = flyingHigh
         // The top of the drawn ground in a column (nil: its chunk isn't loaded, or is a shell).
         func groundTop(_ x: Int, _ z: Int) -> Int? {
@@ -1985,6 +2032,7 @@ final class World {
         let cx = floorDiv(Int(floor(pos.x)), CS), cz = floorDiv(Int(floor(pos.z)), CS)
         let r = radius + 1
         buriedCentre = ChunkKey(x: cx, z: cz); underground = false          // (P440: buriedTick decides on the next update)
+        if dim == .deep && World.deepLayerCut { buriedCentre = nil; deepInHell = pos.y >= Float(DeepGen.hellBase - 8); deepCentre = ChunkKey(x: cx, z: cz) }
         var keys: [ChunkKey] = []
         for dz in -r...r { for dx in -r...r where World.inDisc(dx, dz, radius, grow: 1) {
             let k = ChunkKey(x: cx + dx, z: cz + dz)
@@ -2565,6 +2613,34 @@ final class World {
         setBlock(p.x, p.y, p.z, FIRE)
         fires[p] = 0
     }
+    // P504 (Nov 1 07:35, a forest after a shelling: "We got some hovering fire. That's not good"): fire set without its
+    // tick (a crater's scorched rim, a burning wreck's ground) never burned out, and stood on in the air when the ground
+    // under it went. Every fire is lit here (or placeFire), so it ages, spreads and goes out as fire does.
+    func lightFire(_ p: IVec3) {
+        setBlockAsync(p.x, p.y, p.z, FIRE)
+        fires[p] = 0
+    }
+    // A fire cell met by a block check (Game.gravityTick: the cells round an edit or a blast) with nothing under it to
+    // burn on goes out; one that was never ticking (an old save's) starts its tick. True when it went out.
+    func fireCheck(_ p: IVec3) -> Bool {
+        guard block(p.x, p.y, p.z) == FIRE else { return false }
+        let below = block(p.x, p.y - 1, p.z)
+        if !Blocks.opaque[Int(below)] && !Blocks.flammable[Int(below)] && !World.fireHeldBeside(self, p) {
+            setBlockAsync(p.x, p.y, p.z, AIR)
+            fires.removeValue(forKey: p)
+            return true
+        }
+        if fires[p] == nil { fires[p] = 0 }
+        return false
+    }
+    // A fire on the face of a burning block beside it (a wall, a trunk: whole flammable blocks, not leaves or plants).
+    static func fireHeldBeside(_ w: World, _ p: IVec3) -> Bool {
+        for d in World.allDirs where d.y == 0 {
+            let b = Int(w.block(p.x + d.x, p.y, p.z + d.z))
+            if Blocks.flammable[b] && Blocks.opaque[b] { return true }
+        }
+        return false
+    }
 
     // Reference fire odds per block (FireBlock: ignite, burn). Logs catch slowly and last; leaves, wool and plants go
     // fast. Every flammable block burned at a flat 1 in 5 a fire tick.
@@ -2597,7 +2673,7 @@ final class World {
             if !isLoaded(p.x, p.z) || !activeHere(p) { continue }          // (P376: fire past the active distance waits)
             FarTicks.note(self, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             let below = block(p.x, p.y - 1, p.z)
-            let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
+            let eternal = below == NETHERRACK || below == BEDROCK || Blocks.key(below) == "magma_block"
             if rainLevel > 0.5 && !eternal, let c = chunks[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))],
                p.y >= Int(c.height[mod(p.x, CS) + mod(p.z, CS) * CS]), Rand.int(in: 0..<3) == 0 {
                 let b = gen.column(p.x, p.z).biome
@@ -2623,7 +2699,8 @@ final class World {
             // Spread to air next to flammable blocks nearby.
             if anyFlammable && Rand.int(in: 0..<3) == 0 {
                 let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -1...2), p.z + Rand.int(in: -1...1))
-                if block(q.x, q.y, q.z) == AIR {
+                let qb = block(q.x, q.y - 1, q.z)
+                if block(q.x, q.y, q.z) == AIR && (Blocks.opaque[Int(qb)] || Blocks.flammable[Int(qb)] || World.fireHeldBeside(self, q)) {
                     // Catches by the most flammable neighbour's ignite odds (reference (ignite + 40 + 7 x difficulty) /
                     // (age + 30) against 100, taking normal difficulty).
                     var ig = 0
@@ -2633,7 +2710,8 @@ final class World {
                     }
                 }
             }
-            let supported = Blocks.opaque[Int(below)] || anyFlammable
+            // (P504: a flame in the air beside leaves or grass was held up by them: it hung there, burning nothing under it)
+            let supported = Blocks.opaque[Int(below)] || Blocks.flammable[Int(below)] || World.fireHeldBeside(self, p)
             // No age cap: fire on a log burns until the log is gone (it went out after 30 steps whatever it stood on).
             if !eternal && (!supported || (age > 6 && Rand.int(in: 0..<4) == 0 && !anyFlammable)) {
                 setBlockAsync(p.x, p.y, p.z, AIR)

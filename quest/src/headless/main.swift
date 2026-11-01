@@ -14,7 +14,8 @@ func check(_ ok: Bool, _ what: String) {
 setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = CommandLine.arguments.firstIndex(of: "--worldseed").flatMap { i in i + 1 < CommandLine.arguments.count ? UInt64(CommandLine.arguments[i + 1]) : nil } ?? 12345
-WorldRules.p44 = false                 // fixture seeds keep their cities and citadels (WorldRules.p44)
+WorldRules.p44 = CommandLine.arguments.contains("--p44")   // fixture seeds keep their cities and citadels (WorldRules.p44);
+                                                          // --p44: the headset's rules (roads, P507: --view a road as he sees it)
 StructureCache.plansOffThread = false   // base ticks find their sites at once (P124: HitchProbe turns the worker planning on)
 Blueprints.on = false                  // upgrades fit without blueprints (P138: --p12pm-only P138 turns them on)
 TownSizes.on = false                   // and their towns as they were (C13 town sizes: --sizes-only turns them on)
@@ -714,7 +715,7 @@ if let out = arg("--view"), let ctx = vkctx {
             }
         } } }
         for l in (FieldTerrain.poolLog ?? []) { print("poollog: " + l) }
-        print("fluidprobe: \(n) fluid cells; \(FieldTerrain.perchedDropped) perched cells taken out and \(FieldTerrain.rimsRaised) rim cells raised as the chunks were made")
+        print("fluidprobe: \(n) fluid cells; \(FieldTerrain.perchedDropped) perched cells taken out and \(FieldTerrain.rimsRaised) rim cells raised and \(FieldTerrain.poolsSunk) pools sunk into the floor as the chunks were made")
     }
     // --finedig N (P377 step 1): N cells dug in a row ahead the way the game digs (the cell, then a ball where the blow
     // landed, off the cell's middle), then the frame; ground quads in the 3 x 3 chunks round the player, fine sections
@@ -1837,6 +1838,22 @@ if CommandLine.arguments.contains("--bigfight") {              // P450: the Reck
     BigFightCheck.run(game, check)
     print(failures == 0 ? "bigfight: all checks passed" : "bigfight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--depotleak") {             // P507: a Fuel Depot's tanks hold their fuel
+    DepotLeakCheck.run(game, check)
+    print(failures == 0 ? "depotleak: all checks passed" : "depotleak: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--craterplace") {           // P507: blocks go down in a rocket's bowl
+    CraterPlaceCheck.run(game, check)
+    print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--builtgun") {              // P507: a gun he builds, worked from a computer
+    BuiltGunCheck.run(game, check)
+    print(failures == 0 ? "builtgun: all checks passed" : "builtgun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--roadscheck") {            // P507: roads near his spot, drawn on the ground
+    RoadsCheck.run(game, check)
+    print(failures == 0 ? "roadscheck: all checks passed" : "roadscheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--sandbreak") {             // P462: dug beach sand stays ground
     SandBreakCheck.run(game, check)
     print(failures == 0 ? "sandbreak: all checks passed" : "sandbreak: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -1849,6 +1866,7 @@ if CommandLine.arguments.contains("--treeprobe") {             // P478: logs han
 if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled tree into its neighbour; standing on it
     TreeProbeCheck.fell(game, check)
     TreeProbeCheck.fellReal(game, check)
+    TreeProbeCheck.fellHalf(game, check)
     print(failures == 0 ? "fellcheck: all checks passed" : "fellcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--jetplate") {             // P478: a jetpack strapped onto a chest piece
@@ -1944,6 +1962,17 @@ if CommandLine.arguments.contains("--shipchart") {
     ShipChartCheck.run(game, check)
     print(failures == 0 ? "shipchart: all checks passed" : "shipchart: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --vehiclezoo [N] [--zoofrom K] (P505): N player-style vehicles built, assembled, driven or flown, fired and docked.
+if CommandLine.arguments.contains("--vehiclezoo") {
+    VehicleZoo.run(game, count: Int(arg("--vehiclezoo") ?? "") ?? 100, from: Int(arg("--zoofrom") ?? "") ?? 0, check)
+    print(failures == 0 ? "vehiclezoo: all checks passed" : "vehiclezoo: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --circuitzoo [N] [--zoofrom K] (P505): N of the hundred player-style copper circuits built and driven
+// (Sources/CircuitZoo.swift); the suite runs them all after the Sparkstone Workshop.
+if CommandLine.arguments.contains("--circuitzoo") {
+    CircuitZoo.run(game, count: Int(arg("--circuitzoo") ?? "") ?? 100, from: Int(arg("--zoofrom") ?? "") ?? 0, check)
+    print(failures == 0 ? "circuitzoo: all checks passed" : "circuitzoo: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --frigatelayout: P472, the Meridian frigate walked from its hangar (Sources/FrigateLayoutCheck.swift); FRIGATE_PLANS=1
 // prints each deck.
 if CommandLine.arguments.contains("--frigatelayout") {
@@ -2012,6 +2041,23 @@ if CommandLine.arguments.contains("--locatecheck") {
         let found = out.first.map { !$0.contains("Could not") } ?? false
         check(!found || (out.count == 2 && out.first!.contains("marked on your map") && MapCache.shared.marks.count == m0 + 1),
               "/locate \(k): \(found ? "found, with what it is (\(out.count) lines) and a map mark" : "none near")")
+    }
+    // P504 (Nov 1 09:33, "I want 'rare' and 'bases' to show the nearest anything regardless of if it's nearby or not
+    // including capital citadels and cities, or a crawler, a train or frigate"): a line for every kind, however far.
+    for (cmd, kinds) in [("bases", 9), ("rare", 8)] {
+        // (A place found again replaces its earlier line in the log, P456: the /locate lines above came out of it.)
+        game.commandLog.removeAll()
+        let n0 = game.commandLog.count
+        let t0 = CFAbsoluteTimeGetCurrent()
+        game.command("/\(cmd)")
+        let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+        let out = Array(game.commandLog.dropFirst(n0 + 1))
+        for l in out { print("locatecheck: /\(cmd): \(l)") }
+        let found = out.filter { $0.contains(" blocks") }.count
+        let names = ["Capital Citadel", "Capital City", "Boreal Station", "Greywall Base", "Crawler", "Meridian Frigate", "Train"]
+        let missing = cmd == "bases" ? names.filter { n in !out.contains { $0.contains(n) } } : []
+        check(out.count == kinds && found >= kinds - 2 && missing.isEmpty,
+              String(format: "/\(cmd): %d lines for %d kinds, %d placed with a distance, in %.0f ms (missing: %@)", out.count, kinds, found, ms, missing.joined(separator: ", ")))
     }
     print(failures == 0 ? "locatecheck: all checks passed" : "locatecheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
@@ -2330,9 +2376,11 @@ if CommandLine.arguments.contains("--posecheck-only") {
 }
 // Hell's own mobs and the gate into hell (Sources/HellMobsTests.swift); --hell-only stops after them.
 HellMobsTests.run(game, check: check)
+HellWildTests.run(game, check: check)                  // P506: hell's wildlife (Sources/HellWild.swift)
 if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
     print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+CraterPlaceCheck.run(game, check)                      // P507: blocks go down in a rocket's bowl
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest
@@ -2369,6 +2417,8 @@ if CommandLine.arguments.contains("--lastwar-only") {
 }
 // The Sparkstone Workshop's circuit benches (Sources/CircuitWorkshopTests.swift); --workshop-only stops after them.
 CircuitWorkshopTests.run(game, check: check)
+// P505: the hundred copper circuits players build (Sources/CircuitZoo.swift).
+CircuitZoo.run(game, check)
 // L3 perf overlay (Sources/PerfOverlayTests.swift): its window, lines, option and HUD drawing on the Quest's HUD host.
 PerfOverlayTests.run(game, hud: { Renderer(game: game).buildHUD(1280, 720).count }, check: check)
 // L3 volcano eruptions (Sources/EruptionTests.swift): rarity, bursts near and far, the boom, the sound.

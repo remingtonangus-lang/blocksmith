@@ -353,22 +353,24 @@ enum HellMobsTests {
             for x in 0...3 { for y in 0...4 { w.setBlock(ox + x, oy + y, oz, AIR) } }
         }
 
-        // Ember Charges are base loot: every command chest holds one, vaults one or two; the only recipe is P249's dear
-        // forged one (three diamonds, three TNT, a gold block), so the way down never hangs on loot.
+        // Ember Charges are base loot: P504, one a base, in its "_charge" chest (no other command chest or vault holds
+        // one); the only recipe is P249's dear forged one (three diamonds, three TNT, a gold block), so the way down
+        // never hangs on loot.
         do {
             var cmd = 0, vault = 0
             for s in 0..<20 {
-                for (t, n) in [("steelhold_command", 0), ("steelhold_vault", 1)] {
+                for (t, n) in [("steelhold_charge", 0), ("greywall_charge", 1), ("steelhold_command", 2), ("steelhold_vault", 3), ("greywall_vault", 4)] {
                     let c = ItemContainer(27)
                     var rng = SRng(UInt64(s * 31 + n + 1))
                     Loot.fill(c, table: t, rng: &rng)
-                    if c.countOf(Items.id(HellGate.chargeKey)) >= 1 { if n == 0 { cmd += 1 } else { vault += 1 } }
+                    let k = c.countOf(Items.id(HellGate.chargeKey))
+                    if n <= 1 { if k == 1 { cmd += 1 } } else if k > 0 { vault += 1 }
                 }
             }
             let recipes = Recipes.all.filter { $0.result.item == Items.id(HellGate.chargeKey) }
             let dear = recipes.allSatisfy { $0.shapeless.contains("gold_block") }
-            check(cmd == 20 && vault == 20 && recipes.count <= 1 && dear,
-                  "hell: Ember Charges come from base command rooms (\(cmd)/20) and vaults (\(vault)/20); the one recipe is the dear forged one (\(recipes.count))")
+            check(cmd == 40 && vault == 0 && recipes.count <= 1 && dear,
+                  "hell: one Ember Charge in each base's charge chest (\(cmd)/40), none in its other command chests and vaults (\(vault)); the one recipe is the dear forged one (\(recipes.count))")
         }
 
         // Saved surface chunks from before the floor get it; a chunk already floored keeps its blasted shafts.

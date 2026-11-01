@@ -69,6 +69,7 @@ final class QuestControls {
     private var bodyClock: Double = 0
     private var laserFade: Float = 1            // R12: the laser fades out during a swing
     private var braceRot: simd_quatf?          // R6: the braced rifle's world rotation (barrel between the hands)
+    private var braceOff = V3.zero             // P504: the front hand's offset from the barrel line as it closed (rear hand's frame)
     private var hintShown: String?
     private var hintKey = ""
     static var keyboardHook: ((Bool) -> Void)?
@@ -404,10 +405,17 @@ final class QuestControls {
         if let gi = game.heldGun, R.aimValid, L.aimValid, gi < CapitalArms.models.count, CapitalArms.models[gi].shouldered, !inMenu, !game.mountedOneHand {
             let front = rig.toWorld(L.gripPos)
             let hold = max(L.trigger, L.squeeze)           // the left trigger, or the grip squeezed round the foregrip
-            var d: V3? = VRTwoHand.braced(rear: aimOrigin, rearForward: aimDir, front: front, frontTrigger: hold, shouldered: true)
-            if d == nil && wasBraced && hold > 0.3 {
-                let span = front - aimOrigin, len = simd_length(span)
-                if len > 0.1 && len < 1.2 && simd_dot(span / len, aimDir) > 0.4 { d = span / len }
+            let rq = rig.toWorldRot(R.aimRot)
+            let span = front - aimOrigin
+            var d: V3?
+            if wasBraced && hold > 0.3 {
+                // (P504: the line between the hands less the offset the front hand closed at)
+                let s2 = span - rq.act(braceOff), len = simd_length(s2)
+                if len > 0.08 && len < 1.3 && simd_dot(s2 / len, aimDir) > 0.4 { d = s2 / len }
+            } else if VRTwoHand.braced(rear: aimOrigin, rearForward: aimDir, front: front, frontTrigger: hold, shouldered: true) != nil {
+                let perp = span - aimDir * simd_dot(span, aimDir)
+                braceOff = rq.inverse.act(perp)
+                d = aimDir
             }
             if let d {
                 let up0 = rig.toWorldRot(R.aimRot).act(V3(0, 1, 0))
@@ -598,7 +606,8 @@ final class QuestControls {
                 let hand = rig.toWorld(hd.gripPos)
                 guard let gun = game.mobs.mobs.first(where: { Turrets.canMan($0) && simd_length_squared($0.pos - hand) < 30 * 30
                                                            && simd_length(GunParts.handlePoint($0) - hand) < 0.75 }) else { continue }
-                if game.survival && gun.deckGunCrewed(game) { app.input.haptic(i, amplitude: 0.2, seconds: 0.03, frequency: 80); bagGrip = true; break }
+                // (P507: a gun worked from a computer under it isn't taken by its handles: Mob.consoleGun)
+                if gun.consoleGun(game) || game.survival && gun.deckGunCrewed(game) { app.input.haptic(i, amplitude: 0.2, seconds: 0.03, frequency: 80); bagGrip = true; break }
                 Turrets.shared.mount(game, gun)
                 Turrets.shared.byGrip = true
                 app.input.haptic(i, amplitude: 0.6, seconds: 0.06, frequency: 120)
@@ -924,8 +933,19 @@ final class QuestControls {
         // fades to black instead of showing the world from inside a wall (the usual VR answer: no x-ray, no disorienting
         // inside-out view), and clears as the head comes out.
         let hw = rig.headWorld
-        let hb = Int(game.world.block(Int(floor(hw.x)), Int(floor(hw.y)), Int(floor(hw.z))))
-        let inWall: Float = game.alive && Blocks.opaque[hb] && Blocks.fullCollide[hb] ? 1 : 0
+        let hx = Int(floor(hw.x)), hy = Int(floor(hw.y)), hz = Int(floor(hw.z))
+        let w = game.world
+        var hb = Int(w.block(hx, hy, hz))
+        var buried = false
+        // P504 (Nov 1 07:35:25, "when I go into some of the craters, sometimes my vision goes black, even though I'm not
+        // under anything"): in a field world the ground is the drawn surface, not its cells. A cell whose centre is in
+        // the ground read as a wall for a head over a crater's smooth slope, under the open sky; the head is in the
+        // ground where the field is, and in a wall where a built block is.
+        if w.fieldTerrain && w.frame == nil {
+            hb = Int(w.builtBlock(hx, hy, hz))
+            buried = w.fieldDensity(at: hw) > 0.1
+        }
+        let inWall: Float = game.alive && (buried || Blocks.opaque[hb] && Blocks.fullCollide[hb]) ? 1 : 0
         wallFade += (inWall - wallFade) * min(1, dt * (inWall > wallFade ? 14 : 8))
         if wallFade < 0.005 { wallFade = 0 }
         game.sound?.setListener(eye: rig.headWorld, yaw: rig.headYaw, pitch: rig.headPitch, cave: game.sound?.cave ?? 0,
@@ -2023,32 +2043,45 @@ final class QuestControls {
     // G21: the scope's lens: black all round a round clear lens centred where the round lands, a thin crosshair with
     // an open centre and a red dot, fading in with scopeT.
     private func drawScope(_ v: inout [SimpleVert]) {
-        var c = V2.zero
-        if let cam = app.rig.lastCam, let aim = game.vrAim {
-            var n = 0
-            for vp in cam.viewProj { if let r = VRScope.reticle(viewProj: vp, center: cam.center, aimOrigin: aim.origin, aimDir: aim.dir) { c += r; n += 1 } }
-            if n > 0 { c /= Float(n) }
+        // P504 (Nov 1 07:33:37, the Fernblick: "I've got double vision with the scope"): the lens was drawn in each eye's
+        // own screen space at one shared spot, and the two eyes' views are not centred alike, so each eye saw its ring and
+        // crosshair somewhere else. It is a disc in the world now, 40 m out on the line the round flies, so both eyes see
+        // the one lens. Its size is the same share of the zoomed view as before (VRScope.lensRadius of the half width).
+        let rig = app.rig
+        let head = rig.headWorld
+        let fwd = simd_normalize(rig.toWorldRot(rig.headRot).act(V3(0, 0, -1)))
+        var u = fwd
+        if let aim = game.vrAim {
+            let to = aim.origin + simd_normalize(aim.dir) * 400 - head
+            if simd_length(to) > 1 { u = simd_normalize(to) }
         }
-        c = simd_clamp(c, V2(repeating: -0.5), V2(repeating: 0.5))
+        let zt = rig.halfTan / max(1, rig.zoom)                     // the zoomed view's half width, as a tangent
+        // (kept within half the view of the head's own line, as the old lens was)
+        let off = u / max(0.2, simd_dot(u, fwd)) - fwd
+        let lim = 0.5 * zt
+        if simd_length(off) > lim { u = simd_normalize(fwd + off / simd_length(off) * lim) }
+        let D: Float = 40
+        let c = u * D
+        let right = simd_normalize(simd_cross(u, V3(0, 1, 0)) + V3(1e-5, 0, 0)), up = simd_cross(right, u)
         let a = scopeT
-        let black = V4(0, 0, 0, a), edge = V4(0.02, 0.02, 0.02, a)
-        let R = VRScope.lensRadius, seg = 48
+        let black = V4(0, 0, 0, a), edge = V4(0.02, 0.02, 0.02, a), clear = V4(0, 0, 0, 0)
+        let R = VRScope.lensRadius * zt * D, outer = 4 * zt * D, seg = 48
         for i in 0..<seg {
             let a0 = Float(i) / Float(seg) * 2 * .pi, a1 = Float(i + 1) / Float(seg) * 2 * .pi
-            let d0 = V2(cosf(a0), sinf(a0)), d1 = V2(cosf(a1), sinf(a1))
+            let d0 = right * cosf(a0) + up * sinf(a0), d1 = right * cosf(a1) + up * sinf(a1)
             // A soft rim (the tube's edge), then black out to well past the view's corners.
-            for (ra, rb, ca, cb) in [(R * 0.94, R, V4(0, 0, 0, 0), edge), (R, 4, black, black)] {
-                let p0 = c + d0 * ra, p1 = c + d1 * ra, p2 = c + d1 * rb, p3 = c + d0 * rb
-                QuestControls.quad(&v, V4(p0.x, p0.y, 0, 2), V4(p1.x, p1.y, 0, 2), V4(p2.x, p2.y, 0, 2), V4(p3.x, p3.y, 0, 2), ca, ca, cb, cb)
+            for (ra, rb, ca, cb) in [(R * 0.94, R, clear, edge), (R, outer, black, black)] {
+                QuestControls.quad(&v, V4(c + d0 * ra, 1), V4(c + d1 * ra, 1), V4(c + d1 * rb, 1), V4(c + d0 * rb, 1), ca, ca, cb, cb)
             }
         }
-        let line = V4(0, 0, 0, 0.85 * a), w: Float = 0.004, gap: Float = 0.05
-        func bar(_ x0: Float, _ y0: Float, _ x1: Float, _ y1: Float) {
-            QuestControls.quad(&v, V4(c.x + x0, c.y + y0, 0, 2), V4(c.x + x1, c.y + y0, 0, 2), V4(c.x + x1, c.y + y1, 0, 2), V4(c.x + x0, c.y + y1, 0, 2), line, line, line, line)
+        let line = V4(0, 0, 0, 0.85 * a), w: Float = 0.004 * zt * D, gap: Float = 0.05 * zt * D
+        func bar(_ x0: Float, _ y0: Float, _ x1: Float, _ y1: Float, _ col: V4) {
+            QuestControls.quad(&v, V4(c + right * x0 + up * y0, 1), V4(c + right * x1 + up * y0, 1), V4(c + right * x1 + up * y1, 1),
+                               V4(c + right * x0 + up * y1, 1), col, col, col, col)
         }
-        bar(-R, -w, -gap, w); bar(gap, -w, R, w); bar(-w, -R, w, -gap); bar(-w, gap, w, R)
-        let dot = V4(0.9, 0.08, 0.05, a), d: Float = 0.006
-        QuestControls.quad(&v, V4(c.x - d, c.y - d, 0, 2), V4(c.x + d, c.y - d, 0, 2), V4(c.x + d, c.y + d, 0, 2), V4(c.x - d, c.y + d, 0, 2), dot, dot, dot, dot)
+        bar(-R, -w, -gap, w, line); bar(gap, -w, R, w, line); bar(-w, -R, w, -gap, line); bar(-w, gap, w, R, line)
+        let d: Float = 0.006 * zt * D
+        bar(-d, -d, d, d, V4(0.9, 0.08, 0.05, a))
     }
 
     // A ring in clip space (w = 2): clear in the middle, `color` at the edge; k 0...1 narrows the clear middle.

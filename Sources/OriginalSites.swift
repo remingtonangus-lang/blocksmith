@@ -64,7 +64,7 @@ enum SealedArmoury {
         w.fill(gx0 + 1, y - 1, gz0 + 1, gx1 - 1, y - 1, gz1 - 1, steel)
         w.chest(gx0 + 2, y, gz1 - 1, loot: "steelhold_armory", seed: rng.next(), facing: 2)
         w.chest(gx1 - 2, y, gz1 - 1, loot: "steelhold_armory", seed: rng.next(), facing: 2)
-        if rng.chance(0.5) { w.chest(cx + 15, y, gz1 - 1, loot: "steelhold_command", seed: rng.next(), facing: 2) }
+        if rng.chance(0.5) { w.chest(cx + 15, y, gz1 - 1, loot: "steelhold_charge", seed: rng.next(), facing: 2) }
         w.spawner(cx + 8, y, vz0 + 1, mob: "zombie")
         // The dead garrison in the gallery.
         for x in [cx - 18, cx + 18] { w.spawner(x, y, cz + (x < cx ? -2 : 2), mob: rng.chance(0.5) ? "zombie" : "skeleton") }

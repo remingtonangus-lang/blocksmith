@@ -409,7 +409,7 @@ enum MainGunTests {
             }
             check(waited && MainGun.lastCrater > 1000 && w.ships.shockwaves.isEmpty,
                   "maingun: a hit on ground not loaded yet waits, then the bowl is dug when it loads (\(MainGun.lastCrater) blocks after \(frames) frames)")
-            w.ships.pendingCraters.removeAll()
+            w.ships.pendingCraters.removeAll(); w.ships.pendingAlong.removeAll()
         }
 
         // 6. A slug into another Capital vessel's hull tears it open and knocks out its drive: it goes down.
@@ -498,8 +498,10 @@ enum MainGunTests {
                 var frames = 0
                 while w.ships.shells.contains(where: { $0.kind == 1 }) && frames < 200 { w.ships.updateShells(1.0 / 72, game: g); frames += 1 }
                 let bored = line.filter { w.block($0.x, $0.y, $0.z) == AIR }.count
-                check(fired && speed >= 600 && bored >= 11,
-                      String(format: "crawler P499: its main gun is a rail gun: a slug at %.0f m/s bores %d of 16 blocks through a stone wall", speed, bored))
+                // P507 (Nov 1 12:08:59, "replace it with another naval gun"): the rail gun is gone, a naval twin in its place.
+                check(ShipManager.crawlerRail ? (fired && speed >= 600 && bored >= 11) : (!fired && w.ships.turrets(of: e).count == 7),
+                      String(format: "crawler P499/P507: its main gun is a rail gun (on %d: a slug at %.0f m/s bores %d of 16 blocks through a stone wall), else gone for a naval twin (%d turrets)",
+                             ShipManager.crawlerRail ? 1 : 0, speed, bored, w.ships.turrets(of: e).count))
             }
         }
 

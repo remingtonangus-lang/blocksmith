@@ -156,6 +156,12 @@ void main() {
             pm += sp;
             A = max(A, min(1.0, max(sp.r, max(sp.g, sp.b))));
         }
+        // P507 (Nov 1 12:30:09-12:30:24 on a beach: "still a little bit of a ridge here where the water... the water doesn't
+        // quite settle with the ground perfectly... Or anywhere for that matter"): the last few centimetres of water at
+        // the shoreline thin out to nothing (the sky's sheen and the tint fade with the depth), so the water's edge
+        // isn't a line drawn across the sand where the sheet meets it.
+        float shore = smoothstep(0.02, 0.4, oWDepth);
+        A *= shore; pm *= shore;
     } else {
         // Side faces (water spilling down a step, falls): tumbling water with white streaks, a weak reflection.
         float across = abs(v.x) > abs(v.z) ? wp.z : wp.x;

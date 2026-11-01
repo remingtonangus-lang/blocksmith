@@ -134,6 +134,43 @@ extension Game {
         return true
     }
 
+    // P507 (Nov 1 12:36:14-12:36:30, a gun he built on a hill, a Turret Ring under a row of Medium Gun Barrels: "This is
+    // kind of what I had in mind by a gun... I guess we need a computer attached to it also to make it operational...
+    // Then you need to use the computer"): a Command Console (or Greywall terminal) built onto a gun of his, a Turret
+    // Ring with a cannon or a row of calibre barrels on it, works the gun: used, the build is raised as a vessel with
+    // the computer for its helm and he takes it (the turret follows his look, the trigger fires; sneak-use docks it
+    // back into blocks). Not a base's computer (each has its job) or a gun room's (the gun overhead).
+    func builtGunUse(_ p: IVec3) -> Bool {
+        let b0 = world.rawBlock(p.x, p.y, p.z)
+        guard ShipParts.console[Int(b0)], world.ships.pilot == nil, Turrets.shared.manned == nil else { return false }
+        let base = consoleBase(p)
+        guard base.capital == nil && base.greywall == nil else { return false }
+        let kinds = ShipParts.kinds, natural = ShipParts.natural, bore = CannonCalibre.boreT
+        let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+        var seen: Set<IVec3> = [p], queue = [p], head = 0
+        var ring = false, gun = false
+        while head < queue.count {
+            if queue.count > 4096 { return false }                 // (a building, not a gun)
+            let c = queue[head]; head += 1
+            for d in dirs {
+                let n = c + d
+                guard n.y >= 0, n.y < CH, !seen.contains(n), world.isLoaded(n.x, n.z) else { continue }
+                let b = world.rawBlock(n.x, n.y, n.z)
+                if natural[Int(b)] { continue }
+                seen.insert(n); queue.append(n)
+                if kinds[Int(b)] == .ring { ring = true }
+                if kinds[Int(b)] == .cannon || bore[Int(b)] > 0 { gun = true }
+            }
+        }
+        guard ring && gun else { return false }
+        let (ship, msg) = world.ships.assemble(at: p, game: self)
+        guard let ship else { onToast?(msg); sfx(.click, 0.6); return true }
+        sfx(.helmTake, 0.8, at: ship.pos)
+        startPiloting(ship)
+        onToast?("Gun Control: your gun, worked from this computer")
+        return true
+    }
+
     // P475 (Oct 27 18:58: "I can sit at the oak chair, but I can't use the gun. There's no gun to be used here... I still
     // have to drive or climb up to the gun"): the chair at a gun room's computer works the gun as the computer does
     // (he sits in it, and is back in it when he leaves the gun). False when no computer beside it has a gun to work.

@@ -316,7 +316,7 @@ enum CapitalBase {
         for y in (P1 - 4)...P1 { put(0, y, 20, ladder) }
         put(0, P1 + 1, 20, AIR)
         for (dx, dz) in [(-4, 12), (4, 12)] { w.chest(X(dx), P1 - 4, Z(dz), loot: "steelhold_vault", seed: rng.next(), facing: 1) }
-        w.chest(X(-4), P1 - 4, Z(18), loot: "steelhold_command", seed: rng.next(), facing: 0)
+        w.chest(X(-4), P1 - 4, Z(18), loot: "steelhold_charge", seed: rng.next(), facing: 0)      // (P504: its one Ember Charge)
         w.safe(X(4), P1 - 4, Z(18), seed: safeSeed &+ 1, facing: 0)                    // P248 (BaseSafes.swift)
         w.fill(X(-5), P1 - 2, Z(15), X(5), P1 - 2, Z(15), L)
 

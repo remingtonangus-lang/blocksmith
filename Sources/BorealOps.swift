@@ -389,9 +389,9 @@ extension Game {
         let site = BorealAlarmState.Site(cx: op.cx, cz: op.cz, S: op.S)
         var grey = 0, capital = 0
         for m in mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil && !m.hired && BorealStation.insideSite(site, m.pos) {
-            if m.factionValue == .greywall { grey += 1 } else if m.faction == Faction.steelhold.rawValue { capital += 1 }
+            if m.factionValue == .greywall { grey += 1 } else if m.faction == Faction.steelhold.rawValue || m.factionValue == .meridian { capital += 1 }
         }
-        let side = grey > capital ? "@grey" : ""
+        let side = grey > capital ? "@grey" : "@meridian"          // (P504: a station not Greywall's is the Meridian Navy's)
         let kinds = ["soldier_trooper", "soldier_recruit", "soldier_recruit"]
         for (i, k) in kinds.enumerated() {
             let p = world.freeSpawn(op.stairFoot + V3(Float(i % 2) - 0.5, 0, Float(-i)))

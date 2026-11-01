@@ -15,7 +15,7 @@ enum MailOrder {
         Entry(key: "name_tag", count: 1, price: 1500, blurb: "Name a beast of your own"),
         Entry(key: "compass", count: 1, price: 1200, blurb: "Never lose the trail home"),
         Entry(key: "clock", count: 1, price: 1500, blurb: "A pocket watch on a chain"),
-        Entry(key: "golden_apple", count: 1, price: 4000, blurb: "A tonic in fruit form"),
+        Entry(key: "field_stim", count: 1, price: 4000, blurb: "A tonic in a needle"),
         Entry(key: "experience_bottle", count: 4, price: 2400, blurb: "Bottled know-how, four to a crate"),
         Entry(key: "enchanted_book", count: 1, price: 6000, blurb: "A mystery volume from the coast"),
         Entry(key: "music_disc_cat", count: 1, price: 2000, blurb: "A record for the phonograph"),
