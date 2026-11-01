@@ -14,7 +14,8 @@ func check(_ ok: Bool, _ what: String) {
 setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = CommandLine.arguments.firstIndex(of: "--worldseed").flatMap { i in i + 1 < CommandLine.arguments.count ? UInt64(CommandLine.arguments[i + 1]) : nil } ?? 12345
-WorldRules.p44 = false                 // fixture seeds keep their cities and citadels (WorldRules.p44)
+WorldRules.p44 = CommandLine.arguments.contains("--p44")   // fixture seeds keep their cities and citadels (WorldRules.p44);
+                                                          // --p44: the headset's rules (roads, P507: --view a road as he sees it)
 StructureCache.plansOffThread = false   // base ticks find their sites at once (P124: HitchProbe turns the worker planning on)
 Blueprints.on = false                  // upgrades fit without blueprints (P138: --p12pm-only P138 turns them on)
 TownSizes.on = false                   // and their towns as they were (C13 town sizes: --sizes-only turns them on)
