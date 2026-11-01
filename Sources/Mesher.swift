@@ -1170,6 +1170,26 @@ enum Mesher {
                                 else if gTop >= L - 0.05 { f = min(L - 0.5, (Float(dens[i]) - 8) / 32) }
                                 else { f = max(-1, Lt - 0.5) }
                             }
+                            // P507 (Nov 1 12:30:09-12:30:24 on a beach: "still a little bit of a ridge here where the
+                            // water... the water doesn't quite settle with the ground perfectly here. Or anywhere for that
+                            // matter"): the level the flood carried over a gentle shore runs on under the ground that
+                            // rises out of it, as it does beside the fluid's own cells. It took its level only from fluid
+                            // cells two cells away, so a flood reaching further ended where the ground came up through
+                            // it in a front on the cells' square (the shoreline a zigzag of cell edges standing a sliver
+                            // over the sand, its corners poking up as dark blue slivers); now the shoreline is where the
+                            // ground's own surface crosses the level.
+                            // (Only the ground's top layer, a quarter block or more inside it, and only ever more fluid
+                            // inside the ground: what is drawn over the ground stays as it was.)
+                            if Lf == 0 && f <= 0 && !collideT[b] && dens[i] > 8 && dens[i + RL] <= 8 {
+                                var Lb: Float = -9
+                                for dy in -1...1 where sy + dy >= 0 && sy + dy < N { for dz in -2...2 { for dx in -2...2 {
+                                    let v = FLW[(sx + WM + dx) + (sz + WM + dz) * W + (sy + dy) * W * W]
+                                    if v > 0 { Lb = max(Lb, Float(dy) + v) }
+                                } } }
+                                let gTop: Float = 0.5 + Float(dens[i]) / 32
+                                let fb = min(Lb - 0.5, (Float(dens[i]) - 8) / 32)
+                                if Lb > -9 && gTop >= Lb - 0.05 && fb > 0 { f = fb }
+                            }
                         }
                         F[sx + sz * N + sy * NN] = max(-1, min(1, f))
                     } } }
