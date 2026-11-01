@@ -61,7 +61,7 @@ enum FrigateLayoutCheck {
         print(String(format: "frigatelayout: the frigate built in %.0f ms (with its walk-through doors)", (CFAbsoluteTimeGetCurrent() - t0) * 1000))
         let hangar = IVec3(-6, 9, 106)
         let reached = Capital.walkable(hb, from: hangar)
-        let helm = IVec3(0, 25, 75), engine = IVec3(0, 9, 130), bridgeDeck = IVec3(0, 25, 82)
+        let helm = IVec3(0, 25, 75), engine = IVec3(0, 9, 140), bridgeDeck = IVec3(0, 25, 82)
         let ys = [3, 9, 15, 21, 25]
         if ProcessInfo.processInfo.environment["FRIGATE_PLANS"] != nil {
             for y in ys { print("frigatelayout: walk level y \(y)"); for r in plan(hb, reached, y: y, z0: 0, z1: hb.sz - 1) { print(r) } }
@@ -80,5 +80,33 @@ enum FrigateLayoutCheck {
         let onFoot = posts.filter { reached.contains($0) }.count
         check(hb.crew.count == 50 && onFoot >= 45, "frigatelayout P476: \(hb.crew.count) crew posts aboard, \(onFoot) of them on the walk from the hangar")
         check(big.isEmpty, "frigatelayout: every room and hallway inside is reached from the hangar without breaking a wall (\(reached.count) cells reached, \(big.count) pockets of 6+ not)")
+        // P504 (Nov 1 07:43, "how are the engines floating in space inside the ship?"): every block of the hull joins
+        // the rest face to face (the old upper engines hung in the air over the catwalk), and the engine room is
+        // machinery: the drive's engine blocks, a reactor core, field coils, conduits and gauges.
+        do {
+            var seen = [Bool](repeating: false, count: hb.blocks.count)
+            let start = hb.blocks.firstIndex { $0 != AIR } ?? 0
+            var stack = [start], joined = 0
+            seen[start] = true
+            while let i = stack.popLast() {
+                joined += 1
+                let x = i % hb.sx, z = (i / hb.sx) % hb.sz, y = i / (hb.sx * hb.sz)
+                for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {
+                    let nx = x + dx, ny = y + dy, nz = z + dz
+                    guard nx >= 0 && nx < hb.sx && ny >= 0 && ny < hb.sy && nz >= 0 && nz < hb.sz else { continue }
+                    let j = nx + nz * hb.sx + ny * hb.sx * hb.sz
+                    if !seen[j] && hb.blocks[j] != AIR { seen[j] = true; stack.append(j) }
+                }
+            }
+            let solid = hb.blocks.filter { $0 != AIR }.count
+            var kinds: [String: Int] = [:]
+            for z in 121...154 { for y in 0..<hb.sy { for x in -13...13 {
+                let k = Blocks.key(hb.get(x, y, z))
+                if ["ship_engine", "frigate_reactor", "frigate_coil", "frigate_conduit", "frigate_gauge"].contains(k) { kinds[k, default: 0] += 1 }
+            } } }
+            let parts = kinds.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+            check(joined == solid && kinds.count == 5 && (kinds["ship_engine"] ?? 0) >= 1000,
+                  "frigatelayout P504: \(joined) of \(solid) blocks join the hull (none float); the engine room holds \(parts)")
+        }
     }
 }

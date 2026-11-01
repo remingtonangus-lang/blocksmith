@@ -865,8 +865,12 @@ enum BorealStation {
 
         // MARK: Garrison
         let tag = grey ? "@grey" : "@meridian"                  // (P504: the station's own side, the Meridian Navy)
-        for (k, dx, ly, dz) in garrison { w.mob(k + tag, V3(Float(X(dx)) + 0.5, Float(F + ly), Float(Z(dz)) + 0.5)) }
-        for (k, dx, ly, dz) in surfaceGarrison { w.mob(k + tag, V3(Float(X(dx)) + 0.5, Float(S + ly), Float(Z(dz)) + 0.5)) }
+        // P504 (Nov 1 07:58, "make it so that they're full of [the navy's super-soldiers]... that's gonna be what's in the
+        // [Boreal] station"; 09:33, "Boreal station and frigate are their own troops"): a Meridian station's troopers on
+        // its floors are Aegis Marines (shielded heavies); recruits and marksmen stay marines, the roof gun's man a trooper.
+        func navy(_ k: String, _ ly: Int) -> String { !grey && k == "soldier_trooper" && ly == 1 ? "soldier_ironclad" : k }
+        for (k, dx, ly, dz) in garrison { w.mob(navy(k, ly) + tag, V3(Float(X(dx)) + 0.5, Float(F + ly), Float(Z(dz)) + 0.5)) }
+        for (k, dx, ly, dz) in surfaceGarrison { w.mob(navy(k, ly) + tag, V3(Float(X(dx)) + 0.5, Float(S + ly), Float(Z(dz)) + 0.5)) }
         w.mob("deck_gun" + tag, V3(Float(X(4)) + 0.5, Float(S + 7), Float(Z(16)) + 0.5))
         if p471 { w.mob("soldier_trooper:operator" + tag + "^0", V3(Float(X(3)) + 0.5, Float(S + 1), Float(Z(16)) + 0.5)) }
         // P460 (Oct 25 17:08, "the Boreal guys, make it so they have like their own trucks or something, maybe their own

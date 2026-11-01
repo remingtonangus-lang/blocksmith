@@ -160,6 +160,13 @@ final class Circuit {
         if Circuit.kind(old) == .rail && k != .rail { railPowered.remove(p) }
         settledWires.remove(p)
         if condLevel[p] != nil && Circuit.kind(new) != Circuit.kind(old) { condLevel[p] = nil }
+        // P505 (the circuit zoo): a part broken and another placed in its cell starts fresh. A comparator put where a
+        // lit one stood gave out the old one's reading until its first tick (a 2-tick flash of whatever it drove); a
+        // dispenser, door or bulb inherited the old one's "already powered" edge; a torch the old one's burnout record.
+        if Circuit.kind(new) != Circuit.kind(old) {
+            if Circuit.kind(new) != .comparator { comparatorOut[p] = nil }
+            edge.remove(p); burn[p] = nil
+        }
         if Circuit.kind(new) != .lectern { lecternOn.remove(p) }
     }
 

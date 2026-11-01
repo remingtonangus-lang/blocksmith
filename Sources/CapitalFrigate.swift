@@ -482,16 +482,20 @@ extension Capital {
         for x in [-3, -2] { hb.set(x, 24, 91, AIR) }
         hb.set(-4, 26, 88, light)
 
-        // The engine room (z 121-154): bulkheads fore and aft, the lower level beside the lower engines (floor y 8), a catwalk
-        // deck at y 14 (the main deck's level) down the middle, along both flanks and across at both ends and the middle,
-        // open over the engines; ladders between the levels at both ends.
+        // The engine room (z 121-154): bulkheads fore and aft, the lower level (floor y 8) and the upper deck (y 14, the
+        // main deck's level) over it, ladders between them at both ends. P504: its machinery (FrigateEngineRoom.swift).
         for y in 7...27 { for x in -W...W { put(x, y, 120, wall); put(x, y, 155, wall) } }
         doorway(0, 15, 120, 1)
         doorway(-5, 9, 120, 1); doorway(5, 9, 120, 1)
         hb.set(-5, 8, 120, deck); hb.set(5, 8, 120, deck); hb.set(0, 14, 120, deck)
+        let coil = id("frigate_coil", thr), core = id("frigate_reactor", thr), conduit = id("frigate_conduit", trim)
+        let gauge = id("frigate_gauge", console), vent = id("generator_vent", trim), rail = id("station_railing", bars)
+        let rz = 128                                                   // the reactor's axis (x 0)
+        func r2(_ x: Int, _ z: Int) -> Int { x * x + (z - rz) * (z - rz) }
         for z in 121...154 { for x in -W...W {
             put(x, 8, z, deck)
-            if abs(x) <= 2 || abs(x) >= 9 || z <= 123 || z >= 153 || (z >= 140 && z <= 141) { put(x, 14, z, deck) }
+            // The upper deck, open down the middle between the drive units (the well, railed) and round the reactor.
+            if !(abs(x) <= 2 && z >= 137 && z <= 151) && r2(x, z) > 4 { put(x, 14, z, deck) }
         } }
         ladderUp(0, 9, 14, 121, 1); ladderUp(0, 9, 14, 154, 0)
         for z in stride(from: 126, through: 150, by: 8) { for sg in [-1, 1] {
@@ -499,7 +503,65 @@ extension Capital {
             while ax > 9 && !inner(sg * ax, 19, z) { ax -= 1 }
             put(sg * ax, 19, z, light); put(sg * ax, 10, z, light)
         } }
-        for x in [-10, 10] { put(x, 15, 140, console) }
+        // The reactor: a plinth on the lower floor, the core (y 10-24) behind a ring of armoured glass with three field
+        // coil bands, a cap at the ceiling with conduits up into the hull.
+        for z in (rz - 3)...(rz + 3) { for x in -3...3 {
+            let d = r2(x, z)
+            if d <= 8 { put(x, 9, z, trim) }
+            if d <= 1 { for y in 10...24 { put(x, y, z, core) } }
+            else if d <= 4 { for y in 10...24 { put(x, y, z, [12, 17, 22].contains(y) ? coil : glass) } }
+            if d <= 8 { put(x, 25, z, d <= 4 ? plate : trim) }
+            if d <= 2 { for y in 26...27 { put(x, y, z, conduit) } }
+        } }
+        // Railings: round the well and the reactor's gallery on the upper deck.
+        for z in 136...152 { put(-3, 15, z, rail); put(3, 15, z, rail) }
+        for x in -2...2 { put(x, 15, 136, rail); put(x, 15, 152, rail) }
+        // The four drive units (x +-7; the lower pair's axis y 11 on the floor, the upper pair's y 17 on the deck), z 136-153.
+        for sx in [-7, 7] { for ay in [11, 17] {
+            for z in 134...154 { for dy in -3...3 { for dx in -3...3 {
+                let x = sx + dx, y = ay + dy, d = dx * dx + dy * dy
+                if z >= 136 && z <= 153 {
+                    if d <= 5 { put(x, y, z, (dx == 0 && dy == 2 && z % 2 == 0) ? coil : engine) }      // body, glowing strip on top
+                    else if d <= 10 && (z - 137) % 5 == 0 && y != 8 && y != 14 { put(x, y, z, trim) }    // clamp rings
+                } else if z == 135 {
+                    if d <= 5 { put(x, y, z, d <= 1 ? trim : vent) }                                      // intake turbine
+                } else if z == 134 {
+                    if d <= 1 { put(x, y, z, trim) }                                                      // its hub
+                } else if d <= 8 { put(x, y, z, trim) }                                                   // exhaust collar
+            } } }
+            // Cradles under the body at every clamp, and the upper units hung from the ceiling.
+            for z in stride(from: 137, through: 152, by: 5) {
+                for dx in [-3, -2, 2, 3] { put(sx + dx, ay - 2, z, trim) }
+                if ay == 17 { for y in 20...27 { put(sx, y, z, trim) } }
+            }
+            // The exhaust ducts through the aft bulkhead to the nozzles.
+            for dy in -2...2 { for dx in -2...2 where dx * dx + dy * dy <= 5 { put(sx + dx, ay + dy, 155, trim) } }
+        } }
+        // Pillars under the upper deck beside the aisle.
+        for z in stride(from: 134, through: 152, by: 6) { for x in [-4, 4] { for y in 9...13 { put(x, y, z, trim) } } }
+        // Feed conduits from the reactor to every drive unit: under the upper deck (y 13) and over it (y 21), out from the
+        // reactor's sides to the units' line, then aft to their intakes.
+        for sg in [-1, 1] { for y in [13, 21] {
+            for k in 3...7 { put(sg * k, y, rz, conduit) }
+            for z in (rz + 1)...134 { put(sg * 7, y, z, conduit) }
+            put(sg * 7, y, rz, light)
+            if y == 21 { for yy in 19...20 { put(sg * 7, yy, 134, conduit) } }
+        } }
+        // Coolant tanks on the lower level against the flanks (plate, a marked band, dark trim at foot and head).
+        for sg in [-1, 1] { for cz in [123, 128] {
+            for z in (cz - 1)...(cz + 1) { for x in 9...11 { for y in 9...13 {
+                put(sg * x, y, z, y == 9 || y == 13 ? trim : (y == 11 ? mark : plate))
+            } } }
+        } }
+        // Power banks along the upper level's flanks: cabinets and gauges, three high.
+        for sg in [-1, 1] { for z in 122...131 { for y in 15...17 {
+            var ax = W
+            while ax > 9 && !inner(sg * ax, y, z) { ax -= 1 }
+            put(sg * ax, y, z, (z + y) % 3 == 0 ? gauge : cabinet)
+        } } }
+        // The engineers' station: consoles facing the reactor under a wall of gauges on the fore bulkhead.
+        for x in [-4, -3, 3, 4] { put(x, 15, 123, console) }
+        for x in -6...6 where abs(x) >= 2 { for y in 16...17 { hb.set(x, y, 120, gauge) } }
         put(0, 20, 155, light); put(-6, 24, 155, light); put(6, 24, 155, light)
         // Bridge: a glass band across the raked front and down the sides, the helm and consoles.
         for y in 26...28 { for x in -6...6 {
@@ -524,8 +586,7 @@ extension Capital {
             hb.set(x, y, z, Blocks.id("ship_turret_ring"))
             hb.turrets.append((hb.grid(x, y, z), meridianPD(), auto))
         }
-        // Engines (critical systems) in the engine room, four great thrusters and two small ones in the stern.
-        for sx in [-1, 1] { hb.fill(sx * 6 - 2, sx * 6 + 2, 8, 12, 132, 150, engine); hb.fill(sx * 6 - 2, sx * 6 + 2, 18, 22, 132, 150, engine) }
+        // The stern's nozzles: four great thrusters and a small one (the drive units in the engine room feed them).
         for (nx, ny, rr) in [(-7, 9, 4), (7, 9, 4), (-7, 21, 4), (7, 21, 4), (0, 15, 2)] {
             hb.exhausts.append(V3(Float(nx + W) + 0.5, Float(ny) + 0.5, Float(L) - 0.5))
             for y in (ny - rr - 1)...(ny + rr + 1) { for x in (nx - rr - 1)...(nx + rr + 1) where mfEngine(x, y, L - 1) {
@@ -561,7 +622,7 @@ extension Capital {
         for (x, y, z) in [(2, 25, 96), (2, 29, 126), (-7, 14, 33), (7, 14, 33)] { hb.post(x, y, z, .gunner) }
         for (x, y, z) in [(-5, 9, 104), (5, 9, 106), (-6, 9, 80), (6, 9, 90), (1, 15, 95), (0, 25, 82)] { hb.post(x, y, z, .troop) }
         // P472 (19:46, "Engine room, nice. Should be like engineer troops in here too... Engineering troops with guns").
-        for (x, y, z) in [(-3, 9, 127), (3, 9, 146), (0, 15, 139), (-10, 15, 124)] { hb.post(x, y, z, .troop) }
+        for (x, y, z) in [(-3, 9, 127), (3, 9, 146), (4, 15, 139), (-10, 15, 124)] { hb.post(x, y, z, .troop) }   // (P504: off the well)
         // P476 (Oct 27 19:03: "There used to be more troops on the frigate... let's say 50 troops on here. It should be a
         // pain to take... the guys just storm you"): marines through the whole ship, up to fifty aboard, each post a
         // standing cell walked from the hangar at least five blocks from any other (picked in a fixed shuffled order).

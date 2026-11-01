@@ -714,7 +714,7 @@ if let out = arg("--view"), let ctx = vkctx {
             }
         } } }
         for l in (FieldTerrain.poolLog ?? []) { print("poollog: " + l) }
-        print("fluidprobe: \(n) fluid cells; \(FieldTerrain.perchedDropped) perched cells taken out and \(FieldTerrain.rimsRaised) rim cells raised as the chunks were made")
+        print("fluidprobe: \(n) fluid cells; \(FieldTerrain.perchedDropped) perched cells taken out and \(FieldTerrain.rimsRaised) rim cells raised and \(FieldTerrain.poolsSunk) pools sunk into the floor as the chunks were made")
     }
     // --finedig N (P377 step 1): N cells dug in a row ahead the way the game digs (the cell, then a ball where the blow
     // landed, off the cell's middle), then the frame; ground quads in the 3 x 3 chunks round the player, fine sections
@@ -1945,6 +1945,17 @@ if CommandLine.arguments.contains("--shipchart") {
     ShipChartCheck.run(game, check)
     print(failures == 0 ? "shipchart: all checks passed" : "shipchart: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --vehiclezoo [N] [--zoofrom K] (P505): N player-style vehicles built, assembled, driven or flown, fired and docked.
+if CommandLine.arguments.contains("--vehiclezoo") {
+    VehicleZoo.run(game, count: Int(arg("--vehiclezoo") ?? "") ?? 100, from: Int(arg("--zoofrom") ?? "") ?? 0, check)
+    print(failures == 0 ? "vehiclezoo: all checks passed" : "vehiclezoo: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --circuitzoo [N] [--zoofrom K] (P505): N of the hundred player-style copper circuits built and driven
+// (Sources/CircuitZoo.swift); the suite runs them all after the Sparkstone Workshop.
+if CommandLine.arguments.contains("--circuitzoo") {
+    CircuitZoo.run(game, count: Int(arg("--circuitzoo") ?? "") ?? 100, from: Int(arg("--zoofrom") ?? "") ?? 0, check)
+    print(failures == 0 ? "circuitzoo: all checks passed" : "circuitzoo: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --frigatelayout: P472, the Meridian frigate walked from its hangar (Sources/FrigateLayoutCheck.swift); FRIGATE_PLANS=1
 // prints each deck.
 if CommandLine.arguments.contains("--frigatelayout") {
@@ -2385,6 +2396,8 @@ if CommandLine.arguments.contains("--lastwar-only") {
 }
 // The Sparkstone Workshop's circuit benches (Sources/CircuitWorkshopTests.swift); --workshop-only stops after them.
 CircuitWorkshopTests.run(game, check: check)
+// P505: the hundred copper circuits players build (Sources/CircuitZoo.swift).
+CircuitZoo.run(game, check)
 // L3 perf overlay (Sources/PerfOverlayTests.swift): its window, lines, option and HUD drawing on the Quest's HUD host.
 PerfOverlayTests.run(game, hud: { Renderer(game: game).buildHUD(1280, 720).count }, check: check)
 // L3 volcano eruptions (Sources/EruptionTests.swift): rarity, bursts near and far, the boom, the sound.

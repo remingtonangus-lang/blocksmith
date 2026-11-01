@@ -170,6 +170,26 @@ extension AshWar {
                     sign(&w, x, y0 + 2, z, facing: (fdx, fdz), ["Ashguard Rail", h.name, "Line to", h.to])
                 }
             }
+            // P504 (Nov 1 07:59, at a town's halt: "we should have the fencing that we already use in the bases... we
+            // already have some of that wire, but should have some fencing too"): the halt is a fenced yard, the bases'
+            // chain-link two high on steel posts every four cells with wire along the top, across the line from the
+            // platform and behind it, two cells past each end, a gate in the middle of each side.
+            let link = Blocks.has("chain_link_fence") ? Blocks.id("chain_link_fence") : k.bars
+            let barbs = Blocks.has("ash_wire") ? Blocks.id("ash_wire") : AIR
+            for t in max(lo - 2, a)...min(hi + 2, b) {
+                let (cx, cz) = cell(r, t)
+                guard guardSet.clear(floorDiv(cx, CS), floorDiv(cz, CS), 0) else { continue }
+                for off in [-3, 5] {
+                    let x = r.alongX ? cx : cx + off * h.side, z = r.alongX ? cz + off * h.side : cz
+                    guard w.inside(x, y0 + 1, z), w.get(x, y0 + 1, z) == AIR, w.get(x, y0 + 2, z) == AIR else { continue }
+                    let mid = (lo + hi) / 2, end = t == lo - 2 || t == hi + 2
+                    if abs(t - mid) <= 1 { continue }                                   // (the gate in, by the board's middle)
+                    let post = (t - lo) % 4 == 0 || end || abs(t - mid) == 2
+                    for y in (y0 + 1)...(y0 + 2) { w.set(x, y, z, post ? k.plating : link) }
+                    if w.get(x, y0 + 3, z) == AIR { w.set(x, y0 + 3, z, end ? k.lamp : (post ? k.plating : barbs)) }
+                    if !Blocks.collide[Int(w.get(x, y0, z))] { w.set(x, y0, z, k.floor) }
+                }
+            }
         }
     }
 

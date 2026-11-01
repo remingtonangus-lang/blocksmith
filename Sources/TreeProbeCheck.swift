@@ -285,7 +285,7 @@ enum TreeProbeCheck {
         }
         g.player.pos = stand + V3(0, 0.1, 0); g.player.vel = .zero; g.player.flying = false
         let log0 = s.pos
-        var drift: Float = 0, worst: Float = 0, aboard = 0
+        var drift: Float = 0, worst: Float = 0, settle: Float = 0, aboard = 0
         let start = g.player.pos
         t = 0
         while t < 4 {
@@ -295,12 +295,15 @@ enum TreeProbeCheck {
             if w.ships.aboard === s { aboard += 1 }
             t += 1.0 / 60
             let d = simd_length(V3(g.player.pos.x - start.x, 0, g.player.pos.z - start.z))
-            worst = max(worst, abs(g.player.vel.y)); drift = d
+            // (P504: the first half second is him settling from the spot found over the trunk's boxes onto its bark, a
+            // drop of a few tenths at falling speed; a bounce is any speed up or down after that.)
+            if t < 0.5 { settle = max(settle, abs(g.player.vel.y)) } else { worst = max(worst, abs(g.player.vel.y)) }
+            drift = d
         }
         let logMoved = simd_length(s.pos - log0)
         check(drift < 0.3 && logMoved < 0.3 && worst < 3 && g.player.pos.y > start.y - 1,
-              String(format: "fellcheck: standing on the fallen trunk 4 s he drifts %.2f, bounces up to %.1f b/s, ends %.2f from his start height, the trunk moves %.2f (aboard %d of 240 ticks)",
-                     drift, worst, g.player.pos.y - start.y, logMoved, aboard))
+              String(format: "fellcheck: standing on the fallen trunk 4 s he drifts %.2f, bounces up to %.1f b/s once on it (settling %.1f), ends %.2f from his start height, the trunk moves %.2f (aboard %d of 240 ticks)",
+                     drift, worst, settle, g.player.pos.y - start.y, logMoved, aboard))
     }
 
     // P504 (Nov 1 07:25, "This tree should have fallen"): his Ash Vault dark oak at 2914 -33 -3051, a 2x2 trunk. One foot

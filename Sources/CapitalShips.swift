@@ -721,6 +721,7 @@ extension BlockRegistry {
         }
         registerCapitalFactionBlocks()
         registerMeridianBlocks()
+        registerMeridianEngineering()
     }
 }
 
@@ -728,6 +729,7 @@ extension TextureGen {
     static func capitalPainters(_ p: inout [String: Painter]) {
         capitalFactionPainters(&p)
         meridianPainters(&p)
+        meridianEngineeringPainters(&p)
         p["warship_hull"] = { x, y in
             if y == 0 || x == 0 { return hex(0x5C636B) }
             if y == 15 || x == 15 { return hex(0x30353B) }
