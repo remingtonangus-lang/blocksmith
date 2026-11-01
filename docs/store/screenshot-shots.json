@@ -9,14 +9,14 @@
    ]
   },
   "time": 0.43,
-  "seconds": 1.8,
+  "seconds": 2.0,
   "warm": 2,
   "rain": false,
   "events": [
    {
     "t": 0,
     "do": "spawn",
-    "mob": "soldier_trooper@ash^90",
+    "mob": "soldier_trooper@marauder^90",
     "at": [
      -24,
      0,
@@ -28,7 +28,7 @@
    {
     "t": 0,
     "do": "spawn",
-    "mob": "soldier_recruit@ash^90",
+    "mob": "soldier_marksman@marauder^90",
     "at": [
      -30,
      0,
@@ -38,34 +38,12 @@
     "spread": 6
    },
    {
-    "t": 0,
-    "do": "vehicle",
-    "mob": "ash_tank",
-    "at": [
-     -34,
-     0,
-     -8
-    ],
-    "yaw": 90
-   },
-   {
-    "t": 0,
-    "do": "vehicle",
-    "mob": "ash_halftrack",
-    "at": [
-     -36,
-     0,
-     12
-    ],
-    "yaw": 90
-   },
-   {
     "t": 1.0,
     "do": "explode",
     "at": [
-     -16,
+     -30,
      0,
-     4
+     -2
     ],
     "power": 6,
     "fire": true
@@ -74,9 +52,9 @@
     "t": 2.3,
     "do": "explode",
     "at": [
-     -26,
+     -38,
      0,
-     -10
+     -14
     ],
     "power": 6
    },
@@ -84,31 +62,20 @@
     "t": 3.5,
     "do": "explode",
     "at": [
-     -12,
+     -28,
      0,
-     -6
+     -12
     ],
     "power": 6,
     "fire": true
    },
    {
-    "t": 4.6,
-    "do": "wreck",
-    "at": [
-     -36,
-     0,
-     12
-    ],
-    "spread": 6,
-    "power": 4
-   },
-   {
     "t": 5.8,
     "do": "explode",
     "at": [
-     -20,
+     -34,
      0,
-     10
+     6
     ],
     "power": 6,
     "fire": true
@@ -118,35 +85,35 @@
    {
     "t": 0,
     "pos": [
-     10,
+     -9,
      1.8,
-     4
+     7
     ],
     "look": [
-     -20,
-     2,
-     -5
+     -26,
+     1.6,
+     0
     ],
     "ground": true
    },
    {
     "t": 7,
     "pos": [
-     7,
-     2.2,
-     7
+     -12,
+     2.0,
+     10
     ],
     "look": [
-     -24,
-     2,
-     -6
+     -28,
+     1.6,
+     -1
     ],
     "ground": true
    }
   ],
   "survival": false,
-  "fps": 30,
-  "rd": 18
+  "rd": 18,
+  "fps": 30
  },
  {
   "name": "shot_battle_b",
@@ -158,14 +125,14 @@
    ]
   },
   "time": 0.43,
-  "seconds": 1.4,
+  "seconds": 4.0,
   "warm": 2,
   "rain": false,
   "events": [
    {
     "t": 0,
     "do": "spawn",
-    "mob": "soldier_trooper@ash^90",
+    "mob": "soldier_trooper@marauder^90",
     "at": [
      -24,
      0,
@@ -177,7 +144,7 @@
    {
     "t": 0,
     "do": "spawn",
-    "mob": "soldier_recruit@ash^90",
+    "mob": "soldier_marksman@marauder^90",
     "at": [
      -30,
      0,
@@ -187,34 +154,12 @@
     "spread": 6
    },
    {
-    "t": 0,
-    "do": "vehicle",
-    "mob": "ash_tank",
-    "at": [
-     -34,
-     0,
-     -8
-    ],
-    "yaw": 90
-   },
-   {
-    "t": 0,
-    "do": "vehicle",
-    "mob": "ash_halftrack",
-    "at": [
-     -36,
-     0,
-     12
-    ],
-    "yaw": 90
-   },
-   {
     "t": 1.0,
     "do": "explode",
     "at": [
-     -16,
+     -30,
      0,
-     4
+     -2
     ],
     "power": 6,
     "fire": true
@@ -223,9 +168,9 @@
     "t": 2.3,
     "do": "explode",
     "at": [
-     -26,
+     -38,
      0,
-     -10
+     -14
     ],
     "power": 6
    },
@@ -233,31 +178,20 @@
     "t": 3.5,
     "do": "explode",
     "at": [
-     -12,
+     -28,
      0,
-     -6
+     -12
     ],
     "power": 6,
     "fire": true
    },
    {
-    "t": 4.6,
-    "do": "wreck",
-    "at": [
-     -36,
-     0,
-     12
-    ],
-    "spread": 6,
-    "power": 4
-   },
-   {
     "t": 5.8,
     "do": "explode",
     "at": [
-     -20,
+     -34,
      0,
-     10
+     6
     ],
     "power": 6,
     "fire": true
@@ -267,35 +201,35 @@
    {
     "t": 0,
     "pos": [
-     2,
-     1.8,
-     -4
+     -14,
+     1.7,
+     5
     ],
     "look": [
-     -24,
-     2,
-     -2
+     -28,
+     1.8,
+     -1
     ],
     "ground": true
    },
    {
     "t": 7,
     "pos": [
-     0,
-     2.2,
-     -2
+     -15,
+     1.8,
+     7
     ],
     "look": [
-     -26,
-     2,
-     -2
+     -28,
+     1.8,
+     -1
     ],
     "ground": true
    }
   ],
   "survival": false,
-  "fps": 30,
-  "rd": 18
+  "rd": 18,
+  "fps": 30
  },
  {
   "name": "shot_town_street",
@@ -639,76 +573,6 @@
    }
   ],
   "fps": 30
- },
- {
-  "name": "shot_tank",
-  "anchor": {
-   "at": [
-    3090,
-    0,
-    30
-   ]
-  },
-  "time": 0.44,
-  "seconds": 9.0,
-  "warm": 1,
-  "events": [
-   {
-    "t": 0,
-    "do": "vehicle",
-    "mob": "ash_tank",
-    "at": [
-     0,
-     0,
-     0
-    ],
-    "yaw": 120
-   },
-   {
-    "t": 1.6,
-    "do": "wreck",
-    "at": [
-     0,
-     0,
-     0
-    ],
-    "spread": 6,
-    "power": 5
-   }
-  ],
-  "cam": [
-   {
-    "t": 0,
-    "pos": [
-     9,
-     2.2,
-     6
-    ],
-    "look": [
-     0,
-     1.2,
-     0
-    ],
-    "ground": true
-   },
-   {
-    "t": 5,
-    "pos": [
-     11,
-     3,
-     9
-    ],
-    "look": [
-     0,
-     1.5,
-     0
-    ],
-    "ground": true
-   }
-  ],
-  "rain": false,
-  "fps": 30,
-  "rd": 18
  },
  {
   "name": "shot_frigate",
