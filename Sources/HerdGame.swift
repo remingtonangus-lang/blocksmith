@@ -75,7 +75,8 @@ extension Mob {
         let fights = kind == .boar || ((kind.bisonLike || kind == .elk) && bull)
         let provoked = aggro || wasHit
         if fights && canTarget && dist < 16 && fleeTime <= 0 && (provoked || (kind == .boar && dist < 4)) {
-            phase = 1; circleAngle = 3; wasHit = false
+            // (P506: long enough to reach him: a bull hurt from 14 blocks off ran 3 s at 3.6 b/s and turned away short)
+            phase = 1; circleAngle = max(3, dist / max(0.5, spec.speed * 1.5) + 1.2); wasHit = false
             HerdGame.charges += 1
             g.sfx(.mob(kind, .ambient), 1, at: pos)
             if kind.bisonLike { spookHerd(g, from: p) }          // the rest stampede
