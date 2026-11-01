@@ -787,7 +787,11 @@ extension Ship {
 
 extension Mob {
     var factionValue: Faction {
-        if kind.ash { return .ashguard }
+        // P507 (Nov 1 12:38:28-12:38:32, a Greywall truck bringing reinforcements "somehow blew up... like the soldier
+        // shot the truck"): an Ash-built vehicle given to another side (Greywall's reinforcement trucks, the Capital's
+        // radio trucks, a Boreal station's, a Capital wreck's) is that side's. Every Ash kind was the Ashguard's, so
+        // the base's own soldiers took their truck for the enemy and shot it to pieces at the gate.
+        if kind.ash { return faction != 0 ? (Faction(rawValue: faction) ?? .ashguard).side : .ashguard }
         if posse == 3 || posse == Prisoners.posse || posse == Marauders.posse { return .none }        // R21 (+ P347's prisoners): a bounty hunter on the soldier AI belongs to no faction (BountyHunters)
         guard Soldier.rank(kind) != nil || kind == .deckGun else { return .none }
         return faction != 0 ? (Faction(rawValue: faction) ?? .steelhold).side : .steelhold

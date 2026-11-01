@@ -352,6 +352,7 @@ extension Game {
             let t = Mob(.ashTruck, at: from)
             t.variant = 2
             t.customName = "Greywall Truck"
+            t.faction = Faction.greywall.rawValue                 // (P507: Greywall's, not the Ashguard's: its own side held fire)
             t.persistent = true
             t.yaw = 0                                            // facing -z, toward the gate
             mobs.mobs.append(t)

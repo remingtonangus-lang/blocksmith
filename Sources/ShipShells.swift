@@ -91,7 +91,7 @@ extension Game {
         let per = max(1, Int((Float(full) * ShipShells.share).rounded(.up)))
         var loaded = 0
         let crate = Items.id(ShipShells.key)
-        for i in inventory.main.indices where inventory.main[i].item == crate && !inventory.main[i].isEmpty {
+        for i in 0..<inventory.main.count where inventory.main[i].item == crate && !inventory.main[i].isEmpty {
             while st.rounds < full && inventory.main[i].count > 0 {
                 st.rounds = min(full, st.rounds + per)
                 inventory.main[i].count -= 1

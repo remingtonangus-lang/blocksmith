@@ -7,9 +7,10 @@ import simd
 // counts the points where the road is drawn on the ground (the packed earth a field world's road is laid in).
 enum RoadsCheck {
     static func run(_ g0: Game, _ check: (Bool, String) -> Void) {
-        let field0 = FieldTerrain.newWorlds
+        let field0 = FieldTerrain.newWorlds, p440 = WorldRules.p44
         FieldTerrain.newWorlds = true
-        defer { FieldTerrain.newWorlds = field0 }
+        WorldRules.p44 = true                           // (the headset's rules: the host checks turn P44 off for their fixtures)
+        defer { FieldTerrain.newWorlds = field0; WorldRules.p44 = p440 }
         let w = World(seed: 1091709452045888406, device: g0.world.device, save: nil)
         w.makeFieldWorld()
         w.renderDistance = 2; w.activeDistance = 2
