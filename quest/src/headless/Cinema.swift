@@ -56,6 +56,7 @@ enum Cinema {
         let warm: Double?
         let survival: Bool?
         let peaceful: Bool?         // night monsters cleared each frame (a town at dusk without the undead)
+        let cruise: Float?          // the frigate flies on along its keel at this speed (blocks/s), the camera with it
         let anchor: Anchor?
         let cam: [Key]
         let events: [Ev]?
@@ -236,6 +237,14 @@ enum Cinema {
         let baseTime = g.time
         print(String(format: "cine: %@: ready after %.1f s; %d frames at %dx%d", s.name, CFAbsoluteTimeGetCurrent() - t0, frames, W, H))
         var tick = 0
+        var cruiseFrom: V3?
+        // Townsfolk and animals that wander up to the lens are walked off out of shot (scripted mobs stay put).
+        func clearCamera(_ eye: V3) {
+            for m in g.mobs.mobs where !m.persistent {
+                let d = V3(m.pos.x - eye.x, 0, m.pos.z - eye.z), l = simd_length(d)
+                if l < 3.5 && abs(m.pos.y - eye.y) < 4 { m.pos += (l > 0.01 ? d / l : V3(1, 0, 0)) * (3.6 - l) }
+            }
+        }
         for f in 0..<frames {
             let t = Double(f) / Double(fps)
             // Events due by this frame.
@@ -318,13 +327,23 @@ enum Cinema {
                     builds[i].done = due
                 }
             }
-            let eye = sample(s.cam, t, camPos), look = sample(s.cam, t, camLook)
+            var eye = sample(s.cam, t, camPos), look = sample(s.cam, t, camLook)
+            if s.cruise != nil, let fr = frigate {
+                if cruiseFrom == nil { cruiseFrom = fr.pos }
+                let off = fr.pos - cruiseFrom!
+                eye += off; look += off
+            }
             for _ in 0..<perFrame {
                 hold(eye)
-                if let fr = frigate { fr.vel = .zero; fr.angVel = .zero }
+                if let fr = frigate {
+                    if let cr = s.cruise { fr.vel = simd_normalize(fr.rot.act(V3(0, 0, 1))) * cr } else { fr.vel = .zero }
+                    fr.angVel = .zero
+                }
                 g.tick(dt); tick += 1
                 calm()
+                clearCamera(eye)
             }
+            FrigateBoarding.cables.removeAll()      // the boarding winch's line: a play aid, not for the store footage
             if let r = s.timeRate { g.time = baseTime + r * t * DAY_LENGTH }
             if f % 30 == 0 { _ = w.loadSync(center: eye, radius: min(w.renderDistance, 6)) }
             if still && f != frames / 2 { continue }
@@ -344,8 +363,17 @@ enum Cinema {
         let log = id("spruce_log", "oak_log"), plank = id("spruce_planks", "oak_planks"), glass = id("glass_pane", "glass")
         let stone = id("cobblestone", "stone"), roof = id("dark_oak_planks", "oak_planks"), door = id("oak_planks", "oak_planks")
         var cells: [(IVec3, BlockID)] = []
-        // footing: a stone course under the whole floor
-        for z in 0..<sz { for x in 0..<sx { cells.append((IVec3(o.x + x, o.y, o.z + z), stone)) } }
+        let half = (sz + 1) / 2
+        // the plot cleared first (grass tufts, flowers, a stray branch's leaves over it)
+        for y in 1...(h + half + 2) { for z in -1...sz { for x in -1...sx where !w.isAir(o.x + x, o.y + y, o.z + z) {
+            cells.append((IVec3(o.x + x, o.y + y, o.z + z), AIR))
+        } } }
+        // footing: a stone course under the whole floor, carried down to firm ground wherever the plot falls away
+        for z in 0..<sz { for x in 0..<sx {
+            var y = o.y
+            while y > o.y - 6 && (y == o.y || !(w.solidAt(o.x + x, y, o.z + z) || w.groundAt(o.x + x, y, o.z + z))) { cells.append((IVec3(o.x + x, y, o.z + z), stone)); y -= 1 }
+            cells.append((IVec3(o.x + x, y, o.z + z), stone))
+        } }
         for y in 1...h {
             var ring: [(IVec3, BlockID)] = []
             for z in 0..<sz { for x in 0..<sx where x == 0 || z == 0 || x == sx - 1 || z == sz - 1 {
@@ -359,11 +387,13 @@ enum Cinema {
         }
         _ = door
         // roof: gables along x, stepping in over z
-        let half = (sz + 1) / 2
         // (each course a solid slab resting on the one under it, so nothing hangs or falls while it goes up)
         for k in 0..<half {
-            for z in k..<max(k + 1, sz - k) { for x in 0..<sx {
-                cells.append((IVec3(o.x + x, o.y + h + 1 + k, o.z + z), (z == k || z == sz - 1 - k) ? roof : plank))
+            for z in k..<max(k + 1, sz - k) { for x in -1...sx {
+                let edge = z == k || z == sz - 1 - k || k == half - 1
+                let gableEnd = x == -1 || x == sx
+                if gableEnd && !edge { continue }                     // the eaves overhang the gables by one; no loose slab ends
+                cells.append((IVec3(o.x + x, o.y + h + 1 + k, o.z + z), edge ? roof : plank))
             } }
         }
         _ = w

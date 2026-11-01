@@ -15,11 +15,6 @@
   "events": [
    {
     "t": 0,
-    "do": "survival",
-    "power": 1
-   },
-   {
-    "t": 0,
     "do": "spawn",
     "mob": "soldier_trooper@ash^90",
     "at": [
@@ -63,18 +58,6 @@
      12
     ],
     "yaw": 90
-   },
-   {
-    "t": 0,
-    "do": "spawn",
-    "mob": "soldier_trooper^270",
-    "at": [
-     4,
-     0,
-     4
-    ],
-    "n": 4,
-    "spread": 4
    },
    {
     "t": 1.0,
@@ -181,11 +164,6 @@
   "events": [
    {
     "t": 0,
-    "do": "survival",
-    "power": 1
-   },
-   {
-    "t": 0,
     "do": "spawn",
     "mob": "soldier_trooper@ash^90",
     "at": [
@@ -229,18 +207,6 @@
      12
     ],
     "yaw": 90
-   },
-   {
-    "t": 0,
-    "do": "spawn",
-    "mob": "soldier_trooper^270",
-    "at": [
-     4,
-     0,
-     4
-    ],
-    "n": 4,
-    "spread": 4
    },
    {
     "t": 1.0,
@@ -914,20 +880,7 @@
   "peaceful": true,
   "rd": 8,
   "fov": 75,
-  "events": [
-   {
-    "t": 0,
-    "do": "place",
-    "block": "torch",
-    "at": [
-     0,
-     0,
-     0
-    ],
-    "n": 10,
-    "spread": 9
-   }
-  ],
+  "events": [],
   "cam": [
    {
     "t": 0,
@@ -1023,12 +976,12 @@
     "do": "spawn",
     "mob": "soldier_trooper@ash^0",
     "at": [
-     0,
+     2,
      0,
      -8
     ],
-    "n": 8,
-    "spread": 5
+    "n": 10,
+    "spread": 7
    },
    {
     "t": 0,
@@ -1040,27 +993,6 @@
      -15
     ],
     "yaw": 0
-   },
-   {
-    "t": 1.5,
-    "do": "explode",
-    "at": [
-     -10,
-     0,
-     -26
-    ],
-    "power": 5,
-    "fire": true
-   },
-   {
-    "t": 3.6,
-    "do": "explode",
-    "at": [
-     12,
-     0,
-     -30
-    ],
-    "power": 5
    }
   ],
   "cam": [
