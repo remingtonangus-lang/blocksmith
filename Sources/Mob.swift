@@ -394,6 +394,7 @@ final class Mob {
     var jetCD: Float = 0
     var volley = 0                  // cinderwisp: fireballs left in the current burst
     var persistent = false          // structure mobs never despawn at random
+    var consoleGunKnown: Int8 = -1  // P507: a gun worked from a computer under it (Mob.consoleGun): 1 yes, 0 no, -1 not looked
     // Depth toughness (task 22): monsters spawned deep underground take damage / power and deal damage x power.
     var power: Float = 1
     var warden = false              // a Brimstone Keep's Warden (DeepGates.swift)

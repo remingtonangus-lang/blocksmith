@@ -107,7 +107,7 @@ enum Guns {
     static let rotarySpinUp: Float = 0.5, rotarySpinDown: Float = 1.4, rotaryWalk: Float = 0.72
     static func isAshArm(_ gi: Int) -> Bool { (gi >= kessel && gi <= ashsaw) || gi == faust }
     static func isLauncher(_ gi: Int) -> Bool { gi == launcher || gi == faust }
-    static let faustPower: Float = 3.4, faustAntiTank: Float = 90
+    static let faustPower: Float = 4.4, faustAntiTank: Float = 90           // (P507: 3.4)
     static let slatefall = 12, longwatch = 13, needle = 14, breaker = 15, repeater = 16      // Greywall's (GreywallArms.swift)
     static func isGreyArm(_ gi: Int) -> Bool { gi >= slatefall && gi <= repeater }
     // P217 (Oct 13 19:02, "several guns look identical; cut the roster to fewer, clearly different guns"; redone Oct 14:
@@ -136,7 +136,13 @@ enum Guns {
     static let ammo: [(String, String)] = [("rifle_rounds", "Rifle Rounds"), ("shotgun_shells", "Shotgun Shells"), ("heavy_rounds", "Heavy Rounds"),
                                            ("rocket_ammo", "Rocket"), ("arc_cell", "Arc Cell"), ("capital_rounds", "Capital Rounds"),
                                            (GreywallArms.ammo, "Slate Rounds"), ("faust_warhead", "Faustrohr Warhead")]
-    static let rocketPower: Float = 2.5
+    // P507 (Nov 1 12:12:53-12:13:12, the Himmelsturm on a Greywall wall: "The rocket launcher doesn't do enough damage to
+    // buildings", "these rockets should put a giant... crater into the wall here"): a rocket bursts as hard as a block of
+    // TNT (2.5 before), and its charge breaches: a wall's blocks stand to it as if their blast resistance were at most
+    // rocketBreach (station concrete's 30, a steel plate's: three times that, 9; stone and plain walls 3), so a wall
+    // takes a hole two or three blocks into it along the shot and the ground a bowl several blocks across.
+    static let rocketPower: Float = 4
+    static let rocketBreach: Float = 3
 
     private(set) static var byItem: [ItemID: Int] = [:]
     static func index(_ i: ItemID) -> Int? { byItem[i] }

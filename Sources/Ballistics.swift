@@ -810,6 +810,7 @@ extension Game {
             var s = Slug(pos: muzzle + d * 0.4, vel: d * gs.speed, kind: .rocket, damage: 0, fromPlayer: true, shooter: nil, by: "Player",
                          life: gs.range / gs.speed, gravity: 0.6)
             s.power = gi == Guns.faust ? Guns.faustPower : Guns.rocketPower
+            s.breach = Guns.rocketBreach                                         // P507
             if gi == Guns.faust { s.antiTank = Guns.faustAntiTank }             // P320
             a.spawn(s)
         case .beam:

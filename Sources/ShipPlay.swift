@@ -525,7 +525,10 @@ extension Game {
             // controls for the smaller guns"): at the helm of a ship with a Tidebreaker, attack is the big gun and use
             // (held) the guns laid on the sight, firing as each reloads; attack fires them only while the big gun can't.
             let tide = ships.gunState(s) != nil
-            let small = tide ? useHeld || breakNow && !charged : breakNow || (breakHeld && s.role == "dropship")
+            // P507 (Nov 1 12:09:20-12:09:32 at a crawler's helm: "we need to increase the rate of fire... they should be
+            // semiautomatic, but I should be able to hold down the trigger and they will fire when they load
+            // automatically"): held, the trigger fires every gun of his as it reloads, on any hull.
+            let small = tide ? useHeld || breakNow && !charged : breakNow || breakHeld
             // P93: in survival the guns use cannonballs from the pack, one a gun.
             if small {                                                   // (P435: the autocannon fires while held)
                 let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }

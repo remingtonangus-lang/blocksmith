@@ -689,7 +689,11 @@ enum Greywall {
         "greywall_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_kessel", 1, 1, 6), ("gun_repeater", 1, 1, 5),
                                      ("greywall_rounds", 16, 40, 6), ("heavy_rounds", 6, 15, 8), ("field_stim", 1, 2, 5),
                                      ("experience_bottle", 3, 8, 6), ("targeting_optic", 1, 1, 5), ("radar_module", 1, 1, 4),
-                                     ("diamond_chestplate@20-30", 1, 1, 3), ("greywall_field_notes", 1, 1, 6)]),
+                                     ("diamond_chestplate@20-30", 1, 1, 3), ("greywall_field_notes", 1, 1, 6),
+                                     // P507 (Nov 1 12:17:03, "I don't know where the Greywall codes are. I haven't seen any. Not
+                                     // sure where you get them from"): only a leashed officer carried one; the command
+                                     // room's chests keep a copy as well.
+                                     ("greywall_codebook", 1, 1, 10)]),
         "greywall_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_repeater", 1, 1, 6),
                                    ("gun_slatefall", 1, 1, 6), ("greywall_rounds", 24, 64, 8), ("heavy_rounds", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
                                    ("diamond_sword@25-35", 1, 1, 3), ("combat_stim", 1, 1, 2), ("radar_module", 1, 1, 5)]),

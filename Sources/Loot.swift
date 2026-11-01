@@ -18,6 +18,8 @@ enum Mining {
         return ["pumpkin", "carved_pumpkin", "jack_o_lantern", "melon", "cocoa", "moss_block", "moss_carpet"].contains(key)
     }
 
+    static func swordOnGlass(_ b: BlockID, _ t: ToolType) -> Bool { t == .sword && Blocks.def(b).sound == .glass }
+
     static func canHarvest(_ b: BlockID, _ tool: ItemStack) -> Bool {
         if !Blocks.requiresTool[Int(b)] { return true }
         return correctTool(b, tool) && tool.def.tier >= Int(Blocks.harvestLevel[Int(b)])
@@ -60,13 +62,17 @@ enum Mining {
             else if eff > 0 { speed += Float(eff * eff + 1) }
         }
         else if t == .sword && swordEfficient(b, key) { speed = 1.5 }
+        // P507 (Nov 1 12:15:49 at a Greywall wall's Armored Glass with a Titanium Sword: "A sword should be able to break
+        // through glass"): a blade's weight smashes glass of any kind as fast as its tier digs (armoured glass in about
+        // a second with titanium; plain glass at once).
+        else if swordOnGlass(b, t) { speed = tool.def.toolSpeed * 1.5 }
         // P165 (Oct 13: "the axe slices through leaves really quick"): leaves take a deliberate hack, 0.8 s by hand or
         // with an axe, pick or shovel (0.3 s before); shears, a hoe and a sword keep their speed.
         else if key.hasSuffix("leaves") { speed = 0.4 }
         speed *= mul
         if inWater { speed /= 5 }
         if !onGround { speed /= 5 }
-        let perTick = speed / h / (canHarvest(b, tool) ? 30 : 100)
+        let perTick = speed / h / (canHarvest(b, tool) || swordOnGlass(b, t) ? 30 : 100)
         if perTick >= 1 { return 0 }
         return ceilf(1 / perTick) / 20
     }

@@ -16,7 +16,8 @@ enum Explosion {
         // P504 (Nov 1 07:52:13-07:52:21, flying a dropship's guns at his frigate: "guns break through armor as if it's
         // not armor at all... The only reason the armor matters is when someone tries to break through with a pickaxe"):
         // armour plate (a frigate's skins, a base's plate) stands to a blast as plain steel does; it mines like obsidian.
-        let r0 = Armour.isGrade(id) ? Armour.blast : r0
+        // (P507: and no breach makes it less: his rockets' and steered guns' cap leaves armour at steel's.)
+        if Armour.isGrade(id) { return Armour.blast }
         guard cap.isFinite else { return r0 }
         if r0 <= 12 { return min(cap, r0) }
         if r0 <= 600 && Blocks.hardness[Int(id)] >= 0 { return min(r0, cap * 3) }
@@ -186,6 +187,17 @@ enum Explosion {
         w.batchShape = false
         Explosion.lap("removal \(destroyed.count)")
         for b in destroyed { w.scheduleFluid(around: b) }
+        // P507 (Nov 1 12:20:36, "shooting one of the fuel pylons should cause the thing to explode"): a blast lights the fuel
+        // in its reach (a holed storage tank, a pool, a drum's spill); the fire runs on through the rest (World.igniteFuel).
+        if FUEL != AIR {
+            let fr = Int(ceilf(power * 1.2)), ci = IVec3(Int(floorf(c.x)), Int(floorf(c.y)), Int(floorf(c.z)))
+            var lit = 0
+            for dy in -fr...fr { for dz in -fr...fr { for dx in -fr...fr where lit < 24 && dx * dx + dy * dy + dz * dz <= fr * fr {
+                let q = IVec3(ci.x + dx, ci.y + dy, ci.z + dz)
+                guard q.y > 0 && q.y < CH, Blocks.fluidKind[Int(w.builtBlock(q.x, q.y, q.z))] == 3 else { continue }
+                w.igniteFuel(q); lit += 1
+            } } }
+        }
         // P503: what stood over the hole is weighed (StructureTip): a top shot out from under it tips and falls.
         if !destroyed.isEmpty {
             let far = destroyed.reduce(Float(1)) { max($0, simd_length(V3(Float($1.x), Float($1.y), Float($1.z)) + 0.5 - c)) }
@@ -200,7 +212,16 @@ enum Explosion {
             if let shot {                                       // (the bowl leans and runs on along the shot)
                 balls = [(c + shot * (r * 0.3), r * 0.9), (c + shot * (r * 0.95), r * 0.6)]
             }
-            for (at, rr) in balls { w.carve(at: at, radius: rr, mode: .shape) }
+            // P507 (Nov 1 12:14:11-12:14:44, in his rocket crater: "I can't place blocks down in this crater... That's a bug",
+            // "a lot of my clicks are just getting ignored"): the bowl only moved the surface, so the ground cells inside
+            // it the rays happened to miss stayed whole blocks under a dot of drawn rock (the boulders in the bowl): the
+            // aim went past them to the bowl's face and the block went into one of them, which refused it without a sound.
+            // The ground inside the bowl goes with it (its valuable blocks drop, as the broken ones do).
+            for (at, rr) in balls {
+                w.carve(at: at, radius: rr, mode: .dig) { p, b in
+                    for s in Explosion.blastDrops(b) { g.drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
+                }
+            }
             // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
             // surface in to a block and a half past its radius)
             for b in opened {

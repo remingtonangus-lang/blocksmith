@@ -245,7 +245,8 @@ enum HellWildTests {
         g.player.pos = centre + V3(-11, 0, 0)
         var herd: [Mob] = []
         for i in 0..<4 {
-            let m = Mob(.cinderhorn, at: centre + V3(Float(i % 2) * 2.6 - 4, 0, Float(i / 2) * 2.6 - 1.3)); m.persistent = true
+            // (twelve blocks off: a bison-like herd takes fright inside 7, and the wind's scent can carry that half again)
+            let m = Mob(.cinderhorn, at: centre + V3(Float(i % 2) * 2.6 + 1, 0, Float(i / 2) * 2.6 - 1.3)); m.persistent = true
             m.variant = i == 0 ? 1 : 2
             herd.append(m); g.mobs.mobs.append(m)
         }
@@ -253,8 +254,12 @@ enum HellWildTests {
         let calm = herd.allSatisfy { $0.fleeTime <= 0 && $0.phase == 0 }
         let c0 = HerdGame.charges, h1 = g.health
         herd[0].hit(from: g.player.pos, damage: 2)
-        let charged = run(herd, 6) { HerdGame.charges > c0 && g.health < h1 }
-        let fled = herd.dropFirst().filter { $0.fleeTime > 0 || $0.fleeGoal != nil }.count
-        check(calm && charged && fled >= 2, "hell wildlife: a Cinderhorn herd grazed 7 blocks off (\(calm ? "calm" : "spooked")); hurt, the bull charged and gored (\(charged)) and \(fled) of 3 stampeded")
+        var ran = Set<ObjectIdentifier>()                  // (those that ran at any moment: a stampede is over in seconds)
+        let charged = run(herd, 9) {
+            for m in herd.dropFirst() where m.fleeTime > 0 || m.fleeGoal != nil { ran.insert(ObjectIdentifier(m)) }
+            return HerdGame.charges > c0 && g.health < h1 && ran.count >= 2
+        }
+        let fled = ran.count
+        check(calm && charged && fled >= 2, "hell wildlife: a Cinderhorn herd grazed 12 blocks off (\(calm ? "calm" : "spooked")); hurt, the bull charged and gored (\(charged)) and \(fled) of 3 stampeded")
     }
 }

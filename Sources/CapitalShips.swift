@@ -3021,7 +3021,9 @@ extension Capital {
     // frigate's 40 a gun (each salvo spends one a barrel), a crawler's 30 a gun.
     static func magazine(_ s: Ship, barrels: Int) -> Int {
         if s.role == "dropship" { return 600 }
-        return max(60, barrels * (s.isFlyingCapital ? 40 : 30))
+        // P507 (Nov 1 12:10:30 at a crawler's helm: "The magazine should hold more"): two and a half times what it was
+        // (the guns he steers reload quicker as well: ShipManager.fire).
+        return max(150, barrels * (s.isFlyingCapital ? 100 : 75))
     }
 
     static func drive(_ s: Ship, _ st: CapitalState) -> Float {

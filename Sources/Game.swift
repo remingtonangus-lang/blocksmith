@@ -1319,6 +1319,8 @@ final class Game {
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && factionGearUse() { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).
         if useNow, world.ships.pilot == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 4), Turrets.canMan(hit.0) {
+            // P507: a gun worked from a computer is taken at the computer (Mob.consoleGun).
+            if hit.0.consoleGun(self) { placeRefused("gun from its computer"); return }
             // P194: a gun with its gunner at the breech is his until he is dealt with.
             if survival, hit.0.deckGunCrewed(self) {
                 onToast?(hit.0.factionValue == .greywall ? "The tower's lookout holds this gun" : "The gunner holds this gun")
@@ -1792,6 +1794,11 @@ final class Game {
         if useNow && placeBoat() { return }
         if useNow && useFreePiece(sneak: input.shift || p.b) { swing = 1; return }      // P338 step 8 (FreeBuild)
         guard let t = target else { if useNow { placeIntoLava() }; return }
+        // P507 (Nov 1 12:29:31, "grass in the way shouldn't stop me from opening a chest"): a plant between him and a chest,
+        // table or furnace doesn't take the click: what it stands in front of opens.
+        if useNow && !(input.shift || p.b) && !isInteractive(t.hit), let past = pastPlants(t, reach: 6), isInteractive(past.hit) {
+            openBlock(past.hit); swing = 1; return
+        }
         if useNow && !isInteractive(t.hit) && placeIntoLava(before: t.hit) { return }
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
@@ -1835,10 +1842,15 @@ final class Game {
                 return
             }
         }
-        let at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
+        var at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
+        // P507 (Nov 1 12:14, "I can't place blocks down in this crater", "a lot of my clicks are just getting ignored"): in a
+        // field world the face's cell (the drawn ground's normal, rounded to an axis) can be ground the eye sees past
+        // (a cell drawn small, a slope's corner): the block goes in the last open cell the aim crossed before the ground.
+        if world.fieldTerrain && !Blocks.replaceable[Int(world.block(at.x, at.y, at.z))], let open = openCellBefore(t) { at = open }
         let existing = world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
+            else if useNow { placeRefused("Something is in the way") }                        // (P507: never a silent click)
             return
         }
         var id = blockItem
@@ -2086,6 +2098,40 @@ final class Game {
     }
 
     // Exact point where the look ray meets the targeted face.
+    // P507: what the aim meets past the grass, flowers and other plants in front of it (nil: only plants, or the target
+    // isn't one).
+    func pastPlants(_ t: (hit: IVec3, normal: IVec3), reach: Float) -> (hit: IVec3, normal: IVec3)? {
+        let o = player.eye, d = player.look
+        let aimed = world.fieldHit                                       // (the aim's own ground hit stays the aim's)
+        defer { world.fieldHit = aimed }
+        var cur = t
+        for _ in 0..<3 {
+            let b = world.block(cur.hit.x, cur.hit.y, cur.hit.z)
+            guard b != AIR, Blocks.replaceable[Int(b)], !Blocks.isLiquid(b) else { return cur.hit == t.hit ? nil : cur }
+            // Out the far side of the plant's cell, then on.
+            let mn = V3(Float(cur.hit.x), Float(cur.hit.y), Float(cur.hit.z))
+            var exit: Float = .greatestFiniteMagnitude
+            for a in 0..<3 where abs(d[a]) > 1e-6 { exit = min(exit, ((d[a] > 0 ? mn[a] + 1 : mn[a]) - o[a]) / d[a]) }
+            guard exit < reach else { return nil }
+            guard let n = world.raycast(o + d * (exit + 0.01), d, maxDist: reach - exit) else { return nil }
+            cur = n
+        }
+        return nil
+    }
+
+    // P507: the last cell along the aim before the target's hit point that a block can go in (not the target's own).
+    func openCellBefore(_ t: (hit: IVec3, normal: IVec3)) -> IVec3? {
+        let o = player.eye, d = player.look
+        var s = simd_length(hitPoint(t) - o) - 0.04
+        while s > 0.4 {
+            let q = o + d * s
+            let c = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+            if c != t.hit && c.y >= 0 && c.y < CH && Blocks.replaceable[Int(world.block(c.x, c.y, c.z))] { return c }
+            s -= 0.08
+        }
+        return nil
+    }
+
     func hitPoint(_ t: (hit: IVec3, normal: IVec3)) -> V3 {
         let o = player.eye, d = player.look
         if let fh = world.fieldHit, fh.cell == t.hit, simd_length(o + d * fh.t - fh.at) < 0.05 { return fh.at }    // (PG2 rewrite)

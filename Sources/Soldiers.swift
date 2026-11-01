@@ -1008,7 +1008,7 @@ extension Mob {
             // line from its muzzle is clear (its own parapet hid him from the turret's middle at a wall's foot).
             b.lineClear = b.sees || canTarget && g.world.canSee(HeavyTurret.muzzle(self, 0), g.player.eye)
             b.crewed = deckGunCrewed(g)
-            if !b.crewed && factionValue != .greywall { claimGunner(g) }
+            if !b.crewed && factionValue != .greywall && !consoleGun(g) { claimGunner(g) }
             if !GunParts.supported(self, g.world) { GunParts.fall(self, g); return }         // P465: its tower shot away
         }
         let radar = canTarget && deck == nil
@@ -1195,9 +1195,34 @@ extension Mob {
         persistent = true
     }
 
+    // P507 (Nov 1 12:17:48-12:18:30 in a Greywall gun room: "The gun is operable even though there's nobody at the computer
+    // station... the only way that gun can fire [is] if there is a person in the chair at the computer... How does the gun
+    // fire on its own?"; 12:20:29 at the fuel depot: "I shouldn't be able to get on the gun just by standing on top of
+    // it. I have to go to the computer"): a gun with a computer under it (a gun room's console or terminal, as
+    // Game.stationGunUse finds them) is worked from that computer only: its operator in the
+    // chair, or him at the console. A soldier beside it doesn't fire it, and nobody climbs on or takes its handles.
+    // (Looked for once, the first time asked: the gun room is built with the gun.)
+    func consoleGun(_ g: Game) -> Bool {
+        guard kind == .deckGun else { return false }
+        if consoleGunKnown >= 0 { return consoleGunKnown == 1 }
+        let w = g.world
+        let gx = Int(floor(pos.x)), gy = Int(floor(pos.y)), gz = Int(floor(pos.z))
+        guard w.chunkAt(gx, gz) != nil else { return false }
+        let console = Blocks.has("command_console") ? Blocks.groupBase[Int(Blocks.id("command_console"))] : AIR
+        let terminal = Blocks.has("greywall_terminal") ? Blocks.groupBase[Int(Blocks.id("greywall_terminal"))] : AIR
+        var found = false
+        scan: for y in stride(from: gy - 2, through: max(1, gy - 20), by: -1) { for z in (gz - 5)...(gz + 5) { for x in (gx - 5)...(gx + 5) {
+            let b = Blocks.groupBase[Int(w.materialAt(x, y, z))]
+            if b != AIR && (b == console || b == terminal) { found = true; break scan }
+        } } }
+        consoleGunKnown = found ? 1 : 0
+        return found
+    }
+
     func deckGunCrewed(_ g: Game) -> Bool {
         // (A Greywall base's tower guns are worked by any of its soldiers posted beside them: the tower's lookout.)
         let grey = factionValue == .greywall
+        let fromConsole = consoleGun(g)                                  // (P507: then only its operator)
         for m in g.mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil {
             // P471: a gun room's operator in his chair works the gun over the room.
             if let b = m.brain, b.orderStation == .seated, let post = b.gunPost {
@@ -1205,6 +1230,7 @@ extension Mob {
                     && pos.y > post.y + 1 && pos.y < post.y + 20 { return true }
                 continue
             }
+            if fromConsole { continue }
             guard m.brain?.orderStation == .gunner || grey && m.factionValue == .greywall else { continue }
             // P504 (Nov 1 07:35:25: "this gun wasn't firing anymore. So somehow someone on the second level of the tower
             // was operating the gun, even though the console's on the first level"): only a man at the gun's own level

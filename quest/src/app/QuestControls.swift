@@ -606,7 +606,8 @@ final class QuestControls {
                 let hand = rig.toWorld(hd.gripPos)
                 guard let gun = game.mobs.mobs.first(where: { Turrets.canMan($0) && simd_length_squared($0.pos - hand) < 30 * 30
                                                            && simd_length(GunParts.handlePoint($0) - hand) < 0.75 }) else { continue }
-                if game.survival && gun.deckGunCrewed(game) { app.input.haptic(i, amplitude: 0.2, seconds: 0.03, frequency: 80); bagGrip = true; break }
+                // (P507: a gun worked from a computer under it isn't taken by its handles: Mob.consoleGun)
+                if gun.consoleGun(game) || game.survival && gun.deckGunCrewed(game) { app.input.haptic(i, amplitude: 0.2, seconds: 0.03, frequency: 80); bagGrip = true; break }
                 Turrets.shared.mount(game, gun)
                 Turrets.shared.byGrip = true
                 app.input.haptic(i, amplitude: 0.6, seconds: 0.06, frequency: 120)

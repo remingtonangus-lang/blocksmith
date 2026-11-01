@@ -128,7 +128,10 @@ extension ShipManager {
                     g.baseNoise(at: muzzle, kind: .cannon, hostile: s.factionValue != .steelhold)   // the Capital's own guns don't alarm it
                 }
             }
-            t.reload = calReload > 0 ? calReload : t.reloadTime * (1 + 0.1 * Float(longest))
+            // P507 (Nov 1 12:09:20, a crawler's guns: "we need to increase the rate of fire"): a war vessel's guns he steers
+            // reload in 60% of their crews' time.
+            let quickHands: Float = game != nil && pilot?.root === t.root && t.root.role != nil && t.root.role != "dropship" ? 0.6 : 1
+            t.reload = (calReload > 0 ? calReload : t.reloadTime * (1 + 0.1 * Float(longest))) * quickHands
         }
         return fired
     }
@@ -307,7 +310,11 @@ extension ShipManager {
                 if kind == 5 { g.depthChargeBurst(at: p, power: power, owner: owner) }     // P278: boom, plume, pressure wave
                 // P499: a rail slug drives on through what it struck and bursts where it stops.
                 let at = kind == 1 && !onHull && !gentle ? railBore(from: p, along: vel, game: g) : p
-                Explosion.explode(at: at, power: power, game: g, breakBlocks: !gentle, along: onHull ? nil : vel)   // (P357 e)
+                // P507 (Nov 1 12:27:33, his frigate's autocannons on a Capital tower: "Frigate's little guns didn't do enough
+                // damage to this building"): shells from a gun he steers are high-explosive and breach as his rockets do
+                // (a wall's blocks stand to them as if no harder than Guns.rocketBreach; a Capital Steel wall's 12 broke none).
+                Explosion.explode(at: at, power: power, game: g, breakBlocks: !gentle, resistCap: steered ? Guns.rocketBreach : .infinity,
+                                  along: onHull ? nil : vel)   // (P357 e)
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
                 // scratched paint, Quest round 4).
