@@ -23,6 +23,35 @@ enum Faction: Int {
 }
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
+// P508: a dropship's lift, judged twice a second from its hull (CapitalShips.commandeeredTick).
+enum DropLift {
+    static var seen: [Int: (at: Double, lame: Bool)] = [:]
+    static var told: Set<Int> = []
+    static var base: [Int: (Int, Int)] = [:]
+    static func lame(_ s: Ship, _ g: Game) -> Bool {
+        if let k = seen[s.id], g.clock - k.at < 0.5 { return k.lame }
+        var l = 0, r = 0
+        let gr = s.grid, mid = Float(gr.sx) * 0.5
+        for y in 0..<gr.sy { for z in 0..<gr.sz { for x in 0..<gr.sx where gr.get(x, y, z) != AIR {
+            if Float(x) + 0.5 < mid { l += 1 } else { r += 1 }
+        } } }
+        // (each side against itself as built, where it was seen whole: the hull needn't sit square in its grid)
+        if base[s.id] == nil && s.initialBlocks > 0 && s.blockCount * 20 >= s.initialBlocks * 19 { base[s.id] = (max(1, l), max(1, r)) }
+        let (l0, r0) = base[s.id] ?? (max(1, max(l, r)), max(1, max(l, r)))
+        let fl = Float(l) / Float(l0), fr = Float(r) / Float(r0)
+        let lopsided = l + r > 60 && min(fl, fr) < max(fl, fr) * 0.67
+        let torn = s.initialBlocks > 0 && s.blockCount * 10 < s.initialBlocks * 6
+        let lame = lopsided || torn
+        seen[s.id] = (g.clock, lame)
+        if lame && !told.contains(s.id) && g.world.ships.pilot === s {
+            told.insert(s.id)
+            g.onToast?("The \(s.name) is losing lift")
+            g.sfx(.explode, 0.6, at: s.pos)
+        }
+        return lame
+    }
+}
+
 final class CapitalState {
     // P476 (Oct 27, "these four giant things are engines... thruster blocks back here. The engines connect to the
     // thruster blocks and somehow are what drives the frigate... if it doesn't have enough thrust, it doesn't get off
@@ -30,6 +59,10 @@ final class CapitalState {
     // the hull's block count as built (her load).
     var thrustCells: [IVec3] = []
     var thrustLive = 0
+    // P508 (Nov 1 16:04:40, in the Meridian's engine room: "this little reactor you have in here, if anything hits that,
+    // ship's dead"): the reactor core's cells as built and how many are left (Capital.countThrust).
+    var reactorCells: [IVec3] = []
+    var reactorLive = 0
     var thrustT: Float = 0
     var blocks0 = 0
     // P476: the hull as built (HullBuilder blocks, the root grid's layout) for repairs, drawn up off the frame once she
@@ -847,6 +880,13 @@ extension ShipManager {
                 }
                 st.thrustLive = st.thrustCells.count
             }
+            if cap, Blocks.has("frigate_reactor") {
+                let core = Blocks.id("frigate_reactor"), gr = s.grid, c = hb.grid(0, 17, 128)
+                for y in max(0, c.y - 12)...(c.y + 12) { for z in (c.z - 10)...(c.z + 10) { for x in (c.x - 10)...(c.x + 10) where gr.get(x, y, z) == core {
+                    st.reactorCells.append(IVec3(x, y, z))
+                } } }
+                st.reactorLive = st.reactorCells.count
+            }
             st.blocks0 = s.blockCount
             st.crew = hb.crew
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
@@ -1585,6 +1625,14 @@ extension ShipManager {
             var want = fwd * (thr * (thr > 0 ? (over ? 83 : 55) : 12)) + right * (side * 14)
             want.y = steered ? s.climb * 9 : 0
             if steered && !dropFuel(s, st, dt, g) { want = V3(0, -2.5, 0) }       // dry tanks: it settles to the ground
+            // P508 (Nov 1 16:04:57-16:05:13 at a dropship shot half away: "No way this thing should be flying... If it has
+            // one wing destroyed, like that thing is going down"): with a wing torn off (one side of the hull a third
+            // lighter than the other) or under three fifths of its blocks left it has no lift: it goes down, slewing,
+            // and can't climb off the ground again.
+            if DropLift.lame(s, g) {
+                want.y = min(want.y * 0.2, -7)
+                want.x *= 0.5; want.z *= 0.5
+            }
             // P461 (16:42, "after landing it's somehow floating into midair instead of falling"): left without a pilot
             // it comes down and rests on the ground instead of hanging where it was left.
             // Never into the ground. P461 (16:41, "This thing should be able to crush trees on landing"): the keel
@@ -1653,6 +1701,14 @@ extension ShipManager {
         // (6 blocks/s, easing to 1.5 over the last dozen blocks so she settles onto the ground gently); the steer still
         // turns her on the spot. Drive on and she flies along her bow again.
         Capital.countThrust(s, st, dt)
+        if Capital.reactorBreached(st) && !s.wrecked {
+            s.wrecked = true
+            let c = st.reactorCells[0]
+            let at = s.toWorld(V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5))
+            Explosion.explode(at: at, power: 8, game: g, breakBlocks: false)
+            g.onToast?("The reactor is breached! The \(s.name) is going down")
+            return
+        }
         let lift = Capital.power(s, st)
         // Under half the thrust her weight wants she can't hold her height: she settles toward the ground, faster the
         // less she has (8 blocks/s with none), whoever is at the helm.
@@ -3166,7 +3222,13 @@ extension Capital {
         st.thrustT = 0.5
         let thr = Blocks.has("frigate_thruster") ? Blocks.id("frigate_thruster") : AIR
         st.thrustLive = st.thrustCells.reduce(0) { $0 + (s.grid.get($1.x, $1.y, $1.z) == thr ? 1 : 0) }
+        if !st.reactorCells.isEmpty {
+            let core = Blocks.has("frigate_reactor") ? Blocks.id("frigate_reactor") : AIR
+            st.reactorLive = st.reactorCells.reduce(0) { $0 + (s.grid.get($1.x, $1.y, $1.z) == core ? 1 : 0) }
+        }
     }
+    // P508: the reactor breached (under half its core left): the ship is lost.
+    static func reactorBreached(_ st: CapitalState) -> Bool { !st.reactorCells.isEmpty && st.reactorLive * 2 < st.reactorCells.count }
 
     // Top speed along the bow at full throttle (blocks/s).
     static let dropChase: Float = 55          // P499: a Capital Dropship's top speed giving chase (200 km/h, as his own)

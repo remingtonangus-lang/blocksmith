@@ -24,6 +24,7 @@ final class GreywallAlarmState {
         var panelsDown = false
         var consoles: [IVec3] = [], turrets: [IVec3] = [], flags: [IVec3] = []
         var cameras: [IVec3] = []                   // D35 security cameras (BaseSecurity.swift)
+        var partyAt: Double = -1000                 // P508: when it last sent a party out to meet an unarmed visitor
         var hold: Float = 0                         // seconds a player has held the command console of a cleared base
         var silencedUntil: Double = 0               // P503: a panel switched the alarm off (no fresh alarm until then)
     }
@@ -246,6 +247,7 @@ extension Game {
             if st.taken.contains(key) { st.sites[key] = site; continue }
             if greywallCaptureTick(&site, key, players, dt) { st.sites[key] = site; continue }
             TickProf.mark("greywall: capture")
+            greywallParty(&site, players)
             var trigger: V3? = nil
             for n in b.noises where n.hostile && Greywall.inside(site, n.pos) { trigger = n.pos }
             // (a net that found out a spoofer: every base of it sounds as soon as a player is inside, C6 RadioSpoof.swift)
@@ -746,5 +748,37 @@ extension Game {
             return true
         }
         return false
+    }
+}
+
+extension Game {
+    // P508 (Remington, Nov 1 16:26: "greywall just needs a clear line of sight and see you holding a gun. If no gun, they
+    // send out a party as you approach the base"): a player walking up to a quiet Greywall base with no gun in hand isn't
+    // shelled (HeavyTurret: Greywall's guns hold for an unarmed man); the base sends the four soldiers nearest him out
+    // through its gate to deal with him, once every two and a half minutes.
+    static let partyReach: Float = 48              // blocks past the walls
+    static let partyEvery: Double = 150
+    static var greywallParties = 0                 // (checks)
+    func greywallParty(_ site: inout GreywallAlarmState.Site, _ players: [V3]) {
+        guard survival, alive, !site.on, clock - site.partyAt > Game.partyEvery, heldGun == nil, world.ships.pilot == nil else { return }
+        let h = Float(site.tier.half)
+        guard let p = players.first(where: {
+            let dx = abs($0.x - Float(site.cx)), dz = abs($0.z - Float(site.cz))
+            return max(dx, dz) > h + 1 && max(dx, dz) < h + Game.partyReach && $0.y > Float(site.S - 12) && $0.y < Float(site.S + 40)
+        }) else { return }
+        let garrison = mobs.mobs.filter { $0.faction == Faction.greywall.rawValue && $0.kind != .deckGun && $0.health > 0
+            && Soldier.rank($0.kind) != nil && !$0.aggro && Greywall.inside(site, $0.pos, pad: 2) }
+        guard !garrison.isEmpty else { return }
+        site.partyAt = clock
+        for m in garrison.sorted(by: { simd_length_squared($0.pos - p) < simd_length_squared($1.pos - p) }).prefix(4) {
+            m.leash = nil
+            m.aggro = true
+            m.soldierBrain.ready = true
+            m.soldierBrain.lastSeen = p; m.soldierBrain.seenAgo = 0
+            m.lockTime = 45
+            m.unreachableTimer = 0
+        }
+        Game.greywallParties += 1
+        onToast?("A Greywall party is coming out to meet you")
     }
 }

@@ -466,6 +466,7 @@ final class ItemRegistry {
         registerGunParts()                                // D31 (GunsmithBench.swift)
         registerFactionArmour()                           // D33 (FactionArmour.swift)
         registerKeycard()                                 // D35 (BaseSecurity.swift)
+        registerTechSalvage()                             // P508 (TechSalvage.swift)
         registerLasso()
         registerDeeds()                                   // D28 (Property.swift)
         registerFuelCan()                                 // D44 (VehicleDepot.swift)

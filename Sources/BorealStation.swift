@@ -239,6 +239,14 @@ enum BorealStation {
     static let display = "Boreal Station"
     static let yard = 30                     // fence half-size
     static let B = 24                        // bunker monolith half-size (rooms inside +-23)
+    static let wallHalf = Float(yard)           // P508: inside the fence (HeavyTurret.sameBase)
+    // P508: the centre (x, z) of a planned station whose fenced yard p stands in, or nil.
+    static func siteNear(_ g: Game, _ p: V3) -> V2? {
+        guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
+              let s = sc.nearestIfReady(kind, x: Int(p.x), z: Int(p.z)) else { return nil }
+        let c = V2(Float(s.anchor.x + 5), Float(s.anchor.z - yard - 2))
+        return abs(p.x - c.x) < wallHalf + 4 && abs(p.z - c.y) < wallHalf + 4 ? c : nil
+    }
     static let depth = 16                    // bunker floor block = surface block - 16
     static let biomes: Set<Biome> = [.snowyPlains, .snowyTaiga, .iceSpikes, .grove, .snowySlopes]
 

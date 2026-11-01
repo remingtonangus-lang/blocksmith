@@ -41,6 +41,8 @@ final class SoldierBrain {
     var ashCalls = 0                // ... and how often he has called his guard
     var crewed = false              // deck gun: a live soldier stands at it in the gunner stance
     var lineClear = false           // deck gun: the line from its muzzle to the player is open (P504)
+    var walled = false              // deck gun: the player is inside its own base's walls (P508, every 0.4 s)
+    var radarOK = true              // deck gun: its base's radar stands (P508, every 0.4 s)
     var airWarn: Float = -1         // deck gun: seconds since it warned a flying player it is tracking them (P252), -1 none
     var rangeShots = 0              // ... ranging rounds fired at them since
     var cover: V3?                  // a spot out of the player's sight to reload in
@@ -1003,10 +1005,18 @@ extension Mob {
         if air { engage = max(engage, flak ? AirDefence.flakRange : AirDefence.navalAirRange) }
         // P501 (Oct 31 09:48, "If I go into the little town beside one of these capital citadels, they shouldn't be
         // automatically hostile to me unless I have a gun in my hand"): the guns keep the row's peace as its troopers do.
-        let canTarget = g.survival && g.alive && dist < engage && !GarrisonTown.shelters(g, self) && !Disguise.covers(g, self)
+        // P508 (Nov 1 15:43:34-15:43:48 and 15:53:45-15:54:03, at a Greywall garrison and a Boreal Station: "The naval guns
+        // will only shoot you if you're outside the base or... if you're in one of the naval gun towers... they will not
+        // shoot inside the base because it's their base", "only on very hard difficulty... the cannon just obliterates you
+        // no matter where you are"): a base's own guns hold their fire on him inside its walls unless he works one of
+        // its guns; on Very Hard they fire anywhere.
+        let walled = b.walled && g.diffLevel < 5 && Turrets.shared.manned == nil
+        let canTarget = g.survival && g.alive && dist < engage && !walled && !GarrisonTown.shelters(g, self) && !Disguise.covers(g, self)
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.4
+            b.walled = deck == nil && dist < engage && HeavyTurret.sameBase(g, self, g.player.pos)
+            b.radarOK = deck != nil || dist >= engage || HeavyTurret.radarUp(g, self)
             b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye)
             // P504 (Nov 1 07:27:56-07:28:11: "as soon as the base is in [range], it is able to spot me because of its
             // special radar ability. And then its naval guns just immediately evaporate me if they can. Have to have a
@@ -1017,8 +1027,15 @@ extension Mob {
             if !b.crewed && factionValue != .greywall && !consoleGun(g) { claimGunner(g) }
             if !GunParts.supported(self, g.world) { GunParts.fall(self, g); return }         // P465: its tower shot away
         }
-        let radar = canTarget && deck == nil
-        if (b.sees || radar) && canTarget {
+        // P508 (Nov 1 16:26: "make it so boreal station knows where you are at all times instead of greywall until you
+        // destroy their beacon. greywall just needs a clear line of sight and see you holding a gun"): the radar that lays
+        // a base's guns on him unseen is the Capital's and a Boreal Station's (while its dish stands); Greywall's guns
+        // need to see him, and see a gun in his hands unless the base is already fighting.
+        let grey = deck == nil && factionValue == .greywall
+        let radar = canTarget && deck == nil && !grey && b.radarOK
+        let armed = g.heldGun != nil || g.world.ships.pilot != nil || Turrets.shared.manned != nil
+        let greyHolds = grey && !aggro && !armed && !g.bases.greywall.sites.values.contains { $0.on && Greywall.inside($0, pos, pad: 4) }
+        if (b.sees || radar) && canTarget && !greyHolds {
             if !aggro { aggro = true; g.sfx(.gun(10), 1.5, at: pivot); alertGarrison(g, g.player.pos, radius: 40) }
             b.lastSeen = player
             b.seenAgo = 0
@@ -1339,6 +1356,18 @@ func soldierParts(_ m: Mob, swing: Float) -> [Part] { SoldierRig.build(m).parts 
 // flanks, roof periscope hoods, two 20 m barrels (L/48) 4.5 m apart through armoured gun ports, on a barbette
 // ring (the barbette itself is built in blocks under it). Origin: the barbette top centre; the guns face -Z.
 enum HeavyTurret {
+    // P508: a base gun's radar works: always at a citadel, at a Boreal Station while its dish stands (BorealBeacon).
+    static func radarUp(_ g: Game, _ m: Mob) -> Bool {
+        guard let c = BorealStation.siteNear(g, m.pos) else { return true }
+        return BorealBeacon.standing(g, cx: Int(c.x), cz: Int(c.y))
+    }
+    // P508: p is inside the walls of the base this gun stands in (a citadel, a Greywall site, a Boreal Station).
+    static func sameBase(_ g: Game, _ m: Mob, _ p: V3) -> Bool {
+        if let r = g.bases.records.values.first(where: { $0.inside(m.pos) }) { return r.inside(p) }
+        if let (_, st) = g.bases.greywall.sites.first(where: { Greywall.inside($0.value, m.pos, pad: 2) }) { return Greywall.inside(st, p) }
+        if let st = BorealStation.siteNear(g, m.pos) { return abs(p.x - st.x) < BorealStation.wallHalf && abs(p.z - st.y) < BorealStation.wallHalf }
+        return false
+    }
     static let trunnionY: Float = 3                 // gun trunnions above the barbette top (blocks)
     static let trunnionZ: Float = -6                // ... and ahead of the turret centre
     static let barrel: Float = 21                   // trunnion to muzzle

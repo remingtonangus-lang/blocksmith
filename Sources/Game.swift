@@ -2216,7 +2216,23 @@ final class Game {
         let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
         if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) {
             if BaseSecurity.refuse(self, p) { return }                  // D35: a locked bulkhead
-            toggleOpenable(p); return
+            // P508 (Nov 1 15:53:30 at a Boreal Station's double bulkhead: "Doors are still having trouble opening and
+            // closing"): one use opened one leaf of a pair, the other stayed in the way. The leaf beside it (the same
+            // door, facing the same way, shut or open as this one was) swings with it.
+            let b0 = world.block(p.x, p.y, p.z)
+            var partner: IVec3?
+            if Blocks.shape[Int(b0)] == "door" {
+                let base = Blocks.groupBase[Int(b0)], st = Int(b0 - base)
+                for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                    let q = p + d, nb = world.block(q.x, q.y, q.z)
+                    guard Blocks.groupBase[Int(nb)] == base else { continue }
+                    let ns = Int(nb - base)
+                    if ns & 3 == st & 3 && ns & 4 == st & 4 && ns & 8 == st & 8 { partner = q; break }
+                }
+            }
+            toggleOpenable(p)
+            if let q = partner { toggleOpenable(q) }
+            return
         }
         if k == Depots.shutter { rollShutter(p); return }                // P507 (Depots.swift)
         switch k {
@@ -2836,6 +2852,7 @@ final class Game {
             n -= fix / 2
             if n <= 0 { sfx(.xp, 0.5); return }
         }
+        guard Game.xpOn else { return }                  // P508: no experience bar (TechSalvage.swift)
         xpPoints += n
         var leveled = false
         while xpPoints >= Game.xpToNext(xpLevel) { xpPoints -= Game.xpToNext(xpLevel); xpLevel += 1; leveled = true }

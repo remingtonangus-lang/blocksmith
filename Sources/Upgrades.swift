@@ -42,7 +42,7 @@ enum Upgrades {
             s(.loyalty, .tines, "string", 4, V3(0.9, 0.9, 0.85)), s(.impaling, .tines, "flint", 2, steel),
             s(.riptide, .tines, "prismarine_shard", 2, V3(0.35, 0.75, 0.7)), s(.channeling, .tines, "copper_ingot", 4, adv: true, V3(0.95, 0.55, 0.3)),
             s(.multishot, .string, "iron_ingot", 2, iron), s(.quickCharge, .grip, "iron_ingot", 1, iron), s(.piercing, .string, "flint", 2, steel),
-            s(.mending, .kit, "experience_bottle", 1, adv: true, V3(0.3, 0.9, 0.55)),
+            s(.mending, .kit, Game.xpOn ? "experience_bottle" : TechSalvage.key, 1, adv: true, V3(0.3, 0.9, 0.55)),
             s(.density, .core, "iron_ingot", 2, V3(0.35, 0.35, 0.4)), s(.breach, .head, "flint", 3, steel),
             s(.windBurst, .core, "breeze_rod", 1, adv: true, V3(0.75, 0.8, 1)), s(.lunge, .grip, "leather", 1, leather),
             s(.extendedMag, .mag, "iron_ingot", 2, iron), s(.quickReload, .loader, "iron_ingot", 1, iron),
@@ -111,7 +111,14 @@ enum Upgrades {
             let n = (sp?.extraN ?? 1) * level
             if let i = items.firstIndex(where: { $0.0 == id }) { items[i].1 += n } else { items.append((id, n)) }
         }
-        return Cost(xp: level + 1 + (sp?.advanced == true ? 3 : 0), items: items)
+        let xp = level + 1 + (sp?.advanced == true ? 3 : 0)
+        // P508 (Nov 1 16:26: "maybe some sort of material required to build high tech stuff maybe make it only found in
+        // those bases... Lets entirely scrap the XP system"): the levels it cost are Tech Salvage from the bases' chests.
+        if !Game.xpOn {
+            if Items.has(TechSalvage.key) { items.append((Items.id(TechSalvage.key), max(1, (xp + 1) / 2))) }
+            return Cost(xp: 0, items: items)
+        }
+        return Cost(xp: xp, items: items)
     }
     static func costText(_ c: Cost) -> String {
         c.items.map { "\($0.1) \(ItemStack($0.0, 1).def.display)" }.joined(separator: ", ")
@@ -326,7 +333,7 @@ final class UpgradeBenchMenu: ListMenu {
     }
 
     override var rows: [Row] {
-        corner = game.survival ? "Level \(game.xpLevel)" : "Creative"
+        corner = game.survival ? (Game.xpOn ? "Level \(game.xpLevel)" : "") : "Creative"
         let its = items
         guard let (c, i) = current else { return [] }
         let s = c[i]
@@ -349,7 +356,7 @@ final class UpgradeBenchMenu: ListMenu {
             let mats = Upgrades.costText(k)
             // A row you can't afford still presses: the bench says what's short.
             out.append(Row(icon: k.items.first.map { ItemStack($0.0, 1) } ?? .empty, name: Enchant.displayLine(e, lv + 1),
-                           detail: "\(part)" + (mats.isEmpty ? "" : ": " + mats), value: "\(k.xp) lv", enabled: true, good: afford))
+                           detail: "\(part)" + (mats.isEmpty ? "" : ": " + mats), value: k.xp > 0 ? "\(k.xp) lv" : "", enabled: true, good: afford))
         }
         return out
     }

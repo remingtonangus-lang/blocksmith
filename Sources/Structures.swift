@@ -884,7 +884,8 @@ enum Loot {
                     var slot = rng.int(c.count)
                     for _ in 0..<c.count where !c[slot].isEmpty { slot = (slot + 1) % c.count }
                     if !c[slot].isEmpty { return }                       // chest full
-                    c[slot] = stack(Loot.noApples[e.0] ?? e.0, rng.range(e.1, e.2), rng: &rng)
+                    let key = Loot.noApples[e.0] ?? (e.0 == "experience_bottle" && !Game.xpOn ? TechSalvage.key : e.0)   // (P508)
+                    c[slot] = stack(key, key == TechSalvage.key ? max(1, rng.range(e.1, e.2) / 2) : rng.range(e.1, e.2), rng: &rng)
                     break
                 }
             }

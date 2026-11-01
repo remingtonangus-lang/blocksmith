@@ -401,6 +401,14 @@ enum VehicleZoo {
         case .air: break
         }
         if worstMs > 25 { fail(String(format: "a physics step took %.1f ms", worstMs)) }
+        // (P508: pulled back to a stop before the guns, as he would: tanks 023 and 073, 24 blocks a second when let go,
+        // coasted on through the gun test and off the road's end, and docked where they fell)
+        if p.medium == .road && p.drives {
+            mi.forward = -1
+            var k = 0
+            while simd_length(V2(s.vel.x, s.vel.z)) > 1.5 && k < 40 { run(0.1); k += 1 }
+            mi.forward = 0
+        }
         // Weapons: fired from the helm the way he fires them, shells leave and fly; turrets come round to his look.
         if p.guns > 0 {
             let before = ships.shells.count

@@ -208,6 +208,8 @@ extension Game {
     // the dying player (then zeroed) and was lost.
     func addXPOrbs(_ n: Int, at: V3) {
         guard n > 0 else { return }
+        // P508: no orbs; a deed done near him still feeds his mending kit (Game.addXP).
+        if !Game.xpOn { if simd_length(at - player.pos) < 16 { addXP(n) }; return }
         xpOrbs.append(XPOrb(pos: at, amount: n, age: 0, dim: world.dim))
     }
 
