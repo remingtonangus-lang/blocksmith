@@ -59,6 +59,7 @@ enum CraterPlaceCheck {
             p.pos = V3(Float(cx) + 0.5, Float(top(cx, rz) + 1) + 0.01, Float(rz) + 0.5)
             p.vel = .zero; p.flying = false
             p.yaw = yawOff; p.pitch = pitch
+            g.mobs.mobs.removeAll()                                // (P508: the garrison's party walks out to meet him: no one in the aim)
             g.input.rightClicked = false; g.input.rightDown = false
             g.tick(1.0 / 60)
             p.yaw = yawOff; p.pitch = pitch

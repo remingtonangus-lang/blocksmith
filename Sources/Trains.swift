@@ -125,6 +125,8 @@ enum Trains {
         var carS: [Float] = []
         var troops: [Mob] = []
         var roused = false
+        var facing: Float = 1                   // P508: the way the one engine faces (layout mirrored when -1)
+        var fresh = true                        // (just built: it takes the timetable's heading at once)
         init(_ t: Track) {
             track = t
             if let st = Trains.saved[t.id] { delay = st.delay; robbedDay = st.robbedDay; wrecked = st.wrecked }
@@ -207,7 +209,9 @@ enum Trains {
     static func tick(_ g: Game) {
         let p = g.player.pos
         var want: Set<Int64> = []
-        for t in tracksNear(g, p, 140) {
+        let nearTracks = tracksNear(g, p, 140)
+        TrainArrivals.tick(g, near: nearTracks)          // P508: one in ten every ten minutes, a train comes his way
+        for t in nearTracks {
             let tr = trains[t.id] ?? Train(t)
             trains[t.id] = tr
             if tr.wrecked { continue }
@@ -242,6 +246,7 @@ enum Trains {
         let wasBullion = tr.bullion
         tr.bullion = !tr.track.armoured && tr.track.dim == .overworld && VaultObjectives.bullionDay(tr.track.id, day) && tr.robbedDay != day
             && forceKind == nil                // (checks: the kind they ask for, whatever the day)
+            && TrainArrivals.kindFor(tr.track.id) == nil          // (P508: an arriving train is the kind that was rolled)
         if tr.bullion && !wasBullion {
             g.onToast?("A bullion train runs the \(tr.track.name) today: armoured, guarded, and carrying the bank's gold")
         }
@@ -352,6 +357,15 @@ enum Trains {
         let (s, dir, stop) = t.at(tr.time)
         let before = tr.cars.map { ($0.pos, $0.yaw) }
         let big = !tr.layout.isEmpty
+        // P508 (one engine): the train turns to run the other way only where he can't see it happen (at a terminus,
+        // 96 blocks off or out of his view); in sight it backs out and turns later.
+        if big && dir != tr.facing {
+            let to = t.point(tr.lastS) - g.player.eye
+            let d = simd_length(to)
+            let looking = d > 1 && simd_dot(to / d, g.player.look) > 0.2
+            if tr.fresh || d > 96 || !looking { tr.facing = dir }
+        }
+        tr.fresh = false
         let moving = big ? placeBig(tr, s, dir, dt) : abs(s - tr.lastS)
         if !big { tr.lastS = s }
         if dt > 0 { tr.blocksPerSec += (moving / dt - tr.blocksPerSec) * min(1, dt * 4) }
@@ -494,6 +508,11 @@ enum Trains {
             g.onToast?("The guard car falls silent")
         }
         guard gun.health > 0, g.alive, g.survival, tr.bullion || tr.kind == .troop || !g.ashVictory else { return }
+        // P508: a military arrival in his town shells it, its troops roused from the start.
+        if TrainArrivals.wreckers.contains(tr.track.id) {
+            tr.roused = true
+            TrainArrivals.wreck(g, tr, gun: gun, muzzle: isBig(gun) ? gun.pos + V3(0, 3.45, 0) : gun.pos + V3(0, 2.6, 0))
+        }
         // P470: a troop train's gun opens up once its troops are roused (the train stopped or fired on).
         if tr.kind == .troop && !tr.roused && gun.health >= 160 { return }
         let muzzle = isBig(gun) ? gun.pos + V3(0, 3.45, 0) : gun.pos + V3(0, 2.6, 0)

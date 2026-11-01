@@ -112,6 +112,7 @@ enum FarCitadel {
         var mark = [UInt8](repeating: 0, count: CS * CH * CS)
         let keep: [Bool] = (0..<Blocks.count).map { i in
             i != Int(AIR) && Blocks.fluidKind[i] == 0 && (Blocks.collide[i] || Blocks.opaque[i])
+                && !SmoothTerrain.natural[i]           // (his 16:05: "None of the land around it though, just the city": no lawns or laid ground)
         }
         for cz in floorDiv(z0, CS)...floorDiv(piece.max.z, CS) { for cx in floorDiv(x0, CS)...floorDiv(piece.max.x, CS) {
             let bx = cx * CS, bz = cz * CS

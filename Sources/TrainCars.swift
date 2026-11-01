@@ -34,10 +34,11 @@ extension Trains {
     // Cars from the end of the line's higher cells to its lower: (variant, turned round).
     static func consist(_ k: Kind) -> [(Int, Bool)] {
         switch k {
-        case .passenger: return [(loco, false), (tender, false), (coach, false), (coach, false), (express, false), (tender, true), (loco, true)]
-        case .cargo: return [(loco, false), (tender, false), (boxcar, false), (tankWagon, false), (flatcar, false), (boxcar, false), (tender, true), (loco, true)]
-        case .troop: return [(armouredLoco, false), (troopCar, false), (gunCar, false), (troopCar, false), (armouredLoco, true)]
-        case .bullion: return [(armouredLoco, false), (gunCar, false), (express, false), (troopCar, false), (armouredLoco, true)]
+        // P508 ("one engine"): the engine and its tender at the head only (Train.facing turns the train at the ends).
+        case .passenger: return [(loco, false), (tender, false), (coach, false), (coach, false), (express, false)]
+        case .cargo: return [(loco, false), (tender, false), (boxcar, false), (tankWagon, false), (flatcar, false), (boxcar, false)]
+        case .troop: return [(armouredLoco, false), (troopCar, false), (gunCar, false), (troopCar, false)]
+        case .bullion: return [(armouredLoco, false), (gunCar, false), (express, false), (troopCar, false)]
         }
     }
 
@@ -96,7 +97,10 @@ extension Trains {
         return m.variant == armouredLoco ? world(m, V3(0, 18.2, 7)) : world(m, V3(0, 18, -20.4))
     }
     // The locomotive at the front of the train, the way it runs now.
-    static func lead(_ tr: Train) -> Mob? { tr.layout.isEmpty || tr.dir > 0 ? tr.cars.first : tr.cars.last }
+    static func lead(_ tr: Train) -> Mob? {
+        if !tr.layout.isEmpty, tr.cars.filter({ isEngine($0) }).count == 1 { return tr.cars.first { isEngine($0) } }   // (P508: one engine)
+        return tr.layout.isEmpty || tr.dir > 0 ? tr.cars.first : tr.cars.last
+    }
     static func isEngine(_ m: Mob) -> Bool { m.variant == loco || m.variant == armouredLoco }
     // P505 (the coordinator, Nov 1 15:41: the rear engine "faces backwards by design ... make it read right to a player"):
     // the engine at the tail as the train runs now. It is the train's end, so it shows the red tail lamps on its buffer
@@ -110,12 +114,13 @@ extension Trains {
     // MARK: Building a real-size train
 
     static func buildBig(_ g: Game, _ tr: Train, day: Int) {
-        tr.kind = tr.bullion ? .bullion : kind(tr.track, day: day)
+        tr.kind = tr.bullion ? .bullion : (TrainArrivals.kindFor(tr.track.id) ?? kind(tr.track, day: day))
+        tr.fresh = true
         var cars = consist(tr.kind)
         // A short line: cars come out of the middle until the train fits between the buffers.
         let room = Float(tr.track.cells.count) - 8
         func length(_ c: [(Int, Bool)]) -> Float { c.reduce(0) { $0 + 2 * halfUnits($1.0) * bigScale / 16 } + coupler * Float(c.count - 1) }
-        while cars.count > 2 && length(cars) > room { cars.remove(at: cars.count / 2) }
+        while cars.count > 2 && length(cars) > room { cars.remove(at: cars.count - 1) }      // (P508: from the tail; the engine leads)
         if length(cars) > room { cars = [cars[0]] }
         tr.length = length(cars)
         var off = tr.length / 2
@@ -167,8 +172,10 @@ extension Trains {
         let moving = abs(sc - tr.lastS)
         tr.lastS = sc
         tr.dir = dir
+        let fs = tr.facing < 0 ? Float(-1) : 1                        // P508: the layout mirrored to run with the engine at -s
         for (k, m) in tr.cars.enumerated() where k < tr.layout.count {
-            let (_, back, off) = tr.layout[k]
+            let (_, back0, off0) = tr.layout[k]
+            let back = back0 != (fs < 0), off = off0 * fs
             let sk = sc + off
             let b = halfLength(m) * 0.7
             var d = t.point(sk + b) - t.point(sk - b)

@@ -338,12 +338,13 @@ enum RailwayTests {
         let moved = simd_length(coach.pos - start)
         let carried = g.riding === coach && simd_length(g.player.pos - Trains.seat(coach)) < 0.1
         check(moved > 20 && carried, String(format: "C1 riding: the coach carried the player %.0f blocks in 40 s (seated %@)", moved, carried ? "yes" : "no"))
-        // P505: the engine in front faces the way the train runs; the one behind is the train's end (tail lamps lit).
-        if let lead = Trains.lead(tr), let back = (tr.dir > 0 ? tr.cars.last : tr.cars.first), lead !== back {
+        // P508 (one engine): the train's one engine is at its head, facing the way it runs.
+        if let lead = Trains.lead(tr) {
             let way = simd_dot(lead.forward, coach.vel)
-            check(way > 0 && !Trains.isTrailing(lead) && Trains.isTrailing(back) && Trains.isEngine(back),
-                  String(format: "C1 engines: the leading engine faces the run (%.2f), the trailing one shows the tail lamps (%@)", way,
-                         Trains.isTrailing(back) ? "yes" : "no"))
+            let engines = tr.cars.filter { Trains.isEngine($0) }.count
+            let ahead = simd_dot(lead.pos - coach.pos, coach.vel)
+            check(way > 0 && engines == 1 && ahead > 0 && !Trains.isTrailing(lead),
+                  String(format: "C1 engine: one engine (%d), at the head (%.1f ahead of the coach) facing the run (%.2f)", engines, ahead, way))
         }
         g.dismount()
         // A hold-up: a gun on the driver stops it.
@@ -379,6 +380,32 @@ enum RailwayTests {
         let there = simd_length(V2(g.player.pos.x - Float(to.x), g.player.pos.z - Float(to.z))) < 6
         check(r.1 && there && g.money == 100_00 - Trains.fare(st, to) && g.time > t1,
               "C1 ticket: \(st.name) to \(to.name) for \(Money.format(Trains.fare(st, to))), arrived \(there), \(Int(g.time - t1)) s on the train")
+        // P508: an arrival comes down the line toward him from 170 blocks off; a military one in his town halts and shells it.
+        Trains.forceKind = nil
+        _ = world.loadSync(center: g.player.pos, radius: 4)
+        if let atr = TrainArrivals.arrive(g, [t], kind: .cargo) {
+            let near = l.cells.indices.min { simd_length(V2(Float(l.cells[$0].x) - g.player.pos.x, Float(l.cells[$0].z) - g.player.pos.z))
+                                             < simd_length(V2(Float(l.cells[$1].x) - g.player.pos.x, Float(l.cells[$1].z) - g.player.pos.z)) } ?? 0
+            let s0 = t.at(g.time - atr.delay).s
+            for _ in 0..<20 { g.time += 1 }
+            let s1 = t.at(g.time - atr.delay).s
+            let closer = abs(s1 - Float(near)) < abs(s0 - Float(near))
+            check(abs(abs(s0 - Float(near)) - TrainArrivals.approach) < 25 && closer,
+                  String(format: "P508 arrival: a train put %.0f blocks up the line from him (track cell %d), %.0f after 20 s", abs(s0 - Float(near)), near, abs(s1 - Float(near))))
+        } else { check(false, "P508 arrival: no train could be put on the line") }
+        if TrainArrivals.inTown(g, g.player.pos), let mtr = TrainArrivals.arrive(g, [t], kind: .troop) {
+            Trains.build(g, mtr)
+            let gun = mtr.cars.first { $0.variant == Trains.gunCar }
+            if let gun {
+                // (the train brought up beside him: the shelling needs its engine within reach)
+                for c in mtr.cars { c.pos = g.player.pos + (c.pos - (Trains.lead(mtr)?.pos ?? c.pos)) + V3(12, 0, 0) }
+                let s0 = TrainArrivals.shells
+                for k in 0..<12 { g.clock += 1; TrainArrivals.wreck(g, mtr, gun: gun, muzzle: gun.pos + V3(0, 3.45, 0)); _ = k }
+                check(mtr.kind == .troop && mtr.roused && TrainArrivals.shells - s0 >= 3 && mtr.heldBy,
+                      "P508 military arrival: a troop train in \(Townsfolk.town(g, at: g.player.pos)) halts (\(mtr.heldBy)) and shells the town (\(TrainArrivals.shells - s0) shells in 12 s)")
+            } else { check(false, "P508 military arrival: no guard car") }
+            TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
+        }
         Trains.trains.removeAll()
     }
 }
