@@ -528,12 +528,9 @@ enum Capital {
         for x in [-8, -7, 7, 8] { hb.set(x, 13, 11, light) }
         for sx in [-1, 1] { for y in 21...27 { hb.set(sx * 9, y, 68, iron) }; hb.set(sx * 9, 28, 68, id("blackstone", hull)) }
         for y in 29...35 { hb.set(5, y, 60, id("iron_bars", iron)) }
-        // Spinal rail cannon over the bow.
-        for z in 0...46 { for y in 26...34 { for x in -4...4 {
-            let r: Float = sqrtf(Float(x * x + (y - 30) * (y - 30)))
-            if r >= 1.5 && r < 2.6 { hb.set(x, y, z, iron) }
-        } } }
-        hb.fill(-3, 3, 21, 25, 40, 46, hull)
+        // (P507, Nov 1 12:08:59 at the crawler's helm: "instead of having that giant cannon thing on the top, replace it with
+        // like another naval gun": the spinal rail cannon over the bow, a tube that never fired, and its pedestal in the
+        // command deck are gone; a twin naval gun stands on the superstructure's front instead, below.)
         hb.mainGun = (V3(Float(W) + 0.5, 30.5, -1), V3(0, 0, -1))
         // Command deck: windows, helm, consoles; troop bay below with a rear ramp; engines aft.
         for x in -6...6 { for y in 23...25 { hb.set(x, y, 20 + Int(Float(y - 21) * 0.8) + 1, glass) } }
@@ -572,16 +569,18 @@ enum Capital {
         // Crew: a driver at the helm, a gunner for each turret (two heavies served from the command deck, four
         // sponsons from the chassis), and a squad of troops in the bay who go out by the rear ramp.
         hb.post(0, 22, 29, .driver)
-        for (x, y, z) in [(2, 22, 53), (-2, 22, 61), (-9, 10, 15), (-9, 10, 68), (9, 10, 15), (9, 10, 68)] { hb.post(x, y, z, .gunner) }
+        for (x, y, z) in [(2, 22, 53), (-2, 22, 61), (2, 22, 33), (-9, 10, 15), (-9, 10, 68), (9, 10, 15), (9, 10, 68)] { hb.post(x, y, z, .gunner) }
         for (x, y, z) in [(-5, 10, 40), (5, 10, 55), (-3, 10, 46), (3, 10, 34), (-5, 10, 52), (4, 10, 44), (0, 22, 36), (-3, 22, 48)] {
             hb.post(x, y, z, .troop)
         }
-        // Turrets: two heavy twins on the superstructure, four autocannon sponsons at the chassis corners.
-        for (ti, z) in [54, 63].enumerated() {
+        // Turrets: two heavy mounts on the superstructure and (P507) a twin on its front over the command deck where the
+        // rail cannon was, four autocannon sponsons at the chassis corners.
+        for (ti, z) in [54, 63, 32].enumerated() {
             var top = 28
             while top > 20 && !inside(0, top, z) { top -= 1 }
             hb.set(0, top, z, Blocks.id("ship_turret_ring"))
-            hb.turrets.append((hb.grid(0, top, z), navalTurret(hang: false, size: 3, style: ti == 0 ? 2 : 1), spec(ti == 0 ? 2 : 1, heavy)))
+            let style = [2, 1, 0][ti]
+            hb.turrets.append((hb.grid(0, top, z), navalTurret(hang: false, size: 3, style: style), spec(style, heavy)))
         }
         for sx in [-1, 1] { for z in [14, 70] {
             var top = 20
