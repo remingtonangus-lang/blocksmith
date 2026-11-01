@@ -9,10 +9,15 @@
    ]
   },
   "time": 0.43,
-  "seconds": 7.2,
+  "seconds": 1.8,
   "warm": 2,
   "rain": false,
   "events": [
+   {
+    "t": 0,
+    "do": "survival",
+    "power": 1
+   },
    {
     "t": 0,
     "do": "spawn",
@@ -132,32 +137,33 @@
     "pos": [
      10,
      1.8,
-     14
+     4
     ],
     "look": [
      -20,
      2,
-     0
+     -5
     ],
     "ground": true
    },
    {
     "t": 7,
     "pos": [
-     6,
+     7,
      2.2,
-     18
+     7
     ],
     "look": [
      -24,
      2,
-     -2
+     -6
     ],
     "ground": true
    }
   ],
-  "survival": true,
-  "fps": 30
+  "survival": false,
+  "fps": 30,
+  "rd": 18
  },
  {
   "name": "shot_battle_b",
@@ -169,10 +175,15 @@
    ]
   },
   "time": 0.43,
-  "seconds": 4.0,
+  "seconds": 1.4,
   "warm": 2,
   "rain": false,
   "events": [
+   {
+    "t": 0,
+    "do": "survival",
+    "power": 1
+   },
    {
     "t": 0,
     "do": "spawn",
@@ -290,23 +301,9 @@
    {
     "t": 0,
     "pos": [
-     10,
-     1.8,
-     14
-    ],
-    "look": [
-     -20,
      2,
-     0
-    ],
-    "ground": true
-   },
-   {
-    "t": 7,
-    "pos": [
-     6,
-     2.2,
-     18
+     1.8,
+     -4
     ],
     "look": [
      -24,
@@ -314,10 +311,25 @@
      -2
     ],
     "ground": true
+   },
+   {
+    "t": 7,
+    "pos": [
+     0,
+     2.2,
+     -2
+    ],
+    "look": [
+     -26,
+     2,
+     -2
+    ],
+    "ground": true
    }
   ],
-  "survival": true,
-  "fps": 30
+  "survival": false,
+  "fps": 30,
+  "rd": 18
  },
  {
   "name": "shot_town_street",
@@ -362,7 +374,8 @@
     "ground": true
    }
   ],
-  "fps": 30
+  "fps": 30,
+  "rd": 18
  },
  {
   "name": "shot_town_dusk",
@@ -407,7 +420,8 @@
     "ground": true
    }
   ],
-  "fps": 30
+  "fps": 30,
+  "rd": 18
  },
  {
   "name": "shot_capital",
@@ -509,7 +523,7 @@
    "station": "boreal_gate"
   },
   "time": 0.55,
-  "seconds": 8.0,
+  "seconds": 3.0,
   "warm": 8,
   "cam": [
    {
@@ -594,7 +608,7 @@
    ]
   },
   "time": 0.3,
-  "seconds": 9.2,
+  "seconds": 15.0,
   "warm": 3,
   "peaceful": true,
   "events": [
@@ -670,7 +684,7 @@
    ]
   },
   "time": 0.44,
-  "seconds": 3.5,
+  "seconds": 9.0,
   "warm": 1,
   "events": [
    {
@@ -727,7 +741,8 @@
    }
   ],
   "rain": false,
-  "fps": 30
+  "fps": 30,
+  "rd": 18
  },
  {
   "name": "shot_frigate",
@@ -746,13 +761,7 @@
   "time": 0.34,
   "seconds": 4.0,
   "warm": 2,
-  "events": [
-   {
-    "t": 0.3,
-    "do": "fire",
-    "pitch": -10
-   }
-  ],
+  "events": [],
   "cam": [
    {
     "t": 0,
@@ -799,9 +808,9 @@
    ]
   },
   "time": 0.34,
-  "seconds": 2.6,
+  "seconds": 6.4,
   "warm": 2,
-  "rd": 12,
+  "rd": 18,
   "events": [
    {
     "t": 1.0,
@@ -888,5 +897,199 @@
    }
   ],
   "fps": 30
+ },
+ {
+  "name": "shot_cave",
+  "anchor": {
+   "find": "plains",
+   "from": [
+    400,
+    400
+   ],
+   "cave": true
+  },
+  "time": 0.3,
+  "seconds": 5,
+  "warm": 2,
+  "peaceful": true,
+  "rd": 8,
+  "fov": 75,
+  "events": [
+   {
+    "t": 0,
+    "do": "place",
+    "block": "torch",
+    "at": [
+     0,
+     0,
+     0
+    ],
+    "n": 24,
+    "spread": 12
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     1.7,
+     -3
+    ],
+    "look": [
+     -2,
+     1.4,
+     12
+    ]
+   },
+   {
+    "t": 5,
+    "pos": [
+     0,
+     1.9,
+     3
+    ],
+    "look": [
+     2,
+     1.2,
+     18
+    ]
+   }
+  ]
+ },
+ {
+  "name": "shot_hell",
+  "dim": "deep",
+  "anchor": {
+   "at": [
+    60,
+    0,
+    60
+   ],
+   "deep": "hell"
+  },
+  "seconds": 5,
+  "warm": 2,
+  "rd": 10,
+  "fov": 75,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     28,
+     4
+    ],
+    "look": [
+     40,
+     6,
+     4
+    ]
+   },
+   {
+    "t": 5,
+    "pos": [
+     2,
+     24,
+     -12
+    ],
+    "look": [
+     40,
+     4,
+     -16
+    ]
+   }
+  ]
+ },
+ {
+  "name": "shot_vault",
+  "dim": "deep",
+  "anchor": {
+   "at": [
+    -80,
+    0,
+    0
+   ],
+   "deep": "vault"
+  },
+  "seconds": 6.4,
+  "warm": 2,
+  "rd": 10,
+  "fov": 70,
+  "survival": false,
+  "events": [
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "soldier_trooper@ash^0",
+    "at": [
+     0,
+     0,
+     -8
+    ],
+    "n": 8,
+    "spread": 5
+   },
+   {
+    "t": 0,
+    "do": "vehicle",
+    "mob": "ash_tank",
+    "at": [
+     5,
+     0,
+     -15
+    ],
+    "yaw": 0
+   },
+   {
+    "t": 1.5,
+    "do": "explode",
+    "at": [
+     -10,
+     0,
+     -26
+    ],
+    "power": 5,
+    "fire": true
+   },
+   {
+    "t": 3.6,
+    "do": "explode",
+    "at": [
+     12,
+     0,
+     -30
+    ],
+    "power": 5
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -5,
+     1.8,
+     2
+    ],
+    "look": [
+     1,
+     1.6,
+     -14
+    ]
+   },
+   {
+    "t": 6,
+    "pos": [
+     -3,
+     2.2,
+     -1
+    ],
+    "look": [
+     3,
+     1.6,
+     -16
+    ]
+   }
+  ]
  }
 ]

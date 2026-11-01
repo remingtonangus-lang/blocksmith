@@ -13,13 +13,16 @@ show that." The mix comes across from the footage itself: no other game, name, l
 | 3 | capital | The Capital's streets at midday | |
 | 4 | train | A passenger train running through the savanna | Ride the rails |
 | 5 | build_cabin | A cabin rising block by block, the camera circling it | Build anything, block by block |
+| 6 | cave | Down a torch-lit cave with lava pools | Explore the caves below |
 | 6 | station_air | A Boreal Station in the snow at night, lit, from over the pines | Slip into a secret base in the snow |
 | 7 | station_gate | Up to the floodlit gate, guards inside | |
 | 8 | station_corridor | The bunker corridor, a guard turning the corner | |
-| 9 | war_advance | An Ashguard line with a tank and a halftrack against Capital riflemen, shells landing | Fight through the last war |
+| 9 | ash_vault | Ashguard troops and a tank at the Ash Vault in the Deep (the game's own faction: no real insignia) | Fight through the last war |
+| 9b | war_advance | An Ashguard line with a tank and a halftrack against Capital riflemen, shells landing | |
 | 10 | tank_breakup | A Cinder Tank knocked out and coming apart | |
 | 11 | frigate_fire | A Meridian frigate over the savanna | Take the helm of a warship |
 | 12 | frigate_strike | Its Tidebreaker slug striking the village's stone tower | and bring its main gun to bear |
+| 12b | hell | Over the lava rivers of the deepest layer | Then go deeper |
 | 13 | finale | Sunset over the village, then the title card | |
 
 Music: the game's own main_title (the frontier half) into ash_vault_battle (from the station on), with the game's own
@@ -45,13 +48,17 @@ Shot format: a JSON list of shots, each with `name`, `seconds`, an `anchor` (`ne
 anchor; `ground`: y over the ground there; `cut`: a hard cut). Events: `spawn` (mob key, `@ash` for the Ashguard,
 `^deg` heading, `n`, `spread`), `vehicle` (ash_tank, ash_halftrack, ...), `wreck`, `explode` (`power`, `fire`),
 `fire` (the frigate's main gun, `pitch`), `impact` (a Tidebreaker strike at a spot), `build` (a cabin, `size`, `dur`),
-`time`, `rain`.
+`time`, `rain`, `survival` (turn it on after the warm-up, so no shells land before the shot), `place` (a block such as
+torches on the floor round a spot, `n`, `spread`). Anchors also take `cave: true` (an open cave room under the found
+spot) and `deep: "vault"|"hell"` with `dim: "deep"`.
 
 Nothing rendered goes into the repo: the clips, the trailer and the stills live in the project files
 (store-media/2026-10-31/).
 
 ## Known looks
 
-- Far structures past the view distance draw as pale stand-in boxes over the fog (the village's tower in several shots).
+- Far structures past the view distance draw as pale stand-in boxes over the fog: the village shots use rd 18 so the
+  real Capital citadel is loaded instead.
+- The thin line under the frigate is its boarding ladder.
 - In the strike shot the camera sits low so the bowl's inside stays hidden: in these renders a fresh Tidebreaker crater
   showed the sky through its floor for at least 15 s (reported to the gun's lane to check on the headset).

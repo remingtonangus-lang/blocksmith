@@ -37,6 +37,8 @@ enum Cinema {
         let rail: Int?
         let train: String?
         let station: String?        // a Boreal Station camera spot (BorealStation.views name) as the anchor
+        let cave: Bool?             // the nearest open cave room under the subject (a 5 x 3 x 5 pocket of air)
+        let deep: String?           // in the Deep: "vault" (the Ash Vault's floor) or "hell" (open space over the lava sea)
         let frigate: [Float]?       // dx, dz, yaw (degrees): a Meridian frigate spawned there; the subject is then the frigate
     }
     struct Shot: Decodable {
@@ -142,8 +144,32 @@ enum Cinema {
             _ = w.loadSync(center: origin + V3(fa[0], 0, fa[1]), radius: 3)
             w.ships.spawnCapital("capfrigate", home: IVec3(Int(origin.x + fa[0]), 0, Int(origin.z + fa[1])), yaw: (fa.count > 2 ? fa[2] : 0) * .pi / 180, region: nil, sync: true)
             frigate = w.ships.list.dropFirst(n0).first { $0.role == "capfrigate" }
-            if let fr = frigate { fr.captured = true; fr.vel = .zero; fr.angVel = .zero; origin = fr.pos; print("cine: \(s.name): frigate at \(Int(fr.pos.x)) \(Int(fr.pos.y)) \(Int(fr.pos.z))") }
+            if let fr = frigate { fr.captured = (s.events ?? []).contains { $0.do == "fire" }; fr.vel = .zero; fr.angVel = .zero; origin = fr.pos; print("cine: \(s.name): frigate at \(Int(fr.pos.x)) \(Int(fr.pos.y)) \(Int(fr.pos.z))") }
         }
+        if let dk = a?.deep, let dg = w.gen as? DeepGen {
+            let x = Int(floor(origin.x)), z = Int(floor(origin.z))
+            _ = w.loadSync(center: V3(origin.x, 100, origin.z), radius: 2)
+            var y = dg.floorY(x, z) + 1
+            if dk == "hell" {
+                y = DeepGen.hellBase + 33
+                while y < DeepGen.crustTop - 8 && !(w.isAir(x, y, z) && w.isAir(x, y + 1, z)) { y += 1 }
+            }
+            origin.y = Float(y)
+            print("cine: \(s.name): the Deep (\(dk)) at \(x) \(y) \(z): \(dg.layerName(x, y, z) ?? "-")")
+        }
+        if a?.cave == true {
+            let px = Int(floor(origin.x)), pz = Int(floor(origin.z))
+            func room(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+                for dy in -1...1 { for dz in -2...2 { for dx in -2...2 where !w.isAir(x + dx, y + dy, z + dz) { return false } } }
+                return w.solidAt(x, y - 2, z)
+            }
+            search: for r in stride(from: 0, through: 96, by: 4) { for dz in stride(from: -r, through: r, by: 4) { for dx in stride(from: -r, through: r, by: 4) where max(abs(dx), abs(dz)) == r {
+                _ = w.loadSync(center: V3(Float(px + dx), 80, Float(pz + dz)), radius: 1)
+                var y = w.gen.column(px + dx, pz + dz).height - 10
+                while y > 20 { if room(px + dx, y, pz + dz) { origin = V3(Float(px + dx) + 0.5, Float(y - 1), Float(pz + dz) + 0.5); print("cine: \(s.name): cave at \(px + dx) \(y) \(pz + dz)"); break search }; y -= 1 }
+            } } }
+        }
+        let overworld = w.dim == .overworld && a?.cave != true
         // The ground under a point as it stood when first asked (later blasts, craters and building don't move a camera
         // key or a look target mid-shot): the loaded world's top solid ground, else the generator's height.
         var groundSeen: [Int64: Float] = [:]
@@ -154,9 +180,10 @@ enum Cinema {
             if let y = groundSeen[key] { return y }
             var y = Float(max(w.gen.column(ix, iz).height, SEA - 1) + 1)
             if w.chunkAt(ix, iz) != nil {
-                var top = min(CH - 2, w.topY(ix, iz) + 1)
+                var top = overworld ? min(CH - 2, w.topY(ix, iz) + 1) : Int(origin.y) + 12
+                if !overworld { while top > 1 && !w.isAir(ix, top, iz) { top -= 1 } }
                 while top > 1 && !(w.groundAt(ix, top - 1, iz) || (w.solidAt(ix, top - 1, iz) && !leafy(w.block(ix, top - 1, iz)))) { top -= 1 }
-                if top > 1 { y = Float(max(top, SEA)) }
+                if top > 1 { y = Float(overworld ? max(top, SEA) : top) }
             }
             groundSeen[key] = y
             return y
@@ -265,6 +292,17 @@ enum Cinema {
                     builds.append((cabin(at: IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))), size: e.size ?? [7, 4, 6], w: w), t, e.dur ?? 6, 0))
                 case "time":
                     g.time = (e.power.map(Double.init) ?? 0.27) * DAY_LENGTH
+                case "place":                                // a block (torch, lantern...) at the spot, and n more round it
+                    let id = Blocks.has(e.block ?? "torch") ? Blocks.id(e.block ?? "torch") : Blocks.id("torch")
+                    let n = e.n ?? 1, sp = e.spread ?? 4
+                    for i in 0..<n {
+                        let ang = Float(i) * 2.399, r = n == 1 ? 0 : sp * sqrtf(Float(i + 1) / Float(n))
+                        let qx = p.x + cosf(ang) * r, qz = p.z + sinf(ang) * r
+                        let qy = (e.ground ?? true) ? ground(qx, qz) : p.y
+                        w.setBlock(Int(floor(qx)), Int(floor(qy)), Int(floor(qz)), id)
+                    }
+                case "survival":
+                    g.survival = (e.power ?? 1) > 0
                 case "rain":
                     g.weather.raining = (e.power ?? 1) > 0
                 default:
@@ -322,15 +360,11 @@ enum Cinema {
         _ = door
         // roof: gables along x, stepping in over z
         let half = (sz + 1) / 2
-        for k in 0...half {
-            for x in -1...sx {
-                for z in [k - 1, sz - k] where z >= -1 && z <= sz {
-                    cells.append((IVec3(o.x + x, o.y + h + 1 + k, o.z + z), roof))
-                }
-                if k > 0 && (x == 0 || x == sx - 1) {
-                    for z in k..<max(k, sz - k) { cells.append((IVec3(o.x + x, o.y + h + k, o.z + z), plank)) }
-                }
-            }
+        // (each course a solid slab resting on the one under it, so nothing hangs or falls while it goes up)
+        for k in 0..<half {
+            for z in k..<max(k + 1, sz - k) { for x in 0..<sx {
+                cells.append((IVec3(o.x + x, o.y + h + 1 + k, o.z + z), (z == k || z == sz - 1 - k) ? roof : plank))
+            } }
         }
         _ = w
         return cells
