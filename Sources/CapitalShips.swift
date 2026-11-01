@@ -543,7 +543,15 @@ enum Capital {
         hb.set(0, 27, 40, light); hb.set(0, 27, 56, light)
         hb.fill(-10, 10, 9, 9, 10, 72, deck)
         for z in stride(from: 16, through: 64, by: 12) { hb.set(0, 19, z, light) }
-        hb.fill(-6, 6, 10, 14, 62, 70, engine)
+        // P507 (Nov 1 12:10:58-12:11:04 aboard a crawler: "we need to update the engine room on the crawler... Should
+        // also be a place to fill up the guns inside"): two engine banks either side of a walkway (it was one solid lump
+        // of engines), exhaust pipes over the walkway, a light, and two shell hoists where the gun crews load the
+        // magazine from Shell Crates (ShipShells).
+        for sx in [-1, 1] { hb.fill(min(sx * 3, sx * 6), max(sx * 3, sx * 6), 10, 13, 62, 70, engine) }
+        let pipeX = id("depot_pipe_x", iron), hoist = id(ShipShells.hoistKey, iron)
+        for z in [63, 66, 69] { for x in -6...6 { hb.set(x, 14, z, pipeX) } }
+        hb.set(0, 14, 61, light)
+        hb.set(-2, 10, 63, hoist); hb.set(2, 10, 67, hoist)
         for z in 73...73 { for y in 10...15 { for x in -4...4 { hb.set(x, y, z, AIR) } } }
         hb.set(-9, 10, 30, Blocks.id("chest") + 3); hb.chests.append((hb.grid(-9, 10, 30), "steelhold_armory"))
         hb.set(9, 10, 50, Blocks.id("chest") + 2); hb.chests.append((hb.grid(9, 10, 50), "steelhold_supply"))
@@ -724,6 +732,7 @@ extension BlockRegistry {
         registerCapitalFactionBlocks()
         registerMeridianBlocks()
         registerMeridianEngineering()
+        registerShellHoist()                       // P507 (ShipShells.swift)
     }
 }
 
@@ -732,6 +741,7 @@ extension TextureGen {
         capitalFactionPainters(&p)
         meridianPainters(&p)
         meridianEngineeringPainters(&p)
+        shellHoistPainters(&p)                     // P507 (ShipShells.swift)
         p["warship_hull"] = { x, y in
             if y == 0 || x == 0 { return hex(0x5C636B) }
             if y == 15 || x == 15 { return hex(0x30353B) }
@@ -2772,7 +2782,7 @@ extension ShipManager {
     // ground, stone and metal ahead of it stop the craft (it flew through hillsides and walls): it is put back out of
     // them and bounces off (a rise only as high as its keel row it rides up over), and a hit over 10 m/s tears hull
     // plates off where it struck (more the faster: 30 m/s takes six), with a crash. Anyone in its way at speed is hit by the hull.
-    static var crushed = 0, rams = 0, ramTorn = 0   // (checks)
+    static var crushed = 0, rams = 0, ramTorn = 0, smashed = 0   // (checks)
     func crush(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         st.crushT -= dt
         st.ramT -= dt
@@ -2784,7 +2794,8 @@ extension ShipManager {
         guard speed > 0.5 || abs(s.angVel.y) > 0.2 else { return }
         let gr = s.grid, w = g.world
         let a = s.worldMin - V3(0.5, 0.5, 0.5), b = s.worldMax + V3(0.5, 0.5, 0.5)
-        var n = 0
+        var n = 0, smashed = 0, smAt = V3.zero
+        let smash = speed > 12
         var hard: [IVec3] = [], at = V3.zero, lift: Float = 0
         for y in stride(from: max(1, Int(floor(a.y))), through: min(CH - 2, Int(floor(b.y))), by: 1) {
             for z in Int(floor(a.z))...Int(floor(b.z)) { for x in Int(floor(a.x))...Int(floor(b.x)) {
@@ -2796,6 +2807,14 @@ extension ShipManager {
                 guard Blocks.collide[Int(gr.get(cell.x, cell.y, cell.z))] else { continue }
                 if Capital.crushable(blk) && !w.groundAt(x, y, z) && w.blockEntities[IVec3(x, y, z)] == nil {
                     if n < 48 { g.breakBlock(IVec3(x, y, z), blk, drop: n % 4 == 0); n += 1 }
+                } else if smash && smashed < 160 && !ShipParts.natural[Int(blk)] && !w.groundAt(x, y, z)
+                            && Blocks.hardness[Int(blk)] >= 0 && Blocks.hardness[Int(blk)] < 50 && w.blockEntities[IVec3(x, y, z)] == nil
+                            && simd_dot(wc - s.pos, s.vel) > 0 {
+                    // P507 (Nov 1 12:26:42, "the frigate should have had the physics to literally crash through a
+                    // building"): at speed a built wall ahead gives way to the hull (brick, stone work, concrete, plate
+                    // under obsidian's hardness) and it ploughs on, slowed and torn; the ground and rock still stop it.
+                    g.breakBlock(IVec3(x, y, z), blk, drop: smashed % 8 == 0)
+                    smashed += 1; smAt += wc
                 } else if Blocks.collide[Int(blk)] {
                     // Under the keel row: ground it rides up over (a rise in the ground isn't a ram); ahead: a ram.
                     if wc.y < s.worldMin.y + 1.2 { lift = max(lift, Float(y) + 1 - s.worldMin.y) }
@@ -2804,6 +2823,14 @@ extension ShipManager {
             } }
         }
         ShipManager.crushed += n
+        if smashed > 0 {
+            // Through it: the wall takes some of the way off her, the bow plates take the blow (as a ram, lighter).
+            ShipManager.smashed += smashed
+            let spot = smAt / Float(smashed)
+            s.vel *= max(0.6, 1 - Float(smashed) * 0.004)
+            g.particles.explosion(at: spot, power: min(3, Float(smashed) / 20 + 1))
+            if st.ramT <= 0 { st.ramT = 0.4; g.sfx(.shipCollideHard, min(1.4, 0.7 + Float(smashed) / 60), at: spot) }
+        }
         if lift > 0 && hard.isEmpty {                // (a wall's foot is part of the wall: rammed, not climbed)
             s.pos.y += min(lift, 1)
             s.vel.y = max(s.vel.y, 0)

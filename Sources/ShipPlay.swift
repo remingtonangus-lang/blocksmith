@@ -738,6 +738,7 @@ extension Game {
             return true
         }
         if !sneak && Self.chartKeys.contains(Blocks.key(Blocks.groupBase[Int(b)])) && s.blockEntities[cell] == nil { shipChart(s); return true }   // P472
+        if !sneak && Blocks.key(Blocks.groupBase[Int(b)]) == ShipShells.hoistKey { useShellHoist(s); return true }    // P507 (ShipShells.swift)
         if !sneak, let be = s.blockEntities[cell] ?? (Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("chest") ? newShipChest(s, cell) : nil) {
             openMenu(ChestMenu(game: self, container: be.container, title: Blocks.name(b)))
             return true

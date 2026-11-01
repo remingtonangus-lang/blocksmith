@@ -964,6 +964,7 @@ final class ShipManager {
         return s
     }
 
+    static var dockClashes: [String] = []        // (vehicle zoo: what a docking hull's dropped blocks ran into)
     // Puts a ship back into the world, snapped to the block grid and the nearest quarter turn.
     @discardableResult
     func disassemble(_ s: Ship, game: Game?) -> String {
@@ -993,8 +994,12 @@ final class ShipManager {
             return n
         }
         if !s.kinematic && g.sx * g.sz <= 4096 {
-            let here = clashes(aCell)
-            if here > 0 && clashes(aCell + IVec3(0, 1, 0)) < here { aCell.y += 1 }
+            var here = clashes(aCell), up = 0
+            while here > 0 && up < 3 {
+                let above = clashes(aCell + IVec3(0, 1, 0))
+                guard above < here else { break }
+                aCell.y += 1; here = above; up += 1
+            }
         }
         func cell(_ x: Int, _ y: Int, _ z: Int) -> IVec3 { cellAt(aCell, x, y, z) }
         var dropped = 0
@@ -1015,6 +1020,7 @@ final class ShipManager {
                 continue
             }
             if !Blocks.replaceable[Int(here)] {
+                if ShipManager.dockClashes.count < 6 { ShipManager.dockClashes.append("\(Blocks.key(b)) into \(Blocks.key(here)) at cell y \(y)") }
                 if let game { game.drops.spawn(ItemStack(Items.item(forBlock: b) ?? 0, 1), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5); dropped += 1 }
                 spill()
                 continue

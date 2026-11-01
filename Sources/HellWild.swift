@@ -242,10 +242,11 @@ enum HellWildTests {
 
         // A Cinderhorn herd: grazing, it lets you walk up; hurt the bull and the herd stampedes while he charges.
         heal()
-        g.player.pos = centre + V3(-11, 0, 0)
+        g.player.pos = centre + V3(-13, 0, 0)
         var herd: [Mob] = []
         for i in 0..<4 {
-            // (twelve blocks off: a bison-like herd takes fright inside 7, and the wind's scent can carry that half again)
+            // (fourteen blocks off: a bison-like herd takes fright inside 7, and downwind its scent carries 1.7 times as
+            // far, 11.9; at twelve a grazer's step toward him spooked it)
             let m = Mob(.cinderhorn, at: centre + V3(Float(i % 2) * 2.6 + 1, 0, Float(i / 2) * 2.6 - 1.3)); m.persistent = true
             m.variant = i == 0 ? 1 : 2
             herd.append(m); g.mobs.mobs.append(m)
@@ -260,6 +261,6 @@ enum HellWildTests {
             return HerdGame.charges > c0 && g.health < h1 && ran.count >= 2
         }
         let fled = ran.count
-        check(calm && charged && fled >= 2, "hell wildlife: a Cinderhorn herd grazed 12 blocks off (\(calm ? "calm" : "spooked")); hurt, the bull charged and gored (\(charged)) and \(fled) of 3 stampeded")
+        check(calm && charged && fled >= 2, "hell wildlife: a Cinderhorn herd grazed 14 blocks off (\(calm ? "calm" : "spooked")); hurt, the bull charged and gored (\(charged)) and \(fled) of 3 stampeded")
     }
 }

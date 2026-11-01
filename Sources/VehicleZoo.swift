@@ -84,7 +84,9 @@ enum VehicleZoo {
                     put(W / 2, fy - (under ? 1 : 0), -1 + (under ? 1 : 0), wheel)
                     axles = [L - 2]
                 case 1: axles = [1, L / 2, L - 2]       // three axles on a short car
-                case 2: axles = [L - 2]; put(W / 2, fy, -1, trim)     // one axle and a skid at the nose
+                // (P507: was one axle and a skid at the nose: 072 sat on its skid, the load off its wheels, and couldn't
+                // move, as such a cart can't; a long wheelbase instead)
+                case 2: axles = [0, L - 1]; put(W / 2, fy, -1, trim)  // axles at the very ends, a bumper at the nose
                 default: axles = [0, 1, L - 2, L - 1]    // doubled wheels front and back
                 }
             }
@@ -418,6 +420,9 @@ enum VehicleZoo {
         if p.medium != .air {
             mi = MoveInput()
             for _ in 0..<60 { ships.update(1.0 / 60, game: g); let hv = (s.vel.x * s.vel.x + s.vel.z * s.vel.z).squareRoot(); if hv < 0.3 && abs(s.vel.y) < 0.3 { break } }
+            let upD = s.rot.act(V3(0, 1, 0)), posD = s.pos, yawD = s.yaw
+            let gyD = w.topY(Int(floor(posD.x)), Int(floor(posD.z)))
+            ShipManager.dockClashes = []
             let docked = ships.disassemble(s, game: g)
             if !docked.hasPrefix("Docked") { fail("docking said: \(docked)") }
             var back = 0
@@ -427,7 +432,10 @@ enum VehicleZoo {
                 let b = w.rawBlock(x, y, z)
                 if b != AIR && !Blocks.isLiquid(b) && !course(x, y, z) { back += 1 }
             } } }
-            if back < built * 9 / 10 { fail("docked, \(back) of its \(built) blocks are back in the world") }
+            if back < built * 9 / 10 {
+                fail(String(format: "docked, %d of its %d blocks are back in the world (%@; up %.2f,%.2f,%.2f, yaw %.0f, at y %.1f over ground %d)",
+                            back, built, docked, upD.x, upD.y, upD.z, yawD * 180 / .pi, posD.y, gyD) + "; " + ShipManager.dockClashes.joined(separator: "; "))
+            }
             // Clear what came back.
             for y in (c.y - 6)...(c.y + 16) { for z in (c.z - r)...(c.z + r) { for x in (c.x - r)...(c.x + r) {
                 let b = w.rawBlock(x, y, z)

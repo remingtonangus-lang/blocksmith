@@ -332,6 +332,7 @@ extension Capital {
             for z in [13, 62] { ladderUp(sg * 5, 3, 8, z, sg > 0 ? 3 : 2) }
         }
 
+        let hoist = id(ShipShells.hoistKey, cabinet)
         // The gun deck (y 9-13, z 64-119) either side of the accelerator: gun crew consoles along the hull, the port
         // hangar (z 97-115, its flank door open to the winch) and the starboard hold, then the breech room.
         for sg in [-1, 1] {
@@ -339,6 +340,10 @@ extension Capital {
                 var ax = 10
                 while ax > 3 && !inner(sg * ax, 9, z) { ax -= 1 }
                 if ax > 3 { hb.set(sg * ax, 9, z, console); hb.set(sg * ax, 10, z, cabinet) }
+                // P507: a shell hoist between each gun crew's stations, where the magazine is loaded (ShipShells).
+                var hx = 10
+                while hx > 3 && !inner(sg * hx, 9, z + 4) { hx -= 1 }
+                if hx > 3 && z + 4 < 97 { hb.set(sg * hx, 9, z + 4, hoist) }
             }
             for z in stride(from: 68, through: 116, by: 8) { put(sg * 5, 14, z, light) }
             for x in 3...8 { for y in 9...13 { put(sg * x, y, 115, wall) } }               // the breech room's wall
