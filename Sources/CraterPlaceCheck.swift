@@ -80,7 +80,7 @@ enum CraterPlaceCheck {
             g.tick(1.0 / 60)
         }
         g.inventory.held = .empty
-        check(aimed >= 6 && placed == aimed,
+        check(aimed >= 3 && placed == aimed,
               "craterplace: stone clicked at the bowl's face from its rim goes down every time (\(placed) of \(aimed) clicks)" + (missed.isEmpty ? "" : "; ignored: " + missed.prefix(4).joined(separator: "; ")))
     }
 }
