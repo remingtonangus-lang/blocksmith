@@ -533,7 +533,10 @@ extension ShipManager {
             // a fixed-wing aircraft built of blocks weighs a tonne a block (the fighter 214 t), and 120 per propeller
             // gave it half a block a second per second: 10 b/s at the end of a strip. A flight-model plane's propellers
             // now give it at least 11 b/s^2 between them (off the ground in about 6 s, near 60 b/s flat out).
-            let each = s.flight?.kind == .plane ? max(ShipTuning.propThrust, s.mass * ShipTuning.planeAccel / Float(max(1, props))) : ShipTuning.propThrust
+            // P507 (the vehicle zoo: a 271 t airship on one propeller made 2 blocks in 4 s): a balloon ship's propellers
+            // give it at least 1.2 b/s^2 between them, as a plane's do theirs (its weight hangs on the gas, not the props).
+            let each = s.flight?.kind == .plane ? max(ShipTuning.propThrust, s.mass * ShipTuning.planeAccel / Float(max(1, props)))
+                : (s.balloons > 0 ? max(ShipTuning.propThrust, s.mass * 1.2 / Float(max(1, props))) : ShipTuning.propThrust)
             for (p, d) in s.props {
                 var at = p
                 at.y = s.com.y

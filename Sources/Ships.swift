@@ -972,14 +972,31 @@ final class ShipManager {
         let turns = Int((s.yaw / (.pi / 2)).rounded())
         let snapped = Quat(angle: Float(turns) * .pi / 2, axis: V3(0, 1, 0))
         // World position of cell centres under the snapped rotation, rounded so they land on block centres.
-        let g = s.grid
         let anchorLocal = V3(0.5, 0.5, 0.5)
         let a = s.pos + snapped.act(anchorLocal - s.com)
-        let aCell = IVec3(Int(floor(a.x)), Int(floor(a.y)), Int(floor(a.z)))
-        func cell(_ x: Int, _ y: Int, _ z: Int) -> IVec3 {
+        // P507 (the vehicle zoo: a car docked on the road lost a quarter of its blocks): the anchor cell is the nearest
+        // one, not the one under it (a hull settled a few hundredths low went a whole block down, its bottom layer into
+        // the road, where nothing fits and it dropped); and where the cells there clash with the world more than a block
+        // up would, it goes a block up (a hull resting on a slope or tipped a little).
+        var aCell = IVec3(Int((a.x - 0.5).rounded()), Int((a.y - 0.5).rounded()), Int((a.z - 0.5).rounded()))
+        let g = s.grid
+        func cellAt(_ base: IVec3, _ x: Int, _ y: Int, _ z: Int) -> IVec3 {
             let d = snapped.act(V3(Float(x), Float(y), Float(z)))
-            return aCell + IVec3(Int(d.x.rounded()), Int(d.y.rounded()), Int(d.z.rounded()))
+            return base + IVec3(Int(d.x.rounded()), Int(d.y.rounded()), Int(d.z.rounded()))
         }
+        func clashes(_ base: IVec3) -> Int {
+            var n = 0
+            for y in 0..<min(g.sy, 3) { for z in 0..<g.sz { for x in 0..<g.sx where g.blocks[g.index(x, y, z)] != AIR {
+                let p = cellAt(base, x, y, z)
+                if p.y >= 0 && p.y < CH && !Blocks.replaceable[Int(w.rawBlock(p.x, p.y, p.z))] { n += 1 }
+            } } }
+            return n
+        }
+        if !s.kinematic && g.sx * g.sz <= 4096 {
+            let here = clashes(aCell)
+            if here > 0 && clashes(aCell + IVec3(0, 1, 0)) < here { aCell.y += 1 }
+        }
+        func cell(_ x: Int, _ y: Int, _ z: Int) -> IVec3 { cellAt(aCell, x, y, z) }
         var dropped = 0
         for y in 0..<g.sy { for z in 0..<g.sz { for x in 0..<g.sx {
             let b = g.blocks[g.index(x, y, z)]

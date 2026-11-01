@@ -252,7 +252,9 @@ enum VehicleZoo {
     // strips 29 and 30 wide, so whatever was built facing east or west ran off the road or into the basin's wall in its
     // 4 s ahead (pinned on the wall it couldn't turn: "steered 0 degrees"; a broadside touching the wall took the wall).
     static let basinDepth = 10
-    static let road = 80, basinX0 = 100, basinX1 = 200, basinZ = 50
+    // (A fast car covers 55 blocks in its 4 s ahead and 45 more in its 2 s turning: the road is 130 out each way. The air
+    // ones are let go high and off to the north, clear of it: a plane that sank onto the road couldn't be steered.)
+    static let road = 130, basinX0 = 150, basinX1 = 250, basinZ = 50
     static func buildCourse(_ w: World, _ o: IVec3) {
         let stone = key("smooth_stone", "stone"), water = WATER
         for z in (o.z - road)...(o.z + road) {
@@ -294,7 +296,7 @@ enum VehicleZoo {
         switch p.medium {
         case .road: base = IVec3(o.x, o.y + 1, o.z)
         case .water: base = IVec3(o.x + (basinX0 + basinX1) / 2, o.y - 1, o.z)
-        case .air: base = IVec3(o.x - 40, o.y + 30, o.z)
+        case .air: base = IVec3(o.x, o.y + 45, o.z - 220)
         }
         // The lowest built layer sits on the road (a wheel or a track under the chassis, or the chassis itself).
         let lowY = p.cells.map { $0.0.y }.min() ?? 0
@@ -443,7 +445,7 @@ enum VehicleZoo {
         w.ships.encounters = false
         let o = IVec3(Int(floor(g.player.pos.x)), courseY, Int(floor(g.player.pos.z)))
         g.player.pos = V3(Float(o.x) + 0.5, Float(o.y + 2), Float(o.z) + 0.5)
-        _ = w.loadSync(center: V3(Float(o.x + 60), Float(o.y), Float(o.z)), radius: 10)
+        _ = w.loadSync(center: V3(Float(o.x + 60), Float(o.y), Float(o.z - 50)), radius: 13)
         buildCourse(w, o)
         var passed = 0, byFamily: [String: (Int, Int)] = [:]
         let t0 = CFAbsoluteTimeGetCurrent()
