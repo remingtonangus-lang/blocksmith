@@ -845,8 +845,9 @@ final class ShipManager {
                 let kind = kinds[Int(w.rawBlock(c.x, c.y, c.z))]
                 for (k, d) in dirs.enumerated() {
                     if kind == .ring && k == 2 { continue }
-                    if kind == .wheel && k == 3 { continue }
                     let n = c + d
+                    // (a wheel's ground isn't the vehicle; a tank's track two blocks high is, all of it)
+                    if kind == .wheel && k == 3 && kinds[Int(w.rawBlock(n.x, n.y, n.z))] != .wheel { continue }
                     if n.y < floor || seen.contains(n) || taken.contains(n) || n.y < 0 || n.y >= CH { continue }
                     if natural[Int(w.rawBlock(n.x, n.y, n.z))] { continue }
                     seen.insert(n)

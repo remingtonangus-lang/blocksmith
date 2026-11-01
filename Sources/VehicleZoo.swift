@@ -116,9 +116,11 @@ enum VehicleZoo {
             if fam == .hybrid {
                 switch r(3) {
                 case 0:
-                    // A flying car: balloons on a frame over it and a pusher propeller at the back.
-                    box(0, W - 1, fy + 3, fy + 3, 0, L - 1, balloon)
-                    for (x, z) in [(0, 0), (W - 1, 0), (0, L - 1), (W - 1, L - 1)] { put(x, fy + 1, z, trim); put(x, fy + 2, z, trim) }
+                    // A flying car: balloons on a frame over it and a pusher propeller at the back (over a turret's
+                    // cannons, with a block of air between: an envelope touching the turret made it part of the hull).
+                    let ey = fy + (p.turrets > 0 ? 5 : 3)
+                    box(0, W - 1, ey, ey, 0, L - 1, balloon)
+                    for (x, z) in [(0, 0), (W - 1, 0), (0, L - 1), (W - 1, L - 1)] { for y in (fy + 1)..<ey { put(x, y, z, trim) } }
                     put(W / 2, fy, L, prop)
                     p.medium = .air; p.expectClimb = true
                 case 1:
@@ -126,8 +128,11 @@ enum VehicleZoo {
                     for z in (L / 2 - 1)...(L / 2) where !axles.contains(z) { for x in 1...3 { put(-x, fy, z, wing); put(W - 1 + x, fy, z, wing) } }
                 default:
                     // An amphibian: walls round the chassis to hold air, a propeller under the stern, on the water.
-                    for z in 0..<L { put(0, fy + 1, z, hull); put(W - 1, fy + 1, z, hull) }
-                    for x in 0..<W { put(x, fy + 1, L - 1, hull) }
+                    // (Built of wood, as the boats are: an iron or stone car with a one-block wall sank, as it should.)
+                    let wood = key(["oak_planks", "spruce_planks", "birch_planks"][r(3)])
+                    p.cells = p.cells.map { ($0.0, $0.1 == hull || $0.1 == trim ? wood : $0.1) }
+                    for z in 0..<L { put(0, fy + 1, z, wood); put(W - 1, fy + 1, z, wood) }
+                    for x in 0..<W { put(x, fy + 1, L - 1, wood) }
                     put(W / 2, fy + 1, L - 1, engine)
                     put(W / 2, fy, L, prop)
                     p.medium = .water
@@ -241,24 +246,34 @@ enum VehicleZoo {
     // MARK: The course
 
     static let courseY = 300                       // well over any land (internal y)
-    // Road: x -14...14, z -170...40 at courseY (vehicles stand on it); basin: x 40...70, z -170...40, water courseY-10...-1
-    // (ten deep: an iron-heavy gunboat drew more than the three it had and dragged its keel on the floor, so it hardly turned).
+    // Road: a square x, z -road...road at courseY (vehicles stand on it, built in the middle); basin: x basinX0...basinX1,
+    // z -basinZ...basinZ, walled, water courseY-10...-1 (boats built in its middle). Ten deep: an iron-heavy gunboat drew
+    // more than the three it had and dragged its keel on the floor. Wide both ways: the first road and basin were long
+    // strips 29 and 30 wide, so whatever was built facing east or west ran off the road or into the basin's wall in its
+    // 4 s ahead (pinned on the wall it couldn't turn: "steered 0 degrees"; a broadside touching the wall took the wall).
     static let basinDepth = 10
+    static let road = 80, basinX0 = 100, basinX1 = 200, basinZ = 50
     static func buildCourse(_ w: World, _ o: IVec3) {
         let stone = key("smooth_stone", "stone"), water = WATER
-        for z in (o.z - 170)...(o.z + 40) {
-            for x in (o.x - 14)...(o.x + 14) {
-                w.setBlockAsync(x, o.y, z, stone)
+        for z in (o.z - road)...(o.z + road) {
+            for x in (o.x - road)...(o.x + road) {
+                if w.rawBlock(x, o.y, z) != stone { w.setBlockAsync(x, o.y, z, stone) }
                 for y in (o.y + 1)...(o.y + 24) where w.rawBlock(x, y, z) != AIR { w.setBlockAsync(x, y, z, AIR) }
             }
-            for x in (o.x + 40)...(o.x + 70) {
-                w.setBlockAsync(x, o.y - basinDepth - 1, z, stone)
-                let edge = x == o.x + 40 || x == o.x + 70
-                for y in (o.y - basinDepth)...(o.y - 1) { w.setBlockAsync(x, y, z, edge ? stone : water) }
+        }
+        for z in (o.z - basinZ)...(o.z + basinZ) {
+            for x in (o.x + basinX0)...(o.x + basinX1) {
+                if w.rawBlock(x, o.y - basinDepth - 1, z) != stone { w.setBlockAsync(x, o.y - basinDepth - 1, z, stone) }
+                let edge = x == o.x + basinX0 || x == o.x + basinX1 || abs(z - o.z) == basinZ
+                for y in (o.y - basinDepth)...(o.y - 1) {
+                    let want = edge ? stone : water
+                    if w.rawBlock(x, y, z) != want { w.setBlockAsync(x, y, z, want) }
+                }
                 for y in o.y...(o.y + 24) where w.rawBlock(x, y, z) != AIR { w.setBlockAsync(x, y, z, AIR) }
             }
         }
     }
+    static func onRoad(_ p: V3, _ o: IVec3) -> Bool { abs(p.x - Float(o.x)) < Float(road - 1) && abs(p.z - Float(o.z)) < Float(road - 1) }
 
     // MARK: A run
 
@@ -270,16 +285,16 @@ enum VehicleZoo {
         // The course's own blocks: the road, the basin's floor and walls (its water is liquid; a docked hull's blocks in
         // the basin count as the vehicle's: they were counted as the course, so half a docked boat looked lost).
         func course(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-            let inBasin = x >= o.x + 40 && x <= o.x + 70
-            return (y == o.y && abs(x - o.x) <= 14) || (inBasin && y == o.y - basinDepth - 1)
-                || ((x == o.x + 40 || x == o.x + 70) && y >= o.y - basinDepth && y <= o.y - 1)
+            let inBasin = x >= o.x + basinX0 && x <= o.x + basinX1 && abs(z - o.z) <= basinZ
+            return (y == o.y && abs(x - o.x) <= road && abs(z - o.z) <= road) || (inBasin && y == o.y - basinDepth - 1)
+                || (inBasin && (x == o.x + basinX0 || x == o.x + basinX1 || abs(z - o.z) == basinZ) && y >= o.y - basinDepth && y <= o.y - 1)
         }
         // Where it is built: on the road, afloat in the basin, or in the air beside the road.
         let base: IVec3
         switch p.medium {
         case .road: base = IVec3(o.x, o.y + 1, o.z)
-        case .water: base = IVec3(o.x + 55, o.y - 1, o.z)
-        case .air: base = IVec3(o.x - 60, o.y + 30, o.z)
+        case .water: base = IVec3(o.x + (basinX0 + basinX1) / 2, o.y - 1, o.z)
+        case .air: base = IVec3(o.x - 40, o.y + 30, o.z)
         }
         // The lowest built layer sits on the road (a wheel or a track under the chassis, or the chassis itself).
         let lowY = p.cells.map { $0.0.y }.min() ?? 0
@@ -311,6 +326,9 @@ enum VehicleZoo {
             ships.shells.removeAll()
         }
         g.startPiloting(s)
+        // (He sits facing the way the helm points: a helicopter's pedals turn it toward his look, so a look left at
+        // north turned one built facing south round, and "full ahead" flew it backwards off the way it was built.)
+        g.player.yaw = s.yaw; g.player.pitch = 0
         var mi = MoveInput()
         var worstMs = 0.0
         func run(_ secs: Float) {
@@ -337,7 +355,10 @@ enum VehicleZoo {
         let d = s.pos - a
         let along = simd_dot(V2(d.x, d.z), simd_normalize(V2(fwd0.x, fwd0.z) + V2(1e-5, 0))), flat = simd_length(V2(d.x, d.z))
         if p.drives {
-            if along < 3 { fail(String(format: "full ahead for 4 s it went %.1f along its helm's facing (%.1f in all)", along, flat)) }
+            if along < 3 {
+                fail(String(format: "full ahead for 4 s it went %.1f along its helm's facing (%.1f in all; %d wheels, %d props, %d engines, grounded %@, %d contacts, throttle %.2f, %.0f t)",
+                            along, flat, s.wheels.count, s.props.count, s.engines, s.grounded ? "yes" : "no", s.contacts, s.throttleEase, s.mass))
+            }
             else { notes.append(String(format: "ran %.0f ahead", along)) }
         } else if flat > 2 {
             fail(String(format: "with no engine it moved %.1f", flat))
@@ -355,8 +376,9 @@ enum VehicleZoo {
         if !s.pos.x.isFinite || !s.pos.y.isFinite || !s.pos.z.isFinite { fail("its position went NaN") }
         switch p.medium {
         case .road:
-            if s.worldMin.y < Float(o.y) - 0.6 && abs(s.pos.x - Float(o.x)) < 13 && s.pos.z > Float(o.z - 168) { fail(String(format: "sank into the road (lowest %.2f, road top %d)", s.worldMin.y, o.y + 1)) }
-            if up < 0.5 && abs(s.pos.x - Float(o.x)) < 13 { fail(String(format: "rolled over on the flat road (up %.2f)", up)) }
+            if !onRoad(s.pos, o) { fail(String(format: "ran off the course's road (at %.0f, %.0f from the start)", s.pos.x - Float(o.x), s.pos.z - Float(o.z))) }
+            if s.worldMin.y < Float(o.y) - 0.6 && onRoad(s.pos, o) { fail(String(format: "sank into the road (lowest %.2f, road top %d)", s.worldMin.y, o.y + 1)) }
+            if up < 0.5 && onRoad(s.pos, o) { fail(String(format: "rolled over on the flat road (up %.2f)", up)) }
         case .water:
             if s.pos.y < Float(o.y - 4) { fail(String(format: "sank (centre %.1f, water top %d)", s.pos.y, o.y - 1)) }
             if up < 0.5 { fail(String(format: "capsized (up %.2f)", up)) }
@@ -380,7 +402,11 @@ enum VehicleZoo {
                 g.player.yaw = s.yaw + .pi / 2
                 run(3)
                 let moved = abs(remainderf(t.turretYaw - y0, 2 * .pi)) * 180 / .pi
-                if moved < 30 { fail(String(format: "its turret came round %.0f degrees to a look 90 off", moved)) }
+                if moved < 30 {
+                    fail(String(format: "its turret came round %.0f degrees to a look 90 off (yaw %.2f -> %.2f, wants %@, aim point %@, look yaw %.2f vs hull %.2f)",
+                                moved, y0, t.turretYaw, t.aimYaw.map { String(format: "%.2f", $0) } ?? "nil",
+                                t.aimAt.map { String(format: "%.0f,%.0f,%.0f", $0.x - s.pos.x, $0.y - s.pos.y, $0.z - s.pos.z) } ?? "nil", g.player.yaw, s.yaw))
+                }
                 break
             }
         }
@@ -417,7 +443,7 @@ enum VehicleZoo {
         w.ships.encounters = false
         let o = IVec3(Int(floor(g.player.pos.x)), courseY, Int(floor(g.player.pos.z)))
         g.player.pos = V3(Float(o.x) + 0.5, Float(o.y + 2), Float(o.z) + 0.5)
-        _ = w.loadSync(center: V3(Float(o.x), Float(o.y), Float(o.z - 60)), radius: 8)
+        _ = w.loadSync(center: V3(Float(o.x + 60), Float(o.y), Float(o.z)), radius: 10)
         buildCourse(w, o)
         var passed = 0, byFamily: [String: (Int, Int)] = [:]
         let t0 = CFAbsoluteTimeGetCurrent()
