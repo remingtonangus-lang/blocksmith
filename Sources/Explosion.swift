@@ -59,6 +59,7 @@ enum Explosion {
     // P472: a crash's own blasts spare whoever rides the crashing ship (CapitalShips.hullContact, VehicleDamage).
     static var sparePlayer = false
     // (--turretfreeze: the slowest blast, stage by stage; nested blasts count in the outer one)
+    static let batchShape = ProcessInfo.processInfo.environment["BS_BLASTSHAPE"] != "1"
     static var lapT = 0.0, lapT0 = 0.0, lapDepth = 0, laps = "", worstMs = 0.0, worstLaps = ""
     static func lapStart() { lapDepth += 1; if lapDepth == 1 { lapT = CFAbsoluteTimeGetCurrent(); lapT0 = lapT; laps = "" } }
     static func lap(_ s: String) {
@@ -160,6 +161,12 @@ enum Explosion {
                                  speed: power * 2.2 * k + 1, seed: hash3(b.x, b.y, b.z, 0xB1A5), crowding: 0.3)
             }
         }
+        Explosion.lap("bodies")
+        // A blast's ground cells are opened without each one's own round hollow (a field sphere a cell, about a third
+        // of a millisecond each on the host: a heavy shell's 450 cells were a 170 ms frame); the bowl carved below
+        // shapes the hole as a whole, and only the cells past it get their own. BS_BLASTSHAPE=1: a hollow a cell.
+        w.batchShape = Explosion.batchShape && w.fieldTerrain
+        var opened: [IVec3] = []
         for b in destroyed {
             let id = w.block(b.x, b.y, b.z)
             if id == tntID { tnt.append(b); w.setBlockAsync(b.x, b.y, b.z, AIR); continue }
@@ -170,9 +177,11 @@ enum Explosion {
                 for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5)) }
                 be.container.slots = Array(repeating: .empty, count: be.container.slots.count)   // an open screen shares it
             }
+            if w.batchShape && w.isGround(b) { opened.append(b) }
             w.setBlockAsync(b.x, b.y, b.z, AIR)
         }
-        Explosion.lap("bodies, removal")
+        w.batchShape = false
+        Explosion.lap("removal \(destroyed.count)")
         for b in destroyed { w.scheduleFluid(around: b) }
         // P503: what stood over the hole is weighed (StructureTip): a top shot out from under it tips and falls.
         if !destroyed.isEmpty {
@@ -184,12 +193,18 @@ enum Explosion {
         if (w.keepsField || w.fieldTerrain) && !destroyed.isEmpty {
             let ds = destroyed.map { simd_length(V3(Float($0.x), Float($0.y), Float($0.z)) + 0.5 - c) }.sorted()
             let r = ds[min(ds.count - 1, ds.count * 3 / 4)] + 0.3
+            var balls: [(V3, Float)] = [(c, r)]
             if let shot {                                       // (the bowl leans and runs on along the shot)
-                w.carve(at: c + shot * (r * 0.3), radius: r * 0.9, mode: .shape)
-                w.carve(at: c + shot * (r * 0.95), radius: r * 0.6, mode: .shape)
-            } else {
-                w.carve(at: c, radius: r, mode: .shape)
+                balls = [(c + shot * (r * 0.3), r * 0.9), (c + shot * (r * 0.95), r * 0.6)]
             }
+            for (at, rr) in balls { w.carve(at: at, radius: rr, mode: .shape) }
+            // (the opened cells the bowl doesn't reach their own round hollow, as every one had)
+            for b in opened {
+                let q = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
+                if !balls.contains(where: { simd_length(q - $0.0) < $0.1 - 1 }) { w.fieldShape(b.x, b.y, b.z, opened: true) }
+            }
+        } else {
+            for b in opened { w.fieldShape(b.x, b.y, b.z, opened: true) }
         }
         Explosion.lap("fluids, carve")
         // Progressive block damage: blocks the blast couldn't break lose pieces on the side facing it.
