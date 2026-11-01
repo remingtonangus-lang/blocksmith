@@ -60,5 +60,4 @@ Nothing rendered goes into the repo: the clips, the trailer and the stills live 
 - Far structures past the view distance draw as pale stand-in boxes over the fog: the village shots use rd 18 so the
   real Capital citadel is loaded instead.
 - The thin line under the frigate is its boarding ladder.
-- In the strike shot the camera sits low so the bowl's inside stays hidden: in these renders a fresh Tidebreaker crater
-  showed the sky through its floor for at least 15 s (reported to the gun's lane to check on the headset).
+- The strike is filmed from above: since PR #645 a fresh Tidebreaker crater keeps its floor.
