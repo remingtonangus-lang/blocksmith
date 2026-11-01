@@ -6,6 +6,7 @@ final class EmberGen: TerrainGenerator {
     let seed: UInt64
     let s32: UInt32
     let d1: Noise, d2: Noise, bT: Noise, bH: Noise, deco: Noise
+    let shapeN: Noise               // P505: the Deep's lands (crags, rifts); unused in the Emberdeep
     static let lavaLevel = 31
     let base: Int                   // internal y of the band's floor: YOFF (displayed y 0) in the Emberdeep
     let height: Int                 // 128 in the Emberdeep; the Deep's hell band is taller (DeepGen.hellHeight)
@@ -23,6 +24,7 @@ final class EmberGen: TerrainGenerator {
         bT = Noise(seed: seed &+ 103)
         bH = Noise(seed: seed &+ 104)
         deco = Noise(seed: seed &+ 105)
+        shapeN = Noise(seed: seed &+ 106)
         self.structures = structures ? StructureCache(seed: seed, types: [Fortress.type, Bastion.type]) : nil
     }
 
@@ -50,10 +52,67 @@ final class EmberGen: TerrainGenerator {
     // Density at band y (0 ... height - 1): > 0 is solid. A taller band (the Deep's) keeps the lower half exactly as the
     // Emberdeep's (the lava sea, the shores, the fortresses and keeps standing on them) and stretches everything above
     // y 64 up to its roof: the caverns, the pillars and the open space overhead grow with it.
-    private func density(_ x: Float, _ y: Float, _ z: Float) -> Float {
+    // P505 (Remington, Nov 1 08:07:59, in the Ghostglass Spires: "This terrain is too predictable. It looks too much the
+    // same"): every land had one shape, two noises at fixed sizes, only its ground cover told them apart. Above the
+    // shores (y 64 up, the Deep's band only) the lands now take their own shapes, blended where they meet:
+    //   - the Ghostglass Spires stand rock spires, many reaching the roof as pillars (a few stand in every land); they
+    //     rise from y 40 on the shores, the only change under y 64;
+    //   - the Cinder Plains step into terraces and mesas, shelves every 12 blocks with steep faces between;
+    //   - the ground runs from smooth to craggy across every land (a wide noise), and long rifts cut down to the shores.
+    struct LandW { var plains: Float = 0, spires: Float = 0, rough: Float = 0, rift: Float = 0 }
+    struct Spire { let x: Float, z: Float, r: Float, top: Float }
+    var lands: Bool { height > 128 }
+
+    @inline(__always) static func smooth(_ e0: Float, _ e1: Float, _ x: Float) -> Float {
+        let t = max(0, min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
+    }
+
+    // A column's land weights (the biome map's noise, softly: no seams where lands meet).
+    func landW(_ x: Float, _ z: Float) -> LandW {
+        guard lands else { return LandW() }
+        let t = bT.fbm2(x / 570, z / 570, 2), h = bH.fbm2(x / 570, z / 570, 2)
+        func wt(_ pt: Float, _ ph: Float) -> Float { let dt = t - pt, dh = h - ph; return expf(-(dt * dt + dh * dh) / 0.012) }
+        let plains = wt(0, 0), spires = wt(-0.35, 0.1)
+        let sum = plains + spires + wt(0, -0.35) + wt(0.3, 0) + wt(0, 0.35) + 1e-6
+        var w = LandW(plains: plains / sum, spires: spires / sum)
+        w.rough = max(0, min(1, 0.5 + shapeN.noise2(x / 260 + 40, z / 260 - 17)))
+        let wx = x + shapeN.noise2(x / 90, z / 90 + 9) * 40, wz = z + shapeN.noise2(x / 90 + 23, z / 90) * 40
+        let n = abs(d1.noise2(wx / 240 + 101, wz / 240 - 55))
+        w.rift = n < 0.06 ? (1 - n / 0.06) * 2.2 : 0
+        return w
+    }
+
+    // The spires that can reach into a chunk (a jittered 22-block grid; one stands only on ground reaching y 46, so none
+    // hangs in the air over the lava sea; they rise from y 40, the only change under y 64).
+    func spires(cx: Int, cz: Int) -> [Spire] {
+        guard lands else { return [] }
+        let G = 22, bx = cx * CS, bz = cz * CS
+        var out: [Spire] = []
+        for b in floorDiv(bz - 12, G)...floorDiv(bz + CS + 12, G) { for a in floorDiv(bx - 12, G)...floorDiv(bx + CS + 12, G) {
+            let sx = (Float(a) + 0.2 + 0.6 * hashf(a, 1, b, s32 ^ 0x5F1)) * Float(G)
+            let sz = (Float(b) + 0.2 + 0.6 * hashf(a, 2, b, s32 ^ 0x5F1)) * Float(G)
+            let w = landW(sx, sz)
+            guard hashf(a, 7, b, s32 ^ 0x5F1) < w.spires * 0.85 + 0.04, w.rift < 0.5, shapeDensity(sx, 46, sz, w) > 0 else { continue }
+            out.append(Spire(x: sx, z: sz, r: 4.5 + 5 * hashf(a, 3, b, s32 ^ 0x5F1), top: 100 + 70 * hashf(a, 4, b, s32 ^ 0x5F1)))
+        } }
+        return out
+    }
+
+    private func shapeDensity(_ x: Float, _ y: Float, _ z: Float, _ w: LandW) -> Float {
         let top = Float(height)
-        let ys = y <= 64 ? y : 64 + (y - 64) * 64 / (top - 64)              // the shape's y (0...128)
-        var d = d1.noise3(x / 72, ys / 36, z / 72) * 0.9 + d2.noise3(x / 24, ys / 16, z / 24) * 0.35
+        var ys = y <= 64 ? y : 64 + (y - 64) * 64 / (top - 64)              // the shape's y (0...128)
+        var rough: Float = 0
+        if lands && y > 64 {
+            let up = EmberGen.smooth(64, 80, y)
+            if w.plains > 0.01 {
+                let st: Float = 12, q = floorf(ys / st), f = ys / st - q
+                let stepped = (q + EmberGen.smooth(0.6, 1, f)) * st
+                ys += (stepped - ys) * w.plains * 0.9 * up
+            }
+            rough = w.rough * up
+        }
+        var d = d1.noise3(x / 72, ys / 36, z / 72) * 0.9 + d2.noise3(x / 24, ys / 16, z / 24) * 0.35 * (1 + rough * 0.8)
+        if rough > 0 { d += shapeN.noise3(x / 9, ys / 7, z / 9) * 0.22 * rough }
         // Solid near the floor and roof, open in the middle.
         let fromMid = (ys - 64) / 64
         d += fromMid * fromMid * 1.1 - 0.12
@@ -62,6 +121,21 @@ final class EmberGen: TerrainGenerator {
         // A taller band also opens up over the shores: the rock thins into great halls and spires between the lava
         // sea and a roof far overhead (nothing changes below y 64).
         if top > 128 && ys > 64 { d -= sinf(min(1, (ys - 64) / 62) * .pi) * 0.85 }
+        return d
+    }
+
+    private func density(_ x: Float, _ y: Float, _ z: Float, _ w: LandW, _ sp: [Spire]) -> Float {
+        var d = shapeDensity(x, y, z, w)
+        guard lands && y > 40 else { return d }
+        var best: Float = 0
+        for s in sp where y < s.top {
+            let dx = x - s.x, dz = z - s.z
+            let r = s.r * powf(min(1, 1 - (y - 64) / (s.top - 64)), 0.9) + 0.5
+            let d2 = dx * dx + dz * dz
+            if d2 < r * r { best = max(best, (1 - d2.squareRoot() / r) * 1.6 + 0.25) }
+        }
+        d += best
+        if w.rift > 0 { d -= w.rift * EmberGen.smooth(60, 76, y) }
         return d
     }
 
@@ -95,9 +169,11 @@ final class EmberGen: TerrainGenerator {
         let H = height
         let lx = 5, ly = H / 8 + 1, lz = 5
         var lat = [Float](repeating: 0, count: lx * ly * lz)
-        for k in 0..<lz { for j in 0..<ly { for i in 0..<lx {
-            lat[i + j * lx + k * lx * ly] = density(Float(bx + i * 4), Float(j * 8), Float(bz + k * 4))
-        } } }
+        let sp = spires(cx: cx, cz: cz)
+        for k in 0..<lz { for i in 0..<lx {
+            let w = landW(Float(bx + i * 4), Float(bz + k * 4))
+            for j in 0..<ly { lat[i + j * lx + k * lx * ly] = density(Float(bx + i * 4), Float(j * 8), Float(bz + k * 4), w, sp) }
+        } }
         let netherrack = NETHERRACK, lava = LAVA, bedrock = cap
         for z in 0..<CS {
             for x in 0..<CS {
@@ -185,9 +261,11 @@ final class EmberGen: TerrainGenerator {
         let bx = cx * CS, bz = cz * CS
         let lx = 5, ly = height / 8 + 1, lz = 5
         var lat = [Float](repeating: 0, count: lx * ly * lz)
-        for k in 0..<lz { for j in 0..<ly { for i in 0..<lx {
-            lat[i + j * lx + k * lx * ly] = density(Float(bx + i * 4), Float(j * 8), Float(bz + k * 4))
-        } } }
+        let sp = spires(cx: cx, cz: cz)
+        for k in 0..<lz { for i in 0..<lx {
+            let w = landW(Float(bx + i * 4), Float(bz + k * 4))
+            for j in 0..<ly { lat[i + j * lx + k * lx * ly] = density(Float(bx + i * 4), Float(j * 8), Float(bz + k * 4), w, sp) }
+        } }
         return lat
     }
     @inline(__always) func latticeD(_ lat: [Float], _ x: Int, _ y: Int, _ z: Int) -> Float {

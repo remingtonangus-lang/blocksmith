@@ -338,6 +338,13 @@ enum RailwayTests {
         let moved = simd_length(coach.pos - start)
         let carried = g.riding === coach && simd_length(g.player.pos - Trains.seat(coach)) < 0.1
         check(moved > 20 && carried, String(format: "C1 riding: the coach carried the player %.0f blocks in 40 s (seated %@)", moved, carried ? "yes" : "no"))
+        // P505: the engine in front faces the way the train runs; the one behind is the train's end (tail lamps lit).
+        if let lead = Trains.lead(tr), let back = (tr.dir > 0 ? tr.cars.last : tr.cars.first), lead !== back {
+            let way = simd_dot(lead.forward, coach.vel)
+            check(way > 0 && !Trains.isTrailing(lead) && Trains.isTrailing(back) && Trains.isEngine(back),
+                  String(format: "C1 engines: the leading engine faces the run (%.2f), the trailing one shows the tail lamps (%@)", way,
+                         Trains.isTrailing(back) ? "yes" : "no"))
+        }
         g.dismount()
         // A hold-up: a gun on the driver stops it.
         if Items.has("six_iron") { g.inventory.held = ItemStack(Items.id("six_iron"), 1) }

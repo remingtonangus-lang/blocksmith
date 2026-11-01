@@ -128,6 +128,9 @@ enum MobVoice {
         case .elk: return Profile(family: .trill, f0: 880, size: 1.3)
         case .bison: return Profile(family: .grunt, f0: 85, size: 1.7)
         case .boar: return Profile(family: .snort, f0: 190, size: 0.9)
+        case .cinderhorn: return Profile(family: .grunt, f0: 62, size: 1.9)            // P506
+        case .emberAsp: return Profile(family: .hiss, f0: 1500, size: 0.4)
+        case .slagmaw: return Profile(family: .hiss, f0: 60, size: 1.8)
         }
     }
 

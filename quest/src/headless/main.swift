@@ -2028,6 +2028,8 @@ if CommandLine.arguments.contains("--locatecheck") {
     // P504 (Nov 1 09:33, "I want 'rare' and 'bases' to show the nearest anything regardless of if it's nearby or not
     // including capital citadels and cities, or a crawler, a train or frigate"): a line for every kind, however far.
     for (cmd, kinds) in [("bases", 9), ("rare", 8)] {
+        // (A place found again replaces its earlier line in the log, P456: the /locate lines above came out of it.)
+        game.commandLog.removeAll()
         let n0 = game.commandLog.count
         let t0 = CFAbsoluteTimeGetCurrent()
         game.command("/\(cmd)")
@@ -2357,6 +2359,7 @@ if CommandLine.arguments.contains("--posecheck-only") {
 }
 // Hell's own mobs and the gate into hell (Sources/HellMobsTests.swift); --hell-only stops after them.
 HellMobsTests.run(game, check: check)
+HellWildTests.run(game, check: check)                  // P506: hell's wildlife (Sources/HellWild.swift)
 if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
     print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }

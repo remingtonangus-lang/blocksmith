@@ -13,6 +13,10 @@ extension Renderer {
     static let spireRange: Float = 1800               // a 170-block shaft is a sliver beyond this
     static var spireList: [V4] = []                // x, base y, z, height (refreshed every 2 s)
     static var spireAt: Double = -10
+    // P505 (the coordinator, Nov 1 15:41, from the trailer review: "the far landmark stand-ins float above the horizon in
+    // normal play, as grey L-slabs, distant buildings and an orange slab"): the scene's fog reach (start, end) as the
+    // Quest draws it this frame (WorldRenderer). The far boxes take at least the haze the ground under them has.
+    static var sceneFog: (start: Float, end: Float)?
 
     // P483 (Oct 28 17:35, at a frigate's helm: "the compressed background should show the citadel I'm going to try to
     // hit... It's gonna be much harder for me to hit it now because I can't see it"): the Capital's citadels stand on the
@@ -82,6 +86,17 @@ extension Renderer {
         let hdrK: Float = hdrActive ? 1.6 : 1
         let place: Float = far * 0.93
         var smoke = landmarkSmoke
+        // P505: a far box (a town's buildings, a base's walls, a citadel) is hazed at least as the land it stands on: by
+        // the scene's fog (the ring's ground, at its true depth) and, past it, the horizon ground's own haze, less a
+        // margin so its outline still shows. It was hazed less than both (0.3 against the ground's 0.8 to 0.97), so
+        // solid boxes stood on a fog-coloured band and read as hanging in the air. By night it darkens with the land:
+        // its light had a fixed floor (0.44), and a white citadel glowed over the black country (the snow-base shot).
+        func landHaze(_ dist: Float, _ own: Float, margin: Float) -> Float {
+            let ground: Float = 0.8 + 0.17 * Terrain.smooth(loaded, HorizonRing.range, dist)
+            guard let f = Renderer.sceneFog, f.end > f.start + 0.5 else { return max(own, ground - margin) }
+            return max(own, min(Terrain.smooth(f.start, f.end, dist), ground - margin))
+        }
+        let nightK: Float = 0.12 + 0.88 * day
         landmarkSmoke = []                       // uniquely held now: removeAll keeps the buffer instead of copying it
         smoke.removeAll(keepingCapacity: true)
         // Every impostor vertex goes onto a shell just inside the far plane, along its own direction (same size on
@@ -243,7 +258,7 @@ extension Renderer {
                 let b0 = V3(sp.x + cosf(a0) * r, sp.y - 2, sp.z + sinf(a0) * r), b1 = V3(sp.x + cosf(a1) * r, sp.y - 2, sp.z + sinf(a1) * r)
                 let t0 = V3(b0.x, top0, b0.z), t1 = V3(b1.x, top1, b1.z)
                 let n = simd_normalize(V3(cosf((a0 + a1) / 2), 0, sinf((a0 + a1) / 2)))
-                let lit: Float = 0.32 + 0.68 * max(0, simd_dot(n, sun)) * day + 0.08
+                let lit: Float = (0.32 + 0.68 * max(0, simd_dot(n, sun)) * day + 0.08) * nightK
                 let c = V4(grey * lit * hdrK * (1 - haze) + fog * haze, 1)
                 tri(p(b0), p(b1), p(t1), c, &out); tri(p(b0), p(t1), p(t0), c, &out)
                 // A fog-coloured skirt under the foot: past the loaded terrain the shaft hung over the horizon haze
@@ -261,7 +276,7 @@ extension Renderer {
         for ct in citadelCache(game) {
             let dist = simd_length(V2(ct.x - eye.x, ct.z - eye.z))
             guard dist > loaded + 16, dist < Renderer.citadelRange else { continue }
-            let haze: Float = 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.citadelRange, dist)
+            let haze: Float = landHaze(dist, 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.citadelRange, dist), margin: 0.22)
             let near = dist + 60 < place * 0.9
             func p(_ w: V3) -> V4 { at(w, near) }
             let y0 = ct.y + 1
@@ -274,13 +289,13 @@ extension Renderer {
                 let faces: [(V3, V3, V3)] = [(V3(1, 0, 0), V3(0, 0, 1), V3(h, 0, 0)), (V3(-1, 0, 0), V3(0, 0, -1), V3(-h, 0, 0)),
                                              (V3(0, 0, 1), V3(-1, 0, 0), V3(0, 0, h)), (V3(0, 0, -1), V3(1, 0, 0), V3(0, 0, -h))]
                 for (n, along, off) in faces {
-                    let lit: Float = 0.38 + 0.62 * max(0, simd_dot(n, sun)) * day + 0.06
+                    let lit: Float = (0.38 + 0.62 * max(0, simd_dot(n, sun)) * day + 0.06) * nightK
                     let k = V4(col * lit * hdrK * (1 - haze) + fog * haze, 1)
                     let a = c + off - along * h, b = c + off + along * h
                     let a0 = V3(a.x, y0 + lo, a.z), b0 = V3(b.x, y0 + lo, b.z), a1 = V3(a.x, y0 + hi, a.z), b1 = V3(b.x, y0 + hi, b.z)
                     tri(p(a0), p(b0), p(b1), k, &out); tri(p(a0), p(b1), p(a1), k, &out)
                 }
-                let roof = V4(col * (0.5 + 0.5 * day) * hdrK * (1 - haze) + fog * haze, 1)
+                let roof = V4(col * (0.5 + 0.5 * day) * nightK * hdrK * (1 - haze) + fog * haze, 1)
                 let r0 = V3(c.x - h, y0 + hi, c.z - h), r1 = V3(c.x + h, y0 + hi, c.z - h), r2 = V3(c.x + h, y0 + hi, c.z + h), r3 = V3(c.x - h, y0 + hi, c.z + h)
                 tri(p(r0), p(r2), p(r1), roof, &out); tri(p(r0), p(r3), p(r2), roof, &out)
             }
@@ -292,17 +307,18 @@ extension Renderer {
         _ = townCache(game)
         for bx in Renderer.townBoxes {
             // (down into the middle ring's coarse ground)
-            let lo = V3(Float(bx.min.x), Float(bx.min.y - 6), Float(bx.min.z)), hi = V3(Float(bx.max.x + 1), Float(bx.max.y + 1), Float(bx.max.z + 1))
+            // (P505: 14 down, into a hillside's fall)
+            let lo = V3(Float(bx.min.x), Float(bx.min.y - 14), Float(bx.min.z)), hi = V3(Float(bx.max.x + 1), Float(bx.max.y + 1), Float(bx.max.z + 1))
             let ox = max(lo.x - eye.x, eye.x - hi.x, 0), oz = max(lo.z - eye.z, eye.z - hi.z, 0)
             let dist = (ox * ox + oz * oz).squareRoot()                 // to its nearest corner: none of it on loaded land
             guard dist > loaded + 2, dist < Renderer.campSmokeRange else { continue }
-            let haze: Float = 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.campSmokeRange, dist)
+            let haze: Float = landHaze(dist, 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.campSmokeRange, dist), margin: 0.1)
             let col = tones[Int(bx.tone.rawValue)]
             let near = dist + 40 < place * 0.9
             func p(_ w: V3) -> V4 { at(w, near) }
             func wall(_ n: V3, _ a: V3, _ b: V3) {
                 guard simd_dot(n, eye - a) > 0 else { return }
-                let lit: Float = 0.38 + 0.62 * max(0, simd_dot(n, sun)) * day + 0.06
+                let lit: Float = (0.38 + 0.62 * max(0, simd_dot(n, sun)) * day + 0.06) * nightK
                 let k = V4(col * lit * hdrK * (1 - haze) + fog * haze, 1)
                 let a1 = V3(a.x, hi.y, a.z), b1 = V3(b.x, hi.y, b.z)
                 tri(p(a), p(b), p(b1), k, &out); tri(p(a), p(b1), p(a1), k, &out)
@@ -312,7 +328,7 @@ extension Renderer {
             wall(V3(0, 0, 1), V3(hi.x, lo.y, hi.z), V3(lo.x, lo.y, hi.z))
             wall(V3(0, 0, -1), V3(lo.x, lo.y, lo.z), V3(hi.x, lo.y, lo.z))
             if eye.y > hi.y {
-                let roof = V4(col * (0.5 + 0.5 * day) * hdrK * (1 - haze) + fog * haze, 1)
+                let roof = V4(col * (0.5 + 0.5 * day) * nightK * hdrK * (1 - haze) + fog * haze, 1)
                 let r0 = V3(lo.x, hi.y, lo.z), r1 = V3(hi.x, hi.y, lo.z), r2 = V3(hi.x, hi.y, hi.z), r3 = V3(lo.x, hi.y, hi.z)
                 tri(p(r0), p(r2), p(r1), roof, &out); tri(p(r0), p(r3), p(r2), roof, &out)
             }

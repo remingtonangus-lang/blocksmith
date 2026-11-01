@@ -338,6 +338,7 @@ final class WorldRenderer {
         stage(9)
         if !skip.contains("ships") { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         stage(10)
+        Renderer.sceneFog = (u.fogColor.w, u.params.x)          // (P505: the far boxes hazed as the ground under them)
         if !skip.contains("landmarks") { drawLandmarks(s, eye, far: cam.far, fogColor: V3(u.fogColor.x, u.fogColor.y, u.fogColor.z)) }
         stage(11)
         if !skip.contains("mobs") { drawMobs(s, eye, frustum) }

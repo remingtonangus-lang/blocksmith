@@ -9,7 +9,8 @@ import simd
 //              (the bed's width, the platform's edge beside it), about 4 tall and 10 to 14 long, on wheels that run on
 //              the main-line rails 1.44 apart (ShapeRails.mainGauge). The Ash Vault's armoured trains keep their size.
 //   Engines    a coal-fired steam locomotive and its tender at each end of the train, the rear pair turned round, so the
-//              train runs either way with an engine leading and no car ever runs backwards at a terminus.
+//              train runs either way with an engine leading and no car ever runs backwards at a terminus. (P505: the
+//              trailing engine shows red tail lamps and a dark headlamp, so it reads as the train's end: isTrailing.)
 //   Kinds      by the line and the day: a passenger train (two coaches you can walk through and sit in, the express
 //              car with the strongbox), a freight train (boxcars, a tank wagon, a flatcar of logs; a held-up train's
 //              boxcars can be opened), or a Greywall troop train (armoured engines, two troop cars with soldiers at their
@@ -97,6 +98,14 @@ extension Trains {
     // The locomotive at the front of the train, the way it runs now.
     static func lead(_ tr: Train) -> Mob? { tr.layout.isEmpty || tr.dir > 0 ? tr.cars.first : tr.cars.last }
     static func isEngine(_ m: Mob) -> Bool { m.variant == loco || m.variant == armouredLoco }
+    // P505 (the coordinator, Nov 1 15:41: the rear engine "faces backwards by design ... make it read right to a player"):
+    // the engine at the tail as the train runs now. It is the train's end, so it shows the red tail lamps on its buffer
+    // beam and its headlamp is dark; the leading engine's lamp is lit and its chimney smokes (Trains.smoke). At the
+    // terminus the two swap: the train runs back with the other engine leading, as a top-and-tail train does.
+    static func isTrailing(_ m: Mob) -> Bool {
+        guard isEngine(m), let (tr, _) = carOf[ObjectIdentifier(m)], tr.cars.count > 1 else { return false }
+        return lead(tr) !== m
+    }
 
     // MARK: Building a real-size train
 
@@ -224,7 +233,7 @@ extension Trains {
         let iron = V3(0.16, 0.16, 0.17), brass = V3(0.85, 0.66, 0.3), red = V3(0.55, 0.1, 0.08), black = V3(0.07, 0.07, 0.075)
         let freight = m.livery == 1
         var p: [Part] = []
-        let run = m.walkPhase
+        let run = m.walkPhase, tail = isTrailing(m)
         func wheel(_ z: Float, _ r: Float, _ c: V3) {
             for x: Float in [-3.4, 2.4] {
                 p.append(Part(mn: V3(x, 0.05, z - r), mx: V3(x + 1, 0.05 + 2 * r, z + r), pivot: V3(x, 0.05 + r, z), rotX: -run * 4 / r, color: c, pattern: 8))
@@ -263,7 +272,8 @@ extension Trains {
             p.append(box(-2.8, 8.6, -23.8, 5.6, 5.6, 0.5, V3(0.12, 0.12, 0.13), 8))
             p.append(box(-0.3, 11, -24.1, 0.6, 0.6, 0.4, brass, 8))
             p.append(box(-1, 15, -23.2, 2, 1.8, 1.6, iron, 8))                      // the headlamp
-            p.append(box(-0.7, 15.3, -23.45, 1.4, 1.2, 0.3, V3(1, 0.95, 0.7), 9))
+            p.append(box(-0.7, 15.3, -23.45, 1.4, 1.2, 0.3, tail ? V3(0.2, 0.2, 0.18) : V3(1, 0.95, 0.7), tail ? 8 : 9))
+            if tail { for x: Float in [-5.4, 3.8] { p.append(box(x, 6.1, -24.5, 1.6, 1.6, 0.8, V3(1, 0.1, 0.06), 9)) } }   // the tail lamps
             p.append(box(-1.4, 14.6, -21.8, 2.8, 2.6, 2.8, smoke, 8))              // the chimney
             p.append(box(-1.8, 17.2, -22.2, 3.6, 0.6, 3.6, smoke, 8))
             p.append(box(-1.6, 14.8, -10, 3.2, 1.8, 3.2, brass, 8))                // the steam dome
@@ -391,7 +401,8 @@ extension Trains {
             p.append(box(-4, 15, -18.3, 8, 0.6, 0.4, V3(0.03, 0.03, 0.03), 11))    // the vision slit
             p.append(box(-6.1, 10, -22, 12.2, 0.8, 44, band, 7))                   // the band
             p.append(box(-1.2, 16.6, 6, 2.4, 1.6, 2.4, dark, 8))                   // the exhaust
-            p.append(box(-1, 9.6, -24.7, 2, 1.4, 0.4, V3(1, 0.95, 0.7), 9))       // the headlamp
+            p.append(box(-1, 9.6, -24.7, 2, 1.4, 0.4, tail ? V3(0.2, 0.2, 0.18) : V3(1, 0.95, 0.7), tail ? 8 : 9))       // the headlamp
+            if tail { for x: Float in [-5.2, 3.6] { p.append(box(x, 9.4, -24.9, 1.6, 1.6, 0.6, V3(1, 0.1, 0.06), 9)) } }   // the tail lamps
         case gunCar:
             let plate = V3(0.3, 0.31, 0.27), dark = V3(0.15, 0.15, 0.14), band = V3(0.62, 0.6, 0.52)
             bogie(-15); bogie(15)

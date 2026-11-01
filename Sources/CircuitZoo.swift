@@ -825,7 +825,7 @@ enum CircuitZoo {
             let cx = bx + (i % 10) * 32, cz = bz + (i / 10) * 32
             _ = w.loadSync(center: V3(Float(cx), p0.y, Float(cz)), radius: 3)
             var top = SEA
-            for x in stride(from: -16, through: 16, by: 4) { for z in stride(from: -16, through: 16, by: 4) { top = max(top, w.topY(cx + x, cz + z)) } }
+            for x in stride(from: -48, through: 48, by: 6) { for z in stride(from: -48, through: 48, by: 6) { top = max(top, w.topY(cx + x, cz + z)) } }
             let z = Z(g, IVec3(cx, min(CH - 24, top + 8), cz), i)
             let r = c.run(z)
             if !r.0 { print("circuitzoo \(i) pad: \(z.dump())") }

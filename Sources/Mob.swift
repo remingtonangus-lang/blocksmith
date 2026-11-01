@@ -33,6 +33,7 @@ enum MobKind: Int, CaseIterable {
     case ashBehemoth, ashChancellor    // the last war (AshFinal.swift): the super-heavy tank and the Ash Chancellor
     case cougar, rattlesnake, alligator   // D14 frontier predators (Predators.swift)
     case deer, elk, bison, boar           // D45 big game in herds (HerdGame.swift)
+    case cinderhorn, emberAsp, slagmaw    // P506 hell's wildlife (HellWild.swift)
 
     struct Spec {
         var name: String
@@ -147,9 +148,9 @@ enum MobKind: Int, CaseIterable {
             return militarySpec
         case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashMarshal, .ashBehemoth, .ashChancellor:
             return ashSpec
-        case .cougar, .rattlesnake, .alligator:
+        case .cougar, .rattlesnake, .alligator, .emberAsp, .slagmaw:
             return predatorSpec
-        case .deer, .elk, .bison, .boar:
+        case .deer, .elk, .bison, .boar, .cinderhorn:
             return herdSpec
         case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower:
             return hellSpec
@@ -266,6 +267,7 @@ enum MobKind: Int, CaseIterable {
         .searwing: "searwing", .scorchling: "scorchling", .slagthrower: "slagthrower",
         .cougar: "cougar", .rattlesnake: "rattlesnake", .alligator: "alligator",
         .deer: "deer", .elk: "elk", .bison: "bison", .boar: "boar",
+        .cinderhorn: "cinderhorn", .emberAsp: "ember_asp", .slagmaw: "slagmaw",
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -1877,6 +1879,8 @@ private func parts(_ m: Mob) -> [Part] {
         return hellParts(m, swing: swing)
     case .cougar, .rattlesnake, .alligator:
         return predatorParts(m, swing: swing)
+    case .cinderhorn, .emberAsp, .slagmaw:
+        return hellWildParts(m, swing: swing)
     case .deer, .elk, .bison, .boar:
         return herdParts(m, swing: swing)
     case .copperGolem:
@@ -2937,6 +2941,8 @@ final class MobManager {
         let spawnPos = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
         if !game.spawnHidden(spawnPos, min: 32) { return }                      // P307 (a): never in sight
         let inFortress = w.gen.structures?.structure(at: x, y, z, kind: "fortress") != nil && BrandChapterhouse.isFloor(w.materialAt(x, y - 1, z))
+        // P506: hell's wildlife by land (HellWild.swift): herds of Cinderhorns, Ember Asps, Slagmaws by the lava.
+        if !inFortress && HellWild.spawn(game, at: spawnPos, land: w.gen.column(x, z).biome) { return }
         _ = hellOwnSpawn(game, at: spawnPos, lean: inFortress ? [45, 20, 35, 0] : MobManager.hellLean(w.gen.column(x, z).biome), always: true)
     }
 

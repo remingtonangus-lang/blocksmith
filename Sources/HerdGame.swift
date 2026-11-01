@@ -13,7 +13,8 @@ import simd
 // Herds keep together (a straggler more than 9 blocks from the herd's middle walks back). All four are game animals
 // (Hunting.swift): pelts by quality, gamey meat, and a trophy (antlers, horns, tusks).
 extension MobKind {
-    var herdGame: Bool { self == .deer || self == .elk || self == .bison || self == .boar }
+    var herdGame: Bool { self == .deer || self == .elk || self == .bison || self == .boar || self == .cinderhorn }
+    var bisonLike: Bool { self == .bison || self == .cinderhorn }      // P506: the Cinderhorn's herd lives as the bison's
 
     var herdSpec: Spec {
         switch self {
@@ -26,6 +27,9 @@ extension MobKind {
         case .bison:
             return Spec(name: "Bison", halfW: 0.8, height: 1.8, health: 40, speed: 2.4, behavior: .animal, attack: 7,
                         drops: [("game_meat", 3, 5), ("leather", 1, 3)], xp: 6, call: .mob(self, .ambient))
+        case .cinderhorn:                                         // P506 (HellWild.swift)
+            return Spec(name: "Cinderhorn", halfW: 0.75, height: 1.6, health: 44, speed: 2.4, behavior: .animal, attack: 7,
+                        drops: [("game_meat", 2, 4), ("leather", 1, 2)], xp: 7, call: .mob(self, .ambient), fireImmune: true)
         default:
             return Spec(name: "Boar", halfW: 0.45, height: 0.9, health: 16, speed: 2.6, behavior: .animal, attack: 4,
                         drops: [("porkchop", 1, 3), ("game_meat", 0, 1)], xp: 4, call: .mob(self, .ambient))
@@ -35,7 +39,7 @@ extension MobKind {
 
 enum HerdGame {
     static var spooks = 0, charges = 0, gores = 0            // (harness)
-    static func spookRange(_ k: MobKind) -> Float { k == .deer ? 18 : (k == .elk ? 14 : (k == .bison ? 7 : 0)) }
+    static func spookRange(_ k: MobKind) -> Float { k == .deer ? 18 : (k == .elk ? 14 : (k.bisonLike ? 7 : 0)) }
 }
 
 extension Mob {
@@ -57,7 +61,8 @@ extension Mob {
             moving = true
             if attackCooldown <= 0 && dist < halfW + 1.4 {
                 attackCooldown = 1.2
-                g.hurtPlayer(spec.attack, from: pos, cause: "was gored by a \(spec.name)", knockback: kind == .bison ? 1.2 : 0.7, attacker: self)
+                g.hurtPlayer(spec.attack, from: pos, cause: "was gored by a \(spec.name)", knockback: kind.bisonLike ? 1.2 : 0.7, attacker: self)
+                if kind == .cinderhorn && !g.effects.has(.fireResistance) { g.onFire = max(g.onFire, 2) }     // (P506: hot horns)
                 HerdGame.gores += 1
                 circleAngle = min(circleAngle, 0.4)
             }
@@ -67,13 +72,13 @@ extension Mob {
             }
             return spec.speed * 1.5
         }
-        let fights = kind == .boar || ((kind == .bison || kind == .elk) && bull)
+        let fights = kind == .boar || ((kind.bisonLike || kind == .elk) && bull)
         let provoked = aggro || wasHit
         if fights && canTarget && dist < 16 && fleeTime <= 0 && (provoked || (kind == .boar && dist < 4)) {
             phase = 1; circleAngle = 3; wasHit = false
             HerdGame.charges += 1
             g.sfx(.mob(kind, .ambient), 1, at: pos)
-            if kind == .bison { spookHerd(g, from: p) }          // the rest stampede
+            if kind.bisonLike { spookHerd(g, from: p) }          // the rest stampede
             return spec.speed
         }
         // Spooked: a player too close, or a hit.

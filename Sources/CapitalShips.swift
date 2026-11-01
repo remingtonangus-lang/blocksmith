@@ -2494,7 +2494,13 @@ extension ShipManager {
         if st.phase == 1 || st.phase >= 4 {
             let lo = s.localMin, hi = s.localMax
             // (P504: three seconds ahead, time to slow and climb; it took a second and a half to turn its speed over)
-            let ahead = V3(s.vel.x, 0, s.vel.z) * 3
+            var ahead = V3(s.vel.x, 0, s.vel.z) * 3
+            // (P505: and never less than 16 blocks the way it means to go. Slowed to a hover at a tower's foot, it looked
+            // only a block or two ahead, lost the tower, sped on and clipped its face: 12 ticks in the dropflight tower.)
+            var way = V2(s.vel.x, s.vel.z)
+            if st.phase == 1 { way = V2(st.dropPoint.x - s.pos.x, st.dropPoint.z - s.pos.z) }
+            let wl = simd_length(way)
+            if wl > 0.01 { let u = way / wl, n = max(16, simd_length(V2(ahead.x, ahead.z))); ahead = V3(u.x, 0, u.y) * n }
             for c in [V3(lo.x, 0, lo.z), V3(hi.x, 0, lo.z), V3(lo.x, 0, hi.z), V3(hi.x, 0, hi.z), (lo + hi) * 0.5] {
                 for a in [V3(0, 0, 0), ahead * 0.25, ahead * 0.5, ahead * 0.75, ahead] {        // (P499: and on the way, at a chase's speed)
                     let w = s.toWorld(c) + a
