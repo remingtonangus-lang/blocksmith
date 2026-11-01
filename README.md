@@ -17,5 +17,5 @@ Fixed since the first cut (his notes of Oct 31 20:22 and the overseer's):
 - The cabin's roof goes up as solid courses; nothing hangs or falls.
 - Stills picked away from the solid-ball explosions and pixel smoke; the battle is filmed away from the dark trench.
 
-Known: the thin line under the frigate is its boarding ladder; the strike is still filmed low until the crater-floor
-fix (PR #645) lands, then it gets re-shot from higher.
+Known: the thin line under the frigate is its boarding ladder. The strike is now filmed from above (crater floor fixed
+in PR #645): the burning crater shows, no sky through it.
