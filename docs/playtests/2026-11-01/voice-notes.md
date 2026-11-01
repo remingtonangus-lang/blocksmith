@@ -1,6 +1,6 @@
 # Voice bug notes 2026-11-01 (Quest)
 
-Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 250 notes.
+Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 397 notes.
 
 ## 07:25:09 - A few bad tree malfunctions here. This tree should have fallen
 
@@ -5869,3 +5869,3436 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 - **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-124022-118.aac
 
 ![12:40:22](voice-shots/vn-20261101-124022-118.jpg)
+
+## 15:38:23 - Plane's handling in the Nazi land is too poor
+
+- **Transcript:** Plane's handling in the Nazi land is too poor
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Hell
+- **Biome:** Ash Vault
+- **Position:** 3230.8 -33.6 -3042.1
+- **Facing:** east (yaw 103, pitch -53)
+- **Held:** Faustrohr x1
+- **Mount:** on foot
+- **Looking at:** Grass Block at 3233 -36 -3042
+- **Mode:** Creative, health 11/20
+- **Time:** day 7 11:56, clear
+- **Fps:** 72
+- **Levels:** mic -25 dBFS, game sound -19 dBFS
+- **Length:** 4.3 s (voice 2.6 s)
+- **Just before:** -29s closed PauseMenu; -29s message: Playtest build: voice bug notes ON, your speech is saved (Options > Interface); -28s into the pack: Field Stim; -26s message: The Chancellor, over the loudspeakers: "Seal the bunker! Nobody opens the blast door in the command post!"; -22s message: Walking; -20s holding Track Spares; -15s message: Flying; -14s message: Walking; -13s holding Spruce Log; -13s holding Faustrohr; -12s piloting Salvaged Fighter; -12s holding empty hand; -12s message: Steering Salvaged Fighter; -0s stopped piloting Salvaged Fighter; -0s holding Faustrohr
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 3230.8 --z -3042.1 --yaw -103 --pitch -53 --time 0.247 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-153823-563.aac
+
+![15:38:23](voice-shots/vn-20261101-153823-563.jpg)
+
+## 15:38:30 - Also, we need more music for down here
+
+- **Transcript:** Also, we need more music for down here
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** Quest World (seed 5663059916303033239)
+- **Dimension:** Hell
+- **Biome:** Ash Vault
+- **Position:** 3231.0 -33.7 -3042.6
+- **Facing:** north (yaw 340, pitch -13)
+- **Held:** Faustrohr x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 11/20
+- **Time:** day 7 11:59, clear
+- **Fps:** 72
+- **Levels:** mic -30 dBFS, game sound -19 dBFS
+- **Length:** 3.1 s (voice 1.5 s)
+- **Just before:** -29s message: Walking; -26s holding Track Spares; -22s message: Flying; -20s message: Walking; -19s holding Spruce Log; -19s holding Faustrohr; -19s piloting Salvaged Fighter; -19s holding empty hand; -19s message: Steering Salvaged Fighter; -7s stopped piloting Salvaged Fighter; -7s holding Faustrohr; -5s message: Flying; -4s opened PauseMenu; -0s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 5663059916303033239 --x 3231.0 --z -3042.6 --yaw 20 --pitch -13 --time 0.250 --dim deep`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-153830-084.aac
+
+## 15:39:07 - A Grey Wolf dispatch? That's crazy
+
+- **Transcript:** A Grey Wolf dispatch? That's crazy
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** -395.2 78.0 4047.2
+- **Facing:** east (yaw 104, pitch -21)
+- **Held:** Greywall Dispatch x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen BookMenu
+- **Time:** day 1 07:54, clear
+- **Fps:** 72
+- **Levels:** mic -25 dBFS, game sound -21 dBFS
+- **Length:** 3.3 s (voice 1.2 s)
+- **Just before:** -25s opened PauseMenu; -24s closed PauseMenu; -24s message: Playtest build: voice bug notes ON, your speech is saved (Options > Interface); -23s into the pack: Field Stim; -21s message: The Chancellor, over the loudspeakers: "Seal the bunker! Nobody opens the blast door in the command post!"; -17s message: Walking; -15s holding Track Spares; -10s message: Flying; -9s message: Walking; -8s holding Spruce Log; -8s holding Faustrohr; -8s piloting Salvaged Fighter; -8s holding empty hand; -7s message: Steering Salvaged Fighter; --5s stopped piloting Salvaged Fighter; --5s holding Faustrohr; --6s message: Flying; --8s opened PauseMenu; --11s closed PauseMenu; --13s message: Walking; --14s opened PauseMenu; --15s message: Flying; -25s entered Surface; -25s closed PauseMenu; -25s holding Greywall Dispatch; -25s message: In Clear Ford's jail safe: a Greywall Dispatch; -25s message: In Clear Ford's jail safe: a Greywall Dispatch. Added to journal: Who Holds the Frontier; -22s opened PauseMenu; -21s message: Spring: the snow melts and the young are born; -20s closed PauseMenu; -19s message: Creative mode; -17s message: Flying; -17s opened PauseMenu; -17s closed PauseMenu; -10s message: Walking; -1s holding empty hand; -1s holding Greywall Dispatch; -1s message: Greywall Dispatch; -1s opened BookMenu; -1s message: Greywall Garrison marked on the map. Added to journal: Greywall Dispatch
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -395.2 --z 4047.2 --yaw -104 --pitch -21 --time 0.079`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-153907-903.aac
+
+![15:39:07](voice-shots/vn-20261101-153907-903.jpg)
+
+## 15:39:16 - Oh, another five hundred
+
+- **Transcript:** Oh, another five hundred
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** -157.1 100.1 4111.3
+- **Facing:** south-east (yaw 140, pitch -8)
+- **Held:** Written Book x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:04, clear
+- **Fps:** 71
+- **Levels:** mic -28 dBFS, game sound -25 dBFS
+- **Length:** 2.7 s (voice 1.1 s)
+- **Just before:** -19s message: Flying; -17s message: Walking; -16s holding Spruce Log; -16s holding Faustrohr; -16s piloting Salvaged Fighter; -16s holding empty hand; -16s message: Steering Salvaged Fighter; -4s stopped piloting Salvaged Fighter; -4s holding Faustrohr; -2s message: Flying; -1s opened PauseMenu; --3s closed PauseMenu; --5s message: Walking; --6s opened PauseMenu; --6s message: Flying; -30s message: Spring: the snow melts and the young are born; -29s closed PauseMenu; -27s message: Creative mode; -26s message: Flying; -25s opened PauseMenu; -25s closed PauseMenu; -19s message: Walking; -10s holding empty hand; -10s holding Greywall Dispatch; -10s message: Greywall Dispatch; -9s opened BookMenu; -9s message: Greywall Garrison marked on the map. Added to journal: Greywall Dispatch; -8s closed BookMenu; -6s message: Greywall Dispatch: the Greywall Garrison, 1,282 m S, right. Marked on your map.; -2s message: Flying; -1s opened BookMenu; -1s holding Written Book; -1s message: Entering Branonia; -0s closed BookMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -157.1 --z 4111.3 --yaw -140 --pitch -8 --time 0.086`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-153916-243.aac
+
+## 15:39:28 - Was it around here? Oh, here
+
+- **Transcript:** Was it around here? Oh, here
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Plains
+- **Position:** -187.4 182.9 5373.8
+- **Facing:** north (yaw 360, pitch -60)
+- **Held:** Written Book x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 08:18, clear
+- **Fps:** 72
+- **Levels:** mic -32 dBFS, game sound -17 dBFS
+- **Length:** 2.7 s (voice 1.1 s)
+- **Just before:** -28s holding Faustrohr; -28s piloting Salvaged Fighter; -28s holding empty hand; -28s message: Steering Salvaged Fighter; -15s stopped piloting Salvaged Fighter; -15s holding Faustrohr; -14s message: Flying; -12s opened PauseMenu; -9s closed PauseMenu; -7s message: Walking; -6s opened PauseMenu; -5s message: Flying; -22s holding empty hand; -21s holding Greywall Dispatch; -21s message: Greywall Dispatch; -21s opened BookMenu; -21s message: Greywall Garrison marked on the map. Added to journal: Greywall Dispatch; -19s closed BookMenu; -17s message: Greywall Dispatch: the Greywall Garrison, 1,282 m S, right. Marked on your map.; -14s message: Flying; -13s opened BookMenu; -13s holding Written Book; -12s message: Entering Branonia; -12s closed BookMenu; -11s message: Greywall Dispatch: the Greywall Garrison, 1,275 m S, ahead right. Marked on your map.; -7s message: Homestead marked on the map; -5s message: Entering Rhooheim
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -187.4 --z 5373.8 --yaw 0 --pitch -60 --time 0.096`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-153928-084.aac
+
+![15:39:28](voice-shots/vn-20261101-153928-084.jpg)
+
+## 15:40:14 - Very good
+
+- **Transcript:** Very good
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -613.3 73.5 5394.1
+- **Facing:** north-east (yaw 50, pitch -50)
+- **Held:** Glass Bottle x1
+- **Mount:** on foot
+- **Looking at:** Snowy Grass Block at -612 72 5392
+- **Mode:** Survival, health 5/20
+- **Time:** day 1 08:55, clear
+- **Fps:** 69
+- **Levels:** mic -20 dBFS, game sound -19 dBFS
+- **Length:** 2.1 s (voice 0.7 s)
+- **Just before:** -30s message: Walking; -29s walked into Snowy Taiga; -29s message: Intel: this base is a Field Hospital; -27s walked into Taiga; -26s message: Flying; -25s message: Walking; -24s opened PauseMenu; -24s closed PauseMenu; -23s message: Flying; -23s opened CreativeMenu; -20s into the pack: Duskium Chestplate; -20s into the pack: Duskium Helmet; -19s into the pack: Duskium Leggings; -19s into the pack: Duskium Boots; -11s closed CreativeMenu; -11s into the pack: Quickstep Tonic II; -11s message: Written Book; -10s opened PauseMenu; -9s message: Survival mode; -9s closed PauseMenu; -9s holding empty hand; -9s holding Quickstep Tonic II; -7s holding Glass Bottle; -7s left the pack: Quickstep Tonic II (at -574 75 5412); -2s took 18 damage (health 2/20)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -613.3 --z 5394.1 --yaw -50 --pitch -50 --time 0.122`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154014-323.aac
+
+![15:40:14](voice-shots/vn-20261101-154014-323.jpg)
+
+## 15:40:28 - Good. That is good. Okay
+
+- **Transcript:** Good. That is good. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -606.5 72.0 5411.8
+- **Facing:** north-east (yaw 43, pitch 13)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 6/20, screen CreativeMenu
+- **Time:** day 1 09:10, clear
+- **Fps:** 70
+- **Levels:** mic -28 dBFS, game sound -18 dBFS
+- **Length:** 4.0 s (voice 1.7 s)
+- **Just before:** -25s closed CreativeMenu; -24s into the pack: Quickstep Tonic II; -24s message: Written Book; -24s opened PauseMenu; -23s message: Survival mode; -23s closed PauseMenu; -23s holding empty hand; -23s holding Quickstep Tonic II; -21s holding Glass Bottle; -21s left the pack: Quickstep Tonic II (at -574 75 5412); -16s took 18 damage (health 2/20); -13s walked into Snowy Taiga; -12s holding Duskium Helmet; -12s message: Duskium Helmet; -12s holding empty hand; -12s left the pack: Duskium Helmet (at -612 71 5404); -11s holding Duskium Chestplate; -11s message: Duskium Chestplate; -11s holding empty hand; -11s holding Duskium Leggings; -11s message: Duskium Leggings; -11s left the pack: Duskium Chestplate (at -612 71 5404); -11s holding empty hand; -11s left the pack: Duskium Leggings (at -611 71 5405); -10s holding Duskium Boots; -10s message: Duskium Boots; -10s holding empty hand; -10s left the pack: Duskium Boots (at -609 71 5407); -9s opened PauseMenu; -9s closed PauseMenu; -9s walked into Taiga; -8s opened InventoryMenu; -7s closed InventoryMenu; -6s opened PauseMenu; -6s message: Creative mode; -6s closed PauseMenu; -5s opened CreativeMenu; -4s message: The Greywall Garrison is sounding the alarm!
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -606.5 --z 5411.8 --yaw -43 --pitch 13 --time 0.132`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154028-343.aac
+
+![15:40:28](voice-shots/vn-20261101-154028-343.jpg)
+
+## 15:41:02 - Very good
+
+- **Transcript:** Very good
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -606.5 72.0 5411.8
+- **Facing:** north-east (yaw 43, pitch 13)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 6/20, screen CreativeMenu
+- **Time:** day 1 09:51, clear
+- **Fps:** 72
+- **Levels:** mic -32 dBFS, game sound -25 dBFS
+- **Length:** 2.0 s (voice 0.6 s)
+- **Just before:** -20s into the pack: Shotgun Shell Box; -2s into the pack: Sturmbrecher Assault Shotgun
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -606.5 --z 5411.8 --yaw -43 --pitch 13 --time 0.161`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154102-703.aac
+
+![15:41:02](voice-shots/vn-20261101-154102-703.jpg)
+
+## 15:41:48 - Ow, fuck
+
+- **Transcript:** Ow, fuck
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -558.0 71.3 5350.3
+- **Facing:** north-east (yaw 24, pitch -24)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Stone at -557 71 5347
+- **Mode:** Survival, health 5/20
+- **Time:** day 1 10:44, clear
+- **Fps:** 72
+- **Levels:** mic -31 dBFS, game sound -17 dBFS
+- **Length:** 2.4 s (voice 0.7 s)
+- **Just before:** -30s opened PauseMenu; -29s message: Survival mode; -29s closed PauseMenu; -27s holding Sturmbrecher Assault Shotgun; -24s message: Loaded: 20 / 20; -24s left the pack: Shotgun Shell Box x2 (at -603 72 5412); -23s holding Shotgun Shell Box; -23s holding Field Stim; -23s holding Glass Bottle; -22s holding Field Stim; -21s left the pack: Field Stim (at -603 72 5412); -21s left the pack: Field Stim (at -603 72 5412); -21s holding Shotgun Shell Box; -21s message: Shotgun Shell Box; -21s holding Sturmbrecher Assault Shotgun; -21s message: Sturmbrecher Assault Shotgun; -17s took 1 damage (health 19/20); -13s walked into Snowy Plains; -11s walked into Taiga; -11s message: The Greywall Garrison is sounding the alarm!; -10s took 2 damage (health 18/20); -9s walked into Snowy Taiga; -8s message: A stranger in town: Ezra Quill; -3s message: Loaded: 20 / 20; -3s left the pack: Shotgun Shell Box x2 (at -562 76 5345); -1s walked into Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -558.0 --z 5350.3 --yaw -24 --pitch -24 --time 0.197`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154148-283.aac
+
+![15:41:48](voice-shots/vn-20261101-154148-283.jpg)
+
+## 15:41:53 - Oh, shit. Okay, give me a minute here
+
+- **Transcript:** Oh, shit. Okay, give me a minute here
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -591.7 85.5 5364.3
+- **Facing:** east (yaw 100, pitch -66)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot, flying
+- **Looking at:** Spruce Leaves at -591 85 5364
+- **Mode:** Creative, health 5/20
+- **Time:** day 1 10:47, clear
+- **Fps:** 67
+- **Levels:** mic -28 dBFS, game sound -18 dBFS
+- **Length:** 3.9 s (voice 2.2 s)
+- **Just before:** -29s message: Loaded: 20 / 20; -29s left the pack: Shotgun Shell Box x2 (at -603 72 5412); -28s holding Shotgun Shell Box; -27s holding Field Stim; -27s holding Glass Bottle; -27s holding Field Stim; -26s left the pack: Field Stim (at -603 72 5412); -25s left the pack: Field Stim (at -603 72 5412); -25s holding Shotgun Shell Box; -25s message: Shotgun Shell Box; -25s holding Sturmbrecher Assault Shotgun; -25s message: Sturmbrecher Assault Shotgun; -21s took 1 damage (health 19/20); -18s walked into Snowy Plains; -16s walked into Taiga; -15s message: The Greywall Garrison is sounding the alarm!; -14s took 2 damage (health 18/20); -14s walked into Snowy Taiga; -13s message: A stranger in town: Ezra Quill; -8s message: Loaded: 20 / 20; -7s left the pack: Shotgun Shell Box x2 (at -562 76 5345); -6s walked into Taiga; -4s walked into Snowy Taiga; -4s opened PauseMenu; -4s took 13 damage (health 5/20); -3s message: Creative mode; -3s closed PauseMenu; -1s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -591.7 --z 5364.3 --yaw -100 --pitch -66 --time 0.200`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154153-183.aac
+
+## 15:41:57 - Give me a minute. Holy freak, this is great. Okay
+
+- **Transcript:** Give me a minute. Holy freak, this is great. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -599.2 70.8 5436.8
+- **Facing:** north-east (yaw 61, pitch -21)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Snow at -599 71 5436
+- **Mode:** Creative, health 5/20, screen PauseMenu
+- **Time:** day 1 10:51, clear
+- **Fps:** 61
+- **Levels:** mic -29 dBFS, game sound -27 dBFS
+- **Length:** 4.3 s (voice 2.3 s)
+- **Just before:** -30s left the pack: Field Stim (at -603 72 5412); -29s left the pack: Field Stim (at -603 72 5412); -29s holding Shotgun Shell Box; -29s message: Shotgun Shell Box; -29s holding Sturmbrecher Assault Shotgun; -29s message: Sturmbrecher Assault Shotgun; -25s took 1 damage (health 19/20); -22s walked into Snowy Plains; -20s walked into Taiga; -19s message: The Greywall Garrison is sounding the alarm!; -18s took 2 damage (health 18/20); -18s walked into Snowy Taiga; -16s message: A stranger in town: Ezra Quill; -11s message: Loaded: 20 / 20; -11s left the pack: Shotgun Shell Box x2 (at -562 76 5345); -10s walked into Taiga; -8s walked into Snowy Taiga; -8s opened PauseMenu; -7s took 13 damage (health 5/20); -7s message: Creative mode; -6s closed PauseMenu; -5s message: Flying; -4s walked into Taiga; -3s message: Walking; -0s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -599.2 --z 5436.8 --yaw -61 --pitch -21 --time 0.203`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154157-483.aac
+
+## 15:42:19 - Oh, shit
+
+- **Transcript:** Oh, shit
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -534.0 72.8 5354.7
+- **Facing:** north (yaw 7, pitch -33)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Dirt at -534 73 5353
+- **Mode:** Survival, health 10/20
+- **Time:** day 1 11:17, clear
+- **Fps:** 71
+- **Levels:** mic -31 dBFS, game sound -21 dBFS
+- **Length:** 2.8 s (voice 0.8 s)
+- **Just before:** -30s walked into Snowy Taiga; -30s opened PauseMenu; -30s took 13 damage (health 5/20); -29s message: Creative mode; -28s closed PauseMenu; -27s message: Flying; -26s walked into Taiga; -25s message: Walking; -22s opened PauseMenu; -21s message: Survival mode; -21s closed PauseMenu; -20s holding Shotgun Shell Box; -20s holding Field Stim; -20s holding Glass Bottle; -20s holding Iron Ore; -19s holding Glass Bottle; -19s message: Glass Bottle; -19s holding Field Stim; -19s message: Field Stim; -19s holding Shotgun Shell Box; -19s message: Shotgun Shell Box; -18s holding Sturmbrecher Assault Shotgun; -18s message: Sturmbrecher Assault Shotgun; -18s holding Shotgun Shell Box; -18s message: Shotgun Shell Box; -18s holding Field Stim; -18s message: Field Stim; -17s left the pack: Field Stim x2 (at -597 71 5438); -16s holding Shotgun Shell Box; -16s message: Shotgun Shell Box; -16s holding Sturmbrecher Assault Shotgun; -16s message: Sturmbrecher Assault Shotgun; -16s left the pack: Field Stim (at -591 71 5435); -15s message: Loaded: 20 / 20; -8s walked into Snowy Plains; -5s walked into Taiga; -2s took 3 damage (health 17/20)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -534.0 --z 5354.7 --yaw -7 --pitch -33 --time 0.220`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154219-983.aac
+
+## 15:42:53 - Come on, come on. Okay
+
+- **Transcript:** Come on, come on. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -560.8 74.0 5337.2
+- **Facing:** north-west (yaw 322, pitch -29)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at -562 74 5336
+- **Mode:** Survival, health 2/20
+- **Time:** day 1 11:51, clear
+- **Fps:** 66
+- **Levels:** mic -27 dBFS, game sound -17 dBFS
+- **Length:** 2.6 s (voice 0.9 s)
+- **Just before:** -28s took 7 damage (health 10/20); -24s holding Shotgun Shells; -24s message: Shotgun Shells; -23s holding Sturmbrecher Assault Shotgun; -23s message: Sturmbrecher Assault Shotgun; -23s holding Shotgun Shell Box; -23s message: Shotgun Shell Box; -23s holding Field Stim; -23s message: Field Stim; -22s left the pack: Field Stim x2 (at -539 77 5343); -22s holding Shotgun Shell Box; -22s message: Shotgun Shell Box; -22s holding Sturmbrecher Assault Shotgun; -22s message: Sturmbrecher Assault Shotgun; -18s message: Honour raised (you protected the town); -15s took 13 damage (health 9/20); -14s holding Shotgun Shells; -14s message: Shotgun Shells; -14s holding Sturmbrecher Assault Shotgun; -14s message: Sturmbrecher Assault Shotgun; -14s holding Shotgun Shell Box; -14s message: Shotgun Shell Box; -13s holding Field Stim; -13s message: Field Stim; -13s took 2 damage (health 7/20); -13s left the pack: Field Stim x3 (at -550 69 5348); -12s holding Shotgun Shell Box; -12s message: Shotgun Shell Box; -12s holding Sturmbrecher Assault Shotgun; -12s message: Sturmbrecher Assault Shotgun; -9s holding Shotgun Shell Box; -9s message: Shotgun Shell Box; -6s holding Sturmbrecher Assault Shotgun; -6s message: Sturmbrecher Assault Shotgun; -2s took 7 damage (health 13/20); -2s walked into Snowy Taiga; -1s message: Loaded: 20 / 20; -0s took 11 damage (health 2/20)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -560.8 --z 5337.2 --yaw 38 --pitch -29 --time 0.244`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154253-043.aac
+
+![15:42:53](voice-shots/vn-20261101-154253-043.jpg)
+
+## 15:42:58 - Oh, fuck
+
+- **Transcript:** Oh, fuck
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -556.5 72.7 5332.1
+- **Facing:** north (yaw 17, pitch -22)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Dirt at -556 73 5330
+- **Mode:** Survival, health 18/20
+- **Time:** day 1 11:56, clear
+- **Fps:** 68
+- **Levels:** mic -37 dBFS, game sound -13 dBFS
+- **Length:** 2.3 s (voice 0.5 s)
+- **Just before:** -28s message: Field Stim; -27s left the pack: Field Stim x2 (at -539 77 5343); -27s holding Shotgun Shell Box; -27s message: Shotgun Shell Box; -27s holding Sturmbrecher Assault Shotgun; -27s message: Sturmbrecher Assault Shotgun; -22s message: Honour raised (you protected the town); -20s took 13 damage (health 9/20); -19s holding Shotgun Shells; -19s message: Shotgun Shells; -19s holding Sturmbrecher Assault Shotgun; -19s message: Sturmbrecher Assault Shotgun; -18s holding Shotgun Shell Box; -18s message: Shotgun Shell Box; -18s holding Field Stim; -18s message: Field Stim; -18s took 2 damage (health 7/20); -17s left the pack: Field Stim x3 (at -550 69 5348); -17s holding Shotgun Shell Box; -17s message: Shotgun Shell Box; -17s holding Sturmbrecher Assault Shotgun; -17s message: Sturmbrecher Assault Shotgun; -13s holding Shotgun Shell Box; -13s message: Shotgun Shell Box; -10s holding Sturmbrecher Assault Shotgun; -10s message: Sturmbrecher Assault Shotgun; -7s took 7 damage (health 13/20); -7s walked into Snowy Taiga; -6s message: Loaded: 20 / 20; -5s took 11 damage (health 2/20); -5s holding Shotgun Shell Box; -5s holding Field Stim; -4s opened PauseMenu; -4s closed PauseMenu; -3s left the pack: Field Stim x2 (at -564 74 5335); -3s holding Shotgun Shell Box; -3s message: Shotgun Shell Box; -3s left the pack: Field Stim (at -565 73 5335); -3s holding Sturmbrecher Assault Shotgun; -3s message: Sturmbrecher Assault Shotgun
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -556.5 --z 5332.1 --yaw -17 --pitch -22 --time 0.248`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154258-123.aac
+
+## 15:43:03 - Okay. Christ
+
+- **Transcript:** Okay. Christ
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -538.6 74.3 5324.1
+- **Facing:** north (yaw 360, pitch 4)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Dirt at -539 76 5320
+- **Mode:** Survival, health 10/20
+- **Time:** day 1 12:02, clear
+- **Fps:** 67
+- **Levels:** mic -30 dBFS, game sound -17 dBFS
+- **Length:** 3.3 s (voice 1.0 s)
+- **Just before:** -24s took 13 damage (health 9/20); -23s holding Shotgun Shells; -23s message: Shotgun Shells; -23s holding Sturmbrecher Assault Shotgun; -23s message: Sturmbrecher Assault Shotgun; -23s holding Shotgun Shell Box; -23s message: Shotgun Shell Box; -23s holding Field Stim; -23s message: Field Stim; -22s took 2 damage (health 7/20); -22s left the pack: Field Stim x3 (at -550 69 5348); -22s holding Shotgun Shell Box; -22s message: Shotgun Shell Box; -21s holding Sturmbrecher Assault Shotgun; -21s message: Sturmbrecher Assault Shotgun; -18s holding Shotgun Shell Box; -18s message: Shotgun Shell Box; -15s holding Sturmbrecher Assault Shotgun; -15s message: Sturmbrecher Assault Shotgun; -12s took 7 damage (health 13/20); -11s walked into Snowy Taiga; -11s message: Loaded: 20 / 20; -10s took 11 damage (health 2/20); -9s holding Shotgun Shell Box; -9s holding Field Stim; -9s opened PauseMenu; -8s closed PauseMenu; -8s left the pack: Field Stim x2 (at -564 74 5335); -7s holding Shotgun Shell Box; -7s message: Shotgun Shell Box; -7s left the pack: Field Stim (at -565 73 5335); -7s holding Sturmbrecher Assault Shotgun; -7s message: Sturmbrecher Assault Shotgun; -4s took 2 damage (health 19/20); -4s message: Jonah Whitlock: Mind your step, the boardwalk's got a loose plank.; -1s into the pack: Greywall Code Book; -1s into the pack: Greywall Keycard; -1s walked into Taiga; -1s message: You've reached Greywall Garrison; -0s took 11 damage (health 10/20)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -538.6 --z 5324.1 --yaw 0 --pitch 4 --time 0.252`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154303-084.aac
+
+![15:43:03](voice-shots/vn-20261101-154303-084.jpg)
+
+## 15:43:06 - Okay, um
+
+- **Transcript:** Okay, um
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -546.7 89.2 5348.6
+- **Facing:** north (yaw 1, pitch -34)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 1 12:04, clear
+- **Fps:** 64
+- **Levels:** mic -21 dBFS, game sound -14 dBFS
+- **Length:** 2.8 s (voice 1.4 s)
+- **Just before:** -26s holding Sturmbrecher Assault Shotgun; -26s message: Sturmbrecher Assault Shotgun; -26s holding Shotgun Shell Box; -26s message: Shotgun Shell Box; -26s holding Field Stim; -26s message: Field Stim; -26s took 2 damage (health 7/20); -25s left the pack: Field Stim x3 (at -550 69 5348); -25s holding Shotgun Shell Box; -25s message: Shotgun Shell Box; -25s holding Sturmbrecher Assault Shotgun; -25s message: Sturmbrecher Assault Shotgun; -21s holding Shotgun Shell Box; -21s message: Shotgun Shell Box; -18s holding Sturmbrecher Assault Shotgun; -18s message: Sturmbrecher Assault Shotgun; -15s took 7 damage (health 13/20); -14s walked into Snowy Taiga; -14s message: Loaded: 20 / 20; -13s took 11 damage (health 2/20); -12s holding Shotgun Shell Box; -12s holding Field Stim; -12s opened PauseMenu; -11s closed PauseMenu; -11s left the pack: Field Stim x2 (at -564 74 5335); -10s holding Shotgun Shell Box; -10s message: Shotgun Shell Box; -10s left the pack: Field Stim (at -565 73 5335); -10s holding Sturmbrecher Assault Shotgun; -10s message: Sturmbrecher Assault Shotgun; -7s took 2 damage (health 19/20); -7s message: Jonah Whitlock: Mind your step, the boardwalk's got a loose plank.; -5s into the pack: Greywall Code Book; -5s into the pack: Greywall Keycard; -4s walked into Taiga; -4s message: You've reached Greywall Garrison; -3s took 11 damage (health 10/20); -3s opened PauseMenu; -2s message: Honour raised (you protected the town); -1s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -546.7 --z 5348.6 --yaw -1 --pitch -34 --time 0.253`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154306-563.aac
+
+## 15:43:09 - Just, okay. We gotta make a little correction here
+
+- **Transcript:** Just, okay. We gotta make a little correction here
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -555.5 89.2 5336.6
+- **Facing:** north-west (yaw 334, pitch -36)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 1 12:07, clear
+- **Fps:** 64
+- **Levels:** mic -34 dBFS, game sound -19 dBFS
+- **Length:** 5.0 s (voice 2.6 s)
+- **Just before:** -29s message: Shotgun Shell Box; -28s holding Field Stim; -28s message: Field Stim; -28s took 2 damage (health 7/20); -28s left the pack: Field Stim x3 (at -550 69 5348); -27s holding Shotgun Shell Box; -27s message: Shotgun Shell Box; -27s holding Sturmbrecher Assault Shotgun; -27s message: Sturmbrecher Assault Shotgun; -24s holding Shotgun Shell Box; -24s message: Shotgun Shell Box; -21s holding Sturmbrecher Assault Shotgun; -21s message: Sturmbrecher Assault Shotgun; -17s took 7 damage (health 13/20); -17s walked into Snowy Taiga; -16s message: Loaded: 20 / 20; -15s took 11 damage (health 2/20); -15s holding Shotgun Shell Box; -15s holding Field Stim; -14s opened PauseMenu; -14s closed PauseMenu; -13s left the pack: Field Stim x2 (at -564 74 5335); -13s holding Shotgun Shell Box; -13s message: Shotgun Shell Box; -13s left the pack: Field Stim (at -565 73 5335); -13s holding Sturmbrecher Assault Shotgun; -13s message: Sturmbrecher Assault Shotgun; -10s took 2 damage (health 19/20); -9s message: Jonah Whitlock: Mind your step, the boardwalk's got a loose plank.; -7s into the pack: Greywall Code Book; -7s into the pack: Greywall Keycard; -7s walked into Taiga; -6s message: You've reached Greywall Garrison; -6s took 11 damage (health 10/20); -5s opened PauseMenu; -4s message: Honour raised (you protected the town); -4s closed PauseMenu; -2s message: Creative mode; -1s walked into Snowy Taiga; -0s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -555.5 --z 5336.6 --yaw 26 --pitch -36 --time 0.255`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154309-563.aac
+
+## 15:43:16 - So, uh, Jesus
+
+- **Transcript:** So, uh, Jesus
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -543.6 89.2 5366.8
+- **Facing:** north (yaw 12, pitch -35)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 1 12:13, clear
+- **Fps:** 53
+- **Levels:** mic -35 dBFS, game sound -16 dBFS
+- **Length:** 4.2 s (voice 2.4 s)
+- **Just before:** -29s holding Shotgun Shell Box; -29s message: Shotgun Shell Box; -26s holding Sturmbrecher Assault Shotgun; -26s message: Sturmbrecher Assault Shotgun; -23s took 7 damage (health 13/20); -22s walked into Snowy Taiga; -22s message: Loaded: 20 / 20; -21s took 11 damage (health 2/20); -20s holding Shotgun Shell Box; -20s holding Field Stim; -20s opened PauseMenu; -19s closed PauseMenu; -18s left the pack: Field Stim x2 (at -564 74 5335); -18s holding Shotgun Shell Box; -18s message: Shotgun Shell Box; -18s left the pack: Field Stim (at -565 73 5335); -18s holding Sturmbrecher Assault Shotgun; -18s message: Sturmbrecher Assault Shotgun; -15s took 2 damage (health 19/20); -15s message: Jonah Whitlock: Mind your step, the boardwalk's got a loose plank.; -12s into the pack: Greywall Code Book; -12s into the pack: Greywall Keycard; -12s walked into Taiga; -12s message: You've reached Greywall Garrison; -11s took 11 damage (health 10/20); -10s opened PauseMenu; -9s message: Honour raised (you protected the town); -9s closed PauseMenu; -7s message: Creative mode; -6s walked into Snowy Taiga; -5s message: Flying; -2s walked into Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -543.6 --z 5366.8 --yaw -12 --pitch -35 --time 0.260`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154316-603.aac
+
+## 15:43:20 - Little, little situation. So I can't get into the middle of the base w
+
+- **Transcript:** Little, little situation. So I can't get into the middle of the base without completely destroying the base because the nail guns are literally just, just fucking me up
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -540.5 89.2 5370.3
+- **Facing:** north (yaw 11, pitch -37)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 1 12:17, clear
+- **Fps:** 53
+- **Levels:** mic -20 dBFS, game sound -20 dBFS
+- **Length:** 13.5 s (voice 8.5 s)
+- **Just before:** -29s holding Sturmbrecher Assault Shotgun; -29s message: Sturmbrecher Assault Shotgun; -26s took 7 damage (health 13/20); -25s walked into Snowy Taiga; -25s message: Loaded: 20 / 20; -24s took 11 damage (health 2/20); -23s holding Shotgun Shell Box; -23s holding Field Stim; -23s opened PauseMenu; -22s closed PauseMenu; -22s left the pack: Field Stim x2 (at -564 74 5335); -21s holding Shotgun Shell Box; -21s message: Shotgun Shell Box; -21s left the pack: Field Stim (at -565 73 5335); -21s holding Sturmbrecher Assault Shotgun; -21s message: Sturmbrecher Assault Shotgun; -18s took 2 damage (health 19/20); -18s message: Jonah Whitlock: Mind your step, the boardwalk's got a loose plank.; -15s into the pack: Greywall Code Book; -15s into the pack: Greywall Keycard; -15s walked into Taiga; -15s message: You've reached Greywall Garrison; -14s took 11 damage (health 10/20); -13s opened PauseMenu; -12s message: Honour raised (you protected the town); -12s closed PauseMenu; -10s message: Creative mode; -9s walked into Snowy Taiga; -9s message: Flying; -5s walked into Taiga
+- **Position at the end:** -542.8 89.2 5369.6
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -540.5 --z 5370.3 --yaw -11 --pitch -37 --time 0.262`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154320-763.aac
+
+## 15:43:34 - So here's what we need to do. The naval guns will only shoot you if yo
+
+- **Transcript:** So here's what we need to do. The naval guns will only shoot you if you're outside the base or if in your, if you're in a naval gun. So if you're in one of the naval gun towers, they will shoot your tower
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -546.0 89.2 5371.0
+- **Facing:** north (yaw 340, pitch -29)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 1 12:29, clear
+- **Fps:** 56
+- **Levels:** mic -22 dBFS, game sound -17 dBFS
+- **Length:** 14.5 s (voice 8.6 s)
+- **Just before:** -28s took 2 damage (health 19/20); -28s message: Jonah Whitlock: Mind your step, the boardwalk's got a loose plank.; -25s into the pack: Greywall Code Book; -25s into the pack: Greywall Keycard; -25s walked into Taiga; -25s message: You've reached Greywall Garrison; -24s took 11 damage (health 10/20); -23s opened PauseMenu; -23s message: Honour raised (you protected the town); -22s closed PauseMenu; -20s message: Creative mode; -19s walked into Snowy Taiga; -19s message: Flying; -15s walked into Taiga
+- **Position at the end:** -545.1 89.2 5366.4
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -546.0 --z 5371.0 --yaw 20 --pitch -29 --time 0.271`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154334-083.aac
+
+![15:43:34](voice-shots/vn-20261101-154334-083.jpg)
+
+## 15:43:48 - Uh, or if you're outside the base, then they'll shoot you. But they wi
+
+- **Transcript:** Uh, or if you're outside the base, then they'll shoot you. But they will not shoot inside the base because it's their base and they don't want to damage their own base
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -545.2 89.2 5366.5
+- **Facing:** north (yaw 353, pitch -32)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 10/20
+- **Time:** day 1 12:43, clear
+- **Fps:** 57
+- **Levels:** mic -29 dBFS, game sound -16 dBFS
+- **Length:** 9.3 s (voice 6.5 s)
+- **Just before:** -27s walked into Taiga
+- **Position at the end:** -547.6 89.2 5370.9
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -545.2 --z 5366.5 --yaw 7 --pitch -32 --time 0.280`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154348-543.aac
+
+![15:43:48](voice-shots/vn-20261101-154348-543.jpg)
+
+## 15:44:17 - Okay. Oh
+
+- **Transcript:** Okay. Oh
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -531.0 69.9 5334.7
+- **Facing:** north-west (yaw 317, pitch -56)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Stone at -532 71 5334
+- **Mode:** Survival, health 19/20
+- **Time:** day 1 13:11, clear
+- **Fps:** 68
+- **Levels:** mic -26 dBFS, game sound -21 dBFS
+- **Length:** 3.0 s (voice 1.0 s)
+- **Just before:** -20s message: Walking; -19s opened PauseMenu; -17s message: Survival mode; -17s closed PauseMenu; -16s holding Shotgun Shell Box; -16s holding Field Stim; -16s left the pack: Field Stim (at -533 77 5344); -15s holding Shotgun Shell Box; -15s left the pack: Field Stim (at -533 77 5344); -15s holding Sturmbrecher Assault Shotgun; -15s message: Sturmbrecher Assault Shotgun; -15s message: Loaded: 20 / 20; -12s opened InventoryMenu; -12s closed InventoryMenu; -11s opened PauseMenu; -11s message: Creative mode; -10s closed PauseMenu; -10s opened CreativeMenu; -9s message: The Greywall Garrison is sounding the alarm!; -8s into the pack: Iron Pickaxe; -8s closed CreativeMenu; -7s opened PauseMenu; -6s message: Survival mode; -6s closed PauseMenu; -4s took 4 damage (health 16/20); -3s took 3 damage (health 13/20); -2s holding Shotgun Shell Box; -2s message: Shotgun Shell Box; -2s holding Field Stim; -2s message: Field Stim; -2s holding empty hand; -2s left the pack: Field Stim (at -527 72 5325); -2s holding Shotgun Shell Box; -2s message: Shotgun Shell Box; -1s holding Sturmbrecher Assault Shotgun; -1s message: Sturmbrecher Assault Shotgun; -0s took 2 damage (health 19/20)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -531.0 --z 5334.7 --yaw 43 --pitch -56 --time 0.299`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154417-823.aac
+
+![15:44:17](voice-shots/vn-20261101-154417-823.jpg)
+
+## 15:44:20 - Also, I need to be able to walk out of these craters a little better. 
+
+- **Transcript:** Also, I need to be able to walk out of these craters a little better. No, here's what I want. Add the Halo Infinite, uh, double jump to grab and
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -527.2 67.9 5331.1
+- **Facing:** west (yaw 258, pitch 16)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Basalt at -531 70 5331
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 13:14, clear
+- **Fps:** 68
+- **Levels:** mic -24 dBFS, game sound -25 dBFS
+- **Length:** 10.5 s (voice 6.5 s)
+- **Just before:** -22s message: Walking; -21s opened PauseMenu; -20s message: Survival mode; -20s closed PauseMenu; -19s holding Shotgun Shell Box; -19s holding Field Stim; -18s left the pack: Field Stim (at -533 77 5344); -18s holding Shotgun Shell Box; -18s left the pack: Field Stim (at -533 77 5344); -18s holding Sturmbrecher Assault Shotgun; -18s message: Sturmbrecher Assault Shotgun; -17s message: Loaded: 20 / 20; -15s opened InventoryMenu; -15s closed InventoryMenu; -14s opened PauseMenu; -13s message: Creative mode; -13s closed PauseMenu; -13s opened CreativeMenu; -12s message: The Greywall Garrison is sounding the alarm!; -11s into the pack: Iron Pickaxe; -10s closed CreativeMenu; -10s opened PauseMenu; -9s message: Survival mode; -9s closed PauseMenu; -7s took 4 damage (health 16/20); -6s took 3 damage (health 13/20); -5s holding Shotgun Shell Box; -5s message: Shotgun Shell Box; -5s holding Field Stim; -5s message: Field Stim; -5s holding empty hand; -5s left the pack: Field Stim (at -527 72 5325); -4s holding Shotgun Shell Box; -4s message: Shotgun Shell Box; -4s holding Sturmbrecher Assault Shotgun; -4s message: Sturmbrecher Assault Shotgun; -3s took 2 damage (health 19/20)
+- **While talking:** -2s took 6 damage (health 14/20)
+- **Position at the end:** -540.0 69.2 5329.9
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -527.2 --z 5331.1 --yaw 102 --pitch 16 --time 0.302`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154420-603.aac
+
+## 15:44:31 - Flop yourself over
+
+- **Transcript:** Flop yourself over
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -540.4 70.4 5326.6
+- **Facing:** north (yaw 350, pitch -53)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Stone at -541 70 5326
+- **Mode:** Survival, health 14/20
+- **Time:** day 1 13:26, clear
+- **Fps:** 70
+- **Levels:** mic -22 dBFS, game sound -19 dBFS
+- **Length:** 2.2 s (voice 0.9 s)
+- **Just before:** -30s closed PauseMenu; -29s holding Shotgun Shell Box; -29s holding Field Stim; -28s left the pack: Field Stim (at -533 77 5344); -28s holding Shotgun Shell Box; -28s left the pack: Field Stim (at -533 77 5344); -28s holding Sturmbrecher Assault Shotgun; -28s message: Sturmbrecher Assault Shotgun; -27s message: Loaded: 20 / 20; -25s opened InventoryMenu; -24s closed InventoryMenu; -24s opened PauseMenu; -23s message: Creative mode; -23s closed PauseMenu; -23s opened CreativeMenu; -22s message: The Greywall Garrison is sounding the alarm!; -21s into the pack: Iron Pickaxe; -20s closed CreativeMenu; -20s opened PauseMenu; -19s message: Survival mode; -19s closed PauseMenu; -17s took 4 damage (health 16/20); -15s took 3 damage (health 13/20); -15s holding Shotgun Shell Box; -15s message: Shotgun Shell Box; -15s holding Field Stim; -15s message: Field Stim; -15s holding empty hand; -14s left the pack: Field Stim (at -527 72 5325); -14s holding Shotgun Shell Box; -14s message: Shotgun Shell Box; -14s holding Sturmbrecher Assault Shotgun; -14s message: Sturmbrecher Assault Shotgun; -13s took 2 damage (health 19/20); -3s took 6 damage (health 14/20)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -540.4 --z 5326.6 --yaw 10 --pitch -53 --time 0.310`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154431-083.aac
+
+![15:44:31](voice-shots/vn-20261101-154431-083.jpg)
+
+## 15:44:37 - Like, I can't even get into the base of the naval gun, just picking me
+
+- **Transcript:** Like, I can't even get into the base of the naval gun, just picking me apart
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -545.4 84.4 5357.3
+- **Facing:** north (yaw 6, pitch -29)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 8/20
+- **Time:** day 1 13:31, clear
+- **Fps:** 65
+- **Levels:** mic -41 dBFS, game sound -25 dBFS
+- **Length:** 5.3 s (voice 3.4 s)
+- **Just before:** -30s closed InventoryMenu; -30s opened PauseMenu; -29s message: Creative mode; -28s closed PauseMenu; -28s opened CreativeMenu; -27s message: The Greywall Garrison is sounding the alarm!; -26s into the pack: Iron Pickaxe; -26s closed CreativeMenu; -25s opened PauseMenu; -24s message: Survival mode; -24s closed PauseMenu; -22s took 4 damage (health 16/20); -21s took 3 damage (health 13/20); -21s holding Shotgun Shell Box; -21s message: Shotgun Shell Box; -20s holding Field Stim; -20s message: Field Stim; -20s holding empty hand; -20s left the pack: Field Stim (at -527 72 5325); -20s holding Shotgun Shell Box; -20s message: Shotgun Shell Box; -20s holding Sturmbrecher Assault Shotgun; -20s message: Sturmbrecher Assault Shotgun; -19s took 2 damage (health 19/20); -8s took 6 damage (health 14/20); -4s message: You've reached Greywall Garrison; -4s took 6 damage (health 8/20); -3s opened PauseMenu; -2s closed PauseMenu; -2s message: Creative mode; -0s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -545.4 --z 5357.3 --yaw -6 --pitch -29 --time 0.313`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154437-303.aac
+
+## 15:44:48 - So we're gonna kill them
+
+- **Transcript:** So we're gonna kill them
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -549.3 78.2 5303.0
+- **Facing:** west (yaw 277, pitch -4)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 8/20
+- **Time:** day 1 13:43, clear
+- **Fps:** 72
+- **Levels:** mic -25 dBFS, game sound -11 dBFS
+- **Length:** 2.2 s (voice 0.7 s)
+- **Just before:** -29s took 2 damage (health 19/20); -19s took 6 damage (health 14/20); -14s message: You've reached Greywall Garrison; -14s took 6 damage (health 8/20); -14s opened PauseMenu; -12s closed PauseMenu; -12s message: Creative mode; -11s message: Flying; -7s message: Walking; -7s walked into Snowy Taiga; -5s into the pack: Spec Ops Armour Set; -3s message: Greywall Command now counts you tolerated.; -2s into the pack: Greywall Keycard; -2s into the pack: Greywall Code Book; -2s into the pack: Spec Ops Armour Set; -1s message: Loaded: 20 / 20
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -549.3 --z 5303.0 --yaw 83 --pitch -4 --time 0.322`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154448-503.aac
+
+![15:44:48](voice-shots/vn-20261101-154448-503.jpg)
+
+## 15:45:33 - Wow. Like, wow
+
+- **Transcript:** Wow. Like, wow
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -565.3 78.1 5320.8
+- **Facing:** south-east (yaw 124, pitch -10)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 14:30, clear
+- **Fps:** 67
+- **Levels:** mic -29 dBFS, game sound -17 dBFS
+- **Length:** 3.5 s (voice 1.3 s)
+- **Just before:** -30s opened AdvancementMenu; -29s closed AdvancementMenu; -29s opened PauseMenu; -28s message: Survival mode; -28s closed PauseMenu; -26s holding Field Stim; -26s message: Field Stim; -24s left the pack: Field Stim x2 (at -569 78 5302); -24s holding Sturmbrecher Assault Shotgun; -24s message: Sturmbrecher Assault Shotgun; -22s walked into Snowy Taiga; -20s took 6 damage (health 15/20); -19s message: The Capital now counts you wary of you.; -19s took 5 damage (health 11/20); -17s took 5 damage (health 7/20); -17s holding Field Stim; -16s left the pack: Field Stim x2 (at -568 77 5321); -16s took 5 damage (health 20/20); -16s left the pack: Field Stim (at -570 77 5322); -16s holding Sturmbrecher Assault Shotgun; -16s message: Sturmbrecher Assault Shotgun; -15s holding Shotgun Shell Box; -15s message: Shotgun Shell Box; -14s holding Sturmbrecher Assault Shotgun; -14s message: Sturmbrecher Assault Shotgun; -13s holding Field Stim; -13s message: Field Stim; -13s holding Sturmbrecher Assault Shotgun; -13s message: Sturmbrecher Assault Shotgun; -12s message: Loaded: 20 / 20; -12s left the pack: Shotgun Shell Box x2
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -565.3 --z 5320.8 --yaw -124 --pitch -10 --time 0.354`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154533-743.aac
+
+![15:45:33](voice-shots/vn-20261101-154533-743.jpg)
+
+## 15:45:38 - This is beautiful
+
+- **Transcript:** This is beautiful
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -565.5 77.9 5330.5
+- **Facing:** north-east (yaw 65, pitch -9)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 14:35, clear
+- **Fps:** 68
+- **Levels:** mic -23 dBFS, game sound -18 dBFS
+- **Length:** 1.9 s (voice 0.4 s)
+- **Just before:** -30s holding Field Stim; -30s message: Field Stim; -28s left the pack: Field Stim x2 (at -569 78 5302); -28s holding Sturmbrecher Assault Shotgun; -28s message: Sturmbrecher Assault Shotgun; -26s walked into Snowy Taiga; -24s took 6 damage (health 15/20); -23s message: The Capital now counts you wary of you.; -23s took 5 damage (health 11/20); -21s took 5 damage (health 7/20); -21s holding Field Stim; -20s left the pack: Field Stim x2 (at -568 77 5321); -20s took 5 damage (health 20/20); -20s left the pack: Field Stim (at -570 77 5322); -20s holding Sturmbrecher Assault Shotgun; -20s message: Sturmbrecher Assault Shotgun; -19s holding Shotgun Shell Box; -19s message: Shotgun Shell Box; -18s holding Sturmbrecher Assault Shotgun; -18s message: Sturmbrecher Assault Shotgun; -17s holding Field Stim; -17s message: Field Stim; -17s holding Sturmbrecher Assault Shotgun; -17s message: Sturmbrecher Assault Shotgun; -16s message: Loaded: 20 / 20; -16s left the pack: Shotgun Shell Box x2
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -565.5 --z 5330.5 --yaw -65 --pitch -9 --time 0.358`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154538-063.aac
+
+## 15:46:03 - Just beautiful. Wow
+
+- **Transcript:** Just beautiful. Wow
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -538.8 74.6 5320.2
+- **Facing:** south-east (yaw 143, pitch -34)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Onyxstone at -538 75 5321
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 15:02, clear
+- **Fps:** 69
+- **Levels:** mic -30 dBFS, game sound -18 dBFS
+- **Length:** 2.7 s (voice 0.7 s)
+- **Just before:** -15s took 15 damage (health 5/20); -15s holding Field Stim; -15s message: Field Stim; -14s left the pack: Field Stim; -14s left the pack: Field Stim x2; -14s holding Sturmbrecher Assault Shotgun; -14s message: Sturmbrecher Assault Shotgun; -13s message: Loaded: 20 / 20; -7s opened ChestMenu; -7s closed ChestMenu; -7s opened ChestMenu; -6s closed ChestMenu; -6s opened ChestMenu; -5s closed ChestMenu; -5s opened ChestMenu; -4s closed ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -538.8 --z 5320.2 --yaw -143 --pitch -34 --time 0.377`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154603-843.aac
+
+![15:46:03](voice-shots/vn-20261101-154603-843.jpg)
+
+## 15:46:09 - Well, that went interestingly
+
+- **Transcript:** Well, that went interestingly
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** -554.7 103.0 5375.0
+- **Facing:** north-west (yaw 335, pitch -51)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 15:06, clear
+- **Fps:** 65
+- **Levels:** mic -24 dBFS, game sound -19 dBFS
+- **Length:** 2.8 s (voice 1.3 s)
+- **Just before:** -20s took 15 damage (health 5/20); -19s holding Field Stim; -19s message: Field Stim; -19s left the pack: Field Stim; -19s left the pack: Field Stim x2; -18s holding Sturmbrecher Assault Shotgun; -18s message: Sturmbrecher Assault Shotgun; -18s message: Loaded: 20 / 20; -12s opened ChestMenu; -12s closed ChestMenu; -11s opened ChestMenu; -11s closed ChestMenu; -11s opened ChestMenu; -10s closed ChestMenu; -9s opened ChestMenu; -8s closed ChestMenu; -4s opened PauseMenu; -3s message: Creative mode; -3s closed PauseMenu; -2s message: Flying; -1s walked into Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -554.7 --z 5375.0 --yaw 25 --pitch -51 --time 0.380`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154609-943.aac
+
+## 15:46:13 - That's what I'd say. It was interesting
+
+- **Transcript:** That's what I'd say. It was interesting
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** -390.8 103.0 5244.4
+- **Facing:** north-east (yaw 33, pitch -22)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 15:10, clear
+- **Fps:** 51
+- **Levels:** mic -25 dBFS, game sound -22 dBFS
+- **Length:** 3.2 s (voice 1.3 s)
+- **Just before:** -23s took 15 damage (health 5/20); -22s holding Field Stim; -22s message: Field Stim; -22s left the pack: Field Stim; -22s left the pack: Field Stim x2; -21s holding Sturmbrecher Assault Shotgun; -21s message: Sturmbrecher Assault Shotgun; -21s message: Loaded: 20 / 20; -15s opened ChestMenu; -15s closed ChestMenu; -14s opened ChestMenu; -14s closed ChestMenu; -14s opened ChestMenu; -13s closed ChestMenu; -12s opened ChestMenu; -11s closed ChestMenu; -8s opened PauseMenu; -6s message: Creative mode; -6s closed PauseMenu; -5s message: Flying; -4s walked into Taiga; -2s walked into Snowy Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -390.8 --z 5244.4 --yaw -33 --pitch -22 --time 0.382`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154613-483.aac
+
+## 15:47:40 - Oh, shit. Okay. Okay
+
+- **Transcript:** Oh, shit. Okay. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6400.5 72.7 5386.8
+- **Facing:** south-east (yaw 123, pitch -16)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Grass Block at 6403 72 5389
+- **Mode:** Survival, health 11/20
+- **Time:** day 1 16:41, clear
+- **Fps:** 67
+- **Levels:** mic -22 dBFS, game sound -9 dBFS
+- **Length:** 3.3 s (voice 1.3 s)
+- **Just before:** -28s closed CommandMenu; -26s walked into Mangrove Swamp; -26s message: Entering Hareesh; -24s walked into Forest; -24s message: Sky isle marked on the map; -22s walked into Meadow; -22s message: Entering Savaresh; -20s walked into Taiga; -20s message: Entering Calstad; -18s message: Walking; -14s walked into Snowy Taiga; -14s message: Flying; -12s message: Boreal Station marked on the map; -10s message: Walking; -5s opened PauseMenu; -5s message: Survival mode; -4s closed PauseMenu; -2s took 1 damage (health 19/20); -1s message: The station alarm is sounding!
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6400.5 --z 5386.8 --yaw -123 --pitch -16 --time 0.446`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154740-643.aac
+
+![15:47:40](voice-shots/vn-20261101-154740-643.jpg)
+
+## 15:47:46 - Wow. I don't know how to get to that gun
+
+- **Transcript:** Wow. I don't know how to get to that gun
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6409.7 72.1 5380.9
+- **Facing:** south-east (yaw 129, pitch -5)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 11/20
+- **Time:** day 1 16:49, clear
+- **Fps:** 70
+- **Levels:** mic -32 dBFS, game sound -17 dBFS
+- **Length:** 3.3 s (voice 1.3 s)
+- **Just before:** -30s message: Sky isle marked on the map; -28s walked into Meadow; -28s message: Entering Savaresh; -26s walked into Taiga; -26s message: Entering Calstad; -24s message: Walking; -20s walked into Snowy Taiga; -20s message: Flying; -18s message: Boreal Station marked on the map; -16s message: Walking; -12s opened PauseMenu; -11s message: Survival mode; -10s closed PauseMenu; -8s took 1 damage (health 19/20); -7s message: The station alarm is sounding!; -6s took 8 damage (health 11/20)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6409.7 --z 5380.9 --yaw -129 --pitch -5 --time 0.451`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154746-823.aac
+
+## 15:47:55 - I love the aggression
+
+- **Transcript:** I love the aggression
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6448.5 74.1 5389.5
+- **Facing:** south (yaw 180, pitch -2)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 16:58, clear
+- **Fps:** 70
+- **Levels:** mic -51 dBFS, game sound -20 dBFS
+- **Length:** 2.5 s (voice 0.9 s)
+- **Just before:** -28s walked into Snowy Taiga; -28s message: Flying; -26s message: Boreal Station marked on the map; -24s message: Walking; -20s opened PauseMenu; -19s message: Survival mode; -18s closed PauseMenu; -16s took 1 damage (health 19/20); -15s message: The station alarm is sounding!; -14s took 8 damage (health 11/20); -6s holding Field Stim; -6s message: Field Stim; -5s left the pack: Field Stim (at 6428 71 5373); -5s holding Sturmbrecher Assault Shotgun; -5s message: Sturmbrecher Assault Shotgun; -2s took 2 damage (health 18/20)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6448.5 --z 5389.5 --yaw 180 --pitch -2 --time 0.458`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154755-123.aac
+
+![15:47:55](voice-shots/vn-20261101-154755-123.jpg)
+
+## 15:48:16 - Okay. Okay, okay, okay, okay
+
+- **Transcript:** Okay. Okay, okay, okay, okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6425.3 70.9 5465.7
+- **Facing:** north-west (yaw 298, pitch -24)
+- **Held:** Field Stim x2
+- **Mount:** on foot
+- **Looking at:** Dirt at 6423 71 5464
+- **Mode:** Survival, health 8/20
+- **Time:** day 1 17:21, clear
+- **Fps:** 64
+- **Levels:** mic -31 dBFS, game sound -18 dBFS
+- **Length:** 4.2 s (voice 1.5 s)
+- **Just before:** -25s holding Field Stim; -25s message: Field Stim; -25s left the pack: Field Stim (at 6428 71 5373); -24s holding Sturmbrecher Assault Shotgun; -24s message: Sturmbrecher Assault Shotgun; -22s took 2 damage (health 18/20); -16s took 6 damage (health 14/20); -13s holding Field Stim; -13s message: Field Stim; -13s took 6 damage (health 8/20); -13s left the pack: Field Stim (at 6452 74 5426); -12s left the pack: Field Stim (at 6452 74 5427); -12s holding Sturmbrecher Assault Shotgun; -12s message: Sturmbrecher Assault Shotgun; -10s took 5 damage (health 16/20); -9s holding Shotgun Shell Box; -9s message: Shotgun Shell Box; -9s holding Spec Ops Armour Set; -9s message: Spec Ops Armour Set; -9s holding Iron Pickaxe; -9s message: Iron Pickaxe; -5s holding Spec Ops Armour Set; -5s message: Spec Ops Armour Set; -5s holding Shotgun Shell Box; -5s message: Shotgun Shell Box; -4s holding Sturmbrecher Assault Shotgun; -4s message: Sturmbrecher Assault Shotgun; -4s message: Alarm! The garrison is coming through the bulkheads; -2s holding Field Stim; -2s left the pack: Field Stim (at 6423 74 5472); -2s holding Sturmbrecher Assault Shotgun; -2s took 10 damage (health 20/20); -2s left the pack: Field Stim; -1s walked into Taiga; -0s holding Field Stim
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6425.3 --z 5465.7 --yaw 62 --pitch -24 --time 0.474`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154816-004.aac
+
+![15:48:16](voice-shots/vn-20261101-154816-004.jpg)
+
+## 15:48:20 - Yeah, all good so far. Okay. Okay. Yeah
+
+- **Transcript:** Yeah, all good so far. Okay. Okay. Yeah
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6434.0 71.4 5463.2
+- **Facing:** west (yaw 280, pitch -13)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 19/20
+- **Time:** day 1 17:25, clear
+- **Fps:** 58
+- **Levels:** mic -38 dBFS, game sound -13 dBFS
+- **Length:** 3.8 s (voice 1.1 s)
+- **Just before:** -28s left the pack: Field Stim (at 6428 71 5373); -27s holding Sturmbrecher Assault Shotgun; -27s message: Sturmbrecher Assault Shotgun; -25s took 2 damage (health 18/20); -19s took 6 damage (health 14/20); -17s holding Field Stim; -17s message: Field Stim; -17s took 6 damage (health 8/20); -16s left the pack: Field Stim (at 6452 74 5426); -15s left the pack: Field Stim (at 6452 74 5427); -15s holding Sturmbrecher Assault Shotgun; -15s message: Sturmbrecher Assault Shotgun; -13s took 5 damage (health 16/20); -12s holding Shotgun Shell Box; -12s message: Shotgun Shell Box; -12s holding Spec Ops Armour Set; -12s message: Spec Ops Armour Set; -12s holding Iron Pickaxe; -12s message: Iron Pickaxe; -8s holding Spec Ops Armour Set; -8s message: Spec Ops Armour Set; -8s holding Shotgun Shell Box; -8s message: Shotgun Shell Box; -7s holding Sturmbrecher Assault Shotgun; -7s message: Sturmbrecher Assault Shotgun; -7s message: Alarm! The garrison is coming through the bulkheads; -6s holding Field Stim; -5s left the pack: Field Stim (at 6423 74 5472); -5s holding Sturmbrecher Assault Shotgun; -5s took 10 damage (health 20/20); -5s left the pack: Field Stim; -4s walked into Taiga; -3s holding Field Stim; -3s left the pack: Field Stim x2 (at 6423 71 5464); -3s holding empty hand; -3s took 19 damage (health 20/20); -3s left the pack: Field Stim (at 6425 73 5464); -2s holding Sturmbrecher Assault Shotgun; -2s message: Sturmbrecher Assault Shotgun; -2s walked into Snowy Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6434.0 --z 5463.2 --yaw 80 --pitch -13 --time 0.476`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154820-043.aac
+
+## 15:48:51 - Okay, okay
+
+- **Transcript:** Okay, okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6423.3 69.0 5456.1
+- **Facing:** south-west (yaw 228, pitch -9)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Stone at 6421 70 5457
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 17:58, clear
+- **Fps:** 67
+- **Levels:** mic -38 dBFS, game sound -19 dBFS
+- **Length:** 3.0 s (voice 0.6 s)
+- **Just before:** -29s took 2 damage (health 19/20); -28s took 2 damage (health 18/20); -24s took 12 damage (health 9/20); -22s opened PauseMenu; -21s message: Creative mode; -21s closed PauseMenu; -21s opened CreativeMenu; -19s closed CreativeMenu; -19s into the pack: Combat Stim; -18s opened PauseMenu; -18s message: Survival mode; -17s closed PauseMenu; -17s holding Combat Stim; -17s holding Iron Nugget; -16s holding Combat Stim; -16s left the pack: Combat Stim (at 6433 74 5453); -16s left the pack: Combat Stim (at 6433 74 5453); -15s holding Sturmbrecher Assault Shotgun; -15s message: Sturmbrecher Assault Shotgun; -10s message: Reinforcements coming down the stairwell; -0s took 1 damage (health 20/20)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6423.3 --z 5456.1 --yaw 132 --pitch -9 --time 0.499`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154851-683.aac
+
+![15:48:51](voice-shots/vn-20261101-154851-683.jpg)
+
+## 15:48:54 - Oh, okay. [laughs]
+
+- **Transcript:** Oh, okay. [laughs]
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6419.5 70.0 5464.8
+- **Facing:** south (yaw 196, pitch -64)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Dirt at 6419 71 5465
+- **Mode:** Survival, health 15/20
+- **Time:** day 1 18:01, clear
+- **Fps:** 67
+- **Levels:** mic -35 dBFS, game sound -14 dBFS
+- **Length:** 1.8 s (voice 0.5 s)
+- **Just before:** -27s took 12 damage (health 9/20); -25s opened PauseMenu; -24s message: Creative mode; -24s closed PauseMenu; -23s opened CreativeMenu; -22s closed CreativeMenu; -22s into the pack: Combat Stim; -21s opened PauseMenu; -20s message: Survival mode; -20s closed PauseMenu; -20s holding Combat Stim; -19s holding Iron Nugget; -19s holding Combat Stim; -19s left the pack: Combat Stim (at 6433 74 5453); -18s left the pack: Combat Stim (at 6433 74 5453); -18s holding Sturmbrecher Assault Shotgun; -18s message: Sturmbrecher Assault Shotgun; -12s message: Reinforcements coming down the stairwell; -3s took 1 damage (health 20/20)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6419.5 --z 5464.8 --yaw 164 --pitch -64 --time 0.501`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154854-343.aac
+
+## 15:49:00 - Oh, wow. Okay
+
+- **Transcript:** Oh, wow. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6419.0 67.3 5473.3
+- **Facing:** north-east (yaw 37, pitch -44)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Station Concrete at 6419 68 5472
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 18:08, clear
+- **Fps:** 68
+- **Levels:** mic -27 dBFS, game sound -19 dBFS
+- **Length:** 2.8 s (voice 1.1 s)
+- **Just before:** -30s message: Creative mode; -29s closed PauseMenu; -29s opened CreativeMenu; -27s closed CreativeMenu; -27s into the pack: Combat Stim; -27s opened PauseMenu; -26s message: Survival mode; -26s closed PauseMenu; -25s holding Combat Stim; -25s holding Iron Nugget; -25s holding Combat Stim; -24s left the pack: Combat Stim (at 6433 74 5453); -24s left the pack: Combat Stim (at 6433 74 5453); -23s holding Sturmbrecher Assault Shotgun; -23s message: Sturmbrecher Assault Shotgun; -18s message: Reinforcements coming down the stairwell; -8s took 1 damage (health 20/20); -6s took 5 damage (health 15/20); -5s walked into Taiga; -3s holding Combat Stim; -3s message: Combat Stim; -3s took 7 damage (health 20/20); -3s left the pack: Combat Stim (at 6420 70 5475); -2s holding Sturmbrecher Assault Shotgun; -2s message: Sturmbrecher Assault Shotgun
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6419.0 --z 5473.3 --yaw -37 --pitch -44 --time 0.506`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154900-624.aac
+
+## 15:49:08 - [sighs] All right, here, make a little correction. This is how the tur
+
+- **Transcript:** [sighs] All right, here, make a little correction. This is how the turrets treat you on very hard mode. Very hard mode, the turrets are-- do this to you. Okay? But as for the hard difficulty and lower
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6416.8 61.8 5476.9
+- **Facing:** north-east (yaw 54, pitch -6)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Stone at 6421 62 5474
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 18:16, clear
+- **Fps:** 60
+- **Levels:** mic -24 dBFS, game sound -23 dBFS
+- **Length:** 13.3 s (voice 7.9 s)
+- **Just before:** -30s holding Sturmbrecher Assault Shotgun; -30s message: Sturmbrecher Assault Shotgun; -25s message: Reinforcements coming down the stairwell; -15s took 1 damage (health 20/20); -12s took 5 damage (health 15/20); -12s walked into Taiga; -10s holding Combat Stim; -10s message: Combat Stim; -10s took 7 damage (health 20/20); -9s left the pack: Combat Stim (at 6420 70 5475); -9s holding Sturmbrecher Assault Shotgun; -9s message: Sturmbrecher Assault Shotgun; -1s message: Greywall Command now counts you hunted.
+- **While talking:** -3s message: Reinforcements coming down the stairwell
+- **Position at the end:** 6418.4 62.2 5474.6
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6416.8 --z 5476.9 --yaw -54 --pitch -6 --time 0.511`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154908-323.aac
+
+![15:49:08](voice-shots/vn-20261101-154908-323.jpg)
+
+## 15:49:21 - Uh, heed the previous advice
+
+- **Transcript:** Uh, heed the previous advice
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6418.5 62.0 5474.7
+- **Facing:** north-east (yaw 61, pitch -14)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Stone at 6420 63 5473
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 18:30, clear
+- **Fps:** 69
+- **Levels:** mic -29 dBFS, game sound -22 dBFS
+- **Length:** 3.0 s (voice 1.6 s)
+- **Just before:** -27s took 1 damage (health 20/20); -25s took 5 damage (health 15/20); -24s walked into Taiga; -22s holding Combat Stim; -22s message: Combat Stim; -22s took 7 damage (health 20/20); -22s left the pack: Combat Stim (at 6420 70 5475); -21s holding Sturmbrecher Assault Shotgun; -21s message: Sturmbrecher Assault Shotgun; -13s message: Greywall Command now counts you hunted.; -11s message: Reinforcements coming down the stairwell
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6418.5 --z 5474.7 --yaw -61 --pitch -14 --time 0.521`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154921-283.aac
+
+![15:49:21](voice-shots/vn-20261101-154921-283.jpg)
+
+## 15:49:25 - In fact, uh, for... Yeah
+
+- **Transcript:** In fact, uh, for... Yeah
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6416.6 64.1 5473.8
+- **Facing:** north (yaw 341, pitch -34)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Station Concrete at 6416 65 5472
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 18:35, clear
+- **Fps:** 68
+- **Levels:** mic -24 dBFS, game sound -28 dBFS
+- **Length:** 2.9 s (voice 1.0 s)
+- **Just before:** -29s took 5 damage (health 15/20); -28s walked into Taiga; -26s holding Combat Stim; -26s message: Combat Stim; -26s took 7 damage (health 20/20); -26s left the pack: Combat Stim (at 6420 70 5475); -25s holding Sturmbrecher Assault Shotgun; -25s message: Sturmbrecher Assault Shotgun; -17s message: Greywall Command now counts you hunted.; -15s message: Reinforcements coming down the stairwell
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6416.6 --z 5473.8 --yaw 19 --pitch -34 --time 0.525`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154925-483.aac
+
+## 15:49:34 - Oh, fuck
+
+- **Transcript:** Oh, fuck
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6418.0 61.6 5475.6
+- **Facing:** north-east (yaw 35, pitch -52)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Stone at 6418 62 5474
+- **Mode:** Survival, health 13/20
+- **Time:** day 1 18:45, clear
+- **Fps:** 62
+- **Levels:** mic -34 dBFS, game sound -26 dBFS
+- **Length:** 2.2 s (voice 0.5 s)
+- **Just before:** -25s message: Greywall Command now counts you hunted.; -22s message: Reinforcements coming down the stairwell; -3s message: Loaded: 20 / 20; -2s left the pack: Shotgun Shell Box x2; -2s holding Shotgun Shell Box; -2s holding Spec Ops Armour Set; -2s holding Iron Pickaxe; -2s holding Iron Ore; -0s holding Iron Pickaxe; -0s message: Iron Pickaxe
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6418.0 --z 5475.6 --yaw -35 --pitch -52 --time 0.531`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154934-324.aac
+
+![15:49:34](voice-shots/vn-20261101-154934-324.jpg)
+
+## 15:49:36 - Okay. Okay. Okay. Okay. Okay
+
+- **Transcript:** Okay. Okay. Okay. Okay. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6418.4 60.1 5476.5
+- **Facing:** north (yaw 1, pitch 16)
+- **Held:** Shotgun Shell Box x8
+- **Mount:** on foot
+- **Looking at:** Stone at 6418 61 5475
+- **Mode:** Survival, health 13/20
+- **Time:** day 1 18:47, clear
+- **Fps:** 62
+- **Levels:** mic -28 dBFS, game sound -26 dBFS
+- **Length:** 3.9 s (voice 1.2 s)
+- **Just before:** -27s message: Greywall Command now counts you hunted.; -24s message: Reinforcements coming down the stairwell; -5s message: Loaded: 20 / 20; -5s left the pack: Shotgun Shell Box x2; -4s holding Shotgun Shell Box; -4s holding Spec Ops Armour Set; -4s holding Iron Pickaxe; -4s holding Iron Ore; -2s holding Iron Pickaxe; -2s message: Iron Pickaxe; -2s holding Spec Ops Armour Set; -2s message: Spec Ops Armour Set; -2s holding Shotgun Shell Box; -2s message: Shotgun Shell Box; -2s opened JournalMenu; -1s took 7 damage (health 13/20); -0s closed JournalMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6418.4 --z 5476.5 --yaw -1 --pitch 16 --time 0.533`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-154936-903.aac
+
+## 15:50:04 - Um, blocks are causing giant pauses, giant freezes
+
+- **Transcript:** Um, blocks are causing giant pauses, giant freezes
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6417.5 70.0 5459.6
+- **Facing:** west (yaw 272, pitch 41)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Air at 6415 72 5459
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 19:11, clear
+- **Fps:** 47
+- **Levels:** mic -24 dBFS, game sound -17 dBFS
+- **Length:** 5.3 s (voice 2.9 s)
+- **Just before:** -22s message: Shotgun Shell Box; -21s opened JournalMenu; -21s took 7 damage (health 13/20); -20s closed JournalMenu; -20s message: Reinforcements coming down the stairwell; -20s opened JournalMenu; -19s closed JournalMenu; -18s holding Sturmbrecher Assault Shotgun; -14s holding Combat Stim; -14s message: Combat Stim; -14s left the pack: Combat Stim (at 6417 63 5473); -14s holding Sturmbrecher Assault Shotgun; -14s message: Sturmbrecher Assault Shotgun; -13s holding Shotgun Shell Box; -13s message: Shotgun Shell Box; -13s holding Spec Ops Armour Set; -13s message: Spec Ops Armour Set; -13s holding Iron Pickaxe; -13s message: Iron Pickaxe; -13s holding Iron Ore; -13s message: Iron Ore; -13s holding Written Book; -13s message: Written Book; -12s holding Iron Ore; -12s message: Iron Ore; -7s holding Iron Pickaxe; -7s message: Iron Pickaxe; -7s holding Spec Ops Armour Set; -7s message: Spec Ops Armour Set; -7s holding Shotgun Shell Box; -7s message: Shotgun Shell Box; -7s holding Sturmbrecher Assault Shotgun; -7s message: Sturmbrecher Assault Shotgun; -6s walked into Snowy Taiga; -2s holding Shotgun Shell Box; -2s message: Shotgun Shell Box; -2s holding Spec Ops Armour Set; -2s message: Spec Ops Armour Set; -2s holding Iron Pickaxe; -2s message: Iron Pickaxe
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6417.5 --z 5459.6 --yaw 88 --pitch 41 --time 0.550`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155004-143.aac
+
+![15:50:04](voice-shots/vn-20261101-155004-143.jpg)
+
+## 15:50:10 - No, correction. The dirt, breaking dirt around here causes giant freez
+
+- **Transcript:** No, correction. The dirt, breaking dirt around here causes giant freezes
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6417.6 70.0 5459.5
+- **Facing:** west (yaw 260, pitch 22)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Air at 6414 72 5459
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 19:16, clear
+- **Fps:** 56
+- **Levels:** mic -49 dBFS, game sound -17 dBFS
+- **Length:** 6.2 s (voice 3.1 s)
+- **Just before:** -26s message: Shotgun Shell Box; -26s opened JournalMenu; -26s took 7 damage (health 13/20); -24s closed JournalMenu; -24s message: Reinforcements coming down the stairwell; -24s opened JournalMenu; -23s closed JournalMenu; -23s holding Sturmbrecher Assault Shotgun; -18s holding Combat Stim; -18s message: Combat Stim; -18s left the pack: Combat Stim (at 6417 63 5473); -18s holding Sturmbrecher Assault Shotgun; -18s message: Sturmbrecher Assault Shotgun; -18s holding Shotgun Shell Box; -18s message: Shotgun Shell Box; -17s holding Spec Ops Armour Set; -17s message: Spec Ops Armour Set; -17s holding Iron Pickaxe; -17s message: Iron Pickaxe; -17s holding Iron Ore; -17s message: Iron Ore; -17s holding Written Book; -17s message: Written Book; -17s holding Iron Ore; -17s message: Iron Ore; -12s holding Iron Pickaxe; -12s message: Iron Pickaxe; -12s holding Spec Ops Armour Set; -12s message: Spec Ops Armour Set; -11s holding Shotgun Shell Box; -11s message: Shotgun Shell Box; -11s holding Sturmbrecher Assault Shotgun; -11s message: Sturmbrecher Assault Shotgun; -10s walked into Snowy Taiga; -7s holding Shotgun Shell Box; -7s message: Shotgun Shell Box; -7s holding Spec Ops Armour Set; -7s message: Spec Ops Armour Set; -6s holding Iron Pickaxe; -6s message: Iron Pickaxe
+- **While talking:** -0s walked into Taiga
+- **Position at the end:** 6415.3 70.3 5461.1
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6417.6 --z 5459.5 --yaw 100 --pitch 22 --time 0.553`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155010-843.aac
+
+## 15:50:17 - There we go
+
+- **Transcript:** There we go
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6415.0 70.0 5462.1
+- **Facing:** west (yaw 252, pitch 47)
+- **Held:** Iron Pickaxe x1
+- **Mount:** on foot
+- **Looking at:** Dirt at 6413 72 5462
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 19:23, clear
+- **Fps:** 44
+- **Levels:** mic -30 dBFS, game sound -19 dBFS
+- **Length:** 1.9 s (voice 0.5 s)
+- **Just before:** -30s closed JournalMenu; -29s message: Reinforcements coming down the stairwell; -29s opened JournalMenu; -29s closed JournalMenu; -28s holding Sturmbrecher Assault Shotgun; -24s holding Combat Stim; -24s message: Combat Stim; -23s left the pack: Combat Stim (at 6417 63 5473); -23s holding Sturmbrecher Assault Shotgun; -23s message: Sturmbrecher Assault Shotgun; -23s holding Shotgun Shell Box; -23s message: Shotgun Shell Box; -23s holding Spec Ops Armour Set; -23s message: Spec Ops Armour Set; -23s holding Iron Pickaxe; -23s message: Iron Pickaxe; -23s holding Iron Ore; -23s message: Iron Ore; -22s holding Written Book; -22s message: Written Book; -22s holding Iron Ore; -22s message: Iron Ore; -17s holding Iron Pickaxe; -17s message: Iron Pickaxe; -17s holding Spec Ops Armour Set; -17s message: Spec Ops Armour Set; -17s holding Shotgun Shell Box; -17s message: Shotgun Shell Box; -16s holding Sturmbrecher Assault Shotgun; -16s message: Sturmbrecher Assault Shotgun; -15s walked into Snowy Taiga; -12s holding Shotgun Shell Box; -12s message: Shotgun Shell Box; -12s holding Spec Ops Armour Set; -12s message: Spec Ops Armour Set; -12s holding Iron Pickaxe; -12s message: Iron Pickaxe; -1s walked into Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6415.0 --z 5462.1 --yaw 108 --pitch 47 --time 0.558`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155017-323.aac
+
+![15:50:17](voice-shots/vn-20261101-155017-323.jpg)
+
+## 15:52:55 - Greywall keycard. Why would I need a Greywall keycard here?
+
+- **Transcript:** Greywall keycard. Why would I need a Greywall keycard here?
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6390.4 58.0 5437.7
+- **Facing:** south-west (yaw 227, pitch -23)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 16/20, screen ChestMenu
+- **Time:** day 1 22:16, clear
+- **Fps:** 70
+- **Levels:** mic -31 dBFS, game sound -22 dBFS
+- **Length:** 4.3 s (voice 2.0 s)
+- **Just before:** -27s message: The Capital now counts you an ally.; -12s message: Your pack is full: the Slate Rounds stays on the ground; -10s took 4 damage (health 16/20); -7s message: Loaded: 20 / 20; -7s left the pack: Shotgun Shell Box x2 (at 6386 57 5434); -5s opened ChestMenu; -4s closed ChestMenu; -2s opened ChestMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6390.4 --z 5437.7 --yaw 133 --pitch -23 --time 0.678`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155255-643.aac
+
+![15:52:55](voice-shots/vn-20261101-155255-643.jpg)
+
+## 15:53:00 - All the doors open
+
+- **Transcript:** All the doors open
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6395.1 58.0 5437.5
+- **Facing:** east (yaw 105, pitch -9)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Station Concrete at 6398 59 5438
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 22:21, clear
+- **Fps:** 70
+- **Levels:** mic -30 dBFS, game sound -20 dBFS
+- **Length:** 2.2 s (voice 0.7 s)
+- **Just before:** -16s message: Your pack is full: the Slate Rounds stays on the ground; -15s took 4 damage (health 16/20); -12s message: Loaded: 20 / 20; -11s left the pack: Shotgun Shell Box x2 (at 6386 57 5434); -9s opened ChestMenu; -8s closed ChestMenu; -7s opened ChestMenu; -4s closed ChestMenu; -3s message: The station is cleared
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6395.1 --z 5437.5 --yaw -105 --pitch -9 --time 0.682`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155300-383.aac
+
+## 15:53:11 - So the station operations thing, I don't know
+
+- **Transcript:** So the station operations thing, I don't know
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6402.0 63.0 5446.6
+- **Facing:** north (yaw 18, pitch -14)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 22:33, clear
+- **Fps:** 65
+- **Levels:** mic -37 dBFS, game sound -21 dBFS
+- **Length:** 3.4 s (voice 1.9 s)
+- **Just before:** -26s message: Your pack is full: the Slate Rounds stays on the ground; -25s took 4 damage (health 16/20); -21s message: Loaded: 20 / 20; -21s left the pack: Shotgun Shell Box x2 (at 6386 57 5434); -19s opened ChestMenu; -18s closed ChestMenu; -17s opened ChestMenu; -14s closed ChestMenu; -13s message: The station is cleared
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6402.0 --z 5446.6 --yaw -18 --pitch -14 --time 0.690`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155311-443.aac
+
+![15:53:11](voice-shots/vn-20261101-155311-443.jpg)
+
+## 15:53:15 - Not entirely sure what that's supposed to be or do
+
+- **Transcript:** Not entirely sure what that's supposed to be or do
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 6402.4 63.0 5446.5
+- **Facing:** south-east (yaw 156, pitch -23)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Steel Railing at 6403 63 5447
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 22:35, clear
+- **Fps:** 44
+- **Levels:** mic -32 dBFS, game sound -20 dBFS
+- **Length:** 4.5 s (voice 2.0 s)
+- **Just before:** -28s message: Your pack is full: the Slate Rounds stays on the ground; -27s took 4 damage (health 16/20); -23s message: Loaded: 20 / 20; -23s left the pack: Shotgun Shell Box x2 (at 6386 57 5434); -21s opened ChestMenu; -20s closed ChestMenu; -19s opened ChestMenu; -16s closed ChestMenu; -15s message: The station is cleared
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6402.4 --z 5446.5 --yaw -156 --pitch -23 --time 0.692`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155315-043.aac
+
+## 15:53:30 - Doors are still having trouble opening and closing
+
+- **Transcript:** Doors are still having trouble opening and closing
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6401.8 74.0 5469.3
+- **Facing:** south-east (yaw 149, pitch -11)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Bulkhead Door at 6402 75 5471
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 22:52, clear
+- **Fps:** 66
+- **Levels:** mic -20 dBFS, game sound -20 dBFS
+- **Length:** 3.4 s (voice 1.9 s)
+- **Just before:** -30s closed ChestMenu; -29s message: The station is cleared; -9s walked into Taiga; -8s message: Your pack is full: the Steel Plating stays on the ground; -3s walked into Snowy Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6401.8 --z 5469.3 --yaw -149 --pitch -11 --time 0.703`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155330-243.aac
+
+![15:53:30](voice-shots/vn-20261101-155330-243.jpg)
+
+## 15:53:42 - Yeah. Well, I mean
+
+- **Transcript:** Yeah. Well, I mean
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6415.0 74.0 5474.7
+- **Facing:** east (yaw 83, pitch -72)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Snow Block at 6414 73 5474
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 23:05, clear
+- **Fps:** 65
+- **Levels:** mic -25 dBFS, game sound -13 dBFS
+- **Length:** 2.5 s (voice 1.1 s)
+- **Just before:** -20s walked into Taiga; -19s message: Your pack is full: the Steel Plating stays on the ground; -14s walked into Snowy Taiga; -10s walked into Taiga; -8s walked into Snowy Taiga; -2s walked into Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6415.0 --z 5474.7 --yaw -83 --pitch -72 --time 0.712`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155342-623.aac
+
+![15:53:42](voice-shots/vn-20261101-155342-623.jpg)
+
+## 15:53:45 - This worked out. This is just hilarious, comical. But yeah, on very ha
+
+- **Transcript:** This worked out. This is just hilarious, comical. But yeah, on very hard difficulty, let's make it so this is just normal
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6414.8 74.0 5474.6
+- **Facing:** east (yaw 71, pitch -57)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Snow Block at 6414 73 5474
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 23:08, clear
+- **Fps:** 57
+- **Levels:** mic -77 dBFS, game sound -18 dBFS
+- **Length:** 8.2 s (voice 4.6 s)
+- **Just before:** -22s walked into Taiga; -22s message: Your pack is full: the Steel Plating stays on the ground; -16s walked into Snowy Taiga; -12s walked into Taiga; -10s walked into Snowy Taiga; -4s walked into Taiga
+- **Position at the end:** 6414.5 74.0 5474.3
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6414.8 --z 5474.6 --yaw -71 --pitch -57 --time 0.715`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155345-863.aac
+
+## 15:53:55 - Or like this, this only happens on very hard difficulty where the cann
+
+- **Transcript:** Or like this, this only happens on very hard difficulty where the cannon just obliterates you no matter where you are
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6414.4 74.7 5474.4
+- **Facing:** north-east (yaw 64, pitch -34)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 23:16, clear
+- **Fps:** 57
+- **Levels:** mic -24 dBFS, game sound -21 dBFS
+- **Length:** 8.4 s (voice 5.1 s)
+- **Just before:** -29s walked into Taiga; -29s message: Your pack is full: the Steel Plating stays on the ground; -23s walked into Snowy Taiga; -19s walked into Taiga; -17s walked into Snowy Taiga; -11s walked into Taiga; -1s opened PauseMenu; -0s closed PauseMenu
+- **While talking:** -4s closed PauseMenu
+- **Position at the end:** 6414.6 74.0 5474.5
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6414.4 --z 5474.4 --yaw -64 --pitch -34 --time 0.720`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155355-083.aac
+
+![15:53:55](voice-shots/vn-20261101-155355-083.jpg)
+
+## 15:54:03 - Otherwise, just if you're outside the walls of the base
+
+- **Transcript:** Otherwise, just if you're outside the walls of the base
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 6414.3 74.0 5473.1
+- **Facing:** east (yaw 107, pitch -16)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 23:25, clear
+- **Fps:** 56
+- **Levels:** mic -19 dBFS, game sound -16 dBFS
+- **Length:** 3.9 s (voice 2.2 s)
+- **Just before:** -26s walked into Taiga; -24s walked into Snowy Taiga; -18s walked into Taiga; -8s opened PauseMenu; -8s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6414.3 --z 5473.1 --yaw -107 --pitch -16 --time 0.726`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155403-943.aac
+
+## 15:54:49 - Shouldn't be any zombies here 'cause the, uh, capital forces would imm
+
+- **Transcript:** Shouldn't be any zombies here 'cause the, uh, capital forces would immediately kill them
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 6540.4 68.0 4658.7
+- **Facing:** north (yaw 19, pitch -17)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Capital Curtain Glass at 6541 69 4656
+- **Mode:** Survival, health 16/20
+- **Time:** day 1 00:15, clear
+- **Fps:** 71
+- **Levels:** mic -32 dBFS, game sound -20 dBFS
+- **Length:** 4.9 s (voice 2.9 s)
+- **Just before:** -29s message: Survival mode; -27s message: The guards watch your hands. Put that away; -24s message: Wendell Fenwick: Raiders on the road! Get inside!; -24s walked into Forest; -21s message: The garrison opens fire!; -21s holding Combat Stim; -20s holding empty hand; -20s took 4 damage (health 20/20); -20s left the pack: Combat Stim (at 6537 68 4659); -20s holding Sturmbrecher Assault Shotgun; -19s message: Honour raised (you protected the town); -17s message: Loaded: 20 / 20; -15s message: Too hungry to sprint; -14s message: Honour raised (you protected the town); -11s message: The Capital now counts you tolerated.; -9s left the pack: Shotgun Shell Box; -9s message: Loaded: 20 / 20; -5s took 1 damage (health 20/20); -1s took 6 damage (health 16/20); -1s left the pack: Shotgun Shell Box (at 6539 69 4657)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6540.4 --z 4658.7 --yaw -19 --pitch -17 --time 0.760`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155449-903.aac
+
+![15:54:49](voice-shots/vn-20261101-155449-903.jpg)
+
+## 15:55:03 - Oh, shit
+
+- **Transcript:** Oh, shit
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 6543.8 68.0 4652.2
+- **Facing:** west (yaw 278, pitch 3)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 4/20
+- **Time:** day 1 00:31, clear
+- **Fps:** 71
+- **Levels:** mic -38 dBFS, game sound -16 dBFS
+- **Length:** 1.8 s (voice 0.4 s)
+- **Just before:** -29s message: Too hungry to sprint; -27s message: Honour raised (you protected the town); -25s message: The Capital now counts you tolerated.; -23s left the pack: Shotgun Shell Box; -23s message: Loaded: 20 / 20; -19s took 1 damage (health 20/20); -14s took 6 damage (health 16/20); -14s left the pack: Shotgun Shell Box (at 6539 69 4657); -8s into the pack: Fernblick Rifle; -7s took 2 damage (health 14/20); -5s message: Loaded: 12 / 20; -3s took 2 damage (health 12/20); -2s holding Fernblick Rifle; -2s message: Fernblick Rifle; -1s took 4 damage (health 8/20); -1s holding Sturmbrecher Assault Shotgun; -1s message: Sturmbrecher Assault Shotgun
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6543.8 --z 4652.2 --yaw 82 --pitch 3 --time 0.772`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155503-783.aac
+
+![15:55:03](voice-shots/vn-20261101-155503-783.jpg)
+
+## 15:55:25 - The scope appears to have been fixed
+
+- **Transcript:** The scope appears to have been fixed
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 6541.1 68.0 4669.8
+- **Facing:** north (yaw 20, pitch -15)
+- **Held:** Fernblick Rifle x1
+- **Mount:** on foot
+- **Looking at:** Capital Stone at 6541 69 4667
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 00:54, clear
+- **Fps:** 72
+- **Levels:** mic -21 dBFS, game sound -15 dBFS
+- **Length:** 2.6 s (voice 0.8 s)
+- **Just before:** -30s into the pack: Fernblick Rifle; -28s took 2 damage (health 14/20); -27s message: Loaded: 12 / 20; -24s took 2 damage (health 12/20); -23s holding Fernblick Rifle; -23s message: Fernblick Rifle; -23s took 4 damage (health 8/20); -23s holding Sturmbrecher Assault Shotgun; -23s message: Sturmbrecher Assault Shotgun; -21s message: Too hungry to sprint; -20s took 4 damage (health 4/20); -19s opened PauseMenu; -19s took 1 damage (health 3/20); -19s message: Creative mode; -19s closed PauseMenu; -18s opened CreativeMenu; -16s into the pack: Combat Stim; -16s closed CreativeMenu; -14s opened PauseMenu; -13s message: Survival mode; -13s closed PauseMenu; -12s holding Fernblick Rifle; -11s message: Loaded: 8 / 8; -10s holding Sturmbrecher Assault Shotgun; -10s holding Combat Stim; -10s left the pack: Combat Stim (at 6536 67 4669); -9s holding Sturmbrecher Assault Shotgun; -8s holding Fernblick Rifle; -8s message: Fernblick Rifle; -0s message: Too hungry to sprint
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6541.1 --z 4669.8 --yaw -20 --pitch -15 --time 0.788`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155525-403.aac
+
+![15:55:25](voice-shots/vn-20261101-155525-403.jpg)
+
+## 15:55:45 - Where's the scope on this thing? Did it get destroyed somehow? [laughs
+
+- **Transcript:** Where's the scope on this thing? Did it get destroyed somehow? [laughs] Oh, no, never mind. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 6542.3 68.0 4668.5
+- **Facing:** north (yaw 338, pitch -37)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Capital Stone at 6541 68 4667
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 01:18, clear
+- **Fps:** 72
+- **Levels:** mic -33 dBFS, game sound -16 dBFS
+- **Length:** 7.5 s (voice 2.9 s)
+- **Just before:** -30s holding Combat Stim; -29s left the pack: Combat Stim (at 6536 67 4669); -29s holding Sturmbrecher Assault Shotgun; -27s holding Fernblick Rifle; -27s message: Fernblick Rifle; -20s message: Too hungry to sprint; -10s holding Sturmbrecher Assault Shotgun; -10s message: Sturmbrecher Assault Shotgun
+- **While talking:** -2s holding Fernblick Rifle; -2s message: Fernblick Rifle
+- **Position at the end:** 6540.7 68.0 4670.1
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6542.3 --z 4668.5 --yaw 22 --pitch -37 --time 0.804`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155545-123.aac
+
+## 15:55:52 - That'd be crazy if he has a few hits, seven outs
+
+- **Transcript:** That'd be crazy if he has a few hits, seven outs
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 6541.8 68.0 4669.2
+- **Facing:** north (yaw 21, pitch -7)
+- **Held:** Fernblick Rifle x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 01:27, clear
+- **Fps:** 72
+- **Levels:** mic -28 dBFS, game sound -19 dBFS
+- **Length:** 3.5 s (voice 2.0 s)
+- **Just before:** -27s message: Too hungry to sprint; -17s holding Sturmbrecher Assault Shotgun; -17s message: Sturmbrecher Assault Shotgun; -4s holding Fernblick Rifle; -4s message: Fernblick Rifle
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6541.8 --z 4669.2 --yaw -21 --pitch -7 --time 0.811`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155552-383.aac
+
+![15:55:52](voice-shots/vn-20261101-155552-383.jpg)
+
+## 15:56:05 - Okay, sometimes I can't left grip my way across the toolbar when I'm h
+
+- **Transcript:** Okay, sometimes I can't left grip my way across the toolbar when I'm holding a gun sometimes. I don't know why that is
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 6540.6 68.0 4670.2
+- **Facing:** north (yaw 359, pitch -24)
+- **Held:** Sturmbrecher Assault Shotgun x1
+- **Mount:** on foot
+- **Looking at:** Capital Curtain Glass at 6540 68 4667
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 01:42, clear
+- **Fps:** 72
+- **Levels:** mic -34 dBFS, game sound -18 dBFS
+- **Length:** 8.3 s (voice 4.8 s)
+- **Just before:** -30s holding Sturmbrecher Assault Shotgun; -30s message: Sturmbrecher Assault Shotgun; -17s holding Fernblick Rifle; -17s message: Fernblick Rifle; -4s message: Too hungry to sprint; -2s message: Loaded: 8 / 8; -1s holding Sturmbrecher Assault Shotgun; -1s holding Combat Stim; -1s holding Duskium Helmet; -0s holding Combat Stim; -0s holding Sturmbrecher Assault Shotgun
+- **While talking:** -5s holding Fernblick Rifle; -4s holding Sturmbrecher Assault Shotgun; -4s message: Sturmbrecher Assault Shotgun; -4s message: No Shotgun Shells; -4s holding Combat Stim; -3s holding Sturmbrecher Assault Shotgun; -3s holding Combat Stim; -2s holding Sturmbrecher Assault Shotgun
+- **Position at the end:** 6539.2 68.0 4670.3
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6540.6 --z 4670.2 --yaw 1 --pitch -24 --time 0.821`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155605-203.aac
+
+![15:56:05](voice-shots/vn-20261101-155605-203.jpg)
+
+## 15:57:54 - Come on. Oh, fuck. See, I couldn't left grip to my, uh, stems
+
+- **Transcript:** Come on. Oh, fuck. See, I couldn't left grip to my, uh, stems
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 6488.8 69.0 4528.7
+- **Facing:** south-east (yaw 116, pitch -36)
+- **Held:** Fernblick Rifle x1
+- **Mount:** on foot
+- **Looking at:** Capital Paving at 6490 68 4529
+- **Mode:** Survival, health 2/20
+- **Time:** day 1 03:47, clear
+- **Fps:** 71
+- **Levels:** mic -22 dBFS, game sound -19 dBFS
+- **Length:** 6.7 s (voice 3.1 s)
+- **Just before:** -23s took 3 damage (health 12/20); -20s took 5 damage (health 7/20); -19s holding Combat Stim; -19s message: Combat Stim; -19s left the pack: Combat Stim (at 6452 65 4607); -18s holding Sturmbrecher Assault Shotgun; -18s message: Sturmbrecher Assault Shotgun; -15s message: Loaded: 20 / 20; -15s left the pack: Shotgun Shell Box (at 6433 65 4584); -13s message: Hattie Fenwick: Help! I'm being robbed!; -10s message: Honour lowered (assault); -8s message: Your pack is full: the Capital Rounds stays on the ground; -5s took 3 damage (health 18/20); -3s message: Loaded: 20 / 20; -3s left the pack: Shotgun Shell Box x2; -3s took 10 damage (health 10/20); -2s holding Fernblick Rifle
+- **While talking:** -5s died; -5s opened DeathMenu; -5s holding empty hand; -5s left the pack: Slatefall Carbine x2 (DeathMenu open); -5s left the pack: Sturmbrecher Assault Shotgun (DeathMenu open); -5s left the pack: Spec Ops Armour Set (DeathMenu open); -5s left the pack: Iron Pickaxe (DeathMenu open); -5s left the pack: Greywall Code Book x2 (DeathMenu open); -5s left the pack: Regular Armour Set x2 (DeathMenu open); -5s left the pack: Written Book (DeathMenu open); -5s left the pack: Combat Stim x5 (DeathMenu open); -5s left the pack: Shotgun Shell Box x7 (DeathMenu open); -5s left the pack: Greywall Keycard x5 (DeathMenu open); -5s left the pack: Field Ration x14 (DeathMenu open); -5s left the pack: Sechser Revolver (DeathMenu open); -5s left the pack: Fernblick Rifle (DeathMenu open); -5s left the pack: Duskium Helmet (DeathMenu open); -4s took 12 damage (health 0/20); -4s respawned; -4s closed DeathMenu; -4s message: Your things are 6965 blocks east; -2s walked into Savanna; -2s message: Entering Lorvaal
+- **Position at the end:** -407.1 67.5 3545.3
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6488.8 --z 4528.7 --yaw -116 --pitch -36 --time 0.908`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155754-423.aac
+
+![15:57:54](voice-shots/vn-20261101-155754-423.jpg)
+
+## 15:58:01 - 'Cause I was holding a gun that needed to reload or something. I don't
+
+- **Transcript:** 'Cause I was holding a gun that needed to reload or something. I don't fucking know
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** -393.4 69.5 3546.2
+- **Facing:** south-east (yaw 137, pitch -63)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Grass Block at -394 68 3546
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 03:56, clear
+- **Fps:** 70
+- **Levels:** mic -39 dBFS, game sound -21 dBFS
+- **Length:** 4.8 s (voice 2.8 s)
+- **Just before:** -27s took 5 damage (health 7/20); -26s holding Combat Stim; -26s message: Combat Stim; -26s left the pack: Combat Stim (at 6452 65 4607); -26s holding Sturmbrecher Assault Shotgun; -26s message: Sturmbrecher Assault Shotgun; -22s message: Loaded: 20 / 20; -22s left the pack: Shotgun Shell Box (at 6433 65 4584); -20s message: Hattie Fenwick: Help! I'm being robbed!; -17s message: Honour lowered (assault); -15s message: Your pack is full: the Capital Rounds stays on the ground; -13s took 3 damage (health 18/20); -11s message: Loaded: 20 / 20; -11s left the pack: Shotgun Shell Box x2; -10s took 10 damage (health 10/20); -9s holding Fernblick Rifle; -7s died; -7s opened DeathMenu; -7s holding empty hand; -7s left the pack: Slatefall Carbine x2 (DeathMenu open); -7s left the pack: Sturmbrecher Assault Shotgun (DeathMenu open); -7s left the pack: Spec Ops Armour Set (DeathMenu open); -7s left the pack: Iron Pickaxe (DeathMenu open); -7s left the pack: Greywall Code Book x2 (DeathMenu open); -7s left the pack: Regular Armour Set x2 (DeathMenu open); -7s left the pack: Written Book (DeathMenu open); -7s left the pack: Combat Stim x5 (DeathMenu open); -7s left the pack: Shotgun Shell Box x7 (DeathMenu open); -7s left the pack: Greywall Keycard x5 (DeathMenu open); -7s left the pack: Field Ration x14 (DeathMenu open); -7s left the pack: Sechser Revolver (DeathMenu open); -7s left the pack: Fernblick Rifle (DeathMenu open); -7s left the pack: Duskium Helmet (DeathMenu open); -6s took 12 damage (health 0/20); -6s respawned; -6s closed DeathMenu; -6s message: Your things are 6965 blocks east; -4s walked into Savanna; -4s message: Entering Lorvaal
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -393.4 --z 3546.2 --yaw -137 --pitch -63 --time 0.914`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155801-763.aac
+
+## 15:58:08 - Still though, that was awesome
+
+- **Transcript:** Still though, that was awesome
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** -401.6 69.3 3541.0
+- **Facing:** north-west (yaw 335, pitch -3)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 1 04:04, clear
+- **Fps:** 72
+- **Levels:** mic -22 dBFS, game sound -23 dBFS
+- **Length:** 2.3 s (voice 0.8 s)
+- **Just before:** -29s message: Loaded: 20 / 20; -29s left the pack: Shotgun Shell Box (at 6433 65 4584); -27s message: Hattie Fenwick: Help! I'm being robbed!; -24s message: Honour lowered (assault); -22s message: Your pack is full: the Capital Rounds stays on the ground; -20s took 3 damage (health 18/20); -18s message: Loaded: 20 / 20; -18s left the pack: Shotgun Shell Box x2; -17s took 10 damage (health 10/20); -16s holding Fernblick Rifle; -14s died; -14s opened DeathMenu; -14s holding empty hand; -14s left the pack: Slatefall Carbine x2 (DeathMenu open); -14s left the pack: Sturmbrecher Assault Shotgun (DeathMenu open); -14s left the pack: Spec Ops Armour Set (DeathMenu open); -14s left the pack: Iron Pickaxe (DeathMenu open); -14s left the pack: Greywall Code Book x2 (DeathMenu open); -14s left the pack: Regular Armour Set x2 (DeathMenu open); -14s left the pack: Written Book (DeathMenu open); -14s left the pack: Combat Stim x5 (DeathMenu open); -14s left the pack: Shotgun Shell Box x7 (DeathMenu open); -14s left the pack: Greywall Keycard x5 (DeathMenu open); -14s left the pack: Field Ration x14 (DeathMenu open); -14s left the pack: Sechser Revolver (DeathMenu open); -14s left the pack: Fernblick Rifle (DeathMenu open); -14s left the pack: Duskium Helmet (DeathMenu open); -13s took 12 damage (health 0/20); -13s respawned; -13s closed DeathMenu; -13s message: Your things are 6965 blocks east; -11s walked into Savanna; -11s message: Entering Lorvaal; -1s opened PauseMenu; -1s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -401.6 --z 3541.0 --yaw 25 --pitch -3 --time 0.919`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155808-724.aac
+
+![15:58:08](voice-shots/vn-20261101-155808-724.jpg)
+
+## 15:58:13 - I think it's still in the cr- in the, uh, inventory for creative. I ca
+
+- **Transcript:** I think it's still in the cr- in the, uh, inventory for creative. I can just spawn a tank
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Warm Ocean
+- **Position:** -363.1 93.7 3434.0
+- **Facing:** north-east (yaw 29, pitch -5)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 04:07, clear
+- **Fps:** 72
+- **Levels:** mic -30 dBFS, game sound -22 dBFS
+- **Length:** 5.9 s (voice 3.1 s)
+- **Just before:** -29s message: Honour lowered (assault); -27s message: Your pack is full: the Capital Rounds stays on the ground; -24s took 3 damage (health 18/20); -22s message: Loaded: 20 / 20; -22s left the pack: Shotgun Shell Box x2; -21s took 10 damage (health 10/20); -20s holding Fernblick Rifle; -18s died; -18s opened DeathMenu; -18s holding empty hand; -18s left the pack: Slatefall Carbine x2 (DeathMenu open); -18s left the pack: Sturmbrecher Assault Shotgun (DeathMenu open); -18s left the pack: Spec Ops Armour Set (DeathMenu open); -18s left the pack: Iron Pickaxe (DeathMenu open); -18s left the pack: Greywall Code Book x2 (DeathMenu open); -18s left the pack: Regular Armour Set x2 (DeathMenu open); -18s left the pack: Written Book (DeathMenu open); -18s left the pack: Combat Stim x5 (DeathMenu open); -18s left the pack: Shotgun Shell Box x7 (DeathMenu open); -18s left the pack: Greywall Keycard x5 (DeathMenu open); -18s left the pack: Field Ration x14 (DeathMenu open); -18s left the pack: Sechser Revolver (DeathMenu open); -18s left the pack: Fernblick Rifle (DeathMenu open); -18s left the pack: Duskium Helmet (DeathMenu open); -17s took 12 damage (health 0/20); -17s respawned; -17s closed DeathMenu; -17s message: Your things are 6965 blocks east; -15s walked into Savanna; -15s message: Entering Lorvaal; -5s opened PauseMenu; -5s closed PauseMenu; -4s opened PauseMenu; -2s message: Creative mode; -2s closed PauseMenu; -1s message: Flying
+- **While talking:** -4s walked into Warm Ocean; -0s walked into Beach
+- **Position at the end:** -124.8 93.8 3128.2
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -363.1 --z 3434.0 --yaw -29 --pitch -5 --time 0.922`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155813-064.aac
+
+## 15:58:19 - And it'd just be like a, I don't know, put it somewhere
+
+- **Transcript:** And it'd just be like a, I don't know, put it somewhere
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Sparse Jungle
+- **Position:** -48.3 110.3 3021.5
+- **Facing:** north (yaw 12, pitch -23)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 04:14, clear
+- **Fps:** 71
+- **Levels:** mic -31 dBFS, game sound -26 dBFS
+- **Length:** 4.7 s (voice 1.6 s)
+- **Just before:** -30s took 3 damage (health 18/20); -28s message: Loaded: 20 / 20; -28s left the pack: Shotgun Shell Box x2; -27s took 10 damage (health 10/20); -27s holding Fernblick Rifle; -25s died; -25s opened DeathMenu; -25s holding empty hand; -24s left the pack: Slatefall Carbine x2 (DeathMenu open); -24s left the pack: Sturmbrecher Assault Shotgun (DeathMenu open); -24s left the pack: Spec Ops Armour Set (DeathMenu open); -24s left the pack: Iron Pickaxe (DeathMenu open); -24s left the pack: Greywall Code Book x2 (DeathMenu open); -24s left the pack: Regular Armour Set x2 (DeathMenu open); -24s left the pack: Written Book (DeathMenu open); -24s left the pack: Combat Stim x5 (DeathMenu open); -24s left the pack: Shotgun Shell Box x7 (DeathMenu open); -24s left the pack: Greywall Keycard x5 (DeathMenu open); -24s left the pack: Field Ration x14 (DeathMenu open); -24s left the pack: Sechser Revolver (DeathMenu open); -24s left the pack: Fernblick Rifle (DeathMenu open); -24s left the pack: Duskium Helmet (DeathMenu open); -24s took 12 damage (health 0/20); -23s respawned; -23s closed DeathMenu; -23s message: Your things are 6965 blocks east; -22s walked into Savanna; -21s message: Entering Lorvaal; -11s opened PauseMenu; -11s closed PauseMenu; -10s opened PauseMenu; -8s message: Creative mode; -8s closed PauseMenu; -7s message: Flying; -5s walked into Warm Ocean; -1s walked into Beach; -0s message: Lorvaal - Valiswick border post marked on the map
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -48.3 --z 3021.5 --yaw -12 --pitch -23 --time 0.927`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155819-223.aac
+
+![15:58:19](voice-shots/vn-20261101-155819-223.jpg)
+
+## 15:58:40 - Sunken dreadnought
+
+- **Transcript:** Sunken dreadnought
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 650.6 144.1 2384.5
+- **Facing:** north-east (yaw 57, pitch -25)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CommandMenu
+- **Time:** day 1 04:34, clear
+- **Fps:** 48
+- **Levels:** mic -36 dBFS, game sound -16 dBFS
+- **Length:** 2.1 s (voice 0.7 s)
+- **Just before:** -29s opened PauseMenu; -28s closed PauseMenu; -27s opened PauseMenu; -26s message: Creative mode; -26s closed PauseMenu; -24s message: Flying; -23s walked into Warm Ocean; -19s walked into Beach; -18s message: Lorvaal - Valiswick border post marked on the map; -17s walked into Sparse Jungle; -15s message: Entering Valiswick; -15s walked into Dark Forest; -10s opened PauseMenu; -10s opened CommandMenu; -9s walked into Forest; -5s message: Capital City: 1385 ~ 4489 (2228 blocks), marked on your map; -2s message: Sealed Armoury: 824 ~ 2328 (182 blocks, underground: its floor at y -38, 127 blocks under the surface), marked on your map
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 650.6 --z 2384.5 --yaw -57 --pitch -25 --time 0.941`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155840-103.aac
+
+![15:58:40](voice-shots/vn-20261101-155840-103.jpg)
+
+## 15:58:42 - How about a non-sucking dreadnought?
+
+- **Transcript:** How about a non-sucking dreadnought?
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 650.6 144.1 2384.5
+- **Facing:** north-east (yaw 57, pitch -25)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CommandMenu
+- **Time:** day 1 04:36, clear
+- **Fps:** 59
+- **Levels:** mic -22 dBFS, game sound -19 dBFS
+- **Length:** 2.9 s (voice 1.6 s)
+- **Just before:** -29s opened PauseMenu; -28s message: Creative mode; -28s closed PauseMenu; -26s message: Flying; -25s walked into Warm Ocean; -21s walked into Beach; -19s message: Lorvaal - Valiswick border post marked on the map; -19s walked into Sparse Jungle; -17s message: Entering Valiswick; -17s walked into Dark Forest; -12s opened PauseMenu; -11s opened CommandMenu; -11s walked into Forest; -7s message: Capital City: 1385 ~ 4489 (2228 blocks), marked on your map; -4s message: Sealed Armoury: 824 ~ 2328 (182 blocks, underground: its floor at y -38, 127 blocks under the surface), marked on your map
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 650.6 --z 2384.5 --yaw -57 --pitch -25 --time 0.942`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155842-103.aac
+
+## 15:58:57 - Forty-eight, nine, nine hundred
+
+- **Transcript:** Forty-eight, nine, nine hundred
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 650.6 144.1 2384.5
+- **Facing:** north-east (yaw 57, pitch -25)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CommandMenu
+- **Time:** day 1 04:55, clear
+- **Fps:** 72
+- **Levels:** mic -36 dBFS, game sound -13 dBFS
+- **Length:** 3.1 s (voice 1.6 s)
+- **Just before:** -27s opened PauseMenu; -27s opened CommandMenu; -26s walked into Forest; -22s message: Capital City: 1385 ~ 4489 (2228 blocks), marked on your map; -19s message: Sealed Armoury: 824 ~ 2328 (182 blocks, underground: its floor at y -38, 127 blocks under the surface), marked on your map; -13s opened KeyboardMenu; -3s message: Meridian Frigate: 4834 ~ -937 (5341 blocks, patrols); -2s opened CommandMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 650.6 --z 2384.5 --yaw -57 --pitch -25 --time 0.955`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155857-343.aac
+
+![15:58:57](voice-shots/vn-20261101-155857-343.jpg)
+
+## 15:59:11 - Where is it?
+
+- **Transcript:** Where is it?
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4978.0 254.1 -865.2
+- **Facing:** north-east (yaw 28, pitch -45)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:11, clear
+- **Fps:** 72
+- **Levels:** mic -29 dBFS, game sound -16 dBFS
+- **Length:** 1.8 s (voice 0.4 s)
+- **Just before:** -27s opened KeyboardMenu; -16s message: Meridian Frigate: 4834 ~ -937 (5341 blocks, patrols); -16s opened CommandMenu; -13s closed CommandMenu; -11s message: Entering Harisria; -9s walked into Flower Forest; -9s message: Entering Hareesh; -7s walked into Deep Ocean; -7s message: Entering Lorvaal; -5s walked into Deep Cold Ocean; -4s message: Meridian frigate patrol marked on the map; -3s walked into Taiga; -1s message: Entering Selaesh
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4978.0 --z -865.2 --yaw -28 --pitch -45 --time 0.966`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155911-003.aac
+
+![15:59:11](voice-shots/vn-20261101-155911-003.jpg)
+
+## 15:59:16 - Ah, see this beautiful engine room
+
+- **Transcript:** Ah, see this beautiful engine room
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4890.9 232.3 -916.9
+- **Facing:** north-west (yaw 293, pitch -60)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:16, clear
+- **Fps:** 59
+- **Levels:** mic -24 dBFS, game sound -14 dBFS
+- **Length:** 3.6 s (voice 2.1 s)
+- **Just before:** -21s message: Meridian Frigate: 4834 ~ -937 (5341 blocks, patrols); -20s opened CommandMenu; -18s closed CommandMenu; -15s message: Entering Harisria; -14s walked into Flower Forest; -13s message: Entering Hareesh; -12s walked into Deep Ocean; -11s message: Entering Lorvaal; -10s walked into Deep Cold Ocean; -8s message: Meridian frigate patrol marked on the map; -8s walked into Taiga; -6s message: Entering Selaesh; -4s message: The sky is clouding over: fog is coming; -1s message: A Meridian Frigate looms on the horizon
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4890.9 --z -916.9 --yaw 67 --pitch -60 --time 0.970`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155916-783.aac
+
+## 15:59:21 - I'm curious
+
+- **Transcript:** I'm curious
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4844.2 170.0 -905.7
+- **Facing:** west (yaw 255, pitch -55)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:19, clear
+- **Fps:** 41
+- **Levels:** mic -30 dBFS, game sound -15 dBFS
+- **Length:** 2.2 s (voice 0.7 s)
+- **Just before:** -23s message: Meridian Frigate: 4834 ~ -937 (5341 blocks, patrols); -23s opened CommandMenu; -20s closed CommandMenu; -17s message: Entering Harisria; -16s walked into Flower Forest; -15s message: Entering Hareesh; -14s walked into Deep Ocean; -14s message: Entering Lorvaal; -12s walked into Deep Cold Ocean; -10s message: Meridian frigate patrol marked on the map; -10s walked into Taiga; -8s message: Entering Selaesh; -6s message: The sky is clouding over: fog is coming; -4s message: A Meridian Frigate looms on the horizon; -2s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4844.2 --z -905.7 --yaw 105 --pitch -55 --time 0.972`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155921-063.aac
+
+![15:59:21](voice-shots/vn-20261101-155921-063.jpg)
+
+## 15:59:24 - That's what this puppy looks like
+
+- **Transcript:** That's what this puppy looks like
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4808.8 162.6 -887.5
+- **Facing:** west (yaw 260, pitch -69)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:21, clear
+- **Fps:** 41
+- **Levels:** mic -32 dBFS, game sound -21 dBFS
+- **Length:** 2.4 s (voice 0.8 s)
+- **Just before:** -25s message: Meridian Frigate: 4834 ~ -937 (5341 blocks, patrols); -24s opened CommandMenu; -22s closed CommandMenu; -19s message: Entering Harisria; -18s walked into Flower Forest; -17s message: Entering Hareesh; -16s walked into Deep Ocean; -15s message: Entering Lorvaal; -14s walked into Deep Cold Ocean; -12s message: Meridian frigate patrol marked on the map; -12s walked into Taiga; -10s message: Entering Selaesh; -8s message: The sky is clouding over: fog is coming; -6s message: A Meridian Frigate looms on the horizon; -3s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4808.8 --z -887.5 --yaw 100 --pitch -69 --time 0.973`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155924-043.aac
+
+## 15:59:27 - Engine room. Yeah, no fucking way
+
+- **Transcript:** Engine room. Yeah, no fucking way
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4786.2 151.0 -871.9
+- **Facing:** west (yaw 291, pitch -65)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:23, clear
+- **Fps:** 40
+- **Levels:** mic -30 dBFS, game sound -13 dBFS
+- **Length:** 3.9 s (voice 1.7 s)
+- **Just before:** -27s message: Meridian Frigate: 4834 ~ -937 (5341 blocks, patrols); -26s opened CommandMenu; -24s closed CommandMenu; -21s message: Entering Harisria; -20s walked into Flower Forest; -19s message: Entering Hareesh; -18s walked into Deep Ocean; -17s message: Entering Lorvaal; -16s walked into Deep Cold Ocean; -14s message: Meridian frigate patrol marked on the map; -14s walked into Taiga; -11s message: Entering Selaesh; -10s message: The sky is clouding over: fog is coming; -7s message: A Meridian Frigate looms on the horizon; -5s message: Walking; -1s message: Flying; -0s message: The frigate's cargo winch lowers a line
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4786.2 --z -871.9 --yaw 69 --pitch -65 --time 0.975`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155927-623.aac
+
+## 15:59:32 - Just a little bit of interference from... Oh, yeah
+
+- **Transcript:** Just a little bit of interference from... Oh, yeah
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4744.0 150.0 -858.6
+- **Facing:** west (yaw 259, pitch -52)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:26, clear
+- **Fps:** 36
+- **Levels:** mic -23 dBFS, game sound -18 dBFS
+- **Length:** 3.9 s (voice 2.3 s)
+- **Just before:** -29s message: Meridian Frigate: 4834 ~ -937 (5341 blocks, patrols); -29s opened CommandMenu; -26s closed CommandMenu; -24s message: Entering Harisria; -22s walked into Flower Forest; -21s message: Entering Hareesh; -20s walked into Deep Ocean; -20s message: Entering Lorvaal; -18s walked into Deep Cold Ocean; -16s message: Meridian frigate patrol marked on the map; -16s walked into Taiga; -14s message: Entering Selaesh; -12s message: The sky is clouding over: fog is coming; -10s message: A Meridian Frigate looms on the horizon; -8s message: Walking; -4s message: Flying; -3s message: The frigate's cargo winch lowers a line
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4744.0 --z -858.6 --yaw 101 --pitch -52 --time 0.977`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155932-543.aac
+
+![15:59:32](voice-shots/vn-20261101-155932-543.jpg)
+
+## 15:59:36 - Interference from the driving allowed to get in from the top, but
+
+- **Transcript:** Interference from the driving allowed to get in from the top, but
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4703.2 148.1 -860.4
+- **Facing:** north-west (yaw 325, pitch -56)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:29, clear
+- **Fps:** 42
+- **Levels:** mic -44 dBFS, game sound -19 dBFS
+- **Length:** 4.6 s (voice 2.5 s)
+- **Just before:** -29s closed CommandMenu; -26s message: Entering Harisria; -25s walked into Flower Forest; -24s message: Entering Hareesh; -23s walked into Deep Ocean; -22s message: Entering Lorvaal; -21s walked into Deep Cold Ocean; -19s message: Meridian frigate patrol marked on the map; -19s walked into Taiga; -17s message: Entering Selaesh; -15s message: The sky is clouding over: fog is coming; -12s message: A Meridian Frigate looms on the horizon; -10s message: Walking; -6s message: Flying; -5s message: The frigate's cargo winch lowers a line
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4703.2 --z -860.4 --yaw 35 --pitch -56 --time 0.979`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155936-363.aac
+
+## 15:59:41 - Not huge
+
+- **Transcript:** Not huge
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4643.6 143.0 -893.0
+- **Facing:** west (yaw 284, pitch -62)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:34, clear
+- **Fps:** 60
+- **Levels:** mic -29 dBFS, game sound -17 dBFS
+- **Length:** 1.9 s (voice 0.5 s)
+- **Just before:** -29s walked into Flower Forest; -28s message: Entering Hareesh; -27s walked into Deep Ocean; -26s message: Entering Lorvaal; -25s walked into Deep Cold Ocean; -23s message: Meridian frigate patrol marked on the map; -23s walked into Taiga; -21s message: Entering Selaesh; -19s message: The sky is clouding over: fog is coming; -16s message: A Meridian Frigate looms on the horizon; -14s message: Walking; -10s message: Flying; -9s message: The frigate's cargo winch lowers a line; -1s message: The sky is clouding over: fog is coming
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4643.6 --z -893.0 --yaw 76 --pitch -62 --time 0.982`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155941-063.aac
+
+## 15:59:43 - That is perfect. Oh, yeah
+
+- **Transcript:** That is perfect. Oh, yeah
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4615.7 142.3 -921.1
+- **Facing:** north-west (yaw 323, pitch -32)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:37, clear
+- **Fps:** 60
+- **Levels:** mic -22 dBFS, game sound -17 dBFS
+- **Length:** 3.2 s (voice 0.9 s)
+- **Just before:** -29s walked into Deep Ocean; -29s message: Entering Lorvaal; -27s walked into Deep Cold Ocean; -25s message: Meridian frigate patrol marked on the map; -25s walked into Taiga; -23s message: Entering Selaesh; -21s message: The sky is clouding over: fog is coming; -19s message: A Meridian Frigate looms on the horizon; -17s message: Walking; -13s message: Flying; -12s message: The frigate's cargo winch lowers a line; -3s message: The sky is clouding over: fog is coming
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4615.7 --z -921.1 --yaw 37 --pitch -32 --time 0.984`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155943-843.aac
+
+![15:59:43](voice-shots/vn-20261101-155943-843.jpg)
+
+## 15:59:49 - Anyway, uh, when the thing crashes, what do you think we should fix? N
+
+- **Transcript:** Anyway, uh, when the thing crashes, what do you think we should fix? Nothing
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4580.9 143.3 -994.0
+- **Facing:** north-west (yaw 318, pitch -29)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:43, clear
+- **Fps:** 65
+- **Levels:** mic -23 dBFS, game sound -19 dBFS
+- **Length:** 5.0 s (voice 3.0 s)
+- **Just before:** -28s message: Entering Selaesh; -27s message: The sky is clouding over: fog is coming; -24s message: A Meridian Frigate looms on the horizon; -22s message: Walking; -18s message: Flying; -17s message: The frigate's cargo winch lowers a line; -9s message: The sky is clouding over: fog is coming
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4580.9 --z -994.0 --yaw 42 --pitch -29 --time 0.989`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155949-203.aac
+
+## 15:59:56 - Let's just make it so that it crashes too many times, the gun breaks
+
+- **Transcript:** Let's just make it so that it crashes too many times, the gun breaks
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4582.9 141.5 -1097.4
+- **Facing:** north-west (yaw 333, pitch -36)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:51, clear
+- **Fps:** 66
+- **Levels:** mic -25 dBFS, game sound -19 dBFS
+- **Length:** 4.1 s (voice 2.4 s)
+- **Just before:** -29s message: Walking; -25s message: Flying; -24s message: The frigate's cargo winch lowers a line; -15s message: The sky is clouding over: fog is coming
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4582.9 --z -1097.4 --yaw 27 --pitch -36 --time 0.994`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-155956-503.aac
+
+![15:59:56](voice-shots/vn-20261101-155956-503.jpg)
+
+## 16:00:01 - May have to fix the gun or something
+
+- **Transcript:** May have to fix the gun or something
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Taiga
+- **Position:** 4609.7 137.2 -1160.1
+- **Facing:** north (yaw 358, pitch -45)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 1 05:57, clear
+- **Fps:** 68
+- **Levels:** mic -29 dBFS, game sound -16 dBFS
+- **Length:** 2.8 s (voice 1.2 s)
+- **Just before:** -29s message: Flying; -28s message: The frigate's cargo winch lowers a line; -20s message: The sky is clouding over: fog is coming; -1s walked into Snowy Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4609.7 --z -1160.1 --yaw 2 --pitch -45 --time 0.998`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160001-384.aac
+
+## 16:00:04 - Have a bunch of like barrel blocks going along that just get damaged a
+
+- **Transcript:** Have a bunch of like barrel blocks going along that just get damaged and then, I don't know
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 4639.2 128.9 -1192.1
+- **Facing:** north-east (yaw 23, pitch -21)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 06:00, clear
+- **Fps:** 68
+- **Levels:** mic -35 dBFS, game sound -17 dBFS
+- **Length:** 5.0 s (voice 3.2 s)
+- **Just before:** -22s message: The sky is clouding over: fog is coming; -4s walked into Snowy Taiga; -1s walked into Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4639.2 --z -1192.1 --yaw -23 --pitch -21 --time 0.000`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160004-064.aac
+
+## 16:00:09 - This is kind of neat though. Why is there a ladder right under the doo
+
+- **Transcript:** This is kind of neat though. Why is there a ladder right under the door? It doesn't make a lick of sense
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 4702.6 127.7 -1249.9
+- **Facing:** north-east (yaw 44, pitch -9)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 06:06, clear
+- **Fps:** 63
+- **Levels:** mic -33 dBFS, game sound -13 dBFS
+- **Length:** 4.7 s (voice 3.0 s)
+- **Just before:** -27s message: The sky is clouding over: fog is coming; -9s walked into Snowy Taiga; -7s walked into Taiga; -5s walked into Snowy Taiga
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4702.6 --z -1249.9 --yaw -44 --pitch -9 --time 0.004`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160009-543.aac
+
+![16:00:09](voice-shots/vn-20261101-160009-543.jpg)
+
+## 16:00:32 - Okay, clearly there is
+
+- **Transcript:** Okay, clearly there is
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Snowy Taiga
+- **Position:** 5059.7 137.7 -1235.6
+- **Facing:** east (yaw 110, pitch 4)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 06:30, clear
+- **Fps:** 57
+- **Levels:** mic -26 dBFS, game sound -19 dBFS
+- **Length:** 3.3 s (voice 1.9 s)
+- **Just before:** -29s walked into Snowy Taiga; -27s walked into Taiga; -25s walked into Snowy Taiga; -10s opened PauseMenu; -10s closed PauseMenu; -9s opened CreativeMenu; -7s closed CreativeMenu; -7s into the pack: Titanium Sword; -7s holding Titanium Sword; -7s message: Titanium Sword; -4s holding empty hand; -3s piloting Meridian Frigate; -3s message: Steering Meridian Frigate; -1s message: You have taken command of the Meridian Frigate!
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5059.7 --z -1235.6 --yaw -110 --pitch 4 --time 0.021`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160032-643.aac
+
+![16:00:32](voice-shots/vn-20261101-160032-643.jpg)
+
+## 16:00:37 - Some sort of interference
+
+- **Transcript:** Some sort of interference
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Cold Ocean
+- **Position:** 5361.0 203.9 -1079.4
+- **Facing:** east (yaw 84, pitch -29)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 06:35, clear
+- **Fps:** 70
+- **Levels:** mic -31 dBFS, game sound -16 dBFS
+- **Length:** 2.8 s (voice 1.2 s)
+- **Just before:** -30s walked into Snowy Taiga; -14s opened PauseMenu; -14s closed PauseMenu; -14s opened CreativeMenu; -12s closed CreativeMenu; -12s into the pack: Titanium Sword; -11s holding Titanium Sword; -11s message: Titanium Sword; -8s holding empty hand; -7s piloting Meridian Frigate; -7s message: Steering Meridian Frigate; -6s message: You have taken command of the Meridian Frigate!; -3s message: Greywall Fortress marked on the map; -1s walked into Cold Ocean
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5361.0 --z -1079.4 --yaw -84 --pitch -29 --time 0.025`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160037-163.aac
+
+## 16:00:39 - Er, yeah, fuel is covering rounds
+
+- **Transcript:** Er, yeah, fuel is covering rounds
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Cold Ocean
+- **Position:** 5585.1 247.3 -867.6
+- **Facing:** east (yaw 100, pitch -28)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 06:39, clear
+- **Fps:** 70
+- **Levels:** mic -27 dBFS, game sound -14 dBFS
+- **Length:** 4.3 s (voice 2.4 s)
+- **Just before:** -17s opened PauseMenu; -17s closed PauseMenu; -16s opened CreativeMenu; -15s closed CreativeMenu; -14s into the pack: Titanium Sword; -14s holding Titanium Sword; -14s message: Titanium Sword; -11s holding empty hand; -10s piloting Meridian Frigate; -10s message: Steering Meridian Frigate; -8s message: You have taken command of the Meridian Frigate!; -6s message: Greywall Fortress marked on the map; -4s walked into Cold Ocean
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5585.1 --z -867.6 --yaw -100 --pitch -28 --time 0.027`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160039-983.aac
+
+## 16:00:44 - There's a lot of, uh, yeah, a lot of
+
+- **Transcript:** There's a lot of, uh, yeah, a lot of
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Ocean
+- **Position:** 5830.4 255.6 -468.6
+- **Facing:** south (yaw 175, pitch -24)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 06:44, clear
+- **Fps:** 72
+- **Levels:** mic -30 dBFS, game sound -17 dBFS
+- **Length:** 3.9 s (voice 2.1 s)
+- **Just before:** -21s opened PauseMenu; -21s closed PauseMenu; -21s opened CreativeMenu; -19s closed CreativeMenu; -19s into the pack: Titanium Sword; -18s holding Titanium Sword; -18s message: Titanium Sword; -16s holding empty hand; -15s piloting Meridian Frigate; -15s message: Steering Meridian Frigate; -13s message: You have taken command of the Meridian Frigate!; -10s message: Greywall Fortress marked on the map; -8s walked into Cold Ocean; -2s walked into Ocean; -2s message: Capital citadel (the enemy) marked on the map
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5830.4 --z -468.6 --yaw -175 --pitch -24 --time 0.031`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160044-203.aac
+
+![16:00:44](voice-shots/vn-20261101-160044-203.jpg)
+
+## 16:00:48 - Overlapping, uh, UI here
+
+- **Transcript:** Overlapping, uh, UI here
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Forest
+- **Position:** 5961.7 246.5 -32.7
+- **Facing:** south (yaw 161, pitch -37)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 06:49, clear
+- **Fps:** 72
+- **Levels:** mic -25 dBFS, game sound -17 dBFS
+- **Length:** 3.1 s (voice 1.7 s)
+- **Just before:** -25s opened PauseMenu; -25s closed PauseMenu; -25s opened CreativeMenu; -23s closed CreativeMenu; -23s into the pack: Titanium Sword; -22s holding Titanium Sword; -22s message: Titanium Sword; -20s holding empty hand; -19s piloting Meridian Frigate; -19s message: Steering Meridian Frigate; -17s message: You have taken command of the Meridian Frigate!; -14s message: Greywall Fortress marked on the map; -13s walked into Cold Ocean; -7s walked into Ocean; -6s message: Capital citadel (the enemy) marked on the map; -0s walked into Birch Forest; -0s message: Entering Savoheim
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5961.7 --z -32.7 --yaw -161 --pitch -37 --time 0.034`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160048-343.aac
+
+## 16:01:01 - Make the tiebreaker
+
+- **Transcript:** Make the tiebreaker
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5964.5 272.7 168.2
+- **Facing:** south (yaw 179, pitch -12)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 07:04, clear
+- **Fps:** 72
+- **Levels:** mic -25 dBFS, game sound -18 dBFS
+- **Length:** 2.6 s (voice 1.0 s)
+- **Just before:** -30s message: You have taken command of the Meridian Frigate!; -27s message: Greywall Fortress marked on the map; -26s walked into Cold Ocean; -19s walked into Ocean; -19s message: Capital citadel (the enemy) marked on the map; -13s walked into Birch Forest; -13s message: Entering Savoheim; -12s message: Mill Bluff marked on the map; -11s walked into Plains; -4s message: Tidebreaker hit on the Capital citadel: 0 of the garrison down (hit 1 of 3 to break it)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5964.5 --z 168.2 --yaw -179 --pitch -12 --time 0.045`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160101-343.aac
+
+![16:01:01](voice-shots/vn-20261101-160101-343.jpg)
+
+## 16:01:11 - All right, let's just see how this works
+
+- **Transcript:** All right, let's just see how this works
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5976.2 267.1 145.4
+- **Facing:** south (yaw 188, pitch -12)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 07:16, clear
+- **Fps:** 72
+- **Levels:** mic -28 dBFS, game sound -15 dBFS
+- **Length:** 3.1 s (voice 1.6 s)
+- **Just before:** -29s walked into Ocean; -29s message: Capital citadel (the enemy) marked on the map; -23s walked into Birch Forest; -23s message: Entering Savoheim; -21s message: Mill Bluff marked on the map; -21s walked into Plains; -14s message: Tidebreaker hit on the Capital citadel: 0 of the garrison down (hit 1 of 3 to break it); -5s walked into Forest; -1s walked into Plains
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5976.2 --z 145.4 --yaw 172 --pitch -12 --time 0.053`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160111-223.aac
+
+## 16:01:14 - So once again, we need to turn the actual building shapes like that, t
+
+- **Transcript:** So once again, we need to turn the actual building shapes like that, turn it into like, make it look like they compressed everything around it
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5950.9 246.1 295.4
+- **Facing:** south (yaw 183, pitch -15)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 07:20, clear
+- **Fps:** 72
+- **Levels:** mic -21 dBFS, game sound -14 dBFS
+- **Length:** 10.7 s (voice 6.3 s)
+- **Just before:** -27s walked into Birch Forest; -26s message: Entering Savoheim; -25s message: Mill Bluff marked on the map; -25s walked into Plains; -17s message: Tidebreaker hit on the Capital citadel: 0 of the garrison down (hit 1 of 3 to break it); -9s walked into Forest; -4s walked into Plains
+- **Position at the end:** 5969.7 263.9 184.9
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5950.9 --z 295.4 --yaw 177 --pitch -15 --time 0.056`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160114-543.aac
+
+![16:01:14](voice-shots/vn-20261101-160114-543.jpg)
+
+## 16:01:27 - Not some placeholder block thing
+
+- **Transcript:** Not some placeholder block thing
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5959.1 250.6 262.0
+- **Facing:** south (yaw 170, pitch -12)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 07:35, clear
+- **Fps:** 72
+- **Levels:** mic -52 dBFS, game sound -18 dBFS
+- **Length:** 3.0 s (voice 1.2 s)
+- **Just before:** -21s walked into Forest; -17s walked into Plains; -1s walked into Forest
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5959.1 --z 262.0 --yaw -170 --pitch -12 --time 0.067`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160127-343.aac
+
+![16:01:27](voice-shots/vn-20261101-160127-343.jpg)
+
+## 16:01:31 - Okay, I hope that destroyed the building. Uh, it should have
+
+- **Transcript:** Okay, I hope that destroyed the building. Uh, it should have
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5943.7 224.8 373.0
+- **Facing:** south (yaw 173, pitch -12)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 07:40, clear
+- **Fps:** 72
+- **Levels:** mic -25 dBFS, game sound -17 dBFS
+- **Length:** 5.1 s (voice 2.8 s)
+- **Just before:** -25s walked into Forest; -21s walked into Plains; -5s walked into Forest; -3s walked into Plains
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5943.7 --z 373.0 --yaw -173 --pitch -12 --time 0.070`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160131-443.aac
+
+## 16:01:53 - Some reason there's a
+
+- **Transcript:** Some reason there's a
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5799.9 137.9 911.3
+- **Facing:** north-east (yaw 37, pitch -25)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 08:04, clear
+- **Fps:** 50
+- **Levels:** mic -28 dBFS, game sound -19 dBFS
+- **Length:** 2.3 s (voice 0.9 s)
+- **Just before:** -25s walked into Forest; -23s walked into Plains; -12s message: Sky isle marked on the map; -7s message: The citadel is on lockdown!; -5s message: A Capital patrol sets out to investigate; -3s message: Intel: this base is a Radar Station
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5799.9 --z 911.3 --yaw -37 --pitch -25 --time 0.086`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160153-523.aac
+
+![16:01:53](voice-shots/vn-20261101-160153-523.jpg)
+
+## 16:02:03 - Oh, that's terrific. Okay
+
+- **Transcript:** Oh, that's terrific. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 6018.8 160.5 810.5
+- **Facing:** west (yaw 289, pitch -25)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 08:15, clear
+- **Fps:** 59
+- **Levels:** mic -25 dBFS, game sound -20 dBFS
+- **Length:** 2.7 s (voice 1.1 s)
+- **Just before:** -21s message: Sky isle marked on the map; -16s message: The citadel is on lockdown!; -14s message: A Capital patrol sets out to investigate; -12s message: Intel: this base is a Radar Station; -5s message: Sage Point Station marked on the map; -3s message: Fort Juniper Station marked on the map; -0s message: You found the Sage & Fort Rail Road: 2 stations, marked on your map
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 6018.8 --z 810.5 --yaw 71 --pitch -25 --time 0.094`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160203-863.aac
+
+![16:02:03](voice-shots/vn-20261101-160203-863.jpg)
+
+## 16:02:11 - Frigates, little guns need to fire faster, and they need to be like, I
+
+- **Transcript:** Frigates, little guns need to fire faster, and they need to be like, I think they need to be like machine guns where I can just hold the trigger. And then as for the tiebreaker gun, I'm not sure, but it needs to be separate from just holding the trigger.
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5781.0 145.2 557.5
+- **Facing:** south (yaw 187, pitch -23)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 08:23, clear
+- **Fps:** 70
+- **Levels:** mic -25 dBFS, game sound -20 dBFS
+- **Length:** 14.9 s (voice 9.6 s)
+- **Just before:** -29s message: Sky isle marked on the map; -23s message: The citadel is on lockdown!; -21s message: A Capital patrol sets out to investigate; -19s message: Intel: this base is a Radar Station; -12s message: Sage Point Station marked on the map; -10s message: Fort Juniper Station marked on the map; -7s message: You found the Sage & Fort Rail Road: 2 stations, marked on your map
+- **Position at the end:** 5702.0 140.5 644.2
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5781.0 --z 557.5 --yaw 173 --pitch -23 --time 0.100`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160211-363.aac
+
+## 16:02:27 - You know what? I have an idea
+
+- **Transcript:** You know what? I have an idea
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5680.6 137.6 659.8
+- **Facing:** south-east (yaw 120, pitch -16)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 08:42, clear
+- **Fps:** 71
+- **Levels:** mic -21 dBFS, game sound -18 dBFS
+- **Length:** 2.4 s (voice 1.0 s)
+- **Just before:** -28s message: Sage Point Station marked on the map; -25s message: Fort Juniper Station marked on the map; -23s message: You found the Sage & Fort Rail Road: 2 stations, marked on your map
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5680.6 --z 659.8 --yaw -120 --pitch -16 --time 0.113`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160227-103.aac
+
+![16:02:27](voice-shots/vn-20261101-160227-103.jpg)
+
+## 16:02:31 - Make it, uh, I have to hit both triggers at the same time to fire the 
+
+- **Transcript:** Make it, uh, I have to hit both triggers at the same time to fire the tiebreaker. Yeah, now we're thinking
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5612.2 131.4 519.2
+- **Facing:** south-east (yaw 131, pitch -8)
+- **Held:** empty hand
+- **Mount:** piloting Meridian Frigate
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 08:47, clear
+- **Fps:** 72
+- **Levels:** mic -57 dBFS, game sound -20 dBFS
+- **Length:** 6.9 s (voice 3.7 s)
+- **Just before:** -29s message: Fort Juniper Station marked on the map; -27s message: You found the Sage & Fort Rail Road: 2 stations, marked on your map
+- **Position at the end:** 5622.1 133.0 500.4
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5612.2 --z 519.2 --yaw -131 --pitch -8 --time 0.116`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160231-124.aac
+
+## 16:04:23 - Oh shit, what happened?
+
+- **Transcript:** Oh shit, what happened?
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5791.3 90.4 707.4
+- **Facing:** north-east (yaw 61, pitch -27)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 11:01, clear
+- **Fps:** 72
+- **Levels:** mic -41 dBFS, game sound -14 dBFS
+- **Length:** 3.7 s (voice 2.2 s)
+- **Just before:** -22s walked into Desert; -20s walked into Plains; -2s stopped piloting Meridian Frigate; -2s message: The Meridian Frigate has crash-landed
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5791.3 --z 707.4 --yaw -61 --pitch -27 --time 0.209`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160423-563.aac
+
+![16:04:23](voice-shots/vn-20261101-160423-563.jpg)
+
+## 16:04:29 - What, what happened here? [laughs] Okay, first of all, I love the amou
+
+- **Transcript:** What, what happened here? [laughs] Okay, first of all, I love the amount of damage that was done to the ship. That is beautiful. Beautiful
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5802.3 148.4 617.8
+- **Facing:** south (yaw 179, pitch 5)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 11:08, clear
+- **Fps:** 68
+- **Levels:** mic -33 dBFS, game sound -19 dBFS
+- **Length:** 11.5 s (voice 5.9 s)
+- **Just before:** -27s walked into Desert; -25s walked into Plains; -7s stopped piloting Meridian Frigate; -7s message: The Meridian Frigate has crash-landed; -5s into the pack: Blitzlanze Arc Gun; -5s message: Flying
+- **Position at the end:** 5752.8 246.5 685.0
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5802.3 --z 617.8 --yaw -179 --pitch 5 --time 0.214`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160429-024.aac
+
+## 16:04:40 - Okay. So yeah, this little reactor you have in here, if anything hits 
+
+- **Transcript:** Okay. So yeah, this little reactor you have in here, if anything hits that, ship's dead
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5744.9 255.6 694.1
+- **Facing:** south (yaw 164, pitch -13)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 11:21, clear
+- **Fps:** 72
+- **Levels:** mic -28 dBFS, game sound -16 dBFS
+- **Length:** 6.8 s (voice 3.4 s)
+- **Just before:** -18s stopped piloting Meridian Frigate; -18s message: The Meridian Frigate has crash-landed; -17s into the pack: Blitzlanze Arc Gun; -16s message: Flying
+- **Position at the end:** 5742.1 261.3 690.1
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5744.9 --z 694.1 --yaw -164 --pitch -13 --time 0.224`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160440-503.aac
+
+![16:04:40](voice-shots/vn-20261101-160440-503.jpg)
+
+## 16:04:47 - Otherwise, if it hits the ground, it gets to stay on the ground all is
+
+- **Transcript:** Otherwise, if it hits the ground, it gets to stay on the ground all is well. I can-- You can just start flying it again. Now this thing, oh my God
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5786.8 261.5 654.2
+- **Facing:** south-east (yaw 157, pitch -39)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 11:29, clear
+- **Fps:** 72
+- **Levels:** mic -21 dBFS, game sound -17 dBFS
+- **Length:** 10.2 s (voice 5.5 s)
+- **Just before:** -25s stopped piloting Meridian Frigate; -25s message: The Meridian Frigate has crash-landed; -23s into the pack: Blitzlanze Arc Gun; -23s message: Flying; -0s message: Walking
+- **While talking:** -3s message: Flying; -2s message: Walking
+- **Position at the end:** 5794.5 156.5 663.4
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5786.8 --z 654.2 --yaw -157 --pitch -39 --time 0.229`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160447-183.aac
+
+## 16:04:57 - No way this thing should be flying. This little-- this drop ship is so
+
+- **Transcript:** No way this thing should be flying. This little-- this drop ship is so damaged, it shouldn't be flying
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** 5805.4 108.1 771.8
+- **Facing:** south-west (yaw 211, pitch -53)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 11:41, clear
+- **Fps:** 72
+- **Levels:** mic -18 dBFS, game sound -20 dBFS
+- **Length:** 7.0 s (voice 4.1 s)
+- **Just before:** -10s message: Walking; -8s message: Flying; -7s message: Walking; -5s message: Flying; -3s message: Walking; -2s message: Flying; -1s walked into Desert
+- **Position at the end:** 5842.6 108.1 765.4
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5805.4 --z 771.8 --yaw 149 --pitch -53 --time 0.237`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160457-123.aac
+
+![16:04:57](voice-shots/vn-20261101-160457-123.jpg)
+
+## 16:05:05 - I don't know how this thing
+
+- **Transcript:** I don't know how this thing
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5842.5 94.6 744.7
+- **Facing:** north (yaw 16, pitch 9)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 11:50, clear
+- **Fps:** 69
+- **Levels:** mic -25 dBFS, game sound -18 dBFS
+- **Length:** 2.5 s (voice 1.0 s)
+- **Just before:** -18s message: Walking; -16s message: Flying; -14s message: Walking; -12s message: Flying; -11s message: Walking; -9s message: Flying; -8s walked into Desert; -2s walked into Plains; -2s message: Walking; -0s holding Titanium Sword
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5842.5 --z 744.7 --yaw -16 --pitch 9 --time 0.244`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160505-063.aac
+
+## 16:05:08 - Yeah, the haul is zero. That makes sense. Um
+
+- **Transcript:** Yeah, the haul is zero. That makes sense. Um
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5825.9 91.2 719.2
+- **Facing:** north (yaw 342, pitch 3)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 11:54, clear
+- **Fps:** 70
+- **Levels:** mic -28 dBFS, game sound -17 dBFS
+- **Length:** 4.3 s (voice 2.9 s)
+- **Just before:** -21s message: Walking; -19s message: Flying; -17s message: Walking; -15s message: Flying; -14s message: Walking; -12s message: Flying; -11s walked into Desert; -5s walked into Plains; -5s message: Walking; -3s holding Titanium Sword
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5825.9 --z 719.2 --yaw 18 --pitch 3 --time 0.246`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160508-103.aac
+
+![16:05:08](voice-shots/vn-20261101-160508-103.jpg)
+
+## 16:05:13 - Like there's no way this thing should be flying. If it has one wing de
+
+- **Transcript:** Like there's no way this thing should be flying. If it has one wing destroyed, like that thing is going down
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5701.9 107.9 606.5
+- **Facing:** north-west (yaw 332, pitch -15)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 12:00, clear
+- **Fps:** 72
+- **Levels:** mic -24 dBFS, game sound -18 dBFS
+- **Length:** 7.1 s (voice 4.1 s)
+- **Just before:** -26s message: Walking; -24s message: Flying; -23s message: Walking; -20s message: Flying; -19s message: Walking; -18s message: Flying; -17s walked into Desert; -11s walked into Plains; -10s message: Walking; -9s holding Titanium Sword; -5s holding empty hand; -4s piloting Capital Dropship; -4s message: Steering Capital Dropship; -3s message: You have taken command of the Capital Dropship!
+- **Position at the end:** 5680.4 108.5 447.1
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5701.9 --z 606.5 --yaw 28 --pitch -15 --time 0.251`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160513-423.aac
+
+## 16:05:45 - Here's an idea. Let's make it so that
+
+- **Transcript:** Here's an idea. Let's make it so that
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5861.6 138.6 847.8
+- **Facing:** north-west (yaw 334, pitch -36)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 12:37, clear
+- **Fps:** 64
+- **Levels:** mic -28 dBFS, game sound -17 dBFS
+- **Length:** 3.9 s (voice 2.1 s)
+- **Just before:** -11s walked into Desert; -9s walked into Plains
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5861.6 --z 847.8 --yaw 26 --pitch -36 --time 0.276`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160545-144.aac
+
+![16:05:45](voice-shots/vn-20261101-160545-144.jpg)
+
+## 16:05:49 - And within a certain range
+
+- **Transcript:** And within a certain range
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5834.3 138.5 843.8
+- **Facing:** north-west (yaw 326, pitch -45)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 12:41, clear
+- **Fps:** 65
+- **Levels:** mic -24 dBFS, game sound -16 dBFS
+- **Length:** 3.0 s (voice 1.6 s)
+- **Just before:** -14s walked into Desert; -12s walked into Plains
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5834.3 --z 843.8 --yaw 34 --pitch -45 --time 0.279`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160549-263.aac
+
+## 16:05:52 - Make the citadel render.
+
+- **Transcript:** Make the citadel render.
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5805.3 138.4 832.6
+- **Facing:** north-east (yaw 55, pitch -21)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 12:45, clear
+- **Fps:** 68
+- **Levels:** mic -21 dBFS, game sound -15 dBFS
+- **Length:** 3.6 s (voice 1.8 s)
+- **Just before:** -17s walked into Desert; -15s walked into Plains; -1s walked into Desert
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5805.3 --z 832.6 --yaw -55 --pitch -21 --time 0.281`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160552-524.aac
+
+## 16:05:55 - Entirely. You can make a compression of it, make the entire thing rend
+
+- **Transcript:** Entirely. You can make a compression of it, make the entire thing render. None of the land around it though, just the city all itself
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5801.6 138.6 822.5
+- **Facing:** north-east (yaw 51, pitch -33)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 12:48, clear
+- **Fps:** 65
+- **Levels:** mic -23 dBFS, game sound -15 dBFS
+- **Length:** 8.4 s (voice 4.9 s)
+- **Just before:** -20s walked into Desert; -18s walked into Plains; -4s walked into Desert; -2s walked into Plains
+- **Position at the end:** 5777.7 138.5 813.8
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5801.6 --z 822.5 --yaw -51 --pitch -33 --time 0.284`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160555-824.aac
+
+![16:05:55](voice-shots/vn-20261101-160555-824.jpg)
+
+## 16:06:06 - As a possible solution
+
+- **Transcript:** As a possible solution
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5883.4 140.4 842.3
+- **Facing:** north-east (yaw 42, pitch -24)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 13:01, clear
+- **Fps:** 68
+- **Levels:** mic -31 dBFS, game sound -18 dBFS
+- **Length:** 3.2 s (voice 1.4 s)
+- **Just before:** -28s walked into Plains; -14s walked into Desert; -12s walked into Plains
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5883.4 --z 842.3 --yaw -42 --pitch -24 --time 0.292`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160606-424.aac
+
+![16:06:06](voice-shots/vn-20261101-160606-424.jpg)
+
+## 16:06:25 - Oh, here's a big... Look at this. There's a train
+
+- **Transcript:** Oh, here's a big... Look at this. There's a train
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** 5361.2 171.8 843.3
+- **Facing:** south (yaw 173, pitch -32)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 13:24, clear
+- **Fps:** 72
+- **Levels:** mic -22 dBFS, game sound -15 dBFS
+- **Length:** 3.8 s (voice 1.8 s)
+- **Just before:** -6s walked into Desert; -1s walked into Plains; -0s message: Sage Point marked on the map
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5361.2 --z 843.3 --yaw -173 --pitch -32 --time 0.309`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160625-923.aac
+
+![16:06:25](voice-shots/vn-20261101-160625-923.jpg)
+
+## 16:06:29 - Okay, it's a train except it doesn't connect to anything. So what the 
+
+- **Transcript:** Okay, it's a train except it doesn't connect to anything. So what the hell? The train should never end, okay? Train should never end. Goes on forever
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** 5272.8 143.5 901.7
+- **Facing:** south-east (yaw 148, pitch -36)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 13:28, clear
+- **Fps:** 72
+- **Levels:** mic -22 dBFS, game sound -15 dBFS
+- **Length:** 10.7 s (voice 6.0 s)
+- **Just before:** -9s walked into Desert; -5s walked into Plains; -4s message: Sage Point marked on the map; -3s walked into Desert; -1s walked into Plains
+- **While talking:** -2s message: A stranger in town: Ezra Quill; -0s walked into Desert
+- **Position at the end:** 5536.1 117.5 948.1
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5272.8 --z 901.7 --yaw -148 --pitch -36 --time 0.312`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160629-743.aac
+
+## 16:06:42 - Connects to villages, one village to the next village
+
+- **Transcript:** Connects to villages, one village to the next village
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** 5604.6 117.3 935.5
+- **Facing:** north-east (yaw 45, pitch -42)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 13:43, clear
+- **Fps:** 71
+- **Levels:** mic -24 dBFS, game sound -18 dBFS
+- **Length:** 4.9 s (voice 2.7 s)
+- **Just before:** -22s walked into Desert; -18s walked into Plains; -16s message: Sage Point marked on the map; -16s walked into Desert; -14s walked into Plains; -9s message: A stranger in town: Ezra Quill; -8s walked into Desert
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5604.6 --z 935.5 --yaw -45 --pitch -42 --time 0.322`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160642-203.aac
+
+![16:06:42](voice-shots/vn-20261101-160642-203.jpg)
+
+## 16:06:47 - Then you know what? Make villages more rare too
+
+- **Transcript:** Then you know what? Make villages more rare too
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** 5741.0 117.1 910.3
+- **Facing:** north-east (yaw 47, pitch -44)
+- **Held:** empty hand
+- **Mount:** piloting Capital Dropship
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 13:49, clear
+- **Fps:** 72
+- **Levels:** mic -27 dBFS, game sound -16 dBFS
+- **Length:** 3.6 s (voice 1.8 s)
+- **Just before:** -27s walked into Desert; -23s walked into Plains; -21s message: Sage Point marked on the map; -21s walked into Desert; -19s walked into Plains; -14s message: A stranger in town: Ezra Quill; -13s walked into Desert
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5741.0 --z 910.3 --yaw -47 --pitch -44 --time 0.326`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160647-363.aac
+
+## 16:06:52 - Oh, this poor train. Okay
+
+- **Transcript:** Oh, this poor train. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5837.4 105.6 918.4
+- **Facing:** north (yaw 9, pitch -40)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 13:54, clear
+- **Fps:** 68
+- **Levels:** mic -22 dBFS, game sound -16 dBFS
+- **Length:** 3.4 s (voice 1.5 s)
+- **Just before:** -27s walked into Plains; -25s message: Sage Point marked on the map; -25s walked into Desert; -23s walked into Plains; -18s message: A stranger in town: Ezra Quill; -17s walked into Desert; -3s walked into Plains; -2s stopped piloting Capital Dropship; -0s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5837.4 --z 918.4 --yaw -9 --pitch -40 --time 0.330`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160652-263.aac
+
+![16:06:52](voice-shots/vn-20261101-160652-263.jpg)
+
+## 16:06:58 - I should be able to drive this train. Just saying
+
+- **Transcript:** I should be able to drive this train. Just saying
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5847.2 88.6 894.4
+- **Facing:** north-west (yaw 294, pitch -56)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 14:00, clear
+- **Fps:** 53
+- **Levels:** mic -37 dBFS, game sound -13 dBFS
+- **Length:** 3.9 s (voice 1.8 s)
+- **Just before:** -29s walked into Desert; -27s walked into Plains; -23s message: A stranger in town: Ezra Quill; -21s walked into Desert; -7s walked into Plains; -6s stopped piloting Capital Dropship; -5s message: Flying; -3s message: Walking; -2s message: Flying; -1s message: Walking
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5847.2 --z 894.4 --yaw 66 --pitch -56 --time 0.334`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160658-703.aac
+
+## 16:07:04 - But I know I did destroy the... Oh, what the fuck?
+
+- **Transcript:** But I know I did destroy the... Oh, what the fuck?
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5841.4 92.7 882.5
+- **Facing:** east (yaw 105, pitch -29)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 14:06, clear
+- **Fps:** 54
+- **Levels:** mic -31 dBFS, game sound -19 dBFS
+- **Length:** 4.0 s (voice 1.9 s)
+- **Just before:** -28s message: A stranger in town: Ezra Quill; -26s walked into Desert; -12s walked into Plains; -11s stopped piloting Capital Dropship; -10s message: Flying; -8s message: Walking; -7s message: Flying; -5s message: Walking; -2s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5841.4 --z 882.5 --yaw -105 --pitch -29 --time 0.338`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160704-124.aac
+
+![16:07:04](voice-shots/vn-20261101-160704-124.jpg)
+
+## 16:07:09 - Okay. First of all, uh, question
+
+- **Transcript:** Okay. First of all, uh, question
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5886.4 107.8 908.4
+- **Facing:** north (yaw 4, pitch -50)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 14:11, clear
+- **Fps:** 67
+- **Levels:** mic -57 dBFS, game sound -15 dBFS
+- **Length:** 3.4 s (voice 1.6 s)
+- **Just before:** -17s walked into Plains; -16s stopped piloting Capital Dropship; -14s message: Flying; -13s message: Walking; -11s message: Flying; -10s message: Walking; -7s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5886.4 --z 908.4 --yaw -4 --pitch -50 --time 0.341`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160709-403.aac
+
+## 16:07:12 - Why do we have two engines on both sides of the fucking train?
+
+- **Transcript:** Why do we have two engines on both sides of the fucking train?
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5926.8 107.8 920.5
+- **Facing:** north (yaw 345, pitch -31)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 14:14, clear
+- **Fps:** 57
+- **Levels:** mic -21 dBFS, game sound -19 dBFS
+- **Length:** 4.2 s (voice 2.8 s)
+- **Just before:** -19s walked into Plains; -18s stopped piloting Capital Dropship; -17s message: Flying; -15s message: Walking; -14s message: Flying; -12s message: Walking; -9s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5926.8 --z 920.5 --yaw 15 --pitch -31 --time 0.343`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160712-403.aac
+
+## 16:07:16 - It's one side or the other side. There's only one way the train goes. 
+
+- **Transcript:** It's one side or the other side. There's only one way the train goes. Okay?
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5939.0 107.8 919.5
+- **Facing:** north-west (yaw 304, pitch -28)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 14:19, clear
+- **Fps:** 60
+- **Levels:** mic -20 dBFS, game sound -17 dBFS
+- **Length:** 5.1 s (voice 2.7 s)
+- **Just before:** -23s walked into Plains; -22s stopped piloting Capital Dropship; -20s message: Flying; -19s message: Walking; -17s message: Flying; -16s message: Walking; -13s message: Flying
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5939.0 --z 919.5 --yaw 56 --pitch -28 --time 0.347`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160716-823.aac
+
+![16:07:16](voice-shots/vn-20261101-160716-823.jpg)
+
+## 16:07:28 - Yeah, there's no-- And train never ends. That's the, that's the main t
+
+- **Transcript:** Yeah, there's no-- And train never ends. That's the, that's the main thing, okay? Trains keeps connecting shit to shit. And also there's gonna be roads everywhere too, all right? We gotta nuance the generation to add roads
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 5262.9 95.3 936.1
+- **Facing:** north-west (yaw 306, pitch -40)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 14:32, clear
+- **Fps:** 72
+- **Levels:** mic -27 dBFS, game sound -20 dBFS
+- **Length:** 14.2 s (voice 9.4 s)
+- **Just before:** -29s message: Flying; -28s message: Walking; -25s message: Flying; -8s walked into Desert; -1s message: Walking; -0s walked into Plains
+- **While talking:** -4s message: Flying; -3s message: Walking; -1s message: Flying; -4s walked into Desert
+- **Position at the end:** 4997.8 109.5 684.4
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 5262.9 --z 936.1 --yaw 54 --pitch -40 --time 0.356`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160728-723.aac
+
+![16:07:28](voice-shots/vn-20261101-160728-723.jpg)
+
+## 16:07:42 - Lots of fucking roads
+
+- **Transcript:** Lots of fucking roads
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 4815.8 124.5 505.2
+- **Facing:** west (yaw 289, pitch -31)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 14:49, clear
+- **Fps:** 72
+- **Levels:** mic -27 dBFS, game sound -22 dBFS
+- **Length:** 2.5 s (voice 1.0 s)
+- **Just before:** -22s walked into Desert; -15s message: Walking; -14s walked into Plains; -13s message: Flying; -12s message: Walking; -10s message: Flying; -8s walked into Desert; -0s walked into Plains
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4815.8 --z 505.2 --yaw 71 --pitch -31 --time 0.368`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160742-663.aac
+
+![16:07:42](voice-shots/vn-20261101-160742-663.jpg)
+
+## 16:07:46 - All right, now this is... Oh, yeah. [chuckles] I just wanna see what h
+
+- **Transcript:** All right, now this is... Oh, yeah. [chuckles] I just wanna see what happens. All right, yeah, this, this is gonna be good. Okay. All right, this is gonna be fun
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 4706.3 142.9 242.3
+- **Facing:** north-west (yaw 299, pitch -35)
+- **Held:** empty hand
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 14:53, clear
+- **Fps:** 72
+- **Levels:** mic -34 dBFS, game sound -19 dBFS
+- **Length:** 11.2 s (voice 5.5 s)
+- **Just before:** -26s walked into Desert; -18s message: Walking; -17s walked into Plains; -17s message: Flying; -15s message: Walking; -13s message: Flying; -11s walked into Desert; -3s walked into Plains
+- **While talking:** -4s walked into Sunflower Plains; -3s message: Intel: this base is an Ammo Depot; -2s walked into Plains; -0s walked into Sunflower Plains; -5s message: Walking; -3s opened PauseMenu; -2s closed PauseMenu; -1s opened CreativeMenu
+- **Position at the end:** 4608.5 112.1 292.2
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4706.3 --z 242.3 --yaw 61 --pitch -35 --time 0.371`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160746-044.aac
+
+## 16:08:10 - Minding my own business, just walking on over to the base
+
+- **Transcript:** Minding my own business, just walking on over to the base
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Sunflower Plains
+- **Position:** 4609.3 106.6 281.8
+- **Facing:** east (yaw 106, pitch -65)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4610 106 282
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 15:20, clear
+- **Fps:** 72
+- **Levels:** mic -27 dBFS, game sound -27 dBFS
+- **Length:** 4.7 s (voice 3.0 s)
+- **Just before:** -28s walked into Plains; -24s walked into Sunflower Plains; -23s message: Intel: this base is an Ammo Depot; -22s walked into Plains; -20s walked into Sunflower Plains; -19s message: Walking; -17s opened PauseMenu; -16s closed PauseMenu; -16s opened CreativeMenu; -13s holding Steel Boots; -13s into the pack: Steel Boots; -11s into the pack: Steel Leggings; -10s into the pack: Steel Chestplate; -9s into the pack: Steel Helmet; -6s closed CreativeMenu; -6s into the pack: Combat Stim; -6s opened PauseMenu; -5s message: Survival mode; -5s closed PauseMenu; -4s opened InventoryMenu; -4s holding empty hand; -4s left the pack: Steel Leggings (InventoryMenu open); -4s left the pack: Steel Boots (InventoryMenu open); -3s left the pack: Steel Chestplate (InventoryMenu open); -3s left the pack: Steel Helmet (InventoryMenu open); -3s closed InventoryMenu; -2s holding Titanium Sword; -2s message: Titanium Sword
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4609.3 --z 281.8 --yaw -106 --pitch -65 --time 0.389`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160810-743.aac
+
+![16:08:10](voice-shots/vn-20261101-160810-743.jpg)
+
+## 16:08:15 - Ömmi, ömmi, öm
+
+- **Transcript:** Ömmi, ömmi, öm
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 4603.0 87.6 249.9
+- **Facing:** north-east (yaw 59, pitch -49)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Short Grass at 4604 87 249
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 15:26, clear
+- **Fps:** 72
+- **Levels:** mic -31 dBFS, game sound -19 dBFS
+- **Length:** 2.2 s (voice 0.8 s)
+- **Just before:** -29s walked into Sunflower Plains; -27s message: Intel: this base is an Ammo Depot; -27s walked into Plains; -25s walked into Sunflower Plains; -24s message: Walking; -22s opened PauseMenu; -21s closed PauseMenu; -21s opened CreativeMenu; -18s holding Steel Boots; -17s into the pack: Steel Boots; -16s into the pack: Steel Leggings; -14s into the pack: Steel Chestplate; -13s into the pack: Steel Helmet; -11s closed CreativeMenu; -11s into the pack: Combat Stim; -10s opened PauseMenu; -10s message: Survival mode; -9s closed PauseMenu; -9s opened InventoryMenu; -8s holding empty hand; -8s left the pack: Steel Leggings (InventoryMenu open); -8s left the pack: Steel Boots (InventoryMenu open); -8s left the pack: Steel Chestplate (InventoryMenu open); -8s left the pack: Steel Helmet (InventoryMenu open); -7s closed InventoryMenu; -6s holding Titanium Sword; -6s message: Titanium Sword; -0s walked into Plains
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4603.0 --z 249.9 --yaw -59 --pitch -49 --time 0.393`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160815-363.aac
+
+## 16:08:19 - Oh, there's a train here too. Oh. Oh, gee, whoa, guys. Whoa. Oh, shit.
+
+- **Transcript:** Oh, there's a train here too. Oh. Oh, gee, whoa, guys. Whoa. Oh, shit. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Plains
+- **Position:** 4611.7 90.9 222.1
+- **Facing:** north-east (yaw 30, pitch -60)
+- **Held:** Titanium Sword x1
+- **Mount:** on foot
+- **Looking at:** Grass Block at 4611 90 221
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 15:30, clear
+- **Fps:** 72
+- **Levels:** mic -25 dBFS, game sound -18 dBFS
+- **Length:** 8.3 s (voice 3.9 s)
+- **Just before:** -28s walked into Sunflower Plains; -28s message: Walking; -26s opened PauseMenu; -25s closed PauseMenu; -25s opened CreativeMenu; -22s holding Steel Boots; -21s into the pack: Steel Boots; -20s into the pack: Steel Leggings; -18s into the pack: Steel Chestplate; -17s into the pack: Steel Helmet; -15s closed CreativeMenu; -14s into the pack: Combat Stim; -14s opened PauseMenu; -13s message: Survival mode; -13s closed PauseMenu; -13s opened InventoryMenu; -12s holding empty hand; -12s left the pack: Steel Leggings (InventoryMenu open); -12s left the pack: Steel Boots (InventoryMenu open); -11s left the pack: Steel Chestplate (InventoryMenu open); -11s left the pack: Steel Helmet (InventoryMenu open); -11s closed InventoryMenu; -10s holding Titanium Sword; -10s message: Titanium Sword; -4s walked into Plains
+- **While talking:** -3s took 6 damage (health 15/20); -1s took 8 damage (health 8/20); -1s holding Combat Stim; -1s message: Combat Stim; -1s died; -1s opened DeathMenu; -1s holding empty hand; -1s left the pack: Titanium Sword (DeathMenu open); -1s left the pack: Combat Stim x8 (DeathMenu open); -1s left the pack: Blitzlanze Arc Gun (DeathMenu open); -0s took 8 damage (health 1/20)
+- **Position at the end:** 4604.8 91.3 209.2
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x 4611.7 --z 222.1 --yaw -30 --pitch -60 --time 0.396`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160819-203.aac
+
+## 16:08:27 - Wow. Wow. That was
+
+- **Transcript:** Wow. Wow. That was
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** -407.1 67.5 3545.7
+- **Facing:** north (yaw 22, pitch -78)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Red Sand at -408 66 3545
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 15:39, clear
+- **Fps:** 67
+- **Levels:** mic -25 dBFS, game sound -27 dBFS
+- **Length:** 3.0 s (voice 1.4 s)
+- **Just before:** -29s holding Steel Boots; -29s into the pack: Steel Boots; -27s into the pack: Steel Leggings; -26s into the pack: Steel Chestplate; -25s into the pack: Steel Helmet; -22s closed CreativeMenu; -22s into the pack: Combat Stim; -22s opened PauseMenu; -21s message: Survival mode; -21s closed PauseMenu; -20s opened InventoryMenu; -20s holding empty hand; -19s left the pack: Steel Leggings (InventoryMenu open); -19s left the pack: Steel Boots (InventoryMenu open); -19s left the pack: Steel Chestplate (InventoryMenu open); -19s left the pack: Steel Helmet (InventoryMenu open); -19s closed InventoryMenu; -18s holding Titanium Sword; -18s message: Titanium Sword; -12s walked into Plains; -5s took 6 damage (health 15/20); -4s took 8 damage (health 8/20); -4s holding Combat Stim; -4s message: Combat Stim; -4s died; -4s opened DeathMenu; -4s holding empty hand; -4s left the pack: Titanium Sword (DeathMenu open); -4s left the pack: Combat Stim x8 (DeathMenu open); -4s left the pack: Blitzlanze Arc Gun (DeathMenu open); -3s took 8 damage (health 1/20); -2s message: Target gone from the list. Back to the story's objective; -1s respawned; -1s closed DeathMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -407.1 --z 3545.7 --yaw -22 --pitch -78 --time 0.403`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160827-163.aac
+
+![16:08:27](voice-shots/vn-20261101-160827-163.jpg)
+
+## 16:08:30 - Yeah. That was lovely. I love that. That was great
+
+- **Transcript:** Yeah. That was lovely. I love that. That was great
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** -407.5 67.0 3548.1
+- **Facing:** west (yaw 270, pitch -75)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Red Sand at -408 66 3548
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 15:43, clear
+- **Fps:** 67
+- **Levels:** mic -24 dBFS, game sound -22 dBFS
+- **Length:** 4.5 s (voice 2.2 s)
+- **Just before:** -29s into the pack: Steel Chestplate; -28s into the pack: Steel Helmet; -25s closed CreativeMenu; -25s into the pack: Combat Stim; -25s opened PauseMenu; -24s message: Survival mode; -24s closed PauseMenu; -24s opened InventoryMenu; -23s holding empty hand; -23s left the pack: Steel Leggings (InventoryMenu open); -23s left the pack: Steel Boots (InventoryMenu open); -22s left the pack: Steel Chestplate (InventoryMenu open); -22s left the pack: Steel Helmet (InventoryMenu open); -22s closed InventoryMenu; -21s holding Titanium Sword; -21s message: Titanium Sword; -15s walked into Plains; -8s took 6 damage (health 15/20); -7s took 8 damage (health 8/20); -7s holding Combat Stim; -7s message: Combat Stim; -7s died; -7s opened DeathMenu; -7s holding empty hand; -7s left the pack: Titanium Sword (DeathMenu open); -7s left the pack: Combat Stim x8 (DeathMenu open); -7s left the pack: Blitzlanze Arc Gun (DeathMenu open); -6s took 8 damage (health 1/20); -6s message: Target gone from the list. Back to the story's objective; -4s respawned; -4s closed DeathMenu; -3s walked into Badlands; -3s message: Your things are 6021 blocks north-east; -0s message: Entering Lorvaal
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -407.5 --z 3548.1 --yaw 90 --pitch -75 --time 0.405`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160830-323.aac
+
+## 16:08:35 - Okay. Um, oh yeah, so a few more things just to make sure. Um, after y
+
+- **Transcript:** Okay. Um, oh yeah, so a few more things just to make sure. Um, after you destroy a, uh, base or something, let's make it there's a, a one quarter of a chance that some attack party shows up to your house
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** -401.3 66.5 3565.6
+- **Facing:** west (yaw 248, pitch -62)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Red Sand at -402 66 3565
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 15:48, clear
+- **Fps:** 72
+- **Levels:** mic -61 dBFS, game sound -21 dBFS
+- **Length:** 18.2 s (voice 10.7 s)
+- **Just before:** -30s into the pack: Combat Stim; -30s opened PauseMenu; -29s message: Survival mode; -29s closed PauseMenu; -28s opened InventoryMenu; -28s holding empty hand; -27s left the pack: Steel Leggings (InventoryMenu open); -27s left the pack: Steel Boots (InventoryMenu open); -27s left the pack: Steel Chestplate (InventoryMenu open); -27s left the pack: Steel Helmet (InventoryMenu open); -27s closed InventoryMenu; -26s holding Titanium Sword; -26s message: Titanium Sword; -20s walked into Plains; -13s took 6 damage (health 15/20); -12s took 8 damage (health 8/20); -12s holding Combat Stim; -12s message: Combat Stim; -12s died; -12s opened DeathMenu; -12s holding empty hand; -11s left the pack: Titanium Sword (DeathMenu open); -11s left the pack: Combat Stim x8 (DeathMenu open); -11s left the pack: Blitzlanze Arc Gun (DeathMenu open); -11s took 8 damage (health 1/20); -10s message: Target gone from the list. Back to the story's objective; -9s respawned; -9s closed DeathMenu; -7s walked into Badlands; -7s message: Your things are 6021 blocks north-east; -5s message: Entering Lorvaal; -3s walked into Savanna; -1s walked into Badlands; -1s opened PauseMenu; -1s closed PauseMenu
+- **While talking:** -3s walked into Savanna; -0s walked into Badlands
+- **Position at the end:** -400.1 67.1 3622.4
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -401.3 --z 3565.6 --yaw 112 --pitch -62 --time 0.409`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160835-023.aac
+
+## 16:08:52 - While you're there
+
+- **Transcript:** While you're there
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Badlands
+- **Position:** -416.8 65.5 3639.6
+- **Facing:** south (yaw 185, pitch -43)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Red Sand at -417 65 3640
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 16:10, clear
+- **Fps:** 72
+- **Levels:** mic -28 dBFS, game sound -18 dBFS
+- **Length:** 1.6 s (voice 0.6 s)
+- **Just before:** -30s took 8 damage (health 8/20); -29s holding Combat Stim; -29s message: Combat Stim; -29s died; -29s opened DeathMenu; -29s holding empty hand; -29s left the pack: Titanium Sword (DeathMenu open); -29s left the pack: Combat Stim x8 (DeathMenu open); -29s left the pack: Blitzlanze Arc Gun (DeathMenu open); -28s took 8 damage (health 1/20); -28s message: Target gone from the list. Back to the story's objective; -27s respawned; -27s closed DeathMenu; -25s walked into Badlands; -25s message: Your things are 6021 blocks north-east; -23s message: Entering Lorvaal; -21s walked into Savanna; -19s walked into Badlands; -19s opened PauseMenu; -19s closed PauseMenu; -11s walked into Savanna; -3s walked into Badlands
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -416.8 --z 3639.6 --yaw 175 --pitch -43 --time 0.424`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160852-903.aac
+
+![16:08:52](voice-shots/vn-20261101-160852-903.jpg)
+
+## 16:08:54 - Um, if you per base you destroy. And then also if you're in the, uh, i
+
+- **Transcript:** Um, if you per base you destroy. And then also if you're in the, uh, in the water, let's make it so that
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Eroded Badlands
+- **Position:** -423.1 65.1 3654.1
+- **Facing:** south (yaw 198, pitch -6)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 16:12, clear
+- **Fps:** 72
+- **Levels:** mic -30 dBFS, game sound -23 dBFS
+- **Length:** 8.5 s (voice 5.7 s)
+- **Just before:** -29s respawned; -29s closed DeathMenu; -27s walked into Badlands; -27s message: Your things are 6021 blocks north-east; -25s message: Entering Lorvaal; -23s walked into Savanna; -21s walked into Badlands; -21s opened PauseMenu; -21s closed PauseMenu; -13s walked into Savanna; -5s walked into Badlands
+- **While talking:** -4s walked into Desert
+- **Position at the end:** -439.8 64.7 3689.3
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -423.1 --z 3654.1 --yaw 162 --pitch -6 --time 0.425`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160854-843.aac
+
+## 16:09:02 - There's a chance every five minutes that a pirate ship spawns
+
+- **Transcript:** There's a chance every five minutes that a pirate ship spawns
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** -448.6 63.2 3713.2
+- **Facing:** north-west (yaw 303, pitch -51)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Sand at -451 62 3712
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 16:22, clear
+- **Fps:** 72
+- **Levels:** mic -27 dBFS, game sound -21 dBFS
+- **Length:** 5.4 s (voice 3.7 s)
+- **Just before:** -29s walked into Badlands; -29s opened PauseMenu; -29s closed PauseMenu; -21s walked into Savanna; -13s walked into Badlands; -7s walked into Desert
+- **Position at the end:** -461.7 64.8 3749.9
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -448.6 --z 3713.2 --yaw 57 --pitch -51 --time 0.432`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160902-983.aac
+
+![16:09:02](voice-shots/vn-20261101-160902-983.jpg)
+
+## 16:09:09 - With cans on it and make it an eighth of a chance that
+
+- **Transcript:** With cans on it and make it an eighth of a chance that
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** -471.6 64.3 3758.2
+- **Facing:** west (yaw 264, pitch -62)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Sand at -472 63 3758
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 16:30, clear
+- **Fps:** 72
+- **Levels:** mic -22 dBFS, game sound -23 dBFS
+- **Length:** 5.0 s (voice 2.9 s)
+- **Just before:** -28s walked into Savanna; -20s walked into Badlands; -14s walked into Desert
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -471.6 --z 3758.2 --yaw 96 --pitch -62 --time 0.438`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160909-503.aac
+
+## 16:09:16 - Uh, cruiser spawns, like a modern one with a fucking, yeah, like an ac
+
+- **Transcript:** Uh, cruiser spawns, like a modern one with a fucking, yeah, like an actual damn cruiser spawns in, in the water and get
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** -512.1 63.5 3787.6
+- **Facing:** west (yaw 248, pitch -4)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 16:38, clear
+- **Fps:** 72
+- **Levels:** mic -34 dBFS, game sound -22 dBFS
+- **Length:** 10.6 s (voice 6.8 s)
+- **Just before:** -27s walked into Badlands; -21s walked into Desert
+- **Position at the end:** -533.0 67.4 3835.9
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -512.1 --z 3787.6 --yaw 112 --pitch -4 --time 0.444`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160916-703.aac
+
+## 16:09:27 - If the cruiser spawns, you're fucked. You just, like, unless you got r
+
+- **Transcript:** If the cruiser spawns, you're fucked. You just, like, unless you got really good armor, like, make it so that the cruiser is so vicious that you have to go underwater to escape
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** -533.4 70.0 3842.9
+- **Facing:** south (yaw 162, pitch -20)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Sand at -533 69 3846
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 16:51, clear
+- **Fps:** 72
+- **Levels:** mic -20 dBFS, game sound -24 dBFS
+- **Length:** 12.2 s (voice 7.4 s)
+- **Position at the end:** -565.1 73.9 3914.2
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -533.4 --z 3842.9 --yaw -162 --pitch -20 --time 0.453`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160927-563.aac
+
+![16:09:27](voice-shots/vn-20261101-160927-563.jpg)
+
+## 16:09:39 - And, um, let's make those chances run within, uh
+
+- **Transcript:** And, um, let's make those chances run within, uh
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** -574.2 71.6 3928.3
+- **Facing:** south (yaw 176, pitch -51)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Sand at -575 70 3930
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 17:06, clear
+- **Fps:** 72
+- **Levels:** mic -30 dBFS, game sound -19 dBFS
+- **Length:** 6.5 s (voice 3.5 s)
+- **Position at the end:** -563.2 68.8 3968.0
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -574.2 --z 3928.3 --yaw -176 --pitch -51 --time 0.463`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160939-543.aac
+
+![16:09:39](voice-shots/vn-20261101-160939-543.jpg)
+
+## 16:09:46 - every five minutes
+
+- **Transcript:** every five minutes
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** -550.1 69.7 3978.6
+- **Facing:** north-east (yaw 46, pitch -58)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Sand at -550 69 3977
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 17:14, clear
+- **Fps:** 72
+- **Levels:** mic -41 dBFS, game sound -14 dBFS
+- **Length:** 2.5 s (voice 0.9 s)
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -550.1 --z 3978.6 --yaw -46 --pitch -58 --time 0.468`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160946-543.aac
+
+## 16:09:59 - Uh, this carriage wasn't done well enough. These wheels aren't even at
+
+- **Transcript:** Uh, this carriage wasn't done well enough. These wheels aren't even attached to it, and it's floating in the air, which shouldn't be possible because we have gravity physics. So how is that happening?
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** -539.2 71.1 4000.0
+- **Facing:** north-west (yaw 296, pitch -71)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** Sand at -540 70 3999
+- **Mode:** Survival, health 20/20
+- **Time:** day 2 17:29, clear
+- **Fps:** 71
+- **Levels:** mic -23 dBFS, game sound -18 dBFS
+- **Length:** 11.3 s (voice 7.4 s)
+- **Just before:** -3s walked into Savanna; -1s walked into Desert
+- **Position at the end:** -539.3 71.1 3999.6
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -539.2 --z 4000.0 --yaw 64 --pitch -71 --time 0.479`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-160959-503.aac
+
+## 16:10:41 - I can see all the guns are at the top too
+
+- **Transcript:** I can see all the guns are at the top too
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** -539.9 75.5 4130.2
+- **Facing:** west (yaw 256, pitch 23)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 2 18:17, clear
+- **Fps:** 69
+- **Levels:** mic -46 dBFS, game sound -22 dBFS
+- **Length:** 3.0 s (voice 1.3 s)
+- **Just before:** -10s walked into Plains; -6s opened PauseMenu; -6s walked into Savanna; -6s closed PauseMenu; -6s opened InventoryMenu; -5s closed InventoryMenu; -5s opened PauseMenu; -4s message: Creative mode; -4s closed PauseMenu; -3s opened CreativeMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -539.9 --z 4130.2 --yaw 104 --pitch 23 --time 0.512`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-161041-523.aac
+
+![16:10:41](voice-shots/vn-20261101-161041-523.jpg)
+
+## 16:10:48 - At the top of the inventory section
+
+- **Transcript:** At the top of the inventory section
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** -539.9 75.5 4130.2
+- **Facing:** west (yaw 256, pitch 23)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen CreativeMenu
+- **Time:** day 2 18:25, clear
+- **Fps:** 70
+- **Levels:** mic -25 dBFS, game sound -35 dBFS
+- **Length:** 2.8 s (voice 1.2 s)
+- **Just before:** -17s walked into Plains; -13s opened PauseMenu; -13s walked into Savanna; -12s closed PauseMenu; -12s opened InventoryMenu; -12s closed InventoryMenu; -11s opened PauseMenu; -10s message: Creative mode; -10s closed PauseMenu; -10s opened CreativeMenu; -6s into the pack: Blitzlanze Arc Gun
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -539.9 --z 4130.2 --yaw 104 --pitch 23 --time 0.518`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-161048-124.aac
+
+## 16:12:20 - Okay, I still have an issue with the trees where the branches turn int
+
+- **Transcript:** Okay, I still have an issue with the trees where the branches turn into stumps when you cut it down
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** -662.2 64.3 4000.0
+- **Facing:** north (yaw 2, pitch 1)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 20:16, clear
+- **Fps:** 72
+- **Levels:** mic -26 dBFS, game sound -12 dBFS
+- **Length:** 8.0 s (voice 4.7 s)
+- **Position at the end:** -662.6 64.3 3997.2
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -662.2 --z 4000.0 --yaw -2 --pitch 1 --time 0.594`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-161220-763.aac
+
+![16:12:20](voice-shots/vn-20261101-161220-763.jpg)
+
+## 16:13:35 - I don't think the view distance is updating as fast as it should be
+
+- **Transcript:** I don't think the view distance is updating as fast as it should be
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Warm Ocean
+- **Position:** -1300.0 114.1 3943.9
+- **Facing:** north-east (yaw 43, pitch -52)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20, screen PauseMenu
+- **Time:** day 2 21:41, clear
+- **Fps:** 71
+- **Levels:** mic -36 dBFS, game sound -19 dBFS
+- **Length:** 4.7 s (voice 2.6 s)
+- **Just before:** -28s holding Slate Rounds; -28s message: Slate Rounds; -27s holding Falke Pistol; -27s message: Falke Pistol; -27s holding Slate Rounds; -27s message: Slate Rounds; -26s holding Falke Pistol; -26s message: Falke Pistol; -20s message: Loaded: 18 / 18; -19s opened PauseMenu; -19s closed PauseMenu; -18s message: Flying; -12s walked into Savanna; -10s walked into Warm Ocean; -8s opened PauseMenu; -7s closed PauseMenu; -4s opened PauseMenu; -4s closed PauseMenu; -2s opened PauseMenu; -1s closed PauseMenu; -0s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -1300.0 --z 3943.9 --yaw -43 --pitch -52 --time 0.654`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-161335-763.aac
+
+![16:13:35](voice-shots/vn-20261101-161335-763.jpg)
+
+## 16:13:42 - I'm in the ocean. I think she'll upgrade right to twenty-four
+
+- **Transcript:** I'm in the ocean. I think she'll upgrade right to twenty-four
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Warm Ocean
+- **Position:** -1300.3 114.1 3944.1
+- **Facing:** north-west (yaw 313, pitch -57)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 21:47, clear
+- **Fps:** 68
+- **Levels:** mic -28 dBFS, game sound -15 dBFS
+- **Length:** 3.7 s (voice 2.0 s)
+- **Just before:** -26s message: Loaded: 18 / 18; -25s opened PauseMenu; -25s closed PauseMenu; -24s message: Flying; -18s walked into Savanna; -16s walked into Warm Ocean; -14s opened PauseMenu; -13s closed PauseMenu; -10s opened PauseMenu; -10s closed PauseMenu; -8s opened PauseMenu; -8s closed PauseMenu; -6s opened PauseMenu; -6s closed PauseMenu; -3s opened PauseMenu; -2s closed PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -1300.3 --z 3944.1 --yaw 47 --pitch -57 --time 0.658`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-161342-263.aac
+
+## 16:13:50 - I think we could be seeing more than, than things
+
+- **Transcript:** I think we could be seeing more than, than things
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Desert
+- **Position:** -1922.8 114.1 4093.9
+- **Facing:** west (yaw 281, pitch -49)
+- **Held:** Falke Pistol x1
+- **Mount:** on foot, flying
+- **Looking at:** nothing
+- **Mode:** Creative, health 20/20
+- **Time:** day 2 21:56, clear
+- **Fps:** 69
+- **Levels:** mic -47 dBFS, game sound -22 dBFS
+- **Length:** 3.6 s (voice 1.9 s)
+- **Just before:** -26s walked into Savanna; -24s walked into Warm Ocean; -22s opened PauseMenu; -21s closed PauseMenu; -18s opened PauseMenu; -17s closed PauseMenu; -16s opened PauseMenu; -15s closed PauseMenu; -14s opened PauseMenu; -13s closed PauseMenu; -11s opened PauseMenu; -10s closed PauseMenu; -3s walked into Desert; -3s message: Entering Branoonia
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -1922.8 --z 4093.9 --yaw 79 --pitch -49 --time 0.664`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-161350-183.aac
+
+## 16:14:05 - Oh, that's great. Okay
+
+- **Transcript:** Oh, that's great. Okay
+- **Status:** open
+- **Build:** 0.129 (21f38743, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
+- **World:** New World (17) (seed 8361445014585252263)
+- **Dimension:** Surface
+- **Biome:** Savanna
+- **Position:** -407.5 67.5 3544.6
+- **Facing:** south-west (yaw 239, pitch -17)
+- **Held:** empty hand
+- **Mount:** on foot
+- **Looking at:** nothing
+- **Mode:** Survival, health 20/20, screen PauseMenu
+- **Time:** day 2 22:12, clear
+- **Fps:** 72
+- **Levels:** mic -31 dBFS, game sound -28 dBFS
+- **Just before:** -29s opened PauseMenu; -28s closed PauseMenu; -26s opened PauseMenu; -25s closed PauseMenu; -18s walked into Desert; -18s message: Entering Branoonia; -14s opened PauseMenu; -14s closed PauseMenu; -12s message: Mesa Bend marked on the map; -10s walked into Plains; -10s message: Walking; -9s opened PauseMenu; -8s message: Survival mode; -8s closed PauseMenu; -7s message: Ezra Holloway: That's going in the report!; -4s message: Honour lowered (assault); -4s holding Slate Rounds; -3s holding Falke Pistol; -3s took 10 damage (health 10/20); -3s holding Slate Rounds; -3s died; -3s opened DeathMenu; -3s holding empty hand; -3s left the pack: Falke Pistol (DeathMenu open); -3s left the pack: Blitzlanze Arc Gun (DeathMenu open); -2s message: Ezra Holloway: Next one won't miss.; -2s took 10 damage (health 0/20); -2s respawned; -2s closed DeathMenu; -0s walked into Savanna; -0s opened PauseMenu
+- **Repro (Mac):** `./snap.sh note --seed 8361445014585252263 --x -407.5 --z 3544.6 --yaw 121 --pitch -17 --time 0.675`
+- **Audio (this Mac):** /Users/darthvadar/Documents/Blocksmith/QuestVoiceNotes/raw/vn-20261101-161405-183.aac
+
+![16:14:05](voice-shots/vn-20261101-161405-183.jpg)
