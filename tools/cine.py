@@ -30,7 +30,7 @@ CUT = [
     ("station_gate", 4.0, None, []),
     ("station_corridor", 2.0, None, []),
     ("ash_vault", 5.5, "Fight through the last war", [(1.5, "explodeLarge.wav", 0.9), (3.6, "explodeLarge_1.wav", 0.9)]),
-    ("war_advance", 4.4, None, [(1.0, "explodeLarge.wav", 1.0), (2.3, "explodeLarge_1.wav", 0.9), (3.5, "explodeLarge_2.wav", 1.0)]),
+    ("war_advance", 2.4, None, [(1.0, "explodeLarge.wav", 1.0)]),
     ("tank_breakup", 4.0, None, [(1.6, "explodeLarge_2.wav", 1.0)]),
     ("frigate_fire", 4.5, "Take the helm of a warship", []),
     ("frigate_strike", 5.0, "and bring its main gun to bear", [(1.0, "explodeLarge.wav", 1.0), (1.05, "explodeLarge_1.wav", 1.0)]),
