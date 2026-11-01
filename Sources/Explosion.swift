@@ -217,11 +217,27 @@ enum Explosion {
             // it the rays happened to miss stayed whole blocks under a dot of drawn rock (the boulders in the bowl): the
             // aim went past them to the bowl's face and the block went into one of them, which refused it without a sound.
             // The ground inside the bowl goes with it (its valuable blocks drop, as the broken ones do).
+            var carved = Set<IVec3>()
             for (at, rr) in balls {
                 w.carve(at: at, radius: rr, mode: .dig) { p, b in
+                    carved.insert(p)
                     for s in Explosion.blastDrops(b) { g.drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
                 }
             }
+            // P508 (questcheck craterplace: 3 to 6 a crater, as the rays fell): round the bowls' edge the field drew some
+            // ground cells as a dot of rock (their middle barely inside it), each a block the eye sees past and a click
+            // refuses; they open as the bowl did.
+            var dots: [IVec3] = []
+            for (at, rr) in balls {
+                let R = Int(ceil(rr + 1.5)), ax = Int(floor(at.x)), ay = Int(floor(at.y)), az = Int(floor(at.z))
+                for y in (ay - R)...(ay + R) { for z in (az - R)...(az + R) { for x in (ax - R)...(ax + R) {
+                    let q = IVec3(x, y, z), mid = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                    guard !carved.contains(q), simd_length(mid - at) < rr + 1.5, w.groundAt(x, y, z),
+                          Blocks.hardness[Int(w.block(x, y, z))] >= 0, w.fieldDensity(at: mid) < 0.12 else { continue }
+                    carved.insert(q); dots.append(q)
+                } } }
+            }
+            for q in dots { w.setBlockAsync(q.x, q.y, q.z, AIR); w.fieldShape(q.x, q.y, q.z, opened: true) }
             // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
             // surface in to a block and a half past its radius)
             for b in opened {

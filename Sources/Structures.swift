@@ -813,7 +813,16 @@ enum Loot {
     // P504 (Nov 1 07:27:21, "golden apples are still in the game"): no chest anywhere holds one; a stim where one was.
     static let noApples = ["golden_apple": "field_stim", "enchanted_golden_apple": "combat_stim"]
     static let chargeSuffix = "_charge"
+    // P508 (Nov 1 15:52:55, a Greywall-held Boreal Station's chest: "Greywall keycard. Why would I need a Greywall
+    // keycard here?"): a station has no locked bulkheads, so its chests ("<table>_station") hold the table's loot
+    // without the keycard the garrisons' tables carry.
+    static let stationSuffix = "_station"
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
+        if table.hasSuffix(stationSuffix) {
+            fill(c, table: String(table.dropLast(stationSuffix.count)), rng: &rng)
+            for i in 0..<c.count where !c[i].isEmpty && Items.key(c[i].item) == BaseSecurity.card { c[i] = .empty }
+            return
+        }
         if table.hasSuffix(chargeSuffix) {                                // P504: the base's one Ember Charge
             fill(c, table: String(table.dropLast(chargeSuffix.count)) + "_command", rng: &rng)
             if Items.has(HellGate.chargeKey), !(0..<c.count).contains(where: { Items.key(c[$0].item) == HellGate.chargeKey }),

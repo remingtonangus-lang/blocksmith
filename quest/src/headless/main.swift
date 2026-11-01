@@ -355,11 +355,11 @@ if let out = arg("--view"), let ctx = vkctx {
                 if SmoothTerrain.natural[Int(b)] { _ = vw.carve(at: hp - V3(0, 0.25, 0), radius: Game.digRadius(b), mode: .shape) }
             }
             let brkMeshed = World.syncMeshes - m1
-            var worst = 0.0
-            for _ in 0..<36 { worst = max(worst, t { vg.tick(1.0 / 72) }) }
+            var worst = 0.0, worstWhat = ""
+            for _ in 0..<36 { let ms = t { vg.tick(1.0 / 72) }; if ms > worst { worst = ms; worstWhat = TickProf.summary() } }
             let lane = t { World.editQueue.sync {} }
-            print(String(format: "view: digtime: %@ at %d %d %d: strikes %@ ms; break %.1f ms (%d sections meshed on the frame); worst of the next 36 ticks %.1f ms; edit lane done %.1f ms later; %d drops lying",
-                         Blocks.key(b), p.x, p.y, p.z, strikes.map { String(format: "%.1f", $0) }.joined(separator: " "), brk, brkMeshed, worst, lane, vg.drops.items.count))
+            print(String(format: "view: digtime: %@ at %d %d %d: strikes %@ ms; break %.1f ms (%d sections meshed on the frame); worst of the next 36 ticks %.1f ms (%@); edit lane done %.1f ms later; %d drops lying",
+                         Blocks.key(b), p.x, p.y, p.z, strikes.map { String(format: "%.1f", $0) }.joined(separator: " "), brk, brkMeshed, worst, worstWhat, lane, vg.drops.items.count))
         }
     }
     if let n = Int(arg("--drops") ?? "") {
@@ -447,6 +447,38 @@ if let out = arg("--view"), let ctx = vkctx {
         AshWrecks.syncSkins(vw)
         let sk = AshWrecks.skinMobs
         print("view: Salvaged Fighter at \(Int(fp.pos.x)) \(Int(fp.pos.y)) \(Int(fp.pos.z)), \(fp.blockCount) blocks, skin \(sk.count) (\(sk.first.map { String(format: "%.1f %.1f %.1f", $0.pos.x, $0.pos.y, $0.pos.z) } ?? "-")), hidden \(fp.hidden)")
+    }
+    // --vesselview KIND[,SECONDS] (P508, Nov 1 16:09:59 in a desert: "this carriage wasn't done well enough. These
+    // wheels aren't even attached to it, and it's floating in the air"): a vessel spawned 24 blocks ahead as the
+    // encounters spawn it (ShipManager.spawnVessel), the game run SECONDS (3) before the picture; prints how far its
+    // lowest wheel and its hull sit over the drawn ground.
+    if let vv = arg("--vesselview") {
+        let parts = vv.split(separator: ",")
+        let kind = String(parts[0]), secs = parts.count > 1 ? (Float(parts[1]) ?? 3) : 3
+        let f = V3(-sinf(yaw), 0, -cosf(yaw))
+        let at = vg.player.pos + f * 24
+        let gx = Int(floor(at.x)), gz = Int(floor(at.z))
+        var gy = Int(vg.player.pos.y) + 8
+        while gy > 1 && !vw.solidAt(gx, gy - 1, gz) { gy -= 1 }
+        let s = vw.ships.spawnVessel(kind, home: IVec3(gx, gy, gz), game: vg)
+        vg.paused = false
+        var tt: Float = 0
+        while tt < secs { vg.tick(1.0 / 72); tt += 1.0 / 72 }
+        s.updateBounds()
+        func drawnGround(_ x: Float, _ z: Float, from y: Float) -> Float {
+            var yy = y
+            while yy > 1 && vw.fieldDensity(at: V3(x, yy, z)) <= 0 { yy -= 0.05 }
+            return yy
+        }
+        var lines: [String] = []
+        for wl in s.wheels.prefix(8) {
+            let wp = s.toWorld(wl)
+            lines.append(String(format: "%.1f", wp.y - drawnGround(wp.x, wp.z, from: wp.y + 2)))
+        }
+        let low = s.toWorld(V3(0, s.localMin.y, 0))
+        print(String(format: "view: vessel %@ at %.1f %.1f %.1f after %.1f s: lowest hull point %.2f over the drawn ground (cells say %.2f), %d wheels, wheel centres over the ground: %@; vel %.2f",
+                     kind, s.pos.x, s.pos.y, s.pos.z, secs, low.y - drawnGround(low.x, low.z, from: low.y + 2), low.y - Float(gy),
+                     s.wheels.count, lines.joined(separator: " "), simd_length(s.vel)))
     }
     // --put "KEY@DX,DY,DZ;...": blocks set round the eye's cell before the frame (block looks, e.g. P463's observers).
     if let put = arg("--put") {

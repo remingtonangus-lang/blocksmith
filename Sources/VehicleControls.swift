@@ -120,6 +120,9 @@ enum VehicleControls {
         let rt = PadMap.glyph(.rt).s, lt = PadMap.glyph(.lt).s, ls = Glyph.ls.s, b = PadMap.glyph(.b).s
         let climb = PadMap.glyph(.rb).s + PadMap.glyph(.lb).s
         if kind(s) == .vtol { return [ls + " Fly / Strafe", Glyph.rs.s + " Turn / Climb", rt + " Fire", b + " Leave"] }
+        if armed(g, s) && g.world.ships.gunState(s) != nil {          // P508: both triggers charge the Tidebreaker
+            return [ls + " Throttle / Steer", rt + " Guns", rt + lt + " " + MainGun.name, climb + " Pitch", b + " Leave"]
+        }
         if armed(g, s) { return [ls + " Throttle / Steer", rt + " Fire", climb + (kind(s) == .warship ? " Pitch" : " Climb"), b + " Leave"] }
         switch kind(s) {
         case .boat, .land: return [rt + " Throttle", lt + " Reverse", ls + " Steer", b + " Leave"]
