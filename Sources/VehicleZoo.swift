@@ -335,12 +335,24 @@ enum VehicleZoo {
         g.player.yaw = s.yaw; g.player.pitch = 0
         var mi = MoveInput()
         var worstMs = 0.0
+        // (ZOO_TRACE=K: vehicle K's state every quarter second, for a failure that needs following)
+        let trace = ProcessInfo.processInfo.environment["ZOO_TRACE"].flatMap { Int($0) } == i
+        var traceT = 0
         func run(_ secs: Float) {
             let dt: Float = 1.0 / 60
             for _ in 0..<Int(secs * 60) {
                 let t0 = CFAbsoluteTimeGetCurrent()
                 g.shipPlayerUpdate(dt, mi)
                 ships.update(dt, game: g)
+                if trace {
+                    traceT += 1
+                    if traceT % 15 == 0 {
+                        let up = s.dirToWorld(V3(0, 1, 0))
+                        print(String(format: "zootrace %03d t %.2f pos %.2f %.2f %.2f vel %.2f %.2f %.2f up %.2f %.2f %.2f grounded %d contacts %d asleep %d wheels %d",
+                                     i, Float(traceT) / 60, s.pos.x - Float(o.x), s.pos.y - Float(o.y), s.pos.z - Float(o.z), s.vel.x, s.vel.y, s.vel.z,
+                                     up.x, up.y, up.z, s.grounded ? 1 : 0, s.contacts, s.asleep ? 1 : 0, s.wheels.count))
+                    }
+                }
                 worstMs = max(worstMs, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
                 if !s.pos.x.isFinite || !s.pos.y.isFinite || !s.pos.z.isFinite { return }
             }
