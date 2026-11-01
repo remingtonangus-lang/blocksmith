@@ -2632,7 +2632,21 @@ final class MobManager {
         _ = PlantSupport.ruleOf(AIR)        // (P394: likewise on the first break under a plant or a carried thing)
     }
 
+    // P508 (the dirt freeze): where a slow mob tick went, when a check asks (`profileOn`): the stages and the slowest
+    // body. Off in play (no clock reads).
+    static var profileOn = false
+    static var prof = (pre: 0.0, loop: 0.0, deaths: 0.0, restore: 0.0, spawn: 0.0, worst: 0.0, worstKind: "-", count: 0)
     func update(_ dt: Float, game: Game) {
+        let pOn = MobManager.profileOn
+        var pT = pOn ? CFAbsoluteTimeGetCurrent() : 0
+        if pOn { MobManager.prof = (0, 0, 0, 0, 0, 0, "-", mobs.count) }
+        func pMark(_ k: Int) {
+            guard pOn else { return }
+            let t = CFAbsoluteTimeGetCurrent(), d = (t - pT) * 1000
+            pT = t
+            switch k { case 0: MobManager.prof.pre = d; case 1: MobManager.prof.loop = d; case 2: MobManager.prof.deaths = d
+                       case 3: MobManager.prof.restore = d; default: MobManager.prof.spawn = d }
+        }
         Mob.world = game.world
         PathFinder.budget = 4
         PathFinder.spent = 0
@@ -2653,6 +2667,7 @@ final class MobManager {
         let pBox = (V3(p.x - pl.halfW, p.y, p.z - pl.halfW), V3(p.x + pl.halfW, p.y + pl.height, p.z + pl.halfW))
         Mob.keepClearOf = bodyOn ? p : nil
         lodFrame &+= 1
+        pMark(0)
         for m in mobs where game.seatOwns(m.pos) {
             if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
             let before = m.pos, wasGround = m.onGround
@@ -2677,7 +2692,12 @@ final class MobManager {
                 if w.fieldTerrain, m.deck == nil, m.mount == nil, m.kind != .minecart, m.kind != .boat, let h = w.restHeight(m.pos, halfW: min(0.3, m.halfW), up: 1, depth: 1) { m.pos.y = h }
             }
             w.playerBox = bodyOn && game.riding !== m && m.deck == nil && m.mount == nil && MobManager.bodySolid(m.kind) ? pBox : nil
+            let mt0 = pOn ? CFAbsoluteTimeGetCurrent() : 0
             m.update(mdt, game: game)
+            if pOn {
+                let d = (CFAbsoluteTimeGetCurrent() - mt0) * 1000
+                if d > MobManager.prof.worst { MobManager.prof.worst = d; MobManager.prof.worstKind = m.kind.key + (m.aggro ? " (fighting)" : "") }
+            }
             w.playerBox = nil
             // Smooth worlds (P142): mobs near the player stand on the drawn ground, not the block steps under it (U1: out
             // to 96 blocks, where a herd on a hillside still read as hovering; the 4 column heights are cached per cell).
@@ -2768,6 +2788,7 @@ final class MobManager {
                 }
             }
         }
+        pMark(1)
         if second { spawnTick(dt, game); return }
         // Breeding: two mobs of a kind in love next to each other make a baby.
         var babies: [Mob] = []
@@ -2834,13 +2855,16 @@ final class MobManager {
             return shouldDespawn(m, simd_length(m.pos - pn), dt, game)      // 3D, as the reference (a mob far below stayed)
         }
         mobs += spawned
+        pMark(2)
         restoreTimer -= dt
         if restoreTimer <= 0 {
             restoreTimer = 1
             // Round every player (split screen: stashed villagers near player 2 came back only when player 1 went there).
             for i in 0..<max(1, game.coop.seatCount) { restore(w, center: game.coop.seatPlayer(i, game).pos, limit: limit) }
         }
+        pMark(3)
         spawnTick(dt, game)
+        pMark(4)
     }
 
     // Surface y (feet) at a column if it's grass with two free blocks above, else nil.

@@ -356,7 +356,19 @@ if let out = arg("--view"), let ctx = vkctx {
             }
             let brkMeshed = World.syncMeshes - m1
             var worst = 0.0, worstWhat = ""
-            for _ in 0..<36 { let ms = t { vg.tick(1.0 / 72) }; if ms > worst { worst = ms; worstWhat = TickProf.summary() } }
+            MobManager.profileOn = true
+            for _ in 0..<36 {
+                let ms = t { vg.tick(1.0 / 72) }
+                if ms > worst {
+                    worst = ms; worstWhat = TickProf.summary()
+                    let q = MobManager.prof
+                    if q.pre + q.loop + q.deaths + q.restore + q.spawn > 5 {
+                        worstWhat += String(format: "; mobs %d: before %.1f, bodies %.1f (slowest %@ %.1f), deaths %.1f, restore %.1f, spawning %.1f",
+                                            q.count, q.pre, q.loop, q.worstKind, q.worst, q.deaths, q.restore, q.spawn)
+                    }
+                }
+            }
+            MobManager.profileOn = false
             let lane = t { World.editQueue.sync {} }
             print(String(format: "view: digtime: %@ at %d %d %d: strikes %@ ms; break %.1f ms (%d sections meshed on the frame); worst of the next 36 ticks %.1f ms (%@); edit lane done %.1f ms later; %d drops lying",
                          Blocks.key(b), p.x, p.y, p.z, strikes.map { String(format: "%.1f", $0) }.joined(separator: " "), brk, brkMeshed, worst, worstWhat, lane, vg.drops.items.count))
