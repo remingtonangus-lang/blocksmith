@@ -2014,6 +2014,21 @@ if CommandLine.arguments.contains("--locatecheck") {
         check(!found || (out.count == 2 && out.first!.contains("marked on your map") && MapCache.shared.marks.count == m0 + 1),
               "/locate \(k): \(found ? "found, with what it is (\(out.count) lines) and a map mark" : "none near")")
     }
+    // P504 (Nov 1 09:33, "I want 'rare' and 'bases' to show the nearest anything regardless of if it's nearby or not
+    // including capital citadels and cities, or a crawler, a train or frigate"): a line for every kind, however far.
+    for (cmd, kinds) in [("bases", 9), ("rare", 8)] {
+        let n0 = game.commandLog.count
+        let t0 = CFAbsoluteTimeGetCurrent()
+        game.command("/\(cmd)")
+        let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+        let out = Array(game.commandLog.dropFirst(n0 + 1))
+        for l in out { print("locatecheck: /\(cmd): \(l)") }
+        let found = out.filter { $0.contains(" blocks") }.count
+        let names = ["Capital Citadel", "Capital City", "Boreal Station", "Greywall Base", "Crawler", "Meridian Frigate", "Train"]
+        let missing = cmd == "bases" ? names.filter { n in !out.contains { $0.contains(n) } } : []
+        check(out.count == kinds && found >= kinds - 2 && missing.isEmpty,
+              String(format: "/\(cmd): %d lines for %d kinds, %d placed with a distance, in %.0f ms (missing: %@)", out.count, kinds, found, ms, missing.joined(separator: ", ")))
+    }
     print(failures == 0 ? "locatecheck: all checks passed" : "locatecheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--frigaterepair") {

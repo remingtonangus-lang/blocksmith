@@ -10,7 +10,8 @@ import simd
 //   bunker    a 47 x 47 concrete monolith 16 blocks down: a two-storey uplink hall (screen wall, core, catwalk) in a
 //             ring corridor, four wings (control room, data archive, holding cells, the stair hall) and four corner
 //             rooms (armory, generator hall, mess, barracks), every passage closed by a bulkhead door
-// Garrisoned by the Capital's soldiers (same mob keys and steelhold_* loot as the citadels). Only in snowy biomes.
+// Garrisoned by the Meridian Navy's marines (P504; the Capital's until then: the same mob keys and steelhold_* loot as the
+// citadels), or Greywall's where Greywall holds it. Only in snowy biomes.
 
 extension BlockRegistry {
     func registerBorealBlocks() {
@@ -863,7 +864,7 @@ enum BorealStation {
         }
 
         // MARK: Garrison
-        let tag = grey ? "@grey" : ""
+        let tag = grey ? "@grey" : "@meridian"                  // (P504: the station's own side, the Meridian Navy)
         for (k, dx, ly, dz) in garrison { w.mob(k + tag, V3(Float(X(dx)) + 0.5, Float(F + ly), Float(Z(dz)) + 0.5)) }
         for (k, dx, ly, dz) in surfaceGarrison { w.mob(k + tag, V3(Float(X(dx)) + 0.5, Float(S + ly), Float(Z(dz)) + 0.5)) }
         w.mob("deck_gun" + tag, V3(Float(X(4)) + 0.5, Float(S + 7), Float(Z(16)) + 0.5))

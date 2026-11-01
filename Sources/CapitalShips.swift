@@ -17,6 +17,9 @@ import simd
 enum Faction: Int {
     case none = 0, steelhold, stormwarden, ironback, ashguard, meridian, greywall, corsairs
     var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion", "The Ashguard", "Meridian Navy", "Greywall Command", "The Corsairs"][rawValue] }
+    // P504 (Nov 1 09:33, Remington: "Greywall and crawlers are the same faction"): the Ironback Legion's crawlers fly
+    // for Greywall Command. The old value stays for saves; whoever carries it is Greywall's.
+    var side: Faction { self == .ironback ? .greywall : self }
 }
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
@@ -750,12 +753,12 @@ extension TextureGen {
 extension Ship {
     var factionValue: Faction {
         let r = root
-        if r.faction != 0, let f = Faction(rawValue: r.faction) { return f }
+        if r.faction != 0, let f = Faction(rawValue: r.faction) { return f.side }
         switch r.role {
         case "frigate", "carriage": return .steelhold
         case "capfrigate": return .meridian
         case "warfrigate": return .stormwarden
-        case "crawler": return .ironback
+        case "crawler": return .greywall                  // (P504: Greywall's, was the Ironback Legion's)
         case "sloop": return .corsairs                   // T15 (Pirates.swift)
         case NavalPatrol.role: return .meridian          // P243 (NavalPatrol.swift)
         default: return .none
@@ -773,7 +776,7 @@ extension Mob {
         if kind.ash { return .ashguard }
         if posse == 3 || posse == Prisoners.posse || posse == Marauders.posse { return .none }        // R21 (+ P347's prisoners): a bounty hunter on the soldier AI belongs to no faction (BountyHunters)
         guard Soldier.rank(kind) != nil || kind == .deckGun else { return .none }
-        return faction != 0 ? (Faction(rawValue: faction) ?? .steelhold) : .steelhold
+        return faction != 0 ? (Faction(rawValue: faction) ?? .steelhold).side : .steelhold
     }
 }
 
@@ -803,7 +806,7 @@ extension ShipManager {
             let frigate = kind != "crawler"
             let cap = kind == "capfrigate"
             let hb = cap ? Capital.capitalFrigate() : (frigate ? Capital.frigate() : Capital.crawler())
-            let own: Faction = faction ?? (cap ? .meridian : (frigate ? .stormwarden : .ironback))
+            let own: Faction = (faction ?? (cap ? .meridian : (frigate ? .stormwarden : .greywall))).side
             let name = cap ? "Meridian Frigate" : (frigate ? "Stormwarden Frigate" : (own == .steelhold ? "Capital Crawler" : "Ironback Crawler"))
             let ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
             let s = ships[0]
@@ -2409,7 +2412,7 @@ extension ShipManager {
         let ids = (0..<2).map { _ in newId() }
         let work = { () -> ([Ship], CapitalState) in
             let hb = Capital.dropship()
-            let name = faction == .steelhold ? "Capital Dropship" : faction == .meridian ? "Meridian Launch" : faction == .greywall ? "Greywall Dropship" : faction == .ironback ? "Ironback Dropship" : "Stormwarden Dropship"
+            let name = faction == .steelhold ? "Capital Dropship" : faction == .meridian ? "Meridian Launch" : faction.side == .greywall ? "Greywall Dropship" : "Stormwarden Dropship"
             let ships = Capital.makeShips(hb, ids: ids, name: name, role: "dropship", faction: faction)
             let d = ships[0]
             d.pos = at

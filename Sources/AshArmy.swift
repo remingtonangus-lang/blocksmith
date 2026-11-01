@@ -318,7 +318,7 @@ extension Game {
             let side: Float = i == 0 ? 1 : -1
             let off = V3(cosf(m.yaw) * 2.2 * side, 0, -sinf(m.yaw) * 2.2 * side)
             let crew = Mob(.soldierCrew, at: m.pos + off)
-            if !m.boreal { crew.ashSetup() }               // (P460: a Boreal tank's crew are the Capital's)
+            if !m.boreal { crew.ashSetup() } else { crew.faction = Faction.meridian.rawValue }   // (P460, P504: a Boreal tank's crew are the station's)
             crew.aggro = true
             crew.fire = 3                                  // out of a burning hull
             crew.health = max(1, crew.spec.health * 2 / 3)

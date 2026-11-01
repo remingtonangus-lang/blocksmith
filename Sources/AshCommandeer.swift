@@ -278,7 +278,7 @@ extension Game {
             let x = Int(floor(p.x)), z = Int(floor(p.z)), y = Int(floor(m.pos.y))
             if w.solidAt(x, y, z) || w.solidAt(x, y + 1, z) { p = m.pos + V3(0, m.height + 0.2, 0) }
             let c = Mob(.soldierCrew, at: p)
-            if !m.boreal { c.ashSetup() }                     // (a Boreal vehicle's crew are the Capital's)
+            if !m.boreal { c.ashSetup() } else { c.faction = Faction.meridian.rawValue }   // (P504: a Boreal vehicle's crew are the station's)
             c.persistent = true
             c.aggro = true
             c.soldierBrain.lastSeen = player.eye
