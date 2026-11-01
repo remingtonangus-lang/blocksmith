@@ -2159,7 +2159,7 @@ final class Game {
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || (k == "cave_vines" && b != Blocks.groupBase[Int(b)])          // a podded lanternvine is picked (P125)
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
-            || k == BaseSafes.block || k == BaseMaterials.crate || ChairSeat.seatTop(k) != nil
+            || k == BaseSafes.block || k == BaseMaterials.crate || ChairSeat.seatTop(k) != nil || k == Depots.shutter
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -2193,6 +2193,24 @@ final class Game {
         return true
     }
 
+    // P507: a roller shutter used: it and every shutter cell joined to it (up to a garage front, 64) roll up together,
+    // or down.
+    func rollShutter(_ p: IVec3) {
+        guard Blocks.has(Depots.shutter) else { return }
+        let base = Blocks.id(Depots.shutter)
+        let opening = world.block(p.x, p.y, p.z) == base
+        var seen: Set<IVec3> = [p], queue = [p]
+        while let c = queue.popLast(), seen.count < 64 {
+            for d in World.allDirs {
+                let q = c + d
+                guard !seen.contains(q), Blocks.groupBase[Int(world.block(q.x, q.y, q.z))] == base else { continue }
+                seen.insert(q); queue.append(q)
+            }
+        }
+        for c in seen { world.setBlock(c.x, c.y, c.z, opening ? base + 1 : base) }
+        sfx(opening ? .pistonExtend : .pistonContract, 0.9, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+    }
+
     func openBlock(_ p: IVec3) {
         TownLaw.opening(self, p)
         let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
@@ -2200,6 +2218,7 @@ final class Game {
             if BaseSecurity.refuse(self, p) { return }                  // D35: a locked bulkhead
             toggleOpenable(p); return
         }
+        if k == Depots.shutter { rollShutter(p); return }                // P507 (Depots.swift)
         switch k {
         case "cave_vines": pickLumenPods(p)
         case "crafting_table": openMenu(CraftingBookMenu(game: self))      // the recipe book first; the grid is a button away

@@ -302,8 +302,8 @@ extension Game {
         s.climb = c.climb
         if ashHull { (s.throttle, s.steer) = ashLookDrive(s, mi) }        // P449: the way he looks, as before
         if s.name == AshCommandeer.halftrackName { ashHalftrackGun(s, dt) }   // P449: its pintle gun on his look
-        VehicleDepot.burn(self, s, dt)                                    // D44: land vehicles burn fuel
         if let fm = s.flight { fm.playerInput(self, s, mi, dt) }          // helicopter controls (FlightModel.swift)
+        VehicleDepot.burn(self, s, dt)                                    // D44, P507: every vehicle of his burns fuel (after the flight input: dry, it holds)
         // Turrets follow the view; barrels rise with it.
         let elev = max(-0.2, min(0.6, player.pitch + 0.05))
         s.gunPitch = elev

@@ -6,7 +6,7 @@ import simd
 //   camp_hunters      forests and taigas: hide tent, campfire with log seats, a drying rack hung with hides, crates
 //   camp_prospectors  hill country: a timber headframe over a test pit, an ore cart on a short track, ore and gravel
 //                     heaps, a canvas lean-to, a grindstone
-//   camp_traders      plains and savanna: a covered wagon on log wheels, a hitched donkey, hay, barrels and a trader
+//   camp_traders      plains and savanna: a covered wagon on cart wheels, a donkey in its shafts, hay, barrels and a trader
 //   camp_abandoned    anywhere the others go: a collapsed tent, a cold fire, cobwebs, a looted crate
 //   camp_outlaws      wooded or dry country away from spawn: two dark tents, a lookout platform, a Brigand and a
 //                     Marauder on guard
@@ -43,8 +43,8 @@ enum WildCamps {
                                  ("white_wool", 1, 4, 8), ("red_dye", 1, 3, 6), ("blue_dye", 1, 3, 6), ("apple", 2, 5, 10), ("map", 1, 1, 3),
                                  ("compass", 1, 1, 2), ("name_tag", 1, 1, 2)]),
         "camp_abandoned": (1...3, [("bone", 1, 4, 20), ("rotten_flesh", 1, 4, 20), ("string", 1, 3, 15), ("stick", 2, 5, 15),
-                                   ("iron_nugget", 2, 7, 10), ("paper", 1, 3, 8), ("map", 1, 1, 3), ("name_tag", 1, 1, 2), ("empty", 1, 1, 15),
-                                   ("intercepted_orders", 1, 1, 7)]),           // (a courier's satchel: the way to a citadel, G6)
+                                   ("iron_nugget", 2, 7, 10), ("paper", 1, 3, 8), ("map", 1, 1, 3), ("name_tag", 1, 1, 2), ("empty", 1, 1, 15)]),
+                                   // (+ a courier's satchel, always: the way to a citadel, G6; P507: once, Loot.extraPools)
         "camp_outlaws": (4...7, [("gold_nugget", 3, 12, 16), ("emerald", 1, 5, 12), ("iron_ingot", 1, 4, 12), ("gold_ingot", 1, 2, 6),
                                  ("arrow", 4, 12, 12), ("gunpowder", 1, 4, 10), ("crossbow", 1, 1, 4), ("saddle", 1, 1, 4),
                                  ("golden_apple", 1, 1, 2), ("compass", 1, 1, 3), ("experience_bottle", 1, 2, 4)]),          // (+ a courier's orders, always: Loot.extraPools, G6)
@@ -249,9 +249,12 @@ enum WildCamps {
             mob("villager:camper", 0, 2)                      // (P97: the prospector, by the fire)
             chest(-3, 5, "camp_prospectors")
         case "camp_traders":
-            // Covered wagon along local z: plank bed on log wheels, wool canopy on fence hoops.
+            // Covered wagon along local z: plank bed on four spoked wheels, wool canopy on fence hoops.
+            // P507 (Nov 1 12:40:10, "This is supposed to be a carriage. Make it an actual carriage"): cart wheels rolling
+            // along the wagon (they were logs lying across, a crate on stumps), a driver's bench, the donkey in the shafts.
             let deck = b("spruce_planks"), canopy = b("white_wool"), hoop = b("spruce_fence", "oak_fence")
-            for dz in [-3, 1] { put(-3, 0, dz, f.log("oak", alongX: true)); put(1, 0, dz, f.log("oak", alongX: true)) }
+            let wheel = Blocks.has("cart_wheel") ? Blocks.id("cart_wheel") + f.north : f.log("oak", alongX: true)
+            for dz in [-3, 1] { put(-3, 0, dz, wheel); put(1, 0, dz, wheel) }
             for dz in -4...2 { for dx in -2...0 { put(dx, 1, dz, deck) } }
             for dz in -3...1 {
                 put(-2, 2, dz, hoop); put(0, 2, dz, hoop)
@@ -259,7 +262,8 @@ enum WildCamps {
             }
             put(-1, 2, -2, b("barrel")); put(-1, 2, -3, b("hay_block"))
             bed(-1, 2, 0, "white")                            // (in the wagon, under the canopy)
-            put(-1, 1, 3, b("spruce_fence", "oak_fence"))        // the tongue
+            put(-2, 1, 3, b("spruce_fence", "oak_fence")); put(0, 1, 3, b("spruce_fence", "oak_fence"))   // the shafts
+            put(-1, 2, 2, b("spruce_slab", "spruce_planks"))      // the driver's bench
             put(-1, 0, -5, b("hay_block"))                        // a step up onto the tail of the bed
             // Hitching post, hay and goods round a small fire.
             put(3, 0, 4, b("oak_fence")); put(3, 1, 4, b("oak_fence"))
@@ -267,7 +271,7 @@ enum WildCamps {
             barrels(3, -4, 3)
             campfire(4, 0, lit: true)
             chest(2, -2, "camp_traders")
-            mob("donkey", 3, 3)
+            mob("donkey", -1, 4)                                  // (between the shafts)
             if rng.chance(0.7) { mob("wandering_trader", 2, 1) }
         case "camp_outlaws":
             let dark = rng.chance(0.5) ? b("black_wool") : b("red_wool")

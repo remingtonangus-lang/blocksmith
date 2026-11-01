@@ -18,7 +18,16 @@ final class CreativeMenu: Menu {
     // (P499, Oct 30 15:14: "we shouldn't have void pearls. No reason for those to exist": out of the palette, and nothing
     // drops, holds, trades or crafts from one; a pearl already carried still throws.)
     static let every: [ItemID] = Items.creativeList.filter {
-        !SpawnEggs.retired($0) && !["ender_chest", VehiclePresets.itemKey, "end_portal_frame", "ender_pearl", "golden_apple", "enchanted_golden_apple"].contains(Items.key($0)) && !Copper.retired(Items.key($0))
+        !SpawnEggs.retired($0) && !["ender_chest", VehiclePresets.itemKey, "end_portal_frame", "ender_pearl", "golden_apple", "enchanted_golden_apple"].contains(Items.key($0)) && !Copper.retired(Items.key($0)) && !paletteRetired(Items.key($0))
+    }
+    // P507 (Nov 1 12:35:05-09, the copper logic tab: "We have sensor things... this is from end city stuff. [Waxed],
+    // oxidized lightning rods. We don't need that"): the reference's leftovers leave the palette (still registered, so a
+    // save that holds one keeps it): the murk sensors, the glow rod, and every aged or waxed lightning rod (the plain
+    // copper rod stays, a part of the copper circuits).
+    static func paletteRetired(_ k: String) -> Bool {
+        if k == "sculk_sensor" || k == "calibrated_sculk_sensor" || k == "end_rod" { return true }
+        if let f = Copper.index[k], f.0 == "lightning_rod", k != "lightning_rod" { return true }
+        return false
     }
     static var cache: [Int: [ItemID]] = [:]
     var all: [ItemID] = CreativeMenu.every

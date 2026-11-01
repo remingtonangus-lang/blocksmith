@@ -552,9 +552,11 @@ enum Capital {
         // Boarding (vehicle riding): a ladder up each flank between the front and middle wheels, from the ground to the
         // walkway on the chassis roof, a step and a hatch from there into the command deck; the rear ramp from the
         // troop bay to the ground (built lowered; it folds up into a door while the crawler drives: crawlerRamp).
+        // P507 (Nov 1 12:07:01, "Look at that giant ladder hanging off the crawler. It just looks like shit"): the ladder
+        // is let into the flank, flush with the chassis side, on a steel backing (it stood a block proud the whole height).
         for sx in [-1, 1] {
-            for y in 0...7 { hb.set(sx * 11, y, 29, panel) }
-            for y in 0...20 { hb.set(sx * 12, y, 29, ladder + (sx > 0 ? 3 : 2)) }
+            for y in 0...20 { hb.set(sx * 10, y, 29, panel) }
+            for y in 0...20 { hb.set(sx * 11, y, 29, ladder + (sx > 0 ? 3 : 2)) }
             for y in 22...23 { hb.set(sx * 8, y, 30, AIR) }
             hb.set(sx * 9, 21, 30, Capital.id(sx > 0 ? "steel_plating_stairs[west]" : "steel_plating_stairs[east]", panel))
         }
@@ -1492,12 +1494,15 @@ extension ShipManager {
         // P499 (Oct 30 20:19, "its turning is inverted"): a positive angle turns the bow clockwise seen from above (right).
         let a = steered ? s.steer * 0.7 : 0
         let want = V2(fh.x * cosf(a) - fh.y * sinf(a), fh.x * sinf(a) + fh.y * cosf(a))
-        let speed = steered && drives ? s.throttle * 9 * (1 - lost) : 0
+        // P507 (Nov 1 12:08:26, at a captured crawler's helm: "let's make this thing go like 100 kilometers per hour"):
+        // full ahead is 28 blocks a second (100 km/h; was 9), astern a third of it.
+        let top: Float = s.throttle > 0 ? 28 : 9
+        let speed = steered && drives ? s.throttle * top * (1 - lost) : 0
         st.wantSpeed = abs(speed)
         crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: steered && drives && abs(s.steer) > 0.05 ? 0.18 : 0, piloted: steered)
         // P455 (Oct 25 14:21, driving one: "this thing's, like, impossible to drive 'cause of the trees"): it crushes
         // what stands in its way as it does under its own crew; and its rail gun reloads (ShipManager.playerRail).
-        if st.wantSpeed > 0.3 { crush(s, st, dt) }
+        if st.wantSpeed > 0.3 { crawlerCrush(s, st, dt, g) }
         st.mainGunCD -= dt
     }
 
@@ -2026,7 +2031,7 @@ extension ShipManager {
         // The ramp down (troops going out, riders walking up): it creeps until it is raised.
         if st.rampDown { speed = min(speed, 1.5) }
         crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: 0.18)
-        crush(s, st, dt)
+        crawlerCrush(s, st, dt, g)
     }
 
     // Blocks a vehicle rests on: terrain (not leaves, logs or plants, which it crushes or rolls over).
@@ -2120,10 +2125,16 @@ extension ShipManager {
 
     // Trees, plants, fences, glass and timber under the crawler's front give way (no drops); driving on, so does
     // masonry (P65).
-    private func crush(_ s: Ship, _ st: CapitalState, _ dt: Float) {
+    static var rutCells = 0, rutDug = 0, crawlerFelled = 0     // (checks)
+    private func crawlerCrush(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         st.crushTimer -= dt
         guard st.crushTimer <= 0 else { return }
-        st.crushTimer = 0.25
+        st.crushTimer = st.wantSpeed > 12 ? 0.1 : 0.25            // (P507: at 100 km/h a pass every 3 blocks)
+        if st.wantSpeed > 0.3 { crawlerRuts(s, st) }
+        // (a felled trunk lies as a body for good: one a pass, only where he can see it, and not past a dozen about)
+        var felled = simd_length(g.player.pos - s.pos) < 110 ? 0 : 1
+        if felled == 0 && world.ships.list.reduce(0, { $0 + (Felling.isFelled($1) && simd_length($1.pos - s.pos) < 160 ? 1 : 0) }) >= 12 { felled = 1 }
+        let fwd = s.dirToWorld(V3(0, 0, -1))
         let lo = s.localMin, hi = s.localMax
         var n = 0
         let hardness = Blocks.hardness
@@ -2146,7 +2157,8 @@ extension ShipManager {
         if !full && st.wantSpeed < 0.3 { return }          // (parked: nothing new under it)
         let cap = full ? 4000 : 900
         defer { if full && n < cap { st.crushedAll = true } }
-        for lz in stride(from: lo.z - 4, through: hi.z, by: 1) {
+        let ahead = max(Float(4), (st.wantSpeed * 0.3).rounded(.up))
+        for lz in stride(from: lo.z - ahead, through: hi.z, by: 1) {
             let bow = lz <= lo.z + 6
             for lx in stride(from: lo.x, through: hi.x, by: 1) {
                 // From the bottom row (trunks stood through the wheel arches); soft blocks only, so ground is never dug.
@@ -2161,12 +2173,85 @@ extension ShipManager {
                     // through them; natural ground and unbreakable blocks stay.
                     let built = bow && !full && !ShipParts.natural[Int(b)] && hardness[Int(b)] >= 0
                     if !soft && !built { continue }
+                    // P507 (Nov 1 12:07:22, "It's definitely despawning trees. It's just the trees aren't falling, they're
+                    // just despawning"): under way, a tree the bow meets goes over, out to the side it stood on and
+                    // ahead, a felled trunk with its crown (Felling); the rest give way as before.
+                    if bow && !full && felled < 1 && CapitalBase.isLog(b), let trunk = treeAt(x, y, z) {
+                        let off = simd_dot(V3(Float(x) + 0.5 - s.pos.x, 0, Float(z) + 0.5 - s.pos.z), simd_cross(fwd, V3(0, 1, 0)))
+                        let out = simd_normalize(V3(fwd.x, 0, fwd.z) + simd_cross(fwd, V3(0, 1, 0)) * (off >= 0 ? 1.2 : -1.2) + V3(1e-5, 0, 0))
+                        g.topple(trunk, away: out)
+                        felled += 1; ShipManager.crawlerFelled += 1
+                        n += trunk.count
+                        if n >= cap { return }
+                        continue
+                    }
                     world.setBlockAsync(x, y, z, AIR)
                     n += 1
                     if n >= cap { return }
                 }
             }
         }
+    }
+
+    // The trunk a log at (x, y, z) belongs to, from its foot up (26-connected logs; nil: not a standing tree, or too big).
+    private func treeAt(_ x: Int, _ y: Int, _ z: Int) -> [IVec3]? {
+        var foot = IVec3(x, y, z)
+        while foot.y > 1 && CapitalBase.isLog(world.block(foot.x, foot.y - 1, foot.z)) { foot.y -= 1 }
+        guard ShipManager.groundBlock[Int(world.rawBlock(foot.x, foot.y - 1, foot.z))] else { return nil }
+        var logs: Set<IVec3> = [foot], queue = [foot]
+        while let c = queue.popLast() {
+            for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where !(dx == 0 && dy == 0 && dz == 0) {
+                let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
+                guard q.y >= foot.y, !logs.contains(q), CapitalBase.isLog(world.block(q.x, q.y, q.z)) else { continue }
+                logs.insert(q); queue.append(q)
+                if logs.count > Felling.maxLogs { return nil }
+            } } }
+        }
+        return Array(logs)
+    }
+
+    // P507 (Nov 1 12:07:07, beside a crawler under way: "It's not leaving ruts in the ground"): the ground each of its
+    // wheels rolls on is churned to bare earth (grass, snow, moss and the like), a pair of dark tracks behind it.
+    private func crawlerRuts(_ s: Ship, _ st: CapitalState) {
+        guard Blocks.has("coarse_dirt") else { return }
+        let rut = Blocks.id("coarse_dirt")
+        var dug = 0
+        func hardnessOK(_ b: BlockID) -> Bool { let h = Blocks.hardness[Int(b)]; return h >= 0 && h < 2 }   // (soil, not rock)
+        for wh in st.wheels where !wh.lost {
+            var sunk = 0
+            defer {
+                if sunk > 0 && dug < 6 {
+                    // (a ball whose bottom is a third of a block under the wheel: a shallow rut, not a trench)
+                    let r = min(1.8, max(0.9, Float(min(wh.hi.x - wh.lo.x, wh.hi.z - wh.lo.z) + 1) * 0.5))
+                    let mid = V3(Float(wh.lo.x + wh.hi.x + 1) * 0.5, Float(wh.lo.y) + r - 0.3, Float(wh.lo.z + wh.hi.z + 1) * 0.5)
+                    ShipManager.rutDug += world.carve(at: s.toWorld(mid), radius: r, mode: .dig)
+                    dug += 1
+                }
+            }
+            for lz in wh.lo.z...wh.hi.z { for lx in wh.lo.x...wh.hi.x {
+                let wp = s.toWorld(V3(Float(lx) + 0.5, Float(wh.lo.y), Float(lz) + 0.5))
+                let x = Int(floor(wp.x)), z = Int(floor(wp.z))
+                guard world.isLoaded(x, z) else { continue }
+                // (ground standing up into the wheel's lower rows: on a rise the wheel cuts its track into the ground
+                // instead of sinking through it, 12:07:07 "its wheels morphing through the terrain")
+                for ly in wh.lo.y...min(wh.hi.y, wh.lo.y + 1) {
+                    let cp = s.toWorld(V3(Float(lx) + 0.5, Float(ly) + 0.5, Float(lz) + 0.5))
+                    let cb = world.rawBlock(Int(floor(cp.x)), Int(floor(cp.y)), Int(floor(cp.z)))
+                    if ShipManager.groundBlock[Int(cb)] && hardnessOK(cb) { sunk += 1 }
+                }
+                let y = Int(groundTop(x, z))
+                guard y > 1, abs(Float(y) + 1 - wp.y) < 3 else { continue }
+                let b = world.rawBlock(x, y, z)
+                guard ShipManager.rutGround[Int(b)] else { continue }
+                world.setBlockAsync(x, y, z, rut)
+                if world.isAir(x, y + 1, z) == false && !Blocks.collide[Int(world.rawBlock(x, y + 1, z))] { world.setBlockAsync(x, y + 1, z, AIR) }
+                ShipManager.rutCells += 1
+            } }
+        }
+    }
+    static let rutGround: [Bool] = (0..<Blocks.count).map { i in
+        let k = Blocks.key(Blocks.groupBase[i])
+        return ["grass_block", "snowy_grass_block", "podzol", "mycelium", "moss_block", "dirt", "rooted_dirt", "snow_block"].contains(k)
     }
 
     // Guns: turrets track the target and fire on their own reloads; the spinal gun charges and fires a rail slug

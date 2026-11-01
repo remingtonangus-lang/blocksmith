@@ -143,6 +143,7 @@ enum Soldier {
         let armor: Int
         let toughness: Float
     }
+    static let aimTighten: Float = 0.65           // P507: rifle groups two thirds as wide as the ranks' spread below
     static let ranks: [Rank] = [
         Rank(near: 8, far: 14, sight: 26, spread: 0.07, burst: 3...5, gap: 1.0...1.8, react: 0.9, strafe: 0.3, damage: 0.8, armor: 4, toughness: 0),
         Rank(near: 7, far: 12, sight: 32, spread: 0.045, burst: 4...6, gap: 0.8...1.4, react: 0.7, strafe: 0.8, damage: 0.9, armor: 10, toughness: 2),
@@ -818,8 +819,10 @@ extension Mob {
         // P504 (Nov 1 07:30:44, at a Greywall fortress: "Those snipers should never miss"): a marksman leads him in full,
         // allows for the round's drop and holds dead on (below); the laser and the glint are the warning.
         let sniper = kind == .soldierMarksman
-        aimAt += g.player.vel * flight * (sniper ? 1 : 0.8)
-        if sniper { aimAt.y += 0.5 * 1.5 * flight * flight }
+        // P507 (Nov 1 12:29:17, shot at by a Greywall patrol: "Soldiers need to be more accurate"): every rank leads him
+        // in full and allows for the drop now (they used to lead him four fifths and aim low), with a tighter group.
+        aimAt += g.player.vel * flight
+        aimAt.y += 0.5 * 1.5 * flight * flight
         if Guns.isLauncher(b.gun) { aimAt = g.player.pos + V3(0, 0.3, 0) + g.player.vel * flight * 0.6 }
         let dir = simd_normalize(aimAt - muzzle)
         // Soldiers' shotgun pellets hit softer (a point-blank volley shouldn't one-shot a full-health player).
@@ -837,7 +840,10 @@ extension Mob {
                 let kick = aimKick(gs)
                 let hunter: Float = posse == 3 ? 0.7 : 1                 // R21: bounty hunters shoot straighter than the ranks
                 let levelAim: Float = Difficulty.row.aim                 // P302: wide on the easy levels, tight on the hard
-                let d = sniper && gs.pellets == 1 ? dir : Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : (b.gun == Guns.rotary ? 2.2 : 1)) * hunter * levelAim)
+                let gunWide: Float = b.gun == Guns.ashsaw ? 1.8 : (b.gun == Guns.rotary ? 2.2 : 1)
+                let who: Float = (veteran ? 0.6 : 1) * hunter * levelAim * Soldier.aimTighten
+                let wide: Float = (rank.spread + gs.spread * 0.5 + kick) * gunWide * who
+                let d = sniper && gs.pellets == 1 ? dir : Guns.scatter(dir, wide)
                 g.arms.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * scale, fromPlayer: false,
                                   shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
             }

@@ -204,7 +204,7 @@ extension Game {
     // drawn with its own mesh the whole way (a tree keeps its leaf blobs and round trunk, a tower its walls), tipping
     // away from him. A tree takes its crown along and lies as a felled trunk once still; anything else lies where it lands.
     static let toppledName = "Toppled"
-    func topple(_ cells: [IVec3]) {
+    func topple(_ cells: [IVec3], away awayDir: V3? = nil) {
         guard let start = cells.min(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) else { return }
         let logs = cells.filter { CapitalBase.isLog(world.block($0.x, $0.y, $0.z)) }
         var leaves: Set<IVec3> = []
@@ -246,10 +246,10 @@ extension Game {
         s.prevPos = s.pos
         s.updateBounds()
         s.initialBlocks = s.blockCount
-        var away = V3(s.pos.x - player.pos.x, 0, s.pos.z - player.pos.z)
+        var away = awayDir ?? V3(s.pos.x - player.pos.x, 0, s.pos.z - player.pos.z)      // (P507: a crawler's push, its way)
         if simd_length(away) < 0.1 { away = V3(-sinf(player.yaw), 0, -cosf(player.yaw)) }
         away = simd_normalize(away)
-        s.angVel = simd_cross(V3(0, 1, 0), away) * (tree ? 0.35 : 0.15)
+        s.angVel = simd_cross(V3(0, 1, 0), away) * (tree ? (awayDir != nil ? 0.7 : 0.35) : 0.15)
         s.vel = away * 0.2
         if tree { Felling.girth[s.id] = Felling.girthOf(Set(logs)) }
         Felling.falls.append(hold(s, cells: leaves.union(cells)))

@@ -354,7 +354,7 @@ enum RideCheck {
         st.testSpeed = 1.2
         // Let it get going (the ramp folds up only above a creep; at 1.2 b/s it stays down).
         for _ in 0..<120 { sc.agent.step(Bot()) }
-        let foot = s.toWorld(V3(3.3, 0, 29.5))
+        let foot = s.toWorld(V3(4.3, 0, 29.5))
         let fx = Int(floor(foot.x)), fz = Int(floor(foot.z))
         _ = w.loadSync(center: foot, radius: 3)
         g.player.flying = false
@@ -380,10 +380,10 @@ enum RideCheck {
                      "walk back out and down the ladder to the ground", "walk round to the rear ramp and up it into the troop bay",
                      "walk down the ramp to the ground"]
         let routes: [[V3]] = [
-            [V3(5.45, 0, 29.5)],
+            [V3(6.45, 0, 29.5)],          // (P507: the ladder let into the flank, a block in)
             [],
             [V3(7.4, 21, 30.5), V3(9.7, 22, 30.5), V3(13.5, 22, 30.5), V3(15.5, 22, 35.5)],
-            [V3(13.5, 22, 30.5), V3(9.7, 22, 30.5), V3(7.4, 21, 30.0), V3(4.9, 21, 29.5)],
+            [V3(13.5, 22, 30.5), V3(9.7, 22, 30.5), V3(7.4, 21, 30.0), V3(5.9, 21, 29.5)],
             [V3(-1.5, 0, 33), V3(-1.5, 0, 90), V3(17.5, 0, 90), V3(17.5, 0, 86), V3(17.5, 10, 74.6), V3(17.5, 10, 72.6), V3(25, 10, 66)],
             [V3(17.5, 10, 72.6), V3(17.5, 10, 74.6), V3(17.5, 1, 83.5), V3(17.5, 0, 90)],
         ]
@@ -397,11 +397,11 @@ enum RideCheck {
             let aboard = w.ships.aboard === s
             switch phase {
             case 0:
-                if l.x > 5.15 && abs(l.z - 29.5) < 0.6 { advance(names[0]); return AgentAction.idle }
+                if l.x > 6.15 && abs(l.z - 29.5) < 0.6 { advance(names[0]); return AgentAction.idle }
                 return walk(stt, to: s.toWorld(routes[0][0]))
             case 1:
                 // Done once standing on the roof (stopping at the ladder's top to turn, it would drop off).
-                if l.y > 20.95 && aboard && stt.onGround && l.x > 6.05 { advance(names[1]); return AgentAction.idle }
+                if l.y > 20.95 && aboard && stt.onGround && l.x > 7.05 { advance(names[1]); return AgentAction.idle }
                 var a = walk(stt, to: s.toWorld(V3(9, 0, 29.5)))
                 a.forward = 1
                 a.jump = true
@@ -418,7 +418,7 @@ enum RideCheck {
                     }
                     if done { advance(names[phase]); return AgentAction.idle }
                     // Down the ladder: off the roof edge into the rungs, no input while it slides down, then step off.
-                    if phase == 3 { return l.y > 1.2 ? AgentAction.idle : walk(stt, to: s.toWorld(V3(2.8, 0, 29.5))) }
+                    if phase == 3 { return l.y > 1.2 ? AgentAction.idle : walk(stt, to: s.toWorld(V3(3.8, 0, 29.5))) }
                     return AgentAction.idle
                 }
                 let target = route[wp]

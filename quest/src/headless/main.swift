@@ -1845,6 +1845,10 @@ if CommandLine.arguments.contains("--craterplace") {           // P507: blocks g
     CraterPlaceCheck.run(game, check)
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--roadscheck") {            // P507: roads near his spot, drawn on the ground
+    RoadsCheck.run(game, check)
+    print(failures == 0 ? "roadscheck: all checks passed" : "roadscheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--sandbreak") {             // P462: dug beach sand stays ground
     SandBreakCheck.run(game, check)
     print(failures == 0 ? "sandbreak: all checks passed" : "sandbreak: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

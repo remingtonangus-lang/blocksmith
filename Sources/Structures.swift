@@ -705,7 +705,7 @@ enum Loot {
                                       ("gun_arc", 1, 1, 5), ("heavy_rounds", 6, 15, 8), ("rocket_ammo", 2, 6, 6), ("arc_cell", 4, 12, 6),
                                       ("diamond_chestplate@20-30", 1, 1, 3), ("field_stim", 1, 2, 5), ("combat_stim", 1, 1, 1),
                                       ("experience_bottle", 3, 8, 6), ("firing_mechanism", 1, 2, 6), ("targeting_optic", 1, 1, 5),
-                                      ("radar_module", 1, 1, 4), ("intercepted_orders", 1, 2, 7), ("capital_signal_log", 1, 1, 6)]),
+                                      ("radar_module", 1, 1, 4), ("intercepted_orders", 1, 1, 7), ("capital_signal_log", 1, 1, 6)]),
         // The Meridian frigate's hold and bridge locker (CapitalFrigate.swift): post-game spoils.
         "meridian_hold": (4...7, [("diamond", 3, 8, 10), ("gun_launcher", 1, 1, 6), ("gun_arc", 1, 1, 6), ("gun_sniper", 1, 1, 5),
                                   ("rocket_ammo", 4, 10, 8), ("heavy_rounds", 8, 16, 8), ("arc_cell", 6, 14, 6),
@@ -742,7 +742,7 @@ enum Loot {
         "steelhold_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_launcher", 1, 1, 6),
                                     ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 8, 8), ("arc_cell", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
                                     ("diamond_sword@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("targeting_optic", 1, 2, 6),
-                                    ("radar_module", 1, 1, 5), ("intercepted_orders", 1, 2, 6), ("hannibal_armour_set", 1, 1, 3)]),   // P350
+                                    ("radar_module", 1, 1, 5), ("intercepted_orders", 1, 1, 6), ("hannibal_armour_set", 1, 1, 3)]),   // P350
     ]
 
     // "name@a-b": enchant with a-b levels (treasure allowed); "name@0": enchant randomly (50%);
@@ -787,7 +787,8 @@ enum Loot {
         // The way into hell is base loot (HellGate.swift): every command chest holds an Ember Charge, a vault one or two.
         // Outlaws rob Capital couriers, a dead courier's pack lies in an abandoned camp and traders sell what they find:
         // these camps always hold intercepted orders (the first citadel's map, G6).
-        "camp_outlaws": [(1...1, [("intercepted_orders", 1, 2, 1)])],
+        // P507 (Nov 1 12:32:07, two in an outlaw chest: "Two intercepted orders? Really"): one set of orders a chest.
+        "camp_outlaws": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         "camp_abandoned": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         "camp_traders": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         // Greywall Command (Greywall.swift): every command chest holds a radar module (the radar network), every vault gold.
