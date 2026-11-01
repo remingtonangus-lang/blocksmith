@@ -379,6 +379,7 @@ if let out = arg("--view"), let ctx = vkctx {
                     if q.pre + q.loop + q.deaths + q.restore + q.spawn > 5 {
                         worstWhat += String(format: "; mobs %d: before %.1f, bodies %.1f (slowest %@ %.1f), deaths %.1f, restore %.1f, spawning %.1f",
                                             q.count, q.pre, q.loop, q.worstKind, q.worst, q.deaths, q.restore, q.spawn)
+                        if !MobManager.worstStages.isEmpty { worstWhat += " [\(MobManager.worstStages)]" }
                     }
                 }
             }

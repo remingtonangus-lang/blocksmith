@@ -1113,6 +1113,7 @@ enum TextureGen {
         deepPainters(&p)
         deepGatePainters(&p)
         hellPainters(&p)
+        hellWorksPainters(&p)                             // P508 (HellWorks.swift)
         hellLandPainters(&p)                              // P292: hell's own looks (HellLooks.swift)
         greywallPainters(&p)
         depotPainters(&p)                                 // P469 (Depots.swift)

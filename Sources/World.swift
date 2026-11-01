@@ -224,6 +224,8 @@ final class World {
         // P292: Brand Chapterhouses and Searwing Roosts on ground no save generated before them (BrandChapterhouse.swift).
         if dim == .nether { P292Guard.nether = save?.structureGuard(file: "structure-guard-p292.txt") ?? [] }
         if dim == .deep { P292Guard.deep = save?.structureGuard(file: "structure-guard-p292.txt") ?? [] }
+        if dim == .nether { P508Guard.nether = save?.structureGuard(file: "structure-guard-p508.txt") ?? [] }     // (HellWorks.swift)
+        if dim == .deep { P508Guard.deep = save?.structureGuard(file: "structure-guard-p508.txt") ?? [] }
         if dim == .deep, let save, let dg = gen as? DeepGen {
             dg.keepGuard.chunks = save.structureGuard(file: "structure-guard-deep-keeps.txt")      // BrimstoneKeep.swift
             dg.vaultGuard.chunks = save.structureGuard(file: "structure-guard-vault.txt")          // AshVault.swift

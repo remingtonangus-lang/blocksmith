@@ -21,7 +21,7 @@ final class BrewingMenu: Menu {
         ing.filter = { Potions.isIngredient($0.item) }
         slots.append(ing)
         let fuel = MenuSlot(17, 17, be.container, 4, .fuel)
-        fuel.filter = { Items.key($0.item) == "blaze_powder" }
+        fuel.filter = { Items.key($0.item) == HellWorks.brimsalt }     // (P508)
         slots.append(fuel)
         // Q2c-console-64: room for the status lines between the stand and the pack.
         height = 190
@@ -34,7 +34,7 @@ final class BrewingMenu: Menu {
     var status: [(String, Bool)] {
         let c = be.container
         let bottles = (0..<3).map { c[$0] }.filter { !$0.isEmpty }
-        let powder = BrewingMenu.name("blaze_powder")
+        let powder = BrewingMenu.name(HellWorks.brimsalt)
         let fuelLine = be.fuel > 0 ? "Fuel for \(be.fuel) more brew\(be.fuel == 1 ? "" : "s")"
             : (c[4].isEmpty ? "No \(powder) left: add some on the left" : "Fuel for \(20 * c[4].count) more brews")
         if be.brewTime > 0 {

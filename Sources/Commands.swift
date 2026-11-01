@@ -131,7 +131,7 @@ extension Game {
         ("trail_ruins", "Trail Ruins"), ("desert_well", "Desert Well"), ("fossil", "Fossil"),
         ("fortress", "Brand Chapterhouse"), ("bastion", "Searwing Roost"), ("end_city", "Hollow Spire"),
         ("military_base", "Capital Citadel"), ("capital_city", "Capital City"), ("great_ruin", "Ancient Spire"), ("boreal_station", "Boreal Station"),
-        ("brimstone_keep", "Brimstone Keep"),
+        ("brimstone_keep", "Brimstone Keep"), (HellWorks.kind, "Hell Works"),
         // Vessel encounters (ShipVessels.swift / CapitalShips.swift), found by region rather than as structures.
         ("warfrigate", "Stormwarden Frigate"), ("crawler", "Ironback Crawler"), ("frigate", "Meridian Frigate"), ("carriage", "Siege Carriage"),
         // P504: a Greywall Command base (a structure), and a train on its line (where its timetable has it now).
@@ -166,6 +166,7 @@ extension Game {
         "great_ruin": "a colossal ruined stone tower; a stair inside climbs to a chest at the top",
         "boreal_station": "a Meridian Navy post on the ice, manned by its marines, its vehicles parked in the yard",
         "brimstone_keep": "a walled castle over the lava sea in the Deep's hell band, holding the Sunderite Ore",
+        HellWorks.kind: "the Brand Order's works in hell (a distillery, a gaol or a Brimsalt quarry), the only place to find Brimsalt and Tech Salvage",
         "warfrigate": "a Greywall warship under sail", "crawler": "a Greywall land ship on its patrol",
         "frigate": "a Meridian frigate on patrol", "carriage": "a Capital siege carriage on the move",
         "greywall_base": "a Greywall Command base: walls, gun towers, a garrison and a vault",

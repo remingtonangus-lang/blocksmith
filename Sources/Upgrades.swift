@@ -115,7 +115,10 @@ enum Upgrades {
         // P508 (Nov 1 16:26: "maybe some sort of material required to build high tech stuff maybe make it only found in
         // those bases... Lets entirely scrap the XP system"): the levels it cost are Tech Salvage from the bases' chests.
         if !Game.xpOn {
-            if Items.has(TechSalvage.key) { items.append((Items.id(TechSalvage.key), max(1, (xp + 1) / 2))) }
+            if Items.has(TechSalvage.key) {
+                let id = Items.id(TechSalvage.key), n = max(1, (xp + 1) / 2)
+                if let i = items.firstIndex(where: { $0.0 == id }) { items[i].1 += n } else { items.append((id, n)) }   // (a part that already takes salvage: one line)
+            }
             return Cost(xp: 0, items: items)
         }
         return Cost(xp: xp, items: items)

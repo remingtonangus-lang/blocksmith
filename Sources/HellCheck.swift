@@ -138,6 +138,57 @@ enum HellCheck {
         check(kforeign.isEmpty && keep.mobs.contains("brand_champion:warden@deep") && keep.count["sunderite_ore", default: 0] >= BrimstoneKeep.oreMin,
               "Brimstone Keep: garrison of \(keep.mobs.count) all hell's own (\(Set(keep.mobs.map(kindKey)).sorted())), the Castellan a Brand Champion, \(keep.count["sunderite_ore", default: 0]) Sunderite Ore; foreign \(kforeign)")
 
+        // P508: the Hell Works, each design walked from the far end of its causeway to its strongroom (and the quarry's pit
+        // floor), held by hell's own, its Brimsalt veins and its chests; Tech Salvage only in hell's tables.
+        for v in 0..<3 {
+            let st = HellWorks.start(v, ox: 8, oz: 8, base: 0, seed: 11 + UInt64(v))
+            let hb = build(st)
+            let hf = st.anchor.y - 1
+            let hforeign = hb.mobs.filter { !own.contains(kindKey($0)) } + hb.spawners.filter { !own.contains(kindKey($0)) }
+            let veins = hb.count[HellWorks.vein, default: 0], chests = hb.count["chest", default: 0]
+            let walked = walk(hb, from: IVec3(8, hf + 1, 8 + 30), box: (IVec3(8 - 34, 1, 8 - 34), IVec3(8 + 34, hf + 38, 8 + 34)))
+            func got(_ dx: Int, _ y: Int, _ dz: Int, _ r: Int = 1) -> Bool {
+                for z in (dz - r)...(dz + r) { for x in (dx - r)...(dx + r) where walked.contains(IVec3(8 + x, y, 8 + z)) { return true } }
+                return false
+            }
+            let goals: [(String, Bool)]
+            switch v {
+            case 0: goals = [("still-house", got(0, hf + 1, -9)), ("strongroom", got(0, hf + 1, -18)), ("grotto floor", got(-10, hf - 3, 9, 2))]
+            case 1: goals = [("tower", got(0, hf + 1, 0, 2)), ("warden's floor", got(0, hf + 17, 0, 2)), ("east cells", got(21, hf + 1, 0)), ("north cells", got(0, hf + 1, -21))]
+            default: goals = [("foreman's hut", got(13, hf + 1, 16)), ("pit floor", got(0, hf - 15, -2, 2)), ("rail run", got(-4, hf + 1, 20))]
+            }
+            let veinsNeeded = v == 1 ? 0 : 20
+            check(hforeign.isEmpty && veins >= veinsNeeded && chests >= 4 && goals.allSatisfy { $0.1 } && hb.count["nether_bricks", default: 0] == 0,
+                  "\(HellWorks.names[v]): \(chests) chests, \(veins) Brimsalt veins, garrison \(hb.mobs.map(kindKey).sorted()), spawners \(hb.spawners.sorted()); walked to "
+                  + goals.map { "\($0.0) \($0.1 ? "yes" : "NO")" }.joined(separator: ", ") + " (\(walked.count) cells); foreign \(hforeign)")
+        }
+        do {
+            func has(_ table: String, _ key: String, tries: Int = 12) -> Int {
+                var n = 0
+                for t in 0..<tries {
+                    let c = ItemContainer(27); var lr = SRng(UInt64(900 + t))
+                    Loot.fill(c, table: table, rng: &lr)
+                    n += (0..<27).reduce(0) { $0 + (Items.key(c[$1].item) == key ? c[$1].count : 0) }
+                }
+                return n
+            }
+            let vaultSalvage = has("hell_works_vault", TechSalvage.key), baseSalvage = has("steelhold_command", TechSalvage.key) + has("steelhold_vault", TechSalvage.key)
+            let salt = has("hell_distillery", HellWorks.brimsalt)
+            let potions = has("hell_distillery", "potion_healing") + has("hell_distillery", "potion_fire_resistance")
+            check(vaultSalvage > 12 && baseSalvage == 0 && salt > 12 && potions > 0,
+                  "Hell Works loot: \(vaultSalvage) Tech Salvage in 12 strongrooms, \(baseSalvage) in 24 surface base chests; \(salt) Brimsalt and \(potions) healing/fire tonics in 12 distillery racks")
+            // Brewing runs on Brimsalt: a stand with cinder powder stays cold, with Brimsalt it brews.
+            let be = BlockEntity(.brewing)
+            be.container[0] = ItemStack(Items.id("potion_water"), 1)
+            be.container[3] = ItemStack(Items.id("nether_wart"), 1)
+            be.container[4] = ItemStack(Items.id("blaze_powder"), 1)
+            for _ in 0..<5 { _ = be.tickBrewing() }
+            let cold = be.fuel == 0 && be.brewTime == 0
+            be.container[4] = ItemStack(Items.id(HellWorks.brimsalt), 1)
+            for _ in 0..<5 { _ = be.tickBrewing() }
+            check(cold && be.fuel > 0 && be.brewTime > 0, "brewing: cinder powder no longer fuels a stand (cold \(cold)); Brimsalt does (fuel \(be.fuel), brewing \(be.brewTime))")
+        }
+
         // (b) The five lands: their own ground and growth.
         let gen = EmberGen(seed: 4242)
         func land(_ want: Biome) -> [String: Int] {

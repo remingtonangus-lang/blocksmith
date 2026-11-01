@@ -377,26 +377,33 @@ final class DeepGuard {
 
 extension Bastion {
     // The Deep's hell band gets the Emberdeep's bastions too (their own grid, kept clear of fortresses and keeps).
+    static let deepSpacing = 60                // P310: 8x rarer by area (was 30); P436: twice as common (was 85)
+    // The roost's chunk in region (rx, rz), clear of fortresses and keeps (P508: shared with HellWorks.spot).
+    static func deepSpot(_ worldSeed: UInt64, _ rx: Int, _ rz: Int, guardSet: DeepGuard) -> (Int, Int)? {
+        let spacing = deepSpacing
+        var rng = SRng(worldSeed ^ 0xBA57_DEE9 &+ UInt64(bitPattern: Int64(rx)) &* 0x2545_F491 &+ UInt64(bitPattern: Int64(rz)) &* 0x9E37_79B9)
+        for _ in 0..<12 {
+            let bx = rx * spacing + 4 + rng.int(spacing - 8), bz = rz * spacing + 4 + rng.int(spacing - 8)
+            guard BrimstoneKeep.clearOfFortresses(worldSeed, bx, bz, 9), guardSet.clear(bx, bz, 4) else { continue }
+            var nearKeep = false
+            let ks = BrimstoneKeep.spacing
+            for kz in floorDiv(bz - 12, ks)...floorDiv(bz + 12, ks) { for kx in floorDiv(bx - 12, ks)...floorDiv(bx + 12, ks) {
+                if let (px, pz) = BrimstoneKeep.spot(worldSeed, kx, kz), abs(px - bx) < 9 && abs(pz - bz) < 9 { nearKeep = true }
+            } }
+            if nearKeep { continue }
+            return (bx, bz)
+        }
+        return nil
+    }
     static func deepType(worldSeed: UInt64, guardSet: DeepGuard) -> StructureType {
-        let spacing = 60                  // P310: 8x rarer by area (was 30); P436: twice as common (was 85)
+        let spacing = deepSpacing
         return StructureType(name: "bastion", spacing: spacing, separation: 8, salt: 0xBA5_7DEE, reach: 4) { seed, cx, cz in
             let rx = floorDiv(cx, spacing), rz = floorDiv(cz, spacing)
-            var rng = SRng(worldSeed ^ 0xBA57_DEE9 &+ UInt64(bitPattern: Int64(rx)) &* 0x2545_F491 &+ UInt64(bitPattern: Int64(rz)) &* 0x9E37_79B9)
-            for _ in 0..<12 {
-                let bx = rx * spacing + 4 + rng.int(spacing - 8), bz = rz * spacing + 4 + rng.int(spacing - 8)
-                guard BrimstoneKeep.clearOfFortresses(worldSeed, bx, bz, 9), guardSet.clear(bx, bz, 4) else { continue }
-                var nearKeep = false
-                let ks = BrimstoneKeep.spacing
-                for kz in floorDiv(bz - 12, ks)...floorDiv(bz + 12, ks) { for kx in floorDiv(bx - 12, ks)...floorDiv(bx + 12, ks) {
-                    if let (px, pz) = BrimstoneKeep.spot(worldSeed, kx, kz), abs(px - bx) < 9 && abs(pz - bz) < 9 { nearKeep = true }
-                } }
-                if nearKeep { continue }
-                var brng = SRng(seed)
-                let g20 = G20Guard.legacy(G20Guard.deep, bx, bz, reach: 4)
-                return start(&brng, ox: bx * CS + 8, oz: bz * CS + 8, y: DeepGen.hellBase + 33, mound: !g20,
-                             roost: !g20 && !G20Guard.legacy(P292Guard.deep, bx, bz, reach: 4))
-            }
-            return nil
+            guard let (bx, bz) = deepSpot(worldSeed, rx, rz, guardSet: guardSet) else { return nil }
+            var brng = SRng(seed)
+            let g20 = G20Guard.legacy(G20Guard.deep, bx, bz, reach: 4)
+            return start(&brng, ox: bx * CS + 8, oz: bz * CS + 8, y: DeepGen.hellBase + 33, mound: !g20,
+                         roost: !g20 && !G20Guard.legacy(P292Guard.deep, bx, bz, reach: 4))
         }
     }
 }

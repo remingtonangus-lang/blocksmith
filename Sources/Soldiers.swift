@@ -351,8 +351,11 @@ extension Mob {
         if !canTarget && aggro && lockTime > 0 && dist < 64 && g.survival && g.alive && !g.repAllied(self)
             && faction != Faction.ashguard.rawValue { canTarget = true }      // (the Ashguard stand down on their own: ashVictory)
         if posse == 3 && BountyHunters.holdOff { canTarget = false }  // R21: bounty hunters wait on the surface while he's below
+        MobManager.stage("soldier start")
         navyTick(dt, g)                                               // an Aegis Marine's shield (Navy.swift)
+        MobManager.stage("navy")
         var sp = soldierAIStep(dt, g, dist: dist, canTarget: canTarget)
+        MobManager.stage("soldier rest")
         if isAegis { sp *= 1.33 }                                     // T8: an Aegis Marine moves a third faster
         if troop == Int8(TroopClass.hannibal.rawValue) { sp = hannibalJets(dt, g, dist: dist, canTarget: canTarget, speed: sp) }
         return leash == nil ? sp : applyLeash(sp)
@@ -433,7 +436,9 @@ extension Mob {
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.2 + Rand.float(in: 0..<0.1)
+            MobManager.stage("before sees")
             b.sees = canTarget && dist < (aggro ? Soldier.sight(r, gun: b.gun, fighting: true) : Soldier.notice(r, sneaking: g.player.sneaking)) * WeatherWar.sight && w.canSee(eye, g.player.eye)    // O7: fog and storms
+            MobManager.stage("sees")
         }
         let sees = b.sees && canTarget
         // P471 (Oct 26 19:53-19:56: "There should be a guy in here... sitting in a chair operating the naval gun on top"):
@@ -459,7 +464,9 @@ extension Mob {
         b.foeTimer -= dt
         if b.foeTimer <= 0 && factionValue != .none {          // (bounty hunters, posse 3, belong to no faction)
             b.foeTimer = 0.4 + Rand.float(in: 0..<0.2)
+            MobManager.stage("before foes")
             let f = w.ships.nearestFoe(of: factionValue, near: pos, range: max(rank.sight * 1.5, 64), game: g)
+            MobManager.stage("foes")
             b.foe = (f?.ship != nil || f?.mob != nil) ? f : nil
             if let fp = b.foe?.point { b.foeSees = w.canSee(eye, fp) }
         }
@@ -481,7 +488,9 @@ extension Mob {
             if foe.mob != nil && (simd_length(foe.point - eye) > rank.sight * 0.9 || !b.foeSees) { return spec.speed * 0.85 }
             let tp = foe.point - eye
             b.pitch += (max(-0.9, min(1.2, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
+            MobManager.stage("before foe fire")
             soldierFire(dt, g, b, gs, rank: r, dist: min(simd_length(tp), rank.sight - 1), target: foe.point)
+            MobManager.stage("foe fire")
             return 0
         }
         if sees {
@@ -515,7 +524,9 @@ extension Mob {
                 let tp = target - eye
                 let flat: Float = simd_length(V2(tp.x, tp.z))
                 b.pitch += (max(-0.9, min(1.0, atan2f(tp.y, flat))) - b.pitch) * min(1, dt * 8)
+                MobManager.stage("before fire")
                 soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+                MobManager.stage("fire")
             }
             return 0
         }
@@ -599,7 +610,9 @@ extension Mob {
         }
         // Reloading: duck out of sight first (ironclads don't bother).
         if b.reload > 0 && r != 3 {
+            MobManager.stage("before cover")
             if b.cover == nil && b.coverSearch <= 0 && sees { b.cover = findCover(g, from: g.player.eye); b.coverSearch = 1 }
+            MobManager.stage("cover")
             if let c = b.cover {
                 if simd_length(V2(c.x - pos.x, c.z - pos.z)) > 0.6 { face(c); return spec.speed * 1.1 }
                 face(g.player.pos)
@@ -650,7 +663,9 @@ extension Mob {
             }
             if tc == .hannibal && b.reload <= 0 && dist > 4 { speed = max(speed, spec.speed * 0.55); strafe *= 0.3 }
             let shotsBefore = b.mag
+            MobManager.stage("before fire")
             soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+            MobManager.stage("fire")
             // Marksmen move to a new spot after a shot now and then.
             if r == 2 && b.mag < shotsBefore && Rand.float(in: 0..<1) < 0.5 {
                 let right = V3(cosf(yaw), 0, -sinf(yaw))
@@ -669,7 +684,9 @@ extension Mob {
                 let tp = target - eye
                 b.pitch += (max(-0.9, min(0.9, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
                 BlockWear.throughShots += 1
+                MobManager.stage("before fire")
                 soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+                MobManager.stage("fire")
                 return 0
             }
             // Suppressing fire: automatic guns keep shooting where the player ducked out of sight.

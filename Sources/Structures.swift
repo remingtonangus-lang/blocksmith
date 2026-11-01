@@ -721,6 +721,23 @@ enum Loot {
                                    ("tnt", 1, 3, 6)]),
         "brimstone_strongroom": (4...7, [("raw_sunderite", 1, 3, 14), ("netherite_scrap", 1, 3, 6), ("diamond", 2, 4, 8), ("gold_block", 1, 2, 6),
                                          ("combat_stim", 1, 1, 1), ("experience_bottle", 3, 8, 6), ("blaze_powder", 2, 6, 8)]),
+        // P508: the Hell Works (HellWorks.swift): tonics, Brimsalt (the brewing stand's fuel) and Tech Salvage (only here).
+        "hell_distillery": (4...7, [("potion_healing", 1, 2, 10), ("potion_strong_healing", 1, 1, 5), ("potion_fire_resistance", 1, 2, 10),
+                                    ("potion_long_fire_resistance", 1, 1, 5), ("potion_strength", 1, 2, 8), ("potion_regeneration", 1, 1, 6),
+                                    ("potion_swiftness", 1, 2, 6), ("potion_night_vision", 1, 1, 5), ("potion_invisibility", 1, 1, 3),
+                                    ("splash_potion_harming", 1, 2, 5), ("splash_potion_healing", 1, 2, 5), ("splash_potion_slowness", 1, 2, 3),
+                                    (HellWorks.brimsalt, 3, 8, 14), ("nether_wart", 3, 9, 10), ("glass_bottle", 3, 8, 8), ("blaze_powder", 1, 4, 6),
+                                    ("magma_cream", 1, 3, 5), ("ghast_tear", 1, 2, 3), ("fermented_spider_eye", 1, 3, 4), ("tech_salvage", 1, 2, 3)]),
+        "hell_gaol": (3...6, [("gold_ingot", 2, 6, 10), ("iron_ingot", 3, 9, 10), ("iron_sword@0", 1, 1, 6), ("golden_sword@0", 1, 1, 4),
+                              ("tech_salvage", 1, 3, 10), ("potion_healing", 1, 1, 6), ("potion_regeneration", 1, 1, 4), (HellWorks.brimsalt, 2, 5, 8),
+                              ("bone", 2, 8, 8), ("chain", 2, 6, 6), ("diamond", 1, 2, 3), ("blaze_rod", 1, 3, 5), ("field_stim", 1, 1, 3)]),
+        "hell_quarry": (4...7, [(HellWorks.brimsalt, 4, 12, 18), ("raw_gold", 2, 8, 10), ("gold_ingot", 1, 4, 6), ("iron_pickaxe@0", 1, 1, 5),
+                                ("golden_pickaxe@0", 1, 1, 3), ("tnt", 1, 4, 6), ("tech_salvage", 1, 3, 8), ("rail", 4, 12, 6), ("torch", 4, 12, 6),
+                                ("magma_cream", 1, 2, 3), ("potion_fire_resistance", 1, 1, 5), ("blaze_powder", 1, 3, 4)]),
+        "hell_works_vault": (5...8, [("tech_salvage", 3, 8, 22), (HellWorks.brimsalt, 4, 10, 12), ("potion_strong_healing", 1, 2, 8),
+                                     ("potion_long_fire_resistance", 1, 1, 6), ("potion_strong_strength", 1, 1, 5), ("splash_potion_strong_harming", 1, 2, 4),
+                                     ("diamond", 1, 3, 6), ("netherite_scrap", 1, 2, 4), ("gold_block", 1, 2, 5), ("combat_stim", 1, 1, 2),
+                                     ("field_stim", 1, 1, 3)]),
         // The Ashguard's sites in the Deep (AshSites.swift): what an army at war keeps in its depots.
         "ash_armory": (3...6, [("gun_kessel", 1, 1, 10), ("gun_sturmwind", 1, 1, 10), ("gun_hagel", 1, 1, 8),
                                ("gun_launcher", 1, 1, 4), ("gun_faust", 1, 1, 10), ("faust_warhead", 1, 4, 12), ("rifle_rounds", 16, 48, 20),
@@ -817,6 +834,8 @@ enum Loot {
     // keycard here?"): a station has no locked bulkheads, so its chests ("<table>_station") hold the table's loot
     // without the keycard the garrisons' tables carry.
     static let stationSuffix = "_station"
+    // P508: the tables of hell's sites, where Tech Salvage turns up (HellWorks.swift); anywhere else it is never loot.
+    static let hellTables: Set<String> = ["hell_distillery", "hell_gaol", "hell_quarry", "hell_works_vault", "brimstone_keep", "brimstone_strongroom", "fortress", "bastion"]
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
         if table.hasSuffix(stationSuffix) {
             fill(c, table: String(table.dropLast(stationSuffix.count)), rng: &rng)
@@ -844,8 +863,8 @@ enum Loot {
             return
         }
         guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? Depots.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] ?? NavalPort.loot[table] ?? FrontierSites.loot[table] else { return }
-        roll(c, t.rolls, t.entries, rng: &rng)
-        for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
+        roll(c, t.rolls, t.entries, rng: &rng, hell: hellTables.contains(table))
+        for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng, hell: hellTables.contains(table)) }
         if BaseSundries.supplyTables.contains(table) { roll(c, BaseSundries.supplyPool.rolls, BaseSundries.supplyPool.entries, rng: &rng) }
         Blueprints.addToChest(c, table: table, rng: &rng)                // P138
         VehiclePresets.addToChest(c, table: table, rng: &rng)            // D43
@@ -870,7 +889,7 @@ enum Loot {
         }
     }
 
-    private static func roll(_ c: ItemContainer, _ rolls: ClosedRange<Int>, _ all: [(String, Int, Int, Int)], rng: inout SRng) {
+    private static func roll(_ c: ItemContainer, _ rolls: ClosedRange<Int>, _ all: [(String, Int, Int, Int)], rng: inout SRng, hell: Bool = false) {
         let entries = all.filter { $0.0 == "empty" || Items.has(String($0.0.split(separator: "@")[0])) }
         let total = entries.reduce(0) { $0 + $1.3 }
         guard total > 0, c.count > 0 else { return }
@@ -884,6 +903,8 @@ enum Loot {
                     var slot = rng.int(c.count)
                     for _ in 0..<c.count where !c[slot].isEmpty { slot = (slot + 1) % c.count }
                     if !c[slot].isEmpty { return }                       // chest full
+                    // P508: no experience bottles; Tech Salvage is found only in hell (its works, keeps and strongrooms).
+                    if e.0 == "experience_bottle" && !Game.xpOn && !hell { break }
                     let key = Loot.noApples[e.0] ?? (e.0 == "experience_bottle" && !Game.xpOn ? TechSalvage.key : e.0)   // (P508)
                     c[slot] = stack(key, key == TechSalvage.key ? max(1, rng.range(e.1, e.2) / 2) : rng.range(e.1, e.2), rng: &rng)
                     break

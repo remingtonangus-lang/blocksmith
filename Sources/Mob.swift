@@ -739,7 +739,9 @@ final class Mob {
         let toPlayer = player - pos
         let dist = simd_length(toPlayer)
         // Invisible players are only noticed up close.
+        MobManager.stage("start")
         let canTarget = senseTarget(g, dist: dist, dt)
+        MobManager.stage("sense")
         var speed: Float = 0
         if wasHit { wasHit = false; rallyPack(g) }
         let fleeFrom = panic > 0 ? nil : threat(g)
@@ -1190,8 +1192,10 @@ final class Mob {
             && spec.height > 1.6 && spec.height < 2.4 && halfW < 0.45 { speed = HumanGait.maxRun }
         // Walking towards something: follow a path around obstacles instead of straight at it.
         var onPath = false
+        MobManager.stage("behaviour")
         if speed > 0, let t = faceGoal, !spec.flying, spec.behavior != .slime {
             steerAlongPath(t, dt, g, repath: onGround || inWater)
+            MobManager.stage("path")
             onPath = path.index < path.nodes.count
         } else {
             path.stallPos = pos; path.stallTime = 0          // standing still on purpose is not a stall
@@ -1344,7 +1348,9 @@ final class Mob {
             hit = (false, true, false)
         } else {
             w.touchedPlayer = false
+            MobManager.stage("steer")
             hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: kind.ashVehicle ? 1.05 : 0.6, onGround: onGround)
+            MobManager.stage("move")
             pressedPlayer = w.touchedPlayer
         }
         if self === Mob.trace {
@@ -2637,10 +2643,19 @@ final class MobManager {
     // body. Off in play (no clock reads).
     static var profileOn = false
     static var prof = (pre: 0.0, loop: 0.0, deaths: 0.0, restore: 0.0, spawn: 0.0, worst: 0.0, worstKind: "-", count: 0)
+    // Inside one mob's update: the time since the last mark, by stage (the slowest mob's are kept in `worstStages`).
+    static var stageT = 0.0
+    static var stages: [(String, Double)] = []
+    static var worstStages = ""
+    @inline(__always) static func stage(_ name: StaticString) {
+        guard profileOn else { return }
+        let t = CFAbsoluteTimeGetCurrent()
+        stages.append(("\(name)", (t - stageT) * 1000)); stageT = t
+    }
     func update(_ dt: Float, game: Game) {
         let pOn = MobManager.profileOn
         var pT = pOn ? CFAbsoluteTimeGetCurrent() : 0
-        if pOn { MobManager.prof = (0, 0, 0, 0, 0, 0, "-", mobs.count) }
+        if pOn { MobManager.prof = (0, 0, 0, 0, 0, 0, "-", mobs.count); MobManager.worstStages = "" }
         func pMark(_ k: Int) {
             guard pOn else { return }
             let t = CFAbsoluteTimeGetCurrent(), d = (t - pT) * 1000
@@ -2694,10 +2709,15 @@ final class MobManager {
             }
             w.playerBox = bodyOn && game.riding !== m && m.deck == nil && m.mount == nil && MobManager.bodySolid(m.kind) ? pBox : nil
             let mt0 = pOn ? CFAbsoluteTimeGetCurrent() : 0
+            if pOn { MobManager.stages.removeAll(keepingCapacity: true); MobManager.stageT = mt0 }
             m.update(mdt, game: game)
             if pOn {
+                MobManager.stage("rest")
                 let d = (CFAbsoluteTimeGetCurrent() - mt0) * 1000
-                if d > MobManager.prof.worst { MobManager.prof.worst = d; MobManager.prof.worstKind = m.kind.key + (m.aggro ? " (fighting)" : "") }
+                if d > MobManager.prof.worst {
+                    MobManager.prof.worst = d; MobManager.prof.worstKind = m.kind.key + (m.aggro ? " (fighting)" : "")
+                    MobManager.worstStages = MobManager.stages.filter { $0.1 >= 0.5 }.map { String(format: "%@ %.1f", $0.0, $0.1) }.joined(separator: ", ")
+                }
             }
             w.playerBox = nil
             // Smooth worlds (P142): mobs near the player stand on the drawn ground, not the block steps under it (U1: out

@@ -741,6 +741,7 @@ final class BlockRegistry {
         registerGreywallBlocks()
         registerDepotBlocks()                       // P469 (Depots.swift)
         registerHellLandBlocks()                    // P292: the Sulfur Flats' crust (HellLands.swift)
+        registerHellWorksBlocks()                   // P508: Brimsalt veins (HellWorks.swift)
         registerSeats()                             // P370 (b): chairs, benches, stools (Seats.swift)
         registerLift()                              // P503 (Lift.swift)
         registerArmouredTwins()                     // P501: a Greywall vault's walls (MilitaryBase.swift, Armour.twin)

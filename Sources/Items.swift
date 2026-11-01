@@ -478,6 +478,7 @@ final class ItemRegistry {
         registerDeepExpansionItems()
         registerDeepGateItems()
         registerHellItems()
+        registerHellWorksItems()                      // P508: Brimsalt (HellWorks.swift)
         registerSafeItems()                           // P248 (BaseSafes.swift)
         registerNavyItems()
         registerWreckItems()                          // P93 (Wrecks.swift)
