@@ -198,6 +198,20 @@ if let out = arg("--view"), let ctx = vkctx {
         if CommandLine.arguments.contains("--inside") { vg.player.pos.y = Float(st.anchor.y) + 2 }
         print("view: \(kind) at \(st.anchor.x) \(st.anchor.y) \(st.anchor.z)")
     }
+    // --farcitadel [HITS] (P508): the citadel past the loaded land is made before the frame (FarCitadel.sync), with HITS
+    // Tidebreaker blast spheres (radius 21.5, as BaseRecord.damage keeps them) on its tower and hall first.
+    if let fc = arg("--farcitadel") ?? (CommandLine.arguments.contains("--farcitadel") ? "0" : nil) {
+        FarCitadel.sync = true
+        if let n = Int(fc), n > 0, let st = vw.gen.structures?.nearest("military_base", x: Int(vg.player.pos.x), z: Int(vg.player.pos.z), maxRegions: 16) {
+            let cx = (st.min.x + st.max.x) / 2, cz = (st.min.z + st.max.z) / 2, key = "citadel:\(cx),\(cz)"
+            let y0 = st.pieces[0].min.y + 20
+            var r = vg.bases.records[key] ?? BaseRecord(key: key, cx: cx, cz: cz, y0: y0, lastTick: vg.clock)
+            let spots: [V3] = [V3(0, 40, 0), V3(0, 8, 20), V3(-36, 30, 0), V3(30, 6, -24)]
+            for i in 0..<n { let o = spots[i % spots.count]; r.damage.append([Float(cx) + o.x, Float(y0) + o.y, Float(cz) + o.z, 21.5]) }
+            vg.bases.records[key] = r
+            print("view: farcitadel: \(n) blast spheres on \(key)")
+        }
+    }
     // --rail [N]: the eye beside the nearest town railway's middle (P337 looks work), 8 blocks south and 5 up, facing
     // north; N picks the cell at N/100 along the line instead of the middle.
     var railLine: Railways.Line?, railCell = 0
@@ -491,6 +505,16 @@ if let out = arg("--view"), let ctx = vkctx {
         print(String(format: "view: vessel %@ at %.1f %.1f %.1f after %.1f s: lowest hull point %.2f over the drawn ground (cells say %.2f), %d wheels, wheel centres over the ground: %@; vel %.2f",
                      kind, s.pos.x, s.pos.y, s.pos.z, secs, low.y - drawnGround(low.x, low.z, from: low.y + 2), low.y - Float(gy),
                      s.wheels.count, lines.joined(separator: " "), simd_length(s.vel)))
+        // KIND,SECONDS,DIST: the picture from DIST blocks off its side, level with its middle.
+        if parts.count > 2, let d = Float(parts[2]) {
+            let c = (s.toWorld(s.localMin) + s.toWorld(s.localMax)) * 0.5
+            let sideW = s.dirToWorld(V3(1, 0, 0))
+            var e = c + simd_normalize(V3(sideW.x, 0, sideW.z)) * d
+            e.y = drawnGround(e.x, e.z, from: e.y + 30) + 2
+            vg.player.pos = e - (vg.player.eye - vg.player.pos)
+            let to = c - e
+            yaw = atan2f(-to.x, -to.z); pitch = atan2f(to.y, simd_length(V2(to.x, to.z)))
+        }
     }
     // --put "KEY@DX,DY,DZ;...": blocks set round the eye's cell before the frame (block looks, e.g. P463's observers).
     if let put = arg("--put") {
@@ -1419,6 +1443,7 @@ if let out = arg("--view"), let ctx = vkctx {
             SceneRenderer.drawMerged = true
         }
         try RenderTest.render(game: vg, ctx: ctx, path: out, width: vwid, height: vhei, yaw: yaw, pitch: pitch, fovDeg: vfov)
+        if FarCitadel.sync { print(String(format: "view: farcitadel: %d models made (%.0f ms), %d quads, %d drawn", FarCitadel.builds, FarCitadel.buildMs, FarCitadel.lastQuads, FarCitadel.lastDrawn)) }
         print("view: " + RenderTest.lastBreakdown.replacingOccurrences(of: "\n", with: "\nview: "))      // P403 step 2
         if !fullRGBA.isEmpty && fullRGBA.count == RenderTest.lastRGBA.count {
             let b = RenderTest.lastRGBA

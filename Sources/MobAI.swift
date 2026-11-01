@@ -78,7 +78,8 @@ extension Mob {
         guard dist < range else { return false }
         if sightTimer <= 0 {
             sightTimer = 0.5
-            if g.world.canSee(eye, g.player.eye) { lockTime = max(lockTime, 3) }
+            // P508: an enemy not yet after him has to notice him first (Stealth.swift: facing, light, his manner, noise).
+            if Stealth.notices(g, self, dist: dist, seen: g.world.canSee(eye, g.player.eye), dt: 0.5) { lockTime = max(lockTime, 3) }
         }
         return lockTime > 0
     }

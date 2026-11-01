@@ -537,7 +537,7 @@ extension Game {
         let st = greywallAlarm
         if !st.taken.contains(key) { ghostTake(key) }                 // D36: taken unseen
         st.taken.insert(key)
-        FactionRaids.owe("base:" + key, .greywall, chance: 1.0 / 8, clock: clock)              // P236
+        FactionRaids.owe("base:" + key, .greywall, chance: FactionRaids.baseChance, clock: clock)              // P236
         changeRep(.greywall, -30)                                    // O3: Greywall Command remembers (FactionRep.swift)
         site.on = false; site.hold = 0
         if site.lampsLit { greywallLamps(&site, lit: false) }

@@ -48,6 +48,9 @@ enum FactionRaids {
     // (`settled`), and an owed raid comes 15-40 minutes later, the next time you are home.
     static var owed: [String: (faction: Int, due: Double)] = [:]
     static var settled: Set<String> = []
+    // P508 (Nov 1 16:08:46-54: "after you destroy a base... a one quarter of a chance that some attack party shows up to
+    // your house... per base you destroy"): a base cleared, taken or broken is owed back one time in four (was eight).
+    static let baseChance: Float = 0.25
     static func owe(_ key: String, _ f: Faction, chance: Float, clock: Double) {
         guard !settled.contains(key) else { return }
         settled.insert(key)

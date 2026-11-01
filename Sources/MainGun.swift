@@ -257,6 +257,7 @@ extension ShipManager {
     func mainGunImpact(at p: V3, owner: Int, game g: Game, along: V3? = nil) {
         MainGunPerf.blast(clock: g.clock)
         MainGun.noteImpact(at: p)
+        FarCitadel.noteHit(p, clock: g.clock)                // P508: its dust column shows from afar
         let t0 = CFAbsoluteTimeGetCurrent()
         var t = t0, cost: [String] = []
         func lap(_ what: String) { let n = CFAbsoluteTimeGetCurrent(); cost.append(String(format: "%@ %.1f", what, (n - t) * 1000)); t = n }

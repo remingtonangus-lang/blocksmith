@@ -75,7 +75,7 @@ enum Depots {
         let lamp = g("corner_lamp", panel), door = g("bulkhead_door", g("iron_door")), crate = g("ammo_crate", steel)
         let drum = g("ash_drum", g("barrel")), box = g("ash_crate", crate), bags = g("ash_sandbags", g("gravel"))
         let ladder = g("ladder"), slab = g("bunker_concrete_slab", con), steelSlab = g("steel_plating_slab", steel)
-        let fuel = g("fuel", AIR), shutterB = g(Depots.shutter, steel)
+        let fuel = g("fuel", AIR), shutterB = g(Depots.shutter, steel), hoist = g(ShipShells.hoistKey, crate)
         let tank = g("depot_tank", g("white_concrete")), band = g("depot_tank_band", g("red_concrete")), tanker = g("depot_tanker", dark)
         let pipeX = g("depot_pipe_x", g("iron_bars")), pipeZ = g("depot_pipe_z", g("iron_bars")), pipeY = g("depot_pipe_y", g("iron_bars"))
         let pallet = g("spruce_slab", g("oak_slab")), pump = g("fuel_pump", steel), railB = g("rail", AIR)
@@ -200,6 +200,7 @@ enum Depots {
             for b in stride(from: 9, through: 33, by: 8) { put(34, 8, b, panel) }
             // Pumps by the road for his vehicles.
             for b in [27, 29] { put(rb + 1, 1, b, pump) }
+            put(rb + 1, 1, 31, hoist)                                        // P508: a shell hoist to rearm at
             // Fuel drums on pallets.
             for (a0, b0) in [(23, 3), (23, 10)] {
                 for a in a0...(a0 + 3) { for b in b0...(b0 + 3) {
@@ -280,6 +281,8 @@ enum Depots {
                 } }
             } }
             put(30, 4, 32, panel)
+            // P508: shell hoists at the shed's open side, where a war vessel of his rearms (ShipShells.rearm).
+            put(25, 1, sb0 + 1, hoist); put(25, 1, sb1 - 1, hoist)
             // Pallets of crates in the open, walled with sandbags.
             for (a0, b0) in [(24, 12), (31, 12)] {
                 for a in (a0 - 1)...(a0 + 5) { for b in (b0 - 1)...(b0 + 8) where a == a0 - 1 || a == a0 + 5 || b == b0 - 1 || b == b0 + 8 {

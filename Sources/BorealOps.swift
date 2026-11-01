@@ -378,6 +378,7 @@ extension Game {
         op.emptyT += dt
         guard op.emptyT >= 10 else { return }
         op.cleared = true
+        FactionRaids.owe("base:" + op.key, .meridian, chance: FactionRaids.baseChance, clock: clock)          // P508
         bases.boreal.log.append("\(op.key) cleared")
         onToast?("The station is cleared")
     }

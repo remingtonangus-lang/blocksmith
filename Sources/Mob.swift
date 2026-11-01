@@ -507,6 +507,7 @@ final class Mob {
     var driveSpeed: Float = 0
     var driveYaw: Float = 0
     var lockTime: Float = 0         // remembers the player this long after last seeing them (MobAI.swift)
+    var notice: Float = 0           // P508: how far it has noticed him, 0 to 1 (Stealth.swift)
     var sightTimer: Float = Rand.float(in: 0...0.5)
     var wasHit = false              // hit since the last update (pack rally)
     var convertTime: Float = 0      // drowning zombie / freezing skeleton / boarling out of the Emberdeep / tadpole (Conversions.swift)
