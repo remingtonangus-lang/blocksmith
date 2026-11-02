@@ -537,6 +537,7 @@ final class Mob {
     var meetSearch: Float = 0
     var brain: SoldierBrain?        // Capital soldiers and deck guns (Soldiers.swift, SoldierRig.swift)
     var strafe: Float = 0           // sideways walk speed this update (right is positive)
+    var crewSpeed: Float = 0        // crew aboard: the forward walk speed crewStep gave this update (ridecheck's drift note)
     var shield: Float = 0, shieldMax: Float = 0   // an Aegis Marine's energy shield (Navy.swift)
     var shieldIdle: Float = 0, shieldLock: Float = 0
     var shieldFx: Int8 = 0          // this update's shield effect: 1 flare, 2 pop (drawn by navyTick, which has the game)
@@ -617,6 +618,17 @@ final class Mob {
 
     private func solid(_ x: Float, _ y: Float, _ z: Float, _ w: World) -> Bool {
         w.solidAt(Int(floor(x)), Int(floor(y)), Int(floor(z)))
+    }
+
+    // Nothing to stand on within `depth` blocks under the point a (world space, ahead of the feet). P510 ridecheck (crew
+    // drifting 1.3 blocks off their posts): aboard a vehicle the hull's floor counts. Its blocks aren't in the world's
+    // grid, so every step on a deck read as a ledge: a calm soldier's walk back to his post was zeroed whenever the post
+    // lay ahead of him (only his sideways step was left), and animals and townsfolk riding a deck turned round at
+    // every step.
+    private func dropAt(_ a: V3, depth: Int, _ w: World) -> Bool {
+        if let s = deck, w.ships.overHull(s, s.toLocal(V3(a.x, pos.y + 0.05, a.z)), halfW: 0.2, depth: depth) { return false }
+        for k in 0..<depth where solid(a.x, pos.y - 0.5 - Float(k), a.z, w) { return false }
+        return true
     }
 
     func face(_ p: V3) {
@@ -1163,7 +1175,7 @@ final class Mob {
 
         // Crew aboard a capital vehicle hold their posts in the hull's frame (they turn and fire as the soldier AI
         // decides, but don't stroll, flank or chase off the deck); troops sent out walk their route down the ramp.
-        if let s = deck, crewPost != nil || !crewRoute.isEmpty || crewFree { speed = crewStep(s, speed) }
+        if let s = deck, crewPost != nil || !crewRoute.isEmpty || crewFree { speed = crewStep(s, speed); crewSpeed = speed }
         // A passive mount carrying a jockey goes where the rider wants.
         if driven > 0 {
             driven -= dt
@@ -1207,22 +1219,21 @@ final class Mob {
         if spec.behavior == .passive && speed > 0 && onGround && panic <= 0 && !onPath {
             let a = pos + forward * (halfW + 0.45)
             let wet = Blocks.isLiquid(w.builtBlock(Int(floor(a.x)), Int(floor(pos.y - 0.5)), Int(floor(a.z))))
-            let drop = !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w)
+            let drop = dropAt(a, depth: 3, w)
             if wet || drop { yaw += .pi * Rand.float(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Rand.float(in: 1...3) }
         }
         // Calm soldiers walking straight (no path to an order or stroll goal) stop at a ledge rather than step off it
         // (citadel behaviour sim: a patrol leader searching a hillside fell 5 blocks).
         if kind.steelhold && !aggro && speed > 0 && onGround && !onPath {
             let a = pos + forward * (halfW + 0.45)
-            if !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w) { speed = 0 }
+            if dropAt(a, depth: 3, w) { speed = 0 }
         }
         // Calm townsfolk never step off a drop deeper than the path finder's three blocks, on a path or not (a path
         // cutting the corner of a ravine bridge in a village: seed 777 behaviour sim, two fell 5 blocks, Q2). Not when
         // panicking or running from a zombie or raider (villagerDay's 2.2): a fall beats being caught.
         if spec.behavior == .villager && panic <= 0 && speed > 0 && speed < 2.2 && onGround {
             let a = pos + forward * (halfW + 0.45)
-            if !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w)
-                && !solid(a.x, pos.y - 3.5, a.z, w) { speed = 0 }
+            if dropAt(a, depth: 4, w) { speed = 0 }
         }
         if spec.flying {
             if kind == .blaze && speed != 0 {
