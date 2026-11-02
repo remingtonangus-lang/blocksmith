@@ -60,3 +60,17 @@ this list and ask whether the work repeats one of these.
   alone. Checked by `questcheck --elevator` (in the full suite): he walks in, picks the top floor, rides up without
   falling or leaving the car, walks out at the top, a landing button calls the car down; pad columns and his citadel
   towers convert; the rooms are there and differ.
+
+### 3. The train (C1, P470, P508, P510; Oct 26 - Nov 1)
+
+- **Asked:** Oct 26 18:35 and 20:14: "make big train tracks and make it so there is a train that can be boarded", "a
+  large variant that would be real-life sized"; Nov 1 20:38: "The train doesn't stop. It goes on forever."
+- **Made:** real-size cars drawn as models (TrainCars.swift) on one moving body per car. Only a few surfaces were
+  made solid by special cases (a roof while it runs, a coach's floor): the walls, ends, seats and couplings were not
+  there to touch, nobody rode it, and the engine was driven only by mounting it as a seat.
+- **Why it failed:** Nov 2 08:40-08:42, -9600 85 5317 (seed 7653607216494784574): "can get in the passenger carts
+  here, but... there's no passengers, and I am glitching through this section", "[the train] wasn't entirely well
+  done here... I'm gonna call that a failure", "I should be able to jump on top of this section", "I can't seem to
+  drive the train now", and 08:40:06 at -8365 128 5109: "Oh, look, a train. And it stops... That shouldn't be there".
+  A train is cars you walk through, stand on and ride, with people aboard, an engine you drive from its cab, that
+  runs on along the line.
