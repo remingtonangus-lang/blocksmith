@@ -73,6 +73,7 @@ final class Section {
             guard let o = owner else { return }
             o.dirty = true
             if !World.backgroundEdits { o.urgent = true }
+            if World.vehicleEdits { o.vehicleWorn = true }
             o.noteStale(was: oldValue != meshedVersion, now: version != meshedVersion)
         }
     }
@@ -372,6 +373,7 @@ final class Chunk {
     var lodRemeshLog = false
     var held = false               // P474: on World.held, its settling change waiting out World.settleGap
     var urgent = false             // P446: changed by an edit (not water settling or a random tick): meshes ahead of the queue
+    var vehicleWorn = false        // P511: changed by a vehicle's wheels and hull passing (World.vehicleEdits): meshes again at most every settleGap
     var lod = 0 {                  // 0 full detail, 1 far (flat light, merged faces, no small decorations), 2 mid ("fast" leaves)
         didSet { if cullWatched { CullNotes.note(cx, cz) } }
     }

@@ -2332,6 +2332,15 @@ extension ShipManager {
         st.crushTimer -= dt
         guard st.crushTimer <= 0 else { return }
         st.crushTimer = st.wantSpeed > 12 ? 0.1 : 0.25            // (P507: at 100 km/h a pass every 3 blocks)
+        // P511: its wear (ruts, what the hull sweeps through, plants under the bow) meshes in the queue's order, at most
+        // every settleGap (World.vehicleEdits); only what the bow rams that stands up in the way (a trunk, a wall) goes
+        // ahead of the queue, so it is seen to give way.
+        if World.vehicleWear == "off" { return }
+        let wear = World.vehicleWear != "0"
+        let was = (World.backgroundEdits, World.vehicleEdits)
+        defer { World.backgroundEdits = was.0; World.vehicleEdits = was.1 }
+        func worn(_ on: Bool) { if wear { World.backgroundEdits = on || was.0; World.vehicleEdits = on } }
+        worn(true)
         if st.wantSpeed > 0.3 { crawlerRuts(s, st) }
         // (a felled trunk lies as a body for good: one a pass, only where he can see it, and not past a dozen about)
         var felled = simd_length(g.player.pos - s.pos) < 110 ? 0 : 1
@@ -2379,6 +2388,7 @@ extension ShipManager {
                     // just despawning"): under way, a tree the bow meets goes over, out to the side it stood on and
                     // ahead, a felled trunk with its crown (Felling); the rest give way as before.
                     if bow && !full && felled < 1 && CapitalBase.isLog(b), let trunk = treeAt(x, y, z) {
+                        worn(false)
                         let off = simd_dot(V3(Float(x) + 0.5 - s.pos.x, 0, Float(z) + 0.5 - s.pos.z), simd_cross(fwd, V3(0, 1, 0)))
                         let out = simd_normalize(V3(fwd.x, 0, fwd.z) + simd_cross(fwd, V3(0, 1, 0)) * (off >= 0 ? 1.2 : -1.2) + V3(1e-5, 0, 0))
                         g.topple(trunk, away: out)
@@ -2387,6 +2397,7 @@ extension ShipManager {
                         if n >= cap { return }
                         continue
                     }
+                    worn(!(bow && Blocks.collide[Int(b)]))
                     world.setBlockAsync(x, y, z, AIR)
                     n += 1
                     if n >= cap { return }

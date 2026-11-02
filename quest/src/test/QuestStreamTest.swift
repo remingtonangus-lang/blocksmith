@@ -54,6 +54,24 @@ enum QuestStreamTest {
         p.yaw = yaw; p.pitch = pitch
         g.paused = false
         let dt = 1.0 / 72
+        // (--crawler: he rides an Ironback Crawler from the spot instead of flying, standing at its helm while it drives
+        // on along the look's heading at --speed (default 6): Nov 1-2, "I can't see shit around me when I am driving it")
+        var crawler: Ship?
+        if CommandLine.arguments.contains("--crawler") {
+            w.ships.encounters = false
+            _ = w.loadSync(center: p.pos, radius: 4)
+            let hx = Int(floor(p.pos.x)), hz = Int(floor(p.pos.z))
+            w.ships.spawnCapital("crawler", home: IVec3(hx, 0, hz), yaw: yaw, region: nil, sync: true)
+            if let c = w.ships.capitals.first(where: { $0.role == "crawler" }), let st = w.ships.capState[c.id], let hc = c.helm {
+                st.crewDone = Set(0..<st.crew.count); st.crewless = true
+                st.testTurn = 0; st.testSpeed = speed > 0 ? speed : 6
+                crawler = c
+                p.flying = false
+                p.pos = c.toWorld(V3(Float(hc.x) + 0.5, Float(hc.y) + 1.02, Float(hc.z) + 1.5))
+                p.vel = c.velocity(at: p.pos)
+                print(String(format: "streamtest: an Ironback Crawler at %.0f %.0f %.0f, %ld ship blocks; he stands at its helm", c.pos.x, c.pos.y - Float(YOFF), c.pos.z, c.grid.blocks.reduce(0) { $0 + ($1 == AIR ? 0 : 1) }))
+            } else { print("streamtest: no crawler could be spawned here") }
+        }
         print("streamtest: seed \(w.seed) at \(Int(at[0])) \(Int(at[1]) - YOFF) \(Int(at[2])), view \(rd), \(w.maxJobs) workers, \(secs) s, speed \(speed) b/s; stale meshes \(World.keepStale ? "drawn" : "thrown away (BS_STALEMESH=0)"), edits ahead of the queue \(World.frontAll ? "every change, no cap (BS_FRONTALL=1)" : "edits only, half the workers"), light reach \(World.narrowLight ? "16 blocks unless the top moved" : "up to the top (BS_NARROWLIGHT=0)")")
         let tally = ProcessInfo.processInfo.environment["BS_EDITTALLY"] == "1"
         if tally { World.editTally = [:]; World.editCells = [:] }
@@ -68,9 +86,9 @@ enum QuestStreamTest {
             if g.menu != nil { g.closeMenu() }
             g.cine.active = false
             g.input.keys.removeAll(keepingCapacity: true)
-            p.flying = true
+            if crawler == nil { p.flying = true }
             p.yaw = yaw; p.pitch = pitch
-            if speed > 0 { p.pos += V3(-sinf(yaw), 0, -cosf(yaw)) * (speed * Float(dt)) }
+            if speed > 0 && crawler == nil { p.pos += V3(-sinf(yaw), 0, -cosf(yaw)) * (speed * Float(dt)) }
             if let d = shaft, f == 3 * 72 {
                 let x = Int(floor(p.pos.x)), z = Int(floor(p.pos.z))
                 var top = CH - 1
@@ -106,7 +124,7 @@ enum QuestStreamTest {
                 for k in staleSince.keys where !now.contains(k) { staleSince[k] = nil }
                 if let oldest = staleSince.values.min() { tntWorst = max(tntWorst, Double(f - oldest) / 72) }
             }
-            p.vel = .zero
+            if crawler == nil { p.vel = .zero }
             let tt = CFAbsoluteTimeGetCurrent()
             g.tick(dt)
             ticks.append((CFAbsoluteTimeGetCurrent() - tt) * 1000)
@@ -148,6 +166,11 @@ enum QuestStreamTest {
                 let tmean = ticks.reduce(0, +) / Double(max(1, ticks.count)), tworst = ticks.max() ?? 0
                 if sec > 2 { allTicks += ticks }
                 ticks.removeAll(keepingCapacity: true)
+                if let c = crawler {
+                    print(String(format: "streamtest: crawler at %.0f %.0f %.0f, %.1f b/s; he is %.1f from it, %@; crushed %ld, ruts %ld",
+                                 c.pos.x, c.pos.y - Float(YOFF), c.pos.z, simd_length(c.vel), simd_length(p.pos - c.pos),
+                                 w.ships.list.contains { $0 === c } ? "aboard" : "it's gone", ShipManager.crushed, ShipManager.rutCells))
+                }
                 print(String(format: "streamtest: %3d s (%.1f): tick %.2f ms mean, %.1f worst; %d in view, made %d, drawn %d (%d of them shells), surface drawn %d (out of date %d), under it only %d; meshes for a changed section %d (drawn %d); bumps over the low ground %d, under %d; edits %d + %d in the background, fluid cells waiting %d + %d lava; gen %d (%.0f ms), mesh jobs %d (%d sections, %.0f ms); jobs %d; handed over %d in %.0f ms, %d left waiting",
                              sec, el, tmean, tworst, inView, made, drawn, shellN, surf, surfStale, underOnly, World.staleMeshes - stale0, World.staleDrawn - drawn0, bumpUp, bumpDeep,
                              World.syncEdits - sync0, World.asyncEdits - async0, w.fluidPending.count, w.lavaPending.count,

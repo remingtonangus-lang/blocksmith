@@ -1288,6 +1288,14 @@ final class World {
     // P446: set while water and lava settle and random ticks run: the sections they change mesh in the queue's order,
     // not ahead of it (World.update's edited-chunk pass is for edits: a blast, a dug block, a door).
     static var backgroundEdits = false
+    // P511 (Nov 1 20:29-20:36 and Nov 2 09:29, "I can't see shit around me when I am driving it including a capital
+    // citadel I am literally parked beside"): what a vehicle wears away as it drives (the Ironback Crawler's ruts and the
+    // plants and trees its hull sweeps through, four passes a second) were edits round him: the chunks under it went
+    // ahead of every waiting job, two jobs at a time each, again as soon as the last was done, and the land round the
+    // crawler waited behind them. They now mesh in the queue's order at most every settleGap seconds (what its bow
+    // meets still goes at once). BS_VEHICLEWEAR=0: the old way; BS_VEHICLEWEAR=off: no wear at all (measuring).
+    static var vehicleEdits = false
+    static let vehicleWear = ProcessInfo.processInfo.environment["BS_VEHICLEWEAR"] ?? "1"
     static var meshLog = ProcessInfo.processInfo.environment["BS_MESHLOG"] == "1"
     // P474 (Oct 26 19:28-20:14: "land doesn't like generating unless it's really forced to"; "I had to literally fly
     // into the void in order to get things to generate"): water and lava settling in the caves of new land (and random
@@ -1311,7 +1319,7 @@ final class World {
     }
     @inline(__always) private func holdBack(_ c: Chunk, _ dx: Int, _ dz: Int, _ now: Double) -> Bool {
         guard World.settleGap > 0 && c.meshedOnce && !c.urgent
-              && now - c.meshAt < (max(abs(dx), abs(dz)) > 2 ? World.settleGap : settleNearGap) else { return false }
+              && now - c.meshAt < (max(abs(dx), abs(dz)) > 2 || c.vehicleWorn ? World.settleGap : settleNearGap) else { return false }
         if !c.held { c.held = true; held.append(c) }
         return true
     }
@@ -1757,6 +1765,7 @@ final class World {
         let dist = max(abs(k.x - floorDiv(Int(floor(activeCenter.x)), CS)), abs(k.z - floorDiv(Int(floor(activeCenter.z)), CS)))
         let lowSec = c.groundLow >> 4
         c.urgent = false
+        c.vehicleWorn = false
         c.meshAt = CFAbsoluteTimeGetCurrent()
         let todo = deferringBuried(c, dirtySections(c))
         if todo.isEmpty { return }
