@@ -39,6 +39,14 @@ struct ViewGovernor {
     // the frames were lost to the CPU making land, and a loading window never counted. Two windows in a row missing
     // more than a quarter of their frames, loading or not, now take a step down whatever the GPU says.
     static let heavyMissFrac = 0.25
+    // Store review (Meta, Nov 2, VRC.Quest.Performance.1: "fluctuates under and over 60 frames per second"): a frame
+    // the headset misses shows twice (1.5x the budget or more), so 56 fps at 72 Hz is about a fifth of the frames missed.
+    // With dynamic resolution on, a window was bad only once the eye had dropped to its floor, and the heavy rule
+    // wanted a quarter missed twice running: a frame bound by triangles (the resolution's probe takes its drop back
+    // and the scale sits at 1) or by the CPU could miss a fifth of its frames for ever and the view never came down
+    // (his Nov 1-2 jungle notes, 49-59 fps on foot). Now any window missing more than `dynMissFrac` is bad whatever
+    // the resolution says, and one window past `fastMissFrac` steps down at once.
+    static let dynMissFrac = 0.04, fastMissFrac = 0.12
 
     private(set) var chosen: Int
     private(set) var current: Int
@@ -76,7 +84,7 @@ struct ViewGovernor {
     }
     // P499: with dynamic resolution on, the eye resolution the view `to` would settle at (it fits the frame to 88 % of
     // the budget by its pixels): the view's extra triangles come out of the pixels.
-    static let keepScale = 0.85, dynFit = 0.88, dynFloor = 0.72
+    static let keepScale = 0.85, dynFit = 0.88, dynFloor = 0.62      // (dynFloor: just over DynamicResolution.minScale)
     static func scaleAt(_ w: Window, from: Int, to: Int) -> Double {
         let f = share(w)
         let pix = w.gpuMs * f, rest = w.gpuMs * (1 - f) * pow(Double(to) / Double(max(1, from)), exponent)
@@ -91,6 +99,7 @@ struct ViewGovernor {
     // (With dynamic resolution on, a frame near the budget is only bad once the resolution has nothing left to give.)
     static func isBad(_ w: Window) -> Bool {
         guard w.frames > 0 else { return false }
+        if Double(w.missed) > Double(w.frames) * dynMissFrac { return true }
         if w.dynRes && w.scale > dynFloor { return false }
         return w.gpuMs > w.budgetMs * dropFrac || (Double(w.missed) > Double(w.frames) * missFrac && w.gpuMs > w.budgetMs * 0.8)
     }
@@ -115,7 +124,8 @@ struct ViewGovernor {
             return .lower(current)
         }
         heavyStreak = !w.excused && w.frames > 0 && Double(w.missed) > Double(w.frames) * Self.heavyMissFrac ? heavyStreak + 1 : 0
-        if heavyStreak >= 2 && sinceChange >= Self.settle && current > Self.floor {
+        let fast = !w.excused && !w.loading && w.frames > 0 && Double(w.missed) > Double(w.frames) * Self.fastMissFrac
+        if (heavyStreak >= 2 || fast) && sinceChange >= Self.settle && current > Self.floor {
             good = 0; badStreak = 0; heavyStreak = 0
             current -= Self.step
             if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
@@ -147,7 +157,7 @@ struct ViewGovernor {
 
 // P499: synthetic traces for Auto View Distance with dynamic resolution on (QuestSim's viewgovernor case). A scene whose
 // GPU time is its pixels (P at full resolution, times the scale squared) plus its triangles (G at view 8, growing as
-// the view to the 1.2); dynamic resolution holds the frame at 88 % of the budget between 0.7 and 1 of the eye. Each
+// the view to the 1.2); dynamic resolution holds the frame at 88 % of the budget between 0.6 and 1 of the eye. Each
 // 5 s window reports what the headset would: the GPU time, the scale and the probe's pixel share. Returns the failures.
 enum ViewGovernorTest {
     static func run(log: (String) -> Void = { print($0) }) -> Int {
@@ -161,7 +171,7 @@ enum ViewGovernorTest {
             for _ in 0..<Int(minutes * 12) {
                 let geo = tri * pow(Double(g.current) / 8, ViewGovernor.exponent)
                 let need = (budget * 0.88 - geo) / pix
-                let s = need > 0 ? max(0.7, min(1, need.squareRoot())) : 0.7
+                let s = need > 0 ? max(0.6, min(1, need.squareRoot())) : 0.6
                 let p = pix * s * s, gpu = p + geo
                 let over = gpu / budget
                 let missed = over <= 0.95 ? 0 : Int(360 * min(1, (over - 0.95) * 2))
@@ -184,6 +194,18 @@ enum ViewGovernorTest {
         // and does not see-saw.
         let (v3, end3, _) = play(6, 8, chosen: 16, start: 16, minutes: 10)
         check(end3 < 16 && v3.count <= 4, "viewgovernor: a triangle-bound view comes down and stays (views \(v3))")
+        // 4. Store review (Nov 2): a frame bound by its triangles under dynamic resolution (the probe takes its drops back,
+        // the eye stays at 100 %) missing a fifth of its frames: it comes down within 15 s, and stays down.
+        var g4 = ViewGovernor(chosen: 16, current: 16)
+        var t4 = 0.0, v4: [Int] = []
+        for _ in 0..<12 {
+            let miss = g4.current >= 14 ? 72 : 0                  // (56 fps at 14 and over; fits at 12)
+            let w = ViewGovernor.Window(seconds: 5, frames: 360, missed: miss, gpuMs: budget * 0.97, budgetMs: budget,
+                                        dynRes: true, scale: 1, pixelShare: 0.1)
+            if case .lower = g4.observe(w), t4 == 0 { t4 = Double(v4.count + 1) * 5 }
+            v4.append(g4.current)
+        }
+        check(v4.last ?? 16 <= 12 && (v4.firstIndex { $0 < 16 } ?? 99) <= 2, "viewgovernor: a triangle-bound view missing a fifth of its frames under dynamic resolution comes down at once (views \(v4))")
         return fails
     }
 }

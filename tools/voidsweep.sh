@@ -9,14 +9,14 @@ set -uo pipefail
 QC="${1:?questcheck binary}"; OUT="${2:-/tmp/voidsweep}"; QUICK="${3:-}"
 mkdir -p "$OUT"; : > "$OUT/summary.txt"
 export QUEST_VOIDPROBE=1 QUEST_SKIP=sky
-# His reported spots (seed, x y z as the notes give them, yaw, pitch), then biomes on three seeds at several pitches.
+# His reported spots (seed, x y z as the notes give them: --at takes the internal y, the note's + 64; yaw, pitch), then biomes on three seeds at several pitches.
 SPOTS=(
   "7653607216494784574 -5571.9 77.4 2813.9 2 -58"
   "4256271160485884755 -3391.2 65.8 -2800.9 198 -56"
   "1091709452045888406 -4452.0 65.0 4603.8 136 -20"
   "1091709452045888406 -4425.7 113.0 -801.5 125 -37"
   "7653607216494784574 -9671.0 82.6 5294.6 229 -33"
-  "7653607216494784574 -22251.7 160.4 15846.4 0 -30"
+  "7653607216494784574 -22251.7 96.4 15846.4 0 -30"
 )
 BIOMES=(plains forest jungle taiga desert savanna swamp beach river meadow badlands snowy_plains dark_forest birch_forest stony_peaks)
 SEEDS=(7653607216494784574 1091709452045888406 4256271160485884755)
@@ -33,7 +33,7 @@ i=0
 for s in "${SPOTS[@]}"; do
   set -- $s
   for dyaw in 0 90 180 270; do
-    run "spot$i-y$dyaw" --seed "$1" --at "$2,$(awk "BEGIN{print $3-64}"),$4" --look "$(awk "BEGIN{print -($5)+$dyaw}"),$6"
+    run "spot$i-y$dyaw" --seed "$1" --at "$2,$(awk "BEGIN{print $3+64}"),$4" --look "$(awk "BEGIN{print -($5)+$dyaw}"),$6"
   done
   i=$((i+1))
 done
