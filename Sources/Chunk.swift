@@ -77,9 +77,10 @@ final class Section {
             // (build 81: still 162 edit jobs in 12 s: those late edits came after the worn chunk had meshed and was no
             // longer marked; a chunk worn in the last two wear gaps takes any such edit as wear)
             if World.vehicleEdits { o.vehicleWorn = true; o.wornAt = World.frameNow }
-            if World.ramEdits { o.urgent = true }
+            if World.ramEdits { o.urgent = true; if World.meshLog { World.noteUrgent("ram") } }
             else if !World.backgroundEdits {
-                if World.vehicleWear != "0" && World.frameNow - o.wornAt < World.wearGap * 2 { o.vehicleWorn = true } else { o.urgent = true }
+                if World.vehicleWear != "0" && (World.frameNow - o.wornAt < World.wearGap * 2 || World.inWearZone(o.cx, o.cz)) { o.vehicleWorn = true }
+                else { o.urgent = true; if World.meshLog { World.noteUrgent(World.vehicleEdits ? "edit in wear" : "edit") } }
             }
             o.noteStale(was: oldValue != meshedVersion, now: version != meshedVersion)
         }

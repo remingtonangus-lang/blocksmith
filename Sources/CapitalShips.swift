@@ -2396,6 +2396,8 @@ extension ShipManager {
                     world.chunkAt(cx * CS, cz * CS)?.wornAt = World.frameNow
                 }
             }
+            World.wearZone(s.id, cx0: floorDiv(Int(floor(lo.x)), CS), cz0: floorDiv(Int(floor(lo.z)), CS),
+                           cx1: floorDiv(Int(floor(hi.x)), CS), cz1: floorDiv(Int(floor(hi.z)), CS))
         }
         if st.wantSpeed > 0.3 { crawlerRuts(s, st) }
         // (a felled trunk lies as a body for good: one a pass, only where he can see it, and not past a dozen about)

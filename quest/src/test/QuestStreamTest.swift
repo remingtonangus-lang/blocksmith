@@ -213,6 +213,7 @@ enum QuestStreamTest {
         }
         allTicks.sort()
         let p99 = allTicks.isEmpty ? 0 : allTicks[min(allTicks.count - 1, allTicks.count * 99 / 100)]
+        if World.meshLog { print("streamtest: why chunks went to the front of the queue: \(World.urgentWhy.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))") }
         print(String(format: "streamtest: every surface in view drawn at %@, every chunk at %@; meshes for a changed section %d in all, %d drawn; ticks after the first 2 s: %.2f ms mean, %.1f ms at the 99th percentile, %.1f worst",
                      firstSurf.map { String(format: "%.1f s", $0) } ?? "never", firstAll.map { String(format: "%.1f s", $0) } ?? "never",
                      World.staleMeshes, World.staleDrawn, allTicks.reduce(0, +) / Double(max(1, allTicks.count)), p99, allTicks.last ?? 0))

@@ -1308,6 +1308,27 @@ final class World {
     static var vehicleEdits = false
     static var frameNow: Double = 0                 // (P511: this frame's clock, World.update)
     static var ramEdits = false                     // (P511: what its bow rams that stands up in the way: at once)
+    // P511 (build 82 at his spot: still 232 edit jobs in 16 s at one and two chunks off, 22.7 s of meshing): the edits
+    // settling after a pass (light, loose ground, the field's carve) reached chunks the footprint stamp missed and made
+    // them edits again. Every chunk within two of a wearing vehicle's footprint is a wear zone for two wear gaps after its
+    // last pass: any change there but a ram is wear. (Why a chunk went to the front: urgentWhy, BS_MESHLOG=1.)
+    struct WearZone { var id: Int; var x0: Int, z0: Int, x1: Int, z1: Int; var until: Double }
+    private static var zones: [WearZone] = []
+    private static let zoneLock = NSLock()
+    static func wearZone(_ id: Int, cx0: Int, cz0: Int, cx1: Int, cz1: Int) {
+        zoneLock.lock()
+        let z = WearZone(id: id, x0: cx0 - 2, z0: cz0 - 2, x1: cx1 + 2, z1: cz1 + 2, until: frameNow + wearGap * 2)
+        if let i = zones.firstIndex(where: { $0.id == id }) { zones[i] = z } else { zones.append(z) }
+        zones.removeAll { $0.until < frameNow }
+        zoneLock.unlock()
+    }
+    static func inWearZone(_ cx: Int, _ cz: Int) -> Bool {
+        zoneLock.lock(); defer { zoneLock.unlock() }
+        for z in zones where z.until >= frameNow && cx >= z.x0 && cx <= z.x1 && cz >= z.z0 && cz <= z.z1 { return true }
+        return false
+    }
+    static var urgentWhy: [String: Int] = [:]
+    static func noteUrgent(_ k: String) { zoneLock.lock(); urgentWhy[k, default: 0] += 1; zoneLock.unlock() }
     // P511 (measured at his spot, questcheck --streamtest --crawler, 8 b/s: 33-75 of 349 chunks in view drawn, ticks 6 ms
     // mean and 150 worst; with no wear all 349 by 8 s, 1.5 ms and 8): a worn chunk still went to the front of the queue
     // whenever it was within two chunks of him (the P458 front jobs), every settleGap. It now waits wearGap seconds
