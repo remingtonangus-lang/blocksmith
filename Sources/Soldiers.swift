@@ -868,7 +868,11 @@ extension Mob {
         let veteran = faction == Faction.ashguard.rawValue
         // P501 (Oct 31 09:46, the assault shotgun: "it should be devastating"): the Sturmbrecher's pellets hit in full.
         let soft: Float = gs.pellets > 1 && b.gun != Guns.autoShotgun ? 0.6 : 1
-        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * soft * (veteran ? 1.6 : 1) * vary.damage
+        // P511 (Nov 2 08:33:48-08:33:54, shot down from far off at a Greywall fortress: "On normal difficulty, I think it's
+        // a little too much"; "Whoever is killing me might need to nerf the weapon slightly"): a marksman never misses
+        // (P504), so on Normal and below his round lands a quarter softer.
+        let marked: Float = sniper && g.diffLevel <= 3 ? 0.75 : 1
+        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * soft * (veteran ? 1.6 : 1) * vary.damage * marked
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
