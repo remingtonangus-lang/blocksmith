@@ -182,7 +182,14 @@ enum Structure {
 
     // (the fill's index of each cell near the check, a box `gridR` round it, reused: a dictionary costs ten times as much)
     static let gridR = 44, gridW = 2 * gridR + 1                // (P510: StructureTip's towers reach 42 up)
-    static var grid = [Int32](repeating: -1, count: gridW * gridW * gridW)
+    // (Store review, callgrind of the citadel soak: as an array each read and write of it went through the global's
+    // lazy start and a uniqueness check, 14 million calls in 134 checks; a buffer allocated once, read through a local)
+    static let grid: UnsafeMutablePointer<Int32> = {
+        let n = gridW * gridW * gridW
+        let b = UnsafeMutablePointer<Int32>.allocate(capacity: n)
+        b.initialize(repeating: -1, count: n)
+        return b
+    }()
 
     // The piece of built blocks at or beside p, and what of it falls. limit/out bound the fill (past them: held).
     // P416 (Oct 23, "mining in the base 22 fps", "the doors drop it to 6-12"): the bound was 4,096 blocks 24 out; in a
@@ -192,6 +199,9 @@ enum Structure {
     static func analyse(_ w: World, at p: IVec3, limit: Int = 1536, out: Int = 16, collect: Bool = false) -> Result {
         var res = Result()
         let useGrid = out < gridR
+        // (the tables as locals: each use of a global in the fill's loops went through its lazy start)
+        let grid = Structure.grid, nbrs = Structure.nbrs, stepCost = Structure.stepCost, backCost = Structure.backCost
+        let helm = Structure.helm, allDirs = World.allDirs, weakStep = Structure.weakStep
         var dict: [IVec3: Int] = [:]
         var cells: [IVec3] = [], mats: [Mat] = []
         @inline(__always) func slot(_ q: IVec3) -> Int { (q.x - p.x + gridR) + (q.y - p.y + gridR) * gridW + (q.z - p.z + gridR) * gridW * gridW }
@@ -239,7 +249,7 @@ enum Structure {
             let c = cells[i]
             if helm[Int(cur.built(c.x, c.y, c.z))] { res.cells = 0; return res }
             if i >= head { root[i] = true }
-            else { for d in World.allDirs where anchor(&cur, c.x + d.x, c.y + d.y, c.z + d.z) { root[i] = true; break } }
+            else { for d in allDirs where anchor(&cur, c.x + d.x, c.y + d.y, c.z + d.z) { root[i] = true; break } }
             for k in 0..<K { if let j = find(c + nbrs[k]) { nb[i * K + k] = Int32(j) } }
         }
         // What a joint holds against a face joint: along an edge `edgeJoint` sideways, `slopeJoint` on a slope.

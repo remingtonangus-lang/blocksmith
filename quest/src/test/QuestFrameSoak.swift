@@ -292,10 +292,16 @@ enum QuestFrameSoak {
         }
         let frames = secs * 72
         let warm = 3 * 72                                                    // (the first 3 s: first meshes in, not counted)
-        World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureCache.framePlans = []
+        World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureCache.framePlans = []; Structure.tally = [:]; let checks0 = Structure.checks
         let t0 = CFAbsoluteTimeGetCurrent()
         var mobsPeak = 0, shellsPeak = 0
         var stages: [String: (Double, Double)] = [:]
+        // (SOAK_MOBPROF=1: the slowest single mob update and where it went; off by default, its clock reads and strings
+        // weigh on the mob tick being measured)
+        let mobProf = ProcessInfo.processInfo.environment["SOAK_MOBPROF"] == "1"
+        MobManager.profileOn = mobProf
+        defer { MobManager.profileOn = false }
+        var worstMob = (0.0, "")
         for f in 0..<(frames + warm) {
             if g.menu != nil { g.closeMenu() }
             g.cine.active = false
@@ -307,6 +313,10 @@ enum QuestFrameSoak {
             g.tick(dt)
             let tk = (CFAbsoluteTimeGetCurrent() - a) * 1000
             let tickWhy = TickProf.summary()
+            if mobProf && f >= warm && MobManager.prof.worst > worstMob.0 {
+                worstMob = (MobManager.prof.worst, MobManager.prof.worstKind + ": " + MobManager.worstStages
+                            + (MobManager.partSummary.isEmpty ? "" : "; loop " + MobManager.partSummary))
+            }
             if f >= warm {
                 for i in 0..<TickProf.count {
                     let k = TickProf.names[i].description, ms = TickProf.times[i] * 1000
@@ -361,6 +371,12 @@ enum QuestFrameSoak {
         print("    tick stages by worst (ms): " + stages.sorted { $0.value.1 > $1.value.1 }.prefix(8)
             .map { "\($0.key) \(String(format: "%.1f", $0.value.1))" }.joined(separator: ", "))
         if Explosion.worstMs > 0 { print(String(format: "    slowest blast: %.1f ms (%@)", Explosion.worstMs, Explosion.worstLaps)) }
+        if worstMob.0 > 0 { print(String(format: "    slowest mob update: %.1f ms (%@)", worstMob.0, worstMob.1)) }
+        if let t = Structure.tally, !t.isEmpty {
+            let top = t.sorted { $0.value > $1.value }.prefix(6).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+            print("    building checks: \(Structure.checks - checks0) run; queued by \(top)")
+        }
+        Structure.tally = nil
         if !StructureCache.framePlans.isEmpty { print("    starts planned on the frame thread: " + StructureCache.framePlans.joined(separator: ", ")) }
         print("    record stages (ms a frame): " + wr.takeStages())
         print(String(format: "    slowest hand-over of a finished job: %.1f ms (%@)", World.resultsWorstMs, World.resultsWorst))

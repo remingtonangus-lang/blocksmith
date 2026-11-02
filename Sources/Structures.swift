@@ -418,7 +418,7 @@ final class StructureCache {
             // (store review: a start planned on the frame thread is a hitch; the frame soak names each one)
             if StructureCache.onFrameThread {
                 let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
-                if ms > 1 && StructureCache.framePlans.count < 16 { StructureCache.framePlans.append(String(format: "%@ %.0f ms", t.name, ms)) }
+                if ms > 1 && StructureCache.framePlans.count < 16 { StructureCache.framePlans.append(String(format: "%@ %.0f ms (%@)", t.name, ms, TickProf.after)) }
             }
         }
         let (cx, cz) = candidate(t, rx, rz)

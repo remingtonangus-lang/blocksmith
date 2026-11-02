@@ -50,16 +50,16 @@ enum StructureTip {
     static func check(_ w: World, at p: IVec3, r: Int) -> [IVec3]? {
         let r = max(1, min(r, 8))
         let floorY = max(1, p.y - r)
-        let R = Structure.gridR, G = Structure.gridW
+        let R = Structure.gridR, G = Structure.gridW, grid = Structure.grid
         @inline(__always) func slot(_ q: IVec3) -> Int { (q.x - p.x + R) + (q.y - p.y + R) * G + (q.z - p.z + R) * G * G }
         var cells: [IVec3] = [], mats: [Structure.Mat] = []
         var links: [Float] = []                                   // per cell: the bonds of its joints out past `side`
-        defer { for q in cells { Structure.grid[slot(q)] = -1 } }
+        defer { for q in cells { grid[slot(q)] = -1 } }
         func add(_ q: IVec3) -> Bool {
-            guard abs(q.x - p.x) <= side, abs(q.y - p.y) <= up, abs(q.z - p.z) <= side, q.y >= floorY, Structure.grid[slot(q)] < 0,
+            guard abs(q.x - p.x) <= side, abs(q.y - p.y) <= up, abs(q.z - p.z) <= side, q.y >= floorY, grid[slot(q)] < 0,
                   let m = Structure.part(w, q.x, q.y, q.z) else { return true }
             if Structure.helm[Int(w.builtBlock(q.x, q.y, q.z))] { return false }
-            Structure.grid[slot(q)] = Int32(cells.count)
+            grid[slot(q)] = Int32(cells.count)
             cells.append(q); mats.append(m); links.append(0)
             return true
         }
@@ -115,7 +115,7 @@ enum StructureTip {
                     for d in Structure.nbrs {
                         let q = c + d
                         guard q.y >= yc, abs(q.x - p.x) <= R, abs(q.y - p.y) <= R, abs(q.z - p.z) <= R else { continue }
-                        let j = Int(Structure.grid[slot(q)])
+                        let j = Int(grid[slot(q)])
                         if j >= 0 && mark[j] != Int32(yc) { mark[j] = Int32(yc); comp.append(j) }
                     }
                 }
