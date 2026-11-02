@@ -608,6 +608,12 @@ enum Capital {
         for (x, y, z) in [(-5, 10, 40), (5, 10, 55), (-3, 10, 46), (3, 10, 34), (-5, 10, 52), (4, 10, 44), (0, 22, 36), (-3, 22, 48)] {
             hb.post(x, y, z, .troop)
         }
+        // P511 (Nov 2 08:49:46-08:49:49, in its bunk room: "The crew's not even this many. So you need to expand the crew"):
+        // the upper deck's own hands, one for each bed left over (22 beds, 16 posts): the radio room, the bunks, the mess,
+        // the workshop and the sick bay. They stay aboard (the troops sent out are the lower deck's).
+        for (x, y, z) in [(0, 16, 18), (-2, 16, 25), (2, 16, 33), (0, 16, 46), (6, 16, 53), (-7, 16, 54)] {
+            hb.post(x, y, z, .troop)
+        }
         // Turrets: two heavy mounts on the superstructure and (P507) a twin on its front over the command deck where the
         // rail cannon was, four autocannon sponsons at the chassis corners.
         for (ti, z) in [54, 63, 32].enumerated() {
