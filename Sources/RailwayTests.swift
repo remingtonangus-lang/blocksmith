@@ -533,6 +533,12 @@ enum RailwayTests {
         var lines = 0, linked = 0, bad: [String] = []
         var pick: (UInt64, Railways.Line, Railways.Line, Railways.Line)?
         let t0 = CFAbsoluteTimeGetCurrent()
+        // (why a line has no link: tallied while the links are planned)
+        var why: [String: Int] = [:]
+        let whyLock = NSLock()
+        let tally0 = Railways.tally
+        Railways.tally = { k in whyLock.lock(); why[k, default: 0] += 1; whyLock.unlock() }
+        defer { Railways.tally = tally0 }
         for k in 0..<12 {
             let seed = UInt64(1000 + k * 7919)
             let gen = WorldGen(seed: seed)
@@ -561,7 +567,8 @@ enum RailwayTests {
                 if pick == nil || lk.cells.count < pick!.2.cells.count { pick = (seed, l, lk, b) }
             }
         }
-        print(String(format: "rail links: %d of %d lines run on to the next (%.1f s)", linked, lines, CFAbsoluteTimeGetCurrent() - t0))
+        whyLock.lock(); let whyText = why.filter { $0.key.hasPrefix("link") }.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "); whyLock.unlock()
+        print(String(format: "rail links: %d of %d lines run on to the next (%.1f s); no link: ", linked, lines, CFAbsoluteTimeGetCurrent() - t0) + whyText)
         check(linked * 3 >= lines && bad.isEmpty,
               "P510 links: \(linked) of \(lines) lines run on by a link to the next line along the row, joined end to end" + (bad.isEmpty ? "" : ": " + bad.prefix(3).joined(separator: "; ")))
         guard let (seed, l, lk, b) = pick else { check(false, "P510 through: no linked line to ride"); return }

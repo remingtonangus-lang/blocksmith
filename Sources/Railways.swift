@@ -250,6 +250,12 @@ enum Railways {
             cells = l
             break
         }
+        // P510 (the link check: 6 of 128 lines linked once a link's key was its own): the seven straight dog-legs
+        // across up to three stretches (thousands of blocks) almost always met a town, a ruin or the sea. Then the link
+        // finds its way round them (route) as a road does, keeping off the sea and old ground.
+        if let l = cells, stride(from: 0, to: l.count, by: 4).contains(where: { gen.column(l[$0].0, l[$0].1).biome.isOcean }) { cells = nil }
+        let routed = cells == nil
+        if routed { cells = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z)) }
         guard let run = cells, run.count > 8 else { tally?("link: blocked"); return nil }
         // Only on ground no save had before railways or before links (no half a link under explored land), never over
         // the open sea.
@@ -258,7 +264,6 @@ enum Railways {
             if !sc.legacyC1.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 3, guardSet: sc.legacyC1) { tally?("link: old ground"); return nil }
             if !sc.legacyP510.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 3, guardSet: sc.legacyP510) { tally?("link: old ground"); return nil }
         }
-        for i in stride(from: 0, to: run.count, by: 4) where gen.column(run[i].0, run[i].1).biome.isOcean { tally?("link: over the sea"); return nil }
         let flat = run.map { IVec3($0.0, 0, $0.1) }
         let name = a.name
         if gen.fieldWorld {
@@ -272,10 +277,133 @@ enum Railways {
         return Line(id: linkKey(row, s), name: name, cells: c, stations: [])
     }
 
+    // A link's way from a line's east end (a) to the next line's west end (b), round whatever stands between them: a
+    // search over 16-block squares (A*, a turn costing three squares so the track runs in long straights), clear of every
+    // surface structure's pieces (4 blocks off), the open sea and ground a save had before links. It leaves a east along
+    // a's row for 16 blocks and comes into b the same way. The cells, one step apart (nil: no way within the search).
+    static let routeCell = 16
+    static let routeWander = 24 * 16                  // how far off its rows a link may go round things (linksNear looks as far)
+    static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int)) -> [(Int, Int)]? {
+        let G = routeCell
+        // (the way's ends on the middles of their squares' columns: 9-24 blocks out from each line's end)
+        let s0 = (floorDiv(a.0 + G, G) * G + G / 2, a.1), e0 = (floorDiv(b.0 - G, G) * G + G / 2, b.1)
+        guard e0.0 - s0.0 >= 2 * G else { return nil }
+        let margin = routeWander
+        let gx0 = floorDiv(min(s0.0, e0.0) - 4 * G, G), gx1 = floorDiv(max(s0.0, e0.0) + 4 * G, G)
+        let gz0 = floorDiv(min(s0.1, e0.1) - margin, G), gz1 = floorDiv(max(s0.1, e0.1) + margin, G)
+        let nx = gx1 - gx0 + 1, nz = gz1 - gz0 + 1
+        guard nx * nz <= 400_000 else { return nil }
+        // Blocked squares: structure pieces (padded), filled in once from the starts round the box.
+        var blocked = [Bool](repeating: false, count: nx * nz)
+        let bx0 = gx0 * G, bx1 = (gx1 + 1) * G - 1, bz0 = gz0 * G, bz1 = (gz1 + 1) * G - 1
+        for t in sc.types where !skipKinds.contains(t.name) && t.name != SkyIsle.kind {
+            let sp = t.spacing * CS, r = t.reach * CS
+            for rz in floorDiv(bz0 - r, sp)...floorDiv(bz1 + r, sp) { for rx in floorDiv(bx0 - r, sp)...floorDiv(bx1 + r, sp) {
+                guard let o = sc.start(t, regionX: rx, regionZ: rz) else { continue }
+                guard o.max.x + 4 >= bx0 && o.min.x - 4 <= bx1 && o.max.z + 4 >= bz0 && o.min.z - 4 <= bz1 else { continue }
+                for pc in o.pieces {
+                    let ax = max(gx0, floorDiv(pc.min.x - 4, G)), cx = min(gx1, floorDiv(pc.max.x + 4, G))
+                    let az = max(gz0, floorDiv(pc.min.z - 4, G)), cz = min(gz1, floorDiv(pc.max.z + 4, G))
+                    if ax > cx || az > cz { continue }
+                    for z in az...cz { for x in ax...cx { blocked[(z - gz0) * nx + (x - gx0)] = true } }
+                }
+            } }
+        }
+        // The sea and old ground, looked at as the search reaches each square (0 not yet, 1 clear, 2 not).
+        var looked = [UInt8](repeating: 0, count: nx * nz)
+        func open(_ i: Int) -> Bool {
+            if blocked[i] { return false }
+            if looked[i] == 0 {
+                let x = (gx0 + i % nx) * G + G / 2, z = (gz0 + i / nx) * G + G / 2
+                var ok = !gen.column(x, z).biome.isOcean
+                let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
+                if ok && !sc.legacyC1.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyC1) { ok = false }
+                if ok && !sc.legacyP510.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyP510) { ok = false }
+                looked[i] = ok ? 1 : 2
+            }
+            return looked[i] == 1
+        }
+        let start = (floorDiv(s0.1, G) - gz0) * nx + (floorDiv(s0.0, G) - gx0)
+        let goal = (floorDiv(e0.1, G) - gz0) * nx + (floorDiv(e0.0, G) - gx0)
+        blocked[start] = false; blocked[goal] = false; looked[start] = 1; looked[goal] = 1
+        // A* over (square, heading): headings 0 east, 1 south, 2 west, 3 north.
+        let dx = [1, 0, -1, 0], dz = [0, 1, 0, -1]
+        let turnCost: Int32 = 3
+        var cost = [Int32](repeating: .max, count: nx * nz * 4)
+        var from = [Int32](repeating: -1, count: nx * nz * 4)
+        let gxg = goal % nx, gzg = goal / nx
+        func h(_ i: Int) -> Int32 { Int32(abs(i % nx - gxg) + abs(i / nx - gzg)) }
+        var heap: [(Int32, Int32)] = []                    // (f, state)
+        func push(_ f: Int32, _ st: Int32) {
+            heap.append((f, st)); var c = heap.count - 1
+            while c > 0 { let p = (c - 1) / 2; if heap[p].0 <= heap[c].0 { break }; heap.swapAt(p, c); c = p }
+        }
+        func pop() -> (Int32, Int32) {
+            let top = heap[0]; let last = heap.removeLast()
+            if !heap.isEmpty {
+                heap[0] = last; var c = 0
+                while true {
+                    let l = 2 * c + 1, r = l + 1; var m = c
+                    if l < heap.count && heap[l].0 < heap[m].0 { m = l }
+                    if r < heap.count && heap[r].0 < heap[m].0 { m = r }
+                    if m == c { break }; heap.swapAt(m, c); c = m
+                }
+            }
+            return top
+        }
+        cost[start * 4] = 0
+        push(h(start), Int32(start * 4))
+        var end = -1, expanded = 0
+        while !heap.isEmpty {
+            let (f, st) = pop()
+            let si = Int(st), i = si / 4, d = si % 4
+            if f - h(i) > cost[si] { continue }
+            if i == goal && d == 0 { end = si; break }
+            expanded += 1
+            if expanded > 300_000 { return nil }
+            let x = i % nx, z = i / nx
+            for nd in 0..<4 where nd != (d + 2) % 4 {
+                let x2 = x + dx[nd], z2 = z + dz[nd]
+                guard x2 >= 0 && x2 < nx && z2 >= 0 && z2 < nz else { continue }
+                let j = z2 * nx + x2
+                guard open(j) else { continue }
+                let c2 = cost[si] + 1 + (nd == d ? 0 : turnCost)
+                let sj = j * 4 + nd
+                if c2 < cost[sj] { cost[sj] = c2; from[sj] = Int32(si); push(c2 + h(j), Int32(sj)) }
+            }
+        }
+        guard end >= 0 else { return nil }
+        var squares: [Int] = []
+        var c = end
+        while c >= 0 { squares.append(c / 4); c = Int(from[c]) }
+        squares.reverse()
+        // The corners (squares where the way turns), as block points on the squares' middles; the ends on the rows.
+        var pts: [(Int, Int)] = [s0]
+        for k in 1..<max(1, squares.count - 1) {
+            let p = squares[k - 1], q = squares[k], r = squares[k + 1]
+            if q - p != r - q { pts.append(((gx0 + q % nx) * G + G / 2, (gz0 + q / nx) * G + G / 2)) }
+        }
+        pts.append(e0)
+        // Along x then z between points, one block a step; then on to b along its row.
+        var cells: [(Int, Int)] = []
+        for x in (a.0 + 1)...s0.0 { cells.append((x, a.1)) }
+        var cur = s0
+        for p in pts.dropFirst() {
+            while cur.0 != p.0 { cur.0 += p.0 > cur.0 ? 1 : -1; cells.append(cur) }
+            while cur.1 != p.1 { cur.1 += p.1 > cur.1 ? 1 : -1; cells.append(cur) }
+        }
+        if e0.0 + 1 <= b.0 - 1 { for x in (e0.0 + 1)...(b.0 - 1) { cells.append((x, b.1)) } }
+        // (never over itself)
+        var seen = Set<Int64>()
+        for c in cells where !seen.insert(Int64(c.0) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: c.1)))).inserted { return nil }
+        return cells
+    }
+
     // Links whose track may pass within `pad` blocks of the box (as `near` for lines).
     static func linksNear(_ gen: WorldGen, x0: Int, z0: Int, x1: Int, z1: Int, pad: Int = 2, wait: Bool = true) -> [Line] {
         guard on, linksOn else { return [] }
-        let r0 = floorDiv(z0 - pad - span / 2, span), r1 = floorDiv(z1 + pad + span / 2, span)
+        // (a link may go round things up to routeWander off its rows)
+        let r0 = floorDiv(z0 - pad - span / 2 - routeWander - routeCell, span), r1 = floorDiv(z1 + pad + span / 2 + routeWander + routeCell, span)
         let w = stretch * span
         // (a link starts in its own line's stretch and runs up to linkReach stretches on east)
         let s0 = floorDiv(x0 - pad - span, w) - linkReach, s1 = floorDiv(x1 + pad + span, w)
@@ -709,9 +837,12 @@ enum Railways {
                 // land's own shoulder where a timber deck read as cubes.)
                 var bank = -1
                 if l.heights != nil && !(Blocks.opaque[Int(ground)] && Blocks.collide[Int(ground)]) {
+                    // (a puddle a block deep in the dip is banked over too: the deck over 1-deep water at 186 149 5155
+                    // was the last plank pier in the rail check's ride; deeper water keeps its trestle)
+                    var wet = 0
                     for d in 2...9 {
                         let b = w.get(x, y - d, z)
-                        if Blocks.fluidKind[Int(b)] != 0 { break }
+                        if Blocks.fluidKind[Int(b)] != 0 { wet += 1; if wet > 1 { break }; continue }
                         if StructWriter.holdsColumn(b) { bank = d; break }
                     }
                 }
