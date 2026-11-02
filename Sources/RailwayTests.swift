@@ -117,9 +117,12 @@ enum RailwayTests {
         let signs = ents.filter { $0.1.kind == .sign }
         let named = l.stations.filter { s in signs.contains { abs($0.0.x - s.x) < 8 && abs($0.0.z - s.z) < 12 && $0.1.lines.joined(separator: " ").contains(s.name) } }.count   // (a long name runs over two lines)
         let tickets = l.stations.filter { s in signs.contains { abs($0.0.x - s.x) < 8 && abs($0.0.z - s.z) < 12 && Trains.isTicketSign($0.1) } }.count
+        // (P510: an end a link runs on from has rail on past it, not a buffer stop)
+        let open = Railways.openEnds(gen, l)
         let stops = [l.cells.first!, l.cells.last!].enumerated().filter { (k, c) in
             let n = k == 0 ? l.cells[1] : l.cells[l.cells.count - 2]
-            return at(c.x + (c.x - n.x), c.y, c.z + (c.z - n.z)) == Blocks.id("stone_bricks")
+            let past = at(c.x + (c.x - n.x), c.y, c.z + (c.z - n.z))
+            return (k == 0 ? open.west : open.east) ? Rails.isRail(past) : past == Blocks.id("stone_bricks")
         }.count
         // Old ground: a guard covering the line's middle keeps no line.
         let old = WorldGen(seed: seed)
@@ -163,6 +166,9 @@ enum RailwayTests {
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true
         defer { FieldTerrain.newWorlds = field0 }
+        // (one line end to end: its train stops at its last station; links and through trains: RailwayTests.through)
+        Railways.linksOn = false
+        defer { Railways.linksOn = true }
         struct Kinds { var cut = 0, tunnel = 0, bridge = 0 }
         func kinds(_ gen: WorldGen, _ l: Railways.Line) -> ([UInt8], Kinds) {
             var k = Kinds(), tag = [UInt8](repeating: 0, count: l.cells.count)
@@ -447,5 +453,92 @@ enum RailwayTests {
             TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
         } else { check(false, "P508 military arrival: no train could be put on the line") }
         Trains.trains.removeAll()
+    }
+
+    // P510 (Nov 1: "The train should never end... Goes on forever", "Why does the railroad stop here?", "It can't stop"):
+    // lines run on by links to the next line along the row; the planned links join their lines end to end, a step at a
+    // time, at their heights; the drawn line's end has rail on past it, no buffers; and a train he rides runs off its
+    // line's end onto the link and on, never turning back at the last station.
+    static func through(_ g0: Game, check: (Bool, String) -> Void) {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        defer { FieldTerrain.newWorlds = field0 }
+        var lines = 0, linked = 0, bad: [String] = []
+        var pick: (UInt64, Railways.Line, Railways.Line, Railways.Line)?
+        let t0 = CFAbsoluteTimeGetCurrent()
+        for k in 0..<12 {
+            let seed = UInt64(1000 + k * 7919)
+            let gen = WorldGen(seed: seed)
+            gen.fieldWorld = true
+            for l in Railways.near(gen, x0: -6000, z0: -6000, x1: 6000, z1: 6000, pad: 0) {
+                lines += 1
+                let (row, st) = Railways.rowStretch(l.id)
+                guard let lk = Railways.link(gen, row: row, stretch: st), let b = Railways.linkTarget(gen, lk) else { continue }
+                linked += 1
+                // Joined end to end: a's last cell, the link's cells, b's first, each a step on from the one before, the
+                // planned heights within a grade's step across both joins.
+                let chain = [l.cells.last!] + lk.cells + [b.cells.first!]
+                for i in 1..<chain.count where abs(chain[i].x - chain[i - 1].x) + abs(chain[i].z - chain[i - 1].z) != 1 {
+                    bad.append("seed \(seed) \(lk.name): step \(i) not adjacent"); break
+                }
+                if let ha = l.heights, let hl = lk.heights, let hb = b.heights {
+                    let hs = [ha.last!] + hl + [hb.first!]
+                    for i in 1..<hs.count where abs(hs[i] - hs[i - 1]) > Railways.grade + 0.02 {
+                        bad.append(String(format: "seed %llu %@: height jumps %.2f at %d", seed, lk.name, hs[i] - hs[i - 1], i)); break
+                    }
+                }
+                if pick == nil || lk.cells.count < pick!.2.cells.count { pick = (seed, l, lk, b) }
+            }
+        }
+        print(String(format: "rail links: %d of %d lines run on to the next (%.1f s)", linked, lines, CFAbsoluteTimeGetCurrent() - t0))
+        check(linked * 3 >= lines && bad.isEmpty,
+              "P510 links: \(linked) of \(lines) lines run on by a link to the next line along the row, joined end to end" + (bad.isEmpty ? "" : ": " + bad.prefix(3).joined(separator: "; ")))
+        guard let (seed, l, lk, b) = pick else { check(false, "P510 through: no linked line to ride"); return }
+        let world = World(seed: seed, device: g0.world.device, save: nil)
+        world.makeFieldWorld()
+        world.renderDistance = 3; world.activeDistance = 3
+        let g = Game(world: world, save: nil, persistent: false)
+        g.paused = false; g.survival = false
+        // Drawn: the line's east end has rail on past it into the link, no buffer stop.
+        let e = l.cells.last!
+        _ = world.loadSync(center: V3(Float(e.x), Float(e.y), Float(e.z)), radius: 2)
+        let on = (1...6).filter { Rails.isRail(world.block(lk.cells[$0].x, lk.cells[$0].y, lk.cells[$0].z)) }.count
+        let buffer = world.block(e.x + 1, e.y, e.z) == Blocks.id("stone_bricks") || world.block(e.x + 1, e.y + 1, e.z) == Blocks.id("red_wool")
+        check(on == 6 && !buffer, "P510 links: past \(l.name)'s east end the rails run on (\(on) of 6 drawn), no buffer stop (\(buffer))")
+        // Ridden: from the last station but one, the train runs past the line's last station and on along the link.
+        let t = Trains.track(l)
+        let k0 = l.stations.count - 2
+        let st0 = l.stations[k0]
+        let c0 = l.cells[st0.index]
+        g.player.pos = V3(Float(c0.x) + 0.5, Float(c0.y), Float(c0.z - 2) + 0.5)
+        _ = world.loadSync(center: g.player.pos, radius: 3)
+        Trains.trains.removeAll(); Trains.throughOut.removeAll()
+        var at = g.time
+        for k in 0..<Int(t.period * 4) { let a = t.at(g.time + Double(k) * 0.25); if a.stop == k0 && a.dir > 0 { at = g.time + Double(k) * 0.25 + 1; break } }
+        g.time = at
+        Trains.forceKind = .passenger
+        defer { Trains.forceKind = nil }
+        Trains.tick(g)
+        guard let tr = Trains.trains[t.id], let lead = tr.cars.first(where: { Trains.isEngine($0) }) ?? tr.cars.first else { check(false, "P510 through: no train at \(st0.name)"); return }
+        _ = Trains.use(g, lead)
+        let splices0 = Trains.splices
+        let dt: Float = 1.0 / 60
+        var frames = 0, lastLoad = g.time, unseated = 0, turned = false
+        let endX = Float(e.x)
+        var maxX = g.player.pos.x
+        while frames < 60 * 600 && maxX < endX + 80 {
+            if g.time - lastLoad > 1.5 { _ = world.loadSync(center: g.player.pos, radius: 3); lastLoad = g.time }
+            tr.throttle = 2
+            g.tick(Double(dt))
+            frames += 1
+            if g.riding == nil || !(tr.cars.contains { $0 === g.riding! }) { unseated += 1; if unseated > 3 { break }; if let c = tr.cars.first { _ = Trains.use(g, c) } }
+            if g.player.pos.x < maxX - 30 { turned = true; break }
+            maxX = max(maxX, g.player.pos.x)
+        }
+        check(maxX >= endX + 80 && !turned && unseated == 0 && Trains.splices > splices0 && tr.track.through,
+              String(format: "P510 through: riding %@ from %@, the train ran past its last station and %.0f blocks on along the link toward %@ (%d splices, turned back %@, unseated %d, %.0f s)",
+                     l.name, st0.name, maxX - endX, b.name, Trains.splices - splices0, turned ? "yes" : "no", unseated, Float(frames) * dt))
+        g.dismount()
+        Trains.trains.removeAll(); Trains.throughOut.removeAll()
     }
 }

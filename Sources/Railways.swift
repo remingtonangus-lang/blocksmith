@@ -95,7 +95,12 @@ enum Railways {
     // land), a long stall on the headset too.
     static func line(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
         guard on else { return nil }
-        let k = key(row, s), gid = ObjectIdentifier(gen)
+        return cached(gen, key(row, s), wait: wait) { plan(gen, row: row, stretch: s) }
+    }
+
+    // A plan by key from the cache, planned now (wait) or on a worker and left out until then.
+    private static func cached(_ gen: WorldGen, _ k: Int64, wait: Bool, _ make: @escaping () -> Line?) -> Line? {
+        let gid = ObjectIdentifier(gen)
         lock.lock()
         let mode = (gen.fieldWorld ? 1 : 0) | (gen.railSites ? 2 : 0)
         if cacheGen != gid || cacheField != mode { cache.removeAll(); planning.removeAll(); cacheGen = gid; cacheField = mode }
@@ -106,7 +111,7 @@ enum Railways {
             lock.unlock()
             if start {
                 DispatchQueue.global(qos: .utility).async {
-                    let l = plan(gen, row: row, stretch: s)
+                    let l = make()
                     lock.lock()
                     if cacheGen == gid && cacheField == mode { cache[k] = l }
                     planning.remove(k)
@@ -117,7 +122,7 @@ enum Railways {
             return nil
         }
         lock.unlock()
-        let l = plan(gen, row: row, stretch: s)
+        let l = make()
         lock.lock(); if cacheGen == gid && cacheField == mode { cache[k] = l }; if cache.count > 2048 { cache.removeAll() }; lock.unlock()
         return l
     }
@@ -133,6 +138,124 @@ enum Railways {
         for row in r0...r1 { for s in s0...s1 {
             guard hashf(s, row, 0xC1, UInt32(truncatingIfNeeded: gen.seed) ^ 0xC1A1) < share else { continue }
             guard let l = line(gen, row: row, stretch: s, wait: wait) else { continue }
+            if l.maxX + pad < x0 || l.minX - pad > x1 || l.maxZ + pad < z0 || l.minZ - pad > z1 { continue }
+            out.append(l)
+        } }
+        return out
+    }
+
+    // MARK: P510 links
+
+    // P510 (Nov 1 16:06-16:07, at a line's buffer stops: "The train should never end... Goes on forever... Trains keeps
+    // connecting shit to shit"; 20:37-20:38, "Why does the railroad stop here?", "No, this whole thing where it stops, I
+    // don't like that. It can't stop... The train doesn't stop. It goes on forever"): a line no longer ends at buffers
+    // when another line lies on along its row. Its east end runs on, by a link of track (a dog-leg like a leg between
+    // towns, cuttings, trestles and all), to the west end of the next line east in the row, up to `linkReach` stretches
+    // on; the buffer stops stand only where nothing lies on (or the link can't be laid: the sea, a structure in every
+    // way, a cliff, ground a save had before P510). A train he rides runs on through (Trains.through).
+    static let linkReach = 3
+    static let linkBit: Int64 = 1 << 62
+    static func linkKey(_ row: Int, _ s: Int) -> Int64 { key(row, s) | linkBit }
+    static func rowStretch(_ id: Int64) -> (row: Int, s: Int) {
+        let k = id & ~linkBit
+        return (Int(k >> 32), Int(Int32(truncatingIfNeeded: k)))
+    }
+    static var linksOn = true                         // (checks compare)
+
+    // The link from line (row, s)'s east end on to the next line east, if one is laid.
+    static func link(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
+        guard on, linksOn else { return nil }
+        return cached(gen, linkKey(row, s), wait: wait) { planLink(gen, row: row, stretch: s) }
+    }
+    static func hasLine(_ gen: WorldGen, _ row: Int, _ s: Int) -> Bool {
+        hashf(s, row, 0xC1, UInt32(truncatingIfNeeded: gen.seed) ^ 0xC1A1) < share
+    }
+    // The line a link runs on to (nil for a line).
+    static func linkTarget(_ gen: WorldGen, _ l: Line, wait: Bool = true) -> Line? {
+        guard l.id & linkBit != 0 else { return nil }
+        let (row, s) = rowStretch(l.id)
+        for k in 1...linkReach where hasLine(gen, row, s + k) {
+            if let b = line(gen, row: row, stretch: s + k, wait: wait) { return b }
+            if !wait { return nil }                    // (not planned yet: asked again in a second)
+        }
+        return nil
+    }
+    // Whether line l's west end has a link coming in (from the line before it in the row) / its east end one going on.
+    static func openEnds(_ gen: WorldGen, _ l: Line, wait: Bool = true) -> (west: Bool, east: Bool) {
+        guard on, linksOn, l.id & linkBit == 0 else { return (true, true) }
+        let (row, s) = rowStretch(l.id)
+        let east = link(gen, row: row, stretch: s, wait: wait) != nil
+        var west = false
+        for k in 1...linkReach where hasLine(gen, row, s - k) {
+            guard line(gen, row: row, stretch: s - k, wait: wait) != nil else { continue }
+            // (the first line west of it: its link is the one that comes here, if any)
+            west = link(gen, row: row, stretch: s - k, wait: wait) != nil
+            break
+        }
+        return (west, east)
+    }
+
+    static func planLink(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+        guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures else { return nil }
+        var b: Line? = nil
+        for k in 1...linkReach where hasLine(gen, row, s + k) {
+            if let l = line(gen, row: row, stretch: s + k) { b = l; break }
+        }
+        guard let b, let pa = a.cells.last, let pb = b.cells.first else { tally?("link: no line on along the row"); return nil }
+        // Both ends run east off a station's straight (a line's cells go west to east, its ends on straights).
+        let gap = pb.x - pa.x
+        guard gap >= 40 else { tally?("link: lines overlap"); return nil }
+        var cells: [(Int, Int)]? = nil
+        for k in 0..<7 {
+            let xm = pa.x + gap / 2 + [0, -gap / 5, gap / 5, -gap / 3, gap / 3, -gap * 2 / 5, gap * 2 / 5][k]
+            if xm - pa.x < 12 || pb.x - xm < 12 { continue }
+            if blocked(gen, sc, x0: pa.x + 3, z0: pa.z, x1: xm, z1: pa.z, except: []) { continue }
+            if pa.z != pb.z && blocked(gen, sc, x0: xm, z0: pa.z, x1: xm, z1: pb.z, except: []) { continue }
+            if blocked(gen, sc, x0: xm, z0: pb.z, x1: pb.x - 3, z1: pb.z, except: []) { continue }
+            var l: [(Int, Int)] = []
+            for x in (pa.x + 1)...xm { l.append((x, pa.z)) }
+            if pa.z != pb.z {
+                let dz = pb.z > pa.z ? 1 : -1
+                var zz = pa.z + dz
+                while zz != pb.z { l.append((xm, zz)); zz += dz }
+                l.append((xm, pb.z))
+            }
+            if xm + 1 <= pb.x - 1 { for x in (xm + 1)...(pb.x - 1) { l.append((x, pb.z)) } }
+            cells = l
+            break
+        }
+        guard let run = cells, run.count > 8 else { tally?("link: blocked"); return nil }
+        // Only on ground no save had before railways or before links (no half a link under explored land), never over
+        // the open sea.
+        for (i, c) in run.enumerated() where i % 8 == 0 || i == run.count - 1 {
+            let cx = floorDiv(c.0, CS), cz = floorDiv(c.1, CS)
+            if !sc.legacyC1.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 3, guardSet: sc.legacyC1) { tally?("link: old ground"); return nil }
+            if !sc.legacyP510.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 3, guardSet: sc.legacyP510) { tally?("link: old ground"); return nil }
+        }
+        for i in stride(from: 0, to: run.count, by: 4) where gen.column(run[i].0, run[i].1).biome.isOcean { tally?("link: over the sea"); return nil }
+        let flat = run.map { IVec3($0.0, 0, $0.1) }
+        let name = a.name
+        if gen.fieldWorld {
+            let h0 = a.heights?.last ?? Float(pa.y), h1 = b.heights?.first ?? Float(pb.y)
+            guard let h = gentleProfile(gen, flat, [], ends: (h0, h1)) else { tally?("link: field grade"); return nil }
+            let c = flat.indices.map { IVec3(flat[$0].x, Int(h[$0].rounded()), flat[$0].z) }
+            return Line(id: linkKey(row, s), name: name, cells: c, stations: [], heights: h)
+        }
+        guard let lv = profile(gen, flat, [], ends: (pa.y, pb.y)) else { tally?("link: block profile"); return nil }
+        let c = flat.indices.map { IVec3(flat[$0].x, lv[$0], flat[$0].z) }
+        return Line(id: linkKey(row, s), name: name, cells: c, stations: [])
+    }
+
+    // Links whose track may pass within `pad` blocks of the box (as `near` for lines).
+    static func linksNear(_ gen: WorldGen, x0: Int, z0: Int, x1: Int, z1: Int, pad: Int = 2, wait: Bool = true) -> [Line] {
+        guard on, linksOn else { return [] }
+        let r0 = floorDiv(z0 - pad - span / 2, span), r1 = floorDiv(z1 + pad + span / 2, span)
+        let w = stretch * span
+        // (a link starts in its own line's stretch and runs up to linkReach stretches on east)
+        let s0 = floorDiv(x0 - pad - span, w) - linkReach, s1 = floorDiv(x1 + pad + span, w)
+        var out: [Line] = []
+        for row in r0...r1 { for s in s0...s1 where hasLine(gen, row, s) {
+            guard let l = link(gen, row: row, stretch: s, wait: wait) else { continue }
             if l.maxX + pad < x0 || l.minX - pad > x1 || l.maxZ + pad < z0 || l.minZ - pad > z1 { continue }
             out.append(l)
         } }
@@ -338,7 +461,7 @@ enum Railways {
     // The rail y along the run: the land plus one, at most one up or down a step; curves, their neighbours and each
     // station's platform level; no single-block dips or humps. Nil where the land is too wild (a cliff the track can't
     // climb between two fixed levels).
-    static func profile(_ gen: WorldGen, _ cells: [IVec3], _ stations: [Station]) -> [Int]? {
+    static func profile(_ gen: WorldGen, _ cells: [IVec3], _ stations: [Station], ends: (Int, Int)? = nil) -> [Int]? {
         let n = cells.count
         guard n > 2 else { return nil }
         var target = [Int](repeating: SEA + 2, count: n)
@@ -366,6 +489,7 @@ enum Railways {
             let lv = target[a...b].sorted()[(b - a) / 2]
             for j in a...b where fixed[j] == nil { fixed[j] = lv }
         }
+        if let (e0, e1) = ends { for j in 0..<min(3, n) { fixed[j] = e0; fixed[n - 1 - j] = e1 } }      // (P510: a link meets its lines level)
         // Between fixed runs, reachability bands keep every step within one block.
         var r = target
         for i in 0..<n { if let f = fixed[i] { r[i] = f } }
@@ -407,7 +531,7 @@ enum Railways {
     // rail block stands at the rounded height (so a rail cell changes level by one at most per step and minecarts keep
     // their slopes); the drawn bed is shaped to the height itself (FieldTerrain.split: Railways.shapeBed).
     static let grade: Float = 1.0 / 8
-    static func gentleProfile(_ gen: WorldGen, _ cells: [IVec3], _ stations: [Station]) -> [Float]? {
+    static func gentleProfile(_ gen: WorldGen, _ cells: [IVec3], _ stations: [Station], ends: (Float, Float)? = nil) -> [Float]? {
         let n = cells.count
         guard n > 2 else { return nil }
         var target = [Float](repeating: Float(SEA + 2), count: n)
@@ -433,6 +557,7 @@ enum Railways {
             let lv = target[a...b].sorted()[(b - a) / 2]
             for j in a...b where fixed[j] == nil { fixed[j] = lv }
         }
+        if let (e0, e1) = ends { for j in 0..<min(3, n) { fixed[j] = e0; fixed[n - 1 - j] = e1 } }      // (P510: a link meets its lines level)
         // The band each cell can reach from the fixed cells before and after it at the grade.
         var lo = [Float](repeating: -1e9, count: n), hi = [Float](repeating: 1e9, count: n)
         var last: (Int, Float)? = nil
@@ -487,7 +612,7 @@ enum Railways {
     // with the track on a slope instead of in block steps. Only ground the field holds (a trestle's deck is a block).
     static func shapeBed(_ gen: WorldGen, _ fd: inout [Int8], cx: Int, cz: Int) {
         let bx = cx * CS, bz = cz * CS
-        for l in near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) {
+        for l in near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) + linksNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) {
             guard let hs = l.heights else { continue }
             for i in l.cells.indices {
                 let c = l.cells[i]
@@ -518,11 +643,14 @@ enum Railways {
     static func draw(_ gen: WorldGen, _ w: inout StructWriter, _ cx: Int, _ cz: Int) {
         let bx = cx * CS, bz = cz * CS
         let lines = near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 8)
-        guard !lines.isEmpty, Blocks.has("rail") else { return }
-        for l in lines { draw(l, &w) }
+        let links = linksNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 8)
+        guard !lines.isEmpty || !links.isEmpty, Blocks.has("rail") else { return }
+        // (links first: a line's own rails, stations and buffers go over a link's bed where the two meet)
+        for l in links { draw(l, &w, open: (true, true)) }
+        for l in lines { draw(l, &w, open: openEnds(gen, l)) }
     }
 
-    static func draw(_ l: Line, _ w: inout StructWriter) {
+    static func draw(_ l: Line, _ w: inout StructWriter, open: (west: Bool, east: Bool) = (false, false)) {
         func g(_ n: String, _ f: BlockID) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let rail = g("rail", AIR), ballast = g("gravel", STONE), deck = g("spruce_planks", PLANKS), leg = g("spruce_log", LOG)
         let stop = g("stone_bricks", STONE), plat = g("stone_bricks", STONE)
@@ -561,7 +689,7 @@ enum Railways {
         // Buffer stops past both ends (P337 (a): the line ended at a single block): the bed runs on two cells past
         // the last rail, a timber beam across it on a stone sill, posts at its ends and the red board in the middle.
         let beam = g("stripped_spruce_log", leg)
-        for (i, j) in [(0, 1), (n - 1, n - 2)] where n > 1 {
+        for (i, j) in [(0, 1), (n - 1, n - 2)] where n > 1 && !(i == 0 ? open.west : open.east) {
             let c = l.cells[i], d = IVec3(c.x - l.cells[j].x, 0, c.z - l.cells[j].z)
             let px = d.z != 0 ? 1 : 0, pz = d.x != 0 ? 1 : 0                 // across the track
             for k in 1...2 { for a in -1...1 {

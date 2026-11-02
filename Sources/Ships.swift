@@ -332,6 +332,7 @@ final class Ship {
 
     // Diagnostics (harness).
     var submerged: Float = 0         // submerged volume last step
+    var wading = false               // P510: a wheeled hull driving on its wheels in the water (ShipPhysics)
     var contacts = 0
     var grounded = false
 

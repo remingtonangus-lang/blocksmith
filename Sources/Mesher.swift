@@ -1310,7 +1310,7 @@ enum Mesher {
                     let ci = (f * 4 + k) * 3
                     let px = CT[ci] * 16, top = CT[ci + 1] == 1, pz = CT[ci + 2] * 16
                     let (u, _) = Mesher.faceUV(f, px, 16, pz)
-                    vert(false, bx16 + px, by16 + (top ? 16 : 8), bz16 + pz, f, tintV, u, top ? 16 : 24, layer, 3, l, tintB == 3)
+                    vert(false, bx16 + px, by16 + (top ? 16 : 0), bz16 + pz, f, tintV, u, top ? 16 : 32, layer, 3, l, tintB == 3)   // (the whole cell: a dip under half a block showed a dark corner)
                 }
             }
             curCut = cut0; kindNow = kind0

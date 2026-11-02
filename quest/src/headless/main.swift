@@ -403,7 +403,8 @@ if let out = arg("--view"), let ctx = vkctx {
         }
         let top = (Structure.tally ?? [:]).sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
         print(String(format: "view: digtime: load checks %d (%.1f ms in all, worst %.1f ms), %d queued; queued by: %@",
-                     Structure.checks - checks0, Structure.totalMs - loadMs0, Structure.worstMs, vw.loadQueue.count, top))
+                     Structure.checks - checks0, Structure.totalMs - loadMs0, Structure.worstMs, vw.loadQueue.count, top)
+              + "; dug ground touching no building, none queued: \(Structure.skippedGround)")
         Structure.tally = nil
     }
     if let n = Int(arg("--drops") ?? "") {
@@ -1863,6 +1864,7 @@ if let out = arg("--figureshot") {
 if CommandLine.arguments.contains("--rail-only") {
     if !CommandLine.arguments.contains("--railride") { RailwayTests.run(game, check: check) }
     RailwayTests.ride(game, check: check)
+    RailwayTests.through(game, check: check)          // P510
     print(failures == 0 ? "rail: all checks passed" : "rail: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --horsecoats-only: G9 horse coats (quest/src/test/HorseCoatShots.swift); with --render X it renders the lineup and the

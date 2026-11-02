@@ -43,6 +43,8 @@ enum Trains {
         let armoured: Bool
         let dim: Dim
         var shapes: [Int]? = nil                // (a line's rail shapes: P510, a stray block on the line is cleared and the rail put back)
+        var parts: [Railways.Line] = []         // P510: the lines and links it runs, west to east (a through train's: several)
+        var through = false
         // The timetable: (start, duration, from, to) over one period; from == to is a dwell.
         let legs: [(Double, Double, Float, Float)]
         let period: Double
@@ -94,7 +96,7 @@ enum Trains {
     }
 
     final class Train {
-        let track: Track
+        var track: Track                        // (P510: a through train moves on to a longer track as it runs on)
         var delay: Double = 0                   // seconds the train has stood still off its timetable
         var brake: Float = 0                    // 0 running ... 1 stopped (a hold-up or a blocked track)
         var throttle: Float = 1                 // P337: the cab's regulator, -1 (backing) ... 2 (twice the timetable)
@@ -146,6 +148,7 @@ enum Trains {
         let t = Track(id: l.id, name: l.name, cells: l.cells, slopes: slopes, stops: l.stations.map { $0.index },
                       stopNames: l.stations.map { $0.name + " Station" }, armoured: false, dim: .overworld, heights: l.heights)
         t.shapes = l.cells.indices.map { l.shape($0) }
+        t.parts = [l]
         return t
     }
     private static var tracks: [Int64: Track] = [:]
@@ -199,7 +202,7 @@ enum Trains {
     }
     static func save(_ w: World) {
         guard let s = w.save else { return }
-        for tr in trains.values where tr.track.dim == w.dim {
+        for tr in trains.values where tr.track.dim == w.dim && !tr.track.through {
             saved[tr.track.id] = SavedTrain(id: tr.track.id, delay: tr.delay, robbedDay: tr.robbedDay, wrecked: tr.wrecked)
         }
         let mine = saved.values.filter { v in trains[v.id].map { $0.track.dim == w.dim } ?? true }
@@ -216,7 +219,17 @@ enum Trains {
         var want: Set<Int64> = []
         let nearTracks = tracksNear(g, p, 140)
         TrainArrivals.tick(g, near: nearTracks)          // P508: one in ten every ten minutes, a train comes his way
+        // P510: a through train he rides runs on, line after line; the line it left has no train of its own meanwhile.
+        if let r = g.riding, isCar(r), let (tr, _) = carOf[ObjectIdentifier(r)] { through(g, tr) }
+        for (id, tr) in trains where tr.track.through && !tr.cars.isEmpty {
+            let aboard = g.riding.map { r in tr.cars.contains { $0 === r } } ?? false
+            if aboard || simd_length(tr.track.point(tr.lastS) - p) < 160 { want.insert(id) }
+        }
         for t in nearTracks {
+            if let o = throughOut[t.id], trains[o]?.cars.isEmpty == false {
+                if let own = trains[t.id], !own.cars.isEmpty { remove(g, own) }
+                continue
+            }
             let tr = trains[t.id] ?? Train(t)
             trains[t.id] = tr
             if tr.wrecked { continue }
@@ -231,7 +244,10 @@ enum Trains {
                 build(g, tr)
             }
         }
-        for (id, tr) in trains where !want.contains(id) && !tr.cars.isEmpty { remove(g, tr) }
+        for (id, tr) in trains where !want.contains(id) && !tr.cars.isEmpty {
+            remove(g, tr)
+            if tr.track.through { trains[id] = nil; throughOut = throughOut.filter { $0.value != id } }
+        }
         // Cars not in a train (a save's leftovers) go.
         g.mobs.mobs.removeAll { isCar($0) && carOf[ObjectIdentifier($0)] == nil }
         // A held train with the player gone, or a minute on, runs again.
@@ -242,6 +258,102 @@ enum Trains {
             if far || tr.stoppedFor > 60 { tr.heldBy = false; tr.brake = 0; tr.stoppedFor = 0; tr.holdUp = 0 }
         }
         if trains.count > 48 { for (id, tr) in trains where tr.cars.isEmpty && !want.contains(id) { trains[id] = nil } }
+    }
+
+    // MARK: P510 through trains
+
+    // P510 (Nov 1 20:38:50: "this whole thing where it stops, I don't like that. It can't stop... The train doesn't stop.
+    // It goes on forever"): the train he rides runs on past its line's end. Within 200 blocks of the end of its track,
+    // heading that way, where the line runs on by a link (Railways.link) to the next line along the row, the train moves
+    // onto a longer track: the lines and links it runs, the next ones added ahead and those well behind dropped. Its
+    // timetable is the longer track's, taken up at the place and heading it has, so it runs on without a jolt and stops
+    // at the stations ahead; the line it left builds no train of its own while this one is out.
+    static var throughOut: [Int64: Int64] = [:]       // a line's id -> the through train out on it
+    static var nextThrough: Int64 = 1 << 61
+    static var splices = 0                            // (checks)
+    static func through(_ g: Game, _ tr: Train) {
+        guard let gen = g.world.gen as? WorldGen, !tr.track.armoured, tr.track.dim == .overworld, !tr.track.parts.isEmpty else { return }
+        let t = tr.track
+        let n = t.cells.count
+        let s = tr.lastS, d = t.at(tr.time).dir
+        var parts = t.parts
+        var shift = 0                                  // cells the new track starts east (+) or west (-) of the old
+        if d > 0 && Float(n - 1) - s < 200 {
+            let last = parts[parts.count - 1]
+            if last.id & Railways.linkBit != 0 {
+                guard let b = Railways.linkTarget(gen, last, wait: false) else { return }
+                parts.append(b)
+            } else {
+                let (row, st) = Railways.rowStretch(last.id)
+                guard let lk = Railways.link(gen, row: row, stretch: st, wait: false), let b = Railways.linkTarget(gen, lk, wait: false) else { return }
+                parts += [lk, b]
+            }
+            while parts.count > 2 && shift + parts[0].cells.count < Int(s) - 300 { shift += parts[0].cells.count; parts.removeFirst() }
+        } else if d < 0 && s < 200 {
+            let first = parts[0]
+            let (row, st) = Railways.rowStretch(first.id)
+            var prev: [Railways.Line] = []
+            if first.id & Railways.linkBit != 0 {
+                guard let a = Railways.line(gen, row: row, stretch: st, wait: false) else { return }
+                prev = [a]
+            } else {
+                for k in 1...Railways.linkReach where Railways.hasLine(gen, row, st - k) {
+                    guard let a = Railways.line(gen, row: row, stretch: st - k, wait: false) else { return }
+                    guard let lk = Railways.link(gen, row: row, stretch: st - k, wait: false),
+                          Railways.linkTarget(gen, lk, wait: false)?.id == first.id else { return }
+                    prev = [a, lk]
+                    break
+                }
+                guard !prev.isEmpty else { return }
+            }
+            let add = prev.reduce(0) { $0 + $1.cells.count }
+            parts = prev + parts
+            shift = -add
+            var total = parts.reduce(0) { $0 + $1.cells.count }
+            while parts.count > 2 && total - parts[parts.count - 1].cells.count > Int(s) + add + 300 {
+                total -= parts[parts.count - 1].cells.count; parts.removeLast()
+            }
+        } else { return }
+        let cells = parts.flatMap { $0.cells }
+        let heights: [Float]? = parts.allSatisfy { $0.heights != nil } ? parts.flatMap { $0.heights! } : nil
+        var stops: [Int] = [], names: [String] = [], off = 0
+        for p in parts {
+            for st in p.stations { stops.append(off + st.index); names.append(st.name + " Station") }
+            off += p.cells.count
+        }
+        guard stops.count >= 2 else { return }
+        let whole = Railways.Line(id: 0, name: t.name, cells: cells, stations: [], heights: heights)
+        let shapes = cells.indices.map { whole.shape($0) }
+        nextThrough += 1
+        let t2 = Track(id: nextThrough, name: t.name, cells: cells, slopes: shapes.map { (2...5).contains($0) }, stops: stops,
+                       stopNames: names, armoured: false, dim: .overworld, heights: heights)
+        t2.shapes = shapes; t2.parts = parts; t2.through = true
+        // Its timetable taken up where it is: the moment the longer track's train is at s, heading d (or standing at the
+        // same stop).
+        let s2 = s - Float(shift)
+        let atStop = t.at(tr.time).stop.map { t.stops[$0] - shift }
+        var bestU = -1.0, bestErr = Float.infinity
+        var u = 0.0
+        while u < t2.period {
+            let a = t2.at(u - t2.phase)
+            let ok = atStop != nil ? a.stop.map { t2.stops[$0] == atStop! } ?? false : (a.stop == nil && a.dir == d)
+            if ok { let e = abs(a.s - s2); if e < bestErr { bestErr = e; bestU = u } }
+            u += 0.1
+        }
+        guard bestU >= 0, bestErr < 6 else { return }
+        var delay = (g.time - (bestU - t2.phase)).truncatingRemainder(dividingBy: t2.period)
+        if delay < 0 { delay += t2.period }
+        let oldId = t.id
+        trains[oldId] = nil
+        for (k, v) in throughOut where v == oldId { throughOut[k] = t2.id }
+        for p in parts where p.id & Railways.linkBit == 0 { throughOut[p.id] = t2.id }
+        tr.track = t2
+        tr.delay = delay
+        tr.time = g.time - delay
+        tr.lastS = s2
+        tr.carS = tr.carS.map { $0 - Float(shift) }
+        trains[t2.id] = tr
+        splices += 1
     }
 
     static func build(_ g: Game, _ tr: Train) {

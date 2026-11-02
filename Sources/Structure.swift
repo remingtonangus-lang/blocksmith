@@ -93,6 +93,7 @@ enum Structure {
         }
     }
     static let member: [Bool] = table.map { $0 != nil }
+    static var skippedGround = 0                            // (harness: dug ground touching no building, no check queued)
     // A docked vessel (a piece with a helm) is the ships' business: it is put back as blocks where it docked, in the
     // water or the air, and lifts off again (Ships.swift); never checked.
     static let helm: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasPrefix("ship_helm") }
@@ -577,6 +578,17 @@ extension World {
         // snow layer) or melting off (a layer to air) carries nothing: each one queued a check of the station's piece.
         let sl = BlockID(SmoothTerrain.snowLayer)
         if ((old == AIR && new == sl) || (old == sl && new == AIR)) && !Structure.snowLoad { return }
+        // P510 (his dirt freeze by Boreal Station, measured: 34 of 42 checks queued by dug dirt, 3 ms each on the host,
+        // the worst 9-12): ground or a loose natural block dug out of the way holds up something only when a building's
+        // block touches it. With none of its six neighbours a built structural block, there is nothing to check.
+        if SmoothTerrain.natural[Int(old)] && new == AIR {
+            var touches = false
+            for (dx, dy, dz) in [(0, 1, 0), (1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1), (0, -1, 0)] {
+                let b = Int(block(x + dx, y + dy, z + dz))
+                if Structure.member[b] && !SmoothTerrain.natural[b] { touches = true; break }
+            }
+            if !touches { Structure.skippedGround += 1; return }
+        }
         let key = IVec3(floorDiv(x, 4), floorDiv(y, 4), floorDiv(z, 4))
         if Structure.tally != nil { Structure.tally![Blocks.key(old) + " -> " + Blocks.key(new), default: 0] += 1 }
         if loadQueued.insert(key).inserted { loadQueue.append(IVec3(x, y, z)) }

@@ -2136,7 +2136,22 @@ extension ShipManager {
         var want = want0, speed = speed0
         let fw = s.dirToWorld(V3(0, 0, -1))
         let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
-        func ground(_ p: V2) -> Float { groundTop(Int(floor(p.x)), Int(floor(p.y))) }
+        // P510 (Nov 1 20:29-20:30, at a crawler's helm on a beach: "For some reason it can't move... Maybe it's 'cause I'm
+        // trying to go in water... It should be able to go into water no problem"; 20:51, "the crawler doesn't like water
+        // but moves great elsewhere"): under his hand water no longer stops it short. It wades in on its wheels, the hull
+        // riding the bottom; where the water is deeper than its draft it swims, the hull at the surface less the draft,
+        // at a third of its pace on land, and climbs out on the far bank. (Its own crew still turn back from water.)
+        var wet = 0
+        func ground(_ p: V2) -> Float {
+            let x = Int(floor(p.x)), z = Int(floor(p.y))
+            let g = groundTop(x, z)
+            guard piloted, world.isLoaded(x, z) else { return g }
+            var wy = Int(g) + 1, k = 0
+            while k < 64 && wy < CH - 1 && Blocks.isLiquid(world.rawBlock(x, wy, z)) { wy += 1; k += 1 }
+            guard k > 0 else { return g }
+            wet += 1
+            return max(g, Float(wy) - ShipManager.crawlerDraft)
+        }
         let half: Float = 28, track: Float = 13
         let c2 = V2(s.pos.x, s.pos.z)
         let side = V2(-fh.y, fh.x)
@@ -2146,9 +2161,10 @@ extension ShipManager {
         // P499 (Oct 30 20:19, at a captured crawler's helm: "its turning is inverted"): under the player it no longer
         // swings itself round its patrol's way (the stick turned it the other way, or not at all): it stops short and
         // the stick still turns it, or backs it off.
+        if wet >= 2 { speed *= 0.35; ShipManager.crawlerWaded += 1 }
         if turnRate > 0 || (piloted && speed > 0) {
             let hA = ground(c2 + fh * (half + 14))
-            if hA < Float(SEA) || hA - hF > 8 {
+            if (hA < Float(SEA) && !piloted) || hA - hF > 8 {
                 if piloted { speed = min(speed, 0) }
                 else { want = V2(-fh.y, fh.x) * st.orbitDir; speed = min(speed, 1.5) }
             }
@@ -2175,7 +2191,11 @@ extension ShipManager {
     // door once it means to drive off and nobody stands on it (after 8 s it closes anyway). A disabled crawler drops it.
     func crawlerRamp(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         let troopsOut = st.crewMobs.values.contains { !$0.crewRoute.isEmpty && $0.deck === s && $0.health > 0 }
-        let want = s.wrecked || troopsOut || st.wantSpeed < 1.6
+        // P510 (Nov 1 20:30:10, driving a captured one slowly out of the water: "this thing dragging off its rear end.
+        // Like that's-- We don't need that"): at his helm the ramp stays up however slowly it goes; it comes down
+        // only once he has let go of the helm with it standing.
+        let his = pilot === s
+        let want = s.wrecked || (his ? false : (troopsOut || st.wantSpeed < 1.6))
         if want == st.rampDown { st.rampTimer = 0; return }
         st.rampTimer += dt
         if st.rampTimer < 0.6 { return }
@@ -2199,6 +2219,8 @@ extension ShipManager {
     // Trees, plants, fences, glass and timber under the crawler's front give way (no drops); driving on, so does
     // masonry (P65).
     static var rutCells = 0, rutDug = 0, crawlerFelled = 0     // (checks)
+    static let crawlerDraft: Float = 6                          // P510: its wheels and lower hull under the water when it swims
+    static var crawlerWaded = 0                                 // (checks: steps it moved with water under its wheels)
     private func crawlerCrush(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         st.crushTimer -= dt
         guard st.crushTimer <= 0 else { return }

@@ -2324,7 +2324,11 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         // P440 (Oct 24 21:00, "I can see like zombies and shit under, like underground"): a mob in land not drawn yet (its
         // chunk not meshed, or a buried section left unmeshed) is not drawn: flying over new land, cave mobs hung in the
         // open before the ground round them came in.
-        if let c = world.chunkAt(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
+        // P510 (Nov 1 20:27, inside a crawler: "for a second there, the troops despawn", "the guy on the helm just
+        // disappeared"; 20:51: "troops vanish I think because of the angle, the crawler was on its side"): a mob aboard
+        // a hull is on the hull, not in the land under it: a crew whose cell fell in a buried section of the ground (a
+        // tipped or dug-in crawler, a hull low in a valley) was hidden with the cave mobs.
+        if m.deck == nil, let c = world.chunkAt(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
             let sy = Int(floor(m.pos.y)) >> 4
             if !c.meshedOnce || (sy >= 0 && sy < NSEC && c.sections[sy].deferred) { MobDrawStats.culled += 1; continue }
         }
