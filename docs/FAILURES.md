@@ -35,7 +35,11 @@ this list and ask whether the work repeats one of these.
   has gotta be fixed... an actual garage door." A garage door is one door across a vehicle-wide opening that opens as
   a whole and leaves the full opening clear to drive through; the shutter was cells, each its own thing, and the
   opening was not clear.
-- **Rebuild:** open.
+- **Rebuilt (Nov 2, PR #648):** a magazine's opening is one garage door five wide and four high. Used from outside
+  or by the button inside, the whole door swings up as one body on its hinge and lies under the crown, leaving all 20
+  cells of the opening clear; used again it swings back down across it. Old shutters in saved depots widen to the
+  same door the first time they are used. Checked by `questcheck --garagedoor` (in the full suite): he walks in
+  through it and back out, a vehicle 4.4 wide drives through it open (and can't while it's shut), the button inside shuts it.
 
 ### 2. The elevator (P503 Lift Pads, Oct 31 - Nov 1)
 
@@ -48,4 +52,11 @@ this list and ask whether the work repeats one of these.
   with doors and call buttons, carrying him (and whoever stands in it) smoothly between floors; and the floors it
   serves should have something on them: "Not just copy and paste for every level either like you did in the capital
   city buildings... Something creative different each floor" (20:20:11).
-- **Rebuild:** open.
+- **Rebuilt (Nov 2, PR #648):** a lift is a car in a shaft with doors at each landing, a floor panel in the
+  car and a call button at each landing. The car moves as one body and carries whoever stands in it; the doors open
+  only where it stands. His World's Lift Pad columns turn into lifts in place (no pads left), and a citadel
+  side tower gets one beside its ladder. The tower's empty storeys are furnished as rooms that differ floor to floor
+  (a guard post, a signals room, bunks, an armoury with ammo racks, a mess); a storey he furnished himself is left
+  alone. Checked by `questcheck --elevator` (in the full suite): he walks in, picks the top floor, rides up without
+  falling or leaving the car, walks out at the top, a landing button calls the car down; pad columns and his citadel
+  towers convert; the rooms are there and differ.
