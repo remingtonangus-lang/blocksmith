@@ -140,6 +140,13 @@ extension Game {
             fwd = s.dirToWorld(V3(0, 0, -1)); back = thirdPersonDistance
         } else if let m = riding, m.kind == .boat {
             fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw)); back = 6
+        } else if let m = riding, Trains.isCar(m), let (tr, _) = Trains.carOf[ObjectIdentifier(m)] {
+            // P510 (Nov 1 20:38, riding a train's coach: "Should be third person. Not first person 'cause then I can't
+            // see shit"): out behind and over the train, facing the way it runs, whichever car he sits in.
+            let s0 = tr.layout.isEmpty ? m.pos : tr.track.point(tr.lastS)
+            let s1 = tr.layout.isEmpty ? m.pos + m.forward : tr.track.point(tr.lastS + tr.dir * 2)
+            fwd = simd_length(V2(s1.x - s0.x, s1.z - s0.z)) > 0.05 ? s1 - s0 : m.forward
+            back = tr.layout.isEmpty ? 8 : 14
         } else if let m = AshSeat.shared.vehicle {
             // P449 (Oct 25 09:04-09:05: the half-track "as if I'm walking with a half track on top of me... it should be
             // a third-person view"; the truck "I spawn inside of it and can't see where I'm going. Easy solution, make it

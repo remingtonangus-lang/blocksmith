@@ -20,6 +20,14 @@ StructureCache.plansOffThread = false   // base ticks find their sites at once (
 Blueprints.on = false                  // upgrades fit without blueprints (P138: --p12pm-only P138 turns them on)
 TownSizes.on = false                   // and their towns as they were (C13 town sizes: --sizes-only turns them on)
 MobVary.on = false                      // checks count exact blows and steps (the P55 check turns it on)
+// --headset (P510): his world as the headset makes it, not the fixtures': a new saved world's water (P44 fewer lakes,
+// H8 less water: World.newTerrain markers, which an unsaved world lacks), the headset's world rules (WorldRules.p44:
+// roads, cities) and C13 town sizes. Without it a --view or --railprobe of his seed drew other rivers and towns, and
+// other railways: the Nov 1 evening line he rode (-1886...-1049, z 1181) wasn't planned at all.
+if CommandLine.arguments.contains("--headset") {
+    World.fewerLakesUnsaved = true; World.lessWaterUnsaved = true
+    WorldRules.p44 = true; TownSizes.on = true
+}
 // --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.
 if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }
 // --deepscan: the Deep's layers over a few seeds (P323, Sources/DeepScan.swift), generator only.
@@ -1693,7 +1701,8 @@ if let a = arg("--railprobe") {
     let v = a.split(separator: ",").map { String($0) }
     let seed = UInt64(v[0]) ?? 1, cx = Int(v[1]) ?? 0, cz = Int(v[2]) ?? 0, r = Int(v[3]) ?? 4000
     let gen = WorldGen(seed: seed)
-    gen.fieldWorld = true
+    gen.fieldWorld = !CommandLine.arguments.contains("--blockrails")
+    gen.terrain.fewerLakes = World.fewerLakesUnsaved; gen.terrain.lessWater = World.lessWaterUnsaved     // (--headset)
     var why: [String: Int] = [:]
     Railways.tally = { why[$0, default: 0] += 1 }
     let span = Railways.span, w = Railways.stretch * span

@@ -29,6 +29,8 @@ enum Trains {
     static let fareCentsPerBlock = 2           // a fare: 2 cents a block of track, at least $1
 
     static func isCar(_ m: Mob) -> Bool { m.kind == .minecart && m.variant >= loco }
+    static var placed: [IVec3: Double] = [:]    // P510: blocks he placed lately (Game.placedReactions), by world time
+    static var cleared = 0                      // (checks: strays a train cleared off its rail)
 
     // A track a train runs: rail cells in order, the y of each cell's rail top, the stops (cell indices) and names.
     final class Track {
@@ -40,6 +42,7 @@ enum Trains {
         let stopNames: [String]
         let armoured: Bool
         let dim: Dim
+        var shapes: [Int]? = nil                // (a line's rail shapes: P510, a stray block on the line is cleared and the rail put back)
         // The timetable: (start, duration, from, to) over one period; from == to is a dwell.
         let legs: [(Double, Double, Float, Float)]
         let period: Double
@@ -140,8 +143,10 @@ enum Trains {
 
     static func track(_ l: Railways.Line) -> Track {
         let slopes = l.cells.indices.map { (2...5).contains(l.shape($0)) }
-        return Track(id: l.id, name: l.name, cells: l.cells, slopes: slopes, stops: l.stations.map { $0.index },
-                     stopNames: l.stations.map { $0.name + " Station" }, armoured: false, dim: .overworld, heights: l.heights)
+        let t = Track(id: l.id, name: l.name, cells: l.cells, slopes: slopes, stops: l.stations.map { $0.index },
+                      stopNames: l.stations.map { $0.name + " Station" }, armoured: false, dim: .overworld, heights: l.heights)
+        t.shapes = l.cells.indices.map { l.shape($0) }
+        return t
     }
     private static var tracks: [Int64: Track] = [:]
     static func cachedTrack(_ l: Railways.Line) -> Track {
@@ -323,7 +328,17 @@ enum Trains {
             let c = t.cells[max(0, min(t.cells.count - 1, Int(ahead.rounded())))]
             let b = g.world.block(c.x, c.y, c.z)
             if Blocks.collide[Int(b)] && !Rails.isRail(b) && t.at(tr.time).stop == nil && !t.armoured {
-                if !tr.heldBy { tr.heldBy = true; tr.stoppedFor = 0; whistle(g, tr) }
+                // P510 (Nov 1 20:39, "Why isn't it moving?... Train's broken for some reason. Fix it"): only a block he
+                // put there stops it. Anything else on the rail (a structure, a road or a tree drawn over the line after
+                // it, ground that grew back) held the train for good: it let go a minute later or once he was 48 blocks
+                // off, then met the same block at once. The train clears it and the rail is put back.
+                if placed[c] != nil {
+                    if !tr.heldBy { tr.heldBy = true; tr.stoppedFor = 0; whistle(g, tr) }
+                } else if let sh = t.shapes, Blocks.has("rail") {
+                    let i = max(0, min(t.cells.count - 1, Int(ahead.rounded())))
+                    g.world.setBlock(c.x, c.y, c.z, Blocks.id("rail") + BlockID(sh[i]))
+                    cleared += 1
+                } else { g.world.setBlock(c.x, c.y, c.z, AIR); cleared += 1 }
             }
             holdUpTick(g, tr, dt)
             if !tr.layout.isEmpty {

@@ -101,6 +101,8 @@ extension Game {
 
     // After placing a block: sponge / concrete powder reactions.
     func placedReactions(_ p: IVec3) {
+        Trains.placed[p] = time                         // (P510: a block he put on the line stops a train; nothing else does)
+        if Trains.placed.count > 512 { Trains.placed = Trains.placed.filter { time - $0.value < 600 } }
         let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
         if k == "sponge" { spongeAbsorb(p) }
         if k.hasSuffix("_concrete_powder") { hardenConcrete(p) }

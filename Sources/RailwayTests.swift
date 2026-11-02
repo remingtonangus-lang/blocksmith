@@ -259,6 +259,12 @@ enum RailwayTests {
                 print("rail ride: stalled at cell \(i) (\(c.x) \(c.y) \(c.z)): held \(tr.heldBy) brake \(tr.brake) cab brake \(tr.cabBrake) regulator \(tr.throttle) pace \(tr.rate); 3 ahead \(Blocks.key(world.block(a.x, a.y, a.z)))")
             }
         }
+        // P510: riding, the chase view sits out behind the train and over it, not in the cab.
+        if let o = g.chaseOffset, let lead = tr.cars.first {
+            let run = t.point(tr.lastS + tr.dir * 2) - t.point(tr.lastS)
+            check(simd_length(o) > 8 && o.y > 2 && simd_dot(V2(o.x, o.z), V2(run.x, run.z)) < 0,
+                  String(format: "P510 trains: riding, the view is out behind the train (%.0f back, %.0f up), car %d", simd_length(V2(o.x, o.z)), o.y, lead.variant))
+        } else { check(false, "P510 trains: riding, no chase view") }
         let wall = CFAbsoluteTimeGetCurrent() - t1
         print(String(format: "rail ride: %d frames (%.0f s of play, %.1f s wall), worst tick %.1f ms, reached cell %.0f of %d", frames, Float(frames) * dt, wall, worst * 1000, maxS, l.cells.count))
         check(maxS >= Float(last.index) - 0.5 && stops.count == l.stations.count && passed.count == 3 && unseated == 0 && headIn == 0 && offTrack == 0,
@@ -282,6 +288,30 @@ enum RailwayTests {
         check(moving0 > 1 && stopAfter > 0 && braked > 0.9 && tr.cabBrake < 0.1 && tr.blocksPerSec > 0.3,
               String(format: "P379 (2): regulator open at %.0f%%, the brake alone stopped the train from %.1f b/s in %.1f s; let off, it runs again (%.1f b/s)",
                      tr.throttle * 50, moving0, stopAfter, tr.blocksPerSec))
+        // P510 (Nov 1 20:39, "Train's broken... Fix it"): a block on the rail that he didn't put there (a structure or a
+        // tree drawn over the line) is cleared and the rail put back; one he placed still stops the train.
+        func aheadCell(_ k: Float) -> IVec3 { l.cells[max(0, min(l.cells.count - 1, Int((tr.lastS + tr.dir * (tr.length / 2 + k)).rounded())))] }
+        let stray = aheadCell(14)
+        let stone = Blocks.id("stone")
+        world.setBlock(stray.x, stray.y, stray.z, stone)
+        Trains.placed[stray] = nil
+        let cleared0 = Trains.cleared
+        var strayHeld = false
+        for _ in 0..<(60 * 6) {
+            g.time += Double(dt); Trains.drive(lead2, dt, g)
+            if tr.heldBy { strayHeld = true }
+            if t.at(tr.time).stop != nil { break }
+        }
+        let strayRail = Rails.isRail(world.block(stray.x, stray.y, stray.z))
+        let his = aheadCell(4)
+        world.setBlock(his.x, his.y, his.z, stone)
+        Trains.placed[his] = g.time
+        var hisHeld = false
+        for _ in 0..<(60 * 2) { g.time += Double(dt); Trains.drive(lead2, dt, g); if tr.heldBy { hisHeld = true } }
+        world.setBlock(his.x, his.y, his.z, AIR); Trains.placed[his] = nil
+        tr.heldBy = false; tr.brake = 0
+        check(!strayHeld && strayRail && Trains.cleared > cleared0 && hisHeld,
+              "P510 trains: a stray block on the rail is cleared and the rail put back (held \(strayHeld), rail back \(strayRail)); one he placed stops it (\(hisHeld))")
         g.dismount()
         Trains.trains.removeAll()
     }
