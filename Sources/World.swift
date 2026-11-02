@@ -747,8 +747,19 @@ final class World {
         switch ShapeClass.kind[b] {
         case .foliage: return true
         case .trunk:
-            let u = Int(block(x, y - 1, z))
-            return ShapeClass.kind[u] != .trunk && !Blocks.collide[u]
+            // P511 (Nov 2 08:22:41, the jungle: "make it so the bush, the branches don't slow you down at all"): a limb is
+            // any log cell whose column of logs doesn't stand on the ground: it hangs over air or over leaves (a limb laid
+            // on a leaf mass stopped him, as did one limb grown up from another). A bush's stem, one log on the ground
+            // under its leaves, is passed through too. Trunks standing on the ground still stop him.
+            var yy = y - 1, n = 0
+            while n < 40 {
+                let u = Int(block(x, yy, z))
+                if ShapeClass.kind[u] == .trunk { yy -= 1; n += 1; continue }
+                if !Blocks.collide[u] || ShapeClass.kind[u] == .foliage { return true }
+                break
+            }
+            if n == 0 { return ShapeClass.kind[Int(block(x, y + 1, z))] == .foliage }
+            return false
         default: return false
         }
     }

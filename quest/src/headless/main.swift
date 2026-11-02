@@ -2581,6 +2581,7 @@ CraterPlaceCheck.run(game, check)                      // P507: blocks go down i
 GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through
 ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift car riding its shaft
 RoutCheck.run(game, check)                             // P511: four in five of a garrison down, the rest run
+BrushCheck.run(game, check)                            // P511: through bushes and limbs at his full pace
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest
