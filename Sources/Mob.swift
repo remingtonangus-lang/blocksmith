@@ -2655,6 +2655,7 @@ final class MobManager {
         _ = Mob.earth.count; _ = VillageLife.bedHead.count; _ = Villagers.jobSiteOf.count
         _ = TownLaw.property.count          // (P394: built on the first block break, 84 ms on the host, at load instead)
         _ = PlantSupport.ruleOf(AIR)        // (P394: likewise on the first break under a plant or a carried thing)
+        LoadWarm.tables()                   // (store review: every per-state table, LoadWarm.swift)
     }
 
     // P508 (the dirt freeze): where a slow mob tick went, when a check asks (`profileOn`): the stages and the slowest
