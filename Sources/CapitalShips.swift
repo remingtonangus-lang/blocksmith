@@ -2352,6 +2352,15 @@ extension ShipManager {
         defer { World.backgroundEdits = was.0; World.vehicleEdits = was.1; World.ramEdits = was.2 }
         func worn(_ on: Bool) { if wear { World.backgroundEdits = on || was.0; World.vehicleEdits = on; World.ramEdits = !on } }
         worn(true)
+        // (the ground round its footprint, a chunk out: what settles there after the pass is wear too)
+        if wear {
+            let lo = s.worldMin, hi = s.worldMax
+            for cz in floorDiv(Int(floor(lo.z)) - CS, CS)...floorDiv(Int(floor(hi.z)) + CS, CS) {
+                for cx in floorDiv(Int(floor(lo.x)) - CS, CS)...floorDiv(Int(floor(hi.x)) + CS, CS) {
+                    world.chunkAt(cx * CS, cz * CS)?.wornAt = World.frameNow
+                }
+            }
+        }
         if st.wantSpeed > 0.3 { crawlerRuts(s, st) }
         // (a felled trunk lies as a body for good: one a pass, only where he can see it, and not past a dozen about)
         var felled = simd_length(g.player.pos - s.pos) < 110 ? 0 : 1

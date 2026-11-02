@@ -1306,6 +1306,7 @@ final class World {
     // crawler waited behind them. They now mesh in the queue's order at most every settleGap seconds (what its bow
     // meets still goes at once). BS_VEHICLEWEAR=0: the old way; BS_VEHICLEWEAR=off: no wear at all (measuring).
     static var vehicleEdits = false
+    static var frameNow: Double = 0                 // (P511: this frame's clock, World.update)
     static var ramEdits = false                     // (P511: what its bow rams that stands up in the way: at once)
     // P511 (measured at his spot, questcheck --streamtest --crawler, 8 b/s: 33-75 of 349 chunks in view drawn, ticks 6 ms
     // mean and 150 worst; with no wear all 349 by 8 s, 1.5 ms and 8): a worn chunk still went to the front of the queue
@@ -1545,6 +1546,7 @@ final class World {
 
         // P474: settling changes held back long enough mesh now (marked dirty again: the quiet pass looks at them).
         let now = CFAbsoluteTimeGetCurrent()
+        World.frameNow = now
         lock.lock(); wornBusy = wornOut > 0; lock.unlock()
         if !held.isEmpty && now - heldCheck > 0.05 {
             heldCheck = now

@@ -74,8 +74,13 @@ final class Section {
             o.dirty = true
             // (P511: a chunk the crawler is wearing stays worn until it meshes: the loose ground, support checks and
             // light round its ruts, settled after the pass, made it an edit again, ahead of the queue)
-            if World.vehicleEdits { o.vehicleWorn = true }
-            if World.ramEdits || (!World.backgroundEdits && !(o.vehicleWorn && World.vehicleWear != "0")) { o.urgent = true }
+            // (build 81: still 162 edit jobs in 12 s: those late edits came after the worn chunk had meshed and was no
+            // longer marked; a chunk worn in the last two wear gaps takes any such edit as wear)
+            if World.vehicleEdits { o.vehicleWorn = true; o.wornAt = World.frameNow }
+            if World.ramEdits { o.urgent = true }
+            else if !World.backgroundEdits {
+                if World.vehicleWear != "0" && World.frameNow - o.wornAt < World.wearGap * 2 { o.vehicleWorn = true } else { o.urgent = true }
+            }
             o.noteStale(was: oldValue != meshedVersion, now: version != meshedVersion)
         }
     }
@@ -375,6 +380,7 @@ final class Chunk {
     var lodRemeshLog = false
     var held = false               // P474: on World.held, its settling change waiting out World.settleGap
     var urgent = false             // P446: changed by an edit (not water settling or a random tick): meshes ahead of the queue
+    var wornAt: Double = -1e9      // P511: when a vehicle last wore it (World.frameNow)
     var vehicleWorn = false        // P511: changed by a vehicle's wheels and hull passing (World.vehicleEdits): meshes again at most every settleGap
     var lod = 0 {                  // 0 full detail, 1 far (flat light, merged faces, no small decorations), 2 mid ("fast" leaves)
         didSet { if cullWatched { CullNotes.note(cx, cz) } }
