@@ -323,8 +323,9 @@ enum Railways {
         guard nx * nz <= 400_000 else { tally?("link route: too big"); return nil }
         // Blocked squares: structure pieces (padded), filled in once from the starts round the box.
         var blocked = [Bool](repeating: false, count: nx * nz)
+        var blockedBy = [UInt8](repeating: 0, count: nx * nz)  // (the "no way" note: which kind of structure, by type index + 1)
         let bx0 = gx0 * G, bx1 = (gx1 + 1) * G - 1, bz0 = gz0 * G, bz1 = (gz1 + 1) * G - 1
-        for t in sc.types where !skipKinds.contains(t.name) && t.name != SkyIsle.kind {
+        for (ti, t) in sc.types.enumerated() where !skipKinds.contains(t.name) && t.name != SkyIsle.kind {
             let sp = t.spacing * CS, r = t.reach * CS
             for rz in floorDiv(bz0 - r, sp)...floorDiv(bz1 + r, sp) { for rx in floorDiv(bx0 - r, sp)...floorDiv(bx1 + r, sp) {
                 guard let o = sc.start(t, regionX: rx, regionZ: rz) else { continue }
@@ -333,7 +334,7 @@ enum Railways {
                     let ax = max(gx0, floorDiv(pc.min.x - 4, G)), cx = min(gx1, floorDiv(pc.max.x + 4, G))
                     let az = max(gz0, floorDiv(pc.min.z - 4, G)), cz = min(gz1, floorDiv(pc.max.z + 4, G))
                     if ax > cx || az > cz { continue }
-                    for z in az...cz { for x in ax...cx { blocked[(z - gz0) * nx + (x - gx0)] = true } }
+                    for z in az...cz { for x in ax...cx { blocked[(z - gz0) * nx + (x - gx0)] = true; blockedBy[(z - gz0) * nx + (x - gx0)] = UInt8(min(255, ti + 1)) } }
                 }
             } }
         }
@@ -401,8 +402,31 @@ enum Railways {
             }
         }
         guard end >= 0 else {
-            let nb = blocked.filter { $0 }.count, ns = looked.filter { $0 == 2 }.count
-            tally?("link route: no way (\(expanded) looked at; of \(nx)x\(nz) squares \(nb * 100 / max(1, nx * nz))% built on, \(ns * 100 / max(1, nx * nz))% sea)")
+            tally?("link route: no way")
+            if tally != nil {
+                // (what walls the search in: the squares it reached, and what stands on the squares round them)
+                var reached = [Bool](repeating: false, count: nx * nz)
+                for k in 0..<(nx * nz * 4) where cost[k] != .max { reached[k / 4] = true }
+                let nr = reached.filter { $0 }.count
+                var wall: [String: Int] = [:]
+                for i in 0..<(nx * nz) where reached[i] {
+                    for nd in 0..<4 {
+                        let x2 = i % nx + dx[nd], z2 = i / nx + dz[nd]
+                        guard x2 >= 0 && x2 < nx && z2 >= 0 && z2 < nz else { wall["edge", default: 0] += 1; continue }
+                        let j = z2 * nx + x2
+                        if reached[j] { continue }
+                        if blocked[j] { wall[blockedBy[j] > 0 ? sc.types[Int(blockedBy[j]) - 1].name : "?", default: 0] += 1 }
+                        else if looked[j] == 2 {
+                            let x = (gx0 + j % nx) * G + G / 2, z = (gz0 + j / nx) * G + G / 2
+                            wall[gen.column(x, z).biome.isOcean ? "sea" : "old ground", default: 0] += 1
+                        }
+                    }
+                }
+                let gw = goal % nx > 0 ? (open(goal - 1) ? "open" : "shut") : "edge"
+                let sx = start % nx, sz = start / nx
+                let goalReached = reached[goal]
+                tally?("link route detail: \(nr) of \(nx)x\(nz) squares reached from (\(sx),\(sz)), goal (\(goal % nx),\(goal / nx)) \(goalReached ? "reached" : "not reached"), west of it \(gw); walled by " + wall.sorted { $0.value > $1.value }.prefix(5).map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+            }
             return nil
         }
         var squares: [Int] = []

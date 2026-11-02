@@ -1960,8 +1960,9 @@ if let out = arg("--figureshot") {
 }
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
-    if !CommandLine.arguments.contains("--railride") { RailwayTests.run(game, check: check) }
-    RailwayTests.ride(game, check: check)
+    // (--links: only the P510 links and the ride through)
+    if !CommandLine.arguments.contains("--railride") && !CommandLine.arguments.contains("--links") { RailwayTests.run(game, check: check) }
+    if !CommandLine.arguments.contains("--links") { RailwayTests.ride(game, check: check) }
     RailwayTests.through(game, check: check)          // P510
     print(failures == 0 ? "rail: all checks passed" : "rail: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
