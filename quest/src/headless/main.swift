@@ -1932,6 +1932,10 @@ if CommandLine.arguments.contains("--depotleak") {             // P507: a Fuel D
     DepotLeakCheck.run(game, check)
     print(failures == 0 ? "depotleak: all checks passed" : "depotleak: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--garagedoor") {            // FAILURES.md 1: a garage door a vehicle drives through
+    GarageDoorCheck.run(game, check)
+    print(failures == 0 ? "garagedoor: all checks passed" : "garagedoor: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--craterplace") {           // P507: blocks go down in a rocket's bowl
     CraterPlaceCheck.run(game, check)
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -2471,6 +2475,7 @@ if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
     print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 CraterPlaceCheck.run(game, check)                      // P507: blocks go down in a rocket's bowl
+GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest

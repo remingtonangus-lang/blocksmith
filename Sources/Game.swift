@@ -2193,24 +2193,6 @@ final class Game {
         return true
     }
 
-    // P507: a roller shutter used: it and every shutter cell joined to it (up to a garage front, 64) roll up together,
-    // or down.
-    func rollShutter(_ p: IVec3) {
-        guard Blocks.has(Depots.shutter) else { return }
-        let base = Blocks.id(Depots.shutter)
-        let opening = world.block(p.x, p.y, p.z) == base
-        var seen: Set<IVec3> = [p], queue = [p]
-        while let c = queue.popLast(), seen.count < 64 {
-            for d in World.allDirs {
-                let q = c + d
-                guard !seen.contains(q), Blocks.groupBase[Int(world.block(q.x, q.y, q.z))] == base else { continue }
-                seen.insert(q); queue.append(q)
-            }
-        }
-        for c in seen { world.setBlock(c.x, c.y, c.z, opening ? base + 1 : base) }
-        sfx(opening ? .pistonExtend : .pistonContract, 0.9, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
-    }
-
     func openBlock(_ p: IVec3) {
         TownLaw.opening(self, p)
         let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
@@ -2234,7 +2216,7 @@ final class Game {
             if let q = partner { toggleOpenable(q) }
             return
         }
-        if k == Depots.shutter { rollShutter(p); return }                // P507 (Depots.swift)
+        if k == Depots.shutter { GarageDoors.use(self, p); return }        // FAILURES.md 1: the whole door swings (GarageDoors.swift)
         switch k {
         case "cave_vines": pickLumenPods(p)
         case "crafting_table": openMenu(CraftingBookMenu(game: self))      // the recipe book first; the grid is a button away
@@ -3369,6 +3351,7 @@ final class Game {
         vehicleGunnersTick(Float(dt))                          // P478: his people at his vehicle's guns (VehicleGunners.swift)
         aircraftCrashTick(Float(dt))                           // P294: crashes and rotor strikes (AircraftCrash.swift)
         fellingTick(Float(dt))                                 // P298: felled trees and a carried trunk (Felling.swift)
+        GarageDoors.tick(self, Float(dt))                      // garage doors swinging (GarageDoors.swift)
         TickProf.mark("flight crews")
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
