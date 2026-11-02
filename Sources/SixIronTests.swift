@@ -83,7 +83,7 @@ extension TownTests {
         check(g.health == 1 && g.inventory.offhand[0].isEmpty, "iron rule: Resistance IV and golden hearts don't save you below iron (\(g.health) left: the totem did)")
         g.effects.clear(); g.absorption = 0; g.difficulty = 2
         let ironLeft = shot("iron"), tiLeft = shot("diamond")
-        check(ironLeft == 12 && tiLeft == 19, "iron rule: a round in iron leaves 12 of 20 (\(ironLeft)), in titanium 19 (\(tiLeft))")
+        check(ironLeft == 12 && tiLeft == 17, "iron rule: a round in iron leaves 12 of 20 (\(ironLeft)), in titanium 17 (\(tiLeft): P511, 3 a round)")
         g.difficulty = 0
         check(shot(nil) == 20, "iron rule: peaceful, no harm")
         g.difficulty = 2

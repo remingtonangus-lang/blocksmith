@@ -397,6 +397,7 @@ enum RailwayTests {
               "C1 train at \(st.name) Station: \(cars) cars built, \(onRail) on the track")
         guard cars >= 3, let coach = tr.cars.first(where: { $0.variant == Trains.coach }),
               let strong = tr.cars.first(where: { $0.variant == Trains.express }) else { return }
+        TrainHullCheck.run(g, tr, check)                         // FAILURES 3: walking in, on the roof, from the cab
         // Ride the coach while it pulls out.
         _ = Trains.use(g, coach)
         let start = coach.pos

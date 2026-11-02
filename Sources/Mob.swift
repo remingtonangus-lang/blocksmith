@@ -3063,7 +3063,7 @@ extension Mob {
               !onLadder, !spec.flying, halfW <= 1.2,
               let c = w.chunkAt(Int(floor(pos.x)), Int(floor(pos.z))),
               c.sections[max(0, min(NSEC - 1, Int(floor(pos.y)) >> 4))].version == restVer else { return false }
-        for s in w.ships.list where simd_length_squared(s.pos - pos) < 96 * 96 { return false }
+        for s in w.ships.list where s.trainCar == nil && simd_length_squared(s.pos - pos) < 96 * 96 { return false }
         return true
     }
 }

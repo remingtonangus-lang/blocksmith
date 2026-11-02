@@ -470,7 +470,7 @@ enum MapDraw {
             }
         }
         // Vehicles loaded nearby: hostile vessels as red diamonds, the rest (yours) blue; the one you steer is the player dot.
-        for sh in g.world.ships.list where sh !== g.world.ships.pilot {
+        for sh in g.world.ships.list where sh !== g.world.ships.pilot && sh.trainCar == nil {
             guard let p = at(sh.pos.x, sh.pos.z) else { continue }
             let col = sh.isVessel ? V4(0.95, 0.25, 0.2, 1) : V4(0.35, 0.6, 1, 1)
             out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(6 * s, 6 * s)))

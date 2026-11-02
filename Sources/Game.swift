@@ -1346,6 +1346,9 @@ final class Game {
         // a gun in hand doesn't stop him taking an Ashguard tank, half-track, truck or field gun either.
         if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(vrAim?.origin ?? player.eye, vrAim?.dir ?? player.look, maxDist: 4.5),
            AshCommandeer.takeable(hit.0.kind), ashCommandeer(hit.0) { mining = nil; return }
+        // FAILURES 3 (Nov 2 08:41:46, a carbine in hand: "I can't seem to drive the train now"): ...nor taking an engine's cab.
+        if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(vrAim?.origin ?? player.eye, vrAim?.dir ?? player.look, maxDist: 4.5),
+           Trains.isCar(hit.0) && Trains.isEngine(hit.0), Trains.use(self, hit.0) { mining = nil; return }
         // P74 (Oct 12 playtest, 09:22): a gun in hand still opens a door, a chest or a lever within arm's reach; the
         // gun's aim took the use press first, so nothing could be opened with a gun out.
         if useNow && heldGun != nil && !(input.shift || p.b), let t = target,

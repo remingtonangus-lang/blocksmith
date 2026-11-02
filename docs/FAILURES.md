@@ -73,4 +73,20 @@ this list and ask whether the work repeats one of these.
   done here... I'm gonna call that a failure", "I should be able to jump on top of this section", "I can't seem to
   drive the train now", and 08:40:06 at -8365 128 5109: "Oh, look, a train. And it stops... That shouldn't be there".
   A train is cars you walk through, stand on and ride, with people aboard, an engine you drive from its cab, that
-  runs on along the line.
+  runs on along the line. (His Nov 2 12:13: "The railway was good but there was still a 'start' to it": the 08:40:06
+  note meant the line still has a starting end.)
+
+### 4. The see-through void triangles (P404, P499, P511; Oct 22 - Nov 2)
+
+- **Asked:** four times: Oct 22 22:17-22:23 ("lines and cracks in the ground"), Oct 30-31 (the void triangle fanning
+  past the held carbine at the Slatefall), Nov 2 morning ("horrible triangles", jungle -5572 77 2812), and Nov 2 12:13:
+  "Void triangles still. Add that to the failure list with context of this thing asked to be fixed 4 times now. The
+  correct fix would have been a giant sweep of tests and screenshots looking and solving the underlying patterns until
+  none exist."
+- **Made:** one instance at a time: the fine-ground ring's border pinned onto the whole-cell vertices (#446) and called
+  closed when one repro showed no sky pixel (#478); an opt-in VR sim shot of the Slatefall that did not show it on the
+  host, so nothing was changed (#643); the tree feet's buttress spikes rounded (P511, 3f2bf31d).
+- **Why it failed:** each fix answered the one spot he named and was checked at that spot only. Nobody looked for the
+  pattern: where else the drawn ground, trunks, roots, water and shells leave a gap the sky shows through, at what
+  distances, LODs, mesh borders and viewing angles. A bug he names is a family; the check is a sweep that finds every
+  member (many seeds, biomes, structures, distances, the headset's view), not one screenshot.

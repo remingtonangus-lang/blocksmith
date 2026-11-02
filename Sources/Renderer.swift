@@ -788,7 +788,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let rd = Float(game.world.renderDistance)
         let underwater = p.headInWater
         // Capital ships show far past the terrain (a 480-block frigate on the horizon): a longer far plane while one is out.
-        let far = max(rd * 16 + 96, game.world.ships.list.contains { $0.kinematic } ? 1000 : 0)
+        let far = max(rd * 16 + 96, game.world.ships.list.contains { $0.kinematic && $0.trainCar == nil } ? 1000 : 0)
         let proj = perspectiveRH(fovy: (game.cine.active ? game.cine.fov : game.fovSetting * game.fovScale) * .pi / 180, aspect: W / max(H, 1), near: 0.05, far: far)
         let viewRot = rotationX(-camPitch) * rotationY(-camYaw)
         let viewProj = proj * viewRot

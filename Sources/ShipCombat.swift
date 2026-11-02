@@ -368,7 +368,7 @@ extension ShipManager {
     // and heavy gun shells (Armory) flew straight through hulls.
     func segmentHit(_ o: V3, _ d: V3, _ len: Float, except: Int) -> (Float, Ship)? {
         let lo = simd_min(o, o + d * len), hi = simd_max(o, o + d * len)
-        for s in list where s.root.id != except && hi.x > s.worldMin.x && lo.x < s.worldMax.x && hi.y > s.worldMin.y
+        for s in list where s.root.id != except && s.root.trainCar == nil && hi.x > s.worldMin.x && lo.x < s.worldMax.x && hi.y > s.worldMin.y
             && lo.y < s.worldMax.y && hi.z > s.worldMin.z && lo.z < s.worldMax.z {
             let n = max(1, Int(ceil(len / 0.4)))
             for i in 0...n {
@@ -418,7 +418,7 @@ extension ShipManager {
     // like in the world; blocks they get through are destroyed (dropping with chance 1/power); the hull is pushed.
     func blast(at c: V3, power: Float, game: Game?, resistCap: Float = .infinity) {
         let reach = power * 2 + 1
-        for s in list where c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
+        for s in list where s.root.trainCar == nil && c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
             && c.y < s.worldMax.y + reach && c.z > s.worldMin.z - reach && c.z < s.worldMax.z + reach {
             let lc = s.toLocal(c)
             let g = s.grid
@@ -543,7 +543,7 @@ extension ShipManager {
 
     func tear(at c: V3, radius: Float, except: Int, game: Game?) -> Int {
         var total = 0
-        for s in list where s.root.id != except && c.x > s.worldMin.x - radius && c.x < s.worldMax.x + radius && c.y > s.worldMin.y - radius
+        for s in list where s.root.id != except && s.root.trainCar == nil && c.x > s.worldMin.x - radius && c.x < s.worldMax.x + radius && c.y > s.worldMin.y - radius
             && c.y < s.worldMax.y + radius && c.z > s.worldMin.z - radius && c.z < s.worldMax.z + radius {
             let lc = s.toLocal(c)
             let ri = Int(ceilf(radius))

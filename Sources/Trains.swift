@@ -129,6 +129,7 @@ enum Trains {
         var dir: Float = 1
         var carS: [Float] = []
         var troops: [Mob] = []
+        var passengers: [Mob] = []              // FAILURES 3 (TrainHulls.swift): townsfolk riding the coaches
         var roused = false
         var facing: Float = 1                   // P508: the way the one engine faces (layout mirrored when -1)
         var fresh = true                        // (just built: it takes the timetable's heading at once)
@@ -388,6 +389,7 @@ enum Trains {
         let riders = Set(tr.troops.filter { $0.mount != nil }.map { ObjectIdentifier($0) })
         if !riders.isEmpty { g.mobs.mobs.removeAll { riders.contains(ObjectIdentifier($0)) } }
         tr.troops = []
+        TrainHulls.remove(g, tr)                                  // FAILURES 3
         for m in tr.cars { carOf[ObjectIdentifier(m)] = nil }
         let gone = Set(tr.cars.map { ObjectIdentifier($0) })
         g.mobs.mobs.removeAll { gone.contains(ObjectIdentifier($0)) }
@@ -399,7 +401,7 @@ enum Trains {
         guard let (tr, k) = carOf[ObjectIdentifier(m)] else { m.health = -1; return }
         let guards = tr.layout.isEmpty ? (tr.bullion && k == 1) : ((tr.bullion || tr.kind == .troop) && m.variant == gunCar)
         if !tr.track.armoured && !guards { m.health = m.spec.health; m.hurt = 0 }
-        if k == 0 { place(g, tr, dt: dt) }
+        if k == 0 { place(g, tr, dt: dt); if !tr.passengers.isEmpty { TrainHulls.seatPassengers(tr) } }
         if g.riding === m {
             g.player.pos = seat(m)
             g.player.vel = .zero

@@ -61,7 +61,10 @@ extension Trains {
     // The top of a car's roof (or load) above the rail.
     static func roofTop(_ m: Mob) -> Float {
         guard isBig(m) else { return roofHeight[m.variant] ?? 2 }
-        switch m.variant {
+        return roofTop(variant: m.variant)
+    }
+    static func roofTop(variant v: Int) -> Float {
+        switch v {
         case loco: return 3.7
         case tender: return 3.1
         case coach: return 4.1
@@ -148,6 +151,7 @@ extension Trains {
         }
         tr.carS = Array(repeating: 0, count: tr.cars.count)
         place(g, tr, dt: 0)
+        TrainHulls.build(g, tr)                                   // FAILURES 3: their bodies, and the passengers
         // The soldiers: four to a troop car, at its firing slits.
         guard tr.kind == .troop || tr.kind == .bullion else { return }
         for car in tr.cars where car.variant == troopCar {

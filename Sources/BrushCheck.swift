@@ -23,13 +23,22 @@ enum BrushCheck {
             for dy in 0..<8 { put(cx + x, y + dy, cz + z, AIR) }
         } }
         defer { for (x, yy, z, b) in saved.reversed() { w.setBlock(x, yy, z, b) } }
+        var slow: [String] = []                              // (where the pace dropped: x along the lane, speed, feet height, on ground)
         func walk() -> Float {
             p.flying = false; p.vel = .zero; p.yaw = -Float.pi / 2; p.moveYaw = nil; p.moveLook = nil     // facing +x
             p.pos = V3(Float(cx) - 3 + 0.5, Float(y), Float(cz) + 0.5)
             var inp = MoveInput(); inp.forward = 1
             for _ in 0..<20 { p.update(dt: 1.0 / 72, input: MoveInput(), world: w) }   // (settle on the ground)
             let start = p.pos
-            for _ in 0..<(72 * 9 / 2) { p.update(dt: 1.0 / 72, input: inp, world: w) }
+            slow = []
+            for i in 0..<(72 * 9 / 2) {
+                let x0 = p.pos.x
+                p.update(dt: 1.0 / 72, input: inp, world: w)
+                let v = (p.pos.x - x0) * 72
+                if i > 36 && v < 3.6 && slow.count < 8 {
+                    slow.append(String(format: "x%.1f %.1fb/s y%.2f%@", p.pos.x - Float(cx), v, p.pos.y - Float(y), p.onGround ? "" : " air"))
+                }
+            }
             return p.pos.x - start.x
         }
         let open = walk()
@@ -45,12 +54,14 @@ enum BrushCheck {
         // A limb grown up from another, over air.
         put(cx + 14, y + 1, cz, log); put(cx + 14, y + 2, cz, log)
         let thick = walk()
+        let thickSlow = slow.joined(separator: ", ")
         let soft = (w.softFoliage(Int(log), cx + 2, y, cz), w.softFoliage(Int(log), cx + 11, y + 1, cz),
                     w.softFoliage(Int(log), cx + 14, y + 2, cz), w.softFoliage(Int(log), cx + 11, y + 2, cz + 2))
         check(soft.0 && soft.1 && soft.2 && !soft.3,
               "brush: passed through: a bush's stem \(soft.0), a limb on leaves \(soft.1), a limb on a limb \(soft.2); a trunk on the ground stops him (\(!soft.3))")
         check(thick >= open * 0.95 && open > 15,
-              String(format: "brush: four and a half seconds through two bushes and two limbs: %.1f blocks (open ground %.1f)", thick, open))
+              String(format: "brush: four and a half seconds through two bushes and two limbs: %.1f blocks (open ground %.1f)", thick, open)
+                + (thickSlow.isEmpty ? "" : "; slowed at \(thickSlow)"))
         // A trunk on the line stops him.
         for dy in 0..<5 { put(cx + 4, y + dy, cz, log) }
         let tree = walk()

@@ -164,7 +164,7 @@ extension ShipManager {
             // A rider standing on the world's ground (stepped off the ramp's foot, walked out from under a hull) has left
             // the deck. A mob's velocity is relative to its deck while it rides: the deck's own is added back when it
             // leaves and taken out when it boards (troops walking off a moving crawler stopped dead).
-            for m in game.mobs.mobs where game.riding !== m && m.health > 0 {
+            for m in game.mobs.mobs where game.riding !== m && m.health > 0 && !TrainHulls.bound(m) {
                 // (In the air it stays aboard only over the hull or at one of its ladders: off the ramp's foot it
                 // falls in the world, onto the world's exact ground.)
                 if let d = m.deck, list.contains(where: { $0 === d }), frameShip(for: m.pos, height: m.height, current: d) === d,
@@ -252,6 +252,7 @@ extension ShipManager {
             steps += 1
         }
         if steps == 4 { accum = 0 }
+        TrainHulls.follow(self, dt, game)                          // FAILURES 3: the trains' bodies go with their cars
         TickProf.mark("ships.physics")
         updateShells(dt, game: game)
         meltTick(dt, game: game)                                   // P461: hulls in lava (ShipMelt.swift)
@@ -274,7 +275,7 @@ extension ShipManager {
         // Mobs a moving hull ran into are shoved aside (or lifted onto it when they are near its top).
         if let game {
             // (crews on deck are carried, not shoved)
-            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !mobRiders.contains(where: { $0.0 === m }) {
+            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !TrainHulls.bound(m) && !mobRiders.contains(where: { $0.0 === m }) {
                 let mn = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), mx = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
                 guard let s = list.first(where: { mx.x > $0.worldMin.x && mn.x < $0.worldMax.x && mx.y > $0.worldMin.y && mn.y < $0.worldMax.y
                     && mx.z > $0.worldMin.z && mn.z < $0.worldMax.z }), overlaps(mn, mx) else { continue }
