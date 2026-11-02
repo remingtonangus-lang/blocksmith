@@ -169,17 +169,27 @@ final class ShipMesh {
         let sh = Blocks.shape[i]
         return !Blocks.opaque[i] && sh != "door" && sh != "trapdoor" && sh != "gate" && sh != "ladder"
     }
+    // (P510: and a window is seen but not seen through: the crawler's command deck windows let the outside into every
+    // room behind them, 16,410 of its 16,548 quads still drawn from outside. A window keeps its glass; past it is plate.)
+    private static let outerStop: [Bool] = (0..<Blocks.count).map { i in
+        let k = Blocks.key(Blocks.groupBase[i])
+        return !Blocks.opaque[i] && (k.contains("glass") || k.contains("window"))
+    }
     private static let outerFill: BlockID = Blocks.has("warship_panel") ? Blocks.id("warship_panel") : STONE
     static func outsideMask(sx: Int, sy: Int, sz: Int, blocks: [BlockID]) -> [Bool]? {
         let n = sx * sy * sz
         guard n > outerMinCells, blocks.count == n else { return nil }
-        let pass = outerPass
+        let pass = outerPass, stop = outerStop
         let layer = sx * sz
         var outside = [Bool](repeating: false, count: n)
         var queue = [Int32](repeating: 0, count: n)
         blocks.withUnsafeBufferPointer { b in outside.withUnsafeMutableBufferPointer { o in queue.withUnsafeMutableBufferPointer { q in
             var tail = 0
-            @inline(__always) func seed(_ i: Int) { if !o[i] && pass[Int(b[i])] { o[i] = true; q[tail] = Int32(i); tail += 1 } }
+            @inline(__always) func seed(_ i: Int) {
+                guard !o[i] && pass[Int(b[i])] else { return }
+                o[i] = true
+                if !stop[Int(b[i])] { q[tail] = Int32(i); tail += 1 }
+            }
             for y in 0..<sy { for z in 0..<sz {
                 let row = z * sx + y * layer
                 if y == 0 || y == sy - 1 || z == 0 || z == sz - 1 { for x in 0..<sx { seed(row + x) } }

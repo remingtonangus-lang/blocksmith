@@ -835,7 +835,7 @@ final class Game {
     // P282 (a) (Oct 14 19:36, "I can still hold the gun while I'm driving a vehicle"): every seat with controls counts,
     // the helm of any ship or vehicle and a manned deck gun alike (its trigger is the gun's, not the rifle's). A saddle,
     // a rowboat, a cart or a coach seat keeps a weapon in the free hand (mountedOneHand).
-    var handsOnControls: Bool { world.ships.pilot != nil || Turrets.shared.manned != nil || AshSeat.shared.vehicle != nil }
+    var handsOnControls: Bool { world.ships.pilot != nil || Turrets.shared.manned != nil || AshSeat.shared.vehicle != nil || TrainGun.shared.car != nil }
     // P282 (b): mounted (horse, rowboat, pig, minecart, a coach seat) one hand holds the reins, paddle or rail: the
     // weapon in the other hand still fires, but there is no second hand for a rifle brace or a second revolver.
     var mountedOneHand: Bool { riding != nil && !handsOnControls }
@@ -1222,6 +1222,7 @@ final class Game {
 
         seatedEatTick(p, fdt)                                            // P435: eating at the controls of a vehicle
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
+        if TrainGun.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }     // P510
         if AshSeat.shared.tick(self, p, q, mi, dt: fdt) { updateFov(Float(dt)); advance(dt); return }      // P344
         if ChairSeat.shared.tick(self, mi) { updateFov(Float(dt)); advance(dt); return }                     // P370 (b)
         let before = player.pos

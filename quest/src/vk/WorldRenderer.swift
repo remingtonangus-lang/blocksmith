@@ -511,6 +511,15 @@ final class WorldRenderer {
                 if gap < 4 { break }
                 y = b - 1 - gap
             }
+            // (P510, 20:33:58 by a Capital base still streaming in: "can't even see the capital base that I'm literally
+            // right beside": its towers lifted the cover's corners into olive spikes and walls 40 blocks up. Built
+            // blocks count up to 8 over the ground they stand on (a yard, a podium, a low wall); a taller building
+            // leaves the cover on its ground.)
+            if y > 0 && !c.blocks.ground(col + y * CSQ) {
+                var gy = y - 1
+                while gy > 0 && y - gy <= 64 && !c.blocks.ground(col + gy * CSQ) { gy -= 1 }
+                if gy > 0 && c.blocks.ground(col + gy * CSQ) && y - gy > 8 { y = gy }
+            }
             guard y > 0 else { continue }
             gapVerts[i].pos.y = Float(y + 1)
         }

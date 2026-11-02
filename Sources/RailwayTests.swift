@@ -481,6 +481,43 @@ enum RailwayTests {
             } else { check(false, "P508 military arrival: no guard car") }
             TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
         } else { check(false, "P508 military arrival: no train could be put on the line") }
+        // P510: a troop train taken from inside: aboard a troop car its soldiers stay in their compartments (none pile
+        // out); the engine is refused while one still rides it; with them down he takes the engine, its guard car's gun
+        // no longer fires on him, and he works that gun: a shell each time he fires it.
+        Trains.trains.removeAll()
+        if let mtr = TrainArrivals.arrive(g, [t], kind: .troop) {
+            Trains.build(g, mtr)
+            TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
+            let car = mtr.cars.first { $0.variant == Trains.troopCar }, loco = mtr.cars.first { $0.variant == Trains.armouredLoco }
+            let gun = mtr.cars.first { $0.variant == Trains.gunCar }
+            if let car, let loco, let gun {
+                g.survival = true; g.alive = true; g.health = 20
+                let troops0 = MilitaryTrain.holding(mtr).count
+                let boardedIn = Trains.use(g, car) && g.riding === car
+                mtr.blocksPerSec = 0                                           // (stood still: on foot they'd pile out)
+                for _ in 0..<3 { Trains.troopTick(g, mtr) }
+                let stayed = MilitaryTrain.holding(mtr).count == troops0 && troops0 >= 4
+                _ = Trains.use(g, loco)
+                let refused = g.riding !== loco && !mtr.taken
+                for m in mtr.troops { m.health = 0 }
+                _ = Trains.use(g, loco)
+                let took = mtr.taken && g.riding === loco
+                let s0 = TrainGun.shared.shots, slugs0 = g.arms.slugs.count
+                _ = Trains.use(g, gun)
+                let manned = TrainGun.shared.car === gun && g.riding == nil
+                TrainGun.shared.reload = 0
+                TrainGun.shared.shoot(g, gun)
+                let fired = TrainGun.shared.shots == s0 + 1 && g.arms.slugs.count > slugs0 && g.arms.slugs.last?.kind == .shell
+                mtr.gunCool = 0; mtr.roused = true
+                let gunSlugs = g.arms.slugs.count
+                Trains.gunCar(g, mtr, 1.0 / 60)
+                let quiet = g.arms.slugs.count == gunSlugs
+                TrainGun.shared.leave(g)
+                check(boardedIn && stayed && refused && took && manned && fired && quiet,
+                      "P510 military train: aboard a troop car (\(boardedIn)) its \(troops0) soldiers stay in their places (\(stayed)); the engine is refused while they hold it (\(refused)); "
+                      + "with them down he takes it (\(took)), its guard car's gun goes quiet on him (\(quiet)) and he works it (\(manned)), a shell a shot (\(fired))")
+            } else { check(false, "P510 military train: no troop car, engine or guard car (\(mtr.cars.map { $0.variant }))") }
+        } else { check(false, "P510 military train: no train could be put on the line") }
         Trains.trains.removeAll()
     }
 

@@ -132,6 +132,7 @@ enum Trains {
         var roused = false
         var facing: Float = 1                   // P508: the way the one engine faces (layout mirrored when -1)
         var fresh = true                        // (just built: it takes the timetable's heading at once)
+        var taken = false                       // P510 (MilitaryTrain.swift): a troop train he cleared and took
         init(_ t: Track) {
             track = t
             if let st = Trains.saved[t.id] { delay = st.delay; robbedDay = st.robbedDay; wrecked = st.wrecked }
@@ -567,6 +568,8 @@ enum Trains {
             return true
         case express:
             return crack(g, tr, m)
+        case troopCar, armouredLoco, gunCar:
+            return MilitaryTrain.use(g, tr, m)
         default:
             return false
         }
@@ -634,7 +637,7 @@ enum Trains {
             g.sfx(.levelUp, 0.6)
             g.onToast?("The guard car falls silent")
         }
-        guard gun.health > 0, g.alive, g.survival, tr.bullion || tr.kind == .troop || !g.ashVictory else { return }
+        guard gun.health > 0, g.alive, g.survival, !tr.taken, tr.bullion || tr.kind == .troop || !g.ashVictory else { return }
         // P508: a military arrival in his town shells it, its troops roused from the start.
         if TrainArrivals.wreckers.contains(tr.track.id) {
             tr.roused = true

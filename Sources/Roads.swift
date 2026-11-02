@@ -23,7 +23,8 @@ enum Roads {
     static let bridgeMax = 96
     static var bridgesPlanned = 0                    // (checks)
 
-    private static var cache: [Int64: Seg?] = [:]
+    struct Key: Hashable { let kind: Int8; let rx: Int32; let rz: Int32; let d: Int8 }   // kind 0 road, 1 far road, 2 site road
+    private static var cache: [Key: Seg?] = [:]
     private static var cacheGen: Int?               // the generator the cache was filled for (another world clears it; by
                                                     // its plan serial: a freed generator's address comes back for the next, P510)
     private static let lock = NSLock()
@@ -38,7 +39,7 @@ enum Roads {
 
     // The road from region (rx, rz) to its neighbour (rx + dx, rz + dz), if one runs.
     static func segment(_ gen: WorldGen, _ rx: Int, _ rz: Int, _ dx: Int, _ dz: Int) -> Seg? {
-        let key = (Int64(rx & 0xFFFFF) << 44) | (Int64(rz & 0xFFFFF) << 24) | Int64((dx + 1) * 3 + dz + 1)
+        let key = Key(kind: 0, rx: Int32(truncatingIfNeeded: rx), rz: Int32(truncatingIfNeeded: rz), d: Int8((dx + 1) * 3 + dz + 1))
         let gid = gen.planSerial
         lock.lock()
         if cacheGen != gid { cache.removeAll(); cacheGen = gid }
@@ -58,7 +59,79 @@ enum Roads {
                 seg!.bridges = bridges(gen, seg!)
             }
         }
-        lock.lock(); if cacheGen == gid { cache[key] = seg }; if cache.count > 4096 { cache.removeAll() }; lock.unlock()
+        lock.lock(); if cacheGen == gid { cache[key] = seg }; if cache.count > 16384 { cache.removeAll() }; lock.unlock()
+        return seg
+    }
+
+    // P510: ground no save had before this build (structure-guard-p510.txt) along a road (sampled every 4 chunks):
+    // the roads and bridges P510 added go only there, so none ends at the edge of explored land.
+    static func freshP510(_ gen: WorldGen, _ a: V2, _ b: V2, reach: Int = 3) -> Bool {
+        guard let sc = gen.structures, !sc.legacyP510.isEmpty else { return true }
+        let n = Int(simd_length(b - a) / 64) + 1
+        for i in 0...n {
+            let p = a + (b - a) * (Float(i) / Float(n))
+            if !sc.clear(cx: floorDiv(Int(p.x), CS), cz: floorDiv(Int(p.y), CS), reach: reach, guardSet: sc.legacyP510) { return false }
+        }
+        return true
+    }
+
+    // P510 (Nov 1 16:26, "roads everywhere"; 20:40, "now we need some roads... assuming those haven't been added
+    // yet"): a road ran only between towns in neighbouring regions, so a town whose neighbours were empty (half the
+    // small places are left out on new ground, P499) had none, and he flew hundreds of blocks of open country without
+    // meeting one. Past an empty neighbour a road now runs on to the town in the region beyond (up to `farLen`), and
+    // each of the major sites (the Capital's citadels and cities, Greywall bases, Boreal stations) has a road to its
+    // nearest town (up to `siteLen`). Both only on ground no save had before this build.
+    static let farLen: Float = 1300, siteLen: Float = 1100
+    static func farSegment(_ gen: WorldGen, _ rx: Int, _ rz: Int, _ dx: Int, _ dz: Int) -> Seg? {
+        let key = Key(kind: 1, rx: Int32(truncatingIfNeeded: rx), rz: Int32(truncatingIfNeeded: rz), d: Int8((dx + 1) * 3 + dz + 1))
+        let gid = gen.planSerial
+        lock.lock()
+        if cacheGen != gid { cache.removeAll(); cacheGen = gid }
+        if let c = cache[key] { lock.unlock(); return c }
+        lock.unlock()
+        var seg: Seg?
+        if square(gen, rx + dx, rz + dz) == nil, let a = square(gen, rx, rz), let b = square(gen, rx + 2 * dx, rz + 2 * dz),
+           simd_length(b - a) < farLen, freshP510(gen, a, b) {
+            seg = Seg(a: a, b: b, phase: hashf(rx, rz, dx * 7 + dz + 50, UInt32(truncatingIfNeeded: gen.seed) ^ 0x80AD) * 6.28)
+            seg!.bridges = bridges(gen, seg!)
+        }
+        lock.lock(); if cacheGen == gid { cache[key] = seg }; if cache.count > 16384 { cache.removeAll() }; lock.unlock()
+        return seg
+    }
+    static let siteKinds = ["military_base", "capital_city", Greywall.kind, BorealStation.kind]
+    static func siteSegment(_ gen: WorldGen, _ t: StructureType, _ ti: Int, _ rx: Int, _ rz: Int) -> Seg? {
+        let key = Key(kind: 2, rx: Int32(truncatingIfNeeded: rx), rz: Int32(truncatingIfNeeded: rz), d: Int8(ti))
+        let gid = gen.planSerial
+        lock.lock()
+        if cacheGen != gid { cache.removeAll(); cacheGen = gid }
+        if let c = cache[key] { lock.unlock(); return c }
+        lock.unlock()
+        // (a site's start is a heavy plan: never made on the frame thread, where riders ask; the chunks' workers make it)
+        if Thread.isMainThread, let sc = gen.structures, !sc.isCached(t, regionX: rx, regionZ: rz) { return nil }
+        var seg: Seg?
+        if let sc = gen.structures, let o = sc.start(t, regionX: rx, regionZ: rz), o.max.y >= SEA {
+            // From the site's edge nearest the town (its gate side) to the town's square.
+            let mid = V2(Float(o.min.x + o.max.x) / 2, Float(o.min.z + o.max.z) / 2)
+            let span = 34 * CS
+            var best: V2?, bd = siteLen
+            let vx = floorDiv(Int(mid.x), span), vz = floorDiv(Int(mid.y), span)
+            for z in (vz - 2)...(vz + 2) { for x in (vx - 2)...(vx + 2) {
+                guard let q = square(gen, x, z) else { continue }
+                let d = simd_length(q - mid)
+                if d < bd { bd = d; best = q }
+            } }
+            if let b = best {
+                let dir = simd_normalize(b - mid)
+                let half = V2(Float(o.max.x - o.min.x), Float(o.max.z - o.min.z)) * 0.5
+                let out = min(abs(dir.x) > 0.01 ? half.x / abs(dir.x) : 1e9, abs(dir.y) > 0.01 ? half.y / abs(dir.y) : 1e9) + 4
+                let a = mid + dir * out
+                if simd_length(b - a) > 40 && freshP510(gen, a, b) {
+                    seg = Seg(a: a, b: b, phase: hashf(rx, rz, ti + 90, UInt32(truncatingIfNeeded: gen.seed) ^ 0x80AD) * 6.28)
+                    seg!.bridges = bridges(gen, seg!)
+                }
+            }
+        }
+        lock.lock(); if cacheGen == gid { cache[key] = seg }; if cache.count > 16384 { cache.removeAll() }; lock.unlock()
         return seg
     }
 
@@ -81,6 +154,9 @@ enum Roads {
             while e + 1 <= n && wet[e + 1] { e += 1 }
             defer { i = e + 1 }
             guard i > 0, e < n, e - i + 1 <= bridgeMax else { continue }
+            // (only on ground no save had before this build, ramps and all: a road there keeps its old gap)
+            let pa = point(s, Float(max(0, i - 12)) / Float(n)), pb = point(s, Float(min(n, e + 12)) / Float(n))
+            guard freshP510(gen, pa, pb, reach: 1) else { continue }
             let water = (i...e).reduce(Int.min) { max($0, top[$1]) }
             let deck = max(land[i - 1], land[e + 1], water + 2)
             // Out over each bank until the deck, stepping down a block a cell, meets the ground.
@@ -101,14 +177,28 @@ enum Roads {
         let rx0 = floorDiv(x0, span) - 2, rx1 = floorDiv(x1, span) + 1
         let rz0 = floorDiv(z0, span) - 2, rz1 = floorDiv(z1, span) + 1
         var out: [Seg] = []
-        for rz in rz0...rz1 { for rx in rx0...rx1 {
+        func take(_ s: Seg) {
+            let lo = simd_min(s.a, s.b) - V2(repeating: pad + 12), hi = simd_max(s.a, s.b) + V2(repeating: pad + 12)
+            if Float(x1) < lo.x || Float(x0) > hi.x || Float(z1) < lo.y || Float(z0) > hi.y { return }
+            out.append(s)
+        }
+        for rz in (rz0 - 1)...(rz1 + 1) { for rx in (rx0 - 1)...rx1 {
             for (dx, dz) in [(1, 0), (0, 1), (1, 1), (1, -1)] {
-                guard let s = segment(gen, rx, rz, dx, dz) else { continue }
-                let lo = simd_min(s.a, s.b) - V2(repeating: pad + 12), hi = simd_max(s.a, s.b) + V2(repeating: pad + 12)
-                if Float(x1) < lo.x || Float(x0) > hi.x || Float(z1) < lo.y || Float(z0) > hi.y { continue }
-                out.append(s)
+                let inner = rz >= rz0 && rz <= rz1 && rx >= rx0
+                if inner, let s = segment(gen, rx, rz, dx, dz) { take(s) }
+                if let s = farSegment(gen, rx, rz, dx, dz) { take(s) }
             }
         } }
+        // Each major site's road to its town (a site's region; the road reaches siteLen past it).
+        if let sc = gen.structures {
+            for (ti, name) in siteKinds.enumerated() {
+                guard let t = sc.types.first(where: { $0.name == name }) else { continue }
+                let sp = t.spacing * CS, r = Int(siteLen) + Int(pad) + t.reach * CS
+                for rz in floorDiv(z0 - r, sp)...floorDiv(z1 + r, sp) { for rx in floorDiv(x0 - r, sp)...floorDiv(x1 + r, sp) {
+                    if let s = siteSegment(gen, t, ti, rx, rz) { take(s) }
+                } }
+            }
+        }
         return out
     }
 

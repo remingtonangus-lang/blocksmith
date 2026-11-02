@@ -197,6 +197,8 @@ extension Trains {
         tr.troops.removeAll { $0.health <= 0 && $0.mount == nil }
         let aboard = tr.troops.filter { $0.mount != nil && $0.health > 0 }
         guard !aboard.isEmpty else { return }
+        // P510: aboard, he fights them where they sit, car by car (MilitaryTrain); they don't leave it to him.
+        if MilitaryTrain.aboard(g, tr) { tr.roused = true; return }
         let near = tr.cars.contains { simd_length($0.pos - g.player.pos) < 40 }
         let shot = tr.troops.contains { $0.health < $0.spec.health } || tr.cars.contains { $0.variant == gunCar && $0.health < 160 }
         let stood = tr.blocksPerSec < 0.3 && tr.track.at(tr.time).stop == nil

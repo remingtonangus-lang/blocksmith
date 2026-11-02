@@ -565,6 +565,9 @@ enum RideCheck {
             g.mobs.mobs.append(m)
             foes.append(m)
         }
+        // (what its AI would aim at: the foes' side, distance and sight, P510's crawler with rooms saw none)
+        r.note(String(format: "foes: %@; crawler %@ (sight %.0f, retarget %.1f), %.0f blocks to the first", foes.map { "\($0.factionValue)" }.joined(separator: ", "),
+                      "\(s.factionValue)", st.sight, st.retarget, foes.first.map { simd_length($0.pos - s.pos) } ?? -1))
         var out = Set<ObjectIdentifier>()
         var jumps = 0, inside = 0, rampSeen = false
         var last: [ObjectIdentifier: (V3, Bool)] = [:]
