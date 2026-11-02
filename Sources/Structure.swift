@@ -165,7 +165,7 @@ enum Structure {
     }
 
     // (the fill's index of each cell near the check, a box `gridR` round it, reused: a dictionary costs ten times as much)
-    static let gridR = 32, gridW = 2 * gridR + 1
+    static let gridR = 44, gridW = 2 * gridR + 1                // (P510: StructureTip's towers reach 42 up)
     static var grid = [Int32](repeating: -1, count: gridW * gridW * gridW)
 
     // The piece of built blocks at or beside p, and what of it falls. limit/out bound the fill (past them: held).

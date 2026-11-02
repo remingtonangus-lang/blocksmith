@@ -325,6 +325,32 @@ if let out = arg("--view"), let ctx = vkctx {
                          c.x, c.y, c.z, ms, meshed, ring.count, old))
         }
     }
+    // P510 (Nov 1 20:10:52, Snowy Taiga: "What the hell is slowing me down here? Is it the snow?"): --walkspeed SECS
+    // walks him forward from the view's spot on foot (survival, as the game moves him), and prints each second's pace
+    // with what he stands in and on and every multiplier that cuts it.
+    if let secs = Double(arg("--walkspeed") ?? "") {
+        vg.survival = true; vg.paused = false; vg.menu = nil
+        let p = vg.player
+        p.flying = false; p.pitch = 0; p.vel = .zero
+        if let y = Player.clearY(p.pos, vw, collides: { q in vw.collides(q + V3(-0.25, 0, -0.25), q + V3(0.25, 1.8, 0.25)) }) { p.pos.y = y }
+        for _ in 0..<72 { vg.tick(1.0 / 72) }
+        vg.input.keys = [KeyBinds.key(.forward)]
+        defer { vg.input.keys = [] }
+        for s in 0..<Int(secs) {
+            let a = p.pos
+            var inKeys = Set<String>(), onKeys = Set<String>(), ground = 0
+            for _ in 0..<72 {
+                vg.tick(1.0 / 72)
+                let f = IVec3(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
+                inKeys.insert(Blocks.key(vw.materialAt(f.x, f.y, f.z))); onKeys.insert(Blocks.key(vw.materialAt(f.x, Int(floor(p.pos.y - 0.2)), f.z)))
+                if p.onGround { ground += 1 }
+            }
+            let d = p.pos - a
+            print(String(format: "walkspeed: second %d: %.2f b/s across (%.2f up), on the ground %d/72, speedMul %.2f, gun %.2f, grab %.2f; in %@, on %@",
+                         s, simd_length(V2(d.x, d.z)), d.y, ground, p.speedMul, p.gunSlow, HandGrab.slow,
+                         inKeys.sorted().joined(separator: ","), onKeys.sorted().joined(separator: ",")))
+        }
+    }
     // P446 (Oct 25 09:13, "it's freezing every time I break a block", fps 4 mining dirt with a full pack): --digtime N
     // mines N ground cells by the eye as the game mines them (survival, the pack full: a chip and its bite at each crack
     // level, then the break with its drop into the pack, the dig's carve), each step timed on the frame. --bites N first

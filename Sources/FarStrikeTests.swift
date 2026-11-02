@@ -24,7 +24,9 @@ extension MainGunTests {
         for (n, kind) in [(0, 3), (1, 1)] {
             // A chunk 7 east (n = 0) or 7 west (n = 1) of the player, past the active distance (4 chunks) and the 2 more
             // that keep their blocks, made a shell with the chunks round it.
-            let k = ChunkKey(x: pcx + (n == 0 ? 7 : -7), z: pcz)
+            // (one nothing has changed: a chunk the suite's earlier checks wrote to keeps its blocks, suite 63)
+            let k = [0, 2, -2, 4, -4, 6].map { ChunkKey(x: pcx + (n == 0 ? 7 : -7), z: pcz + $0) }
+                .first { k in w.chunks[k].map { !$0.modified && !$0.fieldDirty } ?? false } ?? ChunkKey(x: pcx + (n == 0 ? 7 : -7), z: pcz)
             guard let c = w.chunks[k], !c.hollow else { check(false, "far strike: chunk \(k.x) \(k.z) loaded"); continue }
             // The column nearest the chunk's middle whose top is solid ground ten deep (not a tree's crown over air, a
             // plant or water), chosen while its blocks are still there.
@@ -82,8 +84,8 @@ extension MainGunTests {
             let off = kind == 3 ? simd_length(MainGun.lastImpact - aim) : 0
             let name = kind == 3 ? "a Tidebreaker slug" : "a rail slug"
             check(hollow0 && seen != AIR && Blocks.collide[Int(seen)] && hitAt != nil && off < 4 && removed >= (kind == 3 ? 20 : 5) && (kind != 3 || MainGun.impacts == impacts0 + 1),
-                  String(format: "far strike: %@ fired at a shell chunk's ground stops on it and breaks it (%d of the %d cells %@ broken; impact %.1f blocks off; %d frames, %.0f ms, waiting for its blocks; a shell reads %@ under its heights)",
-                         name, removed, box.count, kind == 3 ? "within 3 of the aim" : "along its line in from the aim", off, waited, waitMs, Blocks.key(seen)))
+                  String(format: "far strike: %@ fired at a shell chunk's ground stops on it and breaks it (%d of the %d cells %@ broken; impact %.1f blocks off; %d frames, %.0f ms, waiting for its blocks; a shell reads %@ under its heights; shell %@, hit %@)",
+                         name, removed, box.count, kind == 3 ? "within 3 of the aim" : "along its line in from the aim", off, waited, waitMs, Blocks.key(seen), hollow0 ? "yes" : "no", hitAt != nil ? "yes" : "no"))
             check(!c.hollow && World.refilledAtOnce == at0,
                   "far strike: \(name)'s chunk got its blocks back on the workers (\(World.refilledAtOnce - at0) on the frame thread)")
             check(w.hot(aim) && !w.hot(home + V3(0, 0, 200)) && w.activeHere(aim) && (w.chunks[k]?.holdData ?? 0) > CFAbsoluteTimeGetCurrent() + 10,
