@@ -413,7 +413,14 @@ final class StructureCache {
         lock.lock()
         if let c = cache[key] { useClock += 1; used[key] = useClock; lock.unlock(); return c }
         lock.unlock()
-        let t0: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
+        let t0: Double = CFAbsoluteTimeGetCurrent()
+        defer {
+            // (store review: a start planned on the frame thread is a hitch; the frame soak names each one)
+            if StructureCache.onFrameThread {
+                let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                if ms > 1 && StructureCache.framePlans.count < 16 { StructureCache.framePlans.append(String(format: "%@ %.0f ms", t.name, ms)) }
+            }
+        }
         let (cx, cz) = candidate(t, rx, rz)
         var s: StructureStart?
         if let keep = StructureCache.keepR22[t.name], WorldRules.p44,
@@ -475,6 +482,7 @@ final class StructureCache {
         return nil
     }
     static var offThreadPlans = 0
+    static var framePlans: [String] = []           // starts planned on the frame thread over 1 ms (the frame soak's report)
     // The game's frame thread (Game.tickSeat notes it each tick), where a region is never planned (structure(at:)).
     private static var frameThreadID: pthread_t?
     static func noteFrameThread() { if frameThreadID == nil { frameThreadID = pthread_self() } }

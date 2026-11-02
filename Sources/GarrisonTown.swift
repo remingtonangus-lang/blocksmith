@@ -78,9 +78,11 @@ enum GarrisonTown {
     }
 
     // The citadel whose row holds (x, z), if any (only citadels that built one).
+    // (Store review: asked once a second on the frame thread, where planning a start is a hitch of tens of ms or more;
+    // answered from the starts already made, the missing ones planned on a worker. City the same.)
     static func citadel(_ g: Game, x: Int, z: Int) -> StructureStart? {
         guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
-              let s = sc.nearest("military_base", x: x, z: z, maxRegions: 1), s.pieces.count > 1 else { return nil }
+              let s = sc.nearestIfReady("military_base", x: x, z: z, maxRegions: 1), s.pieces.count > 1 else { return nil }
         let cx = s.anchor.x, cz = s.anchor.z - CapitalBase.podium - 8
         guard abs(x - cx) <= halfW + 2, z >= cz + roadZ - 2, z <= cz + lotZ + 12 else { return nil }
         return s
@@ -94,7 +96,7 @@ enum GarrisonTown {
     static var forceCity: Bool?          // the host check stands the player in a city
     static func city(_ g: Game, x: Int, z: Int) -> StructureStart? {
         guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
-              let s = sc.nearest("capital_city", x: x, z: z, maxRegions: 1) else { return nil }
+              let s = sc.nearestIfReady("capital_city", x: x, z: z, maxRegions: 1) else { return nil }
         guard x >= s.min.x - 4, x <= s.max.x + 4, z >= s.min.z - 4, z <= s.max.z + 4 else { return nil }
         return s
     }

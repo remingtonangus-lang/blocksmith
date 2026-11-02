@@ -2342,6 +2342,7 @@ extension ShipManager {
         // The ramp down (troops going out, riders walking up): it creeps until it is raised.
         if st.rampDown { speed = min(speed, 1.5) }
         crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: 0.18)
+        TickProf.mark("cap: drive motion")                   // (store review: the drive split for the frame soak)
         crawlerCrush(s, st, dt, g)
     }
 
@@ -2491,7 +2492,7 @@ extension ShipManager {
             World.wearZone(s.id, cx0: floorDiv(Int(floor(lo.x)), CS), cz0: floorDiv(Int(floor(lo.z)), CS),
                            cx1: floorDiv(Int(floor(hi.x)), CS), cz1: floorDiv(Int(floor(hi.z)), CS))
         }
-        if st.wantSpeed > 0.3 && resume == nil { crawlerRuts(s, st) }
+        if st.wantSpeed > 0.3 && resume == nil { crawlerRuts(s, st); TickProf.mark("cap: drive ruts") }
         // (a felled trunk lies as a body for good: one a pass, only where he can see it, and not past a dozen about)
         var felled = simd_length(g.player.pos - s.pos) < 110 ? 0 : 1
         if felled == 0 && world.ships.list.reduce(0, { $0 + (Felling.isFelled($1) && simd_length($1.pos - s.pos) < 160 ? 1 : 0) }) >= 12 { felled = 1 }
@@ -2555,7 +2556,9 @@ extension ShipManager {
                         worn(false)
                         let off = simd_dot(V3(Float(x) + 0.5 - s.pos.x, 0, Float(z) + 0.5 - s.pos.z), simd_cross(fwd, V3(0, 1, 0)))
                         let out = simd_normalize(V3(fwd.x, 0, fwd.z) + simd_cross(fwd, V3(0, 1, 0)) * (off >= 0 ? 1.2 : -1.2) + V3(1e-5, 0, 0))
+                        TickProf.mark("cap: drive sweep")
                         g.topple(trunk, away: out)
+                        TickProf.mark("cap: drive topple")
                         felled += 1; ShipManager.crawlerFelled += 1
                         n += trunk.count
                         if n >= cap { return }
