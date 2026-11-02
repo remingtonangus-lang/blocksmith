@@ -421,6 +421,7 @@ extension ShipManager {
         for s in list where s.root.trainCar == nil && c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
             && c.y < s.worldMax.y + reach && c.z > s.worldMin.z - reach && c.z < s.worldMax.z + reach {
             let lc = s.toLocal(c)
+            defer { if s.kinematic && s.parent == nil { wheelBlast(s, lc, power: power) } }     // P511: big wheels wear (after the blast's own cells)
             let g = s.grid
             var destroyed = Set<IVec3>()
             var shaken: [IVec3: Float] = [:]                // cells that stopped a ray: share of their cost it carried

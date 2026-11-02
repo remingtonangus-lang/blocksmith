@@ -776,7 +776,9 @@ enum PlaytestOct11Tests {
         let far = dists().allSatisfy { $0 >= Reckoning.start.lowerBound - 1 && $0 <= Reckoning.start.upperBound + 1 }
         let begun = Reckoning.stage == 2 && sides.count == Reckoning.Side.allCases.count && units >= 80 && far
         // They close in from every side at once, and come in out of sight, capped.
-        for _ in 0..<40 { Reckoning.tick(g, 10) }
+        // (The clock steps with them: a band refused a spot in his sight waits a second of g.clock before its next try,
+        // and a clock that never moved left every band out the moment its first spot was in view: flaky, P511.)
+        for _ in 0..<40 { g.clock += 10; Reckoning.tick(g, 10) }
         let closing = dists().filter { $0 < Reckoning.near * 1.5 }.count
         let inn = Reckoning.members(g)
         let capped = !inn.isEmpty && inn.count <= Reckoning.liveCap

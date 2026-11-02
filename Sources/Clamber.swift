@@ -20,7 +20,8 @@ extension Player {
         // The ledge's top: the lowest height where his body stands clear just past the face, on something.
         var top: Float? = nil
         var y = pos.y + 0.5
-        while y <= pos.y + Player.clamberHigh + 0.001 {
+        let reach = min(pos.y, clamberBase) + Player.clamberHigh      // (a jump first doesn't lift the reach)
+        while y <= reach + 0.001 {
             let probe = V3(ahead.x, y, ahead.z)
             if !collides(at: probe, w) {
                 if collides(at: probe - V3(0, 0.15, 0), w) { top = y }

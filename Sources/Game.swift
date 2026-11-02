@@ -23,6 +23,7 @@ final class Game {
     var lastHurtAt: Double = -10      // hurt cooldown (reference: 10 ticks of invulnerability after a hit)
     var lastHurtAmount = 0
     var bulletHit = false             // gun rounds ignore the hurt cooldown (each round lands)
+    var sixIronRound = false          // P511: a lawman's round: Protection enchantments soften it by a third at most
     var levelScaled = false           // P358: hurtPlayer already took the level's share (Game.damage doesn't again)
     var levelSecond: Double = -10, levelTaken = 0    // P358: the easy levels' per-second limit (Difficulty.Row.rate)
     private(set) var inventory = PlayerInventory()
@@ -3025,7 +3026,9 @@ final class Game {
         let res = effects.level(.resistance)
         if res > 0 { dmg *= max(0, 1 - 0.2 * Float(res)) }
         if type != .void && type != .starve {
-            let epf = Enchant.protection(inventory.armor, type)
+            // P511 ("Sheriffs barely did anything on hard"): in Duskium with Protection IV all over, the enchantments took
+            // 80% off a six-iron round the armour table had already set: a round a scratch. They take a third at most.
+            let epf = min(Enchant.protection(inventory.armor, type), sixIronRound ? 8 : 20)
             dmg *= 1 - Float(epf) * 0.04
         }
         if absorption > 0 {

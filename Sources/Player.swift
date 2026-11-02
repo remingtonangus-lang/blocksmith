@@ -20,6 +20,7 @@ final class Player {
     var hyperFlight = false         // P478: creative flight with the right stick held in, ten times fast flight (Quest)
     var onGround = false
     var clamber: (t: Float, from: V3, to: V3)? = nil     // P511: pulling himself up over a ledge (Clamber.swift)
+    var clamberBase: Float = 0      // feet y where he last stood: a mid-air clamber reaches no higher than one from there
     var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn eye (ViewStep.swift)
     var steadyY: Float?                             // Steady Saddle: the eased height of the saddle (ViewStep.swift)
     var steadyV: Float = 0, steadyLast: Float = 0   // its eased climb rate and the saddle height last tick
@@ -356,6 +357,7 @@ final class Player {
         jumped = false
         if gliding && (onGround || inFluid || flying) { gliding = false }
         if gliding { glide(dt, w); return }
+        if onGround || flying || inFluid { clamberBase = pos.y }
         if clamber != nil { stepClamber(dt, w); return }       // P511
 
         sneaking = (input.sneak || forcedCrouch || ducking) && !flying && !prone

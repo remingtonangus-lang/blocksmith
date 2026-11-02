@@ -475,6 +475,28 @@ enum MainGunTests {
                 w.ships.pilot = nil; e.throttle = 0
                 check(takeable && est.wheelsLost == 0 && rebuilt >= lost0 && est.disabledWhy.isEmpty && v > 2 && !est.rampDown,
                       String(format: "crawler: a crewless wreck can be taken, %d ingot uses rebuild its %d lost wheels (%d/%d) and engines (%d/%d), and it drives at %.1f b/s with its back ramp up (P511: %@)", rebuilt, lost0, est.wheels.count - est.wheelsLost, est.wheels.count, e.engines, est.engines0, v, est.rampDown ? "down" : "up"))
+                // P511 (Nov 2 12:17, "the crawler wheels, I think they can't be destroyed"): rockets into a great wheel's
+                // outer face wear it as one part; a few burst it (blocks round the hit gone, the wheel lost), the wheel
+                // beside it untouched; an ingot rebuilds it.
+                do {
+                    let wl = est.wheels[0]
+                    let lo = V3(Float(wl.lo.x), Float(wl.lo.y), Float(wl.lo.z)), hi = V3(Float(wl.hi.x + 1), Float(wl.hi.y + 1), Float(wl.hi.z + 1))
+                    let mid = (lo + hi) * 0.5
+                    let out: Float = mid.x < e.com.x ? -1 : 1
+                    let face = e.toWorld(V3(out < 0 ? lo.x - 0.4 : hi.x + 0.4, mid.y, mid.z))
+                    let burst0 = ShipManager.wheelsBurst, others = est.wheels.dropFirst().map { $0.n }
+                    var rockets = 0
+                    while rockets < 12 && !est.wheels[0].lost { w.ships.blast(at: face, power: Guns.rocketPower, game: g); rockets += 1 }
+                    w.ships.capitalTick(1.0 / 72, game: g)
+                    est.wheelTimer = 0
+                    w.ships.capitalTick(1.0 / 72, game: g)
+                    let left = est.wheels[0].n, kept = Array(est.wheels.dropFirst().map { $0.n }) == others
+                    check(est.wheels[0].lost && rockets <= 6 && rockets >= 3 && ShipManager.wheelsBurst == burst0 + 1 && left < est.wheels[0].n0 && kept && est.wheelsLost == 1,
+                          "crawler: \(rockets) rockets into a great wheel's face burst it (\(est.wheels[0].n0) -> \(left) tyre blocks, lost: \(est.wheels[0].lost)); the others untouched (\(kept)), \(est.wheelsLost) of \(est.wheels.count) lost")
+                    var fixes = 0
+                    while fixes < 4, w.ships.repairVehicle(e, near: IVec3(Int(mid.x), Int(mid.y), Int(mid.z))) != nil, est.wheelsLost > 0 { fixes += 1 }
+                    check(est.wheelsLost == 0 && est.wheels[0].wear == 0, "crawler: an ingot rebuilds the burst wheel (\(fixes) uses, \(est.wheelsLost) lost)")
+                }
                 // P510 (Nov 1 20:29-20:30: "It should be able to go into water no problem"): a lake ahead of it, eight deep;
                 // under his hand it drives in and on through it instead of stopping short at the shore.
                 do {

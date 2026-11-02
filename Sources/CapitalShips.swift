@@ -194,7 +194,9 @@ struct VehicleWheel {
     var n0: Int
     var n: Int
     var orig: [BlockID] = []   // the part's cells as built (T9: a repair puts the missing ones back)
-    var lost: Bool { n * 2 < n0 }
+    var wear: Float = 0        // P511: blast damage taken as one part (ShipManager.wheelBlast)
+    var burst = false          // worn through: lost however many of its blocks still stand
+    var lost: Bool { n * 2 < n0 || burst }
 }
 
 struct CapTarget {
@@ -1106,7 +1108,7 @@ extension ShipManager {
         guard s.captured, let st = capState[s.id], !st.wheels.isEmpty || st.engines0 > 0 else { return nil }
         let at = V3(Float(cell.x), Float(cell.y), Float(cell.z))
         var best = -1, bd = Float.greatestFiniteMagnitude
-        for (k, w) in st.wheels.enumerated() where w.n < w.n0 && !w.orig.isEmpty {
+        for (k, w) in st.wheels.enumerated() where (w.n < w.n0 || w.burst || w.wear > 0) && !w.orig.isEmpty {
             let c = (V3(Float(w.lo.x), Float(w.lo.y), Float(w.lo.z)) + V3(Float(w.hi.x), Float(w.hi.y), Float(w.hi.z))) * 0.5
             let d = simd_length(c - at)
             if d < bd { bd = d; best = k }
@@ -1122,6 +1124,7 @@ extension ShipManager {
             } } }
             if w.part < s.wheelParts.count, s.wheelParts[w.part].blocks.count == w.orig.count { s.wheelParts[w.part].blocks = w.orig }
             st.wheels[best].n = w.n0
+            st.wheels[best].wear = 0; st.wheels[best].burst = false
             s.wheelGen += 1
             st.wheelTimer = 0
             what = "Wheel rebuilt (\(st.wheels.count - st.wheelsLost)/\(st.wheels.count) wheels)"
@@ -1239,6 +1242,39 @@ extension ShipManager {
         if let k = hullShare(s, st) { what += String(format: " (hull %d%%)", Int((k * 100).rounded(.down))) }
         return what
     }
+
+    // P511 (Nov 2 12:17, "the crawler wheels, I think they can't be destroyed or something, maybe we can fix that so
+    // that they get damaged"): a great wheel is some 600 tyre blocks and was lost only at half of them, past what any
+    // gun of his gets through. Blasts now wear a big wheel down as one part: each takes its strength, less with the
+    // distance, off every wheel it reaches; at wheelHP the tyre bursts: the blocks round the hit go, the wheel counts
+    // as lost (the hull sags onto it, the drive slows, half the wheels gone and it stops), and an ingot rebuilds it.
+    static let wheelHP: Float = 18, bigWheel = 40
+    func wheelBlast(_ s: Ship, _ lc: V3, power: Float) {
+        guard s.parent == nil, let st = capState[s.id], !st.wheels.isEmpty else { return }
+        let reach = power * 1.5 + 1
+        for k in st.wheels.indices where !st.wheels[k].lost && st.wheels[k].n0 > ShipManager.bigWheel {
+            let w = st.wheels[k]
+            let lo = V3(Float(w.lo.x), Float(w.lo.y), Float(w.lo.z))
+            let hi = V3(Float(w.hi.x + 1), Float(w.hi.y + 1), Float(w.hi.z + 1))
+            let near = simd_clamp(lc, lo, hi)
+            let d = simd_length(lc - near)
+            guard d < reach else { continue }
+            let hit: Float = power * (1 - d / reach)
+            st.wheels[k].wear += hit
+            guard st.wheels[k].wear >= ShipManager.wheelHP else { continue }
+            st.wheels[k].burst = true
+            var gone = Set<IVec3>()
+            let kinds = ShipParts.kinds
+            for y in w.lo.y...w.hi.y { for z in w.lo.z...w.hi.z { for x in w.lo.x...w.hi.x {
+                let c = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                if simd_length(c - near) < 3.6 && kinds[Int(s.grid.get(x, y, z))] == .wheel { gone.insert(IVec3(x, y, z)) }
+            } } }
+            if !gone.isEmpty { removeCells(s, gone, chipped: [], center: s.toWorld(near), power: power, game: nil, detach: false) }   // (no hundred tyres on the ground)
+            st.wheelTimer = 0
+            ShipManager.wheelsBurst += 1
+        }
+    }
+    static var wheelsBurst = 0                                 // (checks)
 
     func trackWheels(_ s: Ship, _ st: CapitalState, _ dt: Float) {
         st.wheelTimer -= dt

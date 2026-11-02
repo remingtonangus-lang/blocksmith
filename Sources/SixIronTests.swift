@@ -167,6 +167,18 @@ extension TownTests {
         check(dodgeHits == 0 && proneHits <= 1, "six-iron: a step aside dodges it (\(dodgeHits)/10 hit), crawling too (\(proneHits)/10)")
         check(reloading, "six-iron: six rounds, then a reload")
         check(!arm.isEmpty, "six-iron: the model builds mid-duel")
+        // P511 (Nov 2 12:13, "Sheriffs barely did anything on hard difficulty"): on Hard the fight opens with a real round
+        // (the line, no warning over his head), and he draws and fires quicker.
+        g.difficulty = 3
+        s.town.warned = false; s.town.fired = 0
+        let w1 = SixIron.warnings
+        var hardAim: Float = 0
+        let hard = round { hardAim = s.town.aim }
+        let hardCD = s.attackCooldown
+        g.difficulty = 2
+        check(hard.aimed && hard.hit && SixIron.warnings == w1 + 1 && hardAim < SixIron.aimTime * 0.9 && hardCD < SixIron.cooldown * 0.9,
+              String(format: "six-iron: on Hard his first round is meant (hit %@), his aim %.2f s (%.2f on Normal), %.2f s between rounds (%.2f)",
+                     hard.hit ? "yes" : "no", hardAim, SixIron.aimTime, hardCD, SixIron.cooldown))
         g.player.pos = base
     }
 
