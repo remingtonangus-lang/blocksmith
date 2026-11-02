@@ -199,6 +199,7 @@ enum Explosion {
                 w.igniteFuel(q); lit += 1
             } } }
         }
+        Explosion.lap("fluids, fuel")
         // P503: what stood over the hole is weighed (StructureTip): a top shot out from under it tips and falls.
         if !destroyed.isEmpty {
             let far = destroyed.reduce(Float(1)) { max($0, simd_length(V3(Float($1.x), Float($1.y), Float($1.z)) + 0.5 - c)) }
@@ -225,6 +226,7 @@ enum Explosion {
                     for s in Explosion.blastDrops(b) { g.drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
                 }
             }
+            Explosion.lap("bowl")
             // P508 (questcheck craterplace: 3 to 6 a crater, as the rays fell): round the bowls' edge the field drew some
             // ground cells as a dot of rock (their middle barely inside it), each a block the eye sees past and a click
             // refuses; they open as the bowl did.
@@ -238,6 +240,7 @@ enum Explosion {
                     carved.insert(q); dots.append(q)
                 } } }
             }
+            Explosion.lap("rim scan")
             for q in dots { w.setBlockAsync(q.x, q.y, q.z, AIR); w.fieldShape(q.x, q.y, q.z, opened: true) }
             // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
             // surface in to a block and a half past its radius)
@@ -248,7 +251,7 @@ enum Explosion {
         } else {
             for b in opened { w.fieldShape(b.x, b.y, b.z, opened: true) }
         }
-        Explosion.lap("fluids, carve")
+        Explosion.lap("rim, opened")
         // Progressive block damage: blocks the blast couldn't break lose pieces on the side facing it.
         if Settings.shared.chipping {
             var bits = 0
