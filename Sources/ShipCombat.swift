@@ -288,11 +288,14 @@ extension ShipManager {
             if sh.age < sh.life && sh.pos.y > -64 { keep.append(sh) }
         }
         shells = keep
+        TickProf.mark("shells: flight")
         for (p, power, owner, onHull, kind, gentle, vel) in blasts {
             if kind == 3, let g = game {
                 let hit = onHull ? list.first(where: { $0.root.id != owner && shipBlock(in: $0, at: p) }) : nil
                 mainGunImpact(at: p, owner: owner, game: g, along: vel)
+                TickProf.mark("shells: main gun impact")
                 mainGunHullDamage(at: p, owner: owner, direct: hit, game: g)
+                TickProf.mark("shells: main gun hull")
                 continue
             }
             if let g = game {
@@ -310,15 +313,18 @@ extension ShipManager {
                 if kind == 5 { g.depthChargeBurst(at: p, power: power, owner: owner) }     // P278: boom, plume, pressure wave
                 // P499: a rail slug drives on through what it struck and bursts where it stops.
                 let at = kind == 1 && !onHull && !gentle ? railBore(from: p, along: vel, game: g) : p
+                TickProf.mark("shells: bursts")
                 // P507 (Nov 1 12:27:33, his frigate's autocannons on a Capital tower: "Frigate's little guns didn't do enough
                 // damage to this building"): shells from a gun he steers are high-explosive and breach as his rockets do
                 // (a wall's blocks stand to them as if no harder than Guns.rocketBreach; a Capital Steel wall's 12 broke none).
                 Explosion.explode(at: at, power: power, game: g, breakBlocks: !gentle, resistCap: steered ? Guns.rocketBreach : .infinity,
                                   along: onHull ? nil : vel)   // (P357 e)
+                TickProf.mark("shells: explode")
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
                 // scratched paint, Quest round 4).
                 if onHull && from?.root.kinematic == true { blast(at: p, power: power * 1.5, game: g) }
+                TickProf.mark("shells: hull blast")
             } else if !gentle { blast(at: p, power: power, game: nil) }
         }
     }

@@ -281,9 +281,17 @@ enum QuestFrameSoak {
         var cpu: [Double] = [], ticks: [Double] = [], recs: [Double] = [], quads: [Double] = [], draws: [Double] = []
         var slow: [Slow] = []
         var misses = 0, run = 0, longest = 0
+        // (the frame thread's own CPU time too: on the 4-core host the mesh and gen workers can take its core for a few
+        // ms; a missed frame whose CPU time fits the budget was the host's scheduler, not the game's work)
+        var cpuMisses = 0, cpuRun = 0, cpuLongest = 0
+        @inline(__always) func threadMs() -> Double {
+            var ts = timespec()
+            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts)
+            return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6
+        }
         let frames = secs * 72
         let warm = 3 * 72                                                    // (the first 3 s: first meshes in, not counted)
-        World.resultsWorstMs = 0; World.resultsWorst = ""
+        World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""
         let t0 = CFAbsoluteTimeGetCurrent()
         var mobsPeak = 0, shellsPeak = 0
         var stages: [String: (Double, Double)] = [:]
@@ -294,6 +302,7 @@ enum QuestFrameSoak {
             g.input.captured = true
             sc.step(g, f)
             let a = CFAbsoluteTimeGetCurrent()
+            let ta = threadMs()
             g.tick(dt)
             let tk = (CFAbsoluteTimeGetCurrent() - a) * 1000
             let tickWhy = TickProf.summary()
@@ -309,9 +318,11 @@ enum QuestFrameSoak {
             wr.record(s, targets[f % 2], camera())
             let rc = (CFAbsoluteTimeGetCurrent() - b) * 1000
             vkCmdEndRenderPass(s.cmd)
+            let own = threadMs() - ta
             try scene.submit(s)
             if f >= warm {
                 let c = tk + rc
+                if own * questFactor > budgetMs { cpuMisses += 1; cpuRun += 1; cpuLongest = max(cpuLongest, cpuRun) } else { cpuRun = 0 }
                 cpu.append(c); ticks.append(tk); recs.append(rc)
                 quads.append(Double(scene.drawnQuads)); draws.append(Double(scene.drawCalls))
                 mobsPeak = max(mobsPeak, g.mobs.mobs.count); shellsPeak = max(shellsPeak, g.world.ships.shells.count)
@@ -321,7 +332,7 @@ enum QuestFrameSoak {
                         let st = wr.stageFrame
                         let top = st.indices.sorted { st[$0] > st[$1] }.prefix(2)
                             .map { "\(WorldRenderer.stageNames[min($0, WorldRenderer.stageNames.count - 1)]) \(String(format: "%.1f", st[$0]))" }.joined(separator: " + ")
-                        slow.append(Slow(cpu: c, tick: tk, record: rc, why: "tick: \(tickWhy); record: \(top)"))
+                        slow.append(Slow(cpu: c, tick: tk, record: rc, why: "tick: \(tickWhy); record: \(top); own CPU \(String(format: "%.1f", own))"))
                     }
                 } else { run = 0 }
             }
@@ -340,10 +351,15 @@ enum QuestFrameSoak {
                      recs.reduce(0, +) / n, pct(recs, 99), recs.max() ?? 0))
         print(String(format: "    headset estimate: mean %.1f ms, p99 %.1f ms, worst %.0f ms; %d frames of %d over %.1f ms (%.2f%%), longest run %d",
                      mean * questFactor, pct(cpu, 99) * questFactor, (cpu.max() ?? 0) * questFactor, misses, cpu.count, budgetMs, Double(misses) * 100 / n, longest))
+        print(String(format: "    by the frame thread's own CPU time: %d frames over (%.2f%%), longest run %d (the rest of the misses: the host's scheduler)",
+                     cpuMisses, Double(cpuMisses) * 100 / n, cpuLongest))
         print(String(format: "    GPU load: quads p50 %.0fk p95 %.0fk max %.0fk; draws p50 %.0f p95 %.0f max %.0f",
                      pct(quads, 50) / 1000, pct(quads, 95) / 1000, (quads.max() ?? 0) / 1000, pct(draws, 50), pct(draws, 95), draws.max() ?? 0))
         print("    tick stages (mean/worst ms): " + stages.sorted { $0.value.0 > $1.value.0 }.prefix(10)
             .map { "\($0.key) \(String(format: "%.2f/%.1f", $0.value.0 / n, $0.value.1))" }.joined(separator: ", "))
+        print("    tick stages by worst (ms): " + stages.sorted { $0.value.1 > $1.value.1 }.prefix(8)
+            .map { "\($0.key) \(String(format: "%.1f", $0.value.1))" }.joined(separator: ", "))
+        if Explosion.worstMs > 0 { print(String(format: "    slowest blast: %.1f ms (%@)", Explosion.worstMs, Explosion.worstLaps)) }
         print("    record stages (ms a frame): " + wr.takeStages())
         print(String(format: "    slowest hand-over of a finished job: %.1f ms (%@)", World.resultsWorstMs, World.resultsWorst))
         // What the slow frames were doing: the most common slowest stage, and the five slowest frames.
