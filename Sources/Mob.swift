@@ -542,6 +542,8 @@ final class Mob {
     var shieldIdle: Float = 0, shieldLock: Float = 0
     var shieldFx: Int8 = 0          // this update's shield effect: 1 flare, 2 pop (drawn by navyTick, which has the game)
     var hired = false               // a companion following the player (Companions.swift, O2)
+    var routed = false              // P511: his garrison broke (Rout.swift): running from the player, not fighting
+    var fledClear = false           // P511: ... and clear of him: removed at the next despawn pass
     weak var companionFoe: Mob?     // ... the threat it is firing on
     var troop: Int8 = -1            // troop class (TroopClasses.swift): -1 not yet decided, 0 none, 1 regular, 2 spec ops, 3 Hannibal
     var troopSeg = SIMD3<Float>(0, 0, 0)    // helmet, chest, legs armour left
@@ -2902,6 +2904,7 @@ final class MobManager {
         Hulks.tick(game, dt)                                     // P473 (after the bodies' boxes)
         mobs.removeAll { m in
             if m.health <= 0 { addCorpse(m, game); return true }
+            if m.routed && m.fledClear { return true }          // P511: fled from a broken garrison (Rout), not stashed
             // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
             // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
             if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }

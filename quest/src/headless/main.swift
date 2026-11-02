@@ -2098,6 +2098,10 @@ if CommandLine.arguments.contains("--musictakes") {             // P457: several
     MusicTakesCheck.run(game, check)
     print(failures == 0 ? "musictakes: all checks passed" : "musictakes: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--rout") {                  // P511: a broken garrison runs
+    RoutCheck.run(game, check)
+    print(failures == 0 ? "rout: all checks passed" : "rout: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--chasehull") {              // P449: the big ship's chase view outside its hull
     ChaseHullCheck.run(game, check)
     print(failures == 0 ? "chasehull: all checks passed" : "chasehull: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -2576,6 +2580,7 @@ if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
 CraterPlaceCheck.run(game, check)                      // P507: blocks go down in a rocket's bowl
 GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through
 ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift car riding its shaft
+RoutCheck.run(game, check)                             // P511: four in five of a garrison down, the rest run
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest

@@ -18,8 +18,11 @@ import simd
 // peaceful). A raised shield still blocks a round (and wears for it).
 enum SixIron {
     static let reach: Float = 22                 // blocks: deadly at range
-    static let aimTime: Float = 0.65             // seconds from the telegraph to the shot
-    static let cooldown: Float = 1.1             // seconds between a shot and the next telegraph
+    // P511 (Nov 2 08:38:54-08:39:03, in Duskium: "the sheriffs... need to do more damage, be more aggressive. It's too
+    // easy to take a village captive"): a quicker draw and quicker shots (0.65 and 1.1 s before), and titanium and up
+    // takes real hits (below).
+    static let aimTime: Float = 0.5              // seconds from the telegraph to the shot
+    static let cooldown: Float = 0.8             // seconds between a shot and the next telegraph
     static let reloadTime: Float = 2.4
     static let rounds = 6
     static let lethal = 999                      // "one shot": past every reduction (only a totem saves you)
@@ -52,7 +55,7 @@ enum SixIron {
     //                      through you... Two shots to kill you on normal"); easy 7 (3 shots), hard one shot
     //   iron (1.0):        8   -> 3 shots
     //   steel (~2.0):      1   -> chip damage (P459: steel near titanium)
-    //   titanium (~2.3):   1   -> 20 shots (chip damage)
+    //   titanium (~2.3):   3   -> 7 shots (P511: it was 1, chip damage)
     static func damage(score: Float, difficulty: Int) -> Int {
         guard difficulty > 0 else { return 0 }
         switch tier(score) {
@@ -63,7 +66,10 @@ enum SixIron {
             let m: Float = difficulty == 1 ? 0.65 : difficulty == 3 ? 1.35 : 1
             return max(2, Int((base * m).rounded()))
         case .hard:
-            return difficulty == 3 ? 2 : 1
+            // P511: a hit in titanium or Duskium hurts (it was a scratch, 1 on normal: twenty rounds to drop him, so a
+            // town's sheriff and deputies were no threat at all): 3 on normal (seven rounds, a reload and a bit), 2 on
+            // easy, 4 on hard.
+            return difficulty == 1 ? 2 : difficulty == 3 ? 4 : 3
         }
     }
 

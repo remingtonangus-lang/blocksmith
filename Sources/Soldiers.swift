@@ -355,6 +355,7 @@ extension Mob {
     // Called from monsterAI for the four ranks; returns the walk speed.
     func soldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         if hired { return companionAI(dt, g) }                       // O2: a companion (Companions.swift)
+        if let sp = Rout.step(self, dt, g) { return sp }              // P511: his garrison broke
         // P435 (Oct 24 15:56, in the Ash Vault: "That guy is holding a capital gun, I think. It's not right"): an
         // Ashguard soldier only ever carries the army's period arms, whatever handed him another gun after ashSetup.
         if faction == Faction.ashguard.rawValue && !Guns.isAshArm(variant) && Soldier.rank(kind) != nil {

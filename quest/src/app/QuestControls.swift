@@ -481,7 +481,12 @@ final class QuestControls {
         }
         // Grips step the hotbar: left = previous slot, right = next (a press; at a ship's helm the left grip descends).
         let lGrip = gripBtn[0].down, rGrip = gripBtn[1].down
-        for i in 0..<2 where gripBtn[i].value < 0.25 { gripOpenAt[i] = game.clock }
+        // P511 (Nov 2 08:28:50 "There was a giant delay where I couldn't left grip", 08:33:15, 08:33:34 "That grip left thing,
+        // that's gotta be fixed"): a press counted only after the hand had opened under a quarter in the half second
+        // before it. A quick re-grip from a hand only eased off (the Touch grip springs back to about a third) was
+        // ignored until he opened his hand all the way. Under 0.4 is open: a hand still round a gun's grip after
+        // easing off stays well over it (VRButton lets go at 0.3 under the peak).
+        for i in 0..<2 where gripBtn[i].value < 0.4 { gripOpenAt[i] = game.clock }
         // P177: a grip with the hand on a small creature picks it up (let go to throw it); on a carcass, drags it
         // (HandGrab.swift). Those grips don't step the hotbar.
         var handGrab = false
@@ -635,8 +640,8 @@ final class QuestControls {
             // with anything or nothing in the hand. A grip held to hold a gun never steps. P371: a held, swung right grip
             // throws what isn't a gun.
             // (Only from an open hand: squeezing harder round a held gun after easing off reads as a new press.)
-            if lGrip && !prevGripL && game.clock - gripOpenAt[0] < 0.5 { lHoldAt = game.clock; lBraced = braceRot != nil }
-            if rGrip && !prevGripR && game.clock - gripOpenAt[1] < 0.5 { rHoldAt = game.clock; rThrows = !game.held.isEmpty && game.heldGun == nil && R.gripValid }
+            if lGrip && !prevGripL && game.clock - gripOpenAt[0] < 0.75 { lHoldAt = game.clock; lBraced = braceRot != nil }
+            if rGrip && !prevGripR && game.clock - gripOpenAt[1] < 0.75 { rHoldAt = game.clock; rThrows = !game.held.isEmpty && game.heldGun == nil && R.gripValid }
             if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
         } else { lHoldAt = -1; rHoldAt = -1 }
         if lGrip && braceRot != nil { lBraced = true }

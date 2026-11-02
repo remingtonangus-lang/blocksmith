@@ -45,13 +45,13 @@ extension TownTests {
         check(soft.allSatisfy { row[$0] == 10 }, "iron rule: below iron two rounds kill on normal (\(soft.map { "\($0) \(row[$0] ?? -1)" }.joined(separator: ", ")))")
         let iron = row["iron"] ?? 0, steel = row["steel"] ?? 0
         check(iron * 3 >= 20 && iron * 2 < 20, "iron rule: a full iron set takes \(iron) a round: three shots kill")
-        check(steel < iron && steel <= 2, "iron rule: steel takes \(steel) a round: near titanium (P459)")
-        check((row["titanium"] ?? 99) <= 1 && (row["Duskium"] ?? 99) <= 1, "iron rule: titanium and Duskium take chip damage (\(row["titanium"] ?? -1), \(row["Duskium"] ?? -1))")
+        check(steel < iron && steel <= 3, "iron rule: steel takes \(steel) a round: as titanium (P459, P511)")
+        check((row["titanium"] ?? 99) == 3 && (row["Duskium"] ?? 99) == 3 && iron > 3, "iron rule: titanium and Duskium take 3 a round, seven to drop him, iron more (P511: \(row["titanium"] ?? -1), \(row["Duskium"] ?? -1))")
         let leather = SixIron.armourScore(SixIron.fullSet("leather")), ti = SixIron.armourScore(SixIron.fullSet("diamond"))
         check(SixIron.damage(score: leather, difficulty: 1) == 7 && SixIron.damage(score: leather, difficulty: 3) == SixIron.lethal
               && SixIron.damage(score: leather, difficulty: 0) == 0
-              && SixIron.damage(score: ti, difficulty: 3) == 2,
-              "iron rule: below iron three shots on easy, one on hard; nothing on peaceful; titanium 2 on hard")
+              && SixIron.damage(score: ti, difficulty: 3) == 4,
+              "iron rule: below iron three shots on easy, one on hard; nothing on peaceful; titanium 4 on hard")
         // Iron with leather boots is iron; iron without boots isn't.
         var mixed = SixIron.fullSet("iron"); mixed[3] = SixIron.fullSet("leather")[3]
         var bare = SixIron.fullSet("iron"); bare[3] = .empty
