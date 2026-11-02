@@ -208,8 +208,15 @@ extension Game {
                 let wide = k.key.hasPrefix("ash_")
                 var q = xz
                 if f.hunting && d > 90 { q = V2(p.x, p.z) + (xz - V2(p.x, p.z)) / d * Rand.float(in: 80...95) }
-                guard let y = AshColumns.ground(self, Int(floor(q.x)), Int(floor(q.y)), wide: wide) else { continue }
-                let at = V3(floor(q.x) + 0.5, y, floor(q.y) + 0.5)
+                // (P509: a vehicle's own cell on a boulder, a stump or a shell hole: the next clear cell within three
+                // of its slot. The division came on with 4 of its 7 vehicles when its line crossed rough floor.)
+                var spot: (Int, Int, Float)?
+                let cx = Int(floor(q.x)), cz = Int(floor(q.y))
+                search: for r in 0...(wide ? 3 : 1) { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                    if let y = AshColumns.ground(self, cx + dx, cz + dz, wide: wide) { spot = (cx + dx, cz + dz, y); break search }
+                } } }
+                guard let (sx, sz, y) = spot else { continue }
+                let at = V3(Float(sx) + 0.5, y, Float(sz) + 0.5)
                 guard spawnHidden(at, min: 40, near: 56, clear: 128), let m = Mob.structureMob(k.key + "@ash", at: at) else { continue }
                 m.persistent = false                    // (never saved)
                 m.waveUnit = true                       // (never despawned while it marches)
