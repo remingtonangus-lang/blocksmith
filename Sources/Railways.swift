@@ -310,7 +310,11 @@ enum Railways {
     // surface structure's pieces (4 blocks off), the open sea and ground a save had before links. It leaves a east along
     // a's row for 16 blocks and comes into b the same way. The cells, one step apart (nil: no way within the search).
     static let routeCell = 16
-    static let routeWander = 24 * 16                  // how far off its rows a link may go round things (linksNear looks as far)
+    static let routeWander = 40 * 16                  // how far off its rows a link may go round things (linksNear looks as far)
+    // P510 (the link check on build 77: of 48 links with no way round, nearly all were walled in by the sea, a lake or a
+    // coast across the whole band, and the band's edges): a link may cross open water on a trestle for up to seaRun
+    // squares together (a bridge as a line takes over a lake), each such square costing seaCost.
+    static let seaRun = 6, seaCost: Int32 = 6
     static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int)) -> [(Int, Int)]? {
         let G = routeCell
         // (the way's ends on the middles of their squares' columns: 9-24 blocks out from each line's end)
@@ -338,19 +342,21 @@ enum Railways {
                 }
             } }
         }
-        // The sea and old ground, looked at as the search reaches each square (0 not yet, 1 clear, 2 not).
+        // Old ground and the sea, looked at as the search reaches each square (0 not yet, 1 clear, 2 old ground, 3 sea:
+        // crossed on a trestle at a cost).
         var looked = [UInt8](repeating: 0, count: nx * nz)
         func open(_ i: Int) -> Bool {
             if blocked[i] { return false }
             if looked[i] == 0 {
                 let x = (gx0 + i % nx) * G + G / 2, z = (gz0 + i / nx) * G + G / 2
-                var ok = !gen.column(x, z).biome.isOcean
                 let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
-                if ok && !sc.legacyC1.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyC1) { ok = false }
-                if ok && !sc.legacyP510.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyP510) { ok = false }
-                looked[i] = ok ? 1 : 2
+                var v: UInt8 = 1
+                if !sc.legacyC1.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyC1) { v = 2 }
+                if v == 1 && !sc.legacyP510.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyP510) { v = 2 }
+                if v == 1 { let b = gen.column(x, z).biome; if b.isDeepOcean { v = 4 } else if b.isOcean { v = 3 } }   // (no legs down into the deep sea)
+                looked[i] = v
             }
-            return looked[i] == 1
+            return looked[i] == 1 || looked[i] == 3
         }
         let start = (floorDiv(s0.1, G) - gz0) * nx + (floorDiv(s0.0, G) - gx0)
         let goal = (floorDiv(e0.1, G) - gz0) * nx + (floorDiv(e0.0, G) - gx0)
@@ -389,14 +395,14 @@ enum Railways {
             if f - h(i) > cost[si] { continue }
             if i == goal && d == 0 { end = si; break }
             expanded += 1
-            if expanded > 300_000 { tally?("link route: search cap"); return nil }
+            if expanded > 600_000 { tally?("link route: search cap"); return nil }
             let x = i % nx, z = i / nx
             for nd in 0..<4 where nd != (d + 2) % 4 {
                 let x2 = x + dx[nd], z2 = z + dz[nd]
                 guard x2 >= 0 && x2 < nx && z2 >= 0 && z2 < nz else { continue }
                 let j = z2 * nx + x2
                 guard open(j) else { continue }
-                let c2 = cost[si] + 1 + (nd == d ? 0 : turnCost)
+                let c2 = cost[si] + 1 + (nd == d ? 0 : turnCost) + (looked[j] == 3 ? seaCost : 0)
                 let sj = j * 4 + nd
                 if c2 < cost[sj] { cost[sj] = c2; from[sj] = Int32(si); push(c2 + h(j), Int32(sj)) }
             }
@@ -416,10 +422,8 @@ enum Railways {
                         let j = z2 * nx + x2
                         if reached[j] { continue }
                         if blocked[j] { wall[blockedBy[j] > 0 ? sc.types[Int(blockedBy[j]) - 1].name : "?", default: 0] += 1 }
-                        else if looked[j] == 2 {
-                            let x = (gx0 + j % nx) * G + G / 2, z = (gz0 + j / nx) * G + G / 2
-                            wall[gen.column(x, z).biome.isOcean ? "sea" : "old ground", default: 0] += 1
-                        }
+                        else if looked[j] == 2 { wall["old ground", default: 0] += 1 }
+                        else if looked[j] == 4 { wall["deep sea", default: 0] += 1 }
                     }
                 }
                 let gw = goal % nx > 0 ? (open(goal - 1) ? "open" : "shut") : "edge"
@@ -433,6 +437,10 @@ enum Railways {
         var c = end
         while c >= 0 { squares.append(c / 4); c = Int(from[c]) }
         squares.reverse()
+        // (no open water longer than a trestle takes)
+        var wet = 0, wettest = 0
+        for q in squares { wet = looked[q] == 3 ? wet + 1 : 0; wettest = max(wettest, wet) }
+        if wettest > seaRun { tally?("link route: over the sea (\(wettest) squares at a stretch)"); return nil }
         // The corners (squares where the way turns), as block points on the squares' middles; the ends on the rows.
         var pts: [(Int, Int)] = [s0]
         for k in 1..<max(1, squares.count - 1) {
