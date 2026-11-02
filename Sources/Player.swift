@@ -273,6 +273,10 @@ final class Player {
         if swimming {
             if !(wet && input.sprint && input.forward > 0) || flying { swimming = false }
         } else if !flying && input.sprint && input.forward > 0 && headInWater { swimming = true }
+        // P511: the pose probes meet leaves and limbs as his walk does (passed through), so a limb at head height no
+        // longer drops him to a crawl at a third of his pace (the brush check's limb grown up from another).
+        let softWas = w.foliageSoft
+        w.foliageSoft = !flying
         func fits(_ h: Float) -> Bool { !w.collides(V3(pos.x - halfW, pos.y, pos.z - halfW), V3(pos.x + halfW, pos.y + h, pos.z + halfW)) }
         crawling = !flying && !swimming && !gliding && fits(0.6) && !fits(1.5)
         // P179 (Oct 13: "crouching down should make it so I can get through caves easier"): sneaking into a gap too low
@@ -303,6 +307,7 @@ final class Player {
             }
         }
         let forcedCrouch = !flying && !prone && fits(1.5) && !fits(1.8)
+        w.foliageSoft = softWas
 
         // Unstuck: if spawned or placed inside a block, pop upward. A hair's overlap with a wall first slides out
         // sideways: on a moving vehicle the ship-frame round trip leaves the body ~1e-4 inside the wall it walks

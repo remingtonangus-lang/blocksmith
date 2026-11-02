@@ -24,6 +24,20 @@ enum BrushCheck {
         } }
         defer { for (x, yy, z, b) in saved.reversed() { w.setBlock(x, yy, z, b) } }
         var slow: [String] = []                              // (where the pace dropped: x along the lane, speed, feet height, on ground)
+        // What the body meets a tenth of a block ahead, as the walk meets it (leaves and limbs passed through).
+        func blockers() -> String {
+            let was = w.foliageSoft; w.foliageSoft = true; defer { w.foliageSoft = was }
+            let mn = V3(p.pos.x - p.halfW + 0.1, p.pos.y + 0.05, p.pos.z - p.halfW), mx = V3(p.pos.x + p.halfW + 0.1, p.pos.y + p.height, p.pos.z + p.halfW)
+            var out: [String] = []
+            for yy in Int(floor(mn.y))...Int(floor(mx.y)) { for z in Int(floor(mn.z))...Int(floor(mx.z)) { for x in Int(floor(mn.x))...Int(floor(mx.x)) {
+                var bx: [(V3, V3)] = []
+                w.collisionBoxes(x, yy, z, &bx)
+                if bx.contains(where: { $0.0.x < mx.x && $0.1.x > mn.x && $0.0.y < mx.y && $0.1.y > mn.y && $0.0.z < mx.z && $0.1.z > mn.z }) {
+                    out.append("\(Blocks.key(w.block(x, yy, z)))@\(x - cx),\(yy - y),\(z - cz)")
+                }
+            } } }
+            return out.isEmpty ? "nothing" : out.joined(separator: " ")
+        }
         func walk() -> Float {
             p.flying = false; p.vel = .zero; p.yaw = -Float.pi / 2; p.moveYaw = nil; p.moveLook = nil     // facing +x
             p.pos = V3(Float(cx) - 3 + 0.5, Float(y), Float(cz) + 0.5)
@@ -36,7 +50,8 @@ enum BrushCheck {
                 p.update(dt: 1.0 / 72, input: inp, world: w)
                 let v = (p.pos.x - x0) * 72
                 if i > 36 && v < 3.6 && slow.count < 8 {
-                    slow.append(String(format: "x%.1f %.1fb/s y%.2f%@", p.pos.x - Float(cx), v, p.pos.y - Float(y), p.onGround ? "" : " air"))
+                    slow.append(String(format: "x%.1f %.1fb/s y%.2f%@", p.pos.x - Float(cx), v, p.pos.y - Float(y), p.onGround ? "" : " air")
+                                + (slow.isEmpty ? " (meets \(blockers()))" : ""))
                 }
             }
             return p.pos.x - start.x

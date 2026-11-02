@@ -177,7 +177,8 @@ enum Riders {
         var placed = 0
         // (Level with him or with the ground under him: a man up on a horse's back, a roof or a jump is still in reach.)
         let feet = Float(w.topY(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.z))) + 1)
-        for k in 0..<30 where placed < 3 {
+        // (20 tries out of his sight, then 30 anywhere: in open country nearly every spot sees him, and 10 left too few)
+        for k in 0..<50 where placed < 3 {
             let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 26...34)
             let x = Int(floor(g.player.pos.x + sinf(a) * r)), z = Int(floor(g.player.pos.z + cosf(a) * r))
             guard w.isLoaded(x, z) else { continue }
