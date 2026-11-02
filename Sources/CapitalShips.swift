@@ -714,7 +714,8 @@ enum Capital {
         for sx in [-1, 1] { for z in [64, 68] { for y in 14...19 { room(sx * 4, y, z, pipeY) } } }
         for x in -8...8 { room(x, 16, 60, g("iron_bars", iron)) }                 // (the upper deck's rail over the hall)
         for sx in [-1, 1] {
-            for z in 61...71 where z != 66 && z != 68 {
+            // (the sponson gunner's place at 9, 68 gets a bay three wide: the tanks either side of it pressed him)
+            for z in 61...71 where z < 66 || z > 69 {
                 stack(sx * 10, 10, z, (z % 3 == 0) ? band : tank, 4)
             }
             for z in 60...71 { room(sx * 9, 15, z, grating) }
@@ -1592,8 +1593,17 @@ extension ShipManager {
                 guard world.isLoaded(Int(floor(at.x)), Int(floor(at.z))), simd_length(at - g.player.pos) < 120 else { continue }
                 st.crewDone.insert(i)
                 let role = i < st.crewRoles.count ? st.crewRoles[i] : .troop
-                let kind: MobKind = role == .driver ? .soldierTrooper : (role == .gunner ? .soldierMarksman : troopRanks[i % troopRanks.count])
-                let m = Mob(kind, at: at)
+                var kind: MobKind = role == .driver ? .soldierTrooper : (role == .gunner ? .soldierMarksman : troopRanks[i % troopRanks.count])
+                var m = Mob(kind, at: at)
+                // (P510, ridecheck: an Ironclad's broad body at a post walked out for a trooper, by the frigate's skin,
+                // stood in the hull plates; such a post gets a trooper)
+                if kind == .soldierIronclad {
+                    let f0 = world.frame
+                    world.frame = s
+                    let tight = m.collides(post + V3(0, 0.05, 0), world)
+                    world.frame = f0
+                    if tight { kind = .soldierTrooper; m = Mob(kind, at: at) }
+                }
                 m.faction = s.faction
                 m.persistent = true
                 m.deck = s

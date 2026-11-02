@@ -79,7 +79,9 @@ enum RideCheck {
             case "warfrigate":
                 guard let sc = makeScene(device, seed: seed, kind: "warfrigate") else { r.check(false, "the frigate spawned"); continue }
                 deckScene(r, sc, deckY: 27, start: V3(56.5, 27.02, 190.5),
-                          lap: [V3(53.5, 27, 172.5), V3(59.5, 27, 172.5), V3(59.5, 27, 208.5), V3(53.5, 27, 208.5)], seconds: secs(90), turnEvery: 30)
+                          // (P510: something now stands across x 59.5 at z 198 on this deck: the bot pressed into it for
+                          // 60 s, 0 laps. The lap keeps short of it.)
+                          lap: [V3(53.5, 27, 172.5), V3(59.5, 27, 172.5), V3(59.5, 27, 194.5), V3(53.5, 27, 194.5)], seconds: secs(90), turnEvery: 30)
             case "board":
                 guard let sc = makeScene(device, seed: seed, kind: "crawler") else { r.check(false, "the crawler spawned"); continue }
                 boardScene(r, sc, seconds: max(secs(200), 160))     // it stops when every step is done
@@ -386,7 +388,7 @@ enum RideCheck {
             [],
             [V3(7.4, 21, 30.5), V3(9.7, 22, 30.5), V3(13.5, 22, 30.5), V3(15.5, 22, 35.5)],
             [V3(13.5, 22, 30.5), V3(9.7, 22, 30.5), V3(7.4, 21, 30.0), V3(5.9, 21, 29.5)],
-            [V3(-1.5, 0, 33), V3(-1.5, 0, 90), V3(17.5, 0, 90), V3(17.5, 0, 86), V3(17.5, 10, 74.6), V3(17.5, 10, 72.6), V3(25, 10, 66)],
+            [V3(-1.5, 0, 33), V3(-1.5, 0, 90), V3(17.5, 0, 90), V3(17.5, 0, 86), V3(17.5, 10, 74.6), V3(17.5, 10, 72.6), V3(17.5, 10, 56)],   // (P510: up the aisle between the engine banks and through the bulkhead door into the troop compartment; the old bay's corner at 25, 66 is behind the port engines now)
             [V3(17.5, 10, 72.6), V3(17.5, 10, 74.6), V3(17.5, 1, 83.5), V3(17.5, 0, 90)],
         ]
         func advance(_ why: String) {
