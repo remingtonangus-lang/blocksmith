@@ -451,9 +451,9 @@ final class StructureCache {
     // answer at once; HitchProbe turns it on.)
     static var plansOffThread = true
     private var planning = Set<StartKey>()
-    func nearestIfReady(_ kind: String, x: Int, z: Int, maxRegions: Int = 1) -> StructureStart? {
+    func nearestIfReady(_ kind: String, x: Int, z: Int, maxRegions: Int = 1, accept: (StructureStart) -> Bool = { _ in true }) -> StructureStart? {
         guard StructureCache.plansOffThread, fixed.isEmpty || !fixed.contains(where: { $0.kind == kind }),
-              let t = types.first(where: { $0.name == kind }) else { return nearest(kind, x: x, z: z, maxRegions: maxRegions) }
+              let t = types.first(where: { $0.name == kind }) else { return nearest(kind, x: x, z: z, maxRegions: maxRegions, accept: accept) }
         let rx = floorDiv(floorDiv(x, CS), t.spacing), rz = floorDiv(floorDiv(z, CS), t.spacing)
         var missing: [StartKey] = []
         lock.lock()
@@ -463,7 +463,7 @@ final class StructureCache {
             else if cache[k] == nil { missing.append(StartKey(name: "", rx: 0, rz: 0)) }      // (already on its way)
         } }
         lock.unlock()
-        if missing.isEmpty { return nearest(kind, x: x, z: z, maxRegions: maxRegions) }
+        if missing.isEmpty { return nearest(kind, x: x, z: z, maxRegions: maxRegions, accept: accept) }
         let todo = missing.filter { !$0.name.isEmpty }
         if !todo.isEmpty {
             DispatchQueue.global(qos: .utility).async { [weak self] in

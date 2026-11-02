@@ -1053,10 +1053,23 @@ enum SoldierRig {
     }
 
     // The muzzle in world space (shots and the marksman's laser start there).
+    // Store review (Nov 2, callgrind of the citadel soak: muzzleWorld was a fifth of the frame thread's tick, 1.5 ms a
+    // frame): every shot, laser and line-of-fire check built the whole rig, the gun cleared of the arms included, for
+    // one point. The muzzle in the soldier's own frame is kept for `muzzleFrames` ticks (Game.tickSeat counts them):
+    // the pose moves it a few centimetres in that time, the soldier's place and heading are applied fresh each call.
+    static var muzzleTick = 0
+    static let muzzleFrames = 4
+    private static var muzzleKept: [ObjectIdentifier: (V3, Int)] = [:]
     static func muzzleWorld(_ m: Mob) -> V3 {
-        let out = build(m)
+        let id = ObjectIdentifier(m)
+        let local: V3
+        if let k = muzzleKept[id], muzzleTick &- k.1 < muzzleFrames { local = k.0 } else {
+            local = build(m).muzzle
+            if muzzleKept.count > 600 { muzzleKept.removeAll(keepingCapacity: true) }
+            muzzleKept[id] = (local, muzzleTick)
+        }
         let s: Float = m.scale / 16
-        let q = out.muzzle * s
+        let q = local * s
         let cy = cosf(m.yaw), sy = sinf(m.yaw)
         return m.pos + V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
     }

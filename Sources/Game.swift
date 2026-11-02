@@ -1040,6 +1040,7 @@ final class Game {
         if seat == 0 {
             TickProf.begin()
             StructureCache.noteFrameThread()
+            SoldierRig.muzzleTick &+= 1
             clock += dt
             world.extraCenter = coop.active ? coop.otherPlayerPos(self) : nil
             // P487 (his dropship and frigate flights: "I had to literally fly into the void in order to get things to

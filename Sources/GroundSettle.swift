@@ -246,13 +246,18 @@ enum GroundSettle {
                 var seen: Set<IVec3> = [s]
                 var stack = [s], cells: [IVec3] = []
                 var held = false
-                while let q = stack.popLast() {
+                // (store review, callgrind of the soak: each seed filled its 400 cells into hashed sets, 1.8M instructions
+                // a chunk, the whole 0.8 ms budget of every frame while land came in; ground that reaches ground an
+                // earlier seed found held is held too, and those were most of them)
+                flood: while let q = stack.popLast() {
                     cells.append(q)
                     if q.y <= 1 || cells.count >= 400 { held = true; break }
                     guard let cq = w.chunkAt(q.x, q.z), !cq.hollow else { held = true; break }
                     for e in World.allDirs {
                         let n = q + e
-                        if !seen.contains(n) && w.isGround(n) { seen.insert(n); stack.append(n) }
+                        if seen.contains(n) || !w.isGround(n) { continue }
+                        if done.contains(n) { held = true; break flood }        // (a loose piece's cells went: ground no more)
+                        seen.insert(n); stack.append(n)
                     }
                 }
                 done.formUnion(seen)

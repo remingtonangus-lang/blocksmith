@@ -96,11 +96,15 @@ enum GangLeaders {
     }
 
     // The notice board line: the nearest leader still at large from this board (nil: none known nearby).
-    static func wanted(_ g: Game, from a: IVec3) -> (Gang, Int, String)? {
+    // `ready` (the waymarks, asked every second on the frame thread): only from the camp regions already planned, the
+    // rest planned on a worker (store review, frame soak: 49 regions planned in the tick, 50-80 ms, wherever he went).
+    static func wanted(_ g: Game, from a: IVec3, ready: Bool = false) -> (Gang, Int, String)? {
         guard g.dim.dim == .overworld, let sc = g.world.gen.structures else { return nil }
-        guard let s = sc.nearest("wild_camp", x: a.x, z: a.z, maxRegions: 3, accept: {
+        let ok: (StructureStart) -> Bool = {
             $0.kind == "camp_outlaws" && !beaten(gang(at: $0.anchor).leader) && !Liberation.freed($0.anchor.x, $0.anchor.z)
-        }) else { return nil }
+        }
+        guard let s = ready ? sc.nearestIfReady("wild_camp", x: a.x, z: a.z, maxRegions: 3, accept: ok)
+                            : sc.nearest("wild_camp", x: a.x, z: a.z, maxRegions: 3, accept: ok) else { return nil }
         let dx = Float(s.anchor.x - a.x), dz = Float(s.anchor.z - a.z)
         return (gang(at: s.anchor), Int(hypotf(dx, dz)), TownBoard.direction(dx, dz))
     }

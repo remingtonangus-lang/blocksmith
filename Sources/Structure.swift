@@ -163,6 +163,22 @@ enum Structure {
         if SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)]) { return nil }
         return m
     }
+    // (the same two through a chunk cursor: the fills below, CellSet.swift)
+    @inline(__always) static func part(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Mat? {
+        let b = k.built(x, y, z)
+        guard b != AIR, let m = table[Int(b)] else { return nil }
+        if SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)]) { return nil }
+        return m
+    }
+    @inline(__always) static func anchor(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        if y <= 0 { return true }
+        if k.ground(x, y, z) { return true }
+        let b = k.built(x, y, z)
+        if b == AIR { return false }
+        if Blocks.isLiquid(b) { return true }
+        if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }
+        return SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)])
+    }
 
     // (the fill's index of each cell near the check, a box `gridR` round it, reused: a dictionary costs ten times as much)
     static let gridR = 44, gridW = 2 * gridR + 1                // (P510: StructureTip's towers reach 42 up)
@@ -191,9 +207,10 @@ enum Structure {
             cells.append(q); mats.append(m)
         }
         defer { if useGrid { for q in cells { grid[slot(q)] = -1 } } }
+        var cur = ChunkCursor(w)
         for d in [IVec3(0, 0, 0)] + nbrs {
             let q = p + d
-            if find(q) == nil, let m = part(w, q.x, q.y, q.z) { add(q, m) }
+            if find(q) == nil, let m = part(&cur, q.x, q.y, q.z) { add(q, m) }
         }
         // Breadth first, nearest blocks first; where the fill stops (more than `limit` blocks, or `out` away) the blocks it
         // didn't get past are taken as held: a big building's far walls stand, so the check is of what's near the change.
@@ -205,8 +222,8 @@ enum Structure {
             for d in nbrs {
                 let q = c + d
                 if find(q) != nil { continue }
-                guard w.isLoaded(q.x, q.z) else { if collect { res.all = cells }; return res }
-                if let m = part(w, q.x, q.y, q.z) { add(q, m) }
+                guard cur.loaded(q.x, q.z) else { if collect { res.all = cells }; return res }
+                if let m = part(&cur, q.x, q.y, q.z) { add(q, m) }
             }
         }
         guard !cells.isEmpty else { return res }
@@ -220,9 +237,9 @@ enum Structure {
         var nb = [Int32](repeating: -1, count: n * K)
         for i in 0..<n {
             let c = cells[i]
-            if helm[Int(w.builtBlock(c.x, c.y, c.z))] { res.cells = 0; return res }
+            if helm[Int(cur.built(c.x, c.y, c.z))] { res.cells = 0; return res }
             if i >= head { root[i] = true }
-            else { for d in World.allDirs where anchor(w, c.x + d.x, c.y + d.y, c.z + d.z) { root[i] = true; break } }
+            else { for d in World.allDirs where anchor(&cur, c.x + d.x, c.y + d.y, c.z + d.z) { root[i] = true; break } }
             for k in 0..<K { if let j = find(c + nbrs[k]) { nb[i * K + k] = Int32(j) } }
         }
         // What a joint holds against a face joint: along an edge `edgeJoint` sideways, `slopeJoint` on a slope.
@@ -451,25 +468,30 @@ enum Structure {
     // When it stopped, each piece beside the change is followed whole (up to `limit` blocks, faces and edges): one that
     // nothing holds (no block of it on the ground, bedrock or water) is returned to fall as one body. The fill ends at the
     // first block on the ground, so a standing building costs only the way to its nearest footing.
+    private static let looseSeen = CellSet(capacity: 8192), looseHeld = CellSet(capacity: 8192)
     static func loose(_ w: World, near p: IVec3, limit: Int = 24_000) -> [IVec3]? {
-        var held = Set<IVec3>()
+        let held = looseHeld, seen = looseSeen
+        held.removeAll()
+        var cur = ChunkCursor(w)
         for d in [IVec3(0, 0, 0)] + nbrs {
             let s0 = p + d
-            guard !held.contains(s0), part(w, s0.x, s0.y, s0.z) != nil else { continue }
-            var seen: Set<IVec3> = [s0]
+            guard !held.contains(s0), part(&cur, s0.x, s0.y, s0.z) != nil else { continue }
+            seen.removeAll(); seen.insert(s0)
             var comp = [s0], h = 0, anchored = false
             fill: while h < comp.count {
                 let c = comp[h]; h += 1
-                if helm[Int(w.builtBlock(c.x, c.y, c.z))] { anchored = true; break }
-                for e in World.allDirs where anchor(w, c.x + e.x, c.y + e.y, c.z + e.z) { anchored = true; break fill }
+                if helm[Int(cur.built(c.x, c.y, c.z))] { anchored = true; break }
+                for e in World.allDirs where anchor(&cur, c.x + e.x, c.y + e.y, c.z + e.z) { anchored = true; break fill }
                 for e in nbrs {
                     let q = c + e
                     if seen.contains(q) { continue }
-                    guard w.isLoaded(q.x, q.z), comp.count < limit else { anchored = true; break fill }
-                    if part(w, q.x, q.y, q.z) != nil { seen.insert(q); comp.append(q) }
+                    guard cur.loaded(q.x, q.z), comp.count < limit else { anchored = true; break fill }
+                    // (a piece that reaches one an earlier side found held is held: it is the same piece)
+                    if held.contains(q) { anchored = true; break fill }
+                    if part(&cur, q.x, q.y, q.z) != nil { seen.insert(q); comp.append(q) }
                 }
             }
-            if anchored { held.formUnion(seen); continue }
+            if anchored { for q in comp { held.insert(q) }; continue }
             return comp
         }
         return nil

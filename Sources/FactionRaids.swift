@@ -96,7 +96,7 @@ extension Game {
             out.append((V3(Float(m.x), y, Float(m.z)), "your camp"))
         }
         let px = Int(player.pos.x), pz = Int(player.pos.z)
-        if let s = world.gen.structures?.nearest("village", x: px, z: pz, maxRegions: 1),
+        if let s = world.gen.structures?.nearestIfReady("village", x: px, z: pz, maxRegions: 1),       // (asked every second)
            simd_length(V2(Float(s.anchor.x - px), Float(s.anchor.z - pz))) < 100 {
             out.append((V3(Float(s.anchor.x), player.pos.y, Float(s.anchor.z)), Townsfolk.townName(s.anchor.x, s.anchor.z, seed: world.seed)))
         }

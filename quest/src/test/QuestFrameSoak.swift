@@ -254,6 +254,7 @@ enum QuestFrameSoak {
         _ = w.loadSync(center: g.player.pos, radius: rd)
         StructureCache.plansOffThread = false                            // (the scene's own lookups answered at once)
         sc.prepare(g)
+        _ = g.spawnPoint                                // (a save has it; a fresh game settles it at its spawn, not mid-soak)
         StructureCache.plansOffThread = true
         let loadS = CFAbsoluteTimeGetCurrent() - a0
 
