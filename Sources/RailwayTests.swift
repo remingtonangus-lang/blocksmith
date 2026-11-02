@@ -118,7 +118,8 @@ enum RailwayTests {
         let named = l.stations.filter { s in signs.contains { abs($0.0.x - s.x) < 8 && abs($0.0.z - s.z) < 12 && $0.1.lines.joined(separator: " ").contains(s.name) } }.count   // (a long name runs over two lines)
         let tickets = l.stations.filter { s in signs.contains { abs($0.0.x - s.x) < 8 && abs($0.0.z - s.z) < 12 && Trains.isTicketSign($0.1) } }.count
         // (P510: an end a link runs on from has rail on past it, not a buffer stop)
-        let open = Railways.openEnds(gen, l)
+        let open0 = Railways.openEnds(gen, l), lp = Railways.loops(gen, l)       // (P511: and an end that turns in a loop)
+        let open = (west: open0.west || lp.west != nil, east: open0.east || lp.east != nil)
         var ends: [String] = []
         let stops = [l.cells.first!, l.cells.last!].enumerated().filter { (k, c) in
             let n = k == 0 ? l.cells[1] : l.cells[l.cells.count - 2]
@@ -172,6 +173,9 @@ enum RailwayTests {
         // (one line end to end: its train stops at its last station; links and through trains: RailwayTests.through)
         Railways.linksOn = false
         defer { Railways.linksOn = true }
+        let loops0 = Railways.loopsOn
+        Railways.loopsOn = false
+        defer { Railways.loopsOn = loops0 }
         struct Kinds { var cut = 0, tunnel = 0, bridge = 0 }
         func kinds(_ gen: WorldGen, _ l: Railways.Line) -> ([UInt8], Kinds) {
             var k = Kinds(), tag = [UInt8](repeating: 0, count: l.cells.count)
@@ -353,6 +357,10 @@ enum RailwayTests {
     }
 
     static func trains(_ g0: Game, _ seed: UInt64, _ l: Railways.Line, _ check: (Bool, String) -> Void) {
+        // (the line's own out-and-back timetable: P511's loops have their own check, RailLoopCheck)
+        let loops0 = Railways.loopsOn
+        Railways.loopsOn = false
+        defer { Railways.loopsOn = loops0 }
         // The timetable: on the track, stops at each station, back and forth.
         let t = Trains.track(l)
         var seen = Set<Int>(), off = 0
@@ -528,6 +536,9 @@ enum RailwayTests {
     // time, at their heights; the drawn line's end has rail on past it, no buffers; and a train he rides runs off its
     // line's end onto the link and on, never turning back at the last station.
     static func through(_ g0: Game, check: (Bool, String) -> Void) {
+        let loops0 = Railways.loopsOn
+        Railways.loopsOn = false
+        defer { Railways.loopsOn = loops0 }
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true
         defer { FieldTerrain.newWorlds = field0 }

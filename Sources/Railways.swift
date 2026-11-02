@@ -46,6 +46,7 @@ enum Railways {
         // way): the drawn bed and the track follow it at a gentle grade, not in one-block steps. Nil in block worlds.
         var heights: [Float]? = nil
         var target: Int64 = 0              // a link's: the key of the line it runs on to (0: a line, or a link of before)
+        var joins = -1                     // P511, a loop's (RailLoops.swift): the line's cell it comes back into
         init(id: Int64, name: String, cells: [IVec3], stations: [Station], heights: [Float]? = nil) {
             self.id = id; self.name = name; self.cells = cells; self.stations = stations; self.heights = heights
             minX = cells.map { $0.x }.min() ?? 0; maxX = cells.map { $0.x }.max() ?? 0
@@ -104,7 +105,7 @@ enum Railways {
     }
 
     // A plan by key from the cache, planned now (wait) or on a worker and left out until then.
-    private static func cached(_ gen: WorldGen, _ k: Int64, wait: Bool, _ make: @escaping () -> Line?) -> Line? {
+    static func cached(_ gen: WorldGen, _ k: Int64, wait: Bool, _ make: @escaping () -> Line?) -> Line? {
         let mode = (gen.fieldWorld ? 1 : 0) | (gen.railSites ? 2 : 0)
         let ck = gen.planSerial &* 4 &+ mode
         lock.lock()
@@ -831,7 +832,8 @@ enum Railways {
     // with the track on a slope instead of in block steps. Only ground the field holds (a trestle's deck is a block).
     static func shapeBed(_ gen: WorldGen, _ fd: inout [Int8], cx: Int, cz: Int) {
         let bx = cx * CS, bz = cz * CS
-        for l in near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) + linksNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) {
+        for l in near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) + linksNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2)
+            + loopsNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) {
             guard let hs = l.heights else { continue }
             for i in l.cells.indices {
                 let c = l.cells[i]
@@ -863,10 +865,14 @@ enum Railways {
         let bx = cx * CS, bz = cz * CS
         let lines = near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 8)
         let links = linksNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 8)
-        guard !lines.isEmpty || !links.isEmpty, Blocks.has("rail") else { return }
-        // (links first: a line's own rails, stations and buffers go over a link's bed where the two meet)
-        for l in links { draw(l, &w, open: (true, true)) }
-        for l in lines { draw(l, &w, open: openEnds(gen, l)) }
+        let loops = loopsNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 8)
+        guard !lines.isEmpty || !links.isEmpty || !loops.isEmpty, Blocks.has("rail") else { return }
+        // (links and loops first: a line's own rails, stations and buffers go over their beds where they meet)
+        for l in links + loops { draw(l, &w, open: (true, true)) }
+        for l in lines {
+            let o = openEnds(gen, l), lp = Railways.loops(gen, l)            // (P511: an end that turns in a loop has no buffers)
+            draw(l, &w, open: (o.west || lp.west != nil, o.east || lp.east != nil))
+        }
     }
 
     static func draw(_ l: Line, _ w: inout StructWriter, open: (west: Bool, east: Bool) = (false, false)) {

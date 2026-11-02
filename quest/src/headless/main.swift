@@ -2011,6 +2011,7 @@ if CommandLine.arguments.contains("--rail-only") {
     if !CommandLine.arguments.contains("--railride") && !CommandLine.arguments.contains("--links") { RailwayTests.run(game, check: check) }
     if !CommandLine.arguments.contains("--links") { RailwayTests.ride(game, check: check) }
     RailwayTests.through(game, check: check)          // P510
+    RailLoopCheck.run(game, check)                    // P511: a line's ends turn in loops
     print(failures == 0 ? "rail: all checks passed" : "rail: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --horsecoats-only: G9 horse coats (quest/src/test/HorseCoatShots.swift); with --render X it renders the lineup and the

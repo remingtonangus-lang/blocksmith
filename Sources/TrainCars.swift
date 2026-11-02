@@ -172,8 +172,8 @@ extension Trains {
         let t = tr.track
         let n = Float(t.cells.count), half = tr.length / 2
         let lo = half + 3, hi = n - 4 - half
-        let sc = lo <= hi ? max(lo, min(hi, s)) : (n - 1) / 2
-        let moving = abs(sc - tr.lastS)
+        let sc = t.cyclic ? s : lo <= hi ? max(lo, min(hi, s)) : (n - 1) / 2       // (P511: a circuit has no ends to hold off)
+        let moving = abs(t.delta(tr.lastS, sc))
         tr.lastS = sc
         tr.dir = dir
         let fs = tr.facing < 0 ? Float(-1) : 1                        // P508: the layout mirrored to run with the engine at -s
