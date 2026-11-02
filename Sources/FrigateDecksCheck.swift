@@ -127,5 +127,16 @@ enum FrigateDecksCheck {
         check(qo * 2 <= q0 * 3,
               String(format: "frigatedecks: mesh quads %d in %d sections (bare shell %d in %d, x%.2f); drawn from outside the hull %d (x%.2f the shell; its outer copy built in %.1f s); meshed both in %.1f s",
                      q1, n1, q0, n0, Float(q1) / Float(max(1, q0)), qo, Float(qo) / Float(max(1, q0)), outerTime, meshed))
+        // P510: the vehicles with rooms inside get their outer copy too (the Ironback Crawler, the Capital frigate).
+        var lines: [String] = [], fewer = 0
+        for (name, h) in [("Ironback Crawler", Capital.crawler()), ("Capital Frigate", Capital.capitalFrigate())] {
+            let full = ShipMesh.build(sx: h.sx, sy: h.sy, sz: h.sz, blocks: h.blocks, only: nil)
+            let out = ShipMesh.outerBuild(sx: h.sx, sy: h.sy, sz: h.sz, blocks: h.blocks)
+            func n(_ l: [(Int, SectionMesh, V3)]) -> Int { l.reduce(0) { $0 + ($1.1.opaque.count + $1.1.trans.count) / 8 } }
+            let a = n(full), b = out.map(n) ?? a
+            if out != nil && b < a { fewer += 1 }
+            lines.append("\(name) \(h.sx)x\(h.sy)x\(h.sz): \(a) quads, from outside \(out == nil ? "no outer copy" : "\(b)")")
+        }
+        check(fewer == 2, "frigatedecks: vehicles drawn from outside without their rooms: " + lines.joined(separator: "; "))
     }
 }

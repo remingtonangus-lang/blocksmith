@@ -600,6 +600,7 @@ enum Capital {
             hb.set(sx * 9, 21, 30, Capital.id(sx > 0 ? "steel_plating_stairs[west]" : "steel_plating_stairs[east]", panel))
         }
         for (c, b) in crawlerRamp(down: true) { hb.set(c.x, c.y, c.z, b) }
+        crawlerRooms(hb, chassis: chassis)
         // Crew: a driver at the helm, a gunner for each turret (two heavies served from the command deck, four
         // sponsons from the chassis), and a squad of troops in the bay who go out by the rear ramp.
         hb.post(0, 22, 29, .driver)
@@ -627,6 +628,102 @@ enum Capital {
             hb.pods.append((V3(Float(sx * 9 + W) + 0.5, 26.5, Float(z) + 1), simd_normalize(V3(Float(sx) * 0.5, 1.5, -0.3))))
         } }
         return hb
+    }
+
+    // P510 (Nov 1 20:34:20-39 aboard: "we need an engine room for the crawler... It also needs to be more dense inside...
+    // realistically laid out"): the chassis was one bay ten blocks high with the engines at the back. It is two decks
+    // now under a two-storey engine hall. The lower deck (standing at 10): the magazine forward (ammunition racks, the
+    // sponson gunners' posts kept clear), the troop compartment (benches facing in along both sides, lockers, weapon
+    // racks; the aisle down the middle kept clear to the ramp), a bulkhead with a wide door. The upper deck (standing at
+    // 16, a grating floor at 15): the radio room forward, bunks, the mess, the workshop and sick bay, ladders between
+    // the decks. The engine hall (z 60 on): the two engine banks with their exhaust stacks to the roof, fuel tanks and
+    // generators along the sides, the engineer's panel, a gantry along each side at the upper deck's height. The
+    // command deck gets its chart table, signal consoles and cabinets. Only air inside the hull is filled, the
+    // centreline aisle, the ramp's way round the engines, the hatches, ladders and crew posts are left clear.
+    static func crawlerRooms(_ hb: HullBuilder, chassis: (Int, Int, Int) -> Bool) {
+        func g(_ n: String, _ f: BlockID) -> BlockID { id(n, f) }
+        let panel = id("warship_panel"), grating = id("steel_grating"), light = id("light_panel"), iron = id("iron_block")
+        let ladder = Blocks.id("ladder"), crate = g("ammo_crate", iron), ash = g("ash_crate", crate), cab = g("data_cabinet", iron)
+        let console = id("command_console"), term = g("greywall_terminal", console), barrel = g("barrel", iron)
+        let tank = g("depot_tank", iron), band = g("depot_tank_band", tank), vent = g("generator_vent", iron)
+        let pipeY = g("depot_pipe_y", g("iron_bars", iron)), pipeZ = g("depot_pipe_z", g("iron_bars", iron))
+        let post = g("oak_fence", iron), plate = g("oak_pressure_plate", AIR), bench = g("steel_plating_stairs", panel)
+        // (only into the chassis' air, never into its hull or a fitting already there)
+        func room(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+            guard chassis(x, y, z), hb.get(x, y, z) == AIR else { return }
+            hb.set(x, y, z, b)
+        }
+        func stack(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, _ h: Int) { for k in 0..<h { room(x, y + k, z, b) } }
+        func bed(_ x: Int, _ zFoot: Int, _ zHead: Int, _ colour: String) {
+            guard Blocks.has("\(colour)_bed"), Blocks.has("\(colour)_bed_head") else { return }
+            let s = BlockID(zHead < zFoot ? 1 : 0)
+            room(x, 16, zFoot, Blocks.id("\(colour)_bed") + s); room(x, 16, zHead, Blocks.id("\(colour)_bed_head") + s)
+        }
+        func chair(_ x: Int, _ y: Int, _ z: Int, _ face: String) {
+            let n = face == "north" ? "oak_chair" : "oak_chair[\(face)]"
+            if Blocks.has(n) { room(x, y, z, Blocks.id(n)) }
+        }
+        let stairE = Blocks.has("steel_plating_stairs[east]") ? Blocks.id("steel_plating_stairs[east]") : bench
+        let stairW = Blocks.has("steel_plating_stairs[west]") ? Blocks.id("steel_plating_stairs[west]") : bench
+        // The upper deck's floor over the magazine, troops and bunks (z 14-59); the engine hall stays open to the roof.
+        // Wells for the ladders (the command deck's at -7, 58; one forward at 7, 21) and a light every few steps.
+        for z in 14...59 { for x in -10...10 { room(x, 15, z, (x == 0 || abs(x) == 6) && z % 8 == 2 ? light : grating) } }
+        hb.set(-7, 15, 58, ladder + 3)
+        for y in 10...16 { hb.set(8, y, 21, panel); hb.set(7, y, 21, ladder + 2) }
+        // Lower deck: the magazine forward, racks two and three high along both walls (the sponson gunners' places at
+        // 9, 15 and their way to the aisle kept clear).
+        for sx in [-1, 1] { for z in 11...20 where !(z >= 14 && z <= 16) {
+            stack(sx * 10, 10, z, z % 2 == 0 ? crate : ash, 3)
+            if z != 20 { stack(sx * 9, 10, z, crate, 2) }
+        } }
+        for z in [12, 13] { for x in [-5, -4, 4, 5] { stack(x, 10, z, ash, 2) } }
+        room(-3, 10, 19, id(ShipShells.hoistKey, iron)); room(3, 10, 19, barrel)
+        // The troop compartment: benches facing in along both walls, a locker or a weapon rack between every few seats,
+        // a light over the aisle (the chests at -9, 30 and 9, 50 and the flank ladders' backing at 29 stay).
+        for sx in [-1, 1] { for z in 22...57 {
+            let wall = sx * 10, seat = sx * 8
+            if z % 6 == 0 { stack(wall, 10, z, cab, 2); continue }
+            if z % 6 == 3 { stack(wall, 10, z, crate, 1); room(wall, 11, z, g("iron_bars", iron)); continue }
+            room(seat, 10, z, sx < 0 ? stairE : stairW)
+            room(wall, 10, z, panel)
+        } }
+        // The bulkhead to the engine hall, a door the aisle's width and a way along each side.
+        for x in -10...10 where abs(x) > 2 && abs(x) < 7 { for y in 10...14 { room(x, y, 59, panel) } }
+        for x in [-2, 2] { room(x, 14, 59, panel) }
+        // The upper deck (standing at 16): the radio room forward.
+        for sx in [-1, 1] { for z in 15...19 { stack(sx * 10, 16, z, cab, 2) } }
+        for x in [-8, -7, 7, 8] { room(x, 16, 20, console); chair(x, 16, 19, "south") }
+        room(-4, 16, 16, g("greywall_map_table", console)); room(-3, 16, 16, g("greywall_map_table", console))
+        room(4, 16, 16, term); chair(4, 16, 17, "north")
+        // Bunks: heads to the bulkheads in pairs along both walls, a locker at each pair.
+        for sx in [-1, 1] { for z0 in stride(from: 23, through: 39, by: 4) {
+            for x in [sx * 9, sx * 7] { bed(x, z0 + 1, z0, sx < 0 ? "light_gray" : "white") }
+            room(sx * 10, 16, z0, barrel); room(sx * 10, 16, z0 + 1, cab)
+        } }
+        // The mess: a long table with chairs either side.
+        for z in 43...49 { room(-6, 16, z, post); room(-6, 17, z, plate); chair(-7, 16, z, "east"); chair(-5, 16, z, "west") }
+        for z in 43...49 { room(6, 16, z, post); room(6, 17, z, plate); chair(7, 16, z, "west"); chair(5, 16, z, "east") }
+        for sx in [-1, 1] { stack(sx * 10, 16, 44, barrel, 1); stack(sx * 10, 16, 46, g("bookshelf", cab), 2) }
+        // The workshop and sick bay.
+        room(8, 16, 52, g(GunsmithBench.key, iron)); room(8, 16, 54, g("anvil", iron)); stack(10, 16, 53, crate, 2)
+        for z in [51, 55] { stack(10, 16, z, cab, 2) }
+        for z0 in [52, 55] { bed(-9, z0 + 1, z0, "white") }
+        room(-10, 16, 51, g("brewing_stand", cab)); stack(-10, 16, 58, cab, 2)
+        // The engine hall: exhaust stacks from the engine banks to the roof, fuel tanks along the walls, generators and
+        // the engineer's panel by the bulkhead, a gantry along each wall at the upper deck's height.
+        for sx in [-1, 1] { for z in [64, 68] { for y in 14...19 { room(sx * 4, y, z, pipeY) } } }
+        for x in -8...8 { room(x, 16, 60, g("iron_bars", iron)) }                 // (the upper deck's rail over the hall)
+        for sx in [-1, 1] {
+            for z in 61...71 where z != 66 && z != 68 {
+                stack(sx * 10, 10, z, (z % 3 == 0) ? band : tank, 4)
+            }
+            for z in 60...71 { room(sx * 9, 15, z, grating) }
+            room(sx * 8, 10, 61, vent); room(sx * 8, 11, 61, vent)
+            for z in 61...71 { room(sx * 10, 15, z, grating) }
+            for z in 60...71 { room(sx * 7, 18, z, pipeZ) }
+        }
+        room(-8, 10, 60, console); room(8, 10, 60, term)
+        for z in [62, 66, 70] { room(0, 19, z, light) }
     }
 
     // The crawler's rear ramp cells (builder coordinates): lowered, steel stairs from the bay floor (y 9) down to the
