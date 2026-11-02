@@ -209,6 +209,12 @@ enum QuestFrameSoak {
         setvbuf(stdout, nil, _IOLBF, 0)
         World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = QuestApp.leafNear
         World.editLane = true                                                       // (QuestApp)
+        // (as the game runs, not the host checks' fixtures: bases planned on workers, the headset's world rules)
+        StructureCache.plansOffThread = true
+        World.resultsProfile = true                                                // (the slowest single hand-over, per scene)
+        ShipManager.stepRate = 72; ShipManager.stepSlack = 0.2 / 72                // (QuestApp: one ship step a drawn frame)
+        Blueprints.on = true; TownSizes.on = true; MobVary.on = true; Soldier.unarmedPeace = true
+        World.fewerLakesUnsaved = true; World.lessWaterUnsaved = true; WorldRules.p44 = true
         SceneRenderer.skipGPU = true
         let only = arg("--only").map { Set($0.split(separator: ",").map(String.init)) }
         let secs = Int(arg("--seconds") ?? "") ?? 40
@@ -275,8 +281,10 @@ enum QuestFrameSoak {
         var misses = 0, run = 0, longest = 0
         let frames = secs * 72
         let warm = 3 * 72                                                    // (the first 3 s: first meshes in, not counted)
+        World.resultsWorstMs = 0; World.resultsWorst = ""
         let t0 = CFAbsoluteTimeGetCurrent()
         var mobsPeak = 0, shellsPeak = 0
+        var stages: [String: (Double, Double)] = [:]
         for f in 0..<(frames + warm) {
             if g.menu != nil { g.closeMenu() }
             g.cine.active = false
@@ -287,6 +295,13 @@ enum QuestFrameSoak {
             g.tick(dt)
             let tk = (CFAbsoluteTimeGetCurrent() - a) * 1000
             let tickWhy = TickProf.summary()
+            if f >= warm {
+                for i in 0..<TickProf.count {
+                    let k = TickProf.names[i].description, ms = TickProf.times[i] * 1000
+                    let o = stages[k] ?? (0, 0)
+                    stages[k] = (o.0 + ms, max(o.1, ms))
+                }
+            }
             let s = scene.beginFrame()
             let b = CFAbsoluteTimeGetCurrent()
             wr.record(s, targets[f % 2], camera())
@@ -325,7 +340,10 @@ enum QuestFrameSoak {
                      mean * questFactor, pct(cpu, 99) * questFactor, (cpu.max() ?? 0) * questFactor, misses, cpu.count, budgetMs, Double(misses) * 100 / n, longest))
         print(String(format: "    GPU load: quads p50 %.0fk p95 %.0fk max %.0fk; draws p50 %.0f p95 %.0f max %.0f",
                      pct(quads, 50) / 1000, pct(quads, 95) / 1000, (quads.max() ?? 0) / 1000, pct(draws, 50), pct(draws, 95), draws.max() ?? 0))
+        print("    tick stages (mean/worst ms): " + stages.sorted { $0.value.0 > $1.value.0 }.prefix(10)
+            .map { "\($0.key) \(String(format: "%.2f/%.1f", $0.value.0 / n, $0.value.1))" }.joined(separator: ", "))
         print("    record stages (ms a frame): " + wr.takeStages())
+        print(String(format: "    slowest hand-over of a finished job: %.1f ms (%@)", World.resultsWorstMs, World.resultsWorst))
         // What the slow frames were doing: the most common slowest stage, and the five slowest frames.
         var why: [String: Int] = [:]
         for s in slow { why[String(s.why.split(separator: ";").first ?? ""), default: 0] += 1 }

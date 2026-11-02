@@ -150,6 +150,7 @@ extension ShipManager {
             SeaStorms.tick(game, dt)                   // H9: storm sea state, crest spray (SeaStorms.swift)
         }
         if encounters, let game { encounterTick(dt, game: game) }
+        TickProf.mark("ships.encounters")
         if let game { capitalTick(dt, game: game) }
         TickProf.mark("ships.capital")
         if list.isEmpty { return }

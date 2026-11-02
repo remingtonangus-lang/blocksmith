@@ -475,6 +475,10 @@ final class StructureCache {
         return nil
     }
     static var offThreadPlans = 0
+    // The game's frame thread (Game.tickSeat notes it each tick), where a region is never planned (structure(at:)).
+    private static var frameThreadID: pthread_t?
+    static func noteFrameThread() { if frameThreadID == nil { frameThreadID = pthread_self() } }
+    static var onFrameThread: Bool { frameThreadID.map { pthread_equal($0, pthread_self()) != 0 } ?? false }
 
     func isCached(_ t: StructureType, regionX rx: Int, regionZ rz: Int) -> Bool {
         lock.lock(); defer { lock.unlock() }
@@ -583,8 +587,35 @@ final class StructureCache {
     }
 
     // Structure (of a kind) containing a world position — used for structure mob spawns.
+    // Store review (Nov 2, VRC.Quest.Performance.1): asked on the frame thread (spawns, the music's place, the steelhold
+    // check once a second, fortress mobs), a region nobody had looked at yet planned its start right there, tens of ms
+    // flying into new land (P124's rule, which only the base ticks kept). On the frame thread it now answers from the
+    // starts already made and has the missing regions made on a worker: the question is asked again a moment later.
     func structure(at x: Int, _ y: Int, _ z: Int, kind: String) -> StructureStart? {
         let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
+        if StructureCache.plansOffThread && StructureCache.onFrameThread {
+            for t in types where t.name == kind {
+                let r = t.reach
+                var missing: [StartKey] = []
+                for rz in floorDiv(cz - r, t.spacing)...floorDiv(cz + r, t.spacing) { for rx in floorDiv(cx - r, t.spacing)...floorDiv(cx + r, t.spacing) {
+                    let k = StartKey(name: t.name, rx: rx, rz: rz)
+                    lock.lock()
+                    let made = cache.index(forKey: k) != nil, busy = planning.contains(k)
+                    if !made && !busy { planning.insert(k); missing.append(k) }
+                    lock.unlock()
+                    if made, let s = start(t, regionX: rx, regionZ: rz), s.contains(x, y, z) { return s }
+                } }
+                if !missing.isEmpty {
+                    DispatchQueue.global(qos: .utility).async { [weak self] in
+                        guard let self = self else { return }
+                        for k in missing { _ = self.start(t, regionX: k.rx, regionZ: k.rz) }
+                        self.lock.lock(); for k in missing { self.planning.remove(k) }; StructureCache.offThreadPlans += missing.count; self.lock.unlock()
+                    }
+                }
+            }
+            for s in fixed where s.kind == kind && s.contains(x, y, z) { return s }
+            return nil
+        }
         for t in types where t.name == kind {
             for s in startsNear(cx: cx, cz: cz, t) where s.contains(x, y, z) { return s }
         }

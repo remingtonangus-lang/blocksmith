@@ -128,6 +128,7 @@ final class CapitalState {
     var groundMax: Float = 0           // highest terrain under and ahead of a frigate (sampled twice a second)
     var isles: [(c: V2, top: Float, r: Float)]? = nil   // T11: sky isles near a frigate's home (found once)
     var crushTimer: Float = 0
+    var crushNextZ: Float?             // store review: a pass under way left part done (crawlerCrush), its next row
     var crushedAll = false
     var sinkSpeed: Float = 0
     var wreckFx: Float = 0
@@ -1490,6 +1491,7 @@ extension ShipManager {
                 }
             }
             if s.role == "crawler" { crawlerRamp(s, st, dt, g) }
+            TickProf.mark("cap: crew, wheels, ramp")             // (store review: the capital tick split for questcheck --framesoak)
             if s.wrecked { st.gunCharge = -1; founder(s, st, dt, g); continue }      // a charge dies with the ship
             st.retarget -= dt
             if st.retarget <= 0 || (st.target.map { !targetValid($0, g, spareBases: s.factionValue == .steelhold) } ?? false) {
@@ -1500,11 +1502,15 @@ extension ShipManager {
                 refresh(&t, g)
                 st.target = t
             }
+            TickProf.mark("cap: target")
             if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
+            TickProf.mark("cap: drive")
             capitalGuns(s, st, dt, g)
+            TickProf.mark("cap: guns")
             shipMissiles(s, st, dt, g)
             if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); boardingParty(s, st, dt, g) }
             deployTroops(s, st, dt, g)
+            TickProf.mark("cap: missiles, boarding, troops")
         }
     }
 
@@ -2456,8 +2462,13 @@ extension ShipManager {
     static var crawlerWaded = 0                                 // (checks: steps it moved with water under its wheels)
     private func crawlerCrush(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         st.crushTimer -= dt
-        guard st.crushTimer <= 0 else { return }
-        st.crushTimer = st.wantSpeed > 12 ? 0.1 : 0.25            // (P507: at 100 km/h a pass every 3 blocks)
+        // Store review (Nov 2, VRC.Quest.Performance.1; questcheck --framesoak crawler: the capital tick 37-57 ms on a
+        // pass's frame): a pass under way sweeps the whole footprint, tens of thousands of cells, so it is spread over
+        // the frames after it starts, `crushSeconds` of work a frame, and carries on from the row it reached.
+        let resume = st.crushNextZ
+        st.crushNextZ = nil
+        guard st.crushTimer <= 0 || resume != nil else { return }
+        if resume == nil { st.crushTimer = st.wantSpeed > 12 ? 0.1 : 0.25 }           // (P507: at 100 km/h a pass every 3 blocks)
         // P511: its wear (ruts, what the hull sweeps through, plants under the bow) meshes in the queue's order, at most
         // every settleGap (World.vehicleEdits); only what the bow rams that stands up in the way (a trunk, a wall) goes
         // ahead of the queue, so it is seen to give way.
@@ -2468,7 +2479,7 @@ extension ShipManager {
         func worn(_ on: Bool) { if wear { World.backgroundEdits = on || was.0; World.vehicleEdits = on; World.ramEdits = !on } }
         worn(true)
         // (the ground round its footprint, a chunk out: what settles there after the pass is wear too)
-        if wear {
+        if wear && resume == nil {
             let lo = s.worldMin, hi = s.worldMax
             for cz in floorDiv(Int(floor(lo.z)) - CS, CS)...floorDiv(Int(floor(hi.z)) + CS, CS) {
                 for cx in floorDiv(Int(floor(lo.x)) - CS, CS)...floorDiv(Int(floor(hi.x)) + CS, CS) {
@@ -2478,7 +2489,7 @@ extension ShipManager {
             World.wearZone(s.id, cx0: floorDiv(Int(floor(lo.x)), CS), cz0: floorDiv(Int(floor(lo.z)), CS),
                            cx1: floorDiv(Int(floor(hi.x)), CS), cz1: floorDiv(Int(floor(hi.z)), CS))
         }
-        if st.wantSpeed > 0.3 { crawlerRuts(s, st) }
+        if st.wantSpeed > 0.3 && resume == nil { crawlerRuts(s, st) }
         // (a felled trunk lies as a body for good: one a pass, only where he can see it, and not past a dozen about)
         var felled = simd_length(g.player.pos - s.pos) < 110 ? 0 : 1
         if felled == 0 && world.ships.list.reduce(0, { $0 + (Felling.isFelled($1) && simd_length($1.pos - s.pos) < 160 ? 1 : 0) }) >= 12 { felled = 1 }
@@ -2506,7 +2517,9 @@ extension ShipManager {
         let cap = full ? 4000 : 900
         defer { if full && n < cap { st.crushedAll = true } }
         let ahead = max(Float(4), (st.wantSpeed * 0.3).rounded(.up))
-        for lz in stride(from: lo.z - ahead, through: hi.z, by: 1) {
+        let deadline = full ? Double.infinity : CFAbsoluteTimeGetCurrent() + ShipManager.crushSeconds
+        for lz in stride(from: resume ?? (lo.z - ahead), through: hi.z, by: 1) {
+            if CFAbsoluteTimeGetCurrent() > deadline { st.crushNextZ = lz; return }
             let bow = lz <= lo.z + 6
             for lx in stride(from: lo.x, through: hi.x, by: 1) {
                 // From the bottom row (trunks stood through the wheel arches); soft blocks only, so ground is never dug.
@@ -3131,6 +3144,7 @@ extension ShipManager {
     // them and bounces off (a rise only as high as its keel row it rides up over), and a hit over 10 m/s tears hull
     // plates off where it struck (more the faster: 30 m/s takes six), with a crash. Anyone in its way at speed is hit by the hull.
     static var crushed = 0, rams = 0, ramTorn = 0, smashed = 0   // (checks)
+    static var crushSeconds = 0.0012              // (store review: a crush pass's work a frame, crawlerCrush)
     func crush(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         st.crushT -= dt
         st.ramT -= dt

@@ -426,6 +426,7 @@ final class CraterJob {
     private var rim: [IVec3] = []
     private(set) var done = false
     static let blocksPerFrame = 250
+    static var frameSeconds = 0.0016           // (about 2.7 ms of the headset's frame; see step)
     static var initCost = ""                 // (MainGunTests)
     static var outside = 0                   // (P502: breaches burst outside the world, questcheck --turretfreeze)
     private var circuitsNear: Bool?
@@ -513,7 +514,16 @@ final class CraterJob {
         w.circuitQuiet = circuitsNear == false
         defer { w.circuitQuiet = quiet0 }
         var budget = blocks
+        // Store review (Nov 2, VRC.Quest.Performance.1; questcheck --framesoak citadel: a main gun's bowl in a citadel's
+        // walls cost 20-37 ms of tick a frame for 4 s, each of the 250 blocks a frame tipping, lighting and remeshing what
+        // was built on it): a frame's carving also stops at `frameSeconds` of work (checked every 8 blocks), so the
+        // bowl opens over more frames instead of the frame rate falling under the dust. (The harness's whole-crater
+        // calls, blocks .max, are untimed.)
+        let deadline = blocks == .max ? Double.infinity : CFAbsoluteTimeGetCurrent() + CraterJob.frameSeconds
+        var sinceCheck = 0
         while next < offsets.count && budget > 0 && removed < cap {
+            sinceCheck += 1
+            if sinceCheck >= 8 { sinceCheck = 0; if CFAbsoluteTimeGetCurrent() > deadline { break } }
             let o = offsets[next]
             next += 1
             let dx = Int(o.x), dy = Int(o.y), dz = Int(o.z)
@@ -568,7 +578,7 @@ final class CraterJob {
             bowlNext += 1
             return done
         }
-        if carved && budget > 0 { scorch(g, columns: max(1, budget / 3)) }      // (up to ~3 block changes a column)
+        if carved && budget > 0 && CFAbsoluteTimeGetCurrent() < deadline { scorch(g, columns: max(1, budget / 3)) }      // (up to ~3 block changes a column)
         return done
     }
     private var bowlNext = 0
