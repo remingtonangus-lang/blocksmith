@@ -19,6 +19,7 @@ final class Player {
     var fastFlight = true           // sprint while flying goes ~8x normal flight speed (V toggles it)
     var hyperFlight = false         // P478: creative flight with the right stick held in, ten times fast flight (Quest)
     var onGround = false
+    var clamber: (t: Float, from: V3, to: V3)? = nil     // P511: pulling himself up over a ledge (Clamber.swift)
     var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn eye (ViewStep.swift)
     var steadyY: Float?                             // Steady Saddle: the eased height of the saddle (ViewStep.swift)
     var steadyV: Float = 0, steadyLast: Float = 0   // its eased climb rate and the saddle height last tick
@@ -355,6 +356,7 @@ final class Player {
         jumped = false
         if gliding && (onGround || inFluid || flying) { gliding = false }
         if gliding { glide(dt, w); return }
+        if clamber != nil { stepClamber(dt, w); return }       // P511
 
         sneaking = (input.sneak || forcedCrouch || ducking) && !flying && !prone
         // VR (moveYaw set): sprint in any stick direction, at full sprint speed however far the stick is pushed (the
@@ -372,6 +374,9 @@ final class Player {
         if let m = moveLook, m.x * m.x + m.z * m.z > 1e-6 { fh = simd_normalize(V3(m.x, 0, m.z)) }
         let len = simd_length(wish)
         if len > 1 || (vrSprint && len > 1e-3) { wish /= len }
+        // P511: jump pushing into a ledge too high to jump onto: he pulls himself up over it (Clamber.swift).
+        if input.jump && !flying && !inFluid && !sneaking && !prone && levitate <= 0 && !jetThrust && len > 0.3
+            && (onGround || vel.y < 7), startClamber(wish, w) { stepClamber(dt, w); return }
 
         var speed: Float
         if flying { speed = hyperFlight ? 870 : (sprinting ? (fastFlight ? 87.0 : 21.6) : 10.9) }
