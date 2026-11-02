@@ -13,10 +13,19 @@ enum Roads {
     static let maxLen: Float = 720
     static let halfWidth: Float = 1.3
 
-    struct Seg { let a: V2; let b: V2; let phase: Float }
+    struct Seg { let a: V2; let b: V2; let phase: Float; var bridges: [Bridge] = [] }
+    // P510 (Nov 1 20:40, "roads and also bridges where needed for the roads"): a road met a river or a lake and simply
+    // stopped at its bank. Where its line crosses water (up to `bridgeMax` across), it goes over on a stone bridge: a
+    // deck clear of the water by a block or more, as high as the higher bank, stepping down a block a cell onto the
+    // lower bank, with a parapet each side and a pier into the bed every seventh cell. `ys`: the deck block's y at road
+    // cells j0, j0 + 1, ... (a cell is 1 / n of the road).
+    struct Bridge { let j0: Int; let ys: [Int]; let n: Int }
+    static let bridgeMax = 96
+    static var bridgesPlanned = 0                    // (checks)
 
     private static var cache: [Int64: Seg?] = [:]
-    private static var cacheGen: ObjectIdentifier?  // the generator the cache was filled for (another world clears it)
+    private static var cacheGen: Int?               // the generator the cache was filled for (another world clears it; by
+                                                    // its plan serial: a freed generator's address comes back for the next, P510)
     private static let lock = NSLock()
     static var on: Bool { WorldRules.p44 }
 
@@ -30,7 +39,7 @@ enum Roads {
     // The road from region (rx, rz) to its neighbour (rx + dx, rz + dz), if one runs.
     static func segment(_ gen: WorldGen, _ rx: Int, _ rz: Int, _ dx: Int, _ dz: Int) -> Seg? {
         let key = (Int64(rx & 0xFFFFF) << 44) | (Int64(rz & 0xFFFFF) << 24) | Int64((dx + 1) * 3 + dz + 1)
-        let gid = ObjectIdentifier(gen)
+        let gid = gen.planSerial
         lock.lock()
         if cacheGen != gid { cache.removeAll(); cacheGen = gid }
         if let c = cache[key] { lock.unlock(); return c }
@@ -44,10 +53,45 @@ enum Roads {
                 let p = a + (b - a) * (Float(i) / Float(n))
                 if WorldRules.savedBeforeP44(gen, floorDiv(Int(p.x), CS), floorDiv(Int(p.y), CS), reach: 5) { fresh = false }
             }
-            if fresh { seg = Seg(a: a, b: b, phase: hashf(rx, rz, dx * 7 + dz, UInt32(truncatingIfNeeded: gen.seed) ^ 0x80AD) * 6.28) }
+            if fresh {
+                seg = Seg(a: a, b: b, phase: hashf(rx, rz, dx * 7 + dz, UInt32(truncatingIfNeeded: gen.seed) ^ 0x80AD) * 6.28)
+                seg!.bridges = bridges(gen, seg!)
+            }
         }
         lock.lock(); if cacheGen == gid { cache[key] = seg }; if cache.count > 4096 { cache.removeAll() }; lock.unlock()
         return seg
+    }
+
+    // The bridges a road needs: its water crossings (from the generator's columns, so every chunk agrees).
+    static func bridges(_ gen: WorldGen, _ s: Seg) -> [Bridge] {
+        let n = max(2, Int(simd_length(s.b - s.a)))
+        var wet = [Bool](repeating: false, count: n + 1), land = [Int](repeating: 0, count: n + 1), top = [Int](repeating: 0, count: n + 1)
+        for i in 0...n {
+            let p = point(s, Float(i) / Float(n))
+            let k = gen.columnData(Int(floor(p.x)), Int(floor(p.y)))
+            land[i] = YOFF + Int(floorf(k.h))
+            wet[i] = k.wl > k.h + 0.3
+            top[i] = YOFF + Int(ceilf(k.wl)) - 1
+        }
+        var out: [Bridge] = []
+        var i = 0
+        while i <= n {
+            guard wet[i] else { i += 1; continue }
+            var e = i
+            while e + 1 <= n && wet[e + 1] { e += 1 }
+            defer { i = e + 1 }
+            guard i > 0, e < n, e - i + 1 <= bridgeMax else { continue }
+            let water = (i...e).reduce(Int.min) { max($0, top[$1]) }
+            let deck = max(land[i - 1], land[e + 1], water + 2)
+            // Out over each bank until the deck, stepping down a block a cell, meets the ground.
+            var a = i - 1, b = e + 1
+            while a > 0 && deck - (i - a) > land[a] && i - a < 12 { a -= 1 }
+            while b < n && deck - (b - e) > land[b] && b - e < 12 { b += 1 }
+            let ys = (a...b).map { j in j < i ? max(land[j], deck - (i - j)) : (j > e ? max(land[j], deck - (j - e)) : deck) }
+            out.append(Bridge(j0: a, ys: ys, n: n))
+            bridgesPlanned += 1
+        }
+        return out
     }
 
     // Roads that may pass within `pad` blocks of the box (x0...x1, z0...z1).
@@ -112,9 +156,45 @@ enum Roads {
         // P499: a road runs on across snowy grass (it stopped at the snow line: 34 of 48 columns of a taiga road bare).
         // New ground only: a road already drawn on saved ground keeps its gap rather than ending at a chunk seam.
         let snowy = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyP499) } ?? true
+        let deck = Blocks.has("stone_bricks") ? Blocks.id("stone_bricks") : STONE
+        let parapet = Blocks.has("stone_brick_wall") ? Blocks.id("stone_brick_wall") : deck
         for lz in 0..<CS { for lx in 0..<CS {
             let x = bx + lx, z = bz + lz
             let p = V2(Float(x) + 0.5, Float(z) + 0.5)
+            // A bridge's deck and parapets (over the water and its ramps onto the banks).
+            var onBridge = false
+            for sg in segs where !sg.bridges.isEmpty {
+                let (d, t) = distance(sg, p)
+                guard d <= halfWidth + 1.2 else { continue }
+                for br in sg.bridges {
+                    let j = Int((t * Float(br.n)).rounded()) - br.j0
+                    guard j >= 0 && j < br.ys.count else { continue }
+                    let y = br.ys[j]
+                    onBridge = true
+                    guard y > 1 && y < CH - 5 else { break }
+                    w.set(x, y, z, deck)
+                    for dy in 1...4 where !Blocks.isLiquid(w.get(x, y + dy, z)) { w.set(x, y + dy, z, AIR) }
+                    if d > halfWidth { w.set(x, y + 1, z, parapet) }
+                    // Under it: the bank built up to it, and a pier into the bed every seventh cell.
+                    let pier = (j + br.j0) % 7 == 0 && d <= 0.9
+                    let floorY = max(1, y - 40)
+                    var below = y - 1
+                    while below > floorY, !Blocks.isLiquid(w.get(x, below, z)), !(Blocks.collide[Int(w.get(x, below, z))] && !CapitalBase.isLeaf(w.get(x, below, z))) { below -= 1 }
+                    let overWater = Blocks.isLiquid(w.get(x, below, z))
+                    if !overWater || pier {
+                        var yy = y - 1
+                        while yy > floorY {
+                            let b = w.get(x, yy, z)
+                            if Blocks.collide[Int(b)] && !CapitalBase.isLeaf(b) { break }
+                            w.set(x, yy, z, deck)
+                            yy -= 1
+                        }
+                    }
+                    break
+                }
+                if onBridge { break }
+            }
+            if onBridge { continue }
             guard segs.contains(where: { distance($0, p).0 <= halfWidth }) else { continue }
             // The ground under plants, snow and air.
             var y = CH - 2

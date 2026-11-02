@@ -81,11 +81,15 @@ enum Railways {
         }
     }
 
-    private static var cache: [Int64: Line?] = [:]
-    private static var cacheGen: Int?
-    private static var cacheField = 0                 // (fieldWorld 1, railSites 2)
+    // P510 (the link checks: a link's first step not next to its line's end, "snow past" a linked end): one cache for
+    // every generator, emptied whenever another generator asked (a harness world streaming beside the one checked,
+    // or the map's own), so a line was planned again and again; and a line's plan can come out otherwise when the
+    // structures round it were planned in another order, so a link planned off one plan of its line met another.
+    // Each generator (and mode) keeps its own plans now, the four last used.
+    private struct Plans { var lines: [Int64: Line?] = [:]; var planning: Set<Int64> = []; var used = 0 }
+    private static var plans: [Int: Plans] = [:]                // by generator serial * 4 + mode (fieldWorld 1, railSites 2)
+    private static var plansClock = 0
     private static let lock = NSLock()
-    private static var planning: Set<Int64> = []          // lines being planned on a worker (line(wait: false))
 
     static func key(_ row: Int, _ s: Int) -> Int64 { Int64(row) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: s))) }
 
@@ -100,22 +104,31 @@ enum Railways {
 
     // A plan by key from the cache, planned now (wait) or on a worker and left out until then.
     private static func cached(_ gen: WorldGen, _ k: Int64, wait: Bool, _ make: @escaping () -> Line?) -> Line? {
-        let gid = gen.planSerial
-        lock.lock()
         let mode = (gen.fieldWorld ? 1 : 0) | (gen.railSites ? 2 : 0)
-        if cacheGen != gid || cacheField != mode { cache.removeAll(); planning.removeAll(); cacheGen = gid; cacheField = mode }
-        if let c = cache[k] { lock.unlock(); return c }
+        let ck = gen.planSerial &* 4 &+ mode
+        lock.lock()
+        plansClock += 1
+        if plans[ck] == nil {
+            if plans.count >= 4, let old = plans.min(by: { $0.value.used < $1.value.used })?.key { plans[old] = nil }
+            plans[ck] = Plans()
+        }
+        plans[ck]!.used = plansClock
+        if let c = plans[ck]!.lines[k] { lock.unlock(); return c }
+        func keep(_ l: Line?) {
+            guard plans[ck] != nil else { return }
+            plans[ck]!.lines[k] = l
+            if plans[ck]!.lines.count > 2048 { plans[ck]!.lines.removeAll() }
+        }
         if !wait {
-            let start = !planning.contains(k)
-            if start { planning.insert(k) }
+            let start = !plans[ck]!.planning.contains(k)
+            if start { plans[ck]!.planning.insert(k) }
             lock.unlock()
             if start {
                 DispatchQueue.global(qos: .utility).async {
                     let l = make()
                     lock.lock()
-                    if cacheGen == gid && cacheField == mode { cache[k] = l }
-                    planning.remove(k)
-                    if cache.count > 2048 { cache.removeAll() }
+                    keep(l)
+                    plans[ck]?.planning.remove(k)
                     lock.unlock()
                 }
             }
@@ -123,7 +136,11 @@ enum Railways {
         }
         lock.unlock()
         let l = make()
-        lock.lock(); if cacheGen == gid && cacheField == mode { cache[k] = l }; if cache.count > 2048 { cache.removeAll() }; lock.unlock()
+        lock.lock()
+        // (planned meanwhile on another thread: that plan stands, so every caller sees one plan)
+        if let c = plans[ck]?.lines[k] { lock.unlock(); return c }
+        keep(l)
+        lock.unlock()
         return l
     }
 
@@ -676,12 +693,15 @@ enum Railways {
                 let ground = w.get(x, y - 1, z)
                 // P510 (Nov 1 20:39-20:40, by his line: "Wood is a block", "We need to make these rails so they sit
                 // smoothly on top of the terrain... If you add blocks, it makes it choppy", "The rails end and don't
-                // match the top"): in a field world a dip of up to four blocks under the track is banked up with earth
+                // match the top"): in a field world a dip of up to eight blocks under the track is banked up with earth
                 // under the ballast, which the field draws as ground shaped to the line's grade, not a plank trestle of
                 // cubes with the rails a block step off the bed beside it. Deeper dips and water still get a trestle.
+                // (Eight deep, not four: the field's smooth surface lies up to a few blocks over the block column the
+                // writer sees, so a dip it drew two deep under a deck was six here; and banked earth reads as the
+                // land's own shoulder where a timber deck read as cubes.)
                 var bank = -1
                 if l.heights != nil && !(Blocks.opaque[Int(ground)] && Blocks.collide[Int(ground)]) {
-                    for d in 2...5 {
+                    for d in 2...9 {
                         let b = w.get(x, y - d, z)
                         if Blocks.fluidKind[Int(b)] != 0 { break }
                         if StructWriter.holdsColumn(b) { bank = d; break }
