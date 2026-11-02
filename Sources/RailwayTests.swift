@@ -567,7 +567,7 @@ enum RailwayTests {
                 if pick == nil || lk.cells.count < pick!.2.cells.count { pick = (seed, l, lk, b) }
             }
         }
-        whyLock.lock(); let whyText = why.filter { $0.key.hasPrefix("link") }.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "); whyLock.unlock()
+        whyLock.lock(); let whyText = why.filter { $0.key.hasPrefix("link") }.sorted { $0.value > $1.value }.prefix(12).map { "\($0.key) \($0.value)" }.joined(separator: ", "); whyLock.unlock()
         print(String(format: "rail links: %d of %d lines run on to the next (%.1f s); no link: ", linked, lines, CFAbsoluteTimeGetCurrent() - t0) + whyText)
         check(linked * 3 >= lines && bad.isEmpty,
               "P510 links: \(linked) of \(lines) lines run on by a link to the next line along the row, joined end to end" + (bad.isEmpty ? "" : ": " + bad.prefix(3).joined(separator: "; ")))

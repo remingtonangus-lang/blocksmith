@@ -45,6 +45,7 @@ enum Railways {
         // P379 step 3: in a field world, the track's height at each cell (the rail's y plus at most half a block either
         // way): the drawn bed and the track follow it at a gentle grade, not in one-block steps. Nil in block worlds.
         var heights: [Float]? = nil
+        var target: Int64 = 0              // a link's: the key of the line it runs on to (0: a line, or a link of before)
         init(id: Int64, name: String, cells: [IVec3], stations: [Station], heights: [Float]? = nil) {
             self.id = id; self.name = name; self.cells = cells; self.stations = stations; self.heights = heights
             minX = cells.map { $0.x }.min() ?? 0; maxX = cells.map { $0.x }.max() ?? 0
@@ -199,6 +200,7 @@ enum Railways {
     // The line a link runs on to (nil for a line).
     static func linkTarget(_ gen: WorldGen, _ l: Line, wait: Bool = true) -> Line? {
         guard isLink(l.id) else { return nil }
+        if l.target != 0 { let (r, t) = rowStretch(l.target); return line(gen, row: r, stretch: t, wait: wait) }
         let (row, s) = rowStretch(l.id)
         for k in 1...linkReach where hasLine(gen, row, s + k) {
             if let b = line(gen, row: row, stretch: s + k, wait: wait) { return b }
@@ -211,21 +213,43 @@ enum Railways {
         guard on, linksOn, !isLink(l.id) else { return (true, true) }
         let (row, s) = rowStretch(l.id)
         let east = link(gen, row: row, stretch: s, wait: wait) != nil
-        var west = false
+        return (incoming(gen, row, s, wait: wait) != nil, east)
+    }
+    // The line and link that run on into line (row, s)'s west end, if any: the first line west of it in its row (its
+    // link is the one that comes here), or with none there, a line in the row north whose link comes south to it.
+    static func incoming(_ gen: WorldGen, _ row: Int, _ s: Int, wait: Bool = true) -> (Line, Line)? {
+        let me = key(row, s)
         for k in 1...linkReach where hasLine(gen, row, s - k) {
-            guard line(gen, row: row, stretch: s - k, wait: wait) != nil else { continue }
-            // (the first line west of it: its link is the one that comes here, if any)
-            west = link(gen, row: row, stretch: s - k, wait: wait) != nil
-            break
+            guard let a = line(gen, row: row, stretch: s - k, wait: wait) else { continue }
+            if let lk = link(gen, row: row, stretch: s - k, wait: wait), lk.target == me { return (a, lk) }
+            return nil
         }
-        return (west, east)
+        for k in 0...linkReach where hasLine(gen, row - 1, s - k) {
+            guard let a = line(gen, row: row - 1, stretch: s - k, wait: wait) else { continue }
+            if let lk = link(gen, row: row - 1, stretch: s - k, wait: wait), lk.target == me { return (a, lk) }
+        }
+        return nil
     }
 
     static func planLink(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
         guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures else { return nil }
-        var b: Line? = nil
+        var b: Line? = nil, bKey: Int64 = 0
         for k in 1...linkReach where hasLine(gen, row, s + k) {
-            if let l = line(gen, row: row, stretch: s + k) { b = l; break }
+            if let l = line(gen, row: row, stretch: s + k) { b = l; bKey = key(row, s + k); break }
+        }
+        // P510 (the link check: 80 of 128 lines had no line on along their row within reach, so most trains still met
+        // buffers): with none, the link comes south to a line in the next row whose west end nothing else runs into
+        // (no line before it in its own row), so every row's last line hands on to the row below. Only south: a west
+        // end is fed from its own row or from the row north, never from two links.
+        if b == nil, let pa = a.cells.last {
+            south: for k in 0...linkReach where hasLine(gen, row + 1, s + k) {
+                guard let l = line(gen, row: row + 1, stretch: s + k), let f = l.cells.first, f.x - pa.x >= 40 else { continue }
+                for j in 1...linkReach where hasLine(gen, row + 1, s + k - j) {
+                    if line(gen, row: row + 1, stretch: s + k - j) != nil { continue south }
+                }
+                b = l; bKey = key(row + 1, s + k)
+                break
+            }
         }
         guard let b, let pa = a.cells.last, let pb = b.cells.first else { tally?("link: no line on along the row"); return nil }
         // Both ends run east off a station's straight (a line's cells go west to east, its ends on straights).
@@ -270,11 +294,15 @@ enum Railways {
             let h0 = a.heights?.last ?? Float(pa.y), h1 = b.heights?.first ?? Float(pb.y)
             guard let h = gentleProfile(gen, flat, [], ends: (h0, h1)) else { tally?("link: field grade"); return nil }
             let c = flat.indices.map { IVec3(flat[$0].x, Int(h[$0].rounded()), flat[$0].z) }
-            return Line(id: linkKey(row, s), name: name, cells: c, stations: [], heights: h)
+            let lk = Line(id: linkKey(row, s), name: name, cells: c, stations: [], heights: h)
+            lk.target = bKey
+            return lk
         }
         guard let lv = profile(gen, flat, [], ends: (pa.y, pb.y)) else { tally?("link: block profile"); return nil }
         let c = flat.indices.map { IVec3(flat[$0].x, lv[$0], flat[$0].z) }
-        return Line(id: linkKey(row, s), name: name, cells: c, stations: [])
+        let lk = Line(id: linkKey(row, s), name: name, cells: c, stations: [])
+        lk.target = bKey
+        return lk
     }
 
     // A link's way from a line's east end (a) to the next line's west end (b), round whatever stands between them: a
@@ -287,12 +315,12 @@ enum Railways {
         let G = routeCell
         // (the way's ends on the middles of their squares' columns: 9-24 blocks out from each line's end)
         let s0 = (floorDiv(a.0 + G, G) * G + G / 2, a.1), e0 = (floorDiv(b.0 - G, G) * G + G / 2, b.1)
-        guard e0.0 - s0.0 >= 2 * G else { return nil }
+        guard e0.0 - s0.0 >= 2 * G else { tally?("link route: too short"); return nil }
         let margin = routeWander
         let gx0 = floorDiv(min(s0.0, e0.0) - 4 * G, G), gx1 = floorDiv(max(s0.0, e0.0) + 4 * G, G)
         let gz0 = floorDiv(min(s0.1, e0.1) - margin, G), gz1 = floorDiv(max(s0.1, e0.1) + margin, G)
         let nx = gx1 - gx0 + 1, nz = gz1 - gz0 + 1
-        guard nx * nz <= 400_000 else { return nil }
+        guard nx * nz <= 400_000 else { tally?("link route: too big"); return nil }
         // Blocked squares: structure pieces (padded), filled in once from the starts round the box.
         var blocked = [Bool](repeating: false, count: nx * nz)
         let bx0 = gx0 * G, bx1 = (gx1 + 1) * G - 1, bz0 = gz0 * G, bz1 = (gz1 + 1) * G - 1
@@ -360,7 +388,7 @@ enum Railways {
             if f - h(i) > cost[si] { continue }
             if i == goal && d == 0 { end = si; break }
             expanded += 1
-            if expanded > 300_000 { return nil }
+            if expanded > 300_000 { tally?("link route: search cap"); return nil }
             let x = i % nx, z = i / nx
             for nd in 0..<4 where nd != (d + 2) % 4 {
                 let x2 = x + dx[nd], z2 = z + dz[nd]
@@ -372,7 +400,11 @@ enum Railways {
                 if c2 < cost[sj] { cost[sj] = c2; from[sj] = Int32(si); push(c2 + h(j), Int32(sj)) }
             }
         }
-        guard end >= 0 else { return nil }
+        guard end >= 0 else {
+            let nb = blocked.filter { $0 }.count, ns = looked.filter { $0 == 2 }.count
+            tally?("link route: no way (\(expanded) looked at; of \(nx)x\(nz) squares \(nb * 100 / max(1, nx * nz))% built on, \(ns * 100 / max(1, nx * nz))% sea)")
+            return nil
+        }
         var squares: [Int] = []
         var c = end
         while c >= 0 { squares.append(c / 4); c = Int(from[c]) }
@@ -395,7 +427,7 @@ enum Railways {
         if e0.0 + 1 <= b.0 - 1 { for x in (e0.0 + 1)...(b.0 - 1) { cells.append((x, b.1)) } }
         // (never over itself)
         var seen = Set<Int64>()
-        for c in cells where !seen.insert(Int64(c.0) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: c.1)))).inserted { return nil }
+        for c in cells where !seen.insert(Int64(c.0) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: c.1)))).inserted { tally?("link route: over itself"); return nil }
         return cells
     }
 
@@ -403,7 +435,8 @@ enum Railways {
     static func linksNear(_ gen: WorldGen, x0: Int, z0: Int, x1: Int, z1: Int, pad: Int = 2, wait: Bool = true) -> [Line] {
         guard on, linksOn else { return [] }
         // (a link may go round things up to routeWander off its rows)
-        let r0 = floorDiv(z0 - pad - span / 2 - routeWander - routeCell, span), r1 = floorDiv(z1 + pad + span / 2 + routeWander + routeCell, span)
+        // (and one from the row north may come south a row)
+        let r0 = floorDiv(z0 - pad - span / 2 - routeWander - routeCell, span) - 1, r1 = floorDiv(z1 + pad + span / 2 + routeWander + routeCell, span)
         let w = stretch * span
         // (a link starts in its own line's stretch and runs up to linkReach stretches on east)
         let s0 = floorDiv(x0 - pad - span, w) - linkReach, s1 = floorDiv(x1 + pad + span, w)

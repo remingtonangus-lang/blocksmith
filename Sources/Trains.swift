@@ -298,14 +298,9 @@ enum Trains {
                 guard let a = Railways.line(gen, row: row, stretch: st, wait: false) else { return }
                 prev = [a]
             } else {
-                for k in 1...Railways.linkReach where Railways.hasLine(gen, row, st - k) {
-                    guard let a = Railways.line(gen, row: row, stretch: st - k, wait: false) else { return }
-                    guard let lk = Railways.link(gen, row: row, stretch: st - k, wait: false),
-                          Railways.linkTarget(gen, lk, wait: false)?.id == first.id else { return }
-                    prev = [a, lk]
-                    break
-                }
-                guard !prev.isEmpty else { return }
+                // (the line and link that run into its west end: from its own row, or south from the row north)
+                guard let (a, lk) = Railways.incoming(gen, row, st, wait: false) else { return }
+                prev = [a, lk]
             }
             let add = prev.reduce(0) { $0 + $1.cells.count }
             parts = prev + parts
