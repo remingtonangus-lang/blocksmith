@@ -324,11 +324,15 @@ enum RailwayTests {
             if t.at(tr.time).stop != nil { break }
         }
         let strayRail = Rails.isRail(world.block(stray.x, stray.y, stray.z))
-        let his = aheadCell(4)
+        // (under way again first: the stray loop can end at a station's dwell, and a train standing at a platform
+        // never came to his block, suite 62)
+        var under = 0
+        while (t.at(tr.time).stop != nil || tr.blocksPerSec < 1) && under < 60 * 90 { g.time += Double(dt); Trains.drive(lead2, dt, g); under += 1 }
+        let his = aheadCell(6)
         world.setBlock(his.x, his.y, his.z, stone)
         Trains.placed[his] = g.time
         var hisHeld = false
-        for _ in 0..<(60 * 2) { g.time += Double(dt); Trains.drive(lead2, dt, g); if tr.heldBy { hisHeld = true } }
+        for _ in 0..<(60 * 4) { g.time += Double(dt); Trains.drive(lead2, dt, g); if tr.heldBy { hisHeld = true; break } }
         world.setBlock(his.x, his.y, his.z, AIR); Trains.placed[his] = nil
         tr.heldBy = false; tr.brake = 0
         check(!strayHeld && strayRail && Trains.cleared > cleared0 && hisHeld,

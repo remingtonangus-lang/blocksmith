@@ -11,6 +11,12 @@ import Foundation
 final class WorldGen: TerrainGenerator {
     let seed: UInt64
     let s32: UInt32
+    // (one per generator made: the railway plan cache is per generator, and an ObjectIdentifier is reused once the
+    // generator it named is freed: checks making a WorldGen per seed got the last seed's lines, P510 links "step 1 not
+    // adjacent", "height jumps -7.41")
+    let planSerial: Int = { WorldGen.serialLock.lock(); defer { WorldGen.serialLock.unlock() }; WorldGen.serials += 1; return WorldGen.serials }()
+    static var serials = 0
+    static let serialLock = NSLock()
     var fieldWorld = false          // P379 step 3: a field world's railways run on a gentle grade (World.fieldTerrain)
     var railSites = true            // P379 step 1: lines call at major sites (worlds made since: railway-sites.txt)
     var countryOres = true          // CountriesTests compares a chunk with and without its country's veins

@@ -82,7 +82,7 @@ enum Railways {
     }
 
     private static var cache: [Int64: Line?] = [:]
-    private static var cacheGen: ObjectIdentifier?
+    private static var cacheGen: Int?
     private static var cacheField = 0                 // (fieldWorld 1, railSites 2)
     private static let lock = NSLock()
     private static var planning: Set<Int64> = []          // lines being planned on a worker (line(wait: false))
@@ -100,7 +100,7 @@ enum Railways {
 
     // A plan by key from the cache, planned now (wait) or on a worker and left out until then.
     private static func cached(_ gen: WorldGen, _ k: Int64, wait: Bool, _ make: @escaping () -> Line?) -> Line? {
-        let gid = ObjectIdentifier(gen)
+        let gid = gen.planSerial
         lock.lock()
         let mode = (gen.fieldWorld ? 1 : 0) | (gen.railSites ? 2 : 0)
         if cacheGen != gid || cacheField != mode { cache.removeAll(); planning.removeAll(); cacheGen = gid; cacheField = mode }
