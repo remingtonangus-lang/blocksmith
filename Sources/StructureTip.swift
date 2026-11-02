@@ -311,9 +311,9 @@ enum StructureTipCheck {
             Felling.falls.removeAll()
             return (StructureTip.snapped > s0, left)
         }
-        let loose = padTower(40, 40, armCut: [1, 2, 3]), held = padTower(60, 20, armCut: [2])
-        check(loose.snapped && loose.left == 0 && !held.snapped && held.left > 40,
-              "P510: a landing pad's arm shot through at the wall, its brace left: it snaps off and falls (\(loose.snapped), \(loose.left) of its blocks left up); the arm's middle shot out: it holds (snapped \(held.snapped), \(held.left) left)")
+        let loose = padTower(40, 40, armCut: [1, 2, 3]), braced = padTower(60, 20, armCut: [2])
+        check(loose.snapped && loose.left == 0 && !braced.snapped && braced.left > 40,
+              "P510: a landing pad's arm shot through at the wall, its brace left: it snaps off and falls (\(loose.snapped), \(loose.left) of its blocks left up); the arm's middle shot out: it holds (snapped \(braced.snapped), \(braced.left) left)")
         // P510: a tower joined by a skyway (a tube five wide and high, glass sides) to another 22 off. Its foot shot out
         // all round, it comes away from the skyway and falls; shot out but for two opposite walls, it stands.
         _ = w.loadSync(center: V3(70, 200, 66), radius: 3)
