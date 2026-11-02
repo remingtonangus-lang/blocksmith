@@ -103,8 +103,11 @@ enum GroundSettle {
 
     // A fill that passed 1,500 cells: carried on (to 24,000 cells, 40 out). Nil: held by the world; else the cells of a
     // loose piece, which falls in lots.
+    private static let bigMarks = CellMarks(radius: bigReach + 1)       // (store review: GroundCollapse's CellMarks)
     static func bigPiece(_ w: World, from s: IVec3, around p: IVec3) -> [IVec3]? {
-        var seen: Set<IVec3> = [s]
+        let seen = bigMarks
+        seen.reset(around: p)
+        _ = seen.insert(s)
         var stack = [s], cells: [IVec3] = []
         while let c = stack.popLast() {
             cells.append(c)
@@ -112,7 +115,7 @@ enum GroundSettle {
                 || cells.count > bigCells || !w.isLoaded(c.x, c.z) { return nil }
             for e in World.allDirs {
                 let n = c + e
-                if !seen.contains(n) && w.isGround(n) { seen.insert(n); stack.append(n) }
+                if w.isGround(n) && seen.insert(n) { stack.append(n) }
             }
         }
         return cells
