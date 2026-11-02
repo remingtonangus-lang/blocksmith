@@ -260,7 +260,8 @@ enum RailwayTests {
                             shallowDecks += 1
                             if shallowDecks <= 3 {
                                 let col = (1...6).map { k in "\(Blocks.key(world.block(c.x, c.y - k, c.z)))\(world.groundAt(c.x, c.y - k, c.z) ? "*" : "")" }
-                                print("rail ride: a plank deck over a shallow dip at cell \(i) (\(c.x) \(c.y) \(c.z)), under it: \(col.joined(separator: ", "))")
+                                Railways.noteLock.lock(); let saw = Railways.deckNotes["\(c.x) \(c.y) \(c.z)"] ?? "no note"; Railways.noteLock.unlock()
+                                print("rail ride: a plank deck over a shallow dip at cell \(i) (\(c.x) \(c.y) \(c.z)), under it: \(col.joined(separator: ", ")); the writer saw \(saw)")
                             }
                             break
                         }

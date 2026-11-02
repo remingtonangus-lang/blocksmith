@@ -281,7 +281,7 @@ enum Trains {
         var shift = 0                                  // cells the new track starts east (+) or west (-) of the old
         if d > 0 && Float(n - 1) - s < 200 {
             let last = parts[parts.count - 1]
-            if last.id & Railways.linkBit != 0 {
+            if Railways.isLink(last.id) {
                 guard let b = Railways.linkTarget(gen, last, wait: false) else { return }
                 parts.append(b)
             } else {
@@ -294,7 +294,7 @@ enum Trains {
             let first = parts[0]
             let (row, st) = Railways.rowStretch(first.id)
             var prev: [Railways.Line] = []
-            if first.id & Railways.linkBit != 0 {
+            if Railways.isLink(first.id) {
                 guard let a = Railways.line(gen, row: row, stretch: st, wait: false) else { return }
                 prev = [a]
             } else {
@@ -347,7 +347,7 @@ enum Trains {
         let oldId = t.id
         trains[oldId] = nil
         for (k, v) in throughOut where v == oldId { throughOut[k] = t2.id }
-        for p in parts where p.id & Railways.linkBit == 0 { throughOut[p.id] = t2.id }
+        for p in parts where !Railways.isLink(p.id) { throughOut[p.id] = t2.id }
         tr.track = t2
         tr.delay = delay
         tr.time = g.time - delay

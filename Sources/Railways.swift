@@ -171,14 +171,22 @@ enum Railways {
     // on; the buffer stops stand only where nothing lies on (or the link can't be laid: the sea, a structure in every
     // way, a cliff, ground a save had before P510). A train he rides runs on through (Trains.through).
     static let linkReach = 3
-    static let linkBit: Int64 = 1 << 62
-    static func linkKey(_ row: Int, _ s: Int) -> Int64 { key(row, s) | linkBit }
+    // A link's id is its line's with bit 60 flipped. (It was bit 62 set, but a line in a row south of 0 has its row's
+    // sign in every high bit, bit 62 too: its link's key was the line's own, so link() handed back the line itself, every
+    // such line counted as a link and its "link" ran from its own end through its own cells: the link checks' "step 1 not
+    // adjacent", "height jumps -7.41", "snow past" a linked end, and 9 of 128 lines linked. A row's index stays far
+    // inside 2^27, so its bit 28 always matches its sign, and flipped it marks a link.)
+    static let linkFlip: Int64 = 1 << 60
+    static func linkKey(_ row: Int, _ s: Int) -> Int64 { key(row, s) ^ linkFlip }
+    static func isLink(_ id: Int64) -> Bool { let r = id >> 32; return r >= 1 << 27 || r < -(1 << 27) }
     static func rowStretch(_ id: Int64) -> (row: Int, s: Int) {
-        let k = id & ~linkBit
+        let k = isLink(id) ? id ^ linkFlip : id
         return (Int(k >> 32), Int(Int32(truncatingIfNeeded: k)))
     }
     static var linksOn = true                         // (checks compare)
     static var banked = 0                             // (checks: bed cells banked up with earth instead of a trestle)
+    static var deckNotes: [String: String] = [:]      // (checks: a field line's deck cell -> the column the writer saw under it)
+    static let noteLock = NSLock()
 
     // The link from line (row, s)'s east end on to the next line east, if one is laid.
     static func link(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
@@ -190,7 +198,7 @@ enum Railways {
     }
     // The line a link runs on to (nil for a line).
     static func linkTarget(_ gen: WorldGen, _ l: Line, wait: Bool = true) -> Line? {
-        guard l.id & linkBit != 0 else { return nil }
+        guard isLink(l.id) else { return nil }
         let (row, s) = rowStretch(l.id)
         for k in 1...linkReach where hasLine(gen, row, s + k) {
             if let b = line(gen, row: row, stretch: s + k, wait: wait) { return b }
@@ -200,7 +208,7 @@ enum Railways {
     }
     // Whether line l's west end has a link coming in (from the line before it in the row) / its east end one going on.
     static func openEnds(_ gen: WorldGen, _ l: Line, wait: Bool = true) -> (west: Bool, east: Bool) {
-        guard on, linksOn, l.id & linkBit == 0 else { return (true, true) }
+        guard on, linksOn, !isLink(l.id) else { return (true, true) }
         let (row, s) = rowStretch(l.id)
         let east = link(gen, row: row, stretch: s, wait: wait) != nil
         var west = false
@@ -715,6 +723,11 @@ enum Railways {
                     w.set(x, y - 1, z, ballast)
                     banked += 1
                 } else {
+                    if l.heights != nil, Railways.deckNotes.count < 64 {
+                        // (checks: what the writer saw under a field line's deck)
+                        let col = (1...9).map { Blocks.key(w.get(x, y - $0, z)) }.joined(separator: ",")
+                        Railways.noteLock.lock(); Railways.deckNotes["\(x) \(y) \(z)"] = col; Railways.noteLock.unlock()
+                    }
                     w.set(x, y - 1, z, deck)                                       // trestle deck
                     let edge = (alongX && z != c.z) || (!alongX && x != c.x)
                     if edge && i % 4 == 0 { w.groundDown(x, y - 2, z, leg, minY: y - 48) }
