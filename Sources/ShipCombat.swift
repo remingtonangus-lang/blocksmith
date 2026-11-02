@@ -336,12 +336,11 @@ extension ShipManager {
 
     // P499: a rail slug's path on through the blocks it struck: a bore about a block and a half across, through up to
     // ShipManager.railReach blocks (a block of resistance over 1,200, bedrock or a citadel's armour, stops it; the
-    // Capital's own guns leave its citadels whole, as their shells do). Returns where it stops, to burst there.
+    // P510: the Capital's own guns bore their citadels too). Returns where it stops, to burst there.
     func railBore(from p: V3, along vel: V3, game g: Game) -> V3 {
         guard simd_length(vel) > 1e-3 else { return p }
         let d = simd_normalize(vel)
         let w = g.world
-        if g.bases.quiet && g.bases.inAnyBase(p) { return p }
         var end = p, last = IVec3(Int.min, 0, 0)
         var t: Float = 0
         while t < Float(ShipManager.railReach) {

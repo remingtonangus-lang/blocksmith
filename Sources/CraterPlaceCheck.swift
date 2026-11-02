@@ -54,8 +54,10 @@ enum CraterPlaceCheck {
         let p = g.player
         for (yawOff, pitch) in [(-0.5, -0.45), (-0.25, -0.6), (0, -0.5), (0.25, -0.75), (0.5, -0.4), (0, -0.85), (-0.4, -0.9), (0.4, -0.65),
                                 (0.15, -0.35), (-0.15, -1.0)] as [(Float, Float)] {
-            // Stood on the bowl's rim to the south, looking north into it.
-            let rz = cz + 5
+            // Stood on the bowl's rim to the south, looking north into it (the rim: the first column south of the middle
+            // back up to within a block of the old ground; a wider bowl puts it further out).
+            var rz = cz + 4
+            while rz < cz + 10 && top(cx, rz) < gy - 1 { rz += 1 }
             p.pos = V3(Float(cx) + 0.5, Float(top(cx, rz) + 1) + 0.01, Float(rz) + 0.5)
             p.vel = .zero; p.flying = false
             p.yaw = yawOff; p.pitch = pitch
@@ -63,7 +65,7 @@ enum CraterPlaceCheck {
             g.input.rightClicked = false; g.input.rightDown = false
             g.tick(1.0 / 60)
             p.yaw = yawOff; p.pitch = pitch
-            guard let t = g.target, w.groundAt(t.hit.x, t.hit.y, t.hit.z), abs(t.hit.x - cx) <= 6, abs(t.hit.z - cz) <= 6 else { continue }
+            guard let t = g.target, w.groundAt(t.hit.x, t.hit.y, t.hit.z), abs(t.hit.x - cx) <= 8, abs(t.hit.z - cz) <= 8 else { continue }
             // (a block can't go where he stands: an aim at the ground under his own feet isn't one of these)
             let c0 = t.hit + t.normal
             let feet = p.pos, half: Float = 0.3

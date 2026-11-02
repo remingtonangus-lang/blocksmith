@@ -144,7 +144,7 @@ extension Game {
             // Marched past and gone on.
             if f.s > f.length && simd_length(f.middle - V2(p.x, p.z)) > AshColumns.far { AshColumns.end(self); return }
             // Seen him, or been hit: the hunt.
-            if f.bodies.contains(where: { $0.aggro || $0.health < $0.spec.health }) {
+            if f.bodies.contains(where: { $0.aggro || $0.hurt > 0 || $0.health < $0.spec.health }) {
                 f.hunting = true
                 AshColumns.hunts += 1
                 if let lead = f.bodies.min(by: { simd_length_squared($0.pos - p) < simd_length_squared($1.pos - p) }) {
@@ -371,7 +371,7 @@ extension AshColumns {
         let aggro = f.bodies.filter { $0.aggro }.count
         let d1 = f.bodies.reduce(Float(0)) { $0 + simd_length($1.pos - stand) } / Float(max(1, f.bodies.count))
         check(f.hunting && aggro >= f.bodies.count - 2 && d1 < d0 - 3 && g.ashColumnSound(g.player.eye) == nil,
-              String(format: "P509 columns: hit, it stops singing and hunts him (%d of %d after him, %.0f -> %.0f blocks)", aggro, f.bodies.count, d0, d1))
+              "P509 columns: hit, it stops singing and hunts him (hunting \(f.hunting), " + String(format: "%d of %d after him, %.0f -> %.0f blocks)", aggro, f.bodies.count, d0, d1))
         // He falls: it is over.
         g.alive = false
         g.ashColumnsTick(0.05)

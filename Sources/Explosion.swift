@@ -86,10 +86,11 @@ enum Explosion {
         // was flying: rays along the shot reach further, those back toward the gun less, so a plunging shot leaves a
         // slanted bowl and a flat one a gouge running on from where it struck.
         let shot: V3? = along.flatMap { simd_length($0) > 1e-3 ? simd_normalize($0) : nil }
-        // No friendly fire: the Capital's own shells (bases.quiet) leave its citadels' blocks and its troops alone.
+        // No friendly fire on troops: the Capital's own shells (bases.quiet) leave its troops alone. (P510, Nov 1 20:16-20:22:
+        // "no damage happens... to the building around my naval gun", "The capital guns don't do any damage to the capital
+        // blocks, which isn't right. They should do damage": a shell breaks what it hits, its own side's walls too.)
         let own = g.bases.quiet
         let lying = g.drops.items.count                    // (what this blast spills itself is thrown, not burnt: P452)
-        let breakBlocks = breakBlocks && !(own && g.bases.inAnyBase(c))
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
         w.ships.blast(at: c, power: power, game: g, resistCap: resistCap)          // ship blocks (ShipCombat.swift)
         Explosion.lap("ships")

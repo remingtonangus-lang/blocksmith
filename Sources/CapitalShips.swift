@@ -2678,7 +2678,7 @@ extension ShipManager {
             s.angVel = V3(0.4, 1.2, 0.2)
             if Int(st.phaseT * 6) % 2 == 0 { g.particles.smoke(at: s.pos) }
             if keelY <= ground + 1 || st.phaseT > 30 {
-                Explosion.explode(at: s.pos, power: 4, game: g, breakBlocks: !g.bases.inAnyBase(s.pos))
+                Explosion.explode(at: s.pos, power: 4, game: g)          // (P510: a crash breaks what it lands on, a citadel too)
                 remove(s)
                 capState.removeValue(forKey: s.id)
             }
