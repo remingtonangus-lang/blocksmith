@@ -78,8 +78,6 @@ final class QuestApp {
         World.lodNear = 99
         World.editLane = true                      // P440: a placed or broken block meshes off the frame
         World.leafNear = QuestApp.leafNear
-        PlaytestChecklist.spaceWarp = (get: { QuestSettings.spaceWarp ? (QuestSettings.spaceWarpActive ? "On" : "On (next launch)") : "Off" },
-                                       toggle: { QuestSettings.spaceWarp.toggle() })        // P399 (7)
         PauseMenu.viewFixed = true                 // P339: the view distance is fixed (QuestSettings.viewDistance)
         stats.lowerRate = { [weak xr] in
             guard let x = xr, x.refreshRate > 72.5, x.setRefreshRate(72) else { return false }
@@ -365,14 +363,16 @@ final class QuestApp {
         var tickMs = 0.0, recordMs = 0.0
         if game == nil, f.shouldRender { rig.updateLoading(xr: xr) }
         if let g = game {
-            // (P381 step 9: with space warp the game draws every other displayed frame, so its step is the time
-            // between the frames it draws, not the display's period.)
-            let step = xr.spaceWarpOn && lastDisplayTime > 0 && f.displayTime > lastDisplayTime
-                ? Double(f.displayTime - lastDisplayTime) * 1e-9 : (f.period > 0 ? f.period : 1.0 / 72)
+            // The step is the time between the frames the game draws (P381 step 9: with space warp, every other
+            // displayed frame). P510 (Nov 1 20:10, at 49 fps: "what the hell is slowing me down here?"): it was the
+            // display's period whenever space warp was off, so a frame the game missed was time the world never had:
+            // at 49 fps on a 72 Hz display everything (his walk, mobs, the day) ran at two thirds speed.
+            let period = f.period > 0 ? f.period : 1.0 / 72
+            let step = lastDisplayTime > 0 && f.displayTime > lastDisplayTime ? Double(f.displayTime - lastDisplayTime) * 1e-9 : period
             let dt = min(0.1, max(1.0 / 120, step))
-            // Ship physics steps once per displayed frame (60 Hz substeps at 72 Hz left one frame in six without a
-            // step: the deck and the player riding it juddered against the world).
-            let rate = Float(1 / dt)
+            // Ship physics steps once per drawn frame at the steady rate (60 Hz substeps at 72 Hz left one frame in six
+            // without a step: the deck and the player riding it juddered against the world); a missed frame takes two.
+            let rate = Float(1 / min(0.1, max(1.0 / 120, xr.spaceWarpOn ? 2 * period : period)))
             if abs(ShipManager.stepRate - rate) > 0.5 { ShipManager.stepRate = rate; ShipManager.stepSlack = 0.2 / rate }
             if f.shouldRender { rig.update(xr: xr, game: g) }
             controls?.update(dt: Float(dt))
@@ -469,7 +469,7 @@ final class QuestApp {
         // F1: a frame over 250 ms goes to hitches.log on the headset (time, split, the tick's slowest stages), so a
         // freeze can be matched to a voice note's timestamp.
         if now - lastFrameTime > 0.25 && game != nil && firstWorldFrames == 0 { logHitch(ms: (now - lastFrameTime) * 1000, tick: tickMs, record: recordMs) }
-        // P420: the pause menu's Compute page shows the last moments of play (frozen while a menu is open).
+        // P420: the voice notes' compute line (P510) has the last moments of play (frozen while a menu is open).
         if let g = game, g.menu == nil, !g.paused, let wr = worldRenderer {
             ComputeCost.frame(frameMs: (now - lastFrameTime) * 1000, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs,
                               gpu: scene.gpuMs, rate: Double(xr.refreshRate), stageNames: WorldRenderer.stageNames, stageMs: wr.stageFrame)

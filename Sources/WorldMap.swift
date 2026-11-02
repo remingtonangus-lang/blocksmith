@@ -613,6 +613,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
     var dragFrom: V2?
     var pressWorld: (Int, Int)?
     var pressAt: V2?, dragged: Float = 0    // a left press: where, and how far it has dragged since (a tap places a pin)
+    var back: (() -> Void)?                 // P510: opened from the Journal, Back (and M) goes back there
 
     init(game: Game) {
         cx = game.player.pos.x
@@ -623,6 +624,11 @@ final class MapMenu: Menu, CustomDrawnMenu {
     }
 
     var bpc: Int { MapMenu.zooms[zoom] }
+    override func backPressed() -> Bool {
+        guard let b = back else { return false }
+        game.closeMenu(); b()
+        return true
+    }
 
     override func tick() {
         let g = game
@@ -703,7 +709,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
             if pressAt != nil, dragged < tapTol, let w = pressWorld { pin(w.0, w.1) }
             dragFrom = nil; pressAt = nil; pressWorld = nil
         }
-        if g.input.tapped(KeyBinds.key(.map)) { g.closeMenu() }
+        if g.input.tapped(KeyBinds.key(.map)) { MapMenu.prevPad = p; g.closeMenu(); back?(); return }
         MapMenu.prevPad = p
     }
     static var prevPad = PadSnapshot()

@@ -24,7 +24,7 @@ final class WorldRenderer {
     static let stageNames = ["uniforms", "table", "walk", "horizon", "occlusion", "list", "records", "hud", "terrain", "ring",
                              "ships", "landmarks", "mobs", "entities", "particles", "sky", "translucent", "ui"]
     private var stageSums = [Double](repeating: 0, count: 18), stageFrames = 0
-    // P420: this frame's record stages (ms), for the pause menu's Compute page (ComputeCost).
+    // P420: this frame's record stages (ms), for the voice notes' compute line (ComputeCost).
     private var stagePrev = [Double](repeating: 0, count: 18)
     private(set) var stageFrame = [Double](repeating: 0, count: 18)
     private(set) var stageWorst = 0.0                       // the slowest frame's record since the last take (ms)

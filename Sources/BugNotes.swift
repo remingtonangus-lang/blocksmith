@@ -253,7 +253,7 @@ final class BugNotes {
                 + String(format: ", world scale %.0f%%, brightness %.2f", g.renderScale * 100, Settings.shared.lightBrightness)),
             ("Input", pads.connected ? "\(pads.name), last used \(pads.usingPad ? "controller" : "keyboard/mouse")" : "keyboard/mouse"),
         ]
-        if let t = PlaytestChecklist.noteTag(clock: g.clock) { r.append(("Checklist item", t)) }   // P399
+        if ComputeCost.fed { r.append(("Compute", ComputeCost.summary(g))) }                    // P510
         return r
     }
 

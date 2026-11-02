@@ -73,7 +73,6 @@ final class BugNotes {
         permission = activity.map { bs_mic_permission($0) == 1 } ?? false
         firstLaunch = !QuestSettings.voiceNotesAsked
         setupAt = CFAbsoluteTimeGetCurrent()
-        PlaytestChecklist.startNote = { [weak self] in self?.talkUntil = CFAbsoluteTimeGetCurrent() + 20 }
         print("voicenotes: dir \(d), mic permission \(permission), mode \(mode)")
         io.async { VoiceNoteContext.enforceCap(dir: d, maxBytes: BugNotes.maxBytes) }
     }

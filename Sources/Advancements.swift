@@ -176,9 +176,9 @@ extension Game {
     }
 
     func grantAdvancement(_ a: Advancement) {
-        guard advancements.insert(a.id).inserted else { return }
-        advToasts.append((a.title, a.challenge, clock))
-        sfx(a.challenge ? .levelUp : .xp, a.challenge ? 1 : 0.6)
+        // P510 (Nov 1 20:32, "let's get rid of the achievements or advancements"): kept quietly (Statistics, the
+        // playthrough's checks), with no toast or chime in play and no pause menu row.
+        advancements.insert(a.id)
     }
 
     // Once a second: item, dimension and effect criteria, plus derived events.

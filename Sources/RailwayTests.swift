@@ -119,10 +119,13 @@ enum RailwayTests {
         let tickets = l.stations.filter { s in signs.contains { abs($0.0.x - s.x) < 8 && abs($0.0.z - s.z) < 12 && Trains.isTicketSign($0.1) } }.count
         // (P510: an end a link runs on from has rail on past it, not a buffer stop)
         let open = Railways.openEnds(gen, l)
+        var ends: [String] = []
         let stops = [l.cells.first!, l.cells.last!].enumerated().filter { (k, c) in
             let n = k == 0 ? l.cells[1] : l.cells[l.cells.count - 2]
             let past = at(c.x + (c.x - n.x), c.y, c.z + (c.z - n.z))
-            return (k == 0 ? open.west : open.east) ? Rails.isRail(past) : past == Blocks.id("stone_bricks")
+            let o = k == 0 ? open.west : open.east
+            ends.append("\(k == 0 ? "west" : "east") \(o ? "linked" : "end"): \(Blocks.key(past)) past \(c.x) \(c.y) \(c.z)")
+            return o ? Rails.isRail(past) : past == Blocks.id("stone_bricks")
         }.count
         // Old ground: a guard covering the line's middle keeps no line.
         let old = WorldGen(seed: seed)
@@ -132,7 +135,7 @@ enum RailwayTests {
         let oldLine = Railways.plan(old, row: row, stretch: st)
         check(bad.isEmpty && unheld == 0 && named == l.stations.count && tickets == l.stations.count && stops == 2 && oldLine == nil,
               "C1 built (seed \(seed), \(l.name)): \(l.cells.count) steps of rail with head room and a bed, \(decks) on trestle decks (\(unheld) runs of 5+ without a leg), "
-              + "\(named)/\(l.stations.count) station signs, \(tickets) ticket boards, \(stops) buffer stops; old ground line \(oldLine == nil ? "none" : "kept")"
+              + "\(named)/\(l.stations.count) station signs, \(tickets) ticket boards, \(stops) buffer stops (\(ends.joined(separator: ", "))); old ground line \(oldLine == nil ? "none" : "kept")"
               + (bad.isEmpty ? "" : "; " + bad.prefix(4).joined(separator: "; ")))
     }
 
@@ -253,7 +256,14 @@ enum RailwayTests {
                     for d in 2...5 {
                         let b = world.block(c.x, c.y - d, c.z)
                         if Blocks.fluidKind[Int(b)] != 0 { break }
-                        if world.groundAt(c.x, c.y - d, c.z) || (Blocks.opaque[Int(b)] && Blocks.collide[Int(b)] && b != plankDeck) { shallowDecks += 1; break }
+                        if world.groundAt(c.x, c.y - d, c.z) || (Blocks.opaque[Int(b)] && Blocks.collide[Int(b)] && b != plankDeck) {
+                            shallowDecks += 1
+                            if shallowDecks <= 3 {
+                                let col = (1...6).map { k in "\(Blocks.key(world.block(c.x, c.y - k, c.z)))\(world.groundAt(c.x, c.y - k, c.z) ? "*" : "")" }
+                                print("rail ride: a plank deck over a shallow dip at cell \(i) (\(c.x) \(c.y) \(c.z)), under it: \(col.joined(separator: ", "))")
+                            }
+                            break
+                        }
                     }
                 }
             }
@@ -499,6 +509,10 @@ enum RailwayTests {
                 let chain = [l.cells.last!] + lk.cells + [b.cells.first!]
                 for i in 1..<chain.count where abs(chain[i].x - chain[i - 1].x) + abs(chain[i].z - chain[i - 1].z) != 1 {
                     bad.append("seed \(seed) \(lk.name): step \(i) not adjacent"); break
+                }
+                if abs(chain[1].x - chain[0].x) + abs(chain[1].z - chain[0].z) != 1, let a = Railways.line(gen, row: row, stretch: st) {
+                    print("rail links: seed \(seed) row \(row) stretch \(st): the line's east end \(l.cells.last!) (\(l.cells.count) cells), the link from \(lk.cells.first!), "
+                          + "the line asked again ends \(a.cells.last!) (\(a.cells.count) cells), the next line starts \(b.cells.first!)")
                 }
                 if let ha = l.heights, let hl = lk.heights, let hb = b.heights {
                     let hs = [ha.last!] + hl + [hb.first!]

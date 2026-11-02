@@ -33,9 +33,11 @@ enum Journal {
     static var rev = 0
 
     enum Cat: Int, CaseIterable {
-        case all, orders, logs, notes, pamphlets, other, messages, events      // events: the Director's (P266)
-        var key: String { ["all", "orders", "logs", "notes", "pamphlets", "other", "messages", "events"][rawValue] }
-        var tab: String { ["All", "Orders", "Logs", "Notes", "Pamphlets", "Other", "Messages", "Events"][rawValue] }
+        // events: the Director's (P266). papers (P510): every document but the Director's, the Journal screen's shelf
+        // for the five kinds (each entry still filed on its own, its kind named on its line).
+        case all, orders, logs, notes, pamphlets, other, messages, events, papers
+        var key: String { ["all", "orders", "logs", "notes", "pamphlets", "other", "messages", "events", "papers"][rawValue] }
+        var tab: String { ["All", "Orders", "Logs", "Notes", "Pamphlets", "Other", "Messages", "Events", "Papers"][rawValue] }
         static func from(_ k: String) -> Cat? { allCases.first { $0.key == k } }
     }
 
@@ -50,7 +52,7 @@ enum Journal {
     }
     static func cat(_ e: JournalEntry) -> Cat {
         if e.pages == nil { return .messages }
-        if let k = e.cat, let c = Cat.from(k), c != .all { return c }
+        if let k = e.cat, let c = Cat.from(k), c != .all && c != .papers { return c }
         return guess(e.title ?? "")
     }
     static func name(_ e: JournalEntry) -> String { e.pages == nil ? e.text : (e.title ?? "Document") }
@@ -225,7 +227,18 @@ final class JournalMenu: Menu, CustomDrawnMenu {
     static let paneX = 130, paneY = 32, paneW = 184, paneH = 136
     static let lineH = 9, textTop = 27
     static let linesPerPage = (paneH - textTop - 3) / lineH
-    static let tabBase = 200, scrollUp = 100, scrollDown = 101, prevPage = 110, nextPage = 111, close = 120
+    static let tabBase = 200, scrollUp = 100, scrollDown = 101, prevPage = 110, nextPage = 111, close = 120, mapTab = 130
+    // P510 (Nov 1 20:32, "World map should be in the journal", "the journal's way too crowded"): four shelves (the five
+    // kinds of document on one, Papers) and the World Map as the last tab, where eight tabs stood edge to edge.
+    static let tabs: [Journal.Cat] = [.all, .papers, .messages, .events]
+    static func shows(_ tab: Journal.Cat, _ e: JournalEntry) -> Bool {
+        let c = Journal.cat(e)
+        switch tab {
+        case .all: return true
+        case .papers: return e.pages != nil && c != .events
+        default: return c == tab
+        }
+    }
 
     var tab: Journal.Cat = .all
     var newFrom = Int.max                    // Q2c-console-29: entries at or past this index arrived since the last visit
@@ -251,17 +264,16 @@ final class JournalMenu: Menu, CustomDrawnMenu {
         for i in 0..<JournalMenu.visible {
             button(JournalMenu.listX, JournalMenu.listY + JournalMenu.rowH * i, JournalMenu.listW, JournalMenu.rowH - 2, i)
         }
-        let cats = Journal.Cat.allCases
-        let textW = cats.reduce(0) { $0 + Font.width($1.tab) }
-        let room = width - 12 - 2 * (cats.count - 1)
-        let pad = max(4, min(10, (room - textW) / cats.count))
+        // The tabs share the width evenly (the map's a little apart at the right).
+        let n = JournalMenu.tabs.count + 1, tw = (width - 12 - 4 * (n - 1) - 6) / n
         var x = 6
-        for c in cats {
-            let w = Font.width(c.tab) + pad
-            button(x, JournalMenu.tabY, w, JournalMenu.tabH, JournalMenu.tabBase + c.rawValue)
-            tabX.append(x); tabW.append(w)
-            x += w + 2
+        for c in JournalMenu.tabs {
+            button(x, JournalMenu.tabY, tw, JournalMenu.tabH, JournalMenu.tabBase + c.rawValue)
+            tabX.append(x); tabW.append(tw)
+            x += tw + 4
         }
+        button(x + 6, JournalMenu.tabY, tw, JournalMenu.tabH, JournalMenu.mapTab)
+        tabX.append(x + 6); tabW.append(tw)
         let half = (JournalMenu.listW - 4) / 2
         button(JournalMenu.listX, 168, half, 12, JournalMenu.scrollUp)
         button(JournalMenu.listX + JournalMenu.listW - half, 168, half, 12, JournalMenu.scrollDown)
@@ -289,12 +301,12 @@ final class JournalMenu: Menu, CustomDrawnMenu {
             let nameW = JournalMenu.listW - 8
             for i in stride(from: j.count - 1, through: 0, by: -1) {
                 let e = j[i]
-                guard tab == .all || Journal.cat(e) == tab else { continue }
+                guard JournalMenu.shows(tab, e) else { continue }
                 shown.append(i)
                 rowName.append(ShopMenu.fit(Journal.name(e).replacingOccurrences(of: "\n", with: " "), nameW))
                 var d = String(format: "Day %d, %02d:%02d", e.day, e.hour, e.minute)
                 if i >= newFrom && e.pages != nil { d = "New - " + d }
-                if tab == .all { d += " - " + Journal.cat(e).tab }
+                if tab == .all || tab == .papers { d += " - " + Journal.cat(e).tab }
                 else if let p = e.place { d += " - " + p }
                 rowDetail.append(ShopMenu.fit(d, nameW))
             }
@@ -337,16 +349,28 @@ final class JournalMenu: Menu, CustomDrawnMenu {
         case JournalMenu.close: game.closeMenu(); return
         case JournalMenu.tabBase..<(JournalMenu.tabBase + Journal.Cat.allCases.count):
             if let c = Journal.Cat(rawValue: i - JournalMenu.tabBase), c != tab { tab = c; game.sfx(.click, 0.4) }
+        case JournalMenu.mapTab: openMap(); return
         default: break
         }
         refresh()
     }
 
+    // LB / RB step the shelves; past the last one, the map.
     func switchTab(_ d: Int) {
-        let n = Journal.Cat.allCases.count
-        tab = Journal.Cat(rawValue: (tab.rawValue + d + n) % n) ?? .all
+        let t = JournalMenu.tabs, at = t.firstIndex(of: tab) ?? 0
+        if d > 0 && at == t.count - 1 { openMap(); return }
+        tab = t[max(0, min(t.count - 1, at + d))]
         game.sfx(.click, 0.4)
         refresh()
+    }
+    // The World Map, its Back coming back to this shelf.
+    func openMap() {
+        let g = game, shelf = tab
+        g.sfx(.pageTurn, 0.5)
+        g.closeMenu()
+        let m = MapMenu(game: g)
+        m.back = { g.openJournal(tab: shelf) }
+        g.openMenu(m)
     }
 
     func scrollBy(_ d: Int) {
@@ -383,13 +407,15 @@ final class JournalMenu: Menu, CustomDrawnMenu {
             centred(t, sl.x, sl.w, sl.y + (sl.h - 7) / 2, on ? dark : faint)
         }
 
-        // Tabs.
-        for c in Journal.Cat.allCases {
-            let x = tabX[c.rawValue], w = tabW[c.rawValue]
-            let sel = c == tab
+        // Tabs (the map's last, a hover lighter like the list's).
+        for k in 0...JournalMenu.tabs.count {
+            let map = k == JournalMenu.tabs.count, c = map ? Journal.Cat.all : JournalMenu.tabs[k]
+            let x = tabX[k], w = tabW[k], sel = !map && c == tab
+            let id = map ? JournalMenu.mapTab : JournalMenu.tabBase + c.rawValue
+            let hot = hover != nil && slots.first(where: { if case .button(let b) = $0.kind { return b == id }; return false }) === hover
             box(x, JournalMenu.tabY, w, JournalMenu.tabH, V4(0.22, 0.2, 0.18, 1))
-            box(x + 1, JournalMenu.tabY + 1, w - 2, JournalMenu.tabH - (sel ? 1 : 2), sel ? parchment : V4(0.6, 0.57, 0.52, 1))
-            centred(c.tab, x, w, JournalMenu.tabY + 3, sel ? ink : dark)
+            box(x + 1, JournalMenu.tabY + 1, w - 2, JournalMenu.tabH - (sel ? 1 : 2), sel ? parchment : (hot ? V4(0.75, 0.72, 0.66, 1) : V4(0.6, 0.57, 0.52, 1)))
+            centred(map ? "World Map" : c.tab, x, w, JournalMenu.tabY + 3, sel ? ink : dark)
         }
 
         // The list.

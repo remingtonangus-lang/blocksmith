@@ -154,7 +154,8 @@ enum VoiceNoteContext {
                              g.world.seed, p.pos.x, p.pos.z, Double(p.yaw * 180 / .pi), Double(p.pitch * 180 / .pi), g.dayFraction,
                              g.dim.dim == .overworld ? "" : " --dim \(g.dim.dim.rawValue)")),
         ]
-        if let t = PlaytestChecklist.noteTag(clock: g.clock) { r.append(("checklist", t)) }   // P399
+        // P510: what the frame cost where he stood (the pause menu's Compute page is gone; the notes carry it instead).
+        if ComputeCost.fed { r.append(("compute", ComputeCost.summary(g))) }
         return r
     }
 

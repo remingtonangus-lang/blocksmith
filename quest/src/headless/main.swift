@@ -20,6 +20,7 @@ StructureCache.plansOffThread = false   // base ticks find their sites at once (
 Blueprints.on = false                  // upgrades fit without blueprints (P138: --p12pm-only P138 turns them on)
 TownSizes.on = false                   // and their towns as they were (C13 town sizes: --sizes-only turns them on)
 MobVary.on = false                      // checks count exact blows and steps (the P55 check turns it on)
+Soldier.unarmedPeace = false            // checks' soldiers fight an empty-handed player as before (P510's check turns it on)
 // --headset (P510): his world as the headset makes it, not the fixtures': a new saved world's water (P44 fewer lakes,
 // H8 less water: World.newTerrain markers, which an unsaved world lacks), the headset's world rules (WorldRules.p44:
 // roads, cities) and C13 town sizes. Without it a --view or --railprobe of his seed drew other rivers and towns, and
@@ -1833,6 +1834,75 @@ if let names = arg("--texshot"), let i = CommandLine.arguments.firstIndex(of: "-
     print("texshot: \(want.count) layers -> \(out)")
     exit(0)
 }
+// --hudshot OUT.ppm --menu NAME (P510, his menu notes): a whole menu screen as the HUD draws it, text and icons included, the
+// HUD's triangles rasterised on the host with each texture layer painted (nearest texel) as the fragment shader samples it.
+// NAME: pause, options, journal, inventory, commands, map, title. For layout work without the headset.
+if let out = arg("--hudshot") {
+    game.survival = true; game.paused = false; game.menu = nil
+    for (i, n) in ["iron_pickaxe", "bread", "coal", "oak_log", "torch", "apple", "stone", "iron_ingot"].enumerated() where Items.has(n) {
+        game.inventory.main[9 + i] = ItemStack(Items.id(n), n.hasSuffix("pickaxe") ? 1 : 12)
+    }
+    for k in 0..<12 {
+        let doc = k % 3 != 0
+        game.journal.append(JournalEntry(day: 1 + k / 4, hour: 8 + k, minute: 5 * k, text: "Message number \(k): the garrison opens fire",
+                                         title: doc ? ["Patrol Orders", "Signals Log", "Town Pamphlet", "A Torn Note"][k % 4] : nil,
+                                         pages: doc ? ["Page one of a document found in a tower room. It goes on for a while so the pane wraps it."] : nil))
+    }
+    Journal.rev += 1
+    switch arg("--menu") ?? "pause" {
+    case "journal": game.openJournal()
+    case "inventory": game.openMenu(InventoryMenu(game: game))
+    case "commands": game.openCommands()
+    case "map": game.openMenu(MapMenu(game: game))
+    case "options": let pm = PauseMenu(game: game); game.openMenu(pm); pm.act("options", back: false); pm.build()
+    case "title": let pm = PauseMenu(game: game); pm.page = .title; pm.build(); game.openMenu(pm)
+    default: game.openMenu(PauseMenu(game: game))
+    }
+    let W = 1280, H = 720
+    let verts = Renderer(game: game).buildHUD(Float(W), Float(H))
+    var img = [Float](repeating: 0.25, count: W * H * 3)
+    let S = 32
+    var layers: [Int: [UInt8]] = [:]
+    func texel(_ L: Int, _ uv: V2) -> V4 {
+        let l = L >= 4096 ? L - 4096 : L
+        if layers[l] == nil { layers[l] = TextureGen.base(size: S, layers: l..<(l + 1)) }
+        let d = layers[l]!
+        let x = max(0, min(S - 1, Int(uv.x * Float(S)))), y = max(0, min(S - 1, Int(uv.y * Float(S))))
+        let i = (y * S + x) * 4
+        return V4(Float(d[i]) / 255, Float(d[i + 1]) / 255, Float(d[i + 2]) / 255, Float(d[i + 3]) / 255)
+    }
+    var t = 0
+    while t + 2 < verts.count {
+        let a = verts[t], b = verts[t + 1], c = verts[t + 2]
+        t += 3
+        let x0 = max(0, Int(min(a.pos.x, min(b.pos.x, c.pos.x)))), x1 = min(W - 1, Int(max(a.pos.x, max(b.pos.x, c.pos.x))))
+        let y0 = max(0, Int(min(a.pos.y, min(b.pos.y, c.pos.y)))), y1 = min(H - 1, Int(max(a.pos.y, max(b.pos.y, c.pos.y))))
+        let d = (b.pos.x - a.pos.x) * (c.pos.y - a.pos.y) - (c.pos.x - a.pos.x) * (b.pos.y - a.pos.y)
+        guard abs(d) > 1e-6, x0 <= x1, y0 <= y1 else { continue }
+        let L = Int(a.extra.x)
+        for py in y0...y1 { for px in x0...x1 {
+            let q = V2(Float(px) + 0.5, Float(py) + 0.5)
+            let w1 = ((q.x - a.pos.x) * (c.pos.y - a.pos.y) - (c.pos.x - a.pos.x) * (q.y - a.pos.y)) / d
+            let w2 = ((b.pos.x - a.pos.x) * (q.y - a.pos.y) - (q.x - a.pos.x) * (b.pos.y - a.pos.y)) / d
+            let w0 = 1 - w1 - w2
+            guard w0 >= 0, w1 >= 0, w2 >= 0 else { continue }
+            var col = a.color * w0 + b.color * w1 + c.color * w2
+            if a.extra.x >= 0 {
+                let uv = a.uv * w0 + b.uv * w1 + c.uv * w2
+                let s = texel(L, uv)
+                if s.w < 0.1 { continue }
+                col = V4(s.x * col.x, s.y * col.y, s.z * col.z, s.w * col.w)
+            }
+            let i = (py * W + px) * 3, al = col.w
+            img[i] = img[i] * (1 - al) + col.x * al; img[i + 1] = img[i + 1] * (1 - al) + col.y * al; img[i + 2] = img[i + 2] * (1 - al) + col.z * al
+        } }
+    }
+    var ppm = Data("P6\n\(W) \(H)\n255\n".utf8)
+    for v in img { ppm.append(UInt8(max(0, min(255, v * 255)))) }
+    try? ppm.write(to: URL(fileURLWithPath: out))
+    print("hudshot: \(arg("--menu") ?? "pause") (\(game.menu.map { String(describing: type(of: $0)) } ?? "no menu"), \(verts.count / 3) triangles, \(layers.count) layers) -> \(out)")
+    exit(0)
+}
 // --figureshot OUT.ppm [--armour PREFIX] [--mouse X,Y] (P473): the inventory's figure wearing a set (regular_ by default), the HUD's
 // flat triangles rasterised on the host (text and icons left out), cropped round the preview box and scaled 4x.
 if let out = arg("--figureshot") {
@@ -1907,10 +1977,6 @@ if CommandLine.arguments.contains("--maingun-quick") {
     print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --frigatecheck: P325, the Meridian frigate's interior, flight, main gun and crash from its helm (Sources/FrigateCheck.swift).
-if CommandLine.arguments.contains("--checklist-only") {          // P399: the in-game playtest checklist page
-    PlaytestChecklistCheck.run(game, check)
-    print(failures == 0 ? "checklist: all checks passed" : "checklist: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
-}
 if CommandLine.arguments.contains("--difficulty-only") {          // P358: hits to kill and a fight per level
     DifficultyCheck.run(game, check)
     print(failures == 0 ? "difficulty: all checks passed" : "difficulty: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

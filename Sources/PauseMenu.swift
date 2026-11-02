@@ -9,12 +9,14 @@ final class PauseMenu: Menu {
     static let sens: [Float] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10]
     static let zones: [Float] = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25]
     static let outers: [Float] = [0, 0.02, 0.05, 0.08, 0.1, 0.15, 0.2]
-    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, stats, checklist, compute, messages }
+    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, stats }
     enum Cat: Int, CaseIterable {
         // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
         // distance setting" - it sat on page 3 behind the input pages).
-        case video, controls, controller, audio, interface, accessibility, director
-        var name: String { ["Video", "Keyboard & Mouse", "Controller", "Audio", "Interface", "Accessibility", "Director"][rawValue] }
+        // P510 (Nov 1 20:32, "Options and VR comfort controls should be combined"): the host's own page (the Quest's VR
+        // Comfort & Controls) is one of the Options pages, second after Video, not a row of its own beside Options.
+        case video, controls, controller, audio, interface, accessibility, director, host
+        var name: String { ["Video", "Keyboard & Mouse", "Controller", "Audio", "Interface", "Accessibility", "Director", "Host"][rawValue] }
     }
     var page: Page = .main
     var cat: Cat = .video
@@ -75,9 +77,15 @@ final class PauseMenu: Menu {
     static var savedNote: String?                 // Q2c-console-2: the title screen's "World1 saved" after Save and Quit
     static var hostVideoRows: (() -> [(String, String)])?   // Q2c-console-26: the host's own rows on the Video page
     static var hostCatNames: [Cat: String] = [:]
-    static var shownCats: [Cat] { Cat.allCases.filter { !hostHiddenCats.contains($0) } }
-    static func catName(_ c: Cat) -> String { hostCatNames[c] ?? c.name }
+    static var shownCats: [Cat] {
+        var c = Cat.allCases.filter { !hostHiddenCats.contains($0) && $0 != .host }
+        if hostEntry != nil { c.insert(.host, at: min(1, c.count)) }
+        return c
+    }
+    static func catName(_ c: Cat) -> String { c == .host ? hostEntry.map { $0.0.replacingOccurrences(of: "...", with: "") } ?? c.name : hostCatNames[c] ?? c.name }
+    static var hostCatPage: String? { hostEntry.map { String($0.1.dropFirst(5)) } }      // ("host:vr" -> "vr")
     var hostPageID: String?
+    var fromCommands = false              // P510: the Go To page opened from the Commands screen (Back goes back there)
 
     init(game: Game) {
         super.init("Game Paused", game: game)
@@ -119,7 +127,7 @@ final class PauseMenu: Menu {
 
     static func isValue(_ id: String) -> Bool {
         valueIDs.contains(id) || id.hasPrefix("vol:") || id.hasPrefix("fx") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol", "audio_music_titles"].contains(id)
-            || hostValues.contains(id) || id.hasPrefix("cl:") || id == "cl_view" || id == "cl_sw"     // P399
+            || hostValues.contains(id)
     }
 
     static let help: [String: String] = [
@@ -146,17 +154,13 @@ final class PauseMenu: Menu {
         "fov": "How wide the view is. Wider shows more at the sides; narrower looks closer.",
         "invert": "Moving the mouse or stick up looks down.",
         "autojump": "Walk into a one-block step to climb it without jumping.",
-        "advancements": "Goals you have reached and the ones still ahead.",
         "stats": "What you have done in this world: time, distance, mining, building, fighting, crafting.",
-        "messages": "The last 50 messages shown on screen, newest first, with the day and time.",
-        "compute": "What each part of the game costs a frame where you stand (playtest builds): drawing by system, the game tick, the GPU.",
         "commands": "Type a command (time, weather, teleport, give...).",
         "new_mode": "Survival: health, hunger, mining. Creative: fly and build freely. You can switch later from the pause menu.",
         "new_diff": "How much damage mobs do and whether hunger can kill.",
         "edit_name": "The name shown in the worlds list.",
         "edit_seed": "Leave empty for a random world; the same seed always makes the same world.",
         "photo": "A free camera with the HUD hidden: keyframe paths and depth of field (F6).",
-        "worldmap": "Biomes around you and the Capital citadels and villages you have found.",
         "flight": "Aircraft pitch on the left stick: pull back to climb (like a plane) or push up to climb.",
         "autosprint": "Push the left stick fully forward for a moment to sprint.",
         "glyphs": "Which buttons prompts show. Auto follows the last device you touched.",
@@ -212,7 +216,7 @@ final class PauseMenu: Menu {
         "dir_freq": "How much play time passes between events.",
         "dir_early": "Lets the Director start before the story is finished (for trying it out).",
         // Q2c-console-6: rows that had no help.
-        "journal": "Every order, log, note, pamphlet, message and Director event you have received, to read again.",
+        "journal": "The world map, and every order, log, note, message and Director event you have received, to read again.",
         "shortcuts": "Teleport to the nearest place of a kind (testing).",
         "restorebackup": "The game closed unexpectedly: put back the newest rolling backup of this world.",
         "new_create": "Make the world with these settings and start playing.",
@@ -227,7 +231,7 @@ final class PauseMenu: Menu {
         "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
         "debug": "Shows your position, the biome, the frame rate and chunk details in the corner (F3 on the keyboard).",
         "testmode": "Testing: dying in survival turns the game to creative where you stand, with everything still on you, instead of the death screen.",
-        "devtools": "Shows Commands (time, weather, items, mode) and Shortcuts (teleport) in the pause menu in survival. Creative always has them.",
+        "devtools": "Shows Commands (time, weather, items, mode, and Go To: teleports) in the pause menu in survival. Creative always has them.",
         "perf": "Frame rate, frame times (average and worst of the last second), render distance and chunk jobs in the corner of the view.",
         "quit": "Save the world and close Sunderfall (asks first).",
         "quit_yes": "Saves your world, then closes Sunderfall.",
@@ -265,7 +269,6 @@ final class PauseMenu: Menu {
             let played = day > 1 || g.time > DAY_LENGTH * 0.1
             let play = played ? "Continue: \(last) (\(g.survival ? "Survival" : "Creative"), day \(day))" : "Play: \(last)"
             rows = [(play, "resume"), ("Worlds...", "worlds"), ("Options...", "options"), ("Quit Game", "quit")]
-            if let e = PauseMenu.hostEntry { rows.insert(e, at: 1) }
             if PauseMenu.savedNote == nil {
                 subtitle = "\(Difficulty.name(g.diffLevel)), \(g.smoothTerrain ? "polygon" : "block") terrain"
             }
@@ -280,7 +283,10 @@ final class PauseMenu: Menu {
                     + (SaveBadge.savedAgo(g).map { " - " + $0 } ?? "")   // Q2c-console-2, -16
                     + (StorageCheck.low ? " - storage low" : "")         // Q2c-console-51
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), PauseMenu.distanceRow(g), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Statistics", "stats"), ("Messages", "messages"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            // P510 (Nov 1 20:32, "a bunch of stuff we need to remove from the main menu"): the World Map is in the Journal,
+            // Shortcuts are in Commands, VR Comfort is an Options page; Advancements, Messages (the Journal keeps them),
+            // the Playtest Checklist and the Compute page are gone.
+            rows = [("Back to Game", "resume"), ("Options...", "options"), PauseMenu.distanceRow(g), ("Journal and Map...", "journal"), (PauseMenu.trackLabel(g), "track"), ("Statistics", "stats"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Difficulty.name(g.diffLevel))", "difficulty"),   // P369: changeable for the life of the world
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"),
@@ -288,17 +294,11 @@ final class PauseMenu: Menu {
             if g.coop.current > 0 {
                 // Player 2's pause menu: their own screens, and leaving (the world itself belongs to player 1).
                 subtitle = "Player 2"
-                rows = [("Back to Game", "resume"), ("World Map", "worldmap"), (PauseMenu.trackLabel(g), "track"), ("Advancements", "advancements"), ("Leave Split Screen", "coop")]
+                rows = [("Back to Game", "resume"), ("Journal and Map...", "journal"), (PauseMenu.trackLabel(g), "track"), ("Leave Split Screen", "coop")]
             } else if g.coop.active {
                 rows.removeAll { $0.1 == "photo" || $0.1 == "worlds" }
             }
-            if let e = PauseMenu.hostEntry, g.coop.current == 0 { rows.insert(e, at: 2) }
-            if !g.cheatsAllowed { rows.removeAll { $0.1 == "commands" || $0.1 == "shortcuts" } }    // Q2c-console-15
-            // P399: the device checklist, playtest builds only (above Shortcuts; the store build has no row).
-            if Playtest.enabled && g.coop.current == 0, let at = rows.firstIndex(where: { $0.1 == "shortcuts" || $0.1 == "mode" }) {
-                rows.insert(("Playtest Checklist...", "checklist"), at: at)
-                rows.insert(("What Is Using the Compute", "compute"), at: at + 1)   // P420
-            }
+            if !g.cheatsAllowed { rows.removeAll { $0.1 == "commands" } }    // Q2c-console-15
             // P480: the bug and idea reporter (builds that know where to send reports).
             if Reporter.available && g.coop.current == 0, let at = rows.firstIndex(where: { $0.1 == "commands" || $0.1 == "mode" }) {
                 rows.insert(("Report a Bug or Idea", "report"), at: at)
@@ -364,7 +364,7 @@ final class PauseMenu: Menu {
                         ("Look-at Names: \(on(st.lookNames))", "looknames"),                                      // Q2c-console-55
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Coordinates & Details: \(on(g.showDebug))", "debug"),
                         ("Performance Overlay: \(on(st.perfOverlay))", "perf"),
-                        ("Cheats & Shortcuts: \(on(st.devTools))", "devtools"),          // Q2c-console-15
+                        ("Cheats & Commands: \(on(st.devTools))", "devtools"),          // Q2c-console-15
                         ("Test Mode (Creative on Death): \(on(st.testMode))", "testmode"),     // P463
                         ("About and Licences...", "about"), ("Reset Options...", "resetask")]
                 if BugNotes.available {
@@ -389,6 +389,11 @@ final class PauseMenu: Menu {
                         (Director.shortStatus(g), "dir_status"),
                         ("Director Events (Journal)...", "dir_journal")]
                 if !st.devTools && !st.directorEarly { rows.removeAll { $0.1 == "dir_early" } }     // Q2c-console-16
+            case .host:
+                // P510: the host's page (the Quest's VR Comfort & Controls), its rows and their actions the host's.
+                let r = PauseMenu.hostCatPage.flatMap { PauseMenu.hostPage?($0) }
+                rows = r?.rows ?? []
+                if let r, !r.subtitle.isEmpty { subtitle = r.subtitle + " - next page: \(PauseMenu.catName(next))" }
             }
             rows.append(("Done", "back"))
         case .padmap:
@@ -410,28 +415,9 @@ final class PauseMenu: Menu {
             title = "Statistics"
             subtitle = currentWorld.isEmpty ? "This world" : currentWorld
             rows = Stats.rows(g).map { ($0, "noop") } + [("Back", "back")]
-        case .messages:                                                 // P421: the last 50 on-screen messages
-            title = "Messages"
-            let msgs = g.journal.filter { $0.pages == nil }.suffix(50).reversed()
-            subtitle = msgs.isEmpty ? "No messages yet" : "The last \(msgs.count), newest first"
-            rows = []
-            for e in msgs {
-                let stamp = String(format: "Day %d %02d:%02d  ", e.day, e.hour, e.minute)
-                for (i, l) in Journal.wrap(stamp + e.text, width: style.width - 24).enumerated() { rows.append(((i > 0 ? "    " : "") + l, "noop")) }
-            }
-            rows += [("Open Journal...", "journal"), ("Back", "back")]
-        case .compute:                                                  // P420 (ComputeCost.swift)
-            title = "What Is Using the Compute"
-            let c = ComputeCost.rows(g)
-            subtitle = c.0
-            rows = c.1.map { ($0, "noop") } + [("Back", "back")]
-        case .checklist:                                                // P399 (PlaytestChecklist.swift)
-            title = "Playtest Checklist"
-            let c = PlaytestChecklist.rows(g, width: style.width)
-            subtitle = c.subtitle
-            rows = c.rows
         case .shortcuts:
-            title = "Shortcuts"
+            // P510: reached from the Commands screen's Go To button (no pause row of its own).
+            title = "Go To"
             subtitle = "Teleport to the nearest one"
             rows = Game.shortcutList.map { ($0.1, "sc:" + $0.0) } + [("Back to Spawn", "sc:spawn"), ("Back", "back")]
         case .worlds:
@@ -500,7 +486,6 @@ final class PauseMenu: Menu {
     }
     var style: Style {
         if hostPageID != nil { return .list }
-        let vr = PauseMenu.hostEntry?.1 ?? "host:vr"
         switch page {
         case .main:
             // P410 (Oct 22 22:06, "I can't hardly read what's in the main menu"): seven lines of 30 (since P369's
@@ -509,13 +494,13 @@ final class PauseMenu: Menu {
             // (P421: 22 with gaps of 3 and 8, room for an eighth line with Messages).
             return Style(width: 440, btnH: 22, gapX: 12, gapY: 3, groupGap: 8, cols: 4, lines: 8, groups: [
                 (["resume", "restorebackup"], 0),
-                (["options", vr, PauseMenu.distanceID, "mode"], 0),                              // settings
-                (["worldmap", "track", "advancements", "stats", "messages"], 0),             // map and progress
-                (["worlds", "photo", "report", "commands", "checklist", "compute", "shortcuts"], 0),
+                (["options", PauseMenu.distanceID, "mode", "difficulty"], 0),                    // settings
+                (["journal", "track", "stats"], 0),                                          // the journal, map and progress
+                (["worlds", "photo", "report", "commands"], 0),
                 (["totitle"], 0)])                                                // leaving, apart from the rest
         case .title:
             return Style(width: 440, btnH: 30, gapX: 12, gapY: 6, groupGap: 12, cols: 4, lines: 6, groups: [
-                (["resume"], 0), ([vr, "worlds", "options"], 0), (["quit"], 0)])
+                (["resume"], 0), (["worlds", "options"], 0), (["quit"], 0)])
         case .world:
             // (b) the per-world buttons: Play alone and widest, Rename / Copy / Delete together, Back apart.
             // (Kept short enough to stay at the headset's larger menu scale.)
@@ -531,8 +516,6 @@ final class PauseMenu: Menu {
             // Cancel and the action side by side, well apart.
             return Style(width: 300, btnH: 30, gapX: 24, gapY: 6, groupGap: 12, cols: 2, lines: 2, groups: [
                 (rows.map { $0.1 }, 2)])
-        case .checklist, .messages:
-            return Style(width: 440, btnH: 20, lines: 12)                 // P399: long item lines
         default:
             return .list
         }
@@ -675,7 +658,6 @@ final class PauseMenu: Menu {
         }
         if id == "dir_status" { return Director.statusLines(game).prefix(2).joined(separator: ". ") }   // P266 (n)
         if id == "w_delete" && !WorldStore.useTrash { return "Delete this world for good (there is no Trash on this device): Copy it first to keep a backup." }   // Q2c-console-5
-        if let h = PlaytestChecklist.help(id) { return h }               // P399
         if id == "mode" { return "Survival: health, hunger, mining. Creative: fly and build freely. Asks before switching." }
         if id == "new_diff" { return Difficulty.help[Difficulty.clamp(newDifficulty)] }     // Q2c-console-17 (P302: per level)
         if id == "difficulty" || id == "q_firstdiff" { return Difficulty.help[Difficulty.clamp(game.diffLevel)] }   // P302 (c): the level in play
@@ -683,9 +665,6 @@ final class PauseMenu: Menu {
     }
 
     var legend: String {
-        if let id = hoveredID, id.hasPrefix("cl:") {                  // P399: tick, or a voice note about the item
-            return Prompt.line([(.select, "Tick"), (.alt, "Voice Note"), (.back, "Back")])
-        }
         var items: [(Prompt.Act, String)] = [(.select, "Select")]
         let value = hoveredID.map { PauseMenu.isValue($0) } ?? false
         if value && !Prompt.pad { items.append((.alt, "Previous")) }
@@ -749,11 +728,18 @@ final class PauseMenu: Menu {
         var resetCursor = false
         switch id {
         case "noop": return
+        case _ where id.hasPrefix("host:") && String(id.dropFirst(5)) == PauseMenu.hostCatPage:
+            // P510: the host's main page is an Options page (from its sub-pages' Back rows too).
+            hostPageID = nil; cat = .host
+            if page != .options { go(.options) }
+            scroll = 0; resetCursor = true
         case _ where id.hasPrefix("host:"):
             hostPageID = String(id.dropFirst(5)); scroll = 0; resetCursor = true
         case _ where hostPageID != nil && id != "back":
             PauseMenu.hostAct?(id, back)
         case _ where id.hasPrefix("q_") && PauseMenu.hostValues.contains(id):        // Q2c-console-26: a host row on our page
+            PauseMenu.hostAct?(id, back)
+        case _ where page == .options && cat == .host && id != "back":              // P510: the host's Options page
             PauseMenu.hostAct?(id, back)
         case _ where id.hasPrefix("vol:") || id.hasPrefix("audio_music_") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
         case "resume":
@@ -763,23 +749,6 @@ final class PauseMenu: Menu {
             cat = PadManager.shared.usingPad && PauseMenu.hostHiddenCats.isEmpty ? .controller : .video   // (the Quest: Video)
             go(.options); resetCursor = true
         case "controls": go(.controls); resetCursor = true
-        case "shortcuts": go(.shortcuts); resetCursor = true
-        case "checklist": PlaytestChecklist.loadIfNeeded(); go(.checklist); resetCursor = true      // P399
-        case "messages": go(.messages); resetCursor = true                                        // P421
-        case "compute": go(.compute); resetCursor = true                                          // P420
-        case _ where id.hasPrefix("cl:"):
-            if let i = Int(id.dropFirst(3)) {
-                if back { g.closeMenu(); PlaytestChecklist.note(i, clock: g.clock); return }     // X: a voice note about it
-                PlaytestChecklist.toggle(i)
-            }
-        case "cl_view":
-            let v = PlaytestChecklist.viewSteps
-            g.setRenderDistance(step(v, v.contains(g.world.renderDistance) ? g.world.renderDistance : 24))
-        case "cl_sw": PlaytestChecklist.spaceWarp?.toggle()
-        case _ where id.hasPrefix("clgo:"):
-            g.closeMenu()
-            PlaytestChecklist.go(String(id.dropFirst(5)), g)
-            return
         case _ where id.hasPrefix("sc:"):
             g.closeMenu()
             g.shortcutTeleport(String(id.dropFirst(3)))
@@ -801,6 +770,8 @@ final class PauseMenu: Menu {
         case "worlds": go(.worlds); resetCursor = true
         case "back" where hostPageID != nil:
             hostPageID = nil; scroll = 0; resetCursor = true
+        case "back" where fromCommands && page == .shortcuts && stack.isEmpty:
+            g.closeMenu(); g.openCommands(); return
         case "back":
             confirmReset = false; confirmMode = false; confirmQuit = false
             page = stack.popLast() ?? (page == .title ? .title : .main)
@@ -860,10 +831,8 @@ final class PauseMenu: Menu {
             stack = []
             page = .title
             resetCursor = true
-        case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
         case "stats": go(.stats); resetCursor = true                          // Q2c-console-57
         case "journal": g.closeMenu(); g.openJournal()
-        case "worldmap": g.closeMenu(); g.openMenu(MapMenu(game: g))
         case "track": g.closeMenu(); g.openTrackMenu()               // D51 (Waymarks.swift)
         case "photo": g.closeMenu(); g.paused = false; g.togglePhotoMode()
         case "coop": if g.coop.active { g.closeMenu(); g.paused = false; g.coop.leave(g) }     // (player 2 leaves; P479: no joining)

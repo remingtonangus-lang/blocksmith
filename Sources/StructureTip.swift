@@ -24,6 +24,7 @@ enum StructureTip {
     // block from the joint's edge it turns about.
     static let turnHold: Float = 0.5
     static var checks = 0, tipped = 0, snapped = 0, worstMs: Double = 0      // (harness tallies)
+    static var lastWeighed = ""                                             // (the harness: the last piece weighed)
 
     static func tick(_ g: Game) {
         let w = g.world
@@ -75,9 +76,12 @@ enum StructureTip {
                 let q = c + d
                 guard w.isLoaded(q.x, q.z) else { return nil }
                 if rim && (abs(q.x - p.x) > side || abs(q.z - p.z) > side) {
+                    // A block's hold across is its strongest joint there (one bond, as a footing block's is; an edge
+                    // joint half): the edge joints beside a face joint add nothing to what turns it (they made a
+                    // 15-long skyway hold a 900-block tower off its end, Nov 1 20:24).
                     if q.y >= floorY, let mq = Structure.part(w, q.x, q.y, q.z) {
                         let edge = abs(d.x) + abs(d.y) + abs(d.z) == 2
-                        links[head - 1] += min(mats[head - 1].bond, mq.bond) * (edge ? 0.5 : 1)
+                        links[head - 1] = max(links[head - 1], min(mats[head - 1].bond, mq.bond) * (edge ? 0.5 : 1))
                     }
                     continue
                 }
@@ -223,6 +227,7 @@ enum StructureTip {
         let cx = mx / weight, cz = mz / weight
         let dx = max(0, Float(lo.x) - cx, cx - Float(hi.x)), dz = max(0, Float(lo.y) - cz, cz - Float(hi.y))
         let lever = (dx * dx + dz * dz).squareRoot()
+        lastWeighed = "\(piece.count) blocks, \(feet) feet: " + String(format: "weight %.0f, lever %.1f, its feet hold %.0f, the joints on past it %.0f", weight, lever, hold, linkHold)
         return lever > 1 && weight * lever > (hold + linkHold) * turnHold
     }
 }
@@ -332,8 +337,10 @@ enum StructureTipCheck {
             } } }
             while !w.loadQueue.isEmpty { Structure.tick(g) }
             let t0 = tipped
+            StructureTip.lastWeighed = "nothing weighed"
             w.queueTipCheck(IVec3(x0 + 3, y + 1, z0 + 3), 3)
             StructureTip.tick(g)
+            print("tipcheck: skyway tower (walls kept \(keepWalls)): \(StructureTip.lastWeighed)")
             var left = 0
             for k in 3..<30 { for dz in 0..<7 { for dx in 0..<7 where w.builtBlock(x0 + dx, y + k, z0 + dz) == stone { left += 1 } } }
             for s in w.ships.list where s.name == Game.toppledName { w.ships.remove(s) }

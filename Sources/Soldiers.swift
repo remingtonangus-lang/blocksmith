@@ -113,6 +113,22 @@ final class SoldierBrain {
 }
 
 enum Soldier {
+
+    // P510 (Nov 1 20:11:03-20:11:08, near a Capital citadel in the snow: "Oh, please. I didn't even have a...", "I
+    // didn't have my gun out"; after P499's cities, P501's garrison rows and P508's Greywall: "If no gun, they send
+    // out a party"): a Capital or Greywall soldier not already fighting leaves an empty-handed man be. He is fought on
+    // sight with a weapon in hand, at the helm or on a gun, inside the soldier's own base (its walls), when the faction
+    // hunts him, or once he has hurt one of them or they're alerted (aggro).
+    // (`unarmedPeace` off: the checks' soldiers fight as before, questcheck main; the unarmed check turns it on)
+    static var unarmedPeace = true
+    static func holdsForUnarmed(_ g: Game, _ m: Mob) -> Bool {
+        guard unarmedPeace else { return false }
+        let f = m.factionValue
+        guard (f == .steelhold || f == .greywall) && m.posse == 0 && !m.raider, FactionRep.of(f) > FactionRep.huntedAt else { return false }
+        if GarrisonTown.weaponOut(g) || g.world.ships.pilot != nil || Turrets.shared.manned != nil { return false }
+        if g.clock - max(m.playerHurtAt, m.provokedAt) < 60 { return false }
+        return !HeavyTurret.sameBase(g, m, g.player.pos)
+    }
     // P460 (Oct 25 16:21: "The AI are way too oblivious to what's going on. Like, they should be attacking me as soon as I
     // break through the wall"): a block he breaks is heard by the soldiers within 20 blocks of it: they turn on him
     // (where he is), and the first of them calls its garrison.
@@ -346,6 +362,7 @@ extension Mob {
             soldierBrain.gun = variant; soldierBrain.mag = Guns.all[variant].mag
         }
         var canTarget = canTarget && !g.repAllied(self)               // O3: an ally's soldiers hold fire
+        if canTarget && !aggro && Soldier.holdsForUnarmed(g, self) { canTarget = false }       // P510
         // R23: an alerted soldier (an alarm, a lockdown, a comrade's call: lockTime) hunts the player out to 64 blocks;
         // senseTarget lets go past the rank's follow range (26-40), and the alerted garrison stood at its posts.
         if !canTarget && aggro && lockTime > 0 && dist < 64 && g.survival && g.alive && !g.repAllied(self)
