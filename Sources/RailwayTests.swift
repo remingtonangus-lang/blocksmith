@@ -393,7 +393,17 @@ enum RailwayTests {
             check(abs(abs(s0 - Float(near)) - TrainArrivals.approach) < 25 && closer,
                   String(format: "P508 arrival: a train put %.0f blocks up the line from him (track cell %d), %.0f after 20 s", abs(s0 - Float(near)), near, abs(s1 - Float(near))))
         } else { check(false, "P508 arrival: no train could be put on the line") }
-        if TrainArrivals.inTown(g, g.player.pos), let mtr = TrainArrivals.arrive(g, [t], kind: .troop) {
+        // (the military arrival wants him in a town: the one nearest the line, when the station isn't one)
+        if !TrainArrivals.inTown(g, g.player.pos), let sc = g.world.gen.structures {
+            for (k, c) in l.cells.enumerated() where k % 8 == 0 {
+                guard let v = sc.nearest("village", x: c.x, z: c.z, maxRegions: 1), abs(v.anchor.x - c.x) < 70 && abs(v.anchor.z - c.z) < 70 else { continue }
+                g.player.pos = V3(Float(v.anchor.x) + 0.5, Float(v.anchor.y) + 1, Float(v.anchor.z) + 0.5)
+                _ = world.loadSync(center: g.player.pos, radius: 4)
+                break
+            }
+        }
+        if !TrainArrivals.inTown(g, g.player.pos) { check(false, "P508 military arrival: no town on the line to stand in") }
+        else if let mtr = TrainArrivals.arrive(g, [t], kind: .troop) {
             Trains.build(g, mtr)
             let gun = mtr.cars.first { $0.variant == Trains.gunCar }
             if let gun {
@@ -405,7 +415,7 @@ enum RailwayTests {
                       "P508 military arrival: a troop train in \(Townsfolk.town(g, at: g.player.pos)) halts (\(mtr.heldBy)) and shells the town (\(TrainArrivals.shells - s0) shells in 12 s)")
             } else { check(false, "P508 military arrival: no guard car") }
             TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
-        }
+        } else { check(false, "P508 military arrival: no train could be put on the line") }
         Trains.trains.removeAll()
     }
 }

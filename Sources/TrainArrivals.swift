@@ -124,6 +124,7 @@ enum TrainArrivals {
 
     static func inTown(_ g: Game, _ p: V3) -> Bool {
         let x = Int(floor(p.x)), z = Int(floor(p.z))
+        if CapitalTown.city(g, x: x, z: z) != nil { return true }
         guard let sc = g.world.gen.structures, let s = sc.nearest("village", x: x, z: z, maxRegions: 1) else { return false }
         return abs(s.anchor.x - x) < 90 && abs(s.anchor.z - z) < 90
     }

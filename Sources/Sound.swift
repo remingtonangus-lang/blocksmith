@@ -86,6 +86,7 @@ enum Snd: Hashable {
     case hoof(Int)                  // a hoof fall by the ground: 0 stone, 1 wood, 2 earth, 3 sand, 4 snow, 5 water (HorseLife)
     case rocketFlightLoop, shellFlightLoop          // projectiles in flight (heard as they pass)
     case shellIncoming, ashSiren                    // the Ash Vault: an incoming shell's falling whistle, the alarm siren
+    case ashMarchSong                               // P509: a marching column's song, far off (AshColumns.swift)
     case depthBoom                                  // P278: a depth charge bursting under water (DepthCharges.swift)
     case explodeSmall, explodeLarge, debrisRain       // grenades / big blasts, and the debris pattering down after
     // Ships, airships and land vehicles (VehicleAudio.swift): idle/full layers are cross-faded by throttle.
@@ -165,7 +166,7 @@ enum Snd: Hashable {
         case .soldier, .soldierStep: return .hostile
         case .hoof: return .friendly
         case .rocketFlightLoop, .shellFlightLoop, .shellIncoming: return .players
-        case .ashSiren: return .hostile
+        case .ashSiren, .ashMarchSong: return .hostile
         case .explodeSmall, .explodeLarge, .debrisRain: return .blocks
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop,
@@ -199,6 +200,7 @@ enum Snd: Hashable {
         case .engineFullLoop, .propFastLoop, .wingRushLoop, .rocketFlightLoop, .shellFlightLoop: return 48
         case .shellIncoming: return 64
         case .ashSiren: return 400
+        case .ashMarchSong: return 420
         case .frigateDroneLoop: return 160
         case .strikeRoarLoop: return 380          // P228: heard well before the dropship arrives
         case .carriageTreadLoop: return 96
@@ -228,7 +230,7 @@ enum Snd: Hashable {
              .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop,
              .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
-             .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop, .fallRushLoop, .ashSiren,
+             .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop, .fallRushLoop, .ashSiren, .ashMarchSong,
              .tankEngineLoop, .tankTracksLoop, .truckEngineLoop, .motorbikeLoop, .rotorLoop, .jetpackLoop, .frigateInsideLoop,
              .battleLoop, .forestDayLoop, .townLoop, .saloonPianoLoop:
             return true
@@ -294,6 +296,7 @@ enum Snd: Hashable {
              .netherMood, .underwaterMood, .caveWind, .totem, .elderCurse, .tntFuse, .fireworkTwinkle, .enchant, .villagerCelebrate, .levelUp, .fireworkBlastLarge, .lightning:
             return 0.5...12
         case .ashSiren: return 9...11
+        case .ashMarchSong: return 16...20
         case .planeFlyby, .shipHorn, .tankCannon, .flakFire, .sonarPing, .airRaidSiren: return 0.3...12
         case .ladderClimb: return 0.02...0.7
         case _ where isLoop: return 1.5...8
@@ -361,7 +364,7 @@ final class SoundBank {
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
               .thunderFar, .iceCreak, .rockfall, .volcanoRumble]
         s += [.fallRushLoop, .hellImpact, .hellArrival]
-        s += [.shellIncoming, .ashSiren, .depthBoom]
+        s += [.shellIncoming, .ashSiren, .ashMarchSong, .depthBoom]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         for k in 0...5 { s.append(.hoof(k)) }
         s += approvedSounds

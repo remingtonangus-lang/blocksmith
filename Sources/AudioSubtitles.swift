@@ -336,6 +336,7 @@ extension Snd {
         case .shellIncoming: return "Incoming shell"
         case .depthBoom: return "Depth charge bursts"
         case .ashSiren: return "Alarm siren wails"
+        case .ashMarchSong: return "Soldiers singing in the distance"
         case .tankEngineLoop: return "Tank engine idles"
         case .tankTracksLoop: return "Tank tracks clank"
         case .truckEngineLoop: return "Truck engine runs"

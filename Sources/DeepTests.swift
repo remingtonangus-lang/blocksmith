@@ -10,6 +10,7 @@ enum DeepTests {
         seam(game, check)
         sites(check)
         war(game, check)
+        AshColumns.check(game, check)                            // P509
         DeepExpansionTests.run(game, check)
     }
 
