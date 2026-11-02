@@ -71,9 +71,11 @@ enum RideCheck {
                           lap: [V3(12.5, 22, 32.5), V3(22.5, 22, 32.5), V3(22.5, 22, 60.5), V3(12.5, 22, 60.5)], seconds: secs(240), turnEvery: 20)
             case "frigate":
                 guard let sc = makeScene(device, seed: seed, kind: "capfrigate") else { r.check(false, "the frigate spawned"); continue }
-                // The Meridian frigate's gun deck, port side (P325: the gun's accelerator runs down the middle).
+                // The Meridian frigate's gun deck, port side (P325: the gun's accelerator runs down the middle). (P510: the
+                // hold's wall stands across x 8.5 at z 97 since P357's rooms; the bot pressed into it for three minutes,
+                // walking 0 laps. Both legs come back to the doorway at x 6.5.)
                 deckScene(r, sc, deckY: 9, start: V3(7.5, 9.02, 110.5),
-                          lap: [V3(6.5, 9, 112.5), V3(6.5, 9, 72.5), V3(8.5, 9, 72.5), V3(8.5, 9, 112.5)], seconds: secs(240), turnEvery: 30)
+                          lap: [V3(6.5, 9, 112.5), V3(6.5, 9, 72.5), V3(8.5, 9, 72.5), V3(8.5, 9, 94.5), V3(6.5, 9, 94.5)], seconds: secs(240), turnEvery: 30)
             case "warfrigate":
                 guard let sc = makeScene(device, seed: seed, kind: "warfrigate") else { r.check(false, "the frigate spawned"); continue }
                 deckScene(r, sc, deckY: 27, start: V3(56.5, 27.02, 190.5),
@@ -657,9 +659,11 @@ enum RideCheck {
         place(sc, local: frigate ? V3(7.5, 9.02, 110.5) : V3(23.5, 22.02, 44.5))
         st.testTurn = 1
         let idle = Bot()
-        let floorY: Float = frigate ? 8.5 : 9.5          // no crew member ever below the lowest deck
+        // No crew member ever below the lowest deck (the frigate's lowest crew post: its engine room and keel decks run
+        // under the old 8.5, where a trooper at his post on the keel counted as fallen off the ship).
+        let floorY: Float = frigate ? min(8.5, (st.crew.map { $0.y }.min() ?? 9) - 0.5) : 9.5
         var worstPost: Float = 0, worstWho = "", worstWhen = ""
-        var off = 0, inside = 0, firstOff = ""
+        var off = 0, inside = 0, firstOff = "", firstIn = ""
         func crewCheck(_ i: Int, posts: Bool) {
             for (k, m) in st.crewMobs where m.health > 0 {
                 let l = s.toLocal(m.pos)
@@ -669,7 +673,17 @@ enum RideCheck {
                     continue
                 }
                 w.frame = s
-                if m.collides(l + V3(0, 0.05, 0), w) { inside += 1 }
+                if m.collides(l + V3(0, 0.05, 0), w) {
+                    inside += 1
+                    if firstIn.isEmpty {
+                        var near: [String] = []
+                        let c = IVec3(Int(floor(l.x)), Int(floor(l.y + 0.5)), Int(floor(l.z)))
+                        for y in c.y...(c.y + 1) { for z in (c.z - 1)...(c.z + 1) { for x in (c.x - 1)...(c.x + 1) where Blocks.collide[Int(w.block(x, y, z))] {
+                            near.append("\(Blocks.key(w.block(x, y, z))) at \(x),\(y),\(z)")
+                        } } }
+                        firstIn = String(format: "%@ (post %ld) at ship-space %.2f,%.2f,%.2f, tick %ld, by ", m.kind.key, k, l.x, l.y, l.z, i) + near.prefix(5).joined(separator: ", ")
+                    }
+                }
                 w.frame = nil
                 if posts, k < st.crew.count {
                     let p = st.crew[k]
@@ -695,7 +709,7 @@ enum RideCheck {
         r.check(off == 0, "the crew ride the moving vehicle (\(off) crew-ticks off it)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
         r.check(worstPost < 1.0, String(format: "every soldier holds its post while it drives and turns (worst %.2f blocks: %@)", worstPost, worstWho))
         if worstPost >= 1.0 { r.note("ride crew worst post: " + worstWhen) }
-        r.check(inside == 0, "no crew member inside a solid (\(inside) crew-ticks)")
+        r.check(inside == 0, "no crew member inside a solid (\(inside) crew-ticks)" + (firstIn.isEmpty ? "" : "; first " + firstIn))
         // Disable it: half the wheels (the port side) of the crawler, the frigate's drive engines.
         let kinds = ShipParts.kinds
         var cells: [(IVec3, BlockID)] = []

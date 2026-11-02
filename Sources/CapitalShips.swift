@@ -2600,10 +2600,11 @@ extension ShipManager {
                     g.mobs.mobs.append(m)
                     st.crewMobs[i] = m
                 } else { continue }
-                // Lanes beside the engine room: port outboard of the bay ladder, starboard inboard of the supply chest.
-                let lane: Float = post.x < ox + 0.5 ? -9.5 : 7.5
+                // Out down the aisle: the centreline is kept clear from the magazine through the bulkhead door and between
+                // the engine banks to the ramp (P510's rooms). (The lanes beside the engine room they used ran through the
+                // troop benches and the supply chest: ridecheck's troops stepped onto the seats and inside them.)
                 m.crewPost = nil
-                m.crewRoute = [V3(ox + 0.5 + lane, 10, post.z), V3(ox + 0.5 + lane, 10, 71.5), V3(ox + 0.5, 10, 72.5),
+                m.crewRoute = [V3(ox + 0.5, 10, post.z), V3(ox + 0.5, 10, 72.5),
                                V3(ox + 0.5, 10, 74.2), V3(ox + 0.5 + Float(sent) - 0.5, 0.5, 83.5), V3(ox + 0.5 + Float(sent) * 2 - 1, 0, 88)]
                 m.aggro = true
                 st.troops.append(m)
