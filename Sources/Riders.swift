@@ -15,6 +15,7 @@ enum Riders {
     static let murderBounty = 6000
     static var forceRoad: (Roads.Seg, Float)?       // the host check's road and spot
     static var along: ClosedRange<Float> = 50...80  // how far along the road from the player a rider turns up
+    static var why = ""                             // why the last send turned up no rider (for the host check's log)
 
     // The traveller (not their horse, which carries posse 5 too while ridden).
     static func isRider(_ m: Mob) -> Bool { m.kind == .villager && (m.posse == riding || m.posse == robbed) }
@@ -77,12 +78,12 @@ enum Riders {
         let t = max(0, min(1, t0 + (ahead ? 1 : -1) * Rand.float(in: along) / len))
         let at2 = Roads.point(s, t)
         let x = Int(floor(at2.x)), z = Int(floor(at2.y))
-        guard g.world.isLoaded(x, z) else { return nil }
+        guard g.world.isLoaded(x, z) else { why = "unloaded at \(x),\(z)"; return nil }
         let y = g.world.topY(x, z) + 1
-        guard !Blocks.isLiquid(g.world.builtBlock(x, y - 1, z)) else { return nil }
+        guard !Blocks.isLiquid(g.world.builtBlock(x, y - 1, z)) else { why = "liquid at \(x),\(y - 1),\(z)"; return nil }
         let at = g.world.freeSpawn(V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
         let horse = Mob(.horse, at: at)
-        if horse.collides(horse.pos, g.world) { return nil }
+        if horse.collides(horse.pos, g.world) { why = "horse in \(Blocks.key(g.world.builtBlock(x, y, z))) at \(x),\(y),\(z) (spawn y \(at.y))"; return nil }
         horse.saddled = true
         horse.posse = riding
         if Rand.float(in: 0..<1) < Stagecoach.chance { horse.coach = Rand.float(in: 0..<1) < 0.6 ? 1 : 2; horse.saddled = false }   // D4

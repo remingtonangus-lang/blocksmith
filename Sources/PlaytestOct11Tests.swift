@@ -960,8 +960,9 @@ enum PlaytestOct11Tests {
         var rider: Mob?
         Stagecoach.chance = 0                              // (a rider on a saddled horse: a third drew a coach, unsaddled)
         FactionRaids.lastAssault = -1e9                    // (P215: no posse within 90 minutes of any check's assault)
-        for _ in 0..<6 where rider == nil { rider = Riders.send(g) }
-        var robbedOK = false, posse = 0, gunmen = true, mounted = false, robWhy = ""
+        var sendWhy: [String] = []
+        for _ in 0..<6 where rider == nil { Riders.why = "no road"; rider = Riders.send(g); if rider == nil { sendWhy.append(Riders.why) } }
+        var robbedOK = false, posse = 0, gunmen = true, mounted = false, robWhy = rider == nil ? "no rider: " + sendWhy.joined(separator: "; ") : ""
         if let r = rider, let h = r.mount, Items.has("gun_sidearm") {
             mounted = h.kind == .horse && h.saddled
             h.pos = p + V3(8, 0, 0); r.pos = h.pos + V3(0, h.height * 0.8, 0)

@@ -589,6 +589,13 @@ enum RideCheck {
                 }.joined(separator: "; ")
                 r.note(String(format: "t %.0f s: ramp %@, AI wants %.1f b/s, speed %.1f, target %@, %ld troops walking out %@", t, st.rampDown ? "down" : "up",
                               st.wantSpeed, simd_length(V2(s.vel.x, s.vel.z)), st.target == nil ? "none" : "yes", walking.count, where_))
+                if st.target == nil && t < 11 {
+                    // (why no target: the foes as its AI would find them)
+                    let fs = foes.map { m in String(format: "%@ health %.0f listed %@ at %.0f blocks, y %.1f (ground %d)", "\(m.factionValue)", m.health,
+                                                   g.mobs.mobs.contains { $0 === m } ? "yes" : "no", simd_length(m.pos - s.pos), m.pos.y,
+                                                   w.topY(Int(floor(m.pos.x)), Int(floor(m.pos.z)))) }
+                    r.note("no target: " + fs.joined(separator: "; ") + String(format: "; wrecked %@, driver %@, retarget %.1f", s.wrecked ? "yes" : "no", st.driverAlive ? "yes" : "no", st.retarget))
+                }
             }
             if st.rampDown { rampSeen = true }
             for (k, m) in st.crewMobs where m.health > 0 && k < st.crew.count && st.crew[k].y < 15 && st.crewRoles[k] == .troop {
