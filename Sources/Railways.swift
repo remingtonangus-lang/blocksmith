@@ -161,6 +161,7 @@ enum Railways {
         return (Int(k >> 32), Int(Int32(truncatingIfNeeded: k)))
     }
     static var linksOn = true                         // (checks compare)
+    static var banked = 0                             // (checks: bed cells banked up with earth instead of a trestle)
 
     // The link from line (row, s)'s east end on to the next line east, if one is laid.
     static func link(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
@@ -653,6 +654,7 @@ enum Railways {
     static func draw(_ l: Line, _ w: inout StructWriter, open: (west: Bool, east: Bool) = (false, false)) {
         func g(_ n: String, _ f: BlockID) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let rail = g("rail", AIR), ballast = g("gravel", STONE), deck = g("spruce_planks", PLANKS), leg = g("spruce_log", LOG)
+        let fill = g("dirt", STONE)
         let stop = g("stone_bricks", STONE), plat = g("stone_bricks", STONE)
         let platEdge = g("smooth_stone", plat), lamp = g("lantern", AIR), post = g("spruce_fence", leg)
         let wall = g("spruce_planks", PLANKS), roof = g("dark_oak_planks", PLANKS), glass = g("glass_pane", AIR)
@@ -672,10 +674,27 @@ enum Railways {
                 var yy = y + 6
                 while yy < CH - 1 && Int(w.get(x, yy, z)) < clearable.count && clearable[Int(w.get(x, yy, z))] { w.set(x, yy, z, AIR); yy += 1 }
                 let ground = w.get(x, y - 1, z)
+                // P510 (Nov 1 20:39-20:40, by his line: "Wood is a block", "We need to make these rails so they sit
+                // smoothly on top of the terrain... If you add blocks, it makes it choppy", "The rails end and don't
+                // match the top"): in a field world a dip of up to four blocks under the track is banked up with earth
+                // under the ballast, which the field draws as ground shaped to the line's grade, not a plank trestle of
+                // cubes with the rails a block step off the bed beside it. Deeper dips and water still get a trestle.
+                var bank = -1
+                if l.heights != nil && !(Blocks.opaque[Int(ground)] && Blocks.collide[Int(ground)]) {
+                    for d in 2...5 {
+                        let b = w.get(x, y - d, z)
+                        if Blocks.fluidKind[Int(b)] != 0 { break }
+                        if StructWriter.holdsColumn(b) { bank = d; break }
+                    }
+                }
                 // R22: gravel only on firm ground; over a cave or a ravine's lip the bed is stone (gravel fell out at the
                 // first block update and left the rail over the hole).
                 if Blocks.opaque[Int(ground)] && Blocks.collide[Int(ground)] { w.set(x, y - 1, z, w.firmUnder(x, y - 1, z) ? ballast : plat) }
-                else {
+                else if bank > 0 {
+                    for d in 2..<bank { w.set(x, y - d, z, fill) }
+                    w.set(x, y - 1, z, ballast)
+                    banked += 1
+                } else {
                     w.set(x, y - 1, z, deck)                                       // trestle deck
                     let edge = (alongX && z != c.z) || (!alongX && x != c.x)
                     if edge && i % 4 == 0 { w.groundDown(x, y - 2, z, leg, minY: y - 48) }

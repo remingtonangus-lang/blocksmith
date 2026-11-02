@@ -224,6 +224,8 @@ enum RailwayTests {
         let dt: Float = 1.0 / 60
         var passed = Set<UInt8>(), stops: Set<Int> = [0], headIn = 0, offTrack = 0, unseated = 0, frames = 0, worst = 0.0
         var lastLoad = g.time, maxS: Float = 0, stall = 0
+        var bedSeen = Set<Int>(), shallowDecks = 0
+        let plankDeck = Blocks.id("spruce_planks"), banked0 = Railways.banked
         let t1 = CFAbsoluteTimeGetCurrent()
         while frames < 60 * 900 {
             if g.time - lastLoad > 1.5 { _ = world.loadSync(center: g.player.pos, radius: 3); lastLoad = g.time }
@@ -244,6 +246,17 @@ enum RailwayTests {
             maxS = max(maxS, s)
             let i = max(0, min(l.cells.count - 1, Int(s.rounded())))
             if tag[i] != 0 { passed.insert(tag[i]) }
+            // P510 ("Wood is a block"): a plank deck over a shallow dry dip, where the bed should be banked with earth.
+            if bedSeen.insert(i).inserted {
+                let c = l.cells[i]
+                if world.block(c.x, c.y - 1, c.z) == plankDeck {
+                    for d in 2...5 {
+                        let b = world.block(c.x, c.y - d, c.z)
+                        if Blocks.fluidKind[Int(b)] != 0 { break }
+                        if world.groundAt(c.x, c.y - d, c.z) || (Blocks.opaque[Int(b)] && Blocks.collide[Int(b)] && b != plankDeck) { shallowDecks += 1; break }
+                    }
+                }
+            }
             if let st = t.at(tr.time).stop { stops.insert(st) }
             let e = g.player.eye
             if world.solidAt(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))) {
@@ -265,6 +278,8 @@ enum RailwayTests {
                 print("rail ride: stalled at cell \(i) (\(c.x) \(c.y) \(c.z)): held \(tr.heldBy) brake \(tr.brake) cab brake \(tr.cabBrake) regulator \(tr.throttle) pace \(tr.rate); 3 ahead \(Blocks.key(world.block(a.x, a.y, a.z)))")
             }
         }
+        check(shallowDecks == 0 && Railways.banked > banked0,
+              "P510 trains: the bed over shallow dry dips is banked earth, not a plank trestle (\(shallowDecks) plank steps over a dip of 4 or less, \(Railways.banked - banked0) cells banked)")
         // P510: riding, the chase view sits out behind the train and over it, not in the cab.
         if let o = g.chaseOffset, let lead = tr.cars.first {
             let run = t.point(tr.lastS + tr.dir * 2) - t.point(tr.lastS)

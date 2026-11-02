@@ -366,12 +366,17 @@ extension AshColumns {
         // Hit: the hunt. Every one of them comes for him.
         g.survival = true
         let d0 = f.bodies.reduce(Float(0)) { $0 + simd_length($1.pos - stand) } / Float(max(1, f.bodies.count))
+        // (He stands through it: 84 rifles and a tank killed him inside the 12 s, his death calmed every one of them and
+        // left the death screen up for the armour check below; suite 61, "0 of 84 after him", "0 vehicles".)
+        g.effects.applyEffect(.resistance, amp: 4, seconds: 30)
+        var died = false
         if let m = f.bodies.first(where: { !$0.kind.ash }) { m.hit(from: stand, damage: 2) }
-        sim(12)
+        sim(12) { if !g.alive || g.menu != nil { died = true; g.alive = true; g.menu = nil } }
+        g.effects.clear()
         let aggro = f.bodies.filter { $0.aggro }.count
         let d1 = f.bodies.reduce(Float(0)) { $0 + simd_length($1.pos - stand) } / Float(max(1, f.bodies.count))
         check(f.hunting && aggro >= f.bodies.count - 2 && d1 < d0 - 3 && g.ashColumnSound(g.player.eye) == nil,
-              "P509 columns: hit, it stops singing and hunts him (hunting \(f.hunting), " + String(format: "%d of %d after him, %.0f -> %.0f blocks)", aggro, f.bodies.count, d0, d1))
+              "P509 columns: hit, it stops singing and hunts him (hunting \(f.hunting), died \(died), " + String(format: "%d of %d after him, %.0f -> %.0f blocks)", aggro, f.bodies.count, d0, d1))
         // He falls: it is over.
         g.alive = false
         g.ashColumnsTick(0.05)
@@ -380,8 +385,10 @@ extension AshColumns {
 
         // An armoured division: tanks and half-tracks, heard by their engines.
         g.survival = false
+        g.menu = nil; g.alive = true
         let a = begin(g, .armour, start: 60, side: 60)
         a.s = 50
+        g.player.yaw = atan2f(a.perp.x, a.perp.y); g.player.pitch = 0      // (it forms out of his sight)
         sim(2)
         let tanks = a.bodies.filter { $0.kind == .ashTank }.count
         let snd = g.ashColumnSound(g.player.eye)

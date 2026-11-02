@@ -52,13 +52,33 @@ enum CraterPlaceCheck {
         g.inventory.held = ItemStack(stone, 64)
         var aimed = 0, placed = 0, missed: [String] = []
         let p = g.player
-        for (yawOff, pitch) in [(-0.5, -0.45), (-0.25, -0.6), (0, -0.5), (0.25, -0.75), (0.5, -0.4), (0, -0.85), (-0.4, -0.9), (0.4, -0.65),
-                                (0.15, -0.35), (-0.15, -1.0)] as [(Float, Float)] {
-            // Stood on the bowl's rim to the south, looking north into it (the rim: the first column south of the middle
-            // back up to within a block of the old ground; a wider bowl puts it further out).
-            var rz = cz + 4
-            while rz < cz + 10 && top(cx, rz) < gy - 1 { rz += 1 }
-            p.pos = V3(Float(cx) + 0.5, Float(top(cx, rz) + 1) + 0.01, Float(rz) + 0.5)
+        // Stood on the bowl's rim to the south, looking north into it (the rim: the first column south of the middle
+        // back up to within a block of the old ground; a wider bowl puts it further out).
+        var rz = cz + 4
+        while rz < cz + 10 && top(cx, rz) < gy - 1 { rz += 1 }
+        let rim = V3(Float(cx) + 0.5, Float(top(cx, rz) + 1) + 0.01, Float(rz) + 0.5)
+        p.pos = rim
+        // The aims: the middles of the bowl's open faces in reach from there, spread round it (fixed pitches missed it
+        // once the P510 bowls came out wider and deeper: "0 of 0 clicks", suite 61).
+        let eye0 = p.eye
+        var aims: [(Float, Float)] = []
+        var faces: [(V3, Float)] = []
+        for y in (gy - 10)...(gy + 1) { for z in (cz - 7)...(rz - 1) { for x in (cx - 7)...(cx + 7) where w.groundAt(x, y, z) {
+            for n in [IVec3(0, 1, 0), IVec3(0, 0, 1), IVec3(1, 0, 0), IVec3(-1, 0, 0)] where !w.groundAt(x + n.x, y + n.y, z + n.z)
+                && Blocks.key(w.block(x + n.x, y + n.y, z + n.z)) == "air" {
+                let c = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5) + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.5
+                let d = simd_length(c - eye0)
+                if d > 1.5 && d < 5.2 && c.y < eye0.y - 1 { faces.append((c, Float(x * 7 + z * 13 + y * 3))) }
+            }
+        } } }
+        faces.sort { $0.1 < $1.1 }
+        let step = max(1, faces.count / 10)
+        for i in stride(from: 0, to: faces.count, by: step) where aims.count < 10 {
+            let d = simd_normalize(faces[i].0 - eye0)
+            aims.append((atan2f(-d.x, -d.z), asinf(d.y)))
+        }
+        for (yawOff, pitch) in aims {
+            p.pos = rim
             p.vel = .zero; p.flying = false
             p.yaw = yawOff; p.pitch = pitch
             g.mobs.mobs.removeAll()                                // (P508: the garrison's party walks out to meet him: no one in the aim)
