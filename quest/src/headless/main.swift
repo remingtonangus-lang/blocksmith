@@ -694,6 +694,18 @@ if let out = arg("--view"), let ctx = vkctx {
         let after = ballCells()
         print("view: collapse \(after == 0 && before > 0 && stillHeld == held ? "OK" : "FAIL"): ball \(before) cells, \(stillHeld) while the neck held, \(after) after the cut, \(GroundCollapse.dropped) cells dropped as debris, \(vg.debris.count) debris pieces; generation took out \(floaters) floating cells")
     }
+    // --blockdump R (P511 looks work): every log, leaf mass edge and plant within R blocks of the eye's column, from 3
+    // below the feet to 10 above, as "x y z key [kind]" lines (what the generator wrote where a shot shows something odd).
+    if let rs = arg("--blockdump"), let r = Int(rs) {
+        let px = Int(floor(vg.player.pos.x)), py = Int(floor(vg.player.pos.y)), pz = Int(floor(vg.player.pos.z))
+        let names = ["none", "liquid", "plant", "foliage", "trunk", "terrain", "organic", "built", "model"]
+        for y in (py - 3)...(py + 10) { for z in (pz - r)...(pz + r) { for x in (px - r)...(px + r) {
+            let b = vw.block(x, y, z)
+            let k = ShapeClass.kind[Int(b)]
+            guard k == .trunk || k == .plant || (k == .foliage && y <= py + 1) else { continue }
+            print("blockdump: \(x) \(y) \(z) \(Blocks.key(b)) [\(names[min(names.count - 1, Int(k.rawValue))])]")
+        } } }
+    }
     if CommandLine.arguments.contains("--fielddump") {
         let dir = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
         let eye = vg.player.pos + V3(0, 1.62, 0)
