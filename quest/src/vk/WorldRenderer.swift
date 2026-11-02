@@ -72,6 +72,9 @@ final class WorldRenderer {
     }
     private var camYaw: Float = 0, camPitch: Float = 0
     // Debugging aid: QUEST_SKIP=mobs,entities,... leaves passes out.
+    // FAILURES 4 (questcheck --view ... --voidcount, tools/voidsweep.sh): the frame cleared to pure magenta with no sky
+    // drawn over it (QUEST_SKIP=sky), so every gap in what is drawn shows as magenta.
+    static var voidProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
     static var debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
 
     let ships: ShipDraw
@@ -283,7 +286,7 @@ final class WorldRenderer {
         MobLight.fill = (0.06 + 0.3 * QuestSettings.brightness) * 2 * eyeDark
         MobLight.nightVision = nv
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (p.headInLava ? Game.lavaFog : (underwater ? game.underwaterFog : (underground ? fogColor : sky)))
-        return (u, clear)
+        return (u, WorldRenderer.voidProbe ? V3(1, 0, 1) : clear)
     }
 
     // Records the whole world pass into `t` (the caller submits).
