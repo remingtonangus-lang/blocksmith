@@ -147,6 +147,7 @@ final class CapitalState {
     var testSpeed: Float?              // harness (--ridecheck): this speed instead of the AI's (with testTurn)
     var rampDown = true                // crawler: the rear ramp is lowered (built so)
     var rampTimer: Float = 0           // seconds the crawler has wanted the ramp the other way
+    var rutCarved: [Int: V3] = [:]     // P511: crawler: where each wheel last cut its track (world space)
     var ground: V3?                    // crawler: smoothed ground under it (height, pitch, roll)
     var grind: Float = -1              // disabled crawler: forward speed while it grinds to a stop (-1 not yet)
     var impact: Float = 0              // crash-landed frigate: sink speed at touchdown (b/s)
@@ -2440,10 +2441,17 @@ extension ShipManager {
         let rut = Blocks.id("coarse_dirt")
         var dug = 0
         func hardnessOK(_ b: BlockID) -> Bool { let h = Blocks.hardness[Int(b)]; return h >= 0 && h < 2 }   // (soil, not rock)
-        for wh in st.wheels where !wh.lost {
+        // P511 (questcheck --streamtest --crawler at his spot): every wheel cut a ball into the field ground on every pass
+        // (up to 24 a second): each cut remeshed the ground round it, and the land round him waited. A wheel cuts again
+        // only once it has rolled on most of a ball's width from its last cut, two cuts a pass at most.
+        for (wi, wh) in st.wheels.enumerated() where !wh.lost {
             var sunk = 0
             defer {
-                if sunk > 0 && dug < 6 {
+                let mid0 = V3(Float(wh.lo.x + wh.hi.x + 1) * 0.5, Float(wh.lo.y), Float(wh.lo.z + wh.hi.z + 1) * 0.5)
+                let at = s.toWorld(mid0)
+                let rolled = st.rutCarved[wi].map { simd_length(V2($0.x - at.x, $0.z - at.z)) } ?? .infinity
+                if sunk > 0 && dug < 2 && rolled > 1.4 {
+                    st.rutCarved[wi] = at
                     // (a ball whose bottom is a third of a block under the wheel: a shallow rut, not a trench)
                     let r = min(1.8, max(0.9, Float(min(wh.hi.x - wh.lo.x, wh.hi.z - wh.lo.z) + 1) * 0.5))
                     let mid = V3(Float(wh.lo.x + wh.hi.x + 1) * 0.5, Float(wh.lo.y) + r - 0.3, Float(wh.lo.z + wh.hi.z + 1) * 0.5)

@@ -1306,6 +1306,11 @@ final class World {
     // crawler waited behind them. They now mesh in the queue's order at most every settleGap seconds (what its bow
     // meets still goes at once). BS_VEHICLEWEAR=0: the old way; BS_VEHICLEWEAR=off: no wear at all (measuring).
     static var vehicleEdits = false
+    // P511 (measured at his spot, questcheck --streamtest --crawler, 8 b/s: 33-75 of 349 chunks in view drawn, ticks 6 ms
+    // mean and 150 worst; with no wear all 349 by 8 s, 1.5 ms and 8): a worn chunk still went to the front of the queue
+    // whenever it was within two chunks of him (the P458 front jobs), every settleGap. It now waits wearGap seconds
+    // between meshes and never goes to the front: the ruts behind him catch up while the land ahead comes in.
+    static var wearGap: Double = Double(ProcessInfo.processInfo.environment["BS_WEARGAP"] ?? "") ?? 3
     static let vehicleWear = ProcessInfo.processInfo.environment["BS_VEHICLEWEAR"] ?? "1"
     static var meshLog = ProcessInfo.processInfo.environment["BS_MESHLOG"] == "1"
     // P474 (Oct 26 19:28-20:14: "land doesn't like generating unless it's really forced to"; "I had to literally fly
@@ -1328,9 +1333,10 @@ final class World {
     @inline(__always) private var settleNearGap: Double {
         simd_length_squared(V2(lead.x, lead.z)) > World.settleFast * World.settleFast ? World.settleGap : World.settleNear
     }
+    @inline(__always) private func worn(_ c: Chunk) -> Bool { c.vehicleWorn && World.vehicleWear != "0" }
     @inline(__always) private func holdBack(_ c: Chunk, _ dx: Int, _ dz: Int, _ now: Double) -> Bool {
         guard World.settleGap > 0 && c.meshedOnce && !c.urgent
-              && now - c.meshAt < (max(abs(dx), abs(dz)) > 2 || c.vehicleWorn ? World.settleGap : settleNearGap) else { return false }
+              && now - c.meshAt < (c.vehicleWorn && World.vehicleWear != "0" ? World.wearGap : (max(abs(dx), abs(dz)) > 2 ? World.settleGap : settleNearGap)) else { return false }
         if !c.held { c.held = true; held.append(c) }
         return true
     }
@@ -1539,6 +1545,7 @@ final class World {
             let nearGap = settleNearGap
             held.removeAll { c in
                 guard now - c.meshAt >= nearGap && (now - c.meshAt >= World.settleGap || near(c)) else { return false }
+                if c.vehicleWorn && World.vehicleWear != "0" && now - c.meshAt < World.wearGap { return false }      // (P511)
                 c.held = false
                 if chunks[ChunkKey(x: c.cx, z: c.cz)] === c && c.needsMesh { c.dirty = true; released = true }
                 return true
@@ -1571,7 +1578,7 @@ final class World {
                 c.dirty = false
                 guard !c.meshInFlight && c.needsMesh && !holdBack(c, k.x - center.x, k.z - center.z, now) else { continue }
                 let near = inMeshRadius(k.x - center.x, k.z - center.z) || (extra.map { inMeshRadius(k.x - $0.x, k.z - $0.z) } ?? false)
-                if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb, front: abs(k.x - center.x) <= 2 && abs(k.z - center.z) <= 2) }   // (P458)
+                if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb, front: abs(k.x - center.x) <= 2 && abs(k.z - center.z) <= 2 && !worn(c)) }   // (P458; P511)
             }
             list.removeAll()
             scanEpoch = MeshEpoch.value
@@ -1599,7 +1606,7 @@ final class World {
                 if jobs >= maxQueued { continue }
                 if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh && !holdBack(c, ox, oz, now), let nb = neighbourhood(c) {
                     c.dirty = false
-                    scheduleMesh(k, c, nb, front: ci == 0 && abs(dx) <= 2 && abs(dz) <= 2 && c.meshedOnce)          // (P458)
+                    scheduleMesh(k, c, nb, front: ci == 0 && abs(dx) <= 2 && abs(dz) <= 2 && c.meshedOnce && !worn(c))          // (P458; P511)
                 }
             } else if jobs < maxQueued && !genInFlight.contains(k) {
                 // P376: inside the view past the active distance, a chunk with cached meshes comes back as a shell.
