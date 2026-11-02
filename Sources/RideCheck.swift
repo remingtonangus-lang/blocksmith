@@ -461,7 +461,8 @@ enum RideCheck {
         r.check(mon.insideTicks == 0, "never inside a solid while aboard (\(mon.insideTicks) ticks)\(mon.firstInside.isEmpty ? "" : ", first at " + mon.firstInside)")
         r.check(mon.transitions >= 2 && mon.maxTransitionJump < 3, String(format: "boarding and leaving keep the bot's world velocity (%ld changes, worst jump %.2f b/s)",
                                                                        mon.transitions, mon.maxTransitionJump))
-        r.check(mon.spikes == 0, String(format: "no deck-relative velocity spikes aboard (%ld, worst %.2f)", mon.spikes, mon.maxRelJump))
+        r.check(mon.spikes == 0, String(format: "no deck-relative velocity spikes aboard (%ld, worst %.2f)%@", mon.spikes, mon.maxRelJump,
+                                        mon.firstSpike.isEmpty ? "" : ", first at " + mon.firstSpike))
     }
 
     // Landing on a moving frigate by flight, walking its hangar, deckhouse, side door and narrow side deck, taking off.
