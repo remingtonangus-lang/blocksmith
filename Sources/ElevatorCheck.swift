@@ -113,12 +113,23 @@ enum ElevatorCheck {
         } } }
         for y in (y0 + 1)...(y0 + 19) { w.setBlock(cx2, y, cz2 - 4, Blocks.id("ladder") + 1); w.setBlock(cx2, y, cz2 - 5, stone) }
         for y in pads2 { w.setBlock(cx2 - 3, y, cz2, pad) }
+        let barrel = Blocks.id("barrel")
+        w.setBlock(cx2 + 4, y0 + 14, cz2 + 3, barrel)                  // (his own on the third storey: it stays as he left it)
         p.pos = V3(Float(cx2) + 3.5, Float(y0 + 1), Float(cz2) - 2.5)
         let done2 = Elevators.retrofit(w, IVec3(cx2 - 3, y0, cz2), avoid: p.pos)
         let found2 = Elevators.shaft(w, near: IVec3(cx2 - 3, y0 + 1, cz2 + 1))
         let ladderKept = (y0 + 1...y0 + 19).allSatisfy { Blocks.groupBase[Int(w.block(cx2, $0, cz2 - 4))] == Blocks.id("ladder") }
         check(done2 && found2?.landings == [y0, y0 + 7, y0 + 13] && found2?.d == 2 && found2?.a == IVec3(cx2 - 3, 0, cz2 + 2) && ladderKept,
               "elevator: in a citadel side tower of his it stands south of the middle, two deep (\(found2?.d ?? 0)), floors \(found2?.landings.map { $0 - y0 } ?? []) (the garden by the ladder, kept: \(ladderKept))")
+        // P510: its empty storeys furnished as a new tower's (a guard post, a signals room); his own left alone; never
+        // a table in his cell.
+        func k(_ x: Int, _ y: Int, _ z: Int) -> String { Elevators.key(w.block(cx2 + x, y, cz2 + z)) }
+        let guardDesk = k(-3, y0 + 1, -4) == "command_console", signals = k(5, y0 + 8, -4) == "data_cabinet" && k(2, y0 + 8, -4) == "command_console"
+        var leftAlone = true
+        for z in -5...5 { for x in -5...5 where !(x == 4 && z == 3) && k(x, y0 + 14, z).hasSuffix("_bed") { leftAlone = false } }
+        let hisCell = k(3, y0 + 1, -3), roomsUsed = Set((-5...5).flatMap { x in (-5...5).map { z in k(x, y0 + 8, z) } }).count
+        check(guardDesk && signals && leftAlone && hisCell == "air" && roomsUsed >= 4,
+              "elevator: his citadel's empty storeys become rooms (a guard post \(guardDesk), signals \(signals), \(roomsUsed) kinds of block on it); the storey he'd furnished is left (\(leftAlone)); nothing in his cell (\(hisCell))")
         Elevators.runs.removeAll()
     }
 }

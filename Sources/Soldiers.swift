@@ -890,7 +890,9 @@ extension Mob {
         b.recoil = 1
         // The Ashsaw fires in long ripping bursts (with a long pause between them: the moment to move).
         if b.burst <= 0 {
-            let bursts: ClosedRange<Int> = b.gun == Guns.rotary ? 24...40 : (b.gun == Guns.autoShotgun ? 3...5 : (b.gun == Guns.ashsaw ? 7...11 : (troop == 3 ? 6...10 : rank.burst)))
+            // P510 (Nov 1 20:16:25, a Capital heavy with the Sturmbrecher: "That guy should be rapid firing shotgun
+            // rounds"): the box-fed shotgun empties in long runs at its own cycle (it fired three to five at 0.34 s).
+            let bursts: ClosedRange<Int> = b.gun == Guns.rotary ? 24...40 : (b.gun == Guns.autoShotgun ? 6...10 : (b.gun == Guns.ashsaw ? 7...11 : (troop == 3 ? 6...10 : rank.burst)))
             b.burst = Rand.int(in: bursts)
         }
         b.burst -= 1
@@ -900,8 +902,10 @@ extension Mob {
         }
         let rate: Float = enraged ? 0.6 : 1
         let pace: Float = Difficulty.row.pace                    // P302: slower fire on the easy levels
-        b.shotTimer = b.burst > 0 ? gs.interval * (b.gun == Guns.ashsaw ? 1 : 1.4) * rate / pace
-                                  : Rand.float(in: rank.gap) * Soldier.burstGap * rate * (b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : 1)) / pace
+        let cycle: Float = b.gun == Guns.ashsaw || b.gun == Guns.autoShotgun ? 1 : 1.4
+        let gapK: Float = b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : (b.gun == Guns.autoShotgun ? 0.7 : 1))
+        b.shotTimer = b.burst > 0 ? gs.interval * cycle * rate / pace
+                                  : Rand.float(in: rank.gap) * Soldier.burstGap * rate * gapK / pace
     }
 
     // A short burst into the player's last position (wider spread; it pins them behind cover).

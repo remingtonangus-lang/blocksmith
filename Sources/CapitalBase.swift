@@ -412,6 +412,13 @@ enum CapitalBase {
                     if let b { w.set(x, y, z, b); return b }
                     return w.get(x, y, z)
                 }
+                // P510: each storey below the gun room its own room (TowerRooms.swift).
+                for (i, kind) in TowerRooms.Kind.allCases.enumerated() {
+                    TowerRooms.furnish(kind, i == 0 ? P1 + 1 : P1 + 2 + 6 * i) { x, y, z, b in
+                        if let b { w.set(X(sx * 36 + x), y, Z(z), b); return b }
+                        return w.get(X(sx * 36 + x), y, Z(z))
+                    }
+                }
             }
             // The ladder carries on through the roof onto the garden.
             put(sx * 36, P1 + 37, -4, ladder + 1); put(sx * 36, P1 + 38, -4, ladder + 1); put(sx * 36, P1 + 38, -5, white)

@@ -484,12 +484,12 @@ enum Elevators {
         // The car fills the pads' column back to the wall (three deep), so the front row is the pads' row.
         var shift = max(0, D - depth)
         var front = IVec3(foot0.x - n.x * shift, 0, foot0.z - n.z * shift)
-        var uu = u, nn = n, dd = D, lifts = ys
+        var uu = u, nn = n, dd = D, lifts = ys, citadel = false
         // A citadel side tower (its pads three in from the west wall, the ladder up the north of its middle): the lift
         // goes where a new tower's does, south of the middle and clear of its doorways (CapitalBase.build).
         let centre = IVec3(p.x + 3, 0, p.z)
         if n == IVec3(-1, 0, 0) && depth == 3 && Blocks.has("ladder") && Blocks.groupBase[Int(w.block(centre.x, mid, centre.z - 4))] == Blocks.id("ladder") {
-            front = IVec3(p.x, 0, p.z + 2); uu = IVec3(1, 0, 0); nn = IVec3(0, 0, 1); dd = 2; shift = 0
+            front = IVec3(p.x, 0, p.z + 2); uu = IVec3(1, 0, 0); nn = IVec3(0, 0, 1); dd = 2; shift = 0; citadel = true
             // (its roof garden's pad: the ladder goes on up there, as in a new tower)
             if ys.count >= 3 && ys[ys.count - 1] - ys[ys.count - 2] == 7 { lifts = Array(ys.dropLast()) }
         }
@@ -507,6 +507,24 @@ enum Elevators {
         build(foot0: front, u: uu, n: nn, landings: lifts, depth: dd, wall: wallB) { x, y, z, b in
             if let b { w.setBlock(x, y, z, b); return b }
             return w.block(x, y, z)
+        }
+        // (and its empty storeys become the rooms a new tower has, TowerRooms.swift)
+        if citadel {
+            for (i, F) in lifts.enumerated() where i < TowerRooms.Kind.allCases.count {
+                TowerRooms.furnish(TowerRooms.Kind.allCases[i], F + 1, onlyIfEmpty: true) { x, y, z, b in
+                    let cx = centre.x + x, cz = centre.z + z
+                    // (never in his own cells)
+                    var his = false
+                    if let a = avoid, Int(floor(a.x)) == cx, Int(floor(a.z)) == cz {
+                        let fy: Float = Float(y)
+                        his = fy > a.y - 1.5 && fy < a.y + 2
+                    }
+                    if let b, !his {
+                        w.setBlock(cx, y, cz, b); return b
+                    }
+                    return w.block(cx, y, cz)
+                }
+            }
         }
         return true
     }
