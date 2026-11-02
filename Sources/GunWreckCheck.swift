@@ -40,6 +40,14 @@ enum GunWreckCheck {
         let burnt = parts.indices.prefix(40).filter { simd_length(Hulks.burn(parts[$0].color, tk, $0)) < simd_length(parts[$0].color) * 0.95 }.count
         check(Hulks.mobs.contains { $0 === tk } && tk.hulk && boxed && pieces >= 2 && pieces <= 12 && burnt >= 20,
               "gunwreck: a Cinder Tank destroyed stays as its hulk, solid (\(boxed)), \(burnt) of its first 40 parts burnt, \(pieces) fittings fly off")
+        // P510: a hulk left in the air (the roof under a gun blasted away) falls and lands where it stands.
+        for _ in 0..<180 { Hulks.tick(g, 1 / 60) }
+        let rest = tk.pos.y
+        tk.pos.y += 7
+        var fell = 0
+        for _ in 0..<180 { Hulks.tick(g, 1 / 60); if tk.vel.y < 0 { fell += 1 } }
+        check(fell > 10 && abs(tk.pos.y - rest) < 0.01 && tk.vel.y == 0,
+              String(format: "gunwreck: a hulk left 7 blocks up falls (%d frames) and lands where it stood (%.2f off)", fell, tk.pos.y - rest))
         let keep = tk.pos
         tk.pos.x += Hulks.leave + 30
         Hulks.tick(g, 1 / 60)

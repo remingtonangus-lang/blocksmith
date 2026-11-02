@@ -172,6 +172,7 @@ final class BugNotes {
         var c = VoiceNoteContext.describe(g, build: "0.\(QuestBuild.versionCode) (\(QuestBuild.commit), \(QuestBuild.milestone))", fps: fps)
         lock.lock(); let lv = level; lock.unlock()
         c.append(("levels", String(format: "mic %.0f dBFS, game sound %.0f dBFS", BugNotes.db(lv), BugNotes.db(QuestAudioOutput.level))))
+        c.append(("audio out", QuestAudioOutput.shared.describe()))                                      // P510
         return c
     }
 

@@ -394,6 +394,7 @@ final class QuestApp {
             let pm = g.menu as? PauseMenu
             let audioPage = pm.map { $0.page == .options && $0.cat == .audio } ?? false
             g.sound?.setAway(!xr.focused, duck: g.paused && !(pm?.cameFromTitle ?? false) && !audioPage)
+            QuestAudioOutput.shared.watch(now: CFAbsoluteTimeGetCurrent())          // P510: a stream the system took, reopened
             // S8: away (the boundary or the system menu up, the headset taken off) for two seconds: saved once.
             awayFor = xr.focused ? 0 : awayFor + dt
             // P483 (Oct 28 17:42, back from the pause menu: "just had a really bad freeze there"): this save is taken

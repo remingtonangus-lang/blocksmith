@@ -256,6 +256,7 @@ enum StructureTipCheck {
         g.paused = false; g.survival = false
         let at = V3(40, 200, 40)
         g.player.pos = at
+        w.activeCenter = at                    // (Game.tick sets it; without, everything past 56 of 0, 0 was never checked)
         _ = w.loadSync(center: at, radius: 3)
         let stone = Blocks.has("capital_stone") ? Blocks.id("capital_stone") : STONE
         let ground = FieldMat.index[Int(STONE)]

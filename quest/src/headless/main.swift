@@ -1836,8 +1836,9 @@ if let names = arg("--texshot"), let i = CommandLine.arguments.firstIndex(of: "-
 }
 // --hudshot OUT.ppm --menu NAME (P510, his menu notes): a whole menu screen as the HUD draws it, text and icons included, the
 // HUD's triangles rasterised on the host with each texture layer painted (nearest texel) as the fragment shader samples it.
-// NAME: pause, options, journal, inventory, commands, map, title. For layout work without the headset.
+// NAME: pause, options, journal, inventory, creative, commands, map, title. For layout work without the headset.
 if let out = arg("--hudshot") {
+    TextureGen.registerAll()
     game.survival = true; game.paused = false; game.menu = nil
     for (i, n) in ["iron_pickaxe", "bread", "coal", "oak_log", "torch", "apple", "stone", "iron_ingot"].enumerated() where Items.has(n) {
         game.inventory.main[9 + i] = ItemStack(Items.id(n), n.hasSuffix("pickaxe") ? 1 : 12)
@@ -1852,6 +1853,7 @@ if let out = arg("--hudshot") {
     switch arg("--menu") ?? "pause" {
     case "journal": game.openJournal()
     case "inventory": game.openMenu(InventoryMenu(game: game))
+    case "creative": game.survival = false; game.openMenu(CreativeMenu(game: game))
     case "commands": game.openCommands()
     case "map": game.openMenu(MapMenu(game: game))
     case "options": let pm = PauseMenu(game: game); game.openMenu(pm); pm.act("options", back: false); pm.build()

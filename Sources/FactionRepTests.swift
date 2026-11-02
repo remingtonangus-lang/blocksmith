@@ -27,9 +27,9 @@ enum FactionRepTests {
         // P510: a wary Capital or Greywall soldier out in the open leaves an empty-handed man be; a gun in his hand, a
         // hurt comrade or a hunting faction and he is fought on sight.
         do {
-            let peace0 = Soldier.unarmedPeace, held0 = g.inventory.held, surv0 = g.survival
+            let peace0 = Soldier.unarmedPeace, held0 = g.inventory.held, surv0 = g.survival, standing0 = FactionRep.rep
             Soldier.unarmedPeace = true; g.survival = true
-            defer { Soldier.unarmedPeace = peace0; g.inventory.held = held0; g.survival = surv0 }
+            defer { Soldier.unarmedPeace = peace0; g.inventory.held = held0; g.survival = surv0; FactionRep.rep = standing0 }
             FactionRep.decode("")
             g.inventory.held = .empty
             let cap = Mob(.soldierTrooper, at: p + V3(9, 0, 0)), grey = Mob(.soldierTrooper, at: p + V3(9, 0, 3)); grey.faction = Faction.greywall.rawValue
@@ -43,7 +43,6 @@ enum FactionRepTests {
             cap.playerHurtAt = -1e9
             FactionRep.rep[Faction.steelhold.rawValue] = FactionRep.huntedAt
             let hunted = !Soldier.holdsForUnarmed(g, cap)
-            FactionRep.decode("")
             check(unarmed && armed && hurt && hunted,
                   "P510: a Capital and a Greywall soldier leave him be with empty hands (\(unarmed), the Ashguard don't); with a gun in hand (\(armed)), once he's hurt one (\(hurt)) or while hunted (\(hunted)) they fight")
         }

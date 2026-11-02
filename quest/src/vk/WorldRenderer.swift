@@ -489,13 +489,27 @@ final class WorldRenderer {
             if k != lastKey { lastKey = k; lastChunk = w.chunks[k] }
             guard let c = lastChunk, !c.hollow else { continue }
             let col = mod(x, CS) + mod(z, CS) * CS
-            var y = min(min(CH, c.blocks.storedCount / CSQ) - 1, Int(c.height[col]))
-            while y > 0 {
+            @inline(__always) func solid(_ y: Int) -> Bool {
                 let j = col + y * CSQ
-                if c.blocks.ground(j) { break }
+                if c.blocks.ground(j) { return true }
                 let b = Int(c.blocks[j])
-                if (opaqueT[b] && !leafT[b]) || fluidT[b] != 0 { break }
-                y -= 1
+                return (opaqueT[b] && !leafT[b]) || fluidT[b] != 0
+            }
+            var y = min(min(CH, c.blocks.storedCount / CSQ) - 1, Int(c.height[col]))
+            // P510 (Nov 1 20:30:42, a sky isle coming in: "this right here is a giant pillar. It forms temporarily when
+            // there's a sky island"): the isle's rock is made ground, so the cover's corners under it rose 200 blocks to
+            // its turf and stood as dark sheets up into the sky until the chunk was drawn. A mass with open air under it
+            // (four or more) is passed over: the cover takes the ground it floats over.
+            while y > 0 {
+                while y > 0 && !solid(y) { y -= 1 }
+                guard y > 0 else { break }
+                var b = y
+                while b > 1 && y - b < 48 && solid(b - 1) { b -= 1 }
+                guard y - b < 48 else { break }                   // (deep: the land itself)
+                var gap = 0
+                while gap < 4 && b - 1 - gap > 0 && !solid(b - 1 - gap) { gap += 1 }
+                if gap < 4 { break }
+                y = b - 1 - gap
             }
             guard y > 0 else { continue }
             gapVerts[i].pos.y = Float(y + 1)
