@@ -96,20 +96,26 @@ enum GarageDoorCheck {
         let stowLeft = stow.filter { GarageDoors.isDoor(w.block($0.x, $0.y, $0.z)) }.count
         check(pressed && body && shut == 20 && stowLeft == 0 && !driveThrough(),
               "garagedoor: the button inside shuts it (button \(pressed), swung \(body), \(shut) of 20 cells back across the opening, \(stowLeft) left overhead)")
-        // His World's old shutters: a 3 by 3 of full cells in the second magazine's headwall.
+        // His World's old shutters: a 3 by 3 of full cells in the second magazine's concrete headwall, a ceiling light
+        // over the vault's middle where the door swings to (P507 depots had one at a 10). Used, it widens to five by four.
         let mb2 = 22, Z2 = s.z0 + mb2
+        func cells2(_ a: Int, _ ys: ClosedRange<Int>, _ off: Int) -> [IVec3] { cells(a, ys, off).map { IVec3($0.x, $0.y, $0.z - mb + mb2) } }
         let con = w.block(X(13), S + 6, Z2)
         for y in 1...4 { for b in (mb2 - 2)...(mb2 + 2) { w.setBlock(X(13), S + y, s.z0 + b, abs(b - mb2) <= 1 && y <= 3 ? Blocks.id(Depots.shutter) : con) } }
-        let old = cells(13, 1...3, 1).map { IVec3($0.x, $0.y, $0.z - mb + mb2) }.filter { GarageDoors.state(w.block($0.x, $0.y, $0.z)) == 0 }.count
+        let light = Blocks.id("light_panel")
+        w.setBlock(X(10), S + 5, Z2, light)
+        let old = cells2(13, 1...3, 1).filter { GarageDoors.state(w.block($0.x, $0.y, $0.z)) == 0 }.count
         p.pos = V3(Float(X(16)) + 0.5, Float(S + 1), Float(Z2) + 0.5)
         GarageDoors.use(g, IVec3(X(13), S + 1, Z2))
         for _ in 0..<(60 * 5) { g.tick(1.0 / 60); g.mobs.mobs.removeAll() }
-        let oldOpen = cells(13, 1...3, 1).map { IVec3($0.x, $0.y, $0.z - mb + mb2) }.filter { !Blocks.collide[Int(w.block($0.x, $0.y, $0.z))] }.count
-        let oldStow = [12, 11, 10].reduce(0) { n, a in n + cells(a, 4...4, 1).map { IVec3($0.x, $0.y, $0.z - mb + mb2) }.filter { (6...9).contains(GarageDoors.state(w.block($0.x, $0.y, $0.z))) }.count }
-        GarageDoors.use(g, IVec3(X(11), S + 4, Z2))
+        let oldOpen = cells2(13, 1...4, 2).filter { !Blocks.collide[Int(w.block($0.x, $0.y, $0.z))] }.count
+        let oldStow = [12, 11, 10, 9].reduce(0) { n, a in n + cells2(a, 5...5, 2).filter { (6...9).contains(GarageDoors.state(w.block($0.x, $0.y, $0.z))) }.count }
+        var lights = 0
+        for a in 8...13 { for y in 3...5 { for b in [mb2 - 3, mb2 + 3] where w.block(X(a), S + y, s.z0 + b) == light { lights += 1 } } }
+        GarageDoors.use(g, IVec3(X(11), S + 5, Z2))
         for _ in 0..<(60 * 5) { g.tick(1.0 / 60); g.mobs.mobs.removeAll() }
-        let oldShut = cells(13, 1...3, 1).map { IVec3($0.x, $0.y, $0.z - mb + mb2) }.filter { (2...5).contains(GarageDoors.state(w.block($0.x, $0.y, $0.z))) }.count
-        check(old == 9 && oldOpen == 9 && oldStow == 9 && oldShut == 9,
-              "garagedoor: an old 3 by 3 shutter from a P507 save opens as one door (\(oldOpen) of 9 clear, \(oldStow) of 9 lying inside) and shuts again (\(oldShut) of 9)")
+        let oldShut = cells2(13, 1...4, 2).filter { (2...5).contains(GarageDoors.state(w.block($0.x, $0.y, $0.z))) }.count
+        check(old == 9 && oldOpen == 20 && oldStow == 20 && lights >= 1 && oldShut == 20,
+              "garagedoor: an old 3 by 3 shutter from a P507 save widens to five by four and opens as one door (\(oldOpen) of 20 clear, \(oldStow) of 20 lying inside, the light moved to the wall: \(lights)) and shuts again (\(oldShut) of 20)")
     }
 }

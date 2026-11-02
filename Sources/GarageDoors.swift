@@ -185,6 +185,7 @@ enum GarageDoors {
             g.sfx(.pistonContract, 0.9, at: at)
             return
         }
+        widen(w, p)
         guard let d = door(w, at: p, from: g.player.pos) else {
             refused += 1
             g.sfx(.ironDoorClose, 0.5, at: at)
@@ -303,6 +304,50 @@ enum GarageDoors {
             }
         }
         moves.removeAll { m in m.ship.map { s in !w.ships.list.contains { $0 === s } } ?? true }
+    }
+
+    // His World's depots (P507 saves): a magazine's shutter was three by three, too small for a vehicle. Used, an old
+    // shutter of full cells three wide and three high set in a depot headwall's concrete takes the concrete round it to
+    // be five wide and four high, as new depots are built; a ceiling light in the way it swings to moves to the wall.
+    static func widen(_ w: World, _ p: IVec3) {
+        guard Blocks.has("bunker_concrete"), state(w.block(p.x, p.y, p.z)) == 0 else { return }
+        let con = Blocks.id("bunker_concrete"), base = Blocks.id(Depots.shutter)
+        var seen: Set<IVec3> = [p], queue = [p]
+        while let c = queue.popLast(), seen.count <= 9 {
+            for d in World.allDirs where !seen.contains(c + d) && isDoor(w.block(c.x + d.x, c.y + d.y, c.z + d.z)) { seen.insert(c + d); queue.append(c + d) }
+        }
+        guard seen.count == 9, seen.allSatisfy({ state(w.block($0.x, $0.y, $0.z)) == 0 }) else { return }
+        let xs = Set(seen.map { $0.x }), zs = Set(seen.map { $0.z }), ys = seen.map { $0.y }
+        guard (xs.count == 1) != (zs.count == 1), let y0 = ys.min(), let y1 = ys.max(), y1 - y0 == 2 else { return }
+        let u = xs.count == 1 ? IVec3(0, 0, 1) : IVec3(1, 0, 0), n0 = xs.count == 1 ? IVec3(1, 0, 0) : IVec3(0, 0, -1)
+        let lo = seen.min { $0.x + $0.z < $1.x + $1.z }!
+        func at(_ k: Int, _ y: Int) -> IVec3 { IVec3(lo.x + u.x * k, y, lo.z + u.z * k) }     // k -1...3 across, the old door 0...2
+        var ring: [IVec3] = []
+        for k in -1...3 { for y in y0...(y1 + 1) where !(k >= 0 && k <= 2 && y <= y1) { ring.append(at(k, y)) } }
+        guard ring.allSatisfy({ w.block($0.x, $0.y, $0.z) == con }) else { return }
+        // The inside: the side with room for it lying four in under the row over the new top (a light allowed).
+        let light = Blocks.has("light_panel") ? Blocks.id("light_panel") : AIR
+        for n in [n0, IVec3(-n0.x, 0, -n0.z)] {
+            var cells: [IVec3] = [], ok = true
+            for k in -1...3 { for d in 1...4 {
+                let c = at(k, y1 + 2) + IVec3(n.x * d, 0, n.z * d)
+                let b = w.block(c.x, c.y, c.z)
+                if b != AIR && b != light { ok = false }
+                cells.append(c)
+            } }
+            // (and a roof over it: the inside of a building, not the yard)
+            guard ok, cells.allSatisfy({ c in (1...4).contains { Blocks.collide[Int(w.block(c.x, c.y + $0, c.z))] } }) else { continue }
+            for c in cells where w.block(c.x, c.y, c.z) == light {
+                w.setBlock(c.x, c.y, c.z, AIR)
+                // (to the vault's side, in the concrete just past where the door lies)
+                var q = c
+                while cells.contains(q) { q = q + u }
+                if w.block(q.x, q.y, q.z) == con { w.setBlock(q.x, q.y, q.z, light) }
+                else if w.block(q.x, q.y - 1, q.z) == con { w.setBlock(q.x, q.y - 1, q.z, light) }
+            }
+            for c in ring { w.setBlock(c.x, c.y, c.z, base) }
+            return
+        }
     }
 
     // A button pressed beside a door (within 3 blocks of one of its cells): the door works as if used.
