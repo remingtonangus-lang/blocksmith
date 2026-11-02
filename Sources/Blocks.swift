@@ -744,6 +744,7 @@ final class BlockRegistry {
         registerHellWorksBlocks()                   // P508: Brimsalt veins (HellWorks.swift)
         registerSeats()                             // P370 (b): chairs, benches, stools (Seats.swift)
         registerLift()                              // P503 (Lift.swift)
+        registerElevators()                         // FAILURES.md 2: lifts with cars (Elevators.swift)
         registerArmouredTwins()                     // P501: a Greywall vault's walls (MilitaryBase.swift, Armour.twin)
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Charwood"), ("warped", "Gloamwood")]

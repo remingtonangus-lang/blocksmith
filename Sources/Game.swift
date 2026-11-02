@@ -2159,7 +2159,7 @@ final class Game {
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || (k == "cave_vines" && b != Blocks.groupBase[Int(b)])          // a podded lanternvine is picked (P125)
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
-            || k == BaseSafes.block || k == BaseMaterials.crate || ChairSeat.seatTop(k) != nil || k == Depots.shutter
+            || k == BaseSafes.block || k == BaseMaterials.crate || ChairSeat.seatTop(k) != nil || k == Depots.shutter || Elevators.usable(k)
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -2217,6 +2217,7 @@ final class Game {
             return
         }
         if k == Depots.shutter { GarageDoors.use(self, p); return }        // FAILURES.md 1: the whole door swings (GarageDoors.swift)
+        if Elevators.usable(k) && Elevators.use(self, p) { return }      // FAILURES.md 2: call the lift, or pick a floor (Elevators.swift)
         switch k {
         case "cave_vines": pickLumenPods(p)
         case "crafting_table": openMenu(CraftingBookMenu(game: self))      // the recipe book first; the grid is a button away
@@ -3352,6 +3353,7 @@ final class Game {
         aircraftCrashTick(Float(dt))                           // P294: crashes and rotor strikes (AircraftCrash.swift)
         fellingTick(Float(dt))                                 // P298: felled trees and a carried trunk (Felling.swift)
         GarageDoors.tick(self, Float(dt))                      // garage doors swinging (GarageDoors.swift)
+        Elevators.tick(self, Float(dt))                        // lift cars riding their shafts (Elevators.swift)
         TickProf.mark("flight crews")
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
