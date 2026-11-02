@@ -2284,6 +2284,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
     var n = 0
     SoldierRig.eye = eye                    // soldier level of detail by distance
     SoldierRig.drawing = true
+    SoldierRig.clearFrame &+= 1             // (RigClearance: the far soldiers' kept corrections)
     defer { SoldierRig.drawing = false; MobDetail.level = 0 }
     // Dimension ambient, lifted by night vision like the terrain (Renderer: 1 - (1 - dim) * (1 - 0.85 nv)).
     let amb: Float = 1 - (1 - world.dim.ambient) * (1 - 0.85 * MobLight.nightVision)

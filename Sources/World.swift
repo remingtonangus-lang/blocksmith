@@ -1487,6 +1487,7 @@ final class World {
             meshResults.insert(contentsOf: mr[mi...], at: 0)
             lock.unlock()
         }
+        GroundSettle.borderStep(self)               // (store review: generation's loose pieces, a slice a frame)
         TickProf.mark("world.results")              // the rest of update() is charged to "world.update" (Game.tick)
         shellClock &+= 1
         if trimIn > 0 { trimIn -= 1; if trimIn == 0 { let b = MeshArena.shared.trim(); if b > 0 { print("world: view lowered, \(b >> 20) MB of mesh slabs given back") } } }

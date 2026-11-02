@@ -187,20 +187,53 @@ enum GroundSettle {
 
     // After a chunk is installed: each chunk here and round it whose small side-reaching pieces wait for their
     // neighbours (Chunk.borderSeeds) is checked once all eight neighbours exist.
+    // Store review (Nov 2, VRC.Quest.Performance.1; questcheck --framesoak, callgrind): run inside each chunk's install
+    // on the frame thread, the flood fills (up to 400 cells a seed, in hashed sets) were the largest part of the
+    // hand-over (single installs of 8 ms in the Ash Vault battle and the jungle walk). With `spread` on (the headset,
+    // QuestApp; questcheck --framesoak) the chunks are queued and `borderStep` works through them within a slice of each
+    // frame: a generation leftover goes a few frames later instead of the frame rate dipping as land comes in.
+    static var spread = false, stepSeconds = 0.0008
+    private static var queued: [ChunkKey] = []
+    private static var queuedSet = Set<ChunkKey>()
+    private static weak var queuedWorld: World?
+    static func borderStep(_ w: World) {
+        guard spread, !queued.isEmpty else { return }
+        if queuedWorld !== w { queued.removeAll(); queuedSet.removeAll(); queuedWorld = w; return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var i = 0
+        while i < queued.count && CFAbsoluteTimeGetCurrent() - t0 < stepSeconds {
+            let k = queued[i]; i += 1
+            queuedSet.remove(k)
+            borderCheckNow(w, k)
+        }
+        queued.removeFirst(i)
+    }
     static func borderCheck(_ w: World, around k: ChunkKey) {
         guard w.fieldTerrain, borderCheck else { return }
+        if spread {
+            if queuedWorld !== w { queued.removeAll(); queuedSet.removeAll(); queuedWorld = w }
+            for dz in -1...1 { for dx in -1...1 {
+                let kk = ChunkKey(x: k.x + dx, z: k.z + dz)
+                guard let c = w.chunks[kk], !c.borderSeeds.isEmpty, !c.hollow, queuedSet.insert(kk).inserted else { continue }
+                queued.append(kk)
+            } }
+            return
+        }
+        for dz in -1...1 { for dx in -1...1 { borderCheckNow(w, ChunkKey(x: k.x + dx, z: k.z + dz)) } }
+    }
+    // One chunk's waiting seeds, if all eight neighbours are in.
+    private static func borderCheckNow(_ w: World, _ kk: ChunkKey) {
         // P488: generation's own leftovers, not an edit: the sections round what is taken out mesh in the queue's order
         // (P446). Marked as edits, every chunk installed beside a loose piece sent its neighbours' sections ahead of
         // the queue: flying at 60 b/s, a fifth of all meshing was these, the chunks under him re-meshed again and again.
         let was = World.backgroundEdits
         World.backgroundEdits = true
         defer { World.backgroundEdits = was }
-        for dz in -1...1 { for dx in -1...1 {
-            let kk = ChunkKey(x: k.x + dx, z: k.z + dz)
-            guard let c = w.chunks[kk], !c.borderSeeds.isEmpty, !c.hollow else { continue }
+        do {
+            guard let c = w.chunks[kk], !c.borderSeeds.isEmpty, !c.hollow else { return }
             var ready = true
             for ez in -1...1 { for ex in -1...1 where w.chunks[ChunkKey(x: kk.x + ex, z: kk.z + ez)] == nil { ready = false } }
-            guard ready else { continue }
+            guard ready else { return }
             let seeds = c.borderSeeds
             c.borderSeeds = []
             var done = Set<IVec3>()
@@ -224,7 +257,7 @@ enum GroundSettle {
                 w.fieldRemove(cells)
                 borderDrops += cells.count
             }
-        } }
+        }
     }
 }
 

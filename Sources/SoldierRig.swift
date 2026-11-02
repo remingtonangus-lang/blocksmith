@@ -248,7 +248,7 @@ enum SoldierRig {
         var p = pose(m, b, rank: r, gm: gm, gi: gi)
         fit(&p, gm)
         let before = eye == nil ? clip(p, gm).depth : 0
-        clear(&p, gm)                                   // P353: the weapon clear of the arms and body (RigClearance.swift)
+        clear(&p, gm, for: m, lod: lod)                 // P353: the weapon clear of the arms and body (RigClearance.swift)
         fit(&p, gm)
         let lv = Livery.of(m, rank: r, seed: seed(m))
         var out = SoldierRigOut()

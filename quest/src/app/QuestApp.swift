@@ -77,6 +77,7 @@ final class QuestApp {
         // draws, not by lowering far detail; his headset captures decide if it holds 72 fps.
         World.lodNear = 99
         World.editLane = true                      // P440: a placed or broken block meshes off the frame
+        GroundSettle.spread = true                 // store review: generation's loose pieces cleared a slice a frame
         World.leafNear = QuestApp.leafNear
         PauseMenu.viewFixed = true                 // P339: the view distance is fixed (QuestSettings.viewDistance)
         stats.lowerRate = { [weak xr] in
