@@ -102,3 +102,30 @@ enum ClamberCheck {
                      three.y - Float(y), roofed.y - Float(y)))
     }
 }
+
+// P511: the crawler's interior as built (Capital.crawlerDense): a drive motor at each of the six wheels, a trunk with a
+// hoist under each of the three mounts, the command deck split in three, its air a good part filled, and no run of
+// more than a dozen open cells down its middle.
+enum CrawlerInteriorCheck {
+    static func run(_ check: (Bool, String) -> Void) {
+        let hb = Capital.crawler()
+        let engine = Capital.id("ship_engine"), hoist = Capital.id(ShipShells.hoistKey, AIR), armour = Capital.id("warship_hull")
+        var motors = 0
+        for zc in [18, 41, 64] { for sx in [-1, 1] where (10...11).allSatisfy({ y in hb.get(sx * 10, y, zc) == engine }) { motors += 1 } }
+        var trunks = 0, hoists = 0
+        for zc in [32, 54, 63] {
+            if (22...24).allSatisfy({ hb.get(0, $0, zc) == armour }) { trunks += 1 }
+            if hb.get(0, 22, zc - 2) == hoist { hoists += 1 }
+        }
+        var air = 0, filled = 0, run = 0, longest = 0
+        for z in 22...65 {
+            for y in 22...26 { for x in -7...7 { let b = hb.get(x, y, z); if b == AIR { air += 1 } else if Blocks.collide[Int(b)] { filled += 1 } } }
+            if hb.get(0, 23, z) == AIR { run += 1; longest = max(longest, run) } else { run = 0 }
+        }
+        let share = Float(filled) / Float(max(1, air + filled))
+        let bulkheads = [37, 49].filter { z in (-7...7).filter { hb.get($0, 23, z) != AIR }.count >= 10 }.count
+        check(motors == 6 && trunks == 3 && hoists == 3 && bulkheads == 2 && share > 0.25 && longest <= 12,
+              String(format: "crawler inside: %d of 6 wheels with a drive motor, %d of 3 mounts with a trunk (%d hoists), %d bulkheads across the command deck, %.0f%% of its air filled, its longest open run down the middle %d cells",
+                     motors, trunks, hoists, bulkheads, share * 100, longest))
+    }
+}

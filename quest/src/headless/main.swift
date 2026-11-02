@@ -2631,6 +2631,7 @@ ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift 
 RoutCheck.run(game, check)                             // P511: four in five of a garrison down, the rest run
 BrushCheck.run(game, check)                            // P511: through bushes and limbs at his full pace
 ClamberCheck.run(game, check)                          // P511: up and over a ledge too high to jump onto
+CrawlerInteriorCheck.run(check)                         // P511: the crawler's insides dense, a motor at every wheel
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest

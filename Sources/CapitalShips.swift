@@ -603,6 +603,7 @@ enum Capital {
             hb.set(sx * 9, 21, 30, Capital.id(sx > 0 ? "steel_plating_stairs[west]" : "steel_plating_stairs[east]", panel))
         }
         for (c, b) in crawlerRamp(down: true) { hb.set(c.x, c.y, c.z, b) }
+        crawlerDense(hb, chassis: chassis, upper: superstructure, inside: inside)     // (P511: first: its fittings take their places)
         crawlerRooms(hb, chassis: chassis)
         // Crew: a driver at the helm, a gunner for each turret (two heavies served from the command deck, four
         // sponsons from the chassis), and a squad of troops in the bay who go out by the rear ramp.
@@ -637,6 +638,84 @@ enum Capital {
             hb.pods.append((V3(Float(sx * 9 + W) + 0.5, 26.5, Float(z) + 1), simd_normalize(V3(Float(sx) * 0.5, 1.5, -0.3))))
         } }
         return hb
+    }
+
+    // P511 (Nov 2 12:13, "the crawler's interior design sucks. Should be dense, no big open room. A way to take up space
+    // is actual gun stuff underneath the positions. Like, things that hold ammo... Each wheel can have its own engine
+    // or something too and have a realistic design set up for the whole thing"). Diesel-electric, as a real land
+    // dreadnought would be: the engine banks aft turn generators, a cable run along each side of the lower deck carries
+    // their power to a drive motor at every wheel (a motor housing, a gearbox, the shaft out through the hull; the
+    // motors count among its engines, so shooting them out slows it). The command deck, one long open room under the
+    // three gun mounts, is split by two bulkheads into the bridge, the gun mounts' ammunition rooms and the fire control
+    // room between them: under each mount its trunk (the turret's armoured column down to the deck) with a shell hoist
+    // in its face, ready racks and crates round it, propellant charges in barrels aft; consoles for the gunners and the
+    // fire controllers. The aisles either side, the gunners' and the crew's places, the hatches and the ladder stay clear.
+    static func crawlerDense(_ hb: HullBuilder, chassis: (Int, Int, Int) -> Bool, upper: (Int, Int, Int) -> Bool,
+                             inside: (Int, Int, Int) -> Bool) {
+        func g(_ n: String, _ f: BlockID) -> BlockID { id(n, f) }
+        let iron = id("iron_block"), panel = id("warship_panel"), engine = id("ship_engine"), light = id("light_panel")
+        let crate = g("ammo_crate", iron), ash = g("ash_crate", crate), cab = g("data_cabinet", iron), barrel = g("barrel", iron)
+        let console = id("command_console"), term = g("greywall_terminal", console), table = g("greywall_map_table", console)
+        let hoist = g(ShipShells.hoistKey, iron), bars = g("iron_bars", iron), gen = g("generator_vent", iron)
+        let pipeX = g("depot_pipe_x", bars), pipeZ = g("depot_pipe_z", bars), armour = g("warship_hull", iron)
+        func low(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+            guard chassis(x, y, z), hb.get(x, y, z) == AIR else { return }
+            hb.set(x, y, z, b)
+        }
+        // (the command deck's air: inside the superstructure, off its skin)
+        func deck(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+            guard upper(x, y, z), y >= 22, hb.get(x, y, z) == AIR,
+                  inside(x + 1, y, z) && inside(x - 1, y, z) && inside(x, y + 1, z) && inside(x, y, z + 1) && inside(x, y, z - 1) else { return }
+            hb.set(x, y, z, b)
+        }
+        func deckStack(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, _ h: Int) { for k in 0..<h { deck(x, y + k, z, b) } }
+        // Drive motors: one at each wheel, on the lower deck against the hull side by its axle.
+        for zc in [18, 41, 64] { for sx in [-1, 1] {
+            for z in (zc - 1)...(zc + 1) { for y in 10...11 { low(sx * 10, y, z, engine) } }
+            low(sx * 10, 12, zc, gen)                                   // (its cooling vent)
+            low(sx * 9, 10, zc, iron)                                   // the gearbox
+            low(sx * 9, 11, zc, pipeX)                                  // the shaft out to the wheel
+        } }
+        // The cable runs from the generators aft to the motors, under the upper deck along both sides.
+        for sx in [-1, 1] { for z in 17...66 { low(sx * 9, 14, z, pipeZ) } }
+        // The command deck. Clear: the aisles (x -5...-3 and 3...5) and the centreline forward of the first trunk, the
+        // posts, the hatches (8, 30) and the ladder head (-7, 58).
+        var keep = Set<IVec3>()
+        for (x, z) in [(2, 53), (-2, 61), (2, 33), (0, 36), (-3, 48), (0, 29), (-4, 26), (4, 26)] { for y in 22...23 { keep.insert(IVec3(x, y, z)) } }
+        for sx in [-1, 1] { for x in 5...7 { for z in 29...31 { for y in 22...23 { keep.insert(IVec3(sx * x, y, z)) } } } }
+        for x in -7...(-5) { for z in 57...59 { for y in 22...24 { keep.insert(IVec3(x, y, z)) } } }
+        func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+            guard !keep.contains(IVec3(x, y, z)), abs(x) < 3 || abs(x) > 5 || b == panel else { return }
+            deck(x, y, z, b)
+        }
+        // The bridge: cabinets and the chart table along the walls behind the helm.
+        for sx in [-1, 1] { for z in 22...27 { put(sx * 7, 22, z, cab); put(sx * 7, 23, z, cab) } }
+        put(-6, 22, 28, table); put(6, 22, 28, term)
+        // Two bulkheads across the deck (z 37 and 49), a door in each aisle.
+        for z in [37, 49] { for x in -7...7 where !(abs(x) >= 3 && abs(x) <= 4) { for y in 22...27 { deck(x, y, z, panel) } }
+            for sx in [-1, 1] { for x in 3...4 { for y in 25...27 { deck(sx * x, y, z, panel) } } }
+            deck(0, 26, z, light)
+        }
+        // The gunners' consoles beside their posts (before the racks take the places).
+        put(2, 22, 52, console); put(-2, 22, 60, console); put(2, 22, 34, console)
+        // Each mount's trunk under its ring, a hoist in its face, ready racks and crates round it.
+        for zc in [32, 54, 63] {
+            var top = 28
+            while top > 20 && !inside(0, top, zc) { top -= 1 }
+            for z in (zc - 1)...(zc + 1) { for x in -1...1 { for y in 22..<top { put(x, y, z, armour) } } }
+            put(0, 22, zc - 2, hoist); put(0, 23, zc - 2, bars)
+            for sx in [-1, 1] { for z in (zc - 2)...(zc + 2) {
+                // (beside the trunk; the forward mount's port side stays open: the way in from the port hatch, ridecheck)
+                if abs(z - zc) <= 1 && !(zc == 32 && sx < 0) { put(sx * 2, 22, z, z % 2 == 0 ? crate : ash); put(sx * 2, 23, z, bars) }
+                put(sx * 6, 22, z, crate); put(sx * 6, 23, z, ash); put(sx * 7, 22, z, ash); put(sx * 7, 23, z, crate); put(sx * 7, 24, z, crate)
+            } }
+        }
+        // Fire control (z 38...48): rangefinder and plotting consoles along both walls, the plot table down the middle.
+        for sx in [-1, 1] { for z in stride(from: 38, through: 47, by: 2) { put(sx * 7, 22, z, z % 4 == 2 ? term : console); put(sx * 7, 23, z, cab)
+            put(sx * 7, 22, z + 1, cab); put(sx * 7, 23, z + 1, cab); put(sx * 6, 22, z + 1, g("oak_chair[\(sx < 0 ? "west" : "east")]", AIR)) } }
+        for z in 41...44 { put(0, 22, z, table); put(-1, 22, z, table); put(1, 22, z, table) }
+        // Propellant aft of the last mount, in barrels, two high.
+        for x in -7...7 where abs(x) < 3 || abs(x) > 5 { for z in 65...66 { put(x, 22, z, barrel); put(x, 23, z, barrel) } }
     }
 
     // P510 (Nov 1 20:34:20-39 aboard: "we need an engine room for the crawler... It also needs to be more dense inside...
