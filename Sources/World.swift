@@ -1306,6 +1306,7 @@ final class World {
     // crawler waited behind them. They now mesh in the queue's order at most every settleGap seconds (what its bow
     // meets still goes at once). BS_VEHICLEWEAR=0: the old way; BS_VEHICLEWEAR=off: no wear at all (measuring).
     static var vehicleEdits = false
+    static var ramEdits = false                     // (P511: what its bow rams that stands up in the way: at once)
     // P511 (measured at his spot, questcheck --streamtest --crawler, 8 b/s: 33-75 of 349 chunks in view drawn, ticks 6 ms
     // mean and 150 worst; with no wear all 349 by 8 s, 1.5 ms and 8): a worn chunk still went to the front of the queue
     // whenever it was within two chunks of him (the P458 front jobs), every settleGap. It now waits wearGap seconds
@@ -1333,10 +1334,16 @@ final class World {
     @inline(__always) private var settleNearGap: Double {
         simd_length_squared(V2(lead.x, lead.z)) > World.settleFast * World.settleFast ? World.settleGap : World.settleNear
     }
-    @inline(__always) private func worn(_ c: Chunk) -> Bool { c.vehicleWorn && World.vehicleWear != "0" }
+    @inline(__always) private func worn(_ c: Chunk) -> Bool { c.vehicleWorn && !c.urgent && World.vehicleWear != "0" }
+    // P511 (build 80, his spot: worn chunks still took both workers, 15 s of meshing in 12 s, whole columns at 200 ms a
+    // job, and no new land was generated at all): a worn chunk also waits while another worn chunk's job is out, so one
+    // worker at most is ever on the crawler's wear and the other brings the land in.
+    private var wornOut = 0                         // (worn jobs out on the workers; under `lock`)
+    private var wornBusy = false                    // (this frame: one is out)
     @inline(__always) private func holdBack(_ c: Chunk, _ dx: Int, _ dz: Int, _ now: Double) -> Bool {
+        let w = worn(c)
         guard World.settleGap > 0 && c.meshedOnce && !c.urgent
-              && now - c.meshAt < (c.vehicleWorn && World.vehicleWear != "0" ? World.wearGap : (max(abs(dx), abs(dz)) > 2 ? World.settleGap : settleNearGap)) else { return false }
+              && (now - c.meshAt < (w ? World.wearGap : (max(abs(dx), abs(dz)) > 2 ? World.settleGap : settleNearGap)) || (w && wornBusy)) else { return false }
         if !c.held { c.held = true; held.append(c) }
         return true
     }
@@ -1538,6 +1545,7 @@ final class World {
 
         // P474: settling changes held back long enough mesh now (marked dirty again: the quiet pass looks at them).
         let now = CFAbsoluteTimeGetCurrent()
+        lock.lock(); wornBusy = wornOut > 0; lock.unlock()
         if !held.isEmpty && now - heldCheck > 0.05 {
             heldCheck = now
             var released = false
@@ -1545,7 +1553,7 @@ final class World {
             let nearGap = settleNearGap
             held.removeAll { c in
                 guard now - c.meshAt >= nearGap && (now - c.meshAt >= World.settleGap || near(c)) else { return false }
-                if c.vehicleWorn && World.vehicleWear != "0" && now - c.meshAt < World.wearGap { return false }      // (P511)
+                if worn(c) && (now - c.meshAt < World.wearGap || wornBusy) { return false }      // (P511)
                 c.held = false
                 if chunks[ChunkKey(x: c.cx, z: c.cz)] === c && c.needsMesh { c.dirty = true; released = true }
                 return true
@@ -1782,6 +1790,7 @@ final class World {
         c.lodRemeshLog = false
         let dist = max(abs(k.x - floorDiv(Int(floor(activeCenter.x)), CS)), abs(k.z - floorDiv(Int(floor(activeCenter.z)), CS)))
         let lowSec = c.groundLow >> 4
+        let wornJob = worn(c)
         c.urgent = false
         c.vehicleWorn = false
         c.meshAt = CFAbsoluteTimeGetCurrent()
@@ -1795,6 +1804,7 @@ final class World {
             c.meshInFlight = true
             c.meshJobsOut += 1
             jobs += 1
+            if wornJob { lock.lock(); wornOut += 1; lock.unlock(); wornBusy = true }
             // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
             let job: () -> Void = { [weak self] in
                 guard let self else { return }
@@ -1805,6 +1815,7 @@ final class World {
                 if World.meshLog { print(String(format: "meshlog: %@ d%d lod%d low%d secs %@ %.1f ms", why, dist, lod, lowSec, list.map { String($0.0) }.joined(separator: ","), el * 1000)) }
                 self.lock.lock()
                 self.meshResults.append((k, out))
+                if wornJob { self.wornOut -= 1 }
                 self.perfShared.meshJobs += 1; self.perfShared.meshSections += list.count; self.perfShared.meshSeconds += el
                 self.lock.unlock()
             }

@@ -72,8 +72,10 @@ final class Section {
             MeshEpoch.value &+= 1
             guard let o = owner else { return }
             o.dirty = true
-            if !World.backgroundEdits { o.urgent = true }
+            // (P511: a chunk the crawler is wearing stays worn until it meshes: the loose ground, support checks and
+            // light round its ruts, settled after the pass, made it an edit again, ahead of the queue)
             if World.vehicleEdits { o.vehicleWorn = true }
+            if World.ramEdits || (!World.backgroundEdits && !(o.vehicleWorn && World.vehicleWear != "0")) { o.urgent = true }
             o.noteStale(was: oldValue != meshedVersion, now: version != meshedVersion)
         }
     }

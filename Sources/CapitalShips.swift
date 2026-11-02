@@ -2348,9 +2348,9 @@ extension ShipManager {
         // ahead of the queue, so it is seen to give way.
         if World.vehicleWear == "off" { return }
         let wear = World.vehicleWear != "0"
-        let was = (World.backgroundEdits, World.vehicleEdits)
-        defer { World.backgroundEdits = was.0; World.vehicleEdits = was.1 }
-        func worn(_ on: Bool) { if wear { World.backgroundEdits = on || was.0; World.vehicleEdits = on } }
+        let was = (World.backgroundEdits, World.vehicleEdits, World.ramEdits)
+        defer { World.backgroundEdits = was.0; World.vehicleEdits = was.1; World.ramEdits = was.2 }
+        func worn(_ on: Bool) { if wear { World.backgroundEdits = on || was.0; World.vehicleEdits = on; World.ramEdits = !on } }
         worn(true)
         if st.wantSpeed > 0.3 { crawlerRuts(s, st) }
         // (a felled trunk lies as a body for good: one a pass, only where he can see it, and not past a dozen about)
@@ -2408,7 +2408,7 @@ extension ShipManager {
                         if n >= cap { return }
                         continue
                     }
-                    worn(!(bow && Blocks.collide[Int(b)]))
+                    worn(!(bow && Blocks.collide[Int(b)] && ShapeClass.kind[Int(b)] != .foliage))     // (P511: leaves wear too)
                     world.setBlockAsync(x, y, z, AIR)
                     n += 1
                     if n >= cap { return }
