@@ -11,7 +11,7 @@ import Foundation
 // Down: a window whose GPU mean is past `severeFrac` of the budget (not while loading, unless the next is too) drops at
 // once to the view the model says fits `fitFrac`; two windows in a row past `dropFrac` (or missing frames with the GPU
 // near the budget) take one step. Up: `hold` seconds with headroom for the next step (its modelled GPU under `fitFrac`
-// of the budget, at most 1 % missed frames) raise it to the view that fits, at most three steps, never past the
+// of the budget, at most 1 % missed frames) raise it one step (store review, Nov 2: it was up to three), never past the
 // slider. A drop within a minute of a raise doubles the hold (up to four minutes); five quiet minutes at the slider
 // reset it. Loading bursts, menus and saves count neither way. `current` is session state (QuestSettings keeps the
 // last value so the next launch starts there instead of at the slider and dropping again).
@@ -149,7 +149,10 @@ struct ViewGovernor {
               Self.roomFor(w, from: current, to: next) else { good = 0; return .none }
         good += w.seconds
         guard good >= hold else { return .none }
-        current = min(chosen, current + 3 * Self.step, max(next, fitting(w)))
+        // Store review (Nov 2): one step at a time. Three at once (up to six chunks more of land to make and draw) was a
+        // burst of new land on the workers and the frame, and when the model was wrong a dip as deep as the jump: the
+        // "fluctuates under and over 60" Meta saw. A step that holds is followed by the next after `hold` again.
+        current = min(chosen, next)
         good = 0; sinceChange = 0; sinceRaise = 0
         return .raise(current)
     }

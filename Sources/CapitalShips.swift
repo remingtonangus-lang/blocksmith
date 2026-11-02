@@ -129,6 +129,8 @@ final class CapitalState {
     var isles: [(c: V2, top: Float, r: Float)]? = nil   // T11: sky isles near a frigate's home (found once)
     var crushTimer: Float = 0
     var crushNextZ: Float?             // store review: a pass under way left part done (crawlerCrush), its next row
+    var crushEndZ: Float = 0           // (the pass's last row: the stern on a whole sweep, the bow rows on a straight run)
+    var crushFullYaw: Float = 0, crushFullAt = -1.0     // (heading and clock of the last whole sweep)
     var crushedAll = false
     var sinkSpeed: Float = 0
     var wreckFx: Float = 0
@@ -2517,8 +2519,20 @@ extension ShipManager {
         let cap = full ? 4000 : 900
         defer { if full && n < cap { st.crushedAll = true } }
         let ahead = max(Float(4), (st.wantSpeed * 0.3).rounded(.up))
+        // Store review (frame soak: the sweep was 1.3 ms of every frame under way): going straight, what comes into the
+        // footprint comes in at the bow, so a pass sweeps the bow's rows (and those ahead); the whole footprint is swept
+        // once it has turned two degrees since the last whole sweep (the sides and the stern swing through trees), and at
+        // least once a second (climbing, sliding).
+        if resume == nil {
+            let dy = atan2f(sinf(s.yaw - st.crushFullYaw), cosf(s.yaw - st.crushFullYaw))
+            if full || abs(dy) > 0.035 || g.clock - st.crushFullAt > 1 {
+                st.crushEndZ = hi.z; st.crushFullYaw = s.yaw; st.crushFullAt = g.clock
+            } else {
+                st.crushEndZ = min(hi.z, lo.z + 8)
+            }
+        }
         let deadline = full ? Double.infinity : CFAbsoluteTimeGetCurrent() + ShipManager.crushSeconds
-        for lz in stride(from: resume ?? (lo.z - ahead), through: hi.z, by: 1) {
+        for lz in stride(from: resume ?? (lo.z - ahead), through: st.crushEndZ, by: 1) {
             if CFAbsoluteTimeGetCurrent() > deadline { st.crushNextZ = lz; return }
             let bow = lz <= lo.z + 6
             for lx in stride(from: lo.x, through: hi.x, by: 1) {

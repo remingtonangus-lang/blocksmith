@@ -126,7 +126,10 @@ extension Renderer {
         guard let s = ring.current(), s.n > 1, s.seed == game.world.seed else { return }
         let sp = Float(HorizonRing.spacing)
         let range = HorizonRing.range
-        let inner = loaded * 0.8                 // under the loaded terrain it is hidden anyway; this fills streaming gaps
+        // Under the loaded terrain it is hidden anyway; this fills streaming gaps. (FAILURES 4, void sweep of Nov 2: from 0.8
+        // of the loaded radius the ring's edge (a 40-block cell's centre past it) left magenta wedges where the loaded
+        // terrain ended short of it, the forest views at 0 0 on seed 7653607216494784574: 300-740 pixels.)
+        let inner = loaded * 0.6
         let night: Float = 0.3 + 0.7 * day
         let n = s.n
         // Cell normals and colours depend only on the snapshot: computed once per snapshot (they were redone for every
