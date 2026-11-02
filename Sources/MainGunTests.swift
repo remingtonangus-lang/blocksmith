@@ -473,8 +473,8 @@ enum MainGunTests {
                 for _ in 0..<144 { w.ships.capitalTick(1.0 / 72, game: g) }
                 let v = simd_length(V2(e.vel.x, e.vel.z))
                 w.ships.pilot = nil; e.throttle = 0
-                check(takeable && est.wheelsLost == 0 && rebuilt >= lost0 && est.disabledWhy.isEmpty && v > 2,
-                      String(format: "crawler: a crewless wreck can be taken, %d ingot uses rebuild its %d lost wheels (%d/%d) and engines (%d/%d), and it drives at %.1f b/s", rebuilt, lost0, est.wheels.count - est.wheelsLost, est.wheels.count, e.engines, est.engines0, v))
+                check(takeable && est.wheelsLost == 0 && rebuilt >= lost0 && est.disabledWhy.isEmpty && v > 2 && !est.rampDown,
+                      String(format: "crawler: a crewless wreck can be taken, %d ingot uses rebuild its %d lost wheels (%d/%d) and engines (%d/%d), and it drives at %.1f b/s with its back ramp up (P511: %@)", rebuilt, lost0, est.wheels.count - est.wheelsLost, est.wheels.count, e.engines, est.engines0, v, est.rampDown ? "down" : "up"))
                 // P510 (Nov 1 20:29-20:30: "It should be able to go into water no problem"): a lake ahead of it, eight deep;
                 // under his hand it drives in and on through it instead of stopping short at the shore.
                 do {

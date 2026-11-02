@@ -1642,6 +1642,7 @@ extension ShipManager {
     // under its own crew. With half its wheels lost it won't move until they are rebuilt (ShipManager.repairVehicle).
     private func capturedCrawlerTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         trackWheels(s, st, dt)
+        if st.rampDown { crawlerRamp(s, st, dt, g) }                     // P511: up, for good
         let steered = pilot === s
         let lost = st.wheels.isEmpty ? 0 : Float(st.wheelsLost) / Float(st.wheels.count)
         let drives = lost < 0.5 && (st.engines0 == 0 || s.engines * 10 >= st.engines0 * 4)
@@ -2302,7 +2303,10 @@ extension ShipManager {
         // Like that's-- We don't need that"): at his helm the ramp stays up however slowly it goes; it comes down
         // only once he has let go of the helm with it standing.
         let his = pilot === s
-        let want = s.wrecked || (his ? false : (troopsOut || st.wantSpeed < 1.6))
+        // P511 (Nov 2 08:51:09, at a captured one's helm: "Still got the back ramp on the crawler. It's gotta go"): a
+        // captured crawler's ramp goes up and stays up (its tick never ran this, so it kept the ramp it was built with,
+        // dragging down behind it); he boards by the roof hatch.
+        let want = s.captured ? false : s.wrecked || (his ? false : (troopsOut || st.wantSpeed < 1.6))
         if want == st.rampDown { st.rampTimer = 0; return }
         st.rampTimer += dt
         if st.rampTimer < 0.6 { return }
