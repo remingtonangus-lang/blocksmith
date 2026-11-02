@@ -3373,10 +3373,12 @@ final class Game {
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load
+        TickProf.mark("structure load")
         StructureTip.tick(self)                                // P503: a piece shot out from under it tips
+        TickProf.mark("structure tip")
         if Int(clock * 0.5) != Int((clock - Double(dt)) * 0.5) { packStims() }    // P504: no golden apples, every 2 s
         settleStrayPieces()                                    // P448
-        TickProf.mark("structure load")
+        TickProf.mark("stray pieces")
         mobs.update(Float(dt), game: self)
         TickProf.mark("mobs")
         drops.update(Float(dt), game: self)

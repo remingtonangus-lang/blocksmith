@@ -143,6 +143,7 @@ enum Structure {
     }
     static var checks = 0, fallen = 0, worstMs: Double = 0, totalMs: Double = 0, crushed = 0      // (harness tallies)
     static var tally: [String: Int]? = nil      // (harness: what queued the checks, old -> new)
+    static let snowLoad = ProcessInfo.processInfo.environment["BS_SNOWLOAD"] == "1"     // (P508 before/after: snow queues checks)
 
     // Is the cell ground or something a structure stands on (not part of one)?
     @inline(__always) static func anchor(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -572,6 +573,10 @@ extension World {
         // block world both are ground under a building, in a Polygons world neither is part of one.
         // (a garden's soil for soil carries the same)
         if SmoothTerrain.natural[Int(old)] && (SmoothTerrain.natural[Int(new)] || Blocks.isLiquid(new)) { return }
+        // P508 (Nov 1 15:50, digging by Boreal Station, fps 44 while it snowed): snow settling out of the sky (air to a
+        // snow layer) or melting off (a layer to air) carries nothing: each one queued a check of the station's piece.
+        let sl = BlockID(SmoothTerrain.snowLayer)
+        if ((old == AIR && new == sl) || (old == sl && new == AIR)) && !Structure.snowLoad { return }
         let key = IVec3(floorDiv(x, 4), floorDiv(y, 4), floorDiv(z, 4))
         if Structure.tally != nil { Structure.tally![Blocks.key(old) + " -> " + Blocks.key(new), default: 0] += 1 }
         if loadQueued.insert(key).inserted { loadQueue.append(IVec3(x, y, z)) }

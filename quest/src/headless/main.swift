@@ -338,6 +338,8 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     if let n = Int(arg("--digtime") ?? "") {
         TownVoice.ensure()                              // (P508: as the headset does at startup; a first line read it mid-tick)
+        Structure.tally = [:]                           // (P508: what queues the structure load checks round his dig)
+        let checks0 = Structure.checks, loadMs0 = Structure.totalMs
         if CommandLine.arguments.contains("--editlane") { World.editLane = true }       // (as on the headset)
         vg.survival = true; vg.paused = false
         var fill = 0
@@ -391,6 +393,10 @@ if let out = arg("--view"), let ctx = vkctx {
             print(String(format: "view: digtime: %@ at %d %d %d: strikes %@ ms; break %.1f ms (%d sections meshed on the frame); worst of the next 36 ticks %.1f ms (%@); edit lane done %.1f ms later; %d drops lying",
                          Blocks.key(b), p.x, p.y, p.z, strikes.map { String(format: "%.1f", $0) }.joined(separator: " "), brk, brkMeshed, worst, worstWhat, lane, vg.drops.items.count))
         }
+        let top = (Structure.tally ?? [:]).sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        print(String(format: "view: digtime: load checks %d (%.1f ms in all, worst %.1f ms), %d queued; queued by: %@",
+                     Structure.checks - checks0, Structure.totalMs - loadMs0, Structure.worstMs, vw.loadQueue.count, top))
+        Structure.tally = nil
     }
     if let n = Int(arg("--drops") ?? "") {
         let e = vg.player.pos

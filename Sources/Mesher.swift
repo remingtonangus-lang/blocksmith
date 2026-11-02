@@ -97,6 +97,9 @@ enum Mesher {
     static let shoreRing2: [(Int, Int)] = [(2, 0), (-2, 0), (0, 2), (0, -2), (2, 1), (2, -1), (-2, 1), (-2, -1),
                                             (1, 2), (-1, 2), (1, -2), (-1, -2), (2, 2), (2, -2), (-2, 2), (-2, -2)]
 
+    // P508: built cubes on the field's ground get a foot down into it (BS_FEET=0 leaves them off: before/after renders).
+    static let blockFeet = ProcessInfo.processInfo.environment["BS_FEET"] != "0"
+
     // Faces +X,-X,+Y,-Y,+Z,-Z; corners BL,BR,TR,TL counter-clockwise seen from outside.
     static let cornerTable: [Int] = [
         1,0,1, 1,0,0, 1,1,0, 1,1,1,
@@ -1282,6 +1285,36 @@ enum Mesher {
         // same for plants).
         @inline(__always) func lowRow(_ rt: UInt8, _ bi: Int) -> Bool { rt == rWire || rt == rRail || (rt == rModel && GroundDrape.seat[bi] != 0) }
         let lowRows = drapeOn && !far && GroundDrape.lowRowOn
+        // P508 (the store trailer's Boreal Station gate: a dark slit under the yard's edge; specks at wall and well feet):
+        // a built cube standing on the field's ground keeps its bottom face (smoothOpen), lit from the ground's cell
+        // under it (black), and where the drawn ground beside it lies under its floor that face showed through as a
+        // black line under the block. The ground cell under such a block draws a foot for each open side: the block's
+        // side face carried on half a block down at its own plane, lit from the cell beside the block, so the block
+        // meets the ground (the part of the foot under the ground beside it is hidden in it).
+        func blockFoot(_ i: Int, _ x: Int, _ y: Int, _ z: Int, _ ly: Int) {
+            let a = i + RL, ab = Int(R[a])
+            guard renderT[ab] == rCube, opaqueT[ab], dens[a] <= 0, layerT[ab] == solidLayer, fkT[ab] == 0, !leafT[ab] else { return }
+            let bx16 = (x - C0) * 16, by16 = ly * 16, bz16 = (z - C0) * 16
+            let tintB = Int(tintT[ab]), tintV = tintB == 3 ? 1 : tintB
+            let cut0 = curCut, kind0 = kindNow
+            curCut = false; kindNow = MeshKind.cube
+            for f in [0, 1, 4, 5] {
+                let side = a + offs[f]
+                guard !opaqueT[Int(R[side])] || smoothOpen(side) else { continue }
+                let beside = i + offs[f]
+                let gTop: Float = dens[beside + RL] > 0 ? 1.5 : 0.5 + Float(dens[beside]) / 32
+                guard gTop < 0.97 else { continue }
+                let l = max(0, light(x + NT[f * 3], y + 1, z + NT[f * 3 + 2]))
+                let layer = Int(texT[ab * 6 + f])
+                for k in 0..<4 {
+                    let ci = (f * 4 + k) * 3
+                    let px = CT[ci] * 16, top = CT[ci + 1] == 1, pz = CT[ci + 2] * 16
+                    let (u, _) = Mesher.faceUV(f, px, 16, pz)
+                    vert(false, bx16 + px, by16 + (top ? 16 : 8), bz16 + pz, f, tintV, u, top ? 16 : 24, layer, 3, l, tintB == 3)
+                }
+            }
+            curCut = cut0; kindNow = kind0
+        }
         for ly in 0..<(lowRows ? 17 : 16) {
             let y = ly + C0
             for z in C0..<(C0 + 16) {
@@ -1303,6 +1336,7 @@ enum Mesher {
                     if tallyBlocks { tallyFlush(Int(gbT[bi])) }
                     if smooth && natT[bi] && (!fieldOn || dens[i] > 0) {    // (chipped too: it shrinks in the smooth surface, P106)
                         if smoothWater && !fluidNets { shoreWater(i, ly) }
+                        if fieldOn && ly < 16 && Mesher.blockFeet { blockFoot(i, x, y, z, ly) }
                         continue
                     }
                     // (P338 step 2's debug counter: the field's ground drawn as cubes. A structure's own stone, sandstone,
