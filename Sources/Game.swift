@@ -3370,12 +3370,8 @@ final class Game {
         GarageDoors.tick(self, Float(dt))                      // garage doors swinging (GarageDoors.swift)
         Elevators.tick(self, Float(dt))                        // lift cars riding their shafts (Elevators.swift)
         TickProf.mark("doors and lifts")
-        GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
-        TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load
         TickProf.mark("structure load")
-        StructureTip.tick(self)                                // P503: a piece shot out from under it tips
-        TickProf.mark("structure tip")
         if Int(clock * 0.5) != Int((clock - Double(dt)) * 0.5) { packStims() }    // P504: no golden apples, every 2 s
         settleStrayPieces()                                    // P448
         TickProf.mark("stray pieces")
@@ -3398,6 +3394,14 @@ final class Game {
         updateFlashes(Float(dt))
         shake = max(0, shake - Float(dt) * 1.3)
         TickProf.mark("particles")
+        // Store review (build 109's citadel soak): the carving and the checks after it run here, after the mobs, so
+        // they take what the tick has left (CraterJob.allowance) and wait out a frame the soldiers ran long.
+        w.ships.stepBowls(self)                                // main-gun bowls (MainGun.swift)
+        TickProf.mark("ships.shockwaves: bowls")
+        GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
+        TickProf.mark("ground collapse")
+        StructureTip.tick(self)                                // P503: a piece shot out from under it tips
+        TickProf.mark("structure tip")
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {
             timeSinceRest = 0

@@ -448,7 +448,9 @@ final class CraterJob {
             let rest = max(0, TickProf.prevTotal - usedPrev)
             allow = max(floorSeconds, min(frameSeconds, tickTarget - rest))
         }
-        return allow - used
+        // (and what this tick has left of `tickTarget` by now: carving run late in the tick, after the mobs, waits
+        // when they ran long. Never under the floor a tick, so a bowl always goes on.)
+        return min(allow - used, max(floorSeconds - used, tickTarget - TickProf.elapsed))
     }
     // Other ground carving drawing on the same allowance (the crawler's ruts).
     static func spend(_ seconds: Double) { if inTick { _ = allowance(); used += seconds } }
