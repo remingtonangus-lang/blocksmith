@@ -44,7 +44,7 @@ enum CrewLookout {
         let eyeH = m.height * 0.9
         var tried = 0, rays = 0
         for (_, c) in cands {
-            if rays >= 120 || tried >= 3 { break }
+            if rays >= 400 || tried >= 3 { break }       // (hull rays are grid reads: 400 about 0.1 ms)
             rays += 1
             let e = V3(Float(c.x) + 0.5, Float(c.y) + eyeH, Float(c.z) + 0.5)
             let d = fl - e

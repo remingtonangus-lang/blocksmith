@@ -148,8 +148,9 @@ extension World {
                 for sy in s0...s1 where c0.blocks.fine[sy] == nil {
                     let c = c0.hollow || !c0.cacheDropped ? editing(c0) : c0
                     guard c.blocks.isField, ensureFine(c, sy) else { continue }
-                    if World.finePrefetched.count > 64 { World.finePrefetched.removeAll() }     // (never carved: let go)
-                    World.finePrefetched.insert(FineKey(c: ObjectIdentifier(c), sy: sy))
+                    World.finePrefetched.removeAll { $0.c == nil }
+                    if World.finePrefetched.count > 64 { World.finePrefetched.removeFirst(World.finePrefetched.count - 64) }  // (never carved: let go)
+                    World.finePrefetched.append(FinePrefetch(c: c, sy: sy, version: c.sections[sy].version))
                     return true
                 }
             }
@@ -209,7 +210,7 @@ extension World {
                 for sy in s0...s1 {
                     // (made ahead by prefetchFine and still untouched: as fresh as one made now, so a sphere that leaves
                     // it as it was doesn't keep it)
-                    let ahead = !World.finePrefetched.isEmpty && World.finePrefetched.remove(FineKey(c: ObjectIdentifier(c), sy: sy)) != nil
+                    let ahead = !World.finePrefetched.isEmpty && World.takePrefetched(c, sy)
                     out.append((c, sy, ensureFine(c, sy) || ahead))
                 }
             }
@@ -397,7 +398,16 @@ extension Mesher {
     }
 }
 
-struct FineKey: Hashable { let c: ObjectIdentifier; let sy: Int }
+// A section prefetchFine made: the chunk itself (weak: an ObjectIdentifier outlives its chunk and comes back for the
+// next one made at that address) and the section's version then. It counts as fresh only while both still hold: any
+// edit since (a placed block's ensureFine, another carve) bumps the version, and a fresh section a sphere leaves as it
+// was is let go, which would throw that edit's fine ground away.
+struct FinePrefetch { weak var c: Chunk?; let sy: Int; let version: Int }
 extension World {
-    static var finePrefetched = Set<FineKey>()          // (prefetchFine's sections not carved yet)
+    static var finePrefetched: [FinePrefetch] = []      // (prefetchFine's sections not carved yet)
+    static func takePrefetched(_ c: Chunk, _ sy: Int) -> Bool {
+        guard let i = finePrefetched.firstIndex(where: { $0.c === c && $0.sy == sy }) else { return false }
+        let p = finePrefetched.remove(at: i)
+        return p.version == c.sections[sy].version
+    }
 }
