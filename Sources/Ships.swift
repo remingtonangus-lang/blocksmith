@@ -644,12 +644,14 @@ final class Ship {
         guard w.fieldTerrain, wy >= 1, wy < CH - 1, let c = w.chunkAt(wx, wz), c.blocks.isField, !c.hollow,
               c.blocks.raw(Chunk.index(mod(wx, CS), wy, mod(wz, CS))) == AIR else { return nil }
         // (Most cells are open air over the ground or wholly in it: their foot, then their top, answer at once.)
-        @inline(__always) func ground(_ k: Int) -> Bool { w.fieldDensity(at: toWorld(V3(Float(x) + 0.5, Float(y) + Float(k) / 8, Float(z) + 0.5))) > 0 }
+        @inline(__always) func ground(_ f: Float) -> Bool { w.fieldDensity(at: toWorld(V3(Float(x) + 0.5, Float(y) + f, Float(z) + 0.5))) > 0 }
         if !ground(0) { return 0 }
-        if ground(8) { return 1 }
-        var k = 1
-        while k < 8 && ground(k) { k += 1 }
-        return Float(k) / 8
+        if ground(1) { return 1 }
+        // (Then the surface by halving, to 1/64 of a block: in eighths it stepped 0.125 at a time as the hull moved,
+        // more than the 0.05 a body's box is let sink into the ground: full ride checks, the board bot at the ramp's foot.)
+        var lo: Float = 0, hi: Float = 1
+        for _ in 0..<6 { let m = (lo + hi) * 0.5; if ground(m) { lo = m } else { hi = m } }
+        return hi
     }
 
     func frameBlock(_ x: Int, _ y: Int, _ z: Int, _ w: World) -> BlockID {
