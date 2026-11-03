@@ -62,6 +62,7 @@ enum PathFinder {
     // each read was a dictionary lookup: bench profile, mobs scene). Only while find() runs (main thread); elsewhere
     // blk is World.block.
     private static var cursorOn = false
+    private static var topCache: [IVec3: Float] = [:]       // (solidTop's field cells during one run of a search)
     private static var cKey = ChunkKey(x: Int.min, z: Int.min)
     private static var cChunk: Chunk?
     static let dirs4 = [(1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -96,10 +97,15 @@ enum PathFinder {
         if w.fieldTerrain, w.frame == nil, y >= 0, y < CH, let c = w.chunkAt(x, z), c.blocks.isField,
            w.fieldNear(c, x, y, z, Chunk.index(mod(x, CS), y, mod(z, CS))) {
             if doors && isWoodDoor(blk(w, x, y, z)) { return 0 }
+            // (Store review, build 112's citadel soak: one node of an armoured soldier's search took 6.8 ms, its cells'
+            // field ground read again for every neighbour that looked at them. During a search each cell's is kept.)
+            let key = IVec3(x, y, z)
+            if cursorOn, let t = topCache[key] { return t }
             boxes.removeAll(keepingCapacity: true)
             w.collisionBoxes(x, y, z, &boxes)
             var top: Float = 0
             for (_, hi) in boxes { top = max(top, hi.y - Float(y)) }
+            if cursorOn { topCache[key] = top }
             return top
         }
         let b = Int(blk(w, x, y, z))
@@ -247,6 +253,7 @@ enum PathFinder {
         let saveCursor = cursorOn
         cursorOn = true
         cKey = ChunkKey(x: Int.min, z: Int.min); cChunk = nil
+        topCache.removeAll(keepingCapacity: true)
         defer { doors = saveDoors; cursorOn = saveCursor; cChunk = nil; cKey = ChunkKey(x: Int.min, z: Int.min) }
         return body()
     }
