@@ -42,3 +42,7 @@ The lane adds a line whenever it merges something the host can't fully prove. Ne
 ## Fights
 - Sheriffs on Hard: do they fight hard enough now (#648)?
 - Void triangles (FAILURES 4): any left anywhere? Say where.
+- Revenge raids (P512): a base you break or take is owed back about one time in four; 15-40 minutes later, when you
+  are home, a dropship comes in and lands troops by your home. Before this fix the dropship and the sea hunters (corsair
+  sloop, Corsair Cruiser) were made past the active distance and slept there, so none of them ever reached you. Does a
+  raid reach your home now, and does a corsair come for you out at sea?
