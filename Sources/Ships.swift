@@ -625,6 +625,33 @@ final class Ship {
     // Capital vehicles (kinematic) are their own space above their floor: the terrain and trees they drive through or
     // settle into never show up inside the hull's columns, so riders aren't shoved, popped up or blocked by world
     // blocks sampled at a turned hull's cells (vehicle riding).
+    // The world's drawn ground in a cell of this hull's frame, as the height of it in the cell (0...1), or nil when the
+    // cell is the hull's, a turret's, kept dry, or holds a built block (frameBlock answers those). frameBlock reads the
+    // ground at the cell's middle alone, a whole cube or nothing: as the hull moved or settled, a cube of the ground
+    // came and went whole in a body standing where the ramp's foot meets the ground (full ride checks: the board bot
+    // shoved 14-44 b/s in a tick, a troop a tick inside a cube). Here the ground's height is sampled up the cell's middle,
+    // so it rises and falls with the hull's motion instead of jumping a block.
+    func frameGroundTop(_ x: Int, _ y: Int, _ z: Int, _ w: World) -> Float? {
+        if grid.inside(x, y, z) {
+            let i = grid.index(x, y, z)
+            if grid.blocks[i] != AIR || dryMask[i] { return nil }
+            if kinematic && Int(colMin[x + z * grid.sx]) < y { return nil }
+        }
+        let mid = toWorld(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
+        for t in children where mid.x > t.worldMin.x && mid.x < t.worldMax.x && mid.y > t.worldMin.y && mid.y < t.worldMax.y
+            && mid.z > t.worldMin.z && mid.z < t.worldMax.z { return nil }
+        let wx = Int(floor(mid.x)), wy = Int(floor(mid.y)), wz = Int(floor(mid.z))
+        guard w.fieldTerrain, wy >= 1, wy < CH - 1, let c = w.chunkAt(wx, wz), c.blocks.isField, !c.hollow,
+              c.blocks.raw(Chunk.index(mod(wx, CS), wy, mod(wz, CS))) == AIR else { return nil }
+        // (Most cells are open air over the ground or wholly in it: their foot, then their top, answer at once.)
+        @inline(__always) func ground(_ k: Int) -> Bool { w.fieldDensity(at: toWorld(V3(Float(x) + 0.5, Float(y) + Float(k) / 8, Float(z) + 0.5))) > 0 }
+        if !ground(0) { return 0 }
+        if ground(8) { return 1 }
+        var k = 1
+        while k < 8 && ground(k) { k += 1 }
+        return Float(k) / 8
+    }
+
     func frameBlock(_ x: Int, _ y: Int, _ z: Int, _ w: World) -> BlockID {
         var hullCol = false
         if grid.inside(x, y, z) {
