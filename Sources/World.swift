@@ -665,11 +665,16 @@ final class World {
 
     // World-space collision boxes of the block at a cell.
     @inline(__always) func collisionBoxes(_ x: Int, _ y: Int, _ z: Int, _ out: inout [(V3, V3)]) {
+        collisionBoxes(x, y, z, &out, column: nil)
+    }
+    // `column`: the chunk holding (x, z) when the caller has it (sweep walks a column at a time: store review, callgrind
+    // of the battle soak, a dictionary lookup per cell was a fifth of every mob's move).
+    @inline(__always) func collisionBoxes(_ x: Int, _ y: Int, _ z: Int, _ out: inout [(V3, V3)], column: Chunk?) {
         var b: Int
         // PG2 rewrite: in a field world the ground is met as the field's own surface (fieldBoxes: quarter-block columns
         // cut where the density crosses zero), never as cells; built blocks in the cell keep their own shapes.
         // (P377 step 2: the cell is read through the built layer only, never first as a block.)
-        if fieldTerrain && y >= 0 && y < CH, let c = chunkAt(x, z) {
+        if fieldTerrain && y >= 0 && y < CH, let c = column ?? chunkAt(x, z) {
             let i = Chunk.index(mod(x, CS), y, mod(z, CS))
             if fieldNear(c, x, y, z, i) { if fieldSplit { fieldBoxes(x, y, z, &fieldSink) } else { fieldBoxes(x, y, z, &out) } }
             b = Int(c.blocks.raw(i))
@@ -854,7 +859,7 @@ final class World {
                             if fieldC { if !Blocks.collide[Int(c.blocks.raw(i))] && !fieldNear(c, x, y, z, i) { continue } }
                             else if !Blocks.collide[Int(c.blocks[i])] { continue }
                         }
-                        collisionBoxes(x, y, z, &boxes)
+                        collisionBoxes(x, y, z, &boxes, column: c)
                     }
                 } else {
                     for y in y0...y1 { collisionBoxes(x, y, z, &boxes) }

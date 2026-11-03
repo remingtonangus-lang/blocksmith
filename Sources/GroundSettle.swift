@@ -135,6 +135,7 @@ enum GroundSettle {
         return b == AIR || Blocks.isLiquid(b) || !Blocks.collide[i] || CapitalBase.isLeaf(b) || Blocks.hardness[i] < 0
     }
 
+    private static let objDone = CellSet(capacity: 4096), objSeen = CellSet(capacity: 1024)
     static func objects(_ g: Game, _ p: IVec3, _ r: Int) {
         let w = g.world
         let R = r + 2
@@ -146,10 +147,14 @@ enum GroundSettle {
             w.gravityQueue.append(q)                         // plants pop, sand and gravel fall (Game.gravityTick)
             if !fallSkip[Int(b)] && !w.solidAt(x, y - 1, z) { bases.append(q) }
         } } }
-        var done = Set<IVec3>()
+        // (store review: the kept cell sets, as the border flood, instead of hashed Set<IVec3>s merged per base)
+        let done = objDone, seen = objSeen
+        done.removeAll()
+        var seenList: [IVec3] = []
         for s in bases where !done.contains(s) {
             // The built piece standing here (6-connected solid built blocks, leaves aside), and whether anything holds it.
-            var seen: Set<IVec3> = [s]
+            seen.removeAll(); seen.insert(s)
+            seenList.removeAll(keepingCapacity: true); seenList.append(s)
             var stack = [s], cells: [IVec3] = []
             var held = false
             while let c = stack.popLast() {
@@ -160,13 +165,13 @@ enum GroundSettle {
                     if seen.contains(n) { continue }
                     guard w.isLoaded(n.x, n.z) else { held = true; break }
                     let b = w.builtBlock(n.x, n.y, n.z)
-                    if !fallSkip[Int(b)] { seen.insert(n); stack.append(n); continue }
+                    if !fallSkip[Int(b)] { seen.insert(n); seenList.append(n); stack.append(n); continue }
                     // Something holding it: ground (below or beside), or the world's floor.
                     if e.y <= 0 && (w.groundAt(n.x, n.y, n.z) || n.y <= 0) { held = true; break }
                 }
                 if held { break }
             }
-            done.formUnion(seen)
+            for q in seenList { done.insert(q) }
             if held { continue }
             let logs = cells.filter { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
             if logs.count >= 3, let foot = logs.min(by: { $0.y < $1.y }) {
@@ -224,6 +229,7 @@ enum GroundSettle {
         }
         for dz in -1...1 { for dx in -1...1 { borderCheckNow(w, ChunkKey(x: k.x + dx, z: k.z + dz)) } }
     }
+    private static let borderDone = CellSet(capacity: 8192), borderSeen = CellSet(capacity: 1024)
     // One chunk's waiting seeds, if all eight neighbours are in.
     private static func borderCheckNow(_ w: World, _ kk: ChunkKey) {
         // P488: generation's own leftovers, not an edit: the sections round what is taken out mesh in the queue's order
@@ -239,11 +245,16 @@ enum GroundSettle {
             guard ready else { return }
             let seeds = c.borderSeeds
             c.borderSeeds = []
-            var done = Set<IVec3>()
+            // (store review, callgrind of the battle soak: still 12M instructions a chunk, most of it hashing cells into
+            // Set<IVec3> and merging them; open-addressed cell sets kept between calls, frame thread only)
+            let done = borderDone, seen = borderSeen
+            done.removeAll()
+            var seenList: [IVec3] = []
             for i in seeds {
                 let s = IVec3(kk.x * CS + i & 15, i / CSQ, kk.z * CS + (i >> 4) & 15)
                 guard !done.contains(s), w.isGround(s) else { continue }
-                var seen: Set<IVec3> = [s]
+                seen.removeAll(); seen.insert(s)
+                seenList.removeAll(keepingCapacity: true); seenList.append(s)
                 var stack = [s], cells: [IVec3] = []
                 var held = false
                 // (store review, callgrind of the soak: each seed filled its 400 cells into hashed sets, 1.8M instructions
@@ -257,10 +268,10 @@ enum GroundSettle {
                         let n = q + e
                         if seen.contains(n) || !w.isGround(n) { continue }
                         if done.contains(n) { held = true; break flood }        // (a loose piece's cells went: ground no more)
-                        seen.insert(n); stack.append(n)
+                        seen.insert(n); seenList.append(n); stack.append(n)
                     }
                 }
-                done.formUnion(seen)
+                for q in seenList { done.insert(q) }
                 if held { continue }
                 w.fieldRemove(cells)
                 borderDrops += cells.count
