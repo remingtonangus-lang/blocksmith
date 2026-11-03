@@ -898,7 +898,9 @@ enum Capital {
     }
 
     static func makeShips(_ hb: HullBuilder, ids: [Int], name: String, role: String, faction: Faction) -> [Ship] {
-        let s = Ship(id: ids[0], grid: ShipGrid(sx: hb.sx, sy: hb.sy, sz: hb.sz, blocks: hb.blocks))
+        let hull = ShipGrid(sx: hb.sx, sy: hb.sy, sz: hb.sz, blocks: hb.blocks)
+        if role != "dropship" { Capital.addGunStations(hull, rings: hb.turrets.map { $0.ring }) }     // P512 (GunStations.swift)
+        let s = Ship(id: ids[0], grid: hull)
         s.name = name
         s.role = role
         s.kinematic = true

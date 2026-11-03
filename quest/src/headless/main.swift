@@ -2106,6 +2106,10 @@ if CommandLine.arguments.contains("--encounters") {            // P512: revenge 
     EncounterCheck.run({ World(seed: $0, device: device, save: nil, dim: .overworld) }, check)
     print(failures == 0 ? "encounters: all checks passed" : "encounters: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--gunstations") {           // P512: a station for every capital gun, crew at them
+    GunStationsCheck.run(game, check)
+    print(failures == 0 ? "gunstations: all checks passed" : "gunstations: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--proving") {               // P512: the Proving Grounds (vehicles, circuits, guns)
     ProvingGroundsCheck.run(game, check)
     print(failures == 0 ? "proving: all checks passed" : "proving: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
