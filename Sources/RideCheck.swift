@@ -72,9 +72,10 @@ enum RideCheck {
                 // across z 37 and 49 with a door in each aisle (centreline x -4...-3 and 3...4), the gun trunks and their
                 // racks between the aisles: the old lap (x 12.5 and 22.5, across z 32.5 and 60.5) ran into the bulkhead's
                 // solid part at z 37 and pressed into it the whole run. The lap goes down each aisle through both doors
-                // and crosses forward of the first bulkhead (z 35) and aft of the middle mount's racks (z 58).
+                // and crosses forward of the first bulkhead (z 36, clear of the gunner's console at 2, 34) and aft of the middle
+                // mount's racks (z 58).
                 deckScene(r, sc, deckY: 22, start: V3(14.0, 22.02, 46.5),
-                          lap: [V3(14.0, 22, 35.5), V3(21.0, 22, 35.5), V3(21.0, 22, 58.5), V3(14.0, 22, 58.5)], seconds: secs(240), turnEvery: 20,
+                          lap: [V3(14.0, 22, 36.0), V3(21.0, 22, 36.0), V3(21.0, 22, 58.5), V3(14.0, 22, 58.5)], seconds: secs(240), turnEvery: 20,
                           doorZ: [37.5, 49.5])     // (the doors are three high: a jump through one bumps the lintel)
             case "frigate":
                 guard let sc = makeScene(device, seed: seed, kind: "capfrigate") else { r.check(false, "the frigate spawned"); continue }
@@ -251,7 +252,9 @@ enum RideCheck {
                 w.frame = nil
                 if inside { insideTicks += 1; if firstInside.isEmpty { firstInside = where_ + " in " + Blocks.key(b) } }
             }
-            calm = p.jumped || p.onGround != prevGround ? 0 : calm + 1
+            // (In the air the deck turns and pitches under him without carrying him: his deck-relative velocity changes
+            // with its motion, not a shove. An auto-jump at a step sets no `jumped`, so airborne ticks count as jumpy.)
+            calm = p.jumped || p.onGround != prevGround || !p.onGround ? 0 : calm + 1
             let jumpy = calm < 3
             if aboard != prevAboard && ticks > 1 { transitions += 1 }
             if let pl = prevL, aboard && prevAboard {
@@ -473,7 +476,10 @@ enum RideCheck {
             let aboard = w.ships.aboard === s
             switch phase {
             case 0:
-                if l.x > 6.15 && abs(l.z - 29.5) < 0.6 { advance(names[0]); return AgentAction.idle }
+                if l.x > 6.15 && abs(l.z - 29.5) < 0.6 {
+                    r.note(String(format: "at the ladder: ship-space %.2f,%.2f,%.2f, aboard %@, ground %@", l.x, l.y, l.z, aboard ? "yes" : "no", stt.onGround ? "yes" : "no"))
+                    advance(names[0]); return AgentAction.idle
+                }
                 return walk(stt, to: s.toWorld(routes[0][0]))
             case 1:
                 // Done once standing on the roof (stopping at the ladder's top to turn, it would drop off).
@@ -481,7 +487,7 @@ enum RideCheck {
                 // (Build 93: never up the ladder; it ended under the chassis at x 9. The first seconds, a few times each:
                 // where it is, whether it is aboard, on the ground, and the cells at its feet and body.)
                 let tick = Int((phaseT * 60).rounded())
-                if tick < 360 && tick % 15 == 0 {
+                if tick < 360 && (tick < 20 || tick % 15 == 0) {
                     let fx = Int(floor(l.x)), fz = Int(floor(l.z)), fy = Int(floor(l.y))
                     let cells = (-1...1).map { dx in "\(fx + dx): " + (0...1).map { dy in Blocks.key(s.grid.get(fx + dx, fy + dy, fz)) }.joined(separator: "/") }
                     r.note(String(format: "climb %.2f s: ship-space %.2f,%.2f,%.2f, aboard %@, ground %@, vel %.2f,%.2f,%.2f; at y %ld z %ld: ", phaseT, l.x, l.y, l.z,

@@ -435,9 +435,13 @@ final class CraterJob {
     // of soldiers. Every crater job now draws on one allowance a frame: `frameSeconds`, less what the rest of the last
     // tick took past `tickTarget` (host seconds; about 9.4 ms of the headset's 13.9), never under `floorSeconds`. A
     // frame heavy with soldiers carves less; the bowl opens over a few more frames.
+    // (Only inside the game's tick, Game.tickSeat: a check driving the shockwaves or breaches itself, frame after frame
+    // with no tick, gets `frameSeconds` a call as before; the shared allowance never came back for it.)
     static var tickTarget = 0.0055, floorSeconds = 0.0004
+    static var inTick = false
     private static var allowTick = -1, allow = 0.0, used = 0.0, usedPrev = 0.0
     static func allowance() -> Double {
+        guard inTick else { return frameSeconds }
         if allowTick != TickProf.tick {
             allowTick = TickProf.tick
             usedPrev = used; used = 0
@@ -499,7 +503,7 @@ final class CraterJob {
         let timed = blocks != .max
         if timed && CraterJob.allowance() <= 0 { return false }
         let began = CFAbsoluteTimeGetCurrent()
-        defer { if timed { CraterJob.used += CFAbsoluteTimeGetCurrent() - began } }
+        defer { if timed && CraterJob.inTick { CraterJob.used += CFAbsoluteTimeGetCurrent() - began } }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
         // (Oct 31: a far strike) The bowl and its scorch reach shell chunks round the impact (ChunkShells: blocks
         // dropped past the active distance): they come back on the workers first and the bowl opens under the dust

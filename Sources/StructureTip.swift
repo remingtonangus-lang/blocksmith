@@ -25,6 +25,8 @@ enum StructureTip {
     static let turnHold: Float = 0.5
     static var checks = 0, tipped = 0, snapped = 0, worstMs: Double = 0      // (harness tallies)
     static var lastWeighed = ""                                             // (the harness: the last piece weighed)
+    static var worstSplit = ""                                              // (the soak: the slowest check's parts)
+    private static var fillAt = 0.0, groundAt = 0.0, levelsAt = 0.0
     static var describe = false                                             // (the harness: note every piece weighed)
 
     static func tick(_ g: Game) {
@@ -33,7 +35,8 @@ enum StructureTip {
         if w.tipQueue.count > 16 { w.tipQueue.removeFirst(w.tipQueue.count - 16) }
         guard w.activeHere(p) else { return }
         let t0 = CFAbsoluteTimeGetCurrent()
-        if let piece = check(w, at: p, r: r) {
+        var cells = 0
+        if let piece = check(w, at: p, r: r, count: &cells) {
             g.topple(piece)
             tipped += 1
         } else if let piece = cantilever(w, at: p, r: r) {
@@ -41,14 +44,29 @@ enum StructureTip {
             snapped += 1
         }
         checks += 1
-        worstMs = max(worstMs, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
+        let t1 = CFAbsoluteTimeGetCurrent(), ms = (t1 - t0) * 1000
+        if ms > worstMs {
+            worstMs = ms
+            worstSplit = String(format: "%d blocks: fill %.1f, footings %.1f, levels %.1f, overhangs or the fall %.1f", cells, (fillAt - t0) * 1000,
+                                (groundAt - fillAt) * 1000, (levelsAt - groundAt) * 1000, (t1 - max(levelsAt, groundAt)) * 1000)
+        }
     }
 
     // The piece that tips at the hole round p (radius r), lowest first; nil when what stands there holds.
     // The built piece at and over the hole's floor joined to the blocks round it is filled once (nil past the bound:
     // held by the world, or into unloaded ground or a docked vessel); then level by level up the hole, the part of it
     // over the level joined to the hole (two towers met below the level are two pieces there) is weighed.
-    static func check(_ w: World, at p: IVec3, r: Int) -> [IVec3]? {
+    static func check(_ w: World, at p: IVec3, r: Int) -> [IVec3]? { var n = 0; return check(w, at: p, r: r, count: &n) }
+    static func check(_ w: World, at p: IVec3, r: Int, count: inout Int) -> [IVec3]? {
+        let began = CFAbsoluteTimeGetCurrent()
+        fillAt = 0; groundAt = 0
+        defer {
+            // (a check that stopped in its fill, past the bound: all of it the fill's)
+            let now = CFAbsoluteTimeGetCurrent()
+            if fillAt < began { fillAt = now }
+            if groundAt < fillAt { groundAt = now }
+            levelsAt = now
+        }
         let r = max(1, min(r, 8))
         let floorY = max(1, p.y - r)
         let R = Structure.gridR, G = Structure.gridW, grid = Structure.grid
@@ -93,6 +111,8 @@ enum StructureTip {
             }
         }
         let n = cells.count
+        count = n
+        fillAt = CFAbsoluteTimeGetCurrent()
         guard n >= 4 else { return nil }
         // What each block stands on: the ground under it or into it at a side (`ground`), or a built block under it,
         // straight or at an edge (`onBlock`: its footing when it is at the level weighed).
@@ -106,6 +126,7 @@ enum StructureTip {
             }
             if !ground[i] { for d in World.allDirs where d.y == 0 && Structure.anchor(&k, c.x + d.x, c.y, c.z + d.z) { ground[i] = true; break } }
         }
+        groundAt = CFAbsoluteTimeGetCurrent()
         // Level by level up the hole, the part of the piece over the level joined to the hole is weighed. (Store
         // review, citadel soak: a fill per level, up to 17 levels of a 9,000-block piece, made the check 11 ms. The
         // levels are joined top down instead, each level's cells into the pieces over it (a union-find keeping each
