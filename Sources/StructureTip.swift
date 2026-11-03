@@ -25,6 +25,7 @@ enum StructureTip {
     static let turnHold: Float = 0.5
     static var checks = 0, tipped = 0, snapped = 0, worstMs: Double = 0      // (harness tallies)
     static var lastWeighed = ""                                             // (the harness: the last piece weighed)
+    static var describe = false                                             // (the harness: note every piece weighed)
 
     static func tick(_ g: Game) {
         let w = g.world
@@ -105,40 +106,105 @@ enum StructureTip {
             }
             if !ground[i] { for d in World.allDirs where d.y == 0 && Structure.anchor(&k, c.x + d.x, c.y, c.z + d.z) { ground[i] = true; break } }
         }
-        var mark = [Int32](repeating: -1, count: n)
-        var comp: [Int] = []
+        // Level by level up the hole, the part of the piece over the level joined to the hole is weighed. (Store
+        // review, citadel soak: a fill per level, up to 17 levels of a 9,000-block piece, made the check 11 ms. The
+        // levels are joined top down instead, each level's cells into the pieces over it (a union-find keeping each
+        // piece's weight, centre, feet and links), and the pieces over a level read straight off it.)
         let top = min(p.y + r, cells.reduce(floorY) { max($0, $1.y) })
-        for yc in stride(from: floorY, through: top, by: 1) {
-            for s in 0..<n where cells[s].y >= yc && mark[s] != Int32(yc) && near(cells[s]) {
-                comp.removeAll(keepingCapacity: true)
-                mark[s] = Int32(yc); comp.append(s)
-                var h = 0
-                while h < comp.count {
-                    let c = cells[comp[h]]; h += 1
-                    for d in Structure.nbrs {
-                        let q = c + d
-                        guard q.y >= yc, abs(q.x - p.x) <= R, abs(q.y - p.y) <= R, abs(q.z - p.z) <= R else { continue }
-                        let j = Int(grid[slot(q)])
-                        if j >= 0 && mark[j] != Int32(yc) { mark[j] = Int32(yc); comp.append(j) }
-                    }
+        let maxY = cells.reduce(floorY) { max($0, $1.y) }
+        var byLevel = [[Int32]](repeating: [], count: maxY - floorY + 1)
+        for i in 0..<n { byLevel[cells[i].y - floorY].append(Int32(i)) }
+        let nearIdx = (0..<n).filter { near(cells[$0]) }
+        var parent = [Int32](repeating: -1, count: n)
+        var size = [Int32](repeating: 0, count: n)
+        var weight = [Float](repeating: 0, count: n), mx = [Float](repeating: 0, count: n), mz = [Float](repeating: 0, count: n)
+        var gFeet = [Int32](repeating: 0, count: n), gHold = [Float](repeating: 0, count: n)
+        var gLo = [SIMD2<Int32>](repeating: SIMD2(Int32.max, Int32.max), count: n), gHi = [SIMD2<Int32>](repeating: SIMD2(Int32.min, Int32.min), count: n)
+        var linkHead = [Int32](repeating: -1, count: n), linkTail = [Int32](repeating: -1, count: n), linkNext = [Int32](repeating: -1, count: n)
+        var lvStamp = [Int32](repeating: Int32.min, count: n), evStamp = [Int32](repeating: Int32.min, count: n)
+        var lvFeet = [Int32](repeating: 0, count: n), lvHold = [Float](repeating: 0, count: n)
+        var lvLo = [SIMD2<Int32>](repeating: .zero, count: n), lvHi = [SIMD2<Int32>](repeating: .zero, count: n)
+        func find(_ i: Int32) -> Int32 {
+            var a = i
+            while parent[Int(a)] != a { let gp = parent[Int(parent[Int(a)])]; parent[Int(a)] = gp; a = gp }
+            return a
+        }
+        func union(_ a0: Int32, _ b0: Int32) {
+            var a = find(a0), b = find(b0)
+            if a == b { return }
+            if size[Int(a)] < size[Int(b)] { swap(&a, &b) }
+            let ai = Int(a), bi = Int(b)
+            parent[bi] = a; size[ai] += size[bi]
+            weight[ai] += weight[bi]; mx[ai] += mx[bi]; mz[ai] += mz[bi]
+            gFeet[ai] += gFeet[bi]; gHold[ai] += gHold[bi]
+            gLo[ai] = simd_min(gLo[ai], gLo[bi]); gHi[ai] = simd_max(gHi[ai], gHi[bi])
+            if linkHead[bi] >= 0 {
+                if linkHead[ai] < 0 { linkHead[ai] = linkHead[bi] } else { linkNext[Int(linkTail[ai])] = linkHead[bi] }
+                linkTail[ai] = linkTail[bi]
+            }
+        }
+        var found: [IVec3]? = nil
+        for yc in stride(from: maxY, through: floorY, by: -1) {
+            let level = byLevel[yc - floorY]
+            for i32 in level {
+                let i = Int(i32), c = cells[i], m = mats[i]
+                parent[i] = i32; size[i] = 1
+                weight[i] = m.weight; mx[i] = m.weight * (Float(c.x) + 0.5); mz[i] = m.weight * (Float(c.z) + 0.5)
+                if ground[i] { gFeet[i] = 1; gHold[i] = m.bond; gLo[i] = SIMD2(Int32(c.x), Int32(c.z)); gHi[i] = SIMD2(Int32(c.x + 1), Int32(c.z + 1)) }
+                if links[i] > 0 { linkHead[i] = i32; linkTail[i] = i32 }
+            }
+            for i32 in level {
+                let c = cells[Int(i32)]
+                for d in Structure.nbrs {
+                    let q = c + d
+                    guard q.y >= yc, abs(q.x - p.x) <= R, abs(q.y - p.y) <= R, abs(q.z - p.z) <= R else { continue }
+                    let j = grid[slot(q)]
+                    if j >= 0 && parent[Int(j)] >= 0 { union(i32, j) }
                 }
-                guard comp.count >= 4 else { continue }
+            }
+            guard yc <= top else { continue }
+            // (this level's footings: its blocks standing on a block under it)
+            let stamp = Int32(yc)
+            for i32 in level where onBlock[Int(i32)] && !ground[Int(i32)] {
+                let c = cells[Int(i32)], ri = Int(find(i32))
+                if lvStamp[ri] != stamp { lvStamp[ri] = stamp; lvFeet[ri] = 0; lvHold[ri] = 0; lvLo[ri] = SIMD2(Int32.max, Int32.max); lvHi[ri] = SIMD2(Int32.min, Int32.min) }
+                lvFeet[ri] += 1; lvHold[ri] += mats[Int(i32)].bond
+                lvLo[ri] = simd_min(lvLo[ri], SIMD2(Int32(c.x), Int32(c.z))); lvHi[ri] = simd_max(lvHi[ri], SIMD2(Int32(c.x + 1), Int32(c.z + 1)))
+            }
+            for s0 in nearIdx where cells[s0].y >= yc {
+                let ri = Int(find(Int32(s0)))
+                if evStamp[ri] == stamp { continue }
+                evStamp[ri] = stamp
+                guard size[ri] >= 4 else { continue }
+                var feet = gFeet[ri], hold = gHold[ri], lo = gLo[ri], hi = gHi[ri]
+                if lvStamp[ri] == stamp { feet += lvFeet[ri]; hold += lvHold[ri]; lo = simd_min(lo, lvLo[ri]); hi = simd_max(hi, lvHi[ri]) }
                 // (what holds it where it goes on past the fill: its joints there, as an overhang's root)
-                var linked: [(IVec3, Float)] = []
-                for i in comp where links[i] > 0 { linked.append((cells[i], links[i])) }
                 var linkHold: Float = 0
                 var llo = SIMD2<Int>(Int.max, Int.max), lhi = SIMD2<Int>(Int.min, Int.min)
-                if !linked.isEmpty {
-                    let mid = Float(linked.reduce(0) { $0 + $1.0.y }) / Float(linked.count)
-                    linkHold = linked.reduce(Float(0)) { $0 + $1.1 * (0.5 + abs(Float($1.0.y) - mid)) }
-                    for (c, _) in linked { llo = simd_min(llo, SIMD2(c.x, c.z)); lhi = simd_max(lhi, SIMD2(c.x + 1, c.z + 1)) }
+                if linkHead[ri] >= 0 {
+                    var sum = 0, cnt = 0, e = linkHead[ri]
+                    while e >= 0 { sum += cells[Int(e)].y; cnt += 1; e = linkNext[Int(e)] }
+                    let mid = Float(sum) / Float(cnt)
+                    e = linkHead[ri]
+                    while e >= 0 {
+                        let c = cells[Int(e)]
+                        linkHold += links[Int(e)] * (0.5 + abs(Float(c.y) - mid))
+                        llo = simd_min(llo, SIMD2(c.x, c.z)); lhi = simd_max(lhi, SIMD2(c.x + 1, c.z + 1))
+                        e = linkNext[Int(e)]
+                    }
                 }
-                if tips(comp.map { (cells[$0], mats[$0], ground[$0] || cells[$0].y == yc && onBlock[$0]) }, linkHold: linkHold, linkLo: llo, linkHi: lhi) {
-                    return comp.map { cells[$0] }.sorted { $0.y < $1.y }
+                if tips(count: Int(size[ri]), weight: weight[ri], mx: mx[ri], mz: mz[ri], feet: Int(feet), hold: hold,
+                        lo: SIMD2(Int(lo.x), Int(lo.y)), hi: SIMD2(Int(hi.x), Int(hi.y)), linkHold: linkHold, linkLo: llo, linkHi: lhi) {
+                    // (the lowest level that tips wins: later, lower levels overwrite this)
+                    let root = Int32(ri)
+                    var piece: [IVec3] = []
+                    for y in yc...maxY { for j in byLevel[y - floorY] where find(j) == root { piece.append(cells[Int(j)]) } }
+                    found = piece
+                    break
                 }
             }
         }
-        return nil
+        return found
     }
 
     // P510 (Nov 1 20:23:46, shooting out a citadel side tower's top: "by that logic, the helicopter pad should also
@@ -211,28 +277,24 @@ enum StructureTip {
         return nil
     }
 
-    // Does a piece tip off what it stands on (each block: where it is, its material, whether it is a footing)?
-    // (`linkHold`: what its joints out past the fill hold, over `linkLo`...`linkHi` across; with no feet it hangs from them)
-    static func tips(_ piece: [(IVec3, Structure.Mat, Bool)], linkHold: Float = 0, linkLo: SIMD2<Int> = .zero, linkHi: SIMD2<Int> = .zero) -> Bool {
-        var weight: Float = 0, mx: Float = 0, mz: Float = 0
-        var lo = SIMD2<Int>(Int.max, Int.max), hi = SIMD2<Int>(Int.min, Int.min)
-        var hold: Float = 0, feet = 0
-        for (c, m, foot) in piece {
-            weight += m.weight
-            mx += m.weight * (Float(c.x) + 0.5); mz += m.weight * (Float(c.z) + 0.5)
-            if foot {
-                feet += 1; hold += m.bond
-                lo = simd_min(lo, SIMD2(c.x, c.z)); hi = simd_max(hi, SIMD2(c.x + 1, c.z + 1))
-            }
-        }
+    // Does a piece tip off what it stands on? From its sums: its weight, weight times x and z (block middles), its
+    // feet, what they hold and the box they stand in. (`linkHold`: what its joints out past the fill hold, over
+    // `linkLo`...`linkHi` across; with no feet it hangs from them)
+    static func tips(count: Int, weight: Float, mx: Float, mz: Float, feet: Int, hold: Float, lo lo0: SIMD2<Int>, hi hi0: SIMD2<Int>,
+                     linkHold: Float, linkLo: SIMD2<Int>, linkHi: SIMD2<Int>) -> Bool {
         guard weight > 0 else { return false }
         if feet == 0 && linkHold == 0 { return true }            // (hangs from nothing: P388's check takes it too)
+        var lo = lo0, hi = hi0
         if feet == 0 { lo = linkLo; hi = linkHi }                // (hangs from where it goes on: a tower off its skyway)
         let cx = mx / weight, cz = mz / weight
         let dx = max(0, Float(lo.x) - cx, cx - Float(hi.x)), dz = max(0, Float(lo.y) - cz, cz - Float(hi.y))
         let lever = (dx * dx + dz * dz).squareRoot()
-        lastWeighed = "\(piece.count) blocks, \(feet) feet: " + String(format: "weight %.0f, lever %.1f, its feet hold %.0f, the joints on past it %.0f", weight, lever, hold, linkHold)
-        return lever > 1 && weight * lever > (hold + linkHold) * turnHold
+        let tipped = lever > 1 && weight * lever > (hold + linkHold) * turnHold
+        // (the harness's note; a string per piece weighed cost the frame, so only when asked)
+        if describe || tipped {
+            lastWeighed = "\(count) blocks, \(feet) feet: " + String(format: "weight %.0f, lever %.1f, its feet hold %.0f, the joints on past it %.0f", weight, lever, hold, linkHold)
+        }
+        return tipped
     }
 }
 
@@ -252,7 +314,8 @@ enum StructureTipCheck {
     static func run(_ g0: Game, _ check: (Bool, String) -> Void) {
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true
-        defer { FieldTerrain.newWorlds = field0 }
+        StructureTip.describe = true
+        defer { FieldTerrain.newWorlds = field0; StructureTip.describe = false }
         let w = World(seed: 4242, device: g0.world.device, save: nil)
         w.makeFieldWorld()
         w.renderDistance = 3; w.activeDistance = 3
