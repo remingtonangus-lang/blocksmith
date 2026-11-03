@@ -8,6 +8,7 @@ import simd
 //   crawler     stand, then walk laps (sprinting, jumping) on the command deck of an Ironback Crawler driving S-turns
 //               at full speed over plains, 4 minutes
 //   rough       the same over the roughest ground near spawn
+//   crawlerwall walking, sprinting and jumping into a bulkhead of the crawler's command deck while it drives S-turns
 //   frigate     the same in the hangar of a Meridian frigate cruising and turning, 4 minutes
 //   warfrigate  the same on the hangar deck of a Stormwarden frigate, 90 s
 //   board       on a moving crawler: up the side ladder, over the roof walkway and through the hatch into the command
@@ -54,7 +55,7 @@ enum RideCheck {
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
         let scale = max(0.05, Float(arg("--scale") ?? "") ?? 1)
-        let all = "crawler,rough,frigate,warfrigate,board,frigateboard,crew,troops,frigatecrew,frigatecrash"
+        let all = "crawler,rough,crawlerwall,frigate,warfrigate,board,frigateboard,crew,troops,frigatecrew,frigatecrash"
         let names = (arg("--scenes") ?? all).split(separator: ",").map(String.init)
         let r = Report()
         r.md = ["# Ride check", "", "Seed \(seed), scale \(scale). Bots ride the capital vehicles through Game.tick.", ""]
@@ -67,8 +68,13 @@ enum RideCheck {
             switch n {
             case "crawler", "rough":
                 guard let sc = makeScene(device, seed: seed, kind: "crawler", rough: n == "rough") else { r.check(false, "the crawler spawned"); continue }
-                deckScene(r, sc, deckY: 22, start: V3(12.5, 22.02, 46.5),
-                          lap: [V3(12.5, 22, 32.5), V3(22.5, 22, 32.5), V3(22.5, 22, 60.5), V3(12.5, 22, 60.5)], seconds: secs(240), turnEvery: 20)
+                // The command deck's aisles (P511's dense interior: the grid's centreline is x 17). Bulkheads stand
+                // across z 37 and 49 with a door in each aisle (centreline x -4...-3 and 3...4), the gun trunks and their
+                // racks between the aisles: the old lap (x 12.5 and 22.5, across z 32.5 and 60.5) ran into the bulkhead's
+                // solid part at z 37 and pressed into it the whole run. The lap goes down each aisle through both doors
+                // and crosses forward of the first bulkhead (z 35) and aft of the middle mount's racks (z 58).
+                deckScene(r, sc, deckY: 22, start: V3(14.0, 22.02, 46.5),
+                          lap: [V3(14.0, 22, 35.5), V3(21.0, 22, 35.5), V3(21.0, 22, 58.5), V3(14.0, 22, 58.5)], seconds: secs(240), turnEvery: 20)
             case "frigate":
                 guard let sc = makeScene(device, seed: seed, kind: "capfrigate") else { r.check(false, "the frigate spawned"); continue }
                 // The Meridian frigate's gun deck, port side (P325: the gun's accelerator runs down the middle). (P510: the
@@ -82,6 +88,9 @@ enum RideCheck {
                           // (P510: something now stands across x 59.5 at z 198 on this deck: the bot pressed into it for
                           // 60 s, 0 laps. The lap keeps short of it.)
                           lap: [V3(53.5, 27, 172.5), V3(59.5, 27, 172.5), V3(59.5, 27, 194.5), V3(53.5, 27, 194.5)], seconds: secs(90), turnEvery: 30)
+            case "crawlerwall":
+                guard let sc = makeScene(device, seed: seed, kind: "crawler") else { r.check(false, "the crawler spawned"); continue }
+                wallScene(r, sc, seconds: secs(60))
             case "board":
                 guard let sc = makeScene(device, seed: seed, kind: "crawler") else { r.check(false, "the crawler spawned"); continue }
                 boardScene(r, sc, seconds: max(secs(200), 160))     // it stops when every step is done
@@ -212,7 +221,7 @@ enum RideCheck {
         let deckY: Float
         var ticks = 0, offTicks = 0, insideTicks = 0, belowTicks = 0, spikes = 0, shoves = 0, bounces = 0
         var maxRelJump: Float = 0, maxRelSpeed: Float = 0, maxWorldJump: Float = 0, maxBounce: Float = 0, worstDrift: Float = 0
-        var firstOff = "", firstInside = "", firstSpike = ""
+        var firstOff = "", firstInside = "", firstSpike = "", firstShove = ""
         private var prevL: V3?, prevRV: V3?, prevW: V3?, prevWV: V3?
         private var prevGround = false, prevAboard = false
         private var ref: V3?
@@ -248,7 +257,15 @@ enum RideCheck {
                 let rv = (l - pl) / dt
                 let h = simd_length(V2(rv.x, rv.z))
                 maxRelSpeed = max(maxRelSpeed, h)
-                if h > 7.5 { shoves += 1 }
+                if h > 7.5 {
+                    shoves += 1
+                    // (what moved it: from where to where in ship space, its velocity, the ground and the deck's turn)
+                    if firstShove.isEmpty {
+                        firstShove = where_ + String(format: " from %.2f,%.2f,%.2f (%.1f b/s), vel %.2f,%.2f,%.2f, ground %@, jumped %@, ship turn %.2f rad/s, pitch/roll rate %.2f,%.2f",
+                                                      pl.x, pl.y, pl.z, h, p.vel.x, p.vel.y, p.vel.z, p.onGround ? "yes" : "no", p.jumped ? "yes" : "no",
+                                                      s.angVel.y, s.angVel.x, s.angVel.z)
+                    }
+                }
                 if let pr = prevRV, !jumpy {
                     let j = simd_length(V2(rv.x - pr.x, rv.z - pr.z))
                     maxRelJump = max(maxRelJump, j)
@@ -339,16 +356,68 @@ enum RideCheck {
         }
         let minLaps = max(1, seconds / 60)
         r.note(String(format: "drove %.0f blocks, turned %.0f degrees; bot walked %ld laps (%ld legs)", odo.dist, odo.turned * 180 / .pi, laps, legs))
+        // (What stands in the lap's way, leg by leg: the first solid cell at foot or head height along each, in ship space.)
+        for k in 0..<lap.count {
+            let a = lap[k], b = lap[(k + 1) % lap.count]
+            let n = Int(simd_length(b - a) * 4) + 1
+            for j in 0...n {
+                let p = a + (b - a) * (Float(j) / Float(n))
+                let x = Int(floor(p.x)), z = Int(floor(p.z))
+                var hit = [0, 1].compactMap { dy -> String? in
+                    let y = Int(floor(p.y)) + dy
+                    let id = s.grid.get(x, y, z)
+                    return Blocks.collide[Int(id)] ? "\(Blocks.key(id)) at \(x),\(y),\(z)" : nil
+                }
+                if !Blocks.collide[Int(s.grid.get(x, Int(floor(p.y)) - 1, z))] { hit.append("no floor at \(x),\(Int(floor(p.y)) - 1),\(z)") }
+                if let h = hit.first { r.note("lap leg \(k) is blocked: \(h)"); break }
+            }
+        }
         r.check(odo.dist > Float(seconds) * 2.5 && odo.turned > 1, String(format: "the vehicle drives and turns (%.0f blocks, %.1f rad)", odo.dist, odo.turned))
         r.check(mon.offTicks == 0 && mon.belowTicks == 0, "the bot never leaves the deck (\(mon.offTicks) ticks off, \(mon.belowTicks) below)\(mon.firstOff.isEmpty ? "" : ", first at " + mon.firstOff)")
         r.check(mon.insideTicks == 0, "the bot is never inside a solid (\(mon.insideTicks) ticks)\(mon.firstInside.isEmpty ? "" : ", first at " + mon.firstInside)")
         r.check(mon.worstDrift < 0.05, String(format: "standing still, the bot drifts %.4f blocks over the deck (limit 0.05)", mon.worstDrift))
         r.check(mon.spikes == 0, String(format: "no deck-relative velocity spikes (%ld over 3 b/s in a tick, worst %.2f)%@", mon.spikes, mon.maxRelJump,
                                         mon.firstSpike.isEmpty ? "" : ", first at " + mon.firstSpike))
-        r.check(mon.shoves == 0, String(format: "never shoved across the deck (fastest %.2f b/s relative; sprint is 5.6)", mon.maxRelSpeed))
+        r.check(mon.shoves == 0, String(format: "never shoved across the deck (fastest %.2f b/s relative; sprint is 5.6)%@", mon.maxRelSpeed,
+                                        mon.firstShove.isEmpty ? "" : ", first at " + mon.firstShove))
         r.check(mon.bounces == 0, String(format: "no bouncing on the flat deck (%ld ticks, worst %.2f b/s)", mon.bounces, mon.maxBounce))
         r.check(mon.maxWorldJump < 6, String(format: "world velocity never jumps (worst change %.2f b/s in a tick, limit 6)", mon.maxWorldJump))
         r.check(laps >= minLaps, "the bot walks laps (\(laps), at least \(minLaps))")
+    }
+
+    // A player walking (then sprinting, now and then jumping) into a bulkhead while the crawler drives S-turns: the wall
+    // stops him and he stays against it. (Build 93: the bot pressed into the z 37 bulkhead the whole crawler run and
+    // was flung across the deck at 15 b/s now and then, the world velocity jumping 17 b/s in a tick.)
+    static func wallScene(_ r: Report, _ sc: Scene, seconds: Int) {
+        let s = sc.ship, st = sc.st, g = sc.game
+        place(sc, local: V3(12.5, 22.02, 38.7))
+        st.testTurn = 1
+        let bot = Bot()
+        let mon = Monitor(sc, deckY: 22)
+        mon.spikeLimit = 6                          // (walking into the wall stops it dead: 4.3 b/s, sprinting 5.6)
+        var t: Float = 0
+        bot.plan = { stt in
+            guard t > 3 else { return AgentAction.idle }
+            return walk(stt, to: s.toWorld(V3(12.5, 22, 30)), sprint: Int(t / 8) % 2 == 1, jump: Int(t * 60) % 300 == 0)
+        }
+        for i in 0..<(seconds * 60) {
+            t = Float(i) / 60
+            if i > 0 && i % 600 == 0 { st.testTurn = (i / 600) % 2 == 0 ? 1 : -1 }
+            g.health = 20
+            g.hunger = 20
+            sc.agent.step(bot)
+            mon.sample(standing: false, aboard: true, flatDeck: true)
+        }
+        let l = s.toLocal(g.player.pos)
+        r.note(String(format: "bot ends at ship-space %.2f,%.2f,%.2f (the wall's face at z 38)", l.x, l.y, l.z))
+        r.check(mon.offTicks == 0 && mon.belowTicks == 0, "the bot never leaves the deck (\(mon.offTicks) ticks off, \(mon.belowTicks) below)\(mon.firstOff.isEmpty ? "" : ", first at " + mon.firstOff)")
+        r.check(mon.insideTicks == 0, "the bot is never inside the wall (\(mon.insideTicks) ticks)\(mon.firstInside.isEmpty ? "" : ", first at " + mon.firstInside)")
+        r.check(mon.shoves == 0, String(format: "pressing the wall never shoves him across the deck (fastest %.2f b/s relative)%@", mon.maxRelSpeed,
+                                        mon.firstShove.isEmpty ? "" : ", first at " + mon.firstShove))
+        r.check(mon.spikes == 0, String(format: "no deck-relative velocity spikes over 6 b/s in a tick (%ld, worst %.2f)%@", mon.spikes, mon.maxRelJump,
+                                        mon.firstSpike.isEmpty ? "" : ", first at " + mon.firstSpike))
+        r.check(mon.maxWorldJump < 6, String(format: "world velocity never jumps (worst change %.2f b/s in a tick, limit 6)", mon.maxWorldJump))
+        r.check(abs(l.x - 12.5) < 1.5 && l.z > 37.9 && l.z < 40, "he stays against the wall")
     }
 
     // Boarding and leaving a moving crawler by its ladder, hatch and ramp.
@@ -406,6 +475,15 @@ enum RideCheck {
             case 1:
                 // Done once standing on the roof (stopping at the ladder's top to turn, it would drop off).
                 if l.y > 20.95 && aboard && stt.onGround && l.x > 7.05 { advance(names[1]); return AgentAction.idle }
+                // (Build 93: never up the ladder; it ended under the chassis at x 9. The first seconds, a few times each:
+                // where it is, whether it is aboard, on the ground, and the cells at its feet and body.)
+                let tick = Int((phaseT * 60).rounded())
+                if tick < 360 && tick % 15 == 0 {
+                    let fx = Int(floor(l.x)), fz = Int(floor(l.z)), fy = Int(floor(l.y))
+                    let cells = (-1...1).map { dx in "\(fx + dx): " + (0...1).map { dy in Blocks.key(s.grid.get(fx + dx, fy + dy, fz)) }.joined(separator: "/") }
+                    r.note(String(format: "climb %.2f s: ship-space %.2f,%.2f,%.2f, aboard %@, ground %@, vel %.2f,%.2f,%.2f; at y %ld z %ld: ", phaseT, l.x, l.y, l.z,
+                                  aboard ? "yes" : "no", stt.onGround ? "yes" : "no", g.player.vel.x, g.player.vel.y, g.player.vel.z, fy, fz) + cells.joined(separator: ", "))
+                }
                 var a = walk(stt, to: s.toWorld(V3(9, 0, 29.5)))
                 a.forward = 1
                 a.jump = true
